@@ -1,0 +1,68 @@
+:root {
+  --ink: #141517;
+  --surface: #1b1d21;
+  --raised: #23262b;
+  --text: #f4f1ea;
+  --text-dim: #9aa3a8;
+  --accent: #15b3c3;
+  --accent-warm: #e8b15a;
+  --line: #2c3036;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Hanken Grotesk', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--font-body);
+}
+
+.boot {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.boot-kicker {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0;
+}
+
+.boot-title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 64px;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.boot-sub {
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.boot-mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  margin-top: 18px;
+}

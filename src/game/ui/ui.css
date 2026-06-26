@@ -1,0 +1,155 @@
+/* BLHS Adventure — game UI layer.
+   Palette: deep slate glass panels, BLHS teal accent, warm-white type. A real game HUD,
+   never a web app. Pixel face (Silkscreen) only for tiny in-world chips so the UI belongs to
+   the pixel world; Hanken Grotesk carries everything readable. */
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Silkscreen:wght@400;700&display=swap');
+
+:root {
+  --ink: #0f1520;
+  --panel: rgba(23, 30, 44, 0.86);
+  --panel-solid: #171e2c;
+  --panel-2: #232c3d;
+  --line: #2f3a4d;
+  --teal: #15b3c3;
+  --teal-bright: #46d6e4;
+  --cream: #f4f1ea;
+  --dim: #94a2b6;
+  --gold: #e7b84e;
+  --shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+  --ui: 'Hanken Grotesk', system-ui, sans-serif;
+  --pixel: 'Silkscreen', monospace;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body { background: var(--ink); color: var(--cream); font-family: var(--ui); overflow: hidden; }
+img { image-rendering: pixelated; }
+
+.gm-overlay { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+.gm-overlay > * { pointer-events: auto; }
+
+/* ---------- shared ---------- */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(8px);
+}
+.btn {
+  font-family: var(--ui); font-weight: 700; font-size: 15px;
+  color: var(--ink); background: var(--teal);
+  border: none; border-radius: 11px; padding: 13px 26px; cursor: pointer;
+  letter-spacing: 0.2px; transition: transform 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+  box-shadow: 0 6px 0 #0d8794, 0 10px 20px rgba(0, 0, 0, 0.35);
+}
+.btn:hover { background: var(--teal-bright); transform: translateY(-1px); }
+.btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #0d8794; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; }
+.eyebrow {
+  font-family: var(--pixel); font-size: 11px; letter-spacing: 2px;
+  color: var(--teal); text-transform: uppercase;
+}
+
+/* ---------- start screen ---------- */
+.start { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center;
+  background:
+    radial-gradient(120% 90% at 50% -10%, #233247 0%, #0f1520 60%),
+    var(--ink);
+}
+.start-card { width: min(540px, 92vw); padding: 38px 40px 34px; text-align: center; }
+.start-card .crest {
+  width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 16px;
+  display: grid; place-items: center; background: linear-gradient(160deg, #1d6f78, #15b3c3);
+  box-shadow: 0 8px 22px rgba(21, 179, 195, 0.35); font-size: 34px;
+}
+.start-card h1 {
+  margin: 4px 0 2px; font-size: 30px; font-weight: 800; letter-spacing: 0.4px; line-height: 1.05;
+}
+.start-card .sub { color: var(--dim); font-size: 14px; margin: 0 0 26px; }
+.field { text-align: left; margin: 0 0 18px; }
+.field label { display: block; font-size: 12px; color: var(--dim); margin: 0 0 7px; font-weight: 600; letter-spacing: 0.3px; }
+.field input {
+  width: 100%; font-family: var(--ui); font-size: 16px; color: var(--cream);
+  background: #10161f; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; outline: none;
+}
+.field input:focus { border-color: var(--teal); }
+.choices { display: flex; gap: 10px; }
+.choice {
+  flex: 1; font-family: var(--ui); font-weight: 600; font-size: 14px; color: var(--dim);
+  background: #10161f; border: 1px solid var(--line); border-radius: 10px; padding: 11px 8px; cursor: pointer;
+  transition: all 0.12s ease;
+}
+.choice.on { color: var(--cream); border-color: var(--teal); background: rgba(21, 179, 195, 0.12); }
+
+/* ---------- loading ---------- */
+.loading { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center;
+  background: radial-gradient(120% 90% at 50% 0%, #1a2433 0%, #0c1119 70%);
+  transition: opacity 0.5s ease; }
+.loading.hide { opacity: 0; pointer-events: none; }
+.loading .wrap { width: min(440px, 90vw); text-align: center; }
+.loading h2 { font-size: 20px; font-weight: 800; margin: 0 0 4px; letter-spacing: 0.4px; }
+.loading .tip { color: var(--dim); font-size: 13px; min-height: 18px; margin: 6px 0 30px; }
+.stage-line { position: relative; height: 64px; margin: 0 0 18px;
+  border-bottom: 3px solid var(--line);
+  background: linear-gradient(180deg, transparent 60%, rgba(21, 179, 195, 0.06) 100%); }
+.thor-walk {
+  position: absolute; bottom: 0; width: 48px; height: 48px;
+  image-rendering: pixelated; background-size: contain; background-repeat: no-repeat; background-position: center bottom;
+  animation: thor-step 0.78s steps(1) infinite, thor-cross 4.2s linear infinite;
+}
+@keyframes thor-step {
+  0%   { background-image: url('/art/characters/thor/walk/east/0.png'); }
+  16%  { background-image: url('/art/characters/thor/walk/east/1.png'); }
+  33%  { background-image: url('/art/characters/thor/walk/east/2.png'); }
+  50%  { background-image: url('/art/characters/thor/walk/east/3.png'); }
+  66%  { background-image: url('/art/characters/thor/walk/east/4.png'); }
+  83%  { background-image: url('/art/characters/thor/walk/east/5.png'); }
+}
+@keyframes thor-cross { from { left: -10%; } to { left: 100%; } }
+.bar { height: 8px; border-radius: 99px; background: #10161f; border: 1px solid var(--line); overflow: hidden; }
+.bar > i { display: block; height: 100%; width: 35%; border-radius: 99px;
+  background: linear-gradient(90deg, var(--teal), var(--teal-bright));
+  animation: bar-slide 1.4s ease-in-out infinite; }
+@keyframes bar-slide { 0% { margin-left: -40%; } 100% { margin-left: 110%; } }
+
+/* ---------- HUD ---------- */
+.hud-tl { position: fixed; top: 16px; left: 16px; z-index: 12; display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px 10px 10px; }
+.hud-tl .ava {
+  width: 46px; height: 46px; border-radius: 11px; background: #10161f url('/art/characters/thor/south.png') center 60%/150% no-repeat;
+  border: 1px solid var(--line); image-rendering: pixelated; flex: none;
+}
+.hud-tl .who { line-height: 1.25; }
+.hud-tl .nm { font-weight: 800; font-size: 15px; }
+.hud-tl .dist { font-size: 12px; color: var(--teal); font-family: var(--pixel); letter-spacing: 0.5px; }
+.hud-stats { display: flex; gap: 14px; margin-left: 6px; padding-left: 14px; border-left: 1px solid var(--line); }
+.hud-stat { text-align: center; }
+.hud-stat b { display: block; font-size: 16px; font-weight: 800; }
+.hud-stat span { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; }
+.hud-stat.gpa b { color: var(--gold); }
+
+.hud-help { position: fixed; bottom: 16px; left: 16px; z-index: 12; display: flex; gap: 8px; align-items: center;
+  font-size: 12px; color: var(--dim); padding: 8px 12px; }
+.key { font-family: var(--pixel); font-size: 11px; color: var(--cream); background: var(--panel-2);
+  border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; padding: 3px 7px; }
+
+/* contextual enter prompt, bottom-center */
+.prompt { position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%); z-index: 12;
+  display: flex; align-items: center; gap: 14px; padding: 12px 16px 12px 18px;
+  opacity: 0; transition: opacity 0.18s ease, transform 0.18s ease; }
+.prompt.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.prompt:not(.show) { transform: translateX(-50%) translateY(8px); }
+.prompt .info .ttl { font-weight: 800; font-size: 16px; line-height: 1.1; }
+.prompt .info .role { font-size: 12px; color: var(--dim); }
+.prompt .echip {
+  font-family: var(--pixel); font-size: 13px; color: var(--ink); background: var(--teal);
+  border-radius: 8px; padding: 8px 12px; box-shadow: 0 3px 0 #0d8794; font-weight: 700;
+}
+
+/* ---------- grape modal ---------- */
+.grape-scrim { position: fixed; inset: 0; z-index: 50; background: rgba(8, 11, 17, 0.74);
+  backdrop-filter: blur(4px); display: grid; place-items: center; animation: fade 0.2s ease; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.grape-frame { width: min(880px, 94vw); max-height: 92vh; overflow: auto; border-radius: 18px;
+  background: var(--panel-solid); border: 1px solid var(--line); box-shadow: var(--shadow); }
