@@ -69,3 +69,6 @@ scripts/*
 
 # Internal asset registries (kept local)
 **/*-registry.md
+
+# Bundled CLI tools (downloaded locally, not versioned)
+reference/tools/
