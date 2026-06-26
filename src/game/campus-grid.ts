@@ -121,6 +121,9 @@ export type CampusGrid = {
   // per-grass-tile lawn character 0..1 (0 = manicured quad near buildings/walks, 1 = wild turf at the
   // forest edge). Hybrid-by-zone lawn: the renderer reads this to blend mowed→wild tiles + stripes.
   grassWild: Float32Array
+  // per-tile depth INTO the forest from the campus edge (in tiles; 0 for non-forest). Dense individual
+  // hero trees go in the front band (small depth); the deep interior is a cheap canopy texture.
+  forestDepth: Int32Array
   minx: number; miny: number; ft: number
   spawn: { tx: number; ty: number }
   doors: { id: string; label: string; tx: number; ty: number }[]
@@ -227,6 +230,10 @@ export function buildCampusGrid(): CampusGrid {
   const built = new Set<Mat>(['concrete', 'building', 'asphalt', 'court', 'patio', 'brick', 'apron'])
   const dForest = distField(cols, rows, (tx, ty) => mat[ty][tx] === 'forest')
   const dBuilt = distField(cols, rows, (tx, ty) => built.has(mat[ty][tx]))
+  // depth into the forest = distance from the nearest NON-forest tile (0 at the treeline front)
+  const dEdge = distField(cols, rows, (tx, ty) => mat[ty][tx] !== 'forest')
+  const forestDepth = new Int32Array(cols * rows)
+  for (let i = 0; i < forestDepth.length; i++) forestDepth[i] = dEdge[i] > 0x3000000 ? 0 : dEdge[i]
   const grassWild = new Float32Array(cols * rows)
   const F_NEAR = 4, F_FAR = 22, B_SOFT = 11
   for (let ty = 0; ty < rows; ty++) for (let tx = 0; tx < cols; tx++) {
@@ -252,5 +259,5 @@ export function buildCampusGrid(): CampusGrid {
       if (tx >= 0 && ty >= 0 && tx < cols && ty < rows && walkable[ty][tx]) { spawn = { tx, ty }; found = true }
     }
   }
-  return { cols, rows, mat, level, walkable, grassWild, minx, miny, ft: FT_PER_TILE, spawn, doors }
+  return { cols, rows, mat, level, walkable, grassWild, forestDepth, minx, miny, ft: FT_PER_TILE, spawn, doors }
 }

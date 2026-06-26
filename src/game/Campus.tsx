@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Application, Assets, ColorMatrixFilter, Container, Graphics, Matrix, RenderTexture, Sprite, Text, Texture, TextureSource } from 'pixi.js'
 import { buildCampusGrid, STADIUM, type CampusGrid, type Mat } from './campus-grid'
-import { placeProps, type Placement } from './campus-props'
+import { placeProps, forestTreeline, type Placement } from './campus-props'
 import { SECTIONS, type TileRect } from './sections'
 import { BLHS } from '../vine/palette'
 
@@ -53,7 +53,7 @@ function radialTex(size: number, stops: [number, string][]) {
 const BLK_DEF: Record<Mat, { files: string[]; tint: number; ay: number }> = {
   grass: { files: ['grass-v1', 'grass-v2', 'grass-v3', 'grass-v4'], tint: 0xffffff, ay: 12 / 48 },
   turf: { files: ['turf'], tint: 0xffffff, ay: 13 / 48 },
-  forest: { files: ['forest'], tint: 0xffffff, ay: 13 / 48 },
+  forest: { files: ['canopy-1', 'canopy-2', 'canopy-3'], tint: 0xffffff, ay: 13 / 48 },  // dense treetop canopy (carries the forest mass; front-band hero trees stand over it)
   concrete: { files: ['concrete-v1', 'concrete-v2', 'concrete-v3'], tint: 0xffffff, ay: 13 / 48 },
   asphalt: { files: ['asphalt'], tint: 0xffffff, ay: 13 / 48 },
   dirt: { files: ['dirt'], tint: 0xffffff, ay: 13 / 48 },
@@ -170,6 +170,15 @@ export function Campus({ onReady }: { onReady?: () => void }) {
         const k = Math.floor(pl.tx / CHUNK) + ',' + Math.floor(pl.ty / CHUNK)
         const arr = propsByChunk.get(k); if (arr) arr.push(pl); else propsByChunk.set(k, [pl])
       }
+      // LIVE front treeline (depth-sorted vs Thor + animated): bucket by chunk, instantiate only the
+      // visible chunks (culled with the same want-set as the baked terrain), sway each frame.
+      const treeline = forestTreeline(grid)
+      const treeByChunk = new Map<string, Placement[]>()
+      for (const pl of treeline) {
+        const k = Math.floor(pl.tx / CHUNK) + ',' + Math.floor(pl.ty / CHUNK)
+        const arr = treeByChunk.get(k); if (arr) arr.push(pl); else treeByChunk.set(k, [pl])
+      }
+      await Promise.all([...new Set(treeline.map((p) => p.file))].map(async (f) => { if (!propTex[f]) { try { propTex[f] = await Assets.load(f) } catch { /* */ } } }))
       let decalTex: Texture | null = null  // grass-tuft edge decal to soften concrete<->grass seams
       try { decalTex = await Assets.load('/art/campus/props/edge-grass-scatter.png') } catch { /* */ }
       // Thor
@@ -239,7 +248,13 @@ export function Campus({ onReady }: { onReady?: () => void }) {
         const ls = ty + 1 < grid.rows ? grid.level[ty + 1][tx] : L
         const front = Math.min(le, ls)
         const bottom = Math.min(L - 1, front)
-        const tint = shade(def.tint, 0.96 + hashI(tx, ty) * 0.08)
+        let tint = shade(def.tint, 0.96 + hashI(tx, ty) * 0.08)
+        // continuous macro drift on the deep-forest canopy so the treetop mass doesn't read as a tiled grid
+        if (m === 'forest') {
+          const d = vnoise2(tx / 18 + 4, ty / 18 + 7) * 0.68 + vnoise2(tx / 6 + 1, ty / 6 + 9) * 0.32
+          const f = 0.82 + d * 0.30
+          tint = tintMul(0xffffff, f, f, f)
+        }
         const isBldg = m === 'building', tall = isBldg && L - bottom >= 3   // a raised facade wall, not a flat pad
         for (let s = L; s > bottom; s--) {
           // facade banding on a raised building wall: white parapet cap, greige siding body, brick base
@@ -265,6 +280,37 @@ export function Campus({ onReady }: { onReady?: () => void }) {
       }
 
       const shadowTex = radialTex(64, [[0, 'rgba(18,14,6,0.5)'], [0.7, 'rgba(18,14,6,0.18)'], [1, 'rgba(18,14,6,0)']])
+
+      // ---- LIVE animated front treeline: depth-sorted sprites (direct world children, so they occlude
+      // Thor correctly by depth) that sway in the wind. Instantiated only for visible chunks (culled with
+      // the baked terrain) and animated each frame. The deep interior stays baked + static. ----
+      type LiveTree = { sp: Sprite; phase: number; amp: number }
+      const liveByChunk = new Map<string, { sprites: Sprite[]; trees: LiveTree[] }>()
+      const addLiveChunk = (key: string) => {
+        if (liveByChunk.has(key)) return
+        const arr = treeByChunk.get(key)
+        if (!arr) { liveByChunk.set(key, { sprites: [], trees: [] }); return }
+        const sprites: Sprite[] = [], trees: LiveTree[] = []
+        for (const pl of arr) {
+          const t = propTex[pl.file]; if (!t) continue
+          const L = grid.level[Math.round(pl.ty)]?.[Math.round(pl.tx)] ?? 0
+          const px = isoX(pl.tx, pl.ty), py = isoY(pl.tx, pl.ty, L), depth = Math.floor(pl.tx + pl.ty)
+          const sc = (pl.tilesTall * 32) / t.height
+          const sh = new Sprite(shadowTex); sh.anchor.set(0.5); sh.width = Math.max(14, t.width * sc * 0.7); sh.height = sh.width * 0.4
+          sh.alpha = 0.28; sh.position.set(px, py); sh.zIndex = depth * 16 + 1; world.addChild(sh); sprites.push(sh)
+          const sp = new Sprite(t); sp.anchor.set(0.5, pl.ay); sp.scale.set(sc); sp.position.set(px, py)
+          sp.zIndex = depth * 16 + 11   // just under Thor (+12) at equal depth → trees in front (higher depth) occlude him
+          world.addChild(sp); sprites.push(sp)
+          trees.push({ sp, phase: hashI(pl.tx * 7, pl.ty * 13) * Math.PI * 2, amp: 0.010 + hashI(pl.tx, pl.ty) * 0.018 })
+        }
+        liveByChunk.set(key, { sprites, trees })
+      }
+      const removeLiveChunk = (key: string) => {
+        const e = liveByChunk.get(key); if (!e) return
+        for (const s of e.sprites) { world.removeChild(s); s.destroy() }
+        liveByChunk.delete(key)
+      }
+
       // ---- chunk bake + cache ----
       const chunks = new Map<string, Sprite>()
       const bakeChunk = (cx: number, cy: number): Sprite | null => {
@@ -316,6 +362,9 @@ export function Campus({ onReady }: { onReady?: () => void }) {
         for (const [key, spr] of chunks) {
           if (!want.has(key)) { if (spr) { world.removeChild(spr); spr.texture.destroy(true); spr.destroy() } chunks.delete(key) }
         }
+        // live front-treeline trees, culled with the same want-set
+        for (const key of want) addLiveChunk(key)
+        for (const key of [...liveByChunk.keys()]) if (!want.has(key)) removeLiveChunk(key)
       }
 
       // ---- Football & Track white markings: a single vector overlay above the baked terrain (rule #5).
@@ -426,6 +475,11 @@ export function Campus({ onReady }: { onReady?: () => void }) {
         const vw = instance.renderer.width, vh = instance.renderer.height
         world.x = vw / 2 - camX * viewZoom; world.y = vh / 2 - camY * viewZoom
         ensureChunks(vw, vh); resizeFx(vw, vh)
+        // wind sway: gently rock each visible live treeline tree about its base (two sines = natural gust)
+        const tnow = performance.now() / 1000
+        for (const e of liveByChunk.values()) for (const tr of e.trees) {
+          tr.sp.rotation = Math.sin(tnow * 1.05 + tr.phase) * tr.amp + Math.sin(tnow * 0.4 + tr.phase * 1.7) * tr.amp * 0.45
+        }
       })
 
       // ---- atmosphere: WARM but GROUNDED golden-hour light (gold standard = localized warm glow over a

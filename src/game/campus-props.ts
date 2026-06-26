@@ -2,37 +2,58 @@
 // onto the campus grid. Lush evergreen treeline on the inner forest edge (the frame); composed walkway
 // furniture + courtyard planting where students walk; sparse cars; the entry monument. Scale is given
 // as target tiles-tall and resolved against the real texture size at bake time. Deterministic seed.
-import { type CampusGrid, type Mat, STADIUM } from './campus-grid'
+import { type CampusGrid, STADIUM } from './campus-grid'
 
 export type Placement = { file: string; tx: number; ty: number; tilesTall: number; ay: number }
 
 const P = '/art/campus/props/'
-const CONIFERS = ['conifer-fir-hero.png', 'conifer-hemlock-hero.png']
 const WALKWAY: [string, number][] = [['lamp-hero.png', 2.6], ['bench-hero.png', 1.0], ['trash-bin-hero.png', 0.9], ['tree-shade-hero.png', 3.0]]
 const COURTYARD: [string, number][] = [['planter-hero.png', 1.0], ['shrub-round-hero.png', 0.85], ['shrub-flower-hero.png', 0.9], ['tree-ornamental-hero.png', 2.2]]
+
+// ---- DENSE PNW PERIMETER FOREST pools + deterministic noise ----------------------------------------
+// [file, base tiles-tall, weight]. The canopy is conifer-dominant (real PNW) with deciduous + a rare
+// snag for variety; understory fills the gaps so the floor reads as deep forest. Missing files fail-soft
+// at load. Heights are the REAL hero-tree heights; per-tile size jitter adds the rest of the variety.
+const CANOPY: [string, number, number][] = [
+  ['conifer-cedar.png', 4.3, 5], ['conifer-douglas-fir.png', 4.5, 5], ['conifer-fir-hero.png', 3.9, 4],
+  ['conifer-hemlock-hero.png', 3.9, 4], ['conifer-spruce.png', 4.1, 3], ['conifer-pine.png', 4.1, 2],
+  ['conifer-tall-a.png', 3.7, 2], ['conifer-tall-b.png', 3.7, 2], ['conifer-tall-c.png', 3.7, 2],
+  ['tree-bigleaf-maple.png', 3.5, 2], ['tree-alder.png', 3.5, 2], ['tree-shade-hero.png', 3.3, 1],
+  ['tree-snag.png', 3.9, 1],
+]
+const UNDER: [string, number, number][] = [
+  ['fern-sword.png', 0.85, 5], ['shrub-salal.png', 0.8, 4], ['conifer-small.png', 1.7, 3],
+  ['log-mossy.png', 0.7, 2], ['shrub-round.png', 0.7, 1],
+]
+// deterministic per-tile hash rng in [0,1) (order-independent, stable across rebuilds)
+const fhash = (x: number, y: number, s = 0) => {
+  let h = Math.imul((x | 0) + s * 374761, 374761393) ^ Math.imul((y | 0) + 9133, 668265263)
+  h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 0xffffffff
+}
+// smooth value noise for regional density/species drift (groves + small clearings, not uniform)
+const fvnoise = (x: number, y: number) => {
+  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy
+  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy)
+  const a = fhash(ix, iy, 1), b = fhash(ix + 1, iy, 1), c = fhash(ix, iy + 1, 1), d = fhash(ix + 1, iy + 1, 1)
+  return a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + d * u * v
+}
+const pickW = (pool: [string, number, number][], r: number): [string, number] => {
+  const tot = pool.reduce((a, p) => a + p[2], 0); let x = r * tot
+  for (const p of pool) { if ((x -= p[2]) <= 0) return [p[0], p[1]] }
+  return [pool[0][0], pool[0][1]]
+}
 
 export function placeProps(grid: CampusGrid): Placement[] {
   const out: Placement[] = []
   let s = 0x51ed
   const rnd = () => ((s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff)
   const { cols, rows, mat } = grid
-  const is = (tx: number, ty: number, m: Mat) => tx >= 0 && ty >= 0 && tx < cols && ty < rows && mat[ty][tx] === m
   const add = (file: string, tx: number, ty: number, tilesTall: number) => out.push({ file: P + file, tx, ty, tilesTall, ay: 0.97 })
   const choose = <T,>(a: T[]) => a[Math.floor(rnd() * a.length)]
 
-  // lush evergreen treeline: dense overlapping on the inner forest edge (seen), sparse deep interior
-  const nearCampus = (tx: number, ty: number) => {
-    for (let d = 1; d <= 3; d++) if (!is(tx + d, ty, 'forest') || !is(tx - d, ty, 'forest') || !is(tx, ty + d, 'forest') || !is(tx, ty - d, 'forest')) return true
-    return false
-  }
-  for (let ty = 1; ty < rows - 1; ty++) for (let tx = 1; tx < cols - 1; tx++) {
-    if (mat[ty][tx] !== 'forest') continue
-    const inner = nearCampus(tx, ty)
-    if (rnd() < (inner ? 0.7 : 0.012)) {
-      add(choose(CONIFERS), tx + (rnd() - 0.5) * 0.95, ty + (rnd() - 0.5) * 0.95, 3.4)
-      if (inner && rnd() < 0.45) add(choose(CONIFERS), tx + (rnd() - 0.5) * 1.2, ty + (rnd() - 0.5) * 1.2, 3.0)
-    }
-  }
+  // DENSE PNW PERIMETER FOREST interior (baked static). The front treeline is rendered LIVE + animated
+  // by Campus.tsx via forestTreeline() (depth-sorted so it occludes Thor, and sways).
+  out.push(...forestInterior(grid))
   // composed walkway furniture + courtyard planting on the concrete (sparse, vast-overworld density)
   for (let ty = 0; ty < rows; ty++) for (let tx = 0; tx < cols; tx++) {
     if (mat[ty][tx] !== 'concrete') continue
@@ -177,5 +198,61 @@ function courtyardProps(): Placement[] {
   // south fence + the black metal courtyard gate (centered opening) across the bottom edge
   for (let tx = CX0; tx <= CX1; tx++) { if (tx >= midX - 1 && tx <= midX + 1) continue; p('fence-round-c2.png', tx, CY1 + 0.4, 1.4) }
   p('fence-gate-run-c1.png', midX, CY1 + 0.4, 1.7)
+  return out
+}
+
+// ---- DENSE PNW PERIMETER FOREST (global system) ----------------------------------------------------
+// The whole forest region (everything outside the campus boundary, mat==='forest', ~61% of the grid) is a
+// THICK, fully-covered PNW forest — not a thin treeline + sparse sprinkle. A conifer-dominant multi-
+// species canopy with heavy overlap and per-tile size variety, organized into groves + small clearings by
+// smooth noise, with an understory (ferns/salal/small conifers/logs) filling the gaps so the floor reads
+// as deep forest. The campus-facing FRONT is kept slightly denser + taller so the treeline reads as a
+// solid wall (Thor never sees the edge). Baked into chunks (viewport-culled); held to the $50k bar.
+// depth (tiles) of the front treeline rendered LIVE + animated by Campus.tsx; deeper forest is baked static
+export const FOREST_FRONT = 10
+// Deep-interior individual-tree density (baked emergents over the dense canopy TILE that carries the mass).
+// Kept moderate so the baked RenderTextures stay light (Chromebook-safe + headless can render). The canopy
+// tile provides the dense-forest read; these add tree silhouettes throughout. Crank up on strong hardware.
+const FOREST_INTERIOR_DENS = 0.14
+
+// one tree/understory placement for a forest tile, or null. front=true makes it denser + taller (the wall).
+function forestPlace(tx: number, ty: number, front: boolean): Placement | null {
+  const dens = front ? 0.78 + fvnoise(tx / 16, ty / 16) * 0.16 : FOREST_INTERIOR_DENS + fvnoise(tx / 18, ty / 18) * 0.1
+  if (fhash(tx, ty, 7) < dens) {
+    const [file, tall] = pickW(CANOPY, fhash(tx, ty, 3))
+    const jx = (fhash(tx, ty, 11) - 0.5) * 0.9, jy = (fhash(tx, ty, 13) - 0.5) * 0.9
+    const sz = tall * (0.82 + fhash(tx, ty, 17) * 0.36) * (front ? 1.08 : 1)
+    return { file: P + file, tx: tx + jx, ty: ty + jy, tilesTall: sz, ay: 0.96 }
+  }
+  if (fhash(tx, ty, 41) < (front ? 0.5 : 0.18)) {
+    const [file, tall] = pickW(UNDER, fhash(tx, ty, 43))
+    return { file: P + file, tx: tx + (fhash(tx, ty, 47) - 0.5) * 0.8, ty: ty + (fhash(tx, ty, 53) - 0.5) * 0.8, tilesTall: tall * (0.8 + fhash(tx, ty, 59) * 0.5), ay: 0.95 }
+  }
+  return null
+}
+
+// DENSE BAKED interior forest: dense individual static trees + understory across the whole deep forest
+// (depth > FOREST_FRONT). Thor can never enter here, so these are baked into chunks (no live cost).
+function forestInterior(grid: CampusGrid): Placement[] {
+  const out: Placement[] = []
+  const { cols, rows, mat, forestDepth } = grid
+  for (let ty = 1; ty < rows - 1; ty++) for (let tx = 1; tx < cols - 1; tx++) {
+    if (mat[ty][tx] !== 'forest' || forestDepth[ty * cols + tx] <= FOREST_FRONT) continue
+    const p = forestPlace(tx, ty, false); if (p) out.push(p)
+  }
+  return out
+}
+
+// LIVE FRONT TREELINE: the dense wall the player walks up to. Rendered by Campus.tsx as live, depth-sorted
+// sprites (so they correctly occlude Thor) that sway. Only the front band (depth 1..FOREST_FRONT).
+export function forestTreeline(grid: CampusGrid): Placement[] {
+  const out: Placement[] = []
+  const { cols, rows, mat, forestDepth } = grid
+  for (let ty = 1; ty < rows - 1; ty++) for (let tx = 1; tx < cols - 1; tx++) {
+    if (mat[ty][tx] !== 'forest') continue
+    const depth = forestDepth[ty * cols + tx]
+    if (depth < 1 || depth > FOREST_FRONT) continue
+    const p = forestPlace(tx, ty, true); if (p) out.push(p)
+  }
   return out
 }
