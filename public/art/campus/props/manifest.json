@@ -1,0 +1,257 @@
+{
+  "schema": "blhs-campus-props/v1",
+  "generated": "2026-06-25",
+  "agent": "landscaping-props (Phase 2 decoration)",
+  "notes": [
+    "Free-standing PixelLab map_objects, transparent background, view 'low top-down' (high top-down for cars), consistent top-left light, muted PNW palette graded toward src/vine/palette.ts.",
+    "anchor is bottom-center for every prop: the sprite's feet sit at the bottom edge, centered horizontally, so the renderer billboards it standing on the ground tile at (x,y).",
+    "suggested_placement is the scatter rule for the main thread. Trees should be placed at the real surveyed tree points (AppendixG / campus.trees.json); everything else by the rule named here.",
+    "Sizes are source-canvas px at 48px/3ft tile scale reference; the integrator scales per-prop as needed. Conifers are best-of-3 (3 variants kept for ring variety). Dome kept with one alt.",
+    "Buildings are OUT OF SCOPE (gated on A-series records). No ground tiles touched."
+  ],
+  "anchor": "bottom-center",
+  "props": [
+    {
+      "key": "conifer_tall_a",
+      "file": "conifer-tall-a.png",
+      "kind": "tree_evergreen",
+      "suggested_placement": "perimeter_ring",
+      "hero": true,
+      "variant_group": "conifer_tall",
+      "size": [106, 202],
+      "pixellab_id": "c698a7ed-fe93-4002-9b8d-6ed16105fa06",
+      "grade": "forest",
+      "note": "Darkest, most spire-like PNW Douglas fir. Primary perimeter conifer (best-of-3 pick)."
+    },
+    {
+      "key": "conifer_tall_b",
+      "file": "conifer-tall-b.png",
+      "kind": "tree_evergreen",
+      "suggested_placement": "perimeter_ring",
+      "variant_group": "conifer_tall",
+      "size": [115, 203],
+      "pixellab_id": "dd426986-0c1e-43e1-bfd0-1edf2d13d161",
+      "grade": "forest",
+      "note": "Second conifer silhouette for ring variety (breaks repetition)."
+    },
+    {
+      "key": "conifer_tall_c",
+      "file": "conifer-tall-c.png",
+      "kind": "tree_evergreen",
+      "suggested_placement": "perimeter_ring",
+      "variant_group": "conifer_tall",
+      "size": [121, 193],
+      "pixellab_id": "d456278a-8225-4836-ad44-7f0c7da5ca4d",
+      "grade": "forest",
+      "note": "Fuller third conifer with grass tuft at base. Third ring/scatter variant."
+    },
+    {
+      "key": "conifer_small",
+      "file": "conifer-small.png",
+      "kind": "tree_evergreen",
+      "suggested_placement": "perimeter_ring",
+      "variant_group": "conifer_small",
+      "size": [82, 138],
+      "pixellab_id": "cc06ce84-c4f9-4edf-84b4-e8f7ae9ea6d5",
+      "grade": "forest",
+      "note": "Young/short conifer. Use for inner-edge scatter and to vary the ring depth; also general scatter."
+    },
+    {
+      "key": "tree_deciduous_large",
+      "file": "tree-deciduous-large.png",
+      "kind": "tree_deciduous",
+      "suggested_placement": "walkway_side",
+      "variant_group": "deciduous",
+      "size": [166, 173],
+      "pixellab_id": "7d216022-b5cb-4084-8f4b-ca1161b187c3",
+      "grade": "foliage",
+      "note": "Broad shade tree. Line along main walkways and in lawn islands."
+    },
+    {
+      "key": "tree_ornamental_small",
+      "file": "tree-ornamental-small.png",
+      "kind": "tree_deciduous",
+      "suggested_placement": "courtyard",
+      "variant_group": "deciduous",
+      "size": [108, 133],
+      "pixellab_id": "2367c5e7-143c-40bd-9a79-dbfbc34a8afb",
+      "grade": "foliage",
+      "note": "Small ornamental tree with faint autumn accents. Courtyards, entries, plaza edges."
+    },
+    {
+      "key": "shrub_round",
+      "file": "shrub-round.png",
+      "kind": "shrub",
+      "suggested_placement": "courtyard",
+      "size": [100, 68],
+      "pixellab_id": "f4cf09ed-322a-4ceb-ba63-3148fa9eec74",
+      "grade": "foliage",
+      "note": "Low mounded shrub. Fill planter beds, building bases, walkway edges."
+    },
+    {
+      "key": "hedge_row",
+      "file": "hedge-row.png",
+      "kind": "hedge",
+      "suggested_placement": "courtyard",
+      "size": [178, 42],
+      "pixellab_id": "ea5c4596-99bd-4398-8711-76e67057fd10",
+      "grade": "foliage",
+      "tileable_x": true,
+      "note": "Flat-topped boxwood hedge segment. Repeat along plaza/courtyard borders and entry edges."
+    },
+    {
+      "key": "planter_mulch_bed",
+      "file": "planter-mulch-bed.png",
+      "kind": "planter",
+      "suggested_placement": "courtyard",
+      "size": [147, 91],
+      "pixellab_id": "cd383647-31d4-41e4-b89b-c6df02748b3b",
+      "grade": "foliage",
+      "note": "Dark bark-mulch bed with ornamental grasses + a bare red-twig dogwood. The signature BLHS courtyard centerpiece (matches ema-01). Place in raised planter islands."
+    },
+    {
+      "key": "dogwood_redtwig",
+      "file": "dogwood-redtwig.png",
+      "kind": "shrub_accent",
+      "suggested_placement": "courtyard",
+      "size": [71, 90],
+      "pixellab_id": "e575ac4c-a561-40b4-b217-94bb346a7ec7",
+      "grade": "none",
+      "note": "Red-twig dogwood accent (bright red bare stems). Sparse pops of color inside mulch beds. Do not overuse."
+    },
+    {
+      "key": "lamp_post",
+      "file": "lamp-post.png",
+      "kind": "light",
+      "suggested_placement": "walkway_side",
+      "size": [48, 156],
+      "pixellab_id": "2e0acb9d-43d3-41d5-b78c-f69ff8436451",
+      "grade": "metal",
+      "note": "Charcoal LED area light with a warm glow head. Line walkways and parking-lot rows at regular spacing."
+    },
+    {
+      "key": "bench",
+      "file": "bench.png",
+      "kind": "furniture",
+      "suggested_placement": "courtyard",
+      "size": [133, 80],
+      "pixellab_id": "17323479-b730-4554-942b-da2843ff071f",
+      "grade": "metal-light",
+      "note": "Dark slat park bench. Plaza edges, courtyards, beside entries and walkways."
+    },
+    {
+      "key": "trash_bin",
+      "file": "trash-bin.png",
+      "kind": "furniture",
+      "suggested_placement": "walkway_side",
+      "size": [68, 97],
+      "pixellab_id": "a0f16175-e34f-4002-b363-8891a300e03d",
+      "grade": "metal",
+      "note": "Charcoal domed waste bin. Pair near benches and entries; sparse along walkways."
+    },
+    {
+      "key": "bike_rack",
+      "file": "bike-rack.png",
+      "kind": "furniture",
+      "suggested_placement": "entry",
+      "size": [156, 60],
+      "pixellab_id": "d717b482-7e45-4b18-afe5-29c802900d58",
+      "grade": "metal",
+      "note": "Inverted-U loop rack on a concrete pad. Cluster near main building entries."
+    },
+    {
+      "key": "flagpole",
+      "file": "flagpole.png",
+      "kind": "landmark",
+      "suggested_placement": "entry",
+      "size": [25, 177],
+      "pixellab_id": "c8eb4c32-648f-49c1-a80e-9633861caa68",
+      "grade": "none",
+      "note": "Flagpole with flag. One or two at the main entry / front plaza only."
+    },
+    {
+      "key": "monument_sign",
+      "file": "monument-sign.png",
+      "kind": "landmark",
+      "suggested_placement": "entry",
+      "size": [180, 99],
+      "pixellab_id": "c04f1779-0fa1-4a4d-ade9-f0defb0b95b2",
+      "grade": "brick",
+      "note": "Red-brick monument marquee with a blank dark sign panel (overlay 'Bonney Lake High School' text in-engine). Place at the campus entry/roundabout."
+    },
+    {
+      "key": "dome_geodesic",
+      "file": "dome-geodesic.png",
+      "kind": "landmark",
+      "suggested_placement": "landmark",
+      "hero": true,
+      "size": [168, 143],
+      "pixellab_id": "e6981a2d-8c06-44b2-92ec-e139c5aa1643",
+      "grade": "none",
+      "note": "Teal geodesic dome public art (best-of-3 pick). ONE instance, by the PAC. Mascot/landmark teal only."
+    },
+    {
+      "key": "dome_geodesic_alt",
+      "file": "dome-geodesic-alt.png",
+      "kind": "landmark",
+      "suggested_placement": "landmark",
+      "size": [178, 132],
+      "pixellab_id": "eb067271-91ef-4cc9-82ad-ad38ec74e5a7",
+      "grade": "none",
+      "note": "Alternate dome (darker teal, wider base). Backup pick; do not place a second dome on campus."
+    },
+    {
+      "key": "car_silver",
+      "file": "car-silver.png",
+      "kind": "vehicle",
+      "suggested_placement": "parking_stall",
+      "variant_group": "car",
+      "size": [60, 97],
+      "pixellab_id": "6f9a1cdf-ade5-424f-b815-9963e87ae625",
+      "grade": "none",
+      "note": "Muted silver sedan. Scatter SPARSELY in asphalt stalls (do not fill every stall)."
+    },
+    {
+      "key": "car_blue",
+      "file": "car-blue.png",
+      "kind": "vehicle",
+      "suggested_placement": "parking_stall",
+      "variant_group": "car",
+      "size": [77, 128],
+      "pixellab_id": "cc54df25-384b-473e-838f-0a64a90a6e9f",
+      "grade": "none",
+      "note": "Muted navy SUV. Sparse parking-stall scatter."
+    },
+    {
+      "key": "car_maroon",
+      "file": "car-maroon.png",
+      "kind": "vehicle",
+      "suggested_placement": "parking_stall",
+      "variant_group": "car",
+      "size": [82, 129],
+      "pixellab_id": "d81bafca-60ee-4fd2-bd32-72ca21bf7932",
+      "grade": "none",
+      "note": "Muted maroon sedan. Sparse parking-stall scatter."
+    },
+    {
+      "key": "goalpost",
+      "file": "goalpost.png",
+      "kind": "field_equipment",
+      "suggested_placement": "field",
+      "size": [80, 162],
+      "pixellab_id": "43e4a9aa-fe9e-4d9b-9eff-082ee1c5c8ec",
+      "grade": "desaturate-yellow",
+      "note": "Muted-yellow football goalpost. One at each end of the football field inside the track."
+    },
+    {
+      "key": "bleacher",
+      "file": "bleacher.png",
+      "kind": "field_equipment",
+      "suggested_placement": "field",
+      "size": [170, 97],
+      "pixellab_id": "2b134159-1dd7-4c33-9e4d-38986400520e",
+      "grade": "metal",
+      "note": "Aluminum grandstand section. Along the football/track sideline; repeat for a longer stand."
+    }
+  ]
+}
