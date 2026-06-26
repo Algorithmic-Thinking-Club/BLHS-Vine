@@ -195,13 +195,13 @@ export function Campus({ onReady }: { onReady?: () => void }) {
       // and a touch less brightness so highlights (concrete/patio) don't clip to white. The gold standard
       // is warm but GROUNDED: rich darks, restrained saturation. This does the grounding before any overlay.
       const grade = new ColorMatrixFilter()
-      grade.brightness(0.96, false)
-      grade.saturate(-0.1, true)     // pull saturation down ~10% so grass can't go neon-olive
-      grade.contrast(0.1, true)      // deepen the darks a touch -> reads grounded, not flat-washed
-      // warm the midtones gently without lifting them: nudge the R channel-scale up, B down a hair. The
-      // 5x4 matrix rows are R/G/B/A; the diagonal channel-scales sit at indices 0 (R), 6 (G), 12 (B).
+      grade.brightness(1.0, false)   // lift to a brighter, more inviting daylight (not dark, not blinding)
+      grade.saturate(-0.02, true)    // keep the color alive (more enjoyable) without going neon
+      grade.contrast(0.1, true)      // still grounded darks, just airier than before
+      // warm the midtones toward late-afternoon gold: R channel-scale up, B down — clearly warm, measured.
+      // The 5x4 matrix rows are R/G/B/A; the diagonal channel-scales sit at indices 0 (R), 6 (G), 12 (B).
       const wm = grade.matrix
-      wm[0] *= 1.045; wm[12] *= 0.965
+      wm[0] *= 1.075; wm[12] *= 0.91
       grade.matrix = wm
       world.filters = [grade]
       let viewZoom = ZOOM   // current camera zoom: ZOOM in View mode, editCam.zoom in Edit mode
@@ -486,14 +486,13 @@ export function Campus({ onReady }: { onReady?: () => void }) {
       // rich, deep-shadowed base, NOT a flat yellow flood). The world ColorMatrix already grounds the
       // palette; these overlays add the warm key-light + a deep frame on top, kept gentle so the dark PNW
       // grass and the concrete are never blown out. ----
-      // (1) a subtle warm-white ambient wash (soft, near-neutral amber so it warms without yellowing)
-      const warm = new Sprite(Texture.WHITE); warm.tint = 0xffe4c0; warm.alpha = 0.07; instance.stage.addChild(warm)
-      // (2) a soft sun glow, upper-right but large+gentle enough to wash the mid-scene with golden key-light
-      // (a broad sunbeam pool, NOT a hard hotspot): wide radius + low additive alpha so it never clips white
-      const sun = new Sprite(radialTex(512, [[0, 'rgba(255,228,170,0.17)'], [0.5, 'rgba(255,212,148,0.06)'], [1, 'rgba(255,212,148,0)']])); sun.anchor.set(0.5); sun.blendMode = 'add'; instance.stage.addChild(sun)
-      // (3) a deep, slightly cool-neutral vignette to frame the scene + push the ambient down at the edges
-      // (the gold standard's darks are genuinely dark); covers the corners fully so no bright edge leaks
-      const vig = new Sprite(radialTex(512, [[0, 'rgba(0,0,0,0)'], [0.5, 'rgba(0,0,0,0)'], [0.85, 'rgba(20,18,14,0.26)'], [1, 'rgba(14,13,11,0.55)']])); instance.stage.addChild(vig)
+      // (1) a warm golden-hour ambient wash — a touch stronger + warmer so it reads clearly as warm light
+      const warm = new Sprite(Texture.WHITE); warm.tint = 0xffdcab; warm.alpha = 0.11; instance.stage.addChild(warm)
+      // (2) a broad golden sun pool from the upper-right (key light) — wide + gentle falloff so it lifts the
+      // mid-scene to a warm, inviting glow without ever clipping bright surfaces to white (never blinding)
+      const sun = new Sprite(radialTex(512, [[0, 'rgba(255,222,160,0.22)'], [0.5, 'rgba(255,208,144,0.08)'], [1, 'rgba(255,208,144,0)']])); sun.anchor.set(0.5); sun.blendMode = 'add'; instance.stage.addChild(sun)
+      // (3) a softer warm vignette — still frames the scene + grounds the edges, but lighter so it feels open
+      const vig = new Sprite(radialTex(512, [[0, 'rgba(0,0,0,0)'], [0.52, 'rgba(0,0,0,0)'], [0.86, 'rgba(22,16,10,0.22)'], [1, 'rgba(14,11,8,0.48)']])); instance.stage.addChild(vig)
       const resizeFx = (vw: number, vh: number) => { warm.width = vw; warm.height = vh; sun.width = sun.height = Math.max(vw, vh) * 1.05; sun.position.set(vw * 0.74, vh * 0.18); vig.width = vw * 1.5; vig.height = vh * 1.5; vig.position.set(-vw * 0.25, -vh * 0.25) }
       resizeFx(instance.renderer.width, instance.renderer.height)
 
