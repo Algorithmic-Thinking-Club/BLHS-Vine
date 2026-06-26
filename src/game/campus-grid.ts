@@ -118,9 +118,45 @@ function stadiumMat(x: number, y: number): Mat {
 export type CampusGrid = {
   cols: number; rows: number
   mat: Mat[][]; level: number[][]; walkable: boolean[][]
+  // per-grass-tile lawn character 0..1 (0 = manicured quad near buildings/walks, 1 = wild turf at the
+  // forest edge). Hybrid-by-zone lawn: the renderer reads this to blend mowed→wild tiles + stripes.
+  grassWild: Float32Array
   minx: number; miny: number; ft: number
   spawn: { tx: number; ty: number }
   doors: { id: string; label: string; tx: number; ty: number }[]
+}
+
+// smooth value noise in [0,1], deterministic, period-1 per unit. Used to make the manicured↔wild lawn
+// transition band wander organically instead of reading as a clean offset ring.
+function vhash(ix: number, iy: number) {
+  let h = Math.imul(ix | 0, 374761393) ^ Math.imul(iy | 0, 668265263)
+  h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 0xffffffff
+}
+function vnoise(x: number, y: number) {
+  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy
+  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy)
+  const a = vhash(ix, iy), b = vhash(ix + 1, iy), c = vhash(ix, iy + 1), d = vhash(ix + 1, iy + 1)
+  return a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + d * u * v
+}
+
+// Multi-source BFS distance transform (in tiles) from a predicate set, over a cols*rows grid.
+function distField(cols: number, rows: number, isSource: (tx: number, ty: number) => boolean): Int32Array {
+  const N = cols * rows, dist = new Int32Array(N).fill(0x3fffffff)
+  const qx = new Int32Array(N), qy = new Int32Array(N); let head = 0, tail = 0
+  for (let ty = 0; ty < rows; ty++) for (let tx = 0; tx < cols; tx++) {
+    if (isSource(tx, ty)) { dist[ty * cols + tx] = 0; qx[tail] = tx; qy[tail] = ty; tail++ }
+  }
+  while (head < tail) {
+    const tx = qx[head], ty = qy[head]; head++
+    const d = dist[ty * cols + tx] + 1
+    for (let k = 0; k < 4; k++) {
+      const nx = tx + (k === 0 ? 1 : k === 1 ? -1 : 0), ny = ty + (k === 2 ? 1 : k === 3 ? -1 : 0)
+      if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue
+      const ni = ny * cols + nx
+      if (d < dist[ni]) { dist[ni] = d; qx[tail] = nx; qy[tail] = ny; tail++ }
+    }
+  }
+  return dist
 }
 
 export function buildCampusGrid(): CampusGrid {
@@ -187,6 +223,21 @@ export function buildCampusGrid(): CampusGrid {
   // baked into the rasterizer that made the real campus unrecognizable. Real places get built section by
   // section from the verified geometry, not hardcoded into the grid.)
 
+  // ---- lawn zone field (hybrid-by-zone grass): manicured near hardscape, wild toward the forest ----
+  const built = new Set<Mat>(['concrete', 'building', 'asphalt', 'court', 'patio', 'brick', 'apron'])
+  const dForest = distField(cols, rows, (tx, ty) => mat[ty][tx] === 'forest')
+  const dBuilt = distField(cols, rows, (tx, ty) => built.has(mat[ty][tx]))
+  const grassWild = new Float32Array(cols * rows)
+  const F_NEAR = 4, F_FAR = 22, B_SOFT = 11
+  for (let ty = 0; ty < rows; ty++) for (let tx = 0; tx < cols; tx++) {
+    const i = ty * cols + tx
+    if (mat[ty][tx] !== 'grass') { grassWild[i] = 0; continue }
+    const wildF = Math.max(0, Math.min(1, (F_FAR - dForest[i]) / (F_FAR - F_NEAR)))  // 1 by the forest, 0 deep in the quad
+    const bClose = Math.max(0, Math.min(1, (B_SOFT - dBuilt[i]) / B_SOFT))            // 1 hugging hardscape (pull manicured)
+    const wander = (vnoise(tx / 9, ty / 9) - 0.5) * 0.75                              // ragged transition band
+    grassWild[i] = Math.max(0, Math.min(1, wildF * (1 + wander) - bClose))
+  }
+
   const toTile = (p: Pt) => ({ tx: Math.round((p[0] - minx) / FT_PER_TILE), ty: Math.round((p[1] - miny) / FT_PER_TILE) })
   const doors = (G.footprints[0]?.entrances ?? []).map((e) => ({ id: e.grapeId, label: e.label, ...toTile(e.pt) }))
   // spawn near the campus center (the building centroid) on the nearest WALKABLE tile — the building
@@ -201,5 +252,5 @@ export function buildCampusGrid(): CampusGrid {
       if (tx >= 0 && ty >= 0 && tx < cols && ty < rows && walkable[ty][tx]) { spawn = { tx, ty }; found = true }
     }
   }
-  return { cols, rows, mat, level, walkable, minx, miny, ft: FT_PER_TILE, spawn, doors }
+  return { cols, rows, mat, level, walkable, grassWild, minx, miny, ft: FT_PER_TILE, spawn, doors }
 }

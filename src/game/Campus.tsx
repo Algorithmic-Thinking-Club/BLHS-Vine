@@ -25,6 +25,20 @@ const hashI = (x: number, y: number) => {
   let h = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263)
   h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 0xffffffff
 }
+// smooth value noise in [0,1] for large-scale ground modulation (sun/shade drift, dry patches) that
+// breaks the per-tile grid at a scale the eye reads as "a real field", not a repeat.
+const vnoise2 = (x: number, y: number) => {
+  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy
+  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy)
+  const a = hashI(ix, iy), b = hashI(ix + 1, iy), c = hashI(ix, iy + 1), d = hashI(ix + 1, iy + 1)
+  return a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + d * u * v
+}
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+// per-channel multiply of a packed hex by an (r,g,b) gain triple, clamped.
+const tintMul = (hex: number, fr: number, fg: number, fb: number) => {
+  const r = Math.min(255, ((hex >> 16) & 255) * fr), g = Math.min(255, ((hex >> 8) & 255) * fg), b = Math.min(255, (hex & 255) * fb)
+  return (r << 16) | (g << 8) | b
+}
 function radialTex(size: number, stops: [number, string][]) {
   const cv = document.createElement('canvas'); cv.width = cv.height = size
   const ctx = cv.getContext('2d')!, g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
@@ -183,9 +197,43 @@ export function Campus({ onReady }: { onReady?: () => void }) {
       world.filters = [grade]
       let viewZoom = ZOOM   // current camera zoom: ZOOM in View mode, editCam.zoom in Edit mode
 
+      // ---- hybrid-by-zone LAWN: manicured mowed quad near hardscape (faint mowing stripes) blending to
+      // wilder turf at the forest edge. Reads grid.grassWild (0..1). The grid is broken three ways at once:
+      // (1) MACRO low-freq sun/shade + dryness drift (~26-tile), (2) mowing stripes in the manicured zone,
+      // (3) zone-varied tile set + base tint pulling the lush source toward muted PNW lawn. Sparse tuft
+      // scatter rises with wildness. (Placeholder tints until the real manicured-lawn tiles are generated.)
+      const GRASS_MANI = ['grass-v1', 'grass-v2'], GRASS_WILD = ['grass-v3', 'grass-v4']
+      const stampGrass = (cont: Container, tx: number, ty: number, L: number) => {
+        const w = grid.grassWild[ty * grid.cols + tx]
+        const files = w < 0.45 ? GRASS_MANI : w < 0.7 ? (hashI(tx, ty) < 0.5 ? GRASS_MANI : GRASS_WILD) : GRASS_WILD
+        const tex = BK[files[Math.floor(hashI(tx * 1.7, ty * 2.3) * files.length)]] ?? BK['grass-v1']; if (!tex) return
+        // FIELD-SCALE tonal drift: big organic patches (lighter/darker) across the lawn, dominated by a
+        // long wavelength so a wide expanse is never one flat shade. Stays in the green family — we push
+        // brightness + green only, never a brown/warm multiply (that is what muddied it before).
+        const big = vnoise2(tx / 58 + 20, ty / 58 + 7)       // ~170ft patches — the dominant field drift
+        const med = vnoise2(tx / 24 + 3, ty / 24 + 11)
+        const fine = vnoise2(tx / 8.5 + 5, ty / 8.5 + 2)
+        const drift = (big - 0.5) * 0.80 + (med - 0.5) * 0.30 + (fine - 0.5) * 0.12
+        const mani = 1 - Math.min(1, w / 0.55)
+        const stripe = mani * (((Math.floor((tx - ty) / 3) & 1) ? 1 : -1) * 0.035)
+        const bright = 1 + drift * 0.17 + stripe + lerp(-0.04, 0.05, w)
+        // a HINT of the old meadow in the lighter field patches: bias the green lusher (more G, slightly
+        // less R). A touch of life/variation — NOT a return to the bright cartoon green.
+        const lush = Math.max(0, big * 0.7 + fine * 0.3 - 0.4)   // 0..~0.6, only the lighter patches
+        const fr = lerp(0.55, 0.66, w) * bright * (1 - lush * 0.06)
+        const fg = lerp(0.66, 0.78, w) * bright * (1 + lush * 0.11)
+        const fb = lerp(0.50, 0.56, w) * bright * (1 + lush * 0.02)
+        const fx = hashI(tx * 3, ty * 7) > 0.5 ? -BLK : BLK
+        const b = new Sprite(tex); b.anchor.set(0.5, 12 / 48); b.tint = tintMul(0xffffff, fr, fg, fb); b.scale.set(fx, BLK)
+        b.position.set(isoX(tx, ty), isoY(tx, ty, L)); b.zIndex = (tx + ty) * 16
+        cont.addChild(b)
+        // (open-lawn tuft scatter REMOVED — real planting goes at bed edges + building bases, never sprinkled on grass)
+      }
+
       // ---- stamp one tile's block stack into a chunk container (world coords) ----
       const stampTile = (cont: Container, tx: number, ty: number) => {
         const m = grid.mat[ty][tx], L = grid.level[ty][tx]
+        if (m === 'grass') { stampGrass(cont, tx, ty, L); return }
         const def = BLK_DEF[m]; const tex = BK[def.files[Math.floor(hashI(tx, ty) * def.files.length)] ?? def.files[0]]; if (!tex) return
         const le = tx + 1 < grid.cols ? grid.level[ty][tx + 1] : L
         const ls = ty + 1 < grid.rows ? grid.level[ty + 1][tx] : L
