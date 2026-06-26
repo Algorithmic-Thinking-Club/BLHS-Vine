@@ -50,6 +50,7 @@ reference/*.png
 reference/*.err
 reference/floorplans-maps/rendered/*
 !reference/floorplans-maps/rendered/validate-sidebyside.png
+reference/_archive/
 
 # Build + map tooling: track the reusable pipeline only
 scripts/*
