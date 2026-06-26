@@ -1,0 +1,71 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.cache/
+.vite/
+coverage/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Environment / secrets
+.env
+.env.*
+*.local
+*.key
+*.pem
+
+# Sensitive / private data
+/private/
+/data/private/
+*.pii.*
+*-students.*
+student-data/
+exports/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Working docs and notes (kept local)
+docs/
+
+# Superseded data snapshots
+src/game/campus.geo.v2.json
+src/game/campus.geo.v3.json
+src/game/campus.geo.v4.json
+src/game/campus.geo.v5.json
+
+# Loose scratch renders
+reference/*.png
+reference/*.err
+reference/floorplans-maps/rendered/*
+!reference/floorplans-maps/rendered/validate-sidebyside.png
+
+# Build + map tooling: track the reusable pipeline only
+scripts/*
+!scripts/shot.ps1
+!scripts/civil_extract.py
+!scripts/build_campus_geo.py
+!scripts/build_campus_dem.py
+!scripts/build-campus-model.py
+!scripts/build-pac.py
+!scripts/palette_grade.py
+!scripts/palette_grade_warm.py
+!scripts/remove-bg.py
+!scripts/bg-remove.py
+!scripts/validate_feet.py
+!scripts/render-campus.py
+!scripts/pixelate-render.py
+
+# Internal asset registries (kept local)
+**/*-registry.md
