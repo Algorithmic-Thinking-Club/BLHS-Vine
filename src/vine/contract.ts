@@ -52,17 +52,75 @@ export interface DialogueLine {
 }
 
 export interface HandbookEntry {
+  id?: string
   heading: string
   body: string
 }
 
-// Pure data. A config-only grape ships just this plus a manifest, no code.
+// ---- Grape-as-SCENE: the in-world RPG encounter (the real format, not a UI slideshow) ----------------
+// A richer grape plays out as a scene the player walks into: an NPC in a room, dialogue, an optional
+// cutscene, a WOVEN understanding-check (not just an MCQ), and a tangible reward. Config-only grapes keep
+// shipping intro/clips/quiz (simple path); an authored scene adds `encounter`. ALL declarative data, so ATC
+// members author scenes (even cutscenes) without code; the runtime plays the beats. See the GDD 7-beat spec.
+
+export interface NpcDef {
+  id: string
+  name: string
+  sprite?: string        // NPC sprite sheet (idle/walk); falls back to a default actor
+  portrait?: string      // dialogue portrait
+}
+
+export interface SceneLine {
+  speaker: string                                            // 'Thor' | the NPC name | ...
+  text: string
+  portrait?: string                                          // override portrait for this line
+  emote?: 'neutral' | 'happy' | 'surprised' | 'think'
+}
+
+// declarative cutscene steps (Thor loses control, follows the NPC). Small + authorable.
+export type CutsceneStep =
+  | { kind: 'say'; line: SceneLine }
+  | { kind: 'move'; actor: 'thor' | 'npc'; to: string }      // to = a named mark in the room
+  | { kind: 'face'; actor: 'thor' | 'npc'; dir: 'up' | 'down' | 'left' | 'right' }
+  | { kind: 'camera'; to: string }
+  | { kind: 'wait'; ms: number }
+
+// THE WOVEN CHECK — varied, never just a bare MCQ. Each variant carries its own juiced feedback.
+export type CheckStep =
+  // a consequential dialogue choice (the "make the pitch": a good reply lands, a weak one gets a hint)
+  | { kind: 'choice'; id: string; prompt: string; options: { text: string; correct?: boolean; reply: string }[]; objective?: string }
+  // classic MCQ (fallback / simple checks)
+  | { kind: 'quiz'; item: QuizItem }
+  // drag items into the right bucket(s) ("stock the trophy case")
+  | { kind: 'sort'; id: string; prompt: string; buckets: string[]; items: { label: string; bucket: string }[]; objective?: string }
+
+export interface RewardDef {
+  points?: number
+  handbookEntryId?: string     // unlocks a Handbook entry (the in-game encyclopedia fills)
+  achievementId?: string
+}
+
+// The full in-world encounter (the GDD's 7 beats, expressed as data).
+export interface GrapeEncounter {
+  npc: NpcDef
+  room?: string                // interior/room id this plays in (e.g. '305'); placement gives the building
+  intro?: SceneLine[]          // beat 3 — dialogue
+  media?: MediaClip            // beat 4 — the real video, framed
+  cutscene?: CutsceneStep[]    // optional richer beat — Thor follows the NPC
+  check: CheckStep[]           // beat 5 — the woven understanding-check(s)
+  outro?: SceneLine[]
+  reward?: RewardDef           // beat 6 — tangible reward
+}
+
+// Pure data. A config-only grape ships just this plus a manifest, no code. Add `encounter` for the
+// full in-world scene; omit it and the vine renders the simple intro/clips/quiz path.
 export interface GrapeContent {
   intro?: DialogueLine[]
   clips?: MediaClip[]
   quiz?: QuizItem[]
   handbook?: HandbookEntry[]
   outro?: DialogueLine[]
+  encounter?: GrapeEncounter
 }
 
 export interface CompletionCriteria {
