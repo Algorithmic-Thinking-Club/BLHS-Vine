@@ -64,6 +64,12 @@ export default function Game() {
     loggerRef.current?.log({ type: 'grape_enter', grapeId: id, at: Date.now() })
   }, [])
 
+  // dev: ?grape=<id> auto-opens that grape's scene, so the encounter can be tested without walking to it
+  useEffect(() => {
+    const g = params.get('grape')
+    if (g && phase === 'play' && session && !playingId) onEnter(g)
+  }, [phase, session, playingId, onEnter, params])
+
   const grape = playingId ? getGrape(playingId) : undefined
   const services: VineServices | null = grape && session
     ? {

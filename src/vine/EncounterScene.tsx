@@ -105,6 +105,17 @@ export function EncounterScene({ manifest, content, log, complete, exit }: Grape
 
   return (
     <div style={S.scrim}>
+      {/* in-world ROOM STAGE — the encounter plays inside the rendered classroom with the characters in
+          it, not letterboxed over nothing. Stub art for now (CSS room + Thor sprite for both, Ash recolored);
+          the real measured 305 lab + proper Ash/student sprites swap straight in. */}
+      <div style={S.room}>
+        <div style={S.board}>{enc.room ? `Room ${enc.room} · Computer Lab` : 'Computer Lab'}</div>
+        <div style={{ ...S.desk, left: '22%' }} /><div style={{ ...S.mon, left: '23%' }} />
+        <div style={{ ...S.desk, left: '50%' }} /><div style={{ ...S.mon, left: '51%' }} />
+        <div style={{ ...S.desk, left: '78%' }} /><div style={{ ...S.mon, left: '79%' }} />
+        <img src="/art/characters/thor/south.png" alt="" style={S.ash} />
+        <img src="/art/characters/thor/south.png" alt="" style={S.thor} />
+      </div>
       <div style={S.barTop} /><div style={S.barBot} />
 
       {(phase === 'intro' || phase === 'outro' || phase === 'cutscene') && line && (
@@ -168,9 +179,15 @@ export function EncounterScene({ manifest, content, log, complete, exit }: Grape
 }
 
 const S: Record<string, React.CSSProperties> = {
-  scrim: { position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(8,10,14,0.55)', overflow: 'hidden' },
-  barTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '12vh', background: '#0a0c10' },
-  barBot: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '12vh', background: '#0a0c10' },
+  scrim: { position: 'fixed', inset: 0, zIndex: 80, background: '#2a2620', overflow: 'hidden' },
+  room: { position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, #d9d0bb 0%, #d0c7b1 54%, #9c927b 54%, #7c725c 100%)', overflow: 'hidden' },
+  board: { position: 'absolute', top: '13%', left: '32%', width: '36%', height: '19%', background: '#f3f1e8', border: '3px solid #b7ae98', borderRadius: 4, color: '#857c61', font: '700 12px ui-sans-serif, system-ui', padding: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' },
+  desk: { position: 'absolute', top: '60%', width: 86, height: 30, background: '#8a7c63', borderRadius: 4, transform: 'translateX(-50%)', boxShadow: '0 6px 10px rgba(0,0,0,0.18)' },
+  mon: { position: 'absolute', top: '52%', width: 34, height: 27, background: '#222a30', border: '2px solid #4a525a', borderRadius: 3, transform: 'translateX(-50%)' },
+  thor: { position: 'absolute', bottom: '27vh', left: '40%', height: 128, imageRendering: 'pixelated', transform: 'translateX(-50%)', filter: 'drop-shadow(0 6px 6px rgba(0,0,0,0.32))' },
+  ash: { position: 'absolute', bottom: '30vh', left: '60%', height: 128, imageRendering: 'pixelated', transform: 'translateX(-50%) scaleX(-1)', filter: 'hue-rotate(150deg) saturate(1.3) drop-shadow(0 6px 6px rgba(0,0,0,0.32))' },
+  barTop: { position: 'absolute', top: 0, left: 0, right: 0, height: '12vh', background: 'linear-gradient(to bottom, #0a0c10, rgba(10,12,16,0))' },
+  barBot: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '8vh', background: 'linear-gradient(to top, #0a0c10, rgba(10,12,16,0))' },
   dlgWrap: { position: 'absolute', left: '6vw', right: '6vw', bottom: '15vh', display: 'flex', gap: 14, alignItems: 'flex-end', cursor: 'pointer' },
   portrait: { width: 96, height: 96, borderRadius: 10, objectFit: 'cover', border: '2px solid rgba(255,255,255,0.18)', imageRendering: 'pixelated', background: '#1a1d22' },
   dlg: { flex: 1, background: 'rgba(20,22,27,0.96)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 12, padding: '16px 18px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' },
