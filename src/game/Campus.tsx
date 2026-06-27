@@ -131,9 +131,17 @@ function buildStadiumMarkings(grid: CampusGrid): MarkLine[] {
   return out
 }
 
-export function Campus({ onReady }: { onReady?: () => void }) {
+type NearInfo = { id: string; label: string } | null
+export function Campus({ onReady, onState, onEnter, paused }: {
+  onReady?: () => void
+  onState?: (s: { district: string; near: NearInfo }) => void
+  onEnter?: (id: string) => void
+  paused?: boolean
+}) {
   const ref = useRef<HTMLDivElement>(null)
   const onReadyRef = useRef(onReady); onReadyRef.current = onReady
+  const cbRef = useRef({ onState, onEnter }); cbRef.current = { onState, onEnter }
+  const pausedRef = useRef(paused); pausedRef.current = paused
   // View = normal gameplay (Thor + WASD). Edit = read-only review tool: free mouse pan/zoom, no Thor,
   // faint labeled section-boundary highlights. The Pixi loop reads modeRef (a stable ref) each frame.
   const [mode, setMode] = useState<'view' | 'edit'>(() =>
@@ -143,7 +151,11 @@ export function Campus({ onReady }: { onReady?: () => void }) {
   useEffect(() => {
     let app: Application | null = null, destroyed = false
     const keys: Record<string, boolean> = {}
-    const kd = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = true }
+    let nearNpc: NearInfo = null   // updated each frame; read by the E-key handler to trigger the grape
+    const kd = (e: KeyboardEvent) => {
+      keys[e.key.toLowerCase()] = true
+      if (e.key.toLowerCase() === 'e' && nearNpc && !pausedRef.current) cbRef.current.onEnter?.(nearNpc.id)
+    }
     const ku = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = false }
 
     const start = async () => {
@@ -389,6 +401,22 @@ export function Campus({ onReady }: { onReady?: () => void }) {
       // ---- Thor ----
       const thor = new Sprite(idle['south']); thor.anchor.set(0.5, 0.82); thor.scale.set(0.5)
       world.addChild(thor)
+
+      // ---- NPC INTERACTION POINTS = the actual game loop (walk up → E → play that place's grape). First
+      // vertical slice: one ATC NPC on the exterior near spawn, wired to the real `atc` grape. More NPCs go
+      // at real campus locations as ATC members author grapes; the world stays the same, the slot lights up.
+      const NPCS = [{ id: 'atc', label: 'Algorithmic Thinking Club', tx: grid.spawn.tx + 3, ty: grid.spawn.ty + 3 }]
+      const npcPins: { g: Graphics; base: number }[] = []
+      for (const n of NPCS) {
+        const mx = isoX(n.tx, n.ty), my = isoY(n.tx, n.ty, 0), z = (n.tx + n.ty) * 16 + 14
+        const pin = new Graphics()
+        pin.poly([0, 0, -6, -18, 6, -18]).fill({ color: 0x2f8e82 })   // tail triangle, tip at the ground tile
+        pin.circle(0, -25, 9).fill({ color: 0x2f8e82 }).stroke({ color: 0xffffff, width: 2 })
+        pin.circle(0, -25, 3.4).fill({ color: 0xffffff })
+        pin.position.set(mx, my); pin.zIndex = z; world.addChild(pin); npcPins.push({ g: pin, base: my })
+        const lab = new Text({ text: n.label, style: { fill: 0xffffff, fontSize: 13, fontWeight: '700', fontFamily: 'ui-sans-serif, system-ui', stroke: { color: 0x0b1410, width: 4 } } })
+        lab.anchor.set(0.5, 1); lab.position.set(mx, my - 42); lab.zIndex = z; world.addChild(lab)
+      }
       const pos = atParam.length === 2 && !atParam.some(isNaN) ? { tx: atParam[0], ty: atParam[1] } : { tx: grid.spawn.tx, ty: grid.spawn.ty }
       let facing = 'south', at = 0, lastDepth = -1, renderLevel = grid.level[pos.ty][pos.tx]
       const tileAt = (tx: number, ty: number) => {
@@ -448,6 +476,7 @@ export function Campus({ onReady }: { onReady?: () => void }) {
           if (keys['s'] || keys['arrowdown']) dy += 1
           if (keys['a'] || keys['arrowleft']) dx -= 1
           if (keys['d'] || keys['arrowright']) dx += 1
+          if (pausedRef.current) { dx = 0; dy = 0 }   // a grape is open: freeze Thor
           const moving = dx || dy
           if (moving) {
             const l = Math.hypot(dx, dy), ux = dx / l, uy = dy / l, sp = 0.08 * dt
@@ -469,6 +498,10 @@ export function Campus({ onReady }: { onReady?: () => void }) {
           if (moving && wf) thor.texture = wf[Math.floor(at / 110) % wf.length]
           else thor.texture = idle[facing] ?? idle['south']
           viewZoom = ZOOM; camX = x; camY = y
+          // nearest NPC the player can interact with (drives the "Press E" prompt + the E handler)
+          let nn: NearInfo = null, best = 2.6
+          for (const n of NPCS) { const dd = Math.hypot(pos.tx - n.tx, pos.ty - n.ty); if (dd < best) { best = dd; nn = { id: n.id, label: n.label } } }
+          if ((nn?.id ?? null) !== (nearNpc?.id ?? null)) { nearNpc = nn; cbRef.current.onState?.({ district: 'Campus Grounds', near: nn }) }
         }
         world.scale.set(viewZoom)
         redrawMarks(viewZoom)
@@ -480,6 +513,7 @@ export function Campus({ onReady }: { onReady?: () => void }) {
         for (const e of liveByChunk.values()) for (const tr of e.trees) {
           tr.sp.rotation = Math.sin(tnow * 1.05 + tr.phase) * tr.amp + Math.sin(tnow * 0.4 + tr.phase * 1.7) * tr.amp * 0.45
         }
+        for (const p of npcPins) p.g.y = p.base + Math.sin(tnow * 3) * 3   // gentle bob on NPC markers
       })
 
       // ---- atmosphere: WARM but GROUNDED golden-hour light (gold standard = localized warm glow over a

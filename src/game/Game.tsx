@@ -109,7 +109,7 @@ export default function Game() {
   return (
     <>
       {session && (params.has('cv')
-        ? <Campus onReady={() => setReady(true)} />
+        ? <Campus onReady={() => setReady(true)} onState={onState} onEnter={onEnter} paused={playingId != null} />
         : showCampus
           ? <Stage playerName={session.player.displayName} onState={onState} onEnter={onEnter} onReady={() => setReady(true)} />
           : params.has('slice')
