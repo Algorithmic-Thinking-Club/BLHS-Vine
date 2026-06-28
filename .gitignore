@@ -39,18 +39,28 @@ Thumbs.db
 # Working docs and notes (kept local)
 docs/
 
+# Markdown / written notes (text + AI-authored content stays out of git)
+*.md
+
+# PDFs are all construction/research docs (plans are sensitive); none are game output
+*.pdf
+
 # Superseded data snapshots
 src/game/campus.geo.v2.json
 src/game/campus.geo.v3.json
 src/game/campus.geo.v4.json
 src/game/campus.geo.v5.json
 
-# Loose scratch renders
-reference/*.png
-reference/*.err
-reference/floorplans-maps/rendered/*
-!reference/floorplans-maps/rendered/validate-sidebyside.png
+# Reference: keep MOST public (it shows the depth/complexity of the work).
+# Only these buckets stay local:
+#  - floorplans-maps: the school's blueprints + anything derived from them
+#    (school security + architect copyright; one PDF is also >GitHub's 100MB limit)
+#  - _archive: rough build screenshots + iteration junk (the unprofessional stuff)
+#  - tools: bundled CLI binaries
+reference/floorplans-maps/
+reference/research/plan-pdfs/
 reference/_archive/
+reference/tools/
 
 # Build + map tooling: track the reusable pipeline only
 scripts/*
