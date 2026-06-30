@@ -1,0 +1,138 @@
+/* Cozy-premium front-end theme (per docs/research/art-ocean-ui-bar.md §C).
+   Anchors: aged paper + carved wood UI chrome; teal lives in the world + as accent;
+   GOLD is reserved for earned honors only; nothing pure-black or pure-white. */
+
+:root {
+  /* UI chrome family */
+  --c-paper: #e8dcc2;
+  --c-paper-shade: #d2c2a2;
+  --c-wood: #7a5638;
+  --c-wood-dark: #553a25;
+  --c-ink: #2c2620;
+  --c-ink-dim: #6b5f4f;
+
+  /* accents */
+  --c-teal: #2f8e82;
+  --c-teal-deep: #1d4f5a;
+  --c-gold: #c9a24a;       /* EARNED HONORS ONLY */
+  --c-sky: #bcd8e0;
+  --c-coral: #d98a6a;
+  --c-leaf: #6f8f54;
+
+  /* atmosphere */
+  --c-sea-deep: #0b2230;
+
+  --font-display: 'Jersey 25', 'Pixelify Sans', system-ui, sans-serif;
+  --font-ui: 'Pixelify Sans', system-ui, sans-serif;
+
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* crisp pixel-art scaling for any sprite/asset image */
+.pix {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* a carved wooden sign button that physically presses (chrome, not art).
+   When the PixelLab 9-slice button art lands it becomes the background; the
+   press behaviour stays here. */
+.ui-btn {
+  font-family: var(--font-display);
+  font-size: 26px;
+  letter-spacing: 0.02em;
+  color: var(--c-paper);
+  background: linear-gradient(#8a6342, var(--c-wood));
+  border: 3px solid var(--c-wood-dark);
+  border-radius: 12px;
+  padding: 14px 34px 16px;
+  cursor: pointer;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+  box-shadow: 0 6px 0 var(--c-wood-dark), 0 10px 16px rgba(0, 0, 0, 0.35);
+  transition: transform 120ms var(--ease-out), box-shadow 120ms var(--ease-out),
+    filter 120ms var(--ease-out);
+  user-select: none;
+}
+.ui-btn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+.ui-btn:active {
+  transform: translateY(5px);
+  box-shadow: 0 1px 0 var(--c-wood-dark), 0 3px 8px rgba(0, 0, 0, 0.35);
+}
+.ui-btn--ghost {
+  font-size: 18px;
+  padding: 9px 20px 10px;
+  background: rgba(43, 38, 32, 0.5);
+  border-color: rgba(85, 58, 37, 0.8);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.3);
+}
+.ui-btn--ghost:active {
+  transform: translateY(3px);
+}
+
+/* aged-paper panel inside a wood frame (chrome). Swappable to 9-slice art. */
+.ui-panel {
+  background: var(--c-paper);
+  border: 4px solid var(--c-wood);
+  outline: 2px solid var(--c-wood-dark);
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 2px var(--c-paper-shade), 0 14px 30px rgba(0, 0, 0, 0.45);
+  color: var(--c-ink);
+}
+
+/* ---- Title scene ---- */
+.title-root { position: absolute; inset: 0; overflow: hidden; }
+/* warm legibility veil over the live ocean: darker at the edges (vignette),
+   a gentle golden wash up top so the wordmark reads */
+.title-veil {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 38%, rgba(0,0,0,0) 40%, rgba(4,12,18,0.55) 100%),
+    linear-gradient(180deg, rgba(20,40,46,0.35) 0%, rgba(0,0,0,0) 30%);
+}
+.title-content {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; padding-top: 12vh;
+}
+.title-wordmark { position: relative; display: inline-block; }
+.title-sign { position: relative; z-index: 1; display: block; width: min(760px, 86vw); height: auto; }
+/* paper backing inside the rope frame (the PNG's center was knocked out by bg-removal) */
+.title-paper {
+  position: absolute; z-index: 0; inset: 16% 9%;
+  background: var(--c-paper); border-radius: 10px;
+  box-shadow: inset 0 0 0 2px var(--c-paper-shade), inset 0 6px 14px rgba(85,58,37,0.25);
+}
+.title-wordtext {
+  position: absolute; z-index: 2; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px;
+  transform: translateY(3%);
+}
+.title-line1 {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 4.2vw, 46px);
+  color: var(--c-teal-deep);
+  text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+  letter-spacing: 0.16em;
+}
+.title-line2 {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 6vw, 70px);
+  color: var(--c-wood-dark);
+  text-shadow: 0 1px 0 rgba(255,255,255,0.45);
+  line-height: 0.92;
+}
+.title-actions { margin-top: auto; margin-bottom: 8vh; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.title-credit {
+  position: absolute; bottom: 14px; width: 100%;
+  font-family: var(--font-ui); font-size: 13px; color: rgba(244,241,234,0.6);
+}
+.title-gear {
+  position: absolute; top: 16px; right: 18px;
+  font-family: var(--font-ui); font-size: 22px; color: var(--c-paper);
+  background: rgba(43,38,32,0.5); border: 2px solid rgba(85,58,37,0.8);
+  border-radius: 10px; width: 42px; height: 42px; cursor: pointer;
+}

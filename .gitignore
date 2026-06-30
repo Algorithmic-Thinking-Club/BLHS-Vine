@@ -61,6 +61,8 @@ reference/floorplans-maps/
 reference/research/plan-pdfs/
 reference/_archive/
 reference/tools/
+# real students' graduation photos — privacy, local reference only
+reference/blhs-grad-capes/
 
 # Build + map tooling: track the reusable pipeline only
 scripts/*

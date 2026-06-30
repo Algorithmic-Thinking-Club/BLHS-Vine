@@ -1,0 +1,47 @@
+GIMP Palette
+Name: BLHS Tropical Master
+Columns: 8
+# Tropical-TavernWorld master ramp. Everything in the game conforms to THIS so the
+# world shares one hand. Shadows are teal-tinted (never neutral gray); rock is warm.
+# Starting point sampled from the TavernWorld gold-standard + the tropical targets;
+# refine with eyes / Lospec, then re-conform. Also importable into Aseprite.
+# --- water (6 steps, bright shallow -> luminous deep) ---
+127 227 214	water-shallow
+ 79 201 190	water-1
+ 63 182 176	water-mid
+ 42 142 140	water-2
+ 21  94 102	water-deep
+ 14  63  74	water-abyss
+# --- foam / white ---
+242 247 240	foam
+214 236 230	foam-soft
+# --- sand (4) ---
+244 227 176	sand-lit
+240 220 168	sand
+217 190 134	sand-2
+184 154 102	sand-wet
+# --- grass (5) ---
+156 197 106	grass-lit
+106 168  79	grass
+ 78 138  61	grass-2
+ 53 107  48	grass-shadow
+ 44  85  48	foliage-deep
+# --- wood / sandstone (4) ---
+201 154  91	wood-lit
+154 107  60	wood
+107  72  40	wood-dark
+ 74  51  32	wood-trim
+# --- stone (warm gray, never purple) ---
+184 176 162	stone-lit
+140 133 122	stone
+ 94  88  78	stone-dark
+# --- UI paper / ink ---
+240 230 204	paper-lit
+232 220 194	paper
+210 194 162	paper-shade
+ 44  38  32	ink
+# --- accents + lights + universal dark ---
+ 47 142 130	teal-accent
+201 162  74	gold-honors
+255 240 200	highlight-warm
+ 20  40  43	dark-teal-outline

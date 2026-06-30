@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>BLHS Trace Tool</title>
+<style>
+  html,body{margin:0;height:100%;background:#1a1c20;color:#ddd;font:13px system-ui,sans-serif;overflow:hidden}
+  #bar{position:fixed;top:0;left:0;right:0;height:46px;background:#23262d;display:flex;align-items:center;gap:8px;padding:0 10px;z-index:10;border-bottom:1px solid #000}
+  #bar b{color:#fff}
+  button,select{background:#2f333c;color:#eee;border:1px solid #444;border-radius:6px;padding:6px 10px;cursor:pointer;font:inherit}
+  button:hover{background:#3a3f4a}
+  .lay{display:inline-flex;align-items:center;gap:4px}
+  .sw{width:14px;height:14px;border-radius:3px;display:inline-block}
+  #cv{position:fixed;top:46px;left:0;cursor:crosshair}
+  #hint{position:fixed;bottom:8px;left:10px;background:#000a;padding:6px 10px;border-radius:6px;max-width:560px}
+  #coord{position:fixed;bottom:8px;right:10px;background:#000a;padding:6px 10px;border-radius:6px;font-variant-numeric:tabular-nums}
+  kbd{background:#000;border:1px solid #555;border-radius:4px;padding:1px 5px}
+</style>
+</head>
+<body>
+<div id="bar">
+  <b>BLHS Trace</b>
+  <span class="lay">Layer:
+    <select id="layer">
+      <option value="building">building</option>
+      <option value="sidewalk">sidewalk (path)</option>
+      <option value="patio">patio / plaza</option>
+      <option value="lawn">lawn edge</option>
+    </select>
+  </span>
+  <button id="finish">Finish shape (Enter)</button>
+  <button id="undo">Undo point (Z)</button>
+  <button id="delshape">Delete last shape</button>
+  <button id="export">⬇ Export JSON</button>
+  <span id="counts" style="margin-left:auto;color:#9ab"></span>
+</div>
+<canvas id="cv"></canvas>
+<div id="hint">Click to drop points along an edge. <kbd>Enter</kbd> finishes a shape (polygon for building/patio, line for sidewalk). Scroll = zoom, drag = pan. Trace each building wall and each sidewalk, switching the Layer dropdown. Then Export and send me the file.</div>
+<div id="coord">—</div>
+<script>
+// aerial -> campus feet:  fx=(px-OX)*S, fy=(OY-py)*S   (px,py = pixel in the 1500x1100 aerial)
+const OX=847.2, OY=513.4, S=2.466, IMW=1500, IMH=1100;
+const COL={building:'#ff4db8', sidewalk:'#46d3ff', patio:'#ffd24b', lawn:'#74e06a'};
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const img=new Image(); img.src='/aerial-esri.png';
+let view={x:0,y:0,z:0.6}; // pan in screen px, zoom
+let shapes=[]; // {layer, pts:[[px,py],...], closed}
+let cur=null;  // current shape pts in image px
+function resize(){cv.width=innerWidth;cv.height=innerHeight-46;draw();}
+addEventListener('resize',resize);
+img.onload=()=>{ // center
+  view.z=Math.min(cv.width/IMW, cv.height/IMH)*0.95; view.x=(cv.width-IMW*view.z)/2; view.y=(cv.height-IMH*view.z)/2; draw();
+};
+function S2I(sx,sy){return [(sx-view.x)/view.z,(sy-view.y)/view.z];} // screen->image px
+function I2S(ix,iy){return [ix*view.z+view.x, iy*view.z+view.y];}
+function feet(ix,iy){return [Math.round((ix-OX)*S*10)/10, Math.round((OY-iy)*S*10)/10];}
+function draw(){
+  ctx.fillStyle='#1a1c20';ctx.fillRect(0,0,cv.width,cv.height);
+  if(img.complete){const[sx,sy]=I2S(0,0);ctx.drawImage(img,sx,sy,IMW*view.z,IMH*view.z);}
+  for(const s of shapes) drawShape(s.pts, COL[s.layer], s.closed);
+  if(cur && cur.length){drawShape(cur, COL[document.getElementById('layer').value], false, true);}
+  document.getElementById('counts').textContent = shapes.length+' shapes';
+}
+function drawShape(pts,col,closed,live){
+  if(!pts.length)return;
+  ctx.lineWidth=2;ctx.strokeStyle=col;ctx.fillStyle=col+'33';ctx.beginPath();
+  pts.forEach((p,i)=>{const[x,y]=I2S(p[0],p[1]); i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  if(closed)ctx.closePath();
+  if(closed){ctx.fill();}ctx.stroke();
+  ctx.fillStyle=col;pts.forEach(p=>{const[x,y]=I2S(p[0],p[1]);ctx.beginPath();ctx.arc(x,y,3,0,7);ctx.fill();});
+}
+cv.addEventListener('mousedown',e=>{
+  if(e.button!==0)return; if(e.shiftKey){drag=true;dl=[e.clientX,e.clientY];return;}
+  const[ix,iy]=S2I(e.clientX,e.clientY-46);
+  if(!cur)cur=[]; cur.push([ix,iy]); draw();
+});
+let drag=false,dl=null;
+cv.addEventListener('mousedown',e=>{if(e.button===1||e.button===2){drag=true;dl=[e.clientX,e.clientY];e.preventDefault();}});
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+addEventListener('mousemove',e=>{
+  if(drag&&dl){view.x+=e.clientX-dl[0];view.y+=e.clientY-dl[1];dl=[e.clientX,e.clientY];draw();}
+  const[ix,iy]=S2I(e.clientX,e.clientY-46);const[fx,fy]=feet(ix,iy);
+  document.getElementById('coord').textContent=`px ${ix.toFixed(0)},${iy.toFixed(0)}  •  feet ${fx}, ${fy}`;
+});
+addEventListener('mouseup',()=>{drag=false;dl=null;});
+cv.addEventListener('wheel',e=>{e.preventDefault();const f=e.deltaY<0?1.15:1/1.15;const mx=e.clientX,my=e.clientY-46;
+  const[ix,iy]=S2I(mx,my);view.z*=f;view.x=mx-ix*view.z;view.y=my-iy*view.z;draw();},{passive:false});
+function finish(){if(cur&&cur.length>=2){const lay=document.getElementById('layer').value;
+  shapes.push({layer:lay,pts:cur,closed:(lay==='building'||lay==='patio')});cur=null;draw();}}
+document.getElementById('finish').onclick=finish;
+document.getElementById('undo').onclick=()=>{if(cur&&cur.length)cur.pop();draw();};
+document.getElementById('delshape').onclick=()=>{shapes.pop();draw();};
+addEventListener('keydown',e=>{if(e.key==='Enter')finish();if(e.key.toLowerCase()==='z'){if(cur&&cur.length)cur.pop();draw();}});
+document.getElementById('export').onclick=()=>{
+  const out={frame:'campus feet (x=east,y=north)',transform:'fx=(px-847.2)*2.466 ; fy=(513.4-py)*2.466',layers:{}};
+  for(const s of shapes){(out.layers[s.layer]=out.layers[s.layer]||[]).push({closed:s.closed,feet:s.pts.map(p=>feet(p[0],p[1]))});}
+  const blob=new Blob([JSON.stringify(out,null,1)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='blhs_trace.json';a.click();
+};
+resize();
+</script>
+</body>
+</html>

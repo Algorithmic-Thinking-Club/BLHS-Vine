@@ -162,20 +162,68 @@ function distField(cols: number, rows: number, isSource: (tx: number, ty: number
   return dist
 }
 
-export function buildCampusGrid(): CampusGrid {
-  const bb = bboxOf(G.boundary)
+// buildCampusGrid(geo) rasterizes ANY geo of the campus.geo shape — the global campus by default, or a
+// SECTION geo (e.g. the 300/400 wings) for focused section-by-section building. Supports MULTIPLE
+// footprints (the global campus has one OSM blob; a section has the real per-building footprints).
+// A SECTION can be baked directly from a drawing into a tile material grid (faithful, no lossy geo
+// polygons). buildSectionGrid consumes that grid + door tiles and produces a CampusGrid the renderer
+// reads, same as the campus. mat rows are stored north->south (row 0 = north / miny+rows); we flip so
+// grid row 0 = south to match the campus convention.
+export type SectionMatgrid = {
+  cols: number; rows: number; ft: number; minx: number; miny: number
+  doors?: { id: string; label: string; tx: number; ty: number }[]
+  mat: string[][]
+}
+export function buildSectionGrid(mg: SectionMatgrid): CampusGrid {
+  const { cols, rows, minx, miny, ft } = mg
+  const mat: Mat[][] = [], level: number[][] = [], walkable: boolean[][] = []
+  for (let r = 0; r < rows; r++) {
+    const src = mg.mat[rows - 1 - r] ?? []
+    const mr: Mat[] = new Array(cols), lr: number[] = new Array(cols), wr: boolean[] = new Array(cols)
+    for (let c = 0; c < cols; c++) {
+      const m = (src[c] || 'grass') as Mat
+      mr[c] = m; lr[c] = 0; wr[c] = m !== 'building'
+    }
+    mat.push(mr); level.push(lr); walkable.push(wr)
+  }
+  const built = new Set<Mat>(['concrete', 'building', 'patio', 'brick', 'asphalt'])
+  const dBuilt = distField(cols, rows, (tx, ty) => built.has(mat[ty][tx]))
+  const grassWild = new Float32Array(cols * rows)
+  for (let ty = 0; ty < rows; ty++) for (let tx = 0; tx < cols; tx++) {
+    const i = ty * cols + tx
+    if (mat[ty][tx] !== 'grass') { grassWild[i] = 0; continue }
+    const bClose = Math.max(0, Math.min(1, (11 - dBuilt[i]) / 11))
+    const wander = (vnoise(tx / 9, ty / 9) - 0.5) * 0.6
+    grassWild[i] = Math.max(0, Math.min(1, 0.55 + wander - bClose))
+  }
+  const forestDepth = new Int32Array(cols * rows)
+  const stx = Math.floor(cols / 2), sty = Math.floor(rows / 2)
+  let spawn = { tx: stx, ty: sty }
+  for (let rad = 0, done = false; rad < Math.max(cols, rows) && !done; rad++) {
+    for (let dy = -rad; dy <= rad && !done; dy++) for (let dx = -rad; dx <= rad && !done; dx++) {
+      const tx = stx + dx, ty = sty + dy
+      if (tx >= 0 && ty >= 0 && tx < cols && ty < rows && walkable[ty][tx]) { spawn = { tx, ty }; done = true }
+    }
+  }
+  const doors = (mg.doors ?? []).map((d) => ({ id: d.id, label: d.label, tx: d.tx, ty: d.ty }))
+  return { cols, rows, mat, level, walkable, grassWild, forestDepth, minx, miny, ft, spawn, doors }
+}
+
+export function buildCampusGrid(geo: Geo = G): CampusGrid {
+  const bb = bboxOf(geo.boundary)
   const PAD = 50   // tighter frame around the campus (was 170; the big empty padding made it a small island)
   const minx = bb[0] - PAD, miny = bb[1] - PAD
   const cols = Math.ceil((bb[2] + PAD - minx) / FT_PER_TILE)
   const rows = Math.ceil((bb[3] + PAD - miny) / FT_PER_TILE)
 
-  const fp = G.footprints[0]?.poly, fpb = fp ? bboxOf(fp) : null
-  const footb = bboxOf(G.fields.football)
-  const tennis = G.fields.tennis.map((t) => [t, bboxOf(t)] as const)
-  const diamonds = G.fields.diamonds.map((t) => [t, bboxOf(t)] as const)
-  const parking = G.parking.map((p) => [p, bboxOf(p)] as const)
-  const courts = G.courtyards.map((p) => [p, bboxOf(p)] as const)
-  const walks = G.walkways.map((w) => [w, bboxOf(w)] as const)
+  const foots = geo.footprints.map((f) => [f.poly, bboxOf(f.poly)] as const)
+  const fpb = foots[0]?.[1] ?? null
+  const footb = bboxOf(geo.fields.football)
+  const tennis = geo.fields.tennis.map((t) => [t, bboxOf(t)] as const)
+  const diamonds = geo.fields.diamonds.map((t) => [t, bboxOf(t)] as const)
+  const parking = geo.parking.map((p) => [p, bboxOf(p)] as const)
+  const courts = geo.courtyards.map((p) => [p, bboxOf(p)] as const)
+  const walks = geo.walkways.map((w) => [w, bboxOf(w)] as const)
 
   const mat: Mat[][] = [], level: number[][] = [], walkable: boolean[][] = []
   for (let r = 0; r < rows; r++) {
@@ -184,13 +232,13 @@ export function buildCampusGrid(): CampusGrid {
     for (let c = 0; c < cols; c++) {
       const x = minx + (c + 0.5) * FT_PER_TILE
       let m: Mat = 'grass', region = 'building', walk = true
-      if (!pointInPoly(x, y, G.boundary)) { m = 'forest'; walk = false }
-      else if (fpb && inBB(x, y, fpb) && pointInPoly(x, y, fp!)) { m = 'building'; walk = false }
+      if (!pointInPoly(x, y, geo.boundary)) { m = 'forest'; walk = false }
+      else if (foots.some(([p, b]) => inBB(x, y, b) && pointInPoly(x, y, p))) { m = 'building'; walk = false }
       else if (tennis.some(([t, b]) => inBB(x, y, b) && pointInPoly(x, y, t))) { m = 'court'; region = 'tennis' }
       else if (diamonds.some(([t, b]) => inBB(x, y, b) && pointInPoly(x, y, t))) { m = 'dirt'; region = 'diamonds' }
       // FOOTBALL & TRACK (section 1): split the stadium polygon into the red track oval, the green
       // synthetic field inside it, and a thin concrete apron at the rect corners. (football region ONLY.)
-      else if (inBB(x, y, footb) && pointInPoly(x, y, G.fields.football)) { m = stadiumMat(x, y); region = 'football' }
+      else if (inBB(x, y, footb) && pointInPoly(x, y, geo.fields.football)) { m = stadiumMat(x, y); region = 'football' }
       else if (parking.some(([p, b]) => inBB(x, y, b) && pointInPoly(x, y, p))) { m = 'asphalt'; region = 'main_north_parking' }
       else if (courts.some(([p, b]) => inBB(x, y, b) && pointInPoly(x, y, p))) { m = 'concrete' }
       else if (walks.some(([w, b]) => inBB(x, y, b, WALK_HALF) && distToPolyline(x, y, w) < WALK_HALF)) { m = 'concrete' }
@@ -201,6 +249,11 @@ export function buildCampusGrid(): CampusGrid {
     }
     mat.push(mr); level.push(lr); walkable.push(wr)
   }
+
+  // (REVERTED 2026-06-27) stampSection over the OSM building blob looked bad — the faithful 300/400
+  // buildings blended invisibly into the existing tan building mass and the walkways landed as scattered
+  // noise. Precising in-place needs to REPLACE the OSM building's 300/400 region cleanly, not overlay it.
+  // Kept stampSection() defined for the reworked integration; not called here for now.
 
   // ---- stairs at crossings (NOT flattening): terrace ONLY the walkways (concrete) into climbable
   // steps where a path crosses a terrace break, so the path stays walkable while the surrounding terrain
@@ -246,7 +299,7 @@ export function buildCampusGrid(): CampusGrid {
   }
 
   const toTile = (p: Pt) => ({ tx: Math.round((p[0] - minx) / FT_PER_TILE), ty: Math.round((p[1] - miny) / FT_PER_TILE) })
-  const doors = (G.footprints[0]?.entrances ?? []).map((e) => ({ id: e.grapeId, label: e.label, ...toTile(e.pt) }))
+  const doors = geo.footprints.flatMap((f) => (f.entrances ?? []).map((e) => ({ id: e.grapeId, label: e.label, ...toTile(e.pt) })))
   // spawn near the campus center (the building centroid) on the nearest WALKABLE tile — the building
   // interior is non-walkable, so this lands Thor just outside it, in the heart of campus
   const cxf = fpb ? (fpb[0] + fpb[2]) / 2 : (bb[0] + bb[2]) / 2

@@ -8,6 +8,8 @@ $edge = "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 if (Test-Path $Out) { Remove-Item $Out -Force }
 $a = @(
   "--headless=new","--no-sandbox","--hide-scrollbars",
+  # software WebGL — headless Edge's default GPU path renders the Pixi canvas blank in this env
+  "--use-angle=swiftshader","--enable-unsafe-swiftshader","--ignore-gpu-blocklist",
   "--window-size=1366,768","--virtual-time-budget=$([int](($Wait+4)*1000))",
   "--screenshot=$Out",$Url
 )

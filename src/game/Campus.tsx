@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { Application, Assets, ColorMatrixFilter, Container, Graphics, Matrix, RenderTexture, Sprite, Text, Texture, TextureSource } from 'pixi.js'
-import { buildCampusGrid, STADIUM, type CampusGrid, type Mat } from './campus-grid'
+import { buildCampusGrid, buildSectionGrid, STADIUM, type CampusGrid, type Mat } from './campus-grid'
 import { placeProps, forestTreeline, type Placement } from './campus-props'
 import { SECTIONS, type TileRect } from './sections'
 import { BLHS } from '../vine/palette'
+import sectionMatgrid300400 from './section_300_400.matgrid.json'
+
+// focused SECTION maps, loaded via ?section=<id>. The 300/400 section's layout is BAKED from A1.01 into a
+// tile material grid (faithful to the drawing), rendered directly by buildSectionGrid.
+const SECTION_MATGRIDS: Record<string, unknown> = { '300_400': sectionMatgrid300400 }
 
 // distinct review colors for the section-boundary highlights (Edit mode), keyed to SECTIONS order
 const SECTION_COLORS = [0x4fd1c5, 0xf6ad55, 0xfc8181, 0x9f7aea, 0x68d391, 0xf687b3, 0xf6e05e, 0x63b3ed, 0xed8936, 0xa0aec0]
@@ -159,8 +164,13 @@ export function Campus({ onReady, onState, onEnter, paused }: {
     const ku = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = false }
 
     const start = async () => {
-      const grid: CampusGrid = buildCampusGrid()
       const sp = new URLSearchParams(window.location.search)
+      // ?section=300_400 loads a focused SECTION map (the real per-building footprints from A1.01) instead
+      // of the whole campus, so a section can be built to the bar in isolation, then stitched in globally.
+      const section = sp.get('section')
+      const grid: CampusGrid = (section && SECTION_MATGRIDS[section])
+        ? buildSectionGrid(SECTION_MATGRIDS[section] as never)
+        : buildCampusGrid()
       const ZOOM = parseFloat(sp.get('z') || '') || 1.15           // ?z=0.4 for a campus overview
       const atParam = (sp.get('at') || '').split(',').map(Number)   // ?at=tx,ty to spawn elsewhere
       TextureSource.defaultOptions.scaleMode = 'nearest'

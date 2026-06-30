@@ -58,29 +58,36 @@ export const atcGrape: GrapeModule = {
       heading: 'Algorithmic Thinking Club (ATC)',
       body: "Bonney Lake's first computer-science club. Members learn to code by building real projects, including this game. Beginners welcome. Meets Thursdays in room 305.",
     }],
+    // In-world ATC scene. Content is REAL + specific (BLHS's first CS club, student-founded fall 2025,
+    // members built THIS game, a 3-person podium sweep year one, hackathons, beginners from zero, room 305).
+    // MINI-TASKS for Thor are designed between beats (implemented by the scene engine, see docs/vision):
+    //   - "Run it": Thor presses a key at a laptop → the screen lights up with the game build (you made something).
+    //   - "Inspect the trophy": examine the podium-sweep medals → caption (ATC competes and wins).
+    //   - "Peek a project": pick an ambient student's station → a one-line look at what they're building.
     encounter: {
       npc: { id: 'ash', name: 'Ash' },
       room: '305',
       intro: [
-        { speaker: 'Ash', text: 'Oh, perfect timing. You are literally standing inside it.' },
-        { speaker: 'Thor', text: 'Inside what?' },
-        { speaker: 'Ash', text: 'ATC, the Algorithmic Thinking Club. This whole game you are playing? Students built it. Right here in 305.' },
+        { speaker: 'Ash', text: "Hey, perfect timing. You're standing in the first computer-science club Bonney Lake has ever had. I started it last fall." },
+        { speaker: 'Thor', text: 'A whole club, just for coding?' },
+        { speaker: 'Ash', text: "For building. This game you're walking around in right now? We made it. Students, from nothing." },
       ],
-      media: { id: 'atc-what', kind: 'youtube', src: '', caption: 'What is ATC?' },
+      media: { id: 'atc-what', kind: 'youtube', src: '', caption: 'Inside ATC' },
       check: [{
         kind: 'choice',
         id: 'atc-pitch',
-        prompt: "A student leans in the doorway: 'Is this the coding club? My friend said it's only for geniuses.' What do you tell them?",
+        prompt: "A student leans in: \"Is this the genius coding club? I've literally never written a line of code.\" What do you tell them?",
         objective: 'How to join',
         options: [
-          { text: 'Pretty much. You need to be good at math first.', correct: false, reply: 'The student shrugs and walks off. Ash: "That is not us at all, ATC is built for beginners. Try again."' },
-          { text: 'Nope, it is built for beginners. Come learn with us!', correct: true, reply: 'The student grins and steps in to sit down. Ash: "And that is how it is done. Welcome aboard."' },
-          { text: 'I do not know, ask someone else.', correct: false, reply: 'The student leaves, unsure. Ash: "We can do better than that, tell them what we are really about."' },
+          { text: "Yeah, you'd want some experience first.", correct: false, reply: 'The student backs out. Ash: "No, no, we teach from zero, that’s the entire point. Try that again."' },
+          { text: "Perfect, that's exactly who it's for. We start everyone from scratch.", correct: true, reply: 'The student grins and pulls up a chair. Ash: "That’s it. Welcome aboard."' },
+          { text: "Not sure, maybe ask a teacher?", correct: false, reply: 'The student leaves, unsure. Ash: "Come on, you know this one, tell them what we’re about."' },
         ],
       }],
       outro: [
-        { speaker: 'Ash', text: 'We meet Thursdays after school, room 305. No experience needed, just show up.' },
-        { speaker: 'Thor', text: 'I might just do that.' },
+        { speaker: 'Ash', text: "First year we even swept a competition, three of us took first, second, and third." },
+        { speaker: 'Ash', text: "We meet in 305 after school. We build the game, hit hackathons, compete. Beginners every time. Come find us." },
+        { speaker: 'Thor', text: 'I think I will.' },
       ],
       reward: { points: 10, handbookEntryId: 'atc', achievementId: 'atc-recruit' },
     },
