@@ -237,7 +237,7 @@ export default function BeachIso() {
       // vignette framing the scene.
       const warm = new Sprite(Texture.WHITE); warm.tint = 0xffcb82; warm.alpha = 0.13; instance.stage.addChild(warm)
       const sun = new Sprite(radial(512, [[0, 'rgba(255,238,196,0.26)'], [0.5, 'rgba(255,226,164,0.08)'], [1, 'rgba(255,226,164,0)']])); sun.anchor.set(0.5); sun.blendMode = 'add'; instance.stage.addChild(sun)
-      const vig = new Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.48, 'rgba(0,0,0,0)'], [0.75, 'rgba(40,26,12,0.20)'], [1, 'rgba(30,18,8,0.52)']])); instance.stage.addChild(vig)
+      const vig = new Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.40, 'rgba(0,0,0,0)'], [0.70, 'rgba(34,22,10,0.36)'], [1, 'rgba(22,13,5,0.72)']])); instance.stage.addChild(vig)
       const resizeFx = (vw: number, vh: number) => {
         warm.width = vw; warm.height = vh
         sun.width = sun.height = Math.max(vw, vh) * 1.4; sun.position.set(vw * 0.4, vh * 0.15)
