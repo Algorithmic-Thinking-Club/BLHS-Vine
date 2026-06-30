@@ -97,7 +97,7 @@ export default function BeachIso() {
       await instance.init({ background: 0x2f93a0, antialias: false, resizeTo: ref.current ?? window })
       if (destroyed || !ref.current) { instance.destroy(true); return }
       app = instance; ref.current.appendChild(instance.canvas)
-      const ZOOM = 0.95
+      const ZOOM = 1.15 // BEACH-LOCAL zoom (Thor reads bigger; each map sets its own)
 
       const tex: Record<string, Texture> = {}
       const load = async (k: string, u: string) => { try { tex[k] = await Assets.load(u) } catch { /* */ } }
@@ -122,9 +122,10 @@ export default function BeachIso() {
       const world = new Container(); world.scale.set(ZOOM); world.sortableChildren = true
       instance.stage.addChild(world)
       const grade = new ColorMatrixFilter()
-      grade.brightness(1.05, false); grade.saturate(0.0, true); grade.contrast(0.0, true)
-      // warm golden-hour light, but soft/dreamy (not neon): gentle red lift, slight blue pull-down
-      const wm = grade.matrix; wm[0] *= 1.07; wm[6] *= 1.01; wm[12] *= 0.9; grade.matrix = wm
+      // BEACH-LOCAL grade: smooth warm TROPICAL wash, not a hard golden-hour (the sand is already
+      // brownish, so keep contrast low). Soft, slightly desaturated for a nostalgic film look.
+      grade.brightness(0.99, false); grade.saturate(-0.05, true); grade.contrast(-0.01, true)
+      const wm = grade.matrix; wm[0] *= 1.045; wm[12] *= 0.94; grade.matrix = wm
       world.filters = [grade]
 
       // ---- ground: iso diamond tiles, sea -> wet -> sand ----
@@ -231,13 +232,15 @@ export default function BeachIso() {
 
       // ---- golden-hour atmosphere: a warm low sun glow + a broad warm horizon haze + a soft warm
       // vignette, layered over the composited world so the beach feels dreamy and sun-soaked. ----
-      const sun = new Sprite(radial(512, [[0, 'rgba(255,228,158,0.36)'], [0.42, 'rgba(255,206,128,0.14)'], [1, 'rgba(255,196,120,0)']])); sun.anchor.set(0.5); sun.blendMode = 'add'; instance.stage.addChild(sun)
-      const haze = new Sprite(radial(512, [[0, 'rgba(255,214,150,0.24)'], [0.6, 'rgba(255,210,150,0.06)'], [1, 'rgba(255,210,150,0)']])); haze.anchor.set(0.5); haze.blendMode = 'add'; instance.stage.addChild(haze)
-      const vig = new Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.58, 'rgba(0,0,0,0)'], [0.88, 'rgba(42,28,14,0.18)'], [1, 'rgba(30,18,8,0.46)']])); instance.stage.addChild(vig)
+      // soft warm sun wash (low, broad, not bright) + a faint warm haze + a SLIGHT cinematic vignette
+      // (warm-toned, gentle — never the heavy dark frame). All beach-local.
+      const sun = new Sprite(radial(512, [[0, 'rgba(255,234,186,0.16)'], [0.5, 'rgba(255,226,168,0.05)'], [1, 'rgba(255,226,168,0)']])); sun.anchor.set(0.5); sun.blendMode = 'add'; instance.stage.addChild(sun)
+      const haze = new Sprite(radial(512, [[0, 'rgba(255,228,184,0.10)'], [0.6, 'rgba(255,224,180,0.03)'], [1, 'rgba(255,224,180,0)']])); haze.anchor.set(0.5); haze.blendMode = 'add'; instance.stage.addChild(haze)
+      const vig = new Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.62, 'rgba(0,0,0,0)'], [0.86, 'rgba(44,32,18,0.08)'], [1, 'rgba(38,26,14,0.24)']])); instance.stage.addChild(vig)
       const resizeFx = (vw: number, vh: number) => {
-        sun.width = sun.height = Math.max(vw, vh) * 1.25; sun.position.set(vw * 0.36, vh * 0.14)
-        haze.width = vw * 2.0; haze.height = vh * 1.05; haze.position.set(vw * 0.5, vh * 0.04)
-        vig.width = vw * 1.5; vig.height = vh * 1.5; vig.position.set(-vw * 0.25, -vh * 0.25)
+        sun.width = sun.height = Math.max(vw, vh) * 1.5; sun.position.set(vw * 0.4, vh * 0.16)
+        haze.width = vw * 2.0; haze.height = vh * 1.1; haze.position.set(vw * 0.5, vh * 0.05)
+        vig.width = vw * 1.6; vig.height = vh * 1.6; vig.position.set(-vw * 0.3, -vh * 0.3)
       }
       resizeFx(instance.renderer.width, instance.renderer.height)
 
