@@ -122,8 +122,9 @@ export default function BeachIso() {
       const world = new Container(); world.scale.set(ZOOM); world.sortableChildren = true
       instance.stage.addChild(world)
       const grade = new ColorMatrixFilter()
-      grade.brightness(1.03, false); grade.saturate(-0.05, true); grade.contrast(-0.02, true)
-      const wm = grade.matrix; wm[0] *= 1.04; wm[12] *= 0.95; grade.matrix = wm
+      grade.brightness(1.05, false); grade.saturate(0.0, true); grade.contrast(0.0, true)
+      // warm golden-hour light, but soft/dreamy (not neon): gentle red lift, slight blue pull-down
+      const wm = grade.matrix; wm[0] *= 1.07; wm[6] *= 1.01; wm[12] *= 0.9; grade.matrix = wm
       world.filters = [grade]
 
       // ---- ground: iso diamond tiles, sea -> wet -> sand ----
@@ -228,10 +229,16 @@ export default function BeachIso() {
         resizeFx(vw, vh)
       })
 
-      // ---- atmosphere: warm sun pool + soft vignette (over the stage, like the campus) ----
-      const sun = new Sprite(radial(512, [[0, 'rgba(255,236,180,0.20)'], [0.5, 'rgba(255,224,150,0.07)'], [1, 'rgba(255,224,150,0)']])); sun.anchor.set(0.5); sun.blendMode = 'add'; instance.stage.addChild(sun)
-      const vig = new Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.6, 'rgba(0,0,0,0)'], [0.9, 'rgba(20,28,30,0.16)'], [1, 'rgba(14,22,26,0.4)']])); instance.stage.addChild(vig)
-      const resizeFx = (vw: number, vh: number) => { sun.width = sun.height = Math.max(vw, vh) * 1.1; sun.position.set(vw * 0.32, vh * 0.2); vig.width = vw * 1.5; vig.height = vh * 1.5; vig.position.set(-vw * 0.25, -vh * 0.25) }
+      // ---- golden-hour atmosphere: a warm low sun glow + a broad warm horizon haze + a soft warm
+      // vignette, layered over the composited world so the beach feels dreamy and sun-soaked. ----
+      const sun = new Sprite(radial(512, [[0, 'rgba(255,228,158,0.36)'], [0.42, 'rgba(255,206,128,0.14)'], [1, 'rgba(255,196,120,0)']])); sun.anchor.set(0.5); sun.blendMode = 'add'; instance.stage.addChild(sun)
+      const haze = new Sprite(radial(512, [[0, 'rgba(255,214,150,0.24)'], [0.6, 'rgba(255,210,150,0.06)'], [1, 'rgba(255,210,150,0)']])); haze.anchor.set(0.5); haze.blendMode = 'add'; instance.stage.addChild(haze)
+      const vig = new Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.58, 'rgba(0,0,0,0)'], [0.88, 'rgba(42,28,14,0.18)'], [1, 'rgba(30,18,8,0.46)']])); instance.stage.addChild(vig)
+      const resizeFx = (vw: number, vh: number) => {
+        sun.width = sun.height = Math.max(vw, vh) * 1.25; sun.position.set(vw * 0.36, vh * 0.14)
+        haze.width = vw * 2.0; haze.height = vh * 1.05; haze.position.set(vw * 0.5, vh * 0.04)
+        vig.width = vw * 1.5; vig.height = vh * 1.5; vig.position.set(-vw * 0.25, -vh * 0.25)
+      }
       resizeFx(instance.renderer.width, instance.renderer.height)
 
       window.addEventListener('keydown', kd); window.addEventListener('keyup', ku)
