@@ -9,6 +9,7 @@ import OverworldScene from './app/scenes/OverworldScene'
 import IslandScene from './app/scenes/IslandScene'
 import CapeScene from './app/scenes/CapeScene'
 import Overworld3D from './overworld/Overworld3D'
+import BeachScene from './app/scenes/BeachScene'
 
 // The game runs through the scene manager, wrapped in the run-state provider. Phase 1 flow:
 // title -> overworld (navigable hub) -> island visit -> ... -> cape summary. Join-by-code +
@@ -23,6 +24,7 @@ const registry: SceneRegistry = {
   island: () => <IslandScene />,
   cape: () => <CapeScene />,
   sea3d: () => <Overworld3D />,
+  beach: () => <BeachScene />,
 }
 
 export default function App() {
