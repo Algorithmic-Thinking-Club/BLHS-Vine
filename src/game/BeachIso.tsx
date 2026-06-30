@@ -1,191 +1,276 @@
 import { useEffect, useRef } from 'react'
+import { Application, Assets, ColorMatrixFilter, Container, Sprite, Texture, TextureSource } from 'pixi.js'
 
-// PHASE I-1 — the golden-hour beach as ONE SEAMLESS PixelLab landscape (no shaders, no block tiles).
-// The ground is built from chained PixelLab Wang tilesets (deep -> mid ocean -> foam shoreline -> sand
-// -> dune grass). A per-vertex terrain field is AUTOTILED (each cell picks the tile whose 4 corners
-// match its corner terrains) into one offscreen top-down map, which is then drawn ISO-SKEWED as the
-// ground plane. Because the Wang transitions blend, the coastline flows as a continuous landscape with
-// no hard tile boundaries. PixelLab props + a walkable Thor compose in iso on top. Golden hour is baked
-// into the art itself. (This replaces the earlier stamped-tile "minecraft blocks" version.)
+// PHASE I-1 — the opening beach, built as a TRUE 2:1 ISOMETRIC tilemap on the same engine that
+// renders the campus (HW=32/HH=16 diamonds, level heights, walkable grid, depth-sorted billboard
+// props, collision, Thor walking). Sea sits in the far (small tx+ty), a wavy foam shoreline, then
+// a sand beach you walk. Palms / rocks / driftwood are upright iso billboards with grounded
+// shadows and collision. This replaces the flat front-on backdrop: it is a real isometric, walkable
+// beach, the basic floor the whole intro is built on.
 
-const HW = 32, HH = 16, TILE = 32
-const TW = 88, TH = 88
-const Z = 0.72
-
-// chained tilesets: levels 0 deep, 1 mid-ocean, 2 sand, 3 dune-grass. Each adjacent pair is one Wang set.
-const SETS = [
-  { json: '/art/intro/gh-ocean.json', png: '/art/intro/gh-ocean.png' }, // lower=deep(0) upper=mid(1)
-  { json: '/art/intro/gh-shore.json', png: '/art/intro/gh-shore.png' }, // lower=mid(1)  upper=sand(2)
-  { json: '/art/intro/gh-grass.json', png: '/art/intro/gh-grass.png' }, // lower=sand(2) upper=grass(3)
-]
-
-type Box = { x: number; y: number; w: number; h: number }
-type SetData = { img: HTMLImageElement; sig: Record<string, Box> } // sig key = role(NE)+role(NW)+role(SE)+role(SW)
-
-function loadImg(src: string): Promise<HTMLImageElement> {
-  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src })
+const HW = 32, HH = 16
+const isoX = (tx: number, ty: number) => (tx - ty) * HW
+const isoY = (tx: number, ty: number) => (tx + ty) * HH
+const dirs8 = ['south', 'north', 'east', 'west', 'south-east', 'north-east', 'north-west', 'south-west']
+const cardinals = ['south', 'north', 'east', 'west']
+const cardinalOf = (d: string) => cardinals.includes(d) ? d : d.includes('south') ? 'south' : d.includes('north') ? 'north' : d.includes('east') ? 'east' : 'west'
+function dirFromAngle(dx: number, dy: number) {
+  const a = (Math.atan2(dy, dx) * 180) / Math.PI
+  if (a >= -22.5 && a < 22.5) return 'east'; if (a >= 22.5 && a < 67.5) return 'south-east'
+  if (a >= 67.5 && a < 112.5) return 'south'; if (a >= 112.5 && a < 157.5) return 'south-west'
+  if (a >= 157.5 || a < -157.5) return 'west'; if (a >= -157.5 && a < -112.5) return 'north-west'
+  if (a >= -112.5 && a < -67.5) return 'north'; return 'north-east'
 }
-const R = (lvl: number, lo: number) => (lvl > lo ? 'U' : 'L') // role within a set whose lower level = lo
-
-// terrain band field (vertex level 0..3). sea in the far (small u+v), sand band, dune grass near foreground.
-function field(i: number, j: number) {
-  const s = i + j, d = i - j
-  const b1 = 30 + 4 * Math.sin(d * 0.14)          // deep | mid  (vast ocean: deep fills the far)
-  const b2 = 50 + 4 * Math.sin(d * 0.13 + 1.0)    // mid  | sand  (the waterline, near the player)
-  const b3 = 150 + 6 * Math.sin(d * 0.10 + 2.0)   // sand | dune grass (far inland, off the beach)
-  if (s < b1) return 0
-  if (s < b2) return 1
-  if (s < b3) return 2
-  return 3
+const hash = (x: number, y: number) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5; return s - Math.floor(s) }
+// smooth value noise in [0,1] for large-scale sand tonal drift (breaks the per-tile grid repeat)
+function vnoise(x: number, y: number) {
+  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy
+  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy)
+  const a = hash(ix, iy), b = hash(ix + 1, iy), c = hash(ix, iy + 1), d = hash(ix + 1, iy + 1)
+  return a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + d * u * v
 }
 
-const DIRS = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east']
-const dirOf = (dx: number, dy: number) => DIRS[Math.round(((Math.atan2(dy, dx) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8]
+const COLS = 104, ROWS = 104, MARGIN = 32 // big map; Thor is boundary-stopped MARGIN tiles before the edge so the blue void never shows (more beach/sea beyond view)
+// shoreline: sea where (tx+ty) is small (far/back), beach in front. A vast ocean: the waterline sits
+// near the map's diagonal centre so the sea fills roughly the back half, wavy along the (tx-ty) axis.
+const shoreAt = (d: number) => 104 + 16 * Math.sin(d * 0.05) + 8 * Math.sin(d * 0.11 + 1.3)
+// variant pools (16 PixelLab variant tiles each): common = featureless/subtle, rare = with shells/pebbles.
+const SAND_COMMON = [0, 1, 2, 12, 14, 15], SAND_RARE = [8] // plainest tiles; features stay rare accents
+const W_PLAIN = [0, 1, 3, 4, 10], W_DEEP = [12, 13, 14, 15], W_ACCENT = [8, 9] // crests/glints rare only
+type Cell = 'sea' | 'wet' | 'sand'
+function cellAt(tx: number, ty: number): Cell {
+  const s = tx + ty, sh = shoreAt(tx - ty)
+  if (s < sh) return 'sea'
+  if (s < sh + 1.6) return 'wet'
+  return 'sand'
+}
 
-type Prop = { u: number; v: number; img: string; h: number; sway?: boolean }
+type PropDef = { tx: number; ty: number; img: string; h: number } // h = target on-screen height in px @ zoom 1
+function buildProps(): PropDef[] {
+  const out: PropDef[] = []
+  const sandOK = (tx: number, ty: number) => tx > 1 && ty > 1 && tx < COLS - 2 && ty < ROWS - 2 && cellAt(tx, ty) === 'sand'
+  const add = (tx: number, ty: number, img: string, h: number) => { if (sandOK(tx, ty)) out.push({ tx, ty, img, h }) }
+  // left frame: a palm grove framing the left of the play area (visible band)
+  for (const [tx, ty, h] of [[10, 24, 188], [7, 21, 168], [13, 30, 200], [9, 34, 176], [5, 27, 150]] as const) add(tx, ty, 'palmB', h)
+  add(11, 27, 'grass', 46); add(12, 33, 'rocks', 66); add(8, 30, 'grass', 40); add(14, 36, 'driftwood', 44); add(6, 23, 'grass', 38)
+  // right frame: palm grove down the right screen edge (high tx, low ty)
+  for (const [tx, ty, h] of [[44, 26, 196], [40, 22, 168], [46, 32, 180], [42, 36, 204], [47, 24, 150]] as const) add(tx, ty, 'palmB', h)
+  add(43, 30, 'grass', 46); add(45, 35, 'rocks', 60); add(41, 25, 'grass', 40); add(44, 40, 'driftwood', 44)
+  // back headland clusters near the shore corners (enclose the NE/NW)
+  add(20, 13, 'rocks', 78); add(18, 12, 'palmB', 150); add(22, 15, 'grass', 42)
+  add(33, 18, 'rocks', 74); add(35, 17, 'palmB', 150); add(31, 19, 'grass', 42)
+  // mid-beach FOCAL ANCHOR: the boulder cluster (panther-rock placeholder)
+  add(27, 24, 'rocks', 104); add(24, 26, 'grass', 50); add(30, 26, 'driftwood', 50); add(28, 21, 'grass', 38)
+  // scattered grouped detail on the open sand (never single)
+  add(18, 34, 'grass', 44); add(20, 36, 'grass', 36); add(19, 38, 'driftwood', 42)
+  add(34, 32, 'grass', 44); add(36, 34, 'grass', 36); add(38, 30, 'driftwood', 42)
+  add(28, 40, 'grass', 42); add(30, 42, 'grass', 36)
+  // reeds + grass lining the wet shoreline: walk the first sand row behind the foam at each column
+  for (let tx = 4; tx < COLS - 4; tx++) {
+    for (let ty = 4; ty < ROWS - 4; ty++) {
+      if (cellAt(tx, ty) === 'sand' && cellAt(tx, ty - 1) !== 'sand') {
+        if (hash(tx * 2.1, ty) > 0.62) out.push({ tx, ty, img: 'reeds', h: 40 + hash(tx, ty) * 14 })
+        else if (hash(tx, ty * 1.7) > 0.7) add(tx, ty, 'grass', 34)
+        break
+      }
+    }
+  }
+  return out
+}
+
 const PROP_SRC: Record<string, string> = {
-  palm: '/art/intro/palm-b.png', palm2: '/art/intro/palm-a.png', rocks: '/art/intro/rocks.png',
-  driftwood: '/art/intro/driftwood.png', grass: '/art/intro/grass.png',
-}
-// intentional composition (not a sprinkle): left palm headland, right rocky point, a focal boulder
-// massif set near the water, a couple deliberate driftwood clusters. (Density grows next pass.)
-function composition(): Prop[] {
-  const p: Prop[] = []
-  for (const [u, v, h] of [[20, 40, 150], [17, 44, 132], [23, 37, 120], [15, 48, 160], [19, 51, 140]] as const) p.push({ u, v, img: 'palm', h, sway: true })
-  p.push({ u: 18, v: 42, img: 'grass', h: 42 }, { u: 21, v: 46, img: 'grass', h: 34 }, { u: 16, v: 45, img: 'rocks', h: 58 })
-  for (const [u, v, h] of [[52, 18, 150], [55, 21, 134], [49, 16, 120]] as const) p.push({ u, v, img: 'palm', h, sway: true })
-  p.push({ u: 53, v: 22, img: 'rocks', h: 78 }, { u: 56, v: 24, img: 'rocks', h: 58 }, { u: 50, v: 20, img: 'grass', h: 40 })
-  p.push({ u: 40, v: 24, img: 'rocks', h: 112 }, { u: 37, v: 26, img: 'grass', h: 46 }, { u: 43, v: 22, img: 'grass', h: 34 }, { u: 38, v: 22, img: 'driftwood', h: 50 })
-  p.push({ u: 30, v: 40, img: 'driftwood', h: 50 }, { u: 32, v: 42, img: 'grass', h: 36 })
-  p.push({ u: 46, v: 40, img: 'palm2', h: 120, sway: true }, { u: 44, v: 42, img: 'grass', h: 34 })
-  return p
+  palmB: '/art/intro/palm-b.png', rocks: '/art/intro/rocks.png',
+  driftwood: '/art/intro/driftwood.png', grass: '/art/intro/grass.png', reeds: '/art/iso/props/reeds.png',
 }
 
 export default function BeachIso() {
-  const ref = useRef<HTMLCanvasElement>(null)
+  const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    const cv = ref.current!
-    const ctx = cv.getContext('2d')!
-    let raf = 0, stop = false
-    const t0 = performance.now()
-    const props = composition()
-    const propImg: Record<string, HTMLImageElement> = {}
-    const thor: Record<string, HTMLImageElement[]> = {}
-    let terrain: HTMLCanvasElement | null = null
+    let app: Application | null = null, destroyed = false
+    const keys: Record<string, boolean> = {}
+    const kd = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = true }
+    const ku = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = false }
 
-    const P = { u: 30, v: 30, dir: 'south', frame: 0, moving: false }
-    const cam = { u: 30, v: 30 }
-    const keys = new Set<string>()
-    const kd = (e: KeyboardEvent) => keys.add(e.key.toLowerCase())
-    const ku = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase())
-    window.addEventListener('keydown', kd); window.addEventListener('keyup', ku)
+    const start = async () => {
+      TextureSource.defaultOptions.scaleMode = 'nearest'
+      const instance = new Application()
+      await instance.init({ background: 0x2f93a0, antialias: false, resizeTo: ref.current ?? window })
+      if (destroyed || !ref.current) { instance.destroy(true); return }
+      app = instance; ref.current.appendChild(instance.canvas)
+      const ZOOM = 0.95
 
-    const buildTerrain = (sets: SetData[]) => {
-      const off = document.createElement('canvas'); off.width = TW * TILE; off.height = TH * TILE
-      const g = off.getContext('2d')!; g.imageSmoothingEnabled = false
-      // fill role tiles for a uniform level
-      const fill = (lvl: number): { set: SetData; key: string } => {
-        if (lvl === 0) return { set: sets[0], key: 'LLLL' }
-        if (lvl === 1) return { set: sets[0], key: 'UUUU' }
-        if (lvl === 2) return { set: sets[1], key: 'UUUU' }
-        return { set: sets[2], key: 'UUUU' }
-      }
-      for (let j = 0; j < TH; j++) for (let i = 0; i < TW; i++) {
-        const nw = field(i, j), ne = field(i + 1, j), sw = field(i, j + 1), se = field(i + 1, j + 1)
-        const lo = Math.min(nw, ne, sw, se), hi = Math.max(nw, ne, sw, se)
-        let set: SetData, key: string
-        if (lo === hi) { const f = fill(lo); set = f.set; key = f.key }
-        else { set = sets[lo]; key = R(ne, lo) + R(nw, lo) + R(se, lo) + R(sw, lo) }
-        const box = set.sig[key] ?? set.sig['UUUU'] ?? Object.values(set.sig)[0]
-        if (box) g.drawImage(set.img, box.x, box.y, box.w, box.h, i * TILE, j * TILE, TILE, TILE)
-      }
-      return off
-    }
-
-    const init = async () => {
-      const sets: SetData[] = await Promise.all(SETS.map(async (s) => {
-        const [img, meta] = await Promise.all([loadImg(s.png), fetch(s.json).then((r) => r.json())])
-        const sig: Record<string, Box> = {}
-        for (const t of meta.tileset_data.tiles) {
-          const c = t.corners, b = t.bounding_box
-          const key = (c.NE === 'upper' ? 'U' : 'L') + (c.NW === 'upper' ? 'U' : 'L') + (c.SE === 'upper' ? 'U' : 'L') + (c.SW === 'upper' ? 'U' : 'L')
-          sig[key] = { x: b.x, y: b.y, w: b.width, h: b.height }
-        }
-        return { img, sig }
-      }))
-      if (stop) return
-      terrain = buildTerrain(sets)
+      const tex: Record<string, Texture> = {}
+      const load = async (k: string, u: string) => { try { tex[k] = await Assets.load(u) } catch { /* */ } }
       await Promise.all([
-        ...Object.entries(PROP_SRC).map(([k, u]) => loadImg(u).then((i) => { propImg[k] = i }).catch(() => {})),
-        ...DIRS.map((d) => Promise.all([0, 1, 2, 3, 4, 5].map((n) => loadImg(`/art/characters/thor/walk/${d}/${n}.png`).catch(() => null)))
-          .then((a) => { thor[d] = a.filter(Boolean) as HTMLImageElement[] })),
+        load('sand', '/art/iso/sand.png'), load('water', '/art/iso/water.png'), load('water2', '/art/iso/water2.png'),
+        ...Object.entries(PROP_SRC).map(([k, u]) => load(k, u)),
       ])
-      if (!stop) raf = requestAnimationFrame(frame)
-    }
+      const idle: Record<string, Texture> = {}
+      await Promise.all(dirs8.map((d) => load('idle_' + d, `/art/characters/thor/walk/${d}/0.png`).then(() => { idle[d] = tex['idle_' + d] })))
+      const walk: Record<string, Texture[]> = {}
+      await Promise.all(dirs8.map(async (d) => {
+        try { walk[d] = await Promise.all([0, 1, 2, 3, 4, 5].map((i) => Assets.load(`/art/characters/thor/walk/${d}/${i}.png`))) } catch { /* */ }
+      }))
+      // 16 PixelLab variant tiles each for sand + water (the campus-grass variety technique)
+      const sandV: Texture[] = [], waterV: Texture[] = []
+      await Promise.all([
+        ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/intro/sand-v/${i}.png`).then((t) => { sandV[i] = t }).catch(() => {})),
+        ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/intro/water-v/${i}.png`).then((t) => { waterV[i] = t }).catch(() => {})),
+      ])
+      if (destroyed) { instance.destroy(true); return }
 
-    const walkable = (u: number, v: number) => {
-      if (u < 2 || v < 2 || u > TW - 2 || v > TH - 2) return false
-      if (field(Math.round(u), Math.round(v)) < 2) return false // only sand/grass
-      for (const pr of props) if ((pr.img === 'rocks' || pr.img.startsWith('palm')) && Math.hypot(pr.u - u, pr.v - v) < 1.0) return false
-      return true
-    }
+      const world = new Container(); world.scale.set(ZOOM); world.sortableChildren = true
+      instance.stage.addChild(world)
+      const grade = new ColorMatrixFilter()
+      grade.brightness(1.03, false); grade.saturate(-0.05, true); grade.contrast(-0.02, true)
+      const wm = grade.matrix; wm[0] *= 1.04; wm[12] *= 0.95; grade.matrix = wm
+      world.filters = [grade]
 
-    function frame(now: number) {
-      if (stop) return
-      const t = (now - t0) / 1000
-      const W = (cv.width = cv.clientWidth), H = (cv.height = cv.clientHeight)
-      ctx.imageSmoothingEnabled = false
-      // move Thor
-      let dx = 0, dy = 0
-      if (keys.has('w') || keys.has('arrowup')) dy -= 1
-      if (keys.has('s') || keys.has('arrowdown')) dy += 1
-      if (keys.has('a') || keys.has('arrowleft')) dx -= 1
-      if (keys.has('d') || keys.has('arrowright')) dx += 1
-      P.moving = !!(dx || dy)
-      if (P.moving) {
-        const l = Math.hypot(dx, dy), sp = 0.09, nu = P.u + (dx / l) * sp, nv = P.v + (dy / l) * sp
-        if (walkable(nu, P.v)) P.u = nu
-        if (walkable(P.u, nv)) P.v = nv
-        P.dir = dirOf(dx, dy); P.frame = Math.floor(t * 9) % 6
-      } else P.frame = 0
-      cam.u += (P.u - cam.u) * 0.1; cam.v += (P.v - cam.v) * 0.1
-      const ox = W / 2 - (cam.u - cam.v) * HW * Z, oy = H / 2 - (cam.u + cam.v) * HH * Z
-      const w2s = (u: number, v: number) => ({ x: ox + (u - v) * HW * Z, y: oy + (u + v) * HH * Z })
-
-      // background = deep ocean so anything beyond the ground diamond still reads as vast sea
-      ctx.fillStyle = '#0e4f5e'; ctx.fillRect(0, 0, W, H)
-      // ground: draw the seamless top-down terrain iso-skewed as the floor plane
-      if (terrain) {
-        ctx.save()
-        ctx.setTransform(HW * Z / TILE, HH * Z / TILE, -HW * Z / TILE, HH * Z / TILE, ox, oy)
-        ctx.imageSmoothingEnabled = false
-        ctx.drawImage(terrain, 0, 0)
-        ctx.restore()
+      // ---- ground: iso diamond tiles, sea -> wet -> sand ----
+      const waterSprites: { sp: Sprite; ph: number }[] = []
+      const walkable: boolean[][] = []
+      for (let ty = 0; ty < ROWS; ty++) {
+        walkable[ty] = []
+        for (let tx = 0; tx < COLS; tx++) {
+          const c = cellAt(tx, ty)
+          walkable[ty][tx] = c === 'sand'
+          const isSea = c === 'sea'
+          // pick a VARIANT tile: water by depth band (shallow->deep) + hash; sand mostly featureless
+          // with rare shell/pebble tiles. This is what stops the surface reading as one repeated tile.
+          let base: Texture | undefined
+          if (isSea) {
+            const dep = Math.min(1, (shoreAt(tx - ty) - (tx + ty)) / 90), h = hash(tx * 1.3, ty * 2.7)
+            const idx = dep > 0.6 ? W_DEEP[Math.floor(h * W_DEEP.length)]
+              : h > 0.965 ? W_ACCENT[Math.floor(hash(tx * 5, ty * 3) * W_ACCENT.length)]
+                : W_PLAIN[Math.floor(h * W_PLAIN.length)]
+            base = waterV[idx] ?? tex['water']
+          } else {
+            const pool = (c === 'sand' && hash(tx * 2.1, ty * 1.7) > 0.97) ? SAND_RARE : SAND_COMMON
+            base = sandV[pool[Math.floor(hash(tx * 3.3, ty * 4.1) * pool.length)]] ?? tex['sand']
+          }
+          if (!base) continue
+          const sp = new Sprite(base); sp.anchor.set(0.5, 0.25)
+          const fx = hash(tx * 3, ty * 7) > 0.5 ? -1 : 1
+          const os = isSea ? 1 : 1.04
+          sp.scale.set(fx * os, os)
+          sp.position.set(isoX(tx, ty), isoY(tx, ty)); sp.zIndex = (tx + ty) * 16
+          // LIGHT macro drift on top of the variant tiles (subtle now — the variants carry the variety)
+          if (isSea) { const dep = Math.min(1, (shoreAt(tx - ty) - (tx + ty)) / 88); sp.tint = shadeHex(mix(0xcfeee8, 0x1d6f7e, dep * 0.82), 0.97 + hash(tx, ty) * 0.05); waterSprites.push({ sp, ph: (tx + ty) * 0.5 }) }
+          else if (c === 'wet') sp.tint = shadeHex(mix(0xd8c08a, 0xc9ad78, hash(tx, ty)), 0.94)
+          else {
+            const big = vnoise(tx / 12 + 3, ty / 12 + 5)
+            sp.tint = shadeHex(mix(0xe6d29c, 0xfff1c6, big), 0.96 + hash(tx * 1.3, ty * 2.1) * 0.06)
+          }
+          world.addChild(sp)
+          // lacey foam on the wet band
+          if (c === 'wet' && hash(tx * 5, ty * 9) > 0.35) {
+            const f = new Sprite(tex['sand']); f.anchor.set(0.5, 0.25); f.scale.set(fx, 1)
+            f.tint = 0xffffff; f.alpha = 0.5; f.position.set(isoX(tx, ty), isoY(tx, ty) - 2); f.zIndex = (tx + ty) * 16 + 2
+            world.addChild(f)
+          }
+        }
       }
-      // props + Thor, depth-sorted in iso
-      const items: { d: number; draw: () => void }[] = []
-      for (const pr of props) {
-        const img = propImg[pr.img]; if (!img) continue
-        items.push({ d: pr.u + pr.v, draw: () => {
-          const { x, y } = w2s(pr.u, pr.v); const h = pr.h * Z, w = img.width * (h / img.height)
-          ctx.save(); ctx.globalAlpha = 0.3; ctx.fillStyle = '#163a32'; ctx.beginPath(); ctx.ellipse(x + w * 0.05, y, w * 0.32, w * 0.12, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore()
-          const sway = pr.sway ? Math.sin(t * 1.0 + pr.u) * 0.018 : 0
-          ctx.save(); ctx.translate(x, y); ctx.rotate(sway); ctx.drawImage(img, Math.round(-w / 2), Math.round(-h), Math.round(w), Math.round(h)); ctx.restore()
-        } })
-      }
-      const tf = thor[P.dir] || thor['south']; const ti = tf && tf[P.frame % tf.length]
-      if (ti) items.push({ d: P.u + P.v, draw: () => {
-        const { x, y } = w2s(P.u, P.v); const h = 92 * Z, w = ti.width * (h / ti.height)
-        ctx.save(); ctx.globalAlpha = 0.32; ctx.fillStyle = '#163a32'; ctx.beginPath(); ctx.ellipse(x, y, w * 0.3, w * 0.12, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore()
-        ctx.drawImage(ti, Math.round(x - w / 2), Math.round(y - h), Math.round(w), Math.round(h))
-      } })
-      items.sort((a, b) => a.d - b.d).forEach((i) => i.draw())
 
-      raf = requestAnimationFrame(frame)
+      // (ground decals + decorative props are stripped during the terrain phase — focus is on making
+      // the sand + ocean themselves read at the bar before anything is placed.)
+      void makeFleck
+      const shadowTex = makeShadow()
+      const blocked = new Set<string>()
+      for (const p of [] as PropDef[]) {
+        const t = tex[p.img]; if (!t) continue
+        const x = isoX(p.tx, p.ty), y = isoY(p.tx, p.ty), z = (p.tx + p.ty) * 16
+        const sc = p.h / t.height
+        const sh = new Sprite(shadowTex); sh.anchor.set(0.5, 0.5); sh.width = Math.max(18, t.width * sc * 0.66); sh.height = sh.width * 0.42
+        sh.alpha = 0.32; sh.position.set(x, y); sh.zIndex = z + 1; world.addChild(sh)
+        const sp = new Sprite(t); sp.anchor.set(0.5, 0.94); sp.scale.set(sc); sp.position.set(x, y); sp.zIndex = z + 8
+        world.addChild(sp)
+        blocked.add(Math.round(p.tx) + ',' + Math.round(p.ty))
+        if (p.h > 120) blocked.add(Math.round(p.tx) + ',' + Math.round(p.ty + 1)) // tall trunks block one deeper too
+      }
+
+      // ---- Thor ----
+      const thor = new Sprite(idle['south'] ?? tex['sand']); thor.anchor.set(0.5, 0.9); thor.scale.set(0.62)
+      thor.zIndex = 0; world.addChild(thor)
+      void buildProps
+      const pos = { tx: 61, ty: 61 }; let facing = 'south', at = 0
+
+      const walkableAt = (tx: number, ty: number) => {
+        const x = Math.round(tx), y = Math.round(ty)
+        if (x < MARGIN || y < MARGIN || x > COLS - MARGIN || y > ROWS - MARGIN) return false // invisible boundary, well inside the map edge
+        return walkable[y][x] && !blocked.has(x + ',' + y)
+      }
+
+      instance.ticker.add((tk) => {
+        const dt = tk.deltaTime
+        let dx = 0, dy = 0
+        if (keys['w'] || keys['arrowup']) dy -= 1
+        if (keys['s'] || keys['arrowdown']) dy += 1
+        if (keys['a'] || keys['arrowleft']) dx -= 1
+        if (keys['d'] || keys['arrowright']) dx += 1
+        const moving = dx || dy
+        if (moving) {
+          const l = Math.hypot(dx, dy), ux = dx / l, uy = dy / l, sp = 0.075 * dt
+          const ntx = pos.tx + ux * sp, nty = pos.ty + uy * sp
+          if (walkableAt(ntx + Math.sign(ux) * 0.25, pos.ty)) pos.tx = ntx
+          if (walkableAt(pos.tx, nty + Math.sign(uy) * 0.25)) pos.ty = nty
+          facing = dirFromAngle(isoX(dx, dy), (dx + dy) * HH)
+        }
+        const x = isoX(pos.tx, pos.ty), y = isoY(pos.tx, pos.ty)
+        thor.position.set(x, y); thor.zIndex = Math.floor(pos.tx + pos.ty) * 16 + 12
+        at += tk.deltaMS
+        const wf = walk[facing] ?? walk[cardinalOf(facing)]
+        thor.texture = (moving && wf) ? wf[Math.floor(at / 110) % wf.length] : (idle[facing] ?? idle['south'] ?? thor.texture)
+        // camera follow
+        const vw = instance.renderer.width, vh = instance.renderer.height
+        // follow Thor, biased down so the vast ocean fills the frame above him
+        world.x = vw / 2 - x * ZOOM; world.y = vh * 0.64 - y * ZOOM
+        void waterSprites // (ocean animation comes in a later pass)
+        resizeFx(vw, vh)
+      })
+
+      // ---- atmosphere: warm sun pool + soft vignette (over the stage, like the campus) ----
+      const sun = new Sprite(radial(512, [[0, 'rgba(255,236,180,0.20)'], [0.5, 'rgba(255,224,150,0.07)'], [1, 'rgba(255,224,150,0)']])); sun.anchor.set(0.5); sun.blendMode = 'add'; instance.stage.addChild(sun)
+      const vig = new Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.6, 'rgba(0,0,0,0)'], [0.9, 'rgba(20,28,30,0.16)'], [1, 'rgba(14,22,26,0.4)']])); instance.stage.addChild(vig)
+      const resizeFx = (vw: number, vh: number) => { sun.width = sun.height = Math.max(vw, vh) * 1.1; sun.position.set(vw * 0.32, vh * 0.2); vig.width = vw * 1.5; vig.height = vh * 1.5; vig.position.set(-vw * 0.25, -vh * 0.25) }
+      resizeFx(instance.renderer.width, instance.renderer.height)
+
+      window.addEventListener('keydown', kd); window.addEventListener('keyup', ku)
     }
 
-    init().catch((e) => console.error('[BeachIso] init failed', e))
-    return () => { stop = true; cancelAnimationFrame(raf); window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku) }
+    start().catch((err) => { console.error('[BeachIso] failed', err) })
+    return () => { destroyed = true; window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); if (app) app.destroy(true, { children: true }) }
   }, [])
-  return <canvas ref={ref} style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', display: 'block', background: '#0e4f5e' }} />
+  return <div ref={ref} style={{ position: 'fixed', inset: 0, background: '#2f93a0' }} />
+}
+
+// ---- helpers ----
+function shadeHex(hex: number, f: number) {
+  const r = Math.min(255, ((hex >> 16) & 255) * f), g = Math.min(255, ((hex >> 8) & 255) * f), b = Math.min(255, (hex & 255) * f)
+  return (r << 16) | (g << 8) | b
+}
+function mix(a: number, b: number, t: number) {
+  const ar = (a >> 16) & 255, ag = (a >> 8) & 255, ab = a & 255, br = (b >> 16) & 255, bg = (b >> 8) & 255, bb = b & 255
+  return ((ar + (br - ar) * t) << 16) | ((ag + (bg - ag) * t) << 8) | (ab + (bb - ab) * t) | 0
+}
+function radial(size: number, stops: [number, string][]) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = size
+  const ctx = cv.getContext('2d')!, g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
+  for (const [o, c] of stops) g.addColorStop(o, c)
+  ctx.fillStyle = g; ctx.fillRect(0, 0, size, size)
+  const t = Texture.from(cv); t.source.scaleMode = 'linear'; return t
+}
+function makeFleck(a: number, b: number) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 12
+  const ctx = cv.getContext('2d')!
+  const hx = (h: number) => '#' + h.toString(16).padStart(6, '0')
+  ctx.fillStyle = hx(b); ctx.beginPath(); ctx.ellipse(6, 7, 4, 2.4, 0, 0, Math.PI * 2); ctx.fill()
+  ctx.fillStyle = hx(a); ctx.beginPath(); ctx.ellipse(6, 6, 3.4, 2, 0, 0, Math.PI * 2); ctx.fill()
+  const t = Texture.from(cv); t.source.scaleMode = 'nearest'; return t
+}
+function makeShadow() {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64
+  const ctx = cv.getContext('2d')!, g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
+  g.addColorStop(0, 'rgba(20,40,36,0.55)'); g.addColorStop(0.7, 'rgba(20,40,36,0.18)'); g.addColorStop(1, 'rgba(20,40,36,0)')
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64)
+  const t = Texture.from(cv); t.source.scaleMode = 'linear'; return t
 }
