@@ -232,15 +232,16 @@ export default function BeachIso() {
 
       // ---- golden-hour atmosphere: a warm low sun glow + a broad warm horizon haze + a soft warm
       // vignette, layered over the composited world so the beach feels dreamy and sun-soaked. ----
-      // soft warm sun wash (low, broad, not bright) + a faint warm haze + a SLIGHT cinematic vignette
-      // (warm-toned, gentle — never the heavy dark frame). All beach-local.
-      const sun = new Sprite(radial(512, [[0, 'rgba(255,234,186,0.16)'], [0.5, 'rgba(255,226,168,0.05)'], [1, 'rgba(255,226,168,0)']])); sun.anchor.set(0.5); sun.blendMode = 'add'; instance.stage.addChild(sun)
-      const haze = new Sprite(radial(512, [[0, 'rgba(255,228,184,0.10)'], [0.6, 'rgba(255,224,180,0.03)'], [1, 'rgba(255,224,180,0)']])); haze.anchor.set(0.5); haze.blendMode = 'add'; instance.stage.addChild(haze)
-      const vig = new Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.62, 'rgba(0,0,0,0)'], [0.86, 'rgba(44,32,18,0.08)'], [1, 'rgba(38,26,14,0.24)']])); instance.stage.addChild(vig)
+      // BEACH-LOCAL atmosphere, now actually visible: a full-screen warm tropical tint for cohesive
+      // warmth, a soft golden sun glow upper-left, and a real (but warm + soft, not black) cinematic
+      // vignette framing the scene.
+      const warm = new Sprite(Texture.WHITE); warm.tint = 0xffcb82; warm.alpha = 0.13; instance.stage.addChild(warm)
+      const sun = new Sprite(radial(512, [[0, 'rgba(255,238,196,0.26)'], [0.5, 'rgba(255,226,164,0.08)'], [1, 'rgba(255,226,164,0)']])); sun.anchor.set(0.5); sun.blendMode = 'add'; instance.stage.addChild(sun)
+      const vig = new Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.48, 'rgba(0,0,0,0)'], [0.75, 'rgba(40,26,12,0.20)'], [1, 'rgba(30,18,8,0.52)']])); instance.stage.addChild(vig)
       const resizeFx = (vw: number, vh: number) => {
-        sun.width = sun.height = Math.max(vw, vh) * 1.5; sun.position.set(vw * 0.4, vh * 0.16)
-        haze.width = vw * 2.0; haze.height = vh * 1.1; haze.position.set(vw * 0.5, vh * 0.05)
-        vig.width = vw * 1.6; vig.height = vh * 1.6; vig.position.set(-vw * 0.3, -vh * 0.3)
+        warm.width = vw; warm.height = vh
+        sun.width = sun.height = Math.max(vw, vh) * 1.4; sun.position.set(vw * 0.4, vh * 0.15)
+        vig.width = vw * 1.5; vig.height = vh * 1.5; vig.position.set(-vw * 0.25, -vh * 0.25)
       }
       resizeFx(instance.renderer.width, instance.renderer.height)
 
