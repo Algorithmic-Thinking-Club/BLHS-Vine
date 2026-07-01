@@ -79,6 +79,8 @@ scripts/*
 !scripts/validate_feet.py
 !scripts/render-campus.py
 !scripts/pixelate-render.py
+!scripts/normalize_tiles.py
+!scripts/make_seamless_x.py
 
 # Internal asset registries (kept local)
 **/*-registry.md

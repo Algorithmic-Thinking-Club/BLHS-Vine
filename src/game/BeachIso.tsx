@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Application, Assets, ColorMatrixFilter, Container, Sprite, Texture, TextureSource } from 'pixi.js'
+import { Application, Assets, ColorMatrixFilter, Container, Rectangle, Sprite, Texture, TextureSource } from 'pixi.js'
 
 // PHASE I-1 — the opening beach, built as a TRUE 2:1 ISOMETRIC tilemap on the same engine that
 // renders the campus (HW=32/HH=16 diamonds, level heights, walkable grid, depth-sorted billboard
@@ -32,16 +32,59 @@ function vnoise(x: number, y: number) {
 
 const COLS = 104, ROWS = 104, MARGIN = 32 // big map; Thor is boundary-stopped MARGIN tiles before the edge so the blue void never shows (more beach/sea beyond view)
 // shoreline: sea where (tx+ty) is small (far/back), beach in front. A vast ocean: the waterline sits
-// near the map's diagonal centre so the sea fills roughly the back half, wavy along the (tx-ty) axis.
-const shoreAt = (d: number) => 104 + 16 * Math.sin(d * 0.05) + 8 * Math.sin(d * 0.11 + 1.3)
-// variant pools (16 PixelLab variant tiles each): common = featureless/subtle, rare = with shells/pebbles.
-const SAND_COMMON = [0, 1, 2, 12, 14, 15], SAND_RARE = [8] // plainest tiles; features stay rare accents
-const W_PLAIN = [0, 1, 3, 4, 10], W_DEEP = [12, 13, 14, 15], W_ACCENT = [8, 9] // crests/glints rare only
+// near the map's diagonal centre so the sea fills roughly the back half. GENTLE sweep (a steep curve
+// quantizes into a sawtooth of tile diamonds and stair-steps the foam band).
+const shoreAt = (d: number) => 104 + 10 * Math.sin(d * 0.028) + 5 * Math.sin(d * 0.06 + 1.3)
+// Variant pools over the NORMALIZED tiles (water-n/sand-n: every tile recolored to one shared base
+// so the runtime ramp owns the value; texture survives as luma deviation). Pools sorted by measured
+// busyness (normalize_tiles.py report): calm glass near the shore, textured swell far out.
+const SAND_COMMON = [0, 1, 2, 3, 7, 9], SAND_PEBBLE = [8], SAND_RIPPLE = [12, 13, 14, 15]
+const W_CALM = [0, 12, 15], W_SOFT = [3, 2, 8], W_TEX = [1, 10, 4, 6], W_SWELL = [13, 14, 11, 9, 7, 5]
+// the ocean depth ramp (references: Sea of Stars / Ocean's Heart): glassy waterline aqua ->
+// turquoise shallows -> teal -> deep blue-teal -> navy abyss. The ramp IS the ocean's body.
+const W_BASE = [205, 235, 229] // shared median of the normalized water tiles
+const W_RAMP: [number, number][] = [
+  [0.0, 0x9fdccf], [0.1, 0x5ec6ba], [0.22, 0x39aca7], [0.36, 0x27939a],
+  [0.52, 0x1b7c8a], [0.72, 0x115a6d], [1.0, 0x0a3f4e],
+]
+const DEPTH_RANGE = 30 // diagonal tiles from waterline to abyss — the whole drama lives in the visible band
+function rampAt(stops: [number, number][], t: number) {
+  if (t <= stops[0][0]) return stops[0][1]
+  for (let i = 1; i < stops.length; i++) {
+    if (t <= stops[i][0]) {
+      const [t0, c0] = stops[i - 1], [t1, c1] = stops[i]
+      return mix(c0, c1, (t - t0) / (t1 - t0))
+    }
+  }
+  return stops[stops.length - 1][1]
+}
+// convert a DISPLAY color into the pixi tint that produces it over the normalized base texture
+function tintFor(display: number, base: number[]) {
+  const r = Math.min(255, Math.round(((display >> 16) & 255) * 255 / base[0]))
+  const g = Math.min(255, Math.round(((display >> 8) & 255) * 255 / base[1]))
+  const b = Math.min(255, Math.round((display & 255) * 255 / base[2]))
+  return (r << 16) | (g << 8) | b
+}
+
+// ---- the TIDE: one smooth continuous wave cycle — wash up fast, hold, retract slow, lull ----
+const TIDE_T = 9 // seconds per wave
+const TIDE_AMP = 1.7 // diagonal tile units a wave washes past the waterline
+const SWEEP = 0.028 // seconds of phase lag per shore column — the break sweeps along the beach
+// [reach 0..1 up the sand, foam alpha, trail-bubbles alpha]
+function tidePhase(u: number): [number, number, number] {
+  u = ((u % TIDE_T) + TIDE_T) % TIDE_T
+  const trail = Math.max(0, 1 - Math.abs(u - 4.6) / 3.1)
+  if (u < 2.2) { const k = u / 2.2, e = 1 - Math.pow(1 - k, 3); return [e, 0.45 + 0.55 * k, trail] }
+  if (u < 2.9) return [1, 1, trail]
+  if (u < 6.6) { const k = (u - 2.9) / 3.7, e = 0.5 - 0.5 * Math.cos(Math.PI * k); return [1 - e, 1 - 0.8 * k, trail] }
+  const k = (u - 6.6) / (TIDE_T - 6.6)
+  return [0, 0.2 * (1 - k), trail * (1 - k)]
+}
 type Cell = 'sea' | 'wet' | 'sand'
 function cellAt(tx: number, ty: number): Cell {
   const s = tx + ty, sh = shoreAt(tx - ty)
   if (s < sh) return 'sea'
-  if (s < sh + 1.6) return 'wet'
+  if (s < sh + 1.0) return 'wet'
   return 'sand'
 }
 
@@ -94,7 +137,7 @@ export default function BeachIso() {
     const start = async () => {
       TextureSource.defaultOptions.scaleMode = 'nearest'
       const instance = new Application()
-      await instance.init({ background: 0x2f93a0, antialias: false, resizeTo: ref.current ?? window })
+      await instance.init({ background: 0x0a3f4e, antialias: false, resizeTo: ref.current ?? window }) // abyss = the deep end of the ramp, so off-map sea blends
       if (destroyed || !ref.current) { instance.destroy(true); return }
       app = instance; ref.current.appendChild(instance.canvas)
       const ZOOM = 1.15 // BEACH-LOCAL zoom (Thor reads bigger; each map sets its own)
@@ -103,6 +146,9 @@ export default function BeachIso() {
       const load = async (k: string, u: string) => { try { tex[k] = await Assets.load(u) } catch { /* */ } }
       await Promise.all([
         load('sand', '/art/iso/sand.png'), load('water', '/art/iso/water.png'), load('water2', '/art/iso/water2.png'),
+        load('foamlace', '/art/intro/foam-lace.png'), load('foamlace2', '/art/intro/foam-lace2.png'),
+        load('foamtrail', '/art/intro/foam-trail.png'), load('sparkle', '/art/intro/sparkle.png'),
+        load('skirt', '/art/intro/shallow-skirt.png'),
         ...Object.entries(PROP_SRC).map(([k, u]) => load(k, u)),
       ])
       const idle: Record<string, Texture> = {}
@@ -111,11 +157,12 @@ export default function BeachIso() {
       await Promise.all(dirs8.map(async (d) => {
         try { walk[d] = await Promise.all([0, 1, 2, 3, 4, 5].map((i) => Assets.load(`/art/characters/thor/walk/${d}/${i}.png`))) } catch { /* */ }
       }))
-      // 16 PixelLab variant tiles each for sand + water (the campus-grass variety technique)
+      // 16 NORMALIZED PixelLab variant tiles each for sand + water (shared base color; the
+      // depth ramp tints them so adjacent tiles are continuous by construction)
       const sandV: Texture[] = [], waterV: Texture[] = []
       await Promise.all([
-        ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/intro/sand-v/${i}.png`).then((t) => { sandV[i] = t }).catch(() => {})),
-        ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/intro/water-v/${i}.png`).then((t) => { waterV[i] = t }).catch(() => {})),
+        ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/intro/sand-n/${i}.png`).then((t) => { sandV[i] = t }).catch(() => {})),
+        ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/intro/water-n/${i}.png`).then((t) => { waterV[i] = t }).catch(() => {})),
       ])
       if (destroyed) { instance.destroy(true); return }
 
@@ -128,8 +175,11 @@ export default function BeachIso() {
       const wm = grade.matrix; wm[0] *= 1.045; wm[12] *= 0.94; grade.matrix = wm
       world.filters = [grade]
 
-      // ---- ground: iso diamond tiles, sea -> wet -> sand ----
-      const waterSprites: { sp: Sprite; ph: number; base: number }[] = []
+      // ---- ground: iso diamond tiles, sea -> wet -> sand. ONE body of water: a smooth depth
+      // ramp carries the value; normalized variant tiles carry only micro-texture; broad value-
+      // noise patches drift the surface so nothing bands or checkers. ----
+      const SAND_BASE = [246, 229, 180]
+      const waterSprites: { sp: Sprite; ph: number; ph2: number; base: number; amp: number; shoreD?: number }[] = []
       const walkable: boolean[][] = []
       for (let ty = 0; ty < ROWS; ty++) {
         walkable[ty] = []
@@ -137,17 +187,24 @@ export default function BeachIso() {
           const c = cellAt(tx, ty)
           walkable[ty][tx] = c === 'sand'
           const isSea = c === 'sea'
-          // pick a VARIANT tile: water by depth band (shallow->deep) + hash; sand mostly featureless
-          // with rare shell/pebble tiles. This is what stops the surface reading as one repeated tile.
+          const ds = (tx + ty) - shoreAt(tx - ty) // signed diagonal distance from the waterline (+ = onto land)
           let base: Texture | undefined
           if (isSea) {
-            const dep = Math.min(1, (shoreAt(tx - ty) - (tx + ty)) / 90), h = hash(tx * 1.3, ty * 2.7)
-            const idx = dep > 0.6 ? W_DEEP[Math.floor(h * W_DEEP.length)]
-              : h > 0.965 ? W_ACCENT[Math.floor(hash(tx * 5, ty * 3) * W_ACCENT.length)]
-                : W_PLAIN[Math.floor(h * W_PLAIN.length)]
-            base = waterV[idx] ?? tex['water']
+            // depth in [0,1], DITHERED per tile so the ramp steps interleave instead of banding
+            // (stronger dither in the shallows where each tile row would otherwise read as a step)
+            const raw = -ds / DEPTH_RANGE
+            const dep = Math.min(1, Math.max(0, raw + (hash(tx * 7.7, ty * 5.3) - 0.5) * (raw < 0.18 ? 0.11 : 0.06)))
+            const h = hash(tx * 1.3, ty * 2.7)
+            const pool = dep < 0.1 ? W_CALM
+              : dep < 0.3 ? (h < 0.6 ? W_CALM : W_SOFT)
+                : dep < 0.55 ? (h < 0.5 ? W_SOFT : W_TEX)
+                  : (h < 0.55 ? W_TEX : W_SWELL)
+            base = waterV[pool[Math.floor(hash(tx * 3.1, ty * 1.9) * pool.length)]] ?? tex['water']
           } else {
-            const pool = (c === 'sand' && hash(tx * 2.1, ty * 1.7) > 0.97) ? SAND_RARE : SAND_COMMON
+            const h = hash(tx * 2.1, ty * 1.7)
+            const pool = c === 'sand' && h > 0.985 ? SAND_PEBBLE
+              : c === 'sand' && ds > 12 && h < 0.03 ? SAND_RIPPLE // wind-ripple texture, sparse, upper beach only
+                : SAND_COMMON
             base = sandV[pool[Math.floor(hash(tx * 3.3, ty * 4.1) * pool.length)]] ?? tex['sand']
           }
           if (!base) continue
@@ -156,24 +213,111 @@ export default function BeachIso() {
           const os = isSea ? 1.12 : 1.04   // oversize sea tiles a bit so they overlap and blend (soften the grid)
           sp.scale.set(fx * os, os)
           sp.position.set(isoX(tx, ty), isoY(tx, ty)); sp.zIndex = (tx + ty) * 16
-          // LIGHT macro drift on top of the variant tiles (subtle now — the variants carry the variety)
           if (isSea) {
-            const dep = Math.min(1, (shoreAt(tx - ty) - (tx + ty)) / 88)
-            const base = shadeHex(mix(0xcfeee8, 0x1d6f7e, dep * 0.82), 0.97 + hash(tx, ty) * 0.05)
-            sp.tint = base; waterSprites.push({ sp, ph: (tx + ty) * 0.45 + (tx - ty) * 0.22, base })
-          }
-          else if (c === 'wet') sp.tint = shadeHex(mix(0xd8c08a, 0xc9ad78, hash(tx, ty)), 0.94)
-          else {
-            const big = vnoise(tx / 12 + 3, ty / 12 + 5)
-            sp.tint = shadeHex(mix(0xe6d29c, 0xfff1c6, big), 0.96 + hash(tx * 1.3, ty * 2.1) * 0.06)
+            const raw = -ds / DEPTH_RANGE
+            const dep = Math.min(1, Math.max(0, raw + (hash(tx * 7.7, ty * 5.3) - 0.5) * (raw < 0.18 ? 0.11 : 0.06)))
+            // broad drifting patches (cloud-light) + faint per-tile grain, all riding the one ramp
+            const patch = 0.965 + 0.07 * vnoise(tx / 16 + 7, ty / 16 + 2)
+            const grain = 0.994 + 0.012 * hash(tx, ty)
+            const col = shadeHex(tintFor(rampAt(W_RAMP, dep), W_BASE), patch * grain)
+            sp.tint = col
+            waterSprites.push({
+              sp, base: col,
+              ph: (tx + ty) * 0.5 + 0.35 * Math.sin((tx - ty) * 0.18), // swell front, wobbled along the shore axis
+              ph2: (tx + ty) * 0.21 - (tx - ty) * 0.07,
+              amp: 0.022 + 0.055 * dep, // calm at the shore, rolling out deep
+              shoreD: ds > -2.5 ? tx - ty : undefined, // waterline rows surge with the tide
+            })
+          } else if (c === 'wet') {
+            // permanently damp band right at the waterline (the smooth wet SHEET rides above it)
+            sp.tint = tintFor(shadeHex(0xc3a877, 0.985 + 0.03 * hash(tx, ty)), SAND_BASE)
+          } else {
+            // dry sand: warm near the water -> pale high beach, with broad dune drift
+            const t = Math.min(1, Math.max(0, (ds - 1.6) / 26))
+            const dune = 0.965 + 0.055 * vnoise(tx / 16 + 3, ty / 16 + 5)
+            const grain = 0.994 + 0.012 * hash(tx * 1.3, ty * 2.1)
+            sp.tint = shadeHex(tintFor(rampAt([[0, 0xdcbf87], [0.45, 0xe9d5a2], [1, 0xf3e4b5]], t), SAND_BASE), dune * grain)
           }
           world.addChild(sp)
-          // lacey foam on the wet band
-          if (c === 'wet' && hash(tx * 5, ty * 9) > 0.35) {
-            const f = new Sprite(tex['sand']); f.anchor.set(0.5, 0.25); f.scale.set(fx, 1)
-            f.tint = 0xffffff; f.alpha = 0.5; f.position.set(isoX(tx, ty), isoY(tx, ty) - 2); f.zIndex = (tx + ty) * 16 + 2
-            world.addChild(f)
+        }
+      }
+
+      // ---- the FOAM BAND: two staggered wave fronts, each a continuous row of 32px segments
+      // sliced from a seamless-x PixelLab lace strip, riding the smooth shore curve. The whole
+      // band slides up the sand and retracts with the tide; trailing bubbles dissolve behind it. ----
+      const trailT = tex['foamtrail']
+      const dMin = -88, dMax = 88
+      // WATERLINE SKIRT: a static band of glassy shallow water hugging the exact smooth shore
+      // curve at sub-tile precision — it buries the hard diamond zigzag where sea tiles meet sand.
+      const skirtSegs: { sp: Sprite; d: number }[] = []
+      // the WET SHEET: a smooth dark band recording how far up the sand recent waves reached,
+      // drying (fading) over seconds — sub-tile, so no diamond teeth along the swash zone
+      const wetSegs: { sp: Sprite; d: number; reach: number; at: number }[] = []
+      if (tex['skirt']) {
+        const skT = tex['skirt']
+        for (let d = dMin; d <= dMax; d++) {
+          const fr = new Rectangle(((d - dMin) * 32) % Math.max(32, skT.width - 32), 0, 32, skT.height)
+          const s = shoreAt(d)
+          const wp = new Sprite(new Texture({ source: skT.source, frame: fr }))
+          wp.anchor.set(0.5, 0); wp.position.set(d * HW, s * HH - 4)
+          wp.tint = 0x6e563c; wp.alpha = 0; wp.zIndex = s * 16 + 1
+          world.addChild(wp); wetSegs.push({ sp: wp, d, reach: 0, at: -99 })
+          const sp = new Sprite(new Texture({ source: skT.source, frame: fr }))
+          sp.anchor.set(0.5, 0.62); sp.scale.set(1, 2) // tall enough to straddle the tile staircase
+          sp.position.set(d * HW, s * HH); sp.zIndex = s * 16 + 2; sp.alpha = 0.85
+          world.addChild(sp); skirtSegs.push({ sp, d })
+          // a feather row seaward of the waterline softens the pale-shallow tile steps
+          const f2 = new Sprite(new Texture({ source: skT.source, frame: fr }))
+          f2.anchor.set(0.5, 0.62); f2.scale.set(1, 2.4)
+          f2.position.set(d * HW, (s - 0.85) * HH); f2.zIndex = (s - 0.85) * 16 + 2; f2.alpha = 0.4
+          world.addChild(f2)
+        }
+      }
+      type FoamSeg = { sp: Sprite; d: number; jit: number }
+      const fronts: { segs: FoamSeg[]; trail: FoamSeg[]; film: FoamSeg[]; off: number }[] = []
+      if (tex['foamlace']) {
+        for (let f = 0; f < 2; f++) {
+          const laceT = (f === 1 && tex['foamlace2']) ? tex['foamlace2'] : tex['foamlace'] // fronts alternate lace variants
+          const segs: FoamSeg[] = [], trailSegs: FoamSeg[] = [], filmSegs: FoamSeg[] = []
+          for (let d = dMin; d <= dMax; d++) {
+            const jit = (hash(d * 3.3, f * 7.1) - 0.5) * 4 // static y jitter hides the 32px slice edges
+            // the water FILM: a thin translucent sheet stretching from the waterline to the foam
+            // front, so a washed-up wave stays CONNECTED to the sea instead of a dry white line
+            if (tex['skirt']) {
+              const skT = tex['skirt']
+              const frF = new Rectangle(((d - dMin) * 32 + f * 96) % Math.max(32, skT.width - 32), 0, 32, skT.height)
+              const fp = new Sprite(new Texture({ source: skT.source, frame: frF }))
+              fp.anchor.set(0.5, 1); fp.position.set(d * HW, shoreAt(d) * HH); fp.alpha = 0
+              world.addChild(fp); filmSegs.push({ sp: fp, d, jit })
+            }
+            const fr = new Rectangle(((d - dMin) * 32 + f * 160) % Math.max(32, laceT.width - 32), 0, 32, laceT.height)
+            const sp = new Sprite(new Texture({ source: laceT.source, frame: fr }))
+            sp.anchor.set(0.5, 0.84) // scalloped leading edge rides just below the front line
+            sp.position.set(d * HW, shoreAt(d) * HH); sp.alpha = 0
+            world.addChild(sp); segs.push({ sp, d, jit })
+            if (trailT && d % 2 === 0) {
+              const fw = Math.min(64, trailT.width)
+              const fr2 = new Rectangle(((d - dMin) * 24) % Math.max(32, trailT.width - fw), 0, fw, trailT.height)
+              const tp = new Sprite(new Texture({ source: trailT.source, frame: fr2 }))
+              tp.anchor.set(0.5, 0.6); tp.position.set(d * HW, shoreAt(d) * HH); tp.alpha = 0
+              world.addChild(tp); trailSegs.push({ sp: tp, d, jit })
+            }
           }
+          fronts.push({ segs, trail: trailSegs, film: filmSegs, off: (f * TIDE_T) / 2 })
+        }
+      }
+      // sun glints twinkling on the open water, denser toward the sun (upper-left of the sea)
+      const sparkles: { sp: Sprite; ph: number; sc: number }[] = []
+      if (tex['sparkle']) {
+        for (let i = 0; i < 64; i++) {
+          const d = -80 + hash(i * 3.7, i) * 160
+          const back = 3 + hash(i, i * 1.9) * 26 // diagonal units seaward of the waterline
+          const s = shoreAt(d) - back
+          const sp = new Sprite(tex['sparkle']); sp.anchor.set(0.5)
+          const sc = 0.4 + hash(i * 7, i * 2) * 0.5
+          sp.scale.set(sc); sp.position.set(d * HW, s * HH); sp.zIndex = s * 16 + 2
+          sp.alpha = 0; sp.blendMode = 'add'
+          world.addChild(sp); sparkles.push({ sp, ph: hash(i, i * 5) * 20, sc })
         }
       }
 
@@ -230,12 +374,63 @@ export default function BeachIso() {
         const vw = instance.renderer.width, vh = instance.renderer.height
         // follow Thor, biased down so the vast ocean fills the frame above him
         world.x = vw / 2 - x * ZOOM; world.y = vh * 0.64 - y * ZOOM
-        // FLOWING WATER: traveling brightness/glint waves shimmer across the sea (keeps the pixel
-        // tiles Ashwath likes, no shader). Two crossed waves so it reads as moving swell, not a pulse.
+        // FLOWING WATER: brightness swells TRAVEL shoreward across the pixel tiles (phase runs
+        // along tx+ty, i.e. down-screen toward the beach) with a slower crossing wave underneath,
+        // so the sea reads as rolling toward the sand — no shader, the tiles Ashwath likes.
         const wt = performance.now() / 1000
+        const reachOf = (d: number) => {
+          let m = 0
+          for (const fr of fronts) { const r = tidePhase(wt - fr.off - d * SWEEP)[0]; if (r > m) m = r }
+          return m
+        }
         for (const w of waterSprites) {
-          const fct = 1 + 0.07 * Math.sin(wt * 1.3 + w.ph) + 0.045 * Math.sin(wt * 0.8 - w.ph * 0.6 + 1.7)
+          let fct = 1 + w.amp * (Math.sin(w.ph - wt * 1.05) + 0.55 * Math.sin(w.ph2 - wt * 0.42 + 1.7))
+          if (w.shoreD !== undefined) fct *= 1 + 0.1 * reachOf(w.shoreD) // the shallows surge as a wave launches
           w.sp.tint = shadeHex(w.base, fct)
+        }
+        // THE TIDE: fronts sweep along the beach (per-column phase lag), wash up, hold, retract
+        for (const fr of fronts) {
+          for (const seg of fr.segs) {
+            const [reach, foamA] = tidePhase(wt - fr.off - seg.d * SWEEP)
+            const s = shoreAt(seg.d) + reach * TIDE_AMP + 0.1 * Math.sin(seg.d * 0.7 + wt * 1.4)
+            seg.sp.position.y = s * HH + seg.jit
+            seg.sp.zIndex = s * 16 + 6
+            seg.sp.alpha = foamA * 0.9
+          }
+          for (const seg of fr.film) {
+            const [reach, foamA] = tidePhase(wt - fr.off - seg.d * SWEEP)
+            const sShore = shoreAt(seg.d)
+            const s = sShore + reach * TIDE_AMP
+            const gap = (s - sShore) * HH + 6
+            seg.sp.position.y = s * HH + seg.jit - 2
+            seg.sp.scale.y = gap / seg.sp.texture.height
+            seg.sp.zIndex = s * 16 + 5
+            seg.sp.alpha = 0.4 * foamA * Math.min(1, reach * 3)
+          }
+          for (const seg of fr.trail) {
+            const [reach, , trailA] = tidePhase(wt - fr.off - seg.d * SWEEP)
+            const s = shoreAt(seg.d) + TIDE_AMP * (0.5 + 0.3 * reach)
+            seg.sp.position.y = s * HH + seg.jit; seg.sp.zIndex = s * 16 + 5
+            seg.sp.alpha = trailA * 0.45
+          }
+        }
+        // the waterline itself breathes a little
+        for (const sk of skirtSegs) sk.sp.position.y = (shoreAt(sk.d) + 0.06 * Math.sin(wt * 0.9 + sk.d * 0.3)) * HH
+        // wet-sand memory: the sheet stretches to the furthest recent reach, then dries away
+        for (const w of wetSegs) {
+          const r = reachOf(w.d)
+          if (r >= w.reach) { w.reach = r; w.at = wt }
+          const dry = Math.min(1, Math.max(0, (wt - w.at) / 7))
+          if (dry >= 1) w.reach = Math.min(w.reach, r)
+          const gap = w.reach * TIDE_AMP * HH + 8
+          w.sp.scale.y = gap / w.sp.texture.height
+          w.sp.alpha = 0.5 * (1 - dry * dry) + 0.1
+        }
+        // sparkles twinkle on a slow individual clock
+        for (const s of sparkles) {
+          const k = Math.max(0, Math.sin(wt * 0.9 + s.ph) - 0.55) / 0.45
+          s.sp.alpha = k * 0.85
+          s.sp.scale.set(s.sc * (0.7 + 0.3 * k))
         }
         resizeFx(vw, vh)
       })
@@ -246,11 +441,11 @@ export default function BeachIso() {
       // warmth, a soft golden sun glow upper-left, and a real (but warm + soft, not black) cinematic
       // vignette framing the scene.
       const warm = new Sprite(Texture.WHITE); warm.tint = 0xffcb82; warm.alpha = 0.13; instance.stage.addChild(warm)
-      const sun = new Sprite(radial(512, [[0, 'rgba(255,238,196,0.26)'], [0.5, 'rgba(255,226,164,0.08)'], [1, 'rgba(255,226,164,0)']])); sun.anchor.set(0.5); sun.blendMode = 'add'; instance.stage.addChild(sun)
-      const vig = new Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.34, 'rgba(0,0,0,0)'], [0.64, 'rgba(30,19,8,0.52)'], [1, 'rgba(16,9,3,0.88)']])); instance.stage.addChild(vig)
+      const sun = new Sprite(radial(512, [[0, 'rgba(255,224,166,0.17)'], [0.5, 'rgba(255,214,150,0.05)'], [1, 'rgba(255,214,150,0)']])); sun.anchor.set(0.5); sun.blendMode = 'add'; instance.stage.addChild(sun)
+      const vig = new Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.45, 'rgba(0,0,0,0)'], [0.72, 'rgba(30,19,8,0.34)'], [1, 'rgba(16,9,3,0.78)']])); instance.stage.addChild(vig)
       const resizeFx = (vw: number, vh: number) => {
         warm.width = vw; warm.height = vh
-        sun.width = sun.height = Math.max(vw, vh) * 1.4; sun.position.set(vw * 0.4, vh * 0.15)
+        sun.width = sun.height = Math.max(vw, vh) * 1.4; sun.position.set(vw * 0.42, vh * 0.02)
         vig.width = vw * 1.5; vig.height = vh * 1.5; vig.position.set(-vw * 0.25, -vh * 0.25)
       }
       resizeFx(instance.renderer.width, instance.renderer.height)
@@ -261,7 +456,7 @@ export default function BeachIso() {
     start().catch((err) => { console.error('[BeachIso] failed', err) })
     return () => { destroyed = true; window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); if (app) app.destroy(true, { children: true }) }
   }, [])
-  return <div ref={ref} style={{ position: 'fixed', inset: 0, background: '#2f93a0' }} />
+  return <div ref={ref} style={{ position: 'fixed', inset: 0, background: '#0a3f4e' }} />
 }
 
 // ---- helpers ----
