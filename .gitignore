@@ -85,3 +85,4 @@ scripts/*
 
 # Bundled CLI tools (downloaded locally, not versioned)
 reference/tools/
+.browser-sessions/
