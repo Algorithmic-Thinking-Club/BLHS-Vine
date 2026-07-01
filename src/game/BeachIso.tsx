@@ -129,7 +129,7 @@ export default function BeachIso() {
       world.filters = [grade]
 
       // ---- ground: iso diamond tiles, sea -> wet -> sand ----
-      const waterSprites: { sp: Sprite; ph: number }[] = []
+      const waterSprites: { sp: Sprite; ph: number; base: number }[] = []
       const walkable: boolean[][] = []
       for (let ty = 0; ty < ROWS; ty++) {
         walkable[ty] = []
@@ -153,11 +153,15 @@ export default function BeachIso() {
           if (!base) continue
           const sp = new Sprite(base); sp.anchor.set(0.5, 0.25)
           const fx = hash(tx * 3, ty * 7) > 0.5 ? -1 : 1
-          const os = isSea ? 1 : 1.04
+          const os = isSea ? 1.12 : 1.04   // oversize sea tiles a bit so they overlap and blend (soften the grid)
           sp.scale.set(fx * os, os)
           sp.position.set(isoX(tx, ty), isoY(tx, ty)); sp.zIndex = (tx + ty) * 16
           // LIGHT macro drift on top of the variant tiles (subtle now — the variants carry the variety)
-          if (isSea) { const dep = Math.min(1, (shoreAt(tx - ty) - (tx + ty)) / 88); sp.tint = shadeHex(mix(0xcfeee8, 0x1d6f7e, dep * 0.82), 0.97 + hash(tx, ty) * 0.05); waterSprites.push({ sp, ph: (tx + ty) * 0.5 }) }
+          if (isSea) {
+            const dep = Math.min(1, (shoreAt(tx - ty) - (tx + ty)) / 88)
+            const base = shadeHex(mix(0xcfeee8, 0x1d6f7e, dep * 0.82), 0.97 + hash(tx, ty) * 0.05)
+            sp.tint = base; waterSprites.push({ sp, ph: (tx + ty) * 0.45 + (tx - ty) * 0.22, base })
+          }
           else if (c === 'wet') sp.tint = shadeHex(mix(0xd8c08a, 0xc9ad78, hash(tx, ty)), 0.94)
           else {
             const big = vnoise(tx / 12 + 3, ty / 12 + 5)
@@ -226,7 +230,13 @@ export default function BeachIso() {
         const vw = instance.renderer.width, vh = instance.renderer.height
         // follow Thor, biased down so the vast ocean fills the frame above him
         world.x = vw / 2 - x * ZOOM; world.y = vh * 0.64 - y * ZOOM
-        void waterSprites // (ocean animation comes in a later pass)
+        // FLOWING WATER: traveling brightness/glint waves shimmer across the sea (keeps the pixel
+        // tiles Ashwath likes, no shader). Two crossed waves so it reads as moving swell, not a pulse.
+        const wt = performance.now() / 1000
+        for (const w of waterSprites) {
+          const fct = 1 + 0.07 * Math.sin(wt * 1.3 + w.ph) + 0.045 * Math.sin(wt * 0.8 - w.ph * 0.6 + 1.7)
+          w.sp.tint = shadeHex(w.base, fct)
+        }
         resizeFx(vw, vh)
       })
 
