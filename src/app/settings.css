@@ -1,0 +1,81 @@
+/* The settings sheet (GAME-DESIGN §4.7) + the corner gear. Paper on the square kit panel. */
+
+.st-veil {
+  position: absolute; inset: 0; z-index: 80;
+  background: rgba(5, 12, 15, .45);
+  display: flex; align-items: center; justify-content: center;
+}
+.st-panel {
+  width: min(360px, 88vw);
+  aspect-ratio: 448 / 448;
+  background: url('/art/ui/panel-square.png') center / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 10px 24px rgba(2, 8, 10, .6));
+  display: flex; flex-direction: column; align-items: center;
+  padding: 13% 14% 14%;
+  box-sizing: border-box;
+  container-type: inline-size;
+  animation: st-in 260ms cubic-bezier(.2, 1.2, .35, 1) both;
+}
+@keyframes st-in { from { transform: translateY(12px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.st-title {
+  font-family: 'Harbormaster', 'Deckhand', monospace;
+  font-size: 6.4cqw; color: #3c2d1c; margin-bottom: 6cqw;
+}
+.st-row {
+  width: 100%;
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: 'Deckhand', monospace;
+  font-size: 4.8cqw; color: #4a3826;
+  margin: 2.6cqw 0;
+}
+.st-toggle, .st-segbtn {
+  font-family: 'Deckhand', monospace;
+  font-size: 4.2cqw; color: #4a3826;
+  background: linear-gradient(180deg, #e6dcc2, #dbcfaf);
+  border: 2px solid #8a744f; border-radius: 3px;
+  padding: 1cqw 3cqw; cursor: pointer;
+}
+.st-seg { display: flex; gap: 1.4cqw; }
+.st-on { border-color: #3c6e60; color: #234c40; box-shadow: 0 0 0 2px rgba(60, 110, 96, .3); }
+.st-about {
+  margin-top: auto;
+  font-family: 'Deckhand', monospace;
+  font-size: 3.5cqw; line-height: 1.45; color: #7a6a52;
+  text-align: center;
+}
+.st-close {
+  margin-top: 4cqw;
+  min-width: 56%;
+  aspect-ratio: 512 / 150;
+  background: url('/art/ui/plank-button.png') center / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  border: none; cursor: pointer;
+  font-family: 'Harbormaster', 'Deckhand', monospace;
+  font-size: 4.6cqw; color: #f0e4c8;
+  text-shadow: 0 2px 0 rgba(30, 16, 6, .75);
+}
+
+.st-gear {
+  position: absolute;
+  bottom: max(2.2vh, 12px); right: max(2vw, 14px);
+  z-index: 70;
+  width: 40px; height: 40px;
+  font-size: 20px; line-height: 1;
+  color: #e8dcc0;
+  background: linear-gradient(#4a3421, #382614);
+  border: 2px solid #241708; border-radius: 5px;
+  box-shadow: 0 2px 0 #1a1006;
+  cursor: pointer;
+  opacity: .8;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+.st-gear:hover { opacity: 1; transform: rotate(18deg); }
+
+/* text-size + reduced-motion hooks (settings apply data attrs on <html>) */
+html[data-textsize='s'] .cs-dialogue-text { font-size: 14px; }
+html[data-textsize='l'] .cs-dialogue-text { font-size: 24px; }
+html[data-rm='1'] .ti-backdrop { animation: none !important; }
+html[data-rm='1'] .i3-scroll { animation-duration: 1ms !important; }
+html[data-rm='1'] .tr-root * { animation-duration: 200ms !important; }

@@ -58,6 +58,65 @@
 }
 .tr-hold .tr-iris { clip-path: circle(150% at var(--fx, 50%) var(--fy, 50%)); }
 
+/* ---- scene cover: full-bleed illustrated loading (the TavernWorld pattern) ---- */
+.tr-scene { position: absolute; inset: 0; background: #06121a; }
+.tr-scene-img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover;
+}
+.tr-scene-vig {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 90% 75% at 50% 46%, transparent 42%, rgba(4, 8, 12, .55) 100%);
+}
+.tr-in .tr-scene { animation: trf-in 620ms ease both; }
+.tr-out .tr-scene { animation: trf-out 620ms ease both; }
+.tr-twinkle {
+  position: absolute; width: 4px; height: 4px;
+  background: radial-gradient(circle, rgba(255, 236, 190, .95), rgba(255, 236, 190, 0) 70%);
+  animation: tr-tw 2.4s ease-in-out infinite;
+}
+@keyframes tr-tw { 0%, 100% { opacity: 0; transform: scale(.5); } 50% { opacity: 1; transform: scale(1.4); } }
+.tr-scene-text {
+  position: absolute; left: 50%; top: 46%;
+  transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center;
+}
+.tr-scene-entering {
+  font-family: 'Deckhand', monospace;
+  font-size: 13px; letter-spacing: 6px;
+  color: rgba(240, 232, 210, .85);
+  text-shadow: 0 2px 4px rgba(3, 6, 10, .9);
+}
+.tr-scene-title {
+  font-family: 'Harbormaster', 'Deckhand', monospace;
+  font-size: clamp(26px, 5vh, 40px); letter-spacing: 3px;
+  color: #f4ecd8;
+  text-shadow: 0 3px 0 rgba(10, 16, 20, .8), 0 0 22px rgba(255, 214, 150, .3);
+  margin: 4px 0 12px;
+}
+.tr-scene-bar {
+  width: min(300px, 46vw); height: 8px;
+  background: rgba(8, 14, 18, .72);
+  border: 1px solid rgba(240, 232, 210, .5);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.tr-scene-bar span {
+  display: block; height: 100%;
+  background: linear-gradient(90deg, #c8a23c, #f0d489);
+  animation: tr-fill linear both;
+}
+@keyframes tr-fill { from { width: 4%; } 70% { width: 78%; } to { width: 100%; } }
+.tr-scene-fact {
+  margin-top: 12px;
+  max-width: min(460px, 80vw);
+  text-align: center;
+  font-family: 'Deckhand', monospace;
+  font-size: 13px; line-height: 1.5;
+  color: rgba(226, 218, 196, .85);
+  text-shadow: 0 2px 3px rgba(3, 6, 10, .85);
+}
+
 /* ---- chart unroll: the I-6 loading card (map switches, planner, handbook) ---- */
 .tr-chart-field { position: absolute; inset: 0; background: radial-gradient(ellipse 120% 90% at 50% 45%, #123844 0%, #0a2530 65%, #06171e 100%); }
 .tr-chart {

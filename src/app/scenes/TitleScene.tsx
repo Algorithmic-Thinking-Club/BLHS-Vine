@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNav } from '../SceneManager'
-import { loadSave } from '../../game/save'
+import { clearSave, loadSave } from '../../game/save'
 import { track } from '../../game/telemetry'
+import { GearButton, SettingsPanel, applySettings, loadSettings } from '../SettingsPanel'
 import './boot-title.css'
 
 // Title (GAME-DESIGN §4.2). The backdrop is the cove itself — for now a captured frame of
@@ -15,11 +16,14 @@ export default function TitleScene() {
   const save = loadSave()
   const [gullRight, setGullRight] = useState(false)
   const [gullHop, setGullHop] = useState(0)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
-  useEffect(() => { track('title_shown', { hasSave: !!save }) }, [save])
+  useEffect(() => { track('title_shown', { hasSave: !!save }); applySettings(loadSettings()) }, [save])
 
-  const sail = () => { track(save ? 'continue_clicked' : 'new_voyage_clicked'); nav.go('beach', { kind: 'foam' }) }
-  const newVoyage = () => { track('new_voyage_clicked'); nav.go('beach', { kind: 'foam' }) }
+  // Continue resumes at the saved beat; New voyage (and a first-ever Set Sail) starts the
+  // introduction from the wake-up — a fresh voyage means a fresh save, always
+  const sail = () => { track(save ? 'continue_clicked' : 'new_voyage_clicked'); if (!save) clearSave(); nav.go('beach', { kind: 'foam' }) }
+  const newVoyage = () => { track('new_voyage_clicked'); clearSave(); nav.go('beach', { kind: 'foam' }) }
 
   const flapGull = () => { setGullHop((h) => h + 1); setGullRight((g) => !g) }
 
@@ -57,6 +61,8 @@ export default function TitleScene() {
       </div>
 
       <div className="ti-credit">made by the Algorithmic Thinking Club</div>
+      <GearButton onClick={() => setSettingsOpen(true)} />
+      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
     </div>
   )
 }

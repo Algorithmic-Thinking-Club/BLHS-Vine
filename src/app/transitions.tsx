@@ -6,14 +6,18 @@ import './transitions.css'
 // PixelLab art animated in code. The chart cover doubles as the loading card: a compass
 // needle settling + one real BLHS fact (§4.9), because the wait should teach.
 
-export type TransitionKind = 'fade' | 'foam' | 'iris' | 'chart'
+export type TransitionKind = 'fade' | 'foam' | 'iris' | 'chart' | 'scene'
 
 export type TransitionSpec = {
   kind: TransitionKind
-  /** minimum time the cover holds fully closed (the chart wants 2000-3000) */
+  /** minimum time the cover holds fully closed (chart/scene want 2000-3000) */
   holdMs?: number
   /** iris focus point in viewport fractions (default center) */
   focus?: { x: number; y: number }
+  /** scene cover (the TavernWorld pattern, Ash 2026-07-02): a full-bleed PixelLab
+   *  illustration + ENTERING <title> + a filling bar + code-animated life */
+  image?: string
+  title?: string
 }
 
 // every fact here is verified BLHS reality (docs/research/blhs-specifics.md); nothing invented
@@ -99,6 +103,30 @@ export function TransitionOverlay({ st, version }: { st: TransitionState; versio
     return (
       <div className={`tr-root ${cls}`}>
         <div className="tr-iris" style={{ ['--fx' as string]: `${f.x * 100}%`, ['--fy' as string]: `${f.y * 100}%` }} />
+      </div>
+    )
+  }
+  if (spec.kind === 'scene') {
+    return (
+      <div className={`tr-root ${cls}`}>
+        <div className="tr-scene">
+          <img className="pix tr-scene-img" src={spec.image ?? '/art/ui/loading-voyage.png'} alt="" draggable={false} />
+          <div className="tr-scene-vig" />
+          <div className="tr-scene-twinkles">
+            {Array.from({ length: 14 }, (_, i) => (
+              <span key={i} className="tr-twinkle" style={{
+                left: `${(i * 71 + 13) % 100}%`, top: `${(i * 37 + 9) % 72}%`,
+                animationDelay: `${(i * 0.37) % 2.4}s`,
+              }} />
+            ))}
+          </div>
+          <div className="tr-scene-text">
+            <div className="tr-scene-entering">E N T E R I N G</div>
+            <div className="tr-scene-title">{spec.title ?? 'THE OPEN SEA'}</div>
+            <div className="tr-scene-bar"><span style={{ animationDuration: `${(spec.holdMs ?? 2600) + 620}ms` }} /></div>
+            <div className="tr-scene-fact">{st.fact}</div>
+          </div>
+        </div>
       </div>
     )
   }

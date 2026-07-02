@@ -6,6 +6,7 @@ import { introI1I2 } from './introScript'
 import { I3Session } from './I3Session'
 import { loadSave, writeSave } from '../save'
 import { track } from '../telemetry'
+import { GearButton, SettingsPanel } from '../../app/SettingsPanel'
 
 // The intro lives ON the beach — one scene, playable and stageable. A fresh player gets the
 // I-1/I-2 cutscene the moment the stage reports ready; a returning one just gets the cove.
@@ -40,6 +41,8 @@ export default function IntroScene() {
   useEffect(() => rt?.subscribe(() => bump((v) => v + 1)), [rt])
 
   const uiGate = rt?.ui.uiGate?.id ?? null
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const inCutscene = rt?.ui.active ?? false
 
   return (
     <div style={{ position: 'absolute', inset: 0 }}>
@@ -56,6 +59,9 @@ export default function IntroScene() {
           )}
         </CutsceneOverlay>
       )}
+      {/* the in-world settings gear (§4.7) — tucked away while a cutscene holds the frame */}
+      {!inCutscene && <GearButton onClick={() => setSettingsOpen(true)} />}
+      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
     </div>
   )
 }
