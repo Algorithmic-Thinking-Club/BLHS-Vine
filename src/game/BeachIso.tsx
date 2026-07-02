@@ -297,9 +297,11 @@ export default function BeachIso() {
       // bases (a palm's trunk lands 17px from the sprite center), so anchors and colliders
       // derived from the CANVAS SIZE are wrong by design — these come from the pixels. ----
       type BaseInfo = { feet: number; pts: { x: number; y: number; hw: number }[] }
-      const baseCache = new Map<Texture, BaseInfo | null>()
-      const measureBase = (t: Texture): BaseInfo | null => {
-        const hit = baseCache.get(t)
+      const baseCache = new Map<Texture, Map<number, BaseInfo | null>>()
+      const measureBase = (t: Texture, frac = 0.12): BaseInfo | null => {
+        let byFrac = baseCache.get(t)
+        if (!byFrac) { byFrac = new Map(); baseCache.set(t, byFrac) }
+        const hit = byFrac.get(frac)
         if (hit !== undefined) return hit
         let out: BaseInfo | null = null
         try {
@@ -313,9 +315,10 @@ export default function BeachIso() {
           for (let y = h - 1; y >= 0 && feet < 0; y--) for (let x = 0; x < w; x++) if (a(x, y) > 40) { feet = y; break }
           for (let y = 0; y < h && top === h; y++) for (let x = 0; x < w; x++) if (a(x, y) > 40) { top = y; break }
           if (feet >= 0) {
-            // the ground band = the bottom ~12% of the content; wide props get up to three
-            // base points along it so logs/boats collide along their true diagonal footprint
-            const band = Math.max(5, Math.round((feet - top) * 0.12))
+            // the ground band = the bottom slice of the content (12% default = a trunk/stem;
+            // hull props pass a taller frac); wide bands get up to three base points along
+            // them so logs/boats collide along their true diagonal footprint
+            const band = Math.max(5, Math.round((feet - top) * frac))
             let mnx = w, mxx = -1
             for (let y = feet - band; y <= feet; y++) for (let x = 0; x < w; x++) if (a(x, y) > 40) { if (x < mnx) mnx = x; if (x > mxx) mxx = x }
             const span = mxx - mnx + 1, n = span > 46 ? 3 : 1, pts: BaseInfo['pts'] = []
@@ -328,7 +331,7 @@ export default function BeachIso() {
             out = { feet, pts }
           }
         } catch { /* canvas unavailable -> no trim, no collider */ }
-        baseCache.set(t, out)
+        byFrac.set(frac, out)
         return out
       }
       // trim the transparent rows BELOW the drawn feet so anchor(_,1.0) means "the feet":
@@ -594,10 +597,14 @@ export default function BeachIso() {
         }
       }
       const THOR_R = 0.17
+      ;(window as unknown as { __cols: object }).__cols = colliders // dev introspection (stress harness)
       // which prop types physically block (colliders are then MEASURED off their drawn bases —
       // center + radius come from the pixels, never hand-tuned numbers)
       const COLLIDE = new Set(['palmA', 'palmB', 'palmC', 'palmD', 'bushA', 'bushB', 'bushC',
         'rockA', 'rockB', 'panther', 'logdrift', 'crates', 'rowboat', 'tidepool', 'driftwood', 'pennant'])
+      // props that ground on their WHOLE BODY, not a stem: a boat's bottom rows are just the
+      // keel line, so a 12% band collapses to a useless dot — measure these off a deep band
+      const HULL = new Set(['rowboat', 'logdrift', 'driftwood', 'crates', 'tidepool'])
 
       // ---- PROPS: the composed beach (jungle wall, headland, panther rock, groves, wrack line).
       // Billboards depth-sorted by s, grounded with soft contact shadows; flat decals hug the sand. ----
@@ -652,7 +659,7 @@ export default function BeachIso() {
         // line — up to 3 points), each radius from the base's true pixel width. Screen offsets
         // convert to tile space via u=dx/2HW, v=dy/2HH; a tile-space circle IS the iso ellipse.
         if (!p.noBlock && COLLIDE.has(p.img)) {
-          const m = measureBase(t)
+          const m = measureBase(t, HULL.has(p.img) ? 0.45 : 0.12)
           if (m) for (const b of m.pts) {
             const sdx = (b.x - t.width * 0.5) * sc * (p.flip ? -1 : 1)
             const sdy = (b.y - m.feet) * sc + (p.sea ? 5 : 0)
@@ -804,25 +811,29 @@ export default function BeachIso() {
         const f = surfAt(Math.round(fx), Math.round(fy))
         return t.layer === f.layer || !!t.trans || !!f.trans
       }
-      // prop colliders are tested ONCE per axis at Thor's CENTER destination — probing the
-      // corners would inflate every radius by ~0.3 tile (the old invisible walls). Moves that
-      // INCREASE distance to an overlapped collider stay legal, so he can never wedge inside.
-      const hitAt = (x: number, y: number): Collider | null => {
-        const arr = colMap.get(Math.round(x) + ',' + Math.round(y))
-        if (!arr) return null
-        let best: Collider | null = null, bd = 0
+      // prop colliders are tested as a SWEPT move: the whole step segment is checked against
+      // EVERY nearby circle. (A point-test at the destination let fast steps tunnel through
+      // thin trunks, and testing only the deepest circle let Thor escape one collider INTO
+      // its neighbor — the walk-through-the-asset glitch.) A circle he's already inside only
+      // permits moves that back OUT of it, so a bad state resolves instead of wedging.
+      const collideMove = (x0: number, y0: number, x1: number, y1: number) => {
+        if (surfAt(Math.round(x1), Math.round(y1)).layer !== 0) return false // decks hold no props
+        const arr = colMap.get(Math.round(x1) + ',' + Math.round(y1))
+        if (!arr) return false
+        const dx = x1 - x0, dy = y1 - y0, l2 = dx * dx + dy * dy
         for (const i of arr) {
-          const c = colliders[i]
-          const pen = c.r + THOR_R - Math.hypot(c.cx - x, c.cy - y)
-          if (pen > bd) { bd = pen; best = c }
+          const c = colliders[i], R = c.r + THOR_R
+          const d0 = Math.hypot(c.cx - x0, c.cy - y0)
+          if (d0 < R) {
+            if (Math.hypot(c.cx - x1, c.cy - y1) <= d0 + 1e-4) return true
+            continue
+          }
+          // closest approach of the step segment to the circle center
+          let t = l2 ? ((c.cx - x0) * dx + (c.cy - y0) * dy) / l2 : 0
+          t = t < 0 ? 0 : t > 1 ? 1 : t
+          if (Math.hypot(x0 + t * dx - c.cx, y0 + t * dy - c.cy) < R) return true
         }
-        return best
-      }
-      const blockedAt = (x: number, y: number) => {
-        if (surfAt(Math.round(x), Math.round(y)).layer !== 0) return false // decks hold no props
-        const c = hitAt(x, y)
-        if (!c) return false
-        return Math.hypot(c.cx - x, c.cy - y) <= Math.hypot(c.cx - pos.tx, c.cy - pos.ty) + 1e-4
+        return false
       }
       // corner-probe an axis move for SURFACES (no edge-sticking, no corner-clipping), then
       // the single center test for colliders. Probes take explicit coords so CORNER ASSIST can
@@ -831,11 +842,11 @@ export default function BeachIso() {
       const CR = 0.22, LANE = 0.27
       const probeX = (nx: number, aty: number) => {
         const sgn = Math.sign(nx - pos.tx)
-        return canGo(pos.tx, aty, nx + sgn * CR, aty - CR) && canGo(pos.tx, aty, nx + sgn * CR, aty + CR) && !blockedAt(nx, aty)
+        return canGo(pos.tx, aty, nx + sgn * CR, aty - CR) && canGo(pos.tx, aty, nx + sgn * CR, aty + CR) && !collideMove(pos.tx, pos.ty, nx, aty)
       }
       const probeY = (ny: number, atx: number) => {
         const sgn = Math.sign(ny - pos.ty)
-        return canGo(atx, pos.ty, atx - CR, ny + sgn * CR) && canGo(atx, pos.ty, atx + CR, ny + sgn * CR) && !blockedAt(atx, ny)
+        return canGo(atx, pos.ty, atx - CR, ny + sgn * CR) && canGo(atx, pos.ty, atx + CR, ny + sgn * CR) && !collideMove(pos.tx, pos.ty, atx, ny)
       }
 
       instance.ticker.add((tk) => {
@@ -848,23 +859,56 @@ export default function BeachIso() {
         const moving = dx || dy
         const sprinting = !!keys['shift'] && moving
         if (moving) {
-          const l = Math.hypot(dx, dy), ux = dx / l, uy = dy / l, sp = (sprinting ? 0.128 : 0.075) * dt
+          // dt clamped: a hitched frame must not turn one step into a quarter-tile leap
+          const l = Math.hypot(dx, dy), ux = dx / l, uy = dy / l, sp = (sprinting ? 0.128 : 0.075) * Math.min(dt, 2)
           const ntx = pos.tx + ux * sp, nty = pos.ty + uy * sp
+          // corner assist: when an axis move fails, glide toward a lane center that lets it
+          // pass. On sand only the CURRENT lane is trued up (subtle); on a deck the neighbor
+          // lanes count too, so a wide platform FUNNELS into its 1-wide walkway instead of
+          // pinning Thor at the edge. The glide itself must probe clean — applying it
+          // unchecked could shove him inside a collider (the old noclip entry point).
+          const onDeck = surfAt(Math.round(pos.tx), Math.round(pos.ty)).layer > 0
           if (ux !== 0) {
             if (probeX(ntx, pos.ty)) pos.tx = ntx
-            else { // corner assist: glide toward the lane center that lets this move pass
-              const cy = Math.round(pos.ty), tyC = Math.max(cy - LANE, Math.min(cy + LANE, pos.ty))
-              if (tyC !== pos.ty && probeX(ntx, tyC)) pos.ty += Math.sign(tyC - pos.ty) * Math.min(Math.abs(tyC - pos.ty), sp)
+            else {
+              const cy = Math.round(pos.ty)
+              for (const cand of onDeck ? [cy, cy - 1, cy + 1] : [cy]) {
+                const tyC = Math.max(cand - LANE, Math.min(cand + LANE, pos.ty))
+                if (tyC === pos.ty || !probeX(ntx, tyC)) continue
+                const gy = pos.ty + Math.sign(tyC - pos.ty) * Math.min(Math.abs(tyC - pos.ty), sp)
+                if (probeY(gy, pos.tx)) { pos.ty = gy; break }
+              }
             }
           }
           if (uy !== 0) {
             if (probeY(nty, pos.tx)) pos.ty = nty
             else {
-              const cx = Math.round(pos.tx), txC = Math.max(cx - LANE, Math.min(cx + LANE, pos.tx))
-              if (txC !== pos.tx && probeY(nty, txC)) pos.tx += Math.sign(txC - pos.tx) * Math.min(Math.abs(txC - pos.tx), sp)
+              const cx = Math.round(pos.tx)
+              for (const cand of onDeck ? [cx, cx - 1, cx + 1] : [cx]) {
+                const txC = Math.max(cand - LANE, Math.min(cand + LANE, pos.tx))
+                if (txC === pos.tx || !probeY(nty, txC)) continue
+                const gx = pos.tx + Math.sign(txC - pos.tx) * Math.min(Math.abs(txC - pos.tx), sp)
+                if (probeX(gx, pos.ty)) { pos.tx = gx; break }
+              }
             }
           }
           facing = dirFromAngle(isoX(dx, dy), (dx + dy) * HH)
+        }
+        // safety net: should anything ever leave Thor inside a circle (a spawn, an edge case),
+        // ease him straight back out over a few frames instead of letting him wedge or pop.
+        // pen also feeds dev introspection — the stress harness asserts it stays 0.
+        let pen = 0
+        if (surfAt(Math.round(pos.tx), Math.round(pos.ty)).layer === 0) {
+          const parr = colMap.get(Math.round(pos.tx) + ',' + Math.round(pos.ty))
+          if (parr) for (const i of parr) {
+            const c = colliders[i], R = c.r + THOR_R, d = Math.hypot(c.cx - pos.tx, c.cy - pos.ty)
+            if (d < R) {
+              pen = Math.max(pen, R - d)
+              const k = Math.min(R - d, 0.03 * dt) / (d || 1)
+              const nx2 = pos.tx + (pos.tx - c.cx) * k, ny2 = pos.ty + (pos.ty - c.cy) * k
+              if (d > 0 && canGo(pos.tx, pos.ty, nx2, ny2)) { pos.tx = nx2; pos.ty = ny2 }
+            }
+          }
         }
         // surface-aware elevation: sand dunes lift smoothly; on a deck the surface height rules,
         // eased so stepping up the stairs reads as climbing, not teleporting
@@ -888,7 +932,7 @@ export default function BeachIso() {
         thor.position.set(x, y + jy)
         // +18 keeps him (and his shadow at -1) above the next tile row's ground, below its props
         thor.zIndex = here.layer > 0 ? here.z + 2 : Math.floor(pos.tx + pos.ty) * 16 + 18
-        ;(window as unknown as { __thor: object }).__thor = { tx: pos.tx, ty: pos.ty, layer: here.layer, lift: renderLift } // dev introspection
+        ;(window as unknown as { __thor: object }).__thor = { tx: pos.tx, ty: pos.ty, layer: here.layer, lift: renderLift, pen } // dev introspection
         // shadow: a flat 2:1 iso ellipse pinned right under his feet (no rotation/offset —
         // an offset rotated blade read as levitation); shrinks + fades as he leaps
         const shf = Math.max(0.55, 1 - (-jy) / 110)
