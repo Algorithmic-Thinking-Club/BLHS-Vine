@@ -41,7 +41,8 @@
   image-rendering: pixelated;
   filter: drop-shadow(0 12px 30px rgba(2, 8, 10, .65));
   display: flex; flex-direction: column;
-  padding: 4.5% 6% 5.5%;
+  /* MEASURED paper zone of panel-square: x 16.5%..83.3%, y 15%..85.3% */
+  padding: 15% 17.5% 15.5% 17%;
   box-sizing: border-box;
   container-type: inline-size;
   animation: hb-in 260ms cubic-bezier(.2, 1.2, .35, 1) both;
@@ -116,6 +117,8 @@
   aspect-ratio: 448 / 448;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 4%;
+  padding: 16% 18% 16.5%;          /* the measured paper zone */
+  box-sizing: border-box;
   container-type: inline-size;
   filter: drop-shadow(0 10px 26px rgba(2, 8, 10, .6));
   animation: hb-in 220ms cubic-bezier(.2, 1.2, .35, 1) both;
