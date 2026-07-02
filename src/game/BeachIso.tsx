@@ -773,11 +773,11 @@ export default function BeachIso() {
       const MIRROR = [3, 2, 1, 0] // horizontal mirror swaps these heading pairs
       // per-head drawn geometry (anchor = waterline center as a fraction of sprite height,
       // deck height over the waterline, stern-lamp offset from the anchor)
-      const SHIPMETA = [
-        { ay: 0.87, deckH: 26, lampX: 62, lampY: -96 },
-        { ay: 0.87, deckH: 26, lampX: -62, lampY: -96 },
-        { ay: 0.87, deckH: 26, lampX: 62, lampY: -96 },
-        { ay: 0.87, deckH: 26, lampX: -62, lampY: -96 },
+      const SHIPMETA = [ // lamp offsets MEASURED per view (scripts/_archive/ship_dirs_wire.py)
+        { ay: 0.87, deckH: 26, lampX: -12, lampY: -60 },
+        { ay: 0.87, deckH: 26, lampX: -8, lampY: -63 },
+        { ay: 0.87, deckH: 26, lampX: 13, lampY: -63 },
+        { ay: 0.87, deckH: 26, lampX: 27, lampY: -64 },
       ]
       const UMAX = 1.35, VMAX = 0.4, HELM_U = -1.0 // deck rect (tile units) + the helm spot astern
       const shipTexFor = (h: number): { t: Texture; mir: boolean } | null => {
