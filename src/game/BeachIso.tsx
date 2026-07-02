@@ -116,9 +116,14 @@ function composeBeach(): PropDef[] {
   // rows of broadleaf bushes with palms rising out of them; solid enough that the sand never runs
   // to bare map edge. Scale/mirror variance so no two stamps read alike; the flowered hedge stays
   // an occasional accent, never a repeated motif. The wall bends toward the sea on the far left.
-  for (let d = -66; d <= 66; d += 4) {
+  for (let d = -92; d <= 92; d += 4) {
     const bend = d < -30 ? (d + 30) * 0.55 : 0 // left side closes toward the shore
-    const sWall = 138.5 + bend + 2.2 * Math.sin(d * 0.21) + rnd(-1, 1, d, 1)
+    // never let the bending wall walk into the sea — it stays a few tiles landward of the water
+    const sWall = Math.max(shoreAt(d) + 7, 138.5 + bend + 2.2 * Math.sin(d * 0.21) + rnd(-1, 1, d, 1))
+    // DEPTH FILL behind the wall: two progressively darker, hazier canopy rows so the jungle
+    // reads as deep forest all the way back, never bare sand behind a fence of bushes
+    add(d + rnd(-2, 2, d, 33), sWall + 9.5, hash(d, 34) > 0.5 ? 'bushA' : 'bushC', rnd(110, 150, d, 35), { flip: hash(d, 36) > 0.5, tint: 0x3f5257 })
+    add(d + 2 + rnd(-2, 2, d, 37), sWall + 13, ['palmA', 'palmB', 'palmC', 'palmD'][Math.floor(hash(d, 38) * 4)], rnd(160, 200, d, 39), { flip: hash(d, 40) > 0.5, tint: 0x33444c })
     // deep-shadow silhouette row at the very back — the dark value anchor the treeline needs
     if (hash(d, 27) > 0.35) add(d + rnd(-2, 2, d, 28), sWall + 6, ['palmA', 'palmB', 'palmC', 'palmD'][Math.floor(hash(d, 29) * 4)], rnd(150, 190, d, 30), { flip: hash(d, 31) > 0.5, tint: 0x5c6e6a })
     add(d + rnd(-1.2, 1.2, d, 2), sWall + 3.5, hash(d, 19) > 0.35 ? 'bushA' : 'bushC', rnd(92, 126, d, 16), { flip: hash(d, 3) > 0.5, tint: hash(d, 26) > 0.5 ? 0xb8c4ae : undefined })
@@ -127,11 +132,10 @@ function composeBeach(): PropDef[] {
     if (hash(d, 12) > 0.55) add(d + rnd(-2, 2, d, 13), sWall - 1.6, 'dunegrass', rnd(28, 44, d, 14), { flip: hash(d, 15) > 0.5 })
   }
 
-  // 2. RIGHT HEADLAND — a rocky arm reaching into the sea: one big land cluster, a tight middle
-  // group, then a lone outer stack (clustered masses, not a queue of stamps).
+  // 2. RIGHT HEADLAND — one coherent rocky point AT the waterline (no floating sea stacks; rocks
+  // that stand in open water read as pasted stamps, per Ash 2026-07-02).
   add(15, 109, 'rockA', 74); add(17.5, 106, 'rockB', 112); add(16.8, 108.2, 'rockA', 40, { flip: true })
-  add(21, 101.5, 'rockB', 92, { flip: true, sea: true }); add(23, 100.2, 'rockA', 56, { sea: true })
-  add(27.5, 94, 'rockB', 70, { sea: true })
+  add(19.5, 104.2, 'rockA', 58, { flip: true, sea: true }); add(21, 103.2, 'rockA', 42, { sea: true })
   add(13.5, 112, 'dunegrass', 36); add(16.5, 111, 'dunegrass', 30, { flip: true })
   add(14, 110.5, 'palmA', 178, { flip: true }); add(12, 113.5, 'palmB', 152)
   add(16, 113, 'coconuts', 22)
@@ -226,7 +230,7 @@ export default function BeachIso() {
         load('sand', '/art/iso/sand.png'), load('water', '/art/iso/water.png'), load('water2', '/art/iso/water2.png'),
         load('foamlace', '/art/intro/foam-lace.png'), load('foamlace2', '/art/intro/foam-lace2.png'),
         load('foamtrail', '/art/intro/foam-trail.png'), load('sparkle', '/art/intro/sparkle.png'),
-        load('skirt', '/art/intro/shallow-skirt.png'), load('swell', '/art/intro/swell-lines.png'),
+        load('skirt', '/art/intro/shallow-skirt.png'),
         ...Object.entries(PROP_SRC).map(([k, u]) => load(k, u)),
       ])
       const idle: Record<string, Texture> = {}
@@ -402,28 +406,9 @@ export default function BeachIso() {
           fronts.push({ segs, trail: trailSegs, film: filmSegs, off: (f * TIDE_T) / 2 })
         }
       }
-      // CROSS-SEAM SWELL OVERLAY: pale swell lines tiled at a period that never aligns with the
-      // 64px tile grid, so the eye stops finding the diamond seams. Drifts slowly.
-      const swellSheets: { sp: Sprite; ph: number; y0: number }[] = []
-      if (tex['swell']) {
-        const SW = tex['swell'].width, SH = tex['swell'].height
-        for (let gy = 0; gy * SH < ROWS * HH * 2; gy++) {
-          for (let gx = -1; (gx * SW) < COLS * HW + ROWS * HW; gx++) {
-            const x = -ROWS * HW + gx * SW + (gy % 2) * (SW / 2) // stagger rows
-            const y = gy * SH
-            // keep only sheets whose center is over open water (past the waterline)
-            const cd = (x + SW / 2) / HW, cs = (y + SH / 2) / HH
-            if (cs > shoreAt(cd) - 4) continue
-            const sp = new Sprite(tex['swell'])
-            sp.position.set(x, y)
-            const dep = Math.min(1, Math.max(0, (shoreAt(cd) - cs) / DEPTH_RANGE))
-            sp.alpha = 0.05 + 0.09 * dep // quiet at the shore, more presence far out
-            sp.zIndex = cs * 16 + 1
-            world.addChild(sp)
-            swellSheets.push({ sp, ph: hash(gx, gy) * 6.28, y0: y })
-          }
-        }
-      }
+      // (a cross-seam swell-line overlay was tried here and rejected — its wavy horizontal lines
+      // read flat/top-down against the iso world and tiled visibly at distance. The ramp + patch
+      // drift + coherent mirroring carry the de-gridding instead.)
       // sun glints twinkling on the open water, denser toward the sun (upper-left of the sea)
       const sparkles: { sp: Sprite; ph: number; sc: number }[] = []
       if (tex['sparkle']) {
@@ -581,8 +566,6 @@ export default function BeachIso() {
           s.sp.alpha = k * 0.85
           s.sp.scale.set(s.sc * (0.7 + 0.3 * k))
         }
-        // the swell-line sheets breathe up and down slowly, each on its own phase
-        for (const sh of swellSheets) sh.sp.position.y = sh.y0 + 6 * Math.sin(wt * 0.14 + sh.ph)
         resizeFx(vw, vh)
       })
 
