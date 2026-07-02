@@ -203,6 +203,7 @@ const PROP_SRC: Record<string, string> = {
   pawprints: '/art/intro/props/pawprints.png', pennant: '/art/intro/props/pennant.png',
   gull: '/art/intro/props/gull.png', bushC: '/art/intro/props/bush-c.png',
   tidepool: '/art/intro/props/tidepool.png',
+  crab: '/art/intro/props/crab.png', gullFly: '/art/intro/props/gull-fly.png',
   driftwood: '/art/intro/driftwood.png', grass: '/art/intro/grass.png', reeds: '/art/iso/props/reeds.png',
 }
 // per-prop grade: the panther rock reads as weathered gray stone (not bone), the flowered hedge
@@ -370,7 +371,7 @@ export default function BeachIso() {
           world.addChild(f2)
         }
       }
-      type FoamSeg = { sp: Sprite; d: number; jit: number }
+      type FoamSeg = { sp: Sprite; d: number; jit: number; alt?: Texture[]; altRun?: boolean[]; cy?: number }
       const fronts: { segs: FoamSeg[]; trail: FoamSeg[]; film: FoamSeg[]; off: number }[] = []
       if (tex['foamlace']) {
         for (let f = 0; f < 2; f++) {
@@ -388,16 +389,23 @@ export default function BeachIso() {
               world.addChild(fp); filmSegs.push({ sp: fp, d, jit })
             }
             // alternate strip halves run MIRRORED so the lace motif's repeat period doubles
-            // (foam is stochastic — a mirrored continuation still reads continuous)
+            // (foam is stochastic — a mirrored continuation still reads continuous); each segment
+            // carries TWO slices at different offsets and swaps during the lull, so consecutive
+            // waves never show the same lace shapes
             const period = Math.max(32, laceT.width - 32)
-            const run = Math.floor(((d - dMin) * 32 + f * 160) / period) % 2 === 1
-            const off = ((d - dMin) * 32 + f * 160) % period
-            const fr = new Rectangle(run ? period - 32 - off : off, 0, 32, laceT.height)
-            const sp = new Sprite(new Texture({ source: laceT.source, frame: fr }))
+            const sliceAt = (base: number) => {
+              const run = Math.floor(base / period) % 2 === 1
+              const off = base % period
+              return { fr: new Rectangle(run ? period - 32 - off : off, 0, 32, laceT.height), run }
+            }
+            const a = sliceAt((d - dMin) * 32 + f * 160), b = sliceAt((d - dMin) * 32 + f * 160 + 137)
+            const texA = new Texture({ source: laceT.source, frame: a.fr })
+            const texB = new Texture({ source: laceT.source, frame: b.fr })
+            const sp = new Sprite(texA)
             sp.anchor.set(0.5, 0.84) // scalloped leading edge rides just below the front line
-            if (run) sp.scale.x = -1
+            if (a.run) sp.scale.x = -1
             sp.position.set(d * HW, shoreAt(d) * HH); sp.alpha = 0
-            world.addChild(sp); segs.push({ sp, d, jit })
+            world.addChild(sp); segs.push({ sp, d, jit, alt: [texA, texB], altRun: [a.run, b.run], cy: 0 })
             if (trailT && d % 2 === 0) {
               const fw = Math.min(64, trailT.width)
               const fr2 = new Rectangle(((d - dMin) * 24) % Math.max(32, trailT.width - fw), 0, fw, trailT.height)
@@ -412,6 +420,29 @@ export default function BeachIso() {
       // (a cross-seam swell-line overlay was tried here and rejected — its wavy horizontal lines
       // read flat/top-down against the iso world and tiled visibly at distance. The ramp + patch
       // drift + coherent mirroring carry the de-gridding instead.)
+      // ---- AMBIENT LIFE ----
+      const shadowTexLife = makeShadow()
+      // crabs skitter along the wrack line in quick sideways bursts, then freeze
+      type Crab = { sp: Sprite; sh: Sprite; d: number; s: number; home: number; tgt: number; next: number; speed: number }
+      const crabs: Crab[] = []
+      if (tex['crab']) {
+        for (const [cd, cs] of [[-14, 108.8], [6.5, 110.2], [22, 112.5]] as const) {
+          const sh = new Sprite(shadowTexLife); sh.anchor.set(0.5, 0.5); sh.width = 16; sh.height = 6; sh.alpha = 0.3
+          const sp = new Sprite(tex['crab']); sp.anchor.set(0.5, 0.8)
+          sp.scale.set(0.8)
+          world.addChild(sh); world.addChild(sp)
+          crabs.push({ sp, sh, d: cd, s: cs, home: cd, tgt: cd, next: 1 + hash(cd, cs) * 3, speed: 0 })
+        }
+      }
+      // a gull glides across the cove now and then, its shadow sweeping the water below
+      let flyer: { sp: Sprite; sh: Sprite } | null = null
+      if (tex['gullFly']) {
+        const sh = new Sprite(shadowTexLife); sh.anchor.set(0.5, 0.5); sh.width = 22; sh.height = 8; sh.alpha = 0
+        const sp = new Sprite(tex['gullFly']); sp.anchor.set(0.5, 0.5); sp.alpha = 0
+        sp.zIndex = 99999; sh.zIndex = 99998 // always above the world while airborne
+        world.addChild(sh); world.addChild(sp)
+        flyer = { sp, sh }
+      }
       // sun glints twinkling on the open water, denser toward the sun (upper-left of the sea)
       const sparkles: { sp: Sprite; ph: number; sc: number }[] = []
       if (tex['sparkle']) {
@@ -533,11 +564,18 @@ export default function BeachIso() {
         // THE TIDE: fronts sweep along the beach (per-column phase lag), wash up, hold, retract
         for (const fr of fronts) {
           for (const seg of fr.segs) {
-            const [reach, foamA] = tidePhase(wt - fr.off - seg.d * SWEEP)
+            const u = wt - fr.off - seg.d * SWEEP
+            const [reach, foamA] = tidePhase(u)
             const s = shoreAt(seg.d) + reach * TIDE_AMP + 0.1 * Math.sin(seg.d * 0.7 + wt * 1.4)
             seg.sp.position.y = s * HH + seg.jit
             seg.sp.zIndex = s * 16 + 6
             seg.sp.alpha = foamA * 0.9
+            // swap the lace slice while invisible, so every wave wears a different shape
+            const cy = Math.floor(u / TIDE_T)
+            if (seg.alt && cy !== seg.cy && foamA < 0.06) {
+              const i = ((cy % 2) + 2) % 2
+              seg.cy = cy; seg.sp.texture = seg.alt[i]; seg.sp.scale.x = seg.altRun![i] ? -1 : 1
+            }
           }
           for (const seg of fr.film) {
             const [reach, foamA] = tidePhase(wt - fr.off - seg.d * SWEEP)
@@ -576,6 +614,35 @@ export default function BeachIso() {
         }
         // sea-breeze sway: slow lean + a faster flutter on top, per-plant phase
         for (const s of swaying) s.sp.rotation = s.amp * (Math.sin(wt * 0.7 + s.ph) + 0.35 * Math.sin(wt * 1.9 + s.ph * 2.3))
+        // crabs: quick sideways bursts along the shore, then hold still
+        for (const c of crabs) {
+          if (wt > c.next) {
+            if (Math.abs(c.tgt - c.d) < 0.05) { // idle over — pick a new dash inside the home range
+              c.tgt = Math.max(c.home - 4, Math.min(c.home + 4, c.d + (hash(c.d * 7.7, wt) - 0.5) * 3.2))
+              c.speed = 2.6 + hash(c.d, wt * 1.3) * 1.6
+            }
+          }
+          if (Math.abs(c.tgt - c.d) >= 0.05) {
+            const dir = Math.sign(c.tgt - c.d)
+            c.d += dir * Math.min(Math.abs(c.tgt - c.d), c.speed * tk.deltaMS / 1000)
+            c.sp.scale.x = dir > 0 ? 0.8 : -0.8
+            if (Math.abs(c.tgt - c.d) < 0.05) c.next = wt + 1.2 + hash(c.d * 3.1, wt) * 3.5
+          }
+          const cx = c.d * HW, cyy = c.s * HH - liftAt((c.s + c.d) / 2, (c.s - c.d) / 2)
+          const scuttle = Math.abs(c.tgt - c.d) >= 0.05 ? Math.abs(Math.sin(wt * 22)) * 1.5 : 0
+          c.sp.position.set(cx, cyy - scuttle); c.sp.zIndex = c.s * 16 + 8
+          c.sh.position.set(cx + 1, cyy + 1); c.sh.zIndex = c.s * 16 + 7
+        }
+        // the gliding gull: a long lazy diagonal pass over the cove every ~35s
+        if (flyer) {
+          const cycle = 35, u = (wt % cycle) / 9 // 9s of flight, then rest
+          if (u <= 1) {
+            const fx = (-70 + 140 * u) * HW * 0.35, fy = (88 - 14 * u) * HH + 26 * Math.sin(u * 9)
+            flyer.sp.position.set(fx, fy - 90); flyer.sp.alpha = Math.min(1, u * 8, (1 - u) * 8) * 0.95
+            flyer.sp.rotation = 0.12 * Math.sin(u * 12)
+            flyer.sh.position.set(fx + 18, fy + 6); flyer.sh.alpha = flyer.sp.alpha * 0.25
+          } else { flyer.sp.alpha = 0; flyer.sh.alpha = 0 }
+        }
         resizeFx(vw, vh)
       })
 
