@@ -1,0 +1,97 @@
+/* Transition covers (GAME-DESIGN §12.1) — each is a full-screen layer that animates in,
+   holds while the next scene mounts, and animates out. No raw spinners, no hard cuts. */
+
+.tr-root { position: absolute; inset: 0; z-index: 90; pointer-events: auto; overflow: hidden; }
+.pix { image-rendering: pixelated; }
+
+/* ---- fade ---- */
+.tr-fade { position: absolute; inset: 0; background: #05070a; }
+.tr-in .tr-fade { animation: trf-in 620ms ease both; }
+.tr-out .tr-fade { animation: trf-out 620ms ease both; }
+@keyframes trf-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes trf-out { from { opacity: 1; } to { opacity: 0; } }
+
+/* ---- foam wash: a wave sweeps the screen (the default world transition) ---- */
+.tr-foam-wash {
+  position: absolute; inset: 0;
+  background: linear-gradient(105deg, #0d3a46 0%, #14505c 55%, #1a6270 100%);
+}
+.tr-foam-lace {
+  position: absolute; top: -4%; bottom: -4%; width: 30vw; left: -32vw;
+  background:
+    radial-gradient(closest-side, rgba(240, 250, 248, .95), rgba(240, 250, 248, 0) 70%) 0 0 / 7vw 9vh repeat,
+    linear-gradient(90deg, rgba(226, 244, 240, .9), rgba(226, 244, 240, .2));
+  filter: blur(1px);
+}
+.tr-in .tr-foam-wash { animation: trw-in 620ms cubic-bezier(.3, .3, .2, 1) both; }
+.tr-in .tr-foam-lace { animation: trl-in 620ms cubic-bezier(.3, .3, .2, 1) both; }
+.tr-out .tr-foam-wash { animation: trw-out 620ms cubic-bezier(.6, 0, .7, .6) both; }
+.tr-out .tr-foam-lace { animation: trl-out 620ms cubic-bezier(.6, 0, .7, .6) both; }
+@keyframes trw-in { from { transform: translateX(-104%); } to { transform: translateX(0); } }
+@keyframes trl-in { from { left: -32vw; } to { left: 100vw; } }
+@keyframes trw-out { from { transform: translateX(0); } to { transform: translateX(104%); } }
+@keyframes trl-out { from { left: -32vw; } to { left: 104vw; } }
+
+/* ---- iris: circle closing on a focus point (into cutscenes) ---- */
+.tr-iris {
+  position: absolute; inset: 0; background: #05070a;
+  clip-path: circle(150% at var(--fx, 50%) var(--fy, 50%));
+}
+.tr-in .tr-iris { animation: tri-in 620ms cubic-bezier(.4, 0, .6, 1) both; }
+.tr-out .tr-iris { animation: tri-out 620ms cubic-bezier(.4, 0, .6, 1) both; }
+@keyframes tri-in {
+  from { clip-path: circle(150% at var(--fx, 50%) var(--fy, 50%)); -webkit-mask: radial-gradient(circle 150vmax at var(--fx) var(--fy), transparent 99%, #000 100%); }
+  to   { clip-path: circle(0% at var(--fx, 50%) var(--fy, 50%)); }
+}
+@keyframes tri-out {
+  from { clip-path: circle(0% at var(--fx, 50%) var(--fy, 50%)); }
+  to   { clip-path: circle(150% at var(--fx, 50%) var(--fy, 50%)); }
+}
+/* the iris cover is the INVERSE hole: while 'in' plays, the black ring closes toward the
+   focus; we fake it by clipping a full black sheet from a giant circle down to nothing —
+   which reads as the world shrinking into the point */
+.tr-in .tr-iris { background: #05070a; clip-path: circle(0% at var(--fx) var(--fy)); animation: tri-close 620ms cubic-bezier(.4, 0, .6, 1) both; }
+@keyframes tri-close {
+  from { clip-path: circle(0% at var(--fx, 50%) var(--fy, 50%)); opacity: .0; }
+  20%  { opacity: 1; }
+  to   { clip-path: circle(150% at var(--fx, 50%) var(--fy, 50%)); opacity: 1; }
+}
+.tr-hold .tr-iris { clip-path: circle(150% at var(--fx, 50%) var(--fy, 50%)); }
+
+/* ---- chart unroll: the I-6 loading card (map switches, planner, handbook) ---- */
+.tr-chart-field { position: absolute; inset: 0; background: radial-gradient(ellipse 120% 90% at 50% 45%, #123844 0%, #0a2530 65%, #06171e 100%); }
+.tr-chart {
+  position: absolute; left: 50%; top: 50%;
+  width: min(760px, 88vw); aspect-ratio: 688 / 384;
+  transform: translate(-50%, -50%);
+}
+.tr-chart-img { width: 100%; height: 100%; filter: drop-shadow(0 10px 28px rgba(2, 8, 10, .65)); }
+.tr-in .tr-chart { animation: trc-in 620ms cubic-bezier(.2, 1.05, .3, 1) both; }
+.tr-out .tr-chart { animation: trc-out 620ms cubic-bezier(.55, 0, .8, .4) both; }
+.tr-in .tr-chart-field { animation: trf-in 400ms ease both; }
+.tr-out .tr-chart-field { animation: trf-out 620ms ease both; }
+@keyframes trc-in {
+  from { transform: translate(-50%, -50%) scaleX(.06); opacity: 0; }
+  45%  { opacity: 1; }
+  to   { transform: translate(-50%, -50%) scaleX(1); opacity: 1; }
+}
+@keyframes trc-out {
+  from { transform: translate(-50%, -50%) scaleX(1); opacity: 1; }
+  to   { transform: translate(-50%, -50%) scaleX(.06); opacity: 0; }
+}
+.tr-chart-needle {
+  position: absolute; left: 50%; top: 46%;
+  width: 3px; height: 11%;
+  background: linear-gradient(#8a2f1e 0 52%, #e8dcc0 52% 100%);
+  transform-origin: 50% 100%;
+  border-radius: 2px;
+  box-shadow: 0 0 4px rgba(20, 10, 4, .4);
+}
+.tr-chart-fact {
+  position: absolute; left: 10%; right: 10%; bottom: 7%;
+  text-align: center;
+  font-family: 'Deckhand', monospace;
+  font-size: clamp(12px, 1.9vh, 16px);
+  color: #4a3826;
+  text-shadow: 0 1px 0 rgba(255, 250, 235, .4);
+}

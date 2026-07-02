@@ -18,8 +18,8 @@ export default function TitleScene() {
 
   useEffect(() => { track('title_shown', { hasSave: !!save }) }, [save])
 
-  const sail = () => { track(save ? 'continue_clicked' : 'new_voyage_clicked'); nav.go('beach') }
-  const newVoyage = () => { track('new_voyage_clicked'); nav.go('beach') }
+  const sail = () => { track(save ? 'continue_clicked' : 'new_voyage_clicked'); nav.go('beach', { kind: 'foam' }) }
+  const newVoyage = () => { track('new_voyage_clicked'); nav.go('beach', { kind: 'foam' }) }
 
   const flapGull = () => { setGullHop((h) => h + 1); setGullRight((g) => !g) }
 

@@ -1,0 +1,118 @@
+import { useEffect, useState } from 'react'
+import './transitions.css'
+
+// The transition library (GAME-DESIGN §12.1): one controller owns every scene change —
+// cover-in, swap, cover-out — so there is never a hard cut or a raw spinner. Covers are
+// PixelLab art animated in code. The chart cover doubles as the loading card: a compass
+// needle settling + one real BLHS fact (§4.9), because the wait should teach.
+
+export type TransitionKind = 'fade' | 'foam' | 'iris' | 'chart'
+
+export type TransitionSpec = {
+  kind: TransitionKind
+  /** minimum time the cover holds fully closed (the chart wants 2000-3000) */
+  holdMs?: number
+  /** iris focus point in viewport fractions (default center) */
+  focus?: { x: number; y: number }
+}
+
+// every fact here is verified BLHS reality (docs/research/blhs-specifics.md); nothing invented
+const FACTS = [
+  'Bonney Lake High School opened in 2005. The Panthers have been teal and black from day one.',
+  'BLHS is the AP school of the Sumner-Bonney Lake district. AP Capstone lives here.',
+  'The POWER values are the school’s compass. You’ll meet all five letters.',
+  'Around 1,700 students walk the halls of BLHS. Every one of them started as a freshman.',
+  'BLHS runs a real in-school BECU branch. It opened back in 2006.',
+  'Earn two CTE credits and the Career Readiness cord is yours at graduation.',
+  'Three or more years of one world language can earn the Seal of Biliteracy.',
+  'The counseling office tracks every honor cord. So does your Handbook.',
+]
+
+const COVER_MS = 620 // cover-in / cover-out animation time
+
+type Phase = 'idle' | 'in' | 'hold' | 'out'
+
+export type TransitionState = {
+  phase: Phase
+  spec: TransitionSpec
+  fact: string
+}
+
+export function makeTransitionState(): TransitionState {
+  return { phase: 'idle', spec: { kind: 'fade' }, fact: FACTS[0] }
+}
+
+/** drive a full transition: cover-in -> swap() -> hold -> cover-out */
+export async function runTransition(
+  st: TransitionState,
+  emit: () => void,
+  spec: TransitionSpec,
+  swap: () => void | Promise<void>,
+) {
+  st.spec = spec
+  st.fact = FACTS[Math.floor(Math.random() * FACTS.length)]
+  st.phase = 'in'; emit()
+  await sleep(COVER_MS)
+  st.phase = 'hold'; emit()
+  const t0 = performance.now()
+  await swap()
+  const left = (spec.holdMs ?? (spec.kind === 'chart' ? 2400 : 60)) - (performance.now() - t0)
+  if (left > 0) await sleep(left)
+  st.phase = 'out'; emit()
+  await sleep(COVER_MS)
+  st.phase = 'idle'; emit()
+}
+
+const sleep = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms))
+
+export function TransitionOverlay({ st, version }: { st: TransitionState; version: number }) {
+  void version // re-render key from the host
+  const { phase, spec } = st
+  const [needle, setNeedle] = useState(0)
+  useEffect(() => {
+    if (phase !== 'hold' || spec.kind !== 'chart') return
+    // the compass needle settles as the progress element — eased swings that die out
+    let raf = 0
+    const t0 = performance.now()
+    const step = () => {
+      const t = (performance.now() - t0) / 1000
+      setNeedle(52 * Math.exp(-t * 1.4) * Math.sin(t * 7 + 1.2))
+      raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [phase, spec.kind])
+
+  if (phase === 'idle') return null
+  const cls = phase === 'in' ? 'tr-in' : phase === 'out' ? 'tr-out' : 'tr-hold'
+
+  if (spec.kind === 'foam') {
+    return (
+      <div className={`tr-root ${cls}`}>
+        <div className="tr-foam-wash" />
+        <div className="tr-foam-lace" />
+      </div>
+    )
+  }
+  if (spec.kind === 'iris') {
+    const f = spec.focus ?? { x: 0.5, y: 0.5 }
+    return (
+      <div className={`tr-root ${cls}`}>
+        <div className="tr-iris" style={{ ['--fx' as string]: `${f.x * 100}%`, ['--fy' as string]: `${f.y * 100}%` }} />
+      </div>
+    )
+  }
+  if (spec.kind === 'chart') {
+    return (
+      <div className={`tr-root ${cls}`}>
+        <div className="tr-chart-field" />
+        <div className="tr-chart">
+          <img className="pix tr-chart-img" src="/art/ui/chart-cover.png" alt="" draggable={false} />
+          <div className="tr-chart-needle" style={{ transform: `translate(-50%, -100%) rotate(${needle}deg)` }} />
+          <div className="tr-chart-fact">{st.fact}</div>
+        </div>
+      </div>
+    )
+  }
+  return <div className={`tr-root ${cls}`}><div className="tr-fade" /></div>
+}

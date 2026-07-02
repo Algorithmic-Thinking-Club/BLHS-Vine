@@ -1,14 +1,15 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
+import { makeTransitionState, runTransition, TransitionOverlay, type TransitionSpec } from './transitions'
 
-// The backbone of the whole game: scenes (boot, title, join, loading, dressing room,
-// overworld, the set-sail cutscene, island interiors, the graduation summary) are
-// registered by id; navigation between them runs through one place with a transition
-// overlay. The specific screens + transition types are built on top of this; this file
-// is just the mechanism so nothing has to reinvent routing or fades.
+// The backbone of the whole game: scenes (boot, title, the intro beach, the island map,
+// interiors, the graduation summary) register by id; every navigation runs through ONE
+// transition controller (GAME-DESIGN §12.1) — cover-in, swap, cover-out — so there is never
+// a hard cut or a blank frame. `go(to)` keeps the old fade; `go(to, spec)` picks a crafted
+// cover (foam wash, iris on a focus point, the chart-unroll loading card).
 
 export type SceneRegistry = Record<string, () => ReactNode>
 
-type Nav = { go: (to: string) => void; current: string }
+type Nav = { go: (to: string, spec?: TransitionSpec) => void; current: string }
 const NavCtx = createContext<Nav | null>(null)
 export function useNav() {
   const c = useContext(NavCtx)
@@ -16,26 +17,26 @@ export function useNav() {
   return c
 }
 
-const FADE_MS = 420
-
 export function SceneManager({ initial, registry }: { initial: string; registry: SceneRegistry }) {
   const [current, setCurrent] = useState(initial)
-  const [fade, setFade] = useState(0) // 0 = clear, 1 = black
   const busy = useRef(false)
+  const trState = useRef(makeTransitionState())
+  const [trVersion, setTrVersion] = useState(0)
 
-  const go = useCallback((to: string) => {
+  const go = useCallback((to: string, spec?: TransitionSpec) => {
     if (busy.current || to === current) return
     if (!registry[to]) { console.warn('SceneManager: scene not registered:', to); return }
     busy.current = true
-    setFade(1) // fade out
-    window.setTimeout(() => {
-      setCurrent(to)
-      // let the new scene mount, then fade back in
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        setFade(0)
-        window.setTimeout(() => { busy.current = false }, FADE_MS)
-      }))
-    }, FADE_MS)
+    void runTransition(
+      trState.current,
+      () => setTrVersion((v) => v + 1),
+      spec ?? { kind: 'fade' },
+      () => {
+        setCurrent(to)
+        // give the new scene two frames to mount before the cover lifts
+        return new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+      },
+    ).finally(() => { busy.current = false })
   }, [current, registry])
 
   const nav = useMemo<Nav>(() => ({ go, current }), [go, current])
@@ -45,13 +46,7 @@ export function SceneManager({ initial, registry }: { initial: string; registry:
     <NavCtx.Provider value={nav}>
       <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#06121a' }}>
         {Scene ? Scene() : null}
-        <div
-          style={{
-            position: 'absolute', inset: 0, background: '#05070a',
-            opacity: fade, transition: `opacity ${FADE_MS}ms ease`,
-            pointerEvents: fade > 0 ? 'auto' : 'none',
-          }}
-        />
+        <TransitionOverlay st={trState.current} version={trVersion} />
       </div>
     </NavCtx.Provider>
   )
