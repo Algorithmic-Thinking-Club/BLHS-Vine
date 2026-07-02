@@ -1,0 +1,190 @@
+/* I-3: the parchment session (GAME-DESIGN §5 I-3). The scroll unfurls up over the live
+   beach (dimmed 20% by the overlay's world beneath), every control drawn in the kit's
+   material language. The scroll asset carries its own rollers, stains, and wax seal. */
+
+.i3-root {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: auto;
+  background: rgba(6, 14, 18, .20);          /* the ocean stays live behind, dimmed a fifth */
+}
+
+.i3-scroll {
+  width: min(400px, 92vw);
+  aspect-ratio: 384 / 688;
+  max-height: 94vh;
+  background: url('/art/ui/parchment-scroll.png') center / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 10px 26px rgba(3, 8, 10, .6));
+  animation: i3-unfurl 700ms cubic-bezier(.2, 1.1, .3, 1) both;
+  transform-origin: 50% 12%;
+}
+@keyframes i3-unfurl {
+  from { transform: translateY(46vh) scaleY(.12); opacity: 0; }
+  55%  { opacity: 1; }
+  to   { transform: translateY(0) scaleY(1); opacity: 1; }
+}
+.i3-rollup { animation: i3-roll 600ms cubic-bezier(.55, 0, .8, .4) both; }
+@keyframes i3-roll {
+  from { transform: translateY(0) scaleY(1); opacity: 1; }
+  to   { transform: translateY(38vh) scaleY(.1); opacity: 0; }
+}
+
+.i3-paper {
+  position: absolute; inset: 14% 15% 17% 13%;   /* the paper's deckled edge bites deeper on the right */
+  display: flex; flex-direction: column;
+}
+.i3-card {
+  display: flex; flex-direction: column; align-items: center;
+  height: 100%; overflow: hidden;
+}
+
+.i3-letter {
+  font-family: 'Deckhand', monospace;
+  font-size: 16px;                    /* Deckhand's native size — pixel-crisp, never fractional */
+  line-height: 1.5;
+  color: #4a3826;
+  white-space: pre-line;
+  width: 100%;
+}
+.i3-ps { margin-top: 8%; }
+.i3-caret { opacity: .6; animation: i3-blink 800ms steps(1) infinite; }
+@keyframes i3-blink { 50% { opacity: 0; } }
+
+.i3-sig {
+  align-self: flex-end;
+  margin: 3% 4% 0 0;
+  font-family: 'Harbormaster', 'Deckhand', monospace;
+  font-size: 14px;
+  color: #5a3d22;
+}
+.i3-sig span { margin-left: 6px; }
+.i3-paw { filter: sepia(1) saturate(.55) brightness(.68); font-size: .9em; } /* system emoji, inked */
+
+.i3-head {
+  font-family: 'Harbormaster', 'Deckhand', monospace;
+  font-size: 16px;
+  color: #3c2d1c;
+  margin: 2% 0 3%;
+  text-align: center;
+  max-width: 96%;
+}
+.i3-sub {
+  font-family: 'Deckhand', monospace;
+  font-size: clamp(13px, 2vh, 16px);
+  color: #4a3826;
+  margin-bottom: 5%;
+}
+
+/* the six carved code boxes, inside the letter itself */
+.i3-codeboxes { display: flex; gap: 6px; margin: 6% 0 2%; }
+.i3-codebox {
+  width: clamp(30px, 5.4vh, 42px);
+  height: clamp(38px, 6.6vh, 52px);
+  text-align: center;
+  font-family: 'Harbormaster', monospace;
+  font-size: clamp(17px, 3vh, 24px);
+  color: #33261a;
+  background: linear-gradient(180deg, #e2d7bd, #d6c9ab);
+  border: 2px solid #8a744f;
+  border-radius: 4px;
+  box-shadow: inset 0 2px 3px rgba(90, 70, 40, .35), 0 1px 0 rgba(255, 250, 235, .6);
+  outline: none;
+  caret-color: #6a4e2c;
+}
+.i3-codebox:focus { border-color: #4f6e62; box-shadow: inset 0 2px 3px rgba(90, 70, 40, .3), 0 0 0 2px rgba(60, 110, 96, .35); }
+.i3-shake { animation: i3-shakex 320ms ease; }
+@keyframes i3-shakex {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  55% { transform: translateX(5px); }
+  80% { transform: translateX(-3px); }
+}
+
+.i3-err {
+  font-family: 'Deckhand', monospace;
+  font-size: clamp(11px, 1.8vh, 14px);
+  color: #7c4a2c;
+  margin-top: 2%;
+}
+.i3-reassure {
+  font-family: 'Deckhand', monospace;
+  font-size: clamp(10px, 1.6vh, 13px);
+  color: #7a6a52;
+  margin: 2% 4% 0;
+  text-align: center;
+}
+
+.i3-fieldrow { display: flex; gap: 8px; align-items: center; width: 88%; margin-top: 2%; }
+.i3-field {
+  flex: 1;
+  font-family: 'Deckhand', monospace;
+  font-size: clamp(14px, 2.2vh, 18px);
+  color: #33261a;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid #8a744f;   /* pencil-on-paper line */
+  outline: none;
+  padding: 4px 2px;
+}
+.i3-field:focus { border-bottom-color: #4f6e62; }
+.i3-die {
+  background: linear-gradient(#4a3421, #382614);
+  border: 2px solid #241708;
+  border-radius: 4px;
+  font-size: clamp(14px, 2.2vh, 18px);
+  padding: 3px 8px 5px;
+  cursor: pointer;
+  transition: transform 120ms ease;
+}
+.i3-die:hover { transform: translateY(-1px) rotate(-8deg); }
+.i3-die:active { transform: translateY(1px) rotate(14deg); }
+
+.i3-chips { display: flex; gap: 7px; margin-top: 6%; flex-wrap: wrap; justify-content: center; max-width: 94%; }
+.i3-chip {
+  font-family: 'Deckhand', monospace;
+  font-size: clamp(11px, 1.8vh, 14px);
+  color: #4a3826;
+  background: linear-gradient(180deg, #e6dcc2, #dbcfaf);
+  border: 2px solid #8a744f;
+  border-radius: 3px;
+  padding: 3px 10px 4px;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.i3-chip:hover { transform: translateY(-1px); }
+.i3-chip-on {
+  border-color: #3c6e60;
+  color: #234c40;
+  box-shadow: 0 0 0 2px rgba(60, 110, 96, .3);
+  transform: translateY(1px);       /* a stamp pressed in */
+}
+
+.i3-plank {
+  margin-top: 0;
+  margin-bottom: 2%;
+  min-width: 62%;
+  aspect-ratio: 512 / 150;
+  background: url('/art/ui/plank-button.png') center / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  border: none; cursor: pointer;
+  font-family: 'Harbormaster', 'Deckhand', monospace;
+  font-size: clamp(13px, 2.2vh, 17px);
+  color: #f0e4c8;
+  text-shadow: 0 2px 0 rgba(30, 16, 6, .75);
+  filter: drop-shadow(0 3px 8px rgba(3, 10, 12, .45));
+  transition: transform 130ms ease, filter 130ms ease;
+}
+.i3-plank:hover { transform: translateY(-1px); filter: drop-shadow(0 4px 9px rgba(3, 10, 12, .5)) brightness(1.07); }
+.i3-plank:active { transform: translateY(2px); filter: brightness(.95); }
+
+.i3-castaway {
+  margin-top: auto;
+  margin-bottom: 2%;
+  background: none; border: none; cursor: pointer;
+  font-family: 'Deckhand', monospace;
+  font-size: clamp(11px, 1.7vh, 13px);
+  color: #7a6a52;
+  text-decoration: underline dotted;
+}
+.i3-castaway:hover { color: #5a4a34; }

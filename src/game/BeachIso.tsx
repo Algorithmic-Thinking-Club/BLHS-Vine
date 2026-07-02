@@ -261,13 +261,22 @@ const PROP_SRC: Record<string, string> = {
 // sits muted so its pink never becomes a repeated motif
 const PROP_TINT: Record<string, number> = { bushB: 0xe6dccf, bushC: 0xc9e0b4, seaweed: 0xd9cfb4, pawprints: 0x8d7a5e }
 
-export default function BeachIso() {
+// The stage handle the cutscene runtime drives (types in cutscene/types.ts). Exposed via the
+// optional onStage prop so the intro (and any future scripted beat) can direct the live scene
+// without a second render path — one beach, playable and stageable.
+import type { CutsceneStage } from './cutscene/types'
+export type BeachStage = CutsceneStage & { onTick: (fn: ((ms: number) => void) | null) => void }
+
+export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => void } = {}) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     let app: Application | null = null, destroyed = false
     const keys: Record<string, boolean> = {}
+    // while a cutscene holds control, held keys release and new ones are ignored (the overlay
+    // owns input); gates flip control back on for the player-driven beats
+    let inputMuted = false
     let jumpQueued = false
-    const kd = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = true; if (e.key === ' ') { jumpQueued = true; e.preventDefault() } }
+    const kd = (e: KeyboardEvent) => { if (inputMuted) return; keys[e.key.toLowerCase()] = true; if (e.key === ' ') { jumpQueued = true; e.preventDefault() } }
     const ku = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = false }
 
     const start = async () => {
@@ -1028,14 +1037,159 @@ export default function BeachIso() {
         return canGo(atx, pos.ty, atx - CR, ny + sgn * CR) && canGo(atx, pos.ty, atx + CR, ny + sgn * CR) && !collideMove(pos.tx, pos.ty, atx, ny)
       }
 
+      // ---- CUTSCENE STAGE: the intro (and future scripted beats) direct the live scene through
+      // this. All state is read by the ticker; nothing here duplicates engine systems — scripted
+      // moves run through the same probes as the player, poses override only the texture pick,
+      // and the camera override reuses the same follow math with a scriptable target. ----
+      const cs = {
+        control: true,                                        // playerControl (gates flip it on)
+        cam: null as null | { x: number; y: number; zoom: number },
+        move: null as null | { x: number; y: number; speed?: number; face?: string; done: boolean },
+        pose: null as null | { tex: Texture; lift: number },  // lie/sit overrides (lift = extra y-sink)
+        tick: null as null | ((ms: number) => void),
+      }
+      // pose textures load lazily; the wake beat is the only user until more states land
+      const poseTex: Record<string, Texture | undefined> = {}
+      const loadPose = async (name: string, url: string) => {
+        try { poseTex[name] = trimmed(await Assets.load(url)) } catch { /* pose stays unavailable */ }
+      }
+      await Promise.all([
+        loadPose('lie', '/art/characters/thor/pose/lie.png'),
+        loadPose('sit', '/art/characters/thor/pose/sit.png'),
+      ])
+      // scripted extra actors (the bottle...) — tiny sprites with the standard contact shadow
+      const csActors = new Map<string, { sp: Sprite; sh: Sprite; tx: number; ty: number; rot: boolean }>()
+      const csActorEnsure = (id: string, src: string, scale: number) => {
+        let a = csActors.get(id)
+        if (a) return a
+        const sh = new Sprite(shadowTex); sh.anchor.set(0.5, 0.5); sh.width = 18; sh.height = 9; sh.alpha = 0.4
+        const sp = new Sprite(); sp.anchor.set(0.5, 0.92); sp.scale.set(scale)
+        world.addChild(sh); world.addChild(sp)
+        a = { sp, sh, tx: 0, ty: 0, rot: false }
+        csActors.set(id, a)
+        Assets.load(src).then((t) => { a!.sp.texture = t }).catch(() => { /* */ })
+        return a
+      }
+      const csActorPlace = (id: string, tx: number, ty: number) => {
+        const a = csActors.get(id)
+        if (!a) return
+        a.tx = tx; a.ty = ty
+        const ax = isoX(tx, ty), ay = isoY(tx, ty) - liftAt(tx, ty)
+        a.sp.position.set(ax, ay); a.sp.zIndex = Math.floor(tx + ty) * 16 + 12
+        a.sh.position.set(ax, ay + 2); a.sh.zIndex = a.sp.zIndex - 1
+      }
+      // sand scatter: a small burst of warm flecks when Thor stirs/shakes (pooled, self-cleaning)
+      const csFx = (name: string, at?: { x: number; y: number }) => {
+        const px = at ? isoX(at.x, at.y) : thor.position.x, py = at ? isoY(at.x, at.y) : thor.position.y
+        if (name === 'sandScatter') {
+          for (let i = 0; i < 8; i++) {
+            const p = new Sprite(Texture.WHITE)
+            p.tint = 0xd9c08a; p.alpha = 0.85; p.width = p.height = 2 + (i % 2)
+            p.position.set(px + (Math.random() - 0.5) * 26, py - 4 - Math.random() * 10)
+            p.zIndex = thor.zIndex + 1
+            world.addChild(p)
+            const vx = (Math.random() - 0.5) * 0.5, vy = -0.6 - Math.random() * 0.7
+            let life = 0
+            const fn = (t: { deltaMS: number }) => {
+              life += t.deltaMS
+              p.x += vx * t.deltaMS / 16; p.y += vy * t.deltaMS / 16 + life * 0.0011
+              p.alpha = 0.85 * (1 - life / 520)
+              if (life > 520) { instance.ticker.remove(fn); p.destroy() }
+            }
+            instance.ticker.add(fn)
+          }
+        }
+        if (name === 'glint') {
+          const g = new Sprite(tex['sparkle'] ?? Texture.WHITE)
+          g.anchor.set(0.5); g.blendMode = 'add'; g.position.set(px, py - 6); g.zIndex = 99999
+          world.addChild(g)
+          let life = 0
+          const fn = (t: { deltaMS: number }) => {
+            life += t.deltaMS
+            const k = Math.sin(Math.PI * Math.min(1, life / 900))
+            g.alpha = k; g.scale.set(0.8 + k * 1.6)
+            if (life > 900) { instance.ticker.remove(fn); g.destroy() }
+          }
+          instance.ticker.add(fn)
+        }
+      }
+      // THE DELIVERING WAVE: the bottle rides the REAL tide — waits for the next front to break
+      // at its column, surges up the film's leading edge rolling as it comes, and settles in the
+      // wet band when the water lets go of it. Returns a done-poll for the runtime.
+      let bottleWave: null | { d: number; sBeach: number; phase: 'wait' | 'ride' | 'settled'; peak: number } = null
+      const csCall = (name: string, data?: unknown): (() => boolean) | void => {
+        if (name === 'bottleWave') {
+          const o = (data ?? {}) as { d?: number; instant?: boolean }
+          const d = o.d ?? 3
+          const sBeach = shoreAt(d) + TIDE_AMP * 0.82
+          csActorEnsure('bottle', '/art/intro/props/bottle.png', 0.30)
+          if (o.instant) {
+            bottleWave = null
+            csActorPlace('bottle', (sBeach + d) / 2, (sBeach - d) / 2)
+            return
+          }
+          csActorPlace('bottle', (shoreAt(d) - 2 + d) / 2, (shoreAt(d) - 2 - d) / 2) // bobbing offshore
+          bottleWave = { d, sBeach, phase: 'wait', peak: 0 }
+          return () => bottleWave === null || bottleWave.phase === 'settled'
+        }
+        if (name === 'hideBottle') {
+          const a = csActors.get('bottle')
+          if (a) { a.sp.visible = false; a.sh.visible = false }
+          return
+        }
+      }
+      const stage: BeachStage = {
+        cameraGet: () => cs.cam ? { ...cs.cam } : { x: pos.tx, y: pos.ty, zoom: ZOOM },
+        cameraSet: (x, y, zoom) => { cs.cam = { x, y, zoom } },
+        cameraFollow: (actor) => { if (actor === 'thor' || actor === null) cs.cam = null },
+        actorState: (actor, state) => {
+          if (actor !== 'thor') return
+          if (state === 'idle') { cs.pose = null; return }
+          const t = poseTex[state]
+          if (t) cs.pose = { tex: t, lift: state === 'lie' ? 2 : 0 }
+        },
+        actorPlace: (actor, x, y, face) => {
+          if (actor === 'thor') { pos.tx = x; pos.ty = y; if (face) facing = face }
+          else csActorPlace(actor, x, y)
+        },
+        actorMove: (actor, x, y, speed, face) => {
+          if (actor !== 'thor') { csActorPlace(actor, x, y); return () => true }
+          const m = { x, y, speed, face, done: false }
+          cs.move = m
+          return () => m.done
+        },
+        actorPos: (actor) => {
+          if (actor === 'thor') return { x: pos.tx, y: pos.ty }
+          const a = csActors.get(actor)
+          return a ? { x: a.tx, y: a.ty } : { x: 0, y: 0 }
+        },
+        actorFace: (actor, dir) => { if (actor === 'thor') facing = dir },
+        actorShow: (actor, visible) => {
+          if (actor === 'thor') { thor.visible = visible; thorShadow.visible = visible; return }
+          const a = csActors.get(actor)
+          if (a) { a.sp.visible = visible; a.sh.visible = visible }
+        },
+        fx: (name, at) => csFx(name, at),
+        audio: () => { /* the audio pass lands with Ash's score; cues are already scripted */ },
+        call: csCall,
+        playerControl: (on) => {
+          cs.control = on
+          inputMuted = !on
+          if (!on) for (const k of Object.keys(keys)) keys[k] = false
+        },
+        onTick: (fn) => { cs.tick = fn },
+      }
+      if (onStage) onStage(stage)
+
       instance.ticker.add((tk) => {
         const dt = tk.deltaTime
+        cs.tick?.(tk.deltaMS)                        // the cutscene runtime rides the same clock
         let dx = 0, dy = 0
         if (keys['w'] || keys['arrowup']) dy -= 1
         if (keys['s'] || keys['arrowdown']) dy += 1
         if (keys['a'] || keys['arrowleft']) dx -= 1
         if (keys['d'] || keys['arrowright']) dx += 1
-        const moving = dx || dy
+        let moving = dx || dy
         const sprinting = !!keys['shift'] && moving
         // aboard = Thor's position belongs to the boat, not the ground grid
         const aboard = !!veh && (veh.state === 'deck' || veh.state === 'helm' || !!veh.hop)
@@ -1074,6 +1228,28 @@ export default function BeachIso() {
             }
           }
           facing = dirFromAngle(isoX(dx, dy), (dx + dy) * HH)
+        }
+        // scripted walk (cutscene actorMove): the same probes as the player, but a stuck step
+        // resolves by passing through — a cutscene must never wedge on a pebble mid-beat
+        if (cs.move && !aboard) {
+          const m = cs.move
+          const ddx = m.x - pos.tx, ddy = m.y - pos.ty
+          const dist = Math.hypot(ddx, ddy)
+          const sp = (m.speed ?? 0.062) * Math.min(dt, 2)
+          if (dist <= Math.max(sp, 0.05)) {
+            pos.tx = m.x; pos.ty = m.y
+            if (m.face) facing = m.face
+            m.done = true; cs.move = null
+          } else {
+            const ux = ddx / dist, uy = ddy / dist
+            const nx = pos.tx + ux * sp, ny = pos.ty + uy * sp
+            let stepped = false
+            if (ux && probeX(nx, pos.ty)) { pos.tx = nx; stepped = true }
+            if (uy && probeY(ny, pos.tx)) { pos.ty = ny; stepped = true }
+            if (!stepped) { pos.tx = nx; pos.ty = ny }
+            facing = dirFromAngle(isoX(ux, uy), (ux + uy) * HH)
+            moving = 1
+          }
         }
         // safety net: should anything ever leave Thor inside a circle (a spawn, an edge case),
         // ease him straight back out over a few frames instead of letting him wedge or pop.
@@ -1308,11 +1484,15 @@ export default function BeachIso() {
         // at the helm the keys steer the SHIP, so Thor stands and rides; on deck he only
         // strides when he actually moves (pushing a rail used to moonwalk in place)
         const animMove = moving && !(veh && !veh.hop && (veh.state === 'helm' || (veh.state === 'deck' && !deckMoved)))
-        thor.texture = (animMove && wf) ? wf[Math.floor(at / (sprinting ? 68 : 110)) % wf.length] : (idle[facing] ?? idle['south'] ?? thor.texture)
-        // camera follow
+        thor.texture = cs.pose ? cs.pose.tex : (animMove && wf) ? wf[Math.floor(at / (sprinting ? 68 : 110)) % wf.length] : (idle[facing] ?? idle['south'] ?? thor.texture)
+        // camera follow (a running cutscene may hand the camera a target + zoom of its own;
+        // otherwise the standard Thor follow, biased down so the ocean fills the frame above him)
         const vw = instance.renderer.width, vh = instance.renderer.height
-        // follow Thor, biased down so the vast ocean fills the frame above him
-        world.x = vw / 2 - x * ZOOM; world.y = vh * 0.64 - y * ZOOM
+        const camZ = cs.cam?.zoom ?? ZOOM
+        if (world.scale.x !== camZ) world.scale.set(camZ)
+        const camX = cs.cam ? isoX(cs.cam.x, cs.cam.y) : x
+        const camY = cs.cam ? isoY(cs.cam.x, cs.cam.y) : y
+        world.x = vw / 2 - camX * camZ; world.y = vh * 0.64 - camY * camZ
         // FLOWING WATER: brightness swells TRAVEL shoreward across the pixel tiles (phase runs
         // along tx+ty, i.e. down-screen toward the beach) with a slower crossing wave underneath,
         // so the sea reads as rolling toward the sand — no shader, the tiles Ashwath likes.
@@ -1358,6 +1538,37 @@ export default function BeachIso() {
             const s = shoreAt(seg.d) + TIDE_AMP * (0.5 + 0.3 * reach)
             seg.sp.position.y = s * HH + seg.jit; seg.sp.zIndex = s * 16 + 5
             seg.sp.alpha = trailA * 0.45
+          }
+        }
+        // THE DELIVERING WAVE (I-2): the bottle waits offshore, then rides the next real tide
+        // front's leading edge up the sand — rolling while the water carries it — and settles
+        // in the wet band as the wave lets go. Uses the live tide math, not its own animation.
+        if (bottleWave) {
+          const b = bottleWave, ba = csActors.get('bottle')
+          if (ba) {
+            const u = wt - fronts[0].off - b.d * SWEEP
+            const uu = ((u % TIDE_T) + TIDE_T) % TIDE_T
+            const [reach] = tidePhase(u)
+            if (b.phase === 'wait') {
+              // bob gently beyond the waterline until a fresh wave launches
+              const s0 = shoreAt(b.d) - 1.6 + 0.12 * Math.sin(wt * 1.1)
+              csActorPlace('bottle', (s0 + b.d) / 2, (s0 - b.d) / 2)
+              ba.sp.rotation = 0.16 * Math.sin(wt * 1.3)
+              if (uu < 0.12) b.phase = 'ride'
+            } else if (b.phase === 'ride') {
+              const sFront = shoreAt(b.d) + reach * TIDE_AMP
+              if (sFront >= b.sBeach) b.peak = 1
+              const s = Math.min(b.sBeach, sFront)
+              csActorPlace('bottle', (s + b.d) / 2, (s - b.d) / 2)
+              if (b.peak < 1) ba.sp.rotation += 0.13 * (tk.deltaMS / 16)  // rolling in with the water
+              else ba.sp.rotation *= Math.max(0, 1 - tk.deltaMS / 260)     // grounded: the roll dies out
+              if (b.peak === 1 && uu > 3.6) {                              // the water has let go
+                ba.sp.rotation = 0
+                csActorPlace('bottle', (b.sBeach + b.d) / 2, (b.sBeach - b.d) / 2)
+                csFx('glint', { x: (b.sBeach + b.d) / 2, y: (b.sBeach - b.d) / 2 })
+                b.phase = 'settled'
+              }
+            }
           }
         }
         // the waterline itself breathes a little

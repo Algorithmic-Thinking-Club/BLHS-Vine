@@ -1,0 +1,64 @@
+import type { Script } from '../cutscene/types'
+
+// The introduction, beats I-1 + I-2 (GAME-DESIGN §5), as cutscene data. The beach map is
+// cutscene-staged: Thor wakes above the wrack line, the tide delivers the bottle, one soft
+// input gate teaches "you move Thor" with zero tutorial text. Coordinates are beach tiles;
+// the shore near spawn sits around s = tx+ty ≈ 109 (see BeachIso's shoreAt).
+//
+// I-3 (the parchment UI session) continues from the `ui` gate at the end — the unfurl is the
+// world-to-UI transition, so the gate id is where the React session takes over.
+
+const SPAWN = { x: 58.2, y: 56.4 }             // just above the wrack line — the tide breathes in frame
+const BOTTLE_D = 3                              // shore column just east of the spawn
+// the bottle settles at s = shoreAt(3)+1.4 ≈ 110.6 → tile (56.8, 53.8); Thor stops shy of it
+const BOTTLE_AT = { x: 56.8, y: 53.8 }
+const WALK_STOP = { x: 57.4, y: 54.6 }
+
+export const introI1I2: Script = {
+  id: 'intro',
+  steps: [
+    // ---- I-1 · waking up ----
+    { t: 'fade', to: 1, ms: 0 },                               // hold black for a breath
+    { t: 'letterbox', on: true, ms: 0 },
+    { t: 'vignette', to: 0.8, ms: 0 },                         // the 80% aperture, pre-set
+    { t: 'actorPlace', actor: 'thor', at: SPAWN, face: 'south' },
+    { t: 'actorState', actor: 'thor', state: 'lie' },
+    { t: 'camera', to: SPAWN, zoom: 2.3, ms: 0 },              // tight on the sleeper
+    { t: 'audio', cue: 'surf-in' },                            // sound arrives before the image
+    { t: 'wait', ms: 700 },
+    { t: 'fade', to: 0, ms: 2800 },                            // eyes opening
+    { t: 'wait', ms: 1100 },                                   // the cove breathes inside the aperture
+    { t: 'actorState', actor: 'thor', state: 'sit' },
+    { t: 'fx', name: 'sandScatter' },
+    { t: 'vignette', to: 0.45, ms: 1400 },
+    { t: 'wait', ms: 1000 },
+    { t: 'say', who: 'Thor', text: 'Sand. Ocean.' },
+    { t: 'actorState', actor: 'thor', state: 'idle' },         // he stands
+    { t: 'fx', name: 'sandScatter' },
+    { t: 'vignette', to: 0, ms: 1600 },                        // relax to the map's own golden grade
+    { t: 'camera', to: SPAWN, zoom: 1.7, ms: 1600 },           // settle to scene scale
+    { t: 'say', who: 'Thor', text: '...Where is this?' },
+
+    // ---- I-2 · the bottle ----
+    { t: 'wait', ms: 900 },                                    // beat of quiet, the cove alive
+    { t: 'stage', call: 'bottleWave', data: { d: BOTTLE_D } }, // the delivering wave (blocks)
+    { t: 'wait', ms: 600 },
+    { t: 'actorFace', actor: 'thor', dir: 'north' },           // ear-perk: he spots it
+    { t: 'fx', name: 'glint', at: BOTTLE_AT },
+    { t: 'wait', ms: 500 },
+    { t: 'gate', kind: 'walkTo', target: WALK_STOP, radius: 0.9, prompt: 'walk to it', idleAutoMs: 6000 },
+    { t: 'actorFace', actor: 'thor', dir: 'north-west' },
+    { t: 'camera', to: BOTTLE_AT, zoom: 2.6, ms: 2500 },       // the slow push-in
+    { t: 'fx', name: 'glint', at: BOTTLE_AT },                 // the sun flares off the glass
+    { t: 'wait', ms: 700 },
+    { t: 'audio', cue: 'cork-pop' },
+    { t: 'wait', ms: 500 },
+    // the parchment unfurls upward and BECOMES the I-3 session (the ui gate hands off to React)
+    { t: 'gate', kind: 'ui', id: 'i3-session' },
+    // ---- return to the world (I-3 done: parchment rolled up, Thor pockets it) ----
+    { t: 'stage', call: 'hideBottle' },
+    { t: 'camera', to: WALK_STOP, zoom: 1.7, ms: 1200 },
+    { t: 'cameraFollow', actor: 'thor' },
+    { t: 'letterbox', on: false },
+  ],
+}
