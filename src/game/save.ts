@@ -9,6 +9,7 @@ export type SaveGame = {
   handle: string
   pronouns: string
   boatName: string
+  thorLook?: string            // the wardrobe's accent choice ('classic' | 'gold' | ...)
   year: number
   season: 'Fall' | 'Winter' | 'Spring'
   beat: string                 // resumable beat id ('intro:i4', 'y1:planner', ...)

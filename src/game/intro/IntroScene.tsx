@@ -49,7 +49,7 @@ export default function IntroScene() {
           {uiGate === 'i3-session' && (
             <I3Session
               onDone={(r) => {
-                writeSave({ handle: r.handle, pronouns: r.pronouns, boatName: r.boatName, beat: 'intro:i4' })
+                writeSave({ handle: r.handle, pronouns: r.pronouns, boatName: r.boatName, thorLook: r.thorLook, beat: 'intro:i4' })
                 rt.resolveUi('i3-session')
               }}
             />

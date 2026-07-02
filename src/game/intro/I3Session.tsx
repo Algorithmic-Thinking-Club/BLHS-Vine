@@ -52,8 +52,8 @@ function useTypewriter(text: string, cps = 42) {
   return { shown: text.slice(0, n), done, finish: () => setN(text.length) }
 }
 
-type Result = { handle: string; pronouns: string; boatName: string; castaway: boolean }
-type Card = 'code' | 'identity' | 'word' | 'boat' | 'rollup'
+type Result = { handle: string; pronouns: string; boatName: string; castaway: boolean; thorLook: string }
+type Card = 'code' | 'identity' | 'word' | 'wardrobe' | 'boat' | 'rollup'
 
 export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
   const [card, setCard] = useState<Card>('code')
@@ -61,7 +61,8 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
   const [handle, setHandle] = useState('')
   const [pronouns, setPronouns] = useState('')
   const [boat, setBoat] = useState('')
-  const result = useRef<Result>({ handle: 'Panther', pronouns: 'they/them', boatName: 'The Bonney', castaway: false })
+  const [look, setLook] = useState('classic')
+  const result = useRef<Result>({ handle: 'Panther', pronouns: 'they/them', boatName: 'The Bonney', castaway: false, thorLook: 'classic' })
 
   const next = (c: Card) => setCard(c)
   const finish = () => {
@@ -70,6 +71,7 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
     r.pronouns = pronouns || 'they/them'
     r.boatName = boat.trim() || 'The Bonney'
     r.castaway = castaway
+    r.thorLook = look
     setCard('rollup')
     window.setTimeout(() => onDone(r), 650)
   }
@@ -87,7 +89,8 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
               onNext={() => next('word')}
             />
           )}
-          {card === 'word' && <WordCard onNext={() => next('boat')} />}
+          {card === 'word' && <WordCard onNext={() => next('wardrobe')} />}
+          {card === 'wardrobe' && <WardrobeCard look={look} setLook={setLook} onNext={() => next('boat')} />}
           {card === 'boat' && <BoatCard boat={boat} setBoat={setBoat} onNext={finish} />}
         </div>
       </div>
@@ -229,7 +232,108 @@ function WordCard({ onNext }: { onNext: () => void }) {
   )
 }
 
-// ---- card 4 (of this build): name the boat ----
+// ---- card 4: the wardrobe (§4.5) — the castaway trunk creaks open ----
+// v1 slots what exists honestly: Thor's shirt accent recolors LIVE on a canvas (the sprite
+// really changes), the earnable items show locked with their real earn rules, one randomize
+// die, fully skippable. Outfit/headwear sprite swaps join as their character states land.
+const LOOKS: Record<string, { label: string; hue: number | null }> = {
+  classic: { label: 'harbor teal', hue: null },
+  gold: { label: 'panther gold', hue: 46 },
+  slate: { label: 'sea slate', hue: 215 },
+  ember: { label: 'ember', hue: 18 },
+}
+const LOCKED = [
+  { icon: '🧥', name: 'Letterman jacket', earn: 'reach Varsity in any sport' },
+  { icon: '🥽', name: 'Robotics goggles', earn: 'complete the Robotics island' },
+  { icon: '🎓', name: 'Graduation cap', earn: 'finish a four-year run' },
+]
+
+function drawThor(cv: HTMLCanvasElement, hue: number | null) {
+  const img = new Image()
+  img.onload = () => {
+    const g = cv.getContext('2d')!
+    cv.width = img.width; cv.height = img.height
+    g.imageSmoothingEnabled = false
+    g.drawImage(img, 0, 0)
+    if (hue === null) return
+    const d = g.getImageData(0, 0, cv.width, cv.height)
+    const p = d.data
+    for (let i = 0; i < p.length; i += 4) {
+      if (p[i + 3] < 30) continue
+      const r = p[i] / 255, gg = p[i + 1] / 255, b = p[i + 2] / 255
+      const mx = Math.max(r, gg, b), mn = Math.min(r, gg, b)
+      if (mx === mn) continue
+      let h = 0
+      if (mx === r) h = ((gg - b) / (mx - mn)) % 6
+      else if (mx === gg) h = (b - r) / (mx - mn) + 2
+      else h = (r - gg) / (mx - mn) + 4
+      h = (h * 60 + 360) % 360
+      const s = mx === 0 ? 0 : (mx - mn) / mx
+      if (h < 150 || h > 215 || s < 0.22) continue   // only the teal shirt pixels
+      // rebuild the pixel at the accent hue, same value/sat
+      const c = mx * s, x = c * (1 - Math.abs(((hue / 60) % 2) - 1)), m = mx - c
+      const seg = Math.floor(hue / 60) % 6
+      const [nr, ng, nb] = [
+        [c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x],
+      ][seg]
+      p[i] = Math.round((nr + m) * 255); p[i + 1] = Math.round((ng + m) * 255); p[i + 2] = Math.round((nb + m) * 255)
+    }
+    g.putImageData(d, 0, 0)
+  }
+  img.src = '/art/characters/thor/walk/south/0.png'
+}
+
+function WardrobeCard(p: { look: string; setLook: (v: string) => void; onNext: () => void }) {
+  const cvRef = useRef<HTMLCanvasElement>(null)
+  const [pop, setPop] = useState(0)
+  useEffect(() => {
+    if (cvRef.current) drawThor(cvRef.current, LOOKS[p.look]?.hue ?? null)
+  }, [p.look])
+  const pick = (k: string) => {
+    p.setLook(k); setPop((v) => v + 1)
+    track('cosmetic_change', { look: k })
+  }
+  const spin = () => pick(Object.keys(LOOKS)[Math.floor(Math.random() * Object.keys(LOOKS).length)])
+  return (
+    <div className="i3-card">
+      <div className="i3-head">The trunk creaks open.</div>
+      <div className="i3-wardrobe">
+        <img className="i3-trunk" src="/art/island/castaway-trunk.png" alt="" draggable={false}
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+        <canvas key={pop} ref={cvRef} className="i3-thorview" />
+        <img className="i3-tailor" src="/art/characters/heron/south-west.png" alt="" draggable={false}
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+      </div>
+      <div className="i3-swatches">
+        {Object.entries(LOOKS).map(([k, v]) => (
+          <button
+            key={k}
+            className={`i3-swatch ${p.look === k ? 'i3-swatch-on' : ''}`}
+            style={{ background: k === 'classic' ? '#2f8e82' : `hsl(${v.hue}, 48%, 42%)` }}
+            title={v.label}
+            onClick={() => pick(k)}
+          />
+        ))}
+        <button className="i3-die" title="spin one" onClick={spin}>🎲</button>
+      </div>
+      <div className="i3-locked">
+        {LOCKED.map((it) => (
+          <button key={it.name} className="i3-lockchip" title={`earn by: ${it.earn}`}
+            onClick={() => track('locked_item_inspected', { item: it.name })}>
+            <span className="i3-lockicon">{it.icon}</span>
+            <span className="i3-lockknot">🔒</span>
+          </button>
+        ))}
+      </div>
+      <div className="i3-reassure">Locked things are earned out there, not bought.</div>
+      <button className="i3-plank i3-plank-solo" onClick={() => { track('dressing_done', { look: p.look }); p.onNext() }}>
+        {p.look === 'classic' ? 'Thor looks great already' : 'Wear it well'}
+      </button>
+    </div>
+  )
+}
+
+// ---- card 5: name the boat ----
 function BoatCard(p: { boat: string; setBoat: (v: string) => void; onNext: () => void }) {
   const [spun, setSpun] = useState(false)
   const ok = p.boat.trim().length >= 2 && !isBlocked(p.boat)

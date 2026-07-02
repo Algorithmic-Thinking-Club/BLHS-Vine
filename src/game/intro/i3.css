@@ -205,3 +205,61 @@
 .i3-plank:active { transform: translateY(2px); filter: brightness(.95); }
 /* cards without the castaway line let the plank take the bottom slot itself */
 .i3-plank-solo { margin-top: auto; }
+
+/* ---- the wardrobe card ---- */
+.i3-wardrobe {
+  display: flex; align-items: flex-end; justify-content: center; gap: 2cqw;
+  margin-top: 2cqw;
+  max-width: 100%;
+}
+.i3-trunk { width: 19cqw; image-rendering: pixelated; filter: drop-shadow(0 2px 5px rgba(40, 24, 8, .35)); }
+.i3-tailor {
+  width: 15cqw; image-rendering: pixelated;
+  filter: drop-shadow(0 2px 5px rgba(40, 24, 8, .3));
+  animation: i3-fuss 3.2s ease-in-out infinite;   /* she fusses him into frame */
+  transform-origin: 50% 95%;
+}
+@keyframes i3-fuss {
+  0%, 100% { transform: rotate(0deg); }
+  30% { transform: rotate(-2deg) translateY(-1px); }
+  60% { transform: rotate(1.6deg); }
+}
+.i3-thorview {
+  width: 20cqw; height: auto;
+  image-rendering: pixelated;
+  animation: i3-thorpop 320ms cubic-bezier(.2, 1.5, .4, 1) both;   /* he reacts to every change */
+  filter: drop-shadow(0 3px 6px rgba(40, 24, 8, .3));
+}
+@keyframes i3-thorpop {
+  0% { transform: scale(.94); }
+  60% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+.i3-swatches { display: flex; gap: 2.4cqw; align-items: center; margin-top: 4cqw; }
+.i3-swatch {
+  width: 7cqw; height: 7cqw;
+  border: 2px solid #8a744f;
+  border-radius: 3px;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 1px 2px rgba(60, 40, 16, .35);
+  transition: transform 120ms ease;
+}
+.i3-swatch:hover { transform: translateY(-1px); }
+.i3-swatch-on { border-color: #3c6e60; box-shadow: 0 0 0 2px rgba(60, 110, 96, .4); transform: translateY(1px); }
+.i3-locked { display: flex; gap: 2.4cqw; margin-top: 5cqw; }
+.i3-lockchip {
+  position: relative;
+  width: 12cqw; height: 12cqw;
+  background: linear-gradient(180deg, #ddd2b6, #d0c3a2);
+  border: 2px solid #a08d64;
+  border-radius: 4px;
+  cursor: help;
+  font-size: 5.4cqw;
+  filter: saturate(.45) brightness(.92);   /* sun-faded until earned */
+}
+.i3-lockicon { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.i3-lockknot {
+  position: absolute; right: -6%; bottom: -8%;
+  font-size: 3.8cqw;
+  filter: sepia(1) saturate(2.2) hue-rotate(-12deg);   /* the gold cord-knot lock */
+}
