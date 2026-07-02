@@ -224,8 +224,9 @@ function composeBeach(): PropDef[] {
   // east end, past the headland. The pier + moored ship are built separately (multi-segment).
   add(24, 116.8, 'rowboat', 56, { flip: true })
   add(33.5, 118.5, 'crates', 54); add(35.3, 117.4, 'ropecoil', 20, { ground: true })
-  // the lamp jetty IS the pier's staircase — its tiles are the layer transition, never blocked
-  add(30, 118.4, 'lanternPost', 92, { noBlock: true })
+  // the lamp jetty IS the pier's staircase — centered ON the walkway axis, its tiles are the
+  // layer transition, never blocked
+  add(31.1, 118.9, 'lanternPost', 92, { noBlock: true })
   add(26.5, 119.5, 'dunegrass', 32); add(36, 120, 'dunegrass', 28, { flip: true })
   add(30.5, 120.8, 'seaweed', 15, { ground: true }); add(37.5, 116.6, 'shells', 12, { ground: true })
   add(27, 113.6, 'gull', 18); add(36.5, 114.4, 'gull', 16, { flip: true })
@@ -524,6 +525,36 @@ export default function BeachIso() {
       type Surf = { walk: boolean; layer: number; lift: number; z: number; trans?: boolean }
       const surf = new Map<string, Surf>()
       const setSurf = (x: number, y: number, s: Surf) => surf.set(x + ',' + y, s)
+      // RADIUS COLLIDERS: props collide as circles in tile space sized to their REAL footprint
+      // (a palm blocks its trunk, not a whole 64px diamond) — no more invisible walls a meter
+      // out, no more walking into rocks. Spatially hashed by tile for O(1) lookup.
+      type Collider = { cx: number; cy: number; r: number }
+      const colliders: Collider[] = []
+      const colMap = new Map<string, number[]>()
+      const addCollider = (cx: number, cy: number, r: number) => {
+        const i = colliders.push({ cx, cy, r }) - 1
+        for (let dx = -2; dx <= 2; dx++) for (let dy = -2; dy <= 2; dy++) {
+          const k = (Math.round(cx) + dx) + ',' + (Math.round(cy) + dy)
+          const arr = colMap.get(k) ?? []
+          arr.push(i); colMap.set(k, arr)
+        }
+      }
+      const THOR_R = 0.16
+      const hitsCollider = (tx: number, ty: number) => {
+        const arr = colMap.get(Math.round(tx) + ',' + Math.round(ty))
+        if (!arr) return false
+        for (const i of arr) {
+          const c = colliders[i]
+          if (Math.hypot(c.cx - tx, c.cy - ty) < c.r + THOR_R) return true
+        }
+        return false
+      }
+      // collision footprint per prop type, in tile units (unlisted types don't collide)
+      const PROP_RADIUS: Record<string, number> = {
+        palmA: 0.32, palmB: 0.32, palmC: 0.32, palmD: 0.32,
+        bushA: 0.68, bushB: 0.62, bushC: 0.66, rockA: 0.78, rockB: 1.0, panther: 1.1,
+        logdrift: 0.78, crates: 0.85, rowboat: 0.95, tidepool: 0.95, driftwood: 0.5, pennant: 0.18,
+      }
 
       // ---- PROPS: the composed beach (jungle wall, headland, panther rock, groves, wrack line).
       // Billboards depth-sorted by s, grounded with soft contact shadows; flat decals hug the sand. ----
@@ -552,7 +583,9 @@ export default function BeachIso() {
         sh.width = Math.max(26, t.width * sc * (hero ? 1.3 : p.sea ? 0.8 : tall ? 1.7 : 1.4))
         sh.height = Math.max(11, t.width * sc * (tall ? 0.22 : 0.32))
         sh.rotation = 0.2
-        sh.alpha = hero ? 0.42 : p.sea ? 0.3 : tall ? 0.5 : 0.55; sh.position.set(x + 5, y + 2); sh.zIndex = z + 1; world.addChild(sh)
+        sh.alpha = hero ? 0.42 : p.sea ? 0.3 : tall ? 0.5 : 0.55; sh.position.set(x + 5, y + 2)
+        sh.zIndex = z + 17 // above the NEXT tile row too, so the spill never gets sliced by tile edges
+        world.addChild(sh)
         const sp = new Sprite(t); sp.anchor.set(0.5, 0.94); sp.scale.set(p.flip ? -sc : sc, sc)
         sp.position.set(x, y + (p.sea ? 5 : 0)) // sea rocks sit a touch lower, planted in the water
         sp.zIndex = z + 8
@@ -568,11 +601,7 @@ export default function BeachIso() {
           ring.alpha = hero ? 0.45 : 0.3; ring.position.set(x, y + 5); ring.zIndex = z + 7
           world.addChild(ring)
         }
-        if (p.h > 26 && !p.noBlock) {
-          const bx = Math.round(p.tx), by = Math.round(p.ty)
-          blocked.add(bx + ',' + by)
-          if (p.h > 100) { blocked.add(bx + 1 + ',' + by); blocked.add(bx + ',' + (by + 1)); blocked.add(bx - 1 + ',' + by); blocked.add(bx + ',' + (by - 1)) }
-        }
+        if (!p.noBlock && !p.ground && PROP_RADIUS[p.img]) addCollider(p.tx, p.ty, PROP_RADIUS[p.img] * Math.min(1.3, Math.max(0.7, p.h / 100)))
       }
 
       // ---- THE PORT: a rustic pier runs on the TRUE ISO DIAGONAL (fixed tx: each step is
@@ -620,13 +649,14 @@ export default function BeachIso() {
           shp.position.set(bx + 76, by - 12); shp.zIndex = z - 8
           world.addChildAt(shp, world.getChildIndex(sp))
         }
-        // the diamond dock platform: its CENTER sits on the walkway axis where the planks end
+        // the diamond dock platform: pulled onto the walkway's end so the planks run into its
+        // MIDDLE — no gap, no sideways offset
         platCenterTy = PIER_BASE_TY - 2 * SEG_TY - 0.9
         let platZ = 0
         if (tex['dockPlat']) {
           const pt = tex['dockPlat'], sc2 = 0.85
           const sp = new Sprite(pt); sp.anchor.set(0.48, 0.45); sp.scale.set(sc2)
-          sp.position.set(isoX(PIER_TX, platCenterTy), isoY(PIER_TX, platCenterTy))
+          sp.position.set(isoX(PIER_TX, platCenterTy) - 8, isoY(PIER_TX, platCenterTy) + 10)
           platZ = (PIER_TX + platCenterTy + 1.6) * 16 + 9
           sp.zIndex = platZ
           world.addChild(sp)
@@ -639,13 +669,15 @@ export default function BeachIso() {
           const z = ty > PIER_BASE_TY - SEG_TY ? segZ[0] : segZ[1]
           setSurf(WTX, ty, { walk: true, layer: 1, lift: DECK_LIFT, z: z + 4 })
         }
-        // platform walkable diamond = only tiles the drawn deck actually covers (the top corner
-        // tile is water — walking there floated Thor off the wood)
+        // platform walkable diamond = only tiles the drawn deck actually covers (the top and
+        // right corner tiles are water — walking there floated Thor)
         const pc = Math.round(platCenterTy)
-        for (const [ox, oy] of [[0, 0], [0, 1], [-1, 0], [1, 0]] as const)
+        for (const [ox, oy] of [[0, 0], [0, 1], [-1, 0]] as const)
           setSurf(WTX + ox, pc + oy, { walk: true, layer: 1, lift: DECK_LIFT, z: platZ + 4 })
-        setSurf(WTX, PIER_BASE_TY + 1, { walk: true, layer: 1, lift: DECK_LIFT * 0.7, z: segZ[0] + 4, trans: true })
-        setSurf(WTX, PIER_BASE_TY + 2, { walk: true, layer: 1, lift: DECK_LIFT * 0.3, z: segZ[0] + 4, trans: true })
+        // stairs z rides ABOVE the jetty sprite so Thor climbing renders in front of its deck
+        const jettyZ = 119.6 * 16 + 10
+        setSurf(WTX, PIER_BASE_TY + 1, { walk: true, layer: 1, lift: DECK_LIFT * 0.7, z: jettyZ, trans: true })
+        setSurf(WTX, PIER_BASE_TY + 2, { walk: true, layer: 1, lift: DECK_LIFT * 0.3, z: jettyZ, trans: true })
         // foam collars where posts stand in the water (along the run past the waterline)
         for (let k = 1; k <= 4; k++) {
           const cty = PIER_BASE_TY - k * 2.6
@@ -671,7 +703,7 @@ export default function BeachIso() {
         g.width = g.height = size; g.position.set(gx, gy); g.zIndex = z
         world.addChild(g); glows.push({ sp: g, ph: hash(gx, gy) * 6.28 })
       }
-      if (tex['lanternPost']) addGlow(30 * HW - 24, 118.4 * HH - liftAt(74.2, 44.2) - 66, 54, 118.4 * 16 + 10)
+      if (tex['lanternPost']) addGlow(31.1 * HW - 24, 118.9 * HH - liftAt(75, 43.9) - 66, 54, 119.6 * 16 + 12)
       if (tex['ship'] && tex['pierIso']) {
         const stepX = (tex['pierIso'].width - 26) * 0.78
         addGlow((30 + (2 * stepX) / HW - 4.5) * HW + 54, (116 - stepX / HW - 3.5) * HH - 96, 46, 200 * 16)
@@ -700,12 +732,14 @@ export default function BeachIso() {
         if (x < MARGIN || y < MARGIN || x > COLS - MARGIN || y > ROWS - MARGIN) return GROUND // invisible boundary
         return { walk: !!walkable[y]?.[x] && !blocked.has(x + ',' + y), layer: 0, lift: 0, z: 0 }
       }
-      // a move is legal if the target walks AND shares the current layer (or one side is a transition)
+      // a move is legal if the target walks, shares the current layer (or crosses a transition),
+      // and doesn't enter a prop's collision radius (ground layer only — decks have no props)
       const canGo = (fx: number, fy: number, tx: number, ty: number) => {
         const t = surfAt(Math.round(tx), Math.round(ty))
         if (!t.walk) return false
         const f = surfAt(Math.round(fx), Math.round(fy))
-        return t.layer === f.layer || !!t.trans || !!f.trans
+        if (t.layer !== f.layer && !t.trans && !f.trans) return false
+        return t.layer !== 0 || !hitsCollider(tx, ty)
       }
       // corner-probe an axis move: both leading corners must be legal (no edge-sticking, no
       // corner-clipping — the standard AABB-vs-grid treatment, radius in tile units)
@@ -727,8 +761,9 @@ export default function BeachIso() {
         if (keys['a'] || keys['arrowleft']) dx -= 1
         if (keys['d'] || keys['arrowright']) dx += 1
         const moving = dx || dy
+        const sprinting = !!keys['shift'] && moving
         if (moving) {
-          const l = Math.hypot(dx, dy), ux = dx / l, uy = dy / l, sp = 0.075 * dt
+          const l = Math.hypot(dx, dy), ux = dx / l, uy = dy / l, sp = (sprinting ? 0.128 : 0.075) * dt
           const ntx = pos.tx + ux * sp, nty = pos.ty + uy * sp
           if (ux !== 0 && tryMoveX(ntx)) pos.tx = ntx
           if (uy !== 0 && tryMoveY(nty)) pos.ty = nty
@@ -754,7 +789,8 @@ export default function BeachIso() {
         const breath = (!moving && !jump.active) ? 1 + 0.03 * Math.sin(at / 430) : 1
         thor.scale.set(THOR_SC, THOR_SC * breath * stretch)
         thor.position.set(x, y + jy)
-        thor.zIndex = here.layer > 0 ? here.z + 2 : Math.floor(pos.tx + pos.ty) * 16 + 12
+        // +18 keeps him (and his shadow at -1) above the next tile row's ground, below its props
+        thor.zIndex = here.layer > 0 ? here.z + 2 : Math.floor(pos.tx + pos.ty) * 16 + 18
         ;(window as unknown as { __thor: object }).__thor = { tx: pos.tx, ty: pos.ty, layer: here.layer, lift: renderLift } // dev introspection
         // shadow: a flat ellipse pinned right under his feet (no rotation/offset — an offset
         // rotated blade read as levitation); shrinks + fades as he leaps
@@ -764,7 +800,8 @@ export default function BeachIso() {
         thorShadow.position.set(x, y + 2); thorShadow.zIndex = thor.zIndex - 1
         at += tk.deltaMS
         const wf = walk[facing] ?? walk[cardinalOf(facing)]
-        thor.texture = (moving && wf) ? wf[Math.floor(at / 110) % wf.length] : (idle[facing] ?? idle['south'] ?? thor.texture)
+        // sprint (shift held): faster stride cadence + a slight forward-motion stretch
+        thor.texture = (moving && wf) ? wf[Math.floor(at / (sprinting ? 68 : 110)) % wf.length] : (idle[facing] ?? idle['south'] ?? thor.texture)
         // camera follow
         const vw = instance.renderer.width, vh = instance.renderer.height
         // follow Thor, biased down so the vast ocean fills the frame above him
