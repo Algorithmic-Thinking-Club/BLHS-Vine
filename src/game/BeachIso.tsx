@@ -299,7 +299,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         load('pierIso', '/art/intro/port/pier-iso2.png'), load('dockPlat', '/art/intro/port/dock-platform2.png'),
         load('ship', '/art/intro/port/ship.png'), load('boatAnchor', '/art/intro/port/boat-anchored.png'),
         load('boatFish', '/art/intro/port/boat-fishing.png'),
-        ...[0, 1, 2, 3, 4, 5, 6, 7].map(b => load('shipV' + b, `/art/intro/port/ship-v${b}.png`)),
+        ...Array.from({ length: 16 }, (_, b) => load('ship16v' + b, `/art/intro/port/ship16/v${b}.png`)),
         ...Object.entries(PROP_SRC).map(([k, u]) => load(k, u)),
       ])
       // ---- DRAWN-GEOMETRY measurement: read a texture's pixels once and find where its art
@@ -780,18 +780,28 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       // inherits exactly that: continuous momentum physics, 8 painted facings behind
       // hysteresis. Deck-walking (the endless source of iso glitches) no longer exists.
       // Piloting is a PILOT SEAM: keyboard today, phase-2 cutscenes drive the same boat. ----
-      // views in screen-octant order 0 E, 1 SE, 2 S, 3 SW, 4 W, 5 NW, 6 N, 7 NE
-      // (ay=1: the texture's bottom row IS the waterline). w = drawn hull width (the foam
-      // ring hugs each silhouette); lamp + head measured/tuned per view.
-      const SHIPMETA: { deckH: number; lampX: number; lampY: number; w: number; headX: number; headY: number }[] = [
-        { deckH: 26, lampX: 5, lampY: -50, w: 175, headX: -18, headY: -38 },   // E
-        { deckH: 26, lampX: 6, lampY: -91, w: 100, headX: -6, headY: -46 },    // SE
-        { deckH: 26, lampX: 0, lampY: -106, w: 73, headX: 0, headY: -52 },     // S
-        { deckH: 26, lampX: 10, lampY: -57, w: 173, headX: 20, headY: -38 },   // SW
-        { deckH: 26, lampX: -5, lampY: -50, w: 175, headX: 18, headY: -38 },   // W
-        { deckH: 26, lampX: -13, lampY: -51, w: 162, headX: -14, headY: -44 }, // NW
-        { deckH: 26, lampX: 3, lampY: -90, w: 84, headX: 0, headY: -50 },      // N
-        { deckH: 26, lampX: -16, lampY: -77, w: 158, headX: 12, headY: -44 },  // NE
+      // SIXTEEN views in screen-compass order (22.5 deg steps, k=0 bow screen-right,
+      // clockwise): E ESE SE SSE S SSW SW WSW W WNW NW NNW N NNE NE ENE — half the old
+      // flip, and the heel micro-rotation carries the eye through what remains.
+      // (bottom row of each texture IS the waterline.) w = drawn hull width (the foam
+      // ring hugs each silhouette); lamp + head tuned per view (odd views interpolated).
+      const SHIPMETA: { lampX: number; lampY: number; w: number; headX: number; headY: number }[] = [
+        { lampX: 5, lampY: -50, w: 175, headX: -18, headY: -38 },  // E
+        { lampX: 6, lampY: -70, w: 138, headX: -12, headY: -42 },  // ESE
+        { lampX: 6, lampY: -91, w: 100, headX: -6, headY: -46 },   // SE
+        { lampX: 3, lampY: -98, w: 87, headX: -3, headY: -49 },    // SSE
+        { lampX: 0, lampY: -106, w: 73, headX: 0, headY: -52 },    // S
+        { lampX: 5, lampY: -82, w: 123, headX: 10, headY: -45 },   // SSW
+        { lampX: 10, lampY: -57, w: 173, headX: 20, headY: -38 },  // SW
+        { lampX: 3, lampY: -54, w: 174, headX: 19, headY: -38 },   // WSW
+        { lampX: -5, lampY: -50, w: 175, headX: 18, headY: -38 },  // W
+        { lampX: -9, lampY: -50, w: 168, headX: 2, headY: -41 },   // WNW
+        { lampX: -13, lampY: -51, w: 162, headX: -14, headY: -44 }, // NW
+        { lampX: -5, lampY: -70, w: 123, headX: -7, headY: -47 },  // NNW
+        { lampX: 3, lampY: -90, w: 84, headX: 0, headY: -50 },     // N
+        { lampX: -6, lampY: -84, w: 121, headX: 6, headY: -47 },   // NNE
+        { lampX: -16, lampY: -77, w: 158, headX: 12, headY: -44 }, // NE
+        { lampX: -6, lampY: -64, w: 166, headX: -3, headY: -41 },  // ENE
       ]
       type Hop = { t: number; ax: number; ay: number; bx: number; by: number; lift0: number; lift1: number; to: 'ship' | 'land'; landLayer?: number }
       type Veh = {
@@ -803,24 +813,24 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         hop: Hop | null; bob: number
       }
       let veh: Veh | null = null
-      // heading -> continuous screen-octant coordinate (1.0 per view, in (-4, 4])
+      // heading -> continuous screen-compass coordinate (1.0 per view, 16 per circle)
       const bucketCoord = (ang: number) => {
         const sx = (Math.cos(ang) - Math.sin(ang)) * HW, sy = (Math.cos(ang) + Math.sin(ang)) * HH
-        return Math.atan2(sy, sx) / (Math.PI / 4)
+        return Math.atan2(sy, sx) / (Math.PI / 8)
       }
-      // nearest of the 8 painted views WITH hysteresis: the view only swaps once the
-      // heading is decisively inside the next octant, so a resting rudder never flickers it
+      // nearest of the 16 painted views WITH hysteresis: the view only swaps once the
+      // heading is decisively inside the next sector, so a resting rudder never flickers it
       const setBucket = (V: Veh, force = false) => {
-        const bc = ((bucketCoord(V.ang) % 8) + 8) % 8
-        const b = Math.round(bc) % 8
+        const bc = ((bucketCoord(V.ang) % 16) + 16) % 16
+        const b = Math.round(bc) % 16
         if (!force && V.bucket >= 0) {
           if (b === V.bucket) return
-          let d = Math.abs(bc - V.bucket) % 8
-          d = Math.min(d, 8 - d)
-          if (d < 0.64) return
+          let d = Math.abs(bc - V.bucket) % 16
+          d = Math.min(d, 16 - d)
+          if (d < 0.62) return
         }
         V.bucket = b
-        const t = tex['shipV' + b] ?? tex['ship']
+        const t = tex['ship16v' + b] ?? tex['ship']
         if (t) {
           V.hull.texture = t
           V.hull.anchor.set(0.5, 1) // bottom row = waterline
@@ -1407,9 +1417,17 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           } else chipSp.visible = false
           if (keys['e'] && !eHeld && action) action()
           eHeld = !!keys['e']
-          // ---- RENDER: the painted view, the waterline ring hugging its silhouette,
-          // the stern lamp, and Thor's head over the quarterdeck while he crews her ----
-          const M = SHIPMETA[V.bucket] ?? SHIPMETA[5]
+          // ---- RENDER: the painted view + HEEL — the sprite leans through the residual
+          // angle between the continuous heading and the drawn view's center, so the eye
+          // is carried across the 22.5-degree steps (it reads as a ship heeling into her
+          // turn, which is what a ship does); the lamp and head ride the lean ----
+          const M = SHIPMETA[V.bucket] ?? SHIPMETA[10]
+          const bc9 = ((bucketCoord(V.ang) % 16) + 16) % 16
+          let resid = bc9 - V.bucket
+          if (resid > 8) resid -= 16
+          if (resid < -8) resid += 16
+          const heel = Math.max(-0.68, Math.min(0.68, resid)) * (Math.PI / 8) * 0.5
+          V.hull.rotation = heel
           V.hull.position.set(bxp, byp + V.bob)
           V.hull.zIndex = bz + 8
           V.ring.position.set(bxp, byp + 6)
@@ -1420,12 +1438,13 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           const rw = M.w * 1.22 + Math.min(22, Math.abs(V.spd) * 260)
           V.ring.width = rw
           V.ring.height = Math.max(rw * 0.23, M.w < 110 ? 38 : 0) // bow-on hulls get a rounder pool
+          const hc = Math.cos(heel), hs = Math.sin(heel) // offsets lean with the hull (pivot = waterline center)
           const gl = glows[V.glowI]
-          gl.sp.position.set(bxp + M.lampX, byp + M.lampY + V.bob)
+          gl.sp.position.set(bxp + M.lampX * hc - M.lampY * hs, byp + M.lampX * hs + M.lampY * hc + V.bob)
           gl.sp.zIndex = bz + 9
           V.head.visible = V.state === 'crewed' && !V.hop
           if (V.head.visible) {
-            V.head.position.set(bxp + M.headX, byp + M.headY + V.bob)
+            V.head.position.set(bxp + M.headX * hc - M.headY * hs, byp + M.headX * hs + M.headY * hc + V.bob)
             V.head.zIndex = bz + 9
           }
           // WAKE: quiet pale foam lace, slow drift, spawned past the drawn bow so it
