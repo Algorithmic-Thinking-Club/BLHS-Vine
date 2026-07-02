@@ -43,9 +43,11 @@ const W_CALM = [0, 12, 15], W_SOFT = [3, 2, 8], W_TEX = [1, 10, 4, 6], W_SWELL =
 // the ocean depth ramp (references: Sea of Stars / Ocean's Heart): glassy waterline aqua ->
 // turquoise shallows -> teal -> deep blue-teal -> navy abyss. The ramp IS the ocean's body.
 const W_BASE = [205, 235, 229] // shared median of the normalized water tiles
+// a distinct pale-turquoise SHALLOW SHELF hugs the coast (plateau near 0), then the floor drops:
+// deep-shadow water against bright foam is the value contrast the references live on
 const W_RAMP: [number, number][] = [
-  [0.0, 0x9fdccf], [0.1, 0x5ec6ba], [0.22, 0x39aca7], [0.36, 0x27939a],
-  [0.52, 0x1b7c8a], [0.66, 0x115a6d], [1.0, 0x083744],
+  [0.0, 0xa8e2d2], [0.09, 0x8ed8c6], [0.14, 0x4dbcb2], [0.24, 0x35a5a2],
+  [0.38, 0x24909a], [0.54, 0x187a89], [0.68, 0x0f586c], [1.0, 0x073442],
 ]
 const DEPTH_RANGE = 30 // diagonal tiles from waterline to abyss — the whole drama lives in the visible band
 function rampAt(stops: [number, number][], t: number) {
@@ -84,7 +86,7 @@ type Cell = 'sea' | 'wet' | 'sand'
 function cellAt(tx: number, ty: number): Cell {
   const s = tx + ty, sh = shoreAt(tx - ty)
   if (s < sh) return 'sea'
-  if (s < sh + 1.0) return 'wet'
+  if (s < sh + 1.5) return 'wet'
   return 'sand'
 }
 // SAND RELIEF: the beach is not a billiard table — a low berm crests just above the swash, then
@@ -128,7 +130,10 @@ function composeBeach(): PropDef[] {
     if (hash(d, 27) > 0.35) add(d + rnd(-2, 2, d, 28), sWall + 6, ['palmA', 'palmB', 'palmC', 'palmD'][Math.floor(hash(d, 29) * 4)], rnd(150, 190, d, 30), { flip: hash(d, 31) > 0.5, tint: 0x5c6e6a })
     add(d + rnd(-1.2, 1.2, d, 2), sWall + 3.5, hash(d, 19) > 0.35 ? 'bushA' : 'bushC', rnd(92, 126, d, 16), { flip: hash(d, 3) > 0.5, tint: hash(d, 26) > 0.5 ? 0xb8c4ae : undefined })
     add(d + 2 + rnd(-1.2, 1.2, d, 4), sWall + 1.2, hash(d, 17) > 0.72 ? 'bushB' : hash(d, 20) > 0.35 ? 'bushA' : 'bushC', rnd(70, 96, d, 18), { flip: hash(d, 5) > 0.5 })
-    if (hash(d, 7) > 0.4) add(d + rnd(-1.5, 1.5, d, 8), sWall + 2.2, ['palmA','palmB','palmC','palmD'][Math.floor(hash(d, 9) * 4)], rnd(168, 214, d, 10), { flip: hash(d, 11) > 0.5 })
+    // palms come in CLUSTERS with gaps (a low-frequency rhythm), heights spread wide, and each
+    // canopy leans warm or cool so the fringe never reads as one stamped green row
+    const palmTint = [undefined, undefined, 0xf0e5cc, 0xd8e5d8][Math.floor(hash(d, 41) * 4)]
+    if (hash(d, 7) > 0.42 + 0.24 * Math.sin(d * 0.33)) add(d + rnd(-1.5, 1.5, d, 8), sWall + 2.2, ['palmA', 'palmB', 'palmC', 'palmD'][Math.floor(hash(d, 9) * 4)], rnd(158, 224, d, 10), { flip: hash(d, 11) > 0.5, tint: palmTint })
     if (hash(d, 12) > 0.55) add(d + rnd(-2, 2, d, 13), sWall - 1.6, 'dunegrass', rnd(28, 44, d, 14), { flip: hash(d, 15) > 0.5 })
   }
 
@@ -318,18 +323,19 @@ export default function BeachIso() {
               shoreD: ds > -2.5 ? tx - ty : undefined, // waterline rows surge with the tide
             })
           } else if (c === 'wet') {
-            // barely-damp base band — the animated wet SHEET carries the real wetness, so this
-            // static tint stays close to dry sand (a hard static band would stair-step)
-            sp.tint = tintFor(shadeHex(0xd5b983, 0.985 + 0.03 * hash(tx, ty)), SAND_BASE)
+            // damp band at the waterline, graded darker toward the water so it reads as a real
+            // value break (the berm shading + seam + wet sheet hide the tile quantization now)
+            const k = Math.min(1, Math.max(0, (ds) / 1.5)) // 0 at waterline -> 1 at dry edge
+            sp.tint = tintFor(shadeHex(mix(0xc2a26c, 0xd8bd86, k), 0.985 + 0.03 * hash(tx, ty)), SAND_BASE)
           } else {
             // dry sand: warm near the water -> pale high beach, with broad dune drift, and the
             // relief's slope shading (faces climbing away from the sun sit a touch darker)
-            const t = Math.min(1, Math.max(0, (ds - 1.6) / 26))
-            const dune = 0.965 + 0.055 * vnoise(tx / 16 + 3, ty / 16 + 5)
+            const t = Math.min(1, Math.max(0, (ds - 2.1) / 26))
+            const dune = 0.955 + 0.075 * vnoise(tx / 16 + 3, ty / 16 + 5)
             const grain = 0.994 + 0.012 * hash(tx * 1.3, ty * 2.1)
             const slope = liftAt(tx + 0.5, ty + 0.5) - liftAt(tx - 0.5, ty - 0.5)
             const shade = Math.min(1.03, Math.max(0.94, 1 - slope * 0.014))
-            sp.tint = shadeHex(tintFor(rampAt([[0, 0xdcbf87], [0.45, 0xe9d5a2], [1, 0xf3e4b5]], t), SAND_BASE), dune * grain * shade)
+            sp.tint = shadeHex(tintFor(rampAt([[0, 0xdcbf87], [0.45, 0xead6a3], [1, 0xf7ecc2]], t), SAND_BASE), dune * grain * shade)
           }
           world.addChild(sp)
         }
@@ -479,13 +485,14 @@ export default function BeachIso() {
           continue
         }
         // golden hour: shadows stretch LONG toward the lower-right, away from the low sun; tall
-        // palms throw the longest blades. Cool-dark, never black.
-        const tall = p.h > 140
+        // palms throw the longest blades. Cool-dark, never black. The hero landmark gets the
+        // strongest, longest shadow so it sits IN the world.
+        const tall = p.h > 140, hero = p.img === 'panther'
         const sh = new Sprite(shadowTex); sh.anchor.set(0.28, 0.5)
-        sh.width = Math.max(26, t.width * sc * (p.sea ? 0.8 : tall ? 1.7 : 1.4))
+        sh.width = Math.max(26, t.width * sc * (hero ? 1.3 : p.sea ? 0.8 : tall ? 1.7 : 1.4))
         sh.height = Math.max(11, t.width * sc * (tall ? 0.22 : 0.32))
         sh.rotation = 0.2
-        sh.alpha = p.sea ? 0.3 : tall ? 0.5 : 0.55; sh.position.set(x + 5, y + 2); sh.zIndex = z + 1; world.addChild(sh)
+        sh.alpha = hero ? 0.42 : p.sea ? 0.3 : tall ? 0.5 : 0.55; sh.position.set(x + 5, y + 2); sh.zIndex = z + 1; world.addChild(sh)
         const sp = new Sprite(t); sp.anchor.set(0.5, 0.94); sp.scale.set(p.flip ? -sc : sc, sc)
         sp.position.set(x, y + (p.sea ? 5 : 0)) // sea rocks sit a touch lower, planted in the water
         sp.zIndex = z + 8
@@ -497,8 +504,8 @@ export default function BeachIso() {
           // foam collar where the sea meets the rock — grounds it in the water instead of on it
           const ring = new Sprite(shadowTex); ring.anchor.set(0.5, 0.5)
           ring.tint = 0xeafff6; ring.blendMode = 'add'
-          ring.width = Math.max(30, t.width * sc * 0.8); ring.height = ring.width * 0.3
-          ring.alpha = 0.3; ring.position.set(x, y + 5); ring.zIndex = z + 7
+          ring.width = Math.max(30, t.width * sc * (hero ? 0.95 : 0.8)); ring.height = ring.width * 0.3
+          ring.alpha = hero ? 0.45 : 0.3; ring.position.set(x, y + 5); ring.zIndex = z + 7
           world.addChild(ring)
         }
         if (p.h > 26) {
