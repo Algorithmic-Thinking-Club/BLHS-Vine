@@ -1,0 +1,130 @@
+/* The PixelLab UI kit chrome (GAME-DESIGN §11) — aged paper on carved driftwood.
+   Textures live in /public/art/ui/, both game faces in /public/fonts/. Structure and
+   behavior live in the components; this file owns every texture, face, and easing so
+   the kit reads as ONE material system everywhere. */
+
+@font-face {
+  font-family: 'Harbormaster';
+  src: url('/fonts/Harbormaster.ttf') format('truetype');
+  font-display: block;
+}
+@font-face {
+  font-family: 'Deckhand';
+  src: url('/fonts/Deckhand.ttf') format('truetype');
+  font-display: block;
+}
+
+/* ---- dialogue: the standard lower-third paper box ---- */
+.cs-dialogue {
+  position: absolute;
+  left: 50%;
+  bottom: max(4.5vh, 34px);
+  transform: translateX(-50%);
+  width: min(720px, 92vw);
+  aspect-ratio: 512 / 192;
+  background: url('/art/ui/dialogue-box.png') center / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  /* the paper window inside the hero frame (measured off the asset) */
+  padding: 6.2% 10.5% 7.8% 10.5%;
+  box-sizing: border-box;
+  cursor: pointer;
+  animation: cs-rise 260ms cubic-bezier(.23,1.1,.35,1) both;
+}
+@keyframes cs-rise {
+  from { transform: translateX(-50%) translateY(14px); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
+}
+.cs-dialogue-text {
+  font-family: 'Deckhand', monospace;
+  font-size: clamp(15px, 2.5vh, 21px);
+  line-height: 1.5;
+  color: #3b2a1a;
+  text-shadow: 0 1px 0 rgba(255, 250, 235, .35);
+  height: 100%;
+  overflow: hidden;
+  padding-top: 2.2%;
+}
+.cs-nameplaque {
+  position: absolute;
+  top: -9%;
+  left: 6.5%;
+  padding: 3px 16px 5px;
+  background: linear-gradient(#4a3421, #382614);
+  border: 2px solid #241708;
+  border-radius: 3px;
+  box-shadow: 0 2px 0 #1a1006, inset 0 1px 0 rgba(210, 170, 110, .35);
+  font-family: 'Harbormaster', 'Deckhand', monospace;
+  font-size: clamp(12px, 1.9vh, 16px);
+  color: #e8dcc0;
+  letter-spacing: 1px;
+}
+.cs-continue {
+  display: inline-block;
+  margin-left: 8px;
+  animation: cs-paw 900ms ease-in-out infinite;
+  filter: sepia(1) saturate(.6) brightness(.75);
+  font-size: .85em;
+}
+@keyframes cs-paw {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+
+/* ---- caption: floating one-liner, no box ---- */
+.cs-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 16vh;
+  transform: translateX(-50%);
+  font-family: 'Deckhand', monospace;
+  font-size: clamp(15px, 2.4vh, 20px);
+  color: #f2e8d2;
+  text-shadow: 0 2px 3px rgba(4, 8, 10, .85), 0 0 14px rgba(4, 8, 10, .5);
+  white-space: nowrap;
+}
+
+/* ---- prompt plaque ("walk to it") ---- */
+.cs-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 9vh;
+  transform: translateX(-50%);
+  padding: 5px 18px 7px;
+  background: linear-gradient(#4a3421, #382614);
+  border: 2px solid #241708;
+  border-radius: 3px;
+  box-shadow: 0 2px 0 #1a1006, inset 0 1px 0 rgba(210, 170, 110, .35);
+  font-family: 'Deckhand', monospace;
+  font-size: clamp(13px, 2vh, 17px);
+  color: #e8dcc0;
+  animation: cs-pulse 1.6s ease-in-out infinite;
+}
+@keyframes cs-pulse {
+  0%, 100% { opacity: .82; }
+  50%      { opacity: 1; transform: translateX(-50%) scale(1.03); }
+}
+
+/* ---- hold-to-skip plaque ---- */
+.cs-skip {
+  position: absolute;
+  top: max(2.6vh, 14px);
+  right: max(2.2vw, 16px);
+  padding: 4px 14px 6px;
+  background: linear-gradient(#3d2b1a, #2c1e0f);
+  border: 2px solid #1e1206;
+  border-radius: 3px;
+  overflow: hidden;
+  font-family: 'Deckhand', monospace;
+  font-size: 13px;
+  color: #cbbd9d;
+  opacity: .62;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 160ms ease;
+}
+.cs-skip:hover { opacity: .95; }
+.cs-skip-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: rgba(120, 190, 180, .30);
+}

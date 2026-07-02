@@ -1,0 +1,248 @@
+/* Boot splash + title screen (GAME-DESIGN §4.1 / §4.2) — the first two frames a student
+   ever sees, so every easing here is deliberate. Fonts + kit textures from the UI kit. */
+
+@font-face {
+  font-family: 'Harbormaster';
+  src: url('/fonts/Harbormaster.ttf') format('truetype');
+  font-display: block;
+}
+@font-face {
+  font-family: 'Deckhand';
+  src: url('/fonts/Deckhand.ttf') format('truetype');
+  font-display: block;
+}
+
+.pix { image-rendering: pixelated; }
+
+/* ============ BOOT ============ */
+
+.bt-boot {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 120% 90% at 50% 42%, #0e3540 0%, #092630 58%, #051a22 100%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; overflow: hidden;
+}
+
+/* the foam line that sweeps across behind the crest */
+.bt-foamline {
+  position: absolute; left: -30%; top: 46%; width: 26%; height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(214, 236, 232, .85) 30%, rgba(240, 250, 248, .95) 55%, rgba(214, 236, 232, .5) 80%, transparent);
+  border-radius: 2px;
+  filter: drop-shadow(0 0 6px rgba(180, 220, 214, .45));
+  animation: bt-sweep 1100ms cubic-bezier(.3,.4,.2,1) 80ms both;
+}
+@keyframes bt-sweep {
+  from { left: -30%; opacity: 0; }
+  25%  { opacity: 1; }
+  to   { left: 108%; opacity: 0; }
+}
+
+.bt-crestwrap { position: relative; }
+.bt-crestwrap::before {
+  /* a quiet halo grounds the crest on the field */
+  content: '';
+  position: absolute; inset: -34%;
+  background: radial-gradient(circle, rgba(47, 142, 130, .22) 0%, rgba(47, 142, 130, .08) 45%, transparent 70%);
+  animation: bt-fadein 900ms ease 380ms both;
+}
+.bt-crest {
+  position: relative;
+  width: clamp(170px, 27vh, 250px);
+  display: block;
+  animation: bt-press 640ms cubic-bezier(.2, 1.35, .3, 1) 260ms both;
+  filter: drop-shadow(0 5px 14px rgba(0, 0, 0, .5));
+}
+@keyframes bt-press {
+  0%   { transform: scale(1.28); opacity: 0; }
+  62%  { transform: scale(.97) translateY(1px); opacity: 1; }   /* the 1px squash-settle */
+  82%  { transform: scale(1.015); }
+  100% { transform: scale(1); }
+}
+.bt-purr { animation: bt-purrwob 520ms ease both !important; }
+@keyframes bt-purrwob {
+  0%, 100% { transform: scale(1); }
+  30% { transform: scale(1.05) rotate(-1.6deg); }
+  60% { transform: scale(.985) rotate(1.1deg); }
+}
+.bt-glint {
+  position: absolute; left: 34%; top: 38%; width: 7px; height: 7px;
+  background: radial-gradient(circle, #ffd76a 0%, rgba(255, 215, 106, 0) 70%);
+  animation: bt-glintpulse 900ms ease 1000ms both;
+}
+@keyframes bt-glintpulse {
+  0%, 100% { opacity: 0; transform: scale(.4); }
+  50% { opacity: 1; transform: scale(1.5); }
+}
+.bt-sparkle {
+  position: absolute; width: 5px; height: 5px; pointer-events: none;
+  background: radial-gradient(circle, #9fe8dc 0%, rgba(120, 200, 190, 0) 70%);
+  animation: bt-spark 820ms ease-out both;
+}
+@keyframes bt-spark {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(-26px) scale(.3); }
+}
+
+.bt-credit {
+  margin-top: 4.2vh;
+  font-family: 'Deckhand', monospace;
+  font-size: clamp(12px, 1.9vh, 16px);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #7fa8a4;
+  animation: bt-fadein 500ms ease 700ms both;
+}
+@keyframes bt-fadein { from { opacity: 0; } to { opacity: 1; } }
+
+/* ============ TITLE ============ */
+
+.ti-root { position: absolute; inset: 0; overflow: hidden; background: #083744; }
+
+/* interim: a captured frame of the live cove with a slow ambient drift (Ken Burns);
+   swaps to the real idling BeachIso once it exposes an ambient mode */
+.ti-backdrop {
+  position: absolute; inset: -4%;
+  background: url('/art/ui/title-backdrop.png') center / cover no-repeat;
+  image-rendering: pixelated;
+  animation: ti-drift 46s ease-in-out infinite alternate;
+}
+@keyframes ti-drift {
+  from { transform: scale(1.02) translate(0.6%, -0.5%); }
+  to   { transform: scale(1.09) translate(-1.2%, 0.8%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ti-backdrop { animation: none; }
+}
+
+/* gentle contrast veil so the wordmark owns the sky/water */
+.ti-veil {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(180deg, rgba(5, 16, 20, .42) 0%, rgba(5, 16, 20, .08) 30%, transparent 55%, rgba(5, 14, 18, .38) 100%);
+}
+
+.ti-stack {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center;
+  padding-top: 7.5vh;
+}
+
+.ti-welcome {
+  font-family: 'Deckhand', monospace;
+  font-size: clamp(13px, 2vh, 17px);
+  color: #ead;
+  color: #e8dcc0;
+  background: rgba(24, 40, 44, .55);
+  border: 1px solid rgba(120, 190, 180, .25);
+  border-radius: 3px;
+  padding: 3px 14px 5px;
+  margin-bottom: 1.6vh;
+  animation: bt-fadein 600ms ease 300ms both;
+}
+
+.ti-wordmark { position: relative; width: min(560px, 62vw); animation: ti-settle 700ms cubic-bezier(.2, 1.25, .3, 1) 120ms both; }
+@keyframes ti-settle {
+  from { transform: translateY(-18px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+/* the sign asset's interior is cut out — back it with whitewashed planks so the lettering
+   sits on wood, not on open water */
+.ti-signpaper {
+  position: absolute; inset: 9% 7% 12% 7%;
+  border-radius: 6px;
+  background:
+    repeating-linear-gradient(180deg, transparent 0 17px, rgba(172, 158, 136, .18) 17px 19px, transparent 19px 36px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, .04) 0 42px, rgba(160, 148, 128, .07) 42px 45px),
+    linear-gradient(180deg, #efe9da 0%, #e6dfcd 55%, #dcd3bf 100%);
+}
+.ti-sign { position: relative; width: 100%; display: block; filter: drop-shadow(0 6px 16px rgba(3, 10, 12, .55)); }
+.ti-wordtext {
+  position: absolute; inset: 12% 10% 16% 10%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 0.4vh;
+  pointer-events: none;
+}
+.ti-line1 {
+  font-family: 'Harbormaster', 'Deckhand', monospace;
+  font-size: clamp(17px, 3.4vh, 27px);
+  letter-spacing: 7px;
+  color: #26695f;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .55);
+}
+.ti-line2 {
+  font-family: 'Harbormaster', 'Deckhand', monospace;
+  font-size: clamp(23px, 4.6vh, 38px);
+  letter-spacing: 2px;
+  color: #33302a;
+  text-shadow: 0 2px 0 rgba(255, 255, 255, .45), 0 -1px 0 rgba(0, 0, 0, .1);
+}
+
+.ti-gull {
+  position: absolute;
+  top: -9.5%;
+  left: 7%;
+  width: 9.5%;
+  cursor: pointer;
+  animation: ti-gull-land 480ms cubic-bezier(.2, 1.3, .4, 1) both;
+  transition: none;
+}
+.ti-gull-right { left: auto; right: 7%; transform: scaleX(-1); }
+@keyframes ti-gull-land {
+  from { transform: translateY(-22px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.ti-gull-right { animation: ti-gull-land-r 480ms cubic-bezier(.2, 1.3, .4, 1) both; }
+@keyframes ti-gull-land-r {
+  from { transform: translateY(-22px) scaleX(-1); opacity: 0; }
+  to   { transform: translateY(0) scaleX(-1); opacity: 1; }
+}
+
+.ti-actions {
+  margin-top: 5vh;
+  display: flex; flex-direction: column; align-items: center; gap: 1.4vh;
+  animation: bt-fadein 600ms ease 500ms both;
+}
+.ti-plank {
+  position: relative;
+  width: min(340px, 44vw);
+  aspect-ratio: 512 / 192;
+  background: url('/art/ui/plank-button.png') center / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  border: none; outline: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  filter: drop-shadow(0 5px 12px rgba(3, 10, 12, .5));
+  transition: transform 130ms ease, filter 130ms ease;
+}
+.ti-plank:hover {
+  transform: translateY(-1px);
+  filter: drop-shadow(0 6px 14px rgba(3, 10, 12, .55)) brightness(1.07);
+}
+.ti-plank:active { transform: translateY(2px); filter: drop-shadow(0 2px 6px rgba(3, 10, 12, .5)) brightness(.96); }
+.ti-plank-label {
+  font-family: 'Harbormaster', 'Deckhand', monospace;
+  font-size: clamp(16px, 2.9vh, 24px);
+  color: #f0e4c8;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 0 rgba(30, 16, 6, .75);
+  padding: 0 12%;
+}
+.ti-newvoyage {
+  background: none; border: none; cursor: pointer;
+  font-family: 'Deckhand', monospace;
+  font-size: clamp(12px, 1.9vh, 16px);
+  color: #cfe3da;
+  text-shadow: 0 1px 2px rgba(4, 10, 12, .8);
+  opacity: .82;
+  transition: opacity 140ms ease;
+}
+.ti-newvoyage:hover { opacity: 1; text-decoration: underline; }
+
+.ti-credit {
+  position: absolute; bottom: 2.4vh; left: 0; right: 0;
+  text-align: center;
+  font-family: 'Deckhand', monospace;
+  font-size: clamp(11px, 1.7vh, 14px);
+  letter-spacing: 2px;
+  color: rgba(222, 234, 226, .6);
+  text-shadow: 0 1px 2px rgba(4, 10, 12, .7);
+}
