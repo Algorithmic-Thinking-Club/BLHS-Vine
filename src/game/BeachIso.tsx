@@ -194,6 +194,15 @@ function composeBeach(): PropDef[] {
   add(-8, 120, 'dunegrass', 30); add(-6.5, 121, 'shells', 12, { ground: true })
   add(12, 118, 'seaweed', 16, { flip: true, ground: true }); add(2, 124, 'dunegrass', 26, { flip: true })
   add(-12, 132, 'driftwood', 34); add(6, 134, 'dunegrass', 30)
+
+  // 8. THE PORT (the beach's second pass) — dockside life on the sand around the pier base at the
+  // east end, past the headland. The pier + moored ship are built separately (multi-segment).
+  add(24, 116.8, 'rowboat', 56, { flip: true })
+  add(33.5, 118.5, 'crates', 54); add(35.3, 117.4, 'ropecoil', 20, { ground: true })
+  add(28.4, 117.6, 'lanternPost', 92)
+  add(26.5, 119.5, 'dunegrass', 32); add(36, 120, 'dunegrass', 28, { flip: true })
+  add(30.5, 120.8, 'seaweed', 15, { ground: true }); add(37.5, 116.6, 'shells', 12, { ground: true })
+  add(27, 113.6, 'gull', 18); add(36.5, 114.4, 'gull', 16, { flip: true })
   return out
 }
 
@@ -209,6 +218,8 @@ const PROP_SRC: Record<string, string> = {
   gull: '/art/intro/props/gull.png', bushC: '/art/intro/props/bush-c.png',
   tidepool: '/art/intro/props/tidepool.png',
   crab: '/art/intro/props/crab.png', gullFly: '/art/intro/props/gull-fly.png',
+  rowboat: '/art/intro/port/rowboat.png', crates: '/art/intro/port/crates.png',
+  ropecoil: '/art/intro/port/ropecoil.png', lanternPost: '/art/intro/port/lantern-post.png',
   driftwood: '/art/intro/driftwood.png', grass: '/art/intro/grass.png', reeds: '/art/iso/props/reeds.png',
 }
 // per-prop grade: the panther rock reads as weathered gray stone (not bone), the flowered hedge
@@ -240,6 +251,9 @@ export default function BeachIso() {
         load('foamlace', '/art/intro/foam-lace.png'), load('foamlace2', '/art/intro/foam-lace2.png'),
         load('foamtrail', '/art/intro/foam-trail.png'), load('sparkle', '/art/intro/sparkle.png'),
         load('skirt', '/art/intro/shallow-skirt.png'),
+        load('pierIso', '/art/intro/port/pier-iso.png'), load('dockPlat', '/art/intro/port/dock-platform.png'),
+        load('ship', '/art/intro/port/ship.png'), load('boatAnchor', '/art/intro/port/boat-anchored.png'),
+        load('boatFish', '/art/intro/port/boat-fishing.png'),
         ...Object.entries(PROP_SRC).map(([k, u]) => load(k, u)),
       ])
       const idle: Record<string, Texture> = {}
@@ -515,13 +529,99 @@ export default function BeachIso() {
         }
       }
 
+      // ---- THE PORT: a rustic pier runs on the TRUE ISO DIAGONAL (fixed tx: each step is
+      // d+1, s-1 — up-right at 2:1 on screen), from the sand across the waterline to a diamond
+      // dock platform; Thor's ship moors alongside, other boats ride at anchor further out. ----
+      const boats: { sp: Sprite; x: number; y: number; ph: number }[] = []
+      const moorBoat = (t: Texture, dPos: number, sPos: number, h: number, flip = false) => {
+        const sc = h / t.height
+        const bx = dPos * HW, by = sPos * HH
+        const sh = new Sprite(shadowTexLife); sh.anchor.set(0.4, 0.5)
+        sh.width = t.width * sc * 0.9; sh.height = t.width * sc * 0.26; sh.rotation = 0.12
+        sh.alpha = 0.3; sh.position.set(bx + 6, by + 6); sh.zIndex = sPos * 16 + 2
+        world.addChild(sh)
+        const ring = new Sprite(shadowTexLife); ring.anchor.set(0.5)
+        ring.tint = 0xeafff6; ring.blendMode = 'add'
+        ring.width = t.width * sc * 0.85; ring.height = ring.width * 0.24; ring.alpha = 0.3
+        ring.position.set(bx, by + 4); ring.zIndex = sPos * 16 + 3
+        world.addChild(ring)
+        const sp = new Sprite(t); sp.anchor.set(0.5, 0.86); sp.scale.set(flip ? -sc : sc, sc)
+        sp.position.set(bx, by); sp.zIndex = sPos * 16 + 9
+        world.addChild(sp)
+        boats.push({ sp, x: bx, y: by, ph: hash(dPos, sPos) * 6.28 })
+      }
+      if (tex['pierIso']) {
+        const segT = tex['pierIso']
+        const PIER_SC = 0.78
+        const stepX = (segT.width - 26) * PIER_SC // overlap segments so plank seams tuck under posts
+        let px = 30 * HW, py = 116 * HH // base on the sand at d=30 (closer to the cove's heart)
+        for (let i = 0; i < 2; i++) {
+          const sp = new Sprite(segT); sp.anchor.set(0.18, 0.78); sp.scale.set(PIER_SC)
+          sp.position.set(px, py)
+          const sMid = py / HH - 1
+          sp.zIndex = (sMid + 2.5) * 16 + 9
+          world.addChild(sp)
+          // soft cast onto the water to the lower-right of the deck
+          const shp = new Sprite(shadowTexLife); shp.anchor.set(0.3, 0.5); shp.rotation = 0.24
+          shp.width = 150; shp.height = 34; shp.alpha = 0.16
+          shp.position.set(px + stepX * 0.45 + 12, py - stepX * 0.22 + 26); shp.zIndex = (sMid + 1) * 16 + 1
+          world.addChildAt(shp, world.getChildIndex(sp))
+          px += stepX; py -= stepX / 2
+        }
+        // the diamond dock platform at the pier's head
+        if (tex['dockPlat']) {
+          const pt = tex['dockPlat'], sc2 = 0.85
+          const sp = new Sprite(pt); sp.anchor.set(0.3, 0.62); sp.scale.set(sc2)
+          sp.position.set(px + 6, py - 2)
+          sp.zIndex = (py / HH + 1.5) * 16 + 9
+          world.addChild(sp)
+        }
+        // foam collars where posts stand in the water (along the run past the waterline)
+        for (let k = 1; k <= 4; k++) {
+          const cd = 30 + k * 3.4, cs = 116 - k * 3.4
+          if (cs < shoreAt(cd) + 0.5) {
+            const ring = new Sprite(shadowTexLife); ring.anchor.set(0.5)
+            ring.tint = 0xeafff6; ring.blendMode = 'add'; ring.width = 30; ring.height = 10; ring.alpha = 0.26
+            ring.position.set(cd * HW, cs * HH + 14); ring.zIndex = cs * 16 + 8
+            world.addChild(ring)
+          }
+        }
+        // block the pier's diagonal footprint
+        for (let k = 0; k <= 14; k++) {
+          const cd = 30 + k, cs = 116 - k
+          const bx = Math.round((cs + cd) / 2), by = Math.round((cs - cd) / 2)
+          blocked.add(bx + ',' + by); blocked.add(bx + ',' + (by - 1))
+        }
+        // THOR'S SHIP moored on the platform's upper-left, bow toward the open sea
+        if (tex['ship']) moorBoat(tex['ship'], 30 + 2 * (stepX / HW) - 4.5, 116 - 2 * (stepX / HW / 2) - 3.5, 170)
+      }
+      // other boats ride at anchor in the bay
+      if (tex['boatFish']) moorBoat(tex['boatFish'], 16, 96, 98)
+      if (tex['boatAnchor']) moorBoat(tex['boatAnchor'], 52, 99, 88, true)
+      // warm lantern glows breathing at the dock and on the ship's stern
+      const glows: { sp: Sprite; ph: number }[] = []
+      const glowTex = radial(96, [[0, 'rgba(255,196,110,0.5)'], [0.4, 'rgba(255,176,90,0.18)'], [1, 'rgba(255,176,90,0)']])
+      const addGlow = (gx: number, gy: number, size: number, z: number) => {
+        const g = new Sprite(glowTex); g.anchor.set(0.5); g.blendMode = 'add'
+        g.width = g.height = size; g.position.set(gx, gy); g.zIndex = z
+        world.addChild(g); glows.push({ sp: g, ph: hash(gx, gy) * 6.28 })
+      }
+      if (tex['lanternPost']) addGlow(28.4 * HW - 24, 117.6 * HH - liftAt((117.6 + 28.4) / 2, (117.6 - 28.4) / 2) - 66, 54, 117.6 * 16 + 10)
+      if (tex['ship'] && tex['pierIso']) {
+        const stepX = (tex['pierIso'].width - 26) * 0.78
+        addGlow((30 + (2 * stepX) / HW - 4.5) * HW + 54, (116 - stepX / HW - 3.5) * HH - 96, 46, 200 * 16)
+      }
+
       // ---- Thor (with his own crisp contact shadow — the focal character must sit ON the sand) ----
       const thorShadow = new Sprite(shadowTex); thorShadow.anchor.set(0.34, 0.5)
       thorShadow.width = 48; thorShadow.height = 14; thorShadow.rotation = 0.2; thorShadow.alpha = 0.6
       world.addChild(thorShadow)
       const thor = new Sprite(idle['south'] ?? tex['sand']); thor.anchor.set(0.5, 0.9); thor.scale.set(0.68)
       thor.zIndex = 0; world.addChild(thor)
-      const pos = { tx: 61, ty: 61 }; let facing = 'south', at = 0
+      // ?spawn=tx,ty overrides for validation shots of any part of the map
+      const spawnP = (new URLSearchParams(location.search).get('spawn') ?? '').split(',').map(Number)
+      const pos = { tx: spawnP.length === 2 && !isNaN(spawnP[0]) ? spawnP[0] : 61, ty: spawnP.length === 2 && !isNaN(spawnP[1]) ? spawnP[1] : 61 }
+      let facing = 'south', at = 0
 
       const walkableAt = (tx: number, ty: number) => {
         const x = Math.round(tx), y = Math.round(ty)
@@ -621,6 +721,13 @@ export default function BeachIso() {
         }
         // sea-breeze sway: slow lean + a faster flutter on top, per-plant phase
         for (const s of swaying) s.sp.rotation = s.amp * (Math.sin(wt * 0.7 + s.ph) + 0.35 * Math.sin(wt * 1.9 + s.ph * 2.3))
+        // moored boats ride the swell: slow bob + a whisper of roll
+        for (const b of boats) {
+          b.sp.position.y = b.y + 2.2 * Math.sin(wt * 0.55 + b.ph)
+          b.sp.rotation = 0.01 * Math.sin(wt * 0.4 + b.ph * 1.7)
+        }
+        // lanterns breathe warm light
+        for (const g of glows) g.sp.alpha = 0.75 + 0.25 * Math.sin(wt * 1.6 + g.ph)
         // crabs: quick sideways bursts along the shore, then hold still
         for (const c of crabs) {
           if (wt > c.next) {
