@@ -39,6 +39,19 @@
 }
 .st-seg { display: flex; gap: 1.4cqw; }
 .st-on { border-color: #3c6e60; color: #234c40; box-shadow: 0 0 0 2px rgba(60, 110, 96, .3); }
+.st-captain { width: 100%; margin-top: 3cqw; }
+.st-captain-head {
+  font-family: 'Harbormaster', 'Deckhand', monospace;
+  font-size: 4.2cqw; color: #2f6e60; text-align: center; margin-bottom: 1.6cqw;
+}
+.st-captain-row { display: flex; gap: 1.6cqw; justify-content: center; }
+.st-captain-row button {
+  font-family: 'Deckhand', monospace;
+  font-size: 3.6cqw; color: #e8dcc0;
+  background: linear-gradient(#2f5a50, #234339);
+  border: 2px solid #16302a; border-radius: 3px;
+  padding: 1cqw 2cqw; cursor: pointer;
+}
 .st-about {
   margin-top: auto;
   font-family: 'Deckhand', monospace;

@@ -88,6 +88,27 @@ export class CutsceneRuntime {
     this.emit()
   }
 
+  /** CAPTAIN authority: end the entire cutscene NOW — required gates fall to defaults,
+   *  ui gates resolve empty (the host's completion callback still runs, writing the save) */
+  godSkip() {
+    if (!this.root) return
+    const r = this.root
+    if (r.live?.k === 'gateUi') { this.ui.uiGate = null; r.live = null }
+    while (r.i < r.steps.length) {
+      if (r.live) { this.applyInstantLive(r, r.live); r.live = null }
+      r.i++
+      if (r.i >= r.steps.length) break
+      const s = r.steps[r.i]
+      if (s.t === 'gate') {
+        if (s.kind === 'walkTo') this.stage.actorPlace(this.playerActor, s.target.x, s.target.y)
+        continue
+      }
+      this.applyInstant(s)
+    }
+    this.finish()
+    this.emit()
+  }
+
   subscribe(fn: () => void) { this.listeners.add(fn); return () => { this.listeners.delete(fn) } }
   private emit() { for (const fn of this.listeners) fn() }
 

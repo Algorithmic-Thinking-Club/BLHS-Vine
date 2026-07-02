@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { isCaptain } from '../game/captain'
+import { clearSave, writeSave } from '../game/save'
 import './settings.css'
 
 // Settings (GAME-DESIGN §4.7), one paper sheet — reachable from the title gear and the
@@ -47,6 +49,16 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
             {s.reducedMotion ? 'on' : 'off'}
           </button>
         </div>
+        {isCaptain() && (
+          <div className="st-captain">
+            <div className="st-captain-head">⚓ Captain's tools</div>
+            <div className="st-captain-row">
+              <button onClick={() => { clearSave(); location.href = '/?scene=beach' }}>Replay intro</button>
+              <button onClick={() => { writeSave({ beat: 'intro:i4' }); location.reload() }}>Finish intro</button>
+              <button onClick={() => { clearSave(); location.href = '/' }}>Wipe save</button>
+            </div>
+          </div>
+        )}
         <div className="st-about">
           BLHS Island Explorer, built by the Algorithmic Thinking Club.
           Your real name never leaves the room; play data is anonymous.

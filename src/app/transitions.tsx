@@ -32,7 +32,7 @@ const FACTS = [
   'The counseling office tracks every honor cord. So does your Handbook.',
 ]
 
-const COVER_MS = 620 // cover-in / cover-out animation time
+const COVER_MS = 950 // cover-in / cover-out animation time — heavy and calm, never a flash
 
 type Phase = 'idle' | 'in' | 'hold' | 'out'
 

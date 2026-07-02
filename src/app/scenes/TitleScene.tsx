@@ -22,8 +22,10 @@ export default function TitleScene() {
 
   // Continue resumes at the saved beat; New voyage (and a first-ever Set Sail) starts the
   // introduction from the wake-up — a fresh voyage means a fresh save, always
-  const sail = () => { track(save ? 'continue_clicked' : 'new_voyage_clicked'); if (!save) clearSave(); nav.go('beach', { kind: 'foam' }) }
-  const newVoyage = () => { track('new_voyage_clicked'); clearSave(); nav.go('beach', { kind: 'foam' }) }
+  // the beach entry rides the illustrated scene cover — a calm, heavy loading moment,
+  // never a fast flash (Ash's transitions verdict)
+  const sail = () => { track(save ? 'continue_clicked' : 'new_voyage_clicked'); if (!save) clearSave(); nav.go('beach', { kind: 'scene', title: 'THE FAR SHORE', holdMs: 2200 }) }
+  const newVoyage = () => { track('new_voyage_clicked'); clearSave(); nav.go('beach', { kind: 'scene', title: 'THE FAR SHORE', holdMs: 2200 }) }
 
   const flapGull = () => { setGullHop((h) => h + 1); setGullRight((g) => !g) }
 
@@ -54,9 +56,8 @@ export default function TitleScene() {
           <button className="ti-plank" onClick={sail}>
             <span className="ti-plank-label">{save ? `Continue — Year ${save.year}, ${save.season}` : 'Set Sail'}</span>
           </button>
-          {save && (
-            <button className="ti-newvoyage" onClick={newVoyage}>New voyage</button>
-          )}
+          {/* always present (Ash): with no save it simply starts fresh, same as Set Sail */}
+          <button className="ti-newvoyage" onClick={newVoyage}>New voyage</button>
         </div>
       </div>
 

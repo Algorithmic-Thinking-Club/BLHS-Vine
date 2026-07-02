@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { CutsceneRuntime } from './runtime'
+import { isCaptain } from '../captain'
 import './ui-kit.css'
 
 // Screen-space renderer for a running cutscene: letterbox bars, the eyes-opening vignette,
@@ -85,14 +86,15 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
           </div>
         )}
 
-        {/* skip plaque — one CLICK skips (Ash); holding Esc still works as the keyboard path */}
+        {/* skip plaque — one CLICK skips to the next required beat; the captain's version
+            ends the whole cutscene outright (god authority for testing) */}
         {ui.skippable && (
           <div
             className="cs-skip" style={{ pointerEvents: 'auto' }}
-            onClick={(e) => { e.stopPropagation(); rt.skip() }}
+            onClick={(e) => { e.stopPropagation(); if (isCaptain()) rt.godSkip(); else rt.skip() }}
           >
             <span className="cs-skip-fill" style={{ width: holdAt ? '100%' : '0%', transition: holdAt ? `width ${SKIP_HOLD_MS}ms linear` : 'none' }} />
-            <span style={{ position: 'relative' }}>skip ▸</span>
+            <span style={{ position: 'relative' }}>{isCaptain() ? 'skip all ⚓' : 'skip ▸'}</span>
           </div>
         )}
       </div>
