@@ -206,6 +206,24 @@
 /* cards without the castaway line let the plank take the bottom slot itself */
 .i3-plank-solo { margin-top: auto; }
 
+/* I-5: the one big button moment — the enormous carved plank over the held vista */
+.i5-setsail {
+  position: absolute; inset: 0;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: 12vh;
+  pointer-events: auto;
+}
+.i5-plank {
+  min-width: min(380px, 60vw);
+  aspect-ratio: 512 / 170;
+  font-size: clamp(22px, 4.2vh, 34px);
+  animation: i5-rise 600ms cubic-bezier(.2, 1.2, .35, 1) both;
+}
+@keyframes i5-rise {
+  from { transform: translateY(26px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+
 /* ---- the wardrobe card ---- */
 .i3-wardrobe {
   display: flex; align-items: flex-end; justify-content: center; gap: 2cqw;

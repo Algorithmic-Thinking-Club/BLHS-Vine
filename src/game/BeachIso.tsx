@@ -1170,7 +1170,21 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       // THE DELIVERING WAVE: the bottle rides the REAL tide — waits for the next front to break
       // at its column, surges up the film's leading edge rolling as it comes, and settles in the
       // wet band when the water lets go of it. Returns a done-poll for the runtime.
-      let bottleWave: null | { d: number; sBeach: number; phase: 'wait' | 'ride' | 'settled'; from: number; peakS: number } = null
+      let bottleWave: null | { d: number; sBeach: number; phase: 'wait' | 'ride' | 'settled'; from: number; peakS: number; fi: number } = null
+      // guide arrow (Ash): a bobbing gold chevron over whatever the player should walk to
+      let pointer: null | { sp: Sprite; x: number; y: number; ship: boolean } = null
+      const chevTex = (() => {
+        const cv = document.createElement('canvas'); cv.width = 30; cv.height = 22
+        const g = cv.getContext('2d')!
+        g.fillStyle = '#f0c85a'; g.strokeStyle = '#5a3c14'; g.lineWidth = 2
+        g.beginPath(); g.moveTo(4, 3); g.lineTo(15, 18); g.lineTo(26, 3); g.lineTo(20, 3); g.lineTo(15, 10); g.lineTo(10, 3); g.closePath()
+        g.fill(); g.stroke()
+        return Texture.from(cv)
+      })()
+      // THE SCRIPTED PILOT (I-5): steers by writing the SAME keys the helm reads — the seam
+      // the ship block itself names. Open-loop, the way Ash called it: ease forward off the
+      // berth, hold starboard until the bow faces the vast sea, release, run out.
+      let pilot: null | { phase: 0 | 1 | 2; t: number; targetAng: number; done: boolean } = null
       const csCall = (name: string, data?: unknown): (() => boolean) | void => {
         if (name === 'bottleWave') {
           const o = (data ?? {}) as { d?: number; instant?: boolean }
@@ -1183,7 +1197,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             return
           }
           csActorPlace('bottle', (shoreAt(d) - 1.6 + d) / 2, (shoreAt(d) - 1.6 - d) / 2) // bobbing offshore
-          bottleWave = { d, sBeach, phase: 'wait', from: shoreAt(d) - 1.6, peakS: -1e9 }
+          bottleWave = { d, sBeach, phase: 'wait', from: shoreAt(d) - 1.6, peakS: -1e9, fi: 0 }
           return () => bottleWave === null || bottleWave.phase === 'settled'
         }
         if (name === 'hideBottle') {
@@ -1192,6 +1206,64 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           return
         }
         if (name === 'applyLook') { applyLook(); return } // the wardrobe re-dyes Thor mid-scene
+        // ---- the ship beats (I-4/I-5), driving the vehicle through its own seams ----
+        if (name === 'boardShip') {
+          const o = (data ?? {}) as { instant?: boolean }
+          if (!veh) return () => true
+          const V = veh
+          if (o.instant) { V.hop = null; V.state = 'crewed'; pos.tx = V.tx; pos.ty = V.ty; return }
+          V.hop = { t: 0, ax: pos.tx, ay: pos.ty, bx: V.tx, by: V.ty, lift0: renderLift, lift1: 24, to: 'ship' }
+          return () => !!veh && veh.state === 'crewed' && !veh.hop
+        }
+        if (name === 'pilotTo') {
+          const o = (data ?? {}) as { instant?: boolean }
+          if (!veh) return () => true
+          if (o.instant) {
+            veh.tx = 87; veh.ty = 14; veh.ang = -2.36; veh.spd = 0; setBucket(veh, true)
+            pos.tx = veh.tx; pos.ty = veh.ty
+            pilot = null
+            return
+          }
+          // -2.36 rad = the tile diagonal that runs straight out into the deep (s decreasing)
+          const p = { phase: 0 as const, t: 0, targetAng: -2.36 + Math.PI * 2 * 0, done: false }
+          pilot = { ...p, phase: 0 }
+          const ref = pilot
+          return () => ref.done
+        }
+        if (name === 'pointAt') {
+          const o = (data ?? {}) as { x?: number; y?: number; ship?: boolean; instant?: boolean }
+          if (!pointer) {
+            const sp = new Sprite(chevTex)
+            sp.anchor.set(0.5, 1)
+            world.addChild(sp)
+            pointer = { sp, x: o.x ?? 0, y: o.y ?? 0, ship: !!o.ship }
+          } else { pointer.x = o.x ?? pointer.x; pointer.y = o.y ?? pointer.y; pointer.ship = !!o.ship }
+          return
+        }
+        if (name === 'pointClear') {
+          if (pointer) { pointer.sp.destroy(); pointer = null }
+          return
+        }
+        if (name === 'showBoatName') {
+          // the I-4 payoff: her fresh name hangs at the berth (the painted stern text is a
+          // later art pass; this chip is the same wood the world's prompts use)
+          if (!veh) return
+          const nm = loadSave()?.boatName || 'The Bonney'
+          const chip = new Sprite(chipTexFor(nm))
+          chip.anchor.set(0.5, 1)
+          world.addChild(chip)
+          let life = 0
+          const V = veh
+          const fn = (t: { deltaMS: number }) => {
+            life += t.deltaMS
+            chip.position.set(isoX(V.tx, V.ty), isoY(V.tx, V.ty) - 118 + V.bob)
+            chip.zIndex = Math.floor(V.tx + V.ty) * 16 + 44
+            chip.alpha = life < 500 ? life / 500 : life > 6200 ? Math.max(0, 1 - (life - 6200) / 700) : 1
+            if (life > 7000) { instance.ticker.remove(fn); chip.destroy() }
+          }
+          instance.ticker.add(fn)
+          return
+        }
       }
       const stage: BeachStage = {
         cameraGet: () => cs.cam ? { ...cs.cam } : { x: pos.tx, y: pos.ty, zoom: ZOOM },
@@ -1304,6 +1376,30 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             if (!stepped) { pos.tx = nx; pos.ty = ny }
             facing = dirFromAngle(isoX(ux, uy), (ux + uy) * HH)
             moving = 1
+          }
+        }
+        // THE SCRIPTED PILOT: writes the same keys the helm reads (the ship block's own
+        // documented seam) on Ash's open-loop plan — forward off the berth, hold starboard
+        // until the bow points at open water, release, run out. No feedback loop to spin her.
+        if (pilot && veh && veh.state === 'crewed' && !veh.hop) {
+          const P = pilot, V = veh
+          P.t += tk.deltaMS
+          keys['a'] = keys['s'] = false
+          if (P.phase === 0) {
+            keys['w'] = true; keys['d'] = false
+            if (P.t > 1700) { P.phase = 1; P.t = 0 }
+          } else if (P.phase === 1) {
+            keys['w'] = true; keys['d'] = true
+            let err = P.targetAng - V.ang
+            while (err > Math.PI) err -= Math.PI * 2
+            while (err < -Math.PI) err += Math.PI * 2
+            if (Math.abs(err) < 0.14 || P.t > 8000) { P.phase = 2; P.t = 0 }
+          } else {
+            keys['w'] = true; keys['d'] = false
+            if (P.t > 4200) {
+              keys['w'] = false
+              P.done = true; pilot = null
+            }
           }
         }
         // safety net: should anything ever leave Thor inside a circle (a spawn, an edge case),
@@ -1625,15 +1721,19 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         if (bottleWave) {
           const b = bottleWave, ba = csActors.get('bottle')
           if (ba) {
-            const u = wt - fronts[0].off - b.d * SWEEP
+            const u = wt - fronts[b.fi].off - b.d * SWEEP
             const uu = ((u % TIDE_T) + TIDE_T) % TIDE_T
             const [reach] = tidePhase(u)
             if (b.phase === 'wait') {
-              // drift gently beyond the waterline until a fresh wave launches
+              // drift gently beyond the waterline; ride WHICHEVER front launches first
+              // (the two are staggered, so the wait halves — Ash: it dragged)
               const s0 = b.from + 0.12 * Math.sin(wt * 1.1)
               csActorPlace('bottle', (s0 + b.d) / 2, (s0 - b.d) / 2)
               ba.sp.rotation = 0.14 * Math.sin(wt * 1.3)
-              if (uu < 0.12) { b.phase = 'ride'; b.from = s0 }
+              for (let f = 0; f < fronts.length; f++) {
+                const uf = ((wt - fronts[f].off - b.d * SWEEP) % TIDE_T + TIDE_T) % TIDE_T
+                if (uf < 0.12) { b.phase = 'ride'; b.from = s0; b.fi = f; break }
+              }
             } else if (b.phase === 'ride') {
               // the bottle trails just behind the foam edge and can only ever move UP the
               // sand: eased pickup from its drift spot, grounded at its furthest reach —
@@ -1657,6 +1757,14 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
               }
             }
           }
+        }
+        // the guide chevron bobs over its target (rides the ship when pointing at her)
+        if (pointer) {
+          const ptx = pointer.ship && veh ? veh.tx : pointer.x
+          const pty = pointer.ship && veh ? veh.ty : pointer.y
+          const lift2 = pointer.ship ? 90 : liftAt(ptx, pty) + 34
+          pointer.sp.position.set(isoX(ptx, pty), isoY(ptx, pty) - lift2 - 8 + 5 * Math.sin(wt * 3.2))
+          pointer.sp.zIndex = Math.floor(ptx + pty) * 16 + 60
         }
         // the waterline itself breathes a little
         for (const sk of skirtSegs) sk.sp.position.y = (shoreAt(sk.d) + 0.06 * Math.sin(wt * 0.9 + sk.d * 0.3)) * HH

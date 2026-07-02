@@ -40,18 +40,19 @@ export const introI1I2: Script = {
     { t: 'camera', to: SPAWN, zoom: 1.7, ms: 1600 },           // settle to scene scale
     { t: 'say', who: 'Thor', text: '...Where is this?' },
 
-    // ---- I-2 · the bottle (it must be IMPOSSIBLE to miss — Ash) ----
-    { t: 'wait', ms: 900 },                                    // beat of quiet, the cove alive
-    { t: 'stage', call: 'bottleWave', data: { d: BOTTLE_D } }, // the delivering wave (blocks)
-    { t: 'wait', ms: 400 },
+    // ---- I-2 · the bottle (unmissable, and quick — Ash: it dragged) ----
+    { t: 'wait', ms: 400 },                                    // one breath, the cove alive
+    { t: 'stage', call: 'bottleWave', data: { d: BOTTLE_D } }, // rides the FIRST front to launch
+    { t: 'wait', ms: 300 },
     { t: 'actorFace', actor: 'thor', dir: 'north' },           // ear-perk: he spots it
-    { t: 'camera', to: BOTTLE_AT, zoom: 2.1, ms: 900 },        // the LOOK: camera points at it
+    { t: 'camera', to: BOTTLE_AT, zoom: 2.1, ms: 800 },        // the LOOK: camera points at it
     { t: 'fx', name: 'glint', at: BOTTLE_AT },
-    { t: 'caption', text: 'Something washed ashore.', ms: 1400 },
-    { t: 'fx', name: 'glint', at: BOTTLE_AT },
-    { t: 'camera', to: SPAWN, zoom: 1.7, ms: 800 },            // back to Thor: your move
+    { t: 'caption', text: 'Something washed ashore.', ms: 1200 },
+    { t: 'camera', to: SPAWN, zoom: 1.7, ms: 700 },            // back to Thor: your move
+    { t: 'stage', call: 'pointAt', data: BOTTLE_AT },          // the guide chevron
     { t: 'fx', name: 'glint', at: BOTTLE_AT },
     { t: 'gate', kind: 'walkTo', target: WALK_STOP, radius: 0.9, prompt: 'walk to it', idleAutoMs: 6000 },
+    { t: 'stage', call: 'pointClear' },
     { t: 'actorFace', actor: 'thor', dir: 'north-west' },
     { t: 'camera', to: BOTTLE_AT, zoom: 2.6, ms: 2500 },       // the slow push-in
     { t: 'fx', name: 'glint', at: BOTTLE_AT },                 // the sun flares off the glass
@@ -65,6 +66,25 @@ export const introI1I2: Script = {
     { t: 'stage', call: 'hideBottle' },
     { t: 'camera', to: WALK_STOP, zoom: 1.7, ms: 1200 },
     { t: 'cameraFollow', actor: 'thor' },
+
+    // ---- I-4 · the walk to the port (player-driven; the pier is the only exit) ----
+    { t: 'say', who: 'Thor', text: 'A boat with my name on it. Might as well see her.' },
+    { t: 'stage', call: 'showBoatName' },                      // her fresh name hangs at the berth
+    { t: 'stage', call: 'pointAt', data: { x: 73, y: 44.5 } }, // the chevron leads: the pier
+    { t: 'gate', kind: 'walkTo', target: { x: 73, y: 44.5 }, radius: 1.3, prompt: 'head for the pier', idleAutoMs: 14000 },
+    { t: 'stage', call: 'pointAt', data: { ship: true } },     // ...then the ship herself
+    { t: 'gate', kind: 'walkTo', target: { x: 73, y: 33 }, radius: 1.4, prompt: 'walk out to her', idleAutoMs: 12000 },
+    { t: 'stage', call: 'pointClear' },
+    { t: 'stage', call: 'boardShip' },                         // the hop arc; he takes the deck
+
+    // ---- I-5 · setting sail (the one big button moment) ----
+    { t: 'wait', ms: 600 },
+    { t: 'gate', kind: 'ui', id: 'set-sail' },                 // the enormous carved plank
+    { t: 'audio', cue: 'sail-snap' },
+    { t: 'stage', call: 'pilotTo' },                           // forward, starboard to open sea, run out
+    { t: 'wait', ms: 400 },
     { t: 'letterbox', on: false },
+    // the runtime completes here; the scene hands off to THE MAP SWITCH (I-6) — the
+    // BLHS Islands loading painting, then the island map (wired in IntroScene's onDone)
   ],
 }

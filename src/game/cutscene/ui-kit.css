@@ -36,7 +36,7 @@
 }
 .cs-dialogue-text {
   font-family: 'Deckhand', monospace;
-  font-size: clamp(15px, 2.5vh, 21px);
+  font-size: clamp(24px, 4.2vh, 36px);
   line-height: 1.5;
   color: #3b2a1a;
   text-shadow: 0 1px 0 rgba(255, 250, 235, .35);

@@ -11,6 +11,7 @@ if (new URLSearchParams(location.search).has('fresh')) clearSave()
 import { track } from '../telemetry'
 import { GearButton, SettingsPanel } from '../../app/SettingsPanel'
 import { Hud } from '../hud/Hud'
+import { useNav } from '../../app/SceneManager'
 
 // The intro lives ON the beach — one scene, playable and stageable. A fresh player gets the
 // I-1/I-2 cutscene the moment the stage reports ready; a returning one just gets the cove.
@@ -21,6 +22,9 @@ export default function IntroScene() {
   const [rt, setRt] = useState<CutsceneRuntime | null>(null)
   const live = useRef<CutsceneRuntime | null>(null)
   const [, bump] = useState(0)
+  const nav = useNav()
+  const navRef = useRef(nav)
+  useEffect(() => { navRef.current = nav }, [nav])
   // when the intro will play, the scene must NEVER flash the raw beach before the script's
   // black takes over — this cover holds until the runtime's own fade owns the frame
   const willPlayIntro = useRef(!loadSave()?.introDone && (loadSave()?.beat ?? 'intro:i1') === 'intro:i1')
@@ -40,8 +44,12 @@ export default function IntroScene() {
     if (!save?.introDone && beat === 'intro:i1') {
       track('cutscene_start', { id: 'intro' })
       runtime.play(introI1I2, () => {
-        writeSave({ beat: 'intro:i4' })
-        track('cutscene_complete', { id: 'intro-i1-i2' })
+        // the whole beach act is done (I-1..I-5): the ship is in open water — THE MAP
+        // SWITCH (I-6): the BLHS Islands painting covers the load, the island map takes over
+        writeSave({ beat: 'intro:i6' })
+        track('cutscene_complete', { id: 'intro-beach-act' })
+        track('sail_started')
+        navRef.current?.go('islandmap', { kind: 'scene', image: '/art/ui/loading-islands.png', title: 'THE BLHS ISLANDS', holdMs: 2600 })
       })
       // hand the black frame from the pre-cover to the script's own fade, seamlessly
       window.setTimeout(() => setPreCover(false), 400)
@@ -64,6 +72,14 @@ export default function IntroScene() {
       </div>
       {rt && (
         <CutsceneOverlay rt={rt}>
+          {uiGate === 'set-sail' && (
+            <div className="i5-setsail">
+              <button
+                className="i3-plank i5-plank"
+                onClick={() => { track('sail_confirmed'); rt.resolveUi('set-sail') }}
+              >Set Sail</button>
+            </div>
+          )}
           {uiGate === 'i3-session' && (
             <I3Session
               onDone={(r) => {
