@@ -227,15 +227,20 @@
   padding: 0 12%;
 }
 .ti-newvoyage {
-  background: none; border: none; cursor: pointer;
+  /* a real, visible secondary button (Ash: never white highlighted text) */
   font-family: 'Deckhand', monospace;
-  font-size: clamp(12px, 1.9vh, 16px);
-  color: #cfe3da;
-  text-shadow: 0 1px 2px rgba(4, 10, 12, .8);
-  opacity: .82;
-  transition: opacity 140ms ease;
+  font-size: clamp(13px, 2vh, 17px);
+  color: #e8dcc0;
+  background: linear-gradient(#4a3421, #382614);
+  border: 2px solid #241708;
+  border-radius: 4px;
+  padding: 6px 22px 8px;
+  box-shadow: 0 2px 0 #1a1006, inset 0 1px 0 rgba(210, 170, 110, .3);
+  cursor: pointer;
+  transition: transform 130ms ease, filter 130ms ease;
 }
-.ti-newvoyage:hover { opacity: 1; text-decoration: underline; }
+.ti-newvoyage:hover { transform: translateY(-1px); filter: brightness(1.12); }
+.ti-newvoyage:active { transform: translateY(1px); }
 
 .ti-credit {
   position: absolute; bottom: 2.4vh; left: 0; right: 0;

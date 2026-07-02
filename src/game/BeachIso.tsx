@@ -299,7 +299,9 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         load('pierIso', '/art/intro/port/pier-iso2.png'), load('dockPlat', '/art/intro/port/dock-platform2.png'),
         load('ship', '/art/intro/port/ship.png'), load('boatAnchor', '/art/intro/port/boat-anchored.png'),
         load('boatFish', '/art/intro/port/boat-fishing.png'),
-        ...[0, 1, 2, 3, 4, 5, 6, 7].map(b => load('shipV' + b, `/art/intro/port/ship-v${b}.png`)),
+        load('shipPlan', '/art/intro/port/deckplan.png'),
+        load('rigF', '/art/intro/port/parts/rigF.png'), load('rigB', '/art/intro/port/parts/rigB.png'),
+        load('shipStern', '/art/intro/port/parts/stern.png'), load('shipJib', '/art/intro/port/parts/jib.png'),
         ...Object.entries(PROP_SRC).map(([k, u]) => load(k, u)),
       ])
       // ---- DRAWN-GEOMETRY measurement: read a texture's pixels once and find where its art
@@ -771,87 +773,37 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         g.width = g.height = size; g.position.set(gx, gy); g.zIndex = z
         world.addChild(g); glows.push({ sp: g, ph: hash(gx, gy) * 6.28 })
       }
-      // ---- THE SHIP IS A VEHICLE (Ash: boardable, walkable deck, driveable, ocean-only).
-      // The heading is a CONTINUOUS angle (tile-space radians) steered with an inertial
-      // rudder, so she sails smooth arcs; the ART is the nearest of 8 screen-compass
-      // views (dry-docked master inpainted whole, then rotated — no baked water anywhere;
-      // each view is cropped at a straight horizontal WATERLINE, because that is how
-      // water actually cuts a hull, and sits in OUR ocean with the code foam ring).
-      // THE DRAWN-BASIS LAW: everything the player TOUCHES — the deck frame Thor walks
-      // in, the helm point, the rails, board/disembark geometry, wake spawn points —
-      // uses the DRAWN view's axis (BANG), never the physics angle. Only path
-      // integration uses V.ang. Mixing them slid Thor around a static image while he
-      // "stood" at the wheel. The helm is a PILOT SEAM: keyboard today, phase-2
-      // cutscenes hand the same boat a scripted pilot instead of key input. ----
-      // Views in screen-octant order 0 E, 1 SE, 2 S, 3 SW, 4 W, 5 NW, 6 N, 7 NE
-      // (scripts/_archive/ship_views_v5.py measures the lamp per view; ay=1 -> the
-      // texture's bottom row IS the waterline).
-      // uClamp = the DRAWN stand-point range on bow-on/stern-on views, where the true
-      // helm (deep astern) would project Thor onto the sail stack — visual only, the
-      // logical u (rails, disembark) is untouched
-      // w = each view's drawn hull width, so the waterline foam ring hugs the silhouette
-      // (one 152px ring under a 73px bow-on hull was why the S/N headings read floating)
-      const SHIPMETA: { ay: number; deckH: number; lampX: number; lampY: number; w: number; uClamp?: [number, number] }[] = [
-        { ay: 1, deckH: 26, lampX: 5, lampY: -50, w: 175 },   // E
-        { ay: 1, deckH: 26, lampX: 6, lampY: -91, w: 100 },   // SE
-        { ay: 1, deckH: 26, lampX: 0, lampY: -106, w: 73, uClamp: [-0.5, 0.6] },  // S
-        { ay: 1, deckH: 26, lampX: 10, lampY: -57, w: 173 },  // SW
-        { ay: 1, deckH: 26, lampX: -5, lampY: -50, w: 175 },  // W
-        { ay: 1, deckH: 26, lampX: -13, lampY: -51, w: 162 }, // NW
-        { ay: 1, deckH: 26, lampX: 3, lampY: -90, w: 84, uClamp: [-0.5, 0.6] },   // N
-        { ay: 1, deckH: 26, lampX: -16, lampY: -77, w: 158 }, // NE
-      ]
-      // the visual mid-deck only (the sterncastle and bow are not walkable), helm at the
+      // ---- THE SHIP IS A VEHICLE (Ash: boardable, walkable deck, driveable, ocean-only),
+      // and she turns SMOOTHLY: no pre-drawn view faces (Ash rejected the 45-degree image
+      // shifts; PixelLab's ceiling is 8 views). THE FLAT-PLAN RIG: the hull is a TOP-DOWN
+      // deck-plan sprite rotated CONTINUOUSLY inside a y-squashed container — rotate-then-
+      // squash is the exact projection for anything lying on the water plane — over two
+      // dark offset copies of itself (the extruded hull sides) and a rotating contact
+      // ring. The verticals (sails, stern transom + lamp, jib) are upright BILLBOARDS
+      // pinned to rotating deck anchors; the square sails swap front/back exactly where
+      // they are edge-on and thinnest, so no swap ever pops. One continuous frame for
+      // everything: Thor's deck math IS the physics heading. The helm is a PILOT SEAM:
+      // keyboard today, phase-2 cutscenes hand the same boat a scripted pilot. ----
+      const DECKH = 26 // Thor's ride height over the waterline
+      const PLANSC = 1.2 // deck-plan sprite scale (hull ~193px broadside, ~20px deck depth)
+      // walkable deck rect in tile units (the drawn hull runs to ~±2.1u); helm at the
       // quarterdeck front
-      const UMAX = 0.95, VMAX = 0.32, HELM_U = -0.75
+      const UMAX = 1.4, VMAX = 0.36, HELM_U = -1.0
       type Hop = { t: number; ax: number; ay: number; bx: number; by: number; lift0: number; lift1: number; to: 'deck' | 'land'; landLayer?: number }
       type Veh = {
-        tx: number; ty: number; ang: number; rud: number; bucket: number; spd: number
+        tx: number; ty: number; ang: number; rud: number; spd: number
         state: 'moored' | 'anchored' | 'deck' | 'helm'
         u: number; v: number
-        hull: Sprite; ring: Sprite; glowI: number
+        sq: Container; plan: Sprite; rimA: Sprite; rimB: Sprite; ring: Sprite
+        rigF: Sprite; rigB: Sprite; sternP: Sprite; jib: Sprite
+        glowI: number
         berthTx: number; berthTy: number
         hop: Hop | null; bob: number
       }
       let veh: Veh | null = null
-      // heading -> continuous screen-octant coordinate (1.0 per view, in (-4, 4])
-      const bucketCoord = (ang: number) => {
-        const sx = (Math.cos(ang) - Math.sin(ang)) * HW, sy = (Math.cos(ang) + Math.sin(ang)) * HH
-        return Math.atan2(sy, sx) / (Math.PI / 4)
-      }
-      // BANG[k] = the tile-space heading whose iso projection points at octant k's exact
-      // screen center: the canonical axis of the DRAWN view (inverse 2:1 projection)
-      const BANG = Array.from({ length: 8 }, (_, k) => {
-        const phi = k * Math.PI / 4
-        return Math.atan2(Math.sin(phi) / HH - Math.cos(phi) / HW, Math.cos(phi) / HW + Math.sin(phi) / HH)
-      })
-      // nearest of the 8 views WITH hysteresis: the view only swaps once the heading is
-      // decisively inside the next octant (0.5 = the boundary), so a hand resting on the
-      // rudder never flickers the sprite
-      const setBucket = (V: Veh, force = false) => {
-        const bc = ((bucketCoord(V.ang) % 8) + 8) % 8
-        const b = Math.round(bc) % 8
-        if (!force && V.bucket >= 0) {
-          if (b === V.bucket) return
-          let d = Math.abs(bc - V.bucket) % 8 // view centers sit at integer coords
-          d = Math.min(d, 8 - d)
-          if (d < 0.64) return
-        }
-        V.bucket = b
-        const t = tex['shipV' + b] ?? tex['ship']
-        if (t) {
-          V.hull.texture = t
-          V.hull.anchor.set(0.5, SHIPMETA[b].ay)
-        }
-      }
-      // the drawn view's basis vector (the axis Thor's deck frame lives in)
-      const dBasis = (V: Veh) => {
-        const a = V.bucket >= 0 ? BANG[V.bucket] : V.ang
-        return { c: Math.cos(a), s: Math.sin(a) }
-      }
-      // world-tile point of a deck-local (u,v) in the DRAWN frame
+      // world-tile point of a deck-local (u along the keel toward the bow, v to starboard)
       const deckWorld = (V: Veh, u: number, v: number) => {
-        const { c, s } = dBasis(V)
+        const c = Math.cos(V.ang), s = Math.sin(V.ang)
         return { tx: V.tx + c * u - s * v, ty: V.ty + s * u + c * v }
       }
       // The hull is a rotation-invariant CIRCLE of probes (center + 8 at r=1.5), so what
@@ -863,7 +815,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         let pen = 0
         for (let i = 0; i < 9; i++) {
           const a = i * Math.PI / 4
-          const px3 = i === 8 ? tx : tx + Math.cos(a) * 1.5, py3 = i === 8 ? ty : ty + Math.sin(a) * 1.5
+          const px3 = i === 8 ? tx : tx + Math.cos(a) * 1.6, py3 = i === 8 ? ty : ty + Math.sin(a) * 1.6
           if (px3 < 5 || py3 < 5 || px3 > COLS - 5 || py3 > ROWS - 5) { pen += 5; continue }
           pen += Math.max(0, (px3 + py3) - (shoreAt(px3 - py3) - 1.2)) // draft: the bow may kiss the pale shelf
           // structure tiles penalize by DEPTH into the tile, not a flat amount — a flat
@@ -966,21 +918,39 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         }
         // THE VEHICLE spawns at its BERTH: alongside the platform's NE edge, hull parallel
         // to it, pulled clear of the deck so nothing overlaps (Ash's circle), bow seaward
-        // up-left (ang = pi -> the NW view, octant 5) ready to sail out
-        if (tex['shipV5'] || tex['ship']) {
+        // up-left (ang = pi) ready to sail out
+        if (tex['shipPlan']) {
           // 1.55 tiles off the NE edge + 0.3 up along it: the hull clears the corner post
           const bx0 = plat.x + 169.5 + 1.55 * HW - 0.3 * HW, by0 = plat.y + 63.5 - 1.55 * HH - 0.3 * HH
           const btx = (bx0 / HW + by0 / HH) / 2, bty = (by0 / HH - bx0 / HW) / 2
+          // the water-plane group: contact ring + two dark extrusion copies + the deck
+          // plan, all rotated per-frame inside one y-squashed container
+          const sq = new Container(); sq.scale.y = 0.5
+          world.addChild(sq)
+          const mk = (t: Texture | undefined, tint?: number) => {
+            const sp = new Sprite(t); sp.anchor.set(0.5)
+            sp.scale.set(PLANSC)
+            if (tint !== undefined) sp.tint = tint
+            sq.addChild(sp)
+            return sp
+          }
           const ring = new Sprite(shadowTexLife); ring.anchor.set(0.5)
           ring.tint = 0xeafff6; ring.blendMode = 'add'
-          ring.width = 150; ring.height = 34; ring.alpha = 0.4
-          world.addChild(ring)
-          const hull = new Sprite()
-          world.addChild(hull)
+          ring.width = 216; ring.height = 88
+          sq.addChild(ring)
+          const rimB2 = mk(tex['shipPlan'], 0x241309); rimB2.y = 11 // deep hull side
+          const rimA = mk(tex['shipPlan'], 0x5a3620); rimA.y = 5.5 // lit hull side
+          const plan = mk(tex['shipPlan'])
+          // upright billboards, feet on the deck; drawn order comes from per-frame z
+          const bb = (t: Texture | undefined) => {
+            const sp = new Sprite(t); sp.anchor.set(0.5, 1)
+            world.addChild(sp)
+            return sp
+          }
+          const rigB = bb(tex['rigB']), sternP = bb(tex['shipStern']), jib = bb(tex['shipJib']), rigF = bb(tex['rigF'])
           const glowI = glows.length
-          addGlow(0, 0, 44, 0) // stern lamp; repositioned every frame with the hull
-          veh = { tx: btx, ty: bty, ang: Math.PI, rud: 0, bucket: -1, spd: 0, state: 'moored', u: 0, v: 0, hull, ring, glowI, berthTx: btx, berthTy: bty, hop: null, bob: 0 }
-          setBucket(veh, true)
+          addGlow(0, 0, 44, 0) // stern lamp; repositioned every frame with the transom
+          veh = { tx: btx, ty: bty, ang: Math.PI, rud: 0, spd: 0, state: 'moored', u: 0, v: 0, sq, plan, rimA, rimB: rimB2, ring, rigF, rigB, sternP, jib, glowI, berthTx: btx, berthTy: bty, hop: null, bob: 0 }
         }
         // jetty lantern glow breathes at its measured pixels
         addGlow(jet.x + 26 * JSC, jet.y + 65 * JSC, 54, jettyZ + 3)
@@ -1144,7 +1114,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           const o = (data ?? {}) as { d?: number; instant?: boolean }
           const d = o.d ?? 3
           const sBeach = shoreAt(d) + TIDE_AMP * 0.72 // comfortably inside the wave's max reach
-          csActorEnsure('bottle', '/art/intro/props/bottle.png', 0.30)
+          csActorEnsure('bottle', '/art/intro/props/bottle.png', 0.42)
           if (o.instant) {
             bottleWave = null
             csActorPlace('bottle', (sBeach + d) / 2, (sBeach - d) / 2)
@@ -1297,7 +1267,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           const bt = at / 1000
           // a calm ride: the swell lifts her gently and only a touch more under way (kept
           // small — the straight waterline crop must never lift clear of the foam ring)
-          V.bob = Math.sin(bt * (0.75 + V.spd * 3) + 2.1) * 1.6 * (1 + V.spd * 1.5)
+          V.bob = Math.sin(bt * (0.75 + V.spd * 5) + 2.1) * 1.1 * (1 + V.spd * 4)
           // the pilot (helm only): A/D is the RUDDER, W the throttle, S brakes, nothing
           // coasts her down long and gently. The rudder is INERTIAL — it lays over in
           // about a third of a second — so every course change eases in and out instead
@@ -1308,13 +1278,15 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             const dtc = Math.min(dt, 2)
             const steer = ((keys['d'] || keys['arrowright']) ? 1 : 0) - ((keys['a'] || keys['arrowleft']) ? 1 : 0)
             V.rud += (steer - V.rud) * Math.min(1, 0.085 * dtc)
-            if (Math.abs(V.rud) > 0.003) V.ang += V.rud * (0.014 + 0.014 * (Math.abs(V.spd) / 0.08)) * dtc
-            if (keys['w'] || keys['arrowup']) V.spd = Math.min(0.08, V.spd + 0.0022 * dtc)
+            // she is a SHIP, not a speedboat: half the old top speed, a slow build, a long
+            // coast — and a sailboat steers with WAY ON, so rudder authority builds with
+            // speed and is nearly dead at rest (back out first, then swing)
+            if (Math.abs(V.rud) > 0.003) V.ang += V.rud * (0.003 + 0.017 * (Math.abs(V.spd) / 0.042)) * dtc
+            if (keys['w'] || keys['arrowup']) V.spd = Math.min(0.042, V.spd + 0.001 * dtc)
             // S through zero = SLOW ASTERN: a hull nosed into a pocket the rudder can't
             // swing out of backs straight off it, the move every sailor reaches for
-            else if (keys['s'] || keys['arrowdown']) V.spd = Math.max(-0.032, V.spd - 0.004 * dtc)
-            else V.spd = V.spd > 0 ? Math.max(0, V.spd - 0.0008 * dtc) : Math.min(0, V.spd + 0.002 * dtc)
-            setBucket(V)
+            else if (keys['s'] || keys['arrowdown']) V.spd = Math.max(-0.018, V.spd - 0.0025 * dtc)
+            else V.spd = V.spd > 0 ? Math.max(0, V.spd - 0.0004 * dtc) : Math.min(0, V.spd + 0.0012 * dtc)
           } else { V.rud *= Math.max(0, 1 - 0.1 * Math.min(dt, 2)); V.spd += (0 - V.spd) * Math.min(1, 0.05 * Math.min(dt, 2)) }
           if (Math.abs(V.spd) > 0.0001) {
             const step = V.spd * Math.min(dt, 2)
@@ -1339,7 +1311,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           // never step off the gunwale into open water. The walk anim only plays when he
           // actually moves (pushing a rail used to moonwalk in place).
           if (V.state === 'deck' && !V.hop && moving) {
-            const { c: c2, s: s2 } = dBasis(V) // walk in the DRAWN frame, not the physics one
+            const c2 = Math.cos(V.ang), s2 = Math.sin(V.ang)
             const l2 = Math.hypot(dx, dy), ux2 = dx / l2, uy2 = dy / l2
             const du = ux2 * c2 + uy2 * s2, dv2 = ux2 * -s2 + uy2 * c2
             const ws = 0.052 * Math.min(dt, 2)
@@ -1365,7 +1337,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
                 // she stays ANCHORED where she was left (an on-screen teleport home from
                 // across the bay read as a glitch)
                 const berthD = Math.hypot(V.tx - V.berthTx, V.ty - V.berthTy)
-                if ((hp.landLayer === 1 && berthD < 6) || berthD < 1.6) { V.tx = V.berthTx; V.ty = V.berthTy; V.ang = Math.PI; setBucket(V, true); V.state = 'moored' }
+                if ((hp.landLayer === 1 && berthD < 6) || berthD < 1.6) { V.tx = V.berthTx; V.ty = V.berthTy; V.ang = Math.PI; V.state = 'moored' }
                 else V.state = 'anchored'
               }
               V.hop = null
@@ -1373,11 +1345,10 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           } else if (V.state === 'deck' || V.state === 'helm') {
             if (V.state === 'helm') {
               V.u = HELM_U; V.v = 0
-              const { c: c3, s: s3 } = dBasis(V)
-              facing = dirFromAngle((c3 - s3) * HW, (c3 + s3) * HH) // face where the DRAWN bow points
+              const c3 = Math.cos(V.ang), s3 = Math.sin(V.ang)
+              facing = dirFromAngle((c3 - s3) * HW, (c3 + s3) * HH) // face where the bow points
             }
-            const uc = SHIPMETA[V.bucket]?.uClamp
-            const w2 = deckWorld(V, uc ? Math.max(uc[0], Math.min(uc[1], V.u)) : V.u, V.v)
+            const w2 = deckWorld(V, V.u, V.v)
             pos.tx = w2.tx; pos.ty = w2.ty
             bobOff = V.bob
           }
@@ -1390,17 +1361,17 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             if (V.state === 'moored' || V.state === 'anchored') {
               // boarding is judged by the true JUMP GAP: Thor to the nearest point of the
               // walkable deck rect, not to the hull center (the near rail is a tile closer)
-              const { c: c4, s: s4 } = dBasis(V)
+              const c4 = Math.cos(V.ang), s4 = Math.sin(V.ang)
               const relx = pos.tx - V.tx, rely = pos.ty - V.ty
               const u0 = relx * c4 + rely * s4, v0 = relx * -s4 + rely * c4
               const uL = Math.max(-UMAX * 0.7, Math.min(UMAX * 0.7, u0))
               const vL = Math.max(-VMAX * 0.6, Math.min(VMAX * 0.6, v0))
               const near = deckWorld(V, uL, vL)
               if (Math.hypot(pos.tx - near.tx, pos.ty - near.ty) < 4.4) {
-                label = 'Board'; cpx = bxp; cpy = byp - V.hull.height * 0.94; cpz = bz + 40
+                label = 'Board'; cpx = bxp; cpy = byp - 150; cpz = bz + 40
                 action = () => {
                   V.state = 'deck'; V.u = uL; V.v = vL
-                  V.hop = { t: 0, ax: pos.tx, ay: pos.ty, bx: near.tx, by: near.ty, lift0: renderLift, lift1: SHIPMETA[V.bucket]?.deckH ?? 26, to: 'deck' }
+                  V.hop = { t: 0, ax: pos.tx, ay: pos.ty, bx: near.tx, by: near.ty, lift0: renderLift, lift1: DECKH, to: 'deck' }
                 }
               }
             } else {
@@ -1408,7 +1379,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
               if (V.state === 'deck') {
                 // disembark beats the helm when both are in reach; only offered AT a rail
                 // with honest land (or dock) inside jump range on that side
-                const { c: c5, s: s5 } = dBasis(V)
+                const c5 = Math.cos(V.ang), s5 = Math.sin(V.ang)
                 const pxd = -s5, pyd = c5
                 const dirs2: [number, number][] = []
                 if (V.v > VMAX - 0.12) dirs2.push([pxd, pyd])
@@ -1450,41 +1421,67 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           } else chipSp.visible = false
           if (keys['e'] && !eHeld && action) action()
           eHeld = !!keys['e']
-          // hull, waterline ring, stern lamp ride together
-          const M = SHIPMETA[V.bucket] ?? SHIPMETA[1]
-          V.hull.position.set(bxp, byp + V.bob)
-          V.hull.zIndex = bz
-          V.ring.position.set(bxp, byp + 6)
-          V.ring.zIndex = bz - 1
-          V.ring.alpha = 0.42 + 0.1 * Math.sin(bt * 0.55 + 1.1) + Math.min(0.25, Math.abs(V.spd) * 3)
-          const rw = M.w * 1.22 + Math.min(60, Math.abs(V.spd) * 500)
-          V.ring.width = rw
-          // narrow bow-on hulls get a rounder pool so the contact still reads
-          V.ring.height = Math.max(rw * 0.23, M.w < 110 ? 38 : 0)
+          // ---- THE FLAT-PLAN RENDER: hull group rotates continuously; rig billboards
+          // ride their deck anchors and z-sort among themselves (and Thor) by how far
+          // down-screen each anchor sits ----
+          const cA = Math.cos(V.ang), sA = Math.sin(V.ang)
+          const fwdX = (cA - sA) / 1.41421356, fwdY = (cA + sA) / 1.41421356 // unit screen dir of the bow (y before squash)
+          // plan rotation: bow-up art turned to the heading's pre-squash screen angle
+          const phi = Math.atan2(cA + sA, cA - sA) + Math.PI / 2
+          V.sq.position.set(bxp, byp + V.bob)
+          V.sq.zIndex = bz
+          V.plan.rotation = phi; V.rimA.rotation = phi; V.rimB.rotation = phi; V.ring.rotation = phi
+          // quiet waterline contact — barely brighter under way (a speed-flare reads
+          // as a motorboat glow, not a hull sitting in the sea)
+          V.ring.alpha = 0.34 + 0.08 * Math.sin(bt * 0.55 + 1.1) + Math.min(0.1, Math.abs(V.spd) * 1.6)
+          // billboards: feet at their deck anchors, 12px of freeboard, z by screen depth
+          const zOf = (py5: number) => bz + 8 + Math.max(-6, Math.min(6, Math.round((py5 - byp) * 0.4)))
+          const putPart = (sp: Sprite, u6: number, v6: number) => {
+            const w6 = deckWorld(V, u6, v6)
+            const px6 = isoX(w6.tx, w6.ty), py6 = isoY(w6.tx, w6.ty)
+            sp.position.set(px6, py6 - 12 + V.bob)
+            sp.zIndex = zOf(py6)
+            return { px6, py6 }
+          }
+          // square sails: width breathes between broadside (0.55) and bow/stern-on (1),
+          // swapping front/back exactly where they are edge-on and thinnest; mirrored so
+          // the lit side follows the bow. The jib does the opposite, living off the bow.
+          const tFace = Math.abs(fwdY), mir = fwdX < 0 ? -1 : 1
+          const rigOn = fwdY >= 0 ? V.rigF : V.rigB
+          const rigOff = fwdY >= 0 ? V.rigB : V.rigF
+          rigOff.visible = false
+          rigOn.visible = true
+          putPart(rigOn, -0.08, 0)
+          rigOn.scale.x = (0.55 + 0.45 * tFace) * mir
+          putPart(V.jib, 1.66, 0)
+          V.jib.scale.x = (0.5 + 0.5 * Math.abs(fwdX)) * mir
+          V.jib.alpha = 0.55 + 0.45 * Math.abs(fwdX) // fades as the bow points up/down screen
+          const stPos = putPart(V.sternP, -1.62, 0)
+          V.sternP.scale.x = mir
           const gl = glows[V.glowI]
-          gl.sp.position.set(bxp + M.lampX, byp + M.lampY + V.bob)
-          gl.sp.zIndex = bz + 3
-          // WAKE: bow spray both sides + stern wash while under way, drifting out and astern
-          if ((V.spd > 0.03 || (boatBlocked && Math.abs(V.spd) > 0.004)) && bt - lastPuff > 0.055 / (1 + Math.abs(V.spd) * 10)) { // denser at speed; grounded = slow lapping
+          gl.sp.position.set(stPos.px6, stPos.py6 - 12 + V.bob - 34)
+          gl.sp.zIndex = V.sternP.zIndex + 1
+          // WAKE: quiet white foam lace — normal blend, low alpha, slow drift. Spawn
+          // pushed past the drawn bow so foam never draws ON the hull.
+          if ((V.spd > 0.016 || (boatBlocked && Math.abs(V.spd) > 0.004)) && bt - lastPuff > 0.05 / (1 + Math.abs(V.spd) * 18)) {
             lastPuff = bt + (hash(V.tx * 7.1, bt) - 0.5) * 0.02
             const c6 = Math.cos(V.ang), s6 = Math.sin(V.ang) // drift follows the TRUE motion
-            const { c: cD, s: sD } = dBasis(V)               // spawn points hug the DRAWN hull
-            const pxd = -sD, pyd = cD
-            for (const side of [-0.55, 0.55, 99] as const) {
+            const pxd = -s6, pyd = c6
+            for (const side of [-0.62, 0.62, 99] as const) {
               const stern = side === 99
-              const w3 = deckWorld(V, stern ? -1.7 : 1.5, stern ? 0 : side)
+              const w3 = deckWorld(V, stern ? -2.2 : 2.3, stern ? 0 : side)
               const ovx = stern ? 0 : Math.sign(side)
-              const tvx = pxd * ovx * 0.55 - c6 * (stern ? 0.9 : 0.35)
-              const tvy = pyd * ovx * 0.55 - s6 * (stern ? 0.9 : 0.35)
+              const tvx = pxd * ovx * 0.38 - c6 * (stern ? 0.6 : 0.24)
+              const tvy = pyd * ovx * 0.38 - s6 * (stern ? 0.6 : 0.24)
               const sp3 = new Sprite(shadowTexLife)
-              sp3.anchor.set(0.5); sp3.tint = 0xeafff6; sp3.blendMode = 'add'
-              const s0 = (stern ? 50 : 28) * (0.7 + Math.abs(V.spd) * 6)
+              sp3.anchor.set(0.5); sp3.tint = 0xf6fffb
+              const s0 = (stern ? 34 : 20) * (0.7 + Math.abs(V.spd) * 8)
               sp3.width = s0; sp3.height = s0 * 0.45
               sp3.position.set(isoX(w3.tx, w3.ty), isoY(w3.tx, w3.ty) + 4)
               // above the aerial veil strip of its own row, or the wash swallows the foam
               sp3.zIndex = Math.floor(w3.tx + w3.ty) * 16 + 19
               world.addChild(sp3)
-              wakeFx.push({ sp: sp3, vx: (tvx - tvy) * HW / 1000, vy: (tvx + tvy) * HH / 1000, age: 0, life: stern ? 1400 : 800, s0 })
+              wakeFx.push({ sp: sp3, vx: (tvx - tvy) * HW / 1000, vy: (tvx + tvy) * HH / 1000, age: 0, life: stern ? 1900 : 900, s0 })
             }
           }
           for (let i = wakeFx.length - 1; i >= 0; i--) {
@@ -1493,7 +1490,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             const k3 = p.age / p.life
             if (k3 >= 1) { p.sp.destroy(); wakeFx.splice(i, 1); continue }
             p.sp.x += p.vx * tk.deltaMS; p.sp.y += p.vy * tk.deltaMS
-            p.sp.alpha = 0.85 * (1 - k3) // strong enough to read on the bright shallows too
+            p.sp.alpha = 0.32 * (1 - k3) // foam, not glow
             p.sp.width = p.s0 * (1 + k3 * 1.6); p.sp.height = p.sp.width * 0.45
           }
         }
@@ -1501,7 +1498,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         // surface height rules, eased so stepping up reads as climbing, not teleporting
         const here = surfAt(Math.round(pos.tx), Math.round(pos.ty))
         const aboardNow = !!veh && (veh.state === 'deck' || veh.state === 'helm') && !veh.hop
-        const targetLift = aboardNow ? (SHIPMETA[veh!.bucket]?.deckH ?? 26) : (here.layer > 0 || here.trans ? here.lift : liftAt(pos.tx, pos.ty))
+        const targetLift = aboardNow ? DECKH : (here.layer > 0 || here.trans ? here.lift : liftAt(pos.tx, pos.ty))
         if (!(veh && veh.hop)) renderLift += (targetLift - renderLift) * Math.min(1, dt * 0.28)
         const x = isoX(pos.tx, pos.ty), y = isoY(pos.tx, pos.ty) - renderLift
         // JUMP (spacebar): a quick eased hop with a mid-air stretch (buffered so a fast tap registers)
@@ -1519,9 +1516,12 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         thor.scale.set(THOR_SC, THOR_SC * breath * stretch)
         thor.position.set(x, y + jy + hopJy + bobOff)
         // +18 keeps him (and his shadow at -1) above the next tile row's ground, below its
-        // props; aboard he always draws over the hull (no per-part mast masking at this scale)
-        thor.zIndex = aboard && veh ? Math.floor(veh.tx + veh.ty) * 16 + 16 : here.layer > 0 ? here.z + 2 : Math.floor(pos.tx + pos.ty) * 16 + 18
-        ;(window as unknown as { __thor: object }).__thor = { tx: pos.tx, ty: pos.ty, layer: here.layer, lift: renderLift, pen, cam: cs.cam ? { ...cs.cam } : null, pose: !!cs.pose, wscale: world.scale.x, boat: veh ? { state: veh.state, tx: +veh.tx.toFixed(2), ty: +veh.ty.toFixed(2), ang: +veh.ang.toFixed(2), bucket: veh.bucket, spd: +veh.spd.toFixed(3), u: +veh.u.toFixed(2), v: +veh.v.toFixed(2) } : null } // dev introspection
+        // props; aboard he z-sorts AMONG the rig billboards by screen depth (in front of a
+        // mast he stands ahead of, behind one he stands behind), always over the deck plan
+        thor.zIndex = aboard && veh
+          ? Math.floor(veh.tx + veh.ty) * 16 + 8 + Math.max(-6, Math.min(6, Math.round((isoY(pos.tx, pos.ty) - isoY(veh.tx, veh.ty)) * 0.4))) + 1
+          : here.layer > 0 ? here.z + 2 : Math.floor(pos.tx + pos.ty) * 16 + 18
+        ;(window as unknown as { __thor: object }).__thor = { tx: pos.tx, ty: pos.ty, layer: here.layer, lift: renderLift, pen, cam: cs.cam ? { ...cs.cam } : null, pose: !!cs.pose, wscale: world.scale.x, boat: veh ? { state: veh.state, tx: +veh.tx.toFixed(2), ty: +veh.ty.toFixed(2), ang: +veh.ang.toFixed(2), spd: +veh.spd.toFixed(3), u: +veh.u.toFixed(2), v: +veh.v.toFixed(2) } : null } // dev introspection
         // shadow: a flat 2:1 iso ellipse pinned right under his feet (no rotation/offset —
         // an offset rotated blade read as levitation); shrinks + fades as he leaps
         const shf = Math.max(0.55, 1 - (-(jy + hopJy)) / 110)

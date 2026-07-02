@@ -40,13 +40,17 @@ export const introI1I2: Script = {
     { t: 'camera', to: SPAWN, zoom: 1.7, ms: 1600 },           // settle to scene scale
     { t: 'say', who: 'Thor', text: '...Where is this?' },
 
-    // ---- I-2 · the bottle ----
+    // ---- I-2 · the bottle (it must be IMPOSSIBLE to miss — Ash) ----
     { t: 'wait', ms: 900 },                                    // beat of quiet, the cove alive
     { t: 'stage', call: 'bottleWave', data: { d: BOTTLE_D } }, // the delivering wave (blocks)
-    { t: 'wait', ms: 600 },
+    { t: 'wait', ms: 400 },
     { t: 'actorFace', actor: 'thor', dir: 'north' },           // ear-perk: he spots it
+    { t: 'camera', to: BOTTLE_AT, zoom: 2.1, ms: 900 },        // the LOOK: camera points at it
     { t: 'fx', name: 'glint', at: BOTTLE_AT },
-    { t: 'wait', ms: 500 },
+    { t: 'caption', text: 'Something washed ashore.', ms: 1400 },
+    { t: 'fx', name: 'glint', at: BOTTLE_AT },
+    { t: 'camera', to: SPAWN, zoom: 1.7, ms: 800 },            // back to Thor: your move
+    { t: 'fx', name: 'glint', at: BOTTLE_AT },
     { t: 'gate', kind: 'walkTo', target: WALK_STOP, radius: 0.9, prompt: 'walk to it', idleAutoMs: 6000 },
     { t: 'actorFace', actor: 'thor', dir: 'north-west' },
     { t: 'camera', to: BOTTLE_AT, zoom: 2.6, ms: 2500 },       // the slow push-in

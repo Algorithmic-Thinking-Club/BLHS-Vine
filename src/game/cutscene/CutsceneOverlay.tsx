@@ -73,8 +73,9 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
         {/* prompt plaque ("walk to it") */}
         {ui.prompt && <div className="cs-prompt">{ui.prompt.text}</div>}
 
-        {/* dialogue — the standard paper box */}
-        {ui.dialogue && (
+        {/* dialogue — the standard paper box (never shown empty: it appears WITH its first
+            characters, so a stalled or just-begun line can't read as a blank sheet) */}
+        {ui.dialogue && (ui.dialogue.shown > 0 || ui.dialogue.done) && (
           <div className="cs-dialogue" style={{ pointerEvents: 'auto' }} onClick={(e) => { e.stopPropagation(); rt.advance() }}>
             {ui.dialogue.who && <div className="cs-nameplaque">{ui.dialogue.who}</div>}
             <div className="cs-dialogue-text">

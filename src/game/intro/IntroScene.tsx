@@ -17,6 +17,10 @@ export default function IntroScene() {
   const [rt, setRt] = useState<CutsceneRuntime | null>(null)
   const live = useRef<CutsceneRuntime | null>(null)
   const [, bump] = useState(0)
+  // when the intro will play, the scene must NEVER flash the raw beach before the script's
+  // black takes over — this cover holds until the runtime's own fade owns the frame
+  const willPlayIntro = useRef(!loadSave()?.introDone && (loadSave()?.beat ?? 'intro:i1') === 'intro:i1')
+  const [preCover, setPreCover] = useState(willPlayIntro.current)
 
   // called once per BeachIso boot — StrictMode double-mounts in dev, so each call REPLACES
   // the runtime (the previous stage's world is destroyed; a runtime bound to it drives a ghost)
@@ -35,6 +39,10 @@ export default function IntroScene() {
         writeSave({ beat: 'intro:i4' })
         track('cutscene_complete', { id: 'intro-i1-i2' })
       })
+      // hand the black frame from the pre-cover to the script's own fade, seamlessly
+      window.setTimeout(() => setPreCover(false), 400)
+    } else {
+      setPreCover(false)
     }
   }, [])
 
@@ -62,6 +70,7 @@ export default function IntroScene() {
       {/* the in-world settings gear (§4.7) — tucked away while a cutscene holds the frame */}
       {!inCutscene && <GearButton onClick={() => setSettingsOpen(true)} />}
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      {preCover && <div style={{ position: 'absolute', inset: 0, background: '#05070a', zIndex: 60 }} />}
     </div>
   )
 }
