@@ -6,7 +6,7 @@
 // totems) swap in as their PixelLab batches land — the composition points stay.
 
 import {
-  PATHS, PORT_THETA, coastPoint, coastDist, freshDist, isleLift, isleSlope, pathDist,
+  LANDS, PATHS, PORT_THETA, coastPoint, coastDist, freshDist, isleLift, isleSlope, pathDist,
   txOf, tyOf, vnoise2,
 } from './shape'
 
@@ -45,25 +45,30 @@ export function composeIsland(): IsleProp[] {
     out.push({ tx: txOf(u, w), ty: tyOf(u, w), img, h, ...o })
   }
 
-  // 1. THE COASTAL FRINGE — the jungle wall wrapped around the whole shoreline: three offset
-  // rings (silhouette back row, dense mid wall, low front brush), gapped at the coves and at
-  // each path's mouth so the ports and trails read as real openings, not holes.
-  const stepTh = (r: number) => 2.4 / r // ~2.4 units of arc per stamp
+  // 1. THE COASTAL FRINGE — the jungle wall wrapped around EVERY landmass's shoreline (the
+  // pad and each toe islet): three offset rings (silhouette back row, dense mid wall, low
+  // front brush), gapped on the pad at the coves and path mouths so ports and trails read
+  // as real openings, not holes.
+  for (let li = 0; li < LANDS.length; li++) {
+  const roughR = li === 0 ? 46 : 12
+  const stepTh = 2.4 / roughR // ~2.4 units of arc per stamp
   for (let ring = 0; ring < 3; ring++) {
-    const inset = [8.5, 6.2, 4.2][ring]
-    for (let th = 0; th < Math.PI * 2; th += stepTh(50)) {
-      const cp = coastPoint(th)
-      const u = cp.u - cp.nx * (inset + rnd(-0.8, 0.8, th * 31, ring))
-      const w = cp.w - cp.ny * (inset + rnd(-0.8, 0.8, th * 17, ring + 5))
-      // gap tests: near a cove or a path mouth, the fringe parts
+    const inset = (li === 0 ? [8.5, 6.2, 4.2] : [6.0, 4.4, 3.0])[ring]
+    for (let th = 0; th < Math.PI * 2; th += stepTh) {
+      const cp = coastPoint(th, li)
+      const u = cp.u - cp.nx * (inset + rnd(-0.8, 0.8, th * 31, ring + li * 7))
+      const w = cp.w - cp.ny * (inset + rnd(-0.8, 0.8, th * 17, ring + 5 + li * 7))
+      // gap tests (pad only): near a cove or a path mouth, the fringe parts
       let gap = 0
-      for (const g of GAP_THETA) {
-        const dd = Math.abs(((th - g + Math.PI) % (Math.PI * 2)) - Math.PI)
-        if (dd < 0.16) gap = 1
+      if (li === 0) {
+        for (const g of GAP_THETA) {
+          const dd = Math.abs(((th - g + Math.PI) % (Math.PI * 2)) - Math.PI)
+          if (dd < 0.16) gap = 1
+        }
+        if (pathDist(txOf(u, w), tyOf(u, w)) < 2.0) gap = 1
       }
-      if (pathDist(txOf(u, w), tyOf(u, w)) < 2.0) gap = 1
       if (gap) continue
-      const hx = th * 57.3, hy = ring * 13.7
+      const hx = th * 57.3 + li * 31, hy = ring * 13.7
       if (ring === 0) {
         // silhouette back row: tall darker palms, the deep-value anchor
         if (hash(hx, hy) > 0.35)
@@ -79,11 +84,12 @@ export function composeIsland(): IsleProp[] {
       }
     }
   }
+  }
 
-  // 2. THE INTERIOR JUNGLE — canopy scattered on a jittered grid, denser and darker with
-  // altitude, parting for paths, river, pool, and the steep rock faces.
-  for (let gu = -60; gu <= 60; gu += 2.6) {
-    for (let gw = -60; gw <= 60; gw += 2.6) {
+  // 2. THE INTERIOR JUNGLE — canopy scattered on a jittered grid over the pad AND the toe
+  // islets, denser and darker with altitude, parting for paths, river, pool, and rock faces.
+  for (let gu = -80; gu <= 80; gu += 2.6) {
+    for (let gw = -80; gw <= 80; gw += 2.6) {
       const u = gu + rnd(-1.1, 1.1, gu, gw), w = gw + rnd(-1.1, 1.1, gw, gu)
       const tx = txOf(u, w), ty = tyOf(u, w)
       const cd = coastDist(tx, ty)
@@ -91,15 +97,15 @@ export function composeIsland(): IsleProp[] {
       if (pathDist(tx, ty) < 1.7) continue
       if (freshDist(tx, ty) < 1.6) continue
       const lift = isleLift(tx, ty), slope = isleSlope(tx, ty)
-      if (slope > 10) {
-        // steep ground: rocks instead of trees
-        if (hash(u * 3, w * 5) > 0.55)
-          add(u, w, hash(u, w) > 0.5 ? 'rockA' : 'rockB', rnd(46, 92, u, w), { flip: hash(u * 7, w) > 0.5, tint: 0xb9c2b4 })
+      if (slope > 12) {
+        // truly cliffy ground: a sparse dark boulder, never a bright stack
+        if (hash(u * 3, w * 5) > 0.82)
+          add(u, w, hash(u, w) > 0.5 ? 'rockA' : 'rockB', rnd(40, 68, u, w), { flip: hash(u * 7, w) > 0.5, tint: 0x8a9184 })
         continue
       }
-      if (lift > 145) continue // only the summit crown stays bare for the head
+      if (lift > 170) continue // only the crater rim + vent stay bare
       const density = (0.34 + 0.3 * vnoise2(u / 9 + 3, w / 9 + 8) + 0.15 * Math.min(1, lift / 90))
-        * (lift > 120 ? Math.max(0, (145 - lift) / 25) : 1) // canopy thins toward the crown
+        * (lift > 125 ? Math.max(0, (170 - lift) / 45) : 1) // canopy thins up the cone
       if (hash(u * 1.9, w * 2.3) > density) continue
       // altitude grading: lowland palms stay warm, upland canopy goes deep green-blue
       const hiTint = lift > 70 ? 0x4b6058 : lift > 34 ? 0x6d8272 : undefined
@@ -111,18 +117,21 @@ export function composeIsland(): IsleProp[] {
     }
   }
 
-  // 3. SAND-RING LIFE — wrack, shells, driftwood, gulls, crabs' home turf, tide pools in the
-  // cove corners. Sparse: a treat, not confetti (the beach's own rule).
-  for (let th = 0; th < Math.PI * 2; th += 0.11) {
-    const h1 = hash(th * 91.3, 21)
-    if (h1 < 0.72) continue
-    const cp = coastPoint(th)
-    const inset = rnd(1.8, 3.2, th * 41, 3)
-    const u = cp.u - cp.nx * inset, w = cp.w - cp.ny * inset
-    const kind = h1 > 0.965 ? 'shells' : h1 > 0.93 ? 'logdrift' : h1 > 0.86 ? 'seaweed' : h1 > 0.8 ? 'dunegrass' : 'gull'
-    const ground = kind === 'shells' || kind === 'seaweed'
-    add(u, w, kind, kind === 'logdrift' ? rnd(34, 46, th, 5) : kind === 'gull' ? rnd(16, 20, th, 6) : kind === 'dunegrass' ? rnd(26, 40, th, 7) : ground ? 14 : 20,
-      { flip: hash(th * 13, 7) > 0.5, ground })
+  // 3. SAND-RING LIFE — wrack, shells, driftwood, gulls, tide pools; every shore, sparse:
+  // a treat, not confetti (the beach's own rule).
+  for (let li = 0; li < LANDS.length; li++) {
+    const step = li === 0 ? 0.11 : 0.42
+    for (let th = 0; th < Math.PI * 2; th += step) {
+      const h1 = hash(th * 91.3 + li * 17, 21)
+      if (h1 < 0.72) continue
+      const cp = coastPoint(th, li)
+      const inset = rnd(1.8, 3.2, th * 41, 3 + li)
+      const u = cp.u - cp.nx * inset, w = cp.w - cp.ny * inset
+      const kind = h1 > 0.965 ? 'shells' : h1 > 0.93 ? 'logdrift' : h1 > 0.86 ? 'seaweed' : h1 > 0.8 ? 'dunegrass' : 'gull'
+      const ground = kind === 'shells' || kind === 'seaweed'
+      add(u, w, kind, kind === 'logdrift' ? rnd(34, 46, th, 5) : kind === 'gull' ? rnd(16, 20, th, 6) : kind === 'dunegrass' ? rnd(26, 40, th, 7) : ground ? 14 : 20,
+        { flip: hash(th * 13, 7 + li) > 0.5, ground })
+    }
   }
   // tide pools where the cheek coves shelter the sand
   for (const [thd, off] of [[200, 3.2], [338, 2.8], [255, 3.4]] as const) {

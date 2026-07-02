@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react'
 import { Application, Assets, ColorMatrixFilter, Container, Culler, Rectangle, Sprite, Texture, TextureSource } from 'pixi.js'
 import { ISLANDS } from './registry'
 import {
-  ISLE_CX, ISLE_CY, MAP_COLS, MAP_ROWS, PORT_THETA,
-  coastDist, coastPoint, coastR, freshDist, isleCell, isleLift, isleSlope, pathDist,
+  ISLE_CX, ISLE_CY, LANDS, MAP_COLS, MAP_ROWS, POOL, PORT_THETA,
+  coastDist, coastDistUW, coastPoint, freshDist, isleCell, isleLift, isleSlope, pathDist,
   txOf, tyOf, vnoise2,
 } from './shape'
 import { PROP_SRC, PROP_TINT, composeIsland, composePortDressing } from './compose'
@@ -188,7 +188,7 @@ export default function IslandMapIso() {
       const waterSprites: { sp: Sprite; ph: number; ph2: number; base: number; amp: number }[] = []
       const walkable = new Map<string, boolean>()
       const wk = (x: number, y: number) => x + ',' + y
-      const POOL_LIFT = Math.max(0, isleLift(txOf(0, 8), tyOf(0, 8)) - 6)
+      const POOL_LIFT = Math.max(0, isleLift(txOf(POOL.u, POOL.w + POOL.r + 1.5), tyOf(POOL.u, POOL.w + POOL.r + 1.5)) - 6)
       for (const isle of ISLANDS) {
         // bbox in (tx,ty): |u| <= R+ring, |w| <= R+ring
         const RR = isle.radius + DEPTH_RANGE + 2
@@ -202,7 +202,10 @@ export default function IslandMapIso() {
             if (cd < -DEPTH_RANGE - 1.5) continue // beyond the ring: the abyss plane owns it
             const cell = isleCell(tx, ty)
             const slope = isleSlope(tx, ty)
-            walkable.set(wk(tx, ty), (cell === 'sand' || cell === 'grass' || cell === 'jungle' || cell === 'bank' || cell === 'rock') && slope <= 10)
+            // the mountain is climbed by the falls staircase, not free-walked: steep ground
+            // and the upper cone are closed (colliders do the mid-slope work; this is the law)
+            walkable.set(wk(tx, ty), (cell === 'sand' || cell === 'grass' || cell === 'jungle' || cell === 'bank')
+              && slope <= 5.5 && isleLift(tx, ty) <= 100)
             let base: Texture | undefined
             const isSea = cell === 'sea'
             if (isSea) {
@@ -227,12 +230,12 @@ export default function IslandMapIso() {
             sp.scale.set(fx * os, os)
             // fresh water: the pool holds ONE flat surface level (per-tile terrain lift turned
             // it into a stepped pyramid); the river sinks 5px into its valley
-            const inPool = cell === 'fresh' && Math.hypot((tx - ty), (tx + ty - (ISLE_CX + ISLE_CY)) / 2 - 6.5) < 7
+            const inPool = cell === 'fresh' && Math.hypot((tx - ty) - POOL.u, (tx + ty - (ISLE_CX + ISLE_CY)) / 2 - POOL.w) < POOL.r + 2
             let lift = isSea ? 0 : cell === 'fresh' ? (inPool ? POOL_LIFT : Math.max(0, isleLift(tx, ty) - 5)) : isleLift(tx, ty)
             // the pool's rim settles to its surface so the bowl doesn't step (river banks
             // keep their own descent)
             if (!isSea && cell !== 'fresh') {
-              const dPool = Math.hypot(tx - ty, (tx + ty - (ISLE_CX + ISLE_CY)) / 2 - 6.5) - 5
+              const dPool = Math.hypot((tx - ty) - POOL.u, (tx + ty - (ISLE_CX + ISLE_CY)) / 2 - POOL.w) - (POOL.r + 0.5)
               if (dPool < 3.5) {
                 const k = Math.min(1, Math.max(0, (dPool - 0.2) / 3.3))
                 lift = (POOL_LIFT + 4) * (1 - k) + lift * k
@@ -263,8 +266,12 @@ export default function IslandMapIso() {
               // deep jungle -> mossy rock -> bare crown, all one surface.
               const grain = 0.994 + 0.012 * hash(tx * 1.3, ty * 2.1)
               const drift = 0.955 + 0.075 * vnoise2(tx / 16 + 3, ty / 16 + 5)
-              const dLift = isleLift(tx + 0.5, ty + 0.5) - isleLift(tx - 0.5, ty - 0.5)
-              const shade = Math.min(1.04, Math.max(0.86, 1 - dLift * 0.012))
+              // DIRECTIONAL relief: the sun sits upper-left, so faces climbing toward it
+              // catch light and faces falling away sink into shadow — this is what makes
+              // the volcano and the hill country READ as height instead of dye
+              const dLift = isleLift(tx + 0.5, ty + 0.5) - isleLift(tx - 0.5, ty - 0.5) // down-screen gradient
+              const dLiftX = isleLift(tx + 0.5, ty - 0.5) - isleLift(tx - 0.5, ty + 0.5) // across-screen gradient
+              const shade = Math.min(1.12, Math.max(0.6, 1 - dLift * 0.022 + dLiftX * 0.014))
               const j = (hash(tx * 5.7, ty * 3.9) - 0.5) * 1.3 // boundary dither
               const cdj = cd + j
               let col: number
@@ -284,6 +291,13 @@ export default function IslandMapIso() {
                 let rc = rampAt([[0, 0x69705f], [0.6, 0x565e50], [1, 0x474f45]], Math.min(1, (lift - 118) / 60))
                 rc = shadeHex(rc, Math.max(0.6, shelf - crag))
                 col = mix(col, rc, rockK)
+              }
+              // THE BLOWHOLE: inside the crater rim the ground chars to vent basalt with a
+              // faint ember heart — the volcano is alive (smoke plume rides the art pass)
+              const dVent = Math.hypot((tx - ty) - 0, (tx + ty - (ISLE_CX + ISLE_CY)) / 2 + 6)
+              if (dVent < 3.4) {
+                const k = 1 - dVent / 3.4
+                col = mix(col, mix(0x2e2a26, 0x5a3220, Math.pow(k, 2.2)), Math.min(1, k * 2.2))
               }
               // fresh-water banks darken to damp earth
               const fd = cd > 2.5 ? freshDist(tx, ty) : 9
@@ -322,9 +336,7 @@ export default function IslandMapIso() {
           for (let cx = 0; cx < cw; cx++) {
             const wx = x0 + (cx + 0.5) * RES
             const u = wx / HW
-            const r = Math.hypot(u, w)
-            const th = Math.atan2(-w, u)
-            const dep = Math.min(1, (r - coastR(th)) / DEPTH_RANGE)
+            const dep = Math.min(1, -coastDistUW(u, w) / DEPTH_RANGE)
             let a = 0
             if (dep > 0.09) {
               const k = Math.min(1, (dep - 0.09) / 0.48)
@@ -370,12 +382,13 @@ export default function IslandMapIso() {
       const dabs: Dab[] = []
       if (tex['skirt'] && tex['foamlace']) {
         const skT = tex['skirt']
-        for (const isle of ISLANDS) {
-          const cx = isoX(isle.cx, isle.cy), cyw = isoY(isle.cx, isle.cy)
-          let arc = 0
+        for (let li = 0; li < LANDS.length; li++) {
+          const cx = isoX(ISLE_CX, ISLE_CY), cyw = isoY(ISLE_CX, ISLE_CY)
+          const roughR = li === 0 ? 46 : 13
+          let arc = li * 173 // offset each land's slice walk so no two coasts show the same lace
           let prev: { x: number; y: number } | null = null
-          for (let th = 0; th < Math.PI * 2; th += 1.0 / coastR(0)) {
-            const cp = coastPoint(th)
+          for (let th = 0; th < Math.PI * 2; th += 1.0 / roughR) {
+            const cp = coastPoint(th, li)
             const x = cx + cp.u * HW, y = cyw + cp.w * 2 * HH
             if (prev) arc += Math.hypot(x - prev.x, y - prev.y)
             prev = { x, y }
