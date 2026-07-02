@@ -80,6 +80,12 @@
   position: absolute; left: 50%; top: 46%;
   transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center;
+  /* a quiet dark scrim so the lettering never sinks into a bright sky (Ash) */
+  background: rgba(6, 12, 16, .52);
+  border: 1px solid rgba(240, 232, 210, .18);
+  border-radius: 6px;
+  padding: 18px 34px 20px;
+  backdrop-filter: blur(1px);
 }
 .tr-scene-entering {
   font-family: 'Deckhand', monospace;
@@ -95,11 +101,12 @@
   margin: 4px 0 12px;
 }
 .tr-scene-bar {
-  width: min(300px, 46vw); height: 8px;
-  background: rgba(8, 14, 18, .72);
-  border: 1px solid rgba(240, 232, 210, .5);
+  width: min(300px, 46vw); height: 9px;
+  background: rgba(4, 8, 10, .9);
+  border: 1px solid rgba(240, 232, 210, .65);
   border-radius: 2px;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(3, 6, 8, .8);
 }
 .tr-scene-bar span {
   display: block; height: 100%;

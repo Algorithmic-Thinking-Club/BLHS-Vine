@@ -4,12 +4,12 @@
 @font-face {
   font-family: 'Harbormaster';
   src: url('/fonts/Harbormaster.ttf') format('truetype');
-  font-display: block;
+  font-display: swap;
 }
 @font-face {
   font-family: 'Deckhand';
   src: url('/fonts/Deckhand.ttf') format('truetype');
-  font-display: block;
+  font-display: swap;
 }
 
 .pix { image-rendering: pixelated; }

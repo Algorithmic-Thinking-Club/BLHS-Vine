@@ -10,7 +10,7 @@ const PASS = 'thor'
 export function initCaptain() {
   const q = new URLSearchParams(location.search).get('captain')
   if (q === PASS) localStorage.setItem(KEY, '1')
-  if (q === 'off') localStorage.removeItem(KEY)
+  else if (q !== null) localStorage.removeItem(KEY)   // any other value stands down: off/0/false/...
 }
 
 export function isCaptain(): boolean {
