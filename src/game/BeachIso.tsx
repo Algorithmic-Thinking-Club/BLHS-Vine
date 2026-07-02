@@ -388,10 +388,13 @@ export default function BeachIso() {
           const ds = (tx + ty) - shoreAt(tx - ty) // signed diagonal distance from the waterline (+ = onto land)
           let base: Texture | undefined
           if (isSea) {
-            // depth in [0,1], DITHERED per tile so the ramp steps interleave instead of banding
-            // (stronger dither in the shallows where each tile row would otherwise read as a step)
+            // depth in [0,1], DITHERED per tile so the ramp steps interleave instead of banding.
+            // The dither is DEPTH-KEYED: strong on the shallow plateau (flat ramp, banding risk,
+            // cheap dither), near-zero through the lit mid-band where the ramp is STEEP — there
+            // a +-0.04 dep dither was +-10 luma per tile, i.e. the visible diamond checker
             const raw = -ds / DEPTH_RANGE
-            const dep = Math.min(1, Math.max(0, raw + (hash(tx * 7.7, ty * 5.3) - 0.5) * (raw < 0.18 ? 0.11 : 0.06)))
+            const dAmp = raw < 0.14 ? 0.1 : raw < 0.55 ? 0.022 : 0.05
+            const dep = Math.min(1, Math.max(0, raw + (hash(tx * 7.7, ty * 5.3) - 0.5) * dAmp))
             const h = hash(tx * 1.3, ty * 2.7)
             const pool = dep < 0.1 ? W_CALM
               : dep < 0.3 ? (h < 0.6 ? W_CALM : W_SOFT)
@@ -415,7 +418,8 @@ export default function BeachIso() {
           sp.position.set(isoX(tx, ty), isoY(tx, ty) - lift); sp.zIndex = (tx + ty) * 16
           if (isSea) {
             const raw = -ds / DEPTH_RANGE
-            const dep = Math.min(1, Math.max(0, raw + (hash(tx * 7.7, ty * 5.3) - 0.5) * (raw < 0.18 ? 0.11 : 0.06)))
+            const dAmp = raw < 0.14 ? 0.1 : raw < 0.55 ? 0.022 : 0.05
+            const dep = Math.min(1, Math.max(0, raw + (hash(tx * 7.7, ty * 5.3) - 0.5) * dAmp))
             // broad drifting patches (cloud-light) — NO per-tile grain (any per-tile value step
             // reads as a checkerboard at distance; the ramp + patches carry all variation)
             const patch = 0.955 + 0.09 * vnoise(tx / 22 + 7, ty / 22 + 2)
@@ -473,7 +477,9 @@ export default function BeachIso() {
             if (dep > 0.09) {
               const k = Math.min(1, (dep - 0.09) / 0.48)
               a = 0.5 * k * k * (3 - 2 * k) // smoothstep body
-              if (dep > 0.8) a += 0.07 * Math.min(1, (dep - 0.8) / 0.2) // abyss flattens fully
+              // the abyss flattens FULLY: at the frame's top edge the sea resolves into one
+              // deep body (no tile rows dying unresolved against the map edge)
+              if (dep > 0.78) { const kk = Math.min(1, (dep - 0.78) / 0.22); a += 0.24 * kk * kk }
               // huge slow value clouds break any residual regularity in the veil itself
               const wx = x0 + (cx + 0.5) * RES
               a *= 0.86 + 0.28 * vnoise(wx / 1250 + 3.2, wy / 720 + 8.1)
@@ -737,7 +743,7 @@ export default function BeachIso() {
         world.addChild(sh)
         const ring = new Sprite(shadowTexLife); ring.anchor.set(0.5)
         ring.tint = 0xeafff6; ring.blendMode = 'add'
-        ring.width = t.width * sc * 0.85; ring.height = ring.width * 0.24; ring.alpha = 0.42
+        ring.width = t.width * sc * 0.98; ring.height = ring.width * 0.24; ring.alpha = 0.55
         ring.position.set(bx, by + 4); ring.zIndex = sPos * 16 + 3
         world.addChild(ring)
         const sp = new Sprite(t); sp.anchor.set(0.5, 0.86); sp.scale.set(flip ? -sc : sc, sc)
