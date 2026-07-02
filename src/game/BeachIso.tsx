@@ -788,7 +788,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       const PLANSC = 1.2 // deck-plan sprite scale (hull ~193px broadside, ~20px deck depth)
       // walkable deck rect in tile units (the drawn hull runs to ~±2.1u); helm at the
       // quarterdeck front
-      const UMAX = 1.4, VMAX = 0.36, HELM_U = -1.0
+      const UMAX = 1.4, VMAX = 0.36, HELM_U = -0.8
       type Hop = { t: number; ax: number; ay: number; bx: number; by: number; lift0: number; lift1: number; to: 'deck' | 'land'; landLayer?: number }
       type Veh = {
         tx: number; ty: number; ang: number; rud: number; spd: number
@@ -1436,10 +1436,10 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           V.ring.alpha = 0.34 + 0.08 * Math.sin(bt * 0.55 + 1.1) + Math.min(0.1, Math.abs(V.spd) * 1.6)
           // billboards: feet at their deck anchors, 12px of freeboard, z by screen depth
           const zOf = (py5: number) => bz + 8 + Math.max(-6, Math.min(6, Math.round((py5 - byp) * 0.4)))
-          const putPart = (sp: Sprite, u6: number, v6: number) => {
+          const putPart = (sp: Sprite, u6: number, v6: number, dy = -8) => {
             const w6 = deckWorld(V, u6, v6)
             const px6 = isoX(w6.tx, w6.ty), py6 = isoY(w6.tx, w6.ty)
-            sp.position.set(px6, py6 - 12 + V.bob)
+            sp.position.set(px6, py6 + dy + V.bob) // feet tucked into the hull silhouette
             sp.zIndex = zOf(py6)
             return { px6, py6 }
           }
@@ -1453,16 +1453,17 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           rigOn.visible = true
           putPart(rigOn, -0.08, 0)
           rigOn.scale.x = (0.55 + 0.45 * tFace) * mir
-          putPart(V.jib, 1.66, 0)
+          putPart(V.jib, 1.5, 0, -6)
           V.jib.scale.x = (0.5 + 0.5 * Math.abs(fwdX)) * mir
           V.jib.alpha = 0.55 + 0.45 * Math.abs(fwdX) // fades as the bow points up/down screen
-          const stPos = putPart(V.sternP, -1.62, 0)
-          V.sternP.scale.x = mir
+          const stPos = putPart(V.sternP, -1.6, 0, -10)
+          V.sternP.scale.set(0.9)
+          V.sternP.scale.x = 0.9 * mir
           const gl = glows[V.glowI]
-          gl.sp.position.set(stPos.px6, stPos.py6 - 12 + V.bob - 34)
+          gl.sp.position.set(stPos.px6, stPos.py6 - 10 + V.bob - 32)
           gl.sp.zIndex = V.sternP.zIndex + 1
-          // WAKE: quiet white foam lace — normal blend, low alpha, slow drift. Spawn
-          // pushed past the drawn bow so foam never draws ON the hull.
+          // WAKE: quiet pale foam lace, slow drift, spawned past the drawn bow so it
+          // never draws ON the hull.
           if ((V.spd > 0.016 || (boatBlocked && Math.abs(V.spd) > 0.004)) && bt - lastPuff > 0.05 / (1 + Math.abs(V.spd) * 18)) {
             lastPuff = bt + (hash(V.tx * 7.1, bt) - 0.5) * 0.02
             const c6 = Math.cos(V.ang), s6 = Math.sin(V.ang) // drift follows the TRUE motion
@@ -1474,7 +1475,9 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
               const tvx = pxd * ovx * 0.38 - c6 * (stern ? 0.6 : 0.24)
               const tvy = pyd * ovx * 0.38 - s6 * (stern ? 0.6 : 0.24)
               const sp3 = new Sprite(shadowTexLife)
-              sp3.anchor.set(0.5); sp3.tint = 0xf6fffb
+              // additive keeps the shadow-blob texture reading as pale FOAM (normal blend
+              // let its black body smear the sea dark); quiet alpha does the rest
+              sp3.anchor.set(0.5); sp3.tint = 0xdcf7ee; sp3.blendMode = 'add'
               const s0 = (stern ? 34 : 20) * (0.7 + Math.abs(V.spd) * 8)
               sp3.width = s0; sp3.height = s0 * 0.45
               sp3.position.set(isoX(w3.tx, w3.ty), isoY(w3.tx, w3.ty) + 4)
@@ -1490,7 +1493,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             const k3 = p.age / p.life
             if (k3 >= 1) { p.sp.destroy(); wakeFx.splice(i, 1); continue }
             p.sp.x += p.vx * tk.deltaMS; p.sp.y += p.vy * tk.deltaMS
-            p.sp.alpha = 0.32 * (1 - k3) // foam, not glow
+            p.sp.alpha = 0.24 * (1 - k3) // foam, not glow
             p.sp.width = p.s0 * (1 + k3 * 1.6); p.sp.height = p.sp.width * 0.45
           }
         }
