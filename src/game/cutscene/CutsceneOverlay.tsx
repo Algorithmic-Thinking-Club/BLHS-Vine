@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { CutsceneRuntime } from './runtime'
 import { isCaptain } from '../captain'
+import { BUILD_TAG } from '../buildTag'
 import './ui-kit.css'
 
 // Screen-space renderer for a running cutscene: letterbox bars, the eyes-opening vignette,
@@ -86,6 +87,14 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
           </div>
         )}
 
+        {/* the build stamp: which bundle is on screen, always. Captain also sees the live
+            dialogue state so a silent failure diagnoses itself on HIS machine. */}
+        <div style={{
+          position: 'absolute', bottom: 6, left: 10, fontFamily: 'monospace', fontSize: 11,
+          color: 'rgba(220,230,225,.55)', textShadow: '0 1px 2px rgba(0,0,0,.8)', pointerEvents: 'none',
+        }}>
+          {BUILD_TAG}{isCaptain() && ui.dialogue ? ` · say ${ui.dialogue.shown}/${ui.dialogue.text.length}${ui.dialogue.done ? ' done' : ''}` : ''}
+        </div>
         {/* skip plaque — one CLICK skips to the next required beat; the captain's version
             ends the whole cutscene outright (god authority for testing) */}
         {ui.skippable && (
