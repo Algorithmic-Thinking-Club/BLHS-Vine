@@ -795,14 +795,22 @@ export default function BeachIso() {
         hop: Hop | null; bob: number
       }
       let veh: Veh | null = null
-      // nearest of the 8 screen-compass views for a tile-space heading
-      const bucketOf = (ang: number) => {
+      // nearest of the 8 screen-compass views for a tile-space heading, WITH hysteresis:
+      // the view only swaps once the heading is clearly inside the next sector, so a hand
+      // resting on the rudder never flickers the sprite at a sector boundary
+      const bucketCoord = (ang: number) => {
         const sx = (Math.cos(ang) - Math.sin(ang)) * HW, sy = (Math.cos(ang) + Math.sin(ang)) * HH
-        return ((Math.round(Math.atan2(sy, sx) / (Math.PI / 4)) % 8) + 8) % 8
+        return Math.atan2(sy, sx) / (Math.PI / 4) // continuous, 1.0 per sector
       }
-      const setBucket = (V: Veh) => {
-        const b = bucketOf(V.ang)
-        if (b === V.bucket && V.hull.texture !== Texture.EMPTY) return
+      const setBucket = (V: Veh, force = false) => {
+        const bc = bucketCoord(V.ang)
+        const b = ((Math.round(bc) % 8) + 8) % 8
+        if (!force && V.bucket >= 0) {
+          if (b === V.bucket) return
+          let d = Math.abs(bc - V.bucket) % 8 // how far the heading sits from the CURRENT view's center
+          d = Math.min(d, 8 - d)
+          if (d < 0.62) return // not decisively into the next sector yet (0.5 = boundary)
+        }
         V.bucket = b
         const t = tex['shipR' + b] ?? tex['ship']
         if (t) {
@@ -939,7 +947,7 @@ export default function BeachIso() {
           const glowI = glows.length
           addGlow(0, 0, 44, 0) // stern lamp; repositioned every frame with the hull
           veh = { tx: btx, ty: bty, ang: Math.PI, bucket: -1, spd: 0, state: 'moored', u: 0, v: 0, hull, ring, glowI, berthTx: btx, berthTy: bty, hop: null, bob: 0 }
-          setBucket(veh)
+          setBucket(veh, true)
         }
         // jetty lantern glow breathes at its measured pixels
         addGlow(jet.x + 26 * JSC, jet.y + 65 * JSC, 54, jettyZ + 3)
@@ -1087,18 +1095,19 @@ export default function BeachIso() {
         if (veh) {
           const V = veh
           const bt = at / 1000
-          V.bob = Math.sin(bt * 0.75 + 2.1) * 2.5 * (1 + V.spd * 6)
-          // the pilot (helm only): A/D is the RUDDER (turn rate grows with way on), W is
-          // the throttle, S brakes, nothing coasts her down gently. The heading is
-          // continuous, so she carves smooth arcs; the sprite snaps to the nearest of the
-          // 8 views. This block is the seam the phase-2 cutscene pilot replaces.
+          // a calm ride: the swell lifts her gently and only a touch more under way
+          V.bob = Math.sin(bt * (0.75 + V.spd * 3) + 2.1) * 2.5 * (1 + V.spd * 1.5)
+          // the pilot (helm only): A/D is the RUDDER (bite grows with way on), W is the
+          // throttle, S brakes, nothing coasts her down long and gently. The heading is
+          // continuous so she carves smooth arcs; the sprite is the nearest of 8 views
+          // behind hysteresis. This block is the seam the phase-2 cutscene pilot replaces.
           if (V.state === 'helm' && !V.hop) {
             const dtc = Math.min(dt, 2)
             const steer = ((keys['d'] || keys['arrowright']) ? 1 : 0) - ((keys['a'] || keys['arrowleft']) ? 1 : 0)
-            if (steer) V.ang += steer * (0.012 + 0.016 * (V.spd / 0.085)) * dtc
-            if (keys['w'] || keys['arrowup']) V.spd = Math.min(0.085, V.spd + 0.0045 * dtc)
-            else if (keys['s'] || keys['arrowdown']) V.spd = Math.max(0, V.spd - 0.006 * dtc)
-            else V.spd = Math.max(0, V.spd - 0.0012 * dtc)
+            if (steer) V.ang += steer * (0.010 + 0.013 * (V.spd / 0.08)) * dtc
+            if (keys['w'] || keys['arrowup']) V.spd = Math.min(0.08, V.spd + 0.0022 * dtc)
+            else if (keys['s'] || keys['arrowdown']) V.spd = Math.max(0, V.spd - 0.004 * dtc)
+            else V.spd = Math.max(0, V.spd - 0.0008 * dtc)
             setBucket(V)
           } else V.spd = Math.max(0, V.spd - 0.004 * Math.min(dt, 2))
           if (V.spd > 0.0001) {
@@ -1135,7 +1144,7 @@ export default function BeachIso() {
               if (hp.to === 'land') {
                 // left the boat: stepping onto the DOCK means docking (the ship snaps home
                 // to its berth); near the berth it also snaps; anywhere else it anchors
-                if (hp.landLayer === 1 || Math.hypot(V.tx - V.berthTx, V.ty - V.berthTy) < 1.6) { V.tx = V.berthTx; V.ty = V.berthTy; V.ang = Math.PI; setBucket(V); V.state = 'moored' }
+                if (hp.landLayer === 1 || Math.hypot(V.tx - V.berthTx, V.ty - V.berthTy) < 1.6) { V.tx = V.berthTx; V.ty = V.berthTy; V.ang = Math.PI; setBucket(V, true); V.state = 'moored' }
                 else V.state = 'anchored'
               }
               V.hop = null
