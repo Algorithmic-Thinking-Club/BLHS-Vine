@@ -34,9 +34,10 @@ const smooth01 = (x: number) => { const k = Math.min(1, Math.max(0, x)); return 
 
 // ---- the PAD coast ----
 const PAD_R = 40
-// paw-pad plantar lobes along the bottom edge + a flattened crown
+// paw-pad plantar lobes along the bottom edge + a flattened crown (the toes arc close over
+// this flat top — a real cat print's pad is broad-topped, three-lobed at the heel)
 const PAD_LOBES: [number, number, number][] = [
-  [90.0, 24.0, -4.0], [238.0, 12.0, 4.0], [270.0, 12.0, 5.0], [302.0, 12.0, 4.0],
+  [90.0, 30.0, -6.0], [238.0, 12.0, 4.0], [270.0, 12.0, 5.0], [302.0, 12.0, 4.0],
 ]
 // designed bays: the EAST ARRIVAL BAY (wide, holds the lagoon + pier), the SOUTH FALLS COVE
 // (the river mouth), and a small north nook
@@ -48,14 +49,20 @@ const PAD_HARM: [number, number, number][] = [
 ]
 export const PORT_THETA = { north: 45, east: 315, south: 225, west: 135 } as const
 
-// ---- the TOES: small satellite islets [arc angle deg, center dist, radius, elongation] ----
+// ---- the TOES: the four digital pads of the print (Ash: paw-print proportion — "not too
+// small or too big"; a real cat toe pad is ~1/4 the main pad's width). The arc rides close
+// over the broad-topped pad, asymmetric — the two middle toes highest.
+// [arc angle deg, center dist, radius, radial elongation]
 const TOES: [number, number, number, number][] = [
-  [150.0, 54.0, 6.5, 0.15],
-  [114.0, 57.0, 7.5, 0.18],
-  [66.0, 57.0, 7.0, 0.18],
-  [30.0, 54.0, 6.0, 0.15],
+  [146.0, 49.5, 9.0, 0.20],
+  [112.0, 53.5, 11.0, 0.22],
+  [78.0, 53.0, 10.5, 0.22],
+  [46.0, 48.5, 8.5, 0.20],
 ]
-const TOE_HARM: [number, number, number][] = [[3, 0.4, 1.1], [5, 0.3, 3.7]]
+const TOE_HARM: [number, number, number][] = [[3, 0.55, 1.1], [5, 0.4, 3.7], [8, 0.25, 2.2]]
+// the CLAWS: a small sharp rock islet beyond each toe tip — from the map view they complete
+// the panther track (toes alone read as any animal; claws make it a predator's)
+const CLAWS: [number, number, number][] = TOES.map(([ang, dist, rad]) => [ang, dist + rad + 4.5, rad * 0.22 + 1.1] as [number, number, number])
 
 export type Land = { id: string; du: number; dw: number; R: (theta: number) => number }
 export const LANDS: Land[] = [
@@ -75,8 +82,26 @@ export const LANDS: Land[] = [
     du: dist * Math.cos((ang * Math.PI) / 180),
     dw: -dist * Math.sin((ang * Math.PI) / 180),
     R: (theta: number) => {
-      let r = rad * (1 + elong * Math.cos(2 * (theta - (ang * Math.PI) / 180)))
+      const a0 = (ang * Math.PI) / 180
+      // teardrop: elongated along its own radial axis, with a soft claw-tip bulge outward
+      let r = rad * (1 + elong * Math.cos(2 * (theta - a0)))
+      const td = ((theta * 180) / Math.PI % 360 + 360) % 360
+      r += bump(td, ang, 20, rad * 0.14) // the claw-tip swell on the outboard side
       for (const [k, a, ph] of TOE_HARM) r += a * Math.sin(k * theta + ph + i * 2.1)
+      return r
+    },
+  })),
+  ...CLAWS.map(([ang, dist, rad], i) => ({
+    id: 'claw' + i,
+    du: dist * Math.cos((ang * Math.PI) / 180),
+    dw: -dist * Math.sin((ang * Math.PI) / 180),
+    R: (theta: number) => {
+      const a0 = (ang * Math.PI) / 180
+      // a curved talon: crescent elongated along the arc, pinched at the outboard tip
+      let r = rad * (1 + 0.55 * Math.cos(2 * (theta - a0 - Math.PI / 2)))
+      const td = ((theta * 180) / Math.PI % 360 + 360) % 360
+      r += bump(td, ang, 14, rad * 0.5) // the talon point reaches outward
+      r += 0.3 * Math.sin(5 * theta + i * 2.7)
       return r
     },
   })),
@@ -153,15 +178,21 @@ export function beachKTheta(landIdx: number, theta: number) {
     b += bump(td, 238, 10, 0.12) + bump(td, 302, 10, 0.12) // thin toe-lobe pockets
     return Math.min(1, b)
   }
+  if (landIdx > TOES.length) return 0.04 // a claw: bare rock, no sand at all
   // a toe islet: cliff ring with one small sand notch facing the pad
   const ang = TOES[landIdx - 1][0]
-  return Math.min(1, 0.10 + bump(td, (ang + 180) % 360, 20, 0.5))
+  return Math.min(1, 0.10 + bump(td, (ang + 180) % 360, 26, 0.5))
 }
 /** beachiness at a point (via its nearest land + polar angle) */
 export function beachKAt(u: number, w: number) {
   const li = landNearestUW(u, w)
   const L = LANDS[li]
   return beachKTheta(li, Math.atan2(-(w - L.dw), u - L.du))
+}
+
+/** is this point on one of the claw islets (bare talon basalt)? */
+export function isClawUW(u: number, w: number) {
+  return landAtUW(u, w) > TOES.length
 }
 
 // ---- THE LAGOONS: designed shallow-water shapes (turquoise aprons with reef structure),
@@ -227,14 +258,17 @@ function mountainM(u: number, w: number) {
   // barrancos: angular modulation carves radial valleys so no terrace contour can close
   // into a clean concentric ring (Bora Bora's cone is gullied, never smooth)
   const ang = Math.atan2(w - VC.w, u - VC.u)
-  m *= 0.88 + 0.24 * vnoise2(Math.cos(ang) * 2.6 + 40, Math.sin(ang) * 2.6 + 17)
+  m *= 0.86 + 0.28 * vnoise2(Math.cos(ang) * 2.6 + 40, Math.sin(ang) * 2.6 + 17)
   m += 0.13 * (vnoise2(u / 9 + 31, w / 9 + 7) - 0.5) * 2
+  m += 0.05 * (vnoise2(u / 3.5 + 3, w / 3.5 + 51) - 0.5) * 2 // fine rim notching
   return m
 }
 
-export const T_LEVELS = [0.14, 0.32, 0.52, 0.72]
-export const LIFTS = [0, 26, 54, 84, 114]
-const CRATER_R = 3.4
+// Terraces exist ONLY in the jungle lowlands (Ash steer: "keep the layered tile elevation
+// for the grass") — above the treeline the volcano is ONE SMOOTH CONCAVE CONE (below).
+export const T_LEVELS = [0.14, 0.30]
+export const LIFTS = [0, 26, 56]
+const CRATER_R = 3.2
 
 /** terrace level (0..4) + progress toward the next rim, on the pad */
 export function levelAtUW(u: number, w: number): { lvl: number; frac: number } {
@@ -260,23 +294,43 @@ export function isleLiftUW(u: number, w: number) {
   const berm = 2.5 * smooth01(cd / 3)
   // CLIFF COASTS HAVE HEIGHT: where the shore is not a beach, the land stands ~14px above
   // the water within a couple units and STAYS there — the waterline row then drops a real
-  // wall to the sea (dark paint alone never read as a cliff)
-  const cliffLip = (1 - beachKAt(u, w)) * 14 * smooth01(cd / 2.5)
+  // wall to the sea (dark paint alone never read as a cliff). Squared so half-beachy
+  // stretches ease off instead of stacking walls inside the sand
+  const bkLip = 1 - beachKAt(u, w)
+  const cliffLip = bkLip * bkLip * 14 * smooth01(cd / 2.5)
+  if (li > TOES.length) {
+    // a claw islet: one sharp bare-rock spur standing well proud of the water
+    return berm + cliffLip + 18 * smooth01(cd / 1.4)
+  }
   if (li > 0) {
-    // a toe islet: a cliff-ringed low plateau under future canopy
+    // a toe islet: a cliff-ringed plateau with a worn hill heart (big toes carry real height)
     const L = LANDS[li]
-    const q = smooth01((cd * 2) / 3.5)
-    return berm + cliffLip + 22 * q + 8 * (vnoise2((u - L.du) / 5 + li * 9, (w - L.dw) / 5) - 0.5) * 2 * q
+    const q = smooth01(cd / 4.5)
+    return berm + cliffLip + 30 * q + 10 * (vnoise2((u - L.du) / 6 + li * 9, (w - L.dw) / 6) - 0.5) * 2 * q
   }
   const { lvl, frac } = levelAtUW(u, w)
-  let lift = LIFTS[lvl] + 12 * smooth01(frac) + berm + cliffLip
+  let lift = LIFTS[lvl] + 10 * smooth01(frac) + berm + cliffLip
   // the coastal plain rolls (low foothill swell for the sun-shader to model — a dead-flat
   // lawn between the beach and the first terrace is the golf-course read)
   lift += 7 * (vnoise2(u / 7 + 12, w / 7 + 27) - 0.5) * 2 * smooth01(cd / 6)
-  // the crater sinks into the summit (the blowhole bowl)
+  // THE CONE (Ash steer: no terracing in the basalt, no pasted art — the mountain is built
+  // in-engine): above the treeline the volcano rises as one smooth CONCAVE Mayon profile,
+  // ~300px at the summit, steepening toward the top. The look comes from code shading
+  // (radial gullies + hard sun modeling) over the micro-textured rock tiles.
+  const mg = mountainK(u, w)
+  if (mg > 0.42) lift = Math.max(lift, berm + 26 + 272 * Math.pow((mg - 0.42) / 0.58, 1.6))
+  // the crater sinks into the summit (the blowhole bowl, deep in a tall cone)
   const dc = Math.hypot(u - VC.u, w - VC.w)
-  if (dc < CRATER_R) lift -= 40 * smooth01((CRATER_R - dc) / 2.2)
+  if (dc < CRATER_R) lift -= 70 * smooth01((CRATER_R - dc) / 2.0)
   return Math.max(0, lift)
+}
+
+/** the coast-gated mountain field (0..~1): the scene keys the treeline, basalt shading and
+ *  gully striping off this */
+export function mountainK(u: number, w: number) {
+  const cd = coastDistUW(u, w)
+  if (cd <= 0) return 0
+  return mountainM(u, w) * smooth01(cd / 7)
 }
 export const isleLift = (tx: number, ty: number) => isleLiftUW(uOf(tx, ty), wOf(tx, ty))
 
@@ -285,11 +339,27 @@ export function isleSlope(tx: number, ty: number) {
   return Math.abs(isleLift(tx + 0.5, ty + 0.5) - isleLift(tx - 0.5, ty - 0.5))
 }
 
-// ---- fresh water: crater-spring river down the south face -> the falls basin (the carved
-// head's pool, piece 5) -> the run to the south cove ----
-export const POOL = { u: -3.5, w: 10.5, r: 2.4 }
-const RIVER: [number, number][] = [
-  [-4, -1], [-4.6, 3], [-4.2, 7], [-3.5, 10.5], [-3, 14], [-2.2, 20], [-1.6, 26], [-1, 32], [-0.6, 40],
+// ---- THE FOUR HEADS + THEIR LAVA (Ash 2026-07-02, GAME-DESIGN update): EACH side of the
+// volcano wears a carved panther head, and each mouth pours LAVA, not water — four glowing
+// flows running down the faces and cooling into black basalt deltas before the jungle.
+// The head sites sit on the steep upper cone (the L4 band); the head art itself is piece 5.
+export const HEADS: { id: string; u: number; w: number; flow: [number, number][] }[] = [
+  {
+    id: 'south', u: VC.u, w: VC.w + 9.5,
+    flow: [[VC.u, VC.w + 9.5], [VC.u - 0.5, VC.w + 15], [VC.u + 0.2, VC.w + 21], [VC.u - 0.2, VC.w + 27], [VC.u + 0.4, VC.w + 33]],
+  },
+  {
+    id: 'east', u: VC.u + 9.5, w: VC.w,
+    flow: [[VC.u + 9.5, VC.w], [VC.u + 15, VC.w + 1], [VC.u + 20.5, VC.w + 2.5], [VC.u + 24, VC.w + 4.5]],
+  },
+  {
+    id: 'west', u: VC.u - 9.5, w: VC.w,
+    flow: [[VC.u - 9.5, VC.w], [VC.u - 15, VC.w + 1.2], [VC.u - 20.5, VC.w + 2.8], [VC.u - 23.5, VC.w + 5]],
+  },
+  {
+    id: 'north', u: VC.u, w: VC.w - 9.5,
+    flow: [[VC.u, VC.w - 9.5], [VC.u + 0.6, VC.w - 14], [VC.u - 0.4, VC.w - 17.5]],
+  },
 ]
 
 function segDist(u: number, w: number, pts: [number, number][]) {
@@ -305,36 +375,42 @@ function segDist(u: number, w: number, pts: [number, number][]) {
   return best
 }
 
-/** distance (32px units) to fresh water (pool + river centerline); river widens downstream */
-export function freshDist(tx: number, ty: number) {
+/** signed distance (32px units) to molten lava (mouth pools + flow centerlines; flows widen
+ *  downstream then pinch at the cooling delta) */
+export function lavaDist(tx: number, ty: number) {
   const u = uOf(tx, ty), w = wOf(tx, ty)
-  const dPool = Math.hypot(u - POOL.u, w - POOL.w) - POOL.r
-  const dRiv = segDist(u, w, RIVER) - (0.55 + 0.5 * smooth01((w - 11) / 26))
-  return Math.min(dPool, dRiv)
+  let best = 1e9
+  for (const h of HEADS) {
+    const dPool = Math.hypot(u - h.u, w - h.w) - 1.15
+    const along = Math.hypot(u - h.u, w - h.w)
+    const dFlow = segDist(u, w, h.flow) - (0.72 + 0.3 * smooth01(along / 14))
+    best = Math.min(best, dPool, dFlow)
+  }
+  return best
 }
 
 // ---- terrain classification ----
-export type IsleCell = 'sea' | 'wet' | 'sand' | 'grass' | 'jungle' | 'rock' | 'cliff' | 'fresh' | 'bank'
+export type IsleCell = 'sea' | 'wet' | 'sand' | 'grass' | 'jungle' | 'rock' | 'cliff' | 'lava' | 'lavabank'
 export function isleCell(tx: number, ty: number): IsleCell {
   const u = uOf(tx, ty), w = wOf(tx, ty)
   const cd = coastDistUW(u, w)
   if (cd < 0) return 'sea'
   const B = beachKAt(u, w)
   const li0 = landAtUW(u, w)
-  // sand apron width scales with coast type; cliffs get none; toe islets wear half-width
-  const beachW = (1.0 + 5.2 * B) * (li0 > 0 ? 0.5 : 1)
+  // sand apron width scales with coast type; cliffs get none; toe islets wear a narrower one
+  const beachW = (1.0 + 5.2 * B) * (li0 > 0 ? 0.6 : 1)
   if (B > 0.22 && cd < 1.2) return 'wet'
   if (B <= 0.22 && cd < 1.4) return 'cliff' // waterline basalt at cliff coasts
-  if (cd > 2.2) {
-    const f = freshDist(tx, ty)
-    if (f < 0) return 'fresh'
-    if (f < 0.8) return 'bank'
+  if (li0 > TOES.length) return 'rock'      // a claw islet is bare talon rock throughout
+  if (li0 === 0 && cd > 2.2) {
+    const f = lavaDist(tx, ty)
+    if (f < 0) return 'lava'
+    if (f < 1.1) return 'lavabank' // charred basalt banks along every flow
   }
   if (B > 0.22 && cd < beachW) return 'sand'
   if (B > 0.22 && cd < beachW + 1.6) return 'grass'
-  const { lvl } = levelAtUW(u, w)
   const dc = Math.hypot(u - VC.u, w - VC.w)
-  if (dc < CRATER_R + 1.6) return 'rock' // the crater bowl + rim
-  if (lvl >= 4) return 'rock'            // bare rock is only the summit cone; L3 is upland
+  if (dc < CRATER_R + 1.6) return 'rock'   // the crater bowl + rim
+  if (mountainK(u, w) > 0.60) return 'rock' // above the treeline: the bare basalt cone
   return 'jungle'
 }

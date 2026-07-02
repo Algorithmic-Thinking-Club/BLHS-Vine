@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { Application, Assets, ColorMatrixFilter, Container, Culler, Rectangle, Sprite, Texture, TextureSource } from 'pixi.js'
+import { Application, Assets, ColorMatrixFilter, Container, Culler, Rectangle, Sprite, Texture, TextureSource, TilingSprite } from 'pixi.js'
 import { ISLANDS } from './registry'
 import {
-  ISLE_CX, ISLE_CY, LAGOONS, LANDS, MAP_COLS, MAP_ROWS, POOL, PORT_THETA, VC,
-  beachKAt, beachKTheta, channelDistUW, coastDist, coastDistUW, coastPoint, freshDist,
-  isleCell, isleLift, isleLiftUW, isleSlope, lagoonK, levelAtUW, txOf, tyOf, uOf, vnoise2, wOf,
+  HEADS, ISLE_CX, ISLE_CY, LAGOONS, LANDS, MAP_COLS, MAP_ROWS, PORT_THETA, VC,
+  beachKAt, beachKTheta, channelDistUW, coastDistUW, coastPoint, isClawUW,
+  isleCell, isleLift, isleLiftUW, isleSlope, lagoonK, lavaDist, levelAtUW, mountainK, txOf, tyOf, uOf, vnoise2, wOf,
 } from './shape'
 import { PROP_SRC, PROP_TINT, composeIsland, composePortDressing } from './compose'
 
@@ -40,15 +40,19 @@ const W_BASE = [205, 235, 229]
 const SAND_BASE = [246, 229, 180]
 const JUNGLE_BASE = [82, 124, 72]
 const ROCK_BASE = [110, 108, 90]
-// ONE depth ramp, lagoon-bright to abyss-dark: the DEPTH FIELD (not the ramp) now carries the
-// design — lagoons hold the top stops, open water falls through the bottom ones fast
+// ONE depth ramp, lagoon-bright to deep: the DEPTH FIELD (not the ramp) carries the design —
+// lagoons hold the top stops, open water falls through the bottom ones fast. Warmed and
+// lifted a notch on Ash's steer: the island's waters glow, the deep stays moody, never black.
 const W_RAMP: [number, number][] = [
-  [0.0, 0x9fe0cf], [0.10, 0x63cbbd], [0.18, 0x3db3ab], [0.30, 0x27999b],
-  [0.45, 0x1a7f8b], [0.62, 0x115d70], [0.80, 0x0b4757], [1.0, 0x073442],
+  [0.0, 0x9fe0cf], [0.10, 0x66cdbd], [0.18, 0x46b8a9], [0.30, 0x309e97],
+  [0.45, 0x228489], [0.62, 0x17636e], [0.80, 0x0e4a55], [1.0, 0x083a46],
 ]
-const ABYSS = 0x073442
-// fresh water is DARK in every reference (SoS river gorge): deep teal, never lagoon-cyan
-const FRESH_RAMP: [number, number][] = [[0, 0x2e6b63], [0.5, 0x1d4a4a], [1, 0x123338]]
+const ABYSS = 0x083a46
+// MOLTEN LAVA (the four heads' flows): white-hot core -> orange run -> cooling crust.
+// Display colors stay under the water-family base so tintFor never clamps the hue away.
+const LAVA_RAMP: [number, number][] = [
+  [0.0, 0xd8891f], [0.35, 0xc2571c], [0.7, 0x8a3618], [1.0, 0x55281a],
+]
 
 function rampAt(stops: [number, number][], t: number) {
   if (t <= stops[0][0]) return stops[0][1]
@@ -95,13 +99,14 @@ export default function IslandMapIso() {
       app = instance; ref.current.appendChild(instance.canvas)
       const ZOOM = parseFloat(new URLSearchParams(location.search).get('zoom') ?? '') || 1.4
 
+      // NOTE (Ash steer): the beach's port kit is NOT reused here — the island's ports get
+      // purpose-built art (piece 4). Only true staples load: the surf/foam textures and the
+      // shared normalized tile families.
       const tex: Record<string, Texture> = {}
       const load = async (k: string, u: string) => { try { tex[k] = await Assets.load(u) } catch { /* */ } }
       await Promise.all([
         load('foamlace', '/art/intro/foam-lace.png'), load('foamlace2', '/art/intro/foam-lace2.png'),
         load('sparkle', '/art/intro/sparkle.png'), load('skirt', '/art/intro/shallow-skirt.png'),
-        load('pierIso', '/art/intro/port/pier-iso2.png'), load('dockPlat', '/art/intro/port/dock-platform2.png'),
-        load('lanternPost', '/art/intro/port/lantern-post.png'),
         ...Object.entries(PROP_SRC).map(([k, u]) => load(k, u)),
       ])
       const sandV: Texture[] = [], waterV: Texture[] = [], jungleV: Texture[] = [], rockV: Texture[] = []
@@ -174,21 +179,55 @@ export default function IslandMapIso() {
       const wm = grade.matrix; wm[0] *= 1.05; wm[12] *= 0.90; grade.matrix = wm
       world.filters = [grade]
 
-      // ---- THE ABYSS PLANE: one sprite is the entire open ocean ----
+      // ---- THE OPEN OCEAN IS WATER EVERYWHERE (Ash steer: "the entire map is ocean water,
+      // not just the surrounding waters") — the flat abyss plane is gone. The water variant
+      // tiles bake into one seamless brick-pattern canvas, pre-graded to the deep color, and
+      // two drifting TilingSprites cover the whole map: a living textured sea for two draws.
+      const seaDrift: TilingSprite[] = []
       {
-        const plane = new Sprite(Texture.WHITE)
-        plane.tint = ABYSS
-        plane.position.set(-MAP_COLS * HW, 0)
-        plane.width = 2 * MAP_COLS * HW; plane.height = (MAP_COLS + MAP_ROWS) * HH
-        plane.zIndex = -100000
-        world.addChild(plane)
+        const PW = 1024, PH = 512 // a big period so the repeat never catches the eye
+        const NI = PW / 64, NJ = PH / 16
+        const cv = document.createElement('canvas'); cv.width = PW; cv.height = PH
+        const g = cv.getContext('2d')!
+        // solid underpaint first — transparent seams between diamonds read as a dark lattice
+        g.fillStyle = '#cfeae2'
+        g.fillRect(0, 0, PW, PH)
+        const pool = [...W_TEX, ...W_SWELL, ...W_SOFT]
+        for (let j = -1; j <= NJ; j++) {
+          for (let i = -1; i <= NI; i++) {
+            const wi = ((i % NI) + NI) % NI, wj = ((j % NJ) + NJ) % NJ // wrapped ids -> seamless
+            const t = waterV[pool[Math.floor(hash(wi * 3.7 + 1, wj * 2.3) * pool.length)]]
+            if (!t) continue
+            const x = i * 64 + (wj % 2 ? 32 : 0), y = j * 16 - 12
+            const flip = hash(wi * 1.9, wj * 5.1) > 0.5
+            g.globalAlpha = 0.55 + 0.4 * hash(wi, wj)
+            g.save()
+            if (flip) { g.translate(x + 36, 0); g.scale(-1, 1); g.translate(-(x + 36), 0) }
+            try { g.drawImage(t.source.resource as CanvasImageSource, x, y, 72, 40) } catch { /* */ }
+            g.restore()
+          }
+        }
+        g.globalAlpha = 1
+        g.globalCompositeOperation = 'multiply'
+        g.fillStyle = '#0a3f4e' // grade the bright normalized texture down to the deep sea
+        g.fillRect(0, 0, PW, PH)
+        const seaT = Texture.from(cv)
+        for (const [alpha, flip] of [[1, false], [0.3, true]] as const) {
+          const ts = new TilingSprite({ texture: seaT, width: 2 * MAP_COLS * HW, height: (MAP_COLS + MAP_ROWS) * HH })
+          ts.position.set(-MAP_COLS * HW, 0)
+          ts.alpha = alpha
+          if (flip) ts.tileScale.set(-1, 1)
+          ts.zIndex = -100000 + (flip ? 1 : 0)
+          ts.cullable = false
+          world.addChild(ts); seaDrift.push(ts)
+        }
       }
 
       // ---- ISLAND TILES ----
       const waterSprites: { sp: Sprite; ph: number; ph2: number; base: number; amp: number }[] = []
+      const lavaSprites: { sp: Sprite; base: number; ph: number }[] = []
       const walkable = new Map<string, boolean>()
       const wk = (x: number, y: number) => x + ',' + y
-      const POOL_LIFT = Math.max(0, isleLift(txOf(POOL.u, POOL.w + POOL.r + 1.2), tyOf(POOL.u, POOL.w + POOL.r + 1.2)) - 4)
       // lazy lift memo — walls/AO/lips sample neighbors constantly
       const liftMemo = new Map<string, number>()
       const liftAt = (tx: number, ty: number) => {
@@ -219,10 +258,10 @@ export default function IslandMapIso() {
               // beaches, a fast plunge to dark at every cliff (the uniform halo is the
               // amateur read — this line is what killed it)
               const bK = beachKAt(u, w)
-              let depOpen = Math.min(1, 0.55 * Math.min(1, -cd / (0.5 + 3.5 * bK)) + 0.45 * Math.min(1, -cd / 8))
-              // cliff coasts hold DEEP water to the rock: the ramp's bright stops are
-              // reserved for beach shallows (SoS: dark teal + a foam collar, nothing else)
-              depOpen = Math.max(depOpen, 0.62 * (1 - bK * 1.05) * Math.min(1, -cd / 0.5))
+              // the bright sliver at the waterline exists only where a real beach does (bK
+              // squared): cliff bases go straight to warm-deep within a quarter unit
+              let depOpen = Math.min(1, 0.55 * Math.min(1, -cd / (0.2 + 4.5 * bK * bK)) + 0.45 * Math.min(1, -cd / 10))
+              depOpen = Math.max(depOpen, 0.55 * (1 - bK * 1.05) * Math.min(1, -cd / 0.25))
               let depLag = 0.07 + 0.26 * Math.min(1, -cd / 15)
               const bn = vnoise2(u / 3.4 + 9, w / 3.4 + 5)
               if (lag > 0.1 && bn > 0.60) depLag += (bn - 0.60) * 1.7 // submerged reef heads
@@ -239,8 +278,7 @@ export default function IslandMapIso() {
             }
             const slope = isleSlope(tx, ty)
             const { lvl } = isSea ? { lvl: 0 } : levelAtUW(u, w)
-            const lift = isSea ? 0 : cell === 'fresh' ? 0 : liftAt(tx, ty)
-            walkable.set(wk(tx, ty), (cell === 'wet' || cell === 'sand' || cell === 'grass' || cell === 'jungle' || cell === 'bank')
+            walkable.set(wk(tx, ty), (cell === 'wet' || cell === 'sand' || cell === 'grass' || cell === 'jungle')
               && slope <= 5.5 && lvl <= 1)
             let landBase = SAND_BASE
             let base: Texture | undefined
@@ -251,12 +289,13 @@ export default function IslandMapIso() {
                   : dep < 0.55 ? (h < 0.5 ? W_SOFT : W_TEX)
                     : (h < 0.55 ? W_TEX : W_SWELL)
               base = waterV[pool[Math.floor(hash(tx * 3.1, ty * 1.9) * pool.length)]]
-            } else if (cell === 'fresh') {
-              base = waterV[W_CALM[Math.floor(hash(tx * 3.1, ty * 1.9) * W_CALM.length)]]
-            } else if (cell === 'cliff' || cell === 'rock' || (lvl >= 4 && cell !== 'sand' && cell !== 'wet')) {
+            } else if (cell === 'lava') {
+              // molten rock moves like slow water: the fluid texture under a heat tint
+              base = waterV[W_TEX[Math.floor(hash(tx * 3.1, ty * 1.9) * W_TEX.length)]]
+            } else if (cell === 'cliff' || cell === 'rock' || cell === 'lavabank') {
               base = rockV.length ? rockV[Math.floor(hash(tx * 2.9, ty * 3.7) * rockV.length)] : sandV[0]
               landBase = ROCK_BASE
-            } else if (cell === 'jungle' || cell === 'bank') {
+            } else if (cell === 'jungle') {
               base = jungleV.length ? jungleV[Math.floor(hash(tx * 3.3, ty * 4.1) * jungleV.length)] : sandV[0]
               landBase = JUNGLE_BASE
             } else {
@@ -265,18 +304,10 @@ export default function IslandMapIso() {
             if (!base) continue
             const sp = new Sprite(base); sp.anchor.set(0.5, 0.25)
             const fx = vnoise2(tx / 7 + 4, ty / 7 + 11) > 0.5 ? -1 : 1
-            const os = isSea || cell === 'fresh' ? 1.12 : 1.09
+            const os = isSea || cell === 'lava' ? 1.12 : 1.09
             sp.scale.set(fx * os, os)
-            const inPool = cell === 'fresh' && Math.hypot(u - POOL.u, w - POOL.w) < POOL.r + 2
-            let dLift = lift
-            if (cell === 'fresh') dLift = inPool ? POOL_LIFT : Math.max(0, liftAt(tx, ty) - 5)
-            else if (!isSea) {
-              const dPool = Math.hypot(u - POOL.u, w - POOL.w) - (POOL.r + 0.5)
-              if (dPool < 3.5) {
-                const k = Math.min(1, Math.max(0, (dPool - 0.2) / 3.3))
-                dLift = (POOL_LIFT + 4) * (1 - k) + dLift * k
-              }
-            }
+            // lava rides its channel floor, sunk a few px into the terrain
+            const dLift = isSea ? 0 : cell === 'lava' ? Math.max(0, liftAt(tx, ty) - 4) : liftAt(tx, ty)
             sp.position.set(isoX(tx, ty), isoY(tx, ty) - dLift); sp.zIndex = (tx + ty) * 16
             if (isSea) {
               // patch texture eases with depth (big bright streaks over dark water read as
@@ -295,43 +326,64 @@ export default function IslandMapIso() {
                 ph2: (tx + ty) * 0.21 - (tx - ty) * 0.07,
                 amp: 0.016 + 0.05 * dep * (1 - lag * 0.7),
               })
-            } else if (cell === 'fresh') {
-              const f = -freshDist(tx, ty) + (hash(tx * 6.1, ty * 4.3) - 0.5) * 0.9
-              sp.tint = tintFor(shadeHex(rampAt(FRESH_RAMP, Math.min(1, Math.max(0, f / 4.5))), 0.98 + 0.04 * hash(tx, ty)), W_BASE)
+            } else if (cell === 'lava') {
+              // heat falls with the run from the mouth; the centerline burns hottest
+              const dVC = Math.hypot(u - VC.u, w - VC.w)
+              const f = -lavaDist(tx, ty) // depth into the flow
+              let t = smooth01((dVC - 12) / 16) // 0 at the mouth -> 1 at the delta
+              t = Math.min(1, Math.max(0, t - Math.max(0, f - 0.3) * 0.35 + (hash(tx * 6.1, ty * 4.3) - 0.5) * 0.12))
+              const col = tintFor(shadeHex(rampAt(LAVA_RAMP, t), 0.97 + 0.06 * hash(tx, ty)), W_BASE)
+              sp.tint = col
+              lavaSprites.push({ sp, base: col, ph: dVC * 0.9 })
             } else {
               // ---- LAND COLOR: keyed by coast type + terrace level + moisture, moody ----
               const grain = 0.994 + 0.012 * hash(tx * 1.3, ty * 2.1)
               const drift = 0.958 + 0.07 * vnoise2(tx / 16 + 3, ty / 16 + 5)
               const j = (hash(tx * 5.7, ty * 3.9) - 0.5) * 1.1
               const B = beachKAt(u, w)
-              const moist = vnoise2(u / 9 + 3, w / 9 + 8) + (freshDist(tx, ty) < 4 ? 0.25 : 0)
+              const moist = vnoise2(u / 9 + 3, w / 9 + 8)
               let col: number
               if (cell === 'wet') col = mix(0x8f7a52, 0xbfa06b, Math.min(1, Math.max(0, (cd + j * 0.3) / 1.2)))
-              else if (cell === 'sand') col = rampAt([[0, 0xbfa06b], [0.5, 0xd8bd86], [1, 0xe8d4a2]], Math.min(1, (cd - 1.2 + j * 0.4) / (1 + 5.2 * B)))
+              else if (cell === 'sand') col = rampAt([[0, 0xbfa06b], [0.5, 0xd8bd86], [1, 0xe8d4a2]], Math.min(1, (cd - 1.2 + j * 0.95) / (1 + 5.2 * B)))
               else if (cell === 'grass') col = mix(0xcdb27e, 0x3f6234, Math.min(1, Math.max(0, (cd - (1 + 5.2 * B) + j * 0.8) / 1.6)))
               else if (cell === 'cliff') {
                 // waterline basalt: dark, wet sheen at the base
                 col = shadeHex(0x3a3b33, 0.82 + 0.3 * vnoise2(tx / 2.9 + 17, ty / 2.9 + 4))
                 if (cd < 0.7) col = mix(0x22282a, col, cd / 0.7)
               } else if (cell === 'rock') {
-                const { frac } = levelAtUW(u, w)
                 const dc = Math.hypot(u - VC.u, w - VC.w)
-                // cool gray basalt (the warm ramp read as mud from the air); light enough
-                // that the sun shading can model it
-                col = rampAt([[0, 0x6d7060], [0.5, 0x54584a], [1, 0x3a3e34]], Math.min(1, (lvl - 2.5) / 2 + frac * 0.4 + j * 0.1))
-                const shelf = 0.84 + 0.28 * vnoise2(tx / 3.1 + 17, ty / 3.1 + 4)
-                col = shadeHex(col, shelf)
+                if (isClawUW(u, w)) {
+                  col = rampAt([[0, 0x51544a], [1, 0x33362e]], 0.4 + 0.5 * vnoise2(u * 1.7 + 9, w * 1.7 + 4)) // talon basalt, never sandy
+                  col = shadeHex(col, 0.84 + 0.28 * vnoise2(tx / 3.1 + 17, ty / 3.1 + 4))
+                } else {
+                  // THE CONE'S SKIN: altitude-ramped basalt (scree skirt -> slate summit)
+                  // striped by RADIAL EROSION GULLIES — the Mayon signature that makes a
+                  // smooth cone read as a mountain instead of a mound
+                  const mg = mountainK(u, w)
+                  col = rampAt([[0, 0x6e7062], [0.4, 0x53584c], [0.72, 0x3c433c], [1, 0x2a3130]], Math.min(1, Math.max(0, (mg - 0.55) / 0.42)) + j * 0.05)
+                  const ang = Math.atan2(w - VC.w, u - VC.u)
+                  // two gully octaves: dozens of fine channels + broader ravines
+                  const gully = 0.62 * vnoise2(Math.cos(ang) * 7.5 + 80, Math.sin(ang) * 7.5 + 33)
+                    + 0.38 * vnoise2(Math.cos(ang) * 3.1 + 12, Math.sin(ang) * 3.1 + 57)
+                  col = shadeHex(col, 0.78 + 0.38 * gully)
+                  col = shadeHex(col, 0.93 + 0.1 * vnoise2(tx / 3.1 + 17, ty / 3.1 + 4))
+                }
                 // the crater bowl: char + the ember heart (tight — the bowl must read as a
                 // feature IN the summit, never swallow it)
-                if (dc < 3.4) {
-                  const k = 1 - dc / 3.4
+                if (dc < 3.2) {
+                  const k = 1 - dc / 3.2
                   col = mix(col, 0x2b2724, Math.min(1, k * 1.8))
-                  if (dc < 1.4) col = mix(col, 0x8a4a22, Math.pow(1 - dc / 1.4, 1.8) * 0.85)
-                } else if (dc < 5 && lvl >= 4) {
+                  if (dc < 1.3) col = mix(col, 0x8a4a22, Math.pow(1 - dc / 1.3, 1.8) * 0.85)
+                } else if (dc < 4.8) {
                   // the rim: sun catches the far lip, the near inner wall shadows
                   col = shadeHex(col, (u - VC.u) + (w - VC.w) < 0 ? 0.78 : 1.12)
                 }
-              } else if (cell === 'bank') col = shadeHex(0x36452e, 0.9 + 0.16 * hash(tx * 3.7, ty * 1.9))
+              } else if (cell === 'lavabank') {
+                // charred basalt banks; ember light bleeds into the cracks near the flow
+                col = shadeHex(0x232019, 0.9 + 0.2 * hash(tx * 3.7, ty * 1.9))
+                const f = lavaDist(tx, ty)
+                if (f < 0.55) col = mix(0x7a3a1a, col, Math.max(0, f / 0.55))
+              }
               else {
                 // jungle floor: moisture-keyed value ramp of the litter base, darker + more
                 // clumped than attempt 1 (the flat lime field is the amateur read)
@@ -346,29 +398,42 @@ export default function IslandMapIso() {
               const gapUp = liftAt(tx - 1, ty - 1) - dLift
               const gapL = liftAt(tx - 1, ty) - dLift, gapR = liftAt(tx, ty - 1) - dLift
               let shade = 1
-              if (gapSE > 15) shade *= 1.12
+              // rim lips glow only on the jungle terraces — on the cone the same rule would
+              // trace a bright ring around the whole treeline
+              if (gapSE > 15) shade *= cell === 'jungle' && mountainK(u, w) > 0.5 ? 1.03 : 1.12
               if (gapUp > 15) shade *= 0.66
               else if (gapL > 15 || gapR > 15) shade *= 0.84
               // smooth directional sun (upper-left key): slopes facing the sun lighten,
-              // slopes falling away sink — this is what keeps the massif from reading flat
+              // slopes falling away sink — this is what keeps the massif from reading flat.
+              // The bare cone gets a harder ratio (rock models steeper than foliage).
               const gDn = (liftAt(tx + 1, ty + 1) - liftAt(tx - 1, ty - 1)) / 2
               const gAc = (liftAt(tx + 1, ty - 1) - liftAt(tx - 1, ty + 1)) / 2
-              shade *= Math.min(1.15, Math.max(0.78, 1 - gDn * 0.009 + gAc * 0.007))
+              const sunK = cell === 'rock' ? 2.1 : 1
+              shade *= Math.min(1.28, Math.max(0.6, 1 - gDn * 0.009 * sunK + gAc * 0.007 * sunK))
               sp.tint = shadeHex(tintFor(col, landBase), grain * drift * shade)
-              // ---- THE TERRACE WALLS: stacked basalt courses fill the drop under every rim
-              // (the structural cliff read; the PixelLab cliff faces dress these in piece 2) ----
-              if (gapSE > 15 && rockV.length) {
-                const nW = Math.min(7, Math.ceil((gapSE - 2) / 14))
+              // ---- FILL THE DROPS: under the jungle terrace rims these read as shadowed
+              // ledge faces; on the smooth cone they read as MORE MOUNTAIN (surface-toned
+              // steep rock), so the cone's silhouette stays continuous, never stepped ----
+              if (gapSE > 13 && rockV.length) {
+                const onCone = cell === 'rock' || mountainK(u, w) > 0.55
+                const nW = Math.min(9, Math.ceil((gapSE - 2) / 14))
                 for (let i = 1; i <= nW; i++) {
                   const wsp = new Sprite(rockV[Math.floor(hash(tx * 9.1 + i, ty * 5.3) * rockV.length)])
                   wsp.anchor.set(0.5, 0.25)
                   wsp.scale.set((hash(tx + i, ty) > 0.5 ? -1 : 1) * 1.12, 1.12)
                   wsp.position.set(isoX(tx, ty), isoY(tx, ty) - dLift + 14 * i)
                   wsp.zIndex = (tx + ty + 2) * 16 + 1
-                  // cooler + darker than every plateau top: the wall must read as a
-                  // SHADOWED FACE, not more ground
-                  let wc = shadeHex(0x343830, 0.94 - i * 0.09)
-                  if (i === 1 && lvl <= 3) wc = mix(wc, 0x3d4c34, 0.35) // mossy top course
+                  let wc: number
+                  if (onCone) {
+                    // continuation of the cone's skin, in its own gully stripe + slope shadow
+                    const ang2 = Math.atan2(w - VC.w, u - VC.u)
+                    const gully2 = vnoise2(Math.cos(ang2) * 4.2 + 80, Math.sin(ang2) * 4.2 + 33)
+                    wc = shadeHex(0x4a4e40, (0.8 + 0.22 * gully2) * (0.98 - i * 0.035))
+                  } else {
+                    // cooler + darker than every plateau top: a SHADOWED ledge face
+                    wc = shadeHex(0x343830, 0.94 - i * 0.09)
+                    if (i === 1) wc = mix(wc, 0x3d4c34, 0.35) // mossy top course
+                  }
                   wsp.tint = tintFor(wc, ROCK_BASE)
                   world.addChild(wsp)
                 }
@@ -461,45 +526,43 @@ export default function IslandMapIso() {
         }
       }
 
-      // ---- THE FALLS BASIN dressing (the head's pool site — full set-piece in piece 5) ----
+      // ---- THE LAVA LIVES: heat glows breathe along every flow (mouth blooms + run lights),
+      // and the cooled deltas smoke. The carved heads themselves arrive in piece 5. ----
       const shadowTex = makeShadow()
-      const poolFx: { sp: Sprite; ph: number; kind: 'churn' | 'glint' }[] = []
-      if (tex['skirt']) {
-        const skT = tex['skirt']
-        const pcx = POOL.u * HW
-        const pcy = (ISLE_CX + ISLE_CY + 2 * POOL.w) * HH - POOL_LIFT
-        for (let th = 0; th < Math.PI * 2; th += 0.21) {
-          const rx = Math.cos(th) * POOL.r * HW * 0.99
-          const ry = -Math.sin(th) * POOL.r * HH * 2 * 0.99
-          const fr = new Rectangle(Math.floor(th * 90) % Math.max(32, skT.width - 32), 0, 32, skT.height)
-          const groundS = (pcy + ry + POOL_LIFT) / HH
-          const seam = new Sprite(new Texture({ source: skT.source, frame: fr }))
-          seam.anchor.set(0.5, 0.5); seam.scale.set(1, 0.7); seam.tint = 0x0f2a28; seam.alpha = 0.5
-          seam.position.set(pcx + rx, pcy + ry); seam.zIndex = groundS * 16 + 4
-          world.addChild(seam)
+      const lavaGlows: { sp: Sprite; ph: number; big: boolean }[] = []
+      const smokeVents: { x: number; y: number }[] = []
+      {
+        const glowT = radial(128, [[0, 'rgba(255,154,58,0.5)'], [0.5, 'rgba(255,110,36,0.18)'], [1, 'rgba(255,110,36,0)']])
+        const cx0 = isoX(ISLE_CX, ISLE_CY), cy0 = isoY(ISLE_CX, ISLE_CY)
+        const glowAt = (gu: number, gw: number, size: number, big: boolean) => {
+          const gl = isleLiftUW(gu, gw)
+          const g = new Sprite(glowT); g.anchor.set(0.5); g.blendMode = 'add'
+          g.width = size; g.height = size * 0.62
+          g.position.set(cx0 + gu * HW, cy0 + gw * 2 * HH - gl)
+          g.zIndex = (gw * 2 + ISLE_CX + ISLE_CY) * 16 + 12
+          world.addChild(g); lavaGlows.push({ sp: g, ph: hash(gu * 7, gw * 3) * 6.28, big })
         }
-        for (let i = 0; i < 3; i++) {
-          const c = new Sprite(shadowTex); c.anchor.set(0.5)
-          c.tint = 0xf2fff8; c.blendMode = 'add'
-          c.width = 46 - i * 9; c.height = 17 - i * 3
-          c.position.set(pcx + (i - 1) * 20, pcy - POOL.r * HH * 2 * 0.62 + i * 5)
-          c.zIndex = ((pcy + POOL_LIFT) / HH) * 16 + 6
-          world.addChild(c); poolFx.push({ sp: c, ph: i * 2.1, kind: 'churn' })
-        }
-        for (let i = 0; i < 6; i++) {
-          const g = new Sprite(tex['sparkle'] ?? Texture.WHITE); g.anchor.set(0.5); g.blendMode = 'add'
-          const a = hash(i, 7) * Math.PI * 2, rr = Math.sqrt(hash(i, 3)) * 0.75
-          g.position.set(pcx + Math.cos(a) * rr * POOL.r * HW, pcy - Math.sin(a) * rr * POOL.r * HH * 2)
-          g.scale.set(0.5); g.alpha = 0
-          g.zIndex = ((pcy + POOL_LIFT) / HH) * 16 + 6
-          world.addChild(g); poolFx.push({ sp: g, ph: hash(i, 11) * 9, kind: 'glint' })
+        for (const h of HEADS) {
+          glowAt(h.u, h.w, 150, true) // the mouth bloom
+          // run lights every ~2.2 units down the flow
+          for (let i = 0; i < h.flow.length - 1; i++) {
+            const [au, aw] = h.flow[i], [bu, bw] = h.flow[i + 1]
+            const seg = Math.hypot(bu - au, bw - aw)
+            for (let t = 0.3; t < 1; t += 2.2 / Math.max(0.1, seg)) {
+              glowAt(au + (bu - au) * t, aw + (bw - aw) * t, 76, false)
+            }
+          }
+          const [eu, ew] = h.flow[h.flow.length - 1]
+          smokeVents.push({ x: cx0 + eu * HW, y: cy0 + ew * 2 * HH - isleLiftUW(eu, ew) })
         }
       }
 
-      // ---- THE VOLCANO BREATHES: steam off the crater blowhole ----
-      const steamTex = radial(96, [[0, 'rgba(226,224,218,0.5)'], [0.5, 'rgba(210,208,204,0.22)'], [1, 'rgba(210,208,204,0)']])
+      // ---- THE VOLCANO BREATHES: steam off the crater blowhole (the cone itself is built
+      // in-engine — smooth concave lift + gully shading — per Ash: no terraced tiles up
+      // there, no pasted art; the carved heads mount onto its faces as reliefs in piece 5) ----
       const ventX = VC.u * HW
       const ventY = (ISLE_CX + ISLE_CY + 2 * VC.w) * HH - isleLiftUW(VC.u, VC.w) - 10
+      const steamTex = radial(96, [[0, 'rgba(226,224,218,0.5)'], [0.5, 'rgba(210,208,204,0.22)'], [1, 'rgba(210,208,204,0)']])
       const steam: { sp: Sprite; age: number; life: number; drift: number }[] = []
       let lastSteam = 0
 
@@ -528,10 +591,10 @@ export default function IslandMapIso() {
       }
       const mists: { sp: Sprite; ph: number; v: number }[] = []
       {
-        const mistTex = radial(256, [[0, 'rgba(224,240,236,0.17)'], [0.5, 'rgba(224,240,236,0.08)'], [1, 'rgba(224,240,236,0)']])
+        const mistTex = radial(256, [[0, 'rgba(224,240,236,0.11)'], [0.5, 'rgba(224,240,236,0.05)'], [1, 'rgba(224,240,236,0)']])
         for (const [mu, mw, scw] of [[-38, 30, 1.3], [50, -6, 1.0], [-52, -24, 1.15], [18, 46, 0.9]] as const) {
           const m = new Sprite(mistTex); m.anchor.set(0.5); m.blendMode = 'screen'
-          m.width = 2600 * scw; m.height = 250 * scw
+          m.width = 2600 * scw; m.height = 380 * scw
           m.position.set(isoX(ISLE_CX, ISLE_CY) + mu * HW, isoY(ISLE_CX, ISLE_CY) + mw * 2 * HH)
           m.zIndex = 200000
           world.addChild(m); mists.push({ sp: m, ph: hash(mu, mw) * 8, v: 5 + hash(mw, mu) * 4 })
@@ -613,89 +676,9 @@ export default function IslandMapIso() {
         }
       }
 
-      // ---- warm lantern glows ----
-      const glows: { sp: Sprite; ph: number }[] = []
-      const glowTex = radial(96, [[0, 'rgba(255,196,110,0.5)'], [0.4, 'rgba(255,176,90,0.18)'], [1, 'rgba(255,176,90,0)']])
-      const addGlow = (gx: number, gy: number, size: number, z: number) => {
-        const g = new Sprite(glowTex); g.anchor.set(0.5); g.blendMode = 'add'
-        g.width = g.height = size; g.position.set(gx, gy); g.zIndex = z
-        world.addChild(g); glows.push({ sp: g, ph: hash(gx, gy) * 6.28 })
-      }
-
-      // ---- THE EAST PORT (the intro arrival; other ports come with their own pieces) ----
-      const DECK_LIFT = 30
-      const placePort = (thetaDeg: number) => {
-        if (!tex['pierIso'] || !tex['dockPlat']) return
-        const th = (thetaDeg * Math.PI) / 180
-        const cp = coastPoint(th)
-        const neAxis = (cp.nx > 0) === (cp.ny < 0)
-        const seaUp = cp.ny < 0
-        const rtx = Math.round(txOf(cp.u - cp.nx * 2.2, cp.w - cp.ny * 2.2))
-        const rty = Math.round(tyOf(cp.u - cp.nx * 2.2, cp.w - cp.ny * 2.2))
-        const A = { x: isoX(rtx, rty), y: isoY(rtx, rty) - DECK_LIFT }
-        const mirror = !neAxis
-        const place = (t: Texture, lx: number, ly: number, wx: number, wy: number, z: number, scl = 1) => {
-          const sp2 = new Sprite(t)
-          sp2.anchor.set(0, 0)
-          sp2.scale.set(mirror ? -scl : scl, scl)
-          sp2.position.set(mirror ? wx + lx * scl : wx - lx * scl, wy - ly * scl)
-          sp2.zIndex = z
-          world.addChild(sp2)
-          return (px2: number, py2: number) => ({
-            x: mirror ? sp2.position.x - px2 * scl : sp2.position.x + px2 * scl,
-            y: sp2.position.y + py2 * scl,
-          })
-        }
-        const stepTx = neAxis ? 0 : (seaUp ? -1 : 1)
-        const stepTy = neAxis ? (seaUp ? -1 : 1) : 0
-        const sdx = isoX(stepTx, stepTy), sdy = isoY(stepTx, stepTy)
-        const WALK_N = 9
-        const rootS = rtx + rty, stepS = stepTx + stepTy
-        const jettyZ = rootS * 16 + 9
-        const pierZ = seaUp ? jettyZ - 4 : (rootS + stepS * WALK_N) * 16 + 7
-        const platZ = seaUp ? pierZ - 5 : (rootS + stepS * (WALK_N + 3)) * 16 + 9
-        const capL: [number, number] = seaUp ? [20, 120] : [187.5, 36]
-        for (let i = 0; i < 2; i++) {
-          place(tex['pierIso'], capL[0], capL[1], A.x + sdx * (i * 5), A.y + sdy * (i * 5), pierZ - i)
-          const shp = new Sprite(shadowTex); shp.anchor.set(0.5)
-          shp.rotation = mirror ? 0.4636 : -0.4636
-          shp.width = 300; shp.height = 46; shp.alpha = 0.2
-          const mx2 = A.x + sdx * (i * 5 + 2.5), my2 = A.y + sdy * (i * 5 + 2.5)
-          shp.position.set(mx2 + 26, my2 + DECK_LIFT + 34)
-          shp.zIndex = ((my2 + DECK_LIFT + 34) / HH) * 16 + 3
-          world.addChild(shp)
-        }
-        for (let i = 2; i <= WALK_N + 2; i += 2) {
-          const ptx = rtx + stepTx * i, pty = rty + stepTy * i
-          if (coastDist(ptx, pty) > 0) continue
-          const ring = new Sprite(shadowTex); ring.anchor.set(0.5)
-          ring.tint = 0xeafff6; ring.blendMode = 'add'; ring.width = 30; ring.height = 10; ring.alpha = 0.24
-          ring.position.set(isoX(ptx, pty), isoY(ptx, pty) + 10)
-          ring.zIndex = (ptx + pty) * 16 + 8
-          world.addChild(ring)
-        }
-        const E = { x: A.x + sdx * (WALK_N - 0.19), y: A.y + sdy * (WALK_N - 0.19) }
-        const platL: [number, number] = seaUp ? [77, 102] : [171, 70]
-        place(tex['dockPlat'], platL[0], platL[1], E.x, E.y, platZ)
-        if (tex['lanternPost']) {
-          const JSC = 0.63
-          const loc = place(tex['lanternPost'], 90, 84, A.x + 2, A.y - 1, jettyZ, JSC)
-          const lamp = loc(26, 65)
-          addGlow(lamp.x, lamp.y, 54, jettyZ + 3)
-        }
-        for (let i = 0; i <= WALK_N; i++)
-          setSurf(rtx + stepTx * i, rty + stepTy * i, { walk: true, layer: 1, lift: DECK_LIFT, z: (i === 0 ? jettyZ : pierZ) + 2 })
-        for (let a = -1; a <= 1; a++) for (let b = 0; b <= 2; b++) {
-          const px2 = rtx + stepTx * (WALK_N + b) + (neAxis ? a : 0)
-          const py2 = rty + stepTy * (WALK_N + b) + (neAxis ? 0 : a)
-          if (a === 0 && b === 1) continue
-          setSurf(px2, py2, { walk: true, layer: 1, lift: DECK_LIFT, z: (seaUp ? pierZ : platZ) + 2 })
-        }
-        setSurf(rtx - stepTx, rty - stepTy, { walk: true, layer: 1, lift: 14, z: jettyZ + 2, trans: true })
-        setSurf(rtx - 2 * stepTx, rty - 2 * stepTy, { walk: true, layer: 1, lift: 4, z: jettyZ + 2, trans: true })
-        addCollider(rtx - 0.6 * stepTx, rty - 0.6 * stepTy, 0.55)
-      }
-      placePort(PORT_THETA.east)
+      // (the beach pier kit is gone — each island port gets purpose-built art in piece 4;
+      // the surface/collider engine stands ready for it)
+      void setSurf; void addCollider
 
       // ---- Thor ----
       const thorShadow = new Sprite(shadowTex); thorShadow.anchor.set(0.5, 0.5)
@@ -874,14 +857,17 @@ export default function IslandMapIso() {
             s.sp.position.set(wx, wy2)
           }
         }
-        for (const p of poolFx) {
-          if (p.kind === 'churn') {
-            p.sp.alpha = 0.3 + 0.14 * Math.sin(wt * 2.4 + p.ph)
-            p.sp.scale.set(1 + 0.1 * Math.sin(wt * 3.1 + p.ph * 1.7), 1)
-          } else {
-            const k = Math.max(0, Math.sin(wt * 0.8 + p.ph) - 0.6) / 0.4
-            p.sp.alpha = k * 0.8
-          }
+        // the far ocean drifts (two interfering layers = living water to the map edge)
+        if (seaDrift.length === 2) {
+          seaDrift[0].tilePosition.set((wt * 5) % 512, (wt * 1.6) % 256)
+          seaDrift[1].tilePosition.set((-wt * 3.2) % 512, (wt * 0.9) % 256)
+        }
+        // the lava breathes: brightness pulses travel DOWN each flow; the glows flicker
+        for (const l of lavaSprites) {
+          l.sp.tint = shadeHex(l.base, 1 + 0.11 * Math.sin(wt * 1.7 - l.ph) + 0.05 * Math.sin(wt * 3.3 - l.ph * 1.7))
+        }
+        for (const g of lavaGlows) {
+          g.sp.alpha = (g.big ? 0.72 : 0.5) + (g.big ? 0.28 : 0.3) * (0.6 * Math.sin(wt * 1.9 + g.ph) + 0.4 * Math.sin(wt * 4.3 + g.ph * 2.1))
         }
         for (const m of mists) {
           m.sp.x += m.v * tk.deltaMS / 1000
@@ -896,6 +882,17 @@ export default function IslandMapIso() {
           sp2.zIndex = 300000
           world.addChild(sp2)
           steam.push({ sp: sp2, age: 0, life: 4600 + hash(wt, 7) * 1800, drift: 5 + hash(wt, 9) * 5 })
+          // the cooled deltas smoke where each lava run dies
+          const v = smokeVents[Math.floor(hash(wt, 11) * smokeVents.length)]
+          if (v) {
+            const sm = new Sprite(steamTex); sm.anchor.set(0.5); sm.blendMode = 'screen'
+            sm.tint = 0x8f8d88
+            sm.position.set(v.x + (hash(wt, 13) - 0.5) * 30, v.y + (hash(wt, 17) - 0.5) * 10)
+            sm.alpha = 0; sm.width = sm.height = 30 + hash(wt, 19) * 20
+            sm.zIndex = 299000
+            world.addChild(sm)
+            steam.push({ sp: sm, age: 0, life: 3400 + hash(wt, 23) * 1400, drift: 3 + hash(wt, 29) * 4 })
+          }
         }
         for (let i = steam.length - 1; i >= 0; i--) {
           const s2 = steam[i]
@@ -909,7 +906,6 @@ export default function IslandMapIso() {
           s2.sp.scale.set(g2)
         }
         for (const s of swaying) s.sp.rotation = s.amp * (Math.sin(wt * 0.7 + s.ph) + 0.35 * Math.sin(wt * 1.9 + s.ph * 2.3))
-        for (const g of glows) g.sp.alpha = 0.75 + 0.25 * Math.sin(wt * 1.6 + g.ph)
         for (const c of clouds) {
           c.sp.x += c.vx * tk.deltaMS / 1000
           c.sp.y += c.vy * tk.deltaMS / 1000
