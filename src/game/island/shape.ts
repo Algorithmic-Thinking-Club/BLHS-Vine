@@ -100,6 +100,12 @@ export function coastDistUW(u: number, w: number) {
 }
 export const coastDist = (tx: number, ty: number) => coastDistUW(uOf(tx, ty), wOf(tx, ty))
 
+/** zone-band scale: a toe islet's sand/grass/jungle rings compress (a 12-unit islet wearing
+ *  the pad's 6.5-unit shore band would be all beach) */
+export function shoreScaleUW(u: number, w: number) {
+  return landAtUW(u, w) > 0 ? 1.8 : 1
+}
+
 /** which landmass owns a point (index into LANDS; -1 = open sea beyond every coast) */
 export function landAtUW(u: number, w: number) {
   let best = -1e9, bi = -1
@@ -224,10 +230,11 @@ export function pathDist(tx: number, ty: number) {
 // ---- terrain classification ----
 export type IsleCell = 'sea' | 'wet' | 'sand' | 'grass' | 'jungle' | 'rock' | 'fresh' | 'bank'
 export function isleCell(tx: number, ty: number): IsleCell {
-  const cd = coastDist(tx, ty)
-  if (cd < 0) return 'sea'
-  if (cd < 1.5) return 'wet'
-  if (cd > 2.5) {
+  const cd0 = coastDist(tx, ty)
+  if (cd0 < 0) return 'sea'
+  if (cd0 < 1.5) return 'wet'
+  const cd = cd0 * shoreScaleUW(uOf(tx, ty), wOf(tx, ty))
+  if (cd0 > 2.5) {
     const f = freshDist(tx, ty)
     if (f < 0) return 'fresh'
     if (f < 0.9) return 'bank'

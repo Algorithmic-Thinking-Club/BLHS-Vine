@@ -4,7 +4,7 @@ import { ISLANDS } from './registry'
 import {
   ISLE_CX, ISLE_CY, LANDS, MAP_COLS, MAP_ROWS, POOL, PORT_THETA,
   coastDist, coastDistUW, coastPoint, freshDist, isleCell, isleLift, isleSlope, pathDist,
-  txOf, tyOf, vnoise2,
+  shoreScaleUW, txOf, tyOf, uOf, vnoise2, wOf,
 } from './shape'
 import { PROP_SRC, PROP_TINT, composeIsland, composePortDressing } from './compose'
 
@@ -36,6 +36,8 @@ const SAND_COMMON = [0, 1, 2, 3, 7, 9]
 const W_CALM = [0, 12, 15], W_SOFT = [3, 2, 8], W_TEX = [1, 10, 4, 6], W_SWELL = [13, 14, 11, 9, 7, 5]
 const W_BASE = [205, 235, 229]
 const SAND_BASE = [246, 229, 180]
+const JUNGLE_BASE = [82, 124, 72]  // normalize_tiles.py targets — ~1.5x the family's natural median:
+const ROCK_BASE = [110, 108, 90]   // enough tint headroom to grade DARK, not so much the texture pastelizes
 const W_RAMP: [number, number][] = [
   [0.0, 0xa8e2d2], [0.09, 0x8ed8c6], [0.14, 0x4dbcb2], [0.24, 0x35a5a2],
   [0.38, 0x24909a], [0.54, 0x187a89], [0.68, 0x0f586c], [1.0, 0x073442],
@@ -101,10 +103,12 @@ export default function IslandMapIso() {
         load('lanternPost', '/art/intro/port/lantern-post.png'),
         ...Object.entries(PROP_SRC).map(([k, u]) => load(k, u)),
       ])
-      const sandV: Texture[] = [], waterV: Texture[] = []
+      const sandV: Texture[] = [], waterV: Texture[] = [], jungleV: Texture[] = [], rockV: Texture[] = []
       await Promise.all([
         ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/intro/sand-n/${i}.png`).then((t) => { sandV[i] = t }).catch(() => {})),
         ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/intro/water-n/${i}.png`).then((t) => { waterV[i] = t }).catch(() => {})),
+        ...Array.from({ length: 12 }, (_, i) => Assets.load(`/art/intro/jungle-n/${i}.png`).then((t) => { jungleV[i] = t }).catch(() => {})),
+        ...Array.from({ length: 4 }, (_, i) => Assets.load(`/art/intro/rock-n/${i}.png`).then((t) => { rockV[i] = t }).catch(() => {})),
       ])
       // Thor
       const idle: Record<string, Texture> = {}
@@ -202,6 +206,7 @@ export default function IslandMapIso() {
             if (cd < -DEPTH_RANGE - 1.5) continue // beyond the ring: the abyss plane owns it
             const cell = isleCell(tx, ty)
             const slope = isleSlope(tx, ty)
+            let landBase = SAND_BASE // which normalized family's median divides the tint
             // the mountain is climbed by the falls staircase, not free-walked: steep ground
             // and the upper cone are closed (colliders do the mid-slope work; this is the law)
             walkable.set(wk(tx, ty), (cell === 'sand' || cell === 'grass' || cell === 'jungle' || cell === 'bank')
@@ -221,7 +226,20 @@ export default function IslandMapIso() {
             } else if (cell === 'fresh') {
               base = waterV[W_CALM[Math.floor(hash(tx * 3.1, ty * 1.9) * W_CALM.length)]]
             } else {
-              base = sandV[SAND_COMMON[Math.floor(hash(tx * 3.3, ty * 4.1) * SAND_COMMON.length)]]
+              // land textures by zone (the tint ramp owns hue; the texture owns material):
+              // sand family on the shore ring + worn paths, REAL jungle-floor litter inland,
+              // broken basalt on the volcano's bare heights — dithered at every family seam
+              const jj = (hash(tx * 5.7, ty * 3.9) - 0.5) * 1.3
+              const liftT = isleLift(tx, ty)
+              const pdT = pathDist(tx, ty) + jj * 0.5
+              if (liftT + jj * 8 > 100 && jungleV.length && rockV.length && pdT > 1.1) {
+                base = rockV[Math.floor(hash(tx * 2.9, ty * 3.7) * rockV.length)]
+                landBase = ROCK_BASE
+              } else if (coastDist(tx, ty) * shoreScaleUW(uOf(tx, ty), wOf(tx, ty)) + jj > 5.2 && pdT > 1.1 && jungleV.length) {
+                base = jungleV[Math.floor(hash(tx * 3.3, ty * 4.1) * jungleV.length)]
+                landBase = JUNGLE_BASE
+              } else
+                base = sandV[SAND_COMMON[Math.floor(hash(tx * 3.3, ty * 4.1) * SAND_COMMON.length)]]
             }
             if (!base) continue
             const sp = new Sprite(base); sp.anchor.set(0.5, 0.25)
@@ -257,8 +275,9 @@ export default function IslandMapIso() {
                 amp: 0.022 + 0.055 * dep,
               })
             } else if (cell === 'fresh') {
-              const f = -freshDist(tx, ty) // depth into the fresh water
-              sp.tint = tintFor(shadeHex(rampAt(FRESH_RAMP, Math.min(1, f / 3)), 0.98 + 0.04 * hash(tx, ty)), W_BASE)
+              // dithered depth so the pool reads as one soft bowl, not banded terraces
+              const f = -freshDist(tx, ty) + (hash(tx * 6.1, ty * 4.3) - 0.5) * 0.9
+              sp.tint = tintFor(shadeHex(rampAt(FRESH_RAMP, Math.min(1, Math.max(0, f / 4.5))), 0.98 + 0.04 * hash(tx, ty)), W_BASE)
             } else {
               // land: ONE CONTINUOUS colormap over (shore distance, altitude) with per-tile
               // jitter, so zone boundaries dither into each other instead of stamping hard
@@ -273,14 +292,16 @@ export default function IslandMapIso() {
               const dLiftX = isleLift(tx + 0.5, ty - 0.5) - isleLift(tx - 0.5, ty + 0.5) // across-screen gradient
               const shade = Math.min(1.12, Math.max(0.6, 1 - dLift * 0.022 + dLiftX * 0.014))
               const j = (hash(tx * 5.7, ty * 3.9) - 0.5) * 1.3 // boundary dither
-              const cdj = cd + j
+              const cdj = cd * shoreScaleUW(uOf(tx, ty), wOf(tx, ty)) + j
               let col: number
               if (cdj < 1.5) col = mix(0xb5945e, 0xd8bd86, Math.min(1, Math.max(0, cdj / 1.5)))
               else if (cdj < 3.4) col = rampAt([[0, 0xd8bd86], [0.6, 0xead6a3], [1, 0xf0e2b4]], (cdj - 1.5) / 1.9)
-              else if (cdj < 5.2) col = mix(0xf0e2b4, 0x96a86b, (cdj - 3.4) / 1.8) // sand fades under dune grass
-              else if (cdj < 7.5) col = mix(0x96a86b, 0x5f8a55, (cdj - 5.2) / 2.3)
-              else col = rampAt([[0, 0x5f8a55], [0.4, 0x477a4b], [0.75, 0x35633f], [1, 0x2c5439]],
-                Math.min(1, (cdj - 7.5) / 22 + 0.5 * Math.min(1, lift / 130)))
+              // jungle ramp colors are pure VALUE-scales of the family's base hue (82,124,72):
+              // uniform tints grade brightness without blue-shifting the litter texture to sage
+              else if (cdj < 5.2) col = mix(0xf0e2b4, 0x50793f, (cdj - 3.4) / 1.8) // sand fades under dune grass
+              else if (cdj < 7.5) col = mix(0x50793f, 0x46693d, (cdj - 5.2) / 2.3)
+              else col = rampAt([[0, 0x46693d], [0.4, 0x385431], [0.75, 0x2d4428], [1, 0x263921]],
+                Math.min(1, (cdj - 7.5) / 22 + 0.5 * Math.min(1, lift / 130))) // DARK muted BLHS green, never lime
               // altitude: mossy rock blends in high up; the crown reads as cool broken basalt
               // (banded by slope + noise so it reads as rock shelves, never felt) — the carved
               // head takes this seat later
@@ -288,7 +309,7 @@ export default function IslandMapIso() {
               if (rockK > 0) {
                 const shelf = 0.82 + 0.3 * vnoise2(tx / 3.1 + 17, ty / 3.1 + 4) // broken banding
                 const crag = Math.max(0, Math.abs(dLift) - 3) * 0.035           // crevice dark on steeps
-                let rc = rampAt([[0, 0x69705f], [0.6, 0x565e50], [1, 0x474f45]], Math.min(1, (lift - 118) / 60))
+                let rc = rampAt([[0, 0x5e5c4d], [0.6, 0x4d4c3f], [1, 0x3d3b32]], Math.min(1, (lift - 118) / 60)) // value-scales of the rock base hue
                 rc = shadeHex(rc, Math.max(0.6, shelf - crag))
                 col = mix(col, rc, rockK)
               }
@@ -307,7 +328,7 @@ export default function IslandMapIso() {
                 const pd = pathDist(tx, ty) + j * 0.5
                 if (pd < 1.6) col = mix(0x9a8a62, col, Math.max(0, (pd - 0.6) / 1.0))
               }
-              sp.tint = shadeHex(tintFor(col, SAND_BASE), grain * drift * shade)
+              sp.tint = shadeHex(tintFor(col, landBase), grain * drift * shade)
             }
             world.addChild(sp)
           }
@@ -474,8 +495,9 @@ export default function IslandMapIso() {
       }
       const THOR_R = 0.17
       const COLLIDE = new Set(['palmA', 'palmB', 'palmC', 'palmD', 'bushA', 'bushB', 'bushC',
-        'rockA', 'rockB', 'logdrift', 'crates', 'rowboat', 'tidepool'])
-      const HULL = new Set(['rowboat', 'logdrift', 'crates', 'tidepool'])
+        'rockA', 'rockB', 'logdrift', 'crates', 'rowboat', 'tidepool',
+        'kapokA', 'kapokB', 'banyan', 'broadA', 'broadB', 'boulder', 'fernA', 'ruinGate'])
+      const HULL = new Set(['rowboat', 'logdrift', 'crates', 'tidepool', 'boulder'])
 
       // ---- props ----
       const swaying: { sp: Sprite; ph: number; amp: number }[] = []
@@ -508,7 +530,8 @@ export default function IslandMapIso() {
         const pt = p.tint ?? PROP_TINT[p.img]; if (pt) sp.tint = pt
         world.addChild(sp)
         if (p.img.startsWith('palm')) swaying.push({ sp, ph: hash(p.tx * 3.1, p.ty * 1.7) * 6.28, amp: 0.014 + 0.008 * hash(p.tx, p.ty * 9) })
-        else if (p.img.startsWith('bush') || p.img === 'dunegrass') swaying.push({ sp, ph: hash(p.tx * 2.3, p.ty * 4.1) * 6.28, amp: 0.006 })
+        else if (p.img.startsWith('kapok') || p.img === 'banyan' || p.img.startsWith('broad')) swaying.push({ sp, ph: hash(p.tx * 1.9, p.ty * 2.9) * 6.28, amp: 0.005 }) // big trees barely stir
+        else if (p.img.startsWith('bush') || p.img.startsWith('fern') || p.img === 'dunegrass' || p.img === 'heliconia') swaying.push({ sp, ph: hash(p.tx * 2.3, p.ty * 4.1) * 6.28, amp: 0.006 })
         if (!p.noBlock && COLLIDE.has(p.img)) {
           const m = measureBase(t, HULL.has(p.img) ? 0.45 : 0.12)
           if (m) for (const b of m.pts) {

@@ -7,7 +7,7 @@
 
 import {
   LANDS, PATHS, PORT_THETA, coastPoint, coastDist, freshDist, isleLift, isleSlope, pathDist,
-  txOf, tyOf, vnoise2,
+  shoreScaleUW, txOf, tyOf, vnoise2,
 } from './shape'
 
 export type IsleProp = {
@@ -27,8 +27,18 @@ export const PROP_SRC: Record<string, string> = {
   crab: '/art/intro/props/crab.png', gullFly: '/art/intro/props/gull-fly.png',
   rowboat: '/art/intro/port/rowboat.png', crates: '/art/intro/port/crates.png',
   ropecoil: '/art/intro/port/ropecoil.png',
+  // the island's own jungle family (anchored to the live scene's light)
+  kapokA: '/art/island/kapok-a.png', kapokB: '/art/island/kapok-b.png',
+  banyan: '/art/island/banyan-a.png', broadA: '/art/island/broadleaf-a.png',
+  broadB: '/art/island/broadleaf-b.png', fernA: '/art/island/fern-a.png',
+  fernB: '/art/island/fern-b.png', heliconia: '/art/island/heliconia-a.png',
+  boulder: '/art/island/boulder-b.png', understory: '/art/island/understory-a.png',
+  ruinGate: '/art/island/ruin.png',
 }
-export const PROP_TINT: Record<string, number> = { bushB: 0xe6dccf, bushC: 0xc9e0b4, seaweed: 0xd9cfb4 }
+export const PROP_TINT: Record<string, number> = {
+  bushB: 0xe6dccf, bushC: 0xc9e0b4, seaweed: 0xd9cfb4,
+  understory: 0x7f9370, // ground-cover leaves sit IN the floor's shade, never over it
+}
 
 const hash = (x: number, y: number) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5; return s - Math.floor(s) }
 const rnd = (a: number, b: number, x: number, y: number) => a + (b - a) * hash(x * 3.17, y * 7.31)
@@ -86,34 +96,59 @@ export function composeIsland(): IsleProp[] {
   }
   }
 
-  // 2. THE INTERIOR JUNGLE — canopy scattered on a jittered grid over the pad AND the toe
-  // islets, denser and darker with altitude, parting for paths, river, pool, and rock faces.
+  // 2. THE INTERIOR JUNGLE — a real layered rainforest over the pad AND the toe islets:
+  // emergent kapoks/banyans towering out of a broadleaf+palm canopy over a fern-and-shrub
+  // understory, denser and darker with altitude, parting for paths, river, pool, rock faces.
+  // 2a. hero emergents on a sparse grid (each visibly individual)
+  for (let gu = -76; gu <= 76; gu += 7.5) {
+    for (let gw = -76; gw <= 76; gw += 7.5) {
+      const u = gu + rnd(-2.6, 2.6, gu, gw + 51), w = gw + rnd(-2.6, 2.6, gw, gu + 17)
+      const tx = txOf(u, w), ty = tyOf(u, w)
+      const cd = coastDist(tx, ty) * shoreScaleUW(u, w)
+      if (cd < 9) continue
+      if (pathDist(tx, ty) < 2.2 || freshDist(tx, ty) < 2.2) continue
+      const lift = isleLift(tx, ty)
+      if (lift > 130 || isleSlope(tx, ty) > 10) continue
+      if (hash(u * 1.3, w * 3.1) > 0.62) continue
+      const kind = ['kapokA', 'kapokB', 'banyan'][Math.floor(hash(u * 7, w * 9) * 3)]
+      const hiTint = lift > 80 ? 0x5c7264 : undefined
+      add(u, w, kind, rnd(225, 275, u, w), { flip: hash(u, w * 3) > 0.5, tint: hiTint })
+    }
+  }
+  // 2b. the main canopy + understory
   for (let gu = -80; gu <= 80; gu += 2.6) {
     for (let gw = -80; gw <= 80; gw += 2.6) {
       const u = gu + rnd(-1.1, 1.1, gu, gw), w = gw + rnd(-1.1, 1.1, gw, gu)
       const tx = txOf(u, w), ty = tyOf(u, w)
-      const cd = coastDist(tx, ty)
+      const cd = coastDist(tx, ty) * shoreScaleUW(u, w)
       if (cd < 7) continue // the fringe owns the edge
       if (pathDist(tx, ty) < 1.7) continue
       if (freshDist(tx, ty) < 1.6) continue
       const lift = isleLift(tx, ty), slope = isleSlope(tx, ty)
       if (slope > 12) {
-        // truly cliffy ground: a sparse dark boulder, never a bright stack
-        if (hash(u * 3, w * 5) > 0.82)
-          add(u, w, hash(u, w) > 0.5 ? 'rockA' : 'rockB', rnd(40, 68, u, w), { flip: hash(u * 7, w) > 0.5, tint: 0x8a9184 })
+        // truly cliffy ground: mossy volcanic boulders
+        if (hash(u * 3, w * 5) > 0.7)
+          add(u, w, 'boulder', rnd(48, 84, u, w), { flip: hash(u * 7, w) > 0.5 })
         continue
       }
       if (lift > 170) continue // only the crater rim + vent stay bare
       const density = (0.34 + 0.3 * vnoise2(u / 9 + 3, w / 9 + 8) + 0.15 * Math.min(1, lift / 90))
         * (lift > 125 ? Math.max(0, (170 - lift) / 45) : 1) // canopy thins up the cone
       if (hash(u * 1.9, w * 2.3) > density) continue
-      // altitude grading: lowland palms stay warm, upland canopy goes deep green-blue
+      // species by moisture: palms love the lowland coast side, broadleaf takes the slopes;
+      // altitude grading cools the high canopy
       const hiTint = lift > 70 ? 0x4b6058 : lift > 34 ? 0x6d8272 : undefined
-      add(u, w, pick(PALMS, u * 3, w * 5), rnd(150, 215, u, w), { flip: hash(u, w * 3) > 0.5, tint: hiTint })
-      if (hash(u * 5, w * 7) > 0.5)
-        add(u + rnd(-1.3, 1.3, u, 11), w + rnd(-1.3, 1.3, w, 11), hash(u, w + 4) > 0.5 ? 'bushA' : 'bushC', rnd(60, 92, u, w + 5),
-          { flip: hash(u, w + 6) > 0.5, tint: hiTint })
-      if (hash(u * 9, w * 3) > 0.8) add(u + rnd(-1, 1, u, 13), w + rnd(-1, 1, w, 13), 'coconuts', 20)
+      const broadleafy = hash(u * 2.7, w * 1.9) < Math.min(0.75, 0.25 + lift / 90 + cd / 90)
+      add(u, w, broadleafy ? (hash(u, w * 7) > 0.5 ? 'broadA' : 'broadB') : pick(PALMS, u * 3, w * 5),
+        rnd(broadleafy ? 140 : 150, broadleafy ? 195 : 215, u, w), { flip: hash(u, w * 3) > 0.5, tint: hiTint })
+      const h5 = hash(u * 5, w * 7)
+      if (h5 > 0.62)
+        add(u + rnd(-1.3, 1.3, u, 11), w + rnd(-1.3, 1.3, w, 11), h5 > 0.86 ? 'fernA' : hash(u, w + 4) > 0.5 ? 'bushA' : 'bushC',
+          rnd(56, 92, u, w + 5), { flip: hash(u, w + 6) > 0.5, tint: hiTint })
+      else if (h5 < 0.06)
+        add(u + rnd(-1.2, 1.2, u, 15), w + rnd(-1.2, 1.2, w, 15), 'understory', rnd(40, 60, u, w + 9), { ground: true, flip: hash(u, w + 8) > 0.5 })
+      if (hash(u * 9, w * 3) > 0.84)
+        add(u + rnd(-1, 1, u, 13), w + rnd(-1, 1, w, 13), hash(u * 4, w) > 0.6 ? 'fernB' : 'coconuts', hash(u * 4, w) > 0.6 ? rnd(26, 40, u, w) : 20)
     }
   }
 
@@ -150,6 +185,9 @@ export function composeIsland(): IsleProp[] {
         add(pu + side * rnd(1.9, 2.6, pu, 1), pw + rnd(-0.8, 0.8, pw, 2), 'dunegrass', rnd(26, 38, pu, 3), { flip: side < 0 })
       if (hash(pu * 3, pw * 9) > 0.72)
         add(pu - side * rnd(2.0, 2.8, pu, 4), pw + rnd(-0.8, 0.8, pw, 5), 'rockA', rnd(30, 44, pu, 6), { flip: hash(pu, 7) > 0.5, tint: 0xc4cabb })
+      // a flash of heliconia where the trail bends — the jungle showing off
+      if (hash(pu * 9, pw * 5) > 0.7)
+        add(pu + side * rnd(1.7, 2.3, pu, 8), pw + rnd(-0.6, 0.6, pw, 9), 'heliconia', rnd(30, 42, pu, 10), { flip: side > 0 })
     }
   }
 
