@@ -299,7 +299,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         load('pierIso', '/art/intro/port/pier-iso2.png'), load('dockPlat', '/art/intro/port/dock-platform2.png'),
         load('ship', '/art/intro/port/ship.png'), load('boatAnchor', '/art/intro/port/boat-anchored.png'),
         load('boatFish', '/art/intro/port/boat-fishing.png'),
-        ...Array.from({ length: 16 }, (_, b) => load('ship16v' + b, `/art/intro/port/ship16/v${b}.png`)),
+        ...Array.from({ length: 24 }, (_, b) => load('ship24v' + b, `/art/intro/port/ship24/v${b}.png`)),
         ...Object.entries(PROP_SRC).map(([k, u]) => load(k, u)),
       ])
       // ---- DRAWN-GEOMETRY measurement: read a texture's pixels once and find where its art
@@ -780,11 +780,11 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       // inherits exactly that: continuous momentum physics, 8 painted facings behind
       // hysteresis. Deck-walking (the endless source of iso glitches) no longer exists.
       // Piloting is a PILOT SEAM: keyboard today, phase-2 cutscenes drive the same boat. ----
-      // SIXTEEN views in screen-compass order (22.5 deg steps, k=0 bow screen-right,
-      // clockwise): E ESE SE SSE S SSW SW WSW W WNW NW NNW N NNE NE ENE — half the old
-      // flip, and the heel micro-rotation carries the eye through what remains.
-      // (bottom row of each texture IS the waterline.) w = drawn hull width (the foam
-      // ring hugs each silhouette); lamp + head tuned per view (odd views interpolated).
+      // TWENTY-FOUR painted views (15 deg steps, k=0 bow screen-right, clockwise) — the
+      // ladder Ash approved, densified; the heel micro-rotation carries the eye through
+      // what remains of each step. (Bottom row of each texture IS the waterline.)
+      // Meta stays a 16-point table (measured on the octant views); metaAt() lerps it to
+      // any bucket count. w = drawn hull width (the foam ring hugs each silhouette).
       const SHIPMETA: { lampX: number; lampY: number; w: number; headX: number; headY: number }[] = [
         { lampX: 5, lampY: -50, w: 175, headX: -18, headY: -38 },  // E
         { lampX: 6, lampY: -70, w: 138, headX: -12, headY: -42 },  // ESE
@@ -803,6 +803,14 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         { lampX: -16, lampY: -77, w: 158, headX: 12, headY: -44 }, // NE
         { lampX: -6, lampY: -64, w: 166, headX: -3, headY: -41 },  // ENE
       ]
+      const NVIEWS = 24
+      const metaAt = (b: number) => {
+        const f = (((b % NVIEWS) + NVIEWS) % NVIEWS) * 16 / NVIEWS
+        const i0 = Math.floor(f) % 16, i1 = (i0 + 1) % 16, t2 = f - Math.floor(f)
+        const A = SHIPMETA[i0], B = SHIPMETA[i1]
+        const L = (a: number, b2: number) => a + (b2 - a) * t2
+        return { lampX: L(A.lampX, B.lampX), lampY: L(A.lampY, B.lampY), w: L(A.w, B.w), headX: L(A.headX, B.headX), headY: L(A.headY, B.headY) }
+      }
       type Hop = { t: number; ax: number; ay: number; bx: number; by: number; lift0: number; lift1: number; to: 'ship' | 'land'; landLayer?: number }
       type Veh = {
         tx: number; ty: number; ang: number; rud: number; bucket: number; spd: number
@@ -813,24 +821,24 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         hop: Hop | null; bob: number
       }
       let veh: Veh | null = null
-      // heading -> continuous screen-compass coordinate (1.0 per view, 16 per circle)
+      // heading -> continuous screen-compass coordinate (1.0 per view, NVIEWS per circle)
       const bucketCoord = (ang: number) => {
         const sx = (Math.cos(ang) - Math.sin(ang)) * HW, sy = (Math.cos(ang) + Math.sin(ang)) * HH
-        return Math.atan2(sy, sx) / (Math.PI / 8)
+        return Math.atan2(sy, sx) / (2 * Math.PI / NVIEWS)
       }
-      // nearest of the 16 painted views WITH hysteresis: the view only swaps once the
-      // heading is decisively inside the next sector, so a resting rudder never flickers it
+      // nearest painted view WITH hysteresis: the view only swaps once the heading is
+      // decisively inside the next sector, so a resting rudder never flickers it
       const setBucket = (V: Veh, force = false) => {
-        const bc = ((bucketCoord(V.ang) % 16) + 16) % 16
-        const b = Math.round(bc) % 16
+        const bc = ((bucketCoord(V.ang) % NVIEWS) + NVIEWS) % NVIEWS
+        const b = Math.round(bc) % NVIEWS
         if (!force && V.bucket >= 0) {
           if (b === V.bucket) return
-          let d = Math.abs(bc - V.bucket) % 16
-          d = Math.min(d, 16 - d)
+          let d = Math.abs(bc - V.bucket) % NVIEWS
+          d = Math.min(d, NVIEWS - d)
           if (d < 0.62) return
         }
         V.bucket = b
-        const t = tex['ship16v' + b] ?? tex['ship']
+        const t = tex['ship24v' + b] ?? tex['ship']
         if (t) {
           V.hull.texture = t
           V.hull.anchor.set(0.5, 1) // bottom row = waterline
@@ -1421,12 +1429,12 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           // angle between the continuous heading and the drawn view's center, so the eye
           // is carried across the 22.5-degree steps (it reads as a ship heeling into her
           // turn, which is what a ship does); the lamp and head ride the lean ----
-          const M = SHIPMETA[V.bucket] ?? SHIPMETA[10]
-          const bc9 = ((bucketCoord(V.ang) % 16) + 16) % 16
+          const M = metaAt(V.bucket)
+          const bc9 = ((bucketCoord(V.ang) % NVIEWS) + NVIEWS) % NVIEWS
           let resid = bc9 - V.bucket
-          if (resid > 8) resid -= 16
-          if (resid < -8) resid += 16
-          const heel = Math.max(-0.68, Math.min(0.68, resid)) * (Math.PI / 8) * 0.5
+          if (resid > NVIEWS / 2) resid -= NVIEWS
+          if (resid < -NVIEWS / 2) resid += NVIEWS
+          const heel = Math.max(-0.68, Math.min(0.68, resid)) * (2 * Math.PI / NVIEWS) * 0.5
           V.hull.rotation = heel
           V.hull.position.set(bxp, byp + V.bob)
           V.hull.zIndex = bz + 8
