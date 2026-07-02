@@ -9,6 +9,7 @@ import { Application, Assets, ColorMatrixFilter, Container, Rectangle, Sprite, T
 // beach, the basic floor the whole intro is built on.
 
 const HW = 32, HH = 16
+const PIER_LIFT = 18 // screen-px the walkable pier deck sits above the tile ground (Thor rides the planks)
 const isoX = (tx: number, ty: number) => (tx - ty) * HW
 const isoY = (tx: number, ty: number) => (tx + ty) * HH
 const dirs8 = ['south', 'north', 'east', 'west', 'south-east', 'north-east', 'north-west', 'south-west']
@@ -493,6 +494,7 @@ export default function BeachIso() {
       void makeFleck
       const shadowTex = makeShadow()
       const blocked = new Set<string>()
+      const pierTiles = new Set<string>() // the walkable raised pier/dock deck (Thor can stroll to the ship)
       // foliage sways gently in the sea breeze: a tiny rotation around each trunk base, every
       // plant on its own phase (palms lean furthest, bushes rustle barely)
       const swaying: { sp: Sprite; ph: number; amp: number }[] = []
@@ -595,11 +597,17 @@ export default function BeachIso() {
             world.addChild(ring)
           }
         }
-        // block the pier's diagonal footprint
+        // the pier is a WALKABLE raised deck: mark its tiles as pier (a 2-wide plank walkway on the
+        // iso diagonal). Only these + the dock diamond are walkable over water; the sea around them
+        // stays blocked, so Thor can't fall off the sides — he must walk back down to the sand.
         for (let k = 0; k <= 14; k++) {
           const cd = 30 + k, cs = 116 - k
           const bx = Math.round((cs + cd) / 2), by = Math.round((cs - cd) / 2)
-          blocked.add(bx + ',' + by); blocked.add(bx + ',' + (by - 1))
+          pierTiles.add(bx + ',' + by); pierTiles.add((bx - 1) + ',' + by) // 2-wide walkway
+        }
+        // the dock platform diamond at the head (centered on the pier end tile 73,29)
+        for (let ax = -2; ax <= 2; ax++) for (let ay = -2; ay <= 2; ay++) {
+          if (Math.abs(ax) + Math.abs(ay) <= 2) pierTiles.add((72 + ax) + ',' + (29 + ay))
         }
         // THOR'S SHIP moored on the platform's upper-left, bow toward the open sea
         if (tex['ship']) moorBoat(tex['ship'], 30 + 2 * (stepX / HW) - 4.5, 116 - 2 * (stepX / HW / 2) - 3.5, 170)
@@ -639,6 +647,7 @@ export default function BeachIso() {
       const walkableAt = (tx: number, ty: number) => {
         const x = Math.round(tx), y = Math.round(ty)
         if (x < MARGIN || y < MARGIN || x > COLS - MARGIN || y > ROWS - MARGIN) return false // invisible boundary, well inside the map edge
+        if (pierTiles.has(x + ',' + y)) return true // the walkable pier/dock deck (over water, but planked)
         return walkable[y][x] && !blocked.has(x + ',' + y)
       }
 
@@ -657,7 +666,8 @@ export default function BeachIso() {
           if (walkableAt(pos.tx, nty + Math.sign(uy) * 0.25)) pos.ty = nty
           facing = dirFromAngle(isoX(dx, dy), (dx + dy) * HH)
         }
-        const x = isoX(pos.tx, pos.ty), y = isoY(pos.tx, pos.ty) - liftAt(pos.tx, pos.ty)
+        const onPier = pierTiles.has(Math.round(pos.tx) + ',' + Math.round(pos.ty))
+        const x = isoX(pos.tx, pos.ty), y = isoY(pos.tx, pos.ty) - (onPier ? PIER_LIFT : liftAt(pos.tx, pos.ty))
         // JUMP (spacebar): a quick eased hop with a mid-air stretch (buffered so a fast tap registers)
         if (jumpQueued && !jump.active) { jump.active = true; jump.t = 0 }
         jumpQueued = false
@@ -671,7 +681,7 @@ export default function BeachIso() {
         // IDLE: a gentle breathing squash when standing still (feet planted, chest rises)
         const breath = (!moving && !jump.active) ? 1 + 0.03 * Math.sin(at / 430) : 1
         thor.scale.set(THOR_SC, THOR_SC * breath * stretch)
-        thor.position.set(x, y + jy); thor.zIndex = Math.floor(pos.tx + pos.ty) * 16 + 12
+        thor.position.set(x, y + jy); thor.zIndex = Math.floor(pos.tx + pos.ty) * 16 + 12 + (onPier ? 80 : 0)
         // shadow stays on the ground under his feet; shrinks + fades as he leaps
         const shf = Math.max(0.55, 1 - (-jy) / 110)
         thorShadow.width = 42 * shf; thorShadow.height = 12 * shf
