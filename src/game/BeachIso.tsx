@@ -121,13 +121,15 @@ function composeBeach(): PropDef[] {
     const sWall = 138.5 + bend + 2.2 * Math.sin(d * 0.21) + rnd(-1, 1, d, 1)
     add(d + rnd(-1.2, 1.2, d, 2), sWall + 3.5, hash(d, 19) > 0.35 ? 'bushA' : 'bushC', rnd(92, 126, d, 16), { flip: hash(d, 3) > 0.5 })
     add(d + 2 + rnd(-1.2, 1.2, d, 4), sWall + 1.2, hash(d, 17) > 0.72 ? 'bushB' : hash(d, 20) > 0.35 ? 'bushA' : 'bushC', rnd(70, 96, d, 18), { flip: hash(d, 5) > 0.5 })
-    if (hash(d, 7) > 0.4) add(d + rnd(-1.5, 1.5, d, 8), sWall + 2.2, hash(d, 9) > 0.5 ? 'palmA' : 'palmB', rnd(168, 214, d, 10), { flip: hash(d, 11) > 0.5 })
+    if (hash(d, 7) > 0.4) add(d + rnd(-1.5, 1.5, d, 8), sWall + 2.2, ['palmA','palmB','palmC','palmD'][Math.floor(hash(d, 9) * 4)], rnd(168, 214, d, 10), { flip: hash(d, 11) > 0.5 })
     if (hash(d, 12) > 0.55) add(d + rnd(-2, 2, d, 13), sWall - 1.6, 'dunegrass', rnd(28, 44, d, 14), { flip: hash(d, 15) > 0.5 })
   }
 
-  // 2. RIGHT HEADLAND — a rocky arm marching into the sea, enclosing the cove's right side.
-  add(15, 109, 'rockA', 74); add(17.5, 106, 'rockB', 112); add(20, 102.5, 'rockB', 90, { flip: true, sea: true })
-  add(22.5, 99, 'rockA', 62, { flip: true, sea: true }); add(25, 96, 'rockB', 78, { sea: true }); add(28, 93.5, 'rockA', 48, { sea: true })
+  // 2. RIGHT HEADLAND — a rocky arm reaching into the sea: one big land cluster, a tight middle
+  // group, then a lone outer stack (clustered masses, not a queue of stamps).
+  add(15, 109, 'rockA', 74); add(17.5, 106, 'rockB', 112); add(16.8, 108.2, 'rockA', 40, { flip: true })
+  add(21, 101.5, 'rockB', 92, { flip: true, sea: true }); add(23, 100.2, 'rockA', 56, { sea: true })
+  add(27.5, 94, 'rockB', 70, { sea: true })
   add(13.5, 112, 'dunegrass', 36); add(16.5, 111, 'dunegrass', 30, { flip: true })
   add(14, 110.5, 'palmA', 178, { flip: true }); add(12, 113.5, 'palmB', 152)
   add(16, 113, 'coconuts', 22)
@@ -141,7 +143,7 @@ function composeBeach(): PropDef[] {
   const grove = (d: number, s: number, n: number) => {
     for (let i = 0; i < n; i++) {
       const gd = d + rnd(-3, 3, d + i, s), gs = s + rnd(-2.5, 2.5, d, s + i)
-      add(gd, gs, hash(i, d) > 0.45 ? 'palmA' : 'palmB', rnd(160, 212, gd, gs), { flip: hash(gd, gs) > 0.5 })
+      add(gd, gs, ['palmA','palmB','palmC','palmD'][Math.floor(hash(i * 2.3, d) * 4)], rnd(160, 212, gd, gs), { flip: hash(gd, gs) > 0.5 })
     }
     add(d + rnd(-2, 2, d, s + 9), s + 1.6, hash(d, s + 7) > 0.5 ? 'bushB' : 'bushC', rnd(64, 84, d, s + 8), { flip: hash(d, s) > 0.5 })
     add(d + rnd(-3, 3, d, s + 11), s - 1.4, 'dunegrass', rnd(28, 40, d, s + 12))
@@ -183,6 +185,7 @@ function composeBeach(): PropDef[] {
 
 const PROP_SRC: Record<string, string> = {
   palmA: '/art/intro/palm-a.png', palmB: '/art/intro/palm-b.png',
+  palmC: '/art/intro/props/palm-c.png', palmD: '/art/intro/props/palm-d.png',
   bushA: '/art/intro/props/bush-a.png', bushB: '/art/intro/props/bush-b.png',
   dunegrass: '/art/intro/props/dunegrass.png', seaweed: '/art/intro/props/seaweed.png',
   shells: '/art/intro/props/shells.png', coconuts: '/art/intro/props/coconuts.png',
@@ -210,7 +213,9 @@ export default function BeachIso() {
       await instance.init({ background: 0x083744, antialias: false, resizeTo: ref.current ?? window }) // abyss = the deep end of the ramp, so off-map sea blends
       if (destroyed || !ref.current) { instance.destroy(true); return }
       app = instance; ref.current.appendChild(instance.canvas)
-      const ZOOM = 1.15 // BEACH-LOCAL zoom (Thor reads bigger; each map sets its own)
+      // BEACH-LOCAL zoom (Thor reads bigger; each map sets its own). ?zoom= overrides for
+      // validation shots (the bar check runs zoomed in AND out).
+      const ZOOM = parseFloat(new URLSearchParams(location.search).get('zoom') ?? '') || 1.15
 
       const tex: Record<string, Texture> = {}
       const load = async (k: string, u: string) => { try { tex[k] = await Assets.load(u) } catch { /* */ } }
@@ -365,9 +370,15 @@ export default function BeachIso() {
               fp.anchor.set(0.5, 1); fp.position.set(d * HW, shoreAt(d) * HH); fp.alpha = 0
               world.addChild(fp); filmSegs.push({ sp: fp, d, jit })
             }
-            const fr = new Rectangle(((d - dMin) * 32 + f * 160) % Math.max(32, laceT.width - 32), 0, 32, laceT.height)
+            // alternate strip halves run MIRRORED so the lace motif's repeat period doubles
+            // (foam is stochastic — a mirrored continuation still reads continuous)
+            const period = Math.max(32, laceT.width - 32)
+            const run = Math.floor(((d - dMin) * 32 + f * 160) / period) % 2 === 1
+            const off = ((d - dMin) * 32 + f * 160) % period
+            const fr = new Rectangle(run ? period - 32 - off : off, 0, 32, laceT.height)
             const sp = new Sprite(new Texture({ source: laceT.source, frame: fr }))
             sp.anchor.set(0.5, 0.84) // scalloped leading edge rides just below the front line
+            if (run) sp.scale.x = -1
             sp.position.set(d * HW, shoreAt(d) * HH); sp.alpha = 0
             world.addChild(sp); segs.push({ sp, d, jit })
             if (trailT && d % 2 === 0) {
@@ -384,8 +395,9 @@ export default function BeachIso() {
       // sun glints twinkling on the open water, denser toward the sun (upper-left of the sea)
       const sparkles: { sp: Sprite; ph: number; sc: number }[] = []
       if (tex['sparkle']) {
-        for (let i = 0; i < 64; i++) {
-          const d = -80 + hash(i * 3.7, i) * 160
+        for (let i = 0; i < 96; i++) {
+          const h0 = hash(i * 3.7, i)
+          const d = h0 < 0.62 ? -70 + h0 * 105 : -80 + h0 * 160 // ~2/3 gather on the sun side
           const back = 3 + hash(i, i * 1.9) * 26 // diagonal units seaward of the waterline
           const s = shoreAt(d) - back
           const sp = new Sprite(tex['sparkle']); sp.anchor.set(0.5)
