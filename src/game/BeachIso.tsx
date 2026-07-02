@@ -265,6 +265,8 @@ const PROP_TINT: Record<string, number> = { bushB: 0xe6dccf, bushC: 0xc9e0b4, se
 // optional onStage prop so the intro (and any future scripted beat) can direct the live scene
 // without a second render path — one beach, playable and stageable.
 import type { CutsceneStage } from './cutscene/types'
+import { loadSave } from './save'
+import { drawRecolored, lookHue } from './thorLook'
 export type BeachStage = CutsceneStage & { onTick: (fn: ((ms: number) => void) | null) => void }
 
 export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => void } = {}) {
@@ -358,10 +360,28 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       await Promise.all(dirs8.map(async (d) => {
         try { walk[d] = await Promise.all([0, 1, 2, 3, 4, 5].map((i) => Assets.load(`/art/characters/thor/walk/${d}/${i}.png`))) } catch { /* */ }
       }))
-      for (const d of dirs8) {
-        if (idle[d]) idle[d] = trimmed(idle[d])
-        if (walk[d]) walk[d] = walk[d].map(trimmed)
+      // the wardrobe's dye job (§4.5): bake the chosen accent into Thor's frames with the
+      // SAME shirt-pixel recolor the wardrobe preview used — what you picked is what walks
+      // the sand. Pristine originals are kept so the I-3 wardrobe can re-dye mid-scene.
+      const rawIdle: Record<string, Texture> = { ...idle }
+      const rawWalk: Record<string, Texture[]> = {}
+      for (const d of dirs8) if (walk[d]) rawWalk[d] = [...walk[d]]
+      const dyed = (t: Texture, hue: number | null): Texture => {
+        if (hue === null) return t
+        try {
+          const cv = document.createElement('canvas')
+          drawRecolored(cv, t.source.resource as HTMLImageElement, hue)
+          return Texture.from(cv)
+        } catch { return t }
       }
+      const applyLook = () => {
+        const hue = lookHue(loadSave()?.thorLook)
+        for (const d of dirs8) {
+          if (rawIdle[d]) idle[d] = trimmed(dyed(rawIdle[d], hue))
+          if (rawWalk[d]) walk[d] = rawWalk[d].map((t) => trimmed(dyed(t, hue)))
+        }
+      }
+      applyLook()
       // 16 NORMALIZED PixelLab variant tiles each for sand + water (shared base color; the
       // depth ramp tints them so adjacent tiles are continuous by construction)
       const sandV: Texture[] = [], waterV: Texture[] = []
@@ -1171,6 +1191,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           if (a) { a.sp.visible = false; a.sh.visible = false }
           return
         }
+        if (name === 'applyLook') { applyLook(); return } // the wardrobe re-dyes Thor mid-scene
       }
       const stage: BeachStage = {
         cameraGet: () => cs.cam ? { ...cs.cam } : { x: pos.tx, y: pos.ty, zoom: ZOOM },

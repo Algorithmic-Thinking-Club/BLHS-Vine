@@ -15,8 +15,14 @@ import TeacherScene from './app/scenes/TeacherScene'
 
 // LAZY on purpose (and per §15.2's lazy-load law): the island map is under heavy parallel
 // construction — an in-flight broken state in its module graph must never white-screen the
-// boot/title/intro path (it did, repeatedly, and got judged as "the game is glitchy").
-const IslandMapIso = lazy(() => import('./game/island/IslandMapIso'))
+// boot/title/intro path. v2 of the renderer is archived; this import re-points when v3
+// lands. The registry (game/island/registry.ts) is the stable seam either way.
+const ISLAND_MAP_MODULE = './game/island/IslandMapIso.tsx' // re-points when renderer v3 lands
+const IslandMapIso = lazy(() =>
+  import(/* @vite-ignore */ ISLAND_MAP_MODULE).catch(() => ({
+    default: () => <div style={{ position: 'absolute', inset: 0, background: '#06121a' }} />,
+  })),
+)
 
 // The game runs through the scene manager, wrapped in the run-state provider. Phase 1 flow:
 // title -> overworld (navigable hub) -> island visit -> ... -> cape summary. Join-by-code +

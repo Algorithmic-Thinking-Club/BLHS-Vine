@@ -40,10 +40,21 @@
   line-height: 1.5;
   color: #3b2a1a;
   text-shadow: 0 1px 0 rgba(255, 250, 235, .35);
-  height: 100%;
-  overflow: hidden;
+  /* NO height/overflow here: percentage height inside an aspect-ratio box can resolve to a
+     zero-height clip on some browser/zoom combos — the box then shows with its text clipped
+     to nothing (Ash's empty-dialogue reports). The paper is sized generously; let text flow. */
   padding-top: 2.2%;
 }
+.cs-continue-hint {
+  position: absolute;
+  right: 13%; bottom: 13%;
+  font-family: 'Deckhand', monospace;
+  font-size: clamp(11px, 1.7vh, 14px);
+  color: #6a563c;
+  animation: cs-hintpulse 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes cs-hintpulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 .cs-nameplaque {
   position: absolute;
   top: -9%;

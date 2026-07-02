@@ -61,6 +61,7 @@ export const introI1I2: Script = {
     // the parchment unfurls upward and BECOMES the I-3 session (the ui gate hands off to React)
     { t: 'gate', kind: 'ui', id: 'i3-session' },
     // ---- return to the world (I-3 done: parchment rolled up, Thor pockets it) ----
+    { t: 'stage', call: 'applyLook' },                         // the wardrobe dye walks out with him
     { t: 'stage', call: 'hideBottle' },
     { t: 'camera', to: WALK_STOP, zoom: 1.7, ms: 1200 },
     { t: 'cameraFollow', actor: 'thor' },

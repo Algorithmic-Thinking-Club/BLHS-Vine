@@ -84,6 +84,7 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
               {ui.dialogue.text.slice(0, ui.dialogue.shown)}
               {ui.dialogue.done && <span className="cs-continue">🐾</span>}
             </div>
+            {ui.dialogue.done && <span className="cs-continue-hint">click to go on ▸</span>}
           </div>
         )}
 
