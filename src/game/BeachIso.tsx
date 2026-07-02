@@ -139,6 +139,8 @@ function composeBeach(): PropDef[] {
   add(13.5, 112, 'dunegrass', 36); add(16.5, 111, 'dunegrass', 30, { flip: true })
   add(14, 110.5, 'palmA', 178, { flip: true }); add(12, 113.5, 'palmB', 152)
   add(16, 113, 'coconuts', 22)
+  // a tide pool caught in the rocks at the point's base, another at the beach's west end
+  add(7.5, 115.4, 'tidepool', 50); add(-22, 106.8, 'tidepool', 42, { flip: true })
 
   // 3. THE PANTHER ROCK — the focal landmark, the hero of the frame: big, just off the waterline
   // at the upper-left third, waves lapping its base, gulls keeping it company.
@@ -200,6 +202,7 @@ const PROP_SRC: Record<string, string> = {
   rockB: '/art/intro/props/rock-b.png', panther: '/art/intro/props/panther-rock.png',
   pawprints: '/art/intro/props/pawprints.png', pennant: '/art/intro/props/pennant.png',
   gull: '/art/intro/props/gull.png', bushC: '/art/intro/props/bush-c.png',
+  tidepool: '/art/intro/props/tidepool.png',
   driftwood: '/art/intro/driftwood.png', grass: '/art/intro/grass.png', reeds: '/art/iso/props/reeds.png',
 }
 // per-prop grade: the panther rock reads as weathered gray stone (not bone), the flowered hedge
@@ -430,6 +433,9 @@ export default function BeachIso() {
       void makeFleck
       const shadowTex = makeShadow()
       const blocked = new Set<string>()
+      // foliage sways gently in the sea breeze: a tiny rotation around each trunk base, every
+      // plant on its own phase (palms lean furthest, bushes rustle barely)
+      const swaying: { sp: Sprite; ph: number; amp: number }[] = []
       for (const p of composeBeach()) {
         const t = tex[p.img]; if (!t) continue
         const x = isoX(p.tx, p.ty), y = isoY(p.tx, p.ty) - (p.sea ? 0 : liftAt(p.tx, p.ty)), z = (p.tx + p.ty) * 16
@@ -454,6 +460,8 @@ export default function BeachIso() {
         sp.zIndex = z + 8
         const pt = p.tint ?? PROP_TINT[p.img]; if (pt) sp.tint = pt
         world.addChild(sp)
+        if (p.img.startsWith('palm')) swaying.push({ sp, ph: hash(p.tx * 3.1, p.ty * 1.7) * 6.28, amp: 0.014 + 0.008 * hash(p.tx, p.ty * 9) })
+        else if (p.img.startsWith('bush') || p.img === 'dunegrass') swaying.push({ sp, ph: hash(p.tx * 2.3, p.ty * 4.1) * 6.28, amp: 0.006 })
         if (p.sea) {
           // foam collar where the sea meets the rock — grounds it in the water instead of on it
           const ring = new Sprite(shadowTex); ring.anchor.set(0.5, 0.5)
@@ -566,6 +574,8 @@ export default function BeachIso() {
           s.sp.alpha = k * 0.85
           s.sp.scale.set(s.sc * (0.7 + 0.3 * k))
         }
+        // sea-breeze sway: slow lean + a faster flutter on top, per-plant phase
+        for (const s of swaying) s.sp.rotation = s.amp * (Math.sin(wt * 0.7 + s.ph) + 0.35 * Math.sin(wt * 1.9 + s.ph * 2.3))
         resizeFx(vw, vh)
       })
 
