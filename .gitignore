@@ -88,3 +88,6 @@ scripts/*
 # Bundled CLI tools (downloaded locally, not versioned)
 reference/tools/
 .browser-sessions/
+!scripts/pl_gen.py
+!scripts/port_align.py
+!scripts/measure_sprites.py
