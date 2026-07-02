@@ -377,8 +377,7 @@ function segDist(u: number, w: number, pts: [number, number][]) {
 
 /** signed distance (32px units) to molten lava (mouth pools + flow centerlines; flows widen
  *  downstream then pinch at the cooling delta) */
-export function lavaDist(tx: number, ty: number) {
-  const u = uOf(tx, ty), w = wOf(tx, ty)
+export function lavaDistUW(u: number, w: number) {
   let best = 1e9
   for (const h of HEADS) {
     const dPool = Math.hypot(u - h.u, w - h.w) - 1.15
@@ -387,6 +386,60 @@ export function lavaDist(tx: number, ty: number) {
     best = Math.min(best, dPool, dFlow)
   }
   return best
+}
+export const lavaDist = (tx: number, ty: number) => lavaDistUW(uOf(tx, ty), wOf(tx, ty))
+
+// ---- THE CANOPY PLAN: the jungle grows as AUTHORED MASSES (composed clumps, a treeline
+// collar gripping the cone's skirt, toe caps) cut by deliberate glades — never uniform
+// scatter. Both the floor's shade and the composer's tree placement read THIS field, so
+// the shadows sit exactly under the crowns. ----
+type Clump = { u: number; w: number; r: number; k: number }
+const CANOPY: Clump[] = [
+  { u: -24, w: 8, r: 9, k: 1.0 },    // the SW valley forest
+  { u: -6, w: 20, r: 8, k: 0.95 },   // south mid-slope, flanking the great flow
+  { u: 14, w: 14, r: 9, k: 0.9 },    // SE lowland
+  { u: 18, w: 26, r: 6, k: 0.8 },    // east-bay backshore
+  { u: -26, w: -14, r: 8, k: 0.95 }, // NW shoulder
+  { u: 8, w: -26, r: 9, k: 0.9 },    // north crown
+  { u: -34, w: -2, r: 6, k: 0.85 },  // west bluff
+  { u: 22, w: -12, r: 7, k: 0.85 },  // NE mid
+]
+const GLADES: Clump[] = [
+  { u: 6, w: 8, r: 4, k: 1 },     // the hub glade (future path crossroads)
+  { u: -16, w: 22, r: 3.5, k: 1 },// SW clearing
+  { u: 26, w: 2, r: 3, k: 1 },    // east overlook clearing
+]
+export function canopyK(u: number, w: number) {
+  const cd = coastDistUW(u, w)
+  if (cd <= 1.5) return 0
+  let k = 0
+  for (const c of CANOPY) {
+    const q = Math.hypot(u - c.u, w - c.w) / c.r
+    if (q < 1.3) k = Math.max(k, c.k * smooth01(1.15 - q))
+  }
+  // the treeline collar: dense forest gripping the cone's lower skirt all the way around
+  const mg = mountainK(u, w)
+  if (mg > 0.24 && mg < 0.60) {
+    k = Math.max(k, 0.9 * smooth01((mg - 0.24) / 0.10) * smooth01((0.60 - mg) / 0.08))
+  }
+  // toe caps: each toe islet wears its own crown of jungle
+  const li = landAtUW(u, w)
+  if (li > 0 && li <= TOES.length) {
+    const L = LANDS[li]
+    const q = Math.hypot(u - L.du, w - L.dw) / (TOES[li - 1][2] * 0.72)
+    k = Math.max(k, 0.9 * smooth01(1.1 - q))
+  }
+  // deliberate glades stay open
+  for (const g of GLADES) {
+    const q = Math.hypot(u - g.u, w - g.w) / g.r
+    k *= smooth01((q - 0.55) / 0.45)
+  }
+  // lava keeps a scorched margin; beaches keep their sand
+  const lv = lavaDistUW(u, w)
+  if (lv < 2.6) k *= smooth01((lv - 1.2) / 1.4)
+  const bw = (1.0 + 5.2 * beachKAt(u, w)) * (li > 0 ? 0.6 : 1)
+  k *= smooth01((cd - bw + 0.5) / 1.4)
+  return Math.min(1, k)
 }
 
 // ---- terrain classification ----

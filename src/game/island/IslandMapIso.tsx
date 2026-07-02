@@ -3,7 +3,7 @@ import { Application, Assets, ColorMatrixFilter, Container, Culler, Rectangle, S
 import { ISLANDS } from './registry'
 import {
   HEADS, ISLE_CX, ISLE_CY, LAGOONS, LANDS, MAP_COLS, MAP_ROWS, PORT_THETA, VC,
-  beachKAt, beachKTheta, channelDistUW, coastDistUW, coastPoint, isClawUW,
+  beachKAt, beachKTheta, canopyK, channelDistUW, coastDistUW, coastPoint, isClawUW,
   isleCell, isleLift, isleLiftUW, isleSlope, lagoonK, lavaDist, levelAtUW, mountainK, txOf, tyOf, uOf, vnoise2, wOf,
 } from './shape'
 import { PROP_SRC, PROP_TINT, composeIsland, composePortDressing } from './compose'
@@ -385,12 +385,12 @@ export default function IslandMapIso() {
                 if (f < 0.55) col = mix(0x7a3a1a, col, Math.max(0, f / 0.55))
               }
               else {
-                // jungle floor: moisture-keyed value ramp of the litter base, darker + more
-                // clumped than attempt 1 (the flat lime field is the amateur read)
-                const clump = vnoise2(u / 14 + 21, w / 14 + 6) // macro light/dark patches
-                const t = Math.min(1, Math.max(0, 0.78 - 0.30 * moist - 0.26 * clump + j * 0.08))
+                // jungle floor: moisture-keyed value ramp of the litter base; the CANOPY
+                // PLAN darkens the ground under the real masses (shade sits under crowns)
+                const ck = canopyK(u, w)
+                const t = Math.min(1, Math.max(0, 0.55 - 0.26 * moist + 0.38 * ck + j * 0.08))
                 col = rampAt([[0, 0x3d5c36], [0.35, 0x324c2c], [0.7, 0x273c24], [1, 0x1f301d]], t)
-                if (lvl >= 3) col = mix(col, 0x647c44, Math.min(0.45, (lvl - 2) * 0.22 + (moist < 0.4 ? 0.1 : 0)))
+                if (lvl >= 2 && ck < 0.3) col = mix(col, 0x5e7440, 0.2) // open uplands dry out
               }
               // TERRACE LIPS + HARD AO (the refs' law: sun catches the top edge of every
               // band; the ground under a wall sits in its shadow)
