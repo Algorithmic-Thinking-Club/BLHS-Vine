@@ -786,15 +786,20 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       // Views in screen-octant order 0 E, 1 SE, 2 S, 3 SW, 4 W, 5 NW, 6 N, 7 NE
       // (scripts/_archive/ship_views_v5.py measures the lamp per view; ay=1 -> the
       // texture's bottom row IS the waterline).
-      const SHIPMETA = [
-        { ay: 1, deckH: 26, lampX: 15, lampY: -82 },  // E
-        { ay: 1, deckH: 26, lampX: 5, lampY: -50 },   // SE
-        { ay: 1, deckH: 26, lampX: 23, lampY: -52 },  // S
-        { ay: 1, deckH: 26, lampX: 10, lampY: -57 },  // SW
-        { ay: 1, deckH: 26, lampX: -10, lampY: -82 }, // W
-        { ay: 1, deckH: 26, lampX: 1, lampY: -89 },   // NW
-        { ay: 1, deckH: 26, lampX: 0, lampY: -106 },  // N
-        { ay: 1, deckH: 26, lampX: 6, lampY: -91 },   // NE
+      // uClamp = the DRAWN stand-point range on bow-on/stern-on views, where the true
+      // helm (deep astern) would project Thor onto the sail stack — visual only, the
+      // logical u (rails, disembark) is untouched
+      // w = each view's drawn hull width, so the waterline foam ring hugs the silhouette
+      // (one 152px ring under a 73px bow-on hull was why the S/N headings read floating)
+      const SHIPMETA: { ay: number; deckH: number; lampX: number; lampY: number; w: number; uClamp?: [number, number] }[] = [
+        { ay: 1, deckH: 26, lampX: 5, lampY: -50, w: 175 },   // E
+        { ay: 1, deckH: 26, lampX: 6, lampY: -91, w: 100 },   // SE
+        { ay: 1, deckH: 26, lampX: 0, lampY: -106, w: 73, uClamp: [-0.5, 0.6] },  // S
+        { ay: 1, deckH: 26, lampX: 10, lampY: -57, w: 173 },  // SW
+        { ay: 1, deckH: 26, lampX: -5, lampY: -50, w: 175 },  // W
+        { ay: 1, deckH: 26, lampX: -13, lampY: -51, w: 162 }, // NW
+        { ay: 1, deckH: 26, lampX: 3, lampY: -90, w: 84, uClamp: [-0.5, 0.6] },   // N
+        { ay: 1, deckH: 26, lampX: -16, lampY: -77, w: 158 }, // NE
       ]
       // the visual mid-deck only (the sterncastle and bow are not walkable), helm at the
       // quarterdeck front
@@ -1133,20 +1138,20 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       // THE DELIVERING WAVE: the bottle rides the REAL tide — waits for the next front to break
       // at its column, surges up the film's leading edge rolling as it comes, and settles in the
       // wet band when the water lets go of it. Returns a done-poll for the runtime.
-      let bottleWave: null | { d: number; sBeach: number; phase: 'wait' | 'ride' | 'settled'; peak: number } = null
+      let bottleWave: null | { d: number; sBeach: number; phase: 'wait' | 'ride' | 'settled'; from: number; peakS: number } = null
       const csCall = (name: string, data?: unknown): (() => boolean) | void => {
         if (name === 'bottleWave') {
           const o = (data ?? {}) as { d?: number; instant?: boolean }
           const d = o.d ?? 3
-          const sBeach = shoreAt(d) + TIDE_AMP * 0.82
+          const sBeach = shoreAt(d) + TIDE_AMP * 0.72 // comfortably inside the wave's max reach
           csActorEnsure('bottle', '/art/intro/props/bottle.png', 0.30)
           if (o.instant) {
             bottleWave = null
             csActorPlace('bottle', (sBeach + d) / 2, (sBeach - d) / 2)
             return
           }
-          csActorPlace('bottle', (shoreAt(d) - 2 + d) / 2, (shoreAt(d) - 2 - d) / 2) // bobbing offshore
-          bottleWave = { d, sBeach, phase: 'wait', peak: 0 }
+          csActorPlace('bottle', (shoreAt(d) - 1.6 + d) / 2, (shoreAt(d) - 1.6 - d) / 2) // bobbing offshore
+          bottleWave = { d, sBeach, phase: 'wait', from: shoreAt(d) - 1.6, peakS: -1e9 }
           return () => bottleWave === null || bottleWave.phase === 'settled'
         }
         if (name === 'hideBottle') {
@@ -1286,7 +1291,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         }
         // ---- THE BOAT: pilot, deck-walk, prompts, hop arcs, wake ----
         hopJy = 0; bobOff = 0
-        let deckMoved = false
+        let deckMoved = false, boatBlocked = false
         if (veh) {
           const V = veh
           const bt = at / 1000
@@ -1303,18 +1308,32 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             const dtc = Math.min(dt, 2)
             const steer = ((keys['d'] || keys['arrowright']) ? 1 : 0) - ((keys['a'] || keys['arrowleft']) ? 1 : 0)
             V.rud += (steer - V.rud) * Math.min(1, 0.085 * dtc)
-            if (Math.abs(V.rud) > 0.003) V.ang += V.rud * (0.011 + 0.012 * (V.spd / 0.08)) * dtc
+            if (Math.abs(V.rud) > 0.003) V.ang += V.rud * (0.014 + 0.014 * (Math.abs(V.spd) / 0.08)) * dtc
             if (keys['w'] || keys['arrowup']) V.spd = Math.min(0.08, V.spd + 0.0022 * dtc)
-            else if (keys['s'] || keys['arrowdown']) V.spd = Math.max(0, V.spd - 0.004 * dtc)
-            else V.spd = Math.max(0, V.spd - 0.0008 * dtc)
+            // S through zero = SLOW ASTERN: a hull nosed into a pocket the rudder can't
+            // swing out of backs straight off it, the move every sailor reaches for
+            else if (keys['s'] || keys['arrowdown']) V.spd = Math.max(-0.032, V.spd - 0.004 * dtc)
+            else V.spd = V.spd > 0 ? Math.max(0, V.spd - 0.0008 * dtc) : Math.min(0, V.spd + 0.002 * dtc)
             setBucket(V)
-          } else { V.rud *= Math.max(0, 1 - 0.1 * Math.min(dt, 2)); V.spd = Math.max(0, V.spd - 0.004 * Math.min(dt, 2)) }
-          if (V.spd > 0.0001) {
+          } else { V.rud *= Math.max(0, 1 - 0.1 * Math.min(dt, 2)); V.spd += (0 - V.spd) * Math.min(1, 0.05 * Math.min(dt, 2)) }
+          if (Math.abs(V.spd) > 0.0001) {
             const step = V.spd * Math.min(dt, 2)
-            const nbx = V.tx + Math.cos(V.ang) * step, nby = V.ty + Math.sin(V.ang) * step
-            const p1 = boatPen(nbx, nby)
-            if (p1 <= 1e-4 || p1 < boatPen(V.tx, V.ty) - 1e-4) { V.tx = nbx; V.ty = nby }
-            else V.spd = 0 // thunk: shallows, the pier, a rock, another hull
+            const c7 = Math.cos(V.ang), s7 = Math.sin(V.ang)
+            const p0 = boatPen(V.tx, V.ty)
+            const tryMove = (nx: number, ny: number) => {
+              const p1 = boatPen(nx, ny)
+              if (p1 <= 1e-4 || p1 < p0 - 1e-4) { V.tx = nx; V.ty = ny; return true }
+              return false
+            }
+            // blocked ahead: GLIDE along the blocker on whichever axis still passes (the
+            // walker's own trick), bleeding way instead of killing the throttle — a hull
+            // that zeroed spd on contact sat DEAD at every obstacle until the bow had been
+            // slow-turned fully clear
+            if (!tryMove(V.tx + c7 * step, V.ty + s7 * step)) {
+              const slid = tryMove(V.tx + c7 * step * 0.7, V.ty) || tryMove(V.tx, V.ty + s7 * step * 0.7)
+              V.spd *= slid ? 0.985 : 0.8 // sign-safe: astern bleeds and retries the same way
+              boatBlocked = true // grounded/pinned: the bow gets slow lapping foam
+            }
           }
           // deck walking: WASD mapped into the hull frame, clamped at the rails — Thor can
           // never step off the gunwale into open water. The walk anim only plays when he
@@ -1341,9 +1360,12 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             hopJy = -34 * Math.sin(Math.PI * k)
             if (k >= 1) {
               if (hp.to === 'land') {
-                // left the boat: stepping onto the DOCK means docking (the ship snaps home
-                // to its berth); near the berth it also snaps; anywhere else it anchors
-                if (hp.landLayer === 1 || Math.hypot(V.tx - V.berthTx, V.ty - V.berthTy) < 1.6) { V.tx = V.berthTx; V.ty = V.berthTy; V.ang = Math.PI; setBucket(V, true); V.state = 'moored' }
+                // left the boat: stepping onto the DOCK near the berth means docking (the
+                // ship snaps the last stretch home); anywhere else — mid-pier, the beach —
+                // she stays ANCHORED where she was left (an on-screen teleport home from
+                // across the bay read as a glitch)
+                const berthD = Math.hypot(V.tx - V.berthTx, V.ty - V.berthTy)
+                if ((hp.landLayer === 1 && berthD < 6) || berthD < 1.6) { V.tx = V.berthTx; V.ty = V.berthTy; V.ang = Math.PI; setBucket(V, true); V.state = 'moored' }
                 else V.state = 'anchored'
               }
               V.hop = null
@@ -1354,7 +1376,8 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
               const { c: c3, s: s3 } = dBasis(V)
               facing = dirFromAngle((c3 - s3) * HW, (c3 + s3) * HH) // face where the DRAWN bow points
             }
-            const w2 = deckWorld(V, V.u, V.v)
+            const uc = SHIPMETA[V.bucket]?.uClamp
+            const w2 = deckWorld(V, uc ? Math.max(uc[0], Math.min(uc[1], V.u)) : V.u, V.v)
             pos.tx = w2.tx; pos.ty = w2.ty
             bobOff = V.bob
           }
@@ -1394,7 +1417,9 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
                 if (V.u < -(UMAX - 0.16)) dirs2.push([-c5, -s5])
                 let landing: { tx: number; ty: number; lift: number; layer: number } | null = null
                 for (const [ox, oy] of dirs2) {
-                  for (const k2 of [1.0, 1.6, 2.2, 2.8, 3.4, 4.0, 4.2]) {
+                  // out to 5.4: the wet swash strip is unwalkable and up to ~2 tiles wide, so a
+                  // beach landing can honestly need a long bow leap over it onto dry sand
+                  for (const k2 of [1.0, 1.6, 2.2, 2.8, 3.4, 4.0, 4.2, 4.8, 5.4]) {
                     const cxt = pos.tx + ox * k2, cyt = pos.ty + oy * k2
                     const sfc = surfAt(Math.round(cxt), Math.round(cyt))
                     if (!sfc.walk || collideMove(cxt, cyt, cxt, cyt)) continue
@@ -1430,14 +1455,17 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           V.hull.position.set(bxp, byp + V.bob)
           V.hull.zIndex = bz
           V.ring.position.set(bxp, byp + 6)
-          V.ring.zIndex = bz - 2
-          V.ring.alpha = 0.3 + 0.1 * Math.sin(bt * 0.55 + 1.1) + Math.min(0.25, V.spd * 3)
-          V.ring.width = 130 + Math.min(60, V.spd * 500); V.ring.height = V.ring.width * 0.23
+          V.ring.zIndex = bz - 1
+          V.ring.alpha = 0.42 + 0.1 * Math.sin(bt * 0.55 + 1.1) + Math.min(0.25, Math.abs(V.spd) * 3)
+          const rw = M.w * 1.22 + Math.min(60, Math.abs(V.spd) * 500)
+          V.ring.width = rw
+          // narrow bow-on hulls get a rounder pool so the contact still reads
+          V.ring.height = Math.max(rw * 0.23, M.w < 110 ? 38 : 0)
           const gl = glows[V.glowI]
           gl.sp.position.set(bxp + M.lampX, byp + M.lampY + V.bob)
           gl.sp.zIndex = bz + 3
           // WAKE: bow spray both sides + stern wash while under way, drifting out and astern
-          if (V.spd > 0.03 && bt - lastPuff > 0.055) {
+          if ((V.spd > 0.03 || (boatBlocked && Math.abs(V.spd) > 0.004)) && bt - lastPuff > 0.055 / (1 + Math.abs(V.spd) * 10)) { // denser at speed; grounded = slow lapping
             lastPuff = bt + (hash(V.tx * 7.1, bt) - 0.5) * 0.02
             const c6 = Math.cos(V.ang), s6 = Math.sin(V.ang) // drift follows the TRUE motion
             const { c: cD, s: sD } = dBasis(V)               // spawn points hug the DRAWN hull
@@ -1450,7 +1478,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
               const tvy = pyd * ovx * 0.55 - s6 * (stern ? 0.9 : 0.35)
               const sp3 = new Sprite(shadowTexLife)
               sp3.anchor.set(0.5); sp3.tint = 0xeafff6; sp3.blendMode = 'add'
-              const s0 = (stern ? 44 : 24) * (0.7 + V.spd * 6)
+              const s0 = (stern ? 50 : 28) * (0.7 + Math.abs(V.spd) * 6)
               sp3.width = s0; sp3.height = s0 * 0.45
               sp3.position.set(isoX(w3.tx, w3.ty), isoY(w3.tx, w3.ty) + 4)
               // above the aerial veil strip of its own row, or the wash swallows the foam
@@ -1465,7 +1493,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             const k3 = p.age / p.life
             if (k3 >= 1) { p.sp.destroy(); wakeFx.splice(i, 1); continue }
             p.sp.x += p.vx * tk.deltaMS; p.sp.y += p.vy * tk.deltaMS
-            p.sp.alpha = 0.7 * (1 - k3)
+            p.sp.alpha = 0.85 * (1 - k3) // strong enough to read on the bright shallows too
             p.sp.width = p.s0 * (1 + k3 * 1.6); p.sp.height = p.sp.width * 0.45
           }
         }
@@ -1580,23 +1608,31 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             const uu = ((u % TIDE_T) + TIDE_T) % TIDE_T
             const [reach] = tidePhase(u)
             if (b.phase === 'wait') {
-              // bob gently beyond the waterline until a fresh wave launches
-              const s0 = shoreAt(b.d) - 1.6 + 0.12 * Math.sin(wt * 1.1)
+              // drift gently beyond the waterline until a fresh wave launches
+              const s0 = b.from + 0.12 * Math.sin(wt * 1.1)
               csActorPlace('bottle', (s0 + b.d) / 2, (s0 - b.d) / 2)
-              ba.sp.rotation = 0.16 * Math.sin(wt * 1.3)
-              if (uu < 0.12) b.phase = 'ride'
+              ba.sp.rotation = 0.14 * Math.sin(wt * 1.3)
+              if (uu < 0.12) { b.phase = 'ride'; b.from = s0 }
             } else if (b.phase === 'ride') {
-              const sFront = shoreAt(b.d) + reach * TIDE_AMP
-              if (sFront >= b.sBeach) b.peak = 1
-              const s = Math.min(b.sBeach, sFront)
-              csActorPlace('bottle', (s + b.d) / 2, (s - b.d) / 2)
-              if (b.peak < 1) ba.sp.rotation += 0.13 * (tk.deltaMS / 16)  // rolling in with the water
-              else ba.sp.rotation *= Math.max(0, 1 - tk.deltaMS / 260)     // grounded: the roll dies out
-              if (b.peak === 1 && uu > 3.6) {                              // the water has let go
+              // the bottle trails just behind the foam edge and can only ever move UP the
+              // sand: eased pickup from its drift spot, grounded at its furthest reach —
+              // no teleport when the wave launches, no slide-back when it retracts
+              const sFront = shoreAt(b.d) + reach * TIDE_AMP - 0.3
+              const k = Math.min(1, uu / 1.5)
+              const carry = b.from + (Math.min(b.sBeach, sFront) - b.from) * (k * k * (3 - 2 * k))
+              b.peakS = Math.max(b.peakS, carry)
+              csActorPlace('bottle', (b.peakS + b.d) / 2, (b.peakS - b.d) / 2)
+              // a nudged rock while the water still covers it, dying as the film drains
+              const cover = Math.max(0, Math.min(1, (sFront + 0.3 - b.peakS) * 1.6))
+              ba.sp.rotation = 0.26 * Math.sin(wt * 4.2 + b.d) * cover
+              if (b.peakS >= b.sBeach - 0.05 && uu > 3.6) {   // beached and the water has let go
                 ba.sp.rotation = 0
                 csActorPlace('bottle', (b.sBeach + b.d) / 2, (b.sBeach - b.d) / 2)
                 csFx('glint', { x: (b.sBeach + b.d) / 2, y: (b.sBeach - b.d) / 2 })
                 b.phase = 'settled'
+              } else if (uu > 6.8 && b.peakS < b.sBeach - 0.05) {
+                // this wave fell short: slip back to the drift line and wait for the next
+                b.phase = 'wait'; b.from = shoreAt(b.d) - 1.6; b.peakS = -1e9
               }
             }
           }
