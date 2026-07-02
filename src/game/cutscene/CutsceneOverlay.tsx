@@ -85,11 +85,11 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
           </div>
         )}
 
-        {/* skip plaque */}
+        {/* skip plaque — one CLICK skips (Ash); holding Esc still works as the keyboard path */}
         {ui.skippable && (
           <div
             className="cs-skip" style={{ pointerEvents: 'auto' }}
-            onPointerDown={beginHold} onPointerUp={endHold} onPointerLeave={endHold}
+            onClick={(e) => { e.stopPropagation(); rt.skip() }}
           >
             <span className="cs-skip-fill" style={{ width: holdAt ? '100%' : '0%', transition: holdAt ? `width ${SKIP_HOLD_MS}ms linear` : 'none' }} />
             <span style={{ position: 'relative' }}>skip ▸</span>

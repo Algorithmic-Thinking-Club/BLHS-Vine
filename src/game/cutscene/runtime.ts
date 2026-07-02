@@ -161,6 +161,7 @@ export class CutsceneRuntime {
         return { k: 'poll', poll: () => settled }    // fades DO block (they pace reveals)
       }
       case 'say': {
+        if (!s.text?.trim()) return null              // a lineless say can never show an empty sheet
         this.ui.dialogue = { who: s.who, text: s.text, shown: 0, done: false, portrait: s.portrait }
         return { k: 'say', elapsed: 0, extra: 0 }
       }
