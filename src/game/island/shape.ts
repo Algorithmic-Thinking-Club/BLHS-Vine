@@ -1,14 +1,16 @@
-// THE CENTRAL ISLAND'S GEOMETRY — every field the renderer needs, as pure math (no pixi).
+// THE CENTRAL ISLAND'S GEOMETRY — fresh build (2026-07-02 restart; docs/place-specs/island-map.md).
 //
-// THE PAW (Ash's steer, 2026-07-02): the Central Island is a PAW-PRINT archipelago — the big
-// metacarpal PAD carrying the whole game hub, and FOUR TOE islets arcing above it across
-// shallow sailing channels. Up close it reads as a natural volcanic island cluster; from the
-// map view (and the I-8 pull-out) it snaps into the BLHS panther paw. Validated offline:
-// scripts/_archive/island_paw_proto.py renders these exact coasts.
-//
-// THE MOUNTAIN: this is a mountainous tropical VOLCANIC island — the central peak is an
-// active volcano with a crater blowhole at the summit; the carved panther head + falls take
-// its south face (GAME-DESIGN §3.2); secondary hills and ridges roll across the whole pad.
+// What changed from attempt 1 (and why): the references (Bora Bora / Moorea aerials, Sea of
+// Stars' sailing map, Octopath's terraces — reference/island-refs/) build islands from
+// STRUCTURE, not gradients. So:
+//   - Coasts have TYPES: most of the shoreline is cliff dropping into dark water; sand aprons
+//     exist only where designed (the east arrival bay, the south falls cove, small pockets).
+//   - Elevation is QUANTIZED into terrace levels with cliff-band rims — stacked silhouettes,
+//     not a smooth lift dome. The volcano sits off-center (NW), ridge spines radiate, and the
+//     crater sinks into the summit.
+//   - Shallow water is a DESIGNED shape: lagoon blobs with reef structure and a boat channel,
+//     not a uniform glow hugging every coast. Open sea plunges dark within a few units.
+//   - The four toes are SMALL satellite islets (Ash: "make them small"), mostly cliff-ringed.
 //
 // Everything is authored in SCREEN-SPACE units (u = tx-ty, w = (tx+ty-S0)/2; one unit = 32
 // screen px) so shapes are judged in the projection the player actually sees.
@@ -31,29 +33,29 @@ export function vnoise2(x: number, y: number) {
 const smooth01 = (x: number) => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 - 2 * k) }
 
 // ---- the PAD coast ----
-const PAD_R = 44
-// slightly flattened crown, three plantar lobes along the bottom edge (the paw-pad read)
+const PAD_R = 40
+// paw-pad plantar lobes along the bottom edge + a flattened crown
 const PAD_LOBES: [number, number, number][] = [
-  [90.0, 26.0, -5.0], [238.0, 13.0, 6.0], [270.0, 13.0, 7.0], [302.0, 13.0, 6.0],
+  [90.0, 24.0, -4.0], [238.0, 12.0, 4.0], [270.0, 12.0, 5.0], [302.0, 12.0, 4.0],
 ]
-// the four port coves, one per diagonal quarter (piers run the true iso diagonals):
-// NE = "north port", SE = "east port" (the intro arrival), SW = "south", NW = "west"
-export const PORT_THETA = { north: 45, east: 315, south: 225, west: 135 } as const
-const PAD_COVES: [number, number, number][] = [
-  [45.0, 10.0, -6.0], [315.0, 10.0, -7.0], [225.0, 10.0, -6.0], [135.0, 10.0, -6.0],
+// designed bays: the EAST ARRIVAL BAY (wide, holds the lagoon + pier), the SOUTH FALLS COVE
+// (the river mouth), and a small north nook
+const PAD_BAYS: [number, number, number][] = [
+  [315.0, 24.0, -6.5], [270.0, 8.0, -3.5], [45.0, 9.0, -3.0],
 ]
 const PAD_HARM: [number, number, number][] = [
-  [5, 1.9, 2.9], [7, 1.5, 5.1], [11, 1.0, 1.6], [13, 0.7, 4.2],
+  [5, 1.6, 2.9], [7, 1.2, 5.1], [11, 0.8, 1.6], [13, 0.55, 4.2],
 ]
+export const PORT_THETA = { north: 45, east: 315, south: 225, west: 135 } as const
 
-// ---- the TOES: [arc angle deg, center dist, radius, radial elongation] ----
+// ---- the TOES: small satellite islets [arc angle deg, center dist, radius, elongation] ----
 const TOES: [number, number, number, number][] = [
-  [150.0, 60.0, 10.8, 0.16],
-  [113.0, 65.0, 13.0, 0.20],
-  [67.0, 65.0, 13.0, 0.20],
-  [30.0, 60.0, 10.8, 0.16],
+  [150.0, 54.0, 6.5, 0.15],
+  [114.0, 57.0, 7.5, 0.18],
+  [66.0, 57.0, 7.0, 0.18],
+  [30.0, 54.0, 6.0, 0.15],
 ]
-const TOE_HARM: [number, number, number][] = [[3, 1.2, 1.1], [5, 0.9, 3.7], [7, 0.6, 0.4]]
+const TOE_HARM: [number, number, number][] = [[3, 0.4, 1.1], [5, 0.3, 3.7]]
 
 export type Land = { id: string; du: number; dw: number; R: (theta: number) => number }
 export const LANDS: Land[] = [
@@ -63,7 +65,7 @@ export const LANDS: Land[] = [
       const td = ((theta * 180) / Math.PI % 360 + 360) % 360
       let r = PAD_R
       for (const [c, wd, a] of PAD_LOBES) r += bump(td, c, wd, a)
-      for (const [c, wd, a] of PAD_COVES) r += bump(td, c, wd, a)
+      for (const [c, wd, a] of PAD_BAYS) r += bump(td, c, wd, a)
       for (const [k, a, ph] of PAD_HARM) r += a * Math.sin(k * theta + ph)
       return r
     },
@@ -87,7 +89,7 @@ export const txOf = (u: number, w: number) => (S0 + 2 * w + u) / 2
 export const tyOf = (u: number, w: number) => (S0 + 2 * w - u) / 2
 
 /** signed radial distance to the nearest coast in 32px units: NEGATIVE at sea, POSITIVE
- *  inland (the beach's "ds onto land" convention), over ALL landmasses. */
+ *  inland, over ALL landmasses. */
 export function coastDistUW(u: number, w: number) {
   let best = -1e9
   for (const L of LANDS) {
@@ -100,12 +102,6 @@ export function coastDistUW(u: number, w: number) {
 }
 export const coastDist = (tx: number, ty: number) => coastDistUW(uOf(tx, ty), wOf(tx, ty))
 
-/** zone-band scale: a toe islet's sand/grass/jungle rings compress (a 12-unit islet wearing
- *  the pad's 6.5-unit shore band would be all beach) */
-export function shoreScaleUW(u: number, w: number) {
-  return landAtUW(u, w) > 0 ? 1.8 : 1
-}
-
 /** which landmass owns a point (index into LANDS; -1 = open sea beyond every coast) */
 export function landAtUW(u: number, w: number) {
   let best = -1e9, bi = -1
@@ -116,6 +112,18 @@ export function landAtUW(u: number, w: number) {
     if (d > best) { best = d; bi = i }
   }
   return best > -6 ? bi : -1
+}
+
+/** nearest land regardless of distance (for coast-type lookups offshore) */
+function landNearestUW(u: number, w: number) {
+  let best = -1e9, bi = 0
+  for (let i = 0; i < LANDS.length; i++) {
+    const L = LANDS[i]
+    const lu = u - L.du, lw = w - L.dw
+    const d = L.R(Math.atan2(-lw, lu)) - Math.hypot(lu, lw)
+    if (d > best) { best = d; bi = i }
+  }
+  return bi
 }
 
 /** point + outward normal of a land's coast at theta (SCREEN-SPACE units, pad-centered) */
@@ -133,59 +141,155 @@ export function coastPoint(theta: number, landIdx = 0) {
   return { u, w, nx, ny }
 }
 
-// ---- THE VOLCANO + the hill country (elevation as screen-px lift) ----
-// The cone rises just north of the pad's center; its summit is an active CRATER (the
-// blowhole — a rim ring with a sunken vent). The carved head + falls take the south face.
-// Secondary hills and two shoulder ridges keep the rest of the pad rolling, never flat.
-const CONE = { u: 0, w: -6, sig: 13.5, amp: 232 }
-const CRATER = { sig: 4.2, amp: 88 } // sunk out of the cone's top -> the rim reads as a ring
-const RIDGES = [
-  { u: -14, w: -16, sig: 8.5, amp: 60 },  // WNW shoulder
-  { u: 12, w: -14, sig: 7.5, amp: 54 },   // ENE shoulder
-]
-const HILLS = [
-  { u: -26, w: 8, sig: 8, amp: 58 },
-  { u: 20, w: 14, sig: 7, amp: 48 },
-  { u: -7, w: 27, sig: 5.5, amp: 34 },
-  { u: 28, w: -7, sig: 8, amp: 56 },
-  { u: -32, w: -13, sig: 7, amp: 48 },
-]
-const TOE_AMP = [36, 50, 46, 34]
+// ---- COAST TYPES: how much of a beach each stretch of coast is (0 = cliff wall into the
+// sea, 1 = full sand apron). The references' law: beaches are EVENTS, cliffs are the rule. ----
+export function beachKTheta(landIdx: number, theta: number) {
+  const td = ((theta * 180) / Math.PI % 360 + 360) % 360
+  if (landIdx === 0) {
+    let b = 0.08
+    b += bump(td, 315, 26, 0.92) // the east arrival bay: the big apron
+    b += bump(td, 270, 9, 0.72)  // the south falls cove
+    b += bump(td, 45, 9, 0.38)   // north nook pocket
+    b += bump(td, 238, 10, 0.12) + bump(td, 302, 10, 0.12) // thin toe-lobe pockets
+    return Math.min(1, b)
+  }
+  // a toe islet: cliff ring with one small sand notch facing the pad
+  const ang = TOES[landIdx - 1][0]
+  return Math.min(1, 0.10 + bump(td, (ang + 180) % 360, 20, 0.5))
+}
+/** beachiness at a point (via its nearest land + polar angle) */
+export function beachKAt(u: number, w: number) {
+  const li = landNearestUW(u, w)
+  const L = LANDS[li]
+  return beachKTheta(li, Math.atan2(-(w - L.dw), u - L.du))
+}
 
+// ---- THE LAGOONS: designed shallow-water shapes (turquoise aprons with reef structure),
+// NOT a distance halo. Everything outside them plunges dark fast. ----
+type Lagoon = { cu: number; cw: number; ax: number; ay: number; ru: number; rw: number }
+function mkLagoon(thetaDeg: number, off: number, ru: number, rw: number): Lagoon {
+  const cp = coastPoint((thetaDeg * Math.PI) / 180)
+  // ellipse axes: long axis along the coast tangent, short along the outward normal
+  return { cu: cp.u + cp.nx * off, cw: cp.w + cp.ny * off, ax: -cp.ny, ay: cp.nx, ru, rw }
+}
+export const LAGOONS: Lagoon[] = [
+  mkLagoon(315, 5.0, 15, 9),  // the east arrival lagoon
+  mkLagoon(270, 3.0, 8, 5.5), // the south cove apron
+]
+/** 1 deep inside a lagoon -> 0 at its rim (max over lagoons) */
+export function lagoonK(u: number, w: number) {
+  let best = 0
+  for (const L of LAGOONS) {
+    const du = u - L.cu, dw = w - L.cw
+    const lon = du * L.ax + dw * L.ay, lat = du * -L.ay + dw * L.ax
+    const q = Math.hypot(lon / L.ru, lat / L.rw)
+    const k = 1 - q
+    if (k > best) best = k
+  }
+  return Math.max(0, Math.min(1, best * 1.6))
+}
+
+// the boat channel: a deep cut through the east lagoon to the pier head
+const ECP = coastPoint((315 * Math.PI) / 180)
+export const CHANNEL: [number, number][] = [
+  [ECP.u + ECP.nx * 2.5, ECP.w + ECP.ny * 2.5],
+  [ECP.u + ECP.nx * 6.5 + 1.2, ECP.w + ECP.ny * 6.5],
+  [ECP.u + ECP.nx * 10.5 + 2.8, ECP.w + ECP.ny * 10.5 + 0.8],
+  [ECP.u + ECP.nx * 15.5 + 4.5, ECP.w + ECP.ny * 15.5 + 2.0],
+]
+export function channelDistUW(u: number, w: number) { return segDist(u, w, CHANNEL) }
+
+// ---- THE VOLCANO: an off-center terraced massif. M is the mountain field (0..~1); terraces
+// quantize it into levels whose rims wiggle with noise — stacked structure, not a dome. ----
+export const VC = { u: -4, w: -10 }
+const SPINES: { u: number; w: number; sig: number; amp: number }[] = []
+for (const [dirDeg, steps] of [[205, [8, 14, 20]], [335, [8, 14, 19]]] as [number, number[]][]) {
+  const dr = (dirDeg * Math.PI) / 180
+  steps.forEach((t, i) => SPINES.push({
+    u: VC.u + t * Math.cos(dr), w: VC.w - t * Math.sin(dr),
+    sig: 4.6 - i * 0.5, amp: [0.26, 0.20, 0.14][i],
+  }))
+}
+const HILLS = [
+  { u: 14, w: 8, sig: 7, amp: 0.22 },
+  { u: -20, w: 14, sig: 6.5, amp: 0.18 },
+  { u: 22, w: -14, sig: 6, amp: 0.20 },
+]
 const gau = (u: number, w: number, o: { u: number; w: number; sig: number; amp: number }) => {
   const du = u - o.u, dw = w - o.w
   return o.amp * Math.exp(-(du * du + dw * dw) / (2 * o.sig * o.sig))
+}
+function mountainM(u: number, w: number) {
+  const du = u - VC.u, dw = (w - VC.w) * 1.12
+  let m = Math.exp(-2 * (du * du + dw * dw) / (27 * 27))
+  for (const s of SPINES) m += gau(u, w, s)
+  for (const h of HILLS) m += gau(u, w, h)
+  // barrancos: angular modulation carves radial valleys so no terrace contour can close
+  // into a clean concentric ring (Bora Bora's cone is gullied, never smooth)
+  const ang = Math.atan2(w - VC.w, u - VC.u)
+  m *= 0.88 + 0.24 * vnoise2(Math.cos(ang) * 2.6 + 40, Math.sin(ang) * 2.6 + 17)
+  m += 0.13 * (vnoise2(u / 9 + 31, w / 9 + 7) - 0.5) * 2
+  return m
+}
+
+export const T_LEVELS = [0.14, 0.32, 0.52, 0.72]
+export const LIFTS = [0, 26, 54, 84, 114]
+const CRATER_R = 3.4
+
+/** terrace level (0..4) + progress toward the next rim, on the pad */
+export function levelAtUW(u: number, w: number): { lvl: number; frac: number } {
+  const cd = coastDistUW(u, w)
+  if (cd <= 0) return { lvl: 0, frac: 0 }
+  const li = landAtUW(u, w)
+  if (li > 0) {
+    const q = smooth01((cd * 2) / 3.5)
+    return { lvl: q > 0.55 ? 1 : 0, frac: q }
+  }
+  const m = mountainM(u, w) * smooth01(cd / 7)
+  let lvl = 0
+  for (let i = 0; i < T_LEVELS.length; i++) if (m >= T_LEVELS[i]) lvl = i + 1
+  const lo = lvl === 0 ? 0 : T_LEVELS[lvl - 1]
+  const hi = lvl < T_LEVELS.length ? T_LEVELS[lvl] : lo + 0.28
+  return { lvl, frac: Math.min(1, Math.max(0, (m - lo) / (hi - lo))) }
 }
 
 export function isleLiftUW(u: number, w: number) {
   const cd = coastDistUW(u, w)
   if (cd <= 0) return 0
   const li = landAtUW(u, w)
-  const gate = smooth01((cd - 2) / 8)
-  let lift = 3.5 * smooth01(cd / 4) // every shore's swash berm
+  const berm = 2.5 * smooth01(cd / 3)
+  // CLIFF COASTS HAVE HEIGHT: where the shore is not a beach, the land stands ~14px above
+  // the water within a couple units and STAYS there — the waterline row then drops a real
+  // wall to the sea (dark paint alone never read as a cliff)
+  const cliffLip = (1 - beachKAt(u, w)) * 14 * smooth01(cd / 2.5)
   if (li > 0) {
-    // a toe islet: one worn hill under jungle
+    // a toe islet: a cliff-ringed low plateau under future canopy
     const L = LANDS[li]
-    const q = smooth01(cd / (TOES[li - 1][2] * 0.85))
-    lift += gate * (TOE_AMP[li - 1] * Math.pow(q, 1.2)
-      + 10 * (vnoise2((u - L.du) / 7 + li * 9, (w - L.dw) / 7) - 0.5) * 2 * q)
-    return lift
+    const q = smooth01((cd * 2) / 3.5)
+    return berm + cliffLip + 22 * q + 8 * (vnoise2((u - L.du) / 5 + li * 9, (w - L.dw) / 5) - 0.5) * 2 * q
   }
-  // the pad: volcano (minus crater) + shoulders + hills + two octaves of rolling ground
-  let m = gau(u, w, { ...CONE }) - gau(u, w, { u: CONE.u, w: CONE.w, sig: CRATER.sig, amp: CRATER.amp })
-  for (const r of RIDGES) m += gau(u, w, r)
-  for (const h of HILLS) m += gau(u, w, h)
-  m += 15 * (vnoise2(u / 11 + 31, w / 11 + 7) - 0.5) * 2
-  m += 7 * (vnoise2(u / 4.6 + 12, w / 4.6 + 27) - 0.5) * 2
-  lift += gate * Math.max(0, m)
-  return lift
+  const { lvl, frac } = levelAtUW(u, w)
+  let lift = LIFTS[lvl] + 12 * smooth01(frac) + berm + cliffLip
+  // the coastal plain rolls (low foothill swell for the sun-shader to model — a dead-flat
+  // lawn between the beach and the first terrace is the golf-course read)
+  lift += 7 * (vnoise2(u / 7 + 12, w / 7 + 27) - 0.5) * 2 * smooth01(cd / 6)
+  // the crater sinks into the summit (the blowhole bowl)
+  const dc = Math.hypot(u - VC.u, w - VC.w)
+  if (dc < CRATER_R) lift -= 40 * smooth01((CRATER_R - dc) / 2.2)
+  return Math.max(0, lift)
 }
 export const isleLift = (tx: number, ty: number) => isleLiftUW(uOf(tx, ty), wOf(tx, ty))
 
-// ---- fresh water: the falls pool under the head (the volcano's south face) + the river ----
-export const POOL = { u: 0, w: 13.5, r: 4.5 }
+/** lift change per s-row — steep = cliffy = unwalkable */
+export function isleSlope(tx: number, ty: number) {
+  return Math.abs(isleLift(tx + 0.5, ty + 0.5) - isleLift(tx - 0.5, ty - 0.5))
+}
+
+// ---- fresh water: crater-spring river down the south face -> the falls basin (the carved
+// head's pool, piece 5) -> the run to the south cove ----
+export const POOL = { u: -3.5, w: 10.5, r: 2.4 }
 const RIVER: [number, number][] = [
-  [0, 16.5], [1.5, 21], [4, 26], [7, 31], [9.5, 36], [11.5, 41], [12.5, 47],
+  [-4, -1], [-4.6, 3], [-4.2, 7], [-3.5, 10.5], [-3, 14], [-2.2, 20], [-1.6, 26], [-1, 32], [-0.6, 40],
 ]
 
 function segDist(u: number, w: number, pts: [number, number][]) {
@@ -205,48 +309,32 @@ function segDist(u: number, w: number, pts: [number, number][]) {
 export function freshDist(tx: number, ty: number) {
   const u = uOf(tx, ty), w = wOf(tx, ty)
   const dPool = Math.hypot(u - POOL.u, w - POOL.w) - POOL.r
-  const dRiv = segDist(u, w, RIVER) - (0.9 + 0.7 * smooth01((w - 16.5) / 28))
+  const dRiv = segDist(u, w, RIVER) - (0.55 + 0.5 * smooth01((w - 11) / 26))
   return Math.min(dPool, dRiv)
 }
 
-// ---- paths: a worn trail from every port climbing to the falls pool ----
-export const PATHS: Record<keyof typeof PORT_THETA, [number, number][]> = {
-  north: [[26, -26], [22, -18], [19, -10], [17.5, -2], [15, 6], [10, 11], [5, 13]],
-  east: [[27, 27], [22, 23], [17, 19], [12, 16], [7.5, 14.3], [4.6, 13.6]],
-  south: [[-26, 27], [-20, 23], [-15, 19], [-10, 16], [-5.2, 14.2]],
-  west: [[-26, -26], [-23, -18], [-20.5, -10], [-19, -2], [-16, 6], [-11, 11], [-5.5, 13]],
-}
-
-export function pathDist(tx: number, ty: number) {
-  const u = uOf(tx, ty), w = wOf(tx, ty)
-  let best = 1e9
-  for (const k of Object.keys(PATHS) as (keyof typeof PATHS)[]) {
-    const d = segDist(u, w, PATHS[k])
-    if (d < best) best = d
-  }
-  return best
-}
-
 // ---- terrain classification ----
-export type IsleCell = 'sea' | 'wet' | 'sand' | 'grass' | 'jungle' | 'rock' | 'fresh' | 'bank'
+export type IsleCell = 'sea' | 'wet' | 'sand' | 'grass' | 'jungle' | 'rock' | 'cliff' | 'fresh' | 'bank'
 export function isleCell(tx: number, ty: number): IsleCell {
-  const cd0 = coastDist(tx, ty)
-  if (cd0 < 0) return 'sea'
-  if (cd0 < 1.5) return 'wet'
-  const cd = cd0 * shoreScaleUW(uOf(tx, ty), wOf(tx, ty))
-  if (cd0 > 2.5) {
+  const u = uOf(tx, ty), w = wOf(tx, ty)
+  const cd = coastDistUW(u, w)
+  if (cd < 0) return 'sea'
+  const B = beachKAt(u, w)
+  const li0 = landAtUW(u, w)
+  // sand apron width scales with coast type; cliffs get none; toe islets wear half-width
+  const beachW = (1.0 + 5.2 * B) * (li0 > 0 ? 0.5 : 1)
+  if (B > 0.22 && cd < 1.2) return 'wet'
+  if (B <= 0.22 && cd < 1.4) return 'cliff' // waterline basalt at cliff coasts
+  if (cd > 2.2) {
     const f = freshDist(tx, ty)
     if (f < 0) return 'fresh'
-    if (f < 0.9) return 'bank'
+    if (f < 0.8) return 'bank'
   }
-  if (cd < 4) return 'sand'
-  if (cd < 6.5) return 'grass'
-  const lift = isleLift(tx, ty)
-  if (lift > 150) return 'rock' // the volcano's bare upper cone + crater rim
+  if (B > 0.22 && cd < beachW) return 'sand'
+  if (B > 0.22 && cd < beachW + 1.6) return 'grass'
+  const { lvl } = levelAtUW(u, w)
+  const dc = Math.hypot(u - VC.u, w - VC.w)
+  if (dc < CRATER_R + 1.6) return 'rock' // the crater bowl + rim
+  if (lvl >= 4) return 'rock'            // bare rock is only the summit cone; L3 is upland
   return 'jungle'
-}
-
-/** lift change per s-row — steep = cliffy = unwalkable */
-export function isleSlope(tx: number, ty: number) {
-  return Math.abs(isleLift(tx + 0.5, ty + 0.5) - isleLift(tx - 0.5, ty - 0.5))
 }

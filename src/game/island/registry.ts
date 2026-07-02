@@ -21,7 +21,7 @@ export type IslandDef = {
 }
 
 export const ISLANDS: IslandDef[] = [
-  { id: 'central', label: 'the Central Island', kind: 'central', cx: 192, cy: 192, radius: 78 },
+  { id: 'central', label: 'the Central Island', kind: 'central', cx: 192, cy: 192, radius: 64 },
   // grape islands rise here (§6.5) — e.g.:
   // { id: 'atc', label: 'ATC', kind: 'grape', cx: 300, cy: 132, radius: 22, group: 'stem-east' },
 ]

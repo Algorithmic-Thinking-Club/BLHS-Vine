@@ -2,19 +2,20 @@ import { useEffect, useRef } from 'react'
 import { Application, Assets, ColorMatrixFilter, Container, Culler, Rectangle, Sprite, Texture, TextureSource } from 'pixi.js'
 import { ISLANDS } from './registry'
 import {
-  ISLE_CX, ISLE_CY, LANDS, MAP_COLS, MAP_ROWS, POOL, PORT_THETA,
-  coastDist, coastDistUW, coastPoint, freshDist, isleCell, isleLift, isleSlope, pathDist,
-  shoreScaleUW, txOf, tyOf, uOf, vnoise2, wOf,
+  ISLE_CX, ISLE_CY, LAGOONS, LANDS, MAP_COLS, MAP_ROWS, POOL, PORT_THETA, VC,
+  beachKAt, beachKTheta, channelDistUW, coastDist, coastDistUW, coastPoint, freshDist,
+  isleCell, isleLift, isleLiftUW, isleSlope, lagoonK, levelAtUW, txOf, tyOf, uOf, vnoise2, wOf,
 } from './shape'
 import { PROP_SRC, PROP_TINT, composeIsland, composePortDressing } from './compose'
 
-// THE ISLAND MAP — the game's main map: one vast ocean, mostly water, the Central Island at
-// its heart (GAME-DESIGN §3.1/§3.2). Built by COPYING the beach's proven systems (BeachIso.tsx
-// is never edited): the normalized-tile + depth-ramp + aerial-veil ocean, the living tide (here
-// wrapped around a closed coastline as parametric surf dabs), the surface/collision engine, the
-// per-map atmosphere. The open sea beyond each island's depth ring IS the abyss color the ramp
-// converges to, so the map's vastness costs nothing; every island the registry holds
-// materializes its own ring of live tiles. True 2:1 iso, 100% PixelLab tiles/props, no shaders.
+// THE ISLAND MAP — fresh build (2026-07-02 restart; docs/place-specs/island-map.md).
+// The canvas pass renders what the references actually show: a DARK sea that plunges within a
+// few units of every cliff coast, designed turquoise lagoons with reef blotches and a boat
+// channel (never a glow halo — that system is deleted), surf breaking offshore at the reef
+// edge, foam collars at the rock bases, and an island built from stacked terrace levels whose
+// rims are real cliff walls with hard AO. Beach systems that survive: normalized variant tiles
+// with tint-owned hue, the parametric surf-dab tide at true beaches, the surface/collision
+// engine, Culler. True 2:1 iso, 100% PixelLab tiles/props, no shaders.
 
 const HW = 32, HH = 16
 const isoX = (tx: number, ty: number) => (tx - ty) * HW
@@ -30,22 +31,24 @@ function dirFromAngle(dx: number, dy: number) {
   if (a >= -112.5 && a < -67.5) return 'north'; return 'north-east'
 }
 const hash = (x: number, y: number) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5; return s - Math.floor(s) }
+const smooth01 = (x: number) => { const k = Math.min(1, Math.max(0, x)); return k * k * (3 - 2 * k) }
 
 // variant pools over the shared normalized tile families (same as the beach)
 const SAND_COMMON = [0, 1, 2, 3, 7, 9]
 const W_CALM = [0, 12, 15], W_SOFT = [3, 2, 8], W_TEX = [1, 10, 4, 6], W_SWELL = [13, 14, 11, 9, 7, 5]
 const W_BASE = [205, 235, 229]
 const SAND_BASE = [246, 229, 180]
-const JUNGLE_BASE = [82, 124, 72]  // normalize_tiles.py targets — ~1.5x the family's natural median:
-const ROCK_BASE = [110, 108, 90]   // enough tint headroom to grade DARK, not so much the texture pastelizes
+const JUNGLE_BASE = [82, 124, 72]
+const ROCK_BASE = [110, 108, 90]
+// ONE depth ramp, lagoon-bright to abyss-dark: the DEPTH FIELD (not the ramp) now carries the
+// design — lagoons hold the top stops, open water falls through the bottom ones fast
 const W_RAMP: [number, number][] = [
-  [0.0, 0xa8e2d2], [0.09, 0x8ed8c6], [0.14, 0x4dbcb2], [0.24, 0x35a5a2],
-  [0.38, 0x24909a], [0.54, 0x187a89], [0.68, 0x0f586c], [1.0, 0x073442],
+  [0.0, 0x9fe0cf], [0.10, 0x63cbbd], [0.18, 0x3db3ab], [0.30, 0x27999b],
+  [0.45, 0x1a7f8b], [0.62, 0x115d70], [0.80, 0x0b4757], [1.0, 0x073442],
 ]
 const ABYSS = 0x073442
-const DEPTH_RANGE = 13 // 32px units of radial ring from waterline to abyss (same 416px band as the beach)
-// land color ramps (tint over the normalized sand micro-texture; the tint owns the hue)
-const FRESH_RAMP: [number, number][] = [[0, 0x9fdccb], [0.5, 0x4dbcb2], [1, 0x2f9a97]]
+// fresh water is DARK in every reference (SoS river gorge): deep teal, never lagoon-cyan
+const FRESH_RAMP: [number, number][] = [[0, 0x2e6b63], [0.5, 0x1d4a4a], [1, 0x123338]]
 
 function rampAt(stops: [number, number][], t: number) {
   if (t <= stops[0][0]) return stops[0][1]
@@ -64,8 +67,7 @@ function tintFor(display: number, base: number[]) {
   return (r << 16) | (g << 8) | b
 }
 
-// the tide cycle (identical feel to the beach; the wash direction here is each dab's own
-// inland normal, so the surf wraps the whole coastline)
+// the tide cycle (the beach's), driving the wash at true beaches only
 const TIDE_T = 9, TIDE_AMP = 1.4
 function tidePhase(u: number): [number, number] {
   u = ((u % TIDE_T) + TIDE_T) % TIDE_T
@@ -91,7 +93,6 @@ export default function IslandMapIso() {
       await instance.init({ background: ABYSS, antialias: false, resizeTo: ref.current ?? window })
       if (destroyed || !ref.current) { instance.destroy(true); return }
       app = instance; ref.current.appendChild(instance.canvas)
-      // MAP-LOCAL zoom (open-sea map reads a touch wider than the beach); ?zoom= for validation
       const ZOOM = parseFloat(new URLSearchParams(location.search).get('zoom') ?? '') || 1.4
 
       const tex: Record<string, Texture> = {}
@@ -119,8 +120,7 @@ export default function IslandMapIso() {
       }))
       if (destroyed) { instance.destroy(true); return }
 
-      // ---- drawn-geometry measurement (the beach's lesson: place/collide by pixels, never
-      // canvas boxes) — trims dead padding below the feet, finds true ground points ----
+      // ---- drawn-geometry measurement (place/collide by pixels, never canvas boxes) ----
       type BaseInfo = { feet: number; pts: { x: number; y: number; hw: number }[] }
       const baseCache = new Map<Texture, Map<number, BaseInfo | null>>()
       const measureBase = (t: Texture, frac = 0.12): BaseInfo | null => {
@@ -168,16 +168,13 @@ export default function IslandMapIso() {
 
       const world = new Container(); world.scale.set(ZOOM); world.sortableChildren = true
       instance.stage.addChild(world)
-      // MAP-LOCAL grade: rich tropical light — deeper and more saturated than the beach cove
-      // (the bar's jungle is moody-lush, never high-key flat)
+      // MAP-LOCAL grade: moody-lush — crushed floor, warm key, never high-key flat
       const grade = new ColorMatrixFilter()
-      grade.saturate(0.14, true); grade.contrast(0.07, true); grade.brightness(0.97, true)
-      const wm = grade.matrix; wm[0] *= 1.05; wm[6] *= 1.0; wm[12] *= 0.9; grade.matrix = wm
+      grade.saturate(0.12, true); grade.contrast(0.12, true); grade.brightness(0.945, true)
+      const wm = grade.matrix; wm[0] *= 1.05; wm[12] *= 0.90; grade.matrix = wm
       world.filters = [grade]
 
-      // ---- THE ABYSS PLANE: one sprite is the entire open ocean. The depth ramp and the
-      // aerial veil converge to this exact color, so each island's ring melts into it and the
-      // sea reads endless in every direction for free. ----
+      // ---- THE ABYSS PLANE: one sprite is the entire open ocean ----
       {
         const plane = new Sprite(Texture.WHITE)
         plane.tint = ABYSS
@@ -187,37 +184,67 @@ export default function IslandMapIso() {
         world.addChild(plane)
       }
 
-      // ---- ISLAND TILES: each registry island materializes its ring + landmass. Water gets
-      // the beach's exact depth-ramp treatment (radial here); land climbs the mountain via
-      // lift with slope shading; paths wear into the ground; fresh water carves the river. ----
+      // ---- ISLAND TILES ----
       const waterSprites: { sp: Sprite; ph: number; ph2: number; base: number; amp: number }[] = []
       const walkable = new Map<string, boolean>()
       const wk = (x: number, y: number) => x + ',' + y
-      const POOL_LIFT = Math.max(0, isleLift(txOf(POOL.u, POOL.w + POOL.r + 1.5), tyOf(POOL.u, POOL.w + POOL.r + 1.5)) - 6)
+      const POOL_LIFT = Math.max(0, isleLift(txOf(POOL.u, POOL.w + POOL.r + 1.2), tyOf(POOL.u, POOL.w + POOL.r + 1.2)) - 4)
+      // lazy lift memo — walls/AO/lips sample neighbors constantly
+      const liftMemo = new Map<string, number>()
+      const liftAt = (tx: number, ty: number) => {
+        const k = tx + ',' + ty
+        let v = liftMemo.get(k)
+        if (v === undefined) { v = isleLift(tx, ty); liftMemo.set(k, v) }
+        return v
+      }
       for (const isle of ISLANDS) {
-        // bbox in (tx,ty): |u| <= R+ring, |w| <= R+ring
-        const RR = isle.radius + DEPTH_RANGE + 2
+        const RR = isle.radius + 18
         const s0 = isle.cx + isle.cy
         for (let s = s0 - 2 * RR; s <= s0 + 2 * RR; s++) {
           for (let d = -RR; d <= RR; d++) {
             const tx = (s + d) / 2, ty = (s - d) / 2
             if (tx !== Math.round(tx)) continue
             if (tx < 2 || ty < 2 || tx > MAP_COLS - 2 || ty > MAP_ROWS - 2) continue
-            const cd = coastDist(tx, ty)
-            if (cd < -DEPTH_RANGE - 1.5) continue // beyond the ring: the abyss plane owns it
+            const u = uOf(tx, ty), w = wOf(tx, ty)
+            const cd = coastDistUW(u, w)
             const cell = isleCell(tx, ty)
-            const slope = isleSlope(tx, ty)
-            let landBase = SAND_BASE // which normalized family's median divides the tint
-            // the mountain is climbed by the falls staircase, not free-walked: steep ground
-            // and the upper cone are closed (colliders do the mid-slope work; this is the law)
-            walkable.set(wk(tx, ty), (cell === 'sand' || cell === 'grass' || cell === 'jungle' || cell === 'bank')
-              && slope <= 5.5 && isleLift(tx, ty) <= 100)
-            let base: Texture | undefined
             const isSea = cell === 'sea'
+            let dep = 0
             if (isSea) {
-              const raw = -cd / DEPTH_RANGE
-              const dAmp = raw < 0.14 ? 0.1 : raw < 0.55 ? 0.022 : 0.05
-              const dep = Math.min(1, Math.max(0, raw + (hash(tx * 7.7, ty * 5.3) - 0.5) * dAmp))
+              // THE DEPTH FIELD IS THE DESIGN: open water plunges dark within ~6 units of a
+              // coast; lagoon blobs hold a bright structured shelf (reef heads, sand bars,
+              // the boat channel); everything converges to the abyss plane.
+              const lag = smooth01(lagoonK(u, w) * 1.35)
+              // the bright shelf's width follows the COAST TYPE: a real shallow apron off
+              // beaches, a fast plunge to dark at every cliff (the uniform halo is the
+              // amateur read — this line is what killed it)
+              const bK = beachKAt(u, w)
+              let depOpen = Math.min(1, 0.55 * Math.min(1, -cd / (0.5 + 3.5 * bK)) + 0.45 * Math.min(1, -cd / 8))
+              // cliff coasts hold DEEP water to the rock: the ramp's bright stops are
+              // reserved for beach shallows (SoS: dark teal + a foam collar, nothing else)
+              depOpen = Math.max(depOpen, 0.62 * (1 - bK * 1.05) * Math.min(1, -cd / 0.5))
+              let depLag = 0.07 + 0.26 * Math.min(1, -cd / 15)
+              const bn = vnoise2(u / 3.4 + 9, w / 3.4 + 5)
+              if (lag > 0.1 && bn > 0.60) depLag += (bn - 0.60) * 1.7 // submerged reef heads
+              const bn2 = vnoise2(u / 5 + 40, w / 5 + 21)
+              if (lag > 0.3 && bn2 > 0.74) depLag -= 0.05 // sand-bar glints
+              dep = depOpen * (1 - lag) + depLag * lag
+              const chD = channelDistUW(u, w)
+              if (chD < 1.8) dep = Math.max(dep, mix01(0.52, dep, smooth01((chD - 0.9) / 0.9)))
+              // dither fades with depth: the deep ring must melt into the abyss smoothly,
+              // not as patchwork strips
+              dep += (hash(tx * 7.7, ty * 5.3) - 0.5) * (dep < 0.2 ? 0.05 : dep > 0.7 ? 0.01 : 0.03)
+              dep = Math.min(1, Math.max(0, dep))
+              if (dep > 0.985) continue // the abyss plane owns it from here
+            }
+            const slope = isleSlope(tx, ty)
+            const { lvl } = isSea ? { lvl: 0 } : levelAtUW(u, w)
+            const lift = isSea ? 0 : cell === 'fresh' ? 0 : liftAt(tx, ty)
+            walkable.set(wk(tx, ty), (cell === 'wet' || cell === 'sand' || cell === 'grass' || cell === 'jungle' || cell === 'bank')
+              && slope <= 5.5 && lvl <= 1)
+            let landBase = SAND_BASE
+            let base: Texture | undefined
+            if (isSea) {
               const h = hash(tx * 1.3, ty * 2.7)
               const pool = dep < 0.1 ? W_CALM
                 : dep < 0.3 ? (h < 0.6 ? W_CALM : W_SOFT)
@@ -226,230 +253,206 @@ export default function IslandMapIso() {
               base = waterV[pool[Math.floor(hash(tx * 3.1, ty * 1.9) * pool.length)]]
             } else if (cell === 'fresh') {
               base = waterV[W_CALM[Math.floor(hash(tx * 3.1, ty * 1.9) * W_CALM.length)]]
+            } else if (cell === 'cliff' || cell === 'rock' || (lvl >= 4 && cell !== 'sand' && cell !== 'wet')) {
+              base = rockV.length ? rockV[Math.floor(hash(tx * 2.9, ty * 3.7) * rockV.length)] : sandV[0]
+              landBase = ROCK_BASE
+            } else if (cell === 'jungle' || cell === 'bank') {
+              base = jungleV.length ? jungleV[Math.floor(hash(tx * 3.3, ty * 4.1) * jungleV.length)] : sandV[0]
+              landBase = JUNGLE_BASE
             } else {
-              // land textures by zone (the tint ramp owns hue; the texture owns material):
-              // sand family on the shore ring + worn paths, REAL jungle-floor litter inland,
-              // broken basalt on the volcano's bare heights — dithered at every family seam
-              const jj = (hash(tx * 5.7, ty * 3.9) - 0.5) * 1.3
-              const liftT = isleLift(tx, ty)
-              const pdT = pathDist(tx, ty) + jj * 0.5
-              if (liftT + jj * 8 > 100 && jungleV.length && rockV.length && pdT > 1.1) {
-                base = rockV[Math.floor(hash(tx * 2.9, ty * 3.7) * rockV.length)]
-                landBase = ROCK_BASE
-              } else if (coastDist(tx, ty) * shoreScaleUW(uOf(tx, ty), wOf(tx, ty)) + jj > 5.2 && pdT > 1.1 && jungleV.length) {
-                base = jungleV[Math.floor(hash(tx * 3.3, ty * 4.1) * jungleV.length)]
-                landBase = JUNGLE_BASE
-              } else
-                base = sandV[SAND_COMMON[Math.floor(hash(tx * 3.3, ty * 4.1) * SAND_COMMON.length)]]
+              base = sandV[SAND_COMMON[Math.floor(hash(tx * 3.3, ty * 4.1) * SAND_COMMON.length)]]
             }
             if (!base) continue
             const sp = new Sprite(base); sp.anchor.set(0.5, 0.25)
             const fx = vnoise2(tx / 7 + 4, ty / 7 + 11) > 0.5 ? -1 : 1
-            const os = isSea || cell === 'fresh' ? 1.12 : 1.09 // land overlaps a touch more (mountain relief gaps)
+            const os = isSea || cell === 'fresh' ? 1.12 : 1.09
             sp.scale.set(fx * os, os)
-            // fresh water: the pool holds ONE flat surface level (per-tile terrain lift turned
-            // it into a stepped pyramid); the river sinks 5px into its valley
-            const inPool = cell === 'fresh' && Math.hypot((tx - ty) - POOL.u, (tx + ty - (ISLE_CX + ISLE_CY)) / 2 - POOL.w) < POOL.r + 2
-            let lift = isSea ? 0 : cell === 'fresh' ? (inPool ? POOL_LIFT : Math.max(0, isleLift(tx, ty) - 5)) : isleLift(tx, ty)
-            // the pool's rim settles to its surface so the bowl doesn't step (river banks
-            // keep their own descent)
-            if (!isSea && cell !== 'fresh') {
-              const dPool = Math.hypot((tx - ty) - POOL.u, (tx + ty - (ISLE_CX + ISLE_CY)) / 2 - POOL.w) - (POOL.r + 0.5)
+            const inPool = cell === 'fresh' && Math.hypot(u - POOL.u, w - POOL.w) < POOL.r + 2
+            let dLift = lift
+            if (cell === 'fresh') dLift = inPool ? POOL_LIFT : Math.max(0, liftAt(tx, ty) - 5)
+            else if (!isSea) {
+              const dPool = Math.hypot(u - POOL.u, w - POOL.w) - (POOL.r + 0.5)
               if (dPool < 3.5) {
                 const k = Math.min(1, Math.max(0, (dPool - 0.2) / 3.3))
-                lift = (POOL_LIFT + 4) * (1 - k) + lift * k
+                dLift = (POOL_LIFT + 4) * (1 - k) + dLift * k
               }
             }
-            sp.position.set(isoX(tx, ty), isoY(tx, ty) - lift); sp.zIndex = (tx + ty) * 16
+            sp.position.set(isoX(tx, ty), isoY(tx, ty) - dLift); sp.zIndex = (tx + ty) * 16
             if (isSea) {
-              const raw = -cd / DEPTH_RANGE
-              const dAmp = raw < 0.14 ? 0.1 : raw < 0.55 ? 0.022 : 0.05
-              const dep = Math.min(1, Math.max(0, raw + (hash(tx * 7.7, ty * 5.3) - 0.5) * dAmp))
-              const patch = 0.955 + 0.09 * vnoise2(tx / 22 + 7, ty / 22 + 2)
+              // patch texture eases with depth (big bright streaks over dark water read as
+              // banding artifacts from the air, not swell)
+              const patchAmp = 0.09 * (1 - 0.55 * Math.min(1, dep / 0.5))
+              const patch = 1 - patchAmp / 2 + patchAmp * vnoise2(tx / 22 + 7, ty / 22 + 2)
               const grain = 0.997 + 0.006 * hash(tx, ty)
-              const col = shadeHex(tintFor(rampAt(W_RAMP, dep), W_BASE), patch * grain)
+              let col = shadeHex(tintFor(rampAt(W_RAMP, dep), W_BASE), patch * grain)
+              // melt into the abyss plane (no seam where the tile ring ends)
+              if (dep > 0.88) col = mix(col, ABYSS, smooth01((dep - 0.88) / 0.10))
               sp.tint = col
+              const lag = smooth01(lagoonK(u, w) * 1.35)
               waterSprites.push({
                 sp, base: col,
                 ph: (tx + ty) * 0.5 + 0.35 * Math.sin((tx - ty) * 0.18),
                 ph2: (tx + ty) * 0.21 - (tx - ty) * 0.07,
-                amp: 0.022 + 0.055 * dep,
+                amp: 0.016 + 0.05 * dep * (1 - lag * 0.7),
               })
             } else if (cell === 'fresh') {
-              // dithered depth so the pool reads as one soft bowl, not banded terraces
               const f = -freshDist(tx, ty) + (hash(tx * 6.1, ty * 4.3) - 0.5) * 0.9
               sp.tint = tintFor(shadeHex(rampAt(FRESH_RAMP, Math.min(1, Math.max(0, f / 4.5))), 0.98 + 0.04 * hash(tx, ty)), W_BASE)
             } else {
-              // land: ONE CONTINUOUS colormap over (shore distance, altitude) with per-tile
-              // jitter, so zone boundaries dither into each other instead of stamping hard
-              // diamond staircases. wet sand -> dry sand -> dune grass -> lowland jungle ->
-              // deep jungle -> mossy rock -> bare crown, all one surface.
+              // ---- LAND COLOR: keyed by coast type + terrace level + moisture, moody ----
               const grain = 0.994 + 0.012 * hash(tx * 1.3, ty * 2.1)
-              const drift = 0.955 + 0.075 * vnoise2(tx / 16 + 3, ty / 16 + 5)
-              // DIRECTIONAL relief: the sun sits upper-left, so faces climbing toward it
-              // catch light and faces falling away sink into shadow — this is what makes
-              // the volcano and the hill country READ as height instead of dye
-              const dLift = isleLift(tx + 0.5, ty + 0.5) - isleLift(tx - 0.5, ty - 0.5) // down-screen gradient
-              const dLiftX = isleLift(tx + 0.5, ty - 0.5) - isleLift(tx - 0.5, ty + 0.5) // across-screen gradient
-              const shade = Math.min(1.12, Math.max(0.6, 1 - dLift * 0.022 + dLiftX * 0.014))
-              const j = (hash(tx * 5.7, ty * 3.9) - 0.5) * 1.3 // boundary dither
-              const cdj = cd * shoreScaleUW(uOf(tx, ty), wOf(tx, ty)) + j
+              const drift = 0.958 + 0.07 * vnoise2(tx / 16 + 3, ty / 16 + 5)
+              const j = (hash(tx * 5.7, ty * 3.9) - 0.5) * 1.1
+              const B = beachKAt(u, w)
+              const moist = vnoise2(u / 9 + 3, w / 9 + 8) + (freshDist(tx, ty) < 4 ? 0.25 : 0)
               let col: number
-              if (cdj < 1.5) col = mix(0xb5945e, 0xd8bd86, Math.min(1, Math.max(0, cdj / 1.5)))
-              else if (cdj < 3.4) col = rampAt([[0, 0xd8bd86], [0.6, 0xead6a3], [1, 0xf0e2b4]], (cdj - 1.5) / 1.9)
-              // jungle ramp colors are pure VALUE-scales of the family's base hue (82,124,72):
-              // uniform tints grade brightness without blue-shifting the litter texture to sage
-              else if (cdj < 5.2) col = mix(0xf0e2b4, 0x50793f, (cdj - 3.4) / 1.8) // sand fades under dune grass
-              else if (cdj < 7.5) col = mix(0x50793f, 0x46693d, (cdj - 5.2) / 2.3)
-              else col = rampAt([[0, 0x46693d], [0.4, 0x385431], [0.75, 0x2d4428], [1, 0x263921]],
-                Math.min(1, (cdj - 7.5) / 22 + 0.5 * Math.min(1, lift / 130))) // DARK muted BLHS green, never lime
-              // altitude: mossy rock blends in high up; the crown reads as cool broken basalt
-              // (banded by slope + noise so it reads as rock shelves, never felt) — the carved
-              // head takes this seat later
-              const rockK = Math.min(1, Math.max(0, (lift + j * 8 - 118) / 30))
-              if (rockK > 0) {
-                const shelf = 0.82 + 0.3 * vnoise2(tx / 3.1 + 17, ty / 3.1 + 4) // broken banding
-                const crag = Math.max(0, Math.abs(dLift) - 3) * 0.035           // crevice dark on steeps
-                let rc = rampAt([[0, 0x5e5c4d], [0.6, 0x4d4c3f], [1, 0x3d3b32]], Math.min(1, (lift - 118) / 60)) // value-scales of the rock base hue
-                rc = shadeHex(rc, Math.max(0.6, shelf - crag))
-                col = mix(col, rc, rockK)
+              if (cell === 'wet') col = mix(0x8f7a52, 0xbfa06b, Math.min(1, Math.max(0, (cd + j * 0.3) / 1.2)))
+              else if (cell === 'sand') col = rampAt([[0, 0xbfa06b], [0.5, 0xd8bd86], [1, 0xe8d4a2]], Math.min(1, (cd - 1.2 + j * 0.4) / (1 + 5.2 * B)))
+              else if (cell === 'grass') col = mix(0xcdb27e, 0x3f6234, Math.min(1, Math.max(0, (cd - (1 + 5.2 * B) + j * 0.8) / 1.6)))
+              else if (cell === 'cliff') {
+                // waterline basalt: dark, wet sheen at the base
+                col = shadeHex(0x3a3b33, 0.82 + 0.3 * vnoise2(tx / 2.9 + 17, ty / 2.9 + 4))
+                if (cd < 0.7) col = mix(0x22282a, col, cd / 0.7)
+              } else if (cell === 'rock') {
+                const { frac } = levelAtUW(u, w)
+                const dc = Math.hypot(u - VC.u, w - VC.w)
+                // cool gray basalt (the warm ramp read as mud from the air); light enough
+                // that the sun shading can model it
+                col = rampAt([[0, 0x6d7060], [0.5, 0x54584a], [1, 0x3a3e34]], Math.min(1, (lvl - 2.5) / 2 + frac * 0.4 + j * 0.1))
+                const shelf = 0.84 + 0.28 * vnoise2(tx / 3.1 + 17, ty / 3.1 + 4)
+                col = shadeHex(col, shelf)
+                // the crater bowl: char + the ember heart (tight — the bowl must read as a
+                // feature IN the summit, never swallow it)
+                if (dc < 3.4) {
+                  const k = 1 - dc / 3.4
+                  col = mix(col, 0x2b2724, Math.min(1, k * 1.8))
+                  if (dc < 1.4) col = mix(col, 0x8a4a22, Math.pow(1 - dc / 1.4, 1.8) * 0.85)
+                } else if (dc < 5 && lvl >= 4) {
+                  // the rim: sun catches the far lip, the near inner wall shadows
+                  col = shadeHex(col, (u - VC.u) + (w - VC.w) < 0 ? 0.78 : 1.12)
+                }
+              } else if (cell === 'bank') col = shadeHex(0x36452e, 0.9 + 0.16 * hash(tx * 3.7, ty * 1.9))
+              else {
+                // jungle floor: moisture-keyed value ramp of the litter base, darker + more
+                // clumped than attempt 1 (the flat lime field is the amateur read)
+                const clump = vnoise2(u / 14 + 21, w / 14 + 6) // macro light/dark patches
+                const t = Math.min(1, Math.max(0, 0.78 - 0.30 * moist - 0.26 * clump + j * 0.08))
+                col = rampAt([[0, 0x3d5c36], [0.35, 0x324c2c], [0.7, 0x273c24], [1, 0x1f301d]], t)
+                if (lvl >= 3) col = mix(col, 0x647c44, Math.min(0.45, (lvl - 2) * 0.22 + (moist < 0.4 ? 0.1 : 0)))
               }
-              // CANOPY AO: the floor darkens under dense canopy and lightens in the glades
-              // (tracks the composer's density field, so shade sits exactly under the trees)
-              if (cdj > 7 && lift < 130) {
-                const uu = tx - ty, ww = (tx + ty - (ISLE_CX + ISLE_CY)) / 2
-                const dens = (0.34 + 0.3 * vnoise2(uu / 9 + 3, ww / 9 + 8)) * (0.5 + 0.9 * vnoise2(uu / 24 + 7, ww / 24 + 3))
-                col = shadeHex(col, 1.1 - 0.34 * Math.min(1, Math.max(0, dens)))
-              }
-              // THE BLOWHOLE + CALDERA: inside the rim the ground chars to vent basalt with
-              // an ember heart; the rim ring itself catches the sun on its NW lip and drops
-              // into shadow inside — the crater reads as a real bowl, not a stain
-              const dVent = Math.hypot((tx - ty) - 0, (tx + ty - (ISLE_CX + ISLE_CY)) / 2 + 6)
-              if (dVent < 3.4) {
-                const k = 1 - dVent / 3.4
-                col = mix(col, mix(0x2e2a26, 0x5a3220, Math.pow(k, 2.2)), Math.min(1, k * 2.2))
-              } else if (dVent < 6.2 && lift > 120) {
-                // inner wall in shadow toward the sun side, lit on the far lip
-                const sunSide = ((tx - ty) + ((tx + ty - (ISLE_CX + ISLE_CY)) / 2 + 6)) < 0 ? 1 : 0
-                col = shadeHex(col, sunSide ? 0.74 : 1.14)
-              }
-              // fresh-water banks darken to damp earth
-              const fd = cd > 2.5 ? freshDist(tx, ty) : 9
-              if (fd < 1.9) col = mix(0x6b7a4e, col, Math.max(0, (fd - 0.6) / 1.3))
-              // the worn trail: compacted earth, feathered
-              if (cdj > 3) {
-                const pd = pathDist(tx, ty) + j * 0.5
-                if (pd < 1.6) col = mix(0x9a8a62, col, Math.max(0, (pd - 0.6) / 1.0))
-              }
+              // TERRACE LIPS + HARD AO (the refs' law: sun catches the top edge of every
+              // band; the ground under a wall sits in its shadow)
+              const gapSE = dLift - liftAt(tx + 1, ty + 1)
+              const gapUp = liftAt(tx - 1, ty - 1) - dLift
+              const gapL = liftAt(tx - 1, ty) - dLift, gapR = liftAt(tx, ty - 1) - dLift
+              let shade = 1
+              if (gapSE > 15) shade *= 1.12
+              if (gapUp > 15) shade *= 0.66
+              else if (gapL > 15 || gapR > 15) shade *= 0.84
+              // smooth directional sun (upper-left key): slopes facing the sun lighten,
+              // slopes falling away sink — this is what keeps the massif from reading flat
+              const gDn = (liftAt(tx + 1, ty + 1) - liftAt(tx - 1, ty - 1)) / 2
+              const gAc = (liftAt(tx + 1, ty - 1) - liftAt(tx - 1, ty + 1)) / 2
+              shade *= Math.min(1.15, Math.max(0.78, 1 - gDn * 0.009 + gAc * 0.007))
               sp.tint = shadeHex(tintFor(col, landBase), grain * drift * shade)
+              // ---- THE TERRACE WALLS: stacked basalt courses fill the drop under every rim
+              // (the structural cliff read; the PixelLab cliff faces dress these in piece 2) ----
+              if (gapSE > 15 && rockV.length) {
+                const nW = Math.min(7, Math.ceil((gapSE - 2) / 14))
+                for (let i = 1; i <= nW; i++) {
+                  const wsp = new Sprite(rockV[Math.floor(hash(tx * 9.1 + i, ty * 5.3) * rockV.length)])
+                  wsp.anchor.set(0.5, 0.25)
+                  wsp.scale.set((hash(tx + i, ty) > 0.5 ? -1 : 1) * 1.12, 1.12)
+                  wsp.position.set(isoX(tx, ty), isoY(tx, ty) - dLift + 14 * i)
+                  wsp.zIndex = (tx + ty + 2) * 16 + 1
+                  // cooler + darker than every plateau top: the wall must read as a
+                  // SHADOWED FACE, not more ground
+                  let wc = shadeHex(0x343830, 0.94 - i * 0.09)
+                  if (i === 1 && lvl <= 3) wc = mix(wc, 0x3d4c34, 0.35) // mossy top course
+                  wsp.tint = tintFor(wc, ROCK_BASE)
+                  world.addChild(wsp)
+                }
+              }
             }
             world.addChild(sp)
           }
         }
       }
 
-      // ---- AERIAL-PERSPECTIVE VEIL per island (the beach's exact trick, radial): melts the
-      // ring's tile texture into the abyss with distance, sliced per s-row for honest depth ----
-      for (const isle of ISLANDS) {
-        const RES = 4
-        const RR = isle.radius + DEPTH_RANGE + 2
-        const s0 = isle.cx + isle.cy
-        const x0 = -RR * HW + isoX(isle.cx, isle.cy)
-        const cw = Math.ceil((2 * RR * HW) / RES)
-        const y0 = (s0 - 2 * RR) * HH
-        const ch = Math.ceil((4 * RR * HH) / RES)
-        const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch
-        const g = cv.getContext('2d')!
-        const img = g.createImageData(cw, ch)
-        const px = img.data
-        const rowLive: boolean[] = []
-        for (let cy = 0; cy < ch; cy++) {
-          const wy = y0 + (cy + 0.5) * RES
-          const w = (wy / HH - s0) / 2
-          let live = false
-          for (let cx = 0; cx < cw; cx++) {
-            const wx = x0 + (cx + 0.5) * RES
-            const u = wx / HW
-            const dep = Math.min(1, -coastDistUW(u, w) / DEPTH_RANGE)
-            let a = 0
-            if (dep > 0.09) {
-              const k = Math.min(1, (dep - 0.09) / 0.48)
-              a = 0.5 * k * k * (3 - 2 * k)
-              if (dep > 0.78) { const kk = Math.min(1, (dep - 0.78) / 0.22); a += 0.24 * kk * kk }
-              a *= 0.86 + 0.28 * vnoise2(wx / 1250 + 3.2, wy / 720 + 8.1)
-            }
-            if (a > 0) {
-              const col = rampAt(W_RAMP, Math.min(1, dep + 0.1))
-              const o = (cy * cw + cx) * 4
-              px[o] = (col >> 16) & 255; px[o + 1] = (col >> 8) & 255; px[o + 2] = col & 255
-              px[o + 3] = Math.round(Math.min(1, a) * 255)
-              live = true
+      // ---- THE BREAKERS: surf breaking OFFSHORE along each lagoon's reef edge (the aerial
+      // signature: a white ring away from the sand, not foam glued to the coast) ----
+      const breakers: { sp: Sprite; arc: number; ph: number }[] = []
+      if (tex['foamlace']) {
+        for (let li = 0; li < LAGOONS.length; li++) {
+          const L = LAGOONS[li]
+          const per = (L.ru + L.rw) * 1.6
+          for (let t = 0; t < Math.PI * 2; t += 0.09) {
+            const bu = L.cu + L.ax * L.ru * Math.cos(t) - L.ay * L.rw * Math.sin(t)
+            const bw = L.cw + L.ay * L.ru * Math.cos(t) + L.ax * L.rw * Math.sin(t)
+            if (coastDistUW(bu, bw) > -1.8) continue // only the seaward arc breaks
+            const laceT = hash(t * 31, li) > 0.5 && tex['foamlace2'] ? tex['foamlace2'] : tex['foamlace']
+            const fr = new Rectangle(Math.floor(t * 160) % Math.max(32, laceT.width - 32), 0, 32, laceT.height)
+            const x = isoX(ISLE_CX, ISLE_CY) + bu * HW
+            const y = isoY(ISLE_CX, ISLE_CY) + bw * 2 * HH
+            for (let row = 0; row < 2; row++) {
+              const sp2 = new Sprite(new Texture({ source: laceT.source, frame: fr }))
+              sp2.anchor.set(0.5, 0.6)
+              sp2.scale.set(row ? 1.0 : 1.35, row ? 0.8 : 1)
+              sp2.position.set(x - row * 6, y + row * 7)
+              sp2.alpha = 0
+              sp2.zIndex = (y / HH) * 16 + 5 - row
+              world.addChild(sp2)
+              breakers.push({ sp: sp2, arc: t * per, ph: li * 3 + row * 0.9 })
             }
           }
-          rowLive[cy] = live
-        }
-        g.putImageData(img, 0, 0)
-        const washT = Texture.from(cv)
-        washT.source.scaleMode = 'linear'
-        const rowsPerS = HH / RES
-        for (let s = 0; s < Math.ceil(ch / rowsPerS); s++) {
-          const cy0 = s * rowsPerS
-          let live = false
-          for (let r = 0; r < rowsPerS; r++) if (rowLive[cy0 + r]) { live = true; break }
-          if (!live) continue
-          const strip = new Sprite(new Texture({ source: washT.source, frame: new Rectangle(0, cy0, cw, Math.min(rowsPerS, ch - cy0)) }))
-          strip.position.set(x0, y0 + cy0 * RES); strip.scale.set(RES, RES)
-          const sRow = (y0 + cy0 * RES) / HH
-          strip.zIndex = sRow * 16 + 18
-          world.addChild(strip)
         }
       }
 
-      // ---- THE SURF: parametric dabs around the coastline — skirt (buries the tile staircase),
-      // dark seam, and two staggered foam fronts that wash INLAND along each dab's own normal
-      // and retract, the break sweeping around the island. Flank dabs (coast running steep on
-      // screen) keep the collar but ease off the wash so nothing slides sideways. ----
+      // ---- THE SURF DABS: coast-type aware. True beaches get the living tide wash; cliff
+      // coasts get a pinned foam collar swelling against the rock ----
       type Dab = {
         x: number; y: number; nx: number; ny: number; s: number; arc: number
-        skirt?: Sprite; seam?: Sprite; foam: Sprite[]; flankK: number
+        skirt?: Sprite; seam?: Sprite; foam: Sprite[]; flankK: number; beach: number
       }
       const dabs: Dab[] = []
       if (tex['skirt'] && tex['foamlace']) {
         const skT = tex['skirt']
         for (let li = 0; li < LANDS.length; li++) {
           const cx = isoX(ISLE_CX, ISLE_CY), cyw = isoY(ISLE_CX, ISLE_CY)
-          const roughR = li === 0 ? 46 : 13
-          let arc = li * 173 // offset each land's slice walk so no two coasts show the same lace
+          const roughR = li === 0 ? 42 : 7
+          let arc = li * 173
           let prev: { x: number; y: number } | null = null
           for (let th = 0; th < Math.PI * 2; th += 1.0 / roughR) {
             const cp = coastPoint(th, li)
+            const B = beachKTheta(li, th)
             const x = cx + cp.u * HW, y = cyw + cp.w * 2 * HH
             if (prev) arc += Math.hypot(x - prev.x, y - prev.y)
             prev = { x, y }
             const s = y / HH
-            // how vertical the coast runs on screen here: 0 = horizontal (full wash), 1 = vertical
             const flankK = Math.min(1, Math.abs(cp.nx) / 0.85)
             const fr = new Rectangle((Math.floor(arc) % Math.max(32, skT.width - 32)), 0, 32, skT.height)
             const mkSk = (ay: number, sy: number, tint: number | null, alpha: number, dz: number) => {
-              const sp = new Sprite(new Texture({ source: skT.source, frame: fr }))
-              sp.anchor.set(0.5, ay); sp.scale.set(1, sy)
-              if (tint !== null) sp.tint = tint
-              sp.alpha = alpha; sp.position.set(x, y); sp.zIndex = s * 16 + dz
-              world.addChild(sp)
-              return sp
+              const sp2 = new Sprite(new Texture({ source: skT.source, frame: fr }))
+              sp2.anchor.set(0.5, ay); sp2.scale.set(1, sy)
+              if (tint !== null) sp2.tint = tint
+              sp2.alpha = alpha; sp2.position.set(x, y); sp2.zIndex = s * 16 + dz
+              world.addChild(sp2)
+              return sp2
             }
-            const d: Dab = { x, y, nx: cp.nx, ny: cp.ny, s, arc, foam: [], flankK }
-            d.seam = mkSk(0.3, 0.55, 0x113238, 0.45, 1)
-            d.skirt = mkSk(0.62, 1.9, null, 0.9, 2)
-            // two foam fronts (alternating lace variants); flipped vertically when the
-            // scalloped leading edge must face up-screen (south shores)
-            for (let f = 0; f < 2; f++) {
+            const d: Dab = { x, y, nx: cp.nx, ny: cp.ny, s, arc, foam: [], flankK, beach: B }
+            // the seam: dark waterline everywhere (deeper-toned against cliff bases)
+            d.seam = mkSk(0.3, 0.55, B > 0.35 ? 0x113238 : 0x0c2126, B > 0.35 ? 0.45 : 0.6, 1)
+            // the skirt at HALF strength: it buries the tile sawtooth, it must never read as
+            // a white outline drawn around the island
+            if (B > 0.3) d.skirt = mkSk(0.62, 1.4, null, 0.55, 2)
+            const nFoam = B > 0.45 ? 2 : 1
+            for (let f = 0; f < nFoam; f++) {
               const laceT = (f === 1 && tex['foamlace2']) ? tex['foamlace2'] : tex['foamlace']
               const period = Math.max(32, laceT.width - 32)
               const off = Math.floor(arc + f * 160) % period
               const fsp = new Sprite(new Texture({ source: laceT.source, frame: new Rectangle(off, 0, 32, laceT.height) }))
               fsp.anchor.set(0.5, 0.84)
-              if (cp.ny < 0) fsp.scale.y = -1 // leading edge faces the land side
+              if (cp.ny < 0) fsp.scale.y = -1
               fsp.position.set(x, y); fsp.alpha = 0
               world.addChild(fsp); d.foam.push(fsp)
             }
@@ -458,9 +461,7 @@ export default function IslandMapIso() {
         }
       }
 
-      // ---- THE FALLS POOL dressing: a smooth dark rim ring traced as sub-tile dabs (buries
-      // the diamond sawtooth), a foam lip, the falls' white impact churn at the north edge,
-      // and glinting ripples — the pool is a composed feature, not a collision mask ----
+      // ---- THE FALLS BASIN dressing (the head's pool site — full set-piece in piece 5) ----
       const shadowTex = makeShadow()
       const poolFx: { sp: Sprite; ph: number; kind: 'churn' | 'glint' }[] = []
       if (tex['skirt']) {
@@ -473,24 +474,19 @@ export default function IslandMapIso() {
           const fr = new Rectangle(Math.floor(th * 90) % Math.max(32, skT.width - 32), 0, 32, skT.height)
           const groundS = (pcy + ry + POOL_LIFT) / HH
           const seam = new Sprite(new Texture({ source: skT.source, frame: fr }))
-          seam.anchor.set(0.5, 0.5); seam.scale.set(1, 0.7); seam.tint = 0x14312e; seam.alpha = 0.55
+          seam.anchor.set(0.5, 0.5); seam.scale.set(1, 0.7); seam.tint = 0x0f2a28; seam.alpha = 0.5
           seam.position.set(pcx + rx, pcy + ry); seam.zIndex = groundS * 16 + 4
           world.addChild(seam)
-          const lip = new Sprite(new Texture({ source: skT.source, frame: fr }))
-          lip.anchor.set(0.5, 0.5); lip.scale.set(1, 0.5); lip.tint = 0xd8efe2; lip.alpha = 0.22
-          lip.position.set(pcx + rx * 1.06, pcy + ry * 1.06 - 2); lip.zIndex = groundS * 16 + 5
-          world.addChild(lip)
         }
-        // the falls' impact churn at the pool's north edge (under the future head/falls art)
         for (let i = 0; i < 3; i++) {
           const c = new Sprite(shadowTex); c.anchor.set(0.5)
           c.tint = 0xf2fff8; c.blendMode = 'add'
-          c.width = 54 - i * 10; c.height = 20 - i * 3
-          c.position.set(pcx + (i - 1) * 26, pcy - POOL.r * HH * 2 * 0.62 + i * 5)
+          c.width = 46 - i * 9; c.height = 17 - i * 3
+          c.position.set(pcx + (i - 1) * 20, pcy - POOL.r * HH * 2 * 0.62 + i * 5)
           c.zIndex = ((pcy + POOL_LIFT) / HH) * 16 + 6
           world.addChild(c); poolFx.push({ sp: c, ph: i * 2.1, kind: 'churn' })
         }
-        for (let i = 0; i < 7; i++) {
+        for (let i = 0; i < 6; i++) {
           const g = new Sprite(tex['sparkle'] ?? Texture.WHITE); g.anchor.set(0.5); g.blendMode = 'add'
           const a = hash(i, 7) * Math.PI * 2, rr = Math.sqrt(hash(i, 3)) * 0.75
           g.position.set(pcx + Math.cos(a) * rr * POOL.r * HW, pcy - Math.sin(a) * rr * POOL.r * HH * 2)
@@ -500,69 +496,50 @@ export default function IslandMapIso() {
         }
       }
 
-      // ---- THE VOLCANO BREATHES: steam puffs rising from the blowhole ----
+      // ---- THE VOLCANO BREATHES: steam off the crater blowhole ----
       const steamTex = radial(96, [[0, 'rgba(226,224,218,0.5)'], [0.5, 'rgba(210,208,204,0.22)'], [1, 'rgba(210,208,204,0)']])
-      const ventX = 0, ventY = (ISLE_CX + ISLE_CY - 12) * HH - 150
+      const ventX = VC.u * HW
+      const ventY = (ISLE_CX + ISLE_CY + 2 * VC.w) * HH - isleLiftUW(VC.u, VC.w) - 10
       const steam: { sp: Sprite; age: number; life: number; drift: number }[] = []
       let lastSteam = 0
 
-      // ---- god rays + valley mist: the jungle breathes light and air ----
-      const rays2: { sp: Sprite; ph: number }[] = []
-      {
-        const rayTex = vgradient(256, [[0, 'rgba(255,236,180,0.16)'], [0.5, 'rgba(255,236,180,0.05)'], [1, 'rgba(255,236,180,0)']])
-        for (const [ru, rw, len] of [[-20, 6, 620], [14, 18, 520], [-34, -6, 460], [30, 2, 480]] as const) {
-          const r = new Sprite(rayTex); r.anchor.set(0.5, 0)
-          r.rotation = -0.62; r.blendMode = 'add'
-          r.width = 150 + hash(ru, rw) * 90; r.height = len
-          r.position.set(ru * HW + 90, (ISLE_CX + ISLE_CY + 2 * rw) * HH - 320)
-          r.zIndex = 310000
-          world.addChild(r); rays2.push({ sp: r, ph: hash(ru, rw) * 8 })
-        }
-        const mistTex = radial(256, [[0, 'rgba(214,236,226,0.16)'], [0.55, 'rgba(214,236,226,0.08)'], [1, 'rgba(214,236,226,0)']])
-        for (const [mu, mw, sc] of [[-14, -1, 1.6], [17, -6, 1.3], [-2, 20, 1.5], [-30, 12, 1.1]] as const) {
-          const m = new Sprite(mistTex); m.anchor.set(0.5)
-          m.blendMode = 'screen'
-          m.width = 760 * sc; m.height = 130 * sc
-          m.position.set(mu * HW, (ISLE_CX + ISLE_CY + 2 * mw) * HH - isleLift(txOf(mu, mw), tyOf(mu, mw)) - 20)
-          m.zIndex = 305000
-          world.addChild(m); rays2.push({ sp: m, ph: 3 + hash(mu, mw) * 8 })
-        }
-      }
-
-      // ---- the island throws its shadow onto the SE water (one global upper-left sun) ----
-      {
-        const ish = new Sprite(shadowTex); ish.anchor.set(0.5)
-        ish.tint = 0x0a2030; ish.alpha = 0.16
-        ish.width = 5200; ish.height = 1500
-        ish.position.set(isoX(ISLE_CX, ISLE_CY) + 820, isoY(ISLE_CX, ISLE_CY) + 560)
-        ish.zIndex = (ISLE_CX + ISLE_CY + 70) * 16 + 19
-        world.addChild(ish)
-      }
-
-      // ---- open-sea life: sun sparkles in the ring + roaming abyss glints + cloud shadows ----
+      // ---- open-sea life: lagoon sun glints, sparse drifting flecks, sea-mist streaks,
+      // cloud shadows (aerial depth without a single glow halo) ----
       const sparkles: { sp: Sprite; ph: number; sc: number; roam: boolean }[] = []
       if (tex['sparkle']) {
-        for (let i = 0; i < 150; i++) {
-          const roam = i >= 90
-          const sp = new Sprite(tex['sparkle']); sp.anchor.set(0.5)
-          const sc = 0.4 + hash(i * 7, i * 2) * 0.5
-          sp.scale.set(sc); sp.alpha = 0; sp.blendMode = 'add'
+        for (let i = 0; i < 110; i++) {
+          const roam = i >= 70
+          const sp2 = new Sprite(tex['sparkle']); sp2.anchor.set(0.5)
+          const sc = roam ? 0.3 + hash(i * 7, i * 2) * 0.3 : 0.4 + hash(i * 7, i * 2) * 0.45
+          sp2.scale.set(sc); sp2.alpha = 0; sp2.blendMode = 'add'
           if (!roam) {
-            // in the island's depth ring, denser toward the sun (upper-left)
-            const th = hash(i * 3.7, i) * Math.PI * 2
-            const back = 1.5 + hash(i, i * 1.9) * 10
-            const cp = coastPoint(th)
-            const x = isoX(ISLE_CX, ISLE_CY) + (cp.u + cp.nx * back) * HW
-            const y = isoY(ISLE_CX, ISLE_CY) + (cp.w + cp.ny * back) * 2 * HH
-            sp.position.set(x, y); sp.zIndex = (y / HH) * 16 + 19
-          } else sp.zIndex = 200000
-          world.addChild(sp); sparkles.push({ sp, ph: hash(i, i * 5) * 20, sc, roam })
+            // glints live in the lagoons (the sun plays on the shallow shelf)
+            const L = LAGOONS[i % LAGOONS.length]
+            const a = hash(i * 3.7, i) * Math.PI * 2, q = Math.sqrt(hash(i, i * 1.9)) * 0.92
+            const bu = L.cu + L.ax * L.ru * q * Math.cos(a) - L.ay * L.rw * q * Math.sin(a)
+            const bw = L.cw + L.ay * L.ru * q * Math.cos(a) + L.ax * L.rw * q * Math.sin(a)
+            if (coastDistUW(bu, bw) > -0.5) { sp2.destroy(); continue }
+            const x = isoX(ISLE_CX, ISLE_CY) + bu * HW
+            const y = isoY(ISLE_CX, ISLE_CY) + bw * 2 * HH
+            sp2.position.set(x, y); sp2.zIndex = (y / HH) * 16 + 19
+          } else sp2.zIndex = 200000
+          world.addChild(sp2); sparkles.push({ sp: sp2, ph: hash(i, i * 5) * 20, sc, roam })
+        }
+      }
+      const mists: { sp: Sprite; ph: number; v: number }[] = []
+      {
+        const mistTex = radial(256, [[0, 'rgba(224,240,236,0.17)'], [0.5, 'rgba(224,240,236,0.08)'], [1, 'rgba(224,240,236,0)']])
+        for (const [mu, mw, scw] of [[-38, 30, 1.3], [50, -6, 1.0], [-52, -24, 1.15], [18, 46, 0.9]] as const) {
+          const m = new Sprite(mistTex); m.anchor.set(0.5); m.blendMode = 'screen'
+          m.width = 2600 * scw; m.height = 250 * scw
+          m.position.set(isoX(ISLE_CX, ISLE_CY) + mu * HW, isoY(ISLE_CX, ISLE_CY) + mw * 2 * HH)
+          m.zIndex = 200000
+          world.addChild(m); mists.push({ sp: m, ph: hash(mu, mw) * 8, v: 5 + hash(mw, mu) * 4 })
         }
       }
       const clouds: { sp: Sprite; vx: number; vy: number }[] = []
       for (let i = 0; i < 5; i++) {
-        // barely-there drifting cloud shade: a whisper, never a stain
-        const c = new Sprite(radial(256, [[0, 'rgba(10,28,34,0.13)'], [0.55, 'rgba(10,28,34,0.07)'], [1, 'rgba(10,28,34,0)']]))
+        const c = new Sprite(radial(256, [[0, 'rgba(10,28,34,0.14)'], [0.55, 'rgba(10,28,34,0.08)'], [1, 'rgba(10,28,34,0)']]))
         c.anchor.set(0.5); c.blendMode = 'multiply'
         c.width = 2200 + hash(i, 3) * 1600; c.height = c.width * 0.38
         c.position.set(isoX(ISLE_CX, ISLE_CY) + (hash(i, 7) - 0.5) * 7000, isoY(ISLE_CX, ISLE_CY) + (hash(i, 9) - 0.5) * 4200)
@@ -592,7 +569,7 @@ export default function IslandMapIso() {
         'treeA', 'treeB', 'treeC', 'palmE', 'treefern', 'banana', 'boulder', 'fernA', 'ruinGate'])
       const HULL = new Set(['rowboat', 'logdrift', 'crates', 'tidepool', 'boulder'])
 
-      // ---- props ----
+      // ---- props (empty on the canvas; pieces 3-5 compose them by hand) ----
       const swaying: { sp: Sprite; ph: number; amp: number }[] = []
       const props = [...composeIsland(), ...composePortDressing()]
       for (const p of props) {
@@ -601,10 +578,10 @@ export default function IslandMapIso() {
         const x = isoX(p.tx, p.ty), y = isoY(p.tx, p.ty) - lift, z = (p.tx + p.ty) * 16
         if (p.ground) {
           const sc0 = p.h / t0.height
-          const sp = new Sprite(t0); sp.anchor.set(0.5, 0.6); sp.scale.set(p.flip ? -sc0 : sc0, sc0)
-          sp.position.set(x, y); sp.zIndex = z + 3
-          const gt = p.tint ?? PROP_TINT[p.img]; if (gt) sp.tint = gt
-          world.addChild(sp)
+          const sp2 = new Sprite(t0); sp2.anchor.set(0.5, 0.6); sp2.scale.set(p.flip ? -sc0 : sc0, sc0)
+          sp2.position.set(x, y); sp2.zIndex = z + 3
+          const gt = p.tint ?? PROP_TINT[p.img]; if (gt) sp2.tint = gt
+          world.addChild(sp2)
           continue
         }
         const t = trimmed(t0)
@@ -614,30 +591,29 @@ export default function IslandMapIso() {
         sh.width = Math.max(26, t.width * sc * (p.sea ? 0.8 : tall ? 1.7 : 1.4))
         sh.height = Math.max(11, t.width * sc * (tall ? 0.22 : 0.32))
         sh.rotation = 0.2
-        // stronger than the beach's: violet shade vanishes into dark jungle floor
         sh.alpha = p.sea ? 0.3 : tall ? 0.62 : 0.66; sh.position.set(x + 5, y + 2)
         sh.zIndex = z + 17
         world.addChild(sh)
-        const sp = new Sprite(t); sp.anchor.set(0.5, 1.0); sp.scale.set(p.flip ? -sc : sc, sc)
-        sp.position.set(x, y + (p.sea ? 5 : 0))
-        sp.zIndex = z + 8
-        const pt = p.tint ?? PROP_TINT[p.img]; if (pt) sp.tint = pt
-        world.addChild(sp)
-        if (p.img.startsWith('palm')) swaying.push({ sp, ph: hash(p.tx * 3.1, p.ty * 1.7) * 6.28, amp: 0.014 + 0.008 * hash(p.tx, p.ty * 9) })
-        else if (p.img.startsWith('tree')) swaying.push({ sp, ph: hash(p.tx * 1.9, p.ty * 2.9) * 6.28, amp: 0.005 }) // big trees barely stir
-        else if (p.img.startsWith('bush') || p.img.startsWith('fern') || p.img === 'dunegrass' || p.img === 'heliconia' || p.img === 'banana' || p.img === 'monstera') swaying.push({ sp, ph: hash(p.tx * 2.3, p.ty * 4.1) * 6.28, amp: 0.006 })
+        const sp2 = new Sprite(t); sp2.anchor.set(0.5, 1.0); sp2.scale.set(p.flip ? -sc : sc, sc)
+        sp2.position.set(x, y + (p.sea ? 5 : 0))
+        sp2.zIndex = z + 8
+        const pt = p.tint ?? PROP_TINT[p.img]; if (pt) sp2.tint = pt
+        world.addChild(sp2)
+        if (p.img.startsWith('palm')) swaying.push({ sp: sp2, ph: hash(p.tx * 3.1, p.ty * 1.7) * 6.28, amp: 0.014 + 0.008 * hash(p.tx, p.ty * 9) })
+        else if (p.img.startsWith('tree')) swaying.push({ sp: sp2, ph: hash(p.tx * 1.9, p.ty * 2.9) * 6.28, amp: 0.005 })
+        else if (p.img.startsWith('bush') || p.img.startsWith('fern') || p.img === 'dunegrass' || p.img === 'heliconia' || p.img === 'banana' || p.img === 'monstera') swaying.push({ sp: sp2, ph: hash(p.tx * 2.3, p.ty * 4.1) * 6.28, amp: 0.006 })
         if (!p.noBlock && COLLIDE.has(p.img)) {
           const m = measureBase(t, HULL.has(p.img) ? 0.45 : 0.12)
           if (m) for (const b of m.pts) {
             const sdx = (b.x - t.width * 0.5) * sc * (p.flip ? -1 : 1)
             const sdy = (b.y - m.feet) * sc + (p.sea ? 5 : 0)
-            const u = sdx / (2 * HW), v = sdy / (2 * HH)
-            addCollider(p.tx + u + v, p.ty + v - u, Math.max(0.09, (b.hw * sc * 0.9) / (HW * Math.SQRT2)))
+            const uu = sdx / (2 * HW), vv = sdy / (2 * HH)
+            addCollider(p.tx + uu + vv, p.ty + vv - uu, Math.max(0.09, (b.hw * sc * 0.9) / (HW * Math.SQRT2)))
           }
         }
       }
 
-      // ---- warm lantern glows (ports) ----
+      // ---- warm lantern glows ----
       const glows: { sp: Sprite; ph: number }[] = []
       const glowTex = radial(96, [[0, 'rgba(255,196,110,0.5)'], [0.4, 'rgba(255,176,90,0.18)'], [1, 'rgba(255,176,90,0)']])
       const addGlow = (gx: number, gy: number, size: number, z: number) => {
@@ -646,67 +622,49 @@ export default function IslandMapIso() {
         world.addChild(g); glows.push({ sp: g, ph: hash(gx, gy) * 6.28 })
       }
 
-      // ---- THE FOUR PORTS: the beach pier kit rebuilt as a parameterized assembly. Each pier
-      // runs a true iso diagonal from the cove sand across the surf to a dock platform; mirrored
-      // art serves the NW-axis ports. Deck surfaces + stairs ride the same surface engine. ----
+      // ---- THE EAST PORT (the intro arrival; other ports come with their own pieces) ----
       const DECK_LIFT = 30
       const placePort = (thetaDeg: number) => {
         if (!tex['pierIso'] || !tex['dockPlat']) return
         const th = (thetaDeg * Math.PI) / 180
         const cp = coastPoint(th)
-        // the pier axis: NE-axis (tx const, the beach's own art direction) when the outward
-        // normal leans up-right or down-left; NW-axis (ty const, mirrored art) otherwise
         const neAxis = (cp.nx > 0) === (cp.ny < 0)
-        const seaUp = cp.ny < 0 // does the walkway head up-screen toward the sea?
-        // root tile: on the cove sand just inside the waterline, snapped
+        const seaUp = cp.ny < 0
         const rtx = Math.round(txOf(cp.u - cp.nx * 2.2, cp.w - cp.ny * 2.2))
         const rty = Math.round(tyOf(cp.u - cp.nx * 2.2, cp.w - cp.ny * 2.2))
-        const A = { x: isoX(rtx, rty), y: isoY(rtx, rty) - DECK_LIFT } // deck-top over the root tile
+        const A = { x: isoX(rtx, rty), y: isoY(rtx, rty) - DECK_LIFT }
         const mirror = !neAxis
-        // place a sprite so its LOCAL landmark (lx,ly in unscaled art px) lands on a world
-        // point; returns local->world so glows can anchor to measured pixels. Mirrored art
-        // draws leftward from pos, so local x inverts around the anchor.
         const place = (t: Texture, lx: number, ly: number, wx: number, wy: number, z: number, scl = 1) => {
-          const sp = new Sprite(t)
-          sp.anchor.set(0, 0)
-          sp.scale.set(mirror ? -scl : scl, scl)
-          sp.position.set(mirror ? wx + lx * scl : wx - lx * scl, wy - ly * scl)
-          sp.zIndex = z
-          world.addChild(sp)
+          const sp2 = new Sprite(t)
+          sp2.anchor.set(0, 0)
+          sp2.scale.set(mirror ? -scl : scl, scl)
+          sp2.position.set(mirror ? wx + lx * scl : wx - lx * scl, wy - ly * scl)
+          sp2.zIndex = z
+          world.addChild(sp2)
           return (px2: number, py2: number) => ({
-            x: mirror ? sp.position.x - px2 * scl : sp.position.x + px2 * scl,
-            y: sp.position.y + py2 * scl,
+            x: mirror ? sp2.position.x - px2 * scl : sp2.position.x + px2 * scl,
+            y: sp2.position.y + py2 * scl,
           })
         }
-        // seaward walkway step in tiles + screen px
         const stepTx = neAxis ? 0 : (seaUp ? -1 : 1)
         const stepTy = neAxis ? (seaUp ? -1 : 1) : 0
         const sdx = isoX(stepTx, stepTy), sdy = isoY(stepTx, stepTy)
         const WALK_N = 9
-        // z-order: every element must draw over the LAST water row it spans. A sea-UP pier
-        // (beach case) spans rows behind its root, so root keys everything; a sea-DOWN pier
-        // spans rows in FRONT of its root, so its far end keys the walkway and platform
-        // (without this, the sea tiles drew over the east/south piers entirely).
         const rootS = rtx + rty, stepS = stepTx + stepTy
         const jettyZ = rootS * 16 + 9
         const pierZ = seaUp ? jettyZ - 4 : (rootS + stepS * WALK_N) * 16 + 7
         const platZ = seaUp ? pierZ - 5 : (rootS + stepS * (WALK_N + 3)) * 16 + 9
-        // pier segments chain along the axis, anchored by the cap midpoint at the LAND end of
-        // each segment: the low (SW-local) cap when the sea is up-screen, the high (NE-local)
-        // cap when the sea is down-screen (measured on pier-iso2: SW cap (20,120), NE (187.5,36))
         const capL: [number, number] = seaUp ? [20, 120] : [187.5, 36]
         for (let i = 0; i < 2; i++) {
           place(tex['pierIso'], capL[0], capL[1], A.x + sdx * (i * 5), A.y + sdy * (i * 5), pierZ - i)
-          // the deck casts onto the water below — without this the pier floats (reviewer)
           const shp = new Sprite(shadowTex); shp.anchor.set(0.5)
-          shp.rotation = mirror ? 0.4636 : -0.4636 // aligned to the walkway's iso diagonal
+          shp.rotation = mirror ? 0.4636 : -0.4636
           shp.width = 300; shp.height = 46; shp.alpha = 0.2
           const mx2 = A.x + sdx * (i * 5 + 2.5), my2 = A.y + sdy * (i * 5 + 2.5)
           shp.position.set(mx2 + 26, my2 + DECK_LIFT + 34)
           shp.zIndex = ((my2 + DECK_LIFT + 34) / HH) * 16 + 3
           world.addChild(shp)
         }
-        // foam collars where the posts stand in the surf — the deck reads supported
         for (let i = 2; i <= WALK_N + 2; i += 2) {
           const ptx = rtx + stepTx * i, pty = rty + stepTy * i
           if (coastDist(ptx, pty) > 0) continue
@@ -716,34 +674,28 @@ export default function IslandMapIso() {
           ring.zIndex = (ptx + pty) * 16 + 8
           world.addChild(ring)
         }
-        // the dock platform at the sea end, its walkway-facing deck-edge midpoint tucked 0.19
-        // steps back so the cap planks lap onto the deck (the beach's -6/+3 tuck, generalized).
-        // Facing midpoints on dock-platform2: SW (77,102); NE (171,70) (center-mirrored estimate)
         const E = { x: A.x + sdx * (WALK_N - 0.19), y: A.y + sdy * (WALK_N - 0.19) }
         const platL: [number, number] = seaUp ? [77, 102] : [171, 70]
         place(tex['dockPlat'], platL[0], platL[1], E.x, E.y, platZ)
-        // the lantern jetty at the land end (landmark (90,84), lamp at (26,65) — beach-measured)
         if (tex['lanternPost']) {
           const JSC = 0.63
           const loc = place(tex['lanternPost'], 90, 84, A.x + 2, A.y - 1, jettyZ, JSC)
           const lamp = loc(26, 65)
           addGlow(lamp.x, lamp.y, 54, jettyZ + 3)
         }
-        // surfaces: walkway column + platform block + entry stairs
         for (let i = 0; i <= WALK_N; i++)
           setSurf(rtx + stepTx * i, rty + stepTy * i, { walk: true, layer: 1, lift: DECK_LIFT, z: (i === 0 ? jettyZ : pierZ) + 2 })
         for (let a = -1; a <= 1; a++) for (let b = 0; b <= 2; b++) {
           const px2 = rtx + stepTx * (WALK_N + b) + (neAxis ? a : 0)
           const py2 = rty + stepTy * (WALK_N + b) + (neAxis ? 0 : a)
-          if (a === 0 && b === 1) continue // the platform's barrel tile: walk around it
+          if (a === 0 && b === 1) continue
           setSurf(px2, py2, { walk: true, layer: 1, lift: DECK_LIFT, z: (seaUp ? pierZ : platZ) + 2 })
         }
         setSurf(rtx - stepTx, rty - stepTy, { walk: true, layer: 1, lift: 14, z: jettyZ + 2, trans: true })
         setSurf(rtx - 2 * stepTx, rty - 2 * stepTy, { walk: true, layer: 1, lift: 4, z: jettyZ + 2, trans: true })
-        // the pier's legs block sand-Thor
         addCollider(rtx - 0.6 * stepTx, rty - 0.6 * stepTy, 0.55)
       }
-      for (const p of Object.values(PORT_THETA)) placePort(p)
+      placePort(PORT_THETA.east)
 
       // ---- Thor ----
       const thorShadow = new Sprite(shadowTex); thorShadow.anchor.set(0.5, 0.5)
@@ -754,7 +706,6 @@ export default function IslandMapIso() {
       thor.zIndex = 0; world.addChild(thor)
       const jump = { active: false, t: 0 }
       const spawnP = (new URLSearchParams(location.search).get('spawn') ?? '').split(',').map(Number)
-      // default spawn: the east-port sand (the intro's arrival shore)
       const ecp = coastPoint((PORT_THETA.east * Math.PI) / 180)
       const pos = {
         tx: spawnP.length === 2 && !isNaN(spawnP[0]) ? spawnP[0] : Math.round(txOf(ecp.u - ecp.nx * 4, ecp.w - ecp.ny * 4)),
@@ -762,13 +713,11 @@ export default function IslandMapIso() {
       }
       let facing = 'south', at = 0, renderLift = 0
 
-      const GROUND: Surf = { walk: false, layer: 0, lift: 0, z: 0 }
       const surfAt = (x: number, y: number): Surf => {
         const o = surf.get(x + ',' + y)
         if (o) return o
         return { walk: !!walkable.get(x + ',' + y), layer: 0, lift: 0, z: 0 }
       }
-      void GROUND
       const canGo = (fx: number, fy: number, tx2: number, ty2: number) => {
         const t = surfAt(Math.round(tx2), Math.round(ty2))
         if (!t.walk) return false
@@ -803,9 +752,6 @@ export default function IslandMapIso() {
         return canGo(atx, pos.ty, atx - CR, ny + sgn * CR) && canGo(atx, pos.ty, atx + CR, ny + sgn * CR) && !collideMove(pos.tx, pos.ty, atx, ny)
       }
 
-      // a map this size lives or dies on culling: ~20k display objects exist, but only the
-      // viewport's worth may render. Everything in the world is cullable; the ticker culls
-      // against the screen each frame (the beach never needed this; the island map does).
       for (const c of world.children) c.cullable = true
       instance.ticker.add((tk) => {
         Culler.shared.cull(world, { x: 0, y: 0, width: instance.renderer.width, height: instance.renderer.height })
@@ -847,7 +793,6 @@ export default function IslandMapIso() {
           }
           facing = dirFromAngle(isoX(dx, dy), (dx + dy) * HH)
         }
-        // depenetration net
         let pen = 0
         if (surfAt(Math.round(pos.tx), Math.round(pos.ty)).layer === 0) {
           const parr = colMap.get(Math.round(pos.tx) + ',' + Math.round(pos.ty))
@@ -886,44 +831,49 @@ export default function IslandMapIso() {
         at += tk.deltaMS
         const wf = walk[facing] ?? walk[cardinalOf(facing)]
         thor.texture = (moving && wf) ? wf[Math.floor(at / (sprinting ? 68 : 110)) % wf.length] : (idle[facing] ?? idle['south'] ?? thor.texture)
-        // camera
         const vw = instance.renderer.width, vh = instance.renderer.height
         if (world.scale.x !== ZOOM) world.scale.set(ZOOM)
         world.x = vw / 2 - x * ZOOM; world.y = vh * 0.58 - y * ZOOM
-        // water: traveling swell brightness
         const wt = performance.now() / 1000
-        for (const w of waterSprites) {
-          const fct = 1 + w.amp * (Math.sin(w.ph - wt * 1.05) + 0.55 * Math.sin(w.ph2 - wt * 0.42 + 1.7))
-          w.sp.tint = shadeHex(w.base, fct)
+        for (const w2 of waterSprites) {
+          const fct = 1 + w2.amp * (Math.sin(w2.ph - wt * 1.05) + 0.55 * Math.sin(w2.ph2 - wt * 0.42 + 1.7))
+          w2.sp.tint = shadeHex(w2.base, fct)
         }
-        // the surf: the break sweeps around the island; each dab washes inland on its normal
+        // breakers roll along the reef edge in slow traveling sets
+        for (const b of breakers) {
+          const k = Math.max(0, Math.sin(wt * 0.8 - b.arc * 0.010 + b.ph))
+          b.sp.alpha = 0.10 + 0.55 * Math.pow(k, 1.6)
+        }
         for (let i = 0; i < dabs.length; i++) {
           const d = dabs[i]
+          const washAmp = TIDE_AMP * (1 - 0.85 * d.flankK) * Math.min(1, Math.max(0.12, (d.beach - 0.2) * 1.6))
           for (let f = 0; f < d.foam.length; f++) {
             const [reach, foamA] = tidePhase(wt - f * TIDE_T / 2 - d.arc * 0.011)
-            const amp = TIDE_AMP * (1 - 0.85 * d.flankK)
-            const ox = -d.nx * reach * amp * HW * 0.9, oy = -d.ny * reach * amp * 2 * HH * 0.9
             const fsp = d.foam[f]
-            fsp.position.set(d.x + ox, d.y + oy)
-            fsp.zIndex = (d.y + oy) / HH * 16 + 6
-            fsp.alpha = foamA * 0.9 * (1 - 0.55 * d.flankK)
+            if (d.beach > 0.45) {
+              const ox = -d.nx * reach * washAmp * HW * 0.9, oy = -d.ny * reach * washAmp * 2 * HH * 0.9
+              fsp.position.set(d.x + ox, d.y + oy)
+              fsp.zIndex = (d.y + oy) / HH * 16 + 6
+              fsp.alpha = foamA * 0.72 * (1 - 0.55 * d.flankK)
+            } else {
+              // the collar: pinned lace swelling against the rock base
+              fsp.position.set(d.x, d.y + 1.5 * Math.sin(wt * 1.1 + d.arc * 0.03))
+              fsp.zIndex = d.y / HH * 16 + 6
+              fsp.alpha = 0.12 + 0.24 * Math.max(0, Math.sin(wt * 0.9 + d.arc * 0.04))
+            }
           }
           if (d.skirt) d.skirt.position.y = d.y + 1.2 * Math.sin(wt * 0.9 + d.arc * 0.02)
         }
         for (const s of sparkles) {
           const k = Math.max(0, Math.sin(wt * 0.9 + s.ph) - 0.55) / 0.45
-          s.sp.alpha = k * 0.85
+          s.sp.alpha = k * (s.roam ? 0.4 : 0.75)
           s.sp.scale.set(s.sc * (0.7 + 0.3 * k))
-          if (s.roam) {
-            // keep the roaming abyss glints inside the current view
-            if (k < 0.02) {
-              const wx = (vw * (hash(s.ph, wt | 0) - 0.5)) / ZOOM + (x)
-              const wy2 = (vh * (hash(s.ph * 3, wt | 0) - 0.5)) / ZOOM + (y)
-              s.sp.position.set(wx, wy2)
-            }
+          if (s.roam && k < 0.02) {
+            const wx = (vw * (hash(s.ph, wt | 0) - 0.5)) / ZOOM + (x)
+            const wy2 = (vh * (hash(s.ph * 3, wt | 0) - 0.5)) / ZOOM + (y)
+            s.sp.position.set(wx, wy2)
           }
         }
-        // the pool lives: the falls churn seethes, glints wander on
         for (const p of poolFx) {
           if (p.kind === 'churn') {
             p.sp.alpha = 0.3 + 0.14 * Math.sin(wt * 2.4 + p.ph)
@@ -933,27 +883,29 @@ export default function IslandMapIso() {
             p.sp.alpha = k * 0.8
           }
         }
-        // rays and mist breathe on their own slow clocks
-        for (const r of rays2) r.sp.alpha = 0.55 + 0.45 * Math.sin(wt * 0.22 + r.ph)
-        // the volcano breathes: a slow steam column drifting off the blowhole
-        if (wt - lastSteam > 0.62) {
+        for (const m of mists) {
+          m.sp.x += m.v * tk.deltaMS / 1000
+          m.sp.alpha = 0.55 + 0.45 * Math.sin(wt * 0.13 + m.ph)
+          if (m.sp.x > isoX(ISLE_CX, ISLE_CY) + 4200) m.sp.x -= 8400
+        }
+        if (wt - lastSteam > 0.55) {
           lastSteam = wt
           const sp2 = new Sprite(steamTex); sp2.anchor.set(0.5); sp2.blendMode = 'screen'
-          sp2.position.set(ventX + (hash(wt, 1) - 0.5) * 26, ventY + (hash(wt, 3) - 0.5) * 8)
-          sp2.alpha = 0; sp2.width = sp2.height = 40 + hash(wt, 5) * 26
+          sp2.position.set(ventX + (hash(wt, 1) - 0.5) * 24, ventY + (hash(wt, 3) - 0.5) * 8)
+          sp2.alpha = 0; sp2.width = sp2.height = 44 + hash(wt, 5) * 28
           sp2.zIndex = 300000
           world.addChild(sp2)
-          steam.push({ sp: sp2, age: 0, life: 4200 + hash(wt, 7) * 1600, drift: 4 + hash(wt, 9) * 5 })
+          steam.push({ sp: sp2, age: 0, life: 4600 + hash(wt, 7) * 1800, drift: 5 + hash(wt, 9) * 5 })
         }
         for (let i = steam.length - 1; i >= 0; i--) {
           const s2 = steam[i]
           s2.age += tk.deltaMS
           const k = s2.age / s2.life
           if (k >= 1) { s2.sp.destroy(); steam.splice(i, 1); continue }
-          s2.sp.y -= 13 * tk.deltaMS / 1000
+          s2.sp.y -= 14 * tk.deltaMS / 1000
           s2.sp.x += s2.drift * tk.deltaMS / 1000
-          s2.sp.alpha = 0.36 * Math.sin(Math.PI * Math.min(1, k * 1.15))
-          const g2 = 1 + k * 1.9
+          s2.sp.alpha = 0.4 * Math.sin(Math.PI * Math.min(1, k * 1.15))
+          const g2 = 1 + k * 2.1
           s2.sp.scale.set(g2)
         }
         for (const s of swaying) s.sp.rotation = s.amp * (Math.sin(wt * 0.7 + s.ph) + 0.35 * Math.sin(wt * 1.9 + s.ph * 2.3))
@@ -968,17 +920,13 @@ export default function IslandMapIso() {
         resizeFx(vw, vh)
       })
 
-      // ---- MAP-LOCAL atmosphere: bright open-sea golden hour — airier than the beach cove,
-      // sun high-left, a soft horizon glimmer, a gentler vignette ----
-      const warm = new Sprite(Texture.WHITE); warm.tint = 0xffd291; warm.alpha = 0.06; instance.stage.addChild(warm)
-      const sun = new Sprite(radial(512, [[0, 'rgba(255,222,160,0.18)'], [0.5, 'rgba(255,210,140,0.06)'], [1, 'rgba(255,210,140,0)']])); sun.anchor.set(0.5); sun.blendMode = 'add'; instance.stage.addChild(sun)
-      const horizon = new Sprite(vgradient(256, [[0, 'rgba(255,200,128,0.13)'], [0.55, 'rgba(255,200,128,0.05)'], [1, 'rgba(255,200,128,0)']]))
-      horizon.blendMode = 'add'; instance.stage.addChild(horizon)
-      const vig = new Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.48, 'rgba(0,0,0,0)'], [0.74, 'rgba(14,16,10,0.3)'], [1, 'rgba(7,9,5,0.7)']])); instance.stage.addChild(vig)
+      // ---- MAP-LOCAL atmosphere: warm key upper-left, moody floor, gentle vignette ----
+      const warm = new Sprite(Texture.WHITE); warm.tint = 0xffd291; warm.alpha = 0.05; instance.stage.addChild(warm)
+      const sun = new Sprite(radial(512, [[0, 'rgba(255,222,160,0.16)'], [0.5, 'rgba(255,210,140,0.05)'], [1, 'rgba(255,210,140,0)']])); sun.anchor.set(0.5); sun.blendMode = 'add'; instance.stage.addChild(sun)
+      const vig = new Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.46, 'rgba(0,0,0,0)'], [0.72, 'rgba(10,14,12,0.34)'], [1, 'rgba(5,8,7,0.74)']])); instance.stage.addChild(vig)
       const resizeFx = (vw: number, vh: number) => {
         warm.width = vw; warm.height = vh
-        sun.width = sun.height = Math.max(vw, vh) * 1.5; sun.position.set(vw * 0.3, vh * 0.02)
-        horizon.width = vw; horizon.height = vh * 0.22; horizon.position.set(0, 0)
+        sun.width = sun.height = Math.max(vw, vh) * 1.5; sun.position.set(vw * 0.28, vh * 0.02)
         vig.width = vw * 1.5; vig.height = vh * 1.5; vig.position.set(-vw * 0.25, -vh * 0.25)
       }
       resizeFx(instance.renderer.width, instance.renderer.height)
@@ -992,7 +940,8 @@ export default function IslandMapIso() {
   return <div ref={ref} style={{ position: 'fixed', inset: 0, background: '#073442' }} />
 }
 
-// ---- helpers (the beach's) ----
+// ---- helpers ----
+function mix01(a: number, b: number, t: number) { return a + (b - a) * t }
 function shadeHex(hex: number, f: number) {
   const r = Math.min(255, ((hex >> 16) & 255) * f), g = Math.min(255, ((hex >> 8) & 255) * f), b = Math.min(255, (hex & 255) * f)
   return (r << 16) | (g << 8) | b
@@ -1006,13 +955,6 @@ function radial(size: number, stops: [number, string][]) {
   const ctx = cv.getContext('2d')!, g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2)
   for (const [o, c] of stops) g.addColorStop(o, c)
   ctx.fillStyle = g; ctx.fillRect(0, 0, size, size)
-  const t = Texture.from(cv); t.source.scaleMode = 'linear'; return t
-}
-function vgradient(size: number, stops: [number, string][]) {
-  const cv = document.createElement('canvas'); cv.width = 8; cv.height = size
-  const ctx = cv.getContext('2d')!, g = ctx.createLinearGradient(0, 0, 0, size)
-  for (const [o, c] of stops) g.addColorStop(o, c)
-  ctx.fillStyle = g; ctx.fillRect(0, 0, 8, size)
   const t = Texture.from(cv); t.source.scaleMode = 'linear'; return t
 }
 function makeShadow() {
