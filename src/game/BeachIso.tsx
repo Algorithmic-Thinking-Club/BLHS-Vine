@@ -299,7 +299,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         load('pierIso', '/art/intro/port/pier-iso2.png'), load('dockPlat', '/art/intro/port/dock-platform2.png'),
         load('ship', '/art/intro/port/ship.png'), load('boatAnchor', '/art/intro/port/boat-anchored.png'),
         load('boatFish', '/art/intro/port/boat-fishing.png'),
-        ...Array.from({ length: 24 }, (_, b) => load('ship24v' + b, `/art/intro/port/ship24/v${b}.png`)),
+        ...Array.from({ length: 16 }, (_, b) => load('shipRv' + b, `/art/intro/port/ship16/v${b}.png`)),
         ...Object.entries(PROP_SRC).map(([k, u]) => load(k, u)),
       ])
       // ---- DRAWN-GEOMETRY measurement: read a texture's pixels once and find where its art
@@ -780,11 +780,11 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       // inherits exactly that: continuous momentum physics, 8 painted facings behind
       // hysteresis. Deck-walking (the endless source of iso glitches) no longer exists.
       // Piloting is a PILOT SEAM: keyboard today, phase-2 cutscenes drive the same boat. ----
-      // TWENTY-FOUR painted views (15 deg steps, k=0 bow screen-right, clockwise) — the
-      // ladder Ash approved, densified; the heel micro-rotation carries the eye through
-      // what remains of each step. (Bottom row of each texture IS the waterline.)
-      // Meta stays a 16-point table (measured on the octant views); metaAt() lerps it to
-      // any bucket count. w = drawn hull width (the foam ring hugs each silhouette).
+      // SIXTEEN painted views (22.5 deg steps, k=0 bow screen-right, clockwise) — the
+      // ladder Ash approved; he drove 24 and called for the revert to 16, so 16 is the
+      // locked count (all frames height-normalized; the heel micro-rotation carries the
+      // eye through each step). Meta is a 16-point table; metaAt() lerps it to any
+      // NVIEWS if the count ever changes again. w = drawn hull width (the foam ring).
       const SHIPMETA: { lampX: number; lampY: number; w: number; headX: number; headY: number }[] = [
         { lampX: 5, lampY: -50, w: 175, headX: -18, headY: -38 },  // E
         { lampX: 6, lampY: -70, w: 138, headX: -12, headY: -42 },  // ESE
@@ -803,7 +803,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         { lampX: -16, lampY: -77, w: 158, headX: 12, headY: -44 }, // NE
         { lampX: -6, lampY: -64, w: 166, headX: -3, headY: -41 },  // ENE
       ]
-      const NVIEWS = 24
+      const NVIEWS = 16 // Ash's call after driving both: 24 read worse than 16 — revert
       const metaAt = (b: number) => {
         const f = (((b % NVIEWS) + NVIEWS) % NVIEWS) * 16 / NVIEWS
         const i0 = Math.floor(f) % 16, i1 = (i0 + 1) % 16, t2 = f - Math.floor(f)
@@ -838,7 +838,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           if (d < 0.62) return
         }
         V.bucket = b
-        const t = tex['ship24v' + b] ?? tex['ship']
+        const t = tex['shipRv' + b] ?? tex['ship']
         if (t) {
           V.hull.texture = t
           V.hull.anchor.set(0.5, 1) // bottom row = waterline
