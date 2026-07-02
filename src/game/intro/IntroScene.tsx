@@ -4,7 +4,10 @@ import { CutsceneRuntime } from '../cutscene/runtime'
 import { CutsceneOverlay } from '../cutscene/CutsceneOverlay'
 import { introI1I2 } from './introScript'
 import { I3Session } from './I3Session'
-import { loadSave, writeSave } from '../save'
+import { clearSave, loadSave, writeSave } from '../save'
+
+// dev: ?fresh=1 wipes the save before the scene reads it, so the intro always replays
+if (new URLSearchParams(location.search).has('fresh')) clearSave()
 import { track } from '../telemetry'
 import { GearButton, SettingsPanel } from '../../app/SettingsPanel'
 
