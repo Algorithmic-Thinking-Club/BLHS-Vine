@@ -1,0 +1,41 @@
+/* The teacher's desk (§13.3) — plain, readable, projector-friendly. Not the game. */
+.tc-root {
+  position: absolute; inset: 0; overflow-y: auto;
+  background: #f4f1e8; color: #2c241c;
+  font-family: system-ui, sans-serif;
+  padding: 32px clamp(16px, 6vw, 80px);
+}
+.tc-head h1 { font-size: 26px; margin: 0 0 6px; }
+.tc-head p { color: #6a5f4e; margin: 0 0 10px; }
+.tc-offline {
+  background: #fff3d6; border: 1px solid #d9b45c; border-radius: 6px;
+  padding: 10px 14px; margin: 10px 0; color: #6a5320;
+}
+.tc-cols { display: flex; gap: 28px; margin-top: 18px; flex-wrap: wrap; }
+.tc-col { min-width: 260px; flex: 1; }
+.tc-main { flex: 2.2; }
+.tc-col h2 { font-size: 16px; margin: 18px 0 8px; color: #4a3f30; }
+.tc-col input[type='text'], .tc-col input:not([type]) {
+  width: 100%; box-sizing: border-box; padding: 9px 11px;
+  border: 1px solid #b8ab8f; border-radius: 6px; font-size: 15px; background: #fff;
+}
+.tc-check { display: flex; gap: 8px; align-items: center; margin: 10px 0; font-size: 14px; color: #4a3f30; }
+.tc-col > button, .tc-classbtn {
+  padding: 9px 16px; margin-top: 6px;
+  background: #2f6e60; color: #fff; border: none; border-radius: 6px;
+  font-size: 15px; cursor: pointer;
+}
+.tc-classbtn { display: block; width: 100%; text-align: left; background: #e6dfd0; color: #2c241c; }
+.tc-classbtn.on { outline: 2px solid #2f6e60; }
+.tc-codecard {
+  background: #fff; border: 1px solid #d5cab2; border-radius: 10px;
+  padding: 18px 22px; text-align: center;
+}
+.tc-codelabel { color: #6a5f4e; font-size: 14px; }
+.tc-code { font-size: clamp(44px, 9vw, 96px); letter-spacing: 14px; font-weight: 700; color: #1d5a4e; }
+.tc-sub { color: #6a5f4e; font-size: 14px; display: flex; gap: 10px; justify-content: center; align-items: center; }
+.tc-mini { padding: 4px 10px; font-size: 13px; border: 1px solid #b8ab8f; background: #f4f1e8; border-radius: 5px; cursor: pointer; }
+.tc-dim { color: #8a7f6c; }
+.tc-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
+.tc-table th, .tc-table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #eee5d2; font-size: 14px; }
+.tc-table th { background: #ece5d5; color: #4a3f30; }

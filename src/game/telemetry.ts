@@ -13,9 +13,10 @@ function anonId(key: string) {
 const logger = new Logger({
   appVersion: import.meta.env?.VITE_APP_VERSION ?? 'dev',
   sessionId: Math.random().toString(36).slice(2, 10),
-  participantId: anonId('blhs_anon_id'),
+  participantId: localStorage.getItem('blhs_participant') ?? anonId('blhs_anon_id'),
   mode: 'game',
-  endpoint: import.meta.env?.VITE_LOG_ENDPOINT,
+  // production drains into the study database; dev keeps the offline queue local
+  endpoint: import.meta.env?.VITE_LOG_ENDPOINT ?? (import.meta.env?.PROD ? '/api/log' : undefined),
 })
 
 export function track(name: string, data?: Record<string, unknown>) {

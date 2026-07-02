@@ -11,6 +11,7 @@ import OverworldScene from './app/scenes/OverworldScene'
 import IslandScene from './app/scenes/IslandScene'
 import CapeScene from './app/scenes/CapeScene'
 import IntroScene from './game/intro/IntroScene'
+import TeacherScene from './app/scenes/TeacherScene'
 
 // LAZY on purpose (and per §15.2's lazy-load law): the island map is under heavy parallel
 // construction — an in-flight broken state in its module graph must never white-screen the
@@ -31,6 +32,7 @@ const registry: SceneRegistry = {
   island: () => <IslandScene />,
   cape: () => <CapeScene />,
   beach: () => <IntroScene />,   // the beach IS the intro map; free roam once the intro is done
+  teacher: () => <TeacherScene />, // Wiseman's desk (§13.3) — its own corner, never on the student title
   islandmap: () => (
     <Suspense fallback={<div style={{ position: 'absolute', inset: 0, background: '#06121a' }} />}>
       <IslandMapIso />

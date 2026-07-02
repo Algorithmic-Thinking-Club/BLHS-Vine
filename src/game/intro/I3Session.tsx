@@ -1,5 +1,7 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import { track } from '../telemetry'
+import { joinClass } from '../net'
+import { writeSave } from '../save'
 import './i3.css'
 
 // I-3: the UI session on the parchment (GAME-DESIGN §5 I-3, §4.3/§4.4/§4.6). The cork just
@@ -125,7 +127,8 @@ function CodeCard({ onJoin, onCastaway }: { onJoin: () => void; onCastaway: () =
     if (e.key === 'Backspace' && !code[i] && i > 0) refs.current[i - 1]?.focus()
     if (e.key === 'Enter') submit()
   }
-  const submit = () => {
+  const [checking, setChecking] = useState(false)
+  const submit = async () => {
     const joined = code.join('')
     tries.current++
     track('join_attempt', { len: joined.length, tries: tries.current })
@@ -134,9 +137,26 @@ function CodeCard({ onJoin, onCastaway }: { onJoin: () => void; onCastaway: () =
       setShake((s) => s + 1)
       return
     }
-    // class backend swap-in point: verify against the server here
-    track('join_ok', { code_hash: joined.length })
-    onJoin()
+    if (tries.current > 5) {
+      setErr('The harbor master needs a breather. Try again in a minute.')
+      return
+    }
+    // the real harbor: server-verified when the backend is live; offline dev sails through
+    setChecking(true)
+    const r = await joinClass(joined, 'Panther')
+    setChecking(false)
+    if (r.ok || r.reason === 'offline') {
+      if (r.ok) writeSave({ classCode: joined.toUpperCase() })
+      track('join_ok', { offline: !r.ok })
+      onJoin()
+      return
+    }
+    setShake((s) => s + 1)
+    setErr(r.reason === 'unknown_code'
+      ? 'The harbor does not know that code. Check it with your teacher.'
+      : r.reason === 'class_closed'
+        ? 'That class is not boarding right now.'
+        : 'The harbor is being difficult. Try once more.')
   }
 
   return (
@@ -164,7 +184,7 @@ function CodeCard({ onJoin, onCastaway }: { onJoin: () => void; onCastaway: () =
           <button className="i3-castaway" onClick={() => { track('demo_entered'); onCastaway() }}>
             No code? The sea takes strays too.
           </button>
-          <button className="i3-plank" onClick={submit}>Speak it</button>
+          <button className="i3-plank" onClick={submit}>{checking ? 'Asking the harbor…' : 'Speak it'}</button>
         </>
       )}
     </div>
