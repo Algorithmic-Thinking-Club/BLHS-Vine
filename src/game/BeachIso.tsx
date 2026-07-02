@@ -449,6 +449,61 @@ export default function BeachIso() {
         }
       }
 
+      // ---- AERIAL PERSPECTIVE WASH: the far field flattens toward the abyss so the per-tile
+      // texture (and any hint of the diamond lattice) dissolves with distance, the way the
+      // reference oceans read. One world-space canvas follows the exact shore-depth math, then
+      // gets sliced into a strip per s-row so depth sorting stays honest: sea props and boats
+      // keep a waterline immersion on their bottom rows, the port towers above it untouched.
+      {
+        const RES = 4 // world px per canvas px (a veil, not detail — low res is free)
+        const x0 = -3330, cw = Math.ceil(6660 / RES), sMax = 118, ch = Math.ceil((sMax * HH) / RES)
+        const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch
+        const g = cv.getContext('2d')!
+        const img = g.createImageData(cw, ch)
+        const px = img.data
+        const shoreCol: number[] = []
+        for (let cx = 0; cx < cw; cx++) shoreCol[cx] = shoreAt((x0 + (cx + 0.5) * RES) / HW)
+        const rowMaxA: number[] = []
+        for (let cy = 0; cy < ch; cy++) {
+          const wy = (cy + 0.5) * RES, s = wy / HH
+          let maxA = 0
+          for (let cx = 0; cx < cw; cx++) {
+            const dep = Math.min(1, (shoreCol[cx] - s) / DEPTH_RANGE)
+            let a = 0
+            if (dep > 0.09) {
+              const k = Math.min(1, (dep - 0.09) / 0.48)
+              a = 0.5 * k * k * (3 - 2 * k) // smoothstep body
+              if (dep > 0.8) a += 0.07 * Math.min(1, (dep - 0.8) / 0.2) // abyss flattens fully
+              // huge slow value clouds break any residual regularity in the veil itself
+              const wx = x0 + (cx + 0.5) * RES
+              a *= 0.86 + 0.28 * vnoise(wx / 1250 + 3.2, wy / 720 + 8.1)
+            }
+            if (a > 0) {
+              const col = rampAt(W_RAMP, Math.min(1, dep + 0.1))
+              const o = (cy * cw + cx) * 4
+              px[o] = (col >> 16) & 255; px[o + 1] = (col >> 8) & 255; px[o + 2] = col & 255
+              px[o + 3] = Math.round(a * 255)
+              if (a > maxA) maxA = a
+            }
+          }
+          rowMaxA[cy] = maxA
+        }
+        g.putImageData(img, 0, 0)
+        const washT = Texture.from(cv)
+        washT.source.scaleMode = 'linear' // a veil wants to stay smooth, not chunk at 4x
+        const rowsPerS = HH / RES
+        for (let s = 0; s < sMax; s++) {
+          const cy0 = s * rowsPerS
+          let live = false
+          for (let r = 0; r < rowsPerS; r++) if (rowMaxA[cy0 + r] > 0) { live = true; break }
+          if (!live) continue
+          const strip = new Sprite(new Texture({ source: washT.source, frame: new Rectangle(0, cy0, cw, rowsPerS) }))
+          strip.position.set(x0, s * HH); strip.scale.set(RES, RES)
+          strip.zIndex = s * 16 + 18 // over this band's own tile rows, under the props in front
+          world.addChild(strip)
+        }
+      }
+
       // ---- the FOAM BAND: two staggered wave fronts, each a continuous row of 32px segments
       // sliced from a seamless-x PixelLab lace strip, riding the smooth shore curve. The whole
       // band slides up the sand and retracts with the tide; trailing bubbles dissolve behind it. ----
