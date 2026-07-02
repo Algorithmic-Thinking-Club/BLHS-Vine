@@ -290,7 +290,7 @@ export default function BeachIso() {
         load('pierIso', '/art/intro/port/pier-iso2.png'), load('dockPlat', '/art/intro/port/dock-platform2.png'),
         load('ship', '/art/intro/port/ship.png'), load('boatAnchor', '/art/intro/port/boat-anchored.png'),
         load('boatFish', '/art/intro/port/boat-fishing.png'),
-        ...[0, 1, 2, 3, 4, 5, 6, 7].map(b => load('shipR' + b, `/art/intro/port/ship-r${b}.png`)),
+        ...[0, 1, 2, 3].map(b => load('shipV' + b, `/art/intro/port/ship-v${b}.png`)),
         ...Object.entries(PROP_SRC).map(([k, u]) => load(k, u)),
       ])
       // ---- DRAWN-GEOMETRY measurement: read a texture's pixels once and find where its art
@@ -770,17 +770,15 @@ export default function BeachIso() {
       // toward the bow, v to starboard) so the walk code works at any heading. The helm
       // is a PILOT SEAM: keyboard today, phase-2 cutscenes hand the same boat a scripted
       // pilot instead of key input. ----
-      // per-bucket drawn geometry (buckets by screen angle: E SE S SW W NW N NE), lamp
-      // offsets MEASURED per view (scripts/_archive/ship_dirs_wire2.py)
+      // FOUR clean-cut diagonal views (the baked water is cut at a hand-traced keel line;
+      // the hull sits in OUR ocean with the code foam ring, like the anchored boats).
+      // v0 SE, v1 NE, v2 NW, v3 SW; ay = the keel row as a height fraction; lamp offsets
+      // measured per view (scripts/_archive/ship_views_v4.py)
       const SHIPMETA = [
-        { ay: 0.87, deckH: 26, lampX: 6, lampY: -68 },  // E
-        { ay: 0.87, deckH: 26, lampX: -12, lampY: -60 }, // SE
-        { ay: 0.87, deckH: 26, lampX: 6, lampY: -63 },  // S
-        { ay: 0.87, deckH: 26, lampX: 27, lampY: -64 }, // SW
-        { ay: 0.87, deckH: 26, lampX: 9, lampY: -65 },  // W
-        { ay: 0.87, deckH: 26, lampX: 7, lampY: -63 },  // NW
-        { ay: 0.87, deckH: 26, lampX: -8, lampY: -63 }, // N
-        { ay: 0.87, deckH: 26, lampX: -8, lampY: -63 }, // NE
+        { ay: 0.934, deckH: 26, lampX: -11, lampY: -52 }, // SE
+        { ay: 0.976, deckH: 26, lampX: 6, lampY: -81 },   // NE
+        { ay: 0.976, deckH: 26, lampX: -7, lampY: -81 },  // NW
+        { ay: 0.934, deckH: 26, lampX: 10, lampY: -52 },  // SW
       ]
       // the visual mid-deck only (the sterncastle and bow are not walkable), helm at the
       // quarterdeck front
@@ -795,24 +793,27 @@ export default function BeachIso() {
         hop: Hop | null; bob: number
       }
       let veh: Veh | null = null
-      // nearest of the 8 screen-compass views for a tile-space heading, WITH hysteresis:
-      // the view only swaps once the heading is clearly inside the next sector, so a hand
-      // resting on the rudder never flickers the sprite at a sector boundary
+      // nearest of the 4 diagonal views for a tile-space heading, WITH hysteresis: the
+      // view only swaps once the heading is clearly inside the next quadrant, so a hand
+      // resting on the rudder never flickers the sprite at a boundary. In quadrant units
+      // the view centers sit at SE 0.5, SW 1.5, NW -1.5 (==2.5), NE -0.5 (==3.5).
+      const CENTERS = [0.5, 3.5, 2.5, 1.5] // per bucket index v0..v3, mod 4
       const bucketCoord = (ang: number) => {
         const sx = (Math.cos(ang) - Math.sin(ang)) * HW, sy = (Math.cos(ang) + Math.sin(ang)) * HH
-        return Math.atan2(sy, sx) / (Math.PI / 4) // continuous, 1.0 per sector
+        return Math.atan2(sy, sx) / (Math.PI / 2) // continuous, 1.0 per quadrant, in (-2, 2]
       }
       const setBucket = (V: Veh, force = false) => {
-        const bc = bucketCoord(V.ang)
-        const b = ((Math.round(bc) % 8) + 8) % 8
+        const bc = ((bucketCoord(V.ang) % 4) + 4) % 4 // 0..4, quadrant units
+        const q = Math.floor(bc) // 0 SE, 1 SW, 2 NW, 3 NE
+        const b = [0, 3, 2, 1][q]
         if (!force && V.bucket >= 0) {
           if (b === V.bucket) return
-          let d = Math.abs(bc - V.bucket) % 8 // how far the heading sits from the CURRENT view's center
-          d = Math.min(d, 8 - d)
-          if (d < 0.62) return // not decisively into the next sector yet (0.5 = boundary)
+          let d = Math.abs(bc - CENTERS[V.bucket]) % 4 // distance from the CURRENT view's center
+          d = Math.min(d, 4 - d)
+          if (d < 0.62) return // not decisively into the next quadrant yet (0.5 = boundary)
         }
         V.bucket = b
-        const t = tex['shipR' + b] ?? tex['ship']
+        const t = tex['shipV' + b] ?? tex['ship']
         if (t) {
           V.hull.texture = t
           V.hull.anchor.set(0.5, SHIPMETA[b].ay)
@@ -935,8 +936,9 @@ export default function BeachIso() {
         // THE VEHICLE spawns at its BERTH: alongside the platform's NE edge, hull parallel
         // to it, pulled clear of the deck so nothing overlaps (Ash's circle), bow seaward
         // up-left (ang = pi -> the NW view) ready to sail out
-        if (tex['shipR5'] || tex['ship']) {
-          const bx0 = plat.x + 169.5 + 1.3 * HW, by0 = plat.y + 63.5 - 1.3 * HH
+        if (tex['shipV2'] || tex['ship']) {
+          // 1.55 tiles off the NE edge + 0.3 up along it: the hull clears the corner post
+          const bx0 = plat.x + 169.5 + 1.55 * HW - 0.3 * HW, by0 = plat.y + 63.5 - 1.55 * HH - 0.3 * HH
           const btx = (bx0 / HW + by0 / HH) / 2, bty = (by0 / HH - bx0 / HW) / 2
           const ring = new Sprite(shadowTexLife); ring.anchor.set(0.5)
           ring.tint = 0xeafff6; ring.blendMode = 'add'
