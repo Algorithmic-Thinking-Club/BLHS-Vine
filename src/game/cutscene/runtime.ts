@@ -95,6 +95,9 @@ export class CutsceneRuntime {
 
   tick(dtMs: number) {
     if (!this.root) return
+    // a frame hitch (scene build, tab-back) must slow the scene, not swallow its beats —
+    // the first tick after the beach bakes can carry seconds
+    dtMs = Math.min(dtMs, 100)
     // tweens first so screen-space state settles before step logic reads it
     for (let i = this.tweens.length - 1; i >= 0; i--) {
       const tw = this.tweens[i]

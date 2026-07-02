@@ -14,14 +14,15 @@ import { track } from '../telemetry'
 
 export default function IntroScene() {
   const [rt, setRt] = useState<CutsceneRuntime | null>(null)
-  const started = useRef(false)
+  const live = useRef<CutsceneRuntime | null>(null)
   const [, bump] = useState(0)
 
+  // called once per BeachIso boot — StrictMode double-mounts in dev, so each call REPLACES
+  // the runtime (the previous stage's world is destroyed; a runtime bound to it drives a ghost)
   const onStage = useCallback((stage: BeachStage) => {
-    if (started.current) return
-    started.current = true
     const runtime = new CutsceneRuntime(stage)
     stage.onTick((ms) => runtime.tick(ms))
+    live.current = runtime
     setRt(runtime)
     const save = loadSave()
     if (!save?.introDone) {
