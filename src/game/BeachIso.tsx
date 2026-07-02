@@ -45,7 +45,7 @@ const W_CALM = [0, 12, 15], W_SOFT = [3, 2, 8], W_TEX = [1, 10, 4, 6], W_SWELL =
 const W_BASE = [205, 235, 229] // shared median of the normalized water tiles
 const W_RAMP: [number, number][] = [
   [0.0, 0x9fdccf], [0.1, 0x5ec6ba], [0.22, 0x39aca7], [0.36, 0x27939a],
-  [0.52, 0x1b7c8a], [0.72, 0x115a6d], [1.0, 0x0a3f4e],
+  [0.52, 0x1b7c8a], [0.66, 0x115a6d], [1.0, 0x083744],
 ]
 const DEPTH_RANGE = 30 // diagonal tiles from waterline to abyss — the whole drama lives in the visible band
 function rampAt(stops: [number, number][], t: number) {
@@ -87,44 +87,114 @@ function cellAt(tx: number, ty: number): Cell {
   if (s < sh + 1.0) return 'wet'
   return 'sand'
 }
+// SAND RELIEF: the beach is not a billiard table — a low berm crests just above the swash, then
+// the backshore climbs gently toward the jungle line, with slow dune undulation. Pure y-lift in
+// screen px (the engine's level trick), so the landscape reads continuous, not stamped tiles.
+function liftAt(tx: number, ty: number) {
+  const ds = (tx + ty) - shoreAt(tx - ty)
+  if (ds <= 2) return 0
+  const berm = 4 * Math.min(1, Math.max(0, (ds - 2) / 4)) // the swash berm
+  const back = ds > 24 ? Math.min(16, (ds - 24) * 0.85) : 0 // backshore rise toward the jungle
+  const dune = (ds > 6 ? 1 : (ds - 2) / 4) * 3.5 * vnoise((tx - ty) / 22 + 9, (tx + ty) / 22)
+  return berm + back + dune
+}
 
-type PropDef = { tx: number; ty: number; img: string; h: number } // h = target on-screen height in px @ zoom 1
-function buildProps(): PropDef[] {
+// Props are authored in SHORE-RELATIVE coords: d = tx-ty (position along the beach, screen-x),
+// s = tx+ty (depth into the scene; the waterline sits near s = shoreAt(d)). Everything composes
+// against the coast, the way the reference beaches are actually staged.
+type PropDef = { tx: number; ty: number; img: string; h: number; flip?: boolean; ground?: boolean; sea?: boolean }
+function composeBeach(): PropDef[] {
   const out: PropDef[] = []
-  const sandOK = (tx: number, ty: number) => tx > 1 && ty > 1 && tx < COLS - 2 && ty < ROWS - 2 && cellAt(tx, ty) === 'sand'
-  const add = (tx: number, ty: number, img: string, h: number) => { if (sandOK(tx, ty)) out.push({ tx, ty, img, h }) }
-  // left frame: a palm grove framing the left of the play area (visible band)
-  for (const [tx, ty, h] of [[10, 24, 188], [7, 21, 168], [13, 30, 200], [9, 34, 176], [5, 27, 150]] as const) add(tx, ty, 'palmB', h)
-  add(11, 27, 'grass', 46); add(12, 33, 'rocks', 66); add(8, 30, 'grass', 40); add(14, 36, 'driftwood', 44); add(6, 23, 'grass', 38)
-  // right frame: palm grove down the right screen edge (high tx, low ty)
-  for (const [tx, ty, h] of [[44, 26, 196], [40, 22, 168], [46, 32, 180], [42, 36, 204], [47, 24, 150]] as const) add(tx, ty, 'palmB', h)
-  add(43, 30, 'grass', 46); add(45, 35, 'rocks', 60); add(41, 25, 'grass', 40); add(44, 40, 'driftwood', 44)
-  // back headland clusters near the shore corners (enclose the NE/NW)
-  add(20, 13, 'rocks', 78); add(18, 12, 'palmB', 150); add(22, 15, 'grass', 42)
-  add(33, 18, 'rocks', 74); add(35, 17, 'palmB', 150); add(31, 19, 'grass', 42)
-  // mid-beach FOCAL ANCHOR: the boulder cluster (panther-rock placeholder)
-  add(27, 24, 'rocks', 104); add(24, 26, 'grass', 50); add(30, 26, 'driftwood', 50); add(28, 21, 'grass', 38)
-  // scattered grouped detail on the open sand (never single)
-  add(18, 34, 'grass', 44); add(20, 36, 'grass', 36); add(19, 38, 'driftwood', 42)
-  add(34, 32, 'grass', 44); add(36, 34, 'grass', 36); add(38, 30, 'driftwood', 42)
-  add(28, 40, 'grass', 42); add(30, 42, 'grass', 36)
-  // reeds + grass lining the wet shoreline: walk the first sand row behind the foam at each column
-  for (let tx = 4; tx < COLS - 4; tx++) {
-    for (let ty = 4; ty < ROWS - 4; ty++) {
-      if (cellAt(tx, ty) === 'sand' && cellAt(tx, ty - 1) !== 'sand') {
-        if (hash(tx * 2.1, ty) > 0.62) out.push({ tx, ty, img: 'reeds', h: 40 + hash(tx, ty) * 14 })
-        else if (hash(tx, ty * 1.7) > 0.7) add(tx, ty, 'grass', 34)
-        break
-      }
+  const add = (d: number, s: number, img: string, h: number, o: { flip?: boolean; ground?: boolean; sea?: boolean } = {}) => {
+    const tx = (s + d) / 2, ty = (s - d) / 2
+    if (tx < 2 || ty < 2 || tx > COLS - 3 || ty > ROWS - 3) return
+    out.push({ tx, ty, img, h, ...o })
+  }
+  const rnd = (a: number, b: number, x: number, y: number) => a + (b - a) * hash(x * 3.17, y * 7.31)
+
+  // 1. THE JUNGLE WALL — dense layered treeline enclosing the beach's landward side. Two staggered
+  // rows of broadleaf bushes with palms rising out of them; solid enough that the sand never runs
+  // to bare map edge. Scale/mirror variance so no two stamps read alike; the flowered hedge stays
+  // an occasional accent, never a repeated motif. The wall bends toward the sea on the far left.
+  for (let d = -66; d <= 66; d += 4) {
+    const bend = d < -30 ? (d + 30) * 0.55 : 0 // left side closes toward the shore
+    const sWall = 138.5 + bend + 2.2 * Math.sin(d * 0.21) + rnd(-1, 1, d, 1)
+    add(d + rnd(-1.2, 1.2, d, 2), sWall + 3.5, hash(d, 19) > 0.35 ? 'bushA' : 'bushC', rnd(92, 126, d, 16), { flip: hash(d, 3) > 0.5 })
+    add(d + 2 + rnd(-1.2, 1.2, d, 4), sWall + 1.2, hash(d, 17) > 0.72 ? 'bushB' : hash(d, 20) > 0.35 ? 'bushA' : 'bushC', rnd(70, 96, d, 18), { flip: hash(d, 5) > 0.5 })
+    if (hash(d, 7) > 0.4) add(d + rnd(-1.5, 1.5, d, 8), sWall + 2.2, hash(d, 9) > 0.5 ? 'palmA' : 'palmB', rnd(168, 214, d, 10), { flip: hash(d, 11) > 0.5 })
+    if (hash(d, 12) > 0.55) add(d + rnd(-2, 2, d, 13), sWall - 1.6, 'dunegrass', rnd(28, 44, d, 14), { flip: hash(d, 15) > 0.5 })
+  }
+
+  // 2. RIGHT HEADLAND — a rocky arm marching into the sea, enclosing the cove's right side.
+  add(15, 109, 'rockA', 74); add(17.5, 106, 'rockB', 112); add(20, 102.5, 'rockB', 90, { flip: true, sea: true })
+  add(22.5, 99, 'rockA', 62, { flip: true, sea: true }); add(25, 96, 'rockB', 78, { sea: true }); add(28, 93.5, 'rockA', 48, { sea: true })
+  add(13.5, 112, 'dunegrass', 36); add(16.5, 111, 'dunegrass', 30, { flip: true })
+  add(14, 110.5, 'palmA', 178, { flip: true }); add(12, 113.5, 'palmB', 152)
+  add(16, 113, 'coconuts', 22)
+
+  // 3. THE PANTHER ROCK — the focal landmark, standing in the shallows left-of-center, waves
+  // lapping its base. (Upper-left rule-of-thirds anchor in the spawn frame.)
+  add(-7, 101.5, 'panther', 112, { sea: true })
+  add(-9.5, 103.5, 'rockA', 44, { sea: true }); add(-4.5, 103, 'rockA', 54, { flip: true, sea: true })
+
+  // 4. PALM GROVES — clustered, never lone: each cluster mixes both palms, underbrush, grass.
+  const grove = (d: number, s: number, n: number) => {
+    for (let i = 0; i < n; i++) {
+      const gd = d + rnd(-3, 3, d + i, s), gs = s + rnd(-2.5, 2.5, d, s + i)
+      add(gd, gs, hash(i, d) > 0.45 ? 'palmA' : 'palmB', rnd(160, 212, gd, gs), { flip: hash(gd, gs) > 0.5 })
+    }
+    add(d + rnd(-2, 2, d, s + 9), s + 1.6, hash(d, s + 7) > 0.5 ? 'bushB' : 'bushC', rnd(64, 84, d, s + 8), { flip: hash(d, s) > 0.5 })
+    add(d + rnd(-3, 3, d, s + 11), s - 1.4, 'dunegrass', rnd(28, 40, d, s + 12))
+    add(d + rnd(-3, 3, d, s + 13), s + 0.8, 'coconuts', 22)
+  }
+  grove(-14, 126, 3); grove(9, 129, 2); grove(-2, 137, 2); grove(18, 122, 2)
+  // framing wings: two big foreground palms near the spawn frame's lower corners give the stage
+  // its dark side-frames (the TavernWorld vignette trick, done with world objects)
+  add(-16.5, 133, 'palmA', 226, { flip: true }); add(-18, 135, 'bushC', 96)
+  add(16, 135.5, 'palmB', 234); add(18, 134, 'bushA', 88, { flip: true })
+
+  // 5. THE WRACK LINE — the debris band real tides leave just above the swash: mostly kelp
+  // strands and small driftwood; the odd starfish is a treat, not confetti.
+  for (let d = -60; d <= 60; d += 3) {
+    const h1 = hash(d * 1.7, 21)
+    if (h1 > 0.78) {
+      const s = shoreAt(d) + TIDE_AMP + rnd(0.8, 1.8, d, 22)
+      const kind = h1 > 0.97 ? 'shells' : h1 > 0.93 ? 'driftwood' : 'seaweed'
+      add(d + rnd(-1, 1, d, 23), s, kind, kind === 'driftwood' ? rnd(18, 26, d, 24) : kind === 'shells' ? 13 : rnd(15, 22, d, 25), { flip: hash(d, 26) > 0.5, ground: true })
     }
   }
+
+  // 6. DRIFTWOOD VIGNETTES — a hero log with its own little scene, twice.
+  add(4.5, 113, 'logdrift', 46); add(6.5, 112.2, 'dunegrass', 30, { flip: true }); add(3, 114.2, 'shells', 13, { ground: true })
+  add(-17, 117, 'logdrift', 40, { flip: true }); add(-15, 118.2, 'seaweed', 16, { ground: true }); add(-19, 118.6, 'dunegrass', 28)
+
+  // 6b. BLHS identity, kept quiet: a weathered pennant claims the beach, panther paw prints cross
+  // the damp sand toward the jungle, gulls stand where the foam ends.
+  add(10, 114.5, 'pennant', 92); add(11.5, 115.3, 'dunegrass', 26, { flip: true })
+  add(-11, 106.2, 'pawprints', 15, { ground: true }); add(-9.4, 107.8, 'pawprints', 15, { ground: true, flip: true })
+  add(-1, 104.6, 'gull', 20); add(1.2, 105.1, 'gull', 17, { flip: true }); add(19, 104.2, 'gull', 19)
+
+  // 7. sparse mid-beach accents (kept light — the center stays walkable and readable)
+  add(-8, 120, 'dunegrass', 30); add(-6.5, 121, 'shells', 12, { ground: true })
+  add(12, 118, 'seaweed', 16, { flip: true, ground: true }); add(2, 124, 'dunegrass', 26, { flip: true })
+  add(-12, 132, 'driftwood', 34); add(6, 134, 'dunegrass', 30)
   return out
 }
 
 const PROP_SRC: Record<string, string> = {
-  palmB: '/art/intro/palm-b.png', rocks: '/art/intro/rocks.png',
+  palmA: '/art/intro/palm-a.png', palmB: '/art/intro/palm-b.png',
+  bushA: '/art/intro/props/bush-a.png', bushB: '/art/intro/props/bush-b.png',
+  dunegrass: '/art/intro/props/dunegrass.png', seaweed: '/art/intro/props/seaweed.png',
+  shells: '/art/intro/props/shells.png', coconuts: '/art/intro/props/coconuts.png',
+  logdrift: '/art/intro/props/logdrift.png', rockA: '/art/intro/props/rock-a.png',
+  rockB: '/art/intro/props/rock-b.png', panther: '/art/intro/props/panther-rock.png',
+  pawprints: '/art/intro/props/pawprints.png', pennant: '/art/intro/props/pennant.png',
+  gull: '/art/intro/props/gull.png', bushC: '/art/intro/props/bush-c.png',
   driftwood: '/art/intro/driftwood.png', grass: '/art/intro/grass.png', reeds: '/art/iso/props/reeds.png',
 }
+// per-prop grade: the panther rock reads as weathered gray stone (not bone), the flowered hedge
+// sits muted so its pink never becomes a repeated motif
+const PROP_TINT: Record<string, number> = { bushB: 0xe6dccf, bushC: 0xc9e0b4, seaweed: 0xd9cfb4, pawprints: 0x8d7a5e }
 
 export default function BeachIso() {
   const ref = useRef<HTMLDivElement>(null)
@@ -137,7 +207,7 @@ export default function BeachIso() {
     const start = async () => {
       TextureSource.defaultOptions.scaleMode = 'nearest'
       const instance = new Application()
-      await instance.init({ background: 0x0a3f4e, antialias: false, resizeTo: ref.current ?? window }) // abyss = the deep end of the ramp, so off-map sea blends
+      await instance.init({ background: 0x083744, antialias: false, resizeTo: ref.current ?? window }) // abyss = the deep end of the ramp, so off-map sea blends
       if (destroyed || !ref.current) { instance.destroy(true); return }
       app = instance; ref.current.appendChild(instance.canvas)
       const ZOOM = 1.15 // BEACH-LOCAL zoom (Thor reads bigger; each map sets its own)
@@ -169,10 +239,10 @@ export default function BeachIso() {
       const world = new Container(); world.scale.set(ZOOM); world.sortableChildren = true
       instance.stage.addChild(world)
       const grade = new ColorMatrixFilter()
-      // BEACH-LOCAL grade: smooth warm TROPICAL wash, not a hard golden-hour (the sand is already
-      // brownish, so keep contrast low). Soft, slightly desaturated for a nostalgic film look.
-      grade.brightness(0.99, false); grade.saturate(-0.05, true); grade.contrast(-0.01, true)
-      const wm = grade.matrix; wm[0] *= 1.045; wm[12] *= 0.94; grade.matrix = wm
+      // BEACH-LOCAL grade: real golden hour — rich (not desaturated), warm highlights, the blue
+      // channel pulled down so the whole frame leans amber while the teal sea stays alive.
+      grade.brightness(1.0, false); grade.saturate(0.06, true); grade.contrast(0.02, true)
+      const wm = grade.matrix; wm[0] *= 1.07; wm[6] *= 1.005; wm[12] *= 0.885; grade.matrix = wm
       world.filters = [grade]
 
       // ---- ground: iso diamond tiles, sea -> wet -> sand. ONE body of water: a smooth depth
@@ -210,14 +280,15 @@ export default function BeachIso() {
           if (!base) continue
           const sp = new Sprite(base); sp.anchor.set(0.5, 0.25)
           const fx = hash(tx * 3, ty * 7) > 0.5 ? -1 : 1
-          const os = isSea ? 1.12 : 1.04   // oversize sea tiles a bit so they overlap and blend (soften the grid)
+          const os = isSea ? 1.12 : 1.06   // oversize tiles so they overlap and blend (soften the grid; sand overlaps hide relief gaps)
           sp.scale.set(fx * os, os)
-          sp.position.set(isoX(tx, ty), isoY(tx, ty)); sp.zIndex = (tx + ty) * 16
+          const lift = isSea ? 0 : liftAt(tx, ty)
+          sp.position.set(isoX(tx, ty), isoY(tx, ty) - lift); sp.zIndex = (tx + ty) * 16
           if (isSea) {
             const raw = -ds / DEPTH_RANGE
             const dep = Math.min(1, Math.max(0, raw + (hash(tx * 7.7, ty * 5.3) - 0.5) * (raw < 0.18 ? 0.11 : 0.06)))
             // broad drifting patches (cloud-light) + faint per-tile grain, all riding the one ramp
-            const patch = 0.965 + 0.07 * vnoise(tx / 16 + 7, ty / 16 + 2)
+            const patch = 0.955 + 0.09 * vnoise(tx / 22 + 7, ty / 22 + 2)
             const grain = 0.994 + 0.012 * hash(tx, ty)
             const col = shadeHex(tintFor(rampAt(W_RAMP, dep), W_BASE), patch * grain)
             sp.tint = col
@@ -229,14 +300,18 @@ export default function BeachIso() {
               shoreD: ds > -2.5 ? tx - ty : undefined, // waterline rows surge with the tide
             })
           } else if (c === 'wet') {
-            // permanently damp band right at the waterline (the smooth wet SHEET rides above it)
-            sp.tint = tintFor(shadeHex(0xc3a877, 0.985 + 0.03 * hash(tx, ty)), SAND_BASE)
+            // barely-damp base band — the animated wet SHEET carries the real wetness, so this
+            // static tint stays close to dry sand (a hard static band would stair-step)
+            sp.tint = tintFor(shadeHex(0xd5b983, 0.985 + 0.03 * hash(tx, ty)), SAND_BASE)
           } else {
-            // dry sand: warm near the water -> pale high beach, with broad dune drift
+            // dry sand: warm near the water -> pale high beach, with broad dune drift, and the
+            // relief's slope shading (faces climbing away from the sun sit a touch darker)
             const t = Math.min(1, Math.max(0, (ds - 1.6) / 26))
             const dune = 0.965 + 0.055 * vnoise(tx / 16 + 3, ty / 16 + 5)
             const grain = 0.994 + 0.012 * hash(tx * 1.3, ty * 2.1)
-            sp.tint = shadeHex(tintFor(rampAt([[0, 0xdcbf87], [0.45, 0xe9d5a2], [1, 0xf3e4b5]], t), SAND_BASE), dune * grain)
+            const slope = liftAt(tx + 0.5, ty + 0.5) - liftAt(tx - 0.5, ty - 0.5)
+            const shade = Math.min(1.03, Math.max(0.94, 1 - slope * 0.014))
+            sp.tint = shadeHex(tintFor(rampAt([[0, 0xdcbf87], [0.45, 0xe9d5a2], [1, 0xf3e4b5]], t), SAND_BASE), dune * grain * shade)
           }
           world.addChild(sp)
         }
@@ -264,12 +339,12 @@ export default function BeachIso() {
           world.addChild(wp); wetSegs.push({ sp: wp, d, reach: 0, at: -99 })
           const sp = new Sprite(new Texture({ source: skT.source, frame: fr }))
           sp.anchor.set(0.5, 0.62); sp.scale.set(1, 2) // tall enough to straddle the tile staircase
-          sp.position.set(d * HW, s * HH); sp.zIndex = s * 16 + 2; sp.alpha = 0.85
+          sp.position.set(d * HW, s * HH); sp.zIndex = s * 16 + 2; sp.alpha = 0.92
           world.addChild(sp); skirtSegs.push({ sp, d })
           // a feather row seaward of the waterline softens the pale-shallow tile steps
           const f2 = new Sprite(new Texture({ source: skT.source, frame: fr }))
           f2.anchor.set(0.5, 0.62); f2.scale.set(1, 2.4)
-          f2.position.set(d * HW, (s - 0.85) * HH); f2.zIndex = (s - 0.85) * 16 + 2; f2.alpha = 0.4
+          f2.position.set(d * HW, (s - 0.85) * HH); f2.zIndex = (s - 0.85) * 16 + 2; f2.alpha = 0.5
           world.addChild(f2)
         }
       }
@@ -321,27 +396,56 @@ export default function BeachIso() {
         }
       }
 
-      // (ground decals + decorative props are stripped during the terrain phase — focus is on making
-      // the sand + ocean themselves read at the bar before anything is placed.)
+      // ---- PROPS: the composed beach (jungle wall, headland, panther rock, groves, wrack line).
+      // Billboards depth-sorted by s, grounded with soft contact shadows; flat decals hug the sand. ----
       void makeFleck
       const shadowTex = makeShadow()
       const blocked = new Set<string>()
-      for (const p of [] as PropDef[]) {
+      for (const p of composeBeach()) {
         const t = tex[p.img]; if (!t) continue
-        const x = isoX(p.tx, p.ty), y = isoY(p.tx, p.ty), z = (p.tx + p.ty) * 16
+        const x = isoX(p.tx, p.ty), y = isoY(p.tx, p.ty) - (p.sea ? 0 : liftAt(p.tx, p.ty)), z = (p.tx + p.ty) * 16
         const sc = p.h / t.height
-        const sh = new Sprite(shadowTex); sh.anchor.set(0.5, 0.5); sh.width = Math.max(18, t.width * sc * 0.66); sh.height = sh.width * 0.42
-        sh.alpha = 0.32; sh.position.set(x, y); sh.zIndex = z + 1; world.addChild(sh)
-        const sp = new Sprite(t); sp.anchor.set(0.5, 0.94); sp.scale.set(sc); sp.position.set(x, y); sp.zIndex = z + 8
+        if (p.ground) {
+          const sp = new Sprite(t); sp.anchor.set(0.5, 0.6); sp.scale.set(p.flip ? -sc : sc, sc)
+          sp.position.set(x, y); sp.zIndex = z + 3
+          if (PROP_TINT[p.img]) sp.tint = PROP_TINT[p.img]
+          world.addChild(sp)
+          continue
+        }
+        // golden hour: shadows stretch LONG toward the lower-right, away from the low sun; tall
+        // palms throw the longest blades. Cool-dark, never black.
+        const tall = p.h > 140
+        const sh = new Sprite(shadowTex); sh.anchor.set(0.3, 0.5)
+        sh.width = Math.max(26, t.width * sc * (p.sea ? 0.75 : tall ? 1.6 : 1.35))
+        sh.height = Math.max(10, t.width * sc * (tall ? 0.2 : 0.3))
+        sh.rotation = 0.2
+        sh.alpha = p.sea ? 0.2 : tall ? 0.28 : 0.33; sh.position.set(x + 4, y + 2); sh.zIndex = z + 1; world.addChild(sh)
+        const sp = new Sprite(t); sp.anchor.set(0.5, 0.94); sp.scale.set(p.flip ? -sc : sc, sc)
+        sp.position.set(x, y + (p.sea ? 5 : 0)) // sea rocks sit a touch lower, planted in the water
+        sp.zIndex = z + 8
+        if (PROP_TINT[p.img]) sp.tint = PROP_TINT[p.img]
         world.addChild(sp)
-        blocked.add(Math.round(p.tx) + ',' + Math.round(p.ty))
-        if (p.h > 120) blocked.add(Math.round(p.tx) + ',' + Math.round(p.ty + 1)) // tall trunks block one deeper too
+        if (p.sea) {
+          // foam collar where the sea meets the rock — grounds it in the water instead of on it
+          const ring = new Sprite(shadowTex); ring.anchor.set(0.5, 0.5)
+          ring.tint = 0xeafff6; ring.blendMode = 'add'
+          ring.width = Math.max(30, t.width * sc * 0.8); ring.height = ring.width * 0.3
+          ring.alpha = 0.3; ring.position.set(x, y + 5); ring.zIndex = z + 7
+          world.addChild(ring)
+        }
+        if (p.h > 26) {
+          const bx = Math.round(p.tx), by = Math.round(p.ty)
+          blocked.add(bx + ',' + by)
+          if (p.h > 100) { blocked.add(bx + 1 + ',' + by); blocked.add(bx + ',' + (by + 1)); blocked.add(bx - 1 + ',' + by); blocked.add(bx + ',' + (by - 1)) }
+        }
       }
 
-      // ---- Thor ----
-      const thor = new Sprite(idle['south'] ?? tex['sand']); thor.anchor.set(0.5, 0.9); thor.scale.set(0.62)
+      // ---- Thor (with his own crisp contact shadow — the focal character must sit ON the sand) ----
+      const thorShadow = new Sprite(shadowTex); thorShadow.anchor.set(0.34, 0.5)
+      thorShadow.width = 46; thorShadow.height = 13; thorShadow.rotation = 0.2; thorShadow.alpha = 0.4
+      world.addChild(thorShadow)
+      const thor = new Sprite(idle['south'] ?? tex['sand']); thor.anchor.set(0.5, 0.9); thor.scale.set(0.68)
       thor.zIndex = 0; world.addChild(thor)
-      void buildProps
       const pos = { tx: 61, ty: 61 }; let facing = 'south', at = 0
 
       const walkableAt = (tx: number, ty: number) => {
@@ -365,8 +469,9 @@ export default function BeachIso() {
           if (walkableAt(pos.tx, nty + Math.sign(uy) * 0.25)) pos.ty = nty
           facing = dirFromAngle(isoX(dx, dy), (dx + dy) * HH)
         }
-        const x = isoX(pos.tx, pos.ty), y = isoY(pos.tx, pos.ty)
+        const x = isoX(pos.tx, pos.ty), y = isoY(pos.tx, pos.ty) - liftAt(pos.tx, pos.ty)
         thor.position.set(x, y); thor.zIndex = Math.floor(pos.tx + pos.ty) * 16 + 12
+        thorShadow.position.set(x + 2, y + 1); thorShadow.zIndex = thor.zIndex - 1
         at += tk.deltaMS
         const wf = walk[facing] ?? walk[cardinalOf(facing)]
         thor.texture = (moving && wf) ? wf[Math.floor(at / 110) % wf.length] : (idle[facing] ?? idle['south'] ?? thor.texture)
@@ -424,7 +529,7 @@ export default function BeachIso() {
           if (dry >= 1) w.reach = Math.min(w.reach, r)
           const gap = w.reach * TIDE_AMP * HH + 8
           w.sp.scale.y = gap / w.sp.texture.height
-          w.sp.alpha = 0.5 * (1 - dry * dry) + 0.1
+          w.sp.alpha = 0.62 * (1 - dry * dry) + 0.12
         }
         // sparkles twinkle on a slow individual clock
         for (const s of sparkles) {
@@ -440,12 +545,21 @@ export default function BeachIso() {
       // BEACH-LOCAL atmosphere, now actually visible: a full-screen warm tropical tint for cohesive
       // warmth, a soft golden sun glow upper-left, and a real (but warm + soft, not black) cinematic
       // vignette framing the scene.
-      const warm = new Sprite(Texture.WHITE); warm.tint = 0xffcb82; warm.alpha = 0.13; instance.stage.addChild(warm)
-      const sun = new Sprite(radial(512, [[0, 'rgba(255,224,166,0.17)'], [0.5, 'rgba(255,214,150,0.05)'], [1, 'rgba(255,214,150,0)']])); sun.anchor.set(0.5); sun.blendMode = 'add'; instance.stage.addChild(sun)
+      const warm = new Sprite(Texture.WHITE); warm.tint = 0xffc87e; warm.alpha = 0.09; instance.stage.addChild(warm)
+      const sun = new Sprite(radial(512, [[0, 'rgba(255,216,150,0.22)'], [0.5, 'rgba(255,206,138,0.07)'], [1, 'rgba(255,206,138,0)']])); sun.anchor.set(0.5); sun.blendMode = 'add'; instance.stage.addChild(sun)
+      // distant sun-glimmer: a soft gold band fading down across the far water
+      const horizon = new Sprite(vgradient(256, [[0, 'rgba(255,196,122,0.16)'], [0.55, 'rgba(255,196,122,0.06)'], [1, 'rgba(255,196,122,0)']]))
+      horizon.blendMode = 'add'; instance.stage.addChild(horizon)
+      // low-sun ray wash: a faint warm diagonal gradient from the upper-left, so the light has a
+      // direction the eye can feel (chromatic warm/cool split works with the cool shadows)
+      const rays = new Sprite(vgradient(512, [[0, 'rgba(255,208,140,0.1)'], [0.5, 'rgba(255,208,140,0.03)'], [1, 'rgba(255,208,140,0)']]))
+      rays.anchor.set(0.5); rays.rotation = -0.62; rays.blendMode = 'add'; instance.stage.addChild(rays)
       const vig = new Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.45, 'rgba(0,0,0,0)'], [0.72, 'rgba(30,19,8,0.34)'], [1, 'rgba(16,9,3,0.78)']])); instance.stage.addChild(vig)
       const resizeFx = (vw: number, vh: number) => {
         warm.width = vw; warm.height = vh
-        sun.width = sun.height = Math.max(vw, vh) * 1.4; sun.position.set(vw * 0.42, vh * 0.02)
+        sun.width = sun.height = Math.max(vw, vh) * 1.5; sun.position.set(vw * 0.3, vh * 0.02)
+        horizon.width = vw; horizon.height = vh * 0.24; horizon.position.set(0, 0)
+        rays.width = Math.max(vw, vh) * 2.2; rays.height = Math.max(vw, vh) * 2.2; rays.position.set(vw * 0.28, vh * 0.3)
         vig.width = vw * 1.5; vig.height = vh * 1.5; vig.position.set(-vw * 0.25, -vh * 0.25)
       }
       resizeFx(instance.renderer.width, instance.renderer.height)
@@ -456,7 +570,7 @@ export default function BeachIso() {
     start().catch((err) => { console.error('[BeachIso] failed', err) })
     return () => { destroyed = true; window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); if (app) app.destroy(true, { children: true }) }
   }, [])
-  return <div ref={ref} style={{ position: 'fixed', inset: 0, background: '#0a3f4e' }} />
+  return <div ref={ref} style={{ position: 'fixed', inset: 0, background: '#083744' }} />
 }
 
 // ---- helpers ----
@@ -475,6 +589,13 @@ function radial(size: number, stops: [number, string][]) {
   ctx.fillStyle = g; ctx.fillRect(0, 0, size, size)
   const t = Texture.from(cv); t.source.scaleMode = 'linear'; return t
 }
+function vgradient(size: number, stops: [number, string][]) {
+  const cv = document.createElement('canvas'); cv.width = 8; cv.height = size
+  const ctx = cv.getContext('2d')!, g = ctx.createLinearGradient(0, 0, 0, size)
+  for (const [o, c] of stops) g.addColorStop(o, c)
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 8, size)
+  const t = Texture.from(cv); t.source.scaleMode = 'linear'; return t
+}
 function makeFleck(a: number, b: number) {
   const cv = document.createElement('canvas'); cv.width = cv.height = 12
   const ctx = cv.getContext('2d')!
@@ -484,9 +605,10 @@ function makeFleck(a: number, b: number) {
   const t = Texture.from(cv); t.source.scaleMode = 'nearest'; return t
 }
 function makeShadow() {
+  // cool violet-teal shadow (golden hour shadows go cool, never black or gray)
   const cv = document.createElement('canvas'); cv.width = cv.height = 64
   const ctx = cv.getContext('2d')!, g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
-  g.addColorStop(0, 'rgba(20,40,36,0.55)'); g.addColorStop(0.7, 'rgba(20,40,36,0.18)'); g.addColorStop(1, 'rgba(20,40,36,0)')
+  g.addColorStop(0, 'rgba(38,44,74,0.6)'); g.addColorStop(0.7, 'rgba(38,44,74,0.2)'); g.addColorStop(1, 'rgba(38,44,74,0)')
   ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64)
   const t = Texture.from(cv); t.source.scaleMode = 'linear'; return t
 }
