@@ -10,6 +10,7 @@ import { clearSave, loadSave, writeSave } from '../save'
 if (new URLSearchParams(location.search).has('fresh')) clearSave()
 import { track } from '../telemetry'
 import { GearButton, SettingsPanel } from '../../app/SettingsPanel'
+import { Hud } from '../hud/Hud'
 
 // The intro lives ON the beach — one scene, playable and stageable. A fresh player gets the
 // I-1/I-2 cutscene the moment the stage reports ready; a returning one just gets the cove.
@@ -53,11 +54,14 @@ export default function IntroScene() {
 
   const uiGate = rt?.ui.uiGate?.id ?? null
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [blurred, setBlurred] = useState(false)
   const inCutscene = rt?.ui.active ?? false
 
   return (
     <div style={{ position: 'absolute', inset: 0 }}>
-      <BeachIso onStage={onStage} />
+      <div style={{ position: 'absolute', inset: 0 }} className={blurred ? 'hud-blur' : undefined}>
+        <BeachIso onStage={onStage} />
+      </div>
       {rt && (
         <CutsceneOverlay rt={rt}>
           {uiGate === 'i3-session' && (
@@ -70,7 +74,8 @@ export default function IntroScene() {
           )}
         </CutsceneOverlay>
       )}
-      {/* the in-world settings gear (§4.7) — tucked away while a cutscene holds the frame */}
+      {/* free roam carries the real HUD (§11.1) + pause; the gear stays for muscle memory */}
+      {!inCutscene && <Hud onBlurWorld={setBlurred} />}
       {!inCutscene && <GearButton onClick={() => setSettingsOpen(true)} />}
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       {preCover && <div style={{ position: 'absolute', inset: 0, background: '#05070a', zIndex: 60 }} />}

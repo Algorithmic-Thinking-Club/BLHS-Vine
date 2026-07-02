@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { collectFact, grantBadge, loadSave } from '../game/save'
+import { track } from '../game/telemetry'
 import './transitions.css'
 
 // The transition library (GAME-DESIGN §12.1): one controller owns every scene change —
@@ -20,16 +22,18 @@ export type TransitionSpec = {
   title?: string
 }
 
-// every fact here is verified BLHS reality (docs/research/blhs-specifics.md); nothing invented
-const FACTS = [
-  'Bonney Lake High School opened in 2005. The Panthers have been teal and black from day one.',
-  'BLHS is the AP school of the Sumner-Bonney Lake district. AP Capstone lives here.',
-  'The POWER values are the school’s compass. You’ll meet all five letters.',
-  'Around 1,700 students walk the halls of BLHS. Every one of them started as a freshman.',
-  'BLHS runs a real in-school BECU branch. It opened back in 2006.',
-  'Earn two CTE credits and the Career Readiness cord is yours at graduation.',
-  'Three or more years of one world language can earn the Seal of Biliteracy.',
-  'The counseling office tracks every honor cord. So does your Handbook.',
+// every fact here is verified BLHS reality (docs/research/blhs-specifics.md); nothing
+// invented. Facts collect into the Handbook (§8.5); the picker prefers ones not yet learned
+// (§4.9 — the wait teaches), so waits stay fresh until the pool is exhausted.
+export const FACTS: { id: string; text: string }[] = [
+  { id: 'f-opened', text: 'Bonney Lake High School opened in 2005. The Panthers have been teal and black from day one.' },
+  { id: 'f-ap-school', text: 'BLHS is the AP school of the Sumner-Bonney Lake district. AP Capstone lives here.' },
+  { id: 'f-power', text: 'The POWER values are the school’s compass. You’ll meet all five letters.' },
+  { id: 'f-students', text: 'Around 1,700 students walk the halls of BLHS. Every one of them started as a freshman.' },
+  { id: 'f-becu', text: 'BLHS runs a real in-school BECU branch. It opened back in 2006.' },
+  { id: 'f-cte-cord', text: 'Earn two CTE credits and the Career Readiness cord is yours at graduation.' },
+  { id: 'f-seal', text: 'Three or more years of one world language can earn the Seal of Biliteracy.' },
+  { id: 'f-cords', text: 'The counseling office tracks every honor cord. So does your Handbook.' },
 ]
 
 const COVER_MS = 950 // cover-in / cover-out animation time — heavy and calm, never a flash
@@ -43,7 +47,7 @@ export type TransitionState = {
 }
 
 export function makeTransitionState(): TransitionState {
-  return { phase: 'idle', spec: { kind: 'fade' }, fact: FACTS[0] }
+  return { phase: 'idle', spec: { kind: 'fade' }, fact: FACTS[0].text }
 }
 
 /** drive a full transition: cover-in -> swap() -> hold -> cover-out */
@@ -54,7 +58,16 @@ export async function runTransition(
   swap: () => void | Promise<void>,
 ) {
   st.spec = spec
-  st.fact = FACTS[Math.floor(Math.random() * FACTS.length)]
+  // prefer a fact the player hasn't learned yet; collected ones return once the pool empties
+  const learned = new Set(loadSave()?.facts ?? [])
+  const pool = FACTS.filter((f) => !learned.has(f.id))
+  const fact = (pool.length ? pool : FACTS)[Math.floor(Math.random() * (pool.length ? pool.length : FACTS.length))]
+  st.fact = fact.text
+  if (spec.kind === 'chart' || spec.kind === 'scene') {
+    collectFact(fact.id)
+    track('loading_fact_shown', { id: fact.id })
+    if ((loadSave()?.facts.length ?? 0) >= 25) grantBadge('bookworm')
+  }
   st.phase = 'in'; emit()
   await sleep(COVER_MS)
   st.phase = 'hold'; emit()
