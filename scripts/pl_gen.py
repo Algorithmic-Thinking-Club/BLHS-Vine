@@ -70,28 +70,25 @@ def main():
         jobs.append((s["name"], jid))
         time.sleep(2)
 
+    # poll by probing the public download URL (the v2 status GET 404s; the mcp-layer download
+    # returns the PNG once the object is done)
     pending = dict(jobs)
     t0 = time.time()
     while pending and time.time() - t0 < 600:
         time.sleep(6)
         for name, jid in list(pending.items()):
             try:
-                st = req(f"{API}/{jid}")
-            except Exception as e:
-                print(f"{name}: poll error {e}")
-                continue
-            status = st.get("status") or st.get("data", {}).get("status")
-            if status in ("completed", "complete", "done"):
-                png = req(f"{API}/{jid}/download")
+                png = req(f"https://api.pixellab.ai/mcp/map-objects/{jid}/download")
+            except Exception:
+                continue  # not ready yet
+            if isinstance(png, (bytes, bytearray)) and png[:4] == b"\x89PNG":
                 with open(os.path.join(outdir, name + ".png"), "wb") as f:
                     f.write(png)
                 print(f"done {name} -> {outdir}/{name}.png")
                 del pending[name]
-            elif status in ("failed", "error"):
-                print(f"FAILED {name}: {json.dumps(st)[:300]}")
-                del pending[name]
     for name in pending:
         print(f"TIMEOUT {name}")
+    sys.stdout.flush()
 
 
 if __name__ == "__main__":

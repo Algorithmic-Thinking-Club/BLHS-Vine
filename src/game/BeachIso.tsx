@@ -102,10 +102,10 @@ function liftAt(tx: number, ty: number) {
 // Props are authored in SHORE-RELATIVE coords: d = tx-ty (position along the beach, screen-x),
 // s = tx+ty (depth into the scene; the waterline sits near s = shoreAt(d)). Everything composes
 // against the coast, the way the reference beaches are actually staged.
-type PropDef = { tx: number; ty: number; img: string; h: number; flip?: boolean; ground?: boolean; sea?: boolean }
+type PropDef = { tx: number; ty: number; img: string; h: number; flip?: boolean; ground?: boolean; sea?: boolean; tint?: number }
 function composeBeach(): PropDef[] {
   const out: PropDef[] = []
-  const add = (d: number, s: number, img: string, h: number, o: { flip?: boolean; ground?: boolean; sea?: boolean } = {}) => {
+  const add = (d: number, s: number, img: string, h: number, o: { flip?: boolean; ground?: boolean; sea?: boolean; tint?: number } = {}) => {
     const tx = (s + d) / 2, ty = (s - d) / 2
     if (tx < 2 || ty < 2 || tx > COLS - 3 || ty > ROWS - 3) return
     out.push({ tx, ty, img, h, ...o })
@@ -119,7 +119,9 @@ function composeBeach(): PropDef[] {
   for (let d = -66; d <= 66; d += 4) {
     const bend = d < -30 ? (d + 30) * 0.55 : 0 // left side closes toward the shore
     const sWall = 138.5 + bend + 2.2 * Math.sin(d * 0.21) + rnd(-1, 1, d, 1)
-    add(d + rnd(-1.2, 1.2, d, 2), sWall + 3.5, hash(d, 19) > 0.35 ? 'bushA' : 'bushC', rnd(92, 126, d, 16), { flip: hash(d, 3) > 0.5 })
+    // deep-shadow silhouette row at the very back — the dark value anchor the treeline needs
+    if (hash(d, 27) > 0.35) add(d + rnd(-2, 2, d, 28), sWall + 6, ['palmA', 'palmB', 'palmC', 'palmD'][Math.floor(hash(d, 29) * 4)], rnd(150, 190, d, 30), { flip: hash(d, 31) > 0.5, tint: 0x5c6e6a })
+    add(d + rnd(-1.2, 1.2, d, 2), sWall + 3.5, hash(d, 19) > 0.35 ? 'bushA' : 'bushC', rnd(92, 126, d, 16), { flip: hash(d, 3) > 0.5, tint: hash(d, 26) > 0.5 ? 0xb8c4ae : undefined })
     add(d + 2 + rnd(-1.2, 1.2, d, 4), sWall + 1.2, hash(d, 17) > 0.72 ? 'bushB' : hash(d, 20) > 0.35 ? 'bushA' : 'bushC', rnd(70, 96, d, 18), { flip: hash(d, 5) > 0.5 })
     if (hash(d, 7) > 0.4) add(d + rnd(-1.5, 1.5, d, 8), sWall + 2.2, ['palmA','palmB','palmC','palmD'][Math.floor(hash(d, 9) * 4)], rnd(168, 214, d, 10), { flip: hash(d, 11) > 0.5 })
     if (hash(d, 12) > 0.55) add(d + rnd(-2, 2, d, 13), sWall - 1.6, 'dunegrass', rnd(28, 44, d, 14), { flip: hash(d, 15) > 0.5 })
@@ -134,10 +136,11 @@ function composeBeach(): PropDef[] {
   add(14, 110.5, 'palmA', 178, { flip: true }); add(12, 113.5, 'palmB', 152)
   add(16, 113, 'coconuts', 22)
 
-  // 3. THE PANTHER ROCK — the focal landmark, standing in the shallows left-of-center, waves
-  // lapping its base. (Upper-left rule-of-thirds anchor in the spawn frame.)
-  add(-7, 101.5, 'panther', 112, { sea: true })
-  add(-9.5, 103.5, 'rockA', 44, { sea: true }); add(-4.5, 103, 'rockA', 54, { flip: true, sea: true })
+  // 3. THE PANTHER ROCK — the focal landmark, the hero of the frame: big, just off the waterline
+  // at the upper-left third, waves lapping its base, gulls keeping it company.
+  add(-6, 102.3, 'panther', 132, { sea: true })
+  add(-9, 103.8, 'rockA', 46, { sea: true }); add(-3.2, 103.4, 'rockA', 56, { flip: true, sea: true })
+  add(-7.5, 104.6, 'gull', 18, { flip: true })
 
   // 4. PALM GROVES — clustered, never lone: each cluster mixes both palms, underbrush, grass.
   const grove = (d: number, s: number, n: number) => {
@@ -223,7 +226,7 @@ export default function BeachIso() {
         load('sand', '/art/iso/sand.png'), load('water', '/art/iso/water.png'), load('water2', '/art/iso/water2.png'),
         load('foamlace', '/art/intro/foam-lace.png'), load('foamlace2', '/art/intro/foam-lace2.png'),
         load('foamtrail', '/art/intro/foam-trail.png'), load('sparkle', '/art/intro/sparkle.png'),
-        load('skirt', '/art/intro/shallow-skirt.png'),
+        load('skirt', '/art/intro/shallow-skirt.png'), load('swell', '/art/intro/swell-lines.png'),
         ...Object.entries(PROP_SRC).map(([k, u]) => load(k, u)),
       ])
       const idle: Record<string, Texture> = {}
@@ -284,7 +287,8 @@ export default function BeachIso() {
           }
           if (!base) continue
           const sp = new Sprite(base); sp.anchor.set(0.5, 0.25)
-          const fx = hash(tx * 3, ty * 7) > 0.5 ? -1 : 1
+          // mirror tiles in COHERENT PATCHES (not per-tile random) — random flips make an X-checker
+          const fx = vnoise(tx / 7 + 4, ty / 7 + 11) > 0.5 ? -1 : 1
           const os = isSea ? 1.12 : 1.06   // oversize tiles so they overlap and blend (soften the grid; sand overlaps hide relief gaps)
           sp.scale.set(fx * os, os)
           const lift = isSea ? 0 : liftAt(tx, ty)
@@ -292,9 +296,10 @@ export default function BeachIso() {
           if (isSea) {
             const raw = -ds / DEPTH_RANGE
             const dep = Math.min(1, Math.max(0, raw + (hash(tx * 7.7, ty * 5.3) - 0.5) * (raw < 0.18 ? 0.11 : 0.06)))
-            // broad drifting patches (cloud-light) + faint per-tile grain, all riding the one ramp
+            // broad drifting patches (cloud-light) — NO per-tile grain (any per-tile value step
+            // reads as a checkerboard at distance; the ramp + patches carry all variation)
             const patch = 0.955 + 0.09 * vnoise(tx / 22 + 7, ty / 22 + 2)
-            const grain = 0.994 + 0.012 * hash(tx, ty)
+            const grain = 0.997 + 0.006 * hash(tx, ty)
             const col = shadeHex(tintFor(rampAt(W_RAMP, dep), W_BASE), patch * grain)
             sp.tint = col
             waterSprites.push({
@@ -340,8 +345,13 @@ export default function BeachIso() {
           const s = shoreAt(d)
           const wp = new Sprite(new Texture({ source: skT.source, frame: fr }))
           wp.anchor.set(0.5, 0); wp.position.set(d * HW, s * HH - 4)
-          wp.tint = 0x6e563c; wp.alpha = 0; wp.zIndex = s * 16 + 1
+          wp.tint = 0x584430; wp.alpha = 0; wp.zIndex = s * 16 + 1
           world.addChild(wp); wetSegs.push({ sp: wp, d, reach: 0, at: -99 })
+          // crisp dark seam right AT the waterline — the deep-value line the shore sits against
+          const seam = new Sprite(new Texture({ source: skT.source, frame: fr }))
+          seam.anchor.set(0.5, 0.3); seam.scale.set(1, 0.55); seam.tint = 0x14383f
+          seam.alpha = 0.42; seam.position.set(d * HW, s * HH - 1); seam.zIndex = s * 16 + 1
+          world.addChild(seam)
           const sp = new Sprite(new Texture({ source: skT.source, frame: fr }))
           sp.anchor.set(0.5, 0.62); sp.scale.set(1, 2) // tall enough to straddle the tile staircase
           sp.position.set(d * HW, s * HH); sp.zIndex = s * 16 + 2; sp.alpha = 0.92
@@ -392,6 +402,28 @@ export default function BeachIso() {
           fronts.push({ segs, trail: trailSegs, film: filmSegs, off: (f * TIDE_T) / 2 })
         }
       }
+      // CROSS-SEAM SWELL OVERLAY: pale swell lines tiled at a period that never aligns with the
+      // 64px tile grid, so the eye stops finding the diamond seams. Drifts slowly.
+      const swellSheets: { sp: Sprite; ph: number; y0: number }[] = []
+      if (tex['swell']) {
+        const SW = tex['swell'].width, SH = tex['swell'].height
+        for (let gy = 0; gy * SH < ROWS * HH * 2; gy++) {
+          for (let gx = -1; (gx * SW) < COLS * HW + ROWS * HW; gx++) {
+            const x = -ROWS * HW + gx * SW + (gy % 2) * (SW / 2) // stagger rows
+            const y = gy * SH
+            // keep only sheets whose center is over open water (past the waterline)
+            const cd = (x + SW / 2) / HW, cs = (y + SH / 2) / HH
+            if (cs > shoreAt(cd) - 4) continue
+            const sp = new Sprite(tex['swell'])
+            sp.position.set(x, y)
+            const dep = Math.min(1, Math.max(0, (shoreAt(cd) - cs) / DEPTH_RANGE))
+            sp.alpha = 0.05 + 0.09 * dep // quiet at the shore, more presence far out
+            sp.zIndex = cs * 16 + 1
+            world.addChild(sp)
+            swellSheets.push({ sp, ph: hash(gx, gy) * 6.28, y0: y })
+          }
+        }
+      }
       // sun glints twinkling on the open water, denser toward the sun (upper-left of the sea)
       const sparkles: { sp: Sprite; ph: number; sc: number }[] = []
       if (tex['sparkle']) {
@@ -420,22 +452,22 @@ export default function BeachIso() {
         if (p.ground) {
           const sp = new Sprite(t); sp.anchor.set(0.5, 0.6); sp.scale.set(p.flip ? -sc : sc, sc)
           sp.position.set(x, y); sp.zIndex = z + 3
-          if (PROP_TINT[p.img]) sp.tint = PROP_TINT[p.img]
+          const gt = p.tint ?? PROP_TINT[p.img]; if (gt) sp.tint = gt
           world.addChild(sp)
           continue
         }
         // golden hour: shadows stretch LONG toward the lower-right, away from the low sun; tall
         // palms throw the longest blades. Cool-dark, never black.
         const tall = p.h > 140
-        const sh = new Sprite(shadowTex); sh.anchor.set(0.3, 0.5)
-        sh.width = Math.max(26, t.width * sc * (p.sea ? 0.75 : tall ? 1.6 : 1.35))
-        sh.height = Math.max(10, t.width * sc * (tall ? 0.2 : 0.3))
+        const sh = new Sprite(shadowTex); sh.anchor.set(0.28, 0.5)
+        sh.width = Math.max(26, t.width * sc * (p.sea ? 0.8 : tall ? 1.7 : 1.4))
+        sh.height = Math.max(11, t.width * sc * (tall ? 0.22 : 0.32))
         sh.rotation = 0.2
-        sh.alpha = p.sea ? 0.2 : tall ? 0.28 : 0.33; sh.position.set(x + 4, y + 2); sh.zIndex = z + 1; world.addChild(sh)
+        sh.alpha = p.sea ? 0.3 : tall ? 0.5 : 0.55; sh.position.set(x + 5, y + 2); sh.zIndex = z + 1; world.addChild(sh)
         const sp = new Sprite(t); sp.anchor.set(0.5, 0.94); sp.scale.set(p.flip ? -sc : sc, sc)
         sp.position.set(x, y + (p.sea ? 5 : 0)) // sea rocks sit a touch lower, planted in the water
         sp.zIndex = z + 8
-        if (PROP_TINT[p.img]) sp.tint = PROP_TINT[p.img]
+        const pt = p.tint ?? PROP_TINT[p.img]; if (pt) sp.tint = pt
         world.addChild(sp)
         if (p.sea) {
           // foam collar where the sea meets the rock — grounds it in the water instead of on it
@@ -454,7 +486,7 @@ export default function BeachIso() {
 
       // ---- Thor (with his own crisp contact shadow — the focal character must sit ON the sand) ----
       const thorShadow = new Sprite(shadowTex); thorShadow.anchor.set(0.34, 0.5)
-      thorShadow.width = 46; thorShadow.height = 13; thorShadow.rotation = 0.2; thorShadow.alpha = 0.4
+      thorShadow.width = 48; thorShadow.height = 14; thorShadow.rotation = 0.2; thorShadow.alpha = 0.6
       world.addChild(thorShadow)
       const thor = new Sprite(idle['south'] ?? tex['sand']); thor.anchor.set(0.5, 0.9); thor.scale.set(0.68)
       thor.zIndex = 0; world.addChild(thor)
@@ -541,7 +573,7 @@ export default function BeachIso() {
           if (dry >= 1) w.reach = Math.min(w.reach, r)
           const gap = w.reach * TIDE_AMP * HH + 8
           w.sp.scale.y = gap / w.sp.texture.height
-          w.sp.alpha = 0.62 * (1 - dry * dry) + 0.12
+          w.sp.alpha = 0.72 * (1 - dry * dry) + 0.14
         }
         // sparkles twinkle on a slow individual clock
         for (const s of sparkles) {
@@ -549,6 +581,8 @@ export default function BeachIso() {
           s.sp.alpha = k * 0.85
           s.sp.scale.set(s.sc * (0.7 + 0.3 * k))
         }
+        // the swell-line sheets breathe up and down slowly, each on its own phase
+        for (const sh of swellSheets) sh.sp.position.y = sh.y0 + 6 * Math.sin(wt * 0.14 + sh.ph)
         resizeFx(vw, vh)
       })
 
@@ -617,10 +651,11 @@ function makeFleck(a: number, b: number) {
   const t = Texture.from(cv); t.source.scaleMode = 'nearest'; return t
 }
 function makeShadow() {
-  // cool violet-teal shadow (golden hour shadows go cool, never black or gray)
+  // cool violet-teal shadow (golden hour shadows go cool, never black or gray) — a dense core
+  // that still registers over bright sand, feathering out
   const cv = document.createElement('canvas'); cv.width = cv.height = 64
   const ctx = cv.getContext('2d')!, g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
-  g.addColorStop(0, 'rgba(38,44,74,0.6)'); g.addColorStop(0.7, 'rgba(38,44,74,0.2)'); g.addColorStop(1, 'rgba(38,44,74,0)')
+  g.addColorStop(0, 'rgba(40,42,72,0.92)'); g.addColorStop(0.45, 'rgba(40,42,72,0.55)'); g.addColorStop(0.8, 'rgba(40,42,72,0.16)'); g.addColorStop(1, 'rgba(40,42,72,0)')
   ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64)
   const t = Texture.from(cv); t.source.scaleMode = 'linear'; return t
 }
