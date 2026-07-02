@@ -10,6 +10,7 @@ import OverworldScene from './app/scenes/OverworldScene'
 import IslandScene from './app/scenes/IslandScene'
 import CapeScene from './app/scenes/CapeScene'
 import IntroScene from './game/intro/IntroScene'
+import IslandMapIso from './game/island/IslandMapIso'
 
 // The game runs through the scene manager, wrapped in the run-state provider. Phase 1 flow:
 // title -> overworld (navigable hub) -> island visit -> ... -> cape summary. Join-by-code +
@@ -25,6 +26,7 @@ const registry: SceneRegistry = {
   island: () => <IslandScene />,
   cape: () => <CapeScene />,
   beach: () => <IntroScene />,   // the beach IS the intro map; free roam once the intro is done
+  islandmap: () => <IslandMapIso />, // the main map: the vast ocean + the Central Island (GAME-DESIGN §3)
 }
 
 export default function App() {

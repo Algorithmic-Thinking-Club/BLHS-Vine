@@ -97,8 +97,9 @@ export function composeIsland(): IsleProp[] {
           add(u, w, hash(u, w) > 0.5 ? 'rockA' : 'rockB', rnd(46, 92, u, w), { flip: hash(u * 7, w) > 0.5, tint: 0xb9c2b4 })
         continue
       }
-      if (lift > 128) continue // the summit stays bare for the head
-      const density = 0.34 + 0.3 * vnoise2(u / 9 + 3, w / 9 + 8) + 0.15 * Math.min(1, lift / 90)
+      if (lift > 145) continue // only the summit crown stays bare for the head
+      const density = (0.34 + 0.3 * vnoise2(u / 9 + 3, w / 9 + 8) + 0.15 * Math.min(1, lift / 90))
+        * (lift > 120 ? Math.max(0, (145 - lift) / 25) : 1) // canopy thins toward the crown
       if (hash(u * 1.9, w * 2.3) > density) continue
       // altitude grading: lowland palms stay warm, upland canopy goes deep green-blue
       const hiTint = lift > 70 ? 0x4b6058 : lift > 34 ? 0x6d8272 : undefined

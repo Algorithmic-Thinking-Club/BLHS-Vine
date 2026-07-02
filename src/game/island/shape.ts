@@ -89,11 +89,11 @@ export function coastPoint(theta: number) {
 // ---- the mountain (elevation as screen-px lift, the beach's level trick at scale) ----
 // Peak sits just north of center (the carved head faces SOUTH toward the camera); two ridges
 // run toward the ears; a rough skirt of foothills; everything gated to vanish at the coast.
-const PEAK = { u: 0, w: -7, sig: 24, amp: 175 }
+const PEAK = { u: 0, w: -7, sig: 19, amp: 152 }
 const RIDGES = [
-  { u: -22, w: -22, sig: 11, amp: 62 },  // toward the left ear
-  { u: 15, w: -21, sig: 10, amp: 56 },   // toward the right ear
-  { u: -3, w: 9, sig: 9, amp: 34 },      // the muzzle shoulder south of the peak
+  { u: -21, w: -21, sig: 10, amp: 54 },  // toward the left ear
+  { u: 14, w: -20, sig: 9, amp: 48 },    // toward the right ear
+  { u: -3, w: 8, sig: 8, amp: 30 },      // the muzzle shoulder south of the peak
 ]
 
 const hash2 = (x: number, y: number) => { const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5; return s - Math.floor(s) }
@@ -189,7 +189,7 @@ export function isleCell(tx: number, ty: number): IsleCell {
   if (cd < 4) return 'sand'
   if (cd < 6.5) return 'grass'
   const lift = isleLift(tx, ty)
-  if (lift > 118) return 'rock'
+  if (lift > 150) return 'rock' // only the summit crown bares (the head carving's seat)
   return 'jungle'
 }
 
