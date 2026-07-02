@@ -1171,8 +1171,13 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       // at its column, surges up the film's leading edge rolling as it comes, and settles in the
       // wet band when the water lets go of it. Returns a done-poll for the runtime.
       let bottleWave: null | { d: number; sBeach: number; phase: 'wait' | 'ride' | 'settled'; from: number; peakS: number; fi: number } = null
-      // guide arrow (Ash): a bobbing gold chevron over whatever the player should walk to
-      let pointer: null | { sp: Sprite; x: number; y: number; ship: boolean } = null
+      // guide trail (Ash): a followable path of translucent chevrons marching from Thor to
+      // the destination, each bobbing on a phase so the pulse travels toward the goal
+      const TRAIL_N = 8
+      let pointer: null | { sps: Sprite[]; x: number; y: number; ship: boolean } = null
+      // while a cutscene holds the frame, world interactables stand down (E stays a feature;
+      // it just can't hijack a scripted beat — boarding early mid-gate would strand the script)
+      let csHeld = false
       const chevTex = (() => {
         const cv = document.createElement('canvas'); cv.width = 30; cv.height = 22
         const g = cv.getContext('2d')!
@@ -1206,6 +1211,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           return
         }
         if (name === 'applyLook') { applyLook(); return } // the wardrobe re-dyes Thor mid-scene
+        if (name === 'setHeld') { csHeld = !!(data as { on?: boolean })?.on; return }
         // ---- the ship beats (I-4/I-5), driving the vehicle through its own seams ----
         if (name === 'boardShip') {
           const o = (data ?? {}) as { instant?: boolean }
@@ -1233,15 +1239,19 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         if (name === 'pointAt') {
           const o = (data ?? {}) as { x?: number; y?: number; ship?: boolean; instant?: boolean }
           if (!pointer) {
-            const sp = new Sprite(chevTex)
-            sp.anchor.set(0.5, 1)
-            world.addChild(sp)
-            pointer = { sp, x: o.x ?? 0, y: o.y ?? 0, ship: !!o.ship }
+            const sps = Array.from({ length: TRAIL_N }, () => {
+              const sp = new Sprite(chevTex)
+              sp.anchor.set(0.5, 0.5)
+              sp.alpha = 0
+              world.addChild(sp)
+              return sp
+            })
+            pointer = { sps, x: o.x ?? 0, y: o.y ?? 0, ship: !!o.ship }
           } else { pointer.x = o.x ?? pointer.x; pointer.y = o.y ?? pointer.y; pointer.ship = !!o.ship }
           return
         }
         if (name === 'pointClear') {
-          if (pointer) { pointer.sp.destroy(); pointer = null }
+          if (pointer) { for (const sp of pointer.sps) sp.destroy(); pointer = null }
           return
         }
         if (name === 'showBoatName') {
@@ -1534,13 +1544,15 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
               }
             }
           }
-          if (label) {
+          // the E chip hides while a cutscene owns the frame (the feature stays; the
+          // scripted pilot must not advertise a button the muted keyboard can't press)
+          if (label && !inputMuted && !csHeld) {
             chipSp.texture = chipTexFor(label)
             chipSp.position.set(cpx, cpy - 6 + 2 * Math.sin(bt * 2.6))
             chipSp.zIndex = cpz
             chipSp.visible = true
           } else chipSp.visible = false
-          if (keys['e'] && !eHeld && action) action()
+          if (keys['e'] && !eHeld && action && !csHeld) action()
           eHeld = !!keys['e']
           // ---- RENDER: the painted view + HEEL — the sprite leans through the residual
           // angle between the continuous heading and the drawn view's center, so the eye
@@ -1732,7 +1744,8 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
               ba.sp.rotation = 0.14 * Math.sin(wt * 1.3)
               for (let f = 0; f < fronts.length; f++) {
                 const uf = ((wt - fronts[f].off - b.d * SWEEP) % TIDE_T + TIDE_T) % TIDE_T
-                if (uf < 0.12) { b.phase = 'ride'; b.from = s0; b.fi = f; break }
+                // a front just launched OR mid-launch both count — the wait must stay short
+                if (uf < 0.45) { b.phase = 'ride'; b.from = s0; b.fi = f; break }
               }
             } else if (b.phase === 'ride') {
               // the bottle trails just behind the foam edge and can only ever move UP the
@@ -1746,7 +1759,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
               // a nudged rock while the water still covers it, dying as the film drains
               const cover = Math.max(0, Math.min(1, (sFront + 0.3 - b.peakS) * 1.6))
               ba.sp.rotation = 0.26 * Math.sin(wt * 4.2 + b.d) * cover
-              if (b.peakS >= b.sBeach - 0.05 && uu > 3.6) {   // beached and the water has let go
+              if (b.peakS >= b.sBeach - 0.05 && uu > 2.4) {   // beached; don't wait out the hold
                 ba.sp.rotation = 0
                 csActorPlace('bottle', (b.sBeach + b.d) / 2, (b.sBeach - b.d) / 2)
                 csFx('glint', { x: (b.sBeach + b.d) / 2, y: (b.sBeach - b.d) / 2 })
@@ -1758,13 +1771,27 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             }
           }
         }
-        // the guide chevron bobs over its target (rides the ship when pointing at her)
+        // the guide trail: chevrons march the straight line from Thor to the destination,
+        // pointing along the path, translucent, the bob pulse traveling toward the goal
         if (pointer) {
           const ptx = pointer.ship && veh ? veh.tx : pointer.x
           const pty = pointer.ship && veh ? veh.ty : pointer.y
-          const lift2 = pointer.ship ? 90 : liftAt(ptx, pty) + 34
-          pointer.sp.position.set(isoX(ptx, pty), isoY(ptx, pty) - lift2 - 8 + 5 * Math.sin(wt * 3.2))
-          pointer.sp.zIndex = Math.floor(ptx + pty) * 16 + 60
+          const ax = isoX(pos.tx, pos.ty), ay = isoY(pos.tx, pos.ty) - renderLift
+          const bx2 = isoX(ptx, pty), by2 = isoY(ptx, pty) - (pointer.ship ? 40 : liftAt(ptx, pty))
+          const ddx = bx2 - ax, ddy = by2 - ay
+          const len = Math.hypot(ddx, ddy)
+          const rot = Math.atan2(ddy, ddx) - Math.PI / 2   // the chevron points +y by default
+          for (let i = 0; i < pointer.sps.length; i++) {
+            const sp = pointer.sps[i]
+            const t2 = (i + 1.2) / (pointer.sps.length + 1.4)  // skip Thor's feet, stop short of the goal
+            if (len < 90) { sp.alpha = 0; continue }           // arrived: the trail fades out
+            const px2 = ax + ddx * t2, py2 = ay + ddy * t2
+            sp.position.set(px2, py2 - 22 + 4.5 * Math.sin(wt * 3.4 - i * 0.85))
+            sp.rotation = rot
+            sp.alpha = 0.42 + 0.2 * Math.sin(wt * 3.4 - i * 0.85)
+            sp.scale.set(0.85)
+            sp.zIndex = Math.floor((px2 / HW + py2 / HH) / 2) * 16 + 60
+          }
         }
         // the waterline itself breathes a little
         for (const sk of skirtSegs) sk.sp.position.y = (shoreAt(sk.d) + 0.06 * Math.sin(wt * 0.9 + sk.d * 0.3)) * HH

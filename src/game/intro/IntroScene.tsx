@@ -37,6 +37,8 @@ export default function IntroScene() {
     stage.onTick((ms) => runtime.tick(ms))
     live.current = runtime
     setRt(runtime)
+    // the scene stands its interactables down while the runtime owns the frame
+    runtime.subscribe(() => stage.call('setHeld', { on: runtime.ui.active }))
     // resume-at-beat (§7.7): a refresh after finishing I-3 lands in free roam at the beach,
     // not back at the wake-up — the local save is the resume truth until the backend lands
     const save = loadSave()
