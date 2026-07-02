@@ -203,6 +203,14 @@ function composeBeach(): PropDef[] {
   add(26.5, 119.5, 'dunegrass', 32); add(36, 120, 'dunegrass', 28, { flip: true })
   add(30.5, 120.8, 'seaweed', 15, { ground: true }); add(37.5, 116.6, 'shells', 12, { ground: true })
   add(27, 113.6, 'gull', 18); add(36.5, 114.4, 'gull', 16, { flip: true })
+  // 8b. PORT-SIDE GREENERY — the east end read as bare sand next to the lush spawn side; give it the
+  // same grove rhythm. Kept landward (higher s) + right of the pier so it frames the dock without
+  // blocking the walkway (pier base d=30) or the dock approach.
+  grove(41, 127, 2); grove(24.5, 131, 2); grove(47, 122, 2)
+  add(45, 133, 'palmA', 216, { flip: true }); add(46.5, 131.5, 'bushA', 92)
+  add(22, 126, 'bushB', 76, { flip: true }); add(39, 129, 'dunegrass', 34, { flip: true })
+  add(48, 125, 'logdrift', 40, { flip: true }); add(47, 126.2, 'shells', 12, { ground: true })
+  add(35.5, 131, 'coconuts', 20); add(43, 124, 'dunegrass', 30)
   return out
 }
 
@@ -231,7 +239,8 @@ export default function BeachIso() {
   useEffect(() => {
     let app: Application | null = null, destroyed = false
     const keys: Record<string, boolean> = {}
-    const kd = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = true }
+    let jumpQueued = false
+    const kd = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = true; if (e.key === ' ') { jumpQueued = true; e.preventDefault() } }
     const ku = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = false }
 
     const start = async () => {
@@ -614,10 +623,14 @@ export default function BeachIso() {
 
       // ---- Thor (with his own crisp contact shadow — the focal character must sit ON the sand) ----
       const thorShadow = new Sprite(shadowTex); thorShadow.anchor.set(0.34, 0.5)
-      thorShadow.width = 48; thorShadow.height = 14; thorShadow.rotation = 0.2; thorShadow.alpha = 0.6
+      thorShadow.width = 42; thorShadow.height = 12; thorShadow.rotation = 0.2; thorShadow.alpha = 0.55
       world.addChild(thorShadow)
-      const thor = new Sprite(idle['south'] ?? tex['sand']); thor.anchor.set(0.5, 0.9); thor.scale.set(0.68)
+      // anchor at the FEET (1.0) so the ground point IS his feet — the shadow then sits exactly under
+      // him instead of at his shins (the old 0.9 + shadow-at-y+1 made him read as levitating).
+      const THOR_SC = 0.58 // a touch smaller than before (Ash's taste)
+      const thor = new Sprite(idle['south'] ?? tex['sand']); thor.anchor.set(0.5, 1.0); thor.scale.set(THOR_SC)
       thor.zIndex = 0; world.addChild(thor)
+      const jump = { active: false, t: 0 } // spacebar hop
       // ?spawn=tx,ty overrides for validation shots of any part of the map
       const spawnP = (new URLSearchParams(location.search).get('spawn') ?? '').split(',').map(Number)
       const pos = { tx: spawnP.length === 2 && !isNaN(spawnP[0]) ? spawnP[0] : 61, ty: spawnP.length === 2 && !isNaN(spawnP[1]) ? spawnP[1] : 61 }
@@ -645,8 +658,25 @@ export default function BeachIso() {
           facing = dirFromAngle(isoX(dx, dy), (dx + dy) * HH)
         }
         const x = isoX(pos.tx, pos.ty), y = isoY(pos.tx, pos.ty) - liftAt(pos.tx, pos.ty)
-        thor.position.set(x, y); thor.zIndex = Math.floor(pos.tx + pos.ty) * 16 + 12
-        thorShadow.position.set(x + 2, y + 1); thorShadow.zIndex = thor.zIndex - 1
+        // JUMP (spacebar): a quick eased hop with a mid-air stretch (buffered so a fast tap registers)
+        if (jumpQueued && !jump.active) { jump.active = true; jump.t = 0 }
+        jumpQueued = false
+        let jy = 0, stretch = 1
+        if (jump.active) {
+          jump.t += tk.deltaMS
+          const k = jump.t / 520
+          if (k >= 1) jump.active = false
+          else { jy = -44 * Math.sin(Math.PI * k); stretch = 1 + 0.14 * Math.sin(Math.PI * k) }
+        }
+        // IDLE: a gentle breathing squash when standing still (feet planted, chest rises)
+        const breath = (!moving && !jump.active) ? 1 + 0.03 * Math.sin(at / 430) : 1
+        thor.scale.set(THOR_SC, THOR_SC * breath * stretch)
+        thor.position.set(x, y + jy); thor.zIndex = Math.floor(pos.tx + pos.ty) * 16 + 12
+        // shadow stays on the ground under his feet; shrinks + fades as he leaps
+        const shf = Math.max(0.55, 1 - (-jy) / 110)
+        thorShadow.width = 42 * shf; thorShadow.height = 12 * shf
+        thorShadow.alpha = 0.55 * Math.max(0.32, 1 - (-jy) / 90)
+        thorShadow.position.set(x + 2, y); thorShadow.zIndex = thor.zIndex - 1
         at += tk.deltaMS
         const wf = walk[facing] ?? walk[cardinalOf(facing)]
         thor.texture = (moving && wf) ? wf[Math.floor(at / 110) % wf.length] : (idle[facing] ?? idle['south'] ?? thor.texture)
