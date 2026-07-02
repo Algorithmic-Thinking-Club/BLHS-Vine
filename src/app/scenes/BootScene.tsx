@@ -43,7 +43,7 @@ export default function BootScene() {
     <div className="bt-boot" onClick={advance}>
       <div className="bt-foamline" />
       <div className="bt-crestwrap">
-        <img className="bt-crest pix" src="/art/ui/crest-panther.png" alt="" draggable={false} onClick={purr} />
+        <img className="bt-crest" src="/art/ui/atc-logo.png" alt="" draggable={false} onClick={purr} />
         {goldGlint.current && <span className="bt-glint" />}
         {sparkles.map((p) => (
           <span key={p.id} className="bt-sparkle" style={{ left: `${p.x}%`, top: `${p.y}%` }} />

@@ -20,7 +20,7 @@
   left: 50%;
   bottom: max(4.5vh, 34px);
   transform: translateX(-50%);
-  width: min(720px, 92vw);
+  width: min(620px, 84vw);
   aspect-ratio: 512 / 192;
   background: url('/art/ui/dialogue-box.png') center / 100% 100% no-repeat;
   image-rendering: pixelated;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import { track } from '../telemetry'
 import './i3.css'
 
@@ -194,7 +194,7 @@ function IdentityCard(p: {
           onChange={(e) => p.setHandle(cleanName(e.target.value))}
           onKeyDown={(e) => { if (e.key === 'Enter') confirm() }}
         />
-        <button className="i3-die" title="spin one" onClick={() => { p.setHandle(spinHandle()); setSpins((s) => s + 1) }}>🎲</button>
+        <button className="i3-die" title="spin one" onClick={() => { p.setHandle(spinHandle()); setSpins((s) => s + 1) }}>ðŸŽ²</button>
       </div>
       {isBlocked(p.handle) && <div className="i3-err">The harbor master raised an eyebrow. Try another.</div>}
       <div className="i3-reassure">This name is what your class sees. Your real name never leaves the room.</div>
@@ -207,7 +207,7 @@ function IdentityCard(p: {
           >{c}</button>
         ))}
       </div>
-      <button className="i3-plank" onClick={confirm}>{ok ? 'That is me' : 'Spin one for me'}</button>
+      <button className="i3-plank i3-plank-solo" onClick={confirm}>{ok ? 'That is me' : 'Spin one for me'}</button>
     </div>
   )
 }
@@ -222,7 +222,7 @@ function WordCard({ onNext }: { onNext: () => void }) {
       {tw.done && (
         <>
           <div className="i3-sig"><span className="i3-paw">🐾</span> <span>Principal Panther</span></div>
-          <button className="i3-plank" onClick={onNext}>Understood</button>
+          <button className="i3-plank i3-plank-solo" onClick={onNext}>Understood</button>
         </>
       )}
     </div>
@@ -249,10 +249,10 @@ function BoatCard(p: { boat: string; setBoat: (v: string) => void; onNext: () =>
           onChange={(e) => p.setBoat(cleanName(e.target.value, 18))}
           onKeyDown={(e) => { if (e.key === 'Enter') confirm() }}
         />
-        <button className="i3-die" title="spin one" onClick={() => { p.setBoat(spinBoat()); setSpun(true) }}>🎲</button>
+        <button className="i3-die" title="spin one" onClick={() => { p.setBoat(spinBoat()); setSpun(true) }}>ðŸŽ²</button>
       </div>
       {isBlocked(p.boat) && <div className="i3-err">She would sink from embarrassment. Another.</div>}
-      <button className="i3-plank" onClick={confirm}>{ok ? 'Paint it on' : 'Call her The Bonney'}</button>
+      <button className="i3-plank i3-plank-solo" onClick={confirm}>{ok ? 'Paint it on' : 'Call her The Bonney'}</button>
     </div>
   )
 }

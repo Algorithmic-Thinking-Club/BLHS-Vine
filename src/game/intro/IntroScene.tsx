@@ -24,8 +24,11 @@ export default function IntroScene() {
     stage.onTick((ms) => runtime.tick(ms))
     live.current = runtime
     setRt(runtime)
+    // resume-at-beat (§7.7): a refresh after finishing I-3 lands in free roam at the beach,
+    // not back at the wake-up — the local save is the resume truth until the backend lands
     const save = loadSave()
-    if (!save?.introDone) {
+    const beat = save?.beat ?? 'intro:i1'
+    if (!save?.introDone && beat === 'intro:i1') {
       track('cutscene_start', { id: 'intro' })
       runtime.play(introI1I2, () => {
         writeSave({ beat: 'intro:i4' })

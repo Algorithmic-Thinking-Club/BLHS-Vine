@@ -10,9 +10,9 @@ import type { Script } from '../cutscene/types'
 
 const SPAWN = { x: 58.2, y: 56.4 }             // just above the wrack line — the tide breathes in frame
 const BOTTLE_D = 3                              // shore column just east of the spawn
-// the bottle settles at s = shoreAt(3)+1.4 ≈ 110.6 → tile (56.8, 53.8); Thor stops shy of it
-const BOTTLE_AT = { x: 56.8, y: 53.8 }
-const WALK_STOP = { x: 57.4, y: 54.6 }
+// the bottle settles at s = shoreAt(3)+1.22 ≈ 111.05 → tile (57.0, 54.0); Thor stops shy of it
+const BOTTLE_AT = { x: 57.0, y: 54.0 }
+const WALK_STOP = { x: 57.7, y: 54.9 }
 
 export const introI1I2: Script = {
   id: 'intro',
@@ -32,7 +32,8 @@ export const introI1I2: Script = {
     { t: 'fx', name: 'sandScatter' },
     { t: 'vignette', to: 0.45, ms: 1400 },
     { t: 'wait', ms: 1000 },
-    { t: 'say', who: 'Thor', text: 'Sand. Ocean.' },
+    { t: 'say', who: 'Thor', text: 'Ugh. Sand. A whole lot of sand.' },
+    { t: 'say', who: 'Thor', text: 'Last thing I remember is water. So much water.' },
     { t: 'actorState', actor: 'thor', state: 'idle' },         // he stands
     { t: 'fx', name: 'sandScatter' },
     { t: 'vignette', to: 0, ms: 1600 },                        // relax to the map's own golden grade
