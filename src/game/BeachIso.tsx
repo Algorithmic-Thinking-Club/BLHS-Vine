@@ -89,6 +89,31 @@ function cellAt(tx: number, ty: number): Cell {
   if (s < sh + 1.5) return 'wet'
   return 'sand'
 }
+// SAND VALUE STRUCTURE: a foot-worn path winds from the spawn toward the pier (slightly darker,
+// compacted), and a few broad damp patches break the open field — intentional tonal shapes, not
+// noise, so the sand reads worked-in rather than a flat golden plane.
+const SAND_PATH: [number, number][] = [[-2, 123], [6, 120.5], [14, 119], [22, 118], [29, 117.5]]
+const SAND_PATCHES: [number, number, number][] = [[-11, 123.5, 4.5], [15, 122, 3.6], [-20, 118.5, 3.2], [7, 128, 4]]
+function sandMod(d: number, s: number) {
+  let m = 1
+  // distance to the path polyline (coarse: nearest of sampled points along each segment)
+  let best = 99
+  for (let i = 0; i < SAND_PATH.length - 1; i++) {
+    const [d0, s0] = SAND_PATH[i], [d1, s1] = SAND_PATH[i + 1]
+    for (let t = 0; t <= 1; t += 0.25) {
+      const dd = d0 + (d1 - d0) * t - d, ds2 = s0 + (s1 - s0) * t - s
+      const dist = Math.sqrt(dd * dd + ds2 * ds2 * 2.5) // s counts more (screen-y is squashed)
+      if (dist < best) best = dist
+    }
+  }
+  if (best < 1.6) m *= 1 - 0.055 * (1 - best / 1.6)
+  for (const [pd, ps, pr] of SAND_PATCHES) {
+    const dd = pd - d, ds2 = ps - s
+    const dist = Math.sqrt(dd * dd + ds2 * ds2 * 2.5)
+    if (dist < pr) m *= 1 - 0.05 * (1 - dist / pr)
+  }
+  return m
+}
 // SAND RELIEF: the beach is not a billiard table — a low berm crests just above the swash, then
 // the backshore climbs gently toward the jungle line, with slow dune undulation. Pure y-lift in
 // screen px (the engine's level trick), so the landscape reads continuous, not stamped tiles.
@@ -350,7 +375,7 @@ export default function BeachIso() {
             // damp band at the waterline, graded darker toward the water so it reads as a real
             // value break (the berm shading + seam + wet sheet hide the tile quantization now)
             const k = Math.min(1, Math.max(0, (ds) / 1.5)) // 0 at waterline -> 1 at dry edge
-            sp.tint = tintFor(shadeHex(mix(0xc2a26c, 0xd8bd86, k), 0.985 + 0.03 * hash(tx, ty)), SAND_BASE)
+            sp.tint = tintFor(shadeHex(mix(0xb5945e, 0xd8bd86, k), 0.985 + 0.03 * hash(tx, ty)), SAND_BASE)
           } else {
             // dry sand: warm near the water -> pale high beach, with broad dune drift, and the
             // relief's slope shading (faces climbing away from the sun sit a touch darker)
@@ -359,7 +384,8 @@ export default function BeachIso() {
             const grain = 0.994 + 0.012 * hash(tx * 1.3, ty * 2.1)
             const slope = liftAt(tx + 0.5, ty + 0.5) - liftAt(tx - 0.5, ty - 0.5)
             const shade = Math.min(1.03, Math.max(0.94, 1 - slope * 0.014))
-            sp.tint = shadeHex(tintFor(rampAt([[0, 0xdcbf87], [0.45, 0xead6a3], [1, 0xf7ecc2]], t), SAND_BASE), dune * grain * shade)
+            const worn = sandMod(tx - ty, tx + ty) // the foot path + damp patches
+            sp.tint = shadeHex(tintFor(rampAt([[0, 0xdcbf87], [0.45, 0xead6a3], [1, 0xf7ecc2]], t), SAND_BASE), dune * grain * shade * worn)
           }
           world.addChild(sp)
         }
@@ -387,8 +413,8 @@ export default function BeachIso() {
           world.addChild(wp); wetSegs.push({ sp: wp, d, reach: 0, at: -99 })
           // crisp dark seam right AT the waterline — the deep-value line the shore sits against
           const seam = new Sprite(new Texture({ source: skT.source, frame: fr }))
-          seam.anchor.set(0.5, 0.3); seam.scale.set(1, 0.55); seam.tint = 0x14383f
-          seam.alpha = 0.42; seam.position.set(d * HW, s * HH - 1); seam.zIndex = s * 16 + 1
+          seam.anchor.set(0.5, 0.3); seam.scale.set(1, 0.55); seam.tint = 0x113238
+          seam.alpha = 0.5; seam.position.set(d * HW, s * HH - 1); seam.zIndex = s * 16 + 1
           world.addChild(seam)
           const sp = new Sprite(new Texture({ source: skT.source, frame: fr }))
           sp.anchor.set(0.5, 0.62); sp.scale.set(1, 2) // tall enough to straddle the tile staircase
@@ -552,7 +578,7 @@ export default function BeachIso() {
       // ---- THE PORT: a rustic pier runs on the TRUE ISO DIAGONAL (fixed tx: each step is
       // d+1, s-1 — up-right at 2:1 on screen), from the sand across the waterline to a diamond
       // dock platform; Thor's ship moors alongside, other boats ride at anchor further out. ----
-      const boats: { sp: Sprite; x: number; y: number; ph: number }[] = []
+      const boats: { sp: Sprite; ring: Sprite; x: number; y: number; ph: number }[] = []
       const moorBoat = (t: Texture, dPos: number, sPos: number, h: number, flip = false) => {
         const sc = h / t.height
         const bx = dPos * HW, by = sPos * HH
@@ -562,13 +588,13 @@ export default function BeachIso() {
         world.addChild(sh)
         const ring = new Sprite(shadowTexLife); ring.anchor.set(0.5)
         ring.tint = 0xeafff6; ring.blendMode = 'add'
-        ring.width = t.width * sc * 0.85; ring.height = ring.width * 0.24; ring.alpha = 0.3
+        ring.width = t.width * sc * 0.85; ring.height = ring.width * 0.24; ring.alpha = 0.42
         ring.position.set(bx, by + 4); ring.zIndex = sPos * 16 + 3
         world.addChild(ring)
         const sp = new Sprite(t); sp.anchor.set(0.5, 0.86); sp.scale.set(flip ? -sc : sc, sc)
         sp.position.set(bx, by); sp.zIndex = sPos * 16 + 9
         world.addChild(sp)
-        boats.push({ sp, x: bx, y: by, ph: hash(dPos, sPos) * 6.28 })
+        boats.push({ sp, ring, x: bx, y: by, ph: hash(dPos, sPos) * 6.28 })
       }
       // The pier is a WALKABLE elevated SURFACE on the engine's layer system: deck tiles live on
       // layer 1 at DECK_LIFT px; the lantern-post stairs are the single TRANSITION tile between
@@ -810,10 +836,13 @@ export default function BeachIso() {
         }
         // sea-breeze sway: slow lean + a faster flutter on top, per-plant phase
         for (const s of swaying) s.sp.rotation = s.amp * (Math.sin(wt * 0.7 + s.ph) + 0.35 * Math.sin(wt * 1.9 + s.ph * 2.3))
-        // moored boats ride the swell: slow bob + a whisper of roll
+        // moored boats ride the swell: slow bob + a whisper of roll; the foam collar breathes
+        // against the hull so the boats sit IN the water, not on it
         for (const b of boats) {
-          b.sp.position.y = b.y + 2.2 * Math.sin(wt * 0.55 + b.ph)
+          const bob = Math.sin(wt * 0.55 + b.ph)
+          b.sp.position.y = b.y + 2.2 * bob
           b.sp.rotation = 0.01 * Math.sin(wt * 0.4 + b.ph * 1.7)
+          b.ring.alpha = 0.36 + 0.12 * Math.sin(wt * 0.55 + b.ph + 1.6)
         }
         // lanterns breathe warm light
         for (const g of glows) g.sp.alpha = 0.75 + 0.25 * Math.sin(wt * 1.6 + g.ph)
