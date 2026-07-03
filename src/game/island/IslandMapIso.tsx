@@ -1,5 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { Application, Assets, ColorMatrixFilter, Container, Culler, Rectangle, Sprite, Texture, TextureSource } from 'pixi.js'
+import {
+  LANDS, beachKTheta, beachWidthAt, coastDist, coastDistUW, coastPoint,
+  pawCell, txOf, tyOf, vnoise2,
+} from './paw'
 
 // THE ISLAND MAP — fresh build 4 (2026-07-05), PHASE 1: THE VAST OCEAN.
 //
@@ -75,16 +79,11 @@ function tintFor(display: number, base: number[]) {
   return (r << 16) | (g << 8) | b
 }
 
-// ---- phase-1 geometry: the dev spit (the paw replaces this in phase 2; every shore/depth
-// code path below is the real one) ----
+// geometry comes from paw.ts (the panther-paw archipelago)
 const uOf = (tx: number, ty: number) => tx - ty
 const wOf = (tx: number, ty: number) => (tx + ty - S0) / 2
-const SPIT_R = 7
-function coastDistUW(u: number, w: number) {
-  const r = Math.hypot(u, w)
-  return SPIT_R + 0.9 * Math.sin(3 * Math.atan2(-w, u) + 1.2) - r
-}
-const coastDist = (tx: number, ty: number) => coastDistUW(uOf(tx, ty), wOf(tx, ty))
+// the jungle floor's normalized tile family base (same normalize_tiles.py law as water/sand)
+const JUNGLE_BASE = [82, 124, 72]
 
 /** the smooth depth field (tiles add their own per-tile dither; the veil reads it raw):
  *  contour-wander keeps ramp stops from drawing rings on a closed coast; a faint shoal
@@ -121,10 +120,11 @@ export default function IslandMapIso() {
         load('foamlace', '/art/intro/foam-lace.png'), load('foamlace2', '/art/intro/foam-lace2.png'),
         load('sparkle', '/art/intro/sparkle.png'), load('skirt', '/art/intro/shallow-skirt.png'),
       ])
-      const sandV: Texture[] = [], waterV: Texture[] = []
+      const sandV: Texture[] = [], waterV: Texture[] = [], jungleV: Texture[] = []
       await Promise.all([
         ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/intro/sand-n/${i}.png`).then((t) => { sandV[i] = t }).catch(() => {})),
         ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/intro/water-n/${i}.png`).then((t) => { waterV[i] = t }).catch(() => {})),
+        ...Array.from({ length: 12 }, (_, i) => Assets.load(`/art/intro/jungle-n/${i}.png`).then((t) => { jungleV[i] = t }).catch(() => {})),
       ])
       const idle: Record<string, Texture> = {}
       await Promise.all(dirs8.map((d) => load('idle_' + d, `/art/characters/thor/walk/${d}/0.png`).then(() => { idle[d] = tex['idle_' + d] })))
@@ -205,15 +205,16 @@ export default function IslandMapIso() {
               : dep < 0.75 ? (vsel < 0.55 ? W_SOFT : W_TEX)
                 : (vsel < 0.5 ? W_TEX : W_SWELL)
           base = waterV[pool[Math.floor(vnoise(tx / 2.6 + 21, ty / 2.6 + 33) * pool.length) % pool.length]]
+        } else if (pawCell(tx, ty) === 'jungle') {
+          base = jungleV.length ? jungleV[Math.floor(hash(tx * 3.3, ty * 4.1) * jungleV.length)] : sandV[0]
         } else {
           base = sandV[SAND_COMMON[Math.floor(hash(tx * 3.3, ty * 4.1) * SAND_COMMON.length)]]
         }
         if (!base) return
         const sp = new Sprite(base); sp.anchor.set(0.5, 0.25)
         const fx = vnoise(tx / 7 + 4, ty / 7 + 11) > 0.5 ? -1 : 1
-        const os = (isSea ? 1.12 : 1.06) * stride
+        const os = (isSea ? 1.12 : 1.08) * stride
         sp.scale.set(fx * os, os)
-        // the dev spit lies flat — lift stagger on bare sand tiles reads as shingles
         sp.position.set(isoX(tx, ty), isoY(tx, ty))
         sp.zIndex = (tx + ty) * 16
         sp.cullable = true
@@ -232,11 +233,27 @@ export default function IslandMapIso() {
           }
           chunk.anims.push(anim); waterAnims.add(anim)
         } else {
-          // wet waterline -> warm dry -> pale high sand (the beach's full sand read)
-          const col = cd < 1.4
-            ? mix(0xb5945e, 0xd8bd86, Math.min(1, Math.max(0, cd / 1.4)))
-            : rampAt([[0, 0xd8bd86], [0.55, 0xead6a3], [1, 0xf0e2b4]], Math.min(1, (cd - 1.4) / 4.5))
-          sp.tint = tintFor(shadeHex(col, 0.985 + 0.03 * hash(tx, ty)), SAND_BASE)
+          const cell = pawCell(tx, ty)
+          if (cell === 'jungle') {
+            // the island floor: deep mossy green with slow moisture drift — the "slight
+            // green tint" jungle ground Ash asked for (canopy + detail arrive in 2b+)
+            const moist = vnoise2(u / 9 + 3, w / 9 + 8)
+            const clump = vnoise2(u / 17 + 21, w / 17 + 6)
+            const t = Math.min(1, Math.max(0, 0.62 - 0.3 * moist + 0.25 * clump + (hash(tx * 5.7, ty * 3.9) - 0.5) * 0.1))
+            const col = rampAt([[0, 0x4a7040], [0.4, 0x3a5a33], [0.75, 0x2e4829], [1, 0x263c22]], t)
+            sp.tint = tintFor(shadeHex(col, 0.985 + 0.03 * hash(tx, ty)), JUNGLE_BASE)
+          } else if (cell === 'grass') {
+            // the dune-grass seam between sand and jungle
+            const bw = beachWidthAt(u, w)
+            const col = mix(0xcdb27e, 0x466b39, Math.min(1, Math.max(0, (cd - bw + (hash(tx * 5.7, ty * 3.9) - 0.5) * 0.9) / 1.6)))
+            sp.tint = tintFor(shadeHex(col, 0.985 + 0.03 * hash(tx, ty)), SAND_BASE)
+          } else {
+            // wet waterline -> warm dry -> pale high sand (the beach's full sand read)
+            const col = cd < 1.4
+              ? mix(0xb5945e, 0xd8bd86, Math.min(1, Math.max(0, cd / 1.4)))
+              : rampAt([[0, 0xd8bd86], [0.55, 0xead6a3], [1, 0xf0e2b4]], Math.min(1, (cd - 1.4) / 4.5))
+            sp.tint = tintFor(shadeHex(col, 0.985 + 0.03 * hash(tx, ty)), SAND_BASE)
+          }
         }
         world.addChild(sp)
         chunk.sprites.push(sp)
@@ -340,44 +357,49 @@ export default function IslandMapIso() {
         const k = (u - 6.6) / (TIDE_T - 6.6)
         return [0, 0.2 * (1 - k)]
       }
-      type Dab = { x: number; y: number; nx: number; ny: number; arc: number; foam: Sprite[]; skirt?: Sprite; flankK: number }
+      type Dab = { x: number; y: number; nx: number; ny: number; arc: number; foam: Sprite[]; skirt?: Sprite; flankK: number; beach: number }
       const dabs: Dab[] = []
       if (tex['skirt'] && tex['foamlace']) {
         const skT = tex['skirt']
-        let arc = 0, prev: { x: number; y: number } | null = null
-        for (let th = 0; th < Math.PI * 2; th += 1.0 / (SPIT_R + 2)) {
-          const rr = SPIT_R + 0.9 * Math.sin(3 * th + 1.2)
-          const u = rr * Math.cos(th), w = -rr * Math.sin(th)
-          const x = isoX(MAP / 2, MAP / 2) + u * HW, y = isoY(MAP / 2, MAP / 2) + w * 2 * HH
-          if (prev) arc += Math.hypot(x - prev.x, y - prev.y)
-          prev = { x, y }
-          let nx = Math.cos(th), ny = -Math.sin(th)
-          const nl = Math.hypot(nx, ny); nx /= nl; ny /= nl
-          const flankK = Math.min(1, Math.abs(nx) / 0.85)
-          const fr = new Rectangle(Math.floor(arc) % Math.max(32, skT.width - 32), 0, 32, skT.height)
-          // seam + skirt hang toward the WATER side: flip on the up-screen arc or they
-          // drape onto the sand
-          const flipV = ny < 0 ? -1 : 1
-          const seam = new Sprite(new Texture({ source: skT.source, frame: fr }))
-          seam.anchor.set(0.5, 0.3); seam.scale.set(1, 0.55 * flipV); seam.tint = 0x113238; seam.alpha = 0.45
-          seam.position.set(x, y); seam.zIndex = (y / HH) * 16 + 1; seam.cullable = true
-          world.addChild(seam)
-          const skirt = new Sprite(new Texture({ source: skT.source, frame: fr }))
-          skirt.anchor.set(0.5, 0.62); skirt.scale.set(1, 1.5 * flipV); skirt.alpha = 0.6
-          skirt.position.set(x, y); skirt.zIndex = (y / HH) * 16 + 2; skirt.cullable = true
-          world.addChild(skirt)
-          const d: Dab = { x, y, nx, ny, arc, foam: [], skirt, flankK }
-          for (let f = 0; f < 2; f++) {
-            const laceT = (f === 1 && tex['foamlace2']) ? tex['foamlace2'] : tex['foamlace']
-            const period = Math.max(32, laceT.width - 32)
-            const off = Math.floor(arc + f * 160) % period
-            const fsp = new Sprite(new Texture({ source: laceT.source, frame: new Rectangle(off, 0, 32, laceT.height) }))
-            fsp.anchor.set(0.5, 0.84)
-            if (ny < 0) fsp.scale.y = -1
-            fsp.position.set(x, y); fsp.alpha = 0; fsp.cullable = true
-            world.addChild(fsp); d.foam.push(fsp)
+        const cx0 = isoX(MAP / 2, MAP / 2), cy0 = isoY(MAP / 2, MAP / 2)
+        for (let li = 0; li < LANDS.length; li++) {
+          const roughR = li === 0 ? 36 : 9
+          let arc = li * 173
+          let prev: { x: number; y: number } | null = null
+          for (let th = 0; th < Math.PI * 2; th += 1.0 / roughR) {
+            const cp = coastPoint(th, li)
+            const B = beachKTheta(li, th)
+            const x = cx0 + cp.u * HW, y = cy0 + cp.w * 2 * HH
+            if (prev) arc += Math.hypot(x - prev.x, y - prev.y)
+            prev = { x, y }
+            const flankK = Math.min(1, Math.abs(cp.nx) / 0.85)
+            const fr = new Rectangle(Math.floor(arc) % Math.max(32, skT.width - 32), 0, 32, skT.height)
+            const flipV = cp.ny < 0 ? -1 : 1 // hang toward the water on up-screen arcs
+            const seam = new Sprite(new Texture({ source: skT.source, frame: fr }))
+            seam.anchor.set(0.5, 0.3); seam.scale.set(1, 0.55 * flipV)
+            seam.tint = B > 0.35 ? 0x113238 : 0x0e2a30; seam.alpha = B > 0.35 ? 0.45 : 0.55
+            seam.position.set(x, y); seam.zIndex = (y / HH) * 16 + 1; seam.cullable = true
+            world.addChild(seam)
+            const d: Dab = { x, y, nx: cp.nx, ny: cp.ny, arc, foam: [], flankK, beach: B }
+            if (B > 0.3) {
+              const skirt = new Sprite(new Texture({ source: skT.source, frame: fr }))
+              skirt.anchor.set(0.5, 0.62); skirt.scale.set(1, 1.4 * flipV); skirt.alpha = 0.55
+              skirt.position.set(x, y); skirt.zIndex = (y / HH) * 16 + 2; skirt.cullable = true
+              world.addChild(skirt); d.skirt = skirt
+            }
+            const nFoam = B > 0.45 ? 2 : 1
+            for (let f = 0; f < nFoam; f++) {
+              const laceT = (f === 1 && tex['foamlace2']) ? tex['foamlace2'] : tex['foamlace']
+              const period = Math.max(32, laceT.width - 32)
+              const off = Math.floor(arc + f * 160) % period
+              const fsp = new Sprite(new Texture({ source: laceT.source, frame: new Rectangle(off, 0, 32, laceT.height) }))
+              fsp.anchor.set(0.5, 0.84)
+              if (cp.ny < 0) fsp.scale.y = -1
+              fsp.position.set(x, y); fsp.alpha = 0; fsp.cullable = true
+              world.addChild(fsp); d.foam.push(fsp)
+            }
+            dabs.push(d)
           }
-          dabs.push(d)
         }
       }
 
@@ -451,9 +473,11 @@ export default function IslandMapIso() {
       thor.zIndex = 0; world.addChild(thor)
       const jump = { active: false, t: 0 }
       const spawnP = (new URLSearchParams(location.search).get('spawn') ?? '').split(',').map(Number)
+      // default spawn: the east arrival bay's sand (the intro's landfall)
+      const ecp = coastPoint((315 * Math.PI) / 180)
       const pos = {
-        tx: spawnP.length === 2 && !isNaN(spawnP[0]) ? spawnP[0] : MAP / 2 + 2,
-        ty: spawnP.length === 2 && !isNaN(spawnP[1]) ? spawnP[1] : MAP / 2 + 2,
+        tx: spawnP.length === 2 && !isNaN(spawnP[0]) ? spawnP[0] : Math.round(txOf(ecp.u - ecp.nx * 3.5, ecp.w - ecp.ny * 3.5)),
+        ty: spawnP.length === 2 && !isNaN(spawnP[1]) ? spawnP[1] : Math.round(tyOf(ecp.u - ecp.nx * 3.5, ecp.w - ecp.ny * 3.5)),
       }
       let facing = 'south', at = 0
       const walkableAt = (tx: number, ty: number) => coastDist(tx, ty) > 0.4
@@ -521,16 +545,24 @@ export default function IslandMapIso() {
           const fct = 1 + w2.amp * (Math.sin(w2.ph - wt * 1.05) + 0.55 * Math.sin(w2.ph2 - wt * 0.42 + 1.7))
           w2.sp.tint = shadeHex(w2.base, fct)
         }
-        // the spit's tide
+        // the tide: real beaches get the beach's living wash; green-to-water coasts keep
+        // a quiet pinned lace breathing against the shore
         for (const d of dabs) {
           for (let f = 0; f < d.foam.length; f++) {
-            const [reach, foamA] = tidePhase(wt - f * TIDE_T / 2 - d.arc * 0.011)
-            const amp = TIDE_AMP * (1 - 0.85 * d.flankK)
-            const ox = -d.nx * reach * amp * HW * 0.9, oy = -d.ny * reach * amp * 2 * HH * 0.9
             const fsp = d.foam[f]
-            fsp.position.set(d.x + ox, d.y + oy)
-            fsp.zIndex = (d.y + oy) / HH * 16 + 6
-            fsp.alpha = foamA * 0.85 * (1 - 0.55 * d.flankK)
+            if (d.beach > 0.45) {
+              const [reach, foamA] = tidePhase(wt - f * TIDE_T / 2 - d.arc * 0.011)
+              const amp = TIDE_AMP * (1 - 0.85 * d.flankK)
+              const ox = -d.nx * reach * amp * HW * 0.9, oy = -d.ny * reach * amp * 2 * HH * 0.9
+              fsp.position.set(d.x + ox, d.y + oy)
+              fsp.zIndex = (d.y + oy) / HH * 16 + 6
+              fsp.alpha = foamA * 0.85 * (1 - 0.55 * d.flankK)
+            } else {
+              // quiet coasts: a low lace breath, never a bead necklace
+              fsp.position.set(d.x, d.y + 1.4 * Math.sin(wt * 1.05 + d.arc * 0.03))
+              fsp.zIndex = d.y / HH * 16 + 6
+              fsp.alpha = 0.06 + 0.16 * Math.pow(Math.max(0, Math.sin(wt * 0.85 + d.arc * 0.04)), 2)
+            }
           }
           if (d.skirt) d.skirt.position.y = d.y + 1.2 * Math.sin(wt * 0.9 + d.arc * 0.02)
         }
@@ -541,14 +573,17 @@ export default function IslandMapIso() {
           s.sp.alpha = k * 0.75 * inBand
           s.sp.scale.set(s.sc * (0.7 + 0.3 * k))
           if (k < 0.02) {
-            // respawn biased toward the band: most tries land in the light
-            let wx = 0, wy2 = 0
-            for (let t2 = 0; t2 < 3; t2++) {
+            // respawn on WATER, biased toward the sun band
+            let wx = 0, wy2 = 0, ok = false
+            for (let t2 = 0; t2 < 4; t2++) {
               wx = (vw * (hash(s.ph + t2, wt | 0) - 0.5)) / ZOOM + x
               wy2 = (vh * (hash(s.ph * 3 + t2, wt | 0) - 0.5)) / ZOOM + y
+              if (coastDistUW(wx / HW, (wy2 / HH - S0) / 2) >= -0.5) continue // land or shore: retry
+              ok = true
               if (sunBandDist(wx, wy2) < 950) break
             }
-            s.sp.position.set(wx, wy2)
+            if (ok) s.sp.position.set(wx, wy2)
+            else s.sp.alpha = 0
           }
         }
         // crest streaks: born in the deep, breathing over long cycles
