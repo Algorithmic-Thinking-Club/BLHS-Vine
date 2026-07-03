@@ -4,7 +4,7 @@ import {
   isoX, isoY, hash, vnoise, shadeHex, mix, rampAt, tintFor,
   loadWaterVariants, seaTile, animSwells, type SwellSprite,
 } from '../ocean'
-import { CX, CY, CONE, coastDs, shelfW, lagoonK, sandK, setSkeleton, elevInfo, CRATER_R, CHANNEL, LIFT_MAX } from './terrain'
+import { CX, CY, CONE, coastDs, shelfW, lagoonK, setSkeleton, elevInfo, CRATER_R, CHANNEL, LIFT_MAX, beachK, cliffK } from './terrain'
 
 // THE ISLAND MAP, v5 (2026-07-02, Ash's construction order) — the island's terrain is
 // built IN THE TILE SYSTEM on the iso engine, exactly like the beach built its ground:
@@ -46,9 +46,9 @@ const SAND_RAMP: [number, number][] = [[0, 0xdcbf87], [0.45, 0xead6a3], [1, 0xf7
 // the tropical grass family (normalized); sunlit light-green -> a touch richer inland
 const GRASS_BASE = [126, 158, 96]
 const GRASS_RAMP: [number, number][] = [[0, 0x9db95e], [0.5, 0x8dae54], [1, 0x7da04c]]
-// THE MOUNTAIN's tile families (Ash 2026-07-03: the volcano is TILES — dozens of rock/
-// volcanic variants on quick-escalating continuous lift, never terraces, never hero-art
-// paste). Normalized bases + elevation ramps; the azimuthal golden-hour split (c3's
+// The SUBSTRATE's tile families (?hero=0 — the engine skeleton: collision/depth truth).
+// At map zoom the visible mountain is the painted hero piece; these families skin the
+// tile path. Normalized bases + elevation ramps; the azimuthal golden-hour split (c3's
 // warm-lit SW vs violet-shadow NE) rides the tint.
 // basalt greys with warm LIGHT, never orange material — the sun carries the warmth
 const ROCK_BASE = [128, 118, 124]
@@ -78,6 +78,9 @@ export default function IslandMapIso() {
       // HERO: the mountain is the picked painted piece over a flat tile lowland
       // (master plan 2.4); ?hero=0 falls back to the terraced substrate for debugging
       const HERO = params.get('hero') !== '0'
+      // PAINT (master plan 2.-1, confirmed 2026-07-03): the island land at map zoom
+      // is ONE composed painting on the live sea; ?paint=0 falls back to tile land
+      const PAINT = params.get('paint') !== '0'
       const ZOOM = Number(params.get('zoom') || 0.62) || 0.62
       const cam = (params.get('cam') || `${CX},${CY}`).split(',').map(Number)
       const camTx = cam[0] ?? CX, camTy = cam[1] ?? CY
@@ -147,6 +150,23 @@ export default function IslandMapIso() {
         return lo
       }
 
+      // one tile's TOTAL ground height in HERO mode (swell + the cliff-coast lip),
+      // shared by the tile placer and the wall renderer so neighbor drops agree.
+      // Returns -1 for sea. The lip holds a full plateau to the very rim; the sand
+      // fringe never takes it (beaches stay at the waterline — that's the contrast).
+      const fringeAt = (tx: number, ty: number, bk: number, ck: number) =>
+        0.4 + 9.5 * Math.pow(bk, 1.35) + (0.4 + 1.2 * bk) * vnoise(tx / 6 + 5, ty / 6 + 9) - 3.2 * ck
+      // (2026-07-03: the in-engine cliff attempt — lip lift + per-tile strata strips —
+      // died in one round, and deserved to: 64px face strips at 0.42 zoom = a ring of
+      // barrel segments, the SAME unit-scale failure as the drawn-block mountain. The
+      // coast's look belongs to the composed painting; cliffK/cliffLipH stay in
+      // terrain.ts as the LAYOUT truth the composite guide renders from.)
+      const heroLift = (tx: number, ty: number) => {
+        const ds = dsAt(tx, ty)
+        if (ds <= 0) return -1
+        return elevInfo(tx, ty).e * LIFT_MAX * 0.35
+      }
+
       const world = new Container()
       world.scale.set(ZOOM)
       world.sortableChildren = true
@@ -169,6 +189,7 @@ export default function IslandMapIso() {
           if (dx * dx + dy * dy > SEA_R * SEA_R) continue
           const ds = dsAt(tx, ty)
           if (ds <= 0) { seaTile(world, tx, ty, ds, waterV, undefined, waterSprites); continue }
+          if (PAINT) continue // the painting IS the land; only the live sea renders
 
           // THE ISLAND (Ash 2026-07-03): the massif's base covers ~85% of the interior,
           // rising exponentially IN the tile engine — every tile carries its own height,
@@ -177,17 +198,20 @@ export default function IslandMapIso() {
           // (strata face), so the mountain is a solid body, never floating diamonds.
           const info = elevInfo(tx, ty)
           const u = info.u
-          // HERO: the lowland rises as a GENTLE continuous green swell (the painted
-          // piece carries the steep cone); full terraced substrate otherwise
-          const lift = HERO ? info.e * LIFT_MAX * 0.35 : quantLift(tx, ty)
           const dxc = tx - CONE.x, dyc = ty - CONE.y
           const dCone = Math.sqrt(dxc * dxc + dyc * dyc)
-          const sk = sandK(Math.atan2(ty - CY, tx - CX))
-          const fringe = 1.6 + 5.2 * sk + 1.1 * vnoise(tx / 6 + 5, ty / 6 + 9)
+          const thI = Math.atan2(ty - CY, tx - CX)
+          const bk = beachK(thI), ck = cliffK(thI)
+          // designed sand aprons (law #1): wide at the three bays, NONE under the
+          // cliff coasts — the uniform ring was the banned halo
+          const fringe = fringeAt(tx, ty, bk, ck)
           const inGrass = grassReady && (
             ds > fringe + 1.2 ||
             (ds > fringe && hash(tx * 5.1, ty * 2.9) < (ds - fringe) / 1.2)
           )
+          // HERO: gentle continuous swell + the raised cliff-coast shelf; the terraced
+          // substrate otherwise
+          const lift = HERO ? heroLift(tx, ty) : quantLift(tx, ty)
           // the azimuthal golden-hour split on the mountain (c3): the SW hemisphere
           // glows warm, the NE falls to cool violet; flat ground ignores it
           const az = 0.5 + 0.5 * Math.cos(Math.atan2(dyc, dxc) - 2.36)
@@ -360,6 +384,23 @@ export default function IslandMapIso() {
         }
       }
 
+      // ---- THE LAND PAINTING (master plan 2.-1, stage 1 = the coast ring): one
+      // composed piece over the live sea; single slice for now (row-keyed slices
+      // come with stage 3 when things need to sail behind the island) ----
+      if (PAINT) {
+        try {
+          const cm = await fetch('/art/island/composite.meta.json?r=' + Math.random()).then((r) => r.json())
+          const ct: Texture = await Assets.load(`/art/island/composite.png?w=${cm.w}&h=${cm.h}`)
+          ct.source.scaleMode = 'nearest'
+          const cs = new Sprite(ct)
+          cs.anchor.set(0, 0)
+          cs.scale.set(cm.s)
+          cs.position.set(cm.wx, cm.wy)
+          cs.zIndex = (CX + CY + 44) * 16 // over all island-adjacent sea (preview)
+          world.addChild(cs)
+        } catch { /* not baked yet — tile land shows via ?paint=0 */ }
+      }
+
       // ---- THE MOUNTAIN (master plan 2.4): the picked painted hero piece, planted
       // at the massif site over the gentle tile swell, occluding every row behind it ----
       if (HERO) {
@@ -369,50 +410,17 @@ export default function IslandMapIso() {
           vt.source.scaleMode = 'nearest'
           const vs = new Sprite(vt)
           vs.anchor.set(vm.ax ?? 0.5, vm.ay ?? 0.94)
-          vs.scale.set(4) // near texel parity; the tile swell + scrub ring + radial
-          // arm pieces (next pass) carry the base out to the sketch's ring
+          vs.scale.set(4) // near texel parity with the 1:1 ground tiles
           const sBase = CX + CY + 16 // the painted base ellipse lands on the mid-skirt ring
           vs.position.set(isoX(CX, CY), sBase * 16)
-          vs.zIndex = sBase * 16
+          // over the land painting's single preview slice; tile-land z otherwise
+          vs.zIndex = PAINT ? (CX + CY + 48) * 16 : sBase * 16
           world.addChild(vs)
         } catch { /* no mounted piece yet — the swell stands alone */ }
-
-        // radial ARM RIDGES (Ash's fan lines): painted fingers extend the mountain
-        // outward toward the base ring; roots tuck under the cone's feathered fringe,
-        // tails sink into the dried grass. z = ground-contact isoY, like every tile.
-        const armTex: Record<string, Texture | undefined> = {}
-        await Promise.all(['a', 'c', 'd'].map((n) =>
-          Assets.load(`/art/island/arms/arm-${n}.png`).then((t: Texture) => { armTex[n] = t }).catch(() => {})))
-        type ArmPut = { n: string; th: number; d: number; fx: number; ax: number; ay: number; v: number }
-        const puts: ArmPut[] = [
-          // roots tuck UNDER the cone's fringe (d ~10-11); axes point radially outward
-          { n: 'a', th: -0.15, d: 10.5, fx: 1, ax: 0.1, ay: 0.42, v: 0.94 },  // E-SE finger
-          { n: 'a', th: 0.62, d: 11, fx: 1, ax: 0.1, ay: 0.42, v: 0.88 },     // SE
-          { n: 'a', th: 2.25, d: 10.5, fx: -1, ax: 0.1, ay: 0.42, v: 0.97 },  // SW (mirrored)
-          { n: 'd', th: 0.95, d: 12.5, fx: 1, ax: 0.5, ay: 0.2, v: 0.9 },     // S fan
-          { n: 'c', th: 2.9, d: 12, fx: 1, ax: 0.88, ay: 0.5, v: 0.95 },      // W long ridge
-          { n: 'c', th: -0.5, d: 12, fx: -1, ax: 0.88, ay: 0.5, v: 0.9 },     // E long ridge
-          // silhouette depth: two arms peek from BEHIND the cone's shoulders
-          { n: 'a', th: 3.5, d: 10, fx: -1, ax: 0.1, ay: 0.42, v: 0.8 },      // NW peek
-          { n: 'a', th: -1.15, d: 10, fx: 1, ax: 0.1, ay: 0.42, v: 0.76 },    // NE peek
-        ]
-        for (const p of puts) {
-          const t = armTex[p.n]
-          if (!t) continue
-          t.source.scaleMode = 'nearest'
-          const sc = 3
-          const s = new Sprite(t)
-          s.anchor.set(p.ax, p.ay)
-          s.scale.set(sc * p.fx, sc)
-          const atx = CX + Math.cos(p.th) * p.d, aty = CY + Math.sin(p.th) * p.d
-          const al = elevInfo(Math.round(atx), Math.round(aty)).e * LIFT_MAX * 0.35
-          s.position.set(isoX(atx, aty), isoY(atx, aty) - al)
-          s.zIndex = s.position.y + (1 - p.ay) * t.height * sc - 8
-          // tame the hot crest toward the cone's palette; vary value per instance
-          const vv = Math.round(p.v * 255)
-          s.tint = (Math.round(vv * 0.94) << 16) | (vv << 8) | vv
-          world.addChild(s)
-        }
+        // (standalone "arm ridge" sprites tried here 2026-07-02 read as a field of mini
+        // volcanoes — every free-standing rock piece gets its own summit. Dead end.
+        // The skirt must be CONTINUATION wedges tucked under the cone fringe: flat
+        // tapering lava-flow fans, no peak, grooves continuing the cone's — next pass.)
       }
 
       // ---- atmosphere: golden hour over open water — warm wash + low-sun glow from the

@@ -72,13 +72,48 @@ function azWin(theta: number, c: number, w: number) {
 }
 export function lagoonK(tx: number, ty: number) {
   const th = Math.atan2(ty - CY, tx - CX)
-  return Math.max(azWin(th, LAGOON.c, LAGOON.w), 0.7 * azWin(th, COVE.c, COVE.w))
+  return Math.max(
+    azWin(th, LAGOON.c, LAGOON.w),
+    0.7 * azWin(th, COVE.c, COVE.w),
+    0.55 * azWin(th, DELTA.c, DELTA.w),
+  )
+}
+
+// ---- COAST GRAMMAR (law #1: cliffs are the DEFAULT coast, beaches are EVENTS).
+// Three designed bays wear sand; everywhere else the land rides a raised shelf and
+// ends in c3's red-banded strata walls dropping to deep water. The cliff-vs-beach
+// contrast is the coast's whole grammar (master plan §1).
+// screen-WSW pocket on the camera-facing shore (the west TIP folds — no flat coast
+// there; the SW lava tongue bends here): the black-sand delta
+const DELTA = { c: 2.2, w: 0.4 }
+export function beachK(theta: number) {
+  return Math.max(
+    azWin(theta, LAGOON.c, LAGOON.w),      // E arrival apron — the wide golden event
+    0.85 * azWin(theta, COVE.c, COVE.w),   // S river-mouth cove
+    0.8 * azWin(theta, DELTA.c, DELTA.w),  // W black delta
+  )
+}
+export function deltaK(theta: number) { return azWin(theta, DELTA.c, DELTA.w) }
+export function cliffK(theta: number) {
+  return Math.max(0, Math.min(1, 1 - beachK(theta) * 1.6))
+}
+// the cliff lip's height profile (screen px over the waterline): proud wandering
+// headlands, tallest on the N faces (the lighthouse bluff), easing at the bay shoulders
+export function cliffLipH(theta: number) {
+  const k = cliffK(theta)
+  if (k <= 0.02) return 0
+  const northK = 0.5 + 0.5 * Math.cos(theta + 2.36) // 1 facing screen-N
+  const wob = vnoise(Math.cos(theta) * 2.7 + 21, Math.sin(theta) * 2.7 + 13)
+  // proud c3 headlands (the composite guide reads this; the live renderer no longer
+  // lifts the rim — the painting carries the cliff look, this profile shapes it)
+  return k * (44 + 30 * northK + 40 * wob)
 }
 
 // how wide the underwater shelf reads at this azimuth: wide mosaic inside the lagoon
-// windows, a tight collar under the cliff coasts
+// windows, a tight collar under the cliff coasts (deep water almost at the rock)
 export function shelfW(tx: number, ty: number) {
-  return 3.5 + 12 * lagoonK(tx, ty)
+  const th = Math.atan2(ty - CY, tx - CX)
+  return 1.7 + 2.3 * (1 - cliffK(th)) + 12 * lagoonK(tx, ty)
 }
 
 // ---- ELEVATION, e in [0,1]: a LOW rolling island body + THE CONE's drastic rise.
@@ -113,7 +148,7 @@ export function massifR(theta: number) {
   // the base reaches almost to the coast: only the beach fringe + a flat apron survive
   // (wider on the sandy arrival azimuths, tight under the future cliff coasts)
   const wob = vnoise(Math.cos(theta) * 1.8 + 11, Math.sin(theta) * 1.8 + 6) - 0.5
-  const m = 4.2 + 3.4 * sandK(theta) + 2.6 * wob
+  const m = 4.2 + 4.6 * beachK(theta) + 2.6 * wob
   return Math.max(16, coastR(theta) - Math.max(2.5, m))
 }
 export type ElevInfo = { e: number; u: number; r: number }
