@@ -13,8 +13,8 @@ export const COAST_R = 32 // mean coast radius (tile diagonals) — the island r
 // the volcano site: dead CENTER (Ash 2026-07-02 — unlike bon3's offset peak, our island
 // is center-grounded: the massif rises from the middle and the land masses around it)
 export const CONE = { x: CX, y: CY, r: 11 }
-export const LIFT_MAX = 520 // screen px at e=1 — a REAL mountain at vista scale (the
-// summit towers ~470px over the flats; the exponential curve keeps the body low)
+export const LIFT_MAX = 760 // screen px at e=1 — the summit rim rides ~500px over the
+// flats at world scale; the exponential curve keeps most of the base low
 
 // ---- the coastline: BON3'S OWN SKELETON (Ash: "get bon3's skeleton in") — the locked
 // concept's land mask traced into a per-azimuth radius profile (scripts, saved to
@@ -99,31 +99,56 @@ export function elevBody(tx: number, ty: number) {
   e += 0.14 * Math.pow(k, 1.6)
   return Math.max(0, Math.min(1, e))
 }
-export function elevAt(tx: number, ty: number) {
-  // THE MASSIF (Ash's sketch, 2026-07-03): the mountain's base covers most of the
-  // interior — foothills begin near the coastal flats and rise GRADUALLY, steepening
-  // toward the center, then EXPONENTIALLY into the Mayon cone. One smooth curve,
-  // no bands, no benches; the summit is the island's whole silhouette.
-  const ds = coastDs(tx, ty)
-  if (ds <= 0) return 0
-  const rim = Math.min(1, ds / 4) // the coast flats ease up from the water
-  const dxc = tx - CONE.x, dyc = ty - CONE.y
-  const dCone = Math.sqrt(dxc * dxc + dyc * dyc)
-  // the reference volcanos' construction: a BROAD gentle skirt covering the interior
-  // (the sketch's base oval) + a COMPACT steep cone whose height rivals its footprint
-  // (the towering silhouette every game volcano cheats with). One smooth join at the
-  // cone's foot; concave Mayon curve; the crater bowl caps the top.
-  const skirt = Math.max(0, 1 - dCone / 28)
-  let e = 0.12 * Math.pow(skirt, 1.4)
-  if (dCone < 11) {
-    const k = 1 - dCone / 11
-    e += 0.88 * Math.pow(k, 1.5)
-  }
-  if (dCone < 2.2) e -= 0.1 * (1 - dCone / 2.2) // the crater bowl dips at the rim
-  // soft landform wander so the skirt never reads mathematical
-  e += 0.03 * (vnoise(tx / 13 + 3, ty / 13 + 8) - 0.5) * (1 - Math.max(0, 1 - dCone / 12))
-  return Math.max(0, Math.min(1, e * rim))
+// THE MASSIF (Ash 2026-07-03, binding): the volcano IS the island's body. Its base
+// covers ~85% of the interior — only the sand fringe and a thin flat apron stay outside
+// it. From the base edge the ground rises EXTREMELY gently, then curves upward like an
+// exponential graph into the summit cone at the island's center. It is built IN the iso
+// tile engine: every tile carries its own height, so the step between neighbors is
+// sub-pixel at the base and grows into real stacked rock walls near the cone — smooth
+// variable terracing, never farm benches, never a pasted hero image.
+const K_EXP = 6.2 // the exponential's sharpness — THE J CURVE: a near-flat skirt for
+// half the radius, then the sweep rockets into a tall NARROW summit (Ash's iconic read)
+export const CRATER_R = 2.2
+export function massifR(theta: number) {
+  // the base reaches almost to the coast: only the beach fringe + a flat apron survive
+  // (wider on the sandy arrival azimuths, tight under the future cliff coasts)
+  const wob = vnoise(Math.cos(theta) * 1.8 + 11, Math.sin(theta) * 1.8 + 6) - 0.5
+  const m = 4.2 + 3.4 * sandK(theta) + 2.6 * wob
+  return Math.max(16, coastR(theta) - Math.max(2.5, m))
 }
+export type ElevInfo = { e: number; u: number; r: number }
+export function elevInfo(tx: number, ty: number): ElevInfo {
+  const ds = coastDs(tx, ty)
+  if (ds <= 0) return { e: 0, u: 0, r: 0 }
+  const dxc = tx - CONE.x, dyc = ty - CONE.y
+  const d = Math.sqrt(dxc * dxc + dyc * dyc)
+  const th = Math.atan2(dyc, dxc)
+  const R = massifR(th)
+  if (d >= R) return { e: 0, u: 0, r: 0 }
+  let u = 1 - d / R // 0 at the base edge, 1 at the cone site
+  // RADIAL SPOKES (Ash's sketch, 2026-07-03): ridgelines and gullies fan from the
+  // summit to the base ring — the volcano's whole surface organizes radially, the way
+  // real drainage carves a cone. ~9 spokes, wandering outward, strongest mid-flank,
+  // converging clean at the rim. r in [-1 ridge crest .. +1 gully floor]... (sign:
+  // positive sin = crest). Contour terraces break along these, so nothing rings.
+  const wob = vnoise(Math.cos(th) * 3.1 + 15, Math.sin(th) * 3.1 + 9) - 0.5
+  const drift = (vnoise(tx / 11 + 5, ty / 11 + 3) - 0.5) * 1.8
+  const spoke = Math.sin(th * 9 + wob * 3.4 + drift)
+  const bar = (0.35 + 0.65 * Math.abs(spoke)) * spoke // sharpened crests
+  const rg2 = vnoise(Math.cos(th) * 5.4 + 13, Math.sin(th) * 5.4 + 2) - 0.5
+  const swellK = Math.sin(Math.PI * Math.min(1, u * 1.15)) * (1 - Math.max(0, (u - 0.82) / 0.18))
+  u += (0.055 * bar + 0.025 * rg2) * Math.max(0, swellK)
+  u = Math.max(0, Math.min(1, u))
+  let e = (Math.exp(K_EXP * u) - 1) / (Math.exp(K_EXP) - 1)
+  // the crater bowl caps the cone: deep enough that the exponential's center sinks
+  // well below the rim ring — the RIM is the summit, never an apex chimney
+  if (d < CRATER_R) e -= 0.45 * Math.pow(1 - d / CRATER_R, 0.8)
+  // fine landform grain so the low skirt rolls instead of laying mathematically flat
+  e += 0.018 * (vnoise(tx / 9 + 3, ty / 9 + 8) - 0.5) * Math.min(1, u * 9) * (1 - u * 0.8)
+  const rim = Math.min(1, ds / 4) // the coast flats ease up from the water
+  return { e: Math.max(0, Math.min(1, e * rim)), u, r: bar }
+}
+export function elevAt(tx: number, ty: number) { return elevInfo(tx, ty).e }
 // walkability at vista/walk scale: the mountain blocks where its slope turns to wall
 export function slopeAt(tx: number, ty: number) {
   const d = 0.5
