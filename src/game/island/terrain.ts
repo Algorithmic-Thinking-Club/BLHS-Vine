@@ -10,7 +10,9 @@
 
 export const CX = 100, CY = 100 // island anchor in tile space (the 200x200 map centers here)
 export const COAST_R = 32 // mean coast radius (tile diagonals) — the island reads BIG
-export const CONE = { x: CX - 6, y: CY - 9, r: 11 } // the volcano site, NW-offset (Moorea asymmetry)
+// the volcano site: dead CENTER (Ash 2026-07-02 — unlike bon3's offset peak, our island
+// is center-grounded: the massif rises from the middle and the land masses around it)
+export const CONE = { x: CX, y: CY, r: 11 }
 export const LIFT_MAX = 96 // screen px at e=1 — the cone's drama; the island body stays low
 
 // ---- the coastline: BON3'S OWN SKELETON (Ash: "get bon3's skeleton in") — the locked
@@ -26,7 +28,12 @@ function skelAt(arr: number[], bins: number, theta: number) {
   return arr[i] * (1 - f) + arr[j] * f
 }
 export function coastR(theta: number) {
-  if (SKEL) return skelAt(SKEL.radius, SKEL.bins, theta)
+  // the traced profile keeps bon3's geological wander but with its arms pulled toward
+  // the mean (Ash: protrusions too extreme; center-ground the mass, keep it irregular)
+  if (SKEL) {
+    const raw = skelAt(SKEL.radius, SKEL.bins, theta)
+    return Math.max(27, 38 + (raw - 38) * 0.55)
+  }
   return COAST_R * (
     1
     + 0.11 * Math.sin(theta * 2 + 0.7)
