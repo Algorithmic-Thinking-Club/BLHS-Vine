@@ -10,13 +10,11 @@ function anonId(key: string) {
   return v
 }
 
-// the participant travels on the active save now; fall back to a device-anon id pre-join
+// the participant travels on the run's save; fall back to a device-anon id pre-join
 let activeParticipant = anonId('blhs_anon_id')
 try {
-  const raw = localStorage.getItem('blhs_active')
-  const saves = JSON.parse(localStorage.getItem('blhs_saves') ?? '[]')
-  const active = Array.isArray(saves) ? saves.find((s: { id?: string }) => s.id === raw) : null
-  if (active?.participantId) activeParticipant = active.participantId
+  const s = JSON.parse(localStorage.getItem('blhs_save_v2') ?? 'null')
+  if (s?.participantId) activeParticipant = s.participantId
 } catch { /* anon */ }
 
 const logger = new Logger({

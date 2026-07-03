@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNav } from '../SceneManager'
-import { continueLatest, listSaves, newSave } from '../../game/save'
+import { beginAdventure, loadSave } from '../../game/save'
 import { track } from '../../game/telemetry'
 import { GearButton, SettingsPanel, applySettings, loadSettings } from '../SettingsPanel'
-import { SavesPanel } from '../SavesPanel'
 import './boot-title.css'
 
 // Title (GAME-DESIGN §4.2). The backdrop is the cove itself — for now a captured frame of
@@ -14,28 +13,25 @@ import './boot-title.css'
 
 export default function TitleScene() {
   const nav = useNav()
-  const saves = listSaves()
-  const latest = saves[0] ?? null
+  const save = loadSave()
   const [gullRight, setGullRight] = useState(false)
   const [gullHop, setGullHop] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [savesOpen, setSavesOpen] = useState(false)
 
-  useEffect(() => { track('title_shown', { saves: saves.length }); applySettings(loadSettings()) }, [saves.length])
+  useEffect(() => { track('title_shown', { hasSave: !!save }); applySettings(loadSettings()) }, [save])
 
-  // where a run resumes: mid-intro -> the beach; intro finished -> the island hub. The beach
-  // and island entries ride the illustrated scene cover (calm, heavy — never a flash).
+  // one student, one run. Resume where they left off: mid-intro -> the beach; intro finished ->
+  // the island hub. Both ride the illustrated scene cover (calm, heavy — never a flash).
   const resume = (introDone: boolean) => {
     if (introDone) nav.go('islandmap', { kind: 'scene', image: '/art/ui/loading-islands.png', title: 'THE BLHS ISLANDS', holdMs: 2200 })
     else nav.go('beach', { kind: 'scene', title: 'THE FAR SHORE', holdMs: 2200 })
   }
-  const cont = () => {
-    track('continue_clicked')
-    const s = continueLatest()
-    if (s) resume(s.introDone)
-    else { newSave(); resume(false) }   // no save yet: same as a fresh voyage
+  // no save -> Begin Adventure (starts the one run). Save -> Continue where they left off.
+  // (Starting over is Settings -> Danger Zone -> Restart, never a free title button.)
+  const go = () => {
+    if (save) { track('continue_clicked'); resume(save.introDone) }
+    else { track('begin_clicked'); beginAdventure(); resume(false) }
   }
-  const newVoyage = () => { track('new_voyage_clicked'); newSave(); resume(false) }
 
   const flapGull = () => { setGullHop((h) => h + 1); setGullRight((g) => !g) }
 
@@ -45,7 +41,7 @@ export default function TitleScene() {
       <div className="ti-veil" />
 
       <div className="ti-stack">
-        {latest && <div className="ti-welcome">Welcome back, {latest.handle || 'Panther'}</div>}
+        {save && <div className="ti-welcome">Welcome back, {save.handle || 'Panther'}</div>}
 
         <div className="ti-wordmark">
           <div className="ti-signpaper" />
@@ -63,20 +59,15 @@ export default function TitleScene() {
         </div>
 
         <div className="ti-actions">
-          <button className="ti-plank" onClick={latest ? cont : newVoyage}>
-            <span className="ti-plank-label">{latest ? `Continue — Year ${latest.year}, ${latest.season}` : 'Set Sail'}</span>
+          <button className="ti-plank" onClick={go}>
+            <span className="ti-plank-label">{save ? `Continue — Year ${save.year}, ${save.season}` : 'Begin Adventure'}</span>
           </button>
-          <button className="ti-newvoyage" onClick={newVoyage}>New voyage</button>
-          {saves.length > 0 && (
-            <button className="ti-newvoyage" onClick={() => setSavesOpen(true)}>Saves ({saves.length})</button>
-          )}
         </div>
       </div>
 
       <div className="ti-credit">made by the Algorithmic Thinking Club</div>
       <GearButton onClick={() => setSettingsOpen(true)} />
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
-      {savesOpen && <SavesPanel onClose={() => setSavesOpen(false)} onContinue={(s) => resume(s.introDone)} />}
     </div>
   )
 }

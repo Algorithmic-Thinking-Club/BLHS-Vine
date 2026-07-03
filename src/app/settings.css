@@ -1,4 +1,6 @@
-/* The settings sheet (GAME-DESIGN §4.7) + the corner gear. Paper on the square kit panel. */
+/* The settings sheet (GAME-DESIGN §4.7): tabbed paper on the square kit panel. The content
+   sits in an absolutely-positioned inner so its inset resolves against the PANEL (plain %
+   padding would resolve against the full-width veil and swallow the panel). */
 
 .st-veil {
   position: absolute; inset: 0; z-index: 80;
@@ -6,90 +8,109 @@
   display: flex; align-items: center; justify-content: center;
 }
 .st-panel {
-  width: min(360px, 88vw);
-  aspect-ratio: 448 / 448;
+  position: relative;
+  width: min(420px, 90vw); aspect-ratio: 448 / 470;
   background: url('/art/ui/panel-square.png') center / 100% 100% no-repeat;
   image-rendering: pixelated;
   filter: drop-shadow(0 10px 24px rgba(2, 8, 10, .6));
-  display: flex; flex-direction: column; align-items: center;
-  /* MEASURED paper zone of panel-square: x 16.5%..83.3%, y 15%..85.3% */
-  padding: 16% 18% 16.5%;
-  box-sizing: border-box;
-  container-type: inline-size;
   animation: st-in 260ms cubic-bezier(.2, 1.2, .35, 1) both;
 }
 @keyframes st-in { from { transform: translateY(12px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
-
-.st-title {
-  font-family: 'Harbormaster', 'Deckhand', monospace;
-  font-size: 6.4cqw; color: #3c2d1c; margin-bottom: 6cqw;
+.st-inner {
+  position: absolute; inset: 15% 16% 15%;
+  display: flex; flex-direction: column; align-items: stretch;
+  container-type: inline-size;   /* cqw below resolves against THIS inner's width */
 }
+
+.st-tabs { display: flex; gap: 2cqw; margin-bottom: 3cqw; }
+.st-tab {
+  flex: 1;
+  font-family: 'Harbormaster', 'Deckhand', monospace;
+  font-size: 4.6cqw; color: #6a563c;
+  background: linear-gradient(180deg, #e0d5b9, #d3c6a5);
+  border: 2px solid #8a744f; border-bottom: none; border-radius: 5px 5px 0 0;
+  padding: 1.6cqw 0; cursor: pointer;
+}
+.st-tab-on { color: #234c40; border-color: #3c6e60; background: linear-gradient(180deg, #ece2c8, #e2d7b8); }
+
+.st-page { flex: 1; overflow-y: auto; border-top: 2px solid #8a744f; padding-top: 3cqw; display: flex; flex-direction: column; }
+.st-page::-webkit-scrollbar { width: 7px; }
+.st-page::-webkit-scrollbar-thumb { background: #8a744f; border-radius: 4px; }
+
+/* ---- account tab: the identity card + preferences ---- */
+.st-idcard {
+  background: linear-gradient(180deg, #efe7d1, #e4d8ba);
+  border: 2px solid #a08d64; border-radius: 6px;
+  padding: 3cqw 4cqw; margin-bottom: 4cqw;
+}
+.st-idrow { display: flex; justify-content: space-between; align-items: baseline; padding: 1.2cqw 0; border-bottom: 1px dashed rgba(138, 116, 79, .3); }
+.st-idrow:last-child { border-bottom: none; }
+.st-idlabel { font-family: 'Deckhand', monospace; font-size: 3.8cqw; color: #8a7a60; }
+.st-idval { font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 4.4cqw; color: #33261a; }
+.st-prefhead { font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 4.2cqw; color: #5a4a34; margin: 1cqw 0 1.5cqw; }
+
 .st-row {
-  width: 100%;
-  display: flex; align-items: center; justify-content: space-between;
-  font-family: 'Deckhand', monospace;
-  font-size: 4.8cqw; color: #4a3826;
-  margin: 2.6cqw 0;
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  font-family: 'Deckhand', monospace; font-size: 4.4cqw; color: #4a3826; margin: 2cqw 0;
 }
 .st-toggle, .st-segbtn {
-  font-family: 'Deckhand', monospace;
-  font-size: 4.2cqw; color: #4a3826;
+  font-family: 'Deckhand', monospace; font-size: 4cqw; color: #4a3826;
   background: linear-gradient(180deg, #e6dcc2, #dbcfaf);
-  border: 2px solid #8a744f; border-radius: 3px;
-  padding: 1cqw 3cqw; cursor: pointer;
+  border: 2px solid #8a744f; border-radius: 3px; padding: 1cqw 3cqw; cursor: pointer;
 }
 .st-seg { display: flex; gap: 1.4cqw; }
 .st-on { border-color: #3c6e60; color: #234c40; box-shadow: 0 0 0 2px rgba(60, 110, 96, .3); }
-.st-captain { width: 100%; margin-top: 3cqw; }
-.st-captain-head {
-  font-family: 'Harbormaster', 'Deckhand', monospace;
-  font-size: 4.2cqw; color: #2f6e60; text-align: center; margin-bottom: 1.6cqw;
+.st-about {
+  margin-top: auto; padding-top: 3cqw;
+  font-family: 'Deckhand', monospace; font-size: 3.4cqw; line-height: 1.45; color: #7a6a52; text-align: center;
 }
-.st-captain-row { display: flex; gap: 1.6cqw; justify-content: center; }
+
+/* ---- danger zone tab ---- */
+.st-dangerhead { font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 5.4cqw; color: #a3492c; margin-bottom: 2cqw; }
+.st-dangerbody { font-family: 'Deckhand', monospace; font-size: 3.9cqw; line-height: 1.5; color: #6a563c; margin-bottom: 4cqw; }
+.st-dangerbtn {
+  font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 4.2cqw; color: #fff;
+  background: linear-gradient(180deg, #d0674f, #b03f28); border: 2px solid #7c2c1a; border-radius: 5px;
+  padding: 2cqw 5cqw; cursor: pointer;
+}
+.st-dangerbtn:hover { filter: brightness(1.06); }
+.st-cancelbtn {
+  font-family: 'Deckhand', monospace; font-size: 4cqw; color: #4a3826;
+  background: linear-gradient(180deg, #e6dcc2, #dbcfaf); border: 2px solid #8a744f; border-radius: 5px;
+  padding: 2cqw 5cqw; cursor: pointer;
+}
+.st-confirmrow { display: flex; gap: 2cqw; flex-wrap: wrap; }
+
+.st-captain { width: 100%; margin-top: 5cqw; border-top: 1px dashed rgba(138, 116, 79, .4); padding-top: 3cqw; }
+.st-captain-head { font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 4cqw; color: #2f6e60; text-align: center; margin-bottom: 1.6cqw; }
+.st-captain-row { display: flex; gap: 1.6cqw; justify-content: center; flex-wrap: wrap; }
 .st-captain-row button {
-  font-family: 'Deckhand', monospace;
-  font-size: 3.6cqw; color: #e8dcc0;
-  background: linear-gradient(#2f5a50, #234339);
-  border: 2px solid #16302a; border-radius: 3px;
+  font-family: 'Deckhand', monospace; font-size: 3.4cqw; color: #e8dcc0;
+  background: linear-gradient(#2f5a50, #234339); border: 2px solid #16302a; border-radius: 3px;
   padding: 1cqw 2cqw; cursor: pointer;
 }
-.st-about {
-  margin-top: auto;
-  font-family: 'Deckhand', monospace;
-  font-size: 3.5cqw; line-height: 1.45; color: #7a6a52;
-  text-align: center;
-}
+
 .st-close {
-  margin-top: 4cqw;
-  min-width: 56%;
+  margin-top: 3cqw; align-self: center; min-width: 50%;
   aspect-ratio: 512 / 150;
-  background: url('/art/ui/plank-button.png') center / 100% 100% no-repeat;
-  image-rendering: pixelated;
+  background: url('/art/ui/plank-button.png') center / 100% 100% no-repeat; image-rendering: pixelated;
   border: none; cursor: pointer;
-  font-family: 'Harbormaster', 'Deckhand', monospace;
-  font-size: 4.6cqw; color: #f0e4c8;
+  font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 4.4cqw; color: #f0e4c8;
   text-shadow: 0 2px 0 rgba(30, 16, 6, .75);
 }
 
 .st-gear {
-  position: absolute;
-  bottom: max(2.2vh, 12px); right: max(2vw, 14px);
-  z-index: 70;
-  width: 40px; height: 40px;
-  font-size: 20px; line-height: 1;
-  color: #e8dcc0;
-  background: linear-gradient(#4a3421, #382614);
-  border: 2px solid #241708; border-radius: 5px;
-  box-shadow: 0 2px 0 #1a1006;
-  cursor: pointer;
-  opacity: .8;
+  position: absolute; bottom: max(2.2vh, 12px); right: max(2vw, 14px); z-index: 70;
+  width: 40px; height: 40px; font-size: 20px; line-height: 1; color: #e8dcc0;
+  background: linear-gradient(#4a3421, #382614); border: 2px solid #241708; border-radius: 5px;
+  box-shadow: 0 2px 0 #1a1006; cursor: pointer; opacity: .8;
   transition: opacity 140ms ease, transform 140ms ease;
 }
 .st-gear:hover { opacity: 1; transform: rotate(18deg); }
 
 /* text-size + reduced-motion hooks (settings apply data attrs on <html>) */
-html[data-textsize='s'] .cs-dialogue-text { font-size: clamp(15px, 2.1vh, 21px); }
-html[data-textsize='l'] .cs-dialogue-text { font-size: clamp(22px, 3.1vh, 30px); }
+html[data-textsize='s'] .cs-dialogue-text { font-size: clamp(19px, 3.4vh, 30px); }
+html[data-textsize='l'] .cs-dialogue-text { font-size: clamp(30px, 5.6vh, 44px); }
 html[data-rm='1'] .ti-backdrop { animation: none !important; }
 html[data-rm='1'] .i3-scroll { animation-duration: 1ms !important; }
 html[data-rm='1'] .tr-root * { animation-duration: 200ms !important; }
