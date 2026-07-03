@@ -13,7 +13,8 @@ export const COAST_R = 32 // mean coast radius (tile diagonals) — the island r
 // the volcano site: dead CENTER (Ash 2026-07-02 — unlike bon3's offset peak, our island
 // is center-grounded: the massif rises from the middle and the land masses around it)
 export const CONE = { x: CX, y: CY, r: 11 }
-export const LIFT_MAX = 96 // screen px at e=1 — the cone's drama; the island body stays low
+export const LIFT_MAX = 520 // screen px at e=1 — a REAL mountain at vista scale (the
+// summit towers ~470px over the flats; the exponential curve keeps the body low)
 
 // ---- the coastline: BON3'S OWN SKELETON (Ash: "get bon3's skeleton in") — the locked
 // concept's land mask traced into a per-azimuth radius profile (scripts, saved to
@@ -99,24 +100,36 @@ export function elevBody(tx: number, ty: number) {
   return Math.max(0, Math.min(1, e))
 }
 export function elevAt(tx: number, ty: number) {
+  // THE MASSIF (Ash's sketch, 2026-07-03): the mountain's base covers most of the
+  // interior — foothills begin near the coastal flats and rise GRADUALLY, steepening
+  // toward the center, then EXPONENTIALLY into the Mayon cone. One smooth curve,
+  // no bands, no benches; the summit is the island's whole silhouette.
   const ds = coastDs(tx, ty)
   if (ds <= 0) return 0
-  const rim = Math.min(1, ds / 5) // the coast fringe eases up from the water
+  const rim = Math.min(1, ds / 4) // the coast flats ease up from the water
   const dxc = tx - CONE.x, dyc = ty - CONE.y
   const dCone = Math.sqrt(dxc * dxc + dyc * dyc)
-  // the island body: gentle rise toward the interior, capped LOW (Ash: light elevation,
-  // relatively flat — the relief reads as soft rolling jungle, not benches)
-  const toCone = Math.max(0, 1 - dCone / (COAST_R * 1.1))
-  let e = rim * (0.1 + 0.16 * toCone)
-  // soft landform wander
-  e += 0.035 * (vnoise(tx / 16 + 3, ty / 16 + 8) - 0.5) * rim
-  // THE CONE: the one drastic rise (Mayon's concave flare — steep near the site,
-  // flaring smoothly into the body)
-  if (dCone < CONE.r * 2.1) {
-    const k = 1 - dCone / (CONE.r * 2.1)
-    e += 0.66 * Math.pow(k, 1.75)
+  // the reference volcanos' construction: a BROAD gentle skirt covering the interior
+  // (the sketch's base oval) + a COMPACT steep cone whose height rivals its footprint
+  // (the towering silhouette every game volcano cheats with). One smooth join at the
+  // cone's foot; concave Mayon curve; the crater bowl caps the top.
+  const skirt = Math.max(0, 1 - dCone / 28)
+  let e = 0.12 * Math.pow(skirt, 1.4)
+  if (dCone < 11) {
+    const k = 1 - dCone / 11
+    e += 0.88 * Math.pow(k, 1.5)
   }
-  return Math.max(0, Math.min(1, e))
+  if (dCone < 2.2) e -= 0.1 * (1 - dCone / 2.2) // the crater bowl dips at the rim
+  // soft landform wander so the skirt never reads mathematical
+  e += 0.03 * (vnoise(tx / 13 + 3, ty / 13 + 8) - 0.5) * (1 - Math.max(0, 1 - dCone / 12))
+  return Math.max(0, Math.min(1, e * rim))
+}
+// walkability at vista/walk scale: the mountain blocks where its slope turns to wall
+export function slopeAt(tx: number, ty: number) {
+  const d = 0.5
+  const gx = elevAt(tx + d, ty) - elevAt(tx - d, ty)
+  const gy = elevAt(tx, ty + d) - elevAt(tx, ty - d)
+  return Math.sqrt(gx * gx + gy * gy) / (2 * d)
 }
 
 // ---- the TWO LAVA FLOWS: polylines from the cone's flanks (where the carved heads sit)

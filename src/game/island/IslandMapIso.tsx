@@ -72,8 +72,12 @@ export default function IslandMapIso() {
       const sandV: Texture[] = []
       const grassV: Texture[] = []
       let waterV: Texture[] = []
+      let massifT: Texture | undefined
+      let massifMeta: { x0: number; y0: number; anchor_wy: number } | undefined
       await Promise.all([
         fetch('/art/island/skeleton.json').then((r) => r.json()).then(setSkeleton).catch(() => {}),
+        Assets.load('/art/island/massif.png').then((t: Texture) => { massifT = t }).catch(() => {}),
+        fetch('/art/island/massif-guide.meta.json').then((r) => r.json()).then((m) => { massifMeta = m }).catch(() => {}),
         loadWaterVariants().then((v) => { waterV = v }),
         ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/intro/sand-n/${i}.png`).then((t: Texture) => { sandV[i] = t }).catch(() => {})),
         // the new tropical grass variants (staged as they come out of the normalizer)
@@ -140,6 +144,19 @@ export default function IslandMapIso() {
           }
           world.addChild(sp)
         }
+      }
+
+      // ---- THE MASSIF (R1): the quilted hand-pixelled mountain from the heightfield
+      // guide, mounted at 1:1 world px on the terrain's own anchor. One sprite at sail
+      // scale (its base-front row wins over the ground; ships sort by s around the
+      // island); the saved s-map slices it for walk scale later. Silhouette, light and
+      // geometry all come from terrain.ts through the guide — art and collision agree.
+      if (massifT && massifMeta) {
+        massifT.source.scaleMode = 'nearest'
+        const m = new Sprite(massifT)
+        m.position.set(massifMeta.x0, massifMeta.y0)
+        m.zIndex = ((CX + CY) + 6) * 16 + 10
+        world.addChild(m)
       }
 
       // ---- atmosphere: golden hour over open water — warm wash + low-sun glow from the
