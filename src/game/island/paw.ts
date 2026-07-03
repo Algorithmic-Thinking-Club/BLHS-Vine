@@ -1,14 +1,22 @@
-// THE PANTHER PAW — the central island's geometry (build 4, phase 2).
+// THE PANTHER PAW — the central island's geometry (build 4, phase A).
 //
-// One broad metacarpal pad + four toe islets at true print proportion (each toe ~1/4 the
-// pad's width, arced close over a flattened crown, the two middle toes riding highest —
-// "not too small nor too big", Ash). Authored in SCREEN units (u = tx-ty, w = (tx+ty-S0)/2,
+// One broad metacarpal pad + four toe islets at true print proportion + four claw islets
+// off the toe tips (bare rock). Authored in SCREEN units (u = tx-ty, w = (tx+ty-S0)/2,
 // one unit = 32 screen px) so the paw reads as a paw in the projection the player sees.
-// Coasts have TYPES: the east arrival bay and the south cove carry real sand aprons, toe
-// notches face the pad, and the rest of the shoreline stays green-to-water (the reference
-// islands' law: beaches are events, not a ring).
+//
+// COAST DESIGN (Ash steer 2026-07-02: "the beach needs to surround more of the island,
+// but obviously realistic have some cut throughs"): sand rings MOST of the shoreline now;
+// the designed events are the CLIFF cut-throughs (the west run, the NW headland, the NE
+// point, a rocky wedge between the two east/south beaches) plus the toes' rocky outer
+// edges and the bare claws.
+//
+// THE LAGOON FIELD (law #2 — the halo is dead): shallows are designed SHAPES, not a
+// distance glow. One big east arrival lagoon, a south cove apron, warm straits between
+// the pad's crown and the toes — and everywhere else the deep runs nearly to the rock.
+// `lagReachTheta/lagReachUW` say how far the shallow apron extends off each stretch of
+// coast; the renderer's depth field + reef surf both read the SAME field.
 
-export const MAP = 384
+export const MAP = 1024
 const S0 = MAP
 
 const bump = (td: number, c: number, wd: number, amp: number) => {
@@ -52,6 +60,13 @@ const TOES: [number, number, number, number][] = [
 ]
 const TOE_HARM: [number, number, number][] = [[3, 0.5, 1.1], [5, 0.35, 3.7], [8, 0.22, 2.2]]
 
+// ---- the CLAWS: bare-rock islets off each toe tip (slightly skewed off-axis) ----
+const CLAWS: [number, number, number][] = TOES.map(([ang, dist, rad], i) => [
+  ang + (i % 2 === 0 ? 5.0 : -4.0),
+  dist + rad + 4.6,
+  2.2 + 0.55 * hash2(i * 3.1, 7),
+]) as [number, number, number][]
+
 export type Land = { id: string; du: number; dw: number; R: (theta: number) => number }
 export const LANDS: Land[] = [
   {
@@ -76,7 +91,18 @@ export const LANDS: Land[] = [
       return r
     },
   })),
+  ...CLAWS.map(([ang, dist, rad], i) => ({
+    id: 'claw' + i,
+    du: dist * Math.cos((ang * Math.PI) / 180),
+    dw: -dist * Math.sin((ang * Math.PI) / 180),
+    R: (theta: number) => {
+      const a0 = (ang * Math.PI) / 180
+      return rad * (1 + 0.26 * Math.cos(2 * (theta - a0))) + 0.3 * Math.sin(5 * theta + i * 1.7)
+    },
+  })),
 ]
+export const N_TOES = TOES.length
+export const isClaw = (li: number) => li > N_TOES
 
 /** signed distance to the nearest coast in 32px units: NEGATIVE at sea, POSITIVE inland */
 export function coastDistUW(u: number, w: number) {
@@ -101,15 +127,22 @@ export function landAtUW(u: number, w: number) {
   }
   return best > -6 ? bi : -1
 }
-function landNearestUW(u: number, w: number) {
-  let best = -1e9, bi = 0
+function landNearestUW(u: number, w: number): [number, number] {
+  const [, li, th] = coastInfoUW(u, w)
+  return [li, th]
+}
+
+/** ONE scan for the render hot paths: [signed coast dist, nearest land idx, theta there] */
+export function coastInfoUW(u: number, w: number): [number, number, number] {
+  let best = -1e9, bi = 0, bth = 0
   for (let i = 0; i < LANDS.length; i++) {
     const L = LANDS[i]
     const lu = u - L.du, lw = w - L.dw
-    const d = L.R(Math.atan2(-lw, lu)) - Math.hypot(lu, lw)
-    if (d > best) { best = d; bi = i }
+    const th = Math.atan2(-lw, lu)
+    const d = L.R(th) - Math.hypot(lu, lw)
+    if (d > best) { best = d; bi = i; bth = th }
   }
-  return bi
+  return [best, bi, bth]
 }
 
 /** point + outward normal of a land's coast at theta */
@@ -127,42 +160,83 @@ export function coastPoint(theta: number, landIdx = 0) {
   return { u, w, nx, ny }
 }
 
-// ---- coast types: how much beach each stretch of shoreline carries (0 = green-to-water,
-// 1 = full sand apron) ----
+// ---- coast types: how much beach each stretch of shoreline carries (0 = rock-to-water,
+// 1 = full sand apron). Sand is the DEFAULT now; cliffs are the designed events. ----
 export function beachKTheta(landIdx: number, theta: number) {
   const td = ((theta * 180) / Math.PI % 360 + 360) % 360
   if (landIdx === 0) {
-    let b = 0.14
-    b += bump(td, 315, 24, 0.9)  // the east arrival bay
-    b += bump(td, 270, 10, 0.65) // the south cove
-    b += bump(td, 45, 9, 0.3)    // a small north nook
-    return Math.min(1, b)
+    let b = 0.55
+    b += bump(td, 315, 26, 0.5)   // the east arrival bay
+    b += bump(td, 270, 12, 0.4)   // the south cove
+    b += bump(td, 45, 10, 0.25)   // the north nook
+    b += bump(td, 96, 30, 0.15)   // the crown straits' warm inner beach
+    b -= bump(td, 205, 22, 0.62)  // THE WEST RUN — the long cliff coast
+    b -= bump(td, 155, 11, 0.55)  // NW headland
+    b -= bump(td, 10, 11, 0.55)   // NE point
+    b -= bump(td, 291, 7, 0.45)   // the rocky wedge between bay and cove
+    return Math.min(1, Math.max(0.02, b))
   }
+  if (isClaw(landIdx)) return 0.02 // bare rock
   const ang = TOES[landIdx - 1][0]
-  return Math.min(1, 0.12 + bump(td, (ang + 180) % 360, 24, 0.55)) // pad-facing notch
+  // toes: sandy crescents facing the pad, rocky outer edges
+  let b = 0.12 + bump(td, (ang + 180) % 360, 28, 0.62)
+  b -= bump(td, ang, 30, 0.1)
+  return Math.min(1, Math.max(0.02, b))
 }
 export function beachKAt(u: number, w: number) {
-  const li = landNearestUW(u, w)
-  const L = LANDS[li]
-  return beachKTheta(li, Math.atan2(-(w - L.dw), u - L.du))
+  const [li, th] = landNearestUW(u, w)
+  return beachKTheta(li, th)
 }
 
-/** the sand apron's inland reach at a point (0 where the coast is green-to-water) */
+/** the sand apron's inland reach at a point (≈0 where the coast is rock-to-water) */
 export function beachWidthAt(u: number, w: number) {
-  const B = beachKAt(u, w)
-  const li = landNearestUW(u, w)
-  return B < 0.22 ? 0 : (1.0 + 4.6 * B) * (li > 0 ? 0.6 : 1)
+  const [li, th] = landNearestUW(u, w)
+  const B = beachKTheta(li, th)
+  return B < 0.2 ? 0 : (0.8 + 4.0 * B) * (li > 0 ? 0.6 : 1)
 }
 
-// ---- phase-2a land cells (elevation, the volcano and the jungle plan arrive in 2b/2c) ----
-export type PawCell = 'sea' | 'wet' | 'sand' | 'grass' | 'jungle'
+// ---- THE LAGOON FIELD: how far the designed shallow apron reaches off each stretch of
+// coast (in units, along the outward normal). Everywhere it is small, the deep sea runs
+// nearly to the shore — that is what kills the halo. ----
+export function lagReachTheta(landIdx: number, theta: number) {
+  const td = ((theta * 180) / Math.PI % 360 + 360) % 360
+  if (landIdx === 0) {
+    let r = 2.2
+    // THE EAST ARRIVAL LAGOON: a compound of lobes, not one offset ring — the reef edge
+    // carries its own geometry (wide off the bay, pinched at the wedge, a south bulge)
+    r += bump(td, 318, 17, 17.0)
+    r += bump(td, 297, 11, 10.0)
+    r += bump(td, 338, 9, 8.0)
+    r -= bump(td, 291, 5, 4.0)    // the pinch off the rocky wedge
+    r += bump(td, 270, 12, 6.5)   // the south cove apron
+    r += bump(td, 96, 55, 4.5)    // the warm straits under the toes
+    r -= bump(td, 205, 24, 1.6)   // the west cliff run: deep water at the rock
+    r -= bump(td, 10, 12, 1.3)    // NE point: deep at the rock
+    return Math.max(0.8, r)
+  }
+  if (isClaw(landIdx)) return 0.8
+  const ang = TOES[landIdx - 1][0]
+  // toes: shallows bridge toward the pad (the straits), the outer edges drop away fast
+  return Math.max(0.9, 1.1 + bump(td, (ang + 180) % 360, 40, 4.2))
+}
+export function lagReachUW(u: number, w: number) {
+  const [li, th] = landNearestUW(u, w)
+  return lagReachTheta(li, th)
+}
+
+// ---- phase-A land cells (elevation, the volcano and the jungle plan arrive in B/C) ----
+export type PawCell = 'sea' | 'wet' | 'sand' | 'grass' | 'jungle' | 'rock'
 export function pawCell(tx: number, ty: number): PawCell {
   const u = uOf(tx, ty), w = wOf(tx, ty)
   const cd = coastDistUW(u, w)
   if (cd < 0) return 'sea'
-  const bw = beachWidthAt(u, w)
-  if (bw > 0 && cd < 1.2) return 'wet'
-  if (bw > 0 && cd < bw) return 'sand'
-  if (bw > 0 && cd < bw + 1.6) return 'grass'
+  const [li, th] = landNearestUW(u, w)
+  const B = beachKTheta(li, th)
+  if (isClaw(li)) return 'rock'
+  if (B < 0.2) return cd < 2.4 ? 'rock' : 'jungle' // cliff coasts: rock shelf to the water
+  const bw = (0.8 + 4.0 * B) * (li > 0 ? 0.6 : 1)
+  if (cd < 1.2) return 'wet'
+  if (cd < bw) return 'sand'
+  if (cd < bw + 1.6) return 'grass'
   return 'jungle'
 }
