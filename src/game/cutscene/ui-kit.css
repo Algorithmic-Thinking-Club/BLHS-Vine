@@ -20,8 +20,9 @@
   left: 50%;
   bottom: max(2.4vh, 16px);
   transform: translateX(-50%);
-  width: min(620px, 72vw);           /* big type in a modest box — it must never cover Thor */
-  aspect-ratio: 512 / 172;
+  width: min(560px, 58vw);           /* modest box — it must never cover Thor */
+  height: min(190px, 26vh);          /* FIXED height: content can't grow the box past this */
+  min-height: 0;
   background: url('/art/ui/dialogue-box.png') center / 100% 100% no-repeat;
   image-rendering: pixelated;
   /* the paper window inside the hero frame (measured off the asset) */
@@ -36,14 +37,13 @@
 }
 .cs-dialogue-text {
   font-family: 'Deckhand', monospace;
-  font-size: clamp(26px, 4.6vh, 40px);   /* big, but proportioned to the smaller box */
-  line-height: 1.5;
+  font-size: clamp(18px, 2.5vh, 25px);   /* readable, sized so two sentences fit the box */
+  line-height: 1.45;
   color: #3b2a1a;
   text-shadow: 0 1px 0 rgba(255, 250, 235, .35);
-  /* NO height/overflow here: percentage height inside an aspect-ratio box can resolve to a
-     zero-height clip on some browser/zoom combos — the box then shows with its text clipped
-     to nothing (Ash's empty-dialogue reports). The paper is sized generously; let text flow. */
-  padding-top: 2.2%;
+  /* NO percentage height here (it can clip to zero on some zooms — the old empty-box bug);
+     the box has a fixed height, so text just flows and fits. */
+  padding-top: 1.5%;
 }
 .cs-continue-hint {
   position: absolute;
