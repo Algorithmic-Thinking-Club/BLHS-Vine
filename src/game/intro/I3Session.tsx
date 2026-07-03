@@ -3,6 +3,7 @@ import { track } from '../telemetry'
 import { joinClass } from '../net'
 import { writeSave } from '../save'
 import { LOOKS, drawRecolored } from '../thorLook'
+import { cleanName, isBlocked, PRONOUN_CHOICES } from '../names'
 import './i3.css'
 
 // I-3: the UI session on the parchment (GAME-DESIGN §5 I-3, §4.3/§4.4/§4.6). The cork just
@@ -29,10 +30,6 @@ const PRINCIPAL_WORD =
 const HANDLE_A = ['Brave', 'Golden', 'Quiet', 'Swift', 'Salt', 'Ember', 'Lucky', 'Harbor', 'Reef', 'Cedar']
 const HANDLE_B = ['Tide', 'Gull', 'Paw', 'Wake', 'Compass', 'Current', 'Anchor', 'Lantern', 'Prowler', 'Drift']
 const BOATS = ['Second Wind', "Panther's Wake", 'Late Pass', 'Salt & Chalk', 'First Bell', 'The Golden Gull', 'Homeroom Runner', 'The Field Trip']
-const BLOCKLIST = ['fuck', 'shit', 'ass', 'bitch', 'dick', 'cunt', 'fag', 'nigg', 'rape', 'sex', 'porn']
-
-const cleanName = (v: string, max = 14) => v.replace(/[^a-zA-Z0-9 '&-]/g, '').slice(0, max)
-const isBlocked = (v: string) => { const l = v.toLowerCase().replace(/[^a-z]/g, ''); return BLOCKLIST.some((b) => l.includes(b)) }
 const spinHandle = () => HANDLE_A[Math.floor(Math.random() * HANDLE_A.length)] + HANDLE_B[Math.floor(Math.random() * HANDLE_B.length)]
 const spinBoat = () => BOATS[Math.floor(Math.random() * BOATS.length)]
 
@@ -223,7 +220,7 @@ function IdentityCard(p: {
       {isBlocked(p.handle) && <div className="i3-err">The harbor master raised an eyebrow. Try another.</div>}
       <div className="i3-reassure">This name is what your class sees. Your real name never leaves the room.</div>
       <div className="i3-chips">
-        {['he/him', 'she/her', 'they/them', 'ask me'].map((c) => (
+        {PRONOUN_CHOICES.map((c) => (
           <button
             key={c}
             className={`i3-chip ${p.pronouns === c ? 'i3-chip-on' : ''}`}

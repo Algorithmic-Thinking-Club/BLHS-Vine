@@ -9,27 +9,29 @@
 }
 .st-panel {
   position: relative;
-  width: min(420px, 90vw); aspect-ratio: 448 / 470;
+  width: min(460px, 92vw); aspect-ratio: 448 / 470;
   background: url('/art/ui/panel-square.png') center / 100% 100% no-repeat;
   image-rendering: pixelated;
   filter: drop-shadow(0 10px 24px rgba(2, 8, 10, .6));
   animation: st-in 260ms cubic-bezier(.2, 1.2, .35, 1) both;
 }
 @keyframes st-in { from { transform: translateY(12px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+/* the content sits well inside the cream sheet — the frame's rounded corners eat any strip that
+   reaches the very top/edges, so the tab row must clear them (was 15%/16%: tabs clipped the wood) */
 .st-inner {
-  position: absolute; inset: 15% 16% 15%;
+  position: absolute; inset: 17% 17% 13%;
   display: flex; flex-direction: column; align-items: stretch;
   container-type: inline-size;   /* cqw below resolves against THIS inner's width */
 }
 
-.st-tabs { display: flex; gap: 2cqw; margin-bottom: 3cqw; }
+.st-tabs { display: flex; gap: 1.4cqw; margin-bottom: 3cqw; }
 .st-tab {
-  flex: 1;
+  flex: 1; white-space: nowrap;
   font-family: 'Harbormaster', 'Deckhand', monospace;
-  font-size: 4.6cqw; color: #6a563c;
+  font-size: 3.5cqw; color: #6a563c;
   background: linear-gradient(180deg, #e0d5b9, #d3c6a5);
   border: 2px solid #8a744f; border-bottom: none; border-radius: 5px 5px 0 0;
-  padding: 1.6cqw 0; cursor: pointer;
+  padding: 1.5cqw 0.4cqw; cursor: pointer;
 }
 .st-tab-on { color: #234c40; border-color: #3c6e60; background: linear-gradient(180deg, #ece2c8, #e2d7b8); }
 
@@ -48,6 +50,49 @@
 .st-idlabel { font-family: 'Deckhand', monospace; font-size: 3.8cqw; color: #8a7a60; }
 .st-idval { font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 4.4cqw; color: #33261a; }
 .st-prefhead { font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 4.2cqw; color: #5a4a34; margin: 1cqw 0 1.5cqw; }
+
+/* editable identity: name + ship type on paper, pronouns open a chooser */
+.st-editrow { display: flex; justify-content: space-between; align-items: center; gap: 3cqw; padding: 1cqw 0; border-bottom: 1px dashed rgba(138, 116, 79, .3); }
+.st-idfield {
+  flex: 1; min-width: 0; text-align: right;
+  font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 4.4cqw; color: #33261a;
+  background: rgba(255, 255, 255, .32); border: none; border-bottom: 1.5px solid #b7a074;
+  border-radius: 3px 3px 0 0; padding: .6cqw 1.2cqw; outline: none;
+}
+.st-idfield::placeholder { color: #b0a082; }
+.st-idfield:focus { background: rgba(255, 255, 255, .6); border-bottom-color: #3c6e60; }
+.st-idpick {
+  font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 4.2cqw; color: #234c40;
+  background: linear-gradient(180deg, #e6dcc2, #dbcfaf); border: 2px solid #8a744f; border-radius: 4px;
+  padding: .5cqw 2.6cqw; cursor: pointer;
+}
+.st-chips { display: flex; flex-wrap: wrap; gap: 1.4cqw; justify-content: flex-end; padding: 1.5cqw 0 .5cqw; }
+.st-chip {
+  font-family: 'Deckhand', monospace; font-size: 3.6cqw; color: #4a3826;
+  background: linear-gradient(180deg, #e6dcc2, #dbcfaf); border: 2px solid #8a744f; border-radius: 14px;
+  padding: .8cqw 3cqw; cursor: pointer;
+}
+.st-chip-on { border-color: #3c6e60; color: #234c40; background: linear-gradient(180deg, #ece2c8, #d8e6d8); box-shadow: 0 0 0 2px rgba(60, 110, 96, .25); }
+.st-fieldwarn { font-family: 'Deckhand', monospace; font-size: 3.3cqw; color: #a3492c; text-align: right; margin: .4cqw 0 1cqw; }
+.st-idcard-empty { font-family: 'Deckhand', monospace; font-size: 3.9cqw; color: #7a6a52; text-align: center; padding: 5cqw 4cqw; }
+
+/* ---- controls tab ---- */
+.st-controls { display: flex; flex-direction: column; }
+.st-ctrlsec {
+  font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 4cqw; color: #2f6e60;
+  margin: 2.6cqw 0 1cqw; padding-bottom: 1cqw; border-bottom: 1px dashed rgba(138, 116, 79, .35);
+}
+.st-ctrlsec:first-child { margin-top: 0; }
+.st-ctrl-row { display: flex; align-items: center; justify-content: space-between; gap: 2cqw; margin: 1.6cqw 0; }
+.st-ctrl-label { font-family: 'Deckhand', monospace; font-size: 4cqw; color: #4a3826; }
+.st-ctrl-keys { display: flex; align-items: center; gap: 1cqw; flex-wrap: wrap; justify-content: flex-end; }
+.st-ctrl-or { font-family: 'Deckhand', monospace; font-size: 3.2cqw; color: #8a7a60; margin: 0 .4cqw; }
+.st-key {
+  font-family: 'Deckhand', monospace; font-size: 3.5cqw; color: #33261a; text-align: center; min-width: 5.5cqw;
+  background: linear-gradient(180deg, #f2ead4, #ddd0b0); border: 2px solid #a08d64;
+  border-bottom-width: 3px; border-radius: 4px; padding: .5cqw 1.4cqw; box-shadow: 0 1px 0 rgba(0, 0, 0, .12);
+}
+.st-ctrlnote { font-family: 'Deckhand', monospace; font-size: 3.4cqw; line-height: 1.4; color: #7a6a52; text-align: center; margin-top: 3cqw; }
 
 .st-row {
   width: 100%; display: flex; align-items: center; justify-content: space-between;
