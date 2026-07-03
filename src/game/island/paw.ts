@@ -224,7 +224,94 @@ export function lagReachUW(u: number, w: number) {
   return lagReachTheta(li, th)
 }
 
-// ---- phase-A land cells (elevation, the volcano and the jungle plan arrive in B/C) ----
+// ---- THE RELIEF (law #3: stacked terraces, never a smooth dome) ----
+// A height potential falls off from the volcano center (off-center N-NW, Moorea's
+// asymmetry) and is EXTENDED outward along two ridge spines (SW + SE). Quantized into
+// terrace levels with noise-wobbled thresholds; two RAMP CORRIDORS (from the east bay
+// and the south cove toward the cone) bypass quantization so the island climbs smooth
+// there — the walkable ways up. Cliff coasts ride a +1 rock bench so they drop to the
+// sea as real walls (the SoS column-coast read).
+
+export const VC = { u: -5, w: -11 } // the volcano's center
+
+// THE TERRACE RINGS — designed radial shapes, the same 5-harmonic vocabulary as the
+// coast itself. Quantizing a noisy potential always speckles at the contours; DESIGNED
+// rings give clean chained cliff lines with deliberate asymmetry (offset centers, the
+// SW + SE ridge-spine lobes at θ≈223°/295°) — the SoS hand-authored-terrace read.
+type Ring = { du: number; dw: number; base: number; lobes: [number, number, number][]; harm: [number, number, number][] }
+const RINGS: Ring[] = [
+  { du: 3, dw: 4, base: 21, lobes: [[223, 26, 7], [295, 20, 6]], harm: [[3, 1.8, 2.1], [5, 1.2, 0.7], [7, 0.8, 4.4]] },
+  { du: 1, dw: 1.5, base: 14.5, lobes: [[223, 18, 4.5], [295, 14, 3.5]], harm: [[3, 1.4, 4.2], [5, 0.9, 1.9]] },
+  { du: 0.5, dw: 0, base: 9.5, lobes: [[223, 12, 2.2]], harm: [[3, 1.0, 0.8], [4, 0.7, 3.3]] },
+  { du: 0, dw: 0, base: 5.8, lobes: [], harm: [[3, 0.6, 2.2], [5, 0.4, 5.1]] },
+  { du: 0, dw: 0, base: 2.9, lobes: [], harm: [[3, 0.35, 1.2]] },
+]
+function ringR(ring: Ring, theta: number) {
+  const td = ((theta * 180) / Math.PI % 360 + 360) % 360
+  let r = ring.base
+  for (const [c, wd, a] of ring.lobes) r += bump(td, c, wd, a)
+  for (const [k, a, ph] of ring.harm) r += a * Math.sin(k * theta + ph)
+  return r
+}
+/** how many terrace rings contain the point (0..5) */
+function ringCount(u: number, w: number) {
+  let q = 0
+  for (const ring of RINGS) {
+    const du = u - (VC.u + ring.du), dw = w - (VC.w + ring.dw)
+    if (Math.hypot(du, dw) < ringR(ring, Math.atan2(-dw, du))) q++
+    else break // rings nest; the first miss ends the climb
+  }
+  return q
+}
+
+// ramp corridors: [fromTheta on the pad coast] -> VC, each a soft lane
+const LANES: { ax: number; ay: number; wd: number }[] = (() => {
+  const mk = (thetaDeg: number, wd: number) => {
+    const th = (thetaDeg * Math.PI) / 180
+    // the lane runs from the coast point toward VC
+    const r = LANDS[0].R(th)
+    return { ax: r * Math.cos(th), ay: -r * Math.sin(th), wd }
+  }
+  return [mk(322, 2.6), mk(262, 2.4)]
+})()
+export function laneK(u: number, w: number) {
+  let best = 0
+  for (const L of LANES) {
+    // distance from the segment coast-point -> VC
+    const bx = VC.u - L.ax, by = VC.w - L.ay
+    const len2 = bx * bx + by * by
+    const t = Math.max(0, Math.min(1, ((u - L.ax) * bx + (w - L.ay) * by) / len2))
+    const px = L.ax + t * bx - u, py = L.ay + t * by - w
+    const dd = Math.hypot(px, py)
+    best = Math.max(best, Math.exp(-(dd * dd) / (2 * L.wd * L.wd)))
+  }
+  return best
+}
+
+/** elevation in lift units (floats on ramps, whole steps elsewhere); sea/beach = 0 */
+export function elevAt(u: number, w: number, cd: number, li: number, th: number) {
+  if (cd <= 0) return 0
+  const B = beachKTheta(li, th)
+  const clawL = isClaw(li)
+  const rockBench = (clawL || B < 0.2) ? 1 : 0 // cliff coasts ride a rock bench
+  if (li > 0) {
+    // toes: a single low bench inland (their own small relief), claws two steps
+    const hb = smooth01((cd - 2.2) / 2.4)
+    return Math.max(cd > 0.4 ? rockBench : 0, clawL ? Math.round(hb * 2) : Math.round(hb))
+  }
+  // the coast plain: terraces stay clear of the beaches whatever the rings say
+  const qMax = Math.floor(smooth01((cd - 4.2) / 5.5) * 6)
+  const q = Math.min(ringCount(u, w), qMax)
+  // ramp corridors melt the steps into a climbable slope toward the cone
+  const lk = laneK(u, w)
+  let lev: number = q
+  if (lk > 0.02) {
+    const dVC = Math.hypot(u - VC.u, w - VC.w)
+    const cont = Math.min(qMax, 5 * smooth01((26 - dVC) / 21))
+    lev = q * (1 - lk) + cont * lk
+  }
+  return Math.max(cd > 0.4 ? rockBench : 0, lev)
+}
 export type PawCell = 'sea' | 'wet' | 'sand' | 'grass' | 'jungle' | 'rock'
 export function pawCell(tx: number, ty: number): PawCell {
   const u = uOf(tx, ty), w = wOf(tx, ty)

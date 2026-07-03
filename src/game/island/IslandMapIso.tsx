@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Application, Assets, ColorMatrixFilter, Container, Culler, MeshRope, Point, Rectangle, Sprite, Texture, TextureSource } from 'pixi.js'
 import {
   LANDS, MAP, beachKTheta, coastDist, coastDistUW, coastInfoUW, coastPoint,
-  isClaw, lagReachTheta, txOf, tyOf, vnoise2,
+  elevAt, isClaw, lagReachTheta, txOf, tyOf, vnoise2,
 } from './paw'
 
 // THE ISLAND MAP — fresh build 4, PHASE A: THE VAST SEA + THE DESIGNED COAST.
@@ -26,6 +26,7 @@ import {
 
 const HW = 32, HH = 16
 const S0 = MAP // tile-space center (512,512) -> s = 1024
+const LIFT = 26 // px per terrace level (law #3: stacked structure, hard steps)
 const isoX = (tx: number, ty: number) => (tx - ty) * HW
 const isoY = (tx: number, ty: number) => (tx + ty) * HH
 const dirs8 = ['south', 'north', 'east', 'west', 'south-east', 'north-east', 'north-west', 'south-west']
@@ -236,6 +237,13 @@ export default function IslandMapIso() {
       const chunks = new Map<string, Chunk>()
       const waterAnims = new Set<WaterAnim>()
       let curStride = 1
+      const strataV = [makeStrata(1), makeStrata(2), makeStrata(3)]
+      /** elevation of any tile (sea = 0) — the walls/AO ask about neighbors constantly */
+      const landElev = (tx2: number, ty2: number) => {
+        const u2 = uOf(tx2, ty2), w2 = wOf(tx2, ty2)
+        const [cd2, li2, th2] = coastInfoUW(u2, w2)
+        return cd2 <= 0 ? 0 : elevAt(u2, w2, cd2, li2, th2)
+      }
 
       const buildTile = (tx: number, ty: number, stride: number, chunk: Chunk) => {
         if (tx < 0 || ty < 0 || tx >= MAP || ty >= MAP) return
@@ -299,6 +307,7 @@ export default function IslandMapIso() {
           chunk.anims.push(anim); waterAnims.add(anim)
         } else {
           const bw = (0.8 + 4.0 * B) * (li > 0 ? 0.6 : 1)
+          const lev = elevAt(u, w, cd, li, th)
           if (clawL || (rockCoast && cd < 2.4)) {
             // basalt shore shelf: cliff coasts (and the bare claws) meet the water as
             // dark rock, not sand — the SoS column-islet read until Phase B's real cliffs
@@ -311,7 +320,10 @@ export default function IslandMapIso() {
             const moist = vnoise2(u / 9 + 3, w / 9 + 8)
             const clump = vnoise2(u / 17 + 21, w / 17 + 6)
             const t = Math.min(1, Math.max(0, 0.62 - 0.3 * moist + 0.25 * clump + (hash(tx * 5.7, ty * 3.9) - 0.5) * 0.1))
-            const col = rampAt([[0, 0x4a7040], [0.4, 0x3a5a33], [0.75, 0x2e4829], [1, 0x263c22]], t)
+            let col = rampAt([[0, 0x4a7040], [0.4, 0x3a5a33], [0.75, 0x2e4829], [1, 0x263c22]], t)
+            // each terrace sits in lighter air than the one below — the plateaus read as
+            // value bands at any zoom (the cone's top runs drier/warmer)
+            if (lev > 0.01) col = shadeHex(mix(col, 0x6b7a44, Math.min(0.34, lev * 0.075)), 1 + Math.min(0.3, lev * 0.062))
             sp.tint = tintFor(shadeHex(col, 0.985 + 0.03 * hash(tx, ty)), JUNGLE_BASE)
           } else if (cd >= bw) {
             // the dune-grass seam between sand and jungle — DITHERED per tile, so the
@@ -327,6 +339,37 @@ export default function IslandMapIso() {
               : rampAt([[0, 0xd8bd86], [0.55, 0xead6a3], [1, 0xf0e2b4]], Math.min(1, (cd - 1.4) / 4.5))
             sp.tint = tintFor(shadeHex(col, 0.985 + 0.03 * hash(tx, ty)), SAND_BASE)
           }
+          // ---- THE RELIEF (law #3): the tile rides its terrace, faces drop to the
+          // fronts as basalt strata walls, AO pools at wall feet, lips catch the sun ----
+          const x0 = isoX(tx, ty), y0 = isoY(tx, ty)
+          if (lev > 0.01) sp.position.y = y0 - lev * LIFT
+          const lf1 = landElev(tx + stride, ty) // right-front face
+          const lf2 = landElev(tx, ty + stride) // left-front face
+          const lb = Math.max(landElev(tx - stride, ty), landElev(tx, ty - stride))
+          let shade = 1
+          if (lb - lev >= 0.9) shade *= lb - lev >= 1.9 ? 0.72 : 0.8
+          if (lev - Math.min(lf1, lf2) >= 0.9) shade *= 1.1
+          if (shade !== 1) sp.tint = shadeHex(sp.tint as number, shade)
+          const drawFace = (levF: number, left: boolean) => {
+            const dh = (lev - levF) * LIFT
+            if (dh < LIFT * 0.85) return
+            const st = strataV[(tx * 31 + ty * 17 + (left ? 5 : 0)) % strataV.length]
+            const fsp = new Sprite(new Texture({ source: st.source, frame: new Rectangle(0, 0, 36, Math.min(158, dh + 6)) }))
+            fsp.anchor.set(0, 0)
+            if (left) { fsp.position.set(x0 - HW * stride, y0 + HH * stride - lev * LIFT); fsp.skew.y = 0.4636 }
+            else { fsp.position.set(x0, y0 + 2 * HH * stride - lev * LIFT); fsp.skew.y = -0.4636 }
+            fsp.width = HW * stride
+            // sun from the upper-left: left faces lit, right faces in their own shade;
+            // the upper cone runs cooler than the jungle terraces
+            const cone = lev >= 3.5
+            fsp.tint = left ? (cone ? 0xc9cbc2 : 0xd9c6a8) : (cone ? 0x757a72 : 0x87765c)
+            fsp.zIndex = (tx + ty) * 16 + 24
+            fsp.cullable = true
+            world.addChild(fsp)
+            chunk.sprites.push(fsp)
+          }
+          drawFace(lf2, true)
+          drawFace(lf1, false)
         }
         world.addChild(sp)
         chunk.sprites.push(sp)
@@ -385,9 +428,9 @@ export default function IslandMapIso() {
                 if (dep > 0.45) {
                   // SWELL BANDS: long diagonal brightness waves rolling through the deep —
                   // the wide zoom's water carries visible sea texture, never a flat field
-                  const ph = vnoise(u2 / 21 + 8, w2 / 21 + 61) * 6.3
-                  const band = Math.sin((u2 * 0.72 + w2 * 1.9) * 0.5 + ph)
-                  col = shadeHex(col, 1 + 0.05 * band * smooth01((dep - 0.45) / 0.3))
+                  const ph = vnoise(u2 / 13 + 8, w2 / 13 + 61) * 9.4
+                  const band = Math.sin((u2 * 0.72 + w2 * 1.9) * 0.34 + ph)
+                  col = shadeHex(col, 1 + 0.035 * band * smooth01((dep - 0.45) / 0.3))
                 }
                 paint(col, Math.min(1, a))
               }
@@ -705,7 +748,15 @@ export default function IslandMapIso() {
       }
       let facing = 'south', at = 0
       const walkableAt = (tx: number, ty: number) => coastDist(tx, ty) > 0.4
-      const canGo = (tx2: number, ty2: number) => walkableAt(Math.round(tx2), Math.round(ty2))
+      const elevOf = (txx: number, tyy: number) => {
+        const u2 = uOf(txx, tyy), w2 = wOf(txx, tyy)
+        const [c2, l2, t2] = coastInfoUW(u2, w2)
+        return c2 <= 0 ? 0 : elevAt(u2, w2, c2, l2, t2)
+      }
+      // terraces are real: a cliff step blocks, the ramp corridors' gentle grades pass
+      const canGo = (tx2: number, ty2: number) =>
+        walkableAt(Math.round(tx2), Math.round(ty2)) &&
+        Math.abs(elevOf(tx2, ty2) - elevOf(pos.tx, pos.ty)) <= 0.45
       const CR = 0.22
       const probeX = (nx: number, aty: number) => {
         const sgn = Math.sign(nx - pos.tx)
@@ -744,21 +795,23 @@ export default function IslandMapIso() {
           else { jy = -44 * Math.sin(Math.PI * k); stretch = 1 + 0.14 * Math.sin(Math.PI * k) }
         }
         const breath = (!moving && !jump.active) ? 1 + 0.03 * Math.sin(at / 430) : 1
+        const telev = elevOf(pos.tx, pos.ty)
+        const yLift = y - telev * LIFT
         thor.scale.set(THOR_SC, THOR_SC * breath * stretch)
-        thor.position.set(x, y + jy)
+        thor.position.set(x, yLift + jy)
         thor.zIndex = Math.floor(pos.tx + pos.ty) * 16 + 18
-        ;(window as unknown as { __thor: object }).__thor = { tx: pos.tx, ty: pos.ty, chunks: chunks.size, anims: waterAnims.size }
+        ;(window as unknown as { __thor: object }).__thor = { tx: pos.tx, ty: pos.ty, lev: telev, chunks: chunks.size, anims: waterAnims.size }
         const shf = Math.max(0.55, 1 - (-jy) / 110)
         thorShadow.width = 32 * shf; thorShadow.height = 16 * shf
         thorShadow.alpha = 0.62 * Math.max(0.32, 1 - (-jy) / 90)
-        thorShadow.position.set(x, y + 3); thorShadow.zIndex = thor.zIndex - 1
+        thorShadow.position.set(x, yLift + 3); thorShadow.zIndex = thor.zIndex - 1
         at += tk.deltaMS
         const wf = walk[facing] ?? walk[cardinalOf(facing)]
         thor.texture = (moving && wf) ? wf[Math.floor(at / (sprinting ? 68 : 110)) % wf.length] : (idle[facing] ?? idle['south'] ?? thor.texture)
 
         const vw = instance.renderer.width, vh = instance.renderer.height
         if (world.scale.x !== ZOOM) world.scale.set(ZOOM)
-        world.x = vw / 2 - x * ZOOM; world.y = vh * 0.58 - y * ZOOM
+        world.x = vw / 2 - x * ZOOM; world.y = vh * 0.58 - yLift * ZOOM
 
         // stream the ocean for wherever the camera is, then cull to the screen
         streamOcean(x, y - vh * 0.08 / ZOOM, vw, vh, ZOOM)
@@ -879,6 +932,49 @@ function radial(size: number, stops: [number, string][]) {
   ctx.fillStyle = g; ctx.fillRect(0, 0, size, size)
   const t = Texture.from(cv); t.source.scaleMode = 'linear'; return t
 }
+/** a basalt strata face for the terrace walls: lit horizontal banding, wandering cracks,
+ *  ground AO at the foot — drawn BRIGHT so face tints can only darken it (pixi tint law) */
+function makeStrata(seed: number) {
+  const W = 36, H = 160
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H
+  const ctx = cv.getContext('2d')!
+  const rnd = (i: number) => { const s = Math.sin(seed * 91.7 + i * 127.1) * 43758.5; return s - Math.floor(s) }
+  let y = 0, bi = 0
+  while (y < H) {
+    const bh = 5 + Math.floor(rnd(bi) * 7)
+    const sh = 0.86 + rnd(bi + 40) * 0.3
+    const r = Math.round(158 * sh), g = Math.round(148 * sh), b = Math.round(130 * sh)
+    ctx.fillStyle = `rgb(${r},${g},${b})`
+    ctx.fillRect(0, y, W, bh)
+    // the seam line under each stratum
+    ctx.fillStyle = 'rgba(40,34,26,0.5)'
+    ctx.fillRect(0, y + bh - 1, W, 1)
+    // speckle
+    for (let i = 0; i < 26; i++) {
+      const px = Math.floor(rnd(bi * 31 + i) * W), py = y + Math.floor(rnd(bi * 57 + i + 9) * bh)
+      ctx.fillStyle = rnd(i * 3 + bi) > 0.5 ? 'rgba(226,216,196,0.16)' : 'rgba(30,26,20,0.2)'
+      ctx.fillRect(px, py, 1 + Math.floor(rnd(i + bi + 3) * 2), 1)
+    }
+    y += bh; bi++
+  }
+  // wandering vertical cracks
+  for (let c = 0; c < 5; c++) {
+    let cx = Math.floor(rnd(c * 7 + 2) * W)
+    ctx.fillStyle = 'rgba(34,29,22,0.42)'
+    for (let cy = 0; cy < H; cy += 3) {
+      cx += Math.round((rnd(c * 13 + cy) - 0.5) * 2)
+      cx = Math.max(0, Math.min(W - 1, cx))
+      ctx.fillRect(cx, cy, 1, 3)
+    }
+  }
+  // the lip line + the foot shadow
+  ctx.fillStyle = 'rgba(235,228,205,0.65)'; ctx.fillRect(0, 0, W, 2)
+  const gr = ctx.createLinearGradient(0, H - 14, 0, H)
+  gr.addColorStop(0, 'rgba(20,16,12,0)'); gr.addColorStop(1, 'rgba(20,16,12,0.55)')
+  ctx.fillStyle = gr; ctx.fillRect(0, H - 14, W, 14)
+  const t = Texture.from(cv); t.source.scaleMode = 'nearest'; return t
+}
+
 function makeShadow() {
   const cv = document.createElement('canvas'); cv.width = cv.height = 64
   const ctx = cv.getContext('2d')!, g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
