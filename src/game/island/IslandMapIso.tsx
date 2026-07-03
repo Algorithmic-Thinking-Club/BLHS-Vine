@@ -52,10 +52,10 @@ const SAND_BASE = [246, 229, 180]
 // the beach's ramp lifted one warm-turquoise step per stop: THIS map's sea is tropical noon,
 // not the beach's deep golden-hour cold (Ash: "slightly brighter... it's a tropical ocean")
 const W_RAMP: [number, number][] = [
-  [0.0, 0xb2e8d8], [0.09, 0x97ddcc], [0.14, 0x58c5ba], [0.24, 0x3db0ab],
-  [0.38, 0x2b9ca4], [0.54, 0x1e8794], [0.68, 0x14657b], [1.0, 0x0a4354],
+  [0.0, 0xbceee0], [0.09, 0xa0e4d2], [0.14, 0x60cec0], [0.24, 0x45b8b0],
+  [0.38, 0x31a4aa], [0.54, 0x228f9d], [0.68, 0x176e86], [1.0, 0x0c4a5e],
 ]
-const ABYSS = 0x0a4354
+const ABYSS = 0x0c4a5e
 const DEPTH_UW = 15 // the beach's exact 30-diagonal drama band
 
 function rampAt(stops: [number, number][], t: number) {
@@ -191,17 +191,20 @@ export default function IslandMapIso() {
         let dep = 0
         if (isSea) {
           const raw = depField(u, w)
-          // the beach's exact dither law at native stride; boosted only at coarse strides
-          // where ramp banding is the bigger enemy
-          const dAmp = (raw < 0.14 ? 0.1 : raw < 0.55 ? 0.022 : 0.05) * (stride > 1 ? 1.8 : 1)
+          // dither widened a step past the beach's (reviewer: dissolve the ramp contours);
+          // boosted further at coarse strides where banding is the bigger enemy
+          const dAmp = (raw < 0.14 ? 0.1 : raw < 0.55 ? 0.034 : 0.055) * (stride > 1 ? 1.6 : 1)
           dep = Math.min(1, Math.max(0, raw + (hash(tx * 7.7, ty * 5.3) - 0.5) * dAmp))
-          // the beach's exact pool law (its veil below handles the far softening)
-          const h = hash(tx * 1.3, ty * 2.7)
-          const pool = dep < 0.1 ? W_CALM
-            : dep < 0.3 ? (h < 0.6 ? W_CALM : W_SOFT)
-              : dep < 0.55 ? (h < 0.5 ? W_SOFT : W_TEX)
-                : (h < 0.55 ? W_TEX : W_SWELL)
-          base = waterV[pool[Math.floor(hash(tx * 3.1, ty * 1.9) * pool.length)]]
+          // THE CHECKER KILLER (reviewer fix #1): texture busyness is selected by LOW-
+          // FREQUENCY world noise, not per-tile hash — glass and textured tiles arrive in
+          // organic 3-4 tile patches (sun on water), never alternating diamonds. The
+          // visible band leans glassy; busy swell texture lives deep, under the veil.
+          const vsel = vnoise(tx / 3.5 + 50, ty / 3.5 + 9)
+          const pool = dep < 0.3 ? (vsel < 0.72 ? W_CALM : W_SOFT)
+            : dep < 0.55 ? (vsel < 0.5 ? W_CALM : W_SOFT)
+              : dep < 0.75 ? (vsel < 0.55 ? W_SOFT : W_TEX)
+                : (vsel < 0.5 ? W_TEX : W_SWELL)
+          base = waterV[pool[Math.floor(vnoise(tx / 2.6 + 21, ty / 2.6 + 33) * pool.length) % pool.length]]
         } else {
           base = sandV[SAND_COMMON[Math.floor(hash(tx * 3.3, ty * 4.1) * SAND_COMMON.length)]]
         }
@@ -378,7 +381,24 @@ export default function IslandMapIso() {
         }
       }
 
-      // ---- open-sea life: sun glints + cloud shadows ----
+      // ---- open-sea life: a coherent SUN PATH (the reviewer's "the water has no sky
+      // above it" fix) — one soft band of light crossing the sea, glints concentrated
+      // inside it, plus slow crest streaks drifting through the deep ----
+      const SUN_P0 = { x: isoX(MAP / 2, MAP / 2) - 2600, y: isoY(MAP / 2, MAP / 2) - 1500 }
+      const SUN_DIR = (() => { const l = Math.hypot(1, 0.62); return { x: 1 / l, y: 0.62 / l } })()
+      const sunBandDist = (wx: number, wy: number) => {
+        const rx = wx - SUN_P0.x, ry = wy - SUN_P0.y
+        return Math.abs(rx * -SUN_DIR.y + ry * SUN_DIR.x)
+      }
+      {
+        const band = new Sprite(radial(256, [[0, 'rgba(214,244,232,0.038)'], [0.55, 'rgba(214,244,232,0.018)'], [1, 'rgba(214,244,232,0)']]))
+        band.anchor.set(0.5); band.blendMode = 'add'
+        band.width = 7000; band.height = 1700
+        band.rotation = Math.atan2(SUN_DIR.y, SUN_DIR.x)
+        band.position.set(isoX(MAP / 2, MAP / 2), isoY(MAP / 2, MAP / 2))
+        band.zIndex = 190000
+        world.addChild(band)
+      }
       const sparkles: { sp: Sprite; ph: number; sc: number }[] = []
       if (tex['sparkle']) {
         for (let i = 0; i < 120; i++) {
@@ -386,6 +406,28 @@ export default function IslandMapIso() {
           const sc = 0.35 + hash(i * 7, i * 2) * 0.5
           sp.scale.set(sc); sp.alpha = 0; sp.blendMode = 'add'; sp.zIndex = 200000
           world.addChild(sp); sparkles.push({ sp, ph: hash(i, i * 5) * 20, sc })
+        }
+      }
+      // crest streaks: thin pale dashes riding the deep on long slow cycles — surface
+      // life for the far field, nothing like popping whitecaps
+      type Streak = { sp: Sprite; age: number; life: number }
+      const streaks: Streak[] = []
+      const spawnStreak = (camX: number, camY: number, vw: number, vh: number, zoom: number) => {
+        if (!tex['foamlace'] || streaks.length >= 14) return
+        for (let tries = 0; tries < 5; tries++) {
+          const wx = camX + (hash(performance.now() * 1.3, tries) - 0.5) * vw / zoom * 1.2
+          const wy = camY + (hash(performance.now() * 2.7, tries * 3) - 0.5) * vh / zoom * 1.2
+          const uu = wx / HW, ww = (wy / HH - S0) / 2
+          if (depField(uu, ww) < 0.5) continue
+          const laceT = hash(wx, wy) > 0.5 && tex['foamlace2'] ? tex['foamlace2'] : tex['foamlace']
+          const off = Math.floor(hash(wy, wx) * Math.max(32, laceT.width - 60))
+          const sp = new Sprite(new Texture({ source: laceT.source, frame: new Rectangle(off, 0, 56, laceT.height) }))
+          sp.anchor.set(0.5, 0.6); sp.tint = 0xeafff8
+          sp.scale.set(1.5, 0.5); sp.alpha = 0
+          sp.position.set(wx, wy); sp.zIndex = (wy / HH) * 16 + 5; sp.cullable = true
+          world.addChild(sp)
+          streaks.push({ sp, age: 0, life: 9000 + hash(wx * 3, wy) * 5000 })
+          break
         }
       }
       const clouds: { sp: Sprite; vx: number; vy: number }[] = []
@@ -494,13 +536,30 @@ export default function IslandMapIso() {
         }
         for (const s of sparkles) {
           const k = Math.max(0, Math.sin(wt * 0.9 + s.ph) - 0.55) / 0.45
-          s.sp.alpha = k * 0.7
+          // glints burn brightest inside the sun path, faint outside it
+          const inBand = sunBandDist(s.sp.x, s.sp.y) < 950 ? 1 : 0.35
+          s.sp.alpha = k * 0.75 * inBand
           s.sp.scale.set(s.sc * (0.7 + 0.3 * k))
           if (k < 0.02) {
-            const wx = (vw * (hash(s.ph, wt | 0) - 0.5)) / ZOOM + x
-            const wy2 = (vh * (hash(s.ph * 3, wt | 0) - 0.5)) / ZOOM + y
+            // respawn biased toward the band: most tries land in the light
+            let wx = 0, wy2 = 0
+            for (let t2 = 0; t2 < 3; t2++) {
+              wx = (vw * (hash(s.ph + t2, wt | 0) - 0.5)) / ZOOM + x
+              wy2 = (vh * (hash(s.ph * 3 + t2, wt | 0) - 0.5)) / ZOOM + y
+              if (sunBandDist(wx, wy2) < 950) break
+            }
             s.sp.position.set(wx, wy2)
           }
+        }
+        // crest streaks: born in the deep, breathing over long cycles
+        if (hash(wt * 9.1, 5) < 0.05) spawnStreak(x, y, vw, vh, ZOOM)
+        for (let i = streaks.length - 1; i >= 0; i--) {
+          const st = streaks[i]
+          st.age += tk.deltaMS
+          const k = st.age / st.life
+          if (k >= 1) { st.sp.destroy(); streaks.splice(i, 1); continue }
+          st.sp.x += 0.35 * tk.deltaMS / 16.7
+          st.sp.alpha = 0.15 * Math.sin(Math.PI * k)
         }
         for (const c of clouds) {
           c.sp.x += c.vx * tk.deltaMS / 1000
