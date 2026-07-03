@@ -1788,9 +1788,9 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             const px2 = ax + ddx * t2, py2 = ay + ddy * t2
             sp.position.set(px2, py2 - 22 + 4.5 * Math.sin(wt * 3.4 - i * 0.85))
             sp.rotation = rot
-            sp.alpha = 0.42 + 0.2 * Math.sin(wt * 3.4 - i * 0.85)
-            sp.scale.set(0.85)
-            sp.zIndex = Math.floor((px2 / HW + py2 / HH) / 2) * 16 + 60
+            sp.alpha = 0.85 + 0.06 * Math.sin(wt * 3.4 - i * 0.85)   // Ash: barely translucent
+            sp.scale.set(1)
+            sp.zIndex = 999990 + i   // a guide overlay rides ABOVE the world, always
           }
         }
         // the waterline itself breathes a little

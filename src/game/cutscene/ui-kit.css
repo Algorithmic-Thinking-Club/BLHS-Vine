@@ -18,10 +18,10 @@
 .cs-dialogue {
   position: absolute;
   left: 50%;
-  bottom: max(4.5vh, 34px);
+  bottom: max(2.4vh, 16px);
   transform: translateX(-50%);
-  width: min(780px, 90vw);
-  aspect-ratio: 512 / 192;
+  width: min(620px, 72vw);           /* big type in a modest box — it must never cover Thor */
+  aspect-ratio: 512 / 172;
   background: url('/art/ui/dialogue-box.png') center / 100% 100% no-repeat;
   image-rendering: pixelated;
   /* the paper window inside the hero frame (measured off the asset) */
@@ -36,7 +36,7 @@
 }
 .cs-dialogue-text {
   font-family: 'Deckhand', monospace;
-  font-size: clamp(32px, 5.8vh, 52px);
+  font-size: clamp(26px, 4.6vh, 40px);   /* big, but proportioned to the smaller box */
   line-height: 1.5;
   color: #3b2a1a;
   text-shadow: 0 1px 0 rgba(255, 250, 235, .35);
