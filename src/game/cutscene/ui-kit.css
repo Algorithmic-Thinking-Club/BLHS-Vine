@@ -25,9 +25,12 @@
   min-height: 0;
   background: url('/art/ui/dialogue-box.png') center / 100% 100% no-repeat;
   image-rendering: pixelated;
-  /* the paper window inside the hero frame (measured off the asset) */
-  padding: 6.2% 10.5% 7.8% 10.5%;
+  /* the paper window inside the hero frame (measured off the asset) — the text is
+     vertically centered in it so a bigger face fills the paper instead of sitting low */
+  padding: 5% 8.5% 6% 8.5%;
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
   cursor: pointer;
   animation: cs-rise 260ms cubic-bezier(.23,1.1,.35,1) both;
 }
@@ -37,13 +40,13 @@
 }
 .cs-dialogue-text {
   font-family: 'Deckhand', monospace;
-  font-size: clamp(18px, 2.5vh, 25px);   /* readable, sized so two sentences fit the box */
-  line-height: 1.45;
+  font-size: clamp(23px, 3.4vh, 33px);   /* big and readable; box height is fixed so it can't grow the box */
+  line-height: 1.4;
   color: #3b2a1a;
   text-shadow: 0 1px 0 rgba(255, 250, 235, .35);
+  width: 100%;
   /* NO percentage height here (it can clip to zero on some zooms — the old empty-box bug);
-     the box has a fixed height, so text just flows and fits. */
-  padding-top: 1.5%;
+     the box is a fixed-height flex box that centers this line, so text fills the paper. */
 }
 .cs-continue-hint {
   position: absolute;
