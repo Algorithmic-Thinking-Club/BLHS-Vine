@@ -6,18 +6,18 @@
 import { loadSave, writeSave, type SaveGame } from './save'
 import { isCaptain } from './captain'
 
-const PID_KEY = 'blhs_participant'
+// the participant now travels ON the active save (each roster run is its own participant),
+// so sync/logging read it from there rather than a device-global key
+export function participantId(): string | null { return loadSave()?.participantId ?? null }
 
 export type JoinResult =
   | { ok: true; participantId: string; className?: string; arm: 'game' | 'plain'; returning?: boolean }
   | { ok: false; reason: 'offline' | 'unknown_code' | 'class_closed' | 'error' }
 
-export function participantId(): string | null { return localStorage.getItem(PID_KEY) }
-
 export async function joinClass(code: string, handle: string): Promise<JoinResult> {
   if (isCaptain()) {
     // the captain walks through any harbor gate
-    localStorage.setItem(PID_KEY, 'captain')
+    writeSave({ participantId: 'captain', classCode: code.toUpperCase() })
     return { ok: true, participantId: 'captain', arm: 'game', className: "the Captain's own crew" }
   }
   try {
@@ -30,8 +30,7 @@ export async function joinClass(code: string, handle: string): Promise<JoinResul
     if (r.status === 403) return { ok: false, reason: 'class_closed' }
     if (!r.ok) return { ok: false, reason: 'error' }
     const d = await r.json()
-    localStorage.setItem(PID_KEY, d.participantId)
-    writeSave({ classCode: code.toUpperCase(), handle: d.handle ?? handle })
+    writeSave({ participantId: d.participantId, classCode: code.toUpperCase(), handle: d.handle ?? handle })
     return { ok: true, participantId: d.participantId, className: d.className, arm: d.arm, returning: d.returning }
   } catch {
     return { ok: false, reason: 'offline' }

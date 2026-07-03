@@ -10,10 +10,19 @@ function anonId(key: string) {
   return v
 }
 
+// the participant travels on the active save now; fall back to a device-anon id pre-join
+let activeParticipant = anonId('blhs_anon_id')
+try {
+  const raw = localStorage.getItem('blhs_active')
+  const saves = JSON.parse(localStorage.getItem('blhs_saves') ?? '[]')
+  const active = Array.isArray(saves) ? saves.find((s: { id?: string }) => s.id === raw) : null
+  if (active?.participantId) activeParticipant = active.participantId
+} catch { /* anon */ }
+
 const logger = new Logger({
   appVersion: import.meta.env?.VITE_APP_VERSION ?? 'dev',
   sessionId: Math.random().toString(36).slice(2, 10),
-  participantId: localStorage.getItem('blhs_participant') ?? anonId('blhs_anon_id'),
+  participantId: activeParticipant,
   mode: 'game',
   // production drains into the study database; dev keeps the offline queue local
   endpoint: import.meta.env?.VITE_LOG_ENDPOINT ?? (import.meta.env?.PROD ? '/api/log' : undefined),

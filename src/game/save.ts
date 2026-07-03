@@ -1,12 +1,18 @@
-// THE RUN — the single state the whole game reads and writes (GAME-DESIGN §7/§8).
-// v2 grows the v1 bookmark into the full Gear-1 run: identity, the year/season clock, the
-// season tokens, the graded ledger GPA is computed from, rank investment, stickers, facts,
-// badges, island states. One storage key, no save-slot UI ever, autosaved on every write,
-// subscribable so HUD/Handbook react live. The server copy syncs through net.ts when a
-// class backend is configured; this stays the instant local truth (§7.7's three layers).
+// THE RUN + THE CREW ROSTER — the state the whole game reads and writes (GAME-DESIGN §7/§8).
+// Each SaveGame is one PARTICIPANT's full Gear-1 run (identity, the year/season clock, season
+// tokens, the graded ledger GPA rests on, ranks, islands, stickers, facts, badges). A device
+// holds a ROSTER of them (§7.7, evolved): shared Chromebooks mean many explorers sail from one
+// machine, so the device remembers each — a returning student picks themselves instead of
+// re-entering the code. This is NOT free-form save slots: every entry maps to a participant
+// (handle + class), so the AP-Research dataset stays one-student-one-run. The server copy syncs
+// per participant through net.ts; this stays the instant local truth.
 
-const KEY = 'blhs_save_v2'
-const OLD_KEY = 'blhs_save_v1'
+const SAVES_KEY = 'blhs_saves'   // JSON array of SaveGame, newest activity first
+const ACTIVE_KEY = 'blhs_active' // id of the active run
+const OLD_V2 = 'blhs_save_v2'    // pre-roster single save
+const OLD_V1 = 'blhs_save_v1'    // the original bookmark
+
+const newId = () => 'r' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4)
 
 export type Season = 'Fall' | 'Winter' | 'Spring'
 export const SEASONS: Season[] = ['Fall', 'Winter', 'Spring']
@@ -28,6 +34,8 @@ export type IslandState = 'misty' | 'discovered' | 'available' | 'active' | 'com
 
 export type SaveGame = {
   v: 2
+  id: string                    // stable roster id (one per participant run)
+  participantId?: string        // the study identity, set at join (net.ts); server keys on this
   // identity (I-3)
   handle: string
   pronouns: string
@@ -52,65 +60,121 @@ export type SaveGame = {
 }
 
 const fresh = (): SaveGame => ({
-  v: 2, handle: '', pronouns: '', boatName: '', year: 1, season: 'Fall',
+  v: 2, id: newId(), handle: '', pronouns: '', boatName: '', year: 1, season: 'Fall',
   beat: 'intro:i1', introDone: false,
   tokens: [...SEASONS], ledger: [], ranks: {}, islands: {}, stickers: [], facts: [], badges: [],
   savedAt: 0,
 })
 
-// v1 saves migrate silently — nobody loses a run to a schema bump, ever
-function migrate(): SaveGame | null {
-  try {
-    const old = localStorage.getItem(OLD_KEY)
-    if (!old) return null
-    const s = JSON.parse(old)
-    localStorage.removeItem(OLD_KEY)
-    return {
-      ...fresh(),
-      handle: s.handle ?? '', pronouns: s.pronouns ?? '', boatName: s.boatName ?? '',
-      thorLook: s.thorLook, year: s.year ?? 1, season: s.season ?? 'Fall',
-      beat: s.beat ?? 'intro:i1', introDone: !!s.introDone, savedAt: s.savedAt ?? 0,
-    }
-  } catch { return null }
-}
-
-let cache: SaveGame | null | undefined
+// ---- the roster: an in-memory cache of every local run, persisted as one array ----
+let roster: SaveGame[] | undefined
+let activeId: string | null = null
 const listeners = new Set<() => void>()
 
 export function subscribeSave(fn: () => void) { listeners.add(fn); return () => { listeners.delete(fn) } }
 const emit = () => { for (const fn of listeners) fn() }
 
-export function loadSave(): SaveGame | null {
-  if (cache !== undefined) return cache
-  try {
-    const raw = localStorage.getItem(KEY)
-    if (raw) {
-      const s = JSON.parse(raw) as SaveGame
-      cache = s.v === 2 ? s : null
-    } else {
-      const m = migrate()
-      if (m) localStorage.setItem(KEY, JSON.stringify(m))
-      cache = m
-    }
-  } catch { cache = null }
-  return cache
+function persist() {
+  localStorage.setItem(SAVES_KEY, JSON.stringify(roster ?? []))
+  if (activeId) localStorage.setItem(ACTIVE_KEY, activeId); else localStorage.removeItem(ACTIVE_KEY)
 }
 
-export function hasSave() { return loadSave() !== null }
+// load the roster once, migrating any pre-roster save (v2 then v1) into a first entry
+function ensureRoster(): SaveGame[] {
+  if (roster !== undefined) return roster
+  try {
+    const raw = localStorage.getItem(SAVES_KEY)
+    if (raw) {
+      roster = (JSON.parse(raw) as SaveGame[]).filter((s) => s && s.v === 2 && s.id)
+    } else {
+      roster = []
+      const old = localStorage.getItem(OLD_V2) ?? localStorage.getItem(OLD_V1)
+      if (old) {
+        const s = JSON.parse(old)
+        roster.push({ ...fresh(), ...s, v: 2, id: newId() })
+        localStorage.removeItem(OLD_V2); localStorage.removeItem(OLD_V1)
+      }
+      persist()
+    }
+    activeId = localStorage.getItem(ACTIVE_KEY)
+    if (activeId && !roster.some((s) => s.id === activeId)) activeId = null
+  } catch { roster = []; activeId = null }
+  return roster
+}
 
+/** every local run, newest activity first (for the saves list) */
+export function listSaves(): SaveGame[] {
+  return [...ensureRoster()].sort((a, b) => b.savedAt - a.savedAt)
+}
+
+/** the active run (the one Continue/HUD/systems read) */
+export function loadSave(): SaveGame | null {
+  const r = ensureRoster()
+  if (activeId) return r.find((s) => s.id === activeId) ?? null
+  return null
+}
+
+export function hasSave() { return ensureRoster().length > 0 }
+
+/** patch the active run (auto-creates one if none is active, e.g. mid-intro writes) */
 export function writeSave(patch: Partial<SaveGame>) {
-  const next = { ...(loadSave() ?? fresh()), ...patch, savedAt: Date.now() }
-  localStorage.setItem(KEY, JSON.stringify(next))
-  cache = next
-  emit()
+  const r = ensureRoster()
+  let cur = activeId ? r.find((s) => s.id === activeId) : null
+  if (!cur) { cur = fresh(); r.push(cur); activeId = cur.id }
+  const next = { ...cur, ...patch, savedAt: Date.now() }
+  const i = r.findIndex((s) => s.id === next.id)
+  if (i >= 0) r[i] = next; else r.push(next)
+  activeId = next.id
+  persist(); emit()
   return next
 }
 
+/** start a brand-new run and make it active (New Voyage) */
+export function newSave(): SaveGame {
+  const r = ensureRoster()
+  const s = fresh()
+  r.push(s); activeId = s.id
+  persist(); emit()
+  return s
+}
+
+/** make an existing run the active one (Continue on a specific save) */
+export function activateSave(id: string) {
+  const r = ensureRoster()
+  if (r.some((s) => s.id === id)) { activeId = id; persist(); emit() }
+  return loadSave()
+}
+
+/** activate the most recently played run (the title's plain Continue) */
+export function continueLatest(): SaveGame | null {
+  const latest = listSaves()[0]
+  if (latest) return activateSave(latest.id)
+  return null
+}
+
+export function renameSave(id: string, handle: string) {
+  const r = ensureRoster()
+  const s = r.find((x) => x.id === id)
+  if (s) { s.handle = handle.slice(0, 14); s.savedAt = Date.now(); persist(); emit() }
+}
+
+export function deleteSave(id: string) {
+  roster = ensureRoster().filter((s) => s.id !== id)
+  if (activeId === id) activeId = null
+  persist(); emit()
+}
+
+/** delete the active run (used by dev/captain "wipe active") */
 export function clearSave() {
-  localStorage.removeItem(KEY)
-  localStorage.removeItem(OLD_KEY)
-  cache = null
-  emit()
+  if (activeId) deleteSave(activeId)
+  else emit()
+}
+
+/** nuke the whole roster (captain "wipe all", dev fresh=1) */
+export function clearAllSaves() {
+  roster = []; activeId = null
+  localStorage.removeItem(OLD_V2); localStorage.removeItem(OLD_V1)
+  persist(); emit()
 }
 
 // ---- the domain verbs (systems write through these, never by hand-editing fields) ----

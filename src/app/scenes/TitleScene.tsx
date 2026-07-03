@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNav } from '../SceneManager'
-import { clearSave, loadSave } from '../../game/save'
+import { continueLatest, listSaves, newSave } from '../../game/save'
 import { track } from '../../game/telemetry'
 import { GearButton, SettingsPanel, applySettings, loadSettings } from '../SettingsPanel'
+import { SavesPanel } from '../SavesPanel'
 import './boot-title.css'
 
 // Title (GAME-DESIGN §4.2). The backdrop is the cove itself — for now a captured frame of
@@ -13,19 +14,28 @@ import './boot-title.css'
 
 export default function TitleScene() {
   const nav = useNav()
-  const save = loadSave()
+  const saves = listSaves()
+  const latest = saves[0] ?? null
   const [gullRight, setGullRight] = useState(false)
   const [gullHop, setGullHop] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [savesOpen, setSavesOpen] = useState(false)
 
-  useEffect(() => { track('title_shown', { hasSave: !!save }); applySettings(loadSettings()) }, [save])
+  useEffect(() => { track('title_shown', { saves: saves.length }); applySettings(loadSettings()) }, [saves.length])
 
-  // Continue resumes at the saved beat; New voyage (and a first-ever Set Sail) starts the
-  // introduction from the wake-up — a fresh voyage means a fresh save, always
-  // the beach entry rides the illustrated scene cover — a calm, heavy loading moment,
-  // never a fast flash (Ash's transitions verdict)
-  const sail = () => { track(save ? 'continue_clicked' : 'new_voyage_clicked'); if (!save) clearSave(); nav.go('beach', { kind: 'scene', title: 'THE FAR SHORE', holdMs: 2200 }) }
-  const newVoyage = () => { track('new_voyage_clicked'); clearSave(); nav.go('beach', { kind: 'scene', title: 'THE FAR SHORE', holdMs: 2200 }) }
+  // where a run resumes: mid-intro -> the beach; intro finished -> the island hub. The beach
+  // and island entries ride the illustrated scene cover (calm, heavy — never a flash).
+  const resume = (introDone: boolean) => {
+    if (introDone) nav.go('islandmap', { kind: 'scene', image: '/art/ui/loading-islands.png', title: 'THE BLHS ISLANDS', holdMs: 2200 })
+    else nav.go('beach', { kind: 'scene', title: 'THE FAR SHORE', holdMs: 2200 })
+  }
+  const cont = () => {
+    track('continue_clicked')
+    const s = continueLatest()
+    if (s) resume(s.introDone)
+    else { newSave(); resume(false) }   // no save yet: same as a fresh voyage
+  }
+  const newVoyage = () => { track('new_voyage_clicked'); newSave(); resume(false) }
 
   const flapGull = () => { setGullHop((h) => h + 1); setGullRight((g) => !g) }
 
@@ -35,7 +45,7 @@ export default function TitleScene() {
       <div className="ti-veil" />
 
       <div className="ti-stack">
-        {save && <div className="ti-welcome">Welcome back, {save.handle || 'Panther'}</div>}
+        {latest && <div className="ti-welcome">Welcome back, {latest.handle || 'Panther'}</div>}
 
         <div className="ti-wordmark">
           <div className="ti-signpaper" />
@@ -53,17 +63,20 @@ export default function TitleScene() {
         </div>
 
         <div className="ti-actions">
-          <button className="ti-plank" onClick={sail}>
-            <span className="ti-plank-label">{save ? `Continue — Year ${save.year}, ${save.season}` : 'Set Sail'}</span>
+          <button className="ti-plank" onClick={latest ? cont : newVoyage}>
+            <span className="ti-plank-label">{latest ? `Continue — Year ${latest.year}, ${latest.season}` : 'Set Sail'}</span>
           </button>
-          {/* always present (Ash): with no save it simply starts fresh, same as Set Sail */}
           <button className="ti-newvoyage" onClick={newVoyage}>New voyage</button>
+          {saves.length > 0 && (
+            <button className="ti-newvoyage" onClick={() => setSavesOpen(true)}>Saves ({saves.length})</button>
+          )}
         </div>
       </div>
 
       <div className="ti-credit">made by the Algorithmic Thinking Club</div>
       <GearButton onClick={() => setSettingsOpen(true)} />
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      {savesOpen && <SavesPanel onClose={() => setSavesOpen(false)} onContinue={(s) => resume(s.introDone)} />}
     </div>
   )
 }

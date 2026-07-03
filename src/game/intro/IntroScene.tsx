@@ -4,10 +4,10 @@ import { CutsceneRuntime } from '../cutscene/runtime'
 import { CutsceneOverlay } from '../cutscene/CutsceneOverlay'
 import { introI1I2 } from './introScript'
 import { I3Session } from './I3Session'
-import { clearSave, loadSave, writeSave } from '../save'
+import { clearAllSaves, loadSave, newSave, writeSave } from '../save'
 
-// dev: ?fresh=1 wipes the save before the scene reads it, so the intro always replays
-if (new URLSearchParams(location.search).has('fresh')) clearSave()
+// dev: ?fresh=1 wipes the whole roster and starts a fresh run, so the intro always replays
+if (new URLSearchParams(location.search).has('fresh')) { clearAllSaves(); newSave() }
 import { track } from '../telemetry'
 import { GearButton, SettingsPanel } from '../../app/SettingsPanel'
 import { Hud } from '../hud/Hud'
@@ -47,8 +47,9 @@ export default function IntroScene() {
       track('cutscene_start', { id: 'intro' })
       runtime.play(introI1I2, () => {
         // the whole beach act is done (I-1..I-5): the ship is in open water — THE MAP
-        // SWITCH (I-6): the BLHS Islands painting covers the load, the island map takes over
-        writeSave({ beat: 'intro:i6' })
+        // SWITCH (I-6): the BLHS Islands painting covers the load, the island map takes over.
+        // introDone flips true here, so from now on Continue lands on the island, not the beach.
+        writeSave({ beat: 'island:arrive', introDone: true })
         track('cutscene_complete', { id: 'intro-beach-act' })
         track('sail_started')
         navRef.current?.go('islandmap', { kind: 'scene', image: '/art/ui/loading-islands.png', title: 'THE BLHS ISLANDS', holdMs: 2600 })
