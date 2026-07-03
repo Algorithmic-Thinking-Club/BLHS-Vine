@@ -29,9 +29,9 @@ def req(url, data=None, method=None, tries=6):
                 ct = resp.headers.get("Content-Type", "")
                 return json.loads(body) if "json" in ct else body
         except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt < tries - 1:
+            if e.code in (429, 500, 502, 503, 504) and attempt < tries - 1:
                 wait = 8 * (attempt + 1)
-                print(f"  429, backing off {wait}s")
+                print(f"  {e.code}, backing off {wait}s")
                 time.sleep(wait)
                 continue
             raise

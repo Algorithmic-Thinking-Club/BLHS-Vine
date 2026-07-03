@@ -86,10 +86,11 @@ export default function IslandMapIso() {
       world.sortableChildren = true
       app.stage.addChild(world)
 
-      // map-local grade: open tropical sea, gently amber, the teal stays alive
+      // GOLDEN HOUR (Ash): the island wears the beach's own late-sun grade — one world,
+      // one light. Rich warmth, blue pulled down, the teal sea stays alive under it.
       const grade = new ColorMatrixFilter()
-      grade.brightness(1.0, false); grade.saturate(0.05, true)
-      const wm = grade.matrix; wm[0] *= 1.05; wm[12] *= 0.93; grade.matrix = wm
+      grade.brightness(1.0, false); grade.saturate(0.06, true); grade.contrast(0.02, true)
+      const wm = grade.matrix; wm[0] *= 1.07; wm[6] *= 1.005; wm[12] *= 0.885; grade.matrix = wm
       world.filters = [grade]
 
       const grassReady = grassV.filter(Boolean).length >= 8
@@ -141,14 +142,17 @@ export default function IslandMapIso() {
         }
       }
 
-      // ---- atmosphere: clean tropical light, soft vignette ----
-      const sun = new Sprite(radial(512, [[0, 'rgba(255,232,180,0.10)'], [0.5, 'rgba(240,225,190,0.04)'], [1, 'rgba(240,225,190,0)']]))
+      // ---- atmosphere: golden hour over open water — warm wash + low-sun glow from the
+      // upper left + a soft warm vignette (the beach's language at sea scale) ----
+      const warm = new Sprite(Texture.WHITE); warm.tint = 0xffc87e; warm.alpha = 0.07; app.stage.addChild(warm)
+      const sun = new Sprite(radial(512, [[0, 'rgba(255,216,150,0.16)'], [0.5, 'rgba(255,206,138,0.05)'], [1, 'rgba(255,206,138,0)']]))
       sun.anchor.set(0.5); sun.blendMode = 'add'; app.stage.addChild(sun)
-      const vig = new Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.5, 'rgba(0,0,0,0)'], [0.75, 'rgba(6,14,16,0.26)'], [1, 'rgba(4,10,12,0.6)']]))
+      const vig = new Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.5, 'rgba(0,0,0,0)'], [0.74, 'rgba(30,19,8,0.28)'], [1, 'rgba(16,9,3,0.66)']]))
       app.stage.addChild(vig)
       const resizeFx = () => {
         const vw = app.screen.width, vh = app.screen.height
-        sun.width = sun.height = Math.max(vw, vh) * 1.6; sun.position.set(vw * 0.3, vh * 0.05)
+        warm.width = vw; warm.height = vh
+        sun.width = sun.height = Math.max(vw, vh) * 1.7; sun.position.set(vw * 0.26, vh * 0.03)
         vig.width = vw * 1.5; vig.height = vh * 1.5; vig.position.set(-vw * 0.25, -vh * 0.25)
         world.x = vw / 2 - isoX(camTx, camTy) * ZOOM
         world.y = vh * 0.5 - isoY(camTx, camTy) * ZOOM
