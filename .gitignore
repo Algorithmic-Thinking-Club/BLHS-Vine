@@ -92,3 +92,4 @@ reference/tools/
 !scripts/port_align.py
 !scripts/measure_sprites.py
 reference/island-refs/
+tsconfig.tsbuildinfo
