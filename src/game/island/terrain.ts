@@ -13,8 +13,7 @@ export const COAST_R = 32 // mean coast radius (tile diagonals) — the island r
 // the volcano site: dead CENTER (Ash 2026-07-02 — unlike bon3's offset peak, our island
 // is center-grounded: the massif rises from the middle and the land masses around it)
 export const CONE = { x: CX, y: CY, r: 11 }
-export const LIFT_MAX = 760 // screen px at e=1 — the summit rim rides ~500px over the
-// flats at world scale; the exponential curve keeps most of the base low
+export const LIFT_MAX = 96 // screen px at e=1 — the cone's drama; the island body stays low
 
 // ---- the coastline: BON3'S OWN SKELETON (Ash: "get bon3's skeleton in") — the locked
 // concept's land mask traced into a per-azimuth radius profile (scripts, saved to
@@ -72,48 +71,13 @@ function azWin(theta: number, c: number, w: number) {
 }
 export function lagoonK(tx: number, ty: number) {
   const th = Math.atan2(ty - CY, tx - CX)
-  return Math.max(
-    azWin(th, LAGOON.c, LAGOON.w),
-    0.7 * azWin(th, COVE.c, COVE.w),
-    0.55 * azWin(th, DELTA.c, DELTA.w),
-  )
-}
-
-// ---- COAST GRAMMAR (law #1: cliffs are the DEFAULT coast, beaches are EVENTS).
-// Three designed bays wear sand; everywhere else the land rides a raised shelf and
-// ends in c3's red-banded strata walls dropping to deep water. The cliff-vs-beach
-// contrast is the coast's whole grammar (master plan §1).
-// screen-WSW pocket on the camera-facing shore (the west TIP folds — no flat coast
-// there; the SW lava tongue bends here): the black-sand delta
-const DELTA = { c: 2.2, w: 0.4 }
-export function beachK(theta: number) {
-  return Math.max(
-    azWin(theta, LAGOON.c, LAGOON.w),      // E arrival apron — the wide golden event
-    0.85 * azWin(theta, COVE.c, COVE.w),   // S river-mouth cove
-    0.8 * azWin(theta, DELTA.c, DELTA.w),  // W black delta
-  )
-}
-export function deltaK(theta: number) { return azWin(theta, DELTA.c, DELTA.w) }
-export function cliffK(theta: number) {
-  return Math.max(0, Math.min(1, 1 - beachK(theta) * 1.6))
-}
-// the cliff lip's height profile (screen px over the waterline): proud wandering
-// headlands, tallest on the N faces (the lighthouse bluff), easing at the bay shoulders
-export function cliffLipH(theta: number) {
-  const k = cliffK(theta)
-  if (k <= 0.02) return 0
-  const northK = 0.5 + 0.5 * Math.cos(theta + 2.36) // 1 facing screen-N
-  const wob = vnoise(Math.cos(theta) * 2.7 + 21, Math.sin(theta) * 2.7 + 13)
-  // proud c3 headlands (the composite guide reads this; the live renderer no longer
-  // lifts the rim — the painting carries the cliff look, this profile shapes it)
-  return k * (44 + 30 * northK + 40 * wob)
+  return Math.max(azWin(th, LAGOON.c, LAGOON.w), 0.7 * azWin(th, COVE.c, COVE.w))
 }
 
 // how wide the underwater shelf reads at this azimuth: wide mosaic inside the lagoon
-// windows, a tight collar under the cliff coasts (deep water almost at the rock)
+// windows, a tight collar under the cliff coasts
 export function shelfW(tx: number, ty: number) {
-  const th = Math.atan2(ty - CY, tx - CX)
-  return 1.7 + 2.3 * (1 - cliffK(th)) + 12 * lagoonK(tx, ty)
+  return 3.5 + 12 * lagoonK(tx, ty)
 }
 
 // ---- ELEVATION, e in [0,1]: a LOW rolling island body + THE CONE's drastic rise.
@@ -134,62 +98,25 @@ export function elevBody(tx: number, ty: number) {
   e += 0.14 * Math.pow(k, 1.6)
   return Math.max(0, Math.min(1, e))
 }
-// THE MASSIF (Ash 2026-07-03, binding): the volcano IS the island's body. Its base
-// covers ~85% of the interior — only the sand fringe and a thin flat apron stay outside
-// it. From the base edge the ground rises EXTREMELY gently, then curves upward like an
-// exponential graph into the summit cone at the island's center. It is built IN the iso
-// tile engine: every tile carries its own height, so the step between neighbors is
-// sub-pixel at the base and grows into real stacked rock walls near the cone — smooth
-// variable terracing, never farm benches, never a pasted hero image.
-const K_EXP = 6.2 // the exponential's sharpness — THE J CURVE: a near-flat skirt for
-// half the radius, then the sweep rockets into a tall NARROW summit (Ash's iconic read)
-export const CRATER_R = 2.2
-export function massifR(theta: number) {
-  // the base reaches almost to the coast: only the beach fringe + a flat apron survive
-  // (wider on the sandy arrival azimuths, tight under the future cliff coasts)
-  const wob = vnoise(Math.cos(theta) * 1.8 + 11, Math.sin(theta) * 1.8 + 6) - 0.5
-  const m = 4.2 + 4.6 * beachK(theta) + 2.6 * wob
-  return Math.max(16, coastR(theta) - Math.max(2.5, m))
-}
-export type ElevInfo = { e: number; u: number; r: number }
-export function elevInfo(tx: number, ty: number): ElevInfo {
+export function elevAt(tx: number, ty: number) {
   const ds = coastDs(tx, ty)
-  if (ds <= 0) return { e: 0, u: 0, r: 0 }
+  if (ds <= 0) return 0
+  const rim = Math.min(1, ds / 5) // the coast fringe eases up from the water
   const dxc = tx - CONE.x, dyc = ty - CONE.y
-  const d = Math.sqrt(dxc * dxc + dyc * dyc)
-  const th = Math.atan2(dyc, dxc)
-  const R = massifR(th)
-  if (d >= R) return { e: 0, u: 0, r: 0 }
-  let u = 1 - d / R // 0 at the base edge, 1 at the cone site
-  // RADIAL SPOKES (Ash's sketch, 2026-07-03): ridgelines and gullies fan from the
-  // summit to the base ring — the volcano's whole surface organizes radially, the way
-  // real drainage carves a cone. ~9 spokes, wandering outward, strongest mid-flank,
-  // converging clean at the rim. r in [-1 ridge crest .. +1 gully floor]... (sign:
-  // positive sin = crest). Contour terraces break along these, so nothing rings.
-  const wob = vnoise(Math.cos(th) * 3.1 + 15, Math.sin(th) * 3.1 + 9) - 0.5
-  const drift = (vnoise(tx / 11 + 5, ty / 11 + 3) - 0.5) * 1.8
-  const spoke = Math.sin(th * 9 + wob * 3.4 + drift)
-  const bar = (0.35 + 0.65 * Math.abs(spoke)) * spoke // sharpened crests
-  const rg2 = vnoise(Math.cos(th) * 5.4 + 13, Math.sin(th) * 5.4 + 2) - 0.5
-  const swellK = Math.sin(Math.PI * Math.min(1, u * 1.15)) * (1 - Math.max(0, (u - 0.82) / 0.18))
-  u += (0.055 * bar + 0.025 * rg2) * Math.max(0, swellK)
-  u = Math.max(0, Math.min(1, u))
-  let e = (Math.exp(K_EXP * u) - 1) / (Math.exp(K_EXP) - 1)
-  // the crater bowl caps the cone: deep enough that the exponential's center sinks
-  // well below the rim ring — the RIM is the summit, never an apex chimney
-  if (d < CRATER_R) e -= 0.45 * Math.pow(1 - d / CRATER_R, 0.8)
-  // fine landform grain so the low skirt rolls instead of laying mathematically flat
-  e += 0.018 * (vnoise(tx / 9 + 3, ty / 9 + 8) - 0.5) * Math.min(1, u * 9) * (1 - u * 0.8)
-  const rim = Math.min(1, ds / 4) // the coast flats ease up from the water
-  return { e: Math.max(0, Math.min(1, e * rim)), u, r: bar }
-}
-export function elevAt(tx: number, ty: number) { return elevInfo(tx, ty).e }
-// walkability at vista/walk scale: the mountain blocks where its slope turns to wall
-export function slopeAt(tx: number, ty: number) {
-  const d = 0.5
-  const gx = elevAt(tx + d, ty) - elevAt(tx - d, ty)
-  const gy = elevAt(tx, ty + d) - elevAt(tx, ty - d)
-  return Math.sqrt(gx * gx + gy * gy) / (2 * d)
+  const dCone = Math.sqrt(dxc * dxc + dyc * dyc)
+  // the island body: gentle rise toward the interior, capped LOW (Ash: light elevation,
+  // relatively flat — the relief reads as soft rolling jungle, not benches)
+  const toCone = Math.max(0, 1 - dCone / (COAST_R * 1.1))
+  let e = rim * (0.1 + 0.16 * toCone)
+  // soft landform wander
+  e += 0.035 * (vnoise(tx / 16 + 3, ty / 16 + 8) - 0.5) * rim
+  // THE CONE: the one drastic rise (Mayon's concave flare — steep near the site,
+  // flaring smoothly into the body)
+  if (dCone < CONE.r * 2.1) {
+    const k = 1 - dCone / (CONE.r * 2.1)
+    e += 0.66 * Math.pow(k, 1.75)
+  }
+  return Math.max(0, Math.min(1, e))
 }
 
 // ---- the TWO LAVA FLOWS: polylines from the cone's flanks (where the carved heads sit)
