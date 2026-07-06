@@ -101,6 +101,10 @@ export default function IslandMapIso() {
       host.appendChild(app.canvas)
 
       const params = new URLSearchParams(location.search)
+      // ?dbg=1 — forensic overlay: pure-hue tints per wall draw type (front faces RED,
+      // corner plugs YELLOW, back fills BLUE, back-corner nubs MAGENTA) so a screenshot
+      // says exactly which draw call owns every rock pixel. Never ships.
+      const DBG = !!params.get('dbg')
       const ZOOM = Number(params.get('zoom') || 0.62) || 0.62
       const cam = (params.get('cam') || `${CX},${CY}`).split(',').map(Number)
       const camTx = cam[0] ?? CX, camTy = cam[1] ?? CY
@@ -236,7 +240,9 @@ export default function IslandMapIso() {
           const d = DIST[ty * COLS + tx]
           const cf = smooth(0.35, 0.6, cliffMask(Math.atan2(ty - CY, tx - CX)))
           const j = bandJ(tx, ty) * 0.7
-          const beachL = d <= 6 + j ? 0 : d <= 7.5 + j ? 1 : d <= 9 + j ? 2 : PLAT_L
+          // tighter shelf (Ash: the wide beach ate the plateau the volcano needs) —
+          // ~4 tiles of sand, then the two steps hugging the plateau edge
+          const beachL = d <= 4.5 + j ? 0 : d <= 6 + j ? 1 : d <= 7.5 + j ? 2 : PLAT_L
           return Math.round(beachL * (1 - cf) + PLAT_L * cf)
         }
         const LV = new Int8Array(COLS * ROWS)
@@ -272,8 +278,10 @@ export default function IslandMapIso() {
         // a foam collar at a wall's waterline foot — drawn ABOVE the fronting sea tile (which
         // submerges the wall base); at wall-z the sea drew over it and the join showed as notches
         const foamCollar = (fx: number, fy: number, zBase: number, frontSum: number) => {
+          // THIN and quiet: the old 58x20 alpha-.75 blob scaled into a blurry brown smudge
+          // pasted over the crisp wall at any real zoom. A low lap line at the waterline only.
           const foam = new Sprite(foamTex); foam.anchor.set(0.5, 0.5)
-          foam.width = 58; foam.height = 20; foam.alpha = 0.75
+          foam.width = 50; foam.height = 9; foam.alpha = 0.5
           foam.position.set(fx, fy)
           foam.zIndex = Math.max(zBase, frontSum * 4000) + 62
           world.addChild(foam)
@@ -304,14 +312,17 @@ export default function IslandMapIso() {
               const drop = (L - floorL) * STEP
               const toSea = nlv < 0
               const ex = isoX(tx + ox * 0.5, ty + oy * 0.5), ey = isoY(tx + ox * 0.5, ty + oy * 0.5) - lift + GY
-              const fv = ox === 1 ? 0.86 : 1.0              // SE face shadowed, SW sunlit (sun UL)
+              // SE face barely shadowed vs SW: a staircase coast alternates the two faces
+              // EVERY tile, so any real contrast prints a per-tile dark/light dash around
+              // the whole island (the "individual 3d tile sides"). References keep it ~5%.
+              const fv = ox === 1 ? 0.95 : 1.0
               let seg: Sprite
               if (!rockW.length) continue
               // ONE ROCK for every wall on the island. Per-run variant picks degenerated into
               // patchwork wherever the coast turns often (short runs = a different rock every
               // few tiles) — the "screwed 3D" read. Consistency IS the material; variety comes
               // from the texture itself, the band stacking, and a gentle continuous drift.
-              const drift = 0.96 + 0.08 * vnoise(tx / 7 + 2.2, ty / 7 + 7.7)
+              const drift = 0.98 + 0.04 * vnoise(tx / 7 + 2.2, ty / 7 + 7.7)
               const rk = rockW[0]
               // the face is drawn from 8px above the edge MIDPOINT (the edge's upper-corner
               // height on the 64x32 lattice) and extended past the drop: a horizontal-topped
@@ -328,7 +339,7 @@ export default function IslandMapIso() {
               // corner: the dotted rhythm around the island. Sea walls are just a bit darker.
               const totalH = drop + (toSea ? 21 : 23)
               const nSeg = Math.max(1, Math.ceil(totalH / 26))
-              const vv = Math.min(255, Math.round(fv * drift * (toSea ? 0.92 : 1.0) * 255))
+              const vv = Math.min(255, Math.round(fv * drift * (toSea ? 0.96 : 1.0) * 255))
               const segTint = (vv << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.70)
               const faceFrame = ox === 1 ? new Rectangle(33, 35, 28, 20) : new Rectangle(3, 35, 28, 20)
               for (let si = 0; si < nSeg; si++) {
@@ -339,6 +350,7 @@ export default function IslandMapIso() {
                 seg.position.set(ex, ey - 9 + si * (totalH / nSeg))
                 // each lower band a whisper darker — strata depth without visible banding
                 seg.tint = si === 0 ? segTint : shadeHex(segTint, 1 - 0.035 * si)
+                if (DBG) seg.tint = ox === 1 ? 0xff2020 : 0xff8020   // SE red, SW orange
                 seg.zIndex = zBase + 1
                 world.addChild(seg)
               }
@@ -370,6 +382,7 @@ export default function IslandMapIso() {
                   seg.height = totalH / nSeg + (si < nSeg - 1 ? 1 : 0)
                   seg.position.set(cxp, cyp + si * (totalH / nSeg))
                   seg.tint = si === 0 ? plugTint : shadeHex(plugTint, 1 - 0.035 * si)
+                  if (DBG) seg.tint = 0xffe020                       // front-corner plug yellow
                   seg.zIndex = zBase + 1
                   world.addChild(seg)
                 }
@@ -441,19 +454,25 @@ export default function IslandMapIso() {
                 const floorB = nb < 0 ? 0 : nb
                 if (L <= floorB) continue                     // back neighbour level or higher
                 const toSea = nb < 0
-                const drop = (L - floorB) * STEP + (toSea ? 6 : 3)
                 const rk = rockW[0]                           // the island's one wall rock
                 // same warm material as the faces, only modestly darker (the step's shadowed
                 // inner wall) — big value jumps between fills and faces read as broken 3D
-                const bvv = Math.min(255, Math.round(0.78 * (0.94 + 0.1 * vnoise(tx / 7 + 9, ty / 7 + 5)) * 255))
+                // just under the face brightness — the old 0.62/0.78 ramps got crushed by the
+                // golden grade into near-BLACK dashes outlining every back edge (pixel-sampled
+                // RGB(29..63,10..14,11..14)): the dark broken rhythm around the island
+                const bvv = Math.min(255, Math.round((toSea ? 0.84 : 0.86) * (0.96 + 0.06 * vnoise(tx / 7 + 9, ty / 7 + 5)) * 255))
                 const backTint = (bvv << 16) | (Math.round(bvv * 0.88) << 8) | Math.round(bvv * 0.72)
                 const backFrame = ox === -1 ? new Rectangle(33, 35, 28, 20) : new Rectangle(3, 35, 28, 20)
-                // the void is a PARALLELOGRAM with vertical sides — covered as two stepped
-                // half-edge segments (the pixel staircase), tucked up under the overlapping
-                // tops, each stacking strata bands like the front faces (never one long stretch)
-                const P0x = ox === -1 ? -32 : 32              // the low corner (left / right)
-                const bH = drop + 5
+                // GEOMETRY TRUTH: a back edge faces AWAY from the camera — its wall is never
+                // visible. Over the SEA the correct picture is grass edge → water behind and
+                // below, marked only by a THIN dark rock lip under the rim (c3's plateau-edge
+                // line). The old full-drop rock columns here were hand-placed chips fighting
+                // the geometry: floating strips, sea notches between steps, bare overhung
+                // corners — Ash's "issue surrounding the island". INLAND steps still need the
+                // full-drop fill (the terrace behind sits higher on screen and leaves a void).
+                const bH = toSea ? 8 : (L - floorB) * STEP + 8
                 const nB = Math.max(1, Math.ceil(bH / 26))
+                const P0x = ox === -1 ? -32 : 32              // the low corner (left / right)
                 for (let s = 0; s < 2; s++) {
                   const cxs = bx + P0x * (0.75 - 0.5 * s)     // segment centre x (quarter points)
                   const cys = by - 18 * (0.25 + 0.5 * s) - 5  // edge height there, tucked up under the top
@@ -463,6 +482,7 @@ export default function IslandMapIso() {
                     fill.width = 18; fill.height = bH / nB + (si < nB - 1 ? 1 : 0)
                     fill.position.set(cxs, cys + si * (bH / nB))
                     fill.tint = si === 0 ? backTint : shadeHex(backTint, 1 - 0.04 * si)
+                    if (DBG) fill.tint = toSea ? 0x2040ff : 0x20e0ff // back fill: sea blue, inland cyan
                     fill.zIndex = zBase + 2
                     world.addChild(fill)
                   }
@@ -473,14 +493,20 @@ export default function IslandMapIso() {
               const bdl = eLvl(tx - 1, ty - 1)
               const bdF = bdl < 0 ? 0 : bdl
               if (L > bdF && eLvl(tx - 1, ty) >= L && eLvl(tx, ty - 1) >= L) {
-                const drop = (L - bdF) * STEP + (bdl < 0 ? 6 : 3)
-                const rk = rockW[Math.floor(hash(tx * 5.9 + 4, ty * 6.1 + 2) * rockW.length) % rockW.length]
-                const fill = new Sprite(new Texture({ source: rk.source, frame: new Rectangle(18, 14, 28, 38) }))
+                // same one-rock warm SIDE-FACE material as everything else — this fill was
+                // the last survivor of the old y14 crop (the block's green TOP stretched down
+                // the wall) plus a random rock and a cool near-black tint: a foreign chip at
+                // every back corner. Rock y35+, rockW[0], the shared warm ramp. Over the sea
+                // the same thin-lip rule as the back edges: the corner faces away, rim only.
+                const drop = bdl < 0 ? 8 : (L - bdF) * STEP + 3
+                const rk = rockW[0]
+                const fill = new Sprite(new Texture({ source: rk.source, frame: new Rectangle(19, 35, 26, 20) }))
                 fill.anchor.set(0.5, 0)
                 fill.width = 26; fill.height = drop
                 fill.position.set(isoX(tx - 0.5, ty - 0.5), isoY(tx - 0.5, ty - 0.5) - lift + GY + 1)
-                const vv = 62 + Math.floor(20 * hash(tx * 2.9, ty * 3.7))
-                fill.tint = (vv << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.8)
+                const vv = Math.min(255, Math.round(0.84 * (0.96 + 0.06 * vnoise(tx / 7 + 6, ty / 7 + 3)) * 255))
+                fill.tint = (vv << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.72)
+                if (DBG) fill.tint = 0xff20ff                        // back-corner nub magenta
                 fill.zIndex = zBase + 2
                 world.addChild(fill)
               }
