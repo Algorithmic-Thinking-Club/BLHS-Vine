@@ -184,8 +184,8 @@ export default function IslandMapIso() {
         // diamonds (masked from the tile blocks); walls = rock strata sized to the drop. ----
         const flatG: Texture[] = [], flatS: Texture[] = [], rockW: Texture[] = []
         for (let i = 0; i < 16; i++) {
-          try { const t: Texture = await Assets.load(`/art/island/flat/grass-${i}.png`); t.source.scaleMode = 'nearest'; flatG.push(t) } catch { /* */ }
-          try { const t: Texture = await Assets.load(`/art/island/flat/sand-${i}.png`); t.source.scaleMode = 'nearest'; flatS.push(t) } catch { /* */ }
+          try { const t: Texture = await Assets.load(`/art/island/flat/grass-${i}.png?v=2`); t.source.scaleMode = 'nearest'; flatG.push(t) } catch { /* */ }
+          try { const t: Texture = await Assets.load(`/art/island/flat/sand-${i}.png?v=2`); t.source.scaleMode = 'nearest'; flatS.push(t) } catch { /* */ }
         }
         for (let i = 2; i <= 5; i++) {
           try { const t: Texture = await Assets.load(`/art/island/blocks3/rock-${i}.png`); t.source.scaleMode = 'nearest'; rockW.push(t) } catch { /* */ }
