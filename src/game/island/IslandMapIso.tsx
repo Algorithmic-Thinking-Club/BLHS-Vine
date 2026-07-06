@@ -198,16 +198,25 @@ export default function IslandMapIso() {
         // in the designed BAYS (never bleeding inside the cliff coasts).
         // WIDE beaches on the non-cliff coasts (bon3), the flat sea-level sand shelf; the
         // cliff coasts (screen N + W) meet the water as raised banded rock, never sand.
-        const isSandT = (tx: number, ty: number) => {
-          if (coastDs(tx, ty) <= 0 || coastDs(tx, ty) > 14) return false
-          return cliffMask(thJit(tx, ty)) < 0.35 && elevF(tx, ty) < 0.09
+        // the LEVEL GRID — the beach ramp is authored as CONTIGUOUS BENCHES that follow the
+        // coast (bands of coastDs with one low-freq wiggle), not a rounded continuous field:
+        // rounding made the mid-levels scatter into busy 1-tile interleaved strips. Cliff
+        // azimuths hold the full plateau to the waterline; the two benches are the "2 small
+        // steps" between beach and plateau. Then cleaned: a lone tile whose level matches no
+        // neighbour snaps to the level most of them share.
+        const PLAT_L = 3
+        const bandJ = (tx: number, ty: number) => (vnoise(tx / 9 + 31, ty / 9 + 47) - 0.5) * 2.4
+        const lvlOf = (tx: number, ty: number) => {
+          const ds = coastDs(tx, ty)
+          if (ds <= 0) return -1
+          const cf = smooth(0.3, 0.55, cliffMask(thJit(tx, ty)))
+          const j = bandJ(tx, ty)
+          const beachL = ds <= 14 + j ? 0 : ds <= 16.5 + j ? 1 : ds <= 19 + j ? 2 : PLAT_L
+          return Math.round(beachL * (1 - cf) + PLAT_L * cf)
         }
-        // the LEVEL GRID: computed once, then cleaned — a lone tile whose level matches no
-        // neighbour snaps to the level most of them share. Wandering contours kept flipping
-        // single tiles, and every orphan wore a rock face: debris floating on a flat field.
         const LV = new Int8Array(COLS * ROWS)
         for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
-          LV[ty * COLS + tx] = coastDs(tx, ty) <= 0 ? -1 : (isSandT(tx, ty) ? 0 : levelAt(tx, ty))
+          LV[ty * COLS + tx] = lvlOf(tx, ty)
         }
         for (let pass = 0; pass < 2; pass++) {
           const prev = Int8Array.from(LV)
@@ -253,7 +262,8 @@ export default function IslandMapIso() {
             const dsq = dsAt(tx, ty)
             if (dsq <= 0) { seaTile(world, tx, ty, dsq, waterV, undefined, waterS); continue }
             const L = eLvl(tx, ty)                          // beaches = 0 → flush, no gap
-            const sand = L === 0 && isSandT(tx, ty)         // grid-cleaned: a snapped tile keeps its new level's coat
+            // sea-level land on a beach azimuth wears sand; on mixed azimuths it stays grass
+            const sand = L === 0 && cliffMask(thJit(tx, ty)) < 0.35
             const lift = L * STEP
             const bx = isoX(tx, ty), by = isoY(tx, ty) - lift + GY
             const zBase = (tx + ty) * 4000 + lift * 8
@@ -269,7 +279,7 @@ export default function IslandMapIso() {
               const drop = (L - floorL) * STEP
               const toSea = nlv < 0
               const ex = isoX(tx + ox * 0.5, ty + oy * 0.5), ey = isoY(tx + ox * 0.5, ty + oy * 0.5) - lift + GY
-              const fv = ox === 1 ? 0.74 : 0.96             // SE face shadowed, SW sunlit (sun UL)
+              const fv = ox === 1 ? 0.84 : 1.0              // SE face shadowed, SW sunlit (sun UL)
               let seg: Sprite
               if (!rockW.length) continue
               // ALL sides are ROCK (Ash: a cliff feel, not green grass) — but RUN-COHERENT:
@@ -293,12 +303,13 @@ export default function IslandMapIso() {
               // at y~15, so every wall's upper half was the block's green TOP stretched down
               // the cliff: Ash's "weird image on top" breaking the 3D. Each face now crops its
               // own side of the face zone (the block's built-in directional shading).
+              // ONE warm rock family for every wall — the old cool near-black "wet basalt"
+              // on sea faces printed high-contrast black ticks at every coast staircase
+              // corner: the dotted rhythm around the island. Sea walls are just a bit darker.
               const totalH = drop + (toSea ? 21 : 23)
               const nSeg = Math.max(1, Math.ceil(totalH / 26))
-              const vv = Math.round(fv * drift * 255)
-              const segTint = toSea
-                ? (Math.round(vv * 0.82) << 16) | (Math.round(vv * 0.82) << 8) | Math.round(vv * 0.92)
-                : (Math.round(vv * 1.0) << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.70)
+              const vv = Math.min(255, Math.round(fv * drift * (toSea ? 0.92 : 1.0) * 255))
+              const segTint = (vv << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.70)
               const faceFrame = ox === 1 ? new Rectangle(33, 35, 28, 20) : new Rectangle(3, 35, 28, 20)
               for (let si = 0; si < nSeg; si++) {
                 seg = new Sprite(new Texture({ source: rk.source, frame: faceFrame }))
@@ -331,10 +342,8 @@ export default function IslandMapIso() {
                 const rk = rockW[vi % rockW.length]
                 const totalH = drop + (toSea ? 12 : 14)
                 const nSeg = Math.max(1, Math.ceil(totalH / 40))
-                const vv = Math.round(0.8 * (0.94 + 0.12 * ((vi % 5) / 5)) * 255)
-                const plugTint = toSea
-                  ? (Math.round(vv * 0.82) << 16) | (Math.round(vv * 0.82) << 8) | Math.round(vv * 0.92)
-                  : (Math.round(vv * 1.0) << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.70)
+                const vv = Math.min(255, Math.round((toSea ? 0.82 : 0.88) * (0.94 + 0.12 * ((vi % 5) / 5)) * 255))
+                const plugTint = (vv << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.70)
                 for (let si = 0; si < nSeg; si++) {
                   // the SIDE-FACE zone of the block (y 35+), never the green top
                   const seg = new Sprite(new Texture({ source: rk.source, frame: new Rectangle(19, 35, 26, 20) }))
@@ -363,9 +372,9 @@ export default function IslandMapIso() {
               const top = new Sprite(g); top.anchor.set(0.5, 18 / 36); top.scale.set(1)
               top.position.set(bx, by); top.zIndex = zBase + 5
               const grain = 0.995 + 0.01 * hash(tx * 1.3, ty * 2.1)
-              // per-tile jitter on the rake input: shallow smooth gradients otherwise quantize
-              // into clean equal-tint contour lines (the "zigzag across the island")
-              const rk = rakeAt(tx, ty) + (hash(tx * 2.7, ty * 3.9) - 0.5) * 0.1
+              // continuous jitter on the rake input: shallow smooth gradients otherwise
+              // quantize into clean equal-tint contour lines (the "zigzag across the island")
+              const rk = rakeAt(tx, ty) + (vnoise(tx / 2.3 + 14, ty / 2.3 + 3) - 0.5) * 0.1
               if (sand) {
                 const tt = Math.min(1, dsq / 5)
                 const v = (0.965 + 0.06 * vnoise(tx / 16 + 3, ty / 16 + 5)) * grain * (1 + 0.1 * rk)
@@ -377,9 +386,11 @@ export default function IslandMapIso() {
                 // green swaths instead of one olive slab
                 const zone = vnoise(tx / 24 + 9, ty / 24 + 17)
                 const patch = 0.96 + 0.08 * vnoise(tx / 14 + 2, ty / 14 + 6)
-                // gentler zone swing + a per-tile dither so the drift never prints contour lines
+                // gentler zone swing + a HIGH-FREQ CONTINUOUS dither: it still breaks contour
+                // alignment, but neighbouring tiles stay correlated — a per-tile hash printed
+                // hard diamond boundaries once the tops stopped overlapping
                 const tval = Math.max(0, Math.min(1,
-                  0.1 + 0.3 * vnoise(tx / 13 + 2, ty / 13 + 6) + 0.42 * zone + (hash(tx * 7.3, ty * 9.1) - 0.5) * 0.06))
+                  0.1 + 0.3 * vnoise(tx / 13 + 2, ty / 13 + 6) + 0.42 * zone + (vnoise(tx / 2.1 + 5, ty / 2.1 + 9) - 0.5) * 0.06))
                 const lit = patch * grain * (1 + 0.13 * rk) * (1.03 - 0.07 * zone)
                 top.tint = warmCool(tintFor(shadeHex(rampAt(GRASS_RAMP, tval), lit), GRASS_BASE), rk)
               }
@@ -421,10 +432,8 @@ export default function IslandMapIso() {
                 // lip strip dotted an outline around the whole island. With the crop bug fixed,
                 // plain rock is what reads as a real 3D block side.) Darker than the front
                 // faces: this is the step's shadowed inner wall.
-                const bvv = Math.round((toSea ? 0.6 : 0.52) * (0.92 + 0.16 * hash(tx * 1.9 + ox, ty * 2.7 + oy)) * 255)
-                const backTint = toSea
-                  ? (Math.round(bvv * 0.82) << 16) | (Math.round(bvv * 0.82) << 8) | Math.round(bvv * 0.95)
-                  : (bvv << 16) | (Math.round(bvv * 0.88) << 8) | Math.round(bvv * 0.76)
+                const bvv = Math.min(255, Math.round((toSea ? 0.68 : 0.58) * (0.92 + 0.16 * hash(tx * 1.9 + ox, ty * 2.7 + oy)) * 255))
+                const backTint = (bvv << 16) | (Math.round(bvv * 0.88) << 8) | Math.round(bvv * 0.74)
                 const backFrame = ox === -1 ? new Rectangle(33, 35, 28, 20) : new Rectangle(3, 35, 28, 20)
                 // the void is a PARALLELOGRAM with vertical sides — covered as two stepped
                 // half-edge segments (the pixel staircase), tucked up under the overlapping
