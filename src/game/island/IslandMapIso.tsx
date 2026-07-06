@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Application, Assets, ColorMatrixFilter, Container, Rectangle, Sprite, Texture } from 'pixi.js'
 import {
   isoX, isoY, hash, vnoise, shadeHex, rampAt, tintFor,
-  loadWaterVariants, seaTile, animSwells, type SwellSprite,
+  loadWaterVariants, seaTile, animSwells, W_RAMP, W_BASE, DEPTH_RANGE, type SwellSprite,
 } from '../ocean'
 import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL } from './terrain'
 
@@ -23,7 +23,10 @@ const thJit = (tx: number, ty: number) =>
 const rakeAt = (tx: number, ty: number) => {
   const up = (CX + CY) - (tx + ty)   // + = higher on screen (toward the sun)
   const left = (ty - tx)             // + = further screen-left (toward the sun)
-  return Math.max(-1, Math.min(1, (up * 0.8 + left * 0.45) / 44))
+  // soft saturation, not a hard clamp — the clamp's kink lines (and the zero crossing)
+  // quantized into visible zigzag contours running across the whole flat interior
+  const r = (up * 0.8 + left * 0.45) / 44
+  return r / (1 + Math.abs(r))
 }
 const clampB = (v: number) => (v < 0 ? 0 : v > 255 ? 255 : v)
 // warm the sunlit side toward gold, cool the shade side toward violet-blue (the sunset split)
@@ -278,25 +281,36 @@ export default function IslandMapIso() {
               const vi = Math.floor(hash(runKey * 3.7 + ox * 5, 13.1) * 997)
               const drift = 0.95 + 0.1 * vnoise(runPos / 5.5 + runKey * 2.2, 7.7)
               const rk = rockW[vi % rockW.length]
-              // the face rect is drawn 9px above the edge MIDPOINT (the edge's upper-corner
+              // the face is drawn from 9px above the edge MIDPOINT (the edge's upper-corner
               // height) and extended past the drop: a horizontal-topped rect on a sloped
               // diamond edge otherwise leaves bare triangles at both ends. The tile's own
               // top (drawn later) masks the overshoot above the edge; the fronting tile
-              // masks the overshoot below.
-              if (toSea) {
-                // extends below the waterline (base submerged) so the foam collar hides the join
-                seg = new Sprite(new Texture({ source: rk.source, frame: new Rectangle(2, 15, 60, 37) }))
-                seg.anchor.set(0.5, 0); seg.scale.set(54 / 60, (drop + 21) / 37)
-                const vv = Math.round(fv * drift * 255)
-                seg.tint = (Math.round(vv * 0.82) << 16) | (Math.round(vv * 0.82) << 8) | Math.round(vv * 0.92)
-              } else {
-                seg = new Sprite(new Texture({ source: rk.source, frame: new Rectangle(3, 17, 58, 35) }))
-                seg.anchor.set(0.5, 0); seg.scale.set(48 / 58, (drop + 23) / 35)
-                const vv = Math.round(fv * drift * 255)                            // warm dry rock
-                seg.tint = (Math.round(vv * 1.0) << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.70)
+              // masks the overshoot below. TALL drops STACK band segments instead of
+              // stretching one crop — a 37px crop pulled to 80px smeared the strata into
+              // the "weird 2D image" read.
+              // CROP TRUTH: the block textures are FULL iso blocks — the mossy top diamond
+              // owns y 0-34, the true rock SIDE FACES live at y 35-56. The old crops started
+              // at y~15, so every wall's upper half was the block's green TOP stretched down
+              // the cliff: Ash's "weird image on top" breaking the 3D. Each face now crops its
+              // own side of the face zone (the block's built-in directional shading).
+              const totalH = drop + (toSea ? 21 : 23)
+              const nSeg = Math.max(1, Math.ceil(totalH / 26))
+              const vv = Math.round(fv * drift * 255)
+              const segTint = toSea
+                ? (Math.round(vv * 0.82) << 16) | (Math.round(vv * 0.82) << 8) | Math.round(vv * 0.92)
+                : (Math.round(vv * 1.0) << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.70)
+              const faceFrame = ox === 1 ? new Rectangle(33, 35, 28, 20) : new Rectangle(3, 35, 28, 20)
+              for (let si = 0; si < nSeg; si++) {
+                seg = new Sprite(new Texture({ source: rk.source, frame: faceFrame }))
+                seg.anchor.set(0.5, 0)
+                seg.width = toSea ? 54 : 48
+                seg.height = totalH / nSeg + (si < nSeg - 1 ? 1 : 0)   // 1px overlap between bands
+                seg.position.set(ex, ey - 9 + si * (totalH / nSeg))
+                // each lower band sits a touch darker — strata depth, and it breaks repetition
+                seg.tint = si === 0 ? segTint : shadeHex(segTint, 1 - 0.06 * si)
+                seg.zIndex = zBase + 1
+                world.addChild(seg)
               }
-              seg.position.set(ex, ey - 9); seg.zIndex = zBase + 1
-              world.addChild(seg)
               if (toSea) {                                  // a foam collar hugging the cliff foot
                 foamCollar(ex, ey + drop + 2, zBase, tx + ox + ty + oy)
               }
@@ -315,15 +329,23 @@ export default function IslandMapIso() {
                 // matches the SE face run it sits between, so the plug continues the wall
                 const vi = Math.floor(hash(tx * 3.7 + 5, 13.1) * 997)
                 const rk = rockW[vi % rockW.length]
-                const seg = new Sprite(new Texture({ source: rk.source, frame: new Rectangle(18, 16, 28, 36) }))
-                seg.anchor.set(0.5, 0)
-                seg.scale.set(30 / 28, (drop + (toSea ? 12 : 14)) / 36)
+                const totalH = drop + (toSea ? 12 : 14)
+                const nSeg = Math.max(1, Math.ceil(totalH / 40))
                 const vv = Math.round(0.8 * (0.94 + 0.12 * ((vi % 5) / 5)) * 255)
-                seg.tint = toSea
+                const plugTint = toSea
                   ? (Math.round(vv * 0.82) << 16) | (Math.round(vv * 0.82) << 8) | Math.round(vv * 0.92)
                   : (Math.round(vv * 1.0) << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.70)
-                seg.position.set(cxp, cyp); seg.zIndex = zBase + 1
-                world.addChild(seg)
+                for (let si = 0; si < nSeg; si++) {
+                  // the SIDE-FACE zone of the block (y 35+), never the green top
+                  const seg = new Sprite(new Texture({ source: rk.source, frame: new Rectangle(19, 35, 26, 20) }))
+                  seg.anchor.set(0.5, 0)
+                  seg.width = 30
+                  seg.height = totalH / nSeg + (si < nSeg - 1 ? 1 : 0)
+                  seg.position.set(cxp, cyp + si * (totalH / nSeg))
+                  seg.tint = si === 0 ? plugTint : shadeHex(plugTint, 1 - 0.06 * si)
+                  seg.zIndex = zBase + 1
+                  world.addChild(seg)
+                }
                 if (toSea) foamCollar(cxp, cyp + drop + 2, zBase, tx + ty + 2)
               }
             }
@@ -339,7 +361,9 @@ export default function IslandMapIso() {
               const top = new Sprite(g); top.anchor.set(0.5, 18 / 36); top.scale.set(1.14)
               top.position.set(bx, by); top.zIndex = zBase + 5
               const grain = 0.995 + 0.01 * hash(tx * 1.3, ty * 2.1)
-              const rk = rakeAt(tx, ty) // golden-hour: bright/warm to the sun (UL), cool in shade
+              // per-tile jitter on the rake input: shallow smooth gradients otherwise quantize
+              // into clean equal-tint contour lines (the "zigzag across the island")
+              const rk = rakeAt(tx, ty) + (hash(tx * 2.7, ty * 3.9) - 0.5) * 0.1
               if (sand) {
                 const tt = Math.min(1, dsq / 5)
                 const v = (0.965 + 0.06 * vnoise(tx / 16 + 3, ty / 16 + 5)) * grain * (1 + 0.1 * rk)
@@ -351,8 +375,10 @@ export default function IslandMapIso() {
                 // green swaths instead of one olive slab
                 const zone = vnoise(tx / 24 + 9, ty / 24 + 17)
                 const patch = 0.96 + 0.08 * vnoise(tx / 14 + 2, ty / 14 + 6)
-                const tval = Math.max(0, Math.min(1, 0.04 + 0.34 * vnoise(tx / 13 + 2, ty / 13 + 6) + 0.68 * zone))
-                const lit = patch * grain * (1 + 0.13 * rk) * (1.05 - 0.11 * zone)
+                // gentler zone swing + a per-tile dither so the drift never prints contour lines
+                const tval = Math.max(0, Math.min(1,
+                  0.1 + 0.3 * vnoise(tx / 13 + 2, ty / 13 + 6) + 0.42 * zone + (hash(tx * 7.3, ty * 9.1) - 0.5) * 0.06))
+                const lit = patch * grain * (1 + 0.13 * rk) * (1.03 - 0.07 * zone)
                 top.tint = warmCool(tintFor(shadeHex(rampAt(GRASS_RAMP, tval), lit), GRASS_BASE), rk)
               }
               world.addChild(top)
@@ -388,29 +414,54 @@ export default function IslandMapIso() {
                 const drop = (L - floorB) * STEP + (toSea ? 6 : 3)
                 // run-coherent like the front faces (NW fills run along ty, NE along tx)
                 const rk = rockW[Math.floor(hash((ox === -1 ? ty : tx) * 3.7 - 5, 13.1) * rockW.length) % rockW.length]
-                // sea rims read as the cliff's SHADED SIDE (cool rock, texture alive) — near-black
-                // there read as holes against the pale water; inland slots stay a deep soil shadow
-                const vv = toSea
-                  ? 96 + Math.floor(26 * hash(tx * 1.9 + ox, ty * 2.7 + oy))
-                  : 62 + Math.floor(20 * hash(tx * 1.9 + ox, ty * 2.7 + oy))
-                const tint = toSea
-                  ? (Math.round(vv * 0.86) << 16) | (Math.round(vv * 0.86) << 8) | vv
-                  : (vv << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.8)
+                // SEA back edges wear WATER, not rock: the wall faces away from camera, so what
+                // is truly visible behind the cliff edge is the sea — the textured rock fills
+                // read as a pasted 2D fringe hanging off the clifftop (Ash's call). A thin dark
+                // basalt LIP marks the edge; the corner walls carry the 3D. Inland slots stay
+                // deep soil shadow.
+                const dvv = 62 + Math.floor(20 * hash(tx * 1.9 + ox, ty * 2.7 + oy))
+                const soilTint = (dvv << 16) | (Math.round(dvv * 0.88) << 8) | Math.round(dvv * 0.8)
+                // match the water the fill visually overlaps: a tall cliff's void band covers
+                // sea 2-3 tiles BEHIND the edge (deeper, darker) — matching the direct
+                // neighbour's pale shallow made the fills flash as cream spikes. Same ramp
+                // math as seaTile, sampled deeper, shaded a touch (cliff shadow).
+                let seaTint = 0xffffff
+                if (toSea) {
+                  let nbx = tx + ox * 3, nby = ty + oy * 3
+                  if (dsAt(nbx, nby) > 0) { nbx = tx + ox; nby = ty + oy }
+                  const raw = Math.max(0.16, -dsAt(nbx, nby) / DEPTH_RANGE)
+                  const dep = Math.min(1, raw)
+                  const patch = 0.955 + 0.09 * vnoise(nbx / 22 + 7, nby / 22 + 2)
+                  seaTint = shadeHex(tintFor(rampAt(W_RAMP, dep), W_BASE), patch * 0.88)
+                }
                 // the void is a PARALLELOGRAM with vertical sides (the edge shape swept down by
-                // the drop) — a rotated rect leaves bare triangles at one end, so it's covered
-                // as two stepped half-edge segments (the pixel staircase), tucked 2px under the
-                // overlapping tops. Edge runs from its low outer corner to the shared top corner.
+                // the drop) — covered as two stepped half-edge segments (the pixel staircase),
+                // tucked up under the overlapping tops.
                 const P0x = ox === -1 ? -32 : 32              // the low corner (left / right)
                 for (let s = 0; s < 2; s++) {
                   const cxs = bx + P0x * (0.75 - 0.5 * s)     // segment centre x (quarter points)
                   const cys = by - 18 * (0.25 + 0.5 * s) - 5  // edge height there, tucked up under the top
-                  const fill = new Sprite(new Texture({ source: rk.source, frame: new Rectangle(4 + s * 26, 14, 26, 38) }))
+                  // sea: a FLAT quad — any textured crop drags its alpha edges into pale
+                  // stretched spikes; still water behind the cliff edge reads right as flat
+                  const fill = toSea
+                    ? new Sprite(Texture.WHITE)
+                    : new Sprite(new Texture({ source: rk.source, frame: new Rectangle(4 + s * 26, 35, 26, 20) }))
                   fill.anchor.set(0.5, 0)
                   fill.width = 18; fill.height = drop + 5
                   fill.position.set(cxs, cys)
-                  fill.tint = tint
+                  fill.tint = toSea ? seaTint : soilTint
                   fill.zIndex = zBase + 2
                   world.addChild(fill)
+                  if (toSea) {                                // the cliff-edge line over the water
+                    const lip = new Sprite(new Texture({ source: rk.source, frame: new Rectangle(4 + s * 26, 35, 26, 8) }))
+                    lip.anchor.set(0.5, 0)
+                    lip.width = 18; lip.height = 6
+                    lip.position.set(cxs, cys)
+                    const lv = 58 + Math.floor(16 * hash(tx * 3.1 + ox, ty * 2.3 + oy))
+                    lip.tint = (lv << 16) | (Math.round(lv * 0.92) << 8) | Math.round(lv * 0.85)
+                    lip.zIndex = zBase + 3
+                    world.addChild(lip)
+                  }
                 }
               }
               // and the BACK-DIAGONAL corner: higher than the tile behind the top corner while
