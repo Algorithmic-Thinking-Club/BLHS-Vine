@@ -356,9 +356,11 @@ export default function IslandMapIso() {
             const pool = sand ? st : gt
             const g = pool.length ? pool[Math.floor(hash(tx * 5.1 + 2, ty * 2.9 + 4) * pool.length) % pool.length] : undefined
             if (g) {
-              // both families at 1.14: sand ran 1.08 and its AA mask edges let the abyss bleed
-              // through between neighbours as navy dash seams
-              const top = new Sprite(g); top.anchor.set(0.5, 18 / 36); top.scale.set(1.14)
+              // scale 1.0 EXACTLY: the tiles are now true hard-edged 64x36 diamonds on integer
+              // lattice positions, so they tile pixel-perfectly with no overlap. The old 1.14
+              // oversize existed to hide the sloppy masks — and its per-tile overhang was the
+              // residual scalloped zigzag on every exposed silhouette edge.
+              const top = new Sprite(g); top.anchor.set(0.5, 18 / 36); top.scale.set(1)
               top.position.set(bx, by); top.zIndex = zBase + 5
               const grain = 0.995 + 0.01 * hash(tx * 1.3, ty * 2.1)
               // per-tile jitter on the rake input: shallow smooth gradients otherwise quantize
