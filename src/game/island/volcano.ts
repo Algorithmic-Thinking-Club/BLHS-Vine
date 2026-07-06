@@ -13,10 +13,10 @@
 import { CONE } from './terrain'
 import { vnoise } from '../ocean'
 
-export const CONE_BASE_R = 26   // tile radius of the skirt's toe (~85% of the plateau)
-export const CONE_H = 32        // profile scale; the crater rim crowns at ~23 extra levels
-export const CRATER_R = 2.6     // the bowl's radius (summit stays NARROW)
-const CRATER_DEPTH = 3.5        // levels the bowl sinks below the rim
+export const CONE_BASE_R = 30   // the skirt's toe reaches ~90% of the plateau (Ash: much larger)
+export const CONE_H = 50        // profile scale; the crater rim crowns ~32 levels up (much taller)
+export const CRATER_R = 5.6     // a CLEAR circular opening at the top, not a pinch
+const CRATER_DEPTH = 7          // levels the bowl sinks below the rim
 
 // the radial spoke field: 9 wandering ridge/gully spokes fanning from the summit.
 // Wander comes from a radius-dependent phase drift so the spokes curve organically
@@ -37,22 +37,27 @@ export function coneH(tx: number, ty: number) {
   // radial modulation of the effective radius: contours fan along the spokes
   // (ridges push outward, gullies bite inward), stronger toward the summit
   const s0 = 1 - d / CONE_BASE_R                 // 0 at the toe, 1 at the center
-  const dEff = d * (1 + 0.13 * spoke(az, d) * (0.35 + 0.65 * s0))
+  // gentle spokes only (0.06): the earlier 0.13 lumped the flanks — Ash wants a SMOOTH
+  // continuous J silhouette; the radial life comes from the gully value streaks instead
+  const dEff = d * (1 + 0.06 * spoke(az, d) * (0.35 + 0.65 * s0))
   const s = Math.max(0, Math.min(1, 1 - dEff / CONE_BASE_R))
-  // THE J CURVE as a power law: v1's exponential (K=4.6) kept 90% of the footprint
-  // under 2 levels and squeezed the whole rocket into the last 4 tiles — a squat
-  // ziggurat, not c3's towering cone. s^3.2 gives ~1 level at s=0.3, ~3 at 0.5,
-  // ~8 at 0.7, ~16 at 0.85, 26 at the rim: the rocket owns the inner half.
-  let h = CONE_H * Math.pow(s, 3.6) + 1.4 * s
+  // THE J CURVE as a power law — smooth and continuous the whole way: ~2 levels at
+  // s=0.3, ~7 at 0.5, ~17 at 0.7, and the rocket into the low-30s at the rim.
+  let h = CONE_H * Math.pow(s, 3.0) + 1.4 * s
   // the CRATER: TRUNCATE the cone at the rim height, then sink the bowl. Subtracting a
   // bowl from the still-rising profile left a 1-tile needle poking through (the profile
-  // climbs ~11 levels inside the rim, far more than any sane bowl depth) — the summit
-  // must be a jagged crown around a notch, not a spike.
+  // keeps climbing inside the rim, far more than any sane bowl depth) — the summit
+  // must be a crown ring around a clear circular opening, not a spike.
+  // EXPLICIT rim geometry (the blended smoothstep version cancelled against the
+  // profile's own rise across the lip and no crest ever formed): the cone climbs to
+  // hRim, wears a flat CROWN RING ~1.2 tiles wide, then the bowl drops a full
+  // CRATER_DEPTH inside — a clear circular opening from map zoom.
   const rimS = 1 - CRATER_R / CONE_BASE_R
-  const hRim = CONE_H * Math.pow(rimS, 3.6) + 1.4 * rimS
-  if (d < CRATER_R + 2.4) {
-    const t = Math.max(0, Math.min(1, (CRATER_R + 2.4 - d) / 2.6))
-    h = Math.min(h, hRim) - CRATER_DEPTH * t * t * (3 - 2 * t)
+  const hRim = CONE_H * Math.pow(rimS, 3.0) + 1.4 * rimS
+  h = Math.min(h, hRim)                       // the cone rises naturally and caps at the rim
+  if (d < CRATER_R - 1.0) {                   // crown ring keeps ~1 tile of flat rim, then
+    const t = Math.max(0, Math.min(1, (CRATER_R - 1.0 - d) / 1.8))
+    h = hRim - CRATER_DEPTH * t * t * (3 - 2 * t)   // the bowl drops to a flat floor
   }
   return Math.max(0, h)
 }
@@ -74,6 +79,14 @@ export function gullyK(tx: number, ty: number) {
   if (d >= CONE_BASE_R || d < 1) return 0
   const s0 = 1 - d / CONE_BASE_R
   return Math.max(0, Math.min(1, (-spoke(Math.atan2(dy, dx), d) + 0.4) * 0.7)) * (0.3 + 0.7 * s0)
+}
+
+// how deep inside the crater OPENING this tile sits (0 outside .. 1 at the center) —
+// the bowl floor darkens toward the vent so the opening reads from map zoom
+export function craterK(tx: number, ty: number) {
+  const dx = tx - CONE.x, dy = ty - CONE.y
+  const d = Math.sqrt(dx * dx + dy * dy)
+  return Math.max(0, Math.min(1, (CRATER_R - d) / CRATER_R))
 }
 
 // material band for the tile TOP, keyed by the cone height plus a continuous dither so

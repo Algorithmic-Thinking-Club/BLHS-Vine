@@ -5,7 +5,7 @@ import {
   loadWaterVariants, seaTile, animSwells, type SwellSprite,
 } from '../ocean'
 import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL } from './terrain'
-import { coneLvl, coneBand, gullyK } from './volcano'
+import { coneLvl, coneBand, gullyK, craterK } from './volcano'
 
 const smooth = (e0: number, e1: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t)
@@ -369,10 +369,10 @@ export default function IslandMapIso() {
             const sand = L === 0 && cliffMask(Math.atan2(ty - CY, tx - CX)) < 0.35
             const lift = L * STEP
             const bx = isoX(tx, ty), by = isoY(tx, ty) - lift + GY
-            // lift*8 overflowed the 4000 row separation once the cone stacked past L~15
-            // (a summit tile out-sorted the row in front of it); *4 keeps the tallest
-            // summit (L~18 -> 2304) safely inside its own row band
-            const zBase = (tx + ty) * 4000 + lift * 4
+            // lift*8 overflowed the 4000 row separation once the cone stacked tall
+            // (a summit tile out-sorted the row in front of it); *2 keeps even the
+            // ~35-level summit (lift 1120 -> 2240) safely inside its own row band
+            const zBase = (tx + ty) * 4000 + lift * 2
 
 
             // THE BLOCK COLUMN: if ANY of the 8 neighbours sits lower, this tile is a real
@@ -427,14 +427,15 @@ export default function IslandMapIso() {
               } else if (band === 2) {
                 // bare basalt: neutral value drift + the radial GULLY streaks (ridges
                 // catch the light, gullies sink) — the c3 ribbing at map zoom
-                const hFrac = Math.min(1, (L - PLAT_L) / 14)
-                const v = (0.92 + 0.1 * vnoise(tx / 5 + 4, ty / 5 + 12)) * (1 + 0.12 * rk) * (1 - 0.18 * hFrac) * (1 - 0.22 * gullyK(tx, ty))
+                const hFrac = Math.min(1, (L - PLAT_L) / 26)
+                const v = (0.92 + 0.1 * vnoise(tx / 5 + 4, ty / 5 + 12)) * (1 + 0.12 * rk) * (1 - 0.2 * hFrac)
+                  * (1 - 0.22 * gullyK(tx, ty)) * (1 - 0.4 * craterK(tx, ty))   // the opening reads dark
                 top.tint = warmCool(shadeHex(0xffffff, v), rk * 0.8)
               } else if (band === 1) {
                 // dry scrub: the grass art pushed warm/parched — the transition belt
                 const patch = 0.98 + 0.05 * vnoise(tx / 9 + 5, ty / 9 + 2)
                 const lit = patch * grain * (1 + 0.12 * rk) * (1 - 0.14 * gullyK(tx, ty))
-                top.tint = warmCool(tintFor(shadeHex(0xb99e58, lit), GRASS_BASE), rk * 0.9)
+                top.tint = warmCool(tintFor(shadeHex(0x8f7a46, lit), GRASS_BASE), rk * 0.9)
               } else {
                 // the plateau's ground mosaic: a LARGE meadow↔deep-green zone field (24-tile
                 // landform scale — per-tile tint noise is the banned "poop") over the mid-scale
@@ -474,64 +475,16 @@ export default function IslandMapIso() {
               }
             }
 
-            // BACK-EDGE SHADOW FILL: a tile higher than its back (screen NE/NW) neighbour leaves
-            // an occlusion void in its own footprint — the lifted top moves up, the wall faces
-            // away, and the neighbour only covers its own diamond, so the abyss showed through
-            // as dark teal slots. A near-black rock fill spanning the exact drop plugs the void
-            // and reads as the terrace's shaded back wall — the c3 cliff-top line on sea rims.
-            if (L > 0 && rockW.length && !params.get('nofills')) {
-              for (const [ox, oy] of [[-1, 0], [0, -1]] as [number, number][]) {
-                const nb = eLvl(tx + ox, ty + oy)
-                const floorB = nb < 0 ? 0 : nb
-                if (L <= floorB) continue                     // back neighbour level or higher
-                const toSea = nb < 0
-                // GEOMETRY TRUTH: a back edge faces AWAY from the camera — its wall is never
-                // visible. Over the SEA the correct picture is grass edge → water behind and
-                // below, marked only by a THIN rock lip under the rim (c3's plateau-edge
-                // line). INLAND steps still need the full-drop fill (the terrace behind sits
-                // higher on screen and leaves an occlusion void). Same c3-warm material as
-                // the faces, only modestly darker — the step's shadowed inner wall.
-                const bH = toSea ? 8 : (L - floorB) * STEP + 8
-                // occlusion SHADOW, not lit material — the step's shaded inner wall (c3's
-                // dark plateau-rim line). A band crop off the warm block keeps the texture.
-                // soft, not black: at 0.58 the grade turned every step crease into a hard
-                // near-black outline (part of the cut-out read)
-                const bv = toSea ? 0.74 : 0.7
-                const P0x = ox === -1 ? -32 : 32              // the low corner (left / right)
-                for (let s = 0; s < 2; s++) {
-                  const cxs = bx + P0x * (0.75 - 0.5 * s)     // segment centre x (quarter points)
-                  const cys = by - 18 * (0.25 + 0.5 * s) - 5  // edge height there, tucked up under the top
-                  const fillRk = L > PLAT_L && volcW.length ? volcW[0] : rockW[0]
-                  const fill = new Sprite(new Texture({ source: fillRk.source, frame: new Rectangle(20 + s * 12, 38, 24, 22) }))
-                  fill.anchor.set(0.5, 0)
-                  fill.width = 18; fill.height = bH
-                  fill.position.set(cxs, cys)
-                  const vv = Math.round(bv * 255)
-                  fill.tint = (vv << 16) | (Math.round(vv * 0.92) << 8) | Math.round(vv * 0.86)
-                  if (DBG) fill.tint = toSea ? 0x2040ff : 0x20e0ff // DBG: back fill sea blue / inland cyan
-                  fill.zIndex = zBase + 2
-                  world.addChild(fill)
-                }
-              }
-              // and the BACK-DIAGONAL corner: higher than the tile behind the top corner while
-              // both direct back neighbours hold level — the void mirror of the front corner.
-              // Over the sea the same thin-lip rule: the corner faces away, rim only.
-              const bdl = eLvl(tx - 1, ty - 1)
-              const bdF = bdl < 0 ? 0 : bdl
-              if (L > bdF && eLvl(tx - 1, ty) >= L && eLvl(tx, ty - 1) >= L) {
-                const drop = bdl < 0 ? 8 : (L - bdF) * STEP + 3
-                const nubRk = L > PLAT_L && volcW.length ? volcW[0] : rockW[0]
-                const fill = new Sprite(new Texture({ source: nubRk.source, frame: new Rectangle(20, 38, 24, 22) }))
-                fill.anchor.set(0.5, 0)
-                fill.width = 26; fill.height = drop
-                fill.position.set(isoX(tx - 0.5, ty - 0.5), isoY(tx - 0.5, ty - 0.5) - lift + GY + 1)
-                const vv = Math.round(0.7 * 255)
-                fill.tint = (vv << 16) | (Math.round(vv * 0.92) << 8) | Math.round(vv * 0.86)
-                if (DBG) fill.tint = 0xff20ff                 // DBG: back-corner nub magenta
-                fill.zIndex = zBase + 2
-                world.addChild(fill)
-              }
-            }
+            // NO BACK-EDGE FILLS. (Deleted 2026-07-06 — Ash: "all the backsides… have the
+            // zig zag".) The whole back-edge machinery (quarter-segment shadow fills, 8px
+            // sea lips, diagonal corner nubs) was painting dark serrated chips along every
+            // raised tile's NW/NE edges — the zigzag outline on every step. Geometrically
+            // NOTHING is needed there: the screen strip a lifted top reveals behind itself
+            // belongs to farther-back rows, which are already drawn — lower terraces show
+            // their own ground, coast rims show water. Terrain only lies if it drops faster
+            // than one level per row, which the coast staircase columns already cover.
+            // Do not reintroduce fills; if a rim ever needs a crease, shade the top's own
+            // edge pixels instead of stamping sprites behind it.
           }
         }
 
