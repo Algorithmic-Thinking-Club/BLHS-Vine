@@ -184,8 +184,8 @@ export default function IslandMapIso() {
         // diamonds (masked from the tile blocks); walls = rock strata sized to the drop. ----
         const flatG: Texture[] = [], flatS: Texture[] = [], rockW: Texture[] = []
         for (let i = 0; i < 16; i++) {
-          try { const t: Texture = await Assets.load(`/art/island/flat/grass-${i}.png?v=2`); t.source.scaleMode = 'nearest'; flatG.push(t) } catch { /* */ }
-          try { const t: Texture = await Assets.load(`/art/island/flat/sand-${i}.png?v=2`); t.source.scaleMode = 'nearest'; flatS.push(t) } catch { /* */ }
+          try { const t: Texture = await Assets.load(`/art/island/flat/grass-${i}.png?v=4`); t.source.scaleMode = 'nearest'; flatG.push(t) } catch { /* */ }
+          try { const t: Texture = await Assets.load(`/art/island/flat/sand-${i}.png?v=4`); t.source.scaleMode = 'nearest'; flatS.push(t) } catch { /* */ }
         }
         for (let i = 2; i <= 5; i++) {
           try { const t: Texture = await Assets.load(`/art/island/blocks3/rock-${i}.png`); t.source.scaleMode = 'nearest'; rockW.push(t) } catch { /* */ }
@@ -313,13 +313,11 @@ export default function IslandMapIso() {
               // from the texture itself, the band stacking, and a gentle continuous drift.
               const drift = 0.96 + 0.08 * vnoise(tx / 7 + 2.2, ty / 7 + 7.7)
               const rk = rockW[0]
-              // the face is drawn from 9px above the edge MIDPOINT (the edge's upper-corner
-              // height) and extended past the drop: a horizontal-topped rect on a sloped
-              // diamond edge otherwise leaves bare triangles at both ends. The tile's own
-              // top (drawn later) masks the overshoot above the edge; the fronting tile
-              // masks the overshoot below. TALL drops STACK band segments instead of
-              // stretching one crop — a 37px crop pulled to 80px smeared the strata into
-              // the "weird 2D image" read.
+              // the face is drawn from 8px above the edge MIDPOINT (the edge's upper-corner
+              // height on the 64x32 lattice) and extended past the drop: a horizontal-topped
+              // rect on a sloped diamond edge otherwise leaves bare triangles at both ends.
+              // The tile's own top (drawn later) masks the overshoot above the edge; the
+              // fronting tile masks the overshoot below. TALL drops STACK band segments.
               // CROP TRUTH: the block textures are FULL iso blocks — the mossy top diamond
               // owns y 0-34, the true rock SIDE FACES live at y 35-56. The old crops started
               // at y~15, so every wall's upper half was the block's green TOP stretched down
@@ -385,11 +383,10 @@ export default function IslandMapIso() {
             const pool = sand ? st : gt
             const g = pool.length ? pool[Math.floor(hash(tx * 5.1 + 2, ty * 2.9 + 4) * pool.length) % pool.length] : undefined
             if (g) {
-              // scale 1.0 EXACTLY: the tiles are now true hard-edged 64x36 diamonds on integer
-              // lattice positions, so they tile pixel-perfectly with no overlap. The old 1.14
-              // oversize existed to hide the sloppy masks — and its per-tile overhang was the
-              // residual scalloped zigzag on every exposed silhouette edge.
-              const top = new Sprite(g); top.anchor.set(0.5, 18 / 36); top.scale.set(1)
+              // scale 1.0, exact 64x36 diamonds on the 64x32 lattice — the 2px vertical bleed
+              // over neighbours is the tile family's own melt (the beach's block style). A
+              // strict-32 rebuild was tried and REVERTED: it broke the melt and read worse.
+              const top = new Sprite(g); top.anchor.set(0.5, 0.5); top.scale.set(1)
               top.position.set(bx, by); top.zIndex = zBase + 5
               const grain = 0.995 + 0.01 * hash(tx * 1.3, ty * 2.1)
               // continuous jitter on the rake input: shallow smooth gradients otherwise
