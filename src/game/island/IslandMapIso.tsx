@@ -18,6 +18,23 @@ const azWin = (th: number, c: number, w: number) => {
 // (the arrival E/SE/S). Tile compass: screen-N ≈ θ -2.36, screen-W ≈ θ 2.36.
 const cliffMask = (th: number) => Math.max(azWin(th, -2.36, 0.85), azWin(th, 2.36, 0.8))
 
+// GOLDEN-HOUR sun rake (Ash: kill the bland flat colours, make it a low sunset). +1 = full
+// sunlit (screen upper-left, toward the low sun), -1 = shade (lower-right). Screen-up = small
+// (tx+ty); screen-left = small (tx-ty). This is what lifts the flat plateau off a dead slab.
+const rakeAt = (tx: number, ty: number) => {
+  const up = (CX + CY) - (tx + ty)   // + = higher on screen (toward the sun)
+  const left = (ty - tx)             // + = further screen-left (toward the sun)
+  return Math.max(-1, Math.min(1, (up * 0.8 + left * 0.45) / 44))
+}
+const clampB = (v: number) => (v < 0 ? 0 : v > 255 ? 255 : v)
+// warm the sunlit side toward gold, cool the shade side toward violet-blue (the sunset split)
+const warmCool = (hex: number, rk: number) => {
+  let r = (hex >> 16) & 255, g = (hex >> 8) & 255, b = hex & 255
+  if (rk >= 0) { const t = rk * 0.15; r += (255 - r) * t; g += (222 - g) * t * 0.55; b -= b * t * 0.18 }
+  else { const t = -rk * 0.17; r -= r * t * 0.12; g -= g * t * 0.04; b += (205 - b) * t * 0.32 }
+  return (clampB(Math.round(r)) << 16) | (clampB(Math.round(g)) << 8) | clampB(Math.round(b))
+}
+
 // THE ISLAND MAP, v5 (2026-07-02, Ash's construction order) — the island's terrain is
 // built IN THE TILE SYSTEM on the iso engine, exactly like the beach built its ground:
 //   1. the EMPTY ISLAND: the entire landmass is the default sand-beach tiles (the
@@ -58,7 +75,9 @@ const SAND_RAMP: [number, number][] = [[0, 0xdcbf87], [0.45, 0xead6a3], [1, 0xf7
 // the NEW tropical grass family (normalized to its own shared base when it lands);
 // value ramp: sunlit warm light-green at the fringe -> a touch richer inland
 const GRASS_BASE = [126, 158, 96]
-const GRASS_RAMP: [number, number][] = [[0, 0x9db95e], [0.5, 0x8dae54], [1, 0x7da04c]]
+// widened for golden hour: a warm dry sun-green at the light end, a deep cool green in the
+// hollows — the sun rake (warmCool) then splits warm/cool across it so the field reads lit
+const GRASS_RAMP: [number, number][] = [[0, 0xaec06a], [0.5, 0x91ae56], [1, 0x6d8d40]]
 
 export default function IslandMapIso() {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -242,13 +261,16 @@ export default function IslandMapIso() {
               const top = new Sprite(g); top.anchor.set(0.5, 18 / 36); top.scale.set(sand ? 1.08 : 1.14)
               top.position.set(bx, by); top.zIndex = zBase + 5
               const grain = 0.995 + 0.01 * hash(tx * 1.3, ty * 2.1)
+              const rk = rakeAt(tx, ty) // golden-hour: bright/warm to the sun (UL), cool in shade
               if (sand) {
                 const tt = Math.min(1, dsq / 5)
-                top.tint = shadeHex(tintFor(rampAt(SAND_RAMP, tt), SAND_BASE), (0.965 + 0.06 * vnoise(tx / 16 + 3, ty / 16 + 5)) * grain)
+                const v = (0.965 + 0.06 * vnoise(tx / 16 + 3, ty / 16 + 5)) * grain * (1 + 0.1 * rk)
+                top.tint = warmCool(shadeHex(tintFor(rampAt(SAND_RAMP, tt), SAND_BASE), v), rk * 0.7)
               } else {
                 const patch = 0.96 + 0.08 * vnoise(tx / 14 + 2, ty / 14 + 6)
                 const tval = Math.min(1, 0.35 + 0.5 * vnoise(tx / 13 + 2, ty / 13 + 6))
-                top.tint = tintFor(shadeHex(rampAt(GRASS_RAMP, tval), patch * grain), GRASS_BASE)
+                const lit = patch * grain * (1 + 0.13 * rk)
+                top.tint = warmCool(tintFor(shadeHex(rampAt(GRASS_RAMP, tval), lit), GRASS_BASE), rk)
               }
               world.addChild(top)
             }
@@ -351,8 +373,9 @@ export default function IslandMapIso() {
       // vignette. This is the beauty layer Ash called out — the world sits IN the sunset. ----
       // 1) warm gold cast (multiply toward gold → warms mids + shadows, kills the flat look)
       const warmMul = new Sprite(Texture.WHITE); warmMul.tint = 0xffd08a; warmMul.blendMode = 'multiply'; warmMul.alpha = 0.5; app.stage.addChild(warmMul)
-      // 2) the low SUN raking from the upper-left (a big soft golden glow, additive)
-      const sun = new Sprite(radial(512, [[0, 'rgba(255,222,150,0.5)'], [0.35, 'rgba(255,196,120,0.22)'], [0.7, 'rgba(255,170,96,0.05)'], [1, 'rgba(255,170,96,0)']]))
+      // 2) the low SUN raking from the upper-left (a big soft golden glow, additive). Core kept
+      // gentle + its centre pushed OFF-frame so the land catches the falloff warmth, never a white-out.
+      const sun = new Sprite(radial(512, [[0, 'rgba(255,224,158,0.30)'], [0.32, 'rgba(255,198,124,0.14)'], [0.66, 'rgba(255,172,100,0.04)'], [1, 'rgba(255,172,100,0)']]))
       sun.anchor.set(0.5); sun.blendMode = 'add'; app.stage.addChild(sun)
       // 3) a raked warm-to-cool GRADIENT across the frame (gold sun side → violet shade side)
       const rake = new Sprite(linGrad(1024, 0xffcaa0, 0.16, 0x2a2350, 0.26)); rake.blendMode = 'overlay'; app.stage.addChild(rake)
@@ -363,7 +386,7 @@ export default function IslandMapIso() {
         const vw = app.screen.width, vh = app.screen.height
         warmMul.width = vw; warmMul.height = vh
         rake.width = vw; rake.height = vh
-        sun.width = sun.height = Math.max(vw, vh) * 1.9; sun.position.set(vw * 0.2, vh * -0.02)
+        sun.width = sun.height = Math.max(vw, vh) * 1.9; sun.position.set(vw * 0.05, vh * -0.16)
         vig.width = vw * 1.5; vig.height = vh * 1.5; vig.position.set(-vw * 0.25, -vh * 0.25)
         world.x = vw / 2 - isoX(camTx, camTy) * ZOOM
         world.y = vh * 0.5 - isoY(camTx, camTy) * ZOOM
