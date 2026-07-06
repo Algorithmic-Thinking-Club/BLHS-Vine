@@ -132,8 +132,11 @@ export default function IslandMapIso() {
         const cliffAmt = cliffMask(th)
         const PLATEAU = Number(params.get('plat') || 0.62)  // the flat raised interior (~level 3)
         let e = PLATEAU
-        const beachRamp = (1 - cliffAmt) * smooth(0.12, 0.015, u)     // 1 at coast → 0 inland (short)
-        e *= 1 - beachRamp
+        // a WIDE flat sand shelf at the coast (Ash: much more beach), then a short 2-step ramp
+        // up to the plateau. beachShelf = 1 for the outer band → e forced to sea-level sand.
+        const bw = Number(params.get('bw') || 0.2)          // beach width (fraction of radius)
+        const beachShelf = (1 - cliffAmt) * (1 - smooth(bw, bw + 0.1, u))
+        e *= 1 - beachShelf
         return Math.max(0, Math.min(1, e))
       }
       const levelAt = (tx: number, ty: number): number =>
@@ -163,7 +166,6 @@ export default function IslandMapIso() {
         }
         const gt = flatG.length ? flatG : grassV.filter(Boolean)
         const st = flatS.length ? flatS : sandV.filter(Boolean)
-        const grassBlk = grassV.filter(Boolean)         // the grass BLOCKS (for decorated bank sides)
         // DISCRETE 3D iso TILES (Ash's locked spec — NOT smooth hillshade): each land tile
         // sits at a discrete elevation LEVEL, its flat top blends into the surface, and its
         // real 3D comes from DECORATED SIDE FACES on the downhill edges. Beach sand lives ONLY
@@ -171,9 +173,9 @@ export default function IslandMapIso() {
         // WIDE beaches on the non-cliff coasts (bon3), the flat sea-level sand shelf; the
         // cliff coasts (screen N + W) meet the water as raised banded rock, never sand.
         const isSandT = (tx: number, ty: number) => {
-          if (coastDs(tx, ty) <= 0 || coastDs(tx, ty) > 7) return false
+          if (coastDs(tx, ty) <= 0 || coastDs(tx, ty) > 14) return false
           const th = Math.atan2(ty - CY, tx - CX)
-          return cliffMask(th) < 0.35 && elevF(tx, ty) < 0.1
+          return cliffMask(th) < 0.35 && elevF(tx, ty) < 0.09
         }
         const eLvl = (tx: number, ty: number) =>
           coastDs(tx, ty) <= 0 ? -1 : (isSandT(tx, ty) ? 0 : levelAt(tx, ty))
@@ -204,24 +206,23 @@ export default function IslandMapIso() {
               const fv = ox === 1 ? 0.74 : 0.96             // SE face shadowed, SW sunlit (sun UL)
               const vi = Math.floor(hash(tx * 2.3 + ox * 5, ty * 3.1 + oy * 7) * 997)
               let seg: Sprite
-              if (toSea && rockW.length) {
-                // SEA CLIFF: banded rock strata, cool basalt, per-tile variety. Extends a few
-                // px BELOW the waterline (base submerged) so the foam collar hides the join
-                // with the pixelated ocean tiles instead of a hard jagged bottom.
-                const rk = rockW[vi % rockW.length]
+              if (!rockW.length) continue
+              // ALL sides are ROCK now (Ash: give the 3D tile a cliff feel, not green grass) —
+              // VARYING strata across rock-2..5 per tile. Sea cliffs read as cool wet basalt;
+              // inland steps as warm DRY rock, so beaches step down over a real rocky shelf.
+              const rk = rockW[vi % rockW.length]
+              if (toSea) {
+                // extends below the waterline (base submerged) so the foam collar hides the join
                 seg = new Sprite(new Texture({ source: rk.source, frame: new Rectangle(2, 15, 60, 37) }))
                 seg.anchor.set(0.5, 0); seg.scale.set(54 / 60, (drop + 12) / 37)
                 const vv = Math.round(fv * (0.94 + 0.12 * ((vi % 5) / 5)) * 255)
                 seg.tint = (Math.round(vv * 0.82) << 16) | (Math.round(vv * 0.82) << 8) | Math.round(vv * 0.92)
-              } else if (grassBlk.length) {
-                // INLAND STEP: the grass block's grassy-soil SIDE band — an earthy bank that
-                // matches the meadow tops (variety across the 16 blocks), warm-shaded
-                const gb = grassBlk[vi % grassBlk.length]
-                seg = new Sprite(new Texture({ source: gb.source, frame: new Rectangle(4, 37, 56, 15) }))
-                seg.anchor.set(0.5, 0); seg.scale.set(46 / 56, (drop + 3) / 15)
-                const vv = Math.round(fv * 255)
-                seg.tint = (Math.round(vv * 0.86) << 16) | (Math.round(vv * 0.80) << 8) | Math.round(vv * 0.60)
-              } else continue
+              } else {
+                seg = new Sprite(new Texture({ source: rk.source, frame: new Rectangle(3, 17, 58, 35) }))
+                seg.anchor.set(0.5, 0); seg.scale.set(48 / 58, (drop + 4) / 35)
+                const vv = Math.round(fv * (0.96 + 0.1 * ((vi % 5) / 5)) * 255)   // warm dry rock
+                seg.tint = (Math.round(vv * 1.0) << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.70)
+              }
               seg.position.set(ex, ey); seg.zIndex = zBase + 1
               world.addChild(seg)
               if (toSea) {                                  // a foam collar hugging the cliff foot
