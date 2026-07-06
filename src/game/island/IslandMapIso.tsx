@@ -206,16 +206,37 @@ export default function IslandMapIso() {
         // neighbour snaps to the level most of them share.
         const PLAT_L = 3
         const bandJ = (tx: number, ty: number) => (vnoise(tx / 9 + 31, ty / 9 + 47) - 0.5) * 2.4
-        // PURE-AZIMUTH grammar — no per-tile jitter in the level decision. The jitter made
-        // the cliff/beach blend flicker tile to tile, popping stray one-tile benches along
-        // the whole coast: a dashed wall line INSIDE the island, parallel to the edge (the
-        // zigzag). The low-freq bandJ wiggle is the only organic term the benches need.
+        // TRUE DISTANCE-TO-SEA (a BFS distance transform on the tile grid). The radial
+        // coastDs approximation collapses inside protruding lobes — its "near-coast" bands
+        // reached deep into the island, dragging bench walls across the interior (the
+        // zigzag), bloating the beach and eating the plateau the volcano needs. With real
+        // distance the contours PARALLEL the coastline everywhere: tight steps at the edge,
+        // the plateau owning the whole interior. This grid is also the future collision truth.
+        const DIST = new Float32Array(COLS * ROWS).fill(1e9)
+        {
+          const qx: number[] = [], qy: number[] = []
+          for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
+            if (coastDs(tx, ty) <= 0) { DIST[ty * COLS + tx] = 0; qx.push(tx); qy.push(ty) }
+          }
+          const NB8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
+          for (let h = 0; h < qx.length; h++) {
+            const x = qx[h], y = qy[h], d = DIST[y * COLS + x]
+            for (const [ox, oy] of NB8) {
+              const nx = x + ox, ny = y + oy
+              if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) continue
+              if (DIST[ny * COLS + nx] > d + 1) { DIST[ny * COLS + nx] = d + 1; qx.push(nx); qy.push(ny) }
+            }
+          }
+        }
+        // PURE-AZIMUTH grammar (no per-tile jitter in discrete decisions); the low-freq
+        // bandJ wiggle is the only organic term. Beach azimuths: a generous flat sand shelf,
+        // then the "2 small steps" right at the plateau edge. Cliff azimuths: plateau to water.
         const lvlOf = (tx: number, ty: number) => {
-          const ds = coastDs(tx, ty)
-          if (ds <= 0) return -1
+          if (coastDs(tx, ty) <= 0) return -1
+          const d = DIST[ty * COLS + tx]
           const cf = smooth(0.35, 0.6, cliffMask(Math.atan2(ty - CY, tx - CX)))
-          const j = bandJ(tx, ty)
-          const beachL = ds <= 14 + j ? 0 : ds <= 16.5 + j ? 1 : ds <= 19 + j ? 2 : PLAT_L
+          const j = bandJ(tx, ty) * 0.7
+          const beachL = d <= 6 + j ? 0 : d <= 7.5 + j ? 1 : d <= 9 + j ? 2 : PLAT_L
           return Math.round(beachL * (1 - cf) + PLAT_L * cf)
         }
         const LV = new Int8Array(COLS * ROWS)
