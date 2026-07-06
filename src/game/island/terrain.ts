@@ -74,10 +74,19 @@ export function lagoonK(tx: number, ty: number) {
   return Math.max(azWin(th, LAGOON.c, LAGOON.w), 0.7 * azWin(th, COVE.c, COVE.w))
 }
 
-// how wide the underwater shelf reads at this azimuth: wide mosaic inside the lagoon
-// windows, a tight collar under the cliff coasts
+// how much this azimuth is CLIFF coast (screen N + W, ONE continuous back arc — the θ≈π
+// window bridges the old gap) vs BEACH (the arrival E/SE/S). The render layer jitters
+// this for organic handoffs; the shelf reads it raw.
+export function cliffK(theta: number) {
+  return Math.max(azWin(theta, -2.36, 0.85), azWin(theta, 2.36, 0.8), azWin(theta, Math.PI, 0.95))
+}
+
+// how wide the underwater shelf reads at this azimuth: a broad turquoise apron along the
+// whole beach arc (c3's lagoon ring), widest in the lagoon windows, a tight collar under
+// the cliff coasts where deep water runs to the rock
 export function shelfW(tx: number, ty: number) {
-  return 3.5 + 12 * lagoonK(tx, ty)
+  const th = Math.atan2(ty - CY, tx - CX)
+  return 3.5 + 5.5 * (1 - cliffK(th)) + 9 * lagoonK(tx, ty)
 }
 
 // ---- ELEVATION, e in [0,1]: a LOW rolling island body + THE CONE's drastic rise.

@@ -4,19 +4,18 @@ import {
   isoX, isoY, hash, vnoise, shadeHex, rampAt, tintFor,
   loadWaterVariants, seaTile, animSwells, type SwellSprite,
 } from '../ocean'
-import { CX, CY, coastDs, coastR, shelfW, lagoonK, setSkeleton, CHANNEL } from './terrain'
+import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL } from './terrain'
 
 const smooth = (e0: number, e1: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t)
 }
-// smooth 0..1 window on the azimuth circle (1 at centre c, 0 beyond ±w) — coast grammar
-const azWin = (th: number, c: number, w: number) => {
-  const d = Math.abs(((th - c + Math.PI * 3) % (Math.PI * 2)) - Math.PI)
-  const k = Math.max(0, 1 - d / w); return k * k * (3 - 2 * k)
-}
-// how much this azimuth is CLIFF coast (screen N + W, the "back" coasts) vs wide BEACH
-// (the arrival E/SE/S). Tile compass: screen-N ≈ θ -2.36, screen-W ≈ θ 2.36.
-const cliffMask = (th: number) => Math.max(azWin(th, -2.36, 0.85), azWin(th, 2.36, 0.8))
+// the coast grammar mask lives in terrain.ts (cliffK) — one truth for elevation, sand
+// gating and the underwater shelf alike
+const cliffMask = cliffK
+// the coast masks sample azimuth through a soft wander so cliff↔beach handoffs meander
+// like geology instead of cutting along straight radial lines
+const thJit = (tx: number, ty: number) =>
+  Math.atan2(ty - CY, tx - CX) + 0.22 * (vnoise(tx / 9 + 21, ty / 9 + 13) - 0.5)
 
 // GOLDEN-HOUR sun rake (Ash: kill the bland flat colours, make it a low sunset). +1 = full
 // sunlit (screen upper-left, toward the low sun), -1 = shade (lower-right). Screen-up = small
@@ -61,8 +60,11 @@ function dsAt(tx: number, ty: number) {
   const th = Math.atan2(ty - CY, tx - CX)
   let dth = Math.abs(th - CHANNEL.theta)
   if (dth > Math.PI) dth = Math.PI * 2 - dth
-  if (c <= w * 1.15) cEff += Math.max(0, 1 - dth / CHANNEL.w) * lagoonK(tx, ty) * 7
-  if (c <= w) cEff += Math.max(0, vnoise(tx / 4.5 + 11, ty / 4.5 + 4) - 0.58) * lagoonK(tx, ty) * 6
+  // both boosts EASE out past the shelf lip — the old hard if-gates printed a seam ring
+  // (a dim rectangle-read east of the island) where the terms switched off mid-water
+  const fade = 1 - smooth(w, w * 1.4, c)
+  cEff += Math.max(0, 1 - dth / CHANNEL.w) * lagoonK(tx, ty) * 7 * fade
+  cEff += Math.max(0, vnoise(tx / 4.5 + 11, ty / 4.5 + 4) - 0.58) * lagoonK(tx, ty) * 6 * fade
   if (cEff <= 18) return -cEff
   if (cEff <= 40) return -(18 + (cEff - 18) * 0.27)
   return -Math.min(30, 24 + (cEff - 40) * 0.2)
@@ -129,8 +131,6 @@ export default function IslandMapIso() {
       const wm = grade.matrix; wm[0] *= 1.13; wm[6] *= 1.02; wm[12] *= 0.8; grade.matrix = wm
       world.filters = [grade]
 
-      const grassReady = grassV.filter(Boolean).length >= 8
-
       // THE ISLAND HEIGHTFIELD (real elevation data → faces, collision, depth). Low
       // beaches at the water, terraces rising inland, up to the volcano — organic
       // (spokes + noise), never concentric rings. Beaches (the designed bays) stay at
@@ -148,13 +148,17 @@ export default function IslandMapIso() {
         //     ONE tall banded cliff — "flat, just raised high with the cliffs".
         //   • BEACH coasts (most of the ring, bon3): the plateau steps DOWN over a short band
         //     (a couple steps) to a wide flat sand shelf at the water.
-        const cliffAmt = cliffMask(th)
+        const cliffAmt = cliffMask(thJit(tx, ty))
         const PLATEAU = Number(params.get('plat') || 0.62)  // the flat raised interior (~level 3)
         let e = PLATEAU
         // a WIDE flat sand shelf at the coast (Ash: much more beach), then a short 2-step ramp
         // up to the plateau. beachShelf = 1 for the outer band → e forced to sea-level sand.
+        // The cliff factor is HARDENED (smooth-thresholded): a cliff azimuth holds the full
+        // plateau all the way to the waterline. The old linear taper left partial-height bands
+        // whose wandering contours shed rock-face dashes all over the flat interior.
         const bw = Number(params.get('bw') || 0.2)          // beach width (fraction of radius)
-        const beachShelf = (1 - cliffAmt) * (1 - smooth(bw, bw + 0.1, u))
+        const cf = smooth(0.3, 0.55, cliffAmt)
+        const beachShelf = (1 - cf) * (1 - smooth(bw, bw + 0.1, u))
         e *= 1 - beachShelf
         return Math.max(0, Math.min(1, e))
       }
@@ -193,11 +197,43 @@ export default function IslandMapIso() {
         // cliff coasts (screen N + W) meet the water as raised banded rock, never sand.
         const isSandT = (tx: number, ty: number) => {
           if (coastDs(tx, ty) <= 0 || coastDs(tx, ty) > 14) return false
-          const th = Math.atan2(ty - CY, tx - CX)
-          return cliffMask(th) < 0.35 && elevF(tx, ty) < 0.09
+          return cliffMask(thJit(tx, ty)) < 0.35 && elevF(tx, ty) < 0.09
+        }
+        // the LEVEL GRID: computed once, then cleaned — a lone tile whose level matches no
+        // neighbour snaps to the level most of them share. Wandering contours kept flipping
+        // single tiles, and every orphan wore a rock face: debris floating on a flat field.
+        const LV = new Int8Array(COLS * ROWS)
+        for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
+          LV[ty * COLS + tx] = coastDs(tx, ty) <= 0 ? -1 : (isSandT(tx, ty) ? 0 : levelAt(tx, ty))
+        }
+        for (let pass = 0; pass < 2; pass++) {
+          const prev = Int8Array.from(LV)
+          for (let ty = 1; ty < ROWS - 1; ty++) for (let tx = 1; tx < COLS - 1; tx++) {
+            const L = prev[ty * COLS + tx]
+            if (L < 0) continue
+            const nb = [prev[ty * COLS + tx + 1], prev[ty * COLS + tx - 1], prev[(ty + 1) * COLS + tx], prev[(ty - 1) * COLS + tx]]
+            if (nb.includes(L)) continue
+            const land = nb.filter((v) => v >= 0)
+            if (!land.length) continue
+            const counts = new Map<number, number>()
+            for (const v of land) counts.set(v, (counts.get(v) || 0) + 1)
+            let best = L, bc = 1
+            for (const [v, c] of counts) if (c > bc || (c === bc && v !== L)) { best = v; bc = c }
+            if (bc >= 2) LV[ty * COLS + tx] = best
+          }
         }
         const eLvl = (tx: number, ty: number) =>
-          coastDs(tx, ty) <= 0 ? -1 : (isSandT(tx, ty) ? 0 : levelAt(tx, ty))
+          tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS ? -1 : LV[ty * COLS + tx]
+
+        // a foam collar at a wall's waterline foot — drawn ABOVE the fronting sea tile (which
+        // submerges the wall base); at wall-z the sea drew over it and the join showed as notches
+        const foamCollar = (fx: number, fy: number, zBase: number, frontSum: number) => {
+          const foam = new Sprite(foamTex); foam.anchor.set(0.5, 0.5)
+          foam.width = 58; foam.height = 20; foam.alpha = 0.75
+          foam.position.set(fx, fy)
+          foam.zIndex = Math.max(zBase, frontSum * 4000) + 62
+          world.addChild(foam)
+        }
 
         const waterS: SwellSprite[] = []
         for (let ty = 0; ty < ROWS; ty++) {
@@ -206,8 +242,8 @@ export default function IslandMapIso() {
             if (dx * dx + dy * dy > SEA_R * SEA_R) continue
             const dsq = dsAt(tx, ty)
             if (dsq <= 0) { seaTile(world, tx, ty, dsq, waterV, undefined, waterS); continue }
-            const sand = isSandT(tx, ty)
             const L = eLvl(tx, ty)                          // beaches = 0 → flush, no gap
+            const sand = L === 0 && isSandT(tx, ty)         // grid-cleaned: a snapped tile keeps its new level's coat
             const lift = L * STEP
             const bx = isoX(tx, ty), by = isoY(tx, ty) - lift
             const zBase = (tx + ty) * 4000 + lift * 8
@@ -245,10 +281,32 @@ export default function IslandMapIso() {
               seg.position.set(ex, ey); seg.zIndex = zBase + 1
               world.addChild(seg)
               if (toSea) {                                  // a foam collar hugging the cliff foot
-                const foam = new Sprite(foamTex); foam.anchor.set(0.5, 0.5)
-                foam.width = 58; foam.height = 20; foam.alpha = 0.75
-                foam.position.set(ex, ey + drop + 2); foam.zIndex = zBase + 3
-                world.addChild(foam)
+                foamCollar(ex, ey + drop + 2, zBase, tx + ox + ty + oy)
+              }
+            }
+
+            // CORNER IN-FILL: when the drop happens only DIAGONALLY (the SE+SW neighbours hold
+            // the level but the front corner tile sits lower), neither edge draws a wall and the
+            // gap showed the abyss as a dark parallelogram. A narrow rock sliver plugs the corner.
+            {
+              const dlv = eLvl(tx + 1, ty + 1)
+              const dFloor = dlv < 0 ? 0 : dlv
+              if (L > dFloor && eLvl(tx + 1, ty) >= L && eLvl(tx, ty + 1) >= L && rockW.length) {
+                const drop = (L - dFloor) * STEP
+                const toSea = dlv < 0
+                const cxp = isoX(tx + 0.5, ty + 0.5), cyp = isoY(tx + 0.5, ty + 0.5) - lift
+                const vi = Math.floor(hash(tx * 3.7 + 1, ty * 4.3 + 6) * 997)
+                const rk = rockW[vi % rockW.length]
+                const seg = new Sprite(new Texture({ source: rk.source, frame: new Rectangle(18, 16, 28, 36) }))
+                seg.anchor.set(0.5, 0)
+                seg.scale.set(30 / 28, (drop + (toSea ? 12 : 4)) / 36)
+                const vv = Math.round(0.8 * (0.94 + 0.12 * ((vi % 5) / 5)) * 255)
+                seg.tint = toSea
+                  ? (Math.round(vv * 0.82) << 16) | (Math.round(vv * 0.82) << 8) | Math.round(vv * 0.92)
+                  : (Math.round(vv * 1.0) << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.70)
+                seg.position.set(cxp, cyp); seg.zIndex = zBase + 1
+                world.addChild(seg)
+                if (toSea) foamCollar(cxp, cyp + drop + 2, zBase, tx + ty + 2)
               }
             }
 
@@ -258,7 +316,9 @@ export default function IslandMapIso() {
             const pool = sand ? st : gt
             const g = pool.length ? pool[Math.floor(hash(tx * 5.1 + 2, ty * 2.9 + 4) * pool.length) % pool.length] : undefined
             if (g) {
-              const top = new Sprite(g); top.anchor.set(0.5, 18 / 36); top.scale.set(sand ? 1.08 : 1.14)
+              // both families at 1.14: sand ran 1.08 and its AA mask edges let the abyss bleed
+              // through between neighbours as navy dash seams
+              const top = new Sprite(g); top.anchor.set(0.5, 18 / 36); top.scale.set(1.14)
               top.position.set(bx, by); top.zIndex = zBase + 5
               const grain = 0.995 + 0.01 * hash(tx * 1.3, ty * 2.1)
               const rk = rakeAt(tx, ty) // golden-hour: bright/warm to the sun (UL), cool in shade
@@ -267,18 +327,23 @@ export default function IslandMapIso() {
                 const v = (0.965 + 0.06 * vnoise(tx / 16 + 3, ty / 16 + 5)) * grain * (1 + 0.1 * rk)
                 top.tint = warmCool(shadeHex(tintFor(rampAt(SAND_RAMP, tt), SAND_BASE), v), rk * 0.7)
               } else {
+                // the plateau's ground mosaic: a LARGE meadow↔deep-green zone field (24-tile
+                // landform scale — per-tile tint noise is the banned "poop") over the mid-scale
+                // patchwork, so the flat top reads as dry sunlit meadows drifting into richer
+                // green swaths instead of one olive slab
+                const zone = vnoise(tx / 24 + 9, ty / 24 + 17)
                 const patch = 0.96 + 0.08 * vnoise(tx / 14 + 2, ty / 14 + 6)
-                const tval = Math.min(1, 0.35 + 0.5 * vnoise(tx / 13 + 2, ty / 13 + 6))
-                const lit = patch * grain * (1 + 0.13 * rk)
+                const tval = Math.max(0, Math.min(1, 0.04 + 0.34 * vnoise(tx / 13 + 2, ty / 13 + 6) + 0.68 * zone))
+                const lit = patch * grain * (1 + 0.13 * rk) * (1.05 - 0.11 * zone)
                 top.tint = warmCool(tintFor(shadeHex(rampAt(GRASS_RAMP, tval), lit), GRASS_BASE), rk)
               }
               world.addChild(top)
             }
 
-            // FOAM SHORELINE: a soft lace where land meets sea on ANY edge — breaks the
-            // tile staircase and gives the coast the beach map's living shore. Placed above
-            // whichever of the two tiles depth-sorts later so it always reads.
-            if (coastDs(tx, ty) < 2.4) {
+            // FOAM SHORELINE: a soft lace where land meets sea — BEACH tiles only (L 0, flush
+            // with the water). It used to wrap raised coast tiles too, which parked sea foam on
+            // top of the cliffs and flattened the whole north coast into a sea-level read.
+            if (L === 0 && coastDs(tx, ty) < 2.4) {
               for (const [ox, oy] of [[1, 0], [0, 1], [-1, 0], [0, -1]] as [number, number][]) {
                 if (dsAt(tx + ox, ty + oy) > 0) continue      // neighbour is land, no shore here
                 const fx = isoX(tx + ox * 0.5, ty + oy * 0.5)
@@ -288,6 +353,62 @@ export default function IslandMapIso() {
                 foam.position.set(fx, fy)
                 foam.zIndex = Math.max(zBase, (tx + ox + ty + oy) * 4000) + 60
                 world.addChild(foam)
+              }
+            }
+
+            // BACK-EDGE SHADOW FILL: a tile higher than its back (screen NE/NW) neighbour leaves
+            // an occlusion void in its own footprint — the lifted top moves up, the wall faces
+            // away, and the neighbour only covers its own diamond, so the abyss showed through
+            // as dark teal slots. A near-black rock fill spanning the exact drop plugs the void
+            // and reads as the terrace's shaded back wall — the c3 cliff-top line on sea rims.
+            if (L > 0 && rockW.length) {
+              for (const [ox, oy] of [[-1, 0], [0, -1]] as [number, number][]) {
+                const nb = eLvl(tx + ox, ty + oy)
+                const floorB = nb < 0 ? 0 : nb
+                if (L <= floorB) continue                     // back neighbour level or higher
+                const toSea = nb < 0
+                const drop = (L - floorB) * STEP + (toSea ? 6 : 3)
+                const rk = rockW[Math.floor(hash(tx * 4.7 + ox * 3, ty * 5.3 + oy * 9) * rockW.length) % rockW.length]
+                // sea rims read as the cliff's SHADED SIDE (cool rock, texture alive) — near-black
+                // there read as holes against the pale water; inland slots stay a deep soil shadow
+                const vv = toSea
+                  ? 96 + Math.floor(26 * hash(tx * 1.9 + ox, ty * 2.7 + oy))
+                  : 62 + Math.floor(20 * hash(tx * 1.9 + ox, ty * 2.7 + oy))
+                const tint = toSea
+                  ? (Math.round(vv * 0.86) << 16) | (Math.round(vv * 0.86) << 8) | vv
+                  : (vv << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.8)
+                // the void is a PARALLELOGRAM with vertical sides (the edge shape swept down by
+                // the drop) — a rotated rect leaves bare triangles at one end, so it's covered
+                // as two stepped half-edge segments (the pixel staircase), tucked 2px under the
+                // overlapping tops. Edge runs from its low outer corner to the shared top corner.
+                const P0x = ox === -1 ? -32 : 32              // the low corner (left / right)
+                for (let s = 0; s < 2; s++) {
+                  const cxs = bx + P0x * (0.75 - 0.5 * s)     // segment centre x (quarter points)
+                  const cys = by - 18 * (0.25 + 0.5 * s) - 2  // edge height there, tucked up 2px
+                  const fill = new Sprite(new Texture({ source: rk.source, frame: new Rectangle(4 + s * 26, 14, 26, 38) }))
+                  fill.anchor.set(0.5, 0)
+                  fill.width = 18; fill.height = drop + 2
+                  fill.position.set(cxs, cys)
+                  fill.tint = tint
+                  fill.zIndex = zBase + 2
+                  world.addChild(fill)
+                }
+              }
+              // and the BACK-DIAGONAL corner: higher than the tile behind the top corner while
+              // both direct back neighbours hold level — the void mirror of the front corner
+              const bdl = eLvl(tx - 1, ty - 1)
+              const bdF = bdl < 0 ? 0 : bdl
+              if (L > bdF && eLvl(tx - 1, ty) >= L && eLvl(tx, ty - 1) >= L) {
+                const drop = (L - bdF) * STEP + (bdl < 0 ? 6 : 3)
+                const rk = rockW[Math.floor(hash(tx * 5.9 + 4, ty * 6.1 + 2) * rockW.length) % rockW.length]
+                const fill = new Sprite(new Texture({ source: rk.source, frame: new Rectangle(18, 14, 28, 38) }))
+                fill.anchor.set(0.5, 0)
+                fill.width = 26; fill.height = drop
+                fill.position.set(isoX(tx - 0.5, ty - 0.5), isoY(tx - 0.5, ty - 0.5) - lift + 1)
+                const vv = 62 + Math.floor(20 * hash(tx * 2.9, ty * 3.7))
+                fill.tint = (vv << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.8)
+                fill.zIndex = zBase + 2
+                world.addChild(fill)
               }
             }
           }
