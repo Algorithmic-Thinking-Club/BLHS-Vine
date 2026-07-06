@@ -5,6 +5,7 @@ import {
   loadWaterVariants, seaTile, animSwells, type SwellSprite,
 } from '../ocean'
 import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL } from './terrain'
+import { coneLvl, coneBand, gullyK } from './volcano'
 
 const smooth = (e0: number, e1: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t)
@@ -191,8 +192,20 @@ export default function IslandMapIso() {
           try { const t: Texture = await Assets.load(`/art/island/flat/grass-${i}.png?v=4`); t.source.scaleMode = 'nearest'; flatG.push(t) } catch { /* */ }
           try { const t: Texture = await Assets.load(`/art/island/flat/sand-${i}.png?v=4`); t.source.scaleMode = 'nearest'; flatS.push(t) } catch { /* */ }
         }
+        // the WARM blocks: rock-N's carved sides remapped onto c3's sunlit terracotta ramp
+        // (the original maroon sat at 0.35-0.5 luminance — the golden grade crushed it to
+        // the near-black dashes; a multiply tint can only darken, so brightness must live
+        // in the ASSET). Moss tops untouched (they peek 2px past the flat top: a grass lip).
+        const sideW: Texture[] = []                           // mossless: lower courses + wet feet
+        const volcW: Texture[] = []                           // the volcano's basalt courses
+        const volcT: Texture[] = []                           // bare basalt flat tops (upper cone)
         for (let i = 2; i <= 5; i++) {
-          try { const t: Texture = await Assets.load(`/art/island/blocks3/rock-${i}.png`); t.source.scaleMode = 'nearest'; rockW.push(t) } catch { /* */ }
+          try { const t: Texture = await Assets.load(`/art/island/blocks3/rock-${i}-warm.png`); t.source.scaleMode = 'nearest'; rockW.push(t) } catch { /* */ }
+          try { const t: Texture = await Assets.load(`/art/island/blocks3/rock-${i}-side.png`); t.source.scaleMode = 'nearest'; sideW.push(t) } catch { /* */ }
+          try { const t: Texture = await Assets.load(`/art/island/blocks3/volc-${i}-side.png`); t.source.scaleMode = 'nearest'; volcW.push(t) } catch { /* */ }
+        }
+        for (let i = 0; i < 16; i++) {
+          try { const t: Texture = await Assets.load(`/art/island/flat/volc-${i}.png`); t.source.scaleMode = 'nearest'; volcT.push(t) } catch { /* */ }
         }
         const gt = flatG.length ? flatG : grassV.filter(Boolean)
         const st = flatS.length ? flatS : sandV.filter(Boolean)
@@ -209,7 +222,10 @@ export default function IslandMapIso() {
         // steps" between beach and plateau. Then cleaned: a lone tile whose level matches no
         // neighbour snaps to the level most of them share.
         const PLAT_L = 3
-        const bandJ = (tx: number, ty: number) => (vnoise(tx / 9 + 31, ty / 9 + 47) - 0.5) * 2.4
+        // gentler + longer-wave than the old /9 x2.4: the tight jitter carved 1-tile notches
+        // into every bench line — the "badly cut paper cutout" zigzag. Long straight runs
+        // with occasional 2-3 tile steps is how c3 draws its terrace lines.
+        const bandJ = (tx: number, ty: number) => (vnoise(tx / 14 + 31, ty / 14 + 47) - 0.5) * 1.6
         // TRUE DISTANCE-TO-SEA (a BFS distance transform on the tile grid). The radial
         // coastDs approximation collapses inside protruding lobes — its "near-coast" bands
         // reached deep into the island, dragging bench walls across the interior (the
@@ -243,17 +259,24 @@ export default function IslandMapIso() {
           // tighter shelf (Ash: the wide beach ate the plateau the volcano needs) —
           // ~4 tiles of sand, then the two steps hugging the plateau edge
           const beachL = d <= 4.5 + j ? 0 : d <= 6 + j ? 1 : d <= 7.5 + j ? 2 : PLAT_L
-          return Math.round(beachL * (1 - cf) + PLAT_L * cf)
+          const base = Math.round(beachL * (1 - cf) + PLAT_L * cf)
+          // THE VOLCANO rises out of the flat plateau (handoff §6): extra J-curve levels
+          // from the cone field. Only full-plateau tiles climb — the coast grammar
+          // (beaches, benches, cliffs) never feels the mountain.
+          return base >= PLAT_L ? base + coneLvl(tx, ty) : base
         }
         const LV = new Int8Array(COLS * ROWS)
         for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
           LV[ty * COLS + tx] = lvlOf(tx, ty)
         }
-        for (let pass = 0; pass < 2; pass++) {
+        for (let pass = 0; pass < 3; pass++) {
           const prev = Int8Array.from(LV)
           for (let ty = 1; ty < ROWS - 1; ty++) for (let tx = 1; tx < COLS - 1; tx++) {
             const L = prev[ty * COLS + tx]
             if (L < 0) continue
+            // the snap is a COAST cleaner; on the cone it flattened the tight upper
+            // rings into wide terraces — the volcano's levels are authored, leave them
+            if (L > PLAT_L) continue
             const nb = [prev[ty * COLS + tx + 1], prev[ty * COLS + tx - 1], prev[(ty + 1) * COLS + tx], prev[(ty - 1) * COLS + tx]]
             if (nb.includes(L)) continue
             const land = nb.filter((v) => v >= 0)
@@ -267,6 +290,7 @@ export default function IslandMapIso() {
         }
         const eLvl = (tx: number, ty: number) =>
           tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS ? -1 : LV[ty * COLS + tx]
+        if (DBG) (window as unknown as { __LV?: unknown }).__LV = { LV, COLS, ROWS }
 
         // LAND↔SEA LATTICE ALIGNMENT: seaTile anchors its soft 64x64 water sprites at
         // (0.5, 0.25), which puts the water diamond's centre ~14px BELOW isoY; the flat land
@@ -287,6 +311,52 @@ export default function IslandMapIso() {
           world.addChild(foam)
         }
 
+        // THE 3D TILE UNIT (rebuilt 2026-07-06 after "the sides are even less recognizable"):
+        // a downhill tile is a real BLOCK COLUMN — the FULL 64x64 block sprite stacked one
+        // course per level, 1:1 pixels, NO crops, NO stretching. The block art's own
+        // parallelogram faces, corner verticals and diagonal bottom silhouette ARE the
+        // "proper 3D tile" read; every failed round (28x20 sliver stacks, then the continuous
+        // cliff band) died because it cropped rectangles out of that silhouette. Masking is
+        // pure painter's order: the tile's flat top hides each course's moss cap, the
+        // fronting/lower tiles hide the overshoot below. Never crop the blocks again.
+        const drawColumn = (bx2: number, by2: number, m: number, toSea: boolean, tx2: number, ty2: number, zBase2: number, volc = false) => {
+          if (!rockW.length || m <= 0) return
+          // rock variant in smooth ZONES (2-4 tile runs share a block) — per-tile random
+          // picks flickered into patchwork on turning coasts, one lone rock read flat.
+          // Each course shifts the zone seed so tall stacks don't repeat one texture.
+          const fam = volc && volcW.length ? volcW : sideW
+          const pick = (k: number) => Math.floor(vnoise(tx2 / 2.7 + 1.3 + k * 0.9, ty2 / 2.7 + 8.1 + k * 1.7) * rockW.length) % rockW.length
+          // a submerged echo of the bottom course first: the cliff foot runs 12px under the
+          // waterline so the diagonal bottom silhouette never opens a notch above the sea
+          if (toSea && sideW.length) {
+            const wet = new Sprite(sideW[pick(m)])
+            wet.anchor.set(0.5, 18 / 64)
+            wet.position.set(bx2, by2 + (m - 1) * STEP + 12)
+            wet.tint = 0xb8a898
+            if (DBG) wet.tint = 0x2020ff
+            wet.zIndex = zBase2; world.addChild(wet)
+          }
+          for (let k = m - 1; k >= 0; k--) {                // bottom course first, uppers mask
+            // EVERY course is mossless: the warm block's moss cap peeked ~2px around the
+            // flat top and outlined each edge tile as a cut-out diamond (Ash's "visible
+            // boundaries per each tile"). Anchor 18/64 tucks the block's top diamond fully
+            // under the flat top on the uphill edges; the 2-4px rock rim that remains on
+            // the DOWNHILL edges is the natural cliff lip.
+            const seg = new Sprite(fam.length ? fam[pick(k)] : rockW[pick(k)])
+            seg.anchor.set(0.5, 18 / 64)
+            seg.position.set(bx2, by2 + k * STEP)
+            let drift = 0.96 + 0.06 * vnoise(tx2 / 6 + 2.2, ty2 / 6 + 7.7) - 0.02 * k
+            // the cone's radial ribbing on the WALLS: gully columns darken, ridge
+            // columns stay lit — vertical streaks fanning from the summit (c3's ribs)
+            if (volc) drift *= 1 - 0.18 * gullyK(tx2, ty2)
+            const vv = Math.min(255, Math.round(drift * 255))
+            seg.tint = (vv << 16) | (vv << 8) | vv
+            if (DBG) seg.tint = 0xff2020
+            seg.zIndex = zBase2 + 1 + (m - 1 - k)
+            world.addChild(seg)
+          }
+        }
+
         const waterS: SwellSprite[] = []
         for (let ty = 0; ty < ROWS; ty++) {
           for (let tx = 0; tx < COLS; tx++) {
@@ -299,101 +369,46 @@ export default function IslandMapIso() {
             const sand = L === 0 && cliffMask(Math.atan2(ty - CY, tx - CX)) < 0.35
             const lift = L * STEP
             const bx = isoX(tx, ty), by = isoY(tx, ty) - lift + GY
-            const zBase = (tx + ty) * 4000 + lift * 8
+            // lift*8 overflowed the 4000 row separation once the cone stacked past L~15
+            // (a summit tile out-sorted the row in front of it); *4 keeps the tallest
+            // summit (L~18 -> 2304) safely inside its own row band
+            const zBase = (tx + ty) * 4000 + lift * 4
 
 
-            // DECORATED SIDE FACES on the two downhill front edges (SE, SW) — the tile's real
-            // 3D face, sized to the discrete drop. Sea = banded rock strata (variety per tile);
-            // inland step = a grassy-soil bank (the grass block's own dirt side). Never bricks.
-            for (const [ox, oy] of [[1, 0], [0, 1]] as [number, number][]) {
-              const nlv = eLvl(tx + ox, ty + oy)
-              const floorL = nlv < 0 ? 0 : nlv              // the sea is the floor at the coast
-              if (L <= floorL) continue
-              const drop = (L - floorL) * STEP
-              const toSea = nlv < 0
-              const ex = isoX(tx + ox * 0.5, ty + oy * 0.5), ey = isoY(tx + ox * 0.5, ty + oy * 0.5) - lift + GY
-              // SE face barely shadowed vs SW: a staircase coast alternates the two faces
-              // EVERY tile, so any real contrast prints a per-tile dark/light dash around
-              // the whole island (the "individual 3d tile sides"). References keep it ~5%.
-              const fv = ox === 1 ? 0.95 : 1.0
-              let seg: Sprite
-              if (!rockW.length) continue
-              // ONE ROCK for every wall on the island. Per-run variant picks degenerated into
-              // patchwork wherever the coast turns often (short runs = a different rock every
-              // few tiles) — the "screwed 3D" read. Consistency IS the material; variety comes
-              // from the texture itself, the band stacking, and a gentle continuous drift.
-              const drift = 0.98 + 0.04 * vnoise(tx / 7 + 2.2, ty / 7 + 7.7)
-              const rk = rockW[0]
-              // the face is drawn from 8px above the edge MIDPOINT (the edge's upper-corner
-              // height on the 64x32 lattice) and extended past the drop: a horizontal-topped
-              // rect on a sloped diamond edge otherwise leaves bare triangles at both ends.
-              // The tile's own top (drawn later) masks the overshoot above the edge; the
-              // fronting tile masks the overshoot below. TALL drops STACK band segments.
-              // CROP TRUTH: the block textures are FULL iso blocks — the mossy top diamond
-              // owns y 0-34, the true rock SIDE FACES live at y 35-56. The old crops started
-              // at y~15, so every wall's upper half was the block's green TOP stretched down
-              // the cliff: Ash's "weird image on top" breaking the 3D. Each face now crops its
-              // own side of the face zone (the block's built-in directional shading).
-              // ONE warm rock family for every wall — the old cool near-black "wet basalt"
-              // on sea faces printed high-contrast black ticks at every coast staircase
-              // corner: the dotted rhythm around the island. Sea walls are just a bit darker.
-              const totalH = drop + (toSea ? 21 : 23)
-              const nSeg = Math.max(1, Math.ceil(totalH / 26))
-              const vv = Math.min(255, Math.round(fv * drift * (toSea ? 0.96 : 1.0) * 255))
-              const segTint = (vv << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.70)
-              const faceFrame = ox === 1 ? new Rectangle(33, 35, 28, 20) : new Rectangle(3, 35, 28, 20)
-              for (let si = 0; si < nSeg; si++) {
-                seg = new Sprite(new Texture({ source: rk.source, frame: faceFrame }))
-                seg.anchor.set(0.5, 0)
-                seg.width = toSea ? 54 : 48
-                seg.height = totalH / nSeg + (si < nSeg - 1 ? 1 : 0)   // 1px overlap between bands
-                seg.position.set(ex, ey - 9 + si * (totalH / nSeg))
-                // each lower band a whisper darker — strata depth without visible banding
-                seg.tint = si === 0 ? segTint : shadeHex(segTint, 1 - 0.035 * si)
-                if (DBG) seg.tint = ox === 1 ? 0xff2020 : 0xff8020   // SE red, SW orange
-                seg.zIndex = zBase + 1
-                world.addChild(seg)
-              }
-              if (toSea) {                                  // a foam collar hugging the cliff foot
-                foamCollar(ex, ey + drop + 2, zBase, tx + ox + ty + oy)
-              }
-            }
-
-            // CORNER IN-FILL: when the drop happens only DIAGONALLY (the SE+SW neighbours hold
-            // the level but the front corner tile sits lower), neither edge draws a wall and the
-            // gap showed the abyss as a dark parallelogram. A narrow rock sliver plugs the corner.
+            // THE BLOCK COLUMN: if ANY of the 8 neighbours sits lower, this tile is a real
+            // block column down to the DEEPEST of them. One full block per level. Painter's
+            // order does ALL the masking: land neighbours in front (higher z) cover whatever
+            // face doesn't actually drop, so inland back-steps draw a hidden column (cheap,
+            // harmless) — but at a SILHOUETTE coast (sea behind-left/right) nothing fronts
+            // the tile and the column IS the visible cliff. Checking only the three front
+            // floors left every second staircase tile on the west coast overhanging bare
+            // void (v34's floating grass diamonds).
             {
-              const dlv = eLvl(tx + 1, ty + 1)
-              const dFloor = dlv < 0 ? 0 : dlv
-              if (L > dFloor && eLvl(tx + 1, ty) >= L && eLvl(tx, ty + 1) >= L && rockW.length) {
-                const drop = (L - dFloor) * STEP
-                const toSea = dlv < 0
-                const cxp = isoX(tx + 0.5, ty + 0.5), cyp = isoY(tx + 0.5, ty + 0.5) - lift + GY
-                const rk = rockW[0]                           // the island's one wall rock
-                const totalH = drop + (toSea ? 12 : 14)
-                const nSeg = Math.max(1, Math.ceil(totalH / 40))
-                const vv = Math.min(255, Math.round(0.9 * (0.96 + 0.06 * vnoise(tx / 7 + 4, ty / 7 + 1)) * 255))
-                const plugTint = (vv << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.70)
-                for (let si = 0; si < nSeg; si++) {
-                  // the SIDE-FACE zone of the block (y 35+), never the green top
-                  const seg = new Sprite(new Texture({ source: rk.source, frame: new Rectangle(19, 35, 26, 20) }))
-                  seg.anchor.set(0.5, 0)
-                  seg.width = 30
-                  seg.height = totalH / nSeg + (si < nSeg - 1 ? 1 : 0)
-                  seg.position.set(cxp, cyp + si * (totalH / nSeg))
-                  seg.tint = si === 0 ? plugTint : shadeHex(plugTint, 1 - 0.035 * si)
-                  if (DBG) seg.tint = 0xffe020                       // front-corner plug yellow
-                  seg.zIndex = zBase + 1
-                  world.addChild(seg)
+              let floorMin = L, toSea = false
+              for (const [ox, oy] of [[1, 0], [0, 1], [1, 1], [-1, 0], [0, -1], [-1, 1], [1, -1], [-1, -1]] as [number, number][]) {
+                const nl = eLvl(tx + ox, ty + oy)
+                if (nl < 0) toSea = true
+                const fl = nl < 0 ? 0 : nl
+                if (fl < floorMin) floorMin = fl
+              }
+              if (L > floorMin) {
+                drawColumn(bx, by, L - floorMin, toSea, tx, ty, zBase, L > PLAT_L)
+                // a foam collar hugging the cliff foot on each sea-facing front edge
+                for (const [ox, oy] of [[1, 0], [0, 1]] as [number, number][]) {
+                  if (eLvl(tx + ox, ty + oy) >= 0) continue
+                  const ex = isoX(tx + ox * 0.5, ty + oy * 0.5), ey = isoY(tx + ox * 0.5, ty + oy * 0.5) + GY
+                  foamCollar(ex, ey + 2, zBase, tx + ox + ty + oy)
                 }
-                if (toSea) foamCollar(cxp, cyp + drop + 2, zBase, tx + ty + 2)
               }
             }
 
             // TOP: one flat blended diamond (old-map recipe: narrow ramp + low-freq patch),
             // ~1.14 overlap so neighbours melt together. NO hillshade — the decorated SIDE
             // faces carry the 3D, and the flat tops stay a seamless surface like the old map.
-            const pool = sand ? st : gt
+            // the cone's surface bands: grass skirt -> dry scrub -> bare basalt (coneBand
+            // carries its own dither so the transitions never draw as clean rings)
+            const band = !sand && L > PLAT_L ? coneBand(tx, ty) : 0
+            const pool = sand ? st : band === 2 && volcT.length ? volcT : gt
             const g = pool.length ? pool[Math.floor(hash(tx * 5.1 + 2, ty * 2.9 + 4) * pool.length) % pool.length] : undefined
             if (g) {
               // scale 1.0, exact 64x36 diamonds on the 64x32 lattice — the 2px vertical bleed
@@ -409,13 +424,29 @@ export default function IslandMapIso() {
                 const tt = Math.min(1, dsq / 5)
                 const v = (0.965 + 0.06 * vnoise(tx / 16 + 3, ty / 16 + 5)) * grain * (1 + 0.1 * rk)
                 top.tint = warmCool(shadeHex(tintFor(rampAt(SAND_RAMP, tt), SAND_BASE), v), rk * 0.7)
+              } else if (band === 2) {
+                // bare basalt: neutral value drift + the radial GULLY streaks (ridges
+                // catch the light, gullies sink) — the c3 ribbing at map zoom
+                const hFrac = Math.min(1, (L - PLAT_L) / 14)
+                const v = (0.92 + 0.1 * vnoise(tx / 5 + 4, ty / 5 + 12)) * (1 + 0.12 * rk) * (1 - 0.18 * hFrac) * (1 - 0.22 * gullyK(tx, ty))
+                top.tint = warmCool(shadeHex(0xffffff, v), rk * 0.8)
+              } else if (band === 1) {
+                // dry scrub: the grass art pushed warm/parched — the transition belt
+                const patch = 0.98 + 0.05 * vnoise(tx / 9 + 5, ty / 9 + 2)
+                const lit = patch * grain * (1 + 0.12 * rk) * (1 - 0.14 * gullyK(tx, ty))
+                top.tint = warmCool(tintFor(shadeHex(0xb99e58, lit), GRASS_BASE), rk * 0.9)
               } else {
                 // the plateau's ground mosaic: a LARGE meadow↔deep-green zone field (24-tile
                 // landform scale — per-tile tint noise is the banned "poop") over the mid-scale
                 // patchwork, so the flat top reads as dry sunlit meadows drifting into richer
                 // green swaths instead of one olive slab
-                const zone = vnoise(tx / 24 + 9, ty / 24 + 17)
-                const patch = 0.96 + 0.08 * vnoise(tx / 14 + 2, ty / 14 + 6)
+                // the bench ribbons are only 1-2 tiles wide: at full swing every bench tile
+                // samples a different zone/patch value and the band reads as per-tile
+                // patchwork ("visible boundaries"). Damp the variation near the coast so
+                // each bench reads as ONE surface; the wide plateau keeps the full drift.
+                const damp = L < PLAT_L ? 0.35 : Math.min(1, DIST[ty * COLS + tx] / 12)
+                const zone = 0.5 + (vnoise(tx / 24 + 9, ty / 24 + 17) - 0.5) * damp
+                const patch = 1.0 + 0.08 * (vnoise(tx / 14 + 2, ty / 14 + 6) - 0.5) * 2 * damp
                 // gentler zone swing + a HIGH-FREQ CONTINUOUS dither: it still breaks contour
                 // alignment, but neighbouring tiles stay correlated — a per-tile hash printed
                 // hard diamond boundaries once the tops stopped overlapping
@@ -454,59 +485,49 @@ export default function IslandMapIso() {
                 const floorB = nb < 0 ? 0 : nb
                 if (L <= floorB) continue                     // back neighbour level or higher
                 const toSea = nb < 0
-                const rk = rockW[0]                           // the island's one wall rock
-                // same warm material as the faces, only modestly darker (the step's shadowed
-                // inner wall) — big value jumps between fills and faces read as broken 3D
-                // just under the face brightness — the old 0.62/0.78 ramps got crushed by the
-                // golden grade into near-BLACK dashes outlining every back edge (pixel-sampled
-                // RGB(29..63,10..14,11..14)): the dark broken rhythm around the island
-                const bvv = Math.min(255, Math.round((toSea ? 0.84 : 0.86) * (0.96 + 0.06 * vnoise(tx / 7 + 9, ty / 7 + 5)) * 255))
-                const backTint = (bvv << 16) | (Math.round(bvv * 0.88) << 8) | Math.round(bvv * 0.72)
-                const backFrame = ox === -1 ? new Rectangle(33, 35, 28, 20) : new Rectangle(3, 35, 28, 20)
                 // GEOMETRY TRUTH: a back edge faces AWAY from the camera — its wall is never
                 // visible. Over the SEA the correct picture is grass edge → water behind and
-                // below, marked only by a THIN dark rock lip under the rim (c3's plateau-edge
-                // line). The old full-drop rock columns here were hand-placed chips fighting
-                // the geometry: floating strips, sea notches between steps, bare overhung
-                // corners — Ash's "issue surrounding the island". INLAND steps still need the
-                // full-drop fill (the terrace behind sits higher on screen and leaves a void).
+                // below, marked only by a THIN rock lip under the rim (c3's plateau-edge
+                // line). INLAND steps still need the full-drop fill (the terrace behind sits
+                // higher on screen and leaves an occlusion void). Same c3-warm material as
+                // the faces, only modestly darker — the step's shadowed inner wall.
                 const bH = toSea ? 8 : (L - floorB) * STEP + 8
-                const nB = Math.max(1, Math.ceil(bH / 26))
+                // occlusion SHADOW, not lit material — the step's shaded inner wall (c3's
+                // dark plateau-rim line). A band crop off the warm block keeps the texture.
+                // soft, not black: at 0.58 the grade turned every step crease into a hard
+                // near-black outline (part of the cut-out read)
+                const bv = toSea ? 0.74 : 0.7
                 const P0x = ox === -1 ? -32 : 32              // the low corner (left / right)
                 for (let s = 0; s < 2; s++) {
                   const cxs = bx + P0x * (0.75 - 0.5 * s)     // segment centre x (quarter points)
                   const cys = by - 18 * (0.25 + 0.5 * s) - 5  // edge height there, tucked up under the top
-                  for (let si = 0; si < nB; si++) {
-                    const fill = new Sprite(new Texture({ source: rk.source, frame: backFrame }))
-                    fill.anchor.set(0.5, 0)
-                    fill.width = 18; fill.height = bH / nB + (si < nB - 1 ? 1 : 0)
-                    fill.position.set(cxs, cys + si * (bH / nB))
-                    fill.tint = si === 0 ? backTint : shadeHex(backTint, 1 - 0.04 * si)
-                    if (DBG) fill.tint = toSea ? 0x2040ff : 0x20e0ff // back fill: sea blue, inland cyan
-                    fill.zIndex = zBase + 2
-                    world.addChild(fill)
-                  }
+                  const fillRk = L > PLAT_L && volcW.length ? volcW[0] : rockW[0]
+                  const fill = new Sprite(new Texture({ source: fillRk.source, frame: new Rectangle(20 + s * 12, 38, 24, 22) }))
+                  fill.anchor.set(0.5, 0)
+                  fill.width = 18; fill.height = bH
+                  fill.position.set(cxs, cys)
+                  const vv = Math.round(bv * 255)
+                  fill.tint = (vv << 16) | (Math.round(vv * 0.92) << 8) | Math.round(vv * 0.86)
+                  if (DBG) fill.tint = toSea ? 0x2040ff : 0x20e0ff // DBG: back fill sea blue / inland cyan
+                  fill.zIndex = zBase + 2
+                  world.addChild(fill)
                 }
               }
               // and the BACK-DIAGONAL corner: higher than the tile behind the top corner while
-              // both direct back neighbours hold level — the void mirror of the front corner
+              // both direct back neighbours hold level — the void mirror of the front corner.
+              // Over the sea the same thin-lip rule: the corner faces away, rim only.
               const bdl = eLvl(tx - 1, ty - 1)
               const bdF = bdl < 0 ? 0 : bdl
               if (L > bdF && eLvl(tx - 1, ty) >= L && eLvl(tx, ty - 1) >= L) {
-                // same one-rock warm SIDE-FACE material as everything else — this fill was
-                // the last survivor of the old y14 crop (the block's green TOP stretched down
-                // the wall) plus a random rock and a cool near-black tint: a foreign chip at
-                // every back corner. Rock y35+, rockW[0], the shared warm ramp. Over the sea
-                // the same thin-lip rule as the back edges: the corner faces away, rim only.
                 const drop = bdl < 0 ? 8 : (L - bdF) * STEP + 3
-                const rk = rockW[0]
-                const fill = new Sprite(new Texture({ source: rk.source, frame: new Rectangle(19, 35, 26, 20) }))
+                const nubRk = L > PLAT_L && volcW.length ? volcW[0] : rockW[0]
+                const fill = new Sprite(new Texture({ source: nubRk.source, frame: new Rectangle(20, 38, 24, 22) }))
                 fill.anchor.set(0.5, 0)
                 fill.width = 26; fill.height = drop
                 fill.position.set(isoX(tx - 0.5, ty - 0.5), isoY(tx - 0.5, ty - 0.5) - lift + GY + 1)
-                const vv = Math.min(255, Math.round(0.84 * (0.96 + 0.06 * vnoise(tx / 7 + 6, ty / 7 + 3)) * 255))
-                fill.tint = (vv << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.72)
-                if (DBG) fill.tint = 0xff20ff                        // back-corner nub magenta
+                const vv = Math.round(0.7 * 255)
+                fill.tint = (vv << 16) | (Math.round(vv * 0.92) << 8) | Math.round(vv * 0.86)
+                if (DBG) fill.tint = 0xff20ff                 // DBG: back-corner nub magenta
                 fill.zIndex = zBase + 2
                 world.addChild(fill)
               }
