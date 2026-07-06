@@ -206,10 +206,14 @@ export default function IslandMapIso() {
         // neighbour snaps to the level most of them share.
         const PLAT_L = 3
         const bandJ = (tx: number, ty: number) => (vnoise(tx / 9 + 31, ty / 9 + 47) - 0.5) * 2.4
+        // PURE-AZIMUTH grammar — no per-tile jitter in the level decision. The jitter made
+        // the cliff/beach blend flicker tile to tile, popping stray one-tile benches along
+        // the whole coast: a dashed wall line INSIDE the island, parallel to the edge (the
+        // zigzag). The low-freq bandJ wiggle is the only organic term the benches need.
         const lvlOf = (tx: number, ty: number) => {
           const ds = coastDs(tx, ty)
           if (ds <= 0) return -1
-          const cf = smooth(0.3, 0.55, cliffMask(thJit(tx, ty)))
+          const cf = smooth(0.35, 0.6, cliffMask(Math.atan2(ty - CY, tx - CX)))
           const j = bandJ(tx, ty)
           const beachL = ds <= 14 + j ? 0 : ds <= 16.5 + j ? 1 : ds <= 19 + j ? 2 : PLAT_L
           return Math.round(beachL * (1 - cf) + PLAT_L * cf)
@@ -263,7 +267,7 @@ export default function IslandMapIso() {
             if (dsq <= 0) { seaTile(world, tx, ty, dsq, waterV, undefined, waterS); continue }
             const L = eLvl(tx, ty)                          // beaches = 0 → flush, no gap
             // sea-level land on a beach azimuth wears sand; on mixed azimuths it stays grass
-            const sand = L === 0 && cliffMask(thJit(tx, ty)) < 0.35
+            const sand = L === 0 && cliffMask(Math.atan2(ty - CY, tx - CX)) < 0.35
             const lift = L * STEP
             const bx = isoX(tx, ty), by = isoY(tx, ty) - lift + GY
             const zBase = (tx + ty) * 4000 + lift * 8
@@ -279,18 +283,15 @@ export default function IslandMapIso() {
               const drop = (L - floorL) * STEP
               const toSea = nlv < 0
               const ex = isoX(tx + ox * 0.5, ty + oy * 0.5), ey = isoY(tx + ox * 0.5, ty + oy * 0.5) - lift + GY
-              const fv = ox === 1 ? 0.84 : 1.0              // SE face shadowed, SW sunlit (sun UL)
+              const fv = ox === 1 ? 0.86 : 1.0              // SE face shadowed, SW sunlit (sun UL)
               let seg: Sprite
               if (!rockW.length) continue
-              // ALL sides are ROCK (Ash: a cliff feel, not green grass) — but RUN-COHERENT:
-              // a wall line keeps ONE stratum with a slow value drift along it, so a tall
-              // cliff reads as one banded rock face stepping along the coast (c3), not a
-              // curtain of mismatched shingles. SE faces run along constant tx; SW along ty.
-              const runKey = ox === 1 ? tx : ty
-              const runPos = ox === 1 ? ty : tx
-              const vi = Math.floor(hash(runKey * 3.7 + ox * 5, 13.1) * 997)
-              const drift = 0.95 + 0.1 * vnoise(runPos / 5.5 + runKey * 2.2, 7.7)
-              const rk = rockW[vi % rockW.length]
+              // ONE ROCK for every wall on the island. Per-run variant picks degenerated into
+              // patchwork wherever the coast turns often (short runs = a different rock every
+              // few tiles) — the "screwed 3D" read. Consistency IS the material; variety comes
+              // from the texture itself, the band stacking, and a gentle continuous drift.
+              const drift = 0.96 + 0.08 * vnoise(tx / 7 + 2.2, ty / 7 + 7.7)
+              const rk = rockW[0]
               // the face is drawn from 9px above the edge MIDPOINT (the edge's upper-corner
               // height) and extended past the drop: a horizontal-topped rect on a sloped
               // diamond edge otherwise leaves bare triangles at both ends. The tile's own
@@ -337,12 +338,10 @@ export default function IslandMapIso() {
                 const drop = (L - dFloor) * STEP
                 const toSea = dlv < 0
                 const cxp = isoX(tx + 0.5, ty + 0.5), cyp = isoY(tx + 0.5, ty + 0.5) - lift + GY
-                // matches the SE face run it sits between, so the plug continues the wall
-                const vi = Math.floor(hash(tx * 3.7 + 5, 13.1) * 997)
-                const rk = rockW[vi % rockW.length]
+                const rk = rockW[0]                           // the island's one wall rock
                 const totalH = drop + (toSea ? 12 : 14)
                 const nSeg = Math.max(1, Math.ceil(totalH / 40))
-                const vv = Math.min(255, Math.round((toSea ? 0.82 : 0.88) * (0.94 + 0.12 * ((vi % 5) / 5)) * 255))
+                const vv = Math.min(255, Math.round(0.9 * (0.96 + 0.06 * vnoise(tx / 7 + 4, ty / 7 + 1)) * 255))
                 const plugTint = (vv << 16) | (Math.round(vv * 0.88) << 8) | Math.round(vv * 0.70)
                 for (let si = 0; si < nSeg; si++) {
                   // the SIDE-FACE zone of the block (y 35+), never the green top
@@ -425,15 +424,11 @@ export default function IslandMapIso() {
                 if (L <= floorB) continue                     // back neighbour level or higher
                 const toSea = nb < 0
                 const drop = (L - floorB) * STEP + (toSea ? 6 : 3)
-                // run-coherent like the front faces (NW fills run along ty, NE along tx)
-                const rk = rockW[Math.floor(hash((ox === -1 ? ty : tx) * 3.7 - 5, 13.1) * rockW.length) % rockW.length]
-                // SOLID ROCK, same construction as the front faces — one material everywhere.
-                // (Water-tinted fills flashed as mint bars between the dark walls, and a basalt
-                // lip strip dotted an outline around the whole island. With the crop bug fixed,
-                // plain rock is what reads as a real 3D block side.) Darker than the front
-                // faces: this is the step's shadowed inner wall.
-                const bvv = Math.min(255, Math.round((toSea ? 0.68 : 0.58) * (0.92 + 0.16 * hash(tx * 1.9 + ox, ty * 2.7 + oy)) * 255))
-                const backTint = (bvv << 16) | (Math.round(bvv * 0.88) << 8) | Math.round(bvv * 0.74)
+                const rk = rockW[0]                           // the island's one wall rock
+                // same warm material as the faces, only modestly darker (the step's shadowed
+                // inner wall) — big value jumps between fills and faces read as broken 3D
+                const bvv = Math.min(255, Math.round(0.78 * (0.94 + 0.1 * vnoise(tx / 7 + 9, ty / 7 + 5)) * 255))
+                const backTint = (bvv << 16) | (Math.round(bvv * 0.88) << 8) | Math.round(bvv * 0.72)
                 const backFrame = ox === -1 ? new Rectangle(33, 35, 28, 20) : new Rectangle(3, 35, 28, 20)
                 // the void is a PARALLELOGRAM with vertical sides — covered as two stepped
                 // half-edge segments (the pixel staircase), tucked up under the overlapping
