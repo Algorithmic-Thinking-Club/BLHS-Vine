@@ -4,7 +4,7 @@ import {
   isoX, isoY, hash, vnoise, shadeHex, rampAt, tintFor,
   loadWaterVariants, seaTile, animSwells, type SwellSprite,
 } from '../ocean'
-import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA } from './terrain'
+import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, HEAD_L, HEAD_R } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
 
 const smooth = (e0: number, e1: number, x: number) => {
@@ -845,7 +845,7 @@ export default function IslandMapIso() {
           rowboat: '/art/intro/port/rowboat.png', crates: '/art/intro/port/crates.png',
           lantern: '/art/intro/port/lantern-post.png', ruin: '/art/island/ruin.png',
           crag: '/art/island/crag-a.png',
-          head: '/art/island/panther-head-lava.png', hut: '/art/island/harbor-hut.png',
+          head: '/art/island/head-carved.png', hut: '/art/island/harbor-hut.png',
           bridge: '/art/island/rope-bridge.png', boathouse: '/art/island/boathouse.png',
           lighthouse: '/art/island/lighthouse.png', pennant: '/art/intro/props/pennant.png',
           gull: '/art/intro/props/gull.png', gullFly: '/art/intro/props/gull-fly.png',
@@ -924,8 +924,36 @@ export default function IslandMapIso() {
           }
         }
 
-        // THE PANTHER HEADS — placed below after the monumental carved-relief art, at
-        // the lava sources on the front flank (c1/bon4: big, carved INTO the massif).
+        // THE PANTHER HEADS (the BLHS signature — c1/bon4): TWO colossal heads carved
+        // into the front flank, side by side, mirrored, mouths pouring lava down toward
+        // the coast. Big (world-px comparable to a third of the summit rise) so they
+        // read as part of the massif, not stickers. Drawn LAST at very high z so they
+        // sit over the flank tiles; a warm mouth-glow breathes at each jaw.
+        {
+          const heads: [number, number, number, boolean][] = [
+            [HEAD_L[0], HEAD_L[1], 300, false],   // left flow head (faces down-left)
+            [HEAD_R[0], HEAD_R[1], 300, true],    // right flow head (mirrored, faces down-right)
+          ]
+          for (const [hx3, hy3, hp, flip] of heads) {
+            const l3 = Math.max(0, eLvl(Math.round(hx3), Math.round(hy3)))
+            const wx = isoX(hx3, hy3), wy = isoY(hx3, hy3) - liftOf(l3) + GY
+            const sp = new Sprite(propTex.head)
+            if (!propTex.head) continue
+            sp.anchor.set(0.5, 1); sp.height = hp
+            sp.scale.x = Math.abs(sp.scale.y) * (flip ? -1 : 1)
+            sp.position.set(wx, wy + 6)
+            sp.zIndex = 3_600_000            // over the whole cone, under the sky layers
+            world.addChild(sp)
+            // the mouth glow: low on the head where the jaw pours
+            const mg = new Sprite(foamTex)
+            mg.anchor.set(0.5, 0.5); mg.blendMode = 'add'
+            mg.tint = 0xff8a30; mg.width = hp * 0.5; mg.height = hp * 0.34; mg.alpha = 0.4
+            mg.position.set(wx + (flip ? hp * 0.06 : -hp * 0.06), wy - hp * 0.16)
+            mg.zIndex = 3_600_001
+            world.addChild(mg)
+            glows.push({ sp: mg, ph: hx3, a: 0.36 })
+          }
+        }
 
         // THE PANTHER LIGHTHOUSE (NE coast, GAME-DESIGN outdoor feature): on its own
         // rock islet where a sailor and the player can actually see it (the tall summit

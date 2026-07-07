@@ -136,13 +136,17 @@ export function elevAt(tx: number, ty: number) {
 // ---- the TWO LAVA FLOWS: polylines from the cone's flanks (where the carved heads sit)
 // down to the coast. The heads pour down these; the base bake darkens a basalt channel
 // around them; the glowing cores pulse as a live layer.
+// THE TWO FLOWS pour from the carved PANTHER-HEAD mouths on the front-lower flank
+// (c1/bon4): a matched pair sitting at radius ~17 from the summit, symmetric about the
+// front centreline, each mouth feeding a flow that fans DOWN and OUTWARD to the coast.
+// The head render positions in IslandMapIso must match these start points.
+export const HEAD_L: [number, number] = [101, 117]
+export const HEAD_R: [number, number] = [117, 101]
 export const LAVA: [number, number][][] = [
-  // southwest flank head -> SW delta (rerouted 2026-07-06: the old west line ran
-  // across the FLAT northwest meadow — a flow must descend a flank, not stroll a lawn;
-  // offsets ride SCALE so the flows still reach the coast on the hub-sized island)
-  [[CONE.x - 3, CONE.y + 4], [CX - 8 * SCALE, CY + 11 * SCALE], [CX - 14 * SCALE, CY + 18 * SCALE], [CX - 19 * SCALE, CY + 26 * SCALE]],
-  // east flank head -> SE delta (toward the lagoon's south edge)
-  [[CONE.x + 5, CONE.y + 4], [CX + 9 * SCALE, CY + 10 * SCALE], [CX + 15 * SCALE, CY + 17 * SCALE], [CX + 19 * SCALE, CY + 25 * SCALE]],
+  // left head mouth -> SW-front coast (down-screen, drifting screen-left)
+  [HEAD_L, [99, 124], [96, 132], [92, 140], [88, 148]],
+  // right head mouth -> SE-front coast (down-screen, drifting screen-right)
+  [HEAD_R, [124, 99], [132, 96], [140, 92], [148, 88]],
 ]
 export function lavaDist(tx: number, ty: number) {
   let best = 99
