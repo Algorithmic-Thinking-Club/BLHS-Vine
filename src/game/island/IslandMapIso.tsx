@@ -4,7 +4,7 @@ import {
   isoX, isoY, hash, vnoise, shadeHex, rampAt, tintFor,
   loadWaterVariants, seaTile, animSwells, type SwellSprite,
 } from '../ocean'
-import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, HARBOR } from './terrain'
+import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
 
 const smooth = (e0: number, e1: number, x: number) => {
@@ -50,7 +50,7 @@ const warmCool = (hex: number, rk: number) => {
 // The sea is the shared ocean module (Ash: "really good if not perfect"), untouched.
 
 const COLS = 200, ROWS = 200 // a vast, mostly-ocean map
-const SEA_R = 86 // live sea builds inside this radius; beyond it the far field has
+const SEA_R = 94 // live sea builds inside this radius; beyond it the far field has
 // flattened into the abyss color, which IS the app background — endless without 100k sprites
 
 // the sailing sea's depth profile (unchanged — approved). Shelf hugs the coast, widens
@@ -555,9 +555,11 @@ export default function IslandMapIso() {
         // ring toward the south cove — a polyline like the lava's, rendered as dry
         // sand-worn tops. Ports send paths inward (the master plan); more come with
         // later vignettes.
+        // hand-authored features ride the island's hub scale (terrain SCALE 1.32)
+        const SC = (x: number, y: number): [number, number] => [CX + (x - CX) * 1.32, CY + (y - CY) * 1.32]
         // THE SOUTH RIVER (master plan: a spring on the south flank feeds the cove):
         // a fresh turquoise thread cutting the meadow ring to the south pocket
-        const RIVER: [number, number][] = [[114, 106], [119, 110], [124, 115], [128, 120], [131, 124]]
+        const RIVER: [number, number][] = ([[114, 106], [119, 110], [124, 115], [128, 120], [131, 124]] as [number, number][]).map(([x, y]) => SC(x, y))
         const riverD = (tx2: number, ty2: number) => {
           let best = 99
           for (let i = 0; i < RIVER.length - 1; i++) {
@@ -573,11 +575,11 @@ export default function IslandMapIso() {
           return best
         }
 
-        const PATH: [number, number][] = [[127, 86], [121, 95], [116, 105], [109, 115], [100, 122]]
+        const PATH: [number, number][] = ([[127, 86], [121, 95], [116, 105], [109, 115], [100, 122]] as [number, number][]).map(([x, y]) => SC(x, y))
         // the NW branch: from the ring's shoulder around the cone's north toe out onto
         // the wide NW lawn (the plan's meadow ring — every port sends a path inward,
         // and the empty lawn finally has somewhere to walk to)
-        const PATH2: [number, number][] = [[121, 95], [112, 88], [102, 82], [92, 76], [82, 74], [73, 78], [68, 86]]
+        const PATH2: [number, number][] = ([[121, 95], [112, 88], [102, 82], [92, 76], [82, 74], [73, 78], [68, 86]] as [number, number][]).map(([x, y]) => SC(x, y))
         const PATHS = [PATH, PATH2]
         const pathD = (tx2: number, ty2: number) => {
           let best = 99
@@ -922,45 +924,48 @@ export default function IslandMapIso() {
           }
         }
 
-        // THE PANTHER HEADS (the BLHS signature, master plan §1): carved into the SW
-        // and SE flanks at the lava sources — the flows pour from their jaws. Both
-        // visible from the arrival approach; mouths face downhill along their flows.
-        prop(92, 111, 'head', 190, { noShadow: true })
-        prop(112, 112.5, 'head', 170, { flip: true, noShadow: true })
+        // THE PANTHER HEADS — placed below after the monumental carved-relief art, at
+        // the lava sources on the front flank (c1/bon4: big, carved INTO the massif).
 
-        // THE PANTHER LIGHTHOUSE (N cliff coast, GAME-DESIGN outdoor feature): on its
-        // own rock islet off the cliffs, warm lantern against the dark water
-        // (NE coast: the tall summit hides the whole N sea from this camera — the
-        // lighthouse lives where a sailor and the player can actually see it)
-        prop(103, 57, 'lighthouse', 148, { sea: true, noShadow: true })
+        // THE PANTHER LIGHTHOUSE (NE coast, GAME-DESIGN outdoor feature): on its own
+        // rock islet where a sailor and the player can actually see it (the tall summit
+        // hides the whole N sea from this camera)
         {
+          const [lx, ly] = SC(103, 57)
+          prop(lx, ly, 'lighthouse', 168, { sea: true, noShadow: true })
           const lg = new Sprite(foamTex)
           lg.anchor.set(0.5, 0.5); lg.blendMode = 'add'
-          lg.tint = 0xffd890; lg.width = 90; lg.height = 54; lg.alpha = 0.3
-          lg.position.set(isoX(103, 57), isoY(103, 57) + GY - 128)
-          lg.zIndex = (160) * 4000 + 900
+          lg.tint = 0xffd890; lg.width = 100; lg.height = 60; lg.alpha = 0.3
+          lg.position.set(isoX(lx, ly), isoY(lx, ly) + GY - 146)
+          lg.zIndex = (Math.round(lx + ly)) * 4000 + 900
           world.addChild(lg)
           glows.push({ sp: lg, ph: 1.7, a: 0.26 })
         }
 
         // THE RIVER-COVE FISHING VIGNETTE (master plan: the south cove): boats at the
-        // river mouth, a lantern on the bank
-        prop(133, 127.5, 'boatF', 66, { sea: true, noShadow: true, flip: true })
-        prop(129.6, 123.4, 'rowboat', 42)
-        prop(128.2, 121.6, 'lantern', 72)
-        prop(129.2, 120.8, 'bridge', 56, { noShadow: true })   // the crossing over the estuary
+        // river mouth, a lantern on the bank, the rope bridge over the estuary
+        {
+          const cove = (x: number, y: number) => SC(x, y)
+          prop(...cove(133, 127.5), 'boatF', 72, { sea: true, noShadow: true, flip: true })
+          prop(...cove(129.6, 123.4), 'rowboat', 46)
+          prop(...cove(128.2, 121.6), 'lantern', 76)
+          prop(...cove(129.2, 120.8), 'bridge', 64, { noShadow: true })
+        }
 
         // P2b THE PORT: the arrival vignette at the harbor — a pier reaching into the
         // lagoon, boats riding at anchor, dockside clutter, one lantern
         {
-          const hx = HARBOR.x, hy = HARBOR.y
-          // walk from the harbor point INLAND to find the beach root of the pier
-          let rx = hx, ry = hy
-          for (let k = 0; k < 14; k++) {
-            if (eLvl(Math.round(rx), Math.round(ry)) >= 0) break
-            rx -= Math.cos(-0.5) * 0.8; ry -= Math.sin(-0.5) * 0.8
-          }
+          // find the arrival shore ROBUSTLY on the hub island: scan OUTWARD from a point
+          // safely inside the coast until we cross into the sea, then step back one — the
+          // last land tile is the pier root (module-const HARBOR is stale vs the async
+          // skeleton, so recompute here where coastR + eLvl are live)
           const seaward: [number, number] = [Math.cos(-0.5), Math.sin(-0.5)]
+          let rx = CX + seaward[0] * 20, ry = CY + seaward[1] * 20
+          for (let k = 0; k < 60; k++) {
+            const nx = rx + seaward[0] * 0.6, ny = ry + seaward[1] * 0.6
+            if (eLvl(Math.round(nx), Math.round(ny)) < 0) break   // next step is sea → stop at shore
+            rx = nx; ry = ny
+          }
           // real scale against 32px-tall tiles: a pier segment spans ~1.5 tiles, a boat
           // reads ~2 tiles long — the first sizes were dollhouse specks
           // one continuous pier run (overlapping segments — the gapped spacing read as

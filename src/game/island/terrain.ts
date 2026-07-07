@@ -27,14 +27,19 @@ function skelAt(arr: number[], bins: number, theta: number) {
   const i = Math.floor(u) % bins, j = (i + 1) % bins, f = u - Math.floor(u)
   return arr[i] * (1 - f) + arr[j] * f
 }
+// THE HUB SCALE (Ash, 2026-07-07: "make the island bigger, keep the weirdish shape" —
+// this island is the game's center hub and needs district-sized lowland, not a 6-tile
+// ring). Same traced skeleton, same wander, scaled up ~1.32: mean coast ~R50, the ring
+// between the cone toe and the water widens to real walkable places.
+const SCALE = 1.32
 export function coastR(theta: number) {
   // the traced profile keeps bon3's geological wander but with its arms pulled toward
   // the mean (Ash: protrusions too extreme; center-ground the mass, keep it irregular)
   if (SKEL) {
     const raw = skelAt(SKEL.radius, SKEL.bins, theta)
-    return Math.max(27, 38 + (raw - 38) * 0.55)
+    return Math.max(27, 38 + (raw - 38) * 0.55) * SCALE
   }
-  return COAST_R * (
+  return SCALE * COAST_R * (
     1
     + 0.11 * Math.sin(theta * 2 + 0.7)
     + 0.075 * Math.sin(theta * 3 - 1.9)
@@ -133,10 +138,11 @@ export function elevAt(tx: number, ty: number) {
 // around them; the glowing cores pulse as a live layer.
 export const LAVA: [number, number][][] = [
   // southwest flank head -> SW delta (rerouted 2026-07-06: the old west line ran
-  // across the FLAT northwest meadow — a flow must descend a flank, not stroll a lawn)
-  [[CONE.x - 3, CONE.y + 4], [CX - 8, CY + 11], [CX - 14, CY + 18], [CX - 19, CY + 26]],
+  // across the FLAT northwest meadow — a flow must descend a flank, not stroll a lawn;
+  // offsets ride SCALE so the flows still reach the coast on the hub-sized island)
+  [[CONE.x - 3, CONE.y + 4], [CX - 8 * SCALE, CY + 11 * SCALE], [CX - 14 * SCALE, CY + 18 * SCALE], [CX - 19 * SCALE, CY + 26 * SCALE]],
   // east flank head -> SE delta (toward the lagoon's south edge)
-  [[CONE.x + 5, CONE.y + 4], [CX + 9, CY + 10], [CX + 15, CY + 17], [CX + 19, CY + 25]],
+  [[CONE.x + 5, CONE.y + 4], [CX + 9 * SCALE, CY + 10 * SCALE], [CX + 15 * SCALE, CY + 17 * SCALE], [CX + 19 * SCALE, CY + 25 * SCALE]],
 ]
 export function lavaDist(tx: number, ty: number) {
   let best = 99
@@ -157,5 +163,7 @@ export function lavaDist(tx: number, ty: number) {
 
 // ---- the HARBOR (east arrival, GAME-DESIGN §3.2): where the intro docks. The pier site
 // sits on the lagoon's inner shore; the boat channel runs out through the shelf.
-export const HARBOR = { x: CX + Math.cos(-0.5) * (COAST_R * 1.02), y: CY + Math.sin(-0.5) * (COAST_R * 1.02) }
+// use the ACTUAL scaled coast radius at the arrival azimuth (not raw COAST_R) so the
+// harbor sits on the hub island's real shore, not near its centre
+export const HARBOR = { x: CX + Math.cos(-0.5) * (coastR(-0.5) * 1.02), y: CY + Math.sin(-0.5) * (coastR(-0.5) * 1.02) }
 export const CHANNEL = { theta: -0.5, w: 1.6 } // a dark cut through the lagoon mosaic

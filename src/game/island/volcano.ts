@@ -13,7 +13,7 @@
 import { CONE } from './terrain'
 import { vnoise } from '../ocean'
 
-export const CONE_BASE_R = 34   // the toe runs past the plateau's edge (Ash: broader)
+export const CONE_BASE_R = 38   // the toe grows with the hub island, keeping dominance
 // profile scale. The renderer's cone step is 10px (CSTEP — the slope-surface fix).
 // 175 with the harder 2.6 power: the extra height lives in the SUMMIT ROCKET while
 // the broad skirt Ash gated stays near-flat — the true J curve, rim ~92 levels (~920px).
