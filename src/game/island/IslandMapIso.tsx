@@ -5,7 +5,7 @@ import {
   loadWaterVariants, seaTile, animSwells, type SwellSprite,
 } from '../ocean'
 import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL } from './terrain'
-import { coneLvl, coneBand, gullyK, craterK, coneLit, stripeK } from './volcano'
+import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
 
 const smooth = (e0: number, e1: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t)
@@ -448,7 +448,13 @@ export default function IslandMapIso() {
                 if (fl < floorMin) floorMin = fl
               }
               if (L > floorMin) {
-                drawColumn(bx, by, L - floorMin, toSea, tx, ty, zBase, L > PLAT_L)
+                // basalt courses only where the surface has left the meadow — the green
+                // lower flank keeps the warm rock ribs (c3's grass-through-rock mesh).
+                // UNDITHERED switch: the band dither made each tile's walls flip family
+                // independently, printing an orange/dark checker across the transition —
+                // walls follow the smooth field so the families change in long runs.
+                drawColumn(bx, by, L - floorMin, toSea, tx, ty, zBase,
+                  L > PLAT_L && coneH(tx, ty) - gullyK(tx, ty) * 8 >= 5.5)
                 // a foam collar hugging the cliff foot on each sea-facing front edge
                 for (const [ox, oy] of [[1, 0], [0, 1]] as [number, number][]) {
                   if (eLvl(tx + ox, ty + oy) >= 0) continue
@@ -517,7 +523,10 @@ export default function IslandMapIso() {
                 // hard diamond boundaries once the tops stopped overlapping
                 const tval = Math.max(0, Math.min(1,
                   0.1 + 0.3 * vnoise(tx / 13 + 2, ty / 13 + 6) + 0.42 * zone + (vnoise(tx / 2.1 + 5, ty / 2.1 + 9) - 0.5) * 0.06))
-                const lit = patch * grain * (1 + 0.13 * rk) * (1.03 - 0.07 * zone)
+                // meadow that has climbed onto the cone wraps its form: the flank's own
+                // directional sun folds into the green (c3's grass curving up the slope)
+                const cl = L > PLAT_L ? coneLit(tx, ty) : 0
+                const lit = patch * grain * (1 + 0.13 * rk) * (1.03 - 0.07 * zone) * (1 + 0.14 * cl)
                 top.tint = warmCool(tintFor(shadeHex(rampAt(GRASS_RAMP, tval), lit), GRASS_BASE), rk)
               }
               world.addChild(top)
