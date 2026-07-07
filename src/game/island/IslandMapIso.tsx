@@ -469,13 +469,17 @@ export default function IslandMapIso() {
             // the BARE-ROCK upper flank (band 2) shows real strata faces (c3's exposed rock)
             const band = coneBand(tx2, ty2)
             const cl = coneLit(tx2, ty2)
-            const lo = 0.62 + 0.14 * cl                 // low-contrast shadow keyed to the sun
+            // NEAR-INVISIBLE riser (matched to the meadow top value) so the ~15 stacked
+            // 1-level skirt steps melt into ONE smooth grassy slope (c3), not a ziggurat.
+            // The contour lines were pure VALUE CONTRAST — a 26%-darker riser next to the
+            // grass top drew a line at every level. Pull the riser to within ~8% of the top.
+            const lo = 0.92 + 0.08 * cl
             if (band === 0) {
-              // grass skirt: a shaded turf bank, close to the meadow so the step is soft
-              seg.tint = tint24(lo * 0.42, lo * 0.56, lo * 0.28)
+              // grass skirt: a short grassy bank at (almost) the meadow value
+              seg.tint = tint24(lo * 0.70, lo * 0.75, lo * 0.42)
             } else if (band === 1) {
               // merge belt: dry earthy-olive bank (grass meshing into rock, c3)
-              seg.tint = tint24(lo * 0.60, lo * 0.54, lo * 0.30)
+              seg.tint = tint24(lo * 0.72, lo * 0.66, lo * 0.40)
             } else {
               // bare rock upper flank: real strata face, matches the tread value
               const k = dropPx >= CSTEP * 2 ? 0.97 : 0.88
@@ -526,7 +530,7 @@ export default function IslandMapIso() {
             const under = new Sprite(fam[pick(m + 1)])
             under.anchor.set(0.5, 18 / 64)
             under.position.set(bx2, by2 + (m - 1) * STEP + 8)
-            under.tint = turf ? 0x384823 : 0x6a6058
+            under.tint = turf ? 0x556831 : 0x6a6058
             if (DBG) under.tint = 0x20ff60
             under.zIndex = zBase2; world.addChild(under)
           }
@@ -561,10 +565,10 @@ export default function IslandMapIso() {
               continue
             }
             if (turf) {
-              // shaded meadow slope: the warm-grey rock texture tinted to deep grass,
-              // laddered darker down the drop so it reads as a turf bank, not a wall
-              const d2 = drift * (0.92 - 0.03 * (m - 1 - k))
-              seg.tint = tint24(d2 * 0.30, d2 * 0.44, d2 * 0.20)
+              // near-invisible grassy bank (matched to the meadow value so short steps
+              // blend into a smooth slope, not a stack of dark terraces)
+              const d2 = drift * (0.97 - 0.02 * (m - 1 - k))
+              seg.tint = tint24(d2 * 0.66, d2 * 0.72, d2 * 0.40)
               seg.zIndex = zBase2 + 1 + (m - 1 - k)
               world.addChild(seg)
               continue
@@ -583,6 +587,29 @@ export default function IslandMapIso() {
         // later vignettes.
         // hand-authored features ride the island's hub scale (terrain SCALE 1.32)
         const SC = (x: number, y: number): [number, number] => [CX + (x - CX) * 1.32, CY + (y - CY) * 1.32]
+
+        // ---- THE HEART OF THE HUB (2026-07-07, Ash: "this island is the CENTER hub…
+        // a genuinely walkable island with details… lots of panther references", the
+        // TavernWorld/Octopath bar). A composed PLAZA on the front-south flat ring, sat
+        // BETWEEN the two lava flows where Thor lands, with a panther monument at its
+        // heart and a coastal PROMENADE threading every site. Districts branch off it.
+        const plazaAz = 0.86
+        let PLAZA: [number, number] = [CX + Math.cos(plazaAz) * 42, CY + Math.sin(plazaAz) * 42]
+        for (let r = 47; r >= 33; r -= 0.5) {
+          const px = CX + Math.cos(plazaAz) * r, py = CY + Math.sin(plazaAz) * r
+          // the outermost FLAT tile with a comfortable coast margin and clear of the cone
+          if (coastDs(px, py) > 5.5 && coneH(px, py) < 1.2) { PLAZA = [px, py]; break }
+        }
+        const plazaD = (tx2: number, ty2: number) => Math.hypot(tx2 - PLAZA[0], ty2 - PLAZA[1])
+        // a coast-following promenade + radial branches, all traced live off the real
+        // coastline so they hug the hub's actual shore at any skeleton scale
+        const ringPath = (az0: number, az1: number, back: number, steps: number): [number, number][] =>
+          Array.from({ length: steps + 1 }, (_, i) => {
+            const az = az0 + (az1 - az0) * (i / steps)
+            const r = coastR(az) - back
+            return [CX + Math.cos(az) * r, CY + Math.sin(az) * r] as [number, number]
+          })
+
         // THE SOUTH RIVER (master plan: a spring on the south flank feeds the cove):
         // a fresh turquoise thread cutting the meadow ring to the south pocket
         const RIVER: [number, number][] = ([[114, 106], [119, 110], [124, 115], [128, 120], [131, 124]] as [number, number][]).map(([x, y]) => SC(x, y))
@@ -601,12 +628,18 @@ export default function IslandMapIso() {
           return best
         }
 
-        const PATH: [number, number][] = ([[127, 86], [121, 95], [116, 105], [109, 115], [100, 122]] as [number, number][]).map(([x, y]) => SC(x, y))
+        // THE PROMENADE: one worn coastal path hugging the whole front shore, from the
+        // east harbor (az -0.6) around the south past the plaza to the NW lawn (az 2.7) —
+        // the walkable spine that stitches port, plaza, cove and shrine into one place
+        const PROMENADE = ringPath(-0.62, 2.72, 8, 34)
         // the NW branch: from the ring's shoulder around the cone's north toe out onto
         // the wide NW lawn (the plan's meadow ring — every port sends a path inward,
         // and the empty lawn finally has somewhere to walk to)
         const PATH2: [number, number][] = ([[121, 95], [112, 88], [102, 82], [92, 76], [82, 74], [73, 78], [68, 86]] as [number, number][]).map(([x, y]) => SC(x, y))
-        const PATHS = [PATH, PATH2]
+        // the PILGRIM PATH: from the plaza straight up toward the volcano's foot (between
+        // the two lava flows) — the dramatic approach to the massif and its carved heads
+        const APPROACH: [number, number][] = [PLAZA, [CX + Math.cos(plazaAz) * 30, CY + Math.sin(plazaAz) * 30], [CX + Math.cos(plazaAz) * 24, CY + Math.sin(plazaAz) * 24]]
+        const PATHS = [PROMENADE, PATH2, APPROACH]
         const pathD = (tx2: number, ty2: number) => {
           let best = 99
           for (const P of PATHS) for (let i = 0; i < P.length - 1; i++) {
@@ -738,6 +771,10 @@ export default function IslandMapIso() {
             // rock bands, never the beach's own sand
             const onPath = !sand && L > 0 && pathD(tx, ty) < 0.75
               && (L <= PLAT_L || (band === 0 && coneH(tx, ty) < 6))
+            // THE PLAZA FLOOR: a packed flagstone courtyard disk on the flat front ring
+            // (the hub's heart). A defined rim ring reads its edge; the promenade feeds in.
+            const pdst = plazaD(tx, ty)
+            const onPlaza = !sand && L > 0 && L <= PLAT_L && pdst < 4.6 && ld > 2.5
             // the river renders ONLY as the flat tidal estuary at the cove (L 0-1):
             // on the terraced ring the water tiles stepped down the benches as floating
             // mint checkers — a broken river is worse than none (the full flank river
@@ -748,7 +785,7 @@ export default function IslandMapIso() {
               : isLava ? (ck > 0.32 && lakeT.length ? lakeT : lavaT)
                 : isBed && volcT.length ? volcT
                   : onRiver && waterV.length ? waterV
-                    : onPath && st.length ? st : vs || gt
+                    : (onPath || onPlaza) && st.length ? st : vs || gt
             // cone rock tops pick in smooth ZONES (like the walls): per-tile hash churn
             // re-rolled the texture every diamond and the flank read as shredded scales
             const g = !pool.length ? undefined
@@ -808,6 +845,13 @@ export default function IslandMapIso() {
                   world.addChild(glint)
                   glows.push({ sp: glint, ph: hash(tx, ty * 3.1) * 6.3, a: 0.14 })
                 }
+              } else if (onPlaza) {
+                // the flagstone courtyard: cool weathered stone, warmer sun-worn flags in
+                // the centre, a darker mortar rim ring reading its edge against the meadow
+                const rim = pdst > 3.7 ? 0.82 : 1                 // the defined outer ring
+                const flag = 0.9 + 0.16 * vnoise(tx / 2.3 + 40, ty / 2.3 + 12)  // per-flag value break
+                const v = flag * grain * rim * (1 + 0.08 * rk)
+                top.tint = warmCool(shadeHex(0xbcae94, v), rk * 0.5)
               } else if (onPath) {
                 // the trail: dry trodden earth through the green — deep enough to read
                 // as a path at map zoom, not a pale ghost
@@ -900,6 +944,8 @@ export default function IslandMapIso() {
           bridge: '/art/island/rope-bridge.png', boathouse: '/art/island/boathouse.png',
           lighthouse: '/art/island/lighthouse.png', pennant: '/art/intro/props/pennant.png',
           gull: '/art/intro/props/gull.png', gullFly: '/art/intro/props/gull-fly.png',
+          statue: '/art/island/panther-statue.png', totem: '/art/island/panther-totem.png',
+          signpost: '/art/island/signpost.png',
         }).map(([k, p]) => Assets.load(p).then((t: Texture) => { t.source.scaleMode = 'nearest'; propTex[k] = t }).catch(() => {})))
 
         const shadowTex = radial(64, [[0, 'rgba(20,16,10,0.4)'], [0.7, 'rgba(20,16,10,0.18)'], [1, 'rgba(20,16,10,0)']])
@@ -922,6 +968,15 @@ export default function IslandMapIso() {
           sp.position.set(wx, wy + 4); sp.zIndex = z
           world.addChild(sp)
         }
+        // a warm/teal additive glow grounded on a tile (torches, lanterns, auras),
+        // registered with the pulse array so it breathes
+        const addGlow = (gx3: number, gy3: number, up: number, tint: number, w: number, h: number, a: number, ph: number) => {
+          const wx = isoX(gx3, gy3), wy = isoY(gx3, gy3) - liftOf(Math.max(0, eLvl(Math.round(gx3), Math.round(gy3)))) + GY
+          const g = new Sprite(foamTex)
+          g.anchor.set(0.5, 0.5); g.blendMode = 'add'; g.tint = tint; g.width = w; g.height = h; g.alpha = a
+          g.position.set(wx, wy - up); g.zIndex = (Math.round(gx3) + Math.round(gy3)) * 4000 + 1200
+          world.addChild(g); glows.push({ sp: g, ph, a })
+        }
         // a grove site: the nearest breathable meadow tile at this azimuth/inset —
         // walked inward until it lands on grass ring off the cone and off the lava
         const site = (az: number, inset: number): [number, number] | null => {
@@ -936,17 +991,27 @@ export default function IslandMapIso() {
         }
         const palmKeys = ['palmA', 'palmB', 'palmC', 'palmD']
         // each grove: a hand-shaped cluster (big anchors + leaners + a bush), a clearing
-        // kept open. The -2.3..-2.75 band = the wide NW lawn (the empty third of the
-        // island): two loose groves + the shrine vignette give the plateau its places,
-        // with the new NW path arriving between them.
-        const GROVES: [number, number, number][] = [
-          [-0.85, 8, 7], [-0.15, 7, 8], [0.55, 8, 6], [1.05, 7, 7], [2.0, 9, 4], [-1.5, 9, 4],
-          [2.52, 15, 8], [-2.78, 9, 5], [2.3, 12, 5], [2.85, 10, 4],
-        ]
+        // kept open — bon3's language, but DENSE like the beach map. The stands are
+        // authored in TWO bands (a coastal fringe + an inland thicket line) so foliage
+        // frames the promenade on both sides; jitter + gaps keep them natural, never a
+        // hedge; the plaza (az~0.86) and the port (az~-0.5) keep their clearings.
         const OFFS: [number, number, number][] = [
           [0, 0, 168], [1.6, -0.7, 142], [-1.3, 0.9, 132], [0.8, 1.4, 154], [-0.6, -1.5, 120],
-          [2.3, 0.6, 112], [-2.1, -0.3, 126], [1.1, -1.8, 104],
+          [2.3, 0.6, 112], [-2.1, -0.3, 126], [1.1, -1.8, 104], [-2.6, 1.3, 96], [2.9, -1.4, 92],
         ]
+        const clearing = (az: number) => {
+          const near = (c: number, w: number) => Math.abs(((az - c + Math.PI * 3) % (Math.PI * 2)) - Math.PI) < w
+          return near(0.86, 0.4) || near(-0.5, 0.5)   // keep the plaza + port open
+        }
+        const GROVES: [number, number, number][] = []
+        for (let i = 0; i < 26; i++) {
+          const az = -Math.PI + (i / 26) * Math.PI * 2 + (hash(i, 7) - 0.5) * 0.14
+          if (clearing(az) || hash(i, 11) < 0.24) continue   // clearings + natural gaps
+          const inset = (i % 2 ? 6.5 : 12.5) + (hash(i, 5) - 0.5) * 3.4
+          GROVES.push([az, inset, hash(i, 3) > 0.5 ? 6 : 4])
+        }
+        // the wide NW lawn (the empty third) earns an extra deep thicket line
+        for (const g of [[2.35, 16, 6], [2.62, 11, 5], [2.9, 14, 4], [-2.75, 12, 5]] as [number, number, number][]) GROVES.push(g)
         for (const [az, inset, n] of GROVES) {
           const s = site(az, inset)
           if (!s) continue
@@ -954,14 +1019,20 @@ export default function IslandMapIso() {
             const [dx, dy, hp] = OFFS[i]
             prop(s[0] + dx, s[1] + dy, palmKeys[(i + Math.round(az * 3)) & 3], hp, { flip: hash(az * 7 + i, 3) > 0.5 })
           }
+          // UNDERSTORY: a bush pair + an occasional crag/boulder ground the stand so it
+          // reads as a real thicket floor, not palms on bare lawn (the beach-map density)
           prop(s[0] - 0.8, s[1] - 0.4, hash(az, 9) > 0.5 ? 'bushA' : 'bushC', 52, { flip: hash(az, 4) > 0.5 })
+          prop(s[0] + 1.4, s[1] + 0.9, hash(az, 6) > 0.5 ? 'bushC' : 'bushA', 44, { flip: hash(az, 2) > 0.5 })
+          if (hash(az, 13) > 0.55) prop(s[0] - 1.6, s[1] + 1.2, 'crag', 42, { flip: true })
+          if (hash(az, 17) > 0.62) prop(s[0] + 0.6, s[1] - 1.3, 'bushA', 34)
         }
         // rock outcrops + the one ruin: sparse designed accents on the open meadow
-        const OUTCROPS: [number, number][] = [[0.42, 12], [1.6, 9], [-1.15, 10], [2.62, 13]]
+        const OUTCROPS: [number, number][] = [[0.42, 12], [1.6, 9], [-1.15, 10], [2.62, 13], [1.9, 14], [-1.9, 8]]
         for (const [az, inset] of OUTCROPS) {
           const s = site(az, inset)
           if (!s) continue
           prop(s[0], s[1], 'rockA', 56); prop(s[0] + 1.1, s[1] + 0.5, 'rockB', 40, { flip: true })
+          if (hash(az, 21) > 0.5) prop(s[0] - 1.2, s[1] + 0.8, 'crag', 38)
         }
         {
           // the SHRINE MEADOW (NW lawn vignette): the mossy arch flanked by rocks and a
@@ -972,6 +1043,46 @@ export default function IslandMapIso() {
             prop(s[0] - 1.6, s[1] + 0.8, 'rockB', 38)
             prop(s[0] + 1.5, s[1] - 0.5, 'rockA', 44, { flip: true })
             prop(s[0] + 0.8, s[1] + 1.4, 'bushA', 46)
+          }
+        }
+
+        // ---- THE PLAZA (the hub's beating heart — TavernWorld's central monument):
+        // a panther GUARDIAN STATUE on the flagstone court, teal-glowing, flanked by
+        // carved totems up the pilgrim approach, a signpost where the promenade lands,
+        // teal BLHS banners and warm lanterns ringing the court. Composed, not sprinkled.
+        {
+          const [pcx, pcy] = PLAZA
+          const pring = (ang: number, rad: number): [number, number] => [pcx + Math.cos(ang) * rad, pcy + Math.sin(ang) * rad]
+          const outA = plazaAz, inA = plazaAz + Math.PI    // seaward vs up-toward-the-cone
+          const glowAt = addGlow
+          // 1) THE MONUMENT: the sitting panther guardian, dead centre, teal aura pulsing
+          prop(pcx, pcy, 'statue', 182)
+          glowAt(pcx, pcy, 64, 0x2fd8c4, 128, 82, 0.22, 0.6)
+          // 2) TWIN TOTEMS flanking the pilgrim approach up to the volcano, torch-lit feet
+          for (const side of [-1, 1]) {
+            const [tx3, ty3] = pring(inA + side * 0.42, 5.4)
+            prop(tx3, ty3, 'totem', 122, { flip: side > 0 })
+            glowAt(tx3, ty3, 8, 0xff9a3c, 40, 26, 0.32, tx3 * 0.5)
+          }
+          // 3) THE SIGNPOST where the promenade arrives from the port
+          { const [sx, sy] = pring(outA - 0.5, 5.2); prop(sx, sy, 'signpost', 84) }
+          // 4) TEAL BLHS BANNERS ringing the court + warm LANTERNS between them
+          for (let i = 0; i < 6; i++) {
+            const ang = outA + (i / 6) * Math.PI * 2 + 0.3
+            const [bx3, by3] = pring(ang, 4.6)
+            prop(bx3, by3, 'pennant', 60, { flip: Math.cos(ang) < 0, tint: 0x8fe8dc })
+          }
+          for (let i = 0; i < 4; i++) {
+            const ang = outA + (i / 4) * Math.PI * 2 + 0.95
+            const [lx3, ly3] = pring(ang, 4.2)
+            prop(lx3, ly3, 'lantern', 72)
+            glowAt(lx3, ly3, 46, 0xffc060, 34, 22, 0.3, lx3)
+          }
+          // 5) a loose ring of mossy boulders marking the court's meadow edge
+          for (let i = 0; i < 5; i++) {
+            const ang = outA + (i / 5) * Math.PI * 2 + 1.7
+            const [rx3, ry3] = pring(ang, 5.7)
+            prop(rx3, ry3, i % 2 ? 'rockA' : 'rockB', 34 + (i % 2) * 8, { flip: i % 2 === 0 })
           }
         }
 
