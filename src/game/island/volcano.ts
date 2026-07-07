@@ -14,10 +14,10 @@ import { CONE } from './terrain'
 import { vnoise } from '../ocean'
 
 export const CONE_BASE_R = 34   // the toe runs past the plateau's edge (Ash: broader)
-// profile scale. The renderer's cone step is 10px (CSTEP — the slope-surface fix), so
-// the level count doubled to keep the summit's screen height: rim ≈ 56 levels ≈ 560px
-// of towering J-curve, with finer contours as the bonus.
-export const CONE_H = 100
+// profile scale. The renderer's cone step is 10px (CSTEP — the slope-surface fix).
+// 135: c3's tower — the rim crowns ~76 levels (~760px), the summit owns the island's
+// whole silhouette while the broad skirt keeps the width Ash gated.
+export const CONE_H = 135
 export const CRATER_R = 7.5     // a WIDE circular opening (Ash: broader top too)
 const CRATER_DEPTH = 13         // levels the bowl sinks below the rim (10px steps)
 

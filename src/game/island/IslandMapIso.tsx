@@ -217,8 +217,18 @@ export default function IslandMapIso() {
         for (let i = 0; i < 16; i++) {
           try { const t: Texture = await Assets.load(`/art/island/flat/volc-${i}.png`); t.source.scaleMode = 'nearest'; volcT.push(t) } catch { /* */ }
         }
-        const lavaT: Texture[] = []                           // self-bright ember tiles
-        for (let i = 0; i < 4; i++) {
+        // MOLTEN tile tops (self-bright, untinted): lava2-0..7 = the flowing river,
+        // lava2-8..11 = the white-hot crater lake. The old ember-fleck lava-N family
+        // read as dark gravel ("pathetic") — molten means BRIGHT.
+        const lavaT: Texture[] = []
+        const lakeT: Texture[] = []
+        for (let i = 0; i < 8; i++) {
+          try { const t: Texture = await Assets.load(`/art/island/flat/lava2-${i}.png`); t.source.scaleMode = 'nearest'; lavaT.push(t) } catch { /* */ }
+        }
+        for (let i = 8; i < 12; i++) {
+          try { const t: Texture = await Assets.load(`/art/island/flat/lava2-${i}.png`); t.source.scaleMode = 'nearest'; lakeT.push(t) } catch { /* */ }
+        }
+        if (!lavaT.length) for (let i = 0; i < 4; i++) {
           try { const t: Texture = await Assets.load(`/art/island/flat/lava-${i}.png`); t.source.scaleMode = 'nearest'; lavaT.push(t) } catch { /* */ }
         }
         // THE VSLOPE FAMILY (final-push stage 1): the cone's skin. Tops + faces harvested
@@ -337,6 +347,19 @@ export default function IslandMapIso() {
             if (bc >= 2) LV[ty * COLS + tx] = best
           }
         }
+        // SPIKE KILLER: a bench tile standing HIGHER than 3+ of its land neighbours is a
+        // 1-tile promontory — an isolated tall wall column that reads as a floating
+        // plank (Ash circled two). Snap it down to its tallest neighbour.
+        {
+          const prev = Int8Array.from(LV)
+          for (let ty = 1; ty < ROWS - 1; ty++) for (let tx = 1; tx < COLS - 1; tx++) {
+            const L = prev[ty * COLS + tx]
+            if (L <= 0 || L > PLAT_L) continue
+            const nb = [prev[ty * COLS + tx + 1], prev[ty * COLS + tx - 1], prev[(ty + 1) * COLS + tx], prev[(ty - 1) * COLS + tx]].filter((v) => v >= 0)
+            const lower = nb.filter((v) => v < L)
+            if (nb.length >= 3 && lower.length >= 3) LV[ty * COLS + tx] = Math.max(...lower)
+          }
+        }
         // NOTCH KILLER: a tile whose level disagrees with 3 of its 4 land neighbours is a
         // 1-tile dent or bump in an otherwise straight contour — snap it to the majority.
         // Straight runs and true corners (2/2 splits) are untouched; this is what turns
@@ -416,7 +439,7 @@ export default function IslandMapIso() {
         // the cone's TREADS crop the very same blocks' top diamonds — top and face are
         // literally one material, so no lip can flip value or hue
         const rockTop: Texture[] = (sideL.length ? sideL : sideW).map((t) => new Texture({ source: t.source, frame: new Rectangle(0, 0, 64, 36) }))
-        const drawFace = (bx2: number, by2: number, dropPx: number, tx2: number, ty2: number, zBase2: number) => {
+        const drawFace = (bx2: number, by2: number, dropPx: number, tx2: number, ty2: number, zBase2: number, molten = false) => {
           const fam = sideL.length ? sideL : sideW.length ? sideW : vsF
           if (!fam.length || dropPx <= 0) return
           const need = 18 + dropPx + 8
@@ -427,11 +450,24 @@ export default function IslandMapIso() {
           const seg = new Sprite(fr); seg.anchor.set(0.5, 0)
           seg.position.set(bx2, by2)
           if (need > srcH) seg.scale.y = need / srcH
-          // the face matches the tread value on the steep flank (one slope, no per-step
-          // value flip — the ziggurat killer); gentle single steps keep a soft break
-          const k = dropPx >= CSTEP * 2 ? 0.97 : 0.88
-          const [r, g, b] = coneTint(tx2, ty2)
-          seg.tint = tint24(r * k, g * k, b * Math.min(1, k + 0.03))
+          if (molten) {
+            // a LAVA FALL: the river pours over the step — the face burns instead of
+            // showing rock, with its own glow at the lip
+            seg.tint = 0xffa640
+            const glow = new Sprite(foamTex)
+            glow.anchor.set(0.5, 0.5); glow.blendMode = 'add'
+            glow.tint = 0xff8a30; glow.width = 120; glow.height = 60 + dropPx
+            glow.alpha = 0.3
+            glow.position.set(bx2, by2 + dropPx * 0.5); glow.zIndex = zBase2 + 8
+            world.addChild(glow)
+            glows.push({ sp: glow, ph: -Math.hypot(tx2 - CX, ty2 - CY) * 1.1, a: 0.28 })
+          } else {
+            // the face matches the tread value on the steep flank (one slope, no per-step
+            // value flip — the ziggurat killer); gentle single steps keep a soft break
+            const k = dropPx >= CSTEP * 2 ? 0.97 : 0.88
+            const [r, g, b] = coneTint(tx2, ty2)
+            seg.tint = tint24(r * k, g * k, b * Math.min(1, k + 0.03))
+          }
           if (DBG) seg.tint = 0x20ffff
           seg.zIndex = zBase2 + 1
           world.addChild(seg)
@@ -577,63 +613,19 @@ export default function IslandMapIso() {
                 // Channel walls char: the lava bed's risers go basalt regardless of band.
                 const isCone = !NOCONE && L > PLAT_L && coneH(tx, ty) > 0 && !toSea && (sideW.length > 0 || vsF.length > 0)
                 if (isCone) {
-                  // the cone's own steps wear the vslope skin — one strip, one tint field
-                  drawFace(bx, by, lift - liftOf(floorMin), tx, ty, zBase)
+                  // the cone's own steps wear the block skin — one strip, one tint field;
+                  // river tiles pour over their steps as burning falls
+                  const moltenFace = lavaDist(tx, ty) < 0.95 || craterK(tx, ty) > 0.32
+                  drawFace(bx, by, lift - liftOf(floorMin), tx, ty, zBase, moltenFace)
                 } else {
                   const charred = !NOCONE && (lavaDist(tx, ty) < 1.1 || craterK(tx, ty) > 0.4)
                   drawColumn(bx, by, L - floorMin, toSea, tx, ty, zBase, charred)
                 }
-                // BACK-VOID FILLS (any land tile, drop >= 2): where the ground descends
-                // AWAY from the camera faster than the row spacing closes (STEP 20 vs row
-                // 16), nothing draws above this tile's upper edges/top corner — black
-                // diamond slots (the dbg shot proved no call owned them). Everything
-                // up-screen of a 2+ back-drop is void, so a surface-tinted fill is safe;
-                // 1-level steps stay EXCLUDED (the old coast serration bug lived there).
-                // The crater bowl skips — its 7-level far wall would spear the crown.
-                if ((sideW.length || vsF.length) && craterK(tx, ty) < 0.05 && PROBE !== 'fills') {
-                  const fills: [number, number, number, number][] = []
-                  // EXACT void heights, margin DOWNWARD only (under our own top): any
-                  // upward padding overpaints the back tile's tread — with the cone's
-                  // 10px steps a lower back top sits nearly kissing ours, and the +8
-                  // pad printed the dark contour strings across the whole flank.
-                  // (sprite anchors at its BOTTOM: the bottom sits deep under our own
-                  // top diamond, the height reaches exactly the void's top — total =
-                  // void + the covered slack, never poking past the back tread's edge)
-                  for (const [ox, oy] of [[-1, 0], [0, -1]] as [number, number][]) {
-                    const nl = eLvl(tx + ox, ty + oy)
-                    if (nl < 0 || nl >= L) continue
-                    const vH = lift - liftOf(nl) - 16
-                    if (vH > 4) fills.push([bx + (ox - oy) * 16, by, 34, vH + 9])
-                  }
-                  {
-                    const nl = eLvl(tx - 1, ty - 1)
-                    if (nl >= 0 && nl < L) {
-                      const vH = lift - liftOf(nl) - 32
-                      if (vH > 4) fills.push([bx, by - 10, 38, vH + 8])
-                    }
-                  }
-                  const isConeTile = !NOCONE && L > PLAT_L && coneH(tx, ty) > 0
-                  const fam = sideL.length ? sideL : sideW.length ? sideW : vsF
-                  for (const [fx, fy, fw, vH0] of fills) {
-                    const vH = Math.min(vH0, 60)
-                    const tex = fam[Math.floor(vnoise((tx - ty) / 4 + 6.3, (tx + ty) / 16 + 2.9) * fam.length) % fam.length]
-                    const fh = Math.min(tex.height - 36, vH)
-                    const fr = new Texture({ source: tex.source, frame: new Rectangle(0, 36, 64, fh) })
-                    const seg = new Sprite(fr); seg.anchor.set(0.5, 1)
-                    seg.width = fw
-                    seg.position.set(fx, fy)
-                    if (vH > fh) seg.scale.y *= vH / fh
-                    if (isConeTile) {
-                      const [r, g, b] = coneTint(tx, ty)
-                      seg.tint = tint24(Math.max(0.42, r * 0.85), Math.max(0.36, g * 0.85), Math.max(0.4, b * 0.88))
-                    } else {
-                      seg.tint = 0x8a6b4a // shaded earth under the meadow/bench lip
-                    }
-                    if (DBG) seg.tint = 0xff00ff
-                    seg.zIndex = zBase + 1
-                    world.addChild(seg)
-                  }
-                }
+                // NO BACK-VOID FILLS. (Removed 2026-07-07 — Ash circled them: the strips
+                // stacked into a curtain wall behind the summit and floating planks on
+                // the skirt, reading as pasted 2D images. With the cone's 10px steps the
+                // projection gaps behind steps are thin slivers; live with the crease.
+                // The doctrine held: do not reintroduce fills.)
                 // a foam collar hugging the cliff foot on each sea-facing front edge
                 for (const [ox, oy] of [[1, 0], [0, 1]] as [number, number][]) {
                   if (eLvl(tx + ox, ty + oy) >= 0) continue
@@ -655,17 +647,20 @@ export default function IslandMapIso() {
             // vent and chars around it. Glow sprites pulse on the cores (the ticker).
             const ld = dsq > 0 ? lavaDist(tx, ty) : 99
             const ck = L > PLAT_L ? craterK(tx, ty) : 0
-            // THE LAVA IS TILES (the confirmed 3d tile format): a contiguous molten CORE
-            // one-to-two tiles wide down the flank (self-bright ember tops + glow pulse),
-            // shouldered by the dark charred bed — a flowing river, never lone beads
-            const isLava = !NOCONE && lavaT.length > 0 && L > 0 && (ld < 0.75 || ck > 0.72)
+            // THE LAVA IS TILES (the confirmed 3d tile format): a contiguous MOLTEN core
+            // ~two tiles wide down the flank, shouldered by the dark charred bed — and
+            // the whole crater bowl burns as a lava lake (Ash: "orange lava filling
+            // inside the blowhole")
+            const isLava = !NOCONE && lavaT.length > 0 && L > 0 && (ld < 0.95 || ck > 0.32)
             // the bed hugs the future ribbon (a 4-tile charred swath read as a black scar)
             const isBed = !NOCONE && !isLava && L > 0 && (ld < 1.3 || ck > 0.4)
             // the worn path wears dry sand through the meadow (grass ring only, never
             // up the cone or over the beach's own sand)
             const onPath = !sand && L > 0 && L <= PLAT_L && pathD(tx, ty) < 0.75
             const vs = band >= 1 && rockTop.length ? rockTop : undefined
-            const pool = sand ? st : isLava ? lavaT : isBed && volcT.length ? volcT : onPath && st.length ? st : vs || gt
+            const pool = sand ? st
+              : isLava ? (ck > 0.32 && lakeT.length ? lakeT : lavaT)
+                : isBed && volcT.length ? volcT : onPath && st.length ? st : vs || gt
             // cone rock tops pick in smooth ZONES (like the walls): per-tile hash churn
             // re-rolled the texture every diamond and the flank read as shredded scales
             const g = !pool.length ? undefined
@@ -699,11 +694,13 @@ export default function IslandMapIso() {
                 top.tint = 0xffffff                           // self-bright art, untinted
                 const glow = new Sprite(foamTex)              // soft radial, re-tinted ember
                 glow.anchor.set(0.5, 0.5); glow.blendMode = 'add'
-                glow.tint = 0xff7a28; glow.width = 128; glow.height = 72
-                glow.alpha = 0.26
+                glow.tint = 0xff8a30; glow.width = 150; glow.height = 84
+                glow.alpha = 0.34
                 glow.position.set(bx, by); glow.zIndex = zBase + 7
                 world.addChild(glow)
-                glows.push({ sp: glow, ph: hash(tx * 1.7, ty * 2.3) * Math.PI * 2, a: 0.22 })
+                // phase keyed to distance from the vent: the pulse TRAVELS downstream —
+                // the cheap cue that the river flows instead of blinking in place
+                glows.push({ sp: glow, ph: -Math.hypot(tx - CX, ty - CY) * 1.1 + hash(tx, ty) * 0.8, a: 0.3 })
               } else if (isBed) {
                 // the charred channel shoulder / crater bowl floor — dark UMBER, not black
                 // (the grade crushes anything below ~0.5 into hole-black)
@@ -886,7 +883,7 @@ export default function IslandMapIso() {
         // the wind and dissolving; two small wisps where the flows quench in the sea.
         // Sprite-space animation only — no shaders (banned).
         const steamTex = radial(96, [[0, 'rgba(255,250,240,0.5)'], [0.55, 'rgba(240,232,224,0.22)'], [1, 'rgba(235,228,220,0)']])
-        const rimLift = liftOf(PLAT_L + 30)
+        const rimLift = liftOf(PLAT_L + coneLvl(CX + 8.5, CY))   // the real crown height
         const puffs: { sp: Sprite; ph: number; spd: number; big: boolean }[] = []
         for (let i = 0; !NOCONE && i < 6; i++) {
           const sp = new Sprite(steamTex); sp.anchor.set(0.5, 0.5)
