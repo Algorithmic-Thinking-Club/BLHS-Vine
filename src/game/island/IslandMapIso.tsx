@@ -4,7 +4,7 @@ import {
   isoX, isoY, hash, vnoise, shadeHex, rampAt, tintFor,
   loadWaterVariants, seaTile, animSwells, type SwellSprite,
 } from '../ocean'
-import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL } from './terrain'
+import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
 
 const smooth = (e0: number, e1: number, x: number) => {
@@ -208,6 +208,10 @@ export default function IslandMapIso() {
         }
         for (let i = 0; i < 16; i++) {
           try { const t: Texture = await Assets.load(`/art/island/flat/volc-${i}.png`); t.source.scaleMode = 'nearest'; volcT.push(t) } catch { /* */ }
+        }
+        const lavaT: Texture[] = []                           // self-bright ember tiles
+        for (let i = 0; i < 4; i++) {
+          try { const t: Texture = await Assets.load(`/art/island/flat/lava-${i}.png`); t.source.scaleMode = 'nearest'; lavaT.push(t) } catch { /* */ }
         }
         const gt = flatG.length ? flatG : grassV.filter(Boolean)
         const st = flatS.length ? flatS : sandV.filter(Boolean)
@@ -419,6 +423,7 @@ export default function IslandMapIso() {
         }
 
         const waterS: SwellSprite[] = []
+        const glows: { sp: Sprite; ph: number; a: number }[] = []
         for (let ty = 0; ty < ROWS; ty++) {
           for (let tx = 0; tx < COLS; tx++) {
             const dx = tx - CX, dy = ty - CY
@@ -458,8 +463,10 @@ export default function IslandMapIso() {
                 // UNDITHERED switch: the band dither made each tile's walls flip family
                 // independently, printing an orange/dark checker across the transition —
                 // walls follow the smooth field so the families change in long runs.
+                // Channel walls char: the lava bed's risers go basalt regardless of band.
+                const charred = lavaDist(tx, ty) < 1.1 || craterK(tx, ty) > 0.4
                 drawColumn(bx, by, L - floorMin, toSea, tx, ty, zBase,
-                  L > PLAT_L && coneH(tx, ty) - gullyK(tx, ty) * 8 >= 5.5)
+                  charred || (L > PLAT_L && coneH(tx, ty) - gullyK(tx, ty) * 8 >= 5.5))
                 // a foam collar hugging the cliff foot on each sea-facing front edge
                 for (const [ox, oy] of [[1, 0], [0, 1]] as [number, number][]) {
                   if (eLvl(tx + ox, ty + oy) >= 0) continue
@@ -475,7 +482,15 @@ export default function IslandMapIso() {
             // the cone's surface bands: grass skirt -> dry scrub -> bare basalt (coneBand
             // carries its own dither so the transitions never draw as clean rings)
             const band = !sand && L > PLAT_L ? coneBand(tx, ty) : 0
-            const pool = sand ? st : band === 2 && volcT.length ? volcT : gt
+            // THE LAVA (P1): two channels spill from the crater down the flanks to the
+            // coast (terrain's LAVA polylines). Core tiles wear the self-bright ember
+            // art; a charcoal BED shoulders each channel; the crater bowl burns at the
+            // vent and chars around it. Glow sprites pulse on the cores (the ticker).
+            const ld = dsq > 0 ? lavaDist(tx, ty) : 99
+            const ck = L > PLAT_L ? craterK(tx, ty) : 0
+            const isLava = lavaT.length > 0 && L > 0 && (ld < 0.9 || ck > 0.72)
+            const isBed = !isLava && L > 0 && (ld < 2.0 || ck > 0.4)
+            const pool = sand ? st : isLava ? lavaT : isBed && volcT.length ? volcT : band === 2 && volcT.length ? volcT : gt
             const g = pool.length ? pool[Math.floor(hash(tx * 5.1 + 2, ty * 2.9 + 4) * pool.length) % pool.length] : undefined
             if (g) {
               // scale 1.0, exact 64x36 diamonds on the 64x32 lattice — the 2px vertical bleed
@@ -491,6 +506,30 @@ export default function IslandMapIso() {
                 const tt = Math.min(1, dsq / 5)
                 const v = (0.965 + 0.06 * vnoise(tx / 16 + 3, ty / 16 + 5)) * grain * (1 + 0.1 * rk)
                 top.tint = warmCool(shadeHex(tintFor(rampAt(SAND_RAMP, tt), SAND_BASE), v), rk * 0.7)
+                if (ld < 3) {
+                  // the BLACK DELTA: cooled basalt sand fanning where the flow met the
+                  // water — blend the beach toward charcoal as the channel closes in
+                  const k = (1 - ld / 3) * 0.8
+                  const t0 = top.tint as number
+                  const dr = Math.round(((t0 >> 16) & 255) * (1 - k) + 0x4a * k)
+                  const dg = Math.round(((t0 >> 8) & 255) * (1 - k) + 0x42 * k)
+                  const db = Math.round((t0 & 255) * (1 - k) + 0x3e * k)
+                  top.tint = (dr << 16) | (dg << 8) | db
+                }
+              } else if (isLava) {
+                top.tint = 0xffffff                           // self-bright art, untinted
+                const glow = new Sprite(foamTex)              // soft radial, re-tinted ember
+                glow.anchor.set(0.5, 0.5); glow.blendMode = 'add'
+                glow.tint = 0xff7a28; glow.width = 128; glow.height = 72
+                glow.alpha = 0.26
+                glow.position.set(bx, by); glow.zIndex = zBase + 7
+                world.addChild(glow)
+                glows.push({ sp: glow, ph: hash(tx * 1.7, ty * 2.3) * Math.PI * 2, a: 0.22 })
+              } else if (isBed) {
+                // the charred channel shoulder / crater bowl floor
+                const v = 0.4 + 0.12 * vnoise(tx / 4 + 8, ty / 4 + 3)
+                const vv = Math.round(v * 255)
+                top.tint = (vv << 16) | (Math.round(vv * 0.9) << 8) | Math.round(vv * 0.84)
               } else if (band === 2) {
                 // bare basalt treads carry the same c3 flank language as the walls:
                 // the one hard sun (west warm / east purple-shade), rib stripes,
@@ -572,7 +611,47 @@ export default function IslandMapIso() {
           }
         }
 
-        app.ticker.add(() => { animSwells(waterS, performance.now() / 1000, () => 0) })
+        // THE STEAM (P1d): a plume of soft puffs rising off the crater, drifting with
+        // the wind and dissolving; two small wisps where the flows quench in the sea.
+        // Sprite-space animation only — no shaders (banned).
+        const steamTex = radial(96, [[0, 'rgba(255,250,240,0.5)'], [0.55, 'rgba(240,232,224,0.22)'], [1, 'rgba(235,228,220,0)']])
+        const rimLift = (PLAT_L + 30) * STEP
+        const puffs: { sp: Sprite; ph: number; spd: number; big: boolean }[] = []
+        for (let i = 0; i < 6; i++) {
+          const sp = new Sprite(steamTex); sp.anchor.set(0.5, 0.5)
+          sp.position.set(isoX(CX, CY), isoY(CX, CY) - rimLift + GY)
+          sp.zIndex = 4_000_000
+          world.addChild(sp)
+          puffs.push({ sp, ph: (i / 6) * Math.PI * 2, spd: 0.85 + 0.3 * hash(i * 3.7, 1.2), big: true })
+        }
+        for (const line of LAVA) {
+          const [ex, ey2] = line[line.length - 1]
+          for (let i = 0; i < 2; i++) {
+            const sp = new Sprite(steamTex); sp.anchor.set(0.5, 0.5)
+            sp.position.set(isoX(ex, ey2), isoY(ex, ey2) + GY)
+            sp.zIndex = (ex + ey2 + 2) * 4000 + 900
+            world.addChild(sp)
+            puffs.push({ sp, ph: i * 2.6 + ex * 0.1, spd: 0.6 + 0.25 * hash(ex + i, ey2), big: false })
+          }
+        }
+        const steamBase = puffs.map((p) => ({ x: p.sp.x, y: p.sp.y }))
+
+        app.ticker.add(() => {
+          const t = performance.now() / 1000
+          animSwells(waterS, t, () => 0)
+          // ember pulse: slow independent breathing per core tile
+          for (const g of glows) g.sp.alpha = g.a * (0.72 + 0.28 * Math.sin(t * 1.3 + g.ph))
+          // steam: each puff loops a rise — grows, drifts downwind (screen right), thins
+          for (let i = 0; i < puffs.length; i++) {
+            const p = puffs[i], b = steamBase[i]
+            const u = ((t * 0.09 * p.spd) + p.ph / (Math.PI * 2)) % 1
+            const rise = p.big ? 150 : 60
+            p.sp.position.set(b.x + u * (p.big ? 70 : 34) + Math.sin(t * 0.7 + p.ph) * 6, b.y - u * rise)
+            const s = (p.big ? 2.1 : 0.8) * (0.5 + u * 1.15)
+            p.sp.scale.set(s)
+            p.sp.alpha = (p.big ? 0.66 : 0.4) * (u < 0.18 ? u / 0.18 : 1 - (u - 0.18) / 0.82)
+          }
+        })
       }
 
       const waterSprites: SwellSprite[] = []
