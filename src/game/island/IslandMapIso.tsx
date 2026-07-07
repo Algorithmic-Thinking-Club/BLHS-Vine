@@ -555,6 +555,24 @@ export default function IslandMapIso() {
         // ring toward the south cove — a polyline like the lava's, rendered as dry
         // sand-worn tops. Ports send paths inward (the master plan); more come with
         // later vignettes.
+        // THE SOUTH RIVER (master plan: a spring on the south flank feeds the cove):
+        // a fresh turquoise thread cutting the meadow ring to the south pocket
+        const RIVER: [number, number][] = [[114, 106], [119, 110], [124, 115], [128, 120], [131, 124]]
+        const riverD = (tx2: number, ty2: number) => {
+          let best = 99
+          for (let i = 0; i < RIVER.length - 1; i++) {
+            const [x0, y0] = RIVER[i], [x1, y1] = RIVER[i + 1]
+            const vx = x1 - x0, vy = y1 - y0
+            const L2 = vx * vx + vy * vy
+            let t = L2 > 0 ? ((tx2 - x0) * vx + (ty2 - y0) * vy) / L2 : 0
+            t = Math.max(0, Math.min(1, t))
+            const dx = tx2 - (x0 + vx * t), dy = ty2 - (y0 + vy * t)
+            const d = Math.sqrt(dx * dx + dy * dy)
+            if (d < best) best = d
+          }
+          return best
+        }
+
         const PATH: [number, number][] = [[127, 86], [121, 95], [116, 105], [109, 115], [100, 122]]
         // the NW branch: from the ring's shoulder around the cone's north toe out onto
         // the wide NW lawn (the plan's meadow ring — every port sends a path inward,
@@ -667,10 +685,17 @@ export default function IslandMapIso() {
             // rock bands, never the beach's own sand
             const onPath = !sand && L > 0 && pathD(tx, ty) < 0.75
               && (L <= PLAT_L || (band === 0 && coneH(tx, ty) < 6))
+            // the river renders ONLY as the flat tidal estuary at the cove (L 0-1):
+            // on the terraced ring the water tiles stepped down the benches as floating
+            // mint checkers — a broken river is worse than none (the full flank river
+            // waits for a dedicated waterfall pass)
+            const onRiver = !sand && !isLava && !isBed && L > 0 && L <= 1 && riverD(tx, ty) < 0.8
             const vs = band >= 1 && rockTop.length ? rockTop : undefined
             const pool = sand ? st
               : isLava ? (ck > 0.32 && lakeT.length ? lakeT : lavaT)
-                : isBed && volcT.length ? volcT : onPath && st.length ? st : vs || gt
+                : isBed && volcT.length ? volcT
+                  : onRiver && waterV.length ? waterV
+                    : onPath && st.length ? st : vs || gt
             // cone rock tops pick in smooth ZONES (like the walls): per-tile hash churn
             // re-rolled the texture every diamond and the flank read as shredded scales
             const g = !pool.length ? undefined
@@ -717,6 +742,19 @@ export default function IslandMapIso() {
                 const v = 0.54 + 0.12 * vnoise(tx / 4 + 8, ty / 4 + 3)
                 const vv = Math.round(v * 255)
                 top.tint = (vv << 16) | (Math.round(vv * 0.82) << 8) | Math.round(vv * 0.72)
+              } else if (onRiver) {
+                // fresh water: pale sunlit turquoise over the live water texture, with
+                // a gentle glint pulse via the ember array (reused, tinted cool)
+                top.tint = 0x93cfc4
+                if (hash(tx * 3.7, ty * 1.9) > 0.72) {
+                  const glint = new Sprite(foamTex)
+                  glint.anchor.set(0.5, 0.5); glint.blendMode = 'add'
+                  glint.tint = 0xbfffec; glint.width = 46; glint.height = 22
+                  glint.alpha = 0.16
+                  glint.position.set(bx, by); glint.zIndex = zBase + 7
+                  world.addChild(glint)
+                  glows.push({ sp: glint, ph: hash(tx, ty * 3.1) * 6.3, a: 0.14 })
+                }
               } else if (onPath) {
                 // the trail: dry trodden earth through the green — deep enough to read
                 // as a path at map zoom, not a pale ghost
@@ -805,6 +843,10 @@ export default function IslandMapIso() {
           rowboat: '/art/intro/port/rowboat.png', crates: '/art/intro/port/crates.png',
           lantern: '/art/intro/port/lantern-post.png', ruin: '/art/island/ruin.png',
           crag: '/art/island/crag-a.png',
+          head: '/art/island/panther-head-lava.png', hut: '/art/island/harbor-hut.png',
+          bridge: '/art/island/rope-bridge.png', boathouse: '/art/island/boathouse.png',
+          lighthouse: '/art/island/lighthouse.png', pennant: '/art/intro/props/pennant.png',
+          gull: '/art/intro/props/gull.png', gullFly: '/art/intro/props/gull-fly.png',
         }).map(([k, p]) => Assets.load(p).then((t: Texture) => { t.source.scaleMode = 'nearest'; propTex[k] = t }).catch(() => {})))
 
         const shadowTex = radial(64, [[0, 'rgba(20,16,10,0.4)'], [0.7, 'rgba(20,16,10,0.18)'], [1, 'rgba(20,16,10,0)']])
@@ -862,7 +904,7 @@ export default function IslandMapIso() {
           prop(s[0] - 0.8, s[1] - 0.4, hash(az, 9) > 0.5 ? 'bushA' : 'bushC', 52, { flip: hash(az, 4) > 0.5 })
         }
         // rock outcrops + the one ruin: sparse designed accents on the open meadow
-        const OUTCROPS: [number, number][] = [[0.25, 10], [1.6, 9], [-1.15, 10], [2.62, 13]]
+        const OUTCROPS: [number, number][] = [[0.42, 12], [1.6, 9], [-1.15, 10], [2.62, 13]]
         for (const [az, inset] of OUTCROPS) {
           const s = site(az, inset)
           if (!s) continue
@@ -880,6 +922,34 @@ export default function IslandMapIso() {
           }
         }
 
+        // THE PANTHER HEADS (the BLHS signature, master plan §1): carved into the SW
+        // and SE flanks at the lava sources — the flows pour from their jaws. Both
+        // visible from the arrival approach; mouths face downhill along their flows.
+        prop(92, 111, 'head', 190, { noShadow: true })
+        prop(112, 112.5, 'head', 170, { flip: true, noShadow: true })
+
+        // THE PANTHER LIGHTHOUSE (N cliff coast, GAME-DESIGN outdoor feature): on its
+        // own rock islet off the cliffs, warm lantern against the dark water
+        // (NE coast: the tall summit hides the whole N sea from this camera — the
+        // lighthouse lives where a sailor and the player can actually see it)
+        prop(103, 57, 'lighthouse', 148, { sea: true, noShadow: true })
+        {
+          const lg = new Sprite(foamTex)
+          lg.anchor.set(0.5, 0.5); lg.blendMode = 'add'
+          lg.tint = 0xffd890; lg.width = 90; lg.height = 54; lg.alpha = 0.3
+          lg.position.set(isoX(103, 57), isoY(103, 57) + GY - 128)
+          lg.zIndex = (160) * 4000 + 900
+          world.addChild(lg)
+          glows.push({ sp: lg, ph: 1.7, a: 0.26 })
+        }
+
+        // THE RIVER-COVE FISHING VIGNETTE (master plan: the south cove): boats at the
+        // river mouth, a lantern on the bank
+        prop(133, 127.5, 'boatF', 66, { sea: true, noShadow: true, flip: true })
+        prop(129.6, 123.4, 'rowboat', 42)
+        prop(128.2, 121.6, 'lantern', 72)
+        prop(129.2, 120.8, 'bridge', 56, { noShadow: true })   // the crossing over the estuary
+
         // P2b THE PORT: the arrival vignette at the harbor — a pier reaching into the
         // lagoon, boats riding at anchor, dockside clutter, one lantern
         {
@@ -893,14 +963,47 @@ export default function IslandMapIso() {
           const seaward: [number, number] = [Math.cos(-0.5), Math.sin(-0.5)]
           // real scale against 32px-tall tiles: a pier segment spans ~1.5 tiles, a boat
           // reads ~2 tiles long — the first sizes were dollhouse specks
-          prop(rx + seaward[0] * 1.4, ry + seaward[1] * 1.4, 'pier', 84, { sea: true, noShadow: true })
-          prop(rx + seaward[0] * 3.2, ry + seaward[1] * 3.2, 'pier', 84, { sea: true, noShadow: true })
-          prop(rx + seaward[0] * 5.0, ry + seaward[1] * 5.0, 'pierEnd', 92, { sea: true, noShadow: true })
+          // one continuous pier run (overlapping segments — the gapped spacing read as
+          // broken planks floating on the lagoon)
+          prop(rx + seaward[0] * 1.1, ry + seaward[1] * 1.1, 'pier', 84, { sea: true, noShadow: true })
+          prop(rx + seaward[0] * 2.4, ry + seaward[1] * 2.4, 'pier', 84, { sea: true, noShadow: true })
+          prop(rx + seaward[0] * 3.7, ry + seaward[1] * 3.7, 'pier', 84, { sea: true, noShadow: true })
           prop(rx + seaward[0] * 7.4 + 1.4, ry + seaward[1] * 7.4 - 1.0, 'boatA', 76, { sea: true, noShadow: true })
           prop(rx + seaward[0] * 6.2 - 1.8, ry + seaward[1] * 6.2 + 1.6, 'boatF', 68, { sea: true, noShadow: true, flip: true })
           prop(rx - 0.6, ry + 1.1, 'rowboat', 44)
           prop(rx - 1.4, ry - 0.7, 'crates', 52)
           prop(rx - 0.4, ry - 1.5, 'lantern', 78)
+          // the harbor's life: a stilted hut with its warm window, the teal BLHS
+          // pennant, gulls loitering on the sand — the fresh island port Thor lands on
+          prop(rx - 3.2, ry - 2.6, 'hut', 104)
+          prop(rx + 1.4, ry - 3.4, 'boathouse', 98)
+          prop(rx - 1.9, ry + 2.2, 'pennant', 62)
+          prop(rx + 0.8, ry + 2.8, 'gull', 18)
+          prop(rx - 2.6, ry + 1.6, 'gull', 16, { flip: true })
+          // a warm hearth glow breathing in the hut window
+          {
+            const hx2 = isoX(rx - 3.2, ry - 2.6), hy2 = isoY(rx - 3.2, ry - 2.6) - liftOf(Math.max(0, eLvl(Math.round(rx - 3.2), Math.round(ry - 2.6)))) + GY
+            const wg = new Sprite(foamTex)
+            wg.anchor.set(0.5, 0.5); wg.blendMode = 'add'
+            wg.tint = 0xffc060; wg.width = 60; wg.height = 40; wg.alpha = 0.22
+            wg.position.set(hx2, hy2 - 40)
+            wg.zIndex = (Math.round(rx - 3.2) + Math.round(ry - 2.6)) * 4000 + 900
+            world.addChild(wg)
+            glows.push({ sp: wg, ph: 3.9, a: 0.2 })
+          }
+        }
+
+        // AMBIENT LIFE: two gulls gliding lazy loops over the lagoon and the meadow
+        // ring — the motion cue that sells a live world (with the clouds + steam)
+        const flyers: { sp: Sprite; cx: number; cy: number; r: number; spd: number; ph: number }[] = []
+        if (propTex.gullFly) {
+          for (const [gcx, gcy, gr, spd] of [[128, 96, 420, 0.14], [88, 118, 360, -0.11]] as [number, number, number, number][]) {
+            const sp = new Sprite(propTex.gullFly)
+            sp.anchor.set(0.5, 0.5); sp.height = 22; sp.scale.x = Math.abs(sp.scale.y)
+            sp.zIndex = 3_200_000
+            world.addChild(sp)
+            flyers.push({ sp, cx: isoX(gcx, gcy), cy: isoY(gcx, gcy) + GY - 130, r: gr, spd, ph: gcx * 0.7 })
+          }
         }
 
         // THE STEAM (P1d): a plume of soft puffs rising off the crater, drifting with
@@ -928,6 +1031,28 @@ export default function IslandMapIso() {
         }
         const steamBase = puffs.map((p) => ({ x: p.sp.x, y: p.sp.y }))
 
+        // THE MOUNTAIN'S CAST SHADOW (bon3/c3's strongest grounding cue): the cone
+        // throws a long soft violet-teal shade to the screen-SE — across its own SE
+        // foot, the meadow, the beach and out over the water — fading with distance.
+        // Same layer trick as the cloud shadows (above the tiles, below the sun wash).
+        {
+          const cv = document.createElement('canvas'); cv.width = 640; cv.height = 320
+          const g = cv.getContext('2d')!
+          const grad = g.createLinearGradient(40, 160, 640, 160)
+          grad.addColorStop(0, 'rgba(20,18,44,0.30)')
+          grad.addColorStop(0.45, 'rgba(20,20,48,0.17)')
+          grad.addColorStop(1, 'rgba(20,22,52,0)')
+          g.fillStyle = grad
+          g.beginPath(); g.ellipse(320, 160, 316, 130, 0, 0, Math.PI * 2); g.fill()
+          const sh = new Sprite(Texture.from(cv))
+          sh.anchor.set(0.06, 0.5)
+          sh.position.set(isoX(CX + 6, CY + 6), isoY(CX + 6, CY + 6) + GY)
+          sh.rotation = 0.46
+          sh.scale.set(2.4, 2.0)
+          sh.zIndex = 2_900_000
+          world.addChild(sh)
+        }
+
         // P3: CLOUD SHADOWS — three soft shades drifting slowly across the island with
         // the wind. The subtle motion cue that makes a still map read as a live world.
         const cloudTex = radial(256, [[0, 'rgba(16,20,30,0.26)'], [0.6, 'rgba(16,20,30,0.15)'], [1, 'rgba(16,20,30,0)']])
@@ -952,6 +1077,12 @@ export default function IslandMapIso() {
             c.sp.x += c.spd * (app.ticker.deltaMS / 1000)
             if (c.sp.x > isoX(CX, CY) + 2400) c.sp.x = isoX(CX, CY) - 2400
             c.sp.y = c.y0 + Math.sin(c.sp.x * 0.0007) * 90
+          }
+          // gulls glide their loops, banking with the turn
+          for (const f of flyers) {
+            const a = t * f.spd + f.ph
+            f.sp.position.set(f.cx + Math.cos(a) * f.r, f.cy + Math.sin(a) * f.r * 0.42 + Math.sin(t * 0.9 + f.ph) * 8)
+            f.sp.scale.x = Math.abs(f.sp.scale.y) * (Math.sin(a) > 0 ? 1 : -1) * (f.spd > 0 ? 1 : -1)
           }
           // steam: each puff loops a rise — grows, drifts downwind (screen right), thins
           for (let i = 0; i < puffs.length; i++) {
