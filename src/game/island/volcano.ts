@@ -1,4 +1,4 @@
-// THE VOLCANO's level field (2026-07-06). Ash's binding structural spec (his sketches,
+﻿// THE VOLCANO's level field (2026-07-06). Ash's binding structural spec (his sketches,
 // master-plan §2): the base covers ~80-85% of the interior; the height profile is the
 // iconic J CURVE — a near-flat skirt for the outer half of the radius, then an exponential
 // rocket into a tall NARROW summit; the surface organizes RADIALLY (ridges and gullies
@@ -15,9 +15,10 @@ import { vnoise } from '../ocean'
 
 export const CONE_BASE_R = 34   // the toe runs past the plateau's edge (Ash: broader)
 // profile scale. The renderer's cone step is 10px (CSTEP — the slope-surface fix).
-// 135: c3's tower — the rim crowns ~76 levels (~760px), the summit owns the island's
-// whole silhouette while the broad skirt keeps the width Ash gated.
-export const CONE_H = 135
+// 175 with the harder 2.6 power: the extra height lives in the SUMMIT ROCKET while
+// the broad skirt Ash gated stays near-flat — the true J curve, rim ~92 levels (~920px).
+export const CONE_H = 175
+const J_POW = 2.6
 export const CRATER_R = 7.5     // a WIDE circular opening (Ash: broader top too)
 const CRATER_DEPTH = 13         // levels the bowl sinks below the rim (10px steps)
 
@@ -47,7 +48,7 @@ export function coneH(tx: number, ty: number) {
   // THE J CURVE as a power law. 2.3 (from 2.7): the harder arc pinched the waist —
   // Ash read it as narrow. The softer power carries broad shoulders through the
   // whole mid flank; with the wide rim the cone reads BROAD, c3's proportions.
-  let h = CONE_H * Math.pow(s, 2.3) + 1.4 * s
+  let h = CONE_H * Math.pow(s, J_POW) + 1.4 * s
   // the CRATER: TRUNCATE the cone at the rim height, then sink the bowl. Subtracting a
   // bowl from the still-rising profile left a 1-tile needle poking through (the profile
   // keeps climbing inside the rim, far more than any sane bowl depth) — the summit
@@ -57,7 +58,7 @@ export function coneH(tx: number, ty: number) {
   // hRim, wears a flat CROWN RING ~1.2 tiles wide, then the bowl drops a full
   // CRATER_DEPTH inside — a clear circular opening from map zoom.
   const rimS = 1 - CRATER_R / CONE_BASE_R
-  const hRim = CONE_H * Math.pow(rimS, 2.3) + 1.4 * rimS
+  const hRim = CONE_H * Math.pow(rimS, J_POW) + 1.4 * rimS
   h = Math.min(h, hRim)                       // the cone rises naturally and caps at the rim
   if (d < CRATER_R - 1.0) {                   // crown ring keeps ~1 tile of flat rim, then
     const t = Math.max(0, Math.min(1, (CRATER_R - 1.0 - d) / 1.8))
@@ -127,7 +128,9 @@ export function coneBand(tx: number, ty: number) {
   // material — look at c3"): full meadow rides the lower flank to ~5.5 levels, the
   // scrub belt carries it to ~10, and the gully tongues drag green far higher — the
   // rock ribs and the meadow interlock instead of meeting at a line
-  const veg = gullyK(tx, ty) * 16
-  const v = h + dither * 2 - veg
-  return v >= 20 ? 2 : v >= 11 ? 1 : 0
+  // c3's read: vegetation owns the whole lower third and its gully tongues lick far
+  // up the flank before the bare rock takes over
+  const veg = gullyK(tx, ty) * 26
+  const v = h + dither * 2.5 - veg
+  return v >= 34 ? 2 : v >= 18 ? 1 : 0
 }

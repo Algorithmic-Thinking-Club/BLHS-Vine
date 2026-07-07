@@ -83,7 +83,9 @@ const SAND_RAMP: [number, number][] = [[0, 0xdcbf87], [0.45, 0xead6a3], [1, 0xf7
 const GRASS_BASE = [126, 158, 96]
 // widened for golden hour: a warm dry sun-green at the light end, a deep cool green in the
 // hollows — the sun rake (warmCool) then splits warm/cool across it so the field reads lit
-const GRASS_RAMP: [number, number][] = [[0, 0xaec06a], [0.5, 0x91ae56], [1, 0x6d8d40]]
+// warmed a step toward bon3's golden-green (the sunlit meadow is gold-kissed, the
+// hollows keep the cool deep green)
+const GRASS_RAMP: [number, number][] = [[0, 0xbcc468], [0.5, 0x9cb058], [1, 0x6f8c42]]
 
 export default function IslandMapIso() {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -409,7 +411,7 @@ export default function IslandMapIso() {
           const stripe = stripeK(tx2, ty2)             // radial ribs
           const gy = gullyK(tx2, ty2)
           const ck = craterK(tx2, ty2)
-          const hFrac = Math.min(1, coneH(tx2, ty2) / 56)
+          const hFrac = Math.min(1, coneH(tx2, ty2) / 92)   // rim ≈ 92 levels at CONE_H 175
           const warm = 0.5 + 0.5 * cl
           // stripes carry the RIDGE read now that the texture is damped — but ribs SHADE
           // (~30% down), they never go black: the stacked gully+shade+stripe minima at a
@@ -554,10 +556,15 @@ export default function IslandMapIso() {
         // sand-worn tops. Ports send paths inward (the master plan); more come with
         // later vignettes.
         const PATH: [number, number][] = [[127, 86], [121, 95], [116, 105], [109, 115], [100, 122]]
+        // the NW branch: from the ring's shoulder around the cone's north toe out onto
+        // the wide NW lawn (the plan's meadow ring — every port sends a path inward,
+        // and the empty lawn finally has somewhere to walk to)
+        const PATH2: [number, number][] = [[121, 95], [112, 88], [102, 82], [92, 76], [82, 74], [73, 78], [68, 86]]
+        const PATHS = [PATH, PATH2]
         const pathD = (tx2: number, ty2: number) => {
           let best = 99
-          for (let i = 0; i < PATH.length - 1; i++) {
-            const [x0, y0] = PATH[i], [x1, y1] = PATH[i + 1]
+          for (const P of PATHS) for (let i = 0; i < P.length - 1; i++) {
+            const [x0, y0] = P[i], [x1, y1] = P[i + 1]
             const vx = x1 - x0, vy = y1 - y0
             const L2 = vx * vx + vy * vy
             let t = L2 > 0 ? ((tx2 - x0) * vx + (ty2 - y0) * vy) / L2 : 0
@@ -656,7 +663,10 @@ export default function IslandMapIso() {
             const isBed = !NOCONE && !isLava && L > 0 && (ld < 1.3 || ck > 0.4)
             // the worn path wears dry sand through the meadow (grass ring only, never
             // up the cone or over the beach's own sand)
-            const onPath = !sand && L > 0 && L <= PLAT_L && pathD(tx, ty) < 0.75
+            // paths may cross the grassy cone toe (the lawn IS mostly toe) — never the
+            // rock bands, never the beach's own sand
+            const onPath = !sand && L > 0 && pathD(tx, ty) < 0.75
+              && (L <= PLAT_L || (band === 0 && coneH(tx, ty) < 6))
             const vs = band >= 1 && rockTop.length ? rockTop : undefined
             const pool = sand ? st
               : isLava ? (ck > 0.32 && lakeT.length ? lakeT : lavaT)
@@ -708,16 +718,17 @@ export default function IslandMapIso() {
                 const vv = Math.round(v * 255)
                 top.tint = (vv << 16) | (Math.round(vv * 0.82) << 8) | Math.round(vv * 0.72)
               } else if (onPath) {
-                // the trail: dry trodden earth-sand through the green
+                // the trail: dry trodden earth through the green — deep enough to read
+                // as a path at map zoom, not a pale ghost
                 const v = (0.99 + 0.05 * vnoise(tx / 7 + 3, ty / 7 + 9)) * grain * (1 + 0.1 * rk)
-                top.tint = warmCool(shadeHex(0xd6c090, v), rk * 0.7)
+                top.tint = warmCool(shadeHex(0xc9a26e, v), rk * 0.7)
               } else if (band >= 1 && vs) {
                 // the cone's rock treads: the SAME coneTint field the faces wear, PULLED
                 // DOWN toward the carved sides' own value (the block art's bright top vs
                 // dark side is the bench flash — closing it makes the flank one strata
                 // surface). The merge belt (band 1) eases the meadow's olive in (c3).
                 const [r0, g0, b0] = coneTint(tx, ty)
-                const t = Math.max(0, Math.min(1, (coneH(tx, ty) - 8) / 14))
+                const t = Math.max(0, Math.min(1, (coneH(tx, ty) - 14) / 22))
                 const mix = band === 1 ? 0.45 + 0.55 * t : 1
                 const dk = grain
                 const r = (r0 * mix + 0.61 * (1 - mix)) * dk
@@ -823,14 +834,20 @@ export default function IslandMapIso() {
             const r = coastR(az) - inset + k * 1.2   // walk OUTWARD: the cone's skirt owns
             const sx = CX + Math.cos(az) * r, sy = CY + Math.sin(az) * r   // the inland side now
             const l = eLvl(Math.round(sx), Math.round(sy))
-            if (l >= 1 && l <= PLAT_L + 1 && coneH(sx, sy) < 3 && coneBand(Math.round(sx), Math.round(sy)) === 0
+            if (l >= 1 && l <= PLAT_L + 2 && coneH(sx, sy) < 5 && coneBand(Math.round(sx), Math.round(sy)) === 0
               && lavaDist(sx, sy) > 3 && pathD(sx, sy) > 1.2) return [sx, sy]
           }
           return null
         }
         const palmKeys = ['palmA', 'palmB', 'palmC', 'palmD']
-        // each grove: a hand-shaped cluster (big anchors + leaners + a bush), a clearing kept open
-        const GROVES: [number, number, number][] = [[-0.85, 8, 7], [-0.15, 7, 8], [0.55, 8, 6], [1.05, 7, 7], [2.0, 9, 4], [-1.5, 9, 4]]
+        // each grove: a hand-shaped cluster (big anchors + leaners + a bush), a clearing
+        // kept open. The -2.3..-2.75 band = the wide NW lawn (the empty third of the
+        // island): two loose groves + the shrine vignette give the plateau its places,
+        // with the new NW path arriving between them.
+        const GROVES: [number, number, number][] = [
+          [-0.85, 8, 7], [-0.15, 7, 8], [0.55, 8, 6], [1.05, 7, 7], [2.0, 9, 4], [-1.5, 9, 4],
+          [2.52, 15, 8], [-2.78, 9, 5], [2.3, 12, 5], [2.85, 10, 4],
+        ]
         const OFFS: [number, number, number][] = [
           [0, 0, 168], [1.6, -0.7, 142], [-1.3, 0.9, 132], [0.8, 1.4, 154], [-0.6, -1.5, 120],
           [2.3, 0.6, 112], [-2.1, -0.3, 126], [1.1, -1.8, 104],
@@ -845,15 +862,22 @@ export default function IslandMapIso() {
           prop(s[0] - 0.8, s[1] - 0.4, hash(az, 9) > 0.5 ? 'bushA' : 'bushC', 52, { flip: hash(az, 4) > 0.5 })
         }
         // rock outcrops + the one ruin: sparse designed accents on the open meadow
-        const OUTCROPS: [number, number][] = [[0.25, 10], [1.6, 9], [-1.15, 10]]
+        const OUTCROPS: [number, number][] = [[0.25, 10], [1.6, 9], [-1.15, 10], [2.62, 13]]
         for (const [az, inset] of OUTCROPS) {
           const s = site(az, inset)
           if (!s) continue
           prop(s[0], s[1], 'rockA', 56); prop(s[0] + 1.1, s[1] + 0.5, 'rockB', 40, { flip: true })
         }
         {
-          const s = site(-2.2, 8)
-          if (s) prop(s[0], s[1], 'ruin', 84)
+          // the SHRINE MEADOW (NW lawn vignette): the mossy arch flanked by rocks and a
+          // bush ring, where the NW path ends — the island's first quiet BLHS-ruin beat
+          const s = site(2.45, 12)
+          if (s) {
+            prop(s[0], s[1], 'ruin', 92)
+            prop(s[0] - 1.6, s[1] + 0.8, 'rockB', 38)
+            prop(s[0] + 1.5, s[1] - 0.5, 'rockA', 44, { flip: true })
+            prop(s[0] + 0.8, s[1] + 1.4, 'bushA', 46)
+          }
         }
 
         // P2b THE PORT: the arrival vignette at the harbor — a pier reaching into the
