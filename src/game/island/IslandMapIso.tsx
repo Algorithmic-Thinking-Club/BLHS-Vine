@@ -106,6 +106,12 @@ export default function IslandMapIso() {
       // corner plugs YELLOW, back fills BLUE, back-corner nubs MAGENTA) so a screenshot
       // says exactly which draw call owns every rock pixel. Never ships.
       const DBG = !!params.get('dbg')
+      // ?nocone=1 — render the approved base only (flat plateau, no block cone, no lava):
+      // the clean stage the painted volcano hero is composited onto (final-push plan §2)
+      const NOCONE = !!params.get('nocone')
+      // ?probe=fills|plugs|props|sky — temporarily skip one draw layer to isolate an
+      // artifact empirically (dbg tints only go so far). Never ships.
+      const PROBE = params.get('probe') || ''
       const ZOOM = Number(params.get('zoom') || 0.62) || 0.62
       const cam = (params.get('cam') || `${CX},${CY}`).split(',').map(Number)
       const camTx = cam[0] ?? CX, camTy = cam[1] ?? CY
@@ -213,6 +219,18 @@ export default function IslandMapIso() {
         for (let i = 0; i < 4; i++) {
           try { const t: Texture = await Assets.load(`/art/island/flat/lava-${i}.png`); t.source.scaleMode = 'nearest'; lavaT.push(t) } catch { /* */ }
         }
+        // THE VSLOPE FAMILY (final-push stage 1): the cone's skin. Tops + faces harvested
+        // off the picked volc-a painting, normalized to ONE shared lit-amber base — every
+        // value change on the flank comes from the coneTint field in long runs, never
+        // from per-course art flips (the value flip at each lip WAS the ziggurat read).
+        const vsT: Texture[] = []
+        const vsF: Texture[] = []
+        for (let i = 0; i < 16; i++) {
+          try { const t: Texture = await Assets.load(`/art/island/vslope/top-${i}.png`); t.source.scaleMode = 'nearest'; vsT.push(t) } catch { /* */ }
+        }
+        for (let i = 0; i < 8; i++) {
+          try { const t: Texture = await Assets.load(`/art/island/vslope/face-${i}.png`); t.source.scaleMode = 'nearest'; vsF.push(t) } catch { /* */ }
+        }
         const gt = flatG.length ? flatG : grassV.filter(Boolean)
         const st = flatS.length ? flatS : sandV.filter(Boolean)
         // DISCRETE 3D iso TILES (Ash's locked spec — NOT smooth hillshade): each land tile
@@ -228,6 +246,16 @@ export default function IslandMapIso() {
         // steps" between beach and plateau. Then cleaned: a lone tile whose level matches no
         // neighbour snaps to the level most of them share.
         const PLAT_L = 3
+        // THE CONE'S OWN STEP (the slope-surface fix): at STEP 20 > the 16px row
+        // spacing, a 1-level-per-tile slope draws MORE WALL THAN TOP — the flank became
+        // thousands of tiny cliffs (the herringbone). Cone levels above the plateau rise
+        // CSTEP px instead: tops tile into a continuous visible slope with thin crease
+        // faces, exactly how a painted mountain shows its surface. Coast/bench levels
+        // keep STEP (tall cliffs are their whole point). Back-steps also nearly close
+        // (10 < 16), so the descending-away voids collapse to slivers.
+        const CSTEP = Number(params.get('cstep') || 10)
+        const liftOf = (l: number) =>
+          l <= 0 ? 0 : Math.min(l, PLAT_L) * STEP + Math.max(0, l - PLAT_L) * CSTEP
         // gentler + longer-wave than the old /9 x2.4: the tight jitter carved 1-tile notches
         // into every bench line — the "badly cut paper cutout" zigzag. Long straight runs
         // with occasional 2-3 tile steps is how c3 draws its terrace lines.
@@ -282,7 +310,7 @@ export default function IslandMapIso() {
           // THE VOLCANO rises out of the flat plateau (handoff §6): extra J-curve levels
           // from the cone field. Only full-plateau tiles climb — the coast grammar
           // (beaches, benches, cliffs) never feels the mountain.
-          return base >= PLAT_L ? base + coneLvl(tx, ty) : base
+          return !NOCONE && base >= PLAT_L ? base + coneLvl(tx, ty) : base
         }
         const LV = new Int8Array(COLS * ROWS)
         for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
@@ -344,6 +372,66 @@ export default function IslandMapIso() {
           foam.position.set(fx, fy)
           foam.zIndex = Math.max(zBase, frontSum * 4000) + 62
           world.addChild(foam)
+        }
+
+        // ONE tint for the whole cone surface (volc-a's palette). The family base IS the
+        // sunlit amber; this multiplies DOWN toward maroon-violet on the shade flank, with
+        // radial stripe ribs, gully sinks, and char reserved to the crown belt + crater
+        // bowl (char as background — Ash's rule). Tops and faces share it, so no course
+        // lip can flip value; faces ride ~12% darker as the one consistent form break.
+        const coneTint = (tx2: number, ty2: number): [number, number, number] => {
+          const cl = coneLit(tx2, ty2)                 // -1 shade .. +1 lit
+          const stripe = stripeK(tx2, ty2)             // radial ribs
+          const gy = gullyK(tx2, ty2)
+          const ck = craterK(tx2, ty2)
+          const hFrac = Math.min(1, coneH(tx2, ty2) / 56)
+          const warm = 0.5 + 0.5 * cl
+          // stripes carry the RIDGE read now that the texture is damped — but ribs SHADE
+          // (~30% down), they never go black: the stacked gully+shade+stripe minima at a
+          // 0.46 floor printed near-black contour strings under the golden grade
+          let v = 0.92 + 0.1 * cl + (0.08 + 0.05 * (1 - warm)) * stripe - 0.1 * gy
+          v *= 1 - 0.22 * smooth(0.85, 1, hFrac)       // char hugs the crown only (background char)
+          v *= 1 - 0.3 * smooth(0.3, 1, ck)            // the bowl darkens to the vent
+          v = Math.max(0.55, Math.min(1.06, v))        // floor WELL above the grade's crush point
+          // shade pulls to warm maroon-violet, not lavender
+          const r = v * (0.7 + 0.32 * warm)
+          const g = v * (0.54 + 0.48 * warm)
+          const b = v * (0.9 - 0.18 * warm)
+          return [Math.min(1, r), Math.min(1, g), Math.min(1, b)]
+        }
+        const tint24 = (r: number, g: number, b: number) =>
+          (Math.min(255, Math.round(r * 255)) << 16) | (Math.min(255, Math.round(g * 255)) << 8) | Math.min(255, Math.round(b * 255))
+        // a cone tile's face: ONE cropped slope strip sized to the exact drop — no stacked
+        // courses, no per-course value ladder (the 20px course rhythm was the staircase).
+        // Row 0 of the face art sits at the top diamond's vertical middle; the shaped top
+        // 18 rows tuck under the tile's own top, the straight rows carry the drop; the
+        // fronting tiles' tops bury the overshoot exactly like the old courses relied on.
+        const drawFace = (bx2: number, by2: number, dropPx: number, tx2: number, ty2: number, zBase2: number) => {
+          if (!vsF.length || dropPx <= 0) return
+          const need = 18 + dropPx + 8
+          // variant picked along FALL LINES (screen columns): consecutive downhill tiles
+          // share texture so the streaks run continuously down the flank
+          const tex = vsF[Math.floor(vnoise((tx2 - ty2) / 4 + 6.3, (tx2 + ty2) / 16 + 2.9) * vsF.length) % vsF.length]
+          const frameH = Math.min(tex.height, need)
+          const fr = new Texture({ source: tex.source, frame: new Rectangle(0, 0, 64, frameH) })
+          const seg = new Sprite(fr); seg.anchor.set(0.5, 0)
+          seg.position.set(bx2, by2)
+          if (need > tex.height) seg.scale.y = need / tex.height
+          if (coneBand(tx2, ty2) === 0) {
+            // the meadow skirt: turf-covered slope, not a rock cut — the green flows
+            // downhill instead of alternating grass tread / rock riser up the ring
+            seg.tint = 0x5f7a38
+          } else {
+            // on the steep flank the face matches the tread value — the whole thing is
+            // one slope, and the per-step form break was the scale/chevron tessellation;
+            // gentle single steps keep a soft break
+            const k = dropPx >= CSTEP * 2 ? 0.97 : 0.88
+            const [r, g, b] = coneTint(tx2, ty2)
+            seg.tint = tint24(r * k, g * k, b * Math.min(1, k + 0.03))
+          }
+          if (DBG) seg.tint = 0x20ffff
+          seg.zIndex = zBase2 + 1
+          world.addChild(seg)
         }
 
         // THE 3D TILE UNIT (rebuilt 2026-07-06 after "the sides are even less recognizable"):
@@ -453,7 +541,7 @@ export default function IslandMapIso() {
             const L = eLvl(tx, ty)                          // beaches = 0 → flush, no gap
             // sea-level land on a beach azimuth wears sand; on mixed azimuths it stays grass
             const sand = L === 0 && cliffMask(Math.atan2(ty - CY, tx - CX)) < 0.35
-            const lift = L * STEP
+            const lift = liftOf(L)
             const bx = isoX(tx, ty), by = isoY(tx, ty) - lift + GY
             // lift*8 overflowed the 4000 row separation once the cone stacked tall
             // (a summit tile out-sorted the row in front of it); *2 keeps even the
@@ -484,9 +572,64 @@ export default function IslandMapIso() {
                 // independently, printing an orange/dark checker across the transition —
                 // walls follow the smooth field so the families change in long runs.
                 // Channel walls char: the lava bed's risers go basalt regardless of band.
-                const charred = lavaDist(tx, ty) < 1.1 || craterK(tx, ty) > 0.4
-                drawColumn(bx, by, L - floorMin, toSea, tx, ty, zBase,
-                  charred || (L > PLAT_L && coneH(tx, ty) - gullyK(tx, ty) * 8 >= 5.5))
+                const isCone = !NOCONE && L > PLAT_L && coneH(tx, ty) > 0 && !toSea && vsF.length > 0
+                if (isCone) {
+                  // the cone's own steps wear the vslope skin — one strip, one tint field
+                  drawFace(bx, by, lift - liftOf(floorMin), tx, ty, zBase)
+                } else {
+                  const charred = !NOCONE && (lavaDist(tx, ty) < 1.1 || craterK(tx, ty) > 0.4)
+                  drawColumn(bx, by, L - floorMin, toSea, tx, ty, zBase, charred)
+                }
+                // BACK-VOID FILLS (any land tile, drop >= 2): where the ground descends
+                // AWAY from the camera faster than the row spacing closes (STEP 20 vs row
+                // 16), nothing draws above this tile's upper edges/top corner — black
+                // diamond slots (the dbg shot proved no call owned them). Everything
+                // up-screen of a 2+ back-drop is void, so a surface-tinted fill is safe;
+                // 1-level steps stay EXCLUDED (the old coast serration bug lived there).
+                // The crater bowl skips — its 7-level far wall would spear the crown.
+                if (vsF.length && craterK(tx, ty) < 0.05 && PROBE !== 'fills') {
+                  const fills: [number, number, number, number][] = []
+                  // EXACT void heights, margin DOWNWARD only (under our own top): any
+                  // upward padding overpaints the back tile's tread — with the cone's
+                  // 10px steps a lower back top sits nearly kissing ours, and the +8
+                  // pad printed the dark contour strings across the whole flank.
+                  // (sprite anchors at its BOTTOM: the bottom sits deep under our own
+                  // top diamond, the height reaches exactly the void's top — total =
+                  // void + the covered slack, never poking past the back tread's edge)
+                  for (const [ox, oy] of [[-1, 0], [0, -1]] as [number, number][]) {
+                    const nl = eLvl(tx + ox, ty + oy)
+                    if (nl < 0 || nl >= L) continue
+                    const vH = lift - liftOf(nl) - 16
+                    if (vH > 4) fills.push([bx + (ox - oy) * 16, by, 34, vH + 9])
+                  }
+                  {
+                    const nl = eLvl(tx - 1, ty - 1)
+                    if (nl >= 0 && nl < L) {
+                      const vH = lift - liftOf(nl) - 32
+                      if (vH > 4) fills.push([bx, by - 10, 38, vH + 8])
+                    }
+                  }
+                  const isConeTile = !NOCONE && L > PLAT_L && coneH(tx, ty) > 0
+                  for (const [fx, fy, fw, vH0] of fills) {
+                    const vH = Math.min(vH0, 60)
+                    const tex = vsF[Math.floor(vnoise((tx - ty) / 4 + 6.3, (tx + ty) / 16 + 2.9) * vsF.length) % vsF.length]
+                    const fh = Math.min(tex.height - 18, vH)
+                    const fr = new Texture({ source: tex.source, frame: new Rectangle(0, 18, 64, fh) })
+                    const seg = new Sprite(fr); seg.anchor.set(0.5, 1)
+                    seg.width = fw
+                    seg.position.set(fx, fy)
+                    if (vH > fh) seg.scale.y *= vH / fh
+                    if (isConeTile) {
+                      const [r, g, b] = coneTint(tx, ty)
+                      seg.tint = tint24(Math.max(0.42, r * 0.85), Math.max(0.36, g * 0.85), Math.max(0.4, b * 0.88))
+                    } else {
+                      seg.tint = 0x8a6b4a // shaded earth under the meadow/bench lip
+                    }
+                    if (DBG) seg.tint = 0xff00ff
+                    seg.zIndex = zBase + 1
+                    world.addChild(seg)
+                  }
+                }
                 // a foam collar hugging the cliff foot on each sea-facing front edge
                 for (const [ox, oy] of [[1, 0], [0, 1]] as [number, number][]) {
                   if (eLvl(tx + ox, ty + oy) >= 0) continue
@@ -508,13 +651,21 @@ export default function IslandMapIso() {
             // vent and chars around it. Glow sprites pulse on the cores (the ticker).
             const ld = dsq > 0 ? lavaDist(tx, ty) : 99
             const ck = L > PLAT_L ? craterK(tx, ty) : 0
-            const isLava = lavaT.length > 0 && L > 0 && (ld < 0.9 || ck > 0.72)
-            const isBed = !isLava && L > 0 && (ld < 2.0 || ck > 0.4)
+            // channel BEAD tiles are dead (stage 2's drawn ribbon replaces them);
+            // only the crater's vent pool keeps the self-bright ember art + glow
+            const isLava = !NOCONE && lavaT.length > 0 && L > 0 && ck > 0.72
+            // the bed hugs the future ribbon (a 4-tile charred swath read as a black scar)
+            const isBed = !NOCONE && !isLava && L > 0 && (ld < 1.3 || ck > 0.4)
             // the worn path wears dry sand through the meadow (grass ring only, never
             // up the cone or over the beach's own sand)
             const onPath = !sand && L > 0 && L <= PLAT_L && pathD(tx, ty) < 0.75
-            const pool = sand ? st : isLava ? lavaT : isBed && volcT.length ? volcT : onPath && st.length ? st : band === 2 && volcT.length ? volcT : gt
-            const g = pool.length ? pool[Math.floor(hash(tx * 5.1 + 2, ty * 2.9 + 4) * pool.length) % pool.length] : undefined
+            const vs = band >= 1 && vsT.length ? vsT : undefined
+            const pool = sand ? st : isLava ? lavaT : isBed && volcT.length ? volcT : onPath && st.length ? st : vs || gt
+            // cone rock tops pick in smooth ZONES (like the walls): per-tile hash churn
+            // re-rolled the texture every diamond and the flank read as shredded scales
+            const g = !pool.length ? undefined
+              : pool === vs ? pool[Math.floor(vnoise(tx / 6 + 4.2, ty / 6 + 1.8) * pool.length) % pool.length]
+                : pool[Math.floor(hash(tx * 5.1 + 2, ty * 2.9 + 4) * pool.length) % pool.length]
             if (g) {
               // scale 1.0, exact 64x36 diamonds on the 64x32 lattice — the 2px vertical bleed
               // over neighbours is the tile family's own melt (the beach's block style). A
@@ -549,40 +700,26 @@ export default function IslandMapIso() {
                 world.addChild(glow)
                 glows.push({ sp: glow, ph: hash(tx * 1.7, ty * 2.3) * Math.PI * 2, a: 0.22 })
               } else if (isBed) {
-                // the charred channel shoulder / crater bowl floor
-                const v = 0.4 + 0.12 * vnoise(tx / 4 + 8, ty / 4 + 3)
+                // the charred channel shoulder / crater bowl floor — dark UMBER, not black
+                // (the grade crushes anything below ~0.5 into hole-black)
+                const v = 0.54 + 0.12 * vnoise(tx / 4 + 8, ty / 4 + 3)
                 const vv = Math.round(v * 255)
-                top.tint = (vv << 16) | (Math.round(vv * 0.9) << 8) | Math.round(vv * 0.84)
+                top.tint = (vv << 16) | (Math.round(vv * 0.82) << 8) | Math.round(vv * 0.72)
               } else if (onPath) {
                 // the trail: dry trodden earth-sand through the green
                 const v = (0.99 + 0.05 * vnoise(tx / 7 + 3, ty / 7 + 9)) * grain * (1 + 0.1 * rk)
                 top.tint = warmCool(shadeHex(0xd6c090, v), rk * 0.7)
-              } else if (band === 2) {
-                // bare basalt treads carry the same c3 flank language as the walls:
-                // the one hard sun (west warm / east purple-shade), rib stripes,
-                // gully sinks, and the dark crater opening
-                const cl = coneLit(tx, ty)
-                const hFrac = Math.min(1, (L - PLAT_L) / 26)
-                const v = (0.92 + 0.1 * vnoise(tx / 5 + 4, ty / 5 + 12)) * (1 + 0.12 * rk) * (1 - 0.2 * hFrac)
-                  * (1 + 0.14 * cl + 0.08 * stripeK(tx, ty)) * (1 - 0.2 * gullyK(tx, ty)) * (1 - 0.4 * craterK(tx, ty))
-                const warm = 0.5 + 0.5 * cl
-                const rr = Math.min(255, Math.round(255 * v * (0.9 + 0.2 * warm)))
-                const gg = Math.min(255, Math.round(255 * v * (0.88 + 0.1 * warm)))
-                const bb = Math.min(255, Math.round(255 * v * (1.05 - 0.26 * warm)))
-                top.tint = (rr << 16) | (gg << 8) | bb
-              } else if (band === 1) {
-                // the MERGE BELT (c3): not one scrub color — a smooth continuous gradient
-                // from the meadow's olive up through parched gold into umber as the
-                // ground climbs, under the cone's sun. This is the "grass curving up
-                // and meshing with the mountain's material" read.
-                const cl = coneLit(tx, ty)
-                const t = Math.max(0, Math.min(1, (coneH(tx, ty) - 4) / 7))
-                const rr = Math.round(0x9c + (0x86 - 0x9c) * t)   // 0x9cab52 olive ->
-                const gg = Math.round(0xab + (0x6e - 0xab) * t)   // 0x866e40 umber
-                const bb = Math.round(0x52 + (0x40 - 0x52) * t)
-                const patch = 0.98 + 0.05 * vnoise(tx / 9 + 5, ty / 9 + 2)
-                const lit = patch * grain * (1 + 0.12 * rk) * (1 + 0.12 * cl) * (1 - 0.14 * gullyK(tx, ty))
-                top.tint = warmCool(shadeHex((rr << 16) | (gg << 8) | bb, lit), rk * 0.9)
+              } else if (band >= 1 && vs) {
+                // the cone's rock treads: the SAME coneTint field the faces wear, so the
+                // lip between a tread and its face never flips value. The merge belt
+                // (band 1) eases the meadow's olive into the rock (c3's interlock).
+                const [r0, g0, b0] = coneTint(tx, ty)
+                const t = Math.max(0, Math.min(1, (coneH(tx, ty) - 8) / 14))
+                const mix = band === 1 ? 0.45 + 0.55 * t : 1
+                const r = r0 * mix + 0.61 * (1 - mix)   // toward the olive tint
+                const g = g0 * mix + 0.67 * (1 - mix)
+                const b = b0 * mix + 0.32 * (1 - mix)
+                top.tint = tint24(r * grain, g * grain, b * grain)
               } else {
                 // the plateau's ground mosaic: a LARGE meadow↔deep-green zone field (24-tile
                 // landform scale — per-tile tint noise is the banned "poop") over the mid-scale
@@ -658,9 +795,9 @@ export default function IslandMapIso() {
         const shadowTex = radial(64, [[0, 'rgba(20,16,10,0.4)'], [0.7, 'rgba(20,16,10,0.18)'], [1, 'rgba(20,16,10,0)']])
         const prop = (px: number, py: number, key: string, hpx: number, o: { flip?: boolean; sea?: boolean; tint?: number; noShadow?: boolean } = {}) => {
           const t = propTex[key]
-          if (!t) return
+          if (!t || PROBE === 'props') return
           const L2 = o.sea ? 0 : Math.max(0, eLvl(Math.round(px), Math.round(py)))
-          const lift = L2 * STEP
+          const lift = liftOf(L2)
           const wx = isoX(px, py), wy = isoY(px, py) - lift + GY + (o.sea ? 6 : 0)
           const z = (Math.round(px) + Math.round(py)) * 4000 + lift * 2 + 700
           if (!o.noShadow && !o.sea) {
@@ -742,16 +879,16 @@ export default function IslandMapIso() {
         // the wind and dissolving; two small wisps where the flows quench in the sea.
         // Sprite-space animation only — no shaders (banned).
         const steamTex = radial(96, [[0, 'rgba(255,250,240,0.5)'], [0.55, 'rgba(240,232,224,0.22)'], [1, 'rgba(235,228,220,0)']])
-        const rimLift = (PLAT_L + 30) * STEP
+        const rimLift = liftOf(PLAT_L + 30)
         const puffs: { sp: Sprite; ph: number; spd: number; big: boolean }[] = []
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; !NOCONE && i < 6; i++) {
           const sp = new Sprite(steamTex); sp.anchor.set(0.5, 0.5)
           sp.position.set(isoX(CX, CY), isoY(CX, CY) - rimLift + GY)
           sp.zIndex = 4_000_000
           world.addChild(sp)
           puffs.push({ sp, ph: (i / 6) * Math.PI * 2, spd: 0.85 + 0.3 * hash(i * 3.7, 1.2), big: true })
         }
-        for (const line of LAVA) {
+        for (const line of NOCONE ? [] : LAVA) {
           const [ex, ey2] = line[line.length - 1]
           for (let i = 0; i < 2; i++) {
             const sp = new Sprite(steamTex); sp.anchor.set(0.5, 0.5)

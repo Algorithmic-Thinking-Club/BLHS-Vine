@@ -14,9 +14,12 @@ import { CONE } from './terrain'
 import { vnoise } from '../ocean'
 
 export const CONE_BASE_R = 34   // the toe runs past the plateau's edge (Ash: broader)
-export const CONE_H = 52        // profile scale; the crater rim crowns ~30 levels up
+// profile scale. The renderer's cone step is 10px (CSTEP — the slope-surface fix), so
+// the level count doubled to keep the summit's screen height: rim ≈ 56 levels ≈ 560px
+// of towering J-curve, with finer contours as the bonus.
+export const CONE_H = 100
 export const CRATER_R = 7.5     // a WIDE circular opening (Ash: broader top too)
-const CRATER_DEPTH = 7          // levels the bowl sinks below the rim
+const CRATER_DEPTH = 13         // levels the bowl sinks below the rim (10px steps)
 
 // the radial spoke field: 9 wandering ridge/gully spokes fanning from the summit.
 // Wander comes from a radius-dependent phase drift so the spokes curve organically
@@ -124,7 +127,7 @@ export function coneBand(tx: number, ty: number) {
   // material — look at c3"): full meadow rides the lower flank to ~5.5 levels, the
   // scrub belt carries it to ~10, and the gully tongues drag green far higher — the
   // rock ribs and the meadow interlock instead of meeting at a line
-  const veg = gullyK(tx, ty) * 8
-  const v = h + dither - veg
-  return v >= 10 ? 2 : v >= 5.5 ? 1 : 0
+  const veg = gullyK(tx, ty) * 16
+  const v = h + dither * 2 - veg
+  return v >= 20 ? 2 : v >= 11 ? 1 : 0
 }
