@@ -13,9 +13,9 @@
 import { CONE } from './terrain'
 import { vnoise } from '../ocean'
 
-export const CONE_BASE_R = 33   // the toe runs to the plateau's edge (Ash: base a little larger)
-export const CONE_H = 60        // profile scale; the crater rim crowns ~38 levels up
-export const CRATER_R = 5.6     // a CLEAR circular opening at the top, not a pinch
+export const CONE_BASE_R = 34   // the toe runs past the plateau's edge (Ash: broader)
+export const CONE_H = 52        // profile scale; the crater rim crowns ~30 levels up
+export const CRATER_R = 7.5     // a WIDE circular opening (Ash: broader top too)
 const CRATER_DEPTH = 7          // levels the bowl sinks below the rim
 
 // the radial spoke field: 9 wandering ridge/gully spokes fanning from the summit.
@@ -41,10 +41,10 @@ export function coneH(tx: number, ty: number) {
   // continuous J silhouette; the radial life comes from the gully value streaks instead
   const dEff = d * (1 + 0.06 * spoke(az, d) * (0.35 + 0.65 * s0))
   const s = Math.max(0, Math.min(1, 1 - dEff / CONE_BASE_R))
-  // THE J CURVE as a power law — smooth and continuous, slope always increasing
-  // toward the summit (Ash: "more curved"): 2.7 with the taller scale arcs the
-  // silhouette harder while the mid flank keeps its mass.
-  let h = CONE_H * Math.pow(s, 2.7) + 1.4 * s
+  // THE J CURVE as a power law. 2.3 (from 2.7): the harder arc pinched the waist —
+  // Ash read it as narrow. The softer power carries broad shoulders through the
+  // whole mid flank; with the wide rim the cone reads BROAD, c3's proportions.
+  let h = CONE_H * Math.pow(s, 2.3) + 1.4 * s
   // the CRATER: TRUNCATE the cone at the rim height, then sink the bowl. Subtracting a
   // bowl from the still-rising profile left a 1-tile needle poking through (the profile
   // keeps climbing inside the rim, far more than any sane bowl depth) — the summit
@@ -54,7 +54,7 @@ export function coneH(tx: number, ty: number) {
   // hRim, wears a flat CROWN RING ~1.2 tiles wide, then the bowl drops a full
   // CRATER_DEPTH inside — a clear circular opening from map zoom.
   const rimS = 1 - CRATER_R / CONE_BASE_R
-  const hRim = CONE_H * Math.pow(rimS, 2.7) + 1.4 * rimS
+  const hRim = CONE_H * Math.pow(rimS, 2.3) + 1.4 * rimS
   h = Math.min(h, hRim)                       // the cone rises naturally and caps at the rim
   if (d < CRATER_R - 1.0) {                   // crown ring keeps ~1 tile of flat rim, then
     const t = Math.max(0, Math.min(1, (CRATER_R - 1.0 - d) / 1.8))

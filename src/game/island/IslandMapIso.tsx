@@ -135,8 +135,10 @@ export default function IslandMapIso() {
       // GOLDEN HOUR (Ash): the island wears the beach's own late-sun grade — one world,
       // one light. Rich warmth, blue pulled down, the teal sea stays alive under it.
       const grade = new ColorMatrixFilter()
-      grade.brightness(1.02, false); grade.saturate(0.13, true); grade.contrast(0.05, true)
-      const wm = grade.matrix; wm[0] *= 1.13; wm[6] *= 1.02; wm[12] *= 0.8; grade.matrix = wm
+      // c3's read is CLEAR and deep, not milky: more chroma + contrast, and the blue
+      // channel keeps enough life that the teal sea and violet shade stay saturated
+      grade.brightness(1.02, false); grade.saturate(0.22, true); grade.contrast(0.09, true)
+      const wm = grade.matrix; wm[0] *= 1.12; wm[6] *= 1.02; wm[12] *= 0.88; grade.matrix = wm
       world.filters = [grade]
 
       // THE ISLAND HEIGHTFIELD (real elevation data → faces, collision, depth). Low
@@ -394,12 +396,15 @@ export default function IslandMapIso() {
               // gully columns — long directional color, not repeated grey courses
               const lit = coneLit(tx2, ty2)
               const stripe = stripeK(tx2, ty2)
-              drift *= (1 + 0.16 * lit + 0.09 * stripe) * (1 - 0.16 * gullyK(tx2, ty2))
-              const vv2 = Math.min(255, Math.round(drift * 255))
               const warm = 0.5 + 0.5 * lit
+              // stripes push HARDER on the shade side — one flat lit term made the whole
+              // east face a detail-less dark blob; c3's shadow flank keeps its ribs and
+              // reads violet, not black-brown
+              drift *= (1 + 0.16 * lit + (0.09 + 0.07 * (1 - warm)) * stripe) * (1 - 0.16 * gullyK(tx2, ty2))
+              const vv2 = Math.min(255, Math.round(drift * 255))
               seg.tint = (Math.min(255, Math.round(vv2 * (0.88 + 0.24 * warm))) << 16)
                 | (Math.min(255, Math.round(vv2 * (0.86 + 0.12 * warm))) << 8)
-                | Math.min(255, Math.round(vv2 * (1.06 - 0.3 * warm)))
+                | Math.min(255, Math.round(vv2 * (1.16 - 0.4 * warm)))
               if (DBG) seg.tint = 0xff2020
               seg.zIndex = zBase2 + 1 + (m - 1 - k)
               world.addChild(seg)
@@ -500,12 +505,18 @@ export default function IslandMapIso() {
                 const bb = Math.min(255, Math.round(255 * v * (1.05 - 0.26 * warm)))
                 top.tint = (rr << 16) | (gg << 8) | bb
               } else if (band === 1) {
-                // dry scrub: the grass art pushed warm/parched — the transition belt,
-                // also under the cone's sun so the tongues follow the flank lighting
+                // the MERGE BELT (c3): not one scrub color — a smooth continuous gradient
+                // from the meadow's olive up through parched gold into umber as the
+                // ground climbs, under the cone's sun. This is the "grass curving up
+                // and meshing with the mountain's material" read.
                 const cl = coneLit(tx, ty)
+                const t = Math.max(0, Math.min(1, (coneH(tx, ty) - 4) / 7))
+                const rr = Math.round(0x9c + (0x86 - 0x9c) * t)   // 0x9cab52 olive ->
+                const gg = Math.round(0xab + (0x6e - 0xab) * t)   // 0x866e40 umber
+                const bb = Math.round(0x52 + (0x40 - 0x52) * t)
                 const patch = 0.98 + 0.05 * vnoise(tx / 9 + 5, ty / 9 + 2)
                 const lit = patch * grain * (1 + 0.12 * rk) * (1 + 0.12 * cl) * (1 - 0.14 * gullyK(tx, ty))
-                top.tint = warmCool(tintFor(shadeHex(0x8f7a46, lit), GRASS_BASE), rk * 0.9)
+                top.tint = warmCool(shadeHex((rr << 16) | (gg << 8) | bb, lit), rk * 0.9)
               } else {
                 // the plateau's ground mosaic: a LARGE meadow↔deep-green zone field (24-tile
                 // landform scale — per-tile tint noise is the banned "poop") over the mid-scale
@@ -640,7 +651,9 @@ export default function IslandMapIso() {
       // raking from the upper-left, a cool violet wash on the shadow side, and a warm
       // vignette. This is the beauty layer Ash called out — the world sits IN the sunset. ----
       // 1) warm gold cast (multiply toward gold → warms mids + shadows, kills the flat look)
-      const warmMul = new Sprite(Texture.WHITE); warmMul.tint = 0xffd08a; warmMul.blendMode = 'multiply'; warmMul.alpha = 0.5; app.stage.addChild(warmMul)
+      // eased from 0.5: the heavy gold multiply was the milky wash — c3 keeps its warmth
+      // in the light, not smeared over the whole frame
+      const warmMul = new Sprite(Texture.WHITE); warmMul.tint = 0xffd08a; warmMul.blendMode = 'multiply'; warmMul.alpha = 0.3; app.stage.addChild(warmMul)
       // 2) the low SUN raking from the upper-left (a big soft golden glow, additive). Core kept
       // gentle + its centre pushed OFF-frame so the land catches the falloff warmth, never a white-out.
       const sun = new Sprite(radial(512, [[0, 'rgba(255,224,158,0.30)'], [0.32, 'rgba(255,198,124,0.14)'], [0.66, 'rgba(255,172,100,0.04)'], [1, 'rgba(255,172,100,0)']]))
