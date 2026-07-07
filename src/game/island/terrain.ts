@@ -132,8 +132,9 @@ export function elevAt(tx: number, ty: number) {
 // down to the coast. The heads pour down these; the base bake darkens a basalt channel
 // around them; the glowing cores pulse as a live layer.
 export const LAVA: [number, number][][] = [
-  // west flank head -> SW delta at the coast
-  [[CONE.x - 4, CONE.y + 3], [CX - 15, CY + 5], [CX - 22, CY + 11], [CX - 28, CY + 18]],
+  // southwest flank head -> SW delta (rerouted 2026-07-06: the old west line ran
+  // across the FLAT northwest meadow — a flow must descend a flank, not stroll a lawn)
+  [[CONE.x - 3, CONE.y + 4], [CX - 8, CY + 11], [CX - 14, CY + 18], [CX - 19, CY + 26]],
   // east flank head -> SE delta (toward the lagoon's south edge)
   [[CONE.x + 5, CONE.y + 4], [CX + 9, CY + 10], [CX + 15, CY + 17], [CX + 19, CY + 25]],
 ]

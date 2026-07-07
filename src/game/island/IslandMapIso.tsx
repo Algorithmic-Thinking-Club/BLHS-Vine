@@ -4,7 +4,7 @@ import {
   isoX, isoY, hash, vnoise, shadeHex, rampAt, tintFor,
   loadWaterVariants, seaTile, animSwells, type SwellSprite,
 } from '../ocean'
-import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA } from './terrain'
+import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, HARBOR } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
 
 const smooth = (e0: number, e1: number, x: number) => {
@@ -422,6 +422,26 @@ export default function IslandMapIso() {
           }
         }
 
+        // THE WORN PATH (P2c): one designed trail from the pier root along the meadow
+        // ring toward the south cove — a polyline like the lava's, rendered as dry
+        // sand-worn tops. Ports send paths inward (the master plan); more come with
+        // later vignettes.
+        const PATH: [number, number][] = [[127, 86], [121, 95], [116, 105], [109, 115], [100, 122]]
+        const pathD = (tx2: number, ty2: number) => {
+          let best = 99
+          for (let i = 0; i < PATH.length - 1; i++) {
+            const [x0, y0] = PATH[i], [x1, y1] = PATH[i + 1]
+            const vx = x1 - x0, vy = y1 - y0
+            const L2 = vx * vx + vy * vy
+            let t = L2 > 0 ? ((tx2 - x0) * vx + (ty2 - y0) * vy) / L2 : 0
+            t = Math.max(0, Math.min(1, t))
+            const dx = tx2 - (x0 + vx * t), dy = ty2 - (y0 + vy * t)
+            const d = Math.sqrt(dx * dx + dy * dy)
+            if (d < best) best = d
+          }
+          return best
+        }
+
         const waterS: SwellSprite[] = []
         const glows: { sp: Sprite; ph: number; a: number }[] = []
         for (let ty = 0; ty < ROWS; ty++) {
@@ -490,7 +510,10 @@ export default function IslandMapIso() {
             const ck = L > PLAT_L ? craterK(tx, ty) : 0
             const isLava = lavaT.length > 0 && L > 0 && (ld < 0.9 || ck > 0.72)
             const isBed = !isLava && L > 0 && (ld < 2.0 || ck > 0.4)
-            const pool = sand ? st : isLava ? lavaT : isBed && volcT.length ? volcT : band === 2 && volcT.length ? volcT : gt
+            // the worn path wears dry sand through the meadow (grass ring only, never
+            // up the cone or over the beach's own sand)
+            const onPath = !sand && L > 0 && L <= PLAT_L && pathD(tx, ty) < 0.75
+            const pool = sand ? st : isLava ? lavaT : isBed && volcT.length ? volcT : onPath && st.length ? st : band === 2 && volcT.length ? volcT : gt
             const g = pool.length ? pool[Math.floor(hash(tx * 5.1 + 2, ty * 2.9 + 4) * pool.length) % pool.length] : undefined
             if (g) {
               // scale 1.0, exact 64x36 diamonds on the 64x32 lattice — the 2px vertical bleed
@@ -530,6 +553,10 @@ export default function IslandMapIso() {
                 const v = 0.4 + 0.12 * vnoise(tx / 4 + 8, ty / 4 + 3)
                 const vv = Math.round(v * 255)
                 top.tint = (vv << 16) | (Math.round(vv * 0.9) << 8) | Math.round(vv * 0.84)
+              } else if (onPath) {
+                // the trail: dry trodden earth-sand through the green
+                const v = (0.99 + 0.05 * vnoise(tx / 7 + 3, ty / 7 + 9)) * grain * (1 + 0.1 * rk)
+                top.tint = warmCool(shadeHex(0xd6c090, v), rk * 0.7)
               } else if (band === 2) {
                 // bare basalt treads carry the same c3 flank language as the walls:
                 // the one hard sun (west warm / east purple-shade), rib stripes,
@@ -611,6 +638,106 @@ export default function IslandMapIso() {
           }
         }
 
+        // ---- P2: THE COMPOSED LIFE. Designed sites, never sprinkle (the locked law).
+        // Palms in GROVES with clearings (bon3's amounts), rock outcrops as accents, one
+        // ruin, and the east PORT vignette at the harbor. Every prop is grounded with a
+        // contact shadow and depth-sorts with the terrain.
+        const propTex: Record<string, Texture> = {}
+        await Promise.all(Object.entries({
+          palmA: '/art/intro/palm-a.png', palmB: '/art/intro/palm-b.png',
+          palmC: '/art/intro/props/palm-c.png', palmD: '/art/intro/props/palm-d.png',
+          bushA: '/art/intro/props/bush-a.png', bushC: '/art/intro/props/bush-c.png',
+          rockA: '/art/intro/props/rock-a.png', rockB: '/art/intro/props/rock-b.png',
+          pier: '/art/intro/port/pier-iso.png', pierEnd: '/art/intro/port/pier-end.png',
+          boatA: '/art/intro/port/boat-anchored.png', boatF: '/art/intro/port/boat-fishing.png',
+          rowboat: '/art/intro/port/rowboat.png', crates: '/art/intro/port/crates.png',
+          lantern: '/art/intro/port/lantern-post.png', ruin: '/art/island/ruin.png',
+          crag: '/art/island/crag-a.png',
+        }).map(([k, p]) => Assets.load(p).then((t: Texture) => { t.source.scaleMode = 'nearest'; propTex[k] = t }).catch(() => {})))
+
+        const shadowTex = radial(64, [[0, 'rgba(20,16,10,0.4)'], [0.7, 'rgba(20,16,10,0.18)'], [1, 'rgba(20,16,10,0)']])
+        const prop = (px: number, py: number, key: string, hpx: number, o: { flip?: boolean; sea?: boolean; tint?: number; noShadow?: boolean } = {}) => {
+          const t = propTex[key]
+          if (!t) return
+          const L2 = o.sea ? 0 : Math.max(0, eLvl(Math.round(px), Math.round(py)))
+          const lift = L2 * STEP
+          const wx = isoX(px, py), wy = isoY(px, py) - lift + GY + (o.sea ? 6 : 0)
+          const z = (Math.round(px) + Math.round(py)) * 4000 + lift * 2 + 700
+          if (!o.noShadow && !o.sea) {
+            const sh = new Sprite(shadowTex); sh.anchor.set(0.5, 0.5)
+            sh.width = hpx * 0.62; sh.height = hpx * 0.2
+            sh.position.set(wx + hpx * 0.05, wy + 1); sh.zIndex = z - 1
+            world.addChild(sh)
+          }
+          const sp = new Sprite(t); sp.anchor.set(0.5, 1)
+          sp.height = hpx; sp.scale.x = Math.abs(sp.scale.y) * (o.flip ? -1 : 1)
+          if (o.tint !== undefined) sp.tint = o.tint
+          sp.position.set(wx, wy + 4); sp.zIndex = z
+          world.addChild(sp)
+        }
+        // a grove site: the nearest breathable meadow tile at this azimuth/inset —
+        // walked inward until it lands on grass ring off the cone and off the lava
+        const site = (az: number, inset: number): [number, number] | null => {
+          for (let k = 0; k < 10; k++) {
+            const r = coastR(az) - inset + k * 1.2   // walk OUTWARD: the cone's skirt owns
+            const sx = CX + Math.cos(az) * r, sy = CY + Math.sin(az) * r   // the inland side now
+            const l = eLvl(Math.round(sx), Math.round(sy))
+            if (l >= 1 && l <= PLAT_L + 1 && coneH(sx, sy) < 3 && coneBand(Math.round(sx), Math.round(sy)) === 0
+              && lavaDist(sx, sy) > 3 && pathD(sx, sy) > 1.2) return [sx, sy]
+          }
+          return null
+        }
+        const palmKeys = ['palmA', 'palmB', 'palmC', 'palmD']
+        // each grove: a hand-shaped cluster (big anchors + leaners + a bush), a clearing kept open
+        const GROVES: [number, number, number][] = [[-0.85, 8, 7], [-0.15, 7, 8], [0.55, 8, 6], [1.05, 7, 7], [2.0, 9, 4], [-1.5, 9, 4]]
+        const OFFS: [number, number, number][] = [
+          [0, 0, 168], [1.6, -0.7, 142], [-1.3, 0.9, 132], [0.8, 1.4, 154], [-0.6, -1.5, 120],
+          [2.3, 0.6, 112], [-2.1, -0.3, 126], [1.1, -1.8, 104],
+        ]
+        for (const [az, inset, n] of GROVES) {
+          const s = site(az, inset)
+          if (!s) continue
+          for (let i = 0; i < Math.min(n, OFFS.length); i++) {
+            const [dx, dy, hp] = OFFS[i]
+            prop(s[0] + dx, s[1] + dy, palmKeys[(i + Math.round(az * 3)) & 3], hp, { flip: hash(az * 7 + i, 3) > 0.5 })
+          }
+          prop(s[0] - 0.8, s[1] - 0.4, hash(az, 9) > 0.5 ? 'bushA' : 'bushC', 52, { flip: hash(az, 4) > 0.5 })
+        }
+        // rock outcrops + the one ruin: sparse designed accents on the open meadow
+        const OUTCROPS: [number, number][] = [[0.25, 10], [1.6, 9], [-1.15, 10]]
+        for (const [az, inset] of OUTCROPS) {
+          const s = site(az, inset)
+          if (!s) continue
+          prop(s[0], s[1], 'rockA', 56); prop(s[0] + 1.1, s[1] + 0.5, 'rockB', 40, { flip: true })
+        }
+        {
+          const s = site(-2.2, 8)
+          if (s) prop(s[0], s[1], 'ruin', 84)
+        }
+
+        // P2b THE PORT: the arrival vignette at the harbor — a pier reaching into the
+        // lagoon, boats riding at anchor, dockside clutter, one lantern
+        {
+          const hx = HARBOR.x, hy = HARBOR.y
+          // walk from the harbor point INLAND to find the beach root of the pier
+          let rx = hx, ry = hy
+          for (let k = 0; k < 14; k++) {
+            if (eLvl(Math.round(rx), Math.round(ry)) >= 0) break
+            rx -= Math.cos(-0.5) * 0.8; ry -= Math.sin(-0.5) * 0.8
+          }
+          const seaward: [number, number] = [Math.cos(-0.5), Math.sin(-0.5)]
+          // real scale against 32px-tall tiles: a pier segment spans ~1.5 tiles, a boat
+          // reads ~2 tiles long — the first sizes were dollhouse specks
+          prop(rx + seaward[0] * 1.4, ry + seaward[1] * 1.4, 'pier', 84, { sea: true, noShadow: true })
+          prop(rx + seaward[0] * 3.2, ry + seaward[1] * 3.2, 'pier', 84, { sea: true, noShadow: true })
+          prop(rx + seaward[0] * 5.0, ry + seaward[1] * 5.0, 'pierEnd', 92, { sea: true, noShadow: true })
+          prop(rx + seaward[0] * 7.4 + 1.4, ry + seaward[1] * 7.4 - 1.0, 'boatA', 76, { sea: true, noShadow: true })
+          prop(rx + seaward[0] * 6.2 - 1.8, ry + seaward[1] * 6.2 + 1.6, 'boatF', 68, { sea: true, noShadow: true, flip: true })
+          prop(rx - 0.6, ry + 1.1, 'rowboat', 44)
+          prop(rx - 1.4, ry - 0.7, 'crates', 52)
+          prop(rx - 0.4, ry - 1.5, 'lantern', 78)
+        }
+
         // THE STEAM (P1d): a plume of soft puffs rising off the crater, drifting with
         // the wind and dissolving; two small wisps where the flows quench in the sea.
         // Sprite-space animation only — no shaders (banned).
@@ -636,11 +763,31 @@ export default function IslandMapIso() {
         }
         const steamBase = puffs.map((p) => ({ x: p.sp.x, y: p.sp.y }))
 
+        // P3: CLOUD SHADOWS — three soft shades drifting slowly across the island with
+        // the wind. The subtle motion cue that makes a still map read as a live world.
+        const cloudTex = radial(256, [[0, 'rgba(16,20,30,0.26)'], [0.6, 'rgba(16,20,30,0.15)'], [1, 'rgba(16,20,30,0)']])
+        const clouds: { sp: Sprite; spd: number; y0: number }[] = []
+        for (let i = 0; i < 3; i++) {
+          const sp = new Sprite(cloudTex); sp.anchor.set(0.5, 0.5)
+          sp.scale.set(4.5 + i * 1.5, 2.1 + i * 0.6)
+          sp.zIndex = 3_000_000
+          const y0 = isoY(CX, CY) - 500 + i * 640
+          sp.position.set(isoX(CX, CY) - 1400 + i * 1100, y0)
+          world.addChild(sp)
+          clouds.push({ sp, spd: 9 + i * 3.5, y0 })
+        }
+
         app.ticker.add(() => {
           const t = performance.now() / 1000
           animSwells(waterS, t, () => 0)
           // ember pulse: slow independent breathing per core tile
           for (const g of glows) g.sp.alpha = g.a * (0.72 + 0.28 * Math.sin(t * 1.3 + g.ph))
+          // clouds drift screen-right and wrap around the island's span
+          for (const c of clouds) {
+            c.sp.x += c.spd * (app.ticker.deltaMS / 1000)
+            if (c.sp.x > isoX(CX, CY) + 2400) c.sp.x = isoX(CX, CY) - 2400
+            c.sp.y = c.y0 + Math.sin(c.sp.x * 0.0007) * 90
+          }
           // steam: each puff loops a rise — grows, drifts downwind (screen right), thins
           for (let i = 0; i < puffs.length; i++) {
             const p = puffs[i], b = steamBase[i]
