@@ -464,11 +464,24 @@ export default function IslandMapIso() {
             world.addChild(glow)
             glows.push({ sp: glow, ph: -Math.hypot(tx2 - CX, ty2 - CY) * 1.1, a: 0.28 })
           } else {
-            // the face matches the tread value on the steep flank (one slope, no per-step
-            // value flip — the ziggurat killer); gentle single steps keep a soft break
-            const k = dropPx >= CSTEP * 2 ? 0.97 : 0.88
-            const [r, g, b] = coneTint(tx2, ty2)
-            seg.tint = tint24(r * k, g * k, b * Math.min(1, k + 0.03))
+            // the riser color follows the tile's SURFACE BAND so a vegetated slope reads
+            // as a grassy bank (soft shadow), not a bright pink rock contour line — only
+            // the BARE-ROCK upper flank (band 2) shows real strata faces (c3's exposed rock)
+            const band = coneBand(tx2, ty2)
+            const cl = coneLit(tx2, ty2)
+            const lo = 0.62 + 0.14 * cl                 // low-contrast shadow keyed to the sun
+            if (band === 0) {
+              // grass skirt: a shaded turf bank, close to the meadow so the step is soft
+              seg.tint = tint24(lo * 0.42, lo * 0.56, lo * 0.28)
+            } else if (band === 1) {
+              // merge belt: dry earthy-olive bank (grass meshing into rock, c3)
+              seg.tint = tint24(lo * 0.60, lo * 0.54, lo * 0.30)
+            } else {
+              // bare rock upper flank: real strata face, matches the tread value
+              const k = dropPx >= CSTEP * 2 ? 0.97 : 0.88
+              const [r, g, b] = coneTint(tx2, ty2)
+              seg.tint = tint24(r * k, g * k, b * Math.min(1, k + 0.03))
+            }
           }
           if (DBG) seg.tint = 0x20ffff
           seg.zIndex = zBase2 + 1
@@ -483,8 +496,12 @@ export default function IslandMapIso() {
         // cliff band) died because it cropped rectangles out of that silhouette. Masking is
         // pure painter's order: the tile's flat top hides each course's moss cap, the
         // fronting/lower tiles hide the overshoot below. Never crop the blocks again.
-        const drawColumn = (bx2: number, by2: number, m: number, toSea: boolean, tx2: number, ty2: number, zBase2: number, volc = false) => {
+        const drawColumn = (bx2: number, by2: number, m: number, toSea: boolean, tx2: number, ty2: number, zBase2: number, volc = false, grassy = false) => {
           if (!rockW.length || m <= 0) return
+          // a GRASS-topped inland step is a turf SLOPE, not a rock wall: its riser reads
+          // as shaded meadow (Ash's "contour lines" were warm rock faces printed under
+          // green tops). Coast cliffs (toSea) stay rock. Turf tint ladders with the drift.
+          const turf = grassy && !toSea
           // rock variant in smooth ZONES — per-tile random picks flickered into patchwork
           // on turning coasts, and re-rolling the variant EVERY COURSE made the tall cone
           // flank read as bright-chip gravel. One variant per column, in wide zones; the
@@ -509,7 +526,7 @@ export default function IslandMapIso() {
             const under = new Sprite(fam[pick(m + 1)])
             under.anchor.set(0.5, 18 / 64)
             under.position.set(bx2, by2 + (m - 1) * STEP + 8)
-            under.tint = 0x6a6058
+            under.tint = turf ? 0x384823 : 0x6a6058
             if (DBG) under.tint = 0x20ff60
             under.zIndex = zBase2; world.addChild(under)
           }
@@ -539,6 +556,15 @@ export default function IslandMapIso() {
                 | (Math.min(255, Math.round(vv2 * (0.86 + 0.12 * warm))) << 8)
                 | Math.min(255, Math.round(vv2 * (1.16 - 0.4 * warm)))
               if (DBG) seg.tint = 0xff2020
+              seg.zIndex = zBase2 + 1 + (m - 1 - k)
+              world.addChild(seg)
+              continue
+            }
+            if (turf) {
+              // shaded meadow slope: the warm-grey rock texture tinted to deep grass,
+              // laddered darker down the drop so it reads as a turf bank, not a wall
+              const d2 = drift * (0.92 - 0.03 * (m - 1 - k))
+              seg.tint = tint24(d2 * 0.30, d2 * 0.44, d2 * 0.20)
               seg.zIndex = zBase2 + 1 + (m - 1 - k)
               world.addChild(seg)
               continue
@@ -646,13 +672,38 @@ export default function IslandMapIso() {
                   drawFace(bx, by, lift - liftOf(floorMin), tx, ty, zBase, moltenFace)
                 } else {
                   const charred = !NOCONE && (lavaDist(tx, ty) < 1.1 || craterK(tx, ty) > 0.4)
-                  drawColumn(bx, by, L - floorMin, toSea, tx, ty, zBase, charred)
+                  // a grass-topped inland step wears a turf riser (kills the pink
+                  // rock contour lines under the meadow); sand beaches + coast cliffs
+                  // + charred channel keep rock
+                  const grassy = !sand && !charred && cliffMask(Math.atan2(ty - CY, tx - CX)) < 0.35
+                  drawColumn(bx, by, L - floorMin, toSea, tx, ty, zBase, charred, grassy)
                 }
-                // NO BACK-VOID FILLS. (Removed 2026-07-07 — Ash circled them: the strips
-                // stacked into a curtain wall behind the summit and floating planks on
-                // the skirt, reading as pasted 2D images. With the cone's 10px steps the
-                // projection gaps behind steps are thin slivers; live with the crease.
-                // The doctrine held: do not reintroduce fills.)
+                // TARGETED CHANNEL VOID FILL: the steep lava river drops fast, so its
+                // BACK edges over a 2+level-lower neighbour open real black slots (the
+                // one place the cone's 10px steps aren't self-covering). Fill ONLY the
+                // channel, charred-dark so it recedes — NOT the broad fills Ash circled
+                // (those tinted bright rock across the whole flank). Grass/rock steps
+                // stay unfilled (their 1-level slivers read fine).
+                const inChannel = !NOCONE && (lavaDist(tx, ty) < 1.7 || craterK(tx, ty) > 0.3)
+                if (inChannel && (sideL.length || sideW.length)) {
+                  const fam = sideL.length ? sideL : sideW
+                  for (const [ox, oy] of [[-1, 0], [0, -1], [-1, -1]] as [number, number][]) {
+                    const nl = eLvl(tx + ox, ty + oy)
+                    if (nl < 0 || nl >= L - 1) continue
+                    const vH = Math.min(60, lift - liftOf(nl) - (ox && oy ? 32 : 16))
+                    if (vH <= 4) continue
+                    const tex = fam[Math.floor(vnoise(tx / 4 + 6.3, ty / 16 + 2.9) * fam.length) % fam.length]
+                    const fh = Math.min(tex.height - 36, vH)
+                    const fr = new Texture({ source: tex.source, frame: new Rectangle(0, 36, 64, fh) })
+                    const seg = new Sprite(fr); seg.anchor.set(0.5, 1)
+                    seg.width = ox && oy ? 38 : 34
+                    seg.position.set(bx + (ox - oy) * 16, by - (ox && oy ? 10 : 0) + 9)
+                    if (vH > fh) seg.scale.y *= vH / fh
+                    seg.tint = 0x3a2a1e     // charred basalt bank
+                    seg.zIndex = zBase + 1
+                    world.addChild(seg)
+                  }
+                }
                 // a foam collar hugging the cliff foot on each sea-facing front edge
                 for (const [ox, oy] of [[1, 0], [0, 1]] as [number, number][]) {
                   if (eLvl(tx + ox, ty + oy) >= 0) continue
