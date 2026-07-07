@@ -14,7 +14,7 @@ import { CONE } from './terrain'
 import { vnoise } from '../ocean'
 
 export const CONE_BASE_R = 30   // the skirt's toe reaches ~90% of the plateau (Ash: much larger)
-export const CONE_H = 50        // profile scale; the crater rim crowns ~32 levels up (much taller)
+export const CONE_H = 56        // profile scale; the crater rim crowns ~34 levels up (much taller)
 export const CRATER_R = 5.6     // a CLEAR circular opening at the top, not a pinch
 const CRATER_DEPTH = 7          // levels the bowl sinks below the rim
 
@@ -41,9 +41,11 @@ export function coneH(tx: number, ty: number) {
   // continuous J silhouette; the radial life comes from the gully value streaks instead
   const dEff = d * (1 + 0.06 * spoke(az, d) * (0.35 + 0.65 * s0))
   const s = Math.max(0, Math.min(1, 1 - dEff / CONE_BASE_R))
-  // THE J CURVE as a power law — smooth and continuous the whole way: ~2 levels at
-  // s=0.3, ~7 at 0.5, ~17 at 0.7, and the rocket into the low-30s at the rim.
-  let h = CONE_H * Math.pow(s, 3.0) + 1.4 * s
+  // THE J CURVE as a power law — smooth and continuous the whole way. Exponent 2.6
+  // (was 3.0): Ash read the tight-waisted cone as "a little too small… needs more
+  // gradual rises" — the softer power carries real mass through the mid flank the
+  // way c3's cone does, while the rim still rockets.
+  let h = CONE_H * Math.pow(s, 2.6) + 1.4 * s
   // the CRATER: TRUNCATE the cone at the rim height, then sink the bowl. Subtracting a
   // bowl from the still-rising profile left a 1-tile needle poking through (the profile
   // keeps climbing inside the rim, far more than any sane bowl depth) — the summit
@@ -53,7 +55,7 @@ export function coneH(tx: number, ty: number) {
   // hRim, wears a flat CROWN RING ~1.2 tiles wide, then the bowl drops a full
   // CRATER_DEPTH inside — a clear circular opening from map zoom.
   const rimS = 1 - CRATER_R / CONE_BASE_R
-  const hRim = CONE_H * Math.pow(rimS, 3.0) + 1.4 * rimS
+  const hRim = CONE_H * Math.pow(rimS, 2.6) + 1.4 * rimS
   h = Math.min(h, hRim)                       // the cone rises naturally and caps at the rim
   if (d < CRATER_R - 1.0) {                   // crown ring keeps ~1 tile of flat rim, then
     const t = Math.max(0, Math.min(1, (CRATER_R - 1.0 - d) / 1.8))
@@ -81,6 +83,30 @@ export function gullyK(tx: number, ty: number) {
   return Math.max(0, Math.min(1, (-spoke(Math.atan2(dy, dx), d) + 0.4) * 0.7)) * (0.3 + 0.7 * s0)
 }
 
+// THE CONE'S SUN (c3's single strongest form cue): one hard directional light across
+// the flanks — the west face burns warm, the east face falls into purple shade, with
+// the terminator wrapping the cone. Returns -1 (full shade) .. +1 (full light) from
+// the tile's outward azimuth against the island's upper-left sun.
+export function coneLit(tx: number, ty: number) {
+  const dx = tx - CONE.x, dy = ty - CONE.y
+  const d = Math.sqrt(dx * dx + dy * dy)
+  if (d >= CONE_BASE_R || d < 0.5) return 0
+  // sun from screen upper-left = tile-space azimuth PI (the -x direction), biased a
+  // touch north; fade the effect out toward the toe so the skirt rejoins the meadow
+  const az = Math.atan2(dy, dx)
+  const lit = Math.cos(az - 2.85)
+  return lit * Math.min(1, (1 - d / CONE_BASE_R) * 2.2)
+}
+
+// the radial STRIPE phase (-1..1) for c3's rib coloring: warm-lit ridge columns
+// alternate with deep-shadow gully columns, continuously from summit to base
+export function stripeK(tx: number, ty: number) {
+  const dx = tx - CONE.x, dy = ty - CONE.y
+  const d = Math.sqrt(dx * dx + dy * dy)
+  if (d >= CONE_BASE_R || d < 0.5) return 0
+  return spoke(Math.atan2(dy, dx), d)
+}
+
 // how deep inside the crater OPENING this tile sits (0 outside .. 1 at the center) —
 // the bowl floor darkens toward the vent so the opening reads from map zoom
 export function craterK(tx: number, ty: number) {
@@ -95,6 +121,10 @@ export function coneBand(tx: number, ty: number) {
   const h = coneH(tx, ty)
   if (h <= 0) return 0
   const dither = (vnoise(tx / 3.1 + 11, ty / 3.1 + 23) - 0.5) * 1.6
-  const v = h + dither
+  // VEGETATION FINGERS (c3): olive-green tongues climb the lower flank along the
+  // gullies, interleaving with the rock ribs — the cone blends into the island
+  // through them instead of ending at a clean band line
+  const veg = gullyK(tx, ty) * 6.5
+  const v = h + dither - veg
   return v >= 3.0 ? 2 : v >= 0.8 ? 1 : 0
 }

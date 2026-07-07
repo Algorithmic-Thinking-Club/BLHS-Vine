@@ -5,7 +5,7 @@ import {
   loadWaterVariants, seaTile, animSwells, type SwellSprite,
 } from '../ocean'
 import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL } from './terrain'
-import { coneLvl, coneBand, gullyK, craterK } from './volcano'
+import { coneLvl, coneBand, gullyK, craterK, coneLit, stripeK } from './volcano'
 
 const smooth = (e0: number, e1: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t)
@@ -189,8 +189,8 @@ export default function IslandMapIso() {
         // diamonds (masked from the tile blocks); walls = rock strata sized to the drop. ----
         const flatG: Texture[] = [], flatS: Texture[] = [], rockW: Texture[] = []
         for (let i = 0; i < 16; i++) {
-          try { const t: Texture = await Assets.load(`/art/island/flat/grass-${i}.png?v=6`); t.source.scaleMode = 'nearest'; flatG.push(t) } catch { /* */ }
-          try { const t: Texture = await Assets.load(`/art/island/flat/sand-${i}.png?v=6`); t.source.scaleMode = 'nearest'; flatS.push(t) } catch { /* */ }
+          try { const t: Texture = await Assets.load(`/art/island/flat/grass-${i}.png?v=7`); t.source.scaleMode = 'nearest'; flatG.push(t) } catch { /* */ }
+          try { const t: Texture = await Assets.load(`/art/island/flat/sand-${i}.png?v=7`); t.source.scaleMode = 'nearest'; flatS.push(t) } catch { /* */ }
         }
         // the WARM blocks: rock-N's carved sides remapped onto c3's sunlit terracotta ramp
         // (the original maroon sat at 0.35-0.5 luminance — the golden grade crushed it to
@@ -388,9 +388,23 @@ export default function IslandMapIso() {
             seg.anchor.set(0.5, 18 / 64)
             seg.position.set(bx2, by2 + k * STEP)
             let drift = 0.96 + 0.06 * vnoise(tx2 / 6 + 2.2, ty2 / 6 + 7.7) - 0.02 * k
-            // the cone's radial ribbing on the WALLS: gully columns darken, ridge
-            // columns stay lit — vertical streaks fanning from the summit (c3's ribs)
-            if (volc) drift *= 1 - 0.18 * gullyK(tx2, ty2)
+            if (volc) {
+              // c3's flank language on the WALLS: one hard sun across the cone (west
+              // face warm-lit, east face purple shade) + radial rib stripes + darker
+              // gully columns — long directional color, not repeated grey courses
+              const lit = coneLit(tx2, ty2)
+              const stripe = stripeK(tx2, ty2)
+              drift *= (1 + 0.16 * lit + 0.09 * stripe) * (1 - 0.16 * gullyK(tx2, ty2))
+              const vv2 = Math.min(255, Math.round(drift * 255))
+              const warm = 0.5 + 0.5 * lit
+              seg.tint = (Math.min(255, Math.round(vv2 * (0.88 + 0.24 * warm))) << 16)
+                | (Math.min(255, Math.round(vv2 * (0.86 + 0.12 * warm))) << 8)
+                | Math.min(255, Math.round(vv2 * (1.06 - 0.3 * warm)))
+              if (DBG) seg.tint = 0xff2020
+              seg.zIndex = zBase2 + 1 + (m - 1 - k)
+              world.addChild(seg)
+              continue
+            }
             const vv = Math.min(255, Math.round(drift * 255))
             seg.tint = (vv << 16) | (vv << 8) | vv
             if (DBG) seg.tint = 0xff2020
@@ -467,16 +481,24 @@ export default function IslandMapIso() {
                 const v = (0.965 + 0.06 * vnoise(tx / 16 + 3, ty / 16 + 5)) * grain * (1 + 0.1 * rk)
                 top.tint = warmCool(shadeHex(tintFor(rampAt(SAND_RAMP, tt), SAND_BASE), v), rk * 0.7)
               } else if (band === 2) {
-                // bare basalt: neutral value drift + the radial GULLY streaks (ridges
-                // catch the light, gullies sink) — the c3 ribbing at map zoom
+                // bare basalt treads carry the same c3 flank language as the walls:
+                // the one hard sun (west warm / east purple-shade), rib stripes,
+                // gully sinks, and the dark crater opening
+                const cl = coneLit(tx, ty)
                 const hFrac = Math.min(1, (L - PLAT_L) / 26)
                 const v = (0.92 + 0.1 * vnoise(tx / 5 + 4, ty / 5 + 12)) * (1 + 0.12 * rk) * (1 - 0.2 * hFrac)
-                  * (1 - 0.22 * gullyK(tx, ty)) * (1 - 0.4 * craterK(tx, ty))   // the opening reads dark
-                top.tint = warmCool(shadeHex(0xffffff, v), rk * 0.8)
+                  * (1 + 0.14 * cl + 0.08 * stripeK(tx, ty)) * (1 - 0.2 * gullyK(tx, ty)) * (1 - 0.4 * craterK(tx, ty))
+                const warm = 0.5 + 0.5 * cl
+                const rr = Math.min(255, Math.round(255 * v * (0.9 + 0.2 * warm)))
+                const gg = Math.min(255, Math.round(255 * v * (0.88 + 0.1 * warm)))
+                const bb = Math.min(255, Math.round(255 * v * (1.05 - 0.26 * warm)))
+                top.tint = (rr << 16) | (gg << 8) | bb
               } else if (band === 1) {
-                // dry scrub: the grass art pushed warm/parched — the transition belt
+                // dry scrub: the grass art pushed warm/parched — the transition belt,
+                // also under the cone's sun so the tongues follow the flank lighting
+                const cl = coneLit(tx, ty)
                 const patch = 0.98 + 0.05 * vnoise(tx / 9 + 5, ty / 9 + 2)
-                const lit = patch * grain * (1 + 0.12 * rk) * (1 - 0.14 * gullyK(tx, ty))
+                const lit = patch * grain * (1 + 0.12 * rk) * (1 + 0.12 * cl) * (1 - 0.14 * gullyK(tx, ty))
                 top.tint = warmCool(tintFor(shadeHex(0x8f7a46, lit), GRASS_BASE), rk * 0.9)
               } else {
                 // the plateau's ground mosaic: a LARGE meadow↔deep-green zone field (24-tile
