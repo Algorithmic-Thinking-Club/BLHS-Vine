@@ -189,8 +189,8 @@ export default function IslandMapIso() {
         // diamonds (masked from the tile blocks); walls = rock strata sized to the drop. ----
         const flatG: Texture[] = [], flatS: Texture[] = [], rockW: Texture[] = []
         for (let i = 0; i < 16; i++) {
-          try { const t: Texture = await Assets.load(`/art/island/flat/grass-${i}.png?v=4`); t.source.scaleMode = 'nearest'; flatG.push(t) } catch { /* */ }
-          try { const t: Texture = await Assets.load(`/art/island/flat/sand-${i}.png?v=4`); t.source.scaleMode = 'nearest'; flatS.push(t) } catch { /* */ }
+          try { const t: Texture = await Assets.load(`/art/island/flat/grass-${i}.png?v=6`); t.source.scaleMode = 'nearest'; flatG.push(t) } catch { /* */ }
+          try { const t: Texture = await Assets.load(`/art/island/flat/sand-${i}.png?v=6`); t.source.scaleMode = 'nearest'; flatS.push(t) } catch { /* */ }
         }
         // the WARM blocks: rock-N's carved sides remapped onto c3's sunlit terracotta ramp
         // (the original maroon sat at 0.35-0.5 luminance — the golden grade crushed it to
@@ -248,6 +248,19 @@ export default function IslandMapIso() {
             }
           }
         }
+        // SMOOTH the distance field before banding: the raw BFS distance is integer
+        // chamfer, so its level sets are inherently 1-tile staircases wherever the coast
+        // runs diagonally — the "badly cut paper cutout" chop. Two 3x3 mean passes turn
+        // it into a continuous field whose contours hold long straight runs and round
+        // the corners; the bench thresholds then cut clean terrace lines.
+        for (let pass = 0; pass < 2; pass++) {
+          const src = Float32Array.from(DIST)
+          for (let ty = 1; ty < ROWS - 1; ty++) for (let tx = 1; tx < COLS - 1; tx++) {
+            let sum = 0
+            for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) sum += src[(ty + oy) * COLS + tx + ox]
+            DIST[ty * COLS + tx] = sum / 9
+          }
+        }
         // PURE-AZIMUTH grammar (no per-tile jitter in discrete decisions); the low-freq
         // bandJ wiggle is the only organic term. Beach azimuths: a generous flat sand shelf,
         // then the "2 small steps" right at the plateau edge. Cliff azimuths: plateau to water.
@@ -288,6 +301,22 @@ export default function IslandMapIso() {
             if (bc >= 2) LV[ty * COLS + tx] = best
           }
         }
+        // NOTCH KILLER: a tile whose level disagrees with 3 of its 4 land neighbours is a
+        // 1-tile dent or bump in an otherwise straight contour — snap it to the majority.
+        // Straight runs and true corners (2/2 splits) are untouched; this is what turns
+        // the paper-cut jags into long clean terrace lines. Runs on the cone too (it
+        // smooths lone ring bumps without touching the crown, which is 2+ tiles wide).
+        for (let pass = 0; pass < 2; pass++) {
+          const prev = Int8Array.from(LV)
+          for (let ty = 1; ty < ROWS - 1; ty++) for (let tx = 1; tx < COLS - 1; tx++) {
+            const L = prev[ty * COLS + tx]
+            if (L < 0) continue
+            const nb = [prev[ty * COLS + tx + 1], prev[ty * COLS + tx - 1], prev[(ty + 1) * COLS + tx], prev[(ty - 1) * COLS + tx]].filter((v) => v >= 0)
+            const counts = new Map<number, number>()
+            for (const v of nb) counts.set(v, (counts.get(v) || 0) + 1)
+            for (const [v, c] of counts) if (v !== L && c >= 3) { LV[ty * COLS + tx] = v; break }
+          }
+        }
         const eLvl = (tx: number, ty: number) =>
           tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS ? -1 : LV[ty * COLS + tx]
         if (DBG) (window as unknown as { __LV?: unknown }).__LV = { LV, COLS, ROWS }
@@ -321,11 +350,13 @@ export default function IslandMapIso() {
         // fronting/lower tiles hide the overshoot below. Never crop the blocks again.
         const drawColumn = (bx2: number, by2: number, m: number, toSea: boolean, tx2: number, ty2: number, zBase2: number, volc = false) => {
           if (!rockW.length || m <= 0) return
-          // rock variant in smooth ZONES (2-4 tile runs share a block) — per-tile random
-          // picks flickered into patchwork on turning coasts, one lone rock read flat.
-          // Each course shifts the zone seed so tall stacks don't repeat one texture.
+          // rock variant in smooth ZONES — per-tile random picks flickered into patchwork
+          // on turning coasts, and re-rolling the variant EVERY COURSE made the tall cone
+          // flank read as bright-chip gravel. One variant per column, in wide zones; the
+          // per-course value ladder supplies the strata variation.
           const fam = volc && volcW.length ? volcW : sideW
-          const pick = (k: number) => Math.floor(vnoise(tx2 / 2.7 + 1.3 + k * 0.9, ty2 / 2.7 + 8.1 + k * 1.7) * rockW.length) % rockW.length
+          const zf = volc ? 5.2 : 2.7
+          const pick = (k: number) => Math.floor(vnoise(tx2 / zf + 1.3 + k * 0.13, ty2 / zf + 8.1 + k * 0.21) * rockW.length) % rockW.length
           // a submerged echo of the bottom course first: the cliff foot runs 12px under the
           // waterline so the diagonal bottom silhouette never opens a notch above the sea
           if (toSea && sideW.length) {
@@ -335,6 +366,17 @@ export default function IslandMapIso() {
             wet.tint = 0xb8a898
             if (DBG) wet.tint = 0x2020ff
             wet.zIndex = zBase2; world.addChild(wet)
+          } else if (fam.length) {
+            // inland wall feet: the fronting tiles' diamonds taper to zero at their shared
+            // vertex, leaving a 1px background pinhole at every wall's bottom corner. A
+            // dark underlay course below the bottom course plugs it and reads as the
+            // foot's contact shadow.
+            const under = new Sprite(fam[pick(m + 1)])
+            under.anchor.set(0.5, 18 / 64)
+            under.position.set(bx2, by2 + (m - 1) * STEP + 8)
+            under.tint = 0x6a6058
+            if (DBG) under.tint = 0x20ff60
+            under.zIndex = zBase2; world.addChild(under)
           }
           for (let k = m - 1; k >= 0; k--) {                // bottom course first, uppers mask
             // EVERY course is mossless: the warm block's moss cap peeked ~2px around the
