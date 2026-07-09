@@ -186,10 +186,10 @@ export default function IslandMapIso() {
       // ---- the ground: live sea outside, tile terrain on the island ----
       const foamTex = radial(48, [[0, 'rgba(255,255,255,0.85)'], [0.45, 'rgba(224,248,242,0.4)'], [1, 'rgba(224,248,242,0)']])
 
-      // TILE-UNIT VALIDATION (?tiletest=1): a small terraced hill built from REAL 3D
-      // iso block tiles (decorated top + decorated sides + height), drawn back-to-front
-      // so they occlude naturally. Proving the UNIT before anything touches the island.
-      const TILETEST = !!params.get('tiletest')
+      // The approved 3D block-tile island IS the default view now (?tiletest=0 for the
+      // old pre-approval heightfield branch, kept only as history). Plain
+      // ?scene=islandmap shows the clean volcano base without needing the flag.
+      const TILETEST = params.get('tiletest') !== '0'
       if (TILETEST) {
         // ---- THE ISLAND as FLAT, BLENDED ground (the beach map's language) with real
         // rock WALLS only where the land steps DOWN. The killer lesson: at map zoom a
