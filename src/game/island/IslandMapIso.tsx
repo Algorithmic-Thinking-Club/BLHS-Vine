@@ -6,7 +6,7 @@ import {
 } from '../ocean'
 import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
-import { PLAZA, PLAZA_R, riverD, pathD, onPathTile, coveNotchK, vegK, SHADOW } from './hub-layout'
+import { PLAZA, PLAZA_R, GROVES, riverD, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout } from './hub-layout'
 
 const smooth = (e0: number, e1: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t)
@@ -137,6 +137,9 @@ export default function IslandMapIso() {
         Assets.load('/art/island/cliffs/face-cliff.png').then((t: Texture) => { t.source.scaleMode = 'nearest'; faceTex = t }).catch(() => {}),
       ])
       if (destroyed) return
+      // the layout derives every place from the REAL coastline — it must compute
+      // AFTER the skeleton fetch above (module-load values sit on the fallback coast)
+      initHubLayout()
 
       const world = new Container()
       world.scale.set(ZOOM)
@@ -492,8 +495,18 @@ export default function IslandMapIso() {
             // grass top drew a line at every level. Pull the riser to within ~8% of the top.
             const lo = 0.92 + 0.08 * cl
             if (band === 0) {
-              // grass skirt: a short grassy bank at (almost) the meadow value
-              seg.tint = tint24(lo * 0.70, lo * 0.75, lo * 0.42)
+              // grass skirt: the face wears GRASS TEXTURE, not tinted rock — the
+              // strata grain (even value-matched) printed every 10px step as a wood
+              // plank line and the whole skirt read as diagonal striping (round 8).
+              // A crop of the flat grass tile itself + a soft shade = a turf crease.
+              const gt2 = flatG.length ? flatG : grassV.filter(Boolean)
+              if (gt2.length) {
+                const g2 = gt2[Math.floor(vnoise(tx2 / 5 + 3, ty2 / 5 + 8) * gt2.length) % gt2.length]
+                const gh = Math.min(g2.height - 6, need)
+                seg.texture = new Texture({ source: g2.source, frame: new Rectangle(0, 6, Math.min(64, g2.width), gh) })
+                if (need > gh) seg.scale.y = need / gh
+              }
+              seg.tint = tint24(lo * 0.74, lo * 0.8, lo * 0.46)
             } else if (band === 1) {
               // merge belt: dry earthy-olive bank (grass meshing into rock, c3)
               seg.tint = tint24(lo * 0.72, lo * 0.66, lo * 0.40)
@@ -582,10 +595,18 @@ export default function IslandMapIso() {
               continue
             }
             if (turf) {
-              // near-invisible grassy bank (matched to the meadow value so short steps
-              // blend into a smooth slope, not a stack of dark terraces)
-              const d2 = drift * (0.97 - 0.02 * (m - 1 - k))
-              seg.tint = tint24(d2 * 0.66, d2 * 0.72, d2 * 0.40)
+              // grassy bank matched to the meadow's MEAN value. Texture variance only
+              // on REAL drops (2+ levels — the naked-riser fix): on 1-level lips the
+              // variance re-printed the scattered-dash noise across the flat meadow
+              const tex2 = m >= 2 ? 0.9 + 0.16 * vnoise(tx2 / 2.3 + 6, ty2 / 2.3 + k * 0.7 + 2) : 1
+              const d2 = drift * tex2 * (0.97 - 0.02 * (m - 1 - k))
+              if (m === 1) {
+                // a lone 1-level meadow step is a soft SHADED CREASE, not a bank: at
+                // meadow value it printed as scattered tan planks across the flat
+                seg.tint = tint24(d2 * 0.45, d2 * 0.53, d2 * 0.3)
+              } else {
+                seg.tint = tint24(d2 * 0.66, d2 * 0.72, d2 * 0.40)
+              }
               seg.zIndex = zBase2 + 1 + (m - 1 - k)
               world.addChild(seg)
               continue
@@ -900,7 +921,8 @@ export default function IslandMapIso() {
         // approved beach palms (the family Ash gated) into this island's own crops.
         const vegT: Record<string, Texture> = {}
         const VEGF = ['palm-b', 'coco-v1', 'coco-v2', 'coco-v3', 'fan-1', 'tfern-1', 'palm-a',
-          'bush-a', 'bush-b', 'fernclump-1', 'banana-1', 'heliconia-1', 'boulder-1', 'boulder-2']
+          'bush-a', 'bush-b', 'fernclump-1', 'banana-1', 'heliconia-1', 'boulder-1', 'boulder-2',
+          'coco-lean', 'coco-sapling', 'palm-fallen', 'tuft-1', 'tuft-2']
         await Promise.all(VEGF.map(async (n) => {
           try {
             const t: Texture = await Assets.load(`/art/island/veg/${n}.png`)
@@ -916,7 +938,7 @@ export default function IslandMapIso() {
         const shadTex = radial(64, [[0, 'rgba(24,18,54,0.95)'], [0.72, 'rgba(24,18,54,0.6)'], [1, 'rgba(24,18,54,0)']])
         const shadAng = Math.atan2(SHADOW.dy * 0.5, SHADOW.dx)   // squashed into iso ground plane
         const TALL = new Set(['palm-b', 'coco-v1', 'coco-v2', 'coco-v3', 'fan-1', 'tfern-1', 'palm-a'])
-        const putPlant = (name: string, px: number, py: number, o: { sc?: number; flip?: boolean; dark?: number; sway?: number } = {}) => {
+        const putPlant = (name: string, px: number, py: number, o: { sc?: number; flip?: boolean; dark?: number; sway?: number; noShadow?: boolean } = {}) => {
           const t = vegT[name]
           if (!t) return
           const L2 = eLvl(Math.round(px), Math.round(py))
@@ -931,16 +953,18 @@ export default function IslandMapIso() {
           // rows in front of the plant, so its z must ride ~2 rows forward — at the
           // plant's own row the fronting tiles' tops paint straight over it (the
           // invisible-shadow bug of round 1). It stays under plants (+700) there.
-          const sh = new Sprite(shadTex)
-          sh.anchor.set(0.32, 0.5)
-          sh.rotation = shadAng
-          sh.width = (tall ? t.height * 1.05 : t.width * 0.6) * sc
-          sh.height = Math.max(12, t.width * (tall ? 0.24 : 0.3) * sc)
-          sh.alpha = SHADOW.alpha * (o.dark ?? 1)
-          sh.position.set(bx2 + 4 * sc, by2 - 3)
-          sh.zIndex = (Math.round(px) + Math.round(py) + 2) * 4000 + 320
-          if (params.get('shdbg')) { sh.tint = 0xff0000; sh.alpha = 1 }
-          world.addChild(sh)
+          if (!o.noShadow) {
+            const sh = new Sprite(shadTex)
+            sh.anchor.set(0.32, 0.5)
+            sh.rotation = shadAng
+            sh.width = (tall ? t.height * 1.05 : t.width * 0.6) * sc
+            sh.height = Math.max(12, t.width * (tall ? 0.24 : 0.3) * sc)
+            sh.alpha = SHADOW.alpha * (o.dark ?? 1)
+            sh.position.set(bx2 + 4 * sc, by2 - 3)
+            sh.zIndex = (Math.round(px) + Math.round(py) + 2) * 4000 + 320
+            if (params.get('shdbg')) { sh.tint = 0xff0000; sh.alpha = 1 }
+            world.addChild(sh)
+          }
           const sp = new Sprite(t)
           sp.anchor.set(0.5, 1)
           sp.position.set(bx2, by2)
@@ -954,23 +978,89 @@ export default function IslandMapIso() {
           if (o.sway) sways.push({ sp, amp: o.sway, w: 0.5 + 0.5 * hash(px * 1.7, py * 2.9), ph: hash(px, py) * 6.3 })
           return sp
         }
-        // CLUSTER-SEEDED placement (the beach's cluster-gap rhythm, island-wide):
-        // seeds on a 3-tile lattice, each spawning a 1-5 plant cluster sized by the
-        // local density; the belt's deep rows darken; terrace lips grow palm ranks (c3)
-        const PALMS = ['palm-b', 'coco-v1', 'coco-v2', 'coco-v3']
+        // THE GROVES, PLACED DIRECTLY (Ash's steer: a walkable island of designed
+        // stands, not a forest): every hub-layout grove site is GUARANTEED its 4-8
+        // palm mass + understory + shade pool — composition by authorship, never a
+        // density lottery (half the sites came up empty when seeds rolled dice).
+        const PALMS = ['palm-b', 'coco-v1', 'coco-v2', 'coco-v3', 'coco-lean', 'coco-sapling']
         const RARE = ['fan-1', 'palm-a', 'palm-a', 'tfern-1']   // tfern's loud crown stays rare
         const UNDER = ['bush-a', 'bush-b', 'fernclump-1']
+        for (let gi = 0; gi < GROVES.length; gi++) {
+          const [gx, gy, gr] = GROVES[gi]
+          if (DBG) {
+            const dot = new Sprite(Texture.WHITE)
+            dot.tint = 0xff00ff; dot.width = 60; dot.height = 60
+            dot.anchor.set(0.5)
+            dot.position.set(isoX(gx, gy), isoY(gx, gy) + GY)
+            dot.zIndex = 90_000_000
+            world.addChild(dot)
+          }
+          if (eLvl(Math.round(gx), Math.round(gy)) <= 0) continue
+          // the grove's pooled canopy shade first
+          const pool = new Sprite(shadTex)
+          pool.anchor.set(0.5, 0.5)
+          pool.width = 150 + gr * 55
+          pool.height = 66 + gr * 22
+          pool.alpha = 0.2
+          pool.position.set(isoX(gx, gy), isoY(gx, gy) - liftOf(eLvl(Math.round(gx), Math.round(gy))) + GY + 6)
+          pool.zIndex = (Math.round(gx + gy) + 1) * 4000 + 300
+          world.addChild(pool)
+          const n = 6 + Math.floor(hash(gi * 3.7 + 2, gi * 1.9 + 5) * 6)
+          for (let i = 0; i < n; i++) {
+            const ang = hash(gi * 7.3 + i * 2.1, gi + i) * Math.PI * 2
+            const rad = gr * (0.15 + 0.85 * hash(gi + i * 3.3, gi * 5.1 + i))
+            const jx = gx + Math.cos(ang) * rad
+            const jy = gy + Math.sin(ang) * rad * 0.85
+            // palms may stand right beside a path (they frame it — c3); only the
+            // path bed itself and hard clearings (plaza floor, port aprons) reject
+            if (clearingK(jx, jy) > 0.8 || coastDs(jx, jy) < 1.4 || lavaDist(jx, jy) < 2) continue
+            const r2 = hash(jx * 3.1, jy * 1.7)
+            const dark = 1 - 0.2 * hash(jx + 9, jy + 4)
+            if (r2 < 0.8) {
+              const nm = PALMS[Math.floor(hash(jx * 5.3, jy * 7.7) * PALMS.length) % PALMS.length]
+              putPlant(nm, jx, jy, { sc: 0.72 + 0.5 * hash(jx + 1, jy + 8), flip: hash(jx + 4, jy) > 0.5, dark, sway: 0.014 })
+            } else {
+              const nm = RARE[Math.floor(hash(jx * 2.9, jy * 4.3) * RARE.length) % RARE.length]
+              putPlant(nm, jx, jy, { sc: 0.72 + 0.3 * hash(jx + 2, jy + 5), flip: hash(jx, jy + 6) > 0.5, dark, sway: 0.012 })
+            }
+          }
+          // understory + a tuft or two at the grove floor
+          const n2 = 3 + Math.floor(hash(gi * 9.1, gi * 4.7) * 4)
+          for (let i = 0; i < n2; i++) {
+            const ang = hash(gi * 5.9 + i * 4.3, gi * 2.3 + i) * Math.PI * 2
+            const rad = gr * (0.3 + 0.75 * hash(gi + i * 6.7, gi + i * 1.1))
+            const jx = gx + Math.cos(ang) * rad
+            const jy = gy + Math.sin(ang) * rad * 0.85
+            if (clearingK(jx, jy) > 0.8 || coastDs(jx, jy) < 1.4 || lavaDist(jx, jy) < 2) continue
+            const nm = UNDER[Math.floor(hash(jx * 8.3, jy * 5.9) * UNDER.length) % UNDER.length]
+            putPlant(nm, jx, jy, { sc: 0.55 + 0.3 * hash(jx + 3, jy + 7), flip: hash(jx + 5, jy + 4) > 0.5, dark: 0.88, sway: 0.006 })
+          }
+        }
         for (let sy = 3; sy < ROWS - 3; sy += 3) {
           for (let sx = 3; sx < COLS - 3; sx += 3) {
             let k = vegK(sx, sy)
             // c3's palm ranks along the terrace lips: a bench edge boosts its azimuth
             const Ls = eLvl(sx, sy)
             const lip = Ls > 0 && Ls <= PLAT_L && (eLvl(sx + 1, sy) < Ls || eLvl(sx, sy + 1) < Ls)
-            if (lip) k = Math.min(1, k + 0.2)
+            if (lip) k = Math.min(1, k + 0.28)
             if (k <= 0.08) continue
-            if (hash(sx * 2.1 + 3, sy * 3.3 + 7) > k * 1.4) continue
-            const n = Math.max(1, Math.round(k * 3.4 + hash(sx, sy * 1.3) * 1.8))
+            // fire less often, plant more per firing: grove-and-clearing rhythm —
+            // even spacing was the reviewer's "stamped, not grown" tell
+            if (hash(sx * 2.1 + 3, sy * 3.3 + 7) > k * 1.12) continue
+            const n = Math.max(1, Math.round(k * 4.3 + hash(sx, sy * 1.3) * 2))
             const deep = smooth(0.55, 0.95, k)
+            // the grove's pooled canopy shade: one wide soft shadow under the whole
+            // cluster seats it into the meadow (the 8-rules AO pool)
+            if (deep > 0.15 && eLvl(sx, sy) > 0) {
+              const pool = new Sprite(shadTex)
+              pool.anchor.set(0.5, 0.5)
+              pool.width = 210 + 120 * deep
+              pool.height = 90 + 50 * deep
+              pool.alpha = 0.14 + 0.1 * deep
+              pool.position.set(isoX(sx, sy), isoY(sx, sy) - liftOf(eLvl(sx, sy)) + GY + 6)
+              pool.zIndex = (sx + sy + 1) * 4000 + 300
+              world.addChild(pool)
+            }
             for (let i = 0; i < n; i++) {
               // wide jitter (±2.3 tiles) — the tight ±1.5 left the 3-lattice showing
               // as diagonal palm ranks across the cone skirt at far zoom
@@ -979,9 +1069,12 @@ export default function IslandMapIso() {
               if (vegK(jx, jy) <= 0.05 && !lip) continue
               const r = hash(jx * 3.1, jy * 1.7)
               const dark = 1 - 0.3 * deep * hash(jx + 9, jy + 4)
-              if (r < 0.62) {
+              // the cone's gully tongues wear SMALLER growth hugging the slope —
+              // full-height palms on the stepped flank read as stilts
+              const flank = coneH(jx, jy) > 7
+              if (r < (flank ? 0.4 : 0.62)) {
                 const nm = PALMS[Math.floor(hash(jx * 5.3, jy * 7.7) * PALMS.length) % PALMS.length]
-                putPlant(nm, jx, jy, { sc: 0.82 + 0.36 * hash(jx + 1, jy + 8), flip: hash(jx + 4, jy) > 0.5, dark, sway: 0.014 })
+                putPlant(nm, jx, jy, { sc: (flank ? 0.58 : 0.74) + 0.48 * hash(jx + 1, jy + 8), flip: hash(jx + 4, jy) > 0.5, dark, sway: 0.014 })
               } else if (r < 0.76) {
                 const nm = RARE[Math.floor(hash(jx * 2.9, jy * 4.3) * RARE.length) % RARE.length]
                 putPlant(nm, jx, jy, { sc: 0.75 + 0.3 * hash(jx + 2, jy + 5), flip: hash(jx, jy + 6) > 0.5, dark, sway: 0.012 })
@@ -1010,14 +1103,25 @@ export default function IslandMapIso() {
             }
           }
         }
-        // sparse meadow boulders (a 3-5-object clutter counterpoint in the open ring)
-        for (let sy = 4; sy < ROWS - 4; sy += 5) {
-          for (let sx = 4; sx < COLS - 4; sx += 5) {
-            const k = vegK(sx, sy)
-            if (k < 0.06 || k > 0.45) continue
-            if (hash(sx * 4.9, sy * 6.1) > 0.09) continue
-            const nm = hash(sx, sy) > 0.75 ? 'boulder-1' : 'boulder-2'
-            putPlant(nm, sx + hash(sx, sy + 3) * 2 - 1, sy + hash(sx + 5, sy) * 2 - 1, { sc: 0.55 + 0.4 * hash(sx + 7, sy + 2), flip: hash(sx + 1, sy + 9) > 0.5 })
+        // THE OPEN MEADOW'S LIFE (the walkable ground between groves is a place,
+        // not a void): grass tufts + wildflower drifts, sparse boulders, and the
+        // occasional fallen trunk telling a small story
+        for (let sy = 4; sy < ROWS - 4; sy += 2) {
+          for (let sx = 4; sx < COLS - 4; sx += 2) {
+            const L3 = eLvl(sx, sy)
+            if (L3 <= 0 || L3 > PLAT_L) continue
+            if (coastDs(sx, sy) < 2.5 || lavaDist(sx, sy) < 2 || coneH(sx, sy) > 4) continue
+            if (clearingK(sx, sy) > 0.4) continue
+            const r = hash(sx * 4.9, sy * 6.1)
+            const jx = sx + hash(sx, sy + 3) * 1.8 - 0.9
+            const jy = sy + hash(sx + 5, sy) * 1.8 - 0.9
+            if (r < 0.055) {
+              putPlant(hash(sx + 2, sy) > 0.5 ? 'tuft-1' : 'tuft-2', jx, jy, { sc: 0.42 + 0.3 * hash(sx + 7, sy + 2), flip: hash(sx + 1, sy + 9) > 0.5, noShadow: true })
+            } else if (r < 0.062) {
+              putPlant(hash(sx, sy) > 0.75 ? 'boulder-1' : 'boulder-2', jx, jy, { sc: 0.5 + 0.35 * hash(sx + 7, sy + 2), flip: hash(sx + 1, sy + 9) > 0.5 })
+            } else if (r < 0.0655) {
+              putPlant('palm-fallen', jx, jy, { sc: 0.5 + 0.15 * hash(sx + 4, sy + 6), flip: hash(sx + 3, sy + 1) > 0.5 })
+            }
           }
         }
 
