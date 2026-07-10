@@ -941,6 +941,7 @@ export default function IslandMapIso() {
         const putPlant = (name: string, px: number, py: number, o: { sc?: number; flip?: boolean; dark?: number; sway?: number; noShadow?: boolean } = {}) => {
           const t = vegT[name]
           if (!t) return
+          if (harborAt(Math.round(px), Math.round(py))) return   // nothing sprouts through a deck
           const L2 = eLvl(Math.round(px), Math.round(py))
           if (L2 <= 0) return
           // ground-sitting rule: WIDE props (boulders, logs) need level ground —
@@ -1142,7 +1143,7 @@ export default function IslandMapIso() {
         const bobs: { sp: Sprite; y0: number; w: number; ph: number }[] = []
         try {
           const hb: Record<string, Texture> = {}
-          for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'warehouse', 'panther-statue', 'net-rack']) {
+          for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'warehouse', 'panther-statue', 'net-rack', 'beacon']) {
             try {
               const t: Texture = await Assets.load(`/art/island/harbor/${n}.png?v=4`)
               t.source.scaleMode = 'nearest'; hb[n] = t
@@ -1159,11 +1160,25 @@ export default function IslandMapIso() {
             const topOf = (t: Texture) => new Texture({ source: t.source, frame: new Rectangle(0, 0, 64, 36) })
             const faceOf = (t: Texture) => new Texture({ source: t.source, frame: new Rectangle(0, 18, 64, 46) })
             // ONE stone variant for the whole quay (mixing light/dark tops printed
-            // a checkerboard); the plank block rides a muting tint until the
-            // driftwood-grey regen lands
+            // a checkerboard)
             const stoneT = [topOf(hb['stone-block-a']), topOf(hb['stone-block-a'])]
             const stoneF = faceOf(hb['stone-block-a'])
-            const plankT = topOf(hb['plank-block-a'])
+            // the deck TOP is a CLEAN flat wood diamond (Ash: the plank texture
+            // read ugly/busy) — the beach pier's sampled color, one quiet seam,
+            // per-tile value drift doing the variation; the sides stay timber
+            const deckCv = document.createElement('canvas')
+            deckCv.width = 64; deckCv.height = 36
+            {
+              const g2 = deckCv.getContext('2d')!
+              g2.beginPath()
+              g2.moveTo(32, 0); g2.lineTo(64, 17); g2.lineTo(32, 34); g2.lineTo(0, 17); g2.closePath()
+              g2.fillStyle = '#ae5f3f'
+              g2.fill()
+              g2.strokeStyle = 'rgba(60,30,18,0.35)'
+              g2.lineWidth = 1
+              g2.beginPath(); g2.moveTo(16, 8.5); g2.lineTo(48, 25.5); g2.stroke()
+            }
+            const plankT = Texture.from(deckCv)
             const plankF = faceOf(hb['plank-block-a'])
             const isH = (x: number, y: number) => !!harborAt(x, y)
             for (const ht of HARBOR.tiles) {
@@ -1203,8 +1218,12 @@ export default function IslandMapIso() {
                 const need = ht.lift + 14 + 18
                 face.scale.y = need / 46
                 // the under-deck is in shade: a dark timber tint mutes the block
-                // art's striping into a natural shadowed underside
-                if (ht.mat === 'plank') face.tint = 0x9a8570
+                // art's striping into a natural shadowed underside; a light value
+                // drift breaks the repeat along long wall runs
+                if (ht.mat === 'plank') {
+                  const dv = 0.9 + 0.18 * vnoise(ht.tx / 2.1 + 3, ht.ty / 2.1 + 7)
+                  face.tint = (Math.min(255, Math.round(0x9a * dv)) << 16) | (Math.min(255, Math.round(0x85 * dv)) << 8) | Math.min(255, Math.round(0x70 * dv))
+                }
                 face.zIndex = zB + 1
                 world.addChild(face)
                 const top = new Sprite(ht.mat === 'stone'
@@ -1213,6 +1232,13 @@ export default function IslandMapIso() {
                 top.anchor.set(0.5, 0.5)
                 top.position.set(bx2, byTop)
                 top.zIndex = zB + 5
+                if (ht.mat === 'plank') {
+                  // quiet per-tile value drift is ALL the top variation
+                  const dv = 0.93 + 0.12 * vnoise(ht.tx / 2.7 + 5, ht.ty / 2.7 + 9)
+                  const vv = Math.min(255, Math.round(255 * dv))
+                  top.tint = (vv << 16) | (vv << 8) | vv
+                  top.scale.set(1.06)   // melt the seams like the land tops
+                }
                 world.addChild(top)
               }
               // foam laps every waterline face on exposed sea edges
@@ -1265,9 +1291,75 @@ export default function IslandMapIso() {
             }
             mount(pt['bell-frame'], HARBOR.bell, { sc: 0.8 })
             mount(hb['crane'], HARBOR.crane, {})
-            mount(pt['cargo-a'], HARBOR.cargo, { sc: 0.75 })
+            // the cargo yard: freight stacked at every work point, varied scale/flip
+            for (let ci = 0; ci < HARBOR.cargo.length; ci++) {
+              mount(pt['cargo-a'], HARBOR.cargo[ci], { sc: 0.62 + 0.16 * hash(ci * 3.1 + 1, ci * 1.7 + 2), flip: ci % 2 === 1 })
+            }
             for (const L2 of HARBOR.lanterns) mount(pt['lantern-post'], L2, { sc: 0.72, glow: true })
             for (const B of HARBOR.bollards) mount(pt['bollard-a'], B, { sc: 0.34 })
+            // mooring posts pace the boardwalk's seaward lip (the beach pier's
+            // post rhythm at harbor scale)
+            for (const E of HARBOR.edgePosts) mount(pt['bollard-a'], E, { sc: 0.24 })
+            // the harbor BEACON at the breakwater tip, its lamp breathing
+            if (DBG) {
+              const dot = new Sprite(Texture.WHITE)
+              dot.tint = hb['beacon'] ? 0x00ff00 : 0xff0000; dot.width = 30; dot.height = 30; dot.anchor.set(0.5)
+              dot.position.set(isoX(HARBOR.beacon[0], HARBOR.beacon[1]), isoY(HARBOR.beacon[0], HARBOR.beacon[1]) + GY)
+              dot.zIndex = 93_000_000
+              world.addChild(dot)
+            }
+            if (hb['beacon']) {
+              const at = HARBOR.beacon
+              const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY - 8
+              const zB = Math.floor(at[0] + at[1]) * 4000
+              const sp = new Sprite(hb['beacon']); sp.anchor.set(0.5, 0.97)
+              sp.position.set(bx2, by2); sp.zIndex = zB + 940
+              world.addChild(sp)
+              const g = new Sprite(foamTex); g.anchor.set(0.5, 0.5); g.blendMode = 'add'
+              g.tint = 0xffc060; g.width = 110; g.height = 70; g.alpha = 0.4
+              g.position.set(bx2, by2 - hb['beacon'].height + 42)
+              g.zIndex = zB + 944
+              world.addChild(g)
+              glows.push({ sp: g, ph: 0.4, a: 0.42 })
+            }
+            // the teal school pennant flies at the pier's T-head
+            try {
+              const pnT: Texture = await Assets.load('/art/intro/props/pennant.png')
+              pnT.source.scaleMode = 'nearest'
+              const at = HARBOR.pennant
+              const sp = new Sprite(pnT); sp.anchor.set(0.5, 1)
+              sp.position.set(isoX(at[0], at[1]), isoY(at[0], at[1]) + GY - 14 + 8)
+              sp.zIndex = Math.floor(at[0] + at[1]) * 4000 + 14 * 2 + 730
+              world.addChild(sp)
+              sways.push({ sp, amp: 0.03, w: 1.3, ph: 2.1 })
+            } catch { /* pennant art optional */ }
+            // gulls work the breakwater (the beach's own birds — shared island life)
+            try {
+              const gfT: Texture = await Assets.load('/art/intro/props/gull-fly.png')
+              gfT.source.scaleMode = 'nearest'
+              for (let gi = 0; gi < 3; gi++) {
+                const sp = new Sprite(gfT); sp.anchor.set(0.5, 0.5)
+                sp.zIndex = 5_000_000
+                world.addChild(sp)
+                flyers.push({
+                  sp,
+                  cx: isoX(HARBOR.beacon[0] - 2 - gi * 3, HARBOR.beacon[1] + 3 + gi),
+                  cy: isoY(HARBOR.beacon[0] - 2 - gi * 3, HARBOR.beacon[1] + 3 + gi) + GY - 120 - gi * 30,
+                  r: 130 + gi * 45, spd: (gi % 2 ? -1 : 1) * (0.16 + 0.05 * gi), ph: gi * 2.1,
+                })
+              }
+              const gsT: Texture = await Assets.load('/art/intro/props/gull.png')
+              gsT.source.scaleMode = 'nearest'
+              // one gull stands watch on a breakwater boulder
+              const rk = HARBOR.tiles.filter((t2) => t2.mat === 'rock')[2]
+              if (rk) {
+                const sp = new Sprite(gsT); sp.anchor.set(0.5, 1)
+                sp.position.set(isoX(rk.tx, rk.ty), isoY(rk.tx, rk.ty) + GY - 26)
+                sp.scale.set(0.8)
+                sp.zIndex = Math.floor(rk.tx + rk.ty) * 4000 + 700
+                world.addChild(sp)
+              }
+            } catch { /* gull art optional */ }
             // the waterfront buildings + dressing on the SAND behind the boardwalk —
             // every anchor coast-relative at ITS OWN row (offsets from the harbor
             // root drifted onto the deck where the coast bulges)
@@ -1313,6 +1405,7 @@ export default function IslandMapIso() {
               bobs.push({ sp, y0: by2, w: 0.55 + 0.3 * hash(at[0], at[1]), ph: hash(at[1], at[0]) * 6.3 })
             }
             boat(hb['sloop'], HARBOR.sloop)
+            boat(hb['sloop'], HARBOR.sloop2, 0.9, true)
             // the rowboat is HAULED UP on the sand — a beached vignette, not afloat
             mount(hb['rowboat'], HARBOR.rowboat, { deck: false, sc: 0.8, flip: true })
             // THE SHIP HERSELF at the berth — the approved 16-view painted rigger,

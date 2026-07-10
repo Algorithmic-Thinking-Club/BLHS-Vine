@@ -46,14 +46,16 @@ export type Port = { az: number; x: number; y: number; kind: 'arrival' | 'cargo'
 export type HarborTile = { tx: number; ty: number; lift: number; mat: 'stone' | 'plank' | 'rock'; walk: boolean }
 export let HARBOR: {
   tiles: HarborTile[]
-  quayRect: [number, number, number, number]   // qx0, qy0, w, h (the stone platform)
+  quayRect: [number, number, number, number]   // qx0, qy0, w, h (the deck's bounds)
   root: [number, number]                        // where the spur path meets the quay
-  steps: [number, number]                       // stone steps down to the sand
+  steps: [number, number]                       // steps down to the sand
   berth: [number, number]                       // the intro ship's mooring, pier north face
   bell: [number, number]; crane: [number, number]; lanterns: [number, number][]
-  cargo: [number, number]; sloop: [number, number]; rowboat: [number, number]
+  cargo: [number, number][]; sloop: [number, number]; sloop2: [number, number]
+  rowboat: [number, number]; beacon: [number, number]; pennant: [number, number]
+  edgePosts: [number, number][]                 // mooring posts pacing the seaward lip
   bollards: [number, number][]
-} = { tiles: [], quayRect: [0, 0, 0, 0], root: [0, 0], steps: [0, 0], berth: [0, 0], bell: [0, 0], crane: [0, 0], lanterns: [], cargo: [0, 0], sloop: [0, 0], rowboat: [0, 0], bollards: [] }
+} = { tiles: [], quayRect: [0, 0, 0, 0], root: [0, 0], steps: [0, 0], berth: [0, 0], bell: [0, 0], crane: [0, 0], lanterns: [], cargo: [], sloop: [0, 0], sloop2: [0, 0], rowboat: [0, 0], beacon: [0, 0], pennant: [0, 0], edgePosts: [], bollards: [] }
 export const HLIFT = 24 // the quay/pier deck height above the waterline (world px)
 export const harborAt = (tx: number, ty: number): HarborTile | undefined =>
   HARBOR.tiles.find((t) => t.tx === tx && t.ty === ty)
@@ -267,29 +269,48 @@ export function initHubLayout() {
       if (t.mat !== 'rock') { if (seen.has(k)) return; seen.add(k) }
       tiles.push(t)
     }
-    // the boardwalk: two tiles deep over the shallows, following the waterline
-    const y0 = ryMid - 10, y1 = ryMid + 7
+    // the boardwalk: two tiles deep over the shallows, spanning the WHOLE
+    // lagoon arc (Ash: bigger — a real port fronts its whole bay)
+    const y0 = ryMid - 14, y1 = ryMid + 11
     for (let y = y0; y <= y1; y++) {
       const wx = wxAt(y)
       push({ tx: wx + 1, ty: y, lift: 14, mat: 'plank', walk: true })
       push({ tx: wx + 2, ty: y, lift: 14, mat: 'plank', walk: true })
     }
-    // three landings: half-lift steps from the sand up to the boardwalk
-    for (const y of [ryMid - 7, ryMid + 1, ryMid + 6]) {
+    // landings: half-lift steps from the sand up to the boardwalk
+    for (const y of [ryMid - 11, ryMid - 7, ryMid + 1, ryMid + 6, ryMid + 10]) {
       push({ tx: wxAt(y), ty: y, lift: 7, mat: 'plank', walk: true })
     }
-    // the MAIN PIER: 3 wide, running seaward from the boardwalk's middle
+    // the MAIN PIER: 3 wide with a 5-wide T-HEAD, running seaward from the middle
     const wxm = wxAt(ryMid)
     for (let x = wxm + 3; x <= wxm + 9; x++) for (let y = ryMid - 1; y <= ryMid + 1; y++) {
       push({ tx: x, ty: y, lift: 14, mat: 'plank', walk: true })
     }
-    // (the coast's own seaward bulge at the north rows already forms a wide
-    // wharf knuckle — a separate north pier drowned inside it and was cut;
-    // a third south pier was cut too: one big pier + the knuckle compose)
+    for (let x = wxm + 10; x <= wxm + 11; x++) for (let y = ryMid - 2; y <= ryMid + 2; y++) {
+      push({ tx: x, ty: y, lift: 14, mat: 'plank', walk: true })
+    }
+    // the SOUTH pier: a second finger, 2 wide, further down the arc
+    const wxs = wxAt(ryMid + 8)
+    for (let x = wxs + 3; x <= wxs + 7; x++) for (let y = ryMid + 7; y <= ryMid + 8; y++) {
+      push({ tx: x, ty: y, lift: 14, mat: 'plank', walk: true })
+    }
+    // the SLIPWAY: a plank ramp running down into the water on the south
+    // stretch (the working harbor's boat ramp — real-harbor anatomy)
+    {
+      const ys = ryMid + 4
+      const wx = wxAt(ys)
+      push({ tx: wx + 3, ty: ys, lift: 10, mat: 'plank', walk: true })
+      push({ tx: wx + 4, ty: ys, lift: 5, mat: 'plank', walk: true })
+      push({ tx: wx + 5, ty: ys, lift: 1, mat: 'plank', walk: false })
+    }
     const wxn = wxAt(ryMid - 6)
-    // the breakwater: a long low boulder arm sheltering the basin beyond the
-    // main pier head, its tip marking the ships' entrance
-    for (const [ox, oy] of [[12.5, 1.5], [13, 0.3], [13.4, -1], [13.6, -2.3], [13.4, -3.6], [12.8, -4.8], [11.9, -5.8], [10.8, -6.5]] as [number, number][]) {
+    // the breakwater: a LONG boulder arm wrapping the basin from the NE, the
+    // harbor beacon at its tip marking the entrance channel
+    const BW: [number, number][] = [
+      [13.5, 2.5], [14, 1.3], [14.4, 0], [14.6, -1.3], [14.6, -2.6], [14.3, -3.9],
+      [13.8, -5.1], [13.1, -6.2], [12.2, -7.2], [11.1, -8], [9.9, -8.6], [8.6, -9],
+    ]
+    for (const [ox, oy] of BW) {
       push({ tx: wxm + ox, ty: ryMid + oy, lift: 16, mat: 'rock', walk: false })
     }
     HARBOR = {
@@ -301,14 +322,28 @@ export function initHubLayout() {
       bell: [wxm + 3.2, ryMid - 1.8],           // greets arrivals at the main pier root
       crane: [wxAt(ryMid - 3) + 1.6, ryMid - 3.2],
       lanterns: [
-        [wxAt(y0 + 2) + 2.2, y0 + 2], [wxAt(ryMid - 4) + 2.2, ryMid - 4],
-        [wxm + 8.6, ryMid + 1.3], [wxAt(ryMid + 4) + 2.2, ryMid + 4],
+        [wxAt(y0 + 2) + 2.2, y0 + 2], [wxAt(ryMid - 8) + 2.2, ryMid - 8],
+        [wxAt(ryMid - 4) + 2.2, ryMid - 4], [wxm + 10.6, ryMid + 1.7],
+        [wxAt(ryMid + 4) + 2.2, ryMid + 4], [wxs + 6.8, ryMid + 8.4],
         [wxAt(y1 - 1) + 2.2, y1 - 1], [wxn + 6.3, ryMid - 6.7],
       ],
-      cargo: [wxAt(ryMid + 3) + 1.5, ryMid + 2.6],
-      sloop: [wxm + 9.2, ryMid - 6.6],          // riding at anchor in the breakwater's lee
-      rowboat: [rawWx(ryMid + 8) - 0.6, ryMid + 8.2],   // hauled up on the sand, oars shipped
-      bollards: [[wxm + 8.7, ryMid - 0.9], [wxn + 6.2, ryMid - 5.4], [wxAt(ryMid + 7) + 2.3, ryMid + 7]],
+      // the cargo YARD: stacked freight working the wharf knuckle + the pier root
+      cargo: [
+        [wxAt(ryMid + 3) + 1.5, ryMid + 2.6],
+        [wxAt(ryMid - 5) + 1.4, ryMid - 5.4],
+        [wxAt(ryMid - 4.6) + 2.3, ryMid - 4.2],
+        [wxs + 4.2, ryMid + 7.4],
+      ],
+      sloop: [wxm + 9.6, ryMid - 7],            // riding at anchor in the breakwater's lee
+      sloop2: [wxm + 6.5, ryMid + 4.6],         // the second fisher, working the south water
+      rowboat: [rawWx(ryMid + 10) - 0.6, ryMid + 10.4],  // hauled up on the sand
+      beacon: [wxm + 8.6, ryMid - 9],           // the harbor light at the breakwater tip
+      pennant: [wxm + 11.4, ryMid - 1.6],       // the teal school pennant flies at the T-head
+      edgePosts: Array.from({ length: 9 }, (_, i) => {
+        const y = y0 + 2 + i * 3
+        return [wxAt(y) + 2.55, y + 0.3] as [number, number]
+      }),
+      bollards: [[wxm + 10.7, ryMid - 1.7], [wxm + 10.7, ryMid + 0.9], [wxn + 6.2, ryMid - 5.4], [wxAt(ryMid + 9) + 2.3, ryMid + 9]],
     }
   }
   LIGHTHOUSE = [CX + Math.cos(-1.78) * (coastR(-1.78) - 3.5), CY + Math.sin(-1.78) * (coastR(-1.78) - 3.5)]
