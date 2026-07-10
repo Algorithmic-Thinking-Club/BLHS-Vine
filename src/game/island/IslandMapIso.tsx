@@ -4,15 +4,18 @@ import {
   isoX, isoY, hash, vnoise, shadeHex, rampAt, tintFor,
   loadWaterVariants, seaTile, animSwells, type SwellSprite,
 } from '../ocean'
-import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, HEAD_L, HEAD_R } from './terrain'
+import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
+import { PLAZA, PLAZA_R, riverD, pathD, onPathTile, coveNotchK, vegK, SHADOW } from './hub-layout'
 
 const smooth = (e0: number, e1: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t)
 }
 // the coast grammar mask lives in terrain.ts (cliffK) — one truth for elevation, sand
-// gating and the underwater shelf alike
-const cliffMask = cliffK
+// gating and the underwater shelf alike. The layout's designed notches (the WEST quiet
+// cove + the NORTH jetty nook, GAME-DESIGN's four ports) open narrow breaks in the
+// cliff arc so those coasts can hold their small landing beaches.
+const cliffMask = (theta: number) => cliffK(theta) * (1 - coveNotchK(theta))
 // the coast masks sample azimuth through a soft wander so cliff↔beach handoffs meander
 // like geology instead of cutting along straight radial lines
 const thJit = (tx: number, ty: number) =>
@@ -362,6 +365,20 @@ export default function IslandMapIso() {
             if (nb.length >= 3 && lower.length >= 3) LV[ty * COLS + tx] = Math.max(...lower)
           }
         }
+        // DIP KILLER: a tile sitting LOWER than 3+ of its land neighbours is a 1-tile
+        // pockmark — at play zoom the meadow read as randomly pitted (dark riser
+        // dashes scattered through the flat interior). Raise it to the lowest of the
+        // higher neighbours. Coast/bench range only; the cone's authored rings stay.
+        {
+          const prev = Int8Array.from(LV)
+          for (let ty = 1; ty < ROWS - 1; ty++) for (let tx = 1; tx < COLS - 1; tx++) {
+            const L = prev[ty * COLS + tx]
+            if (L < 0 || L > PLAT_L) continue
+            const nb = [prev[ty * COLS + tx + 1], prev[ty * COLS + tx - 1], prev[(ty + 1) * COLS + tx], prev[(ty - 1) * COLS + tx]].filter((v) => v >= 0)
+            const higher = nb.filter((v) => v > L)
+            if (nb.length >= 3 && higher.length >= 3) LV[ty * COLS + tx] = Math.min(...higher)
+          }
+        }
         // NOTCH KILLER: a tile whose level disagrees with 3 of its 4 land neighbours is a
         // 1-tile dent or bump in an otherwise straight contour — snap it to the majority.
         // Straight runs and true corners (2/2 splits) are untouched; this is what turns
@@ -581,79 +598,11 @@ export default function IslandMapIso() {
           }
         }
 
-        // THE WORN PATH (P2c): one designed trail from the pier root along the meadow
-        // ring toward the south cove — a polyline like the lava's, rendered as dry
-        // sand-worn tops. Ports send paths inward (the master plan); more come with
-        // later vignettes.
-        // hand-authored features ride the island's hub scale (terrain SCALE 1.32)
-        const SC = (x: number, y: number): [number, number] => [CX + (x - CX) * 1.32, CY + (y - CY) * 1.32]
-
-        // ---- THE HEART OF THE HUB (2026-07-07, Ash: "this island is the CENTER hub…
-        // a genuinely walkable island with details… lots of panther references", the
-        // TavernWorld/Octopath bar). A composed PLAZA on the front-south flat ring, sat
-        // BETWEEN the two lava flows where Thor lands, with a panther monument at its
-        // heart and a coastal PROMENADE threading every site. Districts branch off it.
-        const plazaAz = 0.86
-        let PLAZA: [number, number] = [CX + Math.cos(plazaAz) * 42, CY + Math.sin(plazaAz) * 42]
-        for (let r = 47; r >= 33; r -= 0.5) {
-          const px = CX + Math.cos(plazaAz) * r, py = CY + Math.sin(plazaAz) * r
-          // the outermost FLAT tile with a comfortable coast margin and clear of the cone
-          if (coastDs(px, py) > 5.5 && coneH(px, py) < 1.2) { PLAZA = [px, py]; break }
-        }
+        // THE PLACES (plaza, promenade, ports, river, paths, POIs) live in hub-layout.ts
+        // now — the master layout data module (Phase A of the hub method). The renderer
+        // only asks "how far is this tile from X".
         const plazaD = (tx2: number, ty2: number) => Math.hypot(tx2 - PLAZA[0], ty2 - PLAZA[1])
-        // a coast-following promenade + radial branches, all traced live off the real
-        // coastline so they hug the hub's actual shore at any skeleton scale
-        const ringPath = (az0: number, az1: number, back: number, steps: number): [number, number][] =>
-          Array.from({ length: steps + 1 }, (_, i) => {
-            const az = az0 + (az1 - az0) * (i / steps)
-            const r = coastR(az) - back
-            return [CX + Math.cos(az) * r, CY + Math.sin(az) * r] as [number, number]
-          })
-
-        // THE SOUTH RIVER (master plan: a spring on the south flank feeds the cove):
-        // a fresh turquoise thread cutting the meadow ring to the south pocket
-        const RIVER: [number, number][] = ([[114, 106], [119, 110], [124, 115], [128, 120], [131, 124]] as [number, number][]).map(([x, y]) => SC(x, y))
-        const riverD = (tx2: number, ty2: number) => {
-          let best = 99
-          for (let i = 0; i < RIVER.length - 1; i++) {
-            const [x0, y0] = RIVER[i], [x1, y1] = RIVER[i + 1]
-            const vx = x1 - x0, vy = y1 - y0
-            const L2 = vx * vx + vy * vy
-            let t = L2 > 0 ? ((tx2 - x0) * vx + (ty2 - y0) * vy) / L2 : 0
-            t = Math.max(0, Math.min(1, t))
-            const dx = tx2 - (x0 + vx * t), dy = ty2 - (y0 + vy * t)
-            const d = Math.sqrt(dx * dx + dy * dy)
-            if (d < best) best = d
-          }
-          return best
-        }
-
-        // THE PROMENADE: one worn coastal path hugging the whole front shore, from the
-        // east harbor (az -0.6) around the south past the plaza to the NW lawn (az 2.7) —
-        // the walkable spine that stitches port, plaza, cove and shrine into one place
-        const PROMENADE = ringPath(-0.62, 2.72, 8, 34)
-        // the NW branch: from the ring's shoulder around the cone's north toe out onto
-        // the wide NW lawn (the plan's meadow ring — every port sends a path inward,
-        // and the empty lawn finally has somewhere to walk to)
-        const PATH2: [number, number][] = ([[121, 95], [112, 88], [102, 82], [92, 76], [82, 74], [73, 78], [68, 86]] as [number, number][]).map(([x, y]) => SC(x, y))
-        // the PILGRIM PATH: from the plaza straight up toward the volcano's foot (between
-        // the two lava flows) — the dramatic approach to the massif and its carved heads
-        const APPROACH: [number, number][] = [PLAZA, [CX + Math.cos(plazaAz) * 30, CY + Math.sin(plazaAz) * 30], [CX + Math.cos(plazaAz) * 24, CY + Math.sin(plazaAz) * 24]]
-        const PATHS = [PROMENADE, PATH2, APPROACH]
-        const pathD = (tx2: number, ty2: number) => {
-          let best = 99
-          for (const P of PATHS) for (let i = 0; i < P.length - 1; i++) {
-            const [x0, y0] = P[i], [x1, y1] = P[i + 1]
-            const vx = x1 - x0, vy = y1 - y0
-            const L2 = vx * vx + vy * vy
-            let t = L2 > 0 ? ((tx2 - x0) * vx + (ty2 - y0) * vy) / L2 : 0
-            t = Math.max(0, Math.min(1, t))
-            const dx = tx2 - (x0 + vx * t), dy = ty2 - (y0 + vy * t)
-            const d = Math.sqrt(dx * dx + dy * dy)
-            if (d < best) best = d
-          }
-          return best
-        }
+        void pathD // paths render in the global green pass (Phase B)
 
         const waterS: SwellSprite[] = []
         const glows: { sp: Sprite; ph: number; a: number }[] = []
@@ -769,11 +718,14 @@ export default function IslandMapIso() {
             // up the cone or over the beach's own sand)
             // paths may cross the grassy cone toe (the lawn IS mostly toe) — never the
             // rock bands, never the beach's own sand
-            // paths + plaza floor STRIPPED with the props (they led to removed places) —
-            // the clean base keeps only the natural river estuary
-            const onPath = false
+            // the worn paths + plaza floor are BACK (Phase B of the hub method): they
+            // render the master layout's walkable spine — meadow ground only, never
+            // the cone's rock bands, never the beach sand, never over lava/river
             const pdst = plazaD(tx, ty)
-            const onPlaza = false && pdst < 0
+            const onPlaza = !sand && L > 0 && pdst < 5.5
+            const pD = pathD(tx, ty)
+            const onPath = !onPlaza && !sand && L > 0 && coneBand(tx, ty) === 0
+              && lavaDist(tx, ty) > 1.4 && onPathTile(tx, ty)
             // the river renders ONLY as the flat tidal estuary at the cove (L 0-1):
             // on the terraced ring the water tiles stepped down the benches as floating
             // mint checkers — a broken river is worse than none (the full flank river
@@ -847,15 +799,15 @@ export default function IslandMapIso() {
               } else if (onPlaza) {
                 // the flagstone courtyard: cool weathered stone, warmer sun-worn flags in
                 // the centre, a darker mortar rim ring reading its edge against the meadow
-                const rim = pdst > 3.7 ? 0.82 : 1                 // the defined outer ring
+                const rim = pdst > PLAZA_R - 1.2 ? 0.82 : 1       // the defined outer ring
                 const flag = 0.9 + 0.16 * vnoise(tx / 2.3 + 40, ty / 2.3 + 12)  // per-flag value break
                 const v = flag * grain * rim * (1 + 0.08 * rk)
                 top.tint = warmCool(shadeHex(0xbcae94, v), rk * 0.5)
               } else if (onPath) {
-                // the trail: dry trodden earth through the green — deep enough to read
-                // as a path at map zoom, not a pale ghost
-                const v = (0.99 + 0.05 * vnoise(tx / 7 + 3, ty / 7 + 9)) * grain * (1 + 0.1 * rk)
-                top.tint = warmCool(shadeHex(0xc9a26e, v), rk * 0.7)
+                // the trail: pale dry trodden earth through the green (c3's cream
+                // paths) — light enough to read at map zoom, never orange carpet
+                const v = (0.99 + 0.05 * vnoise(tx / 7 + 3, ty / 7 + 9)) * grain * (1 + 0.08 * rk)
+                top.tint = warmCool(shadeHex(0xe6d6ac, v), rk * 0.4)
               } else if (band >= 1 && vs) {
                 // the cone's rock treads: the SAME coneTint field the faces wear, PULLED
                 // DOWN toward the carved sides' own value (the block art's bright top vs
@@ -889,8 +841,15 @@ export default function IslandMapIso() {
                 // meadow that has climbed onto the cone wraps its form: the flank's own
                 // directional sun folds into the green (c3's grass curving up the slope)
                 const cl = L > PLAT_L ? coneLit(tx, ty) : 0
-                const lit = patch * grain * (1 + 0.13 * rk) * (1.03 - 0.07 * zone) * (1 + 0.14 * cl)
-                top.tint = warmCool(tintFor(shadeHex(rampAt(GRASS_RAMP, tval), lit), GRASS_BASE), rk)
+                // path fringe: the grass dries pale where feet leave the trail — melts
+                // the path's tile-quantized edge instead of a hard sand/green seam
+                const dry = Math.max(0, 1 - pD / 1.2) * 0.32
+                // canopy AO: the ground darkens under the jungle belt so the green
+                // masses SIT IN the meadow instead of standing on a bright carpet
+                const vShade = 1 - 0.15 * smooth(0.45, 0.95, vegK(tx, ty))
+                const lit = patch * grain * (1 + 0.13 * rk) * (1.03 - 0.07 * zone) * (1 + 0.14 * cl) * vShade * (1 + 0.1 * dry)
+                const tv2 = Math.max(0, tval - 0.32 * dry)
+                top.tint = warmCool(tintFor(shadeHex(rampAt(GRASS_RAMP, tv2), lit), GRASS_BASE), rk)
               }
               world.addChild(top)
             }
@@ -929,6 +888,138 @@ export default function IslandMapIso() {
         // lava + ocean, plus crater steam + drifting cloud shade. Every placed prop removed
         // (groves, plaza monument, panther heads, harbor, lighthouse, ruin, gulls). Rebuild here.
         const flyers: { sp: Sprite; cx: number; cy: number; r: number; spd: number; ph: number }[] = []
+
+        // ---- THE GREEN PASS (Phase B, docs/place-specs/hub-island-method.md): the
+        // island's vegetation as ONE global system driven by hub-layout's vegK field.
+        // Composition grammar = the beach's proven jungle wall: masses are built by
+        // OVERLAPPING individual palms + understory with scale/mirror/tint variance
+        // (canopy-mass sprites were tried and REJECTED — their mini-crowns break the
+        // world's one scale). Every plant is grounded by a low-sun cast shadow along
+        // the layout's ONE shadow direction, back plants darken for depth, and the
+        // whole canopy sways. All art newly generated this run, style-anchored on the
+        // approved beach palms (the family Ash gated) into this island's own crops.
+        const vegT: Record<string, Texture> = {}
+        const VEGF = ['palm-b', 'coco-v1', 'coco-v2', 'coco-v3', 'fan-1', 'tfern-1', 'palm-a',
+          'bush-a', 'bush-b', 'fernclump-1', 'banana-1', 'heliconia-1', 'boulder-1', 'boulder-2']
+        await Promise.all(VEGF.map(async (n) => {
+          try {
+            const t: Texture = await Assets.load(`/art/island/veg/${n}.png`)
+            t.source.scaleMode = 'nearest'; vegT[n] = t
+          } catch { /* piece not generated yet — the pass degrades gracefully */ }
+        }))
+        const sways: { sp: Sprite; amp: number; w: number; ph: number }[] = []
+        // the one cast-shadow texture: a soft cool-violet pool, stretched along the
+        // sun's shadow line per plant (the beach lesson: shadows must be DENSE enough
+        // to register under the warm grade, or nothing reads as grounded)
+        // flat-cored falloff: a soft-edged gradient dies under the warm grade — the
+        // beach lesson (round 3 there too): shadows must hold their core density
+        const shadTex = radial(64, [[0, 'rgba(24,18,54,0.95)'], [0.72, 'rgba(24,18,54,0.6)'], [1, 'rgba(24,18,54,0)']])
+        const shadAng = Math.atan2(SHADOW.dy * 0.5, SHADOW.dx)   // squashed into iso ground plane
+        const TALL = new Set(['palm-b', 'coco-v1', 'coco-v2', 'coco-v3', 'fan-1', 'tfern-1', 'palm-a'])
+        const putPlant = (name: string, px: number, py: number, o: { sc?: number; flip?: boolean; dark?: number; sway?: number } = {}) => {
+          const t = vegT[name]
+          if (!t) return
+          const L2 = eLvl(Math.round(px), Math.round(py))
+          if (L2 <= 0) return
+          const lift = liftOf(L2)
+          const sc = o.sc ?? 1
+          const bx2 = isoX(px, py), by2 = isoY(px, py) - lift + GY + 11
+          const zB = (Math.round(px) + Math.round(py)) * 4000 + lift * 2
+          const tall = TALL.has(name)
+          // the cast shadow: tall trunks throw long blades toward the lower-right,
+          // low clumps pool a short one at their feet. The shadow FALLS ACROSS the
+          // rows in front of the plant, so its z must ride ~2 rows forward — at the
+          // plant's own row the fronting tiles' tops paint straight over it (the
+          // invisible-shadow bug of round 1). It stays under plants (+700) there.
+          const sh = new Sprite(shadTex)
+          sh.anchor.set(0.32, 0.5)
+          sh.rotation = shadAng
+          sh.width = (tall ? t.height * 1.05 : t.width * 0.6) * sc
+          sh.height = Math.max(12, t.width * (tall ? 0.24 : 0.3) * sc)
+          sh.alpha = SHADOW.alpha * (o.dark ?? 1)
+          sh.position.set(bx2 + 4 * sc, by2 - 3)
+          sh.zIndex = (Math.round(px) + Math.round(py) + 2) * 4000 + 320
+          if (params.get('shdbg')) { sh.tint = 0xff0000; sh.alpha = 1 }
+          world.addChild(sh)
+          const sp = new Sprite(t)
+          sp.anchor.set(0.5, 1)
+          sp.position.set(bx2, by2)
+          sp.scale.set((o.flip ? -1 : 1) * sc, sc)
+          if (o.dark !== undefined && o.dark < 1) {
+            const vv = Math.round(255 * o.dark)
+            sp.tint = (vv << 16) | (vv << 8) | Math.min(255, vv + 14)  // depth rows cool as they darken
+          }
+          sp.zIndex = zB + 700
+          world.addChild(sp)
+          if (o.sway) sways.push({ sp, amp: o.sway, w: 0.5 + 0.5 * hash(px * 1.7, py * 2.9), ph: hash(px, py) * 6.3 })
+          return sp
+        }
+        // CLUSTER-SEEDED placement (the beach's cluster-gap rhythm, island-wide):
+        // seeds on a 3-tile lattice, each spawning a 1-5 plant cluster sized by the
+        // local density; the belt's deep rows darken; terrace lips grow palm ranks (c3)
+        const PALMS = ['palm-b', 'coco-v1', 'coco-v2', 'coco-v3']
+        const RARE = ['fan-1', 'palm-a', 'palm-a', 'tfern-1']   // tfern's loud crown stays rare
+        const UNDER = ['bush-a', 'bush-b', 'fernclump-1']
+        for (let sy = 3; sy < ROWS - 3; sy += 3) {
+          for (let sx = 3; sx < COLS - 3; sx += 3) {
+            let k = vegK(sx, sy)
+            // c3's palm ranks along the terrace lips: a bench edge boosts its azimuth
+            const Ls = eLvl(sx, sy)
+            const lip = Ls > 0 && Ls <= PLAT_L && (eLvl(sx + 1, sy) < Ls || eLvl(sx, sy + 1) < Ls)
+            if (lip) k = Math.min(1, k + 0.2)
+            if (k <= 0.08) continue
+            if (hash(sx * 2.1 + 3, sy * 3.3 + 7) > k * 1.4) continue
+            const n = Math.max(1, Math.round(k * 3.4 + hash(sx, sy * 1.3) * 1.8))
+            const deep = smooth(0.55, 0.95, k)
+            for (let i = 0; i < n; i++) {
+              // wide jitter (±2.3 tiles) — the tight ±1.5 left the 3-lattice showing
+              // as diagonal palm ranks across the cone skirt at far zoom
+              const jx = sx + (hash(sx + i * 7.1, sy + 2) - 0.5) * 4.6
+              const jy = sy + (hash(sx + 3, sy + i * 5.7) - 0.5) * 4.6
+              if (vegK(jx, jy) <= 0.05 && !lip) continue
+              const r = hash(jx * 3.1, jy * 1.7)
+              const dark = 1 - 0.3 * deep * hash(jx + 9, jy + 4)
+              if (r < 0.62) {
+                const nm = PALMS[Math.floor(hash(jx * 5.3, jy * 7.7) * PALMS.length) % PALMS.length]
+                putPlant(nm, jx, jy, { sc: 0.82 + 0.36 * hash(jx + 1, jy + 8), flip: hash(jx + 4, jy) > 0.5, dark, sway: 0.014 })
+              } else if (r < 0.76) {
+                const nm = RARE[Math.floor(hash(jx * 2.9, jy * 4.3) * RARE.length) % RARE.length]
+                putPlant(nm, jx, jy, { sc: 0.75 + 0.3 * hash(jx + 2, jy + 5), flip: hash(jx, jy + 6) > 0.5, dark, sway: 0.012 })
+              } else {
+                const nm = UNDER[Math.floor(hash(jx * 6.1, jy * 3.7) * UNDER.length) % UNDER.length]
+                putPlant(nm, jx, jy, { sc: 0.6 + 0.3 * hash(jx + 6, jy + 1), flip: hash(jx + 2, jy + 2) > 0.5, dark: Math.min(1, dark + 0.06), sway: 0.007 })
+              }
+            }
+            // the belt's shaded floor: extra understory packed between the trunks so
+            // the jungle interior reads layered, not stilts on a lawn
+            const n2 = Math.round(deep * 2.4)
+            for (let i = 0; i < n2; i++) {
+              const jx = sx + (hash(sx + i * 3.9 + 11, sy + 6) - 0.5) * 3.4
+              const jy = sy + (hash(sx + 8, sy + i * 4.7 + 13) - 0.5) * 3.4
+              if (vegK(jx, jy) <= 0.3) continue
+              const nm = UNDER[Math.floor(hash(jx * 8.3, jy * 5.9) * UNDER.length) % UNDER.length]
+              putPlant(nm, jx, jy, { sc: 0.55 + 0.35 * hash(jx + 3, jy + 7), flip: hash(jx + 5, jy + 4) > 0.5, dark: 0.82 + 0.14 * hash(jx, jy + 11), sway: 0.006 })
+            }
+            // banana + heliconia: rare jewels at the jungle's sunny edges, small and
+            // tucked between palms — never a striped sail or a red flagpole
+            if (k > 0.3 && hash(sx * 6.3, sy * 8.7) < 0.12) {
+              putPlant('banana-1', sx + hash(sx + 1, sy) * 2.4 - 1.2, sy + hash(sy + 1, sx) * 2.4 - 1.2, { sc: 0.42 + 0.14 * hash(sx + 4, sy + 1), flip: hash(sx, sy + 8) > 0.5, dark: 0.9, sway: 0.008 })
+            }
+            if (k > 0.25 && k < 0.6 && hash(sx * 7.7, sy * 9.1) < 0.07) {
+              putPlant('heliconia-1', sx + hash(sx, sy) * 2 - 1, sy + hash(sy, sx) * 2 - 1, { sc: 0.45 + 0.12 * hash(sx + 2, sy + 3), sway: 0.01 })
+            }
+          }
+        }
+        // sparse meadow boulders (a 3-5-object clutter counterpoint in the open ring)
+        for (let sy = 4; sy < ROWS - 4; sy += 5) {
+          for (let sx = 4; sx < COLS - 4; sx += 5) {
+            const k = vegK(sx, sy)
+            if (k < 0.06 || k > 0.45) continue
+            if (hash(sx * 4.9, sy * 6.1) > 0.09) continue
+            const nm = hash(sx, sy) > 0.75 ? 'boulder-1' : 'boulder-2'
+            putPlant(nm, sx + hash(sx, sy + 3) * 2 - 1, sy + hash(sx + 5, sy) * 2 - 1, { sc: 0.55 + 0.4 * hash(sx + 7, sy + 2), flip: hash(sx + 1, sy + 9) > 0.5 })
+          }
+        }
 
         // THE STEAM (P1d): a plume of soft puffs rising off the crater, drifting with
         // the wind and dissolving; two small wisps where the flows quench in the sea.
@@ -975,6 +1066,8 @@ export default function IslandMapIso() {
           animSwells(waterS, t, () => 0)
           // ember pulse: slow independent breathing per core tile
           for (const g of glows) g.sp.alpha = g.a * (0.72 + 0.28 * Math.sin(t * 1.3 + g.ph))
+          // the canopy breathes: gentle per-plant rotation about the rooted base
+          for (const s of sways) s.sp.rotation = s.amp * Math.sin(t * s.w + s.ph)
           // clouds drift screen-right and wrap around the island's span
           for (const c of clouds) {
             c.sp.x += c.spd * (app.ticker.deltaMS / 1000)
