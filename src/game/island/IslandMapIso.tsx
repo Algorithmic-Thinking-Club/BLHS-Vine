@@ -1145,14 +1145,14 @@ export default function IslandMapIso() {
           const hb: Record<string, Texture> = {}
           for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'warehouse', 'panther-statue', 'net-rack', 'beacon']) {
             try {
-              const t: Texture = await Assets.load(`/art/island/harbor/${n}.png?v=4`)
+              const t: Texture = await Assets.load(`/art/island/harbor/${n}.png?v=5`)
               t.source.scaleMode = 'nearest'; hb[n] = t
             } catch { /* not landed yet */ }
           }
           const pt: Record<string, Texture> = {}
           for (const n of ['bell-frame', 'cargo-a', 'lantern-post', 'bollard-a', 'harbor-shed', 'harbor-sign']) {
             try {
-              const t: Texture = await Assets.load(`/art/island/port/${n}.png`)
+              const t: Texture = await Assets.load(`/art/island/port/${n}.png?v=2`)
               t.source.scaleMode = 'nearest'; pt[n] = t
             } catch { /* */ }
           }
@@ -1174,12 +1174,38 @@ export default function IslandMapIso() {
               g2.moveTo(32, 0); g2.lineTo(64, 17); g2.lineTo(32, 34); g2.lineTo(0, 17); g2.closePath()
               g2.fillStyle = '#ae5f3f'
               g2.fill()
-              g2.strokeStyle = 'rgba(60,30,18,0.35)'
+              g2.strokeStyle = 'rgba(60,30,18,0.22)'
               g2.lineWidth = 1
               g2.beginPath(); g2.moveTo(16, 8.5); g2.lineTo(48, 25.5); g2.stroke()
             }
             const plankT = Texture.from(deckCv)
             const plankF = faceOf(hb['plank-block-a'])
+            // the beam FASCIA for open-piling tiles: a slim drawn band hugging
+            // the deck's two visible edges (the block face stretched to the
+            // drop filled the whole 14px air gap — a solid wall, no daylight)
+            const skirtCv = document.createElement('canvas')
+            skirtCv.width = 64; skirtCv.height = 42
+            {
+              const g3 = skirtCv.getContext('2d')!
+              g3.beginPath()
+              g3.moveTo(0, 17); g3.lineTo(32, 34); g3.lineTo(64, 17)
+              g3.lineTo(64, 23); g3.lineTo(32, 40); g3.lineTo(0, 23)
+              g3.closePath()
+              g3.fillStyle = '#6e4830'; g3.fill()
+              g3.strokeStyle = 'rgba(38,24,14,0.6)'; g3.lineWidth = 1
+              g3.beginPath(); g3.moveTo(0, 22.5); g3.lineTo(32, 39.5); g3.lineTo(64, 22.5); g3.stroke()
+            }
+            const skirtT = Texture.from(skirtCv)
+            // a timber PILING: a tiny drawn post, stretched per tile drop
+            const postCv = document.createElement('canvas')
+            postCv.width = 6; postCv.height = 24
+            {
+              const g3 = postCv.getContext('2d')!
+              g3.fillStyle = '#4a3323'; g3.fillRect(0, 0, 6, 24)
+              g3.fillStyle = '#6a4a30'; g3.fillRect(0, 0, 2, 24)
+              g3.fillStyle = '#2c1e13'; g3.fillRect(5, 0, 1, 24)
+            }
+            const postT = Texture.from(postCv)
             const isH = (x: number, y: number) => !!harborAt(x, y)
             for (const ht of HARBOR.tiles) {
               const bx2 = isoX(ht.tx, ht.ty), byTop = isoY(ht.tx, ht.ty) + GY - ht.lift
@@ -1209,23 +1235,91 @@ export default function IslandMapIso() {
                   world.addChild(fm)
                 }
               } else {
-                // the deck column: the block's own face rows under the top, one
-                // strip stretched to the exact drop + a 12px wet foot underwater;
-                // fronting structure tiles' tops mask interior faces (painter law)
-                const face = new Sprite(ht.mat === 'stone' ? stoneF : plankF)
-                face.anchor.set(0.5, 0)
-                face.position.set(bx2, byTop)
-                const need = ht.lift + 14 + 18
-                face.scale.y = need / 46
-                // the under-deck is in shade: a dark timber tint mutes the block
-                // art's striping into a natural shadowed underside; a light value
-                // drift breaks the repeat along long wall runs
-                if (ht.mat === 'plank') {
-                  const dv = 0.9 + 0.18 * vnoise(ht.tx / 2.1 + 3, ht.ty / 2.1 + 7)
-                  face.tint = (Math.min(255, Math.round(0x9a * dv)) << 16) | (Math.min(255, Math.round(0x85 * dv)) << 8) | Math.min(255, Math.round(0x70 * dv))
+                // ---- THE UNDERSTRUCTURE, graded by distance from shore (Ash:
+                // "the harbor is elevated and sits on rocks for a bit, but as it
+                // goes further out the rocks disappear and it becomes beams").
+                // Near-shore tiles stand on a ROCK footing; open-water tiles
+                // stand on timber PILINGS under a beam fascia. Only the screen-S
+                // and screen-E sides can show — a same-or-higher deck neighbor
+                // masks its side, so interior tiles draw no understructure.
+                const ds2 = coastDs(ht.tx, ht.ty)
+                const onRock = ds2 > -1.5
+                const exposed = ([[1, 0], [0, 1]] as [number, number][]).filter(([ox, oy]) => {
+                  const nb = harborAt(ht.tx + ox, ht.ty + oy)
+                  return !(nb && nb.mat !== 'rock' && nb.lift >= ht.lift)
+                })
+                // a dark waterline reflection under every exposed edge seats
+                // the whole structure ON the sea instead of hovering over it
+                for (const [ox, oy] of exposed) {
+                  if (dsAt(ht.tx + ox, ht.ty + oy) > 0) continue   // sand takes no reflection
+                  const rx = ht.tx + ox * 0.62, ry2 = ht.ty + oy * 0.62
+                  const rf = new Sprite(shadTex); rf.anchor.set(0.5, 0.5)
+                  rf.width = 54; rf.height = 13; rf.alpha = 0.3; rf.tint = 0x0a2a30
+                  rf.position.set(isoX(rx, ry2), isoY(rx, ry2) + GY + 2)
+                  rf.zIndex = zB + 1
+                  world.addChild(rf)
                 }
-                face.zIndex = zB + 1
-                world.addChild(face)
+                if (exposed.length && (onRock || ht.mat === 'stone')) {
+                  // the shore footing: the full shaded face down to the ground...
+                  const face = new Sprite(ht.mat === 'stone' ? stoneF : plankF)
+                  face.anchor.set(0.5, 0)
+                  face.position.set(bx2, byTop)
+                  const need = ht.lift + 14 + 18
+                  face.scale.y = need / 46
+                  if (ht.mat === 'plank') {
+                    const dv = 0.94 + 0.1 * vnoise(ht.tx / 4 + 3, ht.ty / 4 + 7)
+                    face.tint = (Math.min(255, Math.round(0x9a * dv)) << 16) | (Math.min(255, Math.round(0x85 * dv)) << 8) | Math.min(255, Math.round(0x70 * dv))
+                  }
+                  face.zIndex = zB + 1
+                  world.addChild(face)
+                  // ...with the island's own boulders piled against it, waist
+                  // deep in the sand/shallows, grey-wet like the breakwater
+                  const bT0 = vegT['boulder-1'], bT1 = vegT['boulder-2']
+                  if (bT0 || bT1) {
+                    for (const [ox, oy] of exposed) {
+                      const n2 = 1 + (hash(ht.tx * 5.3 + ox, ht.ty * 7.1 + oy) > 0.45 ? 1 : 0)
+                      for (let i = 0; i < n2; i++) {
+                        const along = (i === 0 ? -0.18 : 0.2) + (hash(ht.tx + i * 3.7, ht.ty * 2.9 + i) - 0.5) * 0.18
+                        const jx = ht.tx + ox * 0.34 + (ox ? 0 : along)
+                        const jy = ht.ty + oy * 0.34 + (oy ? 0 : along)
+                        const sp = new Sprite(i % 2 === 0 ? (bT1 ?? bT0!) : (bT0 ?? bT1!))
+                        sp.anchor.set(0.5, 0.8)
+                        sp.position.set(isoX(jx, jy), isoY(jx, jy) + GY + 5)
+                        const sc2 = 0.36 + 0.18 * hash(jx * 7.7, jy * 3.9)
+                        sp.scale.set((hash(jx, jy) > 0.5 ? -1 : 1) * sc2, sc2)
+                        sp.tint = hash(jx + 1, jy + 2) > 0.5 ? 0x9a9288 : 0x8d857b
+                        sp.zIndex = zB + 3
+                        world.addChild(sp)
+                      }
+                    }
+                  }
+                } else if (exposed.length) {
+                  // the open-water spans: a slim beam skirt hugs the deck edge,
+                  // discrete pilings drop into the water under it — daylight and
+                  // sea showing between the posts, a real pier's anatomy
+                  for (const [ox] of exposed) {
+                    const pts: [number, number][] = ox
+                      ? [[ht.tx + 0.4, ht.ty - 0.2], [ht.tx + 0.4, ht.ty + 0.24]]
+                      : [[ht.tx - 0.2, ht.ty + 0.4], [ht.tx + 0.24, ht.ty + 0.4]]
+                    for (const [px2, py2] of pts) {
+                      const sp = new Sprite(postT)
+                      sp.anchor.set(0.5, 1)
+                      sp.position.set(isoX(px2, py2), isoY(px2, py2) + GY + 14)
+                      sp.width = 6
+                      sp.height = ht.lift + 26
+                      sp.zIndex = zB + 2
+                      world.addChild(sp)
+                    }
+                  }
+                  const skirt = new Sprite(skirtT)
+                  skirt.anchor.set(0.5, 0)
+                  skirt.position.set(bx2, byTop - 17)
+                  const dv = 0.9 + 0.16 * vnoise(ht.tx / 4 + 3, ht.ty / 4 + 7)
+                  const vv = Math.min(255, Math.round(255 * dv))
+                  skirt.tint = (vv << 16) | (vv << 8) | vv
+                  skirt.zIndex = zB + 3
+                  world.addChild(skirt)
+                }
                 const top = new Sprite(ht.mat === 'stone'
                   ? stoneT[Math.floor(hash(ht.tx * 2.7, ht.ty * 3.3) * 4) % 2 === 0 ? 0 : 1]
                   : plankT)
@@ -1233,8 +1327,9 @@ export default function IslandMapIso() {
                 top.position.set(bx2, byTop)
                 top.zIndex = zB + 5
                 if (ht.mat === 'plank') {
-                  // quiet per-tile value drift is ALL the top variation
-                  const dv = 0.93 + 0.12 * vnoise(ht.tx / 2.7 + 5, ht.ty / 2.7 + 9)
+                  // quiet LOW-FREQUENCY value drift is ALL the top variation —
+                  // the old per-tile noise printed a visible checker
+                  const dv = 0.97 + 0.05 * vnoise(ht.tx / 6 + 5, ht.ty / 6 + 9)
                   const vv = Math.min(255, Math.round(255 * dv))
                   top.tint = (vv << 16) | (vv << 8) | vv
                   top.scale.set(1.06)   // melt the seams like the land tops
