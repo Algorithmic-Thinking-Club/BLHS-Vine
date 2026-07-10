@@ -38,6 +38,26 @@ export function coveNotchK(theta: number) {
 
 export type Port = { az: number; x: number; y: number; kind: 'arrival' | 'cargo' | 'cove' | 'nets' }
 
+// ---- THE EAST HARBOR as a tile-level STRUCTURE (Ash, 2026-07-10: "a glorious
+// harbor, not some ragdoll port... it needs to mesh properly with the isometric
+// engine"). The harbor is DATA the renderer constructs per tile — real block
+// columns + flat material tops, exactly how the land itself is built — and the
+// same data is the walkability/collision truth when Thor lands on this map.
+export type HarborTile = { tx: number; ty: number; lift: number; mat: 'stone' | 'plank' | 'rock'; walk: boolean }
+export let HARBOR: {
+  tiles: HarborTile[]
+  quayRect: [number, number, number, number]   // qx0, qy0, w, h (the stone platform)
+  root: [number, number]                        // where the spur path meets the quay
+  steps: [number, number]                       // stone steps down to the sand
+  berth: [number, number]                       // the intro ship's mooring, pier north face
+  bell: [number, number]; crane: [number, number]; lanterns: [number, number][]
+  cargo: [number, number]; sloop: [number, number]; rowboat: [number, number]
+  bollards: [number, number][]
+} = { tiles: [], quayRect: [0, 0, 0, 0], root: [0, 0], steps: [0, 0], berth: [0, 0], bell: [0, 0], crane: [0, 0], lanterns: [], cargo: [0, 0], sloop: [0, 0], rowboat: [0, 0], bollards: [] }
+export const HLIFT = 24 // the quay/pier deck height above the waterline (world px)
+export const harborAt = (tx: number, ty: number): HarborTile | undefined =>
+  HARBOR.tiles.find((t) => t.tx === tx && t.ty === ty)
+
 // ---- the derived layout (live bindings, filled by initHubLayout) ----
 export let PORTS: Record<'east' | 'south' | 'west' | 'north', Port>
 export let PLAZA: [number, number] = [CX, CY + 42]
@@ -219,6 +239,78 @@ export function initHubLayout() {
     const y = PLAZA[1] + (TONGUE[0][1] - PLAZA[1]) * t
     return [x + Math.sin(i * 2.4) * 1.6, y + Math.cos(i * 2.4) * 1.6] as [number, number]
   })
+  // THE EAST HARBOR PLAN v2 (Ash: "a large glorious harbor that matches the
+  // style of the island"). The island's hard materials are terracotta rock,
+  // peach sand and TIMBER — no alien stonework. So the harbor is a WATERFRONT
+  // DISTRICT (c2-harbor-lights' idea in c3/bon3's palette): a timber BOARDWALK
+  // hugging ~20 rows of the real waterline (derived from the coast, so it
+  // meshes by construction), THREE piers off it (the wide main pier berths the
+  // intro ship), a long boulder breakwater, and buildings/lights/boats along
+  // the shore. Everything mounts ON the structure or the sand behind it.
+  {
+    const P = PORTS.east
+    const ryMid = Math.round(P.y)
+    const rawWx = (y: number) => {
+      let wx = Math.round(P.x) - 8
+      while (coastDs(wx + 1, y) > 0.5 && wx < 190) wx++
+      return wx
+    }
+    // SMOOTHED waterline: the raw coast jogs several tiles row to row and the
+    // boardwalk came out a zigzag mess — take the seaward-most line over ±2
+    // rows so the walk runs long and straight, always over the water's edge
+    const wxAt = (y: number) => Math.max(rawWx(y - 2), rawWx(y - 1), rawWx(y), rawWx(y + 1), rawWx(y + 2))
+    const key = (x: number, y: number) => y * 1000 + x
+    const seen = new Set<number>()
+    const tiles: HarborTile[] = []
+    const push = (t: HarborTile) => {
+      const k = key(Math.round(t.tx), Math.round(t.ty))
+      if (t.mat !== 'rock') { if (seen.has(k)) return; seen.add(k) }
+      tiles.push(t)
+    }
+    // the boardwalk: two tiles deep over the shallows, following the waterline
+    const y0 = ryMid - 10, y1 = ryMid + 7
+    for (let y = y0; y <= y1; y++) {
+      const wx = wxAt(y)
+      push({ tx: wx + 1, ty: y, lift: 14, mat: 'plank', walk: true })
+      push({ tx: wx + 2, ty: y, lift: 14, mat: 'plank', walk: true })
+    }
+    // three landings: half-lift steps from the sand up to the boardwalk
+    for (const y of [ryMid - 7, ryMid + 1, ryMid + 6]) {
+      push({ tx: wxAt(y), ty: y, lift: 7, mat: 'plank', walk: true })
+    }
+    // the MAIN PIER: 3 wide, running seaward from the boardwalk's middle
+    const wxm = wxAt(ryMid)
+    for (let x = wxm + 3; x <= wxm + 9; x++) for (let y = ryMid - 1; y <= ryMid + 1; y++) {
+      push({ tx: x, ty: y, lift: 14, mat: 'plank', walk: true })
+    }
+    // (the coast's own seaward bulge at the north rows already forms a wide
+    // wharf knuckle — a separate north pier drowned inside it and was cut;
+    // a third south pier was cut too: one big pier + the knuckle compose)
+    const wxn = wxAt(ryMid - 6)
+    // the breakwater: a long low boulder arm sheltering the basin beyond the
+    // main pier head, its tip marking the ships' entrance
+    for (const [ox, oy] of [[12.5, 1.5], [13, 0.3], [13.4, -1], [13.6, -2.3], [13.4, -3.6], [12.8, -4.8], [11.9, -5.8], [10.8, -6.5]] as [number, number][]) {
+      push({ tx: wxm + ox, ty: ryMid + oy, lift: 16, mat: 'rock', walk: false })
+    }
+    HARBOR = {
+      tiles,
+      quayRect: [wxm + 1, y0, 2, y1 - y0 + 1],
+      root: [wxm, ryMid + 1],
+      steps: [wxm, ryMid + 1],
+      berth: [wxm + 7, ryMid - 3.4],            // the intro ship moors off the main pier's north face
+      bell: [wxm + 3.2, ryMid - 1.8],           // greets arrivals at the main pier root
+      crane: [wxAt(ryMid - 3) + 1.6, ryMid - 3.2],
+      lanterns: [
+        [wxAt(y0 + 2) + 2.2, y0 + 2], [wxAt(ryMid - 4) + 2.2, ryMid - 4],
+        [wxm + 8.6, ryMid + 1.3], [wxAt(ryMid + 4) + 2.2, ryMid + 4],
+        [wxAt(y1 - 1) + 2.2, y1 - 1], [wxn + 6.3, ryMid - 6.7],
+      ],
+      cargo: [wxAt(ryMid + 3) + 1.5, ryMid + 2.6],
+      sloop: [wxm + 9.2, ryMid - 6.6],          // riding at anchor in the breakwater's lee
+      rowboat: [rawWx(ryMid + 8) - 0.6, ryMid + 8.2],   // hauled up on the sand, oars shipped
+      bollards: [[wxm + 8.7, ryMid - 0.9], [wxn + 6.2, ryMid - 5.4], [wxAt(ryMid + 7) + 2.3, ryMid + 7]],
+    }
+  }
   LIGHTHOUSE = [CX + Math.cos(-1.78) * (coastR(-1.78) - 3.5), CY + Math.sin(-1.78) * (coastR(-1.78) - 3.5)]
   BECU_TREE = [CX + Math.cos(-0.85) * (coastR(-0.85) - 13), CY + Math.sin(-0.85) * (coastR(-0.85) - 13)]
   TIDEPOOLS = [CX + Math.cos(0.28) * (coastR(0.28) - 2), CY + Math.sin(0.28) * (coastR(0.28) - 2)]
