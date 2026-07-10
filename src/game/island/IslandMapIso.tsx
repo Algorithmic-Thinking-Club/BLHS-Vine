@@ -6,7 +6,7 @@ import {
 } from '../ocean'
 import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
-import { PLAZA, PLAZA_R, GROVES, riverD, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout } from './hub-layout'
+import { PLAZA, PLAZA_R, GROVES, PORTS, riverD, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout } from './hub-layout'
 
 const smooth = (e0: number, e1: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t)
@@ -1124,6 +1124,87 @@ export default function IslandMapIso() {
             }
           }
         }
+
+        // ---- THE EAST ARRIVAL PORT (Phase C1, hub-island-method): the intro's
+        // landing. A purpose-built timber pier runs the true +x iso diagonal from
+        // the lagoon sand into the shallows to a dock head; the arrivals BELL, a
+        // lantern post, cargo, bollards, the harbor shed and the inland signpost
+        // dress the apron. All pieces newly generated, style-anchored on this
+        // shore's own crops, placed at native scale. (Pieces load lazily — the
+        // pass degrades gracefully until the art lands.)
+        try {
+          const pt: Record<string, Texture> = {}
+          for (const n of ['pier-seg', 'dock-head', 'bell-frame', 'cargo-a', 'lantern-post', 'bollard-a', 'harbor-shed', 'harbor-sign']) {
+            try {
+              const t: Texture = await Assets.load(`/art/island/port/${n}.png`)
+              t.source.scaleMode = 'nearest'; pt[n] = t
+            } catch { /* not landed yet */ }
+          }
+          if (pt['pier-seg'] && pt['dock-head']) {
+            const P = PORTS.east
+            // the pier root: the last sand tile walking +x toward the lagoon
+            let rx = Math.round(P.x), ry = Math.round(P.y)
+            while (coastDs(rx + 1, ry) > 0.6 && rx < 190) rx++
+            const put = (t: Texture, tx2: number, ty2: number, o: { dy?: number; z?: number; flip?: boolean; sc?: number; glow?: boolean } = {}) => {
+              const sp = new Sprite(t); sp.anchor.set(0.5, 1)
+              sp.position.set(isoX(tx2, ty2), isoY(tx2, ty2) + GY + (o.dy ?? 0))
+              sp.scale.set((o.flip ? -1 : 1) * (o.sc ?? 1), o.sc ?? 1)
+              sp.zIndex = Math.floor(tx2 + ty2) * 4000 + (o.z ?? 620)
+              world.addChild(sp)
+              if (o.glow) {
+                const g = new Sprite(foamTex); g.anchor.set(0.5, 0.5); g.blendMode = 'add'
+                g.tint = 0xffb050; g.width = 70; g.height = 46; g.alpha = 0.3
+                g.position.set(sp.x + 2, sp.y - t.height * (o.sc ?? 1) + 26)
+                g.zIndex = sp.zIndex + 2
+                world.addChild(g)
+                glows.push({ sp: g, ph: hash(tx2, ty2) * 6.3, a: 0.3 })
+              }
+              return sp
+            }
+            // ground shadows for the sand props (the pier casts onto water — skip)
+            const shadow = (tx2: number, ty2: number, w: number, dark = 1) => {
+              const sh = new Sprite(shadTex)
+              sh.anchor.set(0.32, 0.5); sh.rotation = shadAng
+              sh.width = w; sh.height = Math.max(10, w * 0.24)
+              sh.alpha = SHADOW.alpha * 0.8 * dark
+              sh.position.set(isoX(tx2, ty2) + 3, isoY(tx2, ty2) + GY + 8)
+              sh.zIndex = (Math.floor(tx2 + ty2) + 2) * 4000 + 320
+              world.addChild(sh)
+            }
+            // the pier: segments butted along +x at near-full art pitch (heavy
+            // overlap squeezed the deck spindly), the head scaled up as the real
+            // platform, bollards small at its corners (their baked sand ring is
+            // cropped by scale + tint), the apron dressing SPREAD along the walk
+            // instead of bunched at the root
+            const segW = pt['pier-seg'].width / 32   // tiles the art actually spans
+            const pitch = segW * 0.7                 // deep overlap: trim margins eat thin joins
+            for (let k = 0; k < 4; k++) {
+              put(pt['pier-seg'], rx + 0.7 + k * pitch, ry + 0.22, { dy: 10, z: 620 + k })
+              // a quiet foam lap at the stilt line grounds the pier in the water
+              // (anything standing in sea without foam reads as pasted — beach law)
+              if (k > 0) {
+                const fm = new Sprite(foamTex); fm.anchor.set(0.5, 0.5)
+                fm.width = 74; fm.height = 12; fm.alpha = 0.32
+                fm.position.set(isoX(rx + 0.7 + k * pitch, ry + 0.22), isoY(rx + 0.7 + k * pitch, ry + 0.22) + GY + 8)
+                fm.zIndex = Math.floor(rx + 0.7 + k * pitch + ry) * 4000 + 610
+                world.addChild(fm)
+              }
+            }
+            const hx = rx + 0.7 + 3 * pitch + pitch * 0.85
+            put(pt['dock-head'], hx, ry + 0.22, { dy: 14, z: 660, sc: 1.18 })
+            if (pt['bollard-a']) {
+              put(pt['bollard-a'], hx - 0.55, ry - 0.55, { dy: 0, z: 700, sc: 0.38 })
+            }
+            // the apron: bell greets at the root's north, cargo waits south, the
+            // lantern lights the mid-walk from the deck, the signpost points up the
+            // spur, the shed anchors the back — SPREAD, never a pile
+            if (pt['bell-frame']) { shadow(rx - 0.6, ry - 2.4, 90); put(pt['bell-frame'], rx - 0.6, ry - 2.4, { dy: 2 }) }
+            shadow(rx - 1.9, ry + 1.9, 110); put(pt['cargo-a'], rx - 1.9, ry + 1.9, { dy: 2 })
+            put(pt['lantern-post'], rx + 0.7 + pitch * 1.5, ry + 0.24, { dy: -24, z: 694, sc: 0.85, glow: true })
+            if (pt['harbor-shed']) { shadow(rx - 6.6, ry - 3.8, 150, 0.9); put(pt['harbor-shed'], rx - 6.6, ry - 3.8, { dy: 2 }) }
+            shadow(rx - 5.9, ry + 1.1, 70); put(pt['harbor-sign'], rx - 5.9, ry + 1.1, { dy: 2, sc: 0.85 })
+          }
+        } catch { /* port pass is optional until its art lands */ }
 
         // THE STEAM (P1d): a plume of soft puffs rising off the crater, drifting with
         // the wind and dissolving; two small wisps where the flows quench in the sea.
