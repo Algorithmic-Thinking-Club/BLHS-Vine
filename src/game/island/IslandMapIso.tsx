@@ -1414,7 +1414,9 @@ export default function IslandMapIso() {
               return best
             }
             mount(pt['bell-frame'], deckCtr(HARBOR.bell), { sc: 0.72 })
-            mount(hb['crane'], deckCtr(HARBOR.crane), {})
+            // cool the crane timber a touch so its A-frame reads APART from the warm
+            // ship hull behind it (reject: the crane+ship merged into one smear)
+            { const cr = mount(hb['crane'], deckCtr(HARBOR.crane), {}); if (cr) cr.tint = 0xc7b9a6 }
             // the cargo yard: freight stacked at every work point, varied scale/flip
             for (let ci = 0; ci < HARBOR.cargo.length; ci++) {
               mount(pt['cargo-a'], deckCtr(HARBOR.cargo[ci]), { sc: 0.62 + 0.16 * hash(ci * 3.1 + 1, ci * 1.7 + 2), flip: ci % 2 === 1 })
@@ -1507,10 +1509,16 @@ export default function IslandMapIso() {
               while (guard++ < 7 && !(dsAt(Math.round(x), Math.round(y)) > 2 && eLvl(Math.round(x), Math.round(y)) === 0)) x -= 1
               return [x, y]
             }
-            mount(hb['warehouse'], inland(-5.6, 2.6), { deck: false, sc: 1.15 })
-            mount(pt['harbor-shed'], inland(3.4, 2.8), { deck: false })
-            mount(hb['net-rack'], inland(5.8, 1.9), { deck: false, sc: 0.8 })
-            mount(pt['harbor-sign'], inland(0.4, 1.6), { sc: 0.85, deck: false })
+            // the port SETTLEMENT — buildings clustered on the sand behind the
+            // quay as one little yard (Ash: the warehouse had drifted far up the
+            // beach, orphaned; a port's buildings sit together AT the harbor)
+            // spread so no two silhouettes merge (reject #1: warehouse+shed stacked):
+            // warehouse set back NORTH, sign alone on clear sand, shed dropped SOUTH
+            // and smaller, net-rack furthest south — each with a full sand gap
+            mount(hb['warehouse'], inland(-3.2, 4.2), { deck: false, sc: 1.06 })
+            mount(pt['harbor-sign'], inland(-0.6, 2.6), { sc: 0.8, deck: false })
+            mount(pt['harbor-shed'], inland(3.4, 2.8), { deck: false, sc: 0.86 })
+            mount(hb['net-rack'], inland(5.4, 2.0), { deck: false, sc: 0.78 })
             // ---- the basin's boats: afloat with a foam ring, riding a slow bob
             const boat = (t: Texture | undefined, at: [number, number], sc = 1, flip = false) => {
               if (DBG) {
