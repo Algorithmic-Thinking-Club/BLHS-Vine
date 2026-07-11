@@ -321,11 +321,12 @@ export function initHubLayout() {
       berth: [wxm + 7, ryMid - 3.4],            // the intro ship moors off the main pier's north face
       bell: [wxm + 3.3, ryMid - 1.2],           // greets arrivals at the main pier root (ON the deck)
       crane: [wxAt(ryMid - 3) + 1.6, ryMid - 3.2],
+      // a spaced lighting RHYTHM (trimmed 8→5: identical posts every 2 tiles read
+      // as clutter; spaced, their warm ground pools read as intentional harbor light)
       lanterns: [
-        [wxAt(y0 + 2) + 2.2, y0 + 2], [wxAt(ryMid - 8) + 2.2, ryMid - 8],
-        [wxAt(ryMid - 4) + 2.2, ryMid - 4], [wxm + 10.6, ryMid + 1.7],
+        [wxAt(y0 + 2) + 2.2, y0 + 2],
+        [wxAt(ryMid - 5) + 2.2, ryMid - 5], [wxm + 10.6, ryMid + 1.7],
         [wxAt(ryMid + 4) + 2.2, ryMid + 4], [wxs + 6.8, ryMid + 8.4],
-        [wxAt(y1 - 1) + 2.2, y1 - 1], [wxm + 8, ryMid + 1.6],
       ],
       // the cargo YARD: stacked freight working the wharf knuckle + the pier root
       cargo: [

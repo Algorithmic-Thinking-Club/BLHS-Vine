@@ -1377,12 +1377,21 @@ export default function IslandMapIso() {
               sp.zIndex = zB + 720
               world.addChild(sp)
               if (o.glow) {
+                // the lamp itself glows...
                 const g = new Sprite(foamTex); g.anchor.set(0.5, 0.5); g.blendMode = 'add'
-                g.tint = 0xffb050; g.width = 64; g.height = 42; g.alpha = 0.3
+                g.tint = 0xffb050; g.width = 60; g.height = 40; g.alpha = 0.34
                 g.position.set(bx2 + 2, by2 - t.height * (o.sc ?? 1) + 24)
                 g.zIndex = zB + 724
                 world.addChild(g)
-                glows.push({ sp: g, ph: hash(at[0], at[1]) * 6.3, a: 0.3 })
+                glows.push({ sp: g, ph: hash(at[0], at[1]) * 6.3, a: 0.34 })
+                // ...and pools warm light on the DECK at its foot (golden-hour
+                // light doing work — the reviewer's biggest "expensive" cue)
+                const pool = new Sprite(foamTex); pool.anchor.set(0.5, 0.5); pool.blendMode = 'add'
+                pool.tint = 0xffa848; pool.width = 84; pool.height = 46; pool.alpha = 0.26
+                pool.position.set(bx2 + 2, by2 - 2)
+                pool.zIndex = zB + 6
+                world.addChild(pool)
+                glows.push({ sp: pool, ph: hash(at[0], at[1]) * 6.3, a: 0.26 })
               }
               return sp
             }
@@ -1407,17 +1416,26 @@ export default function IslandMapIso() {
             }
             if (hb['beacon']) {
               const at = HARBOR.beacon
+              const BSC = 1.32     // the HERO of the harbor — the tall vertical anchor
               const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY - 8
               const zB = Math.floor(at[0] + at[1]) * 4000
               const sp = new Sprite(hb['beacon']); sp.anchor.set(0.5, 0.97)
-              sp.position.set(bx2, by2); sp.zIndex = zB + 940
+              sp.position.set(bx2, by2); sp.scale.set(BSC); sp.zIndex = zB + 940
               world.addChild(sp)
+              const lampY = by2 - hb['beacon'].height * BSC + 44
+              // a broad warm HALO + a bright lamp core, both breathing — the one
+              // light source in the frame doing real work at golden hour
+              const halo = new Sprite(foamTex); halo.anchor.set(0.5, 0.5); halo.blendMode = 'add'
+              halo.tint = 0xffb84e; halo.width = 190; halo.height = 130; halo.alpha = 0.32
+              halo.position.set(bx2, lampY); halo.zIndex = zB + 943
+              world.addChild(halo)
+              glows.push({ sp: halo, ph: 0.4, a: 0.34 })
               const g = new Sprite(foamTex); g.anchor.set(0.5, 0.5); g.blendMode = 'add'
-              g.tint = 0xffc060; g.width = 110; g.height = 70; g.alpha = 0.4
-              g.position.set(bx2, by2 - hb['beacon'].height + 42)
+              g.tint = 0xffe08a; g.width = 84; g.height = 58; g.alpha = 0.55
+              g.position.set(bx2, lampY)
               g.zIndex = zB + 944
               world.addChild(g)
-              glows.push({ sp: g, ph: 0.4, a: 0.42 })
+              glows.push({ sp: g, ph: 0.4, a: 0.55 })
             }
             // the teal school pennant flies at the pier's T-head
             try {
@@ -1502,9 +1520,13 @@ export default function IslandMapIso() {
               sp.zIndex = zB + 640
               world.addChild(sp)
               bobs.push({ sp, y0: by2, w: 0.55 + 0.3 * hash(at[0], at[1]), ph: hash(at[1], at[0]) * 6.3 })
+              return sp
             }
             boat(hb['sloop'], HARBOR.sloop)
-            boat(hb['sloop'], HARBOR.sloop2, 0.9, true)
+            // the second fisher is visibly DISTINCT (a weathered blue-grey hull),
+            // not an obvious copy of the first (reviewer: duplicated boats read cheap)
+            const sloop2Sp = boat(hb['sloop'], HARBOR.sloop2, 0.82, true)
+            if (sloop2Sp) sloop2Sp.tint = 0x8fb0b8
             // the rowboat is HAULED UP on the sand — a beached vignette, not afloat
             mount(hb['rowboat'], HARBOR.rowboat, { deck: false, sc: 0.8, flip: true })
             // THE SHIP HERSELF at the berth — the approved 16-view painted rigger,
@@ -1516,13 +1538,16 @@ export default function IslandMapIso() {
               const at = HARBOR.berth
               const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY + 4
               const zB = Math.floor(at[0] + at[1]) * 4000
+              // a BOLD dark contact shadow pooled under the hull grounds the
+              // ship's mass IN the water (the reviewer's #1: the biggest object
+              // was floating on the teal)
               const rf = new Sprite(shadTex); rf.anchor.set(0.5, 0.5)
-              rf.width = shipT.width * 0.72; rf.height = 24; rf.alpha = 0.32; rf.tint = 0x0a2a30
-              rf.position.set(bx2, by2 + 6); rf.zIndex = zB + 600
+              rf.width = shipT.width * 0.82; rf.height = 30; rf.alpha = 0.5; rf.tint = 0x06202a
+              rf.position.set(bx2, by2 + 7); rf.zIndex = zB + 600
               world.addChild(rf)
               const fm = new Sprite(foamTex); fm.anchor.set(0.5, 0.5)
-              fm.width = shipT.width * 0.95; fm.height = 26; fm.alpha = 0.5
-              fm.position.set(bx2, by2); fm.zIndex = zB + 602
+              fm.width = shipT.width * 1.0; fm.height = 30; fm.alpha = 0.6
+              fm.position.set(bx2, by2 + 2); fm.zIndex = zB + 602
               world.addChild(fm)
               const sp = new Sprite(shipT); sp.anchor.set(0.5, 0.86)
               sp.position.set(bx2, by2); sp.zIndex = zB + 900
