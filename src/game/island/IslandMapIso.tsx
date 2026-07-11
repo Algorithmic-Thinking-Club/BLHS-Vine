@@ -4,9 +4,9 @@ import {
   isoX, isoY, hash, vnoise, shadeHex, rampAt, tintFor,
   loadWaterVariants, seaTile, animSwells, type SwellSprite,
 } from '../ocean'
-import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, HEAD_L } from './terrain'
+import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
-import { PLAZA, PLAZA_R, GROVES, HARBOR, GATE_HEAD, TONGUE, harborAt, riverD, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout } from './hub-layout'
+import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, riverD, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout } from './hub-layout'
 
 const smooth = (e0: number, e1: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t)
@@ -1272,25 +1272,27 @@ export default function IslandMapIso() {
                   }
                   face.zIndex = zB + 1
                   world.addChild(face)
-                  // ...with the island's own boulders piled against it, waist
-                  // deep in the sand/shallows, grey-wet like the breakwater
-                  const bT0 = vegT['boulder-1'], bT1 = vegT['boulder-2']
-                  if (bT0 || bT1) {
+                  // ...with the SHORT wet rip-rap (never the tall meadow
+                  // boulders — those overshot the plank top by ~40px and erupted
+                  // THROUGH the deck). Base-anchored at the waterline on the OUTER
+                  // exposed edge, scale capped to the deck gap so a rock can never
+                  // rise above the plank surface.
+                  const rrF = ['riprap-a', 'riprap-b', 'riprap-c'].map((n) => hb[n]).filter(Boolean)
+                  if (rrF.length) {
                     for (const [ox, oy] of exposed) {
-                      const n2 = 1 + (hash(ht.tx * 5.3 + ox, ht.ty * 7.1 + oy) > 0.45 ? 1 : 0)
-                      for (let i = 0; i < n2; i++) {
-                        const along = (i === 0 ? -0.18 : 0.2) + (hash(ht.tx + i * 3.7, ht.ty * 2.9 + i) - 0.5) * 0.18
-                        const jx = ht.tx + ox * 0.34 + (ox ? 0 : along)
-                        const jy = ht.ty + oy * 0.34 + (oy ? 0 : along)
-                        const sp = new Sprite(i % 2 === 0 ? (bT1 ?? bT0!) : (bT0 ?? bT1!))
-                        sp.anchor.set(0.5, 0.8)
-                        sp.position.set(isoX(jx, jy), isoY(jx, jy) + GY + 5)
-                        const sc2 = 0.36 + 0.18 * hash(jx * 7.7, jy * 3.9)
-                        sp.scale.set((hash(jx, jy) > 0.5 ? -1 : 1) * sc2, sc2)
-                        sp.tint = hash(jx + 1, jy + 2) > 0.5 ? 0x9a9288 : 0x8d857b
-                        sp.zIndex = zB + 3
-                        world.addChild(sp)
-                      }
+                      // one low pile pushed OUT past the deck edge into the shallows
+                      const jx = ht.tx + ox * 0.5, jy = ht.ty + oy * 0.5
+                      const rr = rrF[Math.floor(hash(ht.tx * 5.3 + ox, ht.ty * 7.1 + oy) * rrF.length * 0.999)]
+                      const sp = new Sprite(rr)
+                      sp.anchor.set(0.5, 1)                       // base sits at the waterline
+                      sp.position.set(isoX(jx, jy), isoY(jx, jy) + GY + 9)
+                      // cap height to the gap between waterline and deck underside
+                      const maxSc = (ht.lift + 18) / rr.height
+                      const sc2 = Math.min(maxSc, 0.3 + 0.12 * hash(jx * 7.7, jy * 3.9))
+                      sp.scale.set((hash(jx, jy) > 0.5 ? -1 : 1) * sc2, sc2)
+                      sp.tint = hash(jx + 1, jy + 2) > 0.5 ? 0xb0a89c : 0x9a9288
+                      sp.zIndex = zB + 3
+                      world.addChild(sp)
                     }
                   }
                 } else if (exposed.length) {
@@ -1528,128 +1530,14 @@ export default function IslandMapIso() {
           }
         } catch { /* the harbor pass degrades gracefully until its art lands */ }
 
-        // ---- THE GATE COMPLEX (Phase C2): the two carved panther ALCOVES at the
-        // lava mouths. The 192px cutout heads read as postage stamps against the
-        // massif (round 1) — the winners are full 400px composed FACADE PANELS:
-        // the SE gate a stone portal (head over a dark doorway, stepped jambs,
-        // stair courses), the SW head a crag gorge pouring its flow. Each panel
-        // mounts as the carved face of the massif at its mouth tile's own height,
-        // painter-sorted like the palms; the split lava curtains will mask the
-        // panel seams. (Method doc: hub-island-method.md)
-        if (!NOCONE) {
-          try {
-            const gart: Record<string, Texture> = {}
-            for (const n of ['gate-portal', 'lava-panel']) {
-              const t: Texture = await Assets.load(`/art/island/gate/${n}.png?v=2`)
-              t.source.scaleMode = 'nearest'; gart[n] = t
-            }
-            const head = (t: Texture, at: [number, number], sc: number, glowMouth: boolean) => {
-              const rx = Math.round(at[0]), ry2 = Math.round(at[1])
-              const L2 = eLvl(rx, ry2)
-              const lift = liftOf(L2)
-              const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) - lift + GY + 11
-              const zB = (rx + ry2) * 4000 + lift * 2
-              // AO pool seats the head against the slope (a long blade shadow
-              // would fall UP the massif — wrong for a carved-in piece)
-              const sh = new Sprite(shadTex)
-              sh.anchor.set(0.5, 0.5)
-              sh.width = t.width * sc * 1.05; sh.height = t.width * sc * 0.34
-              sh.alpha = 0.4
-              sh.position.set(bx2, by2 - 2)
-              sh.zIndex = zB + 700
-              world.addChild(sh)
-              const sp = new Sprite(t); sp.anchor.set(0.5, 0.94)
-              sp.position.set(bx2, by2)
-              sp.scale.set(sc)
-              sp.zIndex = zB + 730
-              world.addChild(sp)
-              if (glowMouth) {
-                // the molten mouth breathes — the same living glow as the beacon
-                const g = new Sprite(foamTex); g.anchor.set(0.5, 0.5); g.blendMode = 'add'
-                g.tint = 0xff8038; g.width = t.width * sc * 0.7; g.height = t.width * sc * 0.4
-                g.position.set(bx2, by2 - t.height * sc * 0.22)
-                g.alpha = 0.35
-                g.zIndex = zB + 734
-                world.addChild(g)
-                glows.push({ sp: g, ph: 2.6, a: 0.38 })
-              }
-            }
-            if (gart['gate-portal']) head(gart['gate-portal'], GATE_HEAD, 0.85, false)
-            if (gart['lava-panel']) head(gart['lava-panel'], HEAD_L, 0.62, true)
-            // ---- THE TONGUE-STAIR as STRUCTURE (the harbor-landing construction):
-            // a straight 2-wide run of carved basalt treads at DESIGNED lifts from
-            // the doorsill down to the corridor base. The material-ribbon version
-            // rasterized into red-brick dashes on the diagonal benches — a stair
-            // is a built thing, drawn in its own grammar like the quay.
-            try {
-              const sbT: Texture = await Assets.load('/art/island/gate/stair-block.png?v=2')
-              sbT.source.scaleMode = 'nearest'
-              const sTop = new Texture({ source: sbT.source, frame: new Rectangle(0, 0, 64, 36) })
-              const sFace = new Texture({ source: sbT.source, frame: new Rectangle(0, 18, 64, 46) })
-              const x0 = Math.round(GATE_HEAD[0])
-              const x1 = Math.round(TONGUE[0][0])
-              const n = Math.max(1, x1 - x0)
-              // the corridor CENTER per column — the midline between the two
-              // curtain polylines (a straight tile-space line drifted into the
-              // south curtain where the flows bend)
-              const yOn = (line: [number, number][], x: number) => {
-                for (let s = 0; s < line.length - 1; s++) {
-                  const [ax, ay] = line[s], [bx3, by3] = line[s + 1]
-                  if (x >= Math.min(ax, bx3) && x <= Math.max(ax, bx3) && ax !== bx3) {
-                    return ay + (by3 - ay) * ((x - ax) / (bx3 - ax))
-                  }
-                }
-                const [ex2, ey3] = line[line.length - 1]
-                return ey3 + (x - ex2) * 0 // past the end: hold the last y
-              }
-              // the treads HUG the flank's real profile (uniform designed lifts
-              // floated the pads over every irregular bench) — terrain + 2px,
-              // paired into 2-column pads, never rising on the way down
-              let prev = Infinity
-              const cols: { x: number; yc: number; lift: number }[] = []
-              for (let i = 1; i <= n; i++) {
-                const x = x0 + i
-                const yc = Math.round((yOn(LAVA[1], x) + yOn(LAVA[2], x)) / 2 - 0.5)
-                const L2 = Math.max(0, Math.max(eLvl(x, yc), eLvl(x, yc + 1)))
-                let lift = liftOf(L2) + 2
-                if (i > 1 && i % 2 === 0) lift = cols[i - 2].lift  // pair into pads
-                lift = Math.min(lift, prev)
-                prev = lift
-                cols.push({ x, yc, lift })
-              }
-              cols.forEach((c, ci) => {
-                const liftNext = ci + 1 < cols.length ? cols[ci + 1].lift : 0
-                for (const y of [c.yc, c.yc + 1]) {
-                  const bx2 = isoX(c.x, y), byT = isoY(c.x, y) + GY - c.lift
-                  const zB = (c.x + y) * 4000 + c.lift * 2
-                  const tp = new Sprite(sTop); tp.anchor.set(0.5, 0.5)
-                  tp.position.set(bx2, byT)
-                  tp.scale.set(1.06)
-                  // worn dark basalt, not bright brick — the raw red read as a
-                  // brick road (the harbor's "bricked" verdict, same failure)
-                  const dv = 0.68 + 0.1 * vnoise(c.x / 5 + 3, y / 5 + 9)
-                  const vv = Math.min(255, Math.round(dv * 255))
-                  tp.tint = (vv << 16) | (Math.round(vv * 0.94) << 8) | Math.round(vv * 0.92)
-                  tp.zIndex = zB + 6
-                  world.addChild(tp)
-                  // the riser: the +x front face drops to the next tread (or the
-                  // ground at the base landing). Tall drops go SHADOW-dark — a
-                  // stretched lit face read as a red curtain wall near the mouth.
-                  const drop = ci === cols.length - 1 ? 6 : Math.max(0, c.lift - liftNext)
-                  if (drop > 0) {
-                    const fc = new Sprite(sFace); fc.anchor.set(0.5, 0)
-                    fc.position.set(bx2 + 16, byT + 8 - 17)
-                    fc.width = 34
-                    fc.scale.y = (drop + 18) / 46
-                    fc.tint = drop > 10 ? 0x5e4a46 : 0x8a6e68
-                    fc.zIndex = zB + 4
-                    world.addChild(fc)
-                  }
-                }
-              })
-            } catch { /* stair art optional */ }
-          } catch { /* gate art optional until it lands */ }
-        }
+        // ---- THE GATE COMPLEX (Phase C2): REVERTED to a clean flank 2026-07-10.
+        // The pasted 400px facade panels + the brick tongue-stair were rejected
+        // (Ash: "pasted pngs as panther heads, ugly red brick steps" — a repeat
+        // of the 7/9 autopsy's "2D PNGs pasted on the tile world"). The twin
+        // flowing-lava curtains (terrain LAVA[1]/[2]) STAY — they read right and
+        // are the frame for the real carved heads. The heads must be VOLUMETRIC,
+        // carved OUT of the massif's own rock (material-matched, high relief, open
+        // jaws as the cave/lava mouth), NOT flat posters. Rebuilding next.
 
         // THE STEAM (P1d): a plume of soft puffs rising off the crater, drifting with
         // the wind and dissolving; two small wisps where the flows quench in the sea.
