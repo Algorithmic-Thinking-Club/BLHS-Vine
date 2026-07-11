@@ -1481,20 +1481,22 @@ export default function IslandMapIso() {
               if (!t) return
               const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY + 6
               const zB = Math.floor(at[0] + at[1]) * 4000
-              // a boat SITS IN the water: dark hull reflection + a bold foam ring
-              // at the waterline, anchor deep so the keel is submerged
+              // a boat SITS IN the water: a dark displacement pool + a BOLD foam
+              // collar right at the waterline, and the hull anchored near its own
+              // waterline (0.9) so the keel tucks under the foam instead of the
+              // whole hull floating proud on the teal
               const rf = new Sprite(shadTex); rf.anchor.set(0.5, 0.5)
-              rf.width = t.width * sc * 0.8; rf.height = 18; rf.alpha = 0.3
-              rf.tint = 0x0a2a30
-              rf.position.set(bx2, by2 + 4)
+              rf.width = t.width * sc * 0.92; rf.height = 20; rf.alpha = 0.4
+              rf.tint = 0x08222a
+              rf.position.set(bx2, by2 + 3)
               rf.zIndex = zB + 604
               world.addChild(rf)
               const fm = new Sprite(foamTex); fm.anchor.set(0.5, 0.5)
-              fm.width = t.width * sc * 1.1; fm.height = 20; fm.alpha = 0.55
-              fm.position.set(bx2, by2 - 1)
-              fm.zIndex = zB + 606
+              fm.width = t.width * sc * 1.18; fm.height = 24; fm.alpha = 0.72
+              fm.position.set(bx2, by2 + 1)
+              fm.zIndex = zB + 646        // OVER the hull's waterline, hiding the keel seam
               world.addChild(fm)
-              const sp = new Sprite(t); sp.anchor.set(0.5, 0.8)
+              const sp = new Sprite(t); sp.anchor.set(0.5, 0.9)
               sp.position.set(bx2, by2)
               sp.scale.set((flip ? -1 : 1) * sc, sc)
               sp.zIndex = zB + 640
@@ -1540,42 +1542,41 @@ export default function IslandMapIso() {
         // curtains pour down in front, framing them.
         if (!NOCONE) {
           try {
-            const carve: Record<string, Texture> = {}
-            for (const n of ['head-maw', 'head-pour']) {
-              const t: Texture = await Assets.load(`/art/island/gate/${n}.png?v=2`)
-              t.source.scaleMode = 'nearest'; carve[n] = t
-            }
-            const carveHead = (t: Texture, site: [number, number], sc: number, flip: boolean, molten: boolean) => {
+            const spoutT: Texture = await Assets.load('/art/island/gate/head-spout.png?v=1')
+            spoutT.source.scaleMode = 'nearest'
+            // the gargoyle-SPOUT head (bon4 angle): juts out and DOWN the flank,
+            // muzzle foreshortened toward the viewer, set in a rock socket, its
+            // maw pouring the molten flow straight down — NOT a front-on portrait.
+            // The head's own lava column merges into the in-engine flank flow.
+            const carveHead = (site: [number, number], sc: number, flip: boolean) => {
               const rx = Math.round(site[0]), ry2 = Math.round(site[1])
               const lift = liftOf(eLvl(rx, ry2))
-              const bx2 = isoX(site[0], site[1]), byBase = isoY(site[0], site[1]) + GY - lift + 12
+              const bx2 = isoX(site[0], site[1]), byBase = isoY(site[0], site[1]) + GY - lift + 10
               const zB = (rx + ry2) * 4000 + lift * 2 + 760
-              // AO pool where the head meets the flank (seats it, no floating plaque)
+              // AO where the socket meets the flank (seats it into the rock)
               const sh = new Sprite(shadTex)
               sh.anchor.set(0.5, 0.5)
-              sh.width = t.width * sc * 0.9; sh.height = t.width * sc * 0.3; sh.alpha = 0.42
-              sh.position.set(bx2, byBase - 6); sh.zIndex = zB - 2
+              sh.width = spoutT.width * sc * 0.86; sh.height = spoutT.width * sc * 0.26; sh.alpha = 0.4
+              sh.position.set(bx2, byBase - spoutT.height * sc * 0.42); sh.zIndex = zB - 2
               world.addChild(sh)
-              const sp = new Sprite(t); sp.anchor.set(0.5, 0.9)
+              const sp = new Sprite(spoutT); sp.anchor.set(0.5, 0.86)   // the lava-column base at the site
               sp.position.set(bx2, byBase)
               sp.scale.set((flip ? -1 : 1) * sc, sc)
               sp.zIndex = zB
               world.addChild(sp)
-              // the mouth breathes: molten glow (pour) or a dim ember in the maw
+              // the maw breathes molten (the mouth sits ~0.58 down the sprite)
               const g = new Sprite(foamTex); g.anchor.set(0.5, 0.5); g.blendMode = 'add'
-              g.tint = molten ? 0xff7a28 : 0xff5a20
-              g.width = t.width * sc * (molten ? 0.42 : 0.3)
-              g.height = t.width * sc * (molten ? 0.3 : 0.22)
-              g.position.set(bx2 + (flip ? -6 : 6) * sc, byBase - t.height * sc * 0.16)
-              g.alpha = molten ? 0.42 : 0.22
-              g.zIndex = zB + 4
+              g.tint = 0xff7a28
+              g.width = spoutT.width * sc * 0.34; g.height = spoutT.width * sc * 0.26
+              g.position.set(bx2, byBase - spoutT.height * sc * 0.28)
+              g.alpha = 0.4; g.zIndex = zB + 4
               world.addChild(g)
-              glows.push({ sp: g, ph: molten ? 2.4 : 1.1, a: molten ? 0.44 : 0.24 })
+              glows.push({ sp: g, ph: 2.4, a: 0.42 })
             }
-            // SE head = the GATE (dark maw, faces the arrival down-right)
-            if (carve['head-maw']) carveHead(carve['head-maw'], HEAD_R, 1.5, false, false)
-            // SW head = the POURING head (flipped to face down-left, molten mouth)
-            if (carve['head-pour']) carveHead(carve['head-pour'], HEAD_L, 1.45, true, true)
+            // both flanks wear a carved head (GAME-DESIGN §3.2: two lava-spewing
+            // heads). SE faces down-right; SW flipped to face down-left.
+            carveHead(HEAD_R, 0.9, false)
+            carveHead(HEAD_L, 0.88, true)
           } catch { /* carved heads optional until the art lands */ }
         }
 
