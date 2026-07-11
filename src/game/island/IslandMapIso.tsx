@@ -4,9 +4,9 @@ import {
   isoX, isoY, hash, vnoise, shadeHex, rampAt, tintFor,
   loadWaterVariants, seaTile, animSwells, type SwellSprite,
 } from '../ocean'
-import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA } from './terrain'
+import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, HEAD_L } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
-import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, riverD, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout } from './hub-layout'
+import { PLAZA, PLAZA_R, GROVES, HARBOR, GATE_HEAD, harborAt, riverD, pathD, tongueD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout } from './hub-layout'
 
 const smooth = (e0: number, e1: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t)
@@ -236,6 +236,14 @@ export default function IslandMapIso() {
         if (!lavaT.length) for (let i = 0; i < 4; i++) {
           try { const t: Texture = await Assets.load(`/art/island/flat/lava-${i}.png`); t.source.scaleMode = 'nearest'; lavaT.push(t) } catch { /* */ }
         }
+        // the gate's carved TONGUE-STAIR (Phase C2): warm dark basalt paving tops
+        // along the tongue ribbon between the twin lava curtains
+        const stairT: Texture[] = []
+        try {
+          const t: Texture = await Assets.load('/art/island/gate/stair-block.png?v=2')
+          t.source.scaleMode = 'nearest'
+          stairT.push(new Texture({ source: t.source, frame: new Rectangle(0, 0, 64, 36) }))
+        } catch { /* stair art optional */ }
         // THE VSLOPE FAMILY (final-push stage 1): the cone's skin. Tops + faces harvested
         // off the picked volc-a painting, normalized to ONE shared lit-amber base — every
         // value change on the flank comes from the coneTint field in long runs, never
@@ -665,13 +673,16 @@ export default function IslandMapIso() {
                 // walls follow the smooth field so the families change in long runs.
                 // Channel walls char: the lava bed's risers go basalt regardless of band.
                 const isCone = !NOCONE && L > PLAT_L && coneH(tx, ty) > 0 && !toSea && (sideW.length > 0 || vsF.length > 0)
-                if (isCone) {
+                // a lava tile's step pours EVERYWHERE, benches included — below the
+                // cone the flow's steps drew charred columns and the river read as
+                // dashes with dark gaps at every bench lip
+                const moltenStep = !NOCONE && !toSea && (lavaDist(tx, ty) < 1.25 || craterK(tx, ty) > 0.32)
+                if (isCone || (moltenStep && L > 0)) {
                   // the cone's own steps wear the block skin — one strip, one tint field;
                   // river tiles pour over their steps as burning falls
-                  const moltenFace = lavaDist(tx, ty) < 0.95 || craterK(tx, ty) > 0.32
-                  drawFace(bx, by, lift - liftOf(floorMin), tx, ty, zBase, moltenFace)
+                  drawFace(bx, by, lift - liftOf(floorMin), tx, ty, zBase, moltenStep)
                 } else {
-                  const charred = !NOCONE && (lavaDist(tx, ty) < 1.1 || craterK(tx, ty) > 0.4)
+                  const charred = !NOCONE && (lavaDist(tx, ty) < 1.55 || craterK(tx, ty) > 0.4)
                   // a grass-topped inland step wears a turf riser (kills the pink
                   // rock contour lines under the meadow); sand beaches + coast cliffs
                   // + charred channel keep rock
@@ -729,9 +740,12 @@ export default function IslandMapIso() {
             // ~two tiles wide down the flank, shouldered by the dark charred bed — and
             // the whole crater bowl burns as a lava lake (Ash: "orange lava filling
             // inside the blowhole")
-            const isLava = !NOCONE && lavaT.length > 0 && L > 0 && (ld < 0.95 || ck > 0.32)
+            // ribbon width 1.25, NOT 0.95: at 0.95 a diagonal flow rasterized into a
+            // corner-connected single-tile chain — molten diamonds touching only at
+            // their points, reading as broken orange DASHES down the whole flank
+            const isLava = !NOCONE && lavaT.length > 0 && L > 0 && (ld < 1.25 || ck > 0.32)
             // the bed hugs the future ribbon (a 4-tile charred swath read as a black scar)
-            const isBed = !NOCONE && !isLava && L > 0 && (ld < 1.3 || ck > 0.4)
+            const isBed = !NOCONE && !isLava && L > 0 && (ld < 1.7 || ck > 0.4)
             // the worn path wears dry sand through the meadow (grass ring only, never
             // up the cone or over the beach's own sand)
             // paths may cross the grassy cone toe (the lawn IS mostly toe) — never the
@@ -753,12 +767,16 @@ export default function IslandMapIso() {
             // NOTHING until the dedicated falls/river pass draws all of it
             const RIVER_ON = false
             const onRiver = RIVER_ON && !sand && !isLava && !isBed && L > 0 && L <= 1 && riverD(tx, ty) < 0.8
+            // the gate's carved stair: the tongue ribbon wears basalt paving from
+            // the portal's doorsill down the flank, between the twin lava curtains
+            const onStair = !sand && !isLava && L > 0 && tongueD(tx, ty) < 1.05
             const vs = band >= 1 && rockTop.length ? rockTop : undefined
             const pool = sand ? st
               : isLava ? (ck > 0.32 && lakeT.length ? lakeT : lavaT)
-                : isBed && volcT.length ? volcT
-                  : onRiver && waterV.length ? waterV
-                    : (onPath || onPlaza) && st.length ? st : vs || gt
+                : onStair && stairT.length ? stairT
+                  : isBed && volcT.length ? volcT
+                    : onRiver && waterV.length ? waterV
+                      : (onPath || onPlaza) && st.length ? st : vs || gt
             // cone rock tops pick in smooth ZONES (like the walls): per-tile hash churn
             // re-rolled the texture every diamond and the flank read as shredded scales
             const g = !pool.length ? undefined
@@ -799,6 +817,12 @@ export default function IslandMapIso() {
                 // phase keyed to distance from the vent: the pulse TRAVELS downstream —
                 // the cheap cue that the river flows instead of blinking in place
                 glows.push({ sp: glow, ph: -Math.hypot(tx - CX, ty - CY) * 1.1 + hash(tx, ty) * 0.8, a: 0.3 })
+              } else if (onStair && stairT.length) {
+                // the carved paving carries its own color — a quiet value drift
+                // keeps the run alive without re-rolling the art per diamond
+                const v = 0.94 + 0.1 * vnoise(tx / 5 + 11, ty / 5 + 7)
+                const vv = Math.min(255, Math.round(v * 255))
+                top.tint = (vv << 16) | (vv << 8) | vv
               } else if (isBed) {
                 // the charred channel shoulder / crater bowl floor — dark UMBER, not black
                 // (the grade crushes anything below ~0.5 into hole-black)
@@ -1521,6 +1545,57 @@ export default function IslandMapIso() {
             } catch { /* ship art unavailable — the berth waits */ }
           }
         } catch { /* the harbor pass degrades gracefully until its art lands */ }
+
+        // ---- THE GATE COMPLEX (Phase C2): the two carved panther ALCOVES at the
+        // lava mouths. The 192px cutout heads read as postage stamps against the
+        // massif (round 1) — the winners are full 400px composed FACADE PANELS:
+        // the SE gate a stone portal (head over a dark doorway, stepped jambs,
+        // stair courses), the SW head a crag gorge pouring its flow. Each panel
+        // mounts as the carved face of the massif at its mouth tile's own height,
+        // painter-sorted like the palms; the split lava curtains will mask the
+        // panel seams. (Method doc: hub-island-method.md)
+        if (!NOCONE) {
+          try {
+            const gart: Record<string, Texture> = {}
+            for (const n of ['gate-portal', 'lava-panel']) {
+              const t: Texture = await Assets.load(`/art/island/gate/${n}.png?v=1`)
+              t.source.scaleMode = 'nearest'; gart[n] = t
+            }
+            const head = (t: Texture, at: [number, number], sc: number, glowMouth: boolean) => {
+              const rx = Math.round(at[0]), ry2 = Math.round(at[1])
+              const L2 = eLvl(rx, ry2)
+              const lift = liftOf(L2)
+              const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) - lift + GY + 11
+              const zB = (rx + ry2) * 4000 + lift * 2
+              // AO pool seats the head against the slope (a long blade shadow
+              // would fall UP the massif — wrong for a carved-in piece)
+              const sh = new Sprite(shadTex)
+              sh.anchor.set(0.5, 0.5)
+              sh.width = t.width * sc * 1.05; sh.height = t.width * sc * 0.34
+              sh.alpha = 0.4
+              sh.position.set(bx2, by2 - 2)
+              sh.zIndex = zB + 700
+              world.addChild(sh)
+              const sp = new Sprite(t); sp.anchor.set(0.5, 0.94)
+              sp.position.set(bx2, by2)
+              sp.scale.set(sc)
+              sp.zIndex = zB + 730
+              world.addChild(sp)
+              if (glowMouth) {
+                // the molten mouth breathes — the same living glow as the beacon
+                const g = new Sprite(foamTex); g.anchor.set(0.5, 0.5); g.blendMode = 'add'
+                g.tint = 0xff8038; g.width = t.width * sc * 0.7; g.height = t.width * sc * 0.4
+                g.position.set(bx2, by2 - t.height * sc * 0.22)
+                g.alpha = 0.35
+                g.zIndex = zB + 734
+                world.addChild(g)
+                glows.push({ sp: g, ph: 2.6, a: 0.38 })
+              }
+            }
+            if (gart['gate-portal']) head(gart['gate-portal'], GATE_HEAD, 0.85, false)
+            if (gart['lava-panel']) head(gart['lava-panel'], HEAD_L, 0.62, true)
+          } catch { /* gate art optional until it lands */ }
+        }
 
         // THE STEAM (P1d): a plume of soft puffs rising off the crater, drifting with
         // the wind and dissolving; two small wisps where the flows quench in the sea.

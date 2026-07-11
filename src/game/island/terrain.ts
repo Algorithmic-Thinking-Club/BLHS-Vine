@@ -145,8 +145,11 @@ export const HEAD_R: [number, number] = [117, 101]
 export const LAVA: [number, number][][] = [
   // left head mouth -> SW-front coast (down-screen, drifting screen-left)
   [HEAD_L, [99, 124], [96, 132], [92, 140], [88, 148]],
-  // right head mouth -> SE-front coast (down-screen, drifting screen-right)
-  [HEAD_R, [124, 99], [132, 96], [140, 92], [148, 88]],
+  // the GATE's flow SPLITS at the portal into TWIN CURTAINS (Phase C2): the two
+  // molten falls pour from the gate's flanking niches and frame the carved
+  // tongue-stair descending between them (offset ±2.6 perp off the old ridge)
+  [[116, 98.6], [123, 96.6], [131, 93.6], [139, 89.6], [147, 85.6]],
+  [[118, 103.4], [125, 101.4], [133, 98.4], [141, 94.4], [149, 90.4]],
 ]
 export function lavaDist(tx: number, ty: number) {
   let best = 99

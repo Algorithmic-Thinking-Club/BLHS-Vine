@@ -103,6 +103,8 @@ export const pathD = (tx: number, ty: number) => {
   return best
 }
 export const riverD = (tx: number, ty: number) => (RIVER.length ? segD(RIVER, tx, ty) : 99)
+// the gate's carved tongue-stair ribbon (Phase C2): distance to the TONGUE line
+export const tongueD = (tx: number, ty: number) => (TONGUE.length ? segD(TONGUE, tx, ty) : 99)
 
 // ---- CLEARINGS: where vegetation must NOT stand (places, paths, water, lava).
 // 1 = fully open ground, 0 = free to plant.
@@ -181,15 +183,12 @@ export function initHubLayout() {
 
   // THE GATE: Thor enters the Maw THROUGH the SE panther head's mouth — its lava
   // flow splits around a carved tongue-stair climbing the toe to the mouth.
+  // The stair runs down the CORRIDOR between the twin curtains — the flow's own
+  // down-and-outward ridge line, NOT the radial from the island center (the
+  // radial crossed the south curtain and the stair dashed against the lava).
+  // TONGUE[0] = the base (where the plaza approach arrives), last = the mouth.
   GATE_HEAD = HEAD_R
-  {
-    const az = Math.atan2(GATE_HEAD[1] - CY, GATE_HEAD[0] - CX)
-    const d0 = Math.hypot(GATE_HEAD[0] - CX, GATE_HEAD[1] - CY)
-    TONGUE = [0, 0.33, 0.66, 1].map((t) => {
-      const d = d0 + (30 - d0) * (1 - t)
-      return [CX + Math.cos(az) * d, CY + Math.sin(az) * d] as [number, number]
-    })
-  }
+  TONGUE = [[140, 92], [132, 96], [124, 99], [GATE_HEAD[0], GATE_HEAD[1]]]
 
   // PATHS: the coast PROMENADE stitches E port -> S cove -> plaza -> W lawn; spurs
   // feed it from each port; the APPROACH climbs toward the gate stair.
