@@ -114,9 +114,6 @@ export default function IslandMapIso() {
       // ?nocone=1 — render the approved base only (flat plateau, no block cone, no lava):
       // the clean stage the painted volcano hero is composited onto (final-push plan §2)
       const NOCONE = !!params.get('nocone')
-      // ?probe=fills|plugs|props|sky — temporarily skip one draw layer to isolate an
-      // artifact empirically (dbg tints only go so far). Never ships.
-      const PROBE = params.get('probe') || ''
       const ZOOM = Number(params.get('zoom') || 0.62) || 0.62
       const cam = (params.get('cam') || `${CX},${CY}`).split(',').map(Number)
       const camTx = cam[0] ?? CX, camTy = cam[1] ?? CY
@@ -1143,7 +1140,7 @@ export default function IslandMapIso() {
         const bobs: { sp: Sprite; y0: number; w: number; ph: number }[] = []
         try {
           const hb: Record<string, Texture> = {}
-          for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'warehouse', 'panther-statue', 'net-rack', 'beacon']) {
+          for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'warehouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b']) {
             try {
               const t: Texture = await Assets.load(`/art/island/harbor/${n}.png?v=5`)
               t.source.scaleMode = 'nearest'; hb[n] = t
@@ -1163,22 +1160,14 @@ export default function IslandMapIso() {
             // a checkerboard)
             const stoneT = [topOf(hb['stone-block-a']), topOf(hb['stone-block-a'])]
             const stoneF = faceOf(hb['stone-block-a'])
-            // the deck TOP is a CLEAN flat wood diamond (Ash: the plank texture
-            // read ugly/busy) — the beach pier's sampled color, one quiet seam,
-            // per-tile value drift doing the variation; the sides stay timber
-            const deckCv = document.createElement('canvas')
-            deckCv.width = 64; deckCv.height = 36
-            {
-              const g2 = deckCv.getContext('2d')!
-              g2.beginPath()
-              g2.moveTo(32, 0); g2.lineTo(64, 17); g2.lineTo(32, 34); g2.lineTo(0, 17); g2.closePath()
-              g2.fillStyle = '#ae5f3f'
-              g2.fill()
-              g2.strokeStyle = 'rgba(60,30,18,0.22)'
-              g2.lineWidth = 1
-              g2.beginPath(); g2.moveTo(16, 8.5); g2.lineTo(48, 25.5); g2.stroke()
-            }
-            const plankT = Texture.from(deckCv)
+            // the deck TOP is the REAL beach-pier wood (Ash: "an actual normal
+            // port-wood plank texture brown") — three plank diamonds harvested
+            // straight off the approved beach pier's deck, hash-picked per tile,
+            // quiet low-frequency drift keeping the run from checkering
+            const plankTops = [0, 1, 2]
+              .map(i => hb[`deck-top-${i}`])
+              .filter((t): t is Texture => !!t)
+            if (!plankTops.length) plankTops.push(topOf(hb['plank-block-a']))
             const plankF = faceOf(hb['plank-block-a'])
             // the beam FASCIA for open-piling tiles: a slim drawn band hugging
             // the deck's two visible edges (the block face stretched to the
@@ -1211,23 +1200,22 @@ export default function IslandMapIso() {
               const bx2 = isoX(ht.tx, ht.ty), byTop = isoY(ht.tx, ht.ty) + GY - ht.lift
               const zB = (ht.tx + ht.ty) * 4000 + ht.lift * 2
               if (ht.mat === 'rock') {
-                // the breakwater: a natural pile of the island's own boulders —
-                // 2-3 overlapping per tile, scale/flip variance, waist-deep in the
-                // sea (block courses read as floating crates, twice)
-                const bA = vegT['boulder-2'] ?? vegT['boulder-1']
-                if (bA) {
-                  for (let i = 0; i < 2; i++) {
-                    const jx = ht.tx + (hash(ht.tx * 3.1 + i, ht.ty + i * 1.7) - 0.5) * 0.7
-                    const jy = ht.ty + (hash(ht.tx + i * 2.3, ht.ty * 5.1 + i) - 0.5) * 0.7
-                    const sp = new Sprite(i === 1 && vegT['boulder-1'] ? vegT['boulder-1'] : bA)
-                    sp.anchor.set(0.5, 0.82)              // waist-deep in the sea
-                    sp.position.set(isoX(jx, jy), isoY(jx, jy) + GY + 4)
-                    const sc2 = 0.38 + 0.22 * hash(jx * 7.7, jy * 3.9)
-                    sp.scale.set((hash(jx, jy) > 0.5 ? -1 : 1) * sc2, sc2)
-                    sp.tint = 0x9a9288                     // wet grey — never the cliffs' hot terracotta
-                    sp.zIndex = Math.floor(jx + jy) * 4000 + 630 + i
-                    world.addChild(sp)
-                  }
+                // the breakwater: bespoke WET RIP-RAP art, sea-born (the meadow
+                // boulders carried baked-in grass skirts into the water and their
+                // flat column tops read as crates — twice). One low rubble
+                // cluster per tile, jittered/flipped/stretched, the overlaps
+                // fusing the arc into one continuous rubble arm.
+                const rrT = ['riprap-a', 'riprap-b', 'riprap-c'].map(n => hb[n]).filter(Boolean)
+                if (rrT.length) {
+                  const jx = ht.tx + (hash(ht.tx * 3.1, ht.ty * 1.7) - 0.5) * 0.5
+                  const jy = ht.ty + (hash(ht.tx * 2.3, ht.ty * 5.1) - 0.5) * 0.5
+                  const sp = new Sprite(rrT[Math.floor(hash(ht.tx * 5.9, ht.ty * 4.3) * rrT.length * 0.999)])
+                  sp.anchor.set(0.5, 0.74)               // waist-deep in the sea
+                  sp.position.set(isoX(jx, jy), isoY(jx, jy) + GY + 3)
+                  const sc2 = 0.85 + 0.45 * hash(jx * 7.7, jy * 3.9)
+                  sp.scale.set((hash(jx, jy) > 0.5 ? -1 : 1) * sc2, sc2 * (0.82 + 0.3 * hash(jy * 3.3, jx * 6.1)))
+                  sp.zIndex = Math.floor(jx + jy) * 4000 + 630
+                  world.addChild(sp)
                   const fm = new Sprite(foamTex); fm.anchor.set(0.5, 0.5)
                   fm.width = 70; fm.height = 18; fm.alpha = 0.5
                   fm.position.set(bx2, isoY(ht.tx, ht.ty) + GY + 6)
@@ -1322,13 +1310,13 @@ export default function IslandMapIso() {
                 }
                 const top = new Sprite(ht.mat === 'stone'
                   ? stoneT[Math.floor(hash(ht.tx * 2.7, ht.ty * 3.3) * 4) % 2 === 0 ? 0 : 1]
-                  : plankT)
+                  : plankTops[Math.floor(hash(ht.tx * 3.7, ht.ty * 2.9) * plankTops.length * 0.999)])
                 top.anchor.set(0.5, 0.5)
                 top.position.set(bx2, byTop)
                 top.zIndex = zB + 5
                 if (ht.mat === 'plank') {
-                  // quiet LOW-FREQUENCY value drift is ALL the top variation —
-                  // the old per-tile noise printed a visible checker
+                  // quiet LOW-FREQUENCY value drift is ALL the extra variation —
+                  // the wood grain itself carries the texture now
                   const dv = 0.97 + 0.05 * vnoise(ht.tx / 6 + 5, ht.ty / 6 + 9)
                   const vv = Math.min(255, Math.round(255 * dv))
                   top.tint = (vv << 16) | (vv << 8) | vv
@@ -1391,10 +1379,10 @@ export default function IslandMapIso() {
               mount(pt['cargo-a'], HARBOR.cargo[ci], { sc: 0.62 + 0.16 * hash(ci * 3.1 + 1, ci * 1.7 + 2), flip: ci % 2 === 1 })
             }
             for (const L2 of HARBOR.lanterns) mount(pt['lantern-post'], L2, { sc: 0.72, glow: true })
-            for (const B of HARBOR.bollards) mount(pt['bollard-a'], B, { sc: 0.34 })
+            for (const B of HARBOR.bollards) mount(hb['bollard-b'] ?? pt['bollard-a'], B, { sc: hb['bollard-b'] ? 0.2 : 0.34 })
             // mooring posts pace the boardwalk's seaward lip (the beach pier's
             // post rhythm at harbor scale)
-            for (const E of HARBOR.edgePosts) mount(pt['bollard-a'], E, { sc: 0.24 })
+            for (const E of HARBOR.edgePosts) mount(hb['bollard-b'] ?? pt['bollard-a'], E, { sc: hb['bollard-b'] ? 0.15 : 0.24 })
             // the harbor BEACON at the breakwater tip, its lamp breathing
             if (DBG) {
               const dot = new Sprite(Texture.WHITE)
