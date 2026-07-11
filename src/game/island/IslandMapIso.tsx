@@ -4,7 +4,7 @@ import {
   isoX, isoY, hash, vnoise, shadeHex, rampAt, tintFor,
   loadWaterVariants, seaTile, animSwells, type SwellSprite,
 } from '../ocean'
-import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA } from './terrain'
+import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, HEAD_L, HEAD_R } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
 import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, riverD, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout } from './hub-layout'
 
@@ -1530,14 +1530,54 @@ export default function IslandMapIso() {
           }
         } catch { /* the harbor pass degrades gracefully until its art lands */ }
 
-        // ---- THE GATE COMPLEX (Phase C2): REVERTED to a clean flank 2026-07-10.
-        // The pasted 400px facade panels + the brick tongue-stair were rejected
-        // (Ash: "pasted pngs as panther heads, ugly red brick steps" — a repeat
-        // of the 7/9 autopsy's "2D PNGs pasted on the tile world"). The twin
-        // flowing-lava curtains (terrain LAVA[1]/[2]) STAY — they read right and
-        // are the frame for the real carved heads. The heads must be VOLUMETRIC,
-        // carved OUT of the massif's own rock (material-matched, high relief, open
-        // jaws as the cave/lava mouth), NOT flat posters. Rebuilding next.
+        // ---- THE GATE COMPLEX (Phase C2, rebuilt 2026-07-10): the two carved
+        // panther heads at the lava mouths. These are NOT framed facade posters
+        // (rejected) — each is a volumetric head SCULPTED from the massif's own
+        // terracotta basalt (best-of-8 PixelLab, cracked-facet surround edge-faded
+        // so it dissolves INTO the flank), placed big and low so the head reads as
+        // carved OUT of the mountain. The SE head's maw is the dark Maw gateway;
+        // the SW head POURS the molten flow (its glow breathes). The twin lava
+        // curtains pour down in front, framing them.
+        if (!NOCONE) {
+          try {
+            const carve: Record<string, Texture> = {}
+            for (const n of ['head-maw', 'head-pour']) {
+              const t: Texture = await Assets.load(`/art/island/gate/${n}.png?v=2`)
+              t.source.scaleMode = 'nearest'; carve[n] = t
+            }
+            const carveHead = (t: Texture, site: [number, number], sc: number, flip: boolean, molten: boolean) => {
+              const rx = Math.round(site[0]), ry2 = Math.round(site[1])
+              const lift = liftOf(eLvl(rx, ry2))
+              const bx2 = isoX(site[0], site[1]), byBase = isoY(site[0], site[1]) + GY - lift + 12
+              const zB = (rx + ry2) * 4000 + lift * 2 + 760
+              // AO pool where the head meets the flank (seats it, no floating plaque)
+              const sh = new Sprite(shadTex)
+              sh.anchor.set(0.5, 0.5)
+              sh.width = t.width * sc * 0.9; sh.height = t.width * sc * 0.3; sh.alpha = 0.42
+              sh.position.set(bx2, byBase - 6); sh.zIndex = zB - 2
+              world.addChild(sh)
+              const sp = new Sprite(t); sp.anchor.set(0.5, 0.9)
+              sp.position.set(bx2, byBase)
+              sp.scale.set((flip ? -1 : 1) * sc, sc)
+              sp.zIndex = zB
+              world.addChild(sp)
+              // the mouth breathes: molten glow (pour) or a dim ember in the maw
+              const g = new Sprite(foamTex); g.anchor.set(0.5, 0.5); g.blendMode = 'add'
+              g.tint = molten ? 0xff7a28 : 0xff5a20
+              g.width = t.width * sc * (molten ? 0.42 : 0.3)
+              g.height = t.width * sc * (molten ? 0.3 : 0.22)
+              g.position.set(bx2 + (flip ? -6 : 6) * sc, byBase - t.height * sc * 0.16)
+              g.alpha = molten ? 0.42 : 0.22
+              g.zIndex = zB + 4
+              world.addChild(g)
+              glows.push({ sp: g, ph: molten ? 2.4 : 1.1, a: molten ? 0.44 : 0.24 })
+            }
+            // SE head = the GATE (dark maw, faces the arrival down-right)
+            if (carve['head-maw']) carveHead(carve['head-maw'], HEAD_R, 1.5, false, false)
+            // SW head = the POURING head (flipped to face down-left, molten mouth)
+            if (carve['head-pour']) carveHead(carve['head-pour'], HEAD_L, 1.45, true, true)
+          } catch { /* carved heads optional until the art lands */ }
+        }
 
         // THE STEAM (P1d): a plume of soft puffs rising off the crater, drifting with
         // the wind and dissolving; two small wisps where the flows quench in the sea.
