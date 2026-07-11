@@ -256,10 +256,6 @@ export function initHubLayout() {
       while (coastDs(wx + 1, y) > 0.5 && wx < 190) wx++
       return wx
     }
-    // SMOOTHED waterline: the raw coast jogs several tiles row to row and the
-    // boardwalk came out a zigzag mess — take the seaward-most line over ±2
-    // rows so the walk runs long and straight, always over the water's edge
-    const wxAt = (y: number) => Math.max(rawWx(y - 2), rawWx(y - 1), rawWx(y), rawWx(y + 1), rawWx(y + 2))
     const key = (x: number, y: number) => y * 1000 + x
     const seen = new Set<number>()
     const tiles: HarborTile[] = []
@@ -268,76 +264,77 @@ export function initHubLayout() {
       if (t.mat !== 'rock') { if (seen.has(k)) return; seen.add(k) }
       tiles.push(t)
     }
-    // A REAL tropical PORT, NOT a raised wooden field (Ash: "not some thick deep
-    // tile that looks like oversized wood land, and not shrunk — a real detailed
-    // harbor where Thor first lands / sets sail"). The waterfront is a LOW timber
-    // QUAY hugging the shore; the settlement (buildings + cargo yard) lives on the
-    // LAND behind it; a main PIER + a fishing JETTY jut into the basin. Lower
-    // profile (HL 8, was 14) + a one-deep quay so it reads as a built edge, not a
-    // plank plateau. The SW lava delta hisses into the sea just south (Ash: lean in).
+    // A DOCK IS A BUILT THING (Ash: the coast-traced quay came out "warped and
+    // unusable" / "floating on the ocean"). So the harbor is CLEAN AXIS-ALIGNED
+    // GEOMETRY, not a line traced along the jagged coast: one dead-straight shore
+    // PROMENADE that always rests on solid sand, and straight rectangular PIER +
+    // JETTY jutting seaward over the water (pilings under the sea span). It cannot
+    // warp and cannot maroon a tile, by construction. HL 8 = low built edge.
     const HL = 8
-    const y0 = ryMid - 8, y1 = ryMid + 8
-    // the QUAY: a one-deep timber waterfront along the shore span
-    for (let y = y0; y <= y1; y++) push({ tx: wxAt(y) + 1, ty: y, lift: HL, mat: 'plank', walk: true })
-    // the APRON: a 2-deep loading landing at the pier root — where Thor steps off
-    // the ship and orients (the one place the quay widens, on purpose)
-    for (let y = ryMid - 2; y <= ryMid + 3; y++) push({ tx: wxAt(y) + 2, ty: y, lift: HL, mat: 'plank', walk: true })
-    // steps from the beach sand up onto the quay, spaced along the waterfront so
-    // the whole port is reachable on foot from the land
-    for (let y = y0 + 1; y <= y1; y += 3) push({ tx: wxAt(y), ty: y, lift: Math.round(HL / 2), mat: 'plank', walk: true })
-    // THE MAIN PIER: 2 wide + a 4-wide T-HEAD, jutting seaward from the apron;
-    // the intro ship berths along its north face
-    const wxm = wxAt(ryMid)
-    for (let x = wxm + 3; x <= wxm + 9; x++) for (let y = ryMid; y <= ryMid + 1; y++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
-    for (let x = wxm + 10; x <= wxm + 11; x++) for (let y = ryMid - 1; y <= ryMid + 2; y++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
-    // THE FISHING JETTY: a shorter working dock to the south
-    const wxs = wxAt(ryMid + 6)
-    for (let x = wxs + 2; x <= wxs + 6; x++) push({ tx: x, ty: ryMid + 6, lift: HL, mat: 'plank', walk: true })
-    // the SLIPWAY: a short boat ramp down into the water beside the jetty root
-    push({ tx: wxAt(ryMid + 5) + 2, ty: ryMid + 5, lift: Math.round(HL / 2), mat: 'plank', walk: true })
-    push({ tx: wxAt(ryMid + 5) + 3, ty: ryMid + 5, lift: 2, mat: 'plank', walk: false })
-    // the breakwater: a LONG boulder arm wrapping the basin from the NE, the
-    // harbor beacon at its tip marking the entrance channel
-    const BW: [number, number][] = [
-      [13.5, 2.5], [14, 1.3], [14.4, 0], [14.6, -1.3], [14.6, -2.6], [14.3, -3.9],
-      [13.8, -5.1], [13.1, -6.2], [12.2, -7.2], [11.1, -8], [9.9, -8.6], [8.6, -9],
-    ]
-    for (const [ox, oy] of BW) {
-      push({ tx: wxm + ox, ty: ryMid + oy, lift: 16, mat: 'rock', walk: false })
+    const ryN = ryMid - 6, ryS = ryMid + 6
+    // WL = the waterline (last-land tile) at the port's CENTRE row. The pier and
+    // all the dressing anchor here so the whole port sits ON the water where Thor
+    // lands — not set back on a beach.
+    const WL = rawWx(ryMid)
+    // THE WHARF: a slim 3-wide timber waterfront that HUGS the shore. Each row's
+    // seaward lip is exactly 1 tile over the water (its own edge+1), so it reads as
+    // a real waterfront everywhere; its landward tiles rest on sand. Because it is a
+    // SOLID 3-wide ribbon (not a single traced line), it can never maroon a tile on
+    // open water or warp into a sawtooth — the two failures of the coast-traced quay.
+    for (let y = ryN; y <= ryS; y++) {
+      const edge = rawWx(y)
+      for (let x = edge - 1; x <= edge + 1; x++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
     }
+    // steps down to the beach at three points (landward of the wharf)
+    for (let y = ryN + 1; y <= ryS; y += 3) push({ tx: rawWx(y) - 2, ty: y, lift: Math.round(HL / 2), mat: 'plank', walk: true })
+    // THE APRON: the wharf widens to a 4-deep landing at the pier root (Thor lands here)
+    for (let x = WL - 1; x <= WL + 2; x++) for (let y = ryMid - 1; y <= ryMid + 2; y++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
+    // THE MAIN PIER: a straight 2-wide rectangle jutting seaward from the apron,
+    // ending in a 2x4 T-HEAD where the intro ship berths along the north face
+    const PLEN = 9
+    for (let x = WL + 3; x <= WL + PLEN; x++) for (let y = ryMid; y <= ryMid + 1; y++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
+    const HEADX = WL + PLEN + 2
+    for (let x = WL + PLEN + 1; x <= HEADX; x++) for (let y = ryMid - 1; y <= ryMid + 2; y++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
+    // THE FISHING JETTY: a shorter straight rectangle to the south, off its own shore
+    const jY = ryMid + 5
+    const jE = rawWx(jY)
+    for (let x = jE; x <= jE + 5; x++) push({ tx: x, ty: jY, lift: HL, mat: 'plank', walk: true })
+    // the breakwater: a boulder arm arcing from SEAWARD of the T-head up and around
+    // to the NORTH, enclosing the ship basin — kept clear of the pier
+    const BW: [number, number][] = [
+      [13, 2], [13.5, 0.7], [13.7, -0.6], [13.6, -2], [13.2, -3.3], [12.5, -4.5],
+      [11.6, -5.6], [10.5, -6.5], [9.2, -7.2], [7.8, -7.6],
+    ]
+    for (const [ox, oy] of BW) push({ tx: WL + ox, ty: ryMid + oy, lift: 16, mat: 'rock', walk: false })
     HARBOR = {
       tiles,
-      quayRect: [wxm + 1, y0, 2, y1 - y0 + 1],
-      root: [wxm + 2, ryMid],                   // the apron — where Thor lands
-      steps: [wxm, ryMid],
-      berth: [wxm + 6.5, ryMid - 1.15],         // moored ALONGSIDE the pier's north face (touching, no gap)
-      // COMPOSITION = 3 STATIONS with BARE quay between them (the beach's
-      // cluster-gap rhythm; the old even every-3-rows picket read as procedurally
-      // stamped — the 4th-reject failure). A) apron work-station, B) T-head
-      // mooring, C) jetty fishing-station. Empty deck between is the composition.
-      bell: [wxm + 1, ryMid - 2],               // arrivals bell at the NORTH apron corner where Thor lands (A) — clear of the crane
-      crane: [wxm + 5, ryMid + 1],              // out on the main pier where it loads the ship — a natural gradient (bell@landing / cargo@root / crane@mid / ship@head), separating the two A-frames
-      // one lantern per STATION only — a warm pool that reads as a place, not a row
+      quayRect: [WL - 1, ryN, 3, ryS - ryN + 1],
+      root: [WL + 1, ryMid],                    // the apron — where Thor lands
+      steps: [WL - 2, ryMid],
+      berth: [HEADX - 0.5, ryMid - 1.7],        // the intro ship moored along the T-head's north face, in the water
+      // COMPOSITION = stations with BARE deck between (the beach's cluster-gap
+      // rhythm): bell greets on the wharf, cargo+crane load the ship along the
+      // pier, the jetty works fish. Empty planking between = the composition.
+      bell: [WL, ryMid - 3],                    // arrivals bell up the wharf, clear of the pier
+      crane: [WL + 5, ryMid + 0.5],             // mid-pier, loading the ship at the head
       lanterns: [
-        [wxAt(ryMid - 3) + 1.3, ryMid - 3],     // north-quay marker by the warehouse (A north)
-        [wxm + 10.6, ryMid + 1.7],              // T-head mooring light (B)
-        [wxs + 5.6, ryMid + 6.3],               // jetty light (C)
+        [rawWx(ryMid - 2), ryMid - 2],          // wharf light (north)
+        [HEADX - 0.4, ryMid + 1.6],             // T-head mooring light
+        [jE + 3, jY - 0.3],                     // jetty light
       ],
-      // cargo STACKED tight (adjacent tiles read as one freight pile, not scatter):
-      // a 2-crate stack at the apron work-station + a single at the jetty
+      // cargo stacked tight at the pier root (reads as one freight pile) + a jetty crate
       cargo: [
-        [wxAt(ryMid + 2) + 2.4, ryMid + 2], [wxAt(ryMid + 2) + 3.0, ryMid + 2.6],
-        [wxs + 3.4, ryMid + 6],
+        [WL + 3.5, ryMid - 0.3], [WL + 4.1, ryMid + 0.3],
+        [jE + 2, jY],
       ],
-      sloop: [wxm + 8.4, ryMid - 5.4],          // at anchor in the breakwater's lee, clear of the rocks
-      sloop2: [wxs + 8.4, ryMid + 6.4],         // the second fisher off the jetty head
-      rowboat: [rawWx(ryMid + 8) - 2.4, ryMid + 8.4],  // hauled UP on the dry sand
-      beacon: [wxm + 8.6, ryMid - 9],           // the harbor light at the breakwater tip
-      pennant: [wxm + 11, ryMid],               // ON the T-head edge tile
-      // mooring cleats ONLY at the two pier heads (where a ship actually ties up),
-      // not a picket down the whole quay lip — the seaward pilings carry the edge
-      edgePosts: [[wxm + 11.3, ryMid - 0.6], [wxm + 11.3, ryMid + 2.4], [wxs + 6.4, ryMid + 6]],
-      bollards: [[wxm + 10.7, ryMid - 0.7], [wxm + 10.7, ryMid + 1.9]],
+      sloop: [WL + PLEN + 0.5, ryMid - 5.4],    // at anchor in the breakwater's lee, clear of the rocks
+      sloop2: [jE + 7, jY + 1.6],               // the second fisher off the jetty head
+      rowboat: [WL - 3.5, ryS + 1.5],           // hauled UP on the dry sand south of the port
+      beacon: [WL + 7.8, ryMid - 7.6],          // the harbor light at the breakwater's north tip
+      pennant: [HEADX, ryMid],                  // ON the T-head edge tile
+      // mooring cleats ONLY at the pier heads (where a ship ties up), not a picket
+      edgePosts: [[HEADX - 0.3, ryMid - 0.7], [HEADX - 0.3, ryMid + 1.7], [jE + 4.6, jY]],
+      bollards: [[WL + PLEN, ryMid - 0.3], [WL + PLEN, ryMid + 1.3]],
     }
   }
   LIGHTHOUSE = [CX + Math.cos(-1.78) * (coastR(-1.78) - 3.5), CY + Math.sin(-1.78) * (coastR(-1.78) - 3.5)]
