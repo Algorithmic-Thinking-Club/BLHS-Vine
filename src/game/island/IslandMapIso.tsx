@@ -748,7 +748,11 @@ export default function IslandMapIso() {
             // on the terraced ring the water tiles stepped down the benches as floating
             // mint checkers — a broken river is worse than none (the full flank river
             // waits for a dedicated waterfall pass)
-            const onRiver = !sand && !isLava && !isBed && L > 0 && L <= 1 && riverD(tx, ty) < 0.8
+            // even the estuary stub read as floating mint checkers at the south
+            // shore (3 orphan water diamonds above the sand) — the river paints
+            // NOTHING until the dedicated falls/river pass draws all of it
+            const RIVER_ON = false
+            const onRiver = RIVER_ON && !sand && !isLava && !isBed && L > 0 && L <= 1 && riverD(tx, ty) < 0.8
             const vs = band >= 1 && rockTop.length ? rockTop : undefined
             const pool = sand ? st
               : isLava ? (ck > 0.32 && lakeT.length ? lakeT : lavaT)
@@ -1122,7 +1126,9 @@ export default function IslandMapIso() {
             if (r < 0.055) {
               putPlant(hash(sx + 2, sy) > 0.5 ? 'tuft-1' : 'tuft-2', jx, jy, { sc: 0.42 + 0.3 * hash(sx + 7, sy + 2), flip: hash(sx + 1, sy + 9) > 0.5, noShadow: true })
             } else if (r < 0.062) {
-              putPlant(hash(sx, sy) > 0.75 ? 'boulder-1' : 'boulder-2', jx, jy, { sc: 0.5 + 0.35 * hash(sx + 7, sy + 2), flip: hash(sx + 1, sy + 9) > 0.5 })
+              // darkened — at native tint the terracotta+violet faces read as
+              // loud pink blobs against the meadow at mid zoom
+              putPlant(hash(sx, sy) > 0.75 ? 'boulder-1' : 'boulder-2', jx, jy, { sc: 0.5 + 0.35 * hash(sx + 7, sy + 2), flip: hash(sx + 1, sy + 9) > 0.5, dark: 0.8 })
             } else if (r < 0.0655) {
               putPlant('palm-fallen', jx, jy, { sc: 0.5 + 0.15 * hash(sx + 4, sy + 6), flip: hash(sx + 3, sy + 1) > 0.5 })
             }
