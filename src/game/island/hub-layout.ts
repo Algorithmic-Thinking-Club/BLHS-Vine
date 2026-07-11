@@ -315,17 +315,20 @@ export function initHubLayout() {
       // COMPOSITION = stations with BARE deck between (the beach's cluster-gap
       // rhythm): bell greets on the wharf, cargo+crane load the ship along the
       // pier, the jetty works fish. Empty planking between = the composition.
-      bell: [WL, ryMid - 3],                    // arrivals bell up the wharf, clear of the pier
-      crane: [WL + 5, ryMid + 0.5],             // mid-pier, loading the ship at the head
+      // solid props live on the WIDE wharf/apron (a 2-wide pier has no interior
+      // tile for the placement-snap, so props there overhang the edge). The pier
+      // stays a clean walkway to the ship; the cargo YARD works on the apron.
+      bell: [rawWx(ryMid - 3), ryMid - 3],      // arrivals bell up the wharf, clear of the work yard
+      crane: [WL + 1, ryMid],                   // on the apron, working the cargo yard
       lanterns: [
         [rawWx(ryMid - 2), ryMid - 2],          // wharf light (north)
         [HEADX - 0.4, ryMid + 1.6],             // T-head mooring light
         [jE + 3, jY - 0.3],                     // jetty light
       ],
-      // cargo stacked tight at the pier root (reads as one freight pile) + a jetty crate
+      // cargo stacked on the apron beside the crane (reads as one freight pile)
       cargo: [
-        [WL + 3.5, ryMid - 0.3], [WL + 4.1, ryMid + 0.3],
-        [jE + 2, jY],
+        [WL, ryMid + 1], [WL + 1, ryMid + 2],
+        [WL - 1, ryMid + 2],
       ],
       sloop: [WL + PLEN + 0.5, ryMid - 5.4],    // at anchor in the breakwater's lee, clear of the rocks
       sloop2: [jE + 7, jY + 1.6],               // the second fisher off the jetty head
