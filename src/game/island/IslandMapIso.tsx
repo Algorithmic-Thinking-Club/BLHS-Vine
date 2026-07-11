@@ -1395,11 +1395,29 @@ export default function IslandMapIso() {
               }
               return sp
             }
-            mount(pt['bell-frame'], HARBOR.bell, { sc: 0.8 })
-            mount(hb['crane'], HARBOR.crane, {})
+            // PLACEMENT GUARD (Ash: "assets not sitting properly... the bell on
+            // half port floating over water"). A big solid prop must stand on a
+            // fully-supported INTERIOR deck tile — every one of its 4 neighbours
+            // is also deck — so it can never straddle the water-facing lip. Snap
+            // each solid prop's anchor to the nearest such tile centre.
+            const isDeckT = (tx: number, ty: number) => { const t = harborAt(tx, ty); return !!t && t.mat !== 'rock' }
+            const isInterior = (tx: number, ty: number) =>
+              isDeckT(tx, ty) && isDeckT(tx + 1, ty) && isDeckT(tx - 1, ty) && isDeckT(tx, ty + 1) && isDeckT(tx, ty - 1)
+            const deckCtr = (at: [number, number]): [number, number] => {
+              let best = at, bd = 1e9
+              for (let dx = -3; dx <= 3; dx++) for (let dy = -3; dy <= 3; dy++) {
+                const tx = Math.round(at[0]) + dx, ty = Math.round(at[1]) + dy
+                if (!isInterior(tx, ty)) continue
+                const d = Math.hypot(tx - at[0], ty - at[1])
+                if (d < bd) { bd = d; best = [tx, ty] }
+              }
+              return best
+            }
+            mount(pt['bell-frame'], deckCtr(HARBOR.bell), { sc: 0.72 })
+            mount(hb['crane'], deckCtr(HARBOR.crane), {})
             // the cargo yard: freight stacked at every work point, varied scale/flip
             for (let ci = 0; ci < HARBOR.cargo.length; ci++) {
-              mount(pt['cargo-a'], HARBOR.cargo[ci], { sc: 0.62 + 0.16 * hash(ci * 3.1 + 1, ci * 1.7 + 2), flip: ci % 2 === 1 })
+              mount(pt['cargo-a'], deckCtr(HARBOR.cargo[ci]), { sc: 0.62 + 0.16 * hash(ci * 3.1 + 1, ci * 1.7 + 2), flip: ci % 2 === 1 })
             }
             for (const L2 of HARBOR.lanterns) mount(pt['lantern-post'], L2, { sc: 0.72, glow: true })
             for (const B of HARBOR.bollards) mount(hb['bollard-b'] ?? pt['bollard-a'], B, { sc: hb['bollard-b'] ? 0.2 : 0.34 })
@@ -1481,7 +1499,13 @@ export default function IslandMapIso() {
             const inland = (dy: number, back: number): [number, number] => {
               const y = HARBOR.root[1] + dy
               const wx = HARBOR.tiles.reduce((m, t2) => (t2.ty === Math.round(y) && t2.mat === 'plank' ? Math.min(m, t2.tx) : m), 999)
-              return [(wx === 999 ? HARBOR.root[0] : wx) - back, y]
+              let x = (wx === 999 ? HARBOR.root[0] : wx) - back
+              // walk inland until the tile is SOLID FLAT SAND — off the waterline
+              // (so it doesn't float) and below the grass riser (so it isn't clipped
+              // half-away by the terrace edge — Ash's "half generated shack")
+              let guard = 0
+              while (guard++ < 7 && !(dsAt(Math.round(x), Math.round(y)) > 2 && eLvl(Math.round(x), Math.round(y)) === 0)) x -= 1
+              return [x, y]
             }
             mount(hb['warehouse'], inland(-5.6, 2.6), { deck: false, sc: 1.15 })
             mount(pt['harbor-shed'], inland(3.4, 2.8), { deck: false })

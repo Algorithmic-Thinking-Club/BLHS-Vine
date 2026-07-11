@@ -318,7 +318,7 @@ export function initHubLayout() {
       quayRect: [wxm + 1, y0, 2, y1 - y0 + 1],
       root: [wxm, ryMid + 1],
       steps: [wxm, ryMid + 1],
-      berth: [wxm + 7, ryMid - 3.4],            // the intro ship moors off the main pier's north face
+      berth: [wxm + 6.5, ryMid - 2.15],         // moored ALONGSIDE the pier's north face (touching, no water gap)
       bell: [wxm + 3.3, ryMid - 1.2],           // greets arrivals at the main pier root (ON the deck)
       crane: [wxAt(ryMid - 3) + 1.6, ryMid - 3.2],
       // a spaced lighting RHYTHM (trimmed 8→5: identical posts every 2 tiles read
@@ -337,9 +337,9 @@ export function initHubLayout() {
       ],
       sloop: [wxm + 8.4, ryMid - 6.2],          // riding at anchor in the breakwater's lee, clear of the rocks
       sloop2: [wxm + 9.2, ryMid + 4.8],         // the second fisher in OPEN water south of the pier
-      rowboat: [rawWx(ryMid + 10) - 0.6, ryMid + 10.4],  // hauled up on the sand
+      rowboat: [rawWx(ryMid + 10) - 2.4, ryMid + 10.4],  // hauled UP on the dry sand (was at the waterline, half in the sea)
       beacon: [wxm + 8.6, ryMid - 9],           // the harbor light at the breakwater tip
-      pennant: [wxm + 11.5, ryMid + 0.3],       // the teal school pennant flies at the T-head's east lip
+      pennant: [wxm + 11, ryMid],               // ON the T-head edge tile (was +11.5 = pole over open water)
       // mooring posts stand ON the deck's outer tile (+2.55 rounded PAST the
       // deck, so every post dropped to sea level and stood in the water)
       edgePosts: Array.from({ length: 8 }, (_, i) => {
