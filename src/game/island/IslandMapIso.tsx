@@ -1540,7 +1540,7 @@ export default function IslandMapIso() {
           try {
             const gart: Record<string, Texture> = {}
             for (const n of ['gate-portal', 'lava-panel']) {
-              const t: Texture = await Assets.load(`/art/island/gate/${n}.png?v=1`)
+              const t: Texture = await Assets.load(`/art/island/gate/${n}.png?v=2`)
               t.source.scaleMode = 'nearest'; gart[n] = t
             }
             const head = (t: Texture, at: [number, number], sc: number, glowMouth: boolean) => {
