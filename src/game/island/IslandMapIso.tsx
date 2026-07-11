@@ -6,7 +6,7 @@ import {
 } from '../ocean'
 import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, HEAD_L } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
-import { PLAZA, PLAZA_R, GROVES, HARBOR, GATE_HEAD, harborAt, riverD, pathD, tongueD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout } from './hub-layout'
+import { PLAZA, PLAZA_R, GROVES, HARBOR, GATE_HEAD, TONGUE, harborAt, riverD, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout } from './hub-layout'
 
 const smooth = (e0: number, e1: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t)
@@ -236,14 +236,6 @@ export default function IslandMapIso() {
         if (!lavaT.length) for (let i = 0; i < 4; i++) {
           try { const t: Texture = await Assets.load(`/art/island/flat/lava-${i}.png`); t.source.scaleMode = 'nearest'; lavaT.push(t) } catch { /* */ }
         }
-        // the gate's carved TONGUE-STAIR (Phase C2): warm dark basalt paving tops
-        // along the tongue ribbon between the twin lava curtains
-        const stairT: Texture[] = []
-        try {
-          const t: Texture = await Assets.load('/art/island/gate/stair-block.png?v=2')
-          t.source.scaleMode = 'nearest'
-          stairT.push(new Texture({ source: t.source, frame: new Rectangle(0, 0, 64, 36) }))
-        } catch { /* stair art optional */ }
         // THE VSLOPE FAMILY (final-push stage 1): the cone's skin. Tops + faces harvested
         // off the picked volc-a painting, normalized to ONE shared lit-amber base — every
         // value change on the flank comes from the coneTint field in long runs, never
@@ -767,16 +759,12 @@ export default function IslandMapIso() {
             // NOTHING until the dedicated falls/river pass draws all of it
             const RIVER_ON = false
             const onRiver = RIVER_ON && !sand && !isLava && !isBed && L > 0 && L <= 1 && riverD(tx, ty) < 0.8
-            // the gate's carved stair: the tongue ribbon wears basalt paving from
-            // the portal's doorsill down the flank, between the twin lava curtains
-            const onStair = !sand && !isLava && L > 0 && tongueD(tx, ty) < 1.05
             const vs = band >= 1 && rockTop.length ? rockTop : undefined
             const pool = sand ? st
               : isLava ? (ck > 0.32 && lakeT.length ? lakeT : lavaT)
-                : onStair && stairT.length ? stairT
-                  : isBed && volcT.length ? volcT
-                    : onRiver && waterV.length ? waterV
-                      : (onPath || onPlaza) && st.length ? st : vs || gt
+                : isBed && volcT.length ? volcT
+                  : onRiver && waterV.length ? waterV
+                    : (onPath || onPlaza) && st.length ? st : vs || gt
             // cone rock tops pick in smooth ZONES (like the walls): per-tile hash churn
             // re-rolled the texture every diamond and the flank read as shredded scales
             const g = !pool.length ? undefined
@@ -817,12 +805,6 @@ export default function IslandMapIso() {
                 // phase keyed to distance from the vent: the pulse TRAVELS downstream —
                 // the cheap cue that the river flows instead of blinking in place
                 glows.push({ sp: glow, ph: -Math.hypot(tx - CX, ty - CY) * 1.1 + hash(tx, ty) * 0.8, a: 0.3 })
-              } else if (onStair && stairT.length) {
-                // the carved paving carries its own color — a quiet value drift
-                // keeps the run alive without re-rolling the art per diamond
-                const v = 0.94 + 0.1 * vnoise(tx / 5 + 11, ty / 5 + 7)
-                const vv = Math.min(255, Math.round(v * 255))
-                top.tint = (vv << 16) | (vv << 8) | vv
               } else if (isBed) {
                 // the charred channel shoulder / crater bowl floor — dark UMBER, not black
                 // (the grade crushes anything below ~0.5 into hole-black)
@@ -1594,6 +1576,78 @@ export default function IslandMapIso() {
             }
             if (gart['gate-portal']) head(gart['gate-portal'], GATE_HEAD, 0.85, false)
             if (gart['lava-panel']) head(gart['lava-panel'], HEAD_L, 0.62, true)
+            // ---- THE TONGUE-STAIR as STRUCTURE (the harbor-landing construction):
+            // a straight 2-wide run of carved basalt treads at DESIGNED lifts from
+            // the doorsill down to the corridor base. The material-ribbon version
+            // rasterized into red-brick dashes on the diagonal benches — a stair
+            // is a built thing, drawn in its own grammar like the quay.
+            try {
+              const sbT: Texture = await Assets.load('/art/island/gate/stair-block.png?v=2')
+              sbT.source.scaleMode = 'nearest'
+              const sTop = new Texture({ source: sbT.source, frame: new Rectangle(0, 0, 64, 36) })
+              const sFace = new Texture({ source: sbT.source, frame: new Rectangle(0, 18, 64, 46) })
+              const x0 = Math.round(GATE_HEAD[0])
+              const x1 = Math.round(TONGUE[0][0])
+              const n = Math.max(1, x1 - x0)
+              // the corridor CENTER per column — the midline between the two
+              // curtain polylines (a straight tile-space line drifted into the
+              // south curtain where the flows bend)
+              const yOn = (line: [number, number][], x: number) => {
+                for (let s = 0; s < line.length - 1; s++) {
+                  const [ax, ay] = line[s], [bx3, by3] = line[s + 1]
+                  if (x >= Math.min(ax, bx3) && x <= Math.max(ax, bx3) && ax !== bx3) {
+                    return ay + (by3 - ay) * ((x - ax) / (bx3 - ax))
+                  }
+                }
+                const [ex2, ey3] = line[line.length - 1]
+                return ey3 + (x - ex2) * 0 // past the end: hold the last y
+              }
+              // the treads HUG the flank's real profile (uniform designed lifts
+              // floated the pads over every irregular bench) — terrain + 2px,
+              // paired into 2-column pads, never rising on the way down
+              let prev = Infinity
+              const cols: { x: number; yc: number; lift: number }[] = []
+              for (let i = 1; i <= n; i++) {
+                const x = x0 + i
+                const yc = Math.round((yOn(LAVA[1], x) + yOn(LAVA[2], x)) / 2 - 0.5)
+                const L2 = Math.max(0, Math.max(eLvl(x, yc), eLvl(x, yc + 1)))
+                let lift = liftOf(L2) + 2
+                if (i > 1 && i % 2 === 0) lift = cols[i - 2].lift  // pair into pads
+                lift = Math.min(lift, prev)
+                prev = lift
+                cols.push({ x, yc, lift })
+              }
+              cols.forEach((c, ci) => {
+                const liftNext = ci + 1 < cols.length ? cols[ci + 1].lift : 0
+                for (const y of [c.yc, c.yc + 1]) {
+                  const bx2 = isoX(c.x, y), byT = isoY(c.x, y) + GY - c.lift
+                  const zB = (c.x + y) * 4000 + c.lift * 2
+                  const tp = new Sprite(sTop); tp.anchor.set(0.5, 0.5)
+                  tp.position.set(bx2, byT)
+                  tp.scale.set(1.06)
+                  // worn dark basalt, not bright brick — the raw red read as a
+                  // brick road (the harbor's "bricked" verdict, same failure)
+                  const dv = 0.68 + 0.1 * vnoise(c.x / 5 + 3, y / 5 + 9)
+                  const vv = Math.min(255, Math.round(dv * 255))
+                  tp.tint = (vv << 16) | (Math.round(vv * 0.94) << 8) | Math.round(vv * 0.92)
+                  tp.zIndex = zB + 6
+                  world.addChild(tp)
+                  // the riser: the +x front face drops to the next tread (or the
+                  // ground at the base landing). Tall drops go SHADOW-dark — a
+                  // stretched lit face read as a red curtain wall near the mouth.
+                  const drop = ci === cols.length - 1 ? 6 : Math.max(0, c.lift - liftNext)
+                  if (drop > 0) {
+                    const fc = new Sprite(sFace); fc.anchor.set(0.5, 0)
+                    fc.position.set(bx2 + 16, byT + 8 - 17)
+                    fc.width = 34
+                    fc.scale.y = (drop + 18) / 46
+                    fc.tint = drop > 10 ? 0x5e4a46 : 0x8a6e68
+                    fc.zIndex = zB + 4
+                    world.addChild(fc)
+                  }
+                }
+              })
+            } catch { /* stair art optional */ }
           } catch { /* gate art optional until it lands */ }
         }
 
