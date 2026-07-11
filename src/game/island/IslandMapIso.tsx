@@ -1364,10 +1364,12 @@ export default function IslandMapIso() {
               const lift = o.deck === false ? 0 : under?.lift ?? 0
               const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY - lift + 8
               const zB = Math.floor(at[0] + at[1]) * 4000 + lift * 2
+              // a slim contact shadow only — the old broad 0.34-alpha ellipses
+              // under every prop read as mud splotches on the planking
               const sh = new Sprite(shadTex)
               sh.anchor.set(0.4, 0.5)
-              sh.width = t.width * (o.sc ?? 1) * 0.75; sh.height = Math.max(8, t.width * (o.sc ?? 1) * 0.22)
-              sh.alpha = 0.34
+              sh.width = t.width * (o.sc ?? 1) * 0.62; sh.height = Math.max(6, t.width * (o.sc ?? 1) * 0.15)
+              sh.alpha = 0.22
               sh.position.set(bx2 + 3, by2 - 2)
               sh.zIndex = zB + 7
               world.addChild(sh)
