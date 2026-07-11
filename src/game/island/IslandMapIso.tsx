@@ -1610,10 +1610,18 @@ export default function IslandMapIso() {
               const lift = liftOf(eLvl(rx, ry2))
               const bx2 = isoX(site[0], site[1]), byBase = isoY(site[0], site[1]) + GY - lift + 10
               const zB = (rx + ry2) * 4000 + lift * 2 + 760
-              // AO where the socket meets the flank (seats it into the rock)
+              // a DEEP carved socket: a broad AO pool the head sits in + a tighter,
+              // darker core hugging the muzzle, so the head reads recessed INTO the
+              // flank (Ash: carved OUT of the mountain, not a pasted medallion)
+              const shOuter = new Sprite(shadTex)
+              shOuter.anchor.set(0.5, 0.5)
+              shOuter.width = spoutT.width * sc * 1.12; shOuter.height = spoutT.width * sc * 0.4; shOuter.alpha = 0.34
+              shOuter.tint = 0x2a140a
+              shOuter.position.set(bx2, byBase - spoutT.height * sc * 0.46); shOuter.zIndex = zB - 3
+              world.addChild(shOuter)
               const sh = new Sprite(shadTex)
               sh.anchor.set(0.5, 0.5)
-              sh.width = spoutT.width * sc * 0.86; sh.height = spoutT.width * sc * 0.26; sh.alpha = 0.4
+              sh.width = spoutT.width * sc * 0.84; sh.height = spoutT.width * sc * 0.28; sh.alpha = 0.5
               sh.position.set(bx2, byBase - spoutT.height * sc * 0.42); sh.zIndex = zB - 2
               world.addChild(sh)
               const sp = new Sprite(spoutT); sp.anchor.set(0.5, 0.86)   // the lava-column base at the site
@@ -1632,8 +1640,8 @@ export default function IslandMapIso() {
             }
             // both flanks wear a carved head (GAME-DESIGN §3.2: two lava-spewing
             // heads). SE faces down-right; SW flipped to face down-left.
-            carveHead(HEAD_R, 0.9, false)
-            carveHead(HEAD_L, 0.88, true)
+            carveHead(HEAD_R, 1.32, false)
+            carveHead(HEAD_L, 1.26, true)
           } catch { /* carved heads optional until the art lands */ }
         }
 
