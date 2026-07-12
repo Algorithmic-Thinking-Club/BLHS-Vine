@@ -15,7 +15,7 @@
 // The lagoon window (az -0.55) is the screen-E/SE arrival water; the cove (az 0.79) is
 // the screen-S pocket; the cliff arc wraps screen W -> NW -> N.
 
-import { CX, CY, coastR, coastDs, lavaDist, HEAD_R } from './terrain'
+import { CX, CY, coastR, coastDs, lavaDist, LAVA, HEAD_R } from './terrain'
 import { coneH, gullyK } from './volcano'
 import { vnoise } from '../ocean'
 
@@ -80,6 +80,7 @@ export let TIDEPOOLS: [number, number] = [CX, CY]
 export let GROVES: [number, number, number, number][] = []
 
 const GRID = 200
+let LAVA0: [number, number][][] | null = null   // pristine LAVA lines (pre-extension)
 let PATH_SET = new Set<number>()
 export const onPathTile = (tx: number, ty: number) => PATH_SET.has(ty * GRID + tx)
 
@@ -179,6 +180,55 @@ export function initHubLayout() {
   for (let r = coastR(plazaAz) - 6; r >= 33; r -= 0.5) {
     const px = CX + Math.cos(plazaAz) * r, py = CY + Math.sin(plazaAz) * r
     if (coastDs(px, py) > 5.5 && coneH(px, py) < 1.2) { PLAZA = [px, py]; break }
+  }
+
+  // LAVA REACHES THE SEA (Ash: the mouth-flow must blend into a trail that
+  // "bleeds into the ocean"). The static polylines end ~4 tiles short of the
+  // water; extend each tail along its own direction to just past its coast
+  // radius so the molten ribbon renders down the beach to the waterline. The
+  // renderer adds the quench (basalt fan + steam + glow) at each sea end.
+  // Idempotent: skip lines already extended past their coast.
+  // Rebuilt from the PRISTINE polylines every init (initHubLayout runs once at
+  // module load against the default skeleton and again after the real skeleton
+  // resolves — a mutate-in-place extension baked the wrong coast in and the
+  // quench marooned offshore). Resample each line at fine steps, keep it while
+  // on land, cut just past the TRUE waterline; if it never reaches water,
+  // march on along the last direction until it does.
+  if (!LAVA0) LAVA0 = LAVA.map((l) => l.map((p) => [p[0], p[1]] as [number, number]))
+  for (let li = 0; li < LAVA.length; li++) {
+    const src = LAVA0[li]
+    const out: [number, number][] = [[src[0][0], src[0][1]]]
+    let crossed = false
+    for (let i = 0; i < src.length - 1 && !crossed; i++) {
+      const [x0, y0] = src[i], [x1, y1] = src[i + 1]
+      const L = Math.hypot(x1 - x0, y1 - y0)
+      const n = Math.max(1, Math.ceil(L / 0.5))
+      for (let s = 1; s <= n; s++) {
+        const x = x0 + ((x1 - x0) * s) / n, y = y0 + ((y1 - y0) * s) / n
+        out.push([x, y])
+        if (coastDs(x, y) <= -0.8) { crossed = true; break }
+      }
+    }
+    if (!crossed) {
+      const [px, py] = out[out.length - 2] ?? out[0]
+      let [ex, ey] = out[out.length - 1]
+      const dl = Math.hypot(ex - px, ey - py) || 1
+      const ux = (ex - px) / dl, uy = (ey - py) / dl
+      let steps = 0
+      while (steps++ < 20 && coastDs(ex, ey) > -0.8) {
+        ex += ux * 0.6; ey += uy * 0.6
+        out.push([ex, ey])
+      }
+    }
+    // thin the resample back to a lean polyline (every ~2 tiles + the tail)
+    const lean: [number, number][] = [out[0]]
+    for (let i = 1; i < out.length - 1; i++) {
+      const [lx, ly] = lean[lean.length - 1]
+      if (Math.hypot(out[i][0] - lx, out[i][1] - ly) >= 2) lean.push(out[i])
+    }
+    lean.push(out[out.length - 1])
+    LAVA[li].length = 0
+    LAVA[li].push(...lean)
   }
 
   // THE GATE: Thor enters the Maw THROUGH the SE panther head's mouth — its lava

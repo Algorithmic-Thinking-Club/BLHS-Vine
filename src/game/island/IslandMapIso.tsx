@@ -735,9 +735,11 @@ export default function IslandMapIso() {
             // ribbon width 1.25, NOT 0.95: at 0.95 a diagonal flow rasterized into a
             // corner-connected single-tile chain — molten diamonds touching only at
             // their points, reading as broken orange DASHES down the whole flank
-            const isLava = !NOCONE && lavaT.length > 0 && L > 0 && (ld < 1.25 || ck > 0.32)
+            // the flow crosses the BEACH to the sea (Ash: the trail bleeds into the
+            // ocean) — L>0 gated it to the terraces and the ribbon died at the lip
+            const isLava = !NOCONE && lavaT.length > 0 && (ld < 1.25 || (L > 0 && ck > 0.32))
             // the bed hugs the future ribbon (a 4-tile charred swath read as a black scar)
-            const isBed = !NOCONE && !isLava && L > 0 && (ld < 1.7 || ck > 0.4)
+            const isBed = !NOCONE && !isLava && (ld < 1.7 || (L > 0 && ck > 0.4))
             // the worn path wears dry sand through the meadow (grass ring only, never
             // up the cone or over the beach's own sand)
             // paths may cross the grassy cone toe (the lawn IS mostly toe) — never the
@@ -760,9 +762,11 @@ export default function IslandMapIso() {
             const RIVER_ON = false
             const onRiver = RIVER_ON && !sand && !isLava && !isBed && L > 0 && L <= 1 && riverD(tx, ty) < 0.8
             const vs = band >= 1 && rockTop.length ? rockTop : undefined
-            const pool = sand ? st
-              : isLava ? (ck > 0.32 && lakeT.length ? lakeT : lavaT)
-                : isBed && volcT.length ? volcT
+            // molten core + charred bed OUTRANK sand so the flow owns its beach
+            // crossing; everything else on sand stays sand
+            const pool = isLava ? (ck > 0.32 && lakeT.length ? lakeT : lavaT)
+              : isBed && volcT.length ? volcT
+                : sand ? st
                   : onRiver && waterV.length ? waterV
                     : (onPath || onPlaza) && st.length ? st : vs || gt
             // cone rock tops pick in smooth ZONES (like the walls): per-tile hash churn
@@ -1714,12 +1718,13 @@ export default function IslandMapIso() {
         // curtains pour down in front, framing them.
         if (!NOCONE) {
           try {
-            const spoutT: Texture = await Assets.load('/art/island/gate/head-spout.png?v=1')
+            const spoutT: Texture = await Assets.load('/art/island/gate/head-gape.png?v=1')
             spoutT.source.scaleMode = 'nearest'
-            // the gargoyle-SPOUT head (bon4 angle): juts out and DOWN the flank,
-            // muzzle foreshortened toward the viewer, set in a rock socket, its
-            // maw pouring the molten flow straight down — NOT a front-on portrait.
-            // The head's own lava column merges into the in-engine flank flow.
+            // the GAPING head (Ash's verdict, 2026-07-11): a monumental roaring
+            // maw carved out of the mountain — dark open mouth (the gate head's
+            // is the Maw entrance), stone fangs, a basalt skirt torn-edged into
+            // the flank, the mouth's lava column landing exactly on the engine
+            // flow's origin so mouth -> flank -> delta -> sea reads as ONE thread.
             const carveHead = (site: [number, number], sc: number, flip: boolean) => {
               const rx = Math.round(site[0]), ry2 = Math.round(site[1])
               const lift = liftOf(eLvl(rx, ry2))
@@ -1739,24 +1744,24 @@ export default function IslandMapIso() {
               sh.width = spoutT.width * sc * 0.84; sh.height = spoutT.width * sc * 0.28; sh.alpha = 0.5
               sh.position.set(bx2, byBase - spoutT.height * sc * 0.42); sh.zIndex = zB - 2
               world.addChild(sh)
-              const sp = new Sprite(spoutT); sp.anchor.set(0.5, 0.86)   // the lava-column base at the site
+              const sp = new Sprite(spoutT); sp.anchor.set(0.5, 0.97)   // the lava-column base at the site
               sp.position.set(bx2, byBase)
               sp.scale.set((flip ? -1 : 1) * sc, sc)
               sp.zIndex = zB
               world.addChild(sp)
-              // the maw breathes molten (the mouth sits ~0.58 down the sprite)
+              // the open maw breathes molten heat (the mouth sits ~0.55 down)
               const g = new Sprite(foamTex); g.anchor.set(0.5, 0.5); g.blendMode = 'add'
               g.tint = 0xff7a28
-              g.width = spoutT.width * sc * 0.34; g.height = spoutT.width * sc * 0.26
-              g.position.set(bx2, byBase - spoutT.height * sc * 0.28)
-              g.alpha = 0.4; g.zIndex = zB + 4
+              g.width = spoutT.width * sc * 0.4; g.height = spoutT.width * sc * 0.3
+              g.position.set(bx2 + (flip ? -6 : 6), byBase - spoutT.height * sc * 0.44)
+              g.alpha = 0.42; g.zIndex = zB + 4
               world.addChild(g)
-              glows.push({ sp: g, ph: 2.4, a: 0.42 })
+              glows.push({ sp: g, ph: 2.4, a: 0.44 })
             }
             // both flanks wear a carved head (GAME-DESIGN §3.2: two lava-spewing
             // heads). SE faces down-right; SW flipped to face down-left.
-            carveHead(HEAD_R, 1.32, false)
-            carveHead(HEAD_L, 1.26, true)
+            carveHead(HEAD_R, 1.2, false)
+            carveHead(HEAD_L, 1.05, true)
           } catch { /* carved heads optional until the art lands */ }
         }
 
@@ -1782,6 +1787,55 @@ export default function IslandMapIso() {
             world.addChild(sp)
             puffs.push({ sp, ph: i * 2.6 + ex * 0.1, spd: 0.6 + 0.25 * hash(ex + i, ey2), big: false })
           }
+        }
+        // THE QUENCH (Ash: the trail "bleeds into the ocean"): where each flow
+        // meets the sea — a cooling basalt fan half in the water, the molten
+        // core's contact glow breathing against it, a foam arc where the sea
+        // fights back. The flows now END past the waterline (hub-layout extends
+        // the tails), so this is the thread's final beat: mouth -> flank ->
+        // delta -> sea.
+        if (!NOCONE) {
+          try {
+            const rrQ: Texture[] = []
+            for (const n of ['riprap-a', 'riprap-b', 'riprap-c']) {
+              const t = await Assets.load(`/art/island/harbor/${n}.png`)
+              t.source.scaleMode = 'nearest'
+              rrQ.push(t)
+            }
+            for (const line of LAVA) {
+              const [ex, ey2] = line[line.length - 1]
+              const bx2 = isoX(ex, ey2), by2 = isoY(ex, ey2) + GY
+              const zQ = Math.floor(ex + ey2) * 4000
+              // the dark basalt pool spreading under the contact
+              const pool = new Sprite(shadTex); pool.anchor.set(0.5, 0.5)
+              pool.width = 150; pool.height = 42; pool.alpha = 0.45; pool.tint = 0x14100e
+              pool.position.set(bx2, by2 + 4); pool.zIndex = zQ + 580
+              world.addChild(pool)
+              // the cooled fan: charcoal rocks half-sunk where the flow froze
+              for (let i = 0; i < 4; i++) {
+                const jx = ex + (hash(ex * 3.1 + i, ey2 * 1.7) - 0.5) * 2.4
+                const jy = ey2 + (hash(ex * 1.3, ey2 * 4.9 + i) - 0.5) * 1.6
+                const rk = new Sprite(rrQ[i % 3]); rk.anchor.set(0.5, 0.78)
+                const sc2 = 0.3 + 0.2 * hash(jx, jy + i)
+                rk.scale.set((hash(jx + i, jy) > 0.5 ? -1 : 1) * sc2, sc2)
+                rk.tint = i % 2 === 0 ? 0x3a2e30 : 0x4a3a38
+                rk.position.set(isoX(jx, jy), isoY(jx, jy) + GY + 4)
+                rk.zIndex = zQ + 590 + i
+                world.addChild(rk)
+              }
+              // the molten core's contact glow, breathing against the rocks
+              const gq = new Sprite(foamTex); gq.anchor.set(0.5, 0.5); gq.blendMode = 'add'
+              gq.tint = 0xff6a1e; gq.width = 110; gq.height = 44; gq.alpha = 0.4
+              gq.position.set(bx2, by2); gq.zIndex = zQ + 600
+              world.addChild(gq)
+              glows.push({ sp: gq, ph: hash(ex, ey2) * 6, a: 0.42 })
+              // the sea fighting back: a bright foam arc around the fan
+              const fq = new Sprite(foamTex); fq.anchor.set(0.5, 0.5)
+              fq.width = 170; fq.height = 40; fq.alpha = 0.5
+              fq.position.set(bx2 + 8, by2 + 8); fq.zIndex = zQ + 585
+              world.addChild(fq)
+            }
+          } catch { /* quench dressing is optional */ }
         }
         const steamBase = puffs.map((p) => ({ x: p.sp.x, y: p.sp.y }))
 
