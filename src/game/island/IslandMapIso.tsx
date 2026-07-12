@@ -6,7 +6,7 @@ import {
 } from '../ocean'
 import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, MOUTH_L, MOUTH_R } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
-import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD, RIVER, FALLS, FORD, STELES, TONGUE, PORTS, MINI_PORTS, TIDEPOOLS } from './hub-layout'
+import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD, RIVER, FALLS, FORD, STELES, TONGUE, PORTS, MINI_PORTS, TIDEPOOLS, WEST_OVERLOOK } from './hub-layout'
 import { reportIslandAudit } from './island-audit'
 
 const smooth = (e0: number, e1: number, x: number) => {
@@ -2502,6 +2502,31 @@ export default function IslandMapIso() {
                     rk4.zIndex = zB4 + 46 + (ry4 > by4 ? 4 : 0)
                     world.addChild(rk4)
                   }
+                }
+              }
+              // THE WEST OVERLOOK (Z9's vista): two worn sitting stones facing
+              // the west head across the flow — the quiet counterpart to the
+              // gate's roar. A vista POI with nothing standing at it read as a
+              // lie on the map (the tidepools' own lesson).
+              {
+                const [ovx, ovy] = WEST_OVERLOOK
+                // 0.62/0.5 (was 0.4/0.32): at 26px the pale slabs melted into
+                // the sunlit grass entirely (probe-found, invisible on screen)
+                for (const [ox, oy, s5, fl] of [[0, 0, 0.62, false], [1.2, 0.6, 0.5, true]] as [number, number, number, boolean][]) {
+                  const rx5 = ovx + ox, ry5 = ovy + oy
+                  const rlf = liftOf(eLvl(Math.round(rx5), Math.round(ry5)))
+                  const zB5 = (Math.round(rx5) + Math.round(ry5)) * 4000 + rlf * 2
+                  const sh5 = new Sprite(shadTex); sh5.anchor.set(0.5, 0.5)
+                  sh5.width = 78 * s5; sh5.height = 30 * s5; sh5.alpha = 0.3
+                  sh5.position.set(isoX(rx5, ry5) + 2, isoY(rx5, ry5) + GY - rlf + 5)
+                  sh5.zIndex = zB5 + 696
+                  world.addChild(sh5)
+                  const sp5 = new Sprite(rkT); sp5.anchor.set(0.5, 0.6)
+                  sp5.position.set(isoX(rx5, ry5), isoY(rx5, ry5) + GY - rlf + 4)
+                  sp5.tint = 0xbfae94
+                  sp5.scale.set((fl ? -1 : 1) * s5, s5)
+                  sp5.zIndex = zB5 + 700
+                  world.addChild(sp5)
                 }
               }
             } catch { /* ford stones optional */ }

@@ -233,7 +233,9 @@ export function initHubLayout() {
       for (let s = 1; s <= n; s++) {
         const x = x0 + ((x1 - x0) * s) / n, y = y0 + ((y1 - y0) * s) / n
         out.push([x, y])
-        if (coastDs(x, y) <= -0.8) { crossed = true; break }
+        // -1.2 (was -0.8; -1.8 stranded the basalt fan out in the tide,
+        // detached from the ribbon): the quench sits right AT the waterline
+        if (coastDs(x, y) <= -1.2) { crossed = true; break }
       }
     }
     if (!crossed) {
@@ -242,8 +244,16 @@ export function initHubLayout() {
       const dl = Math.hypot(ex - px, ey - py) || 1
       const ux = (ex - px) / dl, uy = (ey - py) / dl
       let steps = 0
-      while (steps++ < 20 && coastDs(ex, ey) > -0.8) {
-        ex += ux * 0.6; ey += uy * 0.6
+      // steepest-descent blend (the river tail's own fix): a straight march
+      // can end in a radial ds pocket while the real waterline sits tiles away
+      while (steps++ < 26 && coastDs(ex, ey) > -1.2) {
+        const g = 0.6
+        const gx = coastDs(ex + g, ey) - coastDs(ex - g, ey)
+        const gy = coastDs(ex, ey + g) - coastDs(ex, ey - g)
+        const gl = Math.hypot(gx, gy) || 1
+        const bx = ux * 0.45 - (gx / gl) * 0.55, by = uy * 0.45 - (gy / gl) * 0.55
+        const bl = Math.hypot(bx, by) || 1
+        ex += (bx / bl) * 0.6; ey += (by / bl) * 0.6
         out.push([ex, ey])
       }
     }
