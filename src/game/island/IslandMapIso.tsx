@@ -6,7 +6,7 @@ import {
 } from '../ocean'
 import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, MOUTH_L, MOUTH_R } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
-import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, riverD, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD } from './hub-layout'
+import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD, RIVER, FALLS, FORD, STELES, TONGUE } from './hub-layout'
 import { reportIslandAudit } from './island-audit'
 
 const smooth = (e0: number, e1: number, x: number) => {
@@ -633,6 +633,57 @@ export default function IslandMapIso() {
         // DOWNSTREAM-keyed phase, so the churn pattern itself travels mouth->sea
         // (the classic 16-bit flipbook flow — the surface moves, not sparkles on it)
         const lavaFlow: { sp: Sprite; off: number; pool: Texture[] }[] = []
+
+        // ---- THE RIVER (P3): a mountain stream DESIGNED as pool-step-pool —
+        // flat water rides each bench at the terrain's own level, a white
+        // cascade drops at every lip, the falls bench widens into a fed pool,
+        // and the chain ends where the cove takes over. (The old attempt painted
+        // stepped water as floating mint checkers; the steps ARE the design now.)
+        type RiverTile = { lvl: number; drop: number; ddir: [number, number]; i: number }
+        const riverInfo = new Map<number, RiverTile>()
+        if (!NOCONE && RIVER.length) {
+          const chain: [number, number][] = []
+          const seenR = new Set<number>()
+          const addR = (cx2: number, cy2: number) => {
+            const k = cy2 * COLS + cx2
+            if (!seenR.has(k)) { seenR.add(k); chain.push([cx2, cy2]) }
+          }
+          for (let i = 0; i < RIVER.length - 1; i++) {
+            const [x0, y0] = RIVER[i], [x1, y1] = RIVER[i + 1]
+            const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 0.15))
+            for (let s = 0; s <= n; s++) {
+              const cx2 = Math.round(x0 + ((x1 - x0) * s) / n), cy2 = Math.round(y0 + ((y1 - y0) * s) / n)
+              const last = chain[chain.length - 1]
+              // 4-connect diagonal jumps so the water never dashes
+              if (last && Math.abs(cx2 - last[0]) === 1 && Math.abs(cy2 - last[1]) === 1) addR(cx2, last[1])
+              addR(cx2, cy2)
+            }
+          }
+          const kept: [number, number, number][] = []
+          for (const [cx2, cy2] of chain) {
+            if (dsAt(cx2, cy2) <= 0.5) break                 // the cove takes over
+            kept.push([cx2, cy2, Math.max(0, eLvl(cx2, cy2))])
+          }
+          kept.forEach(([cx2, cy2, lv], i) => {
+            const nxt = kept[Math.min(i + 1, kept.length - 1)]
+            riverInfo.set(cy2 * COLS + cx2, {
+              lvl: lv, i,
+              drop: Math.max(0, lv - nxt[2]),
+              ddir: [Math.sign(nxt[0] - cx2), Math.sign(nxt[1] - cy2)] as [number, number],
+            })
+          })
+          // the FALLS POOL: the bench at the falls widens into a fed pool
+          const fi = kept.findIndex(([cx2, cy2]) => Math.hypot(cx2 - FALLS[0], cy2 - FALLS[1]) < 1.8)
+          if (fi >= 0) {
+            const [fx2, fy2, flv] = kept[fi]
+            for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]] as [number, number][]) {
+              const k = (fy2 + oy) * COLS + (fx2 + ox)
+              if (!riverInfo.has(k) && eLvl(fx2 + ox, fy2 + oy) === flv && dsAt(fx2 + ox, fy2 + oy) > 0.5) {
+                riverInfo.set(k, { lvl: flv, i: fi, drop: 0, ddir: [0, 0] })
+              }
+            }
+          }
+        }
         for (let ty = 0; ty < ROWS; ty++) {
           for (let tx = 0; tx < COLS; tx++) {
             const dx = tx - CX, dy = ty - CY
@@ -778,22 +829,17 @@ export default function IslandMapIso() {
             // reads as "you can't cross here")
             const onPath = !onPlaza && !sand && L > 0 && coneBand(tx, ty) === 0
               && (lavaDist(tx, ty) > 1.4 || crossingD(tx, ty) < 2.2) && onPathTile(tx, ty)
-            // the river renders ONLY as the flat tidal estuary at the cove (L 0-1):
-            // on the terraced ring the water tiles stepped down the benches as floating
-            // mint checkers — a broken river is worse than none (the full flank river
-            // waits for a dedicated waterfall pass)
-            // even the estuary stub read as floating mint checkers at the south
-            // shore (3 orphan water diamonds above the sand) — the river paints
-            // NOTHING until the dedicated falls/river pass draws all of it
-            const RIVER_ON = false
-            const onRiver = RIVER_ON && !sand && !isLava && !isBed && L > 0 && L <= 1 && riverD(tx, ty) < 0.8
+            // THE RIVER lives (P3): the chain map is the truth — pool-step-pool
+            // water at the terrain's own benches, never orphan checkers
+            const rv = riverInfo.get(ty * COLS + tx)
+            const onRiver = !!rv && !isLava && !isBed
             const vs = band >= 1 && rockTop.length ? rockTop : undefined
             // molten core + charred bed OUTRANK sand so the flow owns its beach
-            // crossing; everything else on sand stays sand
+            // crossing; the river outranks sand too (its estuary rides the cove flat)
             const pool = isLava ? (ck > 0.32 && lakeT.length ? lakeT : lavaT)
               : isBed && volcT.length ? volcT
-                : sand ? st
-                  : onRiver && waterV.length ? waterV
+                : onRiver && waterV.length ? waterV
+                  : sand ? st
                     : (onPath || onPlaza) && st.length ? st : vs || gt
             // cone rock tops pick in smooth ZONES (like the walls): per-tile hash churn
             // re-rolled the texture every diamond and the flank read as shredded scales
@@ -810,7 +856,36 @@ export default function IslandMapIso() {
               // continuous jitter on the rake input: shallow smooth gradients otherwise
               // quantize into clean equal-tint contour lines (the "zigzag across the island")
               const rk = rakeAt(tx, ty) + (vnoise(tx / 2.3 + 14, ty / 2.3 + 3) - 0.5) * 0.1
-              if (sand) {
+              if (onRiver) {
+                // fresh water: RICH teal in the sea's own family (the first pass
+                // read as a flat mint stripe), value wobble per tile so the
+                // surface lives, easing toward the sea's turquoise at the mouth
+                const wob = 0.86 + 0.24 * vnoise(tx / 2.7 + 7, ty / 2.7 + 2)
+                const est = Math.min(1, Math.max(0, 1 - dsq / 5))   // estuary blend
+                const base = rv && rv.drop > 0 ? 0x8ecfc2 : 0x58ab9e
+                const t0 = shadeHex(base, wob)
+                const sr = Math.round(((t0 >> 16) & 255) * (1 - est) + 0x63 * est)
+                const sg = Math.round(((t0 >> 8) & 255) * (1 - est) + 0xc0 * est)
+                const sb = Math.round((t0 & 255) * (1 - est) + 0xb2 * est)
+                top.tint = (sr << 16) | (sg << 8) | sb
+                if (hash(tx * 3.7, ty * 1.9) > 0.6) {
+                  const glint = new Sprite(foamTex)
+                  glint.anchor.set(0.5, 0.5); glint.blendMode = 'add'
+                  glint.tint = 0xbfffec; glint.width = 46; glint.height = 22
+                  glint.alpha = 0.16
+                  glint.position.set(bx, by); glint.zIndex = zBase + 7
+                  world.addChild(glint)
+                  glows.push({ sp: glint, ph: hash(tx, ty * 3.1) * 6.3, a: 0.14 })
+                }
+                // soft banks: a dark wet seam hugging the water so the stream sits
+                // IN the meadow instead of floating on it (foamTex tinted dark —
+                // shadTex isn't declared yet at this point in the pass)
+                const bank = new Sprite(foamTex)
+                bank.anchor.set(0.5, 0.5)
+                bank.width = 72; bank.height = 38; bank.alpha = 0.26; bank.tint = 0x0a2620
+                bank.position.set(bx, by); bank.zIndex = zBase + 3
+                world.addChild(bank)
+              } else if (sand) {
                 const tt = Math.min(1, dsq / 5)
                 const v = (0.965 + 0.06 * vnoise(tx / 16 + 3, ty / 16 + 5)) * grain * (1 + 0.1 * rk)
                 top.tint = warmCool(shadeHex(tintFor(rampAt(SAND_RAMP, tt), SAND_BASE), v), rk * 0.7)
@@ -875,19 +950,6 @@ export default function IslandMapIso() {
                   seam.position.set(bx, by); seam.zIndex = zBase + 7
                   world.addChild(seam)
                   glows.push({ sp: seam, ph: hash(tx * 1.7, ty * 2.3) * 6.3, a: 0.16 })
-                }
-              } else if (onRiver) {
-                // fresh water: pale sunlit turquoise over the live water texture, with
-                // a gentle glint pulse via the ember array (reused, tinted cool)
-                top.tint = 0x93cfc4
-                if (hash(tx * 3.7, ty * 1.9) > 0.72) {
-                  const glint = new Sprite(foamTex)
-                  glint.anchor.set(0.5, 0.5); glint.blendMode = 'add'
-                  glint.tint = 0xbfffec; glint.width = 46; glint.height = 22
-                  glint.alpha = 0.16
-                  glint.position.set(bx, by); glint.zIndex = zBase + 7
-                  world.addChild(glint)
-                  glows.push({ sp: glint, ph: hash(tx, ty * 3.1) * 6.3, a: 0.14 })
                 }
               } else if (onPlaza) {
                 // the flagstone courtyard: cool weathered stone, warmer sun-worn flags in
@@ -965,6 +1027,36 @@ export default function IslandMapIso() {
                 }
               }
               world.addChild(top)
+            }
+
+            // THE CASCADES: where the river chain steps down a bench, a white
+            // fall pours over the lip — sheet + soft veil + churning foam at the
+            // plunge, with the churn breathing via the glow ticker
+            if (rv && rv.drop > 0 && (rv.ddir[0] || rv.ddir[1])) {
+              const dh = lift - liftOf(rv.lvl - rv.drop)
+              const fx2 = isoX(tx + rv.ddir[0] * 0.5, ty + rv.ddir[1] * 0.5)
+              const fy2 = isoY(tx + rv.ddir[0] * 0.5, ty + rv.ddir[1] * 0.5) - lift + GY
+              // above the downstream tile's TOP (zBase + lift*2 + 5) or the fall
+              // paints first and the tile top buries it — the invisible-falls bug
+              const zF = (tx + rv.ddir[0] + ty + rv.ddir[1]) * 4000 + lift * 2 + 620
+              const veil = new Sprite(foamTex); veil.anchor.set(0.5, 0)
+              veil.width = 58; veil.height = dh + 26; veil.alpha = 0.5; veil.tint = 0xd8f6ee
+              veil.position.set(fx2, fy2); veil.zIndex = zF
+              world.addChild(veil)
+              const sheet = new Sprite(foamTex); sheet.anchor.set(0.5, 0)
+              sheet.width = 32; sheet.height = dh + 18; sheet.alpha = 0.95; sheet.tint = 0xf6fefc
+              sheet.position.set(fx2, fy2 + 2); sheet.zIndex = zF + 1
+              world.addChild(sheet)
+              // the bright lip line where the water breaks over the edge
+              const lip = new Sprite(foamTex); lip.anchor.set(0.5, 0.5)
+              lip.width = 42; lip.height = 8; lip.alpha = 0.9; lip.tint = 0xffffff
+              lip.position.set(fx2, fy2 + 1); lip.zIndex = zF + 3
+              world.addChild(lip)
+              const churn = new Sprite(foamTex); churn.anchor.set(0.5, 0.5)
+              churn.width = 58; churn.height = 22; churn.alpha = 0.85; churn.tint = 0xffffff
+              churn.position.set(fx2, fy2 + dh + 16); churn.zIndex = zF + 2
+              world.addChild(churn)
+              glows.push({ sp: churn, ph: hash(tx * 2.3, ty * 5.1) * 6.3, a: 0.75 })
             }
 
             // FOAM SHORELINE: a soft lace where land meets sea — BEACH tiles only (L 0, flush
@@ -1882,6 +1974,103 @@ export default function IslandMapIso() {
           } catch { /* carved heads optional until the art lands */ }
         }
 
+        // ---- P3: THE JOURNEY INWARD dressing — the POWER steles pacing the
+        // approach, living fire braziers on the plaza + gate forecourt, and the
+        // stepping-stone ford where the promenade crosses the river.
+        if (!NOCONE) {
+          try {
+            const stA: Texture = await Assets.load('/art/island/poi/stele-a.png')
+            const stB: Texture = await Assets.load('/art/island/poi/stele-b.png')
+            const brA: Texture = await Assets.load('/art/island/poi/brazier-a.png')
+            const brB: Texture = await Assets.load('/art/island/poi/brazier-b.png')
+            for (const t of [stA, stB, brA, brB]) t.source.scaleMode = 'nearest'
+            const place = (t: Texture, at: [number, number], sc: number, flip = false) => {
+              const lift2 = liftOf(eLvl(Math.round(at[0]), Math.round(at[1])))
+              const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY - lift2 + 8
+              const zB = Math.floor(at[0] + at[1]) * 4000 + lift2 * 2
+              const sh = new Sprite(shadTex); sh.anchor.set(0.4, 0.5)
+              sh.width = t.width * sc * 0.8; sh.height = t.width * sc * 0.24
+              sh.alpha = 0.3; sh.position.set(bx2 + 3, by2 - 2); sh.zIndex = zB + 7
+              world.addChild(sh)
+              const sp = new Sprite(t); sp.anchor.set(0.5, 1)
+              sp.position.set(bx2, by2)
+              sp.scale.set((flip ? -1 : 1) * sc, sc)
+              sp.zIndex = zB + 720
+              world.addChild(sp)
+              return { bx2, by2, zB, hpx: t.height * sc }
+            }
+            // THE STELES WALK: five POWER markers pacing the approach — the two
+            // carvings alternate, scale + flip vary so no pair reads stamped
+            STELES.forEach((s, i) => {
+              const m = place(i % 2 ? stB : stA, s, 0.88 + 0.05 * (i % 3), i % 3 === 1)
+              // the carved emblem breathes ember light
+              const g = new Sprite(foamTex); g.anchor.set(0.5, 0.5); g.blendMode = 'add'
+              g.tint = 0xffa040; g.width = 34; g.height = 26; g.alpha = 0.26
+              g.position.set(m.bx2, m.by2 - m.hpx * 0.66)
+              g.zIndex = m.zB + 724
+              world.addChild(g)
+              glows.push({ sp: g, ph: i * 1.3, a: 0.26 })
+            })
+            // LIVING FIRE: braziers pacing the plaza rim + flanking the tongue base
+            const fire = (at: [number, number], v: 0 | 1, flip = false) => {
+              const m = place(v ? brB : brA, at, 0.72, flip)
+              const core = new Sprite(foamTex); core.anchor.set(0.5, 0.5); core.blendMode = 'add'
+              core.tint = 0xffc860; core.width = 30; core.height = 38; core.alpha = 0.5
+              core.position.set(m.bx2, m.by2 - m.hpx * 0.78); core.zIndex = m.zB + 726
+              world.addChild(core)
+              glows.push({ sp: core, ph: hash(at[0], at[1]) * 6.3, a: 0.5 })
+              const halo = new Sprite(foamTex); halo.anchor.set(0.5, 0.5); halo.blendMode = 'add'
+              halo.tint = 0xff8a30; halo.width = 110; halo.height = 60; halo.alpha = 0.2
+              halo.position.set(m.bx2, m.by2 - 6); halo.zIndex = m.zB + 8
+              world.addChild(halo)
+              glows.push({ sp: halo, ph: hash(at[1], at[0]) * 6.3 + 1.7, a: 0.2 })
+            }
+            for (let i = 0; i < 4; i++) {
+              const a = Math.PI * 0.25 + (i * Math.PI) / 2
+              fire([PLAZA[0] + Math.cos(a) * (PLAZA_R - 0.6), PLAZA[1] + Math.sin(a) * (PLAZA_R - 0.6)], (i % 2) as 0 | 1, i > 1)
+            }
+            // the gate forecourt pair flanks the tongue's base, lighting the climb
+            if (TONGUE.length > 1) {
+              const [b0, b1] = [TONGUE[0], TONGUE[1]]
+              const dl = Math.hypot(b1[0] - b0[0], b1[1] - b0[1]) || 1
+              const px2 = -(b1[1] - b0[1]) / dl, py2 = (b1[0] - b0[0]) / dl
+              fire([b0[0] + px2 * 1.7, b0[1] + py2 * 1.7], 0)
+              fire([b0[0] - px2 * 1.7, b0[1] - py2 * 1.7], 1, true)
+            }
+            // THE FORD: three worn stepping stones carrying the promenade across
+            // the river (the walkmap's one river crossing — audit-proven)
+            try {
+              const rkT: Texture = await Assets.load('/art/island/harbor/riprap-c.png')
+              rkT.source.scaleMode = 'nearest'
+              // stones run along the CROSSING direction = perpendicular to the river
+              let dir: [number, number] = [1, 0]
+              for (let i = 0; i < RIVER.length - 1; i++) {
+                const d = Math.hypot(FORD[0] - RIVER[i][0], FORD[1] - RIVER[i][1])
+                if (d < 4) {
+                  const dl2 = Math.hypot(RIVER[i + 1][0] - RIVER[i][0], RIVER[i + 1][1] - RIVER[i][1]) || 1
+                  dir = [-(RIVER[i + 1][1] - RIVER[i][1]) / dl2, (RIVER[i + 1][0] - RIVER[i][0]) / dl2]
+                  break
+                }
+              }
+              for (const k of [-0.8, 0, 0.8]) {
+                const at: [number, number] = [FORD[0] + dir[0] * k, FORD[1] + dir[1] * k]
+                const lift2 = liftOf(eLvl(Math.round(at[0]), Math.round(at[1])))
+                const sp = new Sprite(rkT); sp.anchor.set(0.5, 0.72)
+                sp.position.set(isoX(at[0], at[1]), isoY(at[0], at[1]) + GY - lift2 + 4)
+                sp.tint = 0xe8d2ba   // warm worn stone, not the breakwater's cold navy
+                sp.scale.set(0.34 + 0.05 * hash(k * 3.1, 2.2))
+                sp.zIndex = Math.floor(at[0] + at[1]) * 4000 + lift2 * 2 + 640
+                world.addChild(sp)
+                const rf2 = new Sprite(foamTex); rf2.anchor.set(0.5, 0.5)
+                rf2.width = 30; rf2.height = 12; rf2.alpha = 0.5
+                rf2.position.set(isoX(at[0], at[1]), isoY(at[0], at[1]) + GY - lift2 + 7)
+                rf2.zIndex = Math.floor(at[0] + at[1]) * 4000 + lift2 * 2 + 634
+                world.addChild(rf2)
+              }
+            } catch { /* ford stones optional */ }
+          } catch { /* POI art optional until it lands */ }
+        }
+
         // THE STEAM (P1d): a plume of soft puffs rising off the crater, drifting with
         // the wind and dissolving; two small wisps where the flows quench in the sea.
         // Sprite-space animation only — no shaders (banned).
@@ -1903,6 +2092,18 @@ export default function IslandMapIso() {
             sp.zIndex = (ex + ey2 + 2) * 4000 + 900
             world.addChild(sp)
             puffs.push({ sp, ph: i * 2.6 + ex * 0.1, spd: 0.6 + 0.25 * hash(ex + i, ey2), big: false })
+          }
+        }
+        // falls mist: two cool wisps hanging over the river's big drop
+        if (!NOCONE && RIVER.length) {
+          const fl = liftOf(eLvl(Math.round(FALLS[0]), Math.round(FALLS[1])))
+          for (let i = 0; i < 2; i++) {
+            const sp = new Sprite(steamTex); sp.anchor.set(0.5, 0.5)
+            sp.tint = 0xe8fff8
+            sp.position.set(isoX(FALLS[0], FALLS[1]) + i * 14, isoY(FALLS[0], FALLS[1]) + GY - fl - 8)
+            sp.zIndex = (Math.round(FALLS[0]) + Math.round(FALLS[1]) + 2) * 4000 + 900
+            world.addChild(sp)
+            puffs.push({ sp, ph: 1.4 + i * 2.9, spd: 0.5 + 0.2 * i, big: false })
           }
         }
         // THE QUENCH (Ash: the trail "bleeds into the ocean"): where each flow

@@ -11,7 +11,7 @@ import { coneH } from './volcano'
 import {
   HARBOR, harborAt, PORTS, PLAZA, PLAZA_R, GATE_HEAD, TONGUE, STELES,
   LIGHTHOUSE, FALLS, BECU_TREE, TIDEPOOLS, tongueD, pathD, crossingD,
-  WEST_OVERLOOK,
+  WEST_OVERLOOK, riverD, fordD,
 } from './hub-layout'
 
 // ---- WALKMAP: the single collision truth for the exterior map.
@@ -27,6 +27,8 @@ export function isWalkable(tx: number, ty: number): boolean {
   const onCross = crossingD(tx, ty) < 1.5       // cooled crust over the flows
   if (!onTongue && coneH(tx, ty) > 2) return false
   if (!onTongue && !onCross && lavaDist(tx, ty) < 1.8) return false
+  // the river blocks the walk except at the stepping-stone ford
+  if (riverD(tx, ty) < 0.9 && fordD(tx, ty) > 1.4) return false
   return true
 }
 

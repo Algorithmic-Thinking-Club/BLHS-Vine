@@ -82,6 +82,11 @@ export let GROVES: [number, number, number, number][] = []
 // unwalkable mountain ringed by its own stream — the audit proved the naive
 // POI-on-the-head unreachable). Computed from the real landform in init.
 export let WEST_OVERLOOK: [number, number] = [CX, CY]
+// the STEPPING-STONE FORD where the promenade crosses the river (the river
+// blocks the walk everywhere else — a stream you can wade anywhere is set
+// dressing, not a place). Computed in init like the lava crossings.
+export let FORD: [number, number] = [CX, CY]
+export const fordD = (tx: number, ty: number) => Math.hypot(tx - FORD[0], ty - FORD[1])
 // cooled-crust slabs where the lava flows cross the promenade (one per flow) —
 // the ring-walk stays connected; walkable + drawn as charred basalt
 export const CROSSINGS: [number, number][] = []
@@ -187,11 +192,18 @@ export function initHubLayout() {
   }
 
   // THE PLAZA (the gate forecourt): flat south front ring between the lava deltas.
-  const plazaAz = 0.86
-  PLAZA = [CX + Math.cos(plazaAz) * 42, CY + Math.sin(plazaAz) * 42]
-  for (let r = coastR(plazaAz) - 6; r >= 33; r -= 0.5) {
-    const px = CX + Math.cos(plazaAz) * r, py = CY + Math.sin(plazaAz) * r
-    if (coastDs(px, py) > 5.5 && coneH(px, py) < 1.2) { PLAZA = [px, py]; break }
+  // Margin must clear the plaza's OWN radius — at 5.5 the ring's rim landed on
+  // the beach steps. And the search must actually SUCCEED: at the fixed az 0.86
+  // the cove recedes the coast, no radius satisfied the margin, and the silent
+  // r-42 fallback parked the plaza at the WATERLINE with its braziers in the
+  // sand (found on screen 2026-07-11). Scan nearby azimuths too; fall back
+  // INLAND, never seaward.
+  PLAZA = [CX + Math.cos(0.86) * 30, CY + Math.sin(0.86) * 30]
+  outer: for (const az of [0.86, 0.78, 0.94, 0.7, 1.02, 0.62]) {
+    for (let r = coastR(az) - 8; r >= 26; r -= 0.5) {
+      const px = CX + Math.cos(az) * r, py = CY + Math.sin(az) * r
+      if (coastDs(px, py) > PLAZA_R + 4.5 && coneH(px, py) < 1.2) { PLAZA = [px, py]; break outer }
+    }
   }
 
   // LAVA REACHES THE SEA (Ash: the mouth-flow must blend into a trail that
@@ -310,6 +322,60 @@ export function initHubLayout() {
     if (best && bd < 3) CROSSINGS.push(best)
   }
 
+  // THE RIVER (spring on the south flank -> falls at the bench lip -> cove
+  // estuary). Assigned HERE, before the ford derives from it — the init-order
+  // trap struck again when the ford read last-init's river.
+  RIVER = ([[114, 106], [119, 110], [124, 115], [128, 120], [131, 124]] as [number, number][]).map(([x, y]) => SC(x, y))
+  {
+    // MEANDER + REACH THE SEA: the raw 5-point spine rasterized into mechanical
+    // zigzag segments and its endpoint died on the beach sand. Densify with a
+    // gentle perpendicular sway, then march the tail to the true waterline
+    // (the lava tails' own fix).
+    const spine = RIVER
+    const dense: [number, number][] = []
+    let arc = 0
+    for (let i = 0; i < spine.length - 1; i++) {
+      const [x0, y0] = spine[i], [x1, y1] = spine[i + 1]
+      const seg = Math.hypot(x1 - x0, y1 - y0)
+      const ux = (x1 - x0) / seg, uy = (y1 - y0) / seg
+      const n = Math.ceil(seg / 1.1)
+      for (let s = 0; s < n; s++) {
+        const d = (seg * s) / n
+        const w = 0.9 * Math.sin((arc + d) * 0.72 + 1.4)
+        dense.push([x0 + ux * d - uy * w, y0 + uy * d + ux * w])
+      }
+      arc += seg
+    }
+    dense.push([spine[spine.length - 1][0], spine[spine.length - 1][1]])
+    let [ex, ey] = dense[dense.length - 1]
+    const [px2, py2] = dense[dense.length - 2]
+    const dl = Math.hypot(ex - px2, ey - py2) || 1
+    const ux2 = (ex - px2) / dl, uy2 = (ey - py2) / dl
+    let guard = 0
+    while (guard++ < 30 && coastDs(ex, ey) > -0.6) { ex += ux2 * 0.8; ey += uy2 * 0.8; dense.push([ex, ey]) }
+    RIVER = dense
+    // the falls stays at the authored bench lip (nearest dense point to it)
+    const f0 = SC(124, 115)
+    FALLS = dense.reduce((b, p) => (Math.hypot(p[0] - f0[0], p[1] - f0[1]) < Math.hypot(b[0] - f0[0], b[1] - f0[1]) ? p : b), dense[0])
+  }
+
+  // THE FORD: where the river passes nearest the promenade, stepping stones
+  // carry the ring-walk across (walkable window in hub-mechanics; the audit
+  // proves the ring stays whole)
+  {
+    let best: [number, number] | null = null, bd = 99
+    for (let i = 0; i < RIVER.length - 1; i++) {
+      const [x0, y0] = RIVER[i], [x1, y1] = RIVER[i + 1]
+      const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 0.4))
+      for (let s = 0; s <= n; s++) {
+        const x = x0 + ((x1 - x0) * s) / n, y = y0 + ((y1 - y0) * s) / n
+        const d = segD(PROMENADE, x, y)
+        if (d < bd) { bd = d; best = [x, y] }
+      }
+    }
+    FORD = best ?? [CX, CY]
+  }
+
   // THE WEST-HEAD OVERLOOK: march out from the head's azimuth past the cone toe
   // to the first real standing ground (walkable body, clear of the stream), then
   // prefer the spot closest to the head. This is where the POI lives.
@@ -328,9 +394,7 @@ export function initHubLayout() {
     WEST_OVERLOOK = found ?? [CX + Math.cos(az) * 26, CY + Math.sin(az) * 26]
   }
 
-  // THE RIVER (spring on the south flank -> falls at the bench lip -> cove estuary)
-  RIVER = ([[114, 106], [119, 110], [124, 115], [128, 120], [131, 124]] as [number, number][]).map(([x, y]) => SC(x, y))
-  FALLS = RIVER[2]
+  // (RIVER + FALLS are assigned above, before the ford derives from them)
 
   // POIs (the landmark destinations that make the island worth walking)
   STELES = Array.from({ length: 5 }, (_, i) => {
