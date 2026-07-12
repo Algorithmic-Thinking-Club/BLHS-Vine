@@ -580,7 +580,18 @@ export default function IslandMapIso() {
               // bare rock upper flank: real strata face, matches the tread value
               const k = dropPx >= CSTEP * 2 ? 0.97 : 0.88
               const [r, g, b] = coneTint(tx2, ty2)
-              seg.tint = tint24(r * k, g * k, b * Math.min(1, k + 0.03))
+              // the SAME sun/rib/gully language the block walls wear — the NW
+              // face is built ENTIRELY of these strata segs (probe-proven), and
+              // raw coneTint left it one naked red sheet at play zoom: warm-lit
+              // west, violet shade east, rib stripes, darker gully columns
+              const lit = coneLit(tx2, ty2)
+              const stripe = stripeK(tx2, ty2)
+              const warm = 0.5 + 0.5 * lit
+              const mod = (1 + 0.2 * lit + (0.12 + 0.08 * (1 - warm)) * stripe) * (1 - 0.26 * gullyK(tx2, ty2))
+              seg.tint = tint24(
+                r * k * mod * (0.94 + 0.12 * warm),
+                g * k * mod,
+                b * Math.min(1, k + 0.03) * mod * (1.14 - 0.24 * warm))
             }
           }
           if (DBG) seg.tint = 0x20ffff
@@ -649,8 +660,11 @@ export default function IslandMapIso() {
               const warm = 0.5 + 0.5 * lit
               // stripes push HARDER on the shade side — one flat lit term made the whole
               // east face a detail-less dark blob; c3's shadow flank keeps its ribs and
-              // reads violet, not black-brown
-              drift *= (1 + 0.16 * lit + (0.09 + 0.07 * (1 - warm)) * stripe) * (1 - 0.16 * gullyK(tx2, ty2))
+              // reads violet, not black-brown. Contrast raised across the board (0.16/
+              // 0.09/0.16): at the old values the NW face read as one naked wall of
+              // identical red cubes at play zoom (sweep-proven) — the ribs and gullies
+              // have to carry the flank when no dressing does.
+              drift *= (1 + 0.22 * lit + (0.14 + 0.09 * (1 - warm)) * stripe) * (1 - 0.28 * gullyK(tx2, ty2))
               const vv2 = Math.min(255, Math.round(drift * 255))
               seg.tint = (Math.min(255, Math.round(vv2 * (0.88 + 0.24 * warm))) << 16)
                 | (Math.min(255, Math.round(vv2 * (0.86 + 0.12 * warm))) << 8)
@@ -788,6 +802,32 @@ export default function IslandMapIso() {
               const k = (fy2 + oy) * COLS + (fx2 + ox)
               if (!riverInfo.has(k) && eLvl(fx2 + ox, fy2 + oy) === flv && dsAt(fx2 + ox, fy2 + oy) > 0.5) {
                 riverInfo.set(k, { lvl: flv, i: fi, drop: 0, ddir: [0, 0] })
+              }
+            }
+          }
+          // THE RUN WIDENS DOWN-SCREEN: every chain tile claims its two down-
+          // screen neighbours where the bench allows (same level only, so the
+          // pool-step truth holds) — a 1-wide diagonal ribbon loses its lower
+          // half to the next row's grass top (the estuary's own nibble) and
+          // read as detached mint stepping-stones the whole descent (Opus #5/#9)
+          kept.forEach(([cx2, cy2, lv], i) => {
+            for (const [ox, oy] of [[0, 1], [1, 0]] as [number, number][]) {
+              const k = (cy2 + oy) * COLS + (cx2 + ox)
+              if (!riverInfo.has(k) && eLvl(cx2 + ox, cy2 + oy) === lv && dsAt(cx2 + ox, cy2 + oy) > 0.5) {
+                riverInfo.set(k, { lvl: lv, i, drop: 0, ddir: [0, 0] })
+              }
+            }
+          })
+          // THE SPRING: the river is BORN somewhere — the head tile widens into
+          // a small source pool (a stream starting mid-slope from nothing was
+          // the review's "placement nonsense"; the rock collar mounts with the
+          // ford stones below)
+          if (kept.length) {
+            const [hx2, hy2, hlv] = kept[0]
+            for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as [number, number][]) {
+              const k = (hy2 + oy) * COLS + (hx2 + ox)
+              if (!riverInfo.has(k) && eLvl(hx2 + ox, hy2 + oy) === hlv && dsAt(hx2 + ox, hy2 + oy) > 0.5) {
+                riverInfo.set(k, { lvl: hlv, i: 0, drop: 0, ddir: [0, 0] })
               }
             }
           }
@@ -1018,7 +1058,9 @@ export default function IslandMapIso() {
                 // est caps at 0.6: a full blend washed the mouth into the bright
                 // sand and the ribbon lost its identity crossing the beach
                 const est = 0.6 * Math.min(1, Math.max(0, 1 - dsq / 5))
-                const base = rv && rv.drop > 0 ? 0x8ecfc2 : 0x58ab9e
+                // a step cooler/deeper than the first pass — the bright mint
+                // fought the warm scene (Opus: "ocean aqua against warm ground")
+                const base = rv && rv.drop > 0 ? 0x84c6ba : 0x519f96
                 const t0 = shadeHex(base, wob)
                 // the blend target sits BETWEEN the river's teal and the tide
                 // band's pale: at deep turquoise the junction jumped a value
@@ -1039,12 +1081,16 @@ export default function IslandMapIso() {
                 }
                 // soft banks: a dark wet seam hugging the water so the stream sits
                 // IN the meadow instead of floating on it (foamTex tinted dark —
-                // shadTex isn't declared yet at this point in the pass)
-                const bank = new Sprite(foamTex)
-                bank.anchor.set(0.5, 0.5)
-                bank.width = 72; bank.height = 38; bank.alpha = 0.26; bank.tint = 0x0a2620
-                bank.position.set(bx, by); bank.zIndex = zBase + 3
-                world.addChild(bank)
+                // shadTex isn't declared yet at this point in the pass). NOT on
+                // drop tiles: there the dark seam painted over the fall's own
+                // gap and the cascade read as a black hole between benches.
+                if (!rv || !rv.drop) {
+                  const bank = new Sprite(foamTex)
+                  bank.anchor.set(0.5, 0.5)
+                  bank.width = 72; bank.height = 38; bank.alpha = 0.26; bank.tint = 0x0a2620
+                  bank.position.set(bx, by); bank.zIndex = zBase + 3
+                  world.addChild(bank)
+                }
               } else if (sand) {
                 const tt = Math.min(1, dsq / 5)
                 const v = (0.965 + 0.06 * vnoise(tx / 16 + 3, ty / 16 + 5)) * grain * (1 + 0.1 * rk)
@@ -1069,19 +1115,29 @@ export default function IslandMapIso() {
                   Math.hypot(tx - MOUTH_R[0], ty - MOUTH_R[1]),
                   Math.hypot(tx - MOUTH_L[0], ty - MOUTH_L[1]))
                 const core = ld < 0.62 * wMod || nearMouth < 1.7 || (L > 0 && ck > 0.32)
+                // DE-WALLPAPER (Opus: "identical crescent highlight on a rigid
+                // grid defeats the river"): mirror roughly half the tiles by
+                // hash and wobble each tile's value a few % — the same frames
+                // stop lining their scallops up across the lattice
+                if (hash(tx * 3.7 + 5, ty * 2.3 + 1) > 0.5) top.scale.x = -1
+                const lw = 0.94 + 0.1 * vnoise(tx / 3.1 + 31, ty / 3.1 + 6)
                 if (core) {
-                  top.tint = 0xffffff                         // self-bright art, untinted
+                  const cv = Math.round(255 * Math.min(1, lw + 0.03))
+                  top.tint = (cv << 16) | (cv << 8) | cv       // near-white, wobbled
                 } else {
-                  // cooling skin: pull the art toward dim red-brown at the bank edge
-                  const k = Math.min(1, Math.max(0, (ld - 0.62 * wMod) / (0.83 * wMod))) * 0.5
-                  const vv = Math.round(255 * (1 - k * 0.45))
+                  // cooling skin: pull the art toward dim red-brown at the bank
+                  // edge — deepened (0.5 -> 0.62) so the banks visibly crust and
+                  // the centreline vein carries the run as ONE river
+                  const k = Math.min(1, Math.max(0, (ld - 0.62 * wMod) / (0.83 * wMod))) * 0.62
+                  const vv = Math.round(255 * (1 - k * 0.45) * lw)
                   top.tint = (vv << 16) | (Math.round(vv * (1 - k * 0.35)) << 8) | Math.round(vv * (1 - k * 0.55))
                 }
                 // the surface itself FLOWS: downstream-phased texture cycling
                 // (crust plates now DRIFT with the current — spawned in the
-                // animation pass, not parked per-tile)
+                // animation pass, not parked per-tile). A per-tile phase jitter
+                // keeps the flipbook's frames from banding row by row.
                 lavaFlow.push({
-                  sp: top, off: Math.hypot(tx - CX, ty - CY),
+                  sp: top, off: Math.hypot(tx - CX, ty - CY) + hash(tx * 1.9, ty * 4.1) * 0.7,
                   pool: ck > 0.32 && lakeT.length ? lakeT : lavaT,
                 })
                 const glow = new Sprite(foamTex)              // soft radial, re-tinted ember
@@ -1185,8 +1241,13 @@ export default function IslandMapIso() {
                   // grass in uneven fingers, and a near-BLACK burnt lip hugging the
                   // molten edge (the hottest ground must be the darkest, and an
                   // even-width halo reads airbrushed)
-                  const blotch = 0.62 + 0.76 * vnoise(tx / 3.2 + 31, ty / 3.2 + 13)
-                  const k = Math.min(1, Math.max(0, 1 - (ld - 1.3) / 1.8)) * 0.8 * blotch
+                  // the noise wanders the fringe's EDGE, not its strength: the
+                  // old k*blotch product let a vnoise hot-spot fire an isolated
+                  // scorch diamond two tiles out in clean grass (Opus caught
+                  // two orphans) — with a wandering reach the falloff stays
+                  // monotonic in ld and orphans are impossible by construction
+                  const reach = 1.8 * (0.45 + 0.55 * vnoise(tx / 3.2 + 31, ty / 3.2 + 13))
+                  const k = Math.min(1, Math.max(0, 1 - (ld - 1.3) / reach)) * 0.8
                   const t0 = top.tint as number
                   let dr = Math.round(((t0 >> 16) & 255) * (1 - k) + 0x46 * k)
                   let dg = Math.round(((t0 >> 8) & 255) * (1 - k) + 0x3a * k)
@@ -1211,13 +1272,16 @@ export default function IslandMapIso() {
               // above the downstream tile's TOP (zBase + lift*2 + 5) or the fall
               // paints first and the tile top buries it — the invisible-falls bug
               const zF = (tx + rv.ddir[0] + ty + rv.ddir[1]) * 4000 + lift * 2 + 620
+              // veil spans the whole tile width (58 read as a thin thread and
+              // the drops still showed dark gaps — Opus: "stepping stones, not
+              // water")
               const veil = new Sprite(foamTex); veil.anchor.set(0.5, 0)
-              veil.width = 58; veil.height = dh + 26; veil.alpha = 0.5; veil.tint = 0xd8f6ee
-              veil.position.set(fx2, fy2); veil.zIndex = zF
+              veil.width = 68; veil.height = dh + 30; veil.alpha = 0.62; veil.tint = 0xd8f6ee
+              veil.position.set(fx2, fy2 - 2); veil.zIndex = zF
               world.addChild(veil)
               const sheet = new Sprite(foamTex); sheet.anchor.set(0.5, 0)
-              sheet.width = 32; sheet.height = dh + 18; sheet.alpha = 0.95; sheet.tint = 0xf6fefc
-              sheet.position.set(fx2, fy2 + 2); sheet.zIndex = zF + 1
+              sheet.width = 40; sheet.height = dh + 20; sheet.alpha = 0.95; sheet.tint = 0xf6fefc
+              sheet.position.set(fx2, fy2 + 1); sheet.zIndex = zF + 1
               world.addChild(sheet)
               // the bright lip line where the water breaks over the edge
               const lip = new Sprite(foamTex); lip.anchor.set(0.5, 0.5)
@@ -1500,6 +1564,24 @@ export default function IslandMapIso() {
             } else if (r < 0.0615) {
               putPlant('palm-fallen', jx, jy, { sc: 0.5 + 0.15 * hash(sx + 4, sy + 6), flip: hash(sx + 3, sy + 1) > 0.5 })
             }
+          }
+        }
+        // THE FLANK'S CLINGING LIFE (c3's own volcano language): hardy tufts and
+        // fern clumps following the GULLY seams up the rock — the one thing a
+        // bare block flank can't fake. Gully-gated so the growth reads as water-
+        // fed lines, never noise sprinkled on stone; thins with altitude and
+        // stays clear of the melt and the crater.
+        for (let sy = 4; sy < ROWS - 4; sy += 2) {
+          for (let sx = 4; sx < COLS - 4; sx += 2) {
+            const ch = coneH(sx, sy)
+            if (ch < 4 || ch > 26) continue
+            if (lavaDist(sx, sy) < 2.6 || craterK(sx, sy) > 0.15) continue
+            if (gullyK(sx, sy) < 0.35) continue
+            if (hash(sx * 5.7 + 4, sy * 3.9 + 11) > 0.34 - 0.2 * (ch / 26)) continue
+            const jx = sx + hash(sx, sy + 17) * 1.6 - 0.8
+            const jy = sy + hash(sx + 13, sy) * 1.6 - 0.8
+            const nm = hash(jx * 4.1, jy * 6.3) > 0.6 ? 'fernclump-1' : hash(jx + 2, jy) > 0.5 ? 'tuft-1' : 'tuft-2'
+            putPlant(nm, jx, jy, { sc: 0.34 + 0.2 * hash(jx + 7, jy + 3), flip: hash(jx + 1, jy + 5) > 0.5, dark: 0.68 + 0.1 * hash(jx, jy + 9), noShadow: true })
           }
         }
 
@@ -2193,21 +2275,29 @@ export default function IslandMapIso() {
             // shares one level — inset from every lip BY CONSTRUCTION.
             const flatSnap = (at: [number, number], r = 3): [number, number] => {
               const cx3 = Math.round(at[0]), cy3 = Math.round(at[1])
+              // a flat tile also stands CLEAR of the melt: near the channel the
+              // r=3 spiral could come up empty and the raw fallback parked a
+              // stele half over the lava lip (Opus #8) — the char band is never
+              // a place to plant a monument
               const flat = (tx3: number, ty3: number) => {
                 const L = eLvl(tx3, ty3)
                 if (L <= 0) return false
+                if (lavaDist(tx3, ty3) < 2.1) return false
                 for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++)
                   if (eLvl(tx3 + ox, ty3 + oy) !== L) return false
                 return true
               }
               if (flat(cx3, cy3)) return at
-              let best: [number, number] | null = null, bd3 = 1e9
-              for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-                if (!flat(cx3 + dx, cy3 + dy)) continue
-                const d = dx * dx + dy * dy
-                if (d < bd3) { bd3 = d; best = [cx3 + dx, cy3 + dy] }
+              for (const rr of [r, r + 3]) {
+                let best: [number, number] | null = null, bd3 = 1e9
+                for (let dy = -rr; dy <= rr; dy++) for (let dx = -rr; dx <= rr; dx++) {
+                  if (!flat(cx3 + dx, cy3 + dy)) continue
+                  const d = dx * dx + dy * dy
+                  if (d < bd3) { bd3 = d; best = [cx3 + dx, cy3 + dy] }
+                }
+                if (best) return best
               }
-              return best ?? at
+              return at
             }
             const place = (t: Texture, rawAt: [number, number], sc: number, flip = false) => {
               const at = flatSnap(rawAt)
@@ -2314,6 +2404,24 @@ export default function IslandMapIso() {
                 rf2.position.set(isoX(at[0], at[1]), isoY(at[0], at[1]) + GY - lift2 + 7)
                 rf2.zIndex = Math.floor(at[0] + at[1]) * 4000 + lift2 * 2 + 634
                 world.addChild(rf2)
+              }
+              // THE SPRING'S ROCK COLLAR: a broken ring of mother rock on the
+              // uphill side of the source pool — the river visibly rises from
+              // UNDER the mountain's stone, not from open grass
+              const rbT: Texture = await Assets.load('/art/island/harbor/riprap-b.png')
+              rbT.source.scaleMode = 'nearest'
+              {
+                const [spx, spy] = RIVER[0]
+                for (const [ox, oy, s3, fl] of [[-0.9, -0.5, 0.3, false], [0.7, -0.9, 0.26, true], [-0.15, -1.15, 0.22, false]] as [number, number, number, boolean][]) {
+                  const rx3 = spx + ox, ry3 = spy + oy
+                  const rlf = liftOf(eLvl(Math.round(rx3), Math.round(ry3)))
+                  const sp3 = new Sprite(rbT); sp3.anchor.set(0.5, 0.78)
+                  sp3.position.set(isoX(rx3, ry3), isoY(rx3, ry3) + GY - rlf + 4)
+                  sp3.tint = 0xcdb9a4
+                  sp3.scale.set((fl ? -1 : 1) * s3, s3)
+                  sp3.zIndex = (Math.round(rx3) + Math.round(ry3)) * 4000 + rlf * 2 + 700
+                  world.addChild(sp3)
+                }
               }
             } catch { /* ford stones optional */ }
             // THE TONGUE-STAIR is a MATERIAL now (stairInfo, computed before the
@@ -2488,11 +2596,20 @@ export default function IslandMapIso() {
           const lf = liftOf(eLvl(Math.round(m[0]), Math.round(m[1])))
           const sx2 = isoX(m[0], m[1]), sy2 = isoY(m[0], m[1]) + GY - lf
           const zM = (Math.round(m[0]) + Math.round(m[1])) * 4000 + lf * 2 + 790
+          // the strike BLOOM sells the fuse: the painted tongue and the tile
+          // river are two styles, and the seam between them hides under a
+          // white-hot core + a wide ember wash (Opus: the pour "hard-cuts"
+          // into the tiles — the bloom is the dissolve between the two)
           const pool = new Sprite(pulseTex); pool.anchor.set(0.5, 0.5); pool.blendMode = 'add'
-          pool.width = 94; pool.height = 42; pool.alpha = 0.5
+          pool.width = 118; pool.height = 54; pool.alpha = 0.62
           pool.position.set(sx2, sy2 + 2); pool.zIndex = zM
           world.addChild(pool)
-          glows.push({ sp: pool, ph: hash(m[0], m[1]) * 6.3, a: 0.48 })
+          glows.push({ sp: pool, ph: hash(m[0], m[1]) * 6.3, a: 0.58 })
+          const hot = new Sprite(pulseTex); hot.anchor.set(0.5, 0.5); hot.blendMode = 'add'
+          hot.width = 52; hot.height = 24; hot.alpha = 0.85; hot.tint = 0xfff2d8
+          hot.position.set(sx2, sy2 + 1); hot.zIndex = zM + 2
+          world.addChild(hot)
+          glows.push({ sp: hot, ph: hash(m[1], m[0]) * 6.3 + 2.1, a: 0.8 })
           for (let k = 0; k < 3; k++) {
             const sp = new Sprite(pulseTex); sp.anchor.set(0.5, 0.5); sp.blendMode = 'add'
             sp.width = 8; sp.height = 12
