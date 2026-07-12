@@ -87,6 +87,9 @@ export let WEST_OVERLOOK: [number, number] = [CX, CY]
 // dressing, not a place). Computed in init like the lava crossings.
 export let FORD: [number, number] = [CX, CY]
 export const fordD = (tx: number, ty: number) => Math.hypot(tx - FORD[0], ty - FORD[1])
+// the north/south mini-jetty roots (their first land tile) — the renderer
+// dresses each landing from these anchors
+export let MINI_PORTS: { north: [number, number]; south: [number, number] } = { north: [CX, CY], south: [CX, CY] }
 // cooled-crust slabs where the lava flows cross the promenade (one per flow) —
 // the ring-walk stays connected; walkable + drawn as charred basalt
 export const CROSSINGS: [number, number][] = []
@@ -485,6 +488,42 @@ export function initHubLayout() {
       [13.4, -6.1], [11.8, -7.2], [10, -8], [8.2, -8.4],
     ]
     for (const [ox, oy] of BW) push({ tx: WL + ox, ty: ryMid + oy, lift: 16, mat: 'rock', walk: false })
+
+    // THE MINI-PORTS (P5-lite): the other three landings get their skeleton
+    // built form as MORE HARBOR TILES — the deck renderer (planks, skirts,
+    // pilings, railings) and the walkmap/audit handle them for free. Same law
+    // as the east port: a dock is a BUILT thing, axis-aligned, never traced
+    // along the coast. Each is small: a 2-wide finger from its shore.
+    const miniJetty = (p: Port, len: number) => {
+      // walk from the port point (on land) seaward along the DOMINANT axis
+      const sx2 = Math.cos(p.az), sy2 = Math.sin(p.az)
+      const ax = Math.abs(sx2) >= Math.abs(sy2) ? Math.sign(sx2) : 0
+      const ay = ax === 0 ? Math.sign(sy2) : 0
+      let bx2 = Math.round(p.x), by2 = Math.round(p.y)
+      // root on genuinely DRY sand (the wet tide flat washes ~3 tiles of the
+      // beach — a deck rooted at the ds-0 waterline read as a marooned raft),
+      // then run the finger until it stands 2 tiles into real water
+      let guard = 0
+      while (guard++ < 12 && coastDs(bx2 + ax, by2 + ay) > 0) { bx2 += ax; by2 += ay }
+      guard = 0
+      while (guard++ < 10 && coastDs(bx2, by2) < 3.2) { bx2 -= ax; by2 -= ay }
+      void len
+      let i = 0
+      while (i < 12 && coastDs(bx2 + ax * (i - 1), by2 + ay * (i - 1)) > -2) {
+        const tx = bx2 + ax * i, ty = by2 + ay * i
+        // 2-wide across the jetty's off-axis
+        push({ tx, ty, lift: 8, mat: 'plank', walk: true })
+        push({ tx: tx + (ax === 0 ? 1 : 0), ty: ty + (ay === 0 ? 1 : 0), lift: 8, mat: 'plank', walk: true })
+        i++
+      }
+      return [bx2, by2] as [number, number]
+    }
+    const N_ROOT = miniJetty(PORTS.north, 4)   // the fishing jetty in the cliff notch
+    const S_ROOT = miniJetty(PORTS.south, 4)   // the cargo landing at the cove
+    // the west 'cove' stays UNBUILT — a quiet beach is its identity (rowboat +
+    // lantern dress it in the renderer, no structure)
+    MINI_PORTS = { north: N_ROOT, south: S_ROOT }
+
     HARBOR = {
       tiles,
       quayRect: [WL - 1, ryN, 3, ryS - ryN + 1],

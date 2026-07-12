@@ -6,7 +6,7 @@ import {
 } from '../ocean'
 import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, MOUTH_L, MOUTH_R } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
-import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD, RIVER, FALLS, FORD, STELES, TONGUE } from './hub-layout'
+import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD, RIVER, FALLS, FORD, STELES, TONGUE, PORTS, MINI_PORTS } from './hub-layout'
 import { reportIslandAudit } from './island-audit'
 
 const smooth = (e0: number, e1: number, x: number) => {
@@ -1799,6 +1799,19 @@ export default function IslandMapIso() {
             mount(pt['harbor-shed'], inland(3.2, 2.6), { deck: false, sc: 0.86, sink: 4 })
             mount(hb['net-rack'], inland(4.4, 2.1), { deck: false, sc: 0.74, sink: 6 })
             mount(hb['rowboat'], HARBOR.rowboat, { deck: false, sc: 0.8, flip: true, sink: 3 })
+            // THE MINI-PORTS dressed (P5-lite): each landing wears its identity
+            // from the same prop kit — nets north, cargo south, and the west
+            // cove stays a QUIET beach (a hauled boat and one light, no built
+            // structure — that restraint IS its identity)
+            // the notch's beach strip runs SE of the jetty root — inland is the
+            // clifftop (the rack stood on the cliff crown on first placement)
+            mount(hb['net-rack'], [MINI_PORTS.north[0] + 1.4, MINI_PORTS.north[1] + 1.9], { deck: false, sc: 0.62, sink: 5 })
+            mount(pt['lantern-post'], [MINI_PORTS.north[0], MINI_PORTS.north[1]], { sc: 0.78, glow: true })
+            mount(pt['cargo-a'], [MINI_PORTS.south[0], MINI_PORTS.south[1]], { sc: 0.76 })
+            mount(pt['cargo-a'], [MINI_PORTS.south[0] - 1.2, MINI_PORTS.south[1] - 1.1], { sc: 0.6, flip: true, deck: false, sink: 3 })
+            mount(pt['lantern-post'], [MINI_PORTS.south[0] + (MINI_PORTS.south[0] > CX ? 0 : 1), MINI_PORTS.south[1] + 1], { sc: 0.78, glow: true })
+            mount(hb['rowboat'], [PORTS.west.x - 0.8, PORTS.west.y + 1.2], { deck: false, sc: 0.66, sink: 3 })
+            mount(pt['lantern-post'], [PORTS.west.x + 1.4, PORTS.west.y - 0.8], { sc: 0.72, glow: true, deck: false, sink: 2 })
             // ---- the basin's boats: afloat with a foam ring, riding a slow bob
             const boat = (t: Texture | undefined, at: [number, number], sc = 1, flip = false) => {
               if (DBG) {
