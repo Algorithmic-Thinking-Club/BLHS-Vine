@@ -142,14 +142,22 @@ export function elevAt(tx: number, ty: number) {
 // The head render positions in IslandMapIso must match these start points.
 export const HEAD_L: [number, number] = [101, 117]
 export const HEAD_R: [number, number] = [117, 101]
+// where each head's molten stream STRIKES THE GROUND (the sprite's baked mouth-flow
+// exits at a measured pixel; the renderer anchors the sprite BY that pixel on this
+// tile, so mouth -> trail continuity holds by construction — never by eye).
+// ONE stream per head (Ash 2026-07-11: "why 2 on each?" — the twin-curtain pair was
+// the dead portal design). The gate stream runs PARALLEL-SOUTH of the tongue-stair,
+// never down it; both streams cross the beach and quench in the sea.
+// r≈18 from the summit: the head's BODY backs into the visible rock face (the
+// r≈20.7 first try left the heads standing detached on the grass apron) and the
+// stream cascades DOWN the terraces from the strike
+export const MOUTH_R: [number, number] = [117.8, 102.2]
+export const MOUTH_L: [number, number] = [102.2, 117.8]
 export const LAVA: [number, number][][] = [
-  // left head mouth -> SW-front coast (down-screen, drifting screen-left)
-  [HEAD_L, [99, 124], [96, 132], [92, 140], [88, 148]],
-  // the GATE's flow SPLITS at the portal into TWIN CURTAINS (Phase C2): the two
-  // molten falls pour from the gate's flanking niches and frame the carved
-  // tongue-stair descending between them (offset ±2.6 perp off the old ridge)
-  [[116, 98.6], [123, 96.6], [131, 93.6], [139, 89.6], [147, 85.6]],
-  [[118, 103.4], [125, 101.4], [133, 98.4], [141, 94.4], [149, 90.4]],
+  // left head mouth-strike -> SW-front coast (down-screen, drifting screen-left)
+  [MOUTH_L, [101, 127], [97.5, 134], [93, 141], [88, 148]],
+  // gate head mouth-strike -> SE coast, ~3 tiles south of the tongue the whole way
+  [MOUTH_R, [127, 102], [134, 99.5], [141, 96], [149, 91.5]],
 ]
 export function lavaDist(tx: number, ty: number) {
   let best = 99

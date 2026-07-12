@@ -6,24 +6,27 @@
 // inert scaffolding until the systems work wires it up; extend it, don't
 // bolt gameplay into it. Spec: docs/place-specs/island-exterior-architecture.md §4.
 
-import { coastDs, lavaDist, HEAD_L } from './terrain'
+import { coastDs, lavaDist } from './terrain'
 import { coneH } from './volcano'
 import {
   HARBOR, harborAt, PORTS, PLAZA, PLAZA_R, GATE_HEAD, TONGUE, STELES,
-  LIGHTHOUSE, FALLS, BECU_TREE, TIDEPOOLS, tongueD, pathD,
+  LIGHTHOUSE, FALLS, BECU_TREE, TIDEPOOLS, tongueD, pathD, crossingD,
+  WEST_OVERLOOK,
 } from './hub-layout'
 
 // ---- WALKMAP: the single collision truth for the exterior map.
 // Sea is blocked unless a harbor deck tile says walk; the cone is blocked
 // above its grassy toe EXCEPT the tongue-stair corridor; molten core + charred
-// bed are blocked; everything else on land walks.
+// bed are blocked EXCEPT the cooled-crust crossings (the promenade ring must
+// stay connected — the island audit proves it); everything else on land walks.
 export function isWalkable(tx: number, ty: number): boolean {
   const h = harborAt(Math.round(tx), Math.round(ty))
   if (h) return h.walk
   if (coastDs(tx, ty) <= 0) return false        // open water
   const onTongue = tongueD(tx, ty) < 1.4        // the carved stair up to the mouth
+  const onCross = crossingD(tx, ty) < 1.5       // cooled crust over the flows
   if (!onTongue && coneH(tx, ty) > 2) return false
-  if (!onTongue && lavaDist(tx, ty) < 1.8) return false
+  if (!onTongue && !onCross && lavaDist(tx, ty) < 1.8) return false
   return true
 }
 
@@ -41,7 +44,7 @@ export function zoneAt(tx: number, ty: number): ZoneId {
   }
   if (near([HARBOR.root[0], HARBOR.root[1]], 14)) return 'Z1-east-port'
   if (tongueD(tx, ty) < 3 || near(GATE_HEAD, 6)) return 'Z2-gate'
-  if (near(HEAD_L, 6)) return 'Z9-west-head'
+  if (near(WEST_OVERLOOK, 6)) return 'Z9-west-head'
   if (near(FALLS, 6)) return 'Z4-river-falls'
   if (near(LIGHTHOUSE, 6)) return 'Z5-lighthouse-bluff'
   if (near(PORTS.north, 7)) return 'Z6-north-port'
@@ -71,7 +74,9 @@ export function getPois(): Poi[] {
     { id: 'arrivals-bell', kind: 'ritual', at: [HARBOR.bell[0], HARBOR.bell[1]], r: 1.6 },
     ...STELES.map((s, i) => ({ id: `power-stele-${i + 1}`, kind: 'lore' as const, at: [s[0], s[1]] as [number, number], r: 1.5 })),
     { id: 'gate-maw', kind: 'landmark', at: [GATE_HEAD[0], GATE_HEAD[1]], r: 2.5 },
-    { id: 'west-head', kind: 'landmark', at: [HEAD_L[0], HEAD_L[1]], r: 2.5 },
+    // you never stand ON a carved mountain head — the POI is its OVERLOOK at the
+    // flank toe (computed in hub-layout from the real landform; audit-proven)
+    { id: 'west-head', kind: 'vista', at: [WEST_OVERLOOK[0], WEST_OVERLOOK[1]], r: 2.5 },
     { id: 'falls-pool', kind: 'vista', at: [FALLS[0], FALLS[1]], r: 2.5 },
     { id: 'lighthouse', kind: 'vista', at: [LIGHTHOUSE[0], LIGHTHOUSE[1]], r: 2 },
     { id: 'becu-treehouse', kind: 'hidden', at: [BECU_TREE[0], BECU_TREE[1]], r: 1.8 },

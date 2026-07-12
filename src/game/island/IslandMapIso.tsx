@@ -4,9 +4,10 @@ import {
   isoX, isoY, hash, vnoise, shadeHex, rampAt, tintFor,
   loadWaterVariants, seaTile, animSwells, type SwellSprite,
 } from '../ocean'
-import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, HEAD_L, HEAD_R } from './terrain'
+import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, MOUTH_L, MOUTH_R } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
-import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, riverD, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout } from './hub-layout'
+import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, riverD, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD } from './hub-layout'
+import { reportIslandAudit } from './island-audit'
 
 const smooth = (e0: number, e1: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t)
@@ -137,6 +138,10 @@ export default function IslandMapIso() {
       // the layout derives every place from the REAL coastline — it must compute
       // AFTER the skeleton fetch above (module-load values sit on the fallback coast)
       initHubLayout()
+      // the mechanical gate: reachability, lava continuity, grounding — checked as
+      // DATA on the live layout every load (a red console line = the map is broken
+      // no matter how good the screenshot looks)
+      reportIslandAudit()
 
       const world = new Container()
       world.scale.set(ZOOM)
@@ -732,14 +737,28 @@ export default function IslandMapIso() {
             // ~two tiles wide down the flank, shouldered by the dark charred bed — and
             // the whole crater bowl burns as a lava lake (Ash: "orange lava filling
             // inside the blowhole")
-            // ribbon width 1.25, NOT 0.95: at 0.95 a diagonal flow rasterized into a
-            // corner-connected single-tile chain — molten diamonds touching only at
-            // their points, reading as broken orange DASHES down the whole flank
+            // ribbon width 1.45 (was 1.25, was 0.95): under ~1.3 a diagonal flow
+            // rasterizes into an ALTERNATING lava/bed checker down the flank (tile
+            // centres fall in and out of the band as the line crosses the lattice) —
+            // Ash read it as a broken staircase. 1.45 keeps the core edge-connected
+            // and solid the whole run.
             // the flow crosses the BEACH to the sea (Ash: the trail bleeds into the
             // ocean) — L>0 gated it to the terraces and the ribbon died at the lip
-            const isLava = !NOCONE && lavaT.length > 0 && (ld < 1.25 || (L > 0 && ck > 0.32))
-            // the bed hugs the future ribbon (a 4-tile charred swath read as a black scar)
-            const isBed = !NOCONE && !isLava && (ld < 1.7 || (L > 0 && ck > 0.4))
+            // the COOLED-CRUST CROSSINGS: where a flow severs the promenade ring, a
+            // slab of solidified crust bridges it (walkable in hub-mechanics) — the
+            // slab outranks molten so the walk reads as stone over the fire
+            const onCross = !NOCONE && ld < 2.4 && crossingD(tx, ty) < 1.5
+            // the river BREATHES: its width swells and narrows along the run (a
+            // uniform band read as a string of lozenges — reviewer verdict). Floor
+            // 1.2 keeps the diagonal core edge-connected.
+            const wMod = 0.85 + 0.35 * vnoise(tx / 5 + 21, ty / 5 + 7)
+            const isLava = !NOCONE && !onCross && lavaT.length > 0 && (ld < 1.45 * wMod || (L > 0 && ck > 0.32))
+            // the bed MATERIAL swap only on rock and sand — on grass a hard swap
+            // rasterizes into a dark checker along the diagonal (the same disease
+            // the molten core had); the meadow chars by TINT BLEND instead (the
+            // beach delta's own recipe), which cannot checker
+            const grassy = !sand && band < 1
+            const isBed = !NOCONE && !isLava && (onCross || ((ld < 2.1 || (L > 0 && ck > 0.4)) && !grassy))
             // the worn path wears dry sand through the meadow (grass ring only, never
             // up the cone or over the beach's own sand)
             // paths may cross the grassy cone toe (the lawn IS mostly toe) — never the
@@ -750,8 +769,11 @@ export default function IslandMapIso() {
             const pdst = plazaD(tx, ty)
             const onPlaza = !sand && L > 0 && pdst < 5.5
             const pD = pathD(tx, ty)
+            // the path yields to the channel EXCEPT at a crust crossing, where it
+            // runs right up to the slab (a dead-end path beside a walkable bridge
+            // reads as "you can't cross here")
             const onPath = !onPlaza && !sand && L > 0 && coneBand(tx, ty) === 0
-              && lavaDist(tx, ty) > 1.4 && onPathTile(tx, ty)
+              && (lavaDist(tx, ty) > 1.4 || crossingD(tx, ty) < 2.2) && onPathTile(tx, ty)
             // the river renders ONLY as the flat tidal estuary at the cove (L 0-1):
             // on the terraced ring the water tiles stepped down the benches as floating
             // mint checkers — a broken river is worse than none (the full flank river
@@ -799,22 +821,62 @@ export default function IslandMapIso() {
                   top.tint = (dr << 16) | (dg << 8) | db
                 }
               } else if (isLava) {
-                top.tint = 0xffffff                           // self-bright art, untinted
+                // INTERNAL RIVER STRUCTURE (reviewer): a white-hot CORE down the
+                // centreline, a cooling skin toward the banks, dark crust plates
+                // floating on the body — three value zones across the width so the
+                // band reads as molten rock, not lit floor tiles. The mouth-strike
+                // tiles stay core-hot so the sprite's flow hands off without a pinch.
+                const nearMouth = Math.min(
+                  Math.hypot(tx - MOUTH_R[0], ty - MOUTH_R[1]),
+                  Math.hypot(tx - MOUTH_L[0], ty - MOUTH_L[1]))
+                const core = ld < 0.62 * wMod || nearMouth < 1.7 || (L > 0 && ck > 0.32)
+                if (core) {
+                  top.tint = 0xffffff                         // self-bright art, untinted
+                } else {
+                  // cooling skin: pull the art toward dim red-brown at the bank edge
+                  const k = Math.min(1, Math.max(0, (ld - 0.62 * wMod) / (0.83 * wMod))) * 0.5
+                  const vv = Math.round(255 * (1 - k * 0.45))
+                  top.tint = (vv << 16) | (Math.round(vv * (1 - k * 0.35)) << 8) | Math.round(vv * (1 - k * 0.55))
+                  // floating crust plate: a dark cooled island riding the flow
+                  if (hash(tx * 7.3, ty * 3.1) > 0.74) {
+                    const crust = new Sprite(foamTex)
+                    crust.anchor.set(0.5, 0.5)
+                    crust.tint = 0x2c1c12
+                    crust.width = 20 + 14 * hash(tx * 1.9, ty * 5.7)
+                    crust.height = 10 + 6 * hash(tx * 4.1, ty * 2.3)
+                    crust.alpha = 0.85
+                    crust.position.set(bx + (hash(tx, ty * 9) - 0.5) * 18, by + (hash(tx * 9, ty) - 0.5) * 8)
+                    crust.zIndex = zBase + 8
+                    world.addChild(crust)
+                  }
+                }
                 const glow = new Sprite(foamTex)              // soft radial, re-tinted ember
                 glow.anchor.set(0.5, 0.5); glow.blendMode = 'add'
-                glow.tint = 0xff8a30; glow.width = 150; glow.height = 84
-                glow.alpha = 0.34
+                glow.tint = core ? 0xffa040 : 0xff8a30
+                glow.width = 150; glow.height = 84
+                glow.alpha = core ? 0.4 : 0.28
                 glow.position.set(bx, by); glow.zIndex = zBase + 7
                 world.addChild(glow)
                 // phase keyed to distance from the vent: the pulse TRAVELS downstream —
                 // the cheap cue that the river flows instead of blinking in place
-                glows.push({ sp: glow, ph: -Math.hypot(tx - CX, ty - CY) * 1.1 + hash(tx, ty) * 0.8, a: 0.3 })
+                glows.push({ sp: glow, ph: -Math.hypot(tx - CX, ty - CY) * 1.1 + hash(tx, ty) * 0.8, a: core ? 0.34 : 0.24 })
               } else if (isBed) {
                 // the charred channel shoulder / crater bowl floor — dark UMBER, not black
-                // (the grade crushes anything below ~0.5 into hole-black)
-                const v = 0.54 + 0.12 * vnoise(tx / 4 + 8, ty / 4 + 3)
+                // (the grade crushes anything below ~0.5 into hole-black). The cooled
+                // CROSSING slabs sit a clear step lighter so the walk reads as stone
+                // laid over the fire, with an ember seam breathing at each lip
+                const v = (onCross ? 0.74 : 0.54) + 0.12 * vnoise(tx / 4 + 8, ty / 4 + 3)
                 const vv = Math.round(v * 255)
                 top.tint = (vv << 16) | (Math.round(vv * 0.82) << 8) | Math.round(vv * 0.72)
+                if (onCross && ld < 1.45) {
+                  const seam = new Sprite(foamTex)
+                  seam.anchor.set(0.5, 0.5); seam.blendMode = 'add'
+                  seam.tint = 0xff6a1e; seam.width = 82; seam.height = 40
+                  seam.alpha = 0.2
+                  seam.position.set(bx, by); seam.zIndex = zBase + 7
+                  world.addChild(seam)
+                  glows.push({ sp: seam, ph: hash(tx * 1.7, ty * 2.3) * 6.3, a: 0.16 })
+                }
               } else if (onRiver) {
                 // fresh water: pale sunlit turquoise over the live water texture, with
                 // a gentle glint pulse via the ember array (reused, tinted cool)
@@ -882,6 +944,26 @@ export default function IslandMapIso() {
                 const lit = patch * grain * (1 + 0.13 * rk) * (1.03 - 0.07 * zone) * (1 + 0.14 * cl) * vShade * (1 + 0.1 * dry)
                 const tv2 = Math.max(0, tval - 0.32 * dry)
                 top.tint = warmCool(tintFor(shadeHex(rampAt(GRASS_RAMP, tv2), lit), GRASS_BASE), rk)
+                if (!NOCONE && ld < 3.1) {
+                  // the CHAR FRINGE: meadow scorched toward the channel by smooth
+                  // tint blend (the beach delta's recipe) — a hard bed-material
+                  // swap here rasterized into a dark checker on the diagonal.
+                  // Two tiers (reviewer): a BLOTCHY brown scorch reaching into the
+                  // grass in uneven fingers, and a near-BLACK burnt lip hugging the
+                  // molten edge (the hottest ground must be the darkest, and an
+                  // even-width halo reads airbrushed)
+                  const blotch = 0.62 + 0.76 * vnoise(tx / 3.2 + 31, ty / 3.2 + 13)
+                  const k = Math.min(1, Math.max(0, 1 - (ld - 1.3) / 1.8)) * 0.8 * blotch
+                  const t0 = top.tint as number
+                  let dr = Math.round(((t0 >> 16) & 255) * (1 - k) + 0x46 * k)
+                  let dg = Math.round(((t0 >> 8) & 255) * (1 - k) + 0x3a * k)
+                  let db = Math.round((t0 & 255) * (1 - k) + 0x30 * k)
+                  const k2 = Math.min(1, Math.max(0, 1 - (ld - 1.3) / 0.55)) * 0.88
+                  dr = Math.round(dr * (1 - k2) + 0x20 * k2)
+                  dg = Math.round(dg * (1 - k2) + 0x18 * k2)
+                  db = Math.round(db * (1 - k2) + 0x12 * k2)
+                  top.tint = (dr << 16) | (dg << 8) | db
+                }
               }
               world.addChild(top)
             }
@@ -1721,47 +1803,79 @@ export default function IslandMapIso() {
             const spoutT: Texture = await Assets.load('/art/island/gate/head-gape.png?v=1')
             spoutT.source.scaleMode = 'nearest'
             // the GAPING head (Ash's verdict, 2026-07-11): a monumental roaring
-            // maw carved out of the mountain — dark open mouth (the gate head's
-            // is the Maw entrance), stone fangs, a basalt skirt torn-edged into
-            // the flank, the mouth's lava column landing exactly on the engine
-            // flow's origin so mouth -> flank -> delta -> sea reads as ONE thread.
-            const carveHead = (site: [number, number], sc: number, flip: boolean) => {
-              const rx = Math.round(site[0]), ry2 = Math.round(site[1])
+            // maw carved out of the mountain. CONTINUITY BY CONSTRUCTION: the
+            // sprite's baked mouth-flow exits the art at a MEASURED pixel
+            // (scripts probed the molten exit centroid: texture frac 0.727, 0.89)
+            // and the sprite is anchored BY that pixel on the SAME tile where the
+            // engine's LAVA polyline starts (terrain MOUTH_R/MOUTH_L). The painted
+            // stream and the tile ribbon meet at one point — no eyeballing, and
+            // "two streams per head" can't happen (one polyline per mouth).
+            const EXIT_AX = 0.727, EXIT_AY = 0.89
+            const carveHead = (mouth: [number, number], sc: number, flip: boolean) => {
+              const rx = Math.round(mouth[0]), ry2 = Math.round(mouth[1])
               const lift = liftOf(eLvl(rx, ry2))
-              const bx2 = isoX(site[0], site[1]), byBase = isoY(site[0], site[1]) + GY - lift + 10
+              const bx2 = isoX(mouth[0], mouth[1]), byM = isoY(mouth[0], mouth[1]) + GY - lift
               const zB = (rx + ry2) * 4000 + lift * 2 + 760
-              // a DEEP carved socket: a broad AO pool the head sits in + a tighter,
-              // darker core hugging the muzzle, so the head reads recessed INTO the
-              // flank (Ash: carved OUT of the mountain, not a pasted medallion)
+              // the head BODY rises up-flank from the mouth-strike (anchor sits low
+              // in the art): the AO socket centers on the body, not the anchor
+              const bodyY = byM - spoutT.height * sc * 0.42
               const shOuter = new Sprite(shadTex)
               shOuter.anchor.set(0.5, 0.5)
               shOuter.width = spoutT.width * sc * 1.12; shOuter.height = spoutT.width * sc * 0.4; shOuter.alpha = 0.34
               shOuter.tint = 0x2a140a
-              shOuter.position.set(bx2, byBase - spoutT.height * sc * 0.46); shOuter.zIndex = zB - 3
+              shOuter.position.set(bx2, bodyY); shOuter.zIndex = zB - 3
               world.addChild(shOuter)
               const sh = new Sprite(shadTex)
               sh.anchor.set(0.5, 0.5)
               sh.width = spoutT.width * sc * 0.84; sh.height = spoutT.width * sc * 0.28; sh.alpha = 0.5
-              sh.position.set(bx2, byBase - spoutT.height * sc * 0.42); sh.zIndex = zB - 2
+              sh.position.set(bx2, bodyY + spoutT.height * sc * 0.05); sh.zIndex = zB - 2
               world.addChild(sh)
-              const sp = new Sprite(spoutT); sp.anchor.set(0.5, 0.97)   // the lava-column base at the site
-              sp.position.set(bx2, byBase)
+              const sp = new Sprite(spoutT)
+              sp.anchor.set(EXIT_AX, EXIT_AY)     // the molten exit pixel IS the anchor
+              sp.position.set(bx2, byM)
               sp.scale.set((flip ? -1 : 1) * sc, sc)
+              // ONE light with the mountain (reviewer: the heads' harder contrast
+              // detached them from the soft golden flank) — a warm multiply grade
+              // pulls the highlights down into the massif's own late-sun ramp
+              sp.tint = 0xffe4c2
               sp.zIndex = zB
               world.addChild(sp)
-              // the open maw breathes molten heat (the mouth sits ~0.55 down)
+              // ROCK WRAPS OVER THE BROW: a soft occlusion crescent across the
+              // crown so the mountain reads as overhanging the carved head — the
+              // single strongest "carved INTO, not pasted ON" cue
+              const brow = new Sprite(shadTex)
+              brow.anchor.set(0.5, 0.5)
+              brow.width = spoutT.width * sc * 0.98; brow.height = spoutT.width * sc * 0.3
+              brow.tint = 0x241009; brow.alpha = 0.38
+              brow.position.set(bx2 + (flip ? 8 : -8) * sc, byM - spoutT.height * sc * 0.82)
+              brow.zIndex = zB + 2
+              world.addChild(brow)
+              // JAW CONTACT: the dark pool where the chin meets the ground — the
+              // form must sit in its own occlusion (the gold standard's law)
+              const jaw = new Sprite(shadTex)
+              jaw.anchor.set(0.5, 0.5)
+              jaw.width = spoutT.width * sc * 0.55; jaw.height = spoutT.width * sc * 0.17
+              jaw.tint = 0x1c0e08; jaw.alpha = 0.44
+              jaw.position.set(bx2 + (flip ? 10 : -10) * sc, byM + 4)
+              jaw.zIndex = zB - 1
+              world.addChild(jaw)
+              // the open maw breathes molten heat (mouth centre sits ~0.42 up-art
+              // from the exit anchor, same x — measured, not guessed)
               const g = new Sprite(foamTex); g.anchor.set(0.5, 0.5); g.blendMode = 'add'
               g.tint = 0xff7a28
               g.width = spoutT.width * sc * 0.4; g.height = spoutT.width * sc * 0.3
-              g.position.set(bx2 + (flip ? -6 : 6), byBase - spoutT.height * sc * 0.44)
+              g.position.set(bx2, byM - spoutT.height * sc * 0.42)
               g.alpha = 0.42; g.zIndex = zB + 4
               world.addChild(g)
               glows.push({ sp: g, ph: 2.4, a: 0.44 })
             }
             // both flanks wear a carved head (GAME-DESIGN §3.2: two lava-spewing
-            // heads). SE faces down-right; SW flipped to face down-left.
-            carveHead(HEAD_R, 1.2, false)
-            carveHead(HEAD_L, 1.05, true)
+            // heads). SE faces down-right; SW flipped to face down-left. Each is
+            // placed at its MOUTH-strike tile = its LAVA polyline's first point.
+            // Scales near-matched (reviewer: a 1.2-vs-1.05 pair read as two
+            // different-fidelity assets)
+            carveHead(MOUTH_R, 1.16, false)
+            carveHead(MOUTH_L, 1.09, true)
           } catch { /* carved heads optional until the art lands */ }
         }
 

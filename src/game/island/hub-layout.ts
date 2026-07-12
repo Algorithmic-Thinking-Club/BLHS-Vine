@@ -15,7 +15,7 @@
 // The lagoon window (az -0.55) is the screen-E/SE arrival water; the cove (az 0.79) is
 // the screen-S pocket; the cliff arc wraps screen W -> NW -> N.
 
-import { CX, CY, coastR, coastDs, lavaDist, LAVA, HEAD_R } from './terrain'
+import { CX, CY, coastR, coastDs, lavaDist, LAVA, HEAD_R, HEAD_L } from './terrain'
 import { coneH, gullyK } from './volcano'
 import { vnoise } from '../ocean'
 
@@ -78,6 +78,18 @@ export let LIGHTHOUSE: [number, number] = [CX, CY]
 export let BECU_TREE: [number, number] = [CX, CY]
 export let TIDEPOOLS: [number, number] = [CX, CY]
 export let GROVES: [number, number, number, number][] = []
+// where a walker actually STANDS to face the west head (the head itself is
+// unwalkable mountain ringed by its own stream — the audit proved the naive
+// POI-on-the-head unreachable). Computed from the real landform in init.
+export let WEST_OVERLOOK: [number, number] = [CX, CY]
+// cooled-crust slabs where the lava flows cross the promenade (one per flow) —
+// the ring-walk stays connected; walkable + drawn as charred basalt
+export const CROSSINGS: [number, number][] = []
+export const crossingD = (tx: number, ty: number) => {
+  let best = 99
+  for (const c of CROSSINGS) { const d = Math.hypot(tx - c[0], ty - c[1]); if (d < best) best = d }
+  return best
+}
 
 const GRID = 200
 let LAVA0: [number, number][][] | null = null   // pristine LAVA lines (pre-extension)
@@ -231,11 +243,10 @@ export function initHubLayout() {
     LAVA[li].push(...lean)
   }
 
-  // THE GATE: Thor enters the Maw THROUGH the SE panther head's mouth — its lava
-  // flow splits around a carved tongue-stair climbing the toe to the mouth.
-  // The stair runs down the CORRIDOR between the twin curtains — the flow's own
-  // down-and-outward ridge line, NOT the radial from the island center (the
-  // radial crossed the south curtain and the stair dashed against the lava).
+  // THE GATE: Thor enters the Maw THROUGH the SE panther head's mouth. The head's
+  // ONE lava stream (terrain MOUTH_R — the twin-curtain pair was the dead portal
+  // design) runs PARALLEL ~3 tiles south of this tongue-stair, so the climb to the
+  // mouth stays dry while the flow roars beside it.
   // TONGUE[0] = the base (where the plaza approach arrives), last = the mouth.
   GATE_HEAD = HEAD_R
   TONGUE = [[140, 92], [132, 96], [124, 99], [GATE_HEAD[0], GATE_HEAD[1]]]
@@ -277,6 +288,44 @@ export function initHubLayout() {
         }
       }
     }
+  }
+
+  // THE CRUST CROSSINGS: each flow severs the promenade ring on its way to the
+  // sea — the ring-walk must NOT dead-end (function before decoration; the
+  // island audit proves reachability). Where each flow passes nearest the
+  // promenade, a slab of cooled crust bridges the channel: walkable in
+  // hub-mechanics, drawn as charred basalt by the renderer.
+  CROSSINGS.length = 0
+  for (const line of LAVA) {
+    let best: [number, number] | null = null, bd = 99
+    for (let i = 0; i < line.length - 1; i++) {
+      const [x0, y0] = line[i], [x1, y1] = line[i + 1]
+      const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 0.4))
+      for (let s = 0; s <= n; s++) {
+        const x = x0 + ((x1 - x0) * s) / n, y = y0 + ((y1 - y0) * s) / n
+        const d = segD(PROMENADE, x, y)
+        if (d < bd) { bd = d; best = [x, y] }
+      }
+    }
+    if (best && bd < 3) CROSSINGS.push(best)
+  }
+
+  // THE WEST-HEAD OVERLOOK: march out from the head's azimuth past the cone toe
+  // to the first real standing ground (walkable body, clear of the stream), then
+  // prefer the spot closest to the head. This is where the POI lives.
+  {
+    const az = Math.atan2(HEAD_L[1] - CY, HEAD_L[0] - CX)
+    let found: [number, number] | null = null
+    for (let r = 20; r <= 34 && !found; r += 0.5) {
+      for (const w of [0, 1.5, -1.5, 3, -3]) {
+        const px = CX + Math.cos(az) * r - Math.sin(az) * w
+        const py = CY + Math.sin(az) * r + Math.cos(az) * w
+        if (coneH(px, py) <= 2 && lavaDist(px, py) > 2.2 && coastDs(px, py) > 2) {
+          found = [px, py]; break
+        }
+      }
+    }
+    WEST_OVERLOOK = found ?? [CX + Math.cos(az) * 26, CY + Math.sin(az) * 26]
   }
 
   // THE RIVER (spring on the south flank -> falls at the bench lip -> cove estuary)
