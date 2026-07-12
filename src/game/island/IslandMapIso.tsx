@@ -575,7 +575,9 @@ export default function IslandMapIso() {
               seg.tint = tint24(lo * 0.74, lo * 0.8, lo * 0.46)
             } else if (band === 1) {
               // merge belt: dry earthy-olive bank (grass meshing into rock, c3)
-              seg.tint = tint24(lo * 0.72, lo * 0.66, lo * 0.40)
+              // — pulled greener/darker: at 0.72/0.66 the scrub risers printed
+              // terracotta dash clusters across the shallow west toe
+              seg.tint = tint24(lo * 0.6, lo * 0.65, lo * 0.38)
             } else {
               // bare rock upper flank: real strata face, matches the tread value
               const k = dropPx >= CSTEP * 2 ? 0.97 : 0.88
@@ -1233,7 +1235,7 @@ export default function IslandMapIso() {
                 const lit = patch * grain * (1 + 0.13 * rk) * (1.03 - 0.07 * zone) * (1 + 0.14 * cl) * vShade * (1 + 0.1 * dry)
                 const tv2 = Math.max(0, tval - 0.32 * dry)
                 top.tint = warmCool(tintFor(shadeHex(rampAt(GRASS_RAMP, tv2), lit), GRASS_BASE), rk)
-                if (!NOCONE && ld < 3.1) {
+                if (!NOCONE && ld < 3.6) {
                   // the CHAR FRINGE: meadow scorched toward the channel by smooth
                   // tint blend (the beach delta's recipe) — a hard bed-material
                   // swap here rasterized into a dark checker on the diagonal.
@@ -1246,8 +1248,11 @@ export default function IslandMapIso() {
                   // scorch diamond two tiles out in clean grass (Opus caught
                   // two orphans) — with a wandering reach the falloff stays
                   // monotonic in ld and orphans are impossible by construction
-                  const reach = 1.8 * (0.45 + 0.55 * vnoise(tx / 3.2 + 31, ty / 3.2 + 13))
-                  const k = Math.min(1, Math.max(0, 1 - (ld - 1.3) / reach)) * 0.8
+                  // widened (1.8 -> 2.2, 0.8 -> 0.86): at map zoom the scorch
+                  // margin read too thin and the lava still sat on the green as
+                  // a crisp painted stripe (final gate verdict)
+                  const reach = 2.2 * (0.45 + 0.55 * vnoise(tx / 3.2 + 31, ty / 3.2 + 13))
+                  const k = Math.min(1, Math.max(0, 1 - (ld - 1.3) / reach)) * 0.86
                   const t0 = top.tint as number
                   let dr = Math.round(((t0 >> 16) & 255) * (1 - k) + 0x46 * k)
                   let dg = Math.round(((t0 >> 8) & 255) * (1 - k) + 0x3a * k)
@@ -1979,6 +1984,25 @@ export default function IslandMapIso() {
               world.addChild(g)
               glows.push({ sp: g, ph: 0.4, a: 0.55 })
             }
+            // the breakwater sits IN the sea, not on it: a broken foam lace along
+            // every rock/water contact — the islet's hard flat cut against the
+            // teal read as a pasted sticker (final gate verdict)
+            for (const t2 of HARBOR.tiles) {
+              if (t2.mat !== 'rock') continue
+              for (const [ox, oy] of [[1, 0], [0, 1], [-1, 0], [0, -1]] as [number, number][]) {
+                const nx = Math.round(t2.tx) + ox, ny = Math.round(t2.ty) + oy
+                if (harborAt(nx, ny)) continue
+                if (dsAt(nx, ny) > 0) continue
+                if (hash(nx * 1.3 + ox, ny * 2.7 + oy) > 0.6) continue   // lace, not a ring
+                const fx = isoX(t2.tx + ox * 0.5, t2.ty + oy * 0.5)
+                const fy = isoY(t2.tx + ox * 0.5, t2.ty + oy * 0.5) + GY + 4
+                const foam = new Sprite(foamTex); foam.anchor.set(0.5, 0.5)
+                foam.width = 44; foam.height = 20; foam.alpha = 0.42
+                foam.position.set(fx, fy)
+                foam.zIndex = Math.max(Math.round(t2.tx + t2.ty), nx + ny) * 4000 + 62
+                world.addChild(foam)
+              }
+            }
             // the teal school pennant flies at the pier's T-head
             try {
               const pnT: Texture = await Assets.load('/art/intro/props/pennant.png')
@@ -2065,7 +2089,10 @@ export default function IslandMapIso() {
             mount(pt['harbor-sign'], inland(-0.6, 4.0), { sc: 0.8, deck: false, sink: 2 })
             mount(pt['harbor-shed'], inland(3.2, 2.6), { deck: false, sc: 0.86, sink: 4 })
             mount(hb['net-rack'], inland(4.4, 2.1), { deck: false, sc: 0.74, sink: 6 })
-            mount(hb['rowboat'], HARBOR.rowboat, { deck: false, sc: 0.8, flip: true, sink: 3 })
+            // hauled a tile further up-beach: at the plan point the bow still
+            // straddled the tide seam (final-sweep catch — neither beached nor
+            // afloat reads wrong at every zoom)
+            mount(hb['rowboat'], [HARBOR.rowboat[0] - 1.1, HARBOR.rowboat[1] - 0.4], { deck: false, sc: 0.8, flip: true, sink: 3 })
             // THE MINI-PORTS dressed (P5-lite): each landing wears its identity
             // from the same prop kit — nets north, cargo south, and the west
             // cove stays a QUIET beach (a hauled boat and one light, no built
@@ -2251,10 +2278,11 @@ export default function IslandMapIso() {
             // both flanks wear a carved head (GAME-DESIGN §3.2: two lava-spewing
             // heads). SE faces down-right; SW flipped to face down-left. Each is
             // placed at its MOUTH-strike tile = its LAVA polyline's first point.
-            // Scales near-matched (reviewer: a 1.2-vs-1.05 pair read as two
-            // different-fidelity assets)
-            carveHead(MOUTH_R, 1.16, false)
-            carveHead(MOUTH_L, 1.09, true)
+            // Scales now IDENTICAL: same sculpt mirrored — the residual 1.16/1.09
+            // gap still read as "two different species, one smaller" on the twin
+            // gate (final Opus gate verdict); a monument pair is symmetric.
+            carveHead(MOUTH_R, 1.13, false)
+            carveHead(MOUTH_L, 1.13, true)
           } catch { /* carved heads optional until the art lands */ }
         }
 
@@ -2304,9 +2332,11 @@ export default function IslandMapIso() {
               const lift2 = liftOf(eLvl(Math.round(at[0]), Math.round(at[1])))
               const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY - lift2 + 8
               const zB = Math.floor(at[0] + at[1]) * 4000 + lift2 * 2
+              // heavier grounding than the harbor props: a monument must feel
+              // WEIGHTED (final verdict: steles read inserted, not planted)
               const sh = new Sprite(shadTex); sh.anchor.set(0.4, 0.5)
-              sh.width = t.width * sc * 0.8; sh.height = t.width * sc * 0.24
-              sh.alpha = 0.3; sh.position.set(bx2 + 3, by2 - 2); sh.zIndex = zB + 7
+              sh.width = t.width * sc * 0.98; sh.height = t.width * sc * 0.28
+              sh.alpha = 0.38; sh.position.set(bx2 + 4, by2 - 2); sh.zIndex = zB + 7
               world.addChild(sh)
               const sp = new Sprite(t); sp.anchor.set(0.5, 1)
               sp.position.set(bx2, by2)
@@ -2505,13 +2535,23 @@ export default function IslandMapIso() {
         }
         for (const line of NOCONE ? [] : LAVA) {
           const [ex, ey2] = line[line.length - 1]
-          for (let i = 0; i < 2; i++) {
+          // a steam BANK, not two wisps: at map zoom the quench read as a hard
+          // orange band simply stopping at the teal (the final gate verdict's
+          // recurring immersion-killer) — four spread puffs + a breathing sea-
+          // contact glow make the collision an EVENT
+          for (let i = 0; i < 4; i++) {
             const sp = new Sprite(steamTex); sp.anchor.set(0.5, 0.5)
-            sp.position.set(isoX(ex, ey2), isoY(ex, ey2) + GY)
+            sp.position.set(isoX(ex, ey2) + (i - 1.5) * 18, isoY(ex, ey2) + GY - (i % 2) * 6)
             sp.zIndex = (ex + ey2 + 2) * 4000 + 900
             world.addChild(sp)
-            puffs.push({ sp, ph: i * 2.6 + ex * 0.1, spd: 0.6 + 0.25 * hash(ex + i, ey2), big: false })
+            puffs.push({ sp, ph: i * 1.7 + ex * 0.1, spd: 0.55 + 0.22 * hash(ex + i, ey2), big: false })
           }
+          const qg = new Sprite(foamTex); qg.anchor.set(0.5, 0.5); qg.blendMode = 'add'
+          qg.tint = 0xff9040; qg.width = 130; qg.height = 56; qg.alpha = 0.34
+          qg.position.set(isoX(ex, ey2), isoY(ex, ey2) + GY + 2)
+          qg.zIndex = (ex + ey2 + 2) * 4000 + 880
+          world.addChild(qg)
+          glows.push({ sp: qg, ph: hash(ex, ey2) * 6.3, a: 0.32 })
         }
         // falls mist: two cool wisps hanging over the river's big drop
         if (!NOCONE && RIVER.length) {
