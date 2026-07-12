@@ -276,20 +276,29 @@ export function initHubLayout() {
     // all the dressing anchor here so the whole port sits ON the water where Thor
     // lands — not set back on a beach.
     const WL = rawWx(ryMid)
-    // THE WHARF: a slim 3-wide timber waterfront that HUGS the shore. The edge
-    // line is the coast SMOOTHED to at most 1 tile of drift per row (raw rawWx
-    // jumps 2-3 tiles row-to-row, which produced a sawtooth of disconnected
-    // half-patches). Smoothing walks outward from the pier-root row so the
-    // apron/pier anchor line stays exact.
+    // THE BOARDWALK: one dead-STRAIGHT 3-wide promenade on the centre-row
+    // waterline axis. A built thing has one designed line — every coast-following
+    // variant (raw, smoothed, clamped) read as planks scattered along the beach.
+    // Where the coast bulges seaward the boardwalk fronts the beach (a seaside
+    // promenade); where it recedes the deck rides open water on its pilings —
+    // and because the strip is solid it can never maroon a tile. eAt stays as an
+    // array (all rows = WL) so every anchor below keeps its shape.
     const eAt: number[] = []
-    eAt[ryMid] = WL
-    for (let y = ryMid - 1; y >= ryN; y--) eAt[y] = Math.max(eAt[y + 1] - 1, Math.min(eAt[y + 1] + 1, rawWx(y)))
-    for (let y = ryMid + 1; y <= ryS; y++) eAt[y] = Math.max(eAt[y - 1] - 1, Math.min(eAt[y - 1] + 1, rawWx(y)))
+    for (let y = ryN - 1; y <= ryS + 3; y++) eAt[y] = WL
     for (let y = ryN; y <= ryS; y++) {
-      for (let x = eAt[y] - 1; x <= eAt[y] + 1; x++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
+      for (let x = WL - 1; x <= WL + 1; x++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
     }
-    // TWO stair landings down to the beach (not a scatter of half-steps)
-    for (const sy of [ryMid - 3, ryMid + 3]) push({ tx: eAt[sy] - 2, ty: sy, lift: Math.round(HL / 2), mat: 'plank', walk: true })
+    // stair landings down to the beach — only on rows whose landward side is
+    // actually sand (the coast recedes south of the pier; a step into the sea
+    // is worse than no step)
+    for (const sy of [ryMid - 3, ryMid + 3]) {
+      if (rawWx(sy) >= WL) push({ tx: WL - 2, ty: sy, lift: Math.round(HL / 2), mat: 'plank', walk: true })
+    }
+    // THE ANNEX: a 3x3 stilt platform off the boardwalk's north end — the harbor
+    // office stands ON the wharf over the water (the sand strip behind the north
+    // walk is too thin for a building; on deck it reads as a stilt-village
+    // office, and the railing wraps it by the edge rules)
+    for (let x = WL + 2; x <= WL + 4; x++) for (let y = ryN; y <= ryN + 2; y++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
     // THE APRON: the wharf widens to a 4-deep landing at the pier root (Thor lands here)
     for (let x = WL - 1; x <= WL + 2; x++) for (let y = ryMid - 1; y <= ryMid + 2; y++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
     // THE MAIN PIER: a straight 2-wide rectangle jutting seaward from the apron,
@@ -335,15 +344,16 @@ export function initHubLayout() {
       lanterns: [
         [eAt[ryMid - 2], ryMid - 2],            // wharf light mid-walk (clear of the bell at ryN+1)
         [HEADX - 0.4, ryMid + 1.6],             // T-head mooring light
+        [eAt[ryMid + 3], ryMid + 3],            // south-wharf light between apron and jetty
       ],
-      // the freight pile: two stacks at the apron's south edge, beside the crane
+      // ONE freight stack at the apron (two identical stacks read as a stamp) + a jetty crate
       cargo: [
-        [WL - 0.6, ryMid + 2], [WL + 0.4, ryMid + 2.4],
+        [WL - 0.6, ryMid + 2],
         [jE + 3, jY + 1],
       ],
       sloop: [WL + 8, ryMid - 4.2],             // at anchor mid-basin, clear water all around
       sloop2: [jE + 7, jY + 2.4],               // the second fisher off the jetty head
-      rowboat: [WL - 3.5, ryS + 1.5],           // hauled UP on the dry sand south of the port
+      rowboat: [rawWx(ryS + 2) - 1.4, ryS + 2], // hauled up at its own row's tide line, clear of the deck and the net-rack
       beacon: [WL + 8.2, ryMid - 8.4],          // the harbor light at the breakwater's north tip
       pennant: [HEADX, ryMid],                  // ON the T-head edge tile
       // mooring cleats ONLY where a boat actually ties up

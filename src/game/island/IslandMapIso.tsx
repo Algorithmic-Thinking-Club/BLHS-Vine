@@ -1152,7 +1152,7 @@ export default function IslandMapIso() {
         const bobs: { sp: Sprite; y0: number; w: number; ph: number }[] = []
         try {
           const hb: Record<string, Texture> = {}
-          for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'warehouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b']) {
+          for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'boathouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b']) {
             try {
               const t: Texture = await Assets.load(`/art/island/harbor/${n}.png?v=5`)
               t.source.scaleMode = 'nearest'; hb[n] = t
@@ -1254,17 +1254,26 @@ export default function IslandMapIso() {
                   if (dsAt(ht.tx + ox, ht.ty + oy) > 0) continue   // sand takes no reflection
                   const rx = ht.tx + ox * 0.62, ry2 = ht.ty + oy * 0.62
                   const rf = new Sprite(shadTex); rf.anchor.set(0.5, 0.5)
-                  rf.width = 54; rf.height = 13; rf.alpha = 0.3; rf.tint = 0x0a2a30
+                  // jittered per tile — identical stamps repeated down the edge
+                  // read as one copy-pasted rot patch (reviewer FAIL C)
+                  const jr = hash(ht.tx * 4.7 + ox, ht.ty * 6.1 + oy)
+                  rf.width = 42 + 20 * jr; rf.height = 10 + 5 * jr
+                  rf.alpha = 0.2 + 0.12 * hash(ht.tx * 2.9, ht.ty * 8.3)
+                  rf.scale.x *= jr > 0.5 ? -1 : 1
+                  rf.tint = 0x0a2a30
                   rf.position.set(isoX(rx, ry2), isoY(rx, ry2) + GY + 2)
                   rf.zIndex = zB + 1
                   world.addChild(rf)
                 }
                 if (exposed.length && (onRock || ht.mat === 'stone')) {
-                  // the shore footing: the full shaded face down to the ground...
+                  // the shore footing: the shaded face drops to the WATERLINE on sea
+                  // edges but only just under the SAND on beach edges (the full-length
+                  // face on sand read as a dark board stabbing into the ground)
+                  const seaEdge = exposed.some(([ox, oy]) => dsAt(ht.tx + ox, ht.ty + oy) <= 0)
                   const face = new Sprite(ht.mat === 'stone' ? stoneF : plankF)
                   face.anchor.set(0.5, 0)
                   face.position.set(bx2, byTop)
-                  const need = ht.lift + 14 + 18
+                  const need = ht.lift + (seaEdge ? 32 : 6)
                   face.scale.y = need / 46
                   if (ht.mat === 'plank') {
                     const dv = 0.94 + 0.1 * vnoise(ht.tx / 4 + 3, ht.ty / 4 + 7)
@@ -1280,6 +1289,9 @@ export default function IslandMapIso() {
                   const rrF = ['riprap-a', 'riprap-b', 'riprap-c'].map((n) => hb[n]).filter(Boolean)
                   if (rrF.length) {
                     for (const [ox, oy] of exposed) {
+                      // rip-rap seats only IN THE WATER — piles shoved onto the dry
+                      // beach read as gritty litter at the deck/sand junction
+                      if (dsAt(ht.tx + ox, ht.ty + oy) > 0) continue
                       // one low pile pushed OUT past the deck edge into the shallows
                       const jx = ht.tx + ox * 0.5, jy = ht.ty + oy * 0.5
                       const rr = rrF[Math.floor(hash(ht.tx * 5.3 + ox, ht.ty * 7.1 + oy) * rrF.length * 0.999)]
@@ -1342,10 +1354,69 @@ export default function IslandMapIso() {
               for (const [ox, oy] of [[1, 0], [0, 1]] as [number, number][]) {
                 if (isH(ht.tx + ox, ht.ty + oy) || dsAt(ht.tx + ox, ht.ty + oy) > 0) continue
                 const fm = new Sprite(foamTex); fm.anchor.set(0.5, 0.5)
-                fm.width = 52; fm.height = 11; fm.alpha = 0.4
+                const jf = hash(ht.tx * 3.7 + ox, ht.ty * 5.3 + oy)
+                fm.width = 44 + 16 * jf; fm.height = 9 + 4 * jf
+                fm.alpha = 0.3 + 0.18 * hash(ht.tx * 7.1, ht.ty * 2.3)
+                fm.scale.x *= jf > 0.5 ? -1 : 1
                 fm.position.set(isoX(ht.tx + ox * 0.5, ht.ty + oy * 0.5), isoY(ht.tx + ox * 0.5, ht.ty + oy * 0.5) + GY + 4)
                 fm.zIndex = Math.max(zB, (ht.tx + ox + ht.ty + oy) * 4000) + 64
                 world.addChild(fm)
+              }
+            }
+            // ---- THE RAILING: rope-and-post pacing every visible sea-facing deck
+            // edge — the built detail that makes the wharf read as a crafted place
+            // instead of planks scattered on the coast. Working faces stay open:
+            // the ship's berth (mid-pier south face), the T-head's east loading
+            // face, and the whole fishing jetty.
+            {
+              const rootX = HARBOR.root[0], rootY = HARBOR.root[1]
+              const planks = HARBOR.tiles.filter((t2) => t2.mat === 'plank' && t2.lift >= 8)
+              const posts: { sx: number; sy: number; z: number; n: number }[] = []
+              for (const ht of planks) {
+                if (ht.ty >= rootY + 4) continue                          // the jetty works open
+                for (const [ox, oy] of [[1, 0], [0, 1]] as [number, number][]) {
+                  const nb = harborAt(ht.tx + ox, ht.ty + oy)
+                  if (nb && nb.mat === 'plank' && nb.lift >= 8) continue  // interior edge
+                  // the EAST lip is the promenade balustrade — it runs the whole
+                  // waterfront (over sand or sea; skipping sand left the wharf
+                  // railless wherever the coast bulged). South faces rail only
+                  // over water so the beach stays open to walk off.
+                  if (oy === 1 && dsAt(ht.tx + ox, ht.ty + oy) > 0) continue
+                  // ONLY the ship's actual berth span stays unbounded (reviewer:
+                  // every other raised water edge must read bounded)
+                  if (oy === 1 && ht.ty === rootY + 1 && ht.tx >= rootX + 3 && ht.tx <= rootX + 7) continue
+                  const jx = ht.tx + ox * 0.42, jy = ht.ty + oy * 0.42
+                  const sx = isoX(jx, jy), sy = isoY(jx, jy) + GY - ht.lift + 2
+                  const z = (ht.tx + ht.ty) * 4000 + ht.lift * 2 + 716
+                  const bT = hb['bollard-b']
+                  const post = new Sprite(bT ?? postT)
+                  post.anchor.set(0.5, 1)
+                  if (bT) post.scale.set(0.24)
+                  else { post.width = 7; post.height = 22 }
+                  post.position.set(sx, sy)
+                  post.zIndex = z
+                  world.addChild(post)
+                  posts.push({ sx, sy, z, n: 0 })
+                }
+              }
+              // rope sags between neighbouring post tops
+              posts.sort((a, b) => a.sy - b.sy || a.sx - b.sx)
+              for (let i = 0; i < posts.length; i++) {
+                for (let j = i + 1; j < posts.length; j++) {
+                  const a = posts[i], b = posts[j]
+                  if (a.n >= 2 || b.n >= 2) continue
+                  const d = Math.hypot(b.sx - a.sx, b.sy - a.sy)
+                  if (d > 44) continue    // adjacent posts only
+                  const rope = new Sprite(Texture.WHITE)
+                  rope.anchor.set(0, 0.5)
+                  rope.width = d; rope.height = 3
+                  rope.tint = 0x4e3620; rope.alpha = 0.95
+                  rope.position.set(a.sx, a.sy - 18)
+                  rope.rotation = Math.atan2(b.sy - a.sy, b.sx - a.sx)
+                  rope.zIndex = Math.max(a.z, b.z) + 1
+                  world.addChild(rope)
+                  a.n++; b.n++
+                }
               }
             }
             // ---- the deck mounts: every anchor from the HARBOR plan, lifted to
@@ -1364,12 +1435,14 @@ export default function IslandMapIso() {
               const lift = o.deck === false ? 0 : under?.lift ?? 0
               const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY - lift + 8
               const zB = Math.floor(at[0] + at[1]) * 4000 + lift * 2
-              // a slim contact shadow only — the old broad 0.34-alpha ellipses
-              // under every prop read as mud splotches on the planking
+              // one shadow POLICY (reviewer: some props shadowed, others not =
+              // inconsistent): slim contact shadows on deck props, a fuller
+              // grounded shadow under free-standing sand props
               const sh = new Sprite(shadTex)
               sh.anchor.set(0.4, 0.5)
-              sh.width = t.width * (o.sc ?? 1) * 0.62; sh.height = Math.max(6, t.width * (o.sc ?? 1) * 0.15)
-              sh.alpha = 0.22
+              const shw = o.deck === false ? 0.72 : 0.62
+              sh.width = t.width * (o.sc ?? 1) * shw; sh.height = Math.max(6, t.width * (o.sc ?? 1) * (o.deck === false ? 0.2 : 0.15))
+              sh.alpha = o.deck === false ? 0.3 : 0.22
               sh.position.set(bx2 + 3, by2 - 2)
               sh.zIndex = zB + 7
               world.addChild(sh)
@@ -1415,7 +1488,8 @@ export default function IslandMapIso() {
               }
               return best
             }
-            mount(pt['bell-frame'], deckCtr(HARBOR.bell), { sc: 0.72 })
+            // dockside scale — at 0.72 the bell frame towered over the boathouse
+            mount(pt['bell-frame'], deckCtr(HARBOR.bell), { sc: 0.5 })
             // cool the crane timber a touch so its A-frame reads APART from the warm
             // ship hull behind it (reject: the crane+ship merged into one smear)
             { const cr = mount(hb['crane'], deckCtr(HARBOR.crane), {}); if (cr) cr.tint = 0xc7b9a6 }
@@ -1503,24 +1577,47 @@ export default function IslandMapIso() {
             const inland = (dy: number, back: number): [number, number] => {
               const y = HARBOR.root[1] + dy
               const wx = HARBOR.tiles.reduce((m, t2) => (t2.ty === Math.round(y) && t2.mat === 'plank' ? Math.min(m, t2.tx) : m), 999)
+              // anchor to the wharf's own landward edge: the strip right behind the
+              // deck is sand by construction. The old version walked INLAND hunting
+              // for sand and, when the strip was narrow, ran out of guard steps and
+              // dropped the building on the GRASS (Ash's flawed shack-on-the-lawn).
+              // Here we walk SEAWARD if we ever touch grass, so sand is guaranteed.
               let x = (wx === 999 ? HARBOR.root[0] : wx) - back
-              // walk inland until the tile is SOLID FLAT SAND — off the waterline
-              // (so it doesn't float) and below the grass riser (so it isn't clipped
-              // half-away by the terrace edge — Ash's "half generated shack")
               let guard = 0
-              while (guard++ < 7 && !(dsAt(Math.round(x), Math.round(y)) > 2 && eLvl(Math.round(x), Math.round(y)) === 0)) x -= 1
+              while (guard++ < 6 && eLvl(Math.round(x), Math.round(y)) !== 0 && x < wx - 0.6) x += 1
               return [x, y]
             }
             // the port SETTLEMENT — buildings clustered on the sand behind the
             // quay as one little yard (Ash: the warehouse had drifted far up the
             // beach, orphaned; a port's buildings sit together AT the harbor)
-            // spread so no two silhouettes merge (reject #1: warehouse+shed stacked):
-            // warehouse set back NORTH, sign alone on clear sand, shed dropped SOUTH
-            // and smaller, net-rack furthest south — each with a full sand gap
-            mount(hb['warehouse'], inland(-3.2, 4.2), { deck: false, sc: 1.06 })
-            mount(pt['harbor-sign'], inland(-0.6, 2.6), { sc: 0.8, deck: false })
-            mount(pt['harbor-shed'], inland(3.4, 2.8), { deck: false, sc: 0.86 })
-            mount(hb['net-rack'], inland(5.4, 2.0), { deck: false, sc: 0.78 })
+            // spread so no two silhouettes merge: the boathouse stands ON the north
+            // annex platform (harbor office on stilts — the sand behind the north
+            // walk is too thin for a building), sign alone on clear sand, shed
+            // SOUTH, net-rack + hauled rowboat further south
+            {
+              const qx = HARBOR.quayRect[0] + 1, qn = HARBOR.quayRect[1]
+              mount(hb['boathouse'], [qx + 3, qn + 1], { sc: 0.92 })
+              // the office's east eave overhangs the water — chunky pilings under
+              // that edge + a soft shadow on the sea ground the overhang (reviewer
+              // FAIL A: the corner read as hanging in air)
+              for (const py of [qn + 0.4, qn + 1.2, qn + 2.0]) {
+                const px2 = qx + 4.55
+                const pl = new Sprite(postT); pl.anchor.set(0.5, 1)
+                pl.width = 7; pl.height = 8 + 26
+                pl.position.set(isoX(px2, py), isoY(px2, py) + GY + 12)
+                pl.zIndex = (Math.floor(px2 + py) + 1) * 4000 + 300
+                world.addChild(pl)
+              }
+              const es = new Sprite(shadTex); es.anchor.set(0.5, 0.5)
+              es.width = 96; es.height = 22; es.alpha = 0.3; es.tint = 0x06202a
+              es.position.set(isoX(qx + 4.8, qn + 1.2), isoY(qx + 4.8, qn + 1.2) + GY + 6)
+              es.zIndex = (Math.floor(qx + 4.8 + qn + 1.2) + 1) * 4000 + 250
+              world.addChild(es)
+            }
+            mount(pt['harbor-sign'], inland(-0.6, 2.4), { sc: 0.8, deck: false })
+            mount(pt['harbor-shed'], inland(3.2, 2.6), { deck: false, sc: 0.86 })
+            mount(hb['net-rack'], inland(4.4, 2.1), { deck: false, sc: 0.74 })
+            mount(hb['rowboat'], HARBOR.rowboat, { deck: false, sc: 0.8, flip: true })
             // ---- the basin's boats: afloat with a foam ring, riding a slow bob
             const boat = (t: Texture | undefined, at: [number, number], sc = 1, flip = false) => {
               if (DBG) {
@@ -1561,8 +1658,7 @@ export default function IslandMapIso() {
             // not an obvious copy of the first (reviewer: duplicated boats read cheap)
             const sloop2Sp = boat(hb['sloop'], HARBOR.sloop2, 0.82, true)
             if (sloop2Sp) sloop2Sp.tint = 0x8fb0b8
-            // the rowboat is HAULED UP on the sand — a beached vignette, not afloat
-            mount(hb['rowboat'], HARBOR.rowboat, { deck: false, sc: 0.8, flip: true })
+            // (the rowboat mounts with the settlement above — same sand-safe anchor)
             // THE SHIP HERSELF at the berth — the approved 16-view painted rigger,
             // moored along the main pier's north face, bow seaward (v1 = the +x
             // diagonal). Her mass is what makes the harbor read as a real port.
@@ -1587,6 +1683,23 @@ export default function IslandMapIso() {
               sp.position.set(bx2, by2); sp.zIndex = zB + 900
               world.addChild(sp)
               bobs.push({ sp, y0: by2, w: 0.45, ph: 1.7 })
+              // MOORED, not parked: two taut lines from bow and stern down to the
+              // pier bollards — the physical connection is what sells the berth
+              for (const [hx, hy, bx3, by3] of [
+                [at[0] - 1.6, at[1] - 0.4, at[0] - 2.1, at[1] - 1.05],
+                [at[0] + 1.5, at[1] - 0.3, at[0] + 2.0, at[1] - 1.0],
+              ]) {
+                const ax = isoX(hx, hy), ay = isoY(hx, hy) + GY - 26
+                const bx4 = isoX(bx3, by3), by4 = isoY(bx3, by3) + GY - 8
+                const line = new Sprite(Texture.WHITE)
+                line.anchor.set(0, 0.5)
+                line.width = Math.hypot(bx4 - ax, by4 - ay); line.height = 2
+                line.tint = 0x3e2c18; line.alpha = 0.9
+                line.position.set(ax, ay)
+                line.rotation = Math.atan2(by4 - ay, bx4 - ax)
+                line.zIndex = zB + 905
+                world.addChild(line)
+              }
             } catch { /* ship art unavailable — the berth waits */ }
           }
         } catch { /* the harbor pass degrades gracefully until its art lands */ }
