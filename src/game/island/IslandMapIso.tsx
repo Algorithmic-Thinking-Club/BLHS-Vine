@@ -147,6 +147,21 @@ export default function IslandMapIso() {
       world.scale.set(ZOOM)
       world.sortableChildren = true
       app.stage.addChild(world)
+      // dev probe: name every sprite under a screen point (the only honest way
+      // to identify a mystery pixel — hypothesis-chasing burned an hour tonight)
+      ;(window as unknown as Record<string, unknown>).__probe = (sx2: number, sy2: number) => {
+        const hits: string[] = []
+        for (const c of world.children) {
+          const s = c as Sprite
+          if (!s.getBounds) continue
+          const b = s.getBounds()
+          if (sx2 >= b.x && sx2 <= b.x + b.width && sy2 >= b.y && sy2 <= b.y + b.height) {
+            const src = (s.texture?.source as unknown as { label?: string })?.label ?? 'canvas'
+            hits.push(`${src} z=${s.zIndex} w=${Math.round(s.width)} h=${Math.round(s.height)} tint=${s.tint?.toString(16)}`)
+          }
+        }
+        return hits.slice(-14)
+      }
 
       // GOLDEN HOUR (Ash): the island wears the beach's own late-sun grade — one world,
       // one light. Rich warmth, blue pulled down, the teal sea stays alive under it.
@@ -607,7 +622,10 @@ export default function IslandMapIso() {
                 // meadow value it printed as scattered tan planks across the flat
                 seg.tint = tint24(d2 * 0.45, d2 * 0.53, d2 * 0.3)
               } else {
-                seg.tint = tint24(d2 * 0.66, d2 * 0.72, d2 * 0.40)
+                // banks one step darker than the old 0.66/0.72 — at bright olive
+                // the rock-brick texture flashed through and isolated bank tiles
+                // along the stair corridor read as scattered chips (probe-proven)
+                seg.tint = tint24(d2 * 0.56, d2 * 0.62, d2 * 0.35)
               }
               seg.zIndex = zBase2 + 1 + (m - 1 - k)
               world.addChild(seg)
@@ -633,6 +651,42 @@ export default function IslandMapIso() {
         // DOWNSTREAM-keyed phase, so the churn pattern itself travels mouth->sea
         // (the classic 16-bit flipbook flow — the surface moves, not sparkles on it)
         const lavaFlow: { sp: Sprite; off: number; pool: Texture[] }[] = []
+
+        // ---- THE TONGUE-STAIR AS MATERIAL (the third and final form): decals
+        // failed twice (buried at back-row z, floating at front-row z, and even
+        // in the tile's own band the front tile's overlapping diamond covers a
+        // decal's lower half — the "brick chips", flash-proven). The worn path
+        // reads perfectly because it IS the tile — so the stair is a MATERIAL:
+        // stone tiles in the ground itself, with alternating tread values.
+        const stairInfo = new Map<number, number>()
+        if (!NOCONE && TONGUE.length > 1) {
+          let ord = 0
+          for (let i = 0; i < TONGUE.length - 1; i++) {
+            const [x0, y0] = TONGUE[i], [x1, y1] = TONGUE[i + 1]
+            const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 0.3))
+            for (let s = 0; s < n; s++) {
+              const x = x0 + ((x1 - x0) * s) / n, y = y0 + ((y1 - y0) * s) / n
+              // the stair ends at the forecourt threshold, clear of the melt
+              if (lavaDist(x, y) < 2.2) continue
+              const k = Math.round(y) * COLS + Math.round(x)
+              if (!stairInfo.has(k)) stairInfo.set(k, ord++)
+            }
+          }
+          // the threshold LANDING: a slab cross at the stair tile nearest the melt
+          let bd = 99, lk = -1
+          for (const k of stairInfo.keys()) {
+            const d = lavaDist(k % COLS, Math.floor(k / COLS))
+            if (d < bd) { bd = d; lk = k }
+          }
+          if (lk >= 0) {
+            const lx = lk % COLS, ly = Math.floor(lk / COLS)
+            for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as [number, number][]) {
+              if (lavaDist(lx + ox, ly + oy) < 1.6) continue
+              const k = (ly + oy) * COLS + (lx + ox)
+              if (!stairInfo.has(k)) stairInfo.set(k, -1)   // -1 = landing pad
+            }
+          }
+        }
 
         // ---- THE RIVER (P3): a mountain stream DESIGNED as pool-step-pool —
         // flat water rides each bench at the terrain's own level, a white
@@ -830,6 +884,9 @@ export default function IslandMapIso() {
             // the cone's rock bands, never the beach sand, never over lava/river
             const pdst = plazaD(tx, ty)
             const onPlaza = !sand && L > 0 && pdst < 5.5
+            // the carved stair to the maw IS the ground (material, never a decal)
+            const stairOrd = stairInfo.get(ty * COLS + tx)
+            const onStair = stairOrd !== undefined
             const pD = pathD(tx, ty)
             // the path yields to the channel EXCEPT at a crust crossing, where it
             // runs right up to the slab (a dead-end path beside a walkable bridge
@@ -846,8 +903,9 @@ export default function IslandMapIso() {
             const pool = isLava ? (ck > 0.32 && lakeT.length ? lakeT : lavaT)
               : isBed && volcT.length ? volcT
                 : onRiver && waterV.length ? waterV
-                  : sand ? st
-                    : (onPath || onPlaza) && st.length ? st : vs || gt
+                  : onStair && st.length ? st
+                    : sand ? st
+                      : (onPath || onPlaza) && st.length ? st : vs || gt
             // cone rock tops pick in smooth ZONES (like the walls): per-tile hash churn
             // re-rolled the texture every diamond and the flank read as shredded scales
             const g = !pool.length ? undefined
@@ -958,6 +1016,15 @@ export default function IslandMapIso() {
                   world.addChild(seam)
                   glows.push({ sp: seam, ph: hash(tx * 1.7, ty * 2.3) * 6.3, a: 0.16 })
                 }
+              } else if (onStair) {
+                // the carved stair: pale cut stone, treads alternating a value
+                // step so each reads as a separate slab climbing the flank; the
+                // landing pads (ord -1) sit a shade warmer
+                const alt = stairOrd === -1 ? 1 : stairOrd % 2 ? 0.8 : 1
+                const v = (0.94 + 0.1 * vnoise(tx / 2.1 + 22, ty / 2.1 + 9)) * alt * grain
+                // COOL cut stone — at warm beige the stair vanished into lit
+                // grass; grey separates it from both the meadow and the path
+                top.tint = warmCool(shadeHex(stairOrd === -1 ? 0xb9a683 : 0xaaa79e, v), rk * 0.25)
               } else if (onPlaza) {
                 // the flagstone courtyard: cool weathered stone, warmer sun-worn flags in
                 // the centre, a darker mortar rim ring reading its edge against the meadow
@@ -2090,48 +2157,9 @@ export default function IslandMapIso() {
                 world.addChild(rf2)
               }
             } catch { /* ford stones optional */ }
-            // THE TONGUE-STAIR: the carved climb from the forecourt up into the
-            // maw — terrain-hugging basalt treads pacing the exact corridor the
-            // walkmap opens (tongueD < 1.4). Each tread sits at its own ground
-            // height so the terraces themselves make the steps; flanking curb
-            // stones every few treads define the edges; the maw's light spills
-            // down the top of the climb.
-            try {
-              const stT: Texture = await Assets.load('/art/island/harbor/stone-block-a.png?v=5')
-              stT.source.scaleMode = 'nearest'
-              const slabT = new Texture({ source: stT.source, frame: new Rectangle(0, 0, 64, 36) })
-              let ti = 0
-              for (let i = 0; i < TONGUE.length - 1; i++) {
-                const [x0, y0] = TONGUE[i], [x1, y1] = TONGUE[i + 1]
-                // CONTIGUOUS treads (pitch 0.42, wide slabs): the first pass at
-                // 0.62 pitch drew separated dark rectangles — "scattered stones"
-                // again, the exact verdict this stair exists to answer
-                const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 0.42))
-                for (let s = 0; s < n; s++, ti++) {
-                  const x = x0 + ((x1 - x0) * s) / n, y = y0 + ((y1 - y0) * s) / n
-                  const lf = liftOf(eLvl(Math.round(x), Math.round(y)))
-                  const bx2 = isoX(x, y), by2 = isoY(x, y) + GY - lf
-                  // z in the FRONT row's band: at floor(row)+400 the tile in
-                  // front over-painted every tread to a buried sliver — the
-                  // whole stair read as scattered dark chips (the same z-class
-                  // bug as the invisible cascades)
-                  const zB = (Math.floor(x + y) + 1) * 4000 + lf * 2 + 60
-                  // one soft dark seam under the ribbon seats it into the slope
-                  const seam = new Sprite(foamTex); seam.anchor.set(0.5, 0.5)
-                  seam.width = 62; seam.height = 26; seam.alpha = 0.22; seam.tint = 0x1a120c
-                  seam.position.set(bx2, by2 + 5); seam.zIndex = zB - 1
-                  world.addChild(seam)
-                  const tread = new Sprite(slabT); tread.anchor.set(0.5, 0.5)
-                  tread.width = 54; tread.height = 30
-                  // pale worn stone in the path's own family — the stair is the
-                  // path's formal continuation, not dark debris on the grass
-                  const v = 0.9 + 0.12 * hash(ti * 3.1, ti * 1.7)
-                  tread.tint = (Math.round(0xc9 * v) << 16) | (Math.round(0xb4 * v) << 8) | Math.round(0x92 * v)
-                  tread.position.set(bx2, by2 + 2); tread.zIndex = zB
-                  world.addChild(tread)
-                }
-              }
-              // the maw light pools down the last stretch of the climb
+            // THE TONGUE-STAIR is a MATERIAL now (stairInfo, computed before the
+            // tile loop) — here only the maw light pooling down the climb's top
+            {
               const [mx2, my2] = TONGUE[TONGUE.length - 1]
               const lfM = liftOf(eLvl(Math.round(mx2), Math.round(my2)))
               const spill = new Sprite(foamTex); spill.anchor.set(0.5, 0.5); spill.blendMode = 'add'
@@ -2140,7 +2168,7 @@ export default function IslandMapIso() {
               spill.zIndex = (Math.round(mx2) + Math.round(my2)) * 4000 + lfM * 2 + 410
               world.addChild(spill)
               glows.push({ sp: spill, ph: 1.1, a: 0.22 })
-            } catch { /* stair art optional */ }
+            }
           } catch { /* POI art optional until it lands */ }
         }
 
