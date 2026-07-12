@@ -1507,7 +1507,7 @@ export default function IslandMapIso() {
             }
             // ---- the deck mounts: every anchor from the HARBOR plan, lifted to
             // the deck surface, grounded by a tight contact pool at deck z
-            const mount = (t: Texture | undefined, at: [number, number], o: { sc?: number; flip?: boolean; glow?: boolean; deck?: boolean } = {}) => {
+            const mount = (t: Texture | undefined, at: [number, number], o: { sc?: number; flip?: boolean; glow?: boolean; deck?: boolean; sink?: number } = {}) => {
               if (DBG) {
                 const dot = new Sprite(Texture.WHITE)
                 dot.tint = t ? 0xffff00 : 0xff0000; dot.width = 24; dot.height = 24; dot.anchor.set(0.5)
@@ -1516,10 +1516,12 @@ export default function IslandMapIso() {
                 world.addChild(dot)
               }
               if (!t) return
-              // a mount stands at the height of the structure tile UNDER it
+              // a mount stands at the height of the structure tile UNDER it;
+              // sink presses frontal-perspective props a few px INTO the sand so
+              // their straight base rails don't read as hovering on the iso ground
               const under = harborAt(Math.round(at[0]), Math.round(at[1]))
               const lift = o.deck === false ? 0 : under?.lift ?? 0
-              const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY - lift + 8
+              const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY - lift + 8 + (o.sink ?? 0)
               const zB = Math.floor(at[0] + at[1]) * 4000 + lift * 2
               // one shadow POLICY (reviewer: some props shadowed, others not =
               // inconsistent): slim contact shadows on deck props, a fuller
@@ -1700,10 +1702,12 @@ export default function IslandMapIso() {
               es.zIndex = (Math.floor(qx + 4.8 + qn + 1.2) + 1) * 4000 + 250
               world.addChild(es)
             }
-            mount(pt['harbor-sign'], inland(-0.6, 2.4), { sc: 0.8, deck: false })
-            mount(pt['harbor-shed'], inland(3.2, 2.6), { deck: false, sc: 0.86 })
-            mount(hb['net-rack'], inland(4.4, 2.1), { deck: false, sc: 0.74 })
-            mount(hb['rowboat'], HARBOR.rowboat, { deck: false, sc: 0.8, flip: true })
+            // sign pulled up-beach out of the tide seam; shed + net-rack pressed
+            // into the sand (their straight frontal base rails hovered — Ash)
+            mount(pt['harbor-sign'], inland(-0.6, 4.0), { sc: 0.8, deck: false, sink: 2 })
+            mount(pt['harbor-shed'], inland(3.2, 2.6), { deck: false, sc: 0.86, sink: 4 })
+            mount(hb['net-rack'], inland(4.4, 2.1), { deck: false, sc: 0.74, sink: 6 })
+            mount(hb['rowboat'], HARBOR.rowboat, { deck: false, sc: 0.8, flip: true, sink: 3 })
             // ---- the basin's boats: afloat with a foam ring, riding a slow bob
             const boat = (t: Texture | undefined, at: [number, number], sc = 1, flip = false) => {
               if (DBG) {
@@ -1953,6 +1957,72 @@ export default function IslandMapIso() {
         }
         const steamBase = puffs.map((p) => ({ x: p.sp.x, y: p.sp.y }))
 
+        // THE LAVA LIVES (Ash: "the entire lava thing animated awesomely" —
+        // sprite-space only, shaders banned): molten SURGES ride each river from
+        // the mouth to the sea, EMBERS rise off the melt and die in the air, and
+        // each maw drops GOBBETS down its fall onto a flickering strike pool —
+        // constant motion across the mouth->river seam is what fuses the two.
+        const pulseTex = radial(40, [[0, 'rgba(255,232,170,0.9)'], [0.5, 'rgba(255,150,60,0.5)'], [1, 'rgba(255,120,40,0)']])
+        type FlowPt = { x: number; y: number; z: number }
+        const flowPaths: FlowPt[][] = []
+        for (const line of NOCONE ? [] : LAVA) {
+          const pts: FlowPt[] = []
+          for (let i = 0; i < line.length - 1; i++) {
+            const [x0, y0] = line[i], [x1, y1] = line[i + 1]
+            const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 0.4))
+            for (let s = 0; s < n; s++) {
+              const x = x0 + ((x1 - x0) * s) / n, y = y0 + ((y1 - y0) * s) / n
+              const lf = liftOf(eLvl(Math.round(x), Math.round(y)))
+              pts.push({ x: isoX(x, y), y: isoY(x, y) + GY - lf, z: Math.floor(x + y) * 4000 + lf * 2 + 40 })
+            }
+          }
+          if (pts.length > 1) flowPaths.push(pts)
+        }
+        const surges: { sp: Sprite; path: FlowPt[]; u0: number; spd: number }[] = []
+        for (let pi = 0; pi < flowPaths.length; pi++) {
+          for (let k = 0; k < 4; k++) {
+            const sp = new Sprite(pulseTex); sp.anchor.set(0.5, 0.5); sp.blendMode = 'add'
+            sp.width = 68; sp.height = 26
+            world.addChild(sp)
+            surges.push({ sp, path: flowPaths[pi], u0: k / 4 + hash(pi * 3.1, k * 1.7) * 0.12, spd: 0.045 + 0.012 * (k % 2) })
+          }
+        }
+        const embers: { sp: Sprite; hx: number; hy: number; z: number; ph: number; spd: number }[] = []
+        for (let pi = 0; pi < flowPaths.length; pi++) {
+          const path = flowPaths[pi]
+          for (let k = 0; k < 12; k++) {
+            const p = path[Math.floor(hash(pi * 7.7, k * 3.3) * path.length) % path.length]
+            const sp = new Sprite(pulseTex); sp.anchor.set(0.5, 0.5); sp.blendMode = 'add'
+            const d = 6 + 5 * hash(k, pi)
+            sp.width = d; sp.height = d
+            sp.tint = 0xffc06a
+            world.addChild(sp)
+            embers.push({
+              sp, hx: p.x + (hash(k * 1.3, pi) - 0.5) * 44, hy: p.y, z: p.z + 60,
+              ph: hash(pi, k) * 7, spd: 0.2 + 0.18 * hash(k * 2.1, pi * 1.7),
+            })
+          }
+        }
+        // the maw gobbets + strike pools (the mouth->river fuse)
+        const gobbets: { sp: Sprite; x: number; yTop: number; yBot: number; ph: number; spd: number }[] = []
+        for (const m of NOCONE ? [] : [MOUTH_R, MOUTH_L]) {
+          const lf = liftOf(eLvl(Math.round(m[0]), Math.round(m[1])))
+          const sx2 = isoX(m[0], m[1]), sy2 = isoY(m[0], m[1]) + GY - lf
+          const zM = (Math.round(m[0]) + Math.round(m[1])) * 4000 + lf * 2 + 790
+          const pool = new Sprite(pulseTex); pool.anchor.set(0.5, 0.5); pool.blendMode = 'add'
+          pool.width = 94; pool.height = 42; pool.alpha = 0.5
+          pool.position.set(sx2, sy2 + 2); pool.zIndex = zM
+          world.addChild(pool)
+          glows.push({ sp: pool, ph: hash(m[0], m[1]) * 6.3, a: 0.48 })
+          for (let k = 0; k < 3; k++) {
+            const sp = new Sprite(pulseTex); sp.anchor.set(0.5, 0.5); sp.blendMode = 'add'
+            sp.width = 8; sp.height = 12
+            sp.zIndex = zM + 6
+            world.addChild(sp)
+            gobbets.push({ sp, x: sx2 + (k - 1) * 5, yTop: sy2 - 138, yBot: sy2 - 2, ph: k / 3, spd: 0.55 + 0.18 * k })
+          }
+        }
+
 
         // P3: CLOUD SHADOWS — three soft shades drifting slowly across the island with
         // the wind. The subtle motion cue that makes a still map read as a live world.
@@ -1998,6 +2068,31 @@ export default function IslandMapIso() {
             const s = (p.big ? 2.1 : 0.8) * (0.5 + u * 1.15)
             p.sp.scale.set(s)
             p.sp.alpha = (p.big ? 0.66 : 0.4) * (u < 0.18 ? u / 0.18 : 1 - (u - 0.18) / 0.82)
+          }
+          // molten surges ride each river downstream, aligned to the local run
+          for (const s2 of surges) {
+            const u = (t * s2.spd + s2.u0) % 1
+            const f = u * (s2.path.length - 1)
+            const i0 = Math.floor(f), fr = f - i0
+            const p0 = s2.path[i0], p1 = s2.path[Math.min(i0 + 1, s2.path.length - 1)]
+            s2.sp.position.set(p0.x + (p1.x - p0.x) * fr, p0.y + (p1.y - p0.y) * fr)
+            s2.sp.zIndex = p0.z
+            s2.sp.rotation = Math.atan2(p1.y - p0.y, p1.x - p0.x)
+            s2.sp.alpha = 0.46 * Math.min(1, u * 7, (1 - u) * 7)
+          }
+          // embers pop off the melt, drift downwind, die in the air
+          for (const e of embers) {
+            const u = (t * e.spd + e.ph) % 1
+            e.sp.position.set(e.hx + Math.sin(t * 1.6 + e.ph * 9) * 5 + u * 12, e.hy - u * 44)
+            e.sp.zIndex = e.z
+            e.sp.alpha = 0.72 * (u < 0.15 ? u / 0.15 : 1 - (u - 0.15) / 0.85)
+          }
+          // gobbets accelerate down the maw-fall onto the strike pool, stretching
+          for (const g2 of gobbets) {
+            const u = (t * g2.spd + g2.ph) % 1
+            g2.sp.position.set(g2.x, g2.yTop + (g2.yBot - g2.yTop) * u * u)
+            g2.sp.height = 12 + u * 14
+            g2.sp.alpha = 0.75 * (u < 0.1 ? u / 0.1 : 1)
           }
         })
       }

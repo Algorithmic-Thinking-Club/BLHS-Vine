@@ -452,7 +452,9 @@ export function initHubLayout() {
       ],
       sloop: [WL + 8, ryMid - 4.2],             // at anchor mid-basin, clear water all around
       sloop2: [jE + 7, jY + 2.4],               // the second fisher off the jetty head
-      rowboat: [rawWx(ryS + 2) - 1.4, ryS + 2], // hauled up at its own row's tide line, clear of the deck and the net-rack
+      // hauled up WELL clear of the deck: at -1.4 the hull's bbox rode up over
+      // the boardwalk's south rows and read glitched-onto-the-deck (Ash)
+      rowboat: [rawWx(ryS + 2) - 3.2, ryS + 2.6],
       beacon: [WL + 8.2, ryMid - 8.4],          // the harbor light at the breakwater's north tip
       pennant: [HEADX, ryMid],                  // ON the T-head edge tile
       // mooring cleats ONLY where a boat actually ties up
