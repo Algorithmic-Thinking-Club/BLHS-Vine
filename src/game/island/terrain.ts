@@ -156,8 +156,10 @@ export const MOUTH_L: [number, number] = [102.2, 117.8]
 export const LAVA: [number, number][][] = [
   // left head mouth-strike -> SW-front coast (down-screen, drifting screen-left)
   [MOUTH_L, [101, 127], [97.5, 134], [93, 141], [88, 148]],
-  // gate head mouth-strike -> SE coast, ~3 tiles south of the tongue the whole way
-  [MOUTH_R, [127, 102], [134, 99.5], [141, 96], [149, 91.5]],
+  // gate head mouth-strike -> SE coast, ~4 tiles south of the tongue-stair the
+  // whole way (at ~3 the char band crowded the treads and the two ribbons
+  // visually merged at the crossing zone)
+  [MOUTH_R, [127, 103], [134, 100.5], [141, 97], [149, 92.5]],
 ]
 export function lavaDist(tx: number, ty: number) {
   let best = 99

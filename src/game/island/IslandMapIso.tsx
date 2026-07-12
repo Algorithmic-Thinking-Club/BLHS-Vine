@@ -724,7 +724,11 @@ export default function IslandMapIso() {
                 // independently, printing an orange/dark checker across the transition —
                 // walls follow the smooth field so the families change in long runs.
                 // Channel walls char: the lava bed's risers go basalt regardless of band.
-                const isCone = !NOCONE && L > PLAT_L && coneH(tx, ty) > 0 && !toSea && (sideW.length > 0 || vsF.length > 0)
+                // basalt courses ONLY where the top itself is banded rock: on the
+                // grassy lower flank every 1-level bench lip drew a dark strata
+                // column against the sunlit turf — a dashed debris ring circling
+                // the whole cone (Ash's "scattered stones", found via the dbg grid)
+                const isCone = !NOCONE && L > PLAT_L && coneBand(tx, ty) >= 1 && coneH(tx, ty) > 0 && !toSea && (sideW.length > 0 || vsF.length > 0)
                 // a lava tile's step pours EVERYWHERE, benches included — below the
                 // cone the flow's steps drew charred columns and the river read as
                 // dashes with dark gaps at every bench lip
@@ -734,7 +738,10 @@ export default function IslandMapIso() {
                   // river tiles pour over their steps as burning falls
                   drawFace(bx, by, lift - liftOf(floorMin), tx, ty, zBase, moltenStep)
                 } else {
-                  const charred = !NOCONE && (lavaDist(tx, ty) < 1.55 || craterK(tx, ty) > 0.4)
+                  // TIGHT charred ring (was 1.55): the 1.25..1.55 band turned every
+                // terrace-lip column near the flow into dark brick chips — a
+                // dashed debris line tracing the whole river ("scattered stones")
+                const charred = !NOCONE && (lavaDist(tx, ty) < 1.3 || craterK(tx, ty) > 0.4)
                   // a grass-topped inland step wears a turf riser (kills the pink
                   // rock contour lines under the meadow); sand beaches + coast cliffs
                   // + charred channel keep rock
@@ -747,7 +754,7 @@ export default function IslandMapIso() {
                 // channel, charred-dark so it recedes — NOT the broad fills Ash circled
                 // (those tinted bright rock across the whole flank). Grass/rock steps
                 // stay unfilled (their 1-level slivers read fine).
-                const inChannel = !NOCONE && (lavaDist(tx, ty) < 1.7 || craterK(tx, ty) > 0.3)
+                const inChannel = !NOCONE && !params.get('novoid') && (lavaDist(tx, ty) < 1.7 || craterK(tx, ty) > 0.3)
                 if (inChannel && (sideL.length || sideW.length)) {
                   const fam = sideL.length ? sideL : sideW
                   for (const [ox, oy] of [[-1, 0], [0, -1], [-1, -1]] as [number, number][]) {
@@ -1308,11 +1315,13 @@ export default function IslandMapIso() {
             const jy = sy + hash(sx + 5, sy) * 1.8 - 0.9
             if (r < 0.055) {
               putPlant(hash(sx + 2, sy) > 0.5 ? 'tuft-1' : 'tuft-2', jx, jy, { sc: 0.42 + 0.3 * hash(sx + 7, sy + 2), flip: hash(sx + 1, sy + 9) > 0.5, noShadow: true })
-            } else if (r < 0.062) {
-              // darkened — at native tint the terracotta+violet faces read as
-              // loud pink blobs against the meadow at mid zoom
-              putPlant(hash(sx, sy) > 0.75 ? 'boulder-1' : 'boulder-2', jx, jy, { sc: 0.5 + 0.35 * hash(sx + 7, sy + 2), flip: hash(sx + 1, sy + 9) > 0.5, dark: 0.8 })
-            } else if (r < 0.0655) {
+            } else if (r < 0.058) {
+              // QUIET rocks (Ash: "too many pillar / stones scattered") — art
+              // remapped to warm basalt, spawn cut ~60%, scale capped LOW, and
+              // the columnar boulder-1 nearly retired so the POWER steles stay
+              // the meadow's only speaking verticals
+              putPlant(hash(sx, sy) > 0.92 ? 'boulder-1' : 'boulder-2', jx, jy, { sc: 0.38 + 0.2 * hash(sx + 7, sy + 2), flip: hash(sx + 1, sy + 9) > 0.5, dark: 0.82 })
+            } else if (r < 0.0615) {
               putPlant('palm-fallen', jx, jy, { sc: 0.5 + 0.15 * hash(sx + 4, sy + 6), flip: hash(sx + 3, sy + 1) > 0.5 })
             }
           }
@@ -2081,6 +2090,57 @@ export default function IslandMapIso() {
                 world.addChild(rf2)
               }
             } catch { /* ford stones optional */ }
+            // THE TONGUE-STAIR: the carved climb from the forecourt up into the
+            // maw — terrain-hugging basalt treads pacing the exact corridor the
+            // walkmap opens (tongueD < 1.4). Each tread sits at its own ground
+            // height so the terraces themselves make the steps; flanking curb
+            // stones every few treads define the edges; the maw's light spills
+            // down the top of the climb.
+            try {
+              const stT: Texture = await Assets.load('/art/island/harbor/stone-block-a.png?v=5')
+              stT.source.scaleMode = 'nearest'
+              const slabT = new Texture({ source: stT.source, frame: new Rectangle(0, 0, 64, 36) })
+              let ti = 0
+              for (let i = 0; i < TONGUE.length - 1; i++) {
+                const [x0, y0] = TONGUE[i], [x1, y1] = TONGUE[i + 1]
+                // CONTIGUOUS treads (pitch 0.42, wide slabs): the first pass at
+                // 0.62 pitch drew separated dark rectangles — "scattered stones"
+                // again, the exact verdict this stair exists to answer
+                const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 0.42))
+                for (let s = 0; s < n; s++, ti++) {
+                  const x = x0 + ((x1 - x0) * s) / n, y = y0 + ((y1 - y0) * s) / n
+                  const lf = liftOf(eLvl(Math.round(x), Math.round(y)))
+                  const bx2 = isoX(x, y), by2 = isoY(x, y) + GY - lf
+                  // z in the FRONT row's band: at floor(row)+400 the tile in
+                  // front over-painted every tread to a buried sliver — the
+                  // whole stair read as scattered dark chips (the same z-class
+                  // bug as the invisible cascades)
+                  const zB = (Math.floor(x + y) + 1) * 4000 + lf * 2 + 60
+                  // one soft dark seam under the ribbon seats it into the slope
+                  const seam = new Sprite(foamTex); seam.anchor.set(0.5, 0.5)
+                  seam.width = 62; seam.height = 26; seam.alpha = 0.22; seam.tint = 0x1a120c
+                  seam.position.set(bx2, by2 + 5); seam.zIndex = zB - 1
+                  world.addChild(seam)
+                  const tread = new Sprite(slabT); tread.anchor.set(0.5, 0.5)
+                  tread.width = 54; tread.height = 30
+                  // pale worn stone in the path's own family — the stair is the
+                  // path's formal continuation, not dark debris on the grass
+                  const v = 0.9 + 0.12 * hash(ti * 3.1, ti * 1.7)
+                  tread.tint = (Math.round(0xc9 * v) << 16) | (Math.round(0xb4 * v) << 8) | Math.round(0x92 * v)
+                  tread.position.set(bx2, by2 + 2); tread.zIndex = zB
+                  world.addChild(tread)
+                }
+              }
+              // the maw light pools down the last stretch of the climb
+              const [mx2, my2] = TONGUE[TONGUE.length - 1]
+              const lfM = liftOf(eLvl(Math.round(mx2), Math.round(my2)))
+              const spill = new Sprite(foamTex); spill.anchor.set(0.5, 0.5); spill.blendMode = 'add'
+              spill.tint = 0xff8a30; spill.width = 170; spill.height = 84; spill.alpha = 0.22
+              spill.position.set(isoX(mx2, my2), isoY(mx2, my2) + GY - lfM - 8)
+              spill.zIndex = (Math.round(mx2) + Math.round(my2)) * 4000 + lfM * 2 + 410
+              world.addChild(spill)
+              glows.push({ sp: spill, ph: 1.1, a: 0.22 })
+            } catch { /* stair art optional */ }
           } catch { /* POI art optional until it lands */ }
         }
 

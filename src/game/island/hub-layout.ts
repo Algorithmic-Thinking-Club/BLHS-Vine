@@ -264,7 +264,10 @@ export function initHubLayout() {
   // mouth stays dry while the flow roars beside it.
   // TONGUE[0] = the base (where the plaza approach arrives), last = the mouth.
   GATE_HEAD = HEAD_R
-  TONGUE = [[140, 92], [132, 96], [124, 99], [GATE_HEAD[0], GATE_HEAD[1]]]
+  // the stair's summit lands on the maw's CLEAR side (NW of the mouth-strike —
+  // the stream exits the jaw's right corner at MOUTH_R, and a summit at the
+  // old head-centre drowned the top treads in the molten field)
+  TONGUE = [[140, 92], [132, 96], [124, 99], [116.4, 99.8]]
 
   // PATHS: the coast PROMENADE stitches E port -> S cove -> plaza -> W lawn; spurs
   // feed it from each port; the APPROACH climbs toward the gate stair.
