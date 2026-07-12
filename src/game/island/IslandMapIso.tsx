@@ -629,6 +629,10 @@ export default function IslandMapIso() {
 
         const waterS: SwellSprite[] = []
         const glows: { sp: Sprite; ph: number; a: number }[] = []
+        // every molten tile registers here: the ticker cycles its texture with a
+        // DOWNSTREAM-keyed phase, so the churn pattern itself travels mouth->sea
+        // (the classic 16-bit flipbook flow — the surface moves, not sparkles on it)
+        const lavaFlow: { sp: Sprite; off: number; pool: Texture[] }[] = []
         for (let ty = 0; ty < ROWS; ty++) {
           for (let tx = 0; tx < COLS; tx++) {
             const dx = tx - CX, dy = ty - CY
@@ -837,19 +841,14 @@ export default function IslandMapIso() {
                   const k = Math.min(1, Math.max(0, (ld - 0.62 * wMod) / (0.83 * wMod))) * 0.5
                   const vv = Math.round(255 * (1 - k * 0.45))
                   top.tint = (vv << 16) | (Math.round(vv * (1 - k * 0.35)) << 8) | Math.round(vv * (1 - k * 0.55))
-                  // floating crust plate: a dark cooled island riding the flow
-                  if (hash(tx * 7.3, ty * 3.1) > 0.74) {
-                    const crust = new Sprite(foamTex)
-                    crust.anchor.set(0.5, 0.5)
-                    crust.tint = 0x2c1c12
-                    crust.width = 20 + 14 * hash(tx * 1.9, ty * 5.7)
-                    crust.height = 10 + 6 * hash(tx * 4.1, ty * 2.3)
-                    crust.alpha = 0.85
-                    crust.position.set(bx + (hash(tx, ty * 9) - 0.5) * 18, by + (hash(tx * 9, ty) - 0.5) * 8)
-                    crust.zIndex = zBase + 8
-                    world.addChild(crust)
-                  }
                 }
+                // the surface itself FLOWS: downstream-phased texture cycling
+                // (crust plates now DRIFT with the current — spawned in the
+                // animation pass, not parked per-tile)
+                lavaFlow.push({
+                  sp: top, off: Math.hypot(tx - CX, ty - CY),
+                  pool: ck > 0.32 && lakeT.length ? lakeT : lavaT,
+                })
                 const glow = new Sprite(foamTex)              // soft radial, re-tinted ember
                 glow.anchor.set(0.5, 0.5); glow.blendMode = 'add'
                 glow.tint = core ? 0xffa040 : 0xff8a30
@@ -1978,13 +1977,32 @@ export default function IslandMapIso() {
           }
           if (pts.length > 1) flowPaths.push(pts)
         }
+        // hot tongues + drifting crust plates all move at ONE coherent slow
+        // current speed — mixed fast speeds read as sparkle, one speed reads
+        // as a flowing surface. Dark plates riding the current are the
+        // strongest "this surface moves" cue.
         const surges: { sp: Sprite; path: FlowPt[]; u0: number; spd: number }[] = []
         for (let pi = 0; pi < flowPaths.length; pi++) {
-          for (let k = 0; k < 4; k++) {
+          for (let k = 0; k < 5; k++) {
             const sp = new Sprite(pulseTex); sp.anchor.set(0.5, 0.5); sp.blendMode = 'add'
-            sp.width = 68; sp.height = 26
+            sp.width = 116; sp.height = 24
             world.addChild(sp)
-            surges.push({ sp, path: flowPaths[pi], u0: k / 4 + hash(pi * 3.1, k * 1.7) * 0.12, spd: 0.045 + 0.012 * (k % 2) })
+            surges.push({ sp, path: flowPaths[pi], u0: k / 5 + hash(pi * 3.1, k * 1.7) * 0.1, spd: 0.016 + 0.004 * (k % 2) })
+          }
+        }
+        const plates: { sp: Sprite; path: FlowPt[]; u0: number; spd: number; jx: number }[] = []
+        for (let pi = 0; pi < flowPaths.length; pi++) {
+          for (let k = 0; k < 8; k++) {
+            const sp = new Sprite(pulseTex); sp.anchor.set(0.5, 0.5)
+            sp.tint = 0x241610
+            sp.width = 18 + 16 * hash(k * 1.9, pi * 5.7)
+            sp.height = 9 + 6 * hash(k * 4.1, pi * 2.3)
+            world.addChild(sp)
+            plates.push({
+              sp, path: flowPaths[pi], u0: k / 8 + hash(pi, k * 2.7) * 0.09,
+              spd: 0.014 + 0.006 * hash(k * 3.3, pi * 1.1),
+              jx: (hash(k * 7.1, pi * 4.3) - 0.5) * 22,
+            })
           }
         }
         const embers: { sp: Sprite; hx: number; hy: number; z: number; ph: number; spd: number }[] = []
@@ -2069,7 +2087,13 @@ export default function IslandMapIso() {
             p.sp.scale.set(s)
             p.sp.alpha = (p.big ? 0.66 : 0.4) * (u < 0.18 ? u / 0.18 : 1 - (u - 0.18) / 0.82)
           }
-          // molten surges ride each river downstream, aligned to the local run
+          // THE SURFACE FLOWS: molten tile art cycles with a downstream-keyed
+          // phase — the churn pattern itself travels mouth->sea
+          for (const lf2 of lavaFlow) {
+            const n = lf2.pool.length
+            if (n > 1) lf2.sp.texture = lf2.pool[((Math.floor(t * 1.4 - lf2.off * 1.3) % n) + n) % n]
+          }
+          // hot tongues glide downstream at the current's speed
           for (const s2 of surges) {
             const u = (t * s2.spd + s2.u0) % 1
             const f = u * (s2.path.length - 1)
@@ -2078,7 +2102,17 @@ export default function IslandMapIso() {
             s2.sp.position.set(p0.x + (p1.x - p0.x) * fr, p0.y + (p1.y - p0.y) * fr)
             s2.sp.zIndex = p0.z
             s2.sp.rotation = Math.atan2(p1.y - p0.y, p1.x - p0.x)
-            s2.sp.alpha = 0.46 * Math.min(1, u * 7, (1 - u) * 7)
+            s2.sp.alpha = 0.34 * Math.min(1, u * 5, (1 - u) * 5)
+          }
+          // dark crust plates ride the same current (bulk material in motion)
+          for (const pl2 of plates) {
+            const u = (t * pl2.spd + pl2.u0) % 1
+            const f = u * (pl2.path.length - 1)
+            const i0 = Math.floor(f), fr = f - i0
+            const p0 = pl2.path[i0], p1 = pl2.path[Math.min(i0 + 1, pl2.path.length - 1)]
+            pl2.sp.position.set(p0.x + (p1.x - p0.x) * fr + pl2.jx, p0.y + (p1.y - p0.y) * fr)
+            pl2.sp.zIndex = p0.z + 14
+            pl2.sp.alpha = 0.8 * Math.min(1, u * 6, (1 - u) * 6)
           }
           // embers pop off the melt, drift downwind, die in the air
           for (const e of embers) {
