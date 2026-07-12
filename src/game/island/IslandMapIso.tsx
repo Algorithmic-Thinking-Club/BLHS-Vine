@@ -6,7 +6,7 @@ import {
 } from '../ocean'
 import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, MOUTH_L, MOUTH_R } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
-import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD, RIVER, FALLS, FORD, STELES, TONGUE, PORTS, MINI_PORTS } from './hub-layout'
+import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD, RIVER, FALLS, FORD, STELES, TONGUE, PORTS, MINI_PORTS, TIDEPOOLS } from './hub-layout'
 import { reportIslandAudit } from './island-audit'
 
 const smooth = (e0: number, e1: number, x: number) => {
@@ -2421,6 +2421,57 @@ export default function IslandMapIso() {
                   sp3.scale.set((fl ? -1 : 1) * s3, s3)
                   sp3.zIndex = (Math.round(rx3) + Math.round(ry3)) * 4000 + rlf * 2 + 700
                   world.addChild(sp3)
+                }
+              }
+              // THE TIDEPOOLS (Z11's hidden find): rock-rimmed basins holding
+              // still sea water on the tide flat — a quiet discovery for the
+              // player who walks the far shore, not a monument. The POI existed
+              // as bare data; now the place exists.
+              {
+                const [tpx, tpy] = TIDEPOOLS
+                const pools: [number, number, number][] = [[0, 0, 1], [1.7, 1.1, 0.7], [-1.3, 1.5, 0.5]]
+                for (const [ox, oy, s4] of pools) {
+                  const px4 = tpx + ox, py4 = tpy + oy
+                  const bx4 = isoX(px4, py4), by4 = isoY(px4, py4) + GY
+                  const zB4 = (Math.round(px4) + Math.round(py4)) * 4000
+                  // the read is built dark-to-light: wet ring, deep held water,
+                  // bright shallows, one live glint — the first soft-wash pass
+                  // vanished into the bright sand and read as debris specks
+                  const wet = new Sprite(shadTex); wet.anchor.set(0.5, 0.5)
+                  wet.width = 110 * s4; wet.height = 50 * s4; wet.alpha = 0.5; wet.tint = 0x0e2a30
+                  wet.position.set(bx4, by4 + 2); wet.zIndex = zB4 + 40
+                  world.addChild(wet)
+                  const deep = new Sprite(shadTex); deep.anchor.set(0.5, 0.5)
+                  deep.width = 74 * s4; deep.height = 33 * s4; deep.alpha = 0.9; deep.tint = 0x3aa89c
+                  deep.position.set(bx4, by4 + 1); deep.zIndex = zB4 + 42
+                  world.addChild(deep)
+                  const wtr = new Sprite(foamTex); wtr.anchor.set(0.5, 0.5)
+                  wtr.width = 52 * s4; wtr.height = 22 * s4; wtr.alpha = 0.7; wtr.tint = 0x7ce4d4
+                  wtr.position.set(bx4 - 2 * s4, by4); wtr.zIndex = zB4 + 43
+                  world.addChild(wtr)
+                  const gl = new Sprite(foamTex); gl.anchor.set(0.5, 0.5); gl.blendMode = 'add'
+                  gl.width = 30 * s4; gl.height = 12 * s4; gl.alpha = 0.34; gl.tint = 0xd9fff2
+                  gl.position.set(bx4 - 6 * s4, by4 - 2); gl.zIndex = zB4 + 44
+                  world.addChild(gl)
+                  glows.push({ sp: gl, ph: hash(px4, py4) * 6.3, a: 0.34 })
+                  const n4 = 6 + Math.round(s4 * 2)
+                  for (let i4 = 0; i4 < n4; i4++) {
+                    const a4 = (i4 / n4) * Math.PI * 2 + hash(px4 + i4, py4) * 0.7
+                    if (hash(i4 * 3.3, px4) > 0.85) continue        // the ring stays broken
+                    const rx4 = bx4 + Math.cos(a4) * 38 * s4
+                    const ry4 = by4 + Math.sin(a4) * 17 * s4 + 1
+                    // pale worn slabs carry the rim (riprap's dark navy can't be
+                    // tint-lifted and read as black spikes); one jagged accent
+                    // rock per ring keeps it natural
+                    const spike = hash(i4 * 2.9, py4 * 1.3) > 0.8
+                    const rk4 = new Sprite(spike ? rbT : rkT); rk4.anchor.set(0.5, spike ? 0.8 : 0.6)
+                    const rs4 = s4 * (spike ? 0.17 : 0.3 + 0.08 * hash(i4, py4))
+                    rk4.scale.set((hash(i4 * 1.7, px4) > 0.5 ? -1 : 1) * rs4, rs4)
+                    rk4.tint = spike ? 0xa7b5b0 : 0xd8c9ae
+                    rk4.position.set(rx4, ry4)
+                    rk4.zIndex = zB4 + 46 + (ry4 > by4 ? 4 : 0)
+                    world.addChild(rk4)
+                  }
                 }
               }
             } catch { /* ford stones optional */ }

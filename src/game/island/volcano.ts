@@ -123,7 +123,11 @@ export function craterK(tx: number, ty: number) {
 export function coneBand(tx: number, ty: number) {
   const h = coneH(tx, ty)
   if (h <= 0) return 0
-  const dither = (vnoise(tx / 3.1 + 11, ty / 3.1 + 23) - 0.5) * 1.6
+  // dither wanders at ~6-tile scale (was 3.1): per-tile speckle at the band
+  // threshold rasterized into a grass/rock CHECKER across the merge belt —
+  // dead centre of the gate hero shot at map zoom. The lower frequency turns
+  // the boundary into interlocking tongues, which is c3's actual read.
+  const dither = (vnoise(tx / 6.2 + 11, ty / 6.2 + 23) - 0.5) * 1.6
   // THE GREEN CLIMBS (Ash: "the grass curves upwards and meshes with the mountain's
   // material — look at c3"): full meadow rides the lower flank to ~5.5 levels, the
   // scrub belt carries it to ~10, and the gully tongues drag green far higher — the
