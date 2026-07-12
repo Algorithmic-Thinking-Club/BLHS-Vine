@@ -358,7 +358,22 @@ export function initHubLayout() {
     const dl = Math.hypot(ex - px2, ey - py2) || 1
     const ux2 = (ex - px2) / dl, uy2 = (ey - py2) / dl
     let guard = 0
-    while (guard++ < 30 && coastDs(ex, ey) > -0.6) { ex += ux2 * 0.8; ey += uy2 * 0.8; dense.push([ex, ey]) }
+    // STEEPEST-DESCENT to the sea (was a straight march to -0.6): the radial
+    // coast field wanders with the traced skeleton, so a straight tail can
+    // clip a local ds<=0 pocket and strand the mouth with dry sand tiles
+    // still between it and the visible tide (probe-proven at the ford frame).
+    // Blending the spine heading with the field's downhill always ends the
+    // run in real water, two diagonals past the sand line.
+    while (guard++ < 40 && coastDs(ex, ey) > -2.2) {
+      const g = 0.6
+      const gx = coastDs(ex + g, ey) - coastDs(ex - g, ey)
+      const gy = coastDs(ex, ey + g) - coastDs(ex, ey - g)
+      const gl = Math.hypot(gx, gy) || 1
+      const bx = ux2 * 0.45 - (gx / gl) * 0.55, by = uy2 * 0.45 - (gy / gl) * 0.55
+      const bl = Math.hypot(bx, by) || 1
+      ex += (bx / bl) * 0.8; ey += (by / bl) * 0.8
+      dense.push([ex, ey])
+    }
     RIVER = dense
     // the falls stays at the authored bench lip (nearest dense point to it)
     const f0 = SC(124, 115)

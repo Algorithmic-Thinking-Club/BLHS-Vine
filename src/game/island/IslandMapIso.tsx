@@ -415,6 +415,55 @@ export default function IslandMapIso() {
             for (const [v, c] of counts) if (v !== L && c >= 3) { LV[ty * COLS + tx] = v; break }
           }
         }
+        // FINGER KILLER (the last speckle class): every pass above works on LONE
+        // tiles, so a 2-wide bench PENINSULA jutting through the flat beach strip
+        // survives them all — and prints as a run of orphan riser slabs lying on
+        // open grass (probe-proven at tile 87,65 on the north shore; the west-cove
+        // "sand potholes" are the same disease inverted). A tile ringed by 5+ of
+        // its 8 land neighbours on ONE side of its level, with at most 1 on the
+        // other, is part of a thin finger/trench, not a terrace edge (a real bench
+        // lip has higher ground behind it): pull it to the near side. 3 passes eat
+        // a finger from the tip and flanks inward.
+        for (let pass = 0; pass < 3; pass++) {
+          const prev = Int8Array.from(LV)
+          for (let ty = 1; ty < ROWS - 1; ty++) for (let tx = 1; tx < COLS - 1; tx++) {
+            const L = prev[ty * COLS + tx]
+            if (L < 0 || L > PLAT_L) continue
+            let lowN = 0, hiN = 0, lowBest = -9, hiBest = 99
+            for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+              if (!ox && !oy) continue
+              const v = prev[(ty + oy) * COLS + tx + ox]
+              if (v < 0) continue
+              if (v < L) { lowN++; if (v > lowBest) lowBest = v }
+              else if (v > L) { hiN++; if (v < hiBest) hiBest = v }
+            }
+            if (lowN >= 5 && hiN <= 1 && lowBest >= 0) LV[ty * COLS + tx] = lowBest
+            else if (hiN >= 5 && lowN <= 1) LV[ty * COLS + tx] = Math.min(hiBest, PLAT_L)
+          }
+        }
+        // THE PLAZA IS A DESIGNED BENCH: the meadow's natural steps ran straight
+        // through the court, so the level-clamped flagstone disc shrank to a
+        // fragment and the rim braziers stood on four different terraces — the
+        // Opus review's "fire bowls sprinkled on a hillside, no floor". A real
+        // courtyard is CUT INTO the hill: one flat level for the whole disc plus
+        // a working apron for the brazier ring.
+        {
+          const pcx = Math.round(PLAZA[0]), pcy = Math.round(PLAZA[1])
+          const pl = LV[pcy * COLS + pcx]
+          // the site sits on the cone TOE (the azimuth scan allows coneH<1.2),
+          // so its levels run ABOVE PLAT_L — a PLAT_L guard here silently
+          // skipped the whole cut and left the "fire bowls on a hillside".
+          // Cut into the slope: everything up to 4 levels above the court
+          // planes down to it; the taller toe beyond stands as the courtyard's
+          // carved back wall (c3's own terrace language).
+          if (pl > 0) {
+            for (let ty = pcy - 8; ty <= pcy + 8; ty++) for (let tx = pcx - 8; tx <= pcx + 8; tx++) {
+              if (Math.hypot(tx - PLAZA[0], ty - PLAZA[1]) > PLAZA_R + 1.8) continue
+              const L = LV[ty * COLS + tx]
+              if (L > 0 && L >= pl - 2 && L <= pl + 4) LV[ty * COLS + tx] = pl
+            }
+          }
+        }
         const eLvl = (tx: number, ty: number) =>
           tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS ? -1 : LV[ty * COLS + tx]
         if (DBG) (window as unknown as { __LV?: unknown }).__LV = { LV, COLS, ROWS }
@@ -618,9 +667,10 @@ export default function IslandMapIso() {
               const tex2 = m >= 2 ? 0.9 + 0.16 * vnoise(tx2 / 2.3 + 6, ty2 / 2.3 + k * 0.7 + 2) : 1
               const d2 = drift * tex2 * (0.97 - 0.02 * (m - 1 - k))
               if (m === 1) {
-                // a lone 1-level meadow step is a soft SHADED CREASE, not a bank: at
-                // meadow value it printed as scattered tan planks across the flat
-                seg.tint = tint24(d2 * 0.45, d2 * 0.53, d2 * 0.3)
+                // a lone 1-level meadow step is a soft SHADED CREASE, not a bank:
+                // at meadow value it printed tan planks; at 0.45 it printed
+                // near-black slabs on bright benches — split the difference
+                seg.tint = tint24(d2 * 0.55, d2 * 0.63, d2 * 0.36)
               } else {
                 // banks one step darker than the old 0.66/0.72 — at bright olive
                 // the rock-brick texture flashed through and isolated bank tiles
@@ -715,7 +765,11 @@ export default function IslandMapIso() {
           }
           const kept: [number, number, number][] = []
           for (const [cx2, cy2] of chain) {
-            if (dsAt(cx2, cy2) <= 0.5) break                 // the cove takes over
+            // run INTO the shallows (-1.5, was 0): the land pass skips ds<=0
+            // tiles anyway (the sea paints them), so the overshoot costs
+            // nothing — but breaking at 0 let one radial pocket cut the chain
+            // while dry sand still sat between the mouth and the tide
+            if (dsAt(cx2, cy2) <= -1.5) break                // the cove takes over
             kept.push([cx2, cy2, Math.max(0, eLvl(cx2, cy2))])
           }
           kept.forEach(([cx2, cy2, lv], i) => {
@@ -735,6 +789,39 @@ export default function IslandMapIso() {
               if (!riverInfo.has(k) && eLvl(fx2 + ox, fy2 + oy) === flv && dsAt(fx2 + ox, fy2 + oy) > 0.5) {
                 riverInfo.set(k, { lvl: flv, i: fi, drop: 0, ddir: [0, 0] })
               }
+            }
+          }
+          // the ESTUARY AS A FIELD (the lava ribbon's own recipe): on the flat
+          // beach the 1-wide chain always loses to the lattice — the next row's
+          // sand top covers each river tile's lower half (the stair's z-band
+          // nibble, probe-proven twice) and the mouth read as detached slivers.
+          // Two chain-side fan passes failed; an AREA fill within the mouth's
+          // half-width of the polyline is edge-connected by construction. Level
+          // 0 only — the bench run upstream keeps the chain's pool-step truth.
+          {
+            const segDist = (px3: number, py3: number) => {
+              let best = 99
+              for (let i = 0; i < RIVER.length - 1; i++) {
+                const [x0, y0] = RIVER[i], [x1, y1] = RIVER[i + 1]
+                const vx = x1 - x0, vy = y1 - y0
+                const L2 = vx * vx + vy * vy
+                let t = L2 > 0 ? ((px3 - x0) * vx + (py3 - y0) * vy) / L2 : 0
+                t = Math.max(0, Math.min(1, t))
+                const d = Math.hypot(px3 - (x0 + vx * t), py3 - (y0 + vy * t))
+                if (d < best) best = d
+              }
+              return best
+            }
+            const tail = RIVER.slice(-14)
+            const minX = Math.floor(Math.min(...tail.map((p) => p[0])) - 3), maxX = Math.ceil(Math.max(...tail.map((p) => p[0])) + 3)
+            const minY = Math.floor(Math.min(...tail.map((p) => p[1])) - 3), maxY = Math.ceil(Math.max(...tail.map((p) => p[1])) + 3)
+            for (let ty3 = minY; ty3 <= maxY; ty3++) for (let tx3 = minX; tx3 <= maxX; tx3++) {
+              const ds3 = dsAt(tx3, ty3)
+              if (ds3 <= -1.5 || ds3 > 5.5) continue
+              if (eLvl(tx3, ty3) !== 0) continue
+              if (segDist(tx3, ty3) > 1.6) continue
+              const k = ty3 * COLS + tx3
+              if (!riverInfo.has(k)) riverInfo.set(k, { lvl: 0, i: 9999, drop: 0, ddir: [0, 0] })
             }
           }
         }
@@ -883,7 +970,9 @@ export default function IslandMapIso() {
             // render the master layout's walkable spine — meadow ground only, never
             // the cone's rock bands, never the beach sand, never over lava/river
             const pdst = plazaD(tx, ty)
-            const onPlaza = !sand && L > 0 && pdst < 5.5
+            // the court holds ONE bench (a courtyard is FLAT): the raw disc
+            // draped flagstone over four terrace steps and read as paved slope
+            const onPlaza = !sand && L > 0 && pdst < 5.5 && L === eLvl(Math.round(PLAZA[0]), Math.round(PLAZA[1]))
             // the carved stair to the maw IS the ground (material, never a decal)
             const stairOrd = stairInfo.get(ty * COLS + tx)
             const onStair = stairOrd !== undefined
@@ -926,12 +1015,18 @@ export default function IslandMapIso() {
                 // read as a flat mint stripe), value wobble per tile so the
                 // surface lives, easing toward the sea's turquoise at the mouth
                 const wob = 0.86 + 0.24 * vnoise(tx / 2.7 + 7, ty / 2.7 + 2)
-                const est = Math.min(1, Math.max(0, 1 - dsq / 5))   // estuary blend
+                // est caps at 0.6: a full blend washed the mouth into the bright
+                // sand and the ribbon lost its identity crossing the beach
+                const est = 0.6 * Math.min(1, Math.max(0, 1 - dsq / 5))
                 const base = rv && rv.drop > 0 ? 0x8ecfc2 : 0x58ab9e
                 const t0 = shadeHex(base, wob)
-                const sr = Math.round(((t0 >> 16) & 255) * (1 - est) + 0x63 * est)
-                const sg = Math.round(((t0 >> 8) & 255) * (1 - est) + 0xc0 * est)
-                const sb = Math.round((t0 & 255) * (1 - est) + 0xb2 * est)
+                // the blend target sits BETWEEN the river's teal and the tide
+                // band's pale: at deep turquoise the junction jumped a value
+                // step; at full tide-pale the mouth washed into the sand and
+                // the ribbon lost its identity mid-beach (both screenshot-proven)
+                const sr = Math.round(((t0 >> 16) & 255) * (1 - est) + 0x7c * est)
+                const sg = Math.round(((t0 >> 8) & 255) * (1 - est) + 0xcf * est)
+                const sb = Math.round((t0 & 255) * (1 - est) + 0xc0 * est)
                 top.tint = (sr << 16) | (sg << 8) | sb
                 if (hash(tx * 3.7, ty * 1.9) > 0.6) {
                   const glint = new Sprite(foamTex)
@@ -1026,12 +1121,15 @@ export default function IslandMapIso() {
                 // grass; grey separates it from both the meadow and the path
                 top.tint = warmCool(shadeHex(stairOrd === -1 ? 0xb9a683 : 0xaaa79e, v), rk * 0.25)
               } else if (onPlaza) {
-                // the flagstone courtyard: cool weathered stone, warmer sun-worn flags in
-                // the centre, a darker mortar rim ring reading its edge against the meadow
-                const rim = pdst > PLAZA_R - 1.2 ? 0.82 : 1       // the defined outer ring
+                // the packed-earth court: sun-worn floor, a PALE stone medallion
+                // under the statue, and a firmly darker rim course so the court
+                // edge reads against both meadow and beach (at 0.82 the rim
+                // vanished and the floor read as more path)
+                const rim = pdst > PLAZA_R - 1.2 ? 0.72 : 1
+                const med = pdst < 2.1 ? 1.08 : 1
                 const flag = 0.9 + 0.16 * vnoise(tx / 2.3 + 40, ty / 2.3 + 12)  // per-flag value break
-                const v = flag * grain * rim * (1 + 0.08 * rk)
-                top.tint = warmCool(shadeHex(0xbcae94, v), rk * 0.5)
+                const v = flag * grain * rim * med * (1 + 0.08 * rk)
+                top.tint = warmCool(shadeHex(pdst < 2.1 ? 0xb7ad9c : 0xbcae94, v), rk * 0.5)
               } else if (onPath) {
                 // the trail: pale dry trodden earth through the green (c3's cream
                 // paths) — light enough to read at map zoom, never orange carpet
@@ -1207,6 +1305,17 @@ export default function IslandMapIso() {
           if (!TALL.has(name) && t.width > 100) {
             if (eLvl(Math.round(px + 0.6), Math.round(py)) !== L2 || eLvl(Math.round(px), Math.round(py + 0.6)) !== L2
               || eLvl(Math.round(px - 0.6), Math.round(py)) !== L2 || eLvl(Math.round(px), Math.round(py - 0.6)) !== L2) return
+          }
+          // a TALL trunk may stand near a lip (the c3 palm ranks) but its BASE
+          // must sit on its own tile — a base hanging over the riser face reads
+          // as floating (Opus review). Pull straddlers to their tile centre
+          // instead of rejecting them, so the designed lip ranks survive intact.
+          if (TALL.has(name)) {
+            const cx4 = Math.round(px), cy4 = Math.round(py)
+            if (eLvl(Math.round(px + 0.4), Math.round(py)) !== L2 || eLvl(Math.round(px), Math.round(py + 0.4)) !== L2
+              || eLvl(Math.round(px - 0.4), Math.round(py)) !== L2 || eLvl(Math.round(px), Math.round(py - 0.4)) !== L2) {
+              px = cx4 + (px - cx4) * 0.2; py = cy4 + (py - cy4) * 0.2
+            }
           }
           const lift = liftOf(L2)
           const sc = o.sc ?? 1
@@ -1886,8 +1995,12 @@ export default function IslandMapIso() {
             mount(pt['cargo-a'], [MINI_PORTS.south[0], MINI_PORTS.south[1]], { sc: 0.76 })
             mount(pt['cargo-a'], [MINI_PORTS.south[0] - 1.2, MINI_PORTS.south[1] - 1.1], { sc: 0.6, flip: true, deck: false, sink: 3 })
             mount(pt['lantern-post'], [MINI_PORTS.south[0] + (MINI_PORTS.south[0] > CX ? 0 : 1), MINI_PORTS.south[1] + 1], { sc: 0.78, glow: true })
-            mount(hb['rowboat'], [PORTS.west.x - 0.8, PORTS.west.y + 1.2], { deck: false, sc: 0.66, sink: 3 })
-            mount(pt['lantern-post'], [PORTS.west.x + 1.4, PORTS.west.y - 0.8], { sc: 0.72, glow: true, deck: false, sink: 2 })
+            // the hauled boat sits FULLY on dry sand (at -0.8 it straddled the
+            // tide seam — neither beached nor afloat, the Opus review's call),
+            // its lantern right up-beach of the bow so the two read as one
+            // composed vignette instead of strays
+            mount(hb['rowboat'], [PORTS.west.x + 0.6, PORTS.west.y + 1.3], { deck: false, sc: 0.66, sink: 4 })
+            mount(pt['lantern-post'], [PORTS.west.x + 1.8, PORTS.west.y + 0.2], { sc: 0.72, glow: true, deck: false, sink: 2 })
             // ---- the basin's boats: afloat with a foam ring, riding a slow bob
             const boat = (t: Texture | undefined, at: [number, number], sc = 1, flip = false) => {
               if (DBG) {
@@ -2073,7 +2186,31 @@ export default function IslandMapIso() {
             const brA: Texture = await Assets.load('/art/island/poi/brazier-a.png')
             const brB: Texture = await Assets.load('/art/island/poi/brazier-b.png')
             for (const t of [stA, stB, brA, brB]) t.source.scaleMode = 'nearest'
-            const place = (t: Texture, at: [number, number], sc: number, flip = false) => {
+            // FLAT SNAP (the Opus reviews' #1 systemic finding): a standing prop
+            // whose anchor lands ON a terrace lip hangs over the riser face and
+            // reads as floating no matter how good its shadow is. Snap every
+            // stele/brazier to the nearest tile whose whole 3x3 neighbourhood
+            // shares one level — inset from every lip BY CONSTRUCTION.
+            const flatSnap = (at: [number, number], r = 3): [number, number] => {
+              const cx3 = Math.round(at[0]), cy3 = Math.round(at[1])
+              const flat = (tx3: number, ty3: number) => {
+                const L = eLvl(tx3, ty3)
+                if (L <= 0) return false
+                for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++)
+                  if (eLvl(tx3 + ox, ty3 + oy) !== L) return false
+                return true
+              }
+              if (flat(cx3, cy3)) return at
+              let best: [number, number] | null = null, bd3 = 1e9
+              for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+                if (!flat(cx3 + dx, cy3 + dy)) continue
+                const d = dx * dx + dy * dy
+                if (d < bd3) { bd3 = d; best = [cx3 + dx, cy3 + dy] }
+              }
+              return best ?? at
+            }
+            const place = (t: Texture, rawAt: [number, number], sc: number, flip = false) => {
+              const at = flatSnap(rawAt)
               const lift2 = liftOf(eLvl(Math.round(at[0]), Math.round(at[1])))
               const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY - lift2 + 8
               const zB = Math.floor(at[0] + at[1]) * 4000 + lift2 * 2
@@ -2126,28 +2263,50 @@ export default function IslandMapIso() {
               fire([b0[0] + px2 * 1.7, b0[1] + py2 * 1.7], 0)
               fire([b0[0] - px2 * 1.7, b0[1] - py2 * 1.7], 1, true)
             }
-            // THE FORD: three worn stepping stones carrying the promenade across
-            // the river (the walkmap's one river crossing — audit-proven)
+            // THE COURT'S HEART: the panther on its stone plinth — the school's
+            // own icon holding the gathering place (the ring of fire finally
+            // reads as FOR something; the statue was in the kit, never mounted)
             try {
-              const rkT: Texture = await Assets.load('/art/island/harbor/riprap-c.png')
-              rkT.source.scaleMode = 'nearest'
-              // stones run along the CROSSING direction = perpendicular to the river
+              const statT: Texture = await Assets.load('/art/island/harbor/panther-statue.png')
+              statT.source.scaleMode = 'nearest'
+              place(statT, [PLAZA[0], PLAZA[1]], 1.05)
+            } catch { /* statue optional */ }
+            // THE FORD: three worn stepping stones carrying the promenade across
+            // the river (the walkmap's one river crossing — audit-proven).
+            // FLAT SLABS, not rubble: riprap's jagged cone silhouette stacked
+            // into "a dark pile plugging the mouth" (Opus + probe agreed) — a
+            // stepping stone is a worn flat top, so it uses the quay stone's
+            // own top diamond.
+            try {
+              const blkT: Texture = await Assets.load('/art/island/harbor/stone-block-a.png')
+              blkT.source.scaleMode = 'nearest'
+              const rkT = new Texture({ source: blkT.source, frame: new Rectangle(0, 0, 64, 36) })
+              // the stones stand IN the actual rasterized water (snapping to the
+              // polyline beached them on dry sand — the chain wanders ~a tile)
+              let fx3 = FORD[0], fy3 = FORD[1], bd2 = 99
+              for (const k of riverInfo.keys()) {
+                const tx3 = k % COLS, ty3 = Math.floor(k / COLS)
+                const d = Math.hypot(tx3 - FORD[0], ty3 - FORD[1])
+                if (d < bd2) { bd2 = d; fx3 = tx3; fy3 = ty3 }
+              }
+              // crossing direction = perpendicular to the local river run
               let dir: [number, number] = [1, 0]
-              for (let i = 0; i < RIVER.length - 1; i++) {
-                const d = Math.hypot(FORD[0] - RIVER[i][0], FORD[1] - RIVER[i][1])
-                if (d < 4) {
-                  const dl2 = Math.hypot(RIVER[i + 1][0] - RIVER[i][0], RIVER[i + 1][1] - RIVER[i][1]) || 1
-                  dir = [-(RIVER[i + 1][1] - RIVER[i][1]) / dl2, (RIVER[i + 1][0] - RIVER[i][0]) / dl2]
-                  break
+              {
+                const rv3 = riverInfo.get(fy3 * COLS + fx3)
+                if (rv3 && (rv3.ddir[0] || rv3.ddir[1])) {
+                  const dl2 = Math.hypot(rv3.ddir[0], rv3.ddir[1])
+                  dir = [-rv3.ddir[1] / dl2, rv3.ddir[0] / dl2]
                 }
               }
-              for (const k of [-0.8, 0, 0.8]) {
-                const at: [number, number] = [FORD[0] + dir[0] * k, FORD[1] + dir[1] * k]
+              for (const k of [-1.05, 0, 1.05]) {
+                const at: [number, number] = [fx3 + dir[0] * k, fy3 + dir[1] * k]
                 const lift2 = liftOf(eLvl(Math.round(at[0]), Math.round(at[1])))
-                const sp = new Sprite(rkT); sp.anchor.set(0.5, 0.72)
+                const sp = new Sprite(rkT); sp.anchor.set(0.5, 0.55)
                 sp.position.set(isoX(at[0], at[1]), isoY(at[0], at[1]) + GY - lift2 + 4)
-                sp.tint = 0xe8d2ba   // warm worn stone, not the breakwater's cold navy
-                sp.scale.set(0.34 + 0.05 * hash(k * 3.1, 2.2))
+                sp.tint = 0xd9c9ae   // warm worn stone, not the breakwater's cold navy
+                // stepping stones, not boulders: at 0.34 the riprap cones
+                // overlapped into one dark rubble lump plugging the mouth (probed)
+                sp.scale.set(0.42 + 0.04 * hash(k * 3.1, 2.2))
                 sp.zIndex = Math.floor(at[0] + at[1]) * 4000 + lift2 * 2 + 640
                 world.addChild(sp)
                 const rf2 = new Sprite(foamTex); rf2.anchor.set(0.5, 0.5)
