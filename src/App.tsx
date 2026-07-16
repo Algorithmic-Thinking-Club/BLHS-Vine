@@ -23,6 +23,14 @@ const IslandMapIso = lazy(() =>
     default: () => <div style={{ position: 'absolute', inset: 0, background: '#06121a' }} />,
   })),
 )
+// Session B's lane (grape island #1, file-disjoint: src/game/island/atc/**) —
+// same lazy law: a broken in-flight ATC module must never white-screen the game
+const ATC_MAP_MODULE = './game/island/atc/AtcIslandIso.tsx'
+const AtcIslandIso = lazy(() =>
+  import(/* @vite-ignore */ ATC_MAP_MODULE).catch(() => ({
+    default: () => <div style={{ position: 'absolute', inset: 0, background: '#06121a' }} />,
+  })),
+)
 
 // The game runs through the scene manager, wrapped in the run-state provider. Phase 1 flow:
 // title -> overworld (navigable hub) -> island visit -> ... -> cape summary. Join-by-code +
@@ -44,6 +52,11 @@ const registry: SceneRegistry = {
       <IslandMapIso />
     </Suspense>
   ), // the main map: the vast ocean + the Central Island (GAME-DESIGN §3)
+  atc: () => (
+    <Suspense fallback={<div style={{ position: 'absolute', inset: 0, background: '#06121a' }} />}>
+      <AtcIslandIso />
+    </Suspense>
+  ), // grape island #1: room 305 as an island (docs/place-specs/atc-grape-island.md)
 }
 
 export default function App() {
