@@ -115,6 +115,12 @@ export default function IslandMapIso() {
       // ?nocone=1 — render the approved base only (flat plateau, no block cone, no lava):
       // the clean stage the painted volcano hero is composited onto (final-push plan §2)
       const NOCONE = !!params.get('nocone')
+      // FRESH BASE (Ash, 2026-07-13): the island ships ONLY volcano + lava + grass +
+      // beach + ocean (+ crater steam, quench, clouds — the base systems' own life).
+      // EVERY decoration pass (veg, harbor, heads, steles, plaza, paths, river, stair,
+      // ford, tidepools, overlook) is gated OFF behind ?decor=1 — reachable for
+      // reference only, until the Places Campaign rebuilds each zone properly.
+      const DECOR = params.get('decor') === '1'
       const ZOOM = Number(params.get('zoom') || 0.62) || 0.62
       const cam = (params.get('cam') || `${CX},${CY}`).split(',').map(Number)
       const camTx = cam[0] ?? CX, camTy = cam[1] ?? CY
@@ -140,8 +146,9 @@ export default function IslandMapIso() {
       initHubLayout()
       // the mechanical gate: reachability, lava continuity, grounding — checked as
       // DATA on the live layout every load (a red console line = the map is broken
-      // no matter how good the screenshot looks)
-      reportIslandAudit()
+      // no matter how good the screenshot looks). DECOR-gated: its flood-fill seeds
+      // from the harbor deck, which the fresh base does not render.
+      if (DECOR) reportIslandAudit()
 
       const world = new Container()
       world.scale.set(ZOOM)
@@ -456,7 +463,7 @@ export default function IslandMapIso() {
           // Cut into the slope: everything up to 4 levels above the court
           // planes down to it; the taller toe beyond stands as the courtyard's
           // carved back wall (c3's own terrace language).
-          if (pl > 0) {
+          if (DECOR && pl > 0) {
             for (let ty = pcy - 8; ty <= pcy + 8; ty++) for (let tx = pcx - 8; tx <= pcx + 8; tx++) {
               if (Math.hypot(tx - PLAZA[0], ty - PLAZA[1]) > PLAZA_R + 1.8) continue
               const L = LV[ty * COLS + tx]
@@ -992,7 +999,7 @@ export default function IslandMapIso() {
             // the COOLED-CRUST CROSSINGS: where a flow severs the promenade ring, a
             // slab of solidified crust bridges it (walkable in hub-mechanics) — the
             // slab outranks molten so the walk reads as stone over the fire
-            const onCross = !NOCONE && ld < 2.4 && crossingD(tx, ty) < 1.5
+            const onCross = DECOR && !NOCONE && ld < 2.4 && crossingD(tx, ty) < 1.5
             // the river BREATHES: its width swells and narrows along the run (a
             // uniform band read as a string of lozenges — reviewer verdict). Floor
             // 1.2 keeps the diagonal core edge-connected.
@@ -1014,19 +1021,19 @@ export default function IslandMapIso() {
             const pdst = plazaD(tx, ty)
             // the court holds ONE bench (a courtyard is FLAT): the raw disc
             // draped flagstone over four terrace steps and read as paved slope
-            const onPlaza = !sand && L > 0 && pdst < 5.5 && L === eLvl(Math.round(PLAZA[0]), Math.round(PLAZA[1]))
+            const onPlaza = DECOR && !sand && L > 0 && pdst < 5.5 && L === eLvl(Math.round(PLAZA[0]), Math.round(PLAZA[1]))
             // the carved stair to the maw IS the ground (material, never a decal)
             const stairOrd = stairInfo.get(ty * COLS + tx)
-            const onStair = stairOrd !== undefined
+            const onStair = DECOR && stairOrd !== undefined
             const pD = pathD(tx, ty)
             // the path yields to the channel EXCEPT at a crust crossing, where it
             // runs right up to the slab (a dead-end path beside a walkable bridge
             // reads as "you can't cross here")
-            const onPath = !onPlaza && !sand && L > 0 && coneBand(tx, ty) === 0
+            const onPath = DECOR && !onPlaza && !sand && L > 0 && coneBand(tx, ty) === 0
               && (lavaDist(tx, ty) > 1.4 || crossingD(tx, ty) < 2.2) && onPathTile(tx, ty)
             // THE RIVER lives (P3): the chain map is the truth — pool-step-pool
             // water at the terrain's own benches, never orphan checkers
-            const rv = riverInfo.get(ty * COLS + tx)
+            const rv = DECOR ? riverInfo.get(ty * COLS + tx) : undefined
             const onRiver = !!rv && !isLava && !isBed
             const vs = band >= 1 && rockTop.length ? rockTop : undefined
             // molten core + charred bed OUTRANK sand so the flow owns its beach
@@ -1364,6 +1371,7 @@ export default function IslandMapIso() {
         const shadAng = Math.atan2(SHADOW.dy * 0.5, SHADOW.dx)   // squashed into iso ground plane
         const TALL = new Set(['palm-b', 'coco-v1', 'coco-v2', 'coco-v3', 'fan-1', 'tfern-1', 'palm-a'])
         const putPlant = (name: string, px: number, py: number, o: { sc?: number; flip?: boolean; dark?: number; sway?: number; noShadow?: boolean } = {}) => {
+          if (!DECOR) return                                   // fresh base: no placed vegetation
           const t = vegT[name]
           if (!t) return
           if (harborAt(Math.round(px), Math.round(py))) return   // nothing sprouts through a deck
@@ -1429,6 +1437,7 @@ export default function IslandMapIso() {
         const RARE = ['fan-1', 'palm-a', 'palm-a', 'tfern-1']   // tfern's loud crown stays rare
         const UNDER = ['bush-a', 'bush-b', 'fernclump-1']
         for (let gi = 0; gi < GROVES.length; gi++) {
+          if (!DECOR) break                                    // fresh base: no groves
           const [gx, gy, gr] = GROVES[gi]
           if (DBG) {
             const dot = new Sprite(Texture.WHITE)
@@ -1479,7 +1488,7 @@ export default function IslandMapIso() {
             putPlant(nm, jx, jy, { sc: 0.55 + 0.3 * hash(jx + 3, jy + 7), flip: hash(jx + 5, jy + 4) > 0.5, dark: 0.88, sway: 0.006 })
           }
         }
-        for (let sy = 3; sy < ROWS - 3; sy += 3) {
+        for (let sy = 3; DECOR && sy < ROWS - 3; sy += 3) {
           for (let sx = 3; sx < COLS - 3; sx += 3) {
             let k = vegK(sx, sy)
             // c3's palm ranks along the terrace lips: a bench edge boosts its azimuth
@@ -1549,7 +1558,7 @@ export default function IslandMapIso() {
         // THE OPEN MEADOW'S LIFE (the walkable ground between groves is a place,
         // not a void): grass tufts + wildflower drifts, sparse boulders, and the
         // occasional fallen trunk telling a small story
-        for (let sy = 4; sy < ROWS - 4; sy += 2) {
+        for (let sy = 4; DECOR && sy < ROWS - 4; sy += 2) {
           for (let sx = 4; sx < COLS - 4; sx += 2) {
             const L3 = eLvl(sx, sy)
             if (L3 <= 0 || L3 > PLAT_L) continue
@@ -1576,7 +1585,7 @@ export default function IslandMapIso() {
         // bare block flank can't fake. Gully-gated so the growth reads as water-
         // fed lines, never noise sprinkled on stone; thins with altitude and
         // stays clear of the melt and the crater.
-        for (let sy = 4; sy < ROWS - 4; sy += 2) {
+        for (let sy = 4; DECOR && sy < ROWS - 4; sy += 2) {
           for (let sx = 4; sx < COLS - 4; sx += 2) {
             const ch = coneH(sx, sy)
             if (ch < 4 || ch > 26) continue
@@ -1599,7 +1608,7 @@ export default function IslandMapIso() {
         // lanterns and cargo MOUNT ON the deck; boats ride the basin with foam and
         // bob. No sprite is nudged by eye — every anchor comes from the plan.
         const bobs: { sp: Sprite; y0: number; w: number; ph: number }[] = []
-        try {
+        if (DECOR) try {                                       // fresh base: no harbor
           const hb: Record<string, Texture> = {}
           for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'boathouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b']) {
             try {
@@ -2204,7 +2213,9 @@ export default function IslandMapIso() {
         // carved OUT of the mountain. The SE head's maw is the dark Maw gateway;
         // the SW head POURS the molten flow (its glow breathes). The twin lava
         // curtains pour down in front, framing them.
-        if (!NOCONE) {
+        // DECOR-gated (fresh base) — and the NEXT heads are PHYSICAL STRUCTURES with
+        // height/collision meshed into the massif, never sprite decals (Ash, 2026-07-13).
+        if (DECOR && !NOCONE) {
           try {
             const spoutT: Texture = await Assets.load('/art/island/gate/head-gape.png?v=1')
             spoutT.source.scaleMode = 'nearest'
@@ -2289,7 +2300,7 @@ export default function IslandMapIso() {
         // ---- P3: THE JOURNEY INWARD dressing — the POWER steles pacing the
         // approach, living fire braziers on the plaza + gate forecourt, and the
         // stepping-stone ford where the promenade crosses the river.
-        if (!NOCONE) {
+        if (DECOR && !NOCONE) {                                // fresh base: no POI dressing
           try {
             const stA: Texture = await Assets.load('/art/island/poi/stele-a.png')
             const stB: Texture = await Assets.load('/art/island/poi/stele-b.png')
@@ -2579,7 +2590,7 @@ export default function IslandMapIso() {
           glows.push({ sp: qg, ph: hash(ex, ey2) * 6.3, a: 0.32 })
         }
         // falls mist: two cool wisps hanging over the river's big drop
-        if (!NOCONE && RIVER.length) {
+        if (DECOR && !NOCONE && RIVER.length) {
           const fl = liftOf(eLvl(Math.round(FALLS[0]), Math.round(FALLS[1])))
           for (let i = 0; i < 2; i++) {
             const sp = new Sprite(steamTex); sp.anchor.set(0.5, 0.5)
@@ -2726,7 +2737,10 @@ export default function IslandMapIso() {
           hot.position.set(sx2, sy2 + 1); hot.zIndex = zM + 2
           world.addChild(hot)
           glows.push({ sp: hot, ph: hash(m[1], m[0]) * 6.3 + 2.1, a: 0.8 })
-          for (let k = 0; k < 3; k++) {
+          // gobbets fall from the carved maw's height — meaningless without the
+          // heads; DECOR-gated with them. The mouth strike bloom above stays: it
+          // reads as the vent's own white-hot source on the fresh base.
+          for (let k = 0; DECOR && k < 3; k++) {
             const sp = new Sprite(pulseTex); sp.anchor.set(0.5, 0.5); sp.blendMode = 'add'
             sp.width = 8; sp.height = 12
             sp.zIndex = zM + 6
