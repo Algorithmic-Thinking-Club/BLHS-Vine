@@ -1118,13 +1118,20 @@ export default function IslandMapIso() {
             // uniform band read as a string of lozenges — reviewer verdict). Floor
             // 1.2 keeps the diagonal core edge-connected.
             const wMod = 0.85 + 0.35 * vnoise(tx / 5 + 21, ty / 5 + 7)
-            const isLava = !NOCONE && !onCross && lavaT.length > 0 && (ld < 1.45 * wMod || (L > 0 && ck > 0.32))
+            // THE MOUTH IS A RIVER'S BIRTH (Ash: larger flowing lava out of the mouths):
+            // the ribbon swells to ~2.5x width where it leaves each jaw, tapering to the
+            // normal run over ~7 tiles — a gushing delta at the maw, not a trickle
+            const nmW = Math.min(
+              Math.hypot(tx - MOUTH_R[0], ty - MOUTH_R[1]),
+              Math.hypot(tx - MOUTH_L[0], ty - MOUTH_L[1]))
+            const mBoost = 1 + 1.5 * Math.max(0, 1 - nmW / 7)
+            const isLava = !NOCONE && !onCross && lavaT.length > 0 && (ld < 1.45 * wMod * mBoost || (L > 0 && ck > 0.32))
             // the bed MATERIAL swap only on rock and sand — on grass a hard swap
             // rasterizes into a dark checker along the diagonal (the same disease
             // the molten core had); the meadow chars by TINT BLEND instead (the
             // beach delta's own recipe), which cannot checker
             const grassy = !sand && band < 1
-            const isBed = !NOCONE && !isLava && (onCross || ((ld < 2.1 || (L > 0 && ck > 0.4)) && !grassy))
+            const isBed = !NOCONE && !isLava && (onCross || ((ld < 2.1 * (1 + 0.6 * Math.max(0, 1 - nmW / 7)) || (L > 0 && ck > 0.4)) && !grassy))
             // the worn path wears dry sand through the meadow (grass ring only, never
             // up the cone or over the beach's own sand)
             // paths may cross the grassy cone toe (the lawn IS mostly toe) — never the
@@ -1567,49 +1574,79 @@ export default function IslandMapIso() {
           // molten gutter; the mouth-fire carries the light through the flip.
           // Three gate-site inpaints painted plain rock (the context is too uniform
           // to hook a head) — the twin is the working construction, stop-loss honored.
-          // THE COLOSSAL GAPING HEAD (Ash: "large gaping heads with lava flowing from
-          // the mouth" — the small meshed patches read as barely-there). One roaring
-          // 400px monument (best-of-2, monument-graded), mounted HUGE on both flanks:
-          // mirrored at the gate (flow exits lower-right), true at the west. The jaw's
-          // painted lava drip lands on each gutter's exit into the live ribbon.
+          // THE HEADS, FINAL CONSTRUCTION (both poles failed: small meshed patches
+          // "barely visible"; a mounted 400px colossus "too large, wrong angle,
+          // doesn't mesh"). The answer is the inpaint at DOUBLE WORLD COVERAGE: each
+          // head painted into a 200px live capture of its own site taken at zoom .5
+          // (the API's canvas cap, but twice the world per pixel) — the world's own
+          // camera angle, bon4's foreshortened-spout language, torn edges into the
+          // real blocks — alpha-cut and remounted at the measured rect: ~8 tiles of
+          // gaping monument literally made of its mountainside.
           try {
-            const gapT: Texture = await Assets.load('/art/island/heads/gaping.png')
-            gapT.source.scaleMode = 'nearest'
-            const gp = new Sprite(gapT)
+            const gateT: Texture = await Assets.load('/art/island/heads/gaping-torn.png')
+            gateT.source.scaleMode = 'nearest'
+            const gp = new Sprite(gateT)
             gp.anchor.set(0.5, 0.5)
-            gp.scale.set(-1.75, 1.75)
-            gp.position.set(522, 2988)
+            gp.scale.set(-1.1, 1.1)
+            gp.position.set(531, 2975)
+            // z at the pocket's mid diagonal: the front jambs (higher diag) draw
+            // AFTER the head and overlap its chin — sunk into the rock by painter's
+            // order, the torn silhouette burying the cutout edge
             gp.zIndex = (118 + 101) * 4000 + liftOf(eLvl(118, 101)) * 2 + 1400
             world.addChild(gp)
             const gglow = new Sprite(foamTex)
             gglow.anchor.set(0.5, 0.5); gglow.blendMode = 'add'
-            gglow.tint = 0xff7a26; gglow.width = 200; gglow.height = 120; gglow.alpha = 0.32
-            gglow.position.set(505 + 80, 2985 + 170)
+            gglow.tint = 0xff7a26; gglow.width = 170; gglow.height = 100; gglow.alpha = 0.3
+            gglow.position.set(531 + 45, 2975 + 130)
             gglow.zIndex = gp.zIndex + 1
             world.addChild(gglow)
-            glows.push({ sp: gglow, ph: 1.3, a: 0.28 })
+            glows.push({ sp: gglow, ph: 1.3, a: 0.26 })
           } catch { /* gate head piece not on disk yet */ }
-          // THE WEST HEAD — the INPAINTED PATCH: the carved head painted into this
-          // site's own captured pixels (torn edges, block grammar continued into the
-          // face), alpha-cut to its mask, mounted at the measured world rect
-          // (capture: zoom .62 cam (84,100), crop @ (594,334) → world (-655.5, 2863.4))
           try {
-            const westT: Texture = await Assets.load('/art/island/heads/gaping.png')
+            const westT: Texture = await Assets.load('/art/island/heads/gaping-torn.png')
             westT.source.scaleMode = 'nearest'
             const wp = new Sprite(westT)
             wp.anchor.set(0.5, 0.5)
-            wp.scale.set(1.75)
-            wp.position.set(-470, 2975)
+            wp.scale.set(1.1)
+            wp.position.set(-503, 2968)
             wp.zIndex = (101 + 118) * 4000 + liftOf(Math.max(0, eLvl(101, 118))) * 2 + 1400
             world.addChild(wp)
             const wglow = new Sprite(foamTex)
             wglow.anchor.set(0.5, 0.5); wglow.blendMode = 'add'
-            wglow.tint = 0xff7a26; wglow.width = 200; wglow.height = 120; wglow.alpha = 0.3
-            wglow.position.set(-470 - 80, 2975 + 170)
+            wglow.tint = 0xff7a26; wglow.width = 170; wglow.height = 100; wglow.alpha = 0.28
+            wglow.position.set(-503 - 45, 2968 + 130)
             wglow.zIndex = wp.zIndex + 1
             world.addChild(wglow)
-            glows.push({ sp: wglow, ph: 2.9, a: 0.26 })
+            glows.push({ sp: wglow, ph: 2.9, a: 0.24 })
           } catch { /* west head piece not on disk yet */ }
+
+          // THE MOUTH CASCADES (Ash: "larger flowing animated lava flow coming out
+          // of the panthers mouths"): molten falls pour from each jaw onto its
+          // gutter, cycling with the river's own flipbook (pushed into lavaFlow) —
+          // the birth GUSHES. Each fall wears a breathing ember glow.
+          if (lavaT.length) {
+            const pours: [number, number, number, number][] = [
+              [560, 3046, 84, 0.2], [586, 3058, 62, 0.55],      // gate jaw → gutter
+              [-532, 3040, 84, 0.35], [-558, 3052, 62, 0.7],    // west jaw → gutter
+            ]
+            for (const [px3, py3, ph3, sd] of pours) {
+              const t0 = lavaT[Math.floor(sd * lavaT.length) % lavaT.length]
+              const fall = new Sprite(t0)
+              fall.anchor.set(0.5, 0)
+              fall.width = 30; fall.height = ph3
+              fall.position.set(px3, py3)
+              fall.zIndex = 219 * 4000 + 1450
+              world.addChild(fall)
+              lavaFlow.push({ sp: fall, off: sd * 4, pool: lavaT })
+              const fg = new Sprite(foamTex)
+              fg.anchor.set(0.5, 0.5); fg.blendMode = 'add'
+              fg.tint = 0xffa640; fg.width = 60; fg.height = ph3 + 30; fg.alpha = 0.3
+              fg.position.set(px3, py3 + ph3 * 0.5)
+              fg.zIndex = fall.zIndex + 1
+              world.addChild(fg)
+              glows.push({ sp: fg, ph: sd * 6, a: 0.26 })
+            }
+          }
         } catch { /* relief disabled */ }
 
         // ?coords=1 — the tile-coordinate scaffold (spatial-craft law #1): a label every
