@@ -136,6 +136,11 @@ export default function IslandMapIso() {
       // ford, tidepools, overlook) is gated OFF behind ?decor=1 — reachable for
       // reference only, until the Places Campaign rebuilds each zone properly.
       const DECOR = params.get('decor') === '1'
+      // THE FOREST IS BACK (Ash, 2026-07-16: "bring back the old version... that forest
+      // spread across the map was nice, just put it here"): the green pass — groves,
+      // vegK field ranks, tufts/boulders/trunks — runs on the BASE now, un-gated from
+      // DECOR by his direct call. ?veg=0 keeps a clean-capture switch.
+      const VEG = params.get('veg') !== '0'
       const ZOOM = Number(params.get('zoom') || 0.62) || 0.62
       const cam = (params.get('cam') || `${CX},${CY}`).split(',').map(Number)
       // clamp the camera well inside WORLD_R (600): the ocean must reach past every
@@ -1562,19 +1567,24 @@ export default function IslandMapIso() {
           // molten gutter; the mouth-fire carries the light through the flip.
           // Three gate-site inpaints painted plain rock (the context is too uniform
           // to hook a head) — the twin is the working construction, stop-loss honored.
+          // THE COLOSSAL GAPING HEAD (Ash: "large gaping heads with lava flowing from
+          // the mouth" — the small meshed patches read as barely-there). One roaring
+          // 400px monument (best-of-2, monument-graded), mounted HUGE on both flanks:
+          // mirrored at the gate (flow exits lower-right), true at the west. The jaw's
+          // painted lava drip lands on each gutter's exit into the live ribbon.
           try {
-            const gateT: Texture = await Assets.load('/art/island/heads/patch-west.png')
-            gateT.source.scaleMode = 'nearest'
-            const gp = new Sprite(gateT)
+            const gapT: Texture = await Assets.load('/art/island/heads/gaping.png')
+            gapT.source.scaleMode = 'nearest'
+            const gp = new Sprite(gapT)
             gp.anchor.set(0.5, 0.5)
-            gp.scale.set(-1 / 0.62, 1 / 0.62)
-            gp.position.set(531.4, 3038)
+            gp.scale.set(-1.75, 1.75)
+            gp.position.set(522, 2988)
             gp.zIndex = (118 + 101) * 4000 + liftOf(eLvl(118, 101)) * 2 + 1400
             world.addChild(gp)
             const gglow = new Sprite(foamTex)
             gglow.anchor.set(0.5, 0.5); gglow.blendMode = 'add'
-            gglow.tint = 0xff7a26; gglow.width = 130; gglow.height = 80; gglow.alpha = 0.32
-            gglow.position.set(531.4 + 35, 3038 + 95)
+            gglow.tint = 0xff7a26; gglow.width = 200; gglow.height = 120; gglow.alpha = 0.32
+            gglow.position.set(505 + 80, 2985 + 170)
             gglow.zIndex = gp.zIndex + 1
             world.addChild(gglow)
             glows.push({ sp: gglow, ph: 1.3, a: 0.28 })
@@ -1584,18 +1594,18 @@ export default function IslandMapIso() {
           // face), alpha-cut to its mask, mounted at the measured world rect
           // (capture: zoom .62 cam (84,100), crop @ (594,334) → world (-655.5, 2863.4))
           try {
-            const westT: Texture = await Assets.load('/art/island/heads/patch-west.png')
+            const westT: Texture = await Assets.load('/art/island/heads/gaping.png')
             westT.source.scaleMode = 'nearest'
             const wp = new Sprite(westT)
-            wp.anchor.set(0, 0)
-            wp.scale.set(1 / 0.62)
-            wp.position.set(-655.5, 2863.4)
+            wp.anchor.set(0.5, 0.5)
+            wp.scale.set(1.75)
+            wp.position.set(-470, 2975)
             wp.zIndex = (101 + 118) * 4000 + liftOf(Math.max(0, eLvl(101, 118))) * 2 + 1400
             world.addChild(wp)
             const wglow = new Sprite(foamTex)
             wglow.anchor.set(0.5, 0.5); wglow.blendMode = 'add'
-            wglow.tint = 0xff7a26; wglow.width = 110; wglow.height = 70; wglow.alpha = 0.3
-            wglow.position.set(-655.5 + 118, 2863.4 + 245)
+            wglow.tint = 0xff7a26; wglow.width = 200; wglow.height = 120; wglow.alpha = 0.3
+            wglow.position.set(-470 - 80, 2975 + 170)
             wglow.zIndex = wp.zIndex + 1
             world.addChild(wglow)
             glows.push({ sp: wglow, ph: 2.9, a: 0.26 })
@@ -1734,7 +1744,7 @@ export default function IslandMapIso() {
         }
         plantMasses()
         const putPlant = (name: string, px: number, py: number, o: { sc?: number; flip?: boolean; dark?: number; sway?: number; noShadow?: boolean } = {}) => {
-          if (!DECOR) return                                   // fresh base: no placed vegetation
+          if (!VEG) return                                     // ?veg=0: clean-capture switch
           const t = vegT[name]
           if (!t) return
           if (harborAt(Math.round(px), Math.round(py))) return   // nothing sprouts through a deck
@@ -1800,7 +1810,7 @@ export default function IslandMapIso() {
         const RARE = ['fan-1', 'palm-a', 'palm-a', 'tfern-1']   // tfern's loud crown stays rare
         const UNDER = ['bush-a', 'bush-b', 'fernclump-1']
         for (let gi = 0; gi < GROVES.length; gi++) {
-          if (!DECOR) break                                    // fresh base: no groves
+          if (!VEG) break                                      // ?veg=0: clean-capture switch
           const [gx, gy, gr] = GROVES[gi]
           if (DBG) {
             const dot = new Sprite(Texture.WHITE)
@@ -1851,7 +1861,7 @@ export default function IslandMapIso() {
             putPlant(nm, jx, jy, { sc: 0.55 + 0.3 * hash(jx + 3, jy + 7), flip: hash(jx + 5, jy + 4) > 0.5, dark: 0.88, sway: 0.006 })
           }
         }
-        for (let sy = 3; DECOR && sy < ROWS - 3; sy += 3) {
+        for (let sy = 3; VEG && sy < ROWS - 3; sy += 3) {
           for (let sx = 3; sx < COLS - 3; sx += 3) {
             let k = vegK(sx, sy)
             // c3's palm ranks along the terrace lips: a bench edge boosts its azimuth
@@ -1921,7 +1931,7 @@ export default function IslandMapIso() {
         // THE OPEN MEADOW'S LIFE (the walkable ground between groves is a place,
         // not a void): grass tufts + wildflower drifts, sparse boulders, and the
         // occasional fallen trunk telling a small story
-        for (let sy = 4; DECOR && sy < ROWS - 4; sy += 2) {
+        for (let sy = 4; VEG && sy < ROWS - 4; sy += 2) {
           for (let sx = 4; sx < COLS - 4; sx += 2) {
             const L3 = eLvl(sx, sy)
             if (L3 <= 0 || L3 > PLAT_L) continue
@@ -1948,7 +1958,7 @@ export default function IslandMapIso() {
         // bare block flank can't fake. Gully-gated so the growth reads as water-
         // fed lines, never noise sprinkled on stone; thins with altitude and
         // stays clear of the melt and the crater.
-        for (let sy = 4; DECOR && sy < ROWS - 4; sy += 2) {
+        for (let sy = 4; VEG && sy < ROWS - 4; sy += 2) {
           for (let sx = 4; sx < COLS - 4; sx += 2) {
             const ch = coneH(sx, sy)
             if (ch < 4 || ch > 26) continue
