@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Application, Assets, ColorMatrixFilter, Container, Matrix, Rectangle, RenderTexture, Sprite, Text, TextStyle, Texture } from 'pixi.js'
+import { Application, Assets, ColorMatrixFilter, Container, Matrix, Rectangle, RenderTexture, Sprite, Text, TextStyle, Texture, TilingSprite } from 'pixi.js'
 import {
   isoX, isoY, hash, vnoise, shadeHex, rampAt, tintFor,
   loadWaterVariants, seaTile, configSeaTile, animSwells, type SwellSprite, HW, HH, DEPTH_RANGE,
@@ -889,6 +889,8 @@ export default function IslandMapIso() {
         const glows: { sp: Sprite; ph: number; a: number }[] = []
         // the mouth pours' falling gobs: y0→y0+h loops (the visible DOWNWARD motion)
         const pourPulses: { sp: Sprite; y0: number; h: number; spd: number; ph: number }[] = []
+        // the pour waterfalls: molten TilingSprites whose texture scrolls down forever
+        const pourSheets: { sp: TilingSprite; spd: number }[] = []
         // every molten tile registers here: the ticker cycles its texture with a
         // DOWNSTREAM-keyed phase, so the churn pattern itself travels mouth->sea
         // (the classic 16-bit flipbook flow — the surface moves, not sparkles on it)
@@ -1622,47 +1624,49 @@ export default function IslandMapIso() {
             glows.push({ sp: wglow, ph: 2.9, a: 0.24 })
           } catch { /* west head piece not on disk yet */ }
 
-          // THE MOUTH POURS (Ash: the lava must FLOW from the mouths and BE the
-          // rivers' source, visibly animated — the first strips "just hung there"):
-          // per mouth, a molten SHEET from inside the maw down onto the gushing
-          // delta (the proven burning-face crop, one wide + one narrow), and FOUR
-          // traveling pulse-blobs falling down the sheet on staggered loops — real
-          // downward motion the eye can't miss, plus a breathing ember glow.
+          // THE MOUTH POURS v3 (the v2 sheets rendered BEHIND the head — its zIndex
+          // carries a lift term mine lacked, so nothing visibly changed): per mouth
+          // ONE TilingSprite waterfall of molten texture whose tilePosition SCROLLS
+          // downward every frame — continuous, unmistakable flow — drawn ABOVE the
+          // head so it pours over the lower lip, from inside the maw down onto the
+          // gushing delta. Falling gobs + a breathing glow ride it.
           if ((sideL.length || sideW.length)) {
             const pfam = sideL.length ? sideL : sideW
-            const pours: [number, number, number, number, number][] = [
-              // [x, yTop, height, width, phase]  gate jaw → delta, west jaw → delta
-              [563, 3024, 108, 40, 0.2], [590, 3040, 88, 26, 0.6],
-              [-535, 3018, 108, 40, 0.35], [-562, 3034, 88, 26, 0.8],
+            const zG = 219 * 4000 + liftOf(eLvl(118, 101)) * 2 + 1440
+            const zW = 219 * 4000 + liftOf(Math.max(0, eLvl(101, 118))) * 2 + 1440
+            const pours: [number, number, number, number, number, number][] = [
+              // [x, yTop, height, width, phase, z]
+              [584, 3052, 124, 46, 0.2, zG],     // the gate jaw → its delta
+              [-569, 3046, 124, 46, 0.35, zW],   // the west jaw → its delta
             ]
-            for (const [px3, py3, ph3, pw3, sd] of pours) {
+            for (const [px3, py3, ph3, pw3, sd, z3] of pours) {
               const tex = pfam[Math.floor(sd * pfam.length) % pfam.length]
-              const fh = Math.min(tex.height - 18, ph3)
-              const sheet = new Sprite(new Texture({ source: tex.source, frame: new Rectangle(0, 18, 64, fh) }))
+              const src = new Texture({ source: tex.source, frame: new Rectangle(0, 18, 64, Math.min(46, tex.height - 18)) })
+              const sheet = new TilingSprite({ texture: src, width: pw3, height: ph3 })
               sheet.anchor.set(0.5, 0)
-              sheet.width = pw3
-              if (ph3 > fh) sheet.scale.y = ph3 / fh
               sheet.position.set(px3, py3)
               sheet.tint = 0xffa640                    // the burning-fall language
-              sheet.zIndex = 219 * 4000 + 1450
+              sheet.tileScale.set(pw3 / 64, 1)
+              sheet.zIndex = z3
               world.addChild(sheet)
+              pourSheets.push({ sp: sheet, spd: 46 + 18 * sd })
               const fg = new Sprite(foamTex)
               fg.anchor.set(0.5, 0.5); fg.blendMode = 'add'
-              fg.tint = 0xff9036; fg.width = pw3 * 2.4; fg.height = ph3 + 40; fg.alpha = 0.3
+              fg.tint = 0xff9036; fg.width = pw3 * 2.6; fg.height = ph3 + 44; fg.alpha = 0.3
               fg.position.set(px3, py3 + ph3 * 0.5)
-              fg.zIndex = sheet.zIndex + 1
+              fg.zIndex = z3 + 2
               world.addChild(fg)
               glows.push({ sp: fg, ph: sd * 6, a: 0.26 })
-              // the falling pulses: bright gobs riding the sheet top→bottom on a loop
+              // the falling gobs: bright molten lumps riding the fall top→bottom
               for (let k = 0; k < 4; k++) {
                 const gob = new Sprite(foamTex)
                 gob.anchor.set(0.5, 0.5); gob.blendMode = 'add'
                 gob.tint = k % 2 ? 0xffd060 : 0xffb040
-                gob.width = pw3 * (0.55 + 0.25 * hash(k, sd)); gob.height = 16 + 10 * hash(sd, k)
-                gob.position.set(px3 + (hash(k * 3, sd) - 0.5) * pw3 * 0.5, py3)
-                gob.zIndex = sheet.zIndex + 2
+                gob.width = pw3 * (0.5 + 0.3 * hash(k, sd)); gob.height = 15 + 10 * hash(sd, k)
+                gob.position.set(px3 + (hash(k * 3, sd) - 0.5) * pw3 * 0.55, py3)
+                gob.zIndex = z3 + 3
                 world.addChild(gob)
-                pourPulses.push({ sp: gob, y0: py3 - 6, h: ph3 + 14, spd: 0.55 + 0.3 * hash(k, sd * 7), ph: k / 4 + sd })
+                pourPulses.push({ sp: gob, y0: py3 - 4, h: ph3 + 12, spd: 0.55 + 0.3 * hash(k, sd * 7), ph: k / 4 + sd })
               }
             }
           }
@@ -3229,6 +3233,7 @@ export default function IslandMapIso() {
           const animated = new Set<unknown>([
             ...lavaFlow.map((l) => l.sp), ...glows.map((g) => g.sp), ...puffs.map((p) => p.sp),
             ...sways.map((s) => s.sp), ...bobs.map((b) => b.sp), ...flyers.map((f) => f.sp),
+            ...pourSheets.map((s) => s.sp), ...pourPulses.map((p) => p.sp),
           ])
           for (const b of bands) if (b) for (const c of b.children.slice()) if (animated.has(c)) world.addChild(c)
           // measure, then render each band into ONE island texture in diagonal order
@@ -3362,6 +3367,8 @@ export default function IslandMapIso() {
             p.sp.y = p.y0 + u * p.h
             p.sp.alpha = 0.55 * Math.min(1, u * 4) * Math.min(1, (1 - u) * 3)
           }
+          // the waterfalls flow: the molten texture scrolls down continuously
+          for (const s of pourSheets) s.sp.tilePosition.y = (t * s.spd) % 4096
           // the canopy breathes: gentle per-plant rotation about the rooted base
           for (const s of sways) s.sp.rotation = s.amp * Math.sin(t * s.w + s.ph)
           // moored boats ride the basin's slow swell
