@@ -8,6 +8,7 @@ import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL,
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
 import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD, RIVER, FALLS, FORD, STELES, TONGUE, PORTS, MINI_PORTS, TIDEPOOLS, WEST_OVERLOOK } from './hub-layout'
 import { reportIslandAudit } from './island-audit'
+import { headField, inHeadBBox } from './heads'
 
 const smooth = (e0: number, e1: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t)
@@ -537,6 +538,23 @@ export default function IslandMapIso() {
             }
           }
         }
+        // P3 · THE CARVED HEADS MERGE (heads.ts — real structure, real levels, real
+        // collision; NEVER a sprite). Rushmore construction: the alcove field REPLACES
+        // the flank inside its soft mask (a recessed face-plane + sculpted features +
+        // the maw cut), and the ears merge as plain additive peaks on the crest above.
+        // Merged AFTER every cleanup pass: the forms are authored, no snap eats an ear.
+        if (!NOCONE) {
+          for (let ty = 0; ty < ROWS; ty++) for (let tx = 0; tx < COLS; tx++) {
+            if (!inHeadBBox(tx, ty)) continue
+            const k = ty * COLS + tx
+            if (LV[k] < 0) continue
+            const hf = headField(tx, ty)
+            if (hf) {
+              const rel = LV[k] - PLAT_L
+              LV[k] = PLAT_L + Math.round(rel + (hf.h - rel) * Math.min(1, hf.k))
+            }
+          }
+        }
         const eLvl = (tx: number, ty: number) =>
           tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS ? -1 : LV[ty * COLS + tx]
         if (DBG) (window as unknown as { __LV?: unknown }).__LV = { LV, COLS, ROWS }
@@ -634,8 +652,9 @@ export default function IslandMapIso() {
           } else {
             // the riser color follows the tile's SURFACE BAND so a vegetated slope reads
             // as a grassy bank (soft shadow), not a bright pink rock contour line — only
-            // the BARE-ROCK upper flank (band 2) shows real strata faces (c3's exposed rock)
-            const band = coneBand(tx2, ty2)
+            // the BARE-ROCK upper flank (band 2) shows real strata faces (c3's exposed rock).
+            // P3: a carved head's faces are always the monument's rock.
+            const band = inHeadBBox(tx2, ty2) && (headField(tx2, ty2)?.k ?? 0) > 0.25 ? 2 : coneBand(tx2, ty2)
             const cl = coneLit(tx2, ty2)
             // NEAR-INVISIBLE riser (matched to the meadow top value) so the ~15 stacked
             // 1-level skirt steps melt into ONE smooth grassy slope (c3), not a ziggurat.
@@ -1017,8 +1036,11 @@ export default function IslandMapIso() {
             // ~1.14 overlap so neighbours melt together. NO hillshade — the decorated SIDE
             // faces carry the 3D, and the flat tops stay a seamless surface like the old map.
             // the cone's surface bands: grass skirt -> dry scrub -> bare basalt (coneBand
-            // carries its own dither so the transitions never draw as clean rings)
-            const band = !sand && L > PLAT_L ? coneBand(tx, ty) : 0
+            // carries its own dither so the transitions never draw as clean rings).
+            // P3: inside a carved head's mask the material is ALWAYS bare rock — a
+            // monument is one hewn mass; meadow tints on a jowl camouflaged the form
+            const inHead = !NOCONE && inHeadBBox(tx, ty) && (headField(tx, ty)?.k ?? 0) > 0.25
+            const band = inHead ? 2 : !sand && L > PLAT_L ? coneBand(tx, ty) : 0
             // THE LAVA (P1): two channels spill from the crater down the flanks to the
             // coast (terrain's LAVA polylines). Core tiles wear the self-bright ember
             // art; a charcoal BED shoulders each channel; the crater bowl burns at the
@@ -1345,9 +1367,10 @@ export default function IslandMapIso() {
                 // TIGHT charred ring: the channel's own dark banks stay drawn walls
                 const charred = !NOCONE && (lavaDist(tx, ty) < 1.3 || craterK(tx, ty) > 0.4)
                 // the cone's faces: bare-rock crags (band 2+) at any drop; the grass
-                // skirt + merge belt only at real terraces — their 1-level lips melt
-                const coneFace = !NOCONE && L > PLAT_L && coneH(tx, ty) > 0 && !toSea && (sideW.length > 0 || vsF.length > 0)
-                  && (coneBand(tx, ty) >= 2 || (coneBand(tx, ty) >= 1 && drop >= 2))
+                // skirt + merge belt only at real terraces — their 1-level lips melt.
+                // A carved head's steps are ALWAYS monument faces (P3).
+                const coneFace = !NOCONE && L > PLAT_L && (coneH(tx, ty) > 0 || inHead) && !toSea && (sideW.length > 0 || vsF.length > 0)
+                  && (inHead || coneBand(tx, ty) >= 2 || (coneBand(tx, ty) >= 1 && drop >= 2))
                 const designed = toSea || drop >= 2 || moltenStep || charred || coneFace
                 if (!designed) {
                   meltRiser(bx, by, lift - liftOf(floorMin), tx, ty, zBase, topTintHex ?? 0x8aa054, sand)
