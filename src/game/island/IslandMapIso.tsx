@@ -1586,17 +1586,34 @@ export default function IslandMapIso() {
           // camera angle, bon4's foreshortened-spout language, torn edges into the
           // real blocks — alpha-cut and remounted at the measured rect: ~8 tiles of
           // gaping monument literally made of its mountainside.
+          // the dark ALCOVE COLLAR both heads sit in: a near-black pool behind each
+          // silhouette so no green bench ever peeks around the torn edge — the head
+          // reads as carved INTO shadowed rock, not resting on the lawn
+          // (foamTex, not shadTex — shadTex is declared later in the green pass and
+          // the TDZ throw silently killed both heads once already)
+          const collar = (cx2: number, cy2: number, z2: number) => {
+            const c = new Sprite(foamTex)
+            c.anchor.set(0.5, 0.5)
+            c.width = 440; c.height = 330
+            c.tint = 0x16121a; c.alpha = 0.95
+            c.position.set(cx2, cy2 + 12)
+            c.zIndex = z2 - 2
+            world.addChild(c)
+          }
           try {
             const gateT: Texture = await Assets.load('/art/island/heads/gaping-torn.png')
             gateT.source.scaleMode = 'nearest'
             const gp = new Sprite(gateT)
             gp.anchor.set(0.5, 0.5)
             gp.scale.set(-1.1, 1.1)
-            gp.position.set(531, 2975)
+            // pulled DOWN-LEFT onto its dark pocket (Ash: the right head "not meshed
+            // properly" — its lower-right corner had drifted over green benches)
+            gp.position.set(512, 2988)
             // z at the pocket's mid diagonal: the front jambs (higher diag) draw
             // AFTER the head and overlap its chin — sunk into the rock by painter's
             // order, the torn silhouette burying the cutout edge
             gp.zIndex = (118 + 101) * 4000 + liftOf(eLvl(118, 101)) * 2 + 1400
+            collar(512, 2988, gp.zIndex)
             world.addChild(gp)
             const gglow = new Sprite(foamTex)
             gglow.anchor.set(0.5, 0.5); gglow.blendMode = 'add'
@@ -1614,6 +1631,7 @@ export default function IslandMapIso() {
             wp.scale.set(1.1)
             wp.position.set(-503, 2968)
             wp.zIndex = (101 + 118) * 4000 + liftOf(Math.max(0, eLvl(101, 118))) * 2 + 1400
+            collar(-503, 2968, wp.zIndex)
             world.addChild(wp)
             const wglow = new Sprite(foamTex)
             wglow.anchor.set(0.5, 0.5); wglow.blendMode = 'add'
@@ -1636,7 +1654,7 @@ export default function IslandMapIso() {
             const zW = 219 * 4000 + liftOf(Math.max(0, eLvl(101, 118))) * 2 + 1440
             const pours: [number, number, number, number, number, number][] = [
               // [x, yTop, height, width, phase, z]
-              [584, 3052, 124, 46, 0.2, zG],     // the gate jaw → its delta
+              [565, 3065, 118, 46, 0.2, zG],     // the gate jaw → its delta (head moved with it)
               [-569, 3046, 124, 46, 0.35, zW],   // the west jaw → its delta
             ]
             for (const [px3, py3, ph3, pw3, sd, z3] of pours) {
@@ -3102,6 +3120,37 @@ export default function IslandMapIso() {
           }
           if (pts.length > 1) flowPaths.push(pts)
         }
+        // THE CONTINUOUS STREAM (Ash: "continuous flow, not broken chunks"): a
+        // scrolling molten vein laid ALONG each flow path — TilingSprite segments
+        // following the terrain-corrected polyline, texture streaming downstream at
+        // one coherent speed. The tile lava beneath carries the body and the banks;
+        // this carries the MOTION and fuses the whole run into one moving river.
+        const streamSegs: { sp: TilingSprite; spd: number }[] = []
+        if (sideL.length || sideW.length) {
+          const sfam = sideL.length ? sideL : sideW
+          const src0 = new Texture({ source: sfam[0].source, frame: new Rectangle(0, 18, 64, Math.min(46, sfam[0].height - 18)) })
+          for (let pi = 0; pi < flowPaths.length; pi++) {
+            const path = flowPaths[pi]
+            const SEGN = 9
+            for (let i = 0; i + 2 < path.length; i += SEGN - 1) {
+              const a = path[i], b = path[Math.min(path.length - 1, i + SEGN)]
+              const len = Math.hypot(b.x - a.x, b.y - a.y)
+              if (len < 8) continue
+              const seg = new TilingSprite({ texture: src0, width: len + 10, height: 34 })
+              seg.anchor.set(0, 0.5)
+              seg.position.set(a.x, a.y)
+              seg.rotation = Math.atan2(b.y - a.y, b.x - a.x)
+              seg.tint = 0xffa640
+              seg.alpha = 0.85
+              seg.tileScale.set(0.6, 34 / src0.height)
+              // +2 rows: the fronting bench tiles were drawing OVER the vein at every
+              // lip — the exact dark breaks Ash called "broken chunks"
+              seg.zIndex = Math.max(a.z, b.z) + 8000 + 18
+              world.addChild(seg)
+              streamSegs.push({ sp: seg, spd: 40 + 10 * hash(pi, i) })
+            }
+          }
+        }
         // hot tongues + drifting crust plates all move at ONE coherent slow
         // current speed — mixed fast speeds read as sparkle, one speed reads
         // as a flowing surface. Dark plates riding the current are the
@@ -3226,6 +3275,7 @@ export default function IslandMapIso() {
             ...lavaFlow.map((l) => l.sp), ...glows.map((g) => g.sp), ...puffs.map((p) => p.sp),
             ...sways.map((s) => s.sp), ...bobs.map((b) => b.sp), ...flyers.map((f) => f.sp),
             ...pourSheets.map((s) => s.sp), ...pourPulses.map((p) => p.sp),
+            ...streamSegs.map((s) => s.sp),
           ])
           for (const b of bands) if (b) for (const c of b.children.slice()) if (animated.has(c)) world.addChild(c)
           // measure, then render each band into ONE island texture in diagonal order
@@ -3361,6 +3411,8 @@ export default function IslandMapIso() {
           }
           // the waterfalls flow: the molten texture scrolls down continuously
           for (const s of pourSheets) s.sp.tilePosition.y = (t * s.spd) % 4096
+          // the stream veins run downstream along the whole flow
+          for (const s of streamSegs) s.sp.tilePosition.x = -((t * s.spd) % 4096)
           // the canopy breathes: gentle per-plant rotation about the rooted base
           for (const s of sways) s.sp.rotation = s.amp * Math.sin(t * s.w + s.ph)
           // moored boats ride the basin's slow swell
