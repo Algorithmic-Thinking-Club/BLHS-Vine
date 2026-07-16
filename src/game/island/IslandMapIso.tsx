@@ -660,6 +660,48 @@ export default function IslandMapIso() {
           world.addChild(seg)
         }
 
+        // P1 · THE MELT RISER: a 1-level step that is NOT a designed edge draws this
+        // instead of a wall — the tile's own ground texture carried down the drop, tinted
+        // from THE TOP'S OWN COMPUTED TINT x a whisper of AO. One value field, no second
+        // function, so no lip can flip value (the bright-top/dark-face flip on every
+        // bench WAS the cube-read). Works for any top material by construction: meadow,
+        // sand, bed-char, river, path — each melts in its own color.
+        const meltRiser = (bx2: number, by2: number, dropPx: number, tx2: number, ty2: number, zBase2: number, topTint: number, sandy: boolean, ao = 0.9) => {
+          if (dropPx <= 0) return
+          const fam2 = sandy ? (flatS.length ? flatS : sandV.filter(Boolean)) : (flatG.length ? flatG : grassV.filter(Boolean))
+          if (!fam2.length) return
+          const need = 18 + dropPx + 8
+          const g2 = fam2[Math.floor(vnoise(tx2 / 5 + 3, ty2 / 5 + 8) * fam2.length) % fam2.length]
+          const gh = Math.min(g2.height - 6, need)
+          // an OPAQUE underquad first: the grass/sand crop is a diamond with transparent
+          // corners, and the fronting tiles' diamonds taper to zero at their shared
+          // vertex — without a backing, the sea printed a teal pinprick at every melted
+          // lip's foot (drawColumn's under-course used to plug exactly this). The plug
+          // is cut from the tile texture's OPAQUE CENTER BAND — the top tints are
+          // engineered to multiply against this family's own pixels (Texture.WHITE
+          // rendered them cream: the tint is not the color, texture x tint is).
+          const plug = new Sprite(new Texture({ source: g2.source, frame: new Rectangle(16, 10, 32, 16) }))
+          plug.anchor.set(0.5, 0)
+          plug.width = 64; plug.height = need
+          plug.position.set(bx2, by2)
+          plug.tint = shadeHex(topTint, ao)
+          plug.zIndex = zBase2 + 1
+          world.addChild(plug)
+          const seg = new Sprite(new Texture({ source: g2.source, frame: new Rectangle(0, 6, Math.min(64, g2.width), gh) }))
+          seg.anchor.set(0.5, 0)
+          seg.position.set(bx2, by2)
+          if (need > gh) seg.scale.y = need / gh
+          // 0.9 default: a soft crease, not a wall — the slope reads through the large
+          // value field (sun rake + zone drift), never through a per-lip contrast step.
+          // Real terraces pass a deeper ao (~0.8): a visible shaded bank, still the
+          // top's own turf — rock-block texture under green tint flashed warm grain
+          // through and printed "scattered chips" (the documented probe-proven failure).
+          seg.tint = shadeHex(topTint, ao)
+          if (DBG) seg.tint = 0xff8800
+          seg.zIndex = zBase2 + 2   // the grain strip rides its own plug
+          world.addChild(seg)
+        }
+
         // THE 3D TILE UNIT (rebuilt 2026-07-06 after "the sides are even less recognizable"):
         // a downhill tile is a real BLOCK COLUMN — the FULL 64x64 block sprite stacked one
         // course per level, 1:1 pixels, NO crops, NO stretching. The block art's own
@@ -668,7 +710,7 @@ export default function IslandMapIso() {
         // cliff band) died because it cropped rectangles out of that silhouette. Masking is
         // pure painter's order: the tile's flat top hides each course's moss cap, the
         // fronting/lower tiles hide the overshoot below. Never crop the blocks again.
-        const drawColumn = (bx2: number, by2: number, m: number, toSea: boolean, tx2: number, ty2: number, zBase2: number, volc = false, grassy = false) => {
+        const drawColumn = (bx2: number, by2: number, m: number, toSea: boolean, tx2: number, ty2: number, zBase2: number, volc = false, grassy = false, topTint?: number) => {
           if (!rockW.length || m <= 0) return
           // a GRASS-topped inland step is a turf SLOPE, not a rock wall: its riser reads
           // as shaded meadow (Ash's "contour lines" were warm rock faces printed under
@@ -736,28 +778,27 @@ export default function IslandMapIso() {
               continue
             }
             if (turf) {
-              // grassy bank matched to the meadow's MEAN value. Texture variance only
-              // on REAL drops (2+ levels — the naked-riser fix): on 1-level lips the
-              // variance re-printed the scattered-dash noise across the flat meadow
-              const tex2 = m >= 2 ? 0.9 + 0.16 * vnoise(tx2 / 2.3 + 6, ty2 / 2.3 + k * 0.7 + 2) : 1
-              const d2 = drift * tex2 * (0.97 - 0.02 * (m - 1 - k))
-              if (m === 1) {
-                // a lone 1-level meadow step is a soft SHADED CREASE, not a bank:
-                // at meadow value it printed tan planks; at 0.45 it printed
-                // near-black slabs on bright benches — split the difference
-                seg.tint = tint24(d2 * 0.55, d2 * 0.63, d2 * 0.36)
-              } else {
-                // banks one step darker than the old 0.66/0.72 — at bright olive
-                // the rock-brick texture flashed through and isolated bank tiles
-                // along the stair corridor read as scattered chips (probe-proven)
-                seg.tint = tint24(d2 * 0.56, d2 * 0.62, d2 * 0.35)
-              }
+              // P1: the terrace bank derives from THE TOP'S OWN TINT x one AO factor
+              // (~0.85) — the same field, one consistent form break, never a value flip.
+              // (The old fixed 0.55-0.63 olive was ~40% darker than the sunlit top:
+              // one dark line per level = the cube lattice.) Texture variance kept on
+              // real drops so tall banks stay banks.
+              const tex2 = 0.94 + 0.1 * vnoise(tx2 / 2.3 + 6, ty2 / 2.3 + k * 0.7 + 2)
+              const v2 = tex2 * (0.86 - 0.025 * (m - 1 - k))
+              seg.tint = shadeHex(topTint ?? 0x8aa054, Math.max(0.62, v2))
               seg.zIndex = zBase2 + 1 + (m - 1 - k)
               world.addChild(seg)
               continue
             }
-            const vv = Math.min(255, Math.round(drift * 255))
-            seg.tint = (vv << 16) | (vv << 8) | vv
+            if (topTint !== undefined) {
+              // P1: inland non-turf steps (the beach ramp's sand benches) shade in the
+              // TOP's own field too — pale sand risers under pale sand tops, not grey
+              // rock lines through the shore staircase
+              seg.tint = shadeHex(topTint, drift * 0.86)
+            } else {
+              const vv = Math.min(255, Math.round(drift * 255))
+              seg.tint = (vv << 16) | (vv << 8) | vv
+            }
             if (DBG) seg.tint = 0xff2020
             seg.zIndex = zBase2 + 1 + (m - 1 - k)
             world.addChild(seg)
@@ -943,87 +984,8 @@ export default function IslandMapIso() {
             const zBase = (tx + ty) * 4000 + lift * 2
 
 
-            // THE BLOCK COLUMN: if ANY of the 8 neighbours sits lower, this tile is a real
-            // block column down to the DEEPEST of them. One full block per level. Painter's
-            // order does ALL the masking: land neighbours in front (higher z) cover whatever
-            // face doesn't actually drop, so inland back-steps draw a hidden column (cheap,
-            // harmless) — but at a SILHOUETTE coast (sea behind-left/right) nothing fronts
-            // the tile and the column IS the visible cliff. Checking only the three front
-            // floors left every second staircase tile on the west coast overhanging bare
-            // void (v34's floating grass diamonds).
-            {
-              let floorMin = L, toSea = false
-              for (const [ox, oy] of [[1, 0], [0, 1], [1, 1], [-1, 0], [0, -1], [-1, 1], [1, -1], [-1, -1]] as [number, number][]) {
-                const nl = eLvl(tx + ox, ty + oy)
-                if (nl < 0) toSea = true
-                const fl = nl < 0 ? 0 : nl
-                if (fl < floorMin) floorMin = fl
-              }
-              if (L > floorMin) {
-                // basalt courses only where the surface has left the meadow — the green
-                // lower flank keeps the warm rock ribs (c3's grass-through-rock mesh).
-                // UNDITHERED switch: the band dither made each tile's walls flip family
-                // independently, printing an orange/dark checker across the transition —
-                // walls follow the smooth field so the families change in long runs.
-                // Channel walls char: the lava bed's risers go basalt regardless of band.
-                // basalt courses ONLY where the top itself is banded rock: on the
-                // grassy lower flank every 1-level bench lip drew a dark strata
-                // column against the sunlit turf — a dashed debris ring circling
-                // the whole cone (Ash's "scattered stones", found via the dbg grid)
-                const isCone = !NOCONE && L > PLAT_L && coneBand(tx, ty) >= 1 && coneH(tx, ty) > 0 && !toSea && (sideW.length > 0 || vsF.length > 0)
-                // a lava tile's step pours EVERYWHERE, benches included — below the
-                // cone the flow's steps drew charred columns and the river read as
-                // dashes with dark gaps at every bench lip
-                const moltenStep = !NOCONE && !toSea && (lavaDist(tx, ty) < 1.25 || craterK(tx, ty) > 0.32)
-                if (isCone || (moltenStep && L > 0)) {
-                  // the cone's own steps wear the block skin — one strip, one tint field;
-                  // river tiles pour over their steps as burning falls
-                  drawFace(bx, by, lift - liftOf(floorMin), tx, ty, zBase, moltenStep)
-                } else {
-                  // TIGHT charred ring (was 1.55): the 1.25..1.55 band turned every
-                // terrace-lip column near the flow into dark brick chips — a
-                // dashed debris line tracing the whole river ("scattered stones")
-                const charred = !NOCONE && (lavaDist(tx, ty) < 1.3 || craterK(tx, ty) > 0.4)
-                  // a grass-topped inland step wears a turf riser (kills the pink
-                  // rock contour lines under the meadow); sand beaches + coast cliffs
-                  // + charred channel keep rock
-                  const grassy = !sand && !charred && cliffMask(Math.atan2(ty - CY, tx - CX)) < 0.35
-                  drawColumn(bx, by, L - floorMin, toSea, tx, ty, zBase, charred, grassy)
-                }
-                // TARGETED CHANNEL VOID FILL: the steep lava river drops fast, so its
-                // BACK edges over a 2+level-lower neighbour open real black slots (the
-                // one place the cone's 10px steps aren't self-covering). Fill ONLY the
-                // channel, charred-dark so it recedes — NOT the broad fills Ash circled
-                // (those tinted bright rock across the whole flank). Grass/rock steps
-                // stay unfilled (their 1-level slivers read fine).
-                const inChannel = !NOCONE && !params.get('novoid') && (lavaDist(tx, ty) < 1.7 || craterK(tx, ty) > 0.3)
-                if (inChannel && (sideL.length || sideW.length)) {
-                  const fam = sideL.length ? sideL : sideW
-                  for (const [ox, oy] of [[-1, 0], [0, -1], [-1, -1]] as [number, number][]) {
-                    const nl = eLvl(tx + ox, ty + oy)
-                    if (nl < 0 || nl >= L - 1) continue
-                    const vH = Math.min(60, lift - liftOf(nl) - (ox && oy ? 32 : 16))
-                    if (vH <= 4) continue
-                    const tex = fam[Math.floor(vnoise(tx / 4 + 6.3, ty / 16 + 2.9) * fam.length) % fam.length]
-                    const fh = Math.min(tex.height - 36, vH)
-                    const fr = new Texture({ source: tex.source, frame: new Rectangle(0, 36, 64, fh) })
-                    const seg = new Sprite(fr); seg.anchor.set(0.5, 1)
-                    seg.width = ox && oy ? 38 : 34
-                    seg.position.set(bx + (ox - oy) * 16, by - (ox && oy ? 10 : 0) + 9)
-                    if (vH > fh) seg.scale.y *= vH / fh
-                    seg.tint = 0x3a2a1e     // charred basalt bank
-                    seg.zIndex = zBase + 1
-                    world.addChild(seg)
-                  }
-                }
-                // a foam collar hugging the cliff foot on each sea-facing front edge
-                for (const [ox, oy] of [[1, 0], [0, 1]] as [number, number][]) {
-                  if (eLvl(tx + ox, ty + oy) >= 0) continue
-                  const ex = isoX(tx + ox * 0.5, ty + oy * 0.5), ey = isoY(tx + ox * 0.5, ty + oy * 0.5) + GY
-                  foamCollar(ex, ey + 2, zBase, tx + ox + ty + oy)
-                }
-              }
-            }
+            // THE BLOCK COLUMN / FACE EMISSION moved BELOW the top block (P1): risers
+            // now inherit the top's computed tint, so the gate runs after it exists.
 
             // TOP: one flat blended diamond (old-map recipe: narrow ramp + low-freq patch),
             // ~1.14 overlap so neighbours melt together. NO hillshade — the decorated SIDE
@@ -1101,6 +1063,7 @@ export default function IslandMapIso() {
             const g = !pool.length ? undefined
               : pool === vs ? pool[Math.floor(vnoise(tx / 6 + 4.2, ty / 6 + 1.8) * pool.length) % pool.length]
                 : pool[Math.floor(hash(tx * 5.1 + 2, ty * 2.9 + 4) * pool.length) % pool.length]
+            let topTintHex: number | undefined   // P1: the risers inherit this below
             if (g) {
               // scale 1.0, exact 64x36 diamonds on the 64x32 lattice — the 2px vertical bleed
               // over neighbours is the tile family's own melt (the beach's block style). A
@@ -1111,6 +1074,42 @@ export default function IslandMapIso() {
               // continuous jitter on the rake input: shallow smooth gradients otherwise
               // quantize into clean equal-tint contour lines (the "zigzag across the island")
               const rk = rakeAt(tx, ty) + (vnoise(tx / 2.3 + 14, ty / 2.3 + 3) - 0.5) * 0.1
+              // P1 · THE CAST SHADOW (c3's single strongest grounding cue, and the
+              // designed dark mass that replaces the deleted lattice darks): the cone
+              // throws a soft wedge DOWN-SUN (sun az 2.85 → shadow az 2.85-π, screen
+              // SE) across meadow and sand. Wandering edge, shallow floor — a value
+              // MASS, never a slam under the grade's crush point.
+              const shadowK = (() => {
+                const dxs = tx - CX, dys = ty - CY
+                const dc = Math.hypot(dxs, dys)
+                if (dc < 14) return 0                       // the cone's own base owns its value
+                const azT = Math.atan2(dys, dxs)
+                const rel = azT - (2.85 - Math.PI)
+                const dAz = Math.abs(Math.atan2(Math.sin(rel), Math.cos(rel)))
+                  + (vnoise(tx / 7 + 41, ty / 7 + 8) - 0.5) * 0.16
+                return smooth(0.52, 0.18, dAz) * smooth(46, 26, dc)
+              })()
+              // THE MEADOW FIELD (the else-branch's math, verbatim — extracted so the
+              // belt can blend toward the exact same field): a LARGE meadow↔deep-green
+              // zone drift (24-tile landform scale) over mid-scale patchwork, damped on
+              // the narrow coast benches, with cone-wrap sun, path-fringe dry, canopy AO.
+              const meadowTopTint = () => {
+                const damp = L < PLAT_L ? 0.35 : Math.min(1, DIST[ty * COLS + tx] / 12)
+                const zone = 0.5 + (vnoise(tx / 24 + 9, ty / 24 + 17) - 0.5) * damp
+                const patch = 1.0 + 0.08 * (vnoise(tx / 14 + 2, ty / 14 + 6) - 0.5) * 2 * damp
+                const tval = Math.max(0, Math.min(1,
+                  0.1 + 0.3 * vnoise(tx / 13 + 2, ty / 13 + 6) + 0.42 * zone + (vnoise(tx / 2.1 + 5, ty / 2.1 + 9) - 0.5) * 0.06))
+                const cl = L > PLAT_L ? coneLit(tx, ty) : 0
+                const dry = Math.max(0, 1 - pD / 1.2) * 0.32
+                const vShade = 1 - 0.15 * smooth(0.45, 0.95, vegK(tx, ty))
+                // value range widened (P1 round 2): the melt deleted the lattice darks,
+                // so the LARGE fields must own real range — deeper zone swing + rake,
+                // and the cast shadow multiplied in (floor ~0.78, above the crush)
+                const lit = patch * grain * (1 + 0.17 * rk) * (1.05 - 0.13 * zone) * (1 + 0.14 * cl) * vShade * (1 + 0.1 * dry)
+                  * (1 - 0.22 * shadowK)
+                const tv2 = Math.max(0, Math.min(1, tval - 0.32 * dry + 0.18 * shadowK))
+                return warmCool(tintFor(shadeHex(rampAt(GRASS_RAMP, tv2), lit), GRASS_BASE), rk)
+              }
               if (onRiver) {
                 // fresh water: RICH teal in the sea's own family (the first pass
                 // read as a flat mint stripe), value wobble per tile so the
@@ -1155,6 +1154,7 @@ export default function IslandMapIso() {
               } else if (sand) {
                 const tt = Math.min(1, dsq / 5)
                 const v = (0.965 + 0.06 * vnoise(tx / 16 + 3, ty / 16 + 5)) * grain * (1 + 0.1 * rk)
+                  * (1 - 0.18 * shadowK)   // the cone's shadow crosses the SE beach (c3)
                 top.tint = warmCool(shadeHex(tintFor(rampAt(SAND_RAMP, tt), SAND_BASE), v), rk * 0.7)
                 if (ld < 3) {
                   // the BLACK DELTA: cooled basalt sand fanning where the flow met the
@@ -1253,47 +1253,26 @@ export default function IslandMapIso() {
                 const v = (0.99 + 0.05 * vnoise(tx / 7 + 3, ty / 7 + 9)) * grain * (1 + 0.08 * rk)
                 top.tint = warmCool(shadeHex(0xe6d6ac, v), rk * 0.4)
               } else if (band >= 1 && vs) {
-                // the cone's rock treads: the SAME coneTint field the faces wear, PULLED
-                // DOWN toward the carved sides' own value (the block art's bright top vs
-                // dark side is the bench flash — closing it makes the flank one strata
-                // surface). The merge belt (band 1) eases the meadow's olive in (c3).
+                // P1 · THE BELT IS A BLEND, NOT A BAND: the tread tint mixes coneTint
+                // toward THIS TILE'S OWN MEADOW TINT along one continuous field. The
+                // old binary band switch (dithered per tile) printed a green/terracotta
+                // checker across the whole merge belt — and every riser inherited it.
+                // The texture still swaps to strata at the band frontier; tinted in the
+                // meadow's color that difference reads as grain (c3's grass-through-rock
+                // mesh), never as a checker.
                 const [r0, g0, b0] = coneTint(tx, ty)
-                const t = Math.max(0, Math.min(1, (coneH(tx, ty) - 14) / 22))
-                const mix = band === 1 ? 0.45 + 0.55 * t : 1
+                const vBelt = coneH(tx, ty) + (vnoise(tx / 6.2 + 11, ty / 6.2 + 23) - 0.5) * 4 - gullyK(tx, ty) * 26
+                const beltK = smooth(16, 36, vBelt)
+                const mt = meadowTopTint()
                 const dk = grain
-                const r = (r0 * mix + 0.61 * (1 - mix)) * dk
-                const g = (g0 * mix + 0.67 * (1 - mix)) * dk
-                const b = (b0 * mix + 0.32 * (1 - mix)) * dk
-                top.tint = tint24(r, g, b)
+                const r = (r0 * beltK + (((mt >> 16) & 255) / 255) * (1 - beltK)) * dk
+                const g2 = (g0 * beltK + (((mt >> 8) & 255) / 255) * (1 - beltK)) * dk
+                const b2 = (b0 * beltK + ((mt & 255) / 255) * (1 - beltK)) * dk
+                top.tint = tint24(r, g2, b2)
               } else {
-                // the plateau's ground mosaic: a LARGE meadow↔deep-green zone field (24-tile
-                // landform scale — per-tile tint noise is the banned "poop") over the mid-scale
-                // patchwork, so the flat top reads as dry sunlit meadows drifting into richer
-                // green swaths instead of one olive slab
-                // the bench ribbons are only 1-2 tiles wide: at full swing every bench tile
-                // samples a different zone/patch value and the band reads as per-tile
-                // patchwork ("visible boundaries"). Damp the variation near the coast so
-                // each bench reads as ONE surface; the wide plateau keeps the full drift.
-                const damp = L < PLAT_L ? 0.35 : Math.min(1, DIST[ty * COLS + tx] / 12)
-                const zone = 0.5 + (vnoise(tx / 24 + 9, ty / 24 + 17) - 0.5) * damp
-                const patch = 1.0 + 0.08 * (vnoise(tx / 14 + 2, ty / 14 + 6) - 0.5) * 2 * damp
-                // gentler zone swing + a HIGH-FREQ CONTINUOUS dither: it still breaks contour
-                // alignment, but neighbouring tiles stay correlated — a per-tile hash printed
-                // hard diamond boundaries once the tops stopped overlapping
-                const tval = Math.max(0, Math.min(1,
-                  0.1 + 0.3 * vnoise(tx / 13 + 2, ty / 13 + 6) + 0.42 * zone + (vnoise(tx / 2.1 + 5, ty / 2.1 + 9) - 0.5) * 0.06))
-                // meadow that has climbed onto the cone wraps its form: the flank's own
-                // directional sun folds into the green (c3's grass curving up the slope)
-                const cl = L > PLAT_L ? coneLit(tx, ty) : 0
-                // path fringe: the grass dries pale where feet leave the trail — melts
-                // the path's tile-quantized edge instead of a hard sand/green seam
-                const dry = Math.max(0, 1 - pD / 1.2) * 0.32
-                // canopy AO: the ground darkens under the jungle belt so the green
-                // masses SIT IN the meadow instead of standing on a bright carpet
-                const vShade = 1 - 0.15 * smooth(0.45, 0.95, vegK(tx, ty))
-                const lit = patch * grain * (1 + 0.13 * rk) * (1.03 - 0.07 * zone) * (1 + 0.14 * cl) * vShade * (1 + 0.1 * dry)
-                const tv2 = Math.max(0, tval - 0.32 * dry)
-                top.tint = warmCool(tintFor(shadeHex(rampAt(GRASS_RAMP, tv2), lit), GRASS_BASE), rk)
+                // the plateau's ground mosaic (math lives in meadowTopTint above so the
+                // belt can blend toward the very same field)
+                top.tint = meadowTopTint()
                 if (!NOCONE && ld < 3.6) {
                   // the CHAR FRINGE: meadow scorched toward the channel by smooth
                   // tint blend (the beach delta's recipe) — a hard bed-material
@@ -1323,7 +1302,93 @@ export default function IslandMapIso() {
                   top.tint = (dr << 16) | (dg << 8) | db
                 }
               }
+              topTintHex = top.tint as number
               world.addChild(top)
+            }
+
+            // P1 · THE BLOCK COLUMN / FACE EMISSION — after the top, so risers inherit
+            // its tint. Drawn faces survive ONLY at DESIGNED edges: coast silhouettes
+            // (toSea — the cliff IS the silhouette), real terraces (2+ levels), lava
+            // lips + the charred channel ring, and the cone's bare-rock crags. Every
+            // other 1-level riser MELTS (meltRiser: the top's own texture + tint x 0.9),
+            // so value lives in the LARGE fields — sun rake, zone drift, AO — never in
+            // a per-lip contrast step. That step, repeated on the lattice, was the
+            // island's whole cube-read (baseline repeat 0.57-0.88).
+            {
+              let floorMin = L, toSea = false
+              for (const [ox, oy] of [[1, 0], [0, 1], [1, 1], [-1, 0], [0, -1], [-1, 1], [1, -1], [-1, -1]] as [number, number][]) {
+                const nl = eLvl(tx + ox, ty + oy)
+                if (nl < 0) toSea = true
+                const fl = nl < 0 ? 0 : nl
+                if (fl < floorMin) floorMin = fl
+              }
+              if (L > floorMin) {
+                const drop = L - floorMin
+                // a lava tile's step pours EVERYWHERE, benches included — below the
+                // cone the flow's steps drew charred columns and the river read as
+                // dashes with dark gaps at every bench lip
+                const moltenStep = !NOCONE && !toSea && (lavaDist(tx, ty) < 1.25 || craterK(tx, ty) > 0.32)
+                // TIGHT charred ring: the channel's own dark banks stay drawn walls
+                const charred = !NOCONE && (lavaDist(tx, ty) < 1.3 || craterK(tx, ty) > 0.4)
+                // the cone's faces: bare-rock crags (band 2+) at any drop; the grass
+                // skirt + merge belt only at real terraces — their 1-level lips melt
+                const coneFace = !NOCONE && L > PLAT_L && coneH(tx, ty) > 0 && !toSea && (sideW.length > 0 || vsF.length > 0)
+                  && (coneBand(tx, ty) >= 2 || (coneBand(tx, ty) >= 1 && drop >= 2))
+                const designed = toSea || drop >= 2 || moltenStep || charred || coneFace
+                if (!designed) {
+                  meltRiser(bx, by, lift - liftOf(floorMin), tx, ty, zBase, topTintHex ?? 0x8aa054, sand)
+                } else if (coneFace || (moltenStep && L > 0)) {
+                  // the cone's own steps wear the block skin — one strip, one tint field;
+                  // river tiles pour over their steps as burning falls
+                  drawFace(bx, by, lift - liftOf(floorMin), tx, ty, zBase, moltenStep)
+                } else {
+                  // a grass-topped terrace wears a TURF BANK: the top's own texture at
+                  // a deeper shade (0.8) — a real terrace step in the meadow's own
+                  // field. Rock-block courses under green tint flashed warm grain and
+                  // read as scattered chips. Sand ramps + coast cliffs + the charred
+                  // channel keep the real rock language.
+                  const grassy2 = !sand && !charred && cliffMask(Math.atan2(ty - CY, tx - CX)) < 0.35
+                  if (grassy2 && topTintHex !== undefined) {
+                    // 0.72: a real designed terrace bank — sparse, long, landform-following
+                    // darks are structure, not lattice (c3's own contour lines are visible)
+                    meltRiser(bx, by, lift - liftOf(floorMin), tx, ty, zBase, topTintHex, false, 0.72)
+                  } else {
+                    drawColumn(bx, by, drop, toSea, tx, ty, zBase, charred, grassy2, toSea ? undefined : topTintHex)
+                  }
+                }
+                // TARGETED CHANNEL VOID FILL: the steep lava river drops fast, so its
+                // BACK edges over a 2+level-lower neighbour open real black slots (the
+                // one place the cone's 10px steps aren't self-covering). Fill ONLY the
+                // channel, charred-dark so it recedes — NOT the broad fills Ash circled
+                // (those tinted bright rock across the whole flank). Grass/rock steps
+                // stay unfilled (their 1-level slivers read fine).
+                const inChannel = !NOCONE && !params.get('novoid') && (lavaDist(tx, ty) < 1.7 || craterK(tx, ty) > 0.3)
+                if (inChannel && (sideL.length || sideW.length)) {
+                  const fam = sideL.length ? sideL : sideW
+                  for (const [ox, oy] of [[-1, 0], [0, -1], [-1, -1]] as [number, number][]) {
+                    const nl = eLvl(tx + ox, ty + oy)
+                    if (nl < 0 || nl >= L - 1) continue
+                    const vH = Math.min(60, lift - liftOf(nl) - (ox && oy ? 32 : 16))
+                    if (vH <= 4) continue
+                    const tex = fam[Math.floor(vnoise(tx / 4 + 6.3, ty / 16 + 2.9) * fam.length) % fam.length]
+                    const fh = Math.min(tex.height - 36, vH)
+                    const fr = new Texture({ source: tex.source, frame: new Rectangle(0, 36, 64, fh) })
+                    const seg = new Sprite(fr); seg.anchor.set(0.5, 1)
+                    seg.width = ox && oy ? 38 : 34
+                    seg.position.set(bx + (ox - oy) * 16, by - (ox && oy ? 10 : 0) + 9)
+                    if (vH > fh) seg.scale.y *= vH / fh
+                    seg.tint = 0x3a2a1e     // charred basalt bank
+                    seg.zIndex = zBase + 1
+                    world.addChild(seg)
+                  }
+                }
+                // a foam collar hugging the cliff foot on each sea-facing front edge
+                for (const [ox, oy] of [[1, 0], [0, 1]] as [number, number][]) {
+                  if (eLvl(tx + ox, ty + oy) >= 0) continue
+                  const ex = isoX(tx + ox * 0.5, ty + oy * 0.5), ey = isoY(tx + ox * 0.5, ty + oy * 0.5) + GY
+                  foamCollar(ex, ey + 2, zBase, tx + ox + ty + oy)
+                }
+              }
             }
 
             // THE CASCADES: where the river chain steps down a bench, a white
