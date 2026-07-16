@@ -121,10 +121,10 @@ export const STATIONS: Station[] = [
 export const ACTIVITY: [number, number] = [RX0 + 18, RY0 + 8]
 export const ACTIVITY_STATION: Station = { at: ACTIVITY, w: 2, face: 'N', kind: 'island' }
 
-// THE THROUGH-FLOOR PALM (the meshing centerpiece, Ash's "blow my mind"):
-// a coconut palm that broke up through the carpet mid-room; the island rows
-// ring it, and its crack feeds moss back into the floor
-export const FEATURE_PALM: [number, number] = [RX0 + 15, RY0 + 12]
+// THE THROUGH-FLOOR PALM (the meshing centerpiece): a coconut palm that broke
+// up through the old floor — it leans over the door-run fragment west of the
+// forecourt, its crack feeding moss into the court's edge
+export const FEATURE_PALM: [number, number] = [58, 66]
 // ferns and undergrowth taking the floor back (authored, each with a reason)
 export const ROOM_FERNS: [number, number][] = [
   [RX0 + 21, RY0 + 7],  // spilling through the upper east collapse
@@ -251,21 +251,37 @@ export function pathD(tx: number, ty: number) {
   return Math.min(polyD(tx, ty, PATH), polyD(tx, ty, SPUR))
 }
 
-// THE CABLE RUN (the island's river — "techy" as STRUCTURE, not decal): one
-// teal-glowing line from the activity desk, out the upper collapse, down the
-// terrace past the annex rack, along the point to the lighthouse. Drawn as
-// ground material + glow nodes; later systems can pulse packets down it.
-export const CABLE: [number, number][] = [
-  [RX0 + 19, RY0 + 8],           // the activity desk (the one still wired)
-  [RX1 - 0.5, RY0 + 7.5],        // out through the upper collapse
-  [RX1 + 3, RY0 + 8.2],          // down the terrace skirt
-  [ANNEX.rack[0] + 0.4, ANNEX.rack[1] + 0.4], // through the half-buried rack
-  [83, 61.5], [86.5, 61.2],      // along the point's root
-  [88, 61.8],                    // up into the lighthouse
+// ---- THE TERMINAL (spec §9, Ash's pick B — the megalithic dark gate) ----
+// The summit's monument door: Thor walks into the glowing screen → atc-room.
+export const TERMINAL: [number, number] = [64, 56]           // the monument's base anchor
+export const TERMINAL_SEAM: [number, number] = [64, 58]      // the screen threshold
+// the forecourt: carpet tiles spilling out of the doorway (the room leaking out)
+export const FORECOURT = { x0: 60, y0: 58, x1: 68, y1: 64 } as const
+// the two hero wall panels stand as FREESTANDING ruin fragments (composition,
+// never enclosure): the school's remains flanking its still-running heart
+export const FRAG_A: [number, number] = [57, 63]  // door-run panel, west of the court
+export const FRAG_B: [number, number] = [70.5, 59] // teaching-wall panel, east shoulder
+
+// THE NETWORK (spec §9): the cable starts at the dock's junction box, climbs
+// the path beside the walker, splits at the JUNCTION STONE, and feeds three
+// nodes — the Terminal (alive), the annex rack (dead), the lighthouse beacon
+// (powered by the room). Wayfinding and lore in one line.
+export const JUNCTION: [number, number] = [55.5, 60]
+export const CABLE_RUNS: [number, number][][] = [
+  // dock junction box → up the path → the junction stone
+  [[DOCK.root[0] + 1, DOCK.root[1] - 0.5], [46.5, 71.5], [49.5, 65], [51.5, 61.5], JUNCTION],
+  // junction → the Terminal's threshold
+  [JUNCTION, [59.5, 59.5], [62.5, 58.5], TERMINAL_SEAM],
+  // junction → around the south shoulder → the dead annex → up the lighthouse
+  [JUNCTION, [58, 66], [66, 68.5], [76, 63.5], [ANNEX.rack[0] + 0.4, ANNEX.rack[1] + 0.4], [83, 61.5], [86.5, 61.2], [88, 61.8]],
 ]
 export function cableD(tx: number, ty: number) {
-  return polyD(tx, ty, CABLE)
+  let best = 99
+  for (const run of CABLE_RUNS) best = Math.min(best, polyD(tx, ty, run))
+  return best
 }
+// kept for the glow-node walker in the renderer
+export const CABLE: [number, number][] = CABLE_RUNS.flat()
 
 // THE EASTER EGG (ledger `atc-egg`, builder's choice): a small carved stone
 // tablet half-buried in the south pocket cove's sand — "the first commit",
@@ -301,10 +317,14 @@ export function vegK(tx: number, ty: number) {
 // (wall stubs block via wallAt; this set covers furniture + landmarks)
 const BLOCKED = new Set<number>()
 function block(tx: number, ty: number) { BLOCKED.add(Math.round(ty) * GRID + Math.round(tx)) }
-for (const s of [...STATIONS, ACTIVITY_STATION]) for (let i = 0; i < s.w; i++) block(s.at[0] + i, s.at[1])
+// EXTERIOR collision only (the split, spec §8): the furniture lives in the
+// atc-room interior now — out here the blockers are the monument, the ruin
+// fragments, the through-palm, the annex and the tower.
+for (let ox = -2; ox <= 2; ox++) for (let oy = -1; oy <= 1; oy++) block(TERMINAL[0] + ox, TERMINAL[1] + oy) // the monument's plinth
+for (let i = -2; i <= 2; i++) block(FRAG_A[0] + i, FRAG_A[1] - Math.round(i * 0.5)) // fragment footings (run lower-right)
+for (let i = -2; i <= 2; i++) block(FRAG_B[0] - Math.round(i * 0.5), FRAG_B[1] + i) // fragment footings (run lower-left)
+block(JUNCTION[0], JUNCTION[1])
 block(FEATURE_PALM[0], FEATURE_PALM[1]) // the through-floor palm's trunk
-for (let i = 0; i < TEACHER.w; i++) block(TEACHER.at[0] + i, TEACHER.at[1])
-for (let i = 0; i < SINK.len; i++) block(SINK.at[0], SINK.at[1] + i)
 block(ANNEX.rack[0], ANNEX.rack[1])
 for (let ox = 0; ox <= 1; ox++) for (let oy = 0; oy <= 1; oy++) block(LIGHTHOUSE[0] + ox - 1, LIGHTHOUSE[1] + oy - 1) // 2x2 tower base
 export function propBlocked(tx: number, ty: number) {

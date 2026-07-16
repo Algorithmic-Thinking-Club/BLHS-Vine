@@ -10,9 +10,9 @@ import {
 } from './atc-terrain'
 import {
   DOCK, dockAt, pathD, vegK, GROVES, SHADOW,
-  wallAt, wallState, STEPS, RX0, RX1, RY0, RY1, WINDOWS, DOOR,
-  STATIONS, ACTIVITY_STATION, TEACHER, SINK, ANNEX, WHITEBOARD,
-  FEATURE_PALM, ROOM_FERNS, ROOM_BOXES, ROOM_PALMS, jungleWedgeK, CABLE, cableD,
+  STEPS, ANNEX,
+  FEATURE_PALM, ROOM_FERNS, ROOM_BOXES, ROOM_PALMS, jungleWedgeK, cableD,
+  TERMINAL, TERMINAL_SEAM, FORECOURT, FRAG_A, FRAG_B, JUNCTION, CABLE_RUNS,
 } from './atc-layout'
 import { getPois, getSeams } from './atc-mechanics'
 import { reportAtcAudit } from './atc-audit'
@@ -111,7 +111,7 @@ export default function AtcIslandIso() {
       const VEG_FILES = ['coco-v1', 'coco-v2', 'coco-v3', 'palm-a', 'palm-b', 'bush-a', 'bush-b', 'fernclump-1', 'boulder-1', 'boulder-2']
       // the room's own prop kit (PixelLab, filed under /art/atc-island/props)
       const propT: Record<string, Texture> = {}
-      const PROP_FILES = ['desk-front', 'desk-back', 'teacher-desk', 'annex-rack', 'whiteboard', 'sink-counter', 'dock-crate', 'lighthouse', 'boxes']
+      const PROP_FILES = ['terminal', 'frag-door', 'frag-board', 'annex-rack', 'dock-crate', 'lighthouse', 'boxes']
       await Promise.all([
         loadWaterVariants().then((v) => { waterV = v }),
         ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/intro/sand-n/${i}.png`).then((t: Texture) => { sandV[i] = t }).catch(() => {})),
@@ -207,32 +207,20 @@ export default function AtcIslandIso() {
         return w < 0.26 && d > 21 ? 1 : 0
       }
       const bandJ = (tx: number, ty: number) => (vnoise(tx / 12 + 31, ty / 12 + 47) - 0.5) * 1.2
-      // THE ACROPOLIS GRAMMAR (Ash's "flat and boring" verdict, 2026-07-16):
-      // the island TIERS UP to the room. Beach 0 → meadow 1 → working apron 2
-      // (north/west/east only) → THE ROOM FLOOR 3 — and the sea-facing south
-      // lip drops SHEER, two courses straight to the meadow. The ruin ring is
-      // ASYMMETRIC: the NW quarter stands 2-3 courses (a real building corner,
-      // roof gone), the mid runs are stubs, the whole SE quarter is FALLEN.
+      // THE ACROPOLIS GRAMMAR (spec §9, post-split): the island TIERS UP to
+      // the summit. Beach 0 → meadow 1 → working apron 2 (north/west/east
+      // only) → THE SUMMIT COURT 3 — the sea-facing south lip drops sheer.
+      // No wall ring anymore: the Terminal monument + freestanding fragments
+      // carry the vertical story as composed hero pieces.
       const lvlOf = (tx: number, ty: number) => {
         if (coastDs(tx, ty) <= 0) return -1
         if (isletAt(tx, ty)) return 1 // skerries: bare rock nubs, one course over the water
-        const w = wallAt(tx, ty)
-        if (w) {
-          const ws = wallState(tx, ty)
-          if (ws === 'fallen') return 3 // down to the floor — rubble carries the read
-          if (ws === 'tall') {
-            if ((tx === RX0 && ty === RY0) || (tx === RX0 + 3 && ty === RY0)) return 6 // corner post + door jamb
-            return 5
-          }
-          void WINDOWS
-          return 4
-        }
         const pd = plateauD(tx, ty)
         if (pd <= 0.55) return 3 // THE ROOM FLOOR, high on its acropolis
         if (pd <= 4.5 + bandJ(tx, ty)) {
           // the apron wraps every side EXCEPT the sea-facing south arc — that
           // lip stays a raw two-course cliff (the from-the-sea drama)
-          const thR = Math.atan2(ty - (RY0 + 12), tx - (RX0 + 12))
+          const thR = Math.atan2(ty - 62, tx - 64) // from the summit's heart
           if (!(thR > 0.5 && thR < 2.6)) return 2
         }
         const cd = cragD(tx, ty)
@@ -279,11 +267,13 @@ export default function AtcIslandIso() {
         if (Math.hypot(tx - KNOLL.x, ty - KNOLL.y) < 2.9) return false
         return !!isletAt(tx, ty) || cragD(tx, ty) < 3.1 || pointK(tx, ty) > 0
       }
-      // the room's ground zones (A2.00A truth via atc-layout)
-      const inRoomFloor = (tx: number, ty: number) =>
-        tx > RX0 && tx < RX1 && ty > RY0 && ty < RY1 && !wallAt(tx, ty)
-      const onCorridor = (tx: number, ty: number) =>
-        tx >= RX0 - 1 && tx <= RX1 && ty >= RY0 - 2 && ty <= RY0 - 1
+      // the FORECOURT: carpet tiles spilling out of the Terminal's doorway
+      // (the room leaking into the island — spec §9), edges eroded by hash
+      const onCourt = (tx: number, ty: number) => {
+        if (tx < FORECOURT.x0 || tx > FORECOURT.x1 || ty < FORECOURT.y0 || ty > FORECOURT.y1) return false
+        const edge = Math.min(tx - FORECOURT.x0, FORECOURT.x1 - tx, ty - FORECOURT.y0, FORECOURT.y1 - ty)
+        return edge >= 1 || hash(tx * 5.3, ty * 3.1) > 0.45
+      }
       const stepAt = new Set(STEPS.tiles.map(([sx, sy]) => sy * GRID + sx))
 
       const foamTex = radial(48, [[0, 'rgba(255,255,255,0.85)'], [0.45, 'rgba(224,248,242,0.4)'], [1, 'rgba(224,248,242,0)']])
@@ -366,8 +356,6 @@ export default function AtcIslandIso() {
       const rockTopTex: Texture[] = rockN.filter(Boolean).length
         ? rockN.filter(Boolean)
         : sideW.map((t) => new Texture({ source: t.source, frame: new Rectangle(0, 0, 64, 36) }))
-      // the wall's own cut-top (rubble edges included) — top + face, one material
-      const wallTopTex: Texture[] = wallB.filter(Boolean).map((t) => new Texture({ source: t.source, frame: new Rectangle(0, 0, 64, 38) }))
       for (let ty = 0; ty < GRID; ty++) {
         for (let tx = 0; tx < GRID; tx++) {
           const dx = tx - CX, dy = ty - CY
@@ -378,11 +366,8 @@ export default function AtcIslandIso() {
           const bx = isoX(tx, ty), by = isoY(tx, ty) - lift + GY
           const zBase = (tx + ty) * 4000 + lift * 2
           const rock = rockTop(tx, ty)
-          const wRole = wallAt(tx, ty)
-          const floorC = inRoomFloor(tx, ty)
-          const eastGap = tx === RX1 && !wRole && ty > RY0 && ty < RY1 // the broken wall's open runs
-          const corr = !wRole && !floorC && !eastGap && plateauD(tx, ty) <= 0.55
-            && (onCorridor(tx, ty) || (ty === RY0 && tx >= RX0 && tx <= RX1)) // the hall + the door threshold
+          const onSummit = plateauD(tx, ty) <= 0.55
+          const court = onSummit && onCourt(tx, ty)
           const isSand = L === 0 && !rock && smooth(0.35, 0.6, cliffK(Math.atan2(dy, dx))) < 0.5
 
           // THE BLOCK COLUMN: if ANY of the 8 neighbours sits lower, this tile
@@ -396,8 +381,8 @@ export default function AtcIslandIso() {
               if (fl < floorMin) floorMin = fl
             }
             if (L > floorMin) {
-              const grassy = !isSand && !rock && !wRole
-              drawColumn(bx, by, L - floorMin, toSea, tx, ty, zBase, grassy, rock, wRole)
+              const grassy = !isSand && !rock
+              drawColumn(bx, by, L - floorMin, toSea, tx, ty, zBase, grassy, rock)
               for (const [ox, oy] of [[1, 0], [0, 1]] as [number, number][]) {
                 if (eLvl(tx + ox, ty + oy) >= 0) continue
                 const ex = isoX(tx + ox * 0.5, ty + oy * 0.5), ey = isoY(tx + ox * 0.5, ty + oy * 0.5) + GY
@@ -408,13 +393,10 @@ export default function AtcIslandIso() {
 
           // TOP: one flat blended diamond (64x36 on the 64x32 lattice, the
           // family's own 2px melt), anchor centred, - the drawn faces carry 3D
-          const ws = wRole ? wallState(tx, ty) : null
-          const wedge = (floorC || eastGap) && jungleWedgeK(tx, ty) + (hash(tx * 3.7, ty * 1.9) - 0.5) * 0.3 > 0.55
-          const pool = ws === 'fallen' && rockTopTex.length ? rockTopTex
-            : wRole && wallTopTex.length ? wallTopTex
-              : wedge ? gt
-                : wRole || floorC || eastGap || corr ? st
-                  : rock && rockTopTex.length ? rockTopTex : isSand ? st : gt
+          const wedge = onSummit && jungleWedgeK(tx, ty) + (hash(tx * 3.7, ty * 1.9) - 0.5) * 0.3 > 0.55
+          const pool = wedge ? gt
+            : court ? st
+              : rock && rockTopTex.length ? rockTopTex : isSand ? st : gt
           if (!pool.length) continue
           const g = rock
             ? pool[Math.floor(vnoise(tx / 6 + 4.2, ty / 6 + 1.8) * pool.length) % pool.length]
@@ -429,25 +411,7 @@ export default function AtcIslandIso() {
           const bL = Math.max(eLvl(tx - 1, ty), eLvl(tx, ty - 1))
           const ao = bL > L ? Math.min(0.24, (bL - L) * 0.13) : 0
           const rk = rakeAt(tx, ty)
-          if (ws === 'fallen') {
-            // the collapsed quarter: broken masonry rubble at floor level
-            const grain = 0.86 + 0.12 * hash(tx * 2.9, ty * 1.7)
-            top.scale.set((hash(tx * 7.7, ty * 5.3) > 0.5 ? -1 : 1) * 1.14, 1.14)
-            top.tint = tint24(grain * 0.72, grain * 0.69, grain * 0.64)
-          } else if (wRole && wallTopTex.length) {
-            // the wall block's own cut top (rubble edge intact), near-raw
-            const grain = 0.95 + 0.07 * hash(tx * 2.1, ty * 3.3)
-            top.scale.x = hash(tx * 4.9, ty * 2.7) > 0.5 ? -1 : 1
-            top.tint = wRole === 'exterior'
-              ? tint24(grain * 1.0, grain * 0.94, grain * 0.88)
-              : tint24(grain * 0.96, grain * 0.95, grain * 0.92)
-          } else if (wRole) {
-            // fallback: pale greige composite cap over the sand grain
-            const grain = 0.96 + 0.06 * hash(tx * 2.1, ty * 3.3)
-            top.tint = wRole === 'exterior'
-              ? tint24(grain * 0.8, grain * 0.72, grain * 0.64)
-              : tint24(grain * 0.78, grain * 0.75, grain * 0.69)
-          } else if (wedge) {
+          if (wedge) {
             // the jungle's wedge: the east third of the floor lost to green —
             // deeper and cooler than the meadow (it grows in the room's shade)
             const patch = 0.9 + 0.1 * vnoise(tx / 6 + 8, ty / 6 + 4)
@@ -455,34 +419,23 @@ export default function AtcIslandIso() {
             const cd2 = cableD(tx, ty)
             if (cd2 < 0.45) hexW = mix(hexW, 0x27383c, 0.55) // the cable's dark run
             top.tint = warmCool(tintFor(shadeHex(hexW, patch * 0.86 * (1 - ao)), GRASS_BASE), rk * 0.6)
-          } else if (floorC || eastGap) {
-            // THE CARPET (the photos' gray-green broadloom, gone outdoor):
-            // TEMP tint over the fine sand grain until the real family lands.
-            // Faint tile checker; wall-foot AO pools around the perimeter free.
-            // THE MESHING (Ash's steer): moss blooms around the through-floor
-            // palm's crack; beach sand drifts in over the threshold; the east
-            // collapses feed green in from their gaps.
+          } else if (court) {
+            // THE FORECOURT: carpet tiles spilling out of the Terminal's
+            // doorway — the room leaking into the island. Teal light pools
+            // near the screen threshold; moss creeps at the wedge edge.
             const checker = (tx + ty) % 2 === 0 ? 1 : 0.955
             const grain = 0.985 + 0.03 * hash(tx * 1.7, ty * 2.9)
             const wear = 0.94 + 0.1 * vnoise(tx / 9 + 3, ty / 9 + 12)
-            let hexF = 0x757d6b // darker than round 1 — the floor recedes, the screens carry the light
+            let hexF = 0x757d6b
+            const seamD = Math.hypot(tx - TERMINAL_SEAM[0], ty - TERMINAL_SEAM[1])
+            if (seamD < 3.2) hexF = mix(hexF, 0x8fd8c8, (1 - seamD / 3.2) * 0.45) // the screen's spill
             const palmD = Math.hypot(tx - FEATURE_PALM[0], ty - FEATURE_PALM[1])
-            if (palmD < 2.2) hexF = mix(hexF, 0x74854e, (1 - palmD / 2.2) * 0.75)
-            const doorD = Math.hypot(tx - (DOOR[0][0] + 0.5), ty - DOOR[0][1])
-            if (doorD < 3) hexF = mix(hexF, 0xd8c49a, (1 - doorD / 3) * 0.55)
-            // the wedge's advancing edge: moss creeps ahead of the grass line
+            if (palmD < 2.2) hexF = mix(hexF, 0x74854e, (1 - palmD / 2.2) * 0.7)
             const wk = jungleWedgeK(tx, ty)
             if (wk > 0) hexF = mix(hexF, 0x7d8f56, wk * 0.6)
             const cd2 = cableD(tx, ty)
-            if (cd2 < 0.45) hexF = mix(hexF, 0x27383c, 0.55) // the cable's dark run
+            if (cd2 < 0.45) hexF = mix(hexF, 0x27383c, 0.55)
             top.tint = warmCool(shadeHex(tintFor(hexF, SAND_BASE), checker * grain * wear * (1 - ao * 1.3)), rk * 0.4)
-          } else if (corr) {
-            // the hallway: worn pale composite, the walk's traffic printed in
-            const grain = 0.98 + 0.04 * hash(tx * 2.3, ty * 1.9)
-            const pk = 1 - smooth(0.6, 1.35, pathD(tx, ty))
-            let hex = tintFor(0xc7bfae, SAND_BASE)
-            if (pk > 0) hex = mix(hex, 0xb2a78e, pk * 0.5)
-            top.tint = warmCool(shadeHex(hex, grain * (1 - ao * 1.2)), rk * 0.4)
           } else if (rock) {
             // the dark masses: basalt-brown, one hard sun across them — a lit
             // warm crown up-sun, deep shade down-sun (c3's mass modelling)
@@ -616,31 +569,57 @@ export default function AtcIslandIso() {
         world.addChild(sp)
         return sp
       }
-      // the stations: south counter row + the island rows (photo truth). The
-      // front sprite carries lit screens (glow pooled later); N-facing island
-      // desks show monitor backs when that sprite lands.
-      for (const s of [...STATIONS, ACTIVITY_STATION]) {
-        const cx2 = s.at[0] + (s.w - 1) / 2, cy2 = s.at[1]
-        const key = s.face === 'N' && propT['desk-back'] ? 'desk-back' : 'desk-front'
-        const sp = propAt(key, cx2, cy2, { mirror: hash(cx2 * 3.1, cy2 * 1.7) > 0.5 && s.kind === 'counter' })
-        if (sp && s.face !== 'N') {
-          // the screen pool is the room's LANTERN (TavernWorld's trick: the
-          // ground stays dark so the light gets to be an event)
-          const g = new Sprite(foamTex)
-          g.anchor.set(0.5)
-          g.tint = 0x2ec4b6; g.blendMode = 'add'; g.alpha = 0.22
-          g.width = 62; g.height = 24
-          const L = Math.max(0, eLvl(Math.round(cx2), Math.round(cy2)))
-          g.position.set(isoX(cx2, cy2 + 0.7), isoY(cx2, cy2 + 0.7) + GY - L * STEP)
-          g.zIndex = (Math.round(cx2) + Math.round(cy2)) * 4000 + L * STEP * 2 + 12
-          world.addChild(g)
-          glows.push({ sp: g, ph: hash(cx2, cy2) * 6.28, a: 0.12 })
-        }
+      // THE TERMINAL (Ash's pick B): the monument door front-center on the
+      // summit — Thor walks into the glowing screen and the map shifts. Its
+      // doorway pours teal onto the forecourt; a carved cursor blinks above.
+      const term = propAt('terminal', TERMINAL[0], TERMINAL[1] + 1.6, { z: 420 })
+      if (term) {
+        term.scale.set(0.85)
+        const Lt = Math.max(0, eLvl(TERMINAL[0], TERMINAL[1]))
+        const doorGlow = new Sprite(foamTex)
+        doorGlow.anchor.set(0.5)
+        doorGlow.tint = 0x3fe0d0; doorGlow.blendMode = 'add'
+        doorGlow.width = 120; doorGlow.height = 60
+        doorGlow.position.set(isoX(TERMINAL_SEAM[0], TERMINAL_SEAM[1]), isoY(TERMINAL_SEAM[0], TERMINAL_SEAM[1]) + GY - Lt * STEP - 30)
+        doorGlow.alpha = 0.3
+        doorGlow.zIndex = (TERMINAL[0] + TERMINAL[1] + 2) * 4000 + Lt * STEP * 2 + 430
+        world.addChild(doorGlow)
+        glows.push({ sp: doorGlow, ph: 1.1, a: 0.3 })
+        // the carved cursor above the lintel, blinking like it always has
+        const cursor = new Sprite(Texture.WHITE)
+        cursor.tint = 0x66f2e0; cursor.width = 8; cursor.height = 12
+        cursor.anchor.set(0.5, 1)
+        cursor.position.set(isoX(TERMINAL[0], TERMINAL[1]), isoY(TERMINAL[0], TERMINAL[1]) + GY - Lt * STEP - 196)
+        cursor.zIndex = (TERMINAL[0] + TERMINAL[1] + 2) * 4000 + Lt * STEP * 2 + 431
+        world.addChild(cursor)
+        glows.push({ sp: cursor, ph: 0, a: 0.9 })
       }
-      propAt('teacher-desk', TEACHER.at[0] + (TEACHER.w - 1) / 2, TEACHER.at[1], {})
-      propAt('sink-counter', SINK.at[0], SINK.at[1] + (SINK.len - 1) / 2, {})
-      // the annex rack sits half-buried below the broken east wall (sink puts
-      // its feet under the meadow; the undergrowth swallows the base)
+      // the school's remains: the hero panels stand as FREESTANDING ruin
+      // fragments flanking the monument (composition, never enclosure)
+      const fragA = propAt('frag-door', FRAG_A[0], FRAG_A[1], { z: 340 })
+      if (fragA) fragA.scale.set(0.6)
+      const fragB = propAt('frag-board', FRAG_B[0], FRAG_B[1], { z: 340 })
+      if (fragB) fragB.scale.set(0.6)
+      // the junction stone: where the island's one cable splits three ways
+      if (vegT['boulder-1']) {
+        const Lj = Math.max(0, eLvl(JUNCTION[0], JUNCTION[1]))
+        const j = new Sprite(vegT['boulder-1'])
+        j.anchor.set(0.5, 0.9)
+        j.scale.set(0.8)
+        j.position.set(isoX(JUNCTION[0], JUNCTION[1]), isoY(JUNCTION[0], JUNCTION[1]) + GY - Lj * STEP + 4)
+        j.zIndex = (Math.round(JUNCTION[0]) + Math.round(JUNCTION[1])) * 4000 + Lj * STEP * 2 + 300
+        world.addChild(j)
+        const jg = new Sprite(foamTex)
+        jg.anchor.set(0.5)
+        jg.tint = 0x36e2cf; jg.blendMode = 'add'
+        jg.width = 40; jg.height = 18
+        jg.position.set(j.x, j.y + 2)
+        jg.zIndex = j.zIndex - 2
+        jg.alpha = 0.25
+        world.addChild(jg)
+        glows.push({ sp: jg, ph: 2.4, a: 0.25 })
+      }
+      // the annex rack sits half-buried east of the summit (the dead node)
       propAt('annex-rack', ANNEX.rack[0], ANNEX.rack[1], { sink: 8 })
       if (vegT['bush-a']) {
         const b = new Sprite(vegT['bush-a'])
@@ -650,33 +629,6 @@ export default function AtcIslandIso() {
         b.position.set(isoX(ANNEX.rack[0] - 0.2, ANNEX.rack[1] + 0.5), isoY(ANNEX.rack[0] - 0.2, ANNEX.rack[1] + 0.5) + GY - L * STEP + 6)
         b.zIndex = (ANNEX.rack[0] + ANNEX.rack[1]) * 4000 + L * STEP * 2 + 340
         world.addChild(b)
-      }
-      // THE HERO WALL PANELS (the hub's facade-panel lesson applied here:
-      // large composed sections read as a BUILDING; tiled blocks read as a
-      // fence). The tiled wall stays beneath as depth/collision truth.
-      // PARKED behind ?panels=1 (stop-loss): overlaying panels on the tiled
-      // wall without suppressing the tiles beneath = the documented collage
-      // crime. Next session: suppress wall tiles under each panel's run, then
-      // place the panel AS the wall (the gate-head integration pattern).
-      const PANELS = params.get('panels') === '1'
-      const panelT: Record<string, Texture> = {}
-      if (PANELS) await Promise.all(['wall-north', 'wall-west'].map((n) =>
-        Assets.load(`/art/atc-island/panels/${n}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; panelT[n] = t }).catch(() => {})))
-      if (panelT['wall-north']) {
-        const sp = new Sprite(panelT['wall-north'])
-        sp.anchor.set(0.5, 1)
-        sp.scale.set(0.62)
-        sp.position.set(isoX(59.5, RY0), isoY(59.5, RY0) + GY - 3 * STEP + 12)
-        sp.zIndex = (66 + RY0) * 4000 + 900
-        world.addChild(sp)
-      }
-      if (panelT['wall-west']) {
-        const sp = new Sprite(panelT['wall-west'])
-        sp.anchor.set(0.5, 1)
-        sp.scale.set(0.62)
-        sp.position.set(isoX(RX0, (WHITEBOARD.y0 + WHITEBOARD.y1) / 2), isoY(RX0, (WHITEBOARD.y0 + WHITEBOARD.y1) / 2) + GY - 3 * STEP + 12)
-        sp.zIndex = (RX0 + WHITEBOARD.y1 + 1) * 4000 + 900
-        world.addChild(sp)
       }
       // pier dressing: the ATC crate + pennant waits at the berth (the deck
       // rides at DOCK lift, not ground level — sink lifts it onto the planks)
@@ -723,15 +675,16 @@ export default function AtcIslandIso() {
       // the cable's glow nodes: the run breathes teal from the activity desk
       // all the way to the lamp room (phase keyed by run distance — the pulse
       // TRAVELS the line, desk to beacon)
-      {
+      for (const run of CABLE_RUNS) {
         let runD = 0
-        for (let i = 0; i < CABLE.length - 1; i++) {
-          const [x0, y0] = CABLE[i], [x1, y1] = CABLE[i + 1]
+        for (let i = 0; i < run.length - 1; i++) {
+          const [x0, y0] = run[i], [x1, y1] = run[i + 1]
           const segLen = Math.hypot(x1 - x0, y1 - y0)
           for (let s = 0; s < segLen; s += 1.6) {
             const u = s / segLen
             const nx = x0 + (x1 - x0) * u, ny = y0 + (y1 - y0) * u
             const Ln = Math.max(0, eLvl(Math.round(nx), Math.round(ny)))
+            if (coastDs(nx, ny) <= 0 && !dockAt(Math.round(nx), Math.round(ny))) continue
             const dot = new Sprite(foamTex)
             dot.anchor.set(0.5)
             dot.tint = 0x36e2cf; dot.blendMode = 'add'
@@ -855,18 +808,6 @@ export default function AtcIslandIso() {
         if (n < 3) console.warn(`[atc] grove ${gi} (${GROVES[gi].note}) planted only ${n} — site likely off the meadow`)
       })
 
-      // the tall ruin CASTS: soft shade thrown down-sun from the standing NW
-      // courses onto the floor (the missing cast shadow was the hub's P1 lesson)
-      for (let ty2 = RY0; ty2 <= RY1; ty2++) for (let tx2 = RX0; tx2 <= RX1; tx2++) {
-        if (wallState(tx2, ty2) !== 'tall') continue
-        const sh = new Sprite(shadowTex)
-        sh.anchor.set(0.5)
-        sh.width = 84; sh.height = 30
-        sh.position.set(isoX(tx2, ty2) + 26, isoY(tx2, ty2) + GY - 3 * STEP + 14)
-        sh.alpha = 0.24; sh.tint = 0x241d40
-        sh.zIndex = (tx2 + ty2) * 4000 + 3 * STEP * 2 + 7
-        world.addChild(sh)
-      }
       // coast MIST: slow wisps riding the waterline (the breath the refs have;
       // soft sprites, the hub's own steam/cloud technique — never a shader)
       const mists: { sp: Sprite; x0: number; spd: number; ph: number }[] = []

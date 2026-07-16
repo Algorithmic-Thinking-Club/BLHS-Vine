@@ -4,7 +4,7 @@
 // the dock root and proves every feature socket can actually be reached.
 
 import { GRID } from './atc-terrain'
-import { DOCK, DOOR, TEACHER, LEARN_SPOTS, REWARD, EGG, ACTIVITY } from './atc-layout'
+import { DOCK, EGG, TERMINAL_SEAM, JUNCTION } from './atc-layout'
 import { isWalkable, getPois, getSeams } from './atc-mechanics'
 
 export function reportAtcAudit() {
@@ -41,14 +41,8 @@ export function reportAtcAudit() {
   }
   const targets: [string, number, number][] = [
     ['berth (pier end)', DOCK.berth[0], DOCK.berth[1]],
-    ['door threshold', DOOR[0][0] + 0.5, DOOR[0][1]],
-    ['room interior (inside the door)', DOOR[0][0] + 0.5, DOOR[0][1] + 1.5],
-    ['teacher post (host socket)', TEACHER.at[0] + 1, TEACHER.at[1] + 1],
-    ['activity desk', ACTIVITY[0] + 0.5, ACTIVITY[1] - 1],
-    ['learn-1', LEARN_SPOTS[0][0], LEARN_SPOTS[0][1]],
-    ['learn-2', LEARN_SPOTS[1][0], LEARN_SPOTS[1][1]],
-    ['learn-3', LEARN_SPOTS[2][0], LEARN_SPOTS[2][1]],
-    ['reward spot', REWARD[0], REWARD[1]],
+    ['the screen threshold (map shift)', TERMINAL_SEAM[0], TERMINAL_SEAM[1]],
+    ['the junction stone', JUNCTION[0] + 1, JUNCTION[1]],
     ['easter egg (cove)', EGG[0], EGG[1]],
     ...getPois().map((p) => [`poi:${p.id}`, p.at[0], p.at[1]] as [string, number, number]),
     ...getSeams().map((s) => [`seam:${s.id}`, s.at[0], s.at[1]] as [string, number, number]),
