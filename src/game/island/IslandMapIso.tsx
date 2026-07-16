@@ -887,6 +887,8 @@ export default function IslandMapIso() {
 
         const waterS: SwellSprite[] = []
         const glows: { sp: Sprite; ph: number; a: number }[] = []
+        // the mouth pours' falling gobs: y0→y0+h loops (the visible DOWNWARD motion)
+        const pourPulses: { sp: Sprite; y0: number; h: number; spd: number; ph: number }[] = []
         // every molten tile registers here: the ticker cycles its texture with a
         // DOWNSTREAM-keyed phase, so the churn pattern itself travels mouth->sea
         // (the classic 16-bit flipbook flow — the surface moves, not sparkles on it)
@@ -1620,31 +1622,48 @@ export default function IslandMapIso() {
             glows.push({ sp: wglow, ph: 2.9, a: 0.24 })
           } catch { /* west head piece not on disk yet */ }
 
-          // THE MOUTH CASCADES (Ash: "larger flowing animated lava flow coming out
-          // of the panthers mouths"): molten falls pour from each jaw onto its
-          // gutter, cycling with the river's own flipbook (pushed into lavaFlow) —
-          // the birth GUSHES. Each fall wears a breathing ember glow.
-          if (lavaT.length) {
-            const pours: [number, number, number, number][] = [
-              [560, 3046, 84, 0.2], [586, 3058, 62, 0.55],      // gate jaw → gutter
-              [-532, 3040, 84, 0.35], [-558, 3052, 62, 0.7],    // west jaw → gutter
+          // THE MOUTH POURS (Ash: the lava must FLOW from the mouths and BE the
+          // rivers' source, visibly animated — the first strips "just hung there"):
+          // per mouth, a molten SHEET from inside the maw down onto the gushing
+          // delta (the proven burning-face crop, one wide + one narrow), and FOUR
+          // traveling pulse-blobs falling down the sheet on staggered loops — real
+          // downward motion the eye can't miss, plus a breathing ember glow.
+          if ((sideL.length || sideW.length)) {
+            const pfam = sideL.length ? sideL : sideW
+            const pours: [number, number, number, number, number][] = [
+              // [x, yTop, height, width, phase]  gate jaw → delta, west jaw → delta
+              [563, 3024, 108, 40, 0.2], [590, 3040, 88, 26, 0.6],
+              [-535, 3018, 108, 40, 0.35], [-562, 3034, 88, 26, 0.8],
             ]
-            for (const [px3, py3, ph3, sd] of pours) {
-              const t0 = lavaT[Math.floor(sd * lavaT.length) % lavaT.length]
-              const fall = new Sprite(t0)
-              fall.anchor.set(0.5, 0)
-              fall.width = 30; fall.height = ph3
-              fall.position.set(px3, py3)
-              fall.zIndex = 219 * 4000 + 1450
-              world.addChild(fall)
-              lavaFlow.push({ sp: fall, off: sd * 4, pool: lavaT })
+            for (const [px3, py3, ph3, pw3, sd] of pours) {
+              const tex = pfam[Math.floor(sd * pfam.length) % pfam.length]
+              const fh = Math.min(tex.height - 18, ph3)
+              const sheet = new Sprite(new Texture({ source: tex.source, frame: new Rectangle(0, 18, 64, fh) }))
+              sheet.anchor.set(0.5, 0)
+              sheet.width = pw3
+              if (ph3 > fh) sheet.scale.y = ph3 / fh
+              sheet.position.set(px3, py3)
+              sheet.tint = 0xffa640                    // the burning-fall language
+              sheet.zIndex = 219 * 4000 + 1450
+              world.addChild(sheet)
               const fg = new Sprite(foamTex)
               fg.anchor.set(0.5, 0.5); fg.blendMode = 'add'
-              fg.tint = 0xffa640; fg.width = 60; fg.height = ph3 + 30; fg.alpha = 0.3
+              fg.tint = 0xff9036; fg.width = pw3 * 2.4; fg.height = ph3 + 40; fg.alpha = 0.3
               fg.position.set(px3, py3 + ph3 * 0.5)
-              fg.zIndex = fall.zIndex + 1
+              fg.zIndex = sheet.zIndex + 1
               world.addChild(fg)
               glows.push({ sp: fg, ph: sd * 6, a: 0.26 })
+              // the falling pulses: bright gobs riding the sheet top→bottom on a loop
+              for (let k = 0; k < 4; k++) {
+                const gob = new Sprite(foamTex)
+                gob.anchor.set(0.5, 0.5); gob.blendMode = 'add'
+                gob.tint = k % 2 ? 0xffd060 : 0xffb040
+                gob.width = pw3 * (0.55 + 0.25 * hash(k, sd)); gob.height = 16 + 10 * hash(sd, k)
+                gob.position.set(px3 + (hash(k * 3, sd) - 0.5) * pw3 * 0.5, py3)
+                gob.zIndex = sheet.zIndex + 2
+                world.addChild(gob)
+                pourPulses.push({ sp: gob, y0: py3 - 6, h: ph3 + 14, spd: 0.55 + 0.3 * hash(k, sd * 7), ph: k / 4 + sd })
+              }
             }
           }
         } catch { /* relief disabled */ }
@@ -2018,7 +2037,11 @@ export default function IslandMapIso() {
         // lanterns and cargo MOUNT ON the deck; boats ride the basin with foam and
         // bob. No sprite is nudged by eye — every anchor comes from the plan.
         const bobs: { sp: Sprite; y0: number; w: number; ph: number }[] = []
-        if (DECOR) try {                                       // fresh base: no harbor
+        // THE HARBOR IS BACK (Ash: "move onto a proper beautiful harbor" — the v3
+        // build he accepted returns from behind the decor gate, like the forest;
+        // ?harbor=0 keeps a clean-capture switch)
+        const HARBOR_ON = params.get('harbor') !== '0'
+        if (HARBOR_ON) try {
           const hb: Record<string, Texture> = {}
           for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'boathouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b']) {
             try {
@@ -3332,6 +3355,13 @@ export default function IslandMapIso() {
           animSwells(waterS, t, () => 0)
           // ember pulse: slow independent breathing per core tile
           for (const g of glows) g.sp.alpha = g.a * (0.72 + 0.28 * Math.sin(t * 1.3 + g.ph))
+          // the mouth pours fall: each gob rides its sheet top→bottom and wraps,
+          // fading in at the jaw and out at the splash
+          for (const p of pourPulses) {
+            const u = (t * p.spd + p.ph) % 1
+            p.sp.y = p.y0 + u * p.h
+            p.sp.alpha = 0.55 * Math.min(1, u * 4) * Math.min(1, (1 - u) * 3)
+          }
           // the canopy breathes: gentle per-plant rotation about the rooted base
           for (const s of sways) s.sp.rotation = s.amp * Math.sin(t * s.w + s.ph)
           // moored boats ride the basin's slow swell
