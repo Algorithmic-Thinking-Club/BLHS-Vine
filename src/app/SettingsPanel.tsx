@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { isCaptain } from '../game/captain'
-import { clearSave, loadSave, writeSave, type SaveGame } from '../game/save'
+import { beginAdventure, clearSave, loadSave, writeSave, type SaveGame } from '../game/save'
 import { cleanName, isBlocked, PRONOUN_CHOICES } from '../game/names'
 import { track } from '../game/telemetry'
 import './settings.css'
@@ -200,7 +200,9 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                   <div className="st-captain">
                     <div className="st-captain-head">⚓ Captain's tools</div>
                     <div className="st-captain-row">
-                      <button onClick={() => { location.href = '/?scene=beach&fresh=1' }}>Replay intro</button>
+                      {/* wipe here, then navigate WITHOUT ?fresh — leaving it armed in the
+                          URL meant every later F5 silently wiped the run again */}
+                      <button onClick={() => { beginAdventure(); location.href = '/?scene=beach' }}>Replay intro</button>
                       <button onClick={() => { writeSave({ beat: 'island:arrive', introDone: true }); location.href = '/?scene=islandmap' }}>Skip to island</button>
                     </div>
                   </div>

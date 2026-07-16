@@ -4,10 +4,9 @@ import { CutsceneRuntime } from '../cutscene/runtime'
 import { CutsceneOverlay } from '../cutscene/CutsceneOverlay'
 import { introI1I2 } from './introScript'
 import { I3Session } from './I3Session'
-import { beginAdventure, loadSave, writeSave } from '../save'
-
-// dev: ?fresh=1 wipes the save and starts a fresh run, so the intro always replays
-if (new URLSearchParams(location.search).has('fresh')) beginAdventure()
+import { loadSave, writeSave } from '../save'
+// (?fresh=1 is handled ONCE at boot in main.tsx, gated to dev/captain — a module-level wipe
+// here ran on every prod load that carried the param and erased real runs)
 import { track } from '../telemetry'
 import { GearButton, SettingsPanel } from '../../app/SettingsPanel'
 import { Hud } from '../hud/Hud'
@@ -26,8 +25,11 @@ export default function IntroScene() {
   const navRef = useRef(nav)
   useEffect(() => { navRef.current = nav }, [nav])
   // when the intro will play, the scene must NEVER flash the raw beach before the script's
-  // black takes over — this cover holds until the runtime's own fade owns the frame
-  const willPlayIntro = useRef(!loadSave()?.introDone && (loadSave()?.beat ?? 'intro:i1') === 'intro:i1')
+  // black takes over — this cover holds until the runtime's own fade owns the frame.
+  // ANY unfinished intro replays (not just beat intro:i1): a refresh mid-intro used to fall
+  // into free roam with no path to the ship — a permanent soft-lock. The replay is quick for
+  // a resumed student because the I-3 gate auto-resolves from the saved identity below.
+  const willPlayIntro = useRef(!loadSave()?.introDone)
   const [preCover, setPreCover] = useState(willPlayIntro.current)
 
   // called once per BeachIso boot — StrictMode double-mounts in dev, so each call REPLACES
@@ -39,11 +41,11 @@ export default function IntroScene() {
     setRt(runtime)
     // the scene stands its interactables down while the runtime owns the frame
     runtime.subscribe(() => stage.call('setHeld', { on: runtime.ui.active }))
-    // resume-at-beat (§7.7): a refresh after finishing I-3 lands in free roam at the beach,
-    // not back at the wake-up — the local save is the resume truth until the backend lands
+    // resume-at-beat (§7.7): an unfinished intro ALWAYS replays the script (the saved
+    // identity fast-forwards I-3), because the free-roam beach has no path to the ship —
+    // landing there mid-intro stranded the run permanently
     const save = loadSave()
-    const beat = save?.beat ?? 'intro:i1'
-    if (!save?.introDone && beat === 'intro:i1') {
+    if (!save?.introDone) {
       track('cutscene_start', { id: 'intro' })
       runtime.play(introI1I2, () => {
         // the whole beach act is done (I-1..I-5): the ship is in open water — THE MAP
@@ -64,6 +66,15 @@ export default function IntroScene() {
   useEffect(() => rt?.subscribe(() => bump((v) => v + 1)), [rt])
 
   const uiGate = rt?.ui.uiGate?.id ?? null
+
+  // a resumed student already answered the parchment (beat intro:i4): the I-3 gate resolves
+  // itself from the saved identity instead of re-asking, so the replay fast-forwards to the
+  // port walk — this is what makes "any unfinished intro replays" cheap for the student
+  useEffect(() => {
+    if (uiGate !== 'i3-session' || !rt) return
+    const s = loadSave()
+    if (s && !s.introDone && s.beat === 'intro:i4' && s.handle) rt.resolveUi('i3-session')
+  }, [uiGate, rt])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [blurred, setBlurred] = useState(false)
   const inCutscene = rt?.ui.active ?? false
@@ -86,7 +97,8 @@ export default function IntroScene() {
           {uiGate === 'i3-session' && (
             <I3Session
               onDone={(r) => {
-                writeSave({ handle: r.handle, pronouns: r.pronouns, boatName: r.boatName, thorLook: r.thorLook, beat: 'intro:i4' })
+                // castaway rides the save too — net.ts keys the demo-stays-local rule on it
+                writeSave({ handle: r.handle, pronouns: r.pronouns, boatName: r.boatName, thorLook: r.thorLook, castaway: r.castaway, beat: 'intro:i4' })
                 rt.resolveUi('i3-session')
               }}
             />

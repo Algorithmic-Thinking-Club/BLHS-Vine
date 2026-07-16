@@ -11,13 +11,36 @@ import { isCaptain } from './captain'
 export function participantId(): string | null { return loadSave()?.participantId ?? null }
 
 export type JoinResult =
-  | { ok: true; participantId: string; className?: string; arm: 'game' | 'plain'; returning?: boolean }
+  | { ok: true; participantId: string; className?: string; arm: 'game' | 'plain'; handle?: string; returning?: boolean }
   | { ok: false; reason: 'offline' | 'unknown_code' | 'class_closed' | 'error' }
+
+export type CheckResult =
+  | { ok: true; className?: string }
+  | { ok: false; reason: 'offline' | 'unknown_code' | 'class_closed' | 'error' }
+
+/** the code card's cheap class lookup — confirms the code (and names the crew, in fiction)
+ *  WITHOUT creating a participant; the student picks their handle on the next card and the
+ *  real join happens there. Joining here with a placeholder handle merged whole classes
+ *  into one participant (the Act Zero critical). */
+export async function checkClass(code: string): Promise<CheckResult> {
+  if (isCaptain()) return { ok: true, className: "the Captain's own crew" }
+  try {
+    const r = await fetch(`/api/join?code=${encodeURIComponent(code)}`)
+    if (r.status === 503) return { ok: false, reason: 'offline' }
+    if (r.status === 404) return { ok: false, reason: 'unknown_code' }
+    if (r.status === 403) return { ok: false, reason: 'class_closed' }
+    if (!r.ok) return { ok: false, reason: 'error' }
+    const d = await r.json()
+    return { ok: true, className: d.className }
+  } catch {
+    return { ok: false, reason: 'offline' }
+  }
+}
 
 export async function joinClass(code: string, handle: string): Promise<JoinResult> {
   if (isCaptain()) {
     // the captain walks through any harbor gate
-    writeSave({ participantId: 'captain', classCode: code.toUpperCase() })
+    writeSave({ participantId: 'captain', arm: 'game', classCode: code.toUpperCase() })
     return { ok: true, participantId: 'captain', arm: 'game', className: "the Captain's own crew" }
   }
   try {
@@ -30,8 +53,8 @@ export async function joinClass(code: string, handle: string): Promise<JoinResul
     if (r.status === 403) return { ok: false, reason: 'class_closed' }
     if (!r.ok) return { ok: false, reason: 'error' }
     const d = await r.json()
-    writeSave({ participantId: d.participantId, classCode: code.toUpperCase(), handle: d.handle ?? handle })
-    return { ok: true, participantId: d.participantId, className: d.className, arm: d.arm, returning: d.returning }
+    writeSave({ participantId: d.participantId, arm: d.arm, classCode: code.toUpperCase(), handle: d.handle ?? handle })
+    return { ok: true, participantId: d.participantId, className: d.className, arm: d.arm, handle: d.handle ?? handle, returning: d.returning }
   } catch {
     return { ok: false, reason: 'offline' }
   }
@@ -43,7 +66,9 @@ export function startStateSync() {
   const push = () => {
     const pid = participantId()
     const s = loadSave()
-    if (!pid || pid === 'captain' || !s || s.castaway) return   // demo/captain stay local (§2.9)
+    // demo stays local (§2.9); captain stays local even over a real joined save (§2.14 —
+    // god-modified state must never sync into a student's server run)
+    if (!pid || pid === 'captain' || isCaptain() || !s || s.castaway) return
     void fetch('/api/state', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ participantId: pid, save: s }),
@@ -62,7 +87,7 @@ export function startStateSync() {
 
 export async function pullState(): Promise<boolean> {
   const pid = participantId()
-  if (!pid || pid === 'captain') return false
+  if (!pid || pid === 'captain' || isCaptain()) return false
   try {
     const r = await fetch(`/api/state?participantId=${encodeURIComponent(pid)}`)
     if (!r.ok) return false

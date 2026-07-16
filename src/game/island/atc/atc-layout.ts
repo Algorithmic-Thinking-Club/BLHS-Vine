@@ -43,6 +43,37 @@ export function wallAt(tx: number, ty: number): WallRole | null {
   return 'broken-east'
 }
 
+// THE ASYMMETRIC RUIN (the composition law: one story per silhouette). The
+// building died FALLING TOWARD THE SEA: the NW quarter (door, teaching wall)
+// still stands almost roof-height; the ring decays through the mid runs; the
+// whole SE quarter is DOWN — rubble at floor level, the room's broken edge
+// open to the cliff and the water beyond it.
+export type WallState = 'tall' | 'stub' | 'fallen'
+export function wallState(tx: number, ty: number): WallState | null {
+  const w = wallAt(tx, ty)
+  if (!w) return null
+  // the fallen SE quarter: the east half of the south wall + the south half
+  // of the east wall + the SE corner
+  if ((ty === RY1 && tx >= RX0 + 13) || (tx === RX1 && ty >= RY0 + 17)) return 'fallen'
+  // the tall NW survivor: the north wall west of mid + the west wall's upper
+  // run + both their shared corner and the door jambs
+  if ((ty === RY0 && tx <= RX0 + 11) || (tx === RX0 && ty <= RY0 + 13)) return 'tall'
+  return 'stub'
+}
+
+// the jungle's WEDGE into the room: east of this boundary the carpet loses
+// to undergrowth (a drawn diagonal, wobbled — terrain wins, tile by tile)
+export function jungleWedgeK(tx: number, ty: number) {
+  const edge = RX1 - 4.5 + Math.sin(ty * 0.9 + 2) * 1.4
+  return Math.max(0, Math.min(1, (tx - edge) / 3))
+}
+// canopy INSIDE the ring: palms leaning over the desks from the wedge
+export const ROOM_PALMS: { at: [number, number]; scale: number }[] = [
+  { at: [RX1 - 2, RY0 + 4], scale: 0.95 },
+  { at: [RX1 - 1, RY0 + 12], scale: 1.05 },
+  { at: [RX1 - 3, RY0 + 19], scale: 0.85 },
+]
+
 // window remnants on the exterior (south) wall — the photos show blinds along
 // the whole south run; two segments keep the remnant read (full glazing would
 // fight the ruin language)
@@ -218,6 +249,22 @@ function polyD(tx: number, ty: number, line: [number, number][]) {
 }
 export function pathD(tx: number, ty: number) {
   return Math.min(polyD(tx, ty, PATH), polyD(tx, ty, SPUR))
+}
+
+// THE CABLE RUN (the island's river — "techy" as STRUCTURE, not decal): one
+// teal-glowing line from the activity desk, out the upper collapse, down the
+// terrace past the annex rack, along the point to the lighthouse. Drawn as
+// ground material + glow nodes; later systems can pulse packets down it.
+export const CABLE: [number, number][] = [
+  [RX0 + 19, RY0 + 8],           // the activity desk (the one still wired)
+  [RX1 - 0.5, RY0 + 7.5],        // out through the upper collapse
+  [RX1 + 3, RY0 + 8.2],          // down the terrace skirt
+  [ANNEX.rack[0] + 0.4, ANNEX.rack[1] + 0.4], // through the half-buried rack
+  [83, 61.5], [86.5, 61.2],      // along the point's root
+  [88, 61.8],                    // up into the lighthouse
+]
+export function cableD(tx: number, ty: number) {
+  return polyD(tx, ty, CABLE)
 }
 
 // THE EASTER EGG (ledger `atc-egg`, builder's choice): a small carved stone

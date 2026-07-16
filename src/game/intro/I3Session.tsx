@@ -1,7 +1,7 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import { track } from '../telemetry'
-import { joinClass } from '../net'
-import { writeSave } from '../save'
+import { checkClass, joinClass } from '../net'
+import { loadSave, writeSave } from '../save'
 import { LOOKS, drawRecolored } from '../thorLook'
 import { cleanName, isBlocked, PRONOUN_CHOICES } from '../names'
 import './i3.css'
@@ -56,18 +56,27 @@ type Result = { handle: string; pronouns: string; boatName: string; castaway: bo
 type Card = 'code' | 'identity' | 'word' | 'wardrobe' | 'boat' | 'rollup'
 
 export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
-  const [card, setCard] = useState<Card>('code')
-  const [castaway, setCastaway] = useState(false)
-  const [handle, setHandle] = useState('')
-  const [pronouns, setPronouns] = useState('')
-  const [boat, setBoat] = useState('')
-  const [look, setLook] = useState('classic')
+  // a resumed session (refresh mid-intro) prefills from the run and skips what's answered:
+  // a joined student never re-types the code, and their handle is already on the parchment
+  const saved = loadSave()
+  const alreadyJoined = !!saved?.participantId || !!saved?.castaway
+  const [card, setCard] = useState<Card>(alreadyJoined ? 'identity' : 'code')
+  const [castaway, setCastaway] = useState(!!saved?.castaway)
+  const [code, setCode] = useState(saved?.classCode ?? '')
+  const [className, setClassName] = useState<string | undefined>()
+  const [handle, setHandle] = useState(saved?.handle ?? '')
+  const [pronouns, setPronouns] = useState(saved?.pronouns ?? '')
+  const [boat, setBoat] = useState(saved?.boatName ?? '')
+  const [look, setLook] = useState(saved?.thorLook ?? 'classic')
+  const [joining, setJoining] = useState(false)
+  const [joinErr, setJoinErr] = useState('')
   const result = useRef<Result>({ handle: 'Panther', pronouns: 'they/them', boatName: 'The Bonney', castaway: false, thorLook: 'classic' })
 
   const next = (c: Card) => setCard(c)
   const finish = () => {
     const r = result.current
-    r.handle = handle.trim() || 'Panther'
+    // the save's handle is the truth once joined (the server may have suffixed a twin)
+    r.handle = (loadSave()?.handle || handle).trim() || 'Panther'
     r.pronouns = pronouns || 'they/them'
     r.boatName = boat.trim() || 'The Bonney'
     r.castaway = castaway
@@ -76,17 +85,54 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
     window.setTimeout(() => onDone(r), 650)
   }
 
+  // THE REAL JOIN happens here — with the student's actual handle (§4.3, §7.7). The code
+  // card only verified the class; joining there with a placeholder handle collapsed every
+  // student in a class into one participant.
+  const confirmIdentity = async () => {
+    if (castaway || (alreadyJoined && !!saved?.participantId)) { next('word'); return }
+    setJoining(true); setJoinErr('')
+    const r = await joinClass(code, handle.trim() || 'Panther')
+    setJoining(false)
+    if (r.ok) {
+      if (r.handle && r.handle !== handle) setHandle(r.handle)   // a twin got a kind suffix
+      track('join_ok', { returning: !!r.returning })
+      next('word')
+      return
+    }
+    if (r.reason === 'offline') {
+      // dev sails through (no backend is the normal local state); a real deployment retries
+      if (import.meta.env.DEV) { track('join_ok', { offline: true }); next('word'); return }
+      setJoinErr('The harbor lost the wind. Check the wifi and try once more.')
+      return
+    }
+    if (r.reason === 'unknown_code' || r.reason === 'class_closed') {
+      setJoinErr(r.reason === 'class_closed' ? 'That class is not boarding right now.' : 'The harbor does not know that code anymore.')
+      setCard('code')
+      return
+    }
+    setJoinErr('The harbor is being difficult. Try once more.')
+  }
+
   return (
     <div className="i3-root">
       <div className={`i3-scroll ${card === 'rollup' ? 'i3-rollup' : ''}`}>
         <div className="i3-paper">
-          {card === 'code' && <CodeCard onJoin={() => next('identity')} onCastaway={() => { setCastaway(true); next('identity') }} />}
+          {card === 'code' && (
+            <CodeCard
+              initial={code}
+              err={joinErr}
+              onVerified={(c, name) => { setCode(c); setClassName(name); setJoinErr(''); next('identity') }}
+              onCastaway={() => { setCastaway(true); setJoinErr(''); next('identity') }}
+            />
+          )}
           {card === 'identity' && (
             <IdentityCard
               castaway={castaway}
+              className={className}
               handle={handle} setHandle={setHandle}
               pronouns={pronouns} setPronouns={setPronouns}
-              onNext={() => next('word')}
+              joining={joining} err={joinErr}
+              onNext={confirmIdentity}
             />
           )}
           {card === 'word' && <WordCard onNext={() => next('wardrobe')} />}
@@ -99,13 +145,22 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
 }
 
 // ---- card 1: the letter + the code ----
-function CodeCard({ onJoin, onCastaway }: { onJoin: () => void; onCastaway: () => void }) {
+function CodeCard({ initial, err: outerErr, onVerified, onCastaway }: {
+  initial: string
+  err?: string
+  onVerified: (code: string, className?: string) => void
+  onCastaway: () => void
+}) {
   const tw = useTypewriter(LETTER)
-  const [code, setCode] = useState<string[]>(Array(6).fill(''))
-  const [err, setErr] = useState('')
+  const [code, setCode] = useState<string[]>(() => {
+    const pre = (initial ?? '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6).split('')
+    return Array.from({ length: 6 }, (_, i) => pre[i] ?? '')
+  })
+  const [err, setErr] = useState(outerErr ?? '')
   const [shake, setShake] = useState(0)
   const refs = useRef<(HTMLInputElement | null)[]>([])
   const tries = useRef(0)
+  const lockUntil = useRef(0)   // the soft rate limit heals itself (the old one never unlocked)
 
   const put = (i: number, v: string) => {
     const ch = v.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
@@ -128,6 +183,10 @@ function CodeCard({ onJoin, onCastaway }: { onJoin: () => void; onCastaway: () =
   const [checking, setChecking] = useState(false)
   const submit = async () => {
     const joined = code.join('')
+    if (Date.now() < lockUntil.current) {
+      setErr('The harbor master needs a breather. Try again in a minute.')
+      return
+    }
     tries.current++
     track('join_attempt', { len: joined.length, tries: tries.current })
     if (joined.length < 6) {
@@ -135,18 +194,24 @@ function CodeCard({ onJoin, onCastaway }: { onJoin: () => void; onCastaway: () =
       setShake((s) => s + 1)
       return
     }
-    if (tries.current > 5) {
+    if (tries.current >= 5) {
+      tries.current = 0
+      lockUntil.current = Date.now() + 60_000
       setErr('The harbor master needs a breather. Try again in a minute.')
       return
     }
-    // the real harbor: server-verified when the backend is live; offline dev sails through
+    // verify the class only — the REAL join happens on the identity card, with the
+    // student's actual handle. Offline dev sails through; a deployment shows a kind retry.
     setChecking(true)
-    const r = await joinClass(joined, 'Panther')
+    const r = await checkClass(joined)
     setChecking(false)
-    if (r.ok || r.reason === 'offline') {
-      if (r.ok) writeSave({ classCode: joined.toUpperCase() })
-      track('join_ok', { offline: !r.ok })
-      onJoin()
+    if (r.ok) {
+      writeSave({ classCode: joined.toUpperCase() })
+      onVerified(joined.toUpperCase(), r.className)
+      return
+    }
+    if (r.reason === 'offline' && import.meta.env.DEV) {
+      onVerified(joined.toUpperCase())
       return
     }
     setShake((s) => s + 1)
@@ -154,7 +219,9 @@ function CodeCard({ onJoin, onCastaway }: { onJoin: () => void; onCastaway: () =
       ? 'The harbor does not know that code. Check it with your teacher.'
       : r.reason === 'class_closed'
         ? 'That class is not boarding right now.'
-        : 'The harbor is being difficult. Try once more.')
+        : r.reason === 'offline'
+          ? 'The harbor is out of reach. Check the wifi and try once more.'
+          : 'The harbor is being difficult. Try once more.')
   }
 
   return (
@@ -189,23 +256,29 @@ function CodeCard({ onJoin, onCastaway }: { onJoin: () => void; onCastaway: () =
   )
 }
 
-// ---- card 2: handle + pronouns ----
+// ---- card 2: handle + pronouns (the real join fires on confirm, in the parent) ----
 function IdentityCard(p: {
   castaway: boolean
+  className?: string
   handle: string; setHandle: (v: string) => void
   pronouns: string; setPronouns: (v: string) => void
+  joining: boolean; err: string
   onNext: () => void
 }) {
   const [spins, setSpins] = useState(0)
   const ok = p.handle.trim().length >= 3 && !isBlocked(p.handle)
   const confirm = () => {
+    if (p.joining) return
     if (!ok) { p.setHandle(spinHandle()); return }
     track('identity_set', { generated: spins > 0, spins, pronouns: p.pronouns || 'unset' })
     p.onNext()
   }
   return (
     <div className="i3-card">
-      <div className="i3-head">{p.castaway ? 'The sea takes strays too.' : 'The harbor knows that code.'}</div>
+      <div className="i3-head">
+        {p.castaway ? 'The sea takes strays too.'
+          : p.className ? `Ah. ${p.className}.` : 'The harbor knows that code.'}
+      </div>
       <div className="i3-sub">What should your class call you?</div>
       <div className="i3-fieldrow">
         <input
@@ -215,9 +288,10 @@ function IdentityCard(p: {
           onChange={(e) => p.setHandle(cleanName(e.target.value))}
           onKeyDown={(e) => { if (e.key === 'Enter') confirm() }}
         />
-        <button className="i3-die" title="spin one" onClick={() => { p.setHandle(spinHandle()); setSpins((s) => s + 1) }}>ðŸŽ²</button>
+        <button className="i3-die" title="spin one" onClick={() => { p.setHandle(spinHandle()); setSpins((s) => s + 1) }}>🎲</button>
       </div>
       {isBlocked(p.handle) && <div className="i3-err">The harbor master raised an eyebrow. Try another.</div>}
+      {p.err && <div className="i3-err">{p.err}</div>}
       <div className="i3-reassure">This name is what your class sees. Your real name never leaves the room.</div>
       <div className="i3-chips">
         {PRONOUN_CHOICES.map((c) => (
@@ -228,7 +302,9 @@ function IdentityCard(p: {
           >{c}</button>
         ))}
       </div>
-      <button className="i3-plank i3-plank-solo" onClick={confirm}>{ok ? 'That is me' : 'Spin one for me'}</button>
+      <button className="i3-plank i3-plank-solo" onClick={confirm}>
+        {p.joining ? 'Telling the harbor…' : ok ? 'That is me' : 'Spin one for me'}
+      </button>
     </div>
   )
 }
@@ -336,7 +412,7 @@ function BoatCard(p: { boat: string; setBoat: (v: string) => void; onNext: () =>
           onChange={(e) => p.setBoat(cleanName(e.target.value, 18))}
           onKeyDown={(e) => { if (e.key === 'Enter') confirm() }}
         />
-        <button className="i3-die" title="spin one" onClick={() => { p.setBoat(spinBoat()); setSpun(true) }}>ðŸŽ²</button>
+        <button className="i3-die" title="spin one" onClick={() => { p.setBoat(spinBoat()); setSpun(true) }}>🎲</button>
       </div>
       {isBlocked(p.boat) && <div className="i3-err">She would sink from embarrassment. Another.</div>}
       <button className="i3-plank i3-plank-solo" onClick={confirm}>{ok ? 'Paint it on' : 'Call her The Bonney'}</button>

@@ -10,9 +10,9 @@ import {
 } from './atc-terrain'
 import {
   DOCK, dockAt, pathD, vegK, GROVES, SHADOW,
-  wallAt, STEPS, RX0, RX1, RY0, RY1, WINDOWS, DOOR,
+  wallAt, wallState, STEPS, RX0, RX1, RY0, RY1, WINDOWS, DOOR,
   STATIONS, ACTIVITY_STATION, TEACHER, SINK, ANNEX, WHITEBOARD,
-  FEATURE_PALM, ROOM_FERNS, ROOM_BOXES,
+  FEATURE_PALM, ROOM_FERNS, ROOM_BOXES, ROOM_PALMS, jungleWedgeK, CABLE, cableD,
 } from './atc-layout'
 import { getPois, getSeams } from './atc-mechanics'
 import { reportAtcAudit } from './atc-audit'
@@ -207,32 +207,40 @@ export default function AtcIslandIso() {
         return w < 0.26 && d > 21 ? 1 : 0
       }
       const bandJ = (tx: number, ty: number) => (vnoise(tx / 12 + 31, ty / 12 + 47) - 0.5) * 1.2
+      // THE ACROPOLIS GRAMMAR (Ash's "flat and boring" verdict, 2026-07-16):
+      // the island TIERS UP to the room. Beach 0 → meadow 1 → working apron 2
+      // (north/west/east only) → THE ROOM FLOOR 3 — and the sea-facing south
+      // lip drops SHEER, two courses straight to the meadow. The ruin ring is
+      // ASYMMETRIC: the NW quarter stands 2-3 courses (a real building corner,
+      // roof gone), the mid runs are stubs, the whole SE quarter is FALLEN.
       const lvlOf = (tx: number, ty: number) => {
         if (coastDs(tx, ty) <= 0) return -1
         if (isletAt(tx, ty)) return 1 // skerries: bare rock nubs, one course over the water
-        // THE WALL RING IS TILES (the 3D tile law): a wall stub = a level-3
-        // tile standing one course over the room floor — the block machinery
-        // draws its faces, painter order occludes, wallAt() blocks the walk.
-        // RUIN HEIGHT VARIANCE on the BACK walls only (north/west stand taller
-        // at the NW corner, the door jamb, the whiteboard run) — the camera-
-        // side south/east walls stay LOW so the interior always reads (iso law)
         const w = wallAt(tx, ty)
         if (w) {
-          if (tx === RX0 && ty === RY0) return 4                       // NW corner post
-          if (tx === RX0 + 3 && ty === RY0) return 4                   // the door's east jamb
-          if (w === 'solid-west' && ty >= RY0 + 6 && ty <= RY0 + 16) return 4 // the teaching-wall run
-          if (w === 'corridor' && tx >= RX0 + 11 && tx <= RX0 + 13) return 4 // a surviving mid-run
+          const ws = wallState(tx, ty)
+          if (ws === 'fallen') return 3 // down to the floor — rubble carries the read
+          if (ws === 'tall') {
+            if ((tx === RX0 && ty === RY0) || (tx === RX0 + 3 && ty === RY0)) return 6 // corner post + door jamb
+            return 5
+          }
           void WINDOWS
-          return 3
+          return 4
         }
-        // the authored architecture first: terrace, knoll, crag ridge
-        if (plateauD(tx, ty) <= 0.55) return 2
+        const pd = plateauD(tx, ty)
+        if (pd <= 0.55) return 3 // THE ROOM FLOOR, high on its acropolis
+        if (pd <= 4.5 + bandJ(tx, ty)) {
+          // the apron wraps every side EXCEPT the sea-facing south arc — that
+          // lip stays a raw two-course cliff (the from-the-sea drama)
+          const thR = Math.atan2(ty - (RY0 + 12), tx - (RX0 + 12))
+          if (!(thR > 0.5 && thR < 2.6)) return 2
+        }
         const cd = cragD(tx, ty)
-        if (cd < 1.7) return 3
+        if (cd < 1.7) return 4 // the crag crown climbs — the dark silhouette needs height
         if (cd < 3.1) return 2
         const kd = Math.hypot(tx - KNOLL.x, ty - KNOLL.y)
         if (kd < 2.4) return 2
-        if (pointK(tx, ty)) return Math.hypot(tx - CX, ty - CY) < 24 ? 2 : 1 // the point: raised spine at the root, low finger to the tip
+        if (pointK(tx, ty)) return Math.hypot(tx - CX, ty - CY) < 29 ? 2 : 1 // the point: raised spine at the root, low finger to the tip
         // the ring: sand shelf on beach azimuths (wider in the designed sand
         // windows), meadow otherwise; cliff azimuths hold the meadow to the water
         const d = DIST[ty * GRID + tx]
@@ -400,9 +408,13 @@ export default function AtcIslandIso() {
 
           // TOP: one flat blended diamond (64x36 on the 64x32 lattice, the
           // family's own 2px melt), anchor centred, - the drawn faces carry 3D
-          const pool = wRole && wallTopTex.length ? wallTopTex
-            : wRole || floorC || eastGap || corr ? st
-              : rock && rockTopTex.length ? rockTopTex : isSand ? st : gt
+          const ws = wRole ? wallState(tx, ty) : null
+          const wedge = (floorC || eastGap) && jungleWedgeK(tx, ty) + (hash(tx * 3.7, ty * 1.9) - 0.5) * 0.3 > 0.55
+          const pool = ws === 'fallen' && rockTopTex.length ? rockTopTex
+            : wRole && wallTopTex.length ? wallTopTex
+              : wedge ? gt
+                : wRole || floorC || eastGap || corr ? st
+                  : rock && rockTopTex.length ? rockTopTex : isSand ? st : gt
           if (!pool.length) continue
           const g = rock
             ? pool[Math.floor(vnoise(tx / 6 + 4.2, ty / 6 + 1.8) * pool.length) % pool.length]
@@ -417,7 +429,12 @@ export default function AtcIslandIso() {
           const bL = Math.max(eLvl(tx - 1, ty), eLvl(tx, ty - 1))
           const ao = bL > L ? Math.min(0.24, (bL - L) * 0.13) : 0
           const rk = rakeAt(tx, ty)
-          if (wRole && wallTopTex.length) {
+          if (ws === 'fallen') {
+            // the collapsed quarter: broken masonry rubble at floor level
+            const grain = 0.86 + 0.12 * hash(tx * 2.9, ty * 1.7)
+            top.scale.set((hash(tx * 7.7, ty * 5.3) > 0.5 ? -1 : 1) * 1.14, 1.14)
+            top.tint = tint24(grain * 0.72, grain * 0.69, grain * 0.64)
+          } else if (wRole && wallTopTex.length) {
             // the wall block's own cut top (rubble edge intact), near-raw
             const grain = 0.95 + 0.07 * hash(tx * 2.1, ty * 3.3)
             top.scale.x = hash(tx * 4.9, ty * 2.7) > 0.5 ? -1 : 1
@@ -430,6 +447,14 @@ export default function AtcIslandIso() {
             top.tint = wRole === 'exterior'
               ? tint24(grain * 0.8, grain * 0.72, grain * 0.64)
               : tint24(grain * 0.78, grain * 0.75, grain * 0.69)
+          } else if (wedge) {
+            // the jungle's wedge: the east third of the floor lost to green —
+            // deeper and cooler than the meadow (it grows in the room's shade)
+            const patch = 0.9 + 0.1 * vnoise(tx / 6 + 8, ty / 6 + 4)
+            let hexW = rampAt(GRASS_RAMP, 0.85)
+            const cd2 = cableD(tx, ty)
+            if (cd2 < 0.45) hexW = mix(hexW, 0x27383c, 0.55) // the cable's dark run
+            top.tint = warmCool(tintFor(shadeHex(hexW, patch * 0.86 * (1 - ao)), GRASS_BASE), rk * 0.6)
           } else if (floorC || eastGap) {
             // THE CARPET (the photos' gray-green broadloom, gone outdoor):
             // TEMP tint over the fine sand grain until the real family lands.
@@ -445,10 +470,11 @@ export default function AtcIslandIso() {
             if (palmD < 2.2) hexF = mix(hexF, 0x74854e, (1 - palmD / 2.2) * 0.75)
             const doorD = Math.hypot(tx - (DOOR[0][0] + 0.5), ty - DOOR[0][1])
             if (doorD < 3) hexF = mix(hexF, 0xd8c49a, (1 - doorD / 3) * 0.55)
-            if (eastGap || tx > RX1 - 3) {
-              const gapK = Math.max(0, 1 - (RX1 - tx) / 3)
-              hexF = mix(hexF, 0x7d8f56, gapK * 0.5 * (0.6 + 0.4 * vnoise(tx / 4, ty / 4 + 7)))
-            }
+            // the wedge's advancing edge: moss creeps ahead of the grass line
+            const wk = jungleWedgeK(tx, ty)
+            if (wk > 0) hexF = mix(hexF, 0x7d8f56, wk * 0.6)
+            const cd2 = cableD(tx, ty)
+            if (cd2 < 0.45) hexF = mix(hexF, 0x27383c, 0.55) // the cable's dark run
             top.tint = warmCool(shadeHex(tintFor(hexF, SAND_BASE), checker * grain * wear * (1 - ao * 1.3)), rk * 0.4)
           } else if (corr) {
             // the hallway: worn pale composite, the walk's traffic printed in
@@ -484,6 +510,9 @@ export default function AtcIslandIso() {
             // the worn path: the walk carves its earth ribbon into the meadow
             const pk = 1 - smooth(0.6, 1.35, pathD(tx, ty))
             if (pk > 0) hex = mix(hex, PATH_HEX, pk * 0.9)
+            // the cable run crossing the open ground toward the lighthouse
+            const cd2 = cableD(tx, ty)
+            if (cd2 < 0.45) hex = mix(hex, 0x27383c, 0.5)
             // grove shade pools: authored vegetation sites darken their floor
             const vk = vegK(tx, ty)
             top.tint = warmCool(tintFor(shadeHex(hex, macro * patch * grain * (1 - ao) * (1 - vk * 0.14)), GRASS_BASE), rk)
@@ -649,6 +678,46 @@ export default function AtcIslandIso() {
       ROOM_BOXES.forEach(([bx2, by2], bi) => {
         propAt('boxes', bx2, by2, { mirror: bi % 2 === 1, z: 315 })
       })
+      // the wedge's canopy: palms INSIDE the ring, mirrored so they lean back
+      // over the desks — the jungle didn't stop at the wall
+      for (const rp of ROOM_PALMS) {
+        const key = vegT['coco-v1'] && hash(rp.at[0], rp.at[1]) > 0.5 ? 'coco-v1' : vegT['coco-v3'] ? 'coco-v3' : 'coco-v2'
+        const tex = vegT[key]
+        if (!tex) break
+        const Lp = Math.max(0, eLvl(rp.at[0], rp.at[1]))
+        const p = new Sprite(tex)
+        p.anchor.set(0.5, 0.97)
+        p.scale.set(-rp.scale, rp.scale)
+        p.position.set(isoX(rp.at[0], rp.at[1]), isoY(rp.at[0], rp.at[1]) + GY - Lp * STEP + 4)
+        p.zIndex = (rp.at[0] + rp.at[1]) * 4000 + Lp * STEP * 2 + 335
+        world.addChild(p)
+        sways.push({ sp: p, amp: 0.013, w: 0.5 + 0.4 * hash(rp.at[0], rp.at[1] * 3), ph: hash(rp.at[1], rp.at[0]) * 6.28 })
+      }
+      // the cable's glow nodes: the run breathes teal from the activity desk
+      // all the way to the lamp room (phase keyed by run distance — the pulse
+      // TRAVELS the line, desk to beacon)
+      {
+        let runD = 0
+        for (let i = 0; i < CABLE.length - 1; i++) {
+          const [x0, y0] = CABLE[i], [x1, y1] = CABLE[i + 1]
+          const segLen = Math.hypot(x1 - x0, y1 - y0)
+          for (let s = 0; s < segLen; s += 1.6) {
+            const u = s / segLen
+            const nx = x0 + (x1 - x0) * u, ny = y0 + (y1 - y0) * u
+            const Ln = Math.max(0, eLvl(Math.round(nx), Math.round(ny)))
+            const dot = new Sprite(foamTex)
+            dot.anchor.set(0.5)
+            dot.tint = 0x36e2cf; dot.blendMode = 'add'
+            dot.width = 16; dot.height = 8
+            dot.position.set(isoX(nx, ny), isoY(nx, ny) + GY - Ln * STEP)
+            dot.alpha = 0.3
+            dot.zIndex = (Math.round(nx) + Math.round(ny)) * 4000 + Ln * STEP * 2 + 14
+            world.addChild(dot)
+            glows.push({ sp: dot, ph: -(runD + s) * 0.9, a: 0.3 })
+          }
+          runD += segLen
+        }
+      }
       // ferns reclaiming the floor at the authored spots
       for (const [fx2, fy2] of ROOM_FERNS) {
         const key = vegT['fernclump-1'] ? 'fernclump-1' : 'bush-b'

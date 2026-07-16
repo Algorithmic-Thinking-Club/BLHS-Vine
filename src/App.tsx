@@ -1,71 +1,53 @@
-import { lazy, Suspense } from 'react'
+import { useEffect, useState, type ComponentType } from 'react'
 import Game from './game/Game'
 import { SceneManager, type SceneRegistry } from './app/SceneManager'
-import { GameProvider } from './app/world'
 import BootScene from './app/scenes/BootScene'
 import TitleScene from './app/scenes/TitleScene'
-import IntroCutscene from './app/scenes/IntroCutscene'
-import JoinScene from './app/scenes/JoinScene'
-import DressingScene from './app/scenes/DressingScene'
-import OverworldScene from './app/scenes/OverworldScene'
-import IslandScene from './app/scenes/IslandScene'
-import CapeScene from './app/scenes/CapeScene'
 import IntroScene from './game/intro/IntroScene'
 import TeacherScene from './app/scenes/TeacherScene'
 
-// LAZY on purpose (and per §15.2's lazy-load law): the island map is under heavy parallel
-// construction — an in-flight broken state in its module graph must never white-screen the
-// boot/title/intro path. v2 of the renderer is archived; this import re-points when v3
-// lands. The registry (game/island/registry.ts) is the stable seam either way.
-const ISLAND_MAP_MODULE = './game/island/IslandMapIso.tsx' // re-points when renderer v3 lands
-const IslandMapIso = lazy(() =>
-  import(/* @vite-ignore */ ISLAND_MAP_MODULE).catch(() => ({
-    default: () => <div style={{ position: 'absolute', inset: 0, background: '#06121a' }} />,
-  })),
-)
-// Session B's lane (grape island #1, file-disjoint: src/game/island/atc/**) —
-// same lazy law: a broken in-flight ATC module must never white-screen the game
-const ATC_MAP_MODULE = './game/island/atc/AtcIslandIso.tsx'
-const AtcIslandIso = lazy(() =>
-  import(/* @vite-ignore */ ATC_MAP_MODULE).catch(() => ({
-    default: () => <div style={{ position: 'absolute', inset: 0, background: '#06121a' }} />,
-  })),
-)
+// LAZY on purpose (and per §15.2's lazy-load law): the island maps are under heavy parallel
+// construction — a broken in-flight state must never white-screen the boot/title/intro path.
+// The import paths are LITERAL so vite actually bundles the chunks in production (a variable
+// path with @vite-ignore shipped builds where these scenes did not exist at all). A failed
+// chunk load shows the dark sea and RETRIES on the next mount — React.lazy was not used
+// because it caches its first rejection until a hard reload.
+function lazyScene(load: () => Promise<{ default: ComponentType }>) {
+  return function LazyScene() {
+    const [Comp, setComp] = useState<ComponentType | null>(null)
+    useEffect(() => {
+      let alive = true
+      load().then((m) => { if (alive) setComp(() => m.default) }).catch(() => { /* dark sea holds */ })
+      return () => { alive = false }
+    }, [])
+    return Comp ? <Comp /> : <div style={{ position: 'absolute', inset: 0, background: '#06121a' }} />
+  }
+}
+const IslandMapLazy = lazyScene(() => import('./game/island/IslandMapIso'))
+const AtcIslandLazy = lazyScene(() => import('./game/island/atc/AtcIslandIso'))
+const PantherCaveLazy = lazyScene(() => import('./game/island/cave/PantherCaveIso'))
 
-// The game runs through the scene manager, wrapped in the run-state provider. Phase 1 flow:
-// title -> overworld (navigable hub) -> island visit -> ... -> cape summary. Join-by-code +
-// dressing room slot in before the overworld next. `?scene=<id>` jumps to one (dev). The old
-// contiguous-campus build stays shelved behind ?legacy=1.
+// The game runs through the scene manager. The live student flow: boot -> title -> beach
+// (the intro lives ON the beach, join included) -> islandmap. The June-era scenes
+// (join/dressing/overworld/island/cape + the world.tsx run state) are UNROUTED: they carried
+// a second, conflicting run state and a join that silently dropped the class code. Graduation
+// and the rest of the year loop get rebuilt on the real save (THE-PATH Leg 3), not re-routed
+// to the ghosts. `?scene=<id>` jumps to a scene (dev). The old campus build stays behind
+// ?legacy=1.
 const registry: SceneRegistry = {
   boot: () => <BootScene />,
   title: () => <TitleScene />,
-  intro: () => <IntroCutscene />,
-  join: () => <JoinScene />,
-  dressing: () => <DressingScene />,
-  overworld: () => <OverworldScene />,
-  island: () => <IslandScene />,
-  cape: () => <CapeScene />,
   beach: () => <IntroScene />,   // the beach IS the intro map; free roam once the intro is done
   teacher: () => <TeacherScene />, // Wiseman's desk (§13.3) — its own corner, never on the student title
-  islandmap: () => (
-    <Suspense fallback={<div style={{ position: 'absolute', inset: 0, background: '#06121a' }} />}>
-      <IslandMapIso />
-    </Suspense>
-  ), // the main map: the vast ocean + the Central Island (GAME-DESIGN §3)
-  atc: () => (
-    <Suspense fallback={<div style={{ position: 'absolute', inset: 0, background: '#06121a' }} />}>
-      <AtcIslandIso />
-    </Suspense>
-  ), // grape island #1: room 305 as an island (docs/place-specs/atc-grape-island.md)
+  islandmap: () => <IslandMapLazy />, // the main map: the vast ocean + the Central Island (GAME-DESIGN §3)
+  atc: () => <AtcIslandLazy />, // grape island #1: room 305 as an island (docs/place-specs/atc-grape-island.md)
+  'panther-cave': () => <PantherCaveLazy />, // the Maw: the hub cave interior (docs/place-specs/panther-cave-interior.md)
 }
 
 export default function App() {
   const params = new URLSearchParams(window.location.search)
   if (params.has('legacy')) return <Game />
   const initial = params.get('scene') ?? 'boot'
-  return (
-    <GameProvider>
-      <SceneManager initial={registry[initial] ? initial : 'overworld'} registry={registry} />
-    </GameProvider>
-  )
+  // unknown scene ids land on boot, never on a ghost scene
+  return <SceneManager initial={registry[initial] ? initial : 'boot'} registry={registry} />
 }

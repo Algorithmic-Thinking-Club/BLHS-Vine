@@ -93,3 +93,6 @@ reference/tools/
 !scripts/measure_sprites.py
 reference/island-refs/
 tsconfig.tsbuildinfo
+
+# dev-only local database (the vite api bridge)
+.data/

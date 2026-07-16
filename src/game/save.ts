@@ -34,6 +34,7 @@ export type SaveGame = {
   v: 2
   id: string
   participantId?: string        // the study identity, set at join (net.ts); server keys on this
+  arm?: 'game' | 'plain'        // the study arm the server assigned at join (§13.2)
   handle: string
   pronouns: string
   boatName: string
@@ -44,6 +45,7 @@ export type SaveGame = {
   season: Season
   beat: string
   introDone: boolean
+  graduated?: boolean           // the run's terminal state (§9); set by the fourth endYear
   tokens: Season[]
   ledger: LedgerEntry[]
   ranks: Record<string, number>
@@ -66,14 +68,35 @@ const listeners = new Set<() => void>()
 export function subscribeSave(fn: () => void) { listeners.add(fn); return () => { listeners.delete(fn) } }
 const emit = () => { for (const fn of listeners) fn() }
 
+// another tab wrote the run: drop this tab's snapshot so the next read sees theirs, and let
+// subscribers re-render. Without this, a stale tab's next write reverted real progress.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === KEY) { cache = undefined; emit() }
+  })
+}
+
+const readRaw = (): SaveGame | null => {
+  try {
+    const raw = localStorage.getItem(KEY)
+    if (!raw) return null
+    const s = JSON.parse(raw) as SaveGame
+    return s.v === 2 ? s : null
+  } catch { return null }
+}
+
 // migrate any older shape into the single save: the roster's most-recent entry, then v1
 function migrate(): SaveGame | null {
   try {
     const rosterRaw = localStorage.getItem(ROSTER_KEY)
     if (rosterRaw) {
       const arr = JSON.parse(rosterRaw) as SaveGame[]
+      // honor the roster's own active pointer first; fall back to the newest entry
+      const activeId = localStorage.getItem(ACTIVE_KEY)
       localStorage.removeItem(ROSTER_KEY); localStorage.removeItem(ACTIVE_KEY)
-      const best = arr.filter((s) => s && s.v === 2).sort((a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0))[0]
+      const valid = arr.filter((s) => s && s.v === 2)
+      const best = valid.find((s) => s.id === activeId)
+        ?? valid.sort((a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0))[0]
       if (best) { localStorage.setItem(KEY, JSON.stringify(best)); return best }
     }
     const v1 = localStorage.getItem(OLD_V1)
@@ -90,19 +113,18 @@ function migrate(): SaveGame | null {
 
 export function loadSave(): SaveGame | null {
   if (cache !== undefined) return cache
-  try {
-    const raw = localStorage.getItem(KEY)
-    if (raw) { const s = JSON.parse(raw) as SaveGame; cache = s.v === 2 ? s : null }
-    else cache = migrate()
-  } catch { cache = null }
+  cache = readRaw() ?? migrate()
   return cache
 }
 
 export function hasSave() { return loadSave() !== null }
 
-/** patch the run (auto-creates it if none — the intro's first write starts the save) */
+/** patch the run. The merge base is the RAW stored save (not this tab's cache) so a write
+ *  from a tab that sat idle can never revert another tab's progress. Auto-creates on first
+ *  write (the intro's first write starts the save). */
 export function writeSave(patch: Partial<SaveGame>) {
-  const next = { ...(loadSave() ?? fresh()), ...patch, savedAt: Date.now() }
+  const base = readRaw() ?? cache ?? fresh()
+  const next = { ...base, ...patch, savedAt: Date.now() }
   localStorage.setItem(KEY, JSON.stringify(next))
   cache = next; emit()
   return next
@@ -124,48 +146,58 @@ export function clearSave() {
 }
 
 // ---- domain verbs (systems write through these, never by hand-editing fields) ----
+// Verbs REQUIRE an existing run and return null without one: a passive collector (a loading
+// fact, a badge check) firing before Begin Adventure must not conjure a phantom save that
+// then greets a brand-new student with "Welcome back".
 
 export function recordGrade(e: LedgerEntry) {
-  const s = loadSave() ?? fresh()
+  const s = loadSave()
+  if (!s) return null
   const i = s.ledger.findIndex((x) => x.id === e.id)
   const ledger = [...s.ledger]
-  if (i >= 0) { if (e.grade > ledger[i].grade) ledger[i] = { ...e, retaken: true } }
+  if (i >= 0) { if (e.grade > ledger[i].grade) ledger[i] = { ...e, retaken: true }; else return s }
   else ledger.push(e)
   return writeSave({ ledger })
 }
 
-export function spendToken(season: Season) {
-  const s = loadSave() ?? fresh()
+export function spendToken(season: Season): ReturnType<typeof writeSave> | null {
+  const s = loadSave()
+  if (!s) return null
   const i = s.tokens.indexOf(season)
-  if (i < 0) return s
+  if (i < 0) return null
   const tokens = [...s.tokens]; tokens.splice(i, 1)
   return writeSave({ tokens })
 }
 
 export function setIslandState(id: string, state: IslandState) {
-  const s = loadSave() ?? fresh()
+  const s = loadSave()
+  if (!s) return null
   return writeSave({ islands: { ...s.islands, [id]: state } })
 }
 
 export function collectFact(id: string) {
-  const s = loadSave() ?? fresh()
-  if (s.facts.includes(id)) return s
+  const s = loadSave()
+  if (!s || s.facts.includes(id)) return s
   return writeSave({ facts: [...s.facts, id] })
 }
 
 export function collectSticker(id: string) {
-  const s = loadSave() ?? fresh()
-  if (s.stickers.includes(id)) return s
+  const s = loadSave()
+  if (!s || s.stickers.includes(id)) return s
   return writeSave({ stickers: [...s.stickers, id] })
 }
 
 export function grantBadge(id: string) {
-  const s = loadSave() ?? fresh()
-  if (s.badges.includes(id)) return s
+  const s = loadSave()
+  if (!s || s.badges.includes(id)) return s
   return writeSave({ badges: [...s.badges, id] })
 }
 
+/** the year turns. The FOURTH turn is terminal: it marks the run graduated (§9) instead of
+ *  refilling tokens — senior year does not repeat. */
 export function endYear() {
-  const s = loadSave() ?? fresh()
-  return writeSave({ year: Math.min(4, s.year + 1), season: 'Fall', tokens: [...SEASONS] })
+  const s = loadSave()
+  if (!s) return null
+  if (s.year >= 4) return writeSave({ graduated: true })
+  return writeSave({ year: s.year + 1, season: 'Fall', tokens: [...SEASONS] })
 }

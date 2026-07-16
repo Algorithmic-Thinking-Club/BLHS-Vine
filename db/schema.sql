@@ -3,6 +3,7 @@
 -- server-generated ids; the teacher's roster shows handles only. Events are the AP Research
 -- dataset; states are the cross-device resume truth (§7.7).
 -- Apply with: psql "$DATABASE_URL" -f db/schema.sql
+-- Already-deployed databases: also run db/migrations/*.sql in date order.
 
 create table if not exists classes (
   id          text primary key,                 -- short id
@@ -23,6 +24,9 @@ create table if not exists participants (
   unique (class_id, handle)
 );
 
+-- 'BraveTide' and 'bravetide' are the same student, not two runs (§7.7 one student = one run)
+create unique index if not exists participants_class_handle_ci on participants (class_id, lower(handle));
+
 -- one row per participant: the whole SaveGame as jsonb (schema evolves client-side)
 create table if not exists states (
   participant_id text primary key references participants(id),
@@ -30,10 +34,14 @@ create table if not exists states (
   updated_at     timestamptz not null default now()
 );
 
--- append-only event stream (the offline-first logger batches into here)
+-- append-only event stream (the offline-first logger batches into here).
+-- participant_id carries NO foreign key ON PURPOSE: pre-join events arrive under the device's
+-- anon id (the boot, the title, the intro's opening — the funnel the study needs), and captain
+-- sessions arrive under 'captain'. An FK here rejected those rows, which poisoned every batch
+-- they traveled in and wedged the whole pipeline. Analysis joins to participants when it can.
 create table if not exists events (
   id             bigint generated always as identity primary key,
-  participant_id text references participants(id),
+  participant_id text,
   session_id     text,
   at             timestamptz not null default now(),
   payload        jsonb not null
