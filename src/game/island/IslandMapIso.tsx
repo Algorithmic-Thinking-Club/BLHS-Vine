@@ -2385,16 +2385,29 @@ export default function IslandMapIso() {
               }
               return best
             }
-            // dockside scale — at 0.72 the bell frame towered over the boathouse
+            // HARBOR v4 · PHASE 1 (Ash: the old harbor was "crowded... visually ugly"
+            // — full rebuild wanted): DECLUTTER + LIGHT first. The crane, shed, sign,
+            // stilt-office and net-rack are GONE; what remains is the arrival's
+            // essentials — the bell, the lanterns, the beacon, the ship, two boats —
+            // with room to breathe. The fresh art kit is phase 2.
             mount(pt['bell-frame'], deckCtr(HARBOR.bell), { sc: 0.5 })
-            // cool the crane timber a touch so its A-frame reads APART from the warm
-            // ship hull behind it (reject: the crane+ship merged into one smear)
-            { const cr = mount(hb['crane'], deckCtr(HARBOR.crane), {}); if (cr) cr.tint = 0xc7b9a6 }
-            // the cargo yard: freight stacked at every work point, varied scale/flip
-            for (let ci = 0; ci < HARBOR.cargo.length; ci++) {
+            // cargo pared to ONE neat stack at the quay root (a working port, not a yard sale)
+            for (let ci = 0; ci < Math.min(2, HARBOR.cargo.length); ci++) {
               mount(pt['cargo-a'], deckCtr(HARBOR.cargo[ci]), { sc: 0.62 + 0.16 * hash(ci * 3.1 + 1, ci * 1.7 + 2), flip: ci % 2 === 1 })
             }
-            for (const L2 of HARBOR.lanterns) mount(pt['lantern-post'], L2, { sc: 0.72, glow: true })
+            for (const L2 of HARBOR.lanterns) {
+              mount(pt['lantern-post'], L2, { sc: 0.72, glow: true })
+              // v4: each lantern throws a WARM POOL onto the deck — the TavernWorld
+              // grammar (warm pools on cool ground) doing the "stunning" work
+              const lx = isoX(L2[0], L2[1]), ly = isoY(L2[0], L2[1]) + GY
+              const pool2 = new Sprite(foamTex)
+              pool2.anchor.set(0.5, 0.5); pool2.blendMode = 'add'
+              pool2.tint = 0xffb44e; pool2.width = 120; pool2.height = 56; pool2.alpha = 0.22
+              pool2.position.set(lx, ly + 4)
+              pool2.zIndex = Math.floor(L2[0] + L2[1]) * 4000 + 620
+              world.addChild(pool2)
+              glows.push({ sp: pool2, ph: hash(L2[0], L2[1]) * 6, a: 0.2 })
+            }
             for (const B of HARBOR.bollards) mount(hb['bollard-b'] ?? pt['bollard-a'], B, { sc: hb['bollard-b'] ? 0.2 : 0.34 })
             // mooring posts pace the boardwalk's seaward lip (the beach pier's
             // post rhythm at harbor scale)
@@ -2510,31 +2523,10 @@ export default function IslandMapIso() {
             // annex platform (harbor office on stilts — the sand behind the north
             // walk is too thin for a building), sign alone on clear sand, shed
             // SOUTH, net-rack + hauled rowboat further south
-            {
-              const qx = HARBOR.quayRect[0] + 1, qn = HARBOR.quayRect[1]
-              mount(hb['boathouse'], [qx + 3, qn + 1], { sc: 0.92 })
-              // the office's east eave overhangs the water — chunky pilings under
-              // that edge + a soft shadow on the sea ground the overhang (reviewer
-              // FAIL A: the corner read as hanging in air)
-              for (const py of [qn + 0.4, qn + 1.2, qn + 2.0]) {
-                const px2 = qx + 4.55
-                const pl = new Sprite(postT); pl.anchor.set(0.5, 1)
-                pl.width = 7; pl.height = 8 + 26
-                pl.position.set(isoX(px2, py), isoY(px2, py) + GY + 12)
-                pl.zIndex = (Math.floor(px2 + py) + 1) * 4000 + 300
-                world.addChild(pl)
-              }
-              const es = new Sprite(shadTex); es.anchor.set(0.5, 0.5)
-              es.width = 96; es.height = 22; es.alpha = 0.3; es.tint = 0x06202a
-              es.position.set(isoX(qx + 4.8, qn + 1.2), isoY(qx + 4.8, qn + 1.2) + GY + 6)
-              es.zIndex = (Math.floor(qx + 4.8 + qn + 1.2) + 1) * 4000 + 250
-              world.addChild(es)
-            }
-            // sign pulled up-beach out of the tide seam; shed + net-rack pressed
-            // into the sand (their straight frontal base rails hovered — Ash)
-            mount(pt['harbor-sign'], inland(-0.6, 4.0), { sc: 0.8, deck: false, sink: 2 })
-            mount(pt['harbor-shed'], inland(3.2, 2.6), { deck: false, sc: 0.86, sink: 4 })
-            mount(hb['net-rack'], inland(4.4, 2.1), { deck: false, sc: 0.74, sink: 6 })
+            // v4 declutter: boathouse/office, sign, shed and net-rack are GONE —
+            // the settlement returns in phase 2 as a single well-made harbor house
+            // from the new kit, not four competing silhouettes on the sand.
+            void inland
             // hauled a tile further up-beach: at the plan point the bow still
             // straddled the tide seam (final-sweep catch — neither beached nor
             // afloat reads wrong at every zoom)
