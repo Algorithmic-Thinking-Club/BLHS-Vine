@@ -7,7 +7,7 @@
 // Spec: docs/place-specs/panther-cave-interior.md §2-§3.
 
 import {
-  GRID, lvlAt, propBlocked, STATIONS, SPAWNS, HEARTH, MOUTH,
+  GRID, lvlAt, propBlocked, STATIONS, SPAWNS, HEARTH,
   BALCONY, BRIDGE_TILES, PASSAGE, SHELF, DAIS,
 } from './cave-layout'
 
@@ -46,15 +46,16 @@ export function zoneAt(tx: number, ty: number): ZoneId {
   // the shelf is C1 wholesale (the arrival stage)
   const sdx = (tx - SHELF.x) / SHELF.rx, sdy = (ty - SHELF.y) / SHELF.ry
   if (sdx * sdx + sdy * sdy <= 1.2) return 'C1-threshold'
+  // sub-places ON the dais win before the dais's blanket zone
+  if (near([31, 23.5], 1.8)) return 'C5-lectern'
+  if (near([21.5, 21.5], 2.2)) return 'C8-trophy-wall'
   // the dais is C4 wholesale (authority's platform)
   const ddx = (tx - DAIS.x) / DAIS.rx, ddy = (ty - DAIS.y) / DAIS.ry
   if (ddx * ddx + ddy * ddy <= 1.1) return 'C4-principal-dais'
   if (near(HEARTH, 4.2)) return 'C2-hearth'
   if (near([45.5, 31], 4)) return 'C3-chart-table'
-  if (near([34, 23.5], 2)) return 'C5-lectern'
   if (near([21.5, 25], 3.4)) return 'C6-counselor'
   if (near([15.5, 42], 4)) return 'C7-outfitter'
-  if (near([23.5, 21.5], 2.4)) return 'C8-trophy-wall'
   // the passage + balcony: the whole dark corridor is the secret's zone
   const pt = { x0: PASSAGE.x0, y0: PASSAGE.y0, x1: PASSAGE.x1, y1: PASSAGE.y1 }
   const vx = pt.x1 - pt.x0, vy = pt.y1 - pt.y0
@@ -71,7 +72,7 @@ export type Seam = { id: string; to: string; at: [number, number]; radius: numbe
 export function getSeams(): Seam[] {
   return [
     // stepping back into the mouth-light = out to the island (the tongue-stair)
-    { id: 'cave-mouth', to: 'islandmap', at: [MOUTH[0] - 1.5, MOUTH[1] - 1.5], radius: 1.7 },
+    { id: 'cave-mouth', to: 'islandmap', at: [46, 22], radius: 1.7 },
   ]
 }
 

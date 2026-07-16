@@ -6,9 +6,14 @@
 // + the living-lava spectacle (fall → trench → carved bridge) + restrained
 // panther identity. Canonical target: cave-concepts/P0-PICK.png.
 //
-// COMPASS CONTINUITY: Thor enters at the map's SE (the exterior gate sits on
-// the volcano's SE flank), arrives HIGH on the threshold shelf, and the whole
-// room reveals itself downstage to the NW — the classic interior reveal.
+// ORIENTATION (P2 correction, composition over compass): in 2:1 iso only the
+// N-side and W-side walls show their room-facing faces — an aperture in the SE
+// wall is INVISIBLE from inside. Every picked concept puts the glowing mouth
+// in the FAR wall because that is the only wall that can carry it. So the
+// mouth lives high on the NE rim (screen upper-right), Thor arrives on the
+// threshold shelf there and the room reveals itself down the grand stair to
+// the SW — the P0 pick's own composition. The spec's compass-continuity note
+// was PROPOSED and loses to the canonical target (logged in the spec).
 //
 // LEVELS: -1 rock (the mountain's mass, unwalkable, fills the frame),
 // -2 molten trench (blocked, drawn as living lava), 0 the great hall floor,
@@ -38,14 +43,16 @@ const wob = (tx: number, ty: number) => (cnoise(tx / 5.5 + 11, ty / 5.5 + 7) - 0
 // THE GREAT HALL: one grand cavern chambered by geology (spec §1, pre-approved).
 // Grand per the P0 verdict — the hall alone is ~30x24 walkable.
 export const HALL = { x: 34, y: 34, rx: 15.5, ry: 12.5 }
-// THE THRESHOLD SHELF (C1): the arrival stage, 3 levels up — you step out of
-// the mouth-light and the room drops away in front of you.
-export const SHELF = { x: 48, y: 46, rx: 5, ry: 4 }
-// THE GRAND STAIR: the reveal's descent, wide enough to feel ceremonial.
-export const STAIR = { x0: 46, y0: 44, x1: 39, y1: 39, halfW: 2.1 }
-// THE PRINCIPAL'S DAIS (C4): authority reads as elevation, +1 at the back wall.
-export const DAIS = { x: 30, y: 22, rx: 6, ry: 3.5 }
-export const DAIS_STEPS = { x0: 30, y0: 25.5, x1: 30, y1: 27.5, halfW: 1.6 }
+// THE THRESHOLD SHELF (C1): the arrival stage, 3 levels up on the NE rim —
+// you step out of the mouth-light and the room drops away in front of you.
+export const SHELF = { x: 45, y: 24, rx: 5, ry: 3.5 }
+// THE GRAND STAIR: the reveal's descent, wide enough to feel ceremonial
+// (top tread at the shelf, foot in the hall pointing at the hearth).
+export const STAIR = { x0: 43, y0: 25.5, x1: 38, y1: 31, halfW: 2.1 }
+// THE PRINCIPAL'S DAIS (C4): authority reads as elevation, +1 at the NW back
+// wall (shifted W of the mouth so both carry a visible wall face each).
+export const DAIS = { x: 27, y: 22, rx: 5.5, ry: 3.5 }
+export const DAIS_STEPS = { x0: 27, y0: 25.5, x1: 27, y1: 27.5, halfW: 1.6 }
 // STATION POCKETS: alcoves carved in the cavern wall — stations live IN the
 // geology (the reviewer's cross-cutting gap), never as furniture in a void.
 export const POCKET_E = { x: 46, y: 31, rx: 4.2, ry: 3.2 }   // C3 chart table (harbor side = east, like the exterior)
@@ -72,29 +79,29 @@ export const TRENCH = { x0: 19, y0: 29, x1: 25, y1: 46, halfW: 1.3 }
 export const BRIDGE_TILES: [number, number][] = [[21, 38], [22, 38], [23, 38], [21, 39], [22, 39], [23, 39]]
 
 // ---- THE GLOW ECONOMY ANCHORS (three sources, nothing else emits — spec §1) ----
-export const MOUTH: [number, number] = [51, 49]      // the fanged daylight aperture behind the shelf
+export const MOUTH: [number, number] = [48, 21]      // the fanged daylight aperture in the NE rim above the shelf
 export const HEARTH: [number, number] = [35, 36]     // C2 — the room's heart and brightest interior point
-export const SHAFTS: [number, number][] = [[28, 33], [31, 27]] // C10 — the only cool notes (crater side)
+export const SHAFTS: [number, number][] = [[28, 33], [32, 29]] // C10 — the only cool notes (crater side)
 
 // ---- THE STATIONS (C-ids, spec §2 — anchors + where Thor stands) ----
 export type Station = { id: string; anchor: [number, number]; stand: [number, number]; note: string }
 export const STATIONS: Station[] = [
-  { id: 'C1-threshold', anchor: [48, 46], stand: [47.5, 45.5], note: 'the arrival shelf; the seam back out' },
+  { id: 'C1-threshold', anchor: [45, 24], stand: [44.5, 24.5], note: 'the arrival shelf; the seam back out' },
   { id: 'C2-hearth', anchor: HEARTH, stand: [35, 38.6], note: 'Advisory Hearth — yearly core beats (§7.3)' },
   { id: 'C3-chart-table', anchor: [45.5, 30.5], stand: [45, 32.6], note: 'the YEAR PLANNER opens here (§7.2)' },
-  { id: 'C4-principal-desk', anchor: [29.5, 21], stand: [29.5, 23.2], note: 'founding event + year vignettes (§5 I-9, §7.5)' },
-  { id: 'C5-lectern', anchor: [34, 23], stand: [33.2, 24.2], note: 'the Handbook (§8.5)' },
+  { id: 'C4-principal-desk', anchor: [26.5, 21], stand: [26.5, 23.2], note: 'founding event + year vignettes (§5 I-9, §7.5)' },
+  { id: 'C5-lectern', anchor: [31, 23], stand: [30, 24], note: 'the Handbook (§8.5)' },
   { id: 'C6-counselor', anchor: [19.5, 24.5], stand: [22, 25.8], note: 'cord/seal tracker board, live (§8.4)' },
   { id: 'C7-outfitter', anchor: [14.5, 41.5], stand: [16, 42.6], note: 'the wardrobe, revisitable (§4.5)' },
-  { id: 'C8-trophy-wall', anchor: [23.5, 20.5], stand: [24.5, 22.5], note: 'run progress made physical (§8.2/§8.3)' },
+  { id: 'C8-trophy-wall', anchor: [21.5, 20.5], stand: [23, 22.3], note: 'run progress made physical (§8.2/§8.3)' },
   { id: 'C9-balcony', anchor: [7, 23], stand: [7.5, 23.5], note: 'the secret falls balcony (sticker, §8.3)' },
   { id: 'C10-light-well', anchor: [28, 33], stand: [28.5, 34], note: 'the cool accent; a fern where day strikes' },
 ]
 
 // ---- SPAWNS (named data — never magic numbers in a renderer; spec §3) ----
 export const SPAWNS = {
-  // arriving through the panther's mouth: on the shelf, facing NW into the room
-  fromMouth: { at: [47.5, 45.5] as [number, number], facing: 'NW' as const },
+  // arriving through the panther's mouth: on the NE shelf, facing SW into the room
+  fromMouth: { at: [44.5, 24.5] as [number, number], facing: 'SW' as const },
 }
 
 // ---- PROP FOOTPRINT RESERVATIONS (collision truth from day one; the real
@@ -103,8 +110,8 @@ type Rect = { x0: number; y0: number; x1: number; y1: number; why: string }
 const BLOCKS: Rect[] = [
   { x0: 34, y0: 35, x1: 36, y1: 37, why: 'the hearth ring + fire (C2 core)' },
   { x0: 44, y0: 30, x1: 47, y1: 31, why: 'the chart table (C3)' },
-  { x0: 28, y0: 20, x1: 31, y1: 21, why: "the Principal's desk (C4)" },
-  { x0: 34, y0: 23, x1: 34, y1: 23, why: 'the Handbook lectern (C5)' },
+  { x0: 25, y0: 20, x1: 28, y1: 21, why: "the Principal's desk (C4)" },
+  { x0: 31, y0: 23, x1: 31, y1: 23, why: 'the Handbook lectern (C5)' },
   { x0: 19, y0: 24, x1: 20, y1: 25, why: "the counselor's board + desk (C6, flush to the pocket's back wall — no dead floor behind furniture)" },
   { x0: 14, y0: 41, x1: 15, y1: 42, why: 'the castaway trunk + mirror (C7)' },
 ]
