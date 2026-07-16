@@ -2065,7 +2065,7 @@ export default function IslandMapIso() {
         const HARBOR_ON = params.get('harbor') !== '0'
         if (HARBOR_ON) try {
           const hb: Record<string, Texture> = {}
-          for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'boathouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b']) {
+          for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'boathouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'deck-top-v4-0', 'deck-top-v4-1', 'deck-top-v4-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b', 'house-v4', 'lamp-v4']) {
             try {
               const t: Texture = await Assets.load(`/art/island/harbor/${n}.png?v=5`)
               t.source.scaleMode = 'nearest'; hb[n] = t
@@ -2089,8 +2089,10 @@ export default function IslandMapIso() {
             // port-wood plank texture brown") — three plank diamonds harvested
             // straight off the approved beach pier's deck, hash-picked per tile,
             // quiet low-frequency drift keeping the run from checkering
+            // v4 driftwood tops preferred (deck_v4.py) — the orange v3 planks were
+            // the harbor's core ugliness and no tint could desaturate them
             const plankTops = [0, 1, 2]
-              .map(i => hb[`deck-top-${i}`])
+              .map(i => hb[`deck-top-v4-${i}`] ?? hb[`deck-top-${i}`])
               .filter((t): t is Texture => !!t)
             if (!plankTops.length) plankTops.push(topOf(hb['plank-block-a']))
             const plankF = faceOf(hb['plank-block-a'])
@@ -2255,7 +2257,8 @@ export default function IslandMapIso() {
                 top.zIndex = zB + 5
                 if (ht.mat === 'plank') {
                   // quiet LOW-FREQUENCY value drift is ALL the extra variation —
-                  // the wood grain itself carries the texture now
+                  // the wood grain itself carries the texture (driftwood lives in
+                  // the v4 ASSET now; a multiply tint can't desaturate)
                   const dv = 0.97 + 0.05 * vnoise(ht.tx / 6 + 5, ht.ty / 6 + 9)
                   const vv = Math.min(255, Math.round(255 * dv))
                   top.tint = (vv << 16) | (vv << 8) | vv
@@ -2414,7 +2417,9 @@ export default function IslandMapIso() {
               mount(pt['cargo-a'], deckCtr(HARBOR.cargo[ci]), { sc: 0.62 + 0.16 * hash(ci * 3.1 + 1, ci * 1.7 + 2), flip: ci % 2 === 1 })
             }
             for (const L2 of HARBOR.lanterns) {
-              mount(pt['lantern-post'], L2, { sc: 0.72, glow: true })
+              // v4: the new driftwood dock lamp (teal pennant, warm glass) replaces
+              // the old lantern-post where it has landed
+              mount(hb['lamp-v4'] ?? pt['lantern-post'], L2, { sc: hb['lamp-v4'] ? 0.52 : 0.72, glow: true })
               // v4: each lantern throws a WARM POOL onto the deck — the TavernWorld
               // grammar (warm pools on cool ground) doing the "stunning" work
               const lx = isoX(L2[0], L2[1]), ly = isoY(L2[0], L2[1]) + GY
@@ -2541,10 +2546,10 @@ export default function IslandMapIso() {
             // annex platform (harbor office on stilts — the sand behind the north
             // walk is too thin for a building), sign alone on clear sand, shed
             // SOUTH, net-rack + hauled rowboat further south
-            // v4 declutter: boathouse/office, sign, shed and net-rack are GONE —
-            // the settlement returns in phase 2 as a single well-made harbor house
-            // from the new kit, not four competing silhouettes on the sand.
-            void inland
+            // v4: ONE well-made harbormaster's house on the sand behind the quay —
+            // driftwood walls, teal shutters, its own lantern — instead of the old
+            // four competing silhouettes (boathouse/sign/shed/net-rack, all gone)
+            mount(hb['house-v4'], inland(1.6, 3.4), { deck: false, sc: 0.95, sink: 3 })
             // hauled a tile further up-beach: at the plan point the bow still
             // straddled the tide seam (final-sweep catch — neither beached nor
             // afloat reads wrong at every zoom)
