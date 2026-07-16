@@ -4,7 +4,7 @@ import {
   isoX, isoY, hash, vnoise, shadeHex, rampAt, tintFor,
   loadWaterVariants, seaTile, configSeaTile, animSwells, type SwellSprite, HW, HH, DEPTH_RANGE,
 } from '../ocean'
-import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, MOUTH_L, MOUTH_R } from './terrain'
+import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, MOUTH_L, MOUTH_R, HEAD_L } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
 import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD, RIVER, FALLS, FORD, STELES, TONGUE, PORTS, MINI_PORTS, TIDEPOOLS, WEST_OVERLOOK } from './hub-layout'
 import { reportIslandAudit } from './island-audit'
@@ -312,6 +312,13 @@ export default function IslandMapIso() {
           try { const t: Texture = await Assets.load(`/art/island/blocks3/rock-${i}-side.png`); t.source.scaleMode = 'nearest'; sideW.push(t) } catch { /* */ }
           try { const t: Texture = await Assets.load(`/art/island/blocks3/rock-${i}-lit.png`); t.source.scaleMode = 'nearest'; sideL.push(t) } catch { /* */ }
           try { const t: Texture = await Assets.load(`/art/island/blocks3/volc-${i}-side.png`); t.source.scaleMode = 'nearest'; volcW.push(t) } catch { /* */ }
+        }
+        // P3 SKIN: the carved heads' own block family (Ash-picked C primary + A variant,
+        // monument-graded dark basalt) — tops and faces crop from THE SAME blocks, so
+        // the monument is literally one material (P1's law on the head itself)
+        const headW: Texture[] = []
+        for (let i = 0; i < 2; i++) {
+          try { const t: Texture = await Assets.load(`/art/island/heads/block-${i}.png`); t.source.scaleMode = 'nearest'; headW.push(t) } catch { /* */ }
         }
         for (let i = 0; i < 16; i++) {
           try { const t: Texture = await Assets.load(`/art/island/flat/volc-${i}.png`); t.source.scaleMode = 'nearest'; volcT.push(t) } catch { /* */ }
@@ -623,6 +630,8 @@ export default function IslandMapIso() {
         // the cone's TREADS crop the very same blocks' top diamonds — top and face are
         // literally one material, so no lip can flip value or hue
         const rockTop: Texture[] = (sideL.length ? sideL : sideW).map((t) => new Texture({ source: t.source, frame: new Rectangle(0, 0, 64, 36) }))
+        // the head skin's treads: the monument blocks' own top diamonds
+        const headTop: Texture[] = headW.map((t) => new Texture({ source: t.source, frame: new Rectangle(0, 0, 64, 36) }))
         const drawFace = (bx2: number, by2: number, dropPx: number, tx2: number, ty2: number, zBase2: number, molten = false) => {
           const fam = sideL.length ? sideL : sideW.length ? sideW : vsF
           if (!fam.length || dropPx <= 0) return
@@ -653,8 +662,23 @@ export default function IslandMapIso() {
             // the riser color follows the tile's SURFACE BAND so a vegetated slope reads
             // as a grassy bank (soft shadow), not a bright pink rock contour line — only
             // the BARE-ROCK upper flank (band 2) shows real strata faces (c3's exposed rock).
-            // P3: a carved head's faces are always the monument's rock.
-            const band = inHeadBBox(tx2, ty2) && (headField(tx2, ty2)?.k ?? 0) > 0.25 ? 2 : coneBand(tx2, ty2)
+            // P3: a carved head's faces are always the monument's rock — its OWN blocks,
+            // its OWN cool-dark value world (never the warm cone tint).
+            const hk2 = inHeadBBox(tx2, ty2) ? headField(tx2, ty2)?.k ?? 0 : 0
+            if (hk2 > 0.25 && headW.length) {
+              const ht = headW[Math.floor(vnoise(tx2 / 3 + 5, ty2 / 3 + 11) * headW.length) % headW.length]
+              const hh = Math.min(ht.height - 26, need)
+              seg.texture = new Texture({ source: ht.source, frame: new Rectangle(0, 26, 64, hh) })
+              seg.scale.x = 1
+              if (need > hh) seg.scale.y = need / hh
+              const v3 = (0.8 - 0.24 * hk2) * (1 + 0.08 * coneLit(tx2, ty2))
+              seg.tint = tint24(v3 * 0.8, v3 * 0.77, v3 * 0.88)
+              if (DBG) seg.tint = 0xff20ff
+              seg.zIndex = zBase2 + 1
+              world.addChild(seg)
+              return
+            }
+            const band = coneBand(tx2, ty2)
             const cl = coneLit(tx2, ty2)
             // NEAR-INVISIBLE riser (matched to the meadow top value) so the ~15 stacked
             // 1-level skirt steps melt into ONE smooth grassy slope (c3), not a ziggurat.
@@ -1097,7 +1121,9 @@ export default function IslandMapIso() {
             // water at the terrain's own benches, never orphan checkers
             const rv = DECOR ? riverInfo.get(ty * COLS + tx) : undefined
             const onRiver = !!rv && !isLava && !isBed
-            const vs = band >= 1 && rockTop.length ? rockTop : undefined
+            // the head wears its OWN monument family; the flank keeps the strata crops
+            const vs = inHead && headTop.length ? headTop
+              : band >= 1 && rockTop.length ? rockTop : undefined
             // molten core + charred bed OUTRANK sand so the flow owns its beach
             // crossing; the river outranks sand too (its estuary rides the cove flat)
             const pool = isLava ? (ck > 0.32 && lakeT.length ? lakeT : lavaT)
@@ -1288,6 +1314,13 @@ export default function IslandMapIso() {
                 // paths) — light enough to read at map zoom, never orange carpet
                 const v = (0.99 + 0.05 * vnoise(tx / 7 + 3, ty / 7 + 9)) * grain * (1 + 0.08 * rk)
                 top.tint = warmCool(shadeHex(0xe6d6ac, v), rk * 0.4)
+              } else if (inHead && vs) {
+                // P3 SKIN · the monument's own value world: cool violet-grey stone,
+                // darker toward the pocket's heart (the void), a whisper of the sun's
+                // side — NEVER the warm cone tint (dark carved basalt, anti-lion law).
+                const k2 = headField(tx, ty)?.k ?? 0
+                const v2 = (0.86 - 0.3 * k2) * (1 + 0.1 * coneLit(tx, ty)) * grain
+                top.tint = tint24(v2 * 0.8, v2 * 0.77, v2 * 0.88)
               } else if (band >= 1 && vs) {
                 // P1 · THE BELT IS A BLEND, NOT A BAND: the tread tint mixes coneTint
                 // toward THIS TILE'S OWN MEADOW TINT along one continuous field. The
@@ -1491,6 +1524,61 @@ export default function IslandMapIso() {
             // edge pixels instead of stamping sprites behind it.
           }
         }
+
+        // ---- P3 · THE CARVED HEADS' FACES: one meshed head piece per site, INPAINTED
+        // into a live capture of the gate site (value/light/scale mesh by construction —
+        // never a cold decal), mounted back at the measured anchor rect and depth-sorted
+        // by its structure tile. The structure owns the void, the collision, and the
+        // pour; the piece owns the panther. The maw's fire breathes as a live glow.
+        try {
+          if (params.get('norelief')) throw new Error('relief off (clean-structure captures)')
+          // THE GATE HEAD — exact placement: the 192px anchor crop was taken at
+          // zoom .62 cam (100,84), screen (599,354); unprojected → world rect
+          // (376.5, 2895.6) size 309.7. Mounting there restores the inpaint 1:1.
+          try {
+            const gateT: Texture = await Assets.load('/art/island/heads/head-gate.png')
+            gateT.source.scaleMode = 'nearest'
+            const gp = new Sprite(gateT)
+            gp.anchor.set(0.5, 0.5)
+            // MIRRORED: the D piece roars to the left; the gate's down-slope runs
+            // lower-right. Its light is the mouth-fire (from below), so the flip
+            // keeps the read — the subtle rim trade was judged worth the drama.
+            gp.scale.set(-1.95, 1.95)
+            gp.position.set(376.5 + 154.9, 2895.6 + 144)
+            gp.zIndex = (118 + 101) * 4000 + liftOf(eLvl(118, 101)) * 2 + 1400
+            world.addChild(gp)
+            const gglow = new Sprite(foamTex)
+            gglow.anchor.set(0.5, 0.5); gglow.blendMode = 'add'
+            gglow.tint = 0xff7a26; gglow.width = 130; gglow.height = 80; gglow.alpha = 0.32
+            gglow.position.set(376.5 + 155, 2895.6 + 210)
+            gglow.zIndex = gp.zIndex + 1
+            world.addChild(gglow)
+            glows.push({ sp: gglow, ph: 1.3, a: 0.28 })
+          } catch { /* gate head piece not on disk yet */ }
+          // THE WEST HEAD — tile-anchored at its own site (A: the lower-left-facing
+          // sibling; its down-slope runs SSW, so the unmirrored facing is correct)
+          try {
+            const westT: Texture = await Assets.load('/art/island/heads/head-west.png')
+            westT.source.scaleMode = 'nearest'
+            const dxh = HEAD_L[0] - CX, dyh = HEAD_L[1] - CY
+            const dh = Math.hypot(dxh, dyh)
+            const mtx = HEAD_L[0] + (dxh / dh) * 1.0, mty = HEAD_L[1] + (dyh / dh) * 1.0
+            const Lw = eLvl(Math.round(mtx), Math.round(mty))
+            const wp = new Sprite(westT)
+            wp.anchor.set(0.5, 0.62)
+            wp.scale.set(1.45)
+            wp.position.set(isoX(mtx, mty) + 8, isoY(mtx, mty) - liftOf(Math.max(0, Lw)) + GY - 25)
+            wp.zIndex = (Math.round(mtx) + Math.round(mty)) * 4000 + liftOf(Math.max(0, Lw)) * 2 + 1400
+            world.addChild(wp)
+            const wglow = new Sprite(foamTex)
+            wglow.anchor.set(0.5, 0.5); wglow.blendMode = 'add'
+            wglow.tint = 0xff7a26; wglow.width = 110; wglow.height = 70; wglow.alpha = 0.3
+            wglow.position.set(wp.x - 30, wp.y + 30)
+            wglow.zIndex = wp.zIndex + 1
+            world.addChild(wglow)
+            glows.push({ sp: wglow, ph: 2.9, a: 0.26 })
+          } catch { /* west head piece not on disk yet */ }
+        } catch { /* relief disabled */ }
 
         // ?coords=1 — the tile-coordinate scaffold (spatial-craft law #1): a label every
         // 8 tiles riding the terrain height, plus a tick at the exact tile centre, so every
