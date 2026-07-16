@@ -1663,32 +1663,68 @@ export default function IslandMapIso() {
           {
             const zG = 219 * 4000 + liftOf(eLvl(118, 101)) * 2 + 1440
             const zW = 219 * 4000 + liftOf(Math.max(0, eLvl(101, 118))) * 2 + 1440
-            // THE MAW SPILL (Ash: the flow out of the mouth was "too small" — the
-            // mouths must FORM the rivers): a FAT painted molten gush slumps from
-            // each jaw and fans over the river's birth tile, wider than the river
-            // itself so the channel visibly narrows OUT of the pour. Breathes with
-            // the glow set; the gobbets rain through it.
+            // THE MAW SPILL, SEAMLESS BY CONSTRUCTION (Ash: the flow was "botched
+            // ... make it seamless, flowing from mouth to the lava river and
+            // being the source"). No estimated pixels: the fan's own bottom is
+            // ANCHORED on the river's first lava tile at its real drawn height
+            // (isoY + GY - lift), and the gush's length is STRETCHED to reach up
+            // past the jaw lip. It draws UNDER the head sprite, so the chin and
+            // fangs overlap its top — the pour comes from INSIDE the mouth, and
+            // the fan lands ON the channel: no seam at either end.
             let spillT: Texture | undefined
             try {
               spillT = await Assets.load('/art/island/heads/maw-spill.png')
               if (spillT) spillT.source.scaleMode = 'nearest'
             } catch { /* spill art optional */ }
-            for (const [mx3, my3, sd, z3, fl] of [[499, 3102, 0.2, zG, false], [-499, 3100, 0.35, zW, true]] as [number, number, number, number, boolean][]) {
+            // the maw's world point, derived from the head mounts (centre ± the
+            // measured per-unit maw offset 48.2,67.3 at scale 1.45)
+            const MAWS: [number, number, number, number, boolean, [number, number]][] = [
+              [499, 3108, 0.2, zG, false, MOUTH_R],
+              [-499, 3106, 0.35, zW, true, MOUTH_L],
+            ]
+            for (const [mx3, my3, sd, z3, fl, mouthT] of MAWS) {
+              // the river head's true drawn top: tile iso pos lifted by its level
+              const rx4 = Math.round(mouthT[0]), ry4 = Math.round(mouthT[1])
+              const bLift = liftOf(Math.max(0, eLvl(rx4, ry4)))
+              const bx4 = isoX(mouthT[0], mouthT[1])
+              const by4 = isoY(mouthT[0], mouthT[1]) + GY - bLift + 10   // +10: land IN the channel, past its top lip
               if (spillT) {
-                const sl = new Sprite(spillT)
-                sl.anchor.set(0.5, 0.08)
-                sl.position.set(mx3, my3 - 4)
-                sl.scale.set((fl ? -1 : 1) * 1.15, 0.8)
-                sl.zIndex = z3 + 8
-                world.addChild(sl)
+                // OVER the chin, not behind it: drawn under the head the ruff
+                // swallowed the whole gush and only the fan tip escaped. The
+                // torrent now pours OUT of the maw over the lower jaw — its top
+                // edge tucked up inside the maw's dark interior, its fan landing
+                // on the channel head (the tawny head's one proven read).
+                const span = Math.max(60, by4 - (my3 + 2))    // jaw lip -> channel head
+                const ys = span / (spillT.height * 0.9)
+                // BRAIDED FAT GUSH: stretching one sprite to the span left a thin
+                // strand — two overlapped spills, offset and jittered, read as one
+                // heavy braided torrent as wide as the maw itself
+                for (const [oxs, sxs, yj] of [[-13, 1.55, 1], [14, 1.4, 0.92]] as [number, number, number][]) {
+                  const sl = new Sprite(spillT)
+                  sl.anchor.set(0.5, 0.9)                      // the FAN pixel row is the anchor
+                  sl.position.set(bx4 + oxs, by4 - (1 - yj) * 6)
+                  sl.scale.set((fl ? -1 : 1) * sxs, ys * yj)
+                  sl.tint = 0xffd8b0                           // step the cartoon-bright gush toward the river's ramp
+                  sl.zIndex = z3 + 8
+                  world.addChild(sl)
+                }
                 // the gush's own heat shimmer — an additive skin that breathes
                 const sk = new Sprite(spillT)
-                sk.anchor.set(0.5, 0.08); sk.blendMode = 'add'
-                sk.position.set(mx3, my3 - 4)
-                sk.scale.set((fl ? -1 : 1) * 1.15, 0.8)
-                sk.alpha = 0.3; sk.zIndex = z3 + 9
+                sk.anchor.set(0.5, 0.9); sk.blendMode = 'add'
+                sk.position.set(bx4, by4)
+                sk.scale.set((fl ? -1 : 1) * 1.55, ys)
+                sk.alpha = 0.26; sk.zIndex = z3 + 9
                 world.addChild(sk)
-                glows.push({ sp: sk, ph: sd * 6 + 1.1, a: 0.3 })
+                glows.push({ sp: sk, ph: sd * 6 + 1.1, a: 0.26 })
+                // a hot seam pool where the fan meets the channel — welds the
+                // painted gush and the tile river into one molten body
+                const weld = new Sprite(foamTex)
+                weld.anchor.set(0.5, 0.5); weld.blendMode = 'add'
+                weld.tint = 0xffb050; weld.width = 130; weld.height = 46; weld.alpha = 0.4
+                weld.position.set(bx4, by4 - 2)
+                weld.zIndex = z3 + 10
+                world.addChild(weld)
+                glows.push({ sp: weld, ph: sd * 6 + 3.4, a: 0.38 })
               }
               const fg = new Sprite(foamTex)
               fg.anchor.set(0.5, 0.5); fg.blendMode = 'add'
