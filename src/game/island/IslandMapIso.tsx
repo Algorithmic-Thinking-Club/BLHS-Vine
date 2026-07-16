@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Application, Assets, ColorMatrixFilter, Container, Rectangle, Sprite, Texture } from 'pixi.js'
+import { Application, Assets, ColorMatrixFilter, Container, Rectangle, Sprite, Text, TextStyle, Texture } from 'pixi.js'
 import {
   isoX, isoY, hash, vnoise, shadeHex, rampAt, tintFor,
   loadWaterVariants, seaTile, animSwells, type SwellSprite,
@@ -1333,6 +1333,36 @@ export default function IslandMapIso() {
             // than one level per row, which the coast staircase columns already cover.
             // Do not reintroduce fills; if a rim ever needs a crease, shade the top's own
             // edge pixels instead of stamping sprites behind it.
+          }
+        }
+
+        // ?coords=1 — the tile-coordinate scaffold (spatial-craft law #1): a label every
+        // 8 tiles riding the terrain height, plus a tick at the exact tile centre, so every
+        // verdict and edit note can cite tiles ("the checker band at 96,120"), never prose.
+        // Labels counter-scale against ZOOM so they read the same at far and play zooms.
+        if (params.get('coords')) {
+          const cst = new TextStyle({
+            fontFamily: 'Consolas, monospace', fontSize: 11, fill: 0xffffff,
+            stroke: { color: 0x000000, width: 3 },
+          })
+          const lsc = Math.min(3.2, 0.62 / ZOOM)
+          for (let cty = 0; cty < ROWS; cty += 8) {
+            for (let ctx = 0; ctx < COLS; ctx += 8) {
+              const cdx = ctx - CX, cdy = cty - CY
+              if (cdx * cdx + cdy * cdy > SEA_R * SEA_R) continue
+              const cl = dsAt(ctx, cty) > 0 ? eLvl(ctx, cty) : 0
+              const tick = new Sprite(Texture.WHITE)
+              tick.anchor.set(0.5); tick.width = 3 * lsc; tick.height = 3 * lsc; tick.tint = 0xff3355
+              tick.position.set(isoX(ctx, cty), isoY(ctx, cty) - liftOf(cl))
+              tick.zIndex = 1e9
+              world.addChild(tick)
+              const lbl = new Text({ text: `${ctx},${cty}`, style: cst })
+              lbl.anchor.set(0.5, 1)
+              lbl.scale.set(lsc)
+              lbl.position.set(isoX(ctx, cty), isoY(ctx, cty) - liftOf(cl) - 3 * lsc)
+              lbl.zIndex = 1e9
+              world.addChild(lbl)
+            }
           }
         }
 
