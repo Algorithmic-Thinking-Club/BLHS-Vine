@@ -26,6 +26,12 @@ RAMPS = {
     "asphalt":  [0x3a3b3f, 0x4d4a47, 0x55565a, 0x2c2d31, 0x6a6a6e],
     "dirt":     [0x8a6b4a, 0x5e3d31, 0x9c7a56, 0x705236, 0xa98a64],
     "brick":    [0x9e745e, 0x5e3d31, 0xb38a73, 0xb0a99a, 0x7a5446],
+    # dark carved stone / basalt monument (the gate heads): near-black charcoal body,
+    # cool violet shade, mid charcoal planes, ONE warm rim tone. Added 2026-07-13 —
+    # before this ramp existed the post-process literally could not land a head in
+    # c1-dark-massif's charcoal family (it re-tanned toward lion colors). grade_warm
+    # preserves per-pixel luminance, so the carved AO survives the grade.
+    "monument": [0x14100f, 0x241b22, 0x3a2f34, 0x554846, 0x6b5b52, 0x8a7a68],
     # concrete+grass blends keep both families so an edge tile grades cleanly
     "edge_gc":  [0xc8c6bf, 0xa8a69e, 0xd8d6cd, 0x45563e, 0x364532, 0x59624e],
     "edge_gb":  [0x9e745e, 0x5e3d31, 0xb38a73, 0x45563e, 0x364532, 0x59624e],
