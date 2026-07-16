@@ -4,7 +4,7 @@
 // calls requestUi('handbook'). The mounted HUD listens and opens the real thing.
 // One window CustomEvent, no coupling, works from Pixi callbacks and cutscene steps alike.
 
-export type UiRequest = 'planner' | 'handbook' | 'chart' | 'settings'
+export type UiRequest = 'planner' | 'handbook' | 'chart' | 'settings' | 'advisory'
 
 const EVENT = 'blhs:open-ui'
 

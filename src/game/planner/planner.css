@@ -38,6 +38,14 @@
   background: rgba(224, 213, 185, .5);
 }
 .pl-pin b { color: #3c2d1c; }
+.pl-pin-done { color: #2f6e50; font-family: 'Harbormaster', 'Deckhand', monospace; }
+.pl-pin-go {
+  font-family: 'Deckhand', monospace; font-size: 1.8cqw; color: #234c40;
+  background: linear-gradient(180deg, #dcebdd, #cfe2d0);
+  border: 2px solid #3c6e60; border-radius: 4px;
+  padding: .3cqw 1.4cqw; cursor: pointer;
+}
+.pl-pin-go:hover { transform: translateY(-1px); }
 
 .pl-body { flex: 1; display: flex; gap: 2cqw; min-height: 0; }
 

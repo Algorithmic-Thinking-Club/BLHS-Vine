@@ -8,6 +8,7 @@ import {
   type Season, type YearPlan,
 } from '../save'
 import { cordsOf } from '../progress'
+import { beatDone } from '../beats/beats'
 import { track } from '../telemetry'
 import './planner.css'
 
@@ -20,7 +21,7 @@ import './planner.css'
 // Opened by: the HUD tokens, the pause sheet, and — when the Maw lands — the chart table
 // POI via requestUi('planner') (ui-bus.ts).
 
-const CORE_BEATS: Record<number, string> = {
+const CORE_BEAT_DESC: Record<number, string> = {
   1: 'This is the place — POWER values, the bell schedule, how joining works',
   2: 'The hidden ladder — every cord and seal, and the Universal Retake Policy',
   3: 'The long game — the 24 credits, dual credit, AP Capstone’s exact rule',
@@ -31,7 +32,7 @@ const DEPT_LABEL: Record<Dept, string> = {
   ap: 'Advanced Placement', lang: 'World Languages', cte: 'Career & Technical', arts: 'Arts',
 }
 
-export function Planner({ onClose }: { onClose: () => void }) {
+export function Planner({ onClose, onAdvisory }: { onClose: () => void; onAdvisory?: () => void }) {
   const [, bump] = useState(0)
   useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
   const s = loadSave()
@@ -107,7 +108,13 @@ export function Planner({ onClose }: { onClose: () => void }) {
           <span className="pl-year">Year {year} of 4</span>
           <button className="pl-close" onClick={onClose}>put the pen down</button>
         </div>
-        <div className="pl-pin">📌 <b>Advisory, every year:</b> {CORE_BEATS[year] ?? CORE_BEATS[1]}</div>
+        <div className="pl-pin">
+          📌 <b>Advisory, every year:</b> {CORE_BEAT_DESC[year] ?? CORE_BEAT_DESC[1]}
+          {' '}
+          {beatDone(s.ledger, year)
+            ? <span className="pl-pin-done">attended ✓</span>
+            : onAdvisory && <button className="pl-pin-go" onClick={onAdvisory}>attend now</button>}
+        </div>
 
         <div className="pl-body">
           <div className="pl-cols">

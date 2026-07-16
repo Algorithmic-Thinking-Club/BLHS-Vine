@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Handbook } from './Handbook'
 import { SettingsPanel } from '../../app/SettingsPanel'
 import { Planner } from '../planner/Planner'
+import { CoreBeatRunner } from '../beats/ActivityRunner'
+import { CORE_BEATS } from '../beats/beats'
 import { loadSave, subscribeSave } from '../save'
 import { useNav } from '../../app/SceneManager'
 import { track } from '../telemetry'
@@ -19,20 +21,21 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const nav = useNav()
   const [book, setBook] = useState<null | 'chart' | 'islands'>(null)
   const [planner, setPlanner] = useState(false)
+  const [advisory, setAdvisory] = useState(false)
   const [paused, setPaused] = useState(false)
   const [settings, setSettings] = useState(false)
   const [, bump] = useState(0)
   useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
   const s = loadSave()
 
-  const anyOpen = book !== null || planner || settings
+  const anyOpen = book !== null || planner || settings || advisory
 
   // Esc = pause, only while nothing else owns the frame (the planner eats its own Esc)
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.repeat) return
       if (book || settings) { setBook(null); setSettings(false); onBlurWorld?.(false); return }
-      if (planner) return
+      if (planner || advisory) return   // the sheet eats its own Esc; a beat never Esc-quits
       setPaused((p) => { onBlurWorld?.(!p); return !p })
     }
     window.addEventListener('keydown', key)
@@ -43,6 +46,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   useEffect(() => onUiRequest((which) => {
     setPaused(false)
     if (which === 'planner') { track('planner_requested', { via: 'world' }); setPlanner(true); onBlurWorld?.(true) }
+    if (which === 'advisory') { setAdvisory(true); onBlurWorld?.(true) }
     if (which === 'handbook') { setBook('islands'); onBlurWorld?.(true) }
     if (which === 'chart') { track('chart_opened'); setBook('chart'); onBlurWorld?.(true) }
     if (which === 'settings') { setSettings(true) }
@@ -50,7 +54,8 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
 
   const openBook = (tab: 'chart' | 'islands') => { setPaused(false); setBook(tab); onBlurWorld?.(true) }
   const openPlanner = () => { setPaused(false); setPlanner(true); onBlurWorld?.(true) }
-  const closeAll = () => { setBook(null); setPlanner(false); setPaused(false); setSettings(false); onBlurWorld?.(false) }
+  const closeAll = () => { setBook(null); setPlanner(false); setAdvisory(false); setPaused(false); setSettings(false); onBlurWorld?.(false) }
+  const yearBeat = CORE_BEATS[s?.year ?? 1]
 
   return (
     <>
@@ -70,7 +75,8 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       </div>
 
       {book && <Handbook initialTab={book} onClose={closeAll} />}
-      {planner && <Planner onClose={closeAll} />}
+      {planner && <Planner onClose={closeAll} onAdvisory={() => { setPlanner(false); setAdvisory(true) }} />}
+      {advisory && yearBeat && <CoreBeatRunner beat={yearBeat} onClose={closeAll} />}
       {settings && <SettingsPanel onClose={() => { setSettings(false); setPaused(true) }} />}
 
       {paused && !anyOpen && (

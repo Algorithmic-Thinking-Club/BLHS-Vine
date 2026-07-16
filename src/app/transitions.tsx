@@ -34,6 +34,11 @@ export const FACTS: { id: string; text: string }[] = [
   { id: 'f-cte-cord', text: 'Earn two CTE credits and the Career Readiness cord is yours at graduation.' },
   { id: 'f-seal', text: 'Three or more years of one world language can earn the Seal of Biliteracy.' },
   { id: 'f-cords', text: 'The counseling office tracks every honor cord. So does your Handbook.' },
+  // core-beat takeaways (§7.3) land in this same pool — one truth per fact, one id per card
+  { id: 'f-power-full', text: 'Panther POWER: Perseverance, Ownership, Work Ethic, Engagement, Respect. Five letters, the whole culture.' },
+  { id: 'f-monday', text: 'Mondays start late at 8:30 and advisory meets that morning. Every other day starts at 7:25.' },
+  { id: 'f-25th-credit', text: 'Passing advisory pays .125 elective credit each semester. The catalog calls it the 25th credit.' },
+  { id: 'f-join-clubs', text: 'Joining a club is finding its meeting and walking in. DECA meets Thursdays 2:10 in the 200 Flex.' },
 ]
 
 const COVER_MS = 950 // cover-in / cover-out animation time — heavy and calm, never a flash

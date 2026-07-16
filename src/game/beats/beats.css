@@ -1,0 +1,113 @@
+/* The woven-check runner (§6.7 baseline / §7.3 core beats).
+   Game arm: the kit's paper-and-wood warmth, dialogue at reading pace.
+   Plain arm: deliberately plain (the AP Research control) — no kit, no juice. */
+
+.bt-veil {
+  position: absolute; inset: 0; z-index: 77;
+  background: rgba(5, 12, 15, .6);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.bt-stage {
+  width: min(680px, 94vw); max-height: 88vh; overflow-y: auto;
+  background: url('/art/ui/panel-square.png') center / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 12px 30px rgba(2, 8, 10, .65));
+  padding: 11% 13% 11.5%;
+  box-sizing: border-box;
+  container-type: inline-size;
+  animation: hb-in 260ms cubic-bezier(.2, 1.2, .35, 1) both;
+  font-family: 'Deckhand', monospace; color: #4a3826;
+  display: flex; flex-direction: column; gap: 2cqw;
+}
+
+.bt-place { font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 2.4cqw; color: #6a563c; }
+
+/* a spoken line: the whole card advances on click */
+.bt-say {
+  text-align: left; background: rgba(238, 227, 200, .5);
+  border: 2px solid #8a744f; border-radius: 6px;
+  padding: 2cqw 2.4cqw; cursor: pointer;
+  font-family: 'Deckhand', monospace; color: #4a3826;
+  display: flex; flex-direction: column; gap: 1cqw;
+}
+.bt-speaker { font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 2.4cqw; color: #234c40; }
+.bt-text { font-size: 2.7cqw; line-height: 1.5; }
+.bt-cue { align-self: flex-end; font-size: 2.2cqw; animation: bt-bounce 1.1s ease-in-out infinite; }
+@keyframes bt-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+.bt-check { display: flex; flex-direction: column; gap: 1.6cqw; }
+.bt-prompt { font-size: 2.8cqw; color: #3c2d1c; line-height: 1.4; }
+
+.bt-options { display: flex; flex-direction: column; gap: 1cqw; }
+.bt-opt {
+  text-align: left; font-family: 'Deckhand', monospace; font-size: 2.4cqw; color: #4a3826;
+  background: linear-gradient(180deg, #e6dcc2, #dbcfaf);
+  border: 2px solid #8a744f; border-radius: 5px;
+  padding: 1.4cqw 2cqw; cursor: pointer;
+  transition: transform 120ms ease;
+}
+.bt-opt:hover:not(:disabled) { transform: translateY(-1px); }
+.bt-opt:disabled { cursor: default; }
+.bt-opt-true { border-color: #3c6e60; background: linear-gradient(180deg, #dcebdd, #cfe2d0); color: #234c40; }
+.bt-opt-miss { opacity: .75; border-style: dashed; }
+
+/* never a red buzzer: the reply is the teacher's voice */
+.bt-reply { font-size: 2.3cqw; color: #6a563c; font-style: italic; line-height: 1.4; }
+
+.bt-sort { display: flex; flex-direction: column; gap: 1cqw; }
+.bt-sortrow { display: flex; align-items: center; gap: 1.6cqw; }
+.bt-sortlabel { flex: 1; font-size: 2.4cqw; }
+.bt-sortlabel em { color: #234c40; font-style: normal; font-weight: bold; }
+.bt-buckets { display: flex; gap: .8cqw; }
+.bt-bucket {
+  width: 4.2cqw; height: 4.2cqw;
+  font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 2.2cqw; color: #4a3826;
+  background: linear-gradient(180deg, #e6dcc2, #dbcfaf);
+  border: 2px solid #8a744f; border-radius: 4px; cursor: pointer;
+}
+.bt-bucket-on { border-color: #3c6e60; background: linear-gradient(180deg, #dcebdd, #cfe2d0); color: #234c40; }
+.bt-bucket:disabled { cursor: default; }
+
+.bt-go {
+  align-self: flex-start;
+  font-family: 'Deckhand', monospace; font-size: 2.2cqw; color: #4a3826;
+  background: linear-gradient(180deg, #e6dcc2, #dbcfaf);
+  border: 2px solid #8a744f; border-radius: 5px;
+  padding: 1cqw 2.4cqw; cursor: pointer;
+  transition: transform 120ms ease;
+}
+.bt-go:hover:not(:disabled) { transform: translateY(-1px); }
+.bt-go:disabled { opacity: .5; cursor: default; }
+
+.bt-grade { display: flex; align-items: baseline; gap: 2cqw; }
+.bt-lettermark {
+  font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 8cqw; color: #234c40;
+}
+.bt-gradenum { font-size: 2.4cqw; color: #6a563c; }
+
+.bt-takeaways { display: flex; flex-direction: column; gap: .8cqw; }
+.bt-fact {
+  font-size: 2.1cqw; line-height: 1.45; color: #4a3826;
+  border-left: 3px solid #b9974c; padding-left: 1.4cqw;
+  background: rgba(238, 227, 200, .45);
+}
+.bt-counselor { font-size: 2cqw; color: #6f6046; font-style: italic; }
+
+/* ---- the plain arm: deliberately unadorned ---- */
+.bt-plain {
+  width: min(640px, 94vw); max-height: 88vh; overflow-y: auto;
+  background: #ffffff; color: #222;
+  border-radius: 4px; padding: 24px 28px; box-sizing: border-box;
+  font-family: Arial, Helvetica, sans-serif; font-size: 15px; line-height: 1.5;
+}
+.bt-plainform h2 { margin: 0 0 10px; font-size: 19px; }
+.bt-plainform p { margin: 8px 0; }
+.bt-plainform fieldset { margin: 14px 0; border: 1px solid #bbb; padding: 10px 12px; }
+.bt-plainform legend { font-weight: bold; }
+.bt-plainform label { display: block; margin: 6px 0; }
+.bt-plainform button { margin-top: 10px; padding: 6px 18px; font-size: 15px; }
+.bt-plainform .bt-prompt, .bt-plainform .bt-gradenum, .bt-plainform .bt-counselor { font-family: inherit; color: inherit; font-size: inherit; }
+.bt-plainform .bt-lettermark { font-family: inherit; font-size: 34px; color: #222; }
+.bt-plainform .bt-fact { border-left: 3px solid #999; padding-left: 10px; background: #f5f5f5; font-size: 14px; }
+.bt-plainform .bt-go { font-family: inherit; background: #eee; border: 1px solid #999; border-radius: 3px; padding: 6px 16px; font-size: 14px; display: block; margin-top: 8px; }
