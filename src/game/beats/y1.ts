@@ -13,6 +13,7 @@ export const CORE_Y1: CoreBeat = {
   year: 1,
   title: 'This is the place',
   place: 'the Advisory Hearth',
+  kind: 'core',
   credit: 0.5,
   takeaways: ['f-power-full', 'f-monday', 'f-25th-credit', 'f-join-clubs'],
   steps: [

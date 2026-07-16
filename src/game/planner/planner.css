@@ -46,6 +46,7 @@
   padding: .3cqw 1.4cqw; cursor: pointer;
 }
 .pl-pin-go:hover { transform: translateY(-1px); }
+.pl-class-grade { margin-left: auto; font-family: 'Harbormaster', 'Deckhand', monospace; color: #2f6e50; font-size: 2.2cqw; }
 
 .pl-body { flex: 1; display: flex; gap: 2cqw; min-height: 0; }
 

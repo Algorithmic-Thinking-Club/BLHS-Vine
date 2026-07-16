@@ -40,8 +40,9 @@ export function CoreBeatRunner({ beat, onClose }: { beat: CoreBeat; onClose: () 
     const grade = gradeOf(score)
     const before = loadSave()
     recordGrade({
-      id: beat.id, title: beat.title, kind: 'core', credit: beat.credit,
-      grade, year: beat.year, season: 'Fall',
+      id: beat.id, title: beat.title, kind: beat.kind, credit: beat.credit,
+      grade, year: beat.year, season: before?.season ?? 'Fall',
+      ...(beat.tags?.length ? { tags: beat.tags } : {}),
       ...(retaking.current ? { retaken: true } : {}),
     })
     for (const f of beat.takeaways) collectFact(f)

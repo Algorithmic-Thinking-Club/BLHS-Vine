@@ -4,6 +4,10 @@ import { SettingsPanel } from '../../app/SettingsPanel'
 import { Planner } from '../planner/Planner'
 import { CoreBeatRunner } from '../beats/ActivityRunner'
 import { CORE_BEATS } from '../beats/beats'
+import { classBeat } from '../beats/classes'
+import { classById } from '../planner/catalog'
+import { Yearbook } from '../run/Yearbook'
+import { YearStart } from '../run/YearStart'
 import { loadSave, subscribeSave } from '../save'
 import { useNav } from '../../app/SceneManager'
 import { track } from '../telemetry'
@@ -22,20 +26,22 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const [book, setBook] = useState<null | 'chart' | 'islands'>(null)
   const [planner, setPlanner] = useState(false)
   const [advisory, setAdvisory] = useState(false)
+  const [sitClass, setSitClass] = useState<string | null>(null)
+  const [yearbook, setYearbook] = useState(false)
   const [paused, setPaused] = useState(false)
   const [settings, setSettings] = useState(false)
   const [, bump] = useState(0)
   useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
   const s = loadSave()
 
-  const anyOpen = book !== null || planner || settings || advisory
+  const anyOpen = book !== null || planner || settings || advisory || sitClass !== null || yearbook
 
   // Esc = pause, only while nothing else owns the frame (the planner eats its own Esc)
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.repeat) return
       if (book || settings) { setBook(null); setSettings(false); onBlurWorld?.(false); return }
-      if (planner || advisory) return   // the sheet eats its own Esc; a beat never Esc-quits
+      if (planner || advisory || sitClass || yearbook) return   // the sheet eats its own Esc; a beat never Esc-quits
       setPaused((p) => { onBlurWorld?.(!p); return !p })
     }
     window.addEventListener('keydown', key)
@@ -54,8 +60,15 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
 
   const openBook = (tab: 'chart' | 'islands') => { setPaused(false); setBook(tab); onBlurWorld?.(true) }
   const openPlanner = () => { setPaused(false); setPlanner(true); onBlurWorld?.(true) }
-  const closeAll = () => { setBook(null); setPlanner(false); setAdvisory(false); setPaused(false); setSettings(false); onBlurWorld?.(false) }
+  const closeAll = () => {
+    setBook(null); setPlanner(false); setAdvisory(false); setSitClass(null); setYearbook(false)
+    setPaused(false); setSettings(false); onBlurWorld?.(false)
+  }
   const yearBeat = CORE_BEATS[s?.year ?? 1]
+  const sitClassDef = sitClass ? classById(sitClass) : null
+  // the year-start vignette (§7.5 minute one): once per year, only while the world is quiet
+  const showVignette = !!s?.introDone && !anyOpen && !paused && !s.graduated
+    && !s.flags.includes(`vignette:y${s.year}`)
 
   return (
     <>
@@ -75,8 +88,20 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       </div>
 
       {book && <Handbook initialTab={book} onClose={closeAll} />}
-      {planner && <Planner onClose={closeAll} onAdvisory={() => { setPlanner(false); setAdvisory(true) }} />}
+      {planner && (
+        <Planner
+          onClose={closeAll}
+          onAdvisory={() => { setPlanner(false); setAdvisory(true) }}
+          onSitClass={(id) => { setPlanner(false); setSitClass(id) }}
+          onYearbook={() => { setPlanner(false); setYearbook(true) }}
+        />
+      )}
       {advisory && yearBeat && <CoreBeatRunner beat={yearBeat} onClose={closeAll} />}
+      {sitClass && sitClassDef && s && (
+        <CoreBeatRunner beat={classBeat(sitClassDef, s.year)} onClose={() => { setSitClass(null); setPlanner(true) }} />
+      )}
+      {yearbook && <Yearbook onClose={closeAll} />}
+      {showVignette && s && <YearStart year={s.year} onDone={() => bump((v) => v + 1)} />}
       {settings && <SettingsPanel onClose={() => { setSettings(false); setPaused(true) }} />}
 
       {paused && !anyOpen && (

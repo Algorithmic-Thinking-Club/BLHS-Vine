@@ -7,8 +7,11 @@ import {
   assignSlot, clearSlot, dropClass, loadSave, pickClass, SEASONS, stampPlan, subscribeSave,
   type Season, type YearPlan,
 } from '../save'
-import { cordsOf } from '../progress'
+import { cordsOf, letterOf } from '../progress'
 import { beatDone } from '../beats/beats'
+import { classDone } from '../beats/classes'
+import { retakeAvailable } from '../beats/score'
+import { yearStatus } from '../run/year'
 import { track } from '../telemetry'
 import './planner.css'
 
@@ -32,7 +35,12 @@ const DEPT_LABEL: Record<Dept, string> = {
   ap: 'Advanced Placement', lang: 'World Languages', cte: 'Career & Technical', arts: 'Arts',
 }
 
-export function Planner({ onClose, onAdvisory }: { onClose: () => void; onAdvisory?: () => void }) {
+export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
+  onClose: () => void
+  onAdvisory?: () => void
+  onSitClass?: (classId: string) => void
+  onYearbook?: () => void
+}) {
   const [, bump] = useState(0)
   useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
   const s = loadSave()
@@ -173,11 +181,24 @@ export function Planner({ onClose, onAdvisory }: { onClose: () => void; onAdviso
                 const c = classById(id)
                 if (!c) return null
                 const hint = cordHint(c.tags)
+                const sat = classDone(s.ledger, id)
+                const grade = sat ? s.ledger.find((e) => e.id === `class:${id}`)?.grade : undefined
                 return (
                   <div className="pl-class" key={id}>
                     <span className="pl-class-name">{c.name}</span>
                     {hint && <span className="pl-class-hint">{hint}</span>}
                     {!plan.stamped && <button className="pl-class-x" onClick={() => dropClass(year, id)} title="drop">✕</button>}
+                    {plan.stamped && (sat
+                      ? (
+                        <>
+                          <span className="pl-class-grade">{grade !== undefined ? letterOf(grade) : '✓'}</span>
+                          {/* the Universal Retake (§8.1), from the sheet too: under a B-, once */}
+                          {onSitClass && retakeAvailable(s, `class:${id}`) && (
+                            <button className="pl-pin-go" onClick={() => onSitClass(id)}>retake</button>
+                          )}
+                        </>
+                      )
+                      : onSitClass && <button className="pl-pin-go" onClick={() => onSitClass(id)}>sit the class</button>)}
                   </div>
                 )
               })}
@@ -219,7 +240,22 @@ export function Planner({ onClose, onAdvisory }: { onClose: () => void; onAdviso
             )}
 
             {plan.stamped ? (
-              <div className="pl-waxed"><span className="pl-wax">🐾</span> stamped — Year {year} is set</div>
+              <div>
+                <div className="pl-waxed"><span className="pl-wax">🐾</span> stamped — Year {year} is set</div>
+                {(() => {
+                  const st = yearStatus(s)
+                  if (st.readyForYearbook && !st.yearbookSeen && onYearbook) {
+                    return <button className="yb-open pl-stamp" onClick={onYearbook} style={{ marginTop: '1.2cqw' }}>The year is written. Open the yearbook</button>
+                  }
+                  if (!st.readyForYearbook) {
+                    const waits: string[] = []
+                    if (!st.coreBeatDone) waits.push('advisory')
+                    if (st.classesPending.length) waits.push(`${st.classesPending.length} class${st.classesPending.length > 1 ? 'es' : ''}`)
+                    return waits.length ? <div className="pl-stamp-note">the yearbook waits on: {waits.join(', ')}</div> : null
+                  }
+                  return null
+                })()}
+              </div>
             ) : confirming ? (
               <div>
                 <button className="pl-stamp" onClick={stamp}>Press the wax</button>{' '}

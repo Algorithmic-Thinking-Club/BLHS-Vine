@@ -54,6 +54,7 @@ export type SaveGame = {
   introDone: boolean
   graduated?: boolean           // the run's terminal state (§9); set by the fourth endYear
   plans: Record<number, YearPlan>  // the year sheets, keyed by year 1..4 (§7.2)
+  flags: string[]               // one-shot beats seen ('vignette:y1', ...) — never re-fire
   tokens: Season[]
   ledger: LedgerEntry[]
   ranks: Record<string, number>
@@ -66,7 +67,7 @@ export type SaveGame = {
 
 const fresh = (): SaveGame => ({
   v: 2, id: newId(), handle: '', pronouns: '', boatName: '', year: 1, season: 'Fall',
-  beat: 'intro:i1', introDone: false, plans: {},
+  beat: 'intro:i1', introDone: false, plans: {}, flags: [],
   tokens: [...SEASONS], ledger: [], ranks: {}, islands: {}, stickers: [], facts: [], badges: [],
   savedAt: 0,
 })
@@ -74,6 +75,7 @@ const fresh = (): SaveGame => ({
 // fields added after a save shape shipped get defaulted on read, never versioned-and-wiped
 const norm = (s: SaveGame): SaveGame => {
   if (!s.plans) s.plans = {}
+  if (!s.flags) s.flags = []
   return s
 }
 
@@ -205,6 +207,17 @@ export function grantBadge(id: string) {
   const s = loadSave()
   if (!s || s.badges.includes(id)) return s
   return writeSave({ badges: [...s.badges, id] })
+}
+
+/** mark a one-shot beat seen (year vignettes, first-time moments) — idempotent */
+export function setFlag(id: string) {
+  const s = loadSave()
+  if (!s || s.flags.includes(id)) return s
+  return writeSave({ flags: [...s.flags, id] })
+}
+
+export function hasFlag(id: string): boolean {
+  return loadSave()?.flags.includes(id) ?? false
 }
 
 /** the year turns. The FOURTH turn is terminal: it marks the run graduated (§9) instead of

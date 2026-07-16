@@ -12,14 +12,18 @@ export type BeatStep =
   | { kind: 'check'; check: CheckStep }
 
 export type CoreBeat = {
-  id: string             // ledger id, e.g. 'core:y1'
+  id: string             // ledger id, e.g. 'core:y1' / 'class:ap-human-geo'
   year: number
   title: string          // "This is the place"
   place: string          // where it stages, in fiction ("the Advisory Hearth")
+  /** ledger kind (§8.1 credit classes): core beats and class beats share this chassis */
+  kind: 'core' | 'class'
+  /** cord tags carried onto the ledger entry ('ap'/'cte'/'lang'/... — progress.ts reads these) */
+  tags?: string[]
   steps: BeatStep[]
   /** Handbook fact ids collected on completion (the takeaway cards, §6.6 beat 5) */
   takeaways: string[]
-  credit: number         // 0.5 for core beats (§8.1)
+  credit: number         // 0.5 for core and class beats (§8.1)
 }
 
 /** every check in a beat, in order (the scorable spine) */
