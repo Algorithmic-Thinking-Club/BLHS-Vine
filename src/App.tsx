@@ -5,6 +5,7 @@ import BootScene from './app/scenes/BootScene'
 import TitleScene from './app/scenes/TitleScene'
 import IntroScene from './game/intro/IntroScene'
 import TeacherScene from './app/scenes/TeacherScene'
+import { WorldHud } from './game/hud/WorldHud'
 
 // LAZY on purpose (and per §15.2's lazy-load law): the island maps are under heavy parallel
 // construction — a broken in-flight state must never white-screen the boot/title/intro path.
@@ -48,6 +49,7 @@ export default function App() {
   const params = new URLSearchParams(window.location.search)
   if (params.has('legacy')) return <Game />
   const initial = params.get('scene') ?? 'boot'
-  // unknown scene ids land on boot, never on a ghost scene
-  return <SceneManager initial={registry[initial] ? initial : 'boot'} registry={registry} />
+  // unknown scene ids land on boot, never on a ghost scene. The WorldHud overlay puts the
+  // compass/Handbook/year-sheet on every world scene (the beach mounts its own).
+  return <SceneManager initial={registry[initial] ? initial : 'boot'} registry={registry} overlay={<WorldHud />} />
 }

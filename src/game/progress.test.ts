@@ -12,7 +12,7 @@ const entry = (over: Partial<LedgerEntry>): LedgerEntry => ({
 
 const mkSave = (ledger: LedgerEntry[], over: Partial<SaveGame> = {}): SaveGame => ({
   v: 2, id: 'r1', handle: 'T', pronouns: '', boatName: '', year: 1, season: 'Fall',
-  beat: 'x', introDone: true, tokens: [], ledger, ranks: {}, islands: {},
+  beat: 'x', introDone: true, plans: {}, tokens: [], ledger, ranks: {}, islands: {},
   stickers: [], facts: [], badges: [], savedAt: 1, ...over,
 })
 

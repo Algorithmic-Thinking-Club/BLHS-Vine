@@ -17,7 +17,7 @@ export function useNav() {
   return c
 }
 
-export function SceneManager({ initial, registry }: { initial: string; registry: SceneRegistry }) {
+export function SceneManager({ initial, registry, overlay }: { initial: string; registry: SceneRegistry; overlay?: ReactNode }) {
   const [current, setCurrent] = useState(initial)
   const busy = useRef(false)
   const trState = useRef(makeTransitionState())
@@ -46,6 +46,8 @@ export function SceneManager({ initial, registry }: { initial: string; registry:
     <NavCtx.Provider value={nav}>
       <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: '#06121a' }}>
         {Scene ? Scene() : null}
+        {/* scene-independent chrome (the world HUD) rides above the scene, below covers */}
+        {overlay}
         <TransitionOverlay st={trState.current} version={trVersion} />
       </div>
     </NavCtx.Provider>

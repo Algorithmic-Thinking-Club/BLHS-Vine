@@ -30,6 +30,13 @@ export type LedgerEntry = {
 
 export type IslandState = 'misty' | 'discovered' | 'available' | 'active' | 'completed'
 
+/** one year's sheet at the chart table (§7.2): season slots + the 2 focus classes */
+export type YearPlan = {
+  slots: Partial<Record<Season, string>>   // season -> activity id (catalog.ts)
+  classes: string[]                        // up to 2 class ids
+  stamped: boolean                         // the harbor master's wax: the year is committed
+}
+
 export type SaveGame = {
   v: 2
   id: string
@@ -46,6 +53,7 @@ export type SaveGame = {
   beat: string
   introDone: boolean
   graduated?: boolean           // the run's terminal state (§9); set by the fourth endYear
+  plans: Record<number, YearPlan>  // the year sheets, keyed by year 1..4 (§7.2)
   tokens: Season[]
   ledger: LedgerEntry[]
   ranks: Record<string, number>
@@ -58,10 +66,16 @@ export type SaveGame = {
 
 const fresh = (): SaveGame => ({
   v: 2, id: newId(), handle: '', pronouns: '', boatName: '', year: 1, season: 'Fall',
-  beat: 'intro:i1', introDone: false,
+  beat: 'intro:i1', introDone: false, plans: {},
   tokens: [...SEASONS], ledger: [], ranks: {}, islands: {}, stickers: [], facts: [], badges: [],
   savedAt: 0,
 })
+
+// fields added after a save shape shipped get defaulted on read, never versioned-and-wiped
+const norm = (s: SaveGame): SaveGame => {
+  if (!s.plans) s.plans = {}
+  return s
+}
 
 let cache: SaveGame | null | undefined
 const listeners = new Set<() => void>()
@@ -81,7 +95,7 @@ const readRaw = (): SaveGame | null => {
     const raw = localStorage.getItem(KEY)
     if (!raw) return null
     const s = JSON.parse(raw) as SaveGame
-    return s.v === 2 ? s : null
+    return s.v === 2 ? norm(s) : null
   } catch { return null }
 }
 
@@ -200,4 +214,72 @@ export function endYear() {
   if (!s) return null
   if (s.year >= 4) return writeSave({ graduated: true })
   return writeSave({ year: s.year + 1, season: 'Fall', tokens: [...SEASONS] })
+}
+
+// ---- THE YEAR PLANNER's verbs (§7.2) — the chart-table sheet writes through these ----
+
+const planOf = (s: SaveGame, year: number): YearPlan =>
+  s.plans[year] ?? { slots: {}, classes: [], stamped: false }
+
+/** drop a season token on an activity. Spends the token (or re-aims an already-spent
+ *  season pre-stamp); refuses after the wax lands. */
+export function assignSlot(year: number, season: Season, activityId: string) {
+  const s = loadSave()
+  if (!s) return null
+  const plan = planOf(s, year)
+  if (plan.stamped) return null
+  const tokens = [...s.tokens]
+  if (!plan.slots[season]) {
+    const i = tokens.indexOf(season)
+    if (i < 0) return null                 // no token for that season (shouldn't happen pre-stamp)
+    tokens.splice(i, 1)
+  }
+  const next: YearPlan = { ...plan, slots: { ...plan.slots, [season]: activityId } }
+  return writeSave({ plans: { ...s.plans, [year]: next }, tokens })
+}
+
+/** lift a token back off the sheet (pre-stamp only) — the season's token returns to hand */
+export function clearSlot(year: number, season: Season) {
+  const s = loadSave()
+  if (!s) return null
+  const plan = planOf(s, year)
+  if (plan.stamped || !plan.slots[season]) return null
+  const slots = { ...plan.slots }
+  delete slots[season]
+  return writeSave({
+    plans: { ...s.plans, [year]: { ...plan, slots } },
+    tokens: [...s.tokens, season],
+  })
+}
+
+/** pick a focus class (max 2 per year, §7.2) */
+export function pickClass(year: number, classId: string) {
+  const s = loadSave()
+  if (!s) return null
+  const plan = planOf(s, year)
+  if (plan.stamped || plan.classes.length >= 2 || plan.classes.includes(classId)) return null
+  return writeSave({ plans: { ...s.plans, [year]: { ...plan, classes: [...plan.classes, classId] } } })
+}
+
+export function dropClass(year: number, classId: string) {
+  const s = loadSave()
+  if (!s) return null
+  const plan = planOf(s, year)
+  if (plan.stamped || !plan.classes.includes(classId)) return null
+  return writeSave({ plans: { ...s.plans, [year]: { ...plan, classes: plan.classes.filter((c) => c !== classId) } } })
+}
+
+/** the harbor master's stamp: the year commits. Slotted islands that exist in the world
+ *  flip to 'active' (§6.4) in the same write. */
+export function stampPlan(year: number, activeIslandIds: string[] = []) {
+  const s = loadSave()
+  if (!s) return null
+  const plan = planOf(s, year)
+  if (plan.stamped) return null
+  const islands = { ...s.islands }
+  for (const id of activeIslandIds) islands[id] = 'active'
+  return writeSave({
+    plans: { ...s.plans, [year]: { ...plan, stamped: true } },
+    islands,
+  })
 }
