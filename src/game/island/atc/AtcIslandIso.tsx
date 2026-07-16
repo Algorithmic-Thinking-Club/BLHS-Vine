@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { Application, Assets, ColorMatrixFilter, Container, Rectangle, Sprite, Text, TextStyle, Texture } from 'pixi.js'
 import {
-  isoX, isoY, hash, vnoise,
+  isoX, isoY, hash, vnoise, shadeHex, rampAt, tintFor,
   loadWaterVariants, configSeaTile, animSwells, type SwellSprite, HW, HH, DEPTH_RANGE,
 } from '../../ocean'
 import {
-  CX, CY, GRID, SEA_R, coastDs, coastR, shelfW, lagoonK, cliffK, sandK,
-  plateauD, KNOLL, cragD, ISLETS,
+  CX, CY, GRID, SEA_R, coastDs, coastR, shelfW, lagoonK, cliffK,
+  plateauD, SUMMIT, summitLvl, KNOLL, cragD, ISLETS,
 } from './atc-terrain'
 import {
   DOCK, dockAt, pathD, vegK, GROVES, SHADOW,
@@ -27,9 +27,6 @@ import { reportAtcAudit } from './atc-audit'
 const smooth = (e0: number, e1: number, x: number) => {
   const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t)
 }
-// azimuth through a soft wander so cliff↔beach handoffs meander like geology
-const thJit = (tx: number, ty: number) =>
-  Math.atan2(ty - CY, tx - CX) + 0.22 * (vnoise(tx / 9 + 21, ty / 9 + 13) - 0.5)
 // the hub's exact golden-hour sun rake (+1 sunlit upper-left, −1 shade)
 const rakeAt = (tx: number, ty: number) => {
   const up = (CX + CY) - (tx + ty)
@@ -37,6 +34,32 @@ const rakeAt = (tx: number, ty: number) => {
   const r = (up * 0.8 + left * 0.45) / 26 // 26: the small island reaches full rake at its edges
   return r / (1 + Math.abs(r))
 }
+// THE CAST SHADOW FIELD (the hub's P2, the summit as caster): a soft wedge
+// thrown down-sun of the summit (sun az 2.85 → shadow az 2.85−π), wandering
+// edge, fading with distance — shared by meadow, sand and (later) the sea.
+const castShadowK = (tx: number, ty: number) => {
+  const dxs = tx - SUMMIT.x, dys = ty - SUMMIT.y
+  const dc = Math.hypot(dxs, dys)
+  if (dc < 5 || dc > 36) return 0
+  const azT = Math.atan2(dys, dxs)
+  const rel = azT - (2.85 - Math.PI)
+  const dAz = Math.abs(Math.atan2(Math.sin(rel), Math.cos(rel)))
+    + (vnoise(tx / 7 + 41, ty / 7 + 8) - 0.5) * 0.16
+  return smooth(0.52, 0.18, dAz) * smooth(32, 14, dc)
+}
+const clampB = (v: number) => (v < 0 ? 0 : v > 255 ? 255 : v)
+// the hub's sunset split: warm the lit side toward gold, cool the shade violet
+const warmCool = (hex: number, rk: number) => {
+  let r = (hex >> 16) & 255, g = (hex >> 8) & 255, b = hex & 255
+  if (rk >= 0) { const t = rk * 0.15; r += (255 - r) * t; g += (222 - g) * t * 0.55; b -= b * t * 0.18 }
+  else { const t = -rk * 0.17; r -= r * t * 0.12; g -= g * t * 0.04; b += (205 - b) * t * 0.32 }
+  return (clampB(Math.round(r)) << 16) | (clampB(Math.round(g)) << 8) | clampB(Math.round(b))
+}
+// the hub's exact material ramps — one world, one skin
+const SAND_BASE = [246, 229, 180]
+const SAND_RAMP: [number, number][] = [[0, 0xdcbf87], [0.45, 0xead6a3], [1, 0xf7ecc2]]
+const GRASS_BASE = [126, 158, 96]
+const GRASS_RAMP: [number, number][] = [[0, 0xbcc468], [0.5, 0x9cb058], [1, 0x6f8c42]]
 const tint24 = (r: number, g: number, b: number) =>
   (Math.min(255, Math.round(r * 255)) << 16) | (Math.min(255, Math.round(g * 255)) << 8) | Math.min(255, Math.round(b * 255))
 
@@ -79,9 +102,14 @@ export default function AtcIslandIso() {
       const ZOOM = Number(params.get('zoom') || 0.62) || 0.62
       const cam = (params.get('cam') || `${CX + 2},${CY + 1}`).split(',').map(Number)
       const camTx = cam[0] ?? CX, camTy = cam[1] ?? CY
-      // 32 = the painted course: blocks3 blocks carry a 64x32 top diamond over
-      // a 32px painted side face — the world steps in whole drawn courses
-      const STEP = Number(params.get('step') || 32)
+      // THE HUB'S LEVEL LANGUAGE (rebuild 2026-07-16): coast benches step at
+      // STEP px; summit levels above the plateau rise CSTEP px so the shoulder
+      // reads as a continuous slope, not stacked cliffs (the hub's cone fix)
+      const STEP = Number(params.get('step') || 20)
+      const CSTEP = Number(params.get('cstep') || 10)
+      const PLAT_L = 3
+      const liftOf = (l: number) =>
+        l <= 0 ? 0 : Math.min(l, PLAT_L) * STEP + Math.max(0, l - PLAT_L) * CSTEP
       const SOCKETS = params.get('sockets') !== '0' // honest placeholder markers (default ON)
       const DBG = !!params.get('dbg')
 
@@ -90,13 +118,11 @@ export default function AtcIslandIso() {
       // top + drawn side in one image), modulated at most ±6%, never re-hued.
       // The old flat-diamond + computed-tint pipeline vector-flattened the
       // painted family down to a lime wash; it is gone.
-      const gB: Texture[] = []   // grass blocks (the deep painted meadow)
-      const gLB: Texture[] = []  // grass-l blocks (the SUN-POOL variants — value by VARIANT, not tint)
-      let sB: Texture | undefined, dB: Texture | undefined // sand / dirt blocks
-      const rWB: Texture[] = []  // rock-N-warm: golden-hour rock blocks
-      const rLB: Texture[] = []  // rock-N-lit: the sun-facing accents
-      const sideW: Texture[] = [] // rock-N-side: mossless continuation courses
-      const volcW: Texture[] = [] // volc-N-side: the DARK painted courses (crag/point/skerries)
+      const gB: Texture[] = []   // grass blocks (riser face crops)
+      let sB: Texture | undefined // sand block (step treads)
+      const rockN: Texture[] = [] // normalized bare-rock tops (crag/point/skerries)
+      const sideW: Texture[] = [] // rock-N-side: stone courses (cliff faces)
+      const volcW: Texture[] = [] // volc-N-side: the DARK courses (shaded cliffs, skerries)
       let waterV: Texture[] = []
       const deckT: Texture[] = []
       let plankB: Texture | undefined
@@ -115,11 +141,8 @@ export default function AtcIslandIso() {
         ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/island/flat/grass-${i}.png?v=7`).then((t: Texture) => { flatG[i] = nl(t) }).catch(() => {})),
         ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/island/flat/sand-${i}.png?v=7`).then((t: Texture) => { flatS[i] = nl(t) }).catch(() => {})),
         ...[1, 2, 3].map((i) => Assets.load(`/art/island/blocks3/grass-${i}.png`).then((t: Texture) => { gB[i - 1] = nl(t) }).catch(() => {})),
-        ...[1, 2, 3].map((i) => Assets.load(`/art/island/blocks3/grass-l${i}.png`).then((t: Texture) => { gLB[i - 1] = nl(t) }).catch(() => {})),
         Assets.load('/art/island/blocks3/sand-1.png').then((t: Texture) => { sB = nl(t) }).catch(() => {}),
-        Assets.load('/art/island/blocks3/dirt-1.png').then((t: Texture) => { dB = nl(t) }).catch(() => {}),
-        ...[2, 3, 4, 5].map((i) => Assets.load(`/art/island/blocks3/rock-${i}-warm.png`).then((t: Texture) => { rWB.push(nl(t)) }).catch(() => {})),
-        ...[2, 3, 4, 5].map((i) => Assets.load(`/art/island/blocks3/rock-${i}-lit.png`).then((t: Texture) => { rLB.push(nl(t)) }).catch(() => {})),
+        ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/island/rock-n/${i}.png`).then((t: Texture) => { rockN[i] = nl(t) }).catch(() => {})),
         ...[2, 3, 4, 5].map((i) => Assets.load(`/art/island/blocks3/rock-${i}-side.png`).then((t: Texture) => { sideW.push(nl(t)) }).catch(() => {})),
         ...[2, 3, 4, 5].map((i) => Assets.load(`/art/island/blocks3/volc-${i}-side.png`).then((t: Texture) => { volcW.push(nl(t)) }).catch(() => {})),
         ...Array.from({ length: 3 }, (_, i) => Assets.load(`/art/island/harbor/deck-top-${i}.png`).then((t: Texture) => { deckT[i] = nl(t) }).catch(() => {})),
@@ -200,53 +223,48 @@ export default function AtcIslandIso() {
         }
       }
       const isletAt = (tx: number, ty: number) => ISLETS.find((k) => Math.hypot(tx - k.x, ty - k.y) < k.r + 0.4)
-      // the SE point: past the ring's mean radius on the point's azimuth = bare rock finger
+      // the point's bare-rock spine: the peninsula past the meadow's reach
       const pointK = (tx: number, ty: number) => {
         const th = Math.atan2(ty - CY, tx - CX)
         const d = Math.hypot(tx - CX, ty - CY)
-        const w = Math.abs(((th - 0.05 + Math.PI * 3) % (Math.PI * 2)) - Math.PI)
-        return w < 0.26 && d > 21 ? 1 : 0
+        const w = Math.abs(((th + 0.05 + Math.PI * 3) % (Math.PI * 2)) - Math.PI)
+        return w < 0.24 && d > 19 ? 1 : 0
       }
-      const bandJ = (tx: number, ty: number) => (vnoise(tx / 12 + 31, ty / 12 + 47) - 0.5) * 1.2
-      // THE ACROPOLIS GRAMMAR (spec §9, post-split): the island TIERS UP to
-      // the summit. Beach 0 → meadow 1 → working apron 2 (north/west/east
-      // only) → THE SUMMIT COURT 3 — the sea-facing south lip drops sheer.
-      // No wall ring anymore: the Terminal monument + freestanding fragments
-      // carry the vertical story as composed hero pieces.
+      // long-wave bench wiggle (the hub's own: tight jitter carved paper-cut
+      // notches; long waves with occasional steps are how c3 draws terraces)
+      const bandJ = (tx: number, ty: number) => (vnoise(tx / 14 + 31, ty / 14 + 47) - 0.5) * 1.6
+      // THE HUB'S LEVEL GRAMMAR, verbatim: beach azimuths get a flat sand
+      // shelf then two benches hugging the plateau edge; cliff azimuths hold
+      // the full plateau to the waterline; THE SUMMIT alone climbs above the
+      // plateau (summitLvl — the cone grammar at acropolis scale).
       const lvlOf = (tx: number, ty: number) => {
         if (coastDs(tx, ty) <= 0) return -1
-        if (isletAt(tx, ty)) return 1 // skerries: bare rock nubs, one course over the water
-        const pd = plateauD(tx, ty)
-        if (pd <= 0.55) return 3 // THE ROOM FLOOR, high on its acropolis
-        if (pd <= 4.5 + bandJ(tx, ty)) {
-          // the apron wraps every side EXCEPT the sea-facing south arc — that
-          // lip stays a raw two-course cliff (the from-the-sea drama)
-          const thR = Math.atan2(ty - 62, tx - 64) // from the summit's heart
-          if (!(thR > 0.5 && thR < 2.6)) return 2
+        if (isletAt(tx, ty)) return 1
+        const d = DIST[ty * GRID + tx]
+        const cf = smooth(0.35, 0.6, cliffK(Math.atan2(ty - CY, tx - CX)))
+        const j = bandJ(tx, ty) * 0.7
+        const beachL = d <= 4.5 + j ? 0 : d <= 6 + j ? 1 : d <= 7.5 + j ? 2 : PLAT_L
+        const base = Math.round(beachL * (1 - cf) + PLAT_L * cf)
+        // the low point spine + knoll ride BELOW the plateau (a peninsula is
+        // not the island's body): cap them
+        if (pointK(tx, ty) || Math.hypot(tx - KNOLL.x, ty - KNOLL.y) < KNOLL.r) {
+          return Math.min(base, Math.hypot(tx - CX, ty - CY) < 23 ? 2 : 1)
         }
         const cd = cragD(tx, ty)
-        if (cd < 1.7) return 4 // the crag crown climbs — the dark silhouette needs height
-        if (cd < 3.1) return 2
-        const kd = Math.hypot(tx - KNOLL.x, ty - KNOLL.y)
-        if (kd < 2.4) return 2
-        if (pointK(tx, ty)) return Math.hypot(tx - CX, ty - CY) < 29 ? 2 : 1 // the point: raised spine at the root, low finger to the tip
-        // the ring: sand shelf on beach azimuths (wider in the designed sand
-        // windows), meadow otherwise; cliff azimuths hold the meadow to the water
-        const d = DIST[ty * GRID + tx]
-        const th = thJit(tx, ty)
-        const cf = smooth(0.35, 0.6, cliffK(th))
-        const shelfT = (1.6 + 2.6 * sandK(th)) * (1 - cf)
-        return d <= shelfT + bandJ(tx, ty) * (1 - cf) ? 0 : 1
+        if (cd < 1.7) return base + 2 // the crag: the dark tooth over the north arc
+        if (cd < 3.1) return Math.max(base, PLAT_L)
+        // the summit climbs out of full-plateau ground only (the hub's gate)
+        return base >= PLAT_L ? base + summitLvl(tx, ty) : base
       }
       const LV = new Int8Array(GRID * GRID)
       for (let ty = 0; ty < GRID; ty++) for (let tx = 0; tx < GRID; tx++) LV[ty * GRID + tx] = lvlOf(tx, ty)
-      // coast cleaners (the hub's notch killer), ring levels only — the
-      // authored terrace/knoll/crag contours are decisions, never smoothed
-      for (let pass = 0; pass < 2; pass++) {
+      // THE HUB'S FULL CLEANUP SUITE (each pass is a documented lesson):
+      // snap → spike killer → dip killer → notch killer → finger killer.
+      for (let pass = 0; pass < 3; pass++) {
         const prev = Int8Array.from(LV)
         for (let ty = 1; ty < GRID - 1; ty++) for (let tx = 1; tx < GRID - 1; tx++) {
           const L = prev[ty * GRID + tx]
-          if (L < 0 || L > 1) continue
+          if (L < 0 || L > PLAT_L) continue
           const nb = [prev[ty * GRID + tx + 1], prev[ty * GRID + tx - 1], prev[(ty + 1) * GRID + tx], prev[(ty - 1) * GRID + tx]]
           if (nb.includes(L)) continue
           const land = nb.filter((v) => v >= 0)
@@ -254,8 +272,67 @@ export default function AtcIslandIso() {
           const counts = new Map<number, number>()
           for (const v of land) counts.set(v, (counts.get(v) || 0) + 1)
           let best = L, bc = 1
-          for (const [v, c] of counts) if (c > bc) { best = v; bc = c }
+          for (const [v, c] of counts) if (c > bc || (c === bc && v !== L)) { best = v; bc = c }
           if (bc >= 2) LV[ty * GRID + tx] = best
+        }
+      }
+      { // spike killer: 1-tile promontories snap down
+        const prev = Int8Array.from(LV)
+        for (let ty = 1; ty < GRID - 1; ty++) for (let tx = 1; tx < GRID - 1; tx++) {
+          const L = prev[ty * GRID + tx]
+          if (L <= 0 || L > PLAT_L) continue
+          const nb = [prev[ty * GRID + tx + 1], prev[ty * GRID + tx - 1], prev[(ty + 1) * GRID + tx], prev[(ty - 1) * GRID + tx]].filter((v) => v >= 0)
+          const lower = nb.filter((v) => v < L)
+          if (nb.length >= 3 && lower.length >= 3) LV[ty * GRID + tx] = Math.max(...lower)
+        }
+      }
+      { // dip killer: 1-tile pockmarks raise
+        const prev = Int8Array.from(LV)
+        for (let ty = 1; ty < GRID - 1; ty++) for (let tx = 1; tx < GRID - 1; tx++) {
+          const L = prev[ty * GRID + tx]
+          if (L < 0 || L > PLAT_L) continue
+          const nb = [prev[ty * GRID + tx + 1], prev[ty * GRID + tx - 1], prev[(ty + 1) * GRID + tx], prev[(ty - 1) * GRID + tx]].filter((v) => v >= 0)
+          const higher = nb.filter((v) => v > L)
+          if (nb.length >= 3 && higher.length >= 3) LV[ty * GRID + tx] = Math.min(...higher)
+        }
+      }
+      for (let pass = 0; pass < 2; pass++) { // notch killer: majority snap
+        const prev = Int8Array.from(LV)
+        for (let ty = 1; ty < GRID - 1; ty++) for (let tx = 1; tx < GRID - 1; tx++) {
+          const L = prev[ty * GRID + tx]
+          if (L < 0) continue
+          const nb = [prev[ty * GRID + tx + 1], prev[ty * GRID + tx - 1], prev[(ty + 1) * GRID + tx], prev[(ty - 1) * GRID + tx]].filter((v) => v >= 0)
+          const counts = new Map<number, number>()
+          for (const v of nb) counts.set(v, (counts.get(v) || 0) + 1)
+          for (const [v, c] of counts) if (v !== L && c >= 3) { LV[ty * GRID + tx] = v; break }
+        }
+      }
+      for (let pass = 0; pass < 3; pass++) { // finger killer: thin bench peninsulas
+        const prev = Int8Array.from(LV)
+        for (let ty = 1; ty < GRID - 1; ty++) for (let tx = 1; tx < GRID - 1; tx++) {
+          const L = prev[ty * GRID + tx]
+          if (L < 0 || L > PLAT_L) continue
+          let lowN = 0, hiN = 0, lowBest = -9, hiBest = 99
+          for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+            if (!ox && !oy) continue
+            const v = prev[(ty + oy) * GRID + tx + ox]
+            if (v < 0) continue
+            if (v < L) { lowN++; if (v > lowBest) lowBest = v }
+            else if (v > L) { hiN++; if (v < hiBest) hiBest = v }
+          }
+          if (lowN >= 5 && hiN <= 1 && lowBest >= 0) LV[ty * GRID + tx] = lowBest
+          else if (hiN >= 5 && lowN <= 1) LV[ty * GRID + tx] = Math.min(hiBest, PLAT_L)
+        }
+      }
+      // THE COURT IS A DESIGNED BENCH (the hub's plaza cut): one flat level
+      // for the whole crown court — the Terminal never straddles two terraces
+      {
+        const pl = LV[Math.round(TERMINAL_SEAM[1]) * GRID + Math.round(TERMINAL_SEAM[0])]
+        if (pl > 0) {
+          for (let ty = FORECOURT.y0 - 3; ty <= FORECOURT.y1 + 1; ty++) for (let tx = FORECOURT.x0 - 1; tx <= FORECOURT.x1 + 1; tx++) {
+            const L = LV[ty * GRID + tx]
+            if (L > 0 && L >= pl - 2 && L <= pl + 3) LV[ty * GRID + tx] = pl
+          }
         }
       }
       const eLvl = (tx: number, ty: number) =>
@@ -287,29 +364,43 @@ export default function AtcIslandIso() {
         world.addChild(foam)
       }
 
-      // THE COLUMN (painted-block edition): the tile's OWN block carries the
-      // first course; deeper drops continue with painted side blocks — the
-      // dark volc family for silhouette masses, the rock-side family else.
-      // Modulation stays inside the beach's proven ±6% band. No hue math.
-      const drawColumn = (bx2: number, by2: number, m: number, toSea: boolean, tx2: number, ty2: number, zBase2: number, dark = false) => {
-        const pool2 = dark && volcW.length ? volcW : sideW
-        if (!pool2.length || m <= 0) return
-        const pick = (k: number) => Math.floor(vnoise(tx2 / 2.7 + 1.3 + k * 0.13, ty2 / 2.7 + 8.1 + k * 0.21) * pool2.length) % pool2.length
-        if (toSea) {
-          // submerged echo course: the cliff foot runs 12px under the waterline
-          const wet = new Sprite(pool2[pick(m)])
+      // THE RISERS (the hub's face language): a 1-course land step wears a
+      // GRASS riser that inherits the meadow's own tint (the field stays one
+      // surface); taller drops and every sea-facing face are STONE courses —
+      // warm rock in the sun, dark volc in shade — the drawn cliff walls.
+      const grassRiser: Texture[] = gB.filter(Boolean).map((t) => new Texture({ source: t.source, frame: new Rectangle(0, 30, 64, 34) }))
+      const drawColumn = (bx2: number, by2: number, m: number, toSea: boolean, tx2: number, ty2: number, zBase2: number, topTint: number, dark = false) => {
+        if (m <= 0) return
+        const rkc = rakeAt(tx2, ty2)
+        const stonePool = (dark || rkc < -0.15) && volcW.length ? volcW : sideW
+        const grassy = !toSea && m === 1 && !dark && grassRiser.length > 0
+        const pick = (k: number, pool2: Texture[]) => Math.floor(vnoise(tx2 / 2.7 + 1.3 + k * 0.13, ty2 / 2.7 + 8.1 + k * 0.21) * pool2.length) % pool2.length
+        if (toSea && stonePool.length) {
+          // submerged echo course: the cliff foot runs under the waterline
+          const wet = new Sprite(stonePool[pick(m, stonePool)])
           wet.anchor.set(0.5, 16 / 64)
           wet.position.set(bx2, by2 + (m - 1) * STEP + 12)
-          wet.tint = 0xc8c2bc // one quiet wet-dim, not a repaint
+          wet.tint = 0xb8ada2
           if (DBG) wet.tint = 0x2020ff
           wet.zIndex = zBase2; world.addChild(wet)
         }
-        // continuation courses BELOW the tile's own block (k = 1 .. m-1)
-        for (let k = m - 1; k >= 1; k--) {
-          const seg = new Sprite(pool2[pick(k)])
+        for (let k = m - 1; k >= 0; k--) {
+          if (grassy) {
+            // the meadow's own bank: the riser crop tinted FROM the top —
+            // one continuous surface folding over its step (the hub's P1)
+            const seg = new Sprite(grassRiser[pick(k, grassRiser)])
+            seg.anchor.set(0.5, 0)
+            seg.position.set(bx2, by2 + 2)
+            seg.tint = shadeHex(topTint, 0.72)
+            if (DBG) seg.tint = 0x20ff60
+            seg.zIndex = zBase2 + 1
+            world.addChild(seg)
+            return
+          }
+          const seg = new Sprite(stonePool[pick(k, stonePool)])
           seg.anchor.set(0.5, 16 / 64)
           seg.position.set(bx2, by2 + k * STEP)
-          const drift = 0.97 + 0.05 * vnoise(tx2 / 6 + 2.2, ty2 / 6 + 7.7) - 0.015 * k
+          const drift = (0.9 + 0.08 * vnoise(tx2 / 6 + 2.2, ty2 / 6 + 7.7) - 0.02 * k) * (1 + 0.18 * rkc)
           const vv = Math.min(255, Math.round(drift * 255))
           seg.tint = (vv << 16) | (vv << 8) | vv
           if (DBG) seg.tint = 0xff2020
@@ -318,12 +409,14 @@ export default function AtcIslandIso() {
         }
       }
 
-      // ---- THE LAND TILES: whole painted blocks, value by VARIANT ----
-      // The beach's law: painted art at full strength, modulation inside a
-      // ±6% band, hue untouched. Sun pools come from the l-variant blocks
-      // (painted lighter), shade from the volc family and overlay masses —
-      // never from repainting the tiles with computed color.
-      const gPool = gB.filter(Boolean), gLPool = gLB.filter(Boolean)
+      // ---- THE LAND TILES: THE HUB'S FIELD, ported faithfully ----
+      // Flat blended diamonds (the melt family, exact 64x36 on the 64x32
+      // lattice — the 2px bleed IS the melt), the hub's meadow recipe (large
+      // zone drift over patchwork, damped on the coast benches, path-dry,
+      // canopy AO under the authored masses, the summit's cast shadow), and
+      // risers BELOW the top so they inherit its computed tint.
+      const gt = flatG.filter(Boolean), st = flatS.filter(Boolean)
+      const rockTopTex = rockN.filter(Boolean)
       const stepPad: Texture | undefined = sB ? new Texture({ source: sB.source, frame: new Rectangle(0, 0, 64, 32) }) : undefined
       for (let ty = 0; ty < GRID; ty++) {
         for (let tx = 0; tx < GRID; tx++) {
@@ -331,15 +424,94 @@ export default function AtcIslandIso() {
           if (dx * dx + dy * dy > SEA_R * SEA_R) continue
           const L = eLvl(tx, ty)
           if (L < 0) continue
-          const lift = L <= 0 ? 0 : L * STEP
+          const lift = liftOf(L)
           const bx = isoX(tx, ty), by = isoY(tx, ty) - lift + GY
           const zBase = (tx + ty) * 4000 + lift * 2
           const rock = rockTop(tx, ty)
-          const onSummit = plateauD(tx, ty) <= 0.55
-          const court = onSummit && onCourt(tx, ty)
-          const isSand = L === 0 && !rock && smooth(0.35, 0.6, cliffK(Math.atan2(dy, dx))) < 0.5
+          const crown = plateauD(tx, ty) <= 0.01
+          const court = crown && onCourt(tx, ty)
+          // the hub's sand gate: sea-level land on a beach azimuth wears sand
+          const sand = L === 0 && !rock && cliffK(Math.atan2(dy, dx)) < 0.35
 
-          // deeper drops: painted continuation courses below the tile's own block
+          // THE TOP: one flat blended diamond
+          const pool = rock && rockTopTex.length ? rockTopTex : sand || court ? st : gt
+          if (!pool.length) continue
+          const g = pool[Math.floor(vnoise(tx / 6 + 4.2, ty / 6 + 1.8) * pool.length) % pool.length]
+          const top = new Sprite(g)
+          top.anchor.set(0.5, 0.5)
+          top.position.set(bx, by)
+          top.scale.set(1)
+          top.zIndex = zBase + 5
+          const grain = 0.995 + 0.01 * hash(tx * 1.3, ty * 2.1)
+          // continuous jitter on the rake input (the hub's contour-line fix)
+          const rk = rakeAt(tx, ty) + (vnoise(tx / 2.3 + 14, ty / 2.3 + 3) - 0.5) * 0.1
+          const shadowK = castShadowK(tx, ty)
+          const pD = pathD(tx, ty)
+          const seamD = Math.hypot(tx - TERMINAL_SEAM[0], ty - TERMINAL_SEAM[1])
+          let topTint: number
+          if (rock) {
+            // the dark masses (crag / point / skerries): basalt-brown, one
+            // hard sun across the form — c3's mass modelling
+            const drift = 0.82 + 0.12 * vnoise(tx / 5 + 8, ty / 5 + 3)
+            const lit = 1 + 0.35 * rk
+            topTint = warmCool(tint24(drift * 0.6 * lit, drift * 0.53 * lit, drift * 0.48), rk * 1.2)
+          } else if (court) {
+            // the forecourt: worn pale ground with the screen's teal spill
+            const wear = 0.94 + 0.08 * vnoise(tx / 9 + 3, ty / 9 + 12)
+            let hexF = tintFor(0xcabfa4, SAND_BASE)
+            if (seamD < 3.2) {
+              const k = (1 - seamD / 3.2) * 0.4
+              const r2 = Math.round(((hexF >> 16) & 255) * (1 - k) + 0x63 * k)
+              const g2 = Math.round(((hexF >> 8) & 255) * (1 - k) + 0xd8 * k)
+              const b2 = Math.round((hexF & 255) * (1 - k) + 0xc4 * k)
+              hexF = (r2 << 16) | (g2 << 8) | b2
+            }
+            topTint = warmCool(shadeHex(hexF, wear * grain * (1 - 0.2 * shadowK)), rk * 0.4)
+          } else if (sand) {
+            // the hub's beach recipe verbatim
+            const tt = Math.min(1, coastDs(tx, ty) / 5)
+            const v = (0.965 + 0.06 * vnoise(tx / 16 + 3, ty / 16 + 5)) * grain * (1 + 0.1 * rk)
+              * (1 - 0.18 * shadowK)
+            topTint = warmCool(shadeHex(tintFor(rampAt(SAND_RAMP, tt), SAND_BASE), v), rk * 0.7)
+          } else {
+            // THE MEADOW FIELD (the hub's recipe): large zone drift over
+            // patchwork, damped on the narrow benches, path-dry, canopy AO
+            const damp = L < PLAT_L ? 0.35 : Math.min(1, DIST[ty * GRID + tx] / 12)
+            const zone = 0.5 + (vnoise(tx / 24 + 9, ty / 24 + 17) - 0.5) * damp
+            const patch = 1.0 + 0.08 * (vnoise(tx / 14 + 2, ty / 14 + 6) - 0.5) * 2 * damp
+            const tval = Math.max(0, Math.min(1,
+              0.1 + 0.3 * vnoise(tx / 13 + 2, ty / 13 + 6) + 0.42 * zone + (vnoise(tx / 2.1 + 5, ty / 2.1 + 9) - 0.5) * 0.06))
+            const dry = Math.max(0, 1 - pD / 1.2) * 0.32
+            const vShade = 1 - 0.18 * smooth(0.35, 0.95, vegK(tx, ty))
+            const lit = patch * grain * (1 + 0.17 * rk) * (1.05 - 0.13 * zone) * vShade * (1 + 0.1 * dry)
+              * (1 - 0.3 * shadowK)
+            const tv2 = Math.max(0, Math.min(1, tval - 0.32 * dry + 0.24 * shadowK))
+            topTint = warmCool(tintFor(shadeHex(rampAt(GRASS_RAMP, tv2), lit), GRASS_BASE), rk)
+          }
+          // the buried cable's faint dark line crossing the open ground
+          if (!rock && cableD(tx, ty) < 0.45) {
+            const r2 = Math.round(((topTint >> 16) & 255) * 0.72)
+            const g2 = Math.round(((topTint >> 8) & 255) * 0.78)
+            const b2 = Math.round((topTint & 255) * 0.8)
+            topTint = (r2 << 16) | (g2 << 8) | b2
+          }
+          top.tint = topTint
+          world.addChild(top)
+          // the screen's glow pooling on the court (an additive breath)
+          if (court && seamD < 3.2) {
+            const film = new Sprite(foamTex)
+            film.anchor.set(0.5, 0.5)
+            film.width = 66; film.height = 30
+            film.position.set(bx, by)
+            film.alpha = 0.14 * (1 - seamD / 3.2) + 0.05
+            film.tint = 0x5adfca
+            film.blendMode = 'add'
+            film.zIndex = zBase + 7
+            world.addChild(film)
+          }
+
+          // THE RISERS (after the top — they inherit its tint): any lower
+          // 8-neighbour opens a face; sea edges get the foam collar
           let floorMin = L, toSea = false
           for (const [ox, oy] of [[1, 0], [0, 1], [1, 1], [-1, 0], [0, -1], [-1, 1], [1, -1], [-1, -1]] as [number, number][]) {
             const nlv = eLvl(tx + ox, ty + oy)
@@ -347,81 +519,13 @@ export default function AtcIslandIso() {
             const fl = nlv < 0 ? 0 : nlv
             if (fl < floorMin) floorMin = fl
           }
-          const exposed = L > floorMin || toSea
-          if (L - floorMin > 1 || toSea) drawColumn(bx, by, Math.max(1, L - floorMin), toSea, tx, ty, zBase, rock)
-          if (exposed) {
+          if (L > floorMin || toSea) {
+            drawColumn(bx, by, Math.max(1, L - floorMin), toSea, tx, ty, zBase, topTint, rock || cragD(tx, ty) < 3.1)
             for (const [ox, oy] of [[1, 0], [0, 1]] as [number, number][]) {
               if (eLvl(tx + ox, ty + oy) >= 0) continue
               const ex = isoX(tx + ox * 0.5, ty + oy * 0.5), ey = isoY(tx + ox * 0.5, ty + oy * 0.5) + GY
               foamCollar(ex, ey + 2, zBase, tx + ox + ty + oy)
             }
-          }
-
-          // THE GROUND UNIT: interior tiles wear the flat MELT family
-          // (painted to tile seamlessly, shown near-raw); exposed edge tiles
-          // wear the whole painted BLOCK so every lip keeps its drawn face.
-          const pathK = 1 - smooth(0.6, 1.6, pathD(tx, ty))
-          const seamD = Math.hypot(tx - TERMINAL_SEAM[0], ty - TERMINAL_SEAM[1])
-          const sunPool = pathK > 0.3 || seamD < 4.5 // the composed value: light pools where the walk goes
-          const fG = flatG.filter(Boolean), fS = flatS.filter(Boolean)
-          let tex: Texture | undefined
-          let isBlock = false
-          if (rock) {
-            const rp = rakeAt(tx, ty) > 0.3 && rLB.length ? rLB : rWB
-            tex = rp.length ? rp[Math.floor(vnoise(tx / 6 + 4.2, ty / 6 + 1.8) * rp.length) % rp.length] : undefined
-            isBlock = true
-          } else if (court) {
-            isBlock = exposed
-            tex = exposed ? (dB ?? sB) : fS[Math.floor(vnoise(tx / 4.5 + 3, ty / 4.5 + 8) * fS.length) % fS.length]
-          } else if (isSand) {
-            isBlock = exposed
-            tex = exposed ? sB : fS[Math.floor(vnoise(tx / 5 + 6, ty / 5 + 2) * fS.length) % fS.length]
-          } else if (exposed) {
-            // edges always wear the REGULAR block — a lit rim would outline
-            // the terraces like a highlighter
-            tex = gPool.length ? gPool[Math.floor(vnoise(tx / 4.5 + 3, ty / 4.5 + 8) * gPool.length) % gPool.length] : undefined
-            isBlock = true
-          } else {
-            // the meadow: clustered variants read as fields; the blade-clump
-            // variants scatter through like real growth
-            tex = fG.length ? fG[Math.floor(vnoise(tx / 4.5 + 3, ty / 4.5 + 8) * fG.length) % fG.length] : undefined
-          }
-          if (!tex) continue
-          const top = new Sprite(tex)
-          if (isBlock) {
-            top.anchor.set(0.5, 16 / 64) // block: diamond centred, painted side hangs a course
-            top.position.set(bx, by)
-            top.scale.set(1.02)
-          } else {
-            top.anchor.set(0.5, 0.5) // flat melt diamond, beach-style overlap + jitter
-            const jx = (hash(tx * 9.1, ty * 6.7) - 0.5) * 3
-            top.position.set(bx + jx, by)
-            top.scale.set((hash(tx * 7.7, ty * 5.3) > 0.5 ? -1 : 1) * 1.07, 1.07)
-          }
-          top.zIndex = zBase + 5
-          // beach-law modulation: brightness only — a deep resting base, the
-          // sun genuinely pooling along the walk and the Terminal court
-          let m2 = (sunPool ? 1.04 : 0.92) + 0.06 * vnoise(tx / 14 + 2, ty / 14 + 6) - vegK(tx, ty) * 0.1
-          if (isBlock && !rock && !isSand && !court) m2 = 0.84 + 0.05 * vnoise(tx / 14 + 2, ty / 14 + 6) // the block tufts paint lighter — settle them into the field
-          if (rock || isSand || court) m2 = 0.97 + 0.05 * vnoise(tx / 14 + 2, ty / 14 + 6)
-          if (!rock && !court && cableD(tx, ty) < 0.45) m2 *= 0.88 // the buried cable's faint line
-          const vv2 = Math.max(0, Math.min(255, Math.round(m2 * 255)))
-          top.tint = (vv2 << 16) | (vv2 << 8) | vv2
-          world.addChild(top)
-          // the court reads carpet through a FILM over the painted dirt (an
-          // overlay is honest; repainting the tile is not) + the screen spill
-          if (court && seamD < 3.4) {
-            // only the screen's own teal spill — the court's fabric read
-            // comes from the ground family, not a painted-on grid
-            const film = new Sprite(foamTex)
-            film.anchor.set(0.5, 0.5)
-            film.width = 66; film.height = 30
-            film.position.set(bx, by)
-            film.alpha = 0.16 * (1 - seamD / 3.4) + 0.06
-            film.tint = 0x5adfca
-            film.blendMode = 'add'
-            film.zIndex = zBase + 7
-            world.addChild(film)
           }
         }
       }
@@ -463,7 +567,7 @@ export default function AtcIslandIso() {
       for (const [sx, sy] of STEPS.tiles) {
         const Ls = eLvl(sx, sy)
         if (Ls < 0 || !stepPad) continue
-        const liftS = (Ls > 0 ? Ls * STEP : 0) + STEP * STEPS.lift
+        const liftS = liftOf(Ls) + STEP * STEPS.lift
         const bxS = isoX(sx, sy), byS = isoY(sx, sy) - liftS + GY
         const zBaseS = (sx + sy) * 4000 + liftS * 2
         const pad = new Sprite(stepPad)
@@ -499,7 +603,7 @@ export default function AtcIslandIso() {
         if (!tex) return
         const rtx = Math.round(ptx), rty = Math.round(pty)
         const L = Math.max(0, eLvl(rtx, rty))
-        const lift = L * STEP
+        const lift = liftOf(L)
         const gx = isoX(ptx, pty), gy = isoY(ptx, pty) + GY - lift + HH * 0.55 + (opts.sink ?? 0)
         if (!opts.noShadow) {
           // contact shadow grounds the piece (one sun, thrown down-right)
@@ -530,17 +634,17 @@ export default function AtcIslandIso() {
         doorGlow.anchor.set(0.5)
         doorGlow.tint = 0x3fe0d0; doorGlow.blendMode = 'add'
         doorGlow.width = 120; doorGlow.height = 60
-        doorGlow.position.set(isoX(TERMINAL_SEAM[0], TERMINAL_SEAM[1]), isoY(TERMINAL_SEAM[0], TERMINAL_SEAM[1]) + GY - Lt * STEP - 30)
+        doorGlow.position.set(isoX(TERMINAL_SEAM[0], TERMINAL_SEAM[1]), isoY(TERMINAL_SEAM[0], TERMINAL_SEAM[1]) + GY - liftOf(Lt) - 30)
         doorGlow.alpha = 0.3
-        doorGlow.zIndex = (TERMINAL[0] + TERMINAL[1] + 2) * 4000 + Lt * STEP * 2 + 430
+        doorGlow.zIndex = (TERMINAL[0] + TERMINAL[1] + 2) * 4000 + liftOf(Lt) * 2 + 430
         world.addChild(doorGlow)
         glows.push({ sp: doorGlow, ph: 1.1, a: 0.3 })
         // the carved cursor above the lintel, blinking like it always has
         const cursor = new Sprite(Texture.WHITE)
         cursor.tint = 0x66f2e0; cursor.width = 8; cursor.height = 12
         cursor.anchor.set(0.5, 1)
-        cursor.position.set(isoX(TERMINAL[0], TERMINAL[1]), isoY(TERMINAL[0], TERMINAL[1]) + GY - Lt * STEP - 196)
-        cursor.zIndex = (TERMINAL[0] + TERMINAL[1] + 2) * 4000 + Lt * STEP * 2 + 431
+        cursor.position.set(isoX(TERMINAL[0], TERMINAL[1]), isoY(TERMINAL[0], TERMINAL[1]) + GY - liftOf(Lt) - 196)
+        cursor.zIndex = (TERMINAL[0] + TERMINAL[1] + 2) * 4000 + liftOf(Lt) * 2 + 431
         world.addChild(cursor)
         glows.push({ sp: cursor, ph: 0, a: 0.9 })
       }
@@ -556,8 +660,8 @@ export default function AtcIslandIso() {
         const j = new Sprite(vegT['boulder-1'])
         j.anchor.set(0.5, 0.9)
         j.scale.set(0.8)
-        j.position.set(isoX(JUNCTION[0], JUNCTION[1]), isoY(JUNCTION[0], JUNCTION[1]) + GY - Lj * STEP + 4)
-        j.zIndex = (Math.round(JUNCTION[0]) + Math.round(JUNCTION[1])) * 4000 + Lj * STEP * 2 + 300
+        j.position.set(isoX(JUNCTION[0], JUNCTION[1]), isoY(JUNCTION[0], JUNCTION[1]) + GY - liftOf(Lj) + 4)
+        j.zIndex = (Math.round(JUNCTION[0]) + Math.round(JUNCTION[1])) * 4000 + liftOf(Lj) * 2 + 300
         world.addChild(j)
         const jg = new Sprite(foamTex)
         jg.anchor.set(0.5)
@@ -576,8 +680,8 @@ export default function AtcIslandIso() {
         b.anchor.set(0.5, 0.9)
         const L = Math.max(0, eLvl(ANNEX.rack[0], ANNEX.rack[1]))
         b.scale.set(0.7)
-        b.position.set(isoX(ANNEX.rack[0] - 0.2, ANNEX.rack[1] + 0.5), isoY(ANNEX.rack[0] - 0.2, ANNEX.rack[1] + 0.5) + GY - L * STEP + 6)
-        b.zIndex = (ANNEX.rack[0] + ANNEX.rack[1]) * 4000 + L * STEP * 2 + 340
+        b.position.set(isoX(ANNEX.rack[0] - 0.2, ANNEX.rack[1] + 0.5), isoY(ANNEX.rack[0] - 0.2, ANNEX.rack[1] + 0.5) + GY - liftOf(L) + 6)
+        b.zIndex = (ANNEX.rack[0] + ANNEX.rack[1]) * 4000 + liftOf(L) * 2 + 340
         world.addChild(b)
       }
       // pier dressing: the ATC crate + pennant waits at the berth (the deck
@@ -591,15 +695,15 @@ export default function AtcIslandIso() {
         const psh = new Sprite(shadowTex)
         psh.anchor.set(0.5)
         psh.width = 74; psh.height = 26
-        psh.position.set(isoX(FEATURE_PALM[0], FEATURE_PALM[1]) + 16 * SHADOW.dx, isoY(FEATURE_PALM[0], FEATURE_PALM[1]) + GY - pL * STEP + 3)
+        psh.position.set(isoX(FEATURE_PALM[0], FEATURE_PALM[1]) + 16 * SHADOW.dx, isoY(FEATURE_PALM[0], FEATURE_PALM[1]) + GY - liftOf(pL) + 3)
         psh.alpha = 0.34; psh.tint = 0x2a2350
-        psh.zIndex = (FEATURE_PALM[0] + FEATURE_PALM[1]) * 4000 + pL * STEP * 2 + 8
+        psh.zIndex = (FEATURE_PALM[0] + FEATURE_PALM[1]) * 4000 + liftOf(pL) * 2 + 8
         world.addChild(psh)
         const fp = new Sprite(vegT['coco-v2'])
         fp.anchor.set(0.5, 0.97)
         fp.scale.set(1.12)
-        fp.position.set(isoX(FEATURE_PALM[0], FEATURE_PALM[1]), isoY(FEATURE_PALM[0], FEATURE_PALM[1]) + GY - pL * STEP + 5)
-        fp.zIndex = (FEATURE_PALM[0] + FEATURE_PALM[1]) * 4000 + pL * STEP * 2 + 330
+        fp.position.set(isoX(FEATURE_PALM[0], FEATURE_PALM[1]), isoY(FEATURE_PALM[0], FEATURE_PALM[1]) + GY - liftOf(pL) + 5)
+        fp.zIndex = (FEATURE_PALM[0] + FEATURE_PALM[1]) * 4000 + liftOf(pL) * 2 + 330
         world.addChild(fp)
         sways.push({ sp: fp, amp: 0.014, w: 0.55, ph: 2.1 })
       }
@@ -617,8 +721,8 @@ export default function AtcIslandIso() {
         const p = new Sprite(tex)
         p.anchor.set(0.5, 0.97)
         p.scale.set(-rp.scale, rp.scale)
-        p.position.set(isoX(rp.at[0], rp.at[1]), isoY(rp.at[0], rp.at[1]) + GY - Lp * STEP + 4)
-        p.zIndex = (rp.at[0] + rp.at[1]) * 4000 + Lp * STEP * 2 + 335
+        p.position.set(isoX(rp.at[0], rp.at[1]), isoY(rp.at[0], rp.at[1]) + GY - liftOf(Lp) + 4)
+        p.zIndex = (rp.at[0] + rp.at[1]) * 4000 + liftOf(Lp) * 2 + 335
         world.addChild(p)
         sways.push({ sp: p, amp: 0.013, w: 0.5 + 0.4 * hash(rp.at[0], rp.at[1] * 3), ph: hash(rp.at[1], rp.at[0]) * 6.28 })
       }
@@ -639,9 +743,9 @@ export default function AtcIslandIso() {
             dot.anchor.set(0.5)
             dot.tint = 0x36e2cf; dot.blendMode = 'add'
             dot.width = 16; dot.height = 8
-            dot.position.set(isoX(nx, ny), isoY(nx, ny) + GY - Ln * STEP)
+            dot.position.set(isoX(nx, ny), isoY(nx, ny) + GY - liftOf(Ln))
             dot.alpha = 0.3
-            dot.zIndex = (Math.round(nx) + Math.round(ny)) * 4000 + Ln * STEP * 2 + 14
+            dot.zIndex = (Math.round(nx) + Math.round(ny)) * 4000 + liftOf(Ln) * 2 + 14
             world.addChild(dot)
             glows.push({ sp: dot, ph: -(runD + s) * 0.9, a: 0.3 })
           }
@@ -657,8 +761,8 @@ export default function AtcIslandIso() {
         const f = new Sprite(tex)
         f.anchor.set(0.5, 0.92)
         f.scale.set(0.5 + 0.2 * hash(fx2 * 1.3, fy2 * 2.7))
-        f.position.set(isoX(fx2, fy2), isoY(fx2, fy2) + GY - fL * STEP + 4)
-        f.zIndex = (fx2 + fy2) * 4000 + fL * STEP * 2 + 310
+        f.position.set(isoX(fx2, fy2), isoY(fx2, fy2) + GY - liftOf(fL) + 4)
+        f.zIndex = (fx2 + fy2) * 4000 + liftOf(fL) * 2 + 310
         world.addChild(f)
       }
       // THE LANDMARK (Ash's pick, proof-atc-lighthouse D): the school's own
@@ -672,9 +776,9 @@ export default function AtcIslandIso() {
         beacon.anchor.set(0.5)
         beacon.tint = 0x3fe0d0; beacon.blendMode = 'add'
         beacon.width = 150; beacon.height = 84
-        beacon.position.set(isoX(KNOLL.x, KNOLL.y + 0.4), isoY(KNOLL.x, KNOLL.y + 0.4) + GY - L * STEP - 268)
+        beacon.position.set(isoX(KNOLL.x, KNOLL.y + 0.4), isoY(KNOLL.x, KNOLL.y + 0.4) + GY - liftOf(L) - 268)
         beacon.alpha = 0.32
-        beacon.zIndex = (KNOLL.x + KNOLL.y) * 4000 + L * STEP * 2 + 390
+        beacon.zIndex = (KNOLL.x + KNOLL.y) * 4000 + liftOf(L) * 2 + 390
         world.addChild(beacon)
         glows.push({ sp: beacon, ph: 0.4, a: 0.32 })
       }
@@ -697,9 +801,9 @@ export default function AtcIslandIso() {
           pool.anchor.set(0.5)
           pool.width = gv.r * 2.4 * HW
           pool.height = gv.r * 2.4 * HH * 0.9
-          pool.position.set(isoX(gv.x, gv.y) + 8, isoY(gv.x, gv.y) + GY - gL * STEP)
+          pool.position.set(isoX(gv.x, gv.y) + 8, isoY(gv.x, gv.y) + GY - liftOf(gL))
           pool.alpha = 0.26; pool.tint = 0x241d40
-          pool.zIndex = (Math.round(gv.x) + Math.round(gv.y)) * 4000 + gL * STEP * 2 + 5
+          pool.zIndex = (Math.round(gv.x) + Math.round(gv.y)) * 4000 + liftOf(gL) * 2 + 5
           world.addChild(pool)
         }
         const plant = (key: string, px: number, py: number, sc: number, canopy: boolean) => {
@@ -712,7 +816,7 @@ export default function AtcIslandIso() {
           if (dockAt(rtx, rty)) return
           const tex = vegT[key]
           if (!tex) return
-          const lift = L * STEP
+          const lift = liftOf(L)
           const bx2 = isoX(px, py), by2 = isoY(px, py) + GY - lift + 4
           const mir = hash(px * 2.9, py * 1.3) > 0.5 ? -1 : 1
           // violet cast shadow, thrown down-right away from the one sun
@@ -755,7 +859,7 @@ export default function AtcIslandIso() {
       // an empty grove site = a silent composition hole (the round-2 lesson:
       // two sites sat in the water and nobody knew) — say it out loud
       grovePlanted.forEach((n, gi) => {
-        if (n < 3) console.warn(`[atc] grove ${gi} (${GROVES[gi].note}) planted only ${n} — site likely off the meadow`)
+        if (n < 3) console.warn(`[atc] grove ${gi} (${GROVES[gi].why}) planted only ${n} — site likely off the meadow`)
       })
 
       // coast MIST: slow wisps riding the waterline (the breath the refs have;
@@ -833,7 +937,7 @@ export default function AtcIslandIso() {
           const rx = Math.round(px), ry = Math.round(py)
           const L = eLvl(rx, ry)
           const dk = dockAt(rx, ry)
-          return isoY(px, py) + GY - (dk ? dk.lift : L > 0 ? L * STEP : 0)
+          return isoY(px, py) + GY - (dk ? dk.lift : L > 0 ? liftOf(L) : 0)
         }
         const stake = (id: string, px: number, py: number, kind: string) => {
           const gx = isoX(px, py), gy = groundY(px, py)
@@ -867,7 +971,7 @@ export default function AtcIslandIso() {
           for (let ctx = 0; ctx < GRID; ctx += 8) {
             if (Math.hypot(ctx - CX, cty - CY) > SEA_R * 0.9) continue
             const cl = eLvl(ctx, cty)
-            const gy = isoY(ctx, cty) + GY - (cl > 0 ? cl * STEP : 0)
+            const gy = isoY(ctx, cty) + GY - (cl > 0 ? liftOf(cl) : 0)
             const tick = new Sprite(Texture.WHITE)
             tick.tint = 0xff4040; tick.width = 3; tick.height = 3
             tick.anchor.set(0.5); tick.position.set(isoX(ctx, cty), gy)
