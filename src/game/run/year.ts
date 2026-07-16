@@ -7,7 +7,7 @@
 
 import type { SaveGame, Season } from '../save'
 import { SEASONS } from '../save'
-import { CORE_BEATS, beatDone } from '../beats/beats'
+import { hasCoreBeat, beatDone } from '../beats/beats'
 import { classDone } from '../beats/classes'
 import { activityById } from '../planner/catalog'
 
@@ -54,7 +54,7 @@ export function yearStatus(s: SaveGame): YearStatus {
   })
   const classesDone = plan.classes.filter((c) => classDone(s.ledger, c))
   const classesPending = plan.classes.filter((c) => !classDone(s.ledger, c))
-  const coreBeatDone = CORE_BEATS[year] ? beatDone(s.ledger, year) : true
+  const coreBeatDone = !hasCoreBeat(year) || beatDone(s.ledger, year)
   return {
     year,
     vignetteSeen: s.flags.includes(`vignette:y${year}`),

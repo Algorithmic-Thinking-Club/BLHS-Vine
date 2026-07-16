@@ -3,7 +3,7 @@ import { Handbook } from './Handbook'
 import { SettingsPanel } from '../../app/SettingsPanel'
 import { Planner } from '../planner/Planner'
 import { CoreBeatRunner } from '../beats/ActivityRunner'
-import { CORE_BEATS } from '../beats/beats'
+import { coreBeatFor } from '../beats/beats'
 import { classBeat } from '../beats/classes'
 import { classById } from '../planner/catalog'
 import { Yearbook } from '../run/Yearbook'
@@ -64,7 +64,8 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     setBook(null); setPlanner(false); setAdvisory(false); setSitClass(null); setYearbook(false)
     setPaused(false); setSettings(false); onBlurWorld?.(false)
   }
-  const yearBeat = CORE_BEATS[s?.year ?? 1]
+  // resolved per render on purpose: Y4's audit beat is GENERATED from the live save
+  const yearBeat = s ? coreBeatFor(s.year, s) : null
   const sitClassDef = sitClass ? classById(sitClass) : null
   // the year-start vignette (§7.5 minute one): once per year, only while the world is quiet
   const showVignette = !!s?.introDone && !anyOpen && !paused && !s.graduated
