@@ -2032,7 +2032,7 @@ export default function IslandMapIso() {
         const HARBOR_ON = params.get('harbor') !== '0'
         if (HARBOR_ON) try {
           const hb: Record<string, Texture> = {}
-          for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'boathouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'deck-top-v4-0', 'deck-top-v4-1', 'deck-top-v4-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b', 'house-v4', 'lamp-v4']) {
+          for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'boathouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'deck-top-v5-0', 'deck-top-v5-1', 'deck-top-v5-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b', 'house-v4', 'lamp-v4']) {
             try {
               const t: Texture = await Assets.load(`/art/island/harbor/${n}.png?v=5`)
               t.source.scaleMode = 'nearest'; hb[n] = t
@@ -2056,10 +2056,10 @@ export default function IslandMapIso() {
             // port-wood plank texture brown") — three plank diamonds harvested
             // straight off the approved beach pier's deck, hash-picked per tile,
             // quiet low-frequency drift keeping the run from checkering
-            // v4 driftwood tops preferred (deck_v4.py) — the orange v3 planks were
-            // the harbor's core ugliness and no tint could desaturate them
+            // v5 GOLDEN-BROWN tops (deck_v5.py — Ash's called direction: "a beautiful,
+            // golden brown harbor"; the v4 grey was wrong, the v3 orange-brick was wrong)
             const plankTops = [0, 1, 2]
-              .map(i => hb[`deck-top-v4-${i}`] ?? hb[`deck-top-${i}`])
+              .map(i => hb[`deck-top-v5-${i}`] ?? hb[`deck-top-${i}`])
               .filter((t): t is Texture => !!t)
             if (!plankTops.length) plankTops.push(topOf(hb['plank-block-a']))
             const plankF = faceOf(hb['plank-block-a'])
@@ -2379,8 +2379,9 @@ export default function IslandMapIso() {
             // essentials — the bell, the lanterns, the beacon, the ship, two boats —
             // with room to breathe. The fresh art kit is phase 2.
             mount(pt['bell-frame'], deckCtr(HARBOR.bell), { sc: 0.5 })
-            // cargo pared to ONE neat stack at the quay root (a working port, not a yard sale)
-            for (let ci = 0; ci < Math.min(2, HARBOR.cargo.length); ci++) {
+            // v5 BUSTLE (Ash: "grand... bustling harbor port"): the full cargo yard
+            // returns — freight at every work point, varied scale and flip
+            for (let ci = 0; ci < HARBOR.cargo.length; ci++) {
               mount(pt['cargo-a'], deckCtr(HARBOR.cargo[ci]), { sc: 0.62 + 0.16 * hash(ci * 3.1 + 1, ci * 1.7 + 2), flip: ci % 2 === 1 })
             }
             for (const L2 of HARBOR.lanterns) {
