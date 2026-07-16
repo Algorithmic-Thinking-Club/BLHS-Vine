@@ -62,7 +62,7 @@ export default function PantherCaveIso() {
       let hearthT: Texture | undefined
       await Promise.all([
         ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/island/cave/${FLOOR_ALT ? 'floor' : 'floor2'}/top-${i}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; floorT[i] = t }).catch(() => {})),
-        ...Array.from({ length: 8 }, (_, i) => Assets.load(`/art/island/cave/lava/top-${i}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; lavaT[i] = t }).catch(() => {})),
+        ...Array.from({ length: 24 }, (_, i) => Assets.load(`/art/island/cave/lava/top-${i}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; lavaT[i] = t }).catch(() => {})),
         ...[0, 1, 2, 3].map((i) => Assets.load(`/art/island/cave/blocks/block-${i}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; sideW.push(t) }).catch(() => {})),
         Assets.load('/art/island/cave/props/hearth.png').then((t: Texture) => { t.source.scaleMode = 'nearest'; hearthT = t }).catch(() => {}),
       ])
@@ -132,9 +132,10 @@ export default function PantherCaveIso() {
         .map((s) => [s.anchor[0], s.anchor[1], s.id === 'C4-principal-desk' ? 0.7 : 0.45])
       type Light = { warm: number; ember: number; cool: number }
       const lightAt = (tx: number, ty: number): Light => {
-        // (1) the hearth — the room's heart, brightest interior point
+        // (1) the hearth — the room's heart, brightest interior point (its
+        // reach spans the grand hall: the room must be SEEABLE, moody ≠ blind)
         const dh = Math.hypot(tx - HEARTH[0], ty - HEARTH[1])
-        let warm = 1.3 * Math.pow(Math.max(0, 1 - dh / 13), 1.6)
+        let warm = 1.3 * Math.pow(Math.max(0, 1 - dh / 17), 1.5)
         // (2) the mouth-light — a pool on the shelf + the long wedge down the stair
         const vx = tx - MOUTH[0], vy = ty - MOUTH[1]
         const d = Math.hypot(vx, vy)
@@ -175,7 +176,7 @@ export default function PantherCaveIso() {
         // lattice (the m1/m3 crop verdict) — the light gradients own value
         const grain = 0.97 + 0.06 * vnoise(tx / 13 + 8, ty / 13 + 3)
         const wear = 0.98 + 0.04 * vnoise(tx / 21 + 2, ty / 21 + 6)
-        let v = 0.17 + 0.9 * warm + 0.5 * ember
+        let v = 0.24 + 0.9 * warm + 0.5 * ember
         if (L === 1) v += 0.05  // the dais reads a breath lifted
         if (L === 3) v += 0.03  // the shelf under the mouth pool
         v *= grain * wear
@@ -194,23 +195,24 @@ export default function PantherCaveIso() {
           const zBase = (tx + ty) * 4000 + lift * 2
 
           if (L === -2) {
-            // THE LIVING LAVA: bright molten floor first (the P1 read that
-            // held), the harvested texture as variation on top — the trench
-            // must BURN, never smudge
+            // THE LIVING LAVA as ONE FLOWING BODY: tiles pick ORDERED crops by
+            // their position ALONG the trench, so downstream neighbors continue
+            // the painting's flow — random picks read as scattered debris
             const pool = lavas.length ? lavas : floors
             if (!pool.length) continue
-            const lv = new Sprite(pool[Math.floor(hash(tx * 3.1, ty * 1.7) * pool.length) % pool.length])
+            const tvx = TRENCH.x1 - TRENCH.x0, tvy = TRENCH.y1 - TRENCH.y0
+            const tAlong = Math.max(0, Math.min(1, ((tx - TRENCH.x0) * tvx + (ty - TRENCH.y0) * tvy) / (tvx * tvx + tvy * tvy)))
+            const lane = ((tx * tvy - ty * tvx) > (TRENCH.x0 * tvy - TRENCH.y0 * tvx)) ? 0 : 12 // which of the two harvested runs
+            const idx = (lane + Math.floor(tAlong * 11.99)) % pool.length
+            const lv = new Sprite(pool[idx] ?? pool[0])
             lv.anchor.set(0.5, 0.5)
             lv.position.set(bx, isoY(tx, ty))
-            lv.scale.set((hash(tx * 2.3, ty * 5.9) > 0.5 ? -1 : 1) * 1.04, 1.04)
-            // hot core along the channel's spine, ember at its banks — the
-            // harvested tiles carry white-gold cores; the tint stays HOT
             const spine = 1 - Math.min(1, trenchNear(tx + 0.5, ty + 0.5) / 1.6)
-            const core = 0.95 + 0.25 * spine + 0.08 * vnoise(tx / 2.2 + 3, ty / 2.2 + 8)
+            const core = 0.95 + 0.25 * spine + 0.05 * vnoise(tx / 3 + 3, ty / 3 + 8)
             lv.tint = tint24(Math.min(1, core), core * (0.66 + 0.24 * spine), core * 0.3)
             lv.zIndex = zBase + 3
             world.addChild(lv)
-            pulses.push({ sp: lv, ph: hash(tx, ty) * 6.28 + (tx + ty) * 0.55, base: core, spine })
+            pulses.push({ sp: lv, ph: (tx + ty) * 0.5, base: core, spine })
             continue
           }
 
@@ -323,7 +325,7 @@ export default function PantherCaveIso() {
           // glints so the mountain reads alive, never flat black fill
           const drift = 0.75 + 0.5 * vnoise(mx / 16 + 4, my / 16 + 9)
           const glint = hash(mx * 12.7, my * 9.3) > 0.985 ? 0.05 : 0
-          const v = 0.095 * drift
+          const v = 0.125 * drift
           sp.tint = tint24(v * 0.82 + glint * 1.6, v * 0.7 + glint * 0.7, v * 1.25 + glint * 0.2)
           sp.zIndex = ((scale2 ? mx + 1 : mx) + (scale2 ? my + 1 : my)) * 4000 + lift * 2 + 4
           world.addChild(sp)
@@ -350,7 +352,8 @@ export default function PantherCaveIso() {
           if (lvlAt(tx, ty) !== -1 || !sides.length) continue
           let minFloor = 99, maxFloor = -1, floorSum = Infinity, anyFloor = false
           for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]] as const) {
-            const nl = eLvl(tx + ox, ty + oy)
+            const raw = eLvl(tx + ox, ty + oy)
+            const nl = raw === -2 ? 0 : raw // the melt counts as ground: its banks rise like any wall (holes read beside the channel otherwise)
             if (nl >= 0) { anyFloor = true; minFloor = Math.min(minFloor, nl); maxFloor = Math.max(maxFloor, nl); floorSum = Math.min(floorSum, (tx + ox) + (ty + oy)) }
           }
           if (!anyFloor) continue
@@ -392,9 +395,9 @@ export default function PantherCaveIso() {
             seg.position.set(bx, by - (k + 1) * STEP + 8)
             // smooth height decay — a per-course power curve printed
             // horizontal bands; this fades continuously into the vault
-            const kk = 1 / (1 + k * 0.16)
+            const kk = 1 / (1 + k * 0.14)
             const drift = 0.9 + 0.18 * vnoise(tx / 6 + 2.2 + k * 0.07, ty / 6 + 7.7 - k * 0.05)
-            let v = (0.3 + 0.72 * warm + 0.5 * ember) * kk * drift
+            let v = (0.38 + 0.72 * warm + 0.5 * ember) * kk * drift
             if (isMouth) v = Math.max(v, 0.5) // the lintel catches the blaze
             seg.tint = hueMix(v, ember, 0)
             if (DBG) seg.tint = behind ? 0x8040ff : 0xff8040
