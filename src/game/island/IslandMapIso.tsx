@@ -33,6 +33,20 @@ const rakeAt = (tx: number, ty: number) => {
   const r = (up * 0.8 + left * 0.45) / 44
   return r / (1 + Math.abs(r))
 }
+// P2 · THE CAST SHADOW FIELD (shared by meadow, sand, and the SEA — c3's shadow pool
+// crosses the lagoon): a soft wedge thrown DOWN-SUN of the cone (sun az 2.85 → shadow
+// az 2.85-π, screen SE), wandering edge, fading with distance. Pure (tx,ty).
+const castShadowK = (tx: number, ty: number) => {
+  const dxs = tx - CX, dys = ty - CY
+  const dc = Math.hypot(dxs, dys)
+  if (dc < 14 || dc > 68) return 0            // the cone's base owns its value; far sea clear
+  const azT = Math.atan2(dys, dxs)
+  const rel = azT - (2.85 - Math.PI)
+  const dAz = Math.abs(Math.atan2(Math.sin(rel), Math.cos(rel)))
+    + (vnoise(tx / 7 + 41, ty / 7 + 8) - 0.5) * 0.16
+  return smooth(0.52, 0.18, dAz) * smooth(64, 30, dc)
+}
+
 const clampB = (v: number) => (v < 0 ? 0 : v > 255 ? 255 : v)
 // warm the sunlit side toward gold, cool the shade side toward violet-blue (the sunset split)
 const warmCool = (hex: number, rk: number) => {
@@ -561,7 +575,12 @@ export default function IslandMapIso() {
           // stripes carry the RIDGE read now that the texture is damped — but ribs SHADE
           // (~30% down), they never go black: the stacked gully+shade+stripe minima at a
           // 0.46 floor printed near-black contour strings under the golden grade
-          let v = 0.96 + 0.18 * cl + (0.11 + 0.06 * (1 - warm)) * stripe - 0.1 * gy
+          // P2 · THE TERMINATOR IS THE MOUNTAIN'S VALUE STRUCTURE: base pulled down
+          // (0.96 → 0.88) and the sun swing deepened (0.18 → 0.28) so the shade flank
+          // falls into real maroon-violet mass while the lit flank keeps its amber —
+          // bon3/c1's cones live in the dark third of the histogram; ours was one
+          // bright terracotta sheet (s2 dark-mass 0.10 vs ref 0.69)
+          let v = 0.88 + 0.28 * cl + (0.11 + 0.07 * (1 - warm)) * stripe - 0.12 * gy
           v *= 1 - 0.22 * smooth(0.85, 1, hFrac)       // char hugs the crown only (background char)
           v *= 1 - 0.3 * smooth(0.3, 1, ck)            // the bowl darkens to the vent
           v = Math.max(0.55, Math.min(1.06, v))        // floor WELL above the grade's crush point
@@ -593,10 +612,14 @@ export default function IslandMapIso() {
           const tex = fam[Math.floor(vnoise((tx2 - ty2) / 4 + 6.3, (tx2 + ty2) / 16 + 2.9) * fam.length) % fam.length]
           const srcH = tex.height - 18
           const frameH = Math.min(srcH, need)
-          const fr = new Texture({ source: tex.source, frame: new Rectangle(0, 18, 64, frameH) })
+          // P2: the crop starts at row 26, not 18 — rows 18-26 carry the block-top
+          // diamond's bright lower-rim bevel, and on the cone's 10px steps that rim
+          // printed a bright crescent per tread (the shingle-band read at map zoom).
+          // Full width keeps the art's own V-taper meshing under the tile top.
+          const fr = new Texture({ source: tex.source, frame: new Rectangle(0, 26, 64, Math.min(tex.height - 26, frameH)) })
           const seg = new Sprite(fr); seg.anchor.set(0.5, 0)
           seg.position.set(bx2, by2)
-          if (need > srcH) seg.scale.y = need / srcH
+          if (need > fr.frame.height) seg.scale.y = need / fr.frame.height
           if (molten) {
             // a LAVA FALL: the river pours over the step — the face burns instead of
             // showing rock, with its own glow at the lip
@@ -629,6 +652,7 @@ export default function IslandMapIso() {
                 const g2 = gt2[Math.floor(vnoise(tx2 / 5 + 3, ty2 / 5 + 8) * gt2.length) % gt2.length]
                 const gh = Math.min(g2.height - 6, need)
                 seg.texture = new Texture({ source: g2.source, frame: new Rectangle(0, 6, Math.min(64, g2.width), gh) })
+                seg.scale.x = 1   // the grass crop is full-width; undo the strata stretch
                 if (need > gh) seg.scale.y = need / gh
               }
               seg.tint = tint24(lo * 0.74, lo * 0.8, lo * 0.46)
@@ -648,7 +672,9 @@ export default function IslandMapIso() {
               const lit = coneLit(tx2, ty2)
               const stripe = stripeK(tx2, ty2)
               const warm = 0.5 + 0.5 * lit
-              const mod = (1 + 0.2 * lit + (0.12 + 0.08 * (1 - warm)) * stripe) * (1 - 0.26 * gullyK(tx2, ty2))
+              // P2: the long-run ribs carry more of the face — the quieted grain hands
+              // the striation job to the tint field
+              const mod = (1 + 0.22 * lit + (0.17 + 0.1 * (1 - warm)) * stripe) * (1 - 0.3 * gullyK(tx2, ty2))
               seg.tint = tint24(
                 r * k * mod * (0.94 + 0.12 * warm),
                 g * k * mod,
@@ -1074,21 +1100,9 @@ export default function IslandMapIso() {
               // continuous jitter on the rake input: shallow smooth gradients otherwise
               // quantize into clean equal-tint contour lines (the "zigzag across the island")
               const rk = rakeAt(tx, ty) + (vnoise(tx / 2.3 + 14, ty / 2.3 + 3) - 0.5) * 0.1
-              // P1 · THE CAST SHADOW (c3's single strongest grounding cue, and the
-              // designed dark mass that replaces the deleted lattice darks): the cone
-              // throws a soft wedge DOWN-SUN (sun az 2.85 → shadow az 2.85-π, screen
-              // SE) across meadow and sand. Wandering edge, shallow floor — a value
-              // MASS, never a slam under the grade's crush point.
-              const shadowK = (() => {
-                const dxs = tx - CX, dys = ty - CY
-                const dc = Math.hypot(dxs, dys)
-                if (dc < 14) return 0                       // the cone's own base owns its value
-                const azT = Math.atan2(dys, dxs)
-                const rel = azT - (2.85 - Math.PI)
-                const dAz = Math.abs(Math.atan2(Math.sin(rel), Math.cos(rel)))
-                  + (vnoise(tx / 7 + 41, ty / 7 + 8) - 0.5) * 0.16
-                return smooth(0.52, 0.18, dAz) * smooth(46, 26, dc)
-              })()
+              // the cast shadow (module-level castShadowK — shared with the sand and
+              // the sea layer, one wedge across every surface it crosses)
+              const shadowK = castShadowK(tx, ty)
               // THE MEADOW FIELD (the else-branch's math, verbatim — extracted so the
               // belt can blend toward the exact same field): a LARGE meadow↔deep-green
               // zone drift (24-tile landform scale) over mid-scale patchwork, damped on
@@ -1106,8 +1120,8 @@ export default function IslandMapIso() {
                 // so the LARGE fields must own real range — deeper zone swing + rake,
                 // and the cast shadow multiplied in (floor ~0.78, above the crush)
                 const lit = patch * grain * (1 + 0.17 * rk) * (1.05 - 0.13 * zone) * (1 + 0.14 * cl) * vShade * (1 + 0.1 * dry)
-                  * (1 - 0.22 * shadowK)
-                const tv2 = Math.max(0, Math.min(1, tval - 0.32 * dry + 0.18 * shadowK))
+                  * (1 - 0.3 * shadowK)
+                const tv2 = Math.max(0, Math.min(1, tval - 0.32 * dry + 0.24 * shadowK))
                 return warmCool(tintFor(shadeHex(rampAt(GRASS_RAMP, tv2), lit), GRASS_BASE), rk)
               }
               if (onRiver) {
@@ -1377,7 +1391,9 @@ export default function IslandMapIso() {
                     seg.width = ox && oy ? 38 : 34
                     seg.position.set(bx + (ox - oy) * 16, by - (ox && oy ? 10 : 0) + 9)
                     if (vH > fh) seg.scale.y *= vH / fh
-                    seg.tint = 0x3a2a1e     // charred basalt bank
+                    // inside the molten core the slot glows ember instead of reading as
+                    // a black hole punched in the flow (P2: one continuous river)
+                    seg.tint = lavaDist(tx, ty) < 1.5 ? 0x8a4418 : 0x3a2a1e
                     seg.zIndex = zBase + 1
                     world.addChild(seg)
                   }
@@ -3026,6 +3042,10 @@ export default function IslandMapIso() {
             }
             const m = configSeaTile(sp, px, py, pd, waterV, undefined, pb)
             if (!m) { sp.visible = false; return }
+            // the cone's cast shadow falls onto the lagoon too (c3's teal shadow pool):
+            // fold it into the swell base so the animation never resets it away
+            const sk = castShadowK(px, py)
+            if (sk > 0.02) { m.base = shadeHex(m.base, 1 - 0.22 * sk); sp.tint = m.base }
             sp.visible = true
             if (live) { waterS.push(m); usedL++ } else used++
           }

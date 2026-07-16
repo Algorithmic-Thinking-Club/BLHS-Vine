@@ -28,8 +28,11 @@ const CRATER_DEPTH = 13         // levels the bowl sinks below the rim (10px ste
 // flanks hardest, the skirt stays gentle).
 function spoke(az: number, d: number) {
   const wander = 0.55 * vnoise(Math.cos(az) * 2 + 7, Math.sin(az) * 2 + d / 9 + 3)
-  return Math.sin(az * 9 + wander * 4 + d * 0.06)
-    + 0.45 * Math.sin(az * 4 - wander * 3 + 1.7)
+  // P2 · LONG RUNS: twist (d-phase) cut 0.06 → 0.02 and wander influence halved —
+  // at the old values a rib drifted a third of a turn over the flank and the
+  // striation broke into speckle; a rib must hold its line summit → toe (c3/bon3)
+  return Math.sin(az * 9 + wander * 2 + d * 0.02)
+    + 0.45 * Math.sin(az * 4 - wander * 1.5 + 1.7)
 }
 
 // the raw (real-valued) cone height in LEVELS above the plateau, 0 outside the base
