@@ -8,7 +8,12 @@ import './teacher.css'
 // Route: /?scene=teacher (its own corner of the app, never on the student title).
 
 type ClassRef = { classId: string; teacherKey: string; name: string; code: string }
-type RosterRow = { handle: string; arm: string; created_at: string; last_seen: string | null; year: string; beat: string }
+type RosterRow = {
+  handle: string; arm: string; created_at: string; last_seen: string | null
+  year: string; beat: string
+  graduated?: boolean
+  code?: string | null   // the turn-in verification code (matches the student's diploma)
+}
 
 const KEY = 'blhs_teacher_classes'
 const loadClasses = (): ClassRef[] => { try { return JSON.parse(localStorage.getItem(KEY) ?? '[]') } catch { return [] } }
@@ -70,8 +75,8 @@ export default function TeacherScene() {
 
   const exportCsv = () => {
     if (!roster) return
-    const rows = [['handle', 'arm', 'joined', 'last_seen', 'year', 'beat'],
-      ...roster.map((r) => [r.handle, r.arm, r.created_at, r.last_seen ?? '', r.year, r.beat])]
+    const rows = [['handle', 'arm', 'joined', 'last_seen', 'year', 'beat', 'graduated', 'verification'],
+      ...roster.map((r) => [r.handle, r.arm, r.created_at, r.last_seen ?? '', r.year, r.beat, r.graduated ? 'yes' : '', r.code ?? ''])]
     const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
     const a = document.createElement('a')
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
@@ -125,10 +130,11 @@ export default function TeacherScene() {
               {roster && !roster.length && <p className="tc-dim">Nobody yet. The code on the projector is all they need.</p>}
               {roster && roster.length > 0 && (
                 <table className="tc-table">
-                  <thead><tr><th>Handle</th><th>Arm</th><th>Year</th><th>Where</th><th>Last seen</th></tr></thead>
+                  <thead><tr><th>Handle</th><th>Arm</th><th>Year</th><th>Where</th><th>Turn-in code</th><th>Last seen</th></tr></thead>
                   <tbody>
                     {roster.map((r, i) => (
                       <tr key={i}><td>{r.handle}</td><td>{r.arm}</td><td>{r.year}</td><td>{r.beat}</td>
+                        <td>{r.graduated ? <b>{r.code}</b> : '—'}</td>
                         <td>{r.last_seen ? new Date(r.last_seen).toLocaleString() : '—'}</td></tr>
                     ))}
                   </tbody>

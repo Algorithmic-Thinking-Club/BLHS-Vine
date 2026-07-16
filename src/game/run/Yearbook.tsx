@@ -12,7 +12,7 @@ import './run.css'
 // opposite page joins when Ash approves the rival (§17.3). The art pass (a composed
 // spread, the page-flip transition §12.1) is ledgered with the UI hero batch.
 
-export function Yearbook({ onClose }: { onClose: () => void }) {
+export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGraduate?: () => void }) {
   const [turned, setTurned] = useState(false)
   // the year this book is ABOUT — snapshotted, because turn() advances the save under us
   const [year] = useState(() => loadSave()?.year ?? 1)
@@ -97,15 +97,18 @@ export function Yearbook({ onClose }: { onClose: () => void }) {
             {lastYear ? (
               <>
                 <div className="yb-title">Four years, written.</div>
-                <div className="yb-dim">Graduation waits at the falls terrace. The stage is being dressed.</div>
+                <div className="yb-dim">The falls terrace is dressed. They are waiting on you now.</div>
+                {onGraduate
+                  ? <button className="yb-turn" onClick={onGraduate}>Walk the stage</button>
+                  : <button className="yb-turn" onClick={onClose}>Back to the sea</button>}
               </>
             ) : (
               <>
                 <div className="yb-title">Year {year + 1}.</div>
                 <div className="yb-dim">Three new tokens in hand. The chart table is waiting.</div>
+                <button className="yb-turn" onClick={onClose}>Back to the sea</button>
               </>
             )}
-            <button className="yb-turn" onClick={onClose}>Back to the sea</button>
           </div>
         )}
       </div>

@@ -18,6 +18,9 @@ export type ParticipantRow = { id: string; class_id: string; handle: string; arm
 export type RosterRow = {
   handle: string; arm: string; created_at: string; last_seen: string | null
   year: string; beat: string
+  /** the whole synced SaveGame — teacher.ts derives graduated + the verification code
+   *  from it server-side and strips it from the response (§9.5) */
+  save: unknown | null
 }
 export type EventRow = { participantId: string | null; sessionId: string | null; payload: unknown }
 
@@ -90,7 +93,8 @@ function neonStore(url: string): Store {
     async roster(classId) {
       const r = await sql`
         select p.handle, p.arm, p.created_at, s.updated_at as last_seen,
-               coalesce(s.save->>'year', '1') as year, coalesce(s.save->>'beat', 'intro:i1') as beat
+               coalesce(s.save->>'year', '1') as year, coalesce(s.save->>'beat', 'intro:i1') as beat,
+               s.save as save
         from participants p left join states s on s.participant_id = p.id
         where p.class_id = ${classId} order by p.created_at`
       return r as RosterRow[]
@@ -168,6 +172,7 @@ function fileStore(): Store {
             handle: p.handle, arm: p.arm, created_at: p.created_at,
             last_seen: st?.updated_at ?? null,
             year: String(save.year ?? 1), beat: String(save.beat ?? 'intro:i1'),
+            save: st?.save ?? null,
           }
         })
     },

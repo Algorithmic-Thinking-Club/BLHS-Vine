@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Handbook } from './Handbook'
 import { SettingsPanel } from '../../app/SettingsPanel'
 import { Planner } from '../planner/Planner'
+import { Graduation } from '../run/Graduation'
 import { CoreBeatRunner } from '../beats/ActivityRunner'
 import { coreBeatFor } from '../beats/beats'
 import { classBeat } from '../beats/classes'
@@ -28,20 +29,21 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const [advisory, setAdvisory] = useState(false)
   const [sitClass, setSitClass] = useState<string | null>(null)
   const [yearbook, setYearbook] = useState(false)
+  const [graduation, setGraduation] = useState(false)
   const [paused, setPaused] = useState(false)
   const [settings, setSettings] = useState(false)
   const [, bump] = useState(0)
   useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
   const s = loadSave()
 
-  const anyOpen = book !== null || planner || settings || advisory || sitClass !== null || yearbook
+  const anyOpen = book !== null || planner || settings || advisory || sitClass !== null || yearbook || graduation
 
   // Esc = pause, only while nothing else owns the frame (the planner eats its own Esc)
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.repeat) return
       if (book || settings) { setBook(null); setSettings(false); onBlurWorld?.(false); return }
-      if (planner || advisory || sitClass || yearbook) return   // the sheet eats its own Esc; a beat never Esc-quits
+      if (planner || advisory || sitClass || yearbook || graduation) return   // the sheet eats its own Esc; a beat never Esc-quits
       setPaused((p) => { onBlurWorld?.(!p); return !p })
     }
     window.addEventListener('keydown', key)
@@ -62,7 +64,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const openPlanner = () => { setPaused(false); setPlanner(true); onBlurWorld?.(true) }
   const closeAll = () => {
     setBook(null); setPlanner(false); setAdvisory(false); setSitClass(null); setYearbook(false)
-    setPaused(false); setSettings(false); onBlurWorld?.(false)
+    setGraduation(false); setPaused(false); setSettings(false); onBlurWorld?.(false)
   }
   // resolved per render on purpose: Y4's audit beat is GENERATED from the live save
   const yearBeat = s ? coreBeatFor(s.year, s) : null
@@ -101,7 +103,8 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       {sitClass && sitClassDef && s && (
         <CoreBeatRunner beat={classBeat(sitClassDef, s.year)} onClose={() => { setSitClass(null); setPlanner(true) }} />
       )}
-      {yearbook && <Yearbook onClose={closeAll} />}
+      {yearbook && <Yearbook onClose={closeAll} onGraduate={() => { setYearbook(false); setGraduation(true) }} />}
+      {graduation && <Graduation onClose={closeAll} />}
       {showVignette && s && <YearStart year={s.year} onDone={() => bump((v) => v + 1)} />}
       {settings && <SettingsPanel onClose={() => { setSettings(false); setPaused(true) }} />}
 
@@ -111,6 +114,11 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
             <div className="pz-title">⚓ Dropped anchor</div>
             <button className="pz-btn" onClick={closeAll}>Back to it</button>
             {s?.introDone && <button className="pz-btn" onClick={openPlanner}>The Year Sheet</button>}
+            {s?.graduated && (
+              <button className="pz-btn" onClick={() => { setPaused(false); setGraduation(true) }}>
+                {s.flags.includes('gear2') ? 'The diploma, again' : 'Walk the stage'}
+              </button>
+            )}
             <button className="pz-btn" onClick={() => { setPaused(false); setBook('islands'); }}>Handbook</button>
             <button className="pz-btn" onClick={() => { setPaused(false); setSettings(true) }}>Settings</button>
             <button className="pz-btn" onClick={() => { closeAll(); nav.go('title') }}>Save &amp; leave</button>

@@ -1,0 +1,181 @@
+import { useMemo, useRef, useState } from 'react'
+import { hasFlag, loadSave, setFlag, type SaveGame } from '../save'
+import { cordsOf, gpaOf, letterOf, rankName, transcriptOf } from '../progress'
+import { runCode } from '../../vine/verify'
+import { activityById } from '../planner/catalog'
+import { track } from '../telemetry'
+import './run.css'
+
+// GRADUATION (§9) — the system version of the finale: the cords drape one at a time with
+// their REAL criteria and the moment they were earned; the near-miss board seeds the
+// replay; the diploma renders as the TURN-IN ARTIFACT (§9.5) with a verification code the
+// teacher's roster computes independently from the synced save; the last button unlocks
+// Gear 2. The falls-terrace processional, the crowd, the fireworks, and the I-8 pull-out
+// are the CEREMONY ART PASS (ledgered in THE-PATH 3.10) — this flow is the spine they
+// will dress.
+
+type Stage = 'processional' | 'cords' | 'board' | 'diploma'
+
+/** the moment a cord was earned, read from the ledger — the tiny flashback line (§9.3) */
+function earnedMoment(cordId: string, s: SaveGame): string {
+  const tagged = (tag: string, n: number) => {
+    const hits = s.ledger.filter((e) => e.tags?.includes(tag) && e.grade >= (tag === 'cte' ? 1 : 2))
+    const hit = hits[n - 1]
+    return hit ? `${hit.title}, year ${hit.year}` : 'the transcript remembers'
+  }
+  switch (cordId) {
+    case 'highest-honors': case 'high-honors': return 'four years of the transcript, all of it'
+    case 'career-readiness': return `sealed by ${tagged('cte', 2)}`
+    case 'ap-honors': return `the fifth: ${tagged('ap', 5)}`
+    case 'ap-capstone': return 'Seminar, Research, and the four that followed'
+    case 'seal-biliteracy': return `the capstone: ${tagged('lang-capstone', 1)}`
+    case 'key-club': return 'two years of showing up for other people'
+    default: return 'earned, and the ledger knows where'
+  }
+}
+
+export function Graduation({ onClose }: { onClose: () => void }) {
+  const s = loadSave()
+  const [stage, setStage] = useState<Stage>('processional')
+  const [cordIdx, setCordIdx] = useState(0)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  const earned = useMemo(() => (s ? cordsOf(s).filter((c) => c.earned) : []), [s])
+  const missed = useMemo(() => {
+    if (!s) return []
+    const all = cordsOf(s)
+    const gotHighest = all.some((c) => c.id === 'highest-honors' && c.earned)
+    // the GPA bands are exclusive: High Honors is not "missed" by someone wearing double
+    // gold — it was outclassed, and the board only shows honest near-misses
+    return all.filter((c) => !c.earned && c.progress > 0 && !(gotHighest && c.id === 'high-honors'))
+  }, [s])
+  if (!s) return null
+
+  const gpa = gpaOf(s)
+  const transcript = transcriptOf(s)
+  const code = runCode(transcript)
+  const ranks = Object.entries(s.ranks)
+    .map(([id, yrs]) => ({ name: activityById(id)?.name ?? id, rank: rankName(yrs) }))
+    .filter((r) => r.rank)
+
+  const finishDiploma = () => {
+    if (!hasFlag('gear2')) {
+      track('run_complete', { transcript, code })
+      track('gear2_unlocked')
+      setFlag('gear2')
+    }
+    onClose()
+  }
+
+  const savePng = () => {
+    const cv = canvasRef.current ?? document.createElement('canvas')
+    drawDiploma(cv, s, code)
+    const a = document.createElement('a')
+    a.download = `blhs-diploma-${s.handle || 'panther'}.png`
+    a.href = cv.toDataURL('image/png')
+    a.click()
+    track('artifact_exported', { code })
+  }
+
+  return (
+    <div className="gr-veil">
+      <div className="gr-stage">
+        {stage === 'processional' && (
+          <div className="gr-card" onClick={() => setStage(earned.length ? 'cords' : 'board')}>
+            <div className="gr-title">Graduation</div>
+            <div className="gr-line">The falls terrace, dressed at last. Everyone you met these four years is in the crowd, and the ones you ranked with stand in the front row.</div>
+            <div className="gr-line">Thor walks the stage in teal. The stole reads BONNEY LAKE.</div>
+            <div className="gr-cue">🐾 tap to walk</div>
+          </div>
+        )}
+
+        {stage === 'cords' && earned[cordIdx] && (
+          <div className="gr-card" onClick={() => {
+            if (cordIdx + 1 < earned.length) setCordIdx(cordIdx + 1)
+            else setStage('board')
+          }}>
+            <div className="gr-cordname">{earned[cordIdx].name}</div>
+            <div className="gr-cordcolors">{earned[cordIdx].colors}</div>
+            <div className="gr-line">{earned[cordIdx].rule}</div>
+            <div className="gr-moment">{earnedMoment(earned[cordIdx].id, s)}</div>
+            <div className="gr-cue">🐾 the cord drapes · {cordIdx + 1} of {earned.length}</div>
+          </div>
+        )}
+
+        {stage === 'board' && (
+          <div className="gr-card">
+            <div className="gr-title">{earned.length ? 'And the board, for honesty' : 'The board, for next time'}</div>
+            {missed.length === 0 && <div className="gr-line">Nothing left unearned that you reached for. Rare.</div>}
+            {missed.map((c) => (
+              <div className="gr-missrow" key={c.id}>
+                <span className="gr-missname">{c.name}</span>
+                <span className="gr-missdetail">{c.detail}</span>
+              </div>
+            ))}
+            <div className="gr-line gr-dim">How close you came is the replay seed. The ocean opens after this.</div>
+            <button className="yb-turn" onClick={() => setStage('diploma')}>The diploma</button>
+          </div>
+        )}
+
+        {stage === 'diploma' && (
+          <div className="gr-card gr-diploma">
+            <div className="gr-dip-school">BONNEY LAKE HIGH SCHOOL</div>
+            <div className="gr-dip-sub">certifies that the Panther known as</div>
+            <div className="gr-dip-name">{s.handle || 'Panther'}</div>
+            <div className="gr-dip-sub">completed the four-year voyage</div>
+            <div className="gr-dip-grid">
+              <span>GPA</span><b>{gpa !== null ? `${gpa.toFixed(2)} (${letterOf(gpa)})` : 'unwritten'}</b>
+              <span>Cords &amp; seals</span><b>{earned.length ? earned.map((c) => c.name).join(', ') : 'none'}</b>
+              {ranks.length > 0 && <><span>Ranks</span><b>{ranks.map((r) => `${r.rank}, ${r.name}`).join(' · ')}</b></>}
+              <span>Islands completed</span><b>{transcript.islandsCompleted}</b>
+              <span>Facts learned</span><b>{transcript.factsLearned}</b>
+            </div>
+            <div className="gr-dip-code">verification <b>{code}</b></div>
+            <div className="gr-dip-sub gr-dim">your teacher's roster shows this same code if this run is really yours</div>
+            <div className="gr-dip-actions">
+              <button className="yb-turn" onClick={savePng}>Save my diploma</button>
+              <button className="yb-turn gr-gear2" onClick={finishDiploma}>The ocean is yours now</button>
+            </div>
+            <canvas ref={canvasRef} style={{ display: 'none' }} />
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// the downloadable artifact: drawn by hand on canvas (no deps), paper + teal, legible in
+// a gradebook at 50% zoom. The composed ART version rides the ceremony art pass.
+function drawDiploma(cv: HTMLCanvasElement, s: SaveGame, code: string) {
+  const W = 900, H = 640
+  cv.width = W; cv.height = H
+  const g = cv.getContext('2d')!
+  g.fillStyle = '#ece2c8'; g.fillRect(0, 0, W, H)
+  g.strokeStyle = '#2f6e60'; g.lineWidth = 10; g.strokeRect(14, 14, W - 28, H - 28)
+  g.strokeStyle = '#8a744f'; g.lineWidth = 2; g.strokeRect(30, 30, W - 60, H - 60)
+
+  const line = (text: string, y: number, size: number, color = '#3c2d1c', bold = false) => {
+    g.fillStyle = color
+    g.font = `${bold ? 'bold ' : ''}${size}px Georgia, serif`
+    g.textAlign = 'center'
+    g.fillText(text, W / 2, y)
+  }
+  const gpa = gpaOf(s)
+  const earned = cordsOf(s).filter((c) => c.earned).map((c) => c.name)
+  const ranks = Object.entries(s.ranks)
+    .map(([id, yrs]) => ({ name: activityById(id)?.name ?? id, rank: rankName(yrs) }))
+    .filter((r) => r.rank)
+
+  line('BONNEY LAKE HIGH SCHOOL', 92, 34, '#1f4a40', true)
+  line('the island voyage · four years', 122, 16, '#6a563c')
+  line('certifies that the Panther known as', 180, 18)
+  line(s.handle || 'Panther', 232, 44, '#1f4a40', true)
+  line('completed the four-year run', 266, 18)
+  line(`GPA ${gpa !== null ? `${gpa.toFixed(2)} (${letterOf(gpa)})` : 'unwritten'}`, 330, 24, '#3c2d1c', true)
+  line(earned.length ? `Cords & seals: ${earned.join(', ')}` : 'Cords & seals: none earned', 368, 17)
+  if (ranks.length) line(`Ranks: ${ranks.map((r) => `${r.rank} · ${r.name}`).join('   ')}`, 398, 17)
+  const t = transcriptOf(s)
+  line(`${t.islandsCompleted} islands completed · ${t.factsLearned} true things learned`, 434, 17)
+  line(`verification ${code}`, 508, 22, '#1f4a40', true)
+  line('check against the advisory roster · blhs island explorer', 534, 13, '#8a7a60')
+}

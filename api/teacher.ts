@@ -8,6 +8,9 @@
 import { json, readBody } from './_db'
 import { store } from './_store'
 import { newCode, newId } from './_logic'
+import { transcriptOf } from '../src/game/progress'
+import { runCode } from '../src/vine/verify'
+import type { SaveGame } from '../src/game/save'
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return json(res, 405, { error: 'method' })
@@ -33,7 +36,15 @@ export default async function handler(req: any, res: any) {
   if (!cls) return json(res, 403, { error: 'bad_key' })
 
   if (body.op === 'roster') {
-    const roster = await db.roster(cls.id)
+    const rows = await db.roster(cls.id)
+    // graduated + the verification code derive from the SYNCED save, server-side — this
+    // column is what a student's printed diploma is checked against (§9.5). The raw save
+    // never leaves this handler.
+    const roster = rows.map(({ save, ...r }) => {
+      const s = save as SaveGame | null
+      const graduated = !!s?.graduated
+      return { ...r, graduated, code: graduated && s ? runCode(transcriptOf(s)) : null }
+    })
     return json(res, 200, { name: cls.name, code: cls.code, open: cls.open, studyMode: cls.study_mode, roster })
   }
 

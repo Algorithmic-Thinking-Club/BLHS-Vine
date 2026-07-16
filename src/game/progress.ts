@@ -99,3 +99,19 @@ export function newlyCloseCords(before: SaveGame, after: SaveGame): CordProgress
   const prev = new Map(cordsOf(before).map((c) => [c.id, c.progress]))
   return cordsOf(after).filter((c) => c.progress >= 0.5 && (prev.get(c.id) ?? 0) < 0.5 && !c.earned)
 }
+
+/** the run summarized for the turn-in artifact (§9.5). The SAME function runs client-side
+ *  (stamping the diploma) and server-side (api/teacher's roster column) over the synced
+ *  save — that is what makes the verification code checkable. */
+export function transcriptOf(s: SaveGame): import('../vine/verify').Transcript {
+  return {
+    participantId: s.participantId ?? 'castaway',
+    handle: s.handle,
+    gpa: gpaOf(s),
+    cords: cordsOf(s).filter((c) => c.earned).map((c) => c.id).sort(),
+    ranks: s.ranks,
+    islandsCompleted: Object.values(s.islands).filter((st) => st === 'completed').length,
+    factsLearned: s.facts.length,
+    years: s.year,
+  }
+}
