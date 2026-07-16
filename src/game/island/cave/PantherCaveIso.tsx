@@ -51,17 +51,20 @@ export default function PantherCaveIso() {
       const SOCKETS = params.get('sockets') !== '0' // honest placeholder stakes (default ON)
       const DBG = !!params.get('dbg')
 
-      // the cave's own families (harvested + normalized: the light model owns
-      // value) + the shared BLOCK kit — the walls are REAL block columns (the
-      // 3D tile system is the map's one construction language; the strip-wall
-      // experiment was Ash-rejected as de-evolution and is dead)
+      // the cave's OWN families: harvested+normalized floor diamonds (the
+      // light model owns value), the drawn A2 basalt BLOCK kit (walls and
+      // risers — the 3D tile system is the map's one construction language),
+      // the molten core diamonds, and the A5 hearth hero.
+      const FLOOR_ALT = params.get('floor') === '1' // A/B: 1 = organic basalt, default = hex causeway
       const floorT: Texture[] = []
       const lavaT: Texture[] = []
       const sideW: Texture[] = []
+      let hearthT: Texture | undefined
       await Promise.all([
-        ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/island/cave/floor/top-${i}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; floorT[i] = t }).catch(() => {})),
+        ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/island/cave/${FLOOR_ALT ? 'floor' : 'floor2'}/top-${i}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; floorT[i] = t }).catch(() => {})),
         ...Array.from({ length: 8 }, (_, i) => Assets.load(`/art/island/cave/lava/top-${i}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; lavaT[i] = t }).catch(() => {})),
-        ...[2, 3, 4, 5].map((i) => Assets.load(`/art/island/blocks3/rock-${i}-side.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; sideW.push(t) }).catch(() => {})),
+        ...[0, 1, 2, 3].map((i) => Assets.load(`/art/island/cave/blocks/block-${i}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; sideW.push(t) }).catch(() => {})),
+        Assets.load('/art/island/cave/props/hearth.png').then((t: Texture) => { t.source.scaleMode = 'nearest'; hearthT = t }).catch(() => {}),
       ])
       if (destroyed) return
       // the mechanical gate: the room must hold as DATA before pixels are judged
@@ -98,8 +101,8 @@ export default function PantherCaveIso() {
       // ---- THE ATMOSPHERE GRADE (P2 PROPOSAL — Ash locks at this gate) ----
       // moody-dark with hot pools: slight crush, warmth preserved in the mids
       const grade = new ColorMatrixFilter()
-      grade.brightness(0.97, false); grade.saturate(0.1, true); grade.contrast(0.12, true)
-      const gm = grade.matrix; gm[0] *= 1.06; gm[12] *= 0.97; grade.matrix = gm
+      grade.brightness(1.0, false); grade.saturate(0.2, true); grade.contrast(0.13, true)
+      const gm = grade.matrix; gm[0] *= 1.05; grade.matrix = gm
       world.filters = [grade]
 
       const floors = floorT.filter(Boolean)
@@ -156,22 +159,27 @@ export default function PantherCaveIso() {
       // floor value curve: dark-first ambient + the light field. The verdict
       // value-study gate: the hearth must GLOW in grayscale — so the ambient
       // sits low (0.14) and the hearth peak clears 1.0 before the grade.
+      // THE HUE ECONOMY (the P0-PICK's own): darkness is RICH VIOLET, never
+      // brown mud; the pools are GOLD; the melt is ember; the shafts are the
+      // only cool daylight. One curve owns every surface's hue by its value.
+      const hueMix = (v: number, ember: number, cool: number) => {
+        const t = sstep(0.1, 0.6, v) // 0 = deep dark, 1 = fully lit
+        const r = v * (0.74 + t * 0.34 + 0.2 * ember) + 0.02 * cool
+        const g = v * (0.62 + t * 0.36 - 0.08 * ember) + 0.05 * cool
+        const b = v * (1.08 - t * 0.3 - 0.24 * ember) + 0.16 * cool
+        return tint24(r, g, b)
+      }
       const floorTint = (tx: number, ty: number, L: number) => {
         const { warm, ember, cool } = lightAt(tx, ty)
         // long-wavelength drift only: short grain quantizes into a tile
         // lattice (the m1/m3 crop verdict) — the light gradients own value
         const grain = 0.97 + 0.06 * vnoise(tx / 13 + 8, ty / 13 + 3)
         const wear = 0.98 + 0.04 * vnoise(tx / 21 + 2, ty / 21 + 6)
-        let v = 0.14 + 0.9 * warm + 0.5 * ember
+        let v = 0.17 + 0.9 * warm + 0.5 * ember
         if (L === 1) v += 0.05  // the dais reads a breath lifted
         if (L === 3) v += 0.03  // the shelf under the mouth pool
         v *= grain * wear
-        // hue: warm gold in the pools, ember red near the melt, violet in the
-        // darks (dark-first is not mud), a whisper of day-blue under the shafts
-        const r = v * (1 + 0.16 * ember) + 0.02 * cool
-        const g = v * (0.97 - 0.1 * ember) + 0.05 * cool
-        const b = v * (0.9 - 0.22 * ember) + 0.16 * cool + (v < 0.3 ? 0.035 : 0)
-        return tint24(r, g, b)
+        return hueMix(v, ember, cool)
       }
 
       // ---- THE FLOOR + THE MOLTEN TRENCH ----
@@ -195,10 +203,11 @@ export default function PantherCaveIso() {
             lv.anchor.set(0.5, 0.5)
             lv.position.set(bx, isoY(tx, ty))
             lv.scale.set((hash(tx * 2.3, ty * 5.9) > 0.5 ? -1 : 1) * 1.04, 1.04)
-            // hot core along the channel's spine, ember at its banks
+            // hot core along the channel's spine, ember at its banks — the
+            // harvested tiles carry white-gold cores; the tint stays HOT
             const spine = 1 - Math.min(1, trenchNear(tx + 0.5, ty + 0.5) / 1.6)
-            const core = 0.9 + 0.35 * spine + 0.1 * vnoise(tx / 2.2 + 3, ty / 2.2 + 8)
-            lv.tint = tint24(core, core * (0.52 + 0.3 * spine), core * 0.16)
+            const core = 0.95 + 0.25 * spine + 0.08 * vnoise(tx / 2.2 + 3, ty / 2.2 + 8)
+            lv.tint = tint24(Math.min(1, core), core * (0.66 + 0.24 * spine), core * 0.3)
             lv.zIndex = zBase + 3
             world.addChild(lv)
             pulses.push({ sp: lv, ph: hash(tx, ty) * 6.28 + (tx + ty) * 0.55, base: core, spine })
@@ -226,7 +235,7 @@ export default function PantherCaveIso() {
                 seg.position.set(bx, by + k * STEP)
                 const drift = 0.92 + 0.12 * vnoise(tx / 6 + 2.2, ty / 6 + 7.7)
                 const v = (0.26 + 0.6 * warm + 0.45 * ember) * drift * (0.94 - 0.05 * k)
-                seg.tint = tint24(v * (1 + 0.18 * ember), v * 0.9, v * (1.0 - 0.16 * ember) + (v < 0.24 ? 0.03 : 0))
+                seg.tint = hueMix(v, ember, 0)
                 seg.zIndex = zBase + 1 + (m - 1 - k)
                 world.addChild(seg)
               }
@@ -310,12 +319,12 @@ export default function PantherCaveIso() {
           const cx2 = scale2 ? mx + 0.5 : mx, cy2 = scale2 ? my + 0.5 : my
           sp.position.set(isoX(cx2, cy2), isoY(cx2, cy2) - lift)
           sp.scale.set((hash(mx * 1.3, my * 7.1) > 0.5 ? -1 : 1) * (scale2 ? 2.08 : 1.06), scale2 ? 2.08 : 1.06)
-          // near-black modeled rock: long-wavelength drift + rare ember glints
-          // so the mountain reads alive, never flat fill
-          const drift = 0.8 + 0.4 * vnoise(mx / 16 + 4, my / 16 + 9)
+          // deep-violet modeled rock: long-wavelength drift + rare ember
+          // glints so the mountain reads alive, never flat black fill
+          const drift = 0.75 + 0.5 * vnoise(mx / 16 + 4, my / 16 + 9)
           const glint = hash(mx * 12.7, my * 9.3) > 0.985 ? 0.05 : 0
-          const v = 0.075 * drift
-          sp.tint = tint24(v + glint * 1.6, v * 0.9 + glint * 0.7, v * 1.2 + glint * 0.2)
+          const v = 0.095 * drift
+          sp.tint = tint24(v * 0.82 + glint * 1.6, v * 0.7 + glint * 0.7, v * 1.25 + glint * 0.2)
           sp.zIndex = ((scale2 ? mx + 1 : mx) + (scale2 ? my + 1 : my)) * 4000 + lift * 2 + 4
           world.addChild(sp)
         }
@@ -387,7 +396,7 @@ export default function PantherCaveIso() {
             const drift = 0.9 + 0.18 * vnoise(tx / 6 + 2.2 + k * 0.07, ty / 6 + 7.7 - k * 0.05)
             let v = (0.3 + 0.72 * warm + 0.5 * ember) * kk * drift
             if (isMouth) v = Math.max(v, 0.5) // the lintel catches the blaze
-            seg.tint = tint24(v * (1 + 0.2 * ember), v * 0.9, v * (1.04 - 0.18 * ember) + (v < 0.25 ? 0.03 : 0))
+            seg.tint = hueMix(v, ember, 0)
             if (DBG) seg.tint = behind ? 0x8040ff : 0xff8040
             seg.zIndex = zBase + 30 + k
             world.addChild(seg)
@@ -429,12 +438,17 @@ export default function PantherCaveIso() {
         world.addChild(sp)
         glows.push({ sp, ph: hash(px, py) * 6.28, a })
       }
-      // THE HEARTH BLAZE: the room's peak brightness lives here even before
-      // the drawn A5 firepit lands in P3 — a hot core over the breathing pool
-      const coreTex = radial(120, [[0, 'rgba(255,244,200,0.95)'], [0.3, 'rgba(255,208,120,0.55)'], [0.7, 'rgba(255,160,70,0.18)'], [1, 'rgba(255,160,70,0)']])
-      glowAt(HEARTH[0], HEARTH[1], 300, 180, 0.42)                    // the hearth's breath
-      glowAt(HEARTH[0], HEARTH[1], 96, 66, 0.85, coreTex)             // the blaze core
-      glowAt(HEARTH[0], HEARTH[1] - 0.4, 46, 84, 0.9, coreTex)        // the flame column
+      // THE HEARTH (A5, the drawn hero): the ceremonial basalt firepit ring
+      // with its roaring fire — the room's heart is a real place now. The
+      // additive breath rides OVER the drawn flame (accent, not the light).
+      if (hearthT) {
+        const hp = new Sprite(hearthT)
+        hp.anchor.set(0.5, 0.72) // the ring's ground ellipse sits at the anchor tile
+        hp.position.set(isoX(HEARTH[0], HEARTH[1]), isoY(HEARTH[0], HEARTH[1]) + 10)
+        hp.zIndex = (HEARTH[0] + HEARTH[1]) * 4000 + 320
+        world.addChild(hp)
+      }
+      glowAt(HEARTH[0], HEARTH[1], 320, 190, 0.4)                     // the hearth's breath
       glowAt(MOUTH[0] - 1.2, MOUTH[1] + 1.2, 320, 190, 0.42)          // the mouth pool + spill
       // station lamps' visible glints
       for (const [lx, ly, lk] of LAMPS) glowAt(lx, ly, 90, 54, 0.3 * lk + 0.12)
@@ -517,9 +531,9 @@ export default function PantherCaveIso() {
         // the melt pulses — slow traveling heat down the trench (code anim,
         // never a shader: spec A3); the channel spine stays golden-hot
         for (const p of pulses) {
-          const k = p.base * (0.9 + 0.1 * Math.sin(wt * 0.9 + p.ph))
+          const k = p.base * (0.92 + 0.08 * Math.sin(wt * 0.9 + p.ph))
           const s = p.spine ?? 0
-          p.sp.tint = tint24(k, k * (0.52 + 0.3 * s), k * 0.16)
+          p.sp.tint = tint24(Math.min(1, k), k * (0.66 + 0.24 * s), k * 0.3)
         }
       })
     }
