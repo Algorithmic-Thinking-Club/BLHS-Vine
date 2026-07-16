@@ -6,7 +6,7 @@ import {
 } from '../ocean'
 import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, MOUTH_L, MOUTH_R } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
-import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD, RIVER, FALLS, FORD, STELES, TONGUE, PORTS, MINI_PORTS, TIDEPOOLS, WEST_OVERLOOK } from './hub-layout'
+import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, pathD, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD, RIVER, FALLS, FORD, STELES, TONGUE, PORTS, MINI_PORTS, TIDEPOOLS, WEST_OVERLOOK } from './hub-layout'
 import { reportIslandAudit } from './island-audit'
 import { headField, inHeadBBox } from './heads'
 
@@ -130,11 +130,12 @@ export default function IslandMapIso() {
       // ?nocone=1 — render the approved base only (flat plateau, no block cone, no lava):
       // the clean stage the painted volcano hero is composited onto (final-push plan §2)
       const NOCONE = !!params.get('nocone')
-      // FRESH BASE (Ash, 2026-07-13): the island ships ONLY volcano + lava + grass +
-      // beach + ocean (+ crater steam, quench, clouds — the base systems' own life).
-      // EVERY decoration pass (veg, harbor, heads, steles, plaza, paths, river, stair,
-      // ford, tidepools, overlook) is gated OFF behind ?decor=1 — reachable for
-      // reference only, until the Places Campaign rebuilds each zone properly.
+      // FRESH BASE (Ash, 2026-07-13) STANDS (re-confirmed 2026-07-16: flipping the
+      // old decor set back on "botched the entire map with the old shit"). The OLD
+      // dressing (steles, braziers, plaza, statue, paths, stair, river, ford,
+      // tidepools, overlook) stays OFF behind ?decor=1 until the Places Campaign
+      // rebuilds each zone properly. Only REBUILT work ships un-gated: the forest
+      // (VEG), the harbor (HARBOR_ON), and the heads + their flows below.
       const DECOR = params.get('decor') === '1'
       // THE FOREST IS BACK (Ash, 2026-07-16: "bring back the old version... that forest
       // spread across the map was nice, just put it here"): the green pass — groves,
@@ -1150,8 +1151,17 @@ export default function IslandMapIso() {
             // the path yields to the channel EXCEPT at a crust crossing, where it
             // runs right up to the slab (a dead-end path beside a walkable bridge
             // reads as "you can't cross here")
-            const onPath = DECOR && !onPlaza && !sand && L > 0 && coneBand(tx, ty) === 0
-              && (lavaDist(tx, ty) > 1.4 || crossingD(tx, ty) < 2.2) && onPathTile(tx, ty)
+            // the path ends at a STABLE line where the scrub belt starts: testing
+            // the dithered coneBand made inclusion flicker per tile across the
+            // whole merge belt — the forecourt climb rendered as scattered pale
+            // dashes. A designed trail is cut by the landform, not by dither.
+            // MEMBERSHIP IS DISTANCE, not the rasterized set: rounding a diagonal
+            // polyline into cells left corner-linked diamonds (dash/checker read
+            // on every slanted run); the continuous band can't disconnect, and a
+            // soft noise on its edge keeps the margin organic instead of ruled.
+            const onPath = DECOR && !onPlaza && !sand && L > 0 && coneH(tx, ty) < 18
+              && (lavaDist(tx, ty) > 1.4 || crossingD(tx, ty) < 2.2)
+              && pD < 0.72 + 0.34 * vnoise(tx / 3.1 + 21, ty / 3.1 + 8)
             // THE RIVER lives (P3): the chain map is the truth — pool-step-pool
             // water at the terrain's own benches, never orphan checkers
             const rv = DECOR ? riverInfo.get(ty * COLS + tx) : undefined
@@ -1590,7 +1600,9 @@ export default function IslandMapIso() {
           const collar = (cx2: number, cy2: number, z2: number) => {
             const c = new Sprite(foamTex)
             c.anchor.set(0.5, 0.5)
-            c.width = 440; c.height = 330
+            // sized for the 1.45 guardians (the 440-wide pool let green benches
+            // peek past the bigger silhouettes' torn shoulders)
+            c.width = 580; c.height = 430
             c.tint = 0x16121a; c.alpha = 0.95
             c.position.set(cx2, cy2 + 12)
             c.zIndex = z2 - 2
@@ -1601,20 +1613,25 @@ export default function IslandMapIso() {
             gateT.source.scaleMode = 'nearest'
             const gp = new Sprite(gateT)
             gp.anchor.set(0.5, 0.5)
-            gp.scale.set(-1.1, 1.1)
-            // pulled DOWN-LEFT onto its dark pocket (Ash: the right head "not meshed
-            // properly" — its lower-right corner had drifted over green benches)
-            gp.position.set(512, 2988)
+            // BIGGER AND PROUD OF THE FLANK (Ash: at 1.1 sunk low it went "way too
+            // deep into the volcano"): 1.45 fills its pocket, crown into the dark
+            // rock, chin overhanging the open slope — a guardian carved OUT of the
+            // mountain, not a face at the bottom of a hole
+            gp.scale.set(-1.45, 1.45)
+            // SEATED AT THE SOURCE (Ash: the maws must FORM the rivers): the maw
+            // hangs just up-slope of MOUTH_R's first lava tile (iso 499,3133) —
+            // the spill bridges maw -> birth, and the river visibly leaves the jaw
+            gp.position.set(429, 3010)
             // z at the pocket's mid diagonal: the front jambs (higher diag) draw
             // AFTER the head and overlap its chin — sunk into the rock by painter's
             // order, the torn silhouette burying the cutout edge
             gp.zIndex = (118 + 101) * 4000 + liftOf(eLvl(118, 101)) * 2 + 1400
-            collar(512, 2988, gp.zIndex)
+            collar(429, 3010, gp.zIndex)
             world.addChild(gp)
             const gglow = new Sprite(foamTex)
             gglow.anchor.set(0.5, 0.5); gglow.blendMode = 'add'
-            gglow.tint = 0xff7a26; gglow.width = 170; gglow.height = 100; gglow.alpha = 0.3
-            gglow.position.set(531 + 45, 2975 + 130)
+            gglow.tint = 0xff7a26; gglow.width = 200; gglow.height = 120; gglow.alpha = 0.3
+            gglow.position.set(499, 3108)
             gglow.zIndex = gp.zIndex + 1
             world.addChild(gglow)
             glows.push({ sp: gglow, ph: 1.3, a: 0.26 })
@@ -1624,15 +1641,16 @@ export default function IslandMapIso() {
             westT.source.scaleMode = 'nearest'
             const wp = new Sprite(westT)
             wp.anchor.set(0.5, 0.5)
-            wp.scale.set(1.1)
-            wp.position.set(-503, 2968)
+            // the twin at the same guardian scale, maw over MOUTH_L's birth
+            wp.scale.set(1.45)
+            wp.position.set(-429, 3008)
             wp.zIndex = (101 + 118) * 4000 + liftOf(Math.max(0, eLvl(101, 118))) * 2 + 1400
-            collar(-503, 2968, wp.zIndex)
+            collar(-429, 3008, wp.zIndex)
             world.addChild(wp)
             const wglow = new Sprite(foamTex)
             wglow.anchor.set(0.5, 0.5); wglow.blendMode = 'add'
-            wglow.tint = 0xff7a26; wglow.width = 170; wglow.height = 100; wglow.alpha = 0.28
-            wglow.position.set(-503 - 45, 2968 + 130)
+            wglow.tint = 0xff7a26; wglow.width = 200; wglow.height = 120; wglow.alpha = 0.28
+            wglow.position.set(-499, 3106)
             wglow.zIndex = wp.zIndex + 1
             world.addChild(wglow)
             glows.push({ sp: wglow, ph: 2.9, a: 0.24 })
@@ -1645,10 +1663,36 @@ export default function IslandMapIso() {
           {
             const zG = 219 * 4000 + liftOf(eLvl(118, 101)) * 2 + 1440
             const zW = 219 * 4000 + liftOf(Math.max(0, eLvl(101, 118))) * 2 + 1440
-            for (const [mx3, my3, sd, z3] of [[565, 3062, 0.2, zG], [-569, 3044, 0.35, zW]] as [number, number, number, number][]) {
+            // THE MAW SPILL (Ash: the flow out of the mouth was "too small" — the
+            // mouths must FORM the rivers): a FAT painted molten gush slumps from
+            // each jaw and fans over the river's birth tile, wider than the river
+            // itself so the channel visibly narrows OUT of the pour. Breathes with
+            // the glow set; the gobbets rain through it.
+            let spillT: Texture | undefined
+            try {
+              spillT = await Assets.load('/art/island/heads/maw-spill.png')
+              if (spillT) spillT.source.scaleMode = 'nearest'
+            } catch { /* spill art optional */ }
+            for (const [mx3, my3, sd, z3, fl] of [[499, 3102, 0.2, zG, false], [-499, 3100, 0.35, zW, true]] as [number, number, number, number, boolean][]) {
+              if (spillT) {
+                const sl = new Sprite(spillT)
+                sl.anchor.set(0.5, 0.08)
+                sl.position.set(mx3, my3 - 4)
+                sl.scale.set((fl ? -1 : 1) * 1.15, 0.8)
+                sl.zIndex = z3 + 8
+                world.addChild(sl)
+                // the gush's own heat shimmer — an additive skin that breathes
+                const sk = new Sprite(spillT)
+                sk.anchor.set(0.5, 0.08); sk.blendMode = 'add'
+                sk.position.set(mx3, my3 - 4)
+                sk.scale.set((fl ? -1 : 1) * 1.15, 0.8)
+                sk.alpha = 0.3; sk.zIndex = z3 + 9
+                world.addChild(sk)
+                glows.push({ sp: sk, ph: sd * 6 + 1.1, a: 0.3 })
+              }
               const fg = new Sprite(foamTex)
               fg.anchor.set(0.5, 0.5); fg.blendMode = 'add'
-              fg.tint = 0xff9036; fg.width = 120; fg.height = 80; fg.alpha = 0.3
+              fg.tint = 0xff9036; fg.width = 150; fg.height = 96; fg.alpha = 0.3
               fg.position.set(mx3, my3)
               fg.zIndex = z3
               world.addChild(fg)
@@ -2661,89 +2705,10 @@ export default function IslandMapIso() {
         // carved OUT of the mountain. The SE head's maw is the dark Maw gateway;
         // the SW head POURS the molten flow (its glow breathes). The twin lava
         // curtains pour down in front, framing them.
-        // DECOR-gated (fresh base) — and the NEXT heads are PHYSICAL STRUCTURES with
-        // height/collision meshed into the massif, never sprite decals (Ash, 2026-07-13).
-        if (DECOR && !NOCONE) {
-          try {
-            const spoutT: Texture = await Assets.load('/art/island/gate/head-gape.png?v=1')
-            spoutT.source.scaleMode = 'nearest'
-            // the GAPING head (Ash's verdict, 2026-07-11): a monumental roaring
-            // maw carved out of the mountain. CONTINUITY BY CONSTRUCTION: the
-            // sprite's baked mouth-flow exits the art at a MEASURED pixel
-            // (scripts probed the molten exit centroid: texture frac 0.727, 0.89)
-            // and the sprite is anchored BY that pixel on the SAME tile where the
-            // engine's LAVA polyline starts (terrain MOUTH_R/MOUTH_L). The painted
-            // stream and the tile ribbon meet at one point — no eyeballing, and
-            // "two streams per head" can't happen (one polyline per mouth).
-            const EXIT_AX = 0.727, EXIT_AY = 0.89
-            const carveHead = (mouth: [number, number], sc: number, flip: boolean) => {
-              const rx = Math.round(mouth[0]), ry2 = Math.round(mouth[1])
-              const lift = liftOf(eLvl(rx, ry2))
-              const bx2 = isoX(mouth[0], mouth[1]), byM = isoY(mouth[0], mouth[1]) + GY - lift
-              const zB = (rx + ry2) * 4000 + lift * 2 + 760
-              // the head BODY rises up-flank from the mouth-strike (anchor sits low
-              // in the art): the AO socket centers on the body, not the anchor
-              const bodyY = byM - spoutT.height * sc * 0.42
-              const shOuter = new Sprite(shadTex)
-              shOuter.anchor.set(0.5, 0.5)
-              shOuter.width = spoutT.width * sc * 1.12; shOuter.height = spoutT.width * sc * 0.4; shOuter.alpha = 0.34
-              shOuter.tint = 0x2a140a
-              shOuter.position.set(bx2, bodyY); shOuter.zIndex = zB - 3
-              world.addChild(shOuter)
-              const sh = new Sprite(shadTex)
-              sh.anchor.set(0.5, 0.5)
-              sh.width = spoutT.width * sc * 0.84; sh.height = spoutT.width * sc * 0.28; sh.alpha = 0.5
-              sh.position.set(bx2, bodyY + spoutT.height * sc * 0.05); sh.zIndex = zB - 2
-              world.addChild(sh)
-              const sp = new Sprite(spoutT)
-              sp.anchor.set(EXIT_AX, EXIT_AY)     // the molten exit pixel IS the anchor
-              sp.position.set(bx2, byM)
-              sp.scale.set((flip ? -1 : 1) * sc, sc)
-              // ONE light with the mountain (reviewer: the heads' harder contrast
-              // detached them from the soft golden flank) — a warm multiply grade
-              // pulls the highlights down into the massif's own late-sun ramp
-              sp.tint = 0xffe4c2
-              sp.zIndex = zB
-              world.addChild(sp)
-              // ROCK WRAPS OVER THE BROW: a soft occlusion crescent across the
-              // crown so the mountain reads as overhanging the carved head — the
-              // single strongest "carved INTO, not pasted ON" cue
-              const brow = new Sprite(shadTex)
-              brow.anchor.set(0.5, 0.5)
-              brow.width = spoutT.width * sc * 0.98; brow.height = spoutT.width * sc * 0.3
-              brow.tint = 0x241009; brow.alpha = 0.38
-              brow.position.set(bx2 + (flip ? 8 : -8) * sc, byM - spoutT.height * sc * 0.82)
-              brow.zIndex = zB + 2
-              world.addChild(brow)
-              // JAW CONTACT: the dark pool where the chin meets the ground — the
-              // form must sit in its own occlusion (the gold standard's law)
-              const jaw = new Sprite(shadTex)
-              jaw.anchor.set(0.5, 0.5)
-              jaw.width = spoutT.width * sc * 0.55; jaw.height = spoutT.width * sc * 0.17
-              jaw.tint = 0x1c0e08; jaw.alpha = 0.44
-              jaw.position.set(bx2 + (flip ? 10 : -10) * sc, byM + 4)
-              jaw.zIndex = zB - 1
-              world.addChild(jaw)
-              // the open maw breathes molten heat (mouth centre sits ~0.42 up-art
-              // from the exit anchor, same x — measured, not guessed)
-              const g = new Sprite(foamTex); g.anchor.set(0.5, 0.5); g.blendMode = 'add'
-              g.tint = 0xff7a28
-              g.width = spoutT.width * sc * 0.4; g.height = spoutT.width * sc * 0.3
-              g.position.set(bx2, byM - spoutT.height * sc * 0.42)
-              g.alpha = 0.42; g.zIndex = zB + 4
-              world.addChild(g)
-              glows.push({ sp: g, ph: 2.4, a: 0.44 })
-            }
-            // both flanks wear a carved head (GAME-DESIGN §3.2: two lava-spewing
-            // heads). SE faces down-right; SW flipped to face down-left. Each is
-            // placed at its MOUTH-strike tile = its LAVA polyline's first point.
-            // Scales now IDENTICAL: same sculpt mirrored — the residual 1.16/1.09
-            // gap still read as "two different species, one smaller" on the twin
-            // gate (final Opus gate verdict); a monument pair is symmetric.
-            carveHead(MOUTH_R, 1.13, false)
-            carveHead(MOUTH_L, 1.13, true)
-          } catch { /* carved heads optional until the art lands */ }
-        }
+        // (The tawny head-gape gate complex is DELETED, 2026-07-16 — Ash: the black
+        // panthers are THE heads; the tawny lion doubling under them was "the old
+        // shit". Its one proven idea — anchoring the painted pour's exit pixel on
+        // the LAVA polyline's first tile — lives on in the black heads' pours.)
 
         // ---- P3: THE JOURNEY INWARD dressing — the POWER steles pacing the
         // approach, living fire braziers on the plaza + gate forecourt, and the
@@ -3219,10 +3184,9 @@ export default function IslandMapIso() {
           hot.position.set(sx2, sy2 + 1); hot.zIndex = zM + 2
           world.addChild(hot)
           glows.push({ sp: hot, ph: hash(m[1], m[0]) * 6.3 + 2.1, a: 0.8 })
-          // gobbets fall from the carved maw's height — meaningless without the
-          // heads; DECOR-gated with them. The mouth strike bloom above stays: it
-          // reads as the vent's own white-hot source on the fresh base.
-          for (let k = 0; DECOR && k < 3; k++) {
+          // gobbets fall from the carved maw's height — the heads ship with the
+          // base now (un-gated 2026-07-16), so their falling melt does too.
+          for (let k = 0; k < 3; k++) {
             const sp = new Sprite(pulseTex); sp.anchor.set(0.5, 0.5); sp.blendMode = 'add'
             sp.width = 8; sp.height = 12
             sp.zIndex = zM + 6

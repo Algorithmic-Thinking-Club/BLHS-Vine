@@ -302,6 +302,7 @@ export function initHubLayout() {
   // diagonal polyline against tile centers produced a broken dash-line)
   PATH_SET = new Set<number>()
   for (const P of PATHS) {
+    let px = NaN, py = NaN   // the previous rasterized cell along THIS polyline
     for (let i = 0; i < P.length - 1; i++) {
       const [x0, y0] = P[i], [x1, y1] = P[i + 1]
       const L = Math.hypot(x1 - x0, y1 - y0)
@@ -311,6 +312,12 @@ export function initHubLayout() {
         const y = y0 + ((y1 - y0) * s) / steps
         const cx = Math.round(x), cy = Math.round(y)
         PATH_SET.add(cy * GRID + cx)
+        // a diagonal step leaves the two cells touching only at a corner — in
+        // iso that renders as a DASH of disconnected diamonds (the forecourt
+        // climb read as scattered pale tiles). Bridge every diagonal with one
+        // orthogonal cell so the ribbon is edge-connected by construction.
+        if (!Number.isNaN(px) && cx !== px && cy !== py) PATH_SET.add(cy * GRID + px)
+        px = cx; py = cy
         for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
           if (Math.hypot(cx + ox - x, cy + oy - y) < 0.72) PATH_SET.add((cy + oy) * GRID + cx + ox)
         }
@@ -432,7 +439,15 @@ export function initHubLayout() {
     const t = (i + 1) / 6
     const x = PLAZA[0] + (TONGUE[0][0] - PLAZA[0]) * t
     const y = PLAZA[1] + (TONGUE[0][1] - PLAZA[1]) * t
-    return [x + Math.sin(i * 2.4) * 1.6, y + Math.cos(i * 2.4) * 1.6] as [number, number]
+    // the walk's wobble must never plant a marker on the lava bank (the MOUTH_R
+    // flow parallels this whole approach): try the wobble, its mirror, then the
+    // spine, and keep the first stance standing clear of the channel
+    const cands: [number, number][] = [
+      [x + Math.sin(i * 2.4) * 1.6, y + Math.cos(i * 2.4) * 1.6],
+      [x - Math.sin(i * 2.4) * 1.6, y - Math.cos(i * 2.4) * 1.6],
+      [x, y],
+    ]
+    return cands.find(([cx2, cy2]) => lavaDist(cx2, cy2) > 2.6) ?? cands[1]
   })
   // THE EAST HARBOR PLAN v2 (Ash: "a large glorious harbor that matches the
   // style of the island"). The island's hard materials are terracotta rock,
