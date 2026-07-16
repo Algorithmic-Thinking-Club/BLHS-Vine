@@ -14,9 +14,9 @@
 
 export const CX = 60, CY = 60 // island anchor in tile space (the 120x120 map centers here)
 export const GRID = 120
-export const COAST_R = 22 // mean coast radius — sized so the 16x15 room keeps a real
-// meadow RING on every side (first-boot lesson: at R19 the terrace ate the island);
-// still ~2.2x smaller linear than the hub (mean ~R50)
+export const COAST_R = 27 // mean coast radius — grown with the room (Ash 2026-07-16:
+// "the classroom is way too small" → 1.33 ft/tile, the 24x23 room needs this ring);
+// still ~1.8x smaller linear than the hub (mean ~R50)
 export const SEA_R = 54 // live sea builds inside this radius (renderer + veil boundary)
 
 // SCREEN COMPASS (2:1 iso): screen-E = tile θ −π/4 · screen-S = +π/4 ·
@@ -25,19 +25,19 @@ export const SEA_R = 54 // live sea builds inside this radius (renderer + veil b
 // ---- THE COASTLINE: authored per-azimuth control points, smoothly closed.
 // Each anchor is a DECISION. Radii in tile diagonals.
 const COAST_PTS: [theta: number, r: number][] = [
-  [-2.95, 24.0], // NW headland arm — frames the dock approach from the north
-  [-2.36, 22.0], // screen-N: the cliff collar holds a steady dark wall
-  [-1.65, 26.5], // NE CRAG PROW — the silhouette's tallest dark mass (c3 anchor)
-  [-1.15, 21.5], // notch east of the prow — the collar breathes
-  [-0.75, 23.0], // screen-E cliff run
-  [-0.30, 20.5], // pre-prow dip — makes the SE point READ as a point
-  [0.05, 27.0],  // SE ROCKY POINT — the lighthouse's long low prow into the sea
-  [0.50, 19.5],  // notch behind the point
-  [0.85, 19.0],  // SOUTH POCKET COVE — small designed sand window (the egg's shore)
-  [1.40, 22.5],  // south arm closing the pocket
-  [1.95, 21.5],  // SW shoulder easing toward the lagoon
-  [2.36, 19.5],  // screen-W: the ARRIVAL LAGOON BAY curves IN (bays are concave)
-  [2.75, 23.0],  // lagoon's north arm — with the NW headland it gates the dock vista
+  [-2.95, 29.5], // NW headland arm — frames the dock approach from the north
+  [-2.36, 27.0], // screen-N: the cliff collar holds a steady dark wall
+  [-1.65, 32.0], // NE CRAG PROW — the silhouette's tallest dark mass (c3 anchor)
+  [-1.15, 26.0], // notch east of the prow — the collar breathes
+  [-0.75, 28.0], // screen-E cliff run
+  [-0.30, 25.0], // pre-prow dip — makes the SE point READ as a point
+  [0.05, 33.0],  // SE ROCKY POINT — the lighthouse's long low prow into the sea
+  [0.50, 24.0],  // notch behind the point
+  [0.85, 23.5],  // SOUTH POCKET COVE — small designed sand window (the egg's shore)
+  [1.40, 27.5],  // south arm closing the pocket
+  [1.95, 26.0],  // SW shoulder easing toward the lagoon
+  [2.36, 24.0],  // screen-W: the ARRIVAL LAGOON BAY curves IN (bays are concave)
+  [2.75, 28.0],  // lagoon's north arm — with the NW headland it gates the dock vista
 ]
 // smooth periodic Catmull-Rom through the anchors (long calm runs, designed
 // corners — never per-tile jitter; the one organic term is a gentle wobble)
@@ -66,10 +66,10 @@ export function coastR(theta: number) {
 // Each is a DECISION: the west gate rock frames the dock approach; the SE pair
 // trails the lighthouse point out to sea; the south rock guards the pocket cove.
 export const ISLETS: { x: number; y: number; r: number; note: string }[] = [
-  { x: CX + Math.cos(2.62) * 29, y: CY + Math.sin(2.62) * 29, r: 2.6, note: 'west gate rock — the dock vista sails past it' },
-  { x: CX + Math.cos(0.08) * 33.5, y: CY + Math.sin(0.08) * 33.5, r: 2.1, note: 'SE skerry 1 — the point continues underwater' },
-  { x: CX + Math.cos(-0.12) * 38, y: CY + Math.sin(-0.12) * 38, r: 1.3, note: 'SE skerry 2 — the trail fades seaward' },
-  { x: CX + Math.cos(0.95) * 26, y: CY + Math.sin(0.95) * 26, r: 1.6, note: 'south cove guard rock' },
+  { x: CX + Math.cos(2.62) * 34, y: CY + Math.sin(2.62) * 34, r: 2.6, note: 'west gate rock — the dock vista sails past it' },
+  { x: CX + Math.cos(0.08) * 39.5, y: CY + Math.sin(0.08) * 39.5, r: 2.1, note: 'SE skerry 1 — the point continues underwater' },
+  { x: CX + Math.cos(-0.12) * 44, y: CY + Math.sin(-0.12) * 44, r: 1.3, note: 'SE skerry 2 — the trail fades seaward' },
+  { x: CX + Math.cos(0.95) * 30.5, y: CY + Math.sin(0.95) * 30.5, r: 1.6, note: 'south cove guard rock' },
 ]
 
 // signed distance PAST the coast (+ inland, − out to sea), in tile diagonals —
@@ -132,13 +132,15 @@ export function shelfW(tx: number, ty: number) {
 }
 
 // ---- THE ROOM TERRACE (the landform's one architectural move) + THE KNOLL.
-// Room 305's true footprint from A2.00A at 2 ft/tile: 16 x 15 tiles
-// (32'-0" x 30'-6", spec §2). These anchors are shared truth: atc-layout.ts
-// derives walls/door/stations from the SAME constants — never re-enter feet.
-export const FT_PER_TILE = 2
+// Room 305's true footprint from A2.00A at 1.33 ft/tile: 24 x 23 tiles
+// (32'-0" x 30'-6", spec §2; rescaled 2026-07-16 on Ash's "way too small" —
+// the room is the island's POINT, it deserves the summit). These anchors are
+// shared truth: atc-layout.ts derives walls/door/stations from the SAME
+// constants — never re-enter feet.
+export const FT_PER_TILE = 4 / 3
 export const ROOM = {
-  x0: 56, y0: 54, // NW corner tile of the wall ring (room "north" = −y edge)
-  w: 16, h: 15,   // wall-ring extent: 16 E-W x 15 N-S — the measured 1:1 rect
+  x0: 52, y0: 51, // NW corner tile of the wall ring (room "north" = −y edge)
+  w: 24, h: 23,   // wall-ring extent: 24 E-W x 23 N-S — the measured 1:1 rect
 } as const
 // the corridor terrace: the real room opens off its north hallway; the island
 // keeps the same relationship — a 2-tile-deep terrace strip along the north
@@ -149,11 +151,11 @@ export const CORRIDOR = { y0: ROOM.y0 - 2, y1: ROOM.y0 - 1, x0: ROOM.x0 - 1, x1:
 // the lighthouse knoll: ON the SE point's root (first-boot lesson: at azimuth
 // 0.31 the coast has already fallen — the knoll was in the water). Behind the
 // room as seen from the west dock: the vista layers dock → walls → tower.
-export const KNOLL = { x: 82, y: 61, r: 3.4 } as const
+export const KNOLL = { x: 88, y: 61, r: 3.4 } as const
 // the NE crag: a COASTAL RIDGE hugging the prow (first boot drew the old
 // radial blob as an inland bullseye) — a capsule along the coast tangent whose
 // seaward drop IS the tall dark cliff, the island's silhouette anchor
-export const CRAG = { ax: 56, ay: 35.5, bx: 65, by: 37, r: 1.6 } as const
+export const CRAG = { ax: 55, ay: 30.5, bx: 65, by: 32, r: 1.6 } as const
 export function cragD(tx: number, ty: number) {
   const vx = CRAG.bx - CRAG.ax, vy = CRAG.by - CRAG.ay
   const L2 = vx * vx + vy * vy

@@ -10,8 +10,9 @@ import {
 } from './atc-terrain'
 import {
   DOCK, dockAt, pathD, vegK, GROVES, SHADOW,
-  wallAt, STEPS, RX0, RX1, RY0, RY1, WINDOWS,
+  wallAt, STEPS, RX0, RX1, RY0, RY1, WINDOWS, DOOR,
   STATIONS, ACTIVITY_STATION, TEACHER, SINK, ANNEX, WHITEBOARD,
+  FEATURE_PALM, ROOM_FERNS, ROOM_BOXES,
 } from './atc-layout'
 import { getPois, getSeams } from './atc-mechanics'
 import { reportAtcAudit } from './atc-audit'
@@ -110,7 +111,7 @@ export default function AtcIslandIso() {
       const VEG_FILES = ['coco-v1', 'coco-v2', 'coco-v3', 'palm-a', 'palm-b', 'bush-a', 'bush-b', 'fernclump-1', 'boulder-1', 'boulder-2']
       // the room's own prop kit (PixelLab, filed under /art/atc-island/props)
       const propT: Record<string, Texture> = {}
-      const PROP_FILES = ['desk-front', 'desk-back', 'teacher-desk', 'annex-rack', 'whiteboard', 'sink-counter', 'dock-crate']
+      const PROP_FILES = ['desk-front', 'desk-back', 'teacher-desk', 'annex-rack', 'whiteboard', 'sink-counter', 'dock-crate', 'lighthouse', 'boxes']
       await Promise.all([
         loadWaterVariants().then((v) => { waterV = v }),
         ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/intro/sand-n/${i}.png`).then((t: Texture) => { sandV[i] = t }).catch(() => {})),
@@ -219,8 +220,8 @@ export default function AtcIslandIso() {
         if (w) {
           if (tx === RX0 && ty === RY0) return 4                       // NW corner post
           if (tx === RX0 + 3 && ty === RY0) return 4                   // the door's east jamb
-          if (w === 'solid-west' && ty >= RY0 + 5 && ty <= RY0 + 11) return 4 // the teaching-wall run
-          if (w === 'corridor' && (tx === RX0 + 7 || tx === RX0 + 8)) return 4 // a surviving mid-run
+          if (w === 'solid-west' && ty >= RY0 + 6 && ty <= RY0 + 16) return 4 // the teaching-wall run
+          if (w === 'corridor' && tx >= RX0 + 11 && tx <= RX0 + 13) return 4 // a surviving mid-run
           void WINDOWS
           return 3
         }
@@ -433,10 +434,22 @@ export default function AtcIslandIso() {
             // THE CARPET (the photos' gray-green broadloom, gone outdoor):
             // TEMP tint over the fine sand grain until the real family lands.
             // Faint tile checker; wall-foot AO pools around the perimeter free.
+            // THE MESHING (Ash's steer): moss blooms around the through-floor
+            // palm's crack; beach sand drifts in over the threshold; the east
+            // collapses feed green in from their gaps.
             const checker = (tx + ty) % 2 === 0 ? 1 : 0.955
             const grain = 0.985 + 0.03 * hash(tx * 1.7, ty * 2.9)
             const wear = 0.94 + 0.1 * vnoise(tx / 9 + 3, ty / 9 + 12)
-            top.tint = warmCool(shadeHex(tintFor(0x8b9480, SAND_BASE), checker * grain * wear * (1 - ao * 1.3)), rk * 0.4)
+            let hexF = 0x8b9480
+            const palmD = Math.hypot(tx - FEATURE_PALM[0], ty - FEATURE_PALM[1])
+            if (palmD < 2.2) hexF = mix(hexF, 0x74854e, (1 - palmD / 2.2) * 0.75)
+            const doorD = Math.hypot(tx - (DOOR[0][0] + 0.5), ty - DOOR[0][1])
+            if (doorD < 3) hexF = mix(hexF, 0xd8c49a, (1 - doorD / 3) * 0.55)
+            if (eastGap || tx > RX1 - 3) {
+              const gapK = Math.max(0, 1 - (RX1 - tx) / 3)
+              hexF = mix(hexF, 0x7d8f56, gapK * 0.5 * (0.6 + 0.4 * vnoise(tx / 4, ty / 4 + 7)))
+            }
+            top.tint = warmCool(shadeHex(tintFor(hexF, SAND_BASE), checker * grain * wear * (1 - ao * 1.3)), rk * 0.4)
           } else if (corr) {
             // the hallway: worn pale composite, the walk's traffic printed in
             const grain = 0.98 + 0.04 * hash(tx * 2.3, ty * 1.9)
@@ -546,6 +559,7 @@ export default function AtcIslandIso() {
       // sorts them with the walls.
       const shadowTex = radial(64, [[0, 'rgba(22,17,54,0.55)'], [1, 'rgba(22,17,54,0)']])
       const glows: { sp: Sprite; ph: number; a: number }[] = []
+      const sways: { sp: Sprite; amp: number; w: number; ph: number }[] = []
       const propAt = (key: string, ptx: number, pty: number, opts: { mirror?: boolean; sink?: number; z?: number; noShadow?: boolean } = {}) => {
         const tex = propT[key]
         if (!tex) return
@@ -611,12 +625,65 @@ export default function AtcIslandIso() {
       // pier dressing: the ATC crate + pennant waits at the berth (the deck
       // rides at DOCK lift, not ground level — sink lifts it onto the planks)
       propAt('dock-crate', DOCK.berth[0] - 0.5, DOCK.berth[1] - 0.4, { z: 60, sink: -(dockAt(Math.round(DOCK.berth[0]), Math.round(DOCK.berth[1]))?.lift ?? 0) })
+      // THE THROUGH-FLOOR PALM (the meshing centerpiece): the jungle broke up
+      // through the carpet mid-room and the club worked around it — the island
+      // rows ring the trunk, moss blooms from its crack (floor tint above)
+      if (vegT['coco-v2']) {
+        const pL = Math.max(0, eLvl(FEATURE_PALM[0], FEATURE_PALM[1]))
+        const psh = new Sprite(shadowTex)
+        psh.anchor.set(0.5)
+        psh.width = 74; psh.height = 26
+        psh.position.set(isoX(FEATURE_PALM[0], FEATURE_PALM[1]) + 16 * SHADOW.dx, isoY(FEATURE_PALM[0], FEATURE_PALM[1]) + GY - pL * STEP + 3)
+        psh.alpha = 0.34; psh.tint = 0x2a2350
+        psh.zIndex = (FEATURE_PALM[0] + FEATURE_PALM[1]) * 4000 + pL * STEP * 2 + 8
+        world.addChild(psh)
+        const fp = new Sprite(vegT['coco-v2'])
+        fp.anchor.set(0.5, 0.97)
+        fp.scale.set(1.12)
+        fp.position.set(isoX(FEATURE_PALM[0], FEATURE_PALM[1]), isoY(FEATURE_PALM[0], FEATURE_PALM[1]) + GY - pL * STEP + 5)
+        fp.zIndex = (FEATURE_PALM[0] + FEATURE_PALM[1]) * 4000 + pL * STEP * 2 + 330
+        world.addChild(fp)
+        sways.push({ sp: fp, amp: 0.014, w: 0.55, ph: 2.1 })
+      }
+      // the photos' box clutter along the east storage side
+      ROOM_BOXES.forEach(([bx2, by2], bi) => {
+        propAt('boxes', bx2, by2, { mirror: bi % 2 === 1, z: 315 })
+      })
+      // ferns reclaiming the floor at the authored spots
+      for (const [fx2, fy2] of ROOM_FERNS) {
+        const key = vegT['fernclump-1'] ? 'fernclump-1' : 'bush-b'
+        const tex = vegT[key]
+        if (!tex) break
+        const fL = Math.max(0, eLvl(fx2, fy2))
+        const f = new Sprite(tex)
+        f.anchor.set(0.5, 0.92)
+        f.scale.set(0.5 + 0.2 * hash(fx2 * 1.3, fy2 * 2.7))
+        f.position.set(isoX(fx2, fy2), isoY(fx2, fy2) + GY - fL * STEP + 4)
+        f.zIndex = (fx2 + fy2) * 4000 + fL * STEP * 2 + 310
+        world.addChild(f)
+      }
+      // THE LANDMARK (Ash's pick, proof-atc-lighthouse D): the school's own
+      // siding + brick rebuilt as the beacon on the knoll — from the west dock
+      // the vista layers pier → walls → tower, and the lamp room breathes teal
+      const lh = propAt('lighthouse', KNOLL.x, KNOLL.y + 0.4, { z: 380 })
+      if (lh) {
+        lh.scale.set(1.18) // landmark scale — it must command the point
+        const L = Math.max(0, eLvl(KNOLL.x, KNOLL.y))
+        const beacon = new Sprite(foamTex)
+        beacon.anchor.set(0.5)
+        beacon.tint = 0x3fe0d0; beacon.blendMode = 'add'
+        beacon.width = 150; beacon.height = 84
+        beacon.position.set(isoX(KNOLL.x, KNOLL.y + 0.4), isoY(KNOLL.x, KNOLL.y + 0.4) + GY - L * STEP - 268)
+        beacon.alpha = 0.32
+        beacon.zIndex = (KNOLL.x + KNOLL.y) * 4000 + L * STEP * 2 + 390
+        world.addChild(beacon)
+        glows.push({ sp: beacon, ph: 0.4, a: 0.32 })
+      }
 
       // ---- THE GROVES: the authored vegetation sites (atc-layout GROVES, each
       // with its reason) planted from the APPROVED palm/bush kit — scale/mirror
       // variance, violet cast shadows under one sun, canopy sway registered.
       // These are the island's dark composition masses (c3's green-on-gold).
-      const sways: { sp: Sprite; amp: number; w: number; ph: number }[] = []
       const palmKeys = ['coco-v1', 'coco-v2', 'coco-v3', 'palm-a', 'palm-b'].filter((k) => vegT[k])
       const bushKeys = ['bush-a', 'bush-b', 'fernclump-1'].filter((k) => vegT[k])
       const grovePlanted: number[] = []

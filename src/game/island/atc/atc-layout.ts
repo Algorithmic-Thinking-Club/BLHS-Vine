@@ -25,8 +25,8 @@ export const DOOR: [number, number][] = [[RX0 + 1, RY0], [RX0 + 2, RY0]]
 // the BROKEN east-wall gaps (the partition to 304, honored as ruin): two
 // collapsed runs spilling conduits toward the half-buried annex below
 export const EAST_GAPS: [number, number][] = [
-  [RX1, RY0 + 4], [RX1, RY0 + 5], [RX1, RY0 + 6], // upper collapse — the conduit spill
-  [RX1, RY0 + 9], [RX1, RY0 + 10],                 // lower collapse — jungle pushes through
+  [RX1, RY0 + 6], [RX1, RY0 + 7], [RX1, RY0 + 8], [RX1, RY0 + 9], // upper collapse — the conduit spill
+  [RX1, RY0 + 14], [RX1, RY0 + 15], [RX1, RY0 + 16],               // lower collapse — jungle pushes through
 ]
 
 export type WallRole = 'corridor' | 'exterior' | 'solid-west' | 'broken-east' | 'corner'
@@ -47,8 +47,8 @@ export function wallAt(tx: number, ty: number): WallRole | null {
 // the whole south run; two segments keep the remnant read (full glazing would
 // fight the ruin language)
 export const WINDOWS: [number, number][] = [
-  [RX0 + 4, RY1], [RX0 + 5, RY1], [RX0 + 6, RY1],
-  [RX0 + 9, RY1], [RX0 + 10, RY1], [RX0 + 11, RY1],
+  [RX0 + 5, RY1], [RX0 + 6, RY1], [RX0 + 7, RY1], [RX0 + 8, RY1],
+  [RX0 + 13, RY1], [RX0 + 14, RY1], [RX0 + 15, RY1], [RX0 + 16, RY1],
 ]
 
 // ---- THE STATIONS (photo-corrected 2026-07-16 — no longer provisional) ----
@@ -60,26 +60,54 @@ export const WINDOWS: [number, number][] = [
 export type Station = { at: [number, number]; w: number; face: 'N' | 'S'; kind: 'counter' | 'island' }
 export const STATIONS: Station[] = [
   // south perimeter counter (against the inner south wall, facing it — the
-  // photo's window row; reason: the room's densest work line, sunset light
-  // will pour over these screens from the exterior wall's window gaps)
+  // photo's continuous window row; reason: the room's densest work line,
+  // sunset light pours over these screens through the wall's window cuts)
   { at: [RX0 + 3, RY1 - 1], w: 2, face: 'S', kind: 'counter' },
   { at: [RX0 + 6, RY1 - 1], w: 2, face: 'S', kind: 'counter' },
   { at: [RX0 + 9, RY1 - 1], w: 2, face: 'S', kind: 'counter' },
-  { at: [RX0 + 12, RY1 - 1], w: 2, face: 'S', kind: 'counter' },
-  // the center island row (double-sided, back-to-back — the photo's mid-room
-  // tables; reason: the room's social spine, glow pooling in the middle)
-  { at: [RX0 + 3, RY0 + 6], w: 2, face: 'N', kind: 'island' },
-  { at: [RX0 + 6, RY0 + 6], w: 2, face: 'N', kind: 'island' },
-  { at: [RX0 + 9, RY0 + 6], w: 2, face: 'N', kind: 'island' },
-  { at: [RX0 + 3, RY0 + 7], w: 2, face: 'S', kind: 'island' },
-  { at: [RX0 + 6, RY0 + 7], w: 2, face: 'S', kind: 'island' },
-  { at: [RX0 + 9, RY0 + 7], w: 2, face: 'S', kind: 'island' },
+  { at: [RX0 + 13, RY1 - 1], w: 2, face: 'S', kind: 'counter' },
+  { at: [RX0 + 16, RY1 - 1], w: 2, face: 'S', kind: 'counter' },
+  { at: [RX0 + 19, RY1 - 1], w: 2, face: 'S', kind: 'counter' },
+  // TWO double-sided island rows (the photos' mid-room tables at real count),
+  // staggered so the ruin reads lived-in, ringing the through-floor palm —
+  // the jungle grew up through the lab and the club just worked around it
+  { at: [RX0 + 3, RY0 + 8], w: 2, face: 'N', kind: 'island' },
+  { at: [RX0 + 7, RY0 + 8], w: 2, face: 'N', kind: 'island' },
+  { at: [RX0 + 11, RY0 + 8], w: 2, face: 'N', kind: 'island' },
+  { at: [RX0 + 5, RY0 + 9], w: 2, face: 'S', kind: 'island' },
+  { at: [RX0 + 9, RY0 + 9], w: 2, face: 'S', kind: 'island' },
+  { at: [RX0 + 13, RY0 + 9], w: 2, face: 'S', kind: 'island' },
+  { at: [RX0 + 4, RY0 + 14], w: 2, face: 'N', kind: 'island' },
+  { at: [RX0 + 8, RY0 + 14], w: 2, face: 'N', kind: 'island' },
+  { at: [RX0 + 12, RY0 + 14], w: 2, face: 'N', kind: 'island' },
+  { at: [RX0 + 6, RY0 + 15], w: 2, face: 'S', kind: 'island' },
+  { at: [RX0 + 10, RY0 + 15], w: 2, face: 'S', kind: 'island' },
+  { at: [RX0 + 14, RY0 + 15], w: 2, face: 'S', kind: 'island' },
 ]
-// THE ACTIVITY STATION: the SE island desk — the code-block puzzle socket
-// (spec ledger `atc-activity`); nearest the broken wall, wired by a visible
-// cable run to the annex (reason: the puzzle desk is the one still "connected")
-export const ACTIVITY: [number, number] = [RX0 + 12, RY0 + 6]
+// THE ACTIVITY STATION: the desk nearest the broken east wall — the
+// code-block puzzle socket (ledger `atc-activity`), the one still "wired"
+// to the annex through the collapse
+export const ACTIVITY: [number, number] = [RX0 + 18, RY0 + 8]
 export const ACTIVITY_STATION: Station = { at: ACTIVITY, w: 2, face: 'N', kind: 'island' }
+
+// THE THROUGH-FLOOR PALM (the meshing centerpiece, Ash's "blow my mind"):
+// a coconut palm that broke up through the carpet mid-room; the island rows
+// ring it, and its crack feeds moss back into the floor
+export const FEATURE_PALM: [number, number] = [RX0 + 15, RY0 + 12]
+// ferns and undergrowth taking the floor back (authored, each with a reason)
+export const ROOM_FERNS: [number, number][] = [
+  [RX0 + 21, RY0 + 7],  // spilling through the upper east collapse
+  [RX0 + 21, RY0 + 15], // the lower collapse's green tongue
+  [RX0 + 5, RY0 + 20],  // the south row's shadowed end
+  [RX0 + 17, RY0 + 20], // between the last counters
+  [RX0 + 10, RY0 + 12], // a floor crack going green mid-room
+]
+// the photos' box clutter along the east side (the room's storage wall)
+export const ROOM_BOXES: [number, number][] = [
+  [RX0 + 20, RY0 + 3],  // stacked by the NE corner
+  [RX0 + 21, RY0 + 11], // between the two collapses
+  [RX0 + 19, RY0 + 18], // the SE corner pile
+]
 
 // the TEACHER POST (pixel-Ash's spot, ledger `atc-host`): just inside the
 // door, facing the room — the host greets you at the threshold like a real
@@ -93,12 +121,12 @@ export const SINK: { at: [number, number]; len: number } = { at: [RX0 + 1, RY0 +
 // the TEACHING WALL (photo: whiteboard + big wall display on the west wall) —
 // drawn on the INNER face of the west wall stubs; three learn-beat spots
 // (ledger `atc-learn-1..3`) stand along it
-export const WHITEBOARD: { wall: 'west'; y0: number; y1: number } = { wall: 'west', y0: RY0 + 5, y1: RY0 + 9 }
-export const DISPLAY: { wall: 'west'; y0: number; y1: number } = { wall: 'west', y0: RY0 + 10, y1: RY0 + 11 }
+export const WHITEBOARD: { wall: 'west'; y0: number; y1: number } = { wall: 'west', y0: RY0 + 6, y1: RY0 + 12 }
+export const DISPLAY: { wall: 'west'; y0: number; y1: number } = { wall: 'west', y0: RY0 + 14, y1: RY0 + 16 }
 export const LEARN_SPOTS: [number, number][] = [
-  [RX0 + 2, RY0 + 6],  // before the whiteboard — learn beat 1 (what ATC is)
-  [RX0 + 2, RY0 + 10], // before the display — learn beat 2 (when it meets)
-  [RX0 + 8, RY0 + 3],  // mid-room north aisle, facing the poster wall — beat 3 (how to join)
+  [RX0 + 2, RY0 + 9],  // before the whiteboard — learn beat 1 (what ATC is)
+  [RX0 + 2, RY0 + 15], // before the display — learn beat 2 (when it meets)
+  [RX0 + 12, RY0 + 3], // mid-room north aisle, facing the poster wall — beat 3 (how to join)
 ]
 
 // the ROOM-305 PLAQUE (the drawing's own room tag as set dressing): on the
@@ -131,7 +159,7 @@ export const DOCK_LIFT = 10
 export const DOCK: { tiles: DockTile[]; root: [number, number]; berth: [number, number] } = (() => {
   // root on the lagoon sand (θ≈2.36), pier runs axis-aligned +y (screen SW)
   // out past the waterline — the berth face looks straight at the hub
-  const rx = 46, ry = 73
+  const rx = 43, ry = 76
   const tiles: DockTile[] = []
   for (let y = ry; y <= ry + 5; y++) {
     for (let x = rx; x <= rx + 1; x++) {
@@ -161,17 +189,17 @@ export const STEPS: { tiles: [number, number][]; lift: number } = {
 // lighthouse spur that walks PAST the annex (the lore sits on the way).
 export const PATH: [number, number][] = [
   [DOCK.root[0], DOCK.root[1]],
-  [49.5, 69], [52, 64], [54, 59],
-  [53.6, 55.5], [53.2, CORRIDOR.y0 + 1],        // the shore rise bends to the steps
+  [46.5, 71.5], [49.5, 65], [51, 58],
+  [50.5, 53.5], [50.2, CORRIDOR.y0 + 1],        // the shore rise bends to the steps
   [CORRIDOR.x0 + 1, CORRIDOR.y0 + 1],           // onto the terrace
   [DOOR[0][0] + 0.5, CORRIDOR.y0 + 1],          // down the hall
   [DOOR[0][0] + 0.5, RY0 + 1.2],                // turn in at the door
 ]
 export const SPUR: [number, number][] = [
   [CORRIDOR.x1 - 1, CORRIDOR.y0 + 1],           // the hall's east end
-  [RX1 + 3, RY0 + 3],                            // around the plateau shoulder
+  [RX1 + 3, RY0 + 4],                            // around the plateau shoulder
   [ANNEX.rack[0] + 0.6, ANNEX.rack[1] + 1.5],    // past the half-buried rack
-  [79.5, 62.5], [KNOLL.x - 1, KNOLL.y + 0.5],    // up to the tower's door
+  [84, 62.5], [KNOLL.x - 1, KNOLL.y + 0.5],      // up to the tower's door
 ]
 // distance to a polyline (the hub's exact rasterization approach)
 function polyD(tx: number, ty: number, line: [number, number][]) {
@@ -202,13 +230,14 @@ export const EGG: [number, number] = [
 
 // ---- VEGETATION: authored grove sites only (never a field formula) ----
 export const GROVES: { x: number; y: number; r: number; note: string }[] = [
-  { x: 44, y: 63, r: 3.0, note: 'lagoon north arm — frames the dock vista left' },
-  { x: 55.5, y: 73.5, r: 2.3, note: 'arrival enclosure south — the path lands between green masses' },
-  { x: 50, y: 65.5, r: 2.0, note: 'arrival enclosure north — the second flanking mass' },
-  { x: 66, y: 45, r: 3.0, note: 'north meadow — breaks the corridor terrace long line' },
-  { x: 75, y: 68, r: 2.8, note: 'knoll skirt — separates lighthouse from the cove read' },
-  { x: 61, y: 74, r: 2.4, note: 'south meadow rhythm beat' },
-  { x: 42, y: 56, r: 2.2, note: 'NW headland crown — the dark arm wears its cap' },
+  { x: 40, y: 64, r: 3.2, note: 'lagoon north arm — frames the dock vista left' },
+  { x: 54, y: 77, r: 2.6, note: 'arrival enclosure south — the path lands between green masses' },
+  { x: 47, y: 67, r: 2.2, note: 'arrival enclosure north — the second flanking mass' },
+  { x: 66, y: 42, r: 3.2, note: 'north meadow — breaks the corridor terrace long line' },
+  { x: 79, y: 70, r: 3.0, note: 'knoll skirt — separates lighthouse from the cove read' },
+  { x: 62, y: 78, r: 2.5, note: 'south meadow rhythm beat' },
+  { x: 38, y: 55, r: 2.4, note: 'NW headland crown — the dark arm wears its cap' },
+  { x: 78, y: 47, r: 2.6, note: 'NE shoulder — softens the crag-to-corridor handoff' },
 ]
 export function vegK(tx: number, ty: number) {
   let k = 0
@@ -226,6 +255,7 @@ export function vegK(tx: number, ty: number) {
 const BLOCKED = new Set<number>()
 function block(tx: number, ty: number) { BLOCKED.add(Math.round(ty) * GRID + Math.round(tx)) }
 for (const s of [...STATIONS, ACTIVITY_STATION]) for (let i = 0; i < s.w; i++) block(s.at[0] + i, s.at[1])
+block(FEATURE_PALM[0], FEATURE_PALM[1]) // the through-floor palm's trunk
 for (let i = 0; i < TEACHER.w; i++) block(TEACHER.at[0] + i, TEACHER.at[1])
 for (let i = 0; i < SINK.len; i++) block(SINK.at[0], SINK.at[1] + i)
 block(ANNEX.rack[0], ANNEX.rack[1])
