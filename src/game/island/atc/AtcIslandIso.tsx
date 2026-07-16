@@ -501,9 +501,11 @@ export default function AtcIslandIso() {
             top.tint = warmCool(shadeHex(hex, dune * grain), rk * 0.5)
           } else {
             const t = Math.min(1, L / 3)
-            // macro value drift: broad sun-pool / hollow patches so the meadow
-            // reads as a lit FIELD at vista zoom, never one flat green value
-            const macro = 0.93 + 0.12 * vnoise(tx / 24 + 9, ty / 24 + 1)
+            // THE MEADOW IS COMPOSED VALUE, not a flat green (the $0.01 root):
+            // a darker resting base, broad drift, and the sun POOLING along
+            // the walk — c3's golden windows in a deep green field
+            const macro = 0.8 + 0.16 * vnoise(tx / 24 + 9, ty / 24 + 1)
+              + 0.2 * Math.max(0, 1 - pathD(tx, ty) / 7)
             const patch = 0.96 + 0.08 * vnoise(tx / 14 + 2, ty / 14 + 6)
             const grain = 0.995 + 0.01 * hash(tx * 1.3, ty * 2.1)
             let hex = rampAt(GRASS_RAMP, t)
@@ -515,7 +517,7 @@ export default function AtcIslandIso() {
             if (cd2 < 0.45) hex = mix(hex, 0x27383c, 0.5)
             // grove shade pools: authored vegetation sites darken their floor
             const vk = vegK(tx, ty)
-            top.tint = warmCool(tintFor(shadeHex(hex, macro * patch * grain * (1 - ao) * (1 - vk * 0.14)), GRASS_BASE), rk)
+            top.tint = warmCool(tintFor(shadeHex(hex, macro * patch * grain * (1 - ao) * (1 - vk * 0.3)), GRASS_BASE), rk)
           }
           world.addChild(top)
         }
@@ -649,9 +651,33 @@ export default function AtcIslandIso() {
         b.zIndex = (ANNEX.rack[0] + ANNEX.rack[1]) * 4000 + L * STEP * 2 + 340
         world.addChild(b)
       }
-      // the teaching wall: the whiteboard stands against the west wall's inner
-      // face (its stubs), read from everywhere in the room
-      propAt('whiteboard', RX0 + 0.7, (WHITEBOARD.y0 + WHITEBOARD.y1) / 2, { z: 330 })
+      // THE HERO WALL PANELS (the hub's facade-panel lesson applied here:
+      // large composed sections read as a BUILDING; tiled blocks read as a
+      // fence). The tiled wall stays beneath as depth/collision truth.
+      // PARKED behind ?panels=1 (stop-loss): overlaying panels on the tiled
+      // wall without suppressing the tiles beneath = the documented collage
+      // crime. Next session: suppress wall tiles under each panel's run, then
+      // place the panel AS the wall (the gate-head integration pattern).
+      const PANELS = params.get('panels') === '1'
+      const panelT: Record<string, Texture> = {}
+      if (PANELS) await Promise.all(['wall-north', 'wall-west'].map((n) =>
+        Assets.load(`/art/atc-island/panels/${n}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; panelT[n] = t }).catch(() => {})))
+      if (panelT['wall-north']) {
+        const sp = new Sprite(panelT['wall-north'])
+        sp.anchor.set(0.5, 1)
+        sp.scale.set(0.62)
+        sp.position.set(isoX(59.5, RY0), isoY(59.5, RY0) + GY - 3 * STEP + 12)
+        sp.zIndex = (66 + RY0) * 4000 + 900
+        world.addChild(sp)
+      }
+      if (panelT['wall-west']) {
+        const sp = new Sprite(panelT['wall-west'])
+        sp.anchor.set(0.5, 1)
+        sp.scale.set(0.62)
+        sp.position.set(isoX(RX0, (WHITEBOARD.y0 + WHITEBOARD.y1) / 2), isoY(RX0, (WHITEBOARD.y0 + WHITEBOARD.y1) / 2) + GY - 3 * STEP + 12)
+        sp.zIndex = (RX0 + WHITEBOARD.y1 + 1) * 4000 + 900
+        world.addChild(sp)
+      }
       // pier dressing: the ATC crate + pennant waits at the berth (the deck
       // rides at DOCK lift, not ground level — sink lifts it onto the planks)
       propAt('dock-crate', DOCK.berth[0] - 0.5, DOCK.berth[1] - 0.4, { z: 60, sink: -(dockAt(Math.round(DOCK.berth[0]), Math.round(DOCK.berth[1]))?.lift ?? 0) })
