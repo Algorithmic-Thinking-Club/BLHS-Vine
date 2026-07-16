@@ -10,7 +10,8 @@ import {
 } from './atc-terrain'
 import {
   DOCK, dockAt, pathD, vegK, GROVES, SHADOW,
-  wallAt, STEPS, RX0, RX1, RY0, RY1,
+  wallAt, STEPS, RX0, RX1, RY0, RY1, WINDOWS,
+  STATIONS, ACTIVITY_STATION, TEACHER, SINK, ANNEX, WHITEBOARD,
 } from './atc-layout'
 import { getPois, getSeams } from './atc-mechanics'
 import { reportAtcAudit } from './atc-audit'
@@ -100,12 +101,16 @@ export default function AtcIslandIso() {
       const flatG: Texture[] = [], flatS: Texture[] = []
       const sideW: Texture[] = [] // blocks3 rock-N-side: the mossless block courses
       const rockN: Texture[] = [] // the normalized bare-rock top family
+      const wallB: Texture[] = [] // the ATC wall-stub block family (PixelLab, greige siding + brick base)
       let waterV: Texture[] = []
       const deckT: Texture[] = []
       let plankB: Texture | undefined
       // the approved beach/hub vegetation kit (REUSE is the law — §14.1's ring)
       const vegT: Record<string, Texture> = {}
       const VEG_FILES = ['coco-v1', 'coco-v2', 'coco-v3', 'palm-a', 'palm-b', 'bush-a', 'bush-b', 'fernclump-1', 'boulder-1', 'boulder-2']
+      // the room's own prop kit (PixelLab, filed under /art/atc-island/props)
+      const propT: Record<string, Texture> = {}
+      const PROP_FILES = ['desk-front', 'desk-back', 'teacher-desk', 'annex-rack', 'whiteboard', 'sink-counter', 'dock-crate']
       await Promise.all([
         loadWaterVariants().then((v) => { waterV = v }),
         ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/intro/sand-n/${i}.png`).then((t: Texture) => { sandV[i] = t }).catch(() => {})),
@@ -114,9 +119,11 @@ export default function AtcIslandIso() {
         ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/island/flat/sand-${i}.png?v=7`).then((t: Texture) => { t.source.scaleMode = 'nearest'; flatS[i] = t }).catch(() => {})),
         ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/island/rock-n/${i}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; rockN[i] = t }).catch(() => {})),
         ...[2, 3, 4, 5].map((i) => Assets.load(`/art/island/blocks3/rock-${i}-side.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; sideW.push(t) }).catch(() => {})),
+        ...[0, 1, 2, 3].map((i) => Assets.load(`/art/atc-island/blocks/wall-${i}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; wallB[i] = t }).catch(() => {})),
         ...Array.from({ length: 3 }, (_, i) => Assets.load(`/art/island/harbor/deck-top-${i}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; deckT[i] = t }).catch(() => {})),
         Assets.load('/art/island/harbor/plank-block-a.png').then((t: Texture) => { t.source.scaleMode = 'nearest'; plankB = t }).catch(() => {}),
         ...VEG_FILES.map((n) => Assets.load(`/art/island/veg/${n}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; vegT[n] = t }).catch(() => {})),
+        ...PROP_FILES.map((n) => Assets.load(`/art/atc-island/props/${n}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; propT[n] = t }).catch(() => {})),
       ])
       if (destroyed) return
       // the mechanical gate: every socket must be reachable from the dock as
@@ -204,8 +211,19 @@ export default function AtcIslandIso() {
         if (isletAt(tx, ty)) return 1 // skerries: bare rock nubs, one course over the water
         // THE WALL RING IS TILES (the 3D tile law): a wall stub = a level-3
         // tile standing one course over the room floor — the block machinery
-        // draws its faces, painter order occludes, wallAt() blocks the walk
-        if (wallAt(tx, ty)) return 3
+        // draws its faces, painter order occludes, wallAt() blocks the walk.
+        // RUIN HEIGHT VARIANCE on the BACK walls only (north/west stand taller
+        // at the NW corner, the door jamb, the whiteboard run) — the camera-
+        // side south/east walls stay LOW so the interior always reads (iso law)
+        const w = wallAt(tx, ty)
+        if (w) {
+          if (tx === RX0 && ty === RY0) return 4                       // NW corner post
+          if (tx === RX0 + 3 && ty === RY0) return 4                   // the door's east jamb
+          if (w === 'solid-west' && ty >= RY0 + 5 && ty <= RY0 + 11) return 4 // the teaching-wall run
+          if (w === 'corridor' && (tx === RX0 + 7 || tx === RX0 + 8)) return 4 // a surviving mid-run
+          void WINDOWS
+          return 3
+        }
         // the authored architecture first: terrace, knoll, crag ridge
         if (plateauD(tx, ty) <= 0.55) return 2
         const cd = cragD(tx, ty)
@@ -294,14 +312,21 @@ export default function AtcIslandIso() {
           under.zIndex = zBase2; world.addChild(under)
         }
         for (let k = m - 1; k >= 0; k--) { // bottom course first, uppers mask
-          const seg = new Sprite(sideW[pick(k)])
+          const useWall = !!wall && wallB.filter(Boolean).length > 0
+          const wPool = wallB.filter(Boolean)
+          const seg = new Sprite(useWall ? wPool[pick(k) % wPool.length] : sideW[pick(k)])
           seg.anchor.set(0.5, 18 / 64)
           seg.position.set(bx2, by2 + k * STEP)
           const drift = 0.96 + 0.06 * vnoise(tx2 / 6 + 2.2, ty2 / 6 + 7.7) - 0.02 * k
-          if (wall) {
-            // the room's wall stubs — TEMP greige until the PixelLab wall-stub
-            // set lands (spec asset #3: ribbed siding over a red-brick base).
-            // The exterior (south) wall runs a shade warmer: the facade hint.
+          if (useWall) {
+            // the real wall-stub blocks — muted toward true greige (raw they
+            // read as an orange picket fence), the south wall a breath warmer
+            seg.scale.x = vnoise(tx2 / 3 + 5, ty2 / 3 + 9) > 0.5 ? -1 : 1
+            seg.tint = wall === 'exterior'
+              ? tint24(drift * 0.82, drift * 0.77, drift * 0.72)
+              : tint24(drift * 0.74, drift * 0.74, drift * 0.72)
+          } else if (wall) {
+            // fallback greige tint on rock courses if the wall family is absent
             seg.tint = wall === 'exterior'
               ? tint24(drift * 0.78, drift * 0.68, drift * 0.6)
               : tint24(drift * 0.74, drift * 0.71, drift * 0.65)
@@ -332,6 +357,8 @@ export default function AtcIslandIso() {
       const rockTopTex: Texture[] = rockN.filter(Boolean).length
         ? rockN.filter(Boolean)
         : sideW.map((t) => new Texture({ source: t.source, frame: new Rectangle(0, 0, 64, 36) }))
+      // the wall's own cut-top (rubble edges included) — top + face, one material
+      const wallTopTex: Texture[] = wallB.filter(Boolean).map((t) => new Texture({ source: t.source, frame: new Rectangle(0, 0, 64, 38) }))
       for (let ty = 0; ty < GRID; ty++) {
         for (let tx = 0; tx < GRID; tx++) {
           const dx = tx - CX, dy = ty - CY
@@ -372,8 +399,9 @@ export default function AtcIslandIso() {
 
           // TOP: one flat blended diamond (64x36 on the 64x32 lattice, the
           // family's own 2px melt), anchor centred, - the drawn faces carry 3D
-          const pool = wRole || floorC || eastGap || corr ? st
-            : rock && rockTopTex.length ? rockTopTex : isSand ? st : gt
+          const pool = wRole && wallTopTex.length ? wallTopTex
+            : wRole || floorC || eastGap || corr ? st
+              : rock && rockTopTex.length ? rockTopTex : isSand ? st : gt
           if (!pool.length) continue
           const g = rock
             ? pool[Math.floor(vnoise(tx / 6 + 4.2, ty / 6 + 1.8) * pool.length) % pool.length]
@@ -388,9 +416,15 @@ export default function AtcIslandIso() {
           const bL = Math.max(eLvl(tx - 1, ty), eLvl(tx, ty - 1))
           const ao = bL > L ? Math.min(0.24, (bL - L) * 0.13) : 0
           const rk = rakeAt(tx, ty)
-          if (wRole) {
-            // the wall's cut top: pale greige composite (TEMP until the
-            // PixelLab wall set), the exterior wall a breath warmer
+          if (wRole && wallTopTex.length) {
+            // the wall block's own cut top (rubble edge intact), near-raw
+            const grain = 0.95 + 0.07 * hash(tx * 2.1, ty * 3.3)
+            top.scale.x = hash(tx * 4.9, ty * 2.7) > 0.5 ? -1 : 1
+            top.tint = wRole === 'exterior'
+              ? tint24(grain * 1.0, grain * 0.94, grain * 0.88)
+              : tint24(grain * 0.96, grain * 0.95, grain * 0.92)
+          } else if (wRole) {
+            // fallback: pale greige composite cap over the sand grain
             const grain = 0.96 + 0.06 * hash(tx * 2.1, ty * 3.3)
             top.tint = wRole === 'exterior'
               ? tint24(grain * 0.8, grain * 0.72, grain * 0.64)
@@ -506,12 +540,83 @@ export default function AtcIslandIso() {
         }
       }
 
+      // ---- THE PLACES (P4): the room's furniture from the photo-corrected
+      // layout data. Every prop is tile-registered (collision lives in
+      // atc-layout's BLOCKED set); anchors sit at the base so painter order
+      // sorts them with the walls.
+      const shadowTex = radial(64, [[0, 'rgba(22,17,54,0.55)'], [1, 'rgba(22,17,54,0)']])
+      const glows: { sp: Sprite; ph: number; a: number }[] = []
+      const propAt = (key: string, ptx: number, pty: number, opts: { mirror?: boolean; sink?: number; z?: number; noShadow?: boolean } = {}) => {
+        const tex = propT[key]
+        if (!tex) return
+        const rtx = Math.round(ptx), rty = Math.round(pty)
+        const L = Math.max(0, eLvl(rtx, rty))
+        const lift = L * STEP
+        const gx = isoX(ptx, pty), gy = isoY(ptx, pty) + GY - lift + HH * 0.55 + (opts.sink ?? 0)
+        if (!opts.noShadow) {
+          // contact shadow grounds the piece (one sun, thrown down-right)
+          const sh = new Sprite(shadowTex)
+          sh.anchor.set(0.5)
+          sh.width = tex.width * 0.85; sh.height = tex.width * 0.3
+          sh.position.set(gx + 4 * SHADOW.dx, gy - 4 + 2 * SHADOW.dy)
+          sh.alpha = 0.35; sh.tint = 0x241d40
+          sh.zIndex = (rtx + rty) * 4000 + lift * 2 + ((opts.z ?? 320) - 4)
+          world.addChild(sh)
+        }
+        const sp = new Sprite(tex)
+        sp.anchor.set(0.5, 1)
+        sp.position.set(gx, gy)
+        if (opts.mirror) sp.scale.x = -1
+        sp.zIndex = (rtx + rty) * 4000 + lift * 2 + (opts.z ?? 320)
+        world.addChild(sp)
+        return sp
+      }
+      // the stations: south counter row + the island rows (photo truth). The
+      // front sprite carries lit screens (glow pooled later); N-facing island
+      // desks show monitor backs when that sprite lands.
+      for (const s of [...STATIONS, ACTIVITY_STATION]) {
+        const cx2 = s.at[0] + (s.w - 1) / 2, cy2 = s.at[1]
+        const key = s.face === 'N' && propT['desk-back'] ? 'desk-back' : 'desk-front'
+        const sp = propAt(key, cx2, cy2, { mirror: hash(cx2 * 3.1, cy2 * 1.7) > 0.5 && s.kind === 'counter' })
+        if (sp && s.face !== 'N') {
+          // soft teal screen pool on the floor before each lit station
+          const g = new Sprite(foamTex)
+          g.anchor.set(0.5)
+          g.tint = 0x2ec4b6; g.blendMode = 'add'; g.alpha = 0.12
+          g.width = 52; g.height = 20
+          const L = Math.max(0, eLvl(Math.round(cx2), Math.round(cy2)))
+          g.position.set(isoX(cx2, cy2 + 0.7), isoY(cx2, cy2 + 0.7) + GY - L * STEP)
+          g.zIndex = (Math.round(cx2) + Math.round(cy2)) * 4000 + L * STEP * 2 + 12
+          world.addChild(g)
+          glows.push({ sp: g, ph: hash(cx2, cy2) * 6.28, a: 0.12 })
+        }
+      }
+      propAt('teacher-desk', TEACHER.at[0] + (TEACHER.w - 1) / 2, TEACHER.at[1], {})
+      propAt('sink-counter', SINK.at[0], SINK.at[1] + (SINK.len - 1) / 2, {})
+      // the annex rack sits half-buried below the broken east wall (sink puts
+      // its feet under the meadow; the undergrowth swallows the base)
+      propAt('annex-rack', ANNEX.rack[0], ANNEX.rack[1], { sink: 8 })
+      if (vegT['bush-a']) {
+        const b = new Sprite(vegT['bush-a'])
+        b.anchor.set(0.5, 0.9)
+        const L = Math.max(0, eLvl(ANNEX.rack[0], ANNEX.rack[1]))
+        b.scale.set(0.7)
+        b.position.set(isoX(ANNEX.rack[0] - 0.2, ANNEX.rack[1] + 0.5), isoY(ANNEX.rack[0] - 0.2, ANNEX.rack[1] + 0.5) + GY - L * STEP + 6)
+        b.zIndex = (ANNEX.rack[0] + ANNEX.rack[1]) * 4000 + L * STEP * 2 + 340
+        world.addChild(b)
+      }
+      // the teaching wall: the whiteboard stands against the west wall's inner
+      // face (its stubs), read from everywhere in the room
+      propAt('whiteboard', RX0 + 0.7, (WHITEBOARD.y0 + WHITEBOARD.y1) / 2, { z: 330 })
+      // pier dressing: the ATC crate + pennant waits at the berth (the deck
+      // rides at DOCK lift, not ground level — sink lifts it onto the planks)
+      propAt('dock-crate', DOCK.berth[0] - 0.5, DOCK.berth[1] - 0.4, { z: 60, sink: -(dockAt(Math.round(DOCK.berth[0]), Math.round(DOCK.berth[1]))?.lift ?? 0) })
+
       // ---- THE GROVES: the authored vegetation sites (atc-layout GROVES, each
       // with its reason) planted from the APPROVED palm/bush kit — scale/mirror
       // variance, violet cast shadows under one sun, canopy sway registered.
       // These are the island's dark composition masses (c3's green-on-gold).
       const sways: { sp: Sprite; amp: number; w: number; ph: number }[] = []
-      const shadowTex = radial(64, [[0, 'rgba(22,17,54,0.55)'], [1, 'rgba(22,17,54,0)']])
       const palmKeys = ['coco-v1', 'coco-v2', 'coco-v3', 'palm-a', 'palm-b'].filter((k) => vegT[k])
       const bushKeys = ['bush-a', 'bush-b', 'fernclump-1'].filter((k) => vegT[k])
       const grovePlanted: number[] = []
@@ -706,6 +811,8 @@ export default function AtcIslandIso() {
         animSwells(waterS, wt, () => 0)
         // the canopy breathes: gentle per-plant rotation about the rooted base
         for (const s of sways) s.sp.rotation = s.amp * Math.sin(wt * s.w + s.ph)
+        // the screens breathe: slow independent flicker per lit station
+        for (const g of glows) g.sp.alpha = g.a * (0.7 + 0.3 * Math.sin(wt * 1.1 + g.ph))
       })
     }
 
