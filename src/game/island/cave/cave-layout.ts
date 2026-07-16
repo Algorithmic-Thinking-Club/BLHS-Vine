@@ -1,26 +1,21 @@
-// THE PANTHER'S MAW — MASTER LAYOUT AS DATA (Session C's lane, 2026-07-16).
-// The cave interior's single geometric truth: every shape here is an AUTHORED
-// DECISION with a written reason (island-endgame-method law #1 — no formulas
-// masquerading as design). Spec: docs/place-specs/panther-cave-interior.md.
-// P0 pick (Ash 2026-07-16): "like C but a lot grander" → grand cathedral bones
-// + the living-lava spectacle (fall → trench → carved bridge) + restrained
-// panther identity. Canonical target: cave-concepts/P0-PICK.png.
+// THE PANTHER'S MAW — MASTER LAYOUT AS DATA (Session C's lane).
+// FULL REDESIGN (Ash, 2026-07-17): the canonical target is now
+// reference/_archive/pixellab-gens/cave-concepts/cave-grand2-lavafall.png
+// (proof-cave-grand B) — "more floating bridges, flowing lava, sick 3d
+// underground cave map that's complex and looks insane," at TavernWorld bar.
 //
-// ORIENTATION (P2 correction, composition over compass): in 2:1 iso only the
-// N-side and W-side walls show their room-facing faces — an aperture in the SE
-// wall is INVISIBLE from inside. Every picked concept puts the glowing mouth
-// in the FAR wall because that is the only wall that can carry it. So the
-// mouth lives high on the NE rim (screen upper-right), Thor arrives on the
-// threshold shelf there and the room reveals itself down the grand stair to
-// the SW — the P0 pick's own composition. The spec's compass-continuity note
-// was PROPOSED and loses to the canonical target (logged in the spec).
+// THE CONCEPT: a PLATFORM ARCHIPELAGO suspended in a volcanic shaft. The
+// stations live on separate floating stone islands over a glowing river of
+// lava in the depths; BRIDGES are the only connections (every island severs
+// when its bridge is masked — the walkmap is honest drama, not decoration).
+// The lava FALL pours down the west wall past the secret balcony; the mouth
+// gate blazes high on the NE island; the hearth island is the map's heart.
 //
-// LEVELS: -1 rock (the mountain's mass, unwalkable, fills the frame),
-// -2 molten trench (blocked, drawn as living lava), 0 the great hall floor,
-// 1 the Principal's dais, 2..3 stair treads, 3 the threshold shelf.
+// LEVELS: -1 the ABYSS (the shaft's depths, unwalkable, near-void),
+// -2 the molten river (flows through the depths, lights everything from
+// below), 0..4 platform surfaces (threshold 4 → dais 3 → hearth 2 → the
+// working terraces 1 → the balcony 0 — descending toward the melt).
 
-// GRAND (Ash, P2 verdict: "just a dark ugly small stone room" — the hall was
-// tavern-scale): the whole layout re-authored ~1.35x on a 96 canvas.
 export const GRID = 96
 
 // ---- tiny deterministic value noise (local on purpose: this module must stay
@@ -38,157 +33,158 @@ export const cnoise = (x: number, y: number) => {
     h2(xi, yi + 1) * (1 - u) * v + h2(xi + 1, yi + 1) * u * v
   )
 }
-// organic rim wobble so the cavern edge reads as geology, never a drawn ellipse
-const wob = (tx: number, ty: number) => (cnoise(tx / 5.5 + 11, ty / 5.5 + 7) - 0.5) * 1.7
+// organic rim wobble so every island reads as geology, never a drawn ellipse
+const wob = (tx: number, ty: number) => (cnoise(tx / 5.5 + 11, ty / 5.5 + 7) - 0.5) * 1.4
 
-// ---- THE FLOOR SHAPES (each with its reason) ----
-// THE GREAT HALL: one grand cavern chambered by geology (spec §1, pre-approved).
-// GRAND per Ash's verdicts — the hall alone is ~42x34 walkable.
-export const HALL = { x: 45, y: 45, rx: 21, ry: 17 }
-// THE THRESHOLD SHELF (C1): the arrival stage, 3 levels up on the NE rim —
-// you step out of the mouth-light and the room drops away in front of you.
-export const SHELF = { x: 60, y: 32, rx: 6.5, ry: 4.5 }
-// THE GRAND STAIR: the reveal's descent, wide enough to feel ceremonial
-// (top tread at the shelf, foot in the hall pointing at the hearth).
-export const STAIR = { x0: 57, y0: 34, x1: 51, y1: 41, halfW: 2.6 }
-// THE PRINCIPAL'S DAIS (C4): authority reads as elevation, +1 at the NW back
-// wall (shifted W of the mouth so both carry a visible wall face each).
-export const DAIS = { x: 36, y: 29, rx: 7.5, ry: 4.5 }
-export const DAIS_STEPS = { x0: 36, y0: 33.5, x1: 36, y1: 36, halfW: 2 }
-// STATION POCKETS: alcoves carved in the cavern wall — stations live IN the
-// geology (the reviewer's cross-cutting gap), never as furniture in a void.
-export const POCKET_E = { x: 61, y: 41, rx: 5.5, ry: 4 }     // C3 chart table (harbor side = east, like the exterior)
-export const POCKET_W = { x: 29, y: 33, rx: 4.4, ry: 3.6 }   // C6 counselor's alcove — north of the fall with a rock margin between (a quiet corner never shares a wall with the melt)
-export const POCKET_SW = { x: 21, y: 56, rx: 6, ry: 4.5 }    // C7 outfitter's nook — WEST of the trench: reaching the tailor means crossing the bridge (a designed moment)
-// THE SW FIELD: solid floor under the whole trench run so the lava cuts
-// THROUGH ground, never dashes along a ragged rim (the island's lava-beads
-// lesson) — the trench then honestly severs this field from the hall.
-export const SW_FIELD = { x: 25, y: 50, rx: 7.5, ry: 8.5 }
-// THE BACK PASSAGE (C9): roots on the WEST BANK — the trench head severed its
-// hall-side mouth, so the secret now sits beyond the bridge AND behind the
-// fall (audit-proven, kept deliberately: the balcony earns its darkness twice).
-export const PASSAGE = { x0: 27, y0: 41, x1: 12, y1: 33, halfW: 1.9 }
-export const BALCONY = { x: 9, y: 31, rx: 3.4, ry: 2.8 }
+// ---- THE ISLANDS (each an authored decision with its reason) ----
+// Every island is a union of DIAMOND LOBES (iso-aligned |dx|+|dy| metric) so
+// the data silhouette matches the drawn platform set-pieces that compose it —
+// the renderer places one carved-platform piece per lobe, the union reads as
+// one organic multi-lobed floating stage (the set-piece method).
+export type Lobe = { x: number; y: number; r: number }
+export type Isle = { lobes: Lobe[]; lvl: number }
+export const ISLES: Record<string, Isle> = {
+  // C1 — the arrival stage, highest; the mouth gate blazes on its NE lobe and
+  // the whole shaft reveals itself below (grand-B's high doorway terrace)
+  threshold: { lobes: [{ x: 61, y: 30, r: 4.2 }, { x: 64.5, y: 26.5, r: 3 }], lvl: 4 },
+  // C4/C5/C8 — authority's isle: desk, lectern, trophy wall (elevation = rank)
+  dais: { lobes: [{ x: 34, y: 29, r: 4.4 }, { x: 30, y: 27.5, r: 3 }], lvl: 3 },
+  // C2 — THE HEART: the grand three-lobed stage with the blazing hearth
+  // (grand-B's own platform), every route crosses here
+  hearth: { lobes: [{ x: 44, y: 46, r: 5 }, { x: 48.5, y: 49, r: 3.6 }, { x: 40, y: 49.5, r: 3.2 }], lvl: 2 },
+  // C3+C6 — the planning terrace: chart table + cord board side by side
+  chart: { lobes: [{ x: 61, y: 49, r: 4 }], lvl: 1 },
+  // C7 — the outfitter's isle, west across the LONG bridge over the melt
+  outfit: { lobes: [{ x: 27, y: 58, r: 3.8 }], lvl: 1 },
+  // C9 — the secret balcony BEHIND the fall, lowest, hugging the west wall
+  balcony: { lobes: [{ x: 13, y: 43, r: 3 }], lvl: 0 },
+}
 
-// ---- THE LIVING LAVA (the P0 pick's B-lever) ----
-// The fall pours from the west wall (the head starts IN the rock so there is
-// no dry walk-around at the top), the trench carries it south clean through
-// the floor field past the coast of the hall, and the carved bridge is THE
-// ONLY crossing — the outfitter's desire line (proven by the audit's
-// severance check). Blocked ground; the glow economy's third source.
-export const FALL: [number, number] = [26, 39]
-export const TRENCH = { x0: 25.3, y0: 38.5, x1: 33.3, y1: 61.5, halfW: 1.6 }
-export const BRIDGE_TILES: [number, number][] = [
-  [28, 51], [29, 51], [30, 51], [31, 51],
-  [28, 52], [29, 52], [30, 52], [31, 52],
+// ---- THE BRIDGES (the only connections; each one is real drama) ----
+export type Bridge = { x0: number; y0: number; x1: number; y1: number; halfW: number; lvlA: number; lvlB: number; id: string }
+export const BRIDGES: Bridge[] = [
+  // endpoints sit INSIDE their islands so every span overlaps both rims —
+  // a bridge that starts in the abyss connects nothing (the first lobed
+  // paint stranded every station; the audit caught it)
+  // the arrival descent: threshold down to the hearth (the reveal walk)
+  { id: 'B1-arrival', x0: 60, y0: 31, x1: 46, y1: 44, halfW: 1.3, lvlA: 4, lvlB: 2 },
+  // authority's approach: dais down to the hearth
+  { id: 'B2-dais', x0: 35, y0: 31, x1: 42, y1: 43.5, halfW: 1.3, lvlA: 3, lvlB: 2 },
+  // the working span: hearth to the planning terrace
+  { id: 'B3-chart', x0: 47.5, y0: 48.5, x1: 59.5, y1: 49, halfW: 1.2, lvlA: 2, lvlB: 1 },
+  // THE LONG ONE over the melt: hearth to the outfitter (grand-B's bridge)
+  { id: 'B4-outfit', x0: 41, y0: 49.5, x1: 28.5, y1: 57, halfW: 1.2, lvlA: 2, lvlB: 1 },
+  // the hidden plank behind the fall: outfitter north along the west wall
+  // (halfW ≥1.4: a thinner diagonal paints single-file tiles that only touch
+  // diagonally, and the 4-connected walker cannot cross them)
+  { id: 'B5-secret', x0: 25.5, y0: 56.5, x1: 14, y1: 44, halfW: 1.4, lvlA: 1, lvlB: 0 },
 ]
 
-// ---- THE GLOW ECONOMY ANCHORS (three sources, nothing else emits — spec §1) ----
-export const MOUTH: [number, number] = [64, 28]      // the fanged daylight aperture in the NE rim above the shelf
-export const HEARTH: [number, number] = [46, 48]     // C2 — the room's heart and brightest interior point
-export const SHAFTS: [number, number][] = [[37, 44], [43, 39]] // C10 — the only cool notes (crater side)
+// ---- THE MELT (the depths' light source; grand-B's golden thread) ----
+// The fall pours down the west wall into a pool, and the river runs SE
+// through the shaft floor beneath the long bridge and out of frame.
+export const FALL: [number, number] = [19, 40]
+export const RIVER = { x0: 19, y0: 39, x1: 33, y1: 66, halfW: 4.2 }
+export const POOL = { x: 19.5, y: 41.5, rx: 4.5, ry: 3.4 }
 
-// ---- THE STATIONS (C-ids, spec §2 — anchors + where Thor stands) ----
+// ---- THE GLOW ECONOMY ANCHORS ----
+export const MOUTH: [number, number] = [66, 25]      // the blazing gate on the threshold's NE rim
+export const HEARTH: [number, number] = [44, 46]     // the heart — brightest interior point
+export const SHAFTS: [number, number][] = [[41, 42], [48, 44]] // day shafts kissing the hearth stage
+
+// ---- THE STATIONS (every corner a system — anchors + stand spots) ----
 export type Station = { id: string; anchor: [number, number]; stand: [number, number]; note: string }
 export const STATIONS: Station[] = [
-  { id: 'C1-threshold', anchor: [60, 32], stand: [59.5, 32.5], note: 'the arrival shelf; the seam back out' },
-  { id: 'C2-hearth', anchor: HEARTH, stand: [46, 51.4], note: 'Advisory Hearth — yearly core beats (§7.3)' },
-  { id: 'C3-chart-table', anchor: [60.5, 40.5], stand: [60, 43], note: 'the YEAR PLANNER opens here (§7.2)' },
-  { id: 'C4-principal-desk', anchor: [35, 26.5], stand: [35, 29.5], note: 'founding event + year vignettes (§5 I-9, §7.5)' },
-  { id: 'C5-lectern', anchor: [41, 30], stand: [40, 31.5], note: 'the Handbook (§8.5)' },
-  { id: 'C6-counselor', anchor: [25.5, 32.5], stand: [28, 34], note: 'cord/seal tracker board, live (§8.4)' },
-  { id: 'C7-outfitter', anchor: [19.5, 55.5], stand: [21, 57], note: 'the wardrobe, revisitable (§4.5)' },
-  { id: 'C8-trophy-wall', anchor: [28.5, 27.5], stand: [30.5, 29.5], note: 'run progress made physical (§8.2/§8.3)' },
-  { id: 'C9-balcony', anchor: [9, 31], stand: [10, 31.5], note: 'the secret falls balcony (sticker, §8.3)' },
-  { id: 'C10-light-well', anchor: [37, 44], stand: [37.5, 45], note: 'the cool accent; a fern where day strikes' },
+  { id: 'C1-threshold', anchor: [62, 29], stand: [61.5, 30], note: 'the arrival isle; the seam back out' },
+  { id: 'C2-hearth', anchor: HEARTH, stand: [44, 49.4], note: 'Advisory Hearth — yearly core beats (§7.3)' },
+  { id: 'C3-chart-table', anchor: [62.5, 48], stand: [61, 50], note: 'the YEAR PLANNER opens here (§7.2)' },
+  { id: 'C4-principal-desk', anchor: [32.5, 26.5], stand: [32.5, 29], note: 'founding event + year vignettes (§5 I-9, §7.5)' },
+  { id: 'C5-lectern', anchor: [37, 28.5], stand: [36.2, 29.8], note: 'the Handbook (§8.5)' },
+  { id: 'C6-counselor', anchor: [58.5, 46.5], stand: [59.5, 48.2], note: 'cord/seal tracker board, live (§8.4)' },
+  { id: 'C7-outfitter', anchor: [25, 56.5], stand: [26.5, 58], note: 'the wardrobe, revisitable (§4.5)' },
+  { id: 'C8-trophy-wall', anchor: [29.5, 27], stand: [30.5, 29], note: 'run progress made physical (§8.2/§8.3)' },
+  { id: 'C9-balcony', anchor: [13, 43], stand: [13.5, 43.5], note: 'the secret falls balcony (sticker, §8.3)' },
+  { id: 'C10-light-well', anchor: [41, 42], stand: [41.5, 42.8], note: 'the cool accent on the hearth stage' },
 ]
 
-// ---- SPAWNS (named data — never magic numbers in a renderer; spec §3) ----
+// ---- SPAWNS + the seam (named data — never magic numbers in a renderer) ----
 export const SPAWNS = {
-  // arriving through the panther's mouth: on the NE shelf, facing SW into the room
-  fromMouth: { at: [59.5, 32.5] as [number, number], facing: 'SW' as const },
+  // arriving through the panther's mouth: on the threshold isle, facing SW
+  fromMouth: { at: [61.5, 30] as [number, number], facing: 'SW' as const },
 }
 
-// ---- PROP FOOTPRINT RESERVATIONS (collision truth from day one; the real
-// props land in P3 but the walkmap must never lie to the audit) ----
+// ---- PROP RESERVATIONS (unwalkable prop tiles: the audit's truth) ----
 type Rect = { x0: number; y0: number; x1: number; y1: number; why: string }
 const BLOCKS: Rect[] = [
-  { x0: 45, y0: 47, x1: 47, y1: 49, why: 'the hearth ring + fire (C2 core)' },
-  { x0: 59, y0: 40, x1: 62, y1: 41, why: 'the chart table (C3)' },
-  { x0: 33, y0: 26, x1: 37, y1: 27, why: "the Principal's desk (C4)" },
-  { x0: 41, y0: 30, x1: 41, y1: 30, why: 'the Handbook lectern (C5)' },
-  { x0: 25, y0: 32, x1: 26, y1: 33, why: "the counselor's board + desk (C6, flush to the pocket's back wall — no dead floor behind furniture)" },
-  { x0: 19, y0: 55, x1: 20, y1: 56, why: 'the castaway trunk + mirror (C7)' },
+  { x0: 43, y0: 45, x1: 45, y1: 47, why: 'the hearth ring + fire (C2 core)' },
+  { x0: 61, y0: 47, x1: 63, y1: 48, why: 'the chart table (C3)' },
+  { x0: 31, y0: 26, x1: 34, y1: 27, why: "the Principal's desk (C4)" },
+  { x0: 37, y0: 28, x1: 37, y1: 28, why: 'the Handbook lectern (C5)' },
+  { x0: 57, y0: 46, x1: 58, y1: 47, why: "the counselor's cord board (C6, flush to the terrace rim)" },
+  { x0: 24, y0: 56, x1: 25, y1: 57, why: 'the castaway trunk + mirror (C7)' },
 ]
-export function propBlocked(tx: number, ty: number): string | null {
-  const x = Math.round(tx), y = Math.round(ty)
-  for (const b of BLOCKS) if (x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1) return b.why
-  return null
-}
+export const propBlocked = (tx: number, ty: number) =>
+  BLOCKS.some((b) => tx >= b.x0 && tx <= b.x1 && ty >= b.y0 && ty <= b.y1)
 
-// ---- geometry helpers ----
-const inBlob = (tx: number, ty: number, b: { x: number; y: number; rx: number; ry: number }, wobble = true) => {
+// ---- THE PAINT (shapes → the level grid, then the honesty passes) ----
+const LV = new Int8Array(GRID * GRID).fill(-1)
+
+// diamond (iso-aligned) lobe test: matches the drawn platform silhouettes
+const inIsle = (tx: number, ty: number, s: Isle, wobble = true) => {
   const w = wobble ? wob(tx, ty) : 0
-  const dx = (tx - b.x) / (b.rx + w), dy = (ty - b.y) / (b.ry + w * 0.7)
-  return dx * dx + dy * dy <= 1
+  for (const lb of s.lobes) {
+    if (Math.abs(tx - lb.x) + Math.abs(ty - lb.y) <= lb.r + w) return true
+  }
+  return false
 }
 const capT = (tx: number, ty: number, c: { x0: number; y0: number; x1: number; y1: number; halfW: number }) => {
   const vx = c.x1 - c.x0, vy = c.y1 - c.y0
-  const L2 = vx * vx + vy * vy
-  const t = Math.max(0, Math.min(1, ((tx - c.x0) * vx + (ty - c.y0) * vy) / L2))
-  const px = c.x0 + vx * t, py = c.y0 + vy * t
-  return { t, d: Math.hypot(tx - px, ty - py) }
+  const len2 = vx * vx + vy * vy
+  const t = Math.max(0, Math.min(1, ((tx - c.x0) * vx + (ty - c.y0) * vy) / len2))
+  const d = Math.hypot(tx - (c.x0 + vx * t), ty - (c.y0 + vy * t))
+  return { t, d }
 }
-const inCap = (tx: number, ty: number, c: { x0: number; y0: number; x1: number; y1: number; halfW: number }) =>
-  capT(tx, ty, c).d <= c.halfW
 
-// ---- THE LEVEL MAP: painted once, in authoring order (later paints win) ----
-// -1 rock · -2 molten trench · 0 floor · 1 dais · 1..3 stair treads · 3 shelf
-export const LV = new Int8Array(GRID * GRID).fill(-1)
 {
   for (let ty = 0; ty < GRID; ty++) {
     for (let tx = 0; tx < GRID; tx++) {
       const i = ty * GRID + tx
-      // the hall + its carved pockets + the passage: main floor
-      if (
-        inBlob(tx, ty, HALL) || inBlob(tx, ty, POCKET_E) || inBlob(tx, ty, POCKET_W) ||
-        inBlob(tx, ty, POCKET_SW) || inCap(tx, ty, PASSAGE) || inBlob(tx, ty, BALCONY) ||
-        inBlob(tx, ty, SW_FIELD)
-      ) LV[i] = 0
-      // the dais rides over the hall floor
-      if (inBlob(tx, ty, DAIS, false)) LV[i] = 1
-      const ds = capT(tx, ty, DAIS_STEPS)
-      if (ds.d <= DAIS_STEPS.halfW) LV[i] = ds.t < 0.5 ? 1 : 0 // two treads: top rides the dais, foot the floor
-      // the molten trench cuts the floor (blocked, alive) — it only converts
-      // tiles that ARE floor: head tiles inside solid rock rendered as
-      // floating molten diamonds (the melt emerges from the wall via the
-      // fall's drawn face, not through orphan ground tiles)
-      if (inCap(tx, ty, TRENCH) && LV[i] >= 0) LV[i] = -2
-      // the grand stair: treads band 3→0 down the reveal
-      const st = capT(tx, ty, STAIR)
-      if (st.d <= STAIR.halfW) LV[i] = Math.max(0, Math.min(3, Math.round(3 * (1 - st.t) * 1.15 - 0.2)))
-      // the threshold shelf caps the SE (painted after the stair so the shelf
-      // stays a clean stage; the stair's top tread meets it at level 3)
-      if (inBlob(tx, ty, SHELF)) LV[i] = 3
-      // the bridge crosses the trench at floor level (carved stone, walkable)
+      // the melt first (islands and bridges paint OVER it where they fly)
+      const rv = capT(tx, ty, RIVER)
+      if (rv.d <= RIVER.halfW + wob(tx, ty) * 0.8) LV[i] = -2
+      const pdx = (tx - POOL.x) / POOL.rx, pdy = (ty - POOL.y) / POOL.ry
+      if (pdx * pdx + pdy * pdy <= 1) LV[i] = -2
+      // the islands
+      for (const isle of Object.values(ISLES)) {
+        if (inIsle(tx, ty, isle)) LV[i] = isle.lvl as -2 | -1 | 0 | 1 | 2 | 3
+      }
     }
   }
-  for (const [bx, by] of BRIDGE_TILES) LV[by * GRID + bx] = 0
-  // pinhole filler (the coast-cleaner pattern): a lone rock tile surrounded by
-  // floor is an invisible wall — melt it to the majority neighbor level. Two
-  // passes; authored -2 lava is never touched.
+  // the bridges: painted OVER abyss and melt only (they FLY); endpoints land
+  // on the islands' own tiles. Level steps down the span so the walker's
+  // ≤1-level rule carries it.
+  for (const b of BRIDGES) {
+    for (let ty = 0; ty < GRID; ty++) {
+      for (let tx = 0; tx < GRID; tx++) {
+        const i = ty * GRID + tx
+        if (LV[i] >= 0) continue
+        const { t, d } = capT(tx, ty, b)
+        if (d <= b.halfW) LV[i] = Math.round(b.lvlA + (b.lvlB - b.lvlA) * t) as -2 | -1 | 0 | 1 | 2 | 3
+      }
+    }
+  }
+  // pinhole filler: a lone abyss tile inside an island is an invisible hole —
+  // melt it to the majority neighbor level (two passes settle diagonals)
   for (let pass = 0; pass < 2; pass++) {
-    const prev = Int8Array.from(LV)
     for (let ty = 1; ty < GRID - 1; ty++) {
       for (let tx = 1; tx < GRID - 1; tx++) {
         const i = ty * GRID + tx
-        if (prev[i] !== -1) continue
+        if (LV[i] !== -1) continue
         const counts = new Map<number, number>()
         let floorN = 0
-        for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
-          if (!ox && !oy) continue
-          const v = prev[(ty + oy) * GRID + tx + ox]
-          if (v >= 0) { floorN++; counts.set(v, (counts.get(v) || 0) + 1) }
+        for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]] as const) {
+          const nl = LV[(ty + oy) * GRID + (tx + ox)]
+          if (nl >= 0) { floorN++; counts.set(nl, (counts.get(nl) ?? 0) + 1) }
         }
         if (floorN >= 6) {
           let best = 0, bc = 0
@@ -199,8 +195,7 @@ export const LV = new Int8Array(GRID * GRID).fill(-1)
     }
   }
   // ORPHAN CULL: any floor unreachable from the mouth spawn (≤1-level steps)
-  // becomes rock — the layout GUARANTEES walkable ⇒ reachable, so a sealed
-  // 2-tile sliver can never become an invisible dead spot for the walker.
+  // becomes abyss — walkable ⇒ reachable is a guarantee of the data itself
   {
     const reach = new Uint8Array(GRID * GRID)
     const sx = Math.round(SPAWNS.fromMouth.at[0]), sy = Math.round(SPAWNS.fromMouth.at[1])
@@ -222,7 +217,22 @@ export const LV = new Int8Array(GRID * GRID).fill(-1)
   }
 }
 
-export const lvlAt = (tx: number, ty: number): number =>
-  tx < 0 || ty < 0 || tx >= GRID || ty >= GRID ? -1 : LV[Math.round(ty) * GRID + Math.round(tx)]
+export const lvlAt = (tx: number, ty: number): number => {
+  if (tx < 0 || ty < 0 || tx >= GRID || ty >= GRID) return -1
+  return LV[ty * GRID + tx]
+}
 export const isLava = (tx: number, ty: number) => lvlAt(tx, ty) === -2
-export const isFloor = (tx: number, ty: number) => lvlAt(tx, ty) >= 0
+
+// the long bridge's pad tiles — the severance proof masks these (the nook
+// must seal without its bridge; the crossing is real, not decoration)
+export const BRIDGE_TILES: [number, number][] = (() => {
+  const out: [number, number][] = []
+  const b = BRIDGES.find((x) => x.id === 'B4-outfit')!
+  for (let ty = 0; ty < GRID; ty++) {
+    for (let tx = 0; tx < GRID; tx++) {
+      const { d } = capT(tx, ty, b)
+      if (d <= b.halfW && LV[ty * GRID + tx] >= 0) out.push([tx, ty])
+    }
+  }
+  return out
+})()
