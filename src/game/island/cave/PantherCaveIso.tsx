@@ -38,7 +38,8 @@ export default function PantherCaveIso() {
 
     const start = async () => {
       const app = new Application()
-      await app.init({ background: '#070609', resizeTo: host, antialias: false })
+      // warm-dark void (the atmosphere inversion: even "black" breathes warm)
+      await app.init({ background: '#140b0d', resizeTo: host, antialias: false })
       if (destroyed) { app.destroy(true); return }
       instance = app
       host.appendChild(app.canvas)
@@ -51,19 +52,23 @@ export default function PantherCaveIso() {
       const SOCKETS = params.get('sockets') !== '0' // honest placeholder stakes (default ON)
       const DBG = !!params.get('dbg')
 
-      // the cave's OWN families: harvested+normalized floor diamonds (the
-      // light model owns value), the drawn A2 basalt BLOCK kit (walls and
-      // risers — the 3D tile system is the map's one construction language),
-      // the molten core diamonds, and the A5 hearth hero.
-      const FLOOR_ALT = params.get('floor') === '1' // A/B: 1 = organic basalt, default = hex causeway
+      // the cave's OWN families: the QUIET floor (light does the painting),
+      // hex paving demoted to hearth/dais accent aprons, the drawn A2 block
+      // kit for RISERS, the three-band WALL FACE strips (maw-visual-grammar),
+      // the ordered molten flow, and the A5 hearth hero.
+      const FLOOR_ALT = params.get('floor') === '2' // dev A/B: 2 = hex everywhere (rejected look)
       const floorT: Texture[] = []
+      const hexT: Texture[] = []
       const lavaT: Texture[] = []
       const sideW: Texture[] = []
+      const wallS: Texture[] = []
       let hearthT: Texture | undefined
       await Promise.all([
-        ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/island/cave/${FLOOR_ALT ? 'floor' : 'floor2'}/top-${i}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; floorT[i] = t }).catch(() => {})),
+        ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/island/cave/${FLOOR_ALT ? 'floor2' : 'floor'}/top-${i}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; floorT[i] = t }).catch(() => {})),
+        ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/island/cave/floor2/top-${i}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; hexT[i] = t }).catch(() => {})),
         ...Array.from({ length: 24 }, (_, i) => Assets.load(`/art/island/cave/lava/top-${i}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; lavaT[i] = t }).catch(() => {})),
         ...[0, 1, 2, 3].map((i) => Assets.load(`/art/island/cave/blocks/block-${i}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; sideW.push(t) }).catch(() => {})),
+        ...Array.from({ length: 6 }, (_, i) => Assets.load(`/art/island/cave/wallface/strip-${i}.png`).then((t: Texture) => { t.source.scaleMode = 'nearest'; wallS[i] = t }).catch(() => {})),
         Assets.load('/art/island/cave/props/hearth.png').then((t: Texture) => { t.source.scaleMode = 'nearest'; hearthT = t }).catch(() => {}),
       ])
       if (destroyed) return
@@ -101,12 +106,14 @@ export default function PantherCaveIso() {
       // ---- THE ATMOSPHERE GRADE (P2 PROPOSAL — Ash locks at this gate) ----
       // moody-dark with hot pools: slight crush, warmth preserved in the mids
       const grade = new ColorMatrixFilter()
-      grade.brightness(1.0, false); grade.saturate(0.2, true); grade.contrast(0.13, true)
-      const gm = grade.matrix; gm[0] *= 1.05; grade.matrix = gm
+      grade.brightness(1.0, false); grade.saturate(0.16, true); grade.contrast(0.11, true)
+      const gm = grade.matrix; gm[0] *= 1.08; gm[12] *= 0.94; grade.matrix = gm
       world.filters = [grade]
 
       const floors = floorT.filter(Boolean)
+      const hexes = hexT.filter(Boolean)
       const sides = sideW.filter(Boolean)
+      const wallStrips = wallS.filter(Boolean)
       const lavas = lavaT.filter(Boolean)
       const bridgeSet = new Set(BRIDGE_TILES.map(([x, y]) => y * GRID + x))
       const eLvl = lvlAt
@@ -165,9 +172,12 @@ export default function PantherCaveIso() {
       // only cool daylight. One curve owns every surface's hue by its value.
       const hueMix = (v: number, ember: number, cool: number) => {
         const t = sstep(0.1, 0.6, v) // 0 = deep dark, 1 = fully lit
-        const r = v * (0.74 + t * 0.34 + 0.2 * ember) + 0.02 * cool
-        const g = v * (0.62 + t * 0.36 - 0.08 * ember) + 0.05 * cool
-        const b = v * (1.08 - t * 0.3 - 0.24 * ember) + 0.16 * cool
+        // THE INVERSION (maw-visual-grammar): the darks are WARM violet-brown
+        // (the air of the room glows), never cold black; light RECOLORS
+        // toward gold rather than just brightening
+        const r = v * (0.85 + t * 0.26 + 0.2 * ember) + 0.02 * cool
+        const g = v * (0.66 + t * 0.32 - 0.08 * ember) + 0.05 * cool
+        const b = v * (0.96 - t * 0.24 - 0.24 * ember) + 0.16 * cool
         return tint24(r, g, b)
       }
       const floorTint = (tx: number, ty: number, L: number) => {
@@ -176,7 +186,7 @@ export default function PantherCaveIso() {
         // lattice (the m1/m3 crop verdict) — the light gradients own value
         const grain = 0.97 + 0.06 * vnoise(tx / 13 + 8, ty / 13 + 3)
         const wear = 0.98 + 0.04 * vnoise(tx / 21 + 2, ty / 21 + 6)
-        let v = 0.24 + 0.9 * warm + 0.5 * ember
+        let v = 0.3 + 0.9 * warm + 0.5 * ember
         if (L === 1) v += 0.05  // the dais reads a breath lifted
         if (L === 3) v += 0.03  // the shelf under the mouth pool
         v *= grain * wear
@@ -243,7 +253,12 @@ export default function PantherCaveIso() {
               }
             }
           }
-          const top = new Sprite(floors[Math.floor(hash(tx * 5.1 + 2, ty * 2.9 + 4) * floors.length) % floors.length])
+          // designed paving ONLY at the hearth apron + the dais (the grammar:
+          // carved seams are the one visible grid); the walk floor stays quiet
+          const apron = hexes.length > 0 && !FLOOR_ALT &&
+            (Math.hypot(tx - HEARTH[0], ty - HEARTH[1]) < 5.5 || L === 1)
+          const fpool = apron ? hexes : floors
+          const top = new Sprite(fpool[Math.floor(hash(tx * 5.1 + 2, ty * 2.9 + 4) * fpool.length) % fpool.length])
           top.anchor.set(0.5, 0.5)
           top.position.set(bx, by)
           top.scale.set((hash(tx * 7.7, ty * 5.3) > 0.5 ? -1 : 1) * 1.06, 1.06)
@@ -302,18 +317,24 @@ export default function PantherCaveIso() {
           }
         }
       }
-      // mass height in courses at a rock tile (0 = handled by the wall pass)
+      // THE MASS BEYOND (maw-visual-grammar: wall tops DISSOLVE into the dark;
+      // pure near-black belongs to the void alone). A whisper-dark warm-violet
+      // plane rides just beyond the walls so the dissolve has somewhere to go,
+      // fading to the warm-dark bg within a few tiles — no bright mud, no
+      // textured wallpaper, no raw black holes.
       const massH = (tx: number, ty: number) => {
         const i = ty * GRID + tx
         const d = mDist[i]
         if (d <= 0) return WALL_H
         const behindK = (tx + ty) - mSrcSum[i]
-        if (behindK <= 0) return WALL_H            // enclosing back mass: full vault
+        if (behindK <= 0) return WALL_H
         return Math.min(WALL_H, Math.max(1, Math.round(d * 1.1))) // camera-side: the floor curves up and away
       }
-      // draw the mass tops (2x2 LOD where solid — ~7k tiles become ~2k sprites)
       if (floors.length) {
         const massTop = (mx: number, my: number, scale2: boolean) => {
+          const i = my * GRID + mx
+          const fade = 1 - Math.min(1, (mDist[i] - 2) / 5) // gone by ~7 tiles out
+          if (fade <= 0.02) return
           const h = massH(mx, my)
           const lift = h * STEP
           const sp = new Sprite(floors[Math.floor(hash(mx * 3.7, my * 1.9) * floors.length) % floors.length])
@@ -321,12 +342,10 @@ export default function PantherCaveIso() {
           const cx2 = scale2 ? mx + 0.5 : mx, cy2 = scale2 ? my + 0.5 : my
           sp.position.set(isoX(cx2, cy2), isoY(cx2, cy2) - lift)
           sp.scale.set((hash(mx * 1.3, my * 7.1) > 0.5 ? -1 : 1) * (scale2 ? 2.08 : 1.06), scale2 ? 2.08 : 1.06)
-          // deep-violet modeled rock: long-wavelength drift + rare ember
-          // glints so the mountain reads alive, never flat black fill
-          const drift = 0.75 + 0.5 * vnoise(mx / 16 + 4, my / 16 + 9)
-          const glint = hash(mx * 12.7, my * 9.3) > 0.985 ? 0.05 : 0
-          const v = 0.125 * drift
-          sp.tint = tint24(v * 0.82 + glint * 1.6, v * 0.7 + glint * 0.7, v * 1.25 + glint * 0.2)
+          const drift = 0.8 + 0.4 * vnoise(mx / 16 + 4, my / 16 + 9)
+          const glint = hash(mx * 12.7, my * 9.3) > 0.988 ? 0.05 : 0
+          const v = (0.045 + 0.035 * fade) * drift
+          sp.tint = tint24(v * 1.15 + glint * 1.6, v * 0.75 + glint * 0.7, v * 0.9 + glint * 0.2)
           sp.zIndex = ((scale2 ? mx + 1 : mx) + (scale2 ? my + 1 : my)) * 4000 + lift * 2 + 4
           world.addChild(sp)
         }
@@ -336,7 +355,6 @@ export default function PantherCaveIso() {
             const rock = cells.filter(([x, y]) => x < GRID && y < GRID && lvlAt(x, y) === -1 && mDist[y * GRID + x] > 1)
             if (rock.length === 4) {
               const h = massH(tx, ty)
-              // merge only where the 2x2 shares one height (no popped corners)
               if (cells.every(([x, y]) => massH(x, y) === h)) { massTop(tx, ty, true); continue }
             }
             for (const [x, y] of rock) massTop(x, y, false)
@@ -368,51 +386,62 @@ export default function PantherCaveIso() {
           const isMouth = behind && mouthness(tx, ty) < 3.2
           // the aperture opening arches: tall at the center, shouldering down
           const gapH = Math.round(6.5 - 2.2 * Math.pow(mouthness(tx, ty) / 3.2, 2))
-          const pick = (k: number) => Math.floor(vnoise(tx / 2.7 + 1.3 + k * 0.13, ty / 2.7 + 8.1 + k * 0.21) * sides.length) % sides.length
-          for (let k = 0; k < rise; k++) {
-            if (isMouth && k < gapH) {
-              // the blazing gap: a golden light plane fills the opening —
-              // graduated like a real blaze (white-hot low center, amber at
-              // the arch edges), never a flat yellow rectangle
-              const lp = new Sprite(Texture.WHITE)
-              lp.anchor.set(0.5, 0)
-              lp.width = 64; lp.height = STEP + (k === 0 ? 8 : 0)
-              lp.position.set(bx, by - (k + 1) * STEP + 8)
-              const cx2 = Math.max(0, 1 - mouthness(tx, ty) / 3.2)
-              const rowGlow = 1 - Math.pow(k / Math.max(1, gapH), 1.7) * 0.45 // hottest low, cooling up
-              const heat = (0.6 + 0.4 * cx2) * rowGlow
-              lp.tint = tint24(
-                Math.min(1, heat * 1.15),
-                heat * (0.74 + 0.2 * cx2 * rowGlow),
-                heat * (0.3 + 0.28 * cx2 * rowGlow),
-              )
-              lp.zIndex = zBase + 30 + k
-              world.addChild(lp)
-              continue
+
+          if (behind && wallStrips.length) {
+            // THE THREE-BAND WALL FACE (maw-visual-grammar): ONE purpose-
+            // painted strip per column — lit rim on top, big column volumes,
+            // base darkening into the floor contact. No course stacking, no
+            // caps; above the rim the whisper-dark mass IS the dissolve.
+            const drop = rise * STEP + 8
+            const sIdx = Math.floor(vnoise(tx / 2.3 + 1.7, ty / 2.3 + 6.1) * wallStrips.length) % wallStrips.length
+            const src = wallStrips[sIdx]
+            const gapPx = isMouth ? Math.min(gapH, WALL_H - 3) * STEP + 8 : 0
+            // the lintel band above the blaze is never thinner than 2 courses
+            const visH = Math.max(isMouth ? 2 * STEP : 0, Math.min(src.height, drop - gapPx))
+            if (visH > 6) {
+              const fr = new Texture({ source: src.source, frame: new Rectangle(0, 0, src.width, visH) })
+              const seg = new Sprite(fr)
+              seg.anchor.set(0.5, 0)
+              seg.position.set(bx, by + 8 - drop)
+              // walls CATCH the hall's glowing air (the inversion): a warm
+              // ambient floor keeps the faces readable at the far rim
+              const v = 0.68 + 0.5 * warm + 0.45 * ember
+              seg.tint = hueMix(Math.min(1.15, v), ember, 0)
+              if (DBG) seg.tint = 0x8040ff
+              seg.zIndex = zBase + 30
+              world.addChild(seg)
             }
-            const seg = new Sprite(sides[pick(k)])
+            if (isMouth) {
+              // the blazing gap beneath the strip lintel: graduated light
+              // plane — white-hot low center, amber at the arch shoulders
+              const lp = new Sprite(Texture.WHITE)
+              lp.anchor.set(0.5, 1)
+              lp.width = 64; lp.height = gapPx
+              lp.position.set(bx, by + 8)
+              const cx2 = Math.max(0, 1 - mouthness(tx, ty) / 3.2)
+              const heat = 0.62 + 0.38 * cx2
+              lp.tint = tint24(Math.min(1, heat * 1.15), heat * (0.74 + 0.2 * cx2), heat * (0.3 + 0.28 * cx2))
+              lp.zIndex = zBase + 29
+              world.addChild(lp)
+            }
+          } else {
+            // camera-side lip: one near-black block silhouette (ember-rimmed
+            // by the hue economy when the melt runs close)
+            const seg = new Sprite(sides[Math.floor(vnoise(tx / 2.7 + 1.3, ty / 2.7 + 8.1) * sides.length) % sides.length])
             seg.anchor.set(0.5, 18 / 64)
-            seg.position.set(bx, by - (k + 1) * STEP + 8)
-            // smooth height decay — a per-course power curve printed
-            // horizontal bands; this fades continuously into the vault
-            const kk = 1 / (1 + k * 0.14)
-            const drift = 0.9 + 0.18 * vnoise(tx / 6 + 2.2 + k * 0.07, ty / 6 + 7.7 - k * 0.05)
-            let v = (0.38 + 0.72 * warm + 0.5 * ember) * kk * drift
-            if (isMouth) v = Math.max(v, 0.5) // the lintel catches the blaze
-            seg.tint = hueMix(v, ember, 0)
-            if (DBG) seg.tint = behind ? 0x8040ff : 0xff8040
-            seg.zIndex = zBase + 30 + k
+            seg.position.set(bx, by - STEP + 8)
+            seg.tint = hueMix(0.16 + 0.3 * ember, ember, 0)
+            if (DBG) seg.tint = 0xff8040
+            seg.zIndex = zBase + 30
             world.addChild(seg)
-          }
-          if (floors.length) {
-            // every boundary column gets a cut-top (camera-side lips included —
-            // with the mass drawn beyond, an uncapped lip leaks background)
-            const cap = new Sprite(floors[Math.floor(hash(tx * 2.9, ty * 6.1) * floors.length) % floors.length])
-            cap.anchor.set(0.5, 0.5)
-            cap.position.set(bx, by - rise * STEP)
-            cap.tint = behind ? 0x100c14 : 0x14101a
-            cap.zIndex = zBase + 30 + rise + 1
-            world.addChild(cap)
+            if (floors.length) {
+              const cap = new Sprite(floors[Math.floor(hash(tx * 2.9, ty * 6.1) * floors.length) % floors.length])
+              cap.anchor.set(0.5, 0.5)
+              cap.position.set(bx, by - STEP)
+              cap.tint = 0x18100f
+              cap.zIndex = zBase + 32
+              world.addChild(cap)
+            }
           }
         }
       }

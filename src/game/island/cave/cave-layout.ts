@@ -159,8 +159,11 @@ export const LV = new Int8Array(GRID * GRID).fill(-1)
       if (inBlob(tx, ty, DAIS, false)) LV[i] = 1
       const ds = capT(tx, ty, DAIS_STEPS)
       if (ds.d <= DAIS_STEPS.halfW) LV[i] = ds.t < 0.5 ? 1 : 0 // two treads: top rides the dais, foot the floor
-      // the molten trench cuts the floor (blocked, alive)
-      if (inCap(tx, ty, TRENCH)) LV[i] = -2
+      // the molten trench cuts the floor (blocked, alive) — it only converts
+      // tiles that ARE floor: head tiles inside solid rock rendered as
+      // floating molten diamonds (the melt emerges from the wall via the
+      // fall's drawn face, not through orphan ground tiles)
+      if (inCap(tx, ty, TRENCH) && LV[i] >= 0) LV[i] = -2
       // the grand stair: treads band 3→0 down the reveal
       const st = capT(tx, ty, STAIR)
       if (st.d <= STAIR.halfW) LV[i] = Math.max(0, Math.min(3, Math.round(3 * (1 - st.t) * 1.15 - 0.2)))
