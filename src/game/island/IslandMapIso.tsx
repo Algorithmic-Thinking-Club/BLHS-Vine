@@ -3563,8 +3563,13 @@ export default function IslandMapIso() {
         const wt = performance.now() / 1000
         animSwells(waterSprites, wt, () => 0)
       })
+
+      // capture-harness handshake: the verdict screenshots must never race the
+      // scene build (headless software-GL takes seconds longer than a real GPU)
+      ;(window as any).__sceneReady = true
     }
 
+    ;(window as any).__sceneReady = false
     start().catch((err) => { console.error('[IslandMapIso] failed', err) })
     return () => { destroyed = true; if (instance) instance.destroy(true, { children: true }) }
   }, [])
