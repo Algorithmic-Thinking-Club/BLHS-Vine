@@ -40,10 +40,10 @@ export function reportCaveAudit() {
   const targets: [string, number, number][] = [
     ...getPois().map((p) => [`poi:${p.id}`, p.at[0], p.at[1]] as [string, number, number]),
     ...getSeams().map((s) => [`seam:${s.id}`, s.at[0], s.at[1]] as [string, number, number]),
-    ['hall heart (hearth ring walk-around)', 35, 38.6],
-    ['dais top (behind the desk)', 30, 23],
-    ['bridge far side (the nook approach)', 18, 41.5],
-    ['balcony end (the secret pays off)', 7, 23],
+    ['hall heart (hearth ring walk-around)', 46, 51.4],
+    ['dais top (behind the desk)', 36, 30],
+    ['bridge far side (the nook approach)', 26, 53],
+    ['balcony end (the secret pays off)', 9, 31],
   ]
   const fails: string[] = []
   for (const [name, px, py] of targets) if (!near(px, py, 2)) fails.push(name)

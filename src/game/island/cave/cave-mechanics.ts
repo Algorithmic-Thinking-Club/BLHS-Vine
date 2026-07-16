@@ -47,21 +47,21 @@ export function zoneAt(tx: number, ty: number): ZoneId {
   const sdx = (tx - SHELF.x) / SHELF.rx, sdy = (ty - SHELF.y) / SHELF.ry
   if (sdx * sdx + sdy * sdy <= 1.2) return 'C1-threshold'
   // sub-places ON the dais win before the dais's blanket zone
-  if (near([31, 23.5], 1.8)) return 'C5-lectern'
-  if (near([21.5, 21.5], 2.2)) return 'C8-trophy-wall'
+  if (near([41, 30], 2.2)) return 'C5-lectern'
+  if (near([28.5, 27.5], 2.8)) return 'C8-trophy-wall'
   // the dais is C4 wholesale (authority's platform)
   const ddx = (tx - DAIS.x) / DAIS.rx, ddy = (ty - DAIS.y) / DAIS.ry
   if (ddx * ddx + ddy * ddy <= 1.1) return 'C4-principal-dais'
-  if (near(HEARTH, 4.2)) return 'C2-hearth'
-  if (near([45.5, 31], 4)) return 'C3-chart-table'
-  if (near([21.5, 25], 3.4)) return 'C6-counselor'
-  if (near([15.5, 42], 4)) return 'C7-outfitter'
+  if (near(HEARTH, 5.5)) return 'C2-hearth'
+  if (near([60.5, 41], 5)) return 'C3-chart-table'
+  if (near([28.5, 33], 4.4)) return 'C6-counselor'
+  if (near([20.5, 56], 5.2)) return 'C7-outfitter'
   // the passage + balcony: the whole dark corridor is the secret's zone
   const pt = { x0: PASSAGE.x0, y0: PASSAGE.y0, x1: PASSAGE.x1, y1: PASSAGE.y1 }
   const vx = pt.x1 - pt.x0, vy = pt.y1 - pt.y0
   const t = Math.max(0, Math.min(1, ((tx - pt.x0) * vx + (ty - pt.y0) * vy) / (vx * vx + vy * vy)))
-  if (Math.hypot(tx - (pt.x0 + vx * t), ty - (pt.y0 + vy * t)) < 2 || near([BALCONY.x, BALCONY.y], 3)) return 'C9-passage'
-  if (near([28, 33], 2.2) || near([31, 27], 2.2)) return 'C10-light-well'
+  if (Math.hypot(tx - (pt.x0 + vx * t), ty - (pt.y0 + vy * t)) < 2.4 || near([BALCONY.x, BALCONY.y], 3.6)) return 'C9-passage'
+  if (near([37, 44], 2.8) || near([43, 39], 2.8)) return 'C10-light-well'
   return 'hall'
 }
 
@@ -72,7 +72,7 @@ export type Seam = { id: string; to: string; at: [number, number]; radius: numbe
 export function getSeams(): Seam[] {
   return [
     // stepping back into the mouth-light = out to the island (the tongue-stair)
-    { id: 'cave-mouth', to: 'islandmap', at: [46, 22], radius: 1.7 },
+    { id: 'cave-mouth', to: 'islandmap', at: [61.5, 30], radius: 2 },
   ]
 }
 

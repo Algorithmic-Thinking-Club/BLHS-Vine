@@ -19,7 +19,9 @@
 // -2 molten trench (blocked, drawn as living lava), 0 the great hall floor,
 // 1 the Principal's dais, 2..3 stair treads, 3 the threshold shelf.
 
-export const GRID = 72
+// GRAND (Ash, P2 verdict: "just a dark ugly small stone room" — the hall was
+// tavern-scale): the whole layout re-authored ~1.35x on a 96 canvas.
+export const GRID = 96
 
 // ---- tiny deterministic value noise (local on purpose: this module must stay
 // pure data — importing the renderer's noise would drag pixi into mechanics)
@@ -41,32 +43,32 @@ const wob = (tx: number, ty: number) => (cnoise(tx / 5.5 + 11, ty / 5.5 + 7) - 0
 
 // ---- THE FLOOR SHAPES (each with its reason) ----
 // THE GREAT HALL: one grand cavern chambered by geology (spec §1, pre-approved).
-// Grand per the P0 verdict — the hall alone is ~30x24 walkable.
-export const HALL = { x: 34, y: 34, rx: 15.5, ry: 12.5 }
+// GRAND per Ash's verdicts — the hall alone is ~42x34 walkable.
+export const HALL = { x: 45, y: 45, rx: 21, ry: 17 }
 // THE THRESHOLD SHELF (C1): the arrival stage, 3 levels up on the NE rim —
 // you step out of the mouth-light and the room drops away in front of you.
-export const SHELF = { x: 45, y: 24, rx: 5, ry: 3.5 }
+export const SHELF = { x: 60, y: 32, rx: 6.5, ry: 4.5 }
 // THE GRAND STAIR: the reveal's descent, wide enough to feel ceremonial
 // (top tread at the shelf, foot in the hall pointing at the hearth).
-export const STAIR = { x0: 43, y0: 25.5, x1: 38, y1: 31, halfW: 2.1 }
+export const STAIR = { x0: 57, y0: 34, x1: 51, y1: 41, halfW: 2.6 }
 // THE PRINCIPAL'S DAIS (C4): authority reads as elevation, +1 at the NW back
 // wall (shifted W of the mouth so both carry a visible wall face each).
-export const DAIS = { x: 27, y: 22, rx: 5.5, ry: 3.5 }
-export const DAIS_STEPS = { x0: 27, y0: 25.5, x1: 27, y1: 27.5, halfW: 1.6 }
+export const DAIS = { x: 36, y: 29, rx: 7.5, ry: 4.5 }
+export const DAIS_STEPS = { x0: 36, y0: 33.5, x1: 36, y1: 36, halfW: 2 }
 // STATION POCKETS: alcoves carved in the cavern wall — stations live IN the
 // geology (the reviewer's cross-cutting gap), never as furniture in a void.
-export const POCKET_E = { x: 46, y: 31, rx: 4.2, ry: 3.2 }   // C3 chart table (harbor side = east, like the exterior)
-export const POCKET_W = { x: 22, y: 25, rx: 3.4, ry: 2.8 }   // C6 counselor's alcove — north of the fall with a rock margin between (a quiet corner never shares a wall with the melt)
-export const POCKET_SW = { x: 16, y: 42, rx: 4.5, ry: 3.5 }  // C7 outfitter's nook — WEST of the trench: reaching the tailor means crossing the bridge (a designed moment)
+export const POCKET_E = { x: 61, y: 41, rx: 5.5, ry: 4 }     // C3 chart table (harbor side = east, like the exterior)
+export const POCKET_W = { x: 29, y: 33, rx: 4.4, ry: 3.6 }   // C6 counselor's alcove — north of the fall with a rock margin between (a quiet corner never shares a wall with the melt)
+export const POCKET_SW = { x: 21, y: 56, rx: 6, ry: 4.5 }    // C7 outfitter's nook — WEST of the trench: reaching the tailor means crossing the bridge (a designed moment)
 // THE SW FIELD: solid floor under the whole trench run so the lava cuts
 // THROUGH ground, never dashes along a ragged rim (the island's lava-beads
 // lesson) — the trench then honestly severs this field from the hall.
-export const SW_FIELD = { x: 19, y: 38, rx: 5.5, ry: 6.5 }
+export const SW_FIELD = { x: 25, y: 50, rx: 7.5, ry: 8.5 }
 // THE BACK PASSAGE (C9): roots on the WEST BANK — the trench head severed its
 // hall-side mouth, so the secret now sits beyond the bridge AND behind the
 // fall (audit-proven, kept deliberately: the balcony earns its darkness twice).
-export const PASSAGE = { x0: 20, y0: 31, x1: 9, y1: 25, halfW: 1.5 }
-export const BALCONY = { x: 7, y: 23, rx: 2.6, ry: 2.2 }
+export const PASSAGE = { x0: 27, y0: 41, x1: 12, y1: 33, halfW: 1.9 }
+export const BALCONY = { x: 9, y: 31, rx: 3.4, ry: 2.8 }
 
 // ---- THE LIVING LAVA (the P0 pick's B-lever) ----
 // The fall pours from the west wall (the head starts IN the rock so there is
@@ -74,46 +76,49 @@ export const BALCONY = { x: 7, y: 23, rx: 2.6, ry: 2.2 }
 // the floor field past the coast of the hall, and the carved bridge is THE
 // ONLY crossing — the outfitter's desire line (proven by the audit's
 // severance check). Blocked ground; the glow economy's third source.
-export const FALL: [number, number] = [19.5, 29.5]
-export const TRENCH = { x0: 19, y0: 29, x1: 25, y1: 46, halfW: 1.3 }
-export const BRIDGE_TILES: [number, number][] = [[21, 38], [22, 38], [23, 38], [21, 39], [22, 39], [23, 39]]
+export const FALL: [number, number] = [26, 39]
+export const TRENCH = { x0: 25.3, y0: 38.5, x1: 33.3, y1: 61.5, halfW: 1.6 }
+export const BRIDGE_TILES: [number, number][] = [
+  [28, 51], [29, 51], [30, 51], [31, 51],
+  [28, 52], [29, 52], [30, 52], [31, 52],
+]
 
 // ---- THE GLOW ECONOMY ANCHORS (three sources, nothing else emits — spec §1) ----
-export const MOUTH: [number, number] = [48, 21]      // the fanged daylight aperture in the NE rim above the shelf
-export const HEARTH: [number, number] = [35, 36]     // C2 — the room's heart and brightest interior point
-export const SHAFTS: [number, number][] = [[28, 33], [32, 29]] // C10 — the only cool notes (crater side)
+export const MOUTH: [number, number] = [64, 28]      // the fanged daylight aperture in the NE rim above the shelf
+export const HEARTH: [number, number] = [46, 48]     // C2 — the room's heart and brightest interior point
+export const SHAFTS: [number, number][] = [[37, 44], [43, 39]] // C10 — the only cool notes (crater side)
 
 // ---- THE STATIONS (C-ids, spec §2 — anchors + where Thor stands) ----
 export type Station = { id: string; anchor: [number, number]; stand: [number, number]; note: string }
 export const STATIONS: Station[] = [
-  { id: 'C1-threshold', anchor: [45, 24], stand: [44.5, 24.5], note: 'the arrival shelf; the seam back out' },
-  { id: 'C2-hearth', anchor: HEARTH, stand: [35, 38.6], note: 'Advisory Hearth — yearly core beats (§7.3)' },
-  { id: 'C3-chart-table', anchor: [45.5, 30.5], stand: [45, 32.6], note: 'the YEAR PLANNER opens here (§7.2)' },
-  { id: 'C4-principal-desk', anchor: [26.5, 21], stand: [26.5, 23.2], note: 'founding event + year vignettes (§5 I-9, §7.5)' },
-  { id: 'C5-lectern', anchor: [31, 23], stand: [30, 24], note: 'the Handbook (§8.5)' },
-  { id: 'C6-counselor', anchor: [19.5, 24.5], stand: [22, 25.8], note: 'cord/seal tracker board, live (§8.4)' },
-  { id: 'C7-outfitter', anchor: [14.5, 41.5], stand: [16, 42.6], note: 'the wardrobe, revisitable (§4.5)' },
-  { id: 'C8-trophy-wall', anchor: [21.5, 20.5], stand: [23, 22.3], note: 'run progress made physical (§8.2/§8.3)' },
-  { id: 'C9-balcony', anchor: [7, 23], stand: [7.5, 23.5], note: 'the secret falls balcony (sticker, §8.3)' },
-  { id: 'C10-light-well', anchor: [28, 33], stand: [28.5, 34], note: 'the cool accent; a fern where day strikes' },
+  { id: 'C1-threshold', anchor: [60, 32], stand: [59.5, 32.5], note: 'the arrival shelf; the seam back out' },
+  { id: 'C2-hearth', anchor: HEARTH, stand: [46, 51.4], note: 'Advisory Hearth — yearly core beats (§7.3)' },
+  { id: 'C3-chart-table', anchor: [60.5, 40.5], stand: [60, 43], note: 'the YEAR PLANNER opens here (§7.2)' },
+  { id: 'C4-principal-desk', anchor: [35, 26.5], stand: [35, 29.5], note: 'founding event + year vignettes (§5 I-9, §7.5)' },
+  { id: 'C5-lectern', anchor: [41, 30], stand: [40, 31.5], note: 'the Handbook (§8.5)' },
+  { id: 'C6-counselor', anchor: [25.5, 32.5], stand: [28, 34], note: 'cord/seal tracker board, live (§8.4)' },
+  { id: 'C7-outfitter', anchor: [19.5, 55.5], stand: [21, 57], note: 'the wardrobe, revisitable (§4.5)' },
+  { id: 'C8-trophy-wall', anchor: [28.5, 27.5], stand: [30.5, 29.5], note: 'run progress made physical (§8.2/§8.3)' },
+  { id: 'C9-balcony', anchor: [9, 31], stand: [10, 31.5], note: 'the secret falls balcony (sticker, §8.3)' },
+  { id: 'C10-light-well', anchor: [37, 44], stand: [37.5, 45], note: 'the cool accent; a fern where day strikes' },
 ]
 
 // ---- SPAWNS (named data — never magic numbers in a renderer; spec §3) ----
 export const SPAWNS = {
   // arriving through the panther's mouth: on the NE shelf, facing SW into the room
-  fromMouth: { at: [44.5, 24.5] as [number, number], facing: 'SW' as const },
+  fromMouth: { at: [59.5, 32.5] as [number, number], facing: 'SW' as const },
 }
 
 // ---- PROP FOOTPRINT RESERVATIONS (collision truth from day one; the real
 // props land in P3 but the walkmap must never lie to the audit) ----
 type Rect = { x0: number; y0: number; x1: number; y1: number; why: string }
 const BLOCKS: Rect[] = [
-  { x0: 34, y0: 35, x1: 36, y1: 37, why: 'the hearth ring + fire (C2 core)' },
-  { x0: 44, y0: 30, x1: 47, y1: 31, why: 'the chart table (C3)' },
-  { x0: 25, y0: 20, x1: 28, y1: 21, why: "the Principal's desk (C4)" },
-  { x0: 31, y0: 23, x1: 31, y1: 23, why: 'the Handbook lectern (C5)' },
-  { x0: 19, y0: 24, x1: 20, y1: 25, why: "the counselor's board + desk (C6, flush to the pocket's back wall — no dead floor behind furniture)" },
-  { x0: 14, y0: 41, x1: 15, y1: 42, why: 'the castaway trunk + mirror (C7)' },
+  { x0: 45, y0: 47, x1: 47, y1: 49, why: 'the hearth ring + fire (C2 core)' },
+  { x0: 59, y0: 40, x1: 62, y1: 41, why: 'the chart table (C3)' },
+  { x0: 33, y0: 26, x1: 37, y1: 27, why: "the Principal's desk (C4)" },
+  { x0: 41, y0: 30, x1: 41, y1: 30, why: 'the Handbook lectern (C5)' },
+  { x0: 25, y0: 32, x1: 26, y1: 33, why: "the counselor's board + desk (C6, flush to the pocket's back wall — no dead floor behind furniture)" },
+  { x0: 19, y0: 55, x1: 20, y1: 56, why: 'the castaway trunk + mirror (C7)' },
 ]
 export function propBlocked(tx: number, ty: number): string | null {
   const x = Math.round(tx), y = Math.round(ty)

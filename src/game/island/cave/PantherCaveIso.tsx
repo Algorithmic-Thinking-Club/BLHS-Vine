@@ -45,8 +45,8 @@ export default function PantherCaveIso() {
 
       const params = new URLSearchParams(location.search)
       const ZOOM = Number(params.get('zoom') || 1.0) || 1.0
-      const cam = (params.get('cam') || '34,32').split(',').map(Number)
-      const camTx = cam[0] ?? 34, camTy = cam[1] ?? 32
+      const cam = (params.get('cam') || '45,44').split(',').map(Number)
+      const camTx = cam[0] ?? 45, camTy = cam[1] ?? 44
       const STEP = Number(params.get('step') || 20) // world px per elevation level
       const SOCKETS = params.get('sockets') !== '0' // honest placeholder stakes (default ON)
       const DBG = !!params.get('dbg')
@@ -206,6 +206,32 @@ export default function PantherCaveIso() {
           }
 
           if (!floors.length) continue
+          // THE 3D TILE UNIT (the exterior's drawColumn law): a tile standing
+          // above ANY lower floor neighbor is a real block column down to the
+          // deepest — the stair treads, dais edge, and shelf rim all wear
+          // drawn risers (missing risers read as black holes at play zoom)
+          {
+            let floorMin = L
+            for (const [ox, oy] of [[1, 0], [0, 1], [1, 1], [-1, 0], [0, -1], [-1, 1], [1, -1], [-1, -1]] as const) {
+              const nl = eLvl(tx + ox, ty + oy)
+              if (nl >= 0 && nl < floorMin) floorMin = nl
+            }
+            if (L > floorMin && sides.length) {
+              const { warm, ember } = lightAt(tx, ty)
+              const m = L - floorMin
+              const rpick = (k: number) => Math.floor(vnoise(tx / 2.7 + 1.3 + k * 0.13, ty / 2.7 + 8.1 + k * 0.21) * sides.length) % sides.length
+              for (let k = m - 1; k >= 0; k--) { // bottom course first, uppers mask
+                const seg = new Sprite(sides[rpick(k)])
+                seg.anchor.set(0.5, 18 / 64)
+                seg.position.set(bx, by + k * STEP)
+                const drift = 0.92 + 0.12 * vnoise(tx / 6 + 2.2, ty / 6 + 7.7)
+                const v = (0.26 + 0.6 * warm + 0.45 * ember) * drift * (0.94 - 0.05 * k)
+                seg.tint = tint24(v * (1 + 0.18 * ember), v * 0.9, v * (1.0 - 0.16 * ember) + (v < 0.24 ? 0.03 : 0))
+                seg.zIndex = zBase + 1 + (m - 1 - k)
+                world.addChild(seg)
+              }
+            }
+          }
           const top = new Sprite(floors[Math.floor(hash(tx * 5.1 + 2, ty * 2.9 + 4) * floors.length) % floors.length])
           top.anchor.set(0.5, 0.5)
           top.position.set(bx, by)
@@ -234,12 +260,78 @@ export default function PantherCaveIso() {
         }
       }
 
-      // ---- THE CAVERN WALLS: REAL BLOCK COLUMNS (the 3D tile system — the
-      // map's one construction language, non-negotiable). Full 64x64 block
-      // sprites stacked one course per level, painter order does the masking,
-      // every course lit by the baked field at its base and decaying up into
-      // the vault. Back walls rise tall; camera-side rock keeps a low lip.
+      // ---- THE ROCK MASS: THE VOID IS ILLEGAL (Ash's verdict — "most of the
+      // screen being void"). Everything around the room is the inside of a
+      // mountain and is DRAWN: a BFS field gives every rock tile its distance
+      // to the nearest floor and which SIDE it sits on — mass screen-behind
+      // the room stands at full vault height immediately; camera-side mass
+      // ramps up with distance so it never occludes the room.
       const WALL_H = 11 // grandeur needs height: the vault fills the upper frame, courses fading into the dark
+      const mDist = new Int16Array(GRID * GRID).fill(-1)
+      const mSrcSum = new Int16Array(GRID * GRID)
+      {
+        const qx: number[] = [], qy: number[] = []
+        for (let ty = 0; ty < GRID; ty++) for (let tx = 0; tx < GRID; tx++) {
+          if (lvlAt(tx, ty) >= 0 || lvlAt(tx, ty) === -2) {
+            mDist[ty * GRID + tx] = 0
+            mSrcSum[ty * GRID + tx] = tx + ty
+            qx.push(tx); qy.push(ty)
+          }
+        }
+        for (let h = 0; h < qx.length; h++) {
+          const x = qx[h], y = qy[h], i = y * GRID + x
+          for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+            const nx = x + ox, ny = y + oy
+            if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID) continue
+            const j = ny * GRID + nx
+            if (mDist[j] !== -1) continue
+            mDist[j] = mDist[i] + 1
+            mSrcSum[j] = mSrcSum[i]
+            qx.push(nx); qy.push(ny)
+          }
+        }
+      }
+      // mass height in courses at a rock tile (0 = handled by the wall pass)
+      const massH = (tx: number, ty: number) => {
+        const i = ty * GRID + tx
+        const d = mDist[i]
+        if (d <= 0) return WALL_H
+        const behindK = (tx + ty) - mSrcSum[i]
+        if (behindK <= 0) return WALL_H            // enclosing back mass: full vault
+        return Math.min(WALL_H, Math.max(1, Math.round(d * 1.1))) // camera-side: the floor curves up and away
+      }
+      // draw the mass tops (2x2 LOD where solid — ~7k tiles become ~2k sprites)
+      if (floors.length) {
+        const massTop = (mx: number, my: number, scale2: boolean) => {
+          const h = massH(mx, my)
+          const lift = h * STEP
+          const sp = new Sprite(floors[Math.floor(hash(mx * 3.7, my * 1.9) * floors.length) % floors.length])
+          sp.anchor.set(0.5, 0.5)
+          const cx2 = scale2 ? mx + 0.5 : mx, cy2 = scale2 ? my + 0.5 : my
+          sp.position.set(isoX(cx2, cy2), isoY(cx2, cy2) - lift)
+          sp.scale.set((hash(mx * 1.3, my * 7.1) > 0.5 ? -1 : 1) * (scale2 ? 2.08 : 1.06), scale2 ? 2.08 : 1.06)
+          // near-black modeled rock: long-wavelength drift + rare ember glints
+          // so the mountain reads alive, never flat fill
+          const drift = 0.8 + 0.4 * vnoise(mx / 16 + 4, my / 16 + 9)
+          const glint = hash(mx * 12.7, my * 9.3) > 0.985 ? 0.05 : 0
+          const v = 0.075 * drift
+          sp.tint = tint24(v + glint * 1.6, v * 0.9 + glint * 0.7, v * 1.2 + glint * 0.2)
+          sp.zIndex = ((scale2 ? mx + 1 : mx) + (scale2 ? my + 1 : my)) * 4000 + lift * 2 + 4
+          world.addChild(sp)
+        }
+        for (let ty = 0; ty < GRID; ty += 2) {
+          for (let tx = 0; tx < GRID; tx += 2) {
+            const cells: [number, number][] = [[tx, ty], [tx + 1, ty], [tx, ty + 1], [tx + 1, ty + 1]]
+            const rock = cells.filter(([x, y]) => x < GRID && y < GRID && lvlAt(x, y) === -1 && mDist[y * GRID + x] > 1)
+            if (rock.length === 4) {
+              const h = massH(tx, ty)
+              // merge only where the 2x2 shares one height (no popped corners)
+              if (cells.every(([x, y]) => massH(x, y) === h)) { massTop(tx, ty, true); continue }
+            }
+            for (const [x, y] of rock) massTop(x, y, false)
+          }
+        }
+      }
       // THE MOUTH: a BUILT opening in the NE wall — aperture columns skip
       // their lower courses and blaze instead (a light plane inside the gap
       // with a block lintel above). No pasted paintings, ever.
@@ -300,11 +392,13 @@ export default function PantherCaveIso() {
             seg.zIndex = zBase + 30 + k
             world.addChild(seg)
           }
-          if (behind && floors.length) {
+          if (floors.length) {
+            // every boundary column gets a cut-top (camera-side lips included —
+            // with the mass drawn beyond, an uncapped lip leaks background)
             const cap = new Sprite(floors[Math.floor(hash(tx * 2.9, ty * 6.1) * floors.length) % floors.length])
             cap.anchor.set(0.5, 0.5)
             cap.position.set(bx, by - rise * STEP)
-            cap.tint = 0x100c14
+            cap.tint = behind ? 0x100c14 : 0x14101a
             cap.zIndex = zBase + 30 + rise + 1
             world.addChild(cap)
           }
