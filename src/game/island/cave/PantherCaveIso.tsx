@@ -22,6 +22,9 @@ const tint24 = (r: number, g: number, b: number) =>
 
 // the depths: the molten river flows this many levels below the lowest isle
 const DEPTH_LVL = -3
+const sstep2 = (e0: number, e1: number, x: number) => {
+  const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t)
+}
 
 export default function PantherCaveIso() {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -106,20 +109,11 @@ export default function PantherCaveIso() {
       const sides = sideT.filter(Boolean)
       const zOf = (tx: number, ty: number, bias = 0) => (tx + ty) * 4000 + bias
 
-      // ---- 1. THE SHAFT BACKDROP: the curtain wall wrapping the far rim ----
-      if (curtainT) {
-        for (let k = 0; k < 7; k++) {
-          const cx2 = 14 + k * 12, cy2 = 30 - k * 3 + (k % 2) * 2
-          const c = new Sprite(curtainT)
-          c.anchor.set(0.5, 1)
-          c.scale.set(1.7, 1.7)
-          c.position.set(isoX(cx2, cy2 - 16), isoY(cx2, cy2 - 16) + 40)
-          c.tint = 0x8f7d96 // recede: the shaft's far wall, dark violet
-          c.alpha = 0.92
-          c.zIndex = zOf(cx2, cy2 - 22)
-          world.addChild(c)
-        }
-      }
+      // ---- 1. THE SHAFT BACKDROP: PARKED. The curtain row read as pasted
+      // wallpaper rectangles (Ash's screenshot) — the real shaft wall needs a
+      // purpose-painted wrap-around piece, not a tiled strip. Until that
+      // lands, the warm-dark void IS the backdrop (grand-B's own darkness).
+      void curtainT
 
       // ---- 2. THE DEPTHS: the molten river flowing far below ----
       const pulses: { sp: Sprite; ph: number; base: number; spine?: number }[] = []
@@ -132,19 +126,26 @@ export default function PantherCaveIso() {
         for (let ty = 0; ty < GRID; ty++) {
           for (let tx = 0; tx < GRID; tx++) {
             if (lvlAt(tx, ty) !== -2) continue
+            // the fall piece owns the pool's pixels — no tiles beneath it
+            if (Math.hypot(tx - POOL.x, ty - POOL.y) < 3.2) continue
             const { t, d } = riverAxis(tx, ty)
+            const spine = 1 - Math.min(1, d / (RIVER.halfW * 0.9))
             // ordered flow: tiles keyed by position along the river so the
             // painting's own streaks CONTINUE downstream
             const idx = (Math.floor(t * 40) + Math.floor(d * 2)) % lavas.length
             const lv = new Sprite(lavas[idx])
             lv.anchor.set(0.5, 0.5)
             lv.position.set(isoX(tx, ty), isoY(tx, ty) - DEPTH_LVL * -STEP + 3 * STEP)
-            const spine = 1 - Math.min(1, d / (RIVER.halfW * 0.9))
-            const core = 0.6 + 0.4 * spine
-            lv.tint = tint24(core, core * (0.5 + 0.3 * spine), core * 0.22)
+            // BANKS ARE CRUST (the stepped diamond edge in Ash's screenshot):
+            // the rim row cools to near-black plates, the melt lives inside —
+            // contrast does the emitting (hades-asphodel's rule)
+            const crust = sstep2(0.0, 0.35, spine)
+            const core = (0.2 + 0.75 * crust) * (0.85 + 0.15 * spine)
+            lv.tint = tint24(core, core * (0.42 + 0.36 * spine), core * 0.2)
+            lv.scale.set(1.06)
             lv.zIndex = zOf(tx, ty, 2)
             world.addChild(lv)
-            pulses.push({ sp: lv, ph: t * 9 + d, base: core, spine })
+            if (crust > 0.2) pulses.push({ sp: lv, ph: t * 9 + d, base: core, spine })
           }
         }
       }
@@ -201,6 +202,7 @@ export default function PantherCaveIso() {
             const mirror = dx < 0 // the -x diagonal runs mirrored
             sp.scale.set(mirror ? -0.95 : 0.95, 0.95)
             sp.position.set(isoX(px2, py2), isoY(px2, py2) - lvl * STEP)
+            sp.tint = 0xe9c39c // grade the cool grey deck into the platform family
             sp.zIndex = zOf(px2, py2 + 1.6, lvl * STEP * 2)
             world.addChild(sp)
           }
@@ -231,19 +233,21 @@ export default function PantherCaveIso() {
               const top = new Sprite(floors[Math.floor(hash(tx * 5.1, ty * 2.9) * floors.length) % floors.length])
               top.anchor.set(0.5, 0.5)
               top.position.set(bx, by)
-              top.scale.set(1.06)
-              const w = 0.55 + 0.2 * vnoise(tx / 7, ty / 7)
-              top.tint = tint24(w, w * 0.82, w * 0.66)
+              top.scale.set(1.12)
+              // treads wear the platform family's warm stone, stepping darker
+              // as the flight descends (they hang in the shaft's dark)
+              const w = 0.62 + 0.05 * L + 0.08 * vnoise(tx / 7, ty / 7)
+              top.tint = tint24(w, w * 0.84, w * 0.7)
               top.zIndex = zOf(tx, ty, lift * 2 + 5)
               world.addChild(top)
-              // two hanging riser courses fading into the dark
-              for (let k = 0; k < 2; k++) {
+              // three hanging riser courses fading into the dark
+              for (let k = 0; k < 3; k++) {
                 const seg = new Sprite(sides[Math.floor(vnoise(tx / 2.7 + k, ty / 2.7) * sides.length) % sides.length])
                 seg.anchor.set(0.5, 18 / 64)
                 seg.position.set(bx, by + k * STEP)
-                const v = 0.34 - k * 0.15
-                seg.tint = tint24(v, v * 0.8, v * 0.9)
-                seg.zIndex = zOf(tx, ty, lift * 2 + 1 - k)
+                const v = 0.4 - k * 0.13
+                seg.tint = tint24(v, v * 0.78, v * 0.72)
+                seg.zIndex = zOf(tx, ty, lift * 2 + 2 - k)
                 world.addChild(seg)
               }
             }
@@ -251,14 +255,16 @@ export default function PantherCaveIso() {
         }
       }
 
-      // ---- 6. THE MOUTH GATE: the fanged blazing arch on the threshold ----
+      // ---- 6. THE MOUTH GATE: the fanged blazing arch on the threshold's
+      // NE rim (cropped to the arch itself — the full piece swallowed the
+      // whole isle in Ash's screenshot; the gate is a door, not a backdrop)
       if (gateT) {
         const g = new Sprite(gateT)
-        g.anchor.set(0.5, 0.88)
-        g.scale.set(1.15)
+        g.anchor.set(0.5, 0.96)
+        g.scale.set(0.8)
         const isle = ISLES.threshold
-        g.position.set(isoX(MOUTH[0] - 1.5, MOUTH[1] + 1.5), isoY(MOUTH[0] - 1.5, MOUTH[1] + 1.5) - isle.lvl * STEP + 6)
-        g.zIndex = zOf(MOUTH[0] - 1.5, MOUTH[1] + 6, isle.lvl * STEP * 2 + 60)
+        g.position.set(isoX(MOUTH[0] - 1.2, MOUTH[1] + 1.2), isoY(MOUTH[0] - 1.2, MOUTH[1] + 1.2) - isle.lvl * STEP + 4)
+        g.zIndex = zOf(MOUTH[0] - 1.2, MOUTH[1] + 5, isle.lvl * STEP * 2 + 60)
         world.addChild(g)
       }
 
