@@ -5,7 +5,7 @@ import {
   loadWaterVariants, configSeaTile, animSwells, type SwellSprite, HW, HH, DEPTH_RANGE,
 } from '../../ocean'
 import {
-  CX, CY, GRID, SEA_R, coastDs, shelfW, lagoonK, cliffK, sandK,
+  CX, CY, GRID, SEA_R, coastDs, coastR, shelfW, lagoonK, cliffK, sandK,
   plateauD, KNOLL, cragD, ISLETS,
 } from './atc-terrain'
 import {
@@ -465,7 +465,7 @@ export default function AtcIslandIso() {
             const checker = (tx + ty) % 2 === 0 ? 1 : 0.955
             const grain = 0.985 + 0.03 * hash(tx * 1.7, ty * 2.9)
             const wear = 0.94 + 0.1 * vnoise(tx / 9 + 3, ty / 9 + 12)
-            let hexF = 0x8b9480
+            let hexF = 0x757d6b // darker than round 1 — the floor recedes, the screens carry the light
             const palmD = Math.hypot(tx - FEATURE_PALM[0], ty - FEATURE_PALM[1])
             if (palmD < 2.2) hexF = mix(hexF, 0x74854e, (1 - palmD / 2.2) * 0.75)
             const doorD = Math.hypot(tx - (DOOR[0][0] + 0.5), ty - DOOR[0][1])
@@ -622,11 +622,12 @@ export default function AtcIslandIso() {
         const key = s.face === 'N' && propT['desk-back'] ? 'desk-back' : 'desk-front'
         const sp = propAt(key, cx2, cy2, { mirror: hash(cx2 * 3.1, cy2 * 1.7) > 0.5 && s.kind === 'counter' })
         if (sp && s.face !== 'N') {
-          // soft teal screen pool on the floor before each lit station
+          // the screen pool is the room's LANTERN (TavernWorld's trick: the
+          // ground stays dark so the light gets to be an event)
           const g = new Sprite(foamTex)
           g.anchor.set(0.5)
-          g.tint = 0x2ec4b6; g.blendMode = 'add'; g.alpha = 0.12
-          g.width = 52; g.height = 20
+          g.tint = 0x2ec4b6; g.blendMode = 'add'; g.alpha = 0.22
+          g.width = 62; g.height = 24
           const L = Math.max(0, eLvl(Math.round(cx2), Math.round(cy2)))
           g.position.set(isoX(cx2, cy2 + 0.7), isoY(cx2, cy2 + 0.7) + GY - L * STEP)
           g.zIndex = (Math.round(cx2) + Math.round(cy2)) * 4000 + L * STEP * 2 + 12
@@ -758,6 +759,20 @@ export default function AtcIslandIso() {
       const grovePlanted: number[] = []
       GROVES.forEach((gv, gi) => {
         let planted = 0
+        // the grove's CANOPY POOL: one broad violet-dark shade mass under the
+        // whole site (value first — c3's dark green masses are shadow, not
+        // leaf count; per-palm dots can never add up to a mass)
+        {
+          const gL = Math.max(0, eLvl(Math.round(gv.x), Math.round(gv.y)))
+          const pool = new Sprite(shadowTex)
+          pool.anchor.set(0.5)
+          pool.width = gv.r * 2.4 * HW
+          pool.height = gv.r * 2.4 * HH * 0.9
+          pool.position.set(isoX(gv.x, gv.y) + 8, isoY(gv.x, gv.y) + GY - gL * STEP)
+          pool.alpha = 0.26; pool.tint = 0x241d40
+          pool.zIndex = (Math.round(gv.x) + Math.round(gv.y)) * 4000 + gL * STEP * 2 + 5
+          world.addChild(pool)
+        }
         const plant = (key: string, px: number, py: number, sc: number, canopy: boolean) => {
           const rtx = Math.round(px), rty = Math.round(py)
           const L = eLvl(rtx, rty)
@@ -813,6 +828,35 @@ export default function AtcIslandIso() {
       grovePlanted.forEach((n, gi) => {
         if (n < 3) console.warn(`[atc] grove ${gi} (${GROVES[gi].note}) planted only ${n} — site likely off the meadow`)
       })
+
+      // the tall ruin CASTS: soft shade thrown down-sun from the standing NW
+      // courses onto the floor (the missing cast shadow was the hub's P1 lesson)
+      for (let ty2 = RY0; ty2 <= RY1; ty2++) for (let tx2 = RX0; tx2 <= RX1; tx2++) {
+        if (wallState(tx2, ty2) !== 'tall') continue
+        const sh = new Sprite(shadowTex)
+        sh.anchor.set(0.5)
+        sh.width = 84; sh.height = 30
+        sh.position.set(isoX(tx2, ty2) + 26, isoY(tx2, ty2) + GY - 3 * STEP + 14)
+        sh.alpha = 0.24; sh.tint = 0x241d40
+        sh.zIndex = (tx2 + ty2) * 4000 + 3 * STEP * 2 + 7
+        world.addChild(sh)
+      }
+      // coast MIST: slow wisps riding the waterline (the breath the refs have;
+      // soft sprites, the hub's own steam/cloud technique — never a shader)
+      const mists: { sp: Sprite; x0: number; spd: number; ph: number }[] = []
+      const mistTex = radial(256, [[0, 'rgba(214,246,238,0.16)'], [0.6, 'rgba(214,246,238,0.07)'], [1, 'rgba(214,246,238,0)']])
+      for (let i = 0; i < 4; i++) {
+        const a = [2.3, 0.4, -1.2, 1.5][i]
+        const rr = coastR(a) + 3
+        const mx2 = CX + Math.cos(a) * rr, my2 = CY + Math.sin(a) * rr
+        const m = new Sprite(mistTex)
+        m.anchor.set(0.5)
+        m.width = 420 + i * 90; m.height = 90 + i * 14
+        m.position.set(isoX(mx2, my2), isoY(mx2, my2) + GY - 6)
+        m.zIndex = 8e8 + i
+        world.addChild(m)
+        mists.push({ sp: m, x0: m.x, spd: 2.5 + i, ph: i * 1.7 })
+      }
 
       // ---- THE VAST VIRTUAL SEA (the hub's pool, unchanged mechanics) ----
       const WORLD_R = 320
@@ -949,6 +993,8 @@ export default function AtcIslandIso() {
         for (const s of sways) s.sp.rotation = s.amp * Math.sin(wt * s.w + s.ph)
         // the screens breathe: slow independent flicker per lit station
         for (const g of glows) g.sp.alpha = g.a * (0.7 + 0.3 * Math.sin(wt * 1.1 + g.ph))
+        // the mist drifts, barely
+        for (const m of mists) m.sp.x = m.x0 + Math.sin(wt * 0.05 * m.spd + m.ph) * 60
       })
     }
 
