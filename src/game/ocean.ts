@@ -99,9 +99,12 @@ export async function loadWaterVariants(): Promise<Texture[]> {
 
 export type SwellSprite = { sp: Sprite; ph: number; ph2: number; base: number; amp: number; shoreD?: number }
 
-// ONE sea tile: depth-ramp tint + micro-texture variant + swell phases. ds = signed diagonal
-// distance from the waterline (negative out to sea). The caller owns the loop and the geometry.
-export function seaTile(world: Container, tx: number, ty: number, ds: number, waterV: Texture[], fallback: Texture | undefined, out: SwellSprite[]) {
+// Configure an EXISTING sprite as the sea tile at (tx,ty) — the virtualized-sea path.
+// The look is a pure function of (tx,ty,ds), so a recycled pool sprite is pixel-identical
+// to a fresh one; the island's vast ocean re-points its pool as the camera moves. blk > 1
+// covers a blk x blk block with one sprite (far-zoom LOD: the micro-texture is subpixel
+// out there; the depth ramp + drifting patches carry all the variation that survives).
+export function configSeaTile(sp: Sprite, tx: number, ty: number, ds: number, waterV: Texture[], fallback: Texture | undefined, blk = 1): SwellSprite | null {
   // depth in [0,1], DITHERED per tile so the ramp steps interleave instead of banding.
   // The dither is DEPTH-KEYED: strong on the shallow plateau (flat ramp, banding risk,
   // cheap dither), near-zero through the lit mid-band where the ramp is STEEP — there
@@ -110,16 +113,20 @@ export function seaTile(world: Container, tx: number, ty: number, ds: number, wa
   const dAmp = raw < 0.14 ? 0.1 : raw < 0.55 ? 0.022 : 0.05
   const dep = Math.min(1, Math.max(0, raw + (hash(tx * 7.7, ty * 5.3) - 0.5) * dAmp))
   const h = hash(tx * 1.3, ty * 2.7)
-  const pool = dep < 0.1 ? W_CALM
-    : dep < 0.3 ? (h < 0.6 ? W_CALM : W_SOFT)
-      : dep < 0.55 ? (h < 0.5 ? W_SOFT : W_TEX)
-        : (h < 0.55 ? W_TEX : W_SWELL)
+  // big LOD blocks keep to the quiet texture families: one busy swell variant blown up
+  // over 16-64 tiles reads as a dark hole punched in the far field
+  const pool = blk >= 4 ? W_SOFT
+    : dep < 0.1 ? W_CALM
+      : dep < 0.3 ? (h < 0.6 ? W_CALM : W_SOFT)
+        : dep < 0.55 ? (h < 0.5 ? W_SOFT : W_TEX)
+          : (h < 0.55 ? W_TEX : W_SWELL)
   const base = waterV[pool[Math.floor(hash(tx * 3.1, ty * 1.9) * pool.length)]] ?? fallback
-  if (!base) return
-  const sp = new Sprite(base); sp.anchor.set(0.5, 0.25)
+  if (!base) return null
+  sp.texture = base
+  sp.anchor.set(0.5, 0.25)
   // mirror tiles in COHERENT PATCHES (not per-tile random) — random flips make an X-checker
   const fx = vnoise(tx / 7 + 4, ty / 7 + 11) > 0.5 ? -1 : 1
-  sp.scale.set(fx * 1.12, 1.12) // oversize so tiles overlap and blend (soften the grid)
+  sp.scale.set(fx * 1.12 * blk, 1.12 * blk) // oversize so tiles overlap and blend (soften the grid)
   sp.position.set(isoX(tx, ty), isoY(tx, ty)); sp.zIndex = (tx + ty) * 16
   // broad drifting patches (cloud-light) — NO per-tile grain (any per-tile value step
   // reads as a checkerboard at distance; the ramp + patches carry all variation)
@@ -127,14 +134,23 @@ export function seaTile(world: Container, tx: number, ty: number, ds: number, wa
   const grain = 0.997 + 0.006 * hash(tx, ty)
   const col = shadeHex(tintFor(rampAt(W_RAMP, dep), W_BASE), patch * grain)
   sp.tint = col
-  world.addChild(sp)
-  out.push({
+  return {
     sp, base: col,
     ph: (tx + ty) * 0.5 + 0.35 * Math.sin((tx - ty) * 0.18), // swell front, wobbled along the shore axis
     ph2: (tx + ty) * 0.21 - (tx - ty) * 0.07,
     amp: 0.022 + 0.055 * dep, // calm at the shore, rolling out deep
     shoreD: ds > -2.5 ? tx - ty : undefined, // waterline rows surge with the tide
-  })
+  }
+}
+
+// ONE sea tile: depth-ramp tint + micro-texture variant + swell phases. ds = signed diagonal
+// distance from the waterline (negative out to sea). The caller owns the loop and the geometry.
+export function seaTile(world: Container, tx: number, ty: number, ds: number, waterV: Texture[], fallback: Texture | undefined, out: SwellSprite[]) {
+  const sp = new Sprite()
+  const m = configSeaTile(sp, tx, ty, ds, waterV, fallback)
+  if (!m) { sp.destroy(); return }
+  world.addChild(sp)
+  out.push(m)
 }
 
 // ---- AERIAL PERSPECTIVE WASH: the far field flattens toward the abyss so the per-tile

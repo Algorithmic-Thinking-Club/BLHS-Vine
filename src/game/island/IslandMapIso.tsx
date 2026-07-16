@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
-import { Application, Assets, ColorMatrixFilter, Container, Rectangle, Sprite, Text, TextStyle, Texture } from 'pixi.js'
+import { Application, Assets, ColorMatrixFilter, Container, Matrix, Rectangle, RenderTexture, Sprite, Text, TextStyle, Texture } from 'pixi.js'
 import {
   isoX, isoY, hash, vnoise, shadeHex, rampAt, tintFor,
-  loadWaterVariants, seaTile, animSwells, type SwellSprite,
+  loadWaterVariants, seaTile, configSeaTile, animSwells, type SwellSprite, HW, HH, DEPTH_RANGE,
 } from '../ocean'
 import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, MOUTH_L, MOUTH_R } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
@@ -123,7 +123,10 @@ export default function IslandMapIso() {
       const DECOR = params.get('decor') === '1'
       const ZOOM = Number(params.get('zoom') || 0.62) || 0.62
       const cam = (params.get('cam') || `${CX},${CY}`).split(',').map(Number)
-      const camTx = cam[0] ?? CX, camTy = cam[1] ?? CY
+      // clamp the camera well inside WORLD_R (600): the ocean must reach past every
+      // viewport edge — nobody ever sees the world's rim (the vast-sea law)
+      const camTx = Math.max(CX - 420, Math.min(CX + 420, cam[0] ?? CX))
+      const camTy = Math.max(CY - 420, Math.min(CY + 420, cam[1] ?? CY))
       // HEIGHT-TILE terrain: real per-tile elevation levels (→ faces, collision, depth)
       const NLEV = Number(params.get('nlev') || 5)   // discrete elevation levels (real tiles)
       const STEP = Number(params.get('step') || 20)  // world px per elevation level (taller = vaster cliffs)
@@ -154,6 +157,55 @@ export default function IslandMapIso() {
       world.scale.set(ZOOM)
       world.sortableChildren = true
       app.stage.addChild(world)
+      // camera position set EARLY (resizeFx re-derives the same values later) so the
+      // virtual sea can unproject the real viewport during the build, not after it
+      world.x = app.screen.width / 2 - isoX(camTx, camTy) * ZOOM
+      world.y = app.screen.height * 0.5 - isoY(camTx, camTy) * ZOOM
+      // the grade filter must never measure 30k+ sprite bounds to size its framebuffer.
+      // v8 semantics: filterArea is LOCAL space (feeding it the screen rect clips the
+      // world to a phantom rectangle at the origin — found live, P0). boundsArea is the
+      // v8 tool: declare the world's local extent once, bounds become O(1).
+      world.boundsArea = new Rectangle(-40000, -18000, 80000, 46000)
+
+      // ---- P0: THE VAST SEA + BAND PARTITION (the world becomes huge) ----
+      // Two structures. (1) seaLayer: the open ocean is VIRTUAL — any point with
+      // dsAt<0 is water all the way out to WORLD_R; a sprite pool draws only the
+      // viewport's sea (block-LOD at far zooms) and re-points as the view changes.
+      // (2) bands: every land sprite already encodes painter depth as
+      // zIndex = (tx+ty)*4000 + eps, so after the build the flat sprite soup is
+      // regrouped — SAME total draw order — into diagonal-band containers the
+      // ticker culls against the viewport. Sky sprites (steam/clouds/gulls >= 3M)
+      // and the coords scaffold stay directly on world, above every band.
+      const WORLD_R = 600           // tiles of ocean in every direction — mostly-sea by law
+      const BANDW = 4               // tile-diagonals per culling band
+      const seaLayer = new Container()
+      seaLayer.zIndex = -1
+      seaLayer.sortableChildren = true
+      // its OWN render group: v8 caches draw instructions PER GROUP, and by default the
+      // whole stage is one group — so one animated tint anywhere re-recorded all 6k+
+      // static sea sprites every frame (measured 23fps at far zoom). Isolated, the
+      // static field records once and replays from cache.
+      seaLayer.isRenderGroup = true
+      world.addChild(seaLayer)
+      const bands: (Container | undefined)[] = []
+      const bandFor = (z: number) => {
+        const b = Math.max(0, Math.floor(z / (BANDW * 4000)))
+        let c = bands[b]
+        if (!c) {
+          c = new Container()
+          c.sortableChildren = true
+          c.zIndex = b * BANDW * 4000
+          c.isRenderGroup = true   // static band content: record once, replay from cache
+          bands[b] = c
+          world.addChild(c)
+        }
+        return c
+      }
+      let refreshSea: () => void = () => {}   // assigned inside the tile build; resize re-fills the pool
+      // dev handle for the perf probe: pump app.ticker.update() in a loop to measure
+      // real frame cost — the Glance browser throttles rAF to ~1Hz when occluded, so
+      // wall-clock FPS lies (the documented lesson)
+      ;(window as unknown as Record<string, unknown>).__app = app
       // dev probe: name every sprite under a screen point (the only honest way
       // to identify a mystery pixel — hypothesis-chasing burned an hour tonight)
       ;(window as unknown as Record<string, unknown>).__probe = (sx2: number, sy2: number) => {
@@ -879,7 +931,7 @@ export default function IslandMapIso() {
             const dx = tx - CX, dy = ty - CY
             if (dx * dx + dy * dy > SEA_R * SEA_R) continue
             const dsq = dsAt(tx, ty)
-            if (dsq <= 0) { seaTile(world, tx, ty, dsq, waterV, undefined, waterS); continue }
+            if (dsq <= 0) continue   // P0: ALL water is the virtual sea layer's job now
             const L = eLvl(tx, ty)                          // beaches = 0 → flush, no gap
             // sea-level land on a beach azimuth wears sand; on mixed azimuths it stays grass
             const sand = L === 0 && cliffMask(Math.atan2(ty - CY, tx - CX)) < 0.35
@@ -2794,8 +2846,157 @@ export default function IslandMapIso() {
           clouds.push({ sp, spd: 9 + i * 3.5, y0 })
         }
 
+        // ---- P0 · THE BAND PARTITION: regroup every built land sprite into its
+        // diagonal band by the depth its zIndex already encodes. Total draw order is
+        // IDENTICAL (containers sort by band start, sprites by their old zIndex inside),
+        // but the ticker can now cull whole bands instead of pushing 30k+ off-screen
+        // sprites through the renderer every frame. Snapshot first: reparenting and
+        // band creation both mutate world.children.
+        {
+          // movers travel ACROSS bands while they animate (surge tongues ride the whole
+          // flow) — banding one would cull it by its birth position. They stay global.
+          const movers = new Set<unknown>(
+            [...surges, ...plates, ...embers, ...gobbets].map((o) => o.sp))
+          const built = world.children.slice()
+          for (const c of built) {
+            if (c === seaLayer || movers.has(c)) continue
+            if (c.zIndex >= 3_000_000) continue      // sky layer + coords scaffold stay global
+            bandFor(c.zIndex).addChild(c)
+          }
+        }
+        // ---- P0 · FAR-ZOOM BAKE: at map zooms the whole island is in frame, so band
+        // culling saves nothing and ~30k static sprites drown the frame (measured 10fps).
+        // The static land bakes ONCE into a single island-sized RenderTexture at screen
+        // resolution (~600px wide at 0.07); animated ground sprites (the lava flipbook,
+        // the breathing glows) hop back to world and stay LIVE on top, so the far view
+        // keeps its molten life. Play zooms skip this and run on culled live bands.
+        let landBaked = false
+        if (ZOOM < 0.35) {
+          // every ticker-animated sprite hops back to world FIRST — it must stay live
+          // (and must NOT be in the bake: additive glows would double). Nothing is ever
+          // destroyed: the ticker keeps valid references no matter what animates later.
+          const animated = new Set<unknown>([
+            ...lavaFlow.map((l) => l.sp), ...glows.map((g) => g.sp), ...puffs.map((p) => p.sp),
+            ...sways.map((s) => s.sp), ...bobs.map((b) => b.sp), ...flyers.map((f) => f.sp),
+          ])
+          for (const b of bands) if (b) for (const c of b.children.slice()) if (animated.has(c)) world.addChild(c)
+          // measure, then render each band into ONE island texture in diagonal order
+          // (the same painter order the live sort produces), bands left in place
+          let mnX = 1e9, mnY = 1e9, mxX = -1e9, mxY = -1e9
+          for (const b of bands) {
+            if (!b || !b.children.length) continue
+            const r = b.getLocalBounds()
+            mnX = Math.min(mnX, r.minX); mnY = Math.min(mnY, r.minY)
+            mxX = Math.max(mxX, r.maxX); mxY = Math.max(mxY, r.maxY)
+          }
+          if (mnX < mxX) {
+            const RES = Math.max(ZOOM, 0.05)
+            const rt = RenderTexture.create({ width: Math.ceil((mxX - mnX) * RES), height: Math.ceil((mxY - mnY) * RES) })
+            const tf = new Matrix(RES, 0, 0, RES, -mnX * RES, -mnY * RES)
+            let first = true
+            for (const b of bands) {
+              if (!b || !b.children.length) continue
+              app.renderer.render({ container: b, target: rt, clear: first, transform: tf })
+              first = false
+              b.visible = false
+            }
+            const bakeSp = new Sprite(rt)
+            bakeSp.scale.set(1 / RES)
+            bakeSp.position.set(mnX, mnY)
+            bakeSp.zIndex = -0.5   // above the sea (-1), under every live sprite
+            world.addChild(bakeSp)
+            landBaked = true
+          }
+        }
+
+        // band visibility: content at diagonal D spans screen-y [D*HH - maxLift, D*HH + GY],
+        // so a band is visible when its diagonal range intersects the viewport y-range
+        // widened by the tallest lift (the summit pokes ~26 diagonals up-screen).
+        const cullBands = () => {
+          if (landBaked) return
+          const y0 = (0 - world.y) / ZOOM, y1 = (app.screen.height - world.y) / ZOOM
+          const b0 = Math.floor((y0 / HH - 4) / BANDW), b1 = Math.floor((y1 / HH + 30) / BANDW)
+          for (let b = 0; b < bands.length; b++) {
+            const c = bands[b]
+            if (c) c.visible = b >= b0 && b <= b1
+          }
+        }
+
+        // ---- P0 · THE VAST VIRTUAL SEA: open ocean everywhere dsAt<0, out to WORLD_R.
+        // The pool draws only the tiles the viewport can see; far zooms step to block
+        // sprites (2x/4x/8x tiles) — the micro-texture is subpixel there and the depth
+        // ramp + patch drift carry the read. Every sprite's look is a pure function of
+        // its tile, so refills are pixel-stable as the camera moves.
+        // TWO sea containers: per-frame tint churn (animSwells) dirties a container's
+        // whole batch, so the animated swell ring lives apart from the static field —
+        // the big static batch uploads once and stays cached (this was the 16fps:
+        // one container meant every frame re-batched every sea sprite). The live ring
+        // tightens at far zoom, where per-tile shimmer is subpixel anyway.
+        const seaLive = new Container()
+        seaLive.zIndex = -0.9
+        seaLive.sortableChildren = true
+        world.addChild(seaLive)
+        const seaPool: Sprite[] = []       // static field pool (seaLayer)
+        const seaPoolL: Sprite[] = []      // animated ring pool (seaLive)
+        refreshSea = () => {
+          const vw = app.screen.width, vh = app.screen.height
+          const blk = ZOOM >= 0.5 ? 1 : ZOOM >= 0.24 ? 2 : ZOOM >= 0.11 ? 4 : 8
+          const liveD = ZOOM < 0.35 ? 14 : DEPTH_RANGE + 12
+          // unproject the viewport corners (sea sits at lift 0 — pure 2:1 math)
+          const wx0 = (0 - world.x) / ZOOM, wx1 = (vw - world.x) / ZOOM
+          const wy0 = (0 - world.y) / ZOOM, wy1 = (vh - world.y) / ZOOM
+          const txMin = Math.floor((wx0 / HW + wy0 / HH) / 2) - blk * 2
+          const txMax = Math.ceil((wx1 / HW + wy1 / HH) / 2) + blk * 2
+          const tyMin = Math.floor((wy0 / HH - wx1 / HW) / 2) - blk * 2
+          const tyMax = Math.ceil((wy1 / HH - wx0 / HW) / 2) + blk * 2
+          waterS.length = 0
+          let used = 0, usedL = 0
+          const place = (px: number, py: number, pd: number, pb: number) => {
+            const live = pd > -liveD
+            let sp: Sprite
+            if (live) {
+              sp = seaPoolL[usedL] ?? (seaPoolL[usedL] = seaLive.addChild(new Sprite()))
+            } else {
+              sp = seaPool[used] ?? (seaPool[used] = seaLayer.addChild(new Sprite()))
+            }
+            const m = configSeaTile(sp, px, py, pd, waterV, undefined, pb)
+            if (!m) { sp.visible = false; return }
+            sp.visible = true
+            if (live) { waterS.push(m); usedL++ } else used++
+          }
+          const t0x = Math.floor(txMin / blk) * blk, t0y = Math.floor(tyMin / blk) * blk
+          for (let by2 = t0y; by2 <= tyMax; by2 += blk) {
+            for (let bx2 = t0x; bx2 <= txMax; bx2 += blk) {
+              const mx = bx2 + (blk - 1) / 2, my = by2 + (blk - 1) / 2
+              const ddx = mx - CX, ddy = my - CY
+              if (ddx * ddx + ddy * ddy > WORLD_R * WORLD_R) continue
+              const dsC = dsAt(mx, my)
+              if (dsC > blk * 1.5 + 1) continue                 // fully land
+              if (blk === 1) { if (dsC <= 0) place(mx, my, dsC, 1); continue }
+              // the abyss is flat-ramped — big blocks are invisible there. The steep
+              // ramp ring must stay fine or its value steps staircase at block scale.
+              if (dsC < -(DEPTH_RANGE + blk * 1.5)) { place(mx, my, dsC, blk); continue }
+              // ramp ring / shoreline: resolve at fine grain so the coast + depth ramp
+              // keep their exact per-tile edges (2x inside the ring at far zooms)
+              const fine = dsC < -(blk * 1.5 + 1) && blk >= 4 ? 2 : 1
+              for (let ty2 = by2; ty2 < by2 + blk; ty2 += fine) {
+                for (let tx2 = bx2; tx2 < bx2 + blk; tx2 += fine) {
+                  const fx2 = tx2 + (fine - 1) / 2, fy2 = ty2 + (fine - 1) / 2
+                  const d2 = dsAt(fx2, fy2)
+                  if (d2 <= 0) place(fx2, fy2, d2, fine)
+                }
+              }
+            }
+          }
+          for (let i = used; i < seaPool.length; i++) seaPool[i].visible = false
+          for (let i = usedL; i < seaPoolL.length; i++) seaPoolL[i].visible = false
+        }
+        refreshSea()
+        cullBands()
+
         app.ticker.add(() => {
           const t = performance.now() / 1000
+          cullBands()
           animSwells(waterS, t, () => 0)
           // ember pulse: slow independent breathing per core tile
           for (const g of glows) g.sp.alpha = g.a * (0.72 + 0.28 * Math.sin(t * 1.3 + g.ph))
@@ -2965,6 +3166,7 @@ export default function IslandMapIso() {
         vig.width = vw * 1.5; vig.height = vh * 1.5; vig.position.set(-vw * 0.25, -vh * 0.25)
         world.x = vw / 2 - isoX(camTx, camTy) * ZOOM
         world.y = vh * 0.5 - isoY(camTx, camTy) * ZOOM
+        refreshSea()   // a grown viewport needs more pooled ocean under it
       }
       resizeFx()
       app.renderer.on('resize', resizeFx)
