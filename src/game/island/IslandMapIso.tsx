@@ -1122,20 +1122,16 @@ export default function IslandMapIso() {
             // uniform band read as a string of lozenges — reviewer verdict). Floor
             // 1.2 keeps the diagonal core edge-connected.
             const wMod = 0.85 + 0.35 * vnoise(tx / 5 + 21, ty / 5 + 7)
-            // THE MOUTH IS A RIVER'S BIRTH (Ash: larger flowing lava out of the mouths):
-            // the ribbon swells to ~2.5x width where it leaves each jaw, tapering to the
-            // normal run over ~7 tiles — a gushing delta at the maw, not a trickle
-            const nmW = Math.min(
-              Math.hypot(tx - MOUTH_R[0], ty - MOUTH_R[1]),
-              Math.hypot(tx - MOUTH_L[0], ty - MOUTH_L[1]))
-            const mBoost = 1 + 1.5 * Math.max(0, 1 - nmW / 7)
-            const isLava = !NOCONE && !onCross && lavaT.length > 0 && (ld < 1.45 * wMod * mBoost || (L > 0 && ck > 0.32))
+            // (the mouth-delta widening is DEAD — swelling the ribbon at the steep
+            // birth benches rasterized into exactly the blocky clutter Ash circled;
+            // the birth's gush lives in the stream vein now, which follows the slope)
+            const isLava = !NOCONE && !onCross && lavaT.length > 0 && (ld < 1.45 * wMod || (L > 0 && ck > 0.32))
             // the bed MATERIAL swap only on rock and sand — on grass a hard swap
             // rasterizes into a dark checker along the diagonal (the same disease
             // the molten core had); the meadow chars by TINT BLEND instead (the
             // beach delta's own recipe), which cannot checker
             const grassy = !sand && band < 1
-            const isBed = !NOCONE && !isLava && (onCross || ((ld < 2.1 * (1 + 0.6 * Math.max(0, 1 - nmW / 7)) || (L > 0 && ck > 0.4)) && !grassy))
+            const isBed = !NOCONE && !isLava && (onCross || ((ld < 2.1 || (L > 0 && ck > 0.4)) && !grassy))
             // the worn path wears dry sand through the meadow (grass ring only, never
             // up the cone or over the beach's own sand)
             // paths may cross the grassy cone toe (the lawn IS mostly toe) — never the
@@ -1642,50 +1638,21 @@ export default function IslandMapIso() {
             glows.push({ sp: wglow, ph: 2.9, a: 0.24 })
           } catch { /* west head piece not on disk yet */ }
 
-          // THE MOUTH POURS v3 (the v2 sheets rendered BEHIND the head — its zIndex
-          // carries a lift term mine lacked, so nothing visibly changed): per mouth
-          // ONE TilingSprite waterfall of molten texture whose tilePosition SCROLLS
-          // downward every frame — continuous, unmistakable flow — drawn ABOVE the
-          // head so it pours over the lower lip, from inside the maw down onto the
-          // gushing delta. Falling gobs + a breathing glow ride it.
-          if ((sideL.length || sideW.length)) {
-            const pfam = sideL.length ? sideL : sideW
+          // THE MOUTH GLOW (the vertical pour sheets are DEAD — a plumb-vertical
+          // column reads wrong in an iso world where lava descends a SLOPE; the
+          // river's birth now lives in the stream vein, which follows the real
+          // slope and gushes widest at the jaw). Each maw keeps its breathing fire.
+          {
             const zG = 219 * 4000 + liftOf(eLvl(118, 101)) * 2 + 1440
             const zW = 219 * 4000 + liftOf(Math.max(0, eLvl(101, 118))) * 2 + 1440
-            const pours: [number, number, number, number, number, number][] = [
-              // [x, yTop, height, width, phase, z]
-              [565, 3065, 118, 46, 0.2, zG],     // the gate jaw → its delta (head moved with it)
-              [-569, 3046, 124, 46, 0.35, zW],   // the west jaw → its delta
-            ]
-            for (const [px3, py3, ph3, pw3, sd, z3] of pours) {
-              const tex = pfam[Math.floor(sd * pfam.length) % pfam.length]
-              const src = new Texture({ source: tex.source, frame: new Rectangle(0, 18, 64, Math.min(46, tex.height - 18)) })
-              const sheet = new TilingSprite({ texture: src, width: pw3, height: ph3 })
-              sheet.anchor.set(0.5, 0)
-              sheet.position.set(px3, py3)
-              sheet.tint = 0xffa640                    // the burning-fall language
-              sheet.tileScale.set(pw3 / 64, 1)
-              sheet.zIndex = z3
-              world.addChild(sheet)
-              pourSheets.push({ sp: sheet, spd: 46 + 18 * sd })
+            for (const [mx3, my3, sd, z3] of [[565, 3062, 0.2, zG], [-569, 3044, 0.35, zW]] as [number, number, number, number][]) {
               const fg = new Sprite(foamTex)
               fg.anchor.set(0.5, 0.5); fg.blendMode = 'add'
-              fg.tint = 0xff9036; fg.width = pw3 * 2.6; fg.height = ph3 + 44; fg.alpha = 0.3
-              fg.position.set(px3, py3 + ph3 * 0.5)
-              fg.zIndex = z3 + 2
+              fg.tint = 0xff9036; fg.width = 120; fg.height = 80; fg.alpha = 0.3
+              fg.position.set(mx3, my3)
+              fg.zIndex = z3
               world.addChild(fg)
-              glows.push({ sp: fg, ph: sd * 6, a: 0.26 })
-              // the falling gobs: bright molten lumps riding the fall top→bottom
-              for (let k = 0; k < 4; k++) {
-                const gob = new Sprite(foamTex)
-                gob.anchor.set(0.5, 0.5); gob.blendMode = 'add'
-                gob.tint = k % 2 ? 0xffd060 : 0xffb040
-                gob.width = pw3 * (0.5 + 0.3 * hash(k, sd)); gob.height = 15 + 10 * hash(sd, k)
-                gob.position.set(px3 + (hash(k * 3, sd) - 0.5) * pw3 * 0.55, py3)
-                gob.zIndex = z3 + 3
-                world.addChild(gob)
-                pourPulses.push({ sp: gob, y0: py3 - 4, h: ph3 + 12, spd: 0.55 + 0.3 * hash(k, sd * 7), ph: k / 4 + sd })
-              }
+              glows.push({ sp: fg, ph: sd * 6, a: 0.28 })
             }
           }
         } catch { /* relief disabled */ }
@@ -3141,13 +3108,16 @@ export default function IslandMapIso() {
               const a = path[i], b = path[Math.min(path.length - 1, i + SEGN)]
               const len = Math.hypot(b.x - a.x, b.y - a.y)
               if (len < 8) continue
-              const seg = new TilingSprite({ texture: src0, width: len + 10, height: 34 })
+              // the birth GUSHES: widest at the jaw (i=0), tapering to the run's
+              // steady vein over the first ~2 segments — the slope-following pour
+              const hgt = 30 + 26 * Math.max(0, 1 - i / 18)
+              const seg = new TilingSprite({ texture: src0, width: len + 10, height: hgt })
               seg.anchor.set(0, 0.5)
               seg.position.set(a.x, a.y)
               seg.rotation = Math.atan2(b.y - a.y, b.x - a.x)
               seg.tint = 0xffa640
-              seg.alpha = 0.85
-              seg.tileScale.set(0.6, 34 / src0.height)
+              seg.alpha = 0.88
+              seg.tileScale.set(0.6, hgt / src0.height)
               // +2 rows: the fronting bench tiles were drawing OVER the vein at every
               // lip — the exact dark breaks Ash called "broken chunks"
               seg.zIndex = Math.max(a.z, b.z) + 8000 + 18
@@ -3414,10 +3384,9 @@ export default function IslandMapIso() {
             p.sp.y = p.y0 + u * p.h
             p.sp.alpha = 0.55 * Math.min(1, u * 4) * Math.min(1, (1 - u) * 3)
           }
-          // the waterfalls flow: the molten texture scrolls down continuously
-          for (const s of pourSheets) s.sp.tilePosition.y = (t * s.spd) % 4096
-          // the stream veins run downstream along the whole flow
-          for (const s of streamSegs) s.sp.tilePosition.x = -((t * s.spd) % 4096)
+          // the stream veins run DOWNSTREAM: +x in each segment's local frame points
+          // a→b along the path — the first sign (-x) played the river backwards (Ash)
+          for (const s of streamSegs) s.sp.tilePosition.x = (t * s.spd) % 4096
           // the canopy breathes: gentle per-plant rotation about the rooted base
           for (const s of sways) s.sp.rotation = s.amp * Math.sin(t * s.w + s.ph)
           // moored boats ride the basin's slow swell
