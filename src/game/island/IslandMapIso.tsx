@@ -2112,7 +2112,7 @@ export default function IslandMapIso() {
         const HARBOR_ON = params.get('harbor') !== '0'
         if (HARBOR_ON) try {
           const hb: Record<string, Texture> = {}
-          for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'boathouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'deck-top-v5-0', 'deck-top-v5-1', 'deck-top-v5-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b', 'house-v4', 'lamp-v4', 'stall-a', 'stall-b', 'cargo-b', 'fishing-boat']) {
+          for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'boathouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'deck-top-v5-0', 'deck-top-v5-1', 'deck-top-v5-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b', 'house-v4', 'lamp-v4', 'stall-a', 'stall-b', 'cargo-b', 'fishing-boat', 'court-stone-a', 'gate-arch']) {
             try {
               const t: Texture = await Assets.load(`/art/island/harbor/${n}.png?v=5`)
               t.source.scaleMode = 'nearest'; hb[n] = t
@@ -2128,10 +2128,12 @@ export default function IslandMapIso() {
           if (hb['stone-block-a'] && hb['plank-block-a'] && HARBOR.tiles.length) {
             const topOf = (t: Texture) => new Texture({ source: t.source, frame: new Rectangle(0, 0, 64, 36) })
             const faceOf = (t: Texture) => new Texture({ source: t.source, frame: new Rectangle(0, 18, 64, 46) })
-            // ONE stone variant for the whole quay (mixing light/dark tops printed
-            // a checkerboard)
-            const stoneT = [topOf(hb['stone-block-a']), topOf(hb['stone-block-a'])]
-            const stoneF = faceOf(hb['stone-block-a'])
+            // the ARRIVAL COURT paves with the v6 warm sandstone (the old
+            // quay-block's fitted-stone top was itself a checkerboard — 25 tiles
+            // of it screamed); one variant, uniform, value-drifted like the planks
+            const courtT = hb['court-stone-a']
+            const stoneT = courtT ? [topOf(courtT), topOf(courtT)] : [topOf(hb['stone-block-a']), topOf(hb['stone-block-a'])]
+            const stoneF = courtT ? faceOf(courtT) : faceOf(hb['stone-block-a'])
             // the deck TOP is the REAL beach-pier wood (Ash: "an actual normal
             // port-wood plank texture brown") — three plank diamonds harvested
             // straight off the approved beach pier's deck, hash-picked per tile,
@@ -2302,6 +2304,14 @@ export default function IslandMapIso() {
                 top.anchor.set(0.5, 0.5)
                 top.position.set(bx2, byTop)
                 top.zIndex = zB + 5
+                if (ht.mat === 'stone') {
+                  // the arrival court: the warm sandstone carries its own tone —
+                  // only the planks' quiet value drift rides on top
+                  const dv = 0.95 + 0.09 * vnoise(ht.tx / 5 + 8, ht.ty / 5 + 3)
+                  const vv2 = Math.min(255, Math.round(255 * dv))
+                  top.tint = (vv2 << 16) | (vv2 << 8) | vv2
+                  top.scale.set(1.06)
+                }
                 if (ht.mat === 'plank') {
                   // quiet LOW-FREQUENCY value drift is ALL the extra variation —
                   // the wood grain itself carries the texture (driftwood lives in
@@ -2346,8 +2356,9 @@ export default function IslandMapIso() {
                   // over water so the beach stays open to walk off.
                   if (oy === 1 && dsAt(ht.tx + ox, ht.ty + oy) > 0) continue
                   // ONLY the ship's actual berth span stays unbounded (reviewer:
-                  // every other raised water edge must read bounded)
-                  if (oy === 1 && ht.ty === rootY + 1 && ht.tx >= rootX + 3 && ht.tx <= rootX + 7) continue
+                  // every other raised water edge must read bounded) — v6: the
+                  // grand pier's south face, the full hull span
+                  if (oy === 1 && ht.ty === rootY + 1 && ht.tx >= rootX + 3 && ht.tx <= rootX + 10) continue
                   const jx = ht.tx + ox * 0.42, jy = ht.ty + oy * 0.42
                   const sx = isoX(jx, jy), sy = isoY(jx, jy) + GY - ht.lift + 2
                   const z = (ht.tx + ht.ty) * 4000 + ht.lift * 2 + 716
@@ -2459,12 +2470,20 @@ export default function IslandMapIso() {
             // essentials — the bell, the lanterns, the beacon, the ship, two boats —
             // with room to breathe. The fresh art kit is phase 2.
             mount(pt['bell-frame'], deckCtr(HARBOR.bell), { sc: 0.5 })
+            // v7 SPICE · THE GATEWAY ARCH: the panther-banner arch spans the
+            // grand pier at its root — every arrival walks under the school's
+            // own colors (its baked plank base sits flush on the pier deck)
+            mount(hb['gate-arch'], [HARBOR.root[0] + 2.6, HARBOR.root[1] + 0.5], { sc: 0.82, glow: true })
             // v5 BUSTLE (Ash: "grand... bustling harbor port"): the full cargo yard
             // returns — freight at every work point, TWO freight silhouettes
             // alternating (one stamp repeated was the old harbor's cheap tell)
             const cargoKit = [pt['cargo-a'], hb['cargo-b']].filter((t): t is Texture => !!t)
-            for (let ci = 0; ci < HARBOR.cargo.length; ci++) {
-              mount(cargoKit[ci % Math.max(1, cargoKit.length)], deckCtr(HARBOR.cargo[ci]), { sc: 0.62 + 0.16 * hash(ci * 3.1 + 1, ci * 1.7 + 2), flip: ci % 2 === 1 })
+            // pierhead freight snaps to interior deck; the JETTY stack mounts
+            // DIRECT — a 2-wide finger has no interior tile, and the snap dragged
+            // its crates onto the harbormaster's platform into the house (v7 bug)
+            if (cargoKit.length) {
+              mount(cargoKit[0], deckCtr(HARBOR.cargo[0]), { sc: 0.74 })
+              mount(cargoKit[1] ?? cargoKit[0], HARBOR.cargo[1], { sc: 0.58, flip: true })
             }
             // a working port stages freight where the ship loads: one more stack
             // on the T-head by the mooring bollards, waiting for the next hull
@@ -2581,7 +2600,10 @@ export default function IslandMapIso() {
             // root drifted onto the deck where the coast bulges)
             const inland = (dy: number, back: number): [number, number] => {
               const y = HARBOR.root[1] + dy
-              const wx = HARBOR.tiles.reduce((m, t2) => (t2.ty === Math.round(y) && t2.mat === 'plank' ? Math.min(m, t2.tx) : m), 999)
+              // any DECK tile (plank or the stone court) counts as the wharf edge:
+              // plank-only skipped the court's stone rows and "landward" resolved
+              // to the pierhead — the house mounted mid-pier (v6 regression)
+              const wx = HARBOR.tiles.reduce((m, t2) => (t2.ty === Math.round(y) && t2.mat !== 'rock' ? Math.min(m, t2.tx) : m), 999)
               // anchor to the wharf's own landward edge: the strip right behind the
               // deck is sand by construction. The old version walked INLAND hunting
               // for sand and, when the strip was narrow, ran out of guard steps and
@@ -2602,24 +2624,27 @@ export default function IslandMapIso() {
             // v4: ONE well-made harbormaster's house on the sand behind the quay —
             // driftwood walls, teal shutters, its own lantern — instead of the old
             // four competing silhouettes (boathouse/sign/shed/net-rack, all gone)
-            mount(hb['house-v4'], inland(1.6, 3.4), { deck: false, sc: 0.95, sink: 3 })
+            // v7: the harbormaster's house stands ON its stilt platform over the
+            // water — a stilt-port office, the pod built for exactly this
+            mount(hb['house-v4'], deckCtr([HARBOR.root[0] + 2, HARBOR.root[1] + 8]), { sc: 0.95 })
             // v5 BUSTLE · the MARKET ROW: two stalls on the sand north of the
             // apron, facing the boardwalk — Thor steps off the pier into a
             // WORKING waterfront (fruit + fish), the house anchoring the south.
             // Same sand-safe inland() anchor as the house so neither stall can
             // drift onto the deck or up the lawn.
-            // (rows must carry wharf planks for inland() to anchor — dy -4.2 had
-            // none and the fish stall fell back onto open coast, base over water)
-            mount(hb['stall-a'], inland(-2.6, 3.2), { deck: false, sc: 0.82, sink: 3 })
-            // the fishmonger works BESIDE the fishing jetty at the south end —
-            // the catch comes off the boats straight onto her ice barrels
-            mount(hb['stall-b'], inland(3.4, 2.6), { deck: false, sc: 0.82, sink: 3, flip: true })
+            // v7: BOTH stalls own the MARKET PLATFORM pod — a market over the
+            // water, one stall behind the other in the cluster grammar, deck
+            // tiles flat by construction so nothing can seam-clip
+            mount(hb['stall-a'], deckCtr([HARBOR.root[0] - 1, HARBOR.root[1] - 7]), { sc: 0.82 })
+            mount(hb['stall-b'], deckCtr([HARBOR.root[0] + 1, HARBOR.root[1] - 6]), { sc: 0.82, flip: true })
             // hauled a tile further up-beach: at the plan point the bow still
             // straddled the tide seam (final-sweep catch — neither beached nor
             // afloat reads wrong at every zoom)
             // (-1.1 overshot up-beach onto the GRASS — a hull on the lawn; -0.3
             // keeps the bow clear of the tide seam while staying on dry sand)
-            mount(hb['rowboat'], [HARBOR.rowboat[0] + 0.4, HARBOR.rowboat[1] - 0.2], { deck: false, sc: 0.8, flip: true, sink: 3 })
+            // v6: the esplanade is 2 tiles wider — haul the boat further up-beach
+            // so the hull clears the deck's landward lip
+            mount(hb['rowboat'], [HARBOR.rowboat[0] - 1.6, HARBOR.rowboat[1] - 0.2], { deck: false, sc: 0.8, flip: true, sink: 3 })
             // THE MINI-PORTS dressed (P5-lite): each landing wears its identity
             // from the same prop kit — nets north, cargo south, and the west
             // cove stays a QUIET beach (a hauled boat and one light, no built
@@ -2682,8 +2707,11 @@ export default function IslandMapIso() {
             // rides close in by the wharf; a third sloop stands off the T-head
             // in the deep lane, sun-bleached so the three hulls read as three
             // different working boats
-            boat(hb['fishing-boat'], [HARBOR.sloop[0] - 3.4, HARBOR.sloop[1] + 1.6], 0.72)
-            const sloop3Sp = boat(hb['sloop'], [HARBOR.bollards[0][0] + 2.6, HARBOR.bollards[0][1] - 2.6], 0.7)
+            // v7: the smack ties up along the FLEET SPUR's south face; the
+            // bleached third sloop stands off south of the pierhead, both in
+            // open water the network leaves visible
+            boat(hb['fishing-boat'], [HARBOR.sloop[0] - 4.5, HARBOR.sloop[1] - 0.6], 0.72)
+            const sloop3Sp = boat(hb['sloop'], [HARBOR.pennant[0] - 1, HARBOR.pennant[1] + 4], 0.7)
             if (sloop3Sp) sloop3Sp.tint = 0xd8c8a8
             // an afloat dinghy works the fishing jetty's seaward side
             boat(hb['rowboat'], [HARBOR.cargo[1][0] + 2.6, HARBOR.cargo[1][1] + 2.3], 0.6, true)

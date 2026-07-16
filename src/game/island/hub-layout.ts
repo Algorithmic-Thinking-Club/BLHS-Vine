@@ -479,58 +479,65 @@ export function initHubLayout() {
     // PROMENADE that always rests on solid sand, and straight rectangular PIER +
     // JETTY jutting seaward over the water (pilings under the sea span). It cannot
     // warp and cannot maroon a tile, by construction. HL 8 = low built edge.
+    // ---- THE STILT-PORT NETWORK (v7, Ash 2026-07-16: "grander harbors with
+    // NARROWER walkways but expansive and just as grand... not just boring old
+    // wood everywhere"). Not a slab: a NETWORK of narrow timber walkways over
+    // open water linking PLATFORM PODS, each pod one place with one job —
+    // water visible between every arm, the whole port sprawling across the bay:
+    //   - a small STONE ARRIVAL COURT on the waterline (the one stone moment)
+    //   - the GRAND PIER (2-wide) east to a 4x4 PIERHEAD, the ship's berth
+    //   - a NORTH WALK to the MARKET PLATFORM (stalls + bell), with a FLEET
+    //     SPUR where the working boats tie up
+    //   - a SOUTH WALK to the HARBORMASTER'S STILT PLATFORM (the house stands
+    //     OVER the water), the fishing jetty branching east off the walk
+    //   - the wide breakwater arc + lighthouse islet enclosing it all
     const HL = 8
     const ryN = ryMid - 6, ryS = ryMid + 6
-    // WL = the waterline (last-land tile) at the port's CENTRE row. The pier and
-    // all the dressing anchor here so the whole port sits ON the water where Thor
-    // lands — not set back on a beach.
+    // WL = the waterline (last-land tile) at the port's CENTRE row. QX = the
+    // network's spine, pushed 2 tiles SEAWARD: rooted at WL the court and pods
+    // sat ON the beach and dissolved into the sand read (v7 first cut) — a
+    // stilt-port stands over the WATER, tied to land by one gangway.
     const WL = rawWx(ryMid)
-    // THE BOARDWALK: one dead-STRAIGHT 3-wide promenade on the centre-row
-    // waterline axis. A built thing has one designed line — every coast-following
-    // variant (raw, smoothed, clamped) read as planks scattered along the beach.
-    // Where the coast bulges seaward the boardwalk fronts the beach (a seaside
-    // promenade); where it recedes the deck rides open water on its pilings —
-    // and because the strip is solid it can never maroon a tile. eAt stays as an
-    // array (all rows = WL) so every anchor below keeps its shape.
+    const QX = WL + 2
     const eAt: number[] = []
-    for (let y = ryN - 1; y <= ryS + 3; y++) eAt[y] = WL
-    for (let y = ryN; y <= ryS; y++) {
-      for (let x = WL - 1; x <= WL + 1; x++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
+    for (let y = ryN - 3; y <= ryS + 4; y++) eAt[y] = WL
+    // THE STONE ARRIVAL COURT first (push order wins the dedup): 3x3 over the
+    // shallows, the gangway's landing — the single material accent
+    for (let y = ryMid - 1; y <= ryMid + 1; y++) {
+      for (let x = QX - 1; x <= QX + 1; x++) push({ tx: x, ty: y, lift: HL, mat: 'stone', walk: true })
     }
-    // stair landings down to the beach — only on rows whose landward side is
-    // actually sand (the coast recedes south of the pier; a step into the sea
-    // is worse than no step)
-    for (const sy of [ryMid - 3, ryMid + 3]) {
-      if (rawWx(sy) >= WL) push({ tx: WL - 2, ty: sy, lift: Math.round(HL / 2), mat: 'plank', walk: true })
-    }
-    // THE ANNEX: a 3x3 stilt platform off the boardwalk's north end — the harbor
-    // office stands ON the wharf over the water (the sand strip behind the north
-    // walk is too thin for a building; on deck it reads as a stilt-village
-    // office, and the railing wraps it by the edge rules)
-    for (let x = WL + 2; x <= WL + 4; x++) for (let y = ryN; y <= ryN + 2; y++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
-    // THE APRON: the wharf widens to a 4-deep landing at the pier root (Thor lands here)
-    for (let x = WL - 1; x <= WL + 2; x++) for (let y = ryMid - 1; y <= ryMid + 2; y++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
-    // THE MAIN PIER: a straight 2-wide rectangle jutting seaward from the apron,
-    // ending in a 2x4 T-HEAD where the intro ship berths along the north face
-    const PLEN = 9
-    for (let x = WL + 3; x <= WL + PLEN; x++) for (let y = ryMid; y <= ryMid + 1; y++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
-    const HEADX = WL + PLEN + 2
-    for (let x = WL + PLEN + 1; x <= HEADX; x++) for (let y = ryMid - 1; y <= ryMid + 2; y++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
-    // THE FISHING JETTY: a short 2-wide finger to the south (1-wide gave props
-    // no supported tile and merged into the wharf edge)
+    // the GANGWAY: steps bridging the court back to the dry sand
+    push({ tx: QX - 2, ty: ryMid, lift: Math.round(HL / 2), mat: 'plank', walk: true })
+    push({ tx: QX - 3, ty: ryMid, lift: Math.round(HL / 4), mat: 'plank', walk: true })
+    // THE NORTH WALK: narrow, over the shallows, court -> market platform
+    for (let y = ryMid - 4; y <= ryMid - 2; y++) for (let x = QX; x <= QX + 1; x++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
+    // THE MARKET PLATFORM: a 5x4 pod — both stalls' floor, room to walk between
+    for (let y = ryMid - 8; y <= ryMid - 5; y++) for (let x = QX - 2; x <= QX + 2; x++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
+    // THE FLEET SPUR: 2-wide east off the market platform — the working boats
+    for (let x = QX + 3; x <= QX + 8; x++) for (let y = ryMid - 6; y <= ryMid - 5; y++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
+    // THE SOUTH WALK: court -> the harbormaster's water
+    for (let y = ryMid + 2; y <= ryMid + 5; y++) for (let x = QX; x <= QX + 1; x++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
+    // THE HARBORMASTER'S STILT PLATFORM: 4x4 pod OVER the water — the house
+    // stands on it (a stilt-port office, not a shack on the lawn)
+    for (let y = ryMid + 6; y <= ryMid + 9; y++) for (let x = QX; x <= QX + 3; x++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
+    // THE GRAND PIER: 2-wide, striding due east from the court...
+    const PLEN = 12
+    for (let x = QX + 2; x <= QX + PLEN; x++) for (let y = ryMid; y <= ryMid + 1; y++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
+    // ...into a 4x4 PIERHEAD pavilion, the ship's berth along its south face
+    const HEADX = QX + PLEN + 4
+    for (let x = QX + PLEN + 1; x <= HEADX; x++) for (let y = ryMid - 1; y <= ryMid + 2; y++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
+    // THE FISHING JETTY: a short 2-wide finger branching east off the south walk
     const jY = ryMid + 4
-    const jE = eAt[jY]
-    for (let x = jE + 2; x <= jE + 5; x++) for (let y = jY; y <= jY + 1; y++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
-    // the breakwater: a boulder arm enclosing the basin. GEOMETRY CHECKED against
-    // the pier: the T-head spans x WL+10..11, rows ryMid-1..+2, and each riprap
-    // sprite spreads ~2 tiles — the old arc at x+13 on those same rows swallowed
-    // the T-head AND the moored ship. This arc keeps >=4.5 tiles of clear water
-    // off the T-head and berth at every point.
+    for (let x = QX + 2; x <= QX + 5; x++) for (let y = jY; y <= jY + 1; y++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
+    // the breakwater: a boulder arm enclosing the basin — thrown WIDE for the
+    // v6 scale. GEOMETRY CHECKED against the new pierhead (ends x WL+14, rows
+    // ryMid-2..+3): every arc point keeps >=4.5 tiles of clear water off the
+    // pierhead and the berth, and the basin reads vast inside it.
     const BW: [number, number][] = [
-      [15, 3.5], [16, 2], [16.5, 0.3], [16.4, -1.5], [15.8, -3.2], [14.8, -4.8],
-      [13.4, -6.1], [11.8, -7.2], [10, -8], [8.2, -8.4],
+      [19.5, 4.8], [20.8, 2.6], [21.4, 0.2], [21.2, -2.2], [20.4, -4.5],
+      [19, -6.6], [17.1, -8.4], [14.8, -9.8], [12.2, -10.8], [9.4, -11.3], [6.6, -11.4],
     ]
-    for (const [ox, oy] of BW) push({ tx: WL + ox, ty: ryMid + oy, lift: 16, mat: 'rock', walk: false })
+    for (const [ox, oy] of BW) push({ tx: QX + ox, ty: ryMid + oy, lift: 16, mat: 'rock', walk: false })
 
     // THE MINI-PORTS (P5-lite): the other three landings get their skeleton
     // built form as MORE HARBOR TILES — the deck renderer (planks, skirts,
@@ -569,43 +576,41 @@ export function initHubLayout() {
 
     HARBOR = {
       tiles,
-      quayRect: [WL - 1, ryN, 3, ryS - ryN + 1],
-      root: [WL + 1, ryMid],                    // the apron — where Thor lands
-      steps: [WL - 2, ryMid],
-      // the intro ship moors along the pier's SOUTH face, mid-pier: the south
-      // side is IN FRONT in painter order, so the full hull reads against the
-      // open water (on the north face the deck occluded the hull and the ship
-      // read as flags stuck on the pier)
-      berth: [WL + 6, ryMid + 2.35],
-      // COMPOSITION = stations with BARE deck between (the beach's cluster-gap
-      // rhythm): bell greets on the wharf, cargo+crane load the ship along the
-      // pier, the jetty works fish. Empty planking between = the composition.
-      // solid props live on the WIDE wharf/apron (a 2-wide pier has no interior
-      // tile for the placement-snap, so props there overhang the edge). ONE big
-      // silhouette per zone — bell NORTH, crane+cargo at the apron, jetty SOUTH —
-      // so no two verticals merge into a smear.
-      bell: [eAt[ryN + 1], ryN + 1],            // arrivals bell at the wharf's far north end
-      crane: [WL, ryMid + 1],                   // on the apron, working the cargo yard
+      quayRect: [QX - 2, ryMid - 8, 5, 18],
+      root: [QX, ryMid],                        // the stone court — where Thor lands
+      steps: [QX - 3, ryMid],
+      // the intro ship moors along the grand pier's SOUTH face, mid-pier: the
+      // south side is IN FRONT in painter order, so the full hull reads against
+      // the open water
+      berth: [QX + 7, ryMid + 1.85],
+      // COMPOSITION = one pod, one job: the bell greets at the court, the
+      // market platform sells, the fleet spur moors, the harbormaster's stilt
+      // platform holds the house, freight loads at the pierhead, the jetty
+      // works fish. Open water between the arms IS the composition.
+      bell: [QX - 1, ryMid - 1],                // arrivals bell on the court's north corner
+      crane: [QX, ryMid + 1],                   // legacy anchor (crane retired)
       lanterns: [
-        [eAt[ryMid - 2], ryMid - 2],            // wharf light mid-walk (clear of the bell at ryN+1)
-        [HEADX - 0.4, ryMid + 1.6],             // T-head mooring light
-        [eAt[ryMid + 3], ryMid + 3],            // south-wharf light between apron and jetty
+        [QX - 2, ryMid - 8],                    // market platform corner
+        [QX, ryMid + 6],                        // harbormaster platform corner
+        [QX + 7.5, ryMid - 0.45],               // mid-pier walk light (the long stride needs a beat)
+        [HEADX - 0.6, ryMid - 0.6],             // pierhead mooring light, north corner
+        [HEADX - 0.6, ryMid + 1.6],             // pierhead mooring light, south corner
       ],
-      // ONE freight stack at the apron (two identical stacks read as a stamp) + a jetty crate
+      // freight staged where hulls actually load: the pierhead yard + a jetty crate
       cargo: [
-        [WL - 0.6, ryMid + 2],
-        [jE + 3, jY + 1],
+        [QX + PLEN + 2.5, ryMid + 0.5],
+        [QX + 4, jY + 1],
       ],
-      sloop: [WL + 8, ryMid - 4.2],             // at anchor mid-basin, clear water all around
-      sloop2: [jE + 7, jY + 2.4],               // the second fisher off the jetty head
+      sloop: [QX + 9, ryMid - 3.2],             // at anchor in the basin between pier and spur
+      sloop2: [QX + 8, jY + 2.4],               // the second fisher off the jetty head
       // hauled up WELL clear of the deck: at -1.4 the hull's bbox rode up over
       // the boardwalk's south rows and read glitched-onto-the-deck (Ash)
       rowboat: [rawWx(ryS + 2) - 3.2, ryS + 2.6],
-      beacon: [WL + 8.2, ryMid - 8.4],          // the harbor light at the breakwater's north tip
-      pennant: [HEADX, ryMid],                  // ON the T-head edge tile
+      beacon: [QX + 6.6, ryMid - 11.4],         // the harbor light at the wide arc's north tip
+      pennant: [HEADX, ryMid + 0.5],            // ON the pierhead's seaward edge
       // mooring cleats ONLY where a boat actually ties up
-      edgePosts: [[jE + 4.6, jY + 0.5]],
-      bollards: [[WL + PLEN, ryMid - 0.3], [WL + PLEN, ryMid + 1.3]],
+      edgePosts: [[QX + 3.6, jY + 0.5], [QX + 4, ryMid - 6.6], [QX + 7, ryMid - 6.6]],
+      bollards: [[QX + PLEN + 1, ryMid + 2.6], [HEADX, ryMid - 1.6]],
     }
   }
   LIGHTHOUSE = [CX + Math.cos(-1.78) * (coastR(-1.78) - 3.5), CY + Math.sin(-1.78) * (coastR(-1.78) - 3.5)]
