@@ -1532,48 +1532,46 @@ export default function IslandMapIso() {
         // pour; the piece owns the panther. The maw's fire breathes as a live glow.
         try {
           if (params.get('norelief')) throw new Error('relief off (clean-structure captures)')
-          // THE GATE HEAD — exact placement: the 192px anchor crop was taken at
-          // zoom .62 cam (100,84), screen (599,354); unprojected → world rect
-          // (376.5, 2895.6) size 309.7. Mounting there restores the inpaint 1:1.
+          // THE GATE HEAD — the TWIN GUARDIAN: the west patch MIRRORED (temple gates
+          // pair identical carved heads; the mirror makes the pair matched by
+          // construction). Its painted pour flows lower-right over the gate's own
+          // molten gutter; the mouth-fire carries the light through the flip.
+          // Three gate-site inpaints painted plain rock (the context is too uniform
+          // to hook a head) — the twin is the working construction, stop-loss honored.
           try {
-            const gateT: Texture = await Assets.load('/art/island/heads/head-gate.png')
+            const gateT: Texture = await Assets.load('/art/island/heads/patch-west.png')
             gateT.source.scaleMode = 'nearest'
             const gp = new Sprite(gateT)
             gp.anchor.set(0.5, 0.5)
-            // MIRRORED: the D piece roars to the left; the gate's down-slope runs
-            // lower-right. Its light is the mouth-fire (from below), so the flip
-            // keeps the read — the subtle rim trade was judged worth the drama.
-            gp.scale.set(-1.95, 1.95)
-            gp.position.set(376.5 + 154.9, 2895.6 + 144)
+            gp.scale.set(-1 / 0.62, 1 / 0.62)
+            gp.position.set(531.4, 3038)
             gp.zIndex = (118 + 101) * 4000 + liftOf(eLvl(118, 101)) * 2 + 1400
             world.addChild(gp)
             const gglow = new Sprite(foamTex)
             gglow.anchor.set(0.5, 0.5); gglow.blendMode = 'add'
             gglow.tint = 0xff7a26; gglow.width = 130; gglow.height = 80; gglow.alpha = 0.32
-            gglow.position.set(376.5 + 155, 2895.6 + 210)
+            gglow.position.set(531.4 + 35, 3038 + 95)
             gglow.zIndex = gp.zIndex + 1
             world.addChild(gglow)
             glows.push({ sp: gglow, ph: 1.3, a: 0.28 })
           } catch { /* gate head piece not on disk yet */ }
-          // THE WEST HEAD — tile-anchored at its own site (A: the lower-left-facing
-          // sibling; its down-slope runs SSW, so the unmirrored facing is correct)
+          // THE WEST HEAD — the INPAINTED PATCH: the carved head painted into this
+          // site's own captured pixels (torn edges, block grammar continued into the
+          // face), alpha-cut to its mask, mounted at the measured world rect
+          // (capture: zoom .62 cam (84,100), crop @ (594,334) → world (-655.5, 2863.4))
           try {
-            const westT: Texture = await Assets.load('/art/island/heads/head-west.png')
+            const westT: Texture = await Assets.load('/art/island/heads/patch-west.png')
             westT.source.scaleMode = 'nearest'
-            const dxh = HEAD_L[0] - CX, dyh = HEAD_L[1] - CY
-            const dh = Math.hypot(dxh, dyh)
-            const mtx = HEAD_L[0] + (dxh / dh) * 1.0, mty = HEAD_L[1] + (dyh / dh) * 1.0
-            const Lw = eLvl(Math.round(mtx), Math.round(mty))
             const wp = new Sprite(westT)
-            wp.anchor.set(0.5, 0.62)
-            wp.scale.set(1.45)
-            wp.position.set(isoX(mtx, mty) + 8, isoY(mtx, mty) - liftOf(Math.max(0, Lw)) + GY - 25)
-            wp.zIndex = (Math.round(mtx) + Math.round(mty)) * 4000 + liftOf(Math.max(0, Lw)) * 2 + 1400
+            wp.anchor.set(0, 0)
+            wp.scale.set(1 / 0.62)
+            wp.position.set(-655.5, 2863.4)
+            wp.zIndex = (101 + 118) * 4000 + liftOf(Math.max(0, eLvl(101, 118))) * 2 + 1400
             world.addChild(wp)
             const wglow = new Sprite(foamTex)
             wglow.anchor.set(0.5, 0.5); wglow.blendMode = 'add'
             wglow.tint = 0xff7a26; wglow.width = 110; wglow.height = 70; wglow.alpha = 0.3
-            wglow.position.set(wp.x - 30, wp.y + 30)
+            wglow.position.set(-655.5 + 118, 2863.4 + 245)
             wglow.zIndex = wp.zIndex + 1
             world.addChild(wglow)
             glows.push({ sp: wglow, ph: 2.9, a: 0.26 })
