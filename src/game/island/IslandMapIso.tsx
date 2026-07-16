@@ -4,7 +4,7 @@ import {
   isoX, isoY, hash, vnoise, shadeHex, rampAt, tintFor,
   loadWaterVariants, seaTile, configSeaTile, animSwells, type SwellSprite, HW, HH, DEPTH_RANGE,
 } from '../ocean'
-import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, MOUTH_L, MOUTH_R, HEAD_L } from './terrain'
+import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, MOUTH_L, MOUTH_R } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
 import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, pathD, onPathTile, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD, RIVER, FALLS, FORD, STELES, TONGUE, PORTS, MINI_PORTS, TIDEPOOLS, WEST_OVERLOOK } from './hub-layout'
 import { reportIslandAudit } from './island-audit'
@@ -1036,6 +1036,29 @@ export default function IslandMapIso() {
             }
           }
         }
+        // ---- P4 · THE CANOPY MASSES (composed, each with a reason — never sprinkle).
+        // c3's whole read is carried by palm MASSES with clearings between them; the
+        // ground darkens under each mass (real canopy AO) and the palms plant densest
+        // at each core, thinning to understory at the fringe. Open by design: the E
+        // arrival corridor, the gate forecourt, and the cast-shadow wedge.
+        const MASSES: [number, number, number, string][] = [
+          [132, 72, 8, 'frames the arrival bay from the north'],
+          [144, 102, 6, 'flanks the future steles walk on its south side'],
+          [72, 66, 9, 'the NW back-mass — the far-zoom green anchor'],
+          [58, 96, 7, 'the west meadow band'],
+          [84, 131, 8, 'south of the west flow — closes the SW corner'],
+          [124, 127, 7, 'between the gate approach and the south coast'],
+          [104, 58, 6, 'the north toe grove'],
+        ]
+        const massK = (tx2: number, ty2: number) => {
+          let k = 0
+          for (const [mx, my, r] of MASSES) {
+            const d = Math.hypot(tx2 - mx, ty2 - my)
+            k = Math.max(k, 1 - smooth(r * 0.55, r * 1.15, d))
+          }
+          return k
+        }
+
         for (let ty = 0; ty < ROWS; ty++) {
           for (let tx = 0; tx < COLS; tx++) {
             const dx = tx - CX, dy = ty - CY
@@ -1163,7 +1186,8 @@ export default function IslandMapIso() {
                   0.1 + 0.3 * vnoise(tx / 13 + 2, ty / 13 + 6) + 0.42 * zone + (vnoise(tx / 2.1 + 5, ty / 2.1 + 9) - 0.5) * 0.06))
                 const cl = L > PLAT_L ? coneLit(tx, ty) : 0
                 const dry = Math.max(0, 1 - pD / 1.2) * 0.32
-                const vShade = 1 - 0.15 * smooth(0.45, 0.95, vegK(tx, ty))
+                const vShade = (1 - 0.15 * smooth(0.45, 0.95, vegK(tx, ty)))
+                  * (1 - 0.13 * smooth(0.25, 0.9, massK(tx, ty)))   // canopy AO under the masses
                 // value range widened (P1 round 2): the melt deleted the lattice darks,
                 // so the LARGE fields must own real range — deeper zone swing + rake,
                 // and the cast shadow multiplied in (floor ~0.78, above the crush)
@@ -1642,6 +1666,73 @@ export default function IslandMapIso() {
         const shadTex = radial(64, [[0, 'rgba(24,18,54,0.95)'], [0.72, 'rgba(24,18,54,0.6)'], [1, 'rgba(24,18,54,0)']])
         const shadAng = Math.atan2(SHADOW.dy * 0.5, SHADOW.dx)   // squashed into iso ground plane
         const TALL = new Set(['palm-b', 'coco-v1', 'coco-v2', 'coco-v3', 'fan-1', 'tfern-1', 'palm-a'])
+
+        // ---- P4 · PLANTING THE MASSES: the accepted palm family (style-anchored on the
+        // approved beach palms) composed into the MASSES — dense tall palms at each
+        // core, understory + ferns at the fringe, every plant grounded by a violet
+        // cast shadow along the ONE shadow direction, the whole canopy swaying.
+        // (Runs AFTER vegT/sways/shadTex exist — the first draft ran before them and
+        // the TDZ throw silently killed everything downstream of the planter.)
+        const plantMasses = () => {
+          const TALLP = ['palm-b', 'coco-v1', 'coco-v2', 'coco-v3', 'fan-1', 'tfern-1', 'palm-a']
+          const LOWP = ['bush-a', 'bush-b', 'fernclump-1', 'banana-1', 'heliconia-1', 'tuft-1', 'tuft-2']
+          const placed: [number, number][] = []
+          const rej = { tex: 0, lvl: 0, lava: 0, head: 0, coast: 0, space: 0, ok: 0 }
+          const put2 = (name: string, px2: number, py2: number, tall: boolean, h2: number) => {
+            const t = vegT[name]
+            if (!t) { rej.tex++; return }
+            const rx = Math.round(px2), ry = Math.round(py2)
+            const L2 = eLvl(rx, ry)
+            // the meadow ring + the grassy lower toe (c3's palms CLIMB the flank);
+            // never sand, lava, heads, bare cone rock, or water
+            if (L2 < 1 || L2 > PLAT_L + 8) { rej.lvl++; return }   // benches OK — coast palms are the tropics
+            if (!NOCONE && (lavaDist(px2, py2) < 3.5 || coneBand(rx, ry) > 0)) { rej.lava++; return }
+            if (inHeadBBox(rx, ry)) { rej.head++; return }
+            if (dsAt(px2, py2) < 3) { rej.coast++; return }
+            for (const [qx2, qy2] of placed) {
+              if (Math.hypot(px2 - qx2, py2 - qy2) < (tall ? 1.05 : 0.8)) { rej.space++; return }
+            }
+            rej.ok++
+            placed.push([px2, py2])
+            const lift2 = liftOf(L2)
+            const bx2 = isoX(px2, py2), by2 = isoY(px2, py2) - lift2 + GY
+            const zB = (rx + ry) * 4000 + lift2 * 2
+            const sc = ((tall ? 108 : 46) / t.height) * (0.82 + 0.36 * h2)
+            const sh = new Sprite(shadTex)
+            sh.anchor.set(0.5, 0.5)
+            sh.width = t.width * sc * (tall ? 1.15 : 0.9); sh.height = sh.width * 0.42
+            sh.rotation = shadAng
+            sh.alpha = 0.42
+            sh.position.set(bx2 + 6, by2 + 1)
+            sh.zIndex = zB + 6
+            world.addChild(sh)
+            const sp = new Sprite(t)
+            sp.anchor.set(0.5, 0.97)
+            sp.scale.set(hash(px2 * 3.7, py2 * 1.9) > 0.5 ? -sc : sc, sc)
+            sp.position.set(bx2, by2 + 2)
+            sp.tint = tint24(0.9 + 0.1 * h2, 0.9 + 0.1 * h2, 0.86 + 0.12 * h2)
+            sp.zIndex = zB + 10
+            world.addChild(sp)
+            sways.push({ sp, amp: (tall ? 0.011 : 0.02) + 0.012 * h2, w: 0.45 + 0.65 * h2, ph: h2 * 6.3 })
+          }
+          MASSES.forEach(([mx, my, r], mi) => {
+            const n = Math.round(r * r * 2.2)   // over-attempt; the gates self-select the valid ring
+            for (let i = 0; i < n; i++) {
+              const h1 = hash(mi * 17.3 + i * 3.1, i * 7.7 + 2)
+              const h2 = hash(i * 5.3 + mi, mi * 11.9 + i)
+              const ang = h1 * Math.PI * 2
+              const dist = r * Math.pow(h2, 0.62)          // denser core, feathered fringe
+              const px2 = mx + Math.cos(ang) * dist + (hash(i, mi * 3) - 0.5) * 1.2
+              const py2 = my + Math.sin(ang) * dist * 0.92 + (hash(mi, i * 5) - 0.5) * 1.2
+              const fringe = dist > r * 0.68
+              const pool2 = fringe && h1 > 0.45 ? LOWP : TALLP
+              const name = pool2[Math.floor(hash(i * 1.7, mi * 9.1) * pool2.length) % pool2.length]
+              put2(name, px2, py2, pool2 === TALLP, hash(i * 2.9, mi * 4.3))
+            }
+          })
+          if (DBG) console.log('[MASSES]', JSON.stringify(rej))
+        }
+        plantMasses()
         const putPlant = (name: string, px: number, py: number, o: { sc?: number; flip?: boolean; dark?: number; sway?: number; noShadow?: boolean } = {}) => {
           if (!DECOR) return                                   // fresh base: no placed vegetation
           const t = vegT[name]
