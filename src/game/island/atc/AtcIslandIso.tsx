@@ -8,7 +8,10 @@ import {
   CX, CY, GRID, SEA_R, coastDs, shelfW, lagoonK, cliffK, sandK,
   plateauD, KNOLL, cragD, ISLETS,
 } from './atc-terrain'
-import { DOCK, dockAt, pathD, vegK, GROVES, SHADOW } from './atc-layout'
+import {
+  DOCK, dockAt, pathD, vegK, GROVES, SHADOW,
+  wallAt, STEPS, RX0, RX1, RY0, RY1,
+} from './atc-layout'
 import { getPois, getSeams } from './atc-mechanics'
 import { reportAtcAudit } from './atc-audit'
 
@@ -199,6 +202,10 @@ export default function AtcIslandIso() {
       const lvlOf = (tx: number, ty: number) => {
         if (coastDs(tx, ty) <= 0) return -1
         if (isletAt(tx, ty)) return 1 // skerries: bare rock nubs, one course over the water
+        // THE WALL RING IS TILES (the 3D tile law): a wall stub = a level-3
+        // tile standing one course over the room floor — the block machinery
+        // draws its faces, painter order occludes, wallAt() blocks the walk
+        if (wallAt(tx, ty)) return 3
         // the authored architecture first: terrace, knoll, crag ridge
         if (plateauD(tx, ty) <= 0.55) return 2
         const cd = cragD(tx, ty)
@@ -245,6 +252,12 @@ export default function AtcIslandIso() {
         if (Math.hypot(tx - KNOLL.x, ty - KNOLL.y) < 2.9) return false
         return !!isletAt(tx, ty) || cragD(tx, ty) < 3.1 || pointK(tx, ty) > 0
       }
+      // the room's ground zones (A2.00A truth via atc-layout)
+      const inRoomFloor = (tx: number, ty: number) =>
+        tx > RX0 && tx < RX1 && ty > RY0 && ty < RY1 && !wallAt(tx, ty)
+      const onCorridor = (tx: number, ty: number) =>
+        tx >= RX0 - 1 && tx <= RX1 && ty >= RY0 - 2 && ty <= RY0 - 1
+      const stepAt = new Set(STEPS.tiles.map(([sx, sy]) => sy * GRID + sx))
 
       const foamTex = radial(48, [[0, 'rgba(255,255,255,0.85)'], [0.45, 'rgba(224,248,242,0.4)'], [1, 'rgba(224,248,242,0)']])
       // a foam collar at a wall's waterline foot (the hub's thin quiet lap line)
@@ -259,9 +272,9 @@ export default function AtcIslandIso() {
       // THE 3D TILE UNIT (the hub's drawColumn, mirrored): a downhill tile is a
       // real BLOCK COLUMN — the FULL 64x64 block sprite stacked one course per
       // level, 1:1 pixels, no crops. Painter's order does all the masking.
-      const drawColumn = (bx2: number, by2: number, m: number, toSea: boolean, tx2: number, ty2: number, zBase2: number, grassy = false, dark = false) => {
+      const drawColumn = (bx2: number, by2: number, m: number, toSea: boolean, tx2: number, ty2: number, zBase2: number, grassy = false, dark = false, wall: string | null = null) => {
         if (!sideW.length || m <= 0) return
-        const turf = grassy && !toSea
+        const turf = grassy && !toSea && !wall
         const pick = (k: number) => Math.floor(vnoise(tx2 / 2.7 + 1.3 + k * 0.13, ty2 / 2.7 + 8.1 + k * 0.21) * sideW.length) % sideW.length
         if (toSea) {
           // submerged echo course: the cliff foot runs 12px under the waterline
@@ -285,7 +298,14 @@ export default function AtcIslandIso() {
           seg.anchor.set(0.5, 18 / 64)
           seg.position.set(bx2, by2 + k * STEP)
           const drift = 0.96 + 0.06 * vnoise(tx2 / 6 + 2.2, ty2 / 6 + 7.7) - 0.02 * k
-          if (turf) {
+          if (wall) {
+            // the room's wall stubs — TEMP greige until the PixelLab wall-stub
+            // set lands (spec asset #3: ribbed siding over a red-brick base).
+            // The exterior (south) wall runs a shade warmer: the facade hint.
+            seg.tint = wall === 'exterior'
+              ? tint24(drift * 0.78, drift * 0.68, drift * 0.6)
+              : tint24(drift * 0.74, drift * 0.71, drift * 0.65)
+          } else if (turf) {
             // grassy bank matched to the meadow's mean value (the hub's turf riser)
             const tex2 = m >= 2 ? 0.9 + 0.16 * vnoise(tx2 / 2.3 + 6, ty2 / 2.3 + k * 0.7 + 2) : 1
             const d2 = drift * tex2 * (0.97 - 0.02 * (m - 1 - k))
@@ -322,6 +342,11 @@ export default function AtcIslandIso() {
           const bx = isoX(tx, ty), by = isoY(tx, ty) - lift + GY
           const zBase = (tx + ty) * 4000 + lift * 2
           const rock = rockTop(tx, ty)
+          const wRole = wallAt(tx, ty)
+          const floorC = inRoomFloor(tx, ty)
+          const eastGap = tx === RX1 && !wRole && ty > RY0 && ty < RY1 // the broken wall's open runs
+          const corr = !wRole && !floorC && !eastGap && plateauD(tx, ty) <= 0.55
+            && (onCorridor(tx, ty) || (ty === RY0 && tx >= RX0 && tx <= RX1)) // the hall + the door threshold
           const isSand = L === 0 && !rock && smooth(0.35, 0.6, cliffK(Math.atan2(dy, dx))) < 0.5
 
           // THE BLOCK COLUMN: if ANY of the 8 neighbours sits lower, this tile
@@ -335,8 +360,8 @@ export default function AtcIslandIso() {
               if (fl < floorMin) floorMin = fl
             }
             if (L > floorMin) {
-              const grassy = !isSand && !rock
-              drawColumn(bx, by, L - floorMin, toSea, tx, ty, zBase, grassy, rock)
+              const grassy = !isSand && !rock && !wRole
+              drawColumn(bx, by, L - floorMin, toSea, tx, ty, zBase, grassy, rock, wRole)
               for (const [ox, oy] of [[1, 0], [0, 1]] as [number, number][]) {
                 if (eLvl(tx + ox, ty + oy) >= 0) continue
                 const ex = isoX(tx + ox * 0.5, ty + oy * 0.5), ey = isoY(tx + ox * 0.5, ty + oy * 0.5) + GY
@@ -347,7 +372,8 @@ export default function AtcIslandIso() {
 
           // TOP: one flat blended diamond (64x36 on the 64x32 lattice, the
           // family's own 2px melt), anchor centred, - the drawn faces carry 3D
-          const pool = rock && rockTopTex.length ? rockTopTex : isSand ? st : gt
+          const pool = wRole || floorC || eastGap || corr ? st
+            : rock && rockTopTex.length ? rockTopTex : isSand ? st : gt
           if (!pool.length) continue
           const g = rock
             ? pool[Math.floor(vnoise(tx / 6 + 4.2, ty / 6 + 1.8) * pool.length) % pool.length]
@@ -362,7 +388,29 @@ export default function AtcIslandIso() {
           const bL = Math.max(eLvl(tx - 1, ty), eLvl(tx, ty - 1))
           const ao = bL > L ? Math.min(0.24, (bL - L) * 0.13) : 0
           const rk = rakeAt(tx, ty)
-          if (rock) {
+          if (wRole) {
+            // the wall's cut top: pale greige composite (TEMP until the
+            // PixelLab wall set), the exterior wall a breath warmer
+            const grain = 0.96 + 0.06 * hash(tx * 2.1, ty * 3.3)
+            top.tint = wRole === 'exterior'
+              ? tint24(grain * 0.8, grain * 0.72, grain * 0.64)
+              : tint24(grain * 0.78, grain * 0.75, grain * 0.69)
+          } else if (floorC || eastGap) {
+            // THE CARPET (the photos' gray-green broadloom, gone outdoor):
+            // TEMP tint over the fine sand grain until the real family lands.
+            // Faint tile checker; wall-foot AO pools around the perimeter free.
+            const checker = (tx + ty) % 2 === 0 ? 1 : 0.955
+            const grain = 0.985 + 0.03 * hash(tx * 1.7, ty * 2.9)
+            const wear = 0.94 + 0.1 * vnoise(tx / 9 + 3, ty / 9 + 12)
+            top.tint = warmCool(shadeHex(tintFor(0x8b9480, SAND_BASE), checker * grain * wear * (1 - ao * 1.3)), rk * 0.4)
+          } else if (corr) {
+            // the hallway: worn pale composite, the walk's traffic printed in
+            const grain = 0.98 + 0.04 * hash(tx * 2.3, ty * 1.9)
+            const pk = 1 - smooth(0.6, 1.35, pathD(tx, ty))
+            let hex = tintFor(0xc7bfae, SAND_BASE)
+            if (pk > 0) hex = mix(hex, 0xb2a78e, pk * 0.5)
+            top.tint = warmCool(shadeHex(hex, grain * (1 - ao * 1.2)), rk * 0.4)
+          } else if (rock) {
             // the dark masses: basalt-brown, one hard sun across them — a lit
             // warm crown up-sun, deep shade down-sun (c3's mass modelling)
             const drift = 0.82 + 0.12 * vnoise(tx / 5 + 8, ty / 5 + 3)
@@ -426,6 +474,35 @@ export default function AtcIslandIso() {
           seg.tint = ox === 1 ? 0x4e3f30 : 0x685542 // dark under-deck: SE shadowed, SW half-lit
           seg.zIndex = zBase + 20
           world.addChild(seg)
+        }
+      }
+
+      // ---- THE STEPS: two pale treads climbing the corridor's west mouth
+      // (material in the ground, the tongue-stair law — never a floating decal)
+      for (const [sx, sy] of STEPS.tiles) {
+        const Ls = eLvl(sx, sy)
+        if (Ls < 0 || !st.length) continue
+        const liftS = (Ls > 0 ? Ls * STEP : 0) + STEP * STEPS.lift
+        const bxS = isoX(sx, sy), byS = isoY(sx, sy) - liftS + GY
+        const zBaseS = (sx + sy) * 4000 + liftS * 2
+        const pad = new Sprite(st[Math.floor(hash(sx * 3.7, sy * 1.3) * st.length) % st.length])
+        pad.anchor.set(0.5, 0.5)
+        pad.position.set(bxS, byS)
+        pad.zIndex = zBaseS + 8
+        const alt = (sx + sy) % 2 === 0 ? 1 : 0.94 // alternating tread values (the stair read)
+        pad.tint = tint24(0.84 * alt, 0.8 * alt, 0.72 * alt)
+        world.addChild(pad)
+        if (sideW.length) {
+          for (const [ox, oy] of [[1, 0], [0, 1]] as [number, number][]) {
+            if (stepAt.has((sy + oy) * GRID + sx + ox)) continue
+            const fr = new Texture({ source: sideW[0].source, frame: new Rectangle(0, 18, 64, 16) })
+            const seg = new Sprite(fr)
+            seg.anchor.set(0.5, 0)
+            seg.position.set(isoX(sx + ox * 0.5, sy + oy * 0.5), isoY(sx + ox * 0.5, sy + oy * 0.5) - liftS + GY + 8)
+            seg.tint = 0x8a8274
+            seg.zIndex = zBaseS + 7
+            world.addChild(seg)
+          }
         }
       }
 
