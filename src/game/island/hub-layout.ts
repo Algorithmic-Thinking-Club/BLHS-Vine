@@ -506,10 +506,11 @@ export function initHubLayout() {
     const QX = WL + 2
     const eAt: number[] = []
     for (let y = ryN - 3; y <= ryS + 4; y++) eAt[y] = WL
-    // THE STONE ARRIVAL COURT first (push order wins the dedup): 3x3 over the
-    // shallows, the gangway's landing — the single material accent
+    // THE ARRIVAL COURT is TIMBER like everything else (the stone pavers read
+    // as "a weird different pattern" under the gate, a glitch not a moment —
+    // Ash 2026-07-17. One material, one body: the port is a timber structure.)
     for (let y = ryMid - 1; y <= ryMid + 1; y++) {
-      for (let x = QX - 1; x <= QX + 1; x++) push({ tx: x, ty: y, lift: HL, mat: 'stone', walk: true })
+      for (let x = QX - 1; x <= QX + 1; x++) push({ tx: x, ty: y, lift: HL, mat: 'plank', walk: true })
     }
     // the GANGWAY: steps bridging the court back to the dry sand
     push({ tx: QX - 2, ty: ryMid, lift: Math.round(HL / 2), mat: 'plank', walk: true })

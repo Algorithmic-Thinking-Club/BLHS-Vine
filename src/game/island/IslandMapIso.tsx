@@ -2150,10 +2150,10 @@ export default function IslandMapIso() {
           const hb: Record<string, Texture> = {}
           for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'boathouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'deck-top-v5-0', 'deck-top-v5-1', 'deck-top-v5-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b', 'house-v4', 'house-v5', 'lamp-v4', 'stall-a', 'stall-b', 'stall-a2', 'stall-b2', 'cargo-b', 'cargo-c', 'fishing-boat', 'court-stone-a', 'gate-arch', 'gate-arch2', 'pavilion', 'bunting']) {
             try {
-              // v=6: several of these files were REWRITTEN in place (bg strip,
-              // shadow strip) — a stale ?v=5 cache kept serving the white-panel
+              // BUMP THIS whenever a file is rewritten in place (bg strip, regen
+              // under the same name) — a stale cache kept serving the white-panel
               // pavilion long after the disk was clean (Ash saw the old bytes)
-              const t: Texture = await Assets.load(`/art/island/harbor/${n}.png?v=6`)
+              const t: Texture = await Assets.load(`/art/island/harbor/${n}.png?v=7`)
               t.source.scaleMode = 'nearest'; hb[n] = t
             } catch { /* not landed yet */ }
           }
@@ -2517,10 +2517,10 @@ export default function IslandMapIso() {
             // the arrivals bell ON THE SHORE at the gangway landing (deck:false —
             // it stands on the sand, its own vignette, clear of the arch)
             mount(pt['bell-frame'], HARBOR.bell, { deck: false, sc: 0.5, sink: 4 })
-            // v7 SPICE · THE GATEWAY ARCH: the panther-banner arch spans the
-            // grand pier at its root — every arrival walks under the school's
-            // own colors (its baked plank base sits flush on the pier deck)
-            mount(hb['gate-arch2'] ?? hb['gate-arch'], [HARBOR.root[0] + 2.6, HARBOR.root[1] + 0.5], { sc: 0.95, glow: true })
+            // (THE GATEWAY ARCH IS CUT, 2026-07-17: both generations came back
+            // FRONTAL — a flat gate spanning a DIAGONAL walkway is impossible
+            // geometry and read as the goofiest thing in the frame. Flawless
+            // beats cute; the pavilion + bell + stalls carry the composition.)
             // FREIGHT, base-free (Ash 2026-07-16 glitch sweep: cargo-a was pale
             // grey steel out of the island's palette; cargo-b carried a baked-in
             // sandstone slab that double-floored the deck). ONE warm timber
@@ -2532,10 +2532,9 @@ export default function IslandMapIso() {
             // its own hung lanterns; the freight tucks beside its west post.
             const headX = HARBOR.bollards[1][0]   // the pierhead's east column
             mount(hb['pavilion'], [headX - 1.6, HARBOR.root[1] + 0.6], { sc: 0.85, glow: true })
-            if (cargoT) {
-              mount(cargoT, [headX - 2.7, HARBOR.root[1] + 1.3], { sc: 0.5 })
-              mount(cargoT, HARBOR.cargo[1], { sc: 0.55, flip: true })
-            }
+            // ONE freight beat, at the pierhead yard (the second stack sat alone
+            // mid-jetty and read as a random crate on the path — restraint wins)
+            if (cargoT) mount(cargoT, [headX - 2.7, HARBOR.root[1] + 1.3], { sc: 0.5 })
             for (const L2 of HARBOR.lanterns) {
               // v4: the new driftwood dock lamp (teal pennant, warm glass) replaces
               // the old lantern-post where it has landed
@@ -2687,20 +2686,23 @@ export default function IslandMapIso() {
             // lean into each other with freight between, never one prop per pod
             // centered by a snap — the interior snap shoved the fruit stall onto
             // the pod's back lip where it hung over the water)
-            mount(hb['stall-a2'] ?? hb['stall-a'], [HARBOR.root[0] - 0.7, HARBOR.root[1] - 6.4], { sc: 0.88 })
-            // pulled inboard: at +1.1 the fish stall's counter corner hung past
-            // the pod's east lip over open water (Ash: "buildings floating over
-            // the edge of the harbor")
-            mount(hb['stall-b2'] ?? hb['stall-b'], [HARBOR.root[0] + 0.55, HARBOR.root[1] - 5.9], { sc: 0.9, flip: true })
+            // v9: BOTH stalls regenerated in STRICT 2:1 iso (the old pair were
+            // quasi-frontal — "leaning in weird angles... goofy and glitched",
+            // Ash 2026-07-17). Placed on the pod's LONG DIAGONAL — back-right
+            // and front-left sit at the same depth row, so two full stalls fit
+            // side by side with zero occlusion (stacked overlap made a mutant
+            // double-roof; a 5x4 pod has no room for "artful" overlap).
+            mount(hb['stall-a2'] ?? hb['stall-a'], [HARBOR.root[0] + 0.9, HARBOR.root[1] - 7.4], { sc: 0.88 })
+            mount(hb['stall-b2'] ?? hb['stall-b'], [HARBOR.root[0] - 1.15, HARBOR.root[1] - 5.35], { sc: 0.88, flip: true })
             if (cargoT) mount(cargoT, [HARBOR.root[0] - 1.7, HARBOR.root[1] - 5.3], { sc: 0.42, flip: true })
             // festival bunting strung stall-to-stall — anchored on real posts at
             // both ends (a string hung on nothing is the floating-asset class)
             if (hb['bunting']) {
               const mLift = harborAt(Math.round(HARBOR.root[0]), Math.round(HARBOR.root[1] - 6))?.lift ?? 0
-              const ax = isoX(HARBOR.root[0] - 0.7, HARBOR.root[1] - 6.4)
-              const ay = isoY(HARBOR.root[0] - 0.7, HARBOR.root[1] - 6.4) + GY - mLift + 8 - 118
-              const bx3 = isoX(HARBOR.root[0] + 0.55, HARBOR.root[1] - 5.9)
-              const by3 = isoY(HARBOR.root[0] + 0.55, HARBOR.root[1] - 5.9) + GY - mLift + 8 - 124
+              const ax = isoX(HARBOR.root[0] - 1.15, HARBOR.root[1] - 5.35)
+              const ay = isoY(HARBOR.root[0] - 1.15, HARBOR.root[1] - 5.35) + GY - mLift + 8 - 108
+              const bx3 = isoX(HARBOR.root[0] + 0.9, HARBOR.root[1] - 7.4)
+              const by3 = isoY(HARBOR.root[0] + 0.9, HARBOR.root[1] - 7.4) + GY - mLift + 8 - 108
               const st = new Sprite(hb['bunting'])
               st.anchor.set(0, 0.32)               // the rope line rides the strip's top
               const d2 = Math.hypot(bx3 - ax, by3 - ay)
