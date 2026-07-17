@@ -6,7 +6,7 @@ import {
 } from '../ocean'
 import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, MOUTH_L, MOUTH_R } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
-import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, pathD, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD, RIVER, FALLS, FORD, STELES, TONGUE, PORTS, MINI_PORTS, TIDEPOOLS, WEST_OVERLOOK } from './hub-layout'
+import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, pathD, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD, RIVER, FALLS, FORD, STELES, TONGUE, TIDEPOOLS, WEST_OVERLOOK } from './hub-layout'
 import { reportIslandAudit } from './island-audit'
 import { headField, inHeadBBox } from './heads'
 
@@ -303,6 +303,10 @@ export default function IslandMapIso() {
         const flatG: Texture[] = [], flatS: Texture[] = [], rockW: Texture[] = []
         for (let i = 0; i < 16; i++) {
           try { const t: Texture = await Assets.load(`/art/island/flat/grass-${i}.png?v=7`); t.source.scaleMode = 'nearest'; flatG.push(t) } catch { /* */ }
+          // sand-8..11 carry baked-in driftwood logs / pebble clusters — hash-
+          // scattered over every beach they read as random litter (Ash 2026-07-16:
+          // "remove all the logs"). The beach wears only the clean ripple variants.
+          if (i >= 8 && i <= 11) continue
           try { const t: Texture = await Assets.load(`/art/island/flat/sand-${i}.png?v=7`); t.source.scaleMode = 'nearest'; flatS.push(t) } catch { /* */ }
         }
         // the WARM blocks: rock-N's carved sides remapped onto c3's sunlit terracotta ramp
@@ -343,6 +347,33 @@ export default function IslandMapIso() {
         if (!lavaT.length) for (let i = 0; i < 4; i++) {
           try { const t: Texture = await Assets.load(`/art/island/flat/lava-${i}.png`); t.source.scaleMode = 'nearest'; lavaT.push(t) } catch { /* */ }
         }
+        // THE MOLTEN STRIP: a seamless scrolling texture built from the river's
+        // OWN lava2 tile pixels (fully-opaque center crops, torus-stamped so the
+        // wrap is seamless BY CONSTRUCTION — every stamp crossing an edge repeats
+        // on the far side). The maw cascades and the river veins both scroll this,
+        // so the pour and the river are literally one material in motion. Painted
+        // pixels; code only composites/masks/animates (the no-shader law).
+        const moltenStrip = (W: number, H: number): Texture | null => {
+          if (!lavaT.length) return null
+          const cv = document.createElement('canvas')
+          cv.width = W; cv.height = H
+          const g3 = cv.getContext('2d')!
+          const n = Math.ceil(((W * H) / (32 * 16)) * 2.4)
+          for (let i = 0; i < n; i++) {
+            const t = lavaT[Math.floor(hash(i * 3.7 + W, i * 1.9 + H) * lavaT.length * 0.999)]
+            const src = t.source.resource as CanvasImageSource
+            const dx = Math.floor(hash(i * 2.3, i * 5.1 + W) * W) - 16
+            const dy = Math.floor(hash(i * 7.7 + H, i * 1.3) * H) - 8
+            for (const [ox, oy] of [[0, 0], [W, 0], [-W, 0], [0, H], [0, -H], [W, H], [-W, -H], [W, -H], [-W, H]])
+              g3.drawImage(src, 16, 10, 32, 16, dx + ox, dy + oy, 32, 16)
+          }
+          const t2 = Texture.from(cv)
+          t2.source.scaleMode = 'nearest'
+          t2.source.addressMode = 'repeat'
+          return t2
+        }
+        const stripV = moltenStrip(64, 128)   // the maw cascades (scrolls down)
+        const stripH = moltenStrip(128, 40)   // the river veins (scrolls downstream)
         // THE VSLOPE FAMILY (final-push stage 1): the cone's skin. Tops + faces harvested
         // off the picked volc-a painting, normalized to ONE shared lit-amber base — every
         // value change on the flank comes from the coneTint field in long runs, never
@@ -1663,68 +1694,100 @@ export default function IslandMapIso() {
           {
             const zG = 219 * 4000 + liftOf(eLvl(118, 101)) * 2 + 1440
             const zW = 219 * 4000 + liftOf(Math.max(0, eLvl(101, 118))) * 2 + 1440
-            // THE MAW SPILL, SEAMLESS BY CONSTRUCTION (Ash: the flow was "botched
-            // ... make it seamless, flowing from mouth to the lava river and
-            // being the source"). No estimated pixels: the fan's own bottom is
-            // ANCHORED on the river's first lava tile at its real drawn height
-            // (isoY + GY - lift), and the gush's length is STRETCHED to reach up
-            // past the jaw lip. It draws UNDER the head sprite, so the chin and
-            // fangs overlap its top — the pour comes from INSIDE the mouth, and
-            // the fan lands ON the channel: no seam at either end.
-            let spillT: Texture | undefined
-            try {
-              spillT = await Assets.load('/art/island/heads/maw-spill.png')
-              if (spillT) spillT.source.scaleMode = 'nearest'
-            } catch { /* spill art optional */ }
+            // THE MAW CASCADE (Ash 2026-07-16: the braided spill sprites read as
+            // "two little lava studs... i wanted lava flowing from the panther's
+            // gaping mouths, ANIMATED flowing lava, and flowing into the river").
+            // Not a static sprite: a genuinely MOVING torrent — the river's own
+            // molten strip texture scrolling downward inside a soft tapered
+            // ribbon mask, maw -> channel head, with an additive hot core
+            // streaming faster inside it. Top edge fades out INSIDE the maw's
+            // dark void (the flow emerges from darkness); the fan lands on the
+            // river's first tile at its real drawn height and the strike bloom
+            // welds the seam. Its scroll speed matches the river veins' — one
+            // molten body from jaw to sea.
+            const ribbonMask = (W: number, H: number): Texture => {
+              const cv = document.createElement('canvas')
+              cv.width = Math.ceil(W); cv.height = Math.ceil(H)
+              const g3 = cv.getContext('2d')!
+              const cx4 = W / 2
+              for (let y = 0; y < H; y++) {
+                const u = y / H
+                // throat -> body -> delta fan (capped at the canvas edge)
+                const half = W * Math.min(0.5, 0.24 + 0.1 * u + 0.22 * Math.pow(Math.max(0, (u - 0.68) / 0.32), 1.5))
+                const wob = Math.sin(u * 17 + W) * 1.5 + Math.sin(u * 6.1 + H) * 2
+                const a = Math.min(1, y / 12) * (u > 0.94 ? (1 - u) / 0.06 * 0.6 + 0.4 : 1)
+                g3.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`
+                g3.fillRect(cx4 + wob - half, y, half * 2, 1)
+              }
+              // feathered edges: redraw through a 2px blur (mask alpha only —
+              // the visible pixels stay the painted molten strip)
+              const cv2 = document.createElement('canvas')
+              cv2.width = cv.width; cv2.height = cv.height
+              const g4 = cv2.getContext('2d')!
+              g4.filter = 'blur(2px)'
+              g4.drawImage(cv, 0, 0)
+              return Texture.from(cv2)
+            }
             // the maw's world point, derived from the head mounts (centre ± the
             // measured per-unit maw offset 48.2,67.3 at scale 1.45)
             const MAWS: [number, number, number, number, boolean, [number, number]][] = [
               [499, 3108, 0.2, zG, false, MOUTH_R],
               [-499, 3106, 0.35, zW, true, MOUTH_L],
             ]
-            for (const [mx3, my3, sd, z3, fl, mouthT] of MAWS) {
+            for (const [mx3, my3, sd, z3, , mouthT] of MAWS) {
               // the river head's true drawn top: tile iso pos lifted by its level
               const rx4 = Math.round(mouthT[0]), ry4 = Math.round(mouthT[1])
               const bLift = liftOf(Math.max(0, eLvl(rx4, ry4)))
               const bx4 = isoX(mouthT[0], mouthT[1])
               const by4 = isoY(mouthT[0], mouthT[1]) + GY - bLift + 10   // +10: land IN the channel, past its top lip
-              if (spillT) {
-                // OVER the chin, not behind it: drawn under the head the ruff
-                // swallowed the whole gush and only the fan tip escaped. The
-                // torrent now pours OUT of the maw over the lower jaw — its top
-                // edge tucked up inside the maw's dark interior, its fan landing
-                // on the channel head (the tawny head's one proven read).
-                const span = Math.max(60, by4 - (my3 + 2))    // jaw lip -> channel head
-                const ys = span / (spillT.height * 0.9)
-                // BRAIDED FAT GUSH: stretching one sprite to the span left a thin
-                // strand — two overlapped spills, offset and jittered, read as one
-                // heavy braided torrent as wide as the maw itself
-                for (const [oxs, sxs, yj] of [[-13, 1.55, 1], [14, 1.4, 0.92]] as [number, number, number][]) {
-                  const sl = new Sprite(spillT)
-                  sl.anchor.set(0.5, 0.9)                      // the FAN pixel row is the anchor
-                  sl.position.set(bx4 + oxs, by4 - (1 - yj) * 6)
-                  sl.scale.set((fl ? -1 : 1) * sxs, ys * yj)
-                  sl.tint = 0xffd8b0                           // step the cartoon-bright gush toward the river's ramp
+              if (stripV) {
+                const W4 = 84
+                // -14, not -26: at -26 the cascade's top rose past the fang row
+                // and licked the muzzle — the flow must be born UNDER the fangs
+                const topY = my3 - 14                          // inside the maw's dark void, below the fang tips
+                const H4 = Math.max(56, by4 + 8 - topY)        // down onto the channel head
+                const mkT = ribbonMask(W4, H4)
+                const layer = (w: number, alpha: number, add: boolean, tint: number, spd: number) => {
+                  const mk = new Sprite(mkT)
+                  mk.anchor.set(0.5, 0)
+                  mk.position.set(bx4, topY)
+                  mk.width = w; mk.height = H4
+                  // masks live OUTSIDE the band partition/bake (z >= 3M is the
+                  // global set): a mask whose band is culled or baked would
+                  // orphan its cascade mid-animation
+                  mk.zIndex = 5_000_000
+                  world.addChild(mk)
+                  const sl = new TilingSprite({ texture: stripV, width: w, height: H4 })
+                  sl.anchor.set(0.5, 0)
+                  sl.position.set(bx4, topY)
+                  sl.tileScale.set(w / 64 * 1.1, 1.15)
+                  if (add) sl.blendMode = 'add'
+                  sl.alpha = alpha; sl.tint = tint
                   sl.zIndex = z3 + 8
+                  sl.mask = mk
                   world.addChild(sl)
+                  pourSheets.push({ sp: sl, spd })
                 }
-                // the gush's own heat shimmer — an additive skin that breathes
-                const sk = new Sprite(spillT)
-                sk.anchor.set(0.5, 0.9); sk.blendMode = 'add'
-                sk.position.set(bx4, by4)
-                sk.scale.set((fl ? -1 : 1) * 1.55, ys)
-                sk.alpha = 0.26; sk.zIndex = z3 + 9
-                world.addChild(sk)
-                glows.push({ sp: sk, ph: sd * 6 + 1.1, a: 0.26 })
+                layer(W4, 1, false, 0xffffff, 46 + sd * 12)    // the torrent body
+                layer(W4 * 0.46, 0.5, true, 0xffd890, 78)     // the white-hot core, streaming faster
+                // the upper lip's shadow: a slim dark pool over the cascade's top
+                // edge so the flow reads as emerging from UNDER the fangs
+                const hood = new Sprite(foamTex)
+                hood.anchor.set(0.5, 0.5)
+                hood.tint = 0x140c10; hood.alpha = 0.8
+                hood.width = W4 * 0.86; hood.height = 20
+                hood.position.set(bx4, topY + 7)
+                hood.zIndex = z3 + 12
+                world.addChild(hood)
                 // a hot seam pool where the fan meets the channel — welds the
-                // painted gush and the tile river into one molten body
+                // scrolling cascade and the tile river into one molten body
                 const weld = new Sprite(foamTex)
                 weld.anchor.set(0.5, 0.5); weld.blendMode = 'add'
-                weld.tint = 0xffb050; weld.width = 130; weld.height = 46; weld.alpha = 0.4
+                weld.tint = 0xffb050; weld.width = 140; weld.height = 48; weld.alpha = 0.42
                 weld.position.set(bx4, by4 - 2)
                 weld.zIndex = z3 + 10
                 world.addChild(weld)
-                glows.push({ sp: weld, ph: sd * 6 + 3.4, a: 0.38 })
+                glows.push({ sp: weld, ph: sd * 6 + 3.4, a: 0.4 })
               }
               const fg = new Sprite(foamTex)
               fg.anchor.set(0.5, 0.5); fg.blendMode = 'add'
@@ -2053,49 +2116,11 @@ export default function IslandMapIso() {
             }
           }
         }
-        // THE OPEN MEADOW'S LIFE (the walkable ground between groves is a place,
-        // not a void): grass tufts + wildflower drifts, sparse boulders, and the
-        // occasional fallen trunk telling a small story
-        for (let sy = 4; VEG && sy < ROWS - 4; sy += 2) {
-          for (let sx = 4; sx < COLS - 4; sx += 2) {
-            const L3 = eLvl(sx, sy)
-            if (L3 <= 0 || L3 > PLAT_L) continue
-            if (coastDs(sx, sy) < 2.5 || lavaDist(sx, sy) < 2 || coneH(sx, sy) > 4) continue
-            if (clearingK(sx, sy) > 0.4) continue
-            const r = hash(sx * 4.9, sy * 6.1)
-            const jx = sx + hash(sx, sy + 3) * 1.8 - 0.9
-            const jy = sy + hash(sx + 5, sy) * 1.8 - 0.9
-            if (r < 0.055) {
-              putPlant(hash(sx + 2, sy) > 0.5 ? 'tuft-1' : 'tuft-2', jx, jy, { sc: 0.42 + 0.3 * hash(sx + 7, sy + 2), flip: hash(sx + 1, sy + 9) > 0.5, noShadow: true })
-            } else if (r < 0.058) {
-              // QUIET rocks (Ash: "too many pillar / stones scattered") — art
-              // remapped to warm basalt, spawn cut ~60%, scale capped LOW, and
-              // the columnar boulder-1 nearly retired so the POWER steles stay
-              // the meadow's only speaking verticals
-              putPlant(hash(sx, sy) > 0.92 ? 'boulder-1' : 'boulder-2', jx, jy, { sc: 0.38 + 0.2 * hash(sx + 7, sy + 2), flip: hash(sx + 1, sy + 9) > 0.5, dark: 0.82 })
-            } else if (r < 0.0615) {
-              putPlant('palm-fallen', jx, jy, { sc: 0.5 + 0.15 * hash(sx + 4, sy + 6), flip: hash(sx + 3, sy + 1) > 0.5 })
-            }
-          }
-        }
-        // THE FLANK'S CLINGING LIFE (c3's own volcano language): hardy tufts and
-        // fern clumps following the GULLY seams up the rock — the one thing a
-        // bare block flank can't fake. Gully-gated so the growth reads as water-
-        // fed lines, never noise sprinkled on stone; thins with altitude and
-        // stays clear of the melt and the crater.
-        for (let sy = 4; VEG && sy < ROWS - 4; sy += 2) {
-          for (let sx = 4; sx < COLS - 4; sx += 2) {
-            const ch = coneH(sx, sy)
-            if (ch < 4 || ch > 26) continue
-            if (lavaDist(sx, sy) < 2.6 || craterK(sx, sy) > 0.15) continue
-            if (gullyK(sx, sy) < 0.35) continue
-            if (hash(sx * 5.7 + 4, sy * 3.9 + 11) > 0.34 - 0.2 * (ch / 26)) continue
-            const jx = sx + hash(sx, sy + 17) * 1.6 - 0.8
-            const jy = sy + hash(sx + 13, sy) * 1.6 - 0.8
-            const nm = hash(jx * 4.1, jy * 6.3) > 0.6 ? 'fernclump-1' : hash(jx + 2, jy) > 0.5 ? 'tuft-1' : 'tuft-2'
-            putPlant(nm, jx, jy, { sc: 0.34 + 0.2 * hash(jx + 7, jy + 3), flip: hash(jx + 1, jy + 5) > 0.5, dark: 0.68 + 0.1 * hash(jx, jy + 9), noShadow: true })
-          }
-        }
+        // (The open-meadow scatter — lone tufts, boulders, fallen trunks — and the
+        // flank's gully tufts are REMOVED, Ash 2026-07-16: "remove all the logs,
+        // random shrubs... unnecessary random assets across the island." Only the
+        // COMPOSED vegetation stands: the mass groves and their own understory.
+        // The meadow between them is clean walkable ground, a place by shape.)
 
         // ---- THE EAST HARBOR (Phase C1 rebuilt after Ash's "glorious harbor, not
         // some ragdoll port" verdict): a tile-level STRUCTURE from HARBOR data —
@@ -2112,7 +2137,7 @@ export default function IslandMapIso() {
         const HARBOR_ON = params.get('harbor') !== '0'
         if (HARBOR_ON) try {
           const hb: Record<string, Texture> = {}
-          for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'boathouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'deck-top-v5-0', 'deck-top-v5-1', 'deck-top-v5-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b', 'house-v4', 'lamp-v4', 'stall-a', 'stall-b', 'cargo-b', 'fishing-boat', 'court-stone-a', 'gate-arch']) {
+          for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'boathouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'deck-top-v5-0', 'deck-top-v5-1', 'deck-top-v5-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b', 'house-v4', 'house-v5', 'lamp-v4', 'stall-a', 'stall-b', 'stall-a2', 'stall-b2', 'cargo-b', 'cargo-c', 'fishing-boat', 'court-stone-a', 'gate-arch', 'gate-arch2']) {
             try {
               const t: Texture = await Assets.load(`/art/island/harbor/${n}.png?v=5`)
               t.source.scaleMode = 'nearest'; hb[n] = t
@@ -2305,11 +2330,13 @@ export default function IslandMapIso() {
                 top.position.set(bx2, byTop)
                 top.zIndex = zB + 5
                 if (ht.mat === 'stone') {
-                  // the arrival court: the warm sandstone carries its own tone —
-                  // only the planks' quiet value drift rides on top
+                  // the arrival court reads BUILT, not beach: stepped down toward
+                  // terracotta (at neutral value the pale sandstone matched the
+                  // sand exactly and the bell/arch looked planted on the beach)
                   const dv = 0.95 + 0.09 * vnoise(ht.tx / 5 + 8, ht.ty / 5 + 3)
-                  const vv2 = Math.min(255, Math.round(255 * dv))
-                  top.tint = (vv2 << 16) | (vv2 << 8) | vv2
+                  top.tint = (Math.min(255, Math.round(232 * dv)) << 16)
+                    | (Math.min(255, Math.round(196 * dv)) << 8)
+                    | Math.min(255, Math.round(164 * dv))
                   top.scale.set(1.06)
                 }
                 if (ht.mat === 'plank') {
@@ -2473,21 +2500,20 @@ export default function IslandMapIso() {
             // v7 SPICE · THE GATEWAY ARCH: the panther-banner arch spans the
             // grand pier at its root — every arrival walks under the school's
             // own colors (its baked plank base sits flush on the pier deck)
-            mount(hb['gate-arch'], [HARBOR.root[0] + 2.6, HARBOR.root[1] + 0.5], { sc: 0.82, glow: true })
-            // v5 BUSTLE (Ash: "grand... bustling harbor port"): the full cargo yard
-            // returns — freight at every work point, TWO freight silhouettes
-            // alternating (one stamp repeated was the old harbor's cheap tell)
-            const cargoKit = [pt['cargo-a'], hb['cargo-b']].filter((t): t is Texture => !!t)
+            mount(hb['gate-arch2'] ?? hb['gate-arch'], [HARBOR.root[0] + 2.6, HARBOR.root[1] + 0.5], { sc: 0.95, glow: true })
+            // FREIGHT, base-free (Ash 2026-07-16 glitch sweep: cargo-a was pale
+            // grey steel out of the island's palette; cargo-b carried a baked-in
+            // sandstone slab that double-floored the deck). ONE warm timber
+            // stack, two moments: the pierhead yard + the jetty. The third
+            // bollard-side stack is gone — it crowded the pierhead.
+            const cargoT = hb['cargo-c'] ?? hb['cargo-b'] ?? pt['cargo-a']
             // pierhead freight snaps to interior deck; the JETTY stack mounts
             // DIRECT — a 2-wide finger has no interior tile, and the snap dragged
             // its crates onto the harbormaster's platform into the house (v7 bug)
-            if (cargoKit.length) {
-              mount(cargoKit[0], deckCtr(HARBOR.cargo[0]), { sc: 0.74 })
-              mount(cargoKit[1] ?? cargoKit[0], HARBOR.cargo[1], { sc: 0.58, flip: true })
+            if (cargoT) {
+              mount(cargoT, deckCtr(HARBOR.cargo[0]), { sc: 0.72 })
+              mount(cargoT, HARBOR.cargo[1], { sc: 0.55, flip: true })
             }
-            // a working port stages freight where the ship loads: one more stack
-            // on the T-head by the mooring bollards, waiting for the next hull
-            if (cargoKit.length) mount(cargoKit[cargoKit.length - 1], deckCtr([HARBOR.bollards[0][0] + 0.6, HARBOR.bollards[0][1] + 1]), { sc: 0.56, flip: true })
             for (const L2 of HARBOR.lanterns) {
               // v4: the new driftwood dock lamp (teal pennant, warm glass) replaces
               // the old lantern-post where it has landed
@@ -2564,6 +2590,7 @@ export default function IslandMapIso() {
               const at = HARBOR.pennant
               const sp = new Sprite(pnT); sp.anchor.set(0.5, 1)
               sp.position.set(isoX(at[0], at[1]), isoY(at[0], at[1]) + GY - 14 + 8)
+              sp.scale.set(0.8)   // full-size it out-shouted the pierhead (Ash: out-of-style reads)
               sp.zIndex = Math.floor(at[0] + at[1]) * 4000 + 14 * 2 + 730
               world.addChild(sp)
               sways.push({ sp, amp: 0.03, w: 1.3, ph: 2.1 })
@@ -2595,25 +2622,8 @@ export default function IslandMapIso() {
                 world.addChild(sp)
               }
             } catch { /* gull art optional */ }
-            // the waterfront buildings + dressing on the SAND behind the boardwalk —
-            // every anchor coast-relative at ITS OWN row (offsets from the harbor
-            // root drifted onto the deck where the coast bulges)
-            const inland = (dy: number, back: number): [number, number] => {
-              const y = HARBOR.root[1] + dy
-              // any DECK tile (plank or the stone court) counts as the wharf edge:
-              // plank-only skipped the court's stone rows and "landward" resolved
-              // to the pierhead — the house mounted mid-pier (v6 regression)
-              const wx = HARBOR.tiles.reduce((m, t2) => (t2.ty === Math.round(y) && t2.mat !== 'rock' ? Math.min(m, t2.tx) : m), 999)
-              // anchor to the wharf's own landward edge: the strip right behind the
-              // deck is sand by construction. The old version walked INLAND hunting
-              // for sand and, when the strip was narrow, ran out of guard steps and
-              // dropped the building on the GRASS (Ash's flawed shack-on-the-lawn).
-              // Here we walk SEAWARD if we ever touch grass, so sand is guaranteed.
-              let x = (wx === 999 ? HARBOR.root[0] : wx) - back
-              let guard = 0
-              while (guard++ < 6 && eLvl(Math.round(x), Math.round(y)) !== 0 && x < wx - 0.6) x += 1
-              return [x, y]
-            }
+            // (inland(), the sand-anchor walker, retired with the settlement-on-
+            // sand era — every structure now stands on a stilt-platform pod)
             // the port SETTLEMENT — buildings clustered on the sand behind the
             // quay as one little yard (Ash: the warehouse had drifted far up the
             // beach, orphaned; a port's buildings sit together AT the harbor)
@@ -2626,7 +2636,10 @@ export default function IslandMapIso() {
             // four competing silhouettes (boathouse/sign/shed/net-rack, all gone)
             // v7: the harbormaster's house stands ON its stilt platform over the
             // water — a stilt-port office, the pod built for exactly this
-            mount(hb['house-v4'], deckCtr([HARBOR.root[0] + 2, HARBOR.root[1] + 8]), { sc: 0.95 })
+            // v8: house-v5 is BASE-FREE (v4 baked its own flagstone yard + palm —
+            // on the stilt platform the pad double-floored the deck and the palm
+            // grew out of the planks: Ash's "halfway into the ground" class)
+            mount(hb['house-v5'] ?? hb['house-v4'], deckCtr([HARBOR.root[0] + 2, HARBOR.root[1] + 8]), { sc: hb['house-v5'] ? 0.9 : 0.95 })
             // v5 BUSTLE · the MARKET ROW: two stalls on the sand north of the
             // apron, facing the boardwalk — Thor steps off the pier into a
             // WORKING waterfront (fruit + fish), the house anchoring the south.
@@ -2635,8 +2648,11 @@ export default function IslandMapIso() {
             // v7: BOTH stalls own the MARKET PLATFORM pod — a market over the
             // water, one stall behind the other in the cluster grammar, deck
             // tiles flat by construction so nothing can seam-clip
-            mount(hb['stall-a'], deckCtr([HARBOR.root[0] - 1, HARBOR.root[1] - 7]), { sc: 0.82 })
-            mount(hb['stall-b'], deckCtr([HARBOR.root[0] + 1, HARBOR.root[1] - 6]), { sc: 0.82, flip: true })
+            // v8 stalls are BASE-FREE (the v7 pair carried baked plank podiums
+            // with dark skirts — a platform pasted on the platform, Ash's
+            // "out-of-style / placed wrongly" read)
+            mount(hb['stall-a2'] ?? hb['stall-a'], deckCtr([HARBOR.root[0] - 1, HARBOR.root[1] - 7]), { sc: hb['stall-a2'] ? 0.9 : 0.82 })
+            mount(hb['stall-b2'] ?? hb['stall-b'], deckCtr([HARBOR.root[0] + 1, HARBOR.root[1] - 6]), { sc: hb['stall-b2'] ? 0.9 : 0.82, flip: true })
             // hauled a tile further up-beach: at the plan point the bow still
             // straddled the tide seam (final-sweep catch — neither beached nor
             // afloat reads wrong at every zoom)
@@ -2645,23 +2661,9 @@ export default function IslandMapIso() {
             // v6: the esplanade is 2 tiles wider — haul the boat further up-beach
             // so the hull clears the deck's landward lip
             mount(hb['rowboat'], [HARBOR.rowboat[0] - 1.6, HARBOR.rowboat[1] - 0.2], { deck: false, sc: 0.8, flip: true, sink: 3 })
-            // THE MINI-PORTS dressed (P5-lite): each landing wears its identity
-            // from the same prop kit — nets north, cargo south, and the west
-            // cove stays a QUIET beach (a hauled boat and one light, no built
-            // structure — that restraint IS its identity)
-            // the notch's beach strip runs SE of the jetty root — inland is the
-            // clifftop (the rack stood on the cliff crown on first placement)
-            mount(hb['net-rack'], [MINI_PORTS.north[0] + 1.4, MINI_PORTS.north[1] + 1.9], { deck: false, sc: 0.62, sink: 5 })
-            mount(pt['lantern-post'], [MINI_PORTS.north[0], MINI_PORTS.north[1]], { sc: 0.78, glow: true })
-            mount(pt['cargo-a'], [MINI_PORTS.south[0], MINI_PORTS.south[1]], { sc: 0.76 })
-            mount(pt['cargo-a'], [MINI_PORTS.south[0] - 1.2, MINI_PORTS.south[1] - 1.1], { sc: 0.6, flip: true, deck: false, sink: 3 })
-            mount(pt['lantern-post'], [MINI_PORTS.south[0] + (MINI_PORTS.south[0] > CX ? 0 : 1), MINI_PORTS.south[1] + 1], { sc: 0.78, glow: true })
-            // the hauled boat sits FULLY on dry sand (at -0.8 it straddled the
-            // tide seam — neither beached nor afloat, the Opus review's call),
-            // its lantern right up-beach of the bow so the two read as one
-            // composed vignette instead of strays
-            mount(hb['rowboat'], [PORTS.west.x + 0.6, PORTS.west.y + 1.3], { deck: false, sc: 0.66, sink: 4 })
-            mount(pt['lantern-post'], [PORTS.west.x + 1.8, PORTS.west.y + 0.2], { sc: 0.72, glow: true, deck: false, sink: 2 })
+            // (The mini-port dressing and the west-cove vignette are REMOVED with
+            // the mini-ports themselves — Ash 2026-07-16: "remove... the other
+            // ports & unnecessary random assets." One harbor, three wild coasts.)
             // ---- the basin's boats: afloat with a foam ring, riding a slow bob
             const boat = (t: Texture | undefined, at: [number, number], sc = 1, flip = false) => {
               if (DBG) {
@@ -3156,26 +3158,28 @@ export default function IslandMapIso() {
         // one coherent speed. The tile lava beneath carries the body and the banks;
         // this carries the MOTION and fuses the whole run into one moving river.
         const streamSegs: { sp: TilingSprite; spd: number }[] = []
-        if (sideL.length || sideW.length) {
-          const sfam = sideL.length ? sideL : sideW
-          const src0 = new Texture({ source: sfam[0].source, frame: new Rectangle(0, 18, 64, Math.min(46, sfam[0].height - 18)) })
+        // the vein streams the river's OWN molten strip (Ash 2026-07-16: the
+        // orange-tinted ROCK texture it scrolled before "looks pretty cheap and
+        // bad") — same material as the maw cascades, one speed, one body
+        if (stripH) {
           for (let pi = 0; pi < flowPaths.length; pi++) {
             const path = flowPaths[pi]
-            const SEGN = 9
+            // SEGN 5 (was 9): the long straight segments cut the doglegs and the
+            // molten texture painted over the green bank tops at every bend
+            const SEGN = 5
             for (let i = 0; i + 2 < path.length; i += SEGN - 1) {
               const a = path[i], b = path[Math.min(path.length - 1, i + SEGN)]
               const len = Math.hypot(b.x - a.x, b.y - a.y)
               if (len < 8) continue
               // the birth GUSHES: widest at the jaw (i=0), tapering to the run's
               // steady vein over the first ~2 segments — the slope-following pour
-              const hgt = 30 + 26 * Math.max(0, 1 - i / 18)
-              const seg = new TilingSprite({ texture: src0, width: len + 10, height: hgt })
+              const hgt = 26 + 22 * Math.max(0, 1 - i / 18)
+              const seg = new TilingSprite({ texture: stripH, width: len + 10, height: hgt })
               seg.anchor.set(0, 0.5)
               seg.position.set(a.x, a.y)
               seg.rotation = Math.atan2(b.y - a.y, b.x - a.x)
-              seg.tint = 0xffa640
-              seg.alpha = 0.88
-              seg.tileScale.set(0.6, hgt / src0.height)
+              seg.alpha = 0.82
+              seg.tileScale.set(0.9, hgt / 40)
               // +2 rows: the fronting bench tiles were drawing OVER the vein at every
               // lip — the exact dark breaks Ash called "broken chunks"
               seg.zIndex = Math.max(a.z, b.z) + 8000 + 18
@@ -3192,7 +3196,8 @@ export default function IslandMapIso() {
         for (let pi = 0; pi < flowPaths.length; pi++) {
           for (let k = 0; k < 5; k++) {
             const sp = new Sprite(pulseTex); sp.anchor.set(0.5, 0.5); sp.blendMode = 'add'
-            sp.width = 116; sp.height = 24
+            // slimmer + calmer than the first pass (116/0.34 strobed — "cheap")
+            sp.width = 92; sp.height = 20
             world.addChild(sp)
             surges.push({ sp, path: flowPaths[pi], u0: k / 5 + hash(pi * 3.1, k * 1.7) * 0.1, spd: 0.016 + 0.004 * (k % 2) })
           }
@@ -3444,6 +3449,9 @@ export default function IslandMapIso() {
           // the stream veins run DOWNSTREAM: +x in each segment's local frame points
           // a→b along the path — the first sign (-x) played the river backwards (Ash)
           for (const s of streamSegs) s.sp.tilePosition.x = (t * s.spd) % 4096
+          // the maw cascades pour DOWN: the molten strip streams from the dark
+          // of the mouth onto the channel head, forever
+          for (const s of pourSheets) s.sp.tilePosition.y = (t * s.spd) % 4096
           // the canopy breathes: gentle per-plant rotation about the rooted base
           for (const s of sways) s.sp.rotation = s.amp * Math.sin(t * s.w + s.ph)
           // moored boats ride the basin's slow swell
@@ -3485,7 +3493,7 @@ export default function IslandMapIso() {
             s2.sp.position.set(p0.x + (p1.x - p0.x) * fr, p0.y + (p1.y - p0.y) * fr)
             s2.sp.zIndex = p0.z
             s2.sp.rotation = Math.atan2(p1.y - p0.y, p1.x - p0.x)
-            s2.sp.alpha = 0.34 * Math.min(1, u * 5, (1 - u) * 5)
+            s2.sp.alpha = 0.24 * Math.min(1, u * 5, (1 - u) * 5)
           }
           // dark crust plates ride the same current (bulk material in motion)
           for (const pl2 of plates) {

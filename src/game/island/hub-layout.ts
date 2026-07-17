@@ -295,7 +295,9 @@ export function initHubLayout() {
     [p.x, p.y],
     [CX + Math.cos(p.az) * (coastR(p.az) - 8 - len * 0.4), CY + Math.sin(p.az) * (coastR(p.az) - 8 - len * 0.4)],
   ]
-  SPURS = [spur(PORTS.east), spur(PORTS.south), spur(PORTS.west), spur(PORTS.north, 4)]
+  // one spur only — the east harbor is the island's ONE landing (the other
+  // three ports are unbuilt wild coast since the mini-ports were removed)
+  SPURS = [spur(PORTS.east)]
   PATHS = [PROMENADE, PATH_NW, APPROACH, ...SPURS]
 
   // the paths RASTERIZED to a connected 1-2 tile ribbon (distance-thresholding a
@@ -539,40 +541,11 @@ export function initHubLayout() {
     ]
     for (const [ox, oy] of BW) push({ tx: QX + ox, ty: ryMid + oy, lift: 16, mat: 'rock', walk: false })
 
-    // THE MINI-PORTS (P5-lite): the other three landings get their skeleton
-    // built form as MORE HARBOR TILES — the deck renderer (planks, skirts,
-    // pilings, railings) and the walkmap/audit handle them for free. Same law
-    // as the east port: a dock is a BUILT thing, axis-aligned, never traced
-    // along the coast. Each is small: a 2-wide finger from its shore.
-    const miniJetty = (p: Port, len: number) => {
-      // walk from the port point (on land) seaward along the DOMINANT axis
-      const sx2 = Math.cos(p.az), sy2 = Math.sin(p.az)
-      const ax = Math.abs(sx2) >= Math.abs(sy2) ? Math.sign(sx2) : 0
-      const ay = ax === 0 ? Math.sign(sy2) : 0
-      let bx2 = Math.round(p.x), by2 = Math.round(p.y)
-      // root on genuinely DRY sand (the wet tide flat washes ~3 tiles of the
-      // beach — a deck rooted at the ds-0 waterline read as a marooned raft),
-      // then run the finger until it stands 2 tiles into real water
-      let guard = 0
-      while (guard++ < 12 && coastDs(bx2 + ax, by2 + ay) > 0) { bx2 += ax; by2 += ay }
-      guard = 0
-      while (guard++ < 10 && coastDs(bx2, by2) < 3.2) { bx2 -= ax; by2 -= ay }
-      void len
-      let i = 0
-      while (i < 12 && coastDs(bx2 + ax * (i - 1), by2 + ay * (i - 1)) > -2) {
-        const tx = bx2 + ax * i, ty = by2 + ay * i
-        // 2-wide across the jetty's off-axis
-        push({ tx, ty, lift: 8, mat: 'plank', walk: true })
-        push({ tx: tx + (ax === 0 ? 1 : 0), ty: ty + (ay === 0 ? 1 : 0), lift: 8, mat: 'plank', walk: true })
-        i++
-      }
-      return [bx2, by2] as [number, number]
-    }
-    const N_ROOT = miniJetty(PORTS.north, 4)   // the fishing jetty in the cliff notch
-    const S_ROOT = miniJetty(PORTS.south, 4)   // the cargo landing at the cove
-    // the west 'cove' stays UNBUILT — a quiet beach is its identity (rowboat +
-    // lantern dress it in the renderer, no structure)
-    MINI_PORTS = { north: N_ROOT, south: S_ROOT }
+    // (THE MINI-PORTS ARE GONE — Ash 2026-07-16: "remove... the other ports &
+    // unnecessary random assets across the island." ONE harbor, the east
+    // stilt-port, is the island's landing; the other three coasts stay wild.
+    // The Port anchors survive in PORTS for the game spine, unbuilt.)
+    MINI_PORTS = { north: [Math.round(PORTS.north.x), Math.round(PORTS.north.y)], south: [Math.round(PORTS.south.x), Math.round(PORTS.south.y)] }
 
     HARBOR = {
       tiles,
@@ -582,7 +555,10 @@ export function initHubLayout() {
       // the intro ship moors along the grand pier's SOUTH face, mid-pier: the
       // south side is IN FRONT in painter order, so the full hull reads against
       // the open water
-      berth: [QX + 7, ryMid + 1.85],
+      // +2.5, not +1.85: at 1.85 the hull's upper half drew ON the deck planks —
+      // "assets halfway into another asset" (Ash 2026-07-16). The hull now rides
+      // fully in the water lane, touching the pier only through its moor lines.
+      berth: [QX + 7, ryMid + 2.5],
       // COMPOSITION = one pod, one job: the bell greets at the court, the
       // market platform sells, the fleet spur moors, the harbormaster's stilt
       // platform holds the house, freight loads at the pierhead, the jetty
@@ -591,23 +567,31 @@ export function initHubLayout() {
       crane: [QX, ryMid + 1],                   // legacy anchor (crane retired)
       lanterns: [
         [QX - 2, ryMid - 8],                    // market platform corner
-        [QX, ryMid + 6],                        // harbormaster platform corner
-        [QX + 7.5, ryMid - 0.45],               // mid-pier walk light (the long stride needs a beat)
+        // SW corner, IN FRONT of the house: at the NW corner the lamp hid
+        // behind the house sprite and its orphaned glow pooled on the rip-rap
+        // at the waterline — the "dark chunk + stray light" glitch (2026-07-16)
+        [QX + 0.3, ryMid + 8.7],
+        // (the mid-pier walk light is gone — it stood inside the berthed ship's
+        // rigging and read as clipping, Ash 2026-07-16)
         [HEADX - 0.6, ryMid - 0.6],             // pierhead mooring light, north corner
-        [HEADX - 0.6, ryMid + 1.6],             // pierhead mooring light, south corner
+        // south face mid-run: at the SE corner it interpenetrated the freight
+        // stack and the pennant — one confused blob (2026-07-16)
+        [HEADX - 2.8, ryMid + 1.7],
       ],
       // freight staged where hulls actually load: the pierhead yard + a jetty crate
       cargo: [
-        [QX + PLEN + 2.5, ryMid + 0.5],
+        [QX + PLEN + 2, ryMid],                 // west pierhead interior, clear of flag + lamps
         [QX + 4, jY + 1],
       ],
       sloop: [QX + 9, ryMid - 3.2],             // at anchor in the basin between pier and spur
-      sloop2: [QX + 8, jY + 2.4],               // the second fisher off the jetty head
+      // pushed 2 tiles further out: at [+8, +2.4] it interlocked with the jetty
+      // dinghy — two hulls reading as one glitched pile (Ash 2026-07-16)
+      sloop2: [QX + 10, jY + 3.6],              // the second fisher standing off the jetty
       // hauled up WELL clear of the deck: at -1.4 the hull's bbox rode up over
       // the boardwalk's south rows and read glitched-onto-the-deck (Ash)
       rowboat: [rawWx(ryS + 2) - 3.2, ryS + 2.6],
       beacon: [QX + 6.6, ryMid - 11.4],         // the harbor light at the wide arc's north tip
-      pennant: [HEADX, ryMid + 0.5],            // ON the pierhead's seaward edge
+      pennant: [HEADX + 0.2, ryMid - 0.9],      // the pierhead's NE corner, clear of the yard
       // mooring cleats ONLY where a boat actually ties up
       edgePosts: [[QX + 3.6, jY + 0.5], [QX + 4, ryMid - 6.6], [QX + 7, ryMid - 6.6]],
       bollards: [[QX + PLEN + 1, ryMid + 2.6], [HEADX, ryMid - 1.6]],
