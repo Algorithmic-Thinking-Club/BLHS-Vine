@@ -1336,6 +1336,17 @@ export default function IslandMapIso() {
                 // (crust plates now DRIFT with the current — spawned in the
                 // animation pass, not parked per-tile). A per-tile phase jitter
                 // keeps the flipbook's frames from banding row by row.
+                // the river COOLS INTO the sea (Ash, circled twice: the mouth ended
+                // as a hard bright bar). Over the last beach tiles the melt crusts
+                // toward the delta's charcoal, so the run visibly dies into the
+                // black fan instead of stopping at a straight cut.
+                const seaK = Math.max(0, Math.min(1, 1 - dsq / 7)) * 0.92
+                if (seaK > 0) {
+                  const t0 = top.tint as number
+                  top.tint = (Math.round(((t0 >> 16) & 255) * (1 - seaK) + 0x4a * seaK) << 16)
+                    | (Math.round(((t0 >> 8) & 255) * (1 - seaK) + 0x42 * seaK) << 8)
+                    | Math.round((t0 & 255) * (1 - seaK) + 0x3e * seaK)
+                }
                 lavaFlow.push({
                   sp: top, off: Math.hypot(tx - CX, ty - CY) + hash(tx * 1.9, ty * 4.1) * 0.7,
                   pool: ck > 0.32 && lakeT.length ? lakeT : lavaT,
@@ -1344,7 +1355,7 @@ export default function IslandMapIso() {
                 glow.anchor.set(0.5, 0.5); glow.blendMode = 'add'
                 glow.tint = core ? 0xffa040 : 0xff8a30
                 glow.width = 150; glow.height = 84
-                glow.alpha = core ? 0.4 : 0.28
+                glow.alpha = (core ? 0.4 : 0.28) * (1 - seaK)
                 glow.position.set(bx, by); glow.zIndex = zBase + 7
                 world.addChild(glow)
                 // phase keyed to distance from the vent: the pulse TRAVELS downstream —
@@ -2137,9 +2148,12 @@ export default function IslandMapIso() {
         const HARBOR_ON = params.get('harbor') !== '0'
         if (HARBOR_ON) try {
           const hb: Record<string, Texture> = {}
-          for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'boathouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'deck-top-v5-0', 'deck-top-v5-1', 'deck-top-v5-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b', 'house-v4', 'house-v5', 'lamp-v4', 'stall-a', 'stall-b', 'stall-a2', 'stall-b2', 'cargo-b', 'cargo-c', 'fishing-boat', 'court-stone-a', 'gate-arch', 'gate-arch2']) {
+          for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'boathouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'deck-top-v5-0', 'deck-top-v5-1', 'deck-top-v5-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b', 'house-v4', 'house-v5', 'lamp-v4', 'stall-a', 'stall-b', 'stall-a2', 'stall-b2', 'cargo-b', 'cargo-c', 'fishing-boat', 'court-stone-a', 'gate-arch', 'gate-arch2', 'pavilion', 'bunting']) {
             try {
-              const t: Texture = await Assets.load(`/art/island/harbor/${n}.png?v=5`)
+              // v=6: several of these files were REWRITTEN in place (bg strip,
+              // shadow strip) — a stale ?v=5 cache kept serving the white-panel
+              // pavilion long after the disk was clean (Ash saw the old bytes)
+              const t: Texture = await Assets.load(`/art/island/harbor/${n}.png?v=6`)
               t.source.scaleMode = 'nearest'; hb[n] = t
             } catch { /* not landed yet */ }
           }
@@ -2231,8 +2245,10 @@ export default function IslandMapIso() {
                 // stand on timber PILINGS under a beam fascia. Only the screen-S
                 // and screen-E sides can show — a same-or-higher deck neighbor
                 // masks its side, so interior tiles draw no understructure.
-                const ds2 = coastDs(ht.tx, ht.ty)
-                const onRock = ds2 > -1.5
+                // one material law: STONE stands on a rock footing, TIMBER stands
+                // on pilings. (The old near-shore rule gave the plank pods lone
+                // rip-rap clumps at their lips — Ash's "dark chunk" glitch.)
+                const onRock = ht.mat === 'stone'
                 const exposed = ([[1, 0], [0, 1]] as [number, number][]).filter(([ox, oy]) => {
                   const nb = harborAt(ht.tx + ox, ht.ty + oy)
                   return !(nb && nb.mat !== 'rock' && nb.lift >= ht.lift)
@@ -2289,9 +2305,11 @@ export default function IslandMapIso() {
                       sp.position.set(isoX(jx, jy), isoY(jx, jy) + GY + 9)
                       // cap height to the gap between waterline and deck underside
                       const maxSc = (ht.lift + 18) / rr.height
-                      const sc2 = Math.min(maxSc, 0.3 + 0.12 * hash(jx * 7.7, jy * 3.9))
+                      // smaller + lighter than the first pass: the piles massed
+                      // into one dark blob at the platform lips (Ash 2026-07-17)
+                      const sc2 = Math.min(maxSc, 0.24 + 0.08 * hash(jx * 7.7, jy * 3.9))
                       sp.scale.set((hash(jx, jy) > 0.5 ? -1 : 1) * sc2, sc2)
-                      sp.tint = hash(jx + 1, jy + 2) > 0.5 ? 0xb0a89c : 0x9a9288
+                      sp.tint = hash(jx + 1, jy + 2) > 0.5 ? 0xc8c0b2 : 0xb2aa9e
                       sp.zIndex = zB + 3
                       world.addChild(sp)
                     }
@@ -2496,7 +2514,9 @@ export default function IslandMapIso() {
             // stilt-office and net-rack are GONE; what remains is the arrival's
             // essentials — the bell, the lanterns, the beacon, the ship, two boats —
             // with room to breathe. The fresh art kit is phase 2.
-            mount(pt['bell-frame'], deckCtr(HARBOR.bell), { sc: 0.5 })
+            // the arrivals bell ON THE SHORE at the gangway landing (deck:false —
+            // it stands on the sand, its own vignette, clear of the arch)
+            mount(pt['bell-frame'], HARBOR.bell, { deck: false, sc: 0.5, sink: 4 })
             // v7 SPICE · THE GATEWAY ARCH: the panther-banner arch spans the
             // grand pier at its root — every arrival walks under the school's
             // own colors (its baked plank base sits flush on the pier deck)
@@ -2507,11 +2527,13 @@ export default function IslandMapIso() {
             // stack, two moments: the pierhead yard + the jetty. The third
             // bollard-side stack is gone — it crowded the pierhead.
             const cargoT = hb['cargo-c'] ?? hb['cargo-b'] ?? pt['cargo-a']
-            // pierhead freight snaps to interior deck; the JETTY stack mounts
-            // DIRECT — a 2-wide finger has no interior tile, and the snap dragged
-            // its crates onto the harbormaster's platform into the house (v7 bug)
+            // THE PIERHEAD PAVILION — the port's hero structure (TavernWorld:
+            // a focal roof, not a bare deck). Open timber, terracotta + teal,
+            // its own hung lanterns; the freight tucks beside its west post.
+            const headX = HARBOR.bollards[1][0]   // the pierhead's east column
+            mount(hb['pavilion'], [headX - 1.6, HARBOR.root[1] + 0.6], { sc: 0.85, glow: true })
             if (cargoT) {
-              mount(cargoT, deckCtr(HARBOR.cargo[0]), { sc: 0.72 })
+              mount(cargoT, [headX - 2.7, HARBOR.root[1] + 1.3], { sc: 0.5 })
               mount(cargoT, HARBOR.cargo[1], { sc: 0.55, flip: true })
             }
             for (const L2 of HARBOR.lanterns) {
@@ -2544,8 +2566,18 @@ export default function IslandMapIso() {
             if (hb['beacon']) {
               const at = HARBOR.beacon
               const BSC = 1.32     // the HERO of the harbor — the tall vertical anchor
-              const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY - 8
+              // seated IN the sea (+2, was -8 hovering) with a displacement pool
+              // + foam collar at its islet base, exactly like the hulls
+              const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY + 2
               const zB = Math.floor(at[0] + at[1]) * 4000
+              const brf = new Sprite(shadTex); brf.anchor.set(0.5, 0.5)
+              brf.width = 130; brf.height = 26; brf.alpha = 0.4; brf.tint = 0x08222a
+              brf.position.set(bx2, by2 + 2); brf.zIndex = zB + 600
+              world.addChild(brf)
+              const bfm = new Sprite(foamTex); bfm.anchor.set(0.5, 0.5)
+              bfm.width = 150; bfm.height = 30; bfm.alpha = 0.62
+              bfm.position.set(bx2, by2 - 2); bfm.zIndex = zB + 602
+              world.addChild(bfm)
               const sp = new Sprite(hb['beacon']); sp.anchor.set(0.5, 0.97)
               sp.position.set(bx2, by2); sp.scale.set(BSC); sp.zIndex = zB + 940
               world.addChild(sp)
@@ -2650,9 +2682,35 @@ export default function IslandMapIso() {
             // tiles flat by construction so nothing can seam-clip
             // v8 stalls are BASE-FREE (the v7 pair carried baked plank podiums
             // with dark skirts — a platform pasted on the platform, Ash's
-            // "out-of-style / placed wrongly" read)
-            mount(hb['stall-a2'] ?? hb['stall-a'], deckCtr([HARBOR.root[0] - 1, HARBOR.root[1] - 7]), { sc: hb['stall-a2'] ? 0.9 : 0.82 })
-            mount(hb['stall-b2'] ?? hb['stall-b'], deckCtr([HARBOR.root[0] + 1, HARBOR.root[1] - 6]), { sc: hb['stall-b2'] ? 0.9 : 0.82, flip: true })
+            // "out-of-style / placed wrongly" read). Mounted DIRECT as one
+            // overlapping market CLUSTER (the TavernWorld grammar: goods stalls
+            // lean into each other with freight between, never one prop per pod
+            // centered by a snap — the interior snap shoved the fruit stall onto
+            // the pod's back lip where it hung over the water)
+            mount(hb['stall-a2'] ?? hb['stall-a'], [HARBOR.root[0] - 0.7, HARBOR.root[1] - 6.4], { sc: 0.88 })
+            // pulled inboard: at +1.1 the fish stall's counter corner hung past
+            // the pod's east lip over open water (Ash: "buildings floating over
+            // the edge of the harbor")
+            mount(hb['stall-b2'] ?? hb['stall-b'], [HARBOR.root[0] + 0.55, HARBOR.root[1] - 5.9], { sc: 0.9, flip: true })
+            if (cargoT) mount(cargoT, [HARBOR.root[0] - 1.7, HARBOR.root[1] - 5.3], { sc: 0.42, flip: true })
+            // festival bunting strung stall-to-stall — anchored on real posts at
+            // both ends (a string hung on nothing is the floating-asset class)
+            if (hb['bunting']) {
+              const mLift = harborAt(Math.round(HARBOR.root[0]), Math.round(HARBOR.root[1] - 6))?.lift ?? 0
+              const ax = isoX(HARBOR.root[0] - 0.7, HARBOR.root[1] - 6.4)
+              const ay = isoY(HARBOR.root[0] - 0.7, HARBOR.root[1] - 6.4) + GY - mLift + 8 - 118
+              const bx3 = isoX(HARBOR.root[0] + 0.55, HARBOR.root[1] - 5.9)
+              const by3 = isoY(HARBOR.root[0] + 0.55, HARBOR.root[1] - 5.9) + GY - mLift + 8 - 124
+              const st = new Sprite(hb['bunting'])
+              st.anchor.set(0, 0.32)               // the rope line rides the strip's top
+              const d2 = Math.hypot(bx3 - ax, by3 - ay)
+              st.position.set(ax + 12, ay)
+              st.rotation = Math.atan2(by3 - ay, bx3 - ax)
+              st.width = Math.max(40, d2 - 20); st.height = 34
+              st.zIndex = Math.floor(HARBOR.root[0] + 1.1 + HARBOR.root[1] - 5.7) * 4000 + 740
+              world.addChild(st)
+              sways.push({ sp: st, amp: 0.02, w: 1.1, ph: 0.7 })
+            }
             // hauled a tile further up-beach: at the plan point the bow still
             // straddled the tide seam (final-sweep catch — neither beached nor
             // afloat reads wrong at every zoom)
@@ -2660,7 +2718,7 @@ export default function IslandMapIso() {
             // keeps the bow clear of the tide seam while staying on dry sand)
             // v6: the esplanade is 2 tiles wider — haul the boat further up-beach
             // so the hull clears the deck's landward lip
-            mount(hb['rowboat'], [HARBOR.rowboat[0] - 1.6, HARBOR.rowboat[1] - 0.2], { deck: false, sc: 0.8, flip: true, sink: 3 })
+            mount(hb['rowboat'], HARBOR.rowboat, { deck: false, sc: 0.8, flip: true, sink: 3 })
             // (The mini-port dressing and the west-cove vignette are REMOVED with
             // the mini-ports themselves — Ash 2026-07-16: "remove... the other
             // ports & unnecessary random assets." One harbor, three wild coasts.)
@@ -2712,8 +2770,12 @@ export default function IslandMapIso() {
             // v7: the smack ties up along the FLEET SPUR's south face; the
             // bleached third sloop stands off south of the pierhead, both in
             // open water the network leaves visible
-            boat(hb['fishing-boat'], [HARBOR.sloop[0] - 4.5, HARBOR.sloop[1] - 0.6], 0.72)
-            const sloop3Sp = boat(hb['sloop'], [HARBOR.pennant[0] - 1, HARBOR.pennant[1] + 4], 0.7)
+            // OUTSIDE the network's pockets: in the inner basin the smack's wide
+            // hull rode up onto the fleet spur's deck — "boats sitting halfway on
+            // the harbor, noclipping" (Ash 2026-07-17). Open water east of the
+            // spur tip; the pierhead sloop stands a full lane off the south face.
+            boat(hb['fishing-boat'], [HARBOR.sloop[0] + 3, HARBOR.sloop[1] - 3], 0.72)
+            const sloop3Sp = boat(hb['sloop'], [HARBOR.pennant[0] - 1.2, HARBOR.pennant[1] + 5.6], 0.7)
             if (sloop3Sp) sloop3Sp.tint = 0xd8c8a8
             // an afloat dinghy works the fishing jetty's seaward side
             boat(hb['rowboat'], [HARBOR.cargo[1][0] + 2.6, HARBOR.cargo[1][1] + 2.3], 0.6, true)
@@ -3141,11 +3203,17 @@ export default function IslandMapIso() {
         const flowPaths: FlowPt[][] = []
         for (const line of NOCONE ? [] : LAVA) {
           const pts: FlowPt[] = []
-          for (let i = 0; i < line.length - 1; i++) {
+          let reachedSea = false
+          for (let i = 0; i < line.length - 1 && !reachedSea; i++) {
             const [x0, y0] = line[i], [x1, y1] = line[i + 1]
             const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 0.4))
             for (let s = 0; s < n; s++) {
               const x = x0 + ((x1 - x0) * s) / n, y = y0 + ((y1 - y0) * s) / n
+              // the moving overlays END where the molten TILES end: the beach is
+              // the SAND branch (charred delta tint), so the bright river stops at
+              // the first sea-level tile — a waterline clip still left the vein
+              // running naked over the delta as a rigid bar (Ash, circled twice)
+              if (eLvl(Math.round(x), Math.round(y)) <= 0) { reachedSea = true; break }
               const lf = liftOf(eLvl(Math.round(x), Math.round(y)))
               pts.push({ x: isoX(x, y), y: isoY(x, y) + GY - lf, z: Math.floor(x + y) * 4000 + lf * 2 + 40 })
             }

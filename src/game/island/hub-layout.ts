@@ -493,7 +493,10 @@ export function initHubLayout() {
     //   - a SOUTH WALK to the HARBORMASTER'S STILT PLATFORM (the house stands
     //     OVER the water), the fishing jetty branching east off the walk
     //   - the wide breakwater arc + lighthouse islet enclosing it all
-    const HL = 8
+    // HL 12 (was 8): at 8 the decks sat barely over the swell and the whole
+    // port read as flimsy scaffolding at map zoom — a stilt-port STANDS on its
+    // pilings, tall enough that the understructure shows real daylight
+    const HL = 12
     const ryN = ryMid - 6, ryS = ryMid + 6
     // WL = the waterline (last-land tile) at the port's CENTRE row. QX = the
     // network's spine, pushed 2 tiles SEAWARD: rooted at WL the court and pods
@@ -563,7 +566,10 @@ export function initHubLayout() {
       // market platform sells, the fleet spur moors, the harbormaster's stilt
       // platform holds the house, freight loads at the pierhead, the jetty
       // works fish. Open water between the arms IS the composition.
-      bell: [QX - 1, ryMid - 1],                // arrivals bell on the court's north corner
+      // the arrivals bell stands ON THE SHORE where the gangway lands — at the
+      // court's corner it tangled with the arch into one dark timber knot
+      // (Ash 2026-07-17: "SO glitched"). On the sand it is its own vignette.
+      bell: [QX - 5, ryMid + 0.4],
       crane: [QX, ryMid + 1],                   // legacy anchor (crane retired)
       lanterns: [
         [QX - 2, ryMid - 8],                    // market platform corner
@@ -577,6 +583,10 @@ export function initHubLayout() {
         // south face mid-run: at the SE corner it interpenetrated the freight
         // stack and the pennant — one confused blob (2026-07-16)
         [HEADX - 2.8, ryMid + 1.7],
+        // the WALK RHYTHM (TavernWorld: warm beats pace the stride) — one light
+        // per walk, on the lip AWAY from the berth so nothing stands in rigging
+        [QX - 0.55, ryMid - 3],                 // north walk, west lip
+        [QX + 1.55, ryMid + 3.2],               // south walk, east lip
       ],
       // freight staged where hulls actually load: the pierhead yard + a jetty crate
       cargo: [
@@ -587,10 +597,14 @@ export function initHubLayout() {
       // pushed 2 tiles further out: at [+8, +2.4] it interlocked with the jetty
       // dinghy — two hulls reading as one glitched pile (Ash 2026-07-16)
       sloop2: [QX + 10, jY + 3.6],              // the second fisher standing off the jetty
-      // hauled up WELL clear of the deck: at -1.4 the hull's bbox rode up over
-      // the boardwalk's south rows and read glitched-onto-the-deck (Ash)
-      rowboat: [rawWx(ryS + 2) - 3.2, ryS + 2.6],
-      beacon: [QX + 6.6, ryMid - 11.4],         // the harbor light at the wide arc's north tip
+      // MID-BEACH, on dry sand: the old -3.2 anchor plus a -1.6 mount offset
+      // put the hull on the grass seam — "halfway inside the grass" (Ash
+      // 2026-07-17). One anchor, no hidden offset, verified against the seam.
+      rowboat: [rawWx(ryS + 2) - 3.4, ryS + 2.6],
+      // OFF the arc, in open water: on the tip tile the beacon's painted islet
+      // and the rip-rap rocks fought over the same ground and the tower read
+      // as hovering over the rocks (Ash 2026-07-17)
+      beacon: [QX + 6.2, ryMid - 13.4],
       pennant: [HEADX + 0.2, ryMid - 0.9],      // the pierhead's NE corner, clear of the yard
       // mooring cleats ONLY where a boat actually ties up
       edgePosts: [[QX + 3.6, jY + 0.5], [QX + 4, ryMid - 6.6], [QX + 7, ryMid - 6.6]],
