@@ -1,0 +1,130 @@
+[
+  {
+    "file": "p1-boat",
+    "x": 2260,
+    "y": 3644,
+    "row": 234,
+    "kind": "hull",
+    "baseY": 3759
+  },
+  {
+    "file": "p1-tower",
+    "x": 2363,
+    "y": 3449,
+    "row": 228,
+    "kind": "static",
+    "baseY": 3654
+  },
+  {
+    "file": "p1-hall",
+    "x": 2228,
+    "y": 3349,
+    "row": 224,
+    "kind": "static",
+    "baseY": 3586
+  },
+  {
+    "file": "p1-stalls",
+    "x": 2091,
+    "y": 3507,
+    "row": 228,
+    "kind": "static",
+    "baseY": 3656
+  },
+  {
+    "file": "p1-walk",
+    "x": 2045,
+    "y": 3384,
+    "row": 219,
+    "kind": "static",
+    "baseY": 3504
+  },
+  {
+    "file": "p1-deckback",
+    "x": 2228,
+    "y": 3324,
+    "row": 221,
+    "kind": "surface",
+    "baseY": 3544
+  },
+  {
+    "file": "p1-deckfront",
+    "x": 2045,
+    "y": 3624,
+    "row": 236,
+    "kind": "static",
+    "baseY": 3784
+  },
+  {
+    "file": "p2-ship",
+    "x": 2568,
+    "y": 3523,
+    "row": 235,
+    "kind": "hull",
+    "baseY": 3770
+  },
+  {
+    "file": "p2-jetty-a",
+    "x": 2385,
+    "y": 3440,
+    "row": 230,
+    "kind": "surface",
+    "baseY": 3690
+  },
+  {
+    "file": "p2-jetty-b",
+    "x": 2535,
+    "y": 3440,
+    "row": 234,
+    "kind": "surface",
+    "baseY": 3750
+  },
+  {
+    "file": "p2-jetty-c",
+    "x": 2655,
+    "y": 3440,
+    "row": 237,
+    "kind": "surface",
+    "baseY": 3800
+  },
+  {
+    "file": "p3-mole",
+    "x": 2383,
+    "y": 3700,
+    "row": 255,
+    "kind": "static",
+    "baseY": 4080
+  },
+  {
+    "file": "p4-crane",
+    "x": 2149,
+    "y": 3142,
+    "row": 203,
+    "kind": "static",
+    "baseY": 3257
+  },
+  {
+    "file": "p4-stalls",
+    "x": 1977,
+    "y": 3178,
+    "row": 207,
+    "kind": "static",
+    "baseY": 3312
+  },
+  {
+    "file": "p4-deck",
+    "x": 1953,
+    "y": 3122,
+    "row": 203,
+    "kind": "surface",
+    "baseY": 3252
+  },
+  {
+    "file": "p4-front",
+    "x": 1953,
+    "y": 3372,
+    "row": 214,
+    "kind": "static",
+    "baseY": 3438
+  }
+]

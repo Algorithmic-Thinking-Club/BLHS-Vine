@@ -6,7 +6,7 @@ import {
 } from '../ocean'
 import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, MOUTH_L, MOUTH_R } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
-import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, pathD, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD, RIVER, FALLS, FORD, STELES, TONGUE, TIDEPOOLS, WEST_OVERLOOK } from './hub-layout'
+import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, pathD, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD, riverD, RIVER, FALLS, FORD, STELES, TONGUE, TIDEPOOLS, WEST_OVERLOOK } from './hub-layout'
 import { reportIslandAudit } from './island-audit'
 import { headField, inHeadBBox } from './heads'
 
@@ -151,6 +151,9 @@ export default function IslandMapIso() {
       // HEIGHT-TILE terrain: real per-tile elevation levels (→ faces, collision, depth)
       const NLEV = Number(params.get('nlev') || 5)   // discrete elevation levels (real tiles)
       const STEP = Number(params.get('step') || 20)  // world px per elevation level (taller = vaster cliffs)
+      // hoisted for the walk system (defined inside the terrain block below)
+      let eLvlG: (tx: number, ty: number) => number = () => 0
+      let GYG = 14
 
       const sandV: Texture[] = []
       const grassV: Texture[] = []
@@ -601,6 +604,7 @@ export default function IslandMapIso() {
         }
         const eLvl = (tx: number, ty: number) =>
           tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS ? -1 : LV[ty * COLS + tx]
+        eLvlG = eLvl
         if (DBG) (window as unknown as { __LV?: unknown }).__LV = { LV, COLS, ROWS }
 
         // LAND↔SEA LATTICE ALIGNMENT: seaTile anchors its soft 64x64 water sprites at
@@ -609,6 +613,7 @@ export default function IslandMapIso() {
         // lattice and every camera-facing shoreline edge exposed a background wedge (the
         // "gap between ocean and sand"), and cliff feet hovered above their own waterline.
         const GY = Number(params.get('gy') || 14)
+        GYG = GY
 
         // a foam collar at a wall's waterline foot — drawn ABOVE the fronting sea tile (which
         // submerges the wall base); at wall-z the sea drew over it and the join showed as notches
@@ -2758,7 +2763,130 @@ export default function IslandMapIso() {
             // west tip plants on DRY sand — the pier-wharf tuck is WX-relative
             // and survives the slide untouched
             const WX = HARBOR.root[0] + 3.9, WY = HARBOR.root[1] - 1
-            if (SCRATCH) {
+            // THE PLATE REGIME (2026-07-17, "scrap out both harbors"): the
+            // harbor is now a Pro-inpaint PLATE painted into the live bay.
+            // ?plate=0 falls back to the scratch pieces; ?noport=1 renders an
+            // EMPTY bay (the capture mode plates are generated against).
+            const NOPORT = params.get('noport') === '1'
+            const PLATE = !NOPORT && params.get('plate') !== '0'
+            // ---- PLATE PILOT (?pilot=1): the Pro-inpaint port, mounted at the
+            // exact world position its source crop was captured from (zoom=1,
+            // cam=143,105, crop origin screen 740,310 -> world px below). The
+            // overlay holds ONLY the painted-changed pixels, so the live sea
+            // animates around it. Demo artifact, not the final harbor.
+            if (params.get('pilot') === '1') {
+              try {
+                // v2: structure-only extraction (the naive diff kept the
+                // model's subtle water-repaint — the 'tinted sheet' Ash caught)
+                const pt: Texture = await Assets.load('/art/island/pilot-port.png?v=2')
+                pt.source.scaleMode = 'nearest'
+                const ps = new Sprite(pt)
+                ps.position.set(740 - 683 + isoX(143, 105), 310 - 384 + isoY(143, 105))
+                ps.zIndex = Math.floor((ps.position.y + 430) / 16) * 4000 + 900
+                world.addChild(ps)
+              } catch { /* pilot art absent */ }
+            }
+            // ---- THE PLATE HARBOR: one Pro-inpaint painting, composed by the
+            // model INTO a live capture of this exact bay (zoom=1 cam=146,77,
+            // crop origin screen 520,140 -> world px 2045,3324). The overlay
+            // holds only painted-changed pixels: structures, foam, reflections.
+            // The sea animates around it; sand and water under it are live.
+            if (PLATE) {
+              try {
+                // THE DECOMPOSED HARBOR — the plates are cut into 13 per-object
+                // sprites (scripts/cut_plates.py -> harbor-objects.json): boats
+                // and verticals as semantic objects at their feet row, decks as
+                // depth bands. Thor's row z interleaves BETWEEN objects — the
+                // monolith could never let him stand on a deck.
+                const HOBJ: { file: string; x: number; y: number; row: number; kind: string; baseY: number }[] =
+                  (await import('./harbor-objects.json')).default
+                for (const ob of HOBJ) {
+                  // v2: the surface/face z law — surfaces cut low (Thor stands
+                  // over), front faces at their own bottom row (front his feet)
+                  const t: Texture = await Assets.load(`/art/island/harbor/obj/${ob.file}.png?v=2`)
+                  t.source.scaleMode = 'nearest'
+                  const sp = new Sprite(t)
+                  sp.position.set(ob.x, ob.y)
+                  sp.zIndex = ob.row * 4000 + 900
+                  world.addChild(sp)
+                  // painted hulls ride the same engine swell as every boat
+                  if (ob.kind === 'hull') bobs.push({ sp, y0: ob.y, w: 0.5, ph: hash(ob.x, ob.y) * 6.3 })
+                }
+                // the LIGHTHOUSE on the mole's head — the traditional-asset
+                // blend: a map object seated on the painted stone platform
+                const lhT: Texture = await Assets.load('/art/island/harbor/lighthouse.png?v=1')
+                lhT.source.scaleMode = 'nearest'
+                const lh = new Sprite(lhT); lh.anchor.set(0.5, 1)
+                lh.position.set(2383 + 415, 3700 + 232)
+                lh.zIndex = 254 * 4000 + 950
+                world.addChild(lh)
+                // the CONNECTOR decal — in-context sand walk tying the market
+                // deck to the port block; ground layer, under Thor's band
+                const tc: Texture = await Assets.load('/art/island/harbor/conn-sand.png?v=1')
+                tc.source.scaleMode = 'nearest'
+                const pc = new Sprite(tc)
+                pc.position.set(2081, 3284)
+                pc.zIndex = 207 * 4000 + 200
+                world.addChild(pc)
+                // THOR'S SHIP at the promenade berth — the hero 16-view rigger
+                // standing off the deep-water face, bobbing on the engine swell
+                const shipT2: Texture = await Assets.load('/art/intro/port/ship16/v1.png')
+                shipT2.source.scaleMode = 'nearest'
+                const shSp = new Sprite(shipT2); shSp.anchor.set(0.5, 0.86)
+                shSp.position.set(2452, 3184)
+                shSp.zIndex = 199 * 4000 + 900
+                const shRf = new Sprite(shadTex); shRf.anchor.set(0.5, 0.5)
+                shRf.width = shipT2.width * 0.82; shRf.height = 30; shRf.alpha = 0.5; shRf.tint = 0x06202a
+                shRf.position.set(2452, 3191); shRf.zIndex = 199 * 4000 + 600
+                world.addChild(shRf)
+                const shFm = new Sprite(foamTex); shFm.anchor.set(0.5, 0.5)
+                shFm.width = shipT2.width; shFm.height = 30; shFm.alpha = 0.6
+                shFm.position.set(2452, 3186); shFm.zIndex = 199 * 4000 + 602
+                world.addChild(shFm)
+                world.addChild(shSp)
+                bobs.push({ sp: shSp, y0: 3184, w: 0.45, ph: 1.7 })
+                // MOOR LINES: two taut lines from her bow and stern down to
+                // the promenade berth bollards — the physical tie that sells it
+                for (const [ax, ay, bx4, by4] of [
+                  [2436, 3178, 2352, 3272],
+                  [2492, 3196, 2412, 3290],
+                ] as [number, number, number, number][]) {
+                  const line = new Sprite(Texture.WHITE)
+                  line.anchor.set(0, 0.5)
+                  line.width = Math.hypot(bx4 - ax, by4 - ay); line.height = 2
+                  line.tint = 0x3e2c18; line.alpha = 0.85
+                  line.position.set(ax, ay)
+                  line.rotation = Math.atan2(by4 - ay, bx4 - ax)
+                  line.zIndex = 210 * 4000 + 940
+                  world.addChild(line)
+                }
+                // LANTERN GLOW — additive warm halos breathing over every
+                // painted lamp (world px measured off the live composite)
+                const GLOWS: [number, number, number][] = [
+                  [2160, 3499, 22], [2223, 3439, 22], [2415, 3492, 24],
+                  [2567, 3512, 26], [2533, 3619, 22], [2637, 3688, 22],
+                  [2804, 3792, 32], [2087, 3292, 20], [2373, 3292, 20],
+                ]
+                const glowTex = radial(64, [[0, 'rgba(255,196,112,0.9)'], [0.5, 'rgba(255,164,72,0.32)'], [1, 'rgba(255,164,72,0)']])
+                const glows: { g: Sprite; a0: number; ph: number }[] = []
+                for (const [gx, gy, gr] of GLOWS) {
+                  const g = new Sprite(glowTex)
+                  g.anchor.set(0.5, 0.5)
+                  g.width = gr * 2; g.height = gr * 1.4
+                  g.tint = 0xffb054; g.alpha = 0.34
+                  g.blendMode = 'add'
+                  g.position.set(gx, gy)
+                  g.zIndex = 3_000_000 + 10
+                  world.addChild(g)
+                  glows.push({ g, a0: 0.34, ph: hash(gx, gy) * 6.3 })
+                }
+                app.ticker.add(() => {
+                  const t = performance.now() / 1000
+                  for (const gl of glows) gl.g.alpha = gl.a0 + Math.sin(t * 1.7 + gl.ph) * 0.07
+                })
+              } catch { /* plate art absent */ }
+            }
+            if (SCRATCH && !PLATE && !NOPORT) {
               const piece = async (file: string, at: [number, number], o: { legs?: number; foamW?: number; z?: number } = {}) => {
                 try {
                   // v3: islet ripple-ring erased, pier-spine landed (bump on every in-place rewrite)
@@ -2883,10 +3011,10 @@ export default function IslandMapIso() {
               bobs.push({ sp, y0: by2, w: 0.55 + 0.3 * hash(at[0], at[1]), ph: hash(at[1], at[0]) * 6.3 })
               return sp
             }
-            boat(hb['sloop'], SCRATCH ? [WX + 9, WY - 1.5] : HARBOR.sloop)
+            if (!PLATE && !NOPORT) boat(hb['sloop'], SCRATCH ? [WX + 9, WY - 1.5] : HARBOR.sloop)
             // the second fisher is visibly DISTINCT (a weathered blue-grey hull),
             // not an obvious copy of the first (reviewer: duplicated boats read cheap)
-            const sloop2Sp = boat(hb['sloop'], SCRATCH ? [WX + 1.5, WY + 9.5] : HARBOR.sloop2, 0.82, true)
+            const sloop2Sp = (!PLATE && !NOPORT) ? boat(hb['sloop'], SCRATCH ? [WX + 1.5, WY + 9.5] : HARBOR.sloop2, 0.82, true) : undefined
             if (sloop2Sp) sloop2Sp.tint = 0x8fb0b8
             // v5 BUSTLE · the FLEET: a port with traffic, not two lonely hulls.
             // The fishing smack (its own silhouette — nets, furled tan sail)
@@ -2902,17 +3030,19 @@ export default function IslandMapIso() {
             // spur tip; the pierhead sloop stands a full lane off the south face.
             // NW open water — parked behind the wharf at [-6,-4] it hid whole
             // behind the stall canvas
-            boat(hb['fishing-boat'], SCRATCH ? [WX - 12, WY - 5] : [HARBOR.sloop[0] + 3, HARBOR.sloop[1] - 3], 0.72)
-            const sloop3Sp = boat(hb['sloop'], SCRATCH ? [WX + 7.4, WY + 4.6] : [HARBOR.pennant[0] - 1.2, HARBOR.pennant[1] + 5.6], 0.7)
+            if (!PLATE && !NOPORT) boat(hb['fishing-boat'], SCRATCH ? [WX - 12, WY - 5] : [HARBOR.sloop[0] + 3, HARBOR.sloop[1] - 3], 0.72)
+            const sloop3Sp = (!PLATE && !NOPORT) ? boat(hb['sloop'], SCRATCH ? [WX + 7.4, WY + 4.6] : [HARBOR.pennant[0] - 1.2, HARBOR.pennant[1] + 5.6], 0.7) : undefined
             if (sloop3Sp) sloop3Sp.tint = 0xd8c8a8
             // (scratch: no extra dinghy — the pier-drop buried it under the
             // spine's canvas, and the legacy beached rowboat already reads)
-            if (!SCRATCH) boat(hb['rowboat'], [HARBOR.cargo[1][0] + 2.6, HARBOR.cargo[1][1] + 2.3], 0.6, true)
+            if (!SCRATCH && !NOPORT) boat(hb['rowboat'], [HARBOR.cargo[1][0] + 2.6, HARBOR.cargo[1][1] + 2.3], 0.6, true)
             // (the rowboat mounts with the settlement above — same sand-safe anchor)
             // THE SHIP HERSELF at the berth — the approved 16-view painted rigger,
             // moored along the main pier's north face, bow seaward (v1 = the +x
             // diagonal). Her mass is what makes the harbor read as a real port.
-            try {
+            // (suppressed under the plate — the plate paints its own moorings;
+            // she returns as an open-water anchor once the plate port stands)
+            if (!PLATE && !NOPORT) try {
               const shipT: Texture = await Assets.load('/art/intro/port/ship16/v1.png')
               shipT.source.scaleMode = 'nearest'
               // moored at the wharf's south face, east half — the arrival reads
@@ -3826,6 +3956,123 @@ export default function IslandMapIso() {
         const wt = performance.now() / 1000
         animSwells(waterSprites, wt, () => 0)
       })
+
+      // ---- WALKABLE THOR (default ON; ?walk=0 for the free camera) ----
+      // The BeachIso walk system adapted to the island: land = signed coast
+      // distance, lava and river block (fords pass), the harbor DECKS are
+      // walkable world-px quads with a lift, structures collide as circles.
+      // Thor's row z interleaves between the decomposed harbor objects — he
+      // walks BEHIND the hall and IN FRONT of the pilings.
+      const WALK = params.get('noport') !== '1' && params.get('walk') !== '0'
+      ;(window as any).__walk = 'flag=' + WALK
+      if (WALK) try {
+        const dirs8 = ['south', 'north', 'east', 'west', 'south-east', 'north-east', 'north-west', 'south-west']
+        const dirFromAngle = (dx: number, dy: number) => {
+          const a = Math.atan2(dy, dx) * 180 / Math.PI
+          if (a >= -22.5 && a < 22.5) return 'east'
+          if (a >= 22.5 && a < 67.5) return 'south-east'
+          if (a >= 67.5 && a < 112.5) return 'south'
+          if (a >= 112.5 && a < 157.5) return 'south-west'
+          if (a >= -67.5 && a < -22.5) return 'north-east'
+          if (a >= -112.5 && a < -67.5) return 'north'
+          if (a >= -157.5 && a < -112.5) return 'north-west'
+          return 'west'
+        }
+        const walkT: Record<string, Texture[]> = {}
+        await Promise.all(dirs8.map(async (d) => {
+          walkT[d] = await Promise.all([0, 1, 2, 3, 4, 5].map((i) => Assets.load(`/art/characters/thor/walk/${d}/${i}.png`)))
+          for (const t of walkT[d]) t.source.scaleMode = 'nearest'
+        }))
+        // the harbor decks: world-px quads + surface lift (measured live)
+        const DECKS: { q: [number, number][]; lift: number }[] = [
+          { q: [[2013, 3308], [2205, 3245], [2393, 3302], [2200, 3370]], lift: 26 },  // market deck
+          { q: [[2105, 3600], [2300, 3540], [2495, 3620], [2295, 3690]], lift: 22 },  // port deck
+          { q: [[2065, 3480], [2145, 3442], [2255, 3556], [2170, 3602]], lift: 22 },  // boardwalk
+          // the walkable band = the painted plank TOP, inset off both rims —
+          // on the rim line Thor read as standing on the rope rail, floating
+          // west corners pushed onto the port deck's SE corner — without the
+          // overlap a dead wedge sat between the two quads and blocked the walk
+          { q: [[2445, 3625], [2470, 3598], [2734, 3762], [2706, 3790]], lift: 6 },   // jetty
+        ]
+        const inQuad = (px: number, py: number, q: [number, number][]) => {
+          let inside = false
+          for (let i = 0, j = q.length - 1; i < q.length; j = i++) {
+            const [xi, yi] = q[i], [xj, yj] = q[j]
+            if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside
+          }
+          return inside
+        }
+        // structure colliders (world px, circles at the feet)
+        const COLL: [number, number, number][] = [
+          [2272, 3580, 40], [2140, 3595, 28], [2420, 3650, 15],   // hall, stalls, beacon tower
+          [2087, 3288, 26], [2160, 3268, 26], [2187, 3258, 12],   // market stalls, crane
+          [2798, 3928, 18], [2540, 4010, 76], [2690, 3952, 56],   // lighthouse, mole rocks
+          [2345, 3740, 30], [2452, 3184, 60],                     // moored boat, hero ship
+        ]
+        const surfAt = (tx: number, ty: number): { ok: boolean; lift: number } => {
+          const fx = isoX(tx, ty), fy = isoY(tx, ty) + GYG
+          for (const dk of DECKS) if (inQuad(fx, fy, dk.q)) return { ok: true, lift: dk.lift }
+          for (const [cx2, cy2, cr] of COLL) if (Math.hypot(fx - cx2, fy - cy2) < cr) return { ok: false, lift: 0 }
+          if (dsAt(tx, ty) < 0.4) return { ok: false, lift: 0 }                       // sea
+          if (lavaDist(tx, ty) < 1.5 && crossingD(tx, ty) > 2.2) return { ok: false, lift: 0 }
+          if (riverD(tx, ty) < 1.3 && crossingD(tx, ty) > 2.2) return { ok: false, lift: 0 }
+          // the LV lattice is integer-indexed — float coords read undefined
+          const il = eLvlG(Math.round(tx), Math.round(ty))
+          if (il >= 3) return { ok: false, lift: 0 }                                  // the cone
+          return { ok: true, lift: Math.max(0, il) * STEP }
+        }
+        ;(window as any).__probe = (tx: number, ty: number) => {
+          const fx = isoX(tx, ty), fy = isoY(tx, ty) + GYG
+          const hits: string[] = []
+          DECKS.forEach((dk, i) => { if (inQuad(fx, fy, dk.q)) hits.push('deck' + i) })
+          COLL.forEach(([cx2, cy2, cr], i) => { if (Math.hypot(fx - cx2, fy - cy2) < cr) hits.push('coll' + i) })
+          return JSON.stringify({ fx: Math.round(fx), fy: Math.round(fy), hits, ok: surfAt(tx, ty) })
+        }
+        const keys: Record<string, boolean> = {}
+        const kd = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = true }
+        const ku = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = false }
+        window.addEventListener('keydown', kd); window.addEventListener('keyup', ku)
+        const pos = { tx: 140.9, ty: 79.1 }   // open sand south of the hall, clear of every plate
+        let facing = 'south-east', animT = 0
+        const thor = new Sprite(walkT[facing][0])
+        thor.anchor.set(0.5, 1)
+        // the plates' scale is set by the palms (~230px) — Thor's native walk
+        // frames read child-size against a two-story hall; 1.2 seats him as
+        // the hero: taller than the painted vendors, right against the doors
+        thor.scale.set(1.2)
+        world.addChild(thor)
+        ;(window as any).__thorSp = thor
+        const SPEED = 3.6
+        app.ticker.add((tk) => {
+          const dt = Math.min(tk.deltaMS, 50) / 1000
+          let dx = 0, dy = 0
+          if (keys['arrowup'] || keys['w']) { dx -= 1; dy -= 1 }
+          if (keys['arrowdown'] || keys['s']) { dx += 1; dy += 1 }
+          if (keys['arrowleft'] || keys['a']) { dx -= 1; dy += 1 }
+          if (keys['arrowright'] || keys['d']) { dx += 1; dy -= 1 }
+          const moving = dx !== 0 || dy !== 0
+          if (moving) {
+            const m = Math.hypot(dx, dy); dx /= m; dy /= m
+            const nx = pos.tx + dx * SPEED * dt, ny = pos.ty + dy * SPEED * dt
+            if (surfAt(nx, ny).ok) { pos.tx = nx; pos.ty = ny }
+            else if (surfAt(nx, pos.ty).ok) { pos.tx = nx }
+            else if (surfAt(pos.tx, ny).ok) { pos.ty = ny }
+            facing = dirFromAngle(isoX(dx, dy), (dx + dy) * 16)
+            animT += dt * 9
+          } else animT = 0
+          const fr = moving ? walkT[facing][1 + (Math.floor(animT) % 5)] : walkT[facing][0]
+          if (thor.texture !== fr) thor.texture = fr
+          const s = surfAt(pos.tx, pos.ty)
+          thor.position.set(isoX(pos.tx, pos.ty), isoY(pos.tx, pos.ty) + GYG - s.lift)
+          thor.zIndex = Math.floor(pos.tx + pos.ty) * 4000 + 1500
+          // camera follows with an easing tail
+          const cx3 = app.screen.width / 2 - isoX(pos.tx, pos.ty) * ZOOM
+          const cy3 = app.screen.height * 0.5 - isoY(pos.tx, pos.ty) * ZOOM
+          world.x += (cx3 - world.x) * 0.10
+          world.y += (cy3 - world.y) * 0.10
+          ;(window as any).__walk = `thor ${pos.tx.toFixed(1)},${pos.ty.toFixed(1)} z${thor.zIndex} ${thor.texture ? 'tex' : 'NOTEX'}`
+        })
+      } catch (err) { console.error('[walk] failed', err); (window as any).__walk = 'ERR ' + String(err) }
 
       // capture-harness handshake: the verdict screenshots must never race the
       // scene build (headless software-GL takes seconds longer than a real GPU)
