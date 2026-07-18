@@ -7,7 +7,6 @@ import {
 import { CX, CY, coastDs, coastR, shelfW, lagoonK, cliffK, setSkeleton, CHANNEL, lavaDist, LAVA, MOUTH_L, MOUTH_R } from './terrain'
 import { coneLvl, coneBand, coneH, gullyK, craterK, coneLit, stripeK } from './volcano'
 import { PLAZA, PLAZA_R, GROVES, HARBOR, harborAt, pathD, coveNotchK, vegK, clearingK, SHADOW, initHubLayout, crossingD, riverD, RIVER, FALLS, FORD, STELES, TONGUE, TIDEPOOLS, WEST_OVERLOOK } from './hub-layout'
-import { DECK_TILES, DECK_SET, DECK_LIFT, DECK_OBJECTS, DECK_LAMPS, BLOCKED, BERTH_SHIP, MOOR_BOATS, deckKey } from './harbor-deck'
 import { reportIslandAudit } from './island-audit'
 import { headField, inHeadBBox } from './heads'
 
@@ -143,7 +142,10 @@ export default function IslandMapIso() {
       // vegK field ranks, tufts/boulders/trunks — runs on the BASE now, un-gated from
       // DECOR by his direct call. ?veg=0 keeps a clean-capture switch.
       const VEG = params.get('veg') !== '0'
-      const ZOOM = Number(params.get('zoom') || 0.62) || 0.62
+      // default = THOR'S PERSPECTIVE (Ash 2026-07-18: he is small in a vast
+      // world and the camera lives down at his level — the beach plays at 1.7).
+      // ?zoom= still overrides for the far reads and the verdict cams.
+      const ZOOM = Number(params.get('zoom') || 1.45) || 1.45
       const cam = (params.get('cam') || `${CX},${CY}`).split(',').map(Number)
       // clamp the camera well inside WORLD_R (600): the ocean must reach past every
       // viewport edge — nobody ever sees the world's rim (the vast-sea law)
@@ -227,6 +229,8 @@ export default function IslandMapIso() {
         return c
       }
       let refreshSea: () => void = () => {}   // assigned inside the tile build; resize re-fills the pool
+      // solid props register their tiles here — walkability and the eye agree
+      const PROPBLOCK = new Set<string>()
       // dev handle for the perf probe: pump app.ticker.update() in a loop to measure
       // real frame cost — the Glance browser throttles rAF to ~1Hz when occluded, so
       // wall-clock FPS lies (the documented lesson)
@@ -2151,42 +2155,11 @@ export default function IslandMapIso() {
         // THE HARBOR IS BACK (Ash: "move onto a proper beautiful harbor" — the v3
         // build he accepted returns from behind the decor gate, like the forest;
         // ?harbor=0 keeps a clean-capture switch)
+        // THE STONE QUAY (v8, the from-scratch rebuild): the pod/plate/scratch
+        // flag machinery is DELETED — one harbor, one construction, rendered
+        // always. The plan (hub-layout HARBOR) is solid masonry: quay apron +
+        // walkable breakwater + head, every tile real engine ground.
         const HARBOR_ON = params.get('harbor') !== '0'
-        // ?bigpiece=1 — THE UNIT-OF-ART A/B (2026-07-17): the market pod rendered
-        // as ONE whole painted piece (single 400px generation: deck + stalls +
-        // goods + lamps + bunting painted together) instead of the composited
-        // tile-deck + prop mounts. Same footprint, same camera — the honest test
-        // of whether the whole-picture unit clears the eye where the composite
-        // never has. When on: the pod's tiles, railing, and props are suppressed
-        // and the piece stands in the water on its own painted stilts.
-        // THE POD SYSTEM (the A/B verdict, 2026-07-17): every harbor STRUCTURE is
-        // ONE painted piece — deck, buildings, goods, lamps and their light
-        // painted together at native world scale — standing in the water on its
-        // own stilts. The tile system keeps what tiles are good at: the
-        // connective walkways, the sea, the contact. ?pods=0 = the old composite.
-        // THE SCRATCH HARBOR (Ash 2026-07-17, the final-straw test): the ENTIRE
-        // legacy harbor — tile walkways, railings, breakwater, bell, props, the
-        // pod stitching — is suppressed. The harbor rebuilds as ONE PICTURE
-        // with counted seams: THE GRAND WHARF (one painting), a gangway to the
-        // beach, the beacon islet, the ship and boats, and nothing else but
-        // water. ?scratch=0 restores the old network for comparison.
-        const SCRATCH = params.get('scratch') !== '0'
-        const BIGPIECE = !SCRATCH && params.get('pods') !== '0'
-        // LEGACYP: the old composite props render ONLY in the full-legacy view
-        // (?scratch=0&pods=0) — under scratch the suppressed decks left them
-        // floating on open water (the hut-in-the-sea bug)
-        const LEGACYP = !BIGPIECE && !SCRATCH
-        const hx0 = HARBOR.bollards[1][0]           // pierhead east column
-        const PODS: { key: string; x0: number; y0: number; x1: number; y1: number; legs: number; dx: number; dy: number }[] = [
-          // dx/dy: the one-time mounting calibration per piece (painted decks
-          // aren't perfectly centred/sized in their canvases) — seated to KISS
-          // the walk ends, planes matched, then locked
-          { key: 'pod-market', x0: HARBOR.root[0] - 2, y0: HARBOR.root[1] - 8, x1: HARBOR.root[0] + 2, y1: HARBOR.root[1] - 5, legs: 48, dx: -6, dy: 16 },
-          { key: 'pod-office', x0: HARBOR.root[0], y0: HARBOR.root[1] + 6, x1: HARBOR.root[0] + 3, y1: HARBOR.root[1] + 9, legs: 47, dx: 10, dy: 14 },
-          { key: 'pod-pierhead', x0: hx0 - 3, y0: HARBOR.root[1] - 1, x1: hx0, y1: HARBOR.root[1] + 2, legs: 52, dx: -6, dy: 16 },
-        ]
-        const inMarketPod = (tx: number, ty: number) =>
-          BIGPIECE && PODS.some((p) => tx >= p.x0 && tx <= p.x1 && ty >= p.y0 && ty <= p.y1)
         if (HARBOR_ON) try {
           const hb: Record<string, Texture> = {}
           for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'boathouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'deck-top-v5-0', 'deck-top-v5-1', 'deck-top-v5-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b', 'house-v4', 'house-v5', 'lamp-v4', 'stall-a', 'stall-b', 'stall-a2', 'stall-b2', 'cargo-b', 'cargo-c', 'fishing-boat', 'court-stone-a', 'gate-arch', 'gate-arch2', 'pavilion', 'bunting']) {
@@ -2211,9 +2184,72 @@ export default function IslandMapIso() {
             // the ARRIVAL COURT paves with the v6 warm sandstone (the old
             // quay-block's fitted-stone top was itself a checkerboard — 25 tiles
             // of it screamed); one variant, uniform, value-drifted like the planks
-            const courtT = hb['court-stone-a']
-            const stoneT = courtT ? [topOf(courtT), topOf(courtT)] : [topOf(hb['stone-block-a']), topOf(hb['stone-block-a'])]
-            const stoneF = courtT ? faceOf(courtT) : faceOf(hb['stone-block-a'])
+            // ---- THE QUAY'S OWN STONE, engine-drawn (the TavernWorld ground
+            // law): the court-paver texture was born saturated + hard-bordered
+            // and a hundred of them read as a golden waffle. The apron's slab
+            // top is drawn here at exact palette — pale desaturated sandstone,
+            // LOW-contrast joints (the grid embraced quietly, like example3's
+            // plaza), a few value flecks; the warm atmosphere adds the gold.
+            const slabVariant = (seed: number) => {
+              const cv = document.createElement('canvas'); cv.width = 64; cv.height = 32
+              const g3 = cv.getContext('2d')!
+              const dia = () => {
+                g3.beginPath(); g3.moveTo(32, 0); g3.lineTo(64, 16); g3.lineTo(32, 32); g3.lineTo(0, 16); g3.closePath()
+              }
+              dia(); g3.fillStyle = '#cfc3ac'; g3.fill()
+              // value clusters + grain — hand-placed texture, never noise. At
+              // play zoom the first pass read as one bare cream sheet; the
+              // surface needs quiet LIFE up close (example3's cobbles do).
+              const rnd = (n: number) => { const s = Math.sin(seed * 127.1 + n * 311.7) * 43758.5453; return s - Math.floor(s) }
+              g3.save(); dia(); g3.clip()
+              for (let i = 0; i < 20; i++) {
+                const fx = 4 + rnd(i) * 56, fy = 3 + rnd(i + 20) * 26
+                const tone = rnd(i + 40)
+                g3.fillStyle = tone > 0.66 ? '#dcd2bc' : tone > 0.33 ? '#c4b79c' : '#bcae92'
+                g3.fillRect(Math.round(fx), Math.round(fy), 2 + Math.round(rnd(i + 60) * 4), 1 + Math.round(rnd(i + 80) * 2))
+              }
+              // a worn EDGE CHIP on some slabs (the sun-side corner crumbles)
+              if (rnd(77) > 0.55) {
+                g3.fillStyle = '#b4a689'
+                const cx4 = rnd(11) > 0.5 ? 10 + rnd(13) * 10 : 44 + rnd(13) * 10
+                g3.fillRect(Math.round(cx4), Math.round(12 + rnd(15) * 8), 3, 2)
+              }
+              // one hairline crack on some slabs
+              if (rnd(99) > 0.55) {
+                g3.strokeStyle = '#b9ab8e'; g3.lineWidth = 1
+                g3.beginPath(); g3.moveTo(18 + rnd(3) * 20, 8 + rnd(5) * 8)
+                g3.lineTo(24 + rnd(7) * 20, 16 + rnd(9) * 8)
+                g3.lineTo(28 + rnd(17) * 18, 22 + rnd(19) * 6); g3.stroke()
+              }
+              g3.restore()
+              // the joint: a QUIET seam, one step down — never a dark lattice
+              dia(); g3.strokeStyle = 'rgba(143,128,101,0.62)'; g3.lineWidth = 1; g3.stroke()
+              return Texture.from(cv)
+            }
+            const stoneT = [slabVariant(1), slabVariant(2), slabVariant(3), slabVariant(4)]
+            // the WALL face, engine-drawn fitted masonry: three running-bond
+            // courses darkening to a wet line — a BUILT wall meeting the water
+            const faceCv = document.createElement('canvas'); faceCv.width = 64; faceCv.height = 46
+            {
+              const g3 = faceCv.getContext('2d')!
+              g3.beginPath(); g3.moveTo(0, 16); g3.lineTo(32, 32); g3.lineTo(64, 16); g3.lineTo(64, 46); g3.lineTo(0, 46); g3.closePath()
+              g3.clip()
+              const courses: [number, number, string][] = [[14, 25, '#c0b092'], [25, 35, '#af9d7a'], [35, 42, '#9c8a68']]
+              for (const [y0c, y1c, col] of courses) { g3.fillStyle = col; g3.fillRect(0, y0c, 64, y1c - y0c) }
+              g3.fillStyle = '#5f6156'; g3.fillRect(0, 42, 64, 4)          // the wet line
+              g3.strokeStyle = 'rgba(120,101,72,0.65)'; g3.lineWidth = 1
+              for (const yj of [25, 35, 42]) { g3.beginPath(); g3.moveTo(0, yj + 0.5); g3.lineTo(64, yj + 0.5); g3.stroke() }
+              // running-bond verticals
+              for (let i = 0; i < 4; i++) {
+                const xa = 8 + i * 16; g3.beginPath(); g3.moveTo(xa + 0.5, 14); g3.lineTo(xa + 0.5, 25); g3.stroke()
+                const xb = 16 + i * 16; g3.beginPath(); g3.moveTo(xb + 0.5, 25); g3.lineTo(xb + 0.5, 35); g3.stroke()
+                const xc = 12 + i * 16; g3.beginPath(); g3.moveTo(xc + 0.5, 35); g3.lineTo(xc + 0.5, 42); g3.stroke()
+              }
+              // the lip highlight: the sun catches the quay's top course edge
+              g3.strokeStyle = 'rgba(236,224,196,0.8)'; g3.lineWidth = 1
+              g3.beginPath(); g3.moveTo(0, 16.5); g3.lineTo(32, 32.5); g3.lineTo(64, 16.5); g3.stroke()
+            }
+            const stoneF = Texture.from(faceCv)
             // the deck TOP is the REAL beach-pier wood (Ash: "an actual normal
             // port-wood plank texture brown") — three plank diamonds harvested
             // straight off the approved beach pier's deck, hash-picked per tile,
@@ -2252,30 +2288,29 @@ export default function IslandMapIso() {
             }
             const postT = Texture.from(postCv)
             const isH = (x: number, y: number) => !!harborAt(x, y)
-            for (const ht of SCRATCH ? [] : HARBOR.tiles) {
-              if (BIGPIECE && inMarketPod(ht.tx, ht.ty)) continue   // the piece IS the pod
+            for (const ht of HARBOR.tiles) {
               const bx2 = isoX(ht.tx, ht.ty), byTop = isoY(ht.tx, ht.ty) + GY - ht.lift
               const zB = (ht.tx + ht.ty) * 4000 + ht.lift * 2
               if (ht.mat === 'rock') {
-                // the breakwater: bespoke WET RIP-RAP art, sea-born (the meadow
-                // boulders carried baked-in grass skirts into the water and their
-                // flat column tops read as crates — twice). One low rubble
-                // cluster per tile, jittered/flipped/stretched, the overlaps
-                // fusing the arc into one continuous rubble arm.
+                // the rip-rap TOE: low armor stones at the breakwater's outer
+                // waterline — small, warm-graded to the island's stone, half
+                // sunk. Never masses (the v8 slate boulders read as an alien
+                // universe and buried the elbow walk).
                 const rrT = ['riprap-a', 'riprap-b', 'riprap-c'].map(n => hb[n]).filter(Boolean)
                 if (rrT.length) {
-                  const jx = ht.tx + (hash(ht.tx * 3.1, ht.ty * 1.7) - 0.5) * 0.5
-                  const jy = ht.ty + (hash(ht.tx * 2.3, ht.ty * 5.1) - 0.5) * 0.5
+                  const jx = ht.tx + (hash(ht.tx * 3.1, ht.ty * 1.7) - 0.5) * 0.4
+                  const jy = ht.ty + (hash(ht.tx * 2.3, ht.ty * 5.1) - 0.5) * 0.4
                   const sp = new Sprite(rrT[Math.floor(hash(ht.tx * 5.9, ht.ty * 4.3) * rrT.length * 0.999)])
-                  sp.anchor.set(0.5, 0.74)               // waist-deep in the sea
+                  sp.anchor.set(0.5, 0.7)                // waist-deep in the sea
                   sp.position.set(isoX(jx, jy), isoY(jx, jy) + GY + 3)
-                  const sc2 = 0.85 + 0.45 * hash(jx * 7.7, jy * 3.9)
-                  sp.scale.set((hash(jx, jy) > 0.5 ? -1 : 1) * sc2, sc2 * (0.82 + 0.3 * hash(jy * 3.3, jx * 6.1)))
+                  const sc2 = 0.26 + 0.14 * hash(jx * 7.7, jy * 3.9)
+                  sp.scale.set((hash(jx, jy) > 0.5 ? -1 : 1) * sc2, sc2 * (0.85 + 0.2 * hash(jy * 3.3, jx * 6.1)))
+                  sp.tint = 0xe6c6a8                     // warm-grade the cool slate toward the island stone
                   sp.zIndex = Math.floor(jx + jy) * 4000 + 630
                   world.addChild(sp)
                   const fm = new Sprite(foamTex); fm.anchor.set(0.5, 0.5)
-                  fm.width = 70; fm.height = 18; fm.alpha = 0.5
-                  fm.position.set(bx2, isoY(ht.tx, ht.ty) + GY + 6)
+                  fm.width = 42; fm.height = 13; fm.alpha = 0.46
+                  fm.position.set(isoX(jx, jy), isoY(jx, jy) + GY + 5)
                   fm.zIndex = (ht.tx + ht.ty) * 4000 + 604
                   world.addChild(fm)
                 }
@@ -2312,50 +2347,88 @@ export default function IslandMapIso() {
                   rf.zIndex = zB + 1
                   world.addChild(rf)
                 }
+                // FAR-EDGE CONTACT (north/west sea edges): in iso the far faces
+                // are invisible, so a raised slab's far lip floats unless the
+                // water LAPS it — a dark line + foam sliver tucked under the
+                // lip, drawn below the top (the raft-read killer)
+                for (const [ox, oy] of [[-1, 0], [0, -1]] as [number, number][]) {
+                  const nb = harborAt(ht.tx + ox, ht.ty + oy)
+                  if (nb && nb.mat !== 'rock') continue
+                  if (dsAt(ht.tx + ox, ht.ty + oy) > 0) continue   // sand behind — no lap
+                  const lx2 = isoX(ht.tx + ox * 0.5, ht.ty + oy * 0.5)
+                  const ly2 = isoY(ht.tx + ox * 0.5, ht.ty + oy * 0.5) + GY + 1
+                  const jr = hash(ht.tx * 3.9 + ox, ht.ty * 7.7 + oy)
+                  const lap = new Sprite(shadTex); lap.anchor.set(0.5, 0.5)
+                  lap.width = 46 + 10 * jr; lap.height = 9
+                  lap.alpha = 0.34; lap.tint = 0x0a2a30
+                  lap.position.set(lx2, ly2)
+                  lap.zIndex = zB + 2
+                  world.addChild(lap)
+                  if (jr > 0.35) {
+                    const fmf = new Sprite(foamTex); fmf.anchor.set(0.5, 0.5)
+                    fmf.width = 38 + 12 * jr; fmf.height = 8; fmf.alpha = 0.38
+                    fmf.scale.x *= jr > 0.65 ? -1 : 1
+                    fmf.position.set(lx2 + (jr - 0.5) * 8, ly2 + 1)
+                    fmf.zIndex = zB + 3
+                    world.addChild(fmf)
+                  }
+                }
+                // THE COPING PLUG: every exposed stone edge — internal steps
+                // AND waterline lips — opens V-notch pinholes at tile joints
+                // (the face tops are diamond-sloped and transparent above the
+                // slope; whatever sits lower dips below it). A flat masonry
+                // band behind the face fills the class in one stroke and reads
+                // as the quay's coping course.
+                if (exposed.length && ht.mat === 'stone') {
+                  const stepNbs = exposed
+                    .map(([ox, oy]) => harborAt(ht.tx + ox, ht.ty + oy))
+                    .filter((n2): n2 is NonNullable<typeof n2> => !!n2 && n2.mat !== 'rock' && n2.lift < ht.lift)
+                  const drop = stepNbs.length ? ht.lift - Math.min(...stepNbs.map((n2) => n2.lift)) : 4
+                  const plug = new Sprite(Texture.WHITE)
+                  plug.anchor.set(0.5, 0)
+                  plug.width = 76; plug.height = drop + 11
+                  plug.tint = 0xb9a884
+                  plug.position.set(bx2, byTop - 1)
+                  plug.zIndex = zB
+                  world.addChild(plug)
+                }
                 if (exposed.length && (onRock || ht.mat === 'stone')) {
                   // the shore footing: the shaded face drops to the WATERLINE on sea
                   // edges but only just under the SAND on beach edges (the full-length
                   // face on sand read as a dark board stabbing into the ground)
                   const seaEdge = exposed.some(([ox, oy]) => dsAt(ht.tx + ox, ht.ty + oy) <= 0)
+                  // curb AO: where the apron meets the BEACH, a soft shadow on
+                  // the sand grounds the built edge (no floating mat)
+                  if (!seaEdge) for (const [ox, oy] of exposed) {
+                    const ao = new Sprite(shadTex); ao.anchor.set(0.5, 0.5)
+                    ao.width = 50; ao.height = 11; ao.alpha = 0.22
+                    ao.position.set(isoX(ht.tx + ox * 0.7, ht.ty + oy * 0.7), isoY(ht.tx + ox * 0.7, ht.ty + oy * 0.7) + GY + 1)
+                    ao.zIndex = zB + 1
+                    world.addChild(ao)
+                  }
                   const face = new Sprite(ht.mat === 'stone' ? stoneF : plankF)
                   face.anchor.set(0.5, 0)
                   face.position.set(bx2, byTop)
-                  const need = ht.lift + (seaEdge ? 32 : 6)
+                  // +4 down-overdraw + 12% width overlap: adjacent faces meet
+                  // in V-notches at tile joints (diamond slope tops) — without
+                  // the overlap they show teal water pinholes down every seam
+                  const need = ht.lift + (seaEdge ? 36 : 8)
                   face.scale.y = need / 46
+                  face.scale.x = 1.12
                   if (ht.mat === 'plank') {
                     const dv = 0.94 + 0.1 * vnoise(ht.tx / 4 + 3, ht.ty / 4 + 7)
                     face.tint = (Math.min(255, Math.round(0x9a * dv)) << 16) | (Math.min(255, Math.round(0x85 * dv)) << 8) | Math.min(255, Math.round(0x70 * dv))
+                  } else {
+                    // the drawn masonry carries its own hue — value drift only
+                    const dv = 0.9 + 0.1 * vnoise(ht.tx / 5 + 2, ht.ty / 5 + 6)
+                    const vv = Math.min(255, Math.round(255 * dv))
+                    face.tint = (vv << 16) | (vv << 8) | vv
                   }
                   face.zIndex = zB + 1
                   world.addChild(face)
-                  // ...with the SHORT wet rip-rap (never the tall meadow
-                  // boulders — those overshot the plank top by ~40px and erupted
-                  // THROUGH the deck). Base-anchored at the waterline on the OUTER
-                  // exposed edge, scale capped to the deck gap so a rock can never
-                  // rise above the plank surface.
-                  const rrF = ['riprap-a', 'riprap-b', 'riprap-c'].map((n) => hb[n]).filter(Boolean)
-                  if (rrF.length) {
-                    for (const [ox, oy] of exposed) {
-                      // rip-rap seats only IN THE WATER — piles shoved onto the dry
-                      // beach read as gritty litter at the deck/sand junction
-                      if (dsAt(ht.tx + ox, ht.ty + oy) > 0) continue
-                      // one low pile pushed OUT past the deck edge into the shallows
-                      const jx = ht.tx + ox * 0.5, jy = ht.ty + oy * 0.5
-                      const rr = rrF[Math.floor(hash(ht.tx * 5.3 + ox, ht.ty * 7.1 + oy) * rrF.length * 0.999)]
-                      const sp = new Sprite(rr)
-                      sp.anchor.set(0.5, 1)                       // base sits at the waterline
-                      sp.position.set(isoX(jx, jy), isoY(jx, jy) + GY + 9)
-                      // cap height to the gap between waterline and deck underside
-                      const maxSc = (ht.lift + 18) / rr.height
-                      // smaller + lighter than the first pass: the piles massed
-                      // into one dark blob at the platform lips (Ash 2026-07-17)
-                      const sc2 = Math.min(maxSc, 0.24 + 0.08 * hash(jx * 7.7, jy * 3.9))
-                      sp.scale.set((hash(jx, jy) > 0.5 ? -1 : 1) * sc2, sc2)
-                      sp.tint = hash(jx + 1, jy + 2) > 0.5 ? 0xc8c0b2 : 0xb2aa9e
-                      sp.zIndex = zB + 3
-                      world.addChild(sp)
-                    }
-                  }
+                  // (the old shore-footing rip-rap is GONE: grey clusters under
+                  // a clean masonry wall read as debris — the wall's own wet
+                  // line + the foam laps carry the water contact now)
                 } else if (exposed.length) {
                   // the open-water spans: a slim beam skirt hugs the deck edge,
                   // discrete pilings drop into the water under it — daylight and
@@ -2384,20 +2457,23 @@ export default function IslandMapIso() {
                   world.addChild(skirt)
                 }
                 const top = new Sprite(ht.mat === 'stone'
-                  ? stoneT[Math.floor(hash(ht.tx * 2.7, ht.ty * 3.3) * 4) % 2 === 0 ? 0 : 1]
+                  ? stoneT[Math.floor(hash(ht.tx * 2.7, ht.ty * 3.3) * stoneT.length * 0.999)]
                   : plankTops[Math.floor(hash(ht.tx * 3.7, ht.ty * 2.9) * plankTops.length * 0.999)])
                 top.anchor.set(0.5, 0.5)
                 top.position.set(bx2, byTop)
                 top.zIndex = zB + 5
                 if (ht.mat === 'stone') {
-                  // the arrival court reads BUILT, not beach: stepped down toward
-                  // terracotta (at neutral value the pale sandstone matched the
-                  // sand exactly and the bell/arch looked planted on the beach)
-                  const dv = 0.95 + 0.09 * vnoise(ht.tx / 5 + 8, ht.ty / 5 + 3)
-                  top.tint = (Math.min(255, Math.round(232 * dv)) << 16)
-                    | (Math.min(255, Math.round(196 * dv)) << 8)
-                    | Math.min(255, Math.round(164 * dv))
-                  top.scale.set(1.06)
+                  // QUIET GROUND: the drawn slab already carries the hue — the
+                  // per-tile tint is pure LARGE-scale value drift, nothing else.
+                  // The LOWER terraces read wetter/darker (spray-washed stone),
+                  // so each level registers as its own plane.
+                  let dv = 0.96 + 0.07 * vnoise(ht.tx / 8 + 8, ht.ty / 8 + 3)
+                  if (ht.lift <= 7) dv *= 0.93
+                  if (ht.lift <= 4) dv *= 0.94
+                  const vv = Math.min(255, Math.round(255 * dv))
+                  top.tint = (vv << 16) | (vv << 8) | vv
+                  top.scale.set(1.04)
+                  if (hash(ht.tx * 1.9, ht.ty * 4.1) > 0.5) top.scale.x *= -1
                 }
                 if (ht.mat === 'plank') {
                   // quiet LOW-FREQUENCY value drift is ALL the extra variation —
@@ -2430,8 +2506,7 @@ export default function IslandMapIso() {
             // face, and the whole fishing jetty.
             {
               const rootX = HARBOR.root[0], rootY = HARBOR.root[1]
-              const planks = SCRATCH ? [] : HARBOR.tiles.filter((t2) => t2.mat === 'plank' && t2.lift >= 8
-                && !(BIGPIECE && inMarketPod(t2.tx, t2.ty)))
+              const planks = HARBOR.tiles.filter((t2) => t2.mat === 'plank' && t2.lift >= 8)
               const posts: { sx: number; sy: number; z: number; n: number }[] = []
               for (const ht of planks) {
                 if (ht.ty >= rootY + 4) continue                          // the jetty works open
@@ -2539,50 +2614,48 @@ export default function IslandMapIso() {
             // fully-supported INTERIOR deck tile — every one of its 4 neighbours
             // is also deck — so it can never straddle the water-facing lip. Snap
             // each solid prop's anchor to the nearest such tile centre.
-            const isDeckT = (tx: number, ty: number) => { const t = harborAt(tx, ty); return !!t && t.mat !== 'rock' }
-            const isInterior = (tx: number, ty: number) =>
-              isDeckT(tx, ty) && isDeckT(tx + 1, ty) && isDeckT(tx - 1, ty) && isDeckT(tx, ty + 1) && isDeckT(tx, ty - 1)
-            const deckCtr = (at: [number, number]): [number, number] => {
-              let best = at, bd = 1e9
-              for (let dx = -3; dx <= 3; dx++) for (let dy = -3; dy <= 3; dy++) {
-                const tx = Math.round(at[0]) + dx, ty = Math.round(at[1]) + dy
-                if (!isInterior(tx, ty)) continue
-                const d = Math.hypot(tx - at[0], ty - at[1])
-                if (d < bd) { bd = d; best = [tx, ty] }
-              }
-              return best
+            // ---- THE QUAY'S DRESSING (v8): FEW, purposeful, clustered — the
+            // TavernWorld grammar. The apron stays mostly OPEN stone (negative
+            // space is part of the design); the back lane carries the market
+            // pair with freight between, the working north corner stages cargo
+            // by the lip, the harbormaster's house holds the LAND behind the
+            // root. Every solid prop registers its footprint in PROPBLOCK so
+            // walkability and the eye agree.
+            const foot = (at: [number, number], w = 1, h = 1) => {
+              const x0 = Math.round(at[0]) - Math.floor(w / 2), y0 = Math.round(at[1]) - Math.floor(h / 2)
+              for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) PROPBLOCK.add((x0 + dx) + ',' + (y0 + dy))
             }
-            // HARBOR v4 · PHASE 1 (Ash: the old harbor was "crowded... visually ugly"
-            // — full rebuild wanted): DECLUTTER + LIGHT first. The crane, shed, sign,
-            // stilt-office and net-rack are GONE; what remains is the arrival's
-            // essentials — the bell, the lanterns, the beacon, the ship, two boats —
-            // with room to breathe. The fresh art kit is phase 2.
-            // the arrivals bell ON THE SHORE at the gangway landing (deck:false —
-            // it stands on the sand, its own vignette, clear of the arch)
-            if (!SCRATCH) mount(pt['bell-frame'], HARBOR.bell, { deck: false, sc: 0.5, sink: 4 })
-            // (THE GATEWAY ARCH IS CUT, 2026-07-17: both generations came back
-            // FRONTAL — a flat gate spanning a DIAGONAL walkway is impossible
-            // geometry and read as the goofiest thing in the frame. Flawless
-            // beats cute; the pavilion + bell + stalls carry the composition.)
-            // FREIGHT, base-free (Ash 2026-07-16 glitch sweep: cargo-a was pale
-            // grey steel out of the island's palette; cargo-b carried a baked-in
-            // sandstone slab that double-floored the deck). ONE warm timber
-            // stack, two moments: the pierhead yard + the jetty. The third
-            // bollard-side stack is gone — it crowded the pierhead.
-            const cargoT = hb['cargo-c'] ?? hb['cargo-b'] ?? pt['cargo-a']
-            // THE PIERHEAD PAVILION — the port's hero structure (TavernWorld:
-            // a focal roof, not a bare deck). Open timber, terracotta + teal,
-            // its own hung lanterns; the freight tucks beside its west post.
-            const headX = HARBOR.bollards[1][0]   // the pierhead's east column
-            if (LEGACYP) {
-              mount(hb['pavilion'], [headX - 1.6, HARBOR.root[1] + 0.6], { sc: 0.85, glow: true })
-              // ONE freight beat, at the pierhead yard (the second stack sat alone
-              // mid-jetty and read as a random crate on the path — restraint wins)
-              if (cargoT) mount(cargoT, [headX - 2.7, HARBOR.root[1] + 1.3], { sc: 0.5 })
-            }
-            for (const L2 of SCRATCH ? [] : HARBOR.lanterns) {
-              if (BIGPIECE && inMarketPod(Math.round(L2[0]), Math.round(L2[1]))) continue
-
+            const QR = HARBOR.quayRect
+            const backX = QR[0] + 1.1                  // the apron's back lane
+            // the market pair on the back lane, one cluster with its freight —
+            // dominant (stall) + secondary (stall) + accent (crate stack)
+            const mkA: [number, number] = [backX, QR[1] + 2.6]
+            const mkB: [number, number] = [backX - 0.1, QR[1] + 5.1]
+            if (mount(hb['stall-a2'] ?? hb['stall-a'], mkA, { sc: 0.88 })) foot(mkA, 2, 2)
+            if (mount(hb['stall-b2'] ?? hb['stall-b'], mkB, { sc: 0.88, flip: true })) foot(mkB, 2, 2)
+            const cargoT = hb['cargo-c'] ?? hb['cargo-b']
+            const mkC: [number, number] = [backX + 1.1, QR[1] + 3.9]
+            if (cargoT && mount(cargoT, mkC, { sc: 0.42 })) foot(mkC)
+            // the working corner: freight staged at the north lip + the net rack
+            if (cargoT && mount(cargoT, HARBOR.cargo[0], { sc: 0.5, flip: true })) foot(HARBOR.cargo[0])
+            const nrAt: [number, number] = [HARBOR.cargo[0][0] - 1.5, HARBOR.cargo[0][1] + 0.7]
+            if (mount(hb['net-rack'], nrAt, { sc: 0.5 })) foot(nrAt)
+            // the harbormaster's house on the LAND behind the root — the one
+            // building, its back to the grass, watching its harbor
+            const hhAt: [number, number] = [HARBOR.root[0] - 3.6, HARBOR.root[1] + 2.8]
+            if (mount(hb['house-v5'] ?? hb['house-v4'], hhAt, { deck: false, sc: 0.9, sink: 2 })) foot(hhAt, 3, 2)
+            // two quiet WORK BEATS so the long apron reads used, not bare:
+            // freight staged above the landing steps, one stack down the
+            // promenade's back lane (clusters, never scatter)
+            const wk1: [number, number] = [QR[0] + 4.6, HARBOR.root[1] + 2.6]
+            if (cargoT && mount(cargoT, wk1, { sc: 0.38 })) foot(wk1)
+            const wk2: [number, number] = [QR[0] + 1.2, HARBOR.root[1] + 7.6]
+            if (cargoT && mount(cargoT, wk2, { sc: 0.44, flip: true })) foot(wk2)
+            // (NO statue: the on-disk panther-statue is a TAWNY cat — the
+            // rejected "old tawny lion" class; the BLHS panther is BLACK. A
+            // harbor monument waits for a proper dark-monument generation.)
+            for (const L2 of HARBOR.lanterns) {
+              foot(L2)
               // v4: the new driftwood dock lamp (teal pennant, warm glass) replaces
               // the old lantern-post where it has landed
               mount(hb['lamp-v4'] ?? pt['lantern-post'], L2, { sc: hb['lamp-v4'] ? 0.52 : 0.72, glow: true })
@@ -2597,37 +2670,28 @@ export default function IslandMapIso() {
               world.addChild(pool2)
               glows.push({ sp: pool2, ph: hash(L2[0], L2[1]) * 6, a: 0.2 })
             }
-            for (const B of SCRATCH ? [] : HARBOR.bollards) mount(hb['bollard-b'] ?? pt['bollard-a'], B, { sc: hb['bollard-b'] ? 0.2 : 0.34 })
-            // mooring posts pace the boardwalk's seaward lip (the beach pier's
-            // post rhythm at harbor scale)
-            for (const E of SCRATCH ? [] : HARBOR.edgePosts) mount(hb['bollard-b'] ?? pt['bollard-a'], E, { sc: hb['bollard-b'] ? 0.15 : 0.24 })
-            // the harbor BEACON at the breakwater tip, its lamp breathing
-            if (DBG) {
-              const dot = new Sprite(Texture.WHITE)
-              dot.tint = hb['beacon'] ? 0x00ff00 : 0xff0000; dot.width = 30; dot.height = 30; dot.anchor.set(0.5)
-              dot.position.set(isoX(HARBOR.beacon[0], HARBOR.beacon[1]), isoY(HARBOR.beacon[0], HARBOR.beacon[1]) + GY)
-              dot.zIndex = 93_000_000
-              world.addChild(dot)
-            }
-            if (!SCRATCH && hb['beacon']) {
+            for (const B of HARBOR.bollards) { mount(hb['bollard-b'] ?? pt['bollard-a'], B, { sc: hb['bollard-b'] ? 0.2 : 0.34 }); foot(B) }
+            // mooring posts pace ONLY the berth span the ship ties to
+            for (const E of HARBOR.edgePosts) { mount(hb['bollard-b'] ?? pt['bollard-a'], E, { sc: hb['bollard-b'] ? 0.2 : 0.24 }); foot(E) }
+            // ---- THE LIGHTHOUSE stands ON the breakwater head — real stone
+            // under a real tower (born whole as an isolated object, never a
+            // crop), the harbor's tall anchor and its one worked light source.
+            try {
+              const lhT: Texture = await Assets.load('/art/island/harbor/lighthouse.png?v=2')
+              lhT.source.scaleMode = 'nearest'
               const at = HARBOR.beacon
-              const BSC = 1.32     // the HERO of the harbor — the tall vertical anchor
-              // seated IN the sea (+2, was -8 hovering) with a displacement pool
-              // + foam collar at its islet base, exactly like the hulls
-              const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY + 2
-              const zB = Math.floor(at[0] + at[1]) * 4000
-              const brf = new Sprite(shadTex); brf.anchor.set(0.5, 0.5)
-              brf.width = 130; brf.height = 26; brf.alpha = 0.4; brf.tint = 0x08222a
-              brf.position.set(bx2, by2 + 2); brf.zIndex = zB + 600
-              world.addChild(brf)
-              const bfm = new Sprite(foamTex); bfm.anchor.set(0.5, 0.5)
-              bfm.width = 150; bfm.height = 30; bfm.alpha = 0.62
-              bfm.position.set(bx2, by2 - 2); bfm.zIndex = zB + 602
-              world.addChild(bfm)
-              const sp = new Sprite(hb['beacon']); sp.anchor.set(0.5, 0.97)
-              sp.position.set(bx2, by2); sp.scale.set(BSC); sp.zIndex = zB + 940
+              const under = harborAt(Math.round(at[0]), Math.round(at[1]))
+              const hLift = under?.lift ?? 0
+              const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY - hLift + 8
+              const zB = Math.floor(at[0] + at[1]) * 4000 + hLift * 2
+              const sh = new Sprite(shadTex); sh.anchor.set(0.4, 0.5)
+              sh.width = 118; sh.height = 30; sh.alpha = 0.34
+              sh.position.set(bx2 + 6, by2 - 3); sh.zIndex = zB + 7
+              world.addChild(sh)
+              const sp = new Sprite(lhT); sp.anchor.set(0.5, 0.985)
+              sp.position.set(bx2, by2); sp.zIndex = zB + 940
               world.addChild(sp)
-              const lampY = by2 - hb['beacon'].height * BSC + 44
+              const lampY = by2 - lhT.height * 0.985 + 30
               // a broad warm HALO + a bright lamp core, both breathing — the one
               // light source in the frame doing real work at golden hour
               const halo = new Sprite(foamTex); halo.anchor.set(0.5, 0.5); halo.blendMode = 'add'
@@ -2641,11 +2705,12 @@ export default function IslandMapIso() {
               g.zIndex = zB + 944
               world.addChild(g)
               glows.push({ sp: g, ph: 0.4, a: 0.55 })
-            }
+              foot(at)
+            } catch { /* lighthouse art optional */ }
             // the breakwater sits IN the sea, not on it: a broken foam lace along
             // every rock/water contact — the islet's hard flat cut against the
             // teal read as a pasted sticker (final gate verdict)
-            for (const t2 of SCRATCH ? [] : HARBOR.tiles) {
+            for (const t2 of HARBOR.tiles) {
               if (t2.mat !== 'rock') continue
               for (const [ox, oy] of [[1, 0], [0, 1], [-1, 0], [0, -1]] as [number, number][]) {
                 const nx = Math.round(t2.tx) + ox, ny = Math.round(t2.ty) + oy
@@ -2661,18 +2726,6 @@ export default function IslandMapIso() {
                 world.addChild(foam)
               }
             }
-            // the teal school pennant flies at the pier's T-head
-            if (LEGACYP) try {
-              const pnT: Texture = await Assets.load('/art/intro/props/pennant.png')
-              pnT.source.scaleMode = 'nearest'
-              const at = HARBOR.pennant
-              const sp = new Sprite(pnT); sp.anchor.set(0.5, 1)
-              sp.position.set(isoX(at[0], at[1]), isoY(at[0], at[1]) + GY - 14 + 8)
-              sp.scale.set(0.8)   // full-size it out-shouted the pierhead (Ash: out-of-style reads)
-              sp.zIndex = Math.floor(at[0] + at[1]) * 4000 + 14 * 2 + 730
-              world.addChild(sp)
-              sways.push({ sp, amp: 0.03, w: 1.3, ph: 2.1 })
-            } catch { /* pennant art optional */ }
             // gulls work the breakwater (the beach's own birds — shared island life)
             try {
               const gfT: Texture = await Assets.load('/art/intro/props/gull-fly.png')
@@ -2681,17 +2734,20 @@ export default function IslandMapIso() {
                 const sp = new Sprite(gfT); sp.anchor.set(0.5, 0.5)
                 sp.zIndex = 5_000_000
                 world.addChild(sp)
+                // orbits FULLY out to sea beyond the head — any circle that
+                // grazes the basin or the head freezes a gull "perched" on
+                // rigging or at Thor's feet in stills
                 flyers.push({
                   sp,
-                  cx: isoX(HARBOR.beacon[0] - 2 - gi * 3, HARBOR.beacon[1] + 3 + gi),
-                  cy: isoY(HARBOR.beacon[0] - 2 - gi * 3, HARBOR.beacon[1] + 3 + gi) + GY - 120 - gi * 30,
-                  r: 130 + gi * 45, spd: (gi % 2 ? -1 : 1) * (0.16 + 0.05 * gi), ph: gi * 2.1,
+                  cx: isoX(HARBOR.beacon[0] + 6.5 + gi * 2.5, HARBOR.beacon[1] + 7 + gi * 2.5),
+                  cy: isoY(HARBOR.beacon[0] + 6.5 + gi * 2.5, HARBOR.beacon[1] + 7 + gi * 2.5) + GY - 130 - gi * 26,
+                  r: 80 + gi * 30, spd: (gi % 2 ? -1 : 1) * (0.16 + 0.05 * gi), ph: gi * 2.1,
                 })
               }
               const gsT: Texture = await Assets.load('/art/intro/props/gull.png')
               gsT.source.scaleMode = 'nearest'
               // one gull stands watch on a breakwater boulder
-              const rk = SCRATCH ? undefined : HARBOR.tiles.filter((t2) => t2.mat === 'rock')[2]
+              const rk = HARBOR.tiles.filter((t2) => t2.mat === 'rock')[2]
               if (rk) {
                 const sp = new Sprite(gsT); sp.anchor.set(0.5, 1)
                 sp.position.set(isoX(rk.tx, rk.ty), isoY(rk.tx, rk.ty) + GY - 26)
@@ -2700,325 +2756,6 @@ export default function IslandMapIso() {
                 world.addChild(sp)
               }
             } catch { /* gull art optional */ }
-            // (inland(), the sand-anchor walker, retired with the settlement-on-
-            // sand era — every structure now stands on a stilt-platform pod)
-            // the port SETTLEMENT — buildings clustered on the sand behind the
-            // quay as one little yard (Ash: the warehouse had drifted far up the
-            // beach, orphaned; a port's buildings sit together AT the harbor)
-            // spread so no two silhouettes merge: the boathouse stands ON the north
-            // annex platform (harbor office on stilts — the sand behind the north
-            // walk is too thin for a building), sign alone on clear sand, shed
-            // SOUTH, net-rack + hauled rowboat further south
-            // v4: ONE well-made harbormaster's house on the sand behind the quay —
-            // driftwood walls, teal shutters, its own lantern — instead of the old
-            // four competing silhouettes (boathouse/sign/shed/net-rack, all gone)
-            // v7: the harbormaster's house stands ON its stilt platform over the
-            // water — a stilt-port office, the pod built for exactly this
-            // v8: house-v5 is BASE-FREE (v4 baked its own flagstone yard + palm —
-            // on the stilt platform the pad double-floored the deck and the palm
-            // grew out of the planks: Ash's "halfway into the ground" class)
-            if (LEGACYP) mount(hb['house-v5'] ?? hb['house-v4'], deckCtr([HARBOR.root[0] + 2, HARBOR.root[1] + 8]), { sc: hb['house-v5'] ? 0.9 : 0.95 })
-            // v5 BUSTLE · the MARKET ROW: two stalls on the sand north of the
-            // apron, facing the boardwalk — Thor steps off the pier into a
-            // WORKING waterfront (fruit + fish), the house anchoring the south.
-            // Same sand-safe inland() anchor as the house so neither stall can
-            // drift onto the deck or up the lawn.
-            // v7: BOTH stalls own the MARKET PLATFORM pod — a market over the
-            // water, one stall behind the other in the cluster grammar, deck
-            // tiles flat by construction so nothing can seam-clip
-            // v8 stalls are BASE-FREE (the v7 pair carried baked plank podiums
-            // with dark skirts — a platform pasted on the platform, Ash's
-            // "out-of-style / placed wrongly" read). Mounted DIRECT as one
-            // overlapping market CLUSTER (the TavernWorld grammar: goods stalls
-            // lean into each other with freight between, never one prop per pod
-            // centered by a snap — the interior snap shoved the fruit stall onto
-            // the pod's back lip where it hung over the water)
-            // v9: BOTH stalls regenerated in STRICT 2:1 iso (the old pair were
-            // quasi-frontal — "leaning in weird angles... goofy and glitched",
-            // Ash 2026-07-17). Placed on the pod's LONG DIAGONAL — back-right
-            // and front-left sit at the same depth row, so two full stalls fit
-            // side by side with zero occlusion (stacked overlap made a mutant
-            // double-roof; a 5x4 pod has no room for "artful" overlap).
-            if (LEGACYP) {
-              mount(hb['stall-a2'] ?? hb['stall-a'], [HARBOR.root[0] + 0.9, HARBOR.root[1] - 7.4], { sc: 0.88 })
-              mount(hb['stall-b2'] ?? hb['stall-b'], [HARBOR.root[0] - 1.15, HARBOR.root[1] - 5.35], { sc: 0.88, flip: true })
-              if (cargoT) mount(cargoT, [HARBOR.root[0] - 1.7, HARBOR.root[1] - 5.3], { sc: 0.42, flip: true })
-            }
-            // the whole-piece pod: one painted structure standing in the sea,
-            // seated like the hulls (displacement pool + foam at its stilts)
-            // THE PODS, mounted by measurement: each piece renders at NATIVE
-            // scale (the density law — downscaling was the "pasted diorama"
-            // seam), its deck-front corner seated on the walk's deck plane by
-            // its measured legs constant, its stilts standing in the sea with
-            // displacement + foam. No tint beyond a whisper — the palette is
-            // in the generation.
-            // ---- THE SCRATCH HARBOR COMPOSITION: one wharf painting in open
-            // water, a gangway to the beach, the beacon islet — every seam is
-            // either the sea (code-owned) or ONE calibrated deck kiss.
-            // THE PORT'S ANATOMY (Ash: two masses in open water are "floating
-            // boards, not a harbor"): a harbor is a SHAPE — one PIER SPINE
-            // running from the beach into the bay, the wharf as its T-head,
-            // the annex hung south of the spine, the ship at the outer face.
-            // The wharf stands a full pier's reach off the beach.
-            // +3.9 (was +5.2): slid the whole frame shoreward so the pier's
-            // west tip plants on DRY sand — the pier-wharf tuck is WX-relative
-            // and survives the slide untouched
-            const WX = HARBOR.root[0] + 3.9, WY = HARBOR.root[1] - 1
-            // THE PLATE REGIME (2026-07-17, "scrap out both harbors"): the
-            // harbor is now a Pro-inpaint PLATE painted into the live bay.
-            // ?plate=0 falls back to the scratch pieces; ?noport=1 renders an
-            // EMPTY bay (the capture mode plates are generated against).
-            const NOPORT = params.get('noport') === '1'
-            const PLATE = !NOPORT && params.get('plate') !== '0'
-            // ---- PLATE PILOT (?pilot=1): the Pro-inpaint port, mounted at the
-            // exact world position its source crop was captured from (zoom=1,
-            // cam=143,105, crop origin screen 740,310 -> world px below). The
-            // overlay holds ONLY the painted-changed pixels, so the live sea
-            // animates around it. Demo artifact, not the final harbor.
-            if (params.get('pilot') === '1') {
-              try {
-                // v2: structure-only extraction (the naive diff kept the
-                // model's subtle water-repaint — the 'tinted sheet' Ash caught)
-                const pt: Texture = await Assets.load('/art/island/pilot-port.png?v=2')
-                pt.source.scaleMode = 'nearest'
-                const ps = new Sprite(pt)
-                ps.position.set(740 - 683 + isoX(143, 105), 310 - 384 + isoY(143, 105))
-                ps.zIndex = Math.floor((ps.position.y + 430) / 16) * 4000 + 900
-                world.addChild(ps)
-              } catch { /* pilot art absent */ }
-            }
-            // ---- THE PLATE HARBOR: one Pro-inpaint painting, composed by the
-            // model INTO a live capture of this exact bay (zoom=1 cam=146,77,
-            // crop origin screen 520,140 -> world px 2045,3324). The overlay
-            // holds only painted-changed pixels: structures, foam, reflections.
-            // The sea animates around it; sand and water under it are live.
-            // ---- THE PHYSICAL HARBOR: the grid owns the deck. Every walkable
-            // tile is authored data (harbor-deck.ts), rendered with kit tiles
-            // MINED from the Pro plates — the painted look on engine truth.
-            // Objects are registered footprints; collision is tile membership;
-            // nothing walkable is a painting.
-            if (PLATE) {
-              try {
-                const kit = async (n: string) => {
-                  // v4: stalls restored un-erased (the cool-pass ate its shaded
-                  // body and left the awning floating)
-                  const t: Texture = await Assets.load(`/art/island/harbor/${n}.png?v=4`)
-                  t.source.scaleMode = 'nearest'
-                  return t
-                }
-                const tops = await Promise.all([1, 2, 3, 4, 5].map((i) => kit(`kit/deck-top-${i}`)))
-                const faces = await Promise.all([0, 1, 2].map((i) => kit(`kit/edge-face-${i}`)))
-                const pilings = await Promise.all([0, 1, 2].map((i) => kit(`kit/piling-${i}`)))
-                const bollardT = await kit('bollard-b')
-                const lampT = await kit('lamp-v4')
-                // deck tiles: top diamond + exposed front skirt + pilings + foam
-                for (const [dtx, dty] of DECK_TILES) {
-                  const bx2 = isoX(dtx, dty), by2 = isoY(dtx, dty) + GY - DECK_LIFT
-                  const row = dtx + dty
-                  const top = new Sprite(tops[Math.floor(hash(dtx, dty) * tops.length)])
-                  top.anchor.set(0.5, 0.5)
-                  top.position.set(bx2, by2)
-                  top.zIndex = row * 4000 + 300
-                  world.addChild(top)
-                  const openE = !DECK_SET.has(deckKey(dtx + 1, dty))
-                  const openS = !DECK_SET.has(deckKey(dtx, dty + 1))
-                  if (openE || openS) {
-                    const face = new Sprite(faces[Math.floor(hash(dty, dtx) * faces.length)])
-                    face.anchor.set(0.5, 0)
-                    face.position.set(bx2, by2 + 8)
-                    face.zIndex = row * 4000 + 320
-                    world.addChild(face)
-                    // pilings + foam only where the deck stands in the sea
-                    if (dsAt(dtx, dty) < 0.4 && hash(dtx * 3, dty * 7) > 0.4) {
-                      const pil = new Sprite(pilings[Math.floor(hash(dtx * 5, dty) * pilings.length)])
-                      pil.anchor.set(0.5, 0)
-                      pil.position.set(bx2, by2 + 22)
-                      pil.zIndex = row * 4000 + 315
-                      world.addChild(pil)
-                      const fmp = new Sprite(foamTex); fmp.anchor.set(0.5, 0.5)
-                      fmp.width = 34; fmp.height = 12; fmp.alpha = 0.42
-                      fmp.position.set(bx2, by2 + 22 + 68)
-                      fmp.zIndex = row * 4000 + 314
-                      world.addChild(fmp)
-                    }
-                    // rim bollards at rhythm (never on lamp tiles)
-                    if ((dtx + dty) % 2 === 0 && !DECK_LAMPS.some(([lx2, ly2]) => lx2 === dtx && ly2 === dty)) {
-                      const bol = new Sprite(bollardT)
-                      bol.anchor.set(0.5, 1)
-                      bol.scale.set(0.5)
-                      bol.position.set(bx2 + (openE ? 18 : -18), by2 + (openE ? 10 : 10))
-                      bol.zIndex = row * 4000 + 1250
-                      world.addChild(bol)
-                    }
-                  }
-                }
-                // registered objects standing on the deck
-                for (const ob of DECK_OBJECTS) {
-                  const t = await kit(ob.file)
-                  const sp = new Sprite(t)
-                  sp.anchor.set(0.5, 1)
-                  const cxo = ob.tile[0] + ob.foot[0] / 2 - 0.5, cyo = ob.tile[1] + ob.foot[1] / 2 - 0.5
-                  sp.position.set(isoX(cxo, cyo) + ob.ax, isoY(cxo, cyo) + GY - DECK_LIFT + 16 + ob.ay)
-                  sp.zIndex = (ob.tile[0] + ob.foot[0] - 1 + ob.tile[1] + ob.foot[1] - 1) * 4000 + 1200
-                  world.addChild(sp)
-                }
-                // rim lamps + breathing glow
-                const glowTex = radial(64, [[0, 'rgba(255,196,112,0.9)'], [0.5, 'rgba(255,164,72,0.32)'], [1, 'rgba(255,164,72,0)']])
-                const glows: { g: Sprite; a0: number; ph: number }[] = []
-                for (const [lx2, ly2] of DECK_LAMPS) {
-                  const bx2 = isoX(lx2, ly2), by2 = isoY(lx2, ly2) + GY - DECK_LIFT + 12
-                  const lamp = new Sprite(lampT)
-                  lamp.anchor.set(0.5, 1)
-                  lamp.scale.set(0.62)
-                  lamp.position.set(bx2, by2)
-                  lamp.zIndex = (lx2 + ly2) * 4000 + 1200
-                  world.addChild(lamp)
-                  const g = new Sprite(glowTex)
-                  g.anchor.set(0.5, 0.5)
-                  g.width = 46; g.height = 32
-                  g.tint = 0xffb054; g.alpha = 0.34
-                  g.blendMode = 'add'
-                  g.position.set(bx2, by2 - lampT.height * 0.62 + 10)
-                  g.zIndex = 3_000_000 + 10
-                  world.addChild(g)
-                  glows.push({ g, a0: 0.34, ph: hash(lx2, ly2) * 6.3 })
-                }
-                app.ticker.add(() => {
-                  const t = performance.now() / 1000
-                  for (const gl of glows) gl.g.alpha = gl.a0 + Math.sin(t * 1.7 + gl.ph) * 0.07
-                })
-                // SCENERY (never walkable, physics-free): the breakwater mole
-                // plate + the lighthouse standing in open water
-                const moleT = await kit('plate-3')
-                const mole = new Sprite(moleT)
-                mole.position.set(2383, 3700)
-                mole.zIndex = 254 * 4000 + 900
-                world.addChild(mole)
-                const lh = new Sprite(await kit('lighthouse'))
-                lh.anchor.set(0.5, 1)
-                lh.position.set(2383 + 415, 3700 + 232)
-                lh.zIndex = 254 * 4000 + 950
-                world.addChild(lh)
-                // THOR'S SHIP along the T-head's seaward face, on her lines
-                const shipT2: Texture = await Assets.load('/art/intro/port/ship16/v1.png')
-                shipT2.source.scaleMode = 'nearest'
-                const sbx = isoX(BERTH_SHIP[0], BERTH_SHIP[1]), sby = isoY(BERTH_SHIP[0], BERTH_SHIP[1]) + GY
-                const shRf = new Sprite(shadTex); shRf.anchor.set(0.5, 0.5)
-                shRf.width = shipT2.width * 0.82; shRf.height = 30; shRf.alpha = 0.5; shRf.tint = 0x06202a
-                shRf.position.set(sbx, sby + 7); shRf.zIndex = Math.floor(BERTH_SHIP[0] + BERTH_SHIP[1]) * 4000 + 600
-                world.addChild(shRf)
-                const shFm = new Sprite(foamTex); shFm.anchor.set(0.5, 0.5)
-                shFm.width = shipT2.width; shFm.height = 30; shFm.alpha = 0.6
-                shFm.position.set(sbx, sby + 2); shFm.zIndex = Math.floor(BERTH_SHIP[0] + BERTH_SHIP[1]) * 4000 + 602
-                world.addChild(shFm)
-                const shSp = new Sprite(shipT2); shSp.anchor.set(0.5, 0.86)
-                shSp.position.set(sbx, sby)
-                shSp.zIndex = Math.floor(BERTH_SHIP[0] + BERTH_SHIP[1]) * 4000 + 900
-                world.addChild(shSp)
-                bobs.push({ sp: shSp, y0: sby, w: 0.45, ph: 1.7 })
-                for (const [mx, my] of [[161.8, 73.0], [161.8, 75.6]] as [number, number][]) {
-                  const ax2 = isoX(mx, my), ay2 = isoY(mx, my) + GY - DECK_LIFT + 4
-                  const line = new Sprite(Texture.WHITE)
-                  line.anchor.set(0, 0.5)
-                  line.width = Math.hypot(sbx - 30 - ax2, sby - 26 - ay2); line.height = 2
-                  line.tint = 0x3e2c18; line.alpha = 0.85
-                  line.position.set(ax2, ay2)
-                  line.rotation = Math.atan2(sby - 26 - ay2, sbx - 30 - ax2)
-                  line.zIndex = Math.floor(mx + my) * 4000 + 1400
-                  world.addChild(line)
-                }
-                // working boats at the arm's south face (painted hull bobbing)
-                const boatT = await kit('obj/p1-boat')
-                for (const [mbx, mby] of MOOR_BOATS) {
-                  const b = new Sprite(boatT)
-                  b.anchor.set(0.5, 0.8)
-                  const bx3 = isoX(mbx, mby), by3 = isoY(mbx, mby) + GY
-                  b.position.set(bx3, by3)
-                  b.zIndex = Math.floor(mbx + mby) * 4000 + 900
-                  world.addChild(b)
-                  bobs.push({ sp: b, y0: by3, w: 0.5, ph: hash(mbx, mby) * 6.3 })
-                }
-              } catch (err) { console.error('[harbor] failed', err) }
-            }
-            if (SCRATCH && !PLATE && !NOPORT) {
-              const piece = async (file: string, at: [number, number], o: { legs?: number; foamW?: number; z?: number } = {}) => {
-                try {
-                  // v3: islet ripple-ring erased, pier-spine landed (bump on every in-place rewrite)
-                  const t: Texture = await Assets.load(`/art/island/harbor/${file}.png?v=3`)
-                  t.source.scaleMode = 'nearest'
-                  const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY + (o.legs ?? 0)
-                  const zB = Math.floor(at[0] + at[1]) * 4000 + (o.z ?? 900)
-                  const rf = new Sprite(shadTex); rf.anchor.set(0.5, 0.5)
-                  rf.width = (o.foamW ?? 280) * 0.94; rf.height = 38; rf.alpha = 0.32; rf.tint = 0x08222a
-                  rf.position.set(bx2, by2 - 4); rf.zIndex = zB - 300
-                  world.addChild(rf)
-                  const fm = new Sprite(foamTex); fm.anchor.set(0.5, 0.5)
-                  fm.width = o.foamW ?? 280; fm.height = 40; fm.alpha = 0.48
-                  fm.position.set(bx2, by2 - 6); fm.zIndex = zB - 298
-                  world.addChild(fm)
-                  const sp = new Sprite(t); sp.anchor.set(0.5, 1)
-                  sp.position.set(bx2, by2)
-                  sp.zIndex = zB
-                  world.addChild(sp)
-                  return sp
-                } catch { return undefined /* piece not on disk yet */ }
-              }
-              // THE PIER SPINE (z 880): west tip ON the dry sand, the run
-              // crossing the surf, its east end tucked UNDER the wharf's west
-              // lip — the seam swallowed by the wharf's own edge shadow. The
-              // west corridor stays EMPTY so the approach reads at a glance.
-              // [-9.1,+0.3] ran PARALLEL to the wharf's NW edge, one street
-              // north — +4.5/+4.5 drops it straight down the screen onto the
-              // lip (equal +x+y = pure vertical in iso)
-              await piece('pier-spine', [WX - 4.6, WY + 4.8], { legs: 6, foamW: 260, z: 880 })
-              await piece('wharf-grand', [WX, WY], { legs: 10, foamW: 360 })
-              await piece('beacon-islet', HARBOR.beacon as [number, number], { legs: 8, foamW: 190 })
-              // the ANNEX stands BEHIND-RIGHT of the wharf (deep-water side),
-              // a TRUE water gap between the two masses — at [+3,-3.5] its deck
-              // kissed the wharf's east lip with a misaligned plank line
-              await piece('wharf-annex', [WX + 4.5, WY - 5.2], { legs: 10, foamW: 300 })
-            }
-            if (BIGPIECE) for (const pod of PODS) {
-              try {
-                const bpT: Texture = await Assets.load(`/art/island/harbor/${pod.key}.png?v=1`)
-                bpT.source.scaleMode = 'nearest'
-                // centre-x and front-corner y derived from the pod's tile rect
-                const bx2 = (isoX(pod.x0, pod.y0) + isoX(pod.x1, pod.y1)) / 2 + pod.dx
-                const cornerY = isoY(pod.x1 + 0.5, pod.y1 + 0.5) + GY - 12
-                const by2 = cornerY + pod.legs + pod.dy
-                const zB = (pod.x1 + pod.y1) * 4000
-                const rf = new Sprite(shadTex); rf.anchor.set(0.5, 0.5)
-                rf.width = 270; rf.height = 36; rf.alpha = 0.32; rf.tint = 0x08222a
-                rf.position.set(bx2, by2 - 2); rf.zIndex = zB + 600
-                world.addChild(rf)
-                const fm = new Sprite(foamTex); fm.anchor.set(0.5, 0.5)
-                fm.width = 290; fm.height = 38; fm.alpha = 0.48
-                fm.position.set(bx2, by2 - 4); fm.zIndex = zB + 602
-                world.addChild(fm)
-                const sp = new Sprite(bpT); sp.anchor.set(0.5, 1)
-                sp.position.set(bx2, by2)
-                sp.zIndex = zB + 900
-                world.addChild(sp)
-              } catch { /* piece not on disk yet — the pod waits */ }
-            }
-            // festival bunting strung stall-to-stall — anchored on real posts at
-            // both ends (a string hung on nothing is the floating-asset class)
-            if (LEGACYP && hb['bunting']) {
-              const mLift = harborAt(Math.round(HARBOR.root[0]), Math.round(HARBOR.root[1] - 6))?.lift ?? 0
-              const ax = isoX(HARBOR.root[0] - 1.15, HARBOR.root[1] - 5.35)
-              const ay = isoY(HARBOR.root[0] - 1.15, HARBOR.root[1] - 5.35) + GY - mLift + 8 - 108
-              const bx3 = isoX(HARBOR.root[0] + 0.9, HARBOR.root[1] - 7.4)
-              const by3 = isoY(HARBOR.root[0] + 0.9, HARBOR.root[1] - 7.4) + GY - mLift + 8 - 108
-              const st = new Sprite(hb['bunting'])
-              st.anchor.set(0, 0.32)               // the rope line rides the strip's top
-              const d2 = Math.hypot(bx3 - ax, by3 - ay)
-              st.position.set(ax + 12, ay)
-              st.rotation = Math.atan2(by3 - ay, bx3 - ax)
-              st.width = Math.max(40, d2 - 20); st.height = 34
-              st.zIndex = Math.floor(HARBOR.root[0] + 1.1 + HARBOR.root[1] - 5.7) * 4000 + 740
-              world.addChild(st)
-              sways.push({ sp: st, amp: 0.02, w: 1.1, ph: 0.7 })
-            }
             // hauled a tile further up-beach: at the plan point the bow still
             // straddled the tide seam (final-sweep catch — neither beached nor
             // afloat reads wrong at every zoom)
@@ -3047,13 +2784,13 @@ export default function IslandMapIso() {
               // waterline (0.9) so the keel tucks under the foam instead of the
               // whole hull floating proud on the teal
               const rf = new Sprite(shadTex); rf.anchor.set(0.5, 0.5)
-              rf.width = t.width * sc * 0.92; rf.height = 20; rf.alpha = 0.4
+              rf.width = t.width * sc * 0.98; rf.height = 22; rf.alpha = 0.44
               rf.tint = 0x08222a
               rf.position.set(bx2, by2 + 3)
               rf.zIndex = zB + 604
               world.addChild(rf)
               const fm = new Sprite(foamTex); fm.anchor.set(0.5, 0.5)
-              fm.width = t.width * sc * 1.18; fm.height = 24; fm.alpha = 0.72
+              fm.width = t.width * sc * 1.3; fm.height = 26; fm.alpha = 0.78
               fm.position.set(bx2, by2 + 1)
               fm.zIndex = zB + 646        // OVER the hull's waterline, hiding the keel seam
               world.addChild(fm)
@@ -3062,13 +2799,21 @@ export default function IslandMapIso() {
               sp.scale.set((flip ? -1 : 1) * sc, sc)
               sp.zIndex = zB + 640
               world.addChild(sp)
-              bobs.push({ sp, y0: by2, w: 0.55 + 0.3 * hash(at[0], at[1]), ph: hash(at[1], at[0]) * 6.3 })
+              // THE WHOLE WATERLINE UNIT RIDES THE SWELL TOGETHER — hull, foam
+              // collar and displacement pool share one bob. (Bobbing only the
+              // hull opened a gap at mid-swell: every screenshot caught the
+              // boats "floating" 2px above their own waterlines — the
+              // reviewer's #1 pasted-sprite tell.)
+              const w2 = 0.55 + 0.3 * hash(at[0], at[1]), ph2 = hash(at[1], at[0]) * 6.3
+              bobs.push({ sp, y0: by2, w: w2, ph: ph2 })
+              bobs.push({ sp: fm, y0: by2 + 1, w: w2, ph: ph2 })
+              bobs.push({ sp: rf, y0: by2 + 3, w: w2, ph: ph2 })
               return sp
             }
-            if (!PLATE && !NOPORT) boat(hb['sloop'], SCRATCH ? [WX + 9, WY - 1.5] : HARBOR.sloop)
+            boat(hb['sloop'], HARBOR.sloop)
             // the second fisher is visibly DISTINCT (a weathered blue-grey hull),
             // not an obvious copy of the first (reviewer: duplicated boats read cheap)
-            const sloop2Sp = (!PLATE && !NOPORT) ? boat(hb['sloop'], SCRATCH ? [WX + 1.5, WY + 9.5] : HARBOR.sloop2, 0.82, true) : undefined
+            const sloop2Sp = boat(hb['sloop'], HARBOR.sloop2, 0.82, true)
             if (sloop2Sp) sloop2Sp.tint = 0x8fb0b8
             // v5 BUSTLE · the FLEET: a port with traffic, not two lonely hulls.
             // The fishing smack (its own silhouette — nets, furled tan sail)
@@ -3084,24 +2829,23 @@ export default function IslandMapIso() {
             // spur tip; the pierhead sloop stands a full lane off the south face.
             // NW open water — parked behind the wharf at [-6,-4] it hid whole
             // behind the stall canvas
-            if (!PLATE && !NOPORT) boat(hb['fishing-boat'], SCRATCH ? [WX - 12, WY - 5] : [HARBOR.sloop[0] + 3, HARBOR.sloop[1] - 3], 0.72)
-            const sloop3Sp = (!PLATE && !NOPORT) ? boat(hb['sloop'], SCRATCH ? [WX + 7.4, WY + 4.6] : [HARBOR.pennant[0] - 1.2, HARBOR.pennant[1] + 5.6], 0.7) : undefined
-            if (sloop3Sp) sloop3Sp.tint = 0xd8c8a8
-            // (scratch: no extra dinghy — the pier-drop buried it under the
-            // spine's canvas, and the legacy beached rowboat already reads)
-            if (!SCRATCH && !NOPORT) boat(hb['rowboat'], [HARBOR.cargo[1][0] + 2.6, HARBOR.cargo[1][1] + 2.3], 0.6, true)
-            // (the rowboat mounts with the settlement above — same sand-safe anchor)
+            // the fishing smack rides mid-basin, flipped so her long bowsprit
+            // points AWAY from the sloop (pointing at it read as two sprites
+            // skewered together) and spaced a full lane off
+            boat(hb['fishing-boat'], [HARBOR.sloop[0] + 2.4, HARBOR.sloop[1] + 5.6], 0.72, true)
+            // (the third sloop is CUT — an unmoored hull drifting outside the
+            // mouth read as an abandoned placed asset; three working hulls +
+            // the ship + the beached rowboat are the honest fleet)
             // THE SHIP HERSELF at the berth — the approved 16-view painted rigger,
-            // moored along the main pier's north face, bow seaward (v1 = the +x
-            // diagonal). Her mass is what makes the harbor read as a real port.
-            // (suppressed under the plate — the plate paints its own moorings;
-            // she returns as an open-water anchor once the plate port stands)
-            if (!PLATE && !NOPORT) try {
-              const shipT: Texture = await Assets.load('/art/intro/port/ship16/v1.png')
+            // moored ALONGSIDE the quay wall, hull fully in the water lane, tied
+            // by real lines to the lip's mooring posts. Her mass against the
+            // stone face is what makes the harbor read as a real port.
+            try {
+              // v7: the hull lies along the tile+y diagonal — PARALLEL to the
+              // quay's front face, the way a moored ship actually lies
+              const shipT: Texture = await Assets.load('/art/intro/port/ship16/v7.png')
               shipT.source.scaleMode = 'nearest'
-              // moored at the wharf's south face, east half — the arrival reads
-              // against open water at the port's outermost point
-              const at = SCRATCH ? [WX + 2, WY + 4] as [number, number] : HARBOR.berth
+              const at = HARBOR.berth
               const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY + 4
               const zB = Math.floor(at[0] + at[1]) * 4000
               // a BOLD dark contact shadow pooled under the hull grounds the
@@ -3118,23 +2862,31 @@ export default function IslandMapIso() {
               const sp = new Sprite(shipT); sp.anchor.set(0.5, 0.86)
               sp.position.set(bx2, by2); sp.zIndex = zB + 900
               world.addChild(sp)
+              // hull + foam + pool ride the swell as ONE unit (same law as the
+              // small boats — a lone bobbing hull floats off its waterline)
               bobs.push({ sp, y0: by2, w: 0.45, ph: 1.7 })
-              // MOORED, not parked: two taut lines from bow and stern down to the
-              // pier bollards — the physical connection is what sells the berth
+              bobs.push({ sp: fm, y0: by2 + 2, w: 0.45, ph: 1.7 })
+              bobs.push({ sp: rf, y0: by2 + 7, w: 0.45, ph: 1.7 })
+              // MOORED, not parked: bow + stern lines to the lip's posts — each
+              // rope SAGS through a dropped midpoint (a dead-straight thin line
+              // read as a tripwire lying on the deck)
               for (const [hx, hy, bx3, by3] of [
-                [at[0] - 1.6, at[1] - 0.4, at[0] - 2.1, at[1] - 1.05],
-                [at[0] + 1.5, at[1] - 0.3, at[0] + 2.0, at[1] - 1.0],
+                [at[0] - 0.9, at[1] - 1.2, HARBOR.edgePosts[0][0], HARBOR.edgePosts[0][1]],
+                [at[0] - 0.6, at[1] + 1.6, HARBOR.edgePosts[2][0], HARBOR.edgePosts[2][1]],
               ]) {
-                const ax = isoX(hx, hy), ay = isoY(hx, hy) + GY - 26
-                const bx4 = isoX(bx3, by3), by4 = isoY(bx3, by3) + GY - 8
-                const line = new Sprite(Texture.WHITE)
-                line.anchor.set(0, 0.5)
-                line.width = Math.hypot(bx4 - ax, by4 - ay); line.height = 2
-                line.tint = 0x3e2c18; line.alpha = 0.9
-                line.position.set(ax, ay)
-                line.rotation = Math.atan2(by4 - ay, bx4 - ax)
-                line.zIndex = zB + 905
-                world.addChild(line)
+                const ax = isoX(hx, hy), ay = isoY(hx, hy) + GY - 24
+                const bx4 = isoX(bx3, by3), by4 = isoY(bx3, by3) + GY - 16
+                const mx2 = (ax + bx4) / 2, my2 = (ay + by4) / 2 + 7   // the sag
+                for (const [x0s, y0s, x1s, y1s] of [[ax, ay, mx2, my2], [mx2, my2, bx4, by4]] as [number, number, number, number][]) {
+                  const line = new Sprite(Texture.WHITE)
+                  line.anchor.set(0, 0.5)
+                  line.width = Math.hypot(x1s - x0s, y1s - y0s); line.height = 2.5
+                  line.tint = 0x3e2c18; line.alpha = 0.92
+                  line.position.set(x0s, y0s)
+                  line.rotation = Math.atan2(y1s - y0s, x1s - x0s)
+                  line.zIndex = zB + 905
+                  world.addChild(line)
+                }
               }
             } catch { /* ship art unavailable — the berth waits */ }
           }
@@ -3816,9 +3568,20 @@ export default function IslandMapIso() {
         refreshSea()
         cullBands()
 
+        // THE DEAD-OCEAN FIX (Ash 2026-07-18: "the ocean is gone" at Thor's
+        // zoom): the pool fills only the viewport it saw at build/resize — the
+        // walk camera then eases AWAY and the sea simply ends at the old
+        // window's edge (at 0.62 the fill margin hid it; at play zoom it
+        // can't). The pool was built for pixel-stable refills; re-fill it
+        // whenever the view drifts more than a tile from the last fill.
+        let seaFX = world.x, seaFY = world.y
         app.ticker.add(() => {
           const t = performance.now() / 1000
           cullBands()
+          if (Math.abs(world.x - seaFX) > HH * ZOOM * 2 || Math.abs(world.y - seaFY) > HH * ZOOM * 2) {
+            seaFX = world.x; seaFY = world.y
+            refreshSea()
+          }
           animSwells(waterS, t, () => 0)
           // ember pulse: slow independent breathing per core tile
           for (const g of glows) g.sp.alpha = g.a * (0.72 + 0.28 * Math.sin(t * 1.3 + g.ph))
@@ -4013,11 +3776,10 @@ export default function IslandMapIso() {
 
       // ---- WALKABLE THOR (default ON; ?walk=0 for the free camera) ----
       // The BeachIso walk system adapted to the island: land = signed coast
-      // distance, lava and river block (fords pass), the harbor DECKS are
-      // walkable world-px quads with a lift, structures collide as circles.
-      // Thor's row z interleaves between the decomposed harbor objects — he
-      // walks BEHIND the hall and IN FRONT of the pilings.
-      const WALK = params.get('noport') !== '1' && params.get('walk') !== '0'
+      // distance, lava and river block (fords pass), the QUAY + BREAKWATER
+      // are HARBOR tiles (walk + lift by construction), solid props block
+      // their registered footprints. No quads, no fitted circles.
+      const WALK = params.get('walk') !== '0'
       ;(window as any).__walk = 'flag=' + WALK
       if (WALK) try {
         const dirs8 = ['south', 'north', 'east', 'west', 'south-east', 'north-east', 'north-west', 'south-west']
@@ -4037,20 +3799,15 @@ export default function IslandMapIso() {
           walkT[d] = await Promise.all([0, 1, 2, 3, 4, 5].map((i) => Assets.load(`/art/characters/thor/walk/${d}/${i}.png`)))
           for (const t of walkT[d]) t.source.scaleMode = 'nearest'
         }))
-        // GRID TRUTH: deck membership and footprint blocks are tile data
-        // (harbor-deck.ts) — no quads, no fitted circles on the deck. The
-        // water rule itself is the rim collision: stepping off an exposed
-        // edge lands on a sea tile and the sea says no.
-        const COLL: [number, number, number][] = [
-          [2798, 3928, 18], [2540, 4010, 76], [2690, 3952, 56],   // lighthouse + mole rocks (scenery)
-        ]
+        // GRID TRUTH: the harbor plan's tiles carry walk + lift; registered
+        // prop footprints (PROPBLOCK) say no; the water rule itself is the rim
+        // collision — stepping off the quay face lands on a sea tile and the
+        // sea says no.
         const surfAt = (tx: number, ty: number): { ok: boolean; lift: number } => {
           const rtx = Math.round(tx), rty = Math.round(ty)
-          const k = deckKey(rtx, rty)
-          if (BLOCKED.has(k)) return { ok: false, lift: 0 }
-          if (DECK_SET.has(k)) return { ok: true, lift: DECK_LIFT }
-          const fx = isoX(tx, ty), fy = isoY(tx, ty) + GYG
-          for (const [cx2, cy2, cr] of COLL) if (Math.hypot(fx - cx2, fy - cy2) < cr) return { ok: false, lift: 0 }
+          if (PROPBLOCK.has(rtx + ',' + rty)) return { ok: false, lift: 0 }
+          const h = harborAt(rtx, rty)
+          if (h) return h.walk ? { ok: true, lift: h.lift } : { ok: false, lift: 0 }
           if (dsAt(tx, ty) < 0.4) return { ok: false, lift: 0 }                       // sea
           if (lavaDist(tx, ty) < 1.5 && crossingD(tx, ty) > 2.2) return { ok: false, lift: 0 }
           if (riverD(tx, ty) < 1.3 && crossingD(tx, ty) > 2.2) return { ok: false, lift: 0 }
@@ -4061,8 +3818,9 @@ export default function IslandMapIso() {
         }
         ;(window as any).__probe = (tx: number, ty: number) => {
           const rtx = Math.round(tx), rty = Math.round(ty)
+          const h = harborAt(rtx, rty)
           return JSON.stringify({
-            deck: DECK_SET.has(deckKey(rtx, rty)), blocked: BLOCKED.has(deckKey(rtx, rty)),
+            quay: !!h, walkTile: h ? h.walk : null, blocked: PROPBLOCK.has(rtx + ',' + rty),
             ds: Number(dsAt(tx, ty).toFixed(2)), ok: surfAt(tx, ty),
           })
         }
@@ -4070,14 +3828,24 @@ export default function IslandMapIso() {
         const kd = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = true }
         const ku = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = false }
         window.addEventListener('keydown', kd); window.addEventListener('keyup', ku)
-        const pos = { tx: 141.5, ty: 77 }     // the sand approach west of the quay
+        // spawn on the sand approach just west of the quay root
+        const pos = HARBOR.root[0]
+          ? { tx: HARBOR.root[0] - 3.5, ty: HARBOR.root[1] + 0.5 }
+          : { tx: 141.5, ty: 77 }
         let facing = 'south-east', animT = 0
+        // Thor's contact shadow — feet planted on whatever surface he stands on
+        // (own texture: shadTex lives in the harbor block's scope)
+        const thShadTex = radial(64, [[0, 'rgba(8,18,22,0.9)'], [0.65, 'rgba(8,18,22,0.4)'], [1, 'rgba(8,18,22,0)']])
+        const thShadow = new Sprite(thShadTex)
+        thShadow.anchor.set(0.5, 0.5)
+        thShadow.width = 26; thShadow.height = 10; thShadow.alpha = 0.32
+        world.addChild(thShadow)
         const thor = new Sprite(walkT[facing][0])
         thor.anchor.set(0.5, 1)
-        // the plates' scale is set by the palms (~230px) — Thor's native walk
-        // frames read child-size against a two-story hall; 1.2 seats him as
-        // the hero: taller than the painted vendors, right against the doors
-        thor.scale.set(1.2)
+        // ISLAND SCALE (Ash 2026-07-18: "he is around the size of two tiles,
+        // humongous" — Thor is SMALL against a vast world, the camera zooms to
+        // him instead). 0.68 is the beach's proven scale relationship.
+        thor.scale.set(0.68)
         world.addChild(thor)
         ;(window as any).__thorSp = thor
         // test hook: place Thor at a tile (rejects unwalkable targets) — the
@@ -4111,6 +3879,8 @@ export default function IslandMapIso() {
           const s = surfAt(pos.tx, pos.ty)
           thor.position.set(isoX(pos.tx, pos.ty), isoY(pos.tx, pos.ty) + GYG - s.lift)
           thor.zIndex = Math.floor(pos.tx + pos.ty) * 4000 + 1500
+          thShadow.position.set(thor.position.x + 1, thor.position.y - 2)
+          thShadow.zIndex = thor.zIndex - 2
           // camera follows with an easing tail
           const cx3 = app.screen.width / 2 - isoX(pos.tx, pos.ty) * ZOOM
           const cy3 = app.screen.height * 0.5 - isoY(pos.tx, pos.ty) * ZOOM
