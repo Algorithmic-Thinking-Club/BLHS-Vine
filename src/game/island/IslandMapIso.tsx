@@ -2158,7 +2158,18 @@ export default function IslandMapIso() {
         // painted together at native world scale — standing in the water on its
         // own stilts. The tile system keeps what tiles are good at: the
         // connective walkways, the sea, the contact. ?pods=0 = the old composite.
-        const BIGPIECE = params.get('pods') !== '0'
+        // THE SCRATCH HARBOR (Ash 2026-07-17, the final-straw test): the ENTIRE
+        // legacy harbor — tile walkways, railings, breakwater, bell, props, the
+        // pod stitching — is suppressed. The harbor rebuilds as ONE PICTURE
+        // with counted seams: THE GRAND WHARF (one painting), a gangway to the
+        // beach, the beacon islet, the ship and boats, and nothing else but
+        // water. ?scratch=0 restores the old network for comparison.
+        const SCRATCH = params.get('scratch') !== '0'
+        const BIGPIECE = !SCRATCH && params.get('pods') !== '0'
+        // LEGACYP: the old composite props render ONLY in the full-legacy view
+        // (?scratch=0&pods=0) — under scratch the suppressed decks left them
+        // floating on open water (the hut-in-the-sea bug)
+        const LEGACYP = !BIGPIECE && !SCRATCH
         const hx0 = HARBOR.bollards[1][0]           // pierhead east column
         const PODS: { key: string; x0: number; y0: number; x1: number; y1: number; legs: number; dx: number; dy: number }[] = [
           // dx/dy: the one-time mounting calibration per piece (painted decks
@@ -2235,7 +2246,7 @@ export default function IslandMapIso() {
             }
             const postT = Texture.from(postCv)
             const isH = (x: number, y: number) => !!harborAt(x, y)
-            for (const ht of HARBOR.tiles) {
+            for (const ht of SCRATCH ? [] : HARBOR.tiles) {
               if (BIGPIECE && inMarketPod(ht.tx, ht.ty)) continue   // the piece IS the pod
               const bx2 = isoX(ht.tx, ht.ty), byTop = isoY(ht.tx, ht.ty) + GY - ht.lift
               const zB = (ht.tx + ht.ty) * 4000 + ht.lift * 2
@@ -2413,7 +2424,7 @@ export default function IslandMapIso() {
             // face, and the whole fishing jetty.
             {
               const rootX = HARBOR.root[0], rootY = HARBOR.root[1]
-              const planks = HARBOR.tiles.filter((t2) => t2.mat === 'plank' && t2.lift >= 8
+              const planks = SCRATCH ? [] : HARBOR.tiles.filter((t2) => t2.mat === 'plank' && t2.lift >= 8
                 && !(BIGPIECE && inMarketPod(t2.tx, t2.ty)))
               const posts: { sx: number; sy: number; z: number; n: number }[] = []
               for (const ht of planks) {
@@ -2542,7 +2553,7 @@ export default function IslandMapIso() {
             // with room to breathe. The fresh art kit is phase 2.
             // the arrivals bell ON THE SHORE at the gangway landing (deck:false —
             // it stands on the sand, its own vignette, clear of the arch)
-            mount(pt['bell-frame'], HARBOR.bell, { deck: false, sc: 0.5, sink: 4 })
+            if (!SCRATCH) mount(pt['bell-frame'], HARBOR.bell, { deck: false, sc: 0.5, sink: 4 })
             // (THE GATEWAY ARCH IS CUT, 2026-07-17: both generations came back
             // FRONTAL — a flat gate spanning a DIAGONAL walkway is impossible
             // geometry and read as the goofiest thing in the frame. Flawless
@@ -2557,13 +2568,13 @@ export default function IslandMapIso() {
             // a focal roof, not a bare deck). Open timber, terracotta + teal,
             // its own hung lanterns; the freight tucks beside its west post.
             const headX = HARBOR.bollards[1][0]   // the pierhead's east column
-            if (!BIGPIECE) {
+            if (LEGACYP) {
               mount(hb['pavilion'], [headX - 1.6, HARBOR.root[1] + 0.6], { sc: 0.85, glow: true })
               // ONE freight beat, at the pierhead yard (the second stack sat alone
               // mid-jetty and read as a random crate on the path — restraint wins)
               if (cargoT) mount(cargoT, [headX - 2.7, HARBOR.root[1] + 1.3], { sc: 0.5 })
             }
-            for (const L2 of HARBOR.lanterns) {
+            for (const L2 of SCRATCH ? [] : HARBOR.lanterns) {
               if (BIGPIECE && inMarketPod(Math.round(L2[0]), Math.round(L2[1]))) continue
 
               // v4: the new driftwood dock lamp (teal pennant, warm glass) replaces
@@ -2580,10 +2591,10 @@ export default function IslandMapIso() {
               world.addChild(pool2)
               glows.push({ sp: pool2, ph: hash(L2[0], L2[1]) * 6, a: 0.2 })
             }
-            for (const B of HARBOR.bollards) mount(hb['bollard-b'] ?? pt['bollard-a'], B, { sc: hb['bollard-b'] ? 0.2 : 0.34 })
+            for (const B of SCRATCH ? [] : HARBOR.bollards) mount(hb['bollard-b'] ?? pt['bollard-a'], B, { sc: hb['bollard-b'] ? 0.2 : 0.34 })
             // mooring posts pace the boardwalk's seaward lip (the beach pier's
             // post rhythm at harbor scale)
-            for (const E of HARBOR.edgePosts) mount(hb['bollard-b'] ?? pt['bollard-a'], E, { sc: hb['bollard-b'] ? 0.15 : 0.24 })
+            for (const E of SCRATCH ? [] : HARBOR.edgePosts) mount(hb['bollard-b'] ?? pt['bollard-a'], E, { sc: hb['bollard-b'] ? 0.15 : 0.24 })
             // the harbor BEACON at the breakwater tip, its lamp breathing
             if (DBG) {
               const dot = new Sprite(Texture.WHITE)
@@ -2592,7 +2603,7 @@ export default function IslandMapIso() {
               dot.zIndex = 93_000_000
               world.addChild(dot)
             }
-            if (hb['beacon']) {
+            if (!SCRATCH && hb['beacon']) {
               const at = HARBOR.beacon
               const BSC = 1.32     // the HERO of the harbor — the tall vertical anchor
               // seated IN the sea (+2, was -8 hovering) with a displacement pool
@@ -2628,7 +2639,7 @@ export default function IslandMapIso() {
             // the breakwater sits IN the sea, not on it: a broken foam lace along
             // every rock/water contact — the islet's hard flat cut against the
             // teal read as a pasted sticker (final gate verdict)
-            for (const t2 of HARBOR.tiles) {
+            for (const t2 of SCRATCH ? [] : HARBOR.tiles) {
               if (t2.mat !== 'rock') continue
               for (const [ox, oy] of [[1, 0], [0, 1], [-1, 0], [0, -1]] as [number, number][]) {
                 const nx = Math.round(t2.tx) + ox, ny = Math.round(t2.ty) + oy
@@ -2645,7 +2656,7 @@ export default function IslandMapIso() {
               }
             }
             // the teal school pennant flies at the pier's T-head
-            if (!BIGPIECE) try {
+            if (LEGACYP) try {
               const pnT: Texture = await Assets.load('/art/intro/props/pennant.png')
               pnT.source.scaleMode = 'nearest'
               const at = HARBOR.pennant
@@ -2674,7 +2685,7 @@ export default function IslandMapIso() {
               const gsT: Texture = await Assets.load('/art/intro/props/gull.png')
               gsT.source.scaleMode = 'nearest'
               // one gull stands watch on a breakwater boulder
-              const rk = HARBOR.tiles.filter((t2) => t2.mat === 'rock')[2]
+              const rk = SCRATCH ? undefined : HARBOR.tiles.filter((t2) => t2.mat === 'rock')[2]
               if (rk) {
                 const sp = new Sprite(gsT); sp.anchor.set(0.5, 1)
                 sp.position.set(isoX(rk.tx, rk.ty), isoY(rk.tx, rk.ty) + GY - 26)
@@ -2700,7 +2711,7 @@ export default function IslandMapIso() {
             // v8: house-v5 is BASE-FREE (v4 baked its own flagstone yard + palm —
             // on the stilt platform the pad double-floored the deck and the palm
             // grew out of the planks: Ash's "halfway into the ground" class)
-            if (!BIGPIECE) mount(hb['house-v5'] ?? hb['house-v4'], deckCtr([HARBOR.root[0] + 2, HARBOR.root[1] + 8]), { sc: hb['house-v5'] ? 0.9 : 0.95 })
+            if (LEGACYP) mount(hb['house-v5'] ?? hb['house-v4'], deckCtr([HARBOR.root[0] + 2, HARBOR.root[1] + 8]), { sc: hb['house-v5'] ? 0.9 : 0.95 })
             // v5 BUSTLE · the MARKET ROW: two stalls on the sand north of the
             // apron, facing the boardwalk — Thor steps off the pier into a
             // WORKING waterfront (fruit + fish), the house anchoring the south.
@@ -2722,7 +2733,7 @@ export default function IslandMapIso() {
             // and front-left sit at the same depth row, so two full stalls fit
             // side by side with zero occlusion (stacked overlap made a mutant
             // double-roof; a 5x4 pod has no room for "artful" overlap).
-            if (!BIGPIECE) {
+            if (LEGACYP) {
               mount(hb['stall-a2'] ?? hb['stall-a'], [HARBOR.root[0] + 0.9, HARBOR.root[1] - 7.4], { sc: 0.88 })
               mount(hb['stall-b2'] ?? hb['stall-b'], [HARBOR.root[0] - 1.15, HARBOR.root[1] - 5.35], { sc: 0.88, flip: true })
               if (cargoT) mount(cargoT, [HARBOR.root[0] - 1.7, HARBOR.root[1] - 5.3], { sc: 0.42, flip: true })
@@ -2735,6 +2746,56 @@ export default function IslandMapIso() {
             // its measured legs constant, its stilts standing in the sea with
             // displacement + foam. No tint beyond a whisper — the palette is
             // in the generation.
+            // ---- THE SCRATCH HARBOR COMPOSITION: one wharf painting in open
+            // water, a gangway to the beach, the beacon islet — every seam is
+            // either the sea (code-owned) or ONE calibrated deck kiss.
+            // THE PORT'S ANATOMY (Ash: two masses in open water are "floating
+            // boards, not a harbor"): a harbor is a SHAPE — one PIER SPINE
+            // running from the beach into the bay, the wharf as its T-head,
+            // the annex hung south of the spine, the ship at the outer face.
+            // The wharf stands a full pier's reach off the beach.
+            // +3.9 (was +5.2): slid the whole frame shoreward so the pier's
+            // west tip plants on DRY sand — the pier-wharf tuck is WX-relative
+            // and survives the slide untouched
+            const WX = HARBOR.root[0] + 3.9, WY = HARBOR.root[1] - 1
+            if (SCRATCH) {
+              const piece = async (file: string, at: [number, number], o: { legs?: number; foamW?: number; z?: number } = {}) => {
+                try {
+                  // v3: islet ripple-ring erased, pier-spine landed (bump on every in-place rewrite)
+                  const t: Texture = await Assets.load(`/art/island/harbor/${file}.png?v=3`)
+                  t.source.scaleMode = 'nearest'
+                  const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY + (o.legs ?? 0)
+                  const zB = Math.floor(at[0] + at[1]) * 4000 + (o.z ?? 900)
+                  const rf = new Sprite(shadTex); rf.anchor.set(0.5, 0.5)
+                  rf.width = (o.foamW ?? 280) * 0.94; rf.height = 38; rf.alpha = 0.32; rf.tint = 0x08222a
+                  rf.position.set(bx2, by2 - 4); rf.zIndex = zB - 300
+                  world.addChild(rf)
+                  const fm = new Sprite(foamTex); fm.anchor.set(0.5, 0.5)
+                  fm.width = o.foamW ?? 280; fm.height = 40; fm.alpha = 0.48
+                  fm.position.set(bx2, by2 - 6); fm.zIndex = zB - 298
+                  world.addChild(fm)
+                  const sp = new Sprite(t); sp.anchor.set(0.5, 1)
+                  sp.position.set(bx2, by2)
+                  sp.zIndex = zB
+                  world.addChild(sp)
+                  return sp
+                } catch { return undefined /* piece not on disk yet */ }
+              }
+              // THE PIER SPINE (z 880): west tip ON the dry sand, the run
+              // crossing the surf, its east end tucked UNDER the wharf's west
+              // lip — the seam swallowed by the wharf's own edge shadow. The
+              // west corridor stays EMPTY so the approach reads at a glance.
+              // [-9.1,+0.3] ran PARALLEL to the wharf's NW edge, one street
+              // north — +4.5/+4.5 drops it straight down the screen onto the
+              // lip (equal +x+y = pure vertical in iso)
+              await piece('pier-spine', [WX - 4.6, WY + 4.8], { legs: 6, foamW: 260, z: 880 })
+              await piece('wharf-grand', [WX, WY], { legs: 10, foamW: 360 })
+              await piece('beacon-islet', HARBOR.beacon as [number, number], { legs: 8, foamW: 190 })
+              // the ANNEX stands BEHIND-RIGHT of the wharf (deep-water side),
+              // a TRUE water gap between the two masses — at [+3,-3.5] its deck
+              // kissed the wharf's east lip with a misaligned plank line
+              await piece('wharf-annex', [WX + 4.5, WY - 5.2], { legs: 10, foamW: 300 })
+            }
             if (BIGPIECE) for (const pod of PODS) {
               try {
                 const bpT: Texture = await Assets.load(`/art/island/harbor/${pod.key}.png?v=1`)
@@ -2760,7 +2821,7 @@ export default function IslandMapIso() {
             }
             // festival bunting strung stall-to-stall — anchored on real posts at
             // both ends (a string hung on nothing is the floating-asset class)
-            if (!BIGPIECE && hb['bunting']) {
+            if (LEGACYP && hb['bunting']) {
               const mLift = harborAt(Math.round(HARBOR.root[0]), Math.round(HARBOR.root[1] - 6))?.lift ?? 0
               const ax = isoX(HARBOR.root[0] - 1.15, HARBOR.root[1] - 5.35)
               const ay = isoY(HARBOR.root[0] - 1.15, HARBOR.root[1] - 5.35) + GY - mLift + 8 - 108
@@ -2822,10 +2883,10 @@ export default function IslandMapIso() {
               bobs.push({ sp, y0: by2, w: 0.55 + 0.3 * hash(at[0], at[1]), ph: hash(at[1], at[0]) * 6.3 })
               return sp
             }
-            boat(hb['sloop'], HARBOR.sloop)
+            boat(hb['sloop'], SCRATCH ? [WX + 9, WY - 1.5] : HARBOR.sloop)
             // the second fisher is visibly DISTINCT (a weathered blue-grey hull),
             // not an obvious copy of the first (reviewer: duplicated boats read cheap)
-            const sloop2Sp = boat(hb['sloop'], HARBOR.sloop2, 0.82, true)
+            const sloop2Sp = boat(hb['sloop'], SCRATCH ? [WX + 1.5, WY + 9.5] : HARBOR.sloop2, 0.82, true)
             if (sloop2Sp) sloop2Sp.tint = 0x8fb0b8
             // v5 BUSTLE · the FLEET: a port with traffic, not two lonely hulls.
             // The fishing smack (its own silhouette — nets, furled tan sail)
@@ -2839,11 +2900,14 @@ export default function IslandMapIso() {
             // hull rode up onto the fleet spur's deck — "boats sitting halfway on
             // the harbor, noclipping" (Ash 2026-07-17). Open water east of the
             // spur tip; the pierhead sloop stands a full lane off the south face.
-            boat(hb['fishing-boat'], [HARBOR.sloop[0] + 3, HARBOR.sloop[1] - 3], 0.72)
-            const sloop3Sp = boat(hb['sloop'], [HARBOR.pennant[0] - 1.2, HARBOR.pennant[1] + 5.6], 0.7)
+            // NW open water — parked behind the wharf at [-6,-4] it hid whole
+            // behind the stall canvas
+            boat(hb['fishing-boat'], SCRATCH ? [WX - 12, WY - 5] : [HARBOR.sloop[0] + 3, HARBOR.sloop[1] - 3], 0.72)
+            const sloop3Sp = boat(hb['sloop'], SCRATCH ? [WX + 7.4, WY + 4.6] : [HARBOR.pennant[0] - 1.2, HARBOR.pennant[1] + 5.6], 0.7)
             if (sloop3Sp) sloop3Sp.tint = 0xd8c8a8
-            // an afloat dinghy works the fishing jetty's seaward side
-            boat(hb['rowboat'], [HARBOR.cargo[1][0] + 2.6, HARBOR.cargo[1][1] + 2.3], 0.6, true)
+            // (scratch: no extra dinghy — the pier-drop buried it under the
+            // spine's canvas, and the legacy beached rowboat already reads)
+            if (!SCRATCH) boat(hb['rowboat'], [HARBOR.cargo[1][0] + 2.6, HARBOR.cargo[1][1] + 2.3], 0.6, true)
             // (the rowboat mounts with the settlement above — same sand-safe anchor)
             // THE SHIP HERSELF at the berth — the approved 16-view painted rigger,
             // moored along the main pier's north face, bow seaward (v1 = the +x
@@ -2851,7 +2915,9 @@ export default function IslandMapIso() {
             try {
               const shipT: Texture = await Assets.load('/art/intro/port/ship16/v1.png')
               shipT.source.scaleMode = 'nearest'
-              const at = HARBOR.berth
+              // moored at the wharf's south face, east half — the arrival reads
+              // against open water at the port's outermost point
+              const at = SCRATCH ? [WX + 2, WY + 4] as [number, number] : HARBOR.berth
               const bx2 = isoX(at[0], at[1]), by2 = isoY(at[0], at[1]) + GY + 4
               const zB = Math.floor(at[0] + at[1]) * 4000
               // a BOLD dark contact shadow pooled under the hull grounds the
