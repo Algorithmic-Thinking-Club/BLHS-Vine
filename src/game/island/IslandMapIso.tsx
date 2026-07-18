@@ -2146,6 +2146,30 @@ export default function IslandMapIso() {
         // build he accepted returns from behind the decor gate, like the forest;
         // ?harbor=0 keeps a clean-capture switch)
         const HARBOR_ON = params.get('harbor') !== '0'
+        // ?bigpiece=1 — THE UNIT-OF-ART A/B (2026-07-17): the market pod rendered
+        // as ONE whole painted piece (single 400px generation: deck + stalls +
+        // goods + lamps + bunting painted together) instead of the composited
+        // tile-deck + prop mounts. Same footprint, same camera — the honest test
+        // of whether the whole-picture unit clears the eye where the composite
+        // never has. When on: the pod's tiles, railing, and props are suppressed
+        // and the piece stands in the water on its own painted stilts.
+        // THE POD SYSTEM (the A/B verdict, 2026-07-17): every harbor STRUCTURE is
+        // ONE painted piece — deck, buildings, goods, lamps and their light
+        // painted together at native world scale — standing in the water on its
+        // own stilts. The tile system keeps what tiles are good at: the
+        // connective walkways, the sea, the contact. ?pods=0 = the old composite.
+        const BIGPIECE = params.get('pods') !== '0'
+        const hx0 = HARBOR.bollards[1][0]           // pierhead east column
+        const PODS: { key: string; x0: number; y0: number; x1: number; y1: number; legs: number; dx: number; dy: number }[] = [
+          // dx/dy: the one-time mounting calibration per piece (painted decks
+          // aren't perfectly centred/sized in their canvases) — seated to KISS
+          // the walk ends, planes matched, then locked
+          { key: 'pod-market', x0: HARBOR.root[0] - 2, y0: HARBOR.root[1] - 8, x1: HARBOR.root[0] + 2, y1: HARBOR.root[1] - 5, legs: 48, dx: -6, dy: 16 },
+          { key: 'pod-office', x0: HARBOR.root[0], y0: HARBOR.root[1] + 6, x1: HARBOR.root[0] + 3, y1: HARBOR.root[1] + 9, legs: 47, dx: 10, dy: 14 },
+          { key: 'pod-pierhead', x0: hx0 - 3, y0: HARBOR.root[1] - 1, x1: hx0, y1: HARBOR.root[1] + 2, legs: 52, dx: -6, dy: 16 },
+        ]
+        const inMarketPod = (tx: number, ty: number) =>
+          BIGPIECE && PODS.some((p) => tx >= p.x0 && tx <= p.x1 && ty >= p.y0 && ty <= p.y1)
         if (HARBOR_ON) try {
           const hb: Record<string, Texture> = {}
           for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'boathouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'deck-top-v5-0', 'deck-top-v5-1', 'deck-top-v5-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b', 'house-v4', 'house-v5', 'lamp-v4', 'stall-a', 'stall-b', 'stall-a2', 'stall-b2', 'cargo-b', 'cargo-c', 'fishing-boat', 'court-stone-a', 'gate-arch', 'gate-arch2', 'pavilion', 'bunting']) {
@@ -2212,6 +2236,7 @@ export default function IslandMapIso() {
             const postT = Texture.from(postCv)
             const isH = (x: number, y: number) => !!harborAt(x, y)
             for (const ht of HARBOR.tiles) {
+              if (BIGPIECE && inMarketPod(ht.tx, ht.ty)) continue   // the piece IS the pod
               const bx2 = isoX(ht.tx, ht.ty), byTop = isoY(ht.tx, ht.ty) + GY - ht.lift
               const zB = (ht.tx + ht.ty) * 4000 + ht.lift * 2
               if (ht.mat === 'rock') {
@@ -2388,7 +2413,8 @@ export default function IslandMapIso() {
             // face, and the whole fishing jetty.
             {
               const rootX = HARBOR.root[0], rootY = HARBOR.root[1]
-              const planks = HARBOR.tiles.filter((t2) => t2.mat === 'plank' && t2.lift >= 8)
+              const planks = HARBOR.tiles.filter((t2) => t2.mat === 'plank' && t2.lift >= 8
+                && !(BIGPIECE && inMarketPod(t2.tx, t2.ty)))
               const posts: { sx: number; sy: number; z: number; n: number }[] = []
               for (const ht of planks) {
                 if (ht.ty >= rootY + 4) continue                          // the jetty works open
@@ -2531,11 +2557,15 @@ export default function IslandMapIso() {
             // a focal roof, not a bare deck). Open timber, terracotta + teal,
             // its own hung lanterns; the freight tucks beside its west post.
             const headX = HARBOR.bollards[1][0]   // the pierhead's east column
-            mount(hb['pavilion'], [headX - 1.6, HARBOR.root[1] + 0.6], { sc: 0.85, glow: true })
-            // ONE freight beat, at the pierhead yard (the second stack sat alone
-            // mid-jetty and read as a random crate on the path — restraint wins)
-            if (cargoT) mount(cargoT, [headX - 2.7, HARBOR.root[1] + 1.3], { sc: 0.5 })
+            if (!BIGPIECE) {
+              mount(hb['pavilion'], [headX - 1.6, HARBOR.root[1] + 0.6], { sc: 0.85, glow: true })
+              // ONE freight beat, at the pierhead yard (the second stack sat alone
+              // mid-jetty and read as a random crate on the path — restraint wins)
+              if (cargoT) mount(cargoT, [headX - 2.7, HARBOR.root[1] + 1.3], { sc: 0.5 })
+            }
             for (const L2 of HARBOR.lanterns) {
+              if (BIGPIECE && inMarketPod(Math.round(L2[0]), Math.round(L2[1]))) continue
+
               // v4: the new driftwood dock lamp (teal pennant, warm glass) replaces
               // the old lantern-post where it has landed
               mount(hb['lamp-v4'] ?? pt['lantern-post'], L2, { sc: hb['lamp-v4'] ? 0.52 : 0.72, glow: true })
@@ -2615,7 +2645,7 @@ export default function IslandMapIso() {
               }
             }
             // the teal school pennant flies at the pier's T-head
-            try {
+            if (!BIGPIECE) try {
               const pnT: Texture = await Assets.load('/art/intro/props/pennant.png')
               pnT.source.scaleMode = 'nearest'
               const at = HARBOR.pennant
@@ -2670,7 +2700,7 @@ export default function IslandMapIso() {
             // v8: house-v5 is BASE-FREE (v4 baked its own flagstone yard + palm —
             // on the stilt platform the pad double-floored the deck and the palm
             // grew out of the planks: Ash's "halfway into the ground" class)
-            mount(hb['house-v5'] ?? hb['house-v4'], deckCtr([HARBOR.root[0] + 2, HARBOR.root[1] + 8]), { sc: hb['house-v5'] ? 0.9 : 0.95 })
+            if (!BIGPIECE) mount(hb['house-v5'] ?? hb['house-v4'], deckCtr([HARBOR.root[0] + 2, HARBOR.root[1] + 8]), { sc: hb['house-v5'] ? 0.9 : 0.95 })
             // v5 BUSTLE · the MARKET ROW: two stalls on the sand north of the
             // apron, facing the boardwalk — Thor steps off the pier into a
             // WORKING waterfront (fruit + fish), the house anchoring the south.
@@ -2692,12 +2722,45 @@ export default function IslandMapIso() {
             // and front-left sit at the same depth row, so two full stalls fit
             // side by side with zero occlusion (stacked overlap made a mutant
             // double-roof; a 5x4 pod has no room for "artful" overlap).
-            mount(hb['stall-a2'] ?? hb['stall-a'], [HARBOR.root[0] + 0.9, HARBOR.root[1] - 7.4], { sc: 0.88 })
-            mount(hb['stall-b2'] ?? hb['stall-b'], [HARBOR.root[0] - 1.15, HARBOR.root[1] - 5.35], { sc: 0.88, flip: true })
-            if (cargoT) mount(cargoT, [HARBOR.root[0] - 1.7, HARBOR.root[1] - 5.3], { sc: 0.42, flip: true })
+            if (!BIGPIECE) {
+              mount(hb['stall-a2'] ?? hb['stall-a'], [HARBOR.root[0] + 0.9, HARBOR.root[1] - 7.4], { sc: 0.88 })
+              mount(hb['stall-b2'] ?? hb['stall-b'], [HARBOR.root[0] - 1.15, HARBOR.root[1] - 5.35], { sc: 0.88, flip: true })
+              if (cargoT) mount(cargoT, [HARBOR.root[0] - 1.7, HARBOR.root[1] - 5.3], { sc: 0.42, flip: true })
+            }
+            // the whole-piece pod: one painted structure standing in the sea,
+            // seated like the hulls (displacement pool + foam at its stilts)
+            // THE PODS, mounted by measurement: each piece renders at NATIVE
+            // scale (the density law — downscaling was the "pasted diorama"
+            // seam), its deck-front corner seated on the walk's deck plane by
+            // its measured legs constant, its stilts standing in the sea with
+            // displacement + foam. No tint beyond a whisper — the palette is
+            // in the generation.
+            if (BIGPIECE) for (const pod of PODS) {
+              try {
+                const bpT: Texture = await Assets.load(`/art/island/harbor/${pod.key}.png?v=1`)
+                bpT.source.scaleMode = 'nearest'
+                // centre-x and front-corner y derived from the pod's tile rect
+                const bx2 = (isoX(pod.x0, pod.y0) + isoX(pod.x1, pod.y1)) / 2 + pod.dx
+                const cornerY = isoY(pod.x1 + 0.5, pod.y1 + 0.5) + GY - 12
+                const by2 = cornerY + pod.legs + pod.dy
+                const zB = (pod.x1 + pod.y1) * 4000
+                const rf = new Sprite(shadTex); rf.anchor.set(0.5, 0.5)
+                rf.width = 270; rf.height = 36; rf.alpha = 0.32; rf.tint = 0x08222a
+                rf.position.set(bx2, by2 - 2); rf.zIndex = zB + 600
+                world.addChild(rf)
+                const fm = new Sprite(foamTex); fm.anchor.set(0.5, 0.5)
+                fm.width = 290; fm.height = 38; fm.alpha = 0.48
+                fm.position.set(bx2, by2 - 4); fm.zIndex = zB + 602
+                world.addChild(fm)
+                const sp = new Sprite(bpT); sp.anchor.set(0.5, 1)
+                sp.position.set(bx2, by2)
+                sp.zIndex = zB + 900
+                world.addChild(sp)
+              } catch { /* piece not on disk yet — the pod waits */ }
+            }
             // festival bunting strung stall-to-stall — anchored on real posts at
             // both ends (a string hung on nothing is the floating-asset class)
-            if (hb['bunting']) {
+            if (!BIGPIECE && hb['bunting']) {
               const mLift = harborAt(Math.round(HARBOR.root[0]), Math.round(HARBOR.root[1] - 6))?.lift ?? 0
               const ax = isoX(HARBOR.root[0] - 1.15, HARBOR.root[1] - 5.35)
               const ay = isoY(HARBOR.root[0] - 1.15, HARBOR.root[1] - 5.35) + GY - mLift + 8 - 108
