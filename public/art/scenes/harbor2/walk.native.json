@@ -1,0 +1,112 @@
+{
+  "id": "harbor2",
+  "source": "/art/scenes/harbor2/native.png",
+  "w": 512,
+  "h": 288,
+  "encoding": {
+    "blocked": 0,
+    "L0": 40,
+    "ramp01": 50,
+    "L1": 60,
+    "ramp12": 70,
+    "L2": 80,
+    "ramp23": 90,
+    "L3": 100,
+    "stepTolerance": 10
+  },
+  "spawn": [
+    256,
+    165
+  ],
+  "character": {
+    "heightPx": 18,
+    "hip": 2,
+    "hipDY": 1,
+    "footLine": 106,
+    "spriteSize": 144
+  },
+  "speed": 34,
+  "yScale": 0.72,
+  "plateaus": {
+    "40": "beach (the cove sand)",
+    "60": "quay / wharf",
+    "80": "promenade + breakwater",
+    "100": "upper plaza (houses, stalls)"
+  },
+  "stairs": [
+    {
+      "value": 50,
+      "connects": [
+        40,
+        60
+      ],
+      "rect": [
+        99,
+        212,
+        126,
+        252
+      ],
+      "px": 918,
+      "name": "cove wooden stair"
+    },
+    {
+      "value": 70,
+      "connects": [
+        60,
+        80
+      ],
+      "rect": [
+        193,
+        172,
+        238,
+        210
+      ],
+      "px": 1735,
+      "name": "lower stone stair"
+    },
+    {
+      "value": 90,
+      "connects": [
+        80,
+        100
+      ],
+      "rect": [
+        231,
+        114,
+        267,
+        146
+      ],
+      "px": 1221,
+      "name": "grand stair"
+    }
+  ],
+  "occluders": [
+    {
+      "id": 1,
+      "baseline": 162,
+      "name": "lighthouse tower"
+    }
+  ],
+  "authoring": {
+    "toolMinutes": 23,
+    "clicks": 143,
+    "note": "polygon vertex clicks + rect drags + Enter closes, dispatched as real pointer events at 3x-8x zoom"
+  },
+  "defects": [
+    {
+      "where": "quay north edge x=245-310",
+      "px": "+2 to +3 conservative",
+      "effect": "a 2-3px strip of painted quay in the wall shadow cannot be stood on"
+    },
+    {
+      "where": "beach surf line y=255-265",
+      "px": "+3 permissive",
+      "effect": "you can stand ~3px into the foam"
+    },
+    {
+      "where": "cove stair left cheek",
+      "px": "+2 conservative",
+      "effect": "stair channel 2px narrower than the planks"
+    }
+  ]
+}
