@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>maskdraw — hand-authored walkability for painted scenes</title>
+<style>
+  :root {
+    --bg: #14171c; --panel: #1c2129; --edge: #2b323d; --ink: #d8dee7; --dim: #8d97a5;
+    --hot: #ffb054; --ok: #6fd08c; --bad: #e8657a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+    font: 12px/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace; overflow: hidden; }
+  #wrap { display: flex; height: 100%; }
+  #side { width: 258px; flex: 0 0 258px; background: var(--panel); border-right: 1px solid var(--edge);
+    overflow-y: auto; padding: 8px 9px 40px; }
+  #stage { flex: 1; overflow: auto; position: relative; background: #0b0d11; }
+  #stack { position: relative; transform-origin: 0 0; image-rendering: pixelated; }
+  canvas { display: block; position: absolute; left: 0; top: 0; image-rendering: pixelated; }
+  #cv-paint { position: relative; }
+  h2 { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--dim);
+    margin: 14px 0 5px; border-bottom: 1px solid var(--edge); padding-bottom: 3px; }
+  h2:first-child { margin-top: 2px; }
+  .row { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; align-items: center; }
+  button { background: #262d38; color: var(--ink); border: 1px solid var(--edge); border-radius: 3px;
+    padding: 4px 7px; cursor: pointer; font: inherit; }
+  button:hover { background: #313a48; }
+  button.on { background: var(--hot); color: #1b1206; border-color: var(--hot); font-weight: 700; }
+  .sw { width: 100%; text-align: left; display: flex; align-items: center; gap: 6px; }
+  .chip { width: 13px; height: 13px; border-radius: 2px; border: 1px solid #0006; flex: 0 0 13px; }
+  label { color: var(--dim); }
+  input[type=range] { width: 108px; }
+  input[type=number] { width: 56px; background: #12161c; color: var(--ink); border: 1px solid var(--edge);
+    border-radius: 3px; padding: 2px 4px; font: inherit; }
+  #hud { position: fixed; right: 10px; top: 8px; background: #0f1319ee; border: 1px solid var(--edge);
+    border-radius: 4px; padding: 6px 9px; white-space: pre; pointer-events: none; z-index: 20; }
+  #hud b { color: var(--hot); }
+  .note { color: var(--dim); font-size: 11px; margin: 3px 0 6px; }
+  kbd { background: #262d38; border: 1px solid var(--edge); border-radius: 2px; padding: 0 3px; }
+  #walkbadge { position: fixed; left: 268px; top: 8px; z-index: 20; background: #123; border: 1px solid var(--ok);
+    color: var(--ok); border-radius: 4px; padding: 4px 8px; display: none; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="side">
+    <h2>scene</h2>
+    <div class="row"><span id="sceneid">—</span></div>
+    <div class="note" id="dims">—</div>
+
+    <h2>view</h2>
+    <div class="row">
+      <button data-zoom="1">1x</button><button data-zoom="2">2x</button>
+      <button data-zoom="3">3x</button><button data-zoom="4">4x</button>
+      <button data-zoom="6">6x</button><button data-zoom="8">8x</button>
+    </div>
+    <div class="row"><label>mask</label><input id="opa" type="range" min="0" max="100" value="55"><span id="opav">55</span></div>
+    <div class="row">
+      <button id="tgrid">grid</button><button id="tmask" class="on">show mask</button><button id="tocc" class="on">occ</button>
+      <button id="thits">hits</button>
+    </div>
+
+    <h2>tool</h2>
+    <div class="row">
+      <button data-tool="brush" class="on">brush B</button><button data-tool="rect">rect R</button>
+      <button data-tool="poly">poly P</button><button data-tool="bucket">bucket F</button>
+      <button data-tool="pick">pick I</button><button data-tool="occ">occluder O</button>
+    </div>
+    <div class="row"><label>size</label><input id="bsize" type="range" min="1" max="16" value="2"><span id="bsizev">2</span>px</div>
+    <div class="note">poly: click points, <kbd>Enter</kbd> or double-click closes. <kbd>Esc</kbd> cancels, <kbd>Backspace</kbd> drops last point.</div>
+
+    <h2>value</h2>
+    <div id="pal"></div>
+
+    <h2>occluders</h2>
+    <div class="row"><label>baseline y</label><input id="occbase" type="number" value="0"></div>
+    <div id="occlist" class="note">none</div>
+
+    <h2>walk test</h2>
+    <div class="row"><button id="twalk">walk (T)</button><button id="respawn">respawn</button><button id="setspawn">set spawn</button></div>
+    <div class="row"><label>speed</label><input id="wspeed" type="number" value="34" step="1"> px/s</div>
+    <div class="row"><label>hip</label><input id="whip" type="number" value="2" step="1"> px</div>
+    <div class="row"><label>char h</label><input id="wsize" type="number" value="18" step="1"> px</div>
+    <div class="row"><label>step</label><input id="wnear" type="number" value="10" step="1"> lvl tol</div>
+    <div class="note">WASD / arrows. Movement law is copied from PaintedScene.tsx (feet + 2 hip probes, level tolerance, axis slide, escape clause). Refused moves paint the HITS layer.</div>
+
+    <h2>file</h2>
+    <div class="row"><button id="exlevels">levels.png</button><button id="exjson">json</button><button id="exocc">occ.png</button></div>
+    <div class="row"><button id="imp">import levels</button><button id="undo">undo Z</button><button id="clear">clear</button></div>
+    <div class="row"><button id="heal">heal seams</button><button id="check">check reach</button></div>
+    <div class="note" id="checkout"></div>
+    <input id="impf" type="file" accept="image/png" style="display:none">
+    <div class="note" id="stats">—</div>
+  </div>
+  <div id="stage"><div id="stack">
+    <canvas id="cv-paint"></canvas>
+    <canvas id="cv-mask"></canvas>
+    <canvas id="cv-ui"></canvas>
+  </div></div>
+</div>
+<div id="hud">—</div>
+<div id="walkbadge">WALK TEST — keys drive the character</div>
+<script src="./app.js"></script>
+</body>
+</html>
