@@ -96,3 +96,39 @@ tsconfig.tsbuildinfo
 
 # dev-only local database (the vite api bridge)
 .data/
+
+# Scratch: every throwaway probe, crop, render dump and screenshot pile lives
+# under .tmp_ and never gets committed.
+.tmp_*
+__pycache__/
+*.pyc
+
+# Backup copies made before an edit (the pre-edit original of an art file),
+# dated snapshots of a mask, and one-off diagnostic renders
+*.orig.png
+*.july.png
+**/walker-diag.png
+
+# Map/model tooling: same rule as scripts/ — track the reusable tools only.
+# The Blender + map-machine side has its own repo; its scratch (addons, .blend,
+# benchmark renders, downloaded packs) stays local.
+tools/*
+!tools/maskdraw/
+!tools/objmap-walk.mjs
+!tools/objmap-verify.mjs
+
+# Reference (local-only buckets): frame libraries and teardowns of other games'
+# art, plus interior photos. Study material, not ours to publish.
+reference/octopath-bar/
+reference/painted-scenes/
+reference/codetavern-teardown/
+reference/campus-interior/room-305/
+
+# The demo scene wears a reference image as a technical stand-in — the runtime
+# is ours, the picture is not, so it stays out.
+public/art/scenes/town-square/
+
+# Downloaded pages + extension indexes, saved while shopping for Blender addons
+baga.html
+blockout.html
+ext.json
