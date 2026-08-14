@@ -27,6 +27,13 @@ function lazyScene(load: () => Promise<{ default: ComponentType }>) {
 const IslandMapLazy = lazyScene(() => import('./game/island/IslandMapIso'))
 const AtcIslandLazy = lazyScene(() => import('./game/island/atc/AtcIslandIso'))
 const PantherCaveLazy = lazyScene(() => import('./game/island/cave/PantherCaveIso'))
+const PaintDemoLazy = lazyScene(() => import('./game/painted/PaintDemo'))
+const HarborSceneLazy = lazyScene(() => import('./game/painted/HarborScene'))
+const IslandSceneLazy = lazyScene(() => import('./game/painted/IslandScene'))
+const SceneEditorLazy = lazyScene(() => import('./game/painted/SceneEditor'))
+const PlaceSceneLazy = lazyScene(() => import('./game/painted/PlaceScene'))
+const MapwrightLazy = lazyScene(() => import('./game/mapwright/MapwrightScene'))
+const ObjMapLazy = lazyScene(() => import('./game/objmap/ObjMapScene'))
 
 // The game runs through the scene manager. The live student flow: boot -> title -> beach
 // (the intro lives ON the beach, join included) -> islandmap. The June-era scenes
@@ -43,6 +50,13 @@ const registry: SceneRegistry = {
   islandmap: () => <IslandMapLazy />, // the main map: the vast ocean + the Central Island (GAME-DESIGN §3)
   atc: () => <AtcIslandLazy />, // grape island #1: room 305 as an island (docs/place-specs/atc-grape-island.md)
   'panther-cave': () => <PantherCaveLazy />, // the Maw: the hub cave interior (docs/place-specs/panther-cave-interior.md)
+  paintdemo: () => <PaintDemoLazy />, // the painted-scene layer demo (dev-only; reference art stand-in)
+  harbor: () => <HarborSceneLazy />, // THE GRAND HARBOR: the island's first painted scene (our art)
+  island: () => <IslandSceneLazy />, // THE HUB ISLAND: cand-1 walkable end to end (Phase A)
+  paintedit: () => <SceneEditorLazy />, // Ash's polygon editor: draw levels on a scene image, test-walk, export (dev-only)
+  place: () => <PlaceSceneLazy />, // the B+C place test: one generated frame + authored levels, walkable (dev-only)
+  mw: () => <MapwrightLazy />, // MAPWRIGHT engine scene (P5): loads public/maps/<?map>/map.json — the map machine's output (?scene=mw&map=test-cove)
+  objmap: () => <ObjMapLazy />, // THE OBJECT-MAP proof: engine ground + ocean, every object one painted PNG, colliders MEASURED off sprite alpha (?scene=objmap&dbg=1)
 }
 
 export default function App() {
