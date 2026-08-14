@@ -570,7 +570,7 @@ export default function IslandMapIso() {
         // THE PLAZA IS A DESIGNED BENCH: the meadow's natural steps ran straight
         // through the court, so the level-clamped flagstone disc shrank to a
         // fragment and the rim braziers stood on four different terraces — the
-        // Opus review's "fire bowls sprinkled on a hillside, no floor". A real
+        // art review's "fire bowls sprinkled on a hillside, no floor". A real
         // courtyard is CUT INTO the hill: one flat level for the whole disc plus
         // a working apron for the brazier ring.
         {
@@ -1031,7 +1031,7 @@ export default function IslandMapIso() {
           // screen neighbours where the bench allows (same level only, so the
           // pool-step truth holds) — a 1-wide diagonal ribbon loses its lower
           // half to the next row's grass top (the estuary's own nibble) and
-          // read as detached mint stepping-stones the whole descent (Opus #5/#9)
+          // read as detached mint stepping-stones the whole descent (art review #5/#9)
           kept.forEach(([cx2, cy2, lv], i) => {
             for (const [ox, oy] of [[0, 1], [1, 0]] as [number, number][]) {
               const k = (cy2 + oy) * COLS + (cx2 + ox)
@@ -1268,7 +1268,7 @@ export default function IslandMapIso() {
                 // sand and the ribbon lost its identity crossing the beach
                 const est = 0.6 * Math.min(1, Math.max(0, 1 - dsq / 5))
                 // a step cooler/deeper than the first pass — the bright mint
-                // fought the warm scene (Opus: "ocean aqua against warm ground")
+                // fought the warm scene (art review: "ocean aqua against warm ground")
                 const base = rv && rv.drop > 0 ? 0x84c6ba : 0x519f96
                 const t0 = shadeHex(base, wob)
                 // the blend target sits BETWEEN the river's teal and the tide
@@ -1325,7 +1325,7 @@ export default function IslandMapIso() {
                   Math.hypot(tx - MOUTH_R[0], ty - MOUTH_R[1]),
                   Math.hypot(tx - MOUTH_L[0], ty - MOUTH_L[1]))
                 const core = ld < 0.62 * wMod || nearMouth < 1.7 || (L > 0 && ck > 0.32)
-                // DE-WALLPAPER (Opus: "identical crescent highlight on a rigid
+                // DE-WALLPAPER (art review: "identical crescent highlight on a rigid
                 // grid defeats the river"): mirror roughly half the tiles by
                 // hash and wobble each tile's value a few % — the same frames
                 // stop lining their scallops up across the lattice
@@ -1450,7 +1450,7 @@ export default function IslandMapIso() {
                   // even-width halo reads airbrushed)
                   // the noise wanders the fringe's EDGE, not its strength: the
                   // old k*blotch product let a vnoise hot-spot fire an isolated
-                  // scorch diamond two tiles out in clean grass (Opus caught
+                  // scorch diamond two tiles out in clean grass (the art review caught
                   // two orphans) — with a wandering reach the falloff stays
                   // monotonic in ld and orphans are impossible by construction
                   // widened (1.8 -> 2.2, 0.8 -> 0.86): at map zoom the scorch
@@ -1572,7 +1572,7 @@ export default function IslandMapIso() {
               // paints first and the tile top buries it — the invisible-falls bug
               const zF = (tx + rv.ddir[0] + ty + rv.ddir[1]) * 4000 + lift * 2 + 620
               // veil spans the whole tile width (58 read as a thin thread and
-              // the drops still showed dark gaps — Opus: "stepping stones, not
+              // the drops still showed dark gaps — art review: "stepping stones, not
               // water")
               const veil = new Sprite(foamTex); veil.anchor.set(0.5, 0)
               veil.width = 68; veil.height = dh + 30; veil.alpha = 0.62; veil.tint = 0xd8f6ee
@@ -1967,7 +1967,7 @@ export default function IslandMapIso() {
           }
           // a TALL trunk may stand near a lip (the c3 palm ranks) but its BASE
           // must sit on its own tile — a base hanging over the riser face reads
-          // as floating (Opus review). Pull straddlers to their tile centre
+          // as floating (art review). Pull straddlers to their tile centre
           // instead of rejecting them, so the designed lip ranks survive intact.
           if (TALL.has(name)) {
             const cx4 = Math.round(px), cy4 = Math.round(py)
@@ -2152,14 +2152,11 @@ export default function IslandMapIso() {
         // lanterns and cargo MOUNT ON the deck; boats ride the basin with foam and
         // bob. No sprite is nudged by eye — every anchor comes from the plan.
         const bobs: { sp: Sprite; y0: number; w: number; ph: number }[] = []
-        // THE HARBOR IS BACK (Ash: "move onto a proper beautiful harbor" — the v3
-        // build he accepted returns from behind the decor gate, like the forest;
-        // ?harbor=0 keeps a clean-capture switch)
-        // THE STONE QUAY (v8, the from-scratch rebuild): the pod/plate/scratch
-        // flag machinery is DELETED — one harbor, one construction, rendered
-        // always. The plan (hub-layout HARBOR) is solid masonry: quay apron +
-        // walkable breakwater + head, every tile real engine ground.
-        const HARBOR_ON = params.get('harbor') !== '0'
+        // THE HARBOR IS OFF THIS MAP (Ash, 2026-07-24: "remove the harbor
+        // completely for this map" — the painted hub island owns the harbor
+        // now, see docs/MAPS.md). The v8 stone-quay code stays intact behind
+        // ?harbor=1 for reference; default renders no harbor.
+        const HARBOR_ON = params.get('harbor') === '1'
         if (HARBOR_ON) try {
           const hb: Record<string, Texture> = {}
           for (const n of ['stone-block-a', 'stone-block-b', 'plank-block-a', 'crane', 'sloop', 'rowboat', 'boathouse', 'panther-statue', 'net-rack', 'beacon', 'deck-top-0', 'deck-top-1', 'deck-top-2', 'deck-top-v5-0', 'deck-top-v5-1', 'deck-top-v5-2', 'riprap-a', 'riprap-b', 'riprap-c', 'bollard-b', 'house-v4', 'house-v5', 'lamp-v4', 'stall-a', 'stall-b', 'stall-a2', 'stall-b2', 'cargo-b', 'cargo-c', 'fishing-boat', 'court-stone-a', 'gate-arch', 'gate-arch2', 'pavilion', 'bunting']) {
@@ -2915,7 +2912,7 @@ export default function IslandMapIso() {
             const brA: Texture = await Assets.load('/art/island/poi/brazier-a.png')
             const brB: Texture = await Assets.load('/art/island/poi/brazier-b.png')
             for (const t of [stA, stB, brA, brB]) t.source.scaleMode = 'nearest'
-            // FLAT SNAP (the Opus reviews' #1 systemic finding): a standing prop
+            // FLAT SNAP (the art reviews' #1 systemic finding): a standing prop
             // whose anchor lands ON a terrace lip hangs over the riser face and
             // reads as floating no matter how good its shadow is. Snap every
             // stele/brazier to the nearest tile whose whole 3x3 neighbourhood
@@ -2924,7 +2921,7 @@ export default function IslandMapIso() {
               const cx3 = Math.round(at[0]), cy3 = Math.round(at[1])
               // a flat tile also stands CLEAR of the melt: near the channel the
               // r=3 spiral could come up empty and the raw fallback parked a
-              // stele half over the lava lip (Opus #8) — the char band is never
+              // stele half over the lava lip (art review #8) — the char band is never
               // a place to plant a monument
               const flat = (tx3: number, ty3: number) => {
                 const L = eLvl(tx3, ty3)
@@ -3013,7 +3010,7 @@ export default function IslandMapIso() {
             // THE FORD: three worn stepping stones carrying the promenade across
             // the river (the walkmap's one river crossing — audit-proven).
             // FLAT SLABS, not rubble: riprap's jagged cone silhouette stacked
-            // into "a dark pile plugging the mouth" (Opus + probe agreed) — a
+            // into "a dark pile plugging the mouth" (the art review + probe agreed) — a
             // stepping stone is a worn flat top, so it uses the quay stone's
             // own top diamond.
             try {
@@ -3376,7 +3373,7 @@ export default function IslandMapIso() {
           const zM = (Math.round(m[0]) + Math.round(m[1])) * 4000 + lf * 2 + 790
           // the strike BLOOM sells the fuse: the painted tongue and the tile
           // river are two styles, and the seam between them hides under a
-          // white-hot core + a wide ember wash (Opus: the pour "hard-cuts"
+          // white-hot core + a wide ember wash (art review: the pour "hard-cuts"
           // into the tiles — the bloom is the dissolve between the two)
           const pool = new Sprite(pulseTex); pool.anchor.set(0.5, 0.5); pool.blendMode = 'add'
           pool.width = 118; pool.height = 54; pool.alpha = 0.62
