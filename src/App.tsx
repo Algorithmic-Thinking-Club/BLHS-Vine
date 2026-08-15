@@ -34,6 +34,7 @@ const SceneEditorLazy = lazyScene(() => import('./game/painted/SceneEditor'))
 const PlaceSceneLazy = lazyScene(() => import('./game/painted/PlaceScene'))
 const MapwrightLazy = lazyScene(() => import('./game/mapwright/MapwrightScene'))
 const ObjMapLazy = lazyScene(() => import('./game/objmap/ObjMapScene'))
+const PmapLazy = lazyScene(() => import('./game/pmap/PmapScene'))
 
 // The game runs through the scene manager. The live student flow: boot -> title -> beach
 // (the intro lives ON the beach, join included) -> islandmap. The June-era scenes
@@ -57,6 +58,7 @@ const registry: SceneRegistry = {
   place: () => <PlaceSceneLazy />, // the B+C place test: one generated frame + authored levels, walkable (dev-only)
   mw: () => <MapwrightLazy />, // MAPWRIGHT engine scene (P5): loads public/maps/<?map>/map.json — the map machine's output (?scene=mw&map=test-cove)
   objmap: () => <ObjMapLazy />, // THE OBJECT-MAP proof: engine ground + ocean, every object one painted PNG, colliders MEASURED off sprite alpha (?scene=objmap&dbg=1)
+  pmap: () => <PmapLazy />, // THE MAPVIS BUNDLE LOADER: walks public/maps-painted/<?map> exactly as exported, zero hand-wiring (?scene=pmap&map=quayprop&dbg=1)
 }
 
 export default function App() {
