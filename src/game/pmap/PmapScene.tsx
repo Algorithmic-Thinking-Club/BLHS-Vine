@@ -13,7 +13,7 @@
 //
 // Route: ?scene=pmap&map=<id>  (default quayprop)  ·  &dbg=1 overlays the levels mask
 import { useEffect, useRef } from 'react'
-import { Application, Assets, Container, Rectangle, Sprite, Text, TextStyle, Texture, TextureSource } from 'pixi.js'
+import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, TextStyle, Texture, TextureSource } from 'pixi.js'
 import {
   HW, HH, isoX, isoY, hash, loadWaterVariants, seaTile, animSwells, animSparkles,
   type SwellSprite, type Sparkle,
@@ -178,13 +178,13 @@ export default function PmapScene() {
       world.sortableChildren = true
       app.stage.addChild(world)
 
-      // ---- camera scale: the smallest INTEGER zoom that COVERS the viewport, never below 1.
-      // Cover, not contain: the map should fill the screen and let the camera pan (the island
-      // class wants the painting as big as the pixels honestly allow), and integer only, so a
-      // painting pixel is always an exact Z x Z block of screen pixels. ?z=N overrides. ----
+      // ---- camera scale: the largest INTEGER zoom that FITS the whole painting, never
+      // below 1. Contain, not cover (Ash, 2026-08-15: "the map needs to be a lot more
+      // zoomed out" — an island map reads as a whole island). Integer only, so a painting
+      // pixel is always an exact Z x Z block of screen pixels. ?z=N overrides. ----
       const zOverride = Number(params.get('z') || 0)
       const Z = zOverride >= 1 ? Math.floor(zOverride)
-        : Math.max(1, Math.ceil(Math.max(app.screen.width / W, app.screen.height / H)))
+        : Math.max(1, Math.floor(Math.min(app.screen.width / W, app.screen.height / H)))
       world.scale.set(Z)
 
       // ---- the engine ocean under the painting (island class only) ----
@@ -340,7 +340,13 @@ export default function PmapScene() {
         for (const t of walkT[d]) t.source.scaleMode = 'nearest'
       }))
       const rig = scanRows(walkT.south[0])
-      const thorScale = mp.character.heightPx / (rig ? rig.feet - rig.top + 1 : 67)
+      // Thor draws SMALLER than the tool's authoring height (Ash, 2026-08-15: "thor needs
+      // to be a lot smaller" — the marker carries findability, not his size). ?ch=N tunes.
+      const charH = Number(params.get('ch') || 0) || Math.max(8, Math.round(mp.character.heightPx * 0.6))
+      const thorScale = charH / (rig ? rig.feet - rig.top + 1 : 67)
+      // twice the authored tool speed by default (Ash, 2026-08-15: "make thor faster");
+      // ?spd=F tunes the factor
+      const SPD = mp.speed * (Number(params.get('spd') || 0) || 2)
       for (const d of DIRS8) {
         walkT[d] = walkT[d].map((t) => {
           const r = scanRows(t)
@@ -371,16 +377,41 @@ export default function PmapScene() {
       const [spx, spy] = findGround(mp.spawn[0], mp.spawn[1])
       const pos = { x: spx, y: spy }
 
-      // ---- the YOU marker: a small floating tag with a gentle bob. UI, so it renders at
-      // net screen scale 1 (the 1/Z undoes the world's integer zoom exactly). ----
-      const youTag = new Text({
+      // ---- the YOU marker: a proper map pin (Ash's spec 2026-08-15: "half triangle half
+      // circle typical marker, with a small thor picture in the marker with YOU above").
+      // The circle holds Thor's face, the tail points at him, YOU rides on top. UI, so it
+      // renders at net screen scale 1 (the 1/Z undoes the world's integer zoom). ----
+      const pin = new Container()
+      const PR = 12                        // pin circle radius in screen px
+      const PCY = -PR - 8                  // circle centre; the tail tip is the origin
+      const pinG = new Graphics()
+      pinG.moveTo(-PR * 0.7, PCY + PR * 0.66).lineTo(0, 0).lineTo(PR * 0.7, PCY + PR * 0.66)
+        .closePath().fill(0x06282c)
+      pinG.circle(0, PCY, PR).fill(0x06282c).stroke({ color: 0xbaf3ea, width: 2 })
+      pin.addChild(pinG)
+      // Thor's face: the head rows of the south idle frame, masked into the circle
+      const drawnH = rig ? rig.feet - rig.top + 1 : 67
+      const headH = Math.max(6, Math.round(drawnH * 0.5))
+      const headSrc = walkT.south[0].source
+      const headTex = new Texture({ source: headSrc, frame: new Rectangle(0, rig ? rig.top : 0, headSrc.pixelWidth, headH) })
+      const head = new Sprite(headTex)
+      head.anchor.set(0.5, 0.5)
+      const hs = Math.min((PR * 2 - 4) / headSrc.pixelWidth, (PR * 2 - 4) / headH)
+      head.scale.set(hs)
+      head.position.set(0, PCY)
+      const headMask = new Graphics().circle(0, PCY, PR - 1).fill(0xffffff)
+      head.mask = headMask
+      pin.addChild(headMask, head)
+      const youTxt = new Text({
         text: 'YOU',
-        style: new TextStyle({ fontFamily: 'monospace', fontSize: 11, fill: 0xbaf3ea, stroke: { color: 0x06282c, width: 3 } }),
+        style: new TextStyle({ fontFamily: 'monospace', fontSize: 12, fontWeight: 'bold', fill: 0xbaf3ea, stroke: { color: 0x06282c, width: 3 } }),
       })
-      youTag.anchor.set(0.5, 1)
-      youTag.scale.set(1 / Z)
-      youTag.zIndex = 9e9
-      world.addChild(youTag)
+      youTxt.anchor.set(0.5, 1)
+      youTxt.position.set(0, PCY - PR - 2)
+      pin.addChild(youTxt)
+      pin.scale.set(1 / Z)
+      pin.zIndex = 9e9
+      world.addChild(pin)
 
       // ---- input ----
       window.addEventListener('keydown', kd); window.addEventListener('keyup', ku)
@@ -417,7 +448,7 @@ export default function PmapScene() {
         const moving = dx !== 0 || dy !== 0
         if (moving) {
           const m = Math.hypot(dx, dy); dx /= m; dy /= m
-          const nx = pos.x + dx * mp.speed * dt, ny = pos.y + dy * mp.speed * dt * mp.yScale
+          const nx = pos.x + dx * SPD * dt, ny = pos.y + dy * SPD * dt * mp.yScale
           // level-aware step, judged FROM the current level so plateaus only connect
           // through their stairs
           const cur = lvlAt(pos.x, pos.y)
@@ -436,7 +467,7 @@ export default function PmapScene() {
         thor.sp.zIndex = pos.y
         thor.sh.position.set(pos.x + 1, pos.y - 2)
         thor.sh.zIndex = pos.y - 1
-        youTag.position.set(pos.x, pos.y - mp.character.heightPx - 3 + Math.sin(t * 2.1) * 1.4)
+        pin.position.set(pos.x, pos.y - charH - 3 + Math.sin(t * 2.1) * 1.4)
         camTo(pos.x, pos.y)
         ;(window as any).__walk = `thor ${pos.x.toFixed(0)},${pos.y.toFixed(0)} lvl${lvlAt(pos.x, pos.y)}`
 
