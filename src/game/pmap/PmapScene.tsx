@@ -373,6 +373,49 @@ export default function PmapScene() {
         }
       }
 
+      // ---- placed assets: the MAPVIS ASSETS layer. assets.json lists the paintings pulled
+      // out of the map so they can carry life. Each entry anchors at its FEET (anchor 0.5,1)
+      // at painting coords, and zIndex = y so an asset y-sorts with Thor by the exact rule
+      // Thor sorts himself (his zIndex is pos.y). Animated entries carry a frame list and an
+      // fps and cycle on the app ticker below; no new tickers. A bundle without assets.json
+      // is normal and skips silently; a bad png warns and skips its one asset, never the
+      // scene. Assets carry NO collision in v1: the levels mask stays the only walk truth. ----
+      interface PmapAsset {
+        id: string; group: string
+        src?: string; frames?: string[]; fps?: number
+        x: number; y: number; scale: number
+      }
+      const animAssets: { sp: Sprite; frames: Texture[]; fps: number; t: number }[] = []
+      try {
+        const ar = await fetch(`${dir}/assets.json`)
+        // the content-type guard matters: the dev server answers a missing file with the
+        // SPA's index.html at 200, and only a real json body means the bundle has assets
+        if (ar.ok && (ar.headers.get('content-type') || '').includes('json')) {
+          const aj: { assets?: PmapAsset[] } = await ar.json()
+          let placed = 0
+          for (const a of aj.assets ?? []) {
+            try {
+              const srcs = a.frames && a.frames.length ? a.frames : a.src ? [a.src] : []
+              if (!srcs.length) { console.warn(`[pmap] asset "${a.id}" lists no src and no frames, skipped`); continue }
+              const frames: Texture[] = await Promise.all(srcs.map((s) => Assets.load(`${dir}/${s}`)))
+              for (const ft of frames) ft.source.scaleMode = 'nearest'
+              const sp = new Sprite(frames[0])
+              sp.anchor.set(0.5, 1)
+              sp.position.set(a.x, a.y)
+              sp.scale.set(a.scale)
+              sp.zIndex = a.y
+              world.addChild(sp)
+              // a random start phase so two copies of the same asset never flap in lockstep
+              if (frames.length > 1) animAssets.push({ sp, frames, fps: a.fps || 4, t: Math.random() * frames.length })
+              placed++
+            } catch (e) {
+              console.warn(`[pmap] asset "${a.id}" failed to load, skipped`, e)
+            }
+          }
+          if (placed) console.log(`[pmap] ${placed} placed assets (${animAssets.length} animated)`)
+        }
+      } catch { /* the fetch itself failed: same answer as a 404, no assets */ }
+
       // ---- &dbg=1: the levels mask, color-coded per level value, over the painting ----
       if (DBG) {
         const enc = mp.encoding
@@ -554,6 +597,13 @@ export default function PmapScene() {
         pin.position.set(pos.x, pos.y - charH - 3 + Math.sin(t * 2.1) * 1.4)
         camTo(pos.x, pos.y)
         ;(window as any).__walk = `thor ${pos.x.toFixed(0)},${pos.y.toFixed(0)} lvl${lvlAt(pos.x, pos.y)}`
+
+        // placed assets: the animated ones cycle here, dt-accumulated on this same ticker
+        for (const a of animAssets) {
+          a.t += dt * a.fps
+          const af = a.frames[Math.floor(a.t) % a.frames.length]
+          if (a.sp.texture !== af) a.sp.texture = af
+        }
 
         // the sea pans with the world 1:1 in screen px, and the pool re-fills when the
         // view drifts more than two tile rows past its last fill (the old hub's

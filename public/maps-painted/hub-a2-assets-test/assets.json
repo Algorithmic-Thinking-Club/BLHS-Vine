@@ -1,0 +1,29 @@
+{
+  "assets": [
+    {
+      "id": "palm-1",
+      "group": "trees",
+      "src": "assets/palm-c.png",
+      "x": 340,
+      "y": 176,
+      "scale": 0.18
+    },
+    {
+      "id": "rock-1",
+      "group": "rocks",
+      "src": "assets/rock-a.png",
+      "x": 300,
+      "y": 246,
+      "scale": 0.12
+    },
+    {
+      "id": "gull-1",
+      "group": "life",
+      "frames": ["assets/gull/0.png", "assets/gull/1.png"],
+      "fps": 2,
+      "x": 430,
+      "y": 210,
+      "scale": 0.35
+    }
+  ]
+}
