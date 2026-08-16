@@ -7,16 +7,17 @@
 // The walk law is PaintedScene's, verbatim (feet plus two hip probes, a step legal when the
 // level difference is within the exported tolerance), with the probe metrics read from
 // map.json instead of hardcoded. The engine's ocean shows through the painting's cut
-// coastline: the accepted ocean module (src/game/ocean.ts) lays depth-ramp water tiles under
-// the whole frame, depth measured from the painting's own opaque pixels. A painting with no
-// transparent border pixel is an interior room and gets no ocean at all.
+// coastline: the old tile hub's VAST virtual sea (IslandMapIso P0), ported — a sprite pool
+// in a stage layer UNDER the world draws only the viewport's water and re-points as the
+// camera moves, with the module's depth ramp fed by distance from the painting's own opaque
+// pixels. A painting with no transparent border pixel is an interior room and gets no ocean.
 //
 // Route: ?scene=pmap&map=<id>  (default quayprop)  ·  &dbg=1 overlays the levels mask
 import { useEffect, useRef } from 'react'
 import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, TextStyle, Texture, TextureSource } from 'pixi.js'
 import {
-  HW, HH, isoX, isoY, hash, loadWaterVariants, seaTile, animSwells, animSparkles,
-  type SwellSprite, type Sparkle,
+  HW, HH, isoX, isoY, DEPTH_RANGE, loadWaterVariants, configSeaTile, animSwells,
+  type SwellSprite,
 } from '../ocean'
 
 // ---- the MAPVIS export contract (MAPVIS/src/core/editor.ts, exportBundle) ----
@@ -178,36 +179,41 @@ export default function PmapScene() {
       world.sortableChildren = true
       app.stage.addChild(world)
 
-      // ---- camera scale: the largest INTEGER zoom that FITS the whole painting, never
-      // below 1. Contain, not cover (Ash, 2026-08-15: "the map needs to be a lot more
-      // zoomed out" — an island map reads as a whole island). Integer only, so a painting
-      // pixel is always an exact Z x Z block of screen pixels. ?z=N overrides. ----
-      const zOverride = Number(params.get('z') || 0)
-      const Z = zOverride >= 1 ? Math.floor(zOverride)
-        : Math.max(1, Math.floor(Math.min(app.screen.width / W, app.screen.height / H)))
+      // ---- camera scale: contain zoom pulled out to 0.55x (Ash, 2026-08-15: "needs to
+      // be a lot more zoomed out" — the island floats in open sea, it does not fill the
+      // frame). Fractional zoom is accepted here on his order; nearest sampling keeps it
+      // honest. ?z=N overrides, fractions allowed. ----
+      const zOverride = parseFloat(params.get('z') || '0')
+      const Z = zOverride > 0 ? zOverride
+        : Math.max(1, Math.floor(Math.min(app.screen.width / W, app.screen.height / H))) * 1.18
       world.scale.set(Z)
 
       // ---- the engine ocean under the painting (island class only) ----
-      // The accepted module (src/game/ocean.ts): depth-ramp tinted water tiles on the iso
-      // lattice, swell shimmer by tint, sparkles. Plain sprites, no shader. Depth here is
-      // distance from the painting's own opaque pixels, breadth-first over a coarse cell
-      // grid, so any coastline shape feeds the same ramp.
-      const seaSprites: SwellSprite[] = []
-      const sparkles: Sparkle[] = []
+      // THE VAST VIRTUAL SEA, ported from the old tile hub (IslandMapIso P0, the accepted
+      // ocean): any sea point out to WORLD_R is water; a sprite pool draws only the tiles
+      // the viewport can see and re-points as the camera moves, with block-LOD at far
+      // zooms. Every sprite's look is a pure function of its tile (configSeaTile), so
+      // refills are pixel-stable. DECOUPLED from the painting's zoom: the sea is a STAGE
+      // SIBLING below the world, not a child — the world scales by Z, the ocean keeps the
+      // module's own tile size in screen px at any ?z. Each frame the sea copies the
+      // world's position, so the water pans 1:1 with the map.
+      const SEA_SCALE = 0.5             // half the module's 64x32 diamonds in screen px (Ash,
+                                        // 2026-08-16: "a ocean tile needs to be a lot smaller
+                                        // relative to the png island")
+      const waterS: SwellSprite[] = []
+      let refreshSea: () => void = () => {}   // assigned inside the coastCut build
+      let sea: Container | null = null
       if (coastCut) {
         const waterV = await loadWaterVariants()
         let waterFallback: Texture | undefined
         try { waterFallback = await Assets.load('/art/iso/water.png') } catch { /* pools carry it */ }
-        let sparkleTex: Texture | null = null
-        try { sparkleTex = await Assets.load('/art/intro/sparkle.png') } catch { /* sparkles optional */ }
 
-        // sea rect: the painting plus enough overscan that the viewport can never out-scroll
-        // the water even when the painting is smaller than the screen and sits centered
-        const pad = Math.ceil(Math.max(app.screen.width, app.screen.height) / Z) + 4 * HW
-        const sx0 = -pad, sy0 = -pad, sx1 = W + pad, sy1 = H + pad
-
-        // distance-to-land on a coarse cell grid, seeded from every opaque painting pixel
+        // distance-to-land on a coarse cell grid, seeded from every opaque painting pixel.
+        // The grid only needs to span the depth ramp: past its rim distPx returns a huge
+        // distance and the ramp has long since clamped into the abyss color.
         const CS = 8
+        const pad = Math.ceil((DEPTH_RANGE + 6) * HH * SEA_SCALE / Z)
+        const sx0 = -pad, sy0 = -pad, sx1 = W + pad, sy1 = H + pad
         const gw = Math.ceil((sx1 - sx0) / CS), gh = Math.ceil((sy1 - sy0) / CS)
         const dist = new Float32Array(gw * gh).fill(-1)
         const q: number[] = []
@@ -235,35 +241,101 @@ export default function PmapScene() {
           return d < 0 ? (sx1 - sx0) : d * CS
         }
 
-        // one sea layer far under everything; the painting simply draws over the shallows
-        const seaLayer = new Container()
+        // TWO sea containers, exactly the old hub's split: per-frame tint churn
+        // (animSwells) dirties a container's whole batch, so the animated swell ring
+        // lives apart from the static deep field — the static field is its own render
+        // group (v8 records its draw list once and replays it from cache; one container
+        // for everything measured 23fps in the old hub).
+        sea = new Container()
+        sea.scale.set(SEA_SCALE)
+        sea.sortableChildren = true
+        const seaLayer = new Container()          // static field
+        seaLayer.zIndex = -1
         seaLayer.sortableChildren = true
-        seaLayer.zIndex = -1e6
-        world.addChild(seaLayer)
+        seaLayer.isRenderGroup = true
+        const seaLive = new Container()           // animated coast ring
+        seaLive.zIndex = -0.9
+        seaLive.sortableChildren = true
+        sea.addChild(seaLayer, seaLive)
+        app.stage.addChildAt(sea, 0)              // below the world, always
 
-        // the iso lattice: integer (tx,ty) covers the plane in packed 64x32 diamonds; walk it
-        // in screen terms (s down, d across) so the loop hugs the sea rect exactly
-        for (let s = Math.floor(sy0 / HH); s <= Math.ceil(sy1 / HH); s++) {
-          for (let d = Math.floor(sx0 / HW); d <= Math.ceil(sx1 / HW); d++) {
-            if (((s + d) & 1) !== 0) continue
-            const tx = (s + d) / 2, ty = (s - d) / 2
-            // ds: signed diagonal distance from the waterline, negative out to sea, in the
-            // s-units the module's depth ramp is calibrated in
-            const ds = -distPx(isoX(tx, ty), isoY(tx, ty)) / HH
-            seaTile(seaLayer, tx, ty, ds, waterV, waterFallback, seaSprites)
-            // a few sun glints twinkling on the open water, thinly scattered
-            if (sparkleTex && sparkles.length < 90 && ds < -6 && hash(tx * 5.1, ty * 3.3) > 0.986) {
-              const sp = new Sprite(sparkleTex)
-              sp.anchor.set(0.5); sp.blendMode = 'add'
-              const sc = 0.4 + hash(tx * 7.7, ty * 2.3) * 0.5
-              sp.scale.set(sc)
-              sp.position.set(isoX(tx, ty), isoY(tx, ty))
-              sp.zIndex = (tx + ty) * 16 + 2
-              sp.alpha = 0
-              seaLayer.addChild(sp)
-              sparkles.push({ sp, ph: hash(tx, ty * 5) * 20, sc })
+        // the island's centre in sea tile coords, for the old hub's WORLD_R rim
+        const WORLD_R = 600     // tiles of ocean in every direction — mostly-sea by law
+        const ccx = W * Z / 2 / SEA_SCALE, ccy = H * Z / 2 / SEA_SCALE
+        const CXs = (ccx / HW + ccy / HH) / 2, CYs = (ccy / HH - ccx / HW) / 2
+
+        // depth at a sea tile: signed diagonal rows from the painted coast. A sea-space
+        // point (ox,oy) sits over painting px (ox/Z, oy/Z); the shelf distance back in
+        // sea px is distPx * Z. Land cells read 0, never positive — the painting simply
+        // draws over whatever calm water sits under its opaque ground.
+        // The depth is DITHERED per tile past the shore: a smooth ds puts every band edge
+        // on the same tile row and the shelf's rim reads as a raised diamond ridge ringing
+        // the island from afar (Ash, 2026-08-16). A hashed offset up to ~1.4 rows breaks
+        // every band boundary into a soft stagger, same anti-wallpaper trick as the ground.
+        const h01 = (a: number, b: number) => {
+          const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453
+          return s - Math.floor(s)
+        }
+        const dsAt = (tx: number, ty: number) => {
+          const d = -(distPx(isoX(tx, ty) * SEA_SCALE / Z, isoY(tx, ty) * SEA_SCALE / Z) * Z / SEA_SCALE) / HH
+          return d < -2 ? d - h01(tx, ty) * 1.4 : d
+        }
+
+        const seaPool: Sprite[] = []       // static field pool (seaLayer)
+        const seaPoolL: Sprite[] = []      // animated ring pool (seaLive)
+        refreshSea = () => {
+          if (!sea) return
+          const vw = app.screen.width, vh = app.screen.height
+          const blk = SEA_SCALE >= 0.5 ? 1 : SEA_SCALE >= 0.24 ? 2 : SEA_SCALE >= 0.11 ? 4 : 8
+          const liveD = SEA_SCALE < 0.35 ? 14 : DEPTH_RANGE + 12
+          // unproject the viewport corners into sea space (the sea pans with the world)
+          const wx0 = (0 - sea.x) / SEA_SCALE, wx1 = (vw - sea.x) / SEA_SCALE
+          const wy0 = (0 - sea.y) / SEA_SCALE, wy1 = (vh - sea.y) / SEA_SCALE
+          const txMin = Math.floor((wx0 / HW + wy0 / HH) / 2) - blk * 2
+          const txMax = Math.ceil((wx1 / HW + wy1 / HH) / 2) + blk * 2
+          const tyMin = Math.floor((wy0 / HH - wx1 / HW) / 2) - blk * 2
+          const tyMax = Math.ceil((wy1 / HH - wx0 / HW) / 2) + blk * 2
+          waterS.length = 0
+          let used = 0, usedL = 0
+          const place = (px: number, py: number, pd: number, pb: number) => {
+            const live = pd > -liveD
+            let sp: Sprite
+            if (live) {
+              sp = seaPoolL[usedL] ?? (seaPoolL[usedL] = seaLive.addChild(new Sprite()))
+            } else {
+              sp = seaPool[used] ?? (seaPool[used] = seaLayer.addChild(new Sprite()))
+            }
+            const m = configSeaTile(sp, px, py, pd, waterV, waterFallback, pb)
+            if (!m) { sp.visible = false; return }
+            sp.visible = true
+            if (live) { waterS.push(m); usedL++ } else used++
+          }
+          const t0x = Math.floor(txMin / blk) * blk, t0y = Math.floor(tyMin / blk) * blk
+          for (let by2 = t0y; by2 <= tyMax; by2 += blk) {
+            for (let bx2 = t0x; bx2 <= txMax; bx2 += blk) {
+              const mx = bx2 + (blk - 1) / 2, my = by2 + (blk - 1) / 2
+              const ddx = mx - CXs, ddy = my - CYs
+              if (ddx * ddx + ddy * ddy > WORLD_R * WORLD_R) continue
+              const dsC = dsAt(mx, my)
+              if (dsC > blk * 1.5 + 1) continue                 // fully land
+              if (blk === 1) { if (dsC <= 0) place(mx, my, dsC, 1); continue }
+              // the abyss is flat-ramped — big blocks are invisible there. The steep
+              // ramp ring must stay fine or its value steps staircase at block scale.
+              if (dsC < -(DEPTH_RANGE + blk * 1.5)) { place(mx, my, dsC, blk); continue }
+              // ramp ring / shoreline: resolve at fine grain so the coast + depth ramp
+              // keep their exact per-tile edges (2x inside the ring at far zooms)
+              const fine = dsC < -(blk * 1.5 + 1) && blk >= 4 ? 2 : 1
+              for (let ty2 = by2; ty2 < by2 + blk; ty2 += fine) {
+                for (let tx2 = bx2; tx2 < bx2 + blk; tx2 += fine) {
+                  const fx2 = tx2 + (fine - 1) / 2, fy2 = ty2 + (fine - 1) / 2
+                  const d2 = dsAt(fx2, fy2)
+                  if (d2 <= 0) place(fx2, fy2, d2, fine)
+                }
+              }
             }
           }
+          for (let i = used; i < seaPool.length; i++) seaPool[i].visible = false
+          for (let i = usedL; i < seaPoolL.length; i++) seaPoolL[i].visible = false
         }
       }
 
@@ -427,7 +499,19 @@ export default function PmapScene() {
       }
       camTo(pos.x, pos.y, true)
 
+      // the sea's first fill happens AFTER the camera snap so the pool sees the real
+      // viewport; a grown viewport later needs more pooled ocean under it (the old
+      // hub's resizeFx rule)
+      if (sea) { sea.position.copyFrom(world.position); refreshSea() }
+      let seaFX = world.x, seaFY = world.y
+      let swellSkip = false
+      app.renderer.on('resize', () => refreshSea())
+
       // ---- debug hooks (the proof harness, same names as PaintedScene) ----
+      // __app: the perf-probe handle (IslandMapIso's documented lesson — pump
+      // app.ticker.update() in a loop to measure real frame cost; occluded browsers
+      // throttle rAF to ~1Hz and wall-clock FPS lies)
+      ;(window as any).__app = app
       ;(window as any).__probe = (x: number, y: number) => JSON.stringify({ stand: canStand(x, y), lvl: lvlAt(x, y) })
       ;(window as any).__warp = (x: number, y: number) => {
         if (!canStand(x, y)) return 'unwalkable'
@@ -471,11 +555,21 @@ export default function PmapScene() {
         camTo(pos.x, pos.y)
         ;(window as any).__walk = `thor ${pos.x.toFixed(0)},${pos.y.toFixed(0)} lvl${lvlAt(pos.x, pos.y)}`
 
-        // the sea breathes: swell shimmer by tint, sparkles on their own slow clocks
-        if (seaSprites.length) {
-          const wt = t
-          animSwells(seaSprites, wt, () => 0)
-          animSparkles(sparkles, wt)
+        // the sea pans with the world 1:1 in screen px, and the pool re-fills when the
+        // view drifts more than two tile rows past its last fill (the old hub's
+        // dead-ocean fix: the pool only ever covered the viewport it last saw)
+        if (sea) {
+          sea.position.copyFrom(world.position)
+          if (Math.abs(world.x - seaFX) > HH * SEA_SCALE * 2 || Math.abs(world.y - seaFY) > HH * SEA_SCALE * 2) {
+            seaFX = world.x; seaFY = world.y
+            refreshSea()
+          }
+          // the sea breathes: the coast ring's swell shimmer, by tint, as the old hub runs
+          // it — at HALF RATE when the frame is already late (Chromebook insurance: the
+          // tint churn is the ticker's main cost, and water shimmering at 30hz reads the
+          // same while halving it)
+          swellSkip = !swellSkip
+          if (tk.deltaMS < 22 || swellSkip) animSwells(waterS, t, () => 0)
         }
       })
 
