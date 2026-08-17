@@ -36,6 +36,12 @@ interface PmapJson {
   yScale: number                    // vertical speed factor, the painted ground's foreshortening
   stairs: { value: number; connects: [number, number]; rect: [number, number, number, number]; px: number }[]
   occluders: { id: number; baseline: number }[]
+  // EVENTS: a spot on the map plus an action. Optional and open-ended on
+  // purpose — a missing field means none, an unknown type is skipped, so an
+  // older bundle and a future event kind both load. door is the first type:
+  // x,y the anchor in painting px, r the activation radius, label the human
+  // name, to the target bundle id under public/maps-painted/.
+  events?: { id?: number; type?: string; x?: number; y?: number; r?: number; label?: string; to?: string }[]
 }
 
 const DIRS8 = ['south', 'north', 'east', 'west', 'south-east', 'north-east', 'north-west', 'south-west']
@@ -133,6 +139,31 @@ export default function PmapScene() {
       ])
       if (destroyed) return
       const W = mp.w, H = mp.h
+
+      // ---- the door events: tolerant parse. No events field, no events; a
+      // type this build does not know is skipped, never an error. ----
+      const doors = (Array.isArray(mp.events) ? mp.events : [])
+        .filter((e) => e && e.type === 'door' && isFinite(Number(e.x)) && isFinite(Number(e.y)))
+        .map((e) => ({
+          x: Number(e.x), y: Number(e.y),
+          r: Number(e.r) > 0 ? Number(e.r) : 14,
+          label: String(e.label || 'door'),
+          to: String(e.to || ''),
+        }))
+      // does a door's target bundle exist? Checked once per target, the same
+      // content-type guard as the assets fetch: the dev server answers a
+      // missing file with the SPA's index.html at 200, so only a real json
+      // body counts as built.
+      const doorState = new Map<string, 'checking' | 'ok' | 'missing'>()
+      const checkDoor = (to: string) => {
+        if (doorState.has(to)) return
+        if (!to) { doorState.set(to, 'missing'); return }
+        doorState.set(to, 'checking')
+        fetch(`/maps-painted/${to}/map.json`)
+          .then((r) => doorState.set(to, r.ok && (r.headers.get('content-type') || '').includes('json') ? 'ok' : 'missing'))
+          .catch(() => doorState.set(to, 'missing'))
+      }
+
       const sdata = pixelsOf(sceneImg, W, H)
       const ldata = pixelsOf(levelsImg, W, H)
       const odata = occImg ? pixelsOf(occImg, W, H) : null
@@ -538,6 +569,36 @@ export default function PmapScene() {
       pin.zIndex = 9e9
       world.addChild(pin)
 
+      // ---- the door prompt: one tag in the pin's own text styling, shown
+      // over the nearest door whose ring Thor's feet are inside. UI, so it
+      // renders at net screen scale 1 like the pin. ----
+      const doorTxt = new Text({
+        text: '',
+        style: new TextStyle({ fontFamily: 'monospace', fontSize: 12, fontWeight: 'bold', fill: 0xbaf3ea, stroke: { color: 0x06282c, width: 3 } }),
+      })
+      doorTxt.anchor.set(0.5, 1)
+      doorTxt.scale.set(1 / Z)
+      doorTxt.zIndex = 9e9 - 1
+      doorTxt.visible = false
+      world.addChild(doorTxt)
+
+      // ---- the door exit: a plain full-screen black fade on the ticker
+      // (~400ms), then a reload into ?scene=pmap&map=<to> with every other
+      // query param kept. v1 accepts the reload; no shaders, no tween lib. ----
+      let exitTo = ''
+      let exitT = 0
+      let exited = false
+      let fade: Graphics | null = null
+      const beginExit = (to: string) => {
+        if (fade) return
+        exitTo = to
+        exitT = 0
+        fade = new Graphics().rect(0, 0, app.screen.width, app.screen.height).fill(0x000000)
+        fade.alpha = 0
+        app.stage.addChild(fade)
+      }
+      let ePrev = false
+
       // ---- input ----
       window.addEventListener('keydown', kd); window.addEventListener('keyup', ku)
 
@@ -582,7 +643,8 @@ export default function PmapScene() {
         if (keys['arrowdown'] || keys['s']) dy += 1
         if (keys['arrowleft'] || keys['a']) dx -= 1
         if (keys['arrowright'] || keys['d']) dx += 1
-        const moving = dx !== 0 || dy !== 0
+        // a door exit in progress owns the character: no walking through a fade
+        const moving = (dx !== 0 || dy !== 0) && !fade
         if (moving) {
           const m = Math.hypot(dx, dy); dx /= m; dy /= m
           const nx = pos.x + dx * SPD * dt, ny = pos.y + dy * SPD * dt * mp.yScale
@@ -607,6 +669,41 @@ export default function PmapScene() {
         pin.position.set(pos.x, pos.y - charH - 3 + Math.sin(t * 2.1) * 1.4)
         camTo(pos.x, pos.y)
         ;(window as any).__walk = `thor ${pos.x.toFixed(0)},${pos.y.toFixed(0)} lvl${lvlAt(pos.x, pos.y)}`
+
+        // ---- doors: the nearest one whose ring the feet are inside owns the
+        // prompt. Stepping into a ring kicks the target check, so by the time
+        // a player reads the tag it already says the truth: "E · enter" for a
+        // built target, "not built yet" for a missing one (E does nothing). ----
+        let doorNear: (typeof doors)[number] | null = null
+        let doorBest = Infinity
+        for (const d of doors) {
+          const dd = Math.hypot(pos.x - d.x, pos.y - d.y)
+          if (dd <= d.r && dd < doorBest) { doorBest = dd; doorNear = d }
+        }
+        if (doorNear) {
+          checkDoor(doorNear.to)
+          const built = doorState.get(doorNear.to)
+          doorTxt.text = built === 'missing' ? `${doorNear.label} · not built yet` : `E · enter ${doorNear.label}`
+          doorTxt.position.set(doorNear.x, doorNear.y - 6 + Math.sin(t * 2.1) * 1.2)
+          doorTxt.visible = true
+        } else doorTxt.visible = false
+        // E is an edge, not a hold: one press, one door
+        const eNow = !!keys['e']
+        if (eNow && !ePrev && doorNear && !fade && doorState.get(doorNear.to) === 'ok') beginExit(doorNear.to)
+        ePrev = eNow
+        // the exit fade, then the reload into the target bundle with every
+        // other query param kept
+        if (fade) {
+          exitT += tk.deltaMS
+          fade.alpha = Math.min(1, exitT / 400)
+          if (exitT >= 430 && !exited) {
+            exited = true
+            const q = new URLSearchParams(window.location.search)
+            q.set('scene', 'pmap')
+            q.set('map', exitTo)
+            window.location.search = q.toString()
+          }
+        }
 
         // placed assets: the animated ones cycle here, dt-accumulated on this same ticker
         for (const a of animAssets) {
@@ -634,7 +731,7 @@ export default function PmapScene() {
       })
 
       ;(window as any).__sceneReady = true
-      console.log(`[pmap] loaded "${mp.id}" ${W}x${H} zoom x${Z}${coastCut ? ' with ocean' : ' (interior, no ocean)'}. WASD to walk.`)
+      console.log(`[pmap] loaded "${mp.id}" ${W}x${H} zoom x${Z}${coastCut ? ' with ocean' : ' (interior, no ocean)'}${doors.length ? ` · ${doors.length} door${doors.length > 1 ? 's' : ''}` : ''}. WASD to walk.`)
     }
 
     ;(window as any).__sceneReady = false

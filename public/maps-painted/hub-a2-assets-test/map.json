@@ -25,5 +25,16 @@
   "speed": 34,
   "yScale": 0.72,
   "stairs": [],
-  "occluders": []
+  "occluders": [],
+  "events": [
+    {
+      "id": 1,
+      "type": "door",
+      "x": 345,
+      "y": 95,
+      "r": 16,
+      "label": "Panther's Maw",
+      "to": "panther-maw"
+    }
+  ]
 }
