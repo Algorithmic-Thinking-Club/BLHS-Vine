@@ -1,4 +1,4 @@
-﻿{
+{
   "id": "hub-a2-assets-test",
   "w": 688,
   "h": 384,
@@ -30,9 +30,9 @@
     {
       "id": 1,
       "type": "door",
-      "x": 345,
-      "y": 95,
-      "r": 16,
+      "x": 410,
+      "y": 140,
+      "r": 18,
       "label": "Panther's Maw",
       "to": "panther-maw"
     }
