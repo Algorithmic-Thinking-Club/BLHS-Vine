@@ -6,7 +6,12 @@
       "src": "assets/palm-c.png",
       "x": 340,
       "y": 176,
-      "scale": 0.18
+      "scale": 0.18,
+      "scaleX": 0.18,
+      "scaleY": 0.18,
+      "rot": 0.2618,
+      "flipX": false,
+      "flipY": false
     },
     {
       "id": "rock-1",
@@ -14,7 +19,12 @@
       "src": "assets/rock-a.png",
       "x": 300,
       "y": 246,
-      "scale": 0.12
+      "scale": 0.12,
+      "scaleX": 0.12,
+      "scaleY": 0.14,
+      "rot": 0,
+      "flipX": true,
+      "flipY": false
     },
     {
       "id": "gull-1",

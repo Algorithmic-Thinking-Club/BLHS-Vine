@@ -384,6 +384,11 @@ export default function PmapScene() {
         id: string; group: string
         src?: string; frames?: string[]; fps?: number
         x: number; y: number; scale: number
+        // the MAPVIS transform contract: axis scales (falling back to the old
+        // uniform scale), rotation in radians about the feet anchor, flips
+        // applied as negative scale. An older assets.json carries none of
+        // these and renders exactly as it always did.
+        scaleX?: number; scaleY?: number; rot?: number; flipX?: boolean; flipY?: boolean
       }
       const animAssets: { sp: Sprite; frames: Texture[]; fps: number; t: number }[] = []
       try {
@@ -402,7 +407,12 @@ export default function PmapScene() {
               const sp = new Sprite(frames[0])
               sp.anchor.set(0.5, 1)
               sp.position.set(a.x, a.y)
-              sp.scale.set(a.scale)
+              // full transform, anchored at the feet: flips ride as negative
+              // scale so the anchor and the y-sort key never move
+              const asx = Number(a.scaleX) > 0 ? Number(a.scaleX) : a.scale
+              const asy = Number(a.scaleY) > 0 ? Number(a.scaleY) : a.scale
+              sp.scale.set(asx * (a.flipX ? -1 : 1), asy * (a.flipY ? -1 : 1))
+              sp.rotation = Number(a.rot) || 0
               sp.zIndex = a.y
               world.addChild(sp)
               // a random start phase so two copies of the same asset never flap in lockstep
