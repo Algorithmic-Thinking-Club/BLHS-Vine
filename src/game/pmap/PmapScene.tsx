@@ -19,6 +19,20 @@ import {
   HW, HH, isoX, isoY, DEPTH_RANGE, loadWaterVariants, configSeaTile, animSwells,
   type SwellSprite,
 } from '../ocean'
+import { cleanLife, lifeAt, type Life } from './life'
+
+/* when a heading has no view, the next best one it might have, so a set drawn
+ * four ways still faces roughly right instead of snapping to south */
+const NEAREST_VIEW: Record<string, string> = {
+  'south-east': 'east',
+  'north-east': 'east',
+  'south-west': 'west',
+  'north-west': 'west',
+  east: 'south-east',
+  west: 'south-west',
+  north: 'north-east',
+  south: 'south-east',
+}
 
 // ---- the MAPVIS export contract (MAPVIS/src/core/editor.ts, exportBundle) ----
 interface PmapEncoding {
@@ -422,6 +436,7 @@ export default function PmapScene() {
         scaleX?: number; scaleY?: number; rot?: number; flipX?: boolean; flipY?: boolean
       }
       const animAssets: { sp: Sprite; frames: Texture[]; fps: number; t: number }[] = []
+      const lifeAssets: { sp: Sprite; life: Life; home: { x: number; y: number }; baseSX: number; flipX: boolean; views: Record<string, Texture[]> | null; fps: number; animT: number }[] = []
       try {
         const ar = await fetch(`${dir}/assets.json`)
         // the content-type guard matters: the dev server answers a missing file with the
@@ -435,6 +450,25 @@ export default function PmapScene() {
               if (!srcs.length) { console.warn(`[pmap] asset "${a.id}" lists no src and no frames, skipped`); continue }
               const frames: Texture[] = await Promise.all(srcs.map((s) => Assets.load(`${dir}/${s}`)))
               for (const ft of frames) ft.source.scaleMode = 'nearest'
+              /* VIEWS: the frames of each heading, for something that has to
+               * face where it is walking. A crab gets by on a left-right flip;
+               * a person crossing a plaza does not. The whole list per heading
+               * is loaded, so a heading drawn as a walk cycle walks, and a
+               * bundle exported before that carries one entry per heading and
+               * comes back as a still by the same code. */
+              const dirsRaw = (a as { dirs?: Record<string, string[]> }).dirs
+              let views: Record<string, Texture[]> | null = null
+              if (dirsRaw && Object.keys(dirsRaw).length) {
+                views = {}
+                for (const [k, arr] of Object.entries(dirsRaw)) {
+                  if (!Array.isArray(arr)) continue
+                  const paths = arr.filter((s) => !!s)
+                  if (!paths.length) continue
+                  const ts: Texture[] = await Promise.all(paths.map((s) => Assets.load(`${dir}/${s}`)))
+                  for (const vt of ts) vt.source.scaleMode = 'nearest'
+                  views[k] = ts
+                }
+              }
               const sp = new Sprite(frames[0])
               sp.anchor.set(0.5, 1)
               sp.position.set(a.x, a.y)
@@ -448,6 +482,22 @@ export default function PmapScene() {
               world.addChild(sp)
               // a random start phase so two copies of the same asset never flap in lockstep
               if (frames.length > 1) animAssets.push({ sp, frames, fps: a.fps || 4, t: Math.random() * frames.length })
+              // a placement that MOVES carries a few numbers instead of extra
+              // frames, and the ticker below works out where it is. See life.ts:
+              // travel cannot be baked into an animation, because an animation
+              // has to loop and a wander that returns to its start is a dance.
+              const lf = cleanLife((a as { life?: unknown }).life)
+              if (lf) {
+                // airborne things fly OVER the map rather than sorting into it
+                if (lf.airborne) sp.zIndex = 99000 + (a.y | 0)
+                // its views run on their own frame clock, started off-beat for
+                // the reason the animated assets above are: two of one figure
+                // stepping in time read as one thing rather than two people
+                // the 6 matches MAPVIS (editor.ts assetFrame), and it is the one
+                // that fires: a placement with views never gets an fps written,
+                // so a 4 here would walk every cycle slower than the preview did
+                lifeAssets.push({ sp, life: lf, home: { x: a.x, y: a.y }, baseSX: Math.abs(asx), flipX: !!a.flipX, views, fps: a.fps || 6, animT: Math.random() * 8 })
+              }
               placed++
             } catch (e) {
               console.warn(`[pmap] asset "${a.id}" failed to load, skipped`, e)
@@ -671,9 +721,11 @@ export default function PmapScene() {
         ;(window as any).__walk = `thor ${pos.x.toFixed(0)},${pos.y.toFixed(0)} lvl${lvlAt(pos.x, pos.y)}`
 
         // ---- doors: the nearest one whose ring the feet are inside owns the
-        // prompt. Stepping into a ring kicks the target check, so by the time
-        // a player reads the tag it already says the truth: "E · enter" for a
-        // built target, "not built yet" for a missing one (E does nothing). ----
+        // prompt. Stepping into a ring kicks the target check, and the tag only
+        // speaks once that check has answered: "E · enter" for a target that
+        // exists, and for one that does not, a way that is shut. Silence while
+        // the check is in flight, because offering a door and taking it back a
+        // frame later is worse than a beat of nothing. ----
         let doorNear: (typeof doors)[number] | null = null
         let doorBest = Infinity
         for (const d of doors) {
@@ -683,9 +735,12 @@ export default function PmapScene() {
         if (doorNear) {
           checkDoor(doorNear.to)
           const built = doorState.get(doorNear.to)
-          doorTxt.text = built === 'missing' ? `${doorNear.label} · not built yet` : `E · enter ${doorNear.label}`
+          // a door with nothing behind it is barred in the world's own words,
+          // not the build's: the player is told no, and told it in the story
+          if (built === 'ok') doorTxt.text = `E · enter ${doorNear.label}`
+          else if (built === 'missing') doorTxt.text = `${doorNear.label} · the way is barred`
           doorTxt.position.set(doorNear.x, doorNear.y - 6 + Math.sin(t * 2.1) * 1.2)
-          doorTxt.visible = true
+          doorTxt.visible = built === 'ok' || built === 'missing'
         } else doorTxt.visible = false
         // E is an edge, not a hold: one press, one door
         const eNow = !!keys['e']
@@ -710,6 +765,49 @@ export default function PmapScene() {
           a.t += dt * a.fps
           const af = a.frames[Math.floor(a.t) % a.frames.length]
           if (a.sp.texture !== af) a.sp.texture = af
+        }
+
+        /* the ones that MOVE. Their position is a pure function of the clock, so
+         * nothing is simulated and nothing drifts: the same second always puts
+         * them in the same place, which is what lets MAPVIS preview this
+         * honestly. y-sorting follows them, so a crab that walks behind a crate
+         * goes behind it. */
+        if (lifeAssets.length) {
+          const lt = performance.now() / 1000
+          for (const q of lifeAssets) {
+            // walkOnly makes the floor a second fence, and the game's own
+            // canStand is what it is measured against: the same mask MAPVIS
+            // previewed with, so the answer is the same on both sides
+            const at = lifeAt(q.life, lt, q.home, canStand)
+            if (at.alpha <= 0.01) {
+              q.sp.visible = false
+              continue
+            }
+            q.sp.visible = true
+            q.sp.alpha = at.alpha
+            q.sp.position.set(q.home.x + at.dx, q.home.y + at.dy)
+            if (q.views) {
+              // it has a view for where it is going: use it, and do not put the
+              // motion mirror on top or it would face backwards. Its own flipX
+              // still stands, because that one is a choice somebody made about
+              // this thing rather than a stand-in for a heading, and the editor
+              // preview keeps it too. The heading's frames cycle on one clock
+              // shared by every heading, so turning a corner carries the stride
+              // over instead of restarting it; a heading holding a single frame
+              // lands on that frame every time.
+              q.animT += dt * q.fps
+              const set = q.views[at.facing] || q.views[NEAREST_VIEW[at.facing]] || q.views.south
+              if (set && set.length) {
+                const vt = set[Math.floor(q.animT) % set.length]
+                if (q.sp.texture !== vt) q.sp.texture = vt
+              }
+              q.sp.scale.x = q.baseSX * (q.flipX ? -1 : 1)
+            } else {
+              const face = at.flip !== q.flipX
+              q.sp.scale.x = q.baseSX * (face ? -1 : 1)
+            }
+            if (!q.life.airborne) q.sp.zIndex = q.home.y + at.dy
+          }
         }
 
         // the sea pans with the world 1:1 in screen px, and the pool re-fills when the

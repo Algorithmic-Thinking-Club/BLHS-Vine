@@ -1,0 +1,115 @@
+{
+  "assets": [
+    {
+      "id": "walker-1",
+      "group": "people",
+      "dirs": {
+        "west": [
+          "assets/harbour-walker/west-0.png",
+          "assets/harbour-walker/west-1.png",
+          "assets/harbour-walker/west-2.png",
+          "assets/harbour-walker/west-3.png",
+          "assets/harbour-walker/west-4.png",
+          "assets/harbour-walker/west-5.png"
+        ],
+        "east": [
+          "assets/harbour-walker/east-0.png",
+          "assets/harbour-walker/east-1.png",
+          "assets/harbour-walker/east-2.png",
+          "assets/harbour-walker/east-3.png",
+          "assets/harbour-walker/east-4.png",
+          "assets/harbour-walker/east-5.png"
+        ],
+        "north": [
+          "assets/harbour-walker/north-0.png",
+          "assets/harbour-walker/north-1.png",
+          "assets/harbour-walker/north-2.png",
+          "assets/harbour-walker/north-3.png",
+          "assets/harbour-walker/north-4.png",
+          "assets/harbour-walker/north-5.png"
+        ],
+        "south": [
+          "assets/harbour-walker/south-0.png",
+          "assets/harbour-walker/south-1.png",
+          "assets/harbour-walker/south-2.png",
+          "assets/harbour-walker/south-3.png",
+          "assets/harbour-walker/south-4.png",
+          "assets/harbour-walker/south-5.png"
+        ],
+        "north-west": [
+          "assets/harbour-walker/north-west-0.png",
+          "assets/harbour-walker/north-west-1.png",
+          "assets/harbour-walker/north-west-2.png",
+          "assets/harbour-walker/north-west-3.png",
+          "assets/harbour-walker/north-west-4.png",
+          "assets/harbour-walker/north-west-5.png"
+        ],
+        "south-east": [
+          "assets/harbour-walker/south-east-0.png",
+          "assets/harbour-walker/south-east-1.png",
+          "assets/harbour-walker/south-east-2.png",
+          "assets/harbour-walker/south-east-3.png",
+          "assets/harbour-walker/south-east-4.png",
+          "assets/harbour-walker/south-east-5.png"
+        ],
+        "south-west": [
+          "assets/harbour-walker/south-west-0.png",
+          "assets/harbour-walker/south-west-1.png",
+          "assets/harbour-walker/south-west-2.png",
+          "assets/harbour-walker/south-west-3.png",
+          "assets/harbour-walker/south-west-4.png",
+          "assets/harbour-walker/south-west-5.png"
+        ],
+        "north-east": [
+          "assets/harbour-walker/north-east-0.png",
+          "assets/harbour-walker/north-east-1.png",
+          "assets/harbour-walker/north-east-2.png",
+          "assets/harbour-walker/north-east-3.png",
+          "assets/harbour-walker/north-east-4.png",
+          "assets/harbour-walker/north-east-5.png"
+        ]
+      },
+      "src": "assets/harbour-walker/south-0.png",
+      "fps": 8,
+      "x": 382,
+      "y": 218,
+      "scale": 0.3,
+      "scaleX": 0.3,
+      "scaleY": 0.3,
+      "rot": 0,
+      "flipX": false,
+      "flipY": false,
+      "life": {
+        "kind": "wander",
+        "bounds": {
+          "x": 352,
+          "y": 193,
+          "w": 60,
+          "h": 50
+        },
+        "range": 40,
+        "speedMin": 16,
+        "speedMax": 26,
+        "pauseMin": 0.2,
+        "pauseMax": 0.8,
+        "stepMin": 0.3,
+        "stepMax": 0.9,
+        "bob": 0,
+        "bobRate": 0,
+        "faceMotion": true,
+        "walkOnly": true,
+        "walkPct": 0.625,
+        "seed": 7,
+        "phase": 0
+      }
+    },
+    {
+      "id": "rock-1",
+      "group": "rocks",
+      "src": "assets/rock-a.png",
+      "x": 334,
+      "y": 176,
+      "scale": 0.12
+    }
+  ]
+}
