@@ -58,6 +58,20 @@ interface PmapJson {
   events?: { id?: number; type?: string; x?: number; y?: number; r?: number; label?: string; to?: string }[]
 }
 
+/* Thor is never behind a person.
+ *
+ * Everything on the ground y-sorts, which is right for props and right for a
+ * crowd among itself, and wrong for the player: walk into a group of six and he
+ * disappears under whoever happens to stand a pixel lower. Losing the character
+ * you are steering is worse than a barrel drawing on the wrong side of him.
+ *
+ * So he and the occluders lift into a band above the placements. Both by the
+ * same amount, which is the part that matters: an occluder still hides him
+ * exactly when its baseline says it should, because that comparison is
+ * unchanged. Airborne things sit above all of it and still pass over his head.
+ */
+const OVER_PLACED = 1e4
+
 const DIRS8 = ['south', 'north', 'east', 'west', 'south-east', 'north-east', 'north-west', 'south-west']
 const A_MIN = 40 // the repo-wide alpha threshold (BeachIso, objmap/measure.ts)
 
@@ -413,7 +427,11 @@ export default function PmapScene() {
           const t = Texture.from(cv)
           t.source.scaleMode = 'nearest'
           const sp = new Sprite(t)
-          sp.zIndex = o.baseline
+          // lifted into Thor's band, keeping the comparison that matters: his y
+          // against this baseline. Both moved by the same amount, so an occluder
+          // hides him exactly when it used to, and both still sit above the
+          // props and the people. See OVER_PLACED.
+          sp.zIndex = OVER_PLACED + o.baseline
           world.addChild(sp)
         }
       }
@@ -725,9 +743,11 @@ export default function PmapScene() {
         const fr = moving ? walkT[thor.facing][1 + (Math.floor(thor.animT) % 5)] : walkT[thor.facing][0]
         if (thor.sp.texture !== fr) thor.sp.texture = fr
         thor.sp.position.set(pos.x, pos.y)
-        thor.sp.zIndex = pos.y
+        thor.sp.zIndex = OVER_PLACED + pos.y
         thor.sh.position.set(pos.x + 1, pos.y - 2)
-        thor.sh.zIndex = pos.y - 1
+        // the shadow rides with him, a hair under, so it never lands on top of
+        // a figure he is standing in front of
+        thor.sh.zIndex = OVER_PLACED + pos.y - 1
         pin.position.set(pos.x, pos.y - charH - 3 + Math.sin(t * 2.1) * 1.4)
         camTo(pos.x, pos.y)
         ;(window as any).__walk = `thor ${pos.x.toFixed(0)},${pos.y.toFixed(0)} lvl${lvlAt(pos.x, pos.y)}`
