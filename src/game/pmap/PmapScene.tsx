@@ -497,6 +497,18 @@ export default function PmapScene() {
                 // that fires: a placement with views never gets an fps written,
                 // so a 4 here would walk every cycle slower than the preview did
                 lifeAssets.push({ sp, life: lf, home: { x: a.x, y: a.y }, baseSX: Math.abs(asx), flipX: !!a.flipX, views, fps: a.fps || 6, animT: Math.random() * 8 })
+              } else if (views) {
+                /* A view set that never travels still has frames worth running.
+                 * Someone breathing at a stall has no life to carry a clock, and
+                 * views only lived on lifeAssets, so every standing figure held
+                 * frame zero forever. It rests in whichever heading its own src
+                 * belongs to, which is the one the placement was made facing. */
+                const rest =
+                  Object.keys(views).find((k) => (srcs[0] || '').endsWith(k + '-0.png')) ||
+                  (views.south ? 'south' : Object.keys(views)[0])
+                const set = views[rest]
+                if (set && set.length > 1)
+                  animAssets.push({ sp, frames: set, fps: a.fps || 6, t: Math.random() * set.length })
               }
               placed++
             } catch (e) {
