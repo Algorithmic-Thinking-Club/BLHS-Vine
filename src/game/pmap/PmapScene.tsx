@@ -19,7 +19,7 @@ import {
   HW, HH, isoX, isoY, DEPTH_RANGE, loadWaterVariants, configSeaTile, animSwells,
   type SwellSprite,
 } from '../ocean'
-import { cleanLife, lifeAt, type Life } from './life'
+import { cleanLife, lifeAt, type Life, separate } from './life'
 
 /* when a heading has no view, the next best one it might have, so a set drawn
  * four ways still faces roughly right instead of snapping to south */
@@ -786,11 +786,29 @@ export default function PmapScene() {
          * goes behind it. */
         if (lifeAssets.length) {
           const lt = performance.now() / 1000
-          for (const q of lifeAssets) {
+          /* Resolve everyone, push them apart, then place them. Three passes,
+           * the same three MAPVIS draws with, so the preview keeps telling the
+           * truth. Separation is pure: every position here is a function of the
+           * clock, so the whole set is knowable at once and nothing has to be
+           * remembered between frames. */
+          const res = lifeAssets.map((q) => lifeAt(q.life, lt, q.home, canStand))
+          const push = separate(
+            lifeAssets.map((q, i) => ({
+              x: q.home.x + res[i].dx,
+              y: q.home.y + res[i].dy,
+              // half the drawn width is the body, which is what should not overlap
+              r: Math.max(2, (q.sp.width || 8) * 0.35),
+            })),
+            mp.yScale,
+            1,
+            canStand,
+          )
+          for (let qi = 0; qi < lifeAssets.length; qi++) {
+            const q = lifeAssets[qi]
             // walkOnly makes the floor a second fence, and the game's own
             // canStand is what it is measured against: the same mask MAPVIS
             // previewed with, so the answer is the same on both sides
-            const at = lifeAt(q.life, lt, q.home, canStand)
+            const at = { ...res[qi], dx: res[qi].dx + push[qi].dx, dy: res[qi].dy + push[qi].dy }
             if (at.alpha <= 0.01) {
               q.sp.visible = false
               continue
