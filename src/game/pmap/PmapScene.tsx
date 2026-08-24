@@ -807,10 +807,14 @@ export default function PmapScene() {
               // shared by every heading, so turning a corner carries the stride
               // over instead of restarting it; a heading holding a single frame
               // lands on that frame every time.
-              q.animT += dt * q.fps
+              // a walk cycle is a GAIT, and a wander is mostly pauses. Advancing
+              // it off the clock alone made a figure stood at the end of a leg
+              // march on the spot, so the stride only runs while it travels and
+              // waits on its first frame, which is the pose it was drawn from.
+              if (at.moving) q.animT += dt * q.fps
               const set = q.views[at.facing] || q.views[NEAREST_VIEW[at.facing]] || q.views.south
               if (set && set.length) {
-                const vt = set[Math.floor(q.animT) % set.length]
+                const vt = set[at.moving ? Math.floor(q.animT) % set.length : 0]
                 if (q.sp.texture !== vt) q.sp.texture = vt
               }
               q.sp.scale.x = q.baseSX * (q.flipX ? -1 : 1)
