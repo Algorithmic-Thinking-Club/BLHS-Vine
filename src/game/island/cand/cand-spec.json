@@ -1,0 +1,159 @@
+{
+  "id": "cand-island",
+  "doc": "docs/place-specs/cand-island-spec.md",
+  "sources": ["cand-1 (layout bible)", "measure-harbor.json", "island_plan.py (corrected)", "reference/_archive/district3d/_volc-crop.png"],
+  "laws": [
+    "empty stage: all life/props are later sprites, nothing baked",
+    "NO painted ocean: sea is the engine ocean",
+    "native pixels, no shaders",
+    "no PixelLab generation without pricing + Ash's explicit word (all pixellab families PRICED-LATER)",
+    "Ash judges structure (G-STRUCT) before any generation spend; never claim a gate passed without his word"
+  ],
+  "grid": {
+    "w": 120,
+    "h": 96,
+    "frame": "+x east, +y SOUTH (row 0 = north edge), origin NW",
+    "tilePx": [64, 32],
+    "stepPx": 20,
+    "coneStepPx": 10,
+    "calibration": {
+      "verticalTilesPerUnit": 12.4,
+      "horizontalTilesPerUnit": 32,
+      "engineTilesPerPlanTile": 2.2,
+      "note": "neural z compressed ~2.6x vs plan; island body x10-104 (~94 tiles, Thor band 90-140)"
+    }
+  },
+  "lifts": {
+    "rule": "terrain uses integer level * stepPx; STRUCT px lifts override wherever a structure exists (R2)",
+    "sea": 0,
+    "quayDeck": 24,
+    "stairLanding": 48,
+    "terrace": 92,
+    "parapetCrownAboveWalk": 16,
+    "wallFaceDropSouthEast": 68,
+    "wallFaceDropWestCove": "72-92 (full drop to sand)",
+    "bastionTop": 112,
+    "breakwaterDeck": 24,
+    "moundTop": 38,
+    "tunnelCrownAboveQuay": 50,
+    "seaFaceBelowWaterlinePx": 12
+  },
+  "tileLevels": [
+    { "name": "sea", "level": 0, "poly": [[0,0],[120,0],[120,96],[0,96]], "material": "water", "family": "engine-ocean", "walkable": false },
+    { "name": "cove-shallows", "level": 0, "poly": [[6,40],[34,40],[34,72],[6,72]], "material": "shallow-water-sand", "family": "engine-ocean", "walkable": false },
+    { "name": "cove-sand", "level": 1, "poly": [[12,44],[20,40],[28,42],[30,48],[30,64],[24,68],[14,62],[10,52]], "material": "sand", "family": "sand", "walkable": true },
+    { "name": "north-coast-cliff", "level": 3, "poly": [[24,10],[88,10],[92,14],[24,14]], "material": "rock", "family": "cliff-strata-muted", "walkable": false },
+    { "name": "jungle-shelf", "level": 6, "poly": [[24,14],[88,14],[94,26],[88,40],[34,40],[24,30]], "material": "jungle-grass", "family": "grass", "walkable": true },
+    { "name": "cove-cliffs", "level": 3, "poly": [[16,30],[32,32],[34,44],[30,46],[16,42]], "material": "red-strata-rock", "family": "cliff-strata", "walkable": false },
+    { "name": "town-knoll", "level": 6, "poly": [[32,34],[46,34],[46,42],[32,42]], "material": "grass-stone", "family": "grass", "walkable": true },
+    { "name": "volcano-slope-lower", "level": 8, "poly": [[36,26],[42,15],[56,13],[70,15],[76,26],[70,37],[56,39],[42,37]], "material": "scorched-rock", "family": "volcano-basalt", "walkable": false },
+    { "name": "volcano-slope-upper", "level": 11, "poly": [[44,26],[48,19],[56,18],[64,19],[68,26],[64,33],[56,34],[48,33]], "material": "scorched-rock-lava", "family": "volcano-basalt", "walkable": false },
+    { "name": "volcano-rim", "level": 13, "poly": [[50,26],[53,22],[59,22],[62,26],[59,30],[53,30]], "material": "basalt", "family": "volcano-basalt", "walkable": true, "note": "walkable terrain, deliberately unreachable (no trail evidenced in cand-1)" },
+    { "name": "crater", "level": 11, "poly": [[53,26],[55,24],[57,24],[59,26],[57,28],[55,28]], "material": "basalt-ember", "family": "volcano-basalt", "walkable": false, "note": "R12: NO lava lake; smoking chimney, ember glow only (craterK lake branch OFF)" },
+    { "name": "mid-bench", "level": 5, "poly": [[30,40],[80,40],[80,42],[30,42]], "material": "grass", "family": "grass", "walkable": true },
+    { "name": "terrace", "level": 4, "liftPx": 92, "poly": [[30,42],[78,42],[78,60],[30,60]], "material": "stone-flag", "family": "terrace-flags", "walkable": true },
+    { "name": "parapet-south", "construct": "parapet-edge", "level": 4, "poly": [[30,59],[78,59],[78,60],[30,60]], "material": "stone-block", "family": "wall-ashlar", "walkable": true, "edgeBlock": ["S"], "crownPx": 16, "note": "R9: sub-tile parapet on a walkable lip, not a full blocked tile; poly = placement line" },
+    { "name": "parapet-east", "construct": "parapet-edge", "level": 4, "poly": [[77,42],[78,42],[78,59],[77,59]], "material": "stone-block", "family": "wall-ashlar", "walkable": true, "edgeBlock": ["E"], "crownPx": 16, "note": "R9" },
+    { "name": "quay-south", "level": 1, "liftPx": 24, "poly": [[26,60],[90,60],[90,66],[26,66]], "material": "stone-flag", "family": "quay-stone", "walkable": true },
+    { "name": "stair-landing", "level": 2, "liftPx": 48, "poly": [[53,60],[58,60],[58,63],[53,63]], "material": "stone-flag", "family": "quay-stone", "walkable": true },
+    { "name": "maw-gate", "level": 1, "liftPx": 24, "poly": [[59,54],[63,54],[63,60],[59,60]], "material": "stone-bore", "family": "wall-ashlar", "walkable": true, "walkLiftPx": 24, "visualTopLiftPx": 92, "note": "bridge tiles (engineNeeds #3b); scene-transition trigger on innermost (y54) row" },
+    { "name": "quay-east-apron", "level": 1, "liftPx": 24, "poly": [[78,42],[84,42],[84,60],[78,60]], "material": "stone-flag", "family": "quay-stone", "walkable": true, "note": "NEW (R10): closes the unpainted pocket at the east-wall foot; the service arch opens onto it; confirm vs cand-1 at P1" },
+    { "name": "east-shore", "level": 2, "poly": [[80,40],[104,40],[104,48],[80,48]], "material": "rock-sand", "family": "sand", "walkable": true, "note": "extended west to x80 (R10)" },
+    { "name": "quay-east-return", "level": 1, "liftPx": 24, "poly": [[84,48],[90,48],[90,60],[84,60]], "material": "stone-flag", "family": "quay-stone", "walkable": true },
+    { "name": "basin", "level": 0, "poly": [[90,48],[96,48],[96,66],[90,66]], "material": "water", "family": "engine-ocean", "walkable": false },
+    { "name": "breakwater-walk", "level": 1, "liftPx": 24, "poly": [[96,48],[100,48],[100,68],[96,68]], "material": "stone-block", "family": "quay-stone", "walkable": true, "note": "R7: N-S walk off the east shore (levels correction), NOT the plan's SE diagonal; outer (east) parapet per features" },
+    { "name": "mound", "level": 2, "liftPx": 38, "poly": [[96,70],[97,67],[100,66],[103,67],[104,70],[103,73],[100,74],[97,73]], "material": "stone-block", "family": "drum-stone", "walkable": true, "note": "R8: r4 drum, flat 2x2 lighthouse SOCKET on top; center may sit 2-4 tiles further south" }
+  ],
+  "ramps": [
+    { "name": "grand-stair-upper", "from": "terrace", "to": "stair-landing", "poly": [[45,60],[53,60],[53,63],[45,63]], "descends": "E", "dropPx": [92, 48], "note": "R5: measured two-flight form; stairRun construct" },
+    { "name": "grand-stair-lower", "from": "stair-landing", "to": "quay-south", "poly": [[53,63],[58,63],[58,65],[53,65]], "descends": "S", "dropPx": [48, 24] },
+    { "name": "tunnel-approach", "from": "quay-south", "to": "maw-gate", "poly": [[59,58],[63,58],[63,62],[59,62]] },
+    { "name": "cove-steps", "from": "quay-south", "to": "cove-sand", "poly": [[26,62],[30,62],[30,66],[26,66]], "note": "two broad treads at 16px/8px (harbor precedent)" },
+    { "name": "knoll-stair", "from": "town-knoll", "to": "terrace", "poly": [[36,42],[40,42],[40,45],[36,45]], "confidence": 0.6, "note": "inferred from NW town massing, not measured" },
+    { "name": "bench-ramp", "from": "mid-bench", "to": "terrace", "poly": [[62,40],[68,40],[68,43],[62,43]], "confidence": 0.6 },
+    { "name": "knoll-steps", "from": "east-shore", "to": "quay-east-return", "poly": [[84,48],[88,48],[88,51],[84,51]] },
+    { "name": "breakwater-neck", "from": "east-shore", "to": "breakwater-walk", "poly": [[96,46],[100,46],[100,50],[96,50]] },
+    { "name": "mound-step", "from": "breakwater-walk", "to": "mound", "poly": [[96,65],[100,65],[100,68],[96,68]] }
+  ],
+  "spriteSockets": [
+    { "name": "pier", "at": [58, 66], "note": "extends south off the quay; the long strip in the harbor heightfield" },
+    { "name": "lighthouse", "at": [100, 70], "note": "mound top 2x2" },
+    { "name": "maw-gate-doors", "at": [61, 60] },
+    { "name": "quay-bollards", "along": "quay lip", "spacing": "paced" },
+    { "name": "parapet-lamps", "along": "parapet crowns", "spacing": 4 },
+    { "name": "stalls", "at": [80, 51], "note": "beside the east service arch" },
+    { "name": "boats", "in": "basin + south water", "note": "later sprites" }
+  ],
+  "architecture": {
+    "features": [
+      { "name": "south-terrace-wall", "kind": "retaining-wall + parapet", "run": [[30,60],[78,60]], "lengthTiles": 48, "faceDropPx": 68, "topLiftPx": 92, "baseLiftPx": 24, "style": "ashlar", "parapet": { "hPx": 16, "capLit": true, "merlons": "SW bastion section only" }, "openings": ["maw-tunnel"], "engineNeeds": [1, 2], "brief": "the hero wall: one continuous running-bond ashlar sheet, string course under the parapet, batter at the foot; grand stair lands against it" },
+      { "name": "east-terrace-wall", "kind": "retaining-wall + parapet", "run": [[78,42],[78,60]], "lengthTiles": 18, "faceDropPx": 68, "topLiftPx": 92, "baseLiftPx": 24, "style": "ashlar", "openings": [{ "name": "service-arch", "widthTiles": 2, "recessTiles": 1, "note": "socket, not a tunnel; opens onto quay-east-apron (R10)" }], "cornerQuoin": [78, 60], "engineNeeds": [1, 2, 3] },
+      { "name": "west-wall-and-bastion", "kind": "retaining-wall + bastion tower", "run": [[30,42],[30,60]], "faceDropPx": "72-92 (full drop to sand)", "bastion": { "footprint": [[30,58],[32,60]], "topLiftPx": 112, "merlons": true, "note": "footprint uncertain +/-1 tile; drum construct or two WallRun corner chunks" }, "engineNeeds": [1, 2, 5] },
+      { "name": "grand-stair", "kind": "stair ramp + stepped balustrade", "form": "two flights + landing (R5)", "flights": [{ "poly": [[45,60],[53,63]], "descends": "E", "dropPx": [92, 48], "widthTiles": 3 }, { "poly": [[53,63],[58,65]], "descends": "S", "dropPx": [48, 24], "widthTiles": 5 }], "landing": { "poly": [[53,60],[58,63]], "liftPx": 48 }, "treadPx": 7, "balustrade": "parapet crowns riding the lerp on the outer edge", "minWidth": 3, "engineNeeds": [2, 4] },
+      { "name": "maw-tunnel", "kind": "arch opening + bridge tiles", "openingTiles": [[59,60],[63,60]], "widthTiles": 4, "crownPxAboveQuay": 50, "interior": { "poly": [[59,54],[63,60]], "walkLiftPx": 24, "visualTopLiftPx": 92 }, "trigger": "innermost (y54) row fires the Maw scene hand-off", "engineNeeds": [3, 6], "brief": "voussoir ring, near-black within ~8px, painted INTO the wall bake; the engine's first bridge tiles" },
+      { "name": "quay-edge-walls", "kind": "quay edge wall + beach steps", "lips": [{ "run": [[26,66],[90,66]], "faces": "S" }, { "run": [[90,48],[90,60]], "faces": "E (basin)" }], "deckLiftPx": 24, "faceBelowWaterlinePx": 12, "grammar": "shipped v8 stone-quay (slabVariant tops, coping cap, wet line, foam laps, dark reflections) upgraded to continuous-face bake", "beachSteps": { "poly": [[26,62],[30,66]], "treads": [16, 8] }, "engineNeeds": [1] },
+      { "name": "breakwater", "kind": "walkable breakwater + outer parapet", "walk": { "poly": [[96,48],[100,68]], "widthTiles": 4, "deckLiftPx": 24 }, "parapet": { "edge": "E (outer/sea)", "hPx": 16, "cap": "rounded continuous baked ribbon" }, "crownPxAboveSea": 40, "coursing": "rougher/saltier than the quay", "note": "R7: N-S run per levels correction; arch grammar retained", "engineNeeds": [1, 2] },
+      { "name": "mound", "kind": "round masonry drum (lighthouse socket)", "center": [100, 70], "rTiles": 4, "topLiftPx": 38, "batter": 1.15, "socket": "flat walkable 2x2 top", "dressing": "foam collar, max 2 rip-rap stones (v8 lesson)", "note": "R8; center may shift 2-4 tiles south", "engineNeeds": [5] },
+      { "name": "cove-cliff-faces", "kind": "natural cliff face", "arc": "west coast backing the sand, ~16-20 tiles (cove-cliffs + jungle-shelf rim)", "faceDropPx": "up to 100 (shelf L6 -> sand L1)", "look": "diagonal orange/rust strata + deep purple shadow bands, continuous across tiles; green canopy lip overhang 2-6px; 2-3 scree boulders at the foot", "engineNeeds": [7] },
+      { "name": "ne-basin-wall", "kind": "quay edge wall (minor)", "run": [[90,48],[96,48]], "lengthTiles": "5-10 (occluded in painting)", "deckLiftPx": 24, "note": "R16: least certain; build LAST, gate on side-by-side", "engineNeeds": [1] }
+    ],
+    "engineNeeds": [
+      { "id": 1, "need": "WallRun chunk renderer", "sketch": "WallRun{poly, face, topLiftPx, baseLiftPx, style:'ashlar'|'quay'|'strata', openings?, parapet?}; 6-tile chunk bakes with a shared course grid (seams on course joints, split at openings), sliced back to per-tile 64px frames at the engine's own z; corner quoin chunks; curved-polyline support; extends the stoneF painter (IslandMapIso.tsx ~2229-2248)" },
+      { "id": 2, "need": "Parapet/low-wall construct", "sketch": "ParapetTile{tx,ty,dir,hPx:14-18,cap,merlons?}; back face (tint ~0.85) + front face + 1px lit cap; lip stays walkable with EDGEBLOCK(tile+dir) in the registry (today only whole-tile PROPBLOCK exists)" },
+      { "id": 3, "need": "Arch opening construct + bridge tiles", "sketch": "(a) openings painted into the WallRun bake (voussoir ring, vertical near-black gradient), zero runtime masking; (b) registry walkLift separate from visualTopLift; walker reads walkLift, sprite z uses the walkLift band; the hardest new mechanic" },
+      { "id": 4, "need": "Stair-ramp tiles", "sketch": "stairRun(from,dir,width,topPx,basePx,treadPx=7): per-tile lerped lifts quantized to tread multiples; baked 64x32 tread-diamond family (1px lit lip / 1px dark riser per tread, slabVariant palette); riser strips cropped from the wall bake; balustrade crowns ride the lerp" },
+      { "id": 5, "need": "Round drum face", "sketch": "drum(cx,cy,r,topPx,batter=1.15): walkable top tiles + ONE baked battered-ellipse canvas with radial curved coursing and wet line, placed as a single engine-generated sprite at the front-row z; collision and the walkable socket remain real tiles (engine construct, not a pasted PNG)" },
+      { "id": 6, "need": "Unified STRUCT registry", "sketch": "Map<ty*COLS+tx, {lift, walkLift?, walk, mat, edgeBlock?}>; every construct emits into it after init; render/walk/prop/vegetation/audit all read it; island-audit flood-fills over it to prove both walk chains as data on every load" },
+      { "id": 7, "need": "Arc-length-keyed cliff face material", "sketch": "order cliff-coast tiles into runs by neighbor-walking, bake one long strata canvas per run (diagonal bands at one consistent angle: orange #e08a3c-family lit, purple #5a2d4a-family shadow, green lip fringe), frame-crop per tile at x=s*64; scree boulders in PROPBLOCK" }
+    ]
+  },
+  "volcano": {
+    "config": { "cx": 56, "cy": 26, "baseR": 20, "aspectY": 0.65, "jPow": 2.1, "rimLevelAbs": 13, "rimPxAboveTerrace": 168, "cstepPx": 10, "craterR": 2.0, "craterDepthConeLvls": 5, "craterFloorLevelAbs": 11, "crownRingMinTiles": 2 },
+    "hubUntouched": { "cx": 100, "cy": 100, "baseR": 38, "coneH": 175, "jPow": 2.6, "craterR": 7.5, "craterDepth": 13, "crownW": 1.2 },
+    "rules": [
+      "parameterize volcano.ts by config; hub keeps its constants; hRim computed from THIS config (never /92)",
+      "clip at the citadel: cone levels only outside terrace/quay/built polygons; toe within 0-1 tiles of the terrace back edge (R15)",
+      "excise by config, never deletion: heads.ts merge, MOUTH/TONGUE/plaza, crater lava lake (craterK>0.32 OFF, R12), coast LAVA lines, quench dressing",
+      "lava = 4-5 short upper-flank rivulet polylines rim -> band frontier (R13); flipbook + vein machinery with shorter paths",
+      "crown asserts after LV build: >=4 tiles at max level, connected >=2-tile crater floor, no tile above rim",
+      "glitch pass: (a) back-edge void fill for ALL cone tiles drop>=2 tinted from coneTint; (b) drawFace skin by blended vBelt (no riser flips); (c) verify sideL family loads; (d) steam plume re-anchored at argmax-rim tile, ~60% scale, drifts screen-right",
+      "run SPIKE/DIP killers on cone rings (hub skip no longer holds at this radius)",
+      "retune radii proportionally: shadow wedge ~(0.4R, 1.8R) = (8,36) at R20; prop rejection lavaDist<1.5; sun azimuth 2.85 unchanged"
+    ],
+    "verdictCrop": "reference/_archive/district3d/_volc-crop.png",
+    "verdictChecks": ["straighter stratocone silhouette with flaring toe", "~9-spoke rib read, long unbroken runs", "~4-tile-wide crater opening on screen", "citadel occlusion line", "hunt at 2x: riser-color flips, black back-edge slivers, bright tread crescents"]
+  },
+  "families": [
+    { "name": "quay-stone", "source": "pixellab-tile-family", "priced": "PRICED-LATER", "coverage": "quay-south (6 deep), quay-east-return, quay-east-apron, breakwater walk, mound top, grand-stair treads", "ramp": ["#f2bb69", "#d0a682", "#af7041", "#987259", "#795e54", "#6e463a"], "fallback": "recolor of terrace-flags one value down" },
+    { "name": "wall-ashlar", "source": "pixellab-face-strip", "priced": "PRICED-LATER", "coverage": "all retaining/parapet faces, tunnel-arch surround, quay sea faces to waterline, breakwater + mound sides; 2 palette states (sunlit / shaded-sea with #194363 waterline stain)", "ramp": ["#e4b683", "#dda25e", "#d19962", "#987259", "#5a4a57", "#382e3d"] },
+    { "name": "terrace-flags", "source": "pixellab-tile-family", "priced": "PRICED-LATER", "coverage": "the citadel slab floor (terrace region), one value lighter than quay-stone; one generation + one recolor with quay-stone", "ramp": ["#e4b683", "#dda25e", "#d19962", "#b38867", "#987259", "#af7041"] },
+    { "name": "cliff-strata", "source": "pixellab-face-strip", "priced": "PRICED-LATER", "coverage": "west/NW cliff faces between grass lip and cove sand (cove-cliffs + shelf rim); diagonal banding is why this is not an engine recolor", "ramp": ["#ecc01f", "#c4ab19", "#e28034", "#46273a", "#472142", "#432923"] },
+    { "name": "volcano-basalt", "source": "engine-drawn", "coverage": "every cone slope face, crater rim to grass skirt; procedural radial bands on the terraced lifts", "ramp": ["#a25c3a", "#763b37", "#5f2b3a", "#46273a", "#2c173f", "#04010a"] },
+    { "name": "lava", "source": "engine-drawn", "coverage": "4-5 upper-flank rivulets + crater ember ring (R12/R13, NOT 6-9, NO lake); slow palette-cycle pulse of the two hot steps, no shaders", "ramp": ["#ecc01f", "#e28034", "#ca7b39", "#a25c3a"] },
+    { "name": "sand", "source": "engine-drawn", "coverage": "cove polygon + 1-2 tile dry fringe under the cliff base; extends the BeachIso pipeline; foam/tide belongs to the engine ocean", "ramp": ["#f6d581", "#e4b683", "#b38867", "#987259"] },
+    { "name": "grass", "source": "engine-drawn", "coverage": "the green skirt between cliff lip, terrace back wall and volcano skirt; sun-scorched, yellower than campus green; canopy = later sprites", "ramp": ["#c4ab19", "#b29720", "#827820", "#5d5d17", "#444d2a", "#354131"] },
+    { "name": "path", "source": "engine-drawn", "coverage": "packed-earth terrace streets between building sockets + cove-to-west-gate trail; two lightest steps inferred, tune in engine", "ramp": ["#865338", "#6e463a", "#593a37", "#432923", "#251d24"] }
+  ],
+  "phases": [
+    { "id": "P1", "name": "levels/terrain blockout", "does": "grid + tileLevels + ramps rasterized; STRUCT registry (engineNeeds 6) stood up; flat placeholders; island-audit proves both walk chains; side-by-side vs cand-1 (check R10 apron)" },
+    { "id": "P2", "name": "architecture constructs", "does": "engineNeeds 1-5 built; the 10 features raised in greybox; stair/tunnel/breakwater/mound mechanics walkable" },
+    { "id": "P3", "name": "volcano adapt", "does": "config instance, exclusions, glitch passes, verdict-crop loop vs _volc-crop.png" },
+    { "id": "P4", "name": "surface families", "does": "ONLY after G-STRUCT: price the 4 pixellab families, Ash's explicit word, then generate; engine-drawn families in parallel" },
+    { "id": "P5", "name": "decorate", "does": "fill sprite sockets (pier, lighthouse, gates, stalls, boats, bollards, lamps, canopy, scree) under the empty-stage law; per-piece verdicts" }
+  ],
+  "gates": [
+    { "id": "G-AUDIT", "when": "P1", "who": "mechanical", "check": "island-audit flood-fill proves reachability over STRUCT on every load: sand->steps->quay->grand stair->terrace->tunnel->(Maw) and quay->apron/return->east-shore->breakwater->mound" },
+    { "id": "G-STRUCT", "when": "after P1-P3, BEFORE any generation spend", "who": "Ash", "check": "full structural greybox judged against cand-1 zoomed in AND out; no PixelLab generation and no pricing pitch before this passes" },
+    { "id": "G-SURF", "when": "P4", "who": "Ash", "check": "each generated family judged in-engine at 2-3 tile read before wide application" },
+    { "id": "G-FINAL", "when": "after P5", "who": "Ash", "check": "whole-scene side-by-sides at map + play zoom; NE basin wall (R16) and flagged uncertainties resolved" }
+  ],
+  "openItems": [
+    "knoll-stair / bench-ramp positions inferred (~60% confidence)",
+    "mound center may sit 2-4 tiles further south (y72-76); breakwater arm length flexible",
+    "R10 apron is a reconciliation, not a measurement: confirm vs cand-1 at P1",
+    "NE basin wall length 5-10 tiles (occluded): build last",
+    "jungle-shelf L6 -> mid-bench L5 raw 20px step: confirm walker tolerance or add a ramp at P1",
+    "no volcano-rim trail (deliberate); NE switchback = later design option only",
+    "path family lightest ramp steps inferred (surface only torch-lit in cand-1)"
+  ]
+}
