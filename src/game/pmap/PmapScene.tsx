@@ -19,7 +19,7 @@ import {
   HW, HH, isoX, isoY, DEPTH_RANGE, loadWaterVariants, configSeaTile, animSwells,
   type SwellSprite,
 } from '../ocean'
-import { cleanLife, lifeAt, type Life, separate } from './life'
+import { cleanLife, lifeAt, type Life, type LifeBounds, separate } from './life'
 
 /* when a heading has no view, the next best one it might have, so a set drawn
  * four ways still faces roughly right instead of snapping to south */
@@ -159,7 +159,10 @@ function inkWidth(data: Uint8ClampedArray, w: number, h: number) {
  * 12.80px reach, so the deepest shove it can ever ask for is half a pixel.
  *
  * A marginal keep is always a marginal push, by construction, which is what
- * makes this safe to derive from the data instead of from a list of names. */
+ * makes this safe to derive from the data instead of from a list of names.
+ *
+ * It answers for the placements the FLOOR fences, which is the ones lifeAt
+ * fences: walkOnly and nothing else. See freeReach below for the rest. */
 function walkerCanReach(x: number, y: number, r: number, yScale: number, stands: (x: number, y: number) => boolean) {
   const ys = yScale || 1
   const reach = r + BODY_MIN
@@ -173,6 +176,30 @@ function walkerCanReach(x: number, y: number, r: number, yScale: number, stands:
       if (stands(px, py)) return true
     }
   return false
+}
+
+/* AND WHAT A PLACEMENT THE FLOOR DOES NOT FENCE CAN GET TO.
+ *
+ * The reach test above reads the floor because a walkOnly behaviour reads the
+ * floor. A crab told to wander the tideline and a skiff told to drift are not
+ * walkOnly, so lifeAt hands them no floor at all and their only fence is the box
+ * they were drawn inside. Asking the floor about them answers about somebody
+ * else, and the answer it gave was no: the two hub crabs walked clean through a
+ * hand cart, two barrels, a wrecked rowboat and a water wash, none of which
+ * stands near ground a person can reach, 8.90px into the wash at t=30.88s.
+ *
+ * So a free behaviour reaches anywhere its own box reaches, which is the same
+ * shape of question as the one above and the same fence lifeAt already applies.
+ * On the hub it adds exactly those five, taking the standing set from 20 to 25.
+ * Measured over 30000 frames at the real half-width of the ink: walker on
+ * stander went from 13972 pair-hits on 41.73% of frames to 3334 on 10.81%, and
+ * the worst overlap on the map from 8.90px to 6.86px. */
+function freeReach(x: number, y: number, r: number, yScale: number, b: LifeBounds | null | undefined) {
+  // no box is no fence, so it can be anywhere and everything is reachable
+  if (!b) return true
+  const reach = r + BODY_MIN
+  const ys = yScale || 1
+  return x >= b.x - reach && x <= b.x + b.w + reach && y >= b.y - reach * ys && y <= b.y + b.h + reach * ys
 }
 
 /* WHAT OF A PUSH CAN ACTUALLY BE DELIVERED.
@@ -194,6 +221,24 @@ function walkerCanReach(x: number, y: number, r: number, yScale: number, stands:
  * shifted more than 4px in one frame fell from 142 to 73, and the worst
  * walker-on-stander depth from 7.20px to 6.86px.
  *
+ * AND IT HOLDS BACK ONLY WHAT THE BEHAVIOUR ITSELF IS HELD BACK BY, which is
+ * what `fenced` carries. lifeAt puts a placement behind the floor when walkOnly
+ * says so and never otherwise (life.ts: `life.walkOnly && canStand`), so a skiff
+ * drifting on water is free of the floor for every pixel it travels and was
+ * being fenced by it the instant it was pushed. Water is not standable, so every
+ * correction those three ever received was thrown away, and they sat inside each
+ * other on 30000 of 30000 frames, 11.46px deep, through every version of this
+ * guard including the axis slide. Reading each row's own fence instead, measured
+ * over 30000 frames at the real half-width of the ink: the worst walker on
+ * walker went 11.46px to 5.19px and its pair-hits 66891 to 33820. Nothing lands
+ * where its behaviour could not have carried it, because the push is an offset
+ * on top of a pure position and is never integrated: across that run no free
+ * placement was pushed onto standable ground once, and the furthest any got
+ * outside its own box was 8.70px.
+ *
+ * An immovable row is not fenced either, and does not need to be: its answer is
+ * discarded, so no floor test on it could change a pixel.
+ *
  * It lives in the caller and not inside separate() because separate() is shared
  * with the editor by a hand copy and both sides have to run the identical rule;
  * the `stands` argument separate() still takes is no longer passed by either.
@@ -202,10 +247,12 @@ function floorPush(
   pts: { x: number; y: number }[],
   push: { dx: number; dy: number }[],
   stands: (x: number, y: number) => boolean,
+  fenced: boolean[],
 ) {
   for (let i = 0; i < pts.length; i++) {
     const o = push[i]
     if (!o.dx && !o.dy) continue
+    if (!fenced[i]) continue
     const p = pts[i]
     if (stands(p.x + o.dx, p.y + o.dy)) continue
     if (stands(p.x + o.dx, p.y)) {
@@ -644,7 +691,7 @@ export default function PmapScene() {
       interface Look { frames: Texture[]; views: Record<string, Texture[]> | null; fps: number }
       const animAssets: { sp: Sprite; frames: Texture[]; fps: number; t: number }[] = []
       const lifeAssets: { sp: Sprite; life: Life; home: { x: number; y: number }; baseSX: number; bodyW: number; flipX: boolean; looks: Look[]; animT: number; baseRot: number }[] = []
-      /* THE THINGS A WALKER HAS TO GO ROUND.
+      /* THE THINGS A MOVER HAS TO GO ROUND.
        *
        * A placement that never moves was put on its spot on purpose and must
        * never be shoved off it. Keeping it out of the push altogether is how
@@ -652,15 +699,19 @@ export default function PmapScene() {
        * to push off, so a walker goes straight through it. It takes part here
        * and its own answer is thrown away, so it pushes and never moves.
        *
-       * WHICH ONES: the ones a walker can get close enough to touch. That is the
-       * floor already in the bundle rather than a list of names, and it is the
-       * same floor the behaviours are fenced by. Somewhere a walker can never
-       * reach is somewhere the floor is already keeping them apart, and a
+       * WHICH ONES: the ones something can get close enough to touch. That is
+       * the fences already in the bundle rather than a list of names, and they
+       * are the same fences the behaviours are held by. Somewhere nothing can
+       * ever reach is somewhere the fences are already keeping them apart, and a
        * keep-out circle there would only shove people for a reason nobody on
-       * screen can see. See walkerCanReach at the top of this file for why it is
-       * a reach and not the feet, and for what it keeps on the hub.
+       * screen can see. See walkerCanReach and freeReach at the top of this file
+       * for why it is a reach and not the feet, and for what the pair keeps.
        *
-       * Worked out once, here, because a stander never moves. */
+       * Every standing placement is collected here and the question is asked
+       * once below, after the loop, because a free behaviour's fence is its own
+       * box and the movers are not all known until the last asset has loaded.
+       * Once, not per frame, because a stander never moves. */
+      const standing: { x: number; y: number; r: number }[] = []
       const obstacles: { x: number; y: number; r: number }[] = []
       try {
         const ar = await fetch(`${dir}/assets.json`)
@@ -793,11 +844,10 @@ export default function PmapScene() {
                  * a troll and the boulder it becomes shove alike on both sides. */
                 lifeAssets.push({ sp, life: lf, home: { x: a.x, y: a.y }, baseSX: Math.abs(asx), bodyW: Math.abs(asx) * inkOf(frames[0]), flipX: !!a.flipX, looks, animT: Math.random() * 8, baseRot: Number(a.rot) || 0 })
               } else {
-                // it stands where it was put, so whether a walker has to go
-                // round it is a question about the ground near it and the answer
-                // never changes. Same body width the movers use.
-                const r = bodyRadius(Math.abs(asx) * inkOf(frames[0]))
-                if (walkerCanReach(a.x, a.y, r, mp.yScale, canStand)) obstacles.push({ x: a.x, y: a.y, r })
+                // it stands where it was put, so whether a mover has to go round
+                // it is a question about the fences near it and the answer never
+                // changes. Same body width the movers use.
+                standing.push({ x: a.x, y: a.y, r: bodyRadius(Math.abs(asx) * inkOf(frames[0])) })
                 if (views) {
                   /* A view set that never travels still has frames worth running.
                    * Someone breathing at a stall has no life to carry a clock, and
@@ -820,6 +870,21 @@ export default function PmapScene() {
           if (placed) console.log(`[pmap] ${placed} placed assets (${animAssets.length} animated)`)
         }
       } catch { /* the fetch itself failed: same answer as a 404, no assets */ }
+
+      /* which of the standing placements anything can actually get to, asked
+       * once now that every mover is loaded. A walkOnly behaviour is fenced by
+       * the floor, so it is the pixel scan; anything else is fenced only by its
+       * own box, so it is a rectangle. Same pair of questions MAPVIS asks in
+       * moverCanTouch, and the standing set they keep on the hub is 25 of 72. */
+      {
+        const free = lifeAssets.filter((q) => !q.life.walkOnly)
+        for (const s of standing)
+          if (
+            walkerCanReach(s.x, s.y, s.r, mp.yScale, canStand) ||
+            free.some((q) => freeReach(s.x, s.y, s.r, mp.yScale, q.life.bounds))
+          )
+            obstacles.push(s)
+      }
 
       // ---- &dbg=1: the levels mask, color-coded per level value, over the painting ----
       if (DBG) {
@@ -1121,10 +1186,20 @@ export default function PmapScene() {
             ...fixed,
             ...fixed,
           ]
-          // the floor guard runs here, not inside separate(), so that the slide
-          // it does with a push it cannot deliver whole is the same rule in the
-          // editor preview. See floorPush at the top of this file.
-          const push = floorPush(pts, separate(pts, mp.yScale, 1), canStand)
+          /* the floor guard runs here, not inside separate(), so that the slide
+           * it does with a push it cannot deliver whole is the same rule in the
+           * editor preview. See floorPush at the top of this file.
+           *
+           * Each row says whether the floor is its fence at all, which is the
+           * same answer lifeAt gives it: walkOnly and nothing else. An immovable
+           * row is false because its push is discarded, so no test on it can
+           * move a pixel. */
+          const fenced = [
+            ...lifeAssets.map((q) => !!q.life.walkOnly),
+            ...fixed.map(() => false),
+            ...fixed.map(() => false),
+          ]
+          const push = floorPush(pts, separate(pts, mp.yScale, 1), canStand, fenced)
           for (let qi = 0; qi < lifeAssets.length; qi++) {
             const q = lifeAssets[qi]
             // walkOnly makes the floor a second fence, and the game's own
