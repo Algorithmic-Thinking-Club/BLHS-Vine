@@ -454,7 +454,7 @@ export default function PmapScene() {
         scaleX?: number; scaleY?: number; rot?: number; flipX?: boolean; flipY?: boolean
       }
       const animAssets: { sp: Sprite; frames: Texture[]; fps: number; t: number }[] = []
-      const lifeAssets: { sp: Sprite; life: Life; home: { x: number; y: number }; baseSX: number; flipX: boolean; views: Record<string, Texture[]> | null; fps: number; animT: number }[] = []
+      const lifeAssets: { sp: Sprite; life: Life; home: { x: number; y: number }; baseSX: number; flipX: boolean; views: Record<string, Texture[]> | null; fps: number; animT: number; baseRot: number }[] = []
       try {
         const ar = await fetch(`${dir}/assets.json`)
         // the content-type guard matters: the dev server answers a missing file with the
@@ -514,7 +514,7 @@ export default function PmapScene() {
                 // the 6 matches MAPVIS (editor.ts assetFrame), and it is the one
                 // that fires: a placement with views never gets an fps written,
                 // so a 4 here would walk every cycle slower than the preview did
-                lifeAssets.push({ sp, life: lf, home: { x: a.x, y: a.y }, baseSX: Math.abs(asx), flipX: !!a.flipX, views, fps: a.fps || 6, animT: Math.random() * 8 })
+                lifeAssets.push({ sp, life: lf, home: { x: a.x, y: a.y }, baseSX: Math.abs(asx), flipX: !!a.flipX, views, fps: a.fps || 6, animT: Math.random() * 8, baseRot: Number(a.rot) || 0 })
               } else if (views) {
                 /* A view set that never travels still has frames worth running.
                  * Someone breathing at a stall has no life to carry a clock, and
@@ -836,6 +836,10 @@ export default function PmapScene() {
             q.sp.visible = true
             q.sp.alpha = at.alpha
             q.sp.position.set(q.home.x + at.dx, q.home.y + at.dy)
+            // the placement's own rotation plus the tilt its behaviour is leaning
+            // through. The anchor is the feet, so a boat leans on its waterline
+            // rather than swinging round its mast.
+            q.sp.rotation = q.baseRot + at.rot
             if (q.views) {
               // it has a view for where it is going: use it, and do not put the
               // motion mirror on top or it would face backwards. Its own flipX
