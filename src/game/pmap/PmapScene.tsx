@@ -75,6 +75,178 @@ const OVER_PLACED = 1e4
 const DIRS8 = ['south', 'north', 'east', 'west', 'south-east', 'north-east', 'north-west', 'south-west']
 const A_MIN = 40 // the repo-wide alpha threshold (BeachIso, objmap/measure.ts)
 
+/* PERSONAL SPACE: the four numbers the push is made of.
+ *
+ * These are a verbatim copy of the same four in MAPVIS-next/src/core/editor.ts,
+ * for the reason life.ts in this folder is a verbatim copy of MAPVIS's: the
+ * editor preview has to work the answer out the way this scene does or it is
+ * lying about the map. If one changes, copy it again; do not edit one side only.
+ * They want to live in life.ts with separate(), and they are here instead only
+ * because that file is shared by a hand copy rather than by an import.
+ */
+
+/* the smallest body anything gets, in painting pixels. separate() is handed
+ * circles, and a circle of no radius is nothing to push off, so every figure
+ * carries at least this much of one. It is also the walker used by the reach
+ * test below, so the floor is one number in both places. */
+const BODY_MIN = 2
+
+/* how much of a body's DRAWN width its keep-out circle is.
+ *
+ * Half the width is the body itself. A circle exactly that big leaves a pair
+ * touching the moment a push cannot be delivered whole, and on this map that is
+ * often, so the circle is a fifth wider than the body. Measured on the hub, 30000
+ * frames at 1/60, the 17 walking figures against the 21 standing ones, judged by
+ * their real half-widths: at 0.5 the bodies still overlapped in 34.36 percent of
+ * frames, at 0.6 in 8.59 percent. 0.7 bought nothing more, the same 8.59 percent,
+ * while the worst walker-on-walker depth went 4.83px to 6.05px and the worst
+ * shift in a single frame 14.79px to 17.27px. */
+const BODY_R = 0.6
+
+// the keep-out circle of something whose drawn art is w pixels across
+function bodyRadius(w: number) {
+  return Math.max(BODY_MIN, (w || 8) * BODY_R)
+}
+
+/* HOW WIDE A BODY IS: the ink, not the canvas it was saved on.
+ *
+ * PixelLab hands back a character centred on a square sheet. The proof bundle's
+ * harbour-walker south-0.png is 144x144 holding 52px of actual ink, so reading
+ * the canvas gave a body 2.8 times its real width, and at scale 0.3 a figure
+ * about 5px across wore a 15.12px keep-out circle. Every figure on the map was
+ * several times its own size, the circles overlapped constantly, and the pushes
+ * they asked for were larger than any gap on the map could deliver.
+ *
+ * The columns that hold any opaque pixel are the body. Reading pixels is far too
+ * slow to do per frame, so both sides do it once per picture and keep the number
+ * against the picture, which cannot change while the picture does not. */
+function inkWidth(data: Uint8ClampedArray, w: number, h: number) {
+  let x0 = w
+  let x1 = -1
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] === 0) continue
+      if (x < x0) x0 = x
+      if (x > x1) x1 = x
+    }
+  // a picture with nothing in it at all keeps the canvas, which is what this
+  // measured before and is never worse than answering zero
+  return x1 >= x0 ? x1 - x0 + 1 : w
+}
+
+/* CAN A WALKER GET CLOSE ENOUGH TO TOUCH IT.
+ *
+ * A thing that never moves is an obstacle when a walker can reach it, and the
+ * old test asked something narrower: whether the thing's OWN FEET stand on
+ * ground a walker could stand on. That dropped five standing figures on the hub
+ * whose anchor sits a pixel or three off the mask, the gate guard 3.31px off and
+ * an old fisherman 2.78px, and a walker with a body a few pixels wide walked
+ * straight through them.
+ *
+ * So the question is the right one now: is there any pixel a walker could stand
+ * on inside this thing's circle. The circle is its body plus the smallest body
+ * there is, which is the walker, so this is one law with the floor the
+ * behaviours are already fenced by and with the radius above. It is measured in
+ * separate()'s own geometry, x straight and y unsquashed, because that is the
+ * geometry the overlap it is deciding about will be measured in.
+ *
+ * It reads better than the feet test rather than differently: a thing standing
+ * on ground is at distance zero from ground, so everything the old test kept is
+ * still kept. On the hub it keeps 20 of the 72 standing placements, the old 16
+ * plus the gate guard and the old fisherman the owner complained about, plus two
+ * effects that cost nothing: a portal veil no behaviour goes near, and one
+ * lighthouse sweep whose nearest standable pixel is 12.32px away against a
+ * 12.80px reach, so the deepest shove it can ever ask for is half a pixel.
+ *
+ * A marginal keep is always a marginal push, by construction, which is what
+ * makes this safe to derive from the data instead of from a list of names. */
+function walkerCanReach(x: number, y: number, r: number, yScale: number, stands: (x: number, y: number) => boolean) {
+  const ys = yScale || 1
+  const reach = r + BODY_MIN
+  const x0 = Math.ceil(x - reach)
+  const x1 = Math.floor(x + reach)
+  const y0 = Math.ceil(y - reach * ys)
+  const y1 = Math.floor(y + reach * ys)
+  for (let py = y0; py <= y1; py++)
+    for (let px = x0; px <= x1; px++) {
+      if (Math.hypot(px - x, (py - y) / ys) >= reach) continue
+      if (stands(px, py)) return true
+    }
+  return false
+}
+
+/* WHAT OF A PUSH CAN ACTUALLY BE DELIVERED.
+ *
+ * Shoving someone out of a neighbour and into a wall is not an improvement, so
+ * a push that would land somewhere it could not stand has to be held back. It
+ * used to be thrown away WHOLE, and the worst overlaps on this map are exactly
+ * the ones on thin ground: on a narrow quay the shove out of a fishmonger lands
+ * in the water, so the figure did not move a pixel and stayed fully inside.
+ * Traced on the hub at t=276.97s.
+ *
+ * So it delivers what it can. The whole vector, then each axis on its own,
+ * which is the rule Thor himself already walks by a few lines up, so the map has
+ * one law about a move that only partly fits rather than two. A previous try at
+ * an axis slide was measured inside the WANDER's leg search and correctly taken
+ * back out there, because it moved 19298 of 20000 frames of ordinary walking.
+ * This is not that place: a push happens only where two bodies already overlap.
+ * Measured here on its own, 30000 frames of the hub: the number of figure-frames
+ * shifted more than 4px in one frame fell from 142 to 73, and the worst
+ * walker-on-stander depth from 7.20px to 6.86px.
+ *
+ * It lives in the caller and not inside separate() because separate() is shared
+ * with the editor by a hand copy and both sides have to run the identical rule;
+ * the `stands` argument separate() still takes is no longer passed by either.
+ */
+function floorPush(
+  pts: { x: number; y: number }[],
+  push: { dx: number; dy: number }[],
+  stands: (x: number, y: number) => boolean,
+) {
+  for (let i = 0; i < pts.length; i++) {
+    const o = push[i]
+    if (!o.dx && !o.dy) continue
+    const p = pts[i]
+    if (stands(p.x + o.dx, p.y + o.dy)) continue
+    if (stands(p.x + o.dx, p.y)) {
+      o.dy = 0
+      continue
+    }
+    if (stands(p.x, p.y + o.dy)) {
+      o.dx = 0
+      continue
+    }
+    o.dx = 0
+    o.dy = 0
+  }
+  return push
+}
+
+/* the ink width of one loaded picture, read once and kept against that very
+ * texture. Assets.load dedupes by url, so two placements wearing the same
+ * picture measure it once between them, and nothing here runs per frame. */
+const inkCache = new Map<unknown, number>()
+function inkOf(tex: Texture): number {
+  const hit = inkCache.get(tex.source)
+  if (hit !== undefined) return hit
+  const w = Math.round(tex.width)
+  const h = Math.round(tex.height)
+  let out = w
+  try {
+    const c = document.createElement('canvas')
+    c.width = w
+    c.height = h
+    const g = c.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D
+    g.drawImage(tex.source.resource as CanvasImageSource, 0, 0, w, h)
+    out = inkWidth(g.getImageData(0, 0, w, h).data, w, h)
+  } catch {
+    // a picture that cannot be read back keeps its canvas width, which is what
+    // this measured by before it measured anything better
+  }
+  inkCache.set(tex.source, out)
+  return out
+}
+
 function dirFromVec(dx: number, dy: number) {
   const a = Math.atan2(dy, dx) * 180 / Math.PI
   if (a >= -22.5 && a < 22.5) return 'east'
@@ -443,18 +615,53 @@ export default function PmapScene() {
       // fps and cycle on the app ticker below; no new tickers. A bundle without assets.json
       // is normal and skips silently; a bad png warns and skips its one asset, never the
       // scene. Assets carry NO collision in v1: the levels mask stays the only walk truth. ----
-      interface PmapAsset {
+      /* one appearance on the wire: a bare src, a frame list, or a set of
+       * headings, whichever MAPVIS packed (server/api.mjs packLook). The
+       * placement itself is written in this shape at the top level and every
+       * extra look is written in it again, so there is one shape to read. */
+      interface PmapLook { src?: string; frames?: string[]; fps?: number; dirs?: Record<string, string[]> }
+      interface PmapAsset extends PmapLook {
         id: string; group: string
-        src?: string; frames?: string[]; fps?: number
         x: number; y: number; scale: number
         // the MAPVIS transform contract: axis scales (falling back to the old
         // uniform scale), rotation in radians about the feet anchor, flips
         // applied as negative scale. An older assets.json carries none of
         // these and renders exactly as it always did.
         scaleX?: number; scaleY?: number; rot?: number; flipX?: boolean; flipY?: boolean
+        /* how it MOVES, if it does: the numbers life.ts evaluates, straight off
+         * the editor. Unknown on purpose, because cleanLife is the only thing
+         * that knows the shape and it is the one that has to reject a bad one. */
+        life?: unknown
+        /* the extra appearances a sequence switches to, index 1 and up: a troll
+         * and the boulder it turns into are one placement wearing two pictures.
+         * Absent on everything that does not change, and each one is written in
+         * the same shape the entry itself is. */
+        looks?: PmapLook[]
       }
+      // one appearance, loaded: every texture of it, ready before the sprite is
+      // added, so a change of picture mid-round costs nothing at the moment it
+      // happens
+      interface Look { frames: Texture[]; views: Record<string, Texture[]> | null; fps: number }
       const animAssets: { sp: Sprite; frames: Texture[]; fps: number; t: number }[] = []
-      const lifeAssets: { sp: Sprite; life: Life; home: { x: number; y: number }; baseSX: number; flipX: boolean; views: Record<string, Texture[]> | null; fps: number; animT: number; baseRot: number }[] = []
+      const lifeAssets: { sp: Sprite; life: Life; home: { x: number; y: number }; baseSX: number; bodyW: number; flipX: boolean; looks: Look[]; animT: number; baseRot: number }[] = []
+      /* THE THINGS A WALKER HAS TO GO ROUND.
+       *
+       * A placement that never moves was put on its spot on purpose and must
+       * never be shoved off it. Keeping it out of the push altogether is how
+       * that was done, and it is half right: out of the SET, it is also nothing
+       * to push off, so a walker goes straight through it. It takes part here
+       * and its own answer is thrown away, so it pushes and never moves.
+       *
+       * WHICH ONES: the ones a walker can get close enough to touch. That is the
+       * floor already in the bundle rather than a list of names, and it is the
+       * same floor the behaviours are fenced by. Somewhere a walker can never
+       * reach is somewhere the floor is already keeping them apart, and a
+       * keep-out circle there would only shove people for a reason nobody on
+       * screen can see. See walkerCanReach at the top of this file for why it is
+       * a reach and not the feet, and for what it keeps on the hub.
+       *
+       * Worked out once, here, because a stander never moves. */
+      const obstacles: { x: number; y: number; r: number }[] = []
       try {
         const ar = await fetch(`${dir}/assets.json`)
         // the content-type guard matters: the dev server answers a missing file with the
@@ -462,31 +669,75 @@ export default function PmapScene() {
         if (ar.ok && (ar.headers.get('content-type') || '').includes('json')) {
           const aj: { assets?: PmapAsset[] } = await ar.json()
           let placed = 0
+          /* ONE APPEARANCE, loaded. It runs for the entry itself, which is look
+           * 0 and exactly what it always was, and again for each extra look a
+           * sequence switches to. One body, so a look is loaded the same way the
+           * placement is and there is no second path to keep in step. */
+          const loadLook = async (s: PmapLook): Promise<Look | null> => {
+            const srcs = s.frames && s.frames.length ? s.frames : s.src ? [s.src] : []
+            if (!srcs.length) return null
+            const frames: Texture[] = await Promise.all(srcs.map((u) => Assets.load(`${dir}/${u}`)))
+            for (const ft of frames) ft.source.scaleMode = 'nearest'
+            /* VIEWS: the frames of each heading, for something that has to
+             * face where it is walking. A crab gets by on a left-right flip;
+             * a person crossing a plaza does not. The whole list per heading
+             * is loaded, so a heading drawn as a walk cycle walks, and a
+             * bundle exported before that carries one entry per heading and
+             * comes back as a still by the same code. */
+            let views: Record<string, Texture[]> | null = null
+            if (s.dirs && Object.keys(s.dirs).length) {
+              views = {}
+              for (const [k, arr] of Object.entries(s.dirs)) {
+                if (!Array.isArray(arr)) continue
+                const paths = arr.filter((u) => !!u)
+                if (!paths.length) continue
+                const ts: Texture[] = await Promise.all(paths.map((u) => Assets.load(`${dir}/${u}`)))
+                for (const vt of ts) vt.source.scaleMode = 'nearest'
+                views[k] = ts
+              }
+            }
+            // the 6 matches MAPVIS (editor.ts assetFrame) for a view set, which
+            // never gets an fps written; a plain frame list keeps its old 4
+            return { frames, views, fps: s.fps || (views ? 6 : 4) }
+          }
           for (const a of aj.assets ?? []) {
             try {
+              const look0 = await loadLook(a)
+              if (!look0) { console.warn(`[pmap] asset "${a.id}" lists no src and no frames, skipped`); continue }
+              const frames = look0.frames
+              const views = look0.views
               const srcs = a.frames && a.frames.length ? a.frames : a.src ? [a.src] : []
-              if (!srcs.length) { console.warn(`[pmap] asset "${a.id}" lists no src and no frames, skipped`); continue }
-              const frames: Texture[] = await Promise.all(srcs.map((s) => Assets.load(`${dir}/${s}`)))
-              for (const ft of frames) ft.source.scaleMode = 'nearest'
-              /* VIEWS: the frames of each heading, for something that has to
-               * face where it is walking. A crab gets by on a left-right flip;
-               * a person crossing a plaza does not. The whole list per heading
-               * is loaded, so a heading drawn as a walk cycle walks, and a
-               * bundle exported before that carries one entry per heading and
-               * comes back as a still by the same code. */
-              const dirsRaw = (a as { dirs?: Record<string, string[]> }).dirs
-              let views: Record<string, Texture[]> | null = null
-              if (dirsRaw && Object.keys(dirsRaw).length) {
-                views = {}
-                for (const [k, arr] of Object.entries(dirsRaw)) {
-                  if (!Array.isArray(arr)) continue
-                  const paths = arr.filter((s) => !!s)
-                  if (!paths.length) continue
-                  const ts: Texture[] = await Promise.all(paths.map((s) => Assets.load(`${dir}/${s}`)))
-                  for (const vt of ts) vt.source.scaleMode = 'nearest'
-                  views[k] = ts
-                }
-              }
+              /* every look up front, so the swap is a texture assignment rather
+               * than a load mid-round.
+               *
+               * A look that will not load KEEPS ITS SLOT and holds look 0 in it.
+               * Dropping it would look tidier and would be a lie: art is an
+               * index, so a missing boulder at index 1 would silently promote
+               * index 2 into its place and a troll/boulder/troll sequence would
+               * draw its third picture where its second belongs. A wrong picture
+               * reads as a bug in the sequence; the first picture reads as a
+               * look that did not arrive, which is what happened.
+               *
+               * They load together rather than one after another because the hub
+               * is 75 placements and each look can be eight headings of six
+               * frames; awaiting them in turn would put the whole map behind one
+               * png at a time. Assets.load already dedupes by url, so two
+               * placements sharing a picture still pay for it once. */
+              const looks: Look[] = [
+                look0,
+                ...(await Promise.all(
+                  (a.looks ?? []).map(async (L, i) => {
+                    try {
+                      const lk = await loadLook(L)
+                      if (lk) return lk
+                      console.warn(`[pmap] asset "${a.id}" look ${i + 1} lists no src and no frames, using its first picture`)
+                    } catch (e) {
+                      console.warn(`[pmap] asset "${a.id}" look ${i + 1} failed to load, using its first picture`, e)
+                    }
+                    return look0
+                  }),
+                )),
+              ]
               const sp = new Sprite(frames[0])
               sp.anchor.set(0.5, 1)
               sp.position.set(a.x, a.y)
@@ -498,35 +749,68 @@ export default function PmapScene() {
               sp.rotation = Number(a.rot) || 0
               sp.zIndex = a.y
               world.addChild(sp)
-              // a random start phase so two copies of the same asset never flap in lockstep
-              if (frames.length > 1) animAssets.push({ sp, frames, fps: a.fps || 4, t: Math.random() * frames.length })
               // a placement that MOVES carries a few numbers instead of extra
               // frames, and the ticker below works out where it is. See life.ts:
               // travel cannot be baked into an animation, because an animation
               // has to loop and a wander that returns to its start is a dance.
-              const lf = cleanLife((a as { life?: unknown }).life)
+              const lf = cleanLife(a.life)
+              /* art is an INDEX, and a name in that slot is the one way a
+               * sequence fails without a symptom: cleanLife runs Number() on it
+               * (life.ts, num), gets NaN, and falls back to 0, so the placement
+               * draws its first picture for the whole round and is
+               * indistinguishable from a sequence that was only ever meant to
+               * change timing. The planner answers art as a name and MAPVIS
+               * resolves it before it saves, so a name reaching a bundle means
+               * that export predates the resolver. Say it once per placement.
+               *
+               * Array.isArray rather than a ?? [], because states is whatever
+               * the file says and a bundle carrying it as an object answered
+               * that object, then threw on .find and took the whole placement
+               * down with it. cleanLife shrugs at a bad states and draws the
+               * thing anyway; a warning has no business being stricter than the
+               * guard it is warning about. */
+              const rawStates = (a.life as { states?: unknown } | null)?.states
+              const badArt = (Array.isArray(rawStates) ? (rawStates as { art?: unknown }[]) : [])
+                .find((s) => s && s.art != null && !Number.isFinite(Number(s.art)))
+              if (badArt) console.warn(`[pmap] asset "${a.id}" has a sequence state whose art is "${String(badArt.art)}" and not an index, so it will draw its first picture throughout. Re-export the map from MAPVIS.`)
+              /* ONE OWNER PER SPRITE'S TEXTURE. A placement that moves cycles
+               * its frames in the life pass below, because which frames it owns
+               * changes as the round goes round and two loops writing the same
+               * texture would fight over it. Everything else runs here, with a
+               * random start phase so two copies never flap in lockstep. */
+              if (frames.length > 1 && !lf) animAssets.push({ sp, frames, fps: look0.fps, t: Math.random() * frames.length })
               if (lf) {
                 // airborne things fly OVER the map rather than sorting into it
                 if (lf.airborne) sp.zIndex = 99000 + (a.y | 0)
-                // its views run on their own frame clock, started off-beat for
-                // the reason the animated assets above are: two of one figure
+                // its frames run on their own clock, started off-beat for the
+                // reason the animated assets above are: two of one figure
                 // stepping in time read as one thing rather than two people
-                // the 6 matches MAPVIS (editor.ts assetFrame), and it is the one
-                // that fires: a placement with views never gets an fps written,
-                // so a 4 here would walk every cycle slower than the preview did
-                lifeAssets.push({ sp, life: lf, home: { x: a.x, y: a.y }, baseSX: Math.abs(asx), flipX: !!a.flipX, views, fps: a.fps || 6, animT: Math.random() * 8, baseRot: Number(a.rot) || 0 })
-              } else if (views) {
-                /* A view set that never travels still has frames worth running.
-                 * Someone breathing at a stall has no life to carry a clock, and
-                 * views only lived on lifeAssets, so every standing figure held
-                 * frame zero forever. It rests in whichever heading its own src
-                 * belongs to, which is the one the placement was made facing. */
-                const rest =
-                  Object.keys(views).find((k) => (srcs[0] || '').endsWith(k + '-0.png')) ||
-                  (views.south ? 'south' : Object.keys(views)[0])
-                const set = views[rest]
-                if (set && set.length > 1)
-                  animAssets.push({ sp, frames: set, fps: a.fps || 6, t: Math.random() * set.length })
+                /* how wide its BODY is, measured once off the picture it was
+                 * placed with, and off that picture's INK rather than the canvas
+                 * it was saved on. Personal space belongs to the placement, not
+                 * to what it happens to be wearing this second, and MAPVIS
+                 * measures it the same way (editor.ts bodyW stays on look 0), so
+                 * a troll and the boulder it becomes shove alike on both sides. */
+                lifeAssets.push({ sp, life: lf, home: { x: a.x, y: a.y }, baseSX: Math.abs(asx), bodyW: Math.abs(asx) * inkOf(frames[0]), flipX: !!a.flipX, looks, animT: Math.random() * 8, baseRot: Number(a.rot) || 0 })
+              } else {
+                // it stands where it was put, so whether a walker has to go
+                // round it is a question about the ground near it and the answer
+                // never changes. Same body width the movers use.
+                const r = bodyRadius(Math.abs(asx) * inkOf(frames[0]))
+                if (walkerCanReach(a.x, a.y, r, mp.yScale, canStand)) obstacles.push({ x: a.x, y: a.y, r })
+                if (views) {
+                  /* A view set that never travels still has frames worth running.
+                   * Someone breathing at a stall has no life to carry a clock, and
+                   * views only lived on lifeAssets, so every standing figure held
+                   * frame zero forever. It rests in whichever heading its own src
+                   * belongs to, which is the one the placement was made facing. */
+                  const rest =
+                    Object.keys(views).find((k) => (srcs[0] || '').endsWith(k + '-0.png')) ||
+                    (views.south ? 'south' : Object.keys(views)[0])
+                  const set = views[rest]
+                  if (set && set.length > 1)
+                    animAssets.push({ sp, frames: set, fps: look0.fps, t: Math.random() * set.length })
+                }
               }
               placed++
             } catch (e) {
@@ -812,17 +1096,35 @@ export default function PmapScene() {
            * clock, so the whole set is knowable at once and nothing has to be
            * remembered between frames. */
           const res = lifeAssets.map((q) => lifeAt(q.life, lt, q.home, canStand))
-          const push = separate(
-            lifeAssets.map((q, i) => ({
+          /* AN IMMOVABLE THING IS LISTED TWICE.
+           *
+           * separate() splits a pair's correction down the middle, so a walker
+           * meeting something that throws its own half away ends the frame
+           * still half inside it. That is not an approximation of a fixed flag
+           * inside separate(): a pair splits evenly, so paying the discarded
+           * half a second time IS the whole correction. Verified over 180000
+           * push vectors against a separate() carrying a real fixed flag: worst
+           * difference 1.8e-15px.
+           *
+           * Thor is one of them. He is never pushed, so his walking is
+           * untouched and people step out of his way instead of him walking
+           * through them. His body is the hip probe the walk already measures
+           * him by, which is the one number about the character map.json and
+           * MAPVIS both carry. */
+          const fixed = [...obstacles, { x: pos.x, y: pos.y, r: Math.max(BODY_MIN, HIP) }]
+          const pts = [
+            ...lifeAssets.map((q, i) => ({
               x: q.home.x + res[i].dx,
               y: q.home.y + res[i].dy,
-              // half the drawn width is the body, which is what should not overlap
-              r: Math.max(2, (q.sp.width || 8) * 0.35),
+              r: bodyRadius(q.bodyW),
             })),
-            mp.yScale,
-            1,
-            canStand,
-          )
+            ...fixed,
+            ...fixed,
+          ]
+          // the floor guard runs here, not inside separate(), so that the slide
+          // it does with a push it cannot deliver whole is the same rule in the
+          // editor preview. See floorPush at the top of this file.
+          const push = floorPush(pts, separate(pts, mp.yScale, 1), canStand)
           for (let qi = 0; qi < lifeAssets.length; qi++) {
             const q = lifeAssets[qi]
             // walkOnly makes the floor a second fence, and the game's own
@@ -840,7 +1142,14 @@ export default function PmapScene() {
             // through. The anchor is the feet, so a boat leans on its waterline
             // rather than swinging round its mast.
             q.sp.rotation = q.baseRot + at.rot
-            if (q.views) {
+            /* WHICH PICTURE. Without a sequence at.art is always 0, which is
+             * the placement's own art, so this line changes nothing about
+             * anything that ships today. An index past the end of the list falls
+             * back to the first picture: a bundle can name up to art 7 while
+             * carrying fewer looks than that, and drawing what it started as
+             * beats drawing nothing. */
+            const look = q.looks[at.art] || q.looks[0]
+            if (look.views) {
               // it has a view for where it is going: use it, and do not put the
               // motion mirror on top or it would face backwards. Its own flipX
               // still stands, because that one is a choice somebody made about
@@ -853,14 +1162,25 @@ export default function PmapScene() {
               // it off the clock alone made a figure stood at the end of a leg
               // march on the spot, so the stride only runs while it travels and
               // waits on its first frame, which is the pose it was drawn from.
-              if (at.moving) q.animT += dt * q.fps
-              const set = q.views[at.facing] || q.views[NEAREST_VIEW[at.facing]] || q.views.south
-              if (set && set.length) {
-                const vt = set[at.moving ? Math.floor(q.animT) % set.length : 0]
-                if (q.sp.texture !== vt) q.sp.texture = vt
-              }
+              if (at.moving) q.animT += dt * look.fps
+              const set = look.views[at.facing] || look.views[NEAREST_VIEW[at.facing]] || look.views.south
+              /* a heading this set does not have, whose nearest it does not have
+               * either, and with no south to fall back on: a four-heading import
+               * can miss on all three hops. Writing nothing there used to be
+               * harmless, because a placement only ever wore one picture and the
+               * one it already had was the right one. With looks it is not: the
+               * sprite would keep the PREVIOUS look's texture and the swap would
+               * quietly not happen. Its own frame 0 is always loaded, so land on
+               * that instead and the picture always changes when art does. */
+              const vt = set && set.length ? set[at.moving ? Math.floor(q.animT) % set.length : 0] : look.frames[0]
+              if (q.sp.texture !== vt) q.sp.texture = vt
               q.sp.scale.x = q.baseSX * (q.flipX ? -1 : 1)
             } else {
+              // a plain frame list belongs to this pass too, so one loop owns
+              // the texture however the round turns
+              if (look.frames.length > 1) q.animT += dt * look.fps
+              const ft = look.frames[look.frames.length > 1 ? Math.floor(q.animT) % look.frames.length : 0]
+              if (q.sp.texture !== ft) q.sp.texture = ft
               const face = at.flip !== q.flipX
               q.sp.scale.x = q.baseSX * (face ? -1 : 1)
             }
