@@ -364,32 +364,70 @@ export default function PmapScene() {
       const params = new URLSearchParams(window.location.search)
       const mapId = params.get('map') || 'quayprop'
       const DBG = params.has('dbg')
-      const dir = `/maps-painted/${mapId}`
+
+      /* WHERE A MAP COMES FROM.
+       *
+       * public/maps-painted/ is a folder somebody copied by hand, and that hand
+       * copy is the reason the hub was never in the game: MAPS.md section 8 has
+       * said "one press to publish is on the list and is not built" since August.
+       *
+       * It is built. MAPVIS publishes immutable versions and serves them from
+       * /api/v1, so ask the platform first and fall back to the committed
+       * folder. Nothing that works today stops working, and a map published a
+       * minute ago is in the game with no commit and no copy.
+       *
+       *   ?map=hub        the newest published version
+       *   ?map=hub&v=3    that exact version, which never changes
+       *   ?src=local      ignore the platform, use the committed folder
+       */
+      const wantLocal = params.get('src') === 'local'
+      const host = (import.meta.env?.VITE_MAPVIS_URL || '').replace(/\/+$/, '')
+      const pinned = params.get('v')
+      let dir = `/maps-painted/${mapId}`
+      let mp: PmapJson | null = null
+
+      if (!wantLocal) {
+        try {
+          const q = pinned ? `?v=${encodeURIComponent(pinned)}` : ''
+          const man = await fetch(`${host}/api/v1/maps/${encodeURIComponent(mapId)}${q}`).then((r) =>
+            r.ok ? r.json() : Promise.reject(new Error(String(r.status))),
+          )
+          // every file of a published version sits under one immutable prefix
+          dir = `${host}/api/v1/maps/${encodeURIComponent(mapId)}/file/${man.version}`
+          mp = man.map as PmapJson
+          console.log(`[pmap] ${mapId} v${man.version} from the platform`)
+        } catch {
+          /* not published, or no platform reachable: the committed folder */
+        }
+      }
 
       // ---- the bundle: map.json first, then the three images, all data before any Pixi ----
-      let mp: PmapJson
       try {
-        mp = await fetch(`${dir}/map.json`).then((r) => {
-          if (!r.ok) throw new Error(`map.json ${r.status}`)
-          return r.json()
-        })
+        if (!mp)
+          mp = await fetch(`${dir}/map.json`).then((r) => {
+            if (!r.ok) throw new Error(`map.json ${r.status}`)
+            return r.json()
+          })
       } catch (e) {
         console.error(`[pmap] could not load ${dir}/map.json`, e)
         if (hostRef.current) hostRef.current.innerHTML =
-          `<div style="color:#c9d6e2;font:14px system-ui;padding:24px">PMAP: no bundle for "${mapId}". Export it from MAPVIS into public/maps-painted/${mapId}/.</div>`
+          `<div style="color:#c9d6e2;font:14px system-ui;padding:24px">PMAP: no map called "${mapId}". Publish it from MAPVIS, or drop a bundle in public/maps-painted/${mapId}/.</div>`
         return
       }
+      // narrowed once, here, so nothing below has to keep asking
+      if (!mp) return
+      const map: PmapJson = mp
       const [sceneImg, levelsImg, occImg] = await Promise.all([
         loadImage(`${dir}/scene.png`),
         loadImage(`${dir}/levels.png`),
         loadImage(`${dir}/occluders.png`).catch(() => null),
       ])
       if (destroyed) return
-      const W = mp.w, H = mp.h
+      const W = map.w, H = map.h
 
       // ---- the door events: tolerant parse. No events field, no events; a
       // type this build does not know is skipped, never an error. ----
-      const doors = (Array.isArray(mp.events) ? mp.events : [])
+      const doors = (Array.isArray(map.events) ? map.events : [])
         .filter((e) => e && e.type === 'door' && isFinite(Number(e.x)) && isFinite(Number(e.y)))
         .map((e) => ({
           x: Number(e.x), y: Number(e.y),
@@ -426,9 +464,9 @@ export default function PmapScene() {
       // A step is legal when the level values differ by <= the tolerance, so plateaus only
       // connect through their painted stairs and a terrace edge refuses by the same rule
       // that lets the stair through.
-      const TOL = mp.encoding.stepTolerance ?? 10
-      const HIP = mp.character.hip
-      const HIPDY = mp.character.hipDY
+      const TOL = map.encoding.stepTolerance ?? 10
+      const HIP = map.character.hip
+      const HIPDY = map.character.hipDY
       const lvlAt = (x: number, y: number) => {
         const xi = Math.round(x), yi = Math.round(y)
         if (xi < 0 || yi < 0 || xi >= W || yi >= H) return 0
@@ -628,7 +666,7 @@ export default function PmapScene() {
       // own pixels and z-keyed at its exported baseline, so it covers the character exactly
       // while his feet are above (screen-y less than) that baseline and never otherwise. ----
       if (odata) {
-        for (const o of mp.occluders) {
+        for (const o of map.occluders) {
           const cv = document.createElement('canvas'); cv.width = W; cv.height = H
           const g = cv.getContext('2d')!
           const im = g.createImageData(W, H)
@@ -880,15 +918,15 @@ export default function PmapScene() {
         const free = lifeAssets.filter((q) => !q.life.walkOnly)
         for (const s of standing)
           if (
-            walkerCanReach(s.x, s.y, s.r, mp.yScale, canStand) ||
-            free.some((q) => freeReach(s.x, s.y, s.r, mp.yScale, q.life.bounds))
+            walkerCanReach(s.x, s.y, s.r, map.yScale, canStand) ||
+            free.some((q) => freeReach(s.x, s.y, s.r, map.yScale, q.life.bounds))
           )
             obstacles.push(s)
       }
 
       // ---- &dbg=1: the levels mask, color-coded per level value, over the painting ----
       if (DBG) {
-        const enc = mp.encoding
+        const enc = map.encoding
         const colOf: Record<number, [number, number, number, number]> = {
           [enc.blocked]: [239, 68, 68, 64],
           [enc.L0]: [46, 204, 113, 116],
@@ -927,11 +965,11 @@ export default function PmapScene() {
       const rig = scanRows(walkT.south[0])
       // Thor draws SMALLER than the tool's authoring height (Ash, 2026-08-15: "thor needs
       // to be a lot smaller" — the marker carries findability, not his size). ?ch=N tunes.
-      const charH = Number(params.get('ch') || 0) || Math.max(8, Math.round(mp.character.heightPx * 0.6))
+      const charH = Number(params.get('ch') || 0) || Math.max(8, Math.round(map.character.heightPx * 0.6))
       const thorScale = charH / (rig ? rig.feet - rig.top + 1 : 67)
       // twice the authored tool speed by default (Ash, 2026-08-15: "make thor faster");
       // ?spd=F tunes the factor
-      const SPD = mp.speed * (Number(params.get('spd') || 0) || 2)
+      const SPD = map.speed * (Number(params.get('spd') || 0) || 2)
       for (const d of DIRS8) {
         walkT[d] = walkT[d].map((t) => {
           const r = scanRows(t)
@@ -959,7 +997,7 @@ export default function PmapScene() {
           }
         return [sx, sy]
       }
-      const [spx, spy] = findGround(mp.spawn[0], mp.spawn[1])
+      const [spx, spy] = findGround(map.spawn[0], map.spawn[1])
       const pos = { x: spx, y: spy }
 
       // ---- the YOU marker: a proper map pin (Ash's spec 2026-08-15: "half triangle half
@@ -1076,7 +1114,7 @@ export default function PmapScene() {
         const moving = (dx !== 0 || dy !== 0) && !fade
         if (moving) {
           const m = Math.hypot(dx, dy); dx /= m; dy /= m
-          const nx = pos.x + dx * SPD * dt, ny = pos.y + dy * SPD * dt * mp.yScale
+          const nx = pos.x + dx * SPD * dt, ny = pos.y + dy * SPD * dt * map.yScale
           // level-aware step, judged FROM the current level so plateaus only connect
           // through their stairs
           const cur = lvlAt(pos.x, pos.y)
@@ -1086,7 +1124,7 @@ export default function PmapScene() {
           if (canStandFrom(nx, ny, cur) || stuck) { pos.x = nx; pos.y = ny }
           else if (canStandFrom(nx, pos.y, cur)) pos.x = nx
           else if (canStandFrom(pos.x, ny, cur)) pos.y = ny
-          thor.facing = dirFromVec(dx, dy * mp.yScale)
+          thor.facing = dirFromVec(dx, dy * map.yScale)
           thor.animT += dt * 9
         } else thor.animT = 0
         const fr = moving ? walkT[thor.facing][1 + (Math.floor(thor.animT) % 5)] : walkT[thor.facing][0]
@@ -1199,7 +1237,7 @@ export default function PmapScene() {
             ...fixed.map(() => false),
             ...fixed.map(() => false),
           ]
-          const push = floorPush(pts, separate(pts, mp.yScale, 1), canStand, fenced)
+          const push = floorPush(pts, separate(pts, map.yScale, 1), canStand, fenced)
           for (let qi = 0; qi < lifeAssets.length; qi++) {
             const q = lifeAssets[qi]
             // walkOnly makes the floor a second fence, and the game's own
@@ -1282,7 +1320,7 @@ export default function PmapScene() {
       })
 
       ;(window as any).__sceneReady = true
-      console.log(`[pmap] loaded "${mp.id}" ${W}x${H} zoom x${Z}${coastCut ? ' with ocean' : ' (interior, no ocean)'}${doors.length ? ` · ${doors.length} door${doors.length > 1 ? 's' : ''}` : ''}. WASD to walk.`)
+      console.log(`[pmap] loaded "${map.id}" ${W}x${H} zoom x${Z}${coastCut ? ' with ocean' : ' (interior, no ocean)'}${doors.length ? ` · ${doors.length} door${doors.length > 1 ? 's' : ''}` : ''}. WASD to walk.`)
     }
 
     ;(window as any).__sceneReady = false
