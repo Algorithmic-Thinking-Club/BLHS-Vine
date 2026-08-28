@@ -279,11 +279,22 @@ function floorPush(
 }
 
 /* the ink width of one loaded picture, read once and kept against that very
- * texture. Assets.load dedupes by url, so two placements wearing the same
- * picture measure it once between them, and nothing here runs per frame. */
-const inkCache = new Map<unknown, number>()
+ * picture. Assets.load dedupes by url, so two placements wearing the same
+ * picture measure it once between them, and nothing here runs per frame.
+ *
+ * THE KEY IS THE RECTANGLE, NOT THE SOURCE. On an atlas bundle every frame the
+ * map owns lives on one sheet, so one TextureSource is shared by all 794 of
+ * them: a cache keyed on the source would hand whichever frame was measured
+ * first to every placement on the island, and every body radius on the map
+ * would come from one picture. The readback has the same shape of bug, so it
+ * takes the frame's rectangle out of the sheet rather than the whole sheet
+ * squashed into the frame's size. A loose png's frame is the whole image, so on
+ * one of those both of these do exactly what they did before the atlas. */
+const inkCache = new Map<string, number>()
 function inkOf(tex: Texture): number {
-  const hit = inkCache.get(tex.source)
+  const f = tex.frame
+  const key = `${tex.source.uid}:${f.x},${f.y},${f.width},${f.height}`
+  const hit = inkCache.get(key)
   if (hit !== undefined) return hit
   const w = Math.round(tex.width)
   const h = Math.round(tex.height)
@@ -293,13 +304,13 @@ function inkOf(tex: Texture): number {
     c.width = w
     c.height = h
     const g = c.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D
-    g.drawImage(tex.source.resource as CanvasImageSource, 0, 0, w, h)
+    g.drawImage(tex.source.resource as CanvasImageSource, f.x, f.y, f.width, f.height, 0, 0, w, h)
     out = inkWidth(g.getImageData(0, 0, w, h).data, w, h)
   } catch {
     // a picture that cannot be read back keeps its canvas width, which is what
     // this measured by before it measured anything better
   }
-  inkCache.set(tex.source, out)
+  inkCache.set(key, out)
   return out
 }
 
@@ -366,6 +377,31 @@ export default function PmapScene() {
       const mapId = params.get('map') || 'quayprop'
       const DBG = params.has('dbg')
 
+      /* WHAT OPENING THIS MAP COSTS, MEASURED HERE RATHER THAN CLAIMED.
+       *
+       * The hub published 800 loose pngs and three page loads emptied a free
+       * tier's daily download allowance, which is why the atlas exists. MAPVIS
+       * says at publish that a packed map costs six requests to open, and that
+       * sentence was true about the bundle and false about this scene, because
+       * this scene asked for every loose png anyway. So the reader counts what
+       * it actually asks for and says it out loud, and the next time somebody
+       * changes loading the number moves in the console instead of in a bucket.
+       *
+       * Two counts, because they can disagree and the disagreement is the
+       * interesting part. `asked` is every distinct url this scene requests,
+       * which is what the code costs; performance.getEntriesByType('resource')
+       * is what the browser really fetched, which catches a duplicate url the
+       * set folds away and anything loaded by a helper outside this file. The
+       * timing buffer holds 250 entries by default and a loose hub open is 800,
+       * so it is widened first or the honest count silently truncates. */
+      const asked = new Set<string>()
+      const req = (u: string) => { asked.add(u); return u }
+      // a file the bundle simply does not have was asked for but is not part of
+      // what opening this map costs
+      const unreq = (u: string) => { asked.delete(u) }
+      try { performance.setResourceTimingBufferSize(4000) } catch { /* not every engine has it */ }
+      const netAtStart = performance.getEntriesByType('resource').length
+
       /* WHERE A MAP COMES FROM.
        *
        * public/maps-painted/ is a folder somebody copied by hand, and that hand
@@ -390,7 +426,7 @@ export default function PmapScene() {
       if (!wantLocal) {
         try {
           const q = pinned ? `?v=${encodeURIComponent(pinned)}` : ''
-          const man = await fetch(`${host}/api/v1/maps/${encodeURIComponent(mapId)}${q}`).then((r) =>
+          const man = await fetch(req(`${host}/api/v1/maps/${encodeURIComponent(mapId)}${q}`)).then((r) =>
             r.ok ? r.json() : Promise.reject(new Error(String(r.status))),
           )
           // every file of a published version sits under one immutable prefix
@@ -405,7 +441,7 @@ export default function PmapScene() {
       // ---- the bundle: map.json first, then the three images, all data before any Pixi ----
       try {
         if (!mp)
-          mp = await fetch(`${dir}/map.json`).then((r) => {
+          mp = await fetch(req(`${dir}/map.json`)).then((r) => {
             if (!r.ok) throw new Error(`map.json ${r.status}`)
             return r.json()
           })
@@ -419,9 +455,15 @@ export default function PmapScene() {
       if (!mp) return
       const map: PmapJson = mp
       const [sceneImg, levelsImg, occImg] = await Promise.all([
-        loadImage(`${dir}/scene.png`),
-        loadImage(`${dir}/levels.png`),
-        loadImage(`${dir}/occluders.png`).catch(() => null),
+        loadImage(req(`${dir}/scene.png`)),
+        loadImage(req(`${dir}/levels.png`)),
+        /* counted only if it arrives. A room map carries no occluders, and
+         * counting the 404 made the tally one higher than the bundle has files,
+         * which would show up forever as the very gap the log calls a bug. */
+        loadImage(req(`${dir}/occluders.png`)).catch(() => {
+          unreq(`${dir}/occluders.png`)
+          return null
+        }),
       ])
       if (destroyed) return
       const W = map.w, H = map.h
@@ -541,8 +583,13 @@ export default function PmapScene() {
       let sea: Container | null = null
       if (coastCut) {
         const waterV = await loadWaterVariants()
+        // the 16 sea tiles the helper asks for, named here because the helper is
+        // in ../ocean.ts (loadWaterVariants, one Assets.load per i of 16) and
+        // this file counts what a map open costs. Engine art, not the bundle:
+        // it is the same 16 on every island and the atlas does not touch it.
+        for (let i = 0; i < 16; i++) req(`/art/intro/water-n/${i}.png`)
         let waterFallback: Texture | undefined
-        try { waterFallback = await Assets.load('/art/iso/water.png') } catch { /* pools carry it */ }
+        try { waterFallback = await Assets.load(req('/art/iso/water.png')) } catch { /* pools carry it */ }
 
         // distance-to-land on a coarse cell grid, seeded from every opaque painting pixel.
         // The grid only needs to span the depth ramp: past its rim distPx returns a huge
@@ -675,8 +722,24 @@ export default function PmapScene() {
         }
       }
 
-      // ---- the painting, over the sea, under everything alive ----
-      const sceneT: Texture = await Assets.load(`${dir}/scene.png`)
+      /* ---- the painting, over the sea, under everything alive ----
+       *
+       * Built from the image already in hand rather than fetched again. scene.png
+       * was downloaded above, as an HTMLImageElement, because the walk code needs
+       * to read its alpha; Assets.load of the same url is a second request for
+       * the largest file in the bundle, normally served out of the browser cache
+       * and normally not, on a cold load or a Chromebook under memory pressure.
+       * Same bytes, same pixels, one download. */
+      /* skipCache, because the key would be the Image and never the url.
+       *
+       * Texture.from with an element routes to resourceToTexture, which does
+       * Cache.set keyed by that element and only ever drops it on the texture's
+       * own destroy event. The teardown below calls destroy on the application,
+       * which does not destroy textures, and a fresh Image is made on every
+       * mount. So each visit to a map would leave a whole decoded painting and
+       * its source in the cache for the life of the tab. Assets.load was keyed
+       * by url and shared one entry across mounts; this keeps that property. */
+      const sceneT: Texture = Texture.from(sceneImg, true)
       sceneT.source.scaleMode = 'nearest'
       const base = new Sprite(sceneT)
       base.zIndex = 0
@@ -724,7 +787,20 @@ export default function PmapScene() {
        * headings, whichever MAPVIS packed (server/api.mjs packLook). The
        * placement itself is written in this shape at the top level and every
        * extra look is written in it again, so there is one shape to read. */
-      interface PmapLook { src?: string; frames?: string[]; fps?: number; dirs?: Record<string, string[]> }
+      /* THE ATLAS FIELDS, alongside the paths rather than instead of them.
+       *
+       * server/store/atlas.mjs packs every frame a map owns onto one sheet and
+       * atlasify() writes a rectangle beside each path, matched index for index:
+       * srcAt beside src, framesAt beside frames, dirsAt beside dirs. The loose
+       * pngs are still published, so both readings of the same bundle are there,
+       * and a bundle published before the atlas existed carries no rectangles.
+       * A rectangle is [x, y, w, h] in sheet pixels, exactly the size the frame
+       * went in at: nothing is resampled and nothing is trimmed. */
+      type Rect = [number, number, number, number]
+      interface PmapLook {
+        src?: string; frames?: string[]; fps?: number; dirs?: Record<string, string[]>
+        srcAt?: Rect; framesAt?: Rect[]; dirsAt?: Record<string, Rect[]>
+      }
       interface PmapAsset extends PmapLook {
         id: string; group: string
         x: number; y: number; scale: number
@@ -772,21 +848,75 @@ export default function PmapScene() {
       const standing: { x: number; y: number; r: number }[] = []
       const obstacles: { x: number; y: number; r: number }[] = []
       try {
-        const ar = await fetch(`${dir}/assets.json`)
+        const ar = await fetch(req(`${dir}/assets.json`))
         // the content-type guard matters: the dev server answers a missing file with the
         // SPA's index.html at 200, and only a real json body means the bundle has assets
         if (ar.ok && (ar.headers.get('content-type') || '').includes('json')) {
-          const aj: { assets?: PmapAsset[] } = await ar.json()
+          const aj: { assets?: PmapAsset[]; atlas?: string } = await ar.json()
           let placed = 0
+          /* THE SHEET, DOWNLOADED ONCE.
+           *
+           * This is the whole point of the atlas. The hub is 794 frames, so
+           * before this the reader made 794 requests for a map that publishes
+           * five files, and MAPVIS's own publish log said the map cost six.
+           * Backblaze's free tier allows 2,500 downloads a day and three opens
+           * emptied it, which is a map that cannot be handed to a classroom.
+           *
+           * If it will not load, sheet stays null and every frame below takes
+           * the path it took before the atlas existed. Loud, because a silent
+           * fall back to 794 requests is exactly the failure this is here to
+           * stop, and it looks identical on screen. */
+          let sheet: TextureSource | null = null
+          if (aj.atlas) {
+            try {
+              const at: Texture = await Assets.load(req(`${dir}/${aj.atlas}`))
+              at.source.scaleMode = 'nearest'
+              sheet = at.source
+            } catch (e) {
+              console.warn(`[pmap] the atlas ${aj.atlas} would not load, falling back to one request per frame`, e)
+            }
+          }
+          /* one frame of the sheet, as a texture.
+           *
+           * In Pixi a frame of an atlas is a Texture over the shared source with
+           * a Rectangle, which uploads nothing: the sheet is the only thing on
+           * the GPU and every placement is a view into it. Kept by rectangle so
+           * two placements wearing the same picture share one Texture object,
+           * which is what Assets.load's url dedupe did for them before. */
+          const cells = new Map<string, Texture>()
+          const cellOf = (r: Rect, src: TextureSource): Texture => {
+            const key = `${r[0]},${r[1]},${r[2]},${r[3]}`
+            const hit = cells.get(key)
+            if (hit) return hit
+            const t = new Texture({ source: src, frame: new Rectangle(r[0], r[1], r[2], r[3]) })
+            cells.set(key, t)
+            return t
+          }
+          /* ONE FRAME, from wherever this bundle keeps it. The rectangle wins
+           * when there is a sheet to cut it out of; otherwise it is the loose
+           * png this always loaded, by the same call, so a failure still throws
+           * and is still caught per placement. Nothing else about the frame
+           * changes: same pixels, same size, same nearest sampling. */
+          const frameOf = async (u: string, r?: Rect): Promise<Texture> => {
+            if (r && sheet) return cellOf(r, sheet)
+            const t: Texture = await Assets.load(req(`${dir}/${u}`))
+            t.source.scaleMode = 'nearest'
+            return t
+          }
           /* ONE APPEARANCE, loaded. It runs for the entry itself, which is look
            * 0 and exactly what it always was, and again for each extra look a
            * sequence switches to. One body, so a look is loaded the same way the
            * placement is and there is no second path to keep in step. */
           const loadLook = async (s: PmapLook): Promise<Look | null> => {
-            const srcs = s.frames && s.frames.length ? s.frames : s.src ? [s.src] : []
+            const listed = !!(s.frames && s.frames.length)
+            const srcs = listed ? s.frames! : s.src ? [s.src] : []
             if (!srcs.length) return null
-            const frames: Texture[] = await Promise.all(srcs.map((u) => Assets.load(`${dir}/${u}`)))
-            for (const ft of frames) ft.source.scaleMode = 'nearest'
+            /* the rectangles pair with the paths BY INDEX and by which field was
+             * read: atlasify writes framesAt only when every frame matched and
+             * srcAt only for src, so a partial pack falls through to loose files
+             * frame by frame rather than drawing the wrong rectangle. */
+            const rects: (Rect | undefined)[] = listed ? (s.framesAt ?? []) : s.srcAt ? [s.srcAt] : []
+            const frames: Texture[] = await Promise.all(srcs.map((u, i) => frameOf(u, rects[i])))
             /* VIEWS: the frames of each heading, for something that has to
              * face where it is walking. A crab gets by on a left-right flip;
              * a person crossing a plaza does not. The whole list per heading
@@ -798,10 +928,15 @@ export default function PmapScene() {
               views = {}
               for (const [k, arr] of Object.entries(s.dirs)) {
                 if (!Array.isArray(arr)) continue
-                const paths = arr.filter((u) => !!u)
-                if (!paths.length) continue
-                const ts: Texture[] = await Promise.all(paths.map((u) => Assets.load(`${dir}/${u}`)))
-                for (const vt of ts) vt.source.scaleMode = 'nearest'
+                // the empty entries are dropped from the paths, so the rectangles
+                // are dropped with them in lockstep. Filtering one list and not
+                // the other slides every rectangle after the hole onto the wrong
+                // frame, and a heading would face the right way wearing the next
+                // picture along.
+                const dr = s.dirsAt?.[k]
+                const pairs = arr.map((u, i) => [u, dr?.[i]] as const).filter(([u]) => !!u)
+                if (!pairs.length) continue
+                const ts: Texture[] = await Promise.all(pairs.map(([u, r]) => frameOf(u, r)))
                 views[k] = ts
               }
             }
@@ -979,9 +1114,34 @@ export default function PmapScene() {
       // fix; untrimmed, the canvas padding floats him above the mask). ----
       const walkT: Record<string, Texture[]> = {}
       await Promise.all(DIRS8.map(async (d) => {
-        walkT[d] = await Promise.all([0, 1, 2, 3, 4, 5].map((i) => Assets.load(`/art/characters/thor/walk/${d}/${i}.png`)))
+        walkT[d] = await Promise.all([0, 1, 2, 3, 4, 5].map((i) => Assets.load(req(`/art/characters/thor/walk/${d}/${i}.png`))))
         for (const t of walkT[d]) t.source.scaleMode = 'nearest'
       }))
+
+      /* WHAT THAT COST, SAID OUT LOUD.
+       *
+       * Everything a map open downloads has been asked for by now, so this is
+       * the number, split where the split matters: the bundle is what sits in a
+       * bucket and is charged per transaction, and the engine art is Thor and
+       * the sea, the same files on every island and cached across maps.
+       *
+       * Measured on the hub at 794 frames: 800 bundle requests loose, 6 with the
+       * atlas. The browser's own count is printed beside the scene's because
+       * they answer different questions and a gap between them is a bug worth
+       * seeing: this file counts urls it asked for once each, the resource
+       * timing counts what really went out over the wire. */
+      {
+        // split on /art/ rather than on dir, because the platform manifest is
+        // asked for one level above the version prefix and is still the map's
+        // cost, not the engine's
+        const art = [...asked].filter((u) => u.startsWith('/art/')).length
+        const real = performance.getEntriesByType('resource').length - netAtStart
+        console.log(
+          `[pmap] ${mapId}: ${asked.size} request(s) to open, ${asked.size - art} of them the map ` +
+          `and ${art} engine art. The browser recorded ${real}.`,
+        )
+      }
+
       const rig = scanRows(walkT.south[0])
       // Thor draws SMALLER than the tool's authoring height (Ash, 2026-08-15: "thor needs
       // to be a lot smaller" — the marker carries findability, not his size). ?ch=N tunes.
