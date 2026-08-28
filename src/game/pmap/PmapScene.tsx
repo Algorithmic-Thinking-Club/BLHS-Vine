@@ -20,6 +20,15 @@ import {
   type SwellSprite,
 } from '../ocean'
 import { cleanLife, lifeAt, type Life, type LifeBounds, separate } from './life'
+/* THE WALK LAW IS IMPORTED, NOT WRITTEN HERE.
+ *
+ * This file used to carry its own canStandFrom, its own near, its own axis
+ * slide, its own escape clause and its own copy of dirFrom, which made it the
+ * third transcription of one rule. Four walking bugs came out of the second one
+ * (MAPVIS site/Walk.tsx, whose header lists them). walk.ts in this folder is
+ * MAPVIS's src/core/walk.ts verbatim, on the same terms life.ts is, so the
+ * editor's walk test and this scene cannot disagree about where a wall is. */
+import { TEST_SPEED, Walker, canStand as lawCanStand, canStandFrom as lawCanStandFrom, defaultCfg, type MaskDoc, type WalkCfg } from './walk'
 
 /* when a heading has no view, the next best one it might have, so a set drawn
  * four ways still faces roughly right instead of snapping to south */
@@ -294,17 +303,9 @@ function inkOf(tex: Texture): number {
   return out
 }
 
-function dirFromVec(dx: number, dy: number) {
-  const a = Math.atan2(dy, dx) * 180 / Math.PI
-  if (a >= -22.5 && a < 22.5) return 'east'
-  if (a >= 22.5 && a < 67.5) return 'south-east'
-  if (a >= 67.5 && a < 112.5) return 'south'
-  if (a >= 112.5 && a < 157.5) return 'south-west'
-  if (a >= -67.5 && a < -22.5) return 'north-east'
-  if (a >= -112.5 && a < -67.5) return 'north'
-  if (a >= -157.5 && a < -112.5) return 'north-west'
-  return 'west'
-}
+/* dirFromVec used to sit here, byte for byte the dirFrom in walk.ts. Walker
+ * picks Thor's heading with its own, off the same squashed vector, so the view
+ * the scene draws is the view the editor's walk test would have drawn. */
 
 function radial(size: number, stops: [number, string][]) {
   const cv = document.createElement('canvas'); cv.width = size; cv.height = size
@@ -459,29 +460,48 @@ export default function PmapScene() {
       for (let x = 0; x < W && !coastCut; x++) if (sAlpha(x, 0) <= A_MIN || sAlpha(x, H - 1) <= A_MIN) coastCut = true
       for (let y = 0; y < H && !coastCut; y++) if (sAlpha(0, y) <= A_MIN || sAlpha(W - 1, y) <= A_MIN) coastCut = true
 
-      // ---- the walk truth: PaintedScene's law, metrics from the bundle ----
+      // ---- the walk truth: MAPVIS's law, imported, with the metrics from the bundle ----
       // levels.png: 0 blocked, 40 L0, 50 ramp01, 60 L1, 70 ramp12, 80 L2, 90 ramp23, 100 L3.
       // A step is legal when the level values differ by <= the tolerance, so plateaus only
       // connect through their painted stairs and a terrace edge refuses by the same rule
-      // that lets the stair through.
+      // that lets the stair through. walk.ts is where that rule lives now.
       const TOL = map.encoding.stepTolerance ?? 10
       const HIP = map.character.hip
       const HIPDY = map.character.hipDY
+      /* MaskDoc.lvlAt to the letter, which is the one thing the law asks a
+       * document for. It ROUNDS rather than truncating, because a walking
+       * character is never on an integer and truncating tests a different pixel
+       * than the editor does; and off the canvas it answers 0, which is blocked,
+       * rather than a walkable level. Both of those were bugs on the MAPVIS side
+       * and both moved where the walls are. */
       const lvlAt = (x: number, y: number) => {
         const xi = Math.round(x), yi = Math.round(y)
         if (xi < 0 || yi < 0 || xi >= W || yi >= H) return 0
         return ldata[(yi * W + xi) * 4]
       }
-      const near = (a: number, b: number) => Math.abs(a - b) <= TOL
-      // the character has a body: feet plus two hip probes must all stand on floor AND agree
-      // on level (no shoulders hanging across a terrace edge)
-      const canStandFrom = (x: number, y: number, fromLvl: number) => {
-        const f = lvlAt(x, y)
-        if (f === 0 || !near(f, fromLvl)) return false
-        const h1 = lvlAt(x - HIP, y - HIPDY), h2 = lvlAt(x + HIP, y - HIPDY)
-        return h1 > 0 && h2 > 0 && near(h1, f) && near(h2, f)
+      /* the bundle's numbers in the shape walk.ts expects. near is
+       * stepTolerance under the editor's name: how much height a step may
+       * cross. speed is set below, once the scene knows its own factor.
+       * Anything the bundle does not carry keeps the exporter's own default. */
+      const cfg: WalkCfg = {
+        ...defaultCfg(),
+        speed: map.speed,
+        hip: HIP,
+        hipDY: HIPDY,
+        near: TOL,
+        charH: map.character.heightPx,
+        yScale: map.yScale,
       }
-      const canStand = (x: number, y: number) => canStandFrom(x, y, lvlAt(x, y))
+      /* the law only ever reads the level under a pixel, and markHit is the
+       * editor painting its refused-move layer, which a bundle in the game has
+       * nowhere to put. So the whole document this scene owes it is these two.
+       * The same adapter MAPVIS's own Walk.tsx builds over a published map. */
+      const doc = { lvlAt, markHit: () => {} } as unknown as MaskDoc
+      // the character has a body: feet plus two hip probes must all stand on floor AND agree
+      // on level (no shoulders hanging across a terrace edge). Named here so every call
+      // below reads as it always did while the answer comes from one place.
+      const canStandFrom = (x: number, y: number, fromLvl: number) => lawCanStandFrom(doc, cfg, x, y, fromLvl)
+      const canStand = (x: number, y: number) => lawCanStand(doc, cfg, x, y)
 
       // ---- Pixi ----
       TextureSource.defaultOptions.scaleMode = 'nearest'
@@ -970,6 +990,11 @@ export default function PmapScene() {
       // twice the authored tool speed by default (Ash, 2026-08-15: "make thor faster");
       // ?spd=F tunes the factor
       const SPD = map.speed * (Number(params.get('spd') || 0) || 2)
+      /* Walker multiplies cfg.speed by TEST_SPEED, which walk.ts calls test-stage
+       * feel and says plainly is not the contract value, so the factor is divided
+       * back out and Thor walks at exactly the SPD this scene has always used.
+       * The law stays shared; only how fast it is asked to run is the scene's. */
+      cfg.speed = SPD / TEST_SPEED
       for (const d of DIRS8) {
         walkT[d] = walkT[d].map((t) => {
           const r = scanRows(t)
@@ -984,7 +1009,9 @@ export default function PmapScene() {
       thorSp.anchor.set(0.5, 1)
       thorSp.scale.set(thorScale)
       world.addChild(thorSp)
-      const thor = { sp: thorSp, sh, facing: 'south', animT: 0 }
+      // his heading and his stride live on the Walker now, because the law that
+      // moves him is the one that decides both
+      const thor = { sp: thorSp, sh }
 
       // the spawn is VALIDATED: if the exported point is blocked (a mask edit can land on
       // it), spiral out to the nearest standable ground
@@ -998,7 +1025,16 @@ export default function PmapScene() {
         return [sx, sy]
       }
       const [spx, spy] = findGround(map.spawn[0], map.spawn[1])
-      const pos = { x: spx, y: spy }
+      /* THE WALK LAW OWNS WHERE HE IS.
+       *
+       * Walker is MAPVIS's own class out of walk.ts, so the level test, the
+       * axis slide and the escape clause for a character standing on a blocked
+       * pixel are the editor's rather than a fourth reading of them. pos is the
+       * walker under the name the rest of this file already calls it, so the
+       * camera, the pin, the doors, the push and the debug hooks all read and
+       * write the position the law is stepping. */
+      const walker = new Walker([spx, spy])
+      const pos = walker
 
       // ---- the YOU marker: a proper map pin (Ash's spec 2026-08-15: "half triangle half
       // circle typical marker, with a small thor picture in the marker with YOU above").
@@ -1105,29 +1141,22 @@ export default function PmapScene() {
       app.ticker.add((tk) => {
         const dt = Math.min(tk.deltaMS, 50) / 1000
         const t = performance.now() / 1000
-        let dx = 0, dy = 0
-        if (keys['arrowup'] || keys['w']) dy -= 1
-        if (keys['arrowdown'] || keys['s']) dy += 1
-        if (keys['arrowleft'] || keys['a']) dx -= 1
-        if (keys['arrowright'] || keys['d']) dx += 1
-        // a door exit in progress owns the character: no walking through a fade
-        const moving = (dx !== 0 || dy !== 0) && !fade
-        if (moving) {
-          const m = Math.hypot(dx, dy); dx /= m; dy /= m
-          const nx = pos.x + dx * SPD * dt, ny = pos.y + dy * SPD * dt * map.yScale
-          // level-aware step, judged FROM the current level so plateaus only connect
-          // through their stairs
-          const cur = lvlAt(pos.x, pos.y)
-          // ESCAPE CLAUSE (the beach walker's law): if the current spot is somehow inside a
-          // collider, any move is legal; never wedge a character where he can only stand still
-          const stuck = cur === 0
-          if (canStandFrom(nx, ny, cur) || stuck) { pos.x = nx; pos.y = ny }
-          else if (canStandFrom(nx, pos.y, cur)) pos.x = nx
-          else if (canStandFrom(pos.x, ny, cur)) pos.y = ny
-          thor.facing = dirFromVec(dx, dy * map.yScale)
-          thor.animT += dt * 9
-        } else thor.animT = 0
-        const fr = moving ? walkT[thor.facing][1 + (Math.floor(thor.animT) % 5)] : walkT[thor.facing][0]
+        /* THE STEP IS MAPVIS'S. This block used to be a hand copy of
+         * Walker.step: the level-aware move judged from the current level, the
+         * slide along each axis when the whole vector will not fit, and the
+         * escape clause that lets a character standing on a blocked pixel move
+         * at all. It is one call now, so none of the three can drift.
+         *
+         * A door exit in progress owns the character, so during a fade he is
+         * handed nothing held and the law stops him itself, which also resets
+         * his stride the way letting go of the keys does. */
+        const held: Record<string, boolean> = fade ? {} : keys
+        const moving = !!(
+          held['arrowup'] || held['w'] || held['arrowdown'] || held['s'] ||
+          held['arrowleft'] || held['a'] || held['arrowright'] || held['d']
+        )
+        walker.step(doc, cfg, held, dt)
+        const fr = moving ? walkT[walker.facing][1 + (Math.floor(walker.animT) % 5)] : walkT[walker.facing][0]
         if (thor.sp.texture !== fr) thor.sp.texture = fr
         thor.sp.position.set(pos.x, pos.y)
         thor.sp.zIndex = OVER_PLACED + pos.y
@@ -1198,6 +1227,23 @@ export default function PmapScene() {
            * truth. Separation is pure: every position here is a function of the
            * clock, so the whole set is knowable at once and nothing has to be
            * remembered between frames. */
+          /* THE FLOOR HANDED TO lifeAt IS TERRAIN AND NOTHING ELSE, ALWAYS.
+           *
+           * canStand here reads the levels plane and no bodies, and it must
+           * stay that way. life.ts exports floorWithBodies, which wraps a
+           * ground test so a leg search will not step into somebody, and
+           * putting it here detonates: figures teleport across the map many
+           * times a second. lifeAt is pure in t and the whole design rests on
+           * that. It re-derives a leg from scratch every frame and picks a
+           * target by searching the floor it is given, so a floor that moves
+           * because everybody else moved makes it answer a different question
+           * sixty times a second and the figure snaps between the answers. It
+           * is not drift, it is a deterministic function being asked something
+           * new each frame.
+           *
+           * Bodies are resolved after the fact, in separate() below, which is
+           * allowed to depend on the frame because it is a correction rather
+           * than a decision. */
           const res = lifeAssets.map((q) => lifeAt(q.life, lt, q.home, canStand))
           /* AN IMMOVABLE THING IS LISTED TWICE.
            *
