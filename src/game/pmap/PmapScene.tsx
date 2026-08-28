@@ -343,6 +343,24 @@ function radial(size: number, stops: [number, string][]) {
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((res, rej) => {
     const img = new Image()
+    /* THE WALK MASK IS READ AS PIXELS, SO THE IMAGE HAS TO BE READABLE.
+     *
+     * levels.png goes through pixelsOf -> getImageData, and a canvas that has
+     * had a cross-origin image drawn onto it is TAINTED: getImageData throws a
+     * SecurityError and the whole scene fails to start. Without this attribute
+     * the browser does not send the CORS request in the first place, so the
+     * response header alone is not enough.
+     *
+     * This is why fetching a map from the platform has never worked. Since
+     * ae87ec9 the game asks MAPVIS first, and it could not have succeeded on any
+     * origin but MAPVIS's own: the manifest was refused by CORS, and if it had
+     * got past that, the mask would have tainted the canvas one step later. Both
+     * halves were found on 2026-08-27 by actually walking a map served from the
+     * platform, which nothing had done.
+     *
+     * Harmless for the same-origin fallback: a request for a local file with
+     * this set is still just a request for a local file. */
+    img.crossOrigin = 'anonymous'
     img.onload = () => res(img)
     img.onerror = rej
     img.src = src
@@ -537,18 +555,31 @@ export default function PmapScene() {
         const missing = missingAnchors((n) => anchors.has(n))
         if (missing.length) console.warn(`[pmap] ${mapId} is missing anchors: ${missing.join(', ')}`)
       }
-      // does a door's target bundle exist? Checked once per target, the same
-      // content-type guard as the assets fetch: the dev server answers a
-      // missing file with the SPA's index.html at 200, so only a real json
-      // body counts as built.
+      /* DOES A DOOR'S TARGET EXIST? Checked once per target, the same
+       * content-type guard as the assets fetch: the dev server answers a
+       * missing file with the SPA's index.html at 200, so only a real json body
+       * counts as built.
+       *
+       * IT HAS TO ASK THE PLATFORM, IN THE SAME ORDER THE LOADER DOES. This only
+       * looked in public/maps-painted/, which is the folder somebody copies by
+       * hand. Since ae87ec9 the platform is where a map really comes from, so a
+       * door to a map that is published and not hand-copied read as barred and
+       * the player was told the way was shut about a room that exists. Measured
+       * on the live platform: the hub answers /api/v1/maps/hub with version 7,
+       * and nothing was ever asking it. */
       const doorState = new Map<string, 'checking' | 'ok' | 'missing'>()
+      const isJson = (r: Response) => r.ok && (r.headers.get('content-type') || '').includes('json')
       const checkDoor = (to: string) => {
         if (doorState.has(to)) return
         if (!to) { doorState.set(to, 'missing'); return }
         doorState.set(to, 'checking')
-        fetch(`/maps-painted/${to}/map.json`)
-          .then((r) => doorState.set(to, r.ok && (r.headers.get('content-type') || '').includes('json') ? 'ok' : 'missing'))
+        const local = () => fetch(`/maps-painted/${to}/map.json`)
+          .then((r) => doorState.set(to, isJson(r) ? 'ok' : 'missing'))
           .catch(() => doorState.set(to, 'missing'))
+        if (wantLocal || !host) { void local(); return }
+        void fetch(`${host}/api/v1/maps/${encodeURIComponent(to)}`)
+          .then((r) => { if (isJson(r)) doorState.set(to, 'ok'); else return local() })
+          .catch(() => local())
       }
 
       const sdata = pixelsOf(sceneImg, W, H)
@@ -556,10 +587,32 @@ export default function PmapScene() {
       const odata = occImg ? pixelsOf(occImg, W, H) : null
       const sAlpha = (x: number, y: number) => sdata[(y * W + x) * 4 + 3]
 
-      // a cut coastline means an island; a fully opaque border means an interior room
+      /* ISLAND OR ROOM, AND WHY GUESSING IS NOT GOOD ENOUGH ANY MORE.
+       *
+       * The rule was: a transparent border means the sea was cut out, so draw the
+       * animated ocean under it; a fully opaque border means an interior. That
+       * held while every map was an island painted edge to edge.
+       *
+       * The Maw breaks it. It is bridges and platforms suspended over a pit that
+       * is deliberately not drawn, so its border is transparent for a reason that
+       * has nothing to do with the sea, and the guess puts an ocean under a
+       * mountain. Measured on the stand-in: 26.9% of the canvas is floor and the
+       * whole border is empty.
+       *
+       * So the bundle gets to SAY, and the guess is only what happens when it
+       * does not. MAPVIS already knows which class an author picked (MAPS.md §2),
+       * and writing it into map.json is the small change that half of this pair
+       * still needs on the tool side. Until it does, a map can carry the field by
+       * hand and a stand-in does. */
+      const declared = typeof (map as { class?: unknown }).class === 'string'
+        ? String((map as { class?: unknown }).class)
+        : ''
       let coastCut = false
       for (let x = 0; x < W && !coastCut; x++) if (sAlpha(x, 0) <= A_MIN || sAlpha(x, H - 1) <= A_MIN) coastCut = true
       for (let y = 0; y < H && !coastCut; y++) if (sAlpha(0, y) <= A_MIN || sAlpha(W - 1, y) <= A_MIN) coastCut = true
+      if (declared === 'room') coastCut = false
+      else if (declared === 'island') coastCut = true
+      else if (declared) console.warn(`[pmap] ${mapId}: unknown map class "${declared}", guessing from the border`)
 
       // ---- the walk truth: MAPVIS's law, imported, with the metrics from the bundle ----
       // levels.png: 0 blocked, 40 L0, 50 ramp01, 60 L1, 70 ramp12, 80 L2, 90 ramp23, 100 L3.

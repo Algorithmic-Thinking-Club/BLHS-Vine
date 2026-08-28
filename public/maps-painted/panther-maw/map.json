@@ -1,0 +1,177 @@
+{
+  "id": "panther-maw",
+  "w": 512,
+  "h": 512,
+  "class": "room",
+  "encoding": {
+    "blocked": 0,
+    "L0": 40,
+    "ramp01": 50,
+    "L1": 60,
+    "ramp12": 70,
+    "L2": 80,
+    "ramp23": 90,
+    "L3": 100,
+    "stepTolerance": 10
+  },
+  "spawn": [
+    256,
+    438
+  ],
+  "character": {
+    "heightPx": 36,
+    "hip": 4,
+    "hipDY": 2
+  },
+  "speed": 68,
+  "yScale": 0.72,
+  "stairs": [],
+  "occluders": [],
+  "anchors": [
+    {
+      "name": "arrive_maw",
+      "kind": "spawn",
+      "x": 256,
+      "y": 438,
+      "r": 10,
+      "label": "",
+      "facing": "north",
+      "meta": {
+        "why": "where the hub door puts you: on the bridge, facing in"
+      }
+    },
+    {
+      "name": "maw_entrance",
+      "kind": "door",
+      "x": 256,
+      "y": 476,
+      "r": 20,
+      "to": "hub",
+      "toAnchor": "panthers_maw",
+      "label": "the harbour",
+      "meta": {
+        "why": "the far side of the tunnel he walked into"
+      }
+    },
+    {
+      "name": "chart_table",
+      "kind": "post",
+      "x": 170,
+      "y": 232,
+      "r": 30,
+      "facing": "south",
+      "label": "the chart table"
+    },
+    {
+      "name": "hearth",
+      "kind": "post",
+      "x": 256,
+      "y": 258,
+      "r": 30,
+      "facing": "south",
+      "label": "the Advisory Hearth"
+    },
+    {
+      "name": "counselor",
+      "kind": "post",
+      "x": 342,
+      "y": 232,
+      "r": 30,
+      "facing": "south",
+      "label": "the counselor"
+    },
+    {
+      "name": "principal_desk",
+      "kind": "post",
+      "x": 196,
+      "y": 322,
+      "r": 30,
+      "facing": "north",
+      "label": "Principal Panther"
+    },
+    {
+      "name": "outfitter",
+      "kind": "post",
+      "x": 316,
+      "y": 322,
+      "r": 30,
+      "facing": "north",
+      "label": "the outfitter"
+    },
+    {
+      "name": "trophy_wall",
+      "kind": "point",
+      "x": 256,
+      "y": 178,
+      "r": 26,
+      "label": "the trophy wall",
+      "meta": {
+        "why": "a WALL, so it costs no floor and no station slot"
+      }
+    },
+    {
+      "name": "east_tunnel",
+      "kind": "door",
+      "x": 480,
+      "y": 250,
+      "r": 20,
+      "to": "maw-east",
+      "label": "the east tunnel"
+    },
+    {
+      "name": "west_tunnel",
+      "kind": "door",
+      "x": 32,
+      "y": 250,
+      "r": 20,
+      "to": "maw-west",
+      "label": "the west tunnel"
+    },
+    {
+      "name": "the_hall",
+      "kind": "region",
+      "x": 256,
+      "y": 255,
+      "r": 8,
+      "rect": [
+        120,
+        158,
+        392,
+        352
+      ],
+      "label": "the hall",
+      "meta": {
+        "why": "the platform itself, for ambience and for a grape to test against"
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": 1,
+      "type": "door",
+      "x": 256,
+      "y": 476,
+      "r": 20,
+      "label": "the harbour",
+      "to": "hub"
+    },
+    {
+      "id": 2,
+      "type": "door",
+      "x": 480,
+      "y": 250,
+      "r": 20,
+      "label": "the east tunnel",
+      "to": "maw-east"
+    },
+    {
+      "id": 3,
+      "type": "door",
+      "x": 32,
+      "y": 250,
+      "r": 20,
+      "label": "the west tunnel",
+      "to": "maw-west"
+    }
+  ]
+}
