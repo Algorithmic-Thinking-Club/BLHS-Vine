@@ -91,6 +91,15 @@ await settled()
 check('the engine survived it and reran the island', await line(), 'I am going to break')
 await shot('6-still-running')
 
+// 5. a filename the filesystem would refuse used to hang the harness on
+//    "is running" with nothing on screen, which is the one failure the sandbox
+//    exists to prevent. ?py=.. normalises to / and fetches index.html.
+console.log('\na filename that is not a filename')
+await page.goto(`${base}/?scene=grape&py=..`, { waitUntil: 'domcontentloaded', timeout: 30000 })
+await page.waitForSelector('.cs-dialogue', { timeout: 60000 })
+await settled()
+check('a junk ?py= falls back instead of hanging', await line(), 'running in a worker')
+
 await browser.close()
 console.log(`\n${failures ? `${failures} FAILED` : 'all checks passed'} — shots in ${shots}/${tag}-*.png\n`)
 process.exit(failures ? 1 : 0)

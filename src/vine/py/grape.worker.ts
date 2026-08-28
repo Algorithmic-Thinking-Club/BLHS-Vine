@@ -75,24 +75,31 @@ self.addEventListener('message', (ev: MessageEvent) => { void handle(ev.data as 
  * until an intent has come back, so there is no interleaving to guard against
  * and no SharedArrayBuffer anywhere near this. */
 async function handle(msg: ToWorker) {
-  let py: MicroPython
+  /* EVERYTHING is inside this, and that is the point rather than tidiness.
+   *
+   * handle() is invoked as a floating promise, so anything that throws out of
+   * it becomes a rejection nobody catches: no message goes back, and the engine
+   * waits for an answer that is never coming. A silent hang is worse than a
+   * crash and it is the one failure the sandbox exists to make impossible, so
+   * the guard has to cover the filesystem write and the JSON parse too, not
+   * just the runtime starting. Found by review: a filename the filesystem
+   * refused hung the harness on "is running" with nothing on screen. */
   try {
-    py = await boot()
+    const py = await boot()
+
+    if (msg.t === 'run') {
+      py.FS.writeFile(msg.name, msg.source)
+      py.globals.set('_mod', msg.name.replace(/\.py$/, ''))
+      py.globals.set('_entry', msg.entry)
+      /* the call is a constant. Everything variable went in through globals. */
+      pump(py, '_begin(_mod, _entry)')
+      return
+    }
+
+    py.globals.set('_reply', JSON.stringify(msg.result))
+    pump(py, '_resume(_reply)')
   } catch (e) {
     const why = e instanceof Error ? e.message : String(e)
-    post({ t: 'crash', error: `micropython did not start: ${why}`, traceback: why })
-    return
+    post({ t: 'crash', error: mp ? why : `micropython did not start: ${why}`, traceback: why })
   }
-
-  if (msg.t === 'run') {
-    py.FS.writeFile(msg.name, msg.source)
-    py.globals.set('_mod', msg.name.replace(/\.py$/, ''))
-    py.globals.set('_entry', msg.entry)
-    /* the call is a constant. Everything variable went in through globals. */
-    pump(py, '_begin(_mod, _entry)')
-    return
-  }
-
-  py.globals.set('_reply', JSON.stringify(msg.result))
-  pump(py, '_resume(_reply)')
 }

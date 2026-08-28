@@ -50,8 +50,12 @@ const world: IntentWorld = {
 }
 
 export default function GrapeProof() {
-  const file = ((new URLSearchParams(window.location.search).get('py') ?? 'hello.py')
-    .replace(/[^\w.-]/g, '')) || 'hello.py'
+  /* A WHITELIST, NOT A STRIP. Stripping unwanted characters let ".." through
+   * intact, and fetch normalises "/grapes/.." to "/", which hands the SPA's own
+   * index.html back as the island's source. Requiring a plain filename is one
+   * regex and has no edge to find. */
+  const asked = new URLSearchParams(window.location.search).get('py') ?? ''
+  const file = /^[\w-]+\.py$/.test(asked) ? asked : 'hello.py'
 
   const [status, setStatus] = useState('starting micropython')
   const [report, setReport] = useState<GrapeReport | null>(null)
