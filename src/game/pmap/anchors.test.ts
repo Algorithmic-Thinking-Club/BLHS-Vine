@@ -1,0 +1,175 @@
+// THE ANCHOR CONTRACT, WHICH LIVES IN ANOTHER REPO. MAPVIS-next authors these and this
+// game reads them, so the two sides can drift with nobody noticing until a map opens
+// wrong. These tests are the fence: they assert the exact shape MAPVIS-next/src/core/
+// mask.ts:143-192 exports, and the real hub bundle's door is in here verbatim.
+import { describe, it, expect } from 'vitest'
+import { AnchorSet, readAnchors, anchorName, isAnchorName } from './anchors'
+
+describe('reading what MAPVIS actually exports', () => {
+  // copied byte for byte out of MAPVIS-next/work/hub/map.json
+  const hub = {
+    anchors: [{
+      name: 'panthers_maw', kind: 'door', x: 343, y: 378, r: 14,
+      to: 'panther-maw', label: "Panther's Maw", meta: { docId: 2, derived: true },
+    }],
+    events: [{ id: 2, type: 'door', x: 343, y: 378, r: 14, label: "Panther's Maw", to: 'panther-maw' }],
+  }
+
+  it('prefers anchors over the legacy events array', () => {
+    const a = readAnchors(hub, 'hub')
+    expect(a).toHaveLength(1)
+    expect(a[0].name).toBe('panthers_maw')
+    expect(a[0].kind).toBe('door')
+    expect(a[0].to).toBe('panther-maw')
+  })
+
+  it('the hub door still points at the map id this session is building', () => {
+    // if this fails, either the hub door moved or the Maw was published under
+    // another slug, and the two have to be reconciled before anything is painted
+    expect(readAnchors(hub, 'hub')[0].to).toBe('panther-maw')
+  })
+
+  it('falls back to events for a bundle exported before anchors existed', () => {
+    const a = readAnchors({ events: hub.events }, 'old')
+    expect(a).toHaveLength(1)
+    expect(a[0].kind).toBe('door')
+    // no name was ever typed, so one is derived and SAID to be derived
+    expect(a[0].name).toBe('panthers_maw')
+    expect(a[0].meta?.derived).toBe(true)
+  })
+
+  it('a bundle with neither field loads as a map with no anchors, not an error', () => {
+    expect(readAnchors({}, 'bare')).toEqual([])
+  })
+})
+
+describe('a hand-edited or future bundle cannot black-screen a map', () => {
+  it('skips a kind this build does not know and keeps the rest', () => {
+    const a = readAnchors({
+      anchors: [
+        { name: 'ok_one', kind: 'post', x: 1, y: 1, r: 4, label: 'a' },
+        { name: 'from_2027', kind: 'hologram', x: 2, y: 2, r: 4, label: 'b' },
+      ],
+    })
+    expect(a.map((x) => x.name)).toEqual(['ok_one'])
+  })
+
+  it('skips an anchor with no position rather than putting it at the origin', () => {
+    const a = readAnchors({ anchors: [{ name: 'nowhere', kind: 'point', label: 'x' }] })
+    expect(a).toEqual([])
+  })
+
+  it('keeps the first of a duplicated name, because a name must resolve to one thing', () => {
+    const a = readAnchors({
+      anchors: [
+        { name: 'hearth', kind: 'post', x: 10, y: 10, r: 4, label: 'first' },
+        { name: 'hearth', kind: 'post', x: 90, y: 90, r: 4, label: 'second' },
+      ],
+    })
+    expect(a).toHaveLength(1)
+    expect(a[0].label).toBe('first')
+  })
+
+  it('re-derives a name that is not a legal python identifier', () => {
+    const a = readAnchors({ anchors: [{ name: 'Chart Table!', kind: 'post', x: 1, y: 1, r: 4, label: 'The Chart Table' }] })
+    expect(a[0].name).toBe('the_chart_table')
+    expect(a[0].meta?.derived).toBe(true)
+  })
+})
+
+describe('anchorName matches MAPVIS letter for letter', () => {
+  it.each([
+    ["Panther's Maw", 'panthers_maw'],
+    ['The Chart Table', 'the_chart_table'],
+    ['  spaced  out  ', 'spaced_out'],
+    ['3rd bridge', 'a3rd_bridge'],
+    ['', 'anchor'],
+  ])('%s becomes %s', (input, want) => {
+    expect(anchorName(input)).toBe(want)
+  })
+
+  it('rejects what MAPVIS would reject', () => {
+    expect(isAnchorName('chart_table')).toBe(true)
+    expect(isAnchorName('Chart_Table')).toBe(false)
+    expect(isAnchorName('3rd')).toBe(false)
+    expect(isAnchorName('has space')).toBe(false)
+    expect(isAnchorName('a'.repeat(49))).toBe(false)
+  })
+})
+
+describe('AnchorSet: the questions a scene asks every frame', () => {
+  const set = new AnchorSet('panther-maw', readAnchors({
+    anchors: [
+      { name: 'maw_entrance', kind: 'door', x: 256, y: 470, r: 20, to: 'hub', toAnchor: 'panthers_maw', label: 'Back to the harbour' },
+      { name: 'chart_table', kind: 'post', x: 180, y: 300, r: 30, label: 'The chart table', facing: 'south' },
+      { name: 'hearth', kind: 'post', x: 320, y: 300, r: 30, label: 'The Advisory Hearth' },
+      { name: 'trophy_wall', kind: 'point', x: 250, y: 220, r: 24, label: 'The trophy wall' },
+      { name: 'the_hall', kind: 'region', x: 250, y: 300, r: 5, rect: [100, 200, 400, 470], label: 'hall' },
+      { name: 'first_step', kind: 'trigger', x: 256, y: 450, r: 40, label: '' },
+      { name: 'arrive_here', kind: 'spawn', x: 256, y: 460, r: 8, label: '' },
+    ],
+  }))
+
+  it('resolves by name', () => {
+    expect(set.has('chart_table')).toBe(true)
+    expect(set.has('chart_tabel')).toBe(false)
+    expect(set.get('chart_table')?.label).toBe('The chart table')
+  })
+
+  it('a region uses the rectangle its author drew, not a circle around the middle', () => {
+    const region = set.get('the_hall')!
+    expect(set.contains(region, 390, 390)).toBe(true)   // inside the rect, far outside r=5
+    expect(set.contains(region, 410, 300)).toBe(false)
+  })
+
+  it('regions and triggers never steal the interact prompt from a post', () => {
+    // standing on the hearth is also standing inside the_hall
+    const near = set.nearestInteractive(320, 300)
+    expect(near?.name).toBe('hearth')
+  })
+
+  it('two posts 140px apart with r=30 leave a dead gap, which is the spacing law', () => {
+    expect(set.nearestInteractive(200, 300)?.name).toBe('chart_table')
+    expect(set.nearestInteractive(300, 300)?.name).toBe('hearth')
+    // halfway between them no ring reaches, and that is correct: a station's ring
+    // is how far away you can be and still be AT it. This is the number that caps
+    // how many stations fit on one platform (docs/THE-MAW.md).
+    expect(set.nearestInteractive(250, 300)).toBeNull()
+  })
+
+  it('when rings DO overlap the nearer station wins, so neither is unreachable', () => {
+    // an author who packs two posts closer than their radii still gets a usable
+    // map: the prompt just switches over as you cross the midpoint
+    const tight = new AnchorSet('tight', readAnchors({
+      anchors: [
+        { name: 'left', kind: 'post', x: 100, y: 100, r: 40, label: 'l' },
+        { name: 'right', kind: 'post', x: 150, y: 100, r: 40, label: 'r' },
+      ],
+    }))
+    expect(tight.nearestInteractive(110, 100)?.name).toBe('left')
+    expect(tight.nearestInteractive(140, 100)?.name).toBe('right')
+  })
+
+  it('offers nothing when the feet are outside every ring', () => {
+    expect(set.nearestInteractive(10, 10)).toBeNull()
+  })
+
+  it('reports every region and trigger underfoot, not just the nearest', () => {
+    const names = set.regionsAt(256, 450).map((a) => a.name).sort()
+    expect(names).toEqual(['first_step', 'the_hall'])
+  })
+
+  it('arrives at the named anchor a door pointed at', () => {
+    expect(set.arrival('chart_table', [1, 1])).toEqual({ x: 180, y: 300, facing: 'south' })
+  })
+
+  it('falls back to a spawn anchor before the map-level spawn, and never to the origin', () => {
+    expect(set.arrival(undefined, [1, 1])).toEqual({ x: 256, y: 460, facing: undefined })
+    expect(set.arrival('does_not_exist', [1, 1])).toEqual({ x: 256, y: 460, facing: undefined })
+  })
+
+  it('uses the map-level spawn when there is no spawn anchor at all', () => {
+    const bare = new AnchorSet('x', readAnchors({ anchors: [{ name: 'p', kind: 'point', x: 5, y: 5, r: 2, label: '' }] }))
+    expect(bare.arrival(undefined, [77, 88])).toEqual({ x: 77, y: 88 })
+  })
+})

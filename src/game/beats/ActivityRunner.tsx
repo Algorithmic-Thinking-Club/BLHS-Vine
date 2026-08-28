@@ -24,9 +24,25 @@ type Answers = Record<string, Answer>
 
 const checkId = (c: CheckStep): string => (c.kind === 'quiz' ? c.item.id : c.id)
 
-export function CoreBeatRunner({ beat, onClose }: { beat: CoreBeat; onClose: () => void }) {
+export function CoreBeatRunner(
+  { beat, onClose, forceArm }: {
+    beat: CoreBeat
+    onClose: () => void
+    /* AS_PLAIN, HERE FROM THE FIRST SCORED THING RATHER THAN RETROFITTED.
+     *
+     * Normally the arm is whatever the participant was assigned at join and
+     * nothing in the world may choose it. This overrides it for ONE activity,
+     * which is what `yield self.play(X, as_plain=True)` becomes: an author
+     * saying this particular beat should read the same either way.
+     *
+     * In practice it can only ever force plain, because src/vine/intents.ts
+     * refuses the other direction: letting an island force the game arm would
+     * let one island opt the control group out of being a control group. */
+    forceArm?: 'game' | 'plain'
+  },
+) {
   const save = loadSave()
-  const arm = save?.arm === 'plain' ? 'plain' : 'game'
+  const arm = forceArm ?? (save?.arm === 'plain' ? 'plain' : 'game')
 
   const [phase, setPhase] = useState<'play' | 'result' | 'review' | 'retake'>('play')
   const [finalScore, setFinalScore] = useState<BeatScore | null>(null)

@@ -1,0 +1,92 @@
+/* The outfitter's nook (§4.5), on the same kit as the Handbook: paper on carved
+   wood, the measured panel window, container queries so text scales with the
+   panel rather than the viewport. */
+
+.wd-veil {
+  position: absolute; inset: 0; z-index: 78;
+  background: rgba(5, 12, 15, .5);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.wd-panel {
+  width: min(520px, 90vw);
+  aspect-ratio: 1 / 1;
+  background: url('/art/ui/panel-square.png') center / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 12px 30px rgba(2, 8, 10, .65));
+  /* the measured paper zone of panel-square, same numbers the Handbook uses */
+  padding: 15% 17.5% 15.5% 17%;
+  box-sizing: border-box;
+  container-type: inline-size;
+  display: flex; flex-direction: column; align-items: center; gap: 2.5cqw;
+  animation: wd-in 260ms cubic-bezier(.2, 1.2, .35, 1) both;
+}
+@keyframes wd-in { from { transform: translateY(14px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
+
+.wd-head {
+  font-family: 'Harbormaster', 'Deckhand', monospace;
+  font-size: 4.4cqw; color: #4a3a24;
+  text-shadow: 0 1px 0 rgba(255, 250, 235, .4);
+}
+
+.wd-stage {
+  flex: 1; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+  width: 100%;
+}
+/* the sprite is 4x nearest-neighbour: a mirror should show the pixels, not blur
+   them, and this is the one place in the game Thor is looked at up close */
+.wd-thor {
+  height: 100%; width: auto;
+  image-rendering: pixelated;
+  transform: scale(4); transform-origin: center;
+  filter: drop-shadow(0 3px 0 rgba(60, 40, 20, .25));
+}
+
+.wd-swatches { display: flex; gap: 2cqw; flex-wrap: wrap; justify-content: center; }
+.wd-swatch {
+  width: 7cqw; height: 7cqw; border-radius: 50%;
+  border: 2px solid #241708;
+  box-shadow: 0 2px 0 #1a1006;
+  cursor: pointer;
+  transition: transform 130ms ease, box-shadow 130ms ease;
+}
+.wd-swatch:hover { transform: translateY(-1px); }
+.wd-swatch:active { transform: translateY(2px); }
+.wd-swatch-on { box-shadow: 0 2px 0 #1a1006, 0 0 0 3px #d8b968; }
+
+.wd-locked { display: flex; gap: 2cqw; }
+.wd-lockchip {
+  position: relative;
+  width: 9cqw; height: 9cqw;
+  background: linear-gradient(#e0d5b9, #cdbf9d);
+  border: 2px solid #8a744f; border-radius: 5px;
+  cursor: pointer; opacity: .6;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+.wd-lockchip:hover { opacity: .85; transform: translateY(-1px); }
+/* earned reads as sun-warmed rather than merely un-greyed */
+.wd-lockchip-on { opacity: 1; border-color: #b08a3c; box-shadow: inset 0 0 0 2px rgba(216, 185, 104, .5); }
+.wd-lockicon { font-size: 4.6cqw; }
+.wd-lockknot { position: absolute; right: -.6cqw; bottom: -.6cqw; font-size: 3cqw; }
+
+.wd-note {
+  font-family: 'Deckhand', monospace;
+  font-size: 2.6cqw; color: #8a7a60; text-align: center;
+}
+
+.wd-close {
+  align-self: center; min-width: 55%;
+  aspect-ratio: 512 / 150;
+  background: url('/art/ui/plank-button.png') center / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  border: none; cursor: pointer;
+  font-family: 'Harbormaster', 'Deckhand', monospace;
+  font-size: 3.8cqw; color: #f0e4c8;
+  text-shadow: 0 2px 0 rgba(30, 16, 6, .75);
+  transition: transform 130ms ease;
+}
+.wd-close:hover { transform: translateY(-1px); }
+.wd-close:active { transform: translateY(2px); }

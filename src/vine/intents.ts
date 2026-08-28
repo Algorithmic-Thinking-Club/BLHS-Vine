@@ -1,0 +1,218 @@
+/* THE INTENT VOCABULARY: the engine capability list, written down as data.
+ *
+ * This is the API. Not a layer over it, not a plan for one. Every mechanic in
+ * the game asks for what it wants by putting one of these objects on the wire,
+ * and the engine performs it. The Maw's stations go through here. A member's
+ * Python grape will go through here. There is no second path, because a second
+ * path is how this repo got PmapScene importing nothing from src/vine/.
+ *
+ * WHY OBJECTS AND NOT FUNCTIONS. The member's code runs as MicroPython in a
+ * worker (VINE-AND-GRAPE.md), so an intent has to survive postMessage. Making
+ * it JSON from the first line costs nothing today and is the only reason the
+ * runtime stays swappable tomorrow. A function call would have to be torn out
+ * and rebuilt as a message the day the worker lands, and that rebuild is
+ * exactly the kind of retrofit that never happens.
+ *
+ * WHY THE KIND IS THE PYTHON NAME. `kind: 'guide_to'` is snake_case on purpose.
+ * A member writes `yield self.guide_to("chart_table")`, the worker posts
+ * `{kind: 'guide_to', anchor: 'chart_table'}`, and nothing in between translates
+ * anything. A vocabulary with a lookup table in the middle is a vocabulary with
+ * two spellings of every word and a place for them to drift apart.
+ *
+ * WHY ANCHORS AND NEVER COORDINATES. Every intent that touches a place takes an
+ * anchor NAME. MAPVIS is the only thing that can create one (src/core/mask.ts),
+ * it validates them as python identifiers where they are typed, and it keeps
+ * `name` separate from `label` so renaming a door for the player cannot break
+ * the code that addresses it. An x and a y in a grape would break the moment Ash
+ * moved a table.
+ */
+import type { SessionMode } from './contract'
+
+/* ---- what the engine can be asked to do ---------------------------------- */
+
+export type Intent =
+  /* dialogue. `who` is an anchor name when the speaker stands somewhere, so the
+   * camera and the portrait can both be resolved from one string. */
+  | { kind: 'say'; who?: string; text: string; portrait?: string }
+  | { kind: 'choose'; prompt?: string; options: string[] }
+
+  /* movement and attention. guide_to draws the walkable-path arrow and returns
+   * immediately; walk_to takes the controls and returns when he arrives. */
+  | { kind: 'guide_to'; anchor: string }
+  | { kind: 'walk_to'; anchor: string }
+  | { kind: 'look_at'; anchor: string | null; ms?: number }
+
+  /* the sit-down panels. Deliberately a short closed list: a station that opens
+   * a panel is a station that could have been a scene, so making this cheap to
+   * add would be making the wrong thing cheap. */
+  | { kind: 'open'; ui: 'planner' | 'handbook' | 'chart' | 'wardrobe' | 'settings' }
+
+  /* a scored activity. `beat` names one the engine can build; both study arms
+   * render from the same items, which is what as_plain() means in practice and
+   * why it is here rather than bolted on later. */
+  | { kind: 'play'; beat: string; as_plain?: boolean }
+
+  /* the world reflecting the run. `placement` is a MAPVIS placement id, bound to
+   * an anchor so a grape addresses it by name like everything else. */
+  | { kind: 'show'; anchor: string; visible: boolean }
+  | { kind: 'fx'; name: string; anchor?: string; data?: unknown }
+
+  /* scene changes. `at` is the arrival anchor in the target map, without which
+   * every door into a room drops the player on that room's one global spawn. */
+  | { kind: 'enter'; map: string; at?: string }
+  | { kind: 'cutscene'; script: string }
+
+  /* run state. `get` reads, and the paths it accepts are the ones progress.ts
+   * can answer, so a grape cannot ask a question the engine has to invent an
+   * answer to. */
+  | { kind: 'get'; path: RunPath }
+  | { kind: 'set_flag'; flag: string }
+  | { kind: 'award'; grade?: number; fact?: string; sticker?: string; badge?: string }
+
+  /* instrumentation. Law 11: every meaningful interaction emits a typed event.
+   * A grape gets to add to the record; it does not get to write the record. */
+  | { kind: 'log'; event: string; data?: Record<string, unknown> }
+
+export type RunPath =
+  | 'year' | 'gpa' | 'tokens' | 'cords' | 'flags' | 'islands'
+  | 'handle' | 'mode' | 'graduated'
+
+/* ---- what comes back ------------------------------------------------------ */
+
+/* One shape for every reply so the worker protocol has one envelope and a
+ * beginner's `pick = yield self.choose([...])` is the same machinery as
+ * `yield self.say(...)`. `ok: false` is a refusal the engine can explain, never
+ * an exception thrown across a runtime boundary. */
+export type IntentResult =
+  | { ok: true; value?: unknown }
+  | { ok: false; why: string }
+
+export const ok = (value?: unknown): IntentResult => ({ ok: true, value })
+export const no = (why: string): IntentResult => ({ ok: false, why })
+
+/* ---- who honours them ----------------------------------------------------- */
+
+/* The half of the vocabulary that needs a world. A scene implements this and
+ * the intents that touch a map become possible; a scene that does not is still
+ * a legal place to run a grape, it just cannot be asked to walk anybody.
+ *
+ * Everything NOT in here (open, play, get, set_flag, award, log) is answered by
+ * the engine itself and works in any scene, which is what makes a grape's logic
+ * testable with no map at all. */
+export interface IntentWorld {
+  /* the map this scene is showing, so `enter` knows when it is a no-op */
+  mapId(): string
+  /* does this map have an anchor by that name */
+  hasAnchor(name: string): boolean
+  say(who: string | undefined, text: string, portrait?: string): Promise<void>
+  choose(prompt: string | undefined, options: string[]): Promise<number>
+  guideTo(anchor: string | null): void
+  walkTo(anchor: string): Promise<void>
+  lookAt(anchor: string | null, ms?: number): Promise<void>
+  show(anchor: string, visible: boolean): void
+  fx(name: string, anchor?: string, data?: unknown): void
+  enter(map: string, at?: string): Promise<void>
+  cutscene(script: string): Promise<void>
+}
+
+/* The engine half. Supplied once at boot rather than per scene, because the
+ * save file and the logger do not change when the camera does. */
+export interface IntentEngine {
+  openUi(ui: 'planner' | 'handbook' | 'chart' | 'wardrobe' | 'settings'): void
+  playBeat(beat: string, asPlain: boolean): Promise<number | null>
+  read(path: RunPath): unknown
+  setFlag(flag: string): void
+  award(a: { grade?: number; fact?: string; sticker?: string; badge?: string }): void
+  log(event: string, data?: Record<string, unknown>): void
+  mode(): SessionMode
+}
+
+export type IntentHost = { world: IntentWorld | null; engine: IntentEngine }
+
+/* ---- the one place an intent is performed --------------------------------- */
+
+/* Exhaustive on purpose. A new capability is a new case here and a new line in
+ * the union above, and TypeScript refuses to build until both exist. That is
+ * the whole enforcement mechanism for "the vocabulary is the capability list":
+ * you cannot name something the engine cannot do, because naming it does not
+ * compile.
+ */
+export async function performIntent(i: Intent, host: IntentHost): Promise<IntentResult> {
+  const { world, engine } = host
+  /* an intent that needs a map, asked in a scene that has none. Answered rather
+   * than thrown: a grape running in the standalone harness with no scene should
+   * report "there is no world here", not crash the worker. */
+  const w = (): IntentWorld => {
+    if (!world) throw new NoWorld(i.kind)
+    return world
+  }
+  try {
+    switch (i.kind) {
+      case 'say':
+        await w().say(i.who, i.text, i.portrait)
+        return ok()
+      case 'choose':
+        return ok(await w().choose(i.prompt, i.options))
+      case 'guide_to':
+        if (!w().hasAnchor(i.anchor)) return no(`no anchor named "${i.anchor}" on ${w().mapId()}`)
+        w().guideTo(i.anchor)
+        return ok()
+      case 'walk_to':
+        if (!w().hasAnchor(i.anchor)) return no(`no anchor named "${i.anchor}" on ${w().mapId()}`)
+        await w().walkTo(i.anchor)
+        return ok()
+      case 'look_at':
+        await w().lookAt(i.anchor, i.ms)
+        return ok()
+      case 'show':
+        if (!w().hasAnchor(i.anchor)) return no(`no anchor named "${i.anchor}" on ${w().mapId()}`)
+        w().show(i.anchor, i.visible)
+        return ok()
+      case 'fx':
+        w().fx(i.name, i.anchor, i.data)
+        return ok()
+      case 'enter':
+        await w().enter(i.map, i.at)
+        return ok()
+      case 'cutscene':
+        await w().cutscene(i.script)
+        return ok()
+
+      case 'open':
+        engine.openUi(i.ui)
+        return ok()
+      case 'play': {
+        /* THE CONTROL ARM IS NOT OPTIONAL. as_plain defaults to the arm this
+         * participant was assigned at join, so a grape that never mentions it
+         * still renders both ways and the study stays content-constant. A grape
+         * CAN force plain (a teaching moment that should read the same either
+         * way); it cannot force game, because that would let one island opt the
+         * control arm out of its own control. */
+        const plain = i.as_plain ?? engine.mode() === 'plain'
+        return ok(await engine.playBeat(i.beat, plain))
+      }
+      case 'get':
+        return ok(engine.read(i.path))
+      case 'set_flag':
+        engine.setFlag(i.flag)
+        return ok()
+      case 'award':
+        engine.award(i)
+        return ok()
+      case 'log':
+        engine.log(i.event, i.data)
+        return ok()
+    }
+    /* unreachable while the switch is exhaustive; the assignment is what makes
+     * the compiler say so if a case is ever added to the union and not here */
+    const never: never = i
+    return no(`unknown intent ${JSON.stringify(never)}`)
+  } catch (e) {
+    if (e instanceof NoWorld) return no(`${e.what} needs a map, and this scene has none`)
+    return no(e instanceof Error ? e.message : String(e))
+  }
+}
+
+class NoWorld extends Error {
+  constructor(readonly what: string) { super(what) }
+}

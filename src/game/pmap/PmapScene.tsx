@@ -13,7 +13,7 @@
 // pixels. A painting with no transparent border pixel is an interior room and gets no ocean.
 //
 // Route: ?scene=pmap&map=<id>  (default quayprop)  ·  &dbg=1 overlays the levels mask
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, TextStyle, Texture, TextureSource } from 'pixi.js'
 import {
   HW, HH, isoX, isoY, DEPTH_RANGE, loadWaterVariants, configSeaTile, animSwells,
@@ -29,6 +29,15 @@ import { cleanLife, lifeAt, type Life, type LifeBounds, separate } from './life'
  * MAPVIS's src/core/walk.ts verbatim, on the same terms life.ts is, so the
  * editor's walk test and this scene cannot disagree about where a wall is. */
 import { TEST_SPEED, Walker, canStand as lawCanStand, canStandFrom as lawCanStandFrom, defaultCfg, type MaskDoc, type WalkCfg } from './walk'
+import { AnchorSet, type Anchor } from './anchors'
+import { holdWorld, onWorldHold, worldHeld } from '../world-bus'
+import { choose, clearDialogue, say } from '../dialogue'
+import { engine } from '../intent-engine'
+import type { IntentHost, IntentWorld } from '../../vine/intents'
+import { loadSave } from '../save'
+import { MAW_MAP, isObjective, nextObjective } from '../run/objective'
+import { missingAnchors, stationByName } from '../maw/stations'
+import { runStation } from '../maw/run-station'
 
 /* when a heading has no view, the next best one it might have, so a set drawn
  * four ways still faces roughly right instead of snapping to south */
@@ -59,12 +68,16 @@ interface PmapJson {
   yScale: number                    // vertical speed factor, the painted ground's foreshortening
   stairs: { value: number; connects: [number, number]; rect: [number, number, number, number]; px: number }[]
   occluders: { id: number; baseline: number }[]
-  // EVENTS: a spot on the map plus an action. Optional and open-ended on
-  // purpose — a missing field means none, an unknown type is skipped, so an
-  // older bundle and a future event kind both load. door is the first type:
-  // x,y the anchor in painting px, r the activation radius, label the human
-  // name, to the target bundle id under public/maps-painted/.
-  events?: { id?: number; type?: string; x?: number; y?: number; r?: number; label?: string; to?: string }[]
+  /* ANCHORS: every addressable spot on this map, and the reason the Python API
+   * can say guide_to("chart_table") instead of an x and a y. Six kinds, an
+   * author-typed `name` separate from the player-facing `label`, and a `meta`
+   * bag. MAPVIS has exported this since 2026-08-26; anchors.ts reads it.
+   *
+   * `events` is the pre-anchor shape, still written alongside for old readers.
+   * Both are optional and the reader takes whichever is there, so a bundle from
+   * either era opens. */
+  anchors?: unknown
+  events?: unknown
 }
 
 /* Thor is never behind a person.
@@ -362,8 +375,34 @@ function scanRows(t: Texture): { top: number; feet: number } | null {
   } catch { return null }
 }
 
+/* WHICH MAP, AND WHERE IN IT.
+ *
+ * `at` is the arrival anchor. Without it every door into a map drops the player
+ * on that map's one global spawn, so three connected rooms all land you on the
+ * same tile no matter which way you came in, and walking back out of the Maw
+ * puts Thor at the dock instead of the tunnel mouth he just left.
+ */
+type PmapTarget = { map: string; at?: string }
+
+const targetFromUrl = (): PmapTarget => {
+  const p = new URLSearchParams(window.location.search)
+  return { map: p.get('map') || 'quayprop', at: p.get('at') || undefined }
+}
+
 export default function PmapScene() {
   const hostRef = useRef<HTMLDivElement>(null)
+  /* THE MAP IS STATE, WHICH IS WHAT KILLED THE RELOAD.
+   *
+   * A door used to set window.location.search, which reloads the page. That
+   * destroys SceneManager, remounts React, throws away the cutscene runtime and
+   * the logger's queue, and re-downloads the bundle. It was fine while a door
+   * was a curiosity and it is not fine now that the Maw is rooms.
+   *
+   * Holding the target in state makes the effect below re-run instead: Pixi is
+   * torn down and rebuilt, and everything outside this component survives. The
+   * URL is still kept in step with replaceState so a refresh lands in the room
+   * the player was standing in. */
+  const [target, setTarget] = useState<PmapTarget>(targetFromUrl)
 
   useEffect(() => {
     let destroyed = false
@@ -371,10 +410,15 @@ export default function PmapScene() {
     const keys: Record<string, boolean> = {}
     const kd = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = true }
     const ku = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = false }
+    /* every key is forgotten the moment the world is taken away, or the `e` that
+     * opened a panel is still held when it closes and fires the station again,
+     * and a held `d` walks Thor into a wall behind the year sheet */
+    const dropKeys = () => { for (const k of Object.keys(keys)) keys[k] = false }
+    const offHold = onWorldHold((held) => { if (held) dropKeys() })
 
     const start = async () => {
       const params = new URLSearchParams(window.location.search)
-      const mapId = params.get('map') || 'quayprop'
+      const mapId = target.map
       const DBG = params.has('dbg')
 
       /* WHAT OPENING THIS MAP COSTS, MEASURED HERE RATHER THAN CLAIMED.
@@ -468,16 +512,31 @@ export default function PmapScene() {
       if (destroyed) return
       const W = map.w, H = map.h
 
-      // ---- the door events: tolerant parse. No events field, no events; a
-      // type this build does not know is skipped, never an error. ----
-      const doors = (Array.isArray(map.events) ? map.events : [])
-        .filter((e) => e && e.type === 'door' && isFinite(Number(e.x)) && isFinite(Number(e.y)))
-        .map((e) => ({
-          x: Number(e.x), y: Number(e.y),
-          r: Number(e.r) > 0 ? Number(e.r) : 14,
-          label: String(e.label || 'door'),
-          to: String(e.to || ''),
-        }))
+      /* ---- ANCHORS: the whole set, not just the doors ----
+       *
+       * This used to be `map.events.filter(type === 'door')`, which is why the
+       * game has never seen a name, a kind or a meta bag: it read the shape from
+       * before anchors existed and threw the rest away every load. Now the set
+       * is read whole, addressed by name, and doors are one kind among six.
+       *
+       * anchors.ts owns the tolerant parse, so an unknown kind or a duplicate
+       * name is a console line naming it rather than a map that refuses to open.
+       */
+      const anchors = AnchorSet.from(mapId, map)
+      const doors = anchors.ofKind('door')
+      /* every placement by its MAPVIS id, so an anchor bound to one can address
+       * it. Filled in the assets pass below. */
+      const placedById = new Map<string, Sprite>()
+      if (DBG && anchors.all.length) {
+        console.log(`[pmap] ${mapId}: ${anchors.all.length} anchors ·`,
+          anchors.all.map((a) => `${a.name}(${a.kind})`).join(' '))
+      }
+      /* the Maw states what it needs; say so once at load rather than letting a
+       * station silently never fire because its anchor was never placed */
+      if (mapId === MAW_MAP) {
+        const missing = missingAnchors((n) => anchors.has(n))
+        if (missing.length) console.warn(`[pmap] ${mapId} is missing anchors: ${missing.join(', ')}`)
+      }
       // does a door's target bundle exist? Checked once per target, the same
       // content-type guard as the assets fetch: the dev server answers a
       // missing file with the SPA's index.html at 200, so only a real json
@@ -993,6 +1052,11 @@ export default function PmapScene() {
               sp.rotation = Number(a.rot) || 0
               sp.zIndex = a.y
               world.addChild(sp)
+              /* addressable by its MAPVIS id, which is what an anchor's
+               * `placement` field points at. This is the whole mechanism behind
+               * the world reflecting the run: bind an anchor to a placement and
+               * `show` can make it appear when a cord is earned. */
+              placedById.set(a.id, sp)
               // a placement that MOVES carries a few numbers instead of extra
               // frames, and the ticker below works out where it is. See life.ts:
               // travel cannot be baked into an animation, because an animation
@@ -1184,7 +1248,13 @@ export default function PmapScene() {
           }
         return [sx, sy]
       }
-      const [spx, spy] = findGround(map.spawn[0], map.spawn[1])
+      /* WHERE HE STARTS: the arrival anchor a door named, then a spawn anchor,
+       * then the map's own spawn. Never the origin, which on any of these maps
+       * is inside the rock. findGround still has the last word, because an
+       * author can put an anchor a pixel off the walkable edge and a player
+       * should not have to care. */
+      const arrive = anchors.arrival(target.at, map.spawn)
+      const [spx, spy] = findGround(arrive.x, arrive.y)
       /* THE WALK LAW OWNS WHERE HE IS.
        *
        * Walker is MAPVIS's own class out of walk.ts, so the level test, the
@@ -1245,22 +1315,152 @@ export default function PmapScene() {
       doorTxt.visible = false
       world.addChild(doorTxt)
 
-      // ---- the door exit: a plain full-screen black fade on the ticker
-      // (~400ms), then a reload into ?scene=pmap&map=<to> with every other
-      // query param kept. v1 accepts the reload; no shaders, no tween lib. ----
-      let exitTo = ''
+      /* the objective marker: a small chevron over the one station the year is
+       * currently sending the player to. Deliberately not a glow on the station
+       * itself, because the station is Ash's art and the marker is the engine's,
+       * and the engine does not draw on top of the art. */
+      const objMark = new Text({
+        text: '▾',
+        style: new TextStyle({ fontFamily: 'monospace', fontSize: 16, fontWeight: 'bold', fill: 0xffd98a, stroke: { color: 0x3a2410, width: 3 } }),
+      })
+      objMark.anchor.set(0.5, 1)
+      objMark.scale.set(1 / Z)
+      objMark.zIndex = 9e9 - 2
+      objMark.visible = false
+      world.addChild(objMark)
+
+      /* ---- the door exit: a full-screen black fade (~400ms), then the scene
+       * re-runs on the new target. No page reload: see the note on `target`
+       * above. `at` rides along so the next map knows where to put him. ---- */
+      let exitTo: PmapTarget | null = null
       let exitT = 0
       let exited = false
       let fade: Graphics | null = null
-      const beginExit = (to: string) => {
+      let releaseExit: (() => void) | null = null
+      const beginExit = (to: PmapTarget) => {
         if (fade) return
         exitTo = to
         exitT = 0
+        /* the controls go away for the whole fade. Walking during a transition
+         * means arriving somewhere the player did not aim for. */
+        releaseExit = holdWorld(`pmap:exit->${to.map}`)
         fade = new Graphics().rect(0, 0, app.screen.width, app.screen.height).fill(0x000000)
         fade.alpha = 0
         app.stage.addChild(fade)
       }
       let ePrev = false
+      /* a station body is running and owns the player. Checked before offering a
+       * prompt so E cannot start the counselor twice while he is mid-sentence. */
+      let busy = false
+
+      /* ---- THE WORLD HALF OF THE INTENT VOCABULARY (src/vine/intents.ts) ----
+       *
+       * Everything here is something a member's Python will be able to ask for.
+       * The station table in src/game/maw/stations.ts already asks for it in the
+       * same idiom, which is the test: if the vine's own content cannot be
+       * written in the API the members get, the API is a demo. */
+      const intentWorld: IntentWorld = {
+        mapId: () => mapId,
+        hasAnchor: (n) => anchors.has(n),
+
+        say: (who, text, portrait) => say({ who, text, portrait }),
+        choose: (prompt, options) => choose({ prompt, options }),
+
+        guideTo(name) {
+          guideTarget = name ? anchors.get(name) ?? null : null
+        },
+
+        /* AUTO-WALK. Honest about what it is: it steers toward the anchor with
+         * the same walk law the player uses, so it slides along walls and stops
+         * where a person would stop. It does NOT path around an obstacle, so on
+         * an open platform it is right and in a maze it would stall, which is
+         * why it gives up rather than hanging. Real pathfinding over the level
+         * mask is the next thing this wants and the Maw does not need it. */
+        walkTo(name) {
+          const a = anchors.get(name)
+          if (!a) return Promise.resolve()
+          return new Promise<void>((resolve) => {
+            autoWalk = { to: a, until: performance.now() + 8000, done: resolve }
+          })
+        },
+
+        lookAt(name, ms = 500) {
+          const a = name ? anchors.get(name) : null
+          lookAtTarget = a ? { x: a.x, y: a.y, until: performance.now() + ms } : null
+          return new Promise<void>((r) => setTimeout(r, a ? ms : 0))
+        },
+
+        /* THE WORLD REFLECTS THE RUN. An anchor bound to a placement is how a
+         * painted object gets a name, and this is what turns the trophy wall
+         * from a picture into a readout. Ash's own rule for the ship in August,
+         * generalised: what is on screen has to agree with what happened. */
+        show(name, visible) {
+          const a = anchors.get(name)
+          const id = a?.placement
+          if (!id) { console.warn(`[pmap] anchor "${name}" is not bound to a placement`); return }
+          const sp = placedById.get(id)
+          if (sp) sp.visible = visible
+          else console.warn(`[pmap] no placement "${id}" on ${mapId}`)
+        },
+
+        fx(name, anchorName2) {
+          /* the fx library is §12's work and is not this session's. Named and
+           * logged rather than silently dropped, so an author sees that the
+           * engine heard them and has nothing to draw yet. */
+          console.log(`[pmap] fx "${name}"${anchorName2 ? ` at ${anchorName2}` : ''} (not built)`)
+        },
+
+        enter(map, at) {
+          beginExit({ map, at })
+          /* resolves when the fade has actually swapped the map, so a station
+           * body that walks somebody through a door does not run its next line
+           * against a scene that is being torn down */
+          return new Promise<void>((r) => { exitResolve = r })
+        },
+
+        cutscene(script) {
+          console.log(`[pmap] cutscene "${script}" (CutsceneStage not implemented on this scene yet)`)
+          return Promise.resolve()
+        },
+      }
+      const intentHost: IntentHost = { world: intentWorld, engine }
+
+      /* guide, auto-walk and camera-look state, ticked in the loop below */
+      let guideTarget: Anchor | null = null
+      let autoWalk: { to: Anchor; until: number; done: () => void } | null = null
+      let lookAtTarget: { x: number; y: number; until: number } | null = null
+      let exitResolve: (() => void) | null = null
+
+      /* ---- PRESSING E: an anchor name becomes a running mechanic ----
+       *
+       * The whole point of the session, in fifteen lines. A door is still a
+       * door. Anything else looks its name up in the station table and pumps
+       * the body through the intent driver, which is the same protocol the
+       * MicroPython worker will speak. */
+      const fire = async (a: Anchor) => {
+        if (busy || fade) return
+        if (a.kind === 'door') {
+          if (a.to) beginExit({ map: a.to, at: a.toAnchor })
+          return
+        }
+        const st = stationByName(a.name)
+        const sv = loadSave()
+        if (!st || !sv) return
+        busy = true
+        const release = holdWorld(`station:${a.name}`)
+        engine.log('station_used', { map: mapId, anchor: a.name, objective: isObjective(sv, mapId, a.name) })
+        try {
+          const report = await runStation(st.run(sv), intentHost, a.name)
+          if (report.error) console.warn(`[pmap] station ${a.name}: ${report.error}`)
+        } finally {
+          release()
+          busy = false
+          /* the E that opened this is very likely still down; forget it or the
+           * station fires again the instant the lock lifts */
+          ePrev = true
+          keys['e'] = false
+        }
+      }
 
       // ---- input ----
       window.addEventListener('keydown', kd); window.addEventListener('keyup', ku)
@@ -1310,12 +1510,42 @@ export default function PmapScene() {
          * A door exit in progress owns the character, so during a fade he is
          * handed nothing held and the law stops him itself, which also resets
          * his stride the way letting go of the keys does. */
-        const held: Record<string, boolean> = fade ? {} : keys
+        /* WHO OWNS THE CONTROLS.
+         *
+         * Three things can take them: a door fade, a panel or cutscene through
+         * the world bus, and an auto-walk a station asked for. Before this the
+         * walker read the raw key map every frame with nothing in between, so
+         * opening the year sheet from the chart table left Thor walking around
+         * underneath it. */
+        const locked = worldHeld()
+        let input: Record<string, boolean> = fade || locked ? {} : keys
+
+        /* AUTO-WALK: `walk_to("hearth")` in the API. It steers with the player's
+         * own walk law rather than sliding the sprite, so it stops at walls, at
+         * terrace edges and on the walkable side of a bridge exactly where a
+         * person would. It does not path AROUND anything, which is right on an
+         * open platform and would stall in a maze, so it gives up on a clock
+         * instead of hanging the body that asked for it. */
+        if (autoWalk) {
+          const dx = autoWalk.to.x - pos.x, dy = (autoWalk.to.y - pos.y)
+          const near2 = Math.hypot(dx, dy) <= Math.max(4, autoWalk.to.r * 0.5)
+          if (near2 || performance.now() > autoWalk.until) {
+            if (!near2) console.warn(`[pmap] walk_to("${autoWalk.to.name}") gave up; no path from here`)
+            autoWalk.done()
+            autoWalk = null
+          } else {
+            input = {
+              arrowright: dx > 1, arrowleft: dx < -1,
+              arrowdown: dy > 1, arrowup: dy < -1,
+            }
+          }
+        }
+
         const moving = !!(
-          held['arrowup'] || held['w'] || held['arrowdown'] || held['s'] ||
-          held['arrowleft'] || held['a'] || held['arrowright'] || held['d']
+          input['arrowup'] || input['w'] || input['arrowdown'] || input['s'] ||
+          input['arrowleft'] || input['a'] || input['arrowright'] || input['d']
         )
-        walker.step(doc, cfg, held, dt)
+        walker.step(doc, cfg, input, dt)
         const fr = moving ? walkT[walker.facing][1 + (Math.floor(walker.animT) % 5)] : walkT[walker.facing][0]
         if (thor.sp.texture !== fr) thor.sp.texture = fr
         thor.sp.position.set(pos.x, pos.y)
@@ -1328,43 +1558,105 @@ export default function PmapScene() {
         camTo(pos.x, pos.y)
         ;(window as any).__walk = `thor ${pos.x.toFixed(0)},${pos.y.toFixed(0)} lvl${lvlAt(pos.x, pos.y)}`
 
-        // ---- doors: the nearest one whose ring the feet are inside owns the
-        // prompt. Stepping into a ring kicks the target check, and the tag only
-        // speaks once that check has answered: "E · enter" for a target that
-        // exists, and for one that does not, a way that is shut. Silence while
-        // the check is in flight, because offering a door and taking it back a
-        // frame later is worse than a beat of nothing. ----
-        let doorNear: (typeof doors)[number] | null = null
-        let doorBest = Infinity
-        for (const d of doors) {
-          const dd = Math.hypot(pos.x - d.x, pos.y - d.y)
-          if (dd <= d.r && dd < doorBest) { doorBest = dd; doorNear = d }
-        }
-        if (doorNear) {
-          checkDoor(doorNear.to)
-          const built = doorState.get(doorNear.to)
-          // a door with nothing behind it is barred in the world's own words,
-          // not the build's: the player is told no, and told it in the story
-          if (built === 'ok') doorTxt.text = `E · enter ${doorNear.label}`
-          else if (built === 'missing') doorTxt.text = `${doorNear.label} · the way is barred`
-          doorTxt.position.set(doorNear.x, doorNear.y - 6 + Math.sin(t * 2.1) * 1.2)
-          doorTxt.visible = built === 'ok' || built === 'missing'
+        /* ---- INTERACTION: the nearest anchor whose ring the feet are inside
+         * owns the prompt, and it can be a door, a post or a point.
+         *
+         * This used to consider doors and nothing else, which is why the Maw's
+         * chart table could not have existed: there was no way for a spot on a
+         * map to mean anything but "go somewhere else". Now the anchor's NAME is
+         * looked up in the station table and the prompt says what is really
+         * there, or why it is closed, in the world's words rather than the
+         * build's.
+         *
+         * Regions and triggers are excluded by nearestInteractive, or standing
+         * inside a big atmosphere region would suppress the table you are
+         * standing at. */
+        const near = locked || busy || fade ? null : anchors.nearestInteractive(pos.x, pos.y)
+        let canFire = false
+        if (near) {
+          const label = near.label || stationByName(near.name)?.fallbackLabel || near.name
+          let text = ''
+          if (near.kind === 'door') {
+            checkDoor(near.to || '')
+            const built = doorState.get(near.to || '')
+            /* a door with nothing behind it is barred in the world's own words.
+             * This is what lets the Maw ship as one room with two bridges that
+             * end in tunnels: the side doors are real, named, and honestly shut
+             * until a painting exists for what is past them. Silence while the
+             * check is in flight, because offering a door and taking it back a
+             * frame later is worse than a beat of nothing. */
+            if (built === 'ok') { text = `E · enter ${label}`; canFire = true }
+            else if (built === 'missing') text = `${label} · the way is barred`
+          } else {
+            const st = stationByName(near.name)
+            const sv = loadSave()
+            if (!st) {
+              /* an anchor somebody placed and named that no station answers to.
+               * Named out loud in debug rather than silently ignored, because a
+               * typo in MAPVIS and a station nobody wrote look identical from
+               * here. */
+              if (DBG) text = `${label} · no station named ${near.name}`
+            } else if (!sv) {
+              text = label
+            } else if (!st.available || st.available(sv)) {
+              text = `E · ${label}`; canFire = true
+            } else {
+              text = st.closed?.(sv) ?? label
+            }
+          }
+          doorTxt.text = text
+          doorTxt.position.set(near.x, near.y - 6 + Math.sin(t * 2.1) * 1.2)
+          doorTxt.visible = !!text
         } else doorTxt.visible = false
-        // E is an edge, not a hold: one press, one door
+
+        /* THE OBJECTIVE MARKER: one thing at a time is the live one.
+         *
+         * A home base with six glowing stations is a menu. One lit station and
+         * five quiet ones is a place with a story running through it. The lit
+         * one comes from the year's own state machine (run/objective.ts), so it
+         * moves as the year moves with nothing here deciding anything. */
+        const obj = nextObjective(loadSave())
+        /* an explicit guide_to from a station outranks the year's own next step,
+         * because a body that just said "go and look at the wall" means it */
+        const mark = guideTarget ?? (obj && obj.map === mapId ? anchors.get(obj.anchor) : undefined)
+        if (mark) {
+          objMark.position.set(mark.x, mark.y - 14 + Math.sin(t * 2.6) * 2)
+          objMark.visible = !locked && !fade
+        } else objMark.visible = false
+
+        /* a camera hold from look_at, released when its clock runs out */
+        if (lookAtTarget) {
+          if (performance.now() > lookAtTarget.until) lookAtTarget = null
+          else camTo(lookAtTarget.x, lookAtTarget.y)
+        }
+
+        // E is an edge, not a hold: one press, one interaction
         const eNow = !!keys['e']
-        if (eNow && !ePrev && doorNear && !fade && doorState.get(doorNear.to) === 'ok') beginExit(doorNear.to)
+        if (eNow && !ePrev && near && canFire) fire(near)
         ePrev = eNow
         // the exit fade, then the reload into the target bundle with every
         // other query param kept
         if (fade) {
           exitT += tk.deltaMS
           fade.alpha = Math.min(1, exitT / 400)
-          if (exitT >= 430 && !exited) {
+          if (exitT >= 430 && !exited && exitTo) {
             exited = true
+            const to = exitTo
+            /* the URL is kept in step so a refresh lands in the room the player
+             * was standing in, but with replaceState rather than a navigation:
+             * the whole point is that React, SceneManager, the cutscene runtime
+             * and the log queue all survive the door. */
             const q = new URLSearchParams(window.location.search)
             q.set('scene', 'pmap')
-            q.set('map', exitTo)
-            window.location.search = q.toString()
+            q.set('map', to.map)
+            if (to.at) q.set('at', to.at); else q.delete('at')
+            window.history.replaceState(null, '', `${window.location.pathname}?${q}`)
+            engine.log('map_entered', { map: to.map, at: to.at ?? null, from: mapId })
+            releaseExit?.(); releaseExit = null
+            exitResolve?.(); exitResolve = null
+            /* re-runs the effect on the new target, which tears this Pixi app
+             * down and builds the next one */
+            setTarget(to)
           }
         }
 
@@ -1534,9 +1826,14 @@ export default function PmapScene() {
     return () => {
       destroyed = true
       window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku)
+      offHold()
+      /* anything a station was still waiting on is resolved rather than left
+       * hanging. A body parked on an unresolved say() holds its world lock for
+       * ever, and the next map opens with no controls and no way to tell why. */
+      clearDialogue()
       if (instance) instance.destroy(true, { children: true })
     }
-  }, [])
+  }, [target])
 
   return <div ref={hostRef} style={{ position: 'fixed', inset: 0, background: '#05080c' }} />
 }

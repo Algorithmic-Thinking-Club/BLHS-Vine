@@ -1,0 +1,72 @@
+/* Station dialogue. The BOX itself is the cutscene overlay's (.cs-dialogue in
+   cutscene/ui-kit.css) so a line from the counselor and a line from a cutscene
+   are the same picture. Only the things around it live here. */
+
+@import '../cutscene/ui-kit.css';
+
+.dlg-veil {
+  position: fixed; inset: 0;
+  z-index: 80;                 /* over the HUD stack (50), under the Handbook (75)? no:
+                                  above both, because a station's line is modal while it
+                                  is up and clicking a HUD button underneath it would
+                                  start a second thing on top of the first */
+  pointer-events: auto;
+}
+
+/* the box is absolute-positioned by .cs-dialogue; this only re-asserts the
+   layer, since the veil is a new stacking context */
+.dlg-box { z-index: 2; }
+
+/* the caret while the typewriter is still running: §2 law 4, a static frame is
+   a bug, and it is also how a player knows the line has not finished */
+.dlg-caret {
+  display: inline-block;
+  width: .55em; height: 1.05em;
+  margin-left: .06em;
+  vertical-align: -.16em;
+  background: #3b2a1a;
+  opacity: .55;
+  animation: dlg-blink 620ms steps(1, end) infinite;
+}
+@keyframes dlg-blink { 50% { opacity: 0; } }
+html[data-rm='1'] .dlg-caret { animation: none; }
+
+/* ---- the choices, fanned above the box ---- */
+.dlg-choices {
+  position: absolute;
+  left: 50%;
+  bottom: calc(max(2.4vh, 16px) + min(190px, 26vh) + 10px);
+  transform: translateX(-50%);
+  width: min(560px, 58vw);
+  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+  z-index: 3;
+}
+
+.dlg-choice {
+  position: relative;
+  min-height: 44px;
+  padding: 10px 22px;
+  background: url('/art/ui/plank-button.png') center / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  border: none; outline: none; cursor: pointer;
+  font-family: 'Harbormaster', 'Deckhand', monospace;
+  font-size: clamp(15px, 2.2vh, 21px);
+  color: #f0e4c8;
+  text-shadow: 0 2px 0 rgba(30, 16, 6, .75);
+  filter: drop-shadow(0 4px 10px rgba(3, 10, 12, .45));
+  /* §11.1: hover = 1px lift + warm glow, press = 2px sink */
+  transition: transform 130ms ease, filter 130ms ease;
+  animation: dlg-deal 220ms cubic-bezier(.2, 1.15, .35, 1) both;
+}
+/* dealt like held cards, each a beat after the last */
+.dlg-choice:nth-child(2) { animation-delay: 55ms; }
+.dlg-choice:nth-child(3) { animation-delay: 110ms; }
+.dlg-choice:nth-child(4) { animation-delay: 165ms; }
+@keyframes dlg-deal { from { transform: translateY(10px) rotate(-1.2deg); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.dlg-choice:hover { transform: translateY(-1px); filter: drop-shadow(0 6px 14px rgba(255, 196, 110, .28)); }
+.dlg-choice:active { transform: translateY(2px); }
+html[data-rm='1'] .dlg-choice { animation: none; }
+
+html[data-textsize='s'] .dlg-choice { font-size: clamp(13px, 1.9vh, 18px); }
+html[data-textsize='l'] .dlg-choice { font-size: clamp(18px, 2.7vh, 26px); }
