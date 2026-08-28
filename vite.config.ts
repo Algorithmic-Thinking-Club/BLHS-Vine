@@ -55,6 +55,27 @@ function apiDevBridge(): Plugin {
 
 export default defineConfig({
   plugins: [react(), apiDevBridge()],
+  // THE GRAPE WORKER. Vite's default worker format is `iife`, and MicroPython's
+  // wasm loader needs code-splitting (it dynamic-imports node:module/fs/path in
+  // a branch that never runs in a browser), which iife cannot express — the
+  // production build fails outright with "UMD and IIFE output formats are not
+  // supported for code-splitting builds". `es` is the format the worker is
+  // already constructed with (type: 'module' in src/vine/py/runGrape.ts), so
+  // this makes the config agree with the code rather than changing either.
+  worker: { format: 'es' },
+  // MicroPython's loader opens with a top-level `await import('node:module')`
+  // inside a branch that only runs under node, and the default browser target
+  // list (chrome87/safari14) predates top-level await, so esbuild refuses the
+  // whole chunk over a line the browser never reaches. This says the feature is
+  // available rather than raising the target for all 133 files: every browser
+  // that can run a `type: 'module'` worker at all supports top-level await, and
+  // the worker is the only place in the app that has one.
+  esbuild: { supported: { 'top-level-await': true } },
+  // ...and the dev dep-optimizer runs its OWN esbuild pass that does not read
+  // the line above, so it failed the same way and served a 504 for the runtime.
+  // The package is already browser-ready ESM and needs no pre-bundling, so the
+  // fix is to leave it alone rather than to teach two esbuilds the same thing.
+  optimizeDeps: { exclude: ['@micropython/micropython-webassembly-pyscript'] },
   test: {
     environment: 'happy-dom',
     include: ['src/**/*.test.ts', 'api/**/*.test.ts'],

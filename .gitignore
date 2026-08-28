@@ -81,6 +81,11 @@ scripts/*
 !scripts/pixelate-render.py
 !scripts/normalize_tiles.py
 !scripts/make_seamless_x.py
+# the two files that prove the python runtime works. mp-spike.mjs was written,
+# run and then swallowed by the scripts/* rule above, so the one thing the whole
+# grape API rests on was never actually in the repo.
+!scripts/mp-spike.mjs
+!scripts/grape-proof.mjs
 
 # Internal asset registries (kept local)
 **/*-registry.md

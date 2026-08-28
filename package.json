@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@micropython/micropython-webassembly-pyscript": "^1.29.0-6",
     "@neondatabase/serverless": "^1.1.0",
     "@types/three": "^0.185.0",
     "pixi.js": "^8.6.6",
@@ -20,7 +21,6 @@
     "three": "^0.185.0"
   },
   "devDependencies": {
-    "@micropython/micropython-webassembly-pyscript": "^1.29.0-6",
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",

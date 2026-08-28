@@ -35,6 +35,7 @@ const PlaceSceneLazy = lazyScene(() => import('./game/painted/PlaceScene'))
 const MapwrightLazy = lazyScene(() => import('./game/mapwright/MapwrightScene'))
 const ObjMapLazy = lazyScene(() => import('./game/objmap/ObjMapScene'))
 const PmapLazy = lazyScene(() => import('./game/pmap/PmapScene'))
+const GrapeProofLazy = lazyScene(() => import('./vine/py/GrapeProof'))
 
 // The game runs through the scene manager. The live student flow: boot -> title -> beach
 // (the intro lives ON the beach, join included) -> islandmap. The June-era scenes
@@ -59,6 +60,7 @@ const registry: SceneRegistry = {
   mw: () => <MapwrightLazy />, // MAPWRIGHT engine scene (P5): loads public/maps/<?map>/map.json — the map machine's output (?scene=mw&map=test-cove)
   objmap: () => <ObjMapLazy />, // THE OBJECT-MAP proof: engine ground + ocean, every object one painted PNG, colliders MEASURED off sprite alpha (?scene=objmap&dbg=1)
   pmap: () => <PmapLazy />, // THE MAPVIS BUNDLE LOADER: walks public/maps-painted/<?map> exactly as exported, zero hand-wiring (?scene=pmap&map=quayprop&dbg=1)
+  grape: () => <GrapeProofLazy />, // THE GRAPE PIPE: a member's .py in a MicroPython worker driving the real dialogue box (?scene=grape&py=hello.py)
 }
 
 export default function App() {
