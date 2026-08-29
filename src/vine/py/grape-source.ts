@@ -27,6 +27,36 @@
  * game speaks format 1" instead of watching their island fail strangely. */
 export const FORMAT = 1
 
+/* ONE FACT ABOUT A REAL SCHOOL, AND WHERE IT CAME FROM.
+ *
+ * The same shape `src/game/facts.ts` already uses, for the same reason: a
+ * sentence about BLHS with nothing behind it is a sentence the game tells a
+ * student as though it were true. `source` is a citation, or the literal
+ * "unknown", which is a claim a member is making on purpose rather than a field
+ * they forgot. There is no third option and that is the whole point. */
+export type SourcedFact = { text: string; source: string }
+
+/** the explicit marker. Absent is a mistake; this is a decision. */
+export const UNKNOWN = 'unknown'
+
+/* P18. What a student actually needs to know to walk into this thing on a
+ * Tuesday, which is not the same as what makes a good island and is the half a
+ * fourteen year old builder skips. Required, so it gets skipped out loud. */
+export type IslandContent = {
+  /** what it is */
+  what: SourcedFact
+  /** when it happens */
+  when: SourcedFact
+  /** how somebody joins, in the terms a freshman would use */
+  how_to_join: SourcedFact
+  /** four to six words, for a list */
+  blurb: string
+  /** one sticker id, when this island grants one */
+  sticker?: string
+  /** real meeting times and rooms, as data rather than as prose */
+  meets?: { day: string; time: string; room: string; source: string }[]
+}
+
 export type GrapeManifest = {
   format: number
   /** the roster programme this island completes. What `award()` names. */
@@ -38,6 +68,7 @@ export type GrapeManifest = {
   owner: string
   entry: string
   modules: string[]
+  content: IslandContent
 }
 
 export type LoadedGrape = {
@@ -49,9 +80,13 @@ export type LoadedGrape = {
   files: Record<string, string>
 }
 
-const REQUIRED = ['format', 'programme', 'map', 'title', 'owner', 'entry', 'modules'] as const
+const REQUIRED = ['format', 'programme', 'map', 'title', 'owner', 'entry', 'modules', 'content'] as const
 const OPTIONAL = ['season'] as const
 const SEASONS = ['Fall', 'Winter', 'Spring']
+const FACTS = ['what', 'when', 'how_to_join'] as const
+const CONTENT_OPTIONAL = ['blurb', 'sticker', 'meets'] as const
+/** a blurb is a line in a list, not a paragraph */
+const BLURB_WORDS = [4, 6] as const
 
 /* lower case, digits, single hyphens. The roster's own id shape, and safe as a
  * folder name, a url segment and a filename on every machine. */
@@ -145,6 +180,68 @@ export function manifestFaults(raw: unknown): string[] {
   }
 
   out.push(...moduleFaults(m))
+  out.push(...contentFaults(m.content))
+  return out
+}
+
+function contentFaults(raw: unknown): string[] {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    return ['`content` has to be an object: what, when, how_to_join and a blurb']
+  }
+  const c = raw as Record<string, unknown>
+  const out: string[] = []
+
+  for (const key of Object.keys(c)) {
+    if (!FACTS.includes(key as never) && !CONTENT_OPTIONAL.includes(key as never)) {
+      out.push(`\`content.${key}\` is not a field this format has`)
+    }
+  }
+
+  for (const key of FACTS) {
+    const f = c[key] as Partial<SourcedFact> | undefined
+    if (!f || typeof f !== 'object') {
+      out.push(`\`content.${key}\` is missing. It is {"text": "...", "source": "..."}`)
+      continue
+    }
+    if (typeof f.text !== 'string' || !f.text.trim()) out.push(`\`content.${key}.text\` is empty`)
+    /* THE WHOLE POINT OF THE SECTION. A missing source is a member who did not
+     * think about it; "unknown" is a member who did. The game can render the
+     * second honestly and cannot render the first at all. */
+    if (typeof f.source !== 'string' || !f.source.trim()) {
+      out.push(`\`content.${key}.source\` is missing. Cite where the fact came from, `
+        + `or put "${UNKNOWN}", which means you checked and nobody has published it`)
+    }
+  }
+
+  const blurb = c.blurb
+  if (typeof blurb !== 'string' || !blurb.trim()) {
+    out.push('`content.blurb` is missing. Four to six words, for a list.')
+  } else {
+    const words = blurb.trim().split(/\s+/).length
+    if (words < BLURB_WORDS[0] || words > BLURB_WORDS[1]) {
+      out.push(`\`content.blurb\` is ${words} words; it goes in a list, so ${BLURB_WORDS[0]} to ${BLURB_WORDS[1]}`)
+    }
+  }
+
+  if ('sticker' in c && (typeof c.sticker !== 'string' || !SLUG.test(c.sticker))) {
+    out.push(`\`content.sticker\` is ${JSON.stringify(c.sticker)}, which is not a slug`)
+  }
+
+  if ('meets' in c) {
+    if (!Array.isArray(c.meets)) {
+      out.push('`content.meets` is a list of {day, time, room, source}')
+    } else {
+      c.meets.forEach((m, i) => {
+        for (const k of ['day', 'time', 'room', 'source'] as const) {
+          const v = (m as Record<string, unknown>)?.[k]
+          if (typeof v !== 'string' || !v.trim()) {
+            out.push(`\`content.meets[${i}].${k}\` is missing. A meeting time nobody `
+              + 'sourced is a student standing outside the wrong room.')
+          }
+        }
+      })
+    }
+  }
   return out
 }
 

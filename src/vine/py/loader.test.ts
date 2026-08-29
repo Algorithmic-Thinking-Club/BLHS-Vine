@@ -30,6 +30,12 @@ const GOOD = {
   owner: 'atc',
   entry: 'island.py',
   modules: ['island.py'],
+  content: {
+    what: { text: 'A thing that does not exist.', source: 'unknown' },
+    when: { text: 'Never.', source: 'unknown' },
+    how_to_join: { text: 'You cannot.', source: 'unknown' },
+    blurb: 'a fixture for tests',
+  },
 }
 
 /** the manifest with one thing changed, or with a key removed when given undefined */
@@ -72,8 +78,13 @@ describe('what counts as an island', () => {
   })
 
   it('says nothing about contents while the shape is still wrong', () => {
-    // the one line that matters would otherwise be buried under six others
-    expect(manifestFaults({ format: 1 })).toHaveLength(6)
+    /* the one line that matters would otherwise be buried under the complaints
+     * about fields that are not there to complain about. Asserted as a property
+     * rather than a count, so adding a required field does not move a number in
+     * a test that is not about counting. */
+    const f = manifestFaults({ format: 1 })
+    expect(f.length).toBeGreaterThan(1)
+    expect(f.every((line) => line.includes('is missing, and it is required'))).toBe(true)
   })
 
   it('refuses a format it does not know, by number', () => {
@@ -114,6 +125,41 @@ describe('what counts as an island', () => {
 
   it('refuses a season outside the vocabulary', () => {
     expect(one(bent({ season: 'Summer' }))).toContain('`season`')
+  })
+})
+
+describe('the section that is about a real school', () => {
+  /* P18. What a student needs to know to walk into this thing on a Tuesday,
+   * which is the half a fourteen year old builder skips, so it is required and
+   * gets skipped out loud. */
+  it('is required', () => {
+    expect(one(bent({ content: undefined }))).toContain('`content`')
+  })
+
+  it('refuses a fact with nothing behind it', () => {
+    const c = { ...GOOD.content, what: { text: 'BLHS opened in 2005.' } }
+    expect(one(bent({ content: c }))).toContain('content.what.source')
+  })
+
+  it('accepts "unknown", because that is a decision and not an omission', () => {
+    const c = { ...GOOD.content, when: { text: 'Nobody has published it.', source: 'unknown' } }
+    expect(manifestFaults(bent({ content: c }))).toEqual([])
+  })
+
+  it('refuses a blurb that is a paragraph', () => {
+    const c = { ...GOOD.content, blurb: 'one two three four five six seven eight' }
+    expect(one(bent({ content: c }))).toContain('content.blurb')
+  })
+
+  it('refuses a meeting time nobody sourced', () => {
+    // a meeting time nobody sourced is a student standing outside the wrong room
+    const c = { ...GOOD.content, meets: [{ day: 'Tuesday', time: '2:10', room: '200 Flex' }] }
+    expect(one(bent({ content: c }))).toContain('meets[0].source')
+  })
+
+  it('names a content field nobody has heard of', () => {
+    const c = { ...GOOD.content, whn: { text: 'x', source: 'y' } }
+    expect(one(bent({ content: c }))).toContain('content.whn')
   })
 })
 

@@ -1,0 +1,18 @@
+{
+  "format": 1,
+  "programme": "maw-demo",
+  "map": "maw-demo-room",
+  "title": "A member takes an anchor",
+  "owner": "the vine",
+  "entry": "island.py",
+  "modules": ["island.py"],
+  "content": {
+    "what": {
+      "text": "The engine's own fixture for the anchor router. Not a place, not a programme, not a claim about the school.",
+      "source": "unknown"
+    },
+    "when": {"text": "Whenever somebody loads it onto a map with ?grape=.", "source": "unknown"},
+    "how_to_join": {"text": "You cannot. It is a test fixture.", "source": "unknown"},
+    "blurb": "one anchor, taken over"
+  }
+}

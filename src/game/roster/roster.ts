@@ -34,6 +34,7 @@
  * number and the stadium has no painting.
  */
 import type { Season } from '../save'
+import { MEMBER_ISLANDS } from './member-islands'
 
 export type MapId = string
 export type PlaceId = string
@@ -208,7 +209,10 @@ export const PLACES: Place[] = [
   },
 ]
 
-export const PROGRAMMES: Programme[] = [
+/* THE PROGRAMMES THE VINE ITSELF KNOWS ABOUT: sourced, hand written, Ash's.
+ * What ATC ships is appended below, out of a data file, because a member adding
+ * a programme by editing this array would be a member editing the engine. */
+const OURS: Programme[] = [
   {
     id: 'atc', name: 'Algorithmic Thinking Club', place: 'atc-room', kind: 'club',
     tags: [], rankTrack: 'atc', playable: false,
@@ -239,6 +243,35 @@ export const PROGRAMMES: Programme[] = [
     blurb: 'Student-led service. Tuesdays 2:10, 200 Flex, with Ms. Berwick.',
     host: 'Ellen Berwick', source: CLUBS_SRC,
   },
+]
+
+/* ---- AND WHAT ATC SHIPPED, WHICH IS DATA -----------------------------------
+ *
+ * N1 said playability is a property of the programme and this is the other half
+ * of it: a member's island reaches the roster by a PULL REQUEST THAT ADDS ONE
+ * ROW to a data file in their own repository. Ash merging it is the gate and the
+ * only gate. Nobody opens the engine to ship an island, which was true of every
+ * document about the member model and false of every line of code until now.
+ *
+ * Appended rather than merged, so a data row can never quietly redefine a
+ * sourced programme the school actually has. An id already on the roster is
+ * refused by `rosterFaults` and said out loud, which is the right answer: two
+ * things called `football` is a question for a person. */
+export const PROGRAMMES: Programme[] = [
+  ...OURS,
+  ...MEMBER_ISLANDS.map((i): Programme => ({
+    id: i.programme,
+    name: i.name,
+    place: i.place,
+    kind: i.kind,
+    ...(i.season ? { season: i.season } : {}),
+    tags: i.tags,
+    ...(i.rankTrack ? { rankTrack: i.rankTrack } : {}),
+    playable: i.playable,
+    blurb: i.blurb,
+    ...(i.host ? { host: i.host } : {}),
+    source: i.source,
+  })),
 ]
 
 /* ---- THE ONE RESOLVER ------------------------------------------------------

@@ -5,5 +5,22 @@
   "title": "The island that breaks",
   "owner": "the vine",
   "entry": "island.py",
-  "modules": ["island.py"]
+  "modules": [
+    "island.py"
+  ],
+  "content": {
+    "what": {
+      "text": "The engine's own fixture for what happens when an island goes wrong. Not a claim about the school.",
+      "source": "unknown"
+    },
+    "when": {
+      "text": "Whenever somebody opens ?scene=grape&island=broken.",
+      "source": "unknown"
+    },
+    "how_to_join": {
+      "text": "You cannot. It is a test fixture.",
+      "source": "unknown"
+    },
+    "blurb": "four ways to go wrong"
+  }
 }
