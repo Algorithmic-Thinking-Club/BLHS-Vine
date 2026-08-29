@@ -103,6 +103,12 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     if (which === 'chart') { track('chart_opened'); setBook('chart'); onBlurWorld?.(true) }
     if (which === 'wardrobe') { track('wardrobe_opened', { via: 'world' }); setWardrobe(true); onBlurWorld?.(true) }
     if (which === 'settings') { setSettings(true) }
+    /* THE SIXTH DOOR, and the page had exactly one before it: a button inside the
+     * planner that only appears while THIS year is closable. So a student could
+     * not look at year one the moment year one ended, and no island and no
+     * station could ever send them to their own book. `open('yearbook')` is a
+     * word a member's Python can already say. */
+    if (which === 'yearbook') { track('yearbook_opened', { via: 'world' }); setYearbook(true); onBlurWorld?.(true) }
   }), [onBlurWorld])
 
   /* A SCORED ACTIVITY ASKED FOR BY WORLD CODE, WITH ITS GRADE COMING BACK.

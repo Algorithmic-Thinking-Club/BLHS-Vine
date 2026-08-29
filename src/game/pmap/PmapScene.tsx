@@ -2736,8 +2736,15 @@ export default function PmapScene() {
         dockAt(home)
         return 'docking'
       }
-      ;(window as any).__fx = (name: string) => playFx(name, { x: pos.x, y: pos.y })
-        .then(() => 'played').catch((e: Error) => e.message)
+      /* the refusal comes back as a STRING rather than as a throw, because
+       * `playFx` refuses synchronously (before there is a promise to reject) and
+       * a harness that has to guess which of the two it will get is a harness
+       * that reports a real refusal as a crash. `__station` answers the same way
+       * and for the same reason. */
+      ;(window as any).__fx = (name: string) => {
+        try { return playFx(name, { x: pos.x, y: pos.y }).then(() => 'played') }
+        catch (e) { return Promise.resolve(e instanceof Error ? e.message : String(e)) }
+      }
 
       app.ticker.add((tk) => {
         const dt = Math.min(tk.deltaMS, 50) / 1000
