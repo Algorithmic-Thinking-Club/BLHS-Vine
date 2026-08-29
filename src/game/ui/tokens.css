@@ -1,0 +1,397 @@
+/* THE KIT'S ONE MATERIAL LAYER, AND THE ONLY PLACE A COLOUR IS DECIDED.
+ *
+ * §80.5's job for this substrate is "twenty surfaces behaving like one game", and
+ * what was here instead was one hardcoded paper-on-wood look with the same eleven
+ * hexes retyped across six stylesheets: `#8a744f` thirteen times, `#4a3826` eight,
+ * the wood plaque gradient five. Nothing was wrong with the look. What was wrong
+ * is that there was no way to change it, so §16's plain arm, which is the same
+ * content with the game-ness taken away, would have had to be a second set of
+ * stylesheets and would then have drifted from the first one the day after it
+ * was written.
+ *
+ * EVERY VALUE BELOW IS EXTRACTED, NOT INVENTED. Each one was already in the tree
+ * at the byte, and `tokens.test.ts` holds them to it, so turning the kit into a
+ * system did not restyle the game out from under anybody. The default skin has to
+ * render what shipped yesterday, and the test is how that is checked rather than
+ * asserted.
+ *
+ * THREE FAMILIES, BECAUSE THE REPO HAS THREE. The paper kit is what the game
+ * shows: dialogue, Handbook, settings, wardrobe, pause. The front group is the
+ * title and intro chrome (`theme.css`'s `--c-*`, which reach `boot-title.css`,
+ * `i3.css` and `run.css`, files this session does not own, so they are aliased
+ * here rather than renamed there and a skin still reaches them). The glass group
+ * is `ui/ui.css`, the tile-era HUD that only `?legacy=1` can still reach; it is
+ * named here for completeness and no shipping surface uses it.
+ *
+ * A SKIN IS AN ATTRIBUTE ON <html>, the same way `data-rm` and `data-textsize`
+ * already are, so one line in `applySettings` swaps every surface at once.
+ */
+
+:root {
+  /* ---- ink: what type is made of on paper ------------------------------- */
+  --kit-ink: #33261a;              /* the strongest thing written on paper */
+  --kit-ink-body: #4a3826;         /* body copy, and most of the kit */
+  --kit-ink-head: #3c2d1c;         /* a page heading */
+  --kit-ink-label: #6a563c;        /* a tab, a hint, a caption under a thing */
+  --kit-ink-quiet: #5a4a34;        /* a section head that is not the page's */
+  --kit-ink-dim: #8a7a60;          /* the dim voice: units, counts, asides */
+  --kit-ink-soft: #7a6a52;         /* the softest: the note at the bottom */
+  --kit-ink-said: #3b2a1a;         /* a line of dialogue, which is its own weight */
+  --kit-ink-mirror: #4a3a24;       /* the outfitter's heading */
+
+  /* ---- paper: the surfaces type sits on --------------------------------- */
+  --kit-paper-hi: #f2ead4;
+  --kit-paper: #e6dcc2;
+  --kit-paper-lo: #dbcfaf;
+  --kit-paper-on-hi: #ece2c8;      /* the same paper, chosen */
+  --kit-paper-on-lo: #e2d7b8;
+  --kit-paper-tab-hi: #e0d5b9;
+  --kit-paper-tab-lo: #d3c6a5;
+  --kit-paper-card-hi: #efe7d1;
+  --kit-paper-card-lo: #e4d8ba;
+  --kit-paper-key-lo: #ddd0b0;     /* a keycap, which is paper pressed */
+  --kit-paper-chip-lo: #cdbf9d;    /* a locked chip, which is paper gone cold */
+  --kit-paper-wash: rgba(238, 227, 200, .82);   /* paper laid over a picture */
+  --kit-paper-sheen: rgba(255, 250, 235, .35);  /* the highlight on inked paper */
+  --kit-paper-sheen-firm: rgba(255, 250, 235, .4);
+  --kit-field: rgba(255, 255, 255, .32);        /* a field is paper worn thin */
+  --kit-field-focus: rgba(255, 255, 255, .6);
+  --kit-field-hint: #b0a082;
+  --kit-field-rule: #b7a074;
+
+  /* ---- edges: the lines around paper ------------------------------------ */
+  --kit-edge: #8a744f;
+  --kit-edge-strong: #a08d64;
+  --kit-rule: rgba(138, 116, 79, .35);       /* the dashed rule between rows */
+  --kit-rule-soft: rgba(138, 116, 79, .3);
+  --kit-rule-firm: rgba(138, 116, 79, .4);
+  --kit-hairline: rgba(0, 0, 0, .12);
+
+  /* ---- wood: everything that is carved rather than written -------------- */
+  --kit-wood-hi: #4a3421;
+  --kit-wood-lo: #382614;
+  --kit-wood-edge: #241708;
+  --kit-wood-shadow: #1a1006;
+  --kit-wood-sheen: rgba(210, 170, 110, .35);
+  --kit-wood-ink: #e8dcc0;                   /* type cut into wood */
+  --kit-wood-dark-hi: #3d2b1a;               /* the skip plaque, which recedes */
+  --kit-wood-dark-lo: #2c1e0f;
+  --kit-wood-dark-edge: #1e1206;
+  --kit-wood-dark-ink: #cbbd9d;
+  --kit-plank-ink: #f0e4c8;                  /* type on the plank button art */
+  --kit-plank-shadow: rgba(30, 16, 6, .75);
+  --kit-plank-drop: rgba(3, 10, 12, .45);
+  --kit-plank-glow: rgba(255, 196, 110, .28);
+  --kit-plank-keyline: rgba(240, 228, 200, .35);
+
+  /* ---- the sea green that means chosen, earned or true ------------------ */
+  --kit-sea: #3c6e60;
+  --kit-sea-ink: #234c40;
+  --kit-sea-head: #2f6e60;
+  --kit-sea-earned: #2f6e50;
+  --kit-sea-paper: #d8e6d8;
+  --kit-sea-glow: rgba(60, 110, 96, .3);
+  --kit-sea-glow-soft: rgba(60, 110, 96, .25);
+  --kit-sea-btn-hi: #2f5a50;
+  --kit-sea-btn-lo: #234339;
+  --kit-sea-btn-edge: #16302a;
+  --kit-sea-fill: rgba(120, 190, 180, .30);  /* the skip bar filling */
+
+  /* ---- gold, which is EARNED HONORS ONLY -------------------------------- */
+  --kit-gold-hi: #d8b968;
+  --kit-gold-lo: #a07b2c;
+  --kit-cord-hi: #d9bd74;
+  --kit-cord-lo: #b9974c;
+  --kit-gold-edge: #b08a3c;
+  --kit-gold-inset: rgba(216, 185, 104, .5);
+  --kit-cord-track: rgba(90, 70, 40, .25);
+
+  /* ---- alarm: the one place the kit raises its voice -------------------- */
+  --kit-alarm: #a3492c;
+  --kit-alarm-hi: #d0674f;
+  --kit-alarm-lo: #b03f28;
+  --kit-alarm-edge: #7c2c1a;
+  --kit-alarm-ink: #fff;
+
+  /* ---- what a panel sits on, and what it casts -------------------------- */
+  --kit-veil: rgba(5, 12, 15, .5);
+  --kit-veil-soft: rgba(5, 12, 15, .45);
+  --kit-veil-pause: rgba(6, 12, 16, .35);
+  --kit-drop-lg: 0 12px 30px rgba(2, 8, 10, .65);
+  --kit-drop-md: 0 10px 26px rgba(2, 8, 10, .6);
+  --kit-drop-sm: 0 10px 24px rgba(2, 8, 10, .6);
+  --kit-mirror-drop: rgba(60, 40, 20, .25);
+  --kit-caption-shadow: 0 2px 3px rgba(4, 8, 10, .85), 0 0 14px rgba(4, 8, 10, .5);
+  --kit-caption-ink: #f2e8d2;
+
+  /* THE FOCUS RING. J1 asks for a key path beside every pointer path, and a key
+   * path nobody can see where they are is not one. One colour, one width, every
+   * control in the kit, because a ring that differs per panel reads as a bug. */
+  --kit-focus: #ffd98a;
+  --kit-focus-width: 2px;
+  --kit-focus-offset: 3px;
+
+  /* ---- type ------------------------------------------------------------- */
+  --kit-face-display: 'Harbormaster', 'Deckhand', monospace;
+  --kit-face-title: 'Harbormaster', monospace;
+  --kit-face-body: 'Deckhand', monospace;
+
+  /* I6, TEXT SIZING THAT ACTUALLY REACHES A PANEL. §80.5 measured `textSize`
+   * honoured by four CSS rules in the whole tree, two for cutscene text and two
+   * for a dialogue choice. Every other panel is sized in `cqw`, which tracks the
+   * panel's width and ignores the setting entirely, so a student who asked for
+   * large text got it in the dialogue box and nowhere else. One multiplier the
+   * panels fold into their own sizes fixes all of them at once. */
+  --kit-text-scale: 1;
+
+  /* ---- shape ------------------------------------------------------------ */
+  --kit-r-sharp: 3px;
+  --kit-r-soft: 4px;
+  --kit-r-card: 5px;
+  --kit-r-round: 6px;
+  --kit-r-pill: 14px;
+  --kit-border: 2px;
+
+  /* ---- motion, which is where reduced motion enters the whole kit -------
+   * A transition duration is a token so `html[data-rm='1']` can take all of them
+   * to nothing in one rule below. An ANIMATION is not: an entrance shortens but
+   * a decorative loop has to STOP, because an infinite loop at 1ms is a strobe,
+   * which is worse for the student the setting exists for. Those are written out
+   * one at a time in the file that owns them. */
+  --kit-t-quick: 120ms;
+  --kit-t-fast: 130ms;
+  --kit-t-mid: 140ms;
+  --kit-t-slow: 160ms;
+  --kit-ease-pop: cubic-bezier(.2, 1.2, .35, 1);
+  --kit-ease-rise: cubic-bezier(.23, 1.1, .35, 1);
+  --kit-ease-deal: cubic-bezier(.2, 1.15, .35, 1);
+
+  /* ---- surfaces: the PixelLab art the chrome is actually made of --------
+   * All art comes from PixelLab and code never draws it. A skin that has no art
+   * says `none` here and falls back to the flat colours above, which is what the
+   * plain arm needs and is the only reason these are tokens at all. */
+  --kit-art-panel: url('/art/ui/panel-square.png');
+  --kit-art-dialogue: url('/art/ui/dialogue-box.png');
+  --kit-art-plank: url('/art/ui/plank-button.png');
+  --kit-art-chart: url('/art/ui/chart-cover.png');
+  --kit-pixel: pixelated;
+
+  /* ---- the front group: title, boot and intro chrome --------------------
+   * `theme.css` aliases these. Different palette from the paper kit on purpose
+   * (its paper is #e8dcc2, the kit's is #e6dcc2) and both were in the tree. */
+  --kit-front-paper: #e8dcc2;
+  --kit-front-paper-shade: #d2c2a2;
+  --kit-front-wood: #7a5638;
+  --kit-front-wood-hi: #8a6342;
+  --kit-front-wood-dark: #553a25;
+  --kit-front-ink: #2c2620;
+  --kit-front-ink-dim: #6b5f4f;
+  --kit-front-teal: #2f8e82;
+  --kit-front-teal-deep: #1d4f5a;
+  --kit-front-gold: #c9a24a;
+  --kit-front-sky: #bcd8e0;
+  --kit-front-coral: #d98a6a;
+  --kit-front-leaf: #6f8f54;
+  --kit-front-sea-deep: #0b2230;
+  --kit-front-face-display: 'Jersey 25', 'Pixelify Sans', system-ui, sans-serif;
+  --kit-front-face-ui: 'Pixelify Sans', system-ui, sans-serif;
+  --kit-front-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* THE TEXT SETTING, WIRED ONCE. `applySettings` writes `data-textsize`; every
+ * panel that sizes itself in `cqw` multiplies by this and reflows. */
+html[data-textsize='s'] { --kit-text-scale: 0.86; }
+html[data-textsize='l'] { --kit-text-scale: 1.22; }
+
+/* REDUCED MOTION, THE PART A TOKEN CAN CARRY. Every transition in the kit reads
+ * one of the four durations above, so this one rule ends all of them. The
+ * animations are handled where they are written, for the strobe reason above.
+ * `src/game/ui/motion.ts` is the other half, for everything drawn on the canvas,
+ * and it writes this attribute so both halves read ONE value. */
+html[data-rm='1'] {
+  --kit-t-quick: 1ms;
+  --kit-t-fast: 1ms;
+  --kit-t-mid: 1ms;
+  --kit-t-slow: 1ms;
+}
+
+/* =======================================================================
+ * SKIN: plain
+ *
+ * §16 is the study's other arm: the same content with the game-ness taken away.
+ * It is not a joke skin and it is not a dark mode. Everything that is a picture
+ * becomes a shape, every carved edge becomes a line, the two game faces become
+ * whatever the machine already has, and nothing casts a shadow. If a surface
+ * still reads as a wooden sign under this attribute, that surface is not on the
+ * token layer and the test says which one.
+ *
+ * It is also the honest low-chrome fallback: a Chromebook that never loaded
+ * /art/ui/ still gets a readable panel instead of an unpainted rectangle.
+ * ======================================================================= */
+html[data-skin='plain'] {
+  --kit-ink: #1b1b1b;
+  --kit-ink-body: #262626;
+  --kit-ink-head: #111111;
+  --kit-ink-label: #4a4a4a;
+  --kit-ink-quiet: #3a3a3a;
+  --kit-ink-dim: #6b6b6b;
+  --kit-ink-soft: #757575;
+  --kit-ink-said: #1b1b1b;
+  --kit-ink-mirror: #262626;
+
+  --kit-paper-hi: #ffffff;
+  --kit-paper: #f6f6f4;
+  --kit-paper-lo: #ececea;
+  --kit-paper-on-hi: #e8eef0;
+  --kit-paper-on-lo: #dde6e9;
+  --kit-paper-tab-hi: #f0f0ee;
+  --kit-paper-tab-lo: #e2e2e0;
+  --kit-paper-card-hi: #ffffff;
+  --kit-paper-card-lo: #f4f4f2;
+  --kit-paper-key-lo: #e6e6e4;
+  --kit-paper-chip-lo: #e0e0de;
+  --kit-paper-wash: rgba(255, 255, 255, .92);
+  --kit-paper-sheen: transparent;
+  --kit-paper-sheen-firm: transparent;
+  --kit-field: #ffffff;
+  --kit-field-focus: #ffffff;
+  --kit-field-hint: #8a8a8a;
+  --kit-field-rule: #9a9a9a;
+
+  --kit-edge: #8a8a8a;
+  --kit-edge-strong: #6b6b6b;
+  --kit-rule: rgba(0, 0, 0, .18);
+  --kit-rule-soft: rgba(0, 0, 0, .12);
+  --kit-rule-firm: rgba(0, 0, 0, .22);
+  --kit-hairline: rgba(0, 0, 0, .08);
+
+  --kit-wood-hi: #3f4a4e;
+  --kit-wood-lo: #333c40;
+  --kit-wood-edge: #22282b;
+  --kit-wood-shadow: transparent;
+  --kit-wood-sheen: transparent;
+  --kit-wood-ink: #f4f4f2;
+  --kit-wood-dark-hi: #333c40;
+  --kit-wood-dark-lo: #2a3134;
+  --kit-wood-dark-edge: #1d2225;
+  --kit-wood-dark-ink: #e2e2e0;
+  --kit-plank-ink: #ffffff;
+  --kit-plank-shadow: transparent;
+  --kit-plank-drop: transparent;
+  --kit-plank-glow: transparent;
+  --kit-plank-keyline: rgba(255, 255, 255, .5);
+
+  --kit-sea: #2f6f7a;
+  --kit-sea-ink: #1d4f5a;
+  --kit-sea-head: #1d4f5a;
+  --kit-sea-earned: #1d5a3f;
+  --kit-sea-paper: #e2eef0;
+  --kit-sea-glow: rgba(47, 111, 122, .28);
+  --kit-sea-glow-soft: rgba(47, 111, 122, .2);
+  --kit-sea-btn-hi: #2f6f7a;
+  --kit-sea-btn-lo: #275e67;
+  --kit-sea-btn-edge: #1d4f5a;
+  --kit-sea-fill: rgba(47, 111, 122, .28);
+
+  --kit-gold-hi: #b8912f;
+  --kit-gold-lo: #8a6c20;
+  --kit-cord-hi: #b8912f;
+  --kit-cord-lo: #8a6c20;
+  --kit-gold-edge: #8a6c20;
+  --kit-gold-inset: rgba(184, 145, 47, .35);
+  --kit-cord-track: rgba(0, 0, 0, .1);
+
+  --kit-alarm: #8c2f1c;
+  --kit-alarm-hi: #a8412c;
+  --kit-alarm-lo: #8c2f1c;
+  --kit-alarm-edge: #6b2415;
+  --kit-alarm-ink: #ffffff;
+
+  --kit-veil: rgba(20, 22, 24, .55);
+  --kit-veil-soft: rgba(20, 22, 24, .5);
+  --kit-veil-pause: rgba(20, 22, 24, .35);
+  --kit-drop-lg: 0 2px 8px rgba(0, 0, 0, .25);
+  --kit-drop-md: 0 2px 8px rgba(0, 0, 0, .22);
+  --kit-drop-sm: 0 2px 6px rgba(0, 0, 0, .2);
+  --kit-mirror-drop: transparent;
+  --kit-caption-shadow: 0 1px 2px rgba(0, 0, 0, .6);
+  --kit-caption-ink: #ffffff;
+
+  --kit-focus: #1d6fd8;
+  --kit-focus-width: 3px;
+  --kit-focus-offset: 2px;
+
+  --kit-face-display: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --kit-face-title: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --kit-face-body: system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  --kit-r-sharp: 2px;
+  --kit-r-soft: 2px;
+  --kit-r-card: 2px;
+  --kit-r-round: 2px;
+  --kit-r-pill: 2px;
+  --kit-border: 1px;
+
+  --kit-t-quick: 90ms;
+  --kit-t-fast: 90ms;
+  --kit-t-mid: 90ms;
+  --kit-t-slow: 90ms;
+  --kit-ease-pop: ease-out;
+  --kit-ease-rise: ease-out;
+  --kit-ease-deal: ease-out;
+
+  --kit-art-panel: none;
+  --kit-art-dialogue: none;
+  --kit-art-plank: none;
+  --kit-art-chart: none;
+  --kit-pixel: auto;
+
+  --kit-front-paper: #f6f6f4;
+  --kit-front-paper-shade: #e2e2e0;
+  --kit-front-wood: #3f4a4e;
+  --kit-front-wood-hi: #4a5559;
+  --kit-front-wood-dark: #22282b;
+  --kit-front-ink: #1b1b1b;
+  --kit-front-ink-dim: #6b6b6b;
+  --kit-front-teal: #2f6f7a;
+  --kit-front-teal-deep: #1d4f5a;
+  --kit-front-gold: #8a6c20;
+  --kit-front-sky: #dde6e9;
+  --kit-front-coral: #a8412c;
+  --kit-front-leaf: #4a6b3a;
+  --kit-front-sea-deep: #1b2226;
+  --kit-front-face-display: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --kit-front-face-ui: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --kit-front-ease: ease-out;
+}
+
+/* THE PLAIN ARM HAS NO PICTURES, so the surfaces that ARE art need a colour to
+ * fall back onto. `background: none center / 100% 100% no-repeat` on its own is
+ * an invisible panel, which is the failure §16 would ship with. */
+html[data-skin='plain'] .kit-surface-panel,
+html[data-skin='plain'] .kit-surface-dialogue {
+  background-color: var(--kit-paper);
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-round);
+}
+html[data-skin='plain'] .kit-surface-plank {
+  background-color: var(--kit-wood-hi);
+  border: var(--kit-border) solid var(--kit-wood-edge);
+  border-radius: var(--kit-r-soft);
+}
+
+/* ONE FOCUS RING FOR THE WHOLE KIT. Every control in every panel, so a keyboard
+ * player can always see where they are, and one place to change it. */
+.kit-focusable:focus-visible,
+.hb-tab:focus-visible, .pz-btn:focus-visible, .hud-btn:focus-visible, .hud-tokenbtn:focus-visible,
+.st-tab:focus-visible, .st-toggle:focus-visible, .st-segbtn:focus-visible, .st-idpick:focus-visible,
+.st-chip:focus-visible, .st-close:focus-visible, .st-dangerbtn:focus-visible, .st-cancelbtn:focus-visible,
+.st-gear:focus-visible,
+/* NOT `.st-idfield`. A text input matches :focus-visible however it was focused,
+ * including a click, and that field already shows focus with its own background
+ * and rule, so a ring there would be a new outline around a control a mouse user
+ * clicks into all the time. */
+.wd-swatch:focus-visible, .wd-lockchip:focus-visible, .wd-close:focus-visible {
+  outline: var(--kit-focus-width) solid var(--kit-focus);
+  outline-offset: var(--kit-focus-offset);
+}

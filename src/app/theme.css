@@ -1,31 +1,40 @@
 /* Cozy-premium front-end theme (per docs/research/art-ocean-ui-bar.md §C).
    Anchors: aged paper + carved wood UI chrome; teal lives in the world + as accent;
-   GOLD is reserved for earned honors only; nothing pure-black or pure-white. */
+   GOLD is reserved for earned honors only; nothing pure-black or pure-white.
+
+   THESE TWENTY-TWO NAMES ARE NOW ALIASES, not values. They are read by
+   boot-title.css, i3.css and run.css, which this session does not own, so
+   renaming them there would have been a rewrite of three files to change one
+   thing. Pointing them at the token layer instead means a skin swap reaches the
+   title screen and the intro without either file learning a new word. Every
+   value is byte-for-byte what was here; game/ui/tokens.css holds them. */
+
+@import '../game/ui/tokens.css';
 
 :root {
   /* UI chrome family */
-  --c-paper: #e8dcc2;
-  --c-paper-shade: #d2c2a2;
-  --c-wood: #7a5638;
-  --c-wood-dark: #553a25;
-  --c-ink: #2c2620;
-  --c-ink-dim: #6b5f4f;
+  --c-paper: var(--kit-front-paper);
+  --c-paper-shade: var(--kit-front-paper-shade);
+  --c-wood: var(--kit-front-wood);
+  --c-wood-dark: var(--kit-front-wood-dark);
+  --c-ink: var(--kit-front-ink);
+  --c-ink-dim: var(--kit-front-ink-dim);
 
   /* accents */
-  --c-teal: #2f8e82;
-  --c-teal-deep: #1d4f5a;
-  --c-gold: #c9a24a;       /* EARNED HONORS ONLY */
-  --c-sky: #bcd8e0;
-  --c-coral: #d98a6a;
-  --c-leaf: #6f8f54;
+  --c-teal: var(--kit-front-teal);
+  --c-teal-deep: var(--kit-front-teal-deep);
+  --c-gold: var(--kit-front-gold);       /* EARNED HONORS ONLY */
+  --c-sky: var(--kit-front-sky);
+  --c-coral: var(--kit-front-coral);
+  --c-leaf: var(--kit-front-leaf);
 
   /* atmosphere */
-  --c-sea-deep: #0b2230;
+  --c-sea-deep: var(--kit-front-sea-deep);
 
-  --font-display: 'Jersey 25', 'Pixelify Sans', system-ui, sans-serif;
-  --font-ui: 'Pixelify Sans', system-ui, sans-serif;
+  --font-display: var(--kit-front-face-display);
+  --font-ui: var(--kit-front-face-ui);
 
-  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-out: var(--kit-front-ease);
 }
 
 /* crisp pixel-art scaling for any sprite/asset image */
@@ -42,7 +51,7 @@
   font-size: 26px;
   letter-spacing: 0.02em;
   color: var(--c-paper);
-  background: linear-gradient(#8a6342, var(--c-wood));
+  background: linear-gradient(var(--kit-front-wood-hi), var(--c-wood));
   border: 3px solid var(--c-wood-dark);
   border-radius: 12px;
   padding: 14px 34px 16px;
@@ -56,6 +65,13 @@
 .ui-btn:hover {
   filter: brightness(1.08);
   transform: translateY(-1px);
+}
+/* the title screen's own buttons were reachable by Tab and invisible once they
+   were, which is the same J1 failure as a click-only control read from the other
+   side: a key path nobody can see where they are is not a key path */
+.ui-btn:focus-visible, .title-gear:focus-visible {
+  outline: var(--kit-focus-width) solid var(--kit-focus);
+  outline-offset: var(--kit-focus-offset);
 }
 .ui-btn:active {
   transform: translateY(5px);

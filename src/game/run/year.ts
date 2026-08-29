@@ -44,8 +44,14 @@ export type YearStatus = {
  * step. Playability is a field on a programme in the roster now, so a programme
  * that can run says so where everything else about it is written. */
 
-export function yearStatus(s: SaveGame): YearStatus {
-  const year = s.year
+/* THE YEAR IS AN ARGUMENT, because the yearbook has to compose a page for a year
+ * that already turned. It read `s.year` and nothing else, so every derived answer
+ * in the run was about today and a past page could only be rendered by lying
+ * about which year it was. Everything below already took a year: `completedIn`,
+ * `beatDone` and `hasCoreBeat` all do, so the only thing that was current-year
+ * about this function was the one line that read the field. */
+export function yearStatus(s: SaveGame, forYear = s.year): YearStatus {
+  const year = forYear
   const plan = s.plans[year] ?? { slots: {}, classes: [], stamped: false }
   const voyages: VoyageStatus[] = SEASONS.flatMap((season) => {
     const id = plan.slots[season]

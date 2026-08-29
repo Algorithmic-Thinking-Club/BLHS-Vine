@@ -1,6 +1,12 @@
 /* THE YEAR PLANNER (GAME-DESIGN §7.2) — the year sheet at the chart table.
    Kit language: aged paper on wood (panel-square), Harbormaster headers, Deckhand body,
-   gold = honors only. cqw units keep every size relative to the sheet. */
+   gold = honors only. cqw units keep every size relative to the sheet. 
+   AND THE SHEET HONOURS THE TEXT SIZE NOW. 80.5 measured `textSize` reaching FOUR
+   CSS rules in the whole tree and none of them was here, so a student who set the
+   type to Large read a large dialogue box and a small year sheet, and the panel
+   with the most words on it was the one that ignored the setting. Every font size
+   multiplies by --kit-text-scale (src/game/ui/tokens.css), which is what the S, M
+   and L buttons move. */
 
 .pl-veil {
   position: absolute; inset: 0; z-index: 76;
@@ -21,10 +27,10 @@
 }
 
 .pl-head { display: flex; align-items: baseline; gap: 2cqw; }
-.pl-title { font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 3.6cqw; color: #3c2d1c; }
-.pl-year { font-size: 2.4cqw; color: #6a563c; }
+.pl-title { font-family: 'Harbormaster', 'Deckhand', monospace; font-size: calc(3.6cqw * var(--kit-text-scale)); color: #3c2d1c; }
+.pl-year { font-size: calc(2.4cqw * var(--kit-text-scale)); color: #6a563c; }
 .pl-close {
-  margin-left: auto; font-family: 'Deckhand', monospace; font-size: 2.2cqw;
+  margin-left: auto; font-family: 'Deckhand', monospace; font-size: calc(2.2cqw * var(--kit-text-scale));
   color: #6a563c; background: none; border: none; cursor: pointer;
 }
 .pl-close:hover { color: #3c2d1c; }
@@ -32,7 +38,7 @@
 /* the advisory pin: the fixed core beat, pre-printed on the sheet */
 .pl-pin {
   margin: 1cqw 0 1.4cqw;
-  font-size: 2cqw; color: #6a563c;
+  font-size: calc(2cqw * var(--kit-text-scale)); color: #6a563c;
   border: 1px dashed #8a744f; border-radius: 4px;
   padding: .8cqw 1.6cqw;
   background: rgba(224, 213, 185, .5);
@@ -40,13 +46,13 @@
 .pl-pin b { color: #3c2d1c; }
 .pl-pin-done { color: #2f6e50; font-family: 'Harbormaster', 'Deckhand', monospace; }
 .pl-pin-go {
-  font-family: 'Deckhand', monospace; font-size: 1.8cqw; color: #234c40;
+  font-family: 'Deckhand', monospace; font-size: calc(1.8cqw * var(--kit-text-scale)); color: #234c40;
   background: linear-gradient(180deg, #dcebdd, #cfe2d0);
   border: 2px solid #3c6e60; border-radius: 4px;
   padding: .3cqw 1.4cqw; cursor: pointer;
 }
 .pl-pin-go:hover { transform: translateY(-1px); }
-.pl-class-grade { margin-left: auto; font-family: 'Harbormaster', 'Deckhand', monospace; color: #2f6e50; font-size: 2.2cqw; }
+.pl-class-grade { margin-left: auto; font-family: 'Harbormaster', 'Deckhand', monospace; color: #2f6e50; font-size: calc(2.2cqw * var(--kit-text-scale)); }
 
 .pl-body { flex: 1; display: flex; gap: 2cqw; min-height: 0; }
 
@@ -60,7 +66,7 @@
 }
 .pl-col-head {
   font-family: 'Harbormaster', 'Deckhand', monospace;
-  text-align: center; font-size: 2.4cqw; color: #3c2d1c;
+  text-align: center; font-size: calc(2.4cqw * var(--kit-text-scale)); color: #3c2d1c;
   padding: .8cqw 0; border-bottom: 2px solid #8a744f;
   background: rgba(224, 213, 185, .7);
   border-radius: 4px 4px 0 0;
@@ -75,10 +81,10 @@
   background: linear-gradient(180deg, #ece2c8, #e2d7b8);
   padding: 1cqw 1.2cqw;
 }
-.pl-card-name { font-size: 2.2cqw; color: #234c40; font-weight: bold; }
-.pl-card-blurb { font-size: 1.7cqw; color: #6a563c; line-height: 1.35; margin-top: .4cqw; }
+.pl-card-name { font-size: calc(2.2cqw * var(--kit-text-scale)); color: #234c40; font-weight: bold; }
+.pl-card-blurb { font-size: calc(1.7cqw * var(--kit-text-scale)); color: #6a563c; line-height: 1.35; margin-top: .4cqw; }
 .pl-lift {
-  margin-top: .8cqw; font-family: 'Deckhand', monospace; font-size: 1.7cqw;
+  margin-top: .8cqw; font-family: 'Deckhand', monospace; font-size: calc(1.7cqw * var(--kit-text-scale));
   color: #6a563c; background: none; border: 1px solid #8a744f; border-radius: 4px;
   padding: .3cqw 1cqw; cursor: pointer;
 }
@@ -88,7 +94,7 @@
 .pl-slot {
   width: 100%; border: 2px dashed #8a744f; border-radius: 5px;
   background: none; cursor: pointer;
-  font-family: 'Deckhand', monospace; font-size: 1.9cqw; color: #8a7a60;
+  font-family: 'Deckhand', monospace; font-size: calc(1.9cqw * var(--kit-text-scale)); color: #8a7a60;
   padding: 2cqw 1cqw;
   transition: background 140ms ease;
 }
@@ -99,15 +105,31 @@
 .pl-act {
   text-align: left; border: 1px solid #8a744f; border-radius: 4px;
   background: linear-gradient(180deg, #e6dcc2, #dbcfaf);
-  font-family: 'Deckhand', monospace; font-size: 1.9cqw; color: #4a3826;
+  font-family: 'Deckhand', monospace; font-size: calc(1.9cqw * var(--kit-text-scale)); color: #4a3826;
   padding: .8cqw 1cqw; cursor: pointer;
   transition: transform 120ms ease;
 }
 .pl-act:hover, .pl-act:focus { transform: translateY(-1px); }
-.pl-act small { display: block; color: #8a7a60; font-size: 1.55cqw; }
-.pl-menu-none { font-size: 1.7cqw; color: #8a7a60; font-style: italic; padding: .6cqw; }
+.pl-act small { display: block; color: #8a7a60; font-size: calc(1.55cqw * var(--kit-text-scale)); }
+.pl-menu-none { font-size: calc(1.7cqw * var(--kit-text-scale)); color: #8a7a60; font-style: italic; padding: .6cqw; }
+
+/* A REFUSED ROW IS STILL A ROW (N3). It used to be filtered out of the menu, so a
+   student who came looking for a fall sport in spring found an absence and no
+   sentence. It is drawn faded, it still takes a click, and the click prints the
+   refusal instead of doing nothing. Never `disabled`: a disabled control is
+   unreachable by keyboard and cannot say why it refused. */
+.pl-act-shut {
+  background: linear-gradient(180deg, #ddd4bd, #cfc4a6);
+  color: #7d6d55; border-style: dashed;
+}
+.pl-act-shut:hover, .pl-act-shut:focus { transform: none; }
+.pl-refusal {
+  font-size: calc(1.7cqw * var(--kit-text-scale)); color: #7a3b2c; font-style: italic;
+  border-left: 3px solid #a8553f; padding: .5cqw .8cqw; margin-top: .3cqw;
+  background: rgba(168, 85, 63, .1);
+}
 .pl-menu-back {
-  font-family: 'Deckhand', monospace; font-size: 1.6cqw; color: #6a563c;
+  font-family: 'Deckhand', monospace; font-size: calc(1.6cqw * var(--kit-text-scale)); color: #6a563c;
   background: none; border: none; cursor: pointer; text-decoration: underline dotted;
 }
 
@@ -116,7 +138,7 @@
 .pl-rail::-webkit-scrollbar { width: 6px; }
 .pl-rail::-webkit-scrollbar-thumb { background: #8a744f; border-radius: 3px; }
 
-.pl-sect { font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 2.1cqw; color: #3c2d1c; }
+.pl-sect { font-family: 'Harbormaster', 'Deckhand', monospace; font-size: calc(2.1cqw * var(--kit-text-scale)); color: #3c2d1c; }
 
 .pl-tokens { display: flex; align-items: center; gap: 1cqw; }
 .pl-token {
@@ -125,39 +147,39 @@
   background: radial-gradient(circle at 35% 30%, #d8b968, #a07b2c 70%);
   box-shadow: 0 2px 0 #1a1006;
 }
-.pl-token-hint { font-size: 1.7cqw; color: #8a7a60; }
+.pl-token-hint { font-size: calc(1.7cqw * var(--kit-text-scale)); color: #8a7a60; }
 
 /* class slots + picker */
 .pl-class {
   display: flex; align-items: baseline; gap: 1cqw;
   border: 1px solid #8a744f; border-radius: 4px;
   background: rgba(238, 227, 200, .5);
-  padding: .7cqw 1cqw; font-size: 1.9cqw;
+  padding: .7cqw 1cqw; font-size: calc(1.9cqw * var(--kit-text-scale));
 }
 .pl-class-name { color: #234c40; font-weight: bold; }
-.pl-class-hint { font-size: 1.5cqw; color: #8a7a60; }
-.pl-class-x { margin-left: auto; background: none; border: none; color: #8a7a60; cursor: pointer; font-size: 1.9cqw; }
+.pl-class-hint { font-size: calc(1.5cqw * var(--kit-text-scale)); color: #8a7a60; }
+.pl-class-x { margin-left: auto; background: none; border: none; color: #8a7a60; cursor: pointer; font-size: calc(1.9cqw * var(--kit-text-scale)); }
 .pl-class-x:hover { color: #3c2d1c; }
 .pl-class-add {
   border: 2px dashed #8a744f; border-radius: 4px; background: none;
-  font-family: 'Deckhand', monospace; font-size: 1.8cqw; color: #8a7a60;
+  font-family: 'Deckhand', monospace; font-size: calc(1.8cqw * var(--kit-text-scale)); color: #8a7a60;
   padding: .9cqw; cursor: pointer; width: 100%;
 }
 .pl-class-add:hover { color: #6a563c; background: rgba(216, 185, 104, .18); }
 
-.pl-dept { font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 1.8cqw; color: #6a563c; margin-top: .6cqw; }
+.pl-dept { font-family: 'Harbormaster', 'Deckhand', monospace; font-size: calc(1.8cqw * var(--kit-text-scale)); color: #6a563c; margin-top: .6cqw; }
 .pl-classmenu { display: flex; flex-direction: column; gap: .5cqw; max-height: 30cqw; overflow-y: auto; }
 .pl-classmenu::-webkit-scrollbar { width: 6px; }
 .pl-classmenu::-webkit-scrollbar-thumb { background: #8a744f; border-radius: 3px; }
 
 /* the counselor's margin notes: pencil on the sheet's edge */
-.pl-notes { font-size: 1.7cqw; color: #6f6046; font-style: italic; line-height: 1.45; }
+.pl-notes { font-size: calc(1.7cqw * var(--kit-text-scale)); color: #6f6046; font-style: italic; line-height: 1.45; }
 .pl-notes li { margin-bottom: .4cqw; }
 
 /* the stamp */
 .pl-stamp {
   align-self: flex-start;
-  font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 2.3cqw;
+  font-family: 'Harbormaster', 'Deckhand', monospace; font-size: calc(2.3cqw * var(--kit-text-scale));
   color: #f3e9d2; background: linear-gradient(180deg, #7a2f23, #5d2018);
   border: 2px solid #38120c; border-radius: 6px;
   box-shadow: 0 3px 0 #240a06;
@@ -167,12 +189,12 @@
 .pl-stamp:hover:not(:disabled) { transform: translateY(-1px); }
 .pl-stamp:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #240a06; }
 .pl-stamp:disabled { opacity: .45; cursor: default; }
-.pl-stamp-note { font-size: 1.6cqw; color: #8a7a60; }
+.pl-stamp-note { font-size: calc(1.6cqw * var(--kit-text-scale)); color: #8a7a60; }
 
 /* the stamped seal */
 .pl-waxed {
   display: inline-flex; align-items: center; gap: 1cqw;
-  font-family: 'Harbormaster', monospace; font-size: 2.2cqw; color: #7a2f23;
+  font-family: 'Harbormaster', monospace; font-size: calc(2.2cqw * var(--kit-text-scale)); color: #7a2f23;
   transform: rotate(-4deg);
 }
 .pl-wax {
@@ -180,6 +202,6 @@
   background: radial-gradient(circle at 35% 30%, #a44534, #6e241a 70%);
   border: 2px solid #4a150e;
   display: flex; align-items: center; justify-content: center;
-  font-size: 2.4cqw; color: #f3d9c8;
+  font-size: calc(2.4cqw * var(--kit-text-scale)); color: #f3d9c8;
   box-shadow: 0 2px 4px rgba(20, 5, 2, .5);
 }

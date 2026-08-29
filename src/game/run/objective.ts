@@ -30,8 +30,13 @@ export type Objective = {
   map: string
   /* shown to the player. In-character, never a checklist item. */
   say: string
-  /* the year phase this belongs to, for logging and for the debug overlay */
-  phase: 'founding' | 'vignette' | 'plan' | 'core' | 'voyage' | 'yearbook' | 'done'
+  /* the year phase this belongs to, for logging and for the debug overlay.
+   *
+   * `rising` is the THIRD VOYAGE STATE §80.6 asks for by name:
+   * committed-but-unsailable. O5 exists because the arrow pointed at an island
+   * that will never rise and never resolved on its own, and a state that has no
+   * name is a state nothing can render differently. */
+  phase: 'founding' | 'vignette' | 'plan' | 'core' | 'voyage' | 'rising' | 'yearbook' | 'done'
 }
 
 export const MAW_MAP = 'panther-maw'
@@ -86,15 +91,22 @@ export function nextObjective(s: SaveGame | null): Objective | null {
 
   /* out of the Maw and onto the water. The anchor is the way OUT, because the
    * thing to do is somewhere this map cannot reach, and an arrow that points at
-   * the exit is more honest than one that points at nothing. */
-  const sailing = y.voyages.filter((v) => !v.done)
-  if (sailing.length) {
-    const next = sailing[0]
+   * the exit is more honest than one that points at nothing.
+   *
+   * A VOYAGE THAT CANNOT BE SAILED DOES NOT OUTRANK THE YEARBOOK, and it used to.
+   * This clause read `y.voyages.filter((v) => !v.done)` with no test of whether
+   * the programme could run, so the moment a token landed on anything unplayable
+   * the arrow pointed at the exit for the rest of the year and the `yearbook`
+   * phase below became unreachable. Every programme on the roster is unplayable
+   * today, so that was every stamped year: the year model said the yearbook was
+   * ready (`year.ts` deliberately does not wait on a rising island) and the
+   * sequencer disagreed with it, forever, on the ordinary path. */
+  const sailable = y.voyages.filter((v) => !v.done && v.playable)
+  if (sailable.length) {
+    const next = sailable[0]
     return {
       anchor: 'maw_entrance', map: MAW_MAP, phase: 'voyage',
-      say: next.playable
-        ? `${next.name} is waiting, ${next.season.toLowerCase()} term.`
-        : `${next.name} has not risen from the sea yet.`,
+      say: `${next.name} is waiting, ${next.season.toLowerCase()} term.`,
     }
   }
 
@@ -102,6 +114,18 @@ export function nextObjective(s: SaveGame | null): Objective | null {
     return {
       anchor: 'chart_table', map: MAW_MAP, phase: 'yearbook',
       say: 'The year is done. The sheet wants closing.',
+    }
+  }
+
+  /* THE THIRD VOYAGE STATE: committed, and nothing to sail to. It is below the
+   * yearbook rather than above it because it can never resolve on its own, and
+   * an objective that cannot be completed is not an objective. It is here at all
+   * so the state has a name and a sentence rather than being silence. */
+  const rising = y.voyages.filter((v) => !v.done && !v.playable)
+  if (rising.length && !y.readyForYearbook) {
+    return {
+      anchor: 'chart_table', map: MAW_MAP, phase: 'rising',
+      say: `${rising[0].name} has not risen from the sea yet. The year goes on without it.`,
     }
   }
 

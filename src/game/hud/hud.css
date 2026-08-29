@@ -1,6 +1,12 @@
 /* The diegetic HUD + Handbook + pause (GAME-DESIGN §11.1, §8.5, §4.8).
    Law: NOTHING floats but the compass, the Handbook spine, unspent season tokens, and the
-   context prompt. No GPA bar, no XP bar — numbers live inside the Handbook's paper. */
+   context prompt. No GPA bar, no XP bar — numbers live inside the Handbook's paper.
+
+   Materials come from ui/tokens.css. Sizes are container-query units TIMES the text
+   setting, because a panel that reflows with its own width and ignores S/M/L was
+   §80.5's I6 finding: the setting reached the dialogue box and nothing else. */
+
+@import '../ui/tokens.css';
 
 /* ---- corner stack ---- */
 .hud-stack {
@@ -10,15 +16,16 @@
 }
 .hud-btn {
   width: 46px; height: 46px;
-  border: 2px solid #241708; border-radius: 6px;
-  background: linear-gradient(#4a3421, #382614);
-  box-shadow: 0 2px 0 #1a1006, inset 0 1px 0 rgba(210, 170, 110, .35);
-  color: #e8dcc0; font-size: 22px; line-height: 1;
+  border: var(--kit-border) solid var(--kit-wood-edge); border-radius: var(--kit-r-round);
+  background: linear-gradient(var(--kit-wood-hi), var(--kit-wood-lo));
+  box-shadow: 0 2px 0 var(--kit-wood-shadow), inset 0 1px 0 var(--kit-wood-sheen);
+  color: var(--kit-wood-ink); font-size: 22px; line-height: 1;
   cursor: pointer; opacity: .85;
-  transition: transform 140ms ease, opacity 140ms ease;
+  transition: transform var(--kit-t-mid) ease, opacity var(--kit-t-mid) ease;
 }
 .hud-btn:hover { opacity: 1; transform: translateY(-1px); }
 .hud-btn:active { transform: translateY(1px); }
+.hud-btn:focus-visible { opacity: 1; }
 
 .hud-tokens { display: flex; gap: 6px; margin-top: 2px; }
 /* the token pips are a BUTTON now: they open the year sheet (§7.2) */
@@ -26,83 +33,85 @@
 .hud-tokenbtn:hover .hud-token { transform: translateY(-1px); }
 .hud-token {
   width: 22px; height: 22px; border-radius: 50%;
-  border: 2px solid #241708;
-  background: radial-gradient(circle at 35% 30%, #d8b968, #a07b2c 70%);
-  box-shadow: 0 2px 0 #1a1006;
-  transition: transform 120ms ease;
+  border: var(--kit-border) solid var(--kit-wood-edge);
+  background: radial-gradient(circle at 35% 30%, var(--kit-gold-hi), var(--kit-gold-lo) 70%);
+  box-shadow: 0 2px 0 var(--kit-wood-shadow);
+  transition: transform var(--kit-t-quick) ease;
 }
 
 /* ---- the Handbook binder ---- */
 .hb-veil {
   position: absolute; inset: 0; z-index: 75;
-  background: rgba(5, 12, 15, .5);
+  background: var(--kit-veil);
   display: flex; align-items: center; justify-content: center;
 }
 .hb-book {
   width: min(720px, 94vw); height: min(520px, 86vh);
-  background: url('/art/ui/panel-square.png') center / 100% 100% no-repeat;
-  image-rendering: pixelated;
-  filter: drop-shadow(0 12px 30px rgba(2, 8, 10, .65));
+  background: var(--kit-art-panel) center / 100% 100% no-repeat;
+  image-rendering: var(--kit-pixel);
+  filter: drop-shadow(var(--kit-drop-lg));
   display: flex; flex-direction: column;
   /* MEASURED paper zone of panel-square: x 16.5%..83.3%, y 15%..85.3% */
   padding: 15% 17.5% 15.5% 17%;
   box-sizing: border-box;
   container-type: inline-size;
-  animation: hb-in 260ms cubic-bezier(.2, 1.2, .35, 1) both;
+  animation: hb-in 260ms var(--kit-ease-pop) both;
 }
 @keyframes hb-in { from { transform: translateY(14px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+/* the binder still arrives under reduced motion, it just does not travel */
+html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1ms; }
 
 .hb-tabs { display: flex; gap: 1cqw; margin-bottom: 2.2cqw; flex-wrap: wrap; }
 .hb-tab {
-  font-family: 'Harbormaster', 'Deckhand', monospace;
-  font-size: 2.4cqw; color: #6a563c;
-  background: linear-gradient(180deg, #e0d5b9, #d3c6a5);
-  border: 2px solid #8a744f; border-bottom: none;
-  border-radius: 5px 5px 0 0;
+  font-family: var(--kit-face-display);
+  font-size: calc(2.4cqw * var(--kit-text-scale)); color: var(--kit-ink-label);
+  background: linear-gradient(180deg, var(--kit-paper-tab-hi), var(--kit-paper-tab-lo));
+  border: var(--kit-border) solid var(--kit-edge); border-bottom: none;
+  border-radius: var(--kit-r-card) var(--kit-r-card) 0 0;
   padding: .7cqw 2.4cqw; cursor: pointer;
 }
-.hb-tab-on { color: #234c40; border-color: #3c6e60; background: linear-gradient(180deg, #ece2c8, #e2d7b8); }
+.hb-tab-on { color: var(--kit-sea-ink); border-color: var(--kit-sea); background: linear-gradient(180deg, var(--kit-paper-on-hi), var(--kit-paper-on-lo)); }
 
 .hb-page {
   flex: 1; overflow-y: auto;
-  border-top: 2px solid #8a744f;
+  border-top: var(--kit-border) solid var(--kit-edge);
   padding: 2cqw 1cqw 1cqw;
-  font-family: 'Deckhand', monospace;
-  color: #4a3826;
-  font-size: 2.6cqw;
+  font-family: var(--kit-face-body);
+  color: var(--kit-ink-body);
+  font-size: calc(2.6cqw * var(--kit-text-scale));
   line-height: 1.5;
 }
 .hb-page::-webkit-scrollbar { width: 8px; }
-.hb-page::-webkit-scrollbar-thumb { background: #8a744f; border-radius: 4px; }
+.hb-page::-webkit-scrollbar-thumb { background: var(--kit-edge); border-radius: var(--kit-r-soft); }
 
-.hb-h { font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 3cqw; color: #3c2d1c; margin: 1cqw 0; }
-.hb-dim { color: #8a7a60; }
+.hb-h { font-family: var(--kit-face-display); font-size: calc(3cqw * var(--kit-text-scale)); color: var(--kit-ink-head); margin: 1cqw 0; }
+.hb-dim { color: var(--kit-ink-dim); }
 
-.hb-row { display: flex; align-items: center; gap: 2cqw; padding: 1.2cqw .5cqw; border-bottom: 1px dashed rgba(138, 116, 79, .35); }
+.hb-row { display: flex; align-items: center; gap: 2cqw; padding: 1.2cqw .5cqw; border-bottom: 1px dashed var(--kit-rule); }
 .hb-row-title { flex: 1; }
-.hb-badgechip { font-size: 4cqw; filter: saturate(.4) opacity(.5); }
+.hb-badgechip { font-size: calc(4cqw * var(--kit-text-scale)); filter: saturate(.4) opacity(.5); }
 .hb-badgechip.on { filter: none; }
 
 /* the cord tracker: a fraying thread that becomes rope as progress fills (§7.6) */
 .hb-cordbar {
   width: 26cqw; height: 8px;
-  background: rgba(90, 70, 40, .25);
-  border: 1px solid #8a744f; border-radius: 3px; overflow: hidden;
+  background: var(--kit-cord-track);
+  border: 1px solid var(--kit-edge); border-radius: var(--kit-r-sharp); overflow: hidden;
 }
-.hb-cordbar span { display: block; height: 100%; background: linear-gradient(90deg, #b9974c, #d9bd74); }
-.hb-earned { color: #2f6e50; font-family: 'Harbormaster', monospace; }
+.hb-cordbar span { display: block; height: 100%; background: linear-gradient(90deg, var(--kit-cord-lo), var(--kit-cord-hi)); }
+.hb-earned { color: var(--kit-sea-earned); font-family: var(--kit-face-title); }
 
 /* the chart page: the inked sea with discovered islands */
 .hb-chart {
   position: relative; width: 100%; aspect-ratio: 688 / 384;
-  background: url('/art/ui/chart-cover.png') center / 100% 100% no-repeat;
-  image-rendering: pixelated;
+  background: var(--kit-art-chart) center / 100% 100% no-repeat;
+  image-rendering: var(--kit-pixel);
 }
 .hb-chart-isle {
   position: absolute; transform: translate(-50%, -50%);
-  font-family: 'Deckhand', monospace; font-size: 2.2cqw; color: #4a3826;
-  background: rgba(238, 227, 200, .82);
-  border: 1px solid #8a744f; border-radius: 3px;
+  font-family: var(--kit-face-body); font-size: calc(2.2cqw * var(--kit-text-scale)); color: var(--kit-ink-body);
+  background: var(--kit-paper-wash);
+  border: 1px solid var(--kit-edge); border-radius: var(--kit-r-sharp);
   padding: .3cqw 1.2cqw;
   white-space: nowrap;
 }
@@ -110,30 +119,33 @@
 /* ---- pause (§4.8): the world blurs, a small anchor panel ---- */
 .pz-veil {
   position: absolute; inset: 0; z-index: 74;
-  background: rgba(6, 12, 16, .35);
+  background: var(--kit-veil-pause);
   display: flex; align-items: center; justify-content: center;
 }
 .pz-panel {
   width: min(320px, 80vw);
-  background: url('/art/ui/panel-square.png') center / 100% 100% no-repeat;
-  image-rendering: pixelated;
+  background: var(--kit-art-panel) center / 100% 100% no-repeat;
+  image-rendering: var(--kit-pixel);
   aspect-ratio: 448 / 448;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 4%;
   padding: 16% 18% 16.5%;          /* the measured paper zone */
   box-sizing: border-box;
   container-type: inline-size;
-  filter: drop-shadow(0 10px 26px rgba(2, 8, 10, .6));
-  animation: hb-in 220ms cubic-bezier(.2, 1.2, .35, 1) both;
+  filter: drop-shadow(var(--kit-drop-md));
+  animation: hb-in 220ms var(--kit-ease-pop) both;
 }
-.pz-title { font-family: 'Harbormaster', monospace; font-size: 6cqw; color: #3c2d1c; margin-bottom: 2cqw; }
+.pz-title { font-family: var(--kit-face-title); font-size: calc(6cqw * var(--kit-text-scale)); color: var(--kit-ink-head); margin-bottom: 2cqw; }
 .pz-btn {
   min-width: 58%;
-  font-family: 'Deckhand', monospace; font-size: 4.4cqw; color: #4a3826;
-  background: linear-gradient(180deg, #e6dcc2, #dbcfaf);
-  border: 2px solid #8a744f; border-radius: 4px;
+  font-family: var(--kit-face-body); font-size: calc(4.4cqw * var(--kit-text-scale)); color: var(--kit-ink-body);
+  background: linear-gradient(180deg, var(--kit-paper), var(--kit-paper-lo));
+  border: var(--kit-border) solid var(--kit-edge); border-radius: var(--kit-r-soft);
   padding: 1.6cqw 3cqw; cursor: pointer;
-  transition: transform 120ms ease;
+  transition: transform var(--kit-t-quick) ease;
 }
 .pz-btn:hover { transform: translateY(-1px); }
+/* the line under the buttons that says the voyage saves itself. It was an inline
+   style on the element, which is the one place a skin cannot reach. */
+.pz-note { font-family: var(--kit-face-body); font-size: calc(3.2cqw * var(--kit-text-scale)); color: var(--kit-ink-dim); }
 .hud-blur { filter: blur(2px) brightness(.92); }

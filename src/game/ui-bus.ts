@@ -8,7 +8,11 @@
 // and dialogue.ts carries say/choose. Together they are what an intent (src/vine/
 // intents.ts) is performed with.
 
-export type UiRequest = 'planner' | 'handbook' | 'chart' | 'settings' | 'advisory' | 'wardrobe'
+/* `yearbook` is the sixth and it arrived with the page itself. Without it the
+ * only door to a year's page was a button inside the planner, so the chart table
+ * could open the sheet a year is planned on and not the book that year produces,
+ * and no island could ever send a student to look at their own. */
+export type UiRequest = 'planner' | 'handbook' | 'chart' | 'settings' | 'advisory' | 'wardrobe' | 'yearbook'
 
 const EVENT = 'blhs:open-ui'
 const BEAT_EVENT = 'blhs:play-beat'

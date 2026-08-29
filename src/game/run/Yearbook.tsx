@@ -1,34 +1,48 @@
 import { useState } from 'react'
 import { endYear, loadSave, setFlag } from '../save'
-import { gpaOf, letterOf, cordsOf } from '../progress'
-import { nudgeLine, yearStatus } from './year'
 import { track } from '../telemetry'
+import { threadWidth, yearbookPage, yearbookYears, yearTurned } from './yearbook-page'
 import './run.css'
 
-// THE YEARBOOK PAGE (§7.6) — the year's full-page spread: the inked GPA, every grade the
-// year earned, cords inching along as threads, one gentle nudge, and the page turn that
-// IS endYear(). The fourth turn is terminal: it sets graduated and points at the stage
-// (§9's ceremony is its own build; the page is honest about what awaits). Marisol's
-// opposite page joins when Ash approves the rival (§17.3). The art pass (a composed
-// spread, the page-flip transition §12.1) is ledgered with the UI hero batch.
+/* THE YEARBOOK PAGE (§7.6): the year's full-page spread, and the page turn that
+ * IS `endYear()`. The fourth turn is terminal, setting graduated and pointing at
+ * the stage.
+ *
+ * WHAT THE COMPONENT DOES AND DOES NOT DECIDE. Everything about what is on the
+ * page is `yearbook.ts`, which is a pure function of the save and a year, so the
+ * page a test renders and the page a student reads are the same document. This
+ * file draws it and owns exactly two behaviours: which year is open, and the
+ * turn.
+ *
+ * PAST PAGES ARE REACHABLE, which is §80.6's own word and the reason the year is
+ * state rather than a snapshot of `s.year`. The spine along the bottom holds one
+ * tab per year lived, and a turned year opens read-only: there is no turn button
+ * on a page that has already turned, because the turn is `endYear` and endYear is
+ * not something a student may do twice.
+ *
+ * The composed art spread and the page-flip transition ride the UI hero batch. */
 
 export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGraduate?: () => void }) {
   const [turned, setTurned] = useState(false)
-  // the year this book is ABOUT — snapshotted, because turn() advances the save under us
-  const [year] = useState(() => loadSave()?.year ?? 1)
+  // the year this book is OPEN AT. Starts on the live one; the spine moves it.
+  const [year, setYear] = useState(() => loadSave()?.year ?? 1)
   const s = loadSave()
   if (!s) return null
-  const st = yearStatus(s)
-  const gpa = gpaOf(s)
-  const yearEntries = s.ledger.filter((e) => e.year === year)
-  const cords = cordsOf(s).filter((c) => c.earned || c.progress > 0).sort((a, b) => b.progress - a.progress).slice(0, 4)
-  const nudge = nudgeLine(st)
+
+  const page = yearbookPage(s, year)
+  const years = yearbookYears(s)
+  /* THE TURN BELONGS TO THE LIVE YEAR, ONLY ONCE, AND ONLY WHEN THE YEAR IS
+   * REALLY OWED NOTHING. A page reached through the spine or off the sheet's
+   * shelf is a record and never a control: without the `ready` half a student
+   * could open the book in October and end year one by pressing a button. */
+  const canTurn = page.current && !page.turned && page.ready
   const lastYear = year >= 4
 
   const turn = () => {
     track('year_end', {
-      year, gpa, entries: yearEntries.map((e) => ({ id: e.id, grade: e.grade })),
-      stickers: s.stickers.length, facts: s.facts.length, nudge,
+      year, gpa: page.gpa,
+      entries: s.ledger.filter((e) => e.year === year).map((e) => ({ id: e.id, grade: e.grade })),
+      stickers: s.stickers.length, facts: s.facts.length, nudge: page.nudge,
     })
     setFlag(`yearbook:y${year}`)
     endYear()
@@ -42,55 +56,61 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
           <>
             <div className="yb-head">
               <span className="yb-title">Yearbook</span>
-              <span className="yb-year">Year {year}</span>
+              <span className="yb-year">Year {page.year}</span>
             </div>
 
             <div className="yb-body">
-            <div className="yb-gpa">
-              <span className="yb-gpanum">{gpa !== null ? gpa.toFixed(2) : '—'}</span>
-              <span className="yb-gpaletter">{gpa !== null ? letterOf(gpa) : ''}</span>
-              <span className="yb-gpalabel">grade point average, inked</span>
-            </div>
-
-            <div className="yb-sect">The year on paper</div>
-            {yearEntries.map((e) => (
-              <div className="yb-row" key={e.id}>
-                <span className="yb-rowtitle">{e.title}</span>
-                <span className="yb-rowmeta">{e.season} · {letterOf(e.grade)}{e.retaken ? ' · retaken' : ''}</span>
+              <div className="yb-gpa">
+                <span className="yb-gpanum">{page.gpa !== null ? page.gpa.toFixed(2) : '—'}</span>
+                <span className="yb-gpaletter">{page.letter}</span>
+                <span className="yb-gpalabel">grade point average, inked</span>
               </div>
-            ))}
-            {yearEntries.length === 0 && <div className="yb-dim">A quiet year on the transcript.</div>}
 
-            {st.voyages.length > 0 && (
-              <>
-                <div className="yb-sect">Seasons spent</div>
-                {st.voyages.map((v) => (
-                  <div className="yb-row" key={v.season}>
-                    <span className="yb-rowtitle">{v.name}</span>
-                    <span className="yb-rowmeta">{v.season} · {v.done ? 'sailed' : v.playable ? 'the dock waits' : 'island still rising'}</span>
-                  </div>
-                ))}
-              </>
-            )}
+              {/* EVERY SECTION, EVERY YEAR, IN ONE ORDER. An empty one says it is
+                  empty rather than vanishing, because a heading a student never
+                  saw is a part of the year they never knew they could have. */}
+              {page.sections.map((sec) => (
+                <div key={sec.id}>
+                  <div className="yb-sect">{sec.heading}</div>
+                  {sec.caveat && <div className="yb-caveat">{sec.caveat}</div>}
+                  {sec.rows.length === 0 && <div className="yb-dim">{sec.empty}</div>}
+                  {sec.rows.map((r) => (
+                    <div className="yb-row" key={sec.id + r.key}>
+                      <span className="yb-rowtitle">{r.title}</span>
+                      {sec.id === 'threads'
+                        ? <span className="yb-cordbar"><span style={{ width: `${threadWidth(s, r.key)}%` }} /></span>
+                        : <span className="yb-rowmeta">{r.meta}</span>}
+                    </div>
+                  ))}
+                </div>
+              ))}
 
-            {cords.length > 0 && (
-              <>
-                <div className="yb-sect">Threads becoming rope</div>
-                {cords.map((c) => (
-                  <div className="yb-row" key={c.id}>
-                    <span className="yb-rowtitle">{c.name}</span>
-                    <span className="yb-cordbar"><span style={{ width: `${Math.round(c.progress * 100)}%` }} /></span>
-                  </div>
-                ))}
-              </>
-            )}
-
-            <div className="yb-nudge">{nudge}</div>
+              <div className="yb-nudge">{page.nudge}</div>
             </div>
 
-            <button className="yb-turn" onClick={turn}>
-              {lastYear ? 'Close the book' : 'Turn the page'}
-            </button>
+            {years.length > 1 && (
+              <div className="yb-spine">
+                {years.map((y) => (
+                  <button
+                    key={y}
+                    className={`yb-tab ${y === year ? 'yb-tab-on' : ''}`}
+                    onClick={() => setYear(y)}
+                  >
+                    Year {y}{yearTurned(s, y) ? ' ·' : ''}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {canTurn ? (
+              <button className="yb-turn" onClick={turn}>
+                {lastYear ? 'Close the book' : 'Turn the page'}
+              </button>
+            ) : (
+              <button className="yb-turn" onClick={onClose}>
+                {page.turned ? 'Close the book' : 'Back to the sea'}
+              </button>
+            )}
           </>
         ) : (
           <div className="yb-turned">

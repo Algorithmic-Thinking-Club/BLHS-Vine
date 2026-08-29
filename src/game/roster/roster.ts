@@ -106,6 +106,26 @@ export type Place = {
   recognise?: string
   /** where it really is in the building, when a source says. Never invented. */
   room?: string
+
+  /* WHICH CLASS DEPARTMENTS SIT HERE, and it is the field a class beat resolves
+   * its room through. `src/game/beats/classes.ts` carried a `HALL` table that
+   * mapped a department to 'the AP Academy', 'the international hall', 'the
+   * Trades Harbor' and 'the arts wing'. Not one of those is a real BLHS place,
+   * not one is on this roster and not one is on a map, so a class beat named a
+   * room a student could not walk to and the objective arrow could never point
+   * at a class.
+   *
+   * IT IS EMPTY ON EVERY PLACE TODAY AND THAT IS THE ANSWER, not an omission.
+   * `docs/blhs/sourced-facts.md` carries a room for a club (200 Flex, Rm 104,
+   * Rm 206/207) and carries none for a department: the course catalog lists what
+   * is taught and never where. So a class resolves to nothing and says so, in
+   * the same register an unpainted place says it has no painting.
+   *
+   * Typed as a string rather than the planner's `Dept` because the roster must
+   * not import the planner; the planner's vocabulary is 'ap' | 'lang' | 'cte' |
+   * 'arts' and `rosterFaults` refuses two places claiming one department. */
+  teaches?: string[]
+
   /** where the two lines above came from */
   source: string
 }
@@ -244,6 +264,23 @@ export const programmeById = (id: ProgrammeId | undefined): Programme | undefine
 export const placeOfMap = (mapId: MapId | undefined): Place | undefined =>
   mapId ? mapIndex.get(mapId) : undefined
 
+/* WHERE A DEPARTMENT'S CLASSES SIT, and today the honest answer is nowhere.
+ * A class beat asks this instead of reading an invented hall name off a table,
+ * so the day somebody sources a room for the AP department the beat names it and
+ * the arrow points at it with no code change. Undefined is a real answer and
+ * every caller has to have a line for it. */
+const deptIndex = new Map<string, Place>()
+for (const p of PLACES) for (const d of p.teaches ?? []) if (!deptIndex.has(d)) deptIndex.set(d, p)
+
+/* the override argument is `rosterFaults`'s own pattern and it is here for the
+ * same reason: nothing on the shipped roster teaches a department, so a test that
+ * could not supply one could only ever prove the absence and never the lookup. */
+export const placeOfDept = (dept: string | undefined, places?: readonly Place[]): Place | undefined => {
+  if (!dept) return undefined
+  if (!places) return deptIndex.get(dept)
+  return places.find((p) => (p.teaches ?? []).includes(dept))
+}
+
 /** the place a programme happens at, resolved through the programme's own field */
 export const placeOfProgramme = (id: ProgrammeId | undefined): Place | undefined =>
   placeById(programmeById(id)?.place)
@@ -297,7 +334,17 @@ export type RosterFault = { key: string; why: string }
 export function rosterFaults(places = PLACES, programmes = PROGRAMMES): RosterFault[] {
   const out: RosterFault[] = []
   const seenMap = new Map<MapId, PlaceId>()
+  const seenDept = new Map<string, PlaceId>()
   for (const p of places) {
+    /* A DEPARTMENT SITS IN ONE PLACE. Two places claiming one department is the
+     * `HALL` table growing back in data: a class beat would resolve whichever
+     * entry happened to be first and the answer would move when somebody
+     * reordered the list. */
+    for (const d of p.teaches ?? []) {
+      const owner = seenDept.get(d)
+      if (owner) out.push({ key: d, why: `department is taught at both "${owner}" and "${p.id}"` })
+      else seenDept.set(d, p.id)
+    }
     if (p.arrival && !p.maps.includes(p.arrival))
       out.push({ key: p.id, why: `arrival map "${p.arrival}" is not one of this place's maps` })
     if (!p.arrival && p.maps.length)

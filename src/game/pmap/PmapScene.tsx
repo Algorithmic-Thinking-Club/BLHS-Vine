@@ -40,7 +40,8 @@ import type { CutsceneStage } from '../cutscene/types'
 import { publishRuntime } from '../cutscene/stage-bus'
 import { resolveScript, scriptById } from '../cutscene/scripts'
 import { aheadOn, findPath, type Pt } from './path'
-import { loadSave, recordExposure } from '../save'
+import { loadSave, recordExposure, recordPosition } from '../save'
+import { resumeFor, stampOf, RESUME_REASONS, type WorldStamp } from '../run/resume'
 import { placeOfMap } from '../roster/roster'
 import { setContext } from '../telemetry'
 /* ---- THE WORLD SUBSTRATE (80.2), which this scene is now the one host of ----
@@ -64,6 +65,7 @@ import { cover } from '../../app/transitions'
 import { coverFor, markSeen, seenThisSession, titleOfMap } from '../stage/covers'
 import { showPlaceCard } from '../stage/stage-bus'
 import { motionMs, prefersReducedMotion } from '../ui/motion'
+import { composeWorldText, WORLD_TEXT } from '../ui/worldText'
 import { MAW_MAP, isObjective, nextObjective } from '../run/objective'
 import { missingAnchors, stationByName } from '../maw/stations'
 import { runStation } from '../maw/run-station'
@@ -529,6 +531,10 @@ export default function PmapScene() {
       const pinned = params.get('v')
       let dir = `/maps-painted/${mapId}`
       let mp: PmapJson | null = null
+      /* absent for a committed folder, which is not the same as version zero:
+       * `resumeTarget` treats "one has a number and the other does not" as two
+       * different bundles, because that is exactly what it is */
+      let mapVersion: number | undefined
 
       if (!wantLocal) {
         try {
@@ -539,6 +545,12 @@ export default function PmapScene() {
           // every file of a published version sits under one immutable prefix
           dir = `${host}/api/v1/maps/${encodeURIComponent(mapId)}/file/${man.version}`
           mp = man.map as PmapJson
+          /* WHICH VERSION THIS IS, kept, because a saved position is only worth
+           * anything against the bundle it was written on. MAPVIS publishes
+           * immutable versions and a map can be re-cut at any time, so a position
+           * from v9 restored into v10 can land inside blocked pixels or outside
+           * the painting entirely. This number is the whole of the comparison. */
+          mapVersion = Number(man.version)
           console.log(`[pmap] ${mapId} v${man.version} from the platform`)
         } catch {
           /* not published, or no platform reachable: the committed folder */
@@ -1561,7 +1573,32 @@ export default function PmapScene() {
        * is inside the rock. findGround still has the last word, because an
        * author can put an anchor a pixel off the walkable edge and a player
        * should not have to care. */
-      const arrive = anchors.arrival(target.at, map.spawn)
+      /* ---- WHERE A RESUME PUTS THE BODY ----
+       *
+       * A door that named an arrival anchor outranks everything: the player just
+       * walked through it and that is not a resume. With no `at`, the save's own
+       * position is asked for, and the guard decides how much of it to trust.
+       *
+       * THE GUARD IS THE POINT. AUTHORING §13: MAPVIS publishes immutable versions
+       * and any map can be re-cut at any time, so a saved x and y can land inside
+       * blocked pixels or outside the painting, and an anchor name a run scored
+       * against can be gone. Nothing in this repository recorded which version a
+       * save was written against, so every resume was a guess that usually
+       * happened to work. Now the pixels are trusted only on the same bundle, the
+       * NAME survives one step longer than the pixels, and the map's own spawn is
+       * what is left. `run/resume.ts` holds the rule and its tests. */
+      const stamp: WorldStamp = { map: mapId, mapVersion, worldVersion: comp?.version }
+      const back = resumeFor(loadSave(), stamp)
+      let arrive = anchors.arrival(target.at, map.spawn)
+      if (!target.at) {
+        if (back.kind === 'exact') arrive = { ...arrive, x: back.x, y: back.y }
+        else if (back.kind === 'anchor') {
+          const a = anchors.get(back.anchor)
+          if (a) arrive = anchors.standAt(a)
+        }
+        if (back.kind !== 'spawn' || back.why !== RESUME_REASONS.fresh)
+          console.log(`[pmap] resume: ${back.kind} (${back.why})`)
+      }
       const [spx, spy] = findGround(arrive.x, arrive.y)
       /* THE WALK LAW OWNS WHERE HE IS.
        *
@@ -1703,6 +1740,29 @@ export default function PmapScene() {
         if (hullViews.length) {
           hullSp = new Sprite(hullViews[0])
           hullSp.anchor.set(0.5, 0.72)
+          /* ---- I9: THE PLAYER'S TEXT COMPOSITED INTO WORLD ART ----
+           *
+           * §2.11 calls the boat's name on the stern *"the first time the game
+           * proves it is listening"*, and it was one beach one-off drawn on a
+           * wooden chip beside a dock. It is a kit capability now
+           * (`src/game/ui/worldText.ts`) with a preset per slot, so the same
+           * function puts a name on a stern, a room number on a door and a
+           * number on a scoreboard, and none of the twenty islands has to write
+           * its own. This is the first callsite: the name a fourteen year old
+           * typed at the beach, on the hull they are steering. */
+          const boat = (loadSave()?.boatName ?? '').trim()
+          const img = boat ? composeWorldText(boat, WORLD_TEXT.sternName) : null
+          if (img) {
+            const t = Texture.from(img.canvas)
+            t.source.scaleMode = 'nearest'
+            const name = new Sprite(t)
+            name.anchor.set(0.5, 0.5)
+            /* on the stern, which is behind the mast and low: a fraction of the
+             * hull rather than a pixel count, so it rides any ship art */
+            name.position.set(0, hullViews[0].height * 0.16)
+            hullSp.addChild(name)
+            if (img.truncated) console.info(`[pmap] the stern is not wide enough for "${boat}", so it reads "${img.lines[0]}"`)
+          }
           /* SIZED AGAINST THE PAINTING'S OWN CHARACTER METRIC, never a constant.
            * `map.character.heightPx` is how tall a person is in this painting, and a
            * hull is about four of those long, so a ship on a 18px-person island and a
@@ -1866,6 +1926,14 @@ export default function PmapScene() {
           if (to.at) q.set('at', to.at); else q.delete('at')
           window.history.replaceState(null, '', `${window.location.pathname}?${q}`)
           engine.log('map_entered', { map: to.map, at: to.at ?? null, from: mapId })
+          /* THE MAP CHANGED, SO THE POSITION DID. Q1 asks for the current map and
+           * anchor on every map change so `Continue` routes off the save rather
+           * than off a URL, and the arrival anchor is the one piece of this that
+           * survives a republish: a name outlives the pixels it stood on. The
+           * version is the DESTINATION's and is not known here, so it is left
+           * absent and the arriving scene's own read falls to the anchor, which is
+           * exactly the right amount of trust. */
+          recordPosition({ map: to.map, ...(to.at ? { anchor: to.at } : {}) })
           ;(window as unknown as { __sceneReady?: boolean }).__sceneReady = false
           /* re-runs the effect on the new target, which tears this Pixi app down
            * and builds the next one */
@@ -2564,6 +2632,13 @@ export default function PmapScene() {
        * a fact about a frame. */
       let lastSeaCheck = 0
       let lastRegion = ''
+      /* WHERE HE IS, WRITTEN OFTEN ENOUGH TO BE USEFUL AND RARELY ENOUGH TO BE
+       * FREE. Every write is a save (Q6) and a save is a localStorage round trip,
+       * so once a second while he is actually moving is the trade: a bell landing
+       * mid-walk loses a second of progress, and a stationary player writes
+       * nothing at all. Never while a hull is out, because §80.6's own rule is
+       * that a resume never restores a ship at sea. */
+      let lastWhere = 0
       const seenPlaces = new Set<string>((loadSave()?.exposure ?? []).map((e) => e.place))
       app.renderer.on('resize', () => refreshSea())
 
@@ -2852,6 +2927,14 @@ export default function PmapScene() {
         const uiS = 1 / camZ
         if (pin.scale.x !== uiS) { pin.scale.set(uiS); doorTxt.scale.set(uiS); objMark.scale.set(uiS) }
         ;(window as any).__walk = `thor ${pos.x.toFixed(0)},${pos.y.toFixed(0)} lvl${lvlAt(pos.x, pos.y)}`
+
+        /* the position, stamped with the bundle it was written against, so the
+         * guard above has something to compare. A hull writes nothing: a point on
+         * open water is not a named anchor on a known map and never resumes. */
+        if (!hull && moving && t - lastWhere > 1) {
+          lastWhere = t
+          recordPosition(stampOf(stamp, undefined, Math.round(pos.x), Math.round(pos.y)))
+        }
 
         /* ---- INTERACTION: the nearest anchor whose ring the feet are inside
          * owns the prompt, and it can be a door, a post or a point.

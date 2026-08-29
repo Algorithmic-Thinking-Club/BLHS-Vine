@@ -1,7 +1,17 @@
 /* BLHS Adventure — game UI layer.
    Palette: deep slate glass panels, BLHS teal accent, warm-white type. A real game HUD,
    never a web app. Pixel face (Silkscreen) only for tiny in-world chips so the UI belongs to
-   the pixel world; Hanken Grotesk carries everything readable. */
+   the pixel world; Hanken Grotesk carries everything readable.
+
+   THIS IS THE TILE-ERA SURFACE AND IT IS NOT ON THE TOKEN LAYER, on purpose. Only
+   `Game.tsx` imports it and only `?legacy=1` reaches `Game.tsx`, so it is the
+   dark-glass look the painted game replaced, kept because the legacy route is
+   reported-on rather than deleted. Putting its fifteen colours through the kit's
+   tokens would say the two looks are one material system, and they are two.
+   Everything below that a skin would want, it already has as its own variables.
+
+   What it DOES get is the reduced-motion half, because that setting is the
+   player's and does not care which era of the game they are looking at. */
 @import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Silkscreen:wght@400;700&display=swap');
 
 :root {
@@ -153,3 +163,18 @@ img { image-rendering: pixelated; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 .grape-frame { width: min(880px, 94vw); max-height: 92vh; overflow: auto; border-radius: 18px;
   background: var(--panel-solid); border: 1px solid var(--line); box-shadow: var(--shadow); }
+
+/* ---------- reduced motion ----------
+   Three loops ran here whatever the setting said: Thor walking across the loading
+   bar, the bar sliding, and the modal fading in. A walk cycle at 1ms is a strobe,
+   so the walk STOPS and keeps a frame, and the entrance shortens instead. */
+html[data-rm='1'] .thor-walk { animation: none; background-image: url('/art/characters/thor/walk/east/0.png'); left: 42%; }
+html[data-rm='1'] .bar > i { animation: none; width: 100%; margin-left: 0; }
+html[data-rm='1'] .grape-scrim { animation-duration: 1ms; }
+html[data-rm='1'] .loading { transition-duration: 1ms; }
+
+/* the legacy surface had no focus ring either */
+.btn:focus-visible, .choice:focus-visible, .field input:focus-visible {
+  outline: 2px solid var(--teal-bright);
+  outline-offset: 2px;
+}

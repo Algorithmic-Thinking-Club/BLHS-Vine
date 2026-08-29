@@ -11,6 +11,7 @@ import { loadSave, subscribeSave } from '../save'
 import { cordsOf, gpaOf, letterOf, NO_ATHLETIC_CORD } from '../progress'
 import { factById } from '../facts'
 import { track } from '../telemetry'
+import { announce, tabRowKeyDown, usePanel } from '../ui/a11y'
 import './hud.css'
 
 // THE HANDBOOK (GAME-DESIGN §8.5) — the in-world binder, Wiseman's reference made a
@@ -30,19 +31,31 @@ const BADGES = [
 
 type Tab = 'chart' | 'islands' | 'cords' | 'facts' | 'badges'
 
+const TABS: Tab[] = ['chart', 'islands', 'cords', 'facts', 'badges']
+
 export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => void; initialTab?: Tab }) {
   const [tab, setTab] = useState<Tab>(initialTab)
   const [, bump] = useState(0)
   useEffect(() => { track('handbook_opened', { tab: initialTab }); return subscribeSave(() => bump((v) => v + 1)) }, [initialTab])
   const s = loadSave()
   const gpa = s ? gpaOf(s) : null
+  /* THE BINDER IS A PANEL AND NOW BEHAVES LIKE ONE: focus goes in, Tab stays in,
+   * Escape closes this one and not the pause sheet underneath it, and the game
+   * behind it is inert rather than merely covered. */
+  const panel = usePanel({ label: 'The Handbook', onClose })
+  const pick = (t: Tab) => { setTab(t); track('handbook_entry_viewed', { tab: t }); announce(`${t[0].toUpperCase() + t.slice(1)} page`) }
 
   return (
     <div className="hb-veil" onClick={onClose}>
-      <div className="hb-book" onClick={(e) => e.stopPropagation()}>
-        <div className="hb-tabs">
-          {(['chart', 'islands', 'cords', 'facts', 'badges'] as Tab[]).map((t) => (
-            <button key={t} className={`hb-tab ${tab === t ? 'hb-tab-on' : ''}`} onClick={() => { setTab(t); track('handbook_entry_viewed', { tab: t }) }}>
+      <div className="hb-book kit-surface-panel" onClick={(e) => e.stopPropagation()} {...panel}>
+        <div className="hb-tabs" role="tablist" aria-label="Handbook pages">
+          {TABS.map((t, i) => (
+            <button
+              key={t} role="tab" aria-selected={tab === t}
+              className={`hb-tab ${tab === t ? 'hb-tab-on' : ''}`}
+              onClick={() => pick(t)}
+              onKeyDown={(e) => tabRowKeyDown(e, TABS, i, pick)}
+            >
               {t[0].toUpperCase() + t.slice(1)}
             </button>
           ))}

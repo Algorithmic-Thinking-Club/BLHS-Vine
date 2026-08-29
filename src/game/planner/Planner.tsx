@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { classById, cordHint, eligibleClasses, type Dept } from './catalog'
 /* what a season token may be spent on is the roster's, not the planner's. A slot
  * points at a programme id and the roster says what programmes exist. */
-import { PROGRAMMES, programmeAllowedIn, programmeById } from '../roster/roster'
+import { PROGRAMMES, programmeById, seasonOf } from '../roster/roster'
 import {
   assignSlot, clearSlot, dropClass, loadSave, pickClass, SEASONS, stampPlan, subscribeSave,
   type Season, type YearPlan,
@@ -12,6 +12,8 @@ import { beatDone } from '../beats/beats'
 import { classDone } from '../beats/classes'
 import { retakeAvailable } from '../beats/score'
 import { yearStatus } from '../run/year'
+import { refuseClass, refuseSlot } from '../run/refusal'
+import { yearbookYears, yearTurned } from '../run/yearbook-page'
 import { track } from '../telemetry'
 import './planner.css'
 
@@ -52,6 +54,9 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
   const [placing, setPlacing] = useState<Season | null>(null)
   const [pickingClass, setPickingClass] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  /* THE REFUSAL THE STUDENT IS CURRENTLY LOOKING AT (N3). One string, from
+   * `run/refusal.ts`, and the same one the save's own verb enforces. */
+  const [refused, setRefused] = useState<string | null>(null)
 
   useEffect(() => { track('planner_opened', { year }) }, [year])
   useEffect(() => {
@@ -65,8 +70,17 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
   const pickedByYear: Record<number, string[]> = {}
   for (const [y, p] of Object.entries(s.plans)) pickedByYear[Number(y)] = p.classes
 
+  /* ONE PATH FOR CLICK, DROP AND KEYBOARD (N3). The season lock used to be a
+   * `.filter()` on this menu, which is not a refusal: it removed the programme so
+   * a student who came looking for football in spring found an absence and no
+   * sentence, and any caller that was not this render could write the slot
+   * anyway. The refusal is asked for first, printed if there is one, and the same
+   * function guards `assignSlot` itself. */
   const place = (season: Season, activityId: string) => {
+    const why = refuseSlot(activityId, season, s, year)
+    if (why) { setRefused(why); track('slot_refused', { year, season, activity: activityId, why }); return }
     changes.current++
+    setRefused(null)
     assignSlot(year, season, activityId)
     track('slot_assigned', {
       year, season, activity: activityId,
@@ -81,6 +95,11 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
   }
 
   const addClass = (id: string) => {
+    /* the two-pick limit is scarcity, so it says so rather than the button
+     * quietly not being there. Same function the save's `pickClass` enforces. */
+    const why = refuseClass(id, s, year)
+    if (why) { setRefused(why); track('class_refused', { year, class: id, why }); return }
+    setRefused(null)
     pickClass(year, id)
     track('class_picked', { year, class: id })
     setPickingClass(false)
@@ -102,6 +121,9 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
     .filter((c) => !c.earned && c.progress > 0)
     .sort((a, b) => b.progress - a.progress)
     .slice(0, 3)
+
+  /** the years whose page has turned, which is the shelf the sheet can reach */
+  const pastPages = yearbookYears(s).filter((y) => yearTurned(s, y))
 
   const slotsFilled = SEASONS.filter((se) => plan.slots[se]).length
   const canStamp = !plan.stamped && plan.classes.length === 2
@@ -130,8 +152,13 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
           <div className="pl-cols">
             {SEASONS.map((season) => {
               const committed = plan.slots[season] ? programmeById(plan.slots[season]!) : null
-              const menu = PROGRAMMES.filter((a) => programmeAllowedIn(a, season))
-                .filter((a) => !SEASONS.some((se) => se !== season && plan.slots[se] === a.id))
+              /* THE WHOLE ROSTER IS ON THE MENU AND THE REFUSED ONES SAY WHY.
+               * This was `.filter(programmeAllowedIn)`, so out-of-season
+               * programmes vanished and the season lock taught nothing: the
+               * mechanic that makes a student obey the truth before anybody
+               * explains it only works if they can see the thing they cannot
+               * have. Refused rows still render; they carry the refusal. */
+              const menu = PROGRAMMES.map((a) => ({ a, why: refuseSlot(a.id, season, s, year) }))
               return (
                 <div className="pl-col" key={season}>
                   <div className="pl-col-head">{season}</div>
@@ -149,16 +176,31 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                     ) : placing === season ? (
                       <div className="pl-menu">
                         {menu.length === 0 && <div className="pl-menu-none">nothing sails this season yet — new islands are still rising</div>}
-                        {menu.map((a) => (
-                          <button className="pl-act" key={a.id} onClick={() => place(season, a.id)}>
+                        {menu.map(({ a, why }) => (
+                          <button
+                            className={`pl-act ${why ? 'pl-act-shut' : ''}`}
+                            key={a.id}
+                            aria-disabled={!!why}
+                            title={why ?? undefined}
+                            onClick={() => place(season, a.id)}
+                          >
                             {a.name}
-                            <small>{a.kind === 'sport' ? `a ${a.season?.toLowerCase()} sport` : 'a club — any season'}</small>
+                            {/* THROUGH `seasonOf` AND NOT OFF THE FIELD. This read
+                                `a.season`, which no shipped sport sets: a sport's
+                                season is the school's table (`SPORT_SEASONS`) keyed
+                                by id, so every sport on this menu read "a undefined
+                                sport". */}
+                            <small>{why ?? (a.kind === 'sport' ? `a ${String(seasonOf(a)).toLowerCase()} sport` : 'a club, any season')}</small>
                           </button>
                         ))}
-                        <button className="pl-menu-back" onClick={() => setPlacing(null)}>never mind</button>
+                        {refused && <div className="pl-refusal">{refused}</div>}
+                        <button className="pl-menu-back" onClick={() => { setRefused(null); setPlacing(null) }}>never mind</button>
                       </div>
                     ) : (
-                      <button className="pl-slot" onClick={() => setPlacing(season)}>
+                      /* the refusal is cleared on the way in, or a sentence about
+                         football in spring would still be sitting under the
+                         winter column a moment later */
+                      <button className="pl-slot" onClick={() => { setRefused(null); setPlacing(season) }}>
                         {s.tokens.includes(season) ? 'place the season token…' : 'no token left for this season'}
                       </button>
                     )}
@@ -227,7 +269,8 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                       </div>
                     )
                   })}
-                  <button className="pl-menu-back" onClick={() => setPickingClass(false)}>never mind</button>
+                  {refused && <div className="pl-refusal">{refused}</div>}
+                  <button className="pl-menu-back" onClick={() => { setRefused(null); setPickingClass(false) }}>never mind</button>
                 </div>
               )}
             </div>
@@ -238,6 +281,21 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                 <ul className="pl-notes">
                   {notes.map((c) => <li key={c.id}>{c.detail} — {c.name}</li>)}
                 </ul>
+              </div>
+            )}
+
+            {/* PAST PAGES ARE REACHABLE AFTER THEY HAVE TURNED, which §80.6 asks
+                for and nothing offered: the only door to the yearbook was the
+                button below, and it only appears in the window where THIS year is
+                closable and unturned. So a student could not look at year one
+                again from the moment year one ended. The book opens on the live
+                year and its spine walks back. */}
+            {onYearbook && pastPages.length > 0 && (
+              <div>
+                <div className="pl-sect">The shelf</div>
+                <button className="pl-menu-back" onClick={onYearbook}>
+                  read a yearbook that already turned ({pastPages.map((y) => `year ${y}`).join(', ')})
+                </button>
               </div>
             )}
 

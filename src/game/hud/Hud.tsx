@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Handbook } from './Handbook'
 import { SettingsPanel } from '../../app/SettingsPanel'
 import { Planner } from '../planner/Planner'
@@ -16,6 +16,7 @@ import { useNav } from '../../app/SceneManager'
 import { track } from '../telemetry'
 import { onBeatRequest, onUiRequest } from '../ui-bus'
 import { onWorldHold, worldHeld } from '../world-bus'
+import { panelDepth, usePanel } from '../ui/a11y'
 import './hud.css'
 
 /* WHAT A BEAT ID RESOLVES TO. World code names a beat as a string, the way a
@@ -74,17 +75,24 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const anyOpen = book !== null || planner || settings || advisory || sitClass !== null
     || yearbook || graduation || wardrobe || playing !== null
 
-  // Esc = pause, only while nothing else owns the frame (the planner eats its own Esc)
+  /* Esc = pause, only while nothing else owns the frame (the planner eats its own Esc).
+   *
+   * ESCAPE CLOSES THE INNERMOST THING, and this used to be the only rule about
+   * it: one handler here that knew which of its own panels were open and closed
+   * whichever it recognised. A panel it did not know about, a station's dialogue
+   * or a member's grape, would have had Escape pause the game underneath it. The
+   * panels that open through `usePanel` now answer for themselves on the capture
+   * phase, so this only ever runs when no panel is up at all. */
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.repeat) return
-      if (book || settings) { setBook(null); setSettings(false); onBlurWorld?.(false); return }
+      if (panelDepth() > 0) return                                            // a panel is on top and has already answered
       if (planner || advisory || sitClass || yearbook || graduation) return   // the sheet eats its own Esc; a beat never Esc-quits
       setPaused((p) => { onBlurWorld?.(!p); return !p })
     }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
-  }, [book, settings, planner, onBlurWorld])
+  }, [planner, advisory, sitClass, yearbook, graduation, onBlurWorld])
 
   // the ui-bus: the world's diegetic stations open these same panels (ui-bus.ts)
   useEffect(() => onUiRequest((which) => {
@@ -133,12 +141,17 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
 
   return (
     <>
-      <div className="hud-stack">
-        <button className="hud-btn" title="The chart" onClick={() => { track('chart_opened'); openBook('chart') }}>🧭</button>
-        <button className="hud-btn" title="The Handbook" onClick={() => openBook('islands')}>📖</button>
+      {/* THE HUD IS A LANDMARK AND ITS BUTTONS ARE GLYPHS. A compass emoji is
+          announced as "compass" or as nothing at all depending on the reader, so
+          each control says what it opens and that it opens a panel. */}
+      <nav className="hud-stack" aria-label="Ship's controls">
+        <button className="hud-btn" title="The chart" aria-label="The chart" aria-haspopup="dialog" onClick={() => { track('chart_opened'); openBook('chart') }}>🧭</button>
+        <button className="hud-btn" title="The Handbook" aria-label="The Handbook" aria-haspopup="dialog" onClick={() => openBook('islands')}>📖</button>
         {s && s.introDone && (
           <button
             className="hud-tokenbtn hud-tokens" title="The year sheet — season tokens"
+            aria-label={`The year sheet, ${s.tokens.length} season ${s.tokens.length === 1 ? 'token' : 'tokens'} unspent`}
+            aria-haspopup="dialog"
             onClick={openPlanner}
           >
             {s.tokens.length > 0
@@ -146,7 +159,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
               : <span className="hud-token" style={{ opacity: .35 }} />}
           </button>
         )}
-      </div>
+      </nav>
 
       {book && <Handbook initialTab={book} onClose={closeAll} />}
       {planner && (
@@ -169,25 +182,37 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       {settings && <SettingsPanel onClose={() => { setSettings(false); setPaused(true) }} />}
 
       {paused && !anyOpen && (
-        <div className="pz-veil" onClick={closeAll}>
-          <div className="pz-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="pz-title">⚓ Dropped anchor</div>
-            <button className="pz-btn" onClick={closeAll}>Back to it</button>
-            {s?.introDone && <button className="pz-btn" onClick={openPlanner}>The Year Sheet</button>}
-            {s?.graduated && (
-              <button className="pz-btn" onClick={() => { setPaused(false); setGraduation(true) }}>
-                {s.flags.includes('gear2') ? 'The diploma, again' : 'Walk the stage'}
-              </button>
-            )}
-            <button className="pz-btn" onClick={() => { setPaused(false); setBook('islands'); }}>Handbook</button>
-            <button className="pz-btn" onClick={() => { setPaused(false); setSettings(true) }}>Settings</button>
-            <button className="pz-btn" onClick={() => { closeAll(); nav.go('title') }}>Save &amp; leave</button>
-            <div style={{ fontFamily: 'Deckhand, monospace', fontSize: '3.2cqw', color: '#8a7a60' }}>
-              your voyage saves itself
-            </div>
-          </div>
-        </div>
+        <PausePanel onClose={closeAll}>
+          <button className="pz-btn" onClick={closeAll}>Back to it</button>
+          {s?.introDone && <button className="pz-btn" onClick={openPlanner}>The Year Sheet</button>}
+          {s?.graduated && (
+            <button className="pz-btn" onClick={() => { setPaused(false); setGraduation(true) }}>
+              {s.flags.includes('gear2') ? 'The diploma, again' : 'Walk the stage'}
+            </button>
+          )}
+          <button className="pz-btn" onClick={() => { setPaused(false); setBook('islands'); }}>Handbook</button>
+          <button className="pz-btn" onClick={() => { setPaused(false); setSettings(true) }}>Settings</button>
+          <button className="pz-btn" onClick={() => { closeAll(); nav.go('title') }}>Save &amp; leave</button>
+        </PausePanel>
       )}
     </>
+  )
+}
+
+/* THE PAUSE SHEET, AS ITS OWN COMPONENT so it can hold the panel contract: a
+ * hook cannot be called inside a conditional branch of the HUD, and a panel that
+ * only sometimes traps focus is worse than one that never does, because the
+ * failure is intermittent. The line under the buttons was an inline style, which
+ * is the one place a skin cannot reach, and it is `.pz-note` now. */
+function PausePanel({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  const panel = usePanel({ label: 'Paused', onClose })
+  return (
+    <div className="pz-veil" onClick={onClose}>
+      <div className="pz-panel kit-surface-panel" onClick={(e) => e.stopPropagation()} {...panel}>
+        <div className="pz-title">⚓ Dropped anchor</div>
+        {children}
+        <div className="pz-note">your voyage saves itself</div>
+      </div>
+    </div>
   )
 }

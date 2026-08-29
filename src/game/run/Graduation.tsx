@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
-import { hasFlag, loadSave, setFlag, type SaveGame } from '../save'
-import { cordsOf, gpaOf, letterOf, rankName, ranksOf, transcriptOf } from '../progress'
-import { runCode } from '../../vine/verify'
+import { hasFlag, loadSave, setFlag, type FrozenRun, type SaveGame } from '../save'
+import { cordsOf, letterOf, rankName } from '../progress'
+import { artifactText, diplomaOf, sealRun } from './diploma'
 import { programmeOfRankTrack } from '../roster/roster'
 import { track } from '../telemetry'
 import './run.css'
@@ -38,7 +38,27 @@ export function Graduation({ onClose }: { onClose: () => void }) {
   const s = loadSave()
   const [stage, setStage] = useState<Stage>('processional')
   const [cordIdx, setCordIdx] = useState(0)
+  const [copied, setCopied] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  /* THE TRANSCRIPT IS FROZEN THE MOMENT THE STAGE IS WALKED, not read live.
+   *
+   * The last button on this flow unlocks Gear 2 and the ocean opens, so a
+   * graduate plays one more island, the ledger moves, and the code the teacher's
+   * roster computes from the synced save stops matching the code on the printed
+   * page. The teacher is then holding two codes for one student in front of a
+   * class and the only reading available to them is that the student made one up.
+   *
+   * Sealed in a lazy initialiser so it happens ONCE PER MOUNT rather than on
+   * every render: `sealRun` writes the save, a write emits, and an emit
+   * re-renders whatever mounted this. And only when the run is really graduated,
+   * because a preview opened early would otherwise freeze an unfinished run
+   * forever. */
+  const [sealed] = useState<FrozenRun | null>(() => {
+    const cur = loadSave()
+    if (!cur) return null
+    return cur.graduated ? sealRun(cur) : diplomaOf(cur)
+  })
 
   const earned = useMemo(() => (s ? cordsOf(s).filter((c) => c.earned) : []), [s])
   const missed = useMemo(() => {
@@ -49,19 +69,27 @@ export function Graduation({ onClose }: { onClose: () => void }) {
     // gold — it was outclassed, and the board only shows honest near-misses
     return all.filter((c) => !c.earned && c.progress > 0 && !(gotHighest && c.id === 'high-honors'))
   }, [s])
-  if (!s) return null
+  if (!s || !sealed) return null
 
-  const gpa = gpaOf(s)
-  const transcript = transcriptOf(s)
-  const code = runCode(transcript)
+  const transcript = sealed.transcript
+  const code = sealed.code
+  const gpa = transcript.gpa
+
   /* `save.ranks` is keyed by RANK TRACK, which is its own key space and not a
    * programme id. Looking a track up in the programme list printed the raw key
    * whenever the two were spelled differently, and Key Club's are: the track is
    * `keyclub` and the programme is `key-club`, so a graduating student's diploma
-   * read "keyclub". */
-  const ranks = Object.entries(ranksOf(s))
+   * read "keyclub". The years come off the frozen transcript now, so a rank that
+   * moves after graduation does not rewrite a printed diploma. */
+  const ranks = Object.entries(transcript.ranks)
     .map(([track, yrs]) => ({ name: programmeOfRankTrack(track)?.name ?? track, rank: rankName(yrs) }))
     .filter((r) => r.rank)
+
+  /* THE CORD NAMES COME OFF THE FROZEN IDS. The cord table itself is content and
+   * ships with the deploy, so a name is a lookup; which cords were earned is the
+   * run's and is the thing that must not move after the code was computed. */
+  const cordName = new Map(cordsOf(s).map((c) => [c.id, c.name]))
+  const sealedCords = transcript.cords.map((id) => cordName.get(id) ?? id)
 
   const finishDiploma = () => {
     if (!hasFlag('gear2')) {
@@ -74,12 +102,23 @@ export function Graduation({ onClose }: { onClose: () => void }) {
 
   const savePng = () => {
     const cv = canvasRef.current ?? document.createElement('canvas')
-    drawDiploma(cv, s, code)
+    drawDiploma(cv, s, sealed)
     const a = document.createElement('a')
     a.download = `blhs-diploma-${s.handle || 'panther'}.png`
     a.href = cv.toDataURL('image/png')
     a.click()
-    track('artifact_exported', { code })
+    track('artifact_exported', { code, form: 'png' })
+  }
+
+  /* THE SAME ARTIFACT WITH NO IMAGE IN IT. A district image that blocks downloads
+   * leaves a graduate holding nothing to hand in, and the turn-in summary is the
+   * one thing Wiseman asked for by name. This pastes into Canvas, Classroom, a
+   * form field or an email and carries the same code. */
+  const copyArtifact = () => {
+    const text = artifactText(s, sealed)
+    void navigator.clipboard?.writeText(text).catch(() => { /* a blocked clipboard is not a failure worth a dialog */ })
+    setCopied(true)
+    track('artifact_exported', { code, form: 'text' })
   }
 
   return (
@@ -130,15 +169,17 @@ export function Graduation({ onClose }: { onClose: () => void }) {
             <div className="gr-dip-sub">completed the four-year voyage</div>
             <div className="gr-dip-grid">
               <span>GPA</span><b>{gpa !== null ? `${gpa.toFixed(2)} (${letterOf(gpa)})` : 'unwritten'}</b>
-              <span>Cords &amp; seals</span><b>{earned.length ? earned.map((c) => c.name).join(', ') : 'none'}</b>
+              <span>Cords &amp; seals</span><b>{sealedCords.length ? sealedCords.join(', ') : 'none'}</b>
               {ranks.length > 0 && <><span>Ranks</span><b>{ranks.map((r) => `${r.rank}, ${r.name}`).join(' · ')}</b></>}
               <span>Islands completed</span><b>{transcript.islandsCompleted}</b>
+              <span>Places seen</span><b>{transcript.placesSeen}</b>
               <span>Facts learned</span><b>{transcript.factsLearned}</b>
             </div>
             <div className="gr-dip-code">verification <b>{code}</b></div>
             <div className="gr-dip-sub gr-dim">your teacher's roster shows this same code if this run is really yours</div>
             <div className="gr-dip-actions">
               <button className="yb-turn" onClick={savePng}>Save my diploma</button>
+              <button className="yb-turn" onClick={copyArtifact}>{copied ? 'copied ✓' : 'Copy it as text'}</button>
               <button className="yb-turn gr-gear2" onClick={finishDiploma}>The ocean is yours now</button>
             </div>
             <canvas ref={canvasRef} style={{ display: 'none' }} />
@@ -149,9 +190,16 @@ export function Graduation({ onClose }: { onClose: () => void }) {
   )
 }
 
-// the downloadable artifact: drawn by hand on canvas (no deps), paper + teal, legible in
-// a gradebook at 50% zoom. The composed ART version rides the ceremony art pass.
-function drawDiploma(cv: HTMLCanvasElement, s: SaveGame, code: string) {
+/* the downloadable artifact: drawn by hand on canvas (no deps), paper + teal,
+ * legible in a gradebook at 50% zoom. The composed ART version rides the ceremony
+ * art pass.
+ *
+ * DRAWN FROM THE SEAL AND NOT FROM THE SAVE. It read `gpaOf(s)`, `cordsOf(s)`,
+ * `ranksOf(s)` and `transcriptOf(s)` at the moment the button was pressed, so a
+ * student who saved their diploma, went back out on the water and saved it again
+ * held two different documents with two different codes, and only one of them
+ * ever matched the roster. */
+function drawDiploma(cv: HTMLCanvasElement, s: SaveGame, sealed: FrozenRun) {
   const W = 900, H = 640
   cv.width = W; cv.height = H
   const g = cv.getContext('2d')!
@@ -165,27 +213,28 @@ function drawDiploma(cv: HTMLCanvasElement, s: SaveGame, code: string) {
     g.textAlign = 'center'
     g.fillText(text, W / 2, y)
   }
-  const gpa = gpaOf(s)
-  const earned = cordsOf(s).filter((c) => c.earned).map((c) => c.name)
+  const t = sealed.transcript
+  const gpa = t.gpa
+  const cordName = new Map(cordsOf(s).map((c) => [c.id, c.name]))
+  const earned = t.cords.map((id) => cordName.get(id) ?? id)
   /* `save.ranks` is keyed by RANK TRACK, which is its own key space and not a
    * programme id. Looking a track up in the programme list printed the raw key
    * whenever the two were spelled differently, and Key Club's are: the track is
    * `keyclub` and the programme is `key-club`, so a graduating student's diploma
    * read "keyclub". */
-  const ranks = Object.entries(ranksOf(s))
+  const ranks = Object.entries(t.ranks)
     .map(([track, yrs]) => ({ name: programmeOfRankTrack(track)?.name ?? track, rank: rankName(yrs) }))
     .filter((r) => r.rank)
 
   line('BONNEY LAKE HIGH SCHOOL', 92, 34, '#1f4a40', true)
   line('the island voyage · four years', 122, 16, '#6a563c')
   line('certifies that the Panther known as', 180, 18)
-  line(s.handle || 'Panther', 232, 44, '#1f4a40', true)
+  line(t.handle || 'Panther', 232, 44, '#1f4a40', true)
   line('completed the four-year run', 266, 18)
   line(`GPA ${gpa !== null ? `${gpa.toFixed(2)} (${letterOf(gpa)})` : 'unwritten'}`, 330, 24, '#3c2d1c', true)
   line(earned.length ? `Cords & seals: ${earned.join(', ')}` : 'Cords & seals: none earned', 368, 17)
   if (ranks.length) line(`Ranks: ${ranks.map((r) => `${r.rank} · ${r.name}`).join('   ')}`, 398, 17)
-  const t = transcriptOf(s)
-  line(`${t.islandsCompleted} islands completed · ${t.factsLearned} true things learned`, 434, 17)
-  line(`verification ${code}`, 508, 22, '#1f4a40', true)
+  line(`${t.islandsCompleted} islands completed · ${t.placesSeen} places seen · ${t.factsLearned} true things learned`, 434, 17)
+  line(`verification ${sealed.code}`, 508, 22, '#1f4a40', true)
   line('check against the advisory roster · blhs island explorer', 534, 13, '#8a7a60')
 }

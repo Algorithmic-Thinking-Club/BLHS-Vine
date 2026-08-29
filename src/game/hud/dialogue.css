@@ -24,7 +24,7 @@
   width: .55em; height: 1.05em;
   margin-left: .06em;
   vertical-align: -.16em;
-  background: #3b2a1a;
+  background: var(--kit-ink-said);
   opacity: .55;
   animation: dlg-blink 620ms steps(1, end) infinite;
 }
@@ -46,17 +46,17 @@ html[data-rm='1'] .dlg-caret { animation: none; }
   position: relative;
   min-height: 44px;
   padding: 10px 22px;
-  background: url('/art/ui/plank-button.png') center / 100% 100% no-repeat;
-  image-rendering: pixelated;
+  background: var(--kit-art-plank) center / 100% 100% no-repeat;
+  image-rendering: var(--kit-pixel);
   border: none; outline: none; cursor: pointer;
-  font-family: 'Harbormaster', 'Deckhand', monospace;
+  font-family: var(--kit-face-display);
   font-size: clamp(15px, 2.2vh, 21px);
-  color: #f0e4c8;
-  text-shadow: 0 2px 0 rgba(30, 16, 6, .75);
-  filter: drop-shadow(0 4px 10px rgba(3, 10, 12, .45));
+  color: var(--kit-plank-ink);
+  text-shadow: 0 2px 0 var(--kit-plank-shadow);
+  filter: drop-shadow(0 4px 10px var(--kit-plank-drop));
   /* §11.1: hover = 1px lift + warm glow, press = 2px sink */
-  transition: transform 130ms ease, filter 130ms ease;
-  animation: dlg-deal 220ms cubic-bezier(.2, 1.15, .35, 1) both;
+  transition: transform var(--kit-t-fast) ease, filter var(--kit-t-fast) ease;
+  animation: dlg-deal 220ms var(--kit-ease-deal) both;
 }
 /* dealt like held cards, each a beat after the last */
 .dlg-choice:nth-child(2) { animation-delay: 55ms; }
@@ -64,7 +64,7 @@ html[data-rm='1'] .dlg-caret { animation: none; }
 .dlg-choice:nth-child(4) { animation-delay: 165ms; }
 @keyframes dlg-deal { from { transform: translateY(10px) rotate(-1.2deg); opacity: 0; } to { transform: none; opacity: 1; } }
 
-.dlg-choice:hover { transform: translateY(-1px); filter: drop-shadow(0 6px 14px rgba(255, 196, 110, .28)); }
+.dlg-choice:hover { transform: translateY(-1px); filter: drop-shadow(0 6px 14px var(--kit-plank-glow)); }
 .dlg-choice:active { transform: translateY(2px); }
 html[data-rm='1'] .dlg-choice { animation: none; }
 
@@ -80,16 +80,16 @@ html[data-textsize='l'] .dlg-choice { font-size: clamp(18px, 2.7vh, 26px); }
   min-width: 1.4em;
   margin-right: .5em;
   padding: 0 .25em;
-  border: 1px solid rgba(240, 228, 200, .35);
+  border: 1px solid var(--kit-plank-keyline);
   border-radius: 2px;
   font-size: .74em;
   opacity: .8;
 }
 .dlg-choice:focus-visible {
-  outline: 2px solid #ffd98a;
-  outline-offset: 3px;
+  outline: var(--kit-focus-width) solid var(--kit-focus);
+  outline-offset: var(--kit-focus-offset);
 }
 .dlg-box:focus-visible {
-  outline: 2px solid #ffd98a;
+  outline: var(--kit-focus-width) solid var(--kit-focus);
   outline-offset: 4px;
 }

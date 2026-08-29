@@ -49,7 +49,15 @@ export default async function handler(req: any, res: any) {
   const rosterOf = async () => (await db.roster(cls.id)).map(({ save, ...r }) => {
     const s = save as SaveGame | null
     const graduated = !!s?.graduated
-    return { ...r, graduated, code: graduated && s ? runCode(transcriptOf(s)) : null }
+    /* THE SEAL FIRST, AND THE LIVE RECOMPUTE ONLY AS A FALLBACK. A transcript is
+     * frozen at graduation now (`src/game/run/diploma.ts`), and the last button
+     * on the graduation screen unlocks post-graduation play, so a graduate who
+     * kept playing moved a live `transcriptOf(s)` while the code printed on their
+     * diploma did not move with it. The roster then reported a different number
+     * from the paper in the student's hand, in front of a class, which reads
+     * exactly like cheating. The recompute stays for runs that graduated before
+     * there was a seal to read. */
+    return { ...r, graduated, code: graduated && s ? (s.diploma?.code ?? runCode(transcriptOf(s))) : null }
   })
 
   if (body.op === 'roster') {

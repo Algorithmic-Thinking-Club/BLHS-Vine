@@ -9,13 +9,47 @@
 import type { CheckStep } from '../../vine/contract'
 import type { ClassDef } from '../planner/catalog'
 import { classById } from '../planner/catalog'
+import { placeOfDept, type MapId, type Place } from '../roster/roster'
 import type { BeatStep, CoreBeat } from './frames'
 
-const HALL: Record<ClassDef['dept'], string> = {
-  ap: 'the AP Academy',
-  lang: 'the international hall',
-  cte: 'the Trades Harbor',
-  arts: 'the arts wing',
+/* WHERE A CLASS SITS, RESOLVED THROUGH THE ROSTER RATHER THAN INVENTED.
+ *
+ * This was `HALL: Record<Dept, string>` and it read 'the AP Academy', 'the
+ * international hall', 'the Trades Harbor' and 'the arts wing'. Four names, none
+ * of them a real BLHS place, none of them on the roster and none of them on a
+ * map, so `beat.place` was a sentence nobody could navigate to: the objective
+ * arrow resolves an anchor on a map and there was no map to resolve against.
+ *
+ * A place is the roster's and the roster's law is that a field nobody has
+ * sourced is absent rather than guessed. `docs/blhs/sourced-facts.md` carries a
+ * room for a club and none for a department, so EVERY DEPARTMENT RESOLVES TO
+ * NOTHING TODAY and the beat says so. That reads worse than 'the AP Academy' and
+ * it is the point: an honest absence is a thing somebody can go and source, and
+ * an invented hall is a thing nobody knows is wrong. */
+export type ClassPlacement = {
+  /** the roster place, when a source has put this department somewhere */
+  place?: Place
+  /* the painting a student would arrive at, which is the place's own arrival
+   * map. Absent while the place has no painting, so an arrow can only be drawn
+   * when there is really somewhere to draw it. */
+  map?: MapId
+  /** what the beat prints, honest at both ends */
+  line: string
+}
+
+export function classPlacement(c: ClassDef, places?: readonly Place[]): ClassPlacement {
+  const place = placeOfDept(c.dept, places)
+  /* THE ABSENCE IS IN THE PLAYER'S REGISTER, not the author's. `ActivityRunner`
+   * prints this line at the top of the beat, so 'nobody has sourced a room' would
+   * be telling a freshman about the roster. It reads the way an unpainted place
+   * reads on the chart, it admits there is nowhere to go, and it invents nothing.
+   * The machine-readable half is `place` and `map` being undefined. */
+  if (!place) return { line: 'a classroom the map does not have yet' }
+  return {
+    place,
+    map: place.arrival,
+    line: place.room ? `${place.name}, ${place.room}` : place.name,
+  }
 }
 
 const T = 'The instructor'
@@ -101,7 +135,7 @@ export function classBeat(c: ClassDef, year: number): CoreBeat {
     id: `class:${c.id}`,
     year,
     title: c.name,
-    place: HALL[c.dept],
+    place: classPlacement(c).line,
     kind: 'class',
     tags: c.tags,
     credit: 0.5,

@@ -34,9 +34,15 @@
  *
  * THE SKIN IS ONE STRING. `skin` becomes a data attribute the stylesheet keys off,
  * so the §11 UI batch swaps the whole look by adding rules rather than by editing
- * this file. Today there is one skin and it is the paper box.
+ * this file. The kit's own skin is the wider one and lives on <html>
+ * (`ui/skin.ts`); this prop stays because one line in one scene may want a
+ * different box from the rest of the game without changing the rest of the game.
+ * The box also carries `kit-surface-dialogue`, which is what a skin with no art
+ * paints a background onto: a texture token set to `none` and nothing behind it
+ * is an invisible dialogue box, and §16's plain arm is exactly that skin.
  */
 import { useEffect, useRef } from 'react'
+import { announce } from '../ui/a11y'
 import './dialogue.css'
 
 export type DialogueSkin = 'paper'
@@ -87,6 +93,15 @@ export function DialogueBox({
     if (asking && line.done) firstChoice.current?.focus()
   }, [asking, line.done])
 
+  /* THE LINE, SAID ONCE, WHEN IT IS FINISHED. Every measured piece of content in
+   * the run comes through this box, so a student using a reader who cannot hear
+   * a line cannot hear the game. Announced on completion rather than while it is
+   * typing, because the partial text changes every frame. */
+  useEffect(() => {
+    if (!line.done) return
+    announce(line.who ? `${line.who}: ${line.text}` : line.text)
+  }, [line.done, line.text, line.who])
+
   const live = () => performance.now() - shownAt.current > ADVANCE_DEAD_MS
 
   const advance = () => { if (!asking && live()) onAdvance?.() }
@@ -123,7 +138,7 @@ export function DialogueBox({
             <button
               key={o + i}
               ref={i === 0 ? firstChoice : undefined}
-              className="dlg-choice"
+              className="dlg-choice kit-surface-plank"
               onClick={() => onPick?.(i)}
             >
               <span className="dlg-choice-key" aria-hidden="true">{i + 1}</span>{o}
@@ -133,11 +148,15 @@ export function DialogueBox({
       )}
 
       <div
-        className={`cs-dialogue dlg-box${line.portrait ? ' has-portrait' : ''}`}
+        className={`cs-dialogue dlg-box kit-surface-dialogue${line.portrait ? ' has-portrait' : ''}`}
         data-skin={skin}
         role={asking ? 'group' : 'button'}
         tabIndex={asking ? -1 : 0}
-        aria-live="polite"
+        /* NOT A LIVE REGION, WHICH IT USED TO BE. `aria-live` sat on this box
+           while the typewriter rewrote its text forty-five times a second, so a
+           reader was handed a new announcement every 22ms and could not follow
+           one sentence. The finished line is announced once instead, below. */
+        aria-label={asking ? undefined : 'Continue'}
         onClick={(e) => { e.stopPropagation(); advance() }}
       >
         {line.portrait && (

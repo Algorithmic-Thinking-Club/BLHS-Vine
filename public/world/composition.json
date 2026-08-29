@@ -1,50 +1,82 @@
 {
   "version": 1,
   "source": "hand-written, engine-side, pending BRIEF-MAPVIS-W2 item 1",
-  "home": { "slot": "home-island" },
+  "home": {
+    "slot": "home-island"
+  },
   "slots": [
     {
       "map": "hub",
       "place": "home-island",
       "title": "the Central Island",
-      "at": { "x": 0, "y": 0 },
-      "footprint": { "w": 669, "h": 377 },
-      "origin": { "x": 7, "y": 194 },
+      "at": {
+        "x": 0,
+        "y": 0
+      },
+      "footprint": {
+        "w": 669,
+        "h": 377
+      },
+      "origin": {
+        "x": 7,
+        "y": 194
+      },
       "placements": 94,
       "state": "available",
       "release": 1400,
       "discover": 520,
       "berth": {
-        "x": 258,
-        "y": 208,
-        "facing": "west",
-        "approach": { "x": 400, "y": 300 }
+        "x": 228,
+        "y": 177,
+        "facing": "south",
+        "approach": {
+          "x": 300,
+          "y": 258
+        }
       }
     },
     {
       "map": "hub-a2",
       "place": "home-island",
       "title": "the Central Island",
-      "at": { "x": 0, "y": 0 },
-      "footprint": { "w": 465, "h": 335 },
-      "origin": { "x": 92, "y": 0 },
+      "at": {
+        "x": 0,
+        "y": 0
+      },
+      "footprint": {
+        "w": 465,
+        "h": 335
+      },
+      "origin": {
+        "x": 92,
+        "y": 0
+      },
       "placements": 0,
       "state": "available",
       "release": 1400,
       "discover": 520,
       "berth": {
-        "x": 190,
-        "y": 190,
-        "facing": "west",
-        "approach": { "x": 340, "y": 280 }
+        "x": 76,
+        "y": 202,
+        "facing": "south",
+        "approach": {
+          "x": 200,
+          "y": 300
+        }
       }
     },
     {
       "map": "panther-maw",
       "place": "home-island",
       "title": "the Panther’s Maw",
-      "at": { "x": 0, "y": 0 },
-      "footprint": { "w": 512, "h": 512 },
+      "at": {
+        "x": 0,
+        "y": 0
+      },
+      "footprint": {
+        "w": 512,
+        "h": 512
+      },
       "placements": 0,
       "state": "available",
       "release": 1400
@@ -52,8 +84,14 @@
     {
       "place": "stadium",
       "title": "a field somebody keeps mentioning",
-      "at": { "x": 1480, "y": -260 },
-      "footprint": { "w": 688, "h": 377 },
+      "at": {
+        "x": 1480,
+        "y": -260
+      },
+      "footprint": {
+        "w": 688,
+        "h": 377
+      },
       "state": "rumour",
       "release": 1400,
       "discover": 520
@@ -64,19 +102,34 @@
       "name": "home_water",
       "label": "the home water",
       "kind": "sailable",
-      "rect": { "x": -900, "y": -700, "w": 2000, "h": 1500 }
+      "rect": {
+        "x": -900,
+        "y": -700,
+        "w": 2000,
+        "h": 1500
+      }
     },
     {
       "name": "the_reach",
       "label": "the Reach",
       "kind": "sailable",
-      "rect": { "x": 1100, "y": -900, "w": 1400, "h": 1600 }
+      "rect": {
+        "x": 1100,
+        "y": -900,
+        "w": 1400,
+        "h": 1600
+      }
     },
     {
       "name": "the_grey",
       "label": "the grey",
       "kind": "mist",
-      "rect": { "x": -2600, "y": -2200, "w": 1600, "h": 4400 }
+      "rect": {
+        "x": -2600,
+        "y": -2200,
+        "w": 1600,
+        "h": 4400
+      }
     }
   ]
 }
