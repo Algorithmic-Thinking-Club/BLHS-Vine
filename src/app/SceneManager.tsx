@@ -1,5 +1,6 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { makeTransitionState, runTransition, TransitionOverlay, type TransitionSpec } from './transitions'
+import { setContext, startHeartbeat, track } from '../game/telemetry'
 
 // The backbone of the whole game: scenes (boot, title, the intro beach, the island map,
 // interiors, the graduation summary) register by id; every navigation runs through ONE
@@ -41,6 +42,17 @@ export function SceneManager({ initial, registry, overlay }: { initial: string; 
 
   const nav = useMemo<Nav>(() => ({ go, current }), [go, current])
   const Scene = registry[current]
+
+  /* THE CLOCK STARTS HERE, once, for the whole run, because the scene manager is
+   * the one component that outlives every scene. A duration owned by a scene is a
+   * duration lost when the scene is torn down, and the bell lands mid-scene far
+   * more often than at a boundary. Every heartbeat carries which scene is on
+   * screen, so time on task is per scene without any scene knowing about it. */
+  useEffect(() => { startHeartbeat() }, [])
+  useEffect(() => {
+    setContext({ scene: current })
+    track('scene_shown', { scene: current })
+  }, [current])
 
   return (
     <NavCtx.Provider value={nav}>

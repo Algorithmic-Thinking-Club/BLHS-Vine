@@ -36,6 +36,7 @@ import { engine } from '../intent-engine'
 import { NotBuilt, type IntentHost, type IntentWorld } from '../../vine/intents'
 import { loadSave, recordExposure } from '../save'
 import { placeOfMap } from '../roster/roster'
+import { setContext } from '../telemetry'
 import { MAW_MAP, isObjective, nextObjective } from '../run/objective'
 import { missingAnchors, stationByName } from '../maw/stations'
 import { runStation } from '../maw/run-station'
@@ -566,7 +567,13 @@ export default function PmapScene() {
        * records nothing rather than inventing a place to record. */
       {
         const place = placeOfMap(mapId)
-        if (place) recordExposure(place.id, true)
+        if (place) {
+          recordExposure(place.id, true)
+          engine.log('place_seen', { place: place.id, map: mapId, docked: true })
+        }
+        /* WHERE THE STUDENT IS, stamped on every heartbeat until it changes, so
+         * time on task is per map without the map owning a clock. */
+        setContext({ map: mapId, place: place?.id ?? null })
       }
 
       if (DBG && anchors.all.length) {
@@ -1542,7 +1549,25 @@ export default function PmapScene() {
         engine.log('station_used', { map: mapId, anchor: a.name, objective: isObjective(sv, mapId, a.name) })
         try {
           const report = await runStation(st.run(sv), intentHost, a.name)
-          if (report.error) console.warn(`[pmap] station ${a.name}: ${report.error}`)
+          /* R8: A FAILURE IN ONE ARM AND NOT THE OTHER IS INDISTINGUISHABLE FROM
+           * AN EFFECT unless somebody counts them. A station that threw used to
+           * warn to a console nobody in a classroom is looking at, so a member's
+           * island could crash for half a class and produce a clean-looking
+           * export. The refusals ride along too: they are what the engine could
+           * not do rather than what the author got wrong, and telling those two
+           * apart afterwards is impossible without both. */
+          if (report.error) {
+            console.warn(`[pmap] station ${a.name}: ${report.error}`)
+            engine.log('island_failed', {
+              map: mapId, anchor: a.name, error: report.error,
+              refused: report.refused.map((r) => `${r.intent}: ${r.why}`),
+            })
+          } else if (report.refused.length) {
+            engine.log('intent_refused', {
+              map: mapId, anchor: a.name,
+              refused: report.refused.map((r) => `${r.intent}: ${r.why}`),
+            })
+          }
         } finally {
           release()
           busy = false

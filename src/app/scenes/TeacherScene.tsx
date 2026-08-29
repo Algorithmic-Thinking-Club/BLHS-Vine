@@ -28,6 +28,7 @@ export default function TeacherScene() {
   const [open, setOpen] = useState(true)
   const [offline, setOffline] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [exported, setExported] = useState<string | null>(null)
 
   const create = async () => {
     setBusy(true)
@@ -73,15 +74,35 @@ export default function TeacherScene() {
     setOpen(!open)
   }
 
-  const exportCsv = () => {
-    if (!roster) return
-    const rows = [['handle', 'arm', 'joined', 'last_seen', 'year', 'beat', 'graduated', 'verification'],
-      ...roster.map((r) => [r.handle, r.arm, r.created_at, r.last_seen ?? '', r.year, r.beat, r.graduated ? 'yes' : '', r.code ?? ''])]
-    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
-    a.download = `${active?.name ?? 'class'}-roster.csv`
-    a.click()
+  /* THE EXPORT COMES OFF THE SERVER NOW.
+   *
+   * This used to build eight columns here, out of the roster state the browser
+   * already had: handle, arm, joined, last_seen, year, beat, graduated,
+   * verification. No score, no duration, no attempts, because a browser holds one
+   * student's save and the dependent variable lives in the events table. The
+   * server reads that table (api/teacher.ts op 'export'), so the file a teacher
+   * hands over is the one a reviewer can read. */
+  const exportCsv = async () => {
+    if (!active) return
+    setBusy(true)
+    try {
+      const r = await fetch('/api/teacher', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ op: 'export', classId: active.classId, teacherKey: active.teacherKey }),
+      })
+      if (r.status === 503) { setOffline(true); return }
+      const d = await r.json() as { columns: string[]; rows: (string | number)[][]; events: number }
+      const csv = [d.columns, ...d.rows]
+        .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+        .join('\n')
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+      a.download = `${active.name}-export.csv`
+      a.click()
+      /* an export of nothing and an empty class look identical in a CSV, and only
+       * one of them is a bug worth telling somebody about */
+      setExported(`${d.rows.length} student${d.rows.length === 1 ? '' : 's'} · ${d.events} events read`)
+    } catch { setOffline(true) } finally { setBusy(false) }
   }
 
   return (
@@ -122,7 +143,8 @@ export default function TeacherScene() {
                 <div className="tc-code">{active.code}</div>
                 <div className="tc-sub">{open ? 'Open — students can join' : 'Closed'}
                   <button className="tc-mini" onClick={toggleOpen}>{open ? 'Close joining' : 'Reopen'}</button>
-                  <button className="tc-mini" onClick={exportCsv} disabled={!roster?.length}>Export CSV</button>
+                  <button className="tc-mini" onClick={() => void exportCsv()} disabled={busy || !roster?.length}>Export CSV</button>
+                  {exported && <span className="tc-dim"> · {exported}</span>}
                 </div>
               </div>
               <h2>Roster {roster ? `· ${roster.length}` : ''}</h2>

@@ -154,6 +154,62 @@ describe('the event drain (§13)', () => {
   })
 })
 
+describe('the export, which is the first thing in api/ that reads the events table', () => {
+  it('joins a class\'s events to its roster and carries score, duration and attempts', async () => {
+    const cls = await createClass('Study P1', true)
+    const j = res()
+    await joinHandler(req('POST', { code: cls.code, handle: 'BraveTide' }), j)
+    const pid = j.json.participantId as string
+    await stateHandler(req('POST', { participantId: pid, save: { year: 2, beat: 'planner' } }), res())
+
+    const env = (name: string, data: Record<string, unknown> = {}) => ({
+      participantId: pid, sessionId: 's1', mode: 'game', eid: `${name}:${Math.random()}`,
+      event: { type: 'game', name, at: Date.now(), data },
+    })
+    await logHandler(req('POST', [
+      env('heartbeat'), env('heartbeat'),
+      env('place_seen', { place: 'stadium' }),
+      env('programme_completed', { programme: 'football' }),
+      env('core_beat_complete', { grade: 3.5, firstGrade: 2, tries: 2 }),
+      env('check_answered', { item: 'a', correct: true, tries: 2 }),
+      // an event from another device's pre-join anon id: real, and not this class's
+      { participantId: 'anon999', sessionId: 's9', event: { type: 'game', name: 'title_shown' } },
+    ]), res())
+
+    const out = res()
+    await teacherHandler(req('POST', { op: 'export', classId: cls.classId, teacherKey: cls.teacherKey }), out)
+    expect(out.statusCode).toBe(200)
+    const d = out.json as { columns: string[]; rows: (string | number)[][]; events: number }
+    expect(d.events).toBe(6)                       // the anon row belongs to no class here
+    expect(d.rows).toHaveLength(1)
+    const cell = (name: string) => d.rows[0][d.columns.indexOf(name)]
+    expect(cell('handle')).toBe('BraveTide')
+    expect(cell('mean_grade')).toBe(3.5)
+    expect(cell('mean_first_grade')).toBe(2)
+    expect(cell('max_tries')).toBe(2)
+    expect(cell('heartbeats')).toBe(2)
+    expect(cell('places_seen')).toBe(1)
+    expect(cell('programmes_completed')).toBe(1)
+    expect(cell('year')).toBe('2')
+  })
+
+  it('refuses without the capability key, same as every other op', async () => {
+    const cls = await createClass()
+    const bad = res()
+    await teacherHandler(req('POST', { op: 'export', classId: cls.classId, teacherKey: 'tk_wrong' }), bad)
+    expect(bad.statusCode).toBe(403)
+  })
+
+  it('never leaks the participant id off the roster op', async () => {
+    const cls = await createClass()
+    await joinHandler(req('POST', { code: cls.code, handle: 'BraveTide' }), res())
+    const roster = res()
+    await teacherHandler(req('POST', { op: 'roster', classId: cls.classId, teacherKey: cls.teacherKey }), roster)
+    expect(roster.json.roster[0]).not.toHaveProperty('participant_id')
+    expect(roster.json.roster[0]).not.toHaveProperty('save')
+  })
+})
+
 describe('teacher roster (§13.3)', () => {
   it('shows handles, arms, and progress — and refuses a bad key', async () => {
     const cls = await createClass()

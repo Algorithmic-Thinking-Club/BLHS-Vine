@@ -16,6 +16,9 @@ export type ClassRow = {
 }
 export type ParticipantRow = { id: string; class_id: string; handle: string; arm: string }
 export type RosterRow = {
+  /** the id the events table keys on, so a row and its measures can find each other.
+   *  teacher.ts strips it before the response leaves the handler. */
+  participant_id?: string
   handle: string; arm: string; created_at: string; last_seen: string | null
   year: string; beat: string
   /** the whole synced SaveGame — teacher.ts derives graduated + the verification code
@@ -23,6 +26,8 @@ export type RosterRow = {
   save: unknown | null
 }
 export type EventRow = { participantId: string | null; sessionId: string | null; payload: unknown }
+/** a row coming back OUT, which the insert shape cannot describe because it has no clock */
+export type StoredEventRow = EventRow & { at: string }
 
 export interface Store {
   getClassByCode(code: string): Promise<ClassRow | null>
@@ -34,9 +39,18 @@ export interface Store {
   getState(participantId: string): Promise<unknown | null>
   putState(participantId: string, save: unknown): Promise<void>
   appendEvents(rows: EventRow[]): Promise<void>
+  /* THE READ NOBODY EVER WROTE. Every event this project logs has been going into
+   * a table with no query against it, and sixteen moments in the design say "it
+   * has been recorded and never assembled". Bounded, because a class of thirty
+   * across four sittings is a lot of rows and a teacher pressing Export should not
+   * be able to ask for all of them at once. */
+  readEvents(classId: string, limit?: number): Promise<StoredEventRow[]>
   roster(classId: string): Promise<RosterRow[]>
   setOpen(classId: string, open: boolean): Promise<void>
 }
+
+/** how many events one export may read. Thirty students times a few sittings. */
+export const EVENT_READ_CAP = 200_000
 
 export function store(): Store | null {
   const url = process.env.DATABASE_URL
@@ -90,9 +104,28 @@ function neonStore(url: string): Store {
       await sql`insert into events (participant_id, session_id, payload)
                 select * from unnest(${pids}::text[], ${sids}::text[], ${payloads}::jsonb[])`
     },
+    async readEvents(classId, limit = EVENT_READ_CAP) {
+      /* the join is to participants and NOT to the events table's own
+       * participant_id constraint, because there is none on purpose: pre-join
+       * events arrive under the device's anon id and captain sessions under
+       * 'captain'. Those rows are real and are simply not this class's, so an
+       * inner join is the right filter rather than a bug. */
+      const r = await sql`
+        select e.participant_id, e.session_id, e.at, e.payload
+        from events e join participants p on p.id = e.participant_id
+        where p.class_id = ${classId}
+        order by e.at
+        limit ${limit}`
+      return (r as Record<string, unknown>[]).map((x) => ({
+        participantId: (x.participant_id as string) ?? null,
+        sessionId: (x.session_id as string) ?? null,
+        at: String(x.at),
+        payload: x.payload,
+      }))
+    },
     async roster(classId) {
       const r = await sql`
-        select p.handle, p.arm, p.created_at, s.updated_at as last_seen,
+        select p.id as participant_id, p.handle, p.arm, p.created_at, s.updated_at as last_seen,
                coalesce(s.save->>'year', '1') as year, coalesce(s.save->>'beat', 'intro:i1') as beat,
                s.save as save
         from participants p left join states s on s.participant_id = p.id
@@ -160,6 +193,15 @@ function fileStore(): Store {
       for (const r of rows) db.events.push({ ...r, at: now() })
       write(db)
     },
+    async readEvents(classId, limit = EVENT_READ_CAP) {
+      const db = read()
+      const mine = new Set(db.participants.filter((p) => p.class_id === classId).map((p) => p.id))
+      return db.events
+        .filter((e) => e.participantId && mine.has(e.participantId))
+        .sort((a, b) => a.at.localeCompare(b.at))
+        .slice(0, limit)
+        .map((e) => ({ participantId: e.participantId, sessionId: e.sessionId, at: e.at, payload: e.payload }))
+    },
     async roster(classId) {
       const db = read()
       return db.participants
@@ -169,6 +211,7 @@ function fileStore(): Store {
           const st = db.states[p.id]
           const save = (st?.save ?? {}) as { year?: number; beat?: string }
           return {
+            participant_id: p.id,
             handle: p.handle, arm: p.arm, created_at: p.created_at,
             last_seen: st?.updated_at ?? null,
             year: String(save.year ?? 1), beat: String(save.beat ?? 'intro:i1'),

@@ -99,6 +99,11 @@ export const engine: IntentEngine = {
     if (g) {
       recordCompletion(g.id, a.grade, g.rankTrack ?? undefined)
       setIslandState(g.id, 'completed')
+      /* the completion half of the split, on the wire as well as in the save.
+       * Exposure is per place and completion is per programme, and the export has
+       * to carry both as separate counts or the awareness measure and the
+       * learning measure blur into each other with nothing to unpick them. */
+      track('programme_completed', { programme: g.id, place: g.place, grade: a.grade, year })
     }
   },
 
