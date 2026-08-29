@@ -1,18 +1,21 @@
-/* THE STATION DIALOGUE BOX.
+/* THE STATION DIALOGUE BOX, which is now a CLOCK around the one box.
  *
- * What renders when a station yields `say` or `choose` outside a cutscene. It
- * borrows the cutscene overlay's own classes (.cs-dialogue, .cs-nameplaque,
- * .cs-dialogue-text) rather than inventing a second look, because a line from
- * the counselor and a line from a cutscene are the same act to a player and the
- * game should have one voice. When the §11 UI batch lands, both move together.
+ * What renders when a station yields `say` or `choose` outside a cutscene. It used
+ * to draw its own version of the paper box: its own plaque, its own text node, its
+ * own choices, its own advance rule and no portrait, borrowing the cutscene's CSS
+ * classes and diverging in everything the classes did not cover. Ash ruled the two
+ * collapse, so the picture is `DialogueBox` and what is left here is the part that
+ * really is different: the clock.
  *
- * The typewriter is here for law 4 (a static frame is a bug) and because §11.1
- * asks for per-character pacing. Clicking mid-line completes it rather than
- * advancing, which is the behaviour every RPG has trained players to expect.
+ * WHY THE CLOCK STAYS SEPARATE. The cutscene runtime ticks its typewriter off the
+ * host scene's own ticker, so cutscene time and world time cannot drift. A station
+ * has no scene clock to ride, so it runs on rAF. Both hand the box a character
+ * count, so the difference stops at this file.
  */
 import { useEffect, useRef, useState } from 'react'
 import { onDialogue, dialogueState, type DialogueState } from '../dialogue'
 import { holdWorld } from '../world-bus'
+import { DialogueBox } from './DialogueBox'
 import './dialogue.css'
 
 const CPS = 45   // characters a second; §11.1's reading-speed pacing
@@ -54,35 +57,25 @@ export function Dialogue() {
 
   /* a click completes the line first and advances second, so a fast reader is
    * never punished for clicking and a slow one never loses a line */
-  const onBox = () => {
+  const advance = () => {
     if (!done) { setShown(text.length); return }
     if (st.kind === 'line') st.advance()
   }
 
-  const who = st.kind === 'line' ? st.line.who : undefined
-
   return (
-    <div className="dlg-veil" onClick={onBox}>
-      {/* the choices sit ABOVE the box rather than inside it: .cs-dialogue is a
-          fixed-height paper window measured off the art, and growing it to fit
-          three buttons would stretch the picture. §11.1 wants them fanned like
-          held cards anyway, which is a thing you do beside a box, not in one. */}
-      {st.kind === 'ask' && done && (
-        <div className="dlg-choices" onClick={(e) => e.stopPropagation()}>
-          {st.ask.options.map((o, i) => (
-            <button key={o + i} className="dlg-choice" onClick={() => st.pick(i)}>{o}</button>
-          ))}
-        </div>
-      )}
-
-      <div className="cs-dialogue dlg-box" onClick={(e) => { e.stopPropagation(); onBox() }}>
-        {who && <div className="cs-nameplaque">{who}</div>}
-        <div className="cs-dialogue-text">
-          {text.slice(0, shown)}
-          {!done && <span className="dlg-caret" />}
-        </div>
-        {st.kind === 'line' && done && <div className="cs-continue-hint">click</div>}
-      </div>
+    <div className="dlg-veil" onClick={advance}>
+      <DialogueBox
+        line={{
+          who: st.kind === 'line' ? st.line.who : undefined,
+          text,
+          shown,
+          done,
+          portrait: st.kind === 'line' ? st.line.portrait : undefined,
+        }}
+        options={st.kind === 'ask' ? st.ask.options : undefined}
+        onAdvance={advance}
+        onPick={(i) => { if (st.kind === 'ask') st.pick(i) }}
+      />
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { CutsceneRuntime } from './runtime'
 import { isCaptain } from '../captain'
 import { BUILD_TAG } from '../buildTag'
+import { DialogueBox } from '../hud/DialogueBox'
 import './ui-kit.css'
 
 // Screen-space renderer for a running cutscene: letterbox bars, the eyes-opening vignette,
@@ -75,16 +76,23 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
         {/* prompt plaque ("walk to it") */}
         {ui.prompt && <div className="cs-prompt">{ui.prompt.text}</div>}
 
-        {/* dialogue — the standard paper box (never shown empty: it appears WITH its first
-            characters, so a stalled or just-begun line can't read as a blank sheet) */}
+        {/* THE SAME BOX THE WORLD USES. This drew its own plaque, its own text node
+            and its own hint, and the world's box drew a different set beside it, so a
+            line from the counselor and a line from a cutscene were two pictures. One
+            component now; the runtime still owns the typing, because it ticks on the
+            host scene's clock and a cutscene's pacing may not drift from the world's.
+            Never shown empty: it appears WITH its first characters, so a stalled or
+            just-begun line cannot read as a blank sheet. */}
         {ui.dialogue && (ui.dialogue.shown > 0 || ui.dialogue.done) && (
-          <div className="cs-dialogue" style={{ pointerEvents: 'auto' }} onClick={(e) => { e.stopPropagation(); rt.advance() }}>
-            {ui.dialogue.who && <div className="cs-nameplaque">{ui.dialogue.who}</div>}
-            <div className="cs-dialogue-text">
-              {ui.dialogue.text.slice(0, ui.dialogue.shown)}
-              {ui.dialogue.done && <span className="cs-continue">🐾</span>}
-            </div>
-            {ui.dialogue.done && <span className="cs-continue-hint">click to go on ▸</span>}
+          <div style={{ pointerEvents: 'auto' }}>
+            <DialogueBox
+              line={ui.dialogue}
+              onAdvance={() => rt.advance()}
+              hint="click to go on ▸"
+              /* this overlay already listens for space and enter, because those keys
+                 also resolve its confirm and walk-to gates when no line is up */
+              bindKeys={false}
+            />
           </div>
         )}
 

@@ -70,3 +70,26 @@ html[data-rm='1'] .dlg-choice { animation: none; }
 
 html[data-textsize='s'] .dlg-choice { font-size: clamp(13px, 1.9vh, 18px); }
 html[data-textsize='l'] .dlg-choice { font-size: clamp(18px, 2.7vh, 26px); }
+
+/* THE KEY BESIDE THE POINTER. J1: a pointer path for every key path and a key path
+   for every pointer path, with neither as the fallback. A choice is a button you
+   can click and a number you can press, and the number is on the button so a
+   keyboard player can see it rather than having to guess it. */
+.dlg-choice-key {
+  display: inline-block;
+  min-width: 1.4em;
+  margin-right: .5em;
+  padding: 0 .25em;
+  border: 1px solid rgba(240, 228, 200, .35);
+  border-radius: 2px;
+  font-size: .74em;
+  opacity: .8;
+}
+.dlg-choice:focus-visible {
+  outline: 2px solid #ffd98a;
+  outline-offset: 3px;
+}
+.dlg-box:focus-visible {
+  outline: 2px solid #ffd98a;
+  outline-offset: 4px;
+}

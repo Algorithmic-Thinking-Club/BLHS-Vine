@@ -38,6 +38,30 @@
   from { transform: translateX(-50%) translateY(14px); opacity: 0; }
   to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
 }
+/* THE PORTRAIT FRAME. `portrait` has been a field on both line types for months
+   and nothing ever drew it, so an author could set one, see no error, and ship a
+   scene where nobody has a face. The box keeps its measured height; the picture
+   takes a column beside the paper and the text takes what is left. */
+.cs-dialogue.has-portrait { gap: 4%; }
+.cs-portrait {
+  flex: 0 0 auto;
+  height: 100%;
+  width: auto;
+  max-width: 26%;
+  object-fit: contain;
+  object-position: bottom center;
+  align-self: flex-end;
+  pointer-events: none;
+}
+/* the text column, so the plaque and the line stay together whether or not there
+   is a picture beside them */
+.cs-dialogue-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  position: relative;
+}
+.cs-emote { opacity: .8; }
+
 .cs-dialogue-text {
   font-family: 'Deckhand', monospace;
   font-size: clamp(23px, 3.4vh, 33px);   /* big and readable; box height is fixed so it can't grow the box */
