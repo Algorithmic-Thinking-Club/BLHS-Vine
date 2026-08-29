@@ -2,9 +2,8 @@
 // sheet's verbs (tokens, classes, the stamp). The catalog tests are tripwires — if one
 // fails, someone changed a REAL fact (a sport's season, a course's grade eligibility).
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import {
-  ACTIVITIES, activityAllowedIn, CLASSES, cordHint, eligibleClasses, SPORT_SEASONS,
-} from './catalog'
+import { CLASSES, cordHint, eligibleClasses } from './catalog'
+import { PROGRAMMES, programmeAllowedIn, SPORT_SEASONS } from '../roster/roster'
 
 async function freshSave() {
   vi.resetModules()
@@ -24,11 +23,11 @@ describe('the sport-season table (the real WIAA seasons at BLHS)', () => {
     expect(Object.keys(SPORT_SEASONS)).toHaveLength(22)
   })
   it('sports lock to their season; clubs sail any season', () => {
-    const football = ACTIVITIES.find((a) => a.id === 'football')!
-    expect(activityAllowedIn(football, 'Fall')).toBe(true)
-    expect(activityAllowedIn(football, 'Spring')).toBe(false)
-    const atc = ACTIVITIES.find((a) => a.id === 'atc')!
-    for (const s of ['Fall', 'Winter', 'Spring'] as const) expect(activityAllowedIn(atc, s)).toBe(true)
+    const football = PROGRAMMES.find((a) => a.id === 'football')!
+    expect(programmeAllowedIn(football, 'Fall')).toBe(true)
+    expect(programmeAllowedIn(football, 'Spring')).toBe(false)
+    const atc = PROGRAMMES.find((a) => a.id === 'atc')!
+    for (const s of ['Fall', 'Winter', 'Spring'] as const) expect(programmeAllowedIn(atc, s)).toBe(true)
   })
 })
 

@@ -9,14 +9,18 @@ import type { SaveGame, Season } from '../save'
 import { SEASONS } from '../save'
 import { hasCoreBeat, beatDone } from '../beats/beats'
 import { classDone } from '../beats/classes'
-import { activityById } from '../planner/catalog'
+import { programmeById, placeOfProgramme } from '../roster/roster'
 
 export type VoyageStatus = {
   season: Season
-  activityId: string
+  /** what the token was spent on. A slot points at a PROGRAMME, never at a map. */
+  programmeId: string
   name: string
-  islandId?: string
-  /** an island scene exists and the loop can play (flips as grapes ship) */
+  /* the place that programme happens at, which is what the world draws and what
+   * an exposure record counts. Three programmes at the stadium share this and do
+   * not share their completion, which is the whole reason they are two fields. */
+  placeId?: string
+  /** the programme's loop can actually run today (roster, N1) */
   playable: boolean
   done: boolean
 }
@@ -35,9 +39,10 @@ export type YearStatus = {
   yearbookSeen: boolean
 }
 
-// island scenes that can actually PLAY their loop today — grows as grapes ship (§16 F).
-// (Sessions A/B are building the maps; the ARRIVE→DO→RESULT loop is future spine work.)
-const PLAYABLE_ISLANDS = new Set<string>([])
+/* `PLAYABLE_ISLANDS` was a hardcoded `new Set<string>([])` here, and shipping an
+ * island meant editing it plus the activity array plus a deploy, with no review
+ * step. Playability is a field on a programme in the roster now, so a programme
+ * that can run says so where everything else about it is written. */
 
 export function yearStatus(s: SaveGame): YearStatus {
   const year = s.year
@@ -45,11 +50,15 @@ export function yearStatus(s: SaveGame): YearStatus {
   const voyages: VoyageStatus[] = SEASONS.flatMap((season) => {
     const id = plan.slots[season]
     if (!id) return []
-    const a = activityById(id)
+    const g = programmeById(id)
+    /* COMPLETION IS KEYED BY THE PROGRAMME AND NEVER BY THE PLACE. Two entries
+     * naming one stadium used to be done the moment either was, because both
+     * read the same island id, so a student spent a winter token on a voyage the
+     * year model already believed was over. */
     return [{
-      season, activityId: id, name: a?.name ?? id, islandId: a?.islandId,
-      playable: !!a?.islandId && PLAYABLE_ISLANDS.has(a.islandId),
-      done: !!a?.islandId && s.islands[a.islandId] === 'completed',
+      season, programmeId: id, name: g?.name ?? id, placeId: placeOfProgramme(id)?.id,
+      playable: !!g?.playable,
+      done: s.islands[id] === 'completed',
     }]
   })
   const classesDone = plan.classes.filter((c) => classDone(s.ledger, c))

@@ -30,9 +30,12 @@ export type LedgerEntry = {
 
 export type IslandState = 'misty' | 'discovered' | 'available' | 'active' | 'completed'
 
-/** one year's sheet at the chart table (§7.2): season slots + the 2 focus classes */
+/* one year's sheet at the chart table (§7.2): season slots + the 2 focus classes.
+ * A SLOT POINTS AT A PROGRAMME AND NEVER AT A MAP. That is what lets one place
+ * hold football in the fall and flag football in the winter without either one
+ * marking the other complete. */
 export type YearPlan = {
-  slots: Partial<Record<Season, string>>   // season -> activity id (catalog.ts)
+  slots: Partial<Record<Season, string>>   // season -> programme id (roster/roster.ts)
   classes: string[]                        // up to 2 class ids
   stamped: boolean                         // the harbor master's wax: the year is committed
 }
@@ -185,6 +188,8 @@ export function spendToken(season: Season): ReturnType<typeof writeSave> | null 
   return writeSave({ tokens })
 }
 
+/** the state of one PROGRAMME in this run. Keyed by programme id, which is the
+ *  key the planner's slot holds, never a map id or a place id. */
 export function setIslandState(id: string, state: IslandState) {
   const s = loadSave()
   if (!s) return null
@@ -282,15 +287,17 @@ export function dropClass(year: number, classId: string) {
   return writeSave({ plans: { ...s.plans, [year]: { ...plan, classes: plan.classes.filter((c) => c !== classId) } } })
 }
 
-/** the harbor master's stamp: the year commits. Slotted islands that exist in the world
- *  flip to 'active' (§6.4) in the same write. */
-export function stampPlan(year: number, activeIslandIds: string[] = []) {
+/** the harbor master's stamp: the year commits. The programmes the sheet slotted flip to
+ *  'active' (§6.4) in the same write. The argument is PROGRAMME ids, which is what a slot
+ *  holds; it used to be island ids and the translation is what merged a shared place's
+ *  programmes into one record. */
+export function stampPlan(year: number, activeProgrammeIds: string[] = []) {
   const s = loadSave()
   if (!s) return null
   const plan = planOf(s, year)
   if (plan.stamped) return null
   const islands = { ...s.islands }
-  for (const id of activeIslandIds) islands[id] = 'active'
+  for (const id of activeProgrammeIds) islands[id] = 'active'
   return writeSave({
     plans: { ...s.plans, [year]: { ...plan, stamped: true } },
     islands,

@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { hasFlag, loadSave, setFlag, type SaveGame } from '../save'
 import { cordsOf, gpaOf, letterOf, rankName, transcriptOf } from '../progress'
 import { runCode } from '../../vine/verify'
-import { activityById } from '../planner/catalog'
+import { programmeOfRankTrack } from '../roster/roster'
 import { track } from '../telemetry'
 import './run.css'
 
@@ -54,8 +54,13 @@ export function Graduation({ onClose }: { onClose: () => void }) {
   const gpa = gpaOf(s)
   const transcript = transcriptOf(s)
   const code = runCode(transcript)
+  /* `save.ranks` is keyed by RANK TRACK, which is its own key space and not a
+   * programme id. Looking a track up in the programme list printed the raw key
+   * whenever the two were spelled differently, and Key Club's are: the track is
+   * `keyclub` and the programme is `key-club`, so a graduating student's diploma
+   * read "keyclub". */
   const ranks = Object.entries(s.ranks)
-    .map(([id, yrs]) => ({ name: activityById(id)?.name ?? id, rank: rankName(yrs) }))
+    .map(([track, yrs]) => ({ name: programmeOfRankTrack(track)?.name ?? track, rank: rankName(yrs) }))
     .filter((r) => r.rank)
 
   const finishDiploma = () => {
@@ -162,8 +167,13 @@ function drawDiploma(cv: HTMLCanvasElement, s: SaveGame, code: string) {
   }
   const gpa = gpaOf(s)
   const earned = cordsOf(s).filter((c) => c.earned).map((c) => c.name)
+  /* `save.ranks` is keyed by RANK TRACK, which is its own key space and not a
+   * programme id. Looking a track up in the programme list printed the raw key
+   * whenever the two were spelled differently, and Key Club's are: the track is
+   * `keyclub` and the programme is `key-club`, so a graduating student's diploma
+   * read "keyclub". */
   const ranks = Object.entries(s.ranks)
-    .map(([id, yrs]) => ({ name: activityById(id)?.name ?? id, rank: rankName(yrs) }))
+    .map(([track, yrs]) => ({ name: programmeOfRankTrack(track)?.name ?? track, rank: rankName(yrs) }))
     .filter((r) => r.rank)
 
   line('BONNEY LAKE HIGH SCHOOL', 92, 34, '#1f4a40', true)

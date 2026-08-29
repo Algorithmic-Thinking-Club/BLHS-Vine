@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import {
-  ACTIVITIES, activityAllowedIn, activityById, classById, cordHint, eligibleClasses,
-  type Dept,
-} from './catalog'
+import { classById, cordHint, eligibleClasses, type Dept } from './catalog'
+/* what a season token may be spent on is the roster's, not the planner's. A slot
+ * points at a programme id and the roster says what programmes exist. */
+import { PROGRAMMES, programmeAllowedIn, programmeById } from '../roster/roster'
 import {
   assignSlot, clearSlot, dropClass, loadSave, pickClass, SEASONS, stampPlan, subscribeSave,
   type Season, type YearPlan,
@@ -87,10 +87,12 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
   }
 
   const stamp = () => {
-    const activeIslands = SEASONS
-      .map((se) => plan.slots[se]).filter(Boolean)
-      .map((id) => activityById(id!)?.islandId).filter(Boolean) as string[]
-    stampPlan(year, activeIslands)
+    /* the slot's own value IS the programme id, so the stamp no longer translates
+     * one key into another on the way to the save. It used to map a programme id
+     * to an island id, which is how a stadium's three programmes ended up sharing
+     * one completion record. */
+    const committed = SEASONS.map((se) => plan.slots[se]).filter(Boolean) as string[]
+    stampPlan(year, committed)
     track('planner_stamped', { year, slots: plan.slots, classes: plan.classes })
     setConfirming(false)
   }
@@ -127,8 +129,8 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
         <div className="pl-body">
           <div className="pl-cols">
             {SEASONS.map((season) => {
-              const committed = plan.slots[season] ? activityById(plan.slots[season]!) : null
-              const menu = ACTIVITIES.filter((a) => activityAllowedIn(a, season))
+              const committed = plan.slots[season] ? programmeById(plan.slots[season]!) : null
+              const menu = PROGRAMMES.filter((a) => programmeAllowedIn(a, season))
                 .filter((a) => !SEASONS.some((se) => se !== season && plan.slots[se] === a.id))
               return (
                 <div className="pl-col" key={season}>

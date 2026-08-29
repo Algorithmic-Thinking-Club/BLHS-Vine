@@ -1,72 +1,17 @@
-// THE PLANNER CATALOG (GAME-DESIGN §7.2) — what a season token or a class pick can buy.
-// EVERY entry is real BLHS content from docs/research/blhs-specifics.md (law §2.7: real
-// facts only, nothing invented): the sport seasons are the school's actual WIAA season
-// pages, the AP list and grade eligibility are the 2024-2025 SBLSD course catalog, the
-// language and CTE sequences likewise. The game-year mapping: year 1 = 9th grade … year
-// 4 = 12th. Tags feed progress.ts's cord evaluators verbatim ('ap' / 'cte' / 'lang' /
-// 'lang-capstone') — a class pick IS cord progress, which is why the planner can show
-// counselor hints inline.
-
-import type { Season } from '../save'
-
-// ---- SPORTS BY REAL SEASON (blhs.sumnersd.org/athletics/our-sports/, 2025-26) --------
-// The season-lock table (§7.2): a sport island's card only accepts its real season. This
-// covers the whole roster so ANY future member island snaps to truth by id.
-export const SPORT_SEASONS: Record<string, Season> = {
-  // fall
-  'cross-country': 'Fall', football: 'Fall', 'girls-golf': 'Fall', 'girls-soccer': 'Fall',
-  'girls-swim-dive': 'Fall', 'boys-tennis': 'Fall', volleyball: 'Fall',
-  // winter
-  'boys-basketball': 'Winter', 'girls-basketball': 'Winter', gymnastics: 'Winter',
-  'girls-bowling': 'Winter', 'boys-swim-dive': 'Winter', wrestling: 'Winter',
-  'girls-flag-football': 'Winter',
-  // spring
-  baseball: 'Spring', 'boys-golf': 'Spring', 'boys-lacrosse': 'Spring',
-  'girls-lacrosse': 'Spring', 'boys-soccer': 'Spring', softball: 'Spring',
-  'girls-tennis': 'Spring', 'track-field': 'Spring',
-}
-
-// ---- ACTIVITIES (the token slots' menu) ----------------------------------------------
-// An activity = something a season token commits to: an island voyage. The list is
-// registry-shaped and grows as grapes ship (§6.5) with zero planner-code changes; at
-// summer's end it holds the two summer grapes (§0.5). `sport` entries lock to
-// SPORT_SEASONS; clubs accept any season.
-export type ActivityDef = {
-  id: string
-  name: string
-  kind: 'sport' | 'club'
-  /** the fixed season for sports; clubs are unlocked */
-  season?: Season
-  /** cord-relevance tags, same vocabulary as classes */
-  tags: string[]
-  /** the island scene/registry id, once that island exists in the world */
-  islandId?: string
-  /** the §6.6 "three facts" hook — WHAT it is, in one line (real) */
-  blurb: string
-}
-
-export const ACTIVITIES: ActivityDef[] = [
-  {
-    id: 'atc', name: 'Algorithmic Thinking Club', kind: 'club', tags: [], islandId: 'atc',
-    blurb: 'BLHS’s first CS club. Members build real software, including this game.',
-  },
-  {
-    id: 'football', name: 'Football', kind: 'sport', season: SPORT_SEASONS.football,
-    tags: [], islandId: 'football',
-    blurb: 'Varsity, JV and Freshmen. Coach Bruce. No tryouts, and Fridays get loud.',
-  },
-  {
-    id: 'key-club', name: 'Key Club', kind: 'club', tags: ['key-club'],
-    blurb: 'Student-led service. Tuesdays 2:10, 200 Flex, with Ms. Berwick.',
-  },
-]
-
-export const activityById = (id: string) => ACTIVITIES.find((a) => a.id === id)
-
-/** the §7.2 season-lock rule: sports only in their real season, clubs any season */
-export function activityAllowedIn(a: ActivityDef, season: Season): boolean {
-  return a.kind === 'club' || a.season === season
-}
+// THE PLANNER CATALOG (GAME-DESIGN §7.2) — what a CLASS pick can buy.
+// EVERY entry is real BLHS content from docs/blhs/sourced-facts.md (law §2.7: real facts
+// only, nothing invented): the AP list and grade eligibility are the 2024-2025 SBLSD
+// course catalog, the language and CTE sequences likewise. The game-year mapping: year 1
+// = 9th grade … year 4 = 12th. Tags feed progress.ts's cord evaluators verbatim ('ap' /
+// 'cte' / 'lang' / 'lang-capstone') — a class pick IS cord progress, which is why the
+// planner can show counselor hints inline.
+//
+// WHAT A SEASON TOKEN BUYS IS NO LONGER HERE. `ACTIVITIES`, `ActivityDef`,
+// `activityById`, `activityAllowedIn` and `SPORT_SEASONS` were this file's, and every one
+// of them was about what EXISTS in the world rather than about one student's sheet. They
+// are the roster's now (src/game/roster/roster.ts), because the entry they described
+// carried a programme id and a place id in one field and the stadium proves those are two
+// things. The planner reads the roster; the roster does not know the planner exists.
 
 // ---- CLASSES (the 2-pick strip) -------------------------------------------------------
 // Grade eligibility from the catalog, expressed as game years (1..4). Ledger ids are

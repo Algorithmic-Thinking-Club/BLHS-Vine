@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ISLANDS } from '../island/registry'
+import { PLACES, programmesAt } from '../roster/roster'
 import { loadSave, subscribeSave } from '../save'
 import { cordsOf, gpaOf, letterOf } from '../progress'
 import { FACTS } from '../../app/transitions'
@@ -62,12 +63,27 @@ export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => voi
           {tab === 'islands' && (
             <>
               <div className="hb-h">Islands</div>
-              {ISLANDS.map((i) => {
-                const st = s?.islands[i.id] ?? (i.kind === 'central' ? 'discovered' : 'misty')
+              {/* A PLACE IS NOT A PROGRAMME, and this is the one page a student can
+                  see it. The stadium is one island and three things you can do there,
+                  each with its own state, because finishing football is not finishing
+                  track. This page used to index the completion record with a place id,
+                  which is exactly the merge the roster exists to stop. */}
+              {PLACES.map((p) => {
+                const runs = programmesAt(p.id)
                 return (
-                  <div className="hb-row" key={i.id}>
-                    <span className="hb-row-title">{i.label}</span>
-                    <span className="hb-dim">{st}</span>
+                  <div key={p.id}>
+                    <div className="hb-row">
+                      <span className="hb-row-title">{p.name}</span>
+                      <span className="hb-dim">
+                        {p.maps.length ? `${p.maps.length} painting${p.maps.length > 1 ? 's' : ''}` : 'not painted yet'}
+                      </span>
+                    </div>
+                    {runs.map((g) => (
+                      <div className="hb-row" key={g.id} style={{ paddingLeft: '2cqw' }}>
+                        <span className="hb-dim">{g.name}</span>
+                        <span className="hb-dim">{s?.islands[g.id] ?? 'misty'}</span>
+                      </div>
+                    ))}
                   </div>
                 )
               })}

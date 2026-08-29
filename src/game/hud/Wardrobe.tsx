@@ -16,14 +16,27 @@
 import { useEffect, useRef, useState } from 'react'
 import { LOOKS, drawRecolored } from '../thorLook'
 import { loadSave, writeSave } from '../save'
+import { programmeById } from '../roster/roster'
 import { track } from '../telemetry'
 import './wardrobe.css'
 
 /* the earn rules are the real ones from §8.2 and §8.4, not placeholders. A
- * locked chip that lies about how to unlock it is worse than no chip. */
+ * locked chip that lies about how to unlock it is worse than no chip.
+ *
+ * WHICH IS WHY THE ROBOTICS CHIP NOW ASKS THE ROSTER. It read
+ * `s.islands.robotics === 'completed'` against a raw string that is on no
+ * roster, in no registry and in no catalog, so the chip promised an unlock that
+ * nothing in the game could ever grant and said "complete the Robotics island"
+ * about an island that does not exist. A chip whose programme is not on the
+ * roster says the island has not risen instead. */
+const earnByCompleting = (id: string) => {
+  const g = programmeById(id)
+  return g ? `complete the ${g.name} island` : 'that island has not risen yet'
+}
+
 const LOCKED = [
   { icon: '🧥', name: 'Letterman jacket', earn: 'reach Varsity in any sport', has: (s: ReturnType<typeof loadSave>) => Object.values(s?.ranks ?? {}).some((y) => Number(y) >= 2) },
-  { icon: '🥽', name: 'Robotics goggles', earn: 'complete the Robotics island', has: (s: ReturnType<typeof loadSave>) => s?.islands?.robotics === 'completed' },
+  { icon: '🥽', name: 'Robotics goggles', earn: earnByCompleting('robotics'), has: (s: ReturnType<typeof loadSave>) => !!programmeById('robotics') && s?.islands?.robotics === 'completed' },
   { icon: '🎓', name: 'Graduation cap', earn: 'finish a four-year run', has: (s: ReturnType<typeof loadSave>) => !!s?.graduated },
 ]
 
