@@ -16,9 +16,17 @@ declare module '@micropython/micropython-webassembly-pyscript/micropython.mjs' {
       get(key: string): unknown
       set(key: string, value: unknown): void
     }
-    /* the in-memory filesystem. A member's island is written here as a real
-     * file so `import` finds it and a traceback names it. */
-    FS: { writeFile(path: string, data: string): void }
+    /* the in-memory filesystem. A member's island is written here as real
+     * files so `import` finds them and a traceback names them.
+     *
+     * mkdirTree and not mkdir: measured, mkdir throws on a directory that
+     * already exists and writeFile never creates a parent, so an island landing
+     * in its own folder needs the idempotent one. The real FS has 94 members;
+     * these two are what the worker calls. */
+    FS: {
+      writeFile(path: string, data: string): void
+      mkdirTree(path: string): void
+    }
   }
 
   export function loadMicroPython(options?: {

@@ -4,26 +4,33 @@
  * exists so one thing can be watched working end to end with nothing else in
  * the frame. What it watches is the whole pipe, with no piece of it faked.
  *
- *   public/grapes/hello.py  ->  fetched as a file
- *   runGrape                ->  MicroPython in a worker, off the main thread
- *   yield say(...)          ->  performIntent (src/vine/intents.ts)
- *   IntentWorld.say         ->  the dialogue bus (src/game/dialogue.ts)
- *   <Dialogue />            ->  the real box, the real typewriter, the real art
- *   the player clicks       ->  the index goes back in, python branches on it
+ *   a base url            ->  island.json fetched and refused if it is not one
+ *   every module it lists ->  written into MicroPython's own filesystem
+ *   the import            ->  the decorators run, and `ready` names the handlers
+ *   pressing a button     ->  {t:'call'}, which is the ENGINE calling the island
+ *   yield say(...)        ->  performIntent (src/vine/intents.ts)
+ *   IntentWorld.say       ->  the dialogue bus (src/game/dialogue.ts)
+ *   <Dialogue />          ->  the real box, the real typewriter, the real art
+ *   the player clicks     ->  the index goes back in, python branches on it
  *
- * ADDED TO THE ENGINE: nothing. Every part above already existed; the two lines
- * that bind say and choose to the bus are the same two lines PmapScene:1419
- * already has. This file is a host, not a capability.
+ * THE BUTTONS ARE STANDING IN FOR ONE THING AND ONE ONLY: PmapScene's `fire()`,
+ * which is what will call a grape when a player presses E on an anchor and which
+ * does not exist yet. Everything else here is the real thing.
  *
- *   ?scene=grape              runs public/grapes/hello.py
- *   ?scene=grape&py=broken.py runs the one that crashes, which is step three
+ *   ?scene=grape                          public/grapes/hello/
+ *   ?scene=grape&island=broken            the one that crashes
+ *   ?scene=grape&from=http://localhost:5280/islands/skeleton/
+ *   ?scene=grape&gh=owner/repo@main:islands/skeleton
+ *   &arm=plain                            render the island's control arm
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Dialogue } from '../../game/hud/Dialogue'
 import { choose, clearDialogue, say } from '../../game/dialogue'
 import { engine } from '../../game/intent-engine'
-import type { IntentWorld } from '../intents'
-import { runGrape, type GrapeReport, type GrapeRun } from './runGrape'
+import type { IntentEngine, IntentWorld, RunPath } from '../intents'
+import type { SessionMode } from '../contract'
+import { fetchGrape, parseGrapeRef, baseUrlOf, type LoadedGrape } from './grape-source'
+import { openGrape, type GrapeReport, type GrapeSession } from './runGrape'
 
 /* THE WORLD HALF, for a scene with no map.
  *
@@ -49,43 +56,111 @@ const world: IntentWorld = {
   cutscene: noMap('cutscene'),
 }
 
-export default function GrapeProof() {
-  /* A WHITELIST, NOT A STRIP. Stripping unwanted characters let ".." through
-   * intact, and fetch normalises "/grapes/.." to "/", which hands the SPA's own
-   * index.html back as the island's source. Requiring a plain filename is one
-   * regex and has no edge to find. */
-  const asked = new URLSearchParams(window.location.search).get('py') ?? ''
-  const file = /^[\w-]+\.py$/.test(asked) ? asked : 'hello.py'
+type Seen = { what: string; detail: string }
 
-  const [status, setStatus] = useState('starting micropython')
+export default function GrapeProof() {
+  const params = useMemo(() => new URLSearchParams(window.location.search), [])
+  const ref = useMemo(() => parseGrapeRef(params), [params])
+  const base = baseUrlOf(ref)
+  const arm: SessionMode = params.get('arm') === 'plain' ? 'plain' : 'game'
+
+  const [status, setStatus] = useState('starting')
+  const [loaded, setLoaded] = useState<LoadedGrape | null>(null)
+  const [handlers, setHandlers] = useState<string[]>([])
   const [report, setReport] = useState<GrapeReport | null>(null)
   const [printed, setPrinted] = useState<string[]>([])
-  const run = useRef<GrapeRun | null>(null)
+  const [seen, setSeen] = useState<Seen[]>([])
+  const [busy, setBusy] = useState(false)
+  const run = useRef<GrapeSession | null>(null)
   const alive = useRef(true)
+
+  /* THE ARM TOGGLE, and the reason it is a wrapper rather than a change to the
+   * engine. `engine.mode()` answers 'game' with no save, but `engine.read('mode')`
+   * answers null, because intent-engine.ts returns early when there is no save.
+   * So an island asking `get("mode")` in a bare harness cannot find out which
+   * half of the class it is talking to, and the control arm can never be looked
+   * at. §80.8 asks for exactly this toggle. It is scoped to the harness on
+   * purpose: the real answer belongs in the engine and is NEEDS.md item 5.
+   *
+   * It also watches. An award with no save loads nothing and says nothing, so
+   * without this the harness would show a member a green run that recorded
+   * exactly zero, which is the deception intents.ts:253 exists to outlaw. */
+  const host = useMemo(() => {
+    const note = (what: string, detail: string) =>
+      setSeen((s) => [...s, { what, detail }])
+
+    const watched: IntentEngine = {
+      ...engine,
+      mode: () => arm,
+      read: (path: RunPath) => (path === 'mode' ? arm : engine.read(path)),
+      openUi: (ui) => { note('open', ui); engine.openUi(ui) },
+      setFlag: (f) => { note('set_flag', f); engine.setFlag(f) },
+      log: (e, d) => { note('log', d ? `${e} ${JSON.stringify(d)}` : e); engine.log(e, d) },
+      award: (a) => {
+        note('award', `${JSON.stringify(a)}${engine.read('handle') === null
+          ? '  (no saved run here, so nothing was recorded)' : ''}`)
+        engine.award(a)
+      },
+      playBeat: async (b, plain) => {
+        const g = await engine.playBeat(b, plain)
+        note('play', `${b} (${plain ? 'plain' : 'game'}) came back ${g === null ? 'None' : g}`)
+        return g
+      },
+    }
+    return { world, engine: watched }
+  }, [arm])
 
   const start = useCallback(async () => {
     run.current?.stop()
     clearDialogue()
+    setReport(null); setPrinted([]); setSeen([]); setHandlers([]); setLoaded(null)
+    setStatus(`fetching ${base}island.json`)
+
+    let island: LoadedGrape
+    try {
+      island = await fetchGrape(ref)
+    } catch (e) {
+      if (!alive.current) return
+      setStatus('could not load this island')
+      setReport({ steps: 0, refused: [], error: e instanceof Error ? e.message : String(e) })
+      return
+    }
+    if (!alive.current) return
+    setLoaded(island)
+    setStatus(`starting micropython for ${island.manifest.title}`)
+
+    const s = openGrape(island, host, { onPrint: (t) => setPrinted((p) => [...p, t]) })
+    run.current = s
+
+    const ready = await s.ready
+    if (!alive.current) return
+    if (ready.error) {
+      setStatus('the island did not import')
+      setReport(ready)
+      return
+    }
+    setHandlers(ready.handlers)
+    setStatus(`loaded, ${ready.handlers.length} handler${ready.handlers.length === 1 ? '' : 's'}`)
+
+    /* THE ENGINE CALLING IN, UNPROMPTED, which is the whole inversion. Nothing
+     * in the member's file asks for this. */
+    if (ready.handlers.includes('start')) {
+      const r = await s.call('start')
+      if (!alive.current) return
+      if (r.error) setReport(r)
+    }
+  }, [base, ref, host])
+
+  const fire = useCallback(async (handler: string) => {
+    const s = run.current
+    if (!s || busy) return
+    setBusy(true)
     setReport(null)
-    setPrinted([])
-    setStatus(`fetching /grapes/${file}`)
-
-    const res = await fetch(`/grapes/${file}`, { cache: 'no-store' })
-    if (!res.ok) { setStatus(`could not fetch /grapes/${file} (${res.status})`); return }
-    const source = await res.text()
+    const r = await s.call(handler)
     if (!alive.current) return
-
-    setStatus(`${file} is running`)
-    const r = runGrape({ name: file, source }, { world, engine }, (text) => {
-      setPrinted((p) => [...p, text])
-    })
-    run.current = r
-
-    const done = await r.done
-    if (!alive.current) return
-    setReport(done)
-    setStatus(done.error ? `${file} stopped` : `${file} finished, ${done.steps} intents`)
-  }, [file])
+    setBusy(false)
+    if (r.error || r.refused.length) setReport(r)
+  }, [busy])
 
   useEffect(() => {
     alive.current = true
@@ -103,8 +178,12 @@ export default function GrapeProof() {
   /* a flag for the headless verifier to wait on, so a screenshot is never taken
    * of a half-started runtime. Nothing in the game reads it. */
   useEffect(() => {
-    ;(window as unknown as Record<string, unknown>).__grape = { file, status, report }
-  }, [file, status, report])
+    ;(window as unknown as Record<string, unknown>).__grape = {
+      base, arm, status, handlers, report, seen, title: loaded?.manifest.title ?? null,
+    }
+  }, [base, arm, status, handlers, report, seen, loaded])
+
+  const talks = handlers.filter((h) => h.startsWith('talk:'))
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#0a1a22', overflow: 'hidden' }}>
@@ -121,18 +200,49 @@ export default function GrapeProof() {
         color: 'rgba(190, 214, 210, .8)', textShadow: '0 1px 2px rgba(0,0,0,.8)',
         pointerEvents: 'none',
       }}>
-        <div style={{ color: '#ffd27a' }}>grape proof · micropython in a worker · /grapes/{file}</div>
-        <div>{status}</div>
+        <div style={{ color: '#ffd27a' }}>
+          grape proof · micropython in a worker · {base} · {arm} arm
+        </div>
+        <div>{status}{loaded ? ` · ${loaded.manifest.modules.length} modules` : ''}</div>
+        {handlers.length > 0 && <div style={{ color: '#8fb8c8' }}>handlers: {handlers.join(', ')}</div>}
         {printed.map((line, i) => <div key={i} style={{ color: '#9fd6a8' }}>print: {line}</div>)}
-        {report?.refused.map((r, i) => <div key={i} style={{ color: '#ffb27a' }}>refused {r.intent}: {r.why}</div>)}
+        {seen.map((s, i) => <div key={i} style={{ color: '#c8b8e8' }}>{s.what}: {s.detail}</div>)}
+        {report?.refused.map((r, i) => (
+          <div key={i} style={{ color: '#ffb27a' }}>refused {r.intent}: {r.why}</div>
+        ))}
       </div>
 
-      {/* STEP THREE. The island stopped; this page did not. The button below is
-          the honest half of the claim: it re-runs the same file, from a page
-          that is still alive after a member's python raised in it. */}
+      {/* STANDING IN FOR PmapScene's fire(). One button per anchor the island
+          said it owns, which is the list that came back on `ready`. */}
+      {talks.length > 0 && (
+        <div style={{
+          position: 'absolute', left: 16, bottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap',
+        }}>
+          {talks.map((h) => (
+            <button
+              key={h}
+              disabled={busy}
+              onClick={() => { void fire(h) }}
+              style={{
+                padding: '7px 14px', cursor: busy ? 'default' : 'pointer',
+                background: busy ? '#22303a' : '#1d3a46', border: '1px solid #3f6a7a',
+                borderRadius: 3, color: busy ? '#6d8390' : '#cfe6ee',
+                fontFamily: "'Deckhand', monospace", fontSize: 14,
+              }}
+            >
+              press E on {h.slice(5)}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* THE ISLAND STOPPED; THIS PAGE DID NOT. The button below is the honest
+          half of the claim: it re-runs from a page still alive after a member's
+          python raised in it. The buttons above still work too, because a crash
+          in one handler does not unload the island. */}
       {report?.error && (
         <div style={{
-          position: 'absolute', left: '50%', top: '38%', transform: 'translate(-50%, -50%)',
+          position: 'absolute', left: '50%', top: '36%', transform: 'translate(-50%, -50%)',
           width: 'min(620px, 82vw)', padding: '22px 26px 24px',
           background: 'rgba(20, 12, 6, .92)', border: '2px solid #6b4a24', borderRadius: 4,
           boxShadow: '0 10px 40px rgba(0,0,0,.5)', textAlign: 'center',
@@ -148,21 +258,24 @@ export default function GrapeProof() {
           }}>
             {report.error}
           </div>
-          <pre style={{
-            marginTop: 14, marginBottom: 16, padding: '10px 12px', textAlign: 'left',
-            background: 'rgba(0,0,0,.45)', border: '1px solid #3d2a15', borderRadius: 3,
-            fontFamily: 'monospace', fontSize: 11, lineHeight: 1.6, color: '#9db3b0',
-            whiteSpace: 'pre-wrap', overflow: 'auto', maxHeight: 150,
-          }}>{report.traceback}</pre>
+          {report.traceback && (
+            <pre style={{
+              marginTop: 14, marginBottom: 16, padding: '10px 12px', textAlign: 'left',
+              background: 'rgba(0,0,0,.45)', border: '1px solid #3d2a15', borderRadius: 3,
+              fontFamily: 'monospace', fontSize: 11, lineHeight: 1.6, color: '#9db3b0',
+              whiteSpace: 'pre-wrap', overflow: 'auto', maxHeight: 150,
+            }}>{report.traceback}</pre>
+          )}
           <button
             onClick={() => { void start() }}
             style={{
+              marginTop: report.traceback ? 0 : 16,
               padding: '8px 20px', cursor: 'pointer', background: '#3d2a15',
               border: '1px solid #6b4a24', borderRadius: 3, color: '#f0d9a8',
               fontFamily: "'Deckhand', monospace", fontSize: 15,
             }}
           >
-            run it again
+            load it again
           </button>
         </div>
       )}

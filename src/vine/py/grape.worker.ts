@@ -21,8 +21,9 @@ import { loadMicroPython, type MicroPython } from '@micropython/micropython-weba
  * next to its own hashed chunk and gets a 404. */
 import wasmUrl from '@micropython/micropython-webassembly-pyscript/micropython.wasm?url'
 import VINE_PY from './vine.py?raw'
+import GRAPE_PY from './grape.py?raw'
 import DRIVER_PY from './driver.py?raw'
-import type { FromWorker, ToWorker } from './protocol'
+import { PROTOCOL, type FromWorker, type PyStep, type ToWorker } from './protocol'
 
 /* tsconfig's lib is DOM, not WebWorker, and adding WebWorker collides with DOM
  * for all 133 files in the project. One cast here is cheaper than that, and it
@@ -41,21 +42,26 @@ async function boot(): Promise<MicroPython> {
     stdout: (text) => post({ t: 'print', text }),
     stderr: (text) => post({ t: 'print', text }),
   })
-  /* the member-facing module is a real file on the runtime's own filesystem, so
-   * `from vine import say` is an ordinary import and not a trick */
+  /* THE TWO MEMBER-FACING MODULES ARE REAL FILES on the runtime's own
+   * filesystem, so `from vine import say` and `from grape import on_talk` are
+   * ordinary imports and not a trick. They are written HERE, by the engine,
+   * which is what makes a member's own copy of either one harmless: theirs is
+   * for their editor, this one is the one that runs. */
   py.FS.writeFile('vine.py', VINE_PY)
+  py.FS.writeFile('grape.py', GRAPE_PY)
   py.runPython(DRIVER_PY)
   mp = py
   return py
 }
 
-/* Run one call and forward whatever the pump left in `_step`.
+/* Run one call and hand back whatever the pump left in `_step`.
  *
  * A python exception surfaces here with its traceback attached, and this is
- * step three in nine lines: the island stops, the worker survives it, and the
+ * the sandbox in nine lines: the island stops, the worker survives it, and the
  * engine is told in a message rather than by dying. The spike measured that
- * state defined before the crash is still intact afterwards. */
-function pump(py: MicroPython, call: string) {
+ * state defined before the crash is still intact afterwards, which is why a
+ * crash inside one handler does not cost the island its other handlers. */
+function step(py: MicroPython, call: string): PyStep | null {
   try {
     py.runPython(call)
   } catch (e) {
@@ -64,9 +70,9 @@ function pump(py: MicroPython, call: string) {
      * rest is the file and line, which the engine keeps for the console */
     const error = traceback.split('\n').filter(Boolean).pop()?.trim() ?? 'the island stopped'
     post({ t: 'crash', error, traceback })
-    return
+    return null
   }
-  post(JSON.parse(py.globals.get('_step') as string) as FromWorker)
+  return JSON.parse(py.globals.get('_step') as string) as PyStep
 }
 
 self.addEventListener('message', (ev: MessageEvent) => { void handle(ev.data as ToWorker) })
@@ -85,21 +91,53 @@ async function handle(msg: ToWorker) {
    * just the runtime starting. Found by review: a filename the filesystem
    * refused hung the harness on "is running" with nothing on screen. */
   try {
+    if (msg.t === 'load' && msg.v !== PROTOCOL) {
+      /* the two halves are built from the same repo, so this is a stale cached
+       * chunk rather than a real disagreement. Said out loud because the same
+       * situation with no check is an island that fails in a way nobody can read. */
+      post({
+        t: 'crash',
+        error: `this worker speaks protocol ${PROTOCOL} and the page speaks ${msg.v}. Reload the page.`,
+        traceback: `protocol ${msg.v} !== ${PROTOCOL}`,
+      })
+      return
+    }
+
     const py = await boot()
 
-    if (msg.t === 'run') {
-      py.FS.writeFile(msg.name, msg.source)
-      py.globals.set('_mod', msg.name.replace(/\.py$/, ''))
+    if (msg.t === 'load') {
+      const dir = `islands/${msg.island}`
+      /* mkdirTree and not mkdir: mkdir throws on a directory that already
+       * exists, which is every load after the first, and writeFile never
+       * creates a parent. Both measured. */
+      py.FS.mkdirTree(dir)
+      for (const [name, source] of Object.entries(msg.files)) {
+        py.FS.writeFile(`${dir}/${name}`, source)
+      }
+      py.globals.set('_island', msg.island)
       py.globals.set('_entry', msg.entry)
+      py.globals.set('_names', JSON.stringify(Object.keys(msg.files)))
       /* the call is a constant. Everything variable went in through globals. */
-      pump(py, '_begin(_mod, _entry)')
+      send(step(py, '_load(_island, _entry, _names)'))
+      return
+    }
+
+    if (msg.t === 'call') {
+      py.globals.set('_handler', msg.handler)
+      send(step(py, '_call(_handler)'))
       return
     }
 
     py.globals.set('_reply', JSON.stringify(msg.result))
-    pump(py, '_resume(_reply)')
+    send(step(py, '_resume(_reply)'))
   } catch (e) {
     const why = e instanceof Error ? e.message : String(e)
     post({ t: 'crash', error: mp ? why : `micropython did not start: ${why}`, traceback: why })
   }
+}
+
+/* the version is stamped here rather than in python, so one file knows it */
+function send(s: PyStep | null) {
+  if (!s) return
+  post(s.t === 'ready' ? { t: 'ready', v: PROTOCOL, handlers: s.handlers } : s)
 }

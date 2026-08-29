@@ -1,0 +1,9 @@
+{
+  "format": 1,
+  "programme": "hello",
+  "map": "hello-harness",
+  "title": "Hello, from Python",
+  "owner": "the vine",
+  "entry": "island.py",
+  "modules": ["island.py", "lines.py"]
+}
