@@ -87,7 +87,24 @@
       "y": 322,
       "r": 30,
       "facing": "north",
-      "label": "Principal Panther"
+      "label": "Principal Panther",
+      "meta": {
+        "framing": {
+          "zoom": 1.5,
+          "dy": -14,
+          "name": "default"
+        },
+        "framings": {
+          "close": {
+            "zoom": 1.9,
+            "dy": -18
+          },
+          "wide": {
+            "zoom": 1.05,
+            "dy": 0
+          }
+        }
+      }
     },
     {
       "name": "outfitter",

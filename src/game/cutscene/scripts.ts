@@ -24,9 +24,18 @@ import type { Script, Step } from './types'
  * a stand-in and on the painting that replaces it. */
 export type AtAnchor = { at?: string }
 
+/* the map's own shot, read off an anchor's meta bag. See pmap/framings.ts for
+ * why it lives in the bag today and what MAPVIS W2 replaces it with. */
+export type { Framing } from '../pmap/framings'
+import { shotOf, type Framing } from '../pmap/framings'
+
 export type AuthoredStep =
   | Step
-  | ({ t: 'cameraAt'; anchor: string; zoom?: number; ms: number })
+  /* `zoom` is the FALLBACK now and not the shot. If the anchor carries a framing
+   * the map's own number wins, because the person who cut the map knows how far
+   * out it reads and the person writing the script usually does not. `framing`
+   * asks for one by name when an anchor carries more than one. */
+  | ({ t: 'cameraAt'; anchor: string; zoom?: number; framing?: string; ms: number })
   | ({ t: 'moveTo'; actor: string; anchor: string; speed?: number; face?: string })
   | ({ t: 'gateAt'; anchor: string; radius?: number; prompt?: string; required?: boolean })
 
@@ -42,7 +51,12 @@ export const SCRIPTS: AuthoredScript[] = [
     steps: [
       { t: 'letterbox', on: true },
       { t: 'vignette', to: 0.55, ms: 500 },
-      { t: 'cameraAt', anchor: 'principal_desk', zoom: 1.35, ms: 900 },
+      /* NO NUMBER HERE ANY MORE. It read `zoom: 1.35`, which was a value somebody
+       * typed once for one painting, and the day that painting is re-cut the shot
+       * is wrong and nothing says so. The desk carries its own framing and this
+       * asks for it by name; the fallback is only reached on a map whose author
+       * has not framed it. */
+      { t: 'cameraAt', anchor: 'principal_desk', framing: 'close', zoom: 1.35, ms: 900 },
       { t: 'say', who: 'Principal Panther', text: 'You made it inside. Most of them stand on the bridge a while first.', portrait: 'principal' },
       { t: 'say', who: 'Principal Panther', text: 'This is the Maw. Everything you plan, you plan in here, and everything you bring back, you bring back to here.' },
       { t: 'vignette', to: 0, ms: 500 },
@@ -69,6 +83,10 @@ export const scriptById = (id: string) => byId.get(id)
 export function resolveScript(
   s: AuthoredScript,
   spotOf: (name: string) => { x: number; y: number } | null,
+  /* THE MAP'S OWN SHOT, when it has one. Passed in rather than imported so this
+   * function stays a pure resolver a test can drive with three lines, which is
+   * what made the missing-anchor refusal testable in the first place. */
+  framingOf?: (anchor: string, name?: string) => Framing | null,
 ): { script: Script; missing: string[] } {
   const missing: string[] = []
   const steps: Step[] = []
@@ -76,8 +94,18 @@ export function resolveScript(
     if (st.t === 'cameraAt' || st.t === 'moveTo' || st.t === 'gateAt') {
       const p = spotOf(st.anchor)
       if (!p) { missing.push(st.anchor); continue }
-      if (st.t === 'cameraAt') steps.push({ t: 'camera', to: p, zoom: st.zoom, ms: st.ms })
-      else if (st.t === 'moveTo') steps.push({ t: 'actorMove', actor: st.actor, to: p, speed: st.speed, face: st.face })
+      if (st.t === 'cameraAt') {
+        /* THE MAP WINS. A framing is authored where the thing is, so re-cutting a
+         * painting moves its own close-up with it; a number in a script is a
+         * guess made once, somewhere else, that nothing revisits. */
+        const f = framingOf?.(st.anchor, st.framing) ?? null
+        if (f && st.zoom !== undefined && f.zoom !== undefined && f.zoom !== st.zoom)
+          console.info(`[cutscene] ${s.id}: "${st.anchor}" is framed at ${f.zoom} by the map, so the script's ${st.zoom} is not used`)
+        const shot = shotOf(p, f, st.zoom ?? 1)
+        steps.push({ t: 'camera', to: { x: shot.x, y: shot.y }, zoom: shot.zoom, ms: st.ms })
+        continue
+      }
+      if (st.t === 'moveTo') steps.push({ t: 'actorMove', actor: st.actor, to: p, speed: st.speed, face: st.face })
       else steps.push({ t: 'gate', kind: 'walkTo', target: p, radius: st.radius ?? 24, prompt: st.prompt, required: st.required })
       continue
     }

@@ -26,7 +26,8 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
     return () => window.removeEventListener('keydown', key)
   }, [rt])
 
-  // hold-to-skip (pointer on the plaque, or holding Escape)
+  // hold-to-skip: holding Escape. The plaque itself skips on one press, so the
+  // fill below is what a held Escape draws rather than what a held pointer does.
   const [holdAt, setHoldAt] = useState<number | null>(null)
   const holdTimer = useRef<number | null>(null)
   const beginHold = () => {
@@ -106,14 +107,25 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
         </div>
         {/* skip plaque — one CLICK skips to the next required beat; the captain's version
             ends the whole cutscene outright (god authority for testing) */}
+        {/* A REAL BUTTON, because it was a div with an onClick: a pointer could
+            skip and a keyboard could only hold Escape, which is a key path
+            nothing on screen names. Tab reaches it now, Enter and Space press it
+            because it is a button, and the Escape hold still works. */}
         {ui.skippable && (
-          <div
-            className="cs-skip" style={{ pointerEvents: 'auto' }}
+          <button
+            type="button" className="cs-skip" style={{ pointerEvents: 'auto' }}
+            aria-label={isCaptain() ? 'Skip the whole cutscene' : 'Skip to the next beat'}
+            /* no pointer hold here on purpose: a click already skips at once, and
+               a hold that ALSO skips would fire the timer and then the click and
+               skip two beats for one press */
             onClick={(e) => { e.stopPropagation(); if (isCaptain()) rt.godSkip(); else rt.skip() }}
           >
+            {/* the fill's duration is the real hold length and is deliberately not
+                shortened by reduced motion: it is a progress bar, and a progress
+                bar that finishes early lies about when the finger can come up */}
             <span className="cs-skip-fill" style={{ width: holdAt ? '100%' : '0%', transition: holdAt ? `width ${SKIP_HOLD_MS}ms linear` : 'none' }} />
             <span style={{ position: 'relative' }}>{isCaptain() ? 'skip all ⚓' : 'skip ▸'}</span>
-          </div>
+          </button>
         )}
       </div>
     </>

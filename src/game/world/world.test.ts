@@ -339,6 +339,37 @@ describe('coming alongside', () => {
     expect(r.helm.throttle).toBe(1)
   })
 
+  /* A HULL ORBITS A WAYPOINT IT CANNOT TURN TIGHTLY ENOUGH TO HIT. At cruise her
+   * turn radius is about 92 pixels and the capture circle is 36, so steering at
+   * a point and waiting to be inside it is a manoeuvre that never finishes. This
+   * is that failure, driven, and it is the one the proof run found. */
+  it('passes a waypoint rather than orbiting one it cannot turn tightly enough to hit', () => {
+    let h = newHull(1780, -212, 0)
+    let b: Berthing = {
+      target: { x: 228, y: 177 }, facing: Math.PI / 2,
+      approach: { x: 300, y: 258 }, stage: 'approach',
+    }
+    let sawAlongside = false
+    for (let i = 0; i < 6000 && b.stage !== 'done'; i++) {
+      const r = berthHelm(h, b)
+      b = r.next
+      if (b.stage === 'alongside') sawAlongside = true
+      h = stepHull(h, r.helm, 1 / 60, deep)
+    }
+    expect(sawAlongside).toBe(true)
+    expect(b.stage).toBe('done')
+    expect(Math.hypot(h.x - 228, h.y - 177)).toBeLessThan(20)
+  })
+
+  it('treats a waypoint that is behind the bow as passed, and does not turn back for it', () => {
+    /* heading east, with the approach point just astern: a helmsman carries on */
+    const h = { ...newHull(500, 0, 0), speed: 120 }
+    const r = berthHelm(h, {
+      target: { x: 900, y: 0 }, approach: { x: 470, y: 0 }, stage: 'approach',
+    })
+    expect(r.next.stage).toBe('alongside')
+  })
+
   it('asks for nothing once she is done', () => {
     const h = newHull(300, 210, 0)
     const r = berthHelm(h, { target: { x: 300, y: 210 }, stage: 'done' })

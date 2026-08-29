@@ -219,10 +219,26 @@ export function berthHelm(s: HullState, b: Berthing, cfg = DEFAULT_SAIL): { helm
      * approach authored goes straight to the second half. */
     const aim = b.approach
     if (!aim) return berthHelm(s, { ...b, stage: 'alongside' }, cfg)
-    const d = Math.hypot(aim.x - s.x, aim.y - s.y)
-    if (d < ALONGSIDE_PX * 2) return berthHelm(s, { ...b, stage: 'alongside' }, cfg)
-    const err = wrap(Math.atan2(aim.y - s.y, aim.x - s.x) - s.heading)
-    return { helm: { throttle: 1, turn: Math.abs(err) < 0.05 ? 0 : Math.sign(err), fullSail: false }, next: b }
+    const dx = aim.x - s.x, dy = aim.y - s.y
+    const d = Math.hypot(dx, dy)
+
+    /* A WAYPOINT IS PASSED, NOT HIT. Steering at a point at full throttle and
+     * waiting to be inside a small circle is how a hull ORBITS one forever: at
+     * cruise her turn radius is 92 pixels and the capture circle was 36, so she
+     * could not physically close it and the manoeuvre never finished. The test
+     * is whether the point is behind the bow, which is what a helmsman actually
+     * does and what cannot be defeated by a wide turn. */
+    const ahead = Math.cos(s.heading) * dx + Math.sin(s.heading) * dy
+    if (d < ALONGSIDE_PX * 2 || (ahead < 0 && d < cfg.cruise))
+      return berthHelm(s, { ...b, stage: 'alongside' }, cfg)
+
+    const err = wrap(Math.atan2(dy, dx) - s.heading)
+    /* AND SHE SLOWS INTO IT, for the same reason. Speed is what makes the turn
+     * wide, so a hull that eases off as it nears the waypoint can steer at it
+     * instead of around it. */
+    const stopIn = (s.speed * s.speed) / (2 * cfg.drag)
+    const throttle = d > stopIn + ALONGSIDE_PX * 2 ? 1 : 0
+    return { helm: { throttle, turn: Math.abs(err) < 0.05 ? 0 : Math.sign(err), fullSail: false }, next: b }
   }
 
   const dx = b.target.x - s.x, dy = b.target.y - s.y

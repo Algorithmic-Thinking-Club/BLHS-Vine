@@ -30,6 +30,7 @@ import { cleanLife, lifeAt, type Life, type LifeBounds, separate } from './life'
  * editor's walk test and this scene cannot disagree about where a wall is. */
 import { TEST_SPEED, Walker, canStand as lawCanStand, canStandFrom as lawCanStandFrom, defaultCfg, type MaskDoc, type WalkCfg } from './walk'
 import { AnchorSet, type Anchor } from './anchors'
+import { framingOf, framingNames, shotOf } from './framings'
 import { holdWorld, onWorldHold, worldHeld } from '../world-bus'
 import { choose, clearDialogue, say } from '../dialogue'
 import { engine } from '../intent-engine'
@@ -608,6 +609,12 @@ export default function PmapScene() {
        * script lets go. */
       type Driven = {
         x: number; y: number; visible: boolean; look: number | null
+        /* WHICH WAY SHE IS FACING WHILE A SCRIPT HAS HER. A heading belongs to a
+         * placement's BEHAVIOUR, and a script that has taken one over has stopped
+         * that behaviour, so `actorFace` had nothing to write to and reported a
+         * miss. It has this. A driven placement is a body with a driver, which is
+         * Q4.6.a's expensive answer, and a body that cannot be turned is not one. */
+        facing: string | null
         move: null | { tx: number; ty: number; speed: number; done: boolean }
       }
       const driven = new Map<Sprite, Driven>()
@@ -616,7 +623,7 @@ export default function PmapScene() {
       const actorSprite = (name: string): Sprite | null => placedById.get(name) ?? null
       const take = (sp: Sprite): Driven => {
         let d = driven.get(sp)
-        if (!d) { d = { x: sp.position.x, y: sp.position.y, visible: sp.visible, look: null, move: null }; driven.set(sp, d) }
+        if (!d) { d = { x: sp.position.x, y: sp.position.y, visible: sp.visible, look: null, facing: null, move: null }; driven.set(sp, d) }
         return d
       }
 
@@ -1395,6 +1402,55 @@ export default function PmapScene() {
             obstacles.push(s)
       }
 
+      /* ---- STANDING FIGURES GO IN THE FLOOR. THE REAL FIX PUSH-APART WAS FOR ---
+       *
+       * `life.ts`'s own trace note says it plainly and §80.3 repeats it: a walker
+       * crosses straight through a stander because NOTHING IN THE FLOOR KNOWS THE
+       * STANDER IS THERE, and the real fix is putting them in it. Push-apart was
+       * the workaround, and a workaround is what it stayed: it relaxes pairs of
+       * placements twice a frame and it can only ever move the things it is given,
+       * so Thor, who is never pushed, walked through every figure on the map.
+       *
+       * The floor is the fence for everything. Once a stander's feet are blocked
+       * pixels, the walk law refuses them, `findPath` routes round them, the guide
+       * arrow goes round them, and a script's `walk_to` goes round them, all four
+       * for free and all four by the same law, because there is only one.
+       *
+       * TWO GUARDS, AND BOTH ARE ABOUT NOT BREAKING A MAP AN AUTHOR ALREADY MADE.
+       * A figure standing on an interactive anchor must not bar it, or a
+       * shopkeeper blocks her own counter and a doorman bars his own door. And
+       * only pixels that were walkable are written, so a figure standing on the
+       * sea does not carve a hole in the coast. */
+      let floored = 0
+      if (obstacles.length) {
+        const ys = map.yScale || 1
+        const blocked = map.encoding.blocked
+        /* the anchors a body has to be able to reach, with their own radius plus
+         * a body's width of clearance, so "not on it" also means "not against it" */
+        const keepClear = anchors.all
+          .filter((a) => a.kind !== 'region' && a.kind !== 'trigger')
+          .map((a) => ({ x: a.x, y: a.y, r: Math.max(a.r, 8) + HIP + BODY_MIN }))
+        for (const s of obstacles) {
+          /* the FEET, not the body: a figure occupies the ground it stands on and
+           * not the air its head is in, which is the same distinction the ink
+           * measurement already makes for the push pass */
+          const rx = Math.max(1, s.r), ry = Math.max(1, s.r * ys)
+          for (let y = Math.ceil(s.y - ry); y <= Math.floor(s.y + ry); y++) {
+            for (let x = Math.ceil(s.x - rx); x <= Math.floor(s.x + rx); x++) {
+              if (x < 0 || y < 0 || x >= W || y >= H) continue
+              const ex = (x - s.x) / rx, ey = (y - s.y) / ry
+              if (ex * ex + ey * ey > 1) continue
+              const i = (y * W + x) * 4
+              if (ldata[i] === blocked) continue                    // already a wall
+              if (keepClear.some((k) => Math.hypot(k.x - x, (k.y - y) / ys) <= k.r)) continue
+              ldata[i] = blocked
+              floored++
+            }
+          }
+        }
+        if (DBG || floored) console.log(`[pmap] ${obstacles.length} standing figures put in the floor (${floored} px)`)
+      }
+
       // ---- &dbg=1: the levels mask, color-coded per level value, over the painting ----
       if (DBG) {
         const enc = map.encoding
@@ -1919,9 +1975,18 @@ export default function PmapScene() {
           })
         },
 
+        /* `look_at` HONOURS A FRAMING TOO, which is the half of it that made the
+         * word useless for anything cinematic. §80.4's stadium wants "the camera
+         * behind him rather than centred on him", and `look_at` could not express
+         * it because it was a hold at an x and a y with no offset. The offset is
+         * the map's, so an author drags it once where the thing is instead of
+         * every script guessing the same numbers differently. */
         lookAt(name, ms = 500) {
           const a = name ? anchors.get(name) : null
-          lookAtTarget = a ? { x: a.x, y: a.y, until: performance.now() + ms } : null
+          if (a) {
+            const shot = shotOf({ x: a.x, y: a.y }, framingOf(a.meta))
+            lookAtTarget = { x: shot.x, y: shot.y, until: performance.now() + ms }
+          } else lookAtTarget = null
           return new Promise<void>((r) => setTimeout(r, a ? ms : 0))
         },
 
@@ -1982,10 +2047,32 @@ export default function PmapScene() {
         cutscene(script) {
           const authored = scriptById(script)
           if (!authored) throw new NotBuilt('cutscene', `no script named "${script}"`)
-          const { script: resolved, missing } = resolveScript(authored, (n) => {
-            const a = anchors.get(n)
-            return a ? anchors.standAt(a) : null
-          })
+          const { script: resolved, missing } = resolveScript(
+            authored,
+            (n) => {
+              const a = anchors.get(n)
+              return a ? anchors.standAt(a) : null
+            },
+            /* THE MAP'S OWN SHOT. Hand-typed camera numbers in a script are a
+             * defect: the number was guessed once for one painting and nothing
+             * revisits it when the painting is re-cut. An anchor carries its
+             * framing in the `meta` bag that already survives export, so a shot
+             * moves with the thing it is a shot of. */
+            (n, name) => {
+              const meta = anchors.get(n)?.meta
+              const f = framingOf(meta, name)
+              /* A NAME THE MAP DOES NOT CARRY IS THE MISTAKE AN AUTHOR WILL
+               * ACTUALLY MAKE, and it is invisible: the shot still happens, at
+               * the anchor's own default or at the script's typed fallback, and
+               * looks like a framing that was authored badly rather than one that
+               * was never found. Named at the line that asked, with the list. */
+              if (name && (!f || f.name !== name)) {
+                const have = framingNames(meta)
+                console.warn(`[pmap] ${script}: "${n}" carries no framing named "${name}". It has: ${have.join(', ') || 'none'}`)
+              }
+              return f
+            },
+          )
           if (missing.length)
             throw new NotBuilt('cutscene', `"${script}" wants anchors ${mapId} does not have: ${missing.join(', ')}`)
 
@@ -2131,14 +2218,33 @@ export default function PmapScene() {
         },
 
         /* A HEADING ON A PLACEMENT BELONGS TO ITS BEHAVIOUR, and a script that has
-         * taken one over has stopped that behaviour, so there is nothing here to
-         * turn. It says so now rather than being a comment where a body should be:
-         * it returned silently for any actor but Thor, which is indistinguishable
-         * from a typo in the actor's name. */
+         * taken one over HAS STOPPED THAT BEHAVIOUR, which is exactly why it can
+         * be turned. This reported a miss and did nothing, so a founding scene
+         * could put the principal at her desk and not make her look up.
+         *
+         * The heading is a view name, resolved against the set the placement was
+         * drawn with and through NEAREST_VIEW when it was only drawn four ways, so
+         * a figure with a south and a north still faces roughly right instead of
+         * snapping. A placement with ONE picture has no heading to give, and that
+         * says so by name rather than turning nothing. */
         actorFace: (actor, dir) => {
           if (IS_THOR(actor)) { walker.facing = dir; return }
-          console.warn(`[pmap] actorFace("${actor}", "${dir}"): a placement's heading belongs to its behaviour and cannot be set yet`)
-          stageMissed(`actorFace("${actor}")`)
+          const sp = actorSprite(actor)
+          if (!sp) {
+            console.warn(`[pmap] actorFace: no placement named "${actor}" on ${mapId}`)
+            stageMissed(`actorFace("${actor}")`)
+            return
+          }
+          const d = take(sp)
+          const set = looksOf.get(sp)
+          const look = set && (set[d.look ?? 0] ?? set[0])
+          const views = look?.views
+          if (!views || !Object.keys(views).length) {
+            console.warn(`[pmap] actorFace("${actor}", "${dir}"): this placement was drawn one way and has no heading to turn to`)
+            stageMissed(`actorFace("${actor}")`)
+            return
+          }
+          d.facing = dir
         },
 
         actorShow: (actor, visible) => {
@@ -2384,10 +2490,17 @@ export default function PmapScene() {
        * a boat to a coordinate and calling that a leg */
       let helmOverride: { until: number; helm: Helm } | null = null
 
+      /* A BERTH'S HEADING IS THE ONE SHARED VOCABULARY, read the same way whether
+       * a hull is arriving on it or leaving on it. This was two expressions with
+       * two answers: casting off read only "east", so a berth facing south put a
+       * boat out pointing west into its own island. */
+      const radOf = (f: string | undefined): number =>
+        f === 'east' ? 0 : f === 'south' ? Math.PI / 2 : f === 'north' ? -Math.PI / 2 : Math.PI
+
       const board = () => {
         if (!canSail || !berth || hull) return
         const at = fromSea(berth.x, berth.y)
-        hull = newHull(at.x, at.y, berth.facing === 'east' ? 0 : Math.PI)
+        hull = newHull(at.x, at.y, radOf(berth.facing))
         if (hullSp) hullSp.visible = true
         thor.sp.visible = false; thor.sh.visible = false; pin.visible = false
         camFree = true
@@ -2419,8 +2532,7 @@ export default function PmapScene() {
         const ap = s.berth.approach ? fromSea(s.berth.approach.x, s.berth.approach.y) : undefined
         berthing = {
           target: t,
-          facing: s.berth.facing === 'east' ? 0 : s.berth.facing === 'west' ? Math.PI
-            : s.berth.facing === 'north' ? -Math.PI / 2 : s.berth.facing === 'south' ? Math.PI / 2 : undefined,
+          facing: s.berth.facing ? radOf(s.berth.facing) : undefined,
           approach: ap,
           stage: 'approach',
         }
@@ -2510,6 +2622,7 @@ export default function PmapScene() {
         aboard: !!hull,
         at: hull ? toSea(hull.x, hull.y) : toSea(pos.x, pos.y),
         speed: hull ? Math.round(hull.speed) : 0,
+        headingRad: hull ? +hull.heading.toFixed(4) : 0,
         aground: hull?.aground ?? false,
         wake: hull?.wake.length ?? 0,
         region: comp ? regionAt(comp, toSea(hull ? hull.x : pos.x, hull ? hull.y : pos.y))?.name ?? null : null,
@@ -2521,6 +2634,10 @@ export default function PmapScene() {
         seen: [...seenPlaces],
         states: comp ? seaSlots(comp).map((s) => `${s.title}=${stateOf(s, loadSave())}`) : [],
       })
+      /* how deep the water is at a painting pixel, off the union field. The berth
+       * in the composition has to be authored somewhere a hull can actually float,
+       * and before this hook that was measured by sailing into a coast. */
+      ;(window as any).__depth = (x: number, y: number) => Math.round(depthAt(x, y))
       ;(window as any).__board = () => { board(); return hull ? 'aboard' : 'no berth here' }
       ;(window as any).__helm = (throttle: number, turn: number, ms: number) => {
         if (!hull) return 'not aboard'
@@ -2528,11 +2645,19 @@ export default function PmapScene() {
         helmOverride = { until, helm: { throttle, turn, fullSail: false } }
         return 'ok'
       }
+      /* PUT IN AT THE NEAREST BERTH, FROM ANYWHERE. The 90 pixel reach in the tick
+       * above is the PROMPT's rule, because a plaque offering a dock from across
+       * the map is a plaque nobody understands. The manoeuvre itself has no range
+       * limit and never needed one: the approach point is exactly what covers the
+       * distance, and a run that could only dock from ten pixels away would be
+       * proving the last ten pixels of it. */
       ;(window as any).__dock = () => {
         if (!hull || !comp) return 'not aboard'
         const at = toSea(hull.x, hull.y)
-        const home = comp.slots.find((s) => s.berth && Math.hypot(s.berth.x - at.x, s.berth.y - at.y) < 90)
-        if (!home) return 'no berth within reach'
+        const berths = comp.slots.filter((s) => s.berth)
+        if (!berths.length) return 'nothing on this composition has a berth'
+        const home = berths.sort((a, b) =>
+          Math.hypot(a.berth!.x - at.x, a.berth!.y - at.y) - Math.hypot(b.berth!.x - at.x, b.berth!.y - at.y))[0]
         dockAt(home)
         return 'docking'
       }
@@ -3149,10 +3274,19 @@ export default function PmapScene() {
           sp.position.set(d.x, d.y)
           sp.visible = d.visible
           sp.zIndex = d.y
-          if (d.look !== null) {
+          if (d.look !== null || d.facing !== null) {
             const set = looksOf.get(sp)
-            const look = set && (set[d.look] ?? set[0])
-            if (look && sp.texture !== look.frames[0]) sp.texture = look.frames[0]
+            const look = set && (set[d.look ?? 0] ?? set[0])
+            if (look) {
+              /* the heading first, because a face and a heading are two questions
+               * about the same picture and the heading is the narrower one: a look
+               * with no views for the direction asked falls back through
+               * NEAREST_VIEW and then to the look's own first frame. */
+              const views = d.facing ? look.views : null
+              const vs = views && (views[d.facing!] || views[NEAREST_VIEW[d.facing!]] || views.south)
+              const want = vs && vs.length ? vs[0] : look.frames[0]
+              if (want && sp.texture !== want) sp.texture = want
+            }
           }
         }
 

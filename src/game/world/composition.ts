@@ -167,10 +167,17 @@ export const FALLBACK: WorldComposition = {
       footprint: { w: 669, h: 377 }, origin: { x: 7, y: 194 },
       placements: 94,
       state: 'available', release: 1400, discover: 520,
-      /* off the painting, which is the whole of AUTHORING §12: the canvas ends at
-       * y 640 and the water does not. The berth is south-east of the harbour, one
-       * short walk from where the hub drops a body. */
-      berth: { x: 258, y: 208, facing: 'west', approach: { x: 400, y: 300 } },
+      /* OFF THE PAINTING, which is the whole of AUTHORING §12: the canvas ends at
+       * y 640 and the water does not.
+       *
+       * Both points are MEASURED against the union distance field rather than
+       * eyeballed off the picture. The first berth authored here was 20 pixels
+       * off the coast, which is inside the hull's own 26 pixel probe, so a boat
+       * put there was aground the instant it was created and could not leave. The
+       * walkable ground under the harbour ends at canvas y 508 and the water at
+       * canvas (570, 560) is 45 pixels deep, which is where this is. The approach
+       * is deeper still and off the canvas entirely. */
+      berth: { x: 228, y: 177, facing: 'south', approach: { x: 300, y: 258 } },
     },
     {
       /* the same island as a local file, for a session with no platform. Its
@@ -181,7 +188,7 @@ export const FALLBACK: WorldComposition = {
       footprint: { w: 465, h: 335 }, origin: { x: 92, y: 0 },
       placements: 0,
       state: 'available', release: 1400, discover: 520,
-      berth: { x: 190, y: 190, facing: 'west', approach: { x: 340, y: 280 } },
+      berth: { x: 76, y: 202, facing: 'south', approach: { x: 200, y: 300 } },
     },
     {
       /* THE ROOM IS NOT ON THE WATER. It is the same place as the hub, reached

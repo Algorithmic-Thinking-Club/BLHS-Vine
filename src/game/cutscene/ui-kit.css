@@ -1,7 +1,13 @@
 /* The PixelLab UI kit chrome (GAME-DESIGN §11) — aged paper on carved driftwood.
    Textures live in /public/art/ui/, both game faces in /public/fonts/. Structure and
    behavior live in the components; this file owns every texture, face, and easing so
-   the kit reads as ONE material system everywhere. */
+   the kit reads as ONE material system everywhere.
+
+   Every value it used to spell out is now a token from ui/tokens.css, which is what
+   makes the skin swap possible: this file says WHICH material, the token layer says
+   what that material is today. */
+
+@import '../ui/tokens.css';
 
 @font-face {
   font-family: 'Harbormaster';
@@ -23,8 +29,8 @@
   width: min(560px, 58vw);           /* modest box — it must never cover Thor */
   height: min(190px, 26vh);          /* FIXED height: content can't grow the box past this */
   min-height: 0;
-  background: url('/art/ui/dialogue-box.png') center / 100% 100% no-repeat;
-  image-rendering: pixelated;
+  background: var(--kit-art-dialogue) center / 100% 100% no-repeat;
+  image-rendering: var(--kit-pixel);
   /* the paper window inside the hero frame (measured off the asset) — the text is
      vertically centered in it so a bigger face fills the paper instead of sitting low */
   padding: 5% 8.5% 6% 8.5%;
@@ -32,12 +38,15 @@
   display: flex;
   align-items: center;
   cursor: pointer;
-  animation: cs-rise 260ms cubic-bezier(.23,1.1,.35,1) both;
+  animation: cs-rise 260ms var(--kit-ease-rise) both;
 }
 @keyframes cs-rise {
   from { transform: translateX(-50%) translateY(14px); opacity: 0; }
   to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
 }
+/* the box arrives rather than appears, and reduced motion keeps the arrival and
+   drops the travel: an entrance shortens, it does not become a cut */
+html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
 /* THE PORTRAIT FRAME. `portrait` has been a field on both line types for months
    and nothing ever drew it, so an author could set one, see no error, and ship a
    scene where nobody has a face. The box keeps its measured height; the picture
@@ -65,11 +74,11 @@
 .cs-emote { opacity: .8; }
 
 .cs-dialogue-text {
-  font-family: 'Deckhand', monospace;
+  font-family: var(--kit-face-body);
   font-size: clamp(23px, 3.4vh, 33px);   /* big and readable; box height is fixed so it can't grow the box */
   line-height: 1.4;
-  color: #3b2a1a;
-  text-shadow: 0 1px 0 rgba(255, 250, 235, .35);
+  color: var(--kit-ink-said);
+  text-shadow: 0 1px 0 var(--kit-paper-sheen);
   width: 100%;
   /* NO percentage height here (it can clip to zero on some zooms — the old empty-box bug);
      the box is a fixed-height flex box that centers this line, so text fills the paper. */
@@ -77,25 +86,29 @@
 .cs-continue-hint {
   position: absolute;
   right: 13%; bottom: 13%;
-  font-family: 'Deckhand', monospace;
+  font-family: var(--kit-face-body);
   font-size: clamp(11px, 1.7vh, 14px);
-  color: #6a563c;
+  color: var(--kit-ink-label);
   animation: cs-hintpulse 1.8s ease-in-out infinite;
   pointer-events: none;
 }
 @keyframes cs-hintpulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+/* a decorative loop STOPS under reduced motion rather than shortening: an
+   infinite animation at 1ms is a strobe, which is worse than the thing the
+   setting was turned on to stop. It keeps the readable end of its own cycle. */
+html[data-rm='1'] .cs-continue-hint { animation: none; opacity: 1; }
 .cs-nameplaque {
   position: absolute;
   top: -9%;
   left: 6.5%;
   padding: 3px 16px 5px;
-  background: linear-gradient(#4a3421, #382614);
-  border: 2px solid #241708;
-  border-radius: 3px;
-  box-shadow: 0 2px 0 #1a1006, inset 0 1px 0 rgba(210, 170, 110, .35);
-  font-family: 'Harbormaster', 'Deckhand', monospace;
+  background: linear-gradient(var(--kit-wood-hi), var(--kit-wood-lo));
+  border: var(--kit-border) solid var(--kit-wood-edge);
+  border-radius: var(--kit-r-sharp);
+  box-shadow: 0 2px 0 var(--kit-wood-shadow), inset 0 1px 0 var(--kit-wood-sheen);
+  font-family: var(--kit-face-display);
   font-size: clamp(12px, 1.9vh, 16px);
-  color: #e8dcc0;
+  color: var(--kit-wood-ink);
   letter-spacing: 1px;
 }
 .cs-continue {
@@ -109,6 +122,7 @@
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-4px); }
 }
+html[data-rm='1'] .cs-continue { animation: none; }
 
 /* ---- caption: floating one-liner, no box ---- */
 .cs-caption {
@@ -116,10 +130,10 @@
   left: 50%;
   bottom: 16vh;
   transform: translateX(-50%);
-  font-family: 'Deckhand', monospace;
+  font-family: var(--kit-face-body);
   font-size: clamp(15px, 2.4vh, 20px);
-  color: #f2e8d2;
-  text-shadow: 0 2px 3px rgba(4, 8, 10, .85), 0 0 14px rgba(4, 8, 10, .5);
+  color: var(--kit-caption-ink);
+  text-shadow: var(--kit-caption-shadow);
   white-space: nowrap;
 }
 
@@ -130,19 +144,22 @@
   bottom: 9vh;
   transform: translateX(-50%);
   padding: 5px 18px 7px;
-  background: linear-gradient(#4a3421, #382614);
-  border: 2px solid #241708;
-  border-radius: 3px;
-  box-shadow: 0 2px 0 #1a1006, inset 0 1px 0 rgba(210, 170, 110, .35);
-  font-family: 'Deckhand', monospace;
+  background: linear-gradient(var(--kit-wood-hi), var(--kit-wood-lo));
+  border: var(--kit-border) solid var(--kit-wood-edge);
+  border-radius: var(--kit-r-sharp);
+  box-shadow: 0 2px 0 var(--kit-wood-shadow), inset 0 1px 0 var(--kit-wood-sheen);
+  font-family: var(--kit-face-body);
   font-size: clamp(13px, 2vh, 17px);
-  color: #e8dcc0;
+  color: var(--kit-wood-ink);
   animation: cs-pulse 1.6s ease-in-out infinite;
 }
 @keyframes cs-pulse {
   0%, 100% { opacity: .82; }
   50%      { opacity: 1; transform: translateX(-50%) scale(1.03); }
 }
+/* the plaque still says "walk to it" when it is holding still, so the loop goes
+   and the visible end of it stays */
+html[data-rm='1'] .cs-prompt { animation: none; opacity: 1; }
 
 /* ---- hold-to-skip plaque ---- */
 .cs-skip {
@@ -150,21 +167,29 @@
   top: max(2.6vh, 14px);
   right: max(2.2vw, 16px);
   padding: 4px 14px 6px;
-  background: linear-gradient(#3d2b1a, #2c1e0f);
-  border: 2px solid #1e1206;
-  border-radius: 3px;
+  background: linear-gradient(var(--kit-wood-dark-hi), var(--kit-wood-dark-lo));
+  border: var(--kit-border) solid var(--kit-wood-dark-edge);
+  border-radius: var(--kit-r-sharp);
   overflow: hidden;
-  font-family: 'Deckhand', monospace;
+  font-family: var(--kit-face-body);
   font-size: 13px;
-  color: #cbbd9d;
+  color: var(--kit-wood-dark-ink);
   opacity: .62;
   cursor: pointer;
   user-select: none;
-  transition: opacity 160ms ease;
+  transition: opacity var(--kit-t-slow) ease;
 }
 .cs-skip:hover { opacity: .95; }
+.cs-skip:focus-visible {
+  outline: var(--kit-focus-width) solid var(--kit-focus);
+  outline-offset: var(--kit-focus-offset);
+  opacity: .95;
+}
 .cs-skip-fill {
   position: absolute;
   inset: 0 auto 0 0;
-  background: rgba(120, 190, 180, .30);
+  /* the fill's OWN transition is set inline by the overlay and is deliberately not
+     a token: it is the length of the real hold, so shortening it would make the
+     bar lie about how long a finger has to stay down */
+  background: var(--kit-sea-fill);
 }
