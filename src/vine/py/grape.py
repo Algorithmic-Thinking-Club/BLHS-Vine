@@ -28,10 +28,35 @@ in that repo fails the moment the two differ.
 # moment the import finishes. You never touch this dict.
 _handlers = {}
 
+# your island.json, put here by the engine before your island is imported
+_manifest = {}
+
+
+def manifest():
+    """Your own island.json, as a dict.
+
+        yield award(programme=manifest()["programme"], grade=score)
+
+    WRITE YOUR PROGRAMME ID ONCE. Before this it was in island.json and again in
+    the award call, and a member who changed the manifest and not the code
+    shipped an island whose grade landed on somebody else's row, or on no row at
+    all. Two copies of one id is not a style question.
+
+    A copy, so editing what you get back cannot change what the engine thinks
+    your island is.
+    """
+    return dict(_manifest)
+
 
 def _forget():
     """Between loads. An island reloaded is an island whose old handlers are gone."""
     _handlers.clear()
+    _manifest.clear()
+
+
+def _describe(fields):
+    _manifest.clear()
+    _manifest.update(fields)
 
 
 def _registered():

@@ -45,7 +45,14 @@ export type ToWorker =
    * `island` is the folder the files land in on the runtime's own filesystem,
    * and it is also what puts that folder on sys.path, which is what lets
    * island.py say `from questions import Quiz` about the file beside it. */
-  | { t: 'load'; v: number; island: string; entry: string; files: Record<string, string> }
+  | {
+    t: 'load'; v: number; island: string; entry: string
+    files: Record<string, string>
+    /* the island's own island.json, handed over so `manifest()["programme"]`
+     * works and the id is written once instead of in the manifest AND again in
+     * the award call, where the two drift and a grade lands on the wrong row. */
+    manifest: Record<string, unknown>
+  }
   /* fire one registered handler. Strictly one at a time: the protocol is one
    * message in and one message out, and a second call arriving while the first
    * is parked on a `say` would resume the wrong generator. */

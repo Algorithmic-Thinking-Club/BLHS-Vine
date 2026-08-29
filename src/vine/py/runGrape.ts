@@ -73,6 +73,12 @@ export function openGrape(
    * vite follows into a real chunk in a production build. */
   const worker = new Worker(new URL('./grape.worker.ts', import.meta.url), { type: 'module' })
 
+  /* WHO IS SPEAKING, ATTACHED HERE SO NO CALLER CAN FORGET IT. Every intent
+   * this session performs is stamped with the island's own programme id, which
+   * is what keeps one member's flags out of another's (P4). A scene that built
+   * the host itself would have to remember, and one day would not. */
+  const scoped: IntentHost = { ...host, by: { grape: island.manifest.programme } }
+
   let handlers: string[] = []
   let dead: { error: string; traceback?: string } | null = null
   let stopped = false
@@ -145,7 +151,7 @@ export function openGrape(
     /* THE CLOCK IS OFF FOR THIS. performIntent is where a `say` waits on a
      * person, and a person is allowed to take as long as they like. */
     disarm()
-    const result = await performIntent(intent, host)
+    const result = await performIntent(intent, scoped)
     /* the scene tore down, or this call ended, while the player was reading a
      * line. Nothing to resume into. */
     if (stopped || waiting !== w) return
@@ -186,6 +192,7 @@ export function openGrape(
     island: island.island,
     entry: island.manifest.entry,
     files: island.files,
+    manifest: { ...island.manifest },
   } satisfies ToWorker)
 
   return {

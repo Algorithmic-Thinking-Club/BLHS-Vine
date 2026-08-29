@@ -121,7 +121,9 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   useEffect(() => onBeatRequest((req) => {
     setPaused(false)
     const beat = beatById(req.beat, s)
-    if (!beat) { console.warn(`[hud] no beat "${req.beat}"`); req.done(null); return }
+    /* REFUSED, NOT ANSWERED NULL. A beat id nobody knows is a typo in somebody's
+     * island, and a null grade told them it had worked. */
+    if (!beat) { req.refuse(`no activity called "${req.beat}"`); return }
     onBlurWorld?.(true)
     setPlaying({ beat, plain: req.plain, done: req.done })
   }), [onBlurWorld, s])

@@ -28,19 +28,33 @@ export const engine: IntentEngine = {
 
   /* the questions progress.ts can actually answer, and no others. A closed list
    * is deliberate: a grape that could ask for an arbitrary path would be a grape
-   * that reaches into the save's shape, and then the save can never change. */
+   * that reaches into the save's shape, and then the save can never change.
+   *
+   * EVERY PATH ANSWERS IN ITS OWN TYPE, WITH OR WITHOUT A SAVE. This used to
+   * return null for all nine the moment there was no run, and the damage was
+   * subtle in both directions. `mode` came back null while `engine.mode()` said
+   * 'game', so an island could not find out which half of the class it was
+   * talking to and every unjoined player silently read as neither arm. `year`
+   * came back null, so `get("year") + 1` threw inside the MEMBER'S own island
+   * over a state the engine created. And the empty ones, `flags` and `cords` and
+   * `islands`, came back as something you cannot iterate.
+   *
+   * A run that has not started is a real state, not a missing one. It is year
+   * one, no tokens spent, nothing earned, and whatever arm the mode says. */
   read(path: RunPath): unknown {
     const s = loadSave()
-    if (!s) return null
     switch (path) {
-      case 'year': return s.year
-      case 'gpa': return gpaOf(s)
-      case 'tokens': return s.tokens.length
-      case 'cords': return cordsOf(s).filter((c) => c.earned).map((c) => c.id)
-      case 'flags': return [...s.flags]
-      case 'islands': return { ...s.islands }
-      case 'handle': return s.handle
-      case 'graduated': return !!s.graduated
+      case 'year': return s?.year ?? 1
+      case 'gpa': return s ? gpaOf(s) : 0
+      case 'tokens': return s?.tokens.length ?? 0
+      case 'cords': return s ? cordsOf(s).filter((c) => c.earned).map((c) => c.id) : []
+      case 'flags': return s ? [...s.flags] : []
+      case 'islands': return s ? { ...s.islands } : {}
+      /* the two that are honestly absent. A player with no run has no name and
+       * has not graduated, and neither is a number an island can do arithmetic
+       * on, so null is the truthful answer rather than an invented one. */
+      case 'handle': return s?.handle ?? null
+      case 'graduated': return !!s?.graduated
       case 'mode': return engine.mode()
     }
   },

@@ -32,7 +32,7 @@ _gen = None
 _step = "null"
 
 
-def _load(island, entry, names_json):
+def _load(island, entry, names_json, manifest_json):
     """Put a member's package on sys.path, import it, report what registered."""
     global _gen, _step
     _gen = None
@@ -62,6 +62,9 @@ def _load(island, entry, names_json):
             del sys.modules[mod]
 
     grape._forget()
+    # BEFORE the import, so a module-level `manifest()["programme"]` works and
+    # not only one inside a handler
+    grape._describe(json.loads(manifest_json))
     try:
         __import__(entry[:-3] if entry.endswith(".py") else entry)
     except:

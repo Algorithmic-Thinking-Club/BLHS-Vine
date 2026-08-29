@@ -151,7 +151,24 @@ export interface IntentEngine {
   mode(): SessionMode
 }
 
-export type IntentHost = { world: IntentWorld | null; engine: IntentEngine }
+/* WHO IS SPEAKING, WHEN IT IS NOT THE VINE.
+ *
+ * P4. `set_flag` took an arbitrary string and wrote it into one flat list shared
+ * by every island in the game, so two members both shipping a flag called `done`
+ * collided silently in a student's save, and an island could write `yearbook:y1`
+ * and move something that was never its business.
+ *
+ * A flag is now prefixed with the id of whoever asked. The vine's own stations
+ * have no `by` and keep the bare names they already wrote, because renaming
+ * those would rewrite every existing save. A grape always has one. */
+export type IntentBy = { grape: string }
+
+export type IntentHost = {
+  world: IntentWorld | null
+  engine: IntentEngine
+  /** absent for the vine's own content; set to the island's programme id */
+  by?: IntentBy
+}
 
 /* ---- the one place an intent is performed --------------------------------- */
 
@@ -162,7 +179,11 @@ export type IntentHost = { world: IntentWorld | null; engine: IntentEngine }
  * compile.
  */
 export async function performIntent(i: Intent, host: IntentHost): Promise<IntentResult> {
-  const { world, engine } = host
+  const { world, engine, by } = host
+  /* the island's own corner of the flag list. A member writes set_flag("met"),
+   * the save gets "atc:met", and nobody else's island can reach it or collide
+   * with it. Bare for the vine, which wrote the flags already in every save. */
+  const scoped = (flag: string) => (by ? `${by.grape}:${flag}` : flag)
   /* an intent that needs a map, asked in a scene that has none. Answered rather
    * than thrown: a grape running in the standalone harness with no scene should
    * report "there is no world here", not crash the worker. */
@@ -223,9 +244,17 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         return ok(await engine.playBeat(i.beat, plain))
       }
       case 'get':
+        /* and it READS its own corner too, or the namespace is half a namespace:
+         * an island that wrote "met" and then read `flags` would get back
+         * "atc:met" beside every other island's, and recognise none of it. */
+        if (i.path === 'flags' && by) {
+          const mine = `${by.grape}:`
+          return ok((engine.read('flags') as string[])
+            .filter((f) => f.startsWith(mine)).map((f) => f.slice(mine.length)))
+        }
         return ok(engine.read(i.path))
       case 'set_flag':
-        engine.setFlag(i.flag)
+        engine.setFlag(scoped(i.flag))
         return ok()
       case 'award':
         engine.award(i)

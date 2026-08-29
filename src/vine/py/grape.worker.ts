@@ -121,8 +121,9 @@ async function handle(msg: ToWorker) {
       py.globals.set('_island', msg.island)
       py.globals.set('_entry', msg.entry)
       py.globals.set('_names', JSON.stringify(Object.keys(msg.files)))
+      py.globals.set('_manifest', JSON.stringify(msg.manifest))
       /* the call is a constant. Everything variable went in through globals. */
-      send(step(py, '_load(_island, _entry, _names)'))
+      send(step(py, '_load(_island, _entry, _names, _manifest)'))
       return
     }
 
