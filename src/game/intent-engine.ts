@@ -11,9 +11,11 @@ import type { SessionMode } from '../vine/contract'
 import { requestBeat, requestUi } from './ui-bus'
 import { track } from './telemetry'
 import {
-  collectFact, collectSticker, grantBadge, loadSave, recordGrade, setFlag,
+  collectFact, collectSticker, grantBadge, islandLedgerId, loadSave, recordCompletion,
+  recordGrade, setFlag, setIslandState,
 } from './save'
 import { cordsOf, gpaOf } from './progress'
+import { programmeById } from './roster/roster'
 
 export const engine: IntentEngine = {
   openUi(ui) {
@@ -49,25 +51,54 @@ export const engine: IntentEngine = {
 
   /* one call, because a station awarding a grade and a sticker in the same beat
    * should not have to know which of four functions each one lives behind.
-   * Every one of these is idempotent on the save side already. */
+   * Every one of these is idempotent on the save side already.
+   *
+   * ONE INTENT COMPLETES AN ISLAND AND RECORDS ITS GRADE TOGETHER (M2). Naming a
+   * programme is what turns a bare number into a transcript row that says what it
+   * was, weighs what an island weighs, carries the cord tags the programme
+   * carries, counts a year on that programme's ladder, and marks the programme
+   * finished in this year and no other. */
   award(a) {
     if (a.fact) collectFact(a.fact)
     if (a.sticker) collectSticker(a.sticker)
     if (a.badge) grantBadge(a.badge)
-    if (typeof a.grade === 'number') {
-      const s = loadSave()
-      /* a grade with no beat behind it still has to land somewhere the GPA maths
-       * can see, so it goes on the ledger as its own entry rather than being
-       * dropped for want of a title */
-      recordGrade({
-        id: `award:${Date.now().toString(36)}`,
-        title: 'Awarded',
-        kind: 'core',
+    if (typeof a.grade !== 'number') return
+
+    const s = loadSave()
+    if (!s) return
+    const year = s.year
+    const g = programmeById(a.programme)
+    /* an unknown programme is not refused here: `performIntent` would turn a
+     * throw into a refusal at the member's own line, and a grade that has been
+     * earned should not be lost to a typo in the name of strictness. It lands as
+     * the anonymous row it always was, and the name it was given is on it so the
+     * author can see what they asked for. */
+    const tags = [...(g?.tags ?? []), ...(a.tags ?? [])]
+    const entry = g
+      ? {
+        id: islandLedgerId(g.id, year), title: g.name, kind: 'island' as const, credit: 1,
+        ...(g.rankTrack ? { rank: g.rankTrack } : {}),
+      }
+      : {
+        /* stable in what it is about and in the year, so replaying it updates one
+         * row. A timestamp made every replay a new row and every replay another
+         * half credit of weight on the GPA. */
+        id: `award:y${year}:${a.programme ?? a.sticker ?? a.badge ?? a.fact ?? 'unnamed'}`,
+        title: a.programme ? `Awarded (${a.programme})` : 'Awarded',
+        kind: 'core' as const,
         credit: 0.5,
-        grade: a.grade,
-        year: s?.year ?? 1,
-        season: s?.season ?? 'Fall',
-      })
+      }
+
+    recordGrade({
+      ...entry,
+      grade: a.grade,
+      year,
+      season: s.season,
+      ...(tags.length ? { tags } : {}),
+    })
+    if (g) {
+      recordCompletion(g.id, a.grade, g.rankTrack ?? undefined)
+      setIslandState(g.id, 'completed')
     }
   },
 

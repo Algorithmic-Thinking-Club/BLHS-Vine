@@ -8,7 +8,8 @@ import type { LedgerEntry, SaveGame } from '../game/save'
 
 const t = (over: Partial<Transcript> = {}): Transcript => ({
   participantId: 'p_abc', handle: 'BraveTide', gpa: 3.6, cords: ['high-honors'],
-  ranks: { atc: 2 }, islandsCompleted: 3, factsLearned: 12, years: 4, ...over,
+  ranks: { atc: 2 }, islandsCompleted: 3, placesSeen: 2, programmesCompleted: 1,
+  factsLearned: 12, years: 4, ...over,
 })
 
 describe('runCode', () => {
@@ -19,6 +20,10 @@ describe('runCode', () => {
   it('locked output — a change here breaks every printed diploma', () => {
     expect(canonical(t())).toBe('p_abc|3.60|high-honors|atc:2|3|12|4')
     expect(runCode(t())).toBe(runCode(t({ cords: ['high-honors'] })))
+  })
+  it('the two new export numbers stay OUT of the code, so old diplomas still check', () => {
+    const base = runCode(t())
+    expect(runCode(t({ placesSeen: 9, programmesCompleted: 9 }))).toBe(base)
   })
   it('any transcript change changes the code', () => {
     const base = runCode(t())

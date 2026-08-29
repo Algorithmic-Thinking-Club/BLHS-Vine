@@ -34,7 +34,8 @@ import { holdWorld, onWorldHold, worldHeld } from '../world-bus'
 import { choose, clearDialogue, say } from '../dialogue'
 import { engine } from '../intent-engine'
 import { NotBuilt, type IntentHost, type IntentWorld } from '../../vine/intents'
-import { loadSave } from '../save'
+import { loadSave, recordExposure } from '../save'
+import { placeOfMap } from '../roster/roster'
 import { MAW_MAP, isObjective, nextObjective } from '../run/objective'
 import { missingAnchors, stationByName } from '../maw/stations'
 import { runStation } from '../maw/run-station'
@@ -542,9 +543,32 @@ export default function PmapScene() {
        */
       const anchors = AnchorSet.from(mapId, map)
       const doors = anchors.ofKind('door')
-      /* every placement by its MAPVIS id, so an anchor bound to one can address
-       * it. Filled in the assets pass below. */
+      /* every placement by the strings that can address it, so an anchor bound
+       * to one can find it. Filled in the assets pass below.
+       *
+       * TWO KEYS PER SPRITE, and that is deliberate. The MAPVIS id is 'a' plus
+       * a counter: nobody chose it and it does not survive the thing being
+       * deleted and placed again, so a binding made against it is a binding
+       * that quietly goes stale. `name` is what the author typed and is the
+       * address a member's python writes. Both resolve here so that a bundle
+       * published before names existed keeps working, and MAPVIS refuses a
+       * placement name shaped like a machine id, so no string can mean two of
+       * these at once. */
       const placedById = new Map<string, Sprite>()
+
+      /* THE AWARENESS RECORD, WRITTEN WHERE A PLACE IS ACTUALLY SEEN.
+       *
+       * A map is a painting and a place is what the painting is of, so standing
+       * in one of a place's paintings is that place seen, docked. This is the one
+       * callsite that makes the strongest educational claim in the project
+       * countable at all: which of the school's programmes a pseudonymous
+       * participant was ever shown. A map that belongs to no place on the roster
+       * records nothing rather than inventing a place to record. */
+      {
+        const place = placeOfMap(mapId)
+        if (place) recordExposure(place.id, true)
+      }
+
       if (DBG && anchors.all.length) {
         console.log(`[pmap] ${mapId}: ${anchors.all.length} anchors ·`,
           anchors.all.map((a) => `${a.name}(${a.kind})`).join(' '))
@@ -915,6 +939,11 @@ export default function PmapScene() {
       }
       interface PmapAsset extends PmapLook {
         id: string; group: string
+        /* what the AUTHOR called this thing, when they called it anything. The
+         * id beside it is a counter MAPVIS made up and is not stable across a
+         * re-place, so this is the only address a member's python can hold.
+         * Absent on scenery, which is nearly every placement on a map. */
+        name?: string
         x: number; y: number; scale: number
         // the MAPVIS transform contract: axis scales (falling back to the old
         // uniform scale), rotation in radians about the feet anchor, flips
@@ -1105,11 +1134,13 @@ export default function PmapScene() {
               sp.rotation = Number(a.rot) || 0
               sp.zIndex = a.y
               world.addChild(sp)
-              /* addressable by its MAPVIS id, which is what an anchor's
-               * `placement` field points at. This is the whole mechanism behind
-               * the world reflecting the run: bind an anchor to a placement and
-               * `show` can make it appear when a cord is earned. */
+              /* addressable by its MAPVIS id and by the name its author typed,
+               * which is what an anchor's `placement` field points at. This is
+               * the whole mechanism behind the world reflecting the run: bind
+               * an anchor to a placement and `show` can make it appear when a
+               * cord is earned. */
               placedById.set(a.id, sp)
+              if (a.name) placedById.set(a.name, sp)
               // a placement that MOVES carries a few numbers instead of extra
               // frames, and the ticker below works out where it is. See life.ts:
               // travel cannot be baked into an animation, because an animation

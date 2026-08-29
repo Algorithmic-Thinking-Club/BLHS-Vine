@@ -17,9 +17,33 @@ export const letterOf = (g: number) =>
   g >= 3.85 ? 'A' : g >= 3.5 ? 'A-' : g >= 3.15 ? 'B+' : g >= 2.85 ? 'B' : g >= 2.5 ? 'B-' :
   g >= 2.15 ? 'C+' : g >= 1.85 ? 'C' : g >= 1.5 ? 'C-' : g >= 1.0 ? 'D' : 'F'
 
-/** rank ladder (§8.2): years invested in one island's track */
+/** rank ladder (§8.2): years invested in one programme's track */
 export const rankName = (years: number) =>
   years >= 3 ? 'Captain' : years >= 2 ? 'Varsity' : years >= 1 ? 'JV' : null
+
+/* YEARS INVESTED, DERIVED FROM THE COMPLETION RECORD RATHER THAN STORED.
+ *
+ * `save.ranks` had four readers and zero writers, so every ladder in the game
+ * stood at zero forever and the only thing that ever moved one was a test
+ * writing the field by hand. Deriving it means a stored count can never disagree
+ * with the ledger, which is the failure a writer would have introduced.
+ *
+ * A year counts once no matter how many times the programme was replayed inside
+ * it, because a ladder is years invested and not visits made. The stored field is
+ * still merged in, because a save written before this shipped carries real
+ * progress in it and a forward-compatible read defaults rather than wipes. */
+export function ranksOf(s: SaveGame): Record<string, number> {
+  const years = new Map<string, Set<number>>()
+  for (const c of s.completions ?? []) {
+    if (!c.rank) continue
+    const set = years.get(c.rank) ?? new Set<number>()
+    set.add(c.year)
+    years.set(c.rank, set)
+  }
+  const out: Record<string, number> = { ...s.ranks }
+  for (const [track, set] of years) out[track] = Math.max(out[track] ?? 0, set.size)
+  return out
+}
 
 export type CordProgress = {
   id: string
@@ -43,7 +67,7 @@ export function cordsOf(s: SaveGame): CordProgress[] {
   const apResearch = count(s, (e) => e.id === 'class:ap-research' && e.grade >= 2)
   const lang = count(s, (e) => !!e.tags?.includes('lang') && e.grade >= 2)
   const langCap = count(s, (e) => !!e.tags?.includes('lang-capstone') && e.grade >= 2)
-  const keyYears = s.ranks['keyclub'] ?? 0
+  const keyYears = ranksOf(s)['keyclub'] ?? 0
 
   return [
     {
@@ -109,8 +133,13 @@ export function transcriptOf(s: SaveGame): import('../vine/verify').Transcript {
     handle: s.handle,
     gpa: gpaOf(s),
     cords: cordsOf(s).filter((c) => c.earned).map((c) => c.id).sort(),
-    ranks: s.ranks,
+    ranks: ranksOf(s),
     islandsCompleted: Object.values(s.islands).filter((st) => st === 'completed').length,
+    /* EXPOSURE AND COMPLETION ARE TWO NUMBERS. Places seen is the awareness
+     * measure and programmes finished is the learning one, and counting either as
+     * the other moves the independent variable's extent by the modelling. */
+    placesSeen: new Set((s.exposure ?? []).map((e) => e.place)).size,
+    programmesCompleted: new Set((s.completions ?? []).map((c) => c.programme)).size,
     factsLearned: s.facts.length,
     years: s.year,
   }

@@ -26,9 +26,47 @@ export type LedgerEntry = {
   season: Season
   retaken?: boolean
   tags?: string[]
+  /* WHICH ATTEMPT THIS ROW IS ON, counted here rather than passed in. `tries` was
+   * hardcoded to 1 at every callsite in both arms, so a retake count could never
+   * be anything else, and the retake is real school policy that the game teaches
+   * correctly and could not measure. Counting it at the one place that writes the
+   * ledger is the only version of this that cannot be hardcoded again. */
+  attempts?: number
+  /* THE FIRST ATTEMPT'S GRADE, NEVER OVERWRITTEN.
+   * Best-of-two is correct for the student and wrong for the study: the first
+   * attempt is the only honest measure of what they knew before the review card
+   * told them. Two fields because keeping one of them loses the other. */
+  firstGrade?: number
+  /** the rank ladder this row counts a year toward, when it counts toward one */
+  rank?: string
 }
 
 export type IslandState = 'misty' | 'discovered' | 'available' | 'active' | 'completed'
+
+/* EXPOSURE IS NOT COMPLETION, and they were the same string.
+ *
+ * A student who sailed to the stadium in three seasons saw one PLACE three times
+ * and may have finished three PROGRAMMES or none. Counting places as programmes
+ * inflates the independent variable by the modelling rather than by anything the
+ * student did, and counting programmes as places deflates the awareness measure
+ * by exactly the same amount. Neither error is visible once it is collected,
+ * which is why the split is in the record and not in the analysis.
+ *
+ * This is the awareness hypothesis's instrument: per student, per place, per
+ * year, and whether they ever got off the boat. It is also the cheapest data in
+ * the game and the most likely to survive a district review, because it is a
+ * list of which school programmes a pseudonymous participant saw. */
+export type Exposure = { place: string; year: number; docked: boolean }
+
+/* THE COMPLETION RECORD (W3): one entry per PROGRAMME per YEAR, append-only.
+ *
+ * `save.islands` is one mutable value per key, and `stampPlan` wrote 'active'
+ * over it without reading what was there, so re-slotting a programme in a second
+ * year erased the record that it was finished in the first. That is not an edge
+ * case: it is the ordinary path of a rank ladder, which re-slots the same
+ * programme three years running and therefore destroyed its own history twice on
+ * the way up. */
+export type Completion = { programme: string; year: number; grade: number; rank?: string; at: number }
 
 /* one year's sheet at the chart table (§7.2): season slots + the 2 focus classes.
  * A SLOT POINTS AT A PROGRAMME AND NEVER AT A MAP. That is what lets one place
@@ -60,8 +98,17 @@ export type SaveGame = {
   flags: string[]               // one-shot beats seen ('vignette:y1', ...) — never re-fire
   tokens: Season[]
   ledger: LedgerEntry[]
+  /* LEGACY, AND READ THROUGH progress.ts's ranksOf() RATHER THAN DIRECTLY.
+   * It had four readers and zero writers. Years invested are derived from the
+   * completion record now, so a stored count cannot disagree with the ledger. */
   ranks: Record<string, number>
+  /** the CURRENT state of one programme, for the colour on a chart. Keyed by
+   *  programme id (roster/roster.ts), never by a map id or a place id. */
   islands: Record<string, IslandState>
+  /** every place this student was ever shown, per year (added after v2 shipped) */
+  exposure?: Exposure[]
+  /** append-only: one row per programme per year, and never written by a stamp */
+  completions?: Completion[]
   stickers: string[]
   facts: string[]
   badges: string[]
@@ -71,7 +118,8 @@ export type SaveGame = {
 const fresh = (): SaveGame => ({
   v: 2, id: newId(), handle: '', pronouns: '', boatName: '', year: 1, season: 'Fall',
   beat: 'intro:i1', introDone: false, plans: {}, flags: [],
-  tokens: [...SEASONS], ledger: [], ranks: {}, islands: {}, stickers: [], facts: [], badges: [],
+  tokens: [...SEASONS], ledger: [], ranks: {}, islands: {}, exposure: [], completions: [],
+  stickers: [], facts: [], badges: [],
   savedAt: 0,
 })
 
@@ -79,6 +127,8 @@ const fresh = (): SaveGame => ({
 const norm = (s: SaveGame): SaveGame => {
   if (!s.plans) s.plans = {}
   if (!s.flags) s.flags = []
+  if (!s.exposure) s.exposure = []
+  if (!s.completions) s.completions = []
   return s
 }
 
@@ -169,15 +219,74 @@ export function clearSave() {
 // fact, a badge check) firing before Begin Adventure must not conjure a phantom save that
 // then greets a brand-new student with "Welcome back".
 
+/* THE ONE PLACE THE LEDGER IS WRITTEN, which is why the attempt count lives here.
+ *
+ * Best-of-two is kept for the student and the first attempt is kept for the
+ * study, and a worse retake still counts as an attempt: a student who ran it back
+ * and did worse tried twice, and a row that says otherwise is the retake policy
+ * being unmeasurable rather than unused. */
 export function recordGrade(e: LedgerEntry) {
   const s = loadSave()
   if (!s) return null
   const i = s.ledger.findIndex((x) => x.id === e.id)
   const ledger = [...s.ledger]
-  if (i >= 0) { if (e.grade > ledger[i].grade) ledger[i] = { ...e, retaken: true }; else return s }
-  else ledger.push(e)
+  if (i >= 0) {
+    const was = ledger[i]
+    const attempts = (was.attempts ?? 1) + 1
+    const firstGrade = was.firstGrade ?? was.grade
+    ledger[i] = e.grade > was.grade
+      ? { ...e, retaken: true, attempts, firstGrade }
+      : { ...was, attempts, firstGrade }
+  } else {
+    ledger.push({ ...e, attempts: 1, firstGrade: e.grade })
+  }
   return writeSave({ ledger })
 }
+
+/* THE AWARENESS RECORD. Called when a place is shown to a student, and again
+ * with docked=true when they actually land. One row per place per year: seeing
+ * the stadium three times in one year is one exposure, seeing it in three years
+ * is three, and that is what the awareness claim needs to be countable at all. */
+export function recordExposure(place: string, docked = false) {
+  const s = loadSave()
+  if (!s || !place) return null
+  const rows = [...(s.exposure ?? [])]
+  const i = rows.findIndex((x) => x.place === place && x.year === s.year)
+  if (i >= 0) {
+    if (rows[i].docked || !docked) return s
+    rows[i] = { ...rows[i], docked: true }
+  } else {
+    rows.push({ place, year: s.year, docked })
+  }
+  return writeSave({ exposure: rows })
+}
+
+/* ONE ROW PER PROGRAMME PER YEAR, APPEND-ONLY, WRITTEN BY A RESULT.
+ * Re-finishing the same programme in the same year updates that year's row and
+ * never adds a second; finishing it again next year is a new row, which is what
+ * a three-year ladder is made of. */
+export function recordCompletion(programme: string, grade: number, rank?: string) {
+  const s = loadSave()
+  if (!s || !programme) return null
+  const rows = [...(s.completions ?? [])]
+  const i = rows.findIndex((c) => c.programme === programme && c.year === s.year)
+  const row: Completion = { programme, year: s.year, grade, at: Date.now(), ...(rank ? { rank } : {}) }
+  if (i >= 0) {
+    if (grade <= rows[i].grade) return s
+    /* the ladder a year counted toward does not change because the grade
+     * improved, so a later write with no track keeps the one already on the row */
+    rows[i] = { ...row, at: rows[i].at, ...(rank ? { rank } : rows[i].rank ? { rank: rows[i].rank } : {}) }
+  } else rows.push(row)
+  return writeSave({ completions: rows })
+}
+
+/** did this student finish this programme in this year (the voyage's own question) */
+export const completedIn = (s: SaveGame, programme: string, year: number): boolean =>
+  (s.completions ?? []).some((c) => c.programme === programme && c.year === year)
+
+/** every year this student finished this programme, which is a ladder's height */
+export const yearsCompleted = (s: SaveGame, programme: string): number[] =>
+  (s.completions ?? []).filter((c) => c.programme === programme).map((c) => c.year).sort()
 
 export function spendToken(season: Season): ReturnType<typeof writeSave> | null {
   const s = loadSave()
@@ -188,12 +297,26 @@ export function spendToken(season: Season): ReturnType<typeof writeSave> | null 
   return writeSave({ tokens })
 }
 
+/* THE LEDGER ID OF A PROGRAMME'S VOYAGE, one convention stated once so the
+ * completion record and the transcript row can find each other. It is stable in
+ * the programme and the year, which is the whole of M1's "stably identified":
+ * playing the same island twice in one year updates one row instead of weighting
+ * the GPA twice, which a base-36 timestamp could never do. */
+export const islandLedgerId = (programme: string, year: number) => `island:${programme}:y${year}`
+
 /** the state of one PROGRAMME in this run. Keyed by programme id, which is the
- *  key the planner's slot holds, never a map id or a place id. */
+ *  key the planner's slot holds, never a map id or a place id. Setting it to
+ *  'completed' writes the append-only record too, because completion is a result
+ *  and a mutable field cannot remember three years of a ladder. */
 export function setIslandState(id: string, state: IslandState) {
   const s = loadSave()
   if (!s) return null
-  return writeSave({ islands: { ...s.islands, [id]: state } })
+  const next = writeSave({ islands: { ...s.islands, [id]: state } })
+  if (state === 'completed') {
+    const row = s.ledger.find((e) => e.id === islandLedgerId(id, s.year))
+    return recordCompletion(id, row?.grade ?? 0) ?? next
+  }
+  return next
 }
 
 export function collectFact(id: string) {
@@ -297,7 +420,13 @@ export function stampPlan(year: number, activeProgrammeIds: string[] = []) {
   const plan = planOf(s, year)
   if (plan.stamped) return null
   const islands = { ...s.islands }
-  for (const id of activeProgrammeIds) islands[id] = 'active'
+  /* THE STAMP WRITES INTENT AND NEVER COMPLETION. It used to write 'active' with
+   * no read of what was there, so re-slotting a programme in a second year erased
+   * the record that it was finished in the first, which is the ordinary path of a
+   * rank ladder. The per-year completion record is the history now, and this
+   * mutable field is only the colour on a chart, so a finished programme keeps
+   * its colour until the year's own record says otherwise. */
+  for (const id of activeProgrammeIds) if (islands[id] !== 'completed') islands[id] = 'active'
   return writeSave({
     plans: { ...s.plans, [year]: { ...plan, stamped: true } },
     islands,

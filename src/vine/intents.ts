@@ -67,7 +67,28 @@ export type Intent =
    * answer to. */
   | { kind: 'get'; path: RunPath }
   | { kind: 'set_flag'; flag: string }
-  | { kind: 'award'; grade?: number; fact?: string; sticker?: string; badge?: string }
+  /* THE LEDGER ROW AN ISLAND WRITES. It used to carry a grade and nothing else,
+   * so every island's grade landed as `kind: 'core'`, `credit: 0.5`, no tags, and
+   * an id made of a base-36 timestamp. That row moved the GPA the same amount as
+   * every other island, could never move a cord no matter what the island was
+   * about, appeared on the transcript titled "Awarded", and weighted the GPA
+   * twice if the island was played twice.
+   *
+   * `programme` is the fix and it is one word: it names the roster entry this
+   * grade belongs to, and from that the engine knows the title, the credit, the
+   * kind, the cord tags, the rank track and a stable id. A grape says what it
+   * finished; it does not get to say what that is worth. */
+  | {
+    kind: 'award'
+    /** the roster programme this grade completes, when it completes one */
+    programme?: string
+    grade?: number
+    /** cord-relevance tags on top of the programme's own; never replaces them */
+    tags?: string[]
+    fact?: string
+    sticker?: string
+    badge?: string
+  }
 
   /* instrumentation. Law 11: every meaningful interaction emits a typed event.
    * A grape gets to add to the record; it does not get to write the record. */
@@ -122,7 +143,10 @@ export interface IntentEngine {
   playBeat(beat: string, asPlain: boolean): Promise<number | null>
   read(path: RunPath): unknown
   setFlag(flag: string): void
-  award(a: { grade?: number; fact?: string; sticker?: string; badge?: string }): void
+  award(a: {
+    programme?: string; grade?: number; tags?: string[]
+    fact?: string; sticker?: string; badge?: string
+  }): void
   log(event: string, data?: Record<string, unknown>): void
   mode(): SessionMode
 }

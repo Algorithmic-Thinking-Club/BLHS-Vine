@@ -12,12 +12,20 @@ export type Transcript = {
   cords: string[]          // earned cord ids, sorted
   ranks: Record<string, number>
   islandsCompleted: number
+  /* THE TWO NUMBERS THAT USED TO BE ONE. `placesSeen` is the awareness measure
+   * and `programmesCompleted` is the learning one, and a student who sailed to
+   * the stadium in three seasons is one of the first and up to three of the
+   * second. NEITHER IS IN `canonical` BELOW and neither ever will be: the code is
+   * frozen so that a diploma printed today still checks against a roster
+   * tomorrow, and these two are for the export rather than for the check. */
+  placesSeen: number
+  programmesCompleted: number
   factsLearned: number
   years: number
 }
 
 /** the canonical string the code hashes — field order is FROZEN (changing it breaks
- *  every printed diploma against every roster; do not reorder) */
+ *  every printed diploma against every roster; do not reorder, do not add) */
 export function canonical(t: Transcript): string {
   return [
     t.participantId,

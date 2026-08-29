@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from 'react'
 import { LOOKS, drawRecolored } from '../thorLook'
 import { loadSave, writeSave } from '../save'
 import { programmeById } from '../roster/roster'
+import { ranksOf } from '../progress'
 import { track } from '../telemetry'
 import './wardrobe.css'
 
@@ -35,7 +36,7 @@ const earnByCompleting = (id: string) => {
 }
 
 const LOCKED = [
-  { icon: '🧥', name: 'Letterman jacket', earn: 'reach Varsity in any sport', has: (s: ReturnType<typeof loadSave>) => Object.values(s?.ranks ?? {}).some((y) => Number(y) >= 2) },
+  { icon: '🧥', name: 'Letterman jacket', earn: 'reach Varsity in any sport', has: (s: ReturnType<typeof loadSave>) => !!s && Object.values(ranksOf(s)).some((y) => Number(y) >= 2) },
   { icon: '🥽', name: 'Robotics goggles', earn: earnByCompleting('robotics'), has: (s: ReturnType<typeof loadSave>) => !!programmeById('robotics') && s?.islands?.robotics === 'completed' },
   { icon: '🎓', name: 'Graduation cap', earn: 'finish a four-year run', has: (s: ReturnType<typeof loadSave>) => !!s?.graduated },
 ]

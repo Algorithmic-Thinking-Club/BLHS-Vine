@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { hasFlag, loadSave, setFlag, type SaveGame } from '../save'
-import { cordsOf, gpaOf, letterOf, rankName, transcriptOf } from '../progress'
+import { cordsOf, gpaOf, letterOf, rankName, ranksOf, transcriptOf } from '../progress'
 import { runCode } from '../../vine/verify'
 import { programmeOfRankTrack } from '../roster/roster'
 import { track } from '../telemetry'
@@ -59,7 +59,7 @@ export function Graduation({ onClose }: { onClose: () => void }) {
    * whenever the two were spelled differently, and Key Club's are: the track is
    * `keyclub` and the programme is `key-club`, so a graduating student's diploma
    * read "keyclub". */
-  const ranks = Object.entries(s.ranks)
+  const ranks = Object.entries(ranksOf(s))
     .map(([track, yrs]) => ({ name: programmeOfRankTrack(track)?.name ?? track, rank: rankName(yrs) }))
     .filter((r) => r.rank)
 
@@ -172,7 +172,7 @@ function drawDiploma(cv: HTMLCanvasElement, s: SaveGame, code: string) {
    * whenever the two were spelled differently, and Key Club's are: the track is
    * `keyclub` and the programme is `key-club`, so a graduating student's diploma
    * read "keyclub". */
-  const ranks = Object.entries(s.ranks)
+  const ranks = Object.entries(ranksOf(s))
     .map(([track, yrs]) => ({ name: programmeOfRankTrack(track)?.name ?? track, rank: rankName(yrs) }))
     .filter((r) => r.rank)
 

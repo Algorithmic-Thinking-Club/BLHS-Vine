@@ -6,7 +6,7 @@
 // because every beat's doneness lives on the ledger/plan, not in component state.
 
 import type { SaveGame, Season } from '../save'
-import { SEASONS } from '../save'
+import { SEASONS, completedIn } from '../save'
 import { hasCoreBeat, beatDone } from '../beats/beats'
 import { classDone } from '../beats/classes'
 import { programmeById, placeOfProgramme } from '../roster/roster'
@@ -58,7 +58,10 @@ export function yearStatus(s: SaveGame): YearStatus {
     return [{
       season, programmeId: id, name: g?.name ?? id, placeId: placeOfProgramme(id)?.id,
       playable: !!g?.playable,
-      done: s.islands[id] === 'completed',
+      /* PER PROGRAMME AND PER YEAR, off the append-only record. A ladder re-slots
+       * the same programme three years running, so "done" has to mean done THIS
+       * year or year two opens with year one's tick still on the sheet. */
+      done: completedIn(s, id, year),
     }]
   })
   const classesDone = plan.classes.filter((c) => classDone(s.ledger, c))

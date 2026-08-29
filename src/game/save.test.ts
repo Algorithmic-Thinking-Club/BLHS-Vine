@@ -145,6 +145,74 @@ describe('domain verbs', () => {
     expect(save.loadSave()!.ledger).toHaveLength(1)
   })
 
+  it('counts every attempt and keeps the FIRST grade as well as the best', async () => {
+    const save = await freshModule()
+    save.beginAdventure()
+    const base = { id: 'core:y1', title: 'Advisory', kind: 'core' as const, credit: 0.5, year: 1, season: 'Fall' as const }
+    save.recordGrade({ ...base, grade: 2.0 })
+    expect(save.loadSave()!.ledger[0].attempts).toBe(1)
+    expect(save.loadSave()!.ledger[0].firstGrade).toBe(2.0)
+    save.recordGrade({ ...base, grade: 1.0 })          // ran it back and did worse
+    expect(save.loadSave()!.ledger[0].attempts).toBe(2)  // it still counts as a try
+    expect(save.loadSave()!.ledger[0].grade).toBe(2.0)
+    save.recordGrade({ ...base, grade: 3.5 })
+    const row = save.loadSave()!.ledger[0]
+    expect(row.attempts).toBe(3)
+    expect(row.grade).toBe(3.5)                        // the student's number
+    expect(row.firstGrade).toBe(2.0)                   // and the study's, still there
+  })
+
+  it('exposure is per place per year and remembers whether they ever docked', async () => {
+    const save = await freshModule()
+    save.beginAdventure()
+    save.recordExposure('stadium')                      // sailed past
+    save.recordExposure('stadium')                      // sailed past again, same year
+    expect(save.loadSave()!.exposure).toEqual([{ place: 'stadium', year: 1, docked: false }])
+    save.recordExposure('stadium', true)                // got off the boat
+    expect(save.loadSave()!.exposure![0].docked).toBe(true)
+    save.recordExposure('stadium')                      // a later pass cannot un-dock it
+    expect(save.loadSave()!.exposure![0].docked).toBe(true)
+    save.endYear()
+    save.recordExposure('stadium')
+    expect(save.loadSave()!.exposure).toHaveLength(2)    // a second year is a second row
+  })
+
+  it('completion is per programme per year, and a stamp never erases it', async () => {
+    const save = await freshModule()
+    save.beginAdventure()
+    save.recordCompletion('football', 3.4, 'football')
+    expect(save.completedIn(save.loadSave()!, 'football', 1)).toBe(true)
+    expect(save.completedIn(save.loadSave()!, 'girls-flag-football', 1)).toBe(false)
+
+    // year two: the ladder re-slots the same programme, and the stamp used to
+    // write 'active' straight over 'completed' with no read of what was there
+    save.setIslandState('football', 'completed')
+    save.endYear()
+    save.assignSlot(2, 'Fall', 'football')
+    save.stampPlan(2, ['football'])
+    expect(save.loadSave()!.islands.football).toBe('completed')   // year one survived
+    expect(save.completedIn(save.loadSave()!, 'football', 1)).toBe(true)
+    expect(save.completedIn(save.loadSave()!, 'football', 2)).toBe(false)  // year two is owed
+
+    save.recordCompletion('football', 3.8, 'football')
+    expect(save.yearsCompleted(save.loadSave()!, 'football')).toEqual([1, 2])
+  })
+
+  it('a place shown three times and a programme finished three times are different numbers', async () => {
+    const save = await freshModule()
+    save.beginAdventure()
+    for (const y of [1, 2, 3]) {
+      save.recordExposure('stadium', true)
+      save.recordCompletion('football', 3, 'football')
+      if (y < 3) save.endYear()
+    }
+    const s = save.loadSave()!
+    expect(s.exposure).toHaveLength(3)          // one place, seen in three years
+    expect(s.completions).toHaveLength(3)       // one programme, finished in three
+    expect(new Set(s.exposure!.map((e) => e.place)).size).toBe(1)
+    expect(new Set(s.completions!.map((c) => c.programme)).size).toBe(1)
+  })
+
   it('spendToken spends each season exactly once', async () => {
     const save = await freshModule()
     save.beginAdventure()
