@@ -15,6 +15,7 @@ import { loadSave, subscribeSave } from '../save'
 import { useNav } from '../../app/SceneManager'
 import { track } from '../telemetry'
 import { onBeatRequest, onUiRequest } from '../ui-bus'
+import { onWorldHold, worldHeld } from '../world-bus'
 import './hud.css'
 
 /* WHAT A BEAT ID RESOLVES TO. World code names a beat as a string, the way a
@@ -57,6 +58,17 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const [playing, setPlaying] = useState<null | { beat: CoreBeat; plain: boolean; done: (g: number | null) => void }>(null)
   const [, bump] = useState(0)
   useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
+  /* IS THE WORLD ACTUALLY QUIET. The vignette's own rule has always been "only
+   * while the world is quiet" and it only ever checked this component's own
+   * panels, so a station mid-sentence or a cutscene mid-shot counted as quiet and
+   * the year's opening lines mounted straight over the top of them. Measured on
+   * the Maw stand-in: the founding cutscene's second line and the year-one
+   * vignette were on screen at once, in two boxes, in the same corner.
+   *
+   * world-bus.ts already knows the answer for every case at once, which is the
+   * whole reason it counts holds rather than toggling a boolean. */
+  const [held, setHeld] = useState(worldHeld)
+  useEffect(() => { setHeld(worldHeld()); return onWorldHold(setHeld) }, [])
   const s = loadSave()
 
   const anyOpen = book !== null || planner || settings || advisory || sitClass !== null
@@ -116,7 +128,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const yearBeat = s ? coreBeatFor(s.year, s) : null
   const sitClassDef = sitClass ? classById(sitClass) : null
   // the year-start vignette (§7.5 minute one): once per year, only while the world is quiet
-  const showVignette = !!s?.introDone && !anyOpen && !paused && !s.graduated
+  const showVignette = !!s?.introDone && !anyOpen && !paused && !held && !s.graduated
     && !s.flags.includes(`vignette:y${s.year}`)
 
   return (

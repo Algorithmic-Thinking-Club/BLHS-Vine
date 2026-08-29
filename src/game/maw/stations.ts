@@ -167,6 +167,28 @@ export const STATIONS: Station[] = [
   },
 
   {
+    /* THE ONE THING NOBODY PRESSES A BUTTON FOR.
+     *
+     * Every other station in this table is an errand: a prompt appears, you press
+     * E, something happens. A trigger is the other kind, and it is the only
+     * voluntary, unprompted, ungraded action in the whole design: you walked
+     * somewhere, and the room noticed. It fires once per map load by entry, from
+     * `regionsAt`, which had been correct since anchors were first read and had
+     * exactly one caller, a test.
+     *
+     * Deliberately small. A trigger that starts a scene the first time a player
+     * steps somewhere is a trap in a room they have to cross forty times, so this
+     * one says a line and gets out of the way. */
+    name: 'hall_step',
+    fallbackLabel: '',
+    needs: 'the lip of the platform where the south bridge lands; a trigger, not a post',
+    *run() {
+      yield { kind: 'log', event: 'hall_entered', data: { by: 'trigger' } }
+      yield { kind: 'say', who: 'thor', text: 'The bridge ends and the hall opens up. Someone has been keeping it swept.' }
+    },
+  },
+
+  {
     name: 'maw_entrance',
     fallbackLabel: 'Back to the harbour',
     needs: 'the tunnel door, on the far side of the one the player came through',

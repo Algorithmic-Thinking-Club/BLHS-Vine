@@ -146,13 +146,17 @@ export function DialogueBox({
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
           />
         )}
+        {/* THE PLAQUE HANGS OFF THE BOX, not off the text column. It is absolutely
+            positioned at the box's own top edge, so making it a child of the text
+            column positioned it against that column instead and dropped it onto
+            the first line. A sibling, so its containing block is the box. */}
+        {line.who && (
+          <div className="cs-nameplaque">
+            {line.who}
+            {line.emote && <span className="cs-emote"> {line.emote}</span>}
+          </div>
+        )}
         <div className="cs-dialogue-body">
-          {line.who && (
-            <div className="cs-nameplaque">
-              {line.who}
-              {line.emote && <span className="cs-emote"> {line.emote}</span>}
-            </div>
-          )}
           <div className="cs-dialogue-text">
             {line.text.slice(0, line.shown)}
             {!line.done && <span className="dlg-caret" />}

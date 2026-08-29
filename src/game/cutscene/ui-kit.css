@@ -58,7 +58,9 @@
 .cs-dialogue-body {
   flex: 1 1 auto;
   min-width: 0;
-  position: relative;
+  /* deliberately NOT a positioned ancestor: the name plaque is absolute against
+     the BOX, and a relative column here would become its containing block and drop
+     it onto the first line of the text it is supposed to sit above */
 }
 .cs-emote { opacity: .8; }
 

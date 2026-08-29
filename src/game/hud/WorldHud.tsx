@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Hud } from './Hud'
 import { Dialogue } from './Dialogue'
+import { WorldCutscene } from '../cutscene/WorldCutscene'
 import { loadSave, subscribeSave } from '../save'
 import { useNav } from '../../app/SceneManager'
 import { holdWorld } from '../world-bus'
@@ -46,6 +47,10 @@ export function WorldHud() {
       {/* station dialogue rides every world scene, so `say` and `choose` work
           from any painted map without that map knowing React exists */}
       <Dialogue />
+      {/* and so does the cutscene chrome. The overlay was mounted by IntroScene
+          alone, wrapped around the beach, which is why the beach was the only
+          place in the game where a script could be seen. */}
+      <WorldCutscene />
     </>
   )
 }

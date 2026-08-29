@@ -143,6 +143,17 @@
       "meta": {
         "why": "the platform itself, for ambience and for a grape to test against"
       }
+    },
+    {
+      "name": "hall_step",
+      "kind": "trigger",
+      "x": 256,
+      "y": 346,
+      "r": 26,
+      "label": "",
+      "meta": {
+        "why": "the lip of the platform: the first step off the bridge, fired once"
+      }
     }
   ],
   "events": [

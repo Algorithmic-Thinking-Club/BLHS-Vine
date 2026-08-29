@@ -33,7 +33,12 @@ import { AnchorSet, type Anchor } from './anchors'
 import { holdWorld, onWorldHold, worldHeld } from '../world-bus'
 import { choose, clearDialogue, say } from '../dialogue'
 import { engine } from '../intent-engine'
-import { NotBuilt, type IntentHost, type IntentWorld } from '../../vine/intents'
+import { NotBuilt, performIntent, type Intent, type IntentHost, type IntentWorld } from '../../vine/intents'
+import { CutsceneRuntime } from '../cutscene/runtime'
+import type { CutsceneStage } from '../cutscene/types'
+import { publishRuntime } from '../cutscene/stage-bus'
+import { resolveScript, scriptById } from '../cutscene/scripts'
+import { aheadOn, findPath, type Pt } from './path'
 import { loadSave, recordExposure } from '../save'
 import { placeOfMap } from '../roster/roster'
 import { setContext } from '../telemetry'
@@ -80,6 +85,19 @@ interface PmapJson {
    * either era opens. */
   anchors?: unknown
   events?: unknown
+  /* WHAT THE MAP IS AND WHAT IT CALLS ITSELF, which no bundle carried until
+   * MAPVIS grew controls for them. `class` decides whether the animated ocean
+   * goes under the painting and used to be guessed from whether the border was
+   * transparent, on every map. `title` is the name a player reads: it was a
+   * real column in MAPVIS filled with the slug, shown on its dashboard, and
+   * dropped before the export, so every place name in this game is either a
+   * slug or a string hand-typed in this repo. `islandId` is the join to the
+   * school offering the map is about, which lives in a hardcoded Set here.
+   * All three optional: a bundle from before them reads exactly as it did. */
+  class?: string
+  title?: string
+  islandId?: string
+  meta?: Record<string, unknown>
 }
 
 /* Thor is never behind a person.
@@ -427,6 +445,9 @@ export default function PmapScene() {
   useEffect(() => {
     let destroyed = false
     let instance: Application | null = null
+    /* set by start() once the stage exists; called by the cleanup below whether or
+     * not start() ever got that far */
+    let teardownStage = () => { /* nothing was published */ }
     const keys: Record<string, boolean> = {}
     const kd = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = true }
     const ku = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = false }
@@ -557,6 +578,28 @@ export default function PmapScene() {
        * these at once. */
       const placedById = new Map<string, Sprite>()
 
+      /* an actor a script has taken over. Q4.6.a's expensive answer and the right
+       * one: a MAPVIS placement BECOMES the actor rather than a second copy of it
+       * being spawned beside it and the placement hidden. Two of a speaking NPC on
+       * twenty islands is two facings, two sizes, two palettes and two places for a
+       * member to get it wrong. While a sprite is in here the life pass leaves it
+       * alone, so its behaviour resumes exactly where the clock says when the
+       * script lets go. */
+      type Driven = {
+        x: number; y: number; visible: boolean; look: number | null
+        move: null | { tx: number; ty: number; speed: number; done: boolean }
+      }
+      const driven = new Map<Sprite, Driven>()
+      const looksOf = new Map<Sprite, Look[]>()
+
+      const actorSprite = (name: string): Sprite | null => placedById.get(name) ?? null
+      const take = (sp: Sprite): Driven => {
+        let d = driven.get(sp)
+        if (!d) { d = { x: sp.position.x, y: sp.position.y, visible: sp.visible, look: null, move: null }; driven.set(sp, d) }
+        return d
+      }
+
+
       /* THE AWARENESS RECORD, WRITTEN WHERE A PLACE IS ACTUALLY SEEN.
        *
        * A map is a painting and a place is what the painting is of, so standing
@@ -631,17 +674,19 @@ export default function PmapScene() {
        * whole border is empty.
        *
        * So the bundle gets to SAY, and the guess is only what happens when it
-       * does not. MAPVIS already knows which class an author picked (MAPS.md §2),
-       * and writing it into map.json is the small change that half of this pair
-       * still needs on the tool side. Until it does, a map can carry the field by
-       * hand and a stand-in does. */
-      const declared = typeof (map as { class?: unknown }).class === 'string'
-        ? String((map as { class?: unknown }).class)
-        : ''
+       * does not. MAPVIS writes the field now, off a control on its export step,
+       * so the guess below is what happens to a bundle published before that
+       * existed rather than the ordinary path.
+       *
+       * `hall` is the third value and it is a shared indoor place: it gets no
+       * ocean for the same reason a room does not. Handled by name rather than
+       * by "anything that is not island", so a class this build has never heard
+       * of still falls through to the guess and says so. */
+      const declared = typeof map.class === 'string' ? map.class : ''
       let coastCut = false
       for (let x = 0; x < W && !coastCut; x++) if (sAlpha(x, 0) <= A_MIN || sAlpha(x, H - 1) <= A_MIN) coastCut = true
       for (let y = 0; y < H && !coastCut; y++) if (sAlpha(0, y) <= A_MIN || sAlpha(W - 1, y) <= A_MIN) coastCut = true
-      if (declared === 'room') coastCut = false
+      if (declared === 'room' || declared === 'hall') coastCut = false
       else if (declared === 'island') coastCut = true
       else if (declared) console.warn(`[pmap] ${mapId}: unknown map class "${declared}", guessing from the border`)
 
@@ -1148,6 +1193,10 @@ export default function PmapScene() {
                * cord is earned. */
               placedById.set(a.id, sp)
               if (a.name) placedById.set(a.name, sp)
+              /* every face this thing has, kept against the sprite, so a script
+               * can ask for one by index. A state is a placement wearing another
+               * picture and not a second placement beside it. */
+              looksOf.set(sp, looks)
               // a placement that MOVES carries a few numbers instead of extra
               // frames, and the ticker below works out where it is. See life.ts:
               // travel cannot be baked into an animation, because an animation
@@ -1474,6 +1523,30 @@ export default function PmapScene() {
       /* a station body is running and owns the player. Checked before offering a
        * prompt so E cannot start the counselor twice while he is mid-sentence. */
       let busy = false
+      /* the hold a running station owns, kept where a cutscene it starts can
+       * suspend it. See suspendStationHold below for why that is necessary. */
+      let stationHold: (() => void) | null = null
+
+      /* ---- WHAT A CUTSCENE OWNS WHILE IT IS RUNNING ---------------------------
+       *
+       * `PmapScene` implemented ZERO of `CutsceneStage`'s thirteen methods and its
+       * `cutscene` intent threw, so no painted map anywhere in the game could play
+       * a script. Only `BeachIso` implemented the interface, which made the beach
+       * the only directed place in a game about twenty islands. It is the
+       * highest-leverage single change in the repo and this is it.
+       *
+       * The state is here rather than inside the stage object because the ticker
+       * has to read it every frame: the camera the script asked for, the actors it
+       * took over, and the walk it is waiting on. */
+      let camZ = Z                                   // the live world scale, which a script may zoom
+      let csCam: { x: number; y: number; zoom: number } | null = null
+      let csHold: (() => void) | null = null
+      let unpublish: (() => void) | null = null
+
+      /* THE PLAYER IS AN ACTOR NAMED `thor`, which is what the runtime's own
+       * `playerActor` defaults to, so a script written for the beach names him the
+       * same way here. */
+      const IS_THOR = (a: string) => a === 'thor'
 
       /* ---- THE WORLD HALF OF THE INTENT VOCABULARY (src/vine/intents.ts) ----
        *
@@ -1492,17 +1565,19 @@ export default function PmapScene() {
           guideTarget = name ? anchors.get(name) ?? null : null
         },
 
-        /* AUTO-WALK. Honest about what it is: it steers toward the anchor with
-         * the same walk law the player uses, so it slides along walls and stops
-         * where a person would stop. It does NOT path around an obstacle, so on
-         * an open platform it is right and in a maze it would stall, which is
-         * why it gives up rather than hanging. Real pathfinding over the level
-         * mask is the next thing this wants and the Maw does not need it. */
+        /* AUTO-WALK, AND IT PATHS NOW. It used to steer straight at the anchor
+         * with the player's own walk law, which slides along walls and stops where a
+         * person would stop, and stalls in a maze. It searches the level mask first
+         * (path.ts, the same `canStandFrom` the body obeys) and then steers along
+         * the route, so it goes round a wall instead of leaning on it. The clock is
+         * still there, because a goal that is genuinely unreachable has to give up
+         * rather than hang the body that asked for it. */
         walkTo(name) {
           const a = anchors.get(name)
           if (!a) return Promise.resolve()
+          const goal = anchors.standAt(a)
           return new Promise<void>((resolve) => {
-            autoWalk = { to: a, until: performance.now() + 8000, done: resolve }
+            startWalk(goal, a.stand ? 3 : Math.max(4, a.r * 0.5), goal.facing ?? null, resolve, name)
           })
         },
 
@@ -1544,21 +1619,226 @@ export default function PmapScene() {
           return new Promise<void>((r) => { exitResolve = r })
         },
 
+        /* IT PLAYS NOW. This threw `NotBuilt` because the scene implemented none
+         * of `CutsceneStage`, and before commit cf8e195 it did something worse: it
+         * resolved successfully while doing nothing, so an author shipped an island
+         * whose most cinematic beat never played and was told it worked.
+         *
+         * It still refuses for the two reasons it honestly can, and both name the
+         * thing that is wrong: a script id nothing answers to, and a script whose
+         * anchors this map does not carry. A script that half-resolves is worse
+         * than one that refuses, because half of a founding scene reads as a bug in
+         * the game rather than as a typo in a name. */
         cutscene(script) {
-          /* 32 moments in the walkthrough ask for this word, and it resolved
-           * successfully while doing nothing. It is the largest single lie in
-           * the vocabulary, so it refuses plainly: this scene does not implement
-           * CutsceneStage, and until it does, no script plays here. */
-          throw new NotBuilt('cutscene', `"${script}" cannot play. This scene does not implement CutsceneStage yet`)
+          const authored = scriptById(script)
+          if (!authored) throw new NotBuilt('cutscene', `no script named "${script}"`)
+          const { script: resolved, missing } = resolveScript(authored, (n) => {
+            const a = anchors.get(n)
+            return a ? anchors.standAt(a) : null
+          })
+          if (missing.length)
+            throw new NotBuilt('cutscene', `"${script}" wants anchors ${mapId} does not have: ${missing.join(', ')}`)
+
+          const resume = suspendStationHold()
+          unpublish?.()
+          unpublish = publishRuntime(runtime)
+          engine.log('cutscene_started', { map: mapId, script })
+          return new Promise<void>((done) => {
+            runtime.play(resolved, () => {
+              /* THE FLAG IS WRITTEN FROM A REAL COMPLETION. H8 exists because this
+               * call used to resolve whether or not the scene played, so whatever
+               * the caller wrote afterwards was a lie. It resolves here, in the
+               * runtime's own finish callback, and nowhere else. */
+              unpublish?.(); unpublish = null
+              csCam = null
+              csHold?.(); csHold = null
+              resume()
+              engine.log('cutscene_finished', { map: mapId, script })
+              done()
+            })
+          })
         },
       }
       const intentHost: IntentHost = { world: intentWorld, engine }
 
+      /* ---- THE THIRTEEN METHODS -------------------------------------------------
+       *
+       * Positions are painting pixels, which is this scene's own world unit, exactly
+       * as the interface says ("the scene's own world units"). The runtime never
+       * learns anything else about the map.
+       *
+       * TWO OF THE THIRTEEN CANNOT PERFORM AND SAY SO. `fx` has no effect library
+       * behind it and `audio` has no audio system in this repository at all: no
+       * AudioContext, no `new Audio`, no element, no file under public/. They are
+       * loud rather than silent, at the name that was asked for, because the person
+       * a silent no-op deceives is the AUTHOR: they write the beat, run it, see no
+       * error, and ship an island whose most cinematic moment never plays. That is
+       * the exact failure `cf8e195` took out of the intent layer, and it must not
+       * grow back one layer down. */
+      const stage: CutsceneStage = {
+        cameraGet: () => csCam ? { ...csCam } : { x: pos.x, y: pos.y, zoom: camZ / Z },
+        cameraSet: (x, y, zoom) => { csCam = { x, y, zoom } },
+        /* handing the camera back to an actor means handing it back to the follow
+         * law, which is the only camera this scene has ever had */
+        cameraFollow: (actor) => { if (actor === null || IS_THOR(actor)) csCam = null },
+
+        /* A STATE IS A PLACEMENT'S OTHER FACE, which MAPVIS calls a `look` and
+         * writes as an INDEX: a troll and the boulder it becomes are one placement
+         * wearing two pictures. The bundle carries no name for a look, so a script
+         * naming one has nothing to resolve against, and this says which name it
+         * could not use rather than quietly drawing the first picture. `idle` and
+         * `default` mean look zero, which is what the thing was placed as. */
+        actorState: (actor, state) => {
+          if (IS_THOR(actor)) return                       // Thor's frames are his walk set
+          const sp = actorSprite(actor)
+          if (!sp) { console.warn(`[pmap] actorState: no placement named "${actor}" on ${mapId}`); return }
+          const d = take(sp)
+          if (state === 'idle' || state === 'default') { d.look = 0; return }
+          const i = Number(state)
+          if (Number.isFinite(i)) { d.look = i; return }
+          console.warn(`[pmap] actorState("${actor}", "${state}"): a look is an index in the bundle and this map carries no name for one`)
+        },
+
+        actorPlace: (actor, x, y, face) => {
+          if (IS_THOR(actor)) {
+            pos.x = x; pos.y = y
+            if (face) walker.facing = face
+            return
+          }
+          const sp = actorSprite(actor)
+          if (!sp) { console.warn(`[pmap] actorPlace: no placement named "${actor}" on ${mapId}`); return }
+          const d = take(sp)
+          d.x = x; d.y = y; d.move = null
+        },
+
+        /* THE POLL IS THE CONTRACT: the runtime ticks it and the step finishes when
+         * it answers true. Thor walks by the walk law and by a real route, so a
+         * scripted move goes round a wall exactly as the player would; a placement
+         * is carried, because a crate does not have hips. */
+        actorMove: (actor, x, y, speed, face) => {
+          if (IS_THOR(actor)) {
+            const m = { done: false }
+            startWalk({ x, y }, 4, null, () => { if (face) walker.facing = face; m.done = true })
+            return () => m.done
+          }
+          const sp = actorSprite(actor)
+          if (!sp) { console.warn(`[pmap] actorMove: no placement named "${actor}" on ${mapId}`); return () => true }
+          const d = take(sp)
+          d.move = { tx: x, ty: y, speed: speed ?? map.speed, done: false }
+          const mv = d.move
+          return () => !!mv.done
+        },
+
+        actorPos: (actor) => {
+          if (IS_THOR(actor)) return { x: pos.x, y: pos.y }
+          const sp = actorSprite(actor)
+          if (!sp) return { x: 0, y: 0 }
+          const d = driven.get(sp)
+          return d ? { x: d.x, y: d.y } : { x: sp.position.x, y: sp.position.y }
+        },
+
+        actorFace: (actor, dir) => {
+          if (IS_THOR(actor)) { walker.facing = dir; return }
+          // a placement's heading is its behaviour's, and a script that has taken it
+          // over has stopped that behaviour, so there is nothing here to turn yet
+        },
+
+        actorShow: (actor, visible) => {
+          if (IS_THOR(actor)) { thor.sp.visible = visible; thor.sh.visible = visible; pin.visible = visible; return }
+          const sp = actorSprite(actor)
+          if (!sp) { console.warn(`[pmap] actorShow: no placement named "${actor}" on ${mapId}`); return }
+          take(sp).visible = visible
+        },
+
+        fx: (name, at) => {
+          console.warn(`[pmap] fx "${name}"${at ? ` at ${at.x},${at.y}` : ''} did not play: there is no effect library yet`)
+          engine.log('fx_missing', { map: mapId, name })
+        },
+
+        audio: (cue) => {
+          console.warn(`[pmap] audio cue "${cue}" did not play: this game has no audio system`)
+          engine.log('audio_missing', { map: mapId, cue })
+        },
+
+        /* the escape hatch, and it stays honest about being empty. A `stage` step
+         * naming a call this scene does not answer is the author asking for
+         * something and getting nothing, so it says which call. */
+        call: (name) => {
+          console.warn(`[pmap] the script asked this scene for "${name}" and it answers no such call`)
+          engine.log('stage_call_missing', { map: mapId, call: name })
+        },
+
+        /* THE HOLD, COUNTED, so a gate handing control back mid-script does not
+         * fight the station hold underneath it. world-bus.ts counts holds for
+         * exactly this reason and the reason is written at the top of that file. */
+        playerControl: (on) => {
+          if (on) { csHold?.(); csHold = null }
+          else csHold ??= holdWorld('cutscene')
+        },
+      }
+
+      const runtime = new CutsceneRuntime(stage)
+      teardownStage = () => {
+        unpublish?.(); unpublish = null
+        csHold?.(); csHold = null
+        stationHold?.(); stationHold = null
+      }
+
+      /* A STATION'S HOLD HAS TO STAND ASIDE FOR THE SCRIPT IT STARTED.
+       *
+       * `fire` takes the controls for as long as a station body runs, and a
+       * founding cutscene is something a station body yields. So a `walkTo` gate
+       * inside that script would hand control back to a player the station is still
+       * holding, and the last three steps of the arrival, which are the whole point
+       * of a gate, would be a frozen screen. The station's hold is suspended for the
+       * length of the script and taken again after, which is the one place the two
+       * ownerships really do have to know about each other. */
+      const suspendStationHold = (): (() => void) => {
+        const held = stationHold
+        if (!held) return () => { /* nothing was holding */ }
+        held()
+        stationHold = null
+        return () => { stationHold = holdWorld('station:resumed') }
+      }
+
       /* guide, auto-walk and camera-look state, ticked in the loop below */
       let guideTarget: Anchor | null = null
-      let autoWalk: { to: Anchor; until: number; done: () => void } | null = null
+      type AutoWalk = {
+        goal: { x: number; y: number }
+        reach: number
+        facing: string | null
+        route: Pt[]
+        ri: number
+        until: number
+        label: string
+        done: () => void
+      }
+      let autoWalk: AutoWalk | null = null
       let lookAtTarget: { x: number; y: number; until: number } | null = null
       let exitResolve: (() => void) | null = null
+
+      /* ONE WALK, THREE CALLERS: `walk_to` from a grape, `actorMove` from a script,
+       * and the idle auto-walk a `walkTo` gate falls back to when a player stands
+       * still. They were three different things and only one of them existed. */
+      const startWalk = (goal: { x: number; y: number }, reach: number, facing: string | null, done: () => void, label = 'a point') => {
+        const r = findPath(doc, cfg, { x: pos.x, y: pos.y }, goal, { step: 4, reach })
+        if (!r.reached) console.warn(`[pmap] walk to ${label}: no route from here, steering straight at it`)
+        autoWalk = { goal, reach, facing, route: r.points, ri: 0, until: performance.now() + 20000, label, done }
+      }
+
+      /* THE GUIDE'S ROUTE, kept between frames because a search is not free and the
+       * answer only changes when the player has moved or the target has. */
+      let guide: { key: string; route: Pt[]; from: Pt; reached: boolean } | null = null
+      const guideTrail = new Graphics()
+      guideTrail.zIndex = 9e9 - 3
+      world.addChild(guideTrail)
+
+      /* WHICH REGIONS AND TRIGGERS THE FEET ARE INSIDE, from the last frame.
+       * `AnchorSet.regionsAt` has been real since anchors were read and its only
+       * caller was a test, so the only voluntary, unprompted, ungraded action in
+       * the whole design was unreachable. */
+      const inZones = new Set<string>()
+      const firedTriggers = new Set<string>()
 
       /* ---- PRESSING E: an anchor name becomes a running mechanic ----
        *
@@ -1576,7 +1856,7 @@ export default function PmapScene() {
         const sv = loadSave()
         if (!st || !sv) return
         busy = true
-        const release = holdWorld(`station:${a.name}`)
+        stationHold = holdWorld(`station:${a.name}`)
         engine.log('station_used', { map: mapId, anchor: a.name, objective: isObjective(sv, mapId, a.name) })
         try {
           const report = await runStation(st.run(sv), intentHost, a.name)
@@ -1600,7 +1880,7 @@ export default function PmapScene() {
             })
           }
         } finally {
-          release()
+          stationHold?.(); stationHold = null
           busy = false
           /* the E that opened this is very likely still down; forget it or the
            * station fires again the instant the lock lifts */
@@ -1614,10 +1894,12 @@ export default function PmapScene() {
 
       // ---- camera: follow, clamped to the painting; a painting smaller than the viewport
       // sits centered on that axis instead ----
+      /* the clamp reads camZ rather than Z, because a cutscene may zoom and a
+       * painting clamped at the wrong scale shows the void past its own edge */
       const camTo = (cx: number, cy: number, snap = false) => {
         const vw = app.screen.width, vh = app.screen.height
-        const tx = W * Z <= vw ? (vw - W * Z) / 2 : Math.min(0, Math.max(vw - W * Z, vw / 2 - cx * Z))
-        const ty = H * Z <= vh ? (vh - H * Z) / 2 : Math.min(0, Math.max(vh - H * Z, vh / 2 - cy * Z))
+        const tx = W * camZ <= vw ? (vw - W * camZ) / 2 : Math.min(0, Math.max(vw - W * camZ, vw / 2 - cx * camZ))
+        const ty = H * camZ <= vh ? (vh - H * camZ) / 2 : Math.min(0, Math.max(vh - H * camZ, vh / 2 - cy * camZ))
         if (snap) { world.x = tx; world.y = ty }
         else { world.x += (tx - world.x) * 0.09; world.y += (ty - world.y) * 0.09 }
       }
@@ -1644,10 +1926,48 @@ export default function PmapScene() {
       }
       ;(window as any).__step = (x: number, y: number, tx2: number, ty2: number) =>
         JSON.stringify({ from: lvlAt(x, y), to: lvlAt(tx2, ty2), legal: canStandFrom(tx2, ty2, lvlAt(x, y)) })
+      /* THE STAGE, REACHABLE FROM A CONSOLE. Every one of these drives the real
+       * path a station or a grape takes, so a proof run is the shipped code and not
+       * a second one written to be provable. */
+      ;(window as any).__anchors = () => JSON.stringify(anchors.all.map((a) => ({ name: a.name, kind: a.kind, x: a.x, y: a.y, r: a.r })))
+      ;(window as any).__intent = (i: unknown) => performIntent(i as Intent, intentHost)
+      /* fire and FORGET: the returned promise only settles when the whole station
+       * body has finished, and a body waiting on a click cannot settle from inside
+       * the call that started it. A harness polls the state instead. */
+      ;(window as any).__station = (name: string) => {
+        const a = anchors.get(name)
+        if (!a) return `no anchor named ${name}`
+        if (busy) return 'busy'
+        if (fade) return 'a door is closing'
+        if (!stationByName(a.name)) return `no station named ${a.name}`
+        if (!loadSave()) return 'no run'
+        void fire(a)
+        return 'fired'
+      }
+      ;(window as any).__guide = () => JSON.stringify({
+        target: guideTarget?.name ?? null,
+        route: guide?.route.length ?? 0,
+        reached: guide?.reached ?? null,
+        lead: objMark.visible ? { x: Math.round(objMark.x), y: Math.round(objMark.y) } : null,
+      })
+      ;(window as any).__zones = () => JSON.stringify({ inside: [...inZones], fired: [...firedTriggers] })
+      ;(window as any).__cs = () => JSON.stringify({
+        running: runtime.running,
+        letterbox: runtime.ui.letterbox,
+        vignette: runtime.ui.vignette,
+        line: runtime.ui.dialogue ? runtime.ui.dialogue.text.slice(0, runtime.ui.dialogue.shown) : null,
+        cam: csCam,
+      })
+      ;(window as any).__advance = () => { runtime.advance(); return 'ok' }
 
       app.ticker.add((tk) => {
         const dt = Math.min(tk.deltaMS, 50) / 1000
         const t = performance.now() / 1000
+
+        /* THE SCRIPT RIDES THIS SAME CLOCK, which is the whole reason the runtime
+         * is tick-driven rather than timer-driven: cutscene time and world time
+         * cannot drift apart if there is only one of them. */
+        runtime.tick(tk.deltaMS)
         /* THE STEP IS MAPVIS'S. This block used to be a hand copy of
          * Walker.step: the level-aware move judged from the current level, the
          * slide along each axis when the whole vector will not fit, and the
@@ -1680,20 +2000,24 @@ export default function PmapScene() {
            * particular. The author marks the floor beside it and this aims
            * there, which is also why the arrival radius can be tight: a marked
            * spot is a spot, not an area. */
-          const goal = anchors.standAt(autoWalk.to)
-          const dx = goal.x - pos.x, dy = (goal.y - pos.y)
-          const reach = autoWalk.to.stand ? 3 : Math.max(4, autoWalk.to.r * 0.5)
-          const near2 = Math.hypot(dx, dy) <= reach
-          if (near2 || performance.now() > autoWalk.until) {
-            if (!near2) console.warn(`[pmap] walk_to("${autoWalk.to.name}") gave up; no path from here`)
+          const A = autoWalk
+          const arrived = Math.hypot(A.goal.x - pos.x, A.goal.y - pos.y) <= A.reach
+          if (arrived || performance.now() > A.until) {
+            if (!arrived) console.warn(`[pmap] the walk to ${A.label} gave up; no route from here`)
             /* THE SIDE IT IS USED FROM. arrival() was facing's only consumer
              * anywhere, so a heading on a post was parsed and then read by
              * nothing and every actor walked up to a station still facing the
              * way it happened to be walking. */
-            if (goal.facing && walkT[goal.facing]) walker.facing = goal.facing
-            autoWalk.done()
+            if (A.facing && walkT[A.facing]) walker.facing = A.facing
             autoWalk = null
+            A.done()
           } else {
+            /* ALONG THE ROUTE, waypoint by waypoint. Steering straight at the goal
+             * is what stalled in a maze; steering at the next point of a route the
+             * walk law itself approved cannot. */
+            while (A.ri < A.route.length && Math.hypot(A.route[A.ri].x - pos.x, A.route[A.ri].y - pos.y) <= 4) A.ri++
+            const wp = A.ri < A.route.length ? A.route[A.ri] : A.goal
+            const dx = wp.x - pos.x, dy = wp.y - pos.y
             input = {
               arrowright: dx > 1, arrowleft: dx < -1,
               arrowdown: dy > 1, arrowup: dy < -1,
@@ -1715,7 +2039,22 @@ export default function PmapScene() {
         // a figure he is standing in front of
         thor.sh.zIndex = OVER_PLACED + pos.y - 1
         pin.position.set(pos.x, pos.y - charH - 3 + Math.sin(t * 2.1) * 1.4)
-        camTo(pos.x, pos.y)
+        /* A SCRIPT'S CAMERA OUTRANKS THE FOLLOW LAW while it is set, and snaps
+         * rather than lerps, because the runtime is already tweening it and two
+         * smoothings in series make every camera move arrive late and soft. The
+         * follow law's own easing is untouched for every other frame. */
+        if (csCam) {
+          const z = Z * (csCam.zoom || 1)
+          if (camZ !== z) { camZ = z; world.scale.set(camZ) }
+          camTo(csCam.x, csCam.y, true)
+        } else {
+          if (camZ !== Z) { camZ = Z; world.scale.set(camZ) }
+          camTo(pos.x, pos.y)
+        }
+        /* the screen-space chrome undoes whatever zoom is live, so a camera push
+         * does not blow the YOU pin up with the painting */
+        const uiS = 1 / camZ
+        if (pin.scale.x !== uiS) { pin.scale.set(uiS); doorTxt.scale.set(uiS); objMark.scale.set(uiS) }
         ;(window as any).__walk = `thor ${pos.x.toFixed(0)},${pos.y.toFixed(0)} lvl${lvlAt(pos.x, pos.y)}`
 
         /* ---- INTERACTION: the nearest anchor whose ring the feet are inside
@@ -1786,10 +2125,76 @@ export default function PmapScene() {
          * because a body that just said "go and look at the wall" means it */
         const mark = guideTarget ?? (obj && obj.map === mapId ? anchors.get(obj.anchor) : undefined)
         if (mark) {
-          const mp = anchors.spotOf(mark)
-          objMark.position.set(mp.x, mp.y - 14 + Math.sin(t * 2.6) * 2)
+          /* THE ARROW FOLLOWS WALKABILITY, which is Ash's own words for what an
+           * engine capability looks like. It used to sit on the objective and leave
+           * the player to work out the way, which is right on an open platform and
+           * useless the moment a wall is between them. It searches the level mask
+           * with the same law the body walks by (path.ts) and rides the route, so
+           * the arrow leads round the corner instead of pointing through it.
+           *
+           * Searched when the target changes or when the player has moved far
+           * enough for the answer to be different, and not once per frame: a flood
+           * fill every frame on a 688-pixel painting is a Chromebook on fire. */
+          const goal = anchors.standAt(mark)
+          if (!guide || guide.key !== mark.name || Math.hypot(pos.x - guide.from.x, pos.y - guide.from.y) > 20) {
+            const r = findPath(doc, cfg, { x: pos.x, y: pos.y }, goal, { step: 4 })
+            guide = { key: mark.name, route: r.points, from: { x: pos.x, y: pos.y }, reached: r.reached }
+          }
+          const lead = aheadOn(guide.route, { x: pos.x, y: pos.y }, 60, map.yScale) ?? goal
+          objMark.position.set(lead.x, lead.y - 14 + Math.sin(t * 2.6) * 2)
           objMark.visible = !locked && !fade
-        } else objMark.visible = false
+
+          /* the route itself, in dots, so "round that way" is visible rather than
+           * inferred from one chevron. Engine-drawn and deliberately small: the
+           * painting is Ash's and the engine does not draw furniture on it. */
+          guideTrail.clear()
+          if (objMark.visible && guide.route.length > 1) {
+            for (let i = 0; i < guide.route.length; i += 2) {
+              const d = guide.route[i]
+              if (Math.hypot(d.x - pos.x, d.y - pos.y) < 10) continue
+              guideTrail.circle(d.x, d.y, 1.2).fill({ color: 0xffd98a, alpha: 0.42 })
+            }
+          }
+        } else {
+          objMark.visible = false
+          guideTrail.clear()
+          guide = null
+        }
+
+        /* ---- REGIONS AND TRIGGERS, WHICH FIRE BY BEING ENTERED ----
+         *
+         * `AnchorSet.regionsAt` has been correct since anchors were first read and
+         * its only caller was a test. `nearestInteractive` excludes both kinds, and
+         * rightly: standing inside a big atmosphere region must not suppress the
+         * table you are standing at. But nothing else ever fired them, so the only
+         * voluntary, unprompted, ungraded action in the whole design was
+         * unreachable, and the workaround, a `post` with a prompt, turns finding
+         * something into running an errand.
+         *
+         * A REGION IS AMBIENCE AND A TRIGGER IS A THING THAT HAPPENS. A region
+         * announces entering and leaving so a grape can ask where somebody is; a
+         * trigger runs the station named after it. Once per map load unless its
+         * meta says otherwise, because a trigger whose body walks the player back
+         * through its own edge would otherwise fire forever. */
+        if (!fade && !busy && !runtime.running) {
+          const nowIn = anchors.regionsAt(pos.x, pos.y)
+          const nowNames = new Set(nowIn.map((z) => z.name))
+          for (const z of nowIn) {
+            if (inZones.has(z.name)) continue
+            inZones.add(z.name)
+            engine.log(z.kind === 'trigger' ? 'trigger_entered' : 'region_entered', { map: mapId, anchor: z.name })
+            if (z.kind !== 'trigger') continue
+            const repeat = z.meta?.repeat === true
+            if (!repeat && firedTriggers.has(z.name)) continue
+            firedTriggers.add(z.name)
+            void fire(z)
+          }
+          for (const name of [...inZones]) {
+            if (nowNames.has(name)) continue
+            inZones.delete(name)
+            engine.log('region_left', { map: mapId, anchor: name })
+          }
+        }
 
         /* a camera hold from look_at, released when its clock runs out */
         if (lookAtTarget) {
@@ -1905,6 +2310,10 @@ export default function PmapScene() {
           const push = floorPush(pts, separate(pts, map.yScale, 1), canStand, fenced)
           for (let qi = 0; qi < lifeAssets.length; qi++) {
             const q = lifeAssets[qi]
+            /* a script owns this one for now: writing its position here would
+             * fight the driver frame by frame and the figure would flicker
+             * between the two answers */
+            if (driven.has(q.sp)) continue
             // walkOnly makes the floor a second fence, and the game's own
             // canStand is what it is measured against: the same mask MAPVIS
             // previewed with, so the answer is the same on both sides
@@ -1966,6 +2375,36 @@ export default function PmapScene() {
           }
         }
 
+        /* ---- ACTORS A SCRIPT HAS TAKEN OVER ----
+         *
+         * Applied after the life pass, which skips them, so a placement stops being
+         * ambient the moment a script touches it and goes back to being ambient the
+         * moment it lets go. Its behaviour is pure in the clock, so it resumes where
+         * the clock says rather than where it was left. */
+        for (const [sp, d] of driven) {
+          if (d.move) {
+            const dx = d.move.tx - d.x, dy = d.move.ty - d.y
+            const dist = Math.hypot(dx, dy)
+            const stepPx = d.move.speed * dt
+            if (dist <= Math.max(stepPx, 0.5)) {
+              d.x = d.move.tx; d.y = d.move.ty
+              d.move.done = true
+              d.move = null
+            } else {
+              d.x += (dx / dist) * stepPx
+              d.y += (dy / dist) * stepPx
+            }
+          }
+          sp.position.set(d.x, d.y)
+          sp.visible = d.visible
+          sp.zIndex = d.y
+          if (d.look !== null) {
+            const set = looksOf.get(sp)
+            const look = set && (set[d.look] ?? set[0])
+            if (look && sp.texture !== look.frames[0]) sp.texture = look.frames[0]
+          }
+        }
+
         // the sea pans with the world 1:1 in screen px, and the pool re-fills when the
         // view drifts more than two tile rows past its last fill (the old hub's
         // dead-ocean fix: the pool only ever covered the viewport it last saw)
@@ -1998,6 +2437,10 @@ export default function PmapScene() {
        * hanging. A body parked on an unresolved say() holds its world lock for
        * ever, and the next map opens with no controls and no way to tell why. */
       clearDialogue()
+      /* the stage goes back before the scene does. A runtime left published over a
+       * torn-down Pixi app is an overlay drawing letterbox bars over the next map,
+       * with nothing ticking it and no way to skip it. */
+      teardownStage()
       if (instance) instance.destroy(true, { children: true })
     }
   }, [target])
