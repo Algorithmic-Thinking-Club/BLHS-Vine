@@ -32,6 +32,7 @@
  */
 
 import type { SaveGame } from './save'
+import { rankTrackOf } from './roster/roster'
 
 export function gpaOf(s: SaveGame): number | null {
   if (!s.ledger.length) return null
@@ -148,7 +149,11 @@ export function cordsOf(s: SaveGame): CordProgress[] {
   const apSeminar = count(s, (e) => e.id === 'class:ap-seminar' && passed(e))
   const apResearch = count(s, (e) => e.id === 'class:ap-research' && passed(e))
   const lang = languageCredits(s)
-  const keyYears = ranksOf(s)['keyclub'] ?? 0
+  /* THROUGH THE RESOLVER, not through a literal. This read `ranks['keyclub']` by
+   * hand, which is the same duplicated-spelling bug the diploma had: the roster is
+   * the only thing that knows a programme's track, and a rename there has to move
+   * this too or the cord quietly stops counting. */
+  const keyYears = ranksOf(s)[rankTrackOf('key-club') ?? 'keyclub'] ?? 0
 
   return [
     {

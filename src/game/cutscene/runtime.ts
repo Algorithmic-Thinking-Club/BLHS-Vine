@@ -278,7 +278,21 @@ export class CutsceneRuntime {
           this.stage.playerControl(false)
           return true
         }
-        if (live.auto) { if (live.auto()) return false } // auto-walk running; arrival caught above
+        /* THE POLL SAYS THE WALK IS OVER, and that has to end the gate.
+         *
+         * This read the poll and returned false either way, so the only exit was
+         * the position test above. On the beach `actorPlace` lands the actor
+         * exactly and the test always passed, which hid it. On a painted map the
+         * walk stops where the mask stops or gives up on its clock, and then the
+         * poll latched true forever against a position test that could never pass:
+         * a cutscene with no letterbox left, no controls, and no way out but
+         * hold-to-skip. As close as the world lets him get IS arrival. */
+        if (live.auto) {
+          if (!live.auto()) return false
+          this.ui.prompt = null
+          this.stage.playerControl(false)
+          return true
+        }
         else {
           live.idle += dt
           if (live.idle >= live.idleAutoMs) {          // he goes himself

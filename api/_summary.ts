@@ -52,6 +52,12 @@ export type Measures = {
   /** a member's island threw, or the engine did. R8: a failure in one arm and not
    *  the other is indistinguishable from an effect unless somebody counts them. */
   failures: number
+  /* EVENTS THE FOLD DID NOT RECOGNISE. A rename or a shape change on the client
+   * turns a measured column into a clean 0 for every participant, and a 0 in a
+   * teacher's CSV is indistinguishable from "this student never did it". The
+   * person deceived there is the researcher, on the study's own dependent
+   * variable. It is a column so that it is visible rather than inferred. */
+  unknown: number
   /** captain / dev sessions are shipped for debugging and excluded from a study export */
   dev: boolean
 }
@@ -72,6 +78,16 @@ const ms = (v: string | number | Date): number => {
 }
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+
+/* EVERY NAME THIS FOLD ACTS ON. Anything else is counted as unknown rather than
+ * dropped, so a client-side rename shows up as a number in a column instead of as
+ * a measured value quietly becoming zero. */
+const KNOWN = new Set([
+  'heartbeat', 'core_beat_complete', 'retake_used', 'check_answered',
+  'place_seen', 'programme_completed', 'island_failed', 'engine_error',
+  'fx_missing', 'audio_missing', 'stage_call_missing', 'stage_actor_missing',
+  'trigger_unanswered',
+])
 
 type Env = {
   participantId?: string
@@ -125,7 +141,7 @@ export function summarise(rows: StoredEvent[]): Measures[] {
           firstAt: null, lastAt: null, spanMs: 0, activeMs: 0, heartbeats: 0,
           beatsCompleted: 0, meanGrade: null, meanFirstGrade: null,
           checksAnswered: 0, checksCorrect: 0, maxTries: 1, retakes: 0,
-          placesSeen: 0, programmesCompleted: 0, failures: 0, dev: false,
+          placesSeen: 0, programmesCompleted: 0, failures: 0, unknown: 0, dev: false,
         },
         lastInSession: new Map(), grades: [], firstGrades: [],
         places: new Set(), programmes: new Set(), sessions: new Set(),
@@ -170,6 +186,11 @@ export function summarise(rows: StoredEvent[]): Measures[] {
     if (name === 'place_seen' && typeof d.place === 'string') bucket.places.add(d.place)
     if (name === 'programme_completed' && typeof d.programme === 'string') bucket.programmes.add(d.programme)
     if (name === 'island_failed' || name === 'engine_error') m.failures++
+    /* the stage saying it could not do something is a failure too: fx with no
+     * library, audio with no system, a stage call this scene answers nothing on. */
+    if (name === 'fx_missing' || name === 'audio_missing' || name === 'stage_call_missing'
+      || name === 'stage_actor_missing' || name === 'trigger_unanswered') m.failures++
+    if (!KNOWN.has(name)) m.unknown++
   }
 
   const mean = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 100) / 100 : null)
@@ -194,7 +215,7 @@ export const EXPORT_COLUMNS = [
   'sessions', 'events', 'heartbeats', 'active_minutes', 'span_minutes',
   'beats_completed', 'mean_grade', 'mean_first_grade',
   'checks_answered', 'checks_correct', 'max_tries', 'retakes',
-  'places_seen', 'programmes_completed', 'failures', 'dev_session',
+  'places_seen', 'programmes_completed', 'failures', 'unknown_events', 'dev_session',
 ] as const
 
 export type RosterLike = {
@@ -219,7 +240,7 @@ export function exportRows(roster: RosterLike[], measures: Measures[]): (string 
       m ? minutes(m.activeMs) : 0, m ? minutes(m.spanMs) : 0,
       m?.beatsCompleted ?? 0, m?.meanGrade ?? '', m?.meanFirstGrade ?? '',
       m?.checksAnswered ?? 0, m?.checksCorrect ?? 0, m?.maxTries ?? '', m?.retakes ?? 0,
-      m?.placesSeen ?? 0, m?.programmesCompleted ?? 0, m?.failures ?? 0,
+      m?.placesSeen ?? 0, m?.programmesCompleted ?? 0, m?.failures ?? 0, m?.unknown ?? 0,
       m?.dev ? 'yes' : '',
     ]
   })

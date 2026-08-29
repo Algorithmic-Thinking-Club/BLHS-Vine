@@ -1538,6 +1538,24 @@ export default function PmapScene() {
        * The state is here rather than inside the stage object because the ticker
        * has to read it every frame: the camera the script asked for, the actors it
        * took over, and the walk it is waiting on. */
+      /* WHAT THE STAGE COULD NOT DO WHILE A SCRIPT RAN.
+       *
+       * The law at src/vine/intents.ts:222 is that no capability may report success
+       * while doing nothing, because the person deceived is the AUTHOR. Three of the
+       * thirteen methods cannot perform: there is no effect library, there is no
+       * audio system anywhere in this repository, and `call` is an escape hatch this
+       * scene answers nothing on. They warned to a console and the script ran on and
+       * the whole `cutscene` intent still resolved ok, which is the identical shape
+       * of lie the intent layer had taken out one level up: `fx` asked for directly
+       * REFUSES, and the same `fx` asked for inside a script SUCCEEDED.
+       *
+       * So the misses are collected and the word refuses at the end, naming them, at
+       * the member's own line. The scene still plays what it can play, because half
+       * a founding scene on screen is better than none and the author is told
+       * exactly which half was missing. */
+      let stageMisses: string[] = []
+      const stageMissed = (what: string) => { if (!stageMisses.includes(what)) stageMisses.push(what) }
+
       let camZ = Z                                   // the live world scale, which a script may zoom
       let csCam: { x: number; y: number; zoom: number } | null = null
       let csHold: (() => void) | null = null
@@ -1639,11 +1657,18 @@ export default function PmapScene() {
           if (missing.length)
             throw new NotBuilt('cutscene', `"${script}" wants anchors ${mapId} does not have: ${missing.join(', ')}`)
 
+          /* ONE AT A TIME. `CutsceneRuntime.play` overwrites its root and its done
+           * callback with no guard, so a second script silently discards the first
+           * one's completion: its promise never settles, the station body awaiting
+           * it never returns, and the hold it suspended is never taken back. */
+          if (runtime.running) throw new NotBuilt('cutscene', `"${script}" cannot start: a script is already running here`)
+
           const resume = suspendStationHold()
+          stageMisses = []
           unpublish?.()
           unpublish = publishRuntime(runtime)
           engine.log('cutscene_started', { map: mapId, script })
-          return new Promise<void>((done) => {
+          return new Promise<void>((done, fail) => {
             runtime.play(resolved, () => {
               /* THE FLAG IS WRITTEN FROM A REAL COMPLETION. H8 exists because this
                * call used to resolve whether or not the scene played, so whatever
@@ -1652,8 +1677,19 @@ export default function PmapScene() {
               unpublish?.(); unpublish = null
               csCam = null
               csHold?.(); csHold = null
+              /* THE ACTORS GO BACK TO BEING ALIVE. A placement stays in `driven`
+               * until something takes it out, and the driven pass re-asserts its
+               * frozen position and texture every frame, so an NPC who appeared in
+               * one cutscene stood still for the rest of the visit. The behaviours
+               * are pure in the clock, so letting go IS resuming: she picks up
+               * wherever the clock says, not where the script left her. */
+              driven.clear()
               resume()
-              engine.log('cutscene_finished', { map: mapId, script })
+              engine.log('cutscene_finished', { map: mapId, script, missed: stageMisses })
+              if (stageMisses.length) {
+                fail(new NotBuilt('cutscene', `"${script}" played, but this scene could not perform: ${stageMisses.join(', ')}`))
+                return
+              }
               done()
             })
           })
@@ -1680,7 +1716,13 @@ export default function PmapScene() {
         cameraSet: (x, y, zoom) => { csCam = { x, y, zoom } },
         /* handing the camera back to an actor means handing it back to the follow
          * law, which is the only camera this scene has ever had */
-        cameraFollow: (actor) => { if (actor === null || IS_THOR(actor)) csCam = null },
+        cameraFollow: (actor) => {
+          if (actor === null || IS_THOR(actor)) { csCam = null; return }
+          /* this scene's camera follows the player and nothing else. Falling off
+           * the end left the camera wherever the last shot put it, silently. */
+          console.warn(`[pmap] cameraFollow("${actor}"): this scene's camera can only follow the player`)
+          stageMissed(`cameraFollow("${actor}")`)
+        },
 
         /* A STATE IS A PLACEMENT'S OTHER FACE, which MAPVIS calls a `look` and
          * writes as an INDEX: a troll and the boulder it becomes are one placement
@@ -1722,7 +1764,16 @@ export default function PmapScene() {
             return () => m.done
           }
           const sp = actorSprite(actor)
-          if (!sp) { console.warn(`[pmap] actorMove: no placement named "${actor}" on ${mapId}`); return () => true }
+          /* A MOVE THAT NEVER HAPPENED MUST NOT REPORT AS A COMPLETED MOVE. This
+           * answered its poll true on the first tick, so a misspelt actor made the
+           * script run on and the whole cutscene still resolve ok. It is counted
+           * as a miss the export can see, because a console line on a classroom
+           * Chromebook is not a refusal. */
+          if (!sp) {
+            console.warn(`[pmap] actorMove: no placement named "${actor}" on ${mapId}`)
+            stageMissed(`actorMove("${actor}")`)
+            return () => true
+          }
           const d = take(sp)
           d.move = { tx: x, ty: y, speed: speed ?? map.speed, done: false }
           const mv = d.move
@@ -1732,15 +1783,30 @@ export default function PmapScene() {
         actorPos: (actor) => {
           if (IS_THOR(actor)) return { x: pos.x, y: pos.y }
           const sp = actorSprite(actor)
-          if (!sp) return { x: 0, y: 0 }
+          /* THE ORIGIN IS NOT AN ANSWER. Returning 0,0 for an actor this map does
+           * not have fabricates a plausible coordinate and hands it to the camera
+           * and to gate arithmetic, which aims the shot at the painting's top-left
+           * corner: inside the rock, which is the exact failure `resolveScript`
+           * refuses a whole script to avoid. The player's own position is the
+           * honest fallback, because it is somewhere a body really is. */
+          if (!sp) {
+            console.warn(`[pmap] actorPos: no placement named "${actor}" on ${mapId}`)
+            stageMissed(`actorPos("${actor}")`)
+            return { x: pos.x, y: pos.y }
+          }
           const d = driven.get(sp)
           return d ? { x: d.x, y: d.y } : { x: sp.position.x, y: sp.position.y }
         },
 
+        /* A HEADING ON A PLACEMENT BELONGS TO ITS BEHAVIOUR, and a script that has
+         * taken one over has stopped that behaviour, so there is nothing here to
+         * turn. It says so now rather than being a comment where a body should be:
+         * it returned silently for any actor but Thor, which is indistinguishable
+         * from a typo in the actor's name. */
         actorFace: (actor, dir) => {
           if (IS_THOR(actor)) { walker.facing = dir; return }
-          // a placement's heading is its behaviour's, and a script that has taken it
-          // over has stopped that behaviour, so there is nothing here to turn yet
+          console.warn(`[pmap] actorFace("${actor}", "${dir}"): a placement's heading belongs to its behaviour and cannot be set yet`)
+          stageMissed(`actorFace("${actor}")`)
         },
 
         actorShow: (actor, visible) => {
@@ -1753,11 +1819,13 @@ export default function PmapScene() {
         fx: (name, at) => {
           console.warn(`[pmap] fx "${name}"${at ? ` at ${at.x},${at.y}` : ''} did not play: there is no effect library yet`)
           engine.log('fx_missing', { map: mapId, name })
+          stageMissed(`fx "${name}"`)
         },
 
         audio: (cue) => {
           console.warn(`[pmap] audio cue "${cue}" did not play: this game has no audio system`)
           engine.log('audio_missing', { map: mapId, cue })
+          stageMissed(`audio "${cue}"`)
         },
 
         /* the escape hatch, and it stays honest about being empty. A `stage` step
@@ -1766,6 +1834,7 @@ export default function PmapScene() {
         call: (name) => {
           console.warn(`[pmap] the script asked this scene for "${name}" and it answers no such call`)
           engine.log('stage_call_missing', { map: mapId, call: name })
+          stageMissed(`stage call "${name}"`)
         },
 
         /* THE HOLD, COUNTED, so a gate handing control back mid-script does not
@@ -1782,6 +1851,13 @@ export default function PmapScene() {
         unpublish?.(); unpublish = null
         csHold?.(); csHold = null
         stationHold?.(); stationHold = null
+        driven.clear()
+        /* the map is not where they are any more. `setContext` only merges, so a
+         * map stamped on load rode every heartbeat for the rest of the session,
+         * including the ones from the planner and the graduation screen, and the
+         * per-map time on task this exists to record was attributed to whichever
+         * painting they last stood in. */
+        setContext({ map: null, place: null })
       }
 
       /* A STATION'S HOLD HAS TO STAND ASIDE FOR THE SCRIPT IT STARTED.
@@ -1821,6 +1897,18 @@ export default function PmapScene() {
        * and the idle auto-walk a `walkTo` gate falls back to when a player stands
        * still. They were three different things and only one of them existed. */
       const startWalk = (goal: { x: number; y: number }, reach: number, facing: string | null, done: () => void, label = 'a point') => {
+        /* THE ONE ALREADY RUNNING IS RESOLVED, NEVER DROPPED. `walk_to` hands its
+         * promise's resolve in as `done`, so overwriting a live walk leaves a
+         * station body awaiting a promise nothing can settle: `busy` stays true,
+         * the station's hold is never released, and that map is finished. Every
+         * station, every door, and the controls themselves, until a page reload.
+         * Three callers can start a walk now where one could before. */
+        if (autoWalk) {
+          console.warn(`[pmap] the walk to ${autoWalk.label} was replaced by one to ${label}`)
+          const orphan = autoWalk
+          autoWalk = null
+          orphan.done()
+        }
         const r = findPath(doc, cfg, { x: pos.x, y: pos.y }, goal, { step: 4, reach })
         if (!r.reached) console.warn(`[pmap] walk to ${label}: no route from here, steering straight at it`)
         autoWalk = { goal, reach, facing, route: r.points, ri: 0, until: performance.now() + 20000, label, done }
@@ -1828,7 +1916,7 @@ export default function PmapScene() {
 
       /* THE GUIDE'S ROUTE, kept between frames because a search is not free and the
        * answer only changes when the player has moved or the target has. */
-      let guide: { key: string; route: Pt[]; from: Pt; reached: boolean } | null = null
+      let guide: { key: string; route: Pt[]; from: Pt; reached: boolean; at: number } | null = null
       const guideTrail = new Graphics()
       guideTrail.zIndex = 9e9 - 3
       world.addChild(guideTrail)
@@ -1993,7 +2081,11 @@ export default function PmapScene() {
          * person would. It does not path AROUND anything, which is right on an
          * open platform and would stall in a maze, so it gives up on a clock
          * instead of hanging the body that asked for it. */
-        if (autoWalk) {
+        /* a door exit owns the character: the line above hands him nothing while a
+         * fade runs, and overwriting `input` here put that back. Overriding
+         * `locked` IS deliberate, because a station's own walk has to work while
+         * the world is held; overriding `fade` never was. */
+        if (autoWalk && !fade) {
           /* AT THE STAND-AT POINT, not at the middle of the thing. A chart
            * table's anchor is the tabletop, so steering at it walks the player
            * into the furniture and stops him a radius short of anywhere in
@@ -2136,11 +2228,19 @@ export default function PmapScene() {
            * enough for the answer to be different, and not once per frame: a flood
            * fill every frame on a 688-pixel painting is a Chromebook on fire. */
           const goal = anchors.standAt(mark)
-          if (!guide || guide.key !== mark.name || Math.hypot(pos.x - guide.from.x, pos.y - guide.from.y) > 20) {
+          /* THE SEARCH IS THROTTLED ON A CLOCK AS WELL AS ON DISTANCE. Twenty
+           * painting pixels of walking is about twice a second, and a flood fill
+           * that cannot reach its goal runs to the node cap every time, which is a
+           * rhythmic hitch on a 4 GB Chromebook in exactly the case the arrow
+           * exists for. Whichever of the two is slower wins. */
+          const stale = !guide || guide.key !== mark.name
+            || (performance.now() - guide.at > 700 && Math.hypot(pos.x - guide.from.x, pos.y - guide.from.y) > 40)
+          if (stale) {
             const r = findPath(doc, cfg, { x: pos.x, y: pos.y }, goal, { step: 4 })
-            guide = { key: mark.name, route: r.points, from: { x: pos.x, y: pos.y }, reached: r.reached }
+            guide = { key: mark.name, route: r.points, from: { x: pos.x, y: pos.y }, reached: r.reached, at: performance.now() }
           }
-          const lead = aheadOn(guide.route, { x: pos.x, y: pos.y }, 60, map.yScale) ?? goal
+          const g = guide!
+          const lead = aheadOn(g.route, { x: pos.x, y: pos.y }, 60, map.yScale) ?? goal
           objMark.position.set(lead.x, lead.y - 14 + Math.sin(t * 2.6) * 2)
           objMark.visible = !locked && !fade
 
@@ -2148,9 +2248,9 @@ export default function PmapScene() {
            * inferred from one chevron. Engine-drawn and deliberately small: the
            * painting is Ash's and the engine does not draw furniture on it. */
           guideTrail.clear()
-          if (objMark.visible && guide.route.length > 1) {
-            for (let i = 0; i < guide.route.length; i += 2) {
-              const d = guide.route[i]
+          if (objMark.visible && g.route.length > 1) {
+            for (let i = 0; i < g.route.length; i += 2) {
+              const d = g.route[i]
               if (Math.hypot(d.x - pos.x, d.y - pos.y) < 10) continue
               guideTrail.circle(d.x, d.y, 1.2).fill({ color: 0xffd98a, alpha: 0.42 })
             }
@@ -2186,6 +2286,19 @@ export default function PmapScene() {
             if (z.kind !== 'trigger') continue
             const repeat = z.meta?.repeat === true
             if (!repeat && firedTriggers.has(z.name)) continue
+            /* MARKED FIRED ONLY IF IT ACTUALLY RAN. Marking first meant the first
+             * trigger of a frame set `busy` and every other trigger the feet were
+             * inside was recorded as fired without running, dead for the rest of
+             * the map load. And a trigger no station answers to said nothing at
+             * all: it is the one anchor kind `nearestInteractive` excludes, so the
+             * debug line that names an unanswered post could never reach it. */
+            if (!stationByName(z.name)) {
+              console.warn(`[pmap] ${mapId}: trigger "${z.name}" fired and no station answers to that name`)
+              engine.log('trigger_unanswered', { map: mapId, anchor: z.name })
+              firedTriggers.add(z.name)
+              continue
+            }
+            if (busy) continue
             firedTriggers.add(z.name)
             void fire(z)
           }

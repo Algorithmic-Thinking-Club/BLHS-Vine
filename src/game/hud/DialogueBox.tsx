@@ -104,7 +104,12 @@ export function DialogueBox({
     }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
-  })
+    /* the deps are the things the handler branches on, not nothing. With no array
+     * at all this tore down and re-registered a window listener on every render,
+     * and the world box re-renders once per animation frame while a line is
+     * typing: sixty add/remove pairs a second, on the lowest-end machine in the
+     * deployment target, during the most common interaction in the game. */
+  }, [bindKeys, asking, line.done, options, onPick, onAdvance])
 
   return (
     <>
@@ -143,7 +148,16 @@ export function DialogueBox({
             draggable={false}
             /* a portrait that is not drawn yet leaves the frame empty rather than
              * putting a broken-image glyph in a character's face */
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+            onError={(e) => {
+              /* SAY SO. The header of this file names "an author could set one,
+               * see no error, and ship a scene where nobody has a face" as the
+               * thing this component exists to fix, and hiding the image without a
+               * word is that failure again one layer down. There is no
+               * public/art/portraits/ in this repository yet, so today every
+               * portrait takes this path and says which id it wanted. */
+              console.warn(`[dialogue] no portrait art for "${line.portrait}" (/art/portraits/${line.portrait}.png)`)
+              ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+            }}
           />
         )}
         {/* THE PLAQUE HANGS OFF THE BOX, not off the text column. It is absolutely

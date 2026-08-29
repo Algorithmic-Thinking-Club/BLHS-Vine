@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { onDialogue, dialogueState, type DialogueState } from '../dialogue'
 import { holdWorld } from '../world-bus'
-import { DialogueBox } from './DialogueBox'
+import { DialogueBox, ADVANCE_DEAD_MS } from './DialogueBox'
 import './dialogue.css'
 
 const CPS = 45   // characters a second; §11.1's reading-speed pacing
@@ -52,6 +52,22 @@ export function Dialogue() {
     return () => cancelAnimationFrame(raf)
   }, [text])
 
+  /* THE VEIL GOES THROUGH THE BOX'S OWN GUARD, and this clock has to be declared
+   * with the other hooks and not beside the handler that reads it.
+   *
+   * `.dlg-veil` is fixed and covers the screen, so a click anywhere outside the
+   * box reached its handler directly and skipped `ADVANCE_DEAD_MS` entirely, which
+   * is the exact behaviour the dead zone was added to stop: a student clicking
+   * fast blows through station dialogue one line per click and never reads it. The
+   * cutscene box was protected and the world box was not.
+   *
+   * It sits above the early return because React counts hooks per render and this
+   * component returns null whenever nothing is being said. Declared below it, the
+   * first line of dialogue in a session rendered two more hooks than the render
+   * before it and React tore the whole tree down mid-sentence. */
+  const veilAt = useRef(0)
+  useEffect(() => { veilAt.current = performance.now() }, [text])
+
   const done = shown >= text.length
   if (!st) return null
 
@@ -62,8 +78,13 @@ export function Dialogue() {
     if (st.kind === 'line') st.advance()
   }
 
+  const advanceFromVeil = () => {
+    if (performance.now() - veilAt.current <= ADVANCE_DEAD_MS) return
+    advance()
+  }
+
   return (
-    <div className="dlg-veil" onClick={advance}>
+    <div className="dlg-veil" onClick={advanceFromVeil}>
       <DialogueBox
         line={{
           who: st.kind === 'line' ? st.line.who : undefined,

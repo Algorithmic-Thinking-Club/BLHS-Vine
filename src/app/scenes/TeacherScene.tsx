@@ -91,14 +91,22 @@ export default function TeacherScene() {
         body: JSON.stringify({ op: 'export', classId: active.classId, teacherKey: active.teacherKey }),
       })
       if (r.status === 503) { setOffline(true); return }
+      /* A REJECTED KEY IS NOT AN OFFLINE SERVER. Only 503 means offline; a 403
+       * used to parse to { error: 'bad_key' }, throw on the spread below, and land
+       * in the catch as "server not configured", so a teacher with a stale key was
+       * told to wait for something that was already working. */
+      if (!r.ok) { setExported(`the server refused that (${r.status}). Check the class key.`); return }
       const d = await r.json() as { columns: string[]; rows: (string | number)[][]; events: number }
       const csv = [d.columns, ...d.rows]
         .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
         .join('\n')
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
       const a = document.createElement('a')
-      a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+      a.href = url
       a.download = `${active.name}-export.csv`
       a.click()
+      // the blob is pinned for the life of the tab otherwise, once per export
+      setTimeout(() => URL.revokeObjectURL(url), 10_000)
       /* an export of nothing and an empty class look identical in a CSV, and only
        * one of them is a bug worth telling somebody about */
       setExported(`${d.rows.length} student${d.rows.length === 1 ? '' : 's'} · ${d.events} events read`)

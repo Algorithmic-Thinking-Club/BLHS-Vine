@@ -62,12 +62,36 @@ export const engine: IntentEngine = {
     if (a.fact) collectFact(a.fact)
     if (a.sticker) collectSticker(a.sticker)
     if (a.badge) grantBadge(a.badge)
-    if (typeof a.grade !== 'number') return
 
     const s = loadSave()
     if (!s) return
     const year = s.year
     const g = programmeById(a.programme)
+
+    /* A NAME NOBODY IS ON THE ROSTER FOR IS SAID OUT LOUD. The grade is still
+     * kept, because a grade that has been earned should not be lost to a typo,
+     * and the row carries the name that was asked for. What was missing was any
+     * way at all for the author to find out: no warning, no event, no refusal,
+     * and an island that silently never completes while the study's own dependent
+     * variable reads zero programmes finished. */
+    if (a.programme && !g) {
+      console.warn(`[award] no programme named "${a.programme}" on the roster; the grade is kept and the island is not marked finished`)
+      track('award_unknown_programme', { programme: a.programme })
+    }
+
+    /* NAMING A PROGRAMME AND NO GRADE IS HOW A MEMBER SAYS THEY FINISHED IT, and
+     * it used to return before anything happened and still answer ok: no ledger
+     * row, no completion, no event, and an island the planner never sees close.
+     * Completion is a result and a grade is a number, and only one of them is
+     * required to have happened. */
+    if (typeof a.grade !== 'number') {
+      if (g) {
+        recordCompletion(g.id, 0, g.rankTrack ?? undefined)
+        setIslandState(g.id, 'completed')
+        track('programme_completed', { programme: g.id, place: g.place, grade: null, year })
+      }
+      return
+    }
     /* an unknown programme is not refused here: `performIntent` would turn a
      * throw into a refusal at the member's own line, and a grade that has been
      * earned should not be lost to a typo in the name of strictness. It lands as

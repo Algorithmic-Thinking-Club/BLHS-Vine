@@ -186,6 +186,13 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         await w().walkTo(i.anchor)
         return ok()
       case 'look_at':
+        /* THE ONLY ANCHOR-TAKING WORD THAT DID NOT CHECK ITS ANCHOR. guide_to,
+         * walk_to and show all refuse a name the map does not carry; this one went
+         * straight through, resolved on the next tick, and answered ok with the
+         * camera never having moved. A typo in an anchor name is the single most
+         * likely mistake a member will make, and this was the one word that would
+         * not tell them. `null` still means "let the camera go" and is not a name. */
+        if (i.anchor && !w().hasAnchor(i.anchor)) return no(`no anchor named "${i.anchor}" on ${w().mapId()}`)
         await w().lookAt(i.anchor, i.ms)
         return ok()
       case 'show':
