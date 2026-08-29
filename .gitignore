@@ -87,6 +87,17 @@ scripts/*
 !scripts/mp-spike.mjs
 !scripts/grape-proof.mjs
 
+# AND THE WAVE GATES, WHICH IS THE SAME FAILURE AGAIN, FOUND THE SAME WAY.
+# wave1-proof.mjs is the script BRIEF-ENGINE-2 calls "the pattern" and tells the
+# next session to extend, wave2-proof.mjs is the run that proves this wave, and
+# scripts/* had swallowed both exactly as it swallowed mp-spike.mjs. A gate
+# nobody can check out is a gate that passed once, on one machine, on somebody's
+# word. make-maw-standin.mjs comes with them because it GENERATES the bundle both
+# gates run on, so without it the two scripts arrive pointing at nothing.
+!scripts/wave1-proof.mjs
+!scripts/wave2-proof.mjs
+!scripts/make-maw-standin.mjs
+
 # Internal asset registries (kept local)
 **/*-registry.md
 
