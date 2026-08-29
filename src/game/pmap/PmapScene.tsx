@@ -1219,6 +1219,20 @@ export default function PmapScene() {
         }
       } catch { /* the fetch itself failed: same answer as a 404, no assets */ }
 
+      /* NOW THE ANCHORS CAN FOLLOW THE THINGS THEY ARE ON.
+       *
+       * A bound anchor's x and y in the bundle are where its placement was put,
+       * because that is the only position a file can honestly carry: seventeen
+       * of the hub's people wander and their spot is a function of the clock.
+       * The sprite knows where it is this frame, so the anchor set is handed a
+       * way to ask. Installed after the assets pass so it never resolves half a
+       * map, and a bundle with no placements leaves it answering nothing, which
+       * falls straight back to the exported coordinates. */
+      anchors.follow((ref) => {
+        const sp = placedById.get(ref)
+        return sp ? { x: sp.x, y: sp.y } : null
+      })
+
       /* which of the standing placements anything can actually get to, asked
        * once now that every mover is loaded. A walkOnly behaviour is fenced by
        * the floor, so it is the pixel scan; anything else is fenced only by its
@@ -1405,6 +1419,23 @@ export default function PmapScene() {
       doorTxt.zIndex = 9e9 - 1
       doorTxt.visible = false
       world.addChild(doorTxt)
+
+      /* A POINTER PATH BESIDE THE E PATH.
+       *
+       * "Press E" is meaningless on a trackpad, and this plaque was the only way
+       * into every station in the game: a Pixi text with no hit area, so a student
+       * on a school Chromebook's touchpad could walk up to the chart table and
+       * have no way to open it. A key path with no pointer path is not a shortcut,
+       * it is a wall, and the reverse is equally true, which is why the plaque
+       * still says E and now also takes a tap.
+       *
+       * The plaque is what takes the tap rather than the anchor's own art: the art
+       * is Ash's and the engine does not draw hit boxes on top of it, and the
+       * plaque is already exactly where the affordance is. */
+      let promptAnchor: Anchor | null = null
+      doorTxt.eventMode = 'static'
+      doorTxt.cursor = 'pointer'
+      doorTxt.on('pointertap', () => { if (promptAnchor) void fire(promptAnchor) })
 
       /* the objective marker: a small chevron over the one station the year is
        * currently sending the player to. Deliberately not a glow on the station
@@ -1721,9 +1752,15 @@ export default function PmapScene() {
             }
           }
           doorTxt.text = text
-          doorTxt.position.set(near.x, near.y - 6 + Math.sin(t * 2.1) * 1.2)
+          // through spotOf, because an anchor bound to somebody who paces has
+          // to wear its prompt where she is standing, not where she started
+          const np = anchors.spotOf(near)
+          doorTxt.position.set(np.x, np.y - 6 + Math.sin(t * 2.1) * 1.2)
           doorTxt.visible = !!text
-        } else doorTxt.visible = false
+          /* the plaque is only tappable when E would do something, so a barred
+           * door and a closed station read the same to a pointer as to a key */
+          promptAnchor = canFire ? near : null
+        } else { doorTxt.visible = false; promptAnchor = null }
 
         /* THE OBJECTIVE MARKER: one thing at a time is the live one.
          *
@@ -1736,7 +1773,8 @@ export default function PmapScene() {
          * because a body that just said "go and look at the wall" means it */
         const mark = guideTarget ?? (obj && obj.map === mapId ? anchors.get(obj.anchor) : undefined)
         if (mark) {
-          objMark.position.set(mark.x, mark.y - 14 + Math.sin(t * 2.6) * 2)
+          const mp = anchors.spotOf(mark)
+          objMark.position.set(mp.x, mp.y - 14 + Math.sin(t * 2.6) * 2)
           objMark.visible = !locked && !fade
         } else objMark.visible = false
 

@@ -173,3 +173,56 @@ describe('AnchorSet: the questions a scene asks every frame', () => {
     expect(bare.arrival(undefined, [77, 88])).toEqual({ x: 77, y: 88 })
   })
 })
+
+/* A NAME ON A PAINTED THING, which is the half of the contract that had no
+ * writer until 2026-08-28. `placement` was typed, tabled, exported and read as
+ * the entire body of the `show` intent, with no way for a human to put a value
+ * in it, so the binding could not exist on any bundle MAPVIS could produce.
+ * These are the reader's side of it. */
+describe('an anchor bound to a placement', () => {
+  const bound = () =>
+    new AnchorSet('maw', readAnchors({
+      anchors: [
+        { name: 'counselor', kind: 'post', x: 100, y: 100, r: 20, label: 'the counselor', placement: 'nurse' },
+        { name: 'hearth', kind: 'post', x: 300, y: 100, r: 20, label: 'the hearth' },
+      ],
+    }))
+
+  it('carries the binding through the parse', () => {
+    expect(bound().get('counselor')?.placement).toBe('nurse')
+    expect(bound().get('hearth')?.placement).toBeUndefined()
+  })
+
+  it('sits where the bundle put it until somebody says otherwise', () => {
+    // a map with no placements loaded, which is every bundle before this and
+    // every bundle whose art has not finished arriving
+    expect(bound().spotOf(bound().get('counselor')!)).toEqual({ x: 100, y: 100 })
+  })
+
+  it('follows the thing it is bound to once the scene can answer', () => {
+    // seventeen of the hub's people wander, so the exported x,y is where the
+    // sprite STARTS and the live position is a function of the clock
+    const set = bound()
+    set.follow((ref) => (ref === 'nurse' ? { x: 140, y: 155 } : null))
+    expect(set.spotOf(set.get('counselor')!)).toEqual({ x: 140, y: 155 })
+    // an unbound anchor is unaffected, and so is one whose placement is gone
+    expect(set.spotOf(set.get('hearth')!)).toEqual({ x: 300, y: 100 })
+  })
+
+  it('takes its prompt ring, its arrival and its reach with it', () => {
+    const set = bound()
+    set.follow((ref) => (ref === 'nurse' ? { x: 140, y: 155 } : null))
+    // the ring moved: the old centre is now out of reach and the new one is in
+    expect(set.nearestInteractive(100, 100)).toBeNull()
+    expect(set.nearestInteractive(145, 158)?.name).toBe('counselor')
+    expect(set.arrival('counselor', [1, 1])).toEqual({ x: 140, y: 155, facing: undefined })
+  })
+
+  it('falls back to the exported spot when the placement is not on this map', () => {
+    // a binding left pointing at something that was deleted must not put the
+    // anchor at the origin, which is landing in the rock
+    const set = bound()
+    set.follow(() => null)
+    expect(set.spotOf(set.get('counselor')!)).toEqual({ x: 100, y: 100 })
+  })
+})

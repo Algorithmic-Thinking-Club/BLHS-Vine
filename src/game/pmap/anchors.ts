@@ -139,8 +139,13 @@ export function anchorName(s: string): string {
 
 /* ---- asking questions about a map's anchors ------------------------------- */
 
+/* where a placement is being drawn this frame, answered by whoever is drawing
+ * it. Null for a name nothing on this map carries. */
+export type LiveSpots = (placement: string) => { x: number; y: number } | null
+
 export class AnchorSet {
   private byName = new Map<string, Anchor>()
+  private live: LiveSpots | null = null
   readonly all: Anchor[]
 
   constructor(readonly mapId: string, anchors: Anchor[]) {
@@ -156,6 +161,32 @@ export class AnchorSet {
   has(name: string): boolean { return this.byName.has(name) }
   ofKind(kind: AnchorKind): Anchor[] { return this.all.filter((a) => a.kind === kind) }
 
+  /* WHO KNOWS WHERE THE PAINTED THINGS ARE. Handed in by the scene once its
+   * placements are on screen. Without it every anchor answers with the x and y
+   * the bundle carries, which is what a map with no movers wants and is what
+   * every reader before this got. */
+  follow(spots: LiveSpots | null) { this.live = spots }
+
+  /* WHERE THIS ANCHOR IS RIGHT NOW, which is not always where it was exported.
+   *
+   * A bound anchor is a name ON a painted thing, and seventeen of the hub's
+   * people wander: their position is a function of the clock, so the bundle can
+   * only honestly carry where they start. MAPVIS writes the home position for
+   * that reason, deliberately, and the following happens here. Without this the
+   * prompt ring, the objective marker and the interaction test for every
+   * anchor on a figure who paces all sit on the spot she left at load.
+   *
+   * Everything below asks through here rather than reading a.x directly, so
+   * there is one answer to the question and no caller has to know a placement
+   * exists. */
+  spotOf(a: Anchor): { x: number; y: number } {
+    if (a.placement && this.live) {
+      const p = this.live(a.placement)
+      if (p) return p
+    }
+    return { x: a.x, y: a.y }
+  }
+
   /* is a point inside this anchor's reach. A region uses its rectangle when it
    * has one, because a rectangle is what the author drew and a circle around its
    * centre is a different shape than the one they meant. Everything else is the
@@ -165,7 +196,8 @@ export class AnchorSet {
       const [x0, y0, x1, y1] = a.rect
       return x >= Math.min(x0, x1) && x <= Math.max(x0, x1) && y >= Math.min(y0, y1) && y <= Math.max(y0, y1)
     }
-    return Math.hypot(x - a.x, y - a.y) <= a.r
+    const p = this.spotOf(a)
+    return Math.hypot(x - p.x, y - p.y) <= a.r
   }
 
   /* THE NEAREST ONE THAT WANTS A BUTTON PRESS.
@@ -183,7 +215,8 @@ export class AnchorSet {
     let bestD = Infinity
     for (const a of this.all) {
       if (a.kind !== 'point' && a.kind !== 'post' && a.kind !== 'door') continue
-      const d = Math.hypot(x - a.x, y - a.y)
+      const p = this.spotOf(a)
+      const d = Math.hypot(x - p.x, y - p.y)
       if (d <= a.r && d < bestD) { bestD = d; best = a }
     }
     return best
@@ -200,10 +233,10 @@ export class AnchorSet {
    * rather than to the origin, because landing at 0,0 is landing in the rock. */
   arrival(at: string | undefined, spawn: [number, number]): { x: number; y: number; facing?: string } {
     const a = at ? this.get(at) : undefined
-    if (a) return { x: a.x, y: a.y, facing: a.facing }
+    if (a) return { ...this.spotOf(a), facing: a.facing }
     if (at) console.warn(`[anchors] ${this.mapId}: no arrival anchor "${at}", using spawn`)
     const s = this.ofKind('spawn')[0]
-    if (s) return { x: s.x, y: s.y, facing: s.facing }
+    if (s) return { ...this.spotOf(s), facing: s.facing }
     return { x: spawn[0], y: spawn[1] }
   }
 }
