@@ -23,7 +23,6 @@ the entry name, the module list and the reply all arrive through globals, which
 carries quotes, newlines and unicode intact (measured), so there is no escaping
 to get wrong and no way for an island's text to become code.
 """
-import inspect
 import json
 import sys
 
@@ -63,7 +62,15 @@ def _load(island, entry, names_json):
             del sys.modules[mod]
 
     grape._forget()
-    __import__(entry[:-3] if entry.endswith(".py") else entry)
+    try:
+        __import__(entry[:-3] if entry.endswith(".py") else entry)
+    except:
+        # AN IMPORT THAT RAISES HALFWAY HAS ALREADY REGISTERED HALF THE ISLAND,
+        # and those handlers stay in the dict and stay callable. "The island did
+        # not import" has to mean the island cannot run, or a member debugs a
+        # file where the first two anchors work and the third does nothing.
+        grape._forget()
+        raise
     _step = json.dumps({"t": "ready", "handlers": grape._registered()})
 
 
@@ -78,14 +85,23 @@ def _call(name):
 
     # THE FORGOTTEN `yield`, CAUGHT BEFORE THE BODY RUNS where that is possible.
     #
-    # This build DOES carry an inspect module, including isgeneratorfunction, and
-    # the old comment here saying otherwise was wrong. But it is not the whole
-    # answer either: measured, a BOUND METHOD reports False from
-    # isgeneratorfunction even when it plainly is one, so trusting a False alone
-    # would tell a member with a class-based island that a working handler never
-    # yielded. So a False only convicts when the thing is an ordinary function,
-    # and everything else is judged on what the call returns.
-    if not inspect.isgeneratorfunction(fn) and type(fn).__name__ not in ("bound_method",):
+    # AND NOT WITH inspect.isgeneratorfunction, which is the obvious answer and
+    # the wrong one. This build does carry an inspect module, so the old comment
+    # here claiming it does not was wrong, but measured against 1.29.0-6 it
+    # answers False for a bound method AND for a CLOSURE, and a closure is what
+    # every decorator returns. Convicting on a False told a member whose handler
+    # was wrapped in their own decorator that it had no yield in it, and named
+    # the wrapper rather than their function. scripts/mp-guard-spike.mjs is the
+    # measurement.
+    #
+    # What this build does instead is put the answer in the type name. A `def`
+    # containing a yield is type `generator` before it is ever called; a plain
+    # one is `function`; a closure is `closure` either way. So `function` is the
+    # one case that can be convicted without running anything, and it is exactly
+    # the case a beginner hits. Everything else is judged on what the call
+    # returned, one line down, which costs the body of a closure that forgot and
+    # is the price of never accusing a working handler.
+    if type(fn).__name__ == "function":
         raise TypeError(
             "%s() has no yield in it, so nothing it does would ever reach the "
             "engine. Put `yield` in front of the things that take time."
@@ -113,9 +129,34 @@ def _resume(reply_json):
 def _pump(advance):
     global _gen, _step
     try:
-        _step = json.dumps({"t": "intent", "intent": advance()})
+        _step = _wire({"t": "intent", "intent": advance()})
     except StopIteration:
         # dropped, so a stray resume lands on the message above rather than on a
         # generator that has already finished
         _gen = None
         _step = json.dumps({"t": "done"})
+
+
+def _wire(message):
+    """JSON, or a sentence about the value that would not become JSON.
+
+    THIS BUILD'S json.dumps DOES NOT RAISE on something it cannot encode. It
+    writes the repr and hands back a string that is not JSON, which then dies in
+    the worker's JSON.parse, OUTSIDE the guard that turns a python problem into a
+    readable message. A member who wrote `award(tags={"stem", "fall"})`, which is
+    an ordinary set, got a JavaScript parser complaint with a byte offset in it.
+
+    A set, an object, a class, nan. All things a member reaches for, and none of
+    them survive a postMessage. So the round trip is checked here, where the
+    value that caused it can still be named.
+    """
+    text = json.dumps(message)
+    try:
+        json.loads(text)
+    except (ValueError, TypeError):
+        raise TypeError(
+            "this island yielded something the engine cannot be sent: %r. An "
+            "intent carries text, numbers, True, False, None, lists and dicts, "
+            "and nothing else. A set or one of your own objects has to become "
+            "one of those first." % (message.get("intent"),))
+    return text

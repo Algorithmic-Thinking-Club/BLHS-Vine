@@ -60,7 +60,7 @@ const registry: SceneRegistry = {
   mw: () => <MapwrightLazy />, // MAPWRIGHT engine scene (P5): loads public/maps/<?map>/map.json — the map machine's output (?scene=mw&map=test-cove)
   objmap: () => <ObjMapLazy />, // THE OBJECT-MAP proof: engine ground + ocean, every object one painted PNG, colliders MEASURED off sprite alpha (?scene=objmap&dbg=1)
   pmap: () => <PmapLazy />, // THE MAPVIS BUNDLE LOADER: walks public/maps-painted/<?map> exactly as exported, zero hand-wiring (?scene=pmap&map=quayprop&dbg=1)
-  grape: () => <GrapeProofLazy />, // THE GRAPE PIPE: a member's .py in a MicroPython worker driving the real dialogue box (?scene=grape&py=hello.py)
+  grape: () => <GrapeProofLazy />, // THE GRAPE PIPE: a member's python package in a MicroPython worker driving the real dialogue box (?scene=grape · &island=broken · &from=<base url> · &gh=owner/repo@branch:islands/id · &arm=plain)
 }
 
 export default function App() {

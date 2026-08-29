@@ -26,15 +26,19 @@ import DRIVER_PY from './driver.py?raw'
 import { PROTOCOL, type FromWorker, type PyStep, type ToWorker } from './protocol'
 
 /* tsconfig's lib is DOM, not WebWorker, and adding WebWorker collides with DOM
- * for all 133 files in the project. One cast here is cheaper than that, and it
- * is contained to the single line that needs it. */
+ * across every file in src. One cast here is cheaper than that, and it is
+ * contained to the single line that needs it. */
 const post = (m: FromWorker) => (self as unknown as { postMessage(m: unknown): void }).postMessage(m)
 
 let mp: MicroPython | null = null
 
 /* ~170 KB and under a tenth of a second, which is the entire reason this is
  * MicroPython and not Pyodide: a freshman plays the finished game on a 4 GB
- * school Chromebook. Booted once and reused, so a second island is free. */
+ * school Chromebook. Booted once per session and reused for every call and
+ * resume in it. NOT once per game: openGrape makes a worker per island, so a
+ * second island pays the boot again. That is the honest reading of one `new
+ * Worker` in runGrape.ts, and it is fine at this size; a shared worker would be
+ * a change there rather than a comment here. */
 async function boot(): Promise<MicroPython> {
   if (mp) return mp
   const py = await loadMicroPython({

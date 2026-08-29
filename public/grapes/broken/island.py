@@ -1,7 +1,8 @@
 """The sandbox, on purpose.
 
-This island has two handlers. One of them says a line, takes an answer, and then
-does something no island should survive. The other one works.
+This island has three handlers. One says a line, takes an answer, and then does
+something no island should survive. One works. One asks the engine for a word it
+understands but this scene cannot perform.
 
 The point is entirely what happens next. The engine keeps running, the dialogue
 box is still there, the player is told the island is under construction, and
@@ -12,7 +13,7 @@ The traceback names this file and this line, which is the thing that makes a
 beginner able to fix it.
 """
 from grape import on_talk
-from vine import choose, guide_to, say
+from vine import award, choose, guide_to, say
 
 WHO = "the broken island"
 
@@ -46,3 +47,16 @@ def ask_for_the_impossible():
     yield say("Watch what happens when I ask for something this scene cannot do.", who=WHO)
     yield guide_to("a_place_that_is_not_here")
     yield say("You will not see this line.", who=WHO)
+
+
+@on_talk("yield_a_set")
+def yield_a_set():
+    """A value that cannot cross the worker, which is an easy thing to write.
+
+    Tags are a list. A set is the thing a person reaches for, and this build's
+    json.dumps does not raise on one: it writes the repr and hands back a string
+    that is not JSON, which used to die in the engine's JSON.parse and come back
+    to the member as a JavaScript parser complaint with a byte offset in it.
+    """
+    yield say("Now I will yield something that cannot be sent.", who=WHO)
+    yield award(programme="broken", tags={"stem", "fall"})

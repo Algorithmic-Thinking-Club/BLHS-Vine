@@ -17,8 +17,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import {
-  FORMAT, GrapeSourceError, baseUrlOf, fetchGrape, islandIdOf, manifestFaults,
-  parseGrapeRef, type GrapeRef,
+  FORMAT, baseUrlOf, fetchGrape, islandIdOf, manifestFaults, parseGrapeRef, type GrapeRef,
 } from './grape-source'
 import { PROTOCOL } from './protocol'
 
@@ -157,6 +156,27 @@ describe('the modules an island ships', () => {
   it('refuses an entry that is not one of the modules', () => {
     expect(one(bent({ entry: 'main.py' }))).toContain('`entry`')
   })
+
+  it('refuses a shouted extension, which imports on windows and 404s on github', () => {
+    /* `island.PY` used to pass every check here, because the extension test was
+     * case-insensitive and the stem was then taken with a blind slice. It died
+     * at `__import__("island.PY")` in driver.py, whose endswith is not. */
+    const f = manifestFaults({ ...GOOD, entry: 'island.PY', modules: ['island.PY'] })
+    expect(f.join(' ')).toContain('lower case')
+  })
+
+  it('refuses a list nobody meant to write', () => {
+    const many = Array.from({ length: 40 }, (_, i) => `m${i}.py`)
+    const f = manifestFaults({ ...GOOD, entry: 'm0.py', modules: many })
+    expect(f[0]).toContain('40 files')
+  })
+
+  it('does not call a list with a number in it a duplicate', () => {
+    /* it counted the set of STRINGS against the length of the whole list, so any
+     * non-string entry reported a repeated filename that was not there */
+    const f = manifestFaults(bent({ modules: ['island.py', 7] }))
+    expect(f.join(' ')).not.toContain('twice')
+  })
 })
 
 describe('where an island comes from', () => {
@@ -204,11 +224,12 @@ describe('where an island comes from', () => {
 describe('fetching one', () => {
   afterEach(() => { vi.unstubAllGlobals() })
 
-  const serving = (files: Record<string, string>) => {
+  const serving = (files: Record<string, string>, kind = 'text/plain') => {
+    const headers = { get: (h: string) => (h.toLowerCase() === 'content-type' ? kind : null) }
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       const name = url.split('/').filter(Boolean).pop() ?? ''
-      if (!(name in files)) return { ok: false, status: 404, text: async () => '' }
-      return { ok: true, status: 200, text: async () => files[name] }
+      if (!(name in files)) return { ok: false, status: 404, headers, text: async () => '' }
+      return { ok: true, status: 200, headers, text: async () => files[name] }
     }))
   }
 
@@ -236,6 +257,25 @@ describe('fetching one', () => {
     await expect(fetchGrape(ref)).rejects.toThrow(/web page/)
   })
 
+  it('refuses a web page that does not lead with a doctype', async () => {
+    /* the first version of this check tested for `<!doctype`, `<html` or `<?xml`
+     * at the start, and every one of these got through it and was written into
+     * the runtime as a member's module */
+    for (const body of [
+      '<!-- vite -->\n<!doctype html>\n<html></html>',
+      '<meta charset="utf-8"><title>404</title>',
+      '<h1>404 Not Found</h1>',
+    ]) {
+      serving({ 'island.json': body })
+      await expect(fetchGrape(ref)).rejects.toThrow(/web page/)
+    }
+  })
+
+  it('refuses anything served as html however it begins', async () => {
+    serving({ 'island.json': JSON.stringify(GOOD) }, 'text/html; charset=utf-8')
+    await expect(fetchGrape(ref)).rejects.toThrow(/web page/)
+  })
+
   it('refuses a manifest that is not JSON', async () => {
     serving({ 'island.json': '{ not json' })
     await expect(fetchGrape(ref)).rejects.toThrow(/not valid JSON/)
@@ -259,7 +299,74 @@ describe('fetching one', () => {
       new Promise((_res, rej) => {
         init.signal.addEventListener('abort', () => rej(new Error('aborted')))
       })))
-    await expect(fetchGrape(ref, 20)).rejects.toThrow(GrapeSourceError)
+    await expect(fetchGrape(ref, 20)).rejects.toThrow(/did not answer within 20 ms/)
+  })
+
+  it('gives up on a server that sends headers and then stalls', async () => {
+    /* fetch resolves on HEADERS. Clearing the abort timer once it returns left
+     * the body read with no clock on it at all, so a stalled body hung the whole
+     * scene with no error and no way back, before openGrape and its BOOT_MS ever
+     * existed. That is the one silent hang the sandbox is built to prevent. */
+    const headers = { get: () => 'text/plain' }
+    vi.stubGlobal('fetch', vi.fn(async (_u: string, init: { signal: AbortSignal }) => ({
+      ok: true,
+      status: 200,
+      headers,
+      text: () => new Promise<string>((_res, rej) => {
+        init.signal.addEventListener('abort', () => rej(new Error('aborted')))
+      }),
+    })))
+    await expect(fetchGrape(ref, 30)).rejects.toThrow(/did not answer within 30 ms/)
+  })
+
+  it('refuses a module too big to hand a 4 GB chromebook', async () => {
+    serving({
+      'island.json': JSON.stringify(GOOD),
+      'island.py': 'x'.repeat(300 * 1024),
+    })
+    await expect(fetchGrape(ref)).rejects.toThrow(/KB/)
+  })
+})
+
+describe('where an island may be loaded from', () => {
+  afterEach(() => { vi.unstubAllGlobals() })
+
+  /* ?scene=grape is in the same scene table as every other scene, so it is
+   * reachable on the deployed game. A `from` that took any origin meant a link
+   * could run a stranger's python on the real domain, and `log` reaches the Neon
+   * events table the study is measured out of. Nothing escapes the wasm sandbox;
+   * the study's data was the thing at risk. */
+  const reach = (base: string) => fetchGrape({ at: 'url', base })
+
+  it('refuses an origin that is neither this machine nor the islands repository', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    for (const base of ['http://evil.example/islands/x/', 'https://pastebin.com/raw/abc/']) {
+      await expect(reach(base)).rejects.toThrow(/not somewhere an island may be loaded from/)
+    }
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('allows a member s own machine and the raw github host', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false, status: 404, headers: { get: () => null }, text: async () => '',
+    })))
+    for (const base of [
+      'http://localhost:5280/islands/skeleton/',
+      'http://127.0.0.1:5280/islands/skeleton/',
+      'https://raw.githubusercontent.com/ash/blhs-islands/main/islands/skeleton/',
+    ]) {
+      /* it gets as far as the fetch, which is the whole assertion */
+      await expect(reach(base)).rejects.toThrow(/answered 404/)
+    }
+  })
+
+  it('refuses a base carrying a query or a fragment', async () => {
+    /* the id used to be read with the query stripped while the fetch kept it, so
+     * the island's runtime folder and the url actually asked for disagreed */
+    vi.stubGlobal('fetch', vi.fn())
+    await expect(reach('http://localhost:5280/islands/skeleton?v=2/')).rejects
+      .toThrow(/query or a fragment/)
+    expect(fetch).not.toHaveBeenCalled()
   })
 })
 

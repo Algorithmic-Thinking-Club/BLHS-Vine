@@ -68,12 +68,17 @@ const TEXT_MAX = 80
 const ENGINE_OWNED = ['vine.py', 'grape.py']
 
 /* names python already has. An island shipping random.py does not get a warning,
- * it replaces the real one for everything in that runtime. */
-const TAKEN = new Set([
-  'json', 'random', 'time', 'sys', 'os', 're', 'math', 'struct', 'collections',
-  'io', 'gc', 'array', 'select', 'errno', 'binascii', 'hashlib', 'heapq',
-  'string', 'types', 'builtins', 'abc', 'copy', 'enum', 'functools', 'itertools',
-  'socket', 'ssl', 'uasyncio', 'asyncio', 'inspect', 'grape', 'vine', 'driver',
+ * it replaces the real one for everything in that runtime.
+ *
+ * THE SAME LIST IS IN blhs-islands/tools/manifest.py AND A TEST THERE FAILS IF
+ * THEY DIVERGE. They had already drifted by four names within a day of being
+ * written, which is exactly long enough for a member to be refused by the game
+ * for a file their own checker called fine. Sorted so a diff is readable. */
+export const TAKEN = new Set([
+  'abc', 'array', 'asyncio', 'binascii', 'builtins', 'collections', 'copy',
+  'enum', 'errno', 'functools', 'gc', 'grape', 'hashlib', 'heapq', 'inspect',
+  'io', 'itertools', 'json', 'math', 'os', 'random', 're', 'select', 'socket',
+  'ssl', 'string', 'struct', 'sys', 'test', 'time', 'types', 'uasyncio', 'vine',
 ])
 
 /* ---- is this an island ---------------------------------------------------- */
@@ -81,7 +86,8 @@ const TAKEN = new Set([
 /** Every reason this is not a loadable island. Empty means it is one. */
 export function manifestFaults(raw: unknown): string[] {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
-    return [`island.json has to be an object, not ${Array.isArray(raw) ? 'a list' : typeof raw}`]
+    const what = raw === null ? 'null' : Array.isArray(raw) ? 'a list' : `a ${typeof raw}`
+    return [`island.json has to be an object, not ${what}`]
   }
   const m = raw as Record<string, unknown>
   const out: string[] = []
@@ -124,8 +130,11 @@ export function manifestFaults(raw: unknown): string[] {
     } else if (/[\n\r\0]/.test(v)) {
       out.push(`\`${key}\` has a line break or a control character in it, and it is `
         + 'rendered as one line')
-    } else if (v.length > TEXT_MAX) {
-      out.push(`\`${key}\` is ${v.length} characters; keep it under ${TEXT_MAX} so it `
+    } else if ([...v].length > TEXT_MAX) {
+      /* code points, not UTF-16 units, because python's len() counts code points
+       * and an emoji is two units and one point. Counting differently is how the
+       * two checkers disagree about a title neither of them should argue over. */
+      out.push(`\`${key}\` is ${[...v].length} characters; keep it to ${TEXT_MAX} so it `
         + 'fits where it is drawn')
     }
   }
@@ -145,10 +154,19 @@ function moduleFaults(m: Record<string, unknown>): string[] {
   if (!Array.isArray(mods) || !mods.length) {
     return ['`modules` has to list every .py file the game should fetch']
   }
+  if (mods.length > MAX_MODULES) {
+    return [`\`modules\` lists ${mods.length} files. An island is a handful, and every `
+      + `one of them is fetched at once, so the limit is ${MAX_MODULES}.`]
+  }
 
   for (const name of mods) {
-    if (typeof name !== 'string' || !name.toLowerCase().endsWith('.py')) {
-      out.push(`\`modules\` has ${JSON.stringify(name)} in it, which is not a .py filename`)
+    /* the literal lower-case suffix, not a case-insensitive one. `island.PY`
+     * used to pass here, take its stem with a blind slice, pass everything else,
+     * and then die at `__import__("island.PY")` in driver.py, whose endswith IS
+     * case sensitive. GitHub serves case-sensitively too. */
+    if (typeof name !== 'string' || !name.endsWith('.py')) {
+      out.push(`\`modules\` has ${JSON.stringify(name)} in it, which is not a .py filename. `
+        + 'The extension is lower case, because that is what you type after `import`')
       continue
     }
     if (name.includes('/') || name.includes('\\')) {
@@ -156,7 +174,7 @@ function moduleFaults(m: Record<string, unknown>): string[] {
         + 'is one flat folder')
       continue
     }
-    if (ENGINE_OWNED.includes(name)) {
+    if (ENGINE_OWNED.includes(name.toLowerCase())) {
       out.push(`\`modules\` lists ${name}, which the game provides. Yours would shadow `
         + 'the real one')
       continue
@@ -173,8 +191,12 @@ function moduleFaults(m: Record<string, unknown>): string[] {
     }
   }
 
-  const lowered = new Set(mods.filter((n) => typeof n === 'string').map((n) => (n as string).toLowerCase()))
-  if (lowered.size !== mods.length) out.push('`modules` lists the same file twice')
+  /* against the count of NAMES, not of entries. A list holding one string and one
+   * number is not a list with a duplicate in it, and saying so sends a member
+   * looking for a repeated filename that is not there. */
+  const names = mods.filter((n): n is string => typeof n === 'string')
+  const lowered = new Set(names.map((n) => n.toLowerCase()))
+  if (lowered.size !== names.length) out.push('`modules` lists the same file twice')
 
   if (typeof m.entry !== 'string' || !mods.includes(m.entry)) {
     out.push(`\`entry\` is ${JSON.stringify(m.entry)}, which is not one of the modules`)
@@ -202,10 +224,39 @@ export function baseUrlOf(ref: GrapeRef): string {
   return `https://raw.githubusercontent.com/${ref.owner}/${ref.repo}/${ref.branch}/${path}/`
 }
 
-/** the folder name at the end of a base url, which is the island's id */
+/* THE ID AND THE URL HAVE TO AGREE. This used to strip a query and a fragment
+ * before taking the last segment while the fetch kept them, so
+ * `.../skeleton?v=2` reported the island as `skeleton` and asked the server for
+ * something else. That id is not cosmetic: it becomes the folder on the runtime
+ * filesystem and the sys.path root the member's own imports resolve against. */
 export function islandIdOf(base: string): string {
-  const parts = base.split(/[?#]/)[0].split('/').filter(Boolean)
-  return parts[parts.length - 1] ?? ''
+  const path = base.split(/[?#]/)[0]
+  const parts = path.split('/').filter(Boolean)
+  const last = parts[parts.length - 1] ?? ''
+  /* a bare host has no folder in it, and its hostname is not an island name */
+  return /^[a-z][a-z0-9+.-]*:$/i.test(parts[0] ?? '') && parts.length < 3 ? '' : last
+}
+
+/* WHERE A GRAPE MAY BE FETCHED FROM, and it is not "anywhere".
+ *
+ * `?scene=grape` is registered in the same scene table as every other scene, so
+ * it is reachable on the deployed game and not only on localhost. A `from` that
+ * accepted any origin meant a link could make somebody's browser run a
+ * stranger's python on the real domain, and `log` reaches telemetry, which
+ * reaches the Neon events table the AP Research study is measured out of. The
+ * sandbox holds (nothing escapes the wasm runtime) and the data does not.
+ *
+ * So: a member's own machine, or the repository islands actually live in. */
+const ALLOWED = [/^localhost$/, /^127\.0\.0\.1$/, /^\[::1\]$/, /^raw\.githubusercontent\.com$/]
+
+function allowedHost(base: string): boolean {
+  try {
+    const u = new URL(base, window.location.origin)
+    if (u.origin === window.location.origin) return true
+    return ALLOWED.some((re) => re.test(u.hostname))
+  } catch {
+    return false
+  }
 }
 
 /* THE URL SURFACE OF THE HARNESS, parsed in one place so the scene does not
@@ -222,8 +273,12 @@ export function parseGrapeRef(params: URLSearchParams, fallback = 'hello'): Grap
 
   const gh = params.get('gh')
   if (gh) {
-    const m = /^([\w.-]+)\/([\w.-]+)@([\w./-]+):(.+)$/.exec(gh)
-    if (m) return { at: 'github', owner: m[1], repo: m[2], branch: m[3], path: m[4] }
+    const m = /^([\w.-]+)\/([\w.-]+)@([\w./-]+):([\w./-]+)$/.exec(gh)
+    /* no `..` in any of the four. Every one of them is pasted into a path, so a
+     * dot-dot segment lets a ref name one repository and fetch another. */
+    if (m && !m.slice(1).some((part) => /(^|\/)\.\.?($|\/)/.test(part))) {
+      return { at: 'github', owner: m[1], repo: m[2], branch: m[3], path: m[4] }
+    }
   }
 
   /* A WHITELIST, NOT A STRIP. Stripping unwanted characters let ".." through
@@ -237,20 +292,48 @@ export function parseGrapeRef(params: URLSearchParams, fallback = 'hello'): Grap
 
 export class GrapeSourceError extends Error {}
 
-/* A DEV SERVER ON THE PORT YOU MEANT ANSWERS EVERYTHING WITH ITS index.html,
- * with a 200 and no complaint, and then the island is a page of HTML and the
- * error is about python syntax. Measured while building the members' repo: port
- * 5275 was already taken by a vite server, and a static server that fails to
- * bind does not fail loudly. One character of the body is enough to say so. */
-const looksLikeHtml = (body: string) => /^\s*<(!doctype|html|\?xml)/i.test(body)
+/* An island is a handful of small text files. These are not tuned numbers, they
+ * are the point past which something is wrong: the runtime holds every module as
+ * a string, structured-clones it to the worker and writes it into an in-memory
+ * filesystem, on the 4 GB Chromebook this whole runtime choice was made for. */
+const MAX_MODULES = 24
+const MAX_BYTES = 256 * 1024
 
 async function grab(url: string, ms: number): Promise<string> {
   const stop = new AbortController()
   const timer = setTimeout(() => stop.abort(), ms)
-  let res: Response
   try {
-    res = await fetch(url, { cache: 'no-store', signal: stop.signal })
+    /* THE BODY READ IS INSIDE THE CLOCK. fetch resolves on headers, so clearing
+     * the timer once it returns disarms the abort before a single byte of the
+     * body has arrived, and a server that sends headers and then stalls hangs
+     * this forever with no error and no way back. That happens before openGrape
+     * exists, so BOOT_MS is not behind it either: it is the one silent hang the
+     * whole sandbox is built to make impossible. */
+    const res = await fetch(url, { cache: 'no-store', signal: stop.signal })
+    if (!res.ok) throw new GrapeSourceError(`${url} answered ${res.status}`)
+
+    /* A DEV SERVER ON THE PORT YOU MEANT ANSWERS EVERYTHING WITH ITS index.html,
+     * with a 200 and no complaint, and then the island is a page of HTML and the
+     * error is about python syntax. Measured while building the members' repo:
+     * port 5275 was already taken by a vite server, and a static server that
+     * fails to bind does not fail loudly. The content type is the honest test,
+     * and the body is the second fence, because neither JSON nor python ever
+     * legitimately begins with a `<`. */
+    const kind = res.headers.get('content-type') ?? ''
+    const body = await res.text()
+    if (/text\/html/i.test(kind) || body.trimStart().startsWith('<')) {
+      throw new GrapeSourceError(
+        `${url} answered with a web page rather than a file. Something else is `
+        + 'probably listening on that port.')
+    }
+    if (body.length > MAX_BYTES) {
+      throw new GrapeSourceError(
+        `${url} is ${Math.round(body.length / 1024)} KB. An island is a few small `
+        + `files; keep each one under ${MAX_BYTES / 1024} KB.`)
+    }
+    return body
   } catch (e) {
+    if (e instanceof GrapeSourceError) throw e
     throw new GrapeSourceError(
       stop.signal.aborted
         ? `${url} did not answer within ${ms} ms. Is the server still running?`
@@ -258,19 +341,20 @@ async function grab(url: string, ms: number): Promise<string> {
   } finally {
     clearTimeout(timer)
   }
-  if (!res.ok) throw new GrapeSourceError(`${url} answered ${res.status}`)
-  const body = await res.text()
-  if (looksLikeHtml(body)) {
-    throw new GrapeSourceError(
-      `${url} answered with a web page rather than a file. Something else is `
-      + 'probably listening on that port.')
-  }
-  return body
 }
 
 /** Fetch an island's manifest and every module it lists. Throws with a sentence. */
 export async function fetchGrape(ref: GrapeRef, ms = 10_000): Promise<LoadedGrape> {
   const base = baseUrlOf(ref)
+  if (/[?#]/.test(base)) {
+    throw new GrapeSourceError(
+      `${base} carries a query or a fragment. An island is a folder, and a folder has neither.`)
+  }
+  if (!allowedHost(base)) {
+    throw new GrapeSourceError(
+      `${base} is not somewhere an island may be loaded from. That is your own `
+      + 'machine, or raw.githubusercontent.com.')
+  }
   const island = islandIdOf(base)
   if (!SLUG.test(island)) {
     throw new GrapeSourceError(`${base} does not end in an island folder name`)

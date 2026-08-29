@@ -85,8 +85,10 @@ export function openGrape(
   const arm = (ms: number, why: string) => {
     disarm()
     /* the island stopped answering. Nothing will ever arrive, so ending it here
-     * is the difference between a sentence and a scene that hangs forever. */
-    clock = setTimeout(() => kill(why, why), ms)
+     * is the difference between a sentence and a scene that hangs forever. No
+     * traceback: this is the engine giving up, not python raising, and rendering
+     * the same sentence twice with one of them in a <pre> reads like one. */
+    clock = setTimeout(() => kill(why), ms)
   }
 
   /** end whatever call is in flight. Not the session. */
@@ -108,6 +110,14 @@ export function openGrape(
     finish(error, traceback)
   }
 
+  /* A TORN-DOWN CALL IS NOT A FINISHED ONE, and `finish()` with no argument said
+   * it was. A scene unmounting mid-say settled the call as a clean success, so a
+   * caller could not tell "the handler ran to the end" from "I terminated the
+   * worker while the player was reading", and an island whose award never ran
+   * reported no error at all. The harness only survived that because it throws
+   * the value away after unmount; PmapScene's fire() will not. */
+  const CLOSED = 'this island was closed before it finished'
+
   let readyResolve!: (r: GrapeReport) => void
   const ready = new Promise<GrapeReady>((resolve) => {
     /* runs synchronously, so this is set before anything below can reach it */
@@ -122,7 +132,7 @@ export function openGrape(
   const step = async (intent: Intent) => {
     const w = waiting
     if (!w) return
-    if (w.report.steps++ > MAX_STEPS) {
+    if (++w.report.steps > MAX_STEPS) {
       kill(`the island yielded ${MAX_STEPS} times without finishing`)
       return
     }
@@ -183,7 +193,14 @@ export function openGrape(
     handlers: () => handlers,
     call(handler: string): Promise<GrapeReport> {
       const report: GrapeReport = { steps: 0, refused: [] }
-      if (dead) return Promise.resolve({ ...report, error: dead.error, traceback: dead.traceback })
+      /* `stopped` and not just `dead`. stop() leaves `dead` null, so a call after
+       * a teardown used to take the happy path, post to a terminated worker,
+       * which is a silent no-op, and then never settle at all: a promise nobody
+       * can ever resolve, a slot nobody can ever free, and a five second timer
+       * whose kill() returns immediately because the session is already stopped. */
+      if (stopped || dead) {
+        return Promise.resolve({ ...report, error: dead?.error ?? CLOSED, traceback: dead?.traceback })
+      }
       /* one message in, one message out. A second press while the first handler
        * is parked on a `say` would resume the wrong generator. */
       if (waiting) return Promise.resolve({ ...report, error: 'this island is already busy' })
@@ -198,7 +215,7 @@ export function openGrape(
       if (stopped) return
       stopped = true
       worker.terminate()
-      finish()
+      finish(CLOSED)
     },
   }
 }

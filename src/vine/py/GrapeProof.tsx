@@ -34,10 +34,12 @@ import { openGrape, type GrapeReport, type GrapeSession } from './runGrape'
 
 /* THE WORLD HALF, for a scene with no map.
  *
- * say and choose are real. Everything else in the vocabulary refuses out loud:
+ * say and choose are real. Every other word in the WORLD half refuses out loud:
  * performIntent catches a throw and turns it into { ok: false }, and the driver
  * raises that at the member's own yield, so an island asking this harness to
- * walk somebody gets told rather than quietly doing nothing. */
+ * walk somebody gets told rather than quietly doing nothing. The ENGINE half
+ * (open, play, get, set_flag, award, log) really performs, and what it did is
+ * listed on screen by the wrapper below. */
 const noMap = (what: string) => (): never => {
   throw new Error(`${what} needs a map, and the proof harness has none`)
 }
