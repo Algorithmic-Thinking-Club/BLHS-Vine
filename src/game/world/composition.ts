@@ -99,6 +99,11 @@ export type WorldSlot = {
    * When it carries the real extent this field is where it lands and nothing
    * else changes. */
   origin?: WorldPt
+  /* THE WHOLE CANVAS, which is what the engine actually decodes and therefore
+   * what it actually costs. The footprint is what a hull is measured against and
+   * the canvas is what a Chromebook pays for, and on the hub they differ by 75
+   * percent, so one field cannot be both. Absent falls back to the footprint. */
+  canvas?: { w: number; h: number }
   state: SlotState
   /* HOW MANY PLACEMENTS THIS MAP IS DRESSED WITH, which is the half of its
    * memory cost that is not its painting. Absent means the hub's own 94, which
@@ -164,7 +169,7 @@ export const FALLBACK: WorldComposition = {
        * the canvas, so it is not yet the source for this. */
       map: 'hub', place: 'home-island', title: 'the Central Island',
       at: { x: 0, y: 0 },
-      footprint: { w: 669, h: 377 }, origin: { x: 7, y: 194 },
+      footprint: { w: 669, h: 377 }, origin: { x: 7, y: 194 }, canvas: { w: 688, h: 640 },
       placements: 94,
       state: 'available', release: 1400, discover: 520,
       /* OFF THE PAINTING, which is the whole of AUTHORING §12: the canvas ends at
@@ -185,7 +190,7 @@ export const FALLBACK: WorldComposition = {
        * says so rather than assuming a canvas is a painting. */
       map: 'hub-a2', place: 'home-island', title: 'the Central Island',
       at: { x: 0, y: 0 },
-      footprint: { w: 465, h: 335 }, origin: { x: 92, y: 0 },
+      footprint: { w: 465, h: 335 }, origin: { x: 92, y: 0 }, canvas: { w: 688, h: 384 },
       placements: 0,
       state: 'available', release: 1400, discover: 520,
       berth: { x: 76, y: 202, facing: 'south', approach: { x: 200, y: 300 } },
@@ -195,7 +200,7 @@ export const FALLBACK: WorldComposition = {
        * through a door, and it carries no slot of its own: one position per
        * place is what stops the same painting being drawn twice on the chart. */
       map: 'panther-maw', place: 'home-island', title: 'the Panther’s Maw',
-      at: { x: 0, y: 0 }, footprint: { w: 512, h: 512 }, placements: 0,
+      at: { x: 0, y: 0 }, footprint: { w: 512, h: 512 }, canvas: { w: 512, h: 512 }, placements: 0,
       state: 'available', release: 1400,
     },
     {
@@ -335,33 +340,46 @@ export const regionAt = (c: WorldComposition, p: WorldPt): SeaRegion | undefined
  * which is said out loud rather than hidden in a constant.
  *
  * WHAT A RESIDENT MAP REALLY COSTS. A bundle is not its download. The download
- * is PNG and the cost is the decode: `hub-a2` is 137 KB on disk and 4.03 MB of
- * RGBA once the four full-canvas layers are up, because `PmapScene` decodes
- * scene, levels, occluders and cut at the painting's full size and reads pixels
- * out of three of them. Measured, all four bundles on disk:
+ * is PNG and the cost is the decode, and the decode is at the CANVAS size, not
+ * at the painted extent: `PmapScene` loads scene.png, levels.png and
+ * occluders.png and calls `pixelsOf(img, W, H)` on each, where `W` and `H` are
+ * `map.json`'s own width and height. So the transparent margin `growCanvas`
+ * added is paid for in full even though nothing is drawn on it.
  *
- *   hub-a2               4 png    1,056,768 base px   4.03 MB    0 assets
- *   panther-maw          2 png      524,288 base px   2.00 MB    0 assets
- *   quayprop             3 png      792,576 base px   3.02 MB    0 assets
- *   proof               51 png      528,384 base px   2.02 MB   47 assets  3.90 MB
+ * THREE LAYERS AND NOT FOUR. An earlier version of this counted `cut.png` as a
+ * fourth, and the engine never loads it: the string does not appear anywhere in
+ * `src/`. A map with no occluders pays for two.
  *
- * The proof bundle is the only dressed one in the tree and it gives the per
- * placement figure: 1,021,999 asset pixels over 47 placements is 21,745 pixels
- * each, which is 87 KB decoded. The published hub carries 94 placements, so its
- * assets are about 8 MB on top of its 4 MB of layers. */
+ * Measured, every bundle on disk, 2026-08-29:
+ *
+ *   hub (published)      3 layers   688x640    5.04 MB   94 placements  5.31 MB
+ *   hub-a2               3 layers   688x384    3.02 MB    0 placements
+ *   panther-maw          2 layers   512x512    2.00 MB    0 placements
+ *   quayprop             3 layers   688x384    3.02 MB    0 placements
+ *
+ * THE PER-PLACEMENT FIGURE COMES FROM THE HUB AND NOT FROM THE PROOF BUNDLE.
+ * The proof bundle has 49 asset PNGs and exactly TWO placements (a walker with
+ * eight headings and six frames each, and a rock), so dividing its pixels by its
+ * file count answers a question nobody asked. The hub is the only dressed export
+ * this project has made: 794 asset PNGs over 94 placements is 1,391,768 pixels,
+ * which is 14,806 each. */
 export const PAINTING_PX_CEILING = 265_000
 export const BYTES_PER_PX = 4
-/** scene, levels, occluders and cut, all decoded at the painting's full size */
-export const MASK_LAYERS = 4
-/** measured: 1,021,999 asset pixels over the proof bundle's 47 placements */
-export const PX_PER_PLACEMENT = 21_745
+/** scene and levels always, occluders when a map has any. Two is the floor. */
+export const MASK_LAYERS = 3
+/** measured: the hub's 1,391,768 asset pixels over its own 94 placements */
+export const PX_PER_PLACEMENT = 14_806
 /** the hub's own export, and the default for a slot that has not said */
 export const DEFAULT_PLACEMENTS = 94
 
+/* THE CANVAS IS WHAT IS DECODED, so a slot that knows its own canvas says so and
+ * one that does not falls back to its painted extent, which under-counts rather
+ * than over-counts. Under-counting is the safer error here: it makes residency
+ * hold FEWER maps than the budget really allows, not more. */
 export const slotBytes = (s: WorldSlot): number => {
-  const painted = Math.min(s.footprint.w * s.footprint.h, PAINTING_PX_CEILING)
+  const canvas = s.canvas ? s.canvas.w * s.canvas.h : s.footprint.w * s.footprint.h
   const assets = (s.placements ?? DEFAULT_PLACEMENTS) * PX_PER_PLACEMENT
-  return (painted * MASK_LAYERS + assets) * BYTES_PER_PX
+  return (canvas * MASK_LAYERS + assets) * BYTES_PER_PX
 }
 
 /** what a residency set costs, so the number in a budget is arithmetic */

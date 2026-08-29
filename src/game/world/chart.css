@@ -3,7 +3,35 @@
    second edit. Sized in container-query units like every other panel in the kit,
    so the S/M/L text setting reflows it instead of clipping it. */
 
-.ch-sea { overflow: hidden; }
+/* THE PAPER TAKES THE PAGE. The old chart box was locked to the painting's own
+   688 by 384,
+   and the binder's page measured 273x152 with the chart inside it, which is too
+   small for a name and a mark to be read at all. A chart is a thing a student
+   leans over, so it fills the width, keeps a floor under its height, and lets
+   the page scroll rather than shrinking itself to fit. */
+/* the page becomes a column so the chart can take what is left of it after the
+   heading and the legend, which is what "fills the page" has to mean */
+.hb-page:has(.ch-sea) { display: flex; flex-direction: column; }
+
+.ch-sea {
+  position: relative;
+  width: 100%;
+  /* THE PAPER IS THE PAGE, not a tall box the page scrolls. A fixed height
+     taller than the binder put half the marks below a fold nobody knows is
+     there, which on a chart is the same as not drawing them. */
+  flex: 1;
+  min-height: 20cqw;
+  overflow: hidden;
+  /* THE CHART OWNS ITS OWN PAPER. It used to borrow the Handbook's own chart class, whose shorthand
+     stretches chart-cover.png to 100% 100%, and that art carries its own
+     transparent margin, so the page showed a checkerboard ring round the sea and
+     the drawn marks sat on top of nothing. It covers, and the art is the sea. */
+  background:
+    radial-gradient(ellipse at 30% 25%, rgba(120, 160, 165, 0.16), transparent 62%),
+    linear-gradient(180deg, #efe4c6, #e2d3ad);
+  border: 1px solid rgba(138, 116, 79, 0.5);
+  border-radius: 3px;
+}
 
 .ch-region {
   position: absolute;
@@ -20,7 +48,7 @@
 .ch-region-name {
   position: absolute; left: 0.8cqw; top: 0.4cqw;
   font-family: 'Deckhand', monospace;
-  font-size: 1.9cqw;
+  font-size: calc(2.4cqw * var(--kit-text-scale));
   color: rgba(74, 56, 38, 0.5);
   letter-spacing: 0.08em;
 }
@@ -38,13 +66,13 @@
    readable at a glance without relying on hue and nothing implemented it, so
    every slot carries a shape a colourblind student can read. */
 .ch-mark {
-  font-size: 3.4cqw;
+  font-size: calc(4.6cqw * var(--kit-text-scale));
   line-height: 1;
   text-shadow: 0 1px 0 rgba(246, 238, 216, 0.9);
 }
 
 .ch-name {
-  font-size: 2.1cqw;
+  font-size: calc(2.9cqw * var(--kit-text-scale));
   background: rgba(238, 227, 200, 0.86);
   border: 1px solid #8a744f;
   border-radius: 3px;
@@ -53,7 +81,7 @@
 }
 
 .ch-note {
-  font-size: 1.7cqw;
+  font-size: calc(2.3cqw * var(--kit-text-scale));
   color: rgba(74, 56, 38, 0.62);
 }
 
@@ -72,3 +100,18 @@
 html[data-rm='1'] .ch-rising .ch-mark { animation: none; opacity: 1; }
 
 .ch-legend { margin-top: 1.5cqw; }
+
+/* ---- THE INK ON PAPER ------------------------------------------------------
+ *
+ * STATE_INK carries the tint the WATER draws a slot in, on a dark sea, and those
+ * values are unreadable on aged paper:  is a pale tan, which on this
+ * page is the page. One table for two surfaces was the mistake; the MARK is the
+ * shared thing, because that is what §11.3 asks for, and the colour is per
+ * surface because a colour is only ever a colour against something. */
+.ch-rumour { color: #8a7a60; }
+.ch-rising { color: #a06a12; }
+.ch-misty { color: #6b7a80; }
+.ch-discovered { color: #6a563c; }
+.ch-available { color: #3c6e60; }
+.ch-active { color: #a4600d; }
+.ch-completed { color: #2f6e50; }

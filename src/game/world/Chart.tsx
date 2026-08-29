@@ -22,8 +22,6 @@ import { stateOf, stateLine, STATE_INK } from './states'
 import { loadSave, subscribeSave } from '../save'
 import './chart.css'
 
-const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`
-
 export function Chart() {
   const [comp, setComp] = useState<WorldComposition | null>(compositionCache)
   const [, bump] = useState(0)
@@ -37,11 +35,18 @@ export function Chart() {
 
   /* THE PAPER FITS WHAT IS ON IT. A fixed frame drawn around a hardcoded extent
    * is what the tile-era chart did, and the first island placed outside that
-   * extent falls off the page. The bounds are computed from the composition, with
-   * a margin so nothing sits on the edge. */
+   * extent falls off the page. The bounds are computed from the composition.
+   *
+   * THE MARGIN IS A FRACTION OF THE SPREAD AND NOT A CONSTANT. A flat 700 pixels
+   * of padding is nothing around a wide archipelago and is most of the page
+   * around two islands: measured on the shipped composition it put both marks
+   * inside the middle third and left two thirds of the paper empty, on a page
+   * that is already only 273 pixels wide inside the binder. A floor keeps a
+   * single-island composition from being drawn at one point. */
   const xs = slots.map((s) => s.at.x)
   const ys = slots.map((s) => s.at.y)
-  const pad = 700
+  const spread = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys))
+  const pad = Math.max(320, spread * 0.35)
   const x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad
   const y0 = Math.min(...ys) - pad, y1 = Math.max(...ys) + pad
   const fx = (x: number) => ((x - x0) / Math.max(1, x1 - x0)) * 100
@@ -54,7 +59,7 @@ export function Chart() {
   return (
     <>
       <div className="hb-h">The sea so far</div>
-      <div className="hb-chart ch-sea" role="img" aria-label={
+      <div className="ch-sea" role="img" aria-label={
         `A chart of ${slots.length} places. ` + slots.map((s) => {
           const st = stateOf(s, save)
           return `${st === 'misty' || st === 'rumour' ? 'an unnamed mark' : s.title}, ${stateLine(st, s, save)}`
@@ -81,7 +86,7 @@ export function Chart() {
           const named = st !== 'misty' && st !== 'rumour'
           return (
             <div key={s.map ?? s.title} className={`ch-isle ch-${st}`} style={{
-              left: `${fx(s.at.x)}%`, top: `${fy(s.at.y)}%`, color: hex(ink.tint), opacity: ink.dim,
+              left: `${fx(s.at.x)}%`, top: `${fy(s.at.y)}%`,
             }}>
               <span className="ch-mark" aria-hidden="true">{ink.mark}</span>
               <span className="ch-name">{named ? s.title : st === 'rumour' ? 'a rumour' : 'something out there'}</span>

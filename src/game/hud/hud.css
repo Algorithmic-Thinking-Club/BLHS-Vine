@@ -51,8 +51,19 @@
   image-rendering: var(--kit-pixel);
   filter: drop-shadow(var(--kit-drop-lg));
   display: flex; flex-direction: column;
-  /* MEASURED paper zone of panel-square: x 16.5%..83.3%, y 15%..85.3% */
-  padding: 15% 17.5% 15.5% 17%;
+  /* THE PAPER ZONE WAS MEASURED RIGHT AND APPLIED AGAINST THE WRONG BOX.
+     x 16.5%..83.3%, y 15%..85.3% is the real paper inside panel-square.png and
+     the padding was written as exactly those percentages. But a PERCENTAGE
+     PADDING RESOLVES AGAINST THE CONTAINING BLOCK'S WIDTH, and this element's
+     containing block is `.hb-veil`, which is `inset: 0` on the viewport. So on a
+     1280 wide screen the book took 218 pixels of left padding instead of 122,
+     every page rendered as a small box floating in a large frame, and the inset
+     moved with the window. Measured on the shipped build: a 720x520 binder gave
+     its page 278x112, which is a quarter of the paper it is drawn on.
+     The same numbers live on the children in `cqw` now, which resolves against
+     this element's own inline size because `container-type: inline-size` was
+     already here. */
+  padding: 0;
   box-sizing: border-box;
   container-type: inline-size;
   animation: hb-in 260ms var(--kit-ease-pop) both;
@@ -61,7 +72,7 @@
 /* the binder still arrives under reduced motion, it just does not travel */
 html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1ms; }
 
-.hb-tabs { display: flex; gap: 1cqw; margin-bottom: 2.2cqw; flex-wrap: wrap; }
+.hb-tabs { display: flex; gap: 1cqw; margin: 15cqw 17.5cqw 2.2cqw 17cqw; flex-wrap: wrap; }
 .hb-tab {
   font-family: var(--kit-face-display);
   font-size: calc(2.4cqw * var(--kit-text-scale)); color: var(--kit-ink-label);
@@ -74,6 +85,7 @@ html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1m
 
 .hb-page {
   flex: 1; overflow-y: auto;
+  margin: 0 17.5cqw 15.5cqw 17cqw;
   border-top: var(--kit-border) solid var(--kit-edge);
   padding: 2cqw 1cqw 1cqw;
   font-family: var(--kit-face-body);

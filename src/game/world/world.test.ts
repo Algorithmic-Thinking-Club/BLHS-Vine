@@ -15,7 +15,7 @@ import {
   type WorldComposition, type WorldSlot,
 } from './composition'
 import {
-  newHull, stepHull, berthHelm, headingOf, DEFAULT_SAIL, HELM_IDLE,
+  newHull, stepHull, berthHelm, headingOf, DEFAULT_SAIL, HELM_IDLE, BERTH_GIVE_UP_MS,
   type Berthing, type DepthAt,
 } from './sail'
 import { PLACES } from '../roster/roster'
@@ -124,23 +124,29 @@ describe('the world composition', () => {
    * number here rather than a worry. */
   it('computes what a resident map costs from the measured bundle', () => {
     const hub = slotOfMap(FALLBACK, 'hub')!
-    /* four decoded full-canvas layers over the 669x377 painting, plus the hub's
-     * own 94 placements at the proof bundle's measured 21,745 pixels each */
-    expect(slotBytes(hub)).toBe((669 * 377 * 4 + 94 * 21_745) * 4)
-    expect(slotBytes(hub) / 1048576).toBeGreaterThan(11)
-    expect(slotBytes(hub) / 1048576).toBeLessThan(13)
+    /* THREE decoded layers at the CANVAS size, which is what PmapScene really
+     * loads and really pays for, plus the hub's own 94 placements at ITS OWN
+     * measured 14,806 pixels each. Every term here was wrong in the first draft:
+     * a fourth layer the engine never loads, at the painted extent rather than
+     * the canvas, times a per-placement figure taken by dividing the proof
+     * bundle's asset pixels by its FILE count instead of its two placements. The
+     * two errors partly cancelled, which is the worst kind of luck: the total
+     * looked plausible and not one term was true. */
+    expect(slotBytes(hub)).toBe((688 * 640 * 3 + 94 * 14_806) * 4)
+    expect(slotBytes(hub) / 1048576).toBeGreaterThan(10)
+    expect(slotBytes(hub) / 1048576).toBeLessThan(11)
     expect(overBudget([hub])).toBe(false)
     /* WHAT A MAP COSTS IS MOSTLY ITS DRESSING, not its painting: the hub's 94
      * placements are twice as many pixels as all four of its full-canvas layers
      * put together. That is why the placement count is a field on a slot rather
      * than one constant for every map, and it is the number a member adding
      * their fiftieth villager is spending. */
-    expect(94 * 21_745).toBeGreaterThan(669 * 377 * 4)
+    expect(94 * 14_806).toBeGreaterThan(669 * 377)
     const maw = slotOfMap(FALLBACK, 'panther-maw')!
     expect(slotBytes(maw)).toBeLessThan(slotBytes(hub))
   })
 
-  /* THE SENTENCE ISLAND TWELVE NEVER HAD. Twenty-one dressed maps is the whole
+  /* THE SENTENCE ISLAND TWELVE NEVER HAD. Twenty-four dressed maps is the whole
    * of what a 256 MB texture budget holds, which means the roster can double
    * from the current four places before residency starts dropping anything, and
    * the day it does the drop is a decision with a number rather than a tab
@@ -148,7 +154,7 @@ describe('the world composition', () => {
   it('says how many dressed maps fit at once, which island twelve never had', () => {
     const hub = slotOfMap(FALLBACK, 'hub')!
     const n = maxResident(hub)
-    expect(n).toBe(21)
+    expect(n).toBe(24)
     expect(residencyBytes(Array(n).fill(hub))).toBeLessThanOrEqual(TEXTURE_BUDGET_BYTES)
     expect(residencyBytes(Array(n + 1).fill(hub))).toBeGreaterThan(TEXTURE_BUDGET_BYTES)
   })
@@ -374,5 +380,60 @@ describe('coming alongside', () => {
     const h = newHull(300, 210, 0)
     const r = berthHelm(h, { target: { x: 300, y: 210 }, stage: 'done' })
     expect(r.helm).toEqual(HELM_IDLE)
+  })
+
+  /* ---- THE TWO WAYS A MANOEUVRE USED TO FREEZE THE GAME -------------------
+   *
+   * Both found by driving the shipped code against the published hub's own
+   * distance field: 47 of 392 in-water starts inside the dock prompt's radius
+   * never finished, and every approach from the north or the west hung. While a
+   * manoeuvre runs the player's helm is ignored, the dock prompt is suppressed
+   * and stepping ashore is unreachable, so a manoeuvre that cannot finish is a
+   * reload. These two tests are that failure, standing still. */
+
+  /** a coast running east-west at y = 0: deep to the south, land to the north */
+  const shelf = (_x: number, y: number) => y
+
+  it('slides along a coast instead of stopping dead on it', () => {
+    /* she is on the 20-deep contour, inside the 26px probe, pointed along it.
+     * The old rule asked for STRICTLY deeper and a slide is the same depth, so
+     * this was an absorbing fixed point: identical numbers at 5s and at 30s. */
+    let h = { ...newHull(0, 20, 0), speed: DEFAULT_SAIL.cruise }
+    const x0 = h.x
+    for (let i = 0; i < 120; i++) h = stepHull(h, { throttle: 1, turn: 0, fullSail: false }, 1 / 60, shelf)
+    expect(h.aground).toBe(true)
+    expect(h.x).toBeGreaterThan(x0 + 40)
+  })
+
+  it('gives the helm back rather than steering at a berth it cannot reach', () => {
+    /* a berth ON the land side of the coast: unreachable by construction, which
+     * is what a doorway-shaped inlet is to a hull that cannot turn tightly. */
+    let h = { ...newHull(0, 300, -Math.PI / 2), speed: 60 }
+    let b: Berthing = { target: { x: 0, y: -400 }, stage: 'alongside' }
+    let ticks = 0
+    for (; ticks < 3000 && b.stage !== 'given_up' && b.stage !== 'done'; ticks++) {
+      const r = berthHelm(h, b, DEFAULT_SAIL, 1 / 60)
+      b = r.next
+      h = stepHull(h, r.helm, 1 / 60, shelf)
+    }
+    expect(b.stage).toBe('given_up')
+    /* and it gives up on a clock rather than after an arbitrary number of ticks:
+     * four seconds without getting closer, not four seconds flat */
+    expect(ticks / 60).toBeGreaterThan(BERTH_GIVE_UP_MS / 1000)
+    expect(ticks / 60).toBeLessThan(20)
+    expect(berthHelm(h, b, DEFAULT_SAIL, 1 / 60).helm).toEqual(HELM_IDLE)
+  })
+
+  it('does not give up on a manoeuvre that is still closing', () => {
+    let h = newHull(900, 900, 0)
+    let b: Berthing = {
+      target: { x: 300, y: 210 }, facing: Math.PI, approach: { x: 470, y: 300 }, stage: 'approach',
+    }
+    for (let i = 0; i < 4000 && b.stage !== 'done' && b.stage !== 'given_up'; i++) {
+      const r = berthHelm(h, b, DEFAULT_SAIL, 1 / 60)
+      b = r.next
+      h = stepHull(h, r.helm, 1 / 60, deep)
+    }
+    expect(b.stage).toBe('done')
   })
 })

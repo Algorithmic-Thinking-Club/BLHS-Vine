@@ -1442,6 +1442,50 @@ export default function PmapScene() {
         const keepClear = anchors.all
           .filter((a) => a.kind !== 'region' && a.kind !== 'trigger')
           .map((a) => ({ x: a.x, y: a.y, r: Math.max(a.r, 8) + HIP + BODY_MIN }))
+        /* WHAT THE FLOOR REACHED BEFORE ANYBODY WAS PUT IN IT.
+         *
+         * A flood fill from the spawn over walkable pixels, kept so the same fill
+         * can be run again afterwards and the two compared. This is the guard the
+         * first version of this change did not have, and it needed it: measured on
+         * the published hub's 94 placements, stamping every standing figure CUT
+         * THE MAP IN TWO. `keepClear` only knows about anchors and the hub carries
+         * exactly one, so nothing was protecting the route between two halves of
+         * an island. Two guards were not enough and the third is the only one that
+         * asks the question that matters. */
+        const reach = (from: { x: number; y: number }) => {
+          const seen = new Uint8Array(W * H)
+          const q = new Int32Array(W * H)
+          let head = 0, tail = 0, n = 0
+          const push = (x: number, y: number) => {
+            if (x < 0 || y < 0 || x >= W || y >= H) return
+            const i = y * W + x
+            if (seen[i] || ldata[i * 4] === blocked) return
+            seen[i] = 1; q[tail++] = i; n++
+          }
+          push(Math.round(from.x), Math.round(from.y))
+          while (head < tail) {
+            const i = q[head++]
+            const x = i % W, y = (i / W) | 0
+            push(x + 1, y); push(x - 1, y); push(x, y + 1); push(x, y - 1)
+          }
+          return { n, seen }
+        }
+        /* SEEDED FROM THE MAP'S OWN SPAWN, not from where this visit happens to
+         * put the body: the question is whether the MAP is still one map, and a
+         * door arrival would answer it about one visit. A spawn on a blocked pixel
+         * is a bundle problem rather than a reason to skip the check, so the scan
+         * finds a walkable pixel and the comparison still means something. */
+        let start = { x: map.spawn[0], y: map.spawn[1] }
+        if (ldata[(Math.round(start.y) * W + Math.round(start.x)) * 4] === blocked) {
+          outer: for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+            if (ldata[(y * W + x) * 4] !== blocked) { start = { x, y }; break outer }
+          }
+        }
+        const before = reach(start)
+
+        /* every write is remembered, because the whole point of the check below is
+         * being able to take all of them back */
+        const undo: number[] = []
         for (const s of obstacles) {
           /* the FEET, not the body: a figure occupies the ground it stands on and
            * not the air its head is in, which is the same distinction the ink
@@ -1455,12 +1499,50 @@ export default function PmapScene() {
               const i = (y * W + x) * 4
               if (ldata[i] === blocked) continue                    // already a wall
               if (keepClear.some((k) => Math.hypot(k.x - x, (k.y - y) / ys) <= k.r)) continue
+              undo.push(i, ldata[i])
               ldata[i] = blocked
               floored++
             }
           }
         }
-        if (DBG || floored) console.log(`[pmap] ${obstacles.length} standing figures put in the floor (${floored} px)`)
+
+        /* ---- AND THE MAP HAS TO STILL BE ONE MAP ----
+         *
+         * A figure standing in a doorway is a wall across the only way through it,
+         * and nothing in a placement says whether that doorway is the only one. So
+         * the floor is MEASURED rather than trusted: if putting the figures in it
+         * costs the player more than a twentieth of the ground they could reach, or
+         * takes away any anchor they could reach before, every stamp is taken back.
+         *
+         * ALL OR NOTHING RATHER THAN FIGURE BY FIGURE, because a per-figure test is
+         * ninety-four flood fills over four hundred thousand pixels at map open on
+         * a 4 GB Chromebook. The fallback is the behaviour that has always shipped:
+         * a walker crosses through a stander, which is a cosmetic wrong rather than
+         * an island a student cannot walk out of. */
+        const after = reach(start)
+        const lost = before.n ? 1 - after.n / before.n : 0
+        const cutOff = anchors.all.filter((a) => {
+          if (a.kind === 'region' || a.kind === 'trigger') return false
+          const p = anchors.standAt(a)
+          const i = Math.round(p.y) * W + Math.round(p.x)
+          if (i < 0 || i >= W * H) return false
+          return before.seen[i] === 1 && after.seen[i] === 0
+        })
+        if (lost > 0.05 || cutOff.length) {
+          for (let k = 0; k < undo.length; k += 2) ldata[undo[k]] = undo[k + 1]
+          console.warn(`[pmap] ${mapId}: putting ${obstacles.length} standing figures in the floor`
+            + ` cost ${(lost * 100).toFixed(1)}% of the walkable ground`
+            + (cutOff.length ? ` and cut off ${cutOff.map((a) => a.name).join(', ')}` : '')
+            + `. None of them are in it, so they can still be walked through.`)
+          engine.log('floor_stamp_refused', {
+            map: mapId, figures: obstacles.length,
+            lost: +lost.toFixed(3), cutOff: cutOff.map((a) => a.name),
+          })
+          floored = 0
+        } else if (DBG || floored) {
+          console.log(`[pmap] ${obstacles.length} standing figures put in the floor`
+            + ` (${floored} px, ${(lost * 100).toFixed(1)}% of the ground)`)
+        }
       }
 
       // ---- &dbg=1: the levels mask, color-coded per level value, over the painting ----
@@ -2830,10 +2912,28 @@ export default function PmapScene() {
              * feeds a helm in place of the player's rather than animating the boat
              * to a spot, so there is no second motion model for the cinematic
              * version and a berth that is unreachable fails visibly. */
-            const r = berthHelm(hull, berthing)
+            const r = berthHelm(hull, berthing, DEFAULT_SAIL, dt)
             berthing = r.next
             hull = stepHull(hull, r.helm, dt, depthAt)
             if (berthing.stage === 'done') docked()
+            /* A MANOEUVRE THAT CANNOT FINISH HANDS THE HELM BACK, and it does not
+             * put anybody ashore: teleporting a body onto a map because a boat
+             * could not reach a dock is a worse answer than an awkward approach.
+             * Without this the player has nothing that works: the arrow keys are
+             * the else-branch of this if, the dock prompt is suppressed while a
+             * manoeuvre runs, and stepping ashore is only reachable from `done`.
+             * The one input that did anything was a page reload. */
+            else if (berthing.stage === 'given_up') {
+              const s = docking
+              berthing = null
+              docking = null
+              engine.log('berthing_gave_up', {
+                map: mapId, to: s?.map ?? null, aground: hull.aground,
+                shortBy: Math.round(Math.hypot(fromSea(s?.berth?.x ?? 0, s?.berth?.y ?? 0).x - hull.x,
+                  fromSea(s?.berth?.x ?? 0, s?.berth?.y ?? 0).y - hull.y)),
+              })
+              void say({ text: 'She will not come round from here. Take her out and try the approach again.' })
+            }
           } else {
             if (helmOverride && performance.now() > helmOverride.until) helmOverride = null
             const helm: Helm = helmOverride ? helmOverride.helm : fade || locked ? HELM_IDLE : {

@@ -145,10 +145,26 @@ export function stepHull(s: HullState, helm: Helm, dt: number, depth: DepthAt, c
     } else {
       /* SLIDE ALONG THE COAST RATHER THAN STOP DEAD, which is the same courtesy
        * the walk law gives a body against a wall. The two axes are tried
-       * separately and whichever one is deeper is kept. */
+       * separately and the one that does not go further aground is kept.
+       *
+       * THE SLIDE TEST WAS WRONG TWICE AND BOTH WAYS FROZE THE GAME. It read
+       * `ax >= cfg.probe && ax > here`. The second clause is the sharper mistake:
+       * sliding ALONG a coast keeps the SAME depth by definition, so "strictly
+       * deeper" refused the one move a slide is. The first is the same error
+       * wearing a threshold: a hull that is already inside the probe cannot reach
+       * probe depth in one axis step, so the test refused every slide at exactly
+       * the moment one was needed. Both together made this an absorbing fixed
+       * point. Driven against the published hub's own distance field, 47 of 392
+       * in-water starts inside the dock prompt's radius never finished, and every
+       * approach from the north or the west hung with position, speed and depth
+       * identical at five seconds and at thirty.
+       *
+       * The rule is NO SHALLOWER. Strict improvement is still the ESCAPE rule, in
+       * the branch above, which is what it was always for. */
       const ax = depth(nx, s.y), ay = depth(s.x, ny)
-      if (ax >= cfg.probe && ax > here) { ny = s.y }
-      else if (ay >= cfg.probe && ay > here) { nx = s.x }
+      const okx = ax >= here - 0.01, oky = ay >= here - 0.01
+      if (okx && (!oky || ax >= ay)) { ny = s.y }
+      else if (oky) { nx = s.x }
       else { nx = s.x; ny = s.y; speed = Math.min(speed, cfg.cruise * 0.15) }
       aground = true
     }
@@ -195,8 +211,25 @@ export type Berthing = {
   facing?: number
   /** the point to make for before the final run in, so she does not cut a corner */
   approach?: { x: number; y: number }
-  stage: 'approach' | 'alongside' | 'done'
+  /* `given_up` is a real outcome and not an error. A manoeuvre drives the hull and
+   * takes the player's helm away while it runs, so a manoeuvre that cannot finish
+   * is a frozen game with no input that does anything: the arrow keys are the
+   * else-branch of this one, the dock prompt is suppressed while it runs, and
+   * stepping ashore is only reachable from `done`. Something has to be able to
+   * say "this is not working, here are your controls back." */
+  stage: 'approach' | 'alongside' | 'done' | 'given_up'
+  /* THE PROGRESS WATCHDOG. How close she has ever got, and how long she has spent
+   * not beating it. A coast is a shape nobody authored against, so the honest
+   * answer to "can she always get there" is no, and the honest response is to
+   * stop rather than to keep steering at a point she cannot reach. */
+  best?: number
+  stuckMs?: number
 }
+
+/** how long without getting any closer before the manoeuvre gives the helm back */
+export const BERTH_GIVE_UP_MS = 4000
+/** getting this much closer counts as progress, so noise is not progress */
+export const BERTH_PROGRESS_PX = 2
 
 export const ALONGSIDE_PX = 18
 /** how close to the authored heading counts as parallel to the dock */
@@ -209,16 +242,38 @@ const wrap = (a: number): number => {
   return r
 }
 
-/** the helm a berthing manoeuvre wants this tick, and how far along it is */
-export function berthHelm(s: HullState, b: Berthing, cfg = DEFAULT_SAIL): { helm: Helm; next: Berthing } {
-  if (b.stage === 'done') return { helm: HELM_IDLE, next: b }
+/** the helm a berthing manoeuvre wants this tick, and how far along it is.
+ *  `dt` is only needed by the watchdog; leaving it out runs the manoeuvre with
+ *  no give-up, which is what the pure tests want. */
+export function berthHelm(
+  s: HullState, b: Berthing, cfg = DEFAULT_SAIL, dt = 0,
+): { helm: Helm; next: Berthing } {
+  if (b.stage === 'done' || b.stage === 'given_up') return { helm: HELM_IDLE, next: b }
+
+  /* ---- THE WATCHDOG, BEFORE ANYTHING ELSE THIS TICK ----
+   *
+   * Measured against the published hub's own distance field, a hull that comes in
+   * from the north or the west grounds on a contour and holds one position to the
+   * pixel for as long as you leave it. The slide fix above is why that no longer
+   * happens on that map; this is why it cannot lock the game on the next one.
+   * A coast is a shape nobody authored a route around. */
+  const gap = Math.hypot(b.target.x - s.x, b.target.y - s.y)
+  let best = b.best ?? gap
+  let stuckMs = b.stuckMs ?? 0
+  if (dt > 0) {
+    if (gap < best - BERTH_PROGRESS_PX) { best = gap; stuckMs = 0 }
+    else stuckMs += dt * 1000
+    if (stuckMs >= BERTH_GIVE_UP_MS)
+      return { helm: HELM_IDLE, next: { ...b, stage: 'given_up', best, stuckMs } }
+  }
+  const watched = (n: Berthing): Berthing => ({ ...n, best, stuckMs })
 
   if (b.stage === 'approach') {
     /* MAKE FOR THE APPROACH POINT FIRST, so she comes at the dock down its own
      * line instead of cutting the corner across the shallows. A berth with no
      * approach authored goes straight to the second half. */
     const aim = b.approach
-    if (!aim) return berthHelm(s, { ...b, stage: 'alongside' }, cfg)
+    if (!aim) return berthHelm(s, watched({ ...b, stage: 'alongside' }), cfg)
     const dx = aim.x - s.x, dy = aim.y - s.y
     const d = Math.hypot(dx, dy)
 
@@ -230,7 +285,7 @@ export function berthHelm(s: HullState, b: Berthing, cfg = DEFAULT_SAIL): { helm
      * does and what cannot be defeated by a wide turn. */
     const ahead = Math.cos(s.heading) * dx + Math.sin(s.heading) * dy
     if (d < ALONGSIDE_PX * 2 || (ahead < 0 && d < cfg.cruise))
-      return berthHelm(s, { ...b, stage: 'alongside' }, cfg)
+      return berthHelm(s, watched({ ...b, stage: 'alongside' }), cfg)
 
     const err = wrap(Math.atan2(dy, dx) - s.heading)
     /* AND SHE SLOWS INTO IT, for the same reason. Speed is what makes the turn
@@ -238,7 +293,7 @@ export function berthHelm(s: HullState, b: Berthing, cfg = DEFAULT_SAIL): { helm
      * instead of around it. */
     const stopIn = (s.speed * s.speed) / (2 * cfg.drag)
     const throttle = d > stopIn + ALONGSIDE_PX * 2 ? 1 : 0
-    return { helm: { throttle, turn: Math.abs(err) < 0.05 ? 0 : Math.sign(err), fullSail: false }, next: b }
+    return { helm: { throttle, turn: Math.abs(err) < 0.05 ? 0 : Math.sign(err), fullSail: false }, next: watched(b) }
   }
 
   const dx = b.target.x - s.x, dy = b.target.y - s.y
@@ -254,8 +309,8 @@ export function berthHelm(s: HullState, b: Berthing, cfg = DEFAULT_SAIL): { helm
   if (dist <= ALONGSIDE_PX) {
     const err = b.facing === undefined ? 0 : wrap(b.facing - s.heading)
     if (s.speed < cfg.cruise * 0.12 && Math.abs(err) < ALONGSIDE_RAD)
-      return { helm: HELM_IDLE, next: { ...b, stage: 'done' } }
-    return { helm: { throttle: 0, turn: Math.abs(err) < 0.05 ? 0 : Math.sign(err), fullSail: false }, next: b }
+      return { helm: HELM_IDLE, next: watched({ ...b, stage: 'done' }) }
+    return { helm: { throttle: 0, turn: Math.abs(err) < 0.05 ? 0 : Math.sign(err), fullSail: false }, next: watched(b) }
   }
 
   const err = wrap(Math.atan2(dy, dx) - s.heading)
@@ -266,7 +321,7 @@ export function berthHelm(s: HullState, b: Berthing, cfg = DEFAULT_SAIL): { helm
   const throttle = dist > stopIn + ALONGSIDE_PX ? 1 : 0
   return {
     helm: { throttle, turn: Math.abs(err) < 0.05 ? 0 : Math.sign(err), fullSail: false },
-    next: b,
+    next: watched(b),
   }
 }
 

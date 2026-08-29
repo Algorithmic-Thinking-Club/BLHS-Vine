@@ -13,6 +13,7 @@
  */
 import { useEffect, useState } from 'react'
 import { onPlaceCard, type PlaceCardRequest } from './stage-bus'
+import { panelDepth } from '../ui/a11y'
 import { prefersReducedMotion } from '../ui/motion'
 import './placecard.css'
 
@@ -33,10 +34,23 @@ export function PlaceCard() {
     const dwell = prefersReducedMotion() ? DWELL_MS * 0.6 : DWELL_MS
     const a = window.setTimeout(() => setLeaving(true), dwell)
     const b = window.setTimeout(() => setCard(null), dwell + 700)
-    return () => { window.clearTimeout(a); window.clearTimeout(b) }
+    /* AND IT GETS OUT OF THE WAY OF A PANEL OPENED WHILE IT IS UP. A panel does
+     * not re-render this component, so the check at the top of the render only
+     * catches a card that arrives second. A student who opens the chart in the
+     * four seconds after arriving is the case that actually happens, and it had a
+     * name plaque across the bottom of the page with no way to move it. */
+    const watch = window.setInterval(() => { if (panelDepth() > 0) setCard(null) }, 200)
+    return () => { window.clearTimeout(a); window.clearTimeout(b); window.clearInterval(watch) }
   }, [card])
 
-  if (!card) return null
+  /* A CARD DOES NOT TALK OVER A PANEL. It is the one surface in the game with no
+   * dismiss, so a student who opened the chart in the four seconds after arriving
+   * had a name plaque across the bottom of it and no way to move it. The panel
+   * stack already knows whether anything owns the frame (`src/game/ui/a11y.ts`),
+   * and the card is an announcement rather than a queue: it is dropped rather
+   * than deferred, because a card that arrives after the panel closes is a card
+   * about somewhere the student stopped being. */
+  if (!card || panelDepth() > 0) return null
   return (
     /* aria-hidden AND pointer-events none: it is not a control and it is not a
      * thing a screen reader should interrupt a walk to announce, because the
