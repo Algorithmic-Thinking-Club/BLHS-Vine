@@ -226,3 +226,84 @@ describe('an anchor bound to a placement', () => {
     expect(set.spotOf(set.get('counselor')!)).toEqual({ x: 100, y: 100 })
   })
 })
+
+/* THE STAND-AT POINT AND THE SIDE A THING IS USED FROM. One point was doing
+ * four jobs at once: the interaction ring's centre, the prompt's origin, the
+ * objective chevron's origin and walk_to's steering target. So a table's anchor
+ * either sat on unwalkable pixels or sat on the floor with the prompt hovering
+ * over bare ground. stations.ts states the requirement in prose to somebody who
+ * never opens it: "a table big enough to spread a paper sheet on, with standing
+ * room on one side". */
+describe('where a body ends up, and which way it looks', () => {
+  const set = () =>
+    new AnchorSet('maw', readAnchors({
+      anchors: [
+        // the tabletop, with the floor beside it marked and a heading to face
+        { name: 'chart_table', kind: 'post', x: 200, y: 200, r: 20, label: 'the chart table',
+          stand: [200, 214], facing: 'north' },
+        // no stand-at: the body aims at the anchor, which is what every map did
+        { name: 'hearth', kind: 'post', x: 300, y: 100, r: 20, label: 'the hearth' },
+      ],
+    }))
+
+  it('aims at the marked floor, not at the middle of the thing', () => {
+    expect(set().standAt(set().get('chart_table')!)).toEqual({ x: 200, y: 214, facing: 'north' })
+  })
+
+  it('falls back to the anchor itself when no floor was marked', () => {
+    expect(set().standAt(set().get('hearth')!)).toEqual({ x: 300, y: 100, facing: undefined })
+  })
+
+  it('a door landing on a station puts you beside it rather than on top of it', () => {
+    expect(set().arrival('chart_table', [1, 1])).toEqual({ x: 200, y: 214, facing: 'north' })
+  })
+
+  it('the prompt ring still belongs to the thing, not to the floor beside it', () => {
+    // 14px above the table is inside the ring; the stand-at point moving does
+    // not drag the reach with it, because they answer different questions
+    expect(set().nearestInteractive(200, 186)?.name).toBe('chart_table')
+  })
+
+  it('a bound anchor carries its floor along by however far the thing moved', () => {
+    const s = new AnchorSet('maw', readAnchors({
+      anchors: [{ name: 'coach', kind: 'post', x: 100, y: 100, r: 20, label: 'coach',
+        placement: 'coach_sprite', stand: [100, 112], facing: 'north' }],
+    }))
+    s.follow((ref) => (ref === 'coach_sprite' ? { x: 130, y: 160 } : null))
+    // she walked 30 right and 60 down, so the spot beside her did too
+    expect(s.standAt(s.get('coach')!)).toEqual({ x: 130, y: 172, facing: 'north' })
+  })
+})
+
+/* rect's four numbers meant two different things: the MAPVIS schema commented
+ * [x,y,w,h] and this box test always destructured corners. Nothing was
+ * authoritative because no rect had ever been authored, so whoever built the
+ * input would have picked the winner by accident. These pin the answer. */
+describe('a region with an area', () => {
+  const set = new AnchorSet('hall', readAnchors({
+    anchors: [{ name: 'the_hall', kind: 'region', x: 300, y: 300, r: 8, label: '',
+      rect: [200, 250, 400, 350] }],
+  }))
+  const hall = set.get('the_hall')!
+
+  it('is the rectangle between the two corners, not a box of width 400', () => {
+    expect(set.contains(hall, 399, 349)).toBe(true)
+    expect(set.contains(hall, 401, 300)).toBe(false)
+    // under [x,y,w,h] this point would be inside, at 200+400 across
+    expect(set.contains(hall, 560, 300)).toBe(false)
+  })
+
+  it('does not care which corner was clicked first', () => {
+    const flipped = new AnchorSet('hall', readAnchors({
+      anchors: [{ name: 'the_hall', kind: 'region', x: 300, y: 300, r: 8, label: '',
+        rect: [400, 350, 200, 250] }],
+    }))
+    expect(flipped.contains(flipped.get('the_hall')!, 250, 300)).toBe(true)
+  })
+
+  it('beats the radius, which is the whole point of drawing one', () => {
+    // 8px radius, so 90px out is far outside the circle and well inside the box
+    expect(Math.hypot(390 - 300, 300 - 300)).toBeGreaterThan(hall.r)
+    expect(set.contains(hall, 390, 300)).toBe(true)
+  })
+})

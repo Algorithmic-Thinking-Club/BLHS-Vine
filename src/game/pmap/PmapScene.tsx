@@ -1674,10 +1674,23 @@ export default function PmapScene() {
          * open platform and would stall in a maze, so it gives up on a clock
          * instead of hanging the body that asked for it. */
         if (autoWalk) {
-          const dx = autoWalk.to.x - pos.x, dy = (autoWalk.to.y - pos.y)
-          const near2 = Math.hypot(dx, dy) <= Math.max(4, autoWalk.to.r * 0.5)
+          /* AT THE STAND-AT POINT, not at the middle of the thing. A chart
+           * table's anchor is the tabletop, so steering at it walks the player
+           * into the furniture and stops him a radius short of anywhere in
+           * particular. The author marks the floor beside it and this aims
+           * there, which is also why the arrival radius can be tight: a marked
+           * spot is a spot, not an area. */
+          const goal = anchors.standAt(autoWalk.to)
+          const dx = goal.x - pos.x, dy = (goal.y - pos.y)
+          const reach = autoWalk.to.stand ? 3 : Math.max(4, autoWalk.to.r * 0.5)
+          const near2 = Math.hypot(dx, dy) <= reach
           if (near2 || performance.now() > autoWalk.until) {
             if (!near2) console.warn(`[pmap] walk_to("${autoWalk.to.name}") gave up; no path from here`)
+            /* THE SIDE IT IS USED FROM. arrival() was facing's only consumer
+             * anywhere, so a heading on a post was parsed and then read by
+             * nothing and every actor walked up to a station still facing the
+             * way it happened to be walking. */
+            if (goal.facing && walkT[goal.facing]) walker.facing = goal.facing
             autoWalk.done()
             autoWalk = null
           } else {

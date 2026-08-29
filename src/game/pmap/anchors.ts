@@ -31,6 +31,13 @@ export interface Anchor {
   x: number
   y: number
   r: number
+  /* the pixel a body ends on when it uses this place, which is not the middle
+   * of the thing. Absent means the middle, which is what every anchor meant
+   * before MAPVIS could author this. */
+  stand?: [number, number]
+  /* two opposite corners, [x0,y0,x1,y1]. The MAPVIS schema comment used to say
+   * [x,y,w,h] and this box test always did corners; the disagreement was
+   * settled in favour of this side, because it was the one with running code. */
   rect?: [number, number, number, number]
   to?: string
   toAnchor?: string
@@ -115,6 +122,8 @@ export function readAnchors(map: AnchorSource, mapId = ''): Anchor[] {
       ...(derived ? { meta: { ...(meta || {}), derived: true } } : meta ? { meta } : {}),
     }
     if (Array.isArray(e.rect) && e.rect.length === 4) a.rect = (e.rect as number[]).map(Number) as Anchor['rect']
+    if (Array.isArray(e.stand) && e.stand.length === 2 && e.stand.every((n) => isFinite(Number(n))))
+      a.stand = [Math.round(Number(e.stand[0])), Math.round(Number(e.stand[1]))]
     if (typeof e.to === 'string' && e.to) a.to = e.to
     if (typeof e.toAnchor === 'string' && e.toAnchor) a.toAnchor = e.toAnchor
     if (typeof e.placement === 'string' && e.placement) a.placement = e.placement
@@ -187,6 +196,26 @@ export class AnchorSet {
     return { x: a.x, y: a.y }
   }
 
+  /* WHERE A BODY ENDS UP AT THIS ANCHOR, and which way it looks once it is
+   * there. Different from spotOf, which is where the thing itself is: a chart
+   * table's spot is the tabletop and its stand-at is the floor beside it, and
+   * one point cannot be both. walk_to steers here and an arrival through a door
+   * lands here, so a station's prompt can hover over the table while the player
+   * stands where a person would.
+   *
+   * A bound anchor carries its stand-at along by however far the placement has
+   * moved, so the floor beside somebody who paces stays beside her. Absent, the
+   * answer is the anchor itself, which is what every map did before this. */
+  standAt(a: Anchor): { x: number; y: number; facing?: string } {
+    const spot = this.spotOf(a)
+    if (!a.stand) return { ...spot, facing: a.facing }
+    return {
+      x: a.stand[0] + (spot.x - a.x),
+      y: a.stand[1] + (spot.y - a.y),
+      facing: a.facing,
+    }
+  }
+
   /* is a point inside this anchor's reach. A region uses its rectangle when it
    * has one, because a rectangle is what the author drew and a circle around its
    * centre is a different shape than the one they meant. Everything else is the
@@ -232,11 +261,13 @@ export class AnchorSet {
   /* where a player arriving through a door should stand. Falls back down a chain
    * rather than to the origin, because landing at 0,0 is landing in the rock. */
   arrival(at: string | undefined, spawn: [number, number]): { x: number; y: number; facing?: string } {
+    // through standAt, so a door that lands you at a station puts you on the
+    // floor beside it rather than on top of it
     const a = at ? this.get(at) : undefined
-    if (a) return { ...this.spotOf(a), facing: a.facing }
+    if (a) return this.standAt(a)
     if (at) console.warn(`[anchors] ${this.mapId}: no arrival anchor "${at}", using spawn`)
     const s = this.ofKind('spawn')[0]
-    if (s) return { ...this.spotOf(s), facing: s.facing }
+    if (s) return this.standAt(s)
     return { x: spawn[0], y: spawn[1] }
   }
 }
