@@ -33,7 +33,7 @@ import { AnchorSet, type Anchor } from './anchors'
 import { holdWorld, onWorldHold, worldHeld } from '../world-bus'
 import { choose, clearDialogue, say } from '../dialogue'
 import { engine } from '../intent-engine'
-import type { IntentHost, IntentWorld } from '../../vine/intents'
+import { NotBuilt, type IntentHost, type IntentWorld } from '../../vine/intents'
 import { loadSave } from '../save'
 import { MAW_MAP, isObjective, nextObjective } from '../run/objective'
 import { missingAnchors, stationByName } from '../maw/stations'
@@ -1450,17 +1450,21 @@ export default function PmapScene() {
         show(name, visible) {
           const a = anchors.get(name)
           const id = a?.placement
-          if (!id) { console.warn(`[pmap] anchor "${name}" is not bound to a placement`); return }
+          /* REFUSE, do not warn. An anchor with no placement bound is an
+           * authoring mistake and the author is the one who has to hear it.
+           * Warning to the console and returning made `show` answer ok on every
+           * bundle in this project, because not one of them binds a placement. */
+          if (!id) throw new NotBuilt('show', `anchor "${name}" is not bound to a placement`)
           const sp = placedById.get(id)
-          if (sp) sp.visible = visible
-          else console.warn(`[pmap] no placement "${id}" on ${mapId}`)
+          if (!sp) throw new NotBuilt('show', `no placement "${id}" on ${mapId}`)
+          sp.visible = visible
         },
 
         fx(name, anchorName2) {
-          /* the fx library is §12's work and is not this session's. Named and
-           * logged rather than silently dropped, so an author sees that the
-           * engine heard them and has nothing to draw yet. */
-          console.log(`[pmap] fx "${name}"${anchorName2 ? ` at ${anchorName2}` : ''} (not built)`)
+          /* The fx library is section 12's work and is not built. It refuses by
+           * name so an author learns it at the line that asked, instead of
+           * shipping an island whose effects silently never play. */
+          throw new NotBuilt('fx', `"${name}"${anchorName2 ? ` at ${anchorName2}` : ''} has nothing to draw`)
         },
 
         enter(map, at) {
@@ -1472,8 +1476,11 @@ export default function PmapScene() {
         },
 
         cutscene(script) {
-          console.log(`[pmap] cutscene "${script}" (CutsceneStage not implemented on this scene yet)`)
-          return Promise.resolve()
+          /* 32 moments in the walkthrough ask for this word, and it resolved
+           * successfully while doing nothing. It is the largest single lie in
+           * the vocabulary, so it refuses plainly: this scene does not implement
+           * CutsceneStage, and until it does, no script plays here. */
+          throw new NotBuilt('cutscene', `"${script}" cannot play. This scene does not implement CutsceneStage yet`)
         },
       }
       const intentHost: IntentHost = { world: intentWorld, engine }

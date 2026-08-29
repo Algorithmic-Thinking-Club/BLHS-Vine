@@ -209,10 +209,33 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
     return no(`unknown intent ${JSON.stringify(never)}`)
   } catch (e) {
     if (e instanceof NoWorld) return no(`${e.what} needs a map, and this scene has none`)
+    /* NotBuilt lands here too and its message is already the refusal. See the
+     * class below for why an unbuilt word must refuse rather than resolve. */
     return no(e instanceof Error ? e.message : String(e))
   }
 }
 
 class NoWorld extends Error {
   constructor(readonly what: string) { super(what) }
+}
+
+/* NO INTENT MAY RESOLVE SUCCESSFULLY WITHOUT PERFORMING.
+ *
+ * Three of the fifteen words used to report success while doing nothing. `show`
+ * warned to the console and returned. `fx` logged "(not built)" and returned.
+ * `cutscene` logged "not implemented" and resolved. Each was written kindly, so
+ * an author would see the engine had heard them, and each did the opposite:
+ * `performIntent` saw a call that did not throw and answered `ok`.
+ *
+ * The person deceived is the AUTHOR, not the player. A member writes an arrival
+ * script, runs it, sees no error, and ships an island whose most cinematic beat
+ * never plays and reports that it worked. That survives a year, and one did.
+ *
+ * So an unbuilt capability throws this, the catch above turns it into
+ * `{ok: false, why}`, and the refusal travels back across the worker to the line
+ * of Python that asked. A word that cannot perform says so. */
+export class NotBuilt extends Error {
+  constructor(readonly what: string, detail?: string) {
+    super(detail ? `${what} is not built yet. ${detail}` : `${what} is not built yet`)
+  }
 }
