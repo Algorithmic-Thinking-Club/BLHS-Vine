@@ -1,8 +1,15 @@
-// The progression engine (GAME-DESIGN §8) — GPA math and the cord table, which mirrors
-// docs/research/blhs-awards-authoritative.md EXACTLY. These tests ARE that table: if a
-// refactor changes who earns a cord, a test names the real award it broke.
+/* The progression engine (GAME-DESIGN §8) — GPA math and the cord table, which mirrors
+ * docs/blhs/awards.md EXACTLY. These tests ARE that table: if a refactor changes who earns
+ * a cord, a test names the real award it broke.
+ *
+ * THREE OF THESE TESTS USED TO ASSERT INVENTED CRITERIA and cited a document that has
+ * never existed. They said a D does not pass an AP class, that the Seal of Biliteracy
+ * takes three language years and a capstone, and that the board must never mention
+ * Valedictorian. The first two are contradicted by SBLSD policy 2410 and by Washington's
+ * RCW 28A.300.575, and the third confused "do not invent criteria" with "do not mention
+ * the award". They now assert the sourced rules, which is what a tripwire is for. */
 import { describe, it, expect } from 'vitest'
-import { gpaOf, letterOf, rankName, cordsOf, newlyCloseCords } from './progress'
+import { gpaOf, letterOf, rankName, cordsOf, newlyCloseCords, NO_ATHLETIC_CORD } from './progress'
 import type { LedgerEntry, SaveGame } from './save'
 
 let n = 0
@@ -57,11 +64,15 @@ describe('cords & seals (§8.4 — the authoritative table)', () => {
     expect(cord(two, 'career-readiness').earned).toBe(true)
   })
 
-  it('AP Honors: five PASSED AP classes (a C or better; a D does not pass)', () => {
+  it('AP Honors: five passed AP courses, and a D passes because the district says so', () => {
     const passes = Array.from({ length: 5 }, () => entry({ tags: ['ap'], grade: 2 }))
     expect(cord(mkSave(passes), 'ap-honors').earned).toBe(true)
-    const oneFail = [...passes.slice(0, 4), entry({ tags: ['ap'], grade: 1.5 })]
-    expect(cord(mkSave(oneFail), 'ap-honors').earned).toBe(false)
+    // SBLSD policy 2410: A through D earn the credit, F alone earns nothing, and there is
+    // no second higher bar for an AP course. The old C threshold was invented.
+    const withD = Array.from({ length: 5 }, () => entry({ tags: ['ap'], grade: 1 }))
+    expect(cord(mkSave(withD), 'ap-honors').earned).toBe(true)
+    const oneF = [...passes.slice(0, 4), entry({ tags: ['ap'], grade: 0 })]
+    expect(cord(mkSave(oneF), 'ap-honors').earned).toBe(false)
   })
 
   it('AP Capstone: Seminar + Research + four more APs (all six carry the ap tag)', () => {
@@ -85,11 +96,21 @@ describe('cords & seals (§8.4 — the authoritative table)', () => {
     expect(cord(high, 'high-honors').earned).toBe(true)
   })
 
-  it('Seal of Biliteracy: three language years through a passed capstone', () => {
-    const lang = Array.from({ length: 3 }, () => entry({ tags: ['lang'], grade: 3 }))
-    expect(cord(mkSave(lang), 'seal-biliteracy').earned).toBe(false)
-    const withCap = [...lang, entry({ tags: ['lang-capstone'], grade: 3 })]
-    expect(cord(mkSave(withCap), 'seal-biliteracy').earned).toBe(true)
+  it('Seal of Biliteracy: four credits of ONE world language (RCW 28A.300.575)', () => {
+    const spanish = (n: number) => entry({ id: `class:spanish-${n}`, tags: ['lang'], grade: 3 })
+    expect(cord(mkSave([spanish(1), spanish(2), spanish(3)]), 'seal-biliteracy').earned).toBe(false)
+    expect(cord(mkSave([spanish(1), spanish(2), spanish(3), spanish(4)]), 'seal-biliteracy').earned).toBe(true)
+  })
+
+  it('Seal of Biliteracy: two languages of two years each is proficiency in NEITHER', () => {
+    const mixed = mkSave([
+      entry({ id: 'class:spanish-1', tags: ['lang'], grade: 3 }),
+      entry({ id: 'class:spanish-2', tags: ['lang'], grade: 3 }),
+      entry({ id: 'class:french-1', tags: ['lang'], grade: 3 }),
+      entry({ id: 'class:french-2', tags: ['lang'], grade: 3 }),
+    ])
+    expect(cord(mixed, 'seal-biliteracy').earned).toBe(false)
+    expect(cord(mixed, 'seal-biliteracy').detail).toContain('2 of 4')
   })
 
   it('Key Club: two invested years incl. senior year with a 3.0', () => {
@@ -99,8 +120,45 @@ describe('cords & seals (§8.4 — the authoritative table)', () => {
     expect(cord(lowGpa, 'key-club').earned).toBe(false)
   })
 
-  it('never invents Valedictorian (criteria unknown — the [GAP])', () => {
-    expect(cordsOf(mkSave([])).some((c) => /valedictorian|salutatorian/i.test(c.name))).toBe(false)
+  it('names Valedictorian and Salutatorian, and invents no criteria for either', () => {
+    const all = cordsOf(mkSave([entry({ grade: 4 })], { year: 4 }))
+    const gaps = all.filter((c) => /valedictorian|salutatorian/i.test(c.name))
+    expect(gaps).toHaveLength(2)
+    for (const g of gaps) {
+      expect(g.published).toBe(false)
+      expect(g.rule).toBe('Bonney Lake High School has not published criteria for this award.')
+      expect(g.earned).toBe(false)          // a single run has no class rank to compare against
+      // the game's own stand-in is stated as the game's, beside the rule, never as the school's
+      expect(g.model).toContain("game's own model")
+    }
+  })
+
+  it('every other cord is published, sourced, and quotes the school verbatim', () => {
+    const RULES: Record<string, string> = {
+      'highest-honors': 'GPA 3.76-4.0',
+      'high-honors': 'GPA 3.5-3.759',
+      'career-readiness': 'Must have completed at least two CTE credits',
+      'ap-honors': 'Pass 5 or more AP courses',
+      'ap-capstone': 'AP Seminar & Research plus 4 additional AP classes',
+      'seal-biliteracy': 'Awarded to students who show proficiency in English and at least one other language before high school graduation',
+    }
+    for (const [id, rule] of Object.entries(RULES)) {
+      const c = cord(mkSave([]), id)
+      expect(c.published, id).toBe(true)
+      expect(c.rule, id).toBe(rule)         // verbatim from docs/blhs/awards.md
+      expect(c.source, id).toContain('docs/blhs/awards.md')
+    }
+    // Key Club's criteria are long, so the tripwire is that the game does not shorten them
+    const key = cord(mkSave([]), 'key-club')
+    expect(key.rule).toContain('40+ volunteer hours each year over 4 years')
+    expect(key.rule).toContain('attend 15 meetings each year and 5+ service events')
+    expect(key.model).toContain('does not count hours, meetings or events')
+  })
+
+  it('says plainly that no athletic cord exists rather than inventing one', () => {
+    expect(NO_ATHLETIC_CORD).toContain('awards no cord for reaching Captain')
+    expect(NO_ATHLETIC_CORD).toContain('docs/blhs/awards.md')
+    expect(cordsOf(mkSave([])).some((c) => /captain|varsity|athletic/i.test(c.name))).toBe(false)
   })
 })
 

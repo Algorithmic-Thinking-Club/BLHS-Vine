@@ -22,30 +22,12 @@ export type TransitionSpec = {
   title?: string
 }
 
-// every fact here is verified BLHS reality (docs/research/blhs-specifics.md); nothing
-// invented. Facts collect into the Handbook (§8.5); the picker prefers ones not yet learned
-// (§4.9 — the wait teaches), so waits stay fresh until the pool is exhausted.
-export const FACTS: { id: string; text: string }[] = [
-  { id: 'f-opened', text: 'Bonney Lake High School opened in 2005. The Panthers have been teal and black from day one.' },
-  { id: 'f-ap-school', text: 'BLHS is the AP school of the Sumner-Bonney Lake district. AP Capstone lives here.' },
-  { id: 'f-power', text: 'The POWER values are the school’s compass. You’ll meet all five letters.' },
-  { id: 'f-students', text: 'Around 1,700 students walk the halls of BLHS. Every one of them started as a freshman.' },
-  { id: 'f-becu', text: 'BLHS runs a real in-school BECU branch. It opened back in 2006.' },
-  { id: 'f-cte-cord', text: 'Earn two CTE credits and the Career Readiness cord is yours at graduation.' },
-  { id: 'f-seal', text: 'Three or more years of one world language can earn the Seal of Biliteracy.' },
-  { id: 'f-cords', text: 'The counseling office tracks every honor cord. So does your Handbook.' },
-  // core-beat takeaways (§7.3) land in this same pool — one truth per fact, one id per card
-  { id: 'f-power-full', text: 'Panther POWER: Perseverance, Ownership, Work Ethic, Engagement, Respect. Five letters, the whole culture.' },
-  { id: 'f-monday', text: 'Mondays start late at 8:30 and advisory meets that morning. Every other day starts at 7:25.' },
-  { id: 'f-25th-credit', text: 'Passing advisory pays .125 elective credit each semester. The catalog calls it the 25th credit.' },
-  { id: 'f-join-clubs', text: 'Joining a club is finding its meeting and walking in. DECA meets Thursdays 2:10 in the 200 Flex.' },
-  { id: 'f-honor-gpa', text: 'Double gold cords mean Highest Honors: a 3.76 to 4.0 GPA. Black and silver is High Honors, 3.5 and up.' },
-  { id: 'f-retake', text: 'Score under 79% with real effort behind it and the Universal Retake Policy lets you take the summative again.' },
-  { id: 'f-24-credits', text: 'A diploma takes 24 credits: 4 English, 3 math, 3 science, 3 social studies, 2 arts, 2 language, 2 health and fitness, 1 CTE, 4 electives.' },
-  { id: 'f-capstone', text: 'AP Capstone is a recipe: AP Seminar, then AP Research, plus four more APs, with the exams passed.' },
-  { id: 'f-running-start', text: 'Juniors and seniors can Running Start: real courses at local colleges, credit on both transcripts.' },
-  { id: 'f-hsbp', text: 'Every Washington graduate finishes a High School and Beyond Plan: where you are headed after the stage, and how.' },
-]
+/* THE LOADING POOL IS A VIEW OF THE FACT TABLE, not a second list of facts.
+ * Every statement about Bonney Lake lives in src/game/facts.ts with the document
+ * it came out of and the date somebody read it. This file draws the card. It used
+ * to own the sentences, and three of them said things no source does. */
+export { FACTS, factById, type Fact } from '../game/facts'
+import { FACTS } from '../game/facts'
 
 const COVER_MS = 950 // cover-in / cover-out animation time — heavy and calm, never a flash
 

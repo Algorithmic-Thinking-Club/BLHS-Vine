@@ -1,9 +1,10 @@
 // CORE BEAT, YEAR 2 — "The hidden ladder" (§7.3): every real cord and seal, taught two
 // years before it is too late to earn them, plus the Universal Retake Policy — which the
 // student has probably already USED as a game mechanic by now; this beat names it as the
-// real rule it is. All criteria verbatim-faithful to blhs-awards-authoritative.md (the
-// list Ms. Pinzon sent through Mr. Wiseman — she hosts, respectfully). No em-dashes in
-// player copy (law §2.8).
+// real rule it is. All criteria verbatim-faithful to docs/blhs/awards.md (the list
+// Ms. Pinzon sent through Mr. Wiseman — she hosts, respectfully), with the 2026-08-28
+// resolutions folded in: a D passes, and the Seal is Washington's own rule. No em-dashes
+// in player copy (law §2.8).
 
 import type { CoreBeat } from './frames'
 
@@ -20,8 +21,8 @@ export const CORE_Y2: CoreBeat = {
   steps: [
     { kind: 'say', line: { speaker: CP, text: 'Most seniors learn about the cords in June, when it is too late to earn half of them. You get the tour in year two. Use it.' } },
     { kind: 'say', line: { speaker: CP, text: 'The GPA cords first. Double gold means Highest Honors, a 3.76 or better. Black and silver is High Honors, 3.5 and up.' } },
-    { kind: 'say', line: { speaker: CP, text: 'Career Readiness takes two CTE credits. Key Club’s navy cord takes two active years including senior year, a 3.0, and real service hours.' } },
-    { kind: 'say', line: { speaker: CP, text: 'AP Honors is five passed AP classes. AP Capstone is a recipe: Seminar, then Research, plus four more. And the Seal of Biliteracy is proficiency in English and another language.' } },
+    { kind: 'say', line: { speaker: CP, text: 'Career Readiness takes two CTE credits. Key Club’s navy cord takes two active years including senior year, a 3.0, forty volunteer hours a year, fifteen meetings a year and five service events.' } },
+    { kind: 'say', line: { speaker: CP, text: 'AP Honors is five passed AP courses, and passed means a D or better, same as any class here. AP Capstone is a recipe: Seminar, then Research, plus four more. And the Seal of Biliteracy is proficiency in English and another language, which in Washington is four credits of one.' } },
     {
       kind: 'check',
       check: {
@@ -32,7 +33,7 @@ export const CORE_Y2: CoreBeat = {
           { label: 'A GPA of 3.76 or better', bucket: 'Double gold' },
           { label: 'Two CTE credits', bucket: 'Career Readiness' },
           { label: 'Five passed AP classes', bucket: 'AP Honors' },
-          { label: 'Proficiency in two languages', bucket: 'Seal of Biliteracy' },
+          { label: 'Four credits of one world language', bucket: 'Seal of Biliteracy' },
         ],
         objective: 'know the real cord criteria',
       },

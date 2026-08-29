@@ -18,7 +18,9 @@ export const emptyScore = (beat: CoreBeat): BeatScore => ({
 export const gradeOf = (s: BeatScore): number =>
   s.total === 0 ? 4 : Math.round((s.earned / s.total) * 4 * 100) / 100
 
-/** B- on the real BLHS scale (blhs-specifics: B- = 2.7) — the retake threshold */
+/** B- on the real BLHS scale (docs/blhs/sourced-facts.md §grading: B- = 2.7) — the retake
+ *  threshold. It is a GAME rule about when a retake is offered and is never printed as the
+ *  school's; the school's own trigger is under 79% with legitimate effort. */
 export const RETAKE_BELOW = 2.7
 
 /** may this beat be retaken right now? (§8.1: under B-, once, per the ledger's memory) */

@@ -1,6 +1,6 @@
 // Core beats Y2-Y4: fact tripwires against the authoritative sources, and the Y4
 // generator's personal audit math. If a criteria test fails, someone changed a REAL
-// award rule — check blhs-awards-authoritative.md before "fixing" anything.
+// award rule — check docs/blhs/awards.md before "fixing" anything.
 import { describe, it, expect } from 'vitest'
 import { checksOf } from './frames'
 import { CORE_Y2 } from './y2'
@@ -31,7 +31,11 @@ describe('Y2 — the hidden ladder (Ms. Pinzon’s real criteria)', () => {
     expect(pairs['Double gold']).toContain('3.76')
     expect(pairs['Career Readiness']).toContain('Two CTE credits')
     expect(pairs['AP Honors']).toContain('Five passed AP')
-    expect(pairs['Seal of Biliteracy']).toContain('two languages')
+    /* "Proficiency in two languages" was the old sort answer and it describes a rule
+       nobody wrote: Washington's seal is four credits of ONE world language (or a
+       qualifying assessment), which is why two years of Spanish and two of French earn
+       nothing. RCW 28A.300.575, WAC 392-410-350, resolved 2026-08-28. */
+    expect(pairs['Seal of Biliteracy']).toContain('one world language')
   })
   it('the retake answer carries the real 79% threshold', () => {
     const c = checksOf(CORE_Y2).find((x) => x.kind === 'choice' && x.id === 'y2-retake')

@@ -4,7 +4,7 @@ import { checksOf, pointsOf, type BeatStep, type CoreBeat } from './frames'
 import { emptyScore, gradeOf, retakeAvailable, type BeatScore } from './score'
 import { collectFact, loadSave, recordGrade } from '../save'
 import { cordsOf, letterOf, newlyCloseCords } from '../progress'
-import { FACTS } from '../../app/transitions'
+import { factById } from '../facts'
 import { track } from '../telemetry'
 import './beats.css'
 
@@ -340,7 +340,7 @@ function ResultCard({ beat, score, arm, canRetake, onReview, onClose }: {
       </div>
       <div className="bt-takeaways">
         {beat.takeaways.map((id) => {
-          const f = FACTS.find((x) => x.id === id)
+          const f = factById(id)
           return f ? <div className="bt-fact" key={id}>{f.text}</div> : null
         })}
       </div>
@@ -364,7 +364,7 @@ function ReviewCard({ beat, arm, onRetake, onBack }: { beat: CoreBeat; arm: 'gam
       <div className="bt-prompt">Review first. That is the policy, and it works.</div>
       <div className="bt-takeaways">
         {beat.takeaways.map((id) => {
-          const f = FACTS.find((x) => x.id === id)
+          const f = factById(id)
           return f ? <div className="bt-fact" key={id}>{f.text}</div> : null
         })}
       </div>

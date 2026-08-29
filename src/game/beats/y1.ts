@@ -1,6 +1,6 @@
 // CORE BEAT, YEAR 1 — "This is the place" (§7.3). The fixed measured content every
 // student gets: POWER values, the Monday rhythm, how joining actually works. Every fact
-// here is real (docs/research/blhs-specifics.md: the 2025-26 Student Handbook and the
+// here is real (docs/blhs/sourced-facts.md: the 2025-26 Student Handbook and the
 // clubs hub). Voice: Principal Panther, warm, never corporate. No em-dashes in player
 // copy (law §2.8).
 

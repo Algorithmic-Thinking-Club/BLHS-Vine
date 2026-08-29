@@ -108,10 +108,14 @@ export function eligibleClasses(year: number, pickedByYear: Record<number, strin
 
 /** the inline cord-relevance line (§7.2): why this pick matters, in the counselor's voice */
 export function cordHint(tags: string[]): string | null {
-  if (tags.includes('lang-capstone')) return 'the Seal of Biliteracy’s capstone'
+  /* THE SEAL HAS NO CAPSTONE. This said "the Seal of Biliteracy's capstone" about
+   * a fourth-year language class, which described a rule nobody wrote: Washington
+   * counts four credits of one world language, and the fourth one is the fourth
+   * credit rather than a capstone that unlocks the other three. */
+  if (tags.includes('lang-capstone')) return 'the fourth credit of one language: the Seal of Biliteracy'
   const parts: string[] = []
   if (tags.includes('ap')) parts.push('counts toward AP Honors (5 APs)')
   if (tags.includes('cte')) parts.push('a CTE credit (Career Readiness needs 2)')
-  if (tags.includes('lang')) parts.push('keeps the Seal of Biliteracy alive')
+  if (tags.includes('lang')) parts.push('a credit toward the Seal of Biliteracy (4 in one language)')
   return parts.length ? parts.join(' · ') : null
 }

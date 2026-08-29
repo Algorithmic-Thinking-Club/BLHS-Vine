@@ -1,6 +1,6 @@
 // CORE BEAT, YEAR 3 — "The long game" (§7.3): the 24 credits and how they stack, dual
 // credit in its four real flavors, and AP Capstone's exact recipe. All from the 2024-25
-// SBLSD course catalog via blhs-specifics.md. No em-dashes in player copy (law §2.8).
+// SBLSD course catalog via docs/blhs/sourced-facts.md. No em-dashes in player copy (law §2.8).
 
 import type { CoreBeat } from './frames'
 

@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { ISLANDS } from '../island/registry'
 import { PLACES, programmesAt } from '../roster/roster'
 import { loadSave, subscribeSave } from '../save'
-import { cordsOf, gpaOf, letterOf } from '../progress'
-import { FACTS } from '../../app/transitions'
+import { cordsOf, gpaOf, letterOf, NO_ATHLETIC_CORD } from '../progress'
+import { factById } from '../facts'
 import { track } from '../telemetry'
 import './hud.css'
 
@@ -100,22 +100,32 @@ export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => voi
                 Cords &amp; seals
                 {gpa !== null && <span className="hb-dim"> · GPA {gpa.toFixed(2)} ({letterOf(gpa)})</span>}
               </div>
+              {/* THE SCHOOL'S WORDS, THEN THE GAME'S, AND NEVER ONE AS THE OTHER (V3).
+                  `rule` is verbatim from docs/blhs/awards.md and is the criterion. `model`
+                  is what this game actually counts, and it is printed underneath, marked,
+                  because a mechanic that approximates a criterion is never the criterion.
+                  An award whose criteria nobody has published says so in the same place. */}
               {cordsOf(s).map((c) => (
                 <div className="hb-row" key={c.id}>
                   <span className="hb-row-title">
                     {c.name} <span className="hb-dim">({c.colors})</span>
-                    <div className="hb-dim">{c.rule}</div>
+                    <div className="hb-dim">{c.published ? c.rule : `${c.rule} No criteria to show.`}</div>
+                    {c.model && <div className="hb-dim">In this game: {c.model}</div>}
+                    <div className="hb-dim">{c.source}</div>
                   </span>
                   {c.earned
                     ? <span className="hb-earned">EARNED</span>
-                    : (
-                      <span>
-                        <div className="hb-cordbar"><span style={{ width: `${Math.round(c.progress * 100)}%` }} /></div>
-                        <div className="hb-dim">{c.detail}</div>
-                      </span>
-                    )}
+                    : c.published
+                      ? (
+                        <span>
+                          <div className="hb-cordbar"><span style={{ width: `${Math.round(c.progress * 100)}%` }} /></div>
+                          <div className="hb-dim">{c.detail}</div>
+                        </span>
+                      )
+                      : <span className="hb-dim">{c.detail}</span>}
                 </div>
               ))}
+              <div className="hb-dim" style={{ marginTop: '2cqw' }}>{NO_ATHLETIC_CORD}</div>
             </>
           )}
           {tab === 'cords' && !s && <div className="hb-dim">No voyage yet. The board fills once you set sail.</div>}
@@ -124,8 +134,16 @@ export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => voi
             <>
               <div className="hb-h">Facts collected · {s?.facts.length ?? 0}</div>
               {(s?.facts ?? []).map((id) => {
-                const f = FACTS.find((x) => x.id === id)
-                return f ? <div className="hb-row" key={id}><span className="hb-row-title">{f.text}</span></div> : null
+                const f = factById(id)
+                /* THE SOURCE IS ON THE PAGE. A binder of true things about a real
+                   school that cannot say where any of them came from is a binder
+                   of claims, and a student can and should be able to check one. */
+                return f ? (
+                  <div className="hb-row" key={id}>
+                    <span className="hb-row-title">{f.text}</span>
+                    <span className="hb-dim">{f.source} · checked {f.checked}</span>
+                  </div>
+                ) : null
               })}
               {!(s?.facts.length) && <div className="hb-dim">Every loading tide teaches one true thing about Bonney Lake. They collect here.</div>}
             </>
