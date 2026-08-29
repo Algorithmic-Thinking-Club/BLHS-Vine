@@ -67,8 +67,12 @@ import { showPlaceCard } from '../stage/stage-bus'
 import { motionMs, prefersReducedMotion } from '../ui/motion'
 import { composeWorldText, WORLD_TEXT } from '../ui/worldText'
 import { MAW_MAP, isObjective, nextObjective } from '../run/objective'
-import { missingAnchors, stationByName } from '../maw/stations'
+import { missingAnchors } from '../maw/stations'
 import { runStation } from '../maw/run-station'
+import { isReady, labelFor, ownerOf } from './grape-router'
+import { islandOfMap } from '../roster/member-islands'
+import { fetchGrape, type GrapeRef } from '../../vine/py/grape-source'
+import { openGrape, type GrapeSession } from '../../vine/py/runGrape'
 
 /* when a heading has no view, the next best one it might have, so a set drawn
  * four ways still faces roughly right instead of snapping to south */
@@ -472,6 +476,10 @@ export default function PmapScene() {
     /* set by start() once the stage exists; called by the cleanup below whether or
      * not start() ever got that far */
     let teardownStage = () => { /* nothing was published */ }
+    /* set by start() if this map opened an island. The other half of the
+     * sandbox: a worker left running holds a MicroPython heap, and a scene that
+     * unmounts mid-say must not leave one behind on a 4 GB Chromebook. */
+    let stopIsland = () => { /* no island on this map */ }
     const keys: Record<string, boolean> = {}
     const kd = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = true }
     const ku = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = false }
@@ -2051,6 +2059,18 @@ export default function PmapScene() {
        * suspend it. See suspendStationHold below for why that is necessary. */
       let stationHold: (() => void) | null = null
 
+      /* ---- THE ISLAND THIS MAP BELONGS TO ------------------------------------
+       *
+       * A member's python, loaded once when the map opens and called every time
+       * the player presses E on an anchor it claimed. Opened lazily below rather
+       * than here, because most maps have no island and booting a MicroPython
+       * runtime for them would cost every map the 4 GB Chromebook's patience.
+       *
+       * `grapeHandlers` is read on every frame by the prompt, so it is a plain
+       * array rather than a call through the session. */
+      let grape: GrapeSession | null = null
+      let grapeHandlers: string[] = []
+
       /* ---- WHAT A CUTSCENE OWNS WHILE IT IS RUNNING ---------------------------
        *
        * `PmapScene` implemented ZERO of `CutsceneStage`'s thirteen methods and its
@@ -2528,24 +2548,40 @@ export default function PmapScene() {
 
       /* ---- PRESSING E: an anchor name becomes a running mechanic ----
        *
-       * The whole point of the session, in fifteen lines. A door is still a
-       * door. Anything else looks its name up in the station table and pumps
-       * the body through the intent driver, which is the same protocol the
-       * MicroPython worker will speak. */
+       * A door is still a door. Anything else asks `ownerOf`, which asks the
+       * loaded island BEFORE the Maw's station table, and pumps whichever
+       * answers through the same intent driver. A station is a TypeScript
+       * generator and a grape is MicroPython in a worker, and from here they are
+       * the same twenty lines, which is the whole reason the protocol was
+       * designed against a generator first. */
       const fire = async (a: Anchor) => {
         if (busy || fade) return
         if (a.kind === 'door') {
           if (a.to) beginExit({ map: a.to, at: a.toAnchor })
           return
         }
-        const st = stationByName(a.name)
+        const owner = ownerOf(a.name, grapeHandlers)
         const sv = loadSave()
-        if (!st || !sv) return
+        if (!owner) {
+          /* W13. Before this, a correctly placed anchor, a correctly spelled name
+           * and a correctly written handler produced nothing at all, and nothing
+           * is what a typo produces too. */
+          console.warn(`[pmap] ${mapId}: nothing answers to the anchor "${a.name}"`)
+          engine.log('anchor_unclaimed', { map: mapId, anchor: a.name })
+          return
+        }
+        /* a grape does not need a save to talk; a station's body is handed one */
+        if (owner.by === 'station' && !sv) return
         busy = true
         stationHold = holdWorld(`station:${a.name}`)
-        engine.log('station_used', { map: mapId, anchor: a.name, objective: isObjective(sv, mapId, a.name) })
+        engine.log('station_used', {
+          map: mapId, anchor: a.name, by: owner.by,
+          objective: sv ? isObjective(sv, mapId, a.name) : false,
+        })
         try {
-          const report = await runStation(st.run(sv), intentHost, a.name)
+          const report = owner.by === 'grape'
+            ? await grape!.call(owner.handler)
+            : await runStation(owner.station.run(sv!), intentHost, a.name)
           /* R8: A FAILURE IN ONE ARM AND NOT THE OTHER IS INDISTINGUISHABLE FROM
            * AN EFFECT unless somebody counts them. A station that threw used to
            * warn to a console nobody in a classroom is looking at, so a member's
@@ -2574,6 +2610,79 @@ export default function PmapScene() {
           keys['e'] = false
         }
       }
+
+      /* ---- OPENING THE ISLAND THIS MAP BELONGS TO ----------------------------
+       *
+       * Two ways in, and they are the same fetch.
+       *
+       * The shipped way is a row in member-islands.json binding a map id to a
+       * folder, which is the only edit adding an island takes and which a member
+       * makes in their own repository.
+       *
+       * The other is `?grape=<base url>`, which is a member with `serve.py`
+       * running and a map to try their island on before anybody has merged a
+       * row. That is not debug scaffolding: it is the loop between writing a
+       * handler and watching it answer a real press on a real painting, and
+       * without it a member waits on a merge to find out their anchor name is
+       * spelled wrong.
+       *
+       * Nothing blocks the map on it. An island that will not load leaves the
+       * map exactly as it was, which is a room whose furniture still works. */
+      const openIsland = async () => {
+        const asked = params.get('grape')
+        const bound = islandOfMap(mapId)
+        if (!asked && !bound) return
+        const ref: GrapeRef = asked
+          ? { at: 'url', base: asked }
+          : { at: 'origin', island: bound!.folder }
+        try {
+          const pkg = await fetchGrape(ref)
+          if (destroyed) return
+          const s = openGrape(pkg, intentHost)
+          grape = s
+          stopIsland = () => { s.stop(); grape = null; grapeHandlers = [] }
+          const ready = await s.ready
+          if (destroyed) { s.stop(); return }
+          if (ready.error) {
+            /* the island is under construction and the map is not. Said out loud
+             * because a member watching their own island fail to load needs the
+             * sentence, and a player needs the room to keep working. */
+            console.warn(`[pmap] ${mapId}: island did not load: ${ready.error}`)
+            engine.log('island_failed', { map: mapId, error: ready.error, when: 'load' })
+            grape = null
+            return
+          }
+          grapeHandlers = ready.handlers
+
+          /* THE OTHER HALF OF W13, AND THE ONE A MEMBER ACTUALLY HITS.
+           *
+           * An anchor nobody claims is one failure. A handler claiming an anchor
+           * the map does not have is the other, and they look identical from the
+           * player's side: press E, nothing happens. This one can be caught the
+           * instant the island loads rather than by walking the map, and the
+           * message can list the names that DO exist, which is the thing nothing
+           * in the members' repo can tell them. */
+          const has = new Set(anchors.all.map((a) => a.name))
+          const missing = ready.handlers
+            .filter((h) => h.startsWith('talk:'))
+            .map((h) => h.slice(5))
+            .filter((n) => !has.has(n))
+          if (missing.length) {
+            console.warn(
+              `[pmap] ${mapId}: this island claims ${missing.map((n) => `"${n}"`).join(', ')}, `
+              + `which ${missing.length > 1 ? 'are not anchors' : 'is not an anchor'} on this map. `
+              + `It has: ${anchors.all.map((a) => a.name).join(', ') || '(none)'}`)
+            engine.log('anchor_missing', { map: mapId, claimed: missing })
+          }
+          if (DBG) console.info(`[pmap] ${mapId}: island claims ${ready.handlers.join(', ')}`)
+          /* THE ENGINE CALLING IN UNPROMPTED, which is the inversion the whole
+           * member model rests on. Nothing in their file asks for this. */
+          if (ready.handlers.includes('start')) await s.call('start')
+        } catch (e) {
+          console.warn(`[pmap] ${mapId}: island did not load: ${e instanceof Error ? e.message : e}`)
+        }
+      }
+      void openIsland()
 
       // ---- input ----
       window.addEventListener('keydown', kd); window.addEventListener('keyup', ku)
@@ -2750,8 +2859,9 @@ export default function PmapScene() {
         if (!a) return `no anchor named ${name}`
         if (busy) return 'busy'
         if (fade) return 'a door is closing'
-        if (!stationByName(a.name)) return `no station named ${a.name}`
-        if (!loadSave()) return 'no run'
+        const owner = ownerOf(a.name, grapeHandlers)
+        if (!owner) return `nothing answers to ${a.name}`
+        if (owner.by === 'station' && !loadSave()) return 'no run'
         void fire(a)
         return 'fired'
       }
@@ -3098,7 +3208,12 @@ export default function PmapScene() {
           ? null : anchors.nearestInteractive(pos.x, pos.y)
         let canFire = false
         if (near) {
-          const label = near.label || stationByName(near.name)?.fallbackLabel || near.name
+          /* THE SAME RESOLVER THE PRESS USES. These two disagreeing is worse
+           * than either being wrong: the prompt decides whether E is ever
+           * offered, so a grape-owned anchor the prompt did not know about is a
+           * handler that can never be reached by a key or by a tap. */
+          const owner = ownerOf(near.name, grapeHandlers)
+          const label = near.label || labelFor(owner, near.name)
           let text = ''
           if (near.kind === 'door') {
             checkDoor(near.to || '')
@@ -3112,20 +3227,17 @@ export default function PmapScene() {
             if (built === 'ok') { text = `E · enter ${label}`; canFire = true }
             else if (built === 'missing') text = `${label} · the way is barred`
           } else {
-            const st = stationByName(near.name)
             const sv = loadSave()
-            if (!st) {
-              /* an anchor somebody placed and named that no station answers to.
-               * Named out loud in debug rather than silently ignored, because a
-               * typo in MAPVIS and a station nobody wrote look identical from
-               * here. */
-              if (DBG) text = `${label} · no station named ${near.name}`
-            } else if (!sv) {
-              text = label
-            } else if (!st.available || st.available(sv)) {
+            if (!owner) {
+              /* W13, on the prompt as well as on the press. An anchor somebody
+               * placed and named that nothing answers to. Named out loud rather
+               * than silently ignored, because a typo in MAPVIS and a handler
+               * nobody wrote look identical from here. */
+              if (DBG) text = `${label} · nothing answers to ${near.name}`
+            } else if (isReady(owner, sv)) {
               text = `E · ${label}`; canFire = true
-            } else {
-              text = st.closed?.(sv) ?? label
+            } else if (owner.by === 'station') {
+              text = sv ? (owner.station.closed?.(sv) ?? label) : label
             }
           }
           doorTxt.text = text
@@ -3228,8 +3340,8 @@ export default function PmapScene() {
              * the map load. And a trigger no station answers to said nothing at
              * all: it is the one anchor kind `nearestInteractive` excludes, so the
              * debug line that names an unanswered post could never reach it. */
-            if (!stationByName(z.name)) {
-              console.warn(`[pmap] ${mapId}: trigger "${z.name}" fired and no station answers to that name`)
+            if (!ownerOf(z.name, grapeHandlers)) {
+              console.warn(`[pmap] ${mapId}: trigger "${z.name}" fired and nothing answers to that name`)
               engine.log('trigger_unanswered', { map: mapId, anchor: z.name })
               firedTriggers.add(z.name)
               continue
@@ -3533,6 +3645,10 @@ export default function PmapScene() {
        * hanging. A body parked on an unresolved say() holds its world lock for
        * ever, and the next map opens with no controls and no way to tell why. */
       clearDialogue()
+      /* and the island's worker with it, for the same reason and one more: a
+       * python heap outliving the map that opened it is a leak nobody sees until
+       * the fourth island of a session on a Chromebook. */
+      stopIsland()
       /* the stage goes back before the scene does. A runtime left published over a
        * torn-down Pixi app is an overlay drawing letterbox bars over the next map,
        * with nothing ticking it and no way to skip it. */
