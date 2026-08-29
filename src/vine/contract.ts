@@ -86,6 +86,29 @@ export type CutsceneStep =
   | { kind: 'wait'; ms: number }
 
 // THE WOVEN CHECK — varied, never just a bare MCQ. Each variant carries its own juiced feedback.
+//
+// THE ITEM PALETTE, AND WHY IT IS EIGHT KINDS RATHER THAN THREE (80.7, K3).
+//
+// It was choice, quiz and sort, which is a worksheet. The cost of that is not a
+// dull screen, it is which of the school's real programmes can be an island at
+// all: island twelve is the band island or the drama island or the robotics
+// island, its author opens the palette, the kind their club actually IS is not in
+// it, and so they write a quiz about band, which teaches when band meets and
+// nothing about what band is.
+//
+// Every kind here declares its scoring and its plain rendering in ONE place,
+// src/game/beats/palette.ts, so a new kind cannot ship with a game rendering and
+// no control-arm one. That is not tidiness. The control arm receives whatever the
+// palette derives, so a kind that renders badly in plain quietly makes the study's
+// control condition harder, and that is a content failure wearing a UI hat.
+//
+// THE TIMING LAW, which is a property of the palette and not of any one kind: the
+// item scores and the body does not. A student who answers every question right
+// and mistimes every press has a perfect grade and a bad-looking run, and that is
+// the correct outcome, because the alternative confounds the study with reaction
+// time on a machine whose input latency nobody has measured. Motor skill changes
+// what the result card says and never what the transcript says. No kind below
+// takes a clock as a scoring input, and `showdown` takes no clock at all.
 export type CheckStep =
   // a consequential dialogue choice (the "make the pitch": a good reply lands, a weak one gets a hint)
   | { kind: 'choice'; id: string; prompt: string; options: { text: string; correct?: boolean; reply: string }[]; objective?: string }
@@ -93,6 +116,54 @@ export type CheckStep =
   | { kind: 'quiz'; item: QuizItem }
   // drag items into the right bucket(s) ("stock the trophy case")
   | { kind: 'sort'; id: string; prompt: string; buckets: string[]; items: { label: string; bucket: string }[]; objective?: string }
+  /* a NUMBER, with the tolerance stated in the data rather than left to a
+   * renderer. "How many credits to graduate" is a number and dressing it as four
+   * radio buttons turns recall into recognition, which is a different thing to
+   * measure. `tolerance` is absolute and defaults to 0, so 24 means 24 and a GPA
+   * question can say 0.05 and mean it. */
+  | { kind: 'number'; id: string; prompt: string; answer: number; tolerance?: number; unit?: string; reply?: string; objective?: string }
+  /* an ORDERING. The four years, the steps of an appeal, a rehearsal order. One
+   * point per item that lands in its own place, so a student who has three of
+   * five in sequence is not marked the same as one who guessed. `position` is
+   * 1-based because that is what the student sees on the form. */
+  | { kind: 'order'; id: string; prompt: string; items: { label: string; position: number }[]; reply?: string; objective?: string }
+  /* a PLACE: pick a named region. `name` is the machine name (a MAPVIS anchor
+   * name where the diagram is a real map) and `label` is what the student reads,
+   * kept apart for the same reason MAPVIS keeps them apart: renaming a door for
+   * the player must not silently change what the item is checking. */
+  | { kind: 'place'; id: string; prompt: string; regions: { name: string; label: string }[]; correct: string; image?: string; reply?: string; objective?: string }
+  /* a DO: scores an ACTION rather than an answer, and it is W8 written down.
+   *
+   * Deliberately narrow. A running beat may issue the intents an island can
+   * already issue, and receives back exactly ONE kind of world event as an item's
+   * input: the player reached a named anchor. No second vocabulary, no scene
+   * reference, no renderer, no ticker. Scoring stays in the runner and the beat
+   * stays pure data, which is what makes the plain rendering fall out by
+   * construction instead of by a member remembering to write one.
+   *
+   * `decoys` are the other places the student could plausibly have gone, and they
+   * are what the plain arm shows as the item. Without them the control arm gets a
+   * question with one option, so the loader refuses a `do` that has none. */
+  | { kind: 'do'; id: string; prompt: string; goal: { anchor: string; label: string }; decoys: { anchor: string; label: string }[]; reply?: string; objective?: string }
+  /* a SHOWDOWN: the turn-based frame, where knowledge is the ammunition. The
+   * stadium's last drive, a debate round, a robotics match. One point per round,
+   * summed, and the chassis carries `earned` and `total` between rounds and
+   * nothing else (src/game/beats/showdown.ts).
+   *
+   * It has NO timing input of any kind. Progress is a function of rounds
+   * remaining minus rounds correct and nothing else, so there is nothing a
+   * student can lose by being slow, and an island cannot make its own grade
+   * easier by widening a window the transcript cannot see. */
+  | { kind: 'showdown'; id: string; prompt: string; opponent: string; rounds: ShowdownRound[]; objective?: string }
+
+/** one turn of a showdown. Same shape as a `choice`, because a round IS a choice
+ *  with a scoreboard behind it, and giving it a second shape would give the
+ *  palette two spellings of the same word. */
+export interface ShowdownRound {
+  id: string
+  prompt: string
+  options: { text: string; correct?: boolean; reply: string }[]
+}
 
 export interface RewardDef {
   points?: number

@@ -50,9 +50,15 @@ export function track(name: string, data?: Record<string, unknown>) {
  * WHY A TICK AND NOT A TIMER PER SCENE. A duration measured by a scene is a
  * duration lost the moment the scene crashes, the tab is closed or the bell goes,
  * which is exactly when it matters. A tick is a series of stamps: the reader
- * (api/_summary.ts) sums the gaps between consecutive events and caps each one,
- * so a run that ended by the tab dying still has every minute it really spent and
- * none of the ones it did not.
+ * sums the gaps between consecutive beats and refuses the long ones, so a run
+ * that ended by the tab dying still has every minute it really spent and none of
+ * the ones it did not.
+ *
+ * WHO READS IT: `api/_dose.ts`, folded per participant, per map and per session,
+ * and served by `api/dose.ts`. That sentence was not true until 2026-08-29. The
+ * beat had been firing into a table nothing queried, which made the study's own
+ * exposure measure unfalsifiable. `everyMs` rides on every beat so the reader
+ * knows the cadence it is dividing by rather than assuming this constant.
  *
  * ONLY WHILE THE TAB IS VISIBLE. A hidden tab is not time on task, and counting
  * it would make an abandoned run look like the longest one in the class.
@@ -67,6 +73,8 @@ export function setContext(next: Record<string, unknown>) {
 }
 
 let timer = 0
+let onVisible: (() => void) | null = null
+
 export function startHeartbeat() {
   if (timer) return
   const beat = () => {
@@ -77,10 +85,16 @@ export function startHeartbeat() {
   /* a beat on the way back so a return from a hidden tab is stamped immediately
    * rather than up to fifteen seconds later, which is the gap the reader would
    * otherwise have to guess about */
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') beat() })
+  onVisible = () => { if (document.visibilityState === 'visible') beat() }
+  document.addEventListener('visibilitychange', onVisible)
   beat()
 }
 
 export function stopHeartbeat() {
   if (timer) { window.clearInterval(timer); timer = 0 }
+  /* THE LISTENER HAS TO GO WITH THE TIMER. It was left attached, so a stopped
+   * clock still beat every time the tab came back, and the reader cannot tell a
+   * beat from a stopped clock apart from a real one: it just sees a student
+   * present at an instant they were not. */
+  if (onVisible) { document.removeEventListener('visibilitychange', onVisible); onVisible = null }
 }

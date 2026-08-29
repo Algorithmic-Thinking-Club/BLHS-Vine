@@ -72,10 +72,30 @@ export type Place = {
   maps: MapId[]
   /** which of its maps a voyage arrives at. Absent while the place has no maps. */
   arrival?: MapId
-  /* where it sits on the ocean, in the ocean's own untransformed screen space.
-   * The world reads this and nothing else about a place, which is what keeps a
-   * place id out of world code. */
-  at?: { x: number; y: number }
+
+  /* THERE IS NO `at` HERE, AND PUTTING ONE BACK IS THE BUG. Ruled 2026-08-29.
+   *
+   * This type carried `at?: {x, y}`, commented "where it sits on the ocean, in
+   * the ocean's own untransformed screen space", set by no place and read by no
+   * file. It was written before the world composition existed. A POSITION IS THE
+   * COMPOSITION'S: `src/game/world/composition.ts`, where a slot carries `at`, a
+   * `footprint`, a `state`, a `release` radius and a `berth`, and names a roster
+   * place by id.
+   *
+   * Two fields spelling one fact is the same defect as one key spelling four,
+   * which is the whole reason this file exists. It would have been worse here
+   * than the `islandId` conflation was, because only ONE of the two is authored:
+   * MAPVIS W2 writes the composition, and nothing anywhere writes a roster. A
+   * place moved in MAPVIS and a stale `at` still sitting in this file would
+   * disagree silently, and the reader that happened to pick this one would put
+   * an island in the wrong water with no error.
+   *
+   * The split, said once: THE ROSTER SAYS WHAT EXISTS AND WHAT HAPPENS THERE.
+   * THE COMPOSITION SAYS WHERE IT IS. A place with no slot has not been placed
+   * on the water yet, which is a true thing about it and reads correctly as a
+   * missing slot rather than as a coordinate of zero. `slotOfPlace(c, placeId)`
+   * is the lookup; there is nothing to add to this type to get one. */
+
   /* W14, THE PAINTING BUDGET. How many paintings this place has been authorised.
    * Every generation is Ash's hands and his explicit word for that specific
    * spend, so a member who needs a second district finds the number here rather

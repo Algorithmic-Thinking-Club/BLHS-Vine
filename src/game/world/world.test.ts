@@ -10,7 +10,7 @@ import { describe, it, expect } from 'vitest'
 import {
   FALLBACK, compositionFaults, distanceTo, discoveredSlots, residentSlots,
   regionAt, seaSlots, slotOfMap, slotOfPlace, residencyBytes, overBudget,
-  slotBytes, maxResident, trimToBudget,
+  slotBytes, maxResident, trimToBudget, paintedCentre,
   TEXTURE_BUDGET_BYTES, PAINTING_PX_CEILING, SLOT_STATES,
   type WorldComposition, type WorldSlot,
 } from './composition'
@@ -23,8 +23,8 @@ import { PLACES } from '../roster/roster'
 /* ---- the composition ------------------------------------------------------ */
 
 describe('the world composition', () => {
-  it('places the two real bundles and one rumour, and nothing else', () => {
-    expect(FALLBACK.slots.map((s) => s.map ?? '(none)')).toEqual(['hub-a2', 'panther-maw', '(none)'])
+  it('places the three real bundles and one rumour, and nothing else', () => {
+    expect(FALLBACK.slots.map((s) => s.map ?? '(none)')).toEqual(['hub', 'hub-a2', 'panther-maw', '(none)'])
   })
 
   it('has no faults, and its places are all on the roster', () => {
@@ -48,36 +48,52 @@ describe('the world composition', () => {
 
   it('resolves a map to its slot and a place to the one that has the berth', () => {
     expect(slotOfMap(FALLBACK, 'panther-maw')?.title).toBe('the Panther’s Maw')
-    expect(slotOfPlace(FALLBACK, 'home-island')?.map).toBe('hub-a2')
+    expect(slotOfPlace(FALLBACK, 'home-island')?.map).toBe('hub')
     expect(slotOfMap(FALLBACK, 'nothing-here')).toBeUndefined()
   })
 
-  /* DISCOVERY IS MEASURED OFF THE PAINTED EXTENT, NOT OFF THE CANVAS. The hub's
-   * canvas is 688x640 and only rows 194 to 570 hold an opaque pixel, so a
-   * discovery radius read off `h` is 41 percent too generous on the one map the
-   * game actually ships. This is that number, asserted. */
+  /* DISCOVERY IS MEASURED OFF THE PAINTED EXTENT, NOT OFF THE CANVAS.
+   *
+   * Measured on the published hub's own scene.png, 2026-08-29: the canvas is
+   * 688x640 and the opaque pixels run x 7..675, y 194..570. So the painting is
+   * 669x377 and USING THE CANVAS OVERSTATES ITS AREA BY 75 PERCENT. The doc's
+   * 41 percent is the same fact counted the other way, as the fraction of the
+   * canvas that is empty; both are right and this is the one that matters,
+   * because a radius is measured off an area. */
   it('measures discovery off the painted extent and not off the canvas', () => {
-    const hub = slotOfMap(FALLBACK, 'hub-a2')!
-    expect(hub.footprint.h).toBe(377)
-    const canvasErr = (640 - 377) / 640
-    expect(canvasErr).toBeGreaterThan(0.4)
-    /* a point 300 px below the painting's centre is OFF a 377-tall painting and
+    const hub = slotOfMap(FALLBACK, 'hub')!
+    expect(hub.footprint).toEqual({ w: 669, h: 377 })
+    expect((688 * 640) / (669 * 377) - 1).toBeGreaterThan(0.74)
+    /* a point 250 px below the painting's centre is OFF a 377-tall painting and
      * INSIDE a 640-tall canvas, which is the whole of the defect in one point */
-    expect(distanceTo(hub, { x: 0, y: 300 })).toBeGreaterThan(0)
-    expect(Math.abs(300) < 640 / 2).toBe(true)
+    expect(distanceTo(hub, { x: 0, y: 250 })).toBeGreaterThan(0)
+    expect(250 < 640 / 2).toBe(true)
+  })
+
+  /* AND THE PAINTING IS NOT IN THE MIDDLE OF ITS OWN CANVAS. The hub's opaque
+   * rows are 194 to 570 of 640, so its centre is 62 pixels below the canvas
+   * centre and a slot placed by half the canvas puts the island 62 pixels north
+   * of where the chart says it is. */
+  it('places a painting by its own centre and not by half its canvas', () => {
+    const hub = slotOfMap(FALLBACK, 'hub')!
+    expect(paintedCentre(hub, 688, 640)).toEqual({ x: 341.5, y: 382.5 })
+    expect(paintedCentre(hub, 688, 640).y - 640 / 2).toBeCloseTo(62.5, 1)
+    /* a slot with no origin authored is centred, which is true of a tight crop */
+    const maw = slotOfMap(FALLBACK, 'panther-maw')!
+    expect(paintedCentre(maw, 512, 512)).toEqual({ x: 256, y: 256 })
   })
 
   it('is inside the footprint when the point is inside the painting', () => {
-    const hub = slotOfMap(FALLBACK, 'hub-a2')!
+    const hub = slotOfMap(FALLBACK, 'hub')!
     expect(distanceTo(hub, { x: 0, y: 0 })).toBeLessThan(0)
   })
 
   it('discovers an island when the hull comes inside its radius and not before', () => {
-    const hub = slotOfMap(FALLBACK, 'hub-a2')!
+    const hub = slotOfMap(FALLBACK, 'hub')!
     const far = { x: 0, y: 4000 }
     const near = { x: 0, y: 400 }
-    expect(discoveredSlots(FALLBACK, far).map((s) => s.map)).not.toContain('hub-a2')
-    expect(discoveredSlots(FALLBACK, near).map((s) => s.map)).toContain('hub-a2')
+    expect(discoveredSlots(FALLBACK, far).map((s) => s.map)).not.toContain('hub')
+    expect(discoveredSlots(FALLBACK, near).map((s) => s.map)).toContain('hub')
     expect(distanceTo(hub, near)).toBeLessThan(hub.discover!)
   })
 
@@ -107,21 +123,32 @@ describe('the world composition', () => {
    * The per-map cost is measured off the bundles on disk, so island twelve is a
    * number here rather than a worry. */
   it('computes what a resident map costs from the measured bundle', () => {
-    const hub = slotOfMap(FALLBACK, 'hub-a2')!
-    /* four decoded full-canvas layers over a 688x377 painting, plus 94
-     * placements at the proof bundle's measured 21,745 pixels each */
-    const painted = 688 * 377
-    expect(slotBytes(hub)).toBe((painted * 4 + 94 * 21_745) * 4)
+    const hub = slotOfMap(FALLBACK, 'hub')!
+    /* four decoded full-canvas layers over the 669x377 painting, plus the hub's
+     * own 94 placements at the proof bundle's measured 21,745 pixels each */
+    expect(slotBytes(hub)).toBe((669 * 377 * 4 + 94 * 21_745) * 4)
     expect(slotBytes(hub) / 1048576).toBeGreaterThan(11)
     expect(slotBytes(hub) / 1048576).toBeLessThan(13)
     expect(overBudget([hub])).toBe(false)
+    /* WHAT A MAP COSTS IS MOSTLY ITS DRESSING, not its painting: the hub's 94
+     * placements are twice as many pixels as all four of its full-canvas layers
+     * put together. That is why the placement count is a field on a slot rather
+     * than one constant for every map, and it is the number a member adding
+     * their fiftieth villager is spending. */
+    expect(94 * 21_745).toBeGreaterThan(669 * 377 * 4)
+    const maw = slotOfMap(FALLBACK, 'panther-maw')!
+    expect(slotBytes(maw)).toBeLessThan(slotBytes(hub))
   })
 
+  /* THE SENTENCE ISLAND TWELVE NEVER HAD. Twenty-one dressed maps is the whole
+   * of what a 256 MB texture budget holds, which means the roster can double
+   * from the current four places before residency starts dropping anything, and
+   * the day it does the drop is a decision with a number rather than a tab
+   * running out of memory. */
   it('says how many dressed maps fit at once, which island twelve never had', () => {
-    const hub = slotOfMap(FALLBACK, 'hub-a2')!
+    const hub = slotOfMap(FALLBACK, 'hub')!
     const n = maxResident(hub)
-    expect(n).toBeGreaterThan(12)
-    expect(n).toBeLessThan(40)
+    expect(n).toBe(21)
     expect(residencyBytes(Array(n).fill(hub))).toBeLessThanOrEqual(TEXTURE_BUDGET_BYTES)
     expect(residencyBytes(Array(n + 1).fill(hub))).toBeGreaterThan(TEXTURE_BUDGET_BYTES)
   })

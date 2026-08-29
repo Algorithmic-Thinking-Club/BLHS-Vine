@@ -4,20 +4,39 @@
   "home": { "slot": "home-island" },
   "slots": [
     {
-      "map": "hub-a2",
+      "map": "hub",
       "place": "home-island",
       "title": "the Central Island",
       "at": { "x": 0, "y": 0 },
-      "footprint": { "w": 688, "h": 377 },
+      "footprint": { "w": 669, "h": 377 },
+      "origin": { "x": 7, "y": 194 },
+      "placements": 94,
       "state": "available",
       "release": 1400,
       "discover": 520,
       "berth": {
-        "x": 300,
-        "y": 210,
+        "x": 258,
+        "y": 208,
         "facing": "west",
-        "approach": { "x": 470, "y": 300 },
-        "at": "arrive_maw"
+        "approach": { "x": 400, "y": 300 }
+      }
+    },
+    {
+      "map": "hub-a2",
+      "place": "home-island",
+      "title": "the Central Island",
+      "at": { "x": 0, "y": 0 },
+      "footprint": { "w": 465, "h": 335 },
+      "origin": { "x": 92, "y": 0 },
+      "placements": 0,
+      "state": "available",
+      "release": 1400,
+      "discover": 520,
+      "berth": {
+        "x": 190,
+        "y": 190,
+        "facing": "west",
+        "approach": { "x": 340, "y": 280 }
       }
     },
     {
@@ -26,6 +45,7 @@
       "title": "the Panther’s Maw",
       "at": { "x": 0, "y": 0 },
       "footprint": { "w": 512, "h": 512 },
+      "placements": 0,
       "state": "available",
       "release": 1400
     },

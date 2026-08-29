@@ -42,6 +42,27 @@ import { aheadOn, findPath, type Pt } from './path'
 import { loadSave, recordExposure } from '../save'
 import { placeOfMap } from '../roster/roster'
 import { setContext } from '../telemetry'
+/* ---- THE WORLD SUBSTRATE (80.2), which this scene is now the one host of ----
+ *
+ * Ash's 2026-08-28 ruling collapsed the overworld, the island and the room into
+ * one scene, so the water a hull crosses and the ground a body walks are the
+ * same scene at two zooms rather than two scenes with two art pipelines. What
+ * arrives here is the composition (where every map is), the hull (a body on the
+ * water), and the states a slot can be in. The arithmetic is in those modules
+ * and is unit-tested; this file is where it is drawn. */
+import {
+  loadComposition, slotOfMap, seaSlots, discoveredSlots, residentSlots, regionAt, paintedCentre,
+  type WorldComposition, type WorldSlot,
+} from '../world/composition'
+import { stateOf, STATE_INK } from '../world/states'
+import {
+  newHull, stepHull, berthHelm, DEFAULT_SAIL, HELM_IDLE,
+  type Berthing, type Helm, type HullState,
+} from '../world/sail'
+import { cover } from '../../app/transitions'
+import { coverFor, markSeen, seenThisSession, titleOfMap } from '../stage/covers'
+import { showPlaceCard } from '../stage/stage-bus'
+import { motionMs, prefersReducedMotion } from '../ui/motion'
 import { MAW_MAP, isObjective, nextObjective } from '../run/objective'
 import { missingAnchors, stationByName } from '../maw/stations'
 import { runStation } from '../maw/run-station'
@@ -619,6 +640,33 @@ export default function PmapScene() {
         setContext({ map: mapId, place: place?.id ?? null })
       }
 
+      /* ---- WHERE THIS PAINTING IS ON THE ONE OCEAN ----
+       *
+       * The composition is fetched, never assumed. A map that is not in it is not
+       * an error: it is a map nobody has placed yet, and it renders exactly as it
+       * did before, as one painting with no water beyond its own shelf. That is
+       * what lets `?map=proof` keep working while the hub gets a berth.
+       *
+       * OCEAN SPACE IS THIS PAINTING'S PIXELS, EXTENDED. A pixel at (px, py) is
+       * at (slot.at.x + px - W/2, slot.at.y + py - H/2) on the water, so the
+       * composition's coordinates and the walk's coordinates are the same units
+       * and there is no scale factor anywhere for somebody to get wrong. */
+      const comp: WorldComposition | null = await loadComposition().catch(() => null)
+      const slot: WorldSlot | undefined = comp ? slotOfMap(comp, mapId) : undefined
+      /* PLACED BY THE PAINTING'S CENTRE AND NOT BY THE CANVAS'S. Measured on the
+       * real hub: the canvas is 688x640, the opaque pixels run y 194 to 570, so
+       * half the canvas is 62 pixels away from half the painting and every radius
+       * measured from it is measured from open water. */
+      const pc = slot ? paintedCentre(slot, W, H) : { x: W / 2, y: H / 2 }
+      const toSea = (px: number, py: number) => ({
+        x: (slot?.at.x ?? 0) + px - pc.x,
+        y: (slot?.at.y ?? 0) + py - pc.y,
+      })
+      const fromSea = (sx: number, sy: number) => ({
+        x: sx - (slot?.at.x ?? 0) + pc.x,
+        y: sy - (slot?.at.y ?? 0) + pc.y,
+      })
+
       if (DBG && anchors.all.length) {
         console.log(`[pmap] ${mapId}: ${anchors.all.length} anchors ·`,
           anchors.all.map((a) => `${a.name}(${a.kind})`).join(' '))
@@ -754,6 +802,24 @@ export default function PmapScene() {
         : Math.max(1, Math.floor(Math.min(app.screen.width / W, app.screen.height / H))) * 1.18
       world.scale.set(Z)
 
+      /* ---- D1: THE ZOOM IS A LIVE VALUE AND NOT A LOAD-TIME CONSTANT ----
+       *
+       * §80.3 states this as a shape change rather than a feature: `PmapScene`
+       * computed its zoom once at load and never changed it again, so an animated
+       * zoom is not something that can be added beside the current code, it is the
+       * constant becoming a live value that everything reading it then has to key
+       * off. `camZ` was declared eight hundred lines below, after the ocean was
+       * built, which is why the ocean read `Z` and a cutscene push slid the coast
+       * ring off the painting it belongs to. It is declared here, before the first
+       * reader, and the ocean keys off it.
+       *
+       * THE SAIL ZOOM IS THE FLOOR. What the camera is allowed to pull out to is
+       * decided by what a player can be driving, so the ocean's grid is sized once
+       * for the widest shot instead of being right at load and wrong at sea. */
+      const SAIL_ZOOM = 0.45
+      let camZ = Z
+      const Z_MIN = Z * SAIL_ZOOM
+
       // ---- the engine ocean under the painting (island class only) ----
       // THE VAST VIRTUAL SEA, ported from the old tile hub (IslandMapIso P0, the accepted
       // ocean): any sea point out to WORLD_R is water; a sprite pool draws only the tiles
@@ -769,6 +835,16 @@ export default function PmapScene() {
       const waterS: SwellSprite[] = []
       let refreshSea: () => void = () => {}   // assigned inside the coastCut build
       let sea: Container | null = null
+      /* THE UNION DISTANCE FIELD, HOISTED OUT OF THE OCEAN BUILD.
+       *
+       * §80.2 asks for one structure serving the sparkle seeding, the aground
+       * penalty, the water-only click test and the discovery radius, and the
+       * field the ocean already builds is that structure: a breadth-first
+       * distance from every opaque pixel of this painting, on a coarse grid.
+       * It was a local inside the `coastCut` block, so a hull could not read the
+       * water it was drawn on, and the choice was a second collision model or
+       * this one line. A room reports deep water everywhere and never sails. */
+      let paintDistPx: (x: number, y: number) => number = () => 1e6
       if (coastCut) {
         const waterV = await loadWaterVariants()
         // the 16 sea tiles the helper asks for, named here because the helper is
@@ -783,7 +859,11 @@ export default function PmapScene() {
         // The grid only needs to span the depth ramp: past its rim distPx returns a huge
         // distance and the ramp has long since clamped into the abyss color.
         const CS = 8
-        const pad = Math.ceil((DEPTH_RANGE + 6) * HH * SEA_SCALE / Z)
+        /* SIZED FOR THE WIDEST SHOT, not for the load-time one. The grid only has
+         * to span the depth ramp, and how much painting the ramp covers depends on
+         * the live scale, so a grid sized at `Z` has its rim inside the frame the
+         * moment the camera pulls out to sail and the shelf ends in a hard line. */
+        const pad = Math.ceil((DEPTH_RANGE + 6) * HH * SEA_SCALE / Z_MIN)
         const sx0 = -pad, sy0 = -pad, sx1 = W + pad, sy1 = H + pad
         const gw = Math.ceil((sx1 - sx0) / CS), gh = Math.ceil((sy1 - sy0) / CS)
         const dist = new Float32Array(gw * gh).fill(-1)
@@ -811,6 +891,7 @@ export default function PmapScene() {
           const d = dist[cy * gw + cx]
           return d < 0 ? (sx1 - sx0) : d * CS
         }
+        paintDistPx = distPx
 
         // TWO sea containers, exactly the old hub's split: per-frame tint churn
         // (animSwells) dirties a container's whole batch, so the animated swell ring
@@ -847,8 +928,15 @@ export default function PmapScene() {
           const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453
           return s - Math.floor(s)
         }
+        /* THE LIVE SCALE, NOT THE LOAD-TIME ONE. The sea is a stage sibling that
+         * copies the world's position, so a sea point and a painting pixel line up
+         * only while the divisor here is the scale the world is actually drawn at.
+         * With `Z` in this expression a cutscene push or a pull-out to sail slid
+         * the whole coast ring off the coast it was measured from, silently,
+         * because both containers still panned together and only the scale
+         * disagreed. */
         const dsAt = (tx: number, ty: number) => {
-          const d = -(distPx(isoX(tx, ty) * SEA_SCALE / Z, isoY(tx, ty) * SEA_SCALE / Z) * Z / SEA_SCALE) / HH
+          const d = -(distPx(isoX(tx, ty) * SEA_SCALE / camZ, isoY(tx, ty) * SEA_SCALE / camZ) * camZ / SEA_SCALE) / HH
           return d < -2 ? d - h01(tx, ty) * 1.4 : d
         }
 
@@ -857,6 +945,16 @@ export default function PmapScene() {
         refreshSea = () => {
           if (!sea) return
           const vw = app.screen.width, vh = app.screen.height
+          /* §80.2 calls `blk` and `liveD` two of "the four constants that have to
+           * become variables", on the evidence that the 2, 4 and 8 branches have
+           * never executed. Measured with the camera actually moving, that reading
+           * is wrong and the code is right: the sea is DECOUPLED from the world's
+           * scale on purpose, so a tile keeps its screen size at every zoom and a
+           * fixed viewport therefore holds a fixed number of tiles. Pulling out to
+           * sail shows more OCEAN and not more SPRITES, which is the whole reason
+           * the decoupling was worth having. The far-zoom branches are unreachable
+           * because there is no far zoom of the water, not because nobody wired
+           * them, and the honest fix was the divisor above rather than new LOD. */
           const blk = SEA_SCALE >= 0.5 ? 1 : SEA_SCALE >= 0.24 ? 2 : SEA_SCALE >= 0.11 ? 4 : 8
           const liveD = SEA_SCALE < 0.35 ? 14 : DEPTH_RANGE + 12
           // unproject the viewport corners into sea space (the sea pans with the world)
@@ -1482,9 +1580,16 @@ export default function PmapScene() {
        * is Ash's and the engine does not draw hit boxes on top of it, and the
        * plaque is already exactly where the affordance is. */
       let promptAnchor: Anchor | null = null
+      /* the same plaque serves the water. A berth is not an anchor (it is off the
+       * painting, which is the whole of AUTHORING §12), so what it hands over is a
+       * closure rather than a name, and the tap path and the key path both call it. */
+      let seaTap: (() => void) | null = null
       doorTxt.eventMode = 'static'
       doorTxt.cursor = 'pointer'
-      doorTxt.on('pointertap', () => { if (promptAnchor) void fire(promptAnchor) })
+      doorTxt.on('pointertap', () => {
+        if (seaTap) { seaTap(); return }
+        if (promptAnchor) void fire(promptAnchor)
+      })
 
       /* the objective marker: a small chevron over the one station the year is
        * currently sending the player to. Deliberately not a glow on the station
@@ -1500,25 +1605,238 @@ export default function PmapScene() {
       objMark.visible = false
       world.addChild(objMark)
 
-      /* ---- the door exit: a full-screen black fade (~400ms), then the scene
-       * re-runs on the new target. No page reload: see the note on `target`
-       * above. `at` rides along so the next map knows where to put him. ---- */
-      let exitTo: PmapTarget | null = null
-      let exitT = 0
-      let exited = false
-      let fade: Graphics | null = null
+      /* ==== THE WORLD SUBSTRATE, ON SCREEN ======================================
+       *
+       * Ash asked where the ship docks and answered his own question: *"the tiled
+       * ocean? thats where all the maps go. and thats also another part(s) of the
+       * engine. placing maps through the engine."* So this is not an overworld
+       * scene. It is the same scene, further out, with a different body being
+       * driven, and the composition is the list of what is on the water.
+       *
+       * A ROOM NEVER SAILS. The hull only exists where there is water, which is
+       * the `coastCut` test the ocean already uses, and a map nobody has placed on
+       * the composition has no berth and therefore no way aboard. Both refusals
+       * are silent because neither is an error: the Maw is an interior and
+       * `?map=proof` is a test bundle.
+       */
+      const berth = slot?.berth
+      const canSail = !!(coastCut && berth && sea)
+
+      let hull: HullState | null = null
+      let hullSp: Sprite | null = null
+      let hullViews: Texture[] = []
+      const wakeG = new Graphics()
+      wakeG.zIndex = OVER_PLACED - 2
+      world.addChild(wakeG)
+      /* the markers for everything else on the water: one per slot, drawn in the
+       * state's own ink and carrying the state's own MARK, so the readout does not
+       * rely on hue (§11.3, which nothing implemented) */
+      const slotMarks = new Container()
+      slotMarks.zIndex = OVER_PLACED - 3
+      world.addChild(slotMarks)
+
+      if (canSail) {
+        /* THE 16-VIEW SHIP, which is the art Ash liked from the start and the
+         * precedent the beach set: boarding does not put Thor ON the ship, it makes
+         * Thor BECOME the ship. That is §80.3's driven-body abstraction stated as a
+         * picture, and it is why there is no deck to walk (Q80.3.c, answered no on
+         * the record: a walkable deck is a moving walkable surface). */
+        hullViews = await Promise.all(
+          Array.from({ length: 16 }, (_, i) => Assets.load(req(`/art/intro/port/ship16/v${i}.png`)) as Promise<Texture>),
+        ).catch(() => [] as Texture[])
+        if (hullViews.length) {
+          hullSp = new Sprite(hullViews[0])
+          hullSp.anchor.set(0.5, 0.72)
+          /* SIZED AGAINST THE PAINTING'S OWN CHARACTER METRIC, never a constant.
+           * `map.character.heightPx` is how tall a person is in this painting, and a
+           * hull is about four of those long, so a ship on a 18px-person island and a
+           * ship on a 36px-person island are both the right size without either
+           * bundle saying anything about boats. */
+          const want = map.character.heightPx * 4
+          hullSp.scale.set(want / Math.max(1, hullViews[0].width))
+          hullSp.visible = false
+          hullSp.zIndex = OVER_PLACED
+          world.addChild(hullSp)
+        }
+      }
+
+      /* ---- THE WATER, AS ONE STRUCTURE ----
+       *
+       * §80.2 asks for a union distance field seeded from the opaque pixels of
+       * every RESIDENT painting in world space, serving one aground test rather
+       * than several. This is it: exact where there are pixels, which is the map
+       * under the hull, and off the painted extent for every other slot, which is
+       * what `base_w/base_h` is for and why the composition carries a footprint
+       * rather than a canvas size. A hull cannot disagree with the water it is
+       * drawn on because there is one answer. */
+      const depthAt = (px: number, py: number): number => {
+        let d = paintDistPx(px, py)
+        if (comp) {
+          const p = toSea(px, py)
+          for (const s of comp.slots) {
+            if (s.map === mapId || !s.map) continue
+            /* the room at the same position as its island is not a second coast:
+             * it has no water around it and never appears on the sea */
+            if (s.at.x === (slot?.at.x ?? 0) && s.at.y === (slot?.at.y ?? 0)) continue
+            const dx = Math.max(Math.abs(p.x - s.at.x) - s.footprint.w / 2, 0)
+            const dy = Math.max(Math.abs(p.y - s.at.y) - s.footprint.h / 2, 0)
+            d = Math.min(d, Math.hypot(dx, dy))
+          }
+        }
+        return d
+      }
+
+      /* what the composition says is worth holding in memory from here, logged on
+       * a change rather than per frame. §80.2's island-twelve failure is a class of
+       * machines getting slower with no commit to blame, so the moment residency
+       * changes is a line in the export. */
+      let residentKey = ''
+      const checkResidency = (px: number, py: number) => {
+        if (!comp) return
+        const held = new Set(residentKey ? residentKey.split(',') : [])
+        const res = residentSlots(comp, toSea(px, py), held)
+        const key = res.map((s) => s.map).join(',')
+        if (key === residentKey) return
+        residentKey = key
+        engine.log('residency_changed', { map: mapId, resident: res.map((s) => s.map) })
+      }
+
+      /* ---- THE SEVEN STATES, DRAWN ----
+       *
+       * A slot the student has not sailed to is a smudge; a rumour is a pencil
+       * question at a real future position, because §12's whole point is that the
+       * rise happens where the rumour was and a rumour with no coordinate cannot be
+       * risen at. Rebuilt when the run changes rather than per frame. */
+      const drawSlots = () => {
+        if (!comp) return
+        slotMarks.removeChildren().forEach((c) => c.destroy())
+        const sv = loadSave()
+        for (const s of seaSlots(comp)) {
+          if (s.map === mapId) continue
+          const st = stateOf(s, sv)
+          const ink = STATE_INK[st]
+          const at = fromSea(s.at.x, s.at.y)
+          const t = new Text({
+            text: `${ink.mark} ${st === 'misty' || st === 'rumour' ? '' : s.title}`.trim(),
+            style: new TextStyle({
+              fontFamily: 'monospace', fontSize: 13, fontWeight: 'bold',
+              fill: ink.tint, stroke: { color: 0x06282c, width: 3 },
+            }),
+          })
+          t.anchor.set(0.5, 0.5)
+          t.alpha = ink.dim
+          t.position.set(at.x, at.y)
+          t.scale.set(1 / camZ)
+          slotMarks.addChild(t)
+        }
+      }
+      drawSlots()
+
+      /* ---- W7 / G12: `fx` AS THE AWAITABLE ONE-SHOT ----
+       *
+       * §80.4 defines `fx` as the one-shot half of a movement model whose loop half
+       * already ships: `life` gives eight looping behaviours on a wall clock,
+       * triggered by nothing, and `fx` is the named effect played once, at a world
+       * position or at an anchor, with a completion the caller can wait on.
+       *
+       * The library is small on purpose and every effect in it is drawn by the
+       * engine out of primitives rather than out of art, because ALL ART COMES FROM
+       * PIXELLAB and none has been spent on effects. An effect this table does not
+       * know still refuses by name, which is the law at `intents.ts:253` holding:
+       * the author hears about it at their own line instead of shipping an island
+       * whose one-shot never plays. */
+      type FxRun = { g: Graphics; t: number; life: number; kind: string; x: number; y: number; done: () => void }
+      const fxRuns: FxRun[] = []
+      const FX_LIBRARY: Record<string, number> = {
+        /* an island arriving: the ring that says something is now where nothing
+         * was. §80.2 wants the rise as an fx hook rather than as a second asset. */
+        island_rising: 2600,
+        /* the two the world already needed and had to fake: a mark landing on the
+         * chart, and the flash a station uses to say it heard you */
+        chart_marked: 900,
+        spark: 700,
+      }
+      const playFx = (name: string, at: { x: number; y: number }): Promise<void> => {
+        const life = FX_LIBRARY[name]
+        if (life === undefined)
+          throw new NotBuilt('fx', `"${name}" is not in the effect library. It has: ${Object.keys(FX_LIBRARY).join(', ')}`)
+        const g = new Graphics()
+        g.zIndex = 9e9 - 4
+        world.addChild(g)
+        return new Promise<void>((done) => {
+          fxRuns.push({ g, t: 0, life: motionMs(life) / 1000, kind: name, x: at.x, y: at.y, done })
+        })
+      }
+
+      /* ---- E1/E2: THE DOOR SWAP GOES THROUGH THE TRANSITION LIBRARY -----------
+       *
+       * This was a full-screen black `Graphics` faded to alpha 1 over 400ms, drawn
+       * by this file, and it never touched `runTransition`. §80.4 names that as the
+       * defect and the reason it is load-bearing at six moments: the transition
+       * controller was owned by `SceneManager.go()`, so THE FIVE COVERS AND THE
+       * WHOLE FACT POOL WERE UNREACHABLE FROM THE MOST COMMON ACTION IN THE GAME.
+       * Every door on every island, covered by a rectangle.
+       *
+       * E1 cut the controller out of the router (`app/transitions.tsx`) and this is
+       * the second caller arriving. What a player gets now is the painted card on a
+       * first arrival, with the destination's real name and one sourced fact off
+       * the fact table, and a quick iris on a door they have already been through
+       * this sitting. THE COVER IS CHOSEN BY THE DESTINATION AND NEVER BY THE DOOR,
+       * which is `covers.ts`'s whole job and the only version of this that survives
+       * twenty islands with three rooms each.
+       *
+       * DRIVEN BY REAL LOAD PROGRESS WITH A MINIMUM DWELL. The swap waits for the
+       * next scene to say it is ready rather than for a fixed 430 milliseconds, and
+       * the spec's own `holdMs` is the floor, so a cached bundle does not flash and
+       * a cold one on a school network does not uncover onto a half-built map. */
+      let fade = false
       let releaseExit: (() => void) | null = null
       const beginExit = (to: PmapTarget) => {
         if (fade) return
-        exitTo = to
-        exitT = 0
-        /* the controls go away for the whole fade. Walking during a transition
-         * means arriving somewhere the player did not aim for. */
+        fade = true
+        /* the controls go away for the whole transition. Walking during one means
+         * arriving somewhere the player did not aim for. */
         releaseExit = holdWorld(`pmap:exit->${to.map}`)
-        fade = new Graphics().rect(0, 0, app.screen.width, app.screen.height).fill(0x000000)
-        fade.alpha = 0
-        app.stage.addChild(fade)
+        const choice = coverFor(to.map)
+        engine.log('door_taken', { from: mapId, to: to.map, at: to.at ?? null, cover: choice.spec.kind })
+        void cover(choice.spec, async () => {
+          /* the URL is kept in step so a refresh lands in the room the player was
+           * standing in, but with replaceState rather than a navigation: the whole
+           * point is that React, SceneManager, the cutscene runtime and the log
+           * queue all survive the door. */
+          const q = new URLSearchParams(window.location.search)
+          q.set('scene', 'pmap')
+          q.set('map', to.map)
+          if (to.at) q.set('at', to.at); else q.delete('at')
+          window.history.replaceState(null, '', `${window.location.pathname}?${q}`)
+          engine.log('map_entered', { map: to.map, at: to.at ?? null, from: mapId })
+          ;(window as unknown as { __sceneReady?: boolean }).__sceneReady = false
+          /* re-runs the effect on the new target, which tears this Pixi app down
+           * and builds the next one */
+          setTarget(to)
+          await waitForScene()
+        }).finally(() => {
+          releaseExit?.(); releaseExit = null
+          exitResolve?.(); exitResolve = null
+        })
       }
+
+      /* THE COVER LIFTS WHEN THE MAP IS THERE, and gives up rather than hangs. A
+       * bundle that never answers is operations' problem (§80.10) and a cover that
+       * never lifts is a black screen with a student inside it, so the wait is
+       * bounded and the give-up is logged. */
+      const waitForScene = () => new Promise<void>((done) => {
+        const t0 = performance.now()
+        const poll = () => {
+          if ((window as unknown as { __sceneReady?: boolean }).__sceneReady) { done(); return }
+          if (performance.now() - t0 > 12000) {
+            engine.log('map_slow', { map: mapId, waitedMs: Math.round(performance.now() - t0) })
+            done(); return
+          }
+          requestAnimationFrame(poll)
+        }
+        requestAnimationFrame(poll)
+      })
       let ePrev = false
       /* a station body is running and owns the player. Checked before offering a
        * prompt so E cannot start the counselor twice while he is mid-sentence. */
@@ -1556,7 +1874,9 @@ export default function PmapScene() {
       let stageMisses: string[] = []
       const stageMissed = (what: string) => { if (!stageMisses.includes(what)) stageMisses.push(what) }
 
-      let camZ = Z                                   // the live world scale, which a script may zoom
+      /* `camZ` was declared here, after the ocean was already built and reading
+       * `Z`, which is why a cutscene push slid the coast ring off its coast. It is
+       * declared beside `Z` now, before its first reader. */
       let csCam: { x: number; y: number; zoom: number } | null = null
       let csHold: (() => void) | null = null
       let unpublish: (() => void) | null = null
@@ -1622,11 +1942,23 @@ export default function PmapScene() {
           sp.visible = visible
         },
 
+        /* IT PLAYS, AND IT STILL REFUSES WHAT IT CANNOT DRAW.
+         *
+         * The rider on this word was "performing a named one-shot at an anchor or
+         * world point the moment art exists, refusing honestly until". No art has
+         * been spent on effects and none is going to be without Ash's word for the
+         * specific spend, so every effect in the library is drawn by the engine out
+         * of primitives, and the library is short. A name it does not hold throws
+         * exactly as it did before, listing what it does hold, so an author reads
+         * the vocabulary at the line that asked instead of guessing.
+         *
+         * The completion is real: `playFx` resolves when the effect has finished on
+         * the world's own ticker, so `fx` inside a script is a step that ends. */
         fx(name, anchorName2) {
-          /* The fx library is section 12's work and is not built. It refuses by
-           * name so an author learns it at the line that asked, instead of
-           * shipping an island whose effects silently never play. */
-          throw new NotBuilt('fx', `"${name}"${anchorName2 ? ` at ${anchorName2}` : ''} has nothing to draw`)
+          const a = anchorName2 ? anchors.get(anchorName2) : null
+          if (anchorName2 && !a)
+            throw new NotBuilt('fx', `no anchor named "${anchorName2}" on ${mapId}`)
+          void playFx(name, a ? { x: a.x, y: a.y } : { x: pos.x, y: pos.y })
         },
 
         enter(map, at) {
@@ -1816,10 +2148,20 @@ export default function PmapScene() {
           take(sp).visible = visible
         },
 
+        /* THE SCRIPT'S `fx` AND THE INTENT'S `fx` ARE ONE WORD NOW. They were two
+         * code paths with two answers: asked for directly it refused, and asked for
+         * inside a script it succeeded while drawing nothing. Same library, same
+         * refusal, and a name the library does not hold is still counted as a miss
+         * the export can see, because a console line on a classroom Chromebook is
+         * not a refusal. */
         fx: (name, at) => {
-          console.warn(`[pmap] fx "${name}"${at ? ` at ${at.x},${at.y}` : ''} did not play: there is no effect library yet`)
-          engine.log('fx_missing', { map: mapId, name })
-          stageMissed(`fx "${name}"`)
+          try {
+            void playFx(name, at ?? { x: pos.x, y: pos.y })
+          } catch (e) {
+            console.warn(`[pmap] ${e instanceof Error ? e.message : String(e)}`)
+            engine.log('fx_missing', { map: mapId, name })
+            stageMissed(`fx "${name}"`)
+          }
         },
 
         audio: (cue) => {
@@ -1984,14 +2326,119 @@ export default function PmapScene() {
       // sits centered on that axis instead ----
       /* the clamp reads camZ rather than Z, because a cutscene may zoom and a
        * painting clamped at the wrong scale shows the void past its own edge */
+      /* D2: THE CLAMP IS A PROPERTY OF WHAT IS BEING DRIVEN, NOT OF THE CAMERA.
+       * Clamping to the painting is exactly right for a body walking one and
+       * exactly wrong for a hull that has left it, and the difference is one
+       * boolean rather than a second camera. */
+      let camFree = false
       const camTo = (cx: number, cy: number, snap = false) => {
         const vw = app.screen.width, vh = app.screen.height
-        const tx = W * camZ <= vw ? (vw - W * camZ) / 2 : Math.min(0, Math.max(vw - W * camZ, vw / 2 - cx * camZ))
-        const ty = H * camZ <= vh ? (vh - H * camZ) / 2 : Math.min(0, Math.max(vh - H * camZ, vh / 2 - cy * camZ))
+        const tx = camFree ? vw / 2 - cx * camZ
+          : W * camZ <= vw ? (vw - W * camZ) / 2 : Math.min(0, Math.max(vw - W * camZ, vw / 2 - cx * camZ))
+        const ty = camFree ? vh / 2 - cy * camZ
+          : H * camZ <= vh ? (vh - H * camZ) / 2 : Math.min(0, Math.max(vh - H * camZ, vh / 2 - cy * camZ))
         if (snap) { world.x = tx; world.y = ty }
         else { world.x += (tx - world.x) * 0.09; world.y += (ty - world.y) * 0.09 }
       }
       camTo(pos.x, pos.y, true)
+
+      /* ---- D1: A CONTINUOUS ZOOM PATH ----
+       *
+       * Q80.3.b is Ash's taste call between notched and continuous, and §50.40 adds
+       * that the notches are not integers once the load expression is recomputed on
+       * resize, so "snap to integers" is not the same answer as "snap". The
+       * pull-out shot §80.4's stadium asks for, the zoom opening as a body clears a
+       * tunnel mouth, cannot exist on notches at all: it is a travel, and a travel
+       * between two notches is two cuts.
+       *
+       * So the renderer holds a continuous path and the taste question becomes what
+       * VALUES are asked for rather than what values are possible, which is the
+       * order those two questions have to be answered in. Reduced motion collapses
+       * the travel toward a cross-fade's worth of time, which is §11.3's own rule
+       * arriving somewhere that draws. */
+      let camZWant = Z
+      const zoomTo = (z: number) => { camZWant = Math.max(Z_MIN, z) }
+      const stepZoom = (dt: number) => {
+        if (Math.abs(camZ - camZWant) < 1e-4) { if (camZ !== camZWant) { camZ = camZWant; world.scale.set(camZ) } return false }
+        /* an exponential approach, framerate-independent, so a Chromebook at 30
+         * frames and a laptop at 60 make the same move in the same wall time */
+        const tau = prefersReducedMotion() ? 0.06 : 0.42
+        camZ += (camZWant - camZ) * (1 - Math.exp(-dt / tau))
+        if (Math.abs(camZ - camZWant) < 1e-3) camZ = camZWant
+        world.scale.set(camZ)
+        return true
+      }
+
+      /* ---- B12: BOARD AND DISEMBARK AS SCRIPTED HANDOFFS ----
+       *
+       * §80.3 asks for a defined instant rather than a fade, in both directions,
+       * and for the character to detach from the vehicle as its own body. So
+       * boarding hides Thor, puts the hull where the berth says, hands the camera
+       * to it and pulls out; stepping off does the reverse and puts him at the
+       * berth's own arrival anchor. There is no moment where both are driven and no
+       * moment where neither is, which is what "a defined instant" means. */
+      let berthing: Berthing | null = null
+      let docking: WorldSlot | null = null
+      /* the harness drives the helm the player drives, for a stated number of
+       * milliseconds, so a proof run sails the shipped physics rather than warping
+       * a boat to a coordinate and calling that a leg */
+      let helmOverride: { until: number; helm: Helm } | null = null
+
+      const board = () => {
+        if (!canSail || !berth || hull) return
+        const at = fromSea(berth.x, berth.y)
+        hull = newHull(at.x, at.y, berth.facing === 'east' ? 0 : Math.PI)
+        if (hullSp) hullSp.visible = true
+        thor.sp.visible = false; thor.sh.visible = false; pin.visible = false
+        camFree = true
+        zoomTo(Z * SAIL_ZOOM)
+        engine.log('boarded', { map: mapId, place: slot?.place ?? null })
+      }
+
+      const stepAshore = () => {
+        if (!hull) return
+        hull = null
+        berthing = null
+        if (hullSp) hullSp.visible = false
+        wakeG.clear()
+        thor.sp.visible = true; thor.sh.visible = true; pin.visible = true
+        camFree = false
+        zoomTo(Z)
+        engine.log('disembarked', { map: mapId })
+      }
+
+      /* DOCKING IS A MANOEUVRE AND THEN A DOOR. Ash's word for what coming
+       * alongside has to look like was *properly*, so the hull decelerates onto the
+       * berth's own heading under `berthHelm` and the same `stepHull` the player was
+       * driving, and only when she is actually stopped does the transition run. A
+       * dock that teleports is a dock nobody believes. */
+      const dockAt = (s: WorldSlot) => {
+        if (!hull || !s.berth || berthing) return
+        docking = s
+        const t = fromSea(s.berth.x, s.berth.y)
+        const ap = s.berth.approach ? fromSea(s.berth.approach.x, s.berth.approach.y) : undefined
+        berthing = {
+          target: t,
+          facing: s.berth.facing === 'east' ? 0 : s.berth.facing === 'west' ? Math.PI
+            : s.berth.facing === 'north' ? -Math.PI / 2 : s.berth.facing === 'south' ? Math.PI / 2 : undefined,
+          approach: ap,
+          stage: 'approach',
+        }
+        engine.log('docking', { map: mapId, to: s.map ?? null, place: s.place ?? null })
+      }
+
+      const docked = () => {
+        const s = docking
+        berthing = null
+        docking = null
+        if (!s) return
+        /* ARRIVING SOMEWHERE YOU ALREADY ARE IS STEPPING ASHORE, not a map swap.
+         * The hub's own berth is on the hub, so the leg that ends where it started
+         * must not tear the scene down and rebuild it. */
+        if (!s.map || s.map === mapId) { stepAshore(); return }
+        stepAshore()
+        beginExit({ map: s.map, at: s.berth?.at })
+      }
 
       // the sea's first fill happens AFTER the camera snap so the pool sees the real
       // viewport; a grown viewport later needs more pooled ocean under it (the old
@@ -1999,6 +2446,13 @@ export default function PmapScene() {
       if (sea) { sea.position.copyFrom(world.position); refreshSea() }
       let seaFX = world.x, seaFY = world.y
       let swellSkip = false
+      /* the world's own clocks: what has been seen, what water we are on, and when
+       * either was last asked. All throttled, because an exposure row is a fact
+       * about a year and a region name is a fact about a crossing, and neither is
+       * a fact about a frame. */
+      let lastSeaCheck = 0
+      let lastRegion = ''
+      const seenPlaces = new Set<string>((loadSave()?.exposure ?? []).map((e) => e.place))
       app.renderer.on('resize', () => refreshSea())
 
       // ---- debug hooks (the proof harness, same names as PaintedScene) ----
@@ -2047,6 +2501,43 @@ export default function PmapScene() {
         cam: csCam,
       })
       ;(window as any).__advance = () => { runtime.advance(); return 'ok' }
+      /* THE WORLD, REACHABLE THE SAME WAY. Handles on the shipped code, never a
+       * second copy of it, which is the only reason a proof run proves anything. */
+      ;(window as any).__sea = () => JSON.stringify({
+        map: mapId,
+        placed: !!slot,
+        canSail,
+        aboard: !!hull,
+        at: hull ? toSea(hull.x, hull.y) : toSea(pos.x, pos.y),
+        speed: hull ? Math.round(hull.speed) : 0,
+        aground: hull?.aground ?? false,
+        wake: hull?.wake.length ?? 0,
+        region: comp ? regionAt(comp, toSea(hull ? hull.x : pos.x, hull ? hull.y : pos.y))?.name ?? null : null,
+        zoom: +(camZ / Z).toFixed(3),
+        want: +(camZWant / Z).toFixed(3),
+        free: camFree,
+        berthing: berthing?.stage ?? null,
+        resident: residentKey,
+        seen: [...seenPlaces],
+        states: comp ? seaSlots(comp).map((s) => `${s.title}=${stateOf(s, loadSave())}`) : [],
+      })
+      ;(window as any).__board = () => { board(); return hull ? 'aboard' : 'no berth here' }
+      ;(window as any).__helm = (throttle: number, turn: number, ms: number) => {
+        if (!hull) return 'not aboard'
+        const until = performance.now() + ms
+        helmOverride = { until, helm: { throttle, turn, fullSail: false } }
+        return 'ok'
+      }
+      ;(window as any).__dock = () => {
+        if (!hull || !comp) return 'not aboard'
+        const at = toSea(hull.x, hull.y)
+        const home = comp.slots.find((s) => s.berth && Math.hypot(s.berth.x - at.x, s.berth.y - at.y) < 90)
+        if (!home) return 'no berth within reach'
+        dockAt(home)
+        return 'docking'
+      }
+      ;(window as any).__fx = (name: string) => playFx(name, { x: pos.x, y: pos.y })
+        .then(() => 'played').catch((e: Error) => e.message)
 
       app.ticker.add((tk) => {
         const dt = Math.min(tk.deltaMS, 50) / 1000
@@ -2117,11 +2608,94 @@ export default function PmapScene() {
           }
         }
 
+        /* ---- WHAT IS BEING DRIVEN, AND THEREFORE WHAT THE CAMERA DOES ----
+         *
+         * §80.3's law, in one branch: *"what the camera follows and how far out it
+         * sits are both a function of what the player is currently driving."* A
+         * student never chooses a zoom and never sees a zoom control, so the zoom
+         * is not a setting, it is a consequence of holding a tiller instead of
+         * walking. One thing at a time is driven and control returns at a defined
+         * instant, which is why boarding and stepping ashore are two verbs above
+         * rather than a flag somebody toggles here. */
+        if (hull) {
+          if (berthing) {
+            /* THE MANOEUVRE DRIVES THE SAME HULL THROUGH THE SAME PHYSICS. It
+             * feeds a helm in place of the player's rather than animating the boat
+             * to a spot, so there is no second motion model for the cinematic
+             * version and a berth that is unreachable fails visibly. */
+            const r = berthHelm(hull, berthing)
+            berthing = r.next
+            hull = stepHull(hull, r.helm, dt, depthAt)
+            if (berthing.stage === 'done') docked()
+          } else {
+            if (helmOverride && performance.now() > helmOverride.until) helmOverride = null
+            const helm: Helm = helmOverride ? helmOverride.helm : fade || locked ? HELM_IDLE : {
+              throttle: (input['arrowup'] || input['w']) ? 1 : 0,
+              turn: (input['arrowright'] || input['d']) ? 1 : (input['arrowleft'] || input['a']) ? -1 : 0,
+              fullSail: !!input['shift'],
+            }
+            hull = stepHull(hull, helm, dt, depthAt)
+          }
+          if (hull && hullSp) {
+            hullSp.position.set(hull.x, hull.y)
+            hullSp.zIndex = OVER_PLACED + hull.y
+            if (hullViews.length) {
+              /* the 16 views run anticlockwise from east, which is how the sheet
+               * was drawn; a heading is therefore an index and never a rotation,
+               * so the light in the painting stays where the sun is */
+              const i = ((Math.round((hull.heading / (Math.PI * 2)) * 16) % 16) + 16) % 16
+              const t2 = hullViews[i]
+              if (t2 && hullSp.texture !== t2) hullSp.texture = t2
+            }
+          }
+
+          /* THE WAKE: two diverging hull-corner trails with per-point age, drawn
+           * from the pure state so the model and the picture cannot disagree. */
+          wakeG.clear()
+          if (hull) {
+            for (const side of [-1, 1] as const) {
+              const pts = hull.wake.filter((p) => p.side === side)
+              if (pts.length < 2) continue
+              for (let i = 1; i < pts.length; i++) {
+                const a = pts[i - 1], b = pts[i]
+                const k = 1 - b.age / DEFAULT_SAIL.wakeLife
+                wakeG.moveTo(a.x, a.y).lineTo(b.x, b.y)
+                  .stroke({ color: 0xdff4f6, width: Math.max(0.6, 2.4 * k), alpha: 0.55 * k * k })
+              }
+            }
+          }
+
+          /* DISCOVERY IS MEASURED FROM THE PAINTED EXTENT, which is what the
+           * composition's footprint is and what `w`/`h` from map.json is not: the
+           * hub's canvas is 688x640 and only rows 194 to 570 hold an opaque pixel,
+           * so a radius read off the canvas is 41 percent too generous. Throttled
+           * to twice a second, because an exposure row is a fact about a year and
+           * not about a frame. */
+          if (comp && hull && t - lastSeaCheck > 0.5) {
+            lastSeaCheck = t
+            const at = toSea(hull.x, hull.y)
+            checkResidency(hull.x, hull.y)
+            for (const s of discoveredSlots(comp, at)) {
+              if (!s.place || seenPlaces.has(s.place)) continue
+              seenPlaces.add(s.place)
+              recordExposure(s.place, false)
+              engine.log('place_seen', { place: s.place, map: s.map ?? null, docked: false, via: 'sail' })
+              drawSlots()
+              void playFx(s.map ? 'island_rising' : 'chart_marked', fromSea(s.at.x, s.at.y)).catch(() => {})
+            }
+            const reg = regionAt(comp, at)
+            if (reg && reg.name !== lastRegion) {
+              lastRegion = reg.name
+              engine.log('sea_region', { region: reg.name, kind: reg.kind })
+            }
+          }
+        }
+
         const moving = !!(
           input['arrowup'] || input['w'] || input['arrowdown'] || input['s'] ||
           input['arrowleft'] || input['a'] || input['arrowright'] || input['d']
         )
-        walker.step(doc, cfg, input, dt)
+        if (!hull) walker.step(doc, cfg, input, dt)
         const fr = moving ? walkT[walker.facing][1 + (Math.floor(walker.animT) % 5)] : walkT[walker.facing][0]
         if (thor.sp.texture !== fr) thor.sp.texture = fr
         thor.sp.position.set(pos.x, pos.y)
@@ -2137,11 +2711,16 @@ export default function PmapScene() {
          * follow law's own easing is untouched for every other frame. */
         if (csCam) {
           const z = Z * (csCam.zoom || 1)
-          if (camZ !== z) { camZ = z; world.scale.set(camZ) }
+          if (camZ !== z) { camZ = z; camZWant = z; world.scale.set(camZ); refreshSea() }
           camTo(csCam.x, csCam.y, true)
         } else {
-          if (camZ !== Z) { camZ = Z; world.scale.set(camZ) }
-          camTo(pos.x, pos.y)
+          /* THE ZOOM IS A CONSEQUENCE OF THE BODY, travelled rather than set. The
+           * ocean is rebuilt when the scale really moves, because the coast ring is
+           * measured against the live scale now and a stale fill is a shelf that
+           * has slid off its own coastline. */
+          if (stepZoom(dt)) refreshSea()
+          if (hull) camTo(hull.x, hull.y)
+          else camTo(pos.x, pos.y)
         }
         /* the screen-space chrome undoes whatever zoom is live, so a camera push
          * does not blow the YOU pin up with the painting */
@@ -2162,7 +2741,46 @@ export default function PmapScene() {
          * Regions and triggers are excluded by nearestInteractive, or standing
          * inside a big atmosphere region would suppress the table you are
          * standing at. */
-        const near = locked || busy || fade ? null : anchors.nearestInteractive(pos.x, pos.y)
+        /* ---- THE PROMPT ON THE WATER, which is the same prompt ----
+         *
+         * A berth is an anchor in world space, so it cannot be one of `anchors`:
+         * every anchor MAPVIS can make is at an x,y inside one painting's raster
+         * and `armDoor` refuses a click outside the document. AUTHORING §12 is
+         * exactly that gap and the composition is where it lives instead. What a
+         * player sees is unchanged: a plaque, the word E, and a tap target, so the
+         * water does not need its own affordance vocabulary. */
+        let seaFire: (() => void) | null = null
+        if (hull && !berthing && !locked && !fade && comp) {
+          const at = toSea(hull.x, hull.y)
+          const home = comp.slots.find((s) =>
+            s.berth && Math.hypot(s.berth.x - at.x, s.berth.y - at.y) < 90)
+          if (home?.berth) {
+            const p = fromSea(home.berth.x, home.berth.y)
+            doorTxt.text = home.map === mapId ? 'E · tie up here' : `E · put in at ${home.title}`
+            doorTxt.position.set(p.x, p.y - 14 + Math.sin(t * 2.1) * 1.2)
+            doorTxt.visible = true
+            promptAnchor = null
+            seaFire = () => dockAt(home)
+          } else {
+            doorTxt.visible = false
+            promptAnchor = null
+          }
+        }
+        /* stepping aboard is offered where the boat is tied, and only to a body on
+         * foot, so a student cannot board from the far side of the island */
+        if (!hull && canSail && berth && !locked && !busy && !fade) {
+          const p = fromSea(berth.x, berth.y)
+          if (Math.hypot(p.x - pos.x, p.y - pos.y) < 110) {
+            doorTxt.text = 'E · cast off'
+            doorTxt.position.set(p.x, p.y - 14 + Math.sin(t * 2.1) * 1.2)
+            doorTxt.visible = true
+            promptAnchor = null
+            seaFire = board
+          }
+        }
+
+        const near = hull || seaFire || locked || busy || fade
+          ? null : anchors.nearestInteractive(pos.x, pos.y)
         let canFire = false
         if (near) {
           const label = near.label || stationByName(near.name)?.fallbackLabel || near.name
@@ -2204,7 +2822,10 @@ export default function PmapScene() {
           /* the plaque is only tappable when E would do something, so a barred
            * door and a closed station read the same to a pointer as to a key */
           promptAnchor = canFire ? near : null
-        } else { doorTxt.visible = false; promptAnchor = null }
+        } else if (!seaFire) { doorTxt.visible = false; promptAnchor = null }
+        /* the plaque takes a tap on the water too, because "press E" is meaningless
+         * on a trackpad and a berth is not an exception to that */
+        seaTap = seaFire
 
         /* THE OBJECTIVE MARKER: one thing at a time is the live one.
          *
@@ -2317,33 +2938,50 @@ export default function PmapScene() {
 
         // E is an edge, not a hold: one press, one interaction
         const eNow = !!keys['e']
-        if (eNow && !ePrev && near && canFire) fire(near)
+        if (eNow && !ePrev) {
+          if (seaFire) { seaFire(); keys['e'] = false }
+          else if (near && canFire) fire(near)
+        }
         ePrev = eNow
-        // the exit fade, then the reload into the target bundle with every
-        // other query param kept
-        if (fade) {
-          exitT += tk.deltaMS
-          fade.alpha = Math.min(1, exitT / 400)
-          if (exitT >= 430 && !exited && exitTo) {
-            exited = true
-            const to = exitTo
-            /* the URL is kept in step so a refresh lands in the room the player
-             * was standing in, but with replaceState rather than a navigation:
-             * the whole point is that React, SceneManager, the cutscene runtime
-             * and the log queue all survive the door. */
-            const q = new URLSearchParams(window.location.search)
-            q.set('scene', 'pmap')
-            q.set('map', to.map)
-            if (to.at) q.set('at', to.at); else q.delete('at')
-            window.history.replaceState(null, '', `${window.location.pathname}?${q}`)
-            engine.log('map_entered', { map: to.map, at: to.at ?? null, from: mapId })
-            releaseExit?.(); releaseExit = null
-            exitResolve?.(); exitResolve = null
-            /* re-runs the effect on the new target, which tears this Pixi app
-             * down and builds the next one */
-            setTarget(to)
+
+        /* ---- W7: THE ONE-SHOTS, TICKED ----
+         *
+         * `life` is eight looping behaviours on a wall clock triggered by nothing;
+         * this is the other half. Every effect is drawn out of primitives on the
+         * engine's own clock and every one of them completes, so a caller that
+         * awaited one gets its promise back rather than a timeout. */
+        for (let i = fxRuns.length - 1; i >= 0; i--) {
+          const f = fxRuns[i]
+          f.t += dt
+          const k = Math.min(1, f.t / f.life)
+          f.g.clear()
+          if (f.kind === 'island_rising') {
+            /* a ring opening outward from where the rumour was, three times, each
+             * fainter: the world saying something is there now */
+            for (let r = 0; r < 3; r++) {
+              const kk = k * 1.35 - r * 0.18
+              if (kk <= 0 || kk >= 1) continue
+              f.g.circle(f.x, f.y, 12 + kk * 150)
+                .stroke({ color: 0xdff4f6, width: 2, alpha: (1 - kk) * 0.55 })
+            }
+          } else if (f.kind === 'chart_marked') {
+            const r = 8 + k * 14
+            f.g.circle(f.x, f.y, r).stroke({ color: 0xffd98a, width: 2, alpha: 1 - k })
+          } else {
+            f.g.circle(f.x, f.y, 3 + k * 10).fill({ color: 0xffe9b0, alpha: (1 - k) * 0.8 })
+          }
+          if (k >= 1) {
+            f.g.destroy()
+            fxRuns.splice(i, 1)
+            f.done()
           }
         }
+        /* the markers on the water are screen-space chrome like the pin, so a
+         * pull-out does not blow a rumour up with the ocean */
+        for (const c of slotMarks.children) if (c.scale.x !== uiS) c.scale.set(uiS)
+        /* the exit used to be driven from here, one alpha step at a time. It is a
+         * transition now (see beginExit), so the ticker has nothing to do with it
+         * except stay out of the player's way while it runs. */
 
         // placed assets: the animated ones cycle here, dt-accumulated on this same ticker
         for (const a of animAssets) {
@@ -2537,6 +3175,27 @@ export default function PmapScene() {
       })
 
       ;(window as any).__sceneReady = true
+
+      /* ---- THE PLACE CARD: WHERE YOU ARE, ONCE, ON ARRIVAL ----
+       *
+       * §80.4's five conditions in one call: fired on map entry, once per session
+       * per map, dismissing itself, never taking input, never showing a slug. It
+       * fires here rather than in `beginExit` because a cold boot into a map is an
+       * arrival too, and because the name has to be resolved by the map that
+       * actually loaded rather than by the door that guessed at it.
+       *
+       * The shown-already set is the SAME one `coverFor` reads, so the painted
+       * cover and the card cannot disagree about whether this is a first arrival,
+       * which is the failure two separate sets always produce. */
+      if (!seenThisSession(mapId)) {
+        markSeen(mapId)
+        const place = placeOfMap(mapId)
+        showPlaceCard({
+          title: titleOfMap(mapId, typeof map.title === 'string' ? map.title : undefined),
+          line: slot?.place && place ? place.recognise : undefined,
+        })
+      }
+
       console.log(`[pmap] loaded "${map.id}" ${W}x${H} zoom x${Z}${coastCut ? ' with ocean' : ' (interior, no ocean)'}${doors.length ? ` · ${doors.length} door${doors.length > 1 ? 's' : ''}` : ''}. WASD to walk.`)
     }
 

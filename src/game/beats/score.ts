@@ -4,7 +4,11 @@
 // best grade marked `retaken` means the retake is spent.
 
 import type { SaveGame } from '../save'
-import { checksOf, pointsOf, type CoreBeat } from './frames'
+import { checksOf, type CoreBeat } from './frames'
+/* the denominator comes from the palette, where each kind declares its own, so
+ * the total on the transcript and the total the runner scores against are the
+ * same number by construction rather than by two files agreeing */
+import { pointsOf } from './palette'
 
 /** points earned per check, keyed by check id/item — the runner accumulates this */
 export type BeatScore = { earned: number; total: number }

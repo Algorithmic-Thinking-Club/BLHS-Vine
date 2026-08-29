@@ -1,0 +1,60 @@
+/* THE PLACE CARD. Carved wood and aged paper, the same two materials every other
+   surface in this game is made of, and it sits low so it never covers the thing a
+   player just walked into. It cannot be clicked because it is not a control. */
+
+.pc-root {
+  position: fixed;
+  left: 50%;
+  bottom: 12%;
+  transform: translateX(-50%);
+  z-index: 68;                 /* under the dialogue box (72) and every panel */
+  pointer-events: none;
+  user-select: none;
+}
+
+.pc-card {
+  padding: 1.1rem 2.4rem 1.25rem;
+  text-align: center;
+  background:
+    linear-gradient(180deg, rgba(244, 232, 205, 0.94), rgba(226, 209, 174, 0.94));
+  border: 2px solid rgba(58, 36, 16, 0.85);
+  border-radius: 3px;
+  box-shadow:
+    0 0 0 1px rgba(244, 232, 205, 0.28),
+    0 10px 30px rgba(6, 12, 18, 0.55);
+}
+
+.pc-name {
+  font-family: 'Harbormaster', 'Hanken Grotesk', system-ui, sans-serif;
+  font-size: clamp(1.15rem, 2.4vw, 1.85rem);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #2b1a0c;
+}
+
+.pc-line {
+  margin-top: 0.35rem;
+  font-family: 'Deckhand', 'Hanken Grotesk', system-ui, sans-serif;
+  font-size: clamp(0.78rem, 1.35vw, 1rem);
+  color: rgba(43, 26, 12, 0.72);
+}
+
+/* the two rules of the whole file: it arrives from below and it leaves upward,
+   because a card that fades in place reads as a bug in the renderer */
+.pc-in .pc-card { animation: pc-rise 620ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.pc-out .pc-card { animation: pc-fall 640ms ease-in both; }
+
+@keyframes pc-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pc-fall {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-10px); }
+}
+
+/* W12's DOM half. The renderer half is src/game/ui/motion.ts, because a CSS rule
+   cannot be read by anything drawn on a canvas. */
+html[data-rm='1'] .pc-in .pc-card,
+html[data-rm='1'] .pc-out .pc-card { animation-duration: 1ms; }

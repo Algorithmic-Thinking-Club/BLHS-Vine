@@ -64,6 +64,18 @@ describe('time on task', () => {
     expect(m.sessions).toBe(2)
   })
 
+  it('measures off WHEN THE EVENT HAPPENED, not when its row was written', () => {
+    /* the offline-queue collapse: a Chromebook that lost the network drains six
+     * events in one POST, and `appendEvents` writes the whole batch on one
+     * timestamp. Read off the row, every gap inside a batch was zero, so
+     * active_minutes was smallest for the students whose network was worst. */
+    const inserted = new Date(T0 + 10 * 60_000).toISOString()
+    const rows = [0, 15_000, 30_000, 45_000].map((o) => ({ ...ev('heartbeat', o), at: inserted }))
+    const [m] = summarise(rows)
+    expect(m.activeMs).toBe(45_000)
+    expect(m.spanMs).toBe(45_000)
+  })
+
   it('says how many heartbeats arrived, so zero reads as "this duration is a guess"', () => {
     const [m] = summarise([ev('scene_shown', 0), ev('scene_shown', 1000)])
     expect(m.heartbeats).toBe(0)

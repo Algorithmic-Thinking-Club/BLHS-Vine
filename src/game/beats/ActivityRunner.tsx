@@ -1,6 +1,12 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { CheckStep } from '../../vine/contract'
-import { checksOf, pointsOf, type BeatStep, type CoreBeat } from './frames'
+import { checksOf, playableSteps, pointsOf, type BeatStep, type BeatWorld, type CoreBeat } from './frames'
+import {
+  checkIdOf, plainOf, promptOf, scoreOf,
+  type PlainField, type PlainRender, type Response,
+} from './palette'
+import { progressOf, responseOf, showdownReduce, startShowdown, yardsRemaining, type ShowdownState } from './showdown'
+import { LATENCY_CONVENTION, latencyOf, markFirst } from './timing'
 import { emptyScore, gradeOf, retakeAvailable, type BeatScore } from './score'
 import { collectFact, loadSave, recordGrade } from '../save'
 import { cordsOf, letterOf, newlyCloseCords } from '../progress'
@@ -18,6 +24,17 @@ import './beats.css'
 // Completion writes the ledger (recordGrade -> GPA §8.1), collects the takeaway facts,
 // and fires the §13.1 events. The Universal Retake Policy is the retry mechanic: under a
 // B- the checks may run back ONCE, after reviewing the takeaways (score.ts).
+//
+// BOTH ARMS NOW RENDER THE SAME DERIVED ITEMS, and this is the change that matters more
+// than the eight kinds. `palette.ts` turns a check into a PlainRender: a prompt, a list of
+// answerable fields with their options, and the reply strings. The plain arm draws that as
+// a form. The game arm draws THE SAME OBJECT as buttons in a panel with the dialogue around
+// it. Neither arm reads the raw check to decide what an item is any more, and neither one
+// scores: they both hand the same Response map back to the same `scoreOf`.
+//
+// This used to be two switches, one per arm, over three kinds, free to disagree. That is
+// how a control arm ends up with a harder version of the same item and nobody finds out,
+// because both arms still emit an identical event shape and the data cannot tell you.
 
 type Answer = { earned: number; total: number; tries: number; latencyMs: number }
 type Answers = Record<string, Answer>
@@ -29,10 +46,13 @@ type Answers = Record<string, Answer>
  * because it is the thing that re-ran the checks. */
 type Attempt = { n: number }
 
-const checkId = (c: CheckStep): string => (c.kind === 'quiz' ? c.item.id : c.id)
+/* Both arms take their latency from timing.ts, which is where the convention is
+ * written down and the only place it is. The whole-page number the plain form used
+ * to report as `latencyMs` is not lost, it is named: `formMs`, which is honestly
+ * what it always was. */
 
 export function CoreBeatRunner(
-  { beat, onClose, forceArm }: {
+  { beat, onClose, forceArm, world }: {
     beat: CoreBeat
     onClose: () => void
     /* AS_PLAIN, HERE FROM THE FIRST SCORED THING RATHER THAN RETROFITTED.
@@ -46,6 +66,9 @@ export function CoreBeatRunner(
      * refuses the other direction: letting an island force the game arm would
      * let one island opt the control group out of being a control group. */
     forceArm?: 'game' | 'plain'
+    /* W8. Optional on purpose: a beat with a `do` item is still playable with no
+     * map, because the item falls back to naming its places. See frames.ts. */
+    world?: BeatWorld
   },
 ) {
   const save = loadSave()
@@ -99,7 +122,7 @@ export function CoreBeatRunner(
       <div className={arm === 'plain' ? 'bt-plain' : 'bt-stage'}>
         {(phase === 'play' || phase === 'retake') && (arm === 'plain'
           ? <PlainForm beat={beat} checksOnly={phase === 'retake'} attempt={attempt.current} arm={arm} onDone={finish} />
-          : <GamePlay beat={beat} checksOnly={phase === 'retake'} attempt={attempt.current} arm={arm} onDone={finish} />)}
+          : <GamePlay beat={beat} checksOnly={phase === 'retake'} attempt={attempt.current} arm={arm} world={world} onDone={finish} />)}
         {phase === 'result' && finalScore && (
           <ResultCard
             beat={beat} score={finalScore} arm={arm}
@@ -116,18 +139,27 @@ export function CoreBeatRunner(
   )
 }
 
+/** the reply the author wrote for this pick. `value: ''` is the field-wide one, so
+ *  a number or an ordering corrects the student who got it wrong rather than the
+ *  one who did not need it. */
+const replyFor = (r: PlainRender, field: string, value: string): string =>
+  r.replies.find((x) => x.field === field && x.value === value)?.text
+  ?? r.replies.find((x) => x.field === field && x.value === '')?.text
+  ?? ''
+
 // ---- the game arm: step-by-step, at the player's pace --------------------------------
 
-function GamePlay({ beat, checksOnly, attempt, arm, onDone }: {
+function GamePlay({ beat, checksOnly, attempt, arm, world, onDone }: {
   beat: CoreBeat
   checksOnly: boolean
   attempt: Attempt
   arm: 'game' | 'plain'
+  world?: BeatWorld
   onDone: (answers: Answers) => void
 }) {
   const steps: BeatStep[] = checksOnly
     ? checksOf(beat).map((check) => ({ kind: 'check' as const, check }))
-    : beat.steps
+    : playableSteps(beat)
   const [idx, setIdx] = useState(0)
   const accum = useRef<Answers>({})
 
@@ -148,14 +180,18 @@ function GamePlay({ beat, checksOnly, attempt, arm, onDone }: {
         </button>
       ) : (
         <CheckPlay
-          key={`${checkId(step.check)}:${attempt.n}`}
+          key={`${checkIdOf(step.check)}:${attempt.n}`}
           check={step.check}
-          onDone={(earned, ms) => {
+          world={world}
+          onDone={(response, ms) => {
+            const id = checkIdOf(step.check)
+            const total = pointsOf(step.check)
+            const earned = scoreOf(step.check, response)
             const tries = attempt.n
-            accum.current[checkId(step.check)] = { earned, total: pointsOf(step.check), tries, latencyMs: ms }
+            accum.current[id] = { earned, total, tries, latencyMs: ms }
             track('check_answered', {
-              item: checkId(step.check), correct: earned === pointsOf(step.check),
-              earned, total: pointsOf(step.check), tries, latencyMs: ms, arm, via: 'woven',
+              item: id, kind: step.check.kind, correct: earned === total,
+              earned, total, tries, latencyMs: ms, latency: LATENCY_CONVENTION, arm, via: 'woven',
             })
             advance()
           }}
@@ -165,75 +201,291 @@ function GamePlay({ beat, checksOnly, attempt, arm, onDone }: {
   )
 }
 
-function CheckPlay({ check, onDone }: { check: CheckStep; onDone: (earned: number, ms: number) => void }) {
+/* ONE CHECK, IN THE GAME ARM, RENDERED OFF THE SAME DERIVED ITEM THE FORM USES.
+ *
+ * `plainOf` gives the prompt, the answerable fields and the replies. What changes
+ * between the arms is the control and the warmth around it: buttons in a panel and
+ * a spoken correction here, radios and printed corrections there. The item itself
+ * is one object and neither arm gets to have its own version of it.
+ *
+ * Two kinds ask for more than a field list and get their own branch: `showdown`,
+ * which is round by round and carries a drive between rounds, and `do`, which is
+ * answered by walking somewhere when there is a world to walk in. */
+function CheckPlay({ check, world, onDone }: {
+  check: CheckStep
+  world?: BeatWorld
+  onDone: (r: Response, ms: number) => void
+}) {
+  const render = plainOf(check)
   const t0 = useRef(Date.now())
-  // choice/quiz: the first pick scores; a wrong pick teaches (hint + the truth revealed)
-  const [picked, setPicked] = useState<number | null>(null)
-  // sort: assign every item, confirm, wrong rows reveal their true bucket
-  const [assigned, setAssigned] = useState<Record<string, string>>({})
+  const firstAt = useRef<Record<string, number>>({})
+  const [picks, setPicks] = useState<Response>({})
   const [revealed, setRevealed] = useState(false)
 
-  if (check.kind === 'choice' || check.kind === 'quiz') {
-    const options = check.kind === 'choice'
-      ? check.options.map((o) => ({ text: o.text, correct: !!o.correct, reply: o.reply }))
-      : check.item.choices.map((c, i) => ({ text: c, correct: i === check.item.correctIndex, reply: check.item.explanation ?? '' }))
-    const prompt = check.kind === 'choice' ? check.prompt : check.item.prompt
-    const correctIdx = options.findIndex((o) => o.correct)
+  /* the convention, applied: the first input that touches the item, whichever
+   * field it lands on, is the moment the student answered */
+  const touch = () => markFirst(firstAt.current, render.id)
+  const latency = () => latencyOf(t0.current, firstAt.current, render.id)
+  const set = (fieldId: string, value: string) => {
+    touch()
+    setPicks((p) => ({ ...p, [fieldId]: value }))
+  }
+
+  if (check.kind === 'showdown') {
+    return <ShowdownPlay check={check} onDone={(r) => onDone(r, latency())} onTouch={touch} />
+  }
+  if (check.kind === 'do' && world) {
+    return <DoPlay check={check} world={world} render={render} onDone={(r) => onDone(r, latency())} onTouch={touch} />
+  }
+
+  const single = render.fields.length === 1 ? render.fields[0] : null
+
+  // one field, one pick: choice, quiz, place, and a `do` with nowhere to walk
+  if (single && single.input === 'radio') {
+    return (
+      <OneOf
+        render={render} field={single} picked={picks[single.id]}
+        onPick={(v) => set(single.id, v)}
+        onDone={() => onDone(picks, latency())}
+      />
+    )
+  }
+
+  // one field, typed: a number, where recognition would be a different measurement
+  if (single && single.input === 'text') {
+    const typed = picks[single.id] ?? ''
+    const right = scoreOf(check, picks) === pointsOf(check)
     return (
       <div className="bt-check">
-        <div className="bt-prompt">{prompt}</div>
-        <div className="bt-options">
-          {options.map((o, i) => (
-            <button
-              key={i}
-              className={`bt-opt ${picked !== null && i === correctIdx ? 'bt-opt-true' : ''} ${picked === i && i !== correctIdx ? 'bt-opt-miss' : ''}`}
-              disabled={picked !== null}
-              onClick={() => setPicked(i)}
-            >{o.text}</button>
-          ))}
+        <div className="bt-prompt">{render.prompt}</div>
+        <div className="bt-numrow">
+          <input
+            className={`bt-num ${revealed ? (right ? 'bt-opt-true' : 'bt-opt-miss') : ''}`}
+            inputMode="decimal" value={typed} disabled={revealed}
+            onChange={(e) => set(single.id, e.target.value)}
+          />
+          {single.label && <span className="bt-unit">{single.label}</span>}
         </div>
-        {picked !== null && (
-          <>
-            <div className="bt-reply">{options[picked].reply || (options[picked].correct ? 'Right.' : 'Hm. Not quite.')}</div>
-            <button className="bt-go" onClick={() => onDone(options[picked].correct ? 1 : 0, Date.now() - t0.current)}>
-              Keep going
-            </button>
-          </>
-        )}
+        {revealed
+          ? (
+            <>
+              <div className="bt-reply">
+                {right ? 'That is the number.' : `Not quite. It is ${single.correct}${single.label ? ` ${single.label}` : ''}.`}
+                {replyFor(render, single.id, typed) ? ` ${replyFor(render, single.id, typed)}` : ''}
+              </div>
+              <button className="bt-go" onClick={() => onDone(picks, latency())}>Keep going</button>
+            </>
+          )
+          : <button className="bt-go" disabled={typed.trim() === ''} onClick={() => setRevealed(true)}>That is my answer</button>}
       </div>
     )
   }
 
-  // sort
-  const allAssigned = check.items.every((it) => assigned[it.label])
-  const earned = check.items.filter((it) => assigned[it.label] === it.bucket).length
+  // rows: a sort into buckets, an ordering into positions
+  const allAnswered = render.fields.every((f) => picks[f.id])
+  const earned = scoreOf(check, picks)
   return (
     <div className="bt-check">
-      <div className="bt-prompt">{check.prompt}</div>
+      <div className="bt-prompt">{render.prompt}</div>
       <div className="bt-sort">
-        {check.items.map((it) => (
-          <div className="bt-sortrow" key={it.label}>
-            <span className={`bt-sortlabel ${revealed ? (assigned[it.label] === it.bucket ? 'bt-opt-true' : 'bt-opt-miss') : ''}`}>
-              {it.label}{revealed && assigned[it.label] !== it.bucket && <em> · {it.bucket}</em>}
+        {render.fields.map((f) => (
+          <div className="bt-sortrow" key={f.id}>
+            <span className={`bt-sortlabel ${revealed ? (picks[f.id] === f.correct ? 'bt-opt-true' : 'bt-opt-miss') : ''}`}>
+              {f.label}{revealed && picks[f.id] !== f.correct && <em> · {labelOf(f, f.correct)}</em>}
             </span>
             <span className="bt-buckets">
-              {check.buckets.map((b) => (
+              {f.options.map((o) => (
                 <button
-                  key={b}
-                  className={`bt-bucket ${assigned[it.label] === b ? 'bt-bucket-on' : ''}`}
+                  key={o.value}
+                  className={`bt-bucket ${picks[f.id] === o.value ? 'bt-bucket-on' : ''}`}
                   disabled={revealed}
-                  onClick={() => setAssigned((a) => ({ ...a, [it.label]: b }))}
-                >{b}</button>
+                  onClick={() => set(f.id, o.value)}
+                >{o.text}</button>
               ))}
             </span>
           </div>
         ))}
       </div>
       {!revealed
-        ? <button className="bt-go" disabled={!allAssigned} onClick={() => setRevealed(true)}>That is my answer</button>
-        : <button className="bt-go" onClick={() => onDone(earned, Date.now() - t0.current)}>
-          {earned === check.items.length ? 'All of them. Keep going' : 'Noted. Keep going'}
-        </button>}
+        ? <button className="bt-go" disabled={!allAnswered} onClick={() => setRevealed(true)}>That is my answer</button>
+        : (
+          <>
+            {replyFor(render, render.fields[0]?.id ?? '', '') && (
+              <div className="bt-reply">{replyFor(render, render.fields[0].id, '')}</div>
+            )}
+            <button className="bt-go" onClick={() => onDone(picks, latency())}>
+              {earned === pointsOf(check) ? 'All of them. Keep going' : 'Noted. Keep going'}
+            </button>
+          </>
+        )}
+    </div>
+  )
+}
+
+const labelOf = (f: PlainField, value: string) => f.options.find((o) => o.value === value)?.text ?? value
+
+/* PICK ONE, in the game arm: a choice, a quiz, a place, and a `do` that has no
+ * world to walk in. Its own component because a `do` whose staging is refused has
+ * to fall back to exactly this and not to a second copy of it that drifts. */
+function OneOf({ render, field, picked, onPick, onDone }: {
+  render: PlainRender
+  field: PlainField
+  picked: string | undefined
+  onPick: (value: string) => void
+  onDone: () => void
+}) {
+  return (
+    <div className="bt-check">
+      <div className="bt-prompt">{render.prompt}</div>
+      <div className="bt-options">
+        {field.options.map((o) => (
+          <button
+            key={o.value}
+            className={`bt-opt ${picked !== undefined && o.value === field.correct ? 'bt-opt-true' : ''} ${picked === o.value && o.value !== field.correct ? 'bt-opt-miss' : ''}`}
+            disabled={picked !== undefined}
+            onClick={() => onPick(o.value)}
+          >{o.text}</button>
+        ))}
+      </div>
+      {picked !== undefined && (
+        <>
+          <div className="bt-reply">
+            {replyFor(render, field.id, picked) || (picked === field.correct ? 'Right.' : 'Hm. Not quite.')}
+          </div>
+          <button className="bt-go" onClick={onDone}>Keep going</button>
+        </>
+      )}
+    </div>
+  )
+}
+
+/* THE SHOWDOWN, in the game arm. The chassis (showdown.ts) holds every piece of
+ * state and this draws it. The drive bar is the only thing on screen that the
+ * plain arm does not get, and it is a pure function of rounds correct, so the
+ * student who is losing on the field is losing on the transcript too and for the
+ * same reason. There is no clock in this component either. */
+function ShowdownPlay({ check, onDone, onTouch }: {
+  check: Extract<CheckStep, { kind: 'showdown' }>
+  onDone: (r: Response) => void
+  onTouch: () => void
+}) {
+  const [s, setS] = useState<ShowdownState>(() => startShowdown(check.rounds))
+  const round = check.rounds[s.round]
+
+  /* the drive ends exactly once, on the transition into done. Depending on the
+   * flag rather than on the whole state is deliberate: `s` changes every pick and
+   * this must not fire on any of them. */
+  useEffect(() => {
+    if (s.done) onDone(responseOf(check.id, s))
+  }, [s.done])
+
+  if (!round) return null
+  const picked = s.picked
+  const right = picked !== null && !!round.options[picked].correct
+  return (
+    <div className="bt-check">
+      <div className="bt-prompt">{check.prompt}</div>
+      <div className="bt-drive">
+        <span className="bt-driveline" style={{ width: `${Math.round(progressOf(s) * 100)}%` }} />
+        <span className="bt-driveyards">{yardsRemaining(s)} to go · {check.opponent}</span>
+      </div>
+      <div className="bt-prompt">{round.prompt}</div>
+      <div className="bt-options">
+        {round.options.map((o, i) => (
+          <button
+            key={i}
+            className={`bt-opt ${picked !== null && o.correct ? 'bt-opt-true' : ''} ${picked === i && !o.correct ? 'bt-opt-miss' : ''}`}
+            disabled={picked !== null}
+            onClick={() => { onTouch(); setS((x) => showdownReduce(x, { kind: 'pick', index: i }, check.rounds)) }}
+          >{o.text}</button>
+        ))}
+      </div>
+      {picked !== null && (
+        <>
+          <div className="bt-reply">{round.options[picked].reply || (right ? 'Moved the chains.' : 'No gain.')}</div>
+          <button className="bt-go" onClick={() => setS((x) => showdownReduce(x, { kind: 'next' }, check.rounds))}>
+            {s.round + 1 >= s.total ? 'The last snap' : 'Next down'}
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
+/* A `do`, WITH A WORLD TO DO IT IN. W8's whole surface, and it is this small.
+ *
+ * The beat asks for the arrow to the goal with `guide_to`, which is an intent an
+ * island can already issue, and then waits for the one event it is allowed to
+ * hear: the player reached a named anchor. Every anchor named by the item counts,
+ * the goal and the decoys alike, because walking to the wrong place IS the wrong
+ * answer and the student has to be able to give it. `scoreOf` decides which one it
+ * was, in the same line it decides a quiz. */
+function DoPlay({ check, world, render, onDone, onTouch }: {
+  check: Extract<CheckStep, { kind: 'do' }>
+  world: BeatWorld
+  render: PlainRender
+  onDone: (r: Response) => void
+  onTouch: () => void
+}) {
+  const [reached, setReached] = useState<string | null>(null)
+  /* THE STAGING CAN BE REFUSED, AND A REFUSED ITEM MUST NOT BE A LOCKED DOOR.
+   *
+   * `guide_to` answers `{ok: false}` when the map has no anchor by that name,
+   * which is the single most likely mistake an author will make here. Waiting on
+   * an arrival that can never come would strand the student inside a beat with no
+   * way out and no way to say why. So a refusal drops the item to the same
+   * buttons a runner with no world shows, and the student answers the question
+   * they were always going to be asked. The author still learns: the refusal
+   * carries their anchor name and lands in the console. */
+  const [staged, setStaged] = useState<'waiting' | 'refused'>('waiting')
+  const [picked, setPicked] = useState<string | null>(null)
+  const done = useRef(false)
+
+  /* staged once, when the item comes on screen, and torn down when it leaves. The
+   * empty dependency list is the whole intent: re-issuing the arrow on every
+   * render would fight the player for the camera. */
+  useEffect(() => {
+    void world.issue({ kind: 'guide_to', anchor: check.goal.anchor }).then((r) => {
+      if (!r.ok) { console.warn(`[check ${check.id}] cannot stage in the world: ${r.why}`); setStaged('refused') }
+    })
+    return world.onReached((anchor) => {
+      if (done.current) return
+      /* only the places this item named. Walking past something else on the way is
+       * not an answer, and treating it as one would score a student on the route
+       * they happened to take. */
+      if (anchor !== check.goal.anchor && !check.decoys.some((d) => d.anchor === anchor)) return
+      done.current = true
+      onTouch()
+      setReached(anchor)
+    })
+  }, [])
+
+  if (staged === 'refused' && reached === null) {
+    return (
+      <OneOf
+        render={render} field={render.fields[0]} picked={picked ?? undefined}
+        onPick={(v) => { onTouch(); setPicked(v) }}
+        onDone={() => onDone({ [check.id]: picked ?? '' })}
+      />
+    )
+  }
+
+  if (reached === null) {
+    return (
+      <div className="bt-check">
+        <div className="bt-prompt">{render.prompt}</div>
+        <div className="bt-reply">Go there. The path is marked.</div>
+      </div>
+    )
+  }
+  const right = reached === check.goal.anchor
+  return (
+    <div className="bt-check">
+      <div className="bt-prompt">{render.prompt}</div>
+      <div className="bt-reply">
+        {replyFor(render, check.id, reached) || (right ? 'That is the place.' : 'Not this one.')}
+      </div>
+      <button className="bt-go" onClick={() => onDone({ [check.id]: reached })}>Keep going</button>
     </div>
   )
 }
@@ -245,79 +497,132 @@ function PlainForm({ beat, checksOnly, attempt, arm, onDone }: {
   onDone: (a: Answers) => void
 }) {
   const checks = checksOf(beat)
+  const renders = checks.map(plainOf)
   const t0 = useRef(Date.now())
-  const [picks, setPicks] = useState<Record<string, string>>({})
-  /* ONE TIMING CONVENTION ACROSS BOTH ARMS.
-   *
-   * This form started one clock for the whole page and stamped every item with
-   * the same elapsed milliseconds, so `latencyMs` meant "how long the student
-   * spent answering this item" in the game arm and "how long the whole form took"
-   * in the plain one. Under one name, in one column, in one export. A form is
-   * answerable in any order, so the honest per-item clock is time to the FIRST
-   * answer on that item, recorded when it is given rather than reconstructed at
-   * submit. `formMs` carries what the old number was actually measuring. */
+  const [picks, setPicks] = useState<Response>({})
+  /* the convention lives at the top of this file. Per-item, stamped when the
+   * answer is given rather than reconstructed at submit, because a form is
+   * answerable in any order and the submit click is one number for the page. */
   const answeredAt = useRef<Record<string, number>>({})
-  const mark = (id: string) => {
-    if (answeredAt.current[id] === undefined) answeredAt.current[id] = Date.now()
+  const [graded, setGraded] = useState<Answers | null>(null)
+
+  const set = (itemId: string, fieldId: string, value: string) => {
+    markFirst(answeredAt.current, itemId)
+    setPicks((p) => ({ ...p, [fieldId]: value }))
   }
 
-  const complete = checks.every((c) =>
-    c.kind === 'sort' ? c.items.every((it) => picks[`${checkId(c)}:${it.label}`]) : picks[checkId(c)])
+  const complete = renders.every((r) => r.fields.every((f) => (picks[f.id] ?? '').trim() !== ''))
 
   const submit = () => {
     const out: Answers = {}
     const formMs = Date.now() - t0.current
     for (const c of checks) {
-      const id = checkId(c)
-      const ms = (answeredAt.current[id] ?? Date.now()) - t0.current
-      if (c.kind === 'sort') {
-        const earned = c.items.filter((it) => picks[`${id}:${it.label}`] === it.bucket).length
-        out[id] = { earned, total: c.items.length, tries: attempt.n, latencyMs: ms }
-      } else {
-        const options = c.kind === 'choice'
-          ? c.options.map((o) => ({ text: o.text, correct: !!o.correct }))
-          : c.item.choices.map((t, i) => ({ text: t, correct: i === c.item.correctIndex }))
-        const earned = options.find((o) => o.text === picks[id])?.correct ? 1 : 0
-        out[id] = { earned, total: 1, tries: attempt.n, latencyMs: ms }
-      }
+      const id = checkIdOf(c)
+      const ms = latencyOf(t0.current, answeredAt.current, id)
+      const total = pointsOf(c)
+      const earned = scoreOf(c, picks)
+      out[id] = { earned, total, tries: attempt.n, latencyMs: ms }
       track('check_answered', {
-        item: id, correct: out[id].earned === out[id].total,
-        earned: out[id].earned, total: out[id].total,
-        tries: attempt.n, latencyMs: ms, formMs, arm, via: 'form',
+        item: id, kind: c.kind, correct: earned === total,
+        earned, total, tries: attempt.n, latencyMs: ms, latency: LATENCY_CONVENTION,
+        formMs, arm, via: 'form',
       })
     }
-    onDone(out)
+    setGraded(out)
+  }
+
+  /* PER-ITEM CORRECTIVE FEEDBACK, WHICH THIS ARM USED TO BE DENIED (L2).
+   *
+   * The form rendered the prompts and the options and dropped every `reply`. The
+   * game student was told why they were wrong and what the truth is; the control
+   * student was told nothing and moved straight to a grade. Content constancy is
+   * the study's whole claim and this broke it in the direction that flatters the
+   * treatment, across every island at once, undetectably, because both arms emit
+   * the same event shape.
+   *
+   * So the same words, presented the way this arm presents everything: printed
+   * under the item rather than spoken by somebody. */
+  if (graded) {
+    return (
+      <div className="bt-plainform">
+        <h2>{beat.title}</h2>
+        {renders.map((r, i) => {
+          const c = checks[i]
+          const a = graded[checkIdOf(c)]
+          return (
+            <fieldset key={r.id}>
+              <legend>{r.prompt}</legend>
+              <p>{a.earned} of {a.total} correct.</p>
+              {r.fields.map((f) => {
+                const given = picks[f.id] ?? ''
+                const reply = replyFor(r, f.id, given)
+                return (
+                  <p key={f.id}>
+                    {f.label ? `${f.label}: ` : ''}
+                    {labelOf(f, given)}
+                    {given === f.correct ? ' (correct)' : ` (the answer is ${labelOf(f, f.correct)})`}
+                    {reply ? ` ${reply}` : ''}
+                  </p>
+                )
+              })}
+            </fieldset>
+          )
+        })}
+        <button onClick={() => onDone(graded)}>Continue</button>
+      </div>
+    )
   }
 
   return (
     <div className="bt-plainform">
       <h2>{beat.title}</h2>
       {!checksOnly && beat.steps.map((s, i) => (s.kind === 'say' ? <p key={i}>{s.line.text}</p> : null))}
-      {checks.map((c) => (
-        <fieldset key={checkId(c)}>
-          <legend>{c.kind === 'quiz' ? c.item.prompt : c.prompt}</legend>
-          {c.kind === 'sort'
-            ? c.items.map((it) => (
-              <label key={it.label}>
-                {it.label}{' '}
-                <select value={picks[`${checkId(c)}:${it.label}`] ?? ''} onChange={(e) => { mark(checkId(c)); setPicks((p) => ({ ...p, [`${checkId(c)}:${it.label}`]: e.target.value })) }}>
-                  <option value="" disabled>choose</option>
-                  {c.buckets.map((b) => <option key={b} value={b}>{b}</option>)}
-                </select>
-              </label>
-            ))
-            : (c.kind === 'choice' ? c.options.map((o) => o.text) : c.item.choices).map((text) => (
-              <label key={text}>
-                <input
-                  type="radio" name={checkId(c)} checked={picks[checkId(c)] === text}
-                  onChange={() => { mark(checkId(c)); setPicks((p) => ({ ...p, [checkId(c)]: text })) }}
-                /> {text}
-              </label>
-            ))}
+      {renders.map((r, i) => (
+        <fieldset key={r.id}>
+          <legend>{promptOf(checks[i])}</legend>
+          {r.fields.map((f) => (
+            <PlainFieldRow key={f.id} field={f} value={picks[f.id] ?? ''} onSet={(v) => set(r.id, f.id, v)} />
+          ))}
         </fieldset>
       ))}
       <button disabled={!complete} onClick={submit}>Submit</button>
     </div>
+  )
+}
+
+/* one row of the form, drawn from the field the palette derived. A radio for a
+ * pick, a select for a row of many, a text box for a number. There is no branch on
+ * the check's kind anywhere in this arm any more, which is what stops a new kind
+ * from shipping with no control-arm rendering: it has fields or it does not exist. */
+function PlainFieldRow({ field, value, onSet }: { field: PlainField; value: string; onSet: (v: string) => void }) {
+  if (field.input === 'text') {
+    return (
+      <label>
+        {field.label ? `${field.label} ` : ''}
+        <input type="text" inputMode="decimal" value={value} onChange={(e) => onSet(e.target.value)} />
+      </label>
+    )
+  }
+  if (field.input === 'select') {
+    return (
+      <label>
+        {field.label}{' '}
+        <select value={value} onChange={(e) => onSet(e.target.value)}>
+          <option value="" disabled>choose</option>
+          {field.options.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
+        </select>
+      </label>
+    )
+  }
+  return (
+    <>
+      {field.label && <p>{field.label}</p>}
+      {field.options.map((o) => (
+        <label key={o.value}>
+          <input type="radio" name={field.id} checked={value === o.value} onChange={() => onSet(o.value)} /> {o.text}
+        </label>
+      ))}
+    </>
   )
 }
 

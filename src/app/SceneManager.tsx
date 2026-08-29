@@ -1,5 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { makeTransitionState, runTransition, TransitionOverlay, type TransitionSpec } from './transitions'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  cover, subscribeTransition, transitionState, transitionVersion, TransitionOverlay,
+  type TransitionSpec,
+} from './transitions'
 import { setContext, startHeartbeat, track } from '../game/telemetry'
 
 // The backbone of the whole game: scenes (boot, title, the intro beach, the island map,
@@ -20,24 +23,21 @@ export function useNav() {
 
 export function SceneManager({ initial, registry, overlay }: { initial: string; registry: SceneRegistry; overlay?: ReactNode }) {
   const [current, setCurrent] = useState(initial)
-  const busy = useRef(false)
-  const trState = useRef(makeTransitionState())
-  const [trVersion, setTrVersion] = useState(0)
+  /* THE STATE IS NOT THIS COMPONENT'S ANY MORE (E1). It lives at module scope in
+   * transitions.tsx so a door swap inside a painted map can drive the same
+   * controller, and this component is now one of three callers rather than the
+   * owner. What is left here is re-rendering the overlay when it changes. */
+  const [, setTrVersion] = useState(0)
+  useEffect(() => subscribeTransition(() => setTrVersion(transitionVersion())), [])
 
   const go = useCallback((to: string, spec?: TransitionSpec) => {
-    if (busy.current || to === current) return
+    if (to === current) return
     if (!registry[to]) { console.warn('SceneManager: scene not registered:', to); return }
-    busy.current = true
-    void runTransition(
-      trState.current,
-      () => setTrVersion((v) => v + 1),
-      spec ?? { kind: 'fade' },
-      () => {
-        setCurrent(to)
-        // give the new scene two frames to mount before the cover lifts
-        return new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
-      },
-    ).finally(() => { busy.current = false })
+    void cover(spec ?? { kind: 'fade' }, () => {
+      setCurrent(to)
+      // give the new scene two frames to mount before the cover lifts
+      return new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
+    })
   }, [current, registry])
 
   const nav = useMemo<Nav>(() => ({ go, current }), [go, current])
@@ -60,7 +60,7 @@ export function SceneManager({ initial, registry, overlay }: { initial: string; 
         {Scene ? Scene() : null}
         {/* scene-independent chrome (the world HUD) rides above the scene, below covers */}
         {overlay}
-        <TransitionOverlay st={trState.current} version={trVersion} />
+        <TransitionOverlay st={transitionState()} version={transitionVersion()} />
       </div>
     </NavCtx.Provider>
   )

@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react'
-import { ISLANDS } from '../island/registry'
+/* THE CHART READS THE COMPOSITION NOW. It used to read `ISLANDS` from
+ * `src/game/island/registry.ts`, the tile-era registry, which holds one entry
+ * whose coordinates are commented `tile-space center` for a map the game loads
+ * under a different id. That was AUTHORING §12's missing world composition
+ * document being stood in for by a constant, and there is one source of truth
+ * for where a map is now. */
+import { Chart } from '../world/Chart'
 import { PLACES, programmesAt } from '../roster/roster'
 import { loadSave, subscribeSave } from '../save'
 import { cordsOf, gpaOf, letterOf, NO_ATHLETIC_CORD } from '../progress'
@@ -44,21 +50,7 @@ export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => voi
         </div>
 
         <div className="hb-page">
-          {tab === 'chart' && (
-            <>
-              <div className="hb-h">The sea so far</div>
-              <div className="hb-chart">
-                {ISLANDS.map((i) => (
-                  <div key={i.id} className="hb-chart-isle" style={{
-                    left: `${18 + (i.cx / 384) * 64}%`, top: `${24 + (i.cy / 384) * 52}%`,
-                  }}>{i.label}</div>
-                ))}
-              </div>
-              <div className="hb-dim" style={{ marginTop: '1.5cqw' }}>
-                The chart inks itself as you sail. Pencil marks mean rumor; ink means you have been there.
-              </div>
-            </>
-          )}
+          {tab === 'chart' && <Chart />}
 
           {tab === 'islands' && (
             <>

@@ -43,7 +43,7 @@ const GrapeProofLazy = lazyScene(() => import('./vine/py/GrapeProof'))
 // a second, conflicting run state and a join that silently dropped the class code. Graduation
 // and the rest of the year loop get rebuilt on the real save (THE-PATH Leg 3), not re-routed
 // to the ghosts. `?scene=<id>` jumps to a scene (dev). The old campus build stays behind
-// ?legacy=1.
+// ?legacy=1, fenced at the branch below.
 const registry: SceneRegistry = {
   boot: () => <BootScene />,
   title: () => <TitleScene />,
@@ -65,6 +65,46 @@ const registry: SceneRegistry = {
 
 export default function App() {
   const params = new URLSearchParams(window.location.search)
+  /* ?legacy=1, RULED 2026-08-29 (wave 2, rider 3). IT STAYS, AND IT IS A MUSEUM.
+   *
+   * This one line is the only entry to 3,172 lines that nothing else imports:
+   * Game.tsx, and through it Stage.tsx, Scene.tsx, ZoneView.tsx, Campus.tsx with
+   * campus-grid.ts and campus-props.ts, zone.ts, and the whole TypeScript grape
+   * stack (vine/registry.ts, vine/GrapeHost.tsx, StandardGrape, PlainGrape,
+   * EncounterScene, grapes/atc.ts). Delete this branch and all of it is
+   * unreachable-and-still-compiled, which is the worst of both; delete the
+   * subtree and the parked 1:1 campus goes with it, and that campus is kept on
+   * purpose. So the branch stays and the fence is written instead.
+   *
+   * WHAT IT IS FOR: looking at the parked eras. `?legacy=1` is the zone tile
+   * test, `?legacy=1&campus=1` the block campus, `?legacy=1&cv=1` the 1:1
+   * geometry, `?legacy=1&slice=1` the slice. Nothing else.
+   *
+   * WHAT IT MAY NOT BE USED FOR, and every one of these is a fact about the code
+   * behind it rather than a preference:
+   *
+   *  - NOT A ROUTE FOR ANYTHING LIVE. It returns before the SceneManager, so no
+   *    scene, no WorldHud, no transitions and no `startHeartbeat()`, which means
+   *    a legacy session produces no dose and cannot appear in api/dose.ts.
+   *  - IT LOGS NOTHING AND CANNOT. Game.tsx:51 builds its OWN Logger with no
+   *    `endpoint`, so every event drains to a console line, and its participant
+   *    id is `'p-' + Math.random()` per page load (Game.tsx:49). No legacy
+   *    session can reach the events table or a study export, which is the one
+   *    good thing about it and the reason it is safe to leave routed.
+   *  - ITS ID STRINGS ARE NOT ROSTER KEYS. This is the raw-grape-id question the
+   *    rider asked, and the answer is that they all survive in here and none of
+   *    them resolve: grapes/atc.ts:7 declares `id: 'atc'` and :14 declares
+   *    `building: 'atc-room'`, Campus.tsx:418 types `id: 'atc'` into a renderer,
+   *    and Game.tsx:67-70 takes `?grape=<anything>` off the URL and looks it up.
+   *    'atc' is now a PROGRAMME id and 'atc-room' a PLACE id in
+   *    src/game/roster/roster.ts, two different key spaces that happen to spell
+   *    the same, and nothing in here goes near the resolver. Worse, Stage.tsx:83
+   *    hands a ZONE id to the same lookup and Game.tsx:191 prints it to the
+   *    player as "grape id". Reading a roster key out of this subtree is the
+   *    exact conflation the four-key split was built to end.
+   *  - AND A GRAPE IS PYTHON. The registry behind this branch is the superseded
+   *    architecture (VINE-AND-GRAPE.md); the real one is src/vine/py/ at
+   *    `?scene=grape`. Nothing new goes in here. */
   if (params.has('legacy')) return <Game />
   const initial = params.get('scene') ?? 'boot'
   // unknown scene ids land on boot, never on a ghost scene. The WorldHud overlay puts the

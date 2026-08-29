@@ -1,0 +1,74 @@
+/* THE CHART PAGE. It draws the composition, so what is on it is what is on the
+   water, and an island that rises between two sittings appears here with no
+   second edit. Sized in container-query units like every other panel in the kit,
+   so the S/M/L text setting reflows it instead of clipping it. */
+
+.ch-sea { overflow: hidden; }
+
+.ch-region {
+  position: absolute;
+  border: 1px dashed rgba(138, 116, 79, 0.4);
+  border-radius: 6px;
+  pointer-events: none;
+}
+.ch-region-sailable { background: rgba(120, 160, 165, 0.08); }
+.ch-region-mist { background: rgba(160, 165, 170, 0.2); border-style: dotted; }
+.ch-region-shallow { background: rgba(190, 175, 120, 0.14); }
+.ch-region-forbidden { background: rgba(150, 70, 60, 0.12); border-color: rgba(150, 70, 60, 0.5); }
+.ch-region-ambience { background: none; border: none; }
+
+.ch-region-name {
+  position: absolute; left: 0.8cqw; top: 0.4cqw;
+  font-family: 'Deckhand', monospace;
+  font-size: 1.9cqw;
+  color: rgba(74, 56, 38, 0.5);
+  letter-spacing: 0.08em;
+}
+
+.ch-isle {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; align-items: center;
+  gap: 0.15cqw;
+  white-space: nowrap;
+  font-family: 'Deckhand', monospace;
+}
+
+/* THE MARK IS THE STATE, AND THE COLOUR ONLY AGREES WITH IT. §11.3 asks for state
+   readable at a glance without relying on hue and nothing implemented it, so
+   every slot carries a shape a colourblind student can read. */
+.ch-mark {
+  font-size: 3.4cqw;
+  line-height: 1;
+  text-shadow: 0 1px 0 rgba(246, 238, 216, 0.9);
+}
+
+.ch-name {
+  font-size: 2.1cqw;
+  background: rgba(238, 227, 200, 0.86);
+  border: 1px solid #8a744f;
+  border-radius: 3px;
+  padding: 0.15cqw 1.1cqw;
+  color: inherit;
+}
+
+.ch-note {
+  font-size: 1.7cqw;
+  color: rgba(74, 56, 38, 0.62);
+}
+
+/* a rumour is pencil: no border, no ink, and it says so */
+.ch-rumour .ch-name {
+  background: none; border: 1px dashed rgba(138, 116, 79, 0.55);
+  font-style: italic;
+}
+.ch-misty .ch-name { background: rgba(214, 210, 198, 0.7); border-style: dotted; }
+.ch-completed .ch-name { border-width: 2px; }
+
+/* rising is the one thing on this page that moves, because it is the one thing
+   happening right now. Reduced motion holds it still and it keeps its mark. */
+.ch-rising .ch-mark { animation: ch-pulse 1400ms ease-in-out infinite; }
+@keyframes ch-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+html[data-rm='1'] .ch-rising .ch-mark { animation: none; opacity: 1; }
+
+.ch-legend { margin-top: 1.5cqw; }

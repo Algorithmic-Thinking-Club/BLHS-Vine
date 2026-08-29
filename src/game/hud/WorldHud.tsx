@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Hud } from './Hud'
 import { Dialogue } from './Dialogue'
 import { WorldCutscene } from '../cutscene/WorldCutscene'
+import { PlaceCard } from '../stage/PlaceCard'
 import { loadSave, subscribeSave } from '../save'
 import { useNav } from '../../app/SceneManager'
 import { holdWorld } from '../world-bus'
@@ -51,6 +52,10 @@ export function WorldHud() {
           alone, wrapped around the beach, which is why the beach was the only
           place in the game where a script could be seen. */}
       <WorldCutscene />
+      {/* the arrival card. It rides here rather than inside the scene because a
+          door swap tears the scene down and rebuilds it, and a card mounted inside
+          the thing being rebuilt is a card that flashes. */}
+      <PlaceCard />
     </>
   )
 }

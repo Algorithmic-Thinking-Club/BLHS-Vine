@@ -71,7 +71,10 @@ export type Measures = {
  * dropped, and the honest answer is "at most this much". */
 export const IDLE_CAP_MS = 60_000
 
-const ms = (v: string | number | Date): number => {
+/** a stored row's clock as milliseconds, whatever the driver handed back. Exported
+ *  because api/_dose.ts folds the same rows and two readings of one timestamp is
+ *  two places for a timezone to be read differently. */
+export const atMs = (v: string | number | Date): number => {
   if (typeof v === 'number') return v
   const t = new Date(v).getTime()
   return Number.isFinite(t) ? t : 0
@@ -89,7 +92,9 @@ const KNOWN = new Set([
   'trigger_unanswered',
 ])
 
-type Env = {
+/** the envelope as it sits inside a row's jsonb payload. Exported for api/_dose.ts,
+ *  which reads the same field off the same rows. */
+export type Env = {
   participantId?: string
   mode?: string
   dev?: boolean
@@ -103,6 +108,25 @@ export function eventName(e: Env): string {
   const ev = e.event
   if (!ev) return ''
   return ev.type === 'game' ? String(ev.name ?? '') : String(ev.type ?? '')
+}
+
+/* WHEN AN EVENT HAPPENED, WHICH IS NOT WHEN ITS ROW WAS WRITTEN.
+ *
+ * `activeMs` read the row's `at` and that is the INSERT time. `appendEvents`
+ * writes a whole batch in one statement, so every event in one POST lands on one
+ * timestamp, and the offline queue that src/vine/logging.ts exists to provide is
+ * exactly the thing that makes a batch long. A Chromebook that lost the network
+ * for ten minutes drains its queue at once and every gap inside it measured
+ * zero, so `active_minutes` in the teacher's CSV was smallest for precisely the
+ * students whose network was worst. Measured: six events posted in one batch,
+ * fifteen seconds apart on the client, folded to activeMs 0.
+ *
+ * The client's stamp is `Date.now()` at the moment the event happened, which is
+ * the question being asked. A wrong client clock is bounded here by IDLE_CAP_MS
+ * either way, because that cap is applied to every gap regardless. */
+const whenOf = (row: StoredEvent): number => {
+  const at = (row.payload as Env | null)?.event?.at
+  return typeof at === 'number' && Number.isFinite(at) && at > 0 ? at : atMs(row.at)
 }
 
 /* THE FOLD, per participant. Deduplicated on `eid` first, because the queue
@@ -120,7 +144,7 @@ export function summarise(rows: StoredEvent[]): Measures[] {
     sessions: Set<string>
   }>()
 
-  const ordered = [...rows].sort((a, b) => ms(a.at) - ms(b.at))
+  const ordered = [...rows].sort((a, b) => whenOf(a) - whenOf(b))
 
   for (const row of ordered) {
     const env = (row.payload ?? {}) as Env
@@ -130,7 +154,7 @@ export function summarise(rows: StoredEvent[]): Measures[] {
     }
     const pid = env.participantId ?? row.participantId
     if (!pid) continue
-    const at = ms(row.at)
+    const at = whenOf(row)
     const sid = row.sessionId ?? 'no-session'
 
     let bucket = byPid.get(pid)

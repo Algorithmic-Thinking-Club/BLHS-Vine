@@ -138,6 +138,19 @@ describe('the year model keys completion on the programme (the fatal break)', ()
   })
 })
 
+describe('a place says WHAT it is and never WHERE it is', () => {
+  it('carries no position, because the composition owns that and only one of them is authored', () => {
+    /* `Place.at?: {x, y}` was declared here, set by nobody and read by nobody,
+     * while src/game/world/composition.ts holds the real one on a slot. MAPVIS W2
+     * writes the composition and nothing writes a roster, so a second copy could
+     * only ever go stale and put an island in the wrong water without an error. */
+    for (const p of PLACES) expect(p).not.toHaveProperty('at')
+    const fields = new Set(PLACES.flatMap((p) => Object.keys(p)))
+    for (const banned of ['at', 'x', 'y', 'position', 'footprint', 'berth'])
+      expect(fields.has(banned)).toBe(false)
+  })
+})
+
 describe('every entry says where it came from', () => {
   it('carries a source on every place and every programme', () => {
     for (const p of PLACES) expect(p.source.length).toBeGreaterThan(0)

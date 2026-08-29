@@ -43,6 +43,54 @@ export function makeTransitionState(): TransitionState {
   return { phase: 'idle', spec: { kind: 'fade' }, fact: FACTS[0].text }
 }
 
+/* ---- E1: THE TRANSITION CONTROLLER, SEPARATED FROM SCENE ROUTING -----------
+ *
+ * §80.4's first load-bearing entry, and the reason it is load-bearing is one
+ * sentence: `runTransition` was owned by `SceneManager.go()`, and a `PmapScene`
+ * door swap runs its own 400 millisecond black fade and never calls it, so the
+ * five covers and the whole fact pool were unreachable from THE MOST COMMON
+ * ACTION IN THE GAME. Every door on every island, covered by nothing.
+ *
+ * A transition is a thing the game does, not a thing a route does. So the state
+ * lives here, at module scope, and three callers can ask for one: the router,
+ * a door swap inside a scene, and a station or a cutscene that wants a page to
+ * turn without owning a scene change. The overlay is mounted once by
+ * `SceneManager` and subscribes; it does not own the state any more.
+ *
+ * ONE AT A TIME, and the second caller is refused rather than queued. Two covers
+ * over each other is a black screen with no way out, and the refusal is a value
+ * the caller can act on. */
+const host = {
+  st: makeTransitionState(),
+  version: 0,
+  busy: false,
+  listeners: new Set<() => void>(),
+}
+
+const emitHost = () => { host.version++; for (const fn of host.listeners) fn() }
+
+export function subscribeTransition(fn: () => void): () => void {
+  host.listeners.add(fn)
+  return () => { host.listeners.delete(fn) }
+}
+
+export const transitionState = (): TransitionState => host.st
+export const transitionVersion = (): number => host.version
+export const transitionBusy = (): boolean => host.busy
+
+/** cover the screen, run `swap`, uncover. Resolves when the cover has lifted.
+ *  Answers false without doing anything if one is already running. */
+export async function cover(spec: TransitionSpec, swap: () => void | Promise<void>): Promise<boolean> {
+  if (host.busy) return false
+  host.busy = true
+  try {
+    await runTransition(host.st, emitHost, spec, swap)
+    return true
+  } finally {
+    host.busy = false
+  }
+}
+
 /** drive a full transition: cover-in -> swap() -> hold -> cover-out */
 export async function runTransition(
   st: TransitionState,

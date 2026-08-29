@@ -83,6 +83,22 @@ export type WorldSlot = {
    * are not. MAPVIS W2 rider writes `base_w`/`base_h` and this field is where
    * they land. */
   footprint: { w: number; h: number }
+  /* WHERE THE PAINTING SITS INSIDE ITS OWN CANVAS, top-left, in canvas pixels.
+   *
+   * Measured on the real hub 2026-08-29: the canvas is 688x640 and the opaque
+   * pixels run x 7..675, y 194..570, so the painting's centre is 62 pixels BELOW
+   * the canvas centre. Placing a slot by its canvas centre therefore puts the
+   * island 62 pixels north of where the chart says it is, and every discovery
+   * radius is measured from the wrong point. Absent means centred, which is true
+   * of a tightly cropped export and is not true of anything `growCanvas` has
+   * touched.
+   *
+   * MAPVIS's manifest already emits a `base` block and it currently reads
+   * `{w:688,h:640,ox:0,oy:0}`, which is the canvas rather than the painting, so
+   * it cannot be trusted for this yet. That is BRIEF-MAPVIS-W2's rider seven.
+   * When it carries the real extent this field is where it lands and nothing
+   * else changes. */
+  origin?: WorldPt
   state: SlotState
   /* HOW MANY PLACEMENTS THIS MAP IS DRESSED WITH, which is the half of its
    * memory cost that is not its painting. Absent means the hub's own 94, which
@@ -140,20 +156,39 @@ export const FALLBACK: WorldComposition = {
   home: { slot: 'home-island' },
   slots: [
     {
+      /* THE PUBLISHED HUB, v10 on the platform. Every number here is measured off
+       * `work/hub/scene.png` on 2026-08-29 rather than read off `map.json`: the
+       * canvas is 688x640 and the opaque pixels run x 7..675, y 194..570, so the
+       * painting is 669x377 and USING THE CANVAS OVERSTATES ITS AREA BY 75 PERCENT.
+       * MAPVIS's own manifest emits `base: {w:688,h:640,ox:0,oy:0}` today, which is
+       * the canvas, so it is not yet the source for this. */
+      map: 'hub', place: 'home-island', title: 'the Central Island',
+      at: { x: 0, y: 0 },
+      footprint: { w: 669, h: 377 }, origin: { x: 7, y: 194 },
+      placements: 94,
+      state: 'available', release: 1400, discover: 520,
+      /* off the painting, which is the whole of AUTHORING §12: the canvas ends at
+       * y 640 and the water does not. The berth is south-east of the harbour, one
+       * short walk from where the hub drops a body. */
+      berth: { x: 258, y: 208, facing: 'west', approach: { x: 400, y: 300 } },
+    },
+    {
+      /* the same island as a local file, for a session with no platform. Its
+       * painting is cropped differently (465x335 at x 92) and the composition
+       * says so rather than assuming a canvas is a painting. */
       map: 'hub-a2', place: 'home-island', title: 'the Central Island',
       at: { x: 0, y: 0 },
-      /* the painting is 688 wide and rows 194-570 of a 640-tall canvas hold the
-       * only opaque pixels, so 688x377 is the extent and 688x640 is not */
-      footprint: { w: 688, h: 377 },
+      footprint: { w: 465, h: 335 }, origin: { x: 92, y: 0 },
+      placements: 0,
       state: 'available', release: 1400, discover: 520,
-      berth: { x: 300, y: 210, facing: 'west', approach: { x: 470, y: 300 }, at: 'arrive_maw' },
+      berth: { x: 190, y: 190, facing: 'west', approach: { x: 340, y: 280 } },
     },
     {
       /* THE ROOM IS NOT ON THE WATER. It is the same place as the hub, reached
        * through a door, and it carries no slot of its own: one position per
        * place is what stops the same painting being drawn twice on the chart. */
       map: 'panther-maw', place: 'home-island', title: 'the Panther’s Maw',
-      at: { x: 0, y: 0 }, footprint: { w: 512, h: 512 },
+      at: { x: 0, y: 0 }, footprint: { w: 512, h: 512 }, placements: 0,
       state: 'available', release: 1400,
     },
     {
@@ -234,6 +269,15 @@ export const seaSlots = (c: WorldComposition): WorldSlot[] => {
 /** the painted extent's half-diagonal: the radius a footprint really occupies */
 export const slotRadius = (s: WorldSlot): number =>
   Math.hypot(s.footprint.w, s.footprint.h) / 2
+
+/* THE CENTRE OF THE PAINTING INSIDE ITS OWN CANVAS, in canvas pixels. The scene
+ * places a slot by this rather than by half the canvas, which is the difference
+ * between an island where the chart says it is and an island 62 pixels north of
+ * there. Given a canvas size, because only the scene knows what it loaded. */
+export const paintedCentre = (s: WorldSlot, canvasW: number, canvasH: number): WorldPt =>
+  s.origin
+    ? { x: s.origin.x + s.footprint.w / 2, y: s.origin.y + s.footprint.h / 2 }
+    : { x: canvasW / 2, y: canvasH / 2 }
 
 /** distance from a hull to a slot's painted edge, negative inside the footprint */
 export function distanceTo(s: WorldSlot, p: WorldPt): number {

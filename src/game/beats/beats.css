@@ -69,6 +69,36 @@
 .bt-bucket-on { border-color: #3c6e60; background: linear-gradient(180deg, #dcebdd, #cfe2d0); color: #234c40; }
 .bt-bucket:disabled { cursor: default; }
 
+/* a NUMBER: a typed answer, because dressing it as four buttons turns recall into
+   recognition and those are different things to measure */
+.bt-numrow { display: flex; align-items: baseline; gap: 1.2cqw; }
+.bt-num {
+  width: 22%; font-family: 'Deckhand', monospace; font-size: 3cqw; color: #4a3826;
+  background: rgba(238, 227, 200, .6);
+  border: 2px solid #8a744f; border-radius: 5px; padding: 1cqw 1.4cqw;
+}
+.bt-num:disabled { cursor: default; }
+.bt-unit { font-size: 2.4cqw; color: #6a563c; }
+
+/* THE DRIVE, and it is drawn from rounds correct and from nothing else. There is
+   no clock behind this bar and no transition timed to one: it steps when an item
+   is answered. See showdown.ts for why that is a rule and not a shortcut. */
+.bt-drive {
+  position: relative; height: 3.2cqw;
+  background: rgba(238, 227, 200, .5);
+  border: 2px solid #8a744f; border-radius: 5px; overflow: hidden;
+  display: flex; align-items: center;
+}
+.bt-driveline {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  background: linear-gradient(180deg, #dcebdd, #b6d6bd);
+  transition: width 200ms ease;
+}
+.bt-driveyards {
+  position: relative; padding-left: 1.4cqw;
+  font-family: 'Harbormaster', 'Deckhand', monospace; font-size: 2.1cqw; color: #4a3826;
+}
+
 .bt-go {
   align-self: flex-start;
   font-family: 'Deckhand', monospace; font-size: 2.2cqw; color: #4a3826;
