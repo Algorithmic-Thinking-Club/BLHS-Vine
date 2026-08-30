@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { hasFlag, loadSave, setFlag, type FrozenRun, type SaveGame } from '../save'
 import { cordsOf, letterOf, rankName } from '../progress'
 import { artifactText, diplomaOf, sealRun } from './diploma'
@@ -49,16 +49,23 @@ export function Graduation({ onClose }: { onClose: () => void }) {
    * page. The teacher is then holding two codes for one student in front of a
    * class and the only reading available to them is that the student made one up.
    *
-   * Sealed in a lazy initialiser so it happens ONCE PER MOUNT rather than on
-   * every render: `sealRun` writes the save, a write emits, and an emit
-   * re-renders whatever mounted this. And only when the run is really graduated,
-   * because a preview opened early would otherwise freeze an unfinished run
-   * forever. */
+   * READ IN A LAZY INITIALISER, WRITTEN IN AN EFFECT, and the split is the whole
+   * point. A lazy initialiser runs DURING this component's render, and `sealRun`
+   * writes the save, and a write emits, and the emit set state on the Hud that
+   * mounted this: React said so out loud, "Cannot update a component (Hud) while
+   * rendering a different component (Graduation)", on every graduation in the
+   * wave-2 proof. `diplomaOf` is the pure half and answers the same code off the
+   * same transcript, so the page renders from it and the freeze happens after
+   * the commit, once, and only when the run is really graduated. A preview
+   * opened early must never freeze an unfinished run. */
   const [sealed] = useState<FrozenRun | null>(() => {
     const cur = loadSave()
-    if (!cur) return null
-    return cur.graduated ? sealRun(cur) : diplomaOf(cur)
+    return cur ? diplomaOf(cur) : null
   })
+  useEffect(() => {
+    const cur = loadSave()
+    if (cur?.graduated) sealRun(cur)     // idempotent: a sealed run returns its own record
+  }, [])
 
   const earned = useMemo(() => (s ? cordsOf(s).filter((c) => c.earned) : []), [s])
   const missed = useMemo(() => {

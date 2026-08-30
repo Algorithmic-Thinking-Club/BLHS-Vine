@@ -478,9 +478,22 @@ export function recordGrade(e: LedgerEntry) {
     const was = ledger[i]
     const attempts = (was.attempts ?? 1) + 1
     const firstGrade = was.firstGrade ?? was.grade
+    /* A RETAKE IS SPENT BY BEING TAKEN, NOT BY WORKING.
+     *
+     * `retaken: true` only ever went on the improving branch, and
+     * `retakeAvailable` is `grade < B- && !retaken`. So a student who ran it
+     * back and did the same or worse still had a grade under a B- and still had
+     * no `retaken` flag, and was offered the retake again. And again. The
+     * Universal Retake Policy is ONCE (docs/blhs/sourced-facts.md), and the one
+     * student it was unlimited for is the one it says the least kind thing
+     * about: the one who keeps failing it. Best-of-two is unchanged; what
+     * carries now is the fact that the second attempt happened. */
     ledger[i] = e.grade > was.grade
       ? { ...e, retaken: true, attempts, firstGrade }
-      : { ...was, attempts, firstGrade }
+      /* the flag is ADDED, never written as false: a row that has not been
+       * retaken has no `retaken` key at all, and stamping one in changes the
+       * shape of every ledger row a second write ever touched */
+      : { ...was, ...(was.retaken || e.retaken ? { retaken: true } : {}), attempts, firstGrade }
   } else {
     ledger.push({ ...e, attempts: 1, firstGrade: e.grade })
   }

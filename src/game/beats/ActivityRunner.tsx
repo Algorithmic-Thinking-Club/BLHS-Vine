@@ -12,6 +12,7 @@ import { collectFact, loadSave, recordGrade } from '../save'
 import { cordsOf, letterOf, newlyCloseCords } from '../progress'
 import { factById } from '../facts'
 import { track } from '../telemetry'
+import { usePanel } from '../ui/a11y'
 import './beats.css'
 
 // THE ACTIVITY RUNNER — the vine's woven-check chassis (§6.7 baseline), playing any
@@ -115,11 +116,33 @@ export function CoreBeatRunner(
     setPhase('retake')
   }
 
+  /* THE ONE PANEL IN THE KIT THAT WAS NOT A PANEL.
+   *
+   * Six surfaces use `usePanel` and this one did not, which is why the wave-2
+   * proof could not get rid of it: it clicked `.bt-close` and `.bt-veil`, and
+   * neither was ever a dismiss, so the planner opened UNDERNEATH the quiz and
+   * the capture named "10-planner" is a picture of the quiz. That is the
+   * screenshot defect. Underneath it were three real ones: Tab walked out of a
+   * graded frame into the HUD behind it, a screen reader was never told the
+   * frame was there, and `panelDepth()` read zero, so the place card believed
+   * the world was quiet and could talk over a scored item.
+   *
+   * `closeOnEscape` is false while the items are up and true once the result is
+   * on screen, which is the distinction `a11y.ts` wrote the option for: "a panel
+   * that is not dismissible (a graded frame mid-run)". A student cannot escape
+   * out of a score; they can leave the card that reports it. */
+  const scoring = phase === 'play' || phase === 'retake'
+  const panel = usePanel({
+    label: `${beat.title} · ${scoring ? 'activity' : 'result'}`,
+    onClose,
+    closeOnEscape: !scoring,
+  })
+
   if (!save) return null
 
   return (
     <div className="bt-veil">
-      <div className={arm === 'plain' ? 'bt-plain' : 'bt-stage'}>
+      <div {...panel} className={arm === 'plain' ? 'bt-plain' : 'bt-stage'}>
         {(phase === 'play' || phase === 'retake') && (arm === 'plain'
           ? <PlainForm beat={beat} checksOnly={phase === 'retake'} attempt={attempt.current} arm={arm} onDone={finish} />
           : <GamePlay beat={beat} checksOnly={phase === 'retake'} attempt={attempt.current} arm={arm} world={world} onDone={finish} />)}

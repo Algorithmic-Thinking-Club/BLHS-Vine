@@ -74,6 +74,25 @@ describe('the ledger + retake policy (§8.1)', () => {
     expect(e.retaken).toBe(true)
     expect(retakeAvailable(save.loadSave()!, 'core:y1')).toBe(false)
   })
+  /* THE HOLE THE SKEPTIC PASS FOUND. `retaken` only ever went on the improving
+   * branch, so a retake that did the same or worse left the row under the B-
+   * line with no flag on it, and the policy that says ONCE offered it again
+   * every time. Unlimited, and only for the student who keeps failing. */
+  it('a retake that does NOT improve is still spent', async () => {
+    const save = await freshSave()
+    const { retakeAvailable } = await import('./score')
+    save.beginAdventure()
+    save.recordGrade({ id: 'core:y1', title: CORE_Y1.title, kind: 'core', credit: 0.5, grade: 1.71, year: 1, season: 'Fall' })
+    expect(retakeAvailable(save.loadSave()!, 'core:y1')).toBe(true)
+    // ran it back and did worse: the kept grade is still the better one...
+    save.recordGrade({ id: 'core:y1', title: CORE_Y1.title, kind: 'core', credit: 0.5, grade: 1.14, year: 1, season: 'Fall', retaken: true })
+    const e = save.loadSave()!.ledger.find((x) => x.id === 'core:y1')!
+    expect(e.grade).toBe(1.71)
+    expect(e.attempts).toBe(2)
+    // ...and the second chance is gone, because it was taken
+    expect(e.retaken).toBe(true)
+    expect(retakeAvailable(save.loadSave()!, 'core:y1')).toBe(false)
+  })
   it('a passing grade never offers the retake', async () => {
     const save = await freshSave()
     const { retakeAvailable } = await import('./score')
