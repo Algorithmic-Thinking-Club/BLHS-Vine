@@ -185,6 +185,27 @@ check('exactly one dialogue box is on screen during the script',
 await settled()                                   // let the typewriter finish drawing it
 check('and the line on it is the script, not the year vignette',
   await line(), (t) => /made it inside|Maw|chart table/.test(t))
+/* REPORTED, NOT CHECKED, and the difference is the point.
+ *
+ * The eyes round of 2026-08-30 read this shot as the body cut off at the waist
+ * by the dialogue box. Measured: at the `close` framing the shot is pointed at
+ * the principal's desk (map y 304) while the body is still on the bridge (map y
+ * 438), which at 1.9x is 300 screen pixels below the thing being framed, and the
+ * camera clamp will not lift the painting past its own bottom edge to fetch him.
+ *
+ * That is not the follow law losing to the conversation, which is what the brief
+ * ordered fixed and what every non-cutscene shot now clears by 87px or more. It
+ * is an AUTHORED SHOT: `cameraSet` was told to look at the desk. Whether a
+ * script may point somewhere the painting cannot fill is Ash's call and the
+ * anchor already carries a `framings` bag to answer it with, so the number is
+ * printed here every run rather than silently passing or silently failing. */
+{
+  const s = await json('__sea')
+  const boxTop = await page.$eval('.cs-dialogue', (e) => Math.round(e.getBoundingClientRect().top))
+  const clear = boxTop - s.you.y
+  console.log(`  NOTE  the script's own shot: body feet at y${s.you.y}, box top at y${boxTop}`
+    + ` (${clear >= 0 ? `${clear}px clear` : `${-clear}px BEHIND the box`}), camera on the desk at zoom ${s.zoom}`)
+}
 await shot('5-cutscene')
 
 // click the script through its lines; the gate at the end hands control back
