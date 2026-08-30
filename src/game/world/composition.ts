@@ -242,7 +242,24 @@ export async function loadComposition(url = '/world/composition.json'): Promise<
       const r = await fetch(url)
       if (r.ok && (r.headers.get('content-type') || '').includes('json')) {
         const j = (await r.json()) as WorldComposition
-        if (Array.isArray(j?.slots)) { cached = j; return j }
+        /* THE DOCUMENT IS CHECKED BEFORE IT IS TRUSTED, which is what
+         * `compositionFaults` was written for and what nothing was doing with
+         * it: its only caller was its own test. So the one document in the game
+         * that is fetched from somewhere else, and can change without a commit
+         * in this repo, was the one document nobody validated.
+         * `Array.isArray(slots)` is not a check, it is a shape guard: a map
+         * placed twice, a rumour that holds a map, a footprint of zero all
+         * passed it and then broke the water quietly.
+         *
+         * A faulty document falls back to FALLBACK rather than half-loading, and
+         * it names the slot and the reason, because "the world looks wrong" is
+         * not something a teacher or a member can act on. */
+        if (Array.isArray(j?.slots)) {
+          const faults = compositionFaults(j)
+          if (faults.length === 0) { cached = j; return j }
+          console.warn(`[world] ${url} refused, ${faults.length} fault${faults.length > 1 ? 's' : ''}:\n`
+            + faults.map((f) => `  ${f.key}: ${f.why}`).join('\n'))
+        }
       }
     } catch { /* the fallback is the point */ }
     cached = FALLBACK

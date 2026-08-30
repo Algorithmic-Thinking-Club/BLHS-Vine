@@ -32,6 +32,18 @@ describe('the world composition', () => {
     expect(compositionFaults(FALLBACK, known)).toEqual([])
   })
 
+  /* THE DOCUMENT THAT IS ACTUALLY SERVED, not only the constant beside it.
+   * `loadComposition` refuses a faulty document and falls back now, so a
+   * composition.json that broke its own rules would quietly stop being the world
+   * the student sails and nothing on screen would say which slot did it. This is
+   * where that gets caught, at the commit rather than at the render. */
+  it('the shipped public/world/composition.json passes the same rules', async () => {
+    const { readFileSync } = await import('node:fs')
+    const doc = JSON.parse(readFileSync('public/world/composition.json', 'utf8')) as WorldComposition
+    const known = new Set(PLACES.map((p) => p.id))
+    expect(compositionFaults(doc, known)).toEqual([])
+  })
+
   it('carries all seven states in the vocabulary', () => {
     expect(SLOT_STATES).toHaveLength(7)
     expect(SLOT_STATES).toContain('rumour')

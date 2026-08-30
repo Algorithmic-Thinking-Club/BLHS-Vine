@@ -20,8 +20,21 @@ const logger = new Logger({
   sessionId: Math.random().toString(36).slice(2, 10),
   participantId: anonId('blhs_anon_id'),
   mode: 'game',
-  // production drains into the study database; dev keeps the offline queue local
-  endpoint: import.meta.env?.VITE_LOG_ENDPOINT ?? (import.meta.env?.PROD ? '/api/log' : undefined),
+  /* THE DRAIN IS THE SAME ONE IN BOTH, and it was not.
+   *
+   * This read `PROD ? '/api/log' : undefined`, so under `npm run dev` every
+   * event in the game piled up in localStorage and never touched a server. Which
+   * meant the one measure the study rests on, time on task, could be verified in
+   * production and nowhere else: a beat that never leaves the tab cannot be
+   * proved to come back out of `api/_dose.ts` as a duration, and the brief asked
+   * for exactly that proof.
+   *
+   * `/api/log` is real in dev. `vite.config.ts`'s dev bridge mounts every
+   * `api/*.ts` handler on the dev server and, with no DATABASE_URL, points them
+   * at a gitignored JSON file. Nothing about production changes. A build served
+   * without an API answers 404, the batch stays queued and retries, which is the
+   * offline path the logger was written around anyway. */
+  endpoint: import.meta.env?.VITE_LOG_ENDPOINT ?? '/api/log',
 })
 
 function syncIdentity() {
