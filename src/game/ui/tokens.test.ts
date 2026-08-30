@@ -98,8 +98,15 @@ describe('the tokens are extracted, not invented', () => {
     ['kit-alarm', '#a3492c', 'settings.css .st-dangerhead'],
     ['kit-caption-ink', '#f2e8d2', 'ui-kit.css .cs-caption'],
     ['kit-focus', '#ffd98a', 'dialogue.css .dlg-choice:focus-visible'],
-    ['kit-veil', 'rgba(5, 12, 15, .5)', 'hud.css .hb-veil'],
-    ['kit-veil-pause', 'rgba(6, 12, 16, .35)', 'hud.css .pz-veil'],
+    /* THE THREE VEILS ARE THE ONLY EXTRACTED VALUES THAT HAVE MOVED, and they
+     * moved on an order: the fresh-eyes round of 2026-08-30 read a fullscreen
+     * panel over a half-visible world as text-over-text and failed the surface.
+     * They are pinned again at the new numbers, because the reason this list
+     * exists is that a colour cannot change without somebody saying so, not that
+     * a colour can never change. */
+    ['kit-veil', 'rgba(5, 12, 15, .82)', 'hud.css .hb-veil, and now every veil in the kit'],
+    ['kit-veil-soft', 'rgba(5, 12, 15, .74)', 'settings.css .st-veil'],
+    ['kit-veil-pause', 'rgba(6, 12, 16, .58)', 'hud.css .pz-veil'],
     ['kit-drop-lg', '0 12px 30px rgba(2, 8, 10, .65)', 'hud.css .hb-book'],
     ['kit-wood-sheen', 'rgba(210, 170, 110, .35)', 'hud.css .hud-btn'],
     ['kit-plank-shadow', 'rgba(30, 16, 6, .75)', 'dialogue.css .dlg-choice'],

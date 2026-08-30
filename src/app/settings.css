@@ -21,7 +21,9 @@
   filter: drop-shadow(var(--kit-drop-sm));
   animation: st-in 260ms var(--kit-ease-pop) both;
 }
-@keyframes st-in { from { transform: translateY(12px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+/* no opacity in the entrance: see `hb-in` in game/hud/hud.css for why an opaque
+   panel that fades up reads as a see-through panel. */
+@keyframes st-in { from { transform: translateY(12px) scale(.97); } to { transform: none; } }
 html[data-rm='1'] .st-panel { animation-duration: 1ms; }
 /* the content sits well inside the cream sheet — the frame's rounded corners eat any strip that
    reaches the very top/edges, so the tab row must clear them (was 15%/16%: tabs clipped the wood) */

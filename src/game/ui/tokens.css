@@ -113,10 +113,24 @@
   --kit-alarm-edge: #7c2c1a;
   --kit-alarm-ink: #fff;
 
-  /* ---- what a panel sits on, and what it casts -------------------------- */
-  --kit-veil: rgba(5, 12, 15, .5);
-  --kit-veil-soft: rgba(5, 12, 15, .45);
-  --kit-veil-pause: rgba(6, 12, 16, .35);
+  /* ---- what a panel sits on, and what it casts --------------------------
+   *
+   * THE VEILS WENT UP AFTER THE EYES ROUND, 2026-08-30. They were .5, .45 and
+   * .35, which leaves half the world legible behind a panel that has taken the
+   * whole screen, and the review read the arm-game shot as text-over-text: the
+   * world's own "the Central Island" label competing with the panel's speaker
+   * name for the same pixels. A veil is not a tint, it is the thing that says
+   * the world has stopped for a moment, and at half strength it says neither.
+   * The world is still there, it is just properly dim.
+   *
+   * `tokens.test.ts` pinned the old bytes on purpose, so that the kit becoming a
+   * system could not restyle the game out from under anybody. It pins these
+   * instead, for the same reason, and this comment is why they moved. */
+  --kit-veil: rgba(5, 12, 15, .82);
+  --kit-veil-soft: rgba(5, 12, 15, .74);
+  /* the pause sheet keeps the world PRESENT, because a player who paused has not
+   * left: it is the one veil that is deliberately lighter than the rest */
+  --kit-veil-pause: rgba(6, 12, 16, .58);
   --kit-drop-lg: 0 12px 30px rgba(2, 8, 10, .65);
   --kit-drop-md: 0 10px 26px rgba(2, 8, 10, .6);
   --kit-drop-sm: 0 10px 24px rgba(2, 8, 10, .6);
@@ -307,9 +321,9 @@ html[data-skin='plain'] {
   --kit-alarm-edge: #6b2415;
   --kit-alarm-ink: #ffffff;
 
-  --kit-veil: rgba(20, 22, 24, .55);
-  --kit-veil-soft: rgba(20, 22, 24, .5);
-  --kit-veil-pause: rgba(20, 22, 24, .35);
+  --kit-veil: rgba(20, 22, 24, .86);
+  --kit-veil-soft: rgba(20, 22, 24, .78);
+  --kit-veil-pause: rgba(20, 22, 24, .58);
   --kit-drop-lg: 0 2px 8px rgba(0, 0, 0, .25);
   --kit-drop-md: 0 2px 8px rgba(0, 0, 0, .22);
   --kit-drop-sm: 0 2px 6px rgba(0, 0, 0, .2);

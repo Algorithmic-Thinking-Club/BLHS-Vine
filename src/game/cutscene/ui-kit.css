@@ -40,9 +40,13 @@
   cursor: pointer;
   animation: cs-rise 260ms var(--kit-ease-rise) both;
 }
+/* NO OPACITY. The box's own art is opaque and its first frame used to be
+   transparent, so for 260ms the painting, its labels and the player were all
+   legible through the paper; the eyes round caught it in the wave-1 "after"
+   shot. It rises, which is the entrance, and it is never see-through doing it. */
 @keyframes cs-rise {
-  from { transform: translateX(-50%) translateY(14px); opacity: 0; }
-  to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
+  from { transform: translateX(-50%) translateY(14px); }
+  to   { transform: translateX(-50%) translateY(0); }
 }
 /* the box arrives rather than appears, and reduced motion keeps the arrival and
    drops the travel: an entrance shortens, it does not become a cut */

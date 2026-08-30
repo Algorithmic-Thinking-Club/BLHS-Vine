@@ -68,7 +68,16 @@
   container-type: inline-size;
   animation: hb-in 260ms var(--kit-ease-pop) both;
 }
-@keyframes hb-in { from { transform: translateY(14px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+/* A PANEL ARRIVES, IT DOES NOT FADE UP. This carried `opacity: 0` on its first
+   frame, and the fresh-eyes round caught every proof screenshot mid-entrance: a
+   paper panel at a third of its opacity with the painting, the world's own
+   labels and the player marker all legible straight through it. The art behind
+   these panels is fully opaque (alpha 255 across panel-square.png), so the only
+   thing that was ever see-through was the entrance itself, and §11 asked for a
+   panel that arrives rather than one that dissolves in. Shared by the Handbook,
+   the pause sheet, the planner, the yearbook, the graduation card, the beat
+   stage and the year card, which is why one keyframe answers all seven. */
+@keyframes hb-in { from { transform: translateY(14px) scale(.97); } to { transform: none; } }
 /* the binder still arrives under reduced motion, it just does not travel */
 html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1ms; }
 

@@ -7,9 +7,18 @@
    that is attrition the export cannot tell from an effect. --kit-text-scale is
    the S, M and L setting. */
 
+/* it already read --kit-text-scale and got away with it because another
+   stylesheet happened to pull the token layer in first. Now it says so. */
+@import '../ui/tokens.css';
+
+/* ONE VEIL VALUE FOR THE WHOLE KIT. This spelled its own `rgba(5, 12, 15, .6)`
+   while tokens.css already owned the number for six other panels, so raising the
+   veil after the eyes round would have raised it everywhere except the one
+   surface the review actually failed. `--kit-veil` is the value; this says which
+   material, which is the whole point of the token layer. */
 .bt-veil {
   position: absolute; inset: 0; z-index: 77;
-  background: rgba(5, 12, 15, .6);
+  background: var(--kit-veil);
   display: flex; align-items: center; justify-content: center;
 }
 

@@ -23,7 +23,10 @@
   display: flex; flex-direction: column; align-items: center; gap: 2.5cqw;
   animation: wd-in 260ms var(--kit-ease-pop) both;
 }
-@keyframes wd-in { from { transform: translateY(14px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+/* no opacity in the entrance: an opaque panel that fades up is a see-through
+   panel for a quarter of a second, which is what the eyes round read off the
+   proof shots. The reasoning is written once, at `hb-in` in hud.css. */
+@keyframes wd-in { from { transform: translateY(14px) scale(.97); } to { transform: none; } }
 html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
 
 .wd-head {

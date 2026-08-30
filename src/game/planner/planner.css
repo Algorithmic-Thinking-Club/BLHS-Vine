@@ -8,9 +8,12 @@
    multiplies by --kit-text-scale (src/game/ui/tokens.css), which is what the S, M
    and L buttons move. */
 
+@import '../ui/tokens.css';
+
+/* the veil is the kit's, not this file's: see .bt-veil in beats.css */
 .pl-veil {
   position: absolute; inset: 0; z-index: 76;
-  background: rgba(5, 12, 15, .55);
+  background: var(--kit-veil);
   display: flex; align-items: center; justify-content: center;
 }
 .pl-sheet {
