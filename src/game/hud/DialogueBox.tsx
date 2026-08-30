@@ -41,8 +41,9 @@
  * paints a background onto: a texture token set to `none` and nothing behind it
  * is an invisible dialogue box, and §16's plain arm is exactly that skin.
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { announce } from '../ui/a11y'
+import { bandFromRects, setUiBand } from '../ui/frame'
 import './dialogue.css'
 
 export type DialogueSkin = 'paper'
@@ -81,10 +82,31 @@ export function DialogueBox({
 }) {
   const shownAt = useRef(performance.now())
   const firstChoice = useRef<HTMLButtonElement>(null)
+  const boxEl = useRef<HTMLDivElement>(null)
+  const choicesEl = useRef<HTMLDivElement>(null)
   const asking = !!options?.length
 
   // a new line resets the dead zone, so it is per line rather than per box
   useEffect(() => { shownAt.current = performance.now() }, [line.text])
+
+  /* HOW MUCH OF THE WINDOW THE CONVERSATION IS USING, PUBLISHED.
+   *
+   * The eyes round found choice planks drawn on top of the player: the box lays
+   * itself out from the bottom of the window and the camera composes the
+   * painting into the whole window, so nothing stopped them wanting the same
+   * pixels. This box is the only thing that knows how tall the stack really is
+   * (a two-choice question and a four-choice one are 130px apart), so it says,
+   * and `src/game/pmap/PmapScene.tsx` lifts the picture by that much.
+   *
+   * Layout effect, because the number has to be right before the next frame the
+   * ticker draws, and re-measured whenever the stack can have changed height:
+   * a question opening, a question being answered, or the window resizing. */
+  useLayoutEffect(() => {
+    const measure = () => setUiBand('dialogue', bandFromRects([choicesEl.current, boxEl.current]))
+    measure()
+    window.addEventListener('resize', measure)
+    return () => { window.removeEventListener('resize', measure); setUiBand('dialogue', 0) }
+  }, [asking, line.done, options?.length, line.portrait])
 
   /* focus lands on the first choice when the question finishes typing, and only
    * then: moving focus mid-line would let a fast keyboard answer a question whose
@@ -133,7 +155,7 @@ export function DialogueBox({
           three buttons would stretch the picture. §11.1 wants them fanned like
           held cards anyway, which is a thing you do beside a box, not in one. */}
       {asking && line.done && (
-        <div className="dlg-choices" role="group" aria-label="Choices" onClick={(e) => e.stopPropagation()}>
+        <div ref={choicesEl} className="dlg-choices" role="group" aria-label="Choices" onClick={(e) => e.stopPropagation()}>
           {options!.map((o, i) => (
             <button
               key={o + i}
@@ -148,6 +170,7 @@ export function DialogueBox({
       )}
 
       <div
+        ref={boxEl}
         className={`cs-dialogue dlg-box kit-surface-dialogue${line.portrait ? ' has-portrait' : ''}`}
         data-skin={skin}
         role={asking ? 'group' : 'button'}

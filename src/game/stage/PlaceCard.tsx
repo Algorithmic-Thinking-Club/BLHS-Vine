@@ -13,6 +13,7 @@
  */
 import { useEffect, useState } from 'react'
 import { onPlaceCard, type PlaceCardRequest } from './stage-bus'
+import { transitionBusy } from '../../app/transitions'
 import { panelDepth } from '../ui/a11y'
 import { prefersReducedMotion } from '../ui/motion'
 import './placecard.css'
@@ -32,15 +33,36 @@ export function PlaceCard() {
      * control, and the same is true in reverse: dropping the card entirely takes
      * away the only place a student is told where they are. */
     const dwell = prefersReducedMotion() ? DWELL_MS * 0.6 : DWELL_MS
-    const a = window.setTimeout(() => setLeaving(true), dwell)
-    const b = window.setTimeout(() => setCard(null), dwell + 700)
+    /* THE CLOCK STARTS WHEN THE CARD CAN BE SEEN, NOT WHEN IT IS ASKED FOR.
+     *
+     * A door swap fires this from under a full-screen cover: `PmapScene` names
+     * the map the instant the bundle is up, and the cover is still on screen for
+     * seconds after that. So most of a 3.2 second dwell was spent behind an
+     * opaque rectangle and the card was already leaving when the player could
+     * first look at it. Measured on the Maw: gone 1.4s after the cover lifted.
+     * That is what "6-placecard shows no card" was telling us. */
+    let a = 0, b = 0
+    const begin = () => {
+      a = window.setTimeout(() => setLeaving(true), dwell)
+      b = window.setTimeout(() => setCard(null), dwell + 700)
+    }
+    let held = 0
+    if (transitionBusy()) held = window.setInterval(() => {
+      if (transitionBusy()) return
+      window.clearInterval(held); held = 0; begin()
+    }, 100)
+    else begin()
     /* AND IT GETS OUT OF THE WAY OF A PANEL OPENED WHILE IT IS UP. A panel does
      * not re-render this component, so the check at the top of the render only
      * catches a card that arrives second. A student who opens the chart in the
      * four seconds after arriving is the case that actually happens, and it had a
      * name plaque across the bottom of the page with no way to move it. */
     const watch = window.setInterval(() => { if (panelDepth() > 0) setCard(null) }, 200)
-    return () => { window.clearTimeout(a); window.clearTimeout(b); window.clearInterval(watch) }
+    return () => {
+      window.clearTimeout(a); window.clearTimeout(b)
+      window.clearInterval(watch)
+      if (held) window.clearInterval(held)
+    }
   }, [card])
 
   /* A CARD DOES NOT TALK OVER A PANEL. It is the one surface in the game with no

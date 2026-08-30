@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { setFlag } from '../save'
+import { bandFromRects, setUiBand } from '../ui/frame'
 import { VIGNETTES } from './vignettes'
 import './run.css'
 
@@ -11,13 +12,25 @@ import './run.css'
 export function YearStart({ year, onDone }: { year: number; onDone: () => void }) {
   const lines = VIGNETTES[year] ?? VIGNETTES[1]
   const [i, setI] = useState(0)
+  const cardEl = useRef<HTMLDivElement>(null)
   const next = () => {
     if (i + 1 >= lines.length) { setFlag(`vignette:y${year}`); onDone() }
     else setI(i + 1)
   }
+  /* THIS CARD IS ALONG THE BOTTOM OF THE WINDOW TOO, so it says how tall it is
+   * for the same reason the dialogue box does (src/game/ui/frame.ts). It lands
+   * in the same second as a map arrival, so before this the arrival card was
+   * drawn entirely behind it and the camera composed the body into it: on the
+   * Maw the year's first line covered the place card every single time. */
+  useLayoutEffect(() => {
+    const measure = () => setUiBand('yearstart', bandFromRects([cardEl.current]))
+    measure()
+    window.addEventListener('resize', measure)
+    return () => { window.removeEventListener('resize', measure); setUiBand('yearstart', 0) }
+  }, [i])
   return (
     <div className="ys-wrap" onClick={next}>
-      <div className="ys-card">
+      <div ref={cardEl} className="ys-card">
         <div className="ys-speaker">Principal Panther · Year {year}</div>
         <div className="ys-text">{lines[i]}</div>
         <div className="ys-cue">🐾</div>

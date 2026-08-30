@@ -2,10 +2,20 @@
    surface in this game is made of, and it sits low so it never covers the thing a
    player just walked into. It cannot be clicked because it is not a control. */
 
+/* IT SITS ABOVE WHATEVER IS TALKING, and 12% was not that.
+   The card is drawn under the dialogue box on purpose (z-index 68 against the
+   box's 72: an arrival never covers a line), and it was ALSO positioned inside
+   the box's own band, so a card that arrived while anybody was speaking was
+   hidden completely. That is exactly what happened on every arrival on the Maw,
+   because the year's opening line lands in the same second the card does, and
+   the wave-2 capture named "6-placecard" was a picture with no card in it.
+   `--ui-band` is how tall the conversation currently is, published by
+   src/game/ui/frame.ts and read by the camera through the same value, so the
+   card, the camera and the box agree on one number instead of three. */
 .pc-root {
   position: fixed;
   left: 50%;
-  bottom: 12%;
+  bottom: max(12%, calc(var(--ui-band, 0px) + 2.2vh));
   transform: translateX(-50%);
   z-index: 68;                 /* under the dialogue box (72) and every panel */
   pointer-events: none;
@@ -15,8 +25,11 @@
 .pc-card {
   padding: 1.1rem 2.4rem 1.25rem;
   text-align: center;
-  background:
-    linear-gradient(180deg, rgba(244, 232, 205, 0.94), rgba(226, 209, 174, 0.94));
+  /* paper, and OPAQUE paper. It was .94, which is enough for a bridge or a
+     coastline to read straight through the plaque naming the place you have just
+     walked into, and that is the same defect the fullscreen panels were failing
+     the eyes round on, one surface smaller. */
+  background: linear-gradient(180deg, #f4e8cd, #e2d1ae);
   border: 2px solid rgba(58, 36, 16, 0.85);
   border-radius: 3px;
   box-shadow:
@@ -44,9 +57,12 @@
 .pc-in .pc-card { animation: pc-rise 620ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 .pc-out .pc-card { animation: pc-fall 640ms ease-in both; }
 
+/* the arrival carries no opacity, so the card is never a translucent plaque with
+   the world reading through it; the departure keeps its fade, because a thing
+   that is leaving is allowed to thin out. Same reasoning as `hb-in` in hud.css. */
 @keyframes pc-rise {
-  from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { transform: translateY(14px); }
+  to { transform: translateY(0); }
 }
 
 @keyframes pc-fall {

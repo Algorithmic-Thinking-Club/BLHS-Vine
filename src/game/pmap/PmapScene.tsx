@@ -65,6 +65,7 @@ import { cover } from '../../app/transitions'
 import { coverFor, markSeen, seenThisSession, titleOfMap } from '../stage/covers'
 import { showPlaceCard } from '../stage/stage-bus'
 import { motionMs, prefersReducedMotion } from '../ui/motion'
+import { uiBand } from '../ui/frame'
 import { composeWorldText, WORLD_TEXT } from '../ui/worldText'
 import { MAW_MAP, isObjective, nextObjective } from '../run/objective'
 import { missingAnchors } from '../maw/stations'
@@ -1892,20 +1893,25 @@ export default function PmapScene() {
         return d
       }
 
-      /* what the composition says is worth holding in memory from here, logged on
-       * a change rather than per frame. §80.2's island-twelve failure is a class of
-       * machines getting slower with no commit to blame, so the moment residency
-       * changes is a line in the export. */
-      let residentKey = ''
-      const checkResidency = (px: number, py: number) => {
-        if (!comp) return
-        const held = new Set(residentKey ? residentKey.split(',') : [])
-        const res = residentSlots(comp, toSea(px, py), held)
-        const key = res.map((s) => s.map).join(',')
-        if (key === residentKey) return
-        residentKey = key
-        engine.log('residency_changed', { map: mapId, resident: res.map((s) => s.map) })
-      }
+      /* WHAT THE COMPOSITION SAYS IS WORTH HOLDING IN MEMORY FROM HERE, and it is
+       * an ANSWER rather than an EVENT until something loads on it.
+       *
+       * This ran every frame the hull moved and wrote `residency_changed` into
+       * the study export on every crossing, and nothing anywhere loaded or
+       * unloaded a byte because of it: the scene holds exactly one painting and
+       * every other slot on the water is a mark and a label. A line in a minors'
+       * activity database saying memory changed, when memory did not, is a
+       * finding the skeptic pass was right to call load-bearing, so the log is
+       * gone and the arithmetic stays.
+       *
+       * `residentSlots` and its measured budget (src/game/world/composition.ts)
+       * are unchanged and still tested. The day the ocean draws a neighbour's
+       * painting rather than its name, THAT loader is what calls this, and the
+       * event becomes true the moment there is something for it to be true
+       * about. Read on demand below so a proof run can still ask the
+       * composition what it thinks without the scene claiming it acted on it. */
+      const residentNow = (px: number, py: number): string[] =>
+        comp ? residentSlots(comp, toSea(px, py)).map((s) => s.map!).filter(Boolean) : []
 
       /* ---- THE SEVEN STATES, DRAWN ----
        *
@@ -2696,12 +2702,40 @@ export default function PmapScene() {
        * exactly wrong for a hull that has left it, and the difference is one
        * boolean rather than a second camera. */
       let camFree = false
+      /* THE FRAME IS THE WINDOW MINUS WHAT THE CONVERSATION OWNS.
+       *
+       * The eyes round called the centre strip contested, and it was: the
+       * dialogue box and its choices lay themselves out from the bottom of the
+       * window upward, this composed the painting into the whole window, and
+       * neither knew the other existed, so a choice plank and the body were
+       * drawn on the same pixels. `src/game/ui/frame.ts` is the one number
+       * between them: the box measures itself and this lifts the picture by
+       * exactly that much, eased by the follow law's own smoothing rather than
+       * by a second animation. A conversation that closes gives it back.
+       *
+       * Half the window is the ceiling. A stack of choices tall enough to eat
+       * the frame would be a worse bug than the one this fixes, and it would be
+       * silent. */
+      const freeH = (vh: number) => vh - Math.min(uiBand(), vh * 0.5)
+      /* the painting's own edges are the fence: it may sit anywhere inside the
+       * window that shows no void, which is a slide when it is bigger than the
+       * view and a slot when it is smaller. One expression for both, because two
+       * branches is how the small case became "centred, forever, wherever he
+       * walked to". */
+      const fence = (want: number, span: number, view: number) => {
+        const slack = view - span
+        return slack >= 0 ? Math.min(slack, Math.max(0, want)) : Math.min(0, Math.max(slack, want))
+      }
       const camTo = (cx: number, cy: number, snap = false) => {
         const vw = app.screen.width, vh = app.screen.height
+        const fh = freeH(vh)
         const tx = camFree ? vw / 2 - cx * camZ
           : W * camZ <= vw ? (vw - W * camZ) / 2 : Math.min(0, Math.max(vw - W * camZ, vw / 2 - cx * camZ))
-        const ty = camFree ? vh / 2 - cy * camZ
-          : H * camZ <= vh ? (vh - H * camZ) / 2 : Math.min(0, Math.max(vh - H * camZ, vh / 2 - cy * camZ))
+        /* vertically the picture is centred in the FREE frame and fenced against
+         * the WINDOW, so it is allowed to run on under the box (where the box is
+         * covering it) and is never pulled off its own bottom edge to do it */
+        const ty = camFree ? fh / 2 - cy * camZ
+          : H * camZ <= fh ? (fh - H * camZ) / 2 : fence(fh / 2 - cy * camZ, H * camZ, vh)
         if (snap) { world.x = tx; world.y = ty }
         else { world.x += (tx - world.x) * 0.09; world.y += (ty - world.y) * 0.09 }
       }
@@ -2896,8 +2930,19 @@ export default function PmapScene() {
         zoom: +(camZ / Z).toFixed(3),
         want: +(camZWant / Z).toFixed(3),
         free: camFree,
+        /* how much of the window the conversation has taken, and WHERE THE BODY
+         * ENDED UP ON SCREEN because of it. The eyes round failed the centre
+         * strip off a picture; these two are the same failure in a form a proof
+         * run can assert, so it cannot come back silently. `you` is in window
+         * pixels, at his feet, with the height of the body above it. */
+        band: Math.round(uiBand()),
+        you: {
+          x: Math.round(world.x + pos.x * camZ),
+          y: Math.round(world.y + pos.y * camZ),
+          h: Math.round(charH * camZ),
+        },
         berthing: berthing?.stage ?? null,
-        resident: residentKey,
+        resident: residentNow(hull ? hull.x : pos.x, hull ? hull.y : pos.y),
         seen: [...seenPlaces],
         states: comp ? seaSlots(comp).map((s) => `${s.title}=${stateOf(s, loadSave())}`) : [],
       })
@@ -3091,7 +3136,6 @@ export default function PmapScene() {
           if (comp && hull && t - lastSeaCheck > 0.5) {
             lastSeaCheck = t
             const at = toSea(hull.x, hull.y)
-            checkResidency(hull.x, hull.y)
             for (const s of discoveredSlots(comp, at)) {
               if (!s.place || seenPlaces.has(s.place)) continue
               seenPlaces.add(s.place)
@@ -3127,8 +3171,18 @@ export default function PmapScene() {
          * smoothings in series make every camera move arrive late and soft. The
          * follow law's own easing is untouched for every other frame. */
         if (csCam) {
+          /* THE SCRIPT MOVES THE CAMERA, NOT THE FOLLOW LAW'S MIND.
+           *
+           * This used to write `camZWant` as well, so a script that pushed in to
+           * 1.9 left the follow law wanting 1.9 after it had handed the camera
+           * back. Nothing put it right and nothing said so: the Maw stayed at
+           * the close-up for the rest of the session, which is what made the
+           * player look like he had drifted to the edge of the floor in the
+           * wave-1 proof shots. `camZWant` is the follow law's own desire and
+           * only board, disembark and `zoomTo` may change it, so releasing the
+           * camera now travels back to whatever the body was asking for. */
           const z = Z * (csCam.zoom || 1)
-          if (camZ !== z) { camZ = z; camZWant = z; world.scale.set(camZ); refreshSea() }
+          if (camZ !== z) { camZ = z; world.scale.set(camZ); refreshSea() }
           camTo(csCam.x, csCam.y, true)
         } else {
           /* THE ZOOM IS A CONSEQUENCE OF THE BODY, travelled rather than set. The
