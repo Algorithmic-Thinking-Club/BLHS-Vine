@@ -58,10 +58,57 @@ const SAVE = {
   stickers: [], facts: [], badges: [], savedAt: Date.now(),
 }
 
+/* ---- THE CLOCK, JOINED BEFORE THE RUN STARTS ------------------------------
+ *
+ * §80.6's dose measure is the study's exposure number and until this wave it
+ * could only be verified in production: `src/game/telemetry.ts` sent nowhere in
+ * dev, so every beat piled up in localStorage and `api/_dose.ts` never saw one.
+ * The endpoint is `/api/log` in both now, and the vite dev bridge answers it out
+ * of a local JSON file, so the whole path is walkable here.
+ *
+ * A beat is only READABLE if it belongs to a participant in a class, because
+ * `readEvents` joins through the roster. So the run joins first, through the
+ * SHIPPED join endpoint, using the class the dev bridge seeds (vite.config.ts:
+ * code DEVDEV, teacher key tk_dev). If a developer has a real DATABASE_URL there
+ * is no seeded class and this leg says so and is skipped rather than failing:
+ * it is a dev-store proof and it should say which store it proved. */
+const DEV_TEACHER_KEY = 'tk_dev'
+const post = async (path, body) => {
+  const r = await fetch(`${base}${path}`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+  })
+  return { status: r.status, body: await r.json().catch(() => null) }
+}
+const handle = `ProofDose${Date.now().toString(36).slice(-5)}`
+let joined = null
+try {
+  const r = await post('/api/join', { code: 'DEVDEV', handle })
+  if (r.status === 200 && r.body?.participantId) joined = r.body
+  else console.log(`  [dose] no seeded dev class (join -> ${r.status}); the heartbeat leg is skipped`)
+} catch (e) {
+  console.log(`  [dose] the api is not answering on this server (${e.message}); the heartbeat leg is skipped`)
+}
+if (joined) SAVE.participantId = joined.participantId
+
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 })
 page.on('pageerror', (e) => { console.log(`  [pageerror] ${e.message}`); failures++ })
-page.on('console', (m) => { if (m.type() === 'error') console.log(`  [console.error] ${m.text()}`) })
+/* "Failed to load resource: 404" is the browser saying a fetch missed and NOT
+ * saying which one, seven times a run, which reads like something is broken. The
+ * URL is the whole of the information, and the one that shows up is the engine
+ * asking the platform for `panther-maw` before it falls back to the local
+ * folder: the stand-in has never been published to MAPVIS, so a 404 there is the
+ * fallback working rather than failing. Anything else gets named. */
+const EXPECTED_404 = /\/api\/v1\/maps\/panther-maw/
+page.on('response', (r) => {
+  if (r.status() < 400 || EXPECTED_404.test(r.url())) return
+  console.log(`  [http ${r.status()}] ${r.url()}`)
+})
+page.on('console', (m) => {
+  if (m.type() !== 'error') return
+  if (/Failed to load resource/.test(m.text())) return    // the response listener says which
+  console.log(`  [console.error] ${m.text()}`)
+})
 /* SEEDED ONCE, NOT ON EVERY LOAD. An init script runs again on every reload, and
  * the run legs below reload on purpose to make a written save visible to a page
  * that caches it. Without this guard the reload put the starting save back and
@@ -73,7 +120,16 @@ await page.addInitScript((s) => {
   }
 }, SAVE)
 
-const shot = (n) => page.screenshot({ path: `${shots}/${tag}-${n}.png` })
+/* A CAPTURE WAITS FOR THE PICTURE TO STOP MOVING. `waitForSelector` returns on
+ * the FIRST frame of a panel's 220-300ms entrance, so this whole set was shot
+ * mid-animation and the fresh-eyes round read it as translucent panels with the
+ * world bleeding through them. The entrances carry no opacity any more
+ * (hud.css `hb-in`), so this is belt and braces; a proof whose pictures are the
+ * gate still has no business photographing a moving panel. */
+const shot = async (n) => {
+  await page.waitForTimeout(360)
+  await page.screenshot({ path: `${shots}/${tag}-${n}.png` })
+}
 const json = (fn, ...a) => page.evaluate(([f, args]) => JSON.parse(window[f](...args)), [fn, a])
 const ready = () => page.waitForFunction(() => window.__sceneReady === true, null, { timeout: 90000 })
 
@@ -202,13 +258,34 @@ await shot('5-cover')
 await page.waitForFunction(() => !document.querySelector('.tr-root'), null, { timeout: 30000 })
 await ready()
 check('and the map behind it really did change', await json('__sea'), (s) => s.map === 'panther-maw')
-/* THE PLACE CARD: fired on entry, once per session per map, taking no input. */
+/* THE PLACE CARD: fired on entry, once per session per map, taking no input.
+ *
+ * THE PICTURE COMES FIRST HERE, and that is the fix rather than a preference.
+ * The card lives 3.2 seconds and then leaves, and it also drops itself the
+ * moment a panel opens (PlaceCard.tsx: it is an announcement, not a queue). The
+ * old order asserted the text, then the aria attributes, then shot, and by then
+ * the year's own card had opened over it: the capture called "6-placecard"
+ * showed no card at all. Shoot the thing while it is on screen, then ask it
+ * questions. */
+await page.waitForSelector('.pc-root', { timeout: 10000 })
+await shot('6-placecard')
 const card = await page.textContent('.pc-name').catch(() => '')
 check('the arrival card said where this is, and never a slug', card, /Panther/i)
 check('and it is not a control: nothing on it can be clicked or focused',
   await page.$eval('.pc-root', (e) => `${e.getAttribute('aria-hidden')}|${getComputedStyle(e).pointerEvents}`),
   'true|none')
-await shot('6-placecard')
+/* AND IT IS ACTUALLY VISIBLE, which it was not. The card is deliberately UNDER
+ * the dialogue box in the stack and was also positioned inside the box's own
+ * band, so an arrival that landed while anybody was talking was drawn entirely
+ * behind the paper. The year's opening line lands in the same second as the
+ * arrival on every map, so that was every arrival. */
+const cardBox = await page.evaluate(() => {
+  const c = document.querySelector('.pc-root')?.getBoundingClientRect()
+  const d = document.querySelector('.cs-dialogue')?.getBoundingClientRect()
+  return { card: c && { top: Math.round(c.top), bottom: Math.round(c.bottom) }, box: d && { top: Math.round(d.top) } }
+})
+check('and it clears the dialogue box rather than hiding behind it',
+  cardBox, (b) => !!b.card && (!b.box || b.card.bottom <= b.box.top))
 
 // ---------------------------------------------------------------- riders
 console.log('\nriders · fx performs, and refuses what it cannot draw')
@@ -222,7 +299,18 @@ check('the same word, asked for as an INTENT, performs rather than throwing',
 check('and an anchor this map does not carry is refused by name',
   await page.evaluate(() => window.__intent({ kind: 'fx', name: 'spark', anchor: 'nowhere' })
     .then((r) => JSON.stringify(r))), 'no anchor named')
+/* AND THE CAPTURE HAS TO SHOW AN EFFECT PLAYING.
+ *
+ * `__fx` resolves when the effect has FINISHED, which is the contract a station
+ * body needs and is exactly wrong for a photograph: every check above waited for
+ * the spark to end, so the shot called "7-fx" was a picture of a room with no fx
+ * in it. Fired and deliberately not awaited, and the longest thing in the
+ * library is the one that gets photographed: `island_rising` runs 2600ms, so a
+ * frame taken partway through it has a ring on screen to see. */
+await page.evaluate(() => { void window.__fx('island_rising') })
 await shot('7-fx')
+check('an effect is still on screen while it is playing, which is what the shot is of',
+  await page.evaluate(() => window.__fx('island_rising')), 'played')
 
 // ------------------------------------------- 4. one frame, scored in both arms
 console.log('\n4 · one scored frame, run in BOTH arms, from the same authored items')
@@ -238,12 +326,33 @@ const runBeat = async (plain) => {
   return text.replace(/\s+/g, ' ').trim()
 }
 
+/* A GRADED FRAME CANNOT BE DISMISSED, AND THAT IS THE PRODUCT'S ANSWER.
+ *
+ * This clicked `.bt-close` and `.bt-veil` and swallowed the timeout when neither
+ * did anything, because neither has ever been a dismiss: `src/game/ui/a11y.ts`
+ * writes the rule down as "a panel that is not dismissible (a graded frame
+ * mid-run)" and the runner now joins that contract with `closeOnEscape: false`.
+ * So the frame is left the way a student leaves one, by ending the sitting, and
+ * `settle()` is a reload rather than a pretend click. Without this the planner
+ * opened UNDERNEATH the quiz and the capture named "10-planner" was a picture of
+ * the quiz. */
+const settle = async () => {
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await ready()
+}
+
 const game = await runBeat(false)
 check('the game arm mounted a real frame on the painted map', game, (t) => t.length > 40)
+check('and it is a real modal: a screen reader is told, and Tab cannot leave it',
+  await page.$eval('.bt-stage', (e) => `${e.getAttribute('role')}|${e.getAttribute('aria-modal')}`), 'dialog|true')
+check('and Escape does NOT abandon a scored item halfway through',
+  await (async () => {
+    await page.keyboard.press('Escape').catch(() => {})
+    await page.waitForTimeout(200)
+    return page.$('.bt-stage').then((el) => (el ? 'still up' : 'gone'))
+  })(), 'still up')
 await shot('8-arm-game')
-await page.keyboard.press('Escape').catch(() => {})
-await page.evaluate(() => { document.querySelector('.bt-close, .bt-veil')?.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
-await page.waitForFunction(() => !document.querySelector('.bt-stage'), null, { timeout: 10000 }).catch(() => {})
+await settle()
 
 const plain = await runBeat(true)
 check('the control arm mounted the SAME beat as a plain form', plain, (t) => t.length > 40)
@@ -254,8 +363,7 @@ const bothHave = (needle) => game.includes(needle) === plain.includes(needle)
 check('and the two arms carry the same items, which is the whole study',
   String(bothHave(stem)), 'true')
 await shot('9-arm-plain')
-await page.evaluate(() => { document.querySelector('.bt-close, .bt-veil')?.dispatchEvent(new MouseEvent('click', { bubbles: true })) })
-await page.waitForFunction(() => !document.querySelector('.bt-plain'), null, { timeout: 10000 }).catch(() => {})
+await settle()
 
 // ------------------------------------ 5. a year ticks: a planner spend + a beat
 console.log('\n5 · a year ticks: a token spent on the real roster, then the core beat')
@@ -400,6 +508,32 @@ const sealed = await page.evaluate(() => JSON.parse(localStorage.getItem('blhs_s
 check('the run was SEALED at the stage rather than recomputed at render',
   JSON.stringify(sealed ?? null), (t) => t !== 'null' && t.includes('code'))
 await shot('12-diploma')
+
+// ------------------------------- riders · the clock, end to end and not queued
+if (joined) {
+  console.log('\nriders · time on task, from the browser clock to the dose table')
+  /* THE LAST FLUSH. The logger drains on a five-second interval and on pagehide,
+   * and closing a browser is not a pagehide the page gets to act on, so the run
+   * gives it one interval to put the tail of the queue on the wire. */
+  await page.waitForTimeout(6000)
+  const left = await page.evaluate(() => JSON.parse(localStorage.getItem('blhs_log_queue') ?? '[]').length)
+  check('the offline queue really drained rather than piling up locally', String(left), (n) => Number(n) < 10)
+
+  const r = await post('/api/dose', {
+    classId: joined.classId, teacherKey: DEV_TEACHER_KEY, handle: joined.handle ?? handle,
+  })
+  check('the dose read answers for the class this run joined', String(r.status), '200')
+  const d = r.body ?? {}
+  const me = (d.participants ?? [])[0]
+  check('beats written by THIS browser reached the store', String(d.beatRows ?? 0), (n) => Number(n) > 0)
+  check('and the reader folded them into real time on task, not a zero',
+    JSON.stringify(me ?? null), () => !!me && me.onTaskMs > 0)
+  /* THE ID NEVER LEAVES, which is the rule the roster op already holds and the
+   * reason this table can be looked at in front of a class at all. */
+  check('the table names the handle and never the participant id',
+    me ?? {}, (m) => !!m.handle && !JSON.stringify(m).includes(joined.participantId))
+  console.log(`        ${d.beatRows} beats · ${me?.onTaskMinutes ?? 0} min on task · cadence ${d.cadenceMs}ms`)
+}
 
 await browser.close()
 console.log(`\n${failures ? `${failures} FAILED` : 'all checks passed'} — shots in ${shots}/${tag}-*.png\n`)

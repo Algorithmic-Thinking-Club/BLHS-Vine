@@ -49,10 +49,33 @@ const SAVE = {
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 })
 page.on('pageerror', (e) => { console.log(`  [pageerror] ${e.message}`); failures++ })
-page.on('console', (m) => { if (m.type() === 'error') console.log(`  [console.error] ${m.text()}`) })
+/* a 404 is only useful if it says WHICH url. See wave2-proof.mjs for the one
+ * that is expected: the engine asks the platform for a map before it falls back
+ * to the local folder, and the stand-in has never been published there. */
+const EXPECTED_404 = /\/api\/v1\/maps\/panther-maw/
+page.on('response', (r) => {
+  if (r.status() < 400 || EXPECTED_404.test(r.url())) return
+  console.log(`  [http ${r.status()}] ${r.url()}`)
+})
+page.on('console', (m) => {
+  if (m.type() !== 'error') return
+  if (/Failed to load resource/.test(m.text())) return
+  console.log(`  [console.error] ${m.text()}`)
+})
 await page.addInitScript((s) => { localStorage.setItem('blhs_save_v2', JSON.stringify(s)) }, SAVE)
 
-const shot = (n) => page.screenshot({ path: `${shots}/${tag}-${n}.png` })
+/* A CAPTURE WAITS FOR THE PICTURE TO STOP MOVING.
+ *
+ * Every panel in the kit arrives with a 220-300ms entrance and `waitForSelector`
+ * returns on the first frame of it, so the wave-1 and wave-2 sets were shot
+ * mid-animation and the fresh-eyes round read half of them as translucent
+ * panels with the world bleeding through. The entrances no longer carry opacity
+ * (hud.css `hb-in`), so this is belt and braces rather than the fix, but a proof
+ * whose pictures ARE the gate has no business photographing a moving panel. */
+const shot = async (n) => {
+  await page.waitForTimeout(360)
+  await page.screenshot({ path: `${shots}/${tag}-${n}.png` })
+}
 const line = () => page.textContent('.cs-dialogue-text').catch(() => '')
 const settled = () => page.waitForSelector('.cs-continue-hint, .dlg-choice', { timeout: 20000 })
 const json = (fn, ...a) => page.evaluate(([f, args]) => JSON.parse(window[f](...args)), [fn, a])
@@ -93,6 +116,25 @@ for (let i = 0; i < 8; i++) {
 const options = await page.$$eval('.dlg-choice', (b) => b.map((x) => x.textContent.trim()))
 check('choose rendered every option as a real button', options.join(' | '), 'Show me the board')
 check('and printed the number key beside it, so a keyboard can answer too', options.join(' | '), /1.*Show me/)
+
+/* THE CONTESTED CENTRE STRIP, AS AN ASSERTION RATHER THAN AS A PICTURE.
+ *
+ * The eyes round failed this shot because the two choice planks were drawn
+ * straight over the player and over the neck of the room. Nothing in the code
+ * connected the two: the conversation lays itself out from the bottom of the
+ * window upward and the camera composed the painting into the whole window.
+ * `src/game/ui/frame.ts` is the number between them now, so the check is that
+ * the body really did come out from behind the buttons. */
+const band = await page.$eval('.dlg-choices', (e) => {
+  const r = e.getBoundingClientRect()
+  return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right) }
+})
+const you = (await json('__sea')).you
+check('the camera knows how much of the window the conversation has taken',
+  await json('__sea'), (s) => s.band > 100)
+check('so the player is clear of the choice planks rather than behind them',
+  JSON.stringify({ you, band }),
+  () => you.y < band.top || you.y - you.h > band.bottom || you.x < band.left || you.x > band.right)
 await shot('3-choose')
 await page.click('.dlg-choice:nth-child(2)')            // "Not now": no panel, back to the world
 await page.waitForFunction(() => !document.querySelector('.dlg-choice'), null, { timeout: 10000 })
@@ -156,6 +198,15 @@ for (let i = 0; i < 14; i++) {
 await page.waitForFunction(() => JSON.parse(window.__cs()).running === false, null, { timeout: 30000 })
 const after = await json('__cs')
 check('the script finished and gave the camera back', after, (c) => c.running === false && c.cam === null)
+/* AND GAVE THE ZOOM BACK WITH IT. The cutscene wrote the follow law's own
+ * `camZWant` as well as the live zoom, so a script that pushed in to 1.9 left
+ * the room at 1.9 for the rest of the session with nothing to say so. That is
+ * what made the two shots after this one look like the player had drifted to the
+ * edge of the floor: he had not moved, the camera had. */
+await page.waitForFunction(() => Math.abs(JSON.parse(window.__sea()).zoom - 1) < 0.02, null, { timeout: 10000 })
+  .catch(() => {})
+check('and travelled the zoom back to what the BODY wants, not what the script wanted',
+  await json('__sea'), (s) => Math.abs(s.want - 1) < 0.01 && Math.abs(s.zoom - 1) < 0.02)
 const flag = await page.evaluate(() => JSON.parse(localStorage.getItem('blhs_save_v2')).flags)
 check('and the flag was written from a REAL completion, not from a call that always resolved', flag.join(','), 'maw:founding')
 await shot('6-after')
