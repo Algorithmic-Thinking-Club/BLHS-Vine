@@ -80,12 +80,17 @@
   position: absolute; left: 50%; top: 46%;
   transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center;
-  /* a quiet dark scrim so the lettering never sinks into a bright sky (Ash) */
-  background: rgba(6, 12, 16, .52);
-  border: 1px solid rgba(240, 232, 210, .18);
+  /* A QUIET DARK SCRIM so the lettering never sinks into a bright sky (Ash), and
+     at .52 it was not one. The fresh-eyes round of 2026-08-30 read the cliff, the
+     sun's own glow and the ship's rigging straight through this band, behind the
+     name of the place a student is walking into: the last surface in the game
+     still failing the brief's second item, and it failed it on the widest picture
+     in the set. Opaque enough that nothing reads through, and warm rather than
+     blue, because it sits on a sunset. */
+  background: rgba(16, 11, 9, .93);
+  border: 1px solid rgba(240, 232, 210, .3);
   border-radius: 6px;
   padding: 18px 34px 20px;
-  backdrop-filter: blur(1px);
 }
 .tr-scene-entering {
   font-family: 'Deckhand', monospace;
@@ -119,8 +124,11 @@
   max-width: min(460px, 80vw);
   text-align: center;
   font-family: 'Deckhand', monospace;
-  font-size: 13px; line-height: 1.5;
-  color: rgba(226, 218, 196, .85);
+  /* the one real sentence a student reads on a loading screen, and it was 13px at
+     85 percent over a sunset: measured at about 1.8:1 against the sky it was
+     sitting on, which is unreadable on a classroom projector */
+  font-size: 15px; line-height: 1.55;
+  color: #ede4cd;
   text-shadow: 0 2px 3px rgba(3, 6, 10, .85);
 }
 

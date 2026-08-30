@@ -9,12 +9,13 @@
  * the one that was still up, which drops the picture straight back onto it.
  */
 import { describe, it, expect, beforeEach } from 'vitest'
-import { bandFromRects, setUiBand, uiBand } from './frame'
+import { bandFromRects, setUiBand, setUiBandStacked, uiBand } from './frame'
 
 beforeEach(() => {
   setUiBand('dialogue', 0)
   setUiBand('yearstart', 0)
   setUiBand('other', 0)
+  setUiBandStacked('placecard', 0)
 })
 
 describe('the ui band', () => {
@@ -56,9 +57,22 @@ describe('the ui band', () => {
     expect(uiBand()).toBe(0)
   })
 
-  it('publishes the same number to CSS, which is where the place card reads it', () => {
+  it('publishes the number to CSS, which is where the place card reads it', () => {
     setUiBand('dialogue', 226)
     expect(document.documentElement.style.getPropertyValue('--ui-band')).toBe('226px')
+  })
+
+  /* A SURFACE CANNOT STAND ON ITS OWN SHOULDERS. The place card places itself
+   * from `--ui-band` and also costs the camera, and if its own height went into
+   * the number it reads it would climb the screen one measurement at a time. */
+  it('keeps a stacked claim out of the number it reads, and in the one the camera reads', () => {
+    setUiBand('dialogue', 209)
+    setUiBandStacked('placecard', 330)
+    expect(uiBand()).toBe(330)
+    expect(document.documentElement.style.getPropertyValue('--ui-band')).toBe('209px')
+    setUiBand('dialogue', 0)
+    expect(uiBand()).toBe(330)
+    expect(document.documentElement.style.getPropertyValue('--ui-band')).toBe('0px')
   })
 })
 

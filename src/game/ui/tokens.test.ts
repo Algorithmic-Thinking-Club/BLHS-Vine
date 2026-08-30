@@ -104,9 +104,9 @@ describe('the tokens are extracted, not invented', () => {
      * They are pinned again at the new numbers, because the reason this list
      * exists is that a colour cannot change without somebody saying so, not that
      * a colour can never change. */
-    ['kit-veil', 'rgba(5, 12, 15, .82)', 'hud.css .hb-veil, and now every veil in the kit'],
-    ['kit-veil-soft', 'rgba(5, 12, 15, .74)', 'settings.css .st-veil'],
-    ['kit-veil-pause', 'rgba(6, 12, 16, .58)', 'hud.css .pz-veil'],
+    ['kit-veil', 'rgba(14, 10, 8, .74)', 'hud.css .hb-veil, and now every veil in the kit'],
+    ['kit-veil-soft', 'rgba(14, 10, 8, .66)', 'settings.css .st-veil'],
+    ['kit-veil-pause', 'rgba(16, 11, 8, .52)', 'hud.css .pz-veil'],
     ['kit-drop-lg', '0 12px 30px rgba(2, 8, 10, .65)', 'hud.css .hb-book'],
     ['kit-wood-sheen', 'rgba(210, 170, 110, .35)', 'hud.css .hud-btn'],
     ['kit-plank-shadow', 'rgba(30, 16, 6, .75)', 'dialogue.css .dlg-choice'],

@@ -123,14 +123,23 @@
    * the world has stopped for a moment, and at half strength it says neither.
    * The world is still there, it is just properly dim.
    *
+   * AND THEY ARE WARM, WHICH THE FIRST PASS AT THIS GOT WRONG. Taken to .82 of a
+   * cold blue-black they read as a void with a sign floating in it: the eyes
+   * round came back with "78 to 93 percent of the frame is #050810" and the
+   * TavernWorld reference beside it, where the world stays lit and warm behind
+   * every panel. The island has to still be THERE, dimmed, not deleted. So the
+   * veil is a warm brown-black at .74 rather than a navy one at .82, which is
+   * dark enough that nothing on the water competes with a word on the paper and
+   * light enough that the painting is still a painting behind it.
+   *
    * `tokens.test.ts` pinned the old bytes on purpose, so that the kit becoming a
    * system could not restyle the game out from under anybody. It pins these
    * instead, for the same reason, and this comment is why they moved. */
-  --kit-veil: rgba(5, 12, 15, .82);
-  --kit-veil-soft: rgba(5, 12, 15, .74);
+  --kit-veil: rgba(14, 10, 8, .74);
+  --kit-veil-soft: rgba(14, 10, 8, .66);
   /* the pause sheet keeps the world PRESENT, because a player who paused has not
    * left: it is the one veil that is deliberately lighter than the rest */
-  --kit-veil-pause: rgba(6, 12, 16, .58);
+  --kit-veil-pause: rgba(16, 11, 8, .52);
   --kit-drop-lg: 0 12px 30px rgba(2, 8, 10, .65);
   --kit-drop-md: 0 10px 26px rgba(2, 8, 10, .6);
   --kit-drop-sm: 0 10px 24px rgba(2, 8, 10, .6);
@@ -321,9 +330,9 @@ html[data-skin='plain'] {
   --kit-alarm-edge: #6b2415;
   --kit-alarm-ink: #ffffff;
 
-  --kit-veil: rgba(20, 22, 24, .86);
-  --kit-veil-soft: rgba(20, 22, 24, .78);
-  --kit-veil-pause: rgba(20, 22, 24, .58);
+  --kit-veil: rgba(20, 22, 24, .8);
+  --kit-veil-soft: rgba(20, 22, 24, .72);
+  --kit-veil-pause: rgba(20, 22, 24, .52);
   --kit-drop-lg: 0 2px 8px rgba(0, 0, 0, .25);
   --kit-drop-md: 0 2px 8px rgba(0, 0, 0, .22);
   --kit-drop-sm: 0 2px 6px rgba(0, 0, 0, .2);

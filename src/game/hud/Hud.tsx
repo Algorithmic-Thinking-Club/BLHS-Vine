@@ -16,6 +16,7 @@ import { useNav } from '../../app/SceneManager'
 import { track } from '../telemetry'
 import { onBeatRequest, onUiRequest } from '../ui-bus'
 import { onWorldHold, worldHeld } from '../world-bus'
+import { onStageBusy, placeCardUp } from '../stage/stage-bus'
 import { panelDepth, usePanel } from '../ui/a11y'
 import './hud.css'
 
@@ -70,6 +71,13 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
    * whole reason it counts holds rather than toggling a boolean. */
   const [held, setHeld] = useState(worldHeld)
   useEffect(() => { setHeld(worldHeld()); return onWorldHold(setHeld) }, [])
+  /* AND AN ARRIVAL CARD IS THE WORLD NOT BEING QUIET EITHER. An arrival is what
+   * starts a year, so the card naming the place and the year's opening line fired
+   * on the same instant and shared the bottom of the window with the body behind
+   * both of them, which the eyes round caught on the very shot taken to prove
+   * that had stopped. They take turns now. */
+  const [cardUp, setCardUp] = useState(placeCardUp)
+  useEffect(() => { setCardUp(placeCardUp()); return onStageBusy(() => setCardUp(placeCardUp())) }, [])
   const s = loadSave()
 
   const anyOpen = book !== null || planner || settings || advisory || sitClass !== null
@@ -143,9 +151,10 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   // resolved per render on purpose: Y4's audit beat is GENERATED from the live save
   const yearBeat = s ? coreBeatFor(s.year, s) : null
   const sitClassDef = sitClass ? classById(sitClass) : null
-  // the year-start vignette (§7.5 minute one): once per year, only while the world is quiet
+  // the year-start vignette (§7.5 minute one): once per year, only while the
+  // world is quiet, and an arrival card on screen is the world not being quiet
   const showVignette = !!s?.introDone && !anyOpen && !paused && !held && !s.graduated
-    && !s.flags.includes(`vignette:y${s.year}`)
+    && !cardUp && !s.flags.includes(`vignette:y${s.year}`)
 
   return (
     <>

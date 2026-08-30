@@ -89,9 +89,9 @@
 .gr-veil {
   position: absolute; inset: 0; z-index: 79;
   /* the ceremony's own green light, taken up with the rest of the veils: the
-     centre stop was .55, which left half the world visible behind the one screen
+     centre stop was .55, which left half the world legible behind the one screen
      in the game a student hands to somebody else */
-  background: radial-gradient(ellipse at 50% 30%, rgba(31, 74, 64, .84), rgba(4, 10, 12, .96));
+  background: radial-gradient(ellipse at 50% 30%, rgba(31, 74, 64, .76), rgba(8, 10, 9, .93));
   display: flex; align-items: center; justify-content: center;
 }
 .gr-stage { width: min(680px, 94vw); }

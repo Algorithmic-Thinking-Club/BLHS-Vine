@@ -23,37 +23,56 @@
  * would be a re-render per frame for a number that has not changed.
  */
 
-const claims = new Map<string, number>()
+type Claim = { px: number; stacked: boolean }
+
+const claims = new Map<string, Claim>()
 let band = 0
 
-/** how many pixels along the bottom of the window the conversation owns */
+/** how many pixels along the bottom of the window the conversation owns, for the
+ *  renderer: everything, including whatever is stacked on top of it */
 export const uiBand = (): number => band
 
-function recompute(): void {
+function tallest(only: (c: Claim) => boolean): number {
   let top = 0
-  for (const v of claims.values()) if (v > top) top = v
-  band = top
-  /* AND THE SAME NUMBER IN CSS, because the camera is not the only thing that
-   * has to keep out of the conversation's way. The place card sat at
-   * `bottom: 12%`, which is inside the dialogue box and inside the year card, so
-   * an arrival that landed while anybody was talking was drawn entirely behind
-   * the paper and no student ever saw it. One value, read by the renderer in JS
-   * and by a stylesheet in CSS, rather than two guesses at one measurement. */
+  for (const c of claims.values()) if (only(c) && c.px > top) top = c.px
+  return top
+}
+
+function recompute(): void {
+  band = tallest(() => true)
+  /* AND A NUMBER IN CSS, because the camera is not the only thing that has to
+   * keep out of the conversation's way. The place card sat at `bottom: 12%`,
+   * which is inside the dialogue box and inside the year card, so an arrival
+   * that landed while anybody was talking was drawn entirely behind the paper
+   * and no student ever saw it.
+   *
+   * THE CSS VALUE EXCLUDES THE STACKED CLAIMS, and that is not a detail. A
+   * surface that POSITIONS itself off this number cannot also be counted in it,
+   * or it stands on its own shoulders and climbs the screen one measurement at a
+   * time. So the place card reads the band beneath it and adds its own height to
+   * the band the camera reads. */
   if (typeof document !== 'undefined') {
-    document.documentElement.style.setProperty('--ui-band', `${Math.round(band)}px`)
+    document.documentElement.style.setProperty('--ui-band', `${Math.round(tallest((c) => !c.stacked))}px`)
   }
 }
 
-/** a surface along the bottom of the window says how tall it is. Zero, or an
- *  unmount, releases the claim. */
-export function setUiBand(key: string, px: number): void {
+function claim(key: string, px: number, stacked: boolean): void {
   /* NaN and Infinity come out of a rect measured before layout, and a NaN here
    * would put the camera target at NaN and blank the scene. */
   const v = Number.isFinite(px) && px > 0 ? px : 0
   if (v === 0) claims.delete(key)
-  else claims.set(key, v)
+  else claims.set(key, { px: v, stacked })
   recompute()
 }
+
+/** a surface along the bottom of the window says how tall it is. Zero, or an
+ *  unmount, releases the claim. */
+export const setUiBand = (key: string, px: number): void => claim(key, px, false)
+
+/** the same, for a surface that places itself ABOVE the band (it reads
+ *  `--ui-band` in CSS). It costs the camera exactly as much and it is not part of
+ *  the number it reads. */
+export const setUiBandStacked = (key: string, px: number): void => claim(key, px, true)
 
 /** the top of the tallest thing in a set, as a height above the bottom of the
  *  window, or 0 if none of them has been laid out yet. The measuring half of the

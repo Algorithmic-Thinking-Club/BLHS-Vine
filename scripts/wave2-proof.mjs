@@ -133,6 +133,24 @@ const shot = async (n) => {
 const json = (fn, ...a) => page.evaluate(([f, args]) => JSON.parse(window[f](...args)), [fn, a])
 const ready = () => page.waitForFunction(() => window.__sceneReady === true, null, { timeout: 90000 })
 
+/* NOTHING ALONG THE BOTTOM OF THE WINDOW STANDS ON THE BODY.
+ *
+ * The brief's third item, as an assertion instead of a picture. Every surface
+ * that lays itself out from the bottom edge (the dialogue box, the year's card,
+ * the arrival card, a stack of choices) publishes its height through
+ * src/game/ui/frame.ts and the camera lifts the painting clear of all of them.
+ * This is how that gets checked from outside: whatever is on screen, the player
+ * is above it or beside it and never behind it. */
+const clearOfThePlayer = async (label) => {
+  const you = (await json('__sea')).you
+  const rects = await page.evaluate(() => [...document.querySelectorAll('.pc-root, .dlg-choices, .cs-dialogue, .ys-card')]
+    .map((e) => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right } })
+    .filter((r) => r.bottom > r.top))
+  const behind = rects.filter((r) =>
+    you.x > r.left && you.x < r.right && you.y > r.top && you.y - you.h < r.bottom)
+  check(label, { you, behind: behind.length, rects: rects.length }, (o) => o.behind === 0)
+}
+
 console.log(`\n=== wave 2 · ${tag}: ${base} · hub v${hubV} ===\n`)
 
 // ---------------------------------------------------------------- 1. the world
@@ -152,6 +170,7 @@ check('every slot on the water carries one of the seven states', sea0,
 check('a slot with no map reads as a rumour at a real future position', sea0,
   (s) => s.states.some((x) => x.endsWith('=rumour')))
 check('and the water this painting sits on has a name', sea0, (s) => s.region === 'home_water')
+await clearOfThePlayer('and the arrival card is not standing on him: the camera lifted for it')
 await shot('1-hub')
 
 console.log('\n1b · a leg, sailed on the shipped physics')
@@ -286,6 +305,7 @@ const cardBox = await page.evaluate(() => {
 })
 check('and it clears the dialogue box rather than hiding behind it',
   cardBox, (b) => !!b.card && (!b.box || b.card.bottom <= b.box.top))
+await clearOfThePlayer('and it clears the player as well, rather than trading one collision for another')
 
 // ---------------------------------------------------------------- riders
 console.log('\nriders · fx performs, and refuses what it cannot draw')

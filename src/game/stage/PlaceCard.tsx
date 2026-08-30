@@ -11,10 +11,11 @@
  * ONE SHOWN-ALREADY SET, shared with the cover choice in `covers.ts`, expiring on
  * a real clock. Two sets is how a card fires on a map whose cover was skipped.
  */
-import { useEffect, useState } from 'react'
-import { onPlaceCard, type PlaceCardRequest } from './stage-bus'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { onPlaceCard, setPlaceCardUp, type PlaceCardRequest } from './stage-bus'
 import { transitionBusy } from '../../app/transitions'
 import { panelDepth } from '../ui/a11y'
+import { bandFromRects, setUiBandStacked } from '../ui/frame'
 import { prefersReducedMotion } from '../ui/motion'
 import './placecard.css'
 
@@ -23,8 +24,31 @@ const DWELL_MS = 3200
 export function PlaceCard() {
   const [card, setCard] = useState<PlaceCardRequest | null>(null)
   const [leaving, setLeaving] = useState(false)
+  const el = useRef<HTMLDivElement>(null)
 
   useEffect(() => onPlaceCard((c) => { setCard(c); setLeaving(false) }), [])
+
+  /* THE CARD IS ALONG THE BOTTOM OF THE WINDOW TOO, so it says how tall it is and
+   * the camera lifts the picture clear of it, the same way it does for a line and
+   * for the year's card (src/game/ui/frame.ts). Moving the card above the
+   * dialogue box was only half the job: it then landed on the player instead, and
+   * the fresh-eyes round caught the marker sliced by the card's own top edge on
+   * the very shot taken to prove the fix. */
+  useLayoutEffect(() => {
+    if (!card) { setUiBandStacked('placecard', 0); return }
+    const measure = () => setUiBandStacked('placecard', bandFromRects([el.current]))
+    measure()
+    window.addEventListener('resize', measure)
+    return () => { window.removeEventListener('resize', measure); setUiBandStacked('placecard', 0) }
+  }, [card, leaving])
+
+  /* AND THE YEAR WAITS ITS TURN. An arrival is what starts a year, so the year's
+   * opening line and this card fired on the same instant and shared the bottom of
+   * the window with the body behind both of them. `Hud` reads this. */
+  useEffect(() => {
+    setPlaceCardUp(!!card)
+    return () => setPlaceCardUp(false)
+  }, [card])
 
   useEffect(() => {
     if (!card) return
@@ -77,7 +101,7 @@ export function PlaceCard() {
     /* aria-hidden AND pointer-events none: it is not a control and it is not a
      * thing a screen reader should interrupt a walk to announce, because the
      * same words arrive as a live region from the world's own arrival event */
-    <div className={`pc-root ${leaving ? 'pc-out' : 'pc-in'}`} aria-hidden="true">
+    <div ref={el} className={`pc-root ${leaving ? 'pc-out' : 'pc-in'}`} aria-hidden="true">
       <div className="pc-card">
         <div className="pc-name">{card.title}</div>
         {card.line ? <div className="pc-line">{card.line}</div> : null}
