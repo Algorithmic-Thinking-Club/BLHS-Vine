@@ -106,23 +106,38 @@ for (let y = 0; y < H; y++) {
 }
 
 /* ---- scene.png: the same shapes, flat, with an edge so you can see where the
- * floor stops. Grey on purpose. ---- */
+ * floor stops. Grey on purpose. ----
+ *
+ * FLAT, AND THE WORD IS LOAD-BEARING. This drew a 16px two-tone checker for
+ * months, on the reasoning that a repeating grid makes movement legible. Fresh
+ * eyes read every wave screenshot the only way a coarse grey checker can be
+ * read: as the transparency pattern an image editor draws where there are no
+ * pixels. Half the proof set failed on it. A placeholder is allowed to look
+ * unfinished and is not allowed to look BROKEN, and those are different things.
+ *
+ * So: two flat values, one for the platform and one for the bridges, far enough
+ * apart to read at a glance, plus the 1px edge that was already doing the real
+ * work of saying where the floor stops. Movement stays legible because the
+ * character moves against the edge and against the bridge/platform seam, which
+ * is how it works on a painting too. */
 const scene = Buffer.alloc(W * H * 4)
 const put = (x, y, r, g, b, a) => {
   const i = (y * W + x) * 4
   scene[i] = r; scene[i + 1] = g; scene[i + 2] = b; scene[i + 3] = a
 }
+/* the three greys, picked against the room's own background. PmapScene clears a
+ * room to #05080c and draws the painting with no tint and no alpha, so these are
+ * the values that land on screen. The platform sits well clear of that black,
+ * the bridges sit a clear step below the platform, and the edge sits above both. */
+const PLAT_GREY = [74, 70, 64]
+const BRIDGE_GREY = [54, 51, 47]
+const EDGE_GREY = [108, 100, 90]
 for (let y = 0; y < H; y++) {
   for (let x = 0; x < W; x++) {
     if (!walkable(x, y)) continue           // off the floor is transparent: it is a pit
     const edge = !walkable(x - 1, y) || !walkable(x + 1, y) || !walkable(x, y - 1) || !walkable(x, y + 1)
-    if (edge) { put(x, y, 92, 84, 78, 255); continue }
-    /* a coarse checker so movement is legible without the picture pretending to
-     * be lit, textured or composed */
-    const chk = ((x >> 4) + (y >> 4)) & 1
-    const plat = onPlatform(x, y)
-    const base = plat ? (chk ? 62 : 56) : (chk ? 50 : 45)
-    put(x, y, base, base - 4, base - 9, 255)
+    const c = edge ? EDGE_GREY : onPlatform(x, y) ? PLAT_GREY : BRIDGE_GREY
+    put(x, y, c[0], c[1], c[2], 255)
   }
 }
 
