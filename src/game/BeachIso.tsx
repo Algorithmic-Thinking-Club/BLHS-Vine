@@ -6,6 +6,7 @@ import {
   buildShoreFoam, buildSparkles, makeReachOf, animSwells, animTide, animShoreline, animSparkles,
   type SwellSprite,
 } from './ocean'
+import { play as playSfx, preload as preloadSfx } from './audio'
 
 // PHASE I-1 — the opening beach, built as a TRUE 2:1 ISOMETRIC tilemap on the same engine that
 // renders the campus (HW=32/HH=16 diamonds, level heights, walkable grid, depth-sorted billboard
@@ -234,6 +235,15 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
     let jumpQueued = false
     const kd = (e: KeyboardEvent) => { if (inputMuted) return; keys[e.key.toLowerCase()] = true; if (e.key === ' ') { jumpQueued = true; e.preventDefault() } }
     const ku = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = false }
+
+    /* THE INTRO'S THREE SOUNDS ARE FETCHED WHILE PIXI IS STILL BUILDING THE MAP.
+     *
+     * `surf-in` is the first step of the script and it plays over black, so it is
+     * the one cue in the game with no cover for a cold fetch: a decode that starts
+     * when the step runs arrives after the fade has already opened his eyes. This
+     * is deliberately not awaited. It is a hint to the network, and a school wifi
+     * that never answers it costs the intro nothing but silence. */
+    void preloadSfx(['surf_in', 'cork_pop', 'sail_snap']).catch(() => {})
 
     const start = async () => {
       TextureSource.defaultOptions.scaleMode = 'nearest'
@@ -1089,7 +1099,22 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           if (a) { a.sp.visible = visible; a.sh.visible = visible }
         },
         fx: (name, at) => csFx(name, at),
-        audio: () => { /* the audio pass lands with Ash's score; cues are already scripted */ },
+        /* THE CUES WERE SCRIPTED A YEAR BEFORE THERE WAS ANYTHING TO PLAY THEM.
+         *
+         * This was an empty function carrying a comment about waiting on a score,
+         * which meant `introScript.ts` named three sounds, the runtime dutifully
+         * called this on all three, and the beach was silent through the whole
+         * intro with nothing anywhere reporting that. `src/game/audio.ts` is that
+         * player, and the three cues (`surf-in`, `cork-pop`, `sail-snap`) are in
+         * its registry under the underscore spelling with the hyphens forgiven.
+         *
+         * IT IS NOT WRAPPED IN A TRY. A cue the library does not hold throws
+         * `NotBuilt` out through the runtime and stops the intro, on purpose and
+         * by the same law as `fx`: a swallowed refusal here is how a script ships
+         * naming a sound nobody drew. `audio.test.ts` walks every cue in the
+         * script against the registry, so the throw is a guard against a future
+         * edit rather than a live risk. */
+        audio: (cue) => playSfx(cue),
         call: csCall,
         playerControl: (on) => {
           cs.control = on
