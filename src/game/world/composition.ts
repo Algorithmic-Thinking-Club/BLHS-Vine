@@ -59,12 +59,37 @@ export type WorldPt = { x: number; y: number }
  * is the one surface the entire crossing happens on. `facing` is the heading the
  * hull ends on, so coming alongside looks deliberate rather than nosed-in. */
 export type Berth = WorldPt & {
+  /* WHAT IT IS CALLED, so a route can steer at it. A berth used to be an
+   * anonymous field hanging off a slot, reachable only by already knowing which
+   * slot you meant, which is exactly the addressing problem anchors solved
+   * inside a painting and nothing had solved outside one. MAPVIS free-places
+   * these now and names them (`the_hub_berth`), so `route("...", who="ship")`
+   * can end somewhere a person typed rather than at a coordinate. */
+  name?: string
   /** the heading the hull settles on, in the eight-way vocabulary the walk uses */
   facing?: string
   /** where the hull aims before the final manoeuvre; absent means straight in */
   approach?: WorldPt
   /** the anchor in the arrival map the player is put on after stepping off */
   at?: string
+}
+
+/* A FREE-PLACED MARK ON THE WATER, which is the one kind of place that cannot be
+ * an anchor. Every anchor MAPVIS can make lives at an x,y inside some painting's
+ * pixel raster, and the water is the surface between paintings. `/api/v1/world`
+ * carries these beside the slots and `/api/v1/world/marks` serves the same set as
+ * a flat lookup; this reads the copy that arrives with the world, because a
+ * classroom Chromebook should pay for one fetch and not two. */
+export type WorldMark = WorldPt & {
+  name: string
+  kind: 'berth' | string
+  label?: string
+  facing?: string
+  /** the slot this mark belongs to, when it belongs to one */
+  island?: string
+  /** the anchor in the arrival map a body is put on after stepping off */
+  at?: string
+  r?: number
 }
 
 export type WorldSlot = {
@@ -145,6 +170,8 @@ export type WorldComposition = {
   home?: { slot: string; }
   slots: WorldSlot[]
   regions?: SeaRegion[]
+  /** the free-placed marks on the water, berths among them, addressable by name */
+  marks?: WorldMark[]
   /** who wrote this document, so a bundle from the platform is distinguishable */
   source?: string
 }
@@ -225,47 +252,164 @@ export const FALLBACK: WorldComposition = {
  * district filter that cannot reach the platform still gets a world. Operations
  * (§80.10) owns what happens when a fetch is refused and this is the engine
  * half of that: the world always exists, and which origin answered is logged.
+ *
+ * IT ASKS THE PLATFORM NOW, WHICH IT NEVER ONCE DID. The signature carried a
+ * default of `/world/composition.json` and BOTH call sites, `Chart.tsx:28` and
+ * `PmapScene.tsx:682`, took it. So the whole world-authoring surface MAPVIS
+ * built, the berths, the regions, the positions, was published, CORS-open and
+ * validating against this file's own checker, and the game read a copy
+ * committed in its own repo instead. The default is the platform and the
+ * committed copy is what answers when the platform cannot be reached, which is
+ * what a fallback was always supposed to mean.
  */
 let cached: WorldComposition | null = null
 let inflight: Promise<WorldComposition> | null = null
+let lastFaults: WorldFault[] = []
+let lastOrigin = ''
 
 export function compositionCache(): WorldComposition | null { return cached }
 
-/** for tests and for the proof harness: install a document without a fetch */
-export function setComposition(c: WorldComposition) { cached = c; inflight = null }
+/** what was wrong with the document that answered, for the proof and the report */
+export function compositionReport(): { origin: string; faults: WorldFault[] } {
+  return { origin: lastOrigin, faults: lastFaults }
+}
 
-export async function loadComposition(url = '/world/composition.json'): Promise<WorldComposition> {
+/** for tests and for the proof harness: install a document without a fetch */
+export function setComposition(c: WorldComposition) {
+  cached = c; inflight = null; lastFaults = []; lastOrigin = 'installed'
+}
+
+/* THE SAME HOST `PmapScene` ALREADY COMPUTES FOR MAPS. One environment variable,
+ * one trailing-slash rule, and no second opinion about where the platform is. An
+ * empty value is a session with no platform at all, which is a member running the
+ * game with nothing but this repo checked out, and it reads the committed copy. */
+export const mapvisHost = (): string =>
+  (import.meta.env?.VITE_MAPVIS_URL || '').replace(/\/+$/, '')
+
+export const worldUrl = (): string => {
+  const host = mapvisHost()
+  return host ? `${host}/api/v1/world` : LOCAL_WORLD
+}
+
+export const LOCAL_WORLD = '/world/composition.json'
+
+export async function loadComposition(url = worldUrl()): Promise<WorldComposition> {
   if (cached) return cached
   if (inflight) return inflight
   inflight = (async () => {
-    try {
-      const r = await fetch(url)
-      if (r.ok && (r.headers.get('content-type') || '').includes('json')) {
-        const j = (await r.json()) as WorldComposition
-        /* THE DOCUMENT IS CHECKED BEFORE IT IS TRUSTED, which is what
-         * `compositionFaults` was written for and what nothing was doing with
-         * it: its only caller was its own test. So the one document in the game
-         * that is fetched from somewhere else, and can change without a commit
-         * in this repo, was the one document nobody validated.
-         * `Array.isArray(slots)` is not a check, it is a shape guard: a map
-         * placed twice, a rumour that holds a map, a footprint of zero all
-         * passed it and then broke the water quietly.
-         *
-         * A faulty document falls back to FALLBACK rather than half-loading, and
-         * it names the slot and the reason, because "the world looks wrong" is
-         * not something a teacher or a member can act on. */
-        if (Array.isArray(j?.slots)) {
-          const faults = compositionFaults(j)
-          if (faults.length === 0) { cached = j; return j }
-          console.warn(`[world] ${url} refused, ${faults.length} fault${faults.length > 1 ? 's' : ''}:\n`
-            + faults.map((f) => `  ${f.key}: ${f.why}`).join('\n'))
-        }
-      }
-    } catch { /* the fallback is the point */ }
+    /* the platform first, then the copy in this repo, then the constant. Each
+     * step down is said out loud, because "the world looks wrong" is not
+     * something a teacher or a member can act on and silence is how the last
+     * one of these hid for two days. */
+    for (const src of url === LOCAL_WORLD ? [LOCAL_WORLD] : [url, LOCAL_WORLD]) {
+      const doc = await tryWorld(src)
+      if (doc) { cached = doc; return doc }
+    }
+    lastOrigin = 'built in'
+    console.warn('[world] nothing answered, running on the built-in composition')
     cached = FALLBACK
     return FALLBACK
   })()
   return inflight
+}
+
+async function tryWorld(url: string): Promise<WorldComposition | null> {
+  let j: WorldComposition
+  try {
+    const r = await fetch(url)
+    if (!r.ok || !(r.headers.get('content-type') || '').includes('json')) return null
+    j = (await r.json()) as WorldComposition
+  } catch { return null }
+  /* `Array.isArray(slots)` is not a check, it is a shape guard: a map placed
+   * twice, a rumour that holds a map, a footprint of zero all passed it and then
+   * broke the water quietly. */
+  if (!Array.isArray(j?.slots)) return null
+
+  /* ---- FAIL LOUDLY AND PARTIALLY, NEVER SILENTLY AND TOTALLY ----------------
+   *
+   * What this used to do, and what cost two days: ANY fault threw away the
+   * ENTIRE document and fell back, with one `console.warn` as the only symptom.
+   * Two faults were tripping at once on the real published world, a footprint
+   * over the pixel ceiling and a `home` naming a place by its title rather than
+   * its id, so every island, every region and every berth MAPVIS had authored
+   * was being binned on every load and the game looked exactly as it had before.
+   * The two faults are fixed upstream. THE FAILURE MODE IS THE BUG, and one bad
+   * slot must never again be able to cost the other nineteen.
+   *
+   * So a faulty SLOT is dropped and the rest of the document stands. A fault
+   * that is about the DOCUMENT rather than about one slot (a `home` naming
+   * nothing) is reported and survived, because a world with a bad home is still
+   * a world and refusing it leaves a student staring at nothing. Only an empty
+   * survivor set is a real refusal, and that is the one case that falls back. */
+  const faults = compositionFaults(j)
+  if (!faults.length) {
+    lastFaults = []; lastOrigin = url
+    return j
+  }
+  const bad = new Set(faults.map((f) => f.slot).filter((i): i is number => i !== undefined))
+  const kept = j.slots.filter((_, i) => !bad.has(i))
+  const line = `[world] ${url}: ${faults.length} fault${faults.length > 1 ? 's' : ''}, `
+    + `${bad.size} of ${j.slots.length} slot${j.slots.length === 1 ? '' : 's'} dropped\n`
+    + faults.map((f) => `  ${f.key}: ${f.why}`).join('\n')
+  if (!kept.length) {
+    console.error(`${line}\n[world] nothing survived, so this document is refused whole`)
+    lastFaults = faults
+    return null
+  }
+  /* error and not warn. A warn is what a browser prints for a deprecated css
+   * property and it is what this printed while the world was being deleted. */
+  console.error(line)
+  lastFaults = faults; lastOrigin = url
+  return { ...j, slots: kept }
+}
+
+/* ---- the marks, addressable by name -----------------------------------------
+ *
+ * A berth is off every painting, so it is the one place in the game that cannot
+ * be an anchor, and until now the only way to reach one was to already know
+ * which slot it hung off. These are free-placed, named, and looked up the same
+ * way an anchor is, which is what lets a route end at `the_hub_berth`.
+ *
+ * Read off the world document rather than off `/api/v1/world/marks`, because the
+ * world already carries them and a Chromebook should pay for one fetch. The flat
+ * endpoint serves the identical set for anything that wants a mark without a
+ * world. A slot's own `berth` is included, named or not, so a document written
+ * before marks existed still answers `berthOf`.
+ */
+export function marksOf(c: WorldComposition): Map<string, WorldMark> {
+  const out = new Map<string, WorldMark>()
+  for (const m of c.marks ?? []) {
+    if (!m || typeof m.name !== 'string' || !m.name) continue
+    if (!isFinite(Number(m.x)) || !isFinite(Number(m.y))) continue
+    out.set(m.name, m)
+    /* the flat endpoint keys the same mark by its island too, and a route that
+     * says "sail to the hub" is a route a member will write */
+    if (m.island && !out.has(m.island)) out.set(m.island, m)
+  }
+  for (const s of c.slots) {
+    if (!s.berth?.name || out.has(s.berth.name)) continue
+    out.set(s.berth.name, { ...s.berth, name: s.berth.name, kind: 'berth', island: s.map })
+  }
+  return out
+}
+
+/** a named berth, wherever it was authored, or undefined with nothing invented */
+export const markByName = (c: WorldComposition, name: string): WorldMark | undefined =>
+  marksOf(c).get(name)
+
+/** every name a route could legally end at, for the refusal that lists them */
+export const markNames = (c: WorldComposition): string[] => [...marksOf(c).keys()].sort()
+
+/* THE BERTH A NAME MEANS, in the shape the hull's berthing manoeuvre takes. A
+ * mark carries no approach of its own yet; a slot's berth does, and `sail.ts`
+ * consumes it, so the slot's copy wins where both exist rather than the two
+ * disagreeing silently. */
+export function berthOf(c: WorldComposition, name: string): Berth | undefined {
+  const own = c.slots.find((s) => s.berth?.name === name)?.berth
+  if (own) return own
+  const m = markByName(c, name)
+  if (!m || m.kind !== 'berth') return undefined
+  return { x: m.x, y: m.y, name: m.name, ...(m.facing ? { facing: m.facing } : {}), ...(m.at ? { at: m.at } : {}) }
 }
 
 /* ---- the questions the world asks it ---------------------------------------
@@ -447,30 +591,37 @@ export function trimToBudget(slots: WorldSlot[], p: WorldPt): WorldSlot[] {
  * The roster's own pattern (`rosterFaults`), applied to the other document. It
  * runs in this module's test and is exported so the platform's document can be
  * checked before it is trusted. */
-export type WorldFault = { key: string; why: string }
+/* `slot` is the index of the slot at fault, and its absence means the fault is
+ * about the whole document. That one field is what lets a reader drop the bad
+ * slot instead of the whole world, which is the difference between a chart
+ * missing one island and a chart missing every island. */
+export type WorldFault = { key: string; why: string; slot?: number }
 
 export function compositionFaults(c: WorldComposition, knownPlaces?: ReadonlySet<string>): WorldFault[] {
   const out: WorldFault[] = []
   const seenMap = new Set<string>()
-  for (const s of c.slots) {
+  c.slots.forEach((s, slot) => {
     const key = s.map ?? s.title
     if (s.map) {
-      if (seenMap.has(s.map)) out.push({ key, why: `map "${s.map}" is placed twice` })
+      if (seenMap.has(s.map)) out.push({ key, slot, why: `map "${s.map}" is placed twice` })
       seenMap.add(s.map)
     }
     if (!s.map && s.state !== 'rumour')
-      out.push({ key, why: `holds no map, so its only honest state is "rumour" and it says "${s.state}"` })
+      out.push({ key, slot, why: `holds no map, so its only honest state is "rumour" and it says "${s.state}"` })
     if (s.map && s.state === 'rumour')
-      out.push({ key, why: `holds map "${s.map}" and still reads as a rumour` })
-    if (s.footprint.w <= 0 || s.footprint.h <= 0)
-      out.push({ key, why: 'has no painted extent, so discovery cannot be measured off it' })
-    if (s.footprint.w * s.footprint.h > PAINTING_PX_CEILING * 1.02)
-      out.push({ key, why: `claims ${s.footprint.w}x${s.footprint.h}, past the ${PAINTING_PX_CEILING} pixel ceiling one generation can hold` })
+      out.push({ key, slot, why: `holds map "${s.map}" and still reads as a rumour` })
+    if (!s.footprint || s.footprint.w <= 0 || s.footprint.h <= 0)
+      out.push({ key, slot, why: 'has no painted extent, so discovery cannot be measured off it' })
+    else if (s.footprint.w * s.footprint.h > PAINTING_PX_CEILING * 1.02)
+      out.push({ key, slot, why: `claims ${s.footprint.w}x${s.footprint.h}, past the ${PAINTING_PX_CEILING} pixel ceiling one generation can hold` })
     if (s.discover !== undefined && s.discover > s.release)
-      out.push({ key, why: 'is discovered further out than it is resident, so it is discovered as a blank' })
+      out.push({ key, slot, why: 'is discovered further out than it is resident, so it is discovered as a blank' })
     if (knownPlaces && s.place && !knownPlaces.has(s.place))
-      out.push({ key, why: `names place "${s.place}", which is not on the roster` })
-  }
+      out.push({ key, slot, why: `names place "${s.place}", which is not on the roster` })
+  })
+  /* NOT A SLOT FAULT, so it carries no index and nothing is dropped for it. A
+   * world whose home names nothing is still a world; refusing it outright is how
+   * one mistyped string used to delete every island in the document. */
   if (c.home && !c.slots.some((s) => (s.place ?? s.map) === c.home!.slot))
     out.push({ key: 'home', why: `names "${c.home.slot}", which is not a slot` })
   return out
