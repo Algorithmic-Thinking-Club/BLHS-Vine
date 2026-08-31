@@ -18,8 +18,12 @@
 }
 .pl-sheet {
   width: min(880px, 96vw); height: min(600px, 92vh);
-  background: url('/art/ui/panel-square.png') center / 100% 100% no-repeat;
-  image-rendering: pixelated;
+  /* THE TOKEN, NOT THE FILE. A literal url here is a surface §16's plain arm
+     cannot reach: the arm swaps `--kit-art-panel` to `none` and a hardcoded png
+     keeps drawing straight through it. This sheet was one of the four that did,
+     which made it a study defect and not only a rendering one. */
+  background: var(--kit-art-panel) center / 100% 100% no-repeat;
+  image-rendering: var(--kit-pixel);
   filter: drop-shadow(0 12px 30px rgba(2, 8, 10, .65));
   display: flex; flex-direction: column;
   padding: 12.5% 16% 13% 15.5%;   /* the panel's measured paper zone, stretched wide */

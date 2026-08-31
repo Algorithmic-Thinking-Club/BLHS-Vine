@@ -51,7 +51,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
 
   return (
     <div className="yb-veil">
-      <div className="yb-page">
+      <div className="yb-page kit-surface-panel">
         {!turned ? (
           <>
             <div className="yb-head">

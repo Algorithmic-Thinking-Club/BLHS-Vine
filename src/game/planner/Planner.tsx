@@ -134,7 +134,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
 
   return (
     <div className="pl-veil" onClick={onClose}>
-      <div className="pl-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="pl-sheet kit-surface-panel" onClick={(e) => e.stopPropagation()}>
         <div className="pl-head">
           <span className="pl-title">The Year Sheet</span>
           <span className="pl-year">Year {year} of 4</span>

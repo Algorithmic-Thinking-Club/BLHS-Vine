@@ -132,7 +132,7 @@ export function Graduation({ onClose }: { onClose: () => void }) {
     <div className="gr-veil">
       <div className="gr-stage">
         {stage === 'processional' && (
-          <div className="gr-card" onClick={() => setStage(earned.length ? 'cords' : 'board')}>
+          <div className="gr-card kit-surface-panel" onClick={() => setStage(earned.length ? 'cords' : 'board')}>
             <div className="gr-title">Graduation</div>
             <div className="gr-line">The falls terrace, dressed at last. Everyone you met these four years is in the crowd, and the ones you ranked with stand in the front row.</div>
             <div className="gr-line">Thor walks the stage in teal. The stole reads BONNEY LAKE.</div>
@@ -141,7 +141,7 @@ export function Graduation({ onClose }: { onClose: () => void }) {
         )}
 
         {stage === 'cords' && earned[cordIdx] && (
-          <div className="gr-card" onClick={() => {
+          <div className="gr-card kit-surface-panel" onClick={() => {
             if (cordIdx + 1 < earned.length) setCordIdx(cordIdx + 1)
             else setStage('board')
           }}>
@@ -154,7 +154,7 @@ export function Graduation({ onClose }: { onClose: () => void }) {
         )}
 
         {stage === 'board' && (
-          <div className="gr-card">
+          <div className="gr-card kit-surface-panel">
             <div className="gr-title">{earned.length ? 'And the board, for honesty' : 'The board, for next time'}</div>
             {missed.length === 0 && <div className="gr-line">Nothing left unearned that you reached for. Rare.</div>}
             {missed.map((c) => (
@@ -169,7 +169,7 @@ export function Graduation({ onClose }: { onClose: () => void }) {
         )}
 
         {stage === 'diploma' && (
-          <div className="gr-card gr-diploma">
+          <div className="gr-card gr-diploma kit-surface-panel">
             <div className="gr-dip-school">BONNEY LAKE HIGH SCHOOL</div>
             <div className="gr-dip-sub">certifies that the Panther known as</div>
             <div className="gr-dip-name">{s.handle || 'Panther'}</div>

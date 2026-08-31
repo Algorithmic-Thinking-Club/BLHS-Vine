@@ -30,7 +30,7 @@ export function YearStart({ year, onDone }: { year: number; onDone: () => void }
   }, [i])
   return (
     <div className="ys-wrap" onClick={next}>
-      <div ref={cardEl} className="ys-card">
+      <div ref={cardEl} className="ys-card kit-surface-dialogue">
         <div className="ys-speaker">Principal Panther · Year {year}</div>
         <div className="ys-text">{lines[i]}</div>
         <div className="ys-cue">🐾</div>

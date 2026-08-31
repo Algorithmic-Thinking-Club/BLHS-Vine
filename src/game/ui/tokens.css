@@ -192,7 +192,26 @@
   /* ---- surfaces: the PixelLab art the chrome is actually made of --------
    * All art comes from PixelLab and code never draws it. A skin that has no art
    * says `none` here and falls back to the flat colours above, which is what the
-   * plain arm needs and is the only reason these are tokens at all. */
+   * plain arm needs and is the only reason these are tokens at all.
+   *
+   * THESE FOUR ARE ALSO THE OVERRIDE POINT FOR THE PLATFORM'S KIT.
+   * `src/game/ui/kit.ts` fetches MAPVIS's eighteen published pieces and writes
+   * `--kit-art-<handle>` back onto `:root` from an injected stylesheet, which is
+   * how the platform's art replaces the four files below without a commit here.
+   * The names have to keep matching: MAPVIS calls its piece `dialogue_box` and
+   * emits the handle `dialogue` because that is what this line has said for
+   * months, and the day one of these is renamed the platform stops landing.
+   *
+   * NO LOCAL NINE-SLICE NUMBERS SIT HERE YET, ON PURPOSE. `docs/UI-KIT.md`
+   * section 3 asks for `--kit-slice-panel` and a real `border-image` rule beside
+   * each of these, and the four insets have to be measured off the pngs first. A
+   * pass over the three files on 2026-08-31 measured `panel-square.png` cleanly
+   * at roughly 72/69/67/69 and could not measure the other two: the dialogue box
+   * carries anchor motifs at the quarter points of its top and bottom edges and
+   * the plank is wood grain end to end, so the interior never settles and every
+   * tolerance gives a different answer. Guessing them would repaint every panel
+   * in the game off a number nobody checked. The measurement is Ash's, in front
+   * of the picture, and `docs/UI-KIT.md` Q6 is where it is asked. */
   --kit-art-panel: url('/art/ui/panel-square.png');
   --kit-art-dialogue: url('/art/ui/dialogue-box.png');
   --kit-art-plank: url('/art/ui/plank-button.png');
@@ -390,7 +409,21 @@ html[data-skin='plain'] {
 
 /* THE PLAIN ARM HAS NO PICTURES, so the surfaces that ARE art need a colour to
  * fall back onto. `background: none center / 100% 100% no-repeat` on its own is
- * an invisible panel, which is the failure §16 would ship with. */
+ * an invisible panel, which is the failure §16 would ship with.
+ *
+ * AND IT KEEPS WINNING OVER THE PLATFORM'S KIT, which is the thing to not break.
+ * `src/game/ui/kit.ts` injects MAPVIS's `.kit-surface-*` blocks into the head at
+ * runtime, and those are one class each. These three rules carry an attribute as
+ * well, so they are a point of specificity above whatever arrives, and the
+ * `border` shorthand below resets `border-image` to its initial value, which is
+ * the property the injected blocks set. §16's arm is the study's independent
+ * variable and it does not get drawn art from anywhere, including the platform.
+ *
+ * The rules cover panel, dialogue and plank because those are the three handles
+ * anything in `src/` mounts. MAPVIS publishes eleven more (band, field, gauge,
+ * rail, socket, tab, portrait_frame and the rest) and the first one the game
+ * starts using needs a line here in the same edit, or the plain arm gets a
+ * wooden surface in a plain sheet and nothing errors. */
 html[data-skin='plain'] .kit-surface-panel,
 html[data-skin='plain'] .kit-surface-dialogue {
   background-color: var(--kit-paper);
