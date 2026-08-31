@@ -129,7 +129,17 @@ export function projectFramings(anchors: HasMeta[], raw: unknown, mapId = ''): n
     const name = typeof r.name === 'string' ? r.name : ''
     const on = typeof r.anchor === 'string' ? r.anchor : ''
     const f = readOne(r, name || undefined)
-    if (!name || !f) continue
+    if (!name) continue
+    /* AND A SHOT THAT SAYS NOTHING SAYS SO. A named entry with no zoom and no
+     * offset is dropped by `readOne`, which is right, and used to be dropped
+     * SILENTLY, which is not: the missing-anchor case beside it warns by name, so
+     * an author fixing one and not the other has no way to tell the two apart.
+     * The shot most likely to hit this is the innocent one, a wide at the map's
+     * own opening scale with nothing dragged. */
+    if (!f) {
+      console.warn(`[framings] ${mapId}: shot "${name}" carries no zoom and no offset, so there is nothing to frame`)
+      continue
+    }
     const a = by.get(on)
     /* AN ANCHOR THIS MAP DOES NOT HAVE IS THE MISTAKE THAT WILL ACTUALLY HAPPEN,
      * because a shot survives the anchor it was hung off being renamed or cut.
@@ -146,10 +156,14 @@ export function projectFramings(anchors: HasMeta[], raw: unknown, mapId = ''): n
     /* the meta bag wins. It is the newer shape and the one MAPVIS writes now, so
      * a bundle carrying both is a bundle mid-migration and the projection must
      * not overwrite the half that is already right. */
-    if (set[name] === undefined) { set[name] = f; folded++ }
+    const had = set[name] === undefined ? null : readOne(set[name], name)
+    if (!had) { set[name] = f; folded++ }
     /* a shot marked `entry` is what the map opens on, which is the unnamed
-     * default `look_at` and an arrival both read */
-    if (r.entry === true && meta.framing === undefined) meta.framing = f
+     * default `look_at` and an arrival both read. It opens on WHICHEVER COPY WON
+     * above: a map that opens at the old zoom while answering the same name with
+     * the new one is the migration running backwards, with one name meaning two
+     * numbers and nothing saying which one a scene got. */
+    if (r.entry === true && meta.framing === undefined) meta.framing = had ?? f
   }
   return folded
 }

@@ -245,6 +245,47 @@
 html[data-textsize='s'] { --kit-text-scale: 0.86; }
 html[data-textsize='l'] { --kit-text-scale: 1.22; }
 
+/* ---- THE TYPE LANDS ON WHOLE PIXELS -----------------------------------------
+ *
+ * WHY THIS EXISTS BEFORE THE FONT DOES. Every size in the kit is a container
+ * width times a setting, so the number that comes out is fractional at nearly
+ * every window: on a 1280 wide screen the year sheet's smallest hint computed to
+ * 12.672px, and at Small to 10.898px. A vector face absorbs that. A BITMAP face
+ * does not: the glyph grid is resampled at 1.056 of its drawn size and letters
+ * lose or gain a column, which is the "Fall" that reads as "Pall" the ENGINE-3
+ * eyes round found on the text-dense planner. The order says snap it now, as
+ * code, so the day a real pixel font is mounted it is landing on whole pixels
+ * rather than being blamed for this.
+ *
+ * HOW IT IS DONE WITHOUT REWRITING ANY RULE TWICE. A rule keeps the exact size
+ * it always wrote, moved one word left into `--kit-fs-raw`, and asks for
+ * `var(--kit-fs)`. Nothing about a panel's own sizing moves, the cqw and the
+ * text setting are still written where a person reads them, and the snapping
+ * lives here in one place. It takes a `clamp()` in `vh` the same way it takes a
+ * `calc()` in `cqw`, which is what the dialogue box needs.
+ *
+ * WHY THE UNIVERSAL SELECTOR RATHER THAN `:root`. A custom property declared on
+ * `:root` has its own `var()`s substituted AT `:root`, so `--kit-fs-raw` would
+ * resolve once, against the root's value, and every panel in the game would come
+ * out the same size. Declared on every element, each one resolves its own. There
+ * are a few hundred nodes in this DOM and the rest of the game is a canvas.
+ *
+ * WHY `@supports` RATHER THAN TWO DECLARATIONS IN ONE BLOCK. The usual
+ * belt-and-braces trick, an old declaration followed by a new one the browser
+ * drops, DOES NOT WORK through `var()`: a value carrying a variable is parsed as
+ * valid and only fails at computed-value time, and a property that is invalid at
+ * computed-value time falls back to INHERIT, not to the declaration above it. On
+ * a district-image Chromebook that predates `round()` (Chrome 125, May 2024)
+ * every panel would silently inherit the body's 16px, which is worse than a
+ * fractional size. The feature query asks first and the fallback arm is the
+ * exact expression that ships today. */
+*, *::before, *::after { --kit-fs: var(--kit-fs-raw); }
+@supports (font-size: round(1px, 1px)) {
+  /* `max` keeps a panel mid-entrance, whose container is momentarily narrow,
+   * from rounding a real size down to a zero-pixel one. */
+  *, *::before, *::after { --kit-fs: max(1px, round(var(--kit-fs-raw), 1px)); }
+}
+
 /* REDUCED MOTION, THE PART A TOKEN CAN CARRY. Every transition in the kit reads
  * one of the four durations above, so this one rule ends all of them. The
  * animations are handled where they are written, for the strobe reason above.

@@ -56,7 +56,15 @@ export type Pathway = {
 
 export type PathSource = { paths?: unknown }
 
-const num = (v: unknown): number | null => (isFinite(Number(v)) ? Number(v) : null)
+/* `Number(null)` IS ZERO AND `isFinite(0)` IS TRUE, which is how a waypoint of
+ * `[null, 471]` reads as a real point on the left edge of the painting instead of
+ * as the broken point it is. Same for `''`, `false` and `[]`. The type is checked
+ * before the value, so only a number or a string that says a number is a number. */
+const num = (v: unknown): number | null => {
+  if (typeof v === 'number') return isFinite(v) ? v : null
+  if (typeof v === 'string' && v.trim() !== '' && isFinite(Number(v))) return Number(v)
+  return null
+}
 
 /* the same rule MAPVIS validates names by where they are typed, applied on the
  * reading side, because a bundle can also be hand-edited and a name that is not a
@@ -82,12 +90,27 @@ export function readPaths(map: PathSource, mapId = ''): Pathway[] {
       console.warn(`[paths] ${mapId}: duplicate path name "${name}", keeping the first`)
       continue
     }
+    /* A DROPPED WAYPOINT RENUMBERS EVERY MARK AFTER IT, silently. `[A, bad, C]`
+     * parsing to `[A, C]` keeps a route that still runs and moves the mark that
+     * meant the middle onto the end, and nothing anywhere says so: the only marks
+     * that get named are the ones that fall past the new end. A path with an
+     * unreadable point is refused whole, at the index that broke it, because one
+     * dropped route is a beat that does not play and a quietly renumbered one is
+     * a beat that plays in the wrong place. */
     const pts: { x: number; y: number }[] = []
-    for (const p of Array.isArray(e.points) ? e.points : []) {
+    let broken = -1
+    const raw = Array.isArray(e.points) ? e.points : []
+    for (let pi = 0; pi < raw.length && broken < 0; pi++) {
+      const p = raw[pi]
       const px = Array.isArray(p) ? num(p[0]) : num((p as Record<string, unknown>)?.x)
       const py = Array.isArray(p) ? num(p[1]) : num((p as Record<string, unknown>)?.y)
-      if (px === null || py === null) continue
+      if (px === null || py === null) { broken = pi; break }
       pts.push({ x: Math.round(px), y: Math.round(py) })
+    }
+    if (broken >= 0) {
+      console.warn(`[paths] ${mapId}: path "${name}" has an unreadable waypoint at index ${broken}, `
+        + `so the whole route is dropped rather than silently renumbered`)
+      continue
     }
     /* ONE POINT IS NOT A LINE. A route of a single waypoint is a `walk_to` with a
      * longer name and it would travel zero pixels while reporting that it went

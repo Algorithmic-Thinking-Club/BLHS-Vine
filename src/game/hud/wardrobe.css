@@ -31,7 +31,7 @@ html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
 
 .wd-head {
   font-family: var(--kit-face-display);
-  font-size: calc(4.4cqw * var(--kit-text-scale)); color: var(--kit-ink-mirror);
+  --kit-fs-raw: calc(4.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-mirror);
   text-shadow: 0 1px 0 var(--kit-paper-sheen-firm);
 }
 
@@ -74,12 +74,12 @@ html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
 .wd-lockchip:hover { opacity: .85; transform: translateY(-1px); }
 /* earned reads as sun-warmed rather than merely un-greyed */
 .wd-lockchip-on { opacity: 1; border-color: var(--kit-gold-edge); box-shadow: inset 0 0 0 2px var(--kit-gold-inset); }
-.wd-lockicon { font-size: calc(4.6cqw * var(--kit-text-scale)); }
-.wd-lockknot { position: absolute; right: -.6cqw; bottom: -.6cqw; font-size: calc(3cqw * var(--kit-text-scale)); }
+.wd-lockicon { --kit-fs-raw: calc(4.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs); }
+.wd-lockknot { position: absolute; right: -.6cqw; bottom: -.6cqw; --kit-fs-raw: calc(3cqw * var(--kit-text-scale)); font-size: var(--kit-fs); }
 
 .wd-note {
   font-family: var(--kit-face-body);
-  font-size: calc(2.6cqw * var(--kit-text-scale)); color: var(--kit-ink-dim); text-align: center;
+  --kit-fs-raw: calc(2.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-dim); text-align: center;
 }
 
 .wd-close {
@@ -89,7 +89,7 @@ html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
   image-rendering: var(--kit-pixel);
   border: none; cursor: pointer;
   font-family: var(--kit-face-display);
-  font-size: calc(3.8cqw * var(--kit-text-scale)); color: var(--kit-plank-ink);
+  --kit-fs-raw: calc(3.8cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-plank-ink);
   text-shadow: 0 2px 0 var(--kit-plank-shadow);
   transition: transform var(--kit-t-fast) ease;
 }

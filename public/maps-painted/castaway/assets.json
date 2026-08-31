@@ -1,0 +1,23 @@
+{
+  "_": "Two placements, both real PixelLab art already in this repo from the beach era. The bottle is bound to the_wrack_line. NOTHING HERE SAYS IT STARTS HIDDEN, on purpose: MAPVIS has no visible field on a placement and inventing one in a hand-made bundle would be inventing a contract. The island hides it on its own first line with the word that already exists, which is also the honest demonstration, because that is exactly what a member would have to write.",
+  "assets": [
+    {
+      "id": "bottle_1",
+      "name": "bottle_1",
+      "group": "props",
+      "src": "assets/bottle.png",
+      "x": 302,
+      "y": 178,
+      "scale": 0.075
+    },
+    {
+      "id": "rowboat_1",
+      "name": "rowboat_1",
+      "group": "props",
+      "src": "assets/rowboat.png",
+      "x": 400,
+      "y": 288,
+      "scale": 0.13
+    }
+  ]
+}

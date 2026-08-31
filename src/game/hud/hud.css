@@ -84,7 +84,7 @@ html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1m
 .hb-tabs { display: flex; gap: 1cqw; margin: 15cqw 17.5cqw 2.2cqw 17cqw; flex-wrap: wrap; }
 .hb-tab {
   font-family: var(--kit-face-display);
-  font-size: calc(2.4cqw * var(--kit-text-scale)); color: var(--kit-ink-label);
+  --kit-fs-raw: calc(2.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-label);
   background: linear-gradient(180deg, var(--kit-paper-tab-hi), var(--kit-paper-tab-lo));
   border: var(--kit-border) solid var(--kit-edge); border-bottom: none;
   border-radius: var(--kit-r-card) var(--kit-r-card) 0 0;
@@ -99,18 +99,18 @@ html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1m
   padding: 2cqw 1cqw 1cqw;
   font-family: var(--kit-face-body);
   color: var(--kit-ink-body);
-  font-size: calc(2.6cqw * var(--kit-text-scale));
+  --kit-fs-raw: calc(2.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
   line-height: 1.5;
 }
 .hb-page::-webkit-scrollbar { width: 8px; }
 .hb-page::-webkit-scrollbar-thumb { background: var(--kit-edge); border-radius: var(--kit-r-soft); }
 
-.hb-h { font-family: var(--kit-face-display); font-size: calc(3cqw * var(--kit-text-scale)); color: var(--kit-ink-head); margin: 1cqw 0; }
+.hb-h { font-family: var(--kit-face-display); --kit-fs-raw: calc(3cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-head); margin: 1cqw 0; }
 .hb-dim { color: var(--kit-ink-dim); }
 
 .hb-row { display: flex; align-items: center; gap: 2cqw; padding: 1.2cqw .5cqw; border-bottom: 1px dashed var(--kit-rule); }
 .hb-row-title { flex: 1; }
-.hb-badgechip { font-size: calc(4cqw * var(--kit-text-scale)); filter: saturate(.4) opacity(.5); }
+.hb-badgechip { --kit-fs-raw: calc(4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); filter: saturate(.4) opacity(.5); }
 .hb-badgechip.on { filter: none; }
 
 /* the cord tracker: a fraying thread that becomes rope as progress fills (§7.6) */
@@ -130,7 +130,7 @@ html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1m
 }
 .hb-chart-isle {
   position: absolute; transform: translate(-50%, -50%);
-  font-family: var(--kit-face-body); font-size: calc(2.2cqw * var(--kit-text-scale)); color: var(--kit-ink-body);
+  font-family: var(--kit-face-body); --kit-fs-raw: calc(2.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-body);
   background: var(--kit-paper-wash);
   border: 1px solid var(--kit-edge); border-radius: var(--kit-r-sharp);
   padding: .3cqw 1.2cqw;
@@ -156,10 +156,10 @@ html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1m
   filter: drop-shadow(var(--kit-drop-md));
   animation: hb-in 220ms var(--kit-ease-pop) both;
 }
-.pz-title { font-family: var(--kit-face-title); font-size: calc(6cqw * var(--kit-text-scale)); color: var(--kit-ink-head); margin-bottom: 2cqw; }
+.pz-title { font-family: var(--kit-face-title); --kit-fs-raw: calc(6cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-head); margin-bottom: 2cqw; }
 .pz-btn {
   min-width: 58%;
-  font-family: var(--kit-face-body); font-size: calc(4.4cqw * var(--kit-text-scale)); color: var(--kit-ink-body);
+  font-family: var(--kit-face-body); --kit-fs-raw: calc(4.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-body);
   background: linear-gradient(180deg, var(--kit-paper), var(--kit-paper-lo));
   border: var(--kit-border) solid var(--kit-edge); border-radius: var(--kit-r-soft);
   padding: 1.6cqw 3cqw; cursor: pointer;
@@ -168,5 +168,5 @@ html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1m
 .pz-btn:hover { transform: translateY(-1px); }
 /* the line under the buttons that says the voyage saves itself. It was an inline
    style on the element, which is the one place a skin cannot reach. */
-.pz-note { font-family: var(--kit-face-body); font-size: calc(3.2cqw * var(--kit-text-scale)); color: var(--kit-ink-dim); }
+.pz-note { font-family: var(--kit-face-body); --kit-fs-raw: calc(3.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-dim); }
 .hud-blur { filter: blur(2px) brightness(.92); }

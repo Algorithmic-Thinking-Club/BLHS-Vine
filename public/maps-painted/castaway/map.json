@@ -1,0 +1,121 @@
+{
+  "_": "A STAND-IN BUNDLE, HAND-AUTHORED IN THE GAME REPO. The painting, the mask and the occluders are hub-a2's, copied. Everything else in this file (the anchors, the paths, the shot, the base and the class) is typed here rather than authored in MAPVIS, because the gate for engine wave 4 is that the DIRECTOR WORDS perform on a painted map and Ash has not drawn a beach. Every coordinate was measured with scripts/probe-mask.mjs against this bundle's own levels.png through the real walk law, hips and all, not eyeballed off the picture. The same island runs unchanged on a MAPVIS-authored map the day one exists: nothing in public/grapes/castaway/ knows this bundle was hand-made.",
+  "id": "castaway",
+  "w": 688,
+  "h": 384,
+  "class": "island",
+  "title": "the Castaway Shore",
+  "base": { "w": 465, "h": 335, "ox": 92, "oy": 0 },
+  "encoding": {
+    "blocked": 0,
+    "L0": 40,
+    "ramp01": 50,
+    "L1": 60,
+    "ramp12": 70,
+    "L2": 80,
+    "ramp23": 90,
+    "L3": 100,
+    "stepTolerance": 10
+  },
+  "spawn": [429, 145],
+  "character": { "heightPx": 18, "hip": 2, "hipDY": 1 },
+  "speed": 34,
+  "yScale": 0.72,
+  "stairs": [],
+  "occluders": [],
+  "anchors": [
+    {
+      "id": 1,
+      "name": "the_beach",
+      "kind": "spawn",
+      "x": 429,
+      "y": 145,
+      "r": 20,
+      "facing": "south",
+      "label": "the high sand"
+    },
+    {
+      "id": 2,
+      "name": "the_wrack_line",
+      "kind": "point",
+      "x": 302,
+      "y": 178,
+      "r": 20,
+      "stand": [312, 179],
+      "placement": "bottle_1",
+      "facing": "west",
+      "label": "the wrack line"
+    },
+    {
+      "id": 3,
+      "name": "the_jetty",
+      "kind": "point",
+      "x": 398,
+      "y": 283,
+      "r": 16,
+      "placement": "rowboat_1",
+      "facing": "south",
+      "label": "the jetty"
+    }
+  ],
+  "framings": [
+    {
+      "id": 1,
+      "name": "the_waking",
+      "anchor": "the_beach",
+      "dx": 0,
+      "dy": -4,
+      "zoom": 2.6,
+      "entry": true
+    },
+    {
+      "id": 2,
+      "name": "the_find",
+      "anchor": "the_wrack_line",
+      "dx": 0,
+      "dy": -6,
+      "zoom": 2.2
+    }
+  ],
+  "paths": [
+    {
+      "id": 1,
+      "name": "the_wrack_walk",
+      "kind": "walk",
+      "points": [[429, 145], [365, 167], [302, 178]],
+      "closed": false,
+      "twoWay": true,
+      "facing": "west",
+      "marks": [{ "at": 1, "name": "past_the_rocks", "label": "past the rocks" }]
+    },
+    {
+      "id": 2,
+      "name": "the_long_way",
+      "kind": "walk",
+      "points": [[302, 178], [312, 179], [344, 186], [351, 194], [370, 219], [370, 223], [352, 234], [353, 242], [371, 260], [398, 283]],
+      "closed": false,
+      "twoWay": false,
+      "facing": "south",
+      "marks": [{ "at": 4, "name": "the_saddle", "label": "the saddle" }]
+    },
+    {
+      "id": 3,
+      "name": "the_crossing",
+      "kind": "sail",
+      "points": [[620, 300], [658, 252], [676, 332]],
+      "closed": false,
+      "twoWay": false,
+      "facing": "south"
+    },
+    {
+      "id": 4,
+      "name": "the_home_run",
+      "kind": "sail",
+      "points": [[620, 300], [655, 268], [641, 322]],
+      "closed": false,
+      "twoWay": false,
+      "meta": { "berth": "the_castaway_berth" }
+    }
+  ],
+  "events": []
+}

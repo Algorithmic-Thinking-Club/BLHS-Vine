@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "programme": "castaway-intro",
+  "map": "castaway",
+  "title": "The Castaway",
+  "season": "Fall",
+  "owner": "the vine",
+  "entry": "island.py",
+  "modules": ["island.py", "lines.py"],
+  "content": {
+    "what": {
+      "text": "The opening of the game: waking up on a shore with no memory of getting there, and finding the bottle that says where to go next.",
+      "source": "docs/THE-WALKTHROUGH.md Part I, and src/game/intro/introScript.ts, which is the hard-coded TypeScript version this replaces"
+    },
+    "when": {
+      "text": "The first two minutes of a run, before anything else happens.",
+      "source": "docs/THE-WALKTHROUGH.md Part I"
+    },
+    "how_to_join": {
+      "text": "You do not join it. It is where every player starts.",
+      "source": "unknown"
+    },
+    "blurb": "the shore, the bottle, the boat"
+  }
+}

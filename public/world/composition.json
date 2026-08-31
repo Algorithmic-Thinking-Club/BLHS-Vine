@@ -1,10 +1,42 @@
 {
   "version": 1,
-  "source": "hand-written, engine-side, pending BRIEF-MAPVIS-W2 item 1",
+  "source": "hand-written, engine-side: the document that answers when the platform cannot be reached",
   "home": {
     "slot": "home-island"
   },
+  "marks": [
+    {
+      "_": "the free-placed berth off the castaway shore, named so a sail route can end at it. This is the shape /api/v1/world publishes, kept here so the offline document is read by the same reader rather than by a second one.",
+      "name": "the_castaway_berth",
+      "kind": "berth",
+      "label": "the lee of the point",
+      "x": -1204,
+      "y": 432,
+      "facing": "west",
+      "island": "castaway"
+    }
+  ],
   "slots": [
+    {
+      "_": "THE WAVE 4 GATE MAP. A stand-in bundle hand-authored in this repo (see its own map.json) so the director words have a painted map with anchors, paths and a shot to perform against. Its footprint and origin are measured off the bytes: the canvas is 688x384 and the painting is 465x335 sitting at x 92, which is the same difference the `base` reader exists for.",
+      "map": "castaway",
+      "title": "the Castaway Shore",
+      "at": { "x": -1500, "y": 300 },
+      "footprint": { "w": 465, "h": 335 },
+      "origin": { "x": 92, "y": 0 },
+      "canvas": { "w": 688, "h": 384 },
+      "placements": 2,
+      "state": "available",
+      "release": 1400,
+      "discover": 400,
+      "berth": {
+        "name": "the_castaway_berth",
+        "x": -1204,
+        "y": 432,
+        "facing": "west",
+        "approach": { "x": -1164, "y": 482 }
+      }
+    },
     {
       "map": "hub",
       "place": "home-island",

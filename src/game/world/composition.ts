@@ -286,7 +286,18 @@ export function setComposition(c: WorldComposition) {
 export const mapvisHost = (): string =>
   (import.meta.env?.VITE_MAPVIS_URL || '').replace(/\/+$/, '')
 
+/* `?world=local` IS THE ESCAPE HATCH AND IT IS NOT DEBUG SCAFFOLDING. Pointing
+ * the default at the platform means a map that only exists in this repo can no
+ * longer be on the water, because the platform has never heard of it and never
+ * will. That is right for a student and wrong for the two people who need it: a
+ * member trying an island on a bundle they made this afternoon, and a proof run
+ * that has to pin the document it is proving against rather than take whatever
+ * was published last. It mirrors `?src=local`, which does the same job for maps. */
 export const worldUrl = (): string => {
+  const asked = typeof location !== 'undefined'
+    ? new URLSearchParams(location.search).get('world') : null
+  if (asked === 'local') return LOCAL_WORLD
+  if (asked) return asked
   const host = mapvisHost()
   return host ? `${host}/api/v1/world` : LOCAL_WORLD
 }

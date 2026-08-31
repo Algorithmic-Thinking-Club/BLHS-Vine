@@ -48,7 +48,7 @@
 .ch-region-name {
   position: absolute; left: 0.8cqw; top: 0.4cqw;
   font-family: 'Deckhand', monospace;
-  font-size: calc(2.4cqw * var(--kit-text-scale));
+  --kit-fs-raw: calc(2.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: rgba(74, 56, 38, 0.5);
   letter-spacing: 0.08em;
 }
@@ -66,13 +66,13 @@
    readable at a glance without relying on hue and nothing implemented it, so
    every slot carries a shape a colourblind student can read. */
 .ch-mark {
-  font-size: calc(4.6cqw * var(--kit-text-scale));
+  --kit-fs-raw: calc(4.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
   line-height: 1;
   text-shadow: 0 1px 0 rgba(246, 238, 216, 0.9);
 }
 
 .ch-name {
-  font-size: calc(2.9cqw * var(--kit-text-scale));
+  --kit-fs-raw: calc(2.9cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
   background: rgba(238, 227, 200, 0.86);
   border: 1px solid #8a744f;
   border-radius: 3px;
@@ -81,7 +81,7 @@
 }
 
 .ch-note {
-  font-size: calc(2.3cqw * var(--kit-text-scale));
+  --kit-fs-raw: calc(2.3cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: rgba(74, 56, 38, 0.62);
 }
 

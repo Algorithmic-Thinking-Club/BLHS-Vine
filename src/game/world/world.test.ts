@@ -6,11 +6,12 @@
  * these two modules were written as data plus functions instead of as scene
  * code with the answers inlined.
  */
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   FALLBACK, compositionFaults, distanceTo, discoveredSlots, residentSlots,
   regionAt, seaSlots, slotOfMap, slotOfPlace, residencyBytes, overBudget,
   slotBytes, maxResident, trimToBudget, paintedCentre,
+  marksOf, markByName, markNames, berthOf, LOCAL_WORLD,
   TEXTURE_BUDGET_BYTES, PAINTING_PX_CEILING, SLOT_STATES,
   type WorldComposition, type WorldSlot,
 } from './composition'
@@ -216,6 +217,310 @@ describe('the world composition', () => {
     expect(why).toContain(String(PAINTING_PX_CEILING))
     expect(why).toContain('discovered as a blank')
     expect(f.some((x) => x.key === 'home')).toBe(true)
+  })
+
+  /* WHICH SLOT, AND WHETHER IT IS ABOUT A SLOT AT ALL. That one field is the
+   * difference between a chart missing one island and a chart missing every
+   * island, so it is worth a test of its own rather than a corner of the one
+   * above. */
+  it('says which slot is at fault, and says nothing of the kind about the document', () => {
+    const doc: WorldComposition = {
+      version: 2,
+      slots: [
+        { map: 'a', title: 'a', at: { x: 0, y: 0 }, footprint: { w: 100, h: 100 }, state: 'available', release: 100 },
+        { title: 'empty but claiming to be open', at: { x: 0, y: 0 }, footprint: { w: 100, h: 100 }, state: 'available', release: 100 },
+        { map: 'c', title: 'c', at: { x: 0, y: 0 }, footprint: { w: 100, h: 100 }, state: 'available', release: 100 },
+      ],
+      home: { slot: 'nowhere' },
+    }
+    const f = compositionFaults(doc)
+    expect(f.filter((x) => x.slot !== undefined).map((x) => x.slot)).toEqual([1])
+    /* the home fault carries no index at all, not an index of nothing, because a
+     * reader drops slots by that field */
+    const home = f.find((x) => x.key === 'home')!
+    expect('slot' in home).toBe(false)
+  })
+})
+
+/* ---- the document the platform is actually serving ---------------------------
+ *
+ * Verbatim off `curl https://mapvis-atc.vercel.app/api/v1/world`. It is in here
+ * rather than a shape somebody typed for the reason the whole reader existed
+ * silently broken for two days: nobody had ever run the real document through
+ * the real checker. Two faults were tripping at once, a footprint of 688x640
+ * against the pixel ceiling and a `home` naming a place by its title, and every
+ * island, region and berth MAPVIS had authored was binned on every load with one
+ * console.warn as the only symptom.
+ */
+const LIVE: WorldComposition = {
+  version: 395,
+  home: { slot: 'home-island' },
+  slots: [{
+    map: 'hub', place: 'home-island', title: 'The Hub',
+    at: { x: 2051.5, y: 1975.5 },
+    footprint: { w: 669, h: 377 }, origin: { x: 7, y: 194 }, canvas: { w: 688, h: 640 },
+    placements: 94, state: 'available', release: 1400, discover: 520,
+    berth: { name: 'the_hub_berth', x: 2238, y: 2123, facing: 'north' },
+  }],
+  regions: [],
+  marks: [{
+    x: 2238, y: 2123, kind: 'berth', name: 'the_hub_berth',
+    label: 'The Hub Berth', facing: 'north', island: 'the_hub',
+  }],
+  source: 'mapvis',
+}
+
+describe('the world the platform is serving', () => {
+  it('passes the same checker the game refuses a document on', () => {
+    const known = new Set(PLACES.map((p) => p.id))
+    expect(compositionFaults(LIVE)).toEqual([])
+    expect(compositionFaults(LIVE, known)).toEqual([])
+  })
+
+  /* THE TWO FAULTS THAT USED TO TRIP, STANDING STILL. The footprint is now the
+   * painting and not the canvas, and the difference is the whole margin between
+   * passing and losing every island: the canvas is over the ceiling and the
+   * painting inside it is not. */
+  it('carries a footprint under the ceiling and a home that names a place id', () => {
+    const hub = LIVE.slots[0]
+    expect(hub.footprint.w * hub.footprint.h).toBeLessThan(PAINTING_PX_CEILING)
+    expect(hub.canvas!.w * hub.canvas!.h).toBeGreaterThan(PAINTING_PX_CEILING * 1.02)
+    expect(LIVE.home!.slot).toBe(hub.place)
+  })
+})
+
+/* ---- the marks on the water -------------------------------------------------
+ *
+ * A berth is off every painting, so it is the one place in the game that cannot
+ * be an anchor, and until this reader the only way to reach one was to already
+ * know which slot it hung off.
+ */
+describe('the marks a route can end at', () => {
+  it('indexes a berth by its name and by the island it belongs to', () => {
+    expect(markNames(LIVE)).toEqual(['the_hub', 'the_hub_berth'])
+    expect(markByName(LIVE, 'the_hub_berth')?.label).toBe('The Hub Berth')
+    /* "sail to the hub" is a line a member will write, so the island key is an
+     * alias for its own berth rather than a second mark */
+    expect(markByName(LIVE, 'the_hub')?.name).toBe('the_hub_berth')
+    expect(markByName(LIVE, 'nowhere_at_all')).toBeUndefined()
+  })
+
+  it('skips a mark with no name or no position rather than putting one at the origin', () => {
+    const doc = {
+      version: 1, slots: [],
+      marks: [
+        { name: '', kind: 'berth', x: 10, y: 10 },
+        { name: 'no_x', kind: 'berth', y: 10 },
+        { name: 'not_a_number', kind: 'berth', x: 'by the rocks', y: 10 },
+        { name: 'the_good_one', kind: 'berth', x: 10, y: 10 },
+      ],
+    } as unknown as WorldComposition
+    expect(markNames(doc)).toEqual(['the_good_one'])
+  })
+
+  it('folds in a slot own berth, so a world written before marks existed still answers', () => {
+    const older: WorldComposition = {
+      version: 1,
+      slots: [{
+        map: 'quay', title: 'the quay', at: { x: 0, y: 0 },
+        footprint: { w: 100, h: 100 }, state: 'available', release: 100,
+        berth: { name: 'the_quay_berth', x: 40, y: 60, facing: 'east', approach: { x: 90, y: 90 } },
+      }],
+    }
+    const m = marksOf(older).get('the_quay_berth')!
+    expect(m.x).toBe(40)
+    expect(m.kind).toBe('berth')
+    /* the fold names the map it hangs off, which is a THIRD spelling of the same
+     * island beside the marks array's own `island` field and the roster's place
+     * id, and it is the key a member gets if only the slot carries the berth */
+    expect(m.island).toBe('quay')
+  })
+
+  it('lets the marks array own a name the slot berth also claims', () => {
+    /* the free-placed mark is the newer authoring surface, so it wins the name
+     * and the slot copy does not shadow it with older coordinates */
+    const moved: WorldComposition = {
+      ...LIVE,
+      marks: [{ ...LIVE.marks![0], x: 2400, y: 2200 }],
+    }
+    expect(marksOf(moved).get('the_hub_berth')?.x).toBe(2400)
+  })
+
+  /* BUT A BERTH IS ASKED FOR THROUGH berthOf, AND THE SLOT'S COPY IS THE ONE
+   * CARRYING THE APPROACH. `sail.ts:270-288` steers the two-stage run-in off it,
+   * and a mark has no approach field at all, so answering with the mark is a
+   * hull that turns in at the last second. */
+  it('prefers the slot berth over a bare mark of the same name', () => {
+    const withApproach: WorldComposition = {
+      ...LIVE,
+      slots: [{ ...LIVE.slots[0], berth: { ...LIVE.slots[0].berth!, approach: { x: 2300, y: 2210 } } }],
+    }
+    expect(berthOf(withApproach, 'the_hub_berth')?.approach).toEqual({ x: 2300, y: 2210 })
+    expect(markByName(withApproach, 'the_hub_berth')).toEqual(LIVE.marks![0])
+  })
+
+  it('answers with a free-placed berth no slot claims, and with nothing for a mark that is not one', () => {
+    const doc: WorldComposition = {
+      version: 1, slots: [],
+      marks: [
+        { name: 'the_far_berth', kind: 'berth', x: 900, y: 20, facing: 'west', at: 'arrive_here' },
+        { name: 'the_bell', kind: 'beacon', x: 12, y: 12 },
+      ],
+    }
+    expect(berthOf(doc, 'the_far_berth')).toEqual({ x: 900, y: 20, name: 'the_far_berth', facing: 'west', at: 'arrive_here' })
+    /* a beacon is a thing on the water and not somewhere to tie up */
+    expect(berthOf(doc, 'the_bell')).toBeUndefined()
+    expect(berthOf(doc, 'never_authored')).toBeUndefined()
+  })
+})
+
+/* ---- where the document comes from ------------------------------------------
+ *
+ * `loadComposition` took its default at both call sites for the whole of this
+ * project, so the platform had never once been read. These drive the three
+ * answers it can get and the partial failure the handoff calls the real bug.
+ */
+describe('loading the composition', () => {
+  const PLATFORM = 'https://mapvis-atc.vercel.app/api/v1/world'
+
+  /** a module with its own cache, because the real one holds the first answer */
+  const freshWorld = async () => {
+    vi.resetModules()
+    return await import('./composition')
+  }
+
+  const served = (body: unknown) => ({
+    ok: true, status: 200,
+    headers: { get: () => 'application/json' },
+    json: async () => body,
+  } as unknown as Response)
+
+  const notThere = () => ({
+    ok: false, status: 404,
+    headers: { get: () => 'text/html' },
+    json: async () => ({}),
+  } as unknown as Response)
+
+  /** one document per url and a 404 for anything else */
+  const serving = (by: Record<string, unknown>) =>
+    vi.fn(async (u: string) => (u in by ? served(by[u]) : notThere()))
+
+  const slot = (map: string): WorldSlot => ({
+    map, title: map, at: { x: 0, y: 0 },
+    footprint: { w: 669, h: 377 }, state: 'available', release: 1400,
+  })
+
+  const quiet = () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    return vi.spyOn(console, 'error').mockImplementation(() => {})
+  }
+
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
+
+  it('uses the platform document when the platform answers', async () => {
+    const { loadComposition, compositionReport } = await freshWorld()
+    const f = serving({ [PLATFORM]: LIVE })
+    vi.stubGlobal('fetch', f)
+    const c = await loadComposition(PLATFORM)
+    expect(c.version).toBe(395)
+    expect(c.source).toBe('mapvis')
+    expect(compositionReport()).toEqual({ origin: PLATFORM, faults: [] })
+    /* and it stops there. Asking for the local copy as well is a second request
+     * a classroom Chromebook pays for and never reads. */
+    expect(f).toHaveBeenCalledTimes(1)
+  })
+
+  it('falls back to the copy in this repo when the platform cannot be reached', async () => {
+    const { loadComposition, compositionReport } = await freshWorld()
+    const local = { version: 9, slots: [slot('hub')] }
+    vi.stubGlobal('fetch', serving({ [LOCAL_WORLD]: local }))
+    const c = await loadComposition(PLATFORM)
+    expect(c.version).toBe(9)
+    expect(compositionReport().origin).toBe(LOCAL_WORLD)
+  })
+
+  it('runs on the built-in composition when nothing answers at all', async () => {
+    const { loadComposition, compositionReport, FALLBACK: BUILT_IN } = await freshWorld()
+    quiet()
+    vi.stubGlobal('fetch', serving({}))
+    expect(await loadComposition(PLATFORM)).toBe(BUILT_IN)
+    /* the origin is the sentence a teacher needs, because "the world looks
+     * wrong" is not something anybody can act on */
+    expect(compositionReport().origin).toBe('built in')
+  })
+
+  it('does not go looking for a platform a session has not got one of', async () => {
+    /* a member with nothing but this repo checked out reads the committed copy
+     * and makes exactly one request */
+    const { loadComposition } = await freshWorld()
+    const f = serving({ [LOCAL_WORLD]: { version: 9, slots: [slot('hub')] } })
+    vi.stubGlobal('fetch', f)
+    await loadComposition(LOCAL_WORLD)
+    expect(f).toHaveBeenCalledTimes(1)
+  })
+
+  /* THE WHOLE POINT OF THE CHANGE. The old reader binned all four slots and fell
+   * back to a hardcoded default over one footprint, and nothing on screen said
+   * so. One bad slot must never again cost the other three. */
+  it('keeps the good slots and drops only the bad one', async () => {
+    const { loadComposition, compositionReport } = await freshWorld()
+    const err = quiet()
+    const doc: WorldComposition = {
+      version: 400,
+      slots: [slot('hub'), slot('the_quay'), { ...slot('the_deep'), footprint: { w: 900, h: 900 } }, slot('atc')],
+    }
+    vi.stubGlobal('fetch', serving({ [PLATFORM]: doc }))
+    const c = await loadComposition(PLATFORM)
+    expect(c.version).toBe(400)
+    expect(c.slots.map((s) => s.map)).toEqual(['hub', 'the_quay', 'atc'])
+    const { origin, faults } = compositionReport()
+    expect(origin).toBe(PLATFORM)
+    expect(faults.map((f) => f.slot)).toEqual([2])
+    /* and it is an error, not a warn. A warn is what a browser prints for a
+     * deprecated css property and it is what this printed while the world was
+     * being deleted. */
+    expect(err).toHaveBeenCalledTimes(1)
+    expect(String(err.mock.calls[0][0])).toContain('1 of 4 slots dropped')
+  })
+
+  it('refuses a document whole only when nothing in it survives', async () => {
+    const { loadComposition, FALLBACK: BUILT_IN } = await freshWorld()
+    const err = quiet()
+    const doc: WorldComposition = {
+      version: 401,
+      slots: [{ ...slot('a'), footprint: { w: 900, h: 900 } }, { ...slot('b'), footprint: { w: 0, h: 0 } }],
+    }
+    vi.stubGlobal('fetch', serving({ [PLATFORM]: doc }))
+    /* nothing survives the platform and there is no local copy in this stub, so
+     * the step down goes all the way rather than to an empty ocean */
+    expect(await loadComposition(PLATFORM)).toBe(BUILT_IN)
+    expect(err.mock.calls.map((c) => String(c[0])).join()).toContain('refused whole')
+  })
+
+  it('drops nothing for a fault that is about the document rather than a slot', async () => {
+    const { loadComposition, compositionReport } = await freshWorld()
+    quiet()
+    const doc: WorldComposition = {
+      version: 402,
+      slots: [slot('hub'), slot('the_quay')],
+      home: { slot: 'The Hub' },
+    }
+    vi.stubGlobal('fetch', serving({ [PLATFORM]: doc }))
+    const c = await loadComposition(PLATFORM)
+    /* a world with a mistyped home is still a world, and refusing it leaves a
+     * student staring at nothing. This is the exact string that used to delete
+     * every island in the published document. */
+    expect(c.slots.map((s) => s.map)).toEqual(['hub', 'the_quay'])
+    expect(compositionReport().faults.map((f) => f.key)).toEqual(['home'])
+  })
+
+  it('answers the same document to a second caller rather than fetching twice', async () => {
+    const { loadComposition } = await freshWorld()
+    const f = serving({ [PLATFORM]: LIVE })
+    vi.stubGlobal('fetch', f)
+    const [a, b] = await Promise.all([loadComposition(PLATFORM), loadComposition(PLATFORM)])
+    expect(a).toBe(b)
+    expect(f).toHaveBeenCalledTimes(1)
   })
 })
 
