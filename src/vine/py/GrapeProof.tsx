@@ -56,6 +56,20 @@ const world: IntentWorld = {
   fx: noMap('fx'),
   enter: noMap('enter'),
   cutscene: noMap('cutscene'),
+  /* THE DIRECTOR HALF, AND EVERY ONE OF IT NEEDS A MAP. A pose is a body on a
+   * painting, an actor is a placement on one, a route is a line drawn across
+   * one, a shot is a camera looking at one and a region is a rectangle on one.
+   * `wait` and `sound` are the two director words that do NOT appear here,
+   * because neither needs a world, which is why they are on the engine half and
+   * why a member can time and score a scene in this harness with no map at all. */
+  pose: noMap('pose'),
+  actorMove: noMap('actor_move'),
+  actorFace: noMap('actor_face'),
+  actorLook: noMap('actor_look'),
+  actorRelease: noMap('actor_release'),
+  route: noMap('route'),
+  framing: noMap('framing'),
+  waitFor: noMap('wait_for'),
 }
 
 type Seen = { what: string; detail: string }

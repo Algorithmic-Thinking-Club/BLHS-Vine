@@ -28,12 +28,14 @@ import { cleanLife, lifeAt, type Life, type LifeBounds, separate } from './life'
  * (MAPVIS site/Walk.tsx, whose header lists them). walk.ts in this folder is
  * MAPVIS's src/core/walk.ts verbatim, on the same terms life.ts is, so the
  * editor's walk test and this scene cannot disagree about where a wall is. */
-import { TEST_SPEED, Walker, canStand as lawCanStand, canStandFrom as lawCanStandFrom, defaultCfg, type MaskDoc, type WalkCfg } from './walk'
+import { TEST_SPEED, Walker, canStand as lawCanStand, canStandFrom as lawCanStandFrom, defaultCfg, dirFrom, type MaskDoc, type WalkCfg } from './walk'
 import { AnchorSet, type Anchor } from './anchors'
-import { framingOf, framingNames, shotOf } from './framings'
+import { framingOf, framingNames, shotOf, projectFramings, shotsOf, type NamedShot } from './framings'
+import { readPaths, legsOf, lengthOf, pathNames, walkFaults, type Pathway } from './paths'
 import { holdWorld, onWorldHold, worldHeld } from '../world-bus'
 import { choose, clearDialogue, say } from '../dialogue'
 import { engine } from '../intent-engine'
+import { play as playSfx } from '../audio'
 import { NotBuilt, performIntent, type Intent, type IntentHost, type IntentWorld } from '../../vine/intents'
 import { CutsceneRuntime } from '../cutscene/runtime'
 import type { CutsceneStage } from '../cutscene/types'
@@ -53,8 +55,9 @@ import { setContext } from '../telemetry'
  * water), and the states a slot can be in. The arithmetic is in those modules
  * and is unit-tested; this file is where it is drawn. */
 import {
-  loadComposition, slotOfMap, seaSlots, discoveredSlots, residentSlots, regionAt, paintedCentre,
-  type WorldComposition, type WorldSlot,
+  loadComposition, slotOfMap, seaSlots, discoveredSlots, residentSlots, regionAt,
+  berthOf, markNames,
+  type WorldComposition, type WorldSlot, type Berth,
 } from '../world/composition'
 import { stateOf, STATE_INK } from '../world/states'
 import {
@@ -97,8 +100,38 @@ interface PmapEncoding {
 interface PmapJson {
   id: string
   w: number; h: number
+  /* THE PAINTING'S REAL EXTENT INSIDE ITS OWN CANVAS, which is not `w` and `h`.
+   *
+   * `growCanvas` in MAPVIS adds transparent margin and never picture, so the
+   * hub's 688x640 canvas holds 688x377 of painting sitting 194 pixels down. Every
+   * radius measured off `h` on that map is measured off open water, and the
+   * handoff puts the error at about 41 percent IN THE DIRECTION THAT DISCOVERS AN
+   * ISLAND BEFORE IT IS ON SCREEN. MAPVIS measures this off the published bytes
+   * at alpha 8 rather than off the dropped file, so it is the painting and not
+   * the author's crop guess.
+   *
+   * The composition's `footprint` and `origin` are those two numbers arriving by
+   * the other road and they WIN where a slot exists, because the world document
+   * is what discovery and residency are computed against and one map cannot be
+   * two sizes. This field is what a map that is NOT in the composition has. A
+   * bundle published before the field carries the canvas here (the hub at v13
+   * says `{w:688,h:640,ox:0,oy:0}` against a 377-pixel painting), so a base equal
+   * to the canvas is read as no answer at all rather than as an answer. */
+  base?: { w: number; h: number; ox: number; oy: number }
   encoding: PmapEncoding
   spawn: [number, number]
+  /* AUTHORED POLYLINES: named routes with waypoints, a kind, and a facing to end
+   * on. `walk` routes are ground-tested in MAPVIS against the same standability
+   * probe the anchors use, so a route across ground a body cannot walk says so at
+   * author time rather than at play time. `sail` and `camera` are unconstrained
+   * because neither has hips. This is what the `route` word steers along. */
+  paths?: unknown
+  /* NAMED SHOTS. MAPVIS projects these into the anchor `meta` bag, which is the
+   * shape `framings.ts` already reads, but every bundle published before it did
+   * carries them here as a flat list instead. The reader takes both and the
+   * projection happens once at load, so `framing("the_maw_mouth")` works on the
+   * hub that is on the platform today rather than only on the next one. */
+  framings?: unknown
   character: { heightPx: number; hip: number; hipDY: number }
   speed: number                     // px/s at the painting's scale
   yScale: number                    // vertical speed factor, the painted ground's foreshortening
@@ -608,6 +641,29 @@ export default function PmapScene() {
        */
       const anchors = AnchorSet.from(mapId, map)
       const doors = anchors.ofKind('door')
+
+      /* ---- THE TWO THINGS AUTHORED BESIDE THE ANCHORS AND NEVER READ --------
+       *
+       * PATHS. MAPVIS has published named polylines since wave three and the hub
+       * on the platform has carried `the_dock_walk` since 2026-08-29. Nothing in
+       * this repo has ever looked at one, so an author could draw a route and
+       * then had no sentence in which to use it. `route` is that sentence and
+       * `paths.ts` is the reader.
+       *
+       * FRAMINGS, TWICE. MAPVIS projects named shots into the anchor `meta` bag,
+       * which is the shape `framings.ts` reads and the shape the contract law
+       * says stays canonical. The bundles published BEFORE it moved carry a flat
+       * top-level list instead, and the live hub is one of them. Folding one into
+       * the other here is what lets `framing("the_maw_mouth")` work on the map
+       * that is on the platform today rather than only on the next one. */
+      const paths: Pathway[] = readPaths(map, mapId)
+      const folded = projectFramings(anchors.all, (map as { framings?: unknown }).framings, mapId)
+      const shots: Map<string, NamedShot> = shotsOf(anchors.all)
+      if (DBG && (paths.length || shots.size)) {
+        console.log(`[pmap] ${mapId}: ${paths.length} path(s) ${pathNames(paths).join(' ') || '-'}`
+          + ` · ${shots.size} shot(s) ${[...shots.keys()].join(' ') || '-'}`
+          + (folded ? ` (${folded} folded off the bundle's own list)` : ''))
+      }
       /* every placement by the strings that can address it, so an anchor bound
        * to one can find it. Filled in the assets pass below.
        *
@@ -636,10 +692,22 @@ export default function PmapScene() {
          * miss. It has this. A driven placement is a body with a driver, which is
          * Q4.6.a's expensive answer, and a body that cannot be turned is not one. */
         facing: string | null
-        move: null | { tx: number; ty: number; speed: number; done: boolean }
+        /* `then` is what turns a poll into a promise. `CutsceneStage.actorMove`
+         * hands the runtime a function to poll, which is the runtime's contract;
+         * the intent layer awaits instead, and both are the same move. It fires
+         * exactly once, from the driven pass, at the frame the move really ends,
+         * and never from the code that started it. */
+        move: null | { tx: number; ty: number; speed: number; done: boolean; then?: () => void }
       }
       const driven = new Map<Sprite, Driven>()
       const looksOf = new Map<Sprite, Look[]>()
+      /* WHAT EACH FACE IS CALLED, indexed exactly the way `art` indexes them:
+       * slot 0 is the placement's own picture and slot 1 is looks[0]. MAPVIS's own
+       * `lookNames` (src/core/mask.ts:190-201) owns that off-by-one and this is
+       * the same rule on the reading side. An empty string is a face nobody named
+       * and it HOLDS ITS SLOT, because the index is what the sequence uses and a
+       * compacted list would silently renumber every look after the unnamed one. */
+      const lookNamesOf = new Map<Sprite, string[]>()
 
       const actorSprite = (name: string): Sprite | null => placedById.get(name) ?? null
       const take = (sp: Sprite): Driven => {
@@ -681,11 +749,39 @@ export default function PmapScene() {
        * and there is no scale factor anywhere for somebody to get wrong. */
       const comp: WorldComposition | null = await loadComposition().catch(() => null)
       const slot: WorldSlot | undefined = comp ? slotOfMap(comp, mapId) : undefined
+      /* THE BUNDLE'S OWN ANSWER TO THE SAME QUESTION, and it is only an answer
+       * when it differs from the canvas. Every bundle published before MAPVIS
+       * measured this wrote the canvas into the field, so `base.w === w &&
+       * base.h === h && !ox && !oy` is a bundle saying nothing, not a bundle
+       * saying the painting fills its canvas. A tightly cropped export really
+       * does fill it, and reading that as silence costs nothing: silence and
+       * "the whole canvas" produce the identical centre. */
+      const said = map.base
+      const paintBase = said
+        && [said.w, said.h, said.ox, said.oy].every((n) => isFinite(Number(n)))
+        && said.w > 0 && said.h > 0
+        && !(said.w === W && said.h === H && !said.ox && !said.oy)
+        ? { w: said.w, h: said.h, ox: said.ox || 0, oy: said.oy || 0 }
+        : null
       /* PLACED BY THE PAINTING'S CENTRE AND NOT BY THE CANVAS'S. Measured on the
        * real hub: the canvas is 688x640, the opaque pixels run y 194 to 570, so
        * half the canvas is 62 pixels away from half the painting and every radius
-       * measured from it is measured from open water. */
-      const pc = slot ? paintedCentre(slot, W, H) : { x: W / 2, y: H / 2 }
+       * measured from it is measured from open water.
+       *
+       * The composition wins, then the bundle's own base, then the canvas. The
+       * order is the order of how much each one knows: the world document is what
+       * discovery is computed against and is the only one of the three that can
+       * be wrong about a map without the map noticing. */
+      const painted = slot?.origin
+        ? { w: slot.footprint.w, h: slot.footprint.h, ox: slot.origin.x, oy: slot.origin.y }
+        : paintBase ?? (slot
+          ? { w: slot.footprint.w, h: slot.footprint.h, ox: (W - slot.footprint.w) / 2, oy: (H - slot.footprint.h) / 2 }
+          : { w: W, h: H, ox: 0, oy: 0 })
+      const pc = { x: painted.ox + painted.w / 2, y: painted.oy + painted.h / 2 }
+      if (painted.w !== W || painted.h !== H) {
+        console.info(`[pmap] ${mapId}: the painting is ${painted.w}x${painted.h} at ${painted.ox},${painted.oy}`
+          + ` inside a ${W}x${H} canvas, off ${slot?.origin ? 'the world document' : 'the bundle'}`)
+      }
       const toSea = (px: number, py: number) => ({
         x: (slot?.at.x ?? 0) + px - pc.x,
         y: (slot?.at.y ?? 0) + py - pc.y,
@@ -1323,6 +1419,19 @@ export default function PmapScene() {
                * can ask for one by index. A state is a placement wearing another
                * picture and not a second placement beside it. */
               looksOf.set(sp, looks)
+              /* and what each of them is called, when anybody called it anything.
+               * `actorState` in the cutscene stage says "a look is an index in the
+               * bundle and this map carries no name for one", and that stopped
+               * being true the day MAPVIS grew look names. `actor_look` reads
+               * these, so a member writes "angry" instead of 2. */
+              {
+                const raw = a as unknown as { lookName?: unknown; looks?: { name?: unknown }[] }
+                const named = [
+                  typeof raw.lookName === 'string' ? raw.lookName : '',
+                  ...(raw.looks ?? []).map((L) => typeof L?.name === 'string' ? L.name : ''),
+                ]
+                if (named.some(Boolean)) lookNamesOf.set(sp, named)
+              }
               // a placement that MOVES carries a few numbers instead of extra
               // frames, and the ticker below works out where it is. See life.ts:
               // travel cannot be baked into an animation, because an animation
@@ -1647,6 +1756,49 @@ export default function PmapScene() {
       // his heading and his stride live on the Walker now, because the law that
       // moves him is the one that decides both
       const thor = { sp: thorSp, sh }
+
+      /* ---- A1: HIS OWN BODY, WHICH HE DID NOT HAVE ---------------------------
+       *
+       * He could walk and he could be looked at, and there was no way at all to
+       * say what he was doing while standing still. The whole first minute of the
+       * game is him waking up on sand, and the only scene that could draw that was
+       * `BeachIso`, in hard-coded TypeScript, against its own private texture
+       * table. A painted map could not.
+       *
+       * THE POSES ARE A NAMED TABLE AND NOT A PATH JOINED TO A STRING. A member
+       * writing `pose("nap")` must be told what exists, and the only way to tell
+       * them is for the engine to hold the list. Two of these have art today,
+       * drawn for the beach opening and sitting unused in `public/art/`, and
+       * `stand` is the walk set's own idle frame, which is why it always works.
+       * A pose the art does not cover refuses by name, in the NotBuilt shape, at
+       * the line that asked. That is the difference between a member shipping an
+       * island where he never wakes up and a member fixing a typo.
+       *
+       * The frames are trimmed to their last drawn row the same way the walk
+       * frames are, so `anchor(0.5, 1)` is the feet on a pose exactly as it is on
+       * a stride and a sitting body does not float. */
+      const POSE_ART: Record<string, string | null> = {
+        stand: null, idle: null, up: null,
+        sleep: 'lie', lie: 'lie', asleep: 'lie',
+        sit: 'sit', seated: 'sit',
+      }
+      const poseTex = new Map<string, Texture>()
+      const loadPose = async (file: string): Promise<Texture> => {
+        const had = poseTex.get(file)
+        if (had) return had
+        const t: Texture = await Assets.load(req(`/art/characters/thor/pose/${file}.png`))
+        t.source.scaleMode = 'nearest'
+        const r = scanRows(t)
+        const cut = r ? new Texture({ source: t.source, frame: new Rectangle(0, 0, t.source.pixelWidth, r.feet + 1) }) : t
+        poseTex.set(file, cut)
+        return cut
+      }
+      /* what he is holding, or null for the walk set. Read by the ticker, which is
+       * the one place his texture is decided, so a pose cannot fight the stride. */
+      let posed: { name: string; tex: Texture } | null = null
+      /* where he was when the pose was set, so "he moved" is a real comparison
+       * rather than "a key is down": a player leaning into a wall has not got up */
+      const poseAt = { x: 0, y: 0 }
 
       // the spawn is VALIDATED: if the exported point is blocked (a mask edit can land on
       // it), spiral out to the nearest standable ground
@@ -2124,6 +2276,140 @@ export default function PmapScene() {
        * The station table in src/game/maw/stations.ts already asks for it in the
        * same idiom, which is the test: if the vine's own content cannot be
        * written in the API the members get, the API is a demo. */
+      /* ---- WHAT THE DIRECTOR WORDS LEAN ON --------------------------------
+       *
+       * AN ACTOR IS AN ANCHOR AND THE ANCHOR IS BOUND TO A PLACEMENT, which is
+       * the same two-step `show` takes and deliberately not a placement name
+       * typed straight into Python. A placement id is a counter MAPVIS made up
+       * and a placement name is optional on every one of them; an anchor name is
+       * validated as an identifier where it is typed and is kept separate from
+       * the label, so renaming a character for the player cannot break a
+       * member's island. One addressing system or none. */
+      const actorBody = (name: string, word: string): Sprite => {
+        const a = anchors.get(name)
+        if (!a) throw new NotBuilt(word, `no anchor named "${name}" on ${mapId}`)
+        if (!a.placement)
+          throw new NotBuilt(word, `anchor "${name}" is not bound to a placement, so there is no body to drive`)
+        const sp = placedById.get(a.placement)
+        if (!sp) throw new NotBuilt(word, `no placement "${a.placement}" on ${mapId}`)
+        return sp
+      }
+
+      /* LETTING GO SETTLES WHAT WAS PENDING. `driven.clear()` on its own leaves a
+       * script awaiting an arrival that will now never be reported, and the whole
+       * island stalls behind it. Every release goes through here: the word, the
+       * end of a cutscene, and the scene's own teardown. */
+      const releaseDriven = (only?: Sprite) => {
+        for (const [sp, d] of driven) {
+          if (only && sp !== only) continue
+          const settle = d.move?.then
+          d.move = null
+          driven.delete(sp)
+          settle?.()
+        }
+      }
+
+      /* the promises waiting for him to walk into somewhere, checked on the
+       * scene's own ticker so an arrival is seen on the frame it happens rather
+       * than up to an interval late */
+      const waiters: { a: Anchor; until: number; done: (v: boolean) => void }[] = []
+
+      /* ---- A ROUTE, TRAVELLED, THREE WAYS ---------------------------------
+       *
+       * One line, three bodies, and the difference between them is entirely in
+       * what moves: the player obeys the walk law and paths round walls, a driven
+       * placement is carried because a crate has no hips, and the hull is steered
+       * by the physics that already ship. None of the three is a new way to move;
+       * each is the existing one given a list of waypoints.
+       */
+      const walkRoute = async (p: Pathway, backwards: boolean): Promise<void> => {
+        const pts = legsOf(p, backwards)
+        const hold = holdWorld(`route:${p.name}`)
+        try {
+          for (let i = 1; i < pts.length; i++) {
+            const last = i === pts.length - 1
+            await new Promise<void>((r) => {
+              startWalk(pts[i], last ? 3 : 6, last ? p.facing ?? null : null, r, `${p.name}[${i}]`)
+            })
+          }
+        } finally { hold() }
+      }
+
+      const actorRoute = async (who: string, p: Pathway, backwards: boolean): Promise<void> => {
+        const sp = actorBody(who, 'route')
+        const d = take(sp)
+        const pts = legsOf(p, backwards)
+        for (let i = 1; i < pts.length; i++) {
+          if (d.move) { const orphan = d.move.then; d.move = null; orphan?.() }
+          const dir = dirFrom(pts[i].x - d.x, (pts[i].y - d.y) * map.yScale)
+          if (dir) d.facing = dir
+          await new Promise<void>((r) => {
+            d.move = { tx: pts[i].x, ty: pts[i].y, speed: map.speed, done: false, then: r }
+          })
+        }
+        if (p.facing) d.facing = p.facing
+      }
+
+      /* THE VOYAGE. There was no way to start a crossing from a script at all:
+       * the hull, the wake, the aground rule and the berthing manoeuvre were all
+       * built and tested, and the only thing on earth that could put a player on
+       * the water was a player pressing a key.
+       *
+       * Every waypoint but the last is a WAYPOINT AND NOT A DESTINATION, so the
+       * hull carries its speed round the corner instead of stopping at each one,
+       * using sail.ts's own "passed, not hit" test: a boat turning at cruise has a
+       * 92 pixel radius and a capture circle it can orbit forever, so the question
+       * is whether the mark is behind the bow and not whether it was touched. The
+       * LAST one is handed to `berthHelm`, which is the decelerating manoeuvre
+       * that already exists, so an arrival looks the way Ash's word for it was:
+       * properly. */
+      let sailing: {
+        path: Pathway
+        pts: { x: number; y: number }[]
+        i: number
+        done: () => void
+        fail: (e: Error) => void
+        until: number
+      } | null = null
+      const sailRoute = (p: Pathway, backwards: boolean): Promise<void> => {
+        if (p.kind !== 'sail')
+          throw new NotBuilt('route', `"${p.name}" is a ${p.kind} route, so the ship cannot take it`)
+        if (!canSail || !berth)
+          throw new NotBuilt('route', `${mapId} has no berth on the world, so there is nothing here to sail`)
+        if (sailing) throw new NotBuilt('route', `"${p.name}" cannot start: the ship is already on a route`)
+        if (!hull) board()
+        if (!hull) throw new NotBuilt('route', `the ship could not be boarded on ${mapId}`)
+        /* a route that leaves the water is the sail-side twin of a walk over a
+         * wall, and it is checked before anything moves for the same reason */
+        const pts = legsOf(p, backwards)
+        const dry = pts.find((q) => depthAt(q.x, q.y) < DEFAULT_SAIL.probe)
+        if (dry)
+          throw new NotBuilt('route', `"${p.name}" runs aground at ${dry.x},${dry.y}, which is inside the hull's own ${DEFAULT_SAIL.probe} pixel probe`)
+        /* the timeout is measured off the LINE rather than off a constant, so a
+         * long crossing is not cut off and a short one does not hang for a minute
+         * when something goes wrong. Three times the cruise time, which is the
+         * slack a full-speed turn and a deceleration need. */
+        const secs = (lengthOf(p, backwards) / DEFAULT_SAIL.cruise) * 3 + 8
+        engine.log('voyage_started', { map: mapId, path: p.name, legs: pts.length })
+        return new Promise<void>((done, fail) => {
+          sailing = { path: p, pts, i: 1, done, fail, until: performance.now() + secs * 1000 }
+        })
+      }
+      /* the berth a sail route ends at, when it names one. `meta` is the carrier
+       * for the same reason a look and a framing ride it: MAPVIS drops unknown
+       * top-level fields on the way through, and the meta bag survives. */
+      const berthNamedBy = (p: Pathway): Berth | undefined => {
+        const want = p.meta && typeof p.meta.berth === 'string' ? p.meta.berth : ''
+        if (!want || !comp) return undefined
+        const b = berthOf(comp, want)
+        if (!b) {
+          console.warn(`[pmap] path "${p.name}" ends at a berth called "${want}", which the world does not have. `
+            + `It has: ${markNames(comp).join(', ') || 'none'}`)
+          return undefined
+        }
+        return b
+      }
+
       const intentWorld: IntentWorld = {
         mapId: () => mapId,
         hasAnchor: (n) => anchors.has(n),
@@ -2195,11 +2481,26 @@ export default function PmapScene() {
          *
          * The completion is real: `playFx` resolves when the effect has finished on
          * the world's own ticker, so `fx` inside a script is a step that ends. */
-        fx(name, anchorName2) {
+        fx(name, anchorName2, data) {
           const a = anchorName2 ? anchors.get(anchorName2) : null
           if (anchorName2 && !a)
             throw new NotBuilt('fx', `no anchor named "${anchorName2}" on ${mapId}`)
-          void playFx(name, a ? { x: a.x, y: a.y } : { x: pos.x, y: pos.y })
+          /* AN ANCHOR, A WORLD POINT, OR HIM. The brief's shape for the one-shot
+           * is "at an anchor or world point", and only the first half existed, so
+           * an effect on open water (an island rising, a mark landing on the
+           * chart) had nowhere to be. A point rides in `data` because that is the
+           * bag the word already carries and adding a field to the union for the
+           * rarer of two addresses would put a coordinate in the vocabulary. */
+          const pt = data && typeof data === 'object'
+            ? (data as { x?: unknown; y?: unknown }) : null
+          const at = a ? { x: a.x, y: a.y }
+            : pt && isFinite(Number(pt.x)) && isFinite(Number(pt.y))
+              ? { x: Number(pt.x), y: Number(pt.y) }
+              : { x: pos.x, y: pos.y }
+          /* AWAITED. It was fired and forgotten, so `performIntent` answered ok
+           * the instant the effect started and the next line of a script ran over
+           * the top of it. "Plays once, ends" is only true if somebody waits. */
+          return playFx(name, at)
         },
 
         enter(map, at) {
@@ -2277,8 +2578,14 @@ export default function PmapScene() {
                * frozen position and texture every frame, so an NPC who appeared in
                * one cutscene stood still for the rest of the visit. The behaviours
                * are pure in the clock, so letting go IS resuming: she picks up
-               * wherever the clock says, not where the script left her. */
-              driven.clear()
+               * wherever the clock says, not where the script left her.
+               *
+               * Through `releaseDriven` rather than `driven.clear()`, so a leg an
+               * intent is awaiting is SETTLED as it is dropped. A cutscene that
+               * ends while a driven actor is mid-walk used to leave the island
+               * that asked for that walk waiting for an arrival nothing would
+               * ever report. */
+              releaseDriven()
               resume()
               engine.log('cutscene_finished', { map: mapId, script, missed: stageMisses })
               if (stageMisses.length) {
@@ -2287,6 +2594,193 @@ export default function PmapScene() {
               }
               done()
             })
+          })
+        },
+
+        /* ---- A1: THE PLAYER'S OWN BODY -------------------------------------
+         *
+         * The whole first minute of this game is somebody waking up on sand, and
+         * the only scene that could draw it was `BeachIso`, in hard-coded
+         * TypeScript against its own private texture table. A painted map could
+         * not say it at all, which is why the intro was never a grape.
+         *
+         * The heading is the half that will be used most and the half that never
+         * needed art: "he hears something and turns" was previously written by
+         * walking him one pixel. */
+        async pose(name, facing) {
+          if (facing) {
+            if (!walkT[facing])
+              throw new NotBuilt('pose', `"${facing}" is not a heading. They are: ${DIRS8.join(', ')}`)
+            walker.facing = facing
+          }
+          if (name === undefined) return
+          const key = String(name).toLowerCase()
+          if (!(key in POSE_ART))
+            throw new NotBuilt('pose', `"${name}" is not a pose. It has: ${Object.keys(POSE_ART).join(', ')}`)
+          const file = POSE_ART[key]
+          /* standing is the walk set's own first frame, which is why it is the
+           * one pose that can never be missing */
+          if (file === null) { posed = null; return }
+          let tex: Texture
+          try {
+            tex = await loadPose(file)
+          } catch {
+            /* REFUSE, and say which file. This is the NotBuilt law reaching the
+             * one place in the vocabulary that depends on art nobody has drawn
+             * yet: a member writes the waking beat, sees no error, and ships an
+             * island where he never wakes up. */
+            throw new NotBuilt('pose', `"${key}" wants /art/characters/thor/pose/${file}.png and nothing answered for it`)
+          }
+          posed = { name: key, tex }
+          poseAt.x = pos.x; poseAt.y = pos.y
+        },
+
+        /* ---- A2: SOMEBODY ELSE'S BODY -------------------------------------- */
+        actorMove(actor, to, facing) {
+          const sp = actorBody(actor, 'actor_move')
+          const target = anchors.get(to)
+          if (!target) throw new NotBuilt('actor_move', `no anchor named "${to}" on ${mapId}`)
+          const at = anchors.standAt(target)
+          const d = take(sp)
+          /* the leg already running is SETTLED and never dropped, for the reason
+           * `startWalk` gives at length about the player: a promise nothing can
+           * settle leaves the script that yielded it waiting forever, and on a
+           * station that means the map is finished until a page reload. */
+          if (d.move) { const orphan = d.move.then; d.move = null; orphan?.() }
+          /* face the way it is going while it goes, so a body drawn eight ways
+           * does not moonwalk across the square */
+          const dir = dirFrom(at.x - d.x, (at.y - d.y) * map.yScale)
+          if (dir) d.facing = dir
+          return new Promise<void>((resolve) => {
+            d.move = {
+              tx: at.x, ty: at.y, speed: map.speed, done: false,
+              then: () => {
+                /* the caller's heading wins, then the anchor's own, then
+                 * whatever the walk left it on */
+                if (facing) d.facing = facing
+                else if (at.facing) d.facing = at.facing
+                resolve()
+              },
+            }
+          })
+        },
+
+        actorFace(actor, facing) {
+          const sp = actorBody(actor, 'actor_face')
+          const d = take(sp)
+          const set = looksOf.get(sp)
+          const look = set && (set[d.look ?? 0] ?? set[0])
+          /* A THING DRAWN ONE WAY HAS NO HEADING TO TURN TO, and saying so is the
+           * difference between an author fixing their map and an author wondering
+           * why the shopkeeper never looks up. The cutscene stage counts this as a
+           * miss; the word refuses, because a word can. */
+          if (!look?.views || !Object.keys(look.views).length)
+            throw new NotBuilt('actor_face', `"${actor}" was drawn one way and has no heading to turn to`)
+          d.facing = facing
+        },
+
+        actorLook(actor, look) {
+          const sp = actorBody(actor, 'actor_look')
+          const d = take(sp)
+          const set = looksOf.get(sp)
+          const names = lookNamesOf.get(sp) ?? []
+          /* THE PLACEMENT'S OWN PICTURE IS ALWAYS INDEX ZERO and is always
+           * addressable, whatever anybody called it, so a script can always put a
+           * thing back the way it was found. */
+          if (look === 'idle' || look === 'default') { d.look = 0; return }
+          const named = names.indexOf(look)
+          if (named >= 0) { d.look = named; return }
+          /* an index still works, because that is the only address a bundle from
+           * before look names could offer and those bundles are still on the
+           * platform */
+          const i = Number(look)
+          if (Number.isInteger(i) && i >= 0 && i < (set?.length ?? 0)) { d.look = i; return }
+          const have = names.filter(Boolean)
+          throw new NotBuilt('actor_look',
+            `"${actor}" has no face called "${look}". It has: ${have.length ? have.join(', ') : `nothing named, and ${set?.length ?? 0} unnamed`}`)
+        },
+
+        actorRelease(actor) {
+          if (!actor) { releaseDriven(); return }
+          releaseDriven(actorBody(actor, 'actor_release'))
+        },
+
+        /* ---- A3: ROUTES, AND THE VOYAGE --------------------------------------
+         *
+         * MAPVIS has authored these for weeks and nothing has ever read one. The
+         * kind is checked rather than trusted, because MAPVIS's own note on why it
+         * added the field is that "the hub's own the_dock_walk runs over pixels no
+         * body can stand on, and the tool had no way to know whether that was a
+         * mistake or a boat". */
+        route(pathName, who, backwards) {
+          const p = paths.find((q) => q.name === pathName)
+          if (!p)
+            throw new NotBuilt('route', `no path named "${pathName}" on ${mapId}. It has: ${pathNames(paths).join(', ') || 'none'}`)
+          if (backwards && !p.twoWay)
+            throw new NotBuilt('route', `"${pathName}" is one-way, so it cannot be run backwards`)
+          if (who === 'ship') return sailRoute(p, backwards)
+          if (p.kind === 'sail')
+            throw new NotBuilt('route', `"${pathName}" is a sail route, so only the ship can take it`)
+          /* GROUND IS CHECKED BEFORE ANYBODY SETS OFF, against the same probe the
+           * anchors and the walk obey, and it names the pixel that broke it. A
+           * body sent along an impossible line walks into a wall and leans on it
+           * while the script waits for an arrival that cannot happen. */
+          if (p.kind === 'walk') {
+            const bad = walkFaults(p, (x, y) => canStand(x, y))
+            if (bad.length)
+              throw new NotBuilt('route',
+                `"${pathName}" crosses ground nobody can stand on, first at ${bad[0].at.x},${bad[0].at.y} on leg ${bad[0].leg}`)
+          }
+          return who === 'player' ? walkRoute(p, backwards) : actorRoute(who, p, backwards)
+        },
+
+        /* ---- A4: A SHOT SOMEBODY SET UP, BY ITS NAME ------------------------
+         *
+         * `look_at` reads an anchor's UNNAMED default and always has, and that is
+         * left exactly as it is. This is the other half: the shot a person named
+         * and dragged into place while looking at the painting.
+         *
+         * THE ZOOM IS A MULTIPLE OF THE OPENING VIEW AND NOT A SCALE. MAPVIS
+         * converts on the way out and carries this scene's own 1.18 pull-out
+         * constant to do it, so a shot armed at the editor's third notch arrives
+         * as a multiple of `Z`. Reading it as a scale would have made that shot
+         * three times the opening view, which is a face filling the screen, with
+         * nothing erroring anywhere. */
+        framing(shot, ms) {
+          if (shot === null) {
+            lookAtTarget = null
+            zoomTo(Z)
+            return Promise.resolve()
+          }
+          const s = shots.get(shot)
+          if (!s)
+            throw new NotBuilt('framing', `no shot named "${shot}" on ${mapId}. It has: ${[...shots.keys()].join(', ') || 'none'}`)
+          const spot = anchors.spotOf(s.anchor as Anchor)
+          const at = shotOf(spot, s.framing)
+          /* held until it is given back when no time is stated, because a scene
+           * that composes a shot and then talks over it is the ordinary case and
+           * a shot that expires mid-line is a cut nobody asked for */
+          lookAtTarget = { x: at.x, y: at.y, until: ms === undefined ? Infinity : performance.now() + ms }
+          if (s.framing.zoom !== undefined) zoomTo(Z * s.framing.zoom)
+          engine.log('framing', { map: mapId, shot, zoom: s.framing.zoom ?? null })
+          if (ms === undefined) return Promise.resolve()
+          return new Promise<void>((r) => setTimeout(() => { zoomTo(Z); r() }, ms))
+        },
+
+        /* ---- A5: WAITING FOR HIM TO GET THERE -------------------------------
+         *
+         * The only way to write "when he reaches the gate" without this is a
+         * polling loop inside a member's Python, which is a loop running in a
+         * worker that cannot see the map and would have to ask across the wire
+         * every tick. It answers whether it happened, so a timeout is something an
+         * island can have an opinion about rather than something indistinguishable
+         * from an arrival. */
+        waitFor(name, ms) {
+          const a = anchors.get(name)
+          if (!a) throw new NotBuilt('wait_for', `no anchor named "${name}" on ${mapId}`)
+          if (anchors.contains(a, pos.x, pos.y)) return Promise.resolve(true)
+          return new Promise<boolean>((done) => {
+            waiters.push({ a, until: ms === undefined ? Infinity : performance.now() + ms, done })
           })
         },
       }
@@ -2446,10 +2940,23 @@ export default function PmapScene() {
           }
         },
 
+        /* IT PLAYS NOW, and the comment above about two of the thirteen being
+         * unable to perform is down to none. There was no audio in this repository
+         * at all: no AudioContext, no `new Audio`, no element and no file under
+         * public/. A cue in a script was a console line and a counted miss, which
+         * is the honest version of nothing.
+         *
+         * It still refuses a name the library does not hold, in the same shape and
+         * for the same reason `fx` does, because a cue nobody drew is a cue the
+         * AUTHOR needs to hear about at the name they typed. */
         audio: (cue) => {
-          console.warn(`[pmap] audio cue "${cue}" did not play: this game has no audio system`)
-          engine.log('audio_missing', { map: mapId, cue })
-          stageMissed(`audio "${cue}"`)
+          try {
+            playSfx(cue)
+          } catch (e) {
+            console.warn(`[pmap] ${e instanceof Error ? e.message : String(e)}`)
+            engine.log('audio_missing', { map: mapId, cue })
+            stageMissed(`audio "${cue}"`)
+          }
         },
 
         /* the escape hatch, and it stays honest about being empty. A `stage` step
@@ -2475,7 +2982,14 @@ export default function PmapScene() {
         unpublish?.(); unpublish = null
         csHold?.(); csHold = null
         stationHold?.(); stationHold = null
-        driven.clear()
+        releaseDriven()
+        /* AND EVERY PROMISE THIS SCENE OWED IS ANSWERED BEFORE IT GOES. A scene
+         * torn down while an island is inside `wait_for` or a voyage leaves that
+         * island suspended forever, holding whatever it was holding. A wait that
+         * never happened answers false, which is the truth, and a voyage that was
+         * interrupted refuses at the line that asked for it. */
+        while (waiters.length) waiters.pop()!.done(false)
+        if (sailing) { const s3 = sailing; sailing = null; s3.fail(new NotBuilt('route', 'the map was left while the ship was still on the route')) }
         /* the map is not where they are any more. `setContext` only merges, so a
          * map stamped on load rode every heartbeat for the rest of the session,
          * including the ones from the planner and the graduation screen, and the
@@ -3088,6 +3602,64 @@ export default function PmapScene() {
                   fromSea(s?.berth?.x ?? 0, s?.berth?.y ?? 0).y - hull.y)),
               })
               void say({ text: 'She will not come round from here. Take her out and try the approach again.' })
+              /* AND THE ROUTE THAT ASKED FOR IT HEARS ABOUT IT. A voyage whose
+               * final manoeuvre gave up used to leave the script that started it
+               * awaiting a promise nothing could settle, which on a station means
+               * that map is finished until a page reload. */
+              if (sailing) {
+                const s2 = sailing; sailing = null
+                s2.fail(new NotBuilt('route', 'the ship could not come alongside at the end of the route'))
+              }
+            }
+          } else if (sailing) {
+            /* ---- A ROUTE, STEERED --------------------------------------------
+             *
+             * Every waypoint but the last is passed rather than hit, which is
+             * sail.ts's own rule and the reason it exists: a hull turning at
+             * cruise has a 92 pixel radius and would orbit a capture circle
+             * forever. The last one is handed to the berthing manoeuvre, so the
+             * arrival is the decelerating one that already ships and is tested
+             * rather than a second way of stopping a boat. */
+            const s2 = sailing
+            const aim = s2.pts[s2.i]
+            const dx = aim.x - hull.x, dy = aim.y - hull.y
+            const d = Math.hypot(dx, dy)
+            const ahead = Math.cos(hull.heading) * dx + Math.sin(hull.heading) * dy
+            if (performance.now() > s2.until) {
+              sailing = null
+              engine.log('voyage_gave_up', { map: mapId, at: s2.i, of: s2.pts.length })
+              s2.fail(new NotBuilt('route', `the ship did not reach waypoint ${s2.i} of ${s2.pts.length - 1} in time`))
+            } else if (s2.i < s2.pts.length - 1 && (d < 40 || (ahead < 0 && d < DEFAULT_SAIL.cruise))) {
+              s2.i++
+              hull = stepHull(hull, { throttle: 1, turn: 0, fullSail: false }, dt, depthAt)
+            } else if (s2.i >= s2.pts.length - 1) {
+              /* the last leg becomes the manoeuvre. `berthing` takes over on the
+               * next frame through the branch above, so there is exactly one thing
+               * driving the hull at any instant. */
+              const b = berthNamedBy(s2.path)
+              const end = b ? fromSea(b.x, b.y) : aim
+              const slotFor = b && comp ? comp.slots.find((q) => q.berth?.name === b.name) : undefined
+              docking = slotFor ?? null
+              berthing = {
+                target: end,
+                facing: (b?.facing ?? s2.path.facing) ? radOf(b?.facing ?? s2.path.facing) : undefined,
+                approach: b?.approach ? fromSea(b.approach.x, b.approach.y) : undefined,
+                stage: 'approach',
+              }
+              sailing = null
+              engine.log('voyage_arriving', { map: mapId, path: s2.path.name, berth: b?.name ?? null })
+              /* THE ROUTE IS DONE WHEN THE LINE IS RUN, and the manoeuvre that
+               * follows is the world's business rather than the script's: docking
+               * tears this scene down, so a promise settled after it would be a
+               * promise settled into a scene that no longer exists. */
+              s2.done()
+            } else {
+              const turn = Math.atan2(Math.sin(Math.atan2(dy, dx) - hull.heading), Math.cos(Math.atan2(dy, dx) - hull.heading))
+              hull = stepHull(hull, {
+                throttle: 1,
+                turn: Math.abs(turn) < 0.05 ? 0 : turn > 0 ? 1 : -1,
+                fullSail: false,
+              }, dt, depthAt)
             }
           } else {
             if (helmOverride && performance.now() > helmOverride.until) helmOverride = null
@@ -3157,7 +3729,31 @@ export default function PmapScene() {
           input['arrowleft'] || input['a'] || input['arrowright'] || input['d']
         )
         if (!hull) walker.step(doc, cfg, input, dt)
-        const fr = moving ? walkT[walker.facing][1 + (Math.floor(walker.animT) % 5)] : walkT[walker.facing][0]
+        /* A POSE ENDS WHEN HE GETS UP, and getting up is moving. A script that
+         * lays him down and then walks him has said two things and the second one
+         * wins; leaving the pose on would slide a sleeping body across the sand.
+         * Tested on real movement rather than on the key being down, so a player
+         * pushing into a wall while posed stays posed. */
+        if (posed && (moving || autoWalk) && (pos.x !== poseAt.x || pos.y !== poseAt.y)) posed = null
+
+        /* ---- A5: WHO IS WAITING FOR HIM TO ARRIVE SOMEWHERE ----
+         *
+         * On the scene's own ticker rather than on an interval, so the arrival is
+         * seen on the frame it happens. Walked backwards so a settled waiter can
+         * be spliced out without the loop stepping over its neighbour, which is
+         * the mistake that would make every second `wait_for` hang. */
+        if (waiters.length) {
+          const now2 = performance.now()
+          for (let wi = waiters.length - 1; wi >= 0; wi--) {
+            const w2 = waiters[wi]
+            const there = anchors.contains(w2.a, pos.x, pos.y)
+            if (!there && now2 <= w2.until) continue
+            waiters.splice(wi, 1)
+            w2.done(there)
+          }
+        }
+        const fr = posed ? posed.tex
+          : moving ? walkT[walker.facing][1 + (Math.floor(walker.animT) % 5)] : walkT[walker.facing][0]
         if (thor.sp.texture !== fr) thor.sp.texture = fr
         thor.sp.position.set(pos.x, pos.y)
         thor.sp.zIndex = OVER_PLACED + pos.y
@@ -3621,7 +4217,13 @@ export default function PmapScene() {
             if (dist <= Math.max(stepPx, 0.5)) {
               d.x = d.move.tx; d.y = d.move.ty
               d.move.done = true
+              /* the arrival is announced from here and from nowhere else, at the
+               * frame it really happened, so an awaited `actor_move` and a polled
+               * `actorMove` are the same move seen two ways. Cleared before it is
+               * called so a handler that starts the next leg cannot re-enter it. */
+              const settle = d.move.then
               d.move = null
+              settle?.()
             } else {
               d.x += (dx / dist) * stepPx
               d.y += (dy / dist) * stepPx

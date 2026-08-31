@@ -16,6 +16,7 @@ import {
 } from './save'
 import { cordsOf, gpaOf } from './progress'
 import { programmeById } from './roster/roster'
+import { play as playSfx } from './audio'
 
 export const engine: IntentEngine = {
   openUi(ui) {
@@ -147,6 +148,27 @@ export const engine: IntentEngine = {
 
   log(event, data) {
     track(event, data)
+  },
+
+  /* A PAUSE IS A PAUSE IN ANY SCENE, which is why it is here and not on the
+   * world. A member testing an island's pacing in the standalone harness, with no
+   * painting loaded at all, should get the same rhythm they will get on the map;
+   * putting this on `IntentWorld` would have made timing the one thing that could
+   * not be tried without a map.
+   *
+   * The ceiling is applied in `performIntent` rather than here, because that is
+   * where the refusal for a negative number lives and one word should not be
+   * validated in two places. */
+  wait(ms) {
+    return new Promise<void>((r) => setTimeout(r, ms))
+  },
+
+  /* SOUND IS GLOBAL AND SO IS THIS. There is one pair of speakers whichever scene
+   * is up, so an effect does not belong to a map, and an unknown name throws
+   * `NotBuilt` out of the library, which `performIntent` turns into a refusal at
+   * the member's own line. */
+  sound(name, gain) {
+    playSfx(name, gain)
   },
 
   /* the study arm this participant was assigned at join. A grape never chooses

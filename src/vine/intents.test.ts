@@ -13,7 +13,8 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import {
-  performIntent, NotBuilt, type Intent, type IntentEngine, type IntentHost, type IntentWorld,
+  performIntent, NotBuilt, WAIT_CEILING_MS,
+  type Intent, type IntentEngine, type IntentHost, type IntentWorld,
 } from './intents'
 import { runStation } from '../game/maw/run-station'
 
@@ -30,9 +31,17 @@ function stubWorld(over: Partial<IntentWorld> = {}) {
     walkTo: async (a) => { did.push(`walkTo:${a}`) },
     lookAt: async (a) => { did.push(`lookAt:${a}`) },
     show: (a, v) => { did.push(`show:${a}:${v}`) },
-    fx: (n) => { did.push(`fx:${n}`) },
+    fx: async (n) => { did.push(`fx:${n}`) },
     enter: async (m) => { did.push(`enter:${m}`) },
     cutscene: async (s) => { did.push(`cutscene:${s}`) },
+    pose: async (p, f) => { did.push(`pose:${p ?? '-'}:${f ?? '-'}`) },
+    actorMove: async (a, t) => { did.push(`actorMove:${a}:${t}`) },
+    actorFace: (a, f) => { did.push(`actorFace:${a}:${f}`) },
+    actorLook: (a, l) => { did.push(`actorLook:${a}:${l}`) },
+    actorRelease: (a) => { did.push(`actorRelease:${a ?? '*'}`) },
+    route: async (p, who, back) => { did.push(`route:${p}:${who}:${back}`) },
+    framing: async (s) => { did.push(`framing:${s}`) },
+    waitFor: async (a) => { did.push(`waitFor:${a}`); return true },
     ...over,
   }
   return { world, did }
@@ -50,6 +59,11 @@ const stubEngine = (): { engine: IntentEngine; did: string[] } => {
       award: (a) => { did.push(`award:${JSON.stringify(a)}`) },
       log: (e) => { did.push(`log:${e}`) },
       mode: () => 'game',
+      /* no real timer in a test: the point of a `wait` here is that it was asked
+       * for and that the ceiling was applied, and a test that really slept would
+       * add thirty seconds to the suite to prove a setTimeout works */
+      wait: async (ms) => { did.push(`wait:${ms}`) },
+      sound: (n, g) => { did.push(`sound:${n}${g === undefined ? '' : `:${g}`}`) },
     },
   }
 }
@@ -97,6 +111,16 @@ describe('every word that takes an anchor refuses a name the map does not carry'
     { kind: 'walk_to', anchor: 'chart_tabel' },
     { kind: 'look_at', anchor: 'chart_tabel' },
     { kind: 'show', anchor: 'chart_tabel', visible: true },
+    /* the director words check theirs the same way and for the same reason, and
+     * `fx` joined them: it took an anchor and checked it only inside the scene,
+     * so the one word whose refusal could differ from every other word's did */
+    { kind: 'fx', name: 'spark', anchor: 'chart_tabel' },
+    { kind: 'actor_move', actor: 'chart_tabel', to: 'chart_table' },
+    { kind: 'actor_move', actor: 'chart_table', to: 'chart_tabel' },
+    { kind: 'actor_face', actor: 'chart_tabel', facing: 'south' },
+    { kind: 'actor_look', actor: 'chart_tabel', look: 'angry' },
+    { kind: 'actor_release', actor: 'chart_tabel' },
+    { kind: 'wait_for', anchor: 'chart_tabel' },
   ]
   for (const i of cases) {
     it(`${i.kind} says so, at the name that was wrong`, async () => {
@@ -123,6 +147,92 @@ describe('every word that takes an anchor refuses a name the map does not carry'
     const h = host()
     expect((await performIntent({ kind: 'look_at', anchor: null }, h)).ok).toBe(true)
     expect(h.did).toEqual(['lookAt:null'])
+  })
+
+  it('actor_release with no name is a tidy-up and is always legal', async () => {
+    // releasing everything has to work on a map where nothing was ever driven,
+    // because the scene itself calls it at the end whether or not a script did
+    const h = host()
+    expect((await performIntent({ kind: 'actor_release' }, h)).ok).toBe(true)
+    expect(h.did).toEqual(['actorRelease:*'])
+  })
+})
+
+describe('the director class', () => {
+  it('refuses a pose that says nothing at all', async () => {
+    // both fields absent is a call that would stand there reporting success and
+    // doing nothing, which is the one thing no word in this vocabulary may do
+    const h = host()
+    const r = await performIntent({ kind: 'pose' }, h)
+    expect(r).toEqual({ ok: false, why: 'pose needs a pose, a facing, or both' })
+    expect(h.did).toEqual([])
+  })
+
+  it('lets a pose be a heading on its own, which is the common case', async () => {
+    const h = host()
+    expect((await performIntent({ kind: 'pose', facing: 'north' }, h)).ok).toBe(true)
+    expect(h.did).toEqual(['pose:-:north'])
+  })
+
+  it('caps a wait rather than freezing a scene for an hour', async () => {
+    const h = host()
+    expect((await performIntent({ kind: 'wait', ms: 999_999 }, h)).ok).toBe(true)
+    expect(h.edid).toEqual([`wait:${WAIT_CEILING_MS}`])
+  })
+
+  it('refuses a wait that is not a number of milliseconds', async () => {
+    const h = host()
+    for (const ms of [-1, NaN, Infinity]) {
+      const r = await performIntent({ kind: 'wait', ms }, h)
+      expect(r.ok, String(ms)).toBe(false)
+      expect(r.ok === false && r.why).toContain('wait wants a number of milliseconds')
+    }
+    expect(h.edid).toEqual([])
+  })
+
+  it('answers wait_for with whether he actually got there', async () => {
+    // a timeout that resolves the same as an arrival is a timeout an island
+    // cannot branch on, so the value IS the answer
+    const arrived = host()
+    expect(await performIntent({ kind: 'wait_for', anchor: 'chart_table' }, arrived))
+      .toEqual({ ok: true, value: true })
+    const gave = host({ waitFor: async () => false })
+    expect(await performIntent({ kind: 'wait_for', anchor: 'chart_table', ms: 10 }, gave))
+      .toEqual({ ok: true, value: false })
+  })
+
+  it('sends a null shot through, because releasing the camera is the message', async () => {
+    const h = host()
+    expect((await performIntent({ kind: 'framing', shot: null }, h)).ok).toBe(true)
+    expect(h.did).toEqual(['framing:null'])
+  })
+
+  it('defaults a route to the player and never to the ship', async () => {
+    // a member who leaves `who` out means "walk him along it". Defaulting to the
+    // ship would put a body on the water for saying nothing
+    const h = host()
+    expect((await performIntent({ kind: 'route', path: 'the_dock_walk' }, h)).ok).toBe(true)
+    expect(h.did).toEqual(['route:the_dock_walk:player:false'])
+  })
+
+  it('carries a refusal from the scene back with the reason on it', async () => {
+    // the whole point of the kind check living in the scene: only the scene knows
+    // what the map's paths are, and the author has to hear which one broke
+    const h = host({
+      route: async () => { throw new NotBuilt('route', '"the_dock_walk" crosses ground nobody can stand on') },
+    })
+    const r = await performIntent({ kind: 'route', path: 'the_dock_walk' }, h)
+    expect(r.ok).toBe(false)
+    expect(r.ok === false && r.why).toContain('crosses ground nobody can stand on')
+  })
+
+  it('plays a sound through the engine, with no map anywhere in sight', async () => {
+    // sound and wait are the two director words that work in the standalone
+    // harness, which is what lets a member time and score a scene with no map
+    const e = stubEngine()
+    const r = await performIntent({ kind: 'sound', name: 'cork_pop' }, { world: null, engine: e.engine })
+    expect(r).toEqual({ ok: true })
+    expect(e.did).toEqual(['sound:cork_pop'])
   })
 })
 

@@ -11,9 +11,11 @@ a dict, throws it away, and the engine never hears about it.
 
 The names and the spelling come from src/vine/intents.ts. `say` builds
 {"kind": "say"} because that is the kind the engine already performs, and
-nothing between here and there translates anything. There are fifteen words and
-this file has all fifteen: for a year it had two, so thirteen things the engine
-could already do were unreachable from a member's island.
+nothing between here and there translates anything. There are twenty-five words
+and this file has all twenty-five: for a year it had two, so thirteen things the
+engine could already do were unreachable from a member's island, and the ten
+below that were added after are the ones for DIRECTING a scene rather than
+walking through one.
 
 EVERY PLACE IS AN ANCHOR NAME, NEVER AN X AND A Y. MAPVIS is the only thing that
 can make an anchor, it keeps the name separate from the label so renaming a door
@@ -63,6 +65,135 @@ def look_at(anchor, ms=None):
     intent = {"kind": "look_at", "anchor": anchor}
     if ms is not None:
         intent["ms"] = ms
+    return intent
+
+
+# ---- his own body ------------------------------------------------------------
+
+def pose(name=None, facing=None):
+    """Set what he is doing while standing still, and which way he is looking.
+
+    `pose("sleep")` lies him down, `pose("sit")` sits him, `pose("stand")` puts
+    him back on his feet. `facing` turns him WITHOUT WALKING him, which is the
+    beat you want nine times out of ten: "he hears something and looks north".
+    Both together is one call.
+
+    A pose whose picture nobody has drawn is refused on your line and told you
+    which ones exist, so you never ship a scene where he was supposed to wake up
+    and just stands there.
+    """
+    intent = {"kind": "pose"}
+    if name is not None:
+        intent["pose"] = name
+    if facing is not None:
+        intent["facing"] = facing
+    return intent
+
+
+# ---- somebody else's body ------------------------------------------------------
+#
+# The four words below drive a thing that is already on the map. You name it by
+# its ANCHOR, the same way you name everywhere else, and MAPVIS is where that
+# anchor gets tied to the picture it drives.
+#
+# Taking one over STOPS whatever it was doing on its own. Letting it go starts
+# that up again from wherever the clock has got to, not from where you left it,
+# so a person you walked across a square goes back to her rounds instead of
+# standing where your scene abandoned her.
+
+def actor_move(actor, to, facing=None):
+    """Walk somebody to an anchor. Comes back when they get there."""
+    intent = {"kind": "actor_move", "actor": actor, "to": to}
+    if facing is not None:
+        intent["facing"] = facing
+    return intent
+
+
+def actor_face(actor, facing):
+    """Turn somebody, without moving them."""
+    return {"kind": "actor_face", "actor": actor, "facing": facing}
+
+
+def actor_look(actor, look):
+    """Change which picture somebody is wearing, by the name MAPVIS gave it."""
+    return {"kind": "actor_look", "actor": actor, "look": look}
+
+
+def actor_release(actor=None):
+    """Give somebody back to themselves. No name lets everybody go."""
+    intent = {"kind": "actor_release"}
+    if actor is not None:
+        intent["actor"] = actor
+    return intent
+
+
+# ---- following a line somebody drew --------------------------------------------
+
+def route(path, who=None, backwards=False):
+    """Send somebody along a named path that was drawn on the map.
+
+    `who` is left out for the player, is an anchor name for anybody else, and is
+    the word "ship" to make the crossing happen: THAT is how a voyage starts.
+
+    The path knows whether it is a walk or a sail, and it is checked. A walk over
+    ground nobody can stand on and a sail over dry land are both refused on your
+    line, with the point that broke it, instead of a body wandering off the
+    painting while your script waits forever.
+    """
+    intent = {"kind": "route", "path": path}
+    if who is not None:
+        intent["who"] = who
+    if backwards:
+        intent["backwards"] = True
+    return intent
+
+
+def framing(shot, ms=None):
+    """Take a shot somebody set up on the map, by its name.
+
+    `framing(None)` gives the camera back. This is the composed version of
+    `look_at`: the angle, the distance and the offset were dragged into place by
+    the person looking at the painting, so your scene does not carry numbers that
+    stop being true the next time the map is re-cut.
+    """
+    intent = {"kind": "framing", "shot": shot}
+    if ms is not None:
+        intent["ms"] = ms
+    return intent
+
+
+# ---- time ----------------------------------------------------------------------
+
+def wait(ms):
+    """Do nothing, for this many milliseconds. Beats need air."""
+    return {"kind": "wait", "ms": ms}
+
+
+def wait_for(anchor, ms=None):
+    """Wait until he walks into an anchor. Comes back True if he did.
+
+    `ms` is how long you are willing to wait. Without one you wait forever, and
+    the answer can only be True. With one, a False is the player deciding to do
+    something else, which is a thing your island is allowed to have an opinion
+    about.
+    """
+    intent = {"kind": "wait_for", "anchor": anchor}
+    if ms is not None:
+        intent["ms"] = ms
+    return intent
+
+
+# ---- sound ---------------------------------------------------------------------
+
+def sound(name, gain=None):
+    """Play one effect from the library, once.
+
+    A name the library does not hold is refused on your line with the list of the
+    ones it does. There is no music yet, by ruling.
+    """
+    intent = {"kind": "sound", "name": name}
+    if gain is not None:
+        intent["gain"] = gain
     return intent
 
 

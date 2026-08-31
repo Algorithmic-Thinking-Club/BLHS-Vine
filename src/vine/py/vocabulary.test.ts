@@ -55,8 +55,22 @@ function bodyOf(name: string): string {
 }
 
 describe('the intent vocabulary, both sides of the worker', () => {
-  it('is fifteen words on the engine side', () => {
-    expect(engineWords.size).toBe(15)
+  /* FIFTEEN, THEN TWENTY-FIVE. The number is asserted rather than counted at
+   * runtime so that GROWING the vocabulary is a deliberate edit to this line and
+   * never a side effect of somebody adding a case. Wave four added the ten
+   * director words: a body of his own, four for driving somebody else's, routes,
+   * framings, two kinds of waiting, and sound. */
+  it('is twenty-five words on the engine side', () => {
+    expect(engineWords.size).toBe(25)
+  })
+
+  it('has the ten director words on both sides', () => {
+    const director = ['pose', 'actor_move', 'actor_face', 'actor_look', 'actor_release',
+      'route', 'framing', 'wait', 'wait_for', 'sound']
+    for (const w of director) {
+      expect(engineWords.has(w), `intents.ts is missing ${w}`).toBe(true)
+      expect(pythonWords.has(w), `vine.py is missing ${w}`).toBe(true)
+    }
   })
 
   it('reaches every one of them from python', () => {
@@ -96,6 +110,23 @@ describe('the shapes an optional argument takes', () => {
 
   it('leaves as_plain off by default, so the control arm stays the engine\'s call', () => {
     expect(bodyOf('play')).toContain('if as_plain is not None:')
+  })
+
+  it('SENDS a null shot from framing, because there None is the message too', () => {
+    // `framing(None)` gives the camera back, exactly as `look_at(None)` does, and
+    // an omitted key would read as "no argument" rather than as the instruction
+    expect(bodyOf('framing')).toContain('"shot": shot')
+    expect(bodyOf('framing')).not.toContain('if shot is not None:')
+  })
+
+  it('lets the director words leave every optional off', () => {
+    // a pose with no facing, an actor released with no name and a route with no
+    // rider are all the common case, and each has to be shorter than the full one
+    expect(bodyOf('pose')).toContain('if name is not None:')
+    expect(bodyOf('pose')).toContain('if facing is not None:')
+    expect(bodyOf('actor_release')).toContain('if actor is not None:')
+    expect(bodyOf('route')).toContain('if who is not None:')
+    expect(bodyOf('wait_for')).toContain('if ms is not None:')
   })
 
   it('guards on None and never on truthiness, so a grade of ZERO still ships', () => {

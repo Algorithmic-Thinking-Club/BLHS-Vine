@@ -102,3 +102,83 @@ export function shotOf(
     zoom: f?.zoom ?? fallbackZoom,
   }
 }
+
+/* ---- THE OTHER SHAPE THE SAME FRAMINGS ARRIVE IN ---------------------------
+ *
+ * MAPVIS publishes named shots into the anchor `meta` bag, which is what this
+ * file reads and what the handoff says explicitly not to "fix" by moving to a
+ * top-level array. But the shots MAPVIS published BEFORE it moved are top-level
+ * arrays, and one of them is on the live platform right now: `hub` at v13 carries
+ * `framings: [{name: "the_maw_mouth", anchor: "panthers_maw", dx, dy, zoom}]` and
+ * an anchor whose meta holds nothing but `{docId, derived}`.
+ *
+ * So the reader takes both and folds one into the other at load. The game's
+ * running shape stays the meta bag, exactly as the contract law says, and a map
+ * nobody is going to republish still answers `framing("the_maw_mouth")`. The day
+ * every bundle carries the meta form this function finds nothing and costs a loop
+ * over an empty array.
+ */
+type HasMeta = { name: string; meta?: Record<string, unknown> }
+
+export function projectFramings(anchors: HasMeta[], raw: unknown, mapId = ''): number {
+  if (!Array.isArray(raw) || !raw.length) return 0
+  const by = new Map(anchors.map((a) => [a.name, a]))
+  let folded = 0
+  for (const r of raw as Record<string, unknown>[]) {
+    if (!r || typeof r !== 'object') continue
+    const name = typeof r.name === 'string' ? r.name : ''
+    const on = typeof r.anchor === 'string' ? r.anchor : ''
+    const f = readOne(r, name || undefined)
+    if (!name || !f) continue
+    const a = by.get(on)
+    /* AN ANCHOR THIS MAP DOES NOT HAVE IS THE MISTAKE THAT WILL ACTUALLY HAPPEN,
+     * because a shot survives the anchor it was hung off being renamed or cut.
+     * Named at load with the map it came from, rather than discovered as a shot
+     * that quietly never fires. */
+    if (!a) {
+      console.warn(`[framings] ${mapId}: shot "${name}" hangs off anchor "${on || '(none)'}", which is not on this map`)
+      continue
+    }
+    const meta = (a.meta ??= {})
+    const set = (meta.framings && typeof meta.framings === 'object'
+      ? meta.framings
+      : (meta.framings = {})) as Record<string, unknown>
+    /* the meta bag wins. It is the newer shape and the one MAPVIS writes now, so
+     * a bundle carrying both is a bundle mid-migration and the projection must
+     * not overwrite the half that is already right. */
+    if (set[name] === undefined) { set[name] = f; folded++ }
+    /* a shot marked `entry` is what the map opens on, which is the unnamed
+     * default `look_at` and an arrival both read */
+    if (r.entry === true && meta.framing === undefined) meta.framing = f
+  }
+  return folded
+}
+
+/** a named shot and the anchor it is a shot of. Generic in the anchor so the
+ *  caller gets its own full record back rather than the two fields this file
+ *  needs, which is what stops a cast at every call site. */
+export type NamedShot<T extends HasMeta = HasMeta> = { name: string; anchor: T; framing: Framing }
+
+/* EVERY NAMED SHOT ON THIS MAP, INDEXED BY THE NAME A PERSON TYPED. A framing is
+ * authored against an anchor, but nobody writing a scene thinks "the second
+ * framing on the door"; they think "the maw mouth". Names are validated unique
+ * per map where they are typed, so one flat index is the honest lookup, and a
+ * collision keeps the first and says which anchor lost. */
+export function shotsOf<T extends HasMeta>(anchors: readonly T[]): Map<string, NamedShot<T>> {
+  const out = new Map<string, NamedShot<T>>()
+  for (const a of anchors) {
+    const set = a.meta?.framings
+    if (!set || typeof set !== 'object') continue
+    for (const [name, raw] of Object.entries(set as Record<string, unknown>)) {
+      const f = readOne(raw, name)
+      if (!f) continue
+      const had = out.get(name)
+      if (had) {
+        console.warn(`[framings] two anchors carry a shot called "${name}" (${had.anchor.name} and ${a.name}), keeping the first`)
+        continue
+      }
+      out.set(name, { name, anchor: a, framing: f })
+    }
+  }
+  return out
+}

@@ -42,6 +42,77 @@ export type Intent =
   | { kind: 'walk_to'; anchor: string }
   | { kind: 'look_at'; anchor: string | null; ms?: number }
 
+  /* ---- THE DIRECTOR CLASS -------------------------------------------------
+   *
+   * Everything below this line consumes data MAPVIS ALREADY AUTHORS and the
+   * game had no word for. That is the whole shape of wave four: the tool has
+   * been publishing named paths, named shots, named looks and free-placed
+   * berths for weeks, and each one was reader-less, so an author could draw a
+   * route and then had no sentence in which to use it. A capability with an
+   * authoring surface and no vocabulary is half a feature, and half a feature
+   * is how this repo got 9,829 unreachable lines.
+   *
+   * THE PLAYER'S OWN BODY. He could walk and he could be looked at, and there
+   * was no way to say what he was doing while standing still. `pose` is that:
+   * a named body state and a heading, neither of which moves him. The heading
+   * alone is the common case, because "turn and look at her" is a beat in
+   * nearly every scene and the only way to write it was to walk him one pixel.
+   * A pose whose art does not exist refuses by name and lists what does. */
+  | { kind: 'pose'; pose?: string; facing?: string }
+
+  /* OTHER BODIES. A placement bound to an anchor is a body with a name, and
+   * these four words are the whole of what a scene needs to do to one: send it
+   * somewhere, turn it, change its face, and let it go. `actor` is an ANCHOR
+   * name and never a placement id, for the reason at the top of this file: a
+   * placement id is a number MAPVIS assigned and an anchor name is a string a
+   * person chose.
+   *
+   * ONE OBJECT PER CHARACTER, NEVER TWO. A driven actor is the placement that
+   * was already on the map, taken over in place, not a second sprite created
+   * beside it. Two would drift apart the first time one of them was moved.
+   *
+   * AND THEY ARE ALWAYS RELEASED. A placement stays driven until something
+   * takes it out, and the driven pass re-asserts its frozen position every
+   * frame, so an actor a scene forgot about stands still for the rest of the
+   * visit. `actor_release` with no name releases every one of them, and the
+   * scene does that itself at the end whether or not the author remembered. */
+  | { kind: 'actor_move'; actor: string; to: string; facing?: string }
+  | { kind: 'actor_face'; actor: string; facing: string }
+  | { kind: 'actor_look'; actor: string; look: string }
+  | { kind: 'actor_release'; actor?: string }
+
+  /* ROUTES. A named authored polyline, travelled by the player, by a driven
+   * actor, or by the ship. Waypoints, a facing to end on, and a kind that is
+   * checked: a walk route over ground no body can stand on refuses, a sail
+   * route over land refuses, and a camera is held to nothing.
+   *
+   * THE VOYAGE IS THIS WORD APPLIED TO THE SHIP. There was no way to start a
+   * crossing from a script at all: the hull existed, the berthing manoeuvre
+   * existed and was tested, and the only thing that could put a player on the
+   * water was a player pressing a key. `route(..., who="ship")` is the trigger,
+   * and it ends at a named berth because a berth is off every painting and is
+   * the one place in this game that cannot be an anchor. */
+  | { kind: 'route'; path: string; who?: string; backwards?: boolean }
+
+  /* FRAMINGS BY NAME. `look_at` reads an anchor's unnamed default and always
+   * has; this invokes a shot somebody named. The unnamed default is left alone
+   * and stays what `look_at` uses, so nothing that works today changes.
+   * `shot: null` gives the camera back, exactly as `look_at(None)` does. */
+  | { kind: 'framing'; shot: string | null; ms?: number }
+
+  /* TIME, so a scene can breathe and so it can react. `wait` is a pause a
+   * person can feel; `wait_for` blocks until the player walks into a named
+   * region, which is the only way to write "when he gets there" without a
+   * polling loop in a member's Python. */
+  | { kind: 'wait'; ms: number }
+  | { kind: 'wait_for'; anchor: string; ms?: number }
+
+  /* SOUND. One named effect from the ruled library, played once. The name is
+   * the vocabulary and the file is an implementation detail, so an effect can
+   * be replaced without touching a caller. A name the library does not hold
+   * refuses and lists what it does, like every other named word here. */
+  | { kind: 'sound'; name: string; gain?: number }
+
   /* the sit-down panels. Deliberately a short closed list: a station that opens
    * a panel is a station that could have been a scene, so making this cheap to
    * add would be making the wrong thing cheap. */
@@ -131,9 +202,24 @@ export interface IntentWorld {
   walkTo(anchor: string): Promise<void>
   lookAt(anchor: string | null, ms?: number): Promise<void>
   show(anchor: string, visible: boolean): void
-  fx(name: string, anchor?: string, data?: unknown): void
+  /* IT IS AWAITED NOW. It returned void, so `performIntent` answered ok the
+   * instant the effect started and a script's next line ran over the top of it.
+   * "Plays once, ends" is the shape the brief asks for and a step that ends is
+   * the only one an author can compose with. */
+  fx(name: string, anchor?: string, data?: unknown): Promise<void>
   enter(map: string, at?: string): Promise<void>
   cutscene(script: string): Promise<void>
+
+  /* the director half. Each one is a word for something MAPVIS already authors
+   * and the game could not previously say. */
+  pose(pose: string | undefined, facing: string | undefined): Promise<void>
+  actorMove(actor: string, to: string, facing?: string): Promise<void>
+  actorFace(actor: string, facing: string): void
+  actorLook(actor: string, look: string): void
+  actorRelease(actor?: string): void
+  route(path: string, who: string, backwards: boolean): Promise<void>
+  framing(shot: string | null, ms?: number): Promise<void>
+  waitFor(anchor: string, ms?: number): Promise<boolean>
 }
 
 /* The engine half. Supplied once at boot rather than per scene, because the
@@ -149,6 +235,13 @@ export interface IntentEngine {
   }): void
   log(event: string, data?: Record<string, unknown>): void
   mode(): SessionMode
+  /* THE TWO DIRECTOR WORDS THAT NEED NO MAP. A pause is a pause in the standalone
+   * harness too, and an effect plays out of the same speakers whichever scene is
+   * up, so putting either on the world would make a grape's own pacing untestable
+   * without a painting. Sound refuses an unknown name here rather than at the
+   * scene, for the same reason. */
+  wait(ms: number): Promise<void>
+  sound(name: string, gain?: number): void
 }
 
 /* WHO IS SPEAKING, WHEN IT IS NOT THE VINE.
@@ -162,6 +255,13 @@ export interface IntentEngine {
  * have no `by` and keep the bare names they already wrote, because renaming
  * those would rewrite every existing save. A grape always has one. */
 export type IntentBy = { grape: string }
+
+/* THE LONGEST A SCENE MAY BE ASKED TO STAND STILL. Thirty seconds is already
+ * longer than any beat in the walkthrough and four times the longest pause in the
+ * beach opening; past it, a student cannot tell a scripted pause from a frozen
+ * tab, and neither can the person marking the study data. A member who typed a
+ * number in seconds gets a long pause and not a dead session. */
+export const WAIT_CEILING_MS = 30_000
 
 export type IntentHost = {
   world: IntentWorld | null
@@ -221,13 +321,80 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         w().show(i.anchor, i.visible)
         return ok()
       case 'fx':
-        w().fx(i.name, i.anchor, i.data)
+        /* THE ANCHOR IS CHECKED HERE AND NOT ONLY INSIDE THE SCENE, so the word
+         * behaves like every other anchor-taking word and the refusal reads the
+         * same. Awaited, because an effect that has not finished is a step that
+         * has not finished. */
+        if (i.anchor && !w().hasAnchor(i.anchor)) return no(`no anchor named "${i.anchor}" on ${w().mapId()}`)
+        await w().fx(i.name, i.anchor, i.data)
         return ok()
       case 'enter':
         await w().enter(i.map, i.at)
         return ok()
       case 'cutscene':
         await w().cutscene(i.script)
+        return ok()
+
+      /* ---- the director class -------------------------------------------- */
+
+      case 'pose':
+        /* SAYING NOTHING IS NOT AN INSTRUCTION. Both fields optional makes the
+         * common case short (`pose(facing="north")`), and both absent makes a
+         * call that would stand there reporting success while doing nothing at
+         * all, which is the one thing no word in this file is allowed to do. */
+        if (!i.pose && !i.facing) return no('pose needs a pose, a facing, or both')
+        await w().pose(i.pose, i.facing)
+        return ok()
+
+      /* AN ACTOR IS AN ANCHOR NAME, so the four words below check it exactly the
+       * way `show` does and the mistake an author will actually make, a typo,
+       * reads the same everywhere. The anchor also has to be bound to something,
+       * and that half is the scene's to answer because only the scene knows what
+       * it loaded. */
+      case 'actor_move':
+        if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
+        if (!w().hasAnchor(i.to)) return no(`no anchor named "${i.to}" on ${w().mapId()}`)
+        await w().actorMove(i.actor, i.to, i.facing)
+        return ok()
+      case 'actor_face':
+        if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
+        w().actorFace(i.actor, i.facing)
+        return ok()
+      case 'actor_look':
+        if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
+        w().actorLook(i.actor, i.look)
+        return ok()
+      case 'actor_release':
+        /* releasing everything is the no-argument case and is always legal, even
+         * on a map where nothing was ever driven, because it is a tidy-up */
+        if (i.actor && !w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
+        w().actorRelease(i.actor)
+        return ok()
+
+      case 'route':
+        await w().route(i.path, i.who ?? 'player', i.backwards === true)
+        return ok()
+
+      case 'framing':
+        await w().framing(i.shot, i.ms)
+        return ok()
+
+      /* `wait_for` ANSWERS WHETHER IT HAPPENED. A timeout that resolves the same
+       * as an arrival is a timeout an author cannot branch on, so the value is
+       * the answer to "did he get there", and a wait with no timeout can only
+       * ever answer true. */
+      case 'wait_for':
+        if (!w().hasAnchor(i.anchor)) return no(`no anchor named "${i.anchor}" on ${w().mapId()}`)
+        return ok(await w().waitFor(i.anchor, i.ms))
+
+      case 'wait':
+        /* a negative or absurd pause is a typo, and a scene frozen for an hour is
+         * indistinguishable from a crash to the student sitting in front of it */
+        if (!Number.isFinite(i.ms) || i.ms < 0) return no(`wait wants a number of milliseconds and got ${JSON.stringify(i.ms)}`)
+        await engine.wait(Math.min(i.ms, WAIT_CEILING_MS))
+        return ok()
+      case 'sound':
+        engine.sound(i.name, i.gain)
         return ok()
 
       case 'open':
