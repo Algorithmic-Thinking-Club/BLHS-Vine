@@ -34,7 +34,7 @@ import { useEffect, useRef, useState } from 'react'
 import { loadSave, subscribeSave } from '../save'
 import { nextObjective, type Objective } from '../run/objective'
 import { panelDepth } from '../ui/a11y'
-import { onPlaceCard, placeCardUp } from '../stage/stage-bus'
+import { placeCardUp } from '../stage/stage-bus'
 import { track } from '../telemetry'
 import './heading.css'
 
@@ -85,29 +85,12 @@ export function Heading() {
     track('heading_shown', { phase: obj.phase, anchor: obj.anchor, why: 'changed' })
   }, [key, obj])
 
-  /* the arrival card takes the slot first and hands it over, so the two never
-   * fight for the same corner and the student reads them in the right order */
-  useEffect(() => onPlaceCard(() => {
-    /* IT WAITS FOR THE CARD TO LEAVE RATHER THAN RACING ITS DWELL.
-     *
-     * A fixed delay lost: the card is up for about four seconds and this fired at
-     * 1.4, so the sentence was set into state, suppressed by `placeCardUp()` for
-     * the two and a half seconds it was on screen, and then hidden by its own
-     * timer without ever being drawn. Measured: "what do I do next" answered at
-     * 12.7 seconds, by the idle net, which is the safety line and not the plan.
-     *
-     * A card is a thing on screen, so the question is about the screen and not
-     * about a clock. */
-    const t = window.setInterval(() => {
-      if (placeCardUp()) return
-      window.clearInterval(t)
-      const o = nextObjective(loadSave())
-      if (!o) return
-      setShown({ obj: o, key: `${o.phase}:${o.anchor}:${o.map}`, why: 'arrived' })
-      track('heading_shown', { phase: o.phase, anchor: o.anchor, why: 'arrived' })
-    }, 200)
-    return () => window.clearInterval(t)
-  }), [])
+  /* THE ARRIVAL CASE MOVED ONTO THE CARD ITSELF (stage/PlaceCard.tsx). Two cards
+   * in one corner, four and a half seconds apart, was two reads for one thought
+   * and it put the sentence past ten seconds on a slow load. What is left here is
+   * the two moments that are NOT an arrival: the objective changing under a
+   * student who is already standing there, and a student who has stopped.
+   */
 
   /* ---- AND WHEN IT SAYS IT AGAIN ------------------------------------------
    *

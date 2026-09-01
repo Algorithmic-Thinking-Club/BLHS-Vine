@@ -12,6 +12,8 @@
  * a real clock. Two sets is how a card fires on a map whose cover was skipped.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { nextObjective } from '../run/objective'
+import { loadSave } from '../save'
 import { onPlaceCard, setPlaceCardUp, type PlaceCardRequest } from './stage-bus'
 import { transitionBusy } from '../../app/transitions'
 import { panelDepth } from '../ui/a11y'
@@ -97,6 +99,11 @@ export function PlaceCard() {
    * than deferred, because a card that arrives after the panel closes is a card
    * about somewhere the student stopped being. */
   if (!card || panelDepth() > 0) return null
+  /* the one live thing the year wants next, read at the moment of arrival. Pure,
+   * so it is a function call rather than a fetch, and it is the same function the
+   * standalone heading and the world's own marker both read. */
+  const heading = nextObjective(loadSave())?.say ?? ''
+
   return (
     /* aria-hidden AND pointer-events none: it is not a control and it is not a
      * thing a screen reader should interrupt a walk to announce, because the
@@ -105,6 +112,21 @@ export function PlaceCard() {
       <div className="pc-card">
         <div className="pc-name">{card.title}</div>
         {card.line ? <div className="pc-line">{card.line}</div> : null}
+        {/* ---- AND WHAT YOU ARE FOR, ON THE SAME CARD --------------------
+            ONE CARD, ONE READ. This was two cards in the same corner one after
+            the other: where you ARE, then four and a half seconds later what you
+            are FOR. Measured cold with scripts/ten-seconds.mjs, that put the
+            sentence answering "what do I do next" at 10.9 seconds on a slow load,
+            which fails the brief's own ten-second test on the machine it is
+            actually deployed to.
+
+            The two lines are one thought. "The Hub" and "Someone is waiting for
+            you inside the mountain." belong together, and reading them together
+            costs one dwell instead of two. The standalone card in hud/Heading.tsx
+            keeps the OTHER two moments, when the objective changes under a
+            student who is already standing there and when a student has frozen,
+            because neither of those is an arrival. */}
+        {heading ? <div className="pc-heading">{heading}</div> : null}
       </div>
     </div>
   )

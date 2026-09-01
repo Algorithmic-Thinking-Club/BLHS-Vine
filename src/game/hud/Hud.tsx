@@ -19,6 +19,7 @@ import { onWorldHold, worldHeld } from '../world-bus'
 import { onStageBusy, placeCardUp } from '../stage/stage-bus'
 import { panelDepth, usePanel } from '../ui/a11y'
 import { faceStyle } from '../ui/kitFaceStyle'
+import { hudGrants } from './inventory'
 import './hud.css'
 
 /* WHAT A BEAT ID RESOLVES TO. World code names a beat as a string, the way a
@@ -80,6 +81,10 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const [cardUp, setCardUp] = useState(placeCardUp)
   useEffect(() => { setCardUp(placeCardUp()); return onStageBusy(() => setCardUp(placeCardUp())) }, [])
   const s = loadSave()
+  /* what the run has actually handed over. One pure function, read here and by
+   * every other mount, so the corner cannot say two different things in two
+   * scenes the way it did when IntroScene had its own gate of none at all. */
+  const g = hudGrants(s)
 
   const anyOpen = book !== null || planner || settings || advisory || sitClass !== null
     || yearbook || graduation || wardrobe || playing !== null
@@ -170,12 +175,27 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
           `anchor`, so the Handbook spine and the pause sheet keep their emoji
           rather than getting a blank square, and `faceStyle` refuses by name
           instead of drawing something that is not there. */}
+      {/* THE CORNER IS EMPTY UNTIL THE GAME HAS GIVEN SOMETHING, which is §40.2's
+          law arriving in the one place it was broken. `hudGrants` is the single
+          answer both mounts read; before it there were two gates, and the second
+          one (IntroScene) had no save test at all, which is how the compass got
+          onto the beach two sections before anybody hands you a chart.
+
+          A nav with nothing in it is still a landmark a screen reader announces,
+          so at n=0 there is no nav either. */}
+      {(g.chart || g.handbook || g.tokens) && (
       <nav className="hud-stack" aria-label="Ship's controls">
+        {g.chart && (
         <button className="hud-btn" title="The chart" aria-label="The chart" aria-haspopup="dialog" onClick={() => { track('chart_opened'); openBook('chart') }}>
           <KitGlyph piece="icon_set" face="compass">🧭</KitGlyph>
         </button>
-        <button className="hud-btn" title="The Handbook" aria-label="The Handbook" aria-haspopup="dialog" onClick={() => openBook('islands')}>📖</button>
-        {s && s.introDone && (
+        )}
+        {g.handbook && (
+        <button className="hud-btn" title="The Handbook" aria-label="The Handbook" aria-haspopup="dialog" onClick={() => openBook('islands')}>
+          <KitGlyph piece="icon_set" face="book">📖</KitGlyph>
+        </button>
+        )}
+        {s && g.tokens && (
           <button
             className="hud-tokenbtn hud-tokens" title="The year sheet — season tokens"
             aria-label={`The year sheet, ${s.tokens.length} season ${s.tokens.length === 1 ? 'token' : 'tokens'} unspent`}
@@ -188,6 +208,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
           </button>
         )}
       </nav>
+      )}
 
       {book && <Handbook initialTab={book} onClose={closeAll} />}
       {planner && (

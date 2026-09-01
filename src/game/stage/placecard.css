@@ -74,3 +74,25 @@
    cannot be read by anything drawn on a canvas. */
 html[data-rm='1'] .pc-in .pc-card,
 html[data-rm='1'] .pc-out .pc-card { animation-duration: 1ms; }
+
+/* WHAT YOU ARE FOR, under where you are, on one card.
+ *
+ * The arrival card and the objective sentence were two cards in the same corner,
+ * one after the other, and the gap between them was measured at four and a half
+ * seconds. Two reads out of a ten-second budget for one thought. They are one
+ * card now: the name of the place, the line about it, and then the one live thing
+ * the year wants, set apart by a rule so it reads as a different KIND of sentence
+ * rather than as more description. */
+.pc-heading {
+  margin-top: .7em;
+  padding-top: .6em;
+  border-top: 1px solid var(--kit-rule-soft);
+  font-family: var(--kit-face-body, 'Deckhand', monospace);
+  color: var(--kit-ink-said);
+  /* deliberately not smaller than the line above it. This is the sentence a lost
+     student is looking for, and it was the one nobody had ever seen. */
+  --kit-fs-raw: clamp(15px, calc(3.1cqw * var(--kit-text-scale)), 26px);
+  font-size: var(--kit-fs);
+  line-height: 1.35;
+  text-wrap: balance;
+}
