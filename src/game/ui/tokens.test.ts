@@ -279,7 +279,15 @@ describe('the plain arm has no art anywhere, and nothing can quietly add some', 
         const body = m[2]
         if (!sel.includes("data-skin='plain'")) continue
         if (/url\(/.test(body)) offenders.push(`${file} · ${sel.trim()}: a url`)
-        if (/border-image/.test(body)) offenders.push(`${file} · ${sel.trim()}: a border-image`)
+        /* `border-image: none` is the OPPOSITE of art and has to be allowed, or
+         * this guard forbids the one declaration that turns a frame OFF. Since
+         * 2026-08-31 the paper skin draws every panel as a nine-slice, so the
+         * plain arm has to say `none` out loud: it would inherit one otherwise,
+         * and a carved wooden frame around a worksheet is exactly what this test
+         * exists to catch. Any other value is still an offence. */
+        for (const bi of body.matchAll(/border-image[a-z-]*:\s*([^;]+)/g)) {
+          if (bi[1].trim() !== 'none') offenders.push(`${file} · ${sel.trim()}: a border-image`)
+        }
         if (/image-rendering:\s*(pixelated|crisp-edges)/.test(body)) {
           offenders.push(`${file} · ${sel.trim()}: pixel-art rendering`)
         }

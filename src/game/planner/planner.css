@@ -22,11 +22,11 @@
      cannot reach: the arm swaps `--kit-art-panel` to `none` and a hardcoded png
      keeps drawing straight through it. This sheet was one of the four that did,
      which made it a study defect and not only a rendering one. */
-  background: var(--kit-art-panel) center / 100% 100% no-repeat;
+  /* the frame is a nine-slice on .kit-surface-panel now, not a stretched picture */
   image-rendering: var(--kit-pixel);
   filter: drop-shadow(0 12px 30px rgba(2, 8, 10, .65));
   display: flex; flex-direction: column;
-  padding: 12.5% 16% 13% 15.5%;   /* the panel's measured paper zone, stretched wide */
+  padding: 18px 22px 20px;   /* a gutter INSIDE the frame; the frame's own border-width is the rest */   /* the panel's measured paper zone, stretched wide */
   box-sizing: border-box;
   container-type: inline-size;
   animation: hb-in 260ms cubic-bezier(.2, 1.2, .35, 1) both;

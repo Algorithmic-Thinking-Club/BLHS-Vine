@@ -227,6 +227,44 @@
   --kit-art-scroll: url('/art/ui/parchment-scroll.png');
   --kit-pixel: pixelated;
 
+  /* ---- THE NINE-SLICE, MEASURED OFF THE PNGS ---------------------------
+   *
+   * Ash, 2026-08-31, on a folder of screenshots: "there are so many UI bugs...
+   * So many sizing problems... and plain out broken UI." He was right, and one
+   * cause sits underneath most of it.
+   *
+   * EVERY PANEL DREW ITS FRAME AS `background: <png> center / 100% 100%`, which
+   * stretches one picture to whatever size the panel happens to be. The Handbook
+   * is 720x520 and the pause sheet is 320 wide, so the same carved corner was
+   * drawn at two quite different aspect ratios in the same session. Nothing
+   * reads as carved after that. It reads soft and rounded and cheap, which is
+   * exactly how it looked.
+   *
+   * A nine-slice holds the corners at their DRAWN size and stretches only the
+   * middle, which is the difference between a frame and a photograph of a frame.
+   *
+   * The numbers are MEASURED, not guessed: `scripts/measure-slice.mjs` walks in
+   * from each edge and finds where the frame stops and the paper starts. Run it
+   * again if the art is redrawn and paste what it prints; do not hand-tune these.
+   *
+   * THE ONE CONSTRAINT THAT KILLS IT SILENTLY: `top + bottom < h` and
+   * `left + right < w`, or the browser drops the border-image with NO error at
+   * all and the panel renders as a ring around a hole. All three pass with room.
+   *
+   * `chart-cover.png` is deliberately absent. It measured 119/270/29/298, which
+   * is not a frame, because that file has an archipelago printed across the
+   * middle of it and a baked transparency checkerboard in its margin. It owes a
+   * redraw and it is not usable as a ground until it gets one. */
+  --kit-slice-panel: 72 70 70 69;
+  --kit-slice-w-panel: 72px 70px 70px 69px;
+  --kit-slice-dialogue: 45 63 42 61;
+  --kit-slice-w-dialogue: 45px 63px 42px 61px;
+  --kit-slice-plank: 33 41 47 48;
+  --kit-slice-w-plank: 33px 41px 47px 48px;
+  /* pixel art wants `round` and never `stretch`: a middle scaled by a fraction
+   * of a pixel is the blur that makes a drawn edge look like a photograph */
+  --kit-repeat: round;
+
   /* ---- the front group: title, boot and intro chrome --------------------
    * `theme.css` aliases these. Different palette from the paper kit on purpose
    * (its paper is #e8dcc2, the kit's is #e6dcc2) and both were in the tree. */
@@ -459,6 +497,19 @@ html[data-skin='plain'] {
   --kit-art-chart: none;
   --kit-art-title: none;
   --kit-art-scroll: none;
+  /* AND THE FRAME'S OWN THICKNESS GOES TO NOTHING. `border-image: none` on the
+   * surface rules is what really stops a nine-slice being drawn; these are here
+   * because the guard in tokens.test.ts is right that every token the paper skin
+   * declares must be ANSWERED here, and because a border-width left at 72px in a
+   * document would be a 72 pixel margin nobody asked for if a rule ever set a
+   * border colour. */
+  --kit-slice-panel: 0;
+  --kit-slice-w-panel: 0;
+  --kit-slice-dialogue: 0;
+  --kit-slice-w-dialogue: 0;
+  --kit-slice-plank: 0;
+  --kit-slice-w-plank: 0;
+  --kit-repeat: stretch;
   --kit-art-band: none;
   --kit-art-icon_set: none;
   --kit-pixel: auto;
@@ -500,14 +551,61 @@ html[data-skin='plain'] {
  * asks. MAPVIS publishes ten more (field, gauge, rail, socket, tab,
  * portrait_frame and the rest) and the next one to be used needs its own line,
  * or the plain arm gets a wooden surface in a plain sheet and nothing errors. */
+/* ---- THE FRAME, DRAWN AS A FRAME ---------------------------------------
+ *
+ * These three rules are what every panel in the game now gets its edge from, and
+ * the panels themselves carry NO background picture any more. The middle is
+ * painted by `fill`, so one declaration draws the paper and the carving together
+ * and they can never be sized differently from each other again.
+ *
+ * `border-width` IS THE PADDING. That is the second half of the fix and the more
+ * important one. Every panel used to carry a hand-measured PERCENTAGE padding
+ * (`padding: 12.5% 16% 13% 15.5%` on the year sheet), and a percentage padding
+ * resolves against the CONTAINING BLOCK, which for these is a veil pinned to the
+ * viewport. So on a 1280 wide screen the year sheet took about 200 pixels of
+ * padding on each side of an 880 pixel panel, leaving a 477 pixel content box
+ * inside a 880 pixel frame. `container-type: inline-size` then made `cqw` a
+ * fraction of THAT, so the type shrank with it. One bug, and it produced both
+ * symptoms at once: enormous dead space AND unreadable text, on every panel,
+ * getting worse the wider the window.
+ *
+ * The frame's own thickness is the honest inset, it is in pixels, and it does
+ * not know or care how wide the window is.
+ *
+ * The platform's kit overrides all six numbers when it arrives (`src/game/ui/
+ * kit.ts` injects its own `.kit-surface-*` block last), which is the point: the
+ * local art is what a member with no network sees, and Ash's redraw is what a
+ * student sees. */
+.kit-surface-panel {
+  border-style: solid;
+  border-color: transparent;
+  border-width: var(--kit-slice-w-panel);
+  border-image: var(--kit-art-panel) var(--kit-slice-panel) fill / 1 / 0 var(--kit-repeat);
+}
+.kit-surface-dialogue,
+.kit-surface-band {
+  border-style: solid;
+  border-color: transparent;
+  border-width: var(--kit-slice-w-dialogue);
+  border-image: var(--kit-art-dialogue) var(--kit-slice-dialogue) fill / 1 / 0 var(--kit-repeat);
+}
+.kit-surface-plank {
+  border-style: solid;
+  border-color: transparent;
+  border-width: var(--kit-slice-w-plank);
+  border-image: var(--kit-art-plank) var(--kit-slice-plank) fill / 1 / 0 var(--kit-repeat);
+}
+
 html[data-skin='plain'] .kit-surface-panel,
 html[data-skin='plain'] .kit-surface-band,
 html[data-skin='plain'] .kit-surface-dialogue {
+  border-image: none;
   background-color: var(--kit-paper);
   border: var(--kit-border) solid var(--kit-edge);
   border-radius: var(--kit-r-round);
 }
 html[data-skin='plain'] .kit-surface-plank {
+  border-image: none;
   background-color: var(--kit-wood-hi);
   border: var(--kit-border) solid var(--kit-wood-edge);
   border-radius: var(--kit-r-soft);

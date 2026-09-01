@@ -13,11 +13,11 @@
 .wd-panel {
   width: min(520px, 90vw);
   aspect-ratio: 1 / 1;
-  background: var(--kit-art-panel) center / 100% 100% no-repeat;
+  /* the frame is a nine-slice on .kit-surface-panel now, not a stretched picture */
   image-rendering: var(--kit-pixel);
   filter: drop-shadow(var(--kit-drop-lg));
   /* the measured paper zone of panel-square, same numbers the Handbook uses */
-  padding: 15% 17.5% 15.5% 17%;
+  padding: 14px 18px 16px;   /* a gutter INSIDE the frame; the frame's own border-width is the rest */
   box-sizing: border-box;
   container-type: inline-size;
   display: flex; flex-direction: column; align-items: center; gap: 2.5cqw;
@@ -85,7 +85,7 @@ html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
 .wd-close {
   align-self: center; min-width: 55%;
   aspect-ratio: 512 / 150;
-  background: var(--kit-art-plank) center / 100% 100% no-repeat;
+  /* the frame is a nine-slice on .kit-surface-plank now, not a stretched picture */
   image-rendering: var(--kit-pixel);
   border: none; cursor: pointer;
   font-family: var(--kit-face-display);

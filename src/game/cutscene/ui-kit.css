@@ -29,11 +29,11 @@
   width: min(560px, 58vw);           /* modest box — it must never cover Thor */
   height: min(190px, 26vh);          /* FIXED height: content can't grow the box past this */
   min-height: 0;
-  background: var(--kit-art-dialogue) center / 100% 100% no-repeat;
+  /* the frame is a nine-slice on .kit-surface-dialogue now, not a stretched picture */
   image-rendering: var(--kit-pixel);
   /* the paper window inside the hero frame (measured off the asset) — the text is
      vertically centered in it so a bigger face fills the paper instead of sitting low */
-  padding: 5% 8.5% 6% 8.5%;
+  padding: 10px 14px 12px;   /* a gutter INSIDE the frame; the frame's own border-width is the rest */
   box-sizing: border-box;
   display: flex;
   align-items: center;

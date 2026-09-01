@@ -50,7 +50,7 @@
 }
 .hb-book {
   width: min(720px, 94vw); height: min(520px, 86vh);
-  background: var(--kit-art-panel) center / 100% 100% no-repeat;
+  /* the frame is a nine-slice on .kit-surface-panel now, not a stretched picture */
   image-rendering: var(--kit-pixel);
   filter: drop-shadow(var(--kit-drop-lg));
   display: flex; flex-direction: column;
@@ -148,12 +148,12 @@ html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1m
 }
 .pz-panel {
   width: min(320px, 80vw);
-  background: var(--kit-art-panel) center / 100% 100% no-repeat;
+  /* the frame is a nine-slice on .kit-surface-panel now, not a stretched picture */
   image-rendering: var(--kit-pixel);
   aspect-ratio: 448 / 448;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 4%;
-  padding: 16% 18% 16.5%;          /* the measured paper zone */
+  padding: 12px 16px 14px;   /* a gutter INSIDE the frame; the border-width is the rest */
   box-sizing: border-box;
   container-type: inline-size;
   filter: drop-shadow(var(--kit-drop-md));

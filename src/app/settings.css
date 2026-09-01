@@ -16,7 +16,8 @@
 .st-panel {
   position: relative;
   width: min(460px, 92vw); aspect-ratio: 448 / 470;
-  background: var(--kit-art-panel) center / 100% 100% no-repeat;
+  box-sizing: border-box;   /* the frame is a border now and has to fit inside the ratio */
+  /* the frame is a nine-slice on .kit-surface-panel now, not a stretched picture */
   image-rendering: var(--kit-pixel);
   filter: drop-shadow(var(--kit-drop-sm));
   animation: st-in 260ms var(--kit-ease-pop) both;
@@ -28,7 +29,12 @@ html[data-rm='1'] .st-panel { animation-duration: 1ms; }
 /* the content sits well inside the cream sheet — the frame's rounded corners eat any strip that
    reaches the very top/edges, so the tab row must clear them (was 15%/16%: tabs clipped the wood) */
 .st-inner {
-  position: absolute; inset: 17% 17% 13%;
+  /* WAS 17% 17% 13%, the paper zone measured off the stretched picture. The frame
+     is a nine-slice now and its own border-width is that inset, in pixels, so a
+     second one here would inset the contents twice. Absolutely positioned
+     children resolve against the PADDING box, which is already inside the
+     frame. */
+  position: absolute; inset: 0;
   display: flex; flex-direction: column; align-items: stretch;
   container-type: inline-size;   /* cqw below resolves against THIS inner's width */
 }
@@ -154,7 +160,7 @@ html[data-rm='1'] .st-panel { animation-duration: 1ms; }
 .st-close {
   margin-top: 3cqw; align-self: center; min-width: 50%;
   aspect-ratio: 512 / 150;
-  background: var(--kit-art-plank) center / 100% 100% no-repeat; image-rendering: var(--kit-pixel);
+  /* the frame is a nine-slice on .kit-surface-plank now, not a stretched picture */ image-rendering: var(--kit-pixel);
   border: none; cursor: pointer;
   font-family: var(--kit-face-display); --kit-fs-raw: calc(4.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-plank-ink);
   text-shadow: 0 2px 0 var(--kit-plank-shadow);

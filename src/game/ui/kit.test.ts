@@ -234,12 +234,20 @@ describe('the cache, and the Chromebook that cannot reach the platform', () => {
   })
 })
 
-describe('the kit is worn on purpose, not by default', () => {
-  it('reads ?kit=1 and ?kit=on, and nothing else', () => {
+describe('the kit is worn by default, and can be taken off', () => {
+  /* THE DEFAULT TURNED OVER, 2026-08-31, on Ash's order, in the same edit that
+   * stripped the double inset. Both halves had to move together: the kit on its
+   * own would have inset every panel twice, and the strip on its own would have
+   * left every panel with no frame at all. */
+  it('is worn unless somebody says otherwise', () => {
+    expect(kitOptedIn('')).toBe(true)
+    expect(kitOptedIn('?map=hub')).toBe(true)
     expect(kitOptedIn('?kit=1')).toBe(true)
     expect(kitOptedIn('?kit=on')).toBe(true)
+  })
+
+  it('and ?kit=0 takes it off, for a member with no network and for a comparison', () => {
     expect(kitOptedIn('?kit=0')).toBe(false)
-    expect(kitOptedIn('?map=hub')).toBe(false)
-    expect(kitOptedIn('')).toBe(false)
+    expect(kitOptedIn('?kit=off')).toBe(false)
   })
 })

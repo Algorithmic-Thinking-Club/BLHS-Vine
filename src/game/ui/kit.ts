@@ -367,13 +367,21 @@ export function kitFace(pieces: KitPiece[], piece: string, face: string): KitFac
  * TWICE and squeezes the text in all of them, on the next deploy, with no way to
  * turn it back off.
  *
- * That is a real decision about how the chrome is drawn and about art nobody in
- * this repo has seen in place yet, and the standing rule is that his verdict
- * after playing is the only gate. So the reader is complete, the fetch is real,
- * and `?kit=1` is what puts it on the screen so the two can be compared. Flip
- * the default here the day he says it is good.
+ * THAT COLLISION IS GONE, 2026-08-31, and with it the flag's reason to exist.
+ *
+ * Ash ordered the kit on by default AND the double inset stripped in the same
+ * breath, which is the only order in which either one is safe on its own. Every
+ * percentage padding named above is a pixel gutter now and no panel draws a
+ * stretched background, so a nine-slice is the only inset there is: `tokens.css`
+ * carries measured local slices for the three shipped pieces, and the block the
+ * platform injects overrides them with his own redraws.
+ *
+ * `?kit=0` still turns it off, because a member on a train with no network, and
+ * anybody who wants to see the difference, should be able to say so. The default
+ * is the platform and the local art is the fallback, rather than the other way
+ * about.
  */
 export const kitOptedIn = (search = typeof location === 'undefined' ? '' : location.search): boolean => {
   const v = new URLSearchParams(search).get('kit')
-  return v === '1' || v === 'on'
+  return !(v === '0' || v === 'off')
 }
