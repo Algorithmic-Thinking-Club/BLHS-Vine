@@ -607,11 +607,21 @@ html[data-skin='plain'] {
   border-width: var(--kit-slice-w-dialogue);
   border-image: var(--kit-art-dialogue) var(--kit-slice-dialogue) fill / 1 / 0 var(--kit-repeat);
 }
+/* A PLANK IS NOT NINE-SLICED, AND THIS IS WHY, WRITTEN DOWN SO IT IS NOT TRIED
+ * AGAIN. Ash, 2026-08-31, on the first attempt: the buttons were "just ugly and
+ * shitty", and he was right.
+ *
+ * `plank-button.png` measures 33 top and 47 bottom. A choice button is about 56
+ * pixels tall. Eighty pixels of border on a fifty-six pixel button leaves a sliver
+ * for the label and a slab of carving around it, on every button in the game at
+ * once: the title screen, settings, the wardrobe and every choice.
+ *
+ * A nine-slice is for a thing whose MIDDLE grows, which is a panel. A plank is a
+ * SHAPE: one wide button with its own ends, drawn at roughly the aspect a button
+ * is used at. Stretching it is close to correct and it looked fine for months.
+ * The tool was wrong for the job, not the numbers. */
 .kit-surface-plank {
-  border-style: solid;
-  border-color: transparent;
-  border-width: var(--kit-slice-w-plank);
-  border-image: var(--kit-art-plank) var(--kit-slice-plank) fill / 1 / 0 var(--kit-repeat);
+  background: var(--kit-art-plank) center / 100% 100% no-repeat;
 }
 
 html[data-skin='plain'] .kit-surface-panel,

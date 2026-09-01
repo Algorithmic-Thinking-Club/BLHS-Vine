@@ -268,6 +268,10 @@ const absolutise = (css: string, url: string): string =>
   css.replace(/url\(\s*(['"]?)(\/[^'")]*)\1\s*\)/g, `url('${url}')`)
 
 /** the whole stylesheet, pure and exported so a test can read it without a DOM */
+/* the handles whose art is a SHAPE rather than a frame: the picture is welcome,
+ * the nine-slice is not. See the note in kitCss for the arithmetic. */
+const SHAPES = new Set(['plank'])
+
 export function kitCss(pieces: KitPiece[], host = mapvisHost()): string {
   const tokens: string[] = []
   const blocks: string[] = []
@@ -277,6 +281,24 @@ export function kitCss(pieces: KitPiece[], host = mapvisHost()): string {
     const url = kitArtUrl(p, host)
     if (url) tokens.push(`  --kit-art-${v.handle}: url('${url}');`)
     if (v.kind !== 'surface') continue
+    /* A PLANK IS A SHAPE AND NOT A FRAME, so its art comes down and its
+     * border-image block does not.
+     *
+     * Ash, 2026-08-31, on the first attempt at wearing the kit whole: the buttons
+     * were "just ugly and shitty". He was right and the arithmetic says why.
+     * `plank-button.png` measures 33 pixels of carving at the top and 47 at the
+     * bottom, and a choice button is about 56 pixels tall. Eighty pixels of border
+     * on a fifty-six pixel button leaves a sliver for the label and a slab of wood
+     * around it, on every button in the game at once.
+     *
+     * A nine-slice is for a thing whose MIDDLE grows, which is a panel. A plank is
+     * one wide button with its own two ends, drawn at roughly the shape a button
+     * is used at, and stretching it is close to correct. The tool was wrong for
+     * the job; the numbers were fine.
+     *
+     * The token still crosses, so `tokens.css` paints Ash's redrawn plank as a
+     * stretched background the moment he publishes one. */
+    if (SHAPES.has(v.handle)) continue
     if (p.css) { blocks.push(url ? absolutise(p.css, url) : p.css); continue }
     /* THE ONLY PLACE A BLOCK IS WRITTEN HERE RATHER THAN READ. A piece with a
      * slice and no css has never come off the live route, and if one does the
