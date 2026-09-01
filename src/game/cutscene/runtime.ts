@@ -251,7 +251,14 @@ export class CutsceneRuntime {
           while (shown < d.text.length && shown < budget) {
             const ch = d.text[shown]
             shown++
-            if ('.!?â€¦'.includes(ch)) live.extra += PUNCT_PAUSE_MS
+            /* THE ELLIPSIS WAS THREE MOJIBAKE BYTES AND NEVER MATCHED ANYTHING.
+             * A file saved once as latin-1 turned one character into
+             * 'a-euro-notsign', and the three bytes it became are not something
+             * `d.text[shown]` can ever equal, so the pause this branch exists to
+             * add after an ellipsis has never once been added, in any scene, on
+             * any line. Three typed dots still land three pauses, which is what
+             * an ellipsis is for and is the reason nobody noticed. */
+            if ('.!?…'.includes(ch)) live.extra += PUNCT_PAUSE_MS
           }
           d.shown = shown
           if (shown >= d.text.length) d.done = true
