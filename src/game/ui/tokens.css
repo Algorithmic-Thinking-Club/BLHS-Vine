@@ -326,11 +326,29 @@ html[data-textsize='l'] { --kit-text-scale: 1.22; }
  * every panel would silently inherit the body's 16px, which is worse than a
  * fractional size. The feature query asks first and the fallback arm is the
  * exact expression that ships today. */
-*, *::before, *::after { --kit-fs: var(--kit-fs-raw); }
+/* ---- AND A FLOOR, MEASURED 2026-08-31 --------------------------------------
+ *
+ * Ash, on a folder of screenshots of the panels: *"I cant see shit."* That is a
+ * measurement and `scripts/type-size.mjs` took it. Every size in this game is
+ * written as a RATIO of its panel (`calc(2.4cqw * scale)`), and a ratio says
+ * nothing about what a person actually reads, so nobody had ever looked. The
+ * yearbook had EIGHT of its twelve text elements under 14 pixels, with body copy
+ * at 10 and 11. Ten pixel text is decoration; it is not something a fourteen year
+ * old reads on a school Chromebook at arm's length.
+ *
+ * 14px is the floor and it is not a taste number: it is the smallest size most
+ * design systems will put in front of an adult, and this audience is younger and
+ * the screen is worse. The ceiling stops a heading on a very wide monitor turning
+ * into a poster. Between them the ratio still does the work, so a panel that
+ * grows still grows its type.
+ *
+ * This is the PAPER skin. The plain arm has its own clamp further down with a
+ * higher floor, because a document is read closer than a game is. */
+*, *::before, *::after { --kit-fs: clamp(14px, var(--kit-fs-raw), 44px); }
 @supports (font-size: round(1px, 1px)) {
   /* `max` keeps a panel mid-entrance, whose container is momentarily narrow,
    * from rounding a real size down to a zero-pixel one. */
-  *, *::before, *::after { --kit-fs: max(1px, round(var(--kit-fs-raw), 1px)); }
+  *, *::before, *::after { --kit-fs: max(1px, round(clamp(14px, var(--kit-fs-raw), 44px), 1px)); }
 }
 
 /* REDUCED MOTION, THE PART A TOKEN CAN CARRY. Every transition in the kit reads

@@ -15,7 +15,7 @@
 }
 .st-panel {
   position: relative;
-  width: min(460px, 92vw); aspect-ratio: 448 / 470;
+  width: min(680px, 84vw); aspect-ratio: 448 / 470;
   box-sizing: border-box;   /* the frame is a border now and has to fit inside the ratio */
   /* the frame is a nine-slice on .kit-surface-panel now, not a stretched picture */
   image-rendering: var(--kit-pixel);

@@ -49,7 +49,7 @@
   display: flex; align-items: center; justify-content: center;
 }
 .hb-book {
-  width: min(720px, 94vw); height: min(520px, 86vh);
+  width: min(1080px, 88vw); height: min(760px, 86vh);
   /* the frame is a nine-slice on .kit-surface-panel now, not a stretched picture */
   image-rendering: var(--kit-pixel);
   filter: drop-shadow(var(--kit-drop-lg));
@@ -147,7 +147,7 @@ html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1m
   display: flex; align-items: center; justify-content: center;
 }
 .pz-panel {
-  width: min(320px, 80vw);
+  width: min(460px, 72vw);
   /* the frame is a nine-slice on .kit-surface-panel now, not a stretched picture */
   image-rendering: var(--kit-pixel);
   aspect-ratio: 448 / 448;

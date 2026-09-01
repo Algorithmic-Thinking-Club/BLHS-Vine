@@ -302,8 +302,13 @@ describe('the plain arm has no art anywhere, and nothing can quietly add some', 
     expect(tokens).toContain('--kit-fs: clamp(15px, var(--kit-fs-raw), 28px);')
     expect(tokens).toContain('--kit-fs: max(1px, round(clamp(15px, var(--kit-fs-raw), 28px), 1px));')
     // and the fallback arm is still a real declaration outside the feature query
-    const loose = tokens.indexOf('--kit-fs: clamp(15px, var(--kit-fs-raw), 28px);')
-    const snapped = tokens.indexOf('--kit-fs: max(1px, round(clamp(')
+    /* SEARCHED FROM THE PLAIN BLOCK, not from the top of the file. The paper skin
+     * grew its own clamp on 2026-08-31, so a bare indexOf for 'max(1px, round(clamp('
+     * found the PAPER one, which sits earlier, and the ordering check compared two
+     * different arms and failed on a file that was correct. */
+    const from = tokens.indexOf("html[data-skin='plain'] *,")
+    const loose = tokens.indexOf('--kit-fs: clamp(15px, var(--kit-fs-raw), 28px);', from)
+    const snapped = tokens.indexOf('--kit-fs: max(1px, round(clamp(15px,', from)
     expect(loose).toBeLessThan(snapped)
   })
 
@@ -528,16 +533,21 @@ describe('type lands on whole pixels', () => {
   const css = strip(read(TOKENS))
 
   it('snaps through one formula rather than in every stylesheet', () => {
-    expect(css).toContain('*, *::before, *::after { --kit-fs: var(--kit-fs-raw); }')
+    /* THE PAPER SKIN GREW A FLOOR AND A CEILING on 2026-08-31. Ash could not read
+     * the panels and the measurement agreed: eight of the yearbook's twelve text
+     * elements were under 14px, two of them at 10. A size in this game is a RATIO
+     * of its panel, so nothing stopped a ratio resolving to decoration. The snap
+     * is unchanged and now wraps a clamp instead of a bare ratio. */
+    expect(css).toContain('*, *::before, *::after { --kit-fs: clamp(14px, var(--kit-fs-raw), 44px); }')
     expect(css).toContain('@supports (font-size: round(1px, 1px))')
-    expect(css).toContain('round(var(--kit-fs-raw), 1px)')
+    expect(css).toContain('round(clamp(14px, var(--kit-fs-raw), 44px), 1px)')
   })
 
   it('leaves the exact expression that ships today as the fallback arm', () => {
     /* the trap this guards: a var() value is invalid at COMPUTED-value time, and
      * that falls back to inherit rather than to the declaration above it. So the
      * unsupported arm has to be a real declaration outside the feature query. */
-    const at = css.indexOf('--kit-fs: var(--kit-fs-raw);')
+    const at = css.indexOf('--kit-fs: clamp(14px, var(--kit-fs-raw), 44px);')
     const gate = css.indexOf('@supports (font-size: round(1px, 1px))')
     expect(at).toBeGreaterThan(-1)
     expect(at).toBeLessThan(gate)

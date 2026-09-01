@@ -11,7 +11,7 @@
 }
 
 .wd-panel {
-  width: min(520px, 90vw);
+  width: min(760px, 80vw);
   aspect-ratio: 1 / 1;
   /* the frame is a nine-slice on .kit-surface-panel now, not a stretched picture */
   image-rendering: var(--kit-pixel);
@@ -40,12 +40,22 @@ html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
   display: flex; align-items: center; justify-content: center;
   width: 100%;
 }
-/* the sprite is 4x nearest-neighbour: a mirror should show the pixels, not blur
-   them, and this is the one place in the game Thor is looked at up close */
+/* `transform: scale(4)` WAS A MAGNIFIER THAT ESCAPED THE LAYOUT. A transform does
+   not change the box, so the stage reserved room for a sprite four times smaller
+   than the one it drew. That was survivable while the panel was 520 wide and the
+   stage was short; when the panel grew to 760 the stage grew with it and Thor
+   went to over a thousand pixels of visual height inside a 258 pixel box, and the
+   frame cut his ears off.
+
+   `object-fit: contain` magnifies him to fill the stage and IS the layout, so he
+   is as big as there is room for and never a pixel bigger, at any panel size.
+   `pixelated` is what keeps that a magnification rather than a blur: a mirror
+   should show the pixels, and this is the one place in the game he is looked at
+   up close. */
 .wd-thor {
-  height: 100%; width: auto;
+  height: 100%; width: 100%;
+  object-fit: contain;
   image-rendering: pixelated;
-  transform: scale(4); transform-origin: center;
   filter: drop-shadow(0 3px 0 var(--kit-mirror-drop));
 }
 

@@ -26,8 +26,8 @@
   left: 50%;
   bottom: max(2.4vh, 16px);
   transform: translateX(-50%);
-  width: min(560px, 58vw);           /* modest box — it must never cover Thor */
-  height: min(190px, 26vh);          /* FIXED height: content can't grow the box past this */
+  width: min(880px, 64vw);           /* modest box — it must never cover Thor */
+  height: min(250px, 30vh);          /* FIXED height: content can't grow the box past this */
   min-height: 0;
   /* the frame is a nine-slice on .kit-surface-dialogue now, not a stretched picture */
   image-rendering: var(--kit-pixel);

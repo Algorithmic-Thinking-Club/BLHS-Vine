@@ -17,7 +17,7 @@
   display: flex; align-items: center; justify-content: center;
 }
 .pl-sheet {
-  width: min(880px, 96vw); height: min(600px, 92vh);
+  width: min(1240px, 92vw); height: min(820px, 88vh);
   /* THE TOKEN, NOT THE FILE. A literal url here is a surface §16's plain arm
      cannot reach: the arm swaps `--kit-art-panel` to `none` and a hardcoded png
      keeps drawing straight through it. This sheet was one of the four that did,

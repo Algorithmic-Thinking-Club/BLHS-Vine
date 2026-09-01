@@ -21,7 +21,7 @@
    one. They carry `kit-surface-panel` and `kit-surface-dialogue` for the same
    reason: that is the class the plain arm's own fallback colour hangs off. */
 .yb-page {
-  width: min(640px, 94vw); height: min(600px, 88vh);
+  width: min(940px, 86vw); height: min(800px, 88vh);
   /* the frame is a nine-slice on .kit-surface-panel now, not a stretched picture */
   image-rendering: var(--kit-pixel);
   filter: drop-shadow(0 12px 30px rgba(2, 8, 10, .65));
@@ -148,7 +148,7 @@
   padding-bottom: 6vh; cursor: pointer;
 }
 .ys-card {
-  width: min(560px, 90vw);
+  width: min(820px, 80vw);
   /* the frame is a nine-slice on .kit-surface-dialogue now, not a stretched picture */
   image-rendering: var(--kit-pixel);
   filter: drop-shadow(0 8px 22px rgba(2, 8, 10, .55));
