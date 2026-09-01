@@ -173,3 +173,28 @@ html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1m
    style on the element, which is the one place a skin cannot reach. */
 .pz-note { font-family: var(--kit-face-body); --kit-fs-raw: calc(3.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-dim); }
 .hud-blur { filter: blur(2px) brightness(.92); }
+
+/* THE SPENT YEAR, AS A DRAWN SOCKET RATHER THAN A FADED COPY.
+ *
+ * This was `style={{ opacity: .35 }}` written inline on the element, which is the
+ * one place a skin cannot reach and the one distinction §11.3 forbids outright:
+ * lightness alone, on a school Chromebook panel, which is the hardware that
+ * crushes lightness hardest. `pip`'s `ghost` face is an empty socket somebody
+ * drew. When it is not available the opacity is the fallback, in the stylesheet
+ * where a skin can see it. */
+.hud-token-spent {
+  opacity: .35;
+}
+.hud-token-spent[style*='background-image'] {
+  /* a drawn ghost is not a faded anything, so it carries its own weight */
+  opacity: 1;
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+/* and a pip wearing a cut face drops the gradient it no longer needs */
+.hud-token[style*='background-image'] {
+  background-color: transparent;
+  border: 0;
+  box-shadow: none;
+}

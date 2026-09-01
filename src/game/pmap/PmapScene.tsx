@@ -69,6 +69,7 @@ import { coverFor, markSeen, seenThisSession, titleOfMap } from '../stage/covers
 import { showPlaceCard } from '../stage/stage-bus'
 import { motionMs, prefersReducedMotion } from '../ui/motion'
 import { uiBand } from '../ui/frame'
+import { kitSprite } from '../ui/kitSprite'
 import { composeWorldText, WORLD_TEXT } from '../ui/worldText'
 import { MAW_MAP, isObjective, nextObjective } from '../run/objective'
 import { missingAnchors } from '../maw/stations'
@@ -1931,15 +1932,44 @@ export default function PmapScene() {
        * currently sending the player to. Deliberately not a glow on the station
        * itself, because the station is Ash's art and the marker is the engine's,
        * and the engine does not draw on top of the art. */
-      const objMark = new Text({
-        text: '▾',
-        style: new TextStyle({ fontFamily: 'monospace', fontSize: 16, fontWeight: 'bold', fill: 0xffd98a, stroke: { color: 0x3a2410, width: 3 } }),
-      })
-      objMark.anchor.set(0.5, 1)
-      objMark.scale.set(1 / Z)
+      /* IT IS A DRAWN CHEVRON NOW, AND THE DRAWING ALREADY EXISTED. MAPVIS
+       * publishes a `pointer` sheet with six cut faces (chevron, hand, trail_dot,
+       * bearing, pin_tail, pin_plate) and not one of them had ever been read. This
+       * was `text: '▾'` in monospace: the one mark in the game that says "go
+       * here", rendered in whatever the operating system thinks that character
+       * looks like, on the frame a lost fourteen year old is staring at.
+       *
+       * Part IV Law 2, verbatim from Ash: "all the UI (not the generic shit youve
+       * been doing, using PixelLab, every UI)".
+       *
+       * The glyph stays as the fallback rather than being deleted, because a
+       * classroom Chromebook behind a district filter that cannot reach the
+       * platform still has to be able to find the door. */
+      const objMark = new Container()
       objMark.zIndex = 9e9 - 2
       objMark.visible = false
       world.addChild(objMark)
+      {
+        const glyph = new Text({
+          text: '▾',
+          style: new TextStyle({ fontFamily: 'monospace', fontSize: 16, fontWeight: 'bold', fill: 0xffd98a, stroke: { color: 0x3a2410, width: 3 } }),
+        })
+        glyph.anchor.set(0.5, 1)
+        objMark.addChild(glyph)
+        void kitSprite('pointer', 'chevron').then((drawn) => {
+          if (destroyed || !drawn) return
+          /* sized against the CHARACTER and not against the sheet, so one drawing
+           * is the right size on a map whose people are 18 painting pixels and on
+           * one whose people are 40. The mark is about as tall as his head. */
+          drawn.anchor.set(0.5, 1)
+          const want = Math.max(9, Math.round(map.character.heightPx * 0.62))
+          drawn.scale.set(want / drawn.texture.height)
+          objMark.removeChild(glyph)
+          glyph.destroy()
+          objMark.addChild(drawn)
+        })
+      }
+      objMark.scale.set(1 / Z)
 
       /* ==== THE WORLD SUBSTRATE, ON SCREEN ======================================
        *

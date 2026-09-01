@@ -16,7 +16,7 @@ import { useNav } from '../../app/SceneManager'
 import { track } from '../telemetry'
 import { onBeatRequest, onUiRequest } from '../ui-bus'
 import { onWorldHold, worldHeld } from '../world-bus'
-import { onStageBusy, placeCardUp } from '../stage/stage-bus'
+import { onPlaceCard, onStageBusy, placeCardUp } from '../stage/stage-bus'
 import { panelDepth, usePanel } from '../ui/a11y'
 import { faceStyle } from '../ui/kitFaceStyle'
 import { hudGrants } from './inventory'
@@ -155,12 +155,38 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     onBlurWorld?.(false)
   }
   // resolved per render on purpose: Y4's audit beat is GENERATED from the live save
+  /* HAS THE WORLD FINISHED ARRIVING. Set a beat after the last arrival card, and
+   * on a timer for a map that shows no card at all (a room the student has
+   * already been in this sitting), so nothing waits for ever on a card that is
+   * never coming. */
+  const [settled, setSettled] = useState(false)
+  useEffect(() => {
+    let t = window.setTimeout(() => setSettled(true), 2600)
+    const off = onPlaceCard(() => {
+      setSettled(false)
+      window.clearTimeout(t)
+      t = window.setTimeout(() => setSettled(true), 5200)
+    })
+    return () => { window.clearTimeout(t); off() }
+  }, [])
+
   const yearBeat = s ? coreBeatFor(s.year, s) : null
   const sitClassDef = sitClass ? classById(sitClass) : null
   // the year-start vignette (§7.5 minute one): once per year, only while the
   // world is quiet, and an arrival card on screen is the world not being quiet
+  /* AND IT WAITS FOR THE ARRIVAL TO FINISH, which is the half `!cardUp` cannot
+   * express. Measured cold with scripts/ten-seconds.mjs: Principal Panther's
+   * first line of the year landed at 0.6 seconds and the card naming the place
+   * landed at 2.0, so the year opened by having somebody talk at a student who
+   * did not yet know where they were standing. `!cardUp` is false before a card
+   * has been requested as well as after it has gone, so it stopped the two
+   * OVERLAPPING and never put them in an order.
+   *
+   * The comment on `ys-card` records the earlier half of this same bug: "in the
+   * Maw the year's first line covered the place card every single time". This is
+   * the rest of it. Where you are, then what the year is. */
   const showVignette = !!s?.introDone && !anyOpen && !paused && !held && !s.graduated
-    && !cardUp && !s.flags.includes(`vignette:y${s.year}`)
+    && !cardUp && settled && !s.flags.includes(`vignette:y${s.year}`)
 
   return (
     <>
@@ -202,9 +228,26 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
             aria-haspopup="dialog"
             onClick={openPlanner}
           >
+            {/* ---- THE SEASONS, TOLD APART BY THEIR OWN MARK ----------------
+                MAPVIS drew a `pip` sheet with five cut faces, fall, winter,
+                spring, spent and ghost, and nothing has ever read one. These were
+                three identical gold circles from a CSS radial-gradient, so a
+                student could count how many they had and could not tell WHICH,
+                and the one that meant "all spent" was an inline opacity of .35.
+
+                §11.3's rule is that no state may be carried by hue alone, and an
+                inline opacity is worse than hue: it is lightness alone, on the
+                hardware that crushes lightness hardest. Three struck faces say
+                which season each one is without a word, and `ghost` is a drawn
+                empty socket rather than a faded copy of a full one.
+
+                An undrawn face falls back to the gradient, so a build with no
+                platform looks exactly as it did. */}
             {s.tokens.length > 0
-              ? s.tokens.map((t, i) => <span className="hud-token" key={t + i} />)
-              : <span className="hud-token" style={{ opacity: .35 }} />}
+              ? s.tokens.map((t, i) => (
+                <span className="hud-token" key={t + i} style={faceStyle('pip', t.toLowerCase())} />
+              ))
+              : <span className="hud-token hud-token-spent" style={faceStyle('pip', 'ghost')} />}
           </button>
         )}
       </nav>
