@@ -27,8 +27,32 @@
   bottom: max(2.4vh, 16px);
   transform: translateX(-50%);
   width: min(560px, 58vw);           /* modest box — it must never cover Thor */
-  height: min(190px, 26vh);          /* FIXED height: content can't grow the box past this */
-  min-height: 0;
+  /* ---- IT GROWS TO ITS CONTENT NOW, BETWEEN A FLOOR AND A CEILING ----------
+   *
+   * Part IV §40.14 is about this one declaration. It was `height: min(190px, 26vh)`,
+   * a FIXED height, and the comment beside it said why: content must not grow the
+   * box past this, because the box must never cover Thor. Both halves of that are
+   * right and the conclusion was wrong. At text size L the type is up to 44px, and
+   * "a 44-pixel line at 1.4 line height in a 190-pixel box holds three lines with
+   * nothing to spare, and there is no scroll, no page break, no ellipsis and no
+   * measurement." A member writing a four-line answer at size L pushed text out of
+   * a painted window, and found out in a classroom.
+   *
+   * A nine-slice is what makes a height a variable rather than a constant, which
+   * §40.14 says outright and which is now true of this box, so the fix it asked
+   * for is available: a floor so a one-word line still looks like a box that was
+   * drawn, and a ceiling so it can never take the screen or cover him.
+   *
+   * The scar in this file stays honoured: NO percentage height, because it can
+   * clip to zero at some zooms, which is the old empty-box bug. These are min and
+   * max, not height, and neither is a percentage of anything. */
+  min-height: min(190px, 26vh);
+  max-height: min(400px, 48vh);
+  /* CONTAINER QUERIES ON THE BOX, which §40.7 names as the one surface a student
+   * reads most that did not have them. Every other panel in the kit sizes its
+   * type against its own inline size; this one sized against the VIEWPORT, so the
+   * type and the box it lives in were answering two different questions. */
+  container-type: inline-size;
   /* the frame is a nine-slice on .kit-surface-dialogue now, not a stretched picture */
   image-rendering: var(--kit-pixel);
   /* the paper window inside the hero frame (measured off the asset) — the text is
@@ -36,7 +60,16 @@
   padding: 10px 14px 12px;   /* a gutter INSIDE the frame; the frame's own border-width is the rest */
   box-sizing: border-box;
   display: flex;
-  align-items: center;
+  /* STRETCH, NOT CENTRE, and it is the whole reason the box still ate words after
+     it was allowed to grow. `align-items: center` on a flex container whose child
+     is taller than it overflows the child EQUALLY IN BOTH DIRECTIONS, so the first
+     line goes up past the top edge and the last goes down past the bottom, and
+     neither can be scrolled to because the scroll container starts below the
+     content. Measured: at text size L the sentence started halfway through its own
+     first word. The body fills the height now and centres its own text inside
+     itself, so a short line still sits in the middle of the paper and a long one
+     scrolls instead of disappearing. */
+  align-items: stretch;
   cursor: pointer;
   animation: cs-rise 260ms var(--kit-ease-rise) both;
 }
@@ -71,6 +104,28 @@ html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
 .cs-dialogue-body {
   flex: 1 1 auto;
   min-width: 0;
+  /* AND PAST THE CEILING IT SCROLLS RATHER THAN CLIPS. §40.14 asks for "a defined
+     behaviour for a line that still does not fit" and this is it. The box grows to
+     its ceiling first, because a box that scrolls when it could have grown is a box
+     that made a student work for no reason; past the ceiling the alternative to a
+     scrollbar is eating the first two lines of a sentence, which is what it did.
+     Measured: a 180-character line at text size L needed 308px of paper in a box
+     that could give it 227, and the screenshot showed the sentence starting halfway
+     through. A student can never be shown a word that is not there. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* a flex child will not shrink below its content without this, which is what
+     makes `overflow-y` do anything at all inside a flex row */
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  /* SAFE centre. Plain `center` has the same flaw `align-items: center` had one
+     rule up: when the content is taller than the box it centres the OVERFLOW too,
+     so the first line sits above the scroll container's own top and cannot be
+     reached by scrolling to it. `safe` means centre while it fits and fall back to
+     the start when it does not, which is the difference between a long line a
+     student can read and a long line that begins halfway through. */
+  justify-content: safe center;
   /* deliberately NOT a positioned ancestor: the name plaque is absolute against
      the BOX, and a relative column here would become its containing block and drop
      it onto the first line of the text it is supposed to sit above */
@@ -79,7 +134,16 @@ html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
 
 .cs-dialogue-text {
   font-family: var(--kit-face-body);
-  --kit-fs-raw: clamp(23px, 3.4vh, 33px); font-size: var(--kit-fs);   /* big and readable; box height is fixed so it can't grow the box */
+  /* cqw, not vh: the box is a container now, so the line scales with the paper
+     it is written on. The clamp keeps it readable on a narrow window and stops it
+     becoming a headline on a projector. */
+  /* 8.3cqw MEASURED, not guessed. The box carries about 408px of paper inside its
+     frame at the default width, so a cqw here is roughly 4 pixels and the first
+     pass at this (4.6cqw) rendered 25px at text size L where the old viewport-based
+     rule rendered 44. Smaller is the wrong direction on the surface a student reads
+     most. 8.3 puts M at about 34 and L at about 41, which is the size the old rule
+     reached at its ceiling, and now the box grows to hold it instead of clipping. */
+  --kit-fs-raw: clamp(22px, calc(8.3cqw * var(--kit-text-scale)), 46px); font-size: var(--kit-fs);
   line-height: 1.4;
   color: var(--kit-ink-said);
   text-shadow: 0 1px 0 var(--kit-paper-sheen);

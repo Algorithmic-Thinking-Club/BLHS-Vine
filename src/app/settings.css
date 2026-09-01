@@ -179,8 +179,13 @@ html[data-rm='1'] .st-panel { animation-duration: 1ms; }
 /* text-size + reduced-motion hooks for the scenes this sheet's settings reach but
    this session does not own (the title backdrop, the intro scroll, the transition
    library). The kit's own halves live in game/ui/tokens.css. */
-html[data-textsize='s'] .cs-dialogue-text { --kit-fs-raw: clamp(19px, 3.4vh, 30px); font-size: var(--kit-fs); }
-html[data-textsize='l'] .cs-dialogue-text { --kit-fs-raw: clamp(30px, 5.6vh, 44px); font-size: var(--kit-fs); }
+/* THE DIALOGUE BOX NEEDS NO RULE HERE ANY MORE, and that is the point of §40.7:
+   "the container-query unit is the technique that turns S/M/L into one variable".
+   Two hand-written overrides lived here because the box sized against the VIEWPORT
+   and could not be reached by the scale token. It is its own container now and the
+   scale is inside its clamp, so S and L reach it the way they reach every other
+   panel in the kit, through one variable, and the box grows between its floor and
+   its ceiling to hold whichever one is asked for. */
 html[data-rm='1'] .ti-backdrop { animation: none !important; }
 html[data-rm='1'] .i3-scroll { animation-duration: 1ms !important; }
 html[data-rm='1'] .tr-root * { animation-duration: 200ms !important; }
