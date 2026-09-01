@@ -215,7 +215,12 @@
   aspect-ratio: 512 / 192;
   background: var(--kit-art-plank) center / 100% 100% no-repeat;
   image-rendering: var(--kit-pixel);
-  border: none; outline: none; cursor: pointer;
+  border: none; cursor: pointer;
+  /* NO `outline: none` HERE ANY MORE. Part IV §40.9: "There is a fifth state and
+     the repo actively removes it." This was one of the five, and it deleted the
+     browser's own focus ring on the title screen's only buttons without drawing
+     one, so a keyboard player could not see which of them was selected. The kit's
+     ring is matched by element in tokens.css and reaches this control on its own. */
   display: flex; align-items: center; justify-content: center;
   filter: drop-shadow(0 5px 12px rgba(3, 10, 12, .5));
   transition: transform 130ms ease, filter 130ms ease;

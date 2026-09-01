@@ -790,18 +790,43 @@ html[data-skin='plain'] [tabindex]:focus-visible {
   outline-offset: var(--kit-focus-offset);
 }
 
-/* ONE FOCUS RING FOR THE WHOLE KIT. Every control in every panel, so a keyboard
- * player can always see where they are, and one place to change it. */
-.kit-focusable:focus-visible,
-.hb-tab:focus-visible, .pz-btn:focus-visible, .hud-btn:focus-visible, .hud-tokenbtn:focus-visible,
-.st-tab:focus-visible, .st-toggle:focus-visible, .st-segbtn:focus-visible, .st-idpick:focus-visible,
-.st-chip:focus-visible, .st-close:focus-visible, .st-dangerbtn:focus-visible, .st-cancelbtn:focus-visible,
-.st-gear:focus-visible,
-/* NOT `.st-idfield`. A text input matches :focus-visible however it was focused,
- * including a click, and that field already shows focus with its own background
- * and rule, so a ring there would be a new outline around a control a mouse user
- * clicks into all the time. */
-.wd-swatch:focus-visible, .wd-lockchip:focus-visible, .wd-close:focus-visible {
+/* ---- ONE FOCUS RING, AND IT IS A LAW RATHER THAN A LIST ------------------
+ *
+ * Part IV §40.9 asks for ":focus-visible on every interactive element in the
+ * tree" and for "no `outline: none` without a replacement". What was here was a
+ * hand-typed list of eighteen class selectors, which is the right ring reached
+ * the wrong way: it covers every control that existed on the day it was written
+ * and cannot cover the next one. The nineteenth button ships invisible to a
+ * keyboard, nothing errors, and the person who finds out is a student on a
+ * Chromebook whose trackpad is bad enough that keys are the faster way to play.
+ *
+ * SO IT MATCHES ELEMENTS, NOT CLASSES. Everything the browser will ever focus is
+ * one of these, so a control cannot be added without being covered. The class
+ * hook stays for anything that makes a focusable out of a div.
+ *
+ * §40.9's own Q asks whether the ring is drawn art or a browser outline and
+ * answers it: an outline, styled to the kit's accent, "because a focus ring that
+ * is late or missing on one control is worse than one that is plain everywhere".
+ * That is why this is an outline and why it is not per-control art.
+ *
+ * `outline` and never `border`: an outline does not take part in layout, so a
+ * ring cannot move the thing it is drawn around, which is what makes it safe to
+ * put on absolutely everything. */
+:where(button, a[href], select, summary, [tabindex]:not([tabindex='-1'])):focus-visible,
+.kit-focusable:focus-visible {
+  outline: var(--kit-focus-width) solid var(--kit-focus);
+  outline-offset: var(--kit-focus-offset);
+}
+
+/* THE ONE EXCEPTION, NAMED AND REASONED. A text input matches :focus-visible
+ * however it was focused, including by a click, and these fields already show
+ * focus with their own background and rule. A ring there is a second outline
+ * around a control a mouse user clicks into constantly. Everything else in the
+ * tree is covered above whether or not anybody remembers this file exists. */
+input:focus-visible {
+  outline: none;
+}
+input:focus-visible:not(.st-idfield):not(.i3-field) {
   outline: var(--kit-focus-width) solid var(--kit-focus);
   outline-offset: var(--kit-focus-offset);
 }

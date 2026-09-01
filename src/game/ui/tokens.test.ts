@@ -569,3 +569,51 @@ describe('type lands on whole pixels', () => {
     })
   }
 })
+
+/* ---- THE KEYBOARD PATH IS VISIBLE, AND STAYS VISIBLE --------------------------
+ *
+ * Part IV §40.9: "There is a fifth state and the repo actively removes it."
+ * `outline: none` appears in five stylesheets and nothing replaced it, so a
+ * student driving the game from the keyboard, which §11.3 says is a supported way
+ * to play, could not see what was selected in any panel in the game. On a school
+ * Chromebook the trackpad is bad enough that keys are the FASTER way to play, so
+ * this is not an accommodation, it is the second of the two ways the game is
+ * played and it was invisible.
+ *
+ * The ring is now matched by ELEMENT rather than by a list of eighteen classes,
+ * because a list covers the controls that existed the day it was written and the
+ * nineteenth button ships blind. These two guard that shape rather than the ring
+ * itself: one that the law is a law, and one that nobody re-adds a bare
+ * `outline: none` on top of it.
+ */
+describe('a keyboard player can always see where they are', () => {
+  const css = strip(read(TOKENS))
+
+  it('rings every focusable element by kind, not by a list of class names', () => {
+    /* the four the browser focuses without help, plus anything given a tabindex.
+     * A control cannot be added to this game without being one of them. */
+    for (const el of ['button', 'a[href]', 'select', 'summary', "[tabindex]:not([tabindex='-1'])"]) {
+      expect(css, `nothing rings a bare <${el}>`).toContain(el)
+    }
+    expect(css).toContain('.kit-focusable:focus-visible')
+    expect(css).toContain('outline: var(--kit-focus-width) solid var(--kit-focus)')
+  })
+
+  it('lets nobody switch the ring off again without saying why', () => {
+    /* `outline: none` is legitimate in exactly one shape: turning off the default
+     * ring in order to draw a better one, in the same block or the next. What is
+     * not legitimate is deleting it and stopping. Every occurrence in the tree has
+     * to sit in a file that also has a `:focus-visible` rule, which is the cheapest
+     * check that catches the real failure and does not fight the real use. */
+    const offenders: string[] = []
+    for (const file of everyStylesheet()) {
+      if (file === LEGACY) continue
+      const sheet = strip(read(file))
+      if (!/outline:\s*none/.test(sheet)) continue
+      if (!/:focus-visible/.test(sheet) && file !== TOKENS) {
+        offenders.push(`${file} switches the focus ring off and never draws one`)
+      }
+    }
+    expect(offenders, 'stylesheets that delete the focus ring without replacing it').toEqual([])
+  })
+})
