@@ -460,12 +460,14 @@ html[data-skin='plain'] {
  * the property the injected blocks set. §16's arm is the study's independent
  * variable and it does not get drawn art from anywhere, including the platform.
  *
- * The rules cover panel, dialogue and plank because those are the three handles
- * anything in `src/` mounts. MAPVIS publishes eleven more (band, field, gauge,
- * rail, socket, tab, portrait_frame and the rest) and the first one the game
- * starts using needs a line here in the same edit, or the plain arm gets a
- * wooden surface in a plain sheet and nothing errors. */
+ * The rules cover panel, dialogue and plank because those were the three handles
+ * anything in `src/` mounted. `band` is the fourth, taken up by the arrival cover
+ * (`src/app/transitions.tsx`), and it is here in the same edit the way this note
+ * asks. MAPVIS publishes ten more (field, gauge, rail, socket, tab,
+ * portrait_frame and the rest) and the next one to be used needs its own line,
+ * or the plain arm gets a wooden surface in a plain sheet and nothing errors. */
 html[data-skin='plain'] .kit-surface-panel,
+html[data-skin='plain'] .kit-surface-band,
 html[data-skin='plain'] .kit-surface-dialogue {
   background-color: var(--kit-paper);
   border: var(--kit-border) solid var(--kit-edge);

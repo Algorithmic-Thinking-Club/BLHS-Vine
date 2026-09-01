@@ -314,14 +314,27 @@ export async function loadComposition(url = worldUrl()): Promise<WorldCompositio
      * one of these hid for two days. */
     for (const src of url === LOCAL_WORLD ? [LOCAL_WORLD] : [url, LOCAL_WORLD]) {
       const doc = await tryWorld(src)
-      if (doc) { cached = doc; return doc }
+      if (doc) { cached = doc; publish(); return doc }
     }
     lastOrigin = 'built in'
     console.warn('[world] nothing answered, running on the built-in composition')
     cached = FALLBACK
+    publish()
     return FALLBACK
   })()
   return inflight
+}
+
+/* WHAT THE RUNNING GAME ACTUALLY GOT, readable from a console. The whole reason
+ * this reader was silently broken for two days is that the only way to find out
+ * what the world had decided was to read the code, and the code said the right
+ * thing while the fetch said something else. */
+const publish = () => {
+  if (typeof window === 'undefined') return
+  ;(window as unknown as { __world?: unknown }).__world = {
+    get composition() { return cached },
+    get report() { return { origin: lastOrigin, faults: lastFaults } },
+  }
 }
 
 async function tryWorld(url: string): Promise<WorldComposition | null> {

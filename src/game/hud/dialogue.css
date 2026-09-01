@@ -50,7 +50,7 @@ html[data-rm='1'] .dlg-caret { animation: none; }
   image-rendering: var(--kit-pixel);
   border: none; outline: none; cursor: pointer;
   font-family: var(--kit-face-display);
-  font-size: clamp(15px, 2.2vh, 21px);
+  --kit-fs-raw: clamp(15px, 2.2vh, 21px); font-size: var(--kit-fs);
   color: var(--kit-plank-ink);
   text-shadow: 0 2px 0 var(--kit-plank-shadow);
   filter: drop-shadow(0 4px 10px var(--kit-plank-drop));
@@ -68,8 +68,8 @@ html[data-rm='1'] .dlg-caret { animation: none; }
 .dlg-choice:active { transform: translateY(2px); }
 html[data-rm='1'] .dlg-choice { animation: none; }
 
-html[data-textsize='s'] .dlg-choice { font-size: clamp(13px, 1.9vh, 18px); }
-html[data-textsize='l'] .dlg-choice { font-size: clamp(18px, 2.7vh, 26px); }
+html[data-textsize='s'] .dlg-choice { --kit-fs-raw: clamp(13px, 1.9vh, 18px); font-size: var(--kit-fs); }
+html[data-textsize='l'] .dlg-choice { --kit-fs-raw: clamp(18px, 2.7vh, 26px); font-size: var(--kit-fs); }
 
 /* THE KEY BESIDE THE POINTER. J1: a pointer path for every key path and a key path
    for every pointer path, with neither as the fallback. A choice is a button you
@@ -82,7 +82,7 @@ html[data-textsize='l'] .dlg-choice { font-size: clamp(18px, 2.7vh, 26px); }
   padding: 0 .25em;
   border: 1px solid var(--kit-plank-keyline);
   border-radius: 2px;
-  font-size: .74em;
+  --kit-fs-raw: .74em; font-size: var(--kit-fs);
   opacity: .8;
 }
 .dlg-choice:focus-visible {

@@ -2665,39 +2665,55 @@ export default function PmapScene() {
           })
         },
 
+        /* A REFUSAL LEAVES NOTHING BEHIND, which is what `take()` before the check
+         * did not honour and what cost the wave 4 proof an hour.
+         *
+         * `take(sp)` puts a placement into `driven`, and the driven pass then
+         * re-asserts its frozen position, texture AND VISIBILITY every frame. So a
+         * word that took the body and THEN refused left that body driven by a
+         * script that had already given up: it stopped moving, and `show` could
+         * not hide it any more, because the driven pass wrote its own copy of
+         * `visible` back over the top on the next tick. One typo in a look name
+         * and the thing it was about was frozen for the rest of the visit, with
+         * the refusal correctly reported and the damage invisible.
+         *
+         * Every check that can refuse now runs against the sprite, before
+         * anything is taken. */
         actorFace(actor, facing) {
           const sp = actorBody(actor, 'actor_face')
-          const d = take(sp)
           const set = looksOf.get(sp)
-          const look = set && (set[d.look ?? 0] ?? set[0])
+          const look = set && (set[driven.get(sp)?.look ?? 0] ?? set[0])
           /* A THING DRAWN ONE WAY HAS NO HEADING TO TURN TO, and saying so is the
            * difference between an author fixing their map and an author wondering
            * why the shopkeeper never looks up. The cutscene stage counts this as a
            * miss; the word refuses, because a word can. */
           if (!look?.views || !Object.keys(look.views).length)
             throw new NotBuilt('actor_face', `"${actor}" was drawn one way and has no heading to turn to`)
-          d.facing = facing
+          take(sp).facing = facing
         },
 
         actorLook(actor, look) {
           const sp = actorBody(actor, 'actor_look')
-          const d = take(sp)
           const set = looksOf.get(sp)
           const names = lookNamesOf.get(sp) ?? []
-          /* THE PLACEMENT'S OWN PICTURE IS ALWAYS INDEX ZERO and is always
-           * addressable, whatever anybody called it, so a script can always put a
-           * thing back the way it was found. */
-          if (look === 'idle' || look === 'default') { d.look = 0; return }
-          const named = names.indexOf(look)
-          if (named >= 0) { d.look = named; return }
-          /* an index still works, because that is the only address a bundle from
-           * before look names could offer and those bundles are still on the
-           * platform */
-          const i = Number(look)
-          if (Number.isInteger(i) && i >= 0 && i < (set?.length ?? 0)) { d.look = i; return }
-          const have = names.filter(Boolean)
-          throw new NotBuilt('actor_look',
-            `"${actor}" has no face called "${look}". It has: ${have.length ? have.join(', ') : `nothing named, and ${set?.length ?? 0} unnamed`}`)
+          const index = (): number => {
+            /* THE PLACEMENT'S OWN PICTURE IS ALWAYS INDEX ZERO and is always
+             * addressable, whatever anybody called it, so a script can always put
+             * a thing back the way it was found. */
+            if (look === 'idle' || look === 'default') return 0
+            const named = names.indexOf(look)
+            if (named >= 0) return named
+            /* an index still works, because that is the only address a bundle
+             * from before look names could offer and those bundles are still on
+             * the platform */
+            const i = Number(look)
+            if (Number.isInteger(i) && i >= 0 && i < (set?.length ?? 0)) return i
+            const have = names.filter(Boolean)
+            throw new NotBuilt('actor_look',
+              `"${actor}" has no face called "${look}". It has: ${have.length ? have.join(', ') : `nothing named, and ${set?.length ?? 0} unnamed`}`)
+          }
+          const want = index()
+          take(sp).look = want
         },
 
         actorRelease(actor) {
@@ -2749,6 +2765,7 @@ export default function PmapScene() {
         framing(shot, ms) {
           if (shot === null) {
             lookAtTarget = null
+            lastShot = null
             zoomTo(Z)
             return Promise.resolve()
           }
@@ -2761,6 +2778,7 @@ export default function PmapScene() {
            * that composes a shot and then talks over it is the ordinary case and
            * a shot that expires mid-line is a cut nobody asked for */
           lookAtTarget = { x: at.x, y: at.y, until: ms === undefined ? Infinity : performance.now() + ms }
+          lastShot = shot
           if (s.framing.zoom !== undefined) zoomTo(Z * s.framing.zoom)
           engine.log('framing', { map: mapId, shot, zoom: s.framing.zoom ?? null })
           if (ms === undefined) return Promise.resolve()
@@ -3029,6 +3047,13 @@ export default function PmapScene() {
       }
       let autoWalk: AutoWalk | null = null
       let lookAtTarget: { x: number; y: number; until: number } | null = null
+      /* which named shot the camera is holding, and which named berth the last
+       * voyage aimed at. Neither changes what the scene does; both are the answer
+       * to "which one" when something asks whether the right shot was taken, and
+       * a proof that cannot tell one shot from another is a proof that the camera
+       * moved. */
+      let lastShot: string | null = null
+      let lastBerth: string | null = null
       let exitResolve: (() => void) | null = null
 
       /* ONE WALK, THREE CALLERS: `walk_to` from a grape, `actorMove` from a script,
@@ -3196,8 +3221,39 @@ export default function PmapScene() {
           }
           if (DBG) console.info(`[pmap] ${mapId}: island claims ${ready.handlers.join(', ')}`)
           /* THE ENGINE CALLING IN UNPROMPTED, which is the inversion the whole
-           * member model rests on. Nothing in their file asks for this. */
-          if (ready.handlers.includes('start')) await s.call('start')
+           * member model rests on. Nothing in their file asks for this.
+           *
+           * AND ITS REPORT IS READ, WHICH IT WAS NOT. `s.call('start')` answers
+           * the same `GrapeReport` a station's press does, carrying the crash and
+           * every refused intent, and this line threw it on the floor. The
+           * `talk:` path forty lines up has handled both since the day it was
+           * written, so an island that failed on a PRESS said so and an island
+           * that failed on its OPENING said nothing at all.
+           *
+           * Found by the wave 4 gate: `route` refused a walk line that grazed a
+           * wall, the refusal was raised at the member's own yield exactly as
+           * designed, the generator died there, and the scene sat on a beautiful
+           * painting with a man standing still and not one line anywhere. Silence
+           * is the failure this whole vocabulary exists to make impossible, and
+           * the one place it survived was the first thing an island ever does. */
+          if (ready.handlers.includes('start')) {
+            const report = await s.call('start')
+            if (report.error) {
+              console.warn(`[pmap] ${mapId}: the island's opening stopped: ${report.error}`)
+              if (report.traceback) console.warn(report.traceback)
+              engine.log('island_failed', {
+                map: mapId, error: report.error, when: 'start',
+                refused: report.refused.map((r) => `${r.intent}: ${r.why}`),
+              })
+            } else if (report.refused.length) {
+              console.warn(`[pmap] ${mapId}: the island's opening was refused: `
+                + report.refused.map((r) => `${r.intent}: ${r.why}`).join(' · '))
+              engine.log('intent_refused', {
+                map: mapId, when: 'start',
+                refused: report.refused.map((r) => `${r.intent}: ${r.why}`),
+              })
+            }
+          }
         } catch (e) {
           console.warn(`[pmap] ${mapId}: island did not load: ${e instanceof Error ? e.message : e}`)
         }
@@ -3496,6 +3552,47 @@ export default function PmapScene() {
         try { return playFx(name, { x: pos.x, y: pos.y }).then(() => 'played') }
         catch (e) { return Promise.resolve(e instanceof Error ? e.message : String(e)) }
       }
+      /* ONE HANDLE THAT READS THE SCENE'S OWN STATE, rather than a dozen more
+       * named functions. Everything here is the variable the game is really
+       * using: the proof asks what the scene thinks, and if the scene is wrong
+       * the proof is wrong with it in the same direction, which is the only
+       * honest arrangement. `perform` is the shipped `performIntent` against the
+       * shipped host, so a check exercises the path a member's python takes and
+       * not a second one written to be checkable. */
+      ;(window as any).__pmap = {
+        get map() { return mapId },
+        get x() { return pos.x },
+        get y() { return pos.y },
+        get facing() { return walker.facing },
+        get pose() { return posed?.name ?? null },
+        get camZ() { return camZ },
+        get Z() { return Z },
+        get framing() { return lookAtTarget ? lastShot : null },
+        get lastBerth() { return lastBerth },
+        get guide() { return guideTarget?.name ?? null },
+        get walkLabel() { return autoWalk?.label ?? null },
+        get hull() { return hull ? { x: hull.x, y: hull.y, speed: hull.speed, aground: hull.aground } : null },
+        get berthing() { return berthing ? { stage: berthing.stage } : null },
+        get sailing() { return sailing ? { path: sailing.path.name, leg: sailing.i } : null },
+        get waiting() { return waiters.map((w2) => w2.a.name) },
+        get driven() { return [...driven.keys()].length },
+        /* which bound placements are on screen, by the name their author typed,
+         * because "the bottle appeared" is a claim about a picture and not about
+         * a boolean somewhere */
+        get shown() {
+          const out: Record<string, boolean> = {}
+          for (const a of anchors.all) {
+            if (!a.placement) continue
+            const sp = placedById.get(a.placement)
+            if (sp) out[a.placement] = sp.visible
+          }
+          return out
+        },
+        get paths() { return pathNames(paths) },
+        get shots() { return [...shots.keys()] },
+        get island() { return { handlers: grapeHandlers } },
+        perform: (i: unknown) => performIntent(i as Intent, intentHost),
+      }
 
       app.ticker.add((tk) => {
         const dt = Math.min(tk.deltaMS, 50) / 1000
@@ -3640,6 +3737,7 @@ export default function PmapScene() {
               const end = b ? fromSea(b.x, b.y) : aim
               const slotFor = b && comp ? comp.slots.find((q) => q.berth?.name === b.name) : undefined
               docking = slotFor ?? null
+              lastBerth = b?.name ?? null
               berthing = {
                 target: end,
                 facing: (b?.facing ?? s2.path.facing) ? radOf(b?.facing ?? s2.path.facing) : undefined,

@@ -1,6 +1,9 @@
 /* Transition covers (GAME-DESIGN §12.1) — each is a full-screen layer that animates in,
    holds while the next scene mounts, and animates out. No raw spinners, no hard cuts. */
 
+/* the cover band is a piece of the kit now, so it is made of the kit's materials */
+@import '../game/ui/tokens.css';
+
 .tr-root { position: absolute; inset: 0; z-index: 90; pointer-events: auto; overflow: hidden; }
 .pix { image-rendering: pixelated; }
 
@@ -80,32 +83,102 @@
   position: absolute; left: 50%; top: 46%;
   transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center;
-  /* A QUIET DARK SCRIM so the lettering never sinks into a bright sky (Ash), and
-     at .52 it was not one. The fresh-eyes round of 2026-08-30 read the cliff, the
-     sun's own glow and the ship's rigging straight through this band, behind the
-     name of the place a student is walking into: the last surface in the game
-     still failing the brief's second item, and it failed it on the widest picture
-     in the set. Opaque enough that nothing reads through, and warm rather than
-     blue, because it sits on a sunset. */
-  background: rgba(16, 11, 9, .93);
-  border: 1px solid rgba(240, 232, 210, .3);
-  border-radius: 6px;
-  padding: 18px 34px 20px;
+  width: min(700px, 86vw);
 }
+/* the kicker sits on the painting rather than on the band, because the band's
+   own paper starts at the place's name */
 .tr-scene-entering {
-  font-family: 'Deckhand', monospace;
+  font-family: var(--kit-face-body, 'Deckhand', monospace);
   font-size: 13px; letter-spacing: 6px;
-  color: rgba(240, 232, 210, .85);
-  text-shadow: 0 2px 4px rgba(3, 6, 10, .9);
+  color: var(--kit-caption-ink, #f2e8d2);
+  text-shadow: var(--kit-caption-shadow, 0 2px 4px rgba(3, 6, 10, .9));
+  margin-bottom: 8px;
+}
+
+/* ---- THE COVER BAND -------------------------------------------------------
+ *
+ * WHAT WAS HERE. A `rgba(16, 11, 9, .93)` rectangle with a one pixel line round
+ * it, holding the name of the place a student is walking into, sitting on top of
+ * the widest painting in the game. The 2026-08-30 eyes round raised the opacity
+ * so nothing read through it, which fixed the legibility and left the surface a
+ * bare rectangle: the one piece of chrome in the game that was not a drawn
+ * object, on the one screen with nothing else on it to look at.
+ *
+ * WHAT IT IS NOW. A plaque. MAPVIS draws a piece for exactly this and calls it
+ * `band`, "a wide title band for the name of a place, shown when you arrive
+ * somewhere": 636x161, a wooden frame round parchment, a real nine-slice at
+ * 28/55/29/47, and two marked text rectangles, `title` and `subtitle`.
+ *
+ * THE ART IS BEHIND `?kit=1` AND THE SKIN IS NOT. `src/game/ui/kit.ts` mounts
+ * the platform's pieces only when the flag is on, because a nine-slice on top of
+ * every panel's hand-measured percentage padding insets them twice, and that is
+ * Ash's call to make in front of the screen. So the fallback below is a drawn
+ * plaque in the kit's own materials rather than the old rectangle: parchment
+ * between two carved rails, dark ink, one shadow. When the flag is on, the
+ * platform's border-image paints over the top of it and the frame becomes the
+ * real thing. Both states read as an object; only one of them is PixelLab's.
+ *
+ * THE INK IS DARK IN BOTH, which is the part that had to move together. The old
+ * band was light lettering on near-black. `band`'s paper is parchment, so light
+ * lettering on it is invisible, and a skin that only works with the flag on is
+ * two designs. */
+.tr-scene-band {
+  align-self: stretch;
+  box-sizing: border-box;
+  /* the frame, when there is no platform art: a carved wooden rail round a paper
+     ground, in the same tokens the plaques in the cutscene kit are made of. Four
+     layers because that is what stops a border reading as a border: a dark edge
+     outside the rail, a bright keyline where the paper meets it, a ruled inset,
+     and the sheen along the top of the paper. */
+  background:
+    linear-gradient(180deg, var(--kit-paper-hi, #f2ead4), var(--kit-paper-lo, #dbcfaf));
+  border: 5px solid var(--kit-wood-hi, #4a3421);
+  border-radius: var(--kit-r-round, 6px);
+  box-shadow:
+    0 0 0 2px var(--kit-wood-edge, #241708),
+    inset 0 0 0 1px var(--kit-paper-sheen-firm, rgba(255, 250, 235, .4)),
+    inset 0 0 0 3px var(--kit-rule-firm, rgba(138, 116, 79, .4)),
+    inset 0 3px 0 var(--kit-paper-sheen, rgba(255, 250, 235, .35)),
+    var(--kit-drop-md, 0 10px 26px rgba(2, 8, 10, .6));
+  /* THE INSETS ARE THE PIECE'S OWN, NOT A GUESS. `--band-pad-*` is written by
+     the overlay from the `title` and `subtitle` rectangles MAPVIS published, so
+     repainting the piece and re-marking it moves the type without a commit here.
+     The defaults are what the rectangle used to carry. */
+  padding: var(--band-pad-t, 18px) var(--band-pad-r, 34px) var(--band-pad-b, 20px) var(--band-pad-l, 34px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+/* with the platform's piece on, the border-image IS the frame and its own
+   border-width is the paper inset, so the drawn one steps out of the way */
+.tr-scene-band.kit-surface-band {
+  background: none;
+  border-radius: 0;
+  padding: 0;
 }
 .tr-scene-title {
-  font-family: 'Harbormaster', 'Deckhand', monospace;
-  font-size: clamp(26px, 5vh, 40px); letter-spacing: 3px;
-  color: #f4ecd8;
-  text-shadow: 0 3px 0 rgba(10, 16, 20, .8), 0 0 22px rgba(255, 214, 150, .3);
-  margin: 4px 0 12px;
+  font-family: var(--kit-face-title, 'Harbormaster', monospace);
+  --kit-fs-raw: clamp(26px, 5vh, 40px); font-size: var(--kit-fs); letter-spacing: 3px;
+  color: var(--kit-ink-head, #3c2d1c);
+  text-shadow: 0 1px 0 var(--kit-paper-sheen, rgba(255, 250, 235, .35));
+  text-align: center;
+  /* the authored `title` rectangle's height, so the line sits in the band of
+     paper the piece was drawn with rather than wherever the text happens to fall */
+  min-height: var(--band-title-h, auto);
+  display: flex; align-items: center; justify-content: center;
+}
+.tr-scene-subtitle {
+  max-width: 100%;
+  text-align: center;
+  font-family: var(--kit-face-body, 'Deckhand', monospace);
+  /* the one real sentence a student reads on a loading screen, and it was 13px at
+     85 percent over a sunset: measured at about 1.8:1 against the sky it was
+     sitting on, which is unreadable on a classroom projector. It is on paper now. */
+  font-size: 15px; line-height: 1.4;
+  color: var(--kit-ink-label, #6a563c);
+  min-height: var(--band-sub-h, auto);
+  display: flex; align-items: center; justify-content: center;
 }
 .tr-scene-bar {
+  margin-top: 14px;
   width: min(300px, 46vw); height: 9px;
   background: rgba(4, 8, 10, .9);
   border: 1px solid rgba(240, 232, 210, .65);
@@ -119,18 +192,6 @@
   animation: tr-fill linear both;
 }
 @keyframes tr-fill { from { width: 4%; } 70% { width: 78%; } to { width: 100%; } }
-.tr-scene-fact {
-  margin-top: 12px;
-  max-width: min(460px, 80vw);
-  text-align: center;
-  font-family: 'Deckhand', monospace;
-  /* the one real sentence a student reads on a loading screen, and it was 13px at
-     85 percent over a sunset: measured at about 1.8:1 against the sky it was
-     sitting on, which is unreadable on a classroom projector */
-  font-size: 15px; line-height: 1.55;
-  color: #ede4cd;
-  text-shadow: 0 2px 3px rgba(3, 6, 10, .85);
-}
 
 /* ---- chart unroll: the I-6 loading card (map switches, planner, handbook) ---- */
 .tr-chart-field { position: absolute; inset: 0; background: radial-gradient(ellipse 120% 90% at 50% 45%, #123844 0%, #0a2530 65%, #06171e 100%); }
@@ -165,7 +226,7 @@
   position: absolute; left: 10%; right: 10%; bottom: 7%;
   text-align: center;
   font-family: 'Deckhand', monospace;
-  font-size: clamp(12px, 1.9vh, 16px);
+  --kit-fs-raw: clamp(12px, 1.9vh, 16px); font-size: var(--kit-fs);
   color: #4a3826;
   text-shadow: 0 1px 0 rgba(255, 250, 235, .4);
 }

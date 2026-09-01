@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { collectFact, grantBadge, loadSave } from '../game/save'
 import { track } from '../game/telemetry'
+import { kitCached, kitOptedIn, kitPiece, kitSlot } from '../game/ui/kit'
+import { currentSkin } from '../game/ui/skin'
 import './transitions.css'
 
 // The transition library (GAME-DESIGN §12.1): one controller owns every scene change —
@@ -123,6 +125,50 @@ export async function runTransition(
 
 const sleep = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms))
 
+/* ---- the arrival band, dressed from the piece MAPVIS drew for it -----------
+ *
+ * `band` is published as 636x161 with a nine-slice and two marked rectangles,
+ * `title` and `subtitle`. The rectangles are the point: the inside of a painted
+ * surface used to be a percentage somebody measured in an image editor and typed
+ * into a stylesheet, and `docs/UI-KIT.md` opens by complaining about exactly
+ * that. These are read off the piece, so when Ash repaints the band and re-marks
+ * it the lettering follows with no edit here.
+ *
+ * THE RECTANGLES ARE USED EVEN WHEN THE ART IS NOT. `?kit=1` decides whether the
+ * platform's border-image paints, and that is a judgement about how the whole
+ * chrome looks that only Ash makes. Where the type sits inside the band is not
+ * that judgement, so the authored insets dress the fallback plaque too, and the
+ * flag changes the frame rather than the layout.
+ *
+ * `worn` is refused for the plain arm on purpose: §16 is the study's independent
+ * variable and it does not get drawn art from anywhere, including the platform. */
+type BandDress = { worn: boolean; style?: CSSProperties }
+
+export function bandDress(
+  pieces = kitCached(),
+  worn = kitOptedIn() && currentSkin() === 'paper',
+): BandDress {
+  if (!pieces?.length) return { worn: false }
+  const piece = kitPiece(pieces, 'band')
+  const title = kitSlot(pieces, 'band', 'title')
+  const sub = kitSlot(pieces, 'band', 'subtitle')
+  /* a piece that is missing a rectangle is a piece nobody finished marking, and
+   * the honest answer is the stylesheet's own numbers rather than a half-read
+   * one that puts the name of a place through the frame */
+  if (!piece || !title || !sub || !(piece.w > 0 && piece.h > 0)) return { worn: false }
+  return {
+    worn,
+    style: {
+      '--band-pad-l': `${title.x}px`,
+      '--band-pad-r': `${piece.w - (title.x + title.w)}px`,
+      '--band-pad-t': `${title.y}px`,
+      '--band-pad-b': `${piece.h - (sub.y + sub.h)}px`,
+      '--band-title-h': `${title.h}px`,
+      '--band-sub-h': `${sub.h}px`,
+    } as CSSProperties,
+  }
+}
+
 export function TransitionOverlay({ st, version }: { st: TransitionState; version: number }) {
   void version // re-render key from the host
   const { phase, spec } = st
@@ -161,6 +207,7 @@ export function TransitionOverlay({ st, version }: { st: TransitionState; versio
     )
   }
   if (spec.kind === 'scene') {
+    const band = bandDress()
     return (
       <div className={`tr-root ${cls}`}>
         <div className="tr-scene">
@@ -176,9 +223,16 @@ export function TransitionOverlay({ st, version }: { st: TransitionState; versio
           </div>
           <div className="tr-scene-text">
             <div className="tr-scene-entering">E N T E R I N G</div>
-            <div className="tr-scene-title">{spec.title ?? 'THE OPEN SEA'}</div>
+            <div className={`tr-scene-band${band.worn ? ' kit-surface-band' : ''}`} style={band.style}>
+              <div className="tr-scene-title">{spec.title ?? 'THE OPEN SEA'}</div>
+              {/* two names on purpose: the band's authored rectangle is called
+                  `subtitle` and this line is what goes in it, and `tr-scene-fact`
+                  is the handle `scripts/wave2-proof.mjs` reads the loading fact
+                  out of. Renaming it would break a proof run this session does
+                  not own. */}
+              <div className="tr-scene-subtitle tr-scene-fact">{st.fact}</div>
+            </div>
             <div className="tr-scene-bar"><span style={{ animationDuration: `${(spec.holdMs ?? 2600) + 620}ms` }} /></div>
-            <div className="tr-scene-fact">{st.fact}</div>
           </div>
         </div>
       </div>

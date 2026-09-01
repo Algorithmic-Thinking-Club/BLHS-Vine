@@ -18,6 +18,7 @@ import { onBeatRequest, onUiRequest } from '../ui-bus'
 import { onWorldHold, worldHeld } from '../world-bus'
 import { onStageBusy, placeCardUp } from '../stage/stage-bus'
 import { panelDepth, usePanel } from '../ui/a11y'
+import { faceStyle } from '../ui/kitFaceStyle'
 import './hud.css'
 
 /* WHAT A BEAT ID RESOLVES TO. World code names a beat as a string, the way a
@@ -160,9 +161,19 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     <>
       {/* THE HUD IS A LANDMARK AND ITS BUTTONS ARE GLYPHS. A compass emoji is
           announced as "compass" or as nothing at all depending on the reader, so
-          each control says what it opens and that it opens a panel. */}
+          each control says what it opens and that it opens a panel.
+
+          AND ONE OF THEM IS DRAWN NOW. MAPVIS's `icon_set` sheet carries eight
+          cut faces and `compass` is one of them, so the chart button wears the
+          real thing instead of whatever compass the operating system happens to
+          ship. THE OTHER THREE DO NOT MOVE: the sheet has no `book` and no
+          `anchor`, so the Handbook spine and the pause sheet keep their emoji
+          rather than getting a blank square, and `faceStyle` refuses by name
+          instead of drawing something that is not there. */}
       <nav className="hud-stack" aria-label="Ship's controls">
-        <button className="hud-btn" title="The chart" aria-label="The chart" aria-haspopup="dialog" onClick={() => { track('chart_opened'); openBook('chart') }}>🧭</button>
+        <button className="hud-btn" title="The chart" aria-label="The chart" aria-haspopup="dialog" onClick={() => { track('chart_opened'); openBook('chart') }}>
+          <KitGlyph piece="icon_set" face="compass">🧭</KitGlyph>
+        </button>
         <button className="hud-btn" title="The Handbook" aria-label="The Handbook" aria-haspopup="dialog" onClick={() => openBook('islands')}>📖</button>
         {s && s.introDone && (
           <button
@@ -214,6 +225,18 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       )}
     </>
   )
+}
+
+/* A GLYPH THAT PREFERS THE DRAWN MARK AND FALLS BACK TO THE ONE THE MACHINE HAS.
+ *
+ * The whole of the swap, in one place, so a control never has to know whether
+ * the art exists. `faceStyle` hands back CSS only when the kit is worn and the
+ * face was really cut; otherwise this renders the children, which is the emoji
+ * the button has always shown. There is no third state and no empty square. */
+function KitGlyph({ piece, face, children }: { piece: string; face: string; children: ReactNode }) {
+  const style = faceStyle(piece, face)
+  if (!style) return <>{children}</>
+  return <span className="hud-glyph" style={style} aria-hidden="true" />
 }
 
 /* THE PAUSE SHEET, AS ITS OWN COMPONENT so it can hold the panel contract: a

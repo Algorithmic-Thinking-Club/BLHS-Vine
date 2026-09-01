@@ -269,7 +269,7 @@ describe('the text setting reaches a panel that sizes itself in container units'
   for (const file of CQW_PANELS) {
     it(`${path.basename(file)} multiplies every cqw font size by the setting`, () => {
       const css = strip(read(file))
-      const deaf = [...css.matchAll(/font-size:\s*([^;]*cqw[^;]*);/g)]
+      const deaf = [...css.matchAll(/--kit-fs-raw:\s*([^;]*cqw[^;]*);/g)]
         .map((m) => m[1].trim())
         .filter((v) => !v.includes('--kit-text-scale'))
       expect(deaf, `${file} sizes that ignore data-textsize`).toEqual([])
@@ -282,4 +282,56 @@ describe('the text setting reaches a panel that sizes itself in container units'
     expect(css).toContain("html[data-textsize='s']")
     expect(css).toContain("html[data-textsize='l']")
   })
+})
+
+/* ---- the integer snap ---------------------------------------------------
+ *
+ * A container width times a setting is fractional at nearly every window, and a
+ * bitmap face resampled at 1.056 of its drawn size drops a column out of a
+ * letter. The snap is code rather than a promise, so these hold the two halves
+ * of it: the formula exists in both arms, and no surface goes round it. */
+
+/* every stylesheet whose type is sized off a container, a viewport or an em, and
+ * therefore every one that could hand the font engine a fraction */
+const SIZED = [
+  'src/app/settings.css', 'src/app/transitions.css',
+  'src/game/beats/beats.css', 'src/game/cutscene/ui-kit.css',
+  'src/game/hud/dialogue.css', 'src/game/hud/hud.css', 'src/game/hud/wardrobe.css',
+  'src/game/planner/planner.css', 'src/game/run/run.css', 'src/game/world/chart.css',
+]
+
+describe('type lands on whole pixels', () => {
+  const css = strip(read(TOKENS))
+
+  it('snaps through one formula rather than in every stylesheet', () => {
+    expect(css).toContain('*, *::before, *::after { --kit-fs: var(--kit-fs-raw); }')
+    expect(css).toContain('@supports (font-size: round(1px, 1px))')
+    expect(css).toContain('round(var(--kit-fs-raw), 1px)')
+  })
+
+  it('leaves the exact expression that ships today as the fallback arm', () => {
+    /* the trap this guards: a var() value is invalid at COMPUTED-value time, and
+     * that falls back to inherit rather than to the declaration above it. So the
+     * unsupported arm has to be a real declaration outside the feature query. */
+    const at = css.indexOf('--kit-fs: var(--kit-fs-raw);')
+    const gate = css.indexOf('@supports (font-size: round(1px, 1px))')
+    expect(at).toBeGreaterThan(-1)
+    expect(at).toBeLessThan(gate)
+  })
+
+  it('never rounds a real size down to nothing', () => {
+    expect(css).toContain('max(1px, round(')
+  })
+
+  for (const file of SIZED) {
+    it(`${path.basename(file)} sends every relative size through the snap`, () => {
+      const sheet = strip(read(file))
+      const loose = [...sheet.matchAll(/font-size:\s*([^;]+);/g)]
+        .map((m) => m[1].trim())
+        .filter((v) => v !== 'var(--kit-fs)')
+        // a whole number of pixels is already snapped, and `inherit` is not a size
+        .filter((v) => !/^\d+px$/.test(v) && v !== 'inherit')
+      expect(loose, `${file} sizes text without snapping it`).toEqual([])
+    })
+  }
 })

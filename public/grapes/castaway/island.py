@@ -34,6 +34,10 @@ def opening():
     # something MAPVIS put on the painting. Hiding it here on the first line is
     # what makes it ARRIVE later instead of having been there all along.
     yield show("the_wrack_line", False)
+    # close on him before anything else. The map's own opening view is the whole
+    # island from a long way off, which is the right way to arrive somewhere and
+    # the wrong way to wake up: waking up is a face, not a coastline.
+    yield framing("the_waking")
     yield pose("sleep", facing="south")
     yield sound("surf_in")
     yield wait(900)
@@ -45,6 +49,9 @@ def opening():
         yield say(line, who=THOR)
     yield pose("stand")
     yield wait(400)
+    # and the island opens out around him, which is the shot doing the work the
+    # line used to have to do on its own
+    yield framing(None)
     yield say(LOOKING, who=THOR)
 
     # ---- the sea puts something on the sand -------------------------------
@@ -60,8 +67,12 @@ def opening():
     # more than it sounds: a number typed here is wrong the next time the map is
     # re-cut, and nothing says so.
     yield framing("the_find")
+    # let the camera arrive before he speaks. A shot that is still travelling
+    # while a line is on screen reads as a stumble, not as a look.
+    yield wait(900)
     yield fx("spark", anchor="the_wrack_line")
     yield say(SPOTTED, who=THOR)
+    yield wait(500)
     yield framing(None)
 
     # ---- the arrow, and then the walk is taken ----------------------------
@@ -98,6 +109,10 @@ def opening():
     yield sound("board")
     yield say(CAST_OFF, who=THOR)
     yield route("the_crossing", who="ship")
+
+    # watch her get her head round before the cut. A crossing that cuts away the
+    # instant the sail fills reads as a loading screen, not as leaving.
+    yield wait(1800)
 
     # the rest of the crossing happens under the cover, which is what a cover is
     # for. `enter` is a door, and this one goes to the central island.

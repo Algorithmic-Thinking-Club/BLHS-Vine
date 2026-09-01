@@ -23,6 +23,9 @@
   cursor: pointer; opacity: .85;
   transition: transform var(--kit-t-mid) ease, opacity var(--kit-t-mid) ease;
 }
+/* a cut face off one of the platform's sheets, in the same square the emoji it
+   replaces occupied, so a drawn button and a glyph button line up in one column */
+.hud-glyph { display: block; width: 28px; height: 28px; margin: 0 auto; }
 .hud-btn:hover { opacity: 1; transform: translateY(-1px); }
 .hud-btn:active { transform: translateY(1px); }
 .hud-btn:focus-visible { opacity: 1; }

@@ -34,6 +34,20 @@ const tag = process.argv[3] ?? 'dev'
  * happened to be there, so the version is an argument with a default and the run
  * prints it. */
 const hubV = process.argv[4] ?? '13'
+/* AND THE WORLD IS PINNED FOR THE SAME REASON THE MAP IS.
+ *
+ * Wave 4 pointed `loadComposition` at the platform, which was always the plan and
+ * is right for a student. It is wrong for THIS run: every check below is about
+ * the engine's own arithmetic on a document, and the document MAPVIS has
+ * published so far holds one island, no rumour and no named water, so twelve
+ * checks went from proving the water to proving what has been drawn this week.
+ *
+ * A rumour at a real future position, two paintings sharing one dot, and a
+ * crossing between two named seas are all still true of the engine and are still
+ * worth a gate. They are proved against the committed document, which is the
+ * offline copy every check here was written against, and the run says so.
+ * `?world=local` is the same escape hatch `?src=local` is for maps. */
+const WORLD = 'world=local'
 const shots = 'reference/_archive/build-shots/wave2'
 mkdirSync(shots, { recursive: true })
 
@@ -156,7 +170,7 @@ console.log(`\n=== wave 2 · ${tag}: ${base} · hub v${hubV} ===\n`)
 // ---------------------------------------------------------------- 1. the world
 console.log('1 · the world: the real hub, placed on a composition the engine reads')
 
-await page.goto(`${base}/?scene=pmap&map=hub&v=${hubV}`, { waitUntil: 'domcontentloaded', timeout: 30000 })
+await page.goto(`${base}/?scene=pmap&map=hub&v=${hubV}&${WORLD}`, { waitUntil: 'domcontentloaded', timeout: 30000 })
 await ready()
 
 const sea0 = await json('__sea')
@@ -232,8 +246,18 @@ await page.evaluate(() => window.__intent({ kind: 'open', ui: 'chart' }))
 await page.waitForSelector('.ch-sea', { timeout: 10000 })
 const isles = await page.$$eval('.ch-isle', (n) => n.map((e) => e.className + '|' + e.textContent))
 check('the chart drew the composition and not the tile-era registry', isles.join(' ~ '), /ch-isle ch-/)
+/* THE CLAIM IS THE RELATIONSHIP, NOT THE COUNT. This asserted `=== 2` and broke
+ * the day the offline document grew a third island, which is exactly the thing
+ * the document is for: a count is a fact about how much has been authored and
+ * the collapse is a fact about the engine. What must stay true is that the hub,
+ * hub-a2 and the Maw are four slots and ONE dot, because they are one place. */
+const slotsOf = await page.evaluate(() => {
+  const c = window.__world.composition
+  return { slots: c.slots.length, home: c.slots.filter((s) => s.place === 'home-island').length }
+})
 check('one dot per PLACE, so the hub and the Maw are one island and not two',
-  String(isles.length), (n) => Number(n) === 2)
+  JSON.stringify({ ...slotsOf, dots: isles.length }),
+  () => slotsOf.home >= 3 && isles.length === slotsOf.slots - slotsOf.home + 1)
 check('a rumour is on it, at a real position, unnamed', isles.join(' ~ '), /ch-rumour/)
 check('and every mark carries a SHAPE as well as a colour, so state does not rely on hue',
   isles.join(' ~ '), /[?*~·○▲✓]/)

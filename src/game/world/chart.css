@@ -3,6 +3,8 @@
    second edit. Sized in container-query units like every other panel in the kit,
    so the S/M/L text setting reflows it instead of clipping it. */
 
+@import '../ui/tokens.css';
+
 /* THE PAPER TAKES THE PAGE. The old chart box was locked to the painting's own
    688 by 384,
    and the binder's page measured 273x152 with the chart inside it, which is too
@@ -13,6 +15,36 @@
    heading and the legend, which is what "fills the page" has to mean */
 .hb-page:has(.ch-sea) { display: flex; flex-direction: column; }
 
+/* ---- THE SEA, AS A SHEET OF CHART PAPER -----------------------------------
+ *
+ * WHAT WAS HERE. Two gradients and a one pixel line. Every other surface in the
+ * game is a drawn object and this one, the page a student leans over to find out
+ * where they have been, was the only div left that looked like a div.
+ *
+ * WHY IT IS NOT `--kit-art-chart`, WHICH IS THE OBVIOUS ANSWER AND IS WRONG.
+ * That token points at `/art/ui/chart-cover.png`, and the file was measured on
+ * 2026-08-31 rather than assumed. Two things are true about it and both are
+ * disqualifying: it is a scroll with A MAP ALREADY PRINTED ON IT, coastlines,
+ * dotted routes and a compass rose, so the live marks would sit on top of a
+ * second, fictional archipelago; and its margin is a BAKED CHECKERBOARD, eight
+ * pixel squares alternating fully transparent and opaque near-black (2,2,6),
+ * which is a transparency preview that got painted into the art. That is what
+ * the note above this block meant by a checkerboard ring, and it is a defect in
+ * the file, not in the way it was used. `.hb-chart` in `hud.css` still mounts it
+ * and nothing renders `.hb-chart` any more.
+ *
+ * `parchment-scroll.png` was measured too and cannot nine-slice: it carries a
+ * wax seal and an anchor in the middle of its paper, so the centre tile either
+ * repeats the seal across the page or stretches it.
+ *
+ * SO THE SHEET IS MADE OF THE KIT'S OWN MATERIALS, the same tokens the binder,
+ * the year sheet and the settings panel are made of, and it is a chart rather
+ * than a rectangle: aged paper, a graticule ruled across it in the ink the marks
+ * are written in, a doubled border the way a real chart is bordered, and a
+ * shadow so it lies ON the binder page instead of being part of it. Under
+ * `?kit=1` the platform's `panel` piece takes over the frame (Chart.tsx adds the
+ * class), which is drawn art and stretches to any size because it has a real
+ * nine-slice. */
 .ch-sea {
   position: relative;
   width: 100%;
@@ -22,16 +54,54 @@
   flex: 1;
   min-height: 20cqw;
   overflow: hidden;
-  /* THE CHART OWNS ITS OWN PAPER. It used to borrow the Handbook's own chart class, whose shorthand
-     stretches chart-cover.png to 100% 100%, and that art carries its own
-     transparent margin, so the page showed a checkerboard ring round the sea and
-     the drawn marks sat on top of nothing. It covers, and the art is the sea. */
+  box-sizing: border-box;
+  padding: 1.4cqw;
   background:
+    /* the sea's own light, off the top left, the way a lantern falls on paper */
     radial-gradient(ellipse at 30% 25%, rgba(120, 160, 165, 0.16), transparent 62%),
+    /* THE GRATICULE. A chart is ruled and this page never was. Two hairlines in
+       the same brown ink the names are written in, at the spacing of the marks
+       rather than of the pixels, so it reads as printing and not as a grid
+       control. It is the last layer before the paper, so everything drawn sits
+       on top of it. */
+    repeating-linear-gradient(90deg, rgba(138, 116, 79, 0.13) 0 1px, transparent 1px 6.5cqw),
+    repeating-linear-gradient(0deg, rgba(138, 116, 79, 0.13) 0 1px, transparent 1px 6.5cqw),
+    /* the fold shadow down the middle, because a chart this size was folded */
+    linear-gradient(90deg, transparent 49.4%, rgba(138, 116, 79, 0.14) 50%, transparent 50.6%),
     linear-gradient(180deg, #efe4c6, #e2d3ad);
-  border: 1px solid rgba(138, 116, 79, 0.5);
-  border-radius: 3px;
+  /* the doubled border a chart carries: a firm outer rule and a hairline inside
+     it, which is one box-shadow rather than a second element */
+  border: 2px solid var(--kit-edge, #8a744f);
+  border-radius: var(--kit-r-sharp, 3px);
+  box-shadow:
+    inset 0 0 0 1px rgba(246, 238, 216, 0.75),
+    inset 0 0 0 4px rgba(138, 116, 79, 0.28),
+    inset 0 0 22px rgba(138, 116, 79, 0.16),
+    0 2px 6px rgba(40, 28, 14, 0.22);
 }
+
+/* THE FOUR TACKS THAT HOLD IT DOWN. Small brass heads in the corners, in the
+   same gold the season tokens are made of, so the sheet reads as pinned to the
+   binder rather than printed on it. `::before` carries the top pair and
+   `::after` the bottom, which is two elements for four marks. */
+.ch-sea::before, .ch-sea::after {
+  content: '';
+  position: absolute; left: 0.9cqw; right: 0.9cqw; height: 1.5cqw;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 0.75cqw 50%, var(--kit-gold-hi, #d8b968) 0 0.5cqw, rgba(90, 70, 40, 0.45) 0.5cqw 0.62cqw, transparent 0.66cqw) no-repeat,
+    radial-gradient(circle at calc(100% - 0.75cqw) 50%, var(--kit-gold-hi, #d8b968) 0 0.5cqw, rgba(90, 70, 40, 0.45) 0.5cqw 0.62cqw, transparent 0.66cqw) no-repeat;
+}
+.ch-sea::before { top: 0.9cqw; }
+.ch-sea::after { bottom: 0.9cqw; }
+
+/* AND THE PLATFORM HAS NOTHING BETTER TO OFFER THIS SURFACE, which is worth
+   saying so nobody spends the afternoon finding out again. Of the eighteen
+   published pieces the only stretchable ones with a blank middle are `panel` and
+   `band`, and both draw their middle with `border-image ... fill`, which paints
+   OVER the element's own background. Mounting either here would cover the
+   graticule and the fold with flat parchment, so the page would lose the ruling
+   to gain a frame. A chart field is a piece the kit does not have yet. */
 
 .ch-region {
   position: absolute;

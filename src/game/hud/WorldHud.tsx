@@ -41,10 +41,27 @@ export function WorldHud() {
   useEffect(() => () => { release.current?.(); release.current = null }, [])
 
   const inWorld = WORLD_SCENES.has(current)
-  if (!s?.introDone || !inWorld) return null
+  if (!inWorld) return null
+
+  /* THE BOX THE OPENING SPEAKS THROUGH CANNOT BE BEHIND A FLAG THE OPENING SETS.
+   *
+   * Everything below used to be behind `s?.introDone`, and that is circular in
+   * exactly one place: the opening. An island that composes the first two minutes
+   * of the game, which is the whole point of wave four's gate, runs BEFORE any
+   * run has said the intro is done, so `say` queued lines into a bus with nothing
+   * mounted to draw them. The island did not fail, nothing warned, and the scene
+   * simply waited forever for a click on a box that was never on screen. Two
+   * hours of a proof run went into finding that, and the symptom was a beautiful
+   * painting with nobody talking on it.
+   *
+   * The split is by what each piece is FOR. The dialogue, the cutscene chrome and
+   * the arrival card are how the world speaks, and the world can speak from its
+   * first frame. The Hud is the run's own furniture, the year sheet, the
+   * Handbook, the token count, and none of that means anything before there is a
+   * run, so it keeps the guard it always had. */
   return (
     <>
-      <Hud onBlurWorld={blurWorld} />
+      {s?.introDone && <Hud onBlurWorld={blurWorld} />}
       {/* station dialogue rides every world scene, so `say` and `choose` work
           from any painted map without that map knowing React exists */}
       <Dialogue />
