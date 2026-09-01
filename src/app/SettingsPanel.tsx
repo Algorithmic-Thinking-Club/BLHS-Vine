@@ -4,7 +4,7 @@ import { beginAdventure, canRestart, loadSave, restartRun, writeSave, type SaveG
 import { cleanName, isBlocked, PRONOUN_CHOICES } from '../game/names'
 import { track } from '../game/telemetry'
 import { setReducedMotion, systemPrefersReducedMotion } from '../game/ui/motion'
-import { applySkin, skinFromUrl, type KitSkin } from '../game/ui/skin'
+import { wearAssignedSkin, type KitSkin } from '../game/ui/skin'
 import { announce, tabRowKeyDown, usePanel } from '../game/ui/a11y'
 import './settings.css'
 
@@ -36,12 +36,17 @@ export function loadSettings(): Settings {
  * publishes the effective value, so what the CSS matches on is the boolean the
  * renderer reads.
  *
- * The skin comes off the URL first (`?skin=plain`), because the plain arm is
- * assigned rather than chosen and looking at it must not require a build. */
+ * THE SKIN IS NOT A SETTING AND THIS IS WHERE THAT IS ENFORCED. It used to read
+ * `?skin=` and then fall straight to the stored preference, so the ASSIGNED arm
+ * lost to a blob in localStorage that no screen can write. `wearAssignedSkin`
+ * owns the order now (URL, then the arm on the save, then this preference), and
+ * it is the same function that runs at boot and on every write to the run, so
+ * opening settings can no longer put a control-arm student back in the game
+ * look. See `game/ui/skin.ts`. */
 export function applySettings(s: Settings) {
   document.documentElement.dataset.textsize = s.textSize
   setReducedMotion(s.reducedMotion)
-  applySkin(skinFromUrl(typeof location === 'undefined' ? '' : location.search) ?? s.skin ?? 'paper')
+  wearAssignedSkin(s.skin)
 }
 
 type Tab = 'account' | 'controls' | 'danger'

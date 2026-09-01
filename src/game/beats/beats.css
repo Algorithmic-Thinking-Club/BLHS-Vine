@@ -22,11 +22,18 @@
   display: flex; align-items: center; justify-content: center;
 }
 
+/* THE PANEL READS THE TOKEN NOW, and this was the highest-cost of the five
+   literal art urls left in the tree on 2026-08-31. `--kit-art-panel: none` is
+   how §16's arm takes the pictures away, and a rule that spelled the png out
+   never saw it: with `?skin=plain` on a run nobody had joined, the entire game
+   went plain and the frame EVERY SCORED ITEM IS READ ON stayed a painted wooden
+   panel. Same bytes in the default skin, one indirection, and the plain block at
+   the bottom of this file says what it becomes instead. */
 .bt-stage {
   width: min(680px, 94vw); max-height: 88vh; overflow-y: auto;
-  background: url('/art/ui/panel-square.png') center / 100% 100% no-repeat;
-  image-rendering: pixelated;
-  filter: drop-shadow(0 12px 30px rgba(2, 8, 10, .65));
+  background: var(--kit-art-panel) center / 100% 100% no-repeat;
+  image-rendering: var(--kit-pixel);
+  filter: drop-shadow(var(--kit-drop-lg));
   padding: 11% 13% 11.5%;
   box-sizing: border-box;
   container-type: inline-size;
@@ -138,20 +145,83 @@
 }
 .bt-counselor { --kit-fs-raw: calc(2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6f6046; font-style: italic; }
 
-/* ---- the plain arm: deliberately unadorned ---- */
+/* ---- the plain arm: a document, not the game with the paint scraped off ----
+ *
+ * ASH'S RULING, 2026-08-31: *"No game art, no wood, no parchment: system font,
+ * black on white, real headings and a real form. Reads as a worksheet somebody
+ * wrote, not as the game with its paint scraped off."*
+ *
+ * WHY IT IS NOT RAW OS WIDGETS, which was the other candidate and was refused:
+ * an unstyled browser default reads as BROKEN, and a control condition that
+ * looks broken loses on looking broken rather than on not being a game. That is
+ * a confound in the exact comparison the instrument exists to make.
+ *
+ * WHY THESE RULES DO NOT READ THE TOKEN LAYER and every other kit stylesheet
+ * does. This surface is the one that must be a document in EITHER skin, because
+ * `as_plain=True` shows it to a GAME-arm student for one beat when an author
+ * says the item should read the same both ways. Pointing it at `--kit-paper`
+ * would make it parchment on that path, which is the opposite of what the flag
+ * means. So it names its own white, and it is the only place in the kit allowed
+ * to. Margins are real margins, not a percentage measured for a painted frame.
+ *
+ * The face moved from `Arial, Helvetica, sans-serif` to the system stack on the
+ * same date, which is the one visible change on the `as_plain` path in the game
+ * arm: the ruling names a system font stack and this is that stack. */
 .bt-plain {
   width: min(640px, 94vw); max-height: 88vh; overflow-y: auto;
-  background: #ffffff; color: #222;
-  border-radius: 4px; padding: 24px 28px; box-sizing: border-box;
-  font-family: Arial, Helvetica, sans-serif; font-size: 15px; line-height: 1.5;
+  background: #ffffff; color: #1b1b1b;
+  border: 1px solid #c8c8c8; border-radius: 2px;
+  padding: 28px 34px 30px; box-sizing: border-box;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px; line-height: 1.55;
 }
-.bt-plainform h2 { margin: 0 0 10px; font-size: 19px; }
-.bt-plainform p { margin: 8px 0; }
-.bt-plainform fieldset { margin: 14px 0; border: 1px solid #bbb; padding: 10px 12px; }
-.bt-plainform legend { font-weight: bold; }
-.bt-plainform label { display: block; margin: 6px 0; }
-.bt-plainform button { margin-top: 10px; padding: 6px 18px; font-size: 15px; }
+.bt-plainform h2 { margin: 0 0 4px; font-size: 21px; font-weight: 700; line-height: 1.25; }
+/* the rule under the title is what makes it a heading rather than a bold line */
+.bt-plainform h2 { padding-bottom: 8px; border-bottom: 1px solid #d5d5d5; margin-bottom: 16px; }
+.bt-plainform p { margin: 0 0 10px; }
+.bt-plainform fieldset { margin: 0 0 18px; border: 1px solid #c0c0c0; border-radius: 2px; padding: 12px 16px 14px; }
+.bt-plainform legend { font-weight: 600; padding: 0 6px; }
+.bt-plainform label { display: block; margin: 7px 0; }
+.bt-plainform button {
+  margin-top: 4px; padding: 7px 20px; font-size: 15px;
+  font-family: inherit; color: #1b1b1b;
+  background: #f2f2f2; border: 1px solid #767676; border-radius: 2px; cursor: pointer;
+}
+.bt-plainform button:disabled { color: #8a8a8a; cursor: default; }
+.bt-plainform input[type='text'], .bt-plainform select {
+  font-family: inherit; font-size: 15px; color: #1b1b1b;
+  background: #fff; border: 1px solid #767676; border-radius: 2px; padding: 4px 7px;
+}
+.bt-plainform input[type='radio'] { accent-color: #1d4f5a; width: 15px; height: 15px; vertical-align: -2px; margin-right: 6px; }
+/* every control in this arm gets a ring, because a control arm that cannot be
+   driven from the keyboard measures usability instead of presentation */
+.bt-plainform button:focus-visible,
+.bt-plainform input:focus-visible,
+.bt-plainform select:focus-visible { outline: 3px solid #1d6fd8; outline-offset: 2px; }
 .bt-plainform .bt-prompt, .bt-plainform .bt-gradenum, .bt-plainform .bt-counselor { font-family: inherit; color: inherit; font-size: inherit; }
-.bt-plainform .bt-lettermark { font-family: inherit; font-size: 34px; color: #222; }
-.bt-plainform .bt-fact { border-left: 3px solid #999; padding-left: 10px; background: #f5f5f5; font-size: 14px; }
-.bt-plainform .bt-go { font-family: inherit; background: #eee; border: 1px solid #999; border-radius: 3px; padding: 6px 16px; font-size: 14px; display: block; margin-top: 8px; }
+.bt-plainform .bt-counselor { font-style: normal; }
+.bt-plainform .bt-grade { display: flex; align-items: baseline; gap: 14px; margin: 4px 0 14px; }
+.bt-plainform .bt-lettermark { font-family: inherit; font-size: 34px; color: #1b1b1b; }
+.bt-plainform .bt-takeaways { gap: 8px; margin-bottom: 6px; }
+.bt-plainform .bt-fact {
+  border-left: 3px solid #999; padding: 6px 0 6px 12px; background: #f5f5f5;
+  font-size: 15px; line-height: 1.5; color: #1b1b1b;
+}
+.bt-plainform .bt-go {
+  font-family: inherit; color: #1b1b1b;
+  background: #f2f2f2; border: 1px solid #767676; border-radius: 2px;
+  padding: 7px 18px; font-size: 15px; display: block; margin-top: 10px;
+}
+
+/* THE PAINTED FRAME, WHEN IT IS REACHED IN THE PLAIN SKIN AT ALL. It should not
+   be: `ActivityRunner` picks `.bt-plain` for the plain arm, so this only fires
+   on the seam where a run has no assigned arm, an author forced the game arm and
+   the skin says plain. `--kit-art-panel` is `none` there, and `background: none`
+   with no colour under it is an INVISIBLE panel, which is the failure §16 would
+   ship with. This is the same fallback the `.kit-surface-*` rules take. */
+html[data-skin='plain'] .bt-stage {
+  background-color: var(--kit-paper-hi);
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-sharp);
+  padding: 24px 28px;
+}

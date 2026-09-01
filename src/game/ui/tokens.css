@@ -216,6 +216,15 @@
   --kit-art-dialogue: url('/art/ui/dialogue-box.png');
   --kit-art-plank: url('/art/ui/plank-button.png');
   --kit-art-chart: url('/art/ui/chart-cover.png');
+  /* THESE TWO ARE NEW HERE AND OLD IN THE TREE, added 2026-08-31. Both were
+   * typed as literal urls in a stylesheet, which is a surface the plain arm
+   * cannot reach however many tokens sit above it: `--kit-art-panel: none` does
+   * nothing to a rule that spelled the png out. The backdrop is the title
+   * screen's painted cove (`boot-title.css`), the scroll is the intro's
+   * parchment card (`i3.css`). Same bytes, one indirection, so the default skin
+   * renders exactly what it rendered yesterday and §16 now has a lever. */
+  --kit-art-title: url('/art/ui/title-backdrop.png');
+  --kit-art-scroll: url('/art/ui/parchment-scroll.png');
   --kit-pixel: pixelated;
 
   /* ---- the front group: title, boot and intro chrome --------------------
@@ -393,10 +402,21 @@ html[data-skin='plain'] {
   --kit-veil: rgba(20, 22, 24, .8);
   --kit-veil-soft: rgba(20, 22, 24, .72);
   --kit-veil-pause: rgba(20, 22, 24, .52);
-  --kit-drop-lg: 0 2px 8px rgba(0, 0, 0, .25);
-  --kit-drop-md: 0 2px 8px rgba(0, 0, 0, .22);
-  --kit-drop-sm: 0 2px 6px rgba(0, 0, 0, .2);
+  /* NOTHING CASTS A SHADOW ON A WORKSHEET. These were a card shadow, which is a
+   * material effect: a sheet of paper lifted off a surface. A document is ink on
+   * a page. They stay as declarations rather than being deleted because
+   * `filter: drop-shadow(var(--kit-drop-lg))` with the token unset is an invalid
+   * filter, and an invalid filter falls back to `inherit` rather than to nothing.
+   * A fully transparent offset-zero shadow is valid and draws no pixels. */
+  --kit-drop-lg: 0 0 0 rgba(0, 0, 0, 0);
+  --kit-drop-md: 0 0 0 rgba(0, 0, 0, 0);
+  --kit-drop-sm: 0 0 0 rgba(0, 0, 0, 0);
   --kit-mirror-drop: transparent;
+  /* THE ONE SHADOW THAT STAYS, and it is not decoration. A cutscene caption is
+   * white type sitting on the PAINTED WORLD, which is the vehicle and is
+   * identical in both arms, so the scrim behind it is the only thing making it
+   * readable over a bright sky. Taking it out would cost the control arm
+   * legibility, which is a usability confound, not a plainer document. */
   --kit-caption-shadow: 0 1px 2px rgba(0, 0, 0, .6);
   --kit-caption-ink: #ffffff;
 
@@ -423,10 +443,24 @@ html[data-skin='plain'] {
   --kit-ease-rise: ease-out;
   --kit-ease-deal: ease-out;
 
+  /* EVERY ART HANDLE THE REPO CAN MOUNT, NULLED, and the list is longer than the
+   * four that ship in `:root` on purpose. `src/game/ui/kit.ts` writes
+   * `--kit-art-<handle>` onto `:root` for every published piece it reads, so a
+   * handle with no local default still arrives at runtime with a picture in it
+   * and lands on whatever class carries it. `band` reaches the arrival cover
+   * (`app/transitions.tsx`) and `icon_set` reaches `kitFaceStyle.ts`; both are
+   * mounted in `src/` today and neither had a null here. `tokens.test.ts` reads
+   * the tree for `--kit-art-` and fails if a fifth one is mounted without a line
+   * in this block, because the failure mode is silent: one wooden surface in a
+   * plain sheet, no error anywhere. */
   --kit-art-panel: none;
   --kit-art-dialogue: none;
   --kit-art-plank: none;
   --kit-art-chart: none;
+  --kit-art-title: none;
+  --kit-art-scroll: none;
+  --kit-art-band: none;
+  --kit-art-icon_set: none;
   --kit-pixel: auto;
 
   --kit-front-paper: #f6f6f4;
@@ -477,6 +511,157 @@ html[data-skin='plain'] .kit-surface-plank {
   background-color: var(--kit-wood-hi);
   border: var(--kit-border) solid var(--kit-wood-edge);
   border-radius: var(--kit-r-soft);
+}
+
+/* =======================================================================
+ * THE PLAIN ARM IS A DOCUMENT, and this is the part tokens alone cannot say.
+ *
+ * ASH RULED IT ON 2026-08-31, on a question open since ENGINE-3: *"No game art,
+ * no wood, no parchment: system font, black on white, real headings and a real
+ * form. Reads as a worksheet somebody wrote, not as the game with its paint
+ * scraped off."* Raw OS widgets were the other candidate and were REFUSED, and
+ * the reason is the study rather than taste: unstyled browser defaults read as
+ * BROKEN, and a control condition that looks broken loses on looking broken
+ * instead of on not being a game. That is a confound in the one comparison the
+ * whole instrument exists to make.
+ *
+ * Every rule below is scoped to the attribute, so the game arm cannot see any of
+ * it. Nothing here changes what a student is ASKED. §2.12 is the parity rule:
+ * the same items, the same options, the same order, the same wording, in both
+ * arms, off one derived object (`beats/palette.ts`). This file dresses them.
+ * ======================================================================= */
+
+/* ---- TYPE A PERSON READS A WORKSHEET AT ---------------------------------
+ *
+ * Every size in the kit is a fraction of a panel (`cqw`) or of the window
+ * (`vh`), because a game frame scales with its frame. A document does not: a
+ * worksheet is set in points and stays there. The two ends of that are what the
+ * band below fixes, and both were real on this tree: the year sheet's hint
+ * computed to 12.7px at 1280 wide, which is below anything a district would put
+ * in front of a fourteen year old, and the result card's letter mark computed to
+ * 51px, which is a poster.
+ *
+ * THE INTEGER SNAP SURVIVES THIS, which is the part that had to be got right.
+ * The paper skin's formula is `round(var(--kit-fs-raw), 1px)`; this is the same
+ * formula with the raw size clamped first, so the snap still happens last and a
+ * bitmap face still lands on whole pixels. `--kit-text-scale` is untouched and
+ * still inside `--kit-fs-raw`, so S / M / L still move the whole document.
+ *
+ * The two declarations mirror `:root`'s pair for the same reason spelled out
+ * there: a `var()` value is only invalid at COMPUTED-value time, and that falls
+ * back to inherit rather than to the declaration above it, so the pre-`round()`
+ * Chromebook needs a real declaration outside the feature query. */
+html[data-skin='plain'] *,
+html[data-skin='plain'] *::before,
+html[data-skin='plain'] *::after {
+  --kit-fs: clamp(15px, var(--kit-fs-raw), 28px);
+}
+@supports (font-size: round(1px, 1px)) {
+  html[data-skin='plain'] *,
+  html[data-skin='plain'] *::before,
+  html[data-skin='plain'] *::after {
+    --kit-fs: max(1px, round(clamp(15px, var(--kit-fs-raw), 28px), 1px));
+  }
+}
+
+/* ---- ONE FACE, AND NO WAY BACK TO THE GAME'S ----------------------------
+ *
+ * FOUND BY LOOKING, 2026-08-31, on the first plain-arm screenshot of the year
+ * sheet. `--kit-face-body` is `system-ui` in this arm and the sheet still came
+ * back in Harbormaster and Deckhand, because the token layer only reaches the
+ * six stylesheets it was written for. `planner.css`, `run.css`, `chart.css`,
+ * `beats.css` and `stage/placecard.css` spell `'Deckhand', monospace` out, about
+ * fifty times between them, and every one of those is a surface §16 cannot
+ * reach. The year sheet, the yearbook, graduation and the chart are four of the
+ * places BLHS content is actually delivered.
+ *
+ * WHY A BLANKET RULE RATHER THAN FIFTY EDITS. The edits are the right long-term
+ * answer and they are the UI-kit job (`docs/UI-KIT.md`), not this one: those
+ * files also carry about ninety hardcoded colours, a third of which have no
+ * token yet, so tokenising the face without the ink is a half-done pass that
+ * LOOKS done. This is one rule, it cannot be defeated by a single-class
+ * selector, it changes nothing in the paper skin, and the ruling it enforces is
+ * literal: no `Deckhand`, no `Harbormaster`, anywhere in this arm.
+ *
+ * `*` rather than `body`, because `font-family` is inherited but a form control
+ * does not inherit it: a `<select>` left out of this rule is a browser-default
+ * face sitting inside a system-font document, which reads as the broken look the
+ * ruling refused. */
+html[data-skin='plain'] * { font-family: var(--kit-face-body); }
+
+/* ---- A REAL FORM ---------------------------------------------------------
+ *
+ * The controls a student actually fills in. They are left recognisable rather
+ * than restyled: a box with a real border, a real focus ring, the system font,
+ * and `accent-color` so a radio is the browser's own radio in the document's own
+ * ink. That is the line between "plain" and "unstyled" the ruling drew. */
+html[data-skin='plain'] input,
+html[data-skin='plain'] select,
+html[data-skin='plain'] textarea {
+  font-family: var(--kit-face-body);
+  color: var(--kit-ink-body);
+  background: var(--kit-paper-hi);
+  border: 1px solid var(--kit-edge-strong);
+  border-radius: var(--kit-r-sharp);
+  padding: 4px 7px;
+}
+html[data-skin='plain'] input[type='radio'],
+html[data-skin='plain'] input[type='checkbox'] {
+  /* a native radio, in the document's ink, at a size a finger can hit */
+  width: 16px; height: 16px;
+  padding: 0; border: 0; border-radius: 0;
+  accent-color: var(--kit-sea-ink);
+  vertical-align: -2px;
+  margin-right: 6px;
+}
+html[data-skin='plain'] label { cursor: pointer; }
+html[data-skin='plain'] fieldset {
+  border: 1px solid var(--kit-edge);
+  border-radius: var(--kit-r-sharp);
+}
+html[data-skin='plain'] legend { font-weight: 600; color: var(--kit-ink-head); }
+
+/* an ordinary underlined link, which is the one piece of chrome a document is
+ * allowed and the one the game never had */
+html[data-skin='plain'] a {
+  color: var(--kit-sea-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+html[data-skin='plain'] a:hover { color: var(--kit-ink-head); }
+
+/* ---- HEADINGS THAT ARE A HIERARCHY --------------------------------------
+ * Three levels, each visibly a step, with the margins that make a page read as
+ * paragraphs rather than as a wall. Sizes are absolute for the same reason the
+ * band above exists. */
+html[data-skin='plain'] h1 { font-size: 26px; line-height: 1.25; margin: 0 0 14px; font-weight: 700; color: var(--kit-ink-head); }
+html[data-skin='plain'] h2 { font-size: 20px; line-height: 1.3; margin: 22px 0 10px; font-weight: 700; color: var(--kit-ink-head); }
+html[data-skin='plain'] h3 { font-size: 17px; line-height: 1.35; margin: 18px 0 8px; font-weight: 600; color: var(--kit-ink-head); }
+html[data-skin='plain'] h1:first-child,
+html[data-skin='plain'] h2:first-child,
+html[data-skin='plain'] h3:first-child { margin-top: 0; }
+html[data-skin='plain'] p { margin: 0 0 10px; line-height: 1.55; }
+html[data-skin='plain'] hr { border: 0; border-top: 1px solid var(--kit-rule); margin: 18px 0; }
+
+/* THE RING REACHES EVERY CONTROL IN THIS ARM, INCLUDING THE ONES THE KIT'S OWN
+ * LIST DOES NOT NAME. That list is a roll-call of game classes (`.pz-btn`,
+ * `.hb-tab`, `.st-toggle`), and the plain arm's controls are plain elements with
+ * no class at all: the form's radios, its select, its Submit. A control arm that
+ * cannot be operated from the keyboard loses on usability rather than on
+ * presentation, which measures the wrong thing.
+ *
+ * A text input is included here where the paper skin deliberately excludes
+ * `.st-idfield`. The reason there was that a game field already shows focus with
+ * its own paper and rule; a document field shows focus the way every form on the
+ * web does, and a student who clicked into it seeing a ring is not a bug. */
+html[data-skin='plain'] a:focus-visible,
+html[data-skin='plain'] button:focus-visible,
+html[data-skin='plain'] input:focus-visible,
+html[data-skin='plain'] select:focus-visible,
+html[data-skin='plain'] textarea:focus-visible,
+html[data-skin='plain'] [tabindex]:focus-visible {
+  outline: var(--kit-focus-width) solid var(--kit-focus);
+  outline-offset: var(--kit-focus-offset);
 }
 
 /* ONE FOCUS RING FOR THE WHOLE KIT. Every control in every panel, so a keyboard

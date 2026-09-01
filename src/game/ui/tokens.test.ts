@@ -19,12 +19,45 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { applySkin, currentSkin, KIT_SKINS, skinFromUrl } from './skin'
+import {
+  applySkin, currentSkin, KIT_SKINS, resolveSkin, skinFromArm, skinFromUrl, wearAssignedSkin,
+} from './skin'
+import { beginAdventure, clearSave, writeSave } from '../save'
 
 const read = (p: string) => fs.readFileSync(path.resolve(process.cwd(), p), 'utf8')
 const strip = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, '')
 
 const TOKENS = 'src/game/ui/tokens.css'
+
+/* every stylesheet in the tree, found rather than listed, because the failure
+ * these tests exist to catch is a NEW surface that nobody added to a list. */
+function everyStylesheet(dir = 'src'): string[] {
+  const out: string[] = []
+  for (const e of fs.readdirSync(path.resolve(process.cwd(), dir), { withFileTypes: true })) {
+    const rel = `${dir}/${e.name}`
+    if (e.isDirectory()) out.push(...everyStylesheet(rel))
+    else if (e.name.endsWith('.css')) out.push(rel)
+  }
+  return out
+}
+
+/** every source file that could name a kit handle */
+function everySource(dir = 'src'): string[] {
+  const out: string[] = []
+  for (const e of fs.readdirSync(path.resolve(process.cwd(), dir), { withFileTypes: true })) {
+    const rel = `${dir}/${e.name}`
+    if (e.isDirectory()) out.push(...everySource(rel))
+    else if (/\.(css|ts|tsx)$/.test(e.name)) out.push(rel)
+  }
+  return out
+}
+
+/* THE ONE STYLESHEET THESE AUDITS SKIP, and it is skipped by name rather than by
+ * a pattern. `ui/ui.css` is the tile-era HUD that only `?legacy=1` can reach; its
+ * own header says so, `App.tsx`'s legacy fence says the branch logs nothing and
+ * routes nothing, and no shipping surface loads it. Its Thor walk-cycle urls are
+ * not a plain-arm defect because no arm reaches them. */
+const LEGACY = 'src/game/ui/ui.css'
 
 /* the stylesheets that ARE the kit: the surfaces the painted game shows. Not
  * ui/ui.css, which only `?legacy=1` reaches and which says so in its header. */
@@ -53,7 +86,10 @@ function declaredIn(css: string, selector: string): Set<string> {
   const open = css.indexOf('{', at)
   const close = css.indexOf('\n}', open)
   const body = css.slice(open, close)
-  return new Set([...body.matchAll(/--([a-z0-9-]+)\s*:/g)].map((m) => m[1]))
+  /* `_` is in the class because a MAPVIS handle can carry one (`icon_set`), and
+   * without it `--kit-art-icon_set` was read as `kit-art-icon` and the audit
+   * below silently believed a handle was nulled that was not */
+  return new Set([...body.matchAll(/--([a-z0-9_-]+)\s*:/g)].map((m) => m[1]))
 }
 
 describe('the tokens are extracted, not invented', () => {
@@ -175,6 +211,186 @@ describe('every kit stylesheet reads the token layer', () => {
     }
     // and it has no PixelLab art at all, which is the whole point of §16
     expect(tokenValue(css, 'kit-art-panel', "html[data-skin='plain']")).toBe('none')
+  })
+})
+
+/* ---- §16: THE PLAIN ARM HAS NO ART, PROVED BY READING THE TREE -----------
+ *
+ * The adversarial pass of 2026-08-31 found five surfaces still painting PixelLab
+ * art under `html[data-skin='plain']`, and every one of them failed the same
+ * way: the rule spelled the png out, so `--kit-art-panel: none` could never
+ * reach it. `.bt-stage` was one of them, and that is the frame every scored item
+ * in the study is read on.
+ *
+ * Nothing errors when this rots. A wooden panel appears in a plain sheet, the
+ * control arm quietly stops being a control arm, and the only way anyone finds
+ * out is by looking. So it is read off the files instead. */
+
+const artHandlesIn = (src: string): string[] =>
+  [...src.matchAll(/--kit-art-([A-Za-z0-9_-]+)/g)]
+    .map((m) => m[1])
+    /* `kit.ts` writes `--kit-art-${v.handle}`, which is not a handle */
+    .filter((h) => !h.startsWith('$'))
+
+describe('the plain arm has no art anywhere, and nothing can quietly add some', () => {
+  const tokens = strip(read(TOKENS))
+  const plain = declaredIn(tokens, "html[data-skin='plain'] {")
+
+  it('nulls every art handle the tree can actually mount', () => {
+    const mounted = new Set<string>()
+    for (const file of everySource()) {
+      if (file.endsWith('.test.ts') || file.endsWith('.test.tsx')) continue
+      for (const h of artHandlesIn(read(file))) mounted.add(h)
+      /* a `.kit-surface-<handle>` in a className is a mount too: `kit.ts` writes
+       * `--kit-art-<handle>` for that same handle at runtime, and the class is
+       * the only place in `src/` the name appears */
+      for (const m of read(file).matchAll(/kit-surface-([A-Za-z0-9_-]+)/g)) {
+        if (!m[1].startsWith('$') && m[1] !== '') mounted.add(m[1])
+      }
+    }
+    /* mounted by `kitFaceStyle.ts` through a variable, so the name only exists
+     * in prose there and in the live `/api/v1/ui` record */
+    mounted.add('icon_set')
+    const unnulled = [...mounted].filter((h) => !plain.has(`kit-art-${h}`)).sort()
+    expect(unnulled, 'art handles the plain arm would still paint').toEqual([])
+  })
+
+  it('lets no stylesheet spell an art url out where a token cannot reach it', () => {
+    const offenders: string[] = []
+    for (const file of everyStylesheet()) {
+      if (file === LEGACY) continue
+      const css = strip(read(file))
+      for (const m of css.matchAll(/([-a-z]+)\s*:\s*([^;{}]*url\(\s*['"]?\/art\/[^;{}]*)/g)) {
+        /* tokens.css's own `:root` is where the urls are SUPPOSED to live: that
+         * is the indirection every other rule reads through */
+        if (file === TOKENS) continue
+        offenders.push(`${file}: ${m[1]}: ${m[2].trim()}`)
+      }
+    }
+    expect(offenders, 'literal art urls that `--kit-art-*: none` cannot switch off').toEqual([])
+  })
+
+  it('reintroduces no art inside any plain block, in any stylesheet', () => {
+    const offenders: string[] = []
+    for (const file of everyStylesheet()) {
+      const css = strip(read(file))
+      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const sel = m[1]
+        const body = m[2]
+        if (!sel.includes("data-skin='plain'")) continue
+        if (/url\(/.test(body)) offenders.push(`${file} · ${sel.trim()}: a url`)
+        if (/border-image/.test(body)) offenders.push(`${file} · ${sel.trim()}: a border-image`)
+        if (/image-rendering:\s*(pixelated|crisp-edges)/.test(body)) {
+          offenders.push(`${file} · ${sel.trim()}: pixel-art rendering`)
+        }
+      }
+    }
+    expect(offenders, 'the plain skin painting art back on').toEqual([])
+  })
+
+  it('keeps the integer snap in this arm rather than trading it for a size band', () => {
+    // the ruling asks for worksheet sizes AND the snap ENGINE-4 added, not one of them
+    expect(tokens).toContain("html[data-skin='plain'] *,")
+    expect(tokens).toContain('--kit-fs: clamp(15px, var(--kit-fs-raw), 28px);')
+    expect(tokens).toContain('--kit-fs: max(1px, round(clamp(15px, var(--kit-fs-raw), 28px), 1px));')
+    // and the fallback arm is still a real declaration outside the feature query
+    const loose = tokens.indexOf('--kit-fs: clamp(15px, var(--kit-fs-raw), 28px);')
+    const snapped = tokens.indexOf('--kit-fs: max(1px, round(clamp(')
+    expect(loose).toBeLessThan(snapped)
+  })
+
+  it('casts no shadow and renders no pixel art', () => {
+    expect(tokenValue(tokens, 'kit-pixel', "html[data-skin='plain']")).toBe('auto')
+    for (const t of ['kit-drop-lg', 'kit-drop-md', 'kit-drop-sm']) {
+      /* a transparent offset-zero shadow rather than a deleted token: an unset
+       * token makes `filter: drop-shadow(var(--kit-drop-lg))` invalid at
+       * computed-value time, and that falls back to INHERIT, not to nothing */
+      expect(tokenValue(tokens, t, "html[data-skin='plain']")).toBe('0 0 0 rgba(0, 0, 0, 0)')
+    }
+  })
+
+  /* FOUND BY LOOKING RATHER THAN BY READING, 2026-08-31: the first plain-arm
+   * screenshot of the year sheet came back in Harbormaster. The token layer only
+   * ever reached six stylesheets, and `planner.css`, `run.css`, `chart.css`,
+   * `beats.css` and `stage/placecard.css` spell the two game faces out about
+   * fifty times between them. Four of those are surfaces BLHS content is
+   * delivered on. One rule ends all of it and this holds the rule down. */
+  it('puts one face on the whole arm, past every stylesheet that spells a game face out', () => {
+    expect(tokens).toContain("html[data-skin='plain'] * { font-family: var(--kit-face-body); }")
+  })
+
+  it('names a game face in no plain rule anywhere', () => {
+    const offenders: string[] = []
+    for (const file of everyStylesheet()) {
+      const css = strip(read(file))
+      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        if (!m[1].includes("data-skin='plain'")) continue
+        if (/Harbormaster|Deckhand|Jersey 25|Pixelify/.test(m[2])) {
+          offenders.push(`${file} · ${m[1].trim()}`)
+        }
+      }
+    }
+    expect(offenders, 'the plain arm wearing a game face').toEqual([])
+  })
+
+  it('gives the arm a system face and no game face, on every one of the three', () => {
+    for (const t of ['kit-face-display', 'kit-face-title', 'kit-face-body', 'kit-front-face-display', 'kit-front-face-ui']) {
+      const v = tokenValue(tokens, t, "html[data-skin='plain']") ?? ''
+      expect(v, `${t} in the plain arm`).toContain('system-ui')
+      expect(v).not.toContain('Harbormaster')
+      expect(v).not.toContain('Deckhand')
+    }
+  })
+})
+
+/* ---- the wire that was never run ------------------------------------------
+ *
+ * `save.ts` has recorded the assigned arm since join day and `intent-engine.ts`
+ * has read it, and until 2026-08-31 nothing put it on <html>. A student the
+ * server had assigned to the control group played the full painted game
+ * everywhere except inside four beat screens, which is not a control condition.
+ * These hold the wire down at both ends: the pure order, and the attribute. */
+describe('the assigned study arm reaches the skin', () => {
+  it('ranks the URL over the arm and the arm over any stored preference', () => {
+    expect(resolveSkin('?skin=plain', 'game', 'paper')).toBe('plain')
+    expect(resolveSkin('?skin=paper', 'plain', 'plain')).toBe('paper')
+    // the arm is assigned, not chosen: a settings blob cannot undo it
+    expect(resolveSkin('', 'plain', 'paper')).toBe('plain')
+    expect(resolveSkin('', 'game', 'plain')).toBe('paper')
+    // nobody joined: the preference, then the default
+    expect(resolveSkin('', undefined, 'plain')).toBe('plain')
+    expect(resolveSkin('', undefined, undefined)).toBe('paper')
+    expect(resolveSkin('', null, null)).toBe('paper')
+  })
+
+  it('knows an unassigned run is not the same as a game-arm one', () => {
+    expect(skinFromArm('plain')).toBe('plain')
+    expect(skinFromArm('game')).toBe('paper')
+    expect(skinFromArm(undefined)).toBeNull()
+  })
+
+  it('writes the attribute off a real save, with nobody asking for a skin', () => {
+    clearSave()
+    applySkin('paper')
+    beginAdventure()
+    expect(document.documentElement.dataset.skin).toBeUndefined()
+
+    /* the write alone is the test: `skin.ts` subscribes to the save at import,
+     * because the arm arrives LATE (net.ts writes it when the join returns) and
+     * a skin decided once at boot is decided before the answer exists */
+    writeSave({ arm: 'plain' })
+    expect(document.documentElement.dataset.skin).toBe('plain')
+    expect(currentSkin()).toBe('plain')
+
+    writeSave({ arm: 'game' })
+    expect(document.documentElement.dataset.skin).toBeUndefined()
+
+    writeSave({ arm: 'plain' })
+    wearAssignedSkin('paper')     // the settings pass, which must not win
+    expect(currentSkin()).toBe('plain')
+
+    clearSave()
+    applySkin('paper')
   })
 })
 

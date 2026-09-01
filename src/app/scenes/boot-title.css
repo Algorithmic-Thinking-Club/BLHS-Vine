@@ -1,6 +1,13 @@
 /* Boot splash + title screen (GAME-DESIGN §4.1 / §4.2) — the first two frames a student
    ever sees, so every easing here is deliberate. Fonts + kit textures from the UI kit. */
 
+/* SAID OUT LOUD RATHER THAN INHERITED BY LUCK. This file reads `--kit-art-title`,
+   `--kit-art-plank` and `--kit-pixel`, and it used to get away with spelling the
+   pngs out. An @import is what makes the dependency real: without it the tokens
+   only exist because some other stylesheet happened to be loaded first, and the
+   day the title screen is opened on its own it would paint nothing. */
+@import '../../game/ui/tokens.css';
+
 @font-face {
   font-family: 'Harbormaster';
   src: url('/fonts/Harbormaster.ttf') format('truetype');
@@ -102,8 +109,8 @@
    swaps to the real idling BeachIso once it exposes an ambient mode */
 .ti-backdrop {
   position: absolute; inset: -4%;
-  background: url('/art/ui/title-backdrop.png') center / cover no-repeat;
-  image-rendering: pixelated;
+  background: var(--kit-art-title) center / cover no-repeat;
+  image-rendering: var(--kit-pixel);
   animation: ti-drift 46s ease-in-out infinite alternate;
 }
 @keyframes ti-drift {
@@ -206,8 +213,8 @@
   position: relative;
   width: min(340px, 44vw);
   aspect-ratio: 512 / 192;
-  background: url('/art/ui/plank-button.png') center / 100% 100% no-repeat;
-  image-rendering: pixelated;
+  background: var(--kit-art-plank) center / 100% 100% no-repeat;
+  image-rendering: var(--kit-pixel);
   border: none; outline: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   filter: drop-shadow(0 5px 12px rgba(3, 10, 12, .5));
@@ -250,4 +257,116 @@
   letter-spacing: 2px;
   color: rgba(222, 234, 226, .6);
   text-shadow: 0 1px 2px rgba(4, 10, 12, .7);
+}
+
+/* =========================================================================
+ * THE PLAIN ARM: the title as the cover of a document
+ *
+ * TWO OF THE FIVE LITERAL ART URLS LEFT IN THE TREE ON 2026-08-31 WERE HERE, and
+ * taking them through the token layer is only half the job: `--kit-art-title:
+ * none` on a full-bleed backdrop leaves an empty teal box, and `--kit-art-plank:
+ * none` on a 512x192 button leaves an invisible one with a label floating in it.
+ * So the layout says what it becomes instead, rather than what it stops being.
+ *
+ * WHAT IS HIDDEN AND WHY EACH ONE. The painted cove, the carved signboard, the
+ * whitewashed planks behind its cut-out interior and the gull are all drawn game
+ * objects; the ruling is that this arm has no game art. The WORDS on the sign
+ * are not art, so they stay, in the same order, and become the page's heading.
+ * Nothing a student can read or click is removed.
+ *
+ * THE SCOPE QUESTION THIS RAISES AND DOES NOT SETTLE. The 2026-08-28 ruling puts
+ * navigation and art in the VEHICLE, which stays identical across arms, and only
+ * diverges the surfaces that deliver or score BLHS content. The title screen
+ * delivers no BLHS content, so by that reading it is vehicle and should stay
+ * painted in both arms. It is here because the order that closed the ruling
+ * named these five surfaces by name. It is one block and deleting it puts the
+ * title back exactly as it was; Ash has not seen either version.
+ * ========================================================================= */
+
+html[data-skin='plain'] .ti-root { background: var(--kit-paper-hi); }
+html[data-skin='plain'] .ti-backdrop,
+html[data-skin='plain'] .ti-veil,
+html[data-skin='plain'] .ti-signpaper,
+html[data-skin='plain'] .ti-sign,
+html[data-skin='plain'] .ti-gull { display: none; }
+
+html[data-skin='plain'] .ti-stack {
+  padding: 48px 32px 0;
+  align-items: flex-start;
+  max-width: 720px;
+  /* a real page margin: the column sits in from the left edge the way a printed
+     sheet does, and centres itself in a wide window rather than stretching */
+  margin: 0 auto;
+  inset: 0 auto 0 0;
+  right: 0;
+}
+html[data-skin='plain'] .ti-welcome {
+  font-family: var(--kit-face-body);
+  font-size: 15px; letter-spacing: 0;
+  color: var(--kit-ink-label);
+  background: none; border: 0; border-radius: 0;
+  padding: 0; margin-bottom: 18px;
+  animation: none;
+}
+/* the wordmark stops being a picture with type on top and becomes a heading in
+   normal flow, so the two lines read as a title and a subtitle */
+html[data-skin='plain'] .ti-wordmark { width: 100%; animation: none; }
+html[data-skin='plain'] .ti-wordtext {
+  position: static; inset: auto;
+  align-items: flex-start; gap: 2px;
+  pointer-events: auto;
+}
+html[data-skin='plain'] .ti-line1 {
+  font-family: var(--kit-face-title);
+  font-size: 15px; letter-spacing: 2px; font-weight: 600;
+  color: var(--kit-ink-label);
+  text-shadow: none;
+}
+html[data-skin='plain'] .ti-line2 {
+  font-family: var(--kit-face-title);
+  font-size: 30px; letter-spacing: 0; font-weight: 700; line-height: 1.2;
+  color: var(--kit-ink-head);
+  text-shadow: none;
+}
+
+html[data-skin='plain'] .ti-actions {
+  margin-top: 26px; align-items: flex-start; gap: 12px;
+  animation: none;
+}
+/* a real button: a rectangle with a border, a label at a readable size, and no
+   aspect ratio inherited from a piece of art nobody is drawing any more */
+html[data-skin='plain'] .ti-plank {
+  width: auto; aspect-ratio: auto;
+  background: var(--kit-paper-lo);
+  border: 1px solid var(--kit-edge-strong);
+  border-radius: var(--kit-r-sharp);
+  padding: 9px 22px;
+  filter: none;
+  transform: none;
+}
+html[data-skin='plain'] .ti-plank:hover { background: var(--kit-paper-tab-lo); filter: none; transform: none; }
+html[data-skin='plain'] .ti-plank:active { background: var(--kit-paper-tab-lo); filter: none; transform: none; }
+html[data-skin='plain'] .ti-plank-label {
+  font-family: var(--kit-face-body);
+  font-size: 16px; letter-spacing: 0;
+  color: var(--kit-ink-body);
+  text-shadow: none;
+  padding: 0;
+}
+html[data-skin='plain'] .ti-newvoyage {
+  font-family: var(--kit-face-body);
+  font-size: 15px;
+  color: var(--kit-ink-body);
+  background: var(--kit-paper-lo);
+  border: 1px solid var(--kit-edge-strong);
+  border-radius: var(--kit-r-sharp);
+  box-shadow: none;
+  padding: 8px 20px;
+}
+html[data-skin='plain'] .ti-newvoyage:hover { filter: none; transform: none; }
+html[data-skin='plain'] .ti-credit {
+  font-family: var(--kit-face-body);
+  font-size: 13px; letter-spacing: 0;
+  color: var(--kit-ink-dim);
+  text-shadow: none;
 }

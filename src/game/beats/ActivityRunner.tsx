@@ -13,6 +13,7 @@ import { cordsOf, letterOf, newlyCloseCords } from '../progress'
 import { factById } from '../facts'
 import { track } from '../telemetry'
 import { usePanel } from '../ui/a11y'
+import { currentSkin } from '../ui/skin'
 import './beats.css'
 
 // THE ACTIVITY RUNNER — the vine's woven-check chassis (§6.7 baseline), playing any
@@ -73,7 +74,17 @@ export function CoreBeatRunner(
   },
 ) {
   const save = loadSave()
-  const arm = forceArm ?? (save?.arm === 'plain' ? 'plain' : 'game')
+  /* THE ARM, AND WHY THE SKIN IS THE LAST WORD RATHER THAN A SECOND SOURCE.
+   *
+   * An assigned arm always wins: a joined student's condition is the server's to
+   * say and nothing on the page may move it. The skin is only consulted when
+   * there is NO arm, which is a run nobody joined and which produces no study
+   * row. That case is `?skin=plain`, the review door, and without this line it
+   * lied: the whole game went plain and this one frame, the frame every scored
+   * item in the run is read on, stayed a painted panel. */
+  const arm = forceArm
+    ?? save?.arm
+    ?? (currentSkin() === 'plain' ? 'plain' : 'game')
 
   const [phase, setPhase] = useState<'play' | 'result' | 'review' | 'retake'>('play')
   const [finalScore, setFinalScore] = useState<BeatScore | null>(null)
