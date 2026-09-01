@@ -3144,6 +3144,11 @@ export default function PmapScene() {
        * moved. */
       let lastShot: string | null = null
       let lastBerth: string | null = null
+      /* what the objective marker resolved to on the last frame, which is the
+       * honest answer to "is the game pointing anywhere" and was not readable from
+       * anywhere before: the only exposed value was the explicit `guide_to`
+       * override, so the year doing its own pointing looked like nothing. */
+      let leading: string | null = null
       let exitResolve: (() => void) | null = null
 
       /* ONE WALK, THREE CALLERS: `walk_to` from a grape, `actorMove` from a script,
@@ -3670,7 +3675,14 @@ export default function PmapScene() {
         get Z() { return Z },
         get framing() { return lookAtTarget ? lastShot : null },
         get lastBerth() { return lastBerth },
-        get guide() { return guideTarget?.name ?? null },
+        /* WHAT THE ARROW IS ACTUALLY LEADING TO, which is not the same question as
+         * what a station asked for. This read `guideTarget`, the explicit
+         * `guide_to` override, so a probe asking "is the game pointing anywhere"
+         * got null on every frame the YEAR was doing the pointing, which is every
+         * frame of the opening. The ten-second test read that as "points nowhere"
+         * while the arrow was on screen. */
+        get guide() { return guideTarget?.name ?? leading ?? null },
+        get guideAsked() { return guideTarget?.name ?? null },
         get walkLabel() { return autoWalk?.label ?? null },
         get hull() { return hull ? { x: hull.x, y: hull.y, speed: hull.speed, aground: hull.aground } : null },
         get berthing() { return berthing ? { stage: berthing.stage } : null },
@@ -4112,7 +4124,33 @@ export default function PmapScene() {
         const obj = nextObjective(loadSave())
         /* an explicit guide_to from a station outranks the year's own next step,
          * because a body that just said "go and look at the wall" means it */
-        const mark = guideTarget ?? (obj && obj.map === mapId ? anchors.get(obj.anchor) : undefined)
+        /* ---- AND IT LEADS THROUGH A DOOR WHEN THE THING IS ON ANOTHER MAP ----
+         *
+         * This read `obj.map === mapId ? anchors.get(obj.anchor) : undefined`, so
+         * the marker went BLANK whenever the objective was somewhere else. On the
+         * hub in minute one the objective is ALWAYS somewhere else: every one of
+         * the seven objectives lives on `panther-maw`. So the opening frame of the
+         * game, the one a fourteen year old meets unattended in advisory, pointed
+         * at nothing at all, and `window.__pmap.guide` read null while the whole
+         * arrow machinery sat there working perfectly.
+         *
+         * The objective's type has carried the answer since it was written: `map`
+         * is on it *"so the arrow can say 'not here, out there'"*. Nothing ever
+         * said it. A door whose `to` is the objective's map IS the way out there,
+         * so the lead resolves to that door and the student is led to the thing
+         * that leads to the thing. */
+        const doorTo = (want: string): Anchor | undefined =>
+          doors.find((d) => d.to === want)
+        const mark = guideTarget ?? (
+          !obj ? undefined
+            /* NOTHING IS OWED AND NOTHING IS POINTED AT. `objective.ts` returns
+             * `chart_table` at phase `done` so the panel has somewhere to send a
+             * player who asks, and a marker hovering over a table while the line
+             * reads "the year is done" is the game contradicting itself. */
+            : obj.phase === 'done' ? undefined
+              : obj.map === mapId ? anchors.get(obj.anchor)
+                : doorTo(obj.map))
+        leading = mark?.name ?? null
         if (mark) {
           /* THE ARROW FOLLOWS WALKABILITY, which is Ash's own words for what an
            * engine capability looks like. It used to sit on the objective and leave

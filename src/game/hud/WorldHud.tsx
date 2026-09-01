@@ -3,6 +3,7 @@ import { Hud } from './Hud'
 import { Dialogue } from './Dialogue'
 import { WorldCutscene } from '../cutscene/WorldCutscene'
 import { PlaceCard } from '../stage/PlaceCard'
+import { Heading } from './Heading'
 import { loadSave, subscribeSave } from '../save'
 import { useNav } from '../../app/SceneManager'
 import { holdWorld } from '../world-bus'
@@ -73,6 +74,12 @@ export function WorldHud() {
           door swap tears the scene down and rebuilds it, and a card mounted inside
           the thing being rebuilt is a card that flashes. */}
       <PlaceCard />
+      {/* AND THE ONE SENTENCE THAT SAYS WHAT TO DO NEXT. It mounts beside the
+          arrival card and OUTSIDE the Hud's own gate, because a student who has
+          not been handed anything yet is exactly the student who needs telling.
+          The year's state machine has computed this sentence since the day it was
+          written and nothing in the repository has ever rendered it. */}
+      <Heading />
     </>
   )
 }
