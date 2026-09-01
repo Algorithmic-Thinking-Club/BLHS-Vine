@@ -17,14 +17,33 @@ export type UiRequest = 'planner' | 'handbook' | 'chart' | 'settings' | 'advisor
 const EVENT = 'blhs:open-ui'
 const BEAT_EVENT = 'blhs:play-beat'
 
-export function requestUi(which: UiRequest) {
+/* HOW MANY THINGS ARE LISTENING, which is the whole difference between "the panel
+ * opened" and "the event went into the air". A CustomEvent with no listener is
+ * indistinguishable from a delivered one at the dispatch site, so `open` answered
+ * ok whether or not a HUD was mounted, and wave 4's split of `WorldHud` made the
+ * unmounted case NORMAL: a run that has not set `introDone` has no Hud, which is
+ * exactly the state an island composing the game's opening runs in. */
+let listening = 0
+export const uiListenerCount = () => listening
+
+export function requestUi(which: UiRequest): boolean {
   window.dispatchEvent(new CustomEvent<UiRequest>(EVENT, { detail: which }))
+  return listening > 0
 }
 
 export function onUiRequest(fn: (which: UiRequest) => void): () => void {
   const h = (e: Event) => fn((e as CustomEvent<UiRequest>).detail)
   window.addEventListener(EVENT, h)
-  return () => window.removeEventListener(EVENT, h)
+  listening++
+  /* idempotent, because React runs a cleanup twice in strict mode and a count
+   * that can go negative is a count that reports nothing is listening */
+  let off = false
+  return () => {
+    if (off) return
+    off = true
+    listening--
+    window.removeEventListener(EVENT, h)
+  }
 }
 
 /* A SCORED ACTIVITY, AND ITS RESULT COMING BACK.

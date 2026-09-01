@@ -263,6 +263,14 @@ export type IntentBy = { grape: string }
  * number in seconds gets a long pause and not a dead session. */
 export const WAIT_CEILING_MS = 30_000
 
+/* AND THE LONGEST IT MAY WAIT FOR HIM TO WALK SOMEWHERE. Longer than a pause,
+ * because this one is waiting on a person and a person browses; short enough that
+ * an anchor behind a locked door, or one a player has decided not to visit, ends
+ * as a `False` an island can branch on rather than as a scene that has stopped.
+ * Two minutes is about a twentieth of the advisory session this game is played
+ * in, which is the unit that matters. */
+export const WAIT_FOR_CEILING_MS = 120_000
+
 export type IntentHost = {
   world: IntentWorld | null
   engine: IntentEngine

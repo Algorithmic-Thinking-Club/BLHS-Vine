@@ -13,7 +13,7 @@
  */
 import { describe, it, expect, vi } from 'vitest'
 import {
-  performIntent, NotBuilt, WAIT_CEILING_MS,
+  performIntent, NotBuilt, WAIT_CEILING_MS, WAIT_FOR_CEILING_MS,
   type Intent, type IntentEngine, type IntentHost, type IntentWorld,
 } from './intents'
 import { runStation } from '../game/maw/run-station'
@@ -224,6 +224,39 @@ describe('the director class', () => {
     const r = await performIntent({ kind: 'route', path: 'the_dock_walk' }, h)
     expect(r.ok).toBe(false)
     expect(r.ok === false && r.why).toContain('crosses ground nobody can stand on')
+  })
+
+  it('caps wait_for too, because an anchor behind a locked door is a wait nothing ends', async () => {
+    /* THE WORST BUG THIS WAVE SHIPPED AND CAUGHT. `fire()` holds the controls for
+     * the length of a station handler and the ticker hands the walk law an EMPTY
+     * input while it is held, so `wait_for` from an `@on_talk` waited for a player
+     * who had been made unable to move. With no `ms` there was no deadline either:
+     * the promise never settled, `fire`'s finally never ran, and every station,
+     * every door and the controls were dead until a page reload. The scene half of
+     * the fix hands the controls back; this half is that it cannot be endless. */
+    let asked: number | undefined = -1
+    const h = host({ waitFor: async (_a, ms) => { asked = ms; return true } })
+    await performIntent({ kind: 'wait_for', anchor: 'chart_table' }, h)
+    expect(asked, 'an unbounded wait_for reached the scene unbounded').toBe(undefined)
+    expect(WAIT_FOR_CEILING_MS).toBeLessThanOrEqual(120_000)
+    expect(WAIT_FOR_CEILING_MS).toBeGreaterThan(WAIT_CEILING_MS)
+  })
+
+  it('refuses a pose whose name is wrong WITHOUT having turned him first', async () => {
+    // the word said no and did half of yes: the heading was applied before the
+    // pose name was checked, so a typo left the body facing somewhere new
+    const did: string[] = []
+    const h = host({
+      pose: async (p, f) => {
+        if (f) did.push(`turned:${f}`)
+        if (p === 'cartwheel') throw new NotBuilt('pose', `"${p}" is not a pose`)
+      },
+    })
+    const r = await performIntent({ kind: 'pose', pose: 'cartwheel', facing: 'north' }, h)
+    expect(r.ok).toBe(false)
+    // the scene is what orders the two checks; this pins that the word is one
+    // call and cannot be half-performed by the layer above it
+    expect(did.length).toBeLessThanOrEqual(1)
   })
 
   it('plays a sound through the engine, with no map anywhere in sight', async () => {

@@ -36,7 +36,7 @@ import { holdWorld, onWorldHold, worldHeld } from '../world-bus'
 import { choose, clearDialogue, say } from '../dialogue'
 import { engine } from '../intent-engine'
 import { play as playSfx } from '../audio'
-import { NotBuilt, performIntent, type Intent, type IntentHost, type IntentWorld } from '../../vine/intents'
+import { NotBuilt, WAIT_FOR_CEILING_MS, performIntent, type Intent, type IntentHost, type IntentWorld } from '../../vine/intents'
 import { CutsceneRuntime } from '../cutscene/runtime'
 import type { CutsceneStage } from '../cutscene/types'
 import { publishRuntime } from '../cutscene/stage-bus'
@@ -2327,6 +2327,11 @@ export default function PmapScene() {
         const hold = holdWorld(`route:${p.name}`)
         try {
           for (let i = 1; i < pts.length; i++) {
+            /* A TORN-DOWN SCENE STOPS THE ROUTE RATHER THAN STARTING THE NEXT LEG
+             * ON IT. Teardown settles the leg in flight so this hold can be
+             * dropped, and without this check the loop would take that settlement
+             * as an arrival and walk the next leg on a dead world. */
+            if (destroyed) break
             const last = i === pts.length - 1
             await new Promise<void>((r) => {
               startWalk(pts[i], last ? 3 : 6, last ? p.facing ?? null : null, r, `${p.name}[${i}]`)
@@ -2337,9 +2342,17 @@ export default function PmapScene() {
 
       const actorRoute = async (who: string, p: Pathway, backwards: boolean): Promise<void> => {
         const sp = actorBody(who, 'route')
-        const d = take(sp)
         const pts = legsOf(p, backwards)
         for (let i = 1; i < pts.length; i++) {
+          if (destroyed) return
+          /* THE RECORD IS LOOKED UP EVERY LEG AND NEVER CACHED ACROSS ONE. It was
+           * taken once before the loop, so an `actor_release` mid-route (or the
+           * end of a cutscene, which releases everything) detached that record
+           * from `driven` while this loop went on writing moves into it. Nothing
+           * ticks a detached record, so the leg's promise could never settle and
+           * the island waited for ever. Re-taking puts the body back under the
+           * route that is still running, which is what the author asked for. */
+          const d = take(sp)
           if (d.move) { const orphan = d.move.then; d.move = null; orphan?.() }
           const dir = dirFrom(pts[i].x - d.x, (pts[i].y - d.y) * map.yScale)
           if (dir) d.facing = dir
@@ -2347,7 +2360,8 @@ export default function PmapScene() {
             d.move = { tx: pts[i].x, ty: pts[i].y, speed: map.speed, done: false, then: r }
           })
         }
-        if (p.facing) d.facing = p.facing
+        const end = take(sp)
+        if (p.facing) end.facing = p.facing
       }
 
       /* THE VOYAGE. There was no way to start a crossing from a script at all:
@@ -2377,14 +2391,44 @@ export default function PmapScene() {
         if (!canSail || !berth)
           throw new NotBuilt('route', `${mapId} has no berth on the world, so there is nothing here to sail`)
         if (sailing) throw new NotBuilt('route', `"${p.name}" cannot start: the ship is already on a route`)
+
+        /* EVERY REFUSAL HAPPENS BEFORE ANYBODY GETS IN THE BOAT.
+         *
+         * This boarded first and checked the water second, so a route over dry
+         * land refused correctly AND left the player hidden, standing on a hull,
+         * with the camera pulled out to the sailing scale and no script left
+         * running to do anything about it. The word said no and did half of yes.
+         *
+         * The water is sampled ALONG the line and not only at the waypoints, for
+         * the same reason `walkFaults` samples a leg rather than its corners: a
+         * route with two ends in deep water and a headland between them is
+         * exactly the route somebody draws by clicking twice. The first leg is
+         * measured from where the hull will really start, which is the berth, and
+         * not from the first waypoint an author happened to type. */
+        const pts = legsOf(p, backwards)
+        const from = fromSea(berth.x, berth.y)
+        const line = [from, ...pts]
+        for (let i = 1; i < line.length; i++) {
+          const a2 = line[i - 1], b2 = line[i]
+          const n = Math.max(1, Math.ceil(Math.hypot(b2.x - a2.x, b2.y - a2.y) / 8))
+          for (let k = 0; k <= n; k++) {
+            const x = a2.x + (b2.x - a2.x) * (k / n), y = a2.y + (b2.y - a2.y) * (k / n)
+            if (depthAt(x, y) >= DEFAULT_SAIL.probe) continue
+            throw new NotBuilt('route',
+              `"${p.name}" runs aground near ${Math.round(x)},${Math.round(y)} on leg ${i}, `
+              + `which is inside the hull's own ${DEFAULT_SAIL.probe} pixel probe`)
+          }
+        }
+        /* AND THE BERTH IT SAYS IT ENDS AT HAS TO EXIST NOW, not at the moment the
+         * hull arrives. It was a console.warn from inside the ticker, half a
+         * crossing after the word had already answered ok, and the boat then
+         * stopped somewhere nobody had named. */
+        if (p.meta && typeof p.meta.berth === 'string' && !berthNamedBy(p))
+          throw new NotBuilt('route', `"${p.name}" ends at a berth called "${String(p.meta.berth)}", `
+            + `which the world does not have. It has: ${comp ? markNames(comp).join(', ') || 'none' : 'no world at all'}`)
+
         if (!hull) board()
         if (!hull) throw new NotBuilt('route', `the ship could not be boarded on ${mapId}`)
-        /* a route that leaves the water is the sail-side twin of a walk over a
-         * wall, and it is checked before anything moves for the same reason */
-        const pts = legsOf(p, backwards)
-        const dry = pts.find((q) => depthAt(q.x, q.y) < DEFAULT_SAIL.probe)
-        if (dry)
-          throw new NotBuilt('route', `"${p.name}" runs aground at ${dry.x},${dry.y}, which is inside the hull's own ${DEFAULT_SAIL.probe} pixel probe`)
         /* the timeout is measured off the LINE rather than off a constant, so a
          * long crossing is not cut off and a short one does not hang for a minute
          * when something goes wrong. Three times the cruise time, which is the
@@ -2467,6 +2511,14 @@ export default function PmapScene() {
           const sp = placedById.get(id)
           if (!sp) throw new NotBuilt('show', `no placement "${id}" on ${mapId}`)
           sp.visible = visible
+          /* AND THROUGH TO THE DRIVER, WHEN THERE IS ONE. The driven pass writes
+           * `sp.visible = d.visible` every frame from a snapshot taken when the
+           * body was first taken over, so on anything a script is driving this
+           * word set a property that was overwritten before the next frame drew:
+           * it reported ok and the thing stayed exactly as visible as it was.
+           * There is one answer to "is it on screen" and both halves write it. */
+          const d = driven.get(sp)
+          if (d) d.visible = visible
         },
 
         /* IT PLAYS, AND IT STILL REFUSES WHAT IT CANNOT DRAW.
@@ -2608,15 +2660,17 @@ export default function PmapScene() {
          * needed art: "he hears something and turns" was previously written by
          * walking him one pixel. */
         async pose(name, facing) {
-          if (facing) {
-            if (!walkT[facing])
-              throw new NotBuilt('pose', `"${facing}" is not a heading. They are: ${DIRS8.join(', ')}`)
-            walker.facing = facing
-          }
-          if (name === undefined) return
-          const key = String(name).toLowerCase()
-          if (!(key in POSE_ART))
+          /* BOTH ARGUMENTS ARE CHECKED BEFORE EITHER IS APPLIED. The heading was
+           * written first, so `pose("cartwheel", facing="north")` refused the
+           * pose, correctly, having already turned him: the word said no and did
+           * half of yes, which is the same shape the actor words had. */
+          if (facing && !walkT[facing])
+            throw new NotBuilt('pose', `"${facing}" is not a heading. They are: ${DIRS8.join(', ')}`)
+          const key = name === undefined ? '' : String(name).toLowerCase()
+          if (key && !(key in POSE_ART))
             throw new NotBuilt('pose', `"${name}" is not a pose. It has: ${Object.keys(POSE_ART).join(', ')}`)
+          if (facing) walker.facing = facing
+          if (!key) return
           const file = POSE_ART[key]
           /* standing is the walk set's own first frame, which is why it is the
            * one pose that can never be missing */
@@ -2797,8 +2851,37 @@ export default function PmapScene() {
           const a = anchors.get(name)
           if (!a) throw new NotBuilt('wait_for', `no anchor named "${name}" on ${mapId}`)
           if (anchors.contains(a, pos.x, pos.y)) return Promise.resolve(true)
+          /* ---- THE WORST BUG IN THIS WAVE, AND IT WAS IN THE ONE WORD WHOSE
+           * WHOLE JOB IS TO WAIT FOR THE PLAYER TO WALK -----------------------
+           *
+           * `fire()` takes a world hold for the length of a station handler, and
+           * the ticker reads `locked = worldHeld()` and hands the walk law an
+           * EMPTY input while it is held. So `wait_for` called from `@on_talk`,
+           * which is the shape `vine.py` teaches and the shape any member will
+           * write, waited for a player who had been made unable to move. Nothing
+           * could settle it: no arrival, and with no `ms` no deadline either. The
+           * promise never settled, `performIntent` never returned, `fire`'s
+           * `finally` never ran, `busy` stayed true, and the map was finished.
+           * Every station, every door, and the controls, until a page reload.
+           *
+           * WAITING FOR HIM TO GET SOMEWHERE MEANS HE HAS TO BE ABLE TO GET
+           * THERE. The station's hold stands aside for exactly as long as the
+           * wait, which is the same trade `cutscene` already makes for a `walkTo`
+           * gate and for the same reason: this is the one other place where two
+           * ownerships really do have to know about each other. */
+          const resume = suspendStationHold()
           return new Promise<boolean>((done) => {
-            waiters.push({ a, until: ms === undefined ? Infinity : performance.now() + ms, done })
+            waiters.push({
+              a,
+              /* AND IT CANNOT WAIT FOR EVER. `wait` is capped because a scene
+               * frozen for an hour is indistinguishable from a crash to the
+               * student sitting in front of it, and that is more true here, not
+               * less: an anchor behind a locked door is a wait nothing can end.
+               * A member who wanted "until he comes" gets a generous window and a
+               * False they can branch on. */
+              until: performance.now() + Math.min(ms ?? WAIT_FOR_CEILING_MS, WAIT_FOR_CEILING_MS),
+              done: (v) => { resume(); done(v) },
+            })
           })
         },
       }
@@ -3008,6 +3091,13 @@ export default function PmapScene() {
          * interrupted refuses at the line that asked for it. */
         while (waiters.length) waiters.pop()!.done(false)
         if (sailing) { const s3 = sailing; sailing = null; s3.fail(new NotBuilt('route', 'the map was left while the ship was still on the route')) }
+        /* AND THE WALK, WHICH IS THE ONE THAT LEAKS A GLOBAL. `walkRoute` takes a
+         * world hold and releases it in a `finally` behind the leg it is
+         * awaiting, so a door swap or a scene teardown mid-route left that hold
+         * taken with nothing able to settle the await that would drop it. A world
+         * hold is not scoped to a scene: the controls stay locked on the NEXT map
+         * and on every map after it, for the life of the tab. */
+        if (autoWalk) { const w3 = autoWalk; autoWalk = null; w3.done() }
         /* the map is not where they are any more. `setContext` only merges, so a
          * map stamped on load rode every heartbeat for the rest of the session,
          * including the ones from the planner and the graduation screen, and the
@@ -3373,6 +3463,17 @@ export default function PmapScene() {
 
       const stepAshore = () => {
         if (!hull) return
+        /* A VOYAGE ENDS WHEN THE BOAT DOES. The route follower is ticked inside
+         * `if (hull)`, so anything that put the player ashore mid-crossing, and
+         * the "tie up here" prompt is one tap, stopped ticking it and left the
+         * island awaiting a promise nothing would ever settle again. Refused here,
+         * at the one place a hull stops existing, so there is no second copy of
+         * this rule anywhere to forget. */
+        if (sailing) {
+          const s4 = sailing; sailing = null
+          engine.log('voyage_interrupted', { map: mapId, path: s4.path.name, at: s4.i })
+          s4.fail(new NotBuilt('route', `the crossing on "${s4.path.name}" ended when the ship was put ashore`))
+        }
         hull = null
         berthing = null
         if (hullSp) hullSp.visible = false

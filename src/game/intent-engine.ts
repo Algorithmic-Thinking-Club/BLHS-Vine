@@ -9,6 +9,7 @@
 import type { IntentEngine, RunPath } from '../vine/intents'
 import type { SessionMode } from '../vine/contract'
 import { requestBeat, requestUi } from './ui-bus'
+import { NotBuilt } from '../vine/intents'
 import { track } from './telemetry'
 import {
   collectFact, collectSticker, grantBadge, islandLedgerId, loadSave, recordCompletion,
@@ -19,8 +20,17 @@ import { programmeById } from './roster/roster'
 import { play as playSfx } from './audio'
 
 export const engine: IntentEngine = {
+  /* AND IT REFUSES WHEN NOTHING IS MOUNTED TO HEAR IT. This was a dispatch into
+   * the air: a CustomEvent nobody listens for looks identical to one that was
+   * delivered, so `open("planner")` answered ok on a scene with no HUD and an
+   * author saw their island run straight past the panel it was built around.
+   * `playBeat` beside it was given this exact fix once already, and the WorldHud
+   * split in wave 4 turned the unmounted case from an edge into the normal state
+   * for anything that runs before a run has begun. */
   openUi(ui) {
-    requestUi(ui)
+    if (requestUi(ui)) return
+    throw new NotBuilt('open', `nothing is mounted to open "${ui}" here. `
+      + 'A panel needs the world HUD, which does not mount until a run has started.')
   },
 
   playBeat(beat, plain) {
@@ -60,7 +70,16 @@ export const engine: IntentEngine = {
     }
   },
 
+  /* A WRITE INTO A RUN THAT DOES NOT EXIST IS NOT A WRITE. `save.ts:626-630`
+   * returns early when there is no save, which is right, and this reported ok
+   * anyway, which is not: an island setting a flag and reading it back two lines
+   * later got an empty list, with no error anywhere to explain it. That is the
+   * state a member DEVELOPS in, because the standalone harness has no run.
+   *
+   * Every path is still exactly as safe as it was; what changed is that the
+   * author is told. */
   setFlag(flag) {
+    if (!loadSave()) throw new NotBuilt('set_flag', `there is no run to remember "${flag}" in`)
     setFlag(flag)
   },
 
@@ -74,6 +93,16 @@ export const engine: IntentEngine = {
    * carries, counts a year on that programme's ladder, and marks the programme
    * finished in this year and no other. */
   award(a) {
+    /* AND THE SAME FOR THE ROW AN ISLAND EARNED. Every one of these writes goes
+     * through `loadSave()` and returns early without one, so an island awarding a
+     * grade with no run threw all of it away and answered ok: no ledger row, no
+     * completion, no fact, no sticker, no badge, and the study's own dependent
+     * variable reading zero programmes finished with nothing anywhere saying why.
+     * Refused BEFORE the first write, so the four collectors cannot half-happen. */
+    if (!loadSave())
+      throw new NotBuilt('award', 'there is no run to write this onto. '
+        + 'Start a run first, or use the standalone harness only for logic that does not score.')
+
     if (a.fact) collectFact(a.fact)
     if (a.sticker) collectSticker(a.sticker)
     if (a.badge) grantBadge(a.badge)
