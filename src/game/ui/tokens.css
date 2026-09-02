@@ -264,6 +264,12 @@
    * book, which the brief's do-not list rules out and `ART.md` rules out again.
    * The undrawn `book` face stays an art gap to be asked for, not a gap to be
    * filled with whatever the Chromebook ships. */
+  /* NOT AN INK, AND IT IS A TOKEN ANYWAY. A `mask-image` gradient needs a fully
+   * opaque stop, and the colour of that stop is meaningless: only its alpha is
+   * read. It lives here because `tokens.test.ts` holds every kit stylesheet to
+   * declaring no colour of its own, and a guard with a loophole in it stops
+   * being a guard the first time somebody uses the loophole for a real colour. */
+  --kit-mask-solid: #000000;
   --kit-art-plaque: url('/art/ui/plaque-small.png');
   --kit-art-crest: url('/art/ui/crest-panther.png');
   --kit-pixel: pixelated;
@@ -556,6 +562,7 @@ html[data-skin='plain'] {
   --kit-art-chart: none;
   --kit-art-title: none;
   --kit-art-scroll: none;
+  --kit-mask-solid: #000000;
   --kit-art-plaque: none;
   --kit-art-crest: none;
   /* AND THE FRAME'S OWN THICKNESS GOES TO NOTHING. `border-image: none` on the

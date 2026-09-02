@@ -196,7 +196,20 @@ html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1m
 
 /* ---- the page ---- */
 .hb-page {
-  flex: 1; min-height: 0; overflow-y: auto;
+  /* `scroll` AND NOT `auto`. An overlay scrollbar is drawn only while the
+     pointer is moving, so on a still screen the only sign that the page
+     continues was a card sliced in half by the book's bottom rail. A track that
+     is always there is the cue, and it costs a fixed gutter rather than a
+     reflow every time a tab's content crosses the fold. */
+  flex: 1; min-height: 0; overflow-y: scroll;
+  /* AND THE PAGE FADES AT THE FOLD, because a scrollbar is not a cue this
+     deployment can rely on: ChromeOS draws OVERLAY scrollbars, which appear only
+     while the pointer is moving, so on a still screen the only sign the page
+     continued was a card sliced in half by the book's bottom rail. A mask is not
+     an element, so it costs no layout and cannot be scrolled away, and it says
+     "more" in the one language Ash's non-reader law allows: a picture. */
+  -webkit-mask-image: linear-gradient(to bottom, var(--kit-mask-solid) calc(100% - 22px), transparent);
+  mask-image: linear-gradient(to bottom, var(--kit-mask-solid) calc(100% - 22px), transparent);
   padding: 16px 18px 18px;
   font-family: var(--kit-face-body);
   color: var(--kit-ink-body);
@@ -209,8 +222,26 @@ html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1m
 }
 @keyframes hb-turn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 html[data-rm='1'] .hb-page { animation-duration: 1ms; }
-.hb-page::-webkit-scrollbar { width: 8px; }
-.hb-page::-webkit-scrollbar-thumb { background: var(--kit-edge); border-radius: var(--kit-r-soft); }
+/* THE SCROLL IS VISIBLE AND THE GUTTER IS ALWAYS THERE.
+ *
+ * The art-direction pass of 2026-09-01 opened the Islands page and found
+ * "200 Flex" and "the Algorithmic Thinking Club" cut in half by the book's
+ * bottom rail "with no scrollbar, fade or any cue that content continues". The
+ * page was already `overflow-y: auto`, so nothing was lost and NOTHING SAID SO:
+ * a browser hides an overlay scrollbar until the pointer moves, and Ash's
+ * non-reader law is about exactly this student, the one who will not go looking.
+ *
+ * `scrollbar-gutter: stable` is the other half: without it the page reflows by
+ * eight pixels the moment a tab's content grows past the fold, so every column
+ * on the Handbook shifts when you change page. */
+.hb-page { scrollbar-gutter: stable; }
+.hb-page::-webkit-scrollbar { width: 10px; }
+.hb-page::-webkit-scrollbar-track { background: var(--kit-paper-lo); border-radius: var(--kit-r-soft); }
+.hb-page::-webkit-scrollbar-thumb {
+  background: var(--kit-edge);
+  border: 2px solid var(--kit-paper-lo);
+  border-radius: var(--kit-r-soft);
+}
 
 .hb-h {
   margin: 0 0 4px;
@@ -457,3 +488,8 @@ html[data-skin='plain'] .hb-badge-word { letter-spacing: 0; font-weight: 700; }
   border: 0;
   box-shadow: none;
 }
+
+/* A WORKSHEET DOES NOT FADE. The mask is a game affordance, and in the control
+   arm the page is a document that simply continues, the way every document a
+   student has ever scrolled does. */
+html[data-skin='plain'] .hb-page { -webkit-mask-image: none; mask-image: none; }
