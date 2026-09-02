@@ -313,7 +313,10 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
         {s && g.tokens && (
           <button
             className={`hud-plaque hud-tokenbtn${entering.has('tokens') ? ' hud-arriving' : ''}`}
-            aria-label={`The year sheet, ${s.tokens.length} season ${s.tokens.length === 1 ? 'token' : 'tokens'} unspent`}
+            aria-label={s.tokens.length === 0
+              ? 'The year sheet. Every season is spent.'
+              : `The year sheet. ${s.tokens.length} season ${s.tokens.length === 1 ? 'token' : 'tokens'} unspent: `
+                + `${s.tokens.join(', ')}.`}
             aria-haspopup="dialog"
             onClick={openPlanner}
           >
@@ -339,9 +342,30 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
                 ))
                 : <span className="hud-token hud-token-spent" style={faceStyle('pip', 'ghost')} />}
             </span>
-            <span className="hud-plaque-word">
-              {s.tokens.length > 0 ? `${s.tokens.length} left` : 'Year sheet'}
-            </span>
+            {/* THE WORD IS THE DOOR, NEVER THE COUNT.
+                Ash, 2026-09-02: "3 left is still a bit inaccurate. is it 3 left
+                or 4 left or something completely different." He is right, twice
+                over, and §40.4 had already said so:
+
+                  "A student can read how much of their year is unspent without
+                   opening anything, and the thing they read is the thing they
+                   press. There is no separate count, no label, no tooltip, and
+                   no number."
+
+                The pips ARE the readout. A number beside them is the same fact
+                said twice, and the second telling is the one that can be wrong.
+
+                And it WAS wrong, in the way he suspected. "3 left" reads as
+                three things left to do, and a year is three season tokens AND
+                two focus classes: `canStamp` refuses a sheet until two classes
+                are picked, so a student holding three tokens and no classes has
+                five decisions left, not three. Every count on a control that is
+                not counting everything is a lie about the rest.
+
+                So it says what it OPENS, the way "Chart" and "Handbook" do two
+                rows above it. The number a reader needs is on the aria-label,
+                where it can be exact without competing with the pips. */}
+            <span className="hud-plaque-word">Year sheet</span>
           </button>
         )}
       </nav>
