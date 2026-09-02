@@ -516,3 +516,73 @@ html[data-skin='plain'] .hb-badge-word { letter-spacing: 0; font-weight: 700; }
    arm the page is a document that simply continues, the way every document a
    student has ever scrolled does. */
 html[data-skin='plain'] .hb-page { -webkit-mask-image: none; mask-image: none; }
+
+/* ---- THE CORNER IN THE CONTROL ARM ----------------------------------------
+ *
+ * FOUND BY LOOKING, 2026-09-02, at `build-shots/ui/fixed-plain/02-hub-walking.png`:
+ * three white words floating on the ocean with nothing under them to press. The
+ * corner was rebuilt into three drawn plaques this round, every one of them a
+ * `--kit-art-*` background, and the plain block nulls that art, so the study's
+ * control arm lost its buttons outright. Nothing above this line said so,
+ * because the plain block in this file only ever reached the Handbook.
+ *
+ * IT IS THE ONE FAILURE ASH'S PLAIN-ARM RULING NAMES BY HAND. Raw OS widgets
+ * were rejected because unstyled defaults look BROKEN, and looking broken is
+ * itself a confound in a study measuring presentation. A button with no button
+ * under it is further down that road than a default one, and this is the corner
+ * a lost student opens the Handbook from.
+ *
+ * SO THE CORNER IS A WORKSHEET'S OWN BUTTON: a white field, a real edge, dark
+ * ink, no carving and no rope. It still sits over the painted world, because the
+ * world is the GAME and the arm is about how the game speaks, not about taking
+ * the game away. */
+html[data-skin='plain'] .hud-plaque {
+  width: auto;
+  min-width: 132px;
+  height: 38px;
+  padding: 0 14px;
+  background: var(--kit-paper);
+  border: var(--kit-border) solid var(--kit-edge-strong);
+  border-radius: var(--kit-r-soft);
+  filter: none;
+}
+html[data-skin='plain'] .hud-plaque:hover {
+  transform: none;
+  filter: none;
+  background: var(--kit-paper-lo);
+}
+html[data-skin='plain'] .hud-plaque:active { transform: none; filter: none; }
+html[data-skin='plain'] .hud-plaque:disabled { filter: none; opacity: .5; }
+html[data-skin='plain'] .hud-plaque-word {
+  color: var(--kit-ink);
+  text-shadow: none;
+  font-weight: 700;
+}
+/* the crest and the cut marks are drawn art and the arm does not carry art */
+html[data-skin='plain'] .hud-crest,
+html[data-skin='plain'] .hud-plaque-mark { display: none; }
+
+/* THE PIPS KEEP THE COUNT AND LOSE THE GOLD. How many season tokens are left is
+   information a student acts on, so it stays; a gold coin with a highlight on it
+   is jewelry, so that goes. A spent one is an empty ring rather than a faded
+   coin, which is the same reading without the shine. */
+html[data-skin='plain'] .hud-tokenbtn {
+  height: auto;
+  min-height: 38px;
+  padding: 5px 14px 6px;
+  gap: 3px;
+}
+html[data-skin='plain'] .hud-token {
+  width: 11px;
+  height: 11px;
+  background: var(--kit-ink);
+  border-color: var(--kit-ink);
+  box-shadow: none;
+}
+html[data-skin='plain'] .hud-token-spent {
+  background: transparent;
+  opacity: 1;
+}
+/* A WORKSHEET'S BUTTONS DO NOT SWING IN ON A HOOK. Same reason the page does not
+   fade: the arrival is a game affordance and the document just has the control. */
+html[data-skin='plain'] .hud-arriving { animation: none; }

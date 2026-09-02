@@ -71,6 +71,7 @@ import { showPlaceCard } from '../stage/stage-bus'
 import { motionMs, prefersReducedMotion } from '../ui/motion'
 import { uiBand } from '../ui/frame'
 import { kitNineSlice, kitPieceHeight, kitSprite, kitTexture } from '../ui/kitSprite'
+import { currentSkin } from '../ui/skin'
 /* the two questions the task line has to ask before it speaks, and both of them
  * are already answered somewhere else: an open panel is on the a11y stack, and an
  * arrival card is on the stage bus. */
@@ -1909,6 +1910,42 @@ export default function PmapScene() {
        * which is exactly what a refresh should mean. */
       if (target.at) setMapUrl({ map: mapId, aboard: target.aboard })
 
+      /* ---- THE SAME TWO PLAQUES, AS A DOCUMENT --------------------------
+       *
+       * The study's control arm carries no drawn art, and `kitSprite.ts` now
+       * refuses to hand any over while it is on. That leaves these two plaques
+       * with a sentence and nothing under it, which is the "unstyled defaults
+       * look BROKEN" confound Ash rejected the raw-widget arm for.
+       *
+       * So the plain arm gets the plaque a worksheet would have: a white field,
+       * one grey rule around it, dark ink, and the system face. It is the same
+       * vocabulary the panels and the dialogue box already speak in that arm, so
+       * a student in the control group meets ONE presentation everywhere rather
+       * than a document indoors and a carved sign outdoors.
+       *
+       * It is a `Graphics` and not a texture on purpose: a rectangle is not art,
+       * it is the absence of art, and drawing it in code is the only way to say
+       * that inside a renderer. */
+      const plainArm = () => currentSkin() === 'plain'
+      const PLAIN_PAPER = 0xf6f6f4
+      const PLAIN_EDGE = 0x6b6b6b
+      const PLAIN_INK = 0x1b1b1b
+      const drawPlainPlate = (g: Graphics, w: number, h: number) => {
+        g.clear()
+        g.roundRect(-w / 2, -h / 2, w, h, 2).fill(PLAIN_PAPER).stroke({ color: PLAIN_EDGE, width: 1 })
+      }
+      /** the face and the ink a plaque uses in whichever arm is running */
+      const plaqueStyle = (t: Text, inkWhenPainted: number) => {
+        if (plainArm()) {
+          t.style.fontFamily = ['system-ui', 'Segoe UI', 'Arial', 'sans-serif']
+          t.style.stroke = { color: 0x000000, width: 0 }
+          t.style.fill = PLAIN_INK
+          t.style.fontWeight = 'normal'
+        } else {
+          t.style.fill = inkWhenPainted
+        }
+      }
+
       // ---- the YOU marker: a proper map pin (Ash's spec 2026-08-15: "half triangle half
       // circle typical marker, with a small thor picture in the marker with YOU above").
       // The circle holds Thor's face, the tail points at him, YOU rides on top. UI, so it
@@ -1966,6 +2003,18 @@ export default function PmapScene() {
           stroke: { color: 0x06282c, width: 3 },
         }),
       })
+      /* AND THE ONE LABEL A STUDENT READS MOST OFTEN GOES WITH THEM. `youTxt` is
+       * set in Deckhand, the game's commissioned body face, and the control arm
+       * carries neither commissioned face anywhere else. It keeps its stroke in
+       * both arms, because unlike the two plaques it has nothing behind it: it
+       * rides over open water and over a painting, and the stroke is the only
+       * reason it is legible on both. In the document arm the stroke is white
+       * paper rather than dark wood, which is the same job in that arm's palette. */
+      if (plainArm()) {
+        youTxt.style.fontFamily = ['system-ui', 'Segoe UI', 'Arial', 'sans-serif']
+        youTxt.style.fill = PLAIN_INK
+        youTxt.style.stroke = { color: 0xffffff, width: 3 }
+      }
       youTxt.anchor.set(0.5, 1)
       youTxt.position.set(0, PCY - PR - 2)
       pin.addChild(youTxt)
@@ -2066,7 +2115,10 @@ export default function PmapScene() {
         }),
       })
       doorTxt.anchor.set(0, 0.5)
-      prompt.addChild(promptMark, doorTxt)
+      const promptPaper = new Graphics()
+      promptPaper.zIndex = -1
+      promptPaper.visible = plainArm()
+      prompt.addChild(promptPaper, promptMark, doorTxt)
       prompt.scale.set(1 / Z)
 
       /* WHAT THE PROMPT IS SAYING RIGHT NOW, so the layout only runs when it has
@@ -2084,6 +2136,7 @@ export default function PmapScene() {
         const markW = promptMark.visible ? promptMark.texture.width : 0
         const gap = markW ? 8 : 0
         const bodyW = markW + gap + doorTxt.width
+        if (promptPaper.visible) drawPlainPlate(promptPaper, bodyW + 28, doorTxt.height + 14)
         if (promptPlate) {
           /* the art is drawn at 104 tall and is scaled down as a whole, so every
            * corner keeps the proportion it was painted at. The pad is in the
@@ -2125,7 +2178,7 @@ export default function PmapScene() {
 
         doorTxt.text = text
         doorTxt.style.fontSize = promptSize()
-        doorTxt.style.fill = promptPlate ? PROMPT_INK[state] : 0xbaf3ea
+        plaqueStyle(doorTxt, promptPlate ? PROMPT_INK[state] : 0xbaf3ea)
         /* THE READER AND THE KEYBOARD GET THE SAME SENTENCE THE EYE GETS. */
         prompt.accessibleTitle = text
 
@@ -2188,12 +2241,16 @@ export default function PmapScene() {
         }),
       })
       taskTxt.anchor.set(0.5, 0.5)
-      task.addChild(taskTxt)
+      const taskPaper = new Graphics()
+      taskPaper.zIndex = -1
+      taskPaper.visible = plainArm()
+      task.addChild(taskPaper, taskTxt)
       task.scale.set(1 / Z)
 
       let taskSaid = ''
 
       const layoutTask = () => {
+        if (taskPaper.visible) drawPlainPlate(taskPaper, taskTxt.width + 34, taskTxt.height + 14)
         if (!taskPlate) return
         const k = (taskTxt.height + 14) / promptPlateH
         promptPlate?.width  // keep the two plaques reading one measurement
@@ -2227,6 +2284,7 @@ export default function PmapScene() {
          * time and is the only text a student is promised, so it is the one piece
          * of world type that gets to be bigger than the affordances. */
         taskTxt.style.fontSize = promptSize() + 3
+        plaqueStyle(taskTxt, taskPlate ? 0x3b2a1a : 0xbaf3ea)
         layoutTask()
       }
 

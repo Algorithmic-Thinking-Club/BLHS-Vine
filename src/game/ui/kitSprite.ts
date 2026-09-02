@@ -22,6 +22,33 @@
  */
 import { Assets, NineSliceSprite, Rectangle, Sprite, Texture } from 'pixi.js'
 import { kitCached, kitFace, kitPiece, mapvisHost, kitArtUrl, loadKit } from './kit'
+import { currentSkin } from './skin'
+
+/* ---- THE CONTROL ARM GETS NO DRAWN ART, INCLUDING IN THE WORLD -----------
+ *
+ * FOUND BY LOOKING, 2026-09-02, at `build-shots/ui/fixed-plain/02-hub-walking.png`.
+ * Every DOM surface went to a document under `data-skin='plain'` and the two
+ * plaques hanging in the world did not: "Someone is waiting for you inside the
+ * mountain." and "E - cast off" were still the platform's carved socket, still
+ * in the game's commissioned face, in the arm that is supposed to carry neither.
+ *
+ * It is the same shape as the six surfaces wave four already caught: a code path
+ * that reaches the art WITHOUT going through a token, so nulling the tokens
+ * cannot stop it. `tokens.css` is the fence for the DOM and it has no reach into
+ * Pixi at all, so the fence has to stand here as well.
+ *
+ * WHY IT IS ONE GATE RATHER THAN A CHECK AT EACH CALL. There are four ways into
+ * this file and there will be more, and a study arm that leaks on the fifth is
+ * worth less than one that cannot leak. Every caller already handles `null`,
+ * because a district filter looks exactly like this, so refusing here costs
+ * nothing that was not already paid for.
+ *
+ * AND THE WORLD ITSELF STAYS PAINTED. The arm is about how the game SPEAKS: the
+ * panels, the box, the plaques. The island underneath is the game, and taking it
+ * away would be measuring a different thing. */
+function artAllowed(): boolean {
+  return currentSkin() === 'paper'
+}
 
 /* one decode per sheet per session, shared by every face cut from it. `pointer`
  * is 384x256 and carries six marks; decoding it once per mark would be six
@@ -73,6 +100,7 @@ async function sheetOf(piece: string): Promise<Texture | null> {
 
 /** the texture for one named face, or null when it is not drawn or not reachable */
 export async function kitTexture(piece: string, face: string): Promise<Texture | null> {
+  if (!artAllowed()) return null
   const sheet = await sheetOf(piece)
   if (!sheet) return null
   const cut = kitFace(kitCached() ?? [], piece, face)
@@ -90,6 +118,7 @@ export async function kitTexture(piece: string, face: string): Promise<Texture |
 
 /** a sprite of one named face, or null. The caller owns it and its scale. */
 export async function kitSprite(piece: string, face: string): Promise<Sprite | null> {
+  if (!artAllowed()) return null
   const t = await kitTexture(piece, face)
   return t ? new Sprite(t) : null
 }
@@ -120,6 +149,7 @@ export async function kitSprite(piece: string, face: string): Promise<Sprite | n
  * it was drawing.
  */
 export async function kitNineSlice(piece: string, width: number): Promise<NineSliceSprite | null> {
+  if (!artAllowed()) return null
   const sheet = await sheetOf(piece)
   if (!sheet) return null
   const p = kitPiece(kitCached() ?? [], piece)
