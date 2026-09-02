@@ -351,15 +351,33 @@ html[data-skin='plain'] .ti-signpaper,
 html[data-skin='plain'] .ti-sign,
 html[data-skin='plain'] .ti-gull { display: none; }
 
+/* THE CONTROL ARM'S COVER PAGE, and it is a page rather than a column.
+ *
+ * The art-direction pass of 2026-09-01 opened this shot and read it as the thing
+ * the ruling refused: "everything sits in the top-left 470px of a 1366px page
+ * with 80 percent white void... an unstyled left-flush page is what this looks
+ * like". That matters more here than anywhere else in the arm, because §16.20 is
+ * explicit that "plain" names a RENDER and not a worse experience, and Ash's own
+ * ruling threw out raw OS widgets on the grounds that looking broken is itself a
+ * confound in the one comparison the instrument exists to make. The first screen
+ * of the control arm looking unfinished is that confound at full strength.
+ *
+ * A printed cover page centres its block in the sheet and rules a line under the
+ * title. That is all this is, and it is still a document: no art, no wood, one
+ * face, black on white. */
 html[data-skin='plain'] .ti-stack {
-  padding: 48px 32px 0;
-  align-items: flex-start;
+  padding: 0 32px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   max-width: 720px;
-  /* a real page margin: the column sits in from the left edge the way a printed
-     sheet does, and centres itself in a wide window rather than stretching */
   margin: 0 auto;
-  inset: 0 auto 0 0;
-  right: 0;
+  inset: 0;
+}
+html[data-skin='plain'] .ti-wordtext {
+  border-bottom: 2px solid var(--kit-ink-head);
+  padding-bottom: 12px;
+  margin-bottom: 4px;
 }
 html[data-skin='plain'] .ti-welcome {
   font-family: var(--kit-face-body);
