@@ -875,3 +875,21 @@ html[data-skin='plain'] .gr-tap:hover,
 html[data-skin='plain'] .gr-tap:active { filter: none; }
 html[data-skin='plain'] .ys-dot { border-color: var(--kit-edge-strong); }
 html[data-skin='plain'] .ys-dot-on { background: var(--kit-ink-head); border-color: var(--kit-ink-head); }
+
+/* ---- THE GRADUATE, DRAWN --------------------------------------------------
+ *
+ * Shown at 224 by 288, which is an exact 4x of the 56x72 the figure was authored
+ * at. That size is not a layout preference: it is Thor's own resolution, and
+ * authoring the ceremony figure on his grid rather than at four times it is what
+ * finally made the art-direction pass agree it was the same character.
+ * `image-rendering` comes from the token so the plain arm can turn it off with
+ * everything else. */
+.gr-figure {
+  display: block;
+  width: 224px;
+  height: 288px;
+  margin: 4px auto 10px;
+  image-rendering: var(--kit-pixel);
+}
+/* §16: the control arm gets the same words and none of the game's pictures. */
+html[data-skin='plain'] .gr-figure { display: none; }
