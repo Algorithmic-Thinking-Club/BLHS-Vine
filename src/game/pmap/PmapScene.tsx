@@ -42,6 +42,7 @@ import type { CutsceneStage } from '../cutscene/types'
 import { publishRuntime } from '../cutscene/stage-bus'
 import { resolveScript, scriptById } from '../cutscene/scripts'
 import { aheadOn, findPath, type Pt } from './path'
+import { setMapUrl, targetFromUrl, type PmapTarget } from './route'
 import { loadSave, recordExposure, recordPosition } from '../save'
 import { resumeFor, stampOf, RESUME_REASONS, type WorldStamp } from '../run/resume'
 import { placeOfMap } from '../roster/roster'
@@ -476,19 +477,17 @@ function scanRows(t: Texture): { top: number; feet: number } | null {
   } catch { return null }
 }
 
-/* WHICH MAP, AND WHERE IN IT.
+/* WHICH MAP, AND WHERE IN IT, lives in route.ts now.
  *
  * `at` is the arrival anchor. Without it every door into a map drops the player
  * on that map's one global spawn, so three connected rooms all land you on the
  * same tile no matter which way you came in, and walking back out of the Maw
  * puts Thor at the dock instead of the tunnel mouth he just left.
+ *
+ * It moved because this was the only code in the repository that knew how a map
+ * is addressed, and the title and the intro have to be able to open one without
+ * importing four thousand lines of Pixi to do it.
  */
-type PmapTarget = { map: string; at?: string }
-
-const targetFromUrl = (): PmapTarget => {
-  const p = new URLSearchParams(window.location.search)
-  return { map: p.get('map') || 'quayprop', at: p.get('at') || undefined }
-}
 
 export default function PmapScene() {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -2198,11 +2197,7 @@ export default function PmapScene() {
            * standing in, but with replaceState rather than a navigation: the whole
            * point is that React, SceneManager, the cutscene runtime and the log
            * queue all survive the door. */
-          const q = new URLSearchParams(window.location.search)
-          q.set('scene', 'pmap')
-          q.set('map', to.map)
-          if (to.at) q.set('at', to.at); else q.delete('at')
-          window.history.replaceState(null, '', `${window.location.pathname}?${q}`)
+          setMapUrl(to)
           engine.log('map_entered', { map: to.map, at: to.at ?? null, from: mapId })
           /* THE MAP CHANGED, SO THE POSITION DID. Q1 asks for the current map and
            * anchor on every map change so `Continue` routes off the save rather
@@ -3516,6 +3511,11 @@ export default function PmapScene() {
         thor.sp.visible = true; thor.sh.visible = true; pin.visible = true
         camFree = false
         zoomTo(Z)
+        /* AND THE ADDRESS STOPS SAYING HE IS AT SEA. `aboard` is how the intro
+         * hands this scene an arrival on the water, and a berth on this same map
+         * never runs `beginExit`, so without this line a refresh after tying up
+         * put the student back offshore with the walk they had just done undone. */
+        if (target.aboard) setMapUrl({ map: mapId, at: target.at })
         engine.log('disembarked', { map: mapId })
       }
 
@@ -3550,6 +3550,74 @@ export default function PmapScene() {
         stepAshore()
         beginExit({ map: s.map, at: s.berth?.at })
       }
+
+      /* ---- ARRIVING ON THE WATER, WHICH IS HOW THE INTRO NOW ENDS ----
+       *
+       * The road out of the beach used to go to a tile island. It goes here, and
+       * "here" is not a place on a painting: it is the ocean off one, with the
+       * island in the middle distance and the tiller in the student's hands. The
+       * three verbs already existed and all three were only reachable by a player
+       * pressing a key at a dock, so the whole of what was missing was somebody
+       * asking for them before the first frame.
+       *
+       * WHERE OFFSHORE IS, DERIVED AND NOT TYPED IN. A number measured off the hub
+       * today is a number wrong about the next island, and there will be twenty.
+       * So the seaward direction is read off the berth the author already drew:
+       * an approach point if there is one (it is the point a hull comes in from
+       * by definition), otherwise the opposite of the heading a hull ends on, and
+       * only if the berth says neither does it fall back to pointing away from
+       * the painting's own centre. Then the scene walks out along that line
+       * asking its own depth field how deep the water is, and stops at the first
+       * point that is both clearly at sea and far enough out to read as a
+       * crossing rather than as a boat that has slipped its mooring.
+       *
+       * MEASURED ON THE PUBLISHED HUB, 2026-09-01: the berth lands at painting
+       * (528, 530) with about 30 pixels of water under it, and the field deepens
+       * southward to 160 by y 670, which is where this lands her. */
+      const OFFSHORE_DEPTH = DEFAULT_SAIL.probe * 3   // three boat-widths of water under the keel
+      const OFFSHORE_MIN = 140                        // and far enough out to be a passage
+      const OFFSHORE_MAX = 420                        // past this the island stops being in sight
+      const arriveAboard = () => {
+        if (!canSail || !berth) {
+          /* NOT AN ERROR AND NOT A SILENT NOTHING. A map with no berth cannot be
+           * arrived at by sea, and the honest outcome is the student standing on
+           * it rather than a black screen, said out loud so the next session
+           * finds the composition rather than this file. */
+          console.warn(`[pmap] ${mapId} was asked for by sea and has no berth on the world; arriving on foot`)
+          return
+        }
+        board()
+        if (!hull) return
+        const b = fromSea(berth.x, berth.y)
+        let dir = berth.approach
+          ? Math.atan2(fromSea(berth.approach.x, berth.approach.y).y - b.y, fromSea(berth.approach.x, berth.approach.y).x - b.x)
+          : berth.facing ? radOf(berth.facing) + Math.PI
+            : Math.atan2(b.y - pc.y, b.x - pc.x)
+        if (!isFinite(dir)) dir = Math.PI / 2
+        let out = { x: b.x, y: b.y }
+        for (let d = 16; d <= OFFSHORE_MAX; d += 16) {
+          const p = { x: b.x + Math.cos(dir) * d, y: b.y + Math.sin(dir) * d }
+          out = p
+          if (d >= OFFSHORE_MIN && depthAt(p.x, p.y) >= OFFSHORE_DEPTH) break
+        }
+        hull.x = out.x; hull.y = out.y
+        /* THE BOW POINTS AT THE ISLAND, because that is what arriving looks like.
+         * The berth is the thing she is making for, so the heading is the line to
+         * it and not the reverse of the line out. */
+        hull.heading = Math.atan2(b.y - out.y, b.x - out.x)
+        if (hullSp) { hullSp.position.set(hull.x, hull.y); hullSp.zIndex = OVER_PLACED + hull.y }
+        /* THE CAMERA IS ALREADY OUT WHEN THE COVER LIFTS. `zoomTo` asks the follow
+         * law to travel, and a travel under a cover is a zoom the student never
+         * sees followed by a frame that is wrong for the length of it, so the
+         * arrival snaps and only the sailing after it is eased. */
+        camZ = camZWant = Math.max(Z_MIN, Z * SAIL_ZOOM)
+        world.scale.set(camZ)
+        camTo(hull.x, hull.y, true)
+        console.log(`[pmap] ${mapId}: arrived by sea at ${Math.round(out.x)},${Math.round(out.y)}`
+          + ` · ${Math.round(Math.hypot(out.x - b.x, out.y - b.y))}px off the berth`
+          + ` · ${Math.round(depthAt(out.x, out.y))}px of water`)
+      }
+      if (target.aboard) arriveAboard()
 
       // the sea's first fill happens AFTER the camera snap so the pool sees the real
       // viewport; a grown viewport later needs more pooled ocean under it (the old

@@ -11,6 +11,7 @@ import { track } from '../telemetry'
 import { GearButton, SettingsPanel } from '../../app/SettingsPanel'
 import { Hud } from '../hud/Hud'
 import { useNav } from '../../app/SceneManager'
+import { PMAP_SCENE, SEA_ARRIVAL, setMapUrl } from '../pmap/route'
 
 // The intro lives ON the beach — one scene, playable and stageable. A fresh player gets the
 // I-1/I-2 cutscene the moment the stage reports ready; a returning one just gets the cove.
@@ -48,13 +49,30 @@ export default function IntroScene() {
     if (!save?.introDone) {
       track('cutscene_start', { id: 'intro' })
       runtime.play(introI1I2, () => {
-        // the whole beach act is done (I-1..I-5): the ship is in open water — THE MAP
-        // SWITCH (I-6): the BLHS Islands painting covers the load, the island map takes over.
-        // introDone flips true here, so from now on Continue lands on the island, not the beach.
-        writeSave({ beat: 'island:arrive', introDone: true })
+        /* THE WHOLE BEACH ACT IS DONE (I-1..I-5) and the ship is in open water.
+         *
+         * THE MAP SWITCH (I-6): the BLHS Islands painting covers the load and the
+         * ONE OCEAN takes over. It used to be the tile island map, which the
+         * walkthrough's §3.0 ruled dead in August and which a student pressing
+         * Continue still landed on as late as yesterday: tile palms and a
+         * Principal Panther line, on a map nothing else in the game reads.
+         *
+         * §3.0 is Ash's ruling of 2026-08-28 and it is one sentence: one ocean is
+         * the world and every map is a painting placed on it. So the cover lifts
+         * on the ocean off the published hub, with Thor aboard, the camera out at
+         * sailing scale and the tiller his. `aboard` is the whole of the request;
+         * `route.ts` is where the address is spelled and `PmapScene`'s
+         * `arriveAboard` is where it is performed.
+         *
+         * introDone flips true here, so from now on Continue lands in the Maw,
+         * not on the beach. */
+        writeSave({ beat: 'sea:arrive', introDone: true })
         track('cutscene_complete', { id: 'intro-beach-act' })
         track('sail_started')
-        navRef.current?.go('islandmap', { kind: 'scene', image: '/art/ui/loading-islands.png', title: 'THE BLHS ISLANDS', holdMs: 2600 })
+        /* the address goes down BEFORE the navigation, because PmapScene reads
+         * its target off the url at mount (route.ts says why) */
+        setMapUrl(SEA_ARRIVAL)
+        navRef.current?.go(PMAP_SCENE, { kind: 'scene', image: '/art/ui/loading-islands.png', title: 'THE BLHS ISLANDS', holdMs: 2600 })
       })
       // hand the black frame from the pre-cover to the script's own fade, seamlessly
       window.setTimeout(() => setPreCover(false), 400)

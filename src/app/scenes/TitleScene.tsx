@@ -3,6 +3,7 @@ import { useNav } from '../SceneManager'
 import { beginAdventure, loadSave } from '../../game/save'
 import { track } from '../../game/telemetry'
 import { GearButton, SettingsPanel, applySettings, loadSettings } from '../SettingsPanel'
+import { HOME_TARGET, PMAP_SCENE, setMapUrl } from '../../game/pmap/route'
 import './boot-title.css'
 
 // Title (GAME-DESIGN §4.2). The backdrop is the cove itself — for now a captured frame of
@@ -20,11 +21,31 @@ export default function TitleScene() {
 
   useEffect(() => { track('title_shown', { hasSave: !!save }); applySettings(loadSettings()) }, [save])
 
-  // one student, one run. Resume where they left off: mid-intro -> the beach; intro finished ->
-  // the island hub. Both ride the illustrated scene cover (calm, heavy — never a flash).
+  /* ONE STUDENT, ONE RUN, and Continue resumes where the run lives.
+   *
+   * MID-INTRO GOES TO THE BEACH, unchanged: an unfinished intro replays the whole
+   * script, and the parchment does not re-ask because the I-3 gate resolves itself
+   * off the saved identity (IntroScene says why). That half is not touched here.
+   *
+   * A FINISHED INTRO GOES TO THE MAW. Ash's rule: the Maw is Thor's home and where
+   * a run always resumes. It used to go to `islandmap`, the tile-era map the
+   * walkthrough's §3.0 ruled dead, and a student pressing Continue landed on tile
+   * palms with a Principal Panther line as recently as yesterday's capture.
+   *
+   * IT DOES NOT WAIT ON THE MAW BEING PUBLISHED. The loader asks the platform for
+   * `panther-maw` first and falls back to the committed stand-in bundle, which
+   * carries all eleven anchors including the `arrive_maw` this aims at, so the real
+   * room replaces it the moment Ash publishes with no code change here.
+   *
+   * Both rides use the illustrated scene cover (calm, heavy — never a flash). */
   const resume = (introDone: boolean) => {
-    if (introDone) nav.go('islandmap', { kind: 'scene', image: '/art/ui/loading-islands.png', title: 'THE BLHS ISLANDS', holdMs: 2200 })
-    else nav.go('beach', { kind: 'scene', title: 'THE FAR SHORE', holdMs: 2200 })
+    if (introDone) {
+      /* the address goes down before the navigation: PmapScene reads its target
+       * off the url at mount, so that a refresh lands in the room the student was
+       * standing in. `route.ts` owns the shape. */
+      setMapUrl(HOME_TARGET)
+      nav.go(PMAP_SCENE, { kind: 'scene', image: '/art/ui/loading-islands.png', title: 'THE BLHS ISLANDS', holdMs: 2200 })
+    } else nav.go('beach', { kind: 'scene', title: 'THE FAR SHORE', holdMs: 2200 })
   }
   // no save -> Begin Adventure (starts the one run). Save -> Continue where they left off.
   // (Starting over is Settings -> Danger Zone -> Restart, never a free title button.)
