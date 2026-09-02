@@ -1909,6 +1909,22 @@ export default function PmapScene() {
       // The circle holds Thor's face, the tail points at him, YOU rides on top. UI, so it
       // renders at net screen scale 1 (the 1/Z undoes the world's integer zoom). ----
       const pin = new Container()
+      /* WHAT THE WORLD'S OWN TYPE IS SET IN, AND WHY IT IS NOT TWELVE ANY MORE.
+       *
+       * `scripts/type-size.mjs` measured the paper panels and Ash's verdict on
+       * them was "I cant see shit"; the floor that came out of it is 14px and it
+       * is in `tokens.css` for every DOM surface. The three pieces of text drawn
+       * INSIDE the world are the ones that floor could not reach, because they
+       * are canvas objects and `--kit-text-scale` is CSS: the door prompt at 12,
+       * the YOU pin at 12 and the sea marks at 13, all in whatever monospace the
+       * machine happens to ship. Sixteen at the default setting, moved by the
+       * same three multipliers `html[data-textsize]` writes, so the world's type
+       * and the panels' type answer one control. */
+      const promptSize = (): number => {
+        const v = typeof document === 'undefined' ? '' : document.documentElement.dataset.textsize
+        return Math.round(16 * (v === 's' ? 0.86 : v === 'l' ? 1.22 : 1))
+      }
+
       const PR = 12                        // pin circle radius in screen px
       const PCY = -PR - 8                  // circle centre; the tail tip is the origin
       const pinG = new Graphics()
@@ -1929,9 +1945,21 @@ export default function PmapScene() {
       const headMask = new Graphics().circle(0, PCY, PR - 1).fill(0xffffff)
       head.mask = headMask
       pin.addChild(headMask, head)
+      /* THE SAME FACE AND THE SAME SETTING AS THE PROMPT. This was the second of
+       * the three literals §40.5 names (the prompt at 12, this at 12 and the sea
+       * marks at 13), all in operating-system monospace, all deaf to S/M/L. The
+       * pin keeps its stroke because it has no plaque behind it: it rides over
+       * open water and over a painting, and the stroke is what makes it legible
+       * on both. */
       const youTxt = new Text({
         text: 'YOU',
-        style: new TextStyle({ fontFamily: 'monospace', fontSize: 12, fontWeight: 'bold', fill: 0xbaf3ea, stroke: { color: 0x06282c, width: 3 } }),
+        style: new TextStyle({
+          fontFamily: ['Deckhand', 'monospace'],
+          fontSize: promptSize(),
+          fontWeight: 'bold',
+          fill: 0xbaf3ea,
+          stroke: { color: 0x06282c, width: 3 },
+        }),
       })
       youTxt.anchor.set(0.5, 1)
       youTxt.position.set(0, PCY - PR - 2)
@@ -2002,19 +2030,6 @@ export default function PmapScene() {
         barred: 'lock',
         needs: 'key',
         done: 'tick',
-      }
-
-      /* WHAT THE PROMPT IS SET IN, AND WHY IT IS NOT TWELVE ANY MORE.
-       *
-       * `scripts/type-size.mjs` measured the paper panels and Ash's verdict on
-       * them was "I cant see shit"; the floor that came out of it is 14px and it
-       * is in `tokens.css` for every DOM surface. This is the one surface that
-       * floor could not reach. Sixteen at the default setting, moved by the same
-       * three multipliers `html[data-textsize]` writes, so the world's type and
-       * the panels' type answer one control. */
-      const promptSize = (): number => {
-        const v = typeof document === 'undefined' ? '' : document.documentElement.dataset.textsize
-        return Math.round(16 * (v === 's' ? 0.86 : v === 'l' ? 1.22 : 1))
       }
 
       const prompt = new Container()

@@ -106,6 +106,14 @@ html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
 .cs-dialogue-body {
   flex: 1 1 auto;
   min-width: 0;
+  /* THE CUE'S STRIP IS RESERVED, NOT SHARED. `.cs-continue-hint` is absolutely
+     positioned at `right: 13%; bottom: 13%`, so on any line that fills the box
+     the paw and the words "click, or press space" were drawn straight through
+     the last sentence: `build-shots/ui/after/06-dialogue.png` has the cue
+     sitting on top of "properly". Absolute positioning takes an element out of
+     flow, which means the flow has to be told about it, and this is that. The box
+     grows by a line rather than the line being covered. */
+  padding-bottom: calc(24px * var(--kit-text-scale));
   /* AND PAST THE CEILING IT SCROLLS RATHER THAN CLIPS. §40.14 asks for "a defined
      behaviour for a line that still does not fit" and this is it. The box grows to
      its ceiling first, because a box that scrolls when it could have grown is a box
