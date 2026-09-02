@@ -350,28 +350,30 @@ export function Graduation({ onClose }: { onClose: () => void }) {
             onAdvance={() => setStage('honours')}
           >
             <h2 className="gr-title">Graduation</h2>
-            {/* THE PARAGRAPH DESCRIBED A BODY THAT DID NOT EXIST.
-                The art-direction pass of 2026-09-01 put it first on its list of
-                what no code can fix: "the whole graduation payoff... right now
-                four years of play resolve into a paragraph". The line under this
-                used to read "Thor walks the stage in teal. The stole reads
-                BONNEY LAKE", which is a caption for a picture nobody had drawn.
-                He is drawn now, so the caption goes and the picture stays.
+            {/* THE FIGURE IS OUT, AND THE PARAGRAPH IS BACK, ON ASH'S WORD.
+                2026-09-02: "the graduation gown on thor looks like a joke,
+                complete different thor and ugly gown."
 
-                He is deliberately UNADORNED. §14.10's rule is that this must not
-                be a paper doll: the cords a student really earned drape onto THIS
-                figure one at a time in the stage after this one, so nothing is
-                painted on him that was not earned. */}
-            <img
-              className="gr-figure pix"
-              src="/art/run/graduate.png"
-              alt="Thor in a teal gown and mortarboard, with the black stole over both shoulders"
-              draggable={false}
-            />
+                What was here was a PixelLab generation of Thor in regalia. The
+                art-direction agent had measured it as recognisably Thor and
+                conditionally passed it; Ash looked at it and did not, and his
+                verdict after looking is the only gate. It is kept at
+                `reference/_archive/build-shots/ui/generated/05-graduate-*.png`
+                rather than deleted, because the record of what was tried is
+                worth more than the file.
+
+                SO THE PAYOFF IS A PARAGRAPH AGAIN, and that is a real hole
+                rather than a resting place: §14 wants the falls terrace, the
+                crowd, the cape and the cords draping onto a body. The route to
+                it is not another freehand generation. `principal-pro` in the
+                Maw's own library is a panther in exactly this regalia, drawn in
+                MAPVIS's character pipeline at the game's own resolution, and it
+                is the proof that the pipeline can make this figure properly. */}
             <p className="gr-line">
               The falls terrace, dressed at last. Everyone you met these four years is in the crowd,
               and the ones you ranked with stand in the front row.
             </p>
+            <p className="gr-line">Thor walks the stage in teal. The stole reads BONNEY LAKE.</p>
           </TapCard>
         )}
 

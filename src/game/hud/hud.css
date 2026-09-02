@@ -28,8 +28,19 @@
 .hud-plaque {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   box-sizing: border-box;
-  width: 150px; height: 70px;
-  padding: 0 14px 4px;
+  /* WIDE ENOUGH FOR THE LONGEST WORD IT CARRIES. "Handbook" plus its mark and
+     the gutter measures 113, and at 150 that left 110 of field, so the one sign
+     with the longest label was the one that overflowed. The art is drawn at
+     2.16 to 1 and this is 2.34, which is a six percent stretch on a carved plate
+     and does not read. */
+  width: 164px; height: 70px;
+  /* THE PADDING IS THE ROPE, MEASURED RATHER THAN GUESSED. `plaque-small.png`
+     carries a carved frame and a rope inlay around a field, and at fourteen
+     pixels the contents were sitting ON that frame rather than inside it: Ash,
+     2026-09-02, "the 3 left clips out of the button panel". Probed at 1366x768,
+     the token row ran to x=170 inside a plaque whose box ends at 177, so the
+     word was seven pixels from the outer edge and well past the inlay. */
+  padding: 0 20px 4px;
   border: 0;
   background: var(--kit-art-plaque) center / 100% 100% no-repeat;
   image-rendering: var(--kit-pixel);
@@ -69,8 +80,19 @@
 }
 html[data-rm='1'] .hud-arriving { animation-duration: 1ms; }
 
-.hud-tokenbtn { padding-bottom: 6px; }
-.hud-tokens { display: flex; gap: 4px; }
+/* THE SEASONS SIT ABOVE THEIR COUNT, NOT BESIDE IT.
+ *
+ * Three pips at 24 plus the words "3 left" is about 135 pixels of content in a
+ * sign whose field is 110 wide, and there is no honest way to fit that on one
+ * line: shrinking the pips to make room would take the drawn seasonal marks down
+ * to a size where a maple leaf and a snowflake are the same smudge, which is the
+ * whole thing the `pip` sheet was worn to fix.
+ *
+ * A sign can have two lines. The title's plank already does. Stacked, the widest
+ * thing in here is the pip row at 80, which clears the field with room, and the
+ * count reads under the marks it is counting. */
+.hud-tokenbtn { flex-direction: column; gap: 2px; padding-bottom: 8px; }
+.hud-tokens { display: flex; gap: 5px; }
 .hud-token {
   width: 24px; height: 24px; border-radius: 50%;
   border: var(--kit-border) solid var(--kit-wood-edge);
