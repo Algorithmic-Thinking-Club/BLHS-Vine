@@ -7,6 +7,17 @@
 import type { CoreBeat } from './frames'
 
 const PP = 'Principal Panther'
+/* HIS FACE, DRAWN 2026-09-01 and judged before it was worn.
+ *
+ * `SceneLine.portrait` has carried an id since the box was written and NOTHING
+ * had ever set one, so `public/art/portraits/` did not exist and every
+ * conversation in the game was a faceless box. The dialogue box's portrait frame
+ * was rebuilt for it in round one and had nothing to hold.
+ *
+ * `principal` is the file, three attempts and one inpaint deep, passed by the
+ * art-direction agent against `reference/gold-standard/` before it was mounted
+ * (the three-way is in `build-shots/ui/generated/`). Ash has not seen it play. */
+const PP_FACE = 'principal'
 
 export const CORE_Y1: CoreBeat = {
   id: 'core:y1',
@@ -17,8 +28,8 @@ export const CORE_Y1: CoreBeat = {
   credit: 0.5,
   takeaways: ['f-power-full', 'f-monday', 'f-25th-credit', 'f-join-clubs'],
   steps: [
-    { kind: 'say', line: { speaker: PP, text: 'Every year at Bonney Lake starts right here, at the fire. Advisory. Most Mondays we sit down together and make sure nobody is lost.' } },
-    { kind: 'say', line: { speaker: PP, text: 'The first thing this school hands you is five letters. POWER. Learn what they stand for and you will know what we care about.' } },
+    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'Every year at Bonney Lake starts right here, at the fire. Advisory. Most Mondays we sit down together and make sure nobody is lost.' } },
+    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'The first thing this school hands you is five letters. POWER. Learn what they stand for and you will know what we care about.' } },
     {
       kind: 'check',
       check: {
@@ -35,8 +46,8 @@ export const CORE_Y1: CoreBeat = {
         objective: 'name the five POWER values',
       },
     },
-    { kind: 'say', line: { speaker: PP, text: 'Now, the rhythm of a week. Mondays run late here. School starts at 8:30 instead of 7:25, and advisory meets that morning.' } },
-    { kind: 'say', line: { speaker: PP, text: 'And advisory is not filler. Pass it every semester and it quietly pays out an elective credit across four years. The catalog calls it the 25th credit.' } },
+    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'Now, the rhythm of a week. Mondays run late here. School starts at 8:30 instead of 7:25, and advisory meets that morning.' } },
+    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'And advisory is not filler. Pass it every semester and it quietly pays out an elective credit across four years. The catalog calls it the 25th credit.' } },
     {
       kind: 'check',
       check: {
@@ -50,8 +61,8 @@ export const CORE_Y1: CoreBeat = {
         objective: 'know the Monday late start',
       },
     },
-    { kind: 'say', line: { speaker: PP, text: 'Out on the water, every island is a real club, a real sport, a real class. And joining is not paperwork.' } },
-    { kind: 'say', line: { speaker: PP, text: 'DECA meets Thursdays at 2:10 in the 200 Flex. Robotics builds Mondays and Thursdays in rooms 206 and 207. Your Handbook keeps the whole list.' } },
+    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'Out on the water, every island is a real club, a real sport, a real class. And joining is not paperwork.' } },
+    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'DECA meets Thursdays at 2:10 in the 200 Flex. Robotics builds Mondays and Thursdays in rooms 206 and 207. Your Handbook keeps the whole list.' } },
     {
       kind: 'check',
       check: {
@@ -65,6 +76,6 @@ export const CORE_Y1: CoreBeat = {
         objective: 'know how joining works',
       },
     },
-    { kind: 'say', line: { speaker: PP, text: 'That is the lay of the land, Panther. Spend your seasons well.' } },
+    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'That is the lay of the land, Panther. Spend your seasons well.' } },
   ],
 }

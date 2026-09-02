@@ -141,7 +141,7 @@ export const STATIONS: Station[] = [
        * lowercase word `principal` on the plate. The anchor is `principal_desk`
        * and its station carries `fallbackLabel: 'Principal Panther'`, which is
        * the name a student should read. */
-      yield { kind: 'say', who: 'principal_desk', text: 'Back again. Good. The sea does not run out.' }
+      yield { kind: 'say', who: 'principal_desk', portrait: 'principal', text: 'Back again. Good. The sea does not run out.' }
     },
   },
 

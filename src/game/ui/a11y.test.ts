@@ -47,9 +47,21 @@ function Panel({ label, onClose, extra }: { label: string; onClose?: () => void;
 const esc = () => act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })) })
 
 describe('a panel takes focus, holds it, and gives it back', () => {
-  it('moves focus to the first thing in it', () => {
+  /* THE EXPECTATION MOVED ON 2026-09-01 AND THE REASON IS AT THE CALL SITE.
+   *
+   * This asserted that focus lands on the first CONTROL. It now lands on the
+   * panel, which the ARIA practices allow and which this kit needs: Chromium
+   * counts programmatic focus after a key press as keyboard focus, so the first
+   * control was ringed the instant any panel opened, and the art-direction pass
+   * measured that as a flat yellow rectangle on ten of twenty-three surfaces.
+   * What the panel owes is unchanged and is still asserted below: focus goes
+   * INTO it, cannot leave it, and comes back on close. */
+  it('moves focus into the panel itself, so nothing is ringed before a key is pressed', () => {
     act(() => root.render(createElement(Panel, { label: 'Handbook' })))
-    expect(document.activeElement?.id).toBe('Handbook-first')
+    const box = host.querySelector('.box')!
+    expect(document.activeElement).toBe(box)
+    /* and it is reachable without being in the tab order */
+    expect(box.getAttribute('tabindex')).toBe('-1')
   })
 
   it('returns focus to whatever opened it', () => {
@@ -59,7 +71,7 @@ describe('a panel takes focus, holds it, and gives it back', () => {
     expect(document.activeElement).toBe(opener)
 
     act(() => root.render(createElement(Panel, { label: 'Handbook' })))
-    expect(document.activeElement?.id).toBe('Handbook-first')
+    expect(document.activeElement).toBe(host.querySelector('.box'))
 
     act(() => root.render(createElement('div')))
     expect(document.activeElement).toBe(opener)

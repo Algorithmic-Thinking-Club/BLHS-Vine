@@ -194,10 +194,29 @@ export function usePanel({ label, onClose, closeOnEscape = true }: PanelOptions)
     const cameFrom = document.activeElement as HTMLElement | null
     const release = makeBackgroundInert(el)
 
-    /* the first thing a player can act on, or the panel itself when it is only
-     * text. Never the close button by accident: it is usually last in the DOM. */
-    const first = focusablesIn(el)[0] ?? el
-    first.focus?.()
+    /* THE PANEL ITSELF, NOT THE FIRST THING IN IT.
+     *
+     * This focused the first focusable control, which is what a lot of dialogs
+     * do and is allowed by the ARIA practices, and on this kit it was wrong for
+     * a reason you can only see in a picture. Chromium treats focus moved
+     * programmatically after a key press as keyboard focus, and a panel is
+     * usually opened by a key press, so `:focus-visible` matched on the first
+     * control the instant the panel appeared. The art-direction pass of
+     * 2026-09-01 put the result at the top of its list: a flat yellow rectangle
+     * on ten of twenty-three surfaces, "raw browser chrome shipping inside the
+     * drawn game", and on the year card an 850x180 ring across the bottom third
+     * of the screen because the first control there is the whole card.
+     *
+     * The practices allow either. Focusing the dialog is the better half here:
+     * the reader still hears the panel announce itself, Tab still walks straight
+     * into the first control, Escape still closes, and nothing is ringed until a
+     * student actually navigates. A ring that appears before anybody has pressed
+     * a key is not telling them where they are, it is decoration that looks like
+     * a bug.
+     *
+     * The panel carries `tabIndex={-1}` from the binding below, which is what
+     * makes it focusable without putting it in the tab order. */
+    el.focus?.()
 
     const key = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.repeat) return

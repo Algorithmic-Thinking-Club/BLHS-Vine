@@ -316,7 +316,7 @@ export function DialogueBox({
                 path it wanted when the art is not drawn yet. There is no
                 public/art/portraits/ in this repository, so today every portrait
                 takes that path and leaves a clean empty frame. */}
-            <PortraitFrame src={`/art/portraits/${line.portrait}.png`} />
+            <PortraitFrame id={line.portrait} />
           </span>
         )}
         {/* THE PLAQUE HANGS OFF THE BOX, not off the text column. It is absolutely

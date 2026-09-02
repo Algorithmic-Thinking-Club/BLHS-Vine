@@ -432,19 +432,33 @@ html[data-rm='1'] .kit-socket[data-state='refusing'] { animation: none; }
 
 /* ---- THE PORTRAIT FRAME -------------------------------------------------- */
 
+/* THE FRAME IS SIZED FOR THE PICTURE, AND THE CARVING IS SCALED TO FIT IT.
+ *
+ * FOUND BY LOOKING, 2026-09-01, on the first shot with a real portrait in it:
+ * the frame drew and the face did not. `portrait_frame` is painted 200x185 with
+ * a 34/38/37/29 slice, so in a 108x100 box the border alone is 71 pixels of the
+ * 100 and 67 of the 108, leaving a 41x29 hole for a 96 pixel portrait. The
+ * picture was not missing; it was squeezed to the size of a postage stamp behind
+ * a caption.
+ *
+ * Two numbers fix it and both are stated rather than tuned. The box is the
+ * portrait's own 96 plus the carving. The carving is drawn at 0.6 of its painted
+ * scale, which is a `border-width` override at two classes so it beats the
+ * platform's own one-class block, the same move the tab row needed and for the
+ * same reason. */
 .kit-portrait {
   position: relative;
   display: flex;
   flex: none;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   box-sizing: border-box;
-  width: 108px;
-  height: 100px;
-  padding: 6px;
+  width: 136px;
+  height: 138px;
   overflow: hidden;
 }
+.kit-portrait.kit-surface-portrait_frame { border-width: 20px 23px 22px 17px; }
 .kit-portrait-pic {
   max-width: 100%;
   max-height: 100%;

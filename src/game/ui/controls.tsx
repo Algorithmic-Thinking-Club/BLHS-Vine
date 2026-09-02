@@ -341,9 +341,23 @@ export function Socket({
  * floats. `portrait_frame` publishes `picture` and `caption`, and `valign` on
  * the picture region is required and not defaulted because the shipped portrait
  * is bottom-anchored: a character that centres in its own box floats. */
+/* WHERE A PORTRAIT LIVES, DECIDED ONCE.
+ *
+ * This took a `src` and two callers built it two different ways: `DialogueBox`
+ * spelled out `/art/portraits/${id}.png` and `ActivityRunner` handed over the
+ * bare id, so the first portrait ever drawn appeared in the world's dialogue box
+ * and was a broken image inside the beat runner, which is the frame every scored
+ * item in the study is read on. §40.12's law is about the same thing one layer
+ * up: two rules for one string is how they drift.
+ *
+ * It takes the ID now. The path is here, once, and a caller cannot get it
+ * wrong. */
+export const portraitUrl = (id: string): string => `/art/portraits/${id}.png`
+
 export function PortraitFrame({
-  src, caption, className = '',
-}: { src: string; caption?: string; className?: string }) {
+  id, caption, className = '',
+}: { id: string; caption?: string; className?: string }) {
+  const src = portraitUrl(id)
   const [failed, setFailed] = useState(false)
   useEffect(() => { setFailed(false) }, [src])
   return (

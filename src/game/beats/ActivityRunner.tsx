@@ -291,7 +291,12 @@ function GamePlay({ beat, checksOnly, attempt, arm, world, onDone }: {
                 who sets one on a beat's line now sees it, in the kit's drawn frame,
                 and `PortraitFrame` says out loud in the console when the art is
                 missing rather than hiding the face silently. */}
-            {step.line.portrait && <PortraitFrame src={step.line.portrait} caption={step.line.speaker} />}
+            {/* NO CAPTION. The name plate is six pixels to the right of this
+                frame saying the same words, and inside a 136 pixel frame a
+                second copy of "Principal Panther" took the space the face was
+                supposed to occupy. A caption belongs on a portrait that has
+                nothing beside it. */}
+            {step.line.portrait && <PortraitFrame id={step.line.portrait} />}
             <span className="bt-speaker">{step.line.speaker}</span>
           </span>
           <span className="bt-text">{step.line.text}</span>
