@@ -295,6 +295,31 @@ export const checkIdOf = (c: CheckStep): string => (c.kind === 'quiz' ? c.item.i
 /** the question, in the words the author wrote, identical in both arms */
 export const promptOf = (c: CheckStep): string => (c.kind === 'quiz' ? c.item.prompt : c.prompt)
 
+/* DID THIS ONE FIELD EARN ITS POINT, decided here and nowhere else.
+ *
+ * THE DEFECT THIS CLOSES, found 2026-09-01 and worth writing at the function
+ * because it is the exact shape of failure this file was created to make
+ * impossible. `ActivityRunner`'s plain arm marked a row correct with a STRING
+ * compare, `given === f.correct`, while `PALETTE.number.score` had scored the
+ * same answer with a declared TOLERANCE since the kind was added. On the shipped
+ * item (answer 3.76, tolerance 0.05) a control-arm student who typed 3.80 was
+ * scored right by the accumulator and told "the answer is 3.76" by the line
+ * underneath it, in the same frame. The grade was right, the page was wrong, and
+ * the student read the page.
+ *
+ * WHY A PARTIAL RESPONSE IS AN EXACT ANSWER AND NOT A TRICK. Every `score` in
+ * the table above is a SUM OF INDEPENDENT PER-FIELD PREDICATES: a sort counts
+ * items whose bucket matches, an ordering counts positions, a showdown counts
+ * rounds, and the five single-field kinds read one key. No kind reads a second
+ * field to decide the first, so scoring a response carrying one field returns 1
+ * exactly when that field is right and 0 otherwise. A kind that ever breaks that
+ * would break the accumulator too, because the runner adds item scores together.
+ *
+ * The value is read out of the response rather than taken as an argument so a
+ * caller cannot hand this function a value the accumulator never saw. */
+export const fieldRight = (c: CheckStep, f: PlainField, r: Response): boolean =>
+  scoreOf(c, { [f.id]: r[f.id] ?? '' }) > 0
+
 /** the response that earns full marks. The plain rendering already knows it, so
  *  reading it back off the fields is what proves the plain arm can reach the same
  *  score the game arm can rather than being a lossy copy of the item. */

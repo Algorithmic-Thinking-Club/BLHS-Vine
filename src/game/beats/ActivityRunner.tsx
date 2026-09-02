@@ -2,21 +2,23 @@ import { useEffect, useRef, useState } from 'react'
 import type { CheckStep } from '../../vine/contract'
 import { checksOf, playableSteps, pointsOf, type BeatStep, type BeatWorld, type CoreBeat } from './frames'
 import {
-  checkIdOf, plainOf, promptOf, scoreOf,
+  checkIdOf, fieldRight, plainOf, promptOf, scoreOf,
   type PlainField, type PlainRender, type Response,
 } from './palette'
 import { progressOf, responseOf, showdownReduce, startShowdown, yardsRemaining, type ShowdownState } from './showdown'
 import { LATENCY_CONVENTION, latencyOf, markFirst } from './timing'
 import { emptyScore, gradeOf, retakeAvailable, type BeatScore } from './score'
 import { collectFact, loadSave, recordGrade } from '../save'
-import { cordsOf, letterOf, newlyCloseCords } from '../progress'
+import { cordsOf, letterOf, newlyCloseCords, PASSING_GRADE } from '../progress'
 import { factById } from '../facts'
 import { track } from '../telemetry'
 import { usePanel } from '../ui/a11y'
 import { currentSkin } from '../ui/skin'
+import { Chip, Field, Gauge, Glyph, Plank, PortraitFrame, useFace } from '../ui/controls'
+import { right as sayRight, wrong as sayWrong } from '../ui/feedback'
 import './beats.css'
 
-// THE ACTIVITY RUNNER — the vine's woven-check chassis (§6.7 baseline), playing any
+// THE ACTIVITY RUNNER, the vine's woven-check chassis (§6.7 baseline), playing any
 // CoreBeat in either study arm from the SAME data (law §2.12: content constant, game-ness
 // the variable):
 //  - game arm: dialogue at the player's pace, checks woven between lines, warmth on wrong
@@ -37,6 +39,37 @@ import './beats.css'
 // This used to be two switches, one per arm, over three kinds, free to disagree. That is
 // how a control arm ends up with a harder version of the same item and nobody finds out,
 // because both arms still emit an identical event shape and the data cannot tell you.
+//
+// ---------------------------------------------------------------------------------------
+// EVERY STATE THIS RUNNER CAN BE IN, COUNTED UP FRONT (§40.42), because the order says
+// enumerate first and then build each, and because six of these ten had no drawing at all:
+//
+//   1 idle        the panel is up on a spoken line. The whole card is the button and the
+//                 advance cue is moving (§6.5). Drawn: `.bt-say` + the `cue` sheet.
+//   2 presented   an item is on screen, answerable, and nothing has been touched. The
+//                 commit control is REFUSED and says in words what it is waiting for.
+//   3 answering   at least one field is set. The commit control is live. On a sort every
+//                 assignment stays reversible right up to the press (§6.8).
+//   4 right       committed, and every field earned its point. `right()` speaks the
+//                 author's own confirmation.
+//   5 wrong       committed, and at least one field did not. Both halves of the mistake
+//                 stay on screen: the chosen option keeps its pressed state and the row
+//                 gains its truth (§6.9). `wrong()` speaks the author's own reply. Never
+//                 a red fill and never a buzzer.
+//   6 revealed    the settled state 4 and 5 share: every control is disabled and an
+//                 unpicked wrong option is visibly SPENT rather than merely inert.
+//   7 finished    the last item is answered. The game arm says so beside the last
+//                 "Keep going"; the plain arm's whole graded form IS this state, with the
+//                 per-item corrections printed before any grade is shown.
+//   8 result      the result card: the letter, the grade to 2dp, the raw count, the
+//                 gauge, what was earned, the takeaways, the counselor's line, the way out.
+//   9 review      the takeaways again, before the retake unlocks ("legitimate effort").
+//  10 retake      the check set running back, attempt 2, with `attempt.n` carrying it.
+//
+// A note on 7, honestly: handing the accumulator to `finish()` is synchronous, so there is
+// no loading frame to draw between the last answer and the result card, and inventing one
+// would be a bar that fills on a timer. What 7 gets instead is a word: the last item says
+// it is the last one, and the plain arm's graded form is a real screen a student sits on.
 
 type Answer = { earned: number; total: number; tries: number; latencyMs: number }
 type Answers = Record<string, Answer>
@@ -153,7 +186,7 @@ export function CoreBeatRunner(
 
   return (
     <div className="bt-veil">
-      <div {...panel} className={arm === 'plain' ? 'bt-plain' : 'bt-stage'}>
+      <div {...panel} className={arm === 'plain' ? 'bt-plain' : 'bt-stage kit-surface-panel'}>
         {(phase === 'play' || phase === 'retake') && (arm === 'plain'
           ? <PlainForm beat={beat} checksOnly={phase === 'retake'} attempt={attempt.current} arm={arm} onDone={finish} />
           : <GamePlay beat={beat} checksOnly={phase === 'retake'} attempt={attempt.current} arm={arm} world={world} onDone={finish} />)}
@@ -181,6 +214,24 @@ const replyFor = (r: PlainRender, field: string, value: string): string =>
   ?? r.replies.find((x) => x.field === field && x.value === '')?.text
   ?? ''
 
+const labelOf = (f: PlainField, value: string) => f.options.find((o) => o.value === value)?.text ?? value
+
+/* WARMTH, IN THE AUTHOR'S OWN WORDS, THROUGH THE KIT'S ONE FEEDBACK SET.
+ *
+ * §6.9 is the law: "a wrong answer in this game is met with warmth and
+ * information. Not with a penalty and not with a colour that means failure." The
+ * mechanism that delivers it is the DATA and not a tone setting, so this hands
+ * `feedback.ts` the reply the author wrote for the answer the student actually
+ * gave and never a generic line. `wrong()` is warm ink on the same paper
+ * `right()` uses; nothing in this file fills anything with the alarm colour.
+ *
+ * It also says it out loud: `feedback()` announces through the kit's one live
+ * region, so a correction reaches a student who cannot see the card. */
+function speak(gotAll: boolean, authored: string, truth: string): void {
+  if (gotAll) sayRight('That is it', authored || undefined)
+  else sayWrong('Have another look', authored || truth)
+}
+
 // ---- the game arm: step-by-step, at the player's pace --------------------------------
 
 function GamePlay({ beat, checksOnly, attempt, arm, world, onDone }: {
@@ -203,35 +254,111 @@ function GamePlay({ beat, checksOnly, attempt, arm, world, onDone }: {
   }
 
   const step = steps[idx]
+  /* THE SPINE, READ OFF THE BEAT RATHER THAN TYPED. §6.9's open finding is that a
+   * student is never told how many items there are or which one they are on, and
+   * §6.4's law is that the scorable spine is derived and never declared, so the
+   * rail counts the same steps `checksOf` counts and cannot disagree with the
+   * denominator on the result card. */
+  const total = steps.filter((s) => s.kind === 'check').length
+  const answered = steps.slice(0, idx).filter((s) => s.kind === 'check').length
+  const last = idx + 1 >= steps.length
+
   return (
     <>
-      <div className="bt-place">{beat.place} · {beat.title}</div>
+      <div className="bt-head">
+        <span className="bt-place">{beat.place} · <b>{beat.title}</b></span>
+        {total > 0 && (
+          <span className="bt-rail">
+            <span className="bt-railword">{answered} of {total} answered</span>
+            <span className="bt-railpips" aria-hidden="true">
+              {Array.from({ length: total }, (_, i) => (
+                <Chip key={i} state={i < answered ? 'plate_spent' : i === answered && step.kind === 'check' ? 'plate_lit' : 'plate'} />
+              ))}
+            </span>
+          </span>
+        )}
+      </div>
       {step.kind === 'say' ? (
-        <button className="bt-say" onClick={advance}>
-          <span className="bt-speaker">{step.line.speaker}</span>
+        <button className="bt-say kit-surface-dialogue" onClick={advance}>
+          <span className="bt-speakerrow">
+            {/* PORTRAIT, WHICH `SceneLine` HAS CARRIED SINCE THE BOX WAS WRITTEN
+                AND NOTHING HAS EVER DRAWN. §6.5's own want, in one line: an author
+                who sets one on a beat's line now sees it, in the kit's drawn frame,
+                and `PortraitFrame` says out loud in the console when the art is
+                missing rather than hiding the face silently. */}
+            {step.line.portrait && <PortraitFrame src={step.line.portrait} caption={step.line.speaker} />}
+            <span className="bt-speaker">{step.line.speaker}</span>
+          </span>
           <span className="bt-text">{step.line.text}</span>
-          <span className="bt-cue">🐾</span>
+          <AdvanceCue />
         </button>
       ) : (
         <CheckPlay
           key={`${checkIdOf(step.check)}:${attempt.n}`}
           check={step.check}
           world={world}
+          last={last}
           onDone={(response, ms) => {
             const id = checkIdOf(step.check)
-            const total = pointsOf(step.check)
+            const worth = pointsOf(step.check)
             const earned = scoreOf(step.check, response)
             const tries = attempt.n
-            accum.current[id] = { earned, total, tries, latencyMs: ms }
+            accum.current[id] = { earned, total: worth, tries, latencyMs: ms }
             track('check_answered', {
-              item: id, kind: step.check.kind, correct: earned === total,
-              earned, total, tries, latencyMs: ms, latency: LATENCY_CONVENTION, arm, via: 'woven',
+              item: id, kind: step.check.kind, correct: earned === worth,
+              earned, total: worth, tries, latencyMs: ms, latency: LATENCY_CONVENTION, arm, via: 'woven',
             })
             advance()
           }}
         />
       )}
     </>
+  )
+}
+
+/* THE ADVANCE CUE, DRAWN. It was the emoji paw print, which `docs/ART.md` rules
+ * out ("Icons are drawn, never an emoji or a font glyph") and which §6.5 already
+ * named as a placeholder that twenty islands would otherwise inherit. The kit
+ * publishes a four frame paw on the `cue` sheet, so the frames are stacked and
+ * shown one at a time by the stylesheet.
+ *
+ * WHEN NOBODY DREW IT, a token-coloured chevron stands in rather than a
+ * character. The kit only wears its faces behind `?kit=1`, so that fallback is
+ * what a student sees today and it had to be as deliberate as the drawing. */
+const CUE_FRAMES = ['frame_1', 'frame_2', 'frame_3', 'frame_4']
+
+function AdvanceCue() {
+  const drawn = useFace('cue', 'frame_1')
+  if (!drawn) return <span className="bt-cue-mark" aria-hidden="true" />
+  return (
+    <span className="bt-cue" aria-hidden="true">
+      {CUE_FRAMES.map((f, i) => (
+        <Glyph key={f} piece="cue" face={f} size={26} className={`bt-cueframe bt-cf${i + 1}`} />
+      ))}
+    </span>
+  )
+}
+
+/* THE COMMIT CONTROL, AND WHY IT IS ITS OWN COMPONENT.
+ *
+ * `docs/ops/BRIEF-UI.md` item 8: "the four disabled buttons in ActivityRunner.tsx
+ * replaced by controls that answer". Four commits in this file could be refused
+ * and all four were a grey rectangle that did nothing when pressed and said
+ * nothing about why. A refused control now carries the reason in words beside
+ * itself and in its own tooltip, off the SAME completeness test that gates the
+ * press, so the sentence cannot drift from the rule. */
+function Commit({ ready, needs, onCommit, label = 'That is my answer' }: {
+  ready: boolean
+  /** what is still missing, in words, for the student and for the tooltip */
+  needs: string
+  onCommit: () => void
+  label?: string
+}) {
+  return (
+    <div className="bt-foot">
+      <Plank size="md" disabled={!ready} title={ready ? undefined : needs} onClick={onCommit}>{label}</Plank>
+      {!ready && <span className="bt-needs">{needs}</span>}
+    </div>
   )
 }
 
@@ -245,9 +372,10 @@ function GamePlay({ beat, checksOnly, attempt, arm, world, onDone }: {
  * Two kinds ask for more than a field list and get their own branch: `showdown`,
  * which is round by round and carries a drive between rounds, and `do`, which is
  * answered by walking somewhere when there is a world to walk in. */
-function CheckPlay({ check, world, onDone }: {
+function CheckPlay({ check, world, last, onDone }: {
   check: CheckStep
   world?: BeatWorld
+  last: boolean
   onDone: (r: Response, ms: number) => void
 }) {
   const render = plainOf(check)
@@ -269,7 +397,7 @@ function CheckPlay({ check, world, onDone }: {
     return <ShowdownPlay check={check} onDone={(r) => onDone(r, latency())} onTouch={touch} />
   }
   if (check.kind === 'do' && world) {
-    return <DoPlay check={check} world={world} render={render} onDone={(r) => onDone(r, latency())} onTouch={touch} />
+    return <DoPlay check={check} world={world} render={render} last={last} onDone={(r) => onDone(r, latency())} onTouch={touch} />
   }
 
   const single = render.fields.length === 1 ? render.fields[0] : null
@@ -278,7 +406,7 @@ function CheckPlay({ check, world, onDone }: {
   if (single && single.input === 'radio') {
     return (
       <OneOf
-        render={render} field={single} picked={picks[single.id]}
+        check={check} render={render} field={single} picked={picks[single.id]} last={last}
         onPick={(v) => set(single.id, v)}
         onDone={() => onDone(picks, latency())}
       />
@@ -288,105 +416,198 @@ function CheckPlay({ check, world, onDone }: {
   // one field, typed: a number, where recognition would be a different measurement
   if (single && single.input === 'text') {
     const typed = picks[single.id] ?? ''
-    const right = scoreOf(check, picks) === pointsOf(check)
+    /* THE PALETTE DECIDES, HERE AND IN THE FORM. A number is scored against a
+     * declared tolerance, so nothing outside `palette.ts` may compare strings. */
+    const got = fieldRight(check, single, picks)
+    const truth = `It is ${single.correct}${single.label ? ` ${single.label}` : ''}.`
+    const authored = replyFor(render, single.id, typed)
     return (
-      <div className="bt-check">
+      <div className="bt-check" data-state={revealed ? (got ? 'right' : 'wrong') : typed.trim() === '' ? 'presented' : 'answering'}>
         <div className="bt-prompt">{render.prompt}</div>
         <div className="bt-numrow">
-          <input
-            className={`bt-num ${revealed ? (right ? 'bt-opt-true' : 'bt-opt-miss') : ''}`}
-            inputMode="decimal" value={typed} disabled={revealed}
+          <Field
+            label={single.label ? `Your answer, in ${single.label}` : 'Your answer'}
+            unit={single.label || undefined}
+            inputMode="decimal"
+            value={typed}
+            disabled={revealed}
             onChange={(e) => set(single.id, e.target.value)}
           />
-          {single.label && <span className="bt-unit">{single.label}</span>}
         </div>
         {revealed
           ? (
             <>
-              <div className="bt-reply">
-                {right ? 'That is the number.' : `Not quite. It is ${single.correct}${single.label ? ` ${single.label}` : ''}.`}
-                {replyFor(render, single.id, typed) ? ` ${replyFor(render, single.id, typed)}` : ''}
+              <div className={`bt-reply${got ? '' : ' bt-reply-miss'}`}>
+                {got ? 'That is the number.' : `Not quite. ${truth}`}
+                {authored ? ` ${authored}` : ''}
               </div>
-              <button className="bt-go" onClick={() => onDone(picks, latency())}>Keep going</button>
+              <div className="bt-foot">
+                <Plank size="md" onClick={() => onDone(picks, latency())}>Keep going</Plank>
+                {last && <span className="bt-needs">That was the last one.</span>}
+              </div>
             </>
           )
-          : <button className="bt-go" disabled={typed.trim() === ''} onClick={() => setRevealed(true)}>That is my answer</button>}
+          : (
+            <Commit
+              ready={typed.trim() !== ''}
+              needs="Type a number first, then this is your answer."
+              onCommit={() => { setRevealed(true); speak(got, authored, truth) }}
+            />
+          )}
       </div>
     )
   }
 
   // rows: a sort into buckets, an ordering into positions
   const allAnswered = render.fields.every((f) => picks[f.id])
+  const missing = render.fields.filter((f) => !picks[f.id]).length
   const earned = scoreOf(check, picks)
+  const outOf = pointsOf(check)
+  const rowReply = replyFor(render, render.fields[0]?.id ?? '', '')
   return (
-    <div className="bt-check">
+    <div className="bt-check" data-state={revealed ? (earned === outOf ? 'right' : 'wrong') : allAnswered ? 'answering' : 'presented'}>
       <div className="bt-prompt">{render.prompt}</div>
       <div className="bt-sort">
-        {render.fields.map((f) => (
-          <div className="bt-sortrow" key={f.id}>
-            <span className={`bt-sortlabel ${revealed ? (picks[f.id] === f.correct ? 'bt-opt-true' : 'bt-opt-miss') : ''}`}>
-              {f.label}{revealed && picks[f.id] !== f.correct && <em> · {labelOf(f, f.correct)}</em>}
-            </span>
-            <span className="bt-buckets">
-              {f.options.map((o) => (
-                <button
-                  key={o.value}
-                  className={`bt-bucket ${picks[f.id] === o.value ? 'bt-bucket-on' : ''}`}
-                  disabled={revealed}
-                  onClick={() => set(f.id, o.value)}
-                >{o.text}</button>
-              ))}
-            </span>
-          </div>
-        ))}
+        {render.fields.map((f) => {
+          const got = revealed && fieldRight(check, f, picks)
+          const rowClass = !revealed ? '' : got ? ' bt-sortrow-true' : ' bt-sortrow-miss'
+          return (
+            <div className={`bt-sortrow${rowClass}`} key={f.id} role="group" aria-label={f.label}>
+              <span className="bt-sortlabel">
+                {f.label}
+                {/* §6.9: NOTHING IS TAKEN AWAY. The row keeps its label and gains
+                    its truth, and the chosen chip keeps its selected state under
+                    it, so the student sees what they thought beside what is so. */}
+                {revealed && !got && (
+                  <span className="bt-truth">
+                    <Glyph piece="icon_set" face="tick" size={14} />
+                    {labelOf(f, f.correct)}
+                  </span>
+                )}
+              </span>
+              <span className="bt-buckets">
+                {f.options.map((o) => {
+                  const chosen = picks[f.id] === o.value
+                  const isTruth = revealed && o.value === f.correct
+                  return (
+                    <button
+                      key={o.value}
+                      type="button"
+                      className={`bt-bucket${isTruth ? ' bt-bucket-true' : ''}`}
+                      aria-pressed={chosen}
+                      aria-label={f.label ? `${f.label}: ${o.text}` : o.text}
+                      disabled={revealed}
+                      onClick={() => set(f.id, o.value)}
+                    >
+                      <span className="bt-bucketdot" aria-hidden="true" />
+                      {o.text}
+                    </button>
+                  )
+                })}
+              </span>
+            </div>
+          )
+        })}
       </div>
       {!revealed
-        ? <button className="bt-go" disabled={!allAnswered} onClick={() => setRevealed(true)}>That is my answer</button>
+        ? (
+          <Commit
+            ready={allAnswered}
+            needs={missing === 1 ? 'One row still has nothing on it.' : `${missing} rows still have nothing on them.`}
+            onCommit={() => {
+              setRevealed(true)
+              speak(earned === outOf, rowReply, `${earned} of ${outOf} landed in the right place.`)
+            }}
+          />
+        )
         : (
           <>
-            {replyFor(render, render.fields[0]?.id ?? '', '') && (
-              <div className="bt-reply">{replyFor(render, render.fields[0].id, '')}</div>
-            )}
-            <button className="bt-go" onClick={() => onDone(picks, latency())}>
-              {earned === pointsOf(check) ? 'All of them. Keep going' : 'Noted. Keep going'}
-            </button>
+            {/* THE COUNT §6.9 SAYS IS MISSING. Five rows used to reveal at once
+                with nothing saying how many were right, so a student who got four
+                of five read four confirmations and one correction at the same time
+                and was never told it was four. */}
+            <div className="bt-count">{earned} of {outOf} in the right place.</div>
+            {rowReply && <div className={`bt-reply${earned === outOf ? '' : ' bt-reply-miss'}`}>{rowReply}</div>}
+            <div className="bt-foot">
+              <Plank size="md" onClick={() => onDone(picks, latency())}>
+                {earned === outOf ? 'All of them. Keep going' : 'Noted. Keep going'}
+              </Plank>
+              {last && <span className="bt-needs">That was the last one.</span>}
+            </div>
           </>
         )}
     </div>
   )
 }
 
-const labelOf = (f: PlainField, value: string) => f.options.find((o) => o.value === value)?.text ?? value
-
 /* PICK ONE, in the game arm: a choice, a quiz, a place, and a `do` that has no
  * world to walk in. Its own component because a `do` whose staging is refused has
  * to fall back to exactly this and not to a second copy of it that drifts. */
-function OneOf({ render, field, picked, onPick, onDone }: {
+function OneOf({ check, render, field, picked, last, onPick, onDone }: {
+  check: CheckStep
   render: PlainRender
   field: PlainField
   picked: string | undefined
+  last: boolean
   onPick: (value: string) => void
   onDone: () => void
 }) {
+  const done = picked !== undefined
+  const got = done && fieldRight(check, field, { [field.id]: picked })
+  const authored = done ? replyFor(render, field.id, picked) : ''
   return (
-    <div className="bt-check">
+    <div className="bt-check" data-state={!done ? 'presented' : got ? 'right' : 'wrong'}>
       <div className="bt-prompt">{render.prompt}</div>
       <div className="bt-options">
-        {field.options.map((o) => (
-          <button
-            key={o.value}
-            className={`bt-opt ${picked !== undefined && o.value === field.correct ? 'bt-opt-true' : ''} ${picked === o.value && o.value !== field.correct ? 'bt-opt-miss' : ''}`}
-            disabled={picked !== undefined}
-            onClick={() => onPick(o.value)}
-          >{o.text}</button>
-        ))}
+        {field.options.map((o) => {
+          const isTruth = done && o.value === field.correct
+          const chosen = picked === o.value
+          return (
+            <button
+              key={o.value}
+              type="button"
+              className={`bt-opt${isTruth ? ' bt-opt-true' : ''}${chosen && !isTruth ? ' bt-opt-miss' : ''}`}
+              disabled={done}
+              onClick={() => {
+                onPick(o.value)
+                /* the palette says whether that was right, here as everywhere:
+                 * the warmth and the score cannot come from two different rules */
+                speak(
+                  fieldRight(check, field, { [field.id]: o.value }),
+                  replyFor(render, field.id, o.value),
+                  `The answer is ${labelOf(field, field.correct)}.`,
+                )
+              }}
+            >
+              {o.text}
+              {/* THE WORD IS THE STATE. A drawn tick is worn when the kit is on and
+                  the sentence carries it when the kit is off, because §40.31 will
+                  not have a state that only a colour is holding. */}
+              {isTruth && (
+                <span className="bt-optmark bt-optmark-true">
+                  <Glyph piece="icon_set" face="tick" size={14} />
+                  the answer
+                </span>
+              )}
+              {chosen && !isTruth && (
+                <span className="bt-optmark bt-optmark-chose">
+                  <Glyph piece="pointer" face="hand" size={14} />
+                  you chose
+                </span>
+              )}
+            </button>
+          )
+        })}
       </div>
-      {picked !== undefined && (
+      {done && (
         <>
-          <div className="bt-reply">
-            {replyFor(render, field.id, picked) || (picked === field.correct ? 'Right.' : 'Hm. Not quite.')}
+          <div className={`bt-reply${got ? '' : ' bt-reply-miss'}`}>
+            {authored || (got ? 'Right.' : 'Hm. Not quite.')}
           </div>
-          <button className="bt-go" onClick={onDone}>Keep going</button>
+          <div className="bt-foot">
+            <Plank size="md" onClick={onDone}>Keep going</Plank>
+            {last && <span className="bt-needs">That was the last one.</span>}
+          </div>
         </>
       )}
     </div>
@@ -397,7 +618,12 @@ function OneOf({ render, field, picked, onPick, onDone }: {
  * state and this draws it. The drive bar is the only thing on screen that the
  * plain arm does not get, and it is a pure function of rounds correct, so the
  * student who is losing on the field is losing on the transcript too and for the
- * same reason. There is no clock in this component either. */
+ * same reason. There is no clock in this component either.
+ *
+ * THE BAR IS THE KIT'S GAUGE NOW rather than a `<span>` with an inline width, so
+ * the drawn track and its drawn fill are the same ones the arrival cover and the
+ * result card use, and a reader is told the number through `role=progressbar`
+ * instead of watching a decoration it cannot see. */
 function ShowdownPlay({ check, onDone, onTouch }: {
   check: Extract<CheckStep, { kind: 'showdown' }>
   onDone: (r: Response) => void
@@ -415,31 +641,62 @@ function ShowdownPlay({ check, onDone, onTouch }: {
 
   if (!round) return null
   const picked = s.picked
-  const right = picked !== null && !!round.options[picked].correct
+  const got = picked !== null && !!round.options[picked].correct
   return (
-    <div className="bt-check">
+    <div className="bt-check" data-state={picked === null ? 'presented' : got ? 'right' : 'wrong'}>
       <div className="bt-prompt">{check.prompt}</div>
       <div className="bt-drive">
-        <span className="bt-driveline" style={{ width: `${Math.round(progressOf(s) * 100)}%` }} />
-        <span className="bt-driveyards">{yardsRemaining(s)} to go · {check.opponent}</span>
+        <Gauge
+          value={progressOf(s)}
+          label={`Yards to the line against ${check.opponent}`}
+          reading={`${yardsRemaining(s)} to go`}
+        />
+        <span className="bt-driveword">{check.opponent} · down {s.round + 1} of {s.total}</span>
       </div>
-      <div className="bt-prompt">{round.prompt}</div>
+      <div className="bt-subprompt">{round.prompt}</div>
       <div className="bt-options">
-        {round.options.map((o, i) => (
-          <button
-            key={i}
-            className={`bt-opt ${picked !== null && o.correct ? 'bt-opt-true' : ''} ${picked === i && !o.correct ? 'bt-opt-miss' : ''}`}
-            disabled={picked !== null}
-            onClick={() => { onTouch(); setS((x) => showdownReduce(x, { kind: 'pick', index: i }, check.rounds)) }}
-          >{o.text}</button>
-        ))}
+        {round.options.map((o, i) => {
+          const isTruth = picked !== null && !!o.correct
+          const chosen = picked === i
+          return (
+            <button
+              key={i}
+              type="button"
+              className={`bt-opt${isTruth ? ' bt-opt-true' : ''}${chosen && !o.correct ? ' bt-opt-miss' : ''}`}
+              disabled={picked !== null}
+              onClick={() => {
+                onTouch()
+                speak(!!o.correct, o.reply ?? '', o.correct ? 'Moved the chains.' : 'No gain.')
+                setS((x) => showdownReduce(x, { kind: 'pick', index: i }, check.rounds))
+              }}
+            >
+              {o.text}
+              {isTruth && (
+                <span className="bt-optmark bt-optmark-true">
+                  <Glyph piece="icon_set" face="tick" size={14} />
+                  the answer
+                </span>
+              )}
+              {chosen && !o.correct && (
+                <span className="bt-optmark bt-optmark-chose">
+                  <Glyph piece="pointer" face="hand" size={14} />
+                  you chose
+                </span>
+              )}
+            </button>
+          )
+        })}
       </div>
       {picked !== null && (
         <>
-          <div className="bt-reply">{round.options[picked].reply || (right ? 'Moved the chains.' : 'No gain.')}</div>
-          <button className="bt-go" onClick={() => setS((x) => showdownReduce(x, { kind: 'next' }, check.rounds))}>
-            {s.round + 1 >= s.total ? 'The last snap' : 'Next down'}
-          </button>
+          <div className={`bt-reply${got ? '' : ' bt-reply-miss'}`}>
+            {round.options[picked].reply || (got ? 'Moved the chains.' : 'No gain.')}
+          </div>
+          <div className="bt-foot">
+            <Plank size="md" onClick={() => setS((x) => showdownReduce(x, { kind: 'next' }, check.rounds))}>
+              {s.round + 1 >= s.total ? 'The last snap' : 'Next down'}
+            </Plank>
+          </div>
         </>
       )}
     </div>
@@ -454,10 +711,11 @@ function ShowdownPlay({ check, onDone, onTouch }: {
  * the goal and the decoys alike, because walking to the wrong place IS the wrong
  * answer and the student has to be able to give it. `scoreOf` decides which one it
  * was, in the same line it decides a quiz. */
-function DoPlay({ check, world, render, onDone, onTouch }: {
+function DoPlay({ check, world, render, last, onDone, onTouch }: {
   check: Extract<CheckStep, { kind: 'do' }>
   world: BeatWorld
   render: PlainRender
+  last: boolean
   onDone: (r: Response) => void
   onTouch: () => void
 }) {
@@ -497,7 +755,7 @@ function DoPlay({ check, world, render, onDone, onTouch }: {
   if (staged === 'refused' && reached === null) {
     return (
       <OneOf
-        render={render} field={render.fields[0]} picked={picked ?? undefined}
+        check={check} render={render} field={render.fields[0]} picked={picked ?? undefined} last={last}
         onPick={(v) => { onTouch(); setPicked(v) }}
         onDone={() => onDone({ [check.id]: picked ?? '' })}
       />
@@ -506,20 +764,24 @@ function DoPlay({ check, world, render, onDone, onTouch }: {
 
   if (reached === null) {
     return (
-      <div className="bt-check">
+      <div className="bt-check" data-state="presented">
         <div className="bt-prompt">{render.prompt}</div>
         <div className="bt-reply">Go there. The path is marked.</div>
       </div>
     )
   }
-  const right = reached === check.goal.anchor
+  const got = reached === check.goal.anchor
+  const authored = replyFor(render, check.id, reached)
   return (
-    <div className="bt-check">
+    <div className="bt-check" data-state={got ? 'right' : 'wrong'}>
       <div className="bt-prompt">{render.prompt}</div>
-      <div className="bt-reply">
-        {replyFor(render, check.id, reached) || (right ? 'That is the place.' : 'Not this one.')}
+      <div className={`bt-reply${got ? '' : ' bt-reply-miss'}`}>
+        {authored || (got ? 'That is the place.' : 'Not this one.')}
       </div>
-      <button className="bt-go" onClick={() => onDone({ [check.id]: reached })}>Keep going</button>
+      <div className="bt-foot">
+        <Plank size="md" onClick={() => onDone({ [check.id]: reached })}>Keep going</Plank>
+        {last && <span className="bt-needs">That was the last one.</span>}
+      </div>
     </div>
   )
 }
@@ -545,7 +807,8 @@ function PlainForm({ beat, checksOnly, attempt, arm, onDone }: {
     setPicks((p) => ({ ...p, [fieldId]: value }))
   }
 
-  const complete = renders.every((r) => r.fields.every((f) => (picks[f.id] ?? '').trim() !== ''))
+  const blanks = renders.reduce((n, r) => n + r.fields.filter((f) => (picks[f.id] ?? '').trim() === '').length, 0)
+  const complete = blanks === 0
 
   const submit = () => {
     const out: Answers = {}
@@ -575,11 +838,27 @@ function PlainForm({ beat, checksOnly, attempt, arm, onDone }: {
    * the same event shape.
    *
    * So the same words, presented the way this arm presents everything: printed
-   * under the item rather than spoken by somebody. */
+   * under the item rather than spoken by somebody.
+   *
+   * AND CORRECTNESS IS THE PALETTE'S TO SAY, WHICH IT WAS NOT. This compared
+   * `given === f.correct`, a raw string compare, while `PALETTE.number.score` had
+   * been scoring the same answer against a declared tolerance since the kind was
+   * added. On the shipped item (answer 3.76, tolerance 0.05) a control-arm student
+   * who typed 3.80 was scored correct by the accumulator and told "the answer is
+   * 3.76" by the line under it, in the same frame. `fieldRight` is now the only
+   * thing either arm asks. */
   if (graded) {
+    const earned = Object.values(graded).reduce((n, a) => n + a.earned, 0)
+    const outOf = Object.values(graded).reduce((n, a) => n + a.total, 0)
     return (
       <div className="bt-plainform">
         <h2>{beat.title}</h2>
+        {/* THE PLACE, WHICH THIS ARM WAS NOT GIVEN. The game arm prints
+            "place · title" at the top of every screen of the activity and the
+            plain arm printed the title alone, so one line of authored content
+            reached one arm only, in the direction that flatters the treatment. */}
+        <p className="bt-plainplace">{beat.place}</p>
+        <p className="bt-plainscore">{earned} of {outOf} correct.</p>
         {renders.map((r, i) => {
           const c = checks[i]
           const a = graded[checkIdOf(c)]
@@ -591,11 +870,11 @@ function PlainForm({ beat, checksOnly, attempt, arm, onDone }: {
                 const given = picks[f.id] ?? ''
                 const reply = replyFor(r, f.id, given)
                 return (
-                  <p key={f.id}>
+                  <p className="bt-plainrow" key={f.id}>
                     {f.label ? `${f.label}: ` : ''}
                     {labelOf(f, given)}
-                    {given === f.correct ? ' (correct)' : ` (the answer is ${labelOf(f, f.correct)})`}
-                    {reply ? ` ${reply}` : ''}
+                    {fieldRight(c, f, picks) ? ' (correct)' : ` (the answer is ${labelOf(f, f.correct)})`}
+                    {reply ? <em> {reply}</em> : ''}
                   </p>
                 )
               })}
@@ -610,16 +889,25 @@ function PlainForm({ beat, checksOnly, attempt, arm, onDone }: {
   return (
     <div className="bt-plainform">
       <h2>{beat.title}</h2>
+      <p className="bt-plainplace">{beat.place}</p>
       {!checksOnly && beat.steps.map((s, i) => (s.kind === 'say' ? <p key={i}>{s.line.text}</p> : null))}
       {renders.map((r, i) => (
         <fieldset key={r.id}>
           <legend>{promptOf(checks[i])}</legend>
           {r.fields.map((f) => (
-            <PlainFieldRow key={f.id} field={f} value={picks[f.id] ?? ''} onSet={(v) => set(r.id, f.id, v)} />
+            <PlainFieldRow key={f.id} field={f} prompt={r.prompt} value={picks[f.id] ?? ''} onSet={(v) => set(r.id, f.id, v)} />
           ))}
         </fieldset>
       ))}
-      <button disabled={!complete} onClick={submit}>Submit</button>
+      <button disabled={!complete} title={complete ? undefined : 'Every question needs an answer first.'} onClick={submit}>Submit</button>
+      {/* the refused control says what it is waiting for here too. A control arm
+          that cannot tell a student why it will not move measures usability
+          rather than presentation, which is the wrong variable. */}
+      {!complete && (
+        <span className="bt-needs">
+          {blanks === 1 ? 'One question still has no answer.' : `${blanks} questions still have no answer.`}
+        </span>
+      )}
     </div>
   )
 }
@@ -627,12 +915,25 @@ function PlainForm({ beat, checksOnly, attempt, arm, onDone }: {
 /* one row of the form, drawn from the field the palette derived. A radio for a
  * pick, a select for a row of many, a text box for a number. There is no branch on
  * the check's kind anywhere in this arm any more, which is what stops a new kind
- * from shipping with no control-arm rendering: it has fields or it does not exist. */
-function PlainFieldRow({ field, value, onSet }: { field: PlainField; value: string; onSet: (v: string) => void }) {
+ * from shipping with no control-arm rendering: it has fields or it does not exist.
+ *
+ * EVERY CONTROL HERE HAS A NAME MADE OF WORDS. A number field carried the UNIT as
+ * its label and the unit is optional, so on an item that declared none the input
+ * had no label and no aria-label at all and a screen reader said "edit text" on a
+ * SCORED item. A radio group with no label was the same defect one level up: a
+ * showdown puts several groups inside one fieldset, so the legend cannot name
+ * them. */
+function PlainFieldRow({ field, prompt, value, onSet }: {
+  field: PlainField
+  /** the item's own question, which is the group's name when the row has none */
+  prompt: string
+  value: string
+  onSet: (v: string) => void
+}) {
   if (field.input === 'text') {
     return (
       <label>
-        {field.label ? `${field.label} ` : ''}
+        {field.label ? `Your answer, in ${field.label} ` : 'Your answer '}
         <input type="text" inputMode="decimal" value={value} onChange={(e) => onSet(e.target.value)} />
       </label>
     )
@@ -649,66 +950,162 @@ function PlainFieldRow({ field, value, onSet }: { field: PlainField; value: stri
     )
   }
   return (
-    <>
+    <div className="bt-plaingroup" role="group" aria-label={field.label || prompt}>
       {field.label && <p>{field.label}</p>}
       {field.options.map((o) => (
         <label key={o.value}>
           <input type="radio" name={field.id} checked={value === o.value} onChange={() => onSet(o.value)} /> {o.text}
         </label>
       ))}
-    </>
+    </div>
+  )
+}
+
+/* THE CARD'S OWN HEAD, IN WHICHEVER ARM IT IS BEING READ IN.
+ *
+ * The game arm draws the place beside the title, which is the line that tells a
+ * student the activity belongs to a room in the world. The plain arm gets the
+ * same two pieces of content as a real heading and a line under it, because §16
+ * is a document and a document has headings; what it is not allowed to do is
+ * quietly print one fewer piece of content than the treatment arm, which is
+ * exactly what it used to do with `beat.place`. */
+function CardHead({ beat, arm }: { beat: CoreBeat; arm: 'game' | 'plain' }) {
+  if (arm === 'plain') {
+    return (
+      <>
+        <h2>{beat.title}</h2>
+        <p className="bt-plainplace">{beat.place}</p>
+      </>
+    )
+  }
+  return (
+    <div className="bt-head">
+      <span className="bt-place">{beat.place} · <b>{beat.title}</b></span>
+    </div>
   )
 }
 
 // ---- result + review ------------------------------------------------------------------
 
+/* THE RESULT CARD IS THE ENDING OF EVERY ACTIVITY IN THE GAME.
+ *
+ * §10.22 states it as a law rather than as a convenience: "one result. ResultCard
+ * is the ending of every activity in the game, so a member never designs a win
+ * screen and no island's ending looks unlike the rest of the game." Four core
+ * beats, fifty-one class beats and every island an ATC member will ever write end
+ * here, so this is the single highest-leverage card in the project.
+ *
+ * WHAT IT SAYS, AND WHICH NUMBER IS WHICH. §6.18's open want is "a result card
+ * that states which number it is showing", because the card reads the LEDGER
+ * (`entry?.grade`) and was handed THIS RUN's score, and after a retake that did
+ * not beat the first attempt those are two different numbers with nothing on
+ * screen saying so. Both are printed now and the card says out loud which one is
+ * the transcript's.
+ *
+ * GOLD IS EARNED HONORS AND NOTHING ELSE (docs/ART.md), so the `stamp` sheet's
+ * gold rosette is spent on an A and on nothing else. Passing wears the plain
+ * approval stamp, which is what earning the credit actually is. */
 function ResultCard({ beat, score, arm, canRetake, onReview, onClose }: {
   beat: CoreBeat; score: BeatScore; arm: 'game' | 'plain'
   canRetake: boolean; onReview: () => void; onClose: () => void
 }) {
   const s = loadSave()
   const entry = s?.ledger.find((e) => e.id === beat.id)
-  const grade = entry?.grade ?? gradeOf(score)
+  const thisRun = gradeOf(score)
+  const grade = entry?.grade ?? thisRun
+  const differs = Math.abs(grade - thisRun) > 0.005
+  const passed = grade >= PASSING_GRADE
+  const honors = letterOf(grade) === 'A'
   const closeCords = s ? cordsOf(s).filter((c) => !c.earned && c.progress >= 0.5) : []
+  const facts = beat.takeaways.map(factById).filter((f): f is NonNullable<typeof f> => !!f)
   return (
-    <div className={arm === 'plain' ? 'bt-plainform' : 'bt-check'}>
-      <div className="bt-prompt">{beat.title}: done.</div>
+    <div className={arm === 'plain' ? 'bt-plainform bt-result' : 'bt-result'}>
+      <CardHead beat={beat} arm={arm} />
       <div className="bt-grade">
         <span className="bt-lettermark">{letterOf(grade)}</span>
-        <span className="bt-gradenum">{grade.toFixed(2)} · {score.earned} of {score.total} this run</span>
+        <span className="bt-gradelines">
+          <span className="bt-gradenum">{grade.toFixed(2)} · {score.earned} of {score.total} this run</span>
+          <span className="bt-gradesays">
+            {differs
+              ? `This run scored ${thisRun.toFixed(2)}. The school keeps the higher attempt, so ${grade.toFixed(2)} is the one on your transcript.`
+              : 'That letter and that number are what goes on your transcript.'}
+          </span>
+        </span>
       </div>
-      <div className="bt-takeaways">
-        {beat.takeaways.map((id) => {
-          const f = factById(id)
-          return f ? <div className="bt-fact" key={id}>{f.text}</div> : null
-        })}
+      <div className="bt-gaugerow">
+        <Gauge
+          value={score.total ? score.earned / score.total : null}
+          label="Points earned in this activity"
+          reading={`${score.earned} of ${score.total}`}
+        />
       </div>
+      {(passed || honors) && (
+        <div className="bt-stamps">
+          {passed && (
+            <span className="bt-stamp">
+              <Glyph piece="stamp" face="approved" size={26} />
+              <span className="bt-stampword">{beat.credit} credit earned</span>
+            </span>
+          )}
+          {honors && (
+            <span className="bt-stamp bt-stamp-honor">
+              <Glyph piece="stamp" face="awarded" size={26} />
+              <span className="bt-stampword">Top marks</span>
+            </span>
+          )}
+        </div>
+      )}
+      {facts.length > 0 && (
+        <div className="bt-takeaways">
+          <div className="bt-h">{facts.length === 1 ? 'One card you keep' : `${facts.length} cards you keep`}</div>
+          {facts.map((f) => <div className="bt-fact" key={f.id}>{f.text}</div>)}
+        </div>
+      )}
       {closeCords.length > 0 && (
         <div className="bt-counselor">The counselor noticed: {closeCords.map((n) => n.name).join(', ')}. Watch the Handbook.</div>
       )}
       {canRetake && (
-        <button className="bt-go" onClick={onReview}>
-          Under a B-. The Universal Retake Policy is real here: review, then run it back
-        </button>
+        <div className="bt-retake">
+          <span className="bt-needs">Under a B-. The Universal Retake Policy is real here, and it is the school's own.</span>
+          {arm === 'plain'
+            ? <button onClick={onReview}>Review, then run it back</button>
+            : <Plank size="md" onClick={onReview}>Review, then run it back</Plank>}
+        </div>
       )}
-      <button className="bt-go" onClick={onClose}>Back to the year</button>
+      <div className="bt-out">
+        {arm === 'plain'
+          ? <button onClick={onClose}>Back to the year</button>
+          : <Plank size="md" onClick={onClose}>Back to the year</Plank>}
+      </div>
     </div>
   )
 }
 
 function ReviewCard({ beat, arm, onRetake, onBack }: { beat: CoreBeat; arm: 'game' | 'plain'; onRetake: () => void; onBack: () => void }) {
   // "legitimate effort" (§8.1): the takeaways come before the retake unlocks
+  const facts = beat.takeaways.map(factById).filter((f): f is NonNullable<typeof f> => !!f)
   return (
-    <div className={arm === 'plain' ? 'bt-plainform' : 'bt-check'}>
+    <div className={arm === 'plain' ? 'bt-plainform bt-result' : 'bt-result'}>
+      <CardHead beat={beat} arm={arm} />
       <div className="bt-prompt">Review first. That is the policy, and it works.</div>
       <div className="bt-takeaways">
-        {beat.takeaways.map((id) => {
-          const f = factById(id)
-          return f ? <div className="bt-fact" key={id}>{f.text}</div> : null
-        })}
+        {facts.map((f) => <div className="bt-fact" key={f.id}>{f.text}</div>)}
       </div>
-      <button className="bt-go" onClick={onRetake}>Run it back</button>
-      <button className="bt-go" onClick={onBack}>Not yet</button>
+      <div className="bt-out">
+        {arm === 'plain'
+          ? (
+            <>
+              <button onClick={onRetake}>Run it back</button>
+              <button onClick={onBack}>Not yet</button>
+            </>
+          )
+          : (
+            <>
+              <Plank size="md" onClick={onRetake}>Run it back</Plank>
+              <Plank size="md" onClick={onBack}>Not yet</Plank>
+            </>
+          )}
+      </div>
     </div>
   )
 }

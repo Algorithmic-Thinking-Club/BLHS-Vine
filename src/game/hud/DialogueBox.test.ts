@@ -59,18 +59,62 @@ describe('what the box draws', () => {
     expect(host.querySelector('.cs-emote')?.textContent).toContain('?')
   })
 
-  it('DRAWS THE PORTRAIT, which both line types have carried and nothing rendered', () => {
+  /* UPDATED 2026-09-01 with the surface it tests. The portrait used to be a bare
+   * `<img class="cs-portrait">` with nothing drawn around it, which is what this
+   * asserted. It is `PortraitFrame` now, which wears the kit's own
+   * `portrait_frame` piece and bottom-anchors the picture the way the kit's
+   * record requires, so the assertion moved with the markup: the same src, and
+   * now the frame around it as well. */
+  it('DRAWS THE PORTRAIT, in the drawn frame the kit publishes for it', () => {
     render({ line: line({ portrait: 'pinzon' }) })
-    const img = host.querySelector('img.cs-portrait') as HTMLImageElement | null
+    const img = host.querySelector('.dlg-portrait img.kit-portrait-pic') as HTMLImageElement | null
     expect(img).toBeTruthy()
     expect(img!.getAttribute('src')).toBe('/art/portraits/pinzon.png')
+    expect(host.querySelector('.dlg-portrait .kit-surface-portrait_frame')).toBeTruthy()
     expect(host.querySelector('.cs-dialogue')?.className).toContain('has-portrait')
   })
 
   it('leaves no portrait frame at all when the line has none', () => {
     render({ line: line() })
-    expect(host.querySelector('img.cs-portrait')).toBeNull()
+    expect(host.querySelector('.dlg-portrait')).toBeNull()
     expect(host.querySelector('.cs-dialogue')?.className).not.toContain('has-portrait')
+  })
+
+  /* §40.41: every state a thing can be in is a deliverable, counted up front.
+   * These four are the box's, and they are on the element so the stylesheet and
+   * a capture can both read them. */
+  it('says which of its four states it is in, on the element', () => {
+    render({ line: line({ shown: 4, done: false }) })
+    expect(host.querySelector('.cs-dialogue')?.getAttribute('data-state')).toBe('typing')
+    render({ line: line() })
+    expect(host.querySelector('.cs-dialogue')?.getAttribute('data-state')).toBe('complete')
+    render({ line: line(), options: ['a', 'b'] })
+    expect(host.querySelector('.cs-dialogue')?.getAttribute('data-state')).toBe('asking')
+  })
+
+  /* THE CHOICES AND THE BOX ARE ONE COLUMN, which is what stopped a long
+   * question laying its planks on top of its own paper: the choices used to be
+   * positioned off a retyped copy of the box's height, and the box has grown to
+   * its content since §40.14. */
+  it('holds the box and its choices in one bottom-anchored stack', () => {
+    render({ line: line(), options: ['a', 'b'] })
+    const stack = host.querySelector('.dlg-stack')
+    expect(stack).toBeTruthy()
+    expect(stack!.querySelector('.dlg-choices')).toBeTruthy()
+    expect(stack!.querySelector('.dlg-box')).toBeTruthy()
+    // and the choices come first, so the column puts them above the paper
+    expect([...stack!.children].map((c) => c.className.split(' ')[0]))
+      .toEqual(['dlg-choices', 'cs-dialogue'])
+  })
+
+  /* the hint names BOTH ways to go on, and it is one sentence owned here rather
+   * than a string each caller passes: the cutscene passed `click to go on` with
+   * a font glyph on the end of it, which `docs/ART.md` forbids. */
+  it('names the pointer path and the key path in the same sentence', () => {
+    render({ line: line() })
+    const hint = host.querySelector('.cs-continue-hint')?.textContent ?? ''
+    expect(hint.toLowerCase()).toContain('click')
+    expect(hint.toLowerCase()).toContain('space')
   })
 
   it('carries the skin as one string a stylesheet can key off', () => {
@@ -115,11 +159,23 @@ describe('a pointer path for every key path, and the reverse', () => {
     expect(buttons[0].textContent).toContain('1')
     expect(buttons[1].textContent).toContain('2')
 
-    buttons[1].click()
+    act(() => { buttons[1].click() })
     expect(onPick).toHaveBeenCalledWith(1)
 
+    /* AND ONE ANSWER PER QUESTION. Added with the answered state, 2026-09-01:
+     * the box marks the card that was pressed and stands the others down, so a
+     * second press on the same question is refused rather than resolving an ask
+     * that has already resolved. The key path is checked on a fresh question
+     * below, because on this one it is correctly ignored. */
     act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: '1' })) })
-    expect(onPick).toHaveBeenCalledWith(0)
+    expect(onPick).toHaveBeenCalledTimes(1)
+    expect(host.querySelector('.dlg-choice-chosen')?.textContent).toContain('Not now')
+    expect(host.querySelector('.cs-dialogue')?.getAttribute('data-state')).toBe('answered')
+
+    const second = vi.fn()
+    render({ line: line({ text: 'And after that?' }), options: ['Aye', 'Later'], onPick: second })
+    act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: '1' })) })
+    expect(second).toHaveBeenCalledWith(0)
   })
 
   it('never advances while it is asking, so a click cannot skip a question', () => {

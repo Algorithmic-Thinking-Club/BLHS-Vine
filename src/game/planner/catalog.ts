@@ -1,9 +1,9 @@
-// THE PLANNER CATALOG (GAME-DESIGN §7.2) — what a CLASS pick can buy.
+// THE PLANNER CATALOG (GAME-DESIGN §7.2): what a CLASS pick can buy.
 // EVERY entry is real BLHS content from docs/blhs/sourced-facts.md (law §2.7: real facts
 // only, nothing invented): the AP list and grade eligibility are the 2024-2025 SBLSD
 // course catalog, the language and CTE sequences likewise. The game-year mapping: year 1
 // = 9th grade … year 4 = 12th. Tags feed progress.ts's cord evaluators verbatim ('ap' /
-// 'cte' / 'lang' / 'lang-capstone') — a class pick IS cord progress, which is why the
+// 'cte' / 'lang' / 'lang-capstone'). A class pick IS cord progress, which is why the
 // planner can show counselor hints inline.
 //
 // WHAT A SEASON TOKEN BUYS IS NO LONGER HERE. `ACTIVITIES`, `ActivityDef`,
@@ -15,7 +15,7 @@
 
 // ---- CLASSES (the 2-pick strip) -------------------------------------------------------
 // Grade eligibility from the catalog, expressed as game years (1..4). Ledger ids are
-// `class:<id>` — progress.ts keys AP Capstone on class:ap-seminar / class:ap-research.
+// `class:<id>`, and progress.ts keys AP Capstone on class:ap-seminar / class:ap-research.
 export type Dept = 'ap' | 'lang' | 'cte' | 'arts'
 
 export type ClassDef = {
@@ -119,3 +119,85 @@ export function cordHint(tags: string[]): string | null {
   if (tags.includes('lang')) parts.push('a credit toward the Seal of Biliteracy (4 in one language)')
   return parts.length ? parts.join(' · ') : null
 }
+
+// ---- WHAT THE PICKER OFFERS, AND WHAT IT REFUSES OUT LOUD ------------------
+//
+// §5.10 on what shipped, word for word: *"Spanish II is not in the Year 1
+// picker. It is not greyed out and it does not say why. It is simply not
+// there."* `eligibleClasses` above is a filter, and a filter is not a refusal:
+// it removes the course, so the student meets a shorter list instead of the
+// ladder, and then `beats/classes.ts` generates a `ladderCheck` asking *"What
+// does Spanish II expect you to have behind you?"* about a rung the sheet took
+// off the board. The sheet hides the rule and the beat grades it.
+//
+// So the picker reads THIS instead. Every course in the catalog comes back, in
+// catalog order, each carrying the reason it cannot be taken or `null` when it
+// can. Catalog order is not an accident and must not be sorted: Spanish I, II,
+// III, IV in sequence IS the ladder, and rearranging the list so the takeable
+// ones sit at the top would hide the exact shape the refusal exists to teach.
+//
+// THE TWO FUNCTIONS HAVE TO AGREE, and there is nothing in the type system that
+// makes them. A course whose `why` is null here is precisely a course
+// `eligibleClasses` returns: same four conditions, same order, one negated. If
+// one is edited the other is being edited too.
+
+export type ClassOffer = {
+  c: ClassDef
+  /** why this course cannot go on this year's sheet, or null when it can */
+  why: string | null
+  /* IS THE REASON THE GAME'S OR THE SCHOOL'S. Grade eligibility is the district
+   * catalog's and can be said in the register the game uses for sourced school
+   * facts. The prerequisite chain is NOT: §5.10 checked and *"nothing anywhere
+   * in `docs/blhs/` states a prerequisite rule at all"*, so a sheet that printed
+   * "Spanish I comes first" in the school's voice would be printing an unsourced
+   * policy in the one register reserved for sourced ones. The flag is how the
+   * sheet tells the two apart when it draws them. */
+  ladder: boolean
+}
+
+/* THE SHEET SAYS WHOSE RULE THE LADDER IS, once, above the picker rather than on
+ * every row. §5.10's want, exactly: *"the prerequisite rule decided, stated on
+ * the sheet as the game's own, and never printed in the register the game uses
+ * for sourced school facts."* Q5.10.a is still open on whether satisfaction
+ * should need a PASS rather than a pick, and this sentence stays true either
+ * way, because it claims only that the ladder is the game's. */
+export const LADDER_NOTE =
+  'Which class sits above which is this game\u2019s ladder. Bonney Lake publishes no prerequisite rule, so this one is ours.'
+
+/** when a course opens, in the catalog's own grade eligibility */
+function whenItOpens(years: number[]): string {
+  const ys = [...years].sort((a, b) => a - b)
+  if (ys.length === 1) return `year ${ys[0]} only`
+  const runsToTheEnd = ys[ys.length - 1] === 4 && ys.every((y, i) => y === ys[0] + i)
+  if (runsToTheEnd) return `not until year ${ys[0]}`
+  return `year ${ys.join(' and ')} only`
+}
+
+/** every course in the catalog, with the reason it is shut when it is shut */
+export function classOffer(year: number, pickedByYear: Record<number, string[]>): ClassOffer[] {
+  const before = new Set<string>()
+  for (let y = 1; y < year; y++) for (const id of pickedByYear[y] ?? []) before.add(id)
+  const thisYear = new Set(pickedByYear[year] ?? [])
+  return CLASSES.map((c): ClassOffer => {
+    if (thisYear.has(c.id)) return { c, why: 'already on this sheet', ladder: false }
+    if (before.has(c.id)) return { c, why: 'you have taken it', ladder: false }
+    if (!c.years.includes(year)) return { c, why: whenItOpens(c.years), ladder: false }
+    if (c.requires && !before.has(c.requires)) {
+      const rung = classById(c.requires)
+      return { c, why: `after ${rung?.name ?? c.requires}`, ladder: true }
+    }
+    return { c, why: null, ladder: false }
+  })
+}
+
+/* the four department headings, here rather than in the sheet, because the
+ * department vocabulary is this file's and a second copy of it in a component is
+ * a second place a rename has to reach */
+export const DEPT_LABEL: Record<Dept, string> = {
+  ap: 'Advanced Placement',
+  lang: 'World Languages',
+  cte: 'Career and Technical',
+  arts: 'Arts',
+}
+
+export const DEPTS: Dept[] = ['ap', 'lang', 'cte', 'arts']

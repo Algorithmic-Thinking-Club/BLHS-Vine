@@ -1,227 +1,580 @@
-/* The woven-check runner (§6.7 baseline / §7.3 core beats).
-   Game arm: the kit's paper-and-wood warmth, dialogue at reading pace.
-   Plain arm: deliberately plain (the AP Research control) — no kit, no juice. 
-   AND THE FRAMES HONOUR THE TEXT SIZE NOW, which matters more here than anywhere:
-   this is the surface every scored item in the game is read on, in both arms, so
-   a student who cannot read it produces a missing score rather than a low one and
-   that is attrition the export cannot tell from an effect. --kit-text-scale is
-   the S, M and L setting. */
+/* THE BEAT RUNNER: the chassis every measured item in this study is read on.
+ *
+ * §6.4 to §6.13 and §10.22 to §10.31. Four core beats, fifty-one class beats and
+ * every island an ATC member will ever write are drawn by these rules, so a
+ * defect here is inherited twenty times over. That is the whole reason the file
+ * is written at this length.
+ *
+ * WHAT WAS WRONG WITH IT, MEASURED RATHER THAN FELT (2026-09-01). `.bt-stage`
+ * carried `padding: 11% 13% 11.5%` and sat inside `.bt-veil`, which is
+ * `inset: 0` on a fixed root, so THE PERCENTAGES RESOLVED AGAINST THE VIEWPORT
+ * AND NOT AGAINST THE CARD. On the 1366 wide Chromebook this game is deployed to
+ * that is 177 pixels of padding on each side of a 680 pixel card, leaving a 325
+ * pixel content box. `container-type: inline-size` then made every `cqw` a
+ * fraction of THAT, so `bt-prompt` at 2.8cqw, `bt-text` at 2.7, `bt-opt` at 2.4,
+ * `bt-speaker` at 2.4, `bt-place` at 2.4 and `bt-reply` at 2.3 all landed under
+ * the 14 pixel floor and all clamped to exactly 14. The graded frame had no
+ * typographic hierarchy at all: the question, the answer and the correction were
+ * the same size as the room's name.
+ *
+ * SO THE TYPE IS IN PIXELS NOW, which is the one place in this kit that is the
+ * right call. Every other panel scales its type with its own width because it
+ * grows; this card is `min(820px, 94vw)` and is the same width on every machine
+ * in the room, so a ratio buys nothing and costs the hierarchy. `--kit-text-scale`
+ * still multiplies every one of them, so S, M and L still move the whole card,
+ * and `--kit-fs` still snaps the result onto whole pixels for the bitmap faces.
+ *
+ * AND THE FRAME IS A FRAME. `.bt-stage` wears `.kit-surface-panel`, so the
+ * nine-slice holds the carved corners at their drawn size and its own
+ * `border-width` is the honest inset. The `background: var(--kit-art-panel)`
+ * line and the plain-arm pixel override that used to stand in for it are both
+ * gone: tokens.css already answers both, in one place, for every panel.
+ *
+ * NO STATE IS CARRIED BY HUE ALONE (§40.31). A school Chromebook panel crushes
+ * lightness and saturation, so every state below moves a SHAPE as well: the
+ * settled option is hatched, the chosen one is pressed into the page, the true
+ * one gains a word and a drawn tick, a refused commit says in words what it is
+ * waiting for, and a wrong reply's rule is dashed where a right one's is solid.
+ *
+ * AND NEVER A RED BUZZER (§6.9, PLAYTEST.md script 10). Nothing in this file
+ * fills with `--kit-alarm`. A wrong answer is met with the author's own words on
+ * the same warm paper the right one gets.
+ */
 
-/* it already read --kit-text-scale and got away with it because another
-   stylesheet happened to pull the token layer in first. Now it says so. */
 @import '../ui/tokens.css';
 
 /* ONE VEIL VALUE FOR THE WHOLE KIT. This spelled its own `rgba(5, 12, 15, .6)`
    while tokens.css already owned the number for six other panels, so raising the
    veil after the eyes round would have raised it everywhere except the one
-   surface the review actually failed. `--kit-veil` is the value; this says which
-   material, which is the whole point of the token layer. */
+   surface the review actually failed. */
 .bt-veil {
   position: absolute; inset: 0; z-index: 77;
   background: var(--kit-veil);
   display: flex; align-items: center; justify-content: center;
 }
 
-/* THE PANEL READS THE TOKEN NOW, and this was the highest-cost of the five
-   literal art urls left in the tree on 2026-08-31. `--kit-art-panel: none` is
-   how §16's arm takes the pictures away, and a rule that spelled the png out
-   never saw it: with `?skin=plain` on a run nobody had joined, the entire game
-   went plain and the frame EVERY SCORED ITEM IS READ ON stayed a painted wooden
-   panel. Same bytes in the default skin, one indirection, and the plain block at
-   the bottom of this file says what it becomes instead. */
+/* THE CARD. `.kit-surface-panel` paints the carving and the paper together and
+   its border-width is the real inset; this padding is the gutter INSIDE that
+   frame, in pixels, and it does not know or care how wide the window is. */
 .bt-stage {
-  width: min(680px, 94vw); max-height: 88vh; overflow-y: auto;
-  background: var(--kit-art-panel) center / 100% 100% no-repeat;
+  width: min(820px, 94vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 14px 18px 18px;
   image-rendering: var(--kit-pixel);
   filter: drop-shadow(var(--kit-drop-lg));
-  padding: 11% 13% 11.5%;
-  box-sizing: border-box;
-  container-type: inline-size;
-  animation: hb-in 260ms cubic-bezier(.2, 1.2, .35, 1) both;
-  font-family: 'Deckhand', monospace; color: #4a3826;
-  display: flex; flex-direction: column; gap: 2cqw;
+  font-family: var(--kit-face-body);
+  color: var(--kit-ink-body);
+  display: flex; flex-direction: column; gap: 14px;
+  animation: btr-arrive 260ms var(--kit-ease-pop) both;
 }
+/* the card still arrives under reduced motion, it just does not travel */
+html[data-rm='1'] .bt-stage { animation-duration: 1ms; }
+@keyframes btr-arrive { from { transform: translateY(14px) scale(.97); } to { transform: none; } }
 
-.bt-place { font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(2.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6a563c; }
+/* ---- the head: where you are, and how far through you are ----------------
+ *
+ * §6.9's open finding: "all five rows reveal at once and nothing says how many
+ * were right", and underneath it a student who has answered two of three items
+ * has never been told there are three. The rail reads the beat's own scorable
+ * spine (`checksOf`), not a number anybody typed. */
+.bt-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.bt-place {
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-label);
+  letter-spacing: .04em;
+}
+.bt-place b { font-weight: normal; color: var(--kit-ink-head); }
+.bt-rail { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.bt-railword {
+  --kit-fs-raw: calc(13px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  white-space: nowrap;
+}
+.bt-railpips { display: flex; gap: 4px; }
+/* the drawn plate at rail size. The kit draws a chip at 34px, which is a token a
+   hand picks up; this one is a mark on a page. */
+.bt-railpips .kit-chip { width: 16px; height: 16px; }
 
-/* a spoken line: the whole card advances on click */
+/* ---- a spoken line: the whole card is the button (§6.5) ------------------ */
 .bt-say {
-  text-align: left; background: rgba(238, 227, 200, .5);
-  border: 2px solid #8a744f; border-radius: 6px;
-  padding: 2cqw 2.4cqw; cursor: pointer;
-  font-family: 'Deckhand', monospace; color: #4a3826;
-  display: flex; flex-direction: column; gap: 1cqw;
+  display: flex; flex-direction: column; gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 4px 10px 8px;
+  border: 0;
+  background-color: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--kit-t-quick) ease, filter var(--kit-t-quick) ease;
 }
-.bt-speaker { font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(2.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #234c40; }
-.bt-text { --kit-fs-raw: calc(2.7cqw * var(--kit-text-scale)); font-size: var(--kit-fs); line-height: 1.5; }
-.bt-cue { align-self: flex-end; --kit-fs-raw: calc(2.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); animation: bt-bounce 1.1s ease-in-out infinite; }
-@keyframes bt-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+.bt-say:hover { transform: translateY(-1px); filter: brightness(1.04); }
+.bt-say:active { transform: translateY(1px); filter: none; }
 
-.bt-check { display: flex; flex-direction: column; gap: 1.6cqw; }
-.bt-prompt { --kit-fs-raw: calc(2.8cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #3c2d1c; line-height: 1.4; }
+.bt-speakerrow { display: flex; align-items: center; gap: 10px; }
+/* THE SPEAKER IS A HANGING SIGN, not a coloured word. `plaque-small.png` is a
+   dark carved 2:1 plate with a rope inlay, which is the shape a name plate is,
+   and it reached this surface as `--kit-art-plaque` rather than as a url so the
+   plain arm can take it away (tokens.css nulls the handle). */
+.bt-speaker {
+  display: inline-flex; align-items: center; justify-content: center;
+  box-sizing: border-box;
+  min-width: 140px; min-height: 30px;
+  padding: 4px 16px;
+  background: var(--kit-art-plaque) center / 100% 100% no-repeat;
+  background-color: var(--kit-wood-dark-hi);
+  border-radius: var(--kit-r-sharp);
+  image-rendering: var(--kit-pixel);
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(16px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-wood-dark-ink);
+  letter-spacing: .03em;
+}
+.bt-text {
+  --kit-fs-raw: calc(20px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  line-height: 1.5;
+  color: var(--kit-ink-said);
+}
 
-.bt-options { display: flex; flex-direction: column; gap: 1cqw; }
+/* THE ADVANCE CUE IS DRAWN. It was an operating-system paw emoji, which
+   `docs/ART.md` rules out in as many words, and the kit publishes a four frame
+   paw print on the `cue` sheet for exactly this job. The frames are stacked and
+   one is shown at a time, which is how a sprite sheet animates with no library. */
+.bt-cue {
+  align-self: flex-end;
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  height: 26px;
+}
+.bt-cueframe { opacity: 0; animation: btr-cue 1200ms steps(1, end) infinite; }
+/* THE FIRST FRAME HOLDS THE BOX OPEN and the other three lie over it. `Glyph`
+   gives a face its DRAWN aspect rather than a square, so a hard 26 by 26 here
+   would crop or letterbox whatever the sheet turns out to hold. An element at
+   zero opacity still takes its space, so the box is exactly one frame wide. */
+.bt-cf1 { position: static; animation-delay: 0ms; }
+.bt-cf2, .bt-cf3, .bt-cf4 { position: absolute; left: 0; top: 0; }
+.bt-cf2 { animation-delay: 300ms; }
+.bt-cf3 { animation-delay: 600ms; }
+.bt-cf4 { animation-delay: 900ms; }
+@keyframes btr-cue { 0%, 24.9% { opacity: 1; } 25%, 100% { opacity: 0; } }
+/* A LOOP AT 1ms IS A STROBE, which is worse for the student the setting is for.
+   The cue stops on its first frame and stays drawn. */
+html[data-rm='1'] .bt-cueframe { animation: none; opacity: 0; }
+html[data-rm='1'] .bt-cf1 { opacity: 1; }
+
+/* AND WHAT STANDS IN WHEN NOBODY DREW IT. The kit only wears its faces behind
+   `?kit=1`, so this is what a student sees today: a token-coloured chevron drawn
+   out of two borders. A shape, never a character. */
+.bt-cue-mark {
+  align-self: flex-end;
+  flex: none;
+  width: 11px; height: 11px;
+  margin: 0 8px 6px 0;
+  border-right: 3px solid var(--kit-ink-label);
+  border-bottom: 3px solid var(--kit-ink-label);
+  transform: rotate(-45deg);
+  animation: btr-nudge 1100ms ease-in-out infinite;
+}
+@keyframes btr-nudge { 0%, 100% { transform: rotate(-45deg) translate(0, 0); } 50% { transform: rotate(-45deg) translate(3px, 3px); } }
+html[data-rm='1'] .bt-cue-mark { animation: none; }
+
+/* ---- one item ------------------------------------------------------------ */
+.bt-check { display: flex; flex-direction: column; gap: 12px; }
+.bt-prompt {
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(21px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+  line-height: 1.35;
+}
+/* a showdown's round question, under the drive: the same voice one step quieter */
+.bt-subprompt {
+  --kit-fs-raw: calc(18px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+  line-height: 1.4;
+}
+
+.bt-options { display: flex; flex-direction: column; gap: 8px; }
 .bt-opt {
-  text-align: left; font-family: 'Deckhand', monospace; --kit-fs-raw: calc(2.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #4a3826;
-  background: linear-gradient(180deg, #e6dcc2, #dbcfaf);
-  border: 2px solid #8a744f; border-radius: 5px;
-  padding: 1.4cqw 2cqw; cursor: pointer;
-  transition: transform 120ms ease;
+  display: flex; align-items: center; gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 14px;
+  text-align: left;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(17px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+  line-height: 1.35;
+  background: linear-gradient(180deg, var(--kit-paper-card-hi), var(--kit-paper-card-lo));
+  border: var(--kit-border) solid var(--kit-edge);
+  /* THE LEFT EDGE IS THE STATE, and it is a thickness before it is a colour: a
+     spine a student can see from a metre away and across a crushed panel. */
+  border-left-width: 5px;
+  border-radius: var(--kit-r-card);
+  box-shadow: 0 2px 0 var(--kit-hairline);
+  cursor: pointer;
+  transition: transform var(--kit-t-quick) ease, box-shadow var(--kit-t-quick) ease, filter var(--kit-t-quick) ease;
 }
-.bt-opt:hover:not(:disabled) { transform: translateY(-1px); }
-.bt-opt:disabled { cursor: default; }
-.bt-opt-true { border-color: #3c6e60; background: linear-gradient(180deg, #dcebdd, #cfe2d0); color: #234c40; }
-.bt-opt-miss { opacity: .75; border-style: dashed; }
+.bt-opt:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 3px 0 var(--kit-hairline); }
+.bt-opt:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+.bt-opt:disabled { cursor: default; transform: none; box-shadow: none; }
 
-/* never a red buzzer: the reply is the teacher's voice */
-.bt-reply { --kit-fs-raw: calc(2.3cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6a563c; font-style: italic; line-height: 1.4; }
+/* A LOCKED ITEM READS AS LOCKED. Every option disables the moment one is picked
+   (§6.10: one item, one attempt, always), and an unpicked wrong option used to
+   be pixel-identical to a live button, so a student kept clicking it and nothing
+   happened. Settled is a change of MATERIAL: the paper goes to a flat hatch, the
+   card stops standing off the page and the spine thins to a rule. */
+.bt-opt:disabled:not(.bt-opt-true):not(.bt-opt-miss) {
+  background: repeating-linear-gradient(135deg, var(--kit-paper-lo) 0 6px, var(--kit-paper) 6px 12px);
+  border-color: var(--kit-rule-firm);
+  border-left-width: var(--kit-border);
+  color: var(--kit-ink-dim);
+}
+/* the truth, whatever the student picked (§6.12: the correct one takes the
+   correct style regardless of what was chosen) */
+.bt-opt.bt-opt-true {
+  background: linear-gradient(180deg, var(--kit-sea-paper), var(--kit-paper-on-lo));
+  border-color: var(--kit-sea);
+  border-left-color: var(--kit-sea-ink);
+  color: var(--kit-sea-ink);
+}
+/* AND THE STUDENT'S OWN WRONG ANSWER STAYS ON SCREEN BESIDE IT (§6.9: both
+   halves of the mistake). It is pressed INTO the page, which is what a button
+   that has been used looks like, and it is not a colour that means failure. */
+.bt-opt.bt-opt-miss {
+  background: var(--kit-paper-lo);
+  border-color: var(--kit-edge-strong);
+  border-left-color: var(--kit-edge-strong);
+  box-shadow: inset 0 3px 0 var(--kit-hairline);
+  color: var(--kit-ink-body);
+}
+/* the word is the state, and the drawn face is a bonus rather than the message */
+.bt-optmark {
+  display: inline-flex; align-items: center; gap: 5px;
+  flex: none;
+  margin-left: auto;
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(13px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+.bt-optmark-true { color: var(--kit-sea-ink); }
+.bt-optmark-chose { color: var(--kit-ink-quiet); }
 
-.bt-sort { display: flex; flex-direction: column; gap: 1cqw; }
-.bt-sortrow { display: flex; align-items: center; gap: 1.6cqw; }
-.bt-sortlabel { flex: 1; --kit-fs-raw: calc(2.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); }
-.bt-sortlabel em { color: #234c40; font-style: normal; font-weight: bold; }
-.bt-buckets { display: flex; gap: .8cqw; }
+/* ---- a sort, or an ordering: one row per thing --------------------------- */
+.bt-sort { display: flex; flex-direction: column; gap: 8px; }
+.bt-sortrow {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  background: var(--kit-paper-wash);
+  border-left: 4px solid var(--kit-edge);
+  border-radius: 0 var(--kit-r-card) var(--kit-r-card) 0;
+}
+.bt-sortrow-true { border-left-color: var(--kit-sea); }
+.bt-sortrow-miss { border-left-color: var(--kit-edge-strong); border-left-style: dashed; }
+.bt-sortlabel {
+  flex: 1 1 150px;
+  min-width: 130px;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  --kit-fs-raw: calc(17px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+}
+/* the row gains its truth rather than losing its label (§6.9) */
+.bt-truth {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-sea-ink);
+}
+
+/* THE BUCKET WAS A FIXED 4.2cqw SQUARE with no wrap and no overflow, which is
+   about 28 pixels on a Chromebook. `y2.ts` ships the buckets 'Double gold',
+   'Career Readiness', 'AP Honors' and 'Seal of Biliteracy', so the Year 2 core
+   beat drew "Seal of Biliteracy" inside a 28 pixel square, four per row. A
+   bucket is a chip that is as wide as its own words and the row wraps. */
+.bt-buckets { display: flex; flex-wrap: wrap; gap: 6px; flex: 2 1 260px; }
 .bt-bucket {
-  width: 4.2cqw; height: 4.2cqw;
-  font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(2.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #4a3826;
-  background: linear-gradient(180deg, #e6dcc2, #dbcfaf);
-  border: 2px solid #8a744f; border-radius: 4px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  flex: 0 1 auto;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 6px 14px;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  background: linear-gradient(180deg, var(--kit-paper-card-hi), var(--kit-paper-card-lo));
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-pill);
+  cursor: pointer;
+  transition: transform var(--kit-t-quick) ease, box-shadow var(--kit-t-quick) ease;
 }
-.bt-bucket-on { border-color: #3c6e60; background: linear-gradient(180deg, #dcebdd, #cfe2d0); color: #234c40; }
-.bt-bucket:disabled { cursor: default; }
+/* the dot is the shape half of the state: hollow is unchosen, solid is chosen,
+   and it survives a panel that has crushed every colour on it */
+.bt-bucketdot {
+  flex: none;
+  width: 9px; height: 9px;
+  border: 2px solid var(--kit-edge);
+  border-radius: 50%;
+}
+.bt-bucket:hover:not(:disabled) { transform: translateY(-1px); }
+.bt-bucket:active:not(:disabled) { transform: translateY(1px); }
+.bt-bucket[aria-pressed='true'] {
+  background: linear-gradient(180deg, var(--kit-sea-paper), var(--kit-paper-on-lo));
+  border-color: var(--kit-sea);
+  color: var(--kit-sea-ink);
+}
+.bt-bucket[aria-pressed='true'] .bt-bucketdot { background: var(--kit-sea); border-color: var(--kit-sea-ink); }
+.bt-bucket:disabled { cursor: default; transform: none; }
+/* the same settled material the options take, for the same reason */
+.bt-bucket:disabled:not([aria-pressed='true']):not(.bt-bucket-true) {
+  background: repeating-linear-gradient(135deg, var(--kit-paper-lo) 0 6px, var(--kit-paper) 6px 12px);
+  border-color: var(--kit-rule-firm);
+  color: var(--kit-ink-dim);
+}
+.bt-bucket:disabled:not([aria-pressed='true']):not(.bt-bucket-true) .bt-bucketdot { border-color: var(--kit-rule-firm); }
+/* the right one, marked even when it was not the one pressed */
+.bt-bucket.bt-bucket-true { border-color: var(--kit-sea); box-shadow: inset 0 0 0 2px var(--kit-sea-glow-soft); }
 
-/* a NUMBER: a typed answer, because dressing it as four buttons turns recall into
-   recognition and those are different things to measure */
-.bt-numrow { display: flex; align-items: baseline; gap: 1.2cqw; }
-.bt-num {
-  width: 22%; font-family: 'Deckhand', monospace; --kit-fs-raw: calc(3cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #4a3826;
-  background: rgba(238, 227, 200, .6);
-  border: 2px solid #8a744f; border-radius: 5px; padding: 1cqw 1.4cqw;
-}
-.bt-num:disabled { cursor: default; }
-.bt-unit { --kit-fs-raw: calc(2.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6a563c; }
+/* ---- a number: typed, because recognition is a different measurement ----- */
+.bt-numrow { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.bt-numrow .kit-field-row { flex: 0 1 280px; }
 
-/* THE DRIVE, and it is drawn from rounds correct and from nothing else. There is
-   no clock behind this bar and no transition timed to one: it steps when an item
-   is answered. See showdown.ts for why that is a rule and not a shortcut. */
-.bt-drive {
-  position: relative; height: 3.2cqw;
-  background: rgba(238, 227, 200, .5);
-  border: 2px solid #8a744f; border-radius: 5px; overflow: hidden;
-  display: flex; align-items: center;
+/* ---- the correction ------------------------------------------------------
+ *
+ * NEVER A RED BUZZER. §6.9's law and PLAYTEST.md script 10 step 3: "the row
+ * reveals its true letter gently (no red buzzer, ever)". Both replies sit on the
+ * same warm paper. What separates them is the rule down the left, which is solid
+ * for a confirmation and DASHED for a correction, so the difference survives a
+ * screen that has crushed the two greens into one. */
+.bt-reply {
+  --kit-fs-raw: calc(16px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  line-height: 1.5;
+  color: var(--kit-ink-quiet);
+  padding: 10px 14px;
+  background: var(--kit-paper-wash);
+  border-left: 4px solid var(--kit-sea);
+  border-radius: 0 var(--kit-r-soft) var(--kit-r-soft) 0;
 }
-.bt-driveline {
-  position: absolute; left: 0; top: 0; bottom: 0;
-  background: linear-gradient(180deg, #dcebdd, #b6d6bd);
-  transition: width 200ms ease;
-}
-.bt-driveyards {
-  position: relative; padding-left: 1.4cqw;
-  font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(2.1cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #4a3826;
+.bt-reply-miss { border-left-style: dashed; border-left-color: var(--kit-edge-strong); }
+/* the count §6.9 says is missing: five rows reveal at once and nothing has ever
+   said how many of them were right */
+.bt-count {
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
 }
 
-.bt-go {
-  align-self: flex-start;
-  font-family: 'Deckhand', monospace; --kit-fs-raw: calc(2.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #4a3826;
-  background: linear-gradient(180deg, #e6dcc2, #dbcfaf);
-  border: 2px solid #8a744f; border-radius: 5px;
-  padding: 1cqw 2.4cqw; cursor: pointer;
-  transition: transform 120ms ease;
+/* ---- THE DRIVE, drawn on rounds correct and on nothing else -------------- */
+.bt-drive { display: flex; flex-direction: column; gap: 6px; }
+.bt-driveword {
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-label);
 }
-.bt-go:hover:not(:disabled) { transform: translateY(-1px); }
-.bt-go:disabled { opacity: .5; cursor: default; }
 
-.bt-grade { display: flex; align-items: baseline; gap: 2cqw; }
+/* ---- the commit row, and the control that says what it wants ------------- */
+.bt-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* A DISABLED BUTTON THAT ANSWERS NOTHING IS A PROTOTYPE TELL. Four of them shipped
+   here: the commit on a sort, on a number, on a form and the option row after a
+   pick. A refused control now says in words what it is still waiting for, beside
+   itself and in its own tooltip, wired to the same completeness test that gates
+   the press. */
+.bt-needs {
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  line-height: 1.4;
+}
+
+/* ---- the result card: the ending of every activity in the game ----------
+ *
+ * §10.22's law: "One result. `ResultCard` is the ending of every activity in the
+ * game, so a member never designs a win screen and no island's ending looks
+ * unlike the rest of the game." */
+.bt-result { display: flex; flex-direction: column; gap: 14px; }
+.bt-h {
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
+  letter-spacing: .07em;
+}
+.bt-grade { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .bt-lettermark {
-  font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(8cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #234c40;
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(40px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  line-height: 1;
+  color: var(--kit-sea-ink);
 }
-.bt-gradenum { --kit-fs-raw: calc(2.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6a563c; }
+.bt-gradelines { display: flex; flex-direction: column; gap: 2px; }
+.bt-gradenum {
+  --kit-fs-raw: calc(17px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+}
+/* §6.18's open want: "a result card that states which number it is showing" */
+.bt-gradesays {
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+}
+.bt-gaugerow { display: flex; align-items: center; gap: 12px; }
+.bt-gaugerow .kit-gauge { flex: 1 1 auto; min-height: 26px; }
+.bt-gaugerow .kit-gauge-fill { min-height: 26px; }
 
-.bt-takeaways { display: flex; flex-direction: column; gap: .8cqw; }
-.bt-fact {
-  --kit-fs-raw: calc(2.1cqw * var(--kit-text-scale)); font-size: var(--kit-fs); line-height: 1.45; color: #4a3826;
-  border-left: 3px solid #b9974c; padding-left: 1.4cqw;
-  background: rgba(238, 227, 200, .45);
+/* THE STAMP. `stamp` publishes approved, sealed and awarded. Credit earned wears
+   `approved`; GOLD IS EARNED HONORS AND NOTHING ELSE (docs/ART.md), so the gold
+   rosette `awarded` is spent only on an A. */
+.bt-stamps { display: flex; gap: 10px; flex-wrap: wrap; }
+.bt-stamp {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px;
+  background: var(--kit-paper-wash);
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-pill);
 }
-.bt-counselor { --kit-fs-raw: calc(2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6f6046; font-style: italic; }
+.bt-stampword {
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-sea-earned);
+  letter-spacing: .05em;
+}
+.bt-stamp-honor { border-color: var(--kit-gold-edge); box-shadow: inset 0 0 0 1px var(--kit-gold-inset); }
+.bt-stamp-honor .bt-stampword { color: var(--kit-gold-lo); }
+
+.bt-takeaways { display: flex; flex-direction: column; gap: 8px; }
+/* A KEPT FACT IS NOT AN HONOUR. This rule used to be `--kit-cord-lo`, the cord
+   gold, on a card every student gets for finishing anything, which spends the one
+   colour docs/ART.md reserves for an earned honor on a receipt. */
+.bt-fact {
+  --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  line-height: 1.5;
+  color: var(--kit-ink-body);
+  padding: 8px 12px;
+  background: var(--kit-paper-wash);
+  border-left: 4px solid var(--kit-sea);
+  border-radius: 0 var(--kit-r-soft) var(--kit-r-soft) 0;
+}
+.bt-counselor {
+  --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  line-height: 1.45;
+  color: var(--kit-ink-soft);
+  padding-top: 2px;
+  border-top: 1px solid var(--kit-rule-soft);
+}
+.bt-out { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.bt-retake { display: flex; flex-direction: column; gap: 6px; }
 
 /* ---- the plain arm: a document, not the game with the paint scraped off ----
  *
- * ASH'S RULING, 2026-08-31: *"No game art, no wood, no parchment: system font,
+ * ASH'S RULING, 2026-08-31: "No game art, no wood, no parchment: system font,
  * black on white, real headings and a real form. Reads as a worksheet somebody
- * wrote, not as the game with its paint scraped off."*
+ * wrote, not as the game with its paint scraped off."
  *
  * WHY IT IS NOT RAW OS WIDGETS, which was the other candidate and was refused:
  * an unstyled browser default reads as BROKEN, and a control condition that
  * looks broken loses on looking broken rather than on not being a game. That is
  * a confound in the exact comparison the instrument exists to make.
  *
- * WHY THESE RULES DO NOT READ THE TOKEN LAYER and every other kit stylesheet
- * does. This surface is the one that must be a document in EITHER skin, because
- * `as_plain=True` shows it to a GAME-arm student for one beat when an author
- * says the item should read the same both ways. Pointing it at `--kit-paper`
- * would make it parchment on that path, which is the opposite of what the flag
- * means. So it names its own white, and it is the only place in the kit allowed
- * to. Margins are real margins, not a percentage measured for a painted frame.
+ * WHY THE DOCUMENT'S OWN MATERIALS ARE WRITTEN OUT HERE RATHER THAN READ OFF THE
+ * TOKEN LAYER,
+ * which is the one exception in the kit and needs its reason at the byte. This
+ * surface has to be a document in EITHER skin, because `as_plain=True` shows it
+ * to a GAME-arm student for one beat when an author says the item should read
+ * the same both ways. Pointing `.bt-plain` at `--kit-paper` would make it
+ * parchment on that path, which is the opposite of what the flag means, and
+ * tokens.css is not this session's to edit. So the document's materials are
+ * declared ONCE, here, as local properties, and every rule below reads one of
+ * them: the day tokens.css grows a document group this is a ten line change
+ * rather than a sweep. It is reported as wanted rather than left silent.
  *
- * The face moved from `Arial, Helvetica, sans-serif` to the system stack on the
- * same date, which is the one visible change on the `as_plain` path in the game
- * arm: the ruling names a system font stack and this is that stack. */
+ * THE CONTROLS IN THIS ARM ARE PLAIN ELEMENTS AND NEVER THE KIT'S. A `<Plank>`
+ * inside `.bt-plain` would be a carved wooden sign in the middle of a worksheet
+ * on the `as_plain` path, because the plank's art is switched off by the SKIN
+ * and not by the arm. */
 .bt-plain {
-  width: min(640px, 94vw); max-height: 88vh; overflow-y: auto;
-  background: #ffffff; color: #1b1b1b;
-  border: 1px solid #c8c8c8; border-radius: 2px;
+  --bt-doc-paper: #ffffff;
+  --bt-doc-shade: #f5f5f5;
+  --bt-doc-control: #f2f2f2;
+  --bt-doc-ink: #1b1b1b;
+  --bt-doc-ink-quiet: #555555;
+  --bt-doc-rule: #c8c8c8;
+  --bt-doc-rule-firm: #767676;
+  --bt-doc-accent: #1d4f5a;
+  --bt-doc-focus: #1d6fd8;
+  --bt-doc-face: system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  width: min(680px, 94vw); max-height: 90vh; overflow-y: auto;
+  background: var(--bt-doc-paper); color: var(--bt-doc-ink);
+  border: 1px solid var(--bt-doc-rule); border-radius: 2px;
   padding: 28px 34px 30px; box-sizing: border-box;
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--bt-doc-face);
   font-size: 16px; line-height: 1.55;
 }
-.bt-plainform h2 { margin: 0 0 4px; font-size: 21px; font-weight: 700; line-height: 1.25; }
-/* the rule under the title is what makes it a heading rather than a bold line */
-.bt-plainform h2 { padding-bottom: 8px; border-bottom: 1px solid #d5d5d5; margin-bottom: 16px; }
+.bt-plainform h2 {
+  margin: 0 0 16px; padding-bottom: 8px;
+  font-size: 21px; font-weight: 700; line-height: 1.25;
+  border-bottom: 1px solid var(--bt-doc-rule);
+}
+/* THE PLACE NAME, WHICH THIS ARM WAS NOT GIVEN. The game arm draws
+   "place · title" at the top of the stage and the plain arm printed the title
+   alone, so a control-arm student never read the words "the Advisory Hearth".
+   It is one line of content, it is content the treatment arm receives, and the
+   difference ran in the direction that flatters the treatment. */
+.bt-plainform .bt-plainplace { margin: -10px 0 16px; color: var(--bt-doc-ink-quiet); font-size: 15px; }
 .bt-plainform p { margin: 0 0 10px; }
-.bt-plainform fieldset { margin: 0 0 18px; border: 1px solid #c0c0c0; border-radius: 2px; padding: 12px 16px 14px; }
+.bt-plainform fieldset { margin: 0 0 18px; border: 1px solid var(--bt-doc-rule); border-radius: 2px; padding: 12px 16px 14px; }
 .bt-plainform legend { font-weight: 600; padding: 0 6px; }
 .bt-plainform label { display: block; margin: 7px 0; }
+.bt-plainform .bt-plainscore { font-weight: 600; margin-bottom: 8px; }
+.bt-plainform .bt-plainrow { margin: 0 0 6px; }
+.bt-plainform .bt-plainrow em { font-style: normal; color: var(--bt-doc-ink-quiet); }
+.bt-plainform .bt-plaingroup { margin: 8px 0 4px; }
+.bt-plainform .bt-plaingroup > p { margin: 0 0 4px; font-weight: 600; }
 .bt-plainform button {
   margin-top: 4px; padding: 7px 20px; font-size: 15px;
-  font-family: inherit; color: #1b1b1b;
-  background: #f2f2f2; border: 1px solid #767676; border-radius: 2px; cursor: pointer;
+  font-family: inherit; color: var(--bt-doc-ink);
+  background: var(--bt-doc-control); border: 1px solid var(--bt-doc-rule-firm); border-radius: 2px; cursor: pointer;
 }
-.bt-plainform button:disabled { color: #8a8a8a; cursor: default; }
+.bt-plainform button:disabled { color: var(--bt-doc-ink-quiet); cursor: default; }
+/* the disabled Submit says what it is waiting for here too, because a control
+   arm that cannot tell a student why it will not move measures usability */
+.bt-plainform .bt-needs { display: block; margin-top: 6px; color: var(--bt-doc-ink-quiet); font-size: 14px; }
 .bt-plainform input[type='text'], .bt-plainform select {
-  font-family: inherit; font-size: 15px; color: #1b1b1b;
-  background: #fff; border: 1px solid #767676; border-radius: 2px; padding: 4px 7px;
+  font-family: inherit; font-size: 15px; color: var(--bt-doc-ink);
+  background: var(--bt-doc-paper); border: 1px solid var(--bt-doc-rule-firm); border-radius: 2px; padding: 4px 7px;
 }
-.bt-plainform input[type='radio'] { accent-color: #1d4f5a; width: 15px; height: 15px; vertical-align: -2px; margin-right: 6px; }
+.bt-plainform input[type='radio'] { accent-color: var(--bt-doc-accent); width: 15px; height: 15px; vertical-align: -2px; margin-right: 6px; }
 /* every control in this arm gets a ring, because a control arm that cannot be
    driven from the keyboard measures usability instead of presentation */
 .bt-plainform button:focus-visible,
 .bt-plainform input:focus-visible,
-.bt-plainform select:focus-visible { outline: 3px solid #1d6fd8; outline-offset: 2px; }
-.bt-plainform .bt-prompt, .bt-plainform .bt-gradenum, .bt-plainform .bt-counselor { font-family: inherit; color: inherit; font-size: inherit; }
-.bt-plainform .bt-counselor { font-style: normal; }
-.bt-plainform .bt-grade { display: flex; align-items: baseline; gap: 14px; margin: 4px 0 14px; }
-.bt-plainform .bt-lettermark { font-family: inherit; font-size: 34px; color: #1b1b1b; }
-.bt-plainform .bt-takeaways { gap: 8px; margin-bottom: 6px; }
+.bt-plainform select:focus-visible { outline: 3px solid var(--bt-doc-focus); outline-offset: 2px; }
+.bt-plainform .bt-prompt, .bt-plainform .bt-gradenum, .bt-plainform .bt-gradesays,
+.bt-plainform .bt-counselor, .bt-plainform .bt-h, .bt-plainform .bt-count {
+  font-family: inherit; color: inherit; font-size: inherit; letter-spacing: normal;
+}
+.bt-plainform .bt-counselor { border-top: 1px solid var(--bt-doc-rule); padding-top: 8px; color: var(--bt-doc-ink-quiet); }
+.bt-plainform .bt-h { font-weight: 700; margin-bottom: 4px; }
+/* A DOCUMENT IS BLOCK FLOW, not a flex column. The result and review cards are
+   one component in both arms, so the game arm's `gap` would otherwise sit on top
+   of a worksheet's own heading and paragraph margins and read as a layout rather
+   than as a page. */
+.bt-plainform.bt-result { display: block; }
+.bt-plainform .bt-grade { display: flex; align-items: baseline; gap: 14px; margin: 4px 0 6px; }
+.bt-plainform .bt-lettermark { font-family: inherit; font-size: 34px; color: var(--bt-doc-ink); }
+.bt-plainform .bt-gradesays { color: var(--bt-doc-ink-quiet); font-size: 14px; }
+/* a document does not draw a bar, it prints the number */
+.bt-plainform .bt-gaugerow, .bt-plainform .bt-stamps { display: none; }
+.bt-plainform .bt-takeaways { gap: 8px; margin: 14px 0; }
+.bt-plainform .bt-counselor { margin: 14px 0; }
 .bt-plainform .bt-fact {
-  border-left: 3px solid #999; padding: 6px 0 6px 12px; background: #f5f5f5;
-  font-size: 15px; line-height: 1.5; color: #1b1b1b;
+  border-left: 3px solid var(--bt-doc-rule-firm); padding: 6px 0 6px 12px; background: var(--bt-doc-shade);
+  font-size: 15px; line-height: 1.5; color: var(--bt-doc-ink); border-radius: 0;
 }
-.bt-plainform .bt-go {
-  font-family: inherit; color: #1b1b1b;
-  background: #f2f2f2; border: 1px solid #767676; border-radius: 2px;
-  padding: 7px 18px; font-size: 15px; display: block; margin-top: 10px;
-}
-
-/* THE PAINTED FRAME, WHEN IT IS REACHED IN THE PLAIN SKIN AT ALL. It should not
-   be: `ActivityRunner` picks `.bt-plain` for the plain arm, so this only fires
-   on the seam where a run has no assigned arm, an author forced the game arm and
-   the skin says plain. `--kit-art-panel` is `none` there, and `background: none`
-   with no colour under it is an INVISIBLE panel, which is the failure §16 would
-   ship with. This is the same fallback the `.kit-surface-*` rules take. */
-html[data-skin='plain'] .bt-stage {
-  background-color: var(--kit-paper-hi);
-  border: var(--kit-border) solid var(--kit-edge);
-  border-radius: var(--kit-r-sharp);
-  padding: 24px 28px;
-}
+.bt-plainform .bt-out { gap: 10px; margin-top: 14px; }
+.bt-plainform .bt-retake { gap: 4px; margin: 14px 0; }

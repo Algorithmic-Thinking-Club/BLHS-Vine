@@ -34,7 +34,7 @@ import {
   type ButtonHTMLAttributes, type CSSProperties, type InputHTMLAttributes, type ReactNode,
 } from 'react'
 import { faceStyle } from './kitFaceStyle'
-import { kitGeneration, onKitLanded } from './kit'
+import { kitCached, kitFace, kitGeneration, onKitLanded } from './kit'
 import './controls.css'
 
 /* ---- the kit arriving ----------------------------------------------------
@@ -68,10 +68,17 @@ export function Glyph({
   useKitReady()
   const style = faceStyle(piece, face)
   if (!style) return <>{fallback}</>
+  /* THE FACE KEEPS ITS OWN PROPORTION. `faceStyle` scales the whole sheet so the
+   * cut rectangle fills the element exactly, so forcing every face into a square
+   * stretches any that is not one, and nothing about a 512x256 sheet carrying
+   * eight marks guarantees square cuts. `size` is the HEIGHT and the width
+   * follows the drawing. */
+  const cut = kitFace(kitCached() ?? [], piece, face)
+  const w = cut && cut.h > 0 ? Math.round(size * (cut.w / cut.h)) : size
   return (
     <span
       className={`kit-glyph ${className}`}
-      style={{ ...style, width: size, height: size }}
+      style={{ ...style, width: w, height: size }}
       aria-hidden="true"
       title={title}
     />
@@ -359,7 +366,7 @@ export function PortraitFrame({
 export function Empty({ what, fills }: { what: string; fills: string }) {
   return (
     <div className="kit-empty" role="note">
-      <Glyph piece="pointer" face="pin_plate" size={26} className="kit-empty-mark" />
+      <Glyph piece="pointer" face="pin_tail" size={26} className="kit-empty-mark" />
       <p className="kit-empty-what">{what}</p>
       <p className="kit-empty-fills">{fills}</p>
     </div>

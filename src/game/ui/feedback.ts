@@ -26,10 +26,38 @@
  */
 import { announce } from './a11y'
 import { faceStyle } from './kitFaceStyle'
+import { play } from '../audio'
 
 const LAYER_ID = 'kit-feedback'
 
 export type FeedbackKind = 'saved' | 'right' | 'wrong' | 'awarded' | 'note'
+
+/* WHAT EACH ONE SOUNDS LIKE, and this is where sound reaches the whole game.
+ *
+ * §40 asks for "a feedback sound per grant, per grade and per press, warmth
+ * rather than a buzzer", and `src/game/audio.ts` has shipped twelve licensed
+ * CC0 effects with a first-gesture unlock since wave four. The beat runner, the
+ * year sheet and the wardrobe imported none of them, so the whole library was
+ * reachable only from the intro. Hanging it here rather than on each panel is
+ * the same argument the rest of this file makes: five sounds, one vocabulary,
+ * and a surface that says `saved()` gets the right one without choosing.
+ *
+ * THERE IS NO BUZZER AND THERE IS NO SILENCE EITHER. `deny` exists in the
+ * library and is deliberately NOT what a wrong answer plays: a wrong answer is
+ * the student learning (§6.9), and it gets the same soft page the right one
+ * gets, quieter. `deny` is for a control that refused, which is a different
+ * event and one the kit does not raise here.
+ *
+ * `play` is already safe on its own: it swallows a dropped fetch, it honours the
+ * mute setting, and it queues until the first gesture unlocks audio, so nothing
+ * here needs a guard. */
+const SOUND: Record<FeedbackKind, string> = {
+  saved: 'mark',
+  right: 'chime',
+  wrong: 'page',
+  awarded: 'chime',
+  note: 'click',
+}
 
 /* how long each kind stays. Wrong is the longest on purpose: it carries the most
  * to read, and it is the one a student is least ready to read quickly. */
@@ -118,6 +146,9 @@ export function feedback(kind: FeedbackKind, message: string, detail?: string): 
   /* SAID OUT LOUD TOO. A stamp in a corner is invisible to a reader, and "that
    * saved" is exactly the reassurance a student who cannot see it needs most. */
   announce(detail ? `${message}. ${detail}` : message)
+  /* AND HEARD. A quieter one for a wrong answer than for a right one, which is
+   * the whole of the warmth: the game notices, it does not object. */
+  play(SOUND[kind], kind === 'wrong' ? 0.4 : undefined)
 
   const hold = HOLD[kind]
   const timer = window.setTimeout(() => {

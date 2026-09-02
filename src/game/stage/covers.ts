@@ -15,7 +15,7 @@
  *   set rather than two, because two sets is how the card fires on a map whose
  *   full cover was skipped.
  */
-import type { TransitionSpec } from '../../app/transitions'
+import type { CoverVoice, TransitionSpec } from '../../app/transitions'
 import { compositionCache, slotOfMap } from '../world/composition'
 import { placeOfMap } from '../roster/roster'
 
@@ -62,6 +62,102 @@ export function markSeen(mapId: string) {
 /** the proof harness and the tests need a clean slate */
 export function clearSeen() { try { sessionStorage.removeItem(SEEN_KEY) } catch { /* ignore */ } }
 
+/* ---- WHAT KIND OF ARRIVAL A DESTINATION IS -------------------------------
+ *
+ * DERIVED FROM DATA SOMEBODY ALREADY AUTHORED, not from a second table nobody
+ * will maintain. Two facts already on the wire answer it between them:
+ *
+ *   the world composition puts a SLOT on the water for every map that is a place
+ *   you sail to, so a map with a slot is somewhere you arrive at from outside;
+ *
+ *   the roster's `Place.arrival` names which of a place's maps a voyage lands on,
+ *   so a map that belongs to a place and is NOT its arrival is somewhere you walk
+ *   into from inside. `home-island` carries `maps: ['hub', 'panther-maw']` and
+ *   `arrival: 'hub'`, which is exactly the archipelago-versus-the-Maw distinction
+ *   §4.1 is about, already written down and never once read.
+ *
+ * A map that is in neither is a crossing: the open sea, or a destination nobody
+ * has placed yet. It gets the ship, which is the honest picture for "somewhere
+ * this game has not put on the chart". */
+export type CoverClass = 'arrival' | 'inside' | 'crossing'
+
+export function coverClassOf(mapId: string): CoverClass {
+  const c = compositionCache()
+  if (c && slotOfMap(c, mapId)) return 'arrival'
+  const place = placeOfMap(mapId)
+  if (place) return place.arrival === mapId ? 'arrival' : 'inside'
+  return 'crossing'
+}
+
+/* ---- THE COVER ART REGISTRY ----------------------------------------------
+ *
+ * §3.1's own words: "This cover is also the first instance of the thing that has
+ * no document. Ash asked for a per-destination painted cover, one for the
+ * archipelago and another for the Maw, and there is no account anywhere of where
+ * those come from or how a new one is added. The game holds two by hand today."
+ *
+ * It held ONE by hand, and it was the wrong one: `loading-voyage.png` was
+ * hardcoded for every destination in the game, so walking into a cave under a
+ * volcano raised a tall ship at sunset. `public/art/ui/` has held
+ * `loading-maw.png`, `loading-port.png` and `loading-islands.png` the whole time
+ * and nothing in `src/` named any of them.
+ *
+ * THIS IS THE GAME-SIDE HALF OF Q3.1.a AND IT DOES NOT DECIDE IT. The open
+ * question is whether a map's cover ships inside its MAPVIS bundle or lives in a
+ * registry keyed by map id. This is the registry, with a derived answer under it
+ * so an island nobody has entered here still gets the right KIND of cover rather
+ * than nothing. The day a bundle carries its own cover, this table becomes the
+ * fallback and one line reads the bundle first.
+ *
+ * The four paintings, and what each one is actually of, checked by looking:
+ *   loading-port     a jetty, a boathouse and palms with a ketch on a gold sea
+ *   loading-maw      a lit cavern behind a waterfall, a lectern under lanterns
+ *   loading-islands  one volcanic island ringed by small ones, seen from above
+ *   loading-voyage   a tall ship crossing open water toward a headland
+ */
+const ART_PORT = '/art/ui/loading-port.png'
+const ART_MAW = '/art/ui/loading-maw.png'
+const ART_ISLANDS = '/art/ui/loading-islands.png'
+const ART_VOYAGE = '/art/ui/loading-voyage.png'
+
+/** a cover named for one specific destination, which beats the derived one */
+const COVER_ART: Record<string, string> = {
+  /* the Central Island is reached by boat and the student steps onto a dock, so
+   * the harbour is the picture rather than the archipelago seen from the sky */
+  hub: ART_PORT,
+  'hub-a2': ART_PORT,
+  /* §4.1's cover, by name. A room inside a volcano, and the one picture in the
+   * set that is an interior. */
+  'panther-maw': ART_MAW,
+}
+
+const CLASS_ART: Record<CoverClass, string> = {
+  arrival: ART_ISLANDS,
+  inside: ART_MAW,
+  crossing: ART_VOYAGE,
+}
+
+/* ---- WHAT THE COVER SAYS OVER THE PICTURE --------------------------------
+ *
+ * §4.1, on the second painted cover a student meets: it has to "say something
+ * different from the archipelago cover", because "if both are a name over a
+ * painting over a fact, the second one teaches the student that covers are a tax
+ * rather than an arrival."
+ *
+ * So the word changes with the kind of arrival, and the plaque moves with it
+ * (`transitions.css`, the four voices). Reaching a place and stepping into a
+ * room are not the same event and no longer read as one.
+ *
+ * SPACED BY HAND rather than by letter-spacing alone, which is how the kicker
+ * has always been drawn: the tracking on its own reads as tracking and this
+ * reads as lettering. */
+const KICKER: Record<CoverVoice, string> = {
+  arrival: 'E N T E R I N G',
+  inside: 'I N S I D E',
+  crossing: 'B O U N D   F O R',
+  ceremony: 'T H E   C E R E M O N Y',
+}
+
 /* ---- the cover for a destination -------------------------------------------
  *
  * A FIRST ARRIVAL AT A PLACE GETS THE PAINTED CARD. It carries the cover art,
@@ -85,9 +181,51 @@ export function coverFor(mapId: string, bundleTitle?: string): CoverChoice {
      * a bug rather than as a transition. */
     return { spec: { kind: 'iris', holdMs: 240 }, first, title }
   }
+  const voice: CoverVoice = coverClassOf(mapId)
+  /* NO `holdMs` HERE ON PURPOSE. It used to say 1800 while the bar's CSS was
+   * drawn for `(holdMs ?? 2600) + 620` and the controller waited
+   * `holdMs ?? 60`, which is three numbers for one wait. `holdFloorMs` in
+   * `transitions.tsx` is the one number now and a painted cover takes it, so a
+   * destination only says a floor when it means something different from every
+   * other destination. */
   return {
-    spec: { kind: 'scene', title: title.toUpperCase(), holdMs: 1800, image: '/art/ui/loading-voyage.png' },
-    first, title,
+    spec: {
+      kind: 'scene',
+      title: title.toUpperCase(),
+      image: COVER_ART[mapId] ?? CLASS_ART[voice],
+      kicker: KICKER[voice],
+      voice,
+    },
+    first,
+    title,
+  }
+}
+
+/* ---- THE ONE COVER THAT CARRIES NO FACT ----------------------------------
+ *
+ * §14.4, in as many words: "A fact card does not belong on this cover. The run
+ * is over, the fact pool exists to teach during a wait, and a freshman-facing
+ * club fact under the word Graduation is the wrong instrument at the wrong
+ * moment. That is a content decision and it should be written into the cover
+ * registry rather than left to whoever wires it."
+ *
+ * So it is written into the registry. `src/game/run/Graduation.tsx` is the
+ * caller and this session does not own that file, so nothing calls it yet and
+ * the handoff says so; the decision is recorded here rather than left for
+ * whoever wires the ceremony to make again from scratch. */
+export function ceremonyCover(title: string): CoverChoice {
+  return {
+    spec: {
+      kind: 'scene',
+      title: title.toUpperCase(),
+      holdMs: 2400,
+      image: ART_ISLANDS,
+      kicker: KICKER.ceremony,
+      voice: 'ceremony',
+      fact: false,
+    },
+    first: true,
+    title,
   }
 }
 

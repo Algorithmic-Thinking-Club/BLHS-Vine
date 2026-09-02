@@ -1,25 +1,60 @@
 /* THE CHART PAGE. It draws the composition, so what is on it is what is on the
    water, and an island that rises between two sittings appears here with no
-   second edit. Sized in container-query units like every other panel in the kit,
-   so the S/M/L text setting reflows it instead of clipping it. */
+   second edit.
+
+   ---- WHAT THIS PASS CHANGED, 2026-09-01 ----------------------------------
+
+   §9.12 calls this the second most looked-at panel in the game and then says the
+   thing the page was failing: "It is drawn art, not a styled div." Two defects
+   under that, and the second is the one that mattered.
+
+   The obvious one: seven FONT CHARACTERS carried the seven states, one glyph per
+   state, which `docs/ART.md` forbids in as many words.
+
+   The real one: seven glyphs in one place is seven APPEARANCES OF THE SAME
+   OBJECT, and §9.17 rules that out. "The discriminator is a thing present or
+   absent at a known place, not a change of appearance on a thing that is always
+   there." So this file now draws a DOCK: six standing places in the same order
+   on every island, the empty ones still drawn as notches on the rail, and a
+   state is which of them hold something. Nothing on this page changes colour to
+   mean anything, which is also §40.31: a school Chromebook panel crushes both
+   lightness and saturation, and "the same mark, greyer" is not a message.
+
+   Every colour is a token and every size goes through `--kit-fs`, so the text
+   setting and the integer snap both reach the page and §16's arm can take the
+   whole thing to a document.
+
+   Sized in pixel gutters rather than percentages, because a percentage padding
+   resolves against the CONTAINING BLOCK and this page's containing block is a
+   binder pinned to the viewport, which is the bug `hud.css` already fixed once. */
 
 @import '../ui/tokens.css';
 
-/* THE PAPER TAKES THE PAGE. The old chart box was locked to the painting's own
-   688 by 384,
-   and the binder's page measured 273x152 with the chart inside it, which is too
-   small for a name and a mark to be read at all. A chart is a thing a student
-   leans over, so it fills the width, keeps a floor under its height, and lets
-   the page scroll rather than shrinking itself to fit. */
 /* the page becomes a column so the chart can take what is left of it after the
-   heading and the legend, which is what "fills the page" has to mean */
-.hb-page:has(.ch-sea) { display: flex; flex-direction: column; }
+   heading and the register, which is what "fills the page" has to mean */
+.hb-page:has(.ch-chart) { display: flex; flex-direction: column; }
+
+/* `1 0 auto` and not `1`: the chart grows into the page it is given and never
+   shrinks below the register, so a long list scrolls the binder page rather than
+   being clipped by a paper that took the height first. */
+.ch-chart {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+  min-height: 0;
+  gap: 10px;
+}
+
+.ch-h {
+  margin: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(19px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+  font-weight: normal;
+}
 
 /* ---- THE SEA, AS A SHEET OF CHART PAPER -----------------------------------
- *
- * WHAT WAS HERE. Two gradients and a one pixel line. Every other surface in the
- * game is a drawn object and this one, the page a student leans over to find out
- * where they have been, was the only div left that looked like a div.
  *
  * WHY IT IS NOT `--kit-art-chart`, WHICH IS THE OBVIOUS ANSWER AND IS WRONG.
  * That token points at `/art/ui/chart-cover.png`, and the file was measured on
@@ -28,56 +63,60 @@
  * dotted routes and a compass rose, so the live marks would sit on top of a
  * second, fictional archipelago; and its margin is a BAKED CHECKERBOARD, eight
  * pixel squares alternating fully transparent and opaque near-black (2,2,6),
- * which is a transparency preview that got painted into the art. That is what
- * the note above this block meant by a checkerboard ring, and it is a defect in
- * the file, not in the way it was used. `.hb-chart` in `hud.css` still mounts it
- * and nothing renders `.hb-chart` any more.
+ * which is a transparency preview that got painted into the art. That is a
+ * defect in the file, not in the way it was used.
  *
  * `parchment-scroll.png` was measured too and cannot nine-slice: it carries a
  * wax seal and an anchor in the middle of its paper, so the centre tile either
  * repeats the seal across the page or stretches it.
  *
- * SO THE SHEET IS MADE OF THE KIT'S OWN MATERIALS, the same tokens the binder,
- * the year sheet and the settings panel are made of, and it is a chart rather
- * than a rectangle: aged paper, a graticule ruled across it in the ink the marks
- * are written in, a doubled border the way a real chart is bordered, and a
- * shadow so it lies ON the binder page instead of being part of it. Under
- * `?kit=1` the platform's `panel` piece takes over the frame (Chart.tsx adds the
- * class), which is drawn art and stretches to any size because it has a real
- * nine-slice. */
+ * AND THE PLATFORM HAS NOTHING BETTER TO OFFER THIS SURFACE, which is worth
+ * saying so nobody spends the afternoon finding out again. Of the eighteen
+ * published pieces the only stretchable ones with a blank middle are `panel` and
+ * `band`, and both draw their middle with `border-image ... fill`, which paints
+ * OVER the element's own background. Mounting either here would cover the
+ * graticule and the fold with flat parchment, so the page would lose the ruling
+ * to gain a frame. A BLANK CHART FIELD IS A PIECE THE KIT DOES NOT HAVE, it is
+ * in this session's report, and the day it is drawn it lands on this one class.
+ *
+ * Until then the sheet is made of the kit's own materials, the same tokens the
+ * binder and the year sheet are made of, and it is a chart rather than a
+ * rectangle: aged paper, a graticule ruled across it in the ink the names are
+ * written in, a doubled border the way a real chart is bordered, four brass
+ * tacks, and the fold a sheet this size was folded along. */
 .ch-sea {
   position: relative;
   width: 100%;
   /* THE PAPER IS THE PAGE, not a tall box the page scrolls. A fixed height
      taller than the binder put half the marks below a fold nobody knows is
      there, which on a chart is the same as not drawing them. */
-  flex: 1;
-  min-height: 20cqw;
+  flex: 1 1 auto;
+  min-height: 240px;
   overflow: hidden;
   box-sizing: border-box;
-  padding: 1.4cqw;
+  padding: 14px;
   background:
     /* the sea's own light, off the top left, the way a lantern falls on paper */
-    radial-gradient(ellipse at 30% 25%, rgba(120, 160, 165, 0.16), transparent 62%),
+    radial-gradient(ellipse at 30% 25%, var(--kit-sea-glow-soft), transparent 62%),
     /* THE GRATICULE. A chart is ruled and this page never was. Two hairlines in
        the same brown ink the names are written in, at the spacing of the marks
        rather than of the pixels, so it reads as printing and not as a grid
        control. It is the last layer before the paper, so everything drawn sits
        on top of it. */
-    repeating-linear-gradient(90deg, rgba(138, 116, 79, 0.13) 0 1px, transparent 1px 6.5cqw),
-    repeating-linear-gradient(0deg, rgba(138, 116, 79, 0.13) 0 1px, transparent 1px 6.5cqw),
+    repeating-linear-gradient(90deg, var(--kit-rule-soft) 0 1px, transparent 1px 44px),
+    repeating-linear-gradient(0deg, var(--kit-rule-soft) 0 1px, transparent 1px 44px),
     /* the fold shadow down the middle, because a chart this size was folded */
-    linear-gradient(90deg, transparent 49.4%, rgba(138, 116, 79, 0.14) 50%, transparent 50.6%),
-    linear-gradient(180deg, #efe4c6, #e2d3ad);
+    linear-gradient(90deg, transparent 49.4%, var(--kit-rule) 50%, transparent 50.6%),
+    linear-gradient(180deg, var(--kit-paper-hi), var(--kit-paper-lo));
   /* the doubled border a chart carries: a firm outer rule and a hairline inside
      it, which is one box-shadow rather than a second element */
-  border: 2px solid var(--kit-edge, #8a744f);
-  border-radius: var(--kit-r-sharp, 3px);
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-sharp);
   box-shadow:
-    inset 0 0 0 1px rgba(246, 238, 216, 0.75),
-    inset 0 0 0 4px rgba(138, 116, 79, 0.28),
-    inset 0 0 22px rgba(138, 116, 79, 0.16),
-    0 2px 6px rgba(40, 28, 14, 0.22);
+    inset 0 0 0 1px var(--kit-paper-sheen-firm),
+    inset 0 0 0 4px var(--kit-rule-firm),
+    inset 0 0 22px var(--kit-rule-soft),
+    0 2px 6px var(--kit-hairline);
 }
 
 /* THE FOUR TACKS THAT HOLD IT DOWN. Small brass heads in the corners, in the
@@ -86,102 +125,474 @@
    `::after` the bottom, which is two elements for four marks. */
 .ch-sea::before, .ch-sea::after {
   content: '';
-  position: absolute; left: 0.9cqw; right: 0.9cqw; height: 1.5cqw;
+  position: absolute; left: 9px; right: 9px; height: 14px;
   pointer-events: none;
   background:
-    radial-gradient(circle at 0.75cqw 50%, var(--kit-gold-hi, #d8b968) 0 0.5cqw, rgba(90, 70, 40, 0.45) 0.5cqw 0.62cqw, transparent 0.66cqw) no-repeat,
-    radial-gradient(circle at calc(100% - 0.75cqw) 50%, var(--kit-gold-hi, #d8b968) 0 0.5cqw, rgba(90, 70, 40, 0.45) 0.5cqw 0.62cqw, transparent 0.66cqw) no-repeat;
+    radial-gradient(circle at 7px 50%, var(--kit-gold-hi) 0 5px, var(--kit-cord-track) 5px 6px, transparent 7px) no-repeat,
+    radial-gradient(circle at calc(100% - 7px) 50%, var(--kit-gold-hi) 0 5px, var(--kit-cord-track) 5px 6px, transparent 7px) no-repeat;
 }
-.ch-sea::before { top: 0.9cqw; }
-.ch-sea::after { bottom: 0.9cqw; }
+.ch-sea::before { top: 9px; }
+.ch-sea::after { bottom: 9px; }
 
-/* AND THE PLATFORM HAS NOTHING BETTER TO OFFER THIS SURFACE, which is worth
-   saying so nobody spends the afternoon finding out again. Of the eighteen
-   published pieces the only stretchable ones with a blank middle are `panel` and
-   `band`, and both draw their middle with `border-image ... fill`, which paints
-   OVER the element's own background. Mounting either here would cover the
-   graticule and the fold with flat parchment, so the page would lose the ruling
-   to gain a frame. A chart field is a piece the kit does not have yet. */
+/* ---- the named water ------------------------------------------------------ */
 
 .ch-region {
   position: absolute;
-  border: 1px dashed rgba(138, 116, 79, 0.4);
-  border-radius: 6px;
+  box-sizing: border-box;
+  border: 1px dashed var(--kit-rule-firm);
+  border-radius: var(--kit-r-round);
   pointer-events: none;
 }
-.ch-region-sailable { background: rgba(120, 160, 165, 0.08); }
-.ch-region-mist { background: rgba(160, 165, 170, 0.2); border-style: dotted; }
-.ch-region-shallow { background: rgba(190, 175, 120, 0.14); }
-.ch-region-forbidden { background: rgba(150, 70, 60, 0.12); border-color: rgba(150, 70, 60, 0.5); }
+.ch-region-sailable { background: var(--kit-sea-glow-soft); }
+/* MIST IS THE ONE REGION WITH A TEXTURE RATHER THAN A TINT, because it is the
+   one whose meaning is "you cannot see through this" and a flat wash says
+   nothing on a panel that crushes lightness */
+.ch-region-mist {
+  background: repeating-linear-gradient(135deg, var(--kit-paper-sheen) 0 6px, transparent 6px 12px);
+  border-style: dotted;
+}
+.ch-region-shallow { background: repeating-linear-gradient(90deg, var(--kit-rule-soft) 0 1px, transparent 1px 7px); }
+.ch-region-forbidden { background: repeating-linear-gradient(45deg, var(--kit-rule-firm) 0 2px, transparent 2px 9px); }
 .ch-region-ambience { background: none; border: none; }
 
 .ch-region-name {
-  position: absolute; left: 0.8cqw; top: 0.4cqw;
-  font-family: 'Deckhand', monospace;
-  --kit-fs-raw: calc(2.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
-  color: rgba(74, 56, 38, 0.5);
-  letter-spacing: 0.08em;
+  position: absolute; left: 8px; top: 4px;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  letter-spacing: .08em;
 }
+
+/* THE ROSE. A chart is oriented, and this one never was. */
+/* clear of the bottom tack strip, which runs 9 to 23 pixels up from the edge */
+.ch-rose {
+  position: absolute; right: 26px; bottom: 26px;
+  display: inline-flex;
+  height: 34px;
+  opacity: .55;
+  pointer-events: none;
+}
+
+/* ---- ONE ISLAND ---------------------------------------------------------- */
 
 .ch-isle {
   position: absolute;
   transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center;
-  gap: 0.15cqw;
-  white-space: nowrap;
-  font-family: 'Deckhand', monospace;
+  gap: 3px;
+  font-family: var(--kit-face-body);
+  color: var(--kit-ink-body);
 }
 
-/* THE MARK IS THE STATE, AND THE COLOUR ONLY AGREES WITH IT. §11.3 asks for state
-   readable at a glance without relying on hue and nothing implemented it, so
-   every slot carries a shape a colourblind student can read. */
-.ch-mark {
-  --kit-fs-raw: calc(4.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
-  line-height: 1;
-  text-shadow: 0 1px 0 rgba(246, 238, 216, 0.9);
+/* THE DOCK: a rail with six standing places on it. The rail is what makes an
+   EMPTY place readable, because an empty place is only legible when the place
+   itself is drawn. */
+.ch-dock {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  padding: 0 4px 3px;
+  border-bottom: 2px solid var(--kit-edge);
+  border-radius: 0 0 var(--kit-r-sharp) var(--kit-r-sharp);
+}
+/* a mark standing where there is no dock yet carries no rail: there is nothing
+   to be standing on */
+.ch-dock-bare { border-bottom: 0; padding-bottom: 0; }
+
+/* THE HEIGHT IS FIXED AND THE WIDTH IS A FLOOR, because `Glyph` treats `size` as
+   a HEIGHT and lets a cut face keep its drawn proportion. Every token drawing
+   below is square, so with no platform kit the six places are exactly the same
+   width and the rail reads as a ruler; a wider drawn face still stands in its
+   own place in the same order. */
+.ch-slot {
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex: none;
+  min-width: 18px; height: 18px;
+}
+.ch-slot-big { min-width: 30px; height: 30px; }
+/* AN EMPTY PLACE IS A NOTCH ON THE RAIL. Not a faded mark and not a gap: a
+   student reads "the star is not there" off a place that is visibly a place. */
+.ch-slot-off { position: relative; }
+.ch-slot-off::after {
+  content: '';
+  position: absolute; bottom: 0; left: 50%;
+  width: 2px; height: 5px;
+  margin-left: -1px;
+  background: var(--kit-rule-firm);
 }
 
+/* THE NAME TAKES THE STATE'S OWN INK, which is what `.ch-<state>` on the island
+   above it is for. The note under it does not: it is the same quiet voice on
+   every island, because the words in it already say the state and a second thing
+   saying it in colour is the hue-alone failure §40.31 rules out. */
 .ch-name {
-  --kit-fs-raw: calc(2.9cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
-  background: rgba(238, 227, 200, 0.86);
-  border: 1px solid #8a744f;
-  border-radius: 3px;
-  padding: 0.15cqw 1.1cqw;
+  --kit-fs-raw: calc(17px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  max-width: 170px;
+  text-align: center;
+  line-height: 1.15;
+  background: var(--kit-paper-wash);
+  border: 1px solid var(--kit-edge);
+  border-radius: var(--kit-r-sharp);
+  padding: 1px 8px;
   color: inherit;
 }
 
 .ch-note {
-  --kit-fs-raw: calc(2.3cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
-  color: rgba(74, 56, 38, 0.62);
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  max-width: 170px;
+  text-align: center;
+  line-height: 1.3;
+  color: var(--kit-ink-label);
 }
 
-/* a rumour is pencil: no border, no ink, and it says so */
+/* A RUMOUR IS PENCIL: no ink box, a dashed edge, and it says so in its own
+   voice. `.ch-misty` is the same argument one step further out. */
 .ch-rumour .ch-name {
-  background: none; border: 1px dashed rgba(138, 116, 79, 0.55);
+  background: none;
+  border: 1px dashed var(--kit-rule-firm);
   font-style: italic;
 }
-.ch-misty .ch-name { background: rgba(214, 210, 198, 0.7); border-style: dotted; }
+.ch-misty .ch-name { background: none; border-style: dotted; }
+/* a finished island's name is written twice over, the way a name on a chart gets
+   gone over in ink once it is certain */
 .ch-completed .ch-name { border-width: 2px; }
 
-/* rising is the one thing on this page that moves, because it is the one thing
-   happening right now. Reduced motion holds it still and it keeps its mark. */
-.ch-rising .ch-mark { animation: ch-pulse 1400ms ease-in-out infinite; }
-@keyframes ch-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
-html[data-rm='1'] .ch-rising .ch-mark { animation: none; opacity: 1; }
+/* ---- YOU ARE HERE -------------------------------------------------------- */
 
-.ch-legend { margin-top: 1.5cqw; }
+/* SHE LIES BELOW THE ISLAND SHE IS TIED TO rather than on top of its mark, so
+   "you are here" and "this is that place" are two readings and not one pile. */
+.ch-you {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  margin-top: 62px;
+  z-index: 2;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 2px;
+  pointer-events: none;
+}
+.ch-you-name {
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-sea-ink);
+  background: var(--kit-paper-wash);
+  border-radius: var(--kit-r-sharp);
+  padding: 0 5px;
+  white-space: nowrap;
+}
+
+/* ---- THE TOKEN DRAWINGS THAT STAND IN FOR THE CUT FACES -------------------
+ *
+ * `faceStyle` hands back nothing unless the platform kit is worn, so on a build
+ * with no network every one of these is what a student actually sees, and
+ * `docs/ART.md` rules out the easy answer: "Icons are drawn, never an emoji or a
+ * font glyph." So each one is a SHAPE built out of the token layer, told apart
+ * by its outline rather than by its colour, and the three the platform has never
+ * drawn (a pennant, a fog bank, water breaking) are in this session's report as
+ * art still owed. */
+
+.ch-s {
+  display: block;
+  flex: none;
+  box-sizing: border-box;
+  width: 18px; height: 18px;
+}
+.ch-slot-big .ch-s { width: 30px; height: 30px; }
+.ch-rose .ch-s { width: 34px; height: 34px; }
+
+/* the marker: a ringed head over a tapered tail, which is what `pointer`'s
+   pin_plate and pin_tail draw as two faces and this draws as two boxes */
+.ch-s-pin { position: relative; }
+.ch-s-pin::before {
+  content: '';
+  position: absolute; left: 2px; top: 0;
+  width: 14px; height: 14px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: var(--kit-ink-body);
+  box-shadow: inset 0 0 0 3px var(--kit-paper-hi);
+}
+.ch-s-pin::after {
+  content: '';
+  position: absolute; left: 6px; bottom: 0;
+  width: 6px; height: 6px;
+  background: var(--kit-ink-body);
+  clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
+}
+
+/* the season coin. Filled is the season you are in; a ring is the season this
+   place keeps while you are in another one, which is a SHAPE difference and not
+   a dimmer coin. */
+.ch-s-pip {
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--kit-gold-hi), var(--kit-gold-lo) 70%);
+  box-shadow: 0 0 0 1px var(--kit-gold-edge);
+}
+.ch-s-pip-shut {
+  border-radius: 50%;
+  background: none;
+  box-shadow: inset 0 0 0 2px var(--kit-cord-track);
+}
+
+/* the star: a token you still hold would be taken here */
+.ch-s-star {
+  background: var(--kit-sea);
+  clip-path: polygon(50% 0%, 62% 36%, 100% 36%, 69% 58%, 81% 96%, 50% 72%, 19% 96%, 31% 58%, 0% 36%, 38% 36%);
+}
+
+/* your own flag, and there is no drawn pennant on any published sheet */
+.ch-s-flag { position: relative; }
+.ch-s-flag::before {
+  content: '';
+  position: absolute; left: 3px; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--kit-ink-body);
+}
+.ch-s-flag::after {
+  content: '';
+  position: absolute; left: 5px; top: 1px;
+  width: 11px; height: 8px;
+  background: var(--kit-sea-ink);
+  clip-path: polygon(0% 0%, 100% 50%, 0% 100%);
+}
+
+/* the stamp that fills gold when a place is finished. Gold is EARNED HONORS
+   ONLY (`docs/ART.md`) and a finished island is the one thing on this page that
+   has been earned. */
+/* the rim is INSET, because `clip-path` clips an outer shadow away with the rest
+   of the box and the seal would lose its edge */
+.ch-s-stamp {
+  background: radial-gradient(circle at 38% 32%, var(--kit-gold-hi), var(--kit-gold-lo) 72%);
+  box-shadow: inset 0 0 0 2px var(--kit-gold-edge);
+  clip-path: polygon(
+    50% 0%, 64% 8%, 79% 6%, 88% 18%, 100% 27%, 96% 42%, 100% 57%,
+    88% 66%, 90% 82%, 76% 90%, 66% 100%, 50% 95%, 34% 100%, 24% 90%,
+    10% 82%, 12% 66%, 0% 57%, 4% 42%, 0% 27%, 12% 18%, 21% 6%, 36% 8%);
+}
+
+/* the landing tick: you were off the boat here, which the exposure record has
+   always known and nothing had ever drawn */
+.ch-s-tick {
+  position: relative;
+  background: none;
+}
+.ch-s-tick::after {
+  content: '';
+  position: absolute; left: 3px; top: 1px;
+  width: 7px; height: 12px;
+  border-right: 3px solid var(--kit-sea-earned);
+  border-bottom: 3px solid var(--kit-sea-earned);
+  transform: rotate(40deg);
+}
+
+/* THE FOG, AND IT THINS IN STAGES. §9.14: "the dissolve is staged rather than
+   switched ... a hard swap reads as a bug." The stage is a real distance,
+   computed in `states.ts` off where the boat has actually been tied up, and it
+   moves the SIZE of the bank as well as its weight so it is not lightness on its
+   own doing the work. */
+.ch-s-fog {
+  border-radius: 46% 54% 52% 48% / 58% 46% 54% 42%;
+  background: radial-gradient(circle at 42% 40%, var(--kit-paper-hi), var(--kit-rule-soft) 75%, transparent 90%);
+  box-shadow: 0 0 10px var(--kit-paper-sheen);
+  animation: ch-fog 9s ease-in-out infinite alternate;
+}
+@keyframes ch-fog {
+  from { border-radius: 46% 54% 52% 48% / 58% 46% 54% 42%; transform: translateX(-1px); }
+  to { border-radius: 56% 44% 46% 54% / 44% 58% 42% 56%; transform: translateX(1px); }
+}
+html[data-rm='1'] .ch-s-fog { animation: none; }
+/* AND THE STAGE ITSELF EASES RATHER THAN CUTTING. A bank that jumps two stages
+   between two draws is the hard swap §9.14 refuses, one level up. */
+.ch-dock-bare { transition: opacity var(--kit-t-slow) ease, transform var(--kit-t-slow) ease; }
+.ch-dock-bare[data-fog='3'] { opacity: 1; transform: scale(1); }
+.ch-dock-bare[data-fog='2'] { opacity: .82; transform: scale(.88); }
+.ch-dock-bare[data-fog='1'] { opacity: .62; transform: scale(.74); }
+.ch-dock-bare[data-fog='0'] { opacity: .42; transform: scale(.6); }
+
+/* a rumour is drawn in pencil and has no marker, because there is nothing there
+   to put a marker on */
+.ch-s-pencil {
+  border-radius: 50%;
+  background: none;
+  border: 2px dashed var(--kit-ink-dim);
+}
+
+/* water breaking over something arriving, which nobody has drawn either */
+.ch-s-rising {
+  position: relative;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--kit-sea);
+  animation: ch-rise 1600ms ease-in-out infinite;
+}
+.ch-s-rising::after {
+  content: '';
+  position: absolute; inset: 22%;
+  border-radius: 50%;
+  background: var(--kit-sea-glow);
+}
+@keyframes ch-rise {
+  0%, 100% { box-shadow: inset 0 0 0 2px var(--kit-sea); }
+  50% { box-shadow: inset 0 0 0 2px var(--kit-sea), 0 0 0 4px var(--kit-sea-glow-soft); }
+}
+/* a loop at 1ms is a strobe, so the setting STOPS it and leaves the ring whole */
+html[data-rm='1'] .ch-s-rising { animation: none; box-shadow: inset 0 0 0 2px var(--kit-sea), 0 0 0 3px var(--kit-sea-glow-soft); }
+
+/* the boat, which no sheet has a face for either. A hull and a mast. */
+.ch-s-ship {
+  position: relative;
+  width: 22px; height: 20px;
+}
+.ch-s-ship::before {
+  content: '';
+  position: absolute; left: 10px; top: 0;
+  width: 2px; height: 12px;
+  background: var(--kit-ink-body);
+}
+.ch-s-ship::after {
+  content: '';
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 9px;
+  background: var(--kit-sea-ink);
+  clip-path: polygon(0% 0%, 100% 0%, 82% 100%, 18% 100%);
+}
+
+/* the compass rose, for a build with no `icon_set` behind it */
+.ch-s-rose {
+  background: var(--kit-edge);
+  clip-path: polygon(50% 0%, 58% 42%, 100% 50%, 58% 58%, 50% 100%, 42% 58%, 0% 50%, 42% 42%);
+}
+
+/* THE CHART INKS ITSELF. §9.15's whole moment, played once, on the draw a
+   smudge becomes a place with a name on it. */
+.ch-isle[data-inked='1'] .ch-dock { animation: ch-ink 900ms var(--kit-ease-rise) 1 both; }
+.ch-isle[data-inked='1'] .ch-name { animation: ch-ink 900ms var(--kit-ease-rise) 1 both; }
+@keyframes ch-ink {
+  from { opacity: 0; transform: scale(.86); }
+  to { opacity: 1; transform: none; }
+}
+html[data-rm='1'] .ch-isle[data-inked='1'] .ch-dock,
+html[data-rm='1'] .ch-isle[data-inked='1'] .ch-name { animation: none; }
+
+/* ---- THE REGISTER, WHICH IS THE READING AND IS ALSO THE PLAIN ARM --------
+ *
+ * §9.13's deployment line: this is the screen a teacher points at over a
+ * student's shoulder, so the same facts have to survive being read as a list.
+ * It is also where the dock's objects are paired with their words, so the page
+ * teaches its own language instead of needing a legend under it. */
+
+.ch-register {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ch-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 2px;
+  border-bottom: 1px dashed var(--kit-rule);
+}
+.ch-row-marks { display: inline-flex; flex: none; }
+.ch-row-words { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ch-row-name {
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(16px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
+.ch-row-state {
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+  line-height: 1.4;
+}
+/* THE SCHOOL'S OWN SENTENCE, IN THE QUIET VOICE AND NEVER IN THE ALARM ONE.
+   §9.17: out of season "must never read as broken or as an error". Nothing about
+   this line is red, nothing about it is a padlock, and it is a fact about the
+   real school that the game happens to be teaching by refusing. */
+.ch-row-closed {
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  line-height: 1.4;
+}
+/* the boat's own row sits above the water it is on */
+.ch-row-you .ch-row-name { color: var(--kit-sea-ink); }
+
+.ch-legend {
+  margin: 0;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  line-height: 1.45;
+}
 
 /* ---- THE INK ON PAPER ------------------------------------------------------
  *
- * STATE_INK carries the tint the WATER draws a slot in, on a dark sea, and those
- * values are unreadable on aged paper:  is a pale tan, which on this
- * page is the page. One table for two surfaces was the mistake; the MARK is the
- * shared thing, because that is what §11.3 asks for, and the colour is per
- * surface because a colour is only ever a colour against something. */
-.ch-rumour { color: #8a7a60; }
-.ch-rising { color: #a06a12; }
-.ch-misty { color: #6b7a80; }
-.ch-discovered { color: #6a563c; }
-.ch-available { color: #3c6e60; }
-.ch-active { color: #a4600d; }
-.ch-completed { color: #2f6e50; }
+ * `STATE_INK` carries the tint the WATER draws a slot in, on a dark sea, and
+ * those values are unreadable on aged paper: `discovered`'s 0xcbbb95 is a pale
+ * tan, which on this page is the page. One table for two surfaces was the
+ * mistake; the OBJECTS ON THE DOCK are the shared thing, because that is what
+ * §9.17 asks for, and the colour is per surface because a colour is only ever a
+ * colour against something.
+ *
+ * Nothing below carries a state on its own. Every one of the seven is already
+ * told apart by which objects are standing on its dock; these only stop the ink
+ * of a rumour and the ink of a finished island being the same weight of brown on
+ * a page a student leans over. */
+.ch-rumour { color: var(--kit-ink-dim); }
+.ch-rising { color: var(--kit-sea-head); }
+.ch-misty { color: var(--kit-ink-soft); }
+.ch-discovered { color: var(--kit-ink-body); }
+.ch-available { color: var(--kit-sea-ink); }
+.ch-active { color: var(--kit-ink); }
+.ch-completed { color: var(--kit-sea-earned); }
+
+/* =======================================================================
+ * §16, THE PLAIN ARM: THE CHART AS A DOCUMENT
+ *
+ * Ash's ruling, 2026-08-31: "No game art, no wood, no parchment: system font,
+ * black on white, real headings and a real form. Reads as a worksheet somebody
+ * wrote, not as the game with its paint scraped off."
+ *
+ * A worksheet does not have a drawn sea on it. So the paper goes, every token
+ * drawing goes, and what is left is the thing a document would actually be: a
+ * heading and a list of places with their state written out. Nothing about the
+ * MECHANIC changes, which is Q9.15.a's own answer: the plain arm discovers
+ * islands the same way and the exposure measure stays comparable across arms.
+ * Only the picture is gone.
+ *
+ * No rule in this block names a picture, a pixel-art rendering or a game face,
+ * which `tokens.test.ts` reads this file for.
+ * ======================================================================= */
+
+html[data-skin='plain'] .ch-sea { display: none; }
+/* the marks were the picture and the picture is what this arm does not get */
+html[data-skin='plain'] .ch-row-marks { display: none; }
+html[data-skin='plain'] .ch-s { display: none; }
+
+html[data-skin='plain'] .ch-chart { gap: 0; }
+html[data-skin='plain'] .ch-register {
+  border-top: 1px solid var(--kit-rule);
+  margin: 4px 0 14px;
+}
+html[data-skin='plain'] .ch-row {
+  display: block;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--kit-rule);
+}
+html[data-skin='plain'] .ch-row-name { font-weight: 700; color: var(--kit-ink-head); }
+html[data-skin='plain'] .ch-row-state,
+html[data-skin='plain'] .ch-row-closed { display: block; }
+html[data-skin='plain'] .ch-legend { color: var(--kit-ink-body); }

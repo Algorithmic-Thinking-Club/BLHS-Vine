@@ -186,6 +186,23 @@ button.kit-chip:active { transform: translateY(1px); }
 .kit-tabrow::-webkit-scrollbar { height: 6px; }
 .kit-tabrow::-webkit-scrollbar-thumb { background: var(--kit-edge); border-radius: var(--kit-r-soft); }
 
+/* THE DRAWN TAB IS SCALED DOWN, AND THIS IS THE ARITHMETIC.
+ *
+ * `tab` is painted 227x151 with a 36/49/49/35 frame, so worn at its own scale
+ * one tab is 84 pixels of carving wide and 85 tall before a single letter. Five
+ * of them plus a Close is about 1000 pixels in a binder that is 1000 wide, which
+ * is `build-shots/ui/after/12-chart.png`: the row scrolls sideways inside a
+ * panel that has room, and "Badges" is cut in half.
+ *
+ * A nine-slice scales by its BORDER-WIDTH, because the platform's block says
+ * `border-image: ... / 1 /`, which means the image is drawn at one times the
+ * border width. Halving the border draws the same carving at half size with the
+ * corners still square. `.kit-tab.kit-surface-tab` is two classes so it beats
+ * the platform's own one-class block, which `applyKit` appends to the head last.
+ *
+ * The numbers are the drawn ones times 0.55, rounded: 36/49/49/35 -> 20/27/27/19. */
+.kit-tab.kit-surface-tab { border-width: 20px 27px 27px 19px; }
+
 .kit-tab {
   flex: none;
   box-sizing: border-box;

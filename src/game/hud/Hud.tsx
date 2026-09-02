@@ -128,27 +128,72 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       if (e.key !== 'Escape' || e.repeat) return
       if (panelDepth() > 0) return                                            // a panel is on top and has already answered
       if (planner || advisory || sitClass || yearbook || graduation) return   // the sheet eats its own Esc; a beat never Esc-quits
-      setPaused((p) => { onBlurWorld?.(!p); return !p })
+      /* THE SIDE EFFECT CAME OUT OF THE UPDATER, 2026-09-01.
+       *
+       * This read `setPaused((p) => { onBlurWorld?.(!p); return !p })`, and React
+       * runs an updater function DURING RENDER. `onBlurWorld` takes a world-bus
+       * lease, the bus tells its subscribers, and one of those subscribers is now
+       * the Heading, so pressing Escape logged "Cannot update a component
+       * (Heading) while rendering a different component (Hud)" on every pause.
+       *
+       * It was latent for as long as nothing but this component listened to the
+       * bus, which is the shape of every bug of this kind: correct until somebody
+       * else subscribes. The toggle is pure now and the lease is taken in the
+       * effect below, where a side effect belongs. */
+      setPaused((p) => !p)
     }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
   }, [planner, advisory, sitClass, yearbook, graduation, onBlurWorld])
 
+  /* ---- WHO HOLDS THE CONTROLS, DERIVED RATHER THAN REMEMBERED --------------
+   *
+   * There were TWELVE `onBlurWorld?.(...)` calls scattered through this
+   * component, one beside every `setX(true)` and one in `closeAll`, and the
+   * lease behind them is a single shared one. Two bugs came out of that on
+   * 2026-09-01 and both are the same bug.
+   *
+   * The first was loud: `setPaused((p) => { onBlurWorld?.(!p); return !p })`
+   * took the lease INSIDE a state updater, and React runs an updater during
+   * render, so pressing Escape logged "Cannot update a component (Heading) while
+   * rendering a different component (Hud)" every single time. It was latent for
+   * as long as nothing but this component listened to the world bus, which is
+   * the shape of every bug of this kind: correct until somebody else subscribes.
+   *
+   * The second is quiet and worse. Opening a panel from the pause sheet runs
+   * `setPaused(false)` and `onBlurWorld(true)` in one handler, so a
+   * pause-shaped effect would then fire `onBlurWorld(false)` on the next render
+   * and hand the controls back with a panel still on screen. That is exactly the
+   * failure `world-bus.ts` counts leases to prevent, defeated one layer up.
+   *
+   * So the hold is a FUNCTION OF WHAT IS OPEN. Nothing takes it, nothing
+   * releases it, and a panel added next month cannot forget either half: it only
+   * has to be in `anyOpen`. The ref keeps a re-render with no change from
+   * touching the bus, because `onBlurWorld` is redefined by its parent on every
+   * render and would otherwise be a new dependency sixty times a second. */
+  const heldByUs = useRef(false)
+  useEffect(() => {
+    const want = anyOpen || paused
+    if (want === heldByUs.current) return
+    heldByUs.current = want
+    onBlurWorld?.(want)
+  })
+
   // the ui-bus: the world's diegetic stations open these same panels (ui-bus.ts)
   useEffect(() => onUiRequest((which) => {
     setPaused(false)
-    if (which === 'planner') { track('planner_requested', { via: 'world' }); setPlanner(true); onBlurWorld?.(true) }
-    if (which === 'advisory') { setAdvisory(true); onBlurWorld?.(true) }
-    if (which === 'handbook') { setBook('islands'); onBlurWorld?.(true) }
-    if (which === 'chart') { track('chart_opened'); setBook('chart'); onBlurWorld?.(true) }
-    if (which === 'wardrobe') { track('wardrobe_opened', { via: 'world' }); setWardrobe(true); onBlurWorld?.(true) }
+    if (which === 'planner') { track('planner_requested', { via: 'world' }); setPlanner(true) }
+    if (which === 'advisory') { setAdvisory(true) }
+    if (which === 'handbook') { setBook('islands') }
+    if (which === 'chart') { track('chart_opened'); setBook('chart') }
+    if (which === 'wardrobe') { track('wardrobe_opened', { via: 'world' }); setWardrobe(true) }
     if (which === 'settings') { setSettings(true) }
     /* THE SIXTH DOOR, and the page had exactly one before it: a button inside the
      * planner that only appears while THIS year is closable. So a student could
      * not look at year one the moment year one ended, and no island and no
      * station could ever send them to their own book. `open('yearbook')` is a
      * word a member's Python can already say. */
-    if (which === 'yearbook') { track('yearbook_opened', { via: 'world' }); setYearbook(true); onBlurWorld?.(true) }
+    if (which === 'yearbook') { track('yearbook_opened', { via: 'world' }); setYearbook(true) }
   }), [onBlurWorld])
 
   /* A SCORED ACTIVITY ASKED FOR BY WORLD CODE, WITH ITS GRADE COMING BACK.
@@ -164,12 +209,11 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     /* REFUSED, NOT ANSWERED NULL. A beat id nobody knows is a typo in somebody's
      * island, and a null grade told them it had worked. */
     if (!beat) { req.refuse(`no activity called "${req.beat}"`); return }
-    onBlurWorld?.(true)
     setPlaying({ beat, plain: req.plain, done: req.done })
   }), [onBlurWorld, s])
 
-  const openBook = (tab: 'chart' | 'islands') => { setPaused(false); setBook(tab); onBlurWorld?.(true) }
-  const openPlanner = () => { setPaused(false); setPlanner(true); onBlurWorld?.(true) }
+  const openBook = (tab: 'chart' | 'islands') => { setPaused(false); setBook(tab) }
+  const openPlanner = () => { setPaused(false); setPlanner(true) }
   const closeAll = () => {
     setBook(null); setPlanner(false); setAdvisory(false); setSitClass(null); setYearbook(false)
     setGraduation(false); setPaused(false); setSettings(false); setWardrobe(false)
@@ -178,7 +222,6 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
      * the world lock for ever, and the map would have no controls and no
      * explanation. The ledger is the truth about what was scored. */
     setPlaying((p) => { p?.done(gradeFromLedger(p.beat.id)); return null })
-    onBlurWorld?.(false)
   }
   // resolved per render on purpose: Y4's audit beat is GENERATED from the live save
   /* HAS THE WORLD FINISHED ARRIVING. Set a beat after the last arrival card, and

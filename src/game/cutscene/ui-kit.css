@@ -1,4 +1,4 @@
-/* The PixelLab UI kit chrome (GAME-DESIGN §11) — aged paper on carved driftwood.
+/* The PixelLab UI kit chrome (GAME-DESIGN §11): aged paper on carved driftwood.
    Textures live in /public/art/ui/, both game faces in /public/fonts/. Structure and
    behavior live in the components; this file owns every texture, face, and easing so
    the kit reads as ONE material system everywhere.
@@ -22,11 +22,15 @@
 
 /* ---- dialogue: the standard lower-third paper box ---- */
 .cs-dialogue {
-  position: absolute;
-  left: 50%;
-  bottom: max(2.4vh, 16px);
-  transform: translateX(-50%);
-  width: min(560px, 58vw);           /* modest box — it must never cover Thor */
+  /* IT NO LONGER PLACES ITSELF. It used to be `position: absolute` with its own
+   * left, bottom, width and centring transform, and the choices were positioned
+   * separately off a retyped copy of its height. That copy stopped being true
+   * the day the box was allowed to grow (below), which put a long question's
+   * planks on top of the paper. `.dlg-stack` in `hud/dialogue.css` is the one
+   * bottom-anchored column that holds the box and its choices, and this is
+   * simply the widest thing in it. */
+  position: relative;
+  width: 100%;
   /* ---- IT GROWS TO ITS CONTENT NOW, BETWEEN A FLOOR AND A CEILING ----------
    *
    * Part IV §40.14 is about this one declaration. It was `height: min(190px, 26vh)`,
@@ -55,7 +59,7 @@
   container-type: inline-size;
   /* the frame is a nine-slice on .kit-surface-dialogue now, not a stretched picture */
   image-rendering: var(--kit-pixel);
-  /* the paper window inside the hero frame (measured off the asset) — the text is
+  /* the paper window inside the hero frame (measured off the asset), where the text is
      vertically centered in it so a bigger face fills the paper instead of sitting low */
   padding: 10px 14px 12px;   /* a gutter INSIDE the frame; the frame's own border-width is the rest */
   box-sizing: border-box;
@@ -76,29 +80,27 @@
 /* NO OPACITY. The box's own art is opaque and its first frame used to be
    transparent, so for 260ms the painting, its labels and the player were all
    legible through the paper; the eyes round caught it in the wave-1 "after"
-   shot. It rises, which is the entrance, and it is never see-through doing it. */
+   shot. It rises, which is the entrance, and it is never see-through doing it.
+   The centring transform came out of here with the positioning: the column above
+   owns that now, and a keyframe that re-declared it was the reason this could
+   never be a plain vertical move. */
 @keyframes cs-rise {
-  from { transform: translateX(-50%) translateY(14px); }
-  to   { transform: translateX(-50%) translateY(0); }
+  from { transform: translateY(14px); }
+  to   { transform: translateY(0); }
 }
 /* the box arrives rather than appears, and reduced motion keeps the arrival and
    drops the travel: an entrance shortens, it does not become a cut */
 html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
+
 /* THE PORTRAIT FRAME. `portrait` has been a field on both line types for months
-   and nothing ever drew it, so an author could set one, see no error, and ship a
-   scene where nobody has a face. The box keeps its measured height; the picture
-   takes a column beside the paper and the text takes what is left. */
+   and until 2026-09-01 the only thing that consumed it was a bare `<img>` with
+   nothing drawn around it, so a face floated on the paper with no frame. The
+   picture takes a column beside the paper and the text takes what is left; the
+   column and the frame itself live in `hud/dialogue.css` and in the kit's own
+   `portrait_frame` piece, because the frame is a kit control rather than a
+   dialogue detail. */
 .cs-dialogue.has-portrait { gap: 4%; }
-.cs-portrait {
-  flex: 0 0 auto;
-  height: 100%;
-  width: auto;
-  max-width: 26%;
-  object-fit: contain;
-  object-position: bottom center;
-  align-self: flex-end;
-  pointer-events: none;
-}
+
 /* the text column, so the plaque and the line stay together whether or not there
    is a picture beside them */
 .cs-dialogue-body {
@@ -148,49 +150,56 @@ html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
   color: var(--kit-ink-said);
   text-shadow: 0 1px 0 var(--kit-paper-sheen);
   width: 100%;
-  /* NO percentage height here (it can clip to zero on some zooms — the old empty-box bug);
+  /* NO percentage height here (it can clip to zero on some zooms, the old empty-box bug);
      the box is a fixed-height flex box that centers this line, so text fills the paper. */
 }
+
+/* THE CONTINUE CUE: A DRAWN PAW AND WORDS THAT NAME BOTH WAYS TO GO ON.
+   It was the single word `click`, at a raw viewport size that ignored the text
+   setting, pulsing on its own. `click` is a lie to a keyboard player and `press
+   space` is a lie to a trackpad, so it says both, and the paw beside it is the
+   `cue` piece MAPVIS drew and nothing had ever read (`hud/dialogue.css` animates
+   the four frames). Bottom right of the paper, out of the text's way. */
 .cs-continue-hint {
   position: absolute;
   right: 13%; bottom: 13%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--kit-face-body);
-  --kit-fs-raw: clamp(11px, 1.7vh, 14px); font-size: var(--kit-fs);
+  --kit-fs-raw: calc(13px * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-ink-label);
-  animation: cs-hintpulse 1.8s ease-in-out infinite;
   pointer-events: none;
 }
-@keyframes cs-hintpulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
-/* a decorative loop STOPS under reduced motion rather than shortening: an
-   infinite animation at 1ms is a strobe, which is worse than the thing the
-   setting was turned on to stop. It keeps the readable end of its own cycle. */
-html[data-rm='1'] .cs-continue-hint { animation: none; opacity: 1; }
+
+/* THE SPEAKER'S PLATE IS A DRAWN PLATE. It was two hand-typed gradient stops, a
+   border and two inset shadows pretending to be carved wood, beside a box whose
+   frame is real drawn art: at classroom distance the fake sat a shade off the
+   real one on every line in the game. `--kit-art-plaque` is the small carved
+   plate already committed to this repo and already worn by the HUD's own token
+   counter, stretched as a SHAPE and never nine-sliced. `6851a68` is the lesson:
+   a nine-slice on a control this small spends its whole height on carving and
+   leaves a sliver for the word. */
 .cs-nameplaque {
   position: absolute;
-  top: -9%;
+  /* PIXELS, NOT A PERCENTAGE, and that changed with §40.14. `top: -9%` resolves
+     against the containing block's HEIGHT, and the box's height is a variable
+     now: the plate hung 17px above a one-line box and 36px above a four-line
+     one, so the speaker's name moved every time somebody wrote a longer
+     sentence. The frame's top rail is in the same place either way. */
+  top: -18px;
   left: 6.5%;
-  padding: 3px 16px 5px;
-  background: linear-gradient(var(--kit-wood-hi), var(--kit-wood-lo));
-  border: var(--kit-border) solid var(--kit-wood-edge);
-  border-radius: var(--kit-r-sharp);
-  box-shadow: 0 2px 0 var(--kit-wood-shadow), inset 0 1px 0 var(--kit-wood-sheen);
+  padding: 4px 18px 6px;
+  background: var(--kit-art-plaque) center / 100% 100% no-repeat;
+  image-rendering: var(--kit-pixel);
   font-family: var(--kit-face-display);
-  --kit-fs-raw: clamp(12px, 1.9vh, 16px); font-size: var(--kit-fs);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-wood-ink);
   letter-spacing: 1px;
+  /* the plate is drawn art with its own edges, so nothing is drawn around it */
+  border: 0;
+  text-shadow: 0 1px 0 var(--kit-wood-shadow);
 }
-.cs-continue {
-  display: inline-block;
-  margin-left: 8px;
-  animation: cs-paw 900ms ease-in-out infinite;
-  filter: sepia(1) saturate(.6) brightness(.75);
-  --kit-fs-raw: .85em; font-size: var(--kit-fs);
-}
-@keyframes cs-paw {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-4px); }
-}
-html[data-rm='1'] .cs-continue { animation: none; }
 
 /* ---- caption: floating one-liner, no box ---- */
 .cs-caption {
@@ -199,7 +208,7 @@ html[data-rm='1'] .cs-continue { animation: none; }
   bottom: 16vh;
   transform: translateX(-50%);
   font-family: var(--kit-face-body);
-  --kit-fs-raw: clamp(15px, 2.4vh, 20px); font-size: var(--kit-fs);
+  --kit-fs-raw: calc(18px * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-caption-ink);
   text-shadow: var(--kit-caption-shadow);
   white-space: nowrap;
@@ -211,14 +220,13 @@ html[data-rm='1'] .cs-continue { animation: none; }
   left: 50%;
   bottom: 9vh;
   transform: translateX(-50%);
-  padding: 5px 18px 7px;
-  background: linear-gradient(var(--kit-wood-hi), var(--kit-wood-lo));
-  border: var(--kit-border) solid var(--kit-wood-edge);
-  border-radius: var(--kit-r-sharp);
-  box-shadow: 0 2px 0 var(--kit-wood-shadow), inset 0 1px 0 var(--kit-wood-sheen);
+  padding: 6px 20px 8px;
+  background: var(--kit-art-plaque) center / 100% 100% no-repeat;
+  image-rendering: var(--kit-pixel);
   font-family: var(--kit-face-body);
-  --kit-fs-raw: clamp(13px, 2vh, 17px); font-size: var(--kit-fs);
+  --kit-fs-raw: calc(16px * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-wood-ink);
+  text-shadow: 0 1px 0 var(--kit-wood-shadow);
   animation: cs-pulse 1.6s ease-in-out infinite;
 }
 @keyframes cs-pulse {
@@ -234,13 +242,26 @@ html[data-rm='1'] .cs-prompt { animation: none; opacity: 1; }
   position: absolute;
   top: max(2.6vh, 14px);
   right: max(2.2vw, 16px);
-  padding: 4px 14px 6px;
-  background: linear-gradient(var(--kit-wood-dark-hi), var(--kit-wood-dark-lo));
-  border: var(--kit-border) solid var(--kit-wood-dark-edge);
-  border-radius: var(--kit-r-sharp);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 16px 7px;
+  /* THE LAST STYLED DIV IN THIS FILE, and it wears the drawn plate now like the
+     other two. It was a two-stop linear gradient inside a one-pixel border,
+     sitting in the corner of a screen whose every other surface is painted, and
+     `docs/ops/BRIEF-UI.md` law 2 is that every element is drawn art rather than
+     a styled div. It still RECEDES, which is the thing about it worth keeping:
+     the opacity below is what makes it quiet, not a duller colour. */
+  background: var(--kit-art-plaque) center / 100% 100% no-repeat;
+  image-rendering: var(--kit-pixel);
+  border: 0;
   overflow: hidden;
   font-family: var(--kit-face-body);
-  font-size: 13px;
+  /* IT WAS A RAW 13px AND IT WENT ROUND THE TEXT SETTING. Every other size in
+     the kit multiplies by `--kit-text-scale` and snaps to a whole pixel; this
+     one did neither, so a student who set text to L for a reason got a skip
+     control that stayed at 13. */
+  --kit-fs-raw: calc(13px * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-wood-dark-ink);
   opacity: .62;
   cursor: pointer;
@@ -261,3 +282,103 @@ html[data-rm='1'] .cs-prompt { animation: none; opacity: 1; }
      bar lie about how long a finger has to stay down */
   background: var(--kit-sea-fill);
 }
+/* both of the plaque's contents sit over the fill rather than under it */
+.cs-skip-words { position: relative; }
+.cs-skip-mark { position: relative; opacity: .8; }
+
+/* THE CAPTAIN'S READOUT. It is a debug affordance behind `isCaptain()`, and it
+   was three inline colours and a raw font size typed into the component. Same
+   picture, from the token layer, so the plain arm and a redraw both reach it. */
+.cs-debug {
+  position: absolute;
+  bottom: 6px;
+  left: 10px;
+  font-family: var(--kit-face-body);
+  font-size: 11px;
+  color: var(--kit-caption-ink);
+  text-shadow: var(--kit-caption-shadow);
+  opacity: .55;
+  pointer-events: none;
+}
+
+/* =========================================================================
+ * §16, THE PLAIN ARM. This file had no plain block at all, which means the
+ * study's CONTROL condition read every cutscene caption, every walk-to prompt,
+ * every speaker's name and every skip control off carved wood in the game's own
+ * faces. Ash ruled the arm on 2026-08-31: a document a person could have
+ * written, system font, black on white, real headings, no game art, no wood, no
+ * parchment, and NOT raw OS widgets.
+ *
+ * Nothing below changes a single word a student is asked or told. It changes
+ * what those words are printed on. Every rule is scoped to the attribute, so the
+ * game arm cannot see any of it, and none of them names a picture: the art
+ * tokens are already `none` in this arm and a url here would put it back.
+ * ========================================================================= */
+
+/* the box becomes a block: a heading, then the words, then the instruction,
+   which is the order a worksheet is read in. The paper and the rule around it
+   come from `.kit-surface-dialogue`'s own plain rule in tokens.css. */
+html[data-skin='plain'] .cs-dialogue {
+  display: block;
+  padding: 14px 16px 16px;
+  min-height: 0;
+  cursor: pointer;
+}
+html[data-skin='plain'] .cs-dialogue-body { display: block; overflow-y: auto; }
+html[data-skin='plain'] .cs-dialogue-text { text-shadow: none; }
+
+/* THE SPEAKER BECOMES A REAL HEADING rather than a plate hung off the top edge.
+   A worksheet says who is talking on the line above what they said. */
+html[data-skin='plain'] .cs-nameplaque {
+  position: static;
+  display: block;
+  padding: 0 0 4px;
+  margin: 0 0 8px;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--kit-edge);
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--kit-ink-head);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-shadow: none;
+}
+
+/* the instruction moves under the text instead of floating in a corner of a
+   picture, and it holds still */
+html[data-skin='plain'] .cs-continue-hint {
+  position: static;
+  justify-content: flex-end;
+  margin-top: 10px;
+  opacity: 1;
+}
+
+html[data-skin='plain'] .cs-caption {
+  text-shadow: none;
+  white-space: normal;
+  max-width: min(640px, 84vw);
+  text-align: center;
+}
+
+/* the walk-to prompt is a bordered note, not a carved sign, and it does not
+   pulse: a document does not breathe */
+html[data-skin='plain'] .cs-prompt {
+  background: none;
+  background-color: var(--kit-paper-hi);
+  border: 1px solid var(--kit-edge-strong);
+  border-radius: var(--kit-r-soft);
+  color: var(--kit-ink);
+  text-shadow: none;
+  animation: none;
+  opacity: 1;
+}
+
+html[data-skin='plain'] .cs-skip {
+  background: none;
+  background-color: var(--kit-paper-hi);
+  border: 1px solid var(--kit-edge-strong);
+  color: var(--kit-ink);
+  opacity: 1;
+}
+html[data-skin='plain'] .cs-skip-fill { background: var(--kit-sea-glow); }

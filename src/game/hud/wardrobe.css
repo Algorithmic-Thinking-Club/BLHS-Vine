@@ -1,6 +1,24 @@
-/* The outfitter's nook (§4.5), on the same kit as the Handbook: paper on carved
-   wood, the measured panel window, container queries so text scales with the
-   panel rather than the viewport, and the S/M/L setting folded into every size. */
+/* THE OUTFITTER'S NOOK (§4.5, §40.21), which is the game's CHARACTER VIEW.
+ *
+ * WHAT WAS WRONG, photographed at `build-shots/ui/before/13-wardrobe.png`: a
+ * 760 square sheet with a small panther floating in the top third of it, four
+ * unlabelled colour circles, three operating-system emoji wearing an
+ * operating-system padlock, and a plank whose label could not be read at all.
+ * Every one of those is fixed in the component or here.
+ *
+ * THE PANEL IS A LANDSCAPE NOW AND NOT A SQUARE. A square was the shape of the
+ * old contents rather than of the job: a mirror wants height and a list of
+ * choices wants width, and stacking them in a column meant the figure got a
+ * third of the sheet and the choices got a sixth. Two columns give the mirror the
+ * full height of the panel and put every control beside it where a student can
+ * see the change land.
+ *
+ * Sizes are container-query units TIMES the text setting, because a panel that
+ * reflows with its own width and ignores S/M/L was §80.5's I6 finding. GUTTERS
+ * ARE PIXELS: a percentage padding resolves against the CONTAINING BLOCK, which
+ * for a panel inside a viewport-pinned veil is the viewport, and the nine-slice
+ * frame's own border-width is already the honest inset.
+ */
 
 @import '../ui/tokens.css';
 
@@ -11,16 +29,21 @@
 }
 
 .wd-panel {
-  width: min(760px, 80vw);
-  aspect-ratio: 1 / 1;
-  /* the frame is a nine-slice on .kit-surface-panel now, not a stretched picture */
+  width: min(920px, 92vw);
+  /* TALLER THAN IT IS COMFORTABLE, on purpose. The mirror is the point of this
+     panel and it is bound by height rather than by width at every window: on the
+     1366x768 Chromebook this deploys to, the figure ends up drawn at about 3.6
+     times his 62x80 stage, which is a panther a metre from the reader's eye. The
+     old square panel gave him a third of that. */
+  height: min(660px, 90vh);
+  /* the frame is a nine-slice on .kit-surface-panel, so its border-width is the
+     whole of the inset and nothing here adds a second one */
   image-rendering: var(--kit-pixel);
   filter: drop-shadow(var(--kit-drop-lg));
-  /* the measured paper zone of panel-square, same numbers the Handbook uses */
-  padding: 14px 18px 16px;   /* a gutter INSIDE the frame; the frame's own border-width is the rest */
+  padding: 0;
   box-sizing: border-box;
   container-type: inline-size;
-  display: flex; flex-direction: column; align-items: center; gap: 2.5cqw;
+  display: flex; flex-direction: column;
   animation: wd-in 260ms var(--kit-ease-pop) both;
 }
 /* no opacity in the entrance: an opaque panel that fades up is a see-through
@@ -29,79 +52,240 @@
 @keyframes wd-in { from { transform: translateY(14px) scale(.97); } to { transform: none; } }
 html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
 
+/* ---- the sign over the door ---- */
+.wd-top { flex: none; padding: 14px 20px 6px; }
 .wd-head {
-  font-family: var(--kit-face-display);
-  --kit-fs-raw: calc(4.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-mirror);
+  margin: 0;
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(3.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-mirror);
   text-shadow: 0 1px 0 var(--kit-paper-sheen-firm);
+  line-height: 1.1;
+}
+.wd-sub {
+  margin: 2px 0 0;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(1.8cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
 }
 
-.wd-stage {
+/* ---- the mirror on the left, the choices on the right ---- */
+.wd-body {
   flex: 1; min-height: 0;
-  display: flex; align-items: center; justify-content: center;
-  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(200px, 38%) 1fr;
+  gap: 18px;
+  padding: 6px 20px 2px;
 }
-/* `transform: scale(4)` WAS A MAGNIFIER THAT ESCAPED THE LAYOUT. A transform does
-   not change the box, so the stage reserved room for a sprite four times smaller
-   than the one it drew. That was survivable while the panel was 520 wide and the
-   stage was short; when the panel grew to 760 the stage grew with it and Thor
-   went to over a thousand pixels of visual height inside a 258 pixel box, and the
-   frame cut his ears off.
+/* a narrow window has no room for two columns, and a mirror squeezed to a
+   hundred pixels is worse than a mirror above the choices. The stacked panel
+   scrolls as one column rather than crushing both halves to fit. */
+@container (max-width: 560px) {
+  .wd-body { grid-template-columns: 1fr; overflow-y: auto; }
+  .wd-mirror { min-height: 220px; }
+  .wd-side { overflow: visible; }
+}
 
-   `object-fit: contain` magnifies him to fill the stage and IS the layout, so he
-   is as big as there is room for and never a pixel bigger, at any panel size.
-   `pixelated` is what keeps that a magnification rather than a blur: a mirror
-   should show the pixels, and this is the one place in the game he is looked at
-   up close. */
+/* THE MIRROR WEARS THE PIECE THAT WAS DRAWN FOR EXACTLY THIS. `portrait_frame`
+   is the platform's frame-around-a-character, and until now the only thing in
+   the tree that mounted it was a 108 pixel box in the dialogue kit. The border
+   underneath is the fallback for a build with no platform, and the injected
+   block overrides it the moment the kit lands. */
+.wd-mirror {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  gap: 6px;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 10px 8px;
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-card);
+  background: linear-gradient(180deg, var(--kit-paper-card-hi), var(--kit-paper-card-lo));
+}
+
+/* `transform: scale(4)` WAS A MAGNIFIER THAT ESCAPED THE LAYOUT and was replaced
+   by `object-fit: contain`, which magnifies him to fill the stage and IS the
+   layout. That was right and it was fitting the wrong picture: the walk sheet is
+   144 square with a 52x67 panther in the middle of it, so nine tenths of what
+   was being fitted was transparency. The component draws the cropped standing
+   frame into a fixed 62x80 box now, so `contain` fills the stage with the
+   panther and his feet stay on one line through a whole turn.
+
+   `pixelated` is what keeps that a magnification rather than a blur, and it is
+   deliberately a literal rather than `var(--kit-pixel)`: the character is the
+   game's content and is identical in both study arms, the way a cutscene caption
+   over the painted world is, so blurring him in the plain arm would cost the
+   control condition legibility rather than take away a piece of chrome. */
 .wd-thor {
-  height: 100%; width: 100%;
+  flex: 1; min-height: 0;
+  width: 100%;
   object-fit: contain;
   image-rendering: pixelated;
   filter: drop-shadow(0 3px 0 var(--kit-mirror-drop));
 }
+.wd-facing {
+  margin: 0;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(1.75cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+}
+.wd-turns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.wd-turn { flex: none; }
+/* the same drawn chevron, pointing the other way. A mirrored drawing is still
+   the drawing; a second character borrowed from the operating system is not. */
+.wd-turn-left .kit-plank-glyph { transform: scaleX(-1); }
 
-.wd-swatches { display: flex; gap: 2cqw; flex-wrap: wrap; justify-content: center; }
+/* ---- the choices ---- */
+.wd-side {
+  display: flex; flex-direction: column; gap: 14px;
+  min-height: 0; overflow-y: auto;
+  padding-right: 4px;
+}
+.wd-side::-webkit-scrollbar { width: 8px; }
+.wd-side::-webkit-scrollbar-thumb { background: var(--kit-edge); border-radius: var(--kit-r-soft); }
+
+.wd-group { display: flex; flex-direction: column; gap: 8px; }
+.wd-grouphead {
+  margin: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(2.1cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
+
+.wd-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+/* A SWATCH CARRIES ITS OWN NAME. Four circles told apart by hue alone is what
+   §40.31 forbids and what the school Chromebook panel punishes hardest, and the
+   name was already in the data with only a pointer-only tooltip reading it. */
 .wd-swatch {
-  width: 7cqw; height: 7cqw; border-radius: 50%;
-  border: var(--kit-border) solid var(--kit-wood-edge);
-  box-shadow: 0 2px 0 var(--kit-wood-shadow);
+  display: inline-flex; align-items: center; gap: 8px;
+  box-sizing: border-box;
+  padding: 6px 12px 6px 8px;
+  background: linear-gradient(180deg, var(--kit-paper-tab-hi), var(--kit-paper-tab-lo));
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-pill);
   cursor: pointer;
   transition: transform var(--kit-t-fast) ease, box-shadow var(--kit-t-fast) ease;
 }
+.wd-dye {
+  flex: none;
+  width: 22px; height: 22px; border-radius: 50%;
+  border: var(--kit-border) solid var(--kit-wood-edge);
+  box-shadow: inset 0 2px 0 var(--kit-paper-sheen);
+}
+.wd-swatch-name {
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(1.9cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+  white-space: nowrap;
+}
 .wd-swatch:hover { transform: translateY(-1px); }
 .wd-swatch:active { transform: translateY(2px); }
-.wd-swatch-on { box-shadow: 0 2px 0 var(--kit-wood-shadow), 0 0 0 3px var(--kit-gold-hi); }
-
-.wd-locked { display: flex; gap: 2cqw; }
-.wd-lockchip {
-  position: relative;
-  width: 9cqw; height: 9cqw;
-  background: linear-gradient(var(--kit-paper-tab-hi), var(--kit-paper-chip-lo));
-  border: var(--kit-border) solid var(--kit-edge); border-radius: var(--kit-r-card);
-  cursor: pointer; opacity: .6;
-  display: flex; align-items: center; justify-content: center;
-  transition: opacity var(--kit-t-mid) ease, transform var(--kit-t-mid) ease;
+/* CHOSEN IS A POSITION, AN EDGE AND A DRAWN TICK, in that order of reliability.
+   It was a gold ring, which is one channel, and gold is reserved for an earned
+   honour anyway (`docs/ART.md`). */
+.wd-swatch-on {
+  transform: translateY(-2px);
+  border-color: var(--kit-sea);
+  box-shadow: 0 0 0 2px var(--kit-sea-glow), 0 3px 0 var(--kit-wood-shadow);
 }
-.wd-lockchip:hover { opacity: .85; transform: translateY(-1px); }
-/* earned reads as sun-warmed rather than merely un-greyed */
-.wd-lockchip-on { opacity: 1; border-color: var(--kit-gold-edge); box-shadow: inset 0 0 0 2px var(--kit-gold-inset); }
-.wd-lockicon { --kit-fs-raw: calc(4.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs); }
-.wd-lockknot { position: absolute; right: -.6cqw; bottom: -.6cqw; --kit-fs-raw: calc(3cqw * var(--kit-text-scale)); font-size: var(--kit-fs); }
+.wd-swatch-on:hover { transform: translateY(-3px); }
+.wd-swatch-tick { flex: none; }
+.wd-worn {
+  margin: 0;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(1.9cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
+}
+
+/* ---- what is not yours yet ---- */
+.wd-locks { display: flex; flex-direction: column; gap: 8px; }
+/* THE CRITERION IS ON THE CARD, not in a `title`. §40.21: locked things are
+   earned out there and the rule is SHOWN, and a tooltip is pointer-only, so on
+   the machine this ships to it was a rule nobody could read with a trackpad they
+   are already fighting. */
+.wd-lock {
+  display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  background: linear-gradient(180deg, var(--kit-paper-card-hi), var(--kit-paper-card-lo));
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-card);
+  cursor: pointer;
+  transition: transform var(--kit-t-mid) ease, border-color var(--kit-t-mid) ease;
+}
+.wd-lock:hover { transform: translateY(-1px); }
+.wd-lock:active { transform: translateY(1px); }
+/* earned is a thicker edge on one side, which is a change of SHAPE, plus the
+   drawn rosette in the plate and the word beside it */
+.wd-lock[data-state='earned'] { border-left-width: 6px; border-left-color: var(--kit-gold-edge); }
+.wd-lock .wd-lock-plate { width: 40px; height: 40px; }
+/* GOLD MEANS AN EARNED HONOUR AND NOTHING ELSE (`docs/ART.md`), and the control
+   kit's un-drawn fallback for a chip is a gold coin. A thing that is not yours
+   yet wears cold paper until the drawn plate lands. */
+.wd-lock[data-state='locked'] .kit-chip:not(.kit-chip-drawn) { background: var(--kit-paper-chip-lo); }
+.wd-lock-words { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.wd-lock-name {
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(2cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
+.wd-lock-earn {
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(1.75cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+}
 
 .wd-note {
+  margin: 0;
   font-family: var(--kit-face-body);
-  --kit-fs-raw: calc(2.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-dim); text-align: center;
+  --kit-fs-raw: calc(1.75cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-soft);
 }
 
-.wd-close {
-  align-self: center; min-width: 55%;
-  aspect-ratio: 512 / 150;
-  /* the frame is a nine-slice on .kit-surface-plank now, not a stretched picture */
-  image-rendering: var(--kit-pixel);
-  border: none; cursor: pointer;
-  font-family: var(--kit-face-display);
-  --kit-fs-raw: calc(3.8cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-plank-ink);
-  text-shadow: 0 2px 0 var(--kit-plank-shadow);
-  transition: transform var(--kit-t-fast) ease;
+/* ---- the way out ---- */
+.wd-foot { flex: none; padding: 8px 20px 14px; }
+
+/* ---- THE PLAIN ARM (§16) --------------------------------------------------
+ *
+ * The same nook as a worksheet: no carved frame, no paper gradient, no cast
+ * shadow, and the two headings become the real hierarchy `tokens.css` sets for
+ * this arm. The dye circles stay, because a colour choice IS the content and
+ * taking it away would change what the control arm is asked; they become squares
+ * with a rule, which is how a document prints a swatch.
+ *
+ * `border-image: none` is the one border-image value allowed inside a plain
+ * block and it is required here rather than optional: the platform injects a
+ * nine-slice onto `.kit-surface-portrait_frame` at runtime, one class of
+ * specificity, and without this rule a carved wooden frame appears around the
+ * mirror in the middle of a document. Nothing else here names a picture, a
+ * pixel rendering or a game face. */
+html[data-skin='plain'] .wd-mirror {
+  border-image: none;
+  border: 1px solid var(--kit-edge);
+  border-radius: 2px;
+  background: var(--kit-paper-hi);
 }
-.wd-close:hover { transform: translateY(-1px); }
-.wd-close:active { transform: translateY(2px); }
+html[data-skin='plain'] .wd-head { text-shadow: none; font-weight: 700; }
+html[data-skin='plain'] .wd-thor { filter: none; }
+html[data-skin='plain'] .wd-swatch {
+  background: var(--kit-paper-hi);
+  border: 1px solid var(--kit-edge);
+  border-radius: 2px;
+}
+html[data-skin='plain'] .wd-swatch-on {
+  transform: none;
+  border-width: 2px;
+  border-color: var(--kit-ink-head);
+  box-shadow: none;
+}
+html[data-skin='plain'] .wd-swatch-on .wd-swatch-name { font-weight: 700; }
+html[data-skin='plain'] .wd-dye { border-radius: 2px; border: 1px solid var(--kit-edge-strong); box-shadow: none; }
+html[data-skin='plain'] .wd-lock {
+  background: var(--kit-paper-hi);
+  border: 1px solid var(--kit-edge);
+  border-radius: 2px;
+}
+html[data-skin='plain'] .wd-lock:hover { transform: none; background: var(--kit-paper-lo); }
+html[data-skin='plain'] .wd-lock[data-state='earned'] { border-left-width: 4px; border-left-color: var(--kit-ink-head); }
+html[data-skin='plain'] .wd-lock .wd-lock-plate { width: 22px; height: 22px; }

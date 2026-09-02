@@ -1,60 +1,170 @@
-/* THE PLACE CARD. Carved wood and aged paper, the same two materials every other
-   surface in this game is made of, and it sits low so it never covers the thing a
-   player just walked into. It cannot be clicked because it is not a control. */
+/* THE PLACE CARD. The same drawn plaque the cover raises, at the size a name
+   fits on, sitting low so it never covers the thing a player just walked into.
+   It cannot be clicked because it is not a control. */
+
+@import '../ui/tokens.css';
 
 /* IT SITS ABOVE WHATEVER IS TALKING, and 12% was not that.
-   The card is drawn under the dialogue box on purpose (z-index 68 against the
-   box's 72: an arrival never covers a line), and it was ALSO positioned inside
-   the box's own band, so a card that arrived while anybody was speaking was
-   hidden completely. That is exactly what happened on every arrival on the Maw,
-   because the year's opening line lands in the same second the card does, and
-   the wave-2 capture named "6-placecard" was a picture with no card in it.
+   The card is drawn under the dialogue box on purpose, and it was ALSO positioned
+   inside the box's own band, so a card that arrived while anybody was speaking
+   was hidden completely. That is exactly what happened on every arrival on the
+   Maw, because the year's opening line lands in the same second the card does,
+   and the wave-2 capture named "6-placecard" was a picture with no card in it.
    `--ui-band` is how tall the conversation currently is, published by
    src/game/ui/frame.ts and read by the camera through the same value, so the
-   card, the camera and the box agree on one number instead of three. */
+   card, the camera and the box agree on one number instead of three.
+
+   THE LAYER, WITH THE REAL NUMBERS. The comment here used to say "under the
+   dialogue box (72)" and no element in this repo has ever been at 72. Read off
+   the tree: the HUD corner is 50 (hud.css), the objective card is 46
+   (heading.css), a station line's veil is 80 (dialogue.css), the panels run 73
+   to 80 (run, hud, planner, beats, wardrobe, settings), a transition cover is 90
+   (transitions.css) and the feedback stamps are 120 (controls.css). 68 puts the
+   card over the world and the HUD and under every one of the things that can
+   take a click, which is the right place for a surface that cannot. */
 .pc-root {
   position: fixed;
   left: 50%;
   bottom: max(12%, calc(var(--ui-band, 0px) + 2.2vh));
   transform: translateX(-50%);
-  z-index: 68;                 /* under the dialogue box (72) and every panel */
+  z-index: 68;
   pointer-events: none;
   user-select: none;
+  /* THE WIDTH LIVES HERE AND NOT ON THE CARD, and that is a consequence of the
+     container query rather than a preference. `container-type: inline-size` on
+     the card applies inline-size containment, which means the browser works out
+     the card's width WITHOUT looking at its contents. A shrink-to-fit card whose
+     contents are ignored is a card zero pixels wide. So the width is stated on
+     the wrapper, the card fills it, and the query has a real number to measure
+     against. A plaque that is the same width every time is also the right
+     picture: it is one drawn object, not a label that grows with its text. */
+  width: min(760px, 88vw);
+  /* the card's own dwell, written by PlaceCard.tsx from the one constant it also
+     counts down on, so the rule under the card drains for exactly as long as the
+     card is going to be there */
+  --pc-dwell: 3200ms;
 }
 
+/* ---- THE CARD IS A DRAWN OBJECT ------------------------------------------
+ *
+ * WHAT WAS HERE: `linear-gradient(180deg, #f4e8cd, #e2d1ae)` with a 2px border in
+ * a fourth hardcoded colour and two box-shadows. Five hexes, no kit class, so
+ * the platform's drawn `band` could not reach this surface and neither could
+ * §16's plain arm, which switches art off through tokens that this rule never
+ * read. `before/06-dialogue.png` is what that cost: the card and the dialogue box
+ * on screen together, the box a carved wooden frame with rope and anchors, the
+ * card a rectangle.
+ *
+ * `kit-surface-band` is answered three ways by tokens.css with no branch here:
+ * the platform's own band art when the kit has landed, the game's drawn frame
+ * nine-sliced when it has not, and a flat bordered sheet under
+ * `data-skin='plain'`.
+ *
+ * THE NINE-SLICE IS THE ONLY INSET, so there is no padding here. Padding on top
+ * of a border-image insets the contents twice, which is the exact defect that
+ * had to be cleared out of every panel in the game before the kit could be
+ * turned on by default.
+ *
+ * IT NO LONGER BLEEDS OFF BOTH EDGES. There was no max-width at all and the root
+ * centres with a transform, so the card grew to whatever its longest line was,
+ * and it had just been given a third line. `container-type: inline-size` is
+ * declared so a size inside can be a fraction of THE CARD; a percentage here
+ * would resolve against the viewport, which is the bug hud.css already had to
+ * fix once for the Handbook. */
 .pc-card {
-  padding: 1.1rem 2.4rem 1.25rem;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: min(760px, 88vw);
+  container-type: inline-size;
+  padding: 0;
   text-align: center;
-  /* paper, and OPAQUE paper. It was .94, which is enough for a bridge or a
-     coastline to read straight through the plaque naming the place you have just
-     walked into, and that is the same defect the fullscreen panels were failing
-     the eyes round on, one surface smaller. */
-  background: linear-gradient(180deg, #f4e8cd, #e2d1ae);
-  border: 2px solid rgba(58, 36, 16, 0.85);
-  border-radius: 3px;
-  box-shadow:
-    0 0 0 1px rgba(244, 232, 205, 0.28),
-    0 10px 30px rgba(6, 12, 18, 0.55);
 }
 
+/* ---- where you are -------------------------------------------------------
+ *
+ * A pin and a name on one line. The pin is `pointer`'s own `pin_plate`, drawn,
+ * and it is absent rather than substituted when the kit has not landed: ART.md's
+ * "icons are drawn, never an emoji or a font glyph" has no clause for a
+ * placeholder. */
+.pc-where {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.pc-pin { flex: none; }
 .pc-name {
-  font-family: 'Harbormaster', 'Hanken Grotesk', system-ui, sans-serif;
-  font-size: clamp(1.15rem, 2.4vw, 1.85rem);
+  font-family: var(--kit-face-title);
+  /* THE NAME IS ON THE SAME PIPELINE AS THE SENTENCE UNDER IT. It was
+     `clamp(1.15rem, 2.4vw, 1.85rem)`, outside `--kit-fs` and outside
+     `--kit-text-scale` both, while `.pc-heading` right below it was on the
+     pipeline: at text size Large a student got a scaled objective sentence under
+     a fixed place name, and `notes.json` recorded "FRACTIONAL pc-name 29.6px" on
+     seven of nineteen surfaces. Sized against the CARD now rather than the
+     window, which is what `container-type` above is for. */
+  --kit-fs-raw: calc(clamp(19px, 4.4cqw, 30px) * var(--kit-text-scale));
+  font-size: var(--kit-fs);
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #2b1a0c;
+  color: var(--kit-ink-head);
+  text-shadow: 0 1px 0 var(--kit-paper-sheen);
 }
 
 .pc-line {
-  margin-top: 0.35rem;
-  font-family: 'Deckhand', 'Hanken Grotesk', system-ui, sans-serif;
-  font-size: clamp(0.78rem, 1.35vw, 1rem);
-  color: rgba(43, 26, 12, 0.72);
+  margin: 0.35em 0 0;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(clamp(13px, 2.2cqw, 17px) * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1.35;
+  color: var(--kit-ink-label);
+  text-wrap: balance;
 }
+
+/* WHAT YOU ARE FOR, under where you are, on one card.
+ *
+ * The arrival card and the objective sentence were two cards in the same corner,
+ * one after the other, and the gap between them was measured at four and a half
+ * seconds. Two reads out of a ten-second budget for one thought. They are one
+ * card now: the name of the place, the line about it, and then the one live thing
+ * the year wants, set apart by a rule so it reads as a different KIND of sentence
+ * rather than as more description. */
+.pc-heading {
+  margin: .7em 0 0;
+  padding-top: .6em;
+  border-top: 1px solid var(--kit-rule-soft);
+  font-family: var(--kit-face-body);
+  color: var(--kit-ink-said);
+  /* deliberately not smaller than the line above it. This is the sentence a lost
+     student is looking for, and it was the one nobody had ever seen. */
+  --kit-fs-raw: calc(clamp(15px, 3.1cqw, 26px) * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1.35;
+  text-wrap: balance;
+}
+
+/* ---- THE ONE HONEST CLOCK ON THE CARD ------------------------------------
+ *
+ * A surface with no dismiss and no control has to say out loud that it is going
+ * to leave on its own, or a student reads it as something they are meant to act
+ * on and waits. This rule drains over exactly the dwell PlaceCard.tsx is
+ * counting, which makes it a reading of a real timer rather than a picture of
+ * one: the difference between this and the cover's bar is that the card really
+ * is on a clock and a load really is not. */
+.pc-dwell {
+  display: block;
+  height: 2px;
+  margin: .75em auto 0;
+  width: 62%;
+  background: linear-gradient(90deg, var(--kit-cord-lo), var(--kit-cord-hi));
+  transform-origin: 50% 50%;
+  animation: pc-drain var(--pc-dwell) linear both;
+}
+@keyframes pc-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
 /* the two rules of the whole file: it arrives from below and it leaves upward,
    because a card that fades in place reads as a bug in the renderer */
-.pc-in .pc-card { animation: pc-rise 620ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.pc-in .pc-card { animation: pc-rise 620ms var(--kit-ease-rise) both; }
 .pc-out .pc-card { animation: pc-fall 640ms ease-in both; }
 
 /* the arrival carries no opacity, so the card is never a translucent plaque with
@@ -71,28 +181,34 @@
 }
 
 /* W12's DOM half. The renderer half is src/game/ui/motion.ts, because a CSS rule
-   cannot be read by anything drawn on a canvas. */
+   cannot be read by anything drawn on a canvas. The dwell rule is STOPPED rather
+   than shortened: at 1ms it would blink out on the first frame and the card would
+   then sit there for two more seconds with an empty rule under it, which says the
+   opposite of what the rule is for. PlaceCard.tsx already shortens the dwell
+   itself when the setting is on. */
 html[data-rm='1'] .pc-in .pc-card,
 html[data-rm='1'] .pc-out .pc-card { animation-duration: 1ms; }
+html[data-rm='1'] .pc-dwell { animation: none; }
 
-/* WHAT YOU ARE FOR, under where you are, on one card.
+/* =========================================================================
+ * THE PLAIN ARM (§16). No game art, no wood, no parchment: the same three
+ * sentences, in the system face, on white, as a small notice a person could have
+ * typed. The words are content and do not change; the plaque is vehicle and goes.
  *
- * The arrival card and the objective sentence were two cards in the same corner,
- * one after the other, and the gap between them was measured at four and a half
- * seconds. Two reads out of a ten-second budget for one thought. They are one
- * card now: the name of the place, the line about it, and then the one live thing
- * the year wants, set apart by a rule so it reads as a different KIND of sentence
- * rather than as more description. */
-.pc-heading {
-  margin-top: .7em;
-  padding-top: .6em;
-  border-top: 1px solid var(--kit-rule-soft);
-  font-family: var(--kit-face-body, 'Deckhand', monospace);
-  color: var(--kit-ink-said);
-  /* deliberately not smaller than the line above it. This is the sentence a lost
-     student is looking for, and it was the one nobody had ever seen. */
-  --kit-fs-raw: clamp(15px, calc(3.1cqw * var(--kit-text-scale)), 26px);
-  font-size: var(--kit-fs);
-  line-height: 1.35;
-  text-wrap: balance;
+ * `tokens.css` answers `.kit-surface-band` here with a flat bordered sheet and
+ * no border-image, which means no border-width, which means the padding the
+ * nine-slice was providing has to come back as a real gutter or the name of the
+ * place sits on the hairline.
+ * ========================================================================= */
+html[data-skin='plain'] .pc-card { padding: 12px 18px; }
+html[data-skin='plain'] .pc-name {
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  text-shadow: none;
+  color: var(--kit-ink-head);
 }
+html[data-skin='plain'] .pc-line { color: var(--kit-ink-body); }
+html[data-skin='plain'] .pc-heading { color: var(--kit-ink); }
+/* a worksheet does not have a gold bar draining across it. The notice still says
+   it is temporary, in the arm's own terms: a plain rule that shortens. */
+html[data-skin='plain'] .pc-dwell { background: var(--kit-ink-dim); height: 1px; }

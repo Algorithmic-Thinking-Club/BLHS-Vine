@@ -3,15 +3,31 @@ import type { CutsceneRuntime } from './runtime'
 import { isCaptain } from '../captain'
 import { BUILD_TAG } from '../buildTag'
 import { DialogueBox } from '../hud/DialogueBox'
+import { Glyph } from '../ui/controls'
 import './ui-kit.css'
 
 // Screen-space renderer for a running cutscene: letterbox bars, the eyes-opening vignette,
 // fades, the standard lower-third dialogue box (GAME-DESIGN §11.1), floating captions, the
-// input prompt plaque and the hold-to-skip plaque. Pure DOM over the canvas — the world
+// input prompt plaque and the hold-to-skip plaque. Pure DOM over the canvas, and the world
 // underneath stays live. The paper/wood chrome comes from the PixelLab UI kit; ui-kit.css
 // owns those textures so this file is only structure + behavior.
 
 const SKIP_HOLD_MS = 600
+
+/* WHICH LAYER A CUTSCENE IS ON, AND WHY IT MOVED.
+ *
+ * It was 40, which is BELOW the HUD stack (50), the heading (46) and the arrival
+ * card (68), all three of which draw over a running cutscene. So the compass and
+ * the Handbook spine sat on top of a letterbox, an arrival plaque could land in
+ * the middle of a scripted beat, and the fade to black faded everything except
+ * the furniture.
+ *
+ * A cutscene is the game taking the screen. It goes over everything the world
+ * puts on it and under every panel the student can open, which is the same band
+ * the conversation's own veil sits in (`hud/dialogue.css`: 72, with the panels
+ * from 74 to 79 above it). The two never collide, because `hud/Dialogue.tsx`
+ * stands the world's box down while a cutscene is up. */
+const CUTSCENE_LAYER = 72
 
 export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; children?: ReactNode }) {
   const [, bump] = useState(0)
@@ -55,8 +71,8 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
   return (
     <>
       {children}
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 40 }} onClick={() => rt.advance()}>
-        {/* vignette — the I-1 eyes-opening aperture; radial so the middle stays alive */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: CUTSCENE_LAYER }} onClick={() => rt.advance()}>
+        {/* vignette, the I-1 eyes-opening aperture; radial so the middle stays alive */}
         {ui.vignette > 0.003 && (
           <div style={{
             position: 'absolute', inset: 0,
@@ -69,7 +85,7 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
         {/* full fade */}
         {ui.fade > 0.003 && <div style={{ position: 'absolute', inset: 0, background: ui.fadeColor, opacity: ui.fade }} />}
 
-        {/* caption — floating one-liner, no box */}
+        {/* caption: a floating one-liner, no box */}
         {ui.caption && (
           <div className="cs-caption" style={{ opacity: ui.caption.alpha }}>{ui.caption.text}</div>
         )}
@@ -83,13 +99,19 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
             component now; the runtime still owns the typing, because it ticks on the
             host scene's clock and a cutscene's pacing may not drift from the world's.
             Never shown empty: it appears WITH its first characters, so a stalled or
-            just-begun line cannot read as a blank sheet. */}
+            just-begun line cannot read as a blank sheet.
+
+            AND THE HINT IS NO LONGER OVERRIDDEN HERE. It passed a sentence of its
+            own ending in a right-pointing triangle character, which is a font
+            glyph (`docs/ART.md`: "Icons are drawn, never an emoji or a font
+            glyph"), and which named only the pointer path in the one scene a
+            student is most likely to be pressing space through. The box owns one
+            sentence naming both paths, and the drawn paw beside it is `cue`. */}
         {ui.dialogue && (ui.dialogue.shown > 0 || ui.dialogue.done) && (
           <div style={{ pointerEvents: 'auto' }}>
             <DialogueBox
               line={ui.dialogue}
               onAdvance={() => rt.advance()}
-              hint="click to go on ▸"
               /* this overlay already listens for space and enter, because those keys
                  also resolve its confirm and walk-to gates when no line is up */
               bindKeys={false}
@@ -104,14 +126,11 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
             live dialogue state, because diagnosing a silent typewriter on HIS
             machine is the whole reason it was written. */}
         {isCaptain() && (
-          <div style={{
-            position: 'absolute', bottom: 6, left: 10, fontFamily: 'monospace', fontSize: 11,
-            color: 'rgba(220,230,225,.55)', textShadow: '0 1px 2px rgba(0,0,0,.8)', pointerEvents: 'none',
-          }}>
+          <div className="cs-debug">
             {BUILD_TAG}{ui.dialogue ? ` · say ${ui.dialogue.shown}/${ui.dialogue.text.length}${ui.dialogue.done ? ' done' : ''}` : ''}
           </div>
         )}
-        {/* skip plaque — one CLICK skips to the next required beat; the captain's version
+        {/* skip plaque: one CLICK skips to the next required beat; the captain's version
             ends the whole cutscene outright (god authority for testing) */}
         {/* A REAL BUTTON, because it was a div with an onClick: a pointer could
             skip and a keyboard could only hold Escape, which is a key path
@@ -130,7 +149,15 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
                 shortened by reduced motion: it is a progress bar, and a progress
                 bar that finishes early lies about when the finger can come up */}
             <span className="cs-skip-fill" style={{ width: holdAt ? '100%' : '0%', transition: holdAt ? `width ${SKIP_HOLD_MS}ms linear` : 'none' }} />
-            <span style={{ position: 'relative' }}>{isCaptain() ? 'skip all ⚓' : 'skip ▸'}</span>
+            {/* IT PRINTED A TRIANGLE CHARACTER, and the captain's version printed an
+                anchor emoji beside it. One is a font glyph and the other is an
+                operating-system emoji, and the repo law is that an icon is drawn
+                or it is words. `icon_set` has a drawn arrow, so the arrow is worn; there is
+                no anchor face on the sheet, so the captain's version says what it
+                does in words instead of borrowing a character from the operating
+                system. */}
+            <span className="cs-skip-words">{isCaptain() ? 'skip all' : 'skip'}</span>
+            <Glyph piece="icon_set" face="arrow" size={12} className="cs-skip-mark" />
           </button>
         )}
       </div>

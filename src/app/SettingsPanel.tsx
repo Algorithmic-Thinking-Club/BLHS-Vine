@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { isCaptain } from '../game/captain'
 import { beginAdventure, canRestart, loadSave, restartRun, writeSave, type SaveGame } from '../game/save'
 import { cleanName, isBlocked, PRONOUN_CHOICES } from '../game/names'
@@ -6,17 +6,72 @@ import { track } from '../game/telemetry'
 import { setReducedMotion, systemPrefersReducedMotion } from '../game/ui/motion'
 import { wearAssignedSkin, type KitSkin } from '../game/ui/skin'
 import { announce, tabRowKeyDown, usePanel } from '../game/ui/a11y'
+import { Empty, Glyph, Plank, Tab } from '../game/ui/controls'
+import { saved } from '../game/ui/feedback'
 import { HOME_TARGET, SEA_ARRIVAL, searchFor } from '../game/pmap/route'
 import './settings.css'
 
-// Settings (GAME-DESIGN §4.7), tabbed paper sheet — reachable from the title gear and the
-// in-world gear. Three tabs: ACCOUNT (who this explorer is — name/pronouns/ship are editable —
-// plus preferences), CONTROLS (the real key map), and DANGER ZONE (Restart Adventure). Stored
-// locally; there are no real accounts (the handle is a display name, not a login).
+/* SETTINGS, PAUSE'S SECOND SHEET (§40.22 to §40.26), reachable from the title
+ * plate and from the pause panel. Three tabs: ACCOUNT (who this explorer is, plus
+ * the four preferences), CONTROLS (the key map with a pointer path beside every
+ * row), and DANGER ZONE. Stored locally; there are no real accounts, and the
+ * handle is a display name rather than a login.
+ *
+ * WHAT THIS SESSION REBUILT, AND THE MEASUREMENT BEHIND EACH ONE.
+ *
+ * THE GEAR WAS AN OPERATING SYSTEM GLYPH. A raw U+2699 inside a wooden square,
+ * on the one control that is on screen for the whole title and the whole intro.
+ * `docs/ART.md`: "Icons are drawn, never an emoji or a font glyph", and the
+ * brief's do-not list says it again. The live `icon_set` has compass, key, star,
+ * lock, tick, cross, arrow and coin and NO GEAR, so it cannot be drawn today, and
+ * inventing a replacement character is the same offence in a different font. It
+ * is a small carved plate reading "Settings" now: a word is legible at a glance,
+ * it is a real trackpad target on a 1366x768 Chromebook, and the missing gear
+ * face is reported as art the kit owes rather than papered over.
+ *
+ * THE ANCHOR ON "Captain's tools" IS GONE for the same reason and with a smaller
+ * fix: it is a HEADING rather than a control, so the words carry it alone.
+ *
+ * THE SOUND SETTING IS A VOLUME AND NOT A SWITCH. §40.32 rules it: "a classroom
+ * needs three states and not two: off, quiet enough for a room where every
+ * machine is playing, and normal for headphones. A toggle cannot express the
+ * middle one, and the middle one is the one a teacher will ask for." So the row
+ * is three states. `mute` is still written beside it, because `src/game/audio.ts`
+ * reads that key by name and this file does not own that one.
+ *
+ * `applySettings` RUNS AT IMPORT NOW. §40.26 names the wiring bug exactly: it was
+ * called from the settings panel's own effect and from `TitleScene`'s mount
+ * effect and nowhere else, so every `?scene=` deep link, which is every way a
+ * painted map is ever opened, rendered with the student's stored text size
+ * sitting in localStorage and no attribute on the document. One call at import,
+ * the same shape `ui/skin.ts` already uses for the same reason.
+ */
 
-export type Settings = { mute: boolean; textSize: 's' | 'm' | 'l'; reducedMotion: boolean; skin: KitSkin }
+/** off, quiet enough for a room where every machine is playing, or normal */
+export type SoundLevel = 'off' | 'quiet' | 'full'
+
+export type Settings = {
+  /** §40.32's three states. This is the control a teacher actually reaches for. */
+  sound: SoundLevel
+  /* KEPT, AND DERIVED. `audio.ts` reads `mute` straight out of this blob by
+   * string key and deliberately does not import this file (its comment says
+   * why), so the boolean stays and is written from the level rather than being a
+   * second thing a student can set. */
+  mute: boolean
+  textSize: 's' | 'm' | 'l'
+  reducedMotion: boolean
+  skin: KitSkin
+}
 const KEY = 'blhs_settings_v1'
-const FALLBACK: Settings = { mute: false, textSize: 'm', reducedMotion: false, skin: 'paper' }
+const FALLBACK: Settings = { sound: 'full', mute: false, textSize: 'm', reducedMotion: false, skin: 'paper' }
+
+const SOUND_LEVELS: SoundLevel[] = ['off', 'quiet', 'full']
+const SOUND_WORD: Record<SoundLevel, string> = { off: 'Off', quiet: 'Quiet', full: 'Full' }
+const SOUND_SAID: Record<SoundLevel, string> = {
+  off: 'Sound off',
+  quiet: 'Sound quiet, for a room where every machine is playing',
+  full: 'Sound full, for headphones',
+}
 
 export function loadSettings(): Settings {
   /* THE MACHINE'S ANSWER IS THE FIRST ANSWER. A student who has already told
@@ -24,8 +79,17 @@ export function loadSettings(): Settings {
    * them and they can still turn it off, which is the difference between a
    * default and an override. */
   const base: Settings = { ...FALLBACK, reducedMotion: systemPrefersReducedMotion() }
-  try { return { ...base, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') } }
-  catch { return base }
+  try {
+    const stored = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<Settings>
+    const s = { ...base, ...stored }
+    /* A SAVE WRITTEN BEFORE THE THIRD STATE EXISTED still has to open on the
+     * right one. The boolean is what those blobs carry, so the level is read
+     * back off it rather than defaulting to Full and un-muting a student who
+     * muted the game last week. */
+    if (!stored.sound) s.sound = stored.mute ? 'off' : 'full'
+    s.mute = s.sound === 'off'
+    return s
+  } catch { return base }
 }
 
 /* THREE ATTRIBUTES ON <html> AND ONE PLACE THAT WRITES THEM.
@@ -45,25 +109,40 @@ export function loadSettings(): Settings {
  * opening settings can no longer put a control-arm student back in the game
  * look. See `game/ui/skin.ts`. */
 export function applySettings(s: Settings) {
+  if (typeof document === 'undefined') return
   document.documentElement.dataset.textsize = s.textSize
   setReducedMotion(s.reducedMotion)
   wearAssignedSkin(s.skin)
 }
 
-type Tab = 'account' | 'controls' | 'danger'
+/* §40.26, THE HALF THAT WAS NEVER WIRED. "`applySettings` is called from exactly
+ * two places: the settings panel's own effect, and `TitleScene`'s mount effect. A
+ * run that enters a scene without passing the title, which is every `?scene=` deep
+ * link including the captain tools' own navigations, never applies the stored
+ * preference at all." The fix the section asks for is "one call at boot", and this
+ * is it: the module that owns the settings applies them the moment it is loaded,
+ * exactly the way `ui/skin.ts` wears the assigned arm at import and for exactly
+ * the same reason. Every scene in the game mounts either the HUD or the title, and
+ * both reach this module. */
+if (typeof document !== 'undefined') applySettings(loadSettings())
+
+type Tabs = 'account' | 'controls' | 'danger'
 
 export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const [s, setS] = useState<Settings>(loadSettings)
-  const [tab, setTab] = useState<Tab>('account')
+  const [tab, setTab] = useState<Tabs>('account')
   const [confirmRestart, setConfirmRestart] = useState(false)
   const [save, setSave] = useState<SaveGame | null>(loadSave)
   const [pickPronoun, setPickPronoun] = useState(false)
   const [fs, setFs] = useState(!!document.fullscreenElement)
-  // local drafts so the fields never persist junk mid-type — committed on blur/Enter (§4.7)
+  // local drafts so the fields never persist junk mid-type, committed on blur/Enter (§4.7)
   const [nameDraft, setNameDraft] = useState(save?.handle ?? '')
   const [boatDraft, setBoatDraft] = useState(save?.boatName ?? '')
-  const confirmRef = useRef<HTMLButtonElement>(null)
-  useEffect(() => { if (confirmRestart) confirmRef.current?.focus() }, [confirmRestart])
+  /* THE CONFIRM BUTTON IS A PLANK NOW and a plank takes no ref, so focus is moved
+     by id. The reason it is moved at all is unchanged: one button becomes two, and
+     a keyboard player left focused on a button that no longer exists lands on
+     <body> and starts the next Tab at the top of the sheet. */
+  useEffect(() => { if (confirmRestart) document.getElementById('st-confirm-erase')?.focus() }, [confirmRestart])
 
   useEffect(() => { localStorage.setItem(KEY, JSON.stringify(s)); applySettings(s) }, [s])
   useEffect(() => {
@@ -72,21 +151,26 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
     return () => document.removeEventListener('fullscreenchange', h)
   }, [])
 
-  // identity edits write straight to the run — handle/pronouns/boat are display fields set the
+  // identity edits write straight to the run: handle/pronouns/boat are display fields set the
   // same way the intro set them (not graded state, so no domain verb, just writeSave)
   const edit = (patch: Partial<SaveGame>) => setSave(writeSave(patch))
   // commit reads the field's own value (robust to render timing), cleans, and rejects
-  // empty/blocked by snapping back to the saved name — a student can't wipe their name to blank
+  // empty/blocked by snapping back to the saved name: a student cannot wipe their name to blank
   const commitName = (raw: string) => {
     const v = cleanName(raw).trim()
-    if (v.length >= 2 && !isBlocked(v)) { edit({ handle: v }); setNameDraft(v); track('name_edited'); announce(`Name saved as ${v}`) }
+    if (v.length >= 2 && !isBlocked(v)) {
+      edit({ handle: v }); setNameDraft(v); track('name_edited')
+      /* the kit's one stamp rather than this panel's own opinion of what saving
+         looks like (`ui/feedback.ts`), and it announces itself on the way past */
+      saved(`Name saved as ${v}`)
+    }
     /* the field snapping back to the old name is the whole of the refusal on
      * screen, and it is silent to a reader, so it says so */
     else { setNameDraft(save?.handle ?? ''); announce('That name was not accepted. The old one is back.') }
   }
   const commitBoat = (raw: string) => {
     const v = cleanName(raw, 18).trim()
-    if (v.length >= 2 && !isBlocked(v)) { edit({ boatName: v }); setBoatDraft(v); track('boat_renamed'); announce(`Ship renamed ${v}`) }
+    if (v.length >= 2 && !isBlocked(v)) { edit({ boatName: v }); setBoatDraft(v); track('boat_renamed'); saved(`Ship renamed ${v}`) }
     else { setBoatDraft(save?.boatName ?? ''); announce('That ship name was not accepted. The old one is back.') }
   }
 
@@ -95,6 +179,12 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {})
     else el.requestFullscreen?.().catch(() => {})
     track('fullscreen_toggled', { on: !document.fullscreenElement })
+  }
+
+  const setSound = (level: SoundLevel) => {
+    setS({ ...s, sound: level, mute: level === 'off' })
+    track('settings_changed', { setting: 'sound', value: level })
+    announce(SOUND_SAID[level])
   }
 
   /* Q14, THE ONE-RUN-PER-PARTICIPANT GUARD, and this button was the hole in it.
@@ -121,24 +211,25 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const boatBad = boatDraft.trim().length > 0 && isBlocked(boatDraft)
 
   const panel = usePanel({ label: 'Settings', onClose })
-  const TABS: Tab[] = ['account', 'controls', 'danger']
-  const TAB_NAMES: Record<Tab, string> = { account: 'Account', controls: 'Controls', danger: 'Danger Zone' }
+  const TABS: Tabs[] = ['account', 'controls', 'danger']
+  const TAB_NAMES: Record<Tabs, string> = { account: 'Account', controls: 'Controls', danger: 'Danger Zone' }
   /* THE TAB IS A STATE SWAP AND IT IS SILENT. Nothing changes but the page under
    * the row, so a reader is told which page it now is. */
-  const pickTab = (t: Tab) => { setTab(t); announce(`${TAB_NAMES[t]} settings`) }
+  const pickTab = (t: Tabs) => { setTab(t); announce(`${TAB_NAMES[t]} settings`) }
 
   return (
     <div className="st-veil" onClick={onClose}>
       <div className="st-panel kit-surface-panel" onClick={(e) => e.stopPropagation()} {...panel}>
         <div className="st-inner">
-          <div className="st-tabs" role="tablist" aria-label="Settings sections">
+          <div className="st-tabs kit-tabrow" role="tablist" aria-label="Settings sections">
             {TABS.map((t, i) => (
-              <button
-                key={t} role="tab" aria-selected={tab === t}
-                className={`st-tab ${tab === t ? 'st-tab-on' : ''}`}
+              <Tab
+                key={t}
+                active={tab === t}
+                className="st-tab"
                 onClick={() => pickTab(t)}
                 onKeyDown={(e) => tabRowKeyDown(e, TABS, i, pickTab)}
-              >{TAB_NAMES[t]}</button>
+              >{TAB_NAMES[t]}</Tab>
             ))}
           </div>
 
@@ -150,9 +241,9 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                     <label className="st-editrow">
                       <span className="st-idlabel">Name</span>
                       {/* THE REFUSAL IS READABLE ON FOCUS. The warning under a
-                          rejected name was only ever a red line beside the field:
-                          a reader landing in the box heard the label and nothing
-                          about why what they typed was refused. */}
+                          rejected name was only ever a coloured line beside the
+                          field: a reader landing in the box heard the label and
+                          nothing about why what they typed was refused. */}
                       <input
                         className="st-idfield" value={nameDraft} placeholder="your deck name"
                         aria-invalid={nameBad} aria-describedby={nameBad ? 'st-warn-name' : undefined}
@@ -161,14 +252,28 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                       />
                     </label>
-                    {nameBad && <div className="st-fieldwarn" id="st-warn-name">The harbor master raised an eyebrow. Try another.</div>}
+                    {nameBad && <div className="st-fieldwarn" id="st-warn-name" role="alert">The harbor master raised an eyebrow. Try another.</div>}
 
                     <div className="st-editrow">
                       <span className="st-idlabel" id="st-lbl-pronouns">Pronouns</span>
                       <button
-                        className="st-idpick" aria-expanded={pickPronoun} aria-labelledby="st-lbl-pronouns"
+                        /* THE NAME CARRIES THE VALUE. `aria-labelledby` pointed at
+                           the word "Pronouns" alone, which OVERRIDES the button's
+                           own text, so a reader heard the label and never heard
+                           what the pronouns actually are. */
+                        className="st-idpick" aria-expanded={pickPronoun}
+                        aria-label={`Pronouns, ${save.pronouns || 'not set'}. Choose.`}
                         onClick={() => setPickPronoun((v) => !v)}
-                      >{save.pronouns || 'set'} ▾</button>
+                      >
+                        <span className="st-idpick-ink">{save.pronouns || 'set'}</span>
+                        {/* WAS A U+25BE. The drawn `pointer` sheet has a chevron
+                            and this is what it is for; the fallback is a shape
+                            the token layer draws, never another character. */}
+                        <Glyph
+                          piece="pointer" face="chevron" size={12} className="st-idpick-mark"
+                          fallback={<span className="st-caretmark" aria-hidden="true" />}
+                        />
+                      </button>
                     </div>
                     {pickPronoun && (
                       <div className="st-chips" role="group" aria-labelledby="st-lbl-pronouns">
@@ -192,26 +297,44 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                       />
                     </label>
-                    {boatBad && <div className="st-fieldwarn" id="st-warn-boat">She would sink from embarrassment. Another.</div>}
+                    {boatBad && <div className="st-fieldwarn" id="st-warn-boat" role="alert">She would sink from embarrassment. Another.</div>}
 
                     {save.classCode && <div className="st-idrow"><span className="st-idlabel">Class</span><span className="st-idval">{save.classCode}</span></div>}
                     <div className="st-idrow"><span className="st-idlabel">Progress</span><span className="st-idval">{save.introDone ? `Year ${save.year}, ${save.season}` : 'Just started'}</span></div>
                   </div>
                 ) : (
-                  <div className="st-idcard st-idcard-empty">Begin your adventure to name your explorer and her ship.</div>
+                  /* THE PANEL'S EMPTY STATE, TOLD THE WAY EVERY OTHER ONE IS
+                     (§40.42). It used to be a sentence in a box that looked like a
+                     card with nothing in it; the kit says what the page is and
+                     what fills it, in one shape used everywhere. */
+                  <Empty
+                    what="No explorer yet."
+                    fills="Begin your adventure and this page fills with your name, your pronouns and your ship."
+                  />
                 )}
 
                 <div className="st-prefhead" id="st-prefs">Preferences</div>
-                {/* EVERY TOGGLE SAYS ITS STATE, not just shows it. `aria-pressed`
-                    is what a reader announces; the green border is what an eye
-                    sees, and §11.3 asks for both because one of them is a hue. */}
+
+                {/* SOUND IS THREE STATES (§40.32). Every one of them changes the
+                    WORD as well as the mark, because §40.31 forbids a state
+                    carried by hue alone and a Chromebook panel crushes both
+                    lightness and saturation. */}
                 <div className="st-row">
                   <span id="st-lbl-sound">Sound</span>
-                  <button
-                    className={`st-toggle ${s.mute ? '' : 'st-on'}`} aria-pressed={!s.mute} aria-labelledby="st-lbl-sound"
-                    onClick={() => { const mute = !s.mute; setS({ ...s, mute }); announce(mute ? 'Sound muted' : 'Sound on') }}
-                  >{s.mute ? 'muted' : 'on'}</button>
+                  <div className="st-level" role="group" aria-labelledby="st-lbl-sound">
+                    {SOUND_LEVELS.map((k) => (
+                      <button
+                        key={k}
+                        className={`st-levelbtn ${s.sound === k ? 'st-on' : ''}`}
+                        aria-pressed={s.sound === k}
+                        aria-label={SOUND_SAID[k]}
+                        onClick={() => setSound(k)}
+                      >{SOUND_WORD[k]}</button>
+                    ))}
+                  </div>
                 </div>
+                <div className="st-rownote">Quiet is for a room where every machine is playing. Full is for headphones.</div>
+
                 <div className="st-row">
                   <span id="st-lbl-text">Text size</span>
                   <div className="st-seg" role="group" aria-labelledby="st-lbl-text">
@@ -219,16 +342,29 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                       <button
                         key={k} className={`st-segbtn ${s.textSize === k ? 'st-on' : ''}`} aria-pressed={s.textSize === k}
                         aria-label={`Text size ${{ s: 'small', m: 'medium', l: 'large' }[k]}`}
-                        onClick={() => { setS({ ...s, textSize: k }); announce(`Text size ${{ s: 'small', m: 'medium', l: 'large' }[k]}`) }}
+                        onClick={() => {
+                          setS({ ...s, textSize: k })
+                          track('settings_changed', { setting: 'textSize', value: k })
+                          announce(`Text size ${{ s: 'small', m: 'medium', l: 'large' }[k]}`)
+                        }}
                       >{k.toUpperCase()}</button>
                     ))}
                   </div>
                 </div>
+                {/* EVERY TOGGLE SAYS ITS STATE, not just shows it. `aria-pressed`
+                    is what a reader announces, the WORD in the button is what an
+                    eye reads, and the ring is the third signal. §11.3 asks for
+                    more than one, because one of them is a hue. */}
                 <div className="st-row">
                   <span id="st-lbl-rm">Reduced motion</span>
                   <button
                     className={`st-toggle ${s.reducedMotion ? 'st-on' : ''}`} aria-pressed={s.reducedMotion} aria-labelledby="st-lbl-rm"
-                    onClick={() => { const on = !s.reducedMotion; setS({ ...s, reducedMotion: on }); announce(on ? 'Reduced motion on' : 'Reduced motion off') }}
+                    onClick={() => {
+                      const on = !s.reducedMotion
+                      setS({ ...s, reducedMotion: on })
+                      track('settings_changed', { setting: 'reducedMotion', value: on })
+                      announce(on ? 'Reduced motion on' : 'Reduced motion off')
+                    }}
                   >{s.reducedMotion ? 'on' : 'off'}</button>
                 </div>
                 <div className="st-row">
@@ -239,64 +375,47 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
               </>
             )}
 
-            {tab === 'controls' && (
-              <div className="st-controls">
-                <div className="st-ctrlsec">On foot</div>
-                <CtrlRow label="Move" keys={['W', 'A', 'S', 'D']} alt={['↑', '←', '↓', '→']} />
-                <CtrlRow label="Sprint" keys={['Shift']} />
-                <CtrlRow label="Jump" keys={['Space']} />
-                <CtrlRow label="Interact · Board" keys={['E']} />
-
-                <div className="st-ctrlsec">At the helm</div>
-                <CtrlRow label="Steer" keys={['A', 'D']} />
-                <CtrlRow label="Ahead" keys={['W']} />
-                <CtrlRow label="Slow · astern" keys={['S']} />
-                <CtrlRow label="Come ashore" keys={['E']} />
-
-                <div className="st-ctrlsec">Anywhere</div>
-                <CtrlRow label="Pause" keys={['Esc']} />
-                <div className="st-ctrlnote">Open the chart and Handbook from the compass and book at the top-left.</div>
-              </div>
-            )}
+            {tab === 'controls' && <ControlsPage />}
 
             {tab === 'danger' && (
               <>
                 <div className="st-dangerhead">Restart adventure</div>
                 <div className="st-dangerbody">
-                  This erases this device's voyage completely — your name, ship, and every year of
-                  progress — and starts you back at Begin Adventure. It cannot be undone.
+                  This erases this device's voyage completely, your name, your ship and every year of
+                  progress, and starts you back at Begin Adventure. It cannot be undone.
                 </div>
                 {!save ? (
-                  <div className="st-dangerbody st-dangerbody-quiet">No voyage yet — nothing to erase.</div>
+                  <div className="st-dangerbody st-dangerbody-quiet">No voyage yet, so there is nothing to erase.</div>
                 ) : !verdict.allowed && !captain ? (
                   <div className="st-dangerbody st-dangerbody-quiet">{verdict.why}</div>
                 ) : !confirmRestart ? (
-                  <button className="st-dangerbtn" onClick={() => { setConfirmRestart(true); announce('Confirm: erase this voyage?') }}>Restart adventure</button>
+                  <Plank className="st-dangerplank" onClick={() => { setConfirmRestart(true); announce('Confirm: erase this voyage?') }}>
+                    Restart adventure
+                  </Plank>
                 ) : (
-                  /* FOCUS MOVES ON THE STATE SWAP. One button becomes two, and a
-                     keyboard player was left focused on a button that no longer
-                     exists, which lands focus on <body> and starts the next Tab
-                     at the top of the sheet. */
                   <div className="st-confirmrow">
-                    <button className="st-dangerbtn" ref={confirmRef} onClick={restart}>Yes, erase it all</button>
-                    <button className="st-cancelbtn" onClick={() => setConfirmRestart(false)}>Keep my voyage</button>
+                    <Plank className="st-dangerplank" id="st-confirm-erase" onClick={restart}>Yes, erase it all</Plank>
+                    <Plank onClick={() => setConfirmRestart(false)}>Keep my voyage</Plank>
                   </div>
                 )}
 
                 {isCaptain() && (
+                  /* THE ANCHOR IS GONE. It was a raw U+2693 in front of these two
+                     words, which is a font glyph on a heading, and a heading needs
+                     no mark at all: the words are the whole of it. */
                   <div className="st-captain">
-                    <div className="st-captain-head">⚓ Captain's tools</div>
+                    <div className="st-captain-head">Captain&apos;s tools</div>
                     <div className="st-captain-row">
-                      {/* wipe here, then navigate WITHOUT ?fresh — leaving it armed in the
+                      {/* wipe here, then navigate WITHOUT ?fresh: leaving it armed in the
                           URL meant every later F5 silently wiped the run again */}
-                      <button onClick={() => { beginAdventure(); location.href = '/?scene=beach' }}>Replay intro</button>
+                      <Plank size="sm" onClick={() => { beginAdventure(); location.href = '/?scene=beach' }}>Replay intro</Plank>
                       {/* THE TWO PLACES THE ROAD GOES, and this used to be one button
                           onto `islandmap`, the tile map §3.0 ruled dead: a captain
                           checking "where does the game go after the beach" was shown
                           the wrong answer. `route.ts` spells both so this row and the
                           title cannot drift apart. */}
-                      <button onClick={() => { writeSave({ beat: 'sea:arrive', introDone: true }); location.href = `/?${searchFor(SEA_ARRIVAL, '')}` }}>Skip to sea</button>
-                      <button onClick={() => { writeSave({ beat: 'sea:arrive', introDone: true }); location.href = `/?${searchFor(HOME_TARGET, '')}` }}>Skip to the Maw</button>
+                      <Plank size="sm" onClick={() => { writeSave({ beat: 'sea:arrive', introDone: true }); location.href = `/?${searchFor(SEA_ARRIVAL, '')}` }}>Skip to sea</Plank>
+                      <Plank size="sm" onClick={() => { writeSave({ beat: 'sea:arrive', introDone: true }); location.href = `/?${searchFor(HOME_TARGET, '')}` }}>Skip to the Maw</Plank>
                     </div>
                   </div>
                 )}
@@ -304,27 +423,137 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
             )}
           </div>
 
-          <button className="st-close kit-surface-plank" onClick={onClose}>Back to it</button>
+          <Plank className="st-close" onClick={onClose}>Back to it</Plank>
         </div>
       </div>
     </div>
   )
 }
 
-/** one control line: an action and the real key(s) that drive it, rendered as keycaps */
-function CtrlRow({ label, keys, alt }: { label: string; keys: string[]; alt?: string[] }) {
+/* ---- THE CONTROLS PAGE ----------------------------------------------------
+ *
+ * §40.24: "It is a picture of a key map rather than the key map. `CtrlRow` takes
+ * label and key strings as props and the strings are typed into the JSX. Nothing
+ * in this page reads what the scenes actually bind, so the page and the game
+ * agree by hand, and the helm section describes a piloting scheme §9 has not
+ * built yet."
+ *
+ * TWO OF THOSE THREE ARE FIXED HERE AND THE THIRD IS HONEST ABOUT ITSELF.
+ *
+ * 1. THE HELM SECTION NOW DESCRIBES THE HELM THAT EXISTS. It is read off
+ *    `PmapScene.tsx:4191-4193`, which is where the tiller actually is: throttle
+ *    on ArrowUp or W, turn on ArrowLeft/ArrowRight or A/D, full sail on Shift.
+ *    The page used to list "slow, astern" on S, which that code does not bind.
+ * 2. EVERY ROW CARRIES ITS POINTER PATH, which §40.24 asks for in as many words:
+ *    "every action listed is a key, the note at the bottom points at two
+ *    buttons, and §3.10's law says every key path needs a pointer path. A student
+ *    on a trackpad reading this page learns that the game is played on a
+ *    keyboard, which is not what the game intends."
+ * 3. IT IS STILL A TABLE RATHER THAN A LIVE READ, and the reason is that there is
+ *    no binding module to read: eleven scenes each spell `keys['w']` into their
+ *    own tick loop. So every row names the FILE AND LINE its keys are read at,
+ *    and this table is the one place a future session points those scenes at.
+ *    That is not the same as being bound, and the report says so.
+ *
+ * The last row of the page is the one §40.24 says is missing and matters most: "a
+ * student who is lost does not need to know that Shift sprints. They need to know
+ * that the book in the corner says where to go."
+ */
+type Binding = {
+  /** what the student is trying to do */
+  what: string
+  keys: string[]
+  /** the same action, said another way, as words rather than as arrow glyphs */
+  alt?: string[]
+  /** the pointer path for the same action, or null where there is not one yet */
+  pointer: string | null
+  /** where the binding is really read, so this page can be checked against it */
+  where: string
+}
+
+const ON_FOOT: Binding[] = [
+  { what: 'Walk', keys: ['W', 'A', 'S', 'D'], alt: ['Arrow keys'], pointer: null, where: 'pmap/walk.ts step()' },
+  { what: 'Sprint on the beach', keys: ['Shift'], pointer: null, where: 'BeachIso.tsx sprinting' },
+  { what: 'Jump on the beach', keys: ['Space'], pointer: null, where: 'BeachIso.tsx jumpQueued' },
+  { what: 'Use what you are standing at', keys: ['E'], pointer: 'tap the sign that appears', where: 'PmapScene.tsx prompt pointertap' },
+]
+const AT_THE_HELM: Binding[] = [
+  { what: 'Sail ahead', keys: ['W'], alt: ['Up arrow'], pointer: null, where: 'PmapScene.tsx throttle' },
+  { what: 'Steer', keys: ['A', 'D'], alt: ['Left and right arrows'], pointer: null, where: 'PmapScene.tsx turn' },
+  { what: 'Full sail', keys: ['Shift'], pointer: null, where: 'PmapScene.tsx fullSail' },
+  { what: 'Put in at a berth', keys: ['E'], pointer: 'tap the berth sign', where: 'PmapScene.tsx seaTap' },
+]
+const ANYWHERE: Binding[] = [
+  { what: 'Pause', keys: ['Esc'], pointer: null, where: 'hud/Hud.tsx Escape' },
+  { what: 'Open the chart', keys: [], pointer: 'the compass at the top left', where: 'hud/Hud.tsx openBook' },
+  { what: 'Open the Handbook', keys: [], pointer: 'the crest at the top left', where: 'hud/Hud.tsx openBook' },
+  { what: 'Open settings', keys: [], pointer: 'the Settings plate in the corner', where: 'app/SettingsPanel.tsx GearButton' },
+]
+
+function ControlsPage() {
+  return (
+    <div className="st-controls">
+      <div className="st-ctrlsec">On foot</div>
+      {ON_FOOT.map((b) => <CtrlRow key={b.what} b={b} />)}
+
+      <div className="st-ctrlsec">At the helm</div>
+      {AT_THE_HELM.map((b) => <CtrlRow key={b.what} b={b} />)}
+
+      <div className="st-ctrlsec">Anywhere</div>
+      {ANYWHERE.map((b) => <CtrlRow key={b.what} b={b} />)}
+
+      <div className="st-ctrlnote">
+        Lost? The Handbook in the corner always says where to go next, and the arrow on screen
+        points at it. Nothing in this game is on a timer.
+      </div>
+    </div>
+  )
+}
+
+/** one control line: an action, the real key or keys that drive it, and the
+ *  pointer path that does the same thing where there is one */
+function CtrlRow({ b }: { b: Binding }) {
   return (
     <div className="st-ctrl-row">
-      <span className="st-ctrl-label">{label}</span>
+      <span className="st-ctrl-label">{b.what}</span>
       <span className="st-ctrl-keys">
-        {keys.map((k) => <span className="st-key" key={k}>{k}</span>)}
-        {alt && <><span className="st-ctrl-or">or</span>{alt.map((k) => <span className="st-key" key={'a' + k}>{k}</span>)}</>}
+        {b.keys.map((k) => <span className="st-key" key={k}>{k}</span>)}
+        {b.alt && <><span className="st-ctrl-or">or</span>{b.alt.map((k) => <span className="st-key" key={'a' + k}>{k}</span>)}</>}
+        {b.pointer && (
+          <span className="st-ctrl-pointer">
+            {b.keys.length ? 'or ' : ''}{b.pointer}
+          </span>
+        )}
       </span>
     </div>
   )
 }
 
-/** the little corner gear every scene can mount */
+/* ---- THE CORNER CONTROL ----------------------------------------------------
+ *
+ * WAS `<button className="st-gear">U+2699</button>`, an operating-system glyph in a
+ * wooden square, at 20 pixels, on the control that is on screen for the whole
+ * title screen and the whole intro. Three separate rules forbid it: `docs/ART.md`
+ * ("Icons are drawn, never an emoji or a font glyph"), Part IV Law 2 (every UI
+ * element is drawn art), and the UI brief's do-not list ("Use a system glyph
+ * anywhere").
+ *
+ * IT CANNOT BE DRAWN TODAY, and that is why it is a word instead of a different
+ * picture. The live `icon_set` carries compass, key, star, lock, tick, cross,
+ * arrow and coin, read off `/api/v1/ui`, and there is no gear on it. Substituting
+ * some other face would be worse than either: a student would learn a mark that
+ * means nothing.
+ *
+ * SO IT IS THE PLATE `plaque-small.png` WITH THE WORD ON IT. That art is a dark
+ * carved 2:1 plate with a rope inlay, drawn for exactly this shape, and it is
+ * already the ground under the HUD's own two corner controls, so the three read
+ * as one family. A word is legible at a glance, it is a bigger trackpad target
+ * than a 40 pixel square, and it needs no legend. The gear face stays an art gap
+ * on the handoff rather than a hole in the screen. */
 export function GearButton({ onClick }: { onClick: () => void }) {
-  return <button className="st-gear" aria-label="Settings" title="Settings" onClick={onClick}>⚙</button>
+  return (
+    <button className="st-gear" onClick={onClick}>
+      <span className="st-gear-ink">Settings</span>
+    </button>
+  )
 }

@@ -1,10 +1,16 @@
-/* The settings sheet (GAME-DESIGN §4.7): tabbed paper on the square kit panel. The content
+/* The settings sheet (§40.22 to §40.26): tabbed paper on the square kit panel. The content
    sits in an absolutely-positioned inner so its inset resolves against the PANEL (plain %
    padding would resolve against the full-width veil and swallow the panel).
 
    Materials from game/ui/tokens.css, sizes multiplied by the text setting. This sheet is
-   where a student turns the text up, and until now it was the one panel that did not
-   answer its own control. */
+   where a student turns the text up, and it is the panel that has to answer its own control
+   first.
+
+   WHAT MOVED OUT OF THIS FILE, 2026-09-01. Four controls used to be drawn here as private
+   rectangles: the tab, the two danger buttons and the Back to it button. They are the kit's
+   `<Tab>` and `<Plank>` now (`game/ui/controls.css`), so rest, hover, press, disabled, focus
+   and busy come from one file instead of from four rules each with a different idea of what a
+   press looks like. What is left here is only what is particular to this sheet. */
 
 @import '../game/ui/tokens.css';
 
@@ -26,8 +32,6 @@
    panel that fades up reads as a see-through panel. */
 @keyframes st-in { from { transform: translateY(12px) scale(.97); } to { transform: none; } }
 html[data-rm='1'] .st-panel { animation-duration: 1ms; }
-/* the content sits well inside the cream sheet — the frame's rounded corners eat any strip that
-   reaches the very top/edges, so the tab row must clear them (was 15%/16%: tabs clipped the wood) */
 .st-inner {
   /* WAS 17% 17% 13%, the paper zone measured off the stretched picture. The frame
      is a nine-slice now and its own border-width is that inset, in pixels, so a
@@ -39,16 +43,16 @@ html[data-rm='1'] .st-panel { animation-duration: 1ms; }
   container-type: inline-size;   /* cqw below resolves against THIS inner's width */
 }
 
-.st-tabs { display: flex; gap: 1.4cqw; margin-bottom: 3cqw; }
-.st-tab {
-  flex: 1; white-space: nowrap;
-  font-family: var(--kit-face-display);
-  --kit-fs-raw: calc(3.5cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-label);
-  background: linear-gradient(180deg, var(--kit-paper-tab-hi), var(--kit-paper-tab-lo));
-  border: var(--kit-border) solid var(--kit-edge); border-bottom: none; border-radius: var(--kit-r-card) var(--kit-r-card) 0 0;
-  padding: 1.5cqw 0.4cqw; cursor: pointer;
+/* THE ROW NEVER WRAPS. `.kit-tabrow` is what enforces that (it scrolls sideways
+   instead), and the only thing left for this sheet to say is that its three tabs
+   share the width evenly. Two classes deep so it wins over `.kit-tab { flex: none }`
+   whichever order the two stylesheets land in. */
+.st-tabs { margin-bottom: 3cqw; }
+.st-tabs .st-tab { flex: 1 1 auto; }
+.st-tabs .st-tab .kit-tab-ink {
+  --kit-fs-raw: calc(3.5cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
 }
-.st-tab-on { color: var(--kit-sea-ink); border-color: var(--kit-sea); background: linear-gradient(180deg, var(--kit-paper-on-hi), var(--kit-paper-on-lo)); }
 
 .st-page { flex: 1; overflow-y: auto; border-top: var(--kit-border) solid var(--kit-edge); padding-top: 3cqw; display: flex; flex-direction: column; }
 .st-page::-webkit-scrollbar { width: 7px; }
@@ -71,25 +75,61 @@ html[data-rm='1'] .st-panel { animation-duration: 1ms; }
 .st-idfield {
   flex: 1; min-width: 0; text-align: right;
   font-family: var(--kit-face-display); --kit-fs-raw: calc(4.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink);
-  background: var(--kit-field); border: none; border-bottom: 1.5px solid var(--kit-field-rule);
-  border-radius: var(--kit-r-sharp) var(--kit-r-sharp) 0 0; padding: .6cqw 1.2cqw; outline: none;
+  background: var(--kit-field); border: none;
+  /* the pencil rule under the box is drawn as a shadow rather than as a border,
+     so THICKENING it on focus costs no layout: a border that grows moves the
+     field, and a field that jumps under a student mid-type is worse than no
+     focus state at all */
+  box-shadow: inset 0 -2px 0 var(--kit-field-rule);
+  border-radius: var(--kit-r-sharp) var(--kit-r-sharp) 0 0; padding: .6cqw 1.2cqw;
+  transition: box-shadow var(--kit-t-quick) ease, background-color var(--kit-t-quick) ease;
 }
 .st-idfield::placeholder { color: var(--kit-field-hint); }
-.st-idfield:focus { background: var(--kit-field-focus); border-bottom-color: var(--kit-sea); }
+/* THE ONE CONTROL IN THE KIT THE FOCUS RING DOES NOT REACH, and until now what it
+   fell back to was a hue swap and an alpha step: `tokens.css` excludes
+   `.st-idfield` and `.i3-field` by name, with a reason (a ring inside a drawn
+   field is a second outline round a box a mouse user clicks into constantly).
+   §40.31 says no state may be carried by hue alone, so the exclusion has to be
+   paid for with a SHAPE. The rule under the box goes from two pixels to four and
+   the paper behind it lightens: one of those two survives a Chromebook panel that
+   crushes saturation, and it is not the colour.
+
+   `:focus-visible` rather than `:focus`, because that is the pseudo-class the rest
+   of the kit is written against. A text input matches it however it was focused,
+   including by a click, so nothing is lost by the change. */
+.st-idfield:focus-visible {
+  background: var(--kit-field-focus);
+  box-shadow: inset 0 -4px 0 var(--kit-sea);
+}
 .st-idpick {
-  font-family: var(--kit-face-display); --kit-fs-raw: calc(4.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-sea-ink);
+  display: inline-flex; align-items: center; gap: 1.4cqw;
+  font-family: var(--kit-face-display);
   background: linear-gradient(180deg, var(--kit-paper), var(--kit-paper-lo)); border: var(--kit-border) solid var(--kit-edge); border-radius: var(--kit-r-soft);
   padding: .5cqw 2.6cqw; cursor: pointer;
+}
+.st-idpick-ink { --kit-fs-raw: calc(4.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-sea-ink); }
+.st-idpick-mark { flex: none; }
+/* WHAT STANDS IN FOR THE DRAWN CHEVRON when the platform kit is not worn: a shape
+   the token layer owns, drawn out of borders, never a second character. The `U+25BE`
+   this replaces was a font glyph, which `docs/ART.md` forbids outright. */
+.st-caretmark {
+  width: 0; height: 0; flex: none;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--kit-sea-ink);
 }
 .st-chips { display: flex; flex-wrap: wrap; gap: 1.4cqw; justify-content: flex-end; padding: 1.5cqw 0 .5cqw; }
 .st-chip {
   font-family: var(--kit-face-body); --kit-fs-raw: calc(3.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-body);
   background: linear-gradient(180deg, var(--kit-paper), var(--kit-paper-lo)); border: var(--kit-border) solid var(--kit-edge); border-radius: var(--kit-r-pill);
   padding: .8cqw 3cqw; cursor: pointer;
+  transition: transform var(--kit-t-quick) ease;
 }
-.st-chip-on { border-color: var(--kit-sea); color: var(--kit-sea-ink); background: linear-gradient(180deg, var(--kit-paper-on-hi), var(--kit-sea-paper)); box-shadow: 0 0 0 2px var(--kit-sea-glow-soft); }
+.st-chip:hover { transform: translateY(-1px); }
+/* a chosen chip is PRESSED IN as well as recoloured, so the state survives a
+   panel that crushes the colour out of it */
+.st-chip-on { border-color: var(--kit-sea); color: var(--kit-sea-ink); background: linear-gradient(180deg, var(--kit-paper-on-hi), var(--kit-sea-paper)); box-shadow: 0 0 0 2px var(--kit-sea-glow-soft); transform: translateY(1px); }
 .st-fieldwarn { font-family: var(--kit-face-body); --kit-fs-raw: calc(3.3cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-alarm); text-align: right; margin: .4cqw 0 1cqw; }
-.st-idcard-empty { font-family: var(--kit-face-body); --kit-fs-raw: calc(3.9cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-soft); text-align: center; padding: 5cqw 4cqw; }
 
 /* ---- controls tab ---- */
 .st-controls { display: flex; flex-direction: column; }
@@ -99,33 +139,58 @@ html[data-rm='1'] .st-panel { animation-duration: 1ms; }
 }
 .st-ctrlsec:first-child { margin-top: 0; }
 .st-ctrl-row { display: flex; align-items: center; justify-content: space-between; gap: 2cqw; margin: 1.6cqw 0; }
-.st-ctrl-label { font-family: var(--kit-face-body); --kit-fs-raw: calc(4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-body); }
-.st-ctrl-keys { display: flex; align-items: center; gap: 1cqw; flex-wrap: wrap; justify-content: flex-end; }
+/* the action never gives up its room to the keys, and the keys wrap instead: a
+   row that reads "Use what you are stan..." has lost the only word that matters */
+.st-ctrl-label { flex: 0 1 auto; min-width: 40%; font-family: var(--kit-face-body); --kit-fs-raw: calc(4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-body); }
+.st-ctrl-keys { flex: 1 1 auto; display: flex; align-items: center; gap: 1cqw; flex-wrap: wrap; justify-content: flex-end; }
 .st-ctrl-or { font-family: var(--kit-face-body); --kit-fs-raw: calc(3.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-dim); margin: 0 .4cqw; }
+/* the pointer path, in the quiet voice, because it is the same action said the
+   other way rather than a second control */
+.st-ctrl-pointer {
+  font-family: var(--kit-face-body); --kit-fs-raw: calc(3.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-soft); text-align: right;
+}
 .st-key {
   font-family: var(--kit-face-body); --kit-fs-raw: calc(3.5cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink); text-align: center; min-width: 5.5cqw;
   background: linear-gradient(180deg, var(--kit-paper-hi), var(--kit-paper-key-lo)); border: var(--kit-border) solid var(--kit-edge-strong);
   border-bottom-width: 3px; border-radius: var(--kit-r-soft); padding: .5cqw 1.4cqw; box-shadow: 0 1px 0 var(--kit-hairline);
+  white-space: nowrap;
 }
 .st-ctrlnote { font-family: var(--kit-face-body); --kit-fs-raw: calc(3.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); line-height: 1.4; color: var(--kit-ink-soft); text-align: center; margin-top: 3cqw; }
 
 .st-row {
-  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  /* WRAPS AT LARGE. Three sound buttons and a label are about 500 of the 539
+     pixels this panel gives them at `--kit-text-scale: 1.22`, and the row after
+     that has to fall onto a second line rather than push its own label out of
+     the sheet. */
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 2cqw; flex-wrap: wrap;
   font-family: var(--kit-face-body); --kit-fs-raw: calc(4.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-body); margin: 2cqw 0;
 }
-.st-toggle, .st-segbtn {
+/* the sentence under a preference that needs one. §40.32 asks for a middle sound
+   state and a middle state a student cannot tell apart from the other two is not
+   one, so the row says what Quiet is FOR. */
+.st-rownote {
+  font-family: var(--kit-face-body); --kit-fs-raw: calc(3.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-soft); line-height: 1.4; margin: -1cqw 0 2cqw; text-align: right;
+}
+.st-toggle, .st-segbtn, .st-levelbtn {
   font-family: var(--kit-face-body); --kit-fs-raw: calc(4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-body);
   background: linear-gradient(180deg, var(--kit-paper), var(--kit-paper-lo));
   border: var(--kit-border) solid var(--kit-edge); border-radius: var(--kit-r-sharp); padding: 1cqw 3cqw; cursor: pointer;
+  transition: transform var(--kit-t-quick) ease, box-shadow var(--kit-t-quick) ease;
 }
-.st-seg { display: flex; gap: 1.4cqw; }
-.st-on { border-color: var(--kit-sea); color: var(--kit-sea-ink); box-shadow: 0 0 0 2px var(--kit-sea-glow); }
-/* STATE WITHOUT HUE (§11.3) is half done here and the half that is missing is
-   deliberate. `aria-pressed` on every toggle says the state out loud, which costs
-   no pixels. A drawn mark is the other half and it is NOT added here: `.st-seg`
-   is three buttons wide inside a panel with a fixed aspect ratio, so a glyph in
-   front of "M" is a wrap nobody asked for. It wants the drawn PixelLab tick that
-   §80.5's I11 is about, not a text character. */
+.st-seg, .st-level { display: flex; gap: 1.4cqw; }
+.st-levelbtn { padding: 1cqw 2cqw; --kit-fs-raw: calc(3.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs); }
+/* THE CHOSEN ONE IS PRESSED IN. §40.31: no state carried by hue alone, and the
+   hardware is the argument, not the guideline. A school Chromebook panel crushes
+   lightness and saturation, so the sea-green border and the glow can both be most
+   of the way gone; the button sitting a pixel lower than its neighbours cannot be.
+   The word inside it is the third signal and `aria-pressed` is the fourth. */
+.st-on {
+  border-color: var(--kit-sea); color: var(--kit-sea-ink);
+  box-shadow: 0 0 0 2px var(--kit-sea-glow), inset 0 2px 3px var(--kit-cord-track);
+  transform: translateY(1px);
+}
 .st-about {
   margin-top: auto; padding-top: 3cqw;
   font-family: var(--kit-face-body); --kit-fs-raw: calc(3.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); line-height: 1.45; color: var(--kit-ink-soft); text-align: center;
@@ -135,57 +200,95 @@ html[data-rm='1'] .st-panel { animation-duration: 1ms; }
 .st-dangerhead { font-family: var(--kit-face-display); --kit-fs-raw: calc(5.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-alarm); margin-bottom: 2cqw; }
 .st-dangerbody { font-family: var(--kit-face-body); --kit-fs-raw: calc(3.9cqw * var(--kit-text-scale)); font-size: var(--kit-fs); line-height: 1.5; color: var(--kit-ink-label); margin-bottom: 4cqw; }
 .st-dangerbody-quiet { opacity: .75; }
-.st-dangerbtn {
-  font-family: var(--kit-face-display); --kit-fs-raw: calc(4.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-alarm-ink);
-  background: linear-gradient(180deg, var(--kit-alarm-hi), var(--kit-alarm-lo)); border: var(--kit-border) solid var(--kit-alarm-edge); border-radius: var(--kit-r-card);
-  padding: 2cqw 5cqw; cursor: pointer;
+/* THE DESTRUCTIVE PLANK IS STILL A PLANK, because a second button material for
+   one button is how this sheet ended up with four. What marks it is a struck line
+   under the label, in the alarm ink, which is a MARK and not only a colour, plus
+   the words, which already say what it does. */
+.st-dangerplank { position: relative; }
+.st-dangerplank::after {
+  content: '';
+  position: absolute; left: 16%; right: 16%; bottom: 14%;
+  height: 3px;
+  background: var(--kit-alarm);
+  border-radius: var(--kit-r-sharp);
 }
-.st-dangerbtn:hover { filter: brightness(1.06); }
-.st-cancelbtn {
-  font-family: var(--kit-face-body); --kit-fs-raw: calc(4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-body);
-  background: linear-gradient(180deg, var(--kit-paper), var(--kit-paper-lo)); border: var(--kit-border) solid var(--kit-edge); border-radius: var(--kit-r-card);
-  padding: 2cqw 5cqw; cursor: pointer;
-}
-.st-confirmrow { display: flex; gap: 2cqw; flex-wrap: wrap; }
+.st-confirmrow { display: flex; gap: 2cqw; flex-wrap: wrap; align-items: center; }
 
 .st-captain { width: 100%; margin-top: 5cqw; border-top: 1px dashed var(--kit-rule-firm); padding-top: 3cqw; }
 .st-captain-head { font-family: var(--kit-face-display); --kit-fs-raw: calc(4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-sea-head); text-align: center; margin-bottom: 1.6cqw; }
 .st-captain-row { display: flex; gap: 1.6cqw; justify-content: center; flex-wrap: wrap; }
-.st-captain-row button {
-  font-family: var(--kit-face-body); --kit-fs-raw: calc(3.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-wood-ink);
-  background: linear-gradient(var(--kit-sea-btn-hi), var(--kit-sea-btn-lo)); border: var(--kit-border) solid var(--kit-sea-btn-edge); border-radius: var(--kit-r-sharp);
-  padding: 1cqw 2cqw; cursor: pointer;
-}
 
-.st-close {
-  margin-top: 3cqw; align-self: center; min-width: 50%;
-  aspect-ratio: 512 / 150;
-  /* the frame is a nine-slice on .kit-surface-plank now, not a stretched picture */ image-rendering: var(--kit-pixel);
-  border: none; cursor: pointer;
-  font-family: var(--kit-face-display); --kit-fs-raw: calc(4.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-plank-ink);
-  text-shadow: 0 2px 0 var(--kit-plank-shadow);
-}
+.st-close { margin-top: 3cqw; align-self: center; min-width: 55%; }
 
+/* ---- THE CORNER CONTROL -------------------------------------------------
+ *
+ * WAS A 40 PIXEL WOODEN SQUARE WITH `U+2699` IN IT, which is an operating-system glyph
+ * and is forbidden three times over (`docs/ART.md`, Part IV Law 2, the UI brief's
+ * do-not list). The live `icon_set` has no gear face, so the answer is not another
+ * picture: it is the carved plate `plaque-small.png`, drawn at 2:1 for exactly
+ * this shape and already the ground under the HUD's two corner controls, with the
+ * word on it. Three corner controls, one family, no glyph, and a target a trackpad
+ * can actually hit. */
 .st-gear {
   position: absolute; bottom: max(2.2vh, 12px); right: max(2vw, 14px); z-index: 70;
-  width: 40px; height: 40px; font-size: 20px; line-height: 1; color: var(--kit-wood-ink);
-  background: linear-gradient(var(--kit-wood-hi), var(--kit-wood-lo)); border: var(--kit-border) solid var(--kit-wood-edge); border-radius: var(--kit-r-card);
-  box-shadow: 0 2px 0 var(--kit-wood-shadow); cursor: pointer; opacity: .8;
-  transition: opacity var(--kit-t-mid) ease, transform var(--kit-t-mid) ease;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 116px; padding: 9px 18px 11px;
+  border: 0;
+  background: var(--kit-art-plaque) center / 100% 100% no-repeat;
+  image-rendering: var(--kit-pixel);
+  cursor: pointer; opacity: .88;
+  filter: drop-shadow(0 3px 0 var(--kit-plank-drop));
+  transition: opacity var(--kit-t-mid) ease, transform var(--kit-t-mid) ease, filter var(--kit-t-mid) ease;
 }
-.st-gear:hover { opacity: 1; transform: rotate(18deg); }
+.st-gear-ink {
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-wood-dark-ink);
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+.st-gear:hover { opacity: 1; transform: translateY(-1px); filter: drop-shadow(0 4px 0 var(--kit-plank-drop)); }
+.st-gear:active { transform: translateY(2px); filter: drop-shadow(0 1px 0 var(--kit-plank-drop)); }
 .st-gear:focus-visible { opacity: 1; }
 
-/* text-size + reduced-motion hooks for the scenes this sheet's settings reach but
-   this session does not own (the title backdrop, the intro scroll, the transition
-   library). The kit's own halves live in game/ui/tokens.css. */
-/* THE DIALOGUE BOX NEEDS NO RULE HERE ANY MORE, and that is the point of §40.7:
-   "the container-query unit is the technique that turns S/M/L into one variable".
-   Two hand-written overrides lived here because the box sized against the VIEWPORT
-   and could not be reached by the scale token. It is its own container now and the
-   scale is inside its clamp, so S and L reach it the way they reach every other
-   panel in the kit, through one variable, and the box grows between its floor and
-   its ceiling to hold whichever one is asked for. */
-html[data-rm='1'] .ti-backdrop { animation: none !important; }
-html[data-rm='1'] .i3-scroll { animation-duration: 1ms !important; }
+/* the transition library's reduced-motion hook. It lives here rather than in
+   `transitions.css` because this session does not own that file; the two hooks
+   that used to sit beside it, for the title backdrop and the intro scroll, have
+   moved into the files that actually start those animations. */
 html[data-rm='1'] .tr-root * { animation-duration: 200ms !important; }
+
+/* =========================================================================
+ * THE PLAIN ARM
+ *
+ * Almost the whole sheet is already made of tokens, so `html[data-skin='plain']`
+ * reaches it without a rule: the paper goes white, the ink goes black, the two
+ * game faces become the system face, and the panel's nine-slice frame is switched
+ * off in `tokens.css`. What needs saying here is the one surface that is a
+ * PICTURE rather than a colour.
+ *
+ * `--kit-art-plaque: none` leaves the corner control as an invisible button with a
+ * word floating in it, which is exactly the failure §16 would ship with. So it
+ * becomes what a document's own button is: a rectangle with a border.
+ * ========================================================================= */
+html[data-skin='plain'] .st-gear {
+  background: var(--kit-paper-lo);
+  border: 1px solid var(--kit-edge-strong);
+  border-radius: var(--kit-r-sharp);
+  min-width: 0;
+  padding: 7px 14px;
+  opacity: 1;
+  filter: none;
+}
+html[data-skin='plain'] .st-gear:hover,
+html[data-skin='plain'] .st-gear:active { transform: none; filter: none; }
+html[data-skin='plain'] .st-gear-ink {
+  font-family: var(--kit-face-body);
+  font-size: 14px; letter-spacing: 0;
+  color: var(--kit-ink-body);
+}
+html[data-skin='plain'] .st-panel { filter: none; animation: none; }
+html[data-skin='plain'] .st-caretmark { border-top-color: var(--kit-ink-body); }
+/* a struck line under a destructive button is a game mark; a document says it in
+   words, and the words are already there */
+html[data-skin='plain'] .st-dangerplank::after { display: none; }

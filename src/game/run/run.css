@@ -1,163 +1,877 @@
-/* The year loop's surfaces (§7.5/§7.6): the yearbook spread and the year-start card.
-   Kit language throughout; the composed yearbook ART rides the UI hero batch later. 
-   AND THE YEAR PAGES HONOUR THE TEXT SIZE NOW, through --kit-text-scale. The
-   diploma is the one screen in this game a student hands to somebody else. */
+/* THE RUN'S THREE OVERLAYS: the year-start card, the yearbook spread, and the
+ * graduation ceremony with the diploma on the end of it.
+ *
+ * ---- WHY THIS FILE WAS REWRITTEN, 2026-09-01 -------------------------------
+ *
+ * It spelled `'Deckhand'` and `'Harbormaster'` out fourteen times and typed
+ * twenty hex colours of its own, and it had NO plain-arm block at all. §16's
+ * ruling is that the control condition is *"a document a person could have
+ * written: system font, black on white, real headings and a real form"*, and the
+ * only reason a plain-arm student was not reading the yearbook, the ceremony and
+ * their own diploma in the game's pixel faces on parchment is the one blanket
+ * `html[data-skin='plain'] * { font-family: ... }` rule in `tokens.css`, written
+ * as a stopgap with a comment saying these fifty spellings are the real job.
+ * This is that job for these three surfaces.
+ *
+ * The diploma matters most of the three, because it is the one screen in this
+ * game a student hands to somebody else, and §14.29 rules that it is the study's
+ * INSTRUMENT: identical in both arms in every criterion, number and code, with
+ * only the staging allowed to differ. A skin is staging. Nothing below moves a
+ * value.
+ *
+ * ---- EVERY SIZE IS THE PAIR ------------------------------------------------
+ *
+ * `--kit-fs-raw` times the text scale, then `var(--kit-fs)`, which is where
+ * `tokens.css` clamps it to a band a fourteen year old can read and snaps it to a
+ * whole pixel so a bitmap face does not lose a column out of a letter. The old
+ * file sized everything in `cqw`, a fraction of the panel, which is why eight of
+ * the yearbook's twelve text elements measured under 14px and two of them at 10.
+ * Absolute pixels through the same pair keep the text setting and the snap and
+ * stop the type changing size when the window does.
+ */
 
 @import '../ui/tokens.css';
 
-/* ---- the yearbook ---- */
+/* ============================================================================
+ * THE YEARBOOK (§12.4 to §12.16)
+ * ==========================================================================*/
+
 /* the veil is the kit's, not this file's: see .bt-veil in beats.css for why the
    number moved out of the six stylesheets that each kept their own copy of it */
 .yb-veil {
   position: absolute; inset: 0; z-index: 78;
   background: var(--kit-veil);
   display: flex; align-items: center; justify-content: center;
+  padding: 2vh 2vw;
+  box-sizing: border-box;
 }
-/* THE THREE SURFACES IN THIS FILE READ THE TOKEN NOW, NOT A FILE PATH. A literal
-   url is a surface §16's plain arm cannot reach: the arm swaps `--kit-art-panel`
-   and `--kit-art-dialogue` to `none` and a hardcoded png keeps drawing straight
-   through it. The yearbook page, the ceremony card and the year card were three
-   of the four that did, which made them a study defect and not only a rendering
-   one. They carry `kit-surface-panel` and `kit-surface-dialogue` for the same
-   reason: that is the class the plain arm's own fallback colour hangs off. */
+
+/* THE SPREAD USES THE WIDTH. `build-shots/ui/before/15-yearbook.png` is eleven
+   short lines pinned to the top left of a 940 by 800 sheet with two thirds of the
+   paper blank, and §7.6 calls this "the year's full-page spread". A spread is two
+   facing pages.
+
+   THE FRAME IS A NINE-SLICE ON .kit-surface-panel, not a stretched picture, and
+   `border-width` IS the inset. The percentage padding that used to sit here
+   resolved against the VIEWPORT rather than against the panel, which is the bug
+   `hud.css` already fixed for the Handbook. */
 .yb-page {
-  width: min(940px, 86vw); height: min(800px, 88vh);
-  /* the frame is a nine-slice on .kit-surface-panel now, not a stretched picture */
+  width: min(1080px, 94vw);
+  /* A PAGE, NOT A BOX WITH A PAGE IN IT. The old sheet was a fixed 800 tall
+     whatever was on it, so year one, whose five sections are five short lines
+     each, was two thirds empty paper. It grows to hold a senior's transcript and
+     shrinks to a freshman's, between a floor that still reads as a page and a
+     ceiling that fits a 768-tall Chromebook. */
+  height: auto;
+  min-height: min(560px, 82vh);
+  max-height: min(760px, 94vh);
   image-rendering: var(--kit-pixel);
-  filter: drop-shadow(0 12px 30px rgba(2, 8, 10, .65));
-  padding: 16px 20px 18px;   /* a gutter INSIDE the frame; the frame's own border-width is the rest */
+  filter: drop-shadow(var(--kit-drop-lg));
+  padding: 14px 18px 16px;   /* a gutter INSIDE the frame; the frame's own border-width is the rest */
   box-sizing: border-box;
   container-type: inline-size;
-  animation: hb-in 260ms cubic-bezier(.2, 1.2, .35, 1) both;
-  font-family: 'Deckhand', monospace; color: #4a3826;
-  display: flex; flex-direction: column; gap: 1.6cqw;
+  animation: yb-page-in 260ms var(--kit-ease-pop) both;
+  font-family: var(--kit-face-body);
+  color: var(--kit-ink-body);
+  display: flex; flex-direction: column; gap: 10px;
 }
-/* the spread scrolls INSIDE the drawn paper; the frame and the page-turn stay put */
-.yb-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 1.6cqw; }
+@keyframes yb-page-in { from { transform: translateY(14px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+html[data-rm='1'] .yb-page { animation: none; }
+
+.yb-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+  flex: none;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--kit-rule-firm);
+}
+.yb-title {
+  margin: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(34px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
+.yb-year {
+  display: flex; align-items: baseline; gap: 10px;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(22px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-label);
+}
+/* WHICH YEAR THIS IS, IN WORDS. The spine makes three pages reachable and they
+   are not the same kind of thing: one is live, one is closed, one is a page back.
+   A tab that is merely darker says none of that. */
+.yb-yearstate {
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  font-style: italic;
+}
+
+/* the spread scrolls INSIDE the drawn paper; the frame and the footer stay put */
+.yb-body {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 14px;
+  padding-right: 4px;
+}
 .yb-body::-webkit-scrollbar { width: 6px; }
-.yb-body::-webkit-scrollbar-thumb { background: #8a744f; border-radius: 3px; }
+.yb-body::-webkit-scrollbar-thumb { background: var(--kit-edge); border-radius: var(--kit-r-sharp); }
 
-.yb-head { display: flex; align-items: baseline; gap: 2cqw; }
-.yb-title { font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #3c2d1c; }
-.yb-year { --kit-fs-raw: calc(2.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6a563c; }
-
-.yb-gpa { display: flex; align-items: baseline; gap: 1.6cqw; }
-.yb-gpanum { font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(8cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #234c40; }
-.yb-gpaletter { font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #234c40; }
-.yb-gpalabel { --kit-fs-raw: calc(2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #8a7a60; font-style: italic; }
-
-.yb-sect { font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(2.3cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #3c2d1c; margin-top: 1cqw; }
-.yb-row { display: flex; align-items: center; gap: 2cqw; padding: .7cqw 0; border-bottom: 1px dashed rgba(138, 116, 79, .35); }
-.yb-rowtitle { flex: 1; --kit-fs-raw: calc(2.3cqw * var(--kit-text-scale)); font-size: var(--kit-fs); }
-.yb-rowmeta { --kit-fs-raw: calc(2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6a563c; }
-.yb-dim { --kit-fs-raw: calc(2.1cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #8a7a60; }
-
-.yb-cordbar {
-  width: 22cqw; height: 8px;
-  background: rgba(90, 70, 40, .25);
-  border: 1px solid #8a744f; border-radius: 3px; overflow: hidden;
+/* ---- THE COMPOSITION (§12.4) ---------------------------------------------
+ *
+ * *"A panel that appears already complete is a report. A page that assembles
+ * itself in front of the student, one section landing after the other, is the
+ * year being written down while they watch."*
+ *
+ * Each section carries its own `--yb-step` from the component, in the fixed
+ * order the data module publishes. Six steps at 130ms is under a second for the
+ * whole page.
+ *
+ * AND UNDER REDUCED MOTION THEY ALL LAND AT ONCE. The setting is not "the same
+ * animation, faster": a staged page at one millisecond a step is six flickers,
+ * which is worse for the student the setting exists for than a page that is
+ * simply there. */
+.yb-number,
+.yb-sect,
+.yb-nudge {
+  animation: yb-land 320ms var(--kit-ease-rise) both;
+  animation-delay: var(--yb-step, 0ms);
 }
-.yb-cordbar span { display: block; height: 100%; background: linear-gradient(90deg, #b9974c, #d9bd74); }
+@keyframes yb-land {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+html[data-rm='1'] .yb-number,
+html[data-rm='1'] .yb-sect,
+html[data-rm='1'] .yb-nudge { animation: none; }
 
-.yb-nudge { --kit-fs-raw: calc(2.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6f6046; font-style: italic; margin-top: 1cqw; }
+/* ---- THE NUMBER (§12.5) --------------------------------------------------- */
 
+.yb-number {
+  display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
+  padding: 4px 0 12px;
+  border-bottom: 1px dashed var(--kit-rule);
+}
+.yb-numwrap { display: flex; align-items: baseline; gap: 10px; }
+.yb-num {
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(44px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1;
+  color: var(--kit-sea-ink);
+  /* the digits are proportional in the commissioned face, so a counting number
+     jitters its own width. Tabular figures hold the column still while it ticks. */
+  font-variant-numeric: tabular-nums;
+}
+.yb-letter {
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(26px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-sea-head);
+}
+.yb-numsaid { display: flex; flex-direction: column; gap: 3px; }
+.yb-numlabel {
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  font-style: italic;
+}
+.yb-nummove {
+  display: flex; align-items: center; gap: 7px;
+  --kit-fs-raw: calc(17px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
+}
+.yb-yearmean {
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+}
+
+/* THE DIRECTION IS A SHAPE THAT TURNS, NEVER A COLOUR THAT CHANGES (§40.31). A
+   school Chromebook panel crushes lightness and saturation, so "green for up,
+   red for down" is not a message on the hardware this ships to, and the sentence
+   beside it carries the meaning either way. The drawn chevron rotates; where the
+   sheet is not worn, a token-coloured triangle does the same turn. */
+.yb-movemark { transform: rotate(-90deg); }
+.yb-movemark-down { transform: rotate(90deg); }
+.yb-caret {
+  display: inline-block;
+  width: 0; height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+}
+.yb-caret-up { border-bottom: 9px solid var(--kit-sea-head); }
+.yb-caret-down { border-top: 9px solid var(--kit-ink-quiet); }
+
+/* YEAR ONE HAS NO PREVIOUS VALUE, so the number writes in from blank instead of
+   travelling from somewhere it has never been. That happens exactly once in a
+   run, which is why it is its own picture rather than a count from zero. */
+.yb-move-first .yb-num {
+  animation: yb-ink 620ms var(--kit-ease-rise) both;
+}
+@keyframes yb-ink {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+html[data-rm='1'] .yb-move-first .yb-num { animation: none; }
+
+/* THE YEAR WITH NO NUMBER IN IT. A word is not a number and is not set like one:
+   it takes the quiet voice, the body face and a size a sentence is read at, so
+   the page does not shout a thing that has not happened. */
+.yb-num-none {
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(22px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  font-style: italic;
+}
+
+/* ---- THE SPREAD ----------------------------------------------------------- */
+
+.yb-spread {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 34px;
+  align-items: start;
+}
+/* the binding down the middle of a real spread, which is also what stops two
+   columns of dashed rules reading as one wide table */
+.yb-spread > .yb-col + .yb-col {
+  padding-left: 30px;
+  border-left: 1px solid var(--kit-rule-soft);
+}
+.yb-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+/* one column when the sheet cannot hold two. `container-type: inline-size` on
+   .yb-page is what makes this a question about the PAPER and not about the
+   window, which is the distinction the percentage-padding bug turned on. */
+@container (max-width: 720px) {
+  .yb-spread { grid-template-columns: 1fr; }
+  .yb-spread > .yb-col + .yb-col { padding-left: 0; border-left: 0; }
+}
+
+.yb-sect { display: flex; flex-direction: column; gap: 5px; }
+.yb-secthead {
+  margin: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(19px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
 /* a section that is showing something other than what its heading implies says so
-   right under the heading, in pencil. The threads are cumulative and nothing
-   recorded what they looked like in year two. */
-.yb-caveat { --kit-fs-raw: calc(1.8cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #9a8a70; font-style: italic; margin-bottom: .3cqw; }
-
-/* THE SPINE: one tab per year lived, so a page that has turned is still reachable.
-   A turned year carries a dot; the open one is inked. */
-.yb-spine { display: flex; gap: .8cqw; margin-top: 1.4cqw; flex-wrap: wrap; }
-.yb-tab {
-  font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(1.9cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
-  color: #6a563c; background: rgba(138, 116, 79, .12);
-  border: 1px solid rgba(138, 116, 79, .5); border-radius: 4px;
-  padding: .5cqw 1.4cqw; cursor: pointer;
+   right under the heading, in pencil */
+.yb-caveat {
+  margin: 0;
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  font-style: italic;
 }
-.yb-tab:hover { background: rgba(138, 116, 79, .25); }
-.yb-tab-on { color: #f3e9d2; background: #3c6e60; border-color: #1c352d; }
-
-.yb-turn {
-  align-self: flex-start; margin-top: 1.2cqw;
-  font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(2.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
-  color: #f3e9d2; background: linear-gradient(180deg, #3c6e60, #2a5246);
-  border: 2px solid #1c352d; border-radius: 6px;
-  box-shadow: 0 3px 0 #12241e;
-  padding: 1cqw 2.6cqw; cursor: pointer;
-  transition: transform 120ms ease;
+.yb-empty {
+  margin: 0;
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  line-height: 1.5;
 }
-.yb-turn:hover { transform: translateY(-1px); }
-.yb-turn:active { transform: translateY(2px); box-shadow: 0 1px 0 #12241e; }
 
-.yb-turned { display: flex; flex-direction: column; gap: 2cqw; align-items: flex-start; padding: 4cqw 0; }
+.yb-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.yb-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--kit-rule);
+}
+.yb-rowmark { flex: none; }
+.yb-rowtitle {
+  flex: 1; min-width: 0;
+  --kit-fs-raw: calc(16px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+}
+.yb-rowmeta {
+  flex: none;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-label);
+  text-align: right;
+}
 
-/* ---- graduation (§9): the ceremony spine; the falls-terrace ART pass dresses it later ---- */
+/* ---- A MARK ON THE WALL (§12.9) -------------------------------------------
+   The section that had never rendered anything. A mark is a drawn object rather
+   than a line of type, so it is the `chip` plate with a `stamp` face pressed into
+   it, which is what the two sheets were cut for. */
+.yb-row-mark { gap: 12px; }
+.yb-markchip { flex: none; }
+
+/* ---- A THREAD BECOMING ROPE (§12.8) ---------------------------------------
+   Never pass or fail. A real gauge on a real number out of `cordsOf`, the
+   school's own criterion under it, and an earned one gets a STAMP arriving
+   rather than a bar going a different colour. */
+.yb-row-thread { flex-direction: column; align-items: stretch; gap: 5px; padding: 8px 0; }
+.yb-threadhead { display: flex; align-items: baseline; gap: 10px; }
+.yb-earned { display: flex; align-items: center; gap: 5px; }
+.yb-earnedword {
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-sea-earned);
+  letter-spacing: .04em;
+}
+.yb-row-thread .kit-gauge { min-height: 12px; }
+.yb-row-thread .kit-gauge-fill { min-height: 12px; }
+.yb-rule {
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  line-height: 1.45;
+}
+/* a finished thread is a finished thread: the rule goes quiet because it is no
+   longer something to do */
+.yb-row-done .yb-rule { color: var(--kit-ink-soft); }
+
+/* ---- ONE LINE ABOUT A ROAD NOT TAKEN (§12.11) -----------------------------
+   Alone, last, with nothing of the record under it, in someone's voice. Observed,
+   never scolding, and there is exactly one. */
+.yb-nudge {
+  margin: 0;
+  padding: 12px 0 2px;
+  border-top: 1px dashed var(--kit-rule);
+  --kit-fs-raw: calc(17px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-soft);
+  font-style: italic;
+  text-align: center;
+}
+
+/* ---- THE FOOT: the spine, and the one control -----------------------------
+ *
+ * `.yb-turn` used to carry `align-self: flex-start`, which graduation then reused
+ * in a ROW of three buttons with three different label lengths and top-aligned
+ * all of them. There is no `align-self` on a button in this file any more: the
+ * ROW decides the alignment, once, and both surfaces use the same row. */
+.yb-foot {
+  flex: none;
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 10px;
+  border-top: 2px solid var(--kit-rule-firm);
+}
+/* THE SPINE: one tab per year lived, so a page that has turned is still
+   reachable (§12.16). It rides `.kit-tabrow`, which never wraps. */
+.yb-spine { flex: 1; min-width: 0; }
+.yb-acts { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* ---- THE PAGE AFTER THE TURN ---------------------------------------------- */
+
+.yb-turned {
+  flex: 1;
+  display: flex; flex-direction: column; gap: 18px;
+  align-items: center; justify-content: center;
+  text-align: center;
+}
+.yb-turnedline {
+  margin: 0;
+  max-width: 42ch;
+  --kit-fs-raw: calc(18px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+  line-height: 1.5;
+}
+/* THE REFILL, WHERE THE STUDENT CAN SEE IT (§12.14). Three tokens land at the
+   turn and the pips that hold them are on the HUD behind this veil, so the one
+   plain signal that a new year has begun happened where nobody was looking. */
+.yb-refill { display: flex; gap: 26px; }
+.yb-newtoken {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  animation: yb-token 420ms var(--kit-ease-pop) both;
+  animation-delay: var(--yb-step, 0ms);
+}
+@keyframes yb-token {
+  from { transform: translateY(-14px) scale(.7); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+html[data-rm='1'] .yb-newtoken { animation: none; }
+.yb-newchip { width: 30px; height: 30px; }
+.yb-newtokenword {
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-label);
+  letter-spacing: .06em;
+}
+
+/* ============================================================================
+ * GRADUATION (§14)
+ * ==========================================================================*/
+
 .gr-veil {
   position: absolute; inset: 0; z-index: 79;
-  /* the ceremony's own green light, taken up with the rest of the veils: the
-     centre stop was .55, which left half the world legible behind the one screen
-     in the game a student hands to somebody else */
-  background: radial-gradient(ellipse at 50% 30%, rgba(31, 74, 64, .76), rgba(8, 10, 9, .93));
+  /* the ceremony's own green light, laid over the kit's veil rather than typed as
+     its own pair of hexes. The centre used to be .55, which left half the world
+     legible behind the one screen in the game a student hands to somebody else. */
+  background: radial-gradient(ellipse at 50% 30%, var(--kit-sea-glow), transparent 70%), var(--kit-veil);
   display: flex; align-items: center; justify-content: center;
+  padding: 2vh 2vw;
+  box-sizing: border-box;
 }
-.gr-stage { width: min(680px, 94vw); }
+.gr-stage { width: min(760px, 96vw); max-height: 96vh; display: flex; }
+
 .gr-card {
-  /* the frame is a nine-slice on .kit-surface-panel now, not a stretched picture */
+  width: 100%;
+  max-height: 96vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   image-rendering: var(--kit-pixel);
-  filter: drop-shadow(0 12px 30px rgba(2, 8, 10, .7));
-  padding: 16px 20px 18px;   /* a gutter INSIDE the frame; the frame's own border-width is the rest */
+  filter: drop-shadow(var(--kit-drop-lg));
+  padding: 14px 18px 16px;   /* a gutter INSIDE the frame; the frame's own border-width is the rest */
   box-sizing: border-box;
   container-type: inline-size;
-  animation: hb-in 300ms cubic-bezier(.2, 1.2, .35, 1) both;
-  font-family: 'Deckhand', monospace; color: #4a3826;
-  display: flex; flex-direction: column; gap: 1.8cqw;
+  animation: gr-card-in 300ms var(--kit-ease-pop) both;
+  font-family: var(--kit-face-body);
+  color: var(--kit-ink-body);
+  display: flex; flex-direction: column; gap: 10px;
+  text-align: left;
+}
+@keyframes gr-card-in { from { transform: translateY(16px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+html[data-rm='1'] .gr-card { animation: none; }
+
+/* A CARD THAT ADVANCES IS A REAL CONTROL (§14.34). It was a plain `div` with an
+   onClick and no role, no tabIndex and no key handler, on the only route to the
+   diploma. It carries `role="button"` and a tab stop now, and `tokens.css`'s one
+   element-wide ring reaches it through `[tabindex]`.
+
+   NO `border` DECLARATION HERE, EVER. `.kit-surface-panel` draws the whole frame
+   with `border-image` and its `border-width` IS the panel's inset, and a `border:
+   0` typed in this file wins on source order and deletes the frame with nothing
+   erroring. The first draft of this rule did exactly that. */
+.gr-tap {
+  cursor: pointer;
+  transition: filter var(--kit-t-mid) ease;
+}
+.gr-tap:hover { filter: drop-shadow(var(--kit-drop-lg)) brightness(1.04); }
+.gr-tap:active { filter: drop-shadow(var(--kit-drop-sm)); }
+
+.gr-title {
+  margin: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(32px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-sea-ink);
+}
+.gr-line {
+  margin: 0;
+  --kit-fs-raw: calc(17px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1.55;
+}
+.gr-dim { color: var(--kit-ink-dim); }
+.gr-cue { align-self: flex-end; margin-top: 2px; }
+
+/* ---- A CORD, WITH ITS REAL CRITERIA (§14.13, §14.14) ---------------------- */
+
+.gr-cordname {
+  margin: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(34px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-sea-ink);
+}
+.gr-cordcolors {
+  margin: 0;
+  --kit-fs-raw: calc(16px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-cord-lo);
+  font-style: italic;
+  letter-spacing: .04em;
+}
+/* THE SCHOOL'S WORDS AND THE GAME'S MODEL, VISIBLY TWO THINGS. V3's law in
+   `progress.ts`: a mechanic that approximates a criterion is never printed as the
+   criterion, so the two are labelled and the school's comes first. */
+.gr-ruleline,
+.gr-modelline { margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.gr-rulelabel {
+  --kit-fs-raw: calc(12px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+.gr-rule {
+  --kit-fs-raw: calc(17px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+  line-height: 1.45;
+}
+.gr-model {
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
+  line-height: 1.45;
+}
+.gr-moment {
+  margin: 0;
+  --kit-fs-raw: calc(16px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-soft);
+  font-style: italic;
+  border-left: 3px solid var(--kit-cord-lo);
+  padding-left: 12px;
+}
+/* AN ACCUMULATION SHOWS THE ACCUMULATION (§14.16): a GPA cord has no moment
+   because no single grade produced it, so the four years are the card. */
+ul.gr-series { list-style: none; margin: 0; padding: 0; display: flex; gap: 18px; flex-wrap: wrap; }
+.gr-series {
+  margin: 0;
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+}
+.gr-series li { display: flex; flex-direction: column; }
+.gr-seriesyear { color: var(--kit-ink-dim); }
+.gr-source {
+  margin: 0;
+  --kit-fs-raw: calc(12px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  line-height: 1.4;
+}
+
+/* ---- A NAMED ACCOMPLISHMENT, WHICH IS NOT A CORD (§14.19) -----------------
+   Same card shape, and deliberately not the same object: no colours line, no
+   criterion, and none of the gold `docs/ART.md` reserves for an earned honour. */
+.gr-standname {
+  margin: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(30px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
+.gr-standcount {
+  margin: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(20px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-sea-head);
+}
+/* A CORD AND A NAMED ACCOMPLISHMENT MUST NEVER BE MISTAKEN FOR EACH OTHER, and
+   Q14.19.a puts the whole weight of the zero-cord stage on exactly this: *"no new
+   award objects ... the visual distinction between a cord and a named
+   accomplishment is where the honesty lives."* The cord's heading stands behind
+   the gold rule `docs/ART.md` reserves for an earned honour. The standing's
+   stands behind a plain one, because it is a true thing the student did and not
+   an award the school gives. */
+.gr-cordcard .gr-cordname { border-left: 5px solid var(--kit-cord-lo); padding-left: 14px; }
+.gr-standcard .gr-standname { border-left: 5px solid var(--kit-rule-firm); padding-left: 14px; }
+
+/* ---- THE HONESTY BOARD (§14.20) ------------------------------------------- */
+
+/* THE BOARD IS A REGION AND NOT A CONTROL. `run.css:115` used to set
+   `cursor: pointer` on every `.gr-card`, and the board card has never had a
+   handler of any kind, so it showed a hand and did nothing on every graduation
+   since it was written. Only `.gr-tap` takes a pointer now, and this says so out
+   loud rather than relying on the absence of a rule. */
+.gr-boardcard { cursor: default; }
+.gr-boardlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.gr-boardrow {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--kit-rule);
+}
+.gr-boardhead { display: flex; align-items: baseline; gap: 14px; }
+.gr-boardname {
+  flex: 1; min-width: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(18px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
+.gr-boarddetail {
+  flex: none;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-label);
+}
+.gr-boardrule {
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  line-height: 1.45;
+}
+.gr-boardrow .kit-gauge { min-height: 10px; }
+.gr-boardrow .kit-gauge-fill { min-height: 10px; }
+
+/* THE ROW OF CONTROLS, AND IT DECIDES ITS OWN ALIGNMENT. Three planks with three
+   different label lengths used to inherit `align-self: flex-start` off the
+   yearbook's turn button and sit top-aligned in a row. */
+.gr-acts {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+/* ---- THE DIPLOMA (§14.24 to §14.28) --------------------------------------- */
+
+.gr-diploma { cursor: default; text-align: center; align-items: center; }
+/* the school's own mark, which `docs/ART.md` already assigns and which nothing
+   outside the Handbook control had ever worn */
+.gr-crest {
+  width: 54px; height: 54px;
+  background: var(--kit-art-crest) center / contain no-repeat;
+  image-rendering: var(--kit-pixel);
+}
+.gr-dip-school {
+  margin: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(28px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-sea-ink);
+  letter-spacing: .06em;
+}
+.gr-dip-sub {
+  margin: 0;
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-label);
+}
+.gr-dip-name {
+  margin: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(40px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-sea-ink);
+}
+/* TWO COLUMNS, so ten rows are five rows tall and the whole document is on one
+   Chromebook screen without a scroll. §14.24: it has to be legible at Chromebook
+   distance without zooming. */
+.gr-dip-grid {
+  margin: 8px 0 2px;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 6px 26px;
+  text-align: left;
+}
+.gr-dip-pair { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.gr-dip-pair dt {
+  flex: none;
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+}
+.gr-dip-pair dd {
+  flex: 1; min-width: 0; margin: 0;
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+  overflow-wrap: anywhere;
+}
+.gr-dip-code {
+  margin: 6px 0 0;
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(22px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-sea-ink);
+  letter-spacing: .08em;
+}
+.gr-dip-seal { flex: none; }
+.gr-dip-codelabel { color: var(--kit-ink-dim); letter-spacing: .04em; }
+/* the canvas is a drawing surface and never a picture on the page */
+.gr-canvas { display: none; }
+
+/* ============================================================================
+ * THE YEAR-START VIGNETTE (§7.5)
+ * ==========================================================================*/
+
+.ys-veil {
+  position: absolute; inset: 0; z-index: 73;
+}
+/* TAP ANYWHERE, AND THE RING IS ROUND THE CARD. The whole surface takes a
+   pointer, because a student on a trackpad expects it to; the CARD is the tab
+   stop and the thing a keyboard player can see, which is why the focus target is
+   not this full-screen layer. A ring traced round the window edge tells a
+   keyboard player nothing about where they are, and the card carries
+   `tabIndex={0}`, so `tokens.css`'s one element-wide ring reaches it with no rule
+   of this file's own. */
+.ys-wrap {
+  position: absolute; inset: 0;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 0 0 6vh;
   cursor: pointer;
 }
-.gr-title { font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(4.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #1f4a40; }
-.gr-line { --kit-fs-raw: calc(2.5cqw * var(--kit-text-scale)); font-size: var(--kit-fs); line-height: 1.55; }
-.gr-dim { color: #8a7a60; }
-.gr-cue { align-self: flex-end; --kit-fs-raw: calc(2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6a563c; animation: bt-bounce 1.1s ease-in-out infinite; }
-
-.gr-cordname { font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(5cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #1f4a40; }
-.gr-cordcolors { --kit-fs-raw: calc(2.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #b9974c; font-style: italic; }
-.gr-moment { --kit-fs-raw: calc(2.3cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6f6046; font-style: italic; border-left: 3px solid #b9974c; padding-left: 1.6cqw; }
-
-.gr-missrow { display: flex; align-items: baseline; gap: 2cqw; border-bottom: 1px dashed rgba(138, 116, 79, .35); padding: .6cqw 0; }
-.gr-missname { --kit-fs-raw: calc(2.3cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #3c2d1c; flex: 1; }
-.gr-missdetail { --kit-fs-raw: calc(2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #8a7a60; }
-
-.gr-diploma { cursor: default; text-align: center; }
-.gr-dip-school { font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(3.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #1f4a40; letter-spacing: .3cqw; }
-.gr-dip-sub { --kit-fs-raw: calc(2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6a563c; }
-.gr-dip-name { font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(5.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #1f4a40; }
-.gr-dip-grid {
-  display: grid; grid-template-columns: auto 1fr; gap: .6cqw 2cqw;
-  text-align: left; --kit-fs-raw: calc(2.1cqw * var(--kit-text-scale)); font-size: var(--kit-fs); margin: 1cqw auto; max-width: 88%;
-}
-.gr-dip-grid span { color: #8a7a60; }
-.gr-dip-grid b { color: #3c2d1c; }
-.gr-dip-code { --kit-fs-raw: calc(2.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #1f4a40; letter-spacing: .2cqw; }
-.gr-dip-actions { display: flex; gap: 2cqw; justify-content: center; margin-top: 1cqw; }
-.gr-gear2 { background: linear-gradient(180deg, #7a5e23, #5d4718); border-color: #38290c; box-shadow: 0 3px 0 #241a06; }
-
-/* ---- the year-start card ---- */
-.ys-wrap {
-  position: absolute; inset: 0; z-index: 73;
-  display: flex; align-items: flex-end; justify-content: center;
-  padding-bottom: 6vh; cursor: pointer;
-}
 .ys-card {
-  width: min(820px, 80vw);
-  /* the frame is a nine-slice on .kit-surface-dialogue now, not a stretched picture */
+  width: min(820px, 84vw);
   image-rendering: var(--kit-pixel);
-  filter: drop-shadow(0 8px 22px rgba(2, 8, 10, .55));
-  padding: 12px 16px 14px;   /* a gutter INSIDE the frame; the border-width is the rest */
+  filter: drop-shadow(var(--kit-drop-sm));
+  padding: 10px 14px 12px;   /* a gutter INSIDE the frame; the border-width is the rest */
   box-sizing: border-box;
   container-type: inline-size;
-  font-family: 'Deckhand', monospace; color: #4a3826;
-  animation: hb-in 220ms cubic-bezier(.2, 1.2, .35, 1) both;
+  font-family: var(--kit-face-body);
+  color: var(--kit-ink-body);
+  display: flex; flex-direction: column; gap: 8px;
+  text-align: left;
+  animation: ys-card-in 220ms var(--kit-ease-pop) both;
 }
-.ys-speaker { font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(3cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #234c40; margin-bottom: 1cqw; }
-.ys-text { --kit-fs-raw: calc(3.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); line-height: 1.5; }
-.ys-cue { text-align: right; --kit-fs-raw: calc(2.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs); animation: bt-bounce 1.1s ease-in-out infinite; }
+@keyframes ys-card-in { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+html[data-rm='1'] .ys-card { animation: none; }
+
+.ys-speaker {
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(20px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-sea-ink);
+}
+.ys-text {
+  --kit-fs-raw: calc(22px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1.5;
+  color: var(--kit-ink-said);
+}
+.ys-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+
+/* HOW MANY LINES ARE LEFT, AS A ROW OF MARKS. Three identical lines with no count
+   is a student who cannot tell whether they are one tap from the world or five.
+   The mark that has been read is FILLED and the ones to come are open rings, so
+   the state is a shape and not a lightness. */
+.ys-dots { display: flex; gap: 6px; }
+.ys-dot {
+  width: 9px; height: 9px;
+  border: 2px solid var(--kit-edge);
+  border-radius: 50%;
+  background: none;
+}
+.ys-dot-on { background: var(--kit-sea-ink); border-color: var(--kit-sea-ink); }
+
+/* ---- THE ADVANCE CUE, DRAWN ----------------------------------------------
+ *
+ * It was the character U+1F43E, an operating-system paw, on three surfaces.
+ * `docs/ART.md`: *"Icons are drawn, never an emoji or a font glyph."* MAPVIS drew
+ * a `cue` sheet with four frames of a paw print for exactly this and nothing had
+ * ever shown one.
+ *
+ * The four frames are mounted at once and cross-faded here, because a cut face is
+ * a background-position computed in JS and a keyframe cannot compute one. The
+ * WORDS are always present whether or not the sheet is worn, so a build with no
+ * platform says what to do rather than showing a blank square. */
+.ys-cue {
+  display: flex; align-items: center; gap: 8px;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-label);
+  letter-spacing: .04em;
+}
+.ys-paw { position: relative; width: 20px; height: 20px; flex: none; }
+.ys-paw-f { position: absolute; inset: 0; opacity: 0; animation: ys-paw 1400ms steps(1, end) infinite; }
+.ys-paw-f1 { animation-delay: 0ms; }
+.ys-paw-f2 { animation-delay: 350ms; }
+.ys-paw-f3 { animation-delay: 700ms; }
+.ys-paw-f4 { animation-delay: 1050ms; }
+@keyframes ys-paw {
+  0% { opacity: 1; }
+  25% { opacity: 0; }
+  100% { opacity: 0; }
+}
+/* A LOOPING ANIMATION AT ONE MILLISECOND IS A STROBE, so reduced motion stops it
+   dead and leaves the first frame standing. */
+html[data-rm='1'] .ys-paw-f { animation: none; opacity: 0; }
+html[data-rm='1'] .ys-paw-f1 { opacity: 1; }
+.ys-cue-word { white-space: nowrap; }
+
+/* ============================================================================
+ * THE PLAIN ARM (§16, ruled by Ash 2026-08-31)
+ *
+ * *"No game art, no wood, no parchment: system font, black on white, real
+ * headings and a real form. Reads as a worksheet somebody wrote, not as the game
+ * with its paint scraped off."* Raw OS widgets were the other candidate and were
+ * REFUSED, because unstyled defaults read as BROKEN and a control condition that
+ * looks broken loses on looking broken rather than on not being a game, which is
+ * a confound in the one comparison the whole instrument exists to make.
+ *
+ * These three surfaces are where it matters most in this file: the yearbook and
+ * the ceremony are two of the four places BLHS content is actually delivered, and
+ * the diploma is the study's turn-in artifact.
+ *
+ * NOTHING BELOW CHANGES WHAT A STUDENT IS TOLD. Same sections, same order, same
+ * criteria, same numbers, same code, same words. The paper goes white, the drawn
+ * frames come off, the shadows go, and the page becomes a document.
+ * ==========================================================================*/
+
+html[data-skin='plain'] .yb-veil,
+html[data-skin='plain'] .gr-veil {
+  /* a document does not sit in a lit cave: one flat scrim, no gradient */
+  background: var(--kit-veil);
+}
+html[data-skin='plain'] .yb-page,
+html[data-skin='plain'] .gr-card,
+html[data-skin='plain'] .ys-card {
+  filter: none;
+  padding: 26px 30px 24px;
+  animation: none;
+}
+html[data-skin='plain'] .yb-page { width: min(940px, 96vw); }
+html[data-skin='plain'] .gr-card { animation: none; }
+
+/* the composition is a game gesture. A worksheet is printed all at once. */
+html[data-skin='plain'] .yb-number,
+html[data-skin='plain'] .yb-sect,
+html[data-skin='plain'] .yb-nudge,
+html[data-skin='plain'] .yb-newtoken { animation: none; }
+html[data-skin='plain'] .yb-move-first .yb-num { animation: none; }
+html[data-skin='plain'] .ys-paw-f { animation: none; }
+
+/* THE FRAMES ARE GONE AND THE STRUCTURE STAYS. A spread is two facing pages
+   because it is drawn as a physical book; a worksheet is one column of headings
+   in reading order, which is also exactly the order §12.4 fixed. */
+html[data-skin='plain'] .yb-spread { grid-template-columns: 1fr; gap: 4px; }
+html[data-skin='plain'] .yb-spread > .yb-col + .yb-col { padding-left: 0; border-left: 0; }
+
+html[data-skin='plain'] .yb-title,
+html[data-skin='plain'] .yb-secthead,
+html[data-skin='plain'] .gr-title,
+html[data-skin='plain'] .gr-cordname,
+html[data-skin='plain'] .gr-standname,
+html[data-skin='plain'] .gr-dip-school,
+html[data-skin='plain'] .gr-dip-name,
+html[data-skin='plain'] .gr-boardname,
+html[data-skin='plain'] .ys-speaker { letter-spacing: 0; }
+
+/* the big number stays big, because it is the one thing the student came for and
+   a worksheet is allowed a headline figure. It stops being sea green. */
+html[data-skin='plain'] .yb-num,
+html[data-skin='plain'] .yb-letter { color: var(--kit-ink-head); font-variant-numeric: tabular-nums; }
+html[data-skin='plain'] .yb-caret-up { border-bottom-color: var(--kit-ink-head); }
+html[data-skin='plain'] .yb-caret-down { border-top-color: var(--kit-ink-head); }
+
+html[data-skin='plain'] .yb-row,
+html[data-skin='plain'] .gr-boardrow { border-bottom: 1px solid var(--kit-rule); }
+html[data-skin='plain'] .yb-head,
+html[data-skin='plain'] .yb-foot { border-color: var(--kit-rule-firm); }
+html[data-skin='plain'] .yb-nudge,
+html[data-skin='plain'] .yb-number { border-style: solid; border-color: var(--kit-rule); }
+/* italics are the game's voice. A document says it plainly. */
+html[data-skin='plain'] .yb-nudge,
+html[data-skin='plain'] .yb-caveat,
+html[data-skin='plain'] .yb-numlabel,
+html[data-skin='plain'] .gr-moment,
+html[data-skin='plain'] .gr-cordcolors { font-style: normal; }
+html[data-skin='plain'] .gr-moment { border-left-color: var(--kit-edge-strong); }
+html[data-skin='plain'] .gr-cordcolors { color: var(--kit-ink-label); }
+html[data-skin='plain'] .yb-earnedword { color: var(--kit-ink-head); font-weight: 700; }
+
+/* no drawn crest and no carved paw in a document, and the words the paw sits
+   beside are what carried the instruction anyway */
+html[data-skin='plain'] .gr-crest,
+html[data-skin='plain'] .ys-paw { display: none; }
+html[data-skin='plain'] .gr-dip-seal { display: none; }
+
+/* a real table for the turn-in rows, which is what a document does with a
+   label-and-value list */
+html[data-skin='plain'] .gr-dip-grid { grid-template-columns: 1fr; gap: 2px; }
+html[data-skin='plain'] .gr-dip-pair { border-bottom: 1px solid var(--kit-rule); padding: 4px 0; }
+html[data-skin='plain'] .gr-diploma { text-align: left; align-items: stretch; }
+html[data-skin='plain'] .gr-dip-code { justify-content: flex-start; letter-spacing: .06em; }
+html[data-skin='plain'] .gr-acts { justify-content: flex-start; }
+
+/* a tap card in a document is still a real button and still says so */
+html[data-skin='plain'] .gr-tap:hover,
+html[data-skin='plain'] .gr-tap:active { filter: none; }
+html[data-skin='plain'] .ys-dot { border-color: var(--kit-edge-strong); }
+html[data-skin='plain'] .ys-dot-on { background: var(--kit-ink-head); border-color: var(--kit-ink-head); }

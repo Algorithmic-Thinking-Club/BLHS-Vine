@@ -398,7 +398,15 @@ export function play(name: string, gain?: number): void {
  * file has been tried, and a file that failed simply has no buffer.
  */
 export async function preload(names: string[]): Promise<void> {
+  /* THE MUTED STUDENT DOES NOT PAY FOR THE BYTES. `play` has always checked the
+   * setting and `preload` never did, so a student who turned sound off still
+   * fetched the whole library over school wifi and then decoded it into memory
+   * on a 4 GB Chromebook. The names are still RESOLVED first, so a typo in an
+   * island's preload list is refused whether or not that machine has sound on:
+   * a refusal that depends on a setting is a refusal a member would only meet
+   * on somebody else's laptop. */
   const files = names.map((n) => resolve(n).entry.file)
+  if (isMuted()) return
   armUnlock()
   await Promise.all(files.map((f) => load(f)))
 }

@@ -1,20 +1,32 @@
-/* I-3: the parchment session (GAME-DESIGN §5 I-3). The scroll unfurls up over the live
-   beach, every control drawn in the kit's material language. The scroll asset carries its
-   own rollers, stains, and wax seal.
+/* I-3: the parchment session (§2.7 to §2.11). The scroll unfurls up over the live beach,
+   every control drawn in the kit's material language. The scroll asset carries its own
+   rollers, stains and wax seal.
 
    LAYOUT LAW: the scroll is a size container and EVERY inner measurement is in cqw
-   (fractions of the paper's width) — text, boxes, gaps, planks. Nothing is sized by the
-   viewport, so nothing can outgrow the paper and clip (the vh-clamp bug Ash caught). */
+   (fractions of the paper's width) so nothing is sized by the viewport and nothing can
+   outgrow the paper and clip (the vh-clamp bug Ash caught).
+
+   AND EVERY SIZE NOW ANSWERS THE TEXT SETTING. §40.26: `data-textsize` reached four rules in
+   the whole tree and this file was not one of them, so a student who turned the text up got
+   it in the dialogue box and nowhere else, including on the screen where they type their own
+   name. Every size here is `--kit-fs-raw` times `--kit-text-scale` through the kit's snap, and
+   the card scrolls rather than clipping when Large asks for more room than the paper has.
+
+   NO COLOUR IS TYPED HERE ANY MORE. This file carried about thirty literal hexes, which is a
+   surface `html[data-skin='plain']` cannot reach however many tokens sit above it. */
 
 /* said out loud rather than inherited by luck: this file reads --kit-art-scroll,
-   --kit-art-plank and --kit-pixel, and it used to spell the pngs out instead */
+   --kit-art-plank, --kit-art-crest and --kit-pixel, and it used to spell the pngs out */
 @import '../ui/tokens.css';
 
 .i3-root {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   pointer-events: auto;
-  background: rgba(6, 14, 18, .20);          /* the ocean stays live behind, dimmed a fifth */
+  /* the ocean stays live behind, dimmed a fifth. There is no token for a wash this
+     light over a painting: `--kit-veil` is the warm near-opaque ground a PANEL sits
+     on and would delete the beach this card is deliberately still standing in. */
+  background: rgba(6, 14, 18, .20);
 }
 
 .i3-scroll {
@@ -22,8 +34,8 @@
   aspect-ratio: 384 / 688;
   background: var(--kit-art-scroll) center / 100% 100% no-repeat;
   image-rendering: var(--kit-pixel);
-  filter: drop-shadow(0 10px 26px rgba(3, 8, 10, .6));
-  animation: i3-unfurl 700ms cubic-bezier(.2, 1.1, .3, 1) both;
+  filter: drop-shadow(var(--kit-drop-md));
+  animation: i3-unfurl 700ms var(--kit-ease-rise) both;
   transform-origin: 50% 12%;
   container-type: inline-size;
 }
@@ -37,80 +49,139 @@
   from { transform: translateY(0) scaleY(1); opacity: 1; }
   to   { transform: translateY(38vh) scaleY(.1); opacity: 0; }
 }
+/* AN ENTRANCE SHORTENS AND A LOOP STOPS, which is the distinction `tokens.css`
+   draws and the reason animations are not tokens. The unfurl and the roll are
+   entrances: at a millisecond the card is simply there. This rule used to live in
+   `settings.css`, three directories away, because the token layer could not reach
+   a file it did not own; it belongs beside the animation it answers. */
+html[data-rm='1'] .i3-scroll,
+html[data-rm='1'] .i3-rollup { animation-duration: 1ms; }
 
 /* the paper window inside the rollers/deckle (measured off the asset; the wax seal +
    anchor live in the bottom band we leave alone) */
 .i3-paper {
   /* MEASURED off the asset's pixels (innermost deckle wobble): paper x 20.1%..80.2%,
-     y 13.7%..86.9%, wax seal in the bottom band — never eyeball a drawn edge */
+     y 13.7%..86.9%, wax seal in the bottom band. Never eyeball a drawn edge. */
   position: absolute; inset: 16% 21% 22% 21%;
   display: flex; flex-direction: column;
 }
 .i3-card {
   display: flex; flex-direction: column; align-items: center;
   height: 100%;
+  /* LARGE TEXT GETS ROOM RATHER THAN A CLIP. The paper is a drawn rectangle and
+     cannot grow, so at `--kit-text-scale: 1.22` the wardrobe card asks for more
+     height than the deckle has. A card that scrolls is readable; a card that
+     clips loses the button at the bottom of it. */
+  overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: thin;
 }
+.i3-card::-webkit-scrollbar { width: 6px; }
+.i3-card::-webkit-scrollbar-thumb { background: var(--kit-edge); border-radius: var(--kit-r-soft); }
 
 .i3-letter {
-  font-family: 'Deckhand', monospace;
-  font-size: 4.9cqw;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(4.9cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
   line-height: 1.42;
-  color: #3c2b18;
-  text-shadow: 0 1px 0 rgba(255, 250, 235, .5);
+  color: var(--kit-ink-said);
+  text-shadow: 0 1px 0 var(--kit-paper-sheen);
   white-space: pre-line;
   width: 100%;
 }
 .i3-ps { margin-top: 7cqw; }
-.i3-caret { opacity: .6; animation: i3-blink 800ms steps(1) infinite; }
+/* THE CARET WAS A FONT GLYPH (U+2590), which `docs/ART.md` forbids and which the
+   student sees for the first four seconds of the game. It is a drawn rectangle in
+   the letter's own ink now: a shape rather than a character, so it cannot be
+   rendered as a box on a machine whose font lacks it. */
+.i3-caret {
+  display: inline-block;
+  width: .5em; height: 1em;
+  vertical-align: -.12em;
+  background: var(--kit-ink-said);
+  opacity: .6;
+  animation: i3-blink 800ms steps(1) infinite;
+}
 @keyframes i3-blink { 50% { opacity: 0; } }
+/* A LOOP STOPS DEAD rather than running at a millisecond, which would be a strobe
+   and is worse for the student the setting exists for. */
+html[data-rm='1'] .i3-caret { animation: none; }
 
 .i3-sig {
   align-self: flex-end;
+  display: flex; align-items: center; gap: 1.5cqw;
   margin: 3cqw 3cqw 0 0;
-  font-family: 'Harbormaster', 'Deckhand', monospace;
-  font-size: 4.6cqw;
-  color: #5a3d22;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(4.6cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
   white-space: nowrap;
 }
-.i3-sig span { margin-left: 1.5cqw; }
-.i3-paw { filter: sepia(1) saturate(.55) brightness(.68); font-size: .9em; }
+/* WAS A PAW PRINT EMOJI WITH A SEPIA FILTER ON IT. The school's own crest is the
+   drawn mark that means Principal Panther, `docs/ART.md` already assigns it, and
+   with no art at all the name signs the letter by itself, which is what a
+   signature is. */
+.i3-crest {
+  width: 5.4cqw; height: 5.4cqw; flex: none;
+  background: var(--kit-art-crest) center / contain no-repeat;
+  image-rendering: var(--kit-pixel);
+  opacity: .8;
+}
 
 .i3-head {
-  font-family: 'Harbormaster', 'Deckhand', monospace;
-  font-size: 5.4cqw;
-  color: #3c2d1c;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(5.4cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
   margin: 1cqw 0 3cqw;
   text-align: center;
   max-width: 100%;
 }
+/* a real <label> now, tied to the box under it, so a reader landing in the field
+   hears the question rather than "edit text" */
 .i3-sub {
-  font-family: 'Deckhand', monospace;
-  font-size: 4.6cqw;
-  color: #4a3826;
-  margin-bottom: 5cqw;
+  align-self: flex-start;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(4.6cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+  margin-bottom: 2cqw;
+  cursor: pointer;
 }
 
-/* the six carved code boxes, inside the letter itself — sized so 6 + 5 gaps = the paper */
+/* the six carved code boxes, inside the letter itself, sized so 6 + 5 gaps = the paper.
+   DELIBERATELY NOT WEARING `kit-surface-field`: the platform's field is a nine-slice
+   whose four insets are drawn for a full-width box, and a nine-slice on a 37 pixel
+   square is the plank lesson of `6851a68` in a smaller frame. The two WIDE fields on
+   the identity and boat cards wear it; these keep their own carving. */
 .i3-codeboxes { display: flex; gap: 1.2cqw; margin: 5cqw 0 1.5cqw; }
 .i3-codebox {
   width: 8.6cqw;   /* 6 boxes + 5 gaps = the measured paper column exactly */
   height: 11.6cqw;
   text-align: center;
-  font-family: 'Harbormaster', monospace;
-  font-size: 6.4cqw;
-  color: #33261a;
-  background: linear-gradient(180deg, #e2d7bd, #d6c9ab);
-  border: 2px solid #8a744f;
-  border-radius: 4px;
-  box-shadow: inset 0 2px 3px rgba(90, 70, 40, .35), 0 1px 0 rgba(255, 250, 235, .6);
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(6.4cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink);
+  background: linear-gradient(180deg, var(--kit-paper-on-lo), var(--kit-paper-tab-lo));
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-soft);
+  box-shadow: inset 0 2px 3px var(--kit-cord-track), 0 1px 0 var(--kit-paper-sheen-firm);
   /* the focus ring is NOT switched off here. §40.9: five stylesheets deleted it and
      none replaced it. tokens.css rings every focusable element by kind, and a
      field carrying its own focus treatment is the one documented exception there
      rather than a silent `outline: none` here. */
-  caret-color: #6a4e2c;
+  caret-color: var(--kit-ink-label);
   padding: 0;
+  transition: box-shadow var(--kit-t-quick) ease;
 }
-.i3-codebox:focus { border-color: #4f6e62; box-shadow: inset 0 2px 3px rgba(90, 70, 40, .3), 0 0 0 2px rgba(60, 110, 96, .35); }
+/* THE FOCUSED BOX IS THE ONE THAT SITS PROUD. `:focus-visible` rather than
+   `:focus`, and the state moves a SHAPE as well as a colour: the inset carving
+   inverts into a raised edge, so a Chromebook panel that has crushed the sea green
+   out of the ring still shows which of six boxes is live. */
+.i3-codebox:focus-visible {
+  border-color: var(--kit-sea);
+  box-shadow: 0 0 0 3px var(--kit-sea-glow), inset 0 -3px 0 var(--kit-sea);
+}
 .i3-shake { animation: i3-shakex 320ms ease; }
 @keyframes i3-shakex {
   0%, 100% { transform: translateX(0); }
@@ -118,132 +189,176 @@
   55% { transform: translateX(5px); }
   80% { transform: translateX(-3px); }
 }
+/* §2.7's refusal is "shakes and says one kind line", and the LINE is the message.
+   A student who asked for less motion still gets the sentence and the announcement,
+   so nothing is lost by the shake not happening. */
+html[data-rm='1'] .i3-shake { animation: none; }
 
 .i3-err {
-  font-family: 'Deckhand', monospace;
-  font-size: 4cqw;
-  color: #7c4a2c;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(4cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-alarm);
   margin-top: 1.5cqw;
   text-align: center;
+  line-height: 1.35;
 }
 .i3-reassure {
-  font-family: 'Deckhand', monospace;
-  font-size: 3.6cqw;
-  color: #7a6a52;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(3.6cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-soft);
   margin: 2cqw 2cqw 0;
   text-align: center;
   line-height: 1.4;
 }
 
-.i3-fieldrow { display: flex; gap: 2cqw; align-items: center; width: 92%; margin-top: 2cqw; }
+.i3-fieldrow { display: flex; gap: 2cqw; align-items: stretch; width: 100%; margin-top: 1cqw; }
+/* THE DRAWN FIELD, WORN ON THE BOX AND NOT ON THE INPUT. `kit-surface-field` is a
+   nine-slice and an `<input>` has no room inside one; the wrapper takes the frame
+   and the input sits in it with no edge of its own, which is exactly the shape
+   `controls.css` uses for the kit's own `Field`. */
+.i3-fieldbox {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center;
+  box-sizing: border-box;
+  background-color: var(--kit-field);
+  border-radius: var(--kit-r-soft);
+  transition: box-shadow var(--kit-t-quick) ease, background-color var(--kit-t-quick) ease;
+}
 .i3-field {
   flex: 1;
   min-width: 0;
-  font-family: 'Deckhand', monospace;
-  font-size: 5.1cqw;
-  color: #33261a;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(5.1cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink);
   background: transparent;
   border: none;
-  border-bottom: 2px solid #8a744f;   /* pencil-on-paper line */
-  /* the focus ring is NOT switched off here. §40.9: five stylesheets deleted it and
-     none replaced it. tokens.css rings every focusable element by kind, and a
-     field carrying its own focus treatment is the one documented exception there
-     rather than a silent `outline: none` here. */
-  padding: 1cqw 0.5cqw;
+  /* the focus ring is NOT switched off here. tokens.css names `.i3-field` as one
+     of its two documented exceptions, and what it falls back to is the rule
+     below, which moves a shape rather than only a hue. */
+  padding: 1cqw 1.4cqw;
 }
-.i3-field::placeholder { color: #a49170; }
-.i3-field:focus { border-bottom-color: #4f6e62; }
-.i3-die {
-  background: linear-gradient(#4a3421, #382614);
-  border: 2px solid #241708;
-  border-radius: 4px;
-  font-size: 5cqw;
-  padding: 1cqw 2.2cqw 1.4cqw;
-  cursor: pointer;
-  transition: transform 120ms ease;
+.i3-field::placeholder { color: var(--kit-field-hint); }
+/* §40.31, PAID FOR PROPERLY. `tokens.css` excludes this field from the kit's ring
+   with a reason, and what it fell back to before was a hue swap and an alpha step
+   on `:focus`. A school Chromebook panel crushes both. So the box gains a rule
+   four pixels thick and the paper behind it lightens: the thickness is what
+   survives the hardware. */
+.i3-fieldbox:focus-within {
+  background-color: var(--kit-field-focus);
+  box-shadow: inset 0 -4px 0 var(--kit-sea), 0 0 0 2px var(--kit-sea-glow);
 }
-.i3-die:hover { transform: translateY(-1px) rotate(-8deg); }
-.i3-die:active { transform: translateY(1px) rotate(14deg); }
+/* the spin control is the kit's small plank; it only needs to stop stretching */
+.i3-spin { flex: none; align-self: center; }
+.i3-spin-wide { margin-top: 2cqw; }
 
-.i3-chips { display: flex; gap: 1.8cqw; margin-top: 6cqw; flex-wrap: wrap; justify-content: center; max-width: 100%; }
+.i3-chips { display: flex; gap: 1.8cqw; margin-top: 4cqw; flex-wrap: wrap; justify-content: center; max-width: 100%; }
 .i3-chip {
-  font-family: 'Deckhand', monospace;
-  font-size: 3.9cqw;
-  color: #4a3826;
-  background: linear-gradient(180deg, #e6dcc2, #dbcfaf);
-  border: 2px solid #8a744f;
-  border-radius: 3px;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(3.9cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+  background: linear-gradient(180deg, var(--kit-paper), var(--kit-paper-lo));
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-sharp);
   padding: 0.8cqw 2.6cqw 1.1cqw;
   cursor: pointer;
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  transition: transform var(--kit-t-quick) ease, box-shadow var(--kit-t-quick) ease;
 }
 .i3-chip:hover { transform: translateY(-1px); }
 .i3-chip-on {
-  border-color: #3c6e60;
-  color: #234c40;
-  box-shadow: 0 0 0 2px rgba(60, 110, 96, .3);
+  border-color: var(--kit-sea);
+  color: var(--kit-sea-ink);
+  box-shadow: 0 0 0 2px var(--kit-sea-glow);
   transform: translateY(1px);       /* a stamp pressed in */
 }
 
-/* the bottom actions: quiet castaway line above the plank, both clear of the wax seal */
+/* the bottom actions: the quiet castaway line above the plank, both clear of the wax seal */
 .i3-castaway {
   margin-top: auto;
   margin-bottom: 1.5cqw;
   background: none; border: none; cursor: pointer;
-  font-family: 'Deckhand', monospace;
-  font-size: 3.7cqw;
-  color: #7a6a52;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(3.7cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-soft);
   text-decoration: underline dotted;
 }
-.i3-castaway:hover { color: #5a4a34; }
+.i3-castaway:hover { color: var(--kit-ink-quiet); }
+
+/* THE PLANK, TWO WAYS, AND THE SECOND ONE IS WHY THE ART RULES STAY HERE.
+   Every button on the parchment is the kit's `<Plank>` now, which brings its own
+   wood and its own six states. But `IntroScene.tsx` mounts Set Sail as a bare
+   `<button className="i3-plank i5-plank">` and this session does not own that
+   file, so the standalone rules have to keep working. They are scoped to
+   `:not(.kit-plank)` so nothing is declared twice on the same element. */
 .i3-plank {
   margin-top: 0;
   margin-bottom: 0;
   min-width: 58%;
+}
+.i3-plank:not(.kit-plank) {
   aspect-ratio: 512 / 150;
   background: var(--kit-art-plank) center / 100% 100% no-repeat;
   image-rendering: var(--kit-pixel);
   border: none; cursor: pointer;
-  font-family: 'Harbormaster', 'Deckhand', monospace;
-  font-size: 4.8cqw;
-  color: #f0e4c8;
-  text-shadow: 0 2px 0 rgba(30, 16, 6, .75);
-  filter: drop-shadow(0 3px 8px rgba(3, 10, 12, .45));
-  transition: transform 130ms ease, filter 130ms ease;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(4.8cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-plank-ink);
+  text-shadow: 0 2px 0 var(--kit-plank-shadow);
+  filter: drop-shadow(0 3px 8px var(--kit-plank-drop));
+  transition: transform var(--kit-t-fast) ease, filter var(--kit-t-fast) ease;
 }
-.i3-plank:hover { transform: translateY(-1px); filter: drop-shadow(0 4px 9px rgba(3, 10, 12, .5)) brightness(1.07); }
-.i3-plank:active { transform: translateY(2px); filter: brightness(.95); }
+.i3-plank:not(.kit-plank):hover { transform: translateY(-1px); filter: drop-shadow(0 4px 9px var(--kit-plank-drop)) brightness(1.07); }
+.i3-plank:not(.kit-plank):active { transform: translateY(2px); filter: brightness(.95); }
+/* the kit's plank sizes its own ink, so the parchment only says how big */
+.i3-plank.kit-plank .kit-plank-ink {
+  --kit-fs-raw: calc(4.8cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+}
 /* cards without the castaway line let the plank take the bottom slot itself */
 .i3-plank-solo { margin-top: auto; }
 
-/* I-5: the one big button moment — the enormous carved plank over the held vista */
+/* I-5: the one big button moment, the enormous carved plank over the held vista */
 .i5-setsail {
   position: absolute; inset: 0;
   display: flex; align-items: flex-end; justify-content: center;
   padding-bottom: 12vh;
   pointer-events: auto;
 }
-.i5-plank {
+/* TWO CLASSES DEEP, and this is the trap it steps over. Set Sail is one element
+   carrying both class names, and `.i3-plank:not(.kit-plank)` above is a
+   two-class selector: a single-class rule here would LOSE, and the button would
+   inherit a size in `cqw` while standing outside the scroll, which is the one
+   place in this file with no query container. `cqw` with no container falls back
+   to the viewport, so the label would have come out at about sixty-five pixels on
+   a Chromebook. */
+.i3-plank.i5-plank {
   min-width: min(380px, 60vw);
   aspect-ratio: 512 / 170;
-  font-size: clamp(22px, 4.2vh, 34px);
-  animation: i5-rise 600ms cubic-bezier(.2, 1.2, .35, 1) both;
+  --kit-fs-raw: calc(4.2vh * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  animation: i5-rise 600ms var(--kit-ease-pop) both;
 }
 @keyframes i5-rise {
   from { transform: translateY(26px); opacity: 0; }
   to   { transform: none; opacity: 1; }
 }
+html[data-rm='1'] .i5-plank { animation-duration: 1ms; }
 
 /* ---- the wardrobe card ---- */
 .i3-wardrobe {
   display: flex; align-items: flex-end; justify-content: center; gap: 2cqw;
-  margin-top: 2cqw;
+  margin-top: 1cqw;
   max-width: 100%;
 }
-.i3-trunk { width: 19cqw; image-rendering: pixelated; filter: drop-shadow(0 2px 5px rgba(40, 24, 8, .35)); }
+.i3-trunk { width: 17cqw; image-rendering: pixelated; filter: drop-shadow(0 2px 5px var(--kit-mirror-drop)); }
 .i3-tailor {
-  width: 15cqw; image-rendering: pixelated;
-  filter: drop-shadow(0 2px 5px rgba(40, 24, 8, .3));
+  width: 13cqw; image-rendering: pixelated;
+  filter: drop-shadow(0 2px 5px var(--kit-mirror-drop));
   animation: i3-fuss 3.2s ease-in-out infinite;   /* she fusses him into frame */
   transform-origin: 50% 95%;
 }
@@ -252,44 +367,87 @@
   30% { transform: rotate(-2deg) translateY(-1px); }
   60% { transform: rotate(1.6deg); }
 }
+/* she STOPS. An idle that loops for the length of a card is the one kind of
+   motion the setting is most often turned on for. */
+html[data-rm='1'] .i3-tailor { animation: none; }
 .i3-thorview {
-  width: 20cqw; height: auto;
+  width: 19cqw; height: auto;
   image-rendering: pixelated;
-  animation: i3-thorpop 320ms cubic-bezier(.2, 1.5, .4, 1) both;   /* he reacts to every change */
-  filter: drop-shadow(0 3px 6px rgba(40, 24, 8, .3));
+  animation: i3-thorpop 320ms var(--kit-ease-pop) both;   /* he reacts to every change */
+  filter: drop-shadow(0 3px 6px var(--kit-mirror-drop));
 }
 @keyframes i3-thorpop {
   0% { transform: scale(.94); }
   60% { transform: scale(1.04); }
   100% { transform: scale(1); }
 }
-.i3-swatches { display: flex; gap: 2.4cqw; align-items: center; margin-top: 4cqw; }
+html[data-rm='1'] .i3-thorview { animation-duration: 1ms; }
+.i3-swatches { display: flex; gap: 2.4cqw; align-items: center; margin-top: 3cqw; justify-content: center; }
 .i3-swatch {
   width: 7cqw; height: 7cqw;
-  border: 2px solid #8a744f;
-  border-radius: 3px;
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-sharp);
   cursor: pointer;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 1px 2px rgba(60, 40, 16, .35);
-  transition: transform 120ms ease;
+  box-shadow: inset 0 1px 0 var(--kit-paper-sheen), 0 1px 2px var(--kit-cord-track);
+  transition: transform var(--kit-t-quick) ease;
 }
 .i3-swatch:hover { transform: translateY(-1px); }
-.i3-swatch-on { border-color: #3c6e60; box-shadow: 0 0 0 2px rgba(60, 110, 96, .4); transform: translateY(1px); }
-.i3-locked { display: flex; gap: 2.4cqw; margin-top: 5cqw; }
-.i3-lockchip {
-  position: relative;
-  width: 12cqw; height: 12cqw;
-  background: linear-gradient(180deg, #ddd2b6, #d0c3a2);
-  border: 2px solid #a08d64;
-  border-radius: 4px;
-  cursor: help;
-  font-size: 5.4cqw;
-  filter: saturate(.45) brightness(.92);   /* sun-faded until earned */
+/* THE CHOSEN COAT IS PRESSED IN AND RINGED, because the swatches differ from each
+   other by hue and the chosen state cannot also be one. */
+.i3-swatch-on { border-color: var(--kit-sea); box-shadow: 0 0 0 3px var(--kit-sea-glow); transform: translateY(2px); }
+
+/* THE LOCKED ITEMS ARE ROWS, NOT PICTOGRAPHS. §2.10 asks for locked items that
+   are visible and "say what real thing earns them"; what was here was three emoji
+   with a padlock emoji hung on the corner and the criterion inside a `title`
+   attribute, which is pointer-only and is therefore not visible at all. */
+.i3-locked { display: flex; flex-direction: column; gap: 1.2cqw; margin-top: 3.5cqw; width: 100%; }
+.i3-lockrow {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: 'mark name' 'mark earn';
+  align-items: center;
+  gap: 0 2cqw;
+  text-align: left;
+  padding: 1.2cqw 2cqw;
+  background: linear-gradient(180deg, var(--kit-paper-chip-lo), var(--kit-paper-tab-lo));
+  border: var(--kit-border) solid var(--kit-edge-strong);
+  border-radius: var(--kit-r-soft);
+  cursor: pointer;
+  filter: saturate(.5) brightness(.97);   /* sun-faded until earned */
+  transition: filter var(--kit-t-quick) ease, transform var(--kit-t-quick) ease;
 }
-.i3-lockicon { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
-.i3-lockknot {
-  position: absolute; right: -6%; bottom: -8%;
-  font-size: 3.8cqw;
-  filter: sepia(1) saturate(2.2) hue-rotate(-12deg);   /* the gold cord-knot lock */
+.i3-lockrow:hover { filter: none; transform: translateY(-1px); }
+.i3-lockmark { grid-area: mark; }
+/* what stands in for the drawn lock when the platform kit is not worn: a shackle
+   and a body, drawn out of a border and a box, never a padlock character */
+.i3-lockshape {
+  position: relative;
+  width: 11px; height: 13px;
+  background: var(--kit-ink-dim);
+  border-radius: 2px;
+}
+.i3-lockshape::before {
+  content: '';
+  position: absolute; left: 2px; top: -6px;
+  width: 7px; height: 7px;
+  border: 2px solid var(--kit-ink-dim);
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+}
+.i3-lockname {
+  grid-area: name;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(3.9cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+}
+.i3-lockearn {
+  grid-area: earn;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(3.2cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-soft);
+  line-height: 1.3;
 }
 
 /* =========================================================================
@@ -313,6 +471,14 @@
  * being unusable rather than on being plain. The gull and the signboard on the
  * title screen have no such job and are gone. Every word and every control is in
  * the same order it is in the game arm.
+ *
+ * §16.2 AND WHEN THIS BLOCK IS ACTUALLY REACHED. The arm resolves in the middle
+ * of the identity card, and `I3Session.tsx` HOLDS the skin for the length of the
+ * session so that nothing on the parchment changes at that instant, which is the
+ * one rule §16 imposes on the opening act. So a student who was assigned the
+ * plain arm at the join sees this block from the beach onwards rather than from
+ * mid-letter; a student who arrived with `?skin=plain` sees it from the first
+ * frame, which is what the review door is for.
  * ========================================================================= */
 
 html[data-skin='plain'] .i3-scroll {
@@ -334,7 +500,7 @@ html[data-skin='plain'] .i3-paper {
   inset: auto;
   padding: 28px 34px 30px;
 }
-html[data-skin='plain'] .i3-card { height: auto; align-items: stretch; }
+html[data-skin='plain'] .i3-card { height: auto; align-items: stretch; overflow: visible; }
 
 html[data-skin='plain'] .i3-letter {
   font-family: var(--kit-face-body);
@@ -343,11 +509,15 @@ html[data-skin='plain'] .i3-letter {
   text-shadow: none;
 }
 html[data-skin='plain'] .i3-ps { margin-top: 16px; }
+html[data-skin='plain'] .i3-caret { background: var(--kit-ink-body); animation: none; }
 html[data-skin='plain'] .i3-sig {
   font-family: var(--kit-face-body);
   font-size: 15px; color: var(--kit-ink-label);
   margin: 16px 0 0;
 }
+/* the crest is drawn art on a signature and this arm has none, so the name signs
+   the letter by itself */
+html[data-skin='plain'] .i3-crest { display: none; }
 html[data-skin='plain'] .i3-head {
   font-family: var(--kit-face-title);
   font-size: 21px; font-weight: 700; line-height: 1.25;
@@ -357,8 +527,8 @@ html[data-skin='plain'] .i3-head {
 }
 html[data-skin='plain'] .i3-sub {
   font-family: var(--kit-face-body);
-  font-size: 15px; color: var(--kit-ink-body);
-  margin-bottom: 18px;
+  font-size: 15px; font-weight: 600; color: var(--kit-ink-head);
+  margin-bottom: 6px;
 }
 
 /* six real text boxes rather than six carved keys */
@@ -374,7 +544,7 @@ html[data-skin='plain'] .i3-codebox {
   box-shadow: none;
   caret-color: var(--kit-ink);
 }
-html[data-skin='plain'] .i3-codebox:focus {
+html[data-skin='plain'] .i3-codebox:focus-visible {
   border-color: var(--kit-focus);
   box-shadow: none;
   outline: var(--kit-focus-width) solid var(--kit-focus);
@@ -391,31 +561,30 @@ html[data-skin='plain'] .i3-reassure {
   text-align: left; margin: 10px 0 0;
 }
 
-html[data-skin='plain'] .i3-fieldrow { width: 100%; gap: 10px; margin-top: 10px; }
-/* a labelled box, not a pencil line drawn on paper */
-html[data-skin='plain'] .i3-field {
-  font-family: var(--kit-face-body);
-  font-size: 16px; color: var(--kit-ink);
-  background: var(--kit-paper-hi);
+html[data-skin='plain'] .i3-fieldrow { width: 100%; gap: 10px; margin-top: 10px; align-items: center; }
+/* a labelled box, not a pencil line drawn on paper. `border-image: none` is the
+   one declaration that turns the platform's injected nine-slice OFF: the block
+   `kit.ts` writes is one class and this rule carries an attribute too. */
+html[data-skin='plain'] .i3-fieldbox {
+  border-image: none;
+  background-color: var(--kit-paper-hi);
   border: 1px solid var(--kit-edge-strong);
   border-radius: var(--kit-r-sharp);
-  padding: 6px 8px;
+  box-shadow: none;
 }
-html[data-skin='plain'] .i3-field::placeholder { color: var(--kit-field-hint); }
-html[data-skin='plain'] .i3-field:focus {
-  border-color: var(--kit-focus);
+html[data-skin='plain'] .i3-fieldbox:focus-within {
+  box-shadow: none;
   outline: var(--kit-focus-width) solid var(--kit-focus);
   outline-offset: 1px;
 }
-html[data-skin='plain'] .i3-die {
-  background: var(--kit-paper-lo);
-  border: 1px solid var(--kit-edge-strong);
-  border-radius: var(--kit-r-sharp);
-  font-size: 16px;
-  padding: 6px 12px;
+html[data-skin='plain'] .i3-field {
+  font-family: var(--kit-face-body);
+  font-size: 16px; color: var(--kit-ink);
+  background: none;
+  border: 0;
+  padding: 6px 8px;
 }
-html[data-skin='plain'] .i3-die:hover,
-html[data-skin='plain'] .i3-die:active { transform: none; }
+html[data-skin='plain'] .i3-field::placeholder { color: var(--kit-field-hint); }
 
 html[data-skin='plain'] .i3-chips { gap: 8px; margin-top: 16px; justify-content: flex-start; }
 html[data-skin='plain'] .i3-chip {
@@ -459,6 +628,12 @@ html[data-skin='plain'] .i3-plank {
   filter: none;
   padding: 9px 22px;
 }
+html[data-skin='plain'] .i3-plank .kit-plank-ink {
+  font-family: var(--kit-face-body);
+  font-size: 16px;
+  color: var(--kit-ink-body);
+  text-shadow: none;
+}
 html[data-skin='plain'] .i3-plank:hover,
 html[data-skin='plain'] .i3-plank:active { filter: none; transform: none; }
 html[data-skin='plain'] .i3-plank-solo { margin-top: 18px; }
@@ -469,6 +644,7 @@ html[data-skin='plain'] .i5-plank {
 }
 /* the swatch grid is a colour picker: the colours ARE the content, so they stay
    and only the frame around them goes plain */
+html[data-skin='plain'] .i3-swatches { justify-content: flex-start; }
 html[data-skin='plain'] .i3-swatch {
   border: 1px solid var(--kit-edge-strong);
   box-shadow: none;
@@ -480,15 +656,18 @@ html[data-skin='plain'] .i3-swatch-on {
   box-shadow: none;
   transform: none;
 }
-html[data-skin='plain'] .i3-lockchip {
-  background: var(--kit-paper-chip-lo);
+html[data-skin='plain'] .i3-locked { gap: 8px; margin-top: 18px; }
+html[data-skin='plain'] .i3-lockrow {
+  background: var(--kit-paper);
   border: 1px solid var(--kit-edge-strong);
   border-radius: var(--kit-r-sharp);
-  width: 56px; height: 56px;
-  font-size: 24px;
+  padding: 8px 12px;
+  gap: 0 10px;
   filter: none;
 }
-html[data-skin='plain'] .i3-lockknot { font-size: 16px; filter: none; }
+html[data-skin='plain'] .i3-lockrow:hover { transform: none; }
+html[data-skin='plain'] .i3-lockname { font-family: var(--kit-face-body); font-size: 15px; font-weight: 600; color: var(--kit-ink-head); }
+html[data-skin='plain'] .i3-lockearn { font-family: var(--kit-face-body); font-size: 13px; color: var(--kit-ink-label); }
 html[data-skin='plain'] .i3-trunk,
 html[data-skin='plain'] .i3-tailor,
 html[data-skin='plain'] .i3-thorview { filter: none; animation: none; }

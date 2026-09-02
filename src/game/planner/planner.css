@@ -1,214 +1,617 @@
-/* THE YEAR PLANNER (GAME-DESIGN §7.2) — the year sheet at the chart table.
-   Kit language: aged paper on wood (panel-square), Harbormaster headers, Deckhand body,
-   gold = honors only. cqw units keep every size relative to the sheet. 
-   AND THE SHEET HONOURS THE TEXT SIZE NOW. 80.5 measured `textSize` reaching FOUR
-   CSS rules in the whole tree and none of them was here, so a student who set the
-   type to Large read a large dialogue box and a small year sheet, and the panel
-   with the most words on it was the one that ignored the setting. Every font size
-   multiplies by --kit-text-scale (src/game/ui/tokens.css), which is what the S, M
-   and L buttons move. */
+/* THE YEAR SHEET (§5.1 to §5.19), REBUILT AS A DOCUMENT ON A CHART TABLE.
+ *
+ * WHAT WAS HERE AND WHY IT HAD TO GO, item by item, because every one of these
+ * was a real symptom and not a taste.
+ *
+ * 1. EVERY SIZE WAS A FUNCTION OF THE SHEET'S WIDTH. `cqw` against a panel that
+ *    is `min(1240px, 92vw)` means the type gets bigger as the window gets wider
+ *    and the layout never reflows, so the deployment target, a 1366x768
+ *    Chromebook, got the narrow end of a scale tuned on a desktop. Worse, the
+ *    vertical rhythm was set by a horizontal measurement, so the stamp block
+ *    fell off the bottom of a scrolling rail with nothing saying it was there.
+ *    Everything below is in PIXELS, multiplied by `--kit-text-scale`, which is
+ *    what the S / M / L control moves. A document is set in points and stays.
+ *
+ * 2. IT SPELLED THE TWO GAME FACES OUT, about twenty times. §16's plain arm
+ *    swaps `--kit-face-body` to `system-ui`, and a rule that types
+ *    `'Deckhand', monospace` renders straight through it. `tokens.css` currently
+ *    carries a blanket `html[data-skin='plain'] *` rule to catch exactly this
+ *    file and four others; the blanket stays, and this file no longer needs it.
+ *
+ * 3. IT HAD ZERO PLAIN-ARM RULES. The year sheet is the densest reading surface
+ *    in the run and one of four places real BLHS content is delivered, so the
+ *    control condition rendering it as the game with the paint scraped off is
+ *    the confound §16 was ruled to prevent. The plain arm is at the bottom of
+ *    this file and it is a worksheet: white paper, ruled sections, real headings,
+ *    no wood and no coins.
+ *
+ * 4. EVERY COLOUR WAS A LITERAL. Thirty-one hexes, most of them a second copy of
+ *    a value that already had a name. They come from `ui/tokens.css` now, which
+ *    is what makes point 3 possible at all.
+ *
+ * THE ARM DOES NOT CHANGE THE DOCUMENT, ONLY ITS PAINT. §5.19 rules that the
+ * planner is vehicle and renders identically in both arms, and the guard it asks
+ * for is that the rendered OUTPUT is the same for `arm: 'game'` and
+ * `arm: 'plain'`. `Planner.tsx` reads `save.arm` zero times, so that holds: the
+ * plain block below is a stylesheet, which is what §16 defines an arm as.
+ */
 
 @import '../ui/tokens.css';
 
-/* the veil is the kit's, not this file's: see .bt-veil in beats.css */
+/* ---- the sheet on the table --------------------------------------------- */
+
 .pl-veil {
   position: absolute; inset: 0; z-index: 76;
   background: var(--kit-veil);
   display: flex; align-items: center; justify-content: center;
 }
+
 .pl-sheet {
-  width: min(1240px, 92vw); height: min(820px, 88vh);
-  /* THE TOKEN, NOT THE FILE. A literal url here is a surface §16's plain arm
-     cannot reach: the arm swaps `--kit-art-panel` to `none` and a hardcoded png
-     keeps drawing straight through it. This sheet was one of the four that did,
-     which made it a study defect and not only a rendering one. */
-  /* the frame is a nine-slice on .kit-surface-panel now, not a stretched picture */
+  /* 88vh rather than a fixed height, so the footer is on screen at 768 tall and
+     the two scrolling regions inside absorb the difference */
+  /* HEIGHT IS A CEILING AND NOT A SIZE, corrected 2026-09-01 off
+     `build-shots/ui/after/08-planner.png`: a fixed 676 pixels on the deployment
+     target left the three season columns as two thirds of a page of blank paper
+     under a socket, on the sheet a student meets first. A year with nothing
+     committed IS mostly empty, and the honest picture of that is a shorter
+     sheet, not a tall one with a hole in it. The ceiling keeps the footer on
+     screen at 768 tall, which is what the fixed height was for. */
+  width: min(1240px, 92vw); height: auto; max-height: min(820px, 88vh);
+  /* THE FRAME IS A NINE-SLICE ON `.kit-surface-panel`, not a stretched picture,
+     and its own border-width is the outer inset. A literal url here would be a
+     surface §16's plain arm cannot reach: the arm swaps `--kit-art-panel` to
+     `none` and a hardcoded png keeps drawing straight through it. */
   image-rendering: var(--kit-pixel);
-  filter: drop-shadow(0 12px 30px rgba(2, 8, 10, .65));
+  filter: drop-shadow(var(--kit-drop-lg));
   display: flex; flex-direction: column;
-  padding: 18px 22px 20px;   /* a gutter INSIDE the frame; the frame's own border-width is the rest */   /* the panel's measured paper zone, stretched wide */
+  /* PIXEL GUTTERS AND NEVER A PERCENTAGE. A percentage padding resolves against
+     the containing block, which for this is a veil pinned to the viewport, so
+     `padding: 12.5% 16%` took about 200px off each side of an 880px panel and
+     got worse the wider the window. */
+  padding: 14px 18px 12px;
   box-sizing: border-box;
-  container-type: inline-size;
-  animation: hb-in 260ms cubic-bezier(.2, 1.2, .35, 1) both;
-  font-family: 'Deckhand', monospace; color: #4a3826;
+  animation: pl-in 260ms var(--kit-ease-pop) both;
+  font-family: var(--kit-face-body);
+  color: var(--kit-ink-body);
+}
+@keyframes pl-in { from { transform: translateY(14px) scale(.97); } to { transform: none; } }
+/* the sheet still arrives under reduced motion, it just does not travel */
+html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
+
+/* while a token is in the air nothing on the sheet selects, or a drag across a
+   column paints half the roster blue */
+.pl-dragging { user-select: none; }
+
+.pl-head { display: flex; align-items: baseline; gap: 14px; flex: none; }
+.pl-title {
+  margin: 0;
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(23px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+  letter-spacing: .01em;
+}
+.pl-year {
+  --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-label);
 }
 
-.pl-head { display: flex; align-items: baseline; gap: 2cqw; }
-.pl-title { font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(3.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #3c2d1c; }
-.pl-year { --kit-fs-raw: calc(2.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6a563c; }
-.pl-close {
-  margin-left: auto; font-family: 'Deckhand', monospace; --kit-fs-raw: calc(2.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
-  color: #6a563c; background: none; border: none; cursor: pointer;
-}
-.pl-close:hover { color: #3c2d1c; }
+/* ---- the advisory pin (§5.12): the one thing nobody chose ---------------- */
 
-/* the advisory pin: the fixed core beat, pre-printed on the sheet */
 .pl-pin {
-  margin: 1cqw 0 1.4cqw;
-  --kit-fs-raw: calc(2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6a563c;
-  border: 1px dashed #8a744f; border-radius: 4px;
-  padding: .8cqw 1.6cqw;
-  background: rgba(224, 213, 185, .5);
+  flex: none;
+  display: flex; align-items: center; gap: 10px;
+  margin: 8px 0 10px;
+  --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-label);
+  /* pinned to the sheet rather than boxed on it: one rule under the words and a
+     paler paper behind them, which is what a printed-on line looks like */
+  border: var(--kit-border) dashed var(--kit-edge);
+  border-radius: var(--kit-r-soft);
+  padding: 6px 12px;
+  background-color: var(--kit-paper-tab-hi);
 }
-.pl-pin b { color: #3c2d1c; }
-.pl-pin-done { color: #2f6e50; font-family: 'Harbormaster', 'Deckhand', monospace; }
-.pl-pin-go {
-  font-family: 'Deckhand', monospace; --kit-fs-raw: calc(1.8cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #234c40;
-  background: linear-gradient(180deg, #dcebdd, #cfe2d0);
-  border: 2px solid #3c6e60; border-radius: 4px;
-  padding: .3cqw 1.4cqw; cursor: pointer;
+.pl-pin-head { flex: none; }
+.pl-pin-words { flex: 1; min-width: 0; line-height: 1.4; }
+.pl-pin b { color: var(--kit-ink-head); }
+.pl-pin-done {
+  display: inline-flex; align-items: center; gap: 6px; flex: none;
+  font-family: var(--kit-face-title);
+  color: var(--kit-sea-earned);
 }
-.pl-pin-go:hover { transform: translateY(-1px); }
-.pl-class-grade { margin-left: auto; font-family: 'Harbormaster', 'Deckhand', monospace; color: #2f6e50; --kit-fs-raw: calc(2.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); }
 
-.pl-body { flex: 1; display: flex; gap: 2cqw; min-height: 0; }
+/* ---- the body: three columns and a rail, both scrolling separately ------ */
 
-/* ---- the three season columns ---- */
-.pl-cols { flex: 1.5; display: flex; gap: 1.6cqw; min-height: 0; }
+.pl-body { flex: 1; display: flex; gap: 16px; min-height: 0; }
+
+/* the columns are as tall as what is in them. Three seasons rarely fill equally
+   and a sheet where they do is a sheet that has been padded. */
+.pl-cols { flex: 1.8; display: flex; align-items: flex-start; gap: 10px; min-height: 0; }
+/* THE HEAD AND THE SOCKET DO NOT SCROLL, ONLY THE LIST DOES, and that is not a
+   tidiness decision. §5.7 puts the refusal IN the socket, so a column that
+   scrolled as one piece would push the sentence off the top the moment a student
+   moved down the roster looking for what they could have instead. The reason has
+   to still be on screen while they act on it. */
 .pl-col {
-  flex: 1; display: flex; flex-direction: column;
-  border: 2px solid #8a744f; border-radius: 6px;
-  background: rgba(238, 227, 200, .45);
-  min-height: 0;
+  flex: 1; display: flex; flex-direction: column; gap: 8px;
+  min-height: 0; overflow: hidden;
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-round);
+  background-color: var(--kit-paper-lo);
+  padding: 8px;
+}
+.pl-menu::-webkit-scrollbar, .pl-filled::-webkit-scrollbar,
+.pl-rail::-webkit-scrollbar, .pl-classmenu::-webkit-scrollbar { width: 7px; }
+.pl-menu::-webkit-scrollbar-thumb, .pl-filled::-webkit-scrollbar-thumb,
+.pl-rail::-webkit-scrollbar-thumb, .pl-classmenu::-webkit-scrollbar-thumb {
+  background-color: var(--kit-edge); border-radius: var(--kit-r-soft);
 }
 .pl-col-head {
-  font-family: 'Harbormaster', 'Deckhand', monospace;
-  text-align: center; --kit-fs-raw: calc(2.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #3c2d1c;
-  padding: .8cqw 0; border-bottom: 2px solid #8a744f;
-  background: rgba(224, 213, 185, .7);
-  border-radius: 4px 4px 0 0;
+  flex: none;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  margin: 0;
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(16px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+  padding: 5px 0 7px;
+  border-bottom: var(--kit-border) solid var(--kit-rule-firm);
 }
-.pl-col-body { flex: 1; overflow-y: auto; padding: 1cqw; min-height: 0; }
-.pl-col-body::-webkit-scrollbar { width: 6px; }
-.pl-col-body::-webkit-scrollbar-thumb { background: #8a744f; border-radius: 3px; }
+.pl-col-pip { flex: none; }
 
-/* the committed activity card */
-.pl-card {
-  border: 2px solid #3c6e60; border-radius: 5px;
-  background: linear-gradient(180deg, #ece2c8, #e2d7b8);
-  padding: 1cqw 1.2cqw;
-}
-.pl-card-name { --kit-fs-raw: calc(2.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #234c40; font-weight: bold; }
-.pl-card-blurb { --kit-fs-raw: calc(1.7cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6a563c; line-height: 1.35; margin-top: .4cqw; }
-.pl-lift {
-  margin-top: .8cqw; font-family: 'Deckhand', monospace; --kit-fs-raw: calc(1.7cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
-  color: #6a563c; background: none; border: 1px solid #8a744f; border-radius: 4px;
-  padding: .3cqw 1cqw; cursor: pointer;
-}
-.pl-lift:hover { color: #3c2d1c; }
+/* the drawn socket, sized for a column rather than for a form row. §5.6's
+   three presses from a standing start to a committed season all start here. */
+.pl-col .kit-socket { flex: none; min-height: 78px; }
+/* A REFUSAL IS WARM, NEVER A BUZZER (§6.9, and PLAYTEST.md says it again). The
+   kit paints a socket's reason in alarm ink because most sockets refuse an
+   error; this one refuses with a fact about the school, and a student meeting
+   the WIAA calendar for the first time has not done anything wrong. */
+.pl-col .kit-socket-why { color: var(--kit-ink-quiet); }
 
-/* the empty slot: a token-shaped socket */
-.pl-slot {
-  width: 100%; border: 2px dashed #8a744f; border-radius: 5px;
-  background: none; cursor: pointer;
-  font-family: 'Deckhand', monospace; --kit-fs-raw: calc(1.9cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #8a7a60;
-  padding: 2cqw 1cqw;
-  transition: background 140ms ease;
-}
-.pl-slot:hover, .pl-slot:focus { background: rgba(216, 185, 104, .18); color: #6a563c; }
+/* ---- a committed season (§5.6): the card that carries a sourced sentence -- */
 
-/* the activity menu inside a column */
-.pl-menu { display: flex; flex-direction: column; gap: .8cqw; }
+.pl-filled {
+  flex: 1; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 5px;
+  box-sizing: border-box;
+  padding: 10px;
+  border-radius: var(--kit-r-card);
+}
+/* the drawn socket ground with no art behind it still reads as a full slot: the
+   dashed well the kit draws for an empty one goes solid */
+.pl-filled:not([class*='kit-surface']) {
+  border: var(--kit-border) solid var(--kit-sea);
+  background-color: var(--kit-paper-card-hi);
+}
+.pl-card-name {
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(16px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-sea-ink);
+}
+.pl-card-blurb {
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-label); line-height: 1.4;
+}
+.pl-card-host {
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+}
+/* §5.5: "after a drop the rail holds two and the card holds one". The coin is
+   drawn on the card it landed on, so the token is somewhere rather than gone. */
+.pl-card-token {
+  display: flex; align-items: center; gap: 7px;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  padding-top: 3px;
+  border-top: 1px solid var(--kit-rule-soft);
+}
+.pl-open {
+  flex: none;
+  --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  border: var(--kit-border) dashed var(--kit-rule-firm);
+  border-radius: var(--kit-r-card);
+  padding: 16px 10px;
+  text-align: center;
+}
+
+/* ---- the list inside a column, with the refused rows still in it --------- */
+
+.pl-menu { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+/* a flex column with a height shrinks its children before it scrolls, which
+   squashes a two-line refusal into one and then clips it. The rows keep the size
+   their words ask for and the box scrolls instead. */
+.pl-menu > *, .pl-filled > * { flex: none; }
+
 .pl-act {
-  text-align: left; border: 1px solid #8a744f; border-radius: 4px;
-  background: linear-gradient(180deg, #e6dcc2, #dbcfaf);
-  font-family: 'Deckhand', monospace; --kit-fs-raw: calc(1.9cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #4a3826;
-  padding: .8cqw 1cqw; cursor: pointer;
-  transition: transform 120ms ease;
+  display: flex; flex-direction: column; gap: 2px;
+  text-align: left;
+  box-sizing: border-box; width: 100%;
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-soft);
+  background: linear-gradient(180deg, var(--kit-paper), var(--kit-paper-lo));
+  padding: 7px 9px;
+  cursor: pointer;
+  transition: transform var(--kit-t-quick) ease, background-color var(--kit-t-quick) ease;
 }
-.pl-act:hover, .pl-act:focus { transform: translateY(-1px); }
-.pl-act small { display: block; color: #8a7a60; --kit-fs-raw: calc(1.55cqw * var(--kit-text-scale)); font-size: var(--kit-fs); }
-.pl-menu-none { --kit-fs-raw: calc(1.7cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #8a7a60; font-style: italic; padding: .6cqw; }
+.pl-act-name {
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+}
+.pl-act-why {
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-dim); line-height: 1.35;
+}
+/* the drawn lock rides in the first line of the reason and never on its own row,
+   so a two-line refusal stays two lines */
+.pl-act-lock { margin-right: 5px; vertical-align: -2px; }
+.pl-act:hover, .pl-act:focus-visible { transform: translateY(-1px); background: var(--kit-paper-on-hi); }
+.pl-act:active { transform: translateY(1px); }
 
-/* A REFUSED ROW IS STILL A ROW (N3). It used to be filtered out of the menu, so a
-   student who came looking for a fall sport in spring found an absence and no
-   sentence. It is drawn faded, it still takes a click, and the click prints the
-   refusal instead of doing nothing. Never `disabled`: a disabled control is
-   unreachable by keyboard and cannot say why it refused. */
+/* A REFUSED ROW IS STILL A ROW (§5.7). It used to be filtered out of the menu,
+   so a student who came looking for a fall sport in spring found an absence and
+   no sentence. It renders present, it still takes a press, and the press prints
+   the reason instead of doing nothing. Never `disabled`: a disabled control is
+   unreachable by keyboard and cannot say why it refused, and §5.18 requires the
+   reason to read on FOCUS because hover has no keyboard equivalent.
+
+   AND IT IS NOT TOLD APART BY HUE. §40.31: a school Chromebook panel crushes
+   both lightness and saturation. A shut row loses its lift, its edge goes from
+   solid to dashed, and it gains an inset bar down its left side, so three things
+   that are not colour have moved. */
 .pl-act-shut {
-  background: linear-gradient(180deg, #ddd4bd, #cfc4a6);
-  color: #7d6d55; border-style: dashed;
+  background: var(--kit-paper-chip-lo);
+  border-style: dashed;
+  box-shadow: inset 3px 0 0 var(--kit-edge-strong);
 }
-.pl-act-shut:hover, .pl-act-shut:focus { transform: none; }
+.pl-act-shut .pl-act-name { color: var(--kit-ink-dim); }
+.pl-act-shut .pl-act-why { color: var(--kit-ink-quiet); }
+.pl-act-shut:hover, .pl-act-shut:focus-visible { transform: none; background: var(--kit-paper-chip-lo); }
+/* a rung of the ladder, which is this GAME's rule and not the school's: the row
+   carries the same inset bar as any refusal plus a second, inner one, so the two
+   kinds of no are visibly two kinds and neither is a colour */
+.pl-act-rung { box-shadow: inset 3px 0 0 var(--kit-edge-strong), inset 7px 0 0 var(--kit-paper-lo), inset 10px 0 0 var(--kit-edge-strong); }
+
 .pl-refusal {
-  --kit-fs-raw: calc(1.7cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #7a3b2c; font-style: italic;
-  border-left: 3px solid #a8553f; padding: .5cqw .8cqw; margin-top: .3cqw;
-  background: rgba(168, 85, 63, .1);
+  margin: 6px 0 0;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet); line-height: 1.4;
+  border-left: 3px solid var(--kit-edge-strong);
+  background-color: var(--kit-paper-tab-lo);
+  padding: 6px 9px;
 }
-.pl-menu-back {
-  font-family: 'Deckhand', monospace; --kit-fs-raw: calc(1.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6a563c;
-  background: none; border: none; cursor: pointer; text-decoration: underline dotted;
+
+/* ---- the rail: tokens, classes, the margin, the shelf -------------------- */
+
+.pl-rail {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; gap: 14px;
+  min-height: 0; overflow-y: auto;
+  padding-right: 4px;
+}
+.pl-rail section { display: flex; flex-direction: column; gap: 7px; }
+.pl-sect {
+  margin: 0;
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(16px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--kit-rule);
 }
 
-/* ---- the right rail: tokens, classes, counselor notes, stamp ---- */
-.pl-rail { flex: 1; display: flex; flex-direction: column; gap: 1.4cqw; min-height: 0; overflow-y: auto; }
-.pl-rail::-webkit-scrollbar { width: 6px; }
-.pl-rail::-webkit-scrollbar-thumb { background: #8a744f; border-radius: 3px; }
+/* ---- the tokens (§5.4), which are three different things ----------------- */
 
-.pl-sect { font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(2.1cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #3c2d1c; }
-
-.pl-tokens { display: flex; align-items: center; gap: 1cqw; }
+.pl-tokens { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .pl-token {
-  width: 3.4cqw; height: 3.4cqw; border-radius: 50%;
-  border: 2px solid #241708;
-  background: radial-gradient(circle at 35% 30%, #d8b968, #a07b2c 70%);
-  box-shadow: 0 2px 0 #1a1006;
+  display: inline-flex; align-items: center; gap: 7px;
+  box-sizing: border-box;
+  padding: 5px 11px 5px 6px;
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-pill);
+  background: linear-gradient(180deg, var(--kit-paper-card-hi), var(--kit-paper-card-lo));
+  cursor: grab;
+  /* a finger dragging a coin must not scroll the rail underneath it */
+  touch-action: none;
+  transition: transform var(--kit-t-quick) ease, box-shadow var(--kit-t-quick) ease;
 }
-.pl-token-hint { --kit-fs-raw: calc(1.7cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #8a7a60; }
+.pl-token:hover:not(:disabled) { transform: translateY(-2px); }
+.pl-token:active:not(:disabled) { cursor: grabbing; transform: translateY(1px); }
+.pl-token:disabled { cursor: default; filter: grayscale(.5); }
+.pl-token-name {
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
 
-/* class slots + picker */
+/* THE COIN, WHEN NOBODY DREW ONE. `pip` publishes fall, winter, spring, spent
+   and ghost, and this is what stands in for a build with no platform kit. It is
+   NOT what tells one token from another: the season's name is printed beside it
+   for exactly that reason, because §5.4's finding was that three identical pips
+   with a `title` attribute are a counter and not three tokens. */
+.pl-coin {
+  display: inline-block; flex: none;
+  width: 24px; height: 24px; border-radius: 50%;
+  border: var(--kit-border) solid var(--kit-wood-edge);
+  background: radial-gradient(circle at 35% 30%, var(--kit-gold-hi), var(--kit-gold-lo) 70%);
+  box-shadow: 0 2px 0 var(--kit-wood-shadow);
+}
+.pl-coin-big { width: 32px; height: 32px; }
+.pl-coin-spent { width: 20px; height: 20px; background: var(--kit-paper-chip-lo); box-shadow: none; }
+/* an empty socket is a HOLE, not a faded coin: no dome, no shadow, a ring */
+.pl-coin-ghost {
+  display: inline-block;
+  width: 28px; height: 28px; border-radius: 50%;
+  border: var(--kit-border) dashed var(--kit-rule-firm);
+  background: none; box-shadow: none;
+}
+
+/* the token whose column is open: it stands up out of the row and keeps a ring
+   where it was, so "this one is in play" is a position and not a tint */
+.pl-token-lifted { transform: translateY(-3px); box-shadow: 0 3px 0 var(--kit-cord-track); }
+/* the token that is currently under the pointer somewhere else on the sheet: the
+   pill stays, the coin does not, so the rail visibly holds a gap */
+.pl-token-aloft { border-style: dashed; }
+.pl-token-aloft .kit-glyph, .pl-token-aloft .pl-coin { opacity: 0; }
+
+.pl-token-hint, .pl-token-note {
+  margin: 0;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-dim); line-height: 1.4;
+}
+
+/* ---- the class strip and its picker (§5.9, §5.10) ------------------------ */
+
 .pl-class {
-  display: flex; align-items: baseline; gap: 1cqw;
-  border: 1px solid #8a744f; border-radius: 4px;
-  background: rgba(238, 227, 200, .5);
-  padding: .7cqw 1cqw; --kit-fs-raw: calc(1.9cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  border: 1px solid var(--kit-edge);
+  border-radius: var(--kit-r-soft);
+  background-color: var(--kit-paper-card-hi);
+  padding: 7px 9px;
 }
-.pl-class-name { color: #234c40; font-weight: bold; }
-.pl-class-hint { --kit-fs-raw: calc(1.5cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #8a7a60; }
-.pl-class-x { margin-left: auto; background: none; border: none; color: #8a7a60; cursor: pointer; --kit-fs-raw: calc(1.9cqw * var(--kit-text-scale)); font-size: var(--kit-fs); }
-.pl-class-x:hover { color: #3c2d1c; }
-.pl-class-add {
-  border: 2px dashed #8a744f; border-radius: 4px; background: none;
-  font-family: 'Deckhand', monospace; --kit-fs-raw: calc(1.8cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #8a7a60;
-  padding: .9cqw; cursor: pointer; width: 100%;
+.pl-class-name {
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-sea-ink);
 }
-.pl-class-add:hover { color: #6a563c; background: rgba(216, 185, 104, .18); }
+.pl-class-hint {
+  flex-basis: 100%;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-dim); line-height: 1.35;
+}
+.pl-class-x { margin-left: auto; }
+.pl-class-grade {
+  margin-left: auto;
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(17px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-sea-earned);
+}
 
-.pl-dept { font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(1.8cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6a563c; margin-top: .6cqw; }
-.pl-classmenu { display: flex; flex-direction: column; gap: .5cqw; max-height: 30cqw; overflow-y: auto; }
-.pl-classmenu::-webkit-scrollbar { width: 6px; }
-.pl-classmenu::-webkit-scrollbar-thumb { background: #8a744f; border-radius: 3px; }
-
-/* the counselor's margin notes: pencil on the sheet's edge */
-.pl-notes { --kit-fs-raw: calc(1.7cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #6f6046; font-style: italic; line-height: 1.45; }
-.pl-notes li { margin-bottom: .4cqw; }
-
-/* the stamp */
-.pl-stamp {
-  align-self: flex-start;
-  font-family: 'Harbormaster', 'Deckhand', monospace; --kit-fs-raw: calc(2.3cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
-  color: #f3e9d2; background: linear-gradient(180deg, #7a2f23, #5d2018);
-  border: 2px solid #38120c; border-radius: 6px;
-  box-shadow: 0 3px 0 #240a06;
-  padding: 1cqw 2.6cqw; cursor: pointer;
-  transition: transform 120ms ease;
+.pl-classmenu {
+  display: flex; flex-direction: column; gap: 5px;
+  max-height: 320px; overflow-y: auto;
+  border: 1px solid var(--kit-rule-firm);
+  border-radius: var(--kit-r-soft);
+  padding: 8px;
+  background-color: var(--kit-paper-hi);
 }
-.pl-stamp:hover:not(:disabled) { transform: translateY(-1px); }
-.pl-stamp:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #240a06; }
-.pl-stamp:disabled { opacity: .45; cursor: default; }
-.pl-stamp-note { --kit-fs-raw: calc(1.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #8a7a60; }
+.pl-ladder-note {
+  margin: 0 0 2px;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet); line-height: 1.4;
+}
+.pl-dept {
+  margin: 8px 0 3px;
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
+}
 
-/* the stamped seal */
-.pl-waxed {
-  display: inline-flex; align-items: center; gap: 1cqw;
-  font-family: 'Harbormaster', monospace; --kit-fs-raw: calc(2.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #7a2f23;
-  transform: rotate(-4deg);
+/* ---- the counselor's margin (§5.11), in pencil --------------------------- */
+
+.pl-note-plan {
+  margin: 0;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet); line-height: 1.45;
 }
-.pl-wax {
-  width: 5cqw; height: 5cqw; border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #a44534, #6e241a 70%);
-  border: 2px solid #4a150e;
-  display: flex; align-items: center; justify-content: center;
-  --kit-fs-raw: calc(2.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: #f3d9c8;
-  box-shadow: 0 2px 4px rgba(20, 5, 2, .5);
+.pl-notes { margin: 0; padding-left: 16px; }
+.pl-notes li { margin-bottom: 6px; }
+.pl-note-name {
+  display: block;
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
 }
+.pl-note-rule {
+  display: block;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-dim); line-height: 1.4;
+}
+/* the game's count, indented under the school's sentence rather than replacing
+   it: V3's rule that a mechanic which approximates a criterion is never printed
+   as the criterion */
+.pl-note-count {
+  display: block;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
+  padding-left: 10px;
+  border-left: 2px solid var(--kit-rule);
+  margin-top: 3px;
+}
+
+/* ---- the footer, which cannot leave the screen (§5.15) ------------------- */
+
+.pl-foot {
+  flex: none;
+  display: flex; align-items: center; gap: 14px;
+  margin-top: 12px; padding-top: 10px;
+  border-top: var(--kit-border) solid var(--kit-rule-firm);
+}
+.pl-foot-act { flex: 1; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; min-width: 0; }
+.pl-foot-said { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; min-width: 0; }
+.pl-stamp-note {
+  margin: 0;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-dim); line-height: 1.4;
+}
+.pl-close { flex: none; margin-left: auto; }
+
+/* THE WAX (§5.15): "the loudest thing that has happened so far", and it was a
+   radial gradient with a paw emoji in it. `stamp` publishes `sealed`, a drawn
+   teal wax seal with a paw already in it, and this is its ground. */
+.pl-waxed { display: inline-flex; align-items: center; gap: 12px; transform: rotate(-3deg); }
+.pl-wax { flex: none; }
+.pl-wax-fallback {
+  display: inline-block; flex: none;
+  width: 48px; height: 48px; border-radius: 50%;
+  border: var(--kit-border) solid var(--kit-sea-btn-edge);
+  background: radial-gradient(circle at 35% 30%, var(--kit-sea), var(--kit-sea-btn-lo) 70%);
+  box-shadow: 0 2px 4px var(--kit-sea-glow);
+}
+.pl-waxed-word {
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(18px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-sea-head);
+}
+
+/* ---- the coin in the air ------------------------------------------------- */
+
+.pl-air {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  /* it must never be the thing `elementFromPoint` finds, or the drop target is
+     always the coin itself and no column can ever answer */
+  pointer-events: none;
+  z-index: 200;
+  filter: drop-shadow(var(--kit-drop-sm));
+}
+
+/* =========================================================================
+ * THE PLAIN ARM (§16), which this file had none of.
+ *
+ * Ash's ruling, 2026-08-31: "No game art, no wood, no parchment: system font,
+ * black on white, real headings and a real form. Reads as a worksheet somebody
+ * wrote, not as the game with its paint scraped off." Raw OS widgets were
+ * refused, because unstyled defaults look BROKEN and a control condition that
+ * looks broken loses on looking broken instead of on not being a game.
+ *
+ * So the year sheet becomes the form it always was underneath: a printed
+ * planning sheet with a title, ruled section headings, three season blocks and a
+ * signature line at the bottom. The tokens stop being coins and become named
+ * checkboxes-in-words, because a gold disc is game art. Nothing that is ASKED
+ * changes: same programmes, same refusals, same sentences, same order.
+ * ========================================================================= */
+
+html[data-skin='plain'] .pl-sheet {
+  animation: none;
+  filter: none;
+  padding: 22px 26px 18px;
+}
+html[data-skin='plain'] .pl-head {
+  display: block;
+  border-bottom: 2px solid var(--kit-ink-head);
+  padding-bottom: 8px;
+}
+html[data-skin='plain'] .pl-year { display: block; margin-top: 2px; }
+
+html[data-skin='plain'] .pl-pin {
+  border: 1px solid var(--kit-edge-strong);
+  border-radius: 2px;
+  background-color: var(--kit-paper);
+}
+html[data-skin='plain'] .pl-pin-done { font-weight: 700; }
+
+html[data-skin='plain'] .pl-col {
+  border: 1px solid var(--kit-edge-strong);
+  border-radius: 2px;
+  background: none;
+}
+html[data-skin='plain'] .pl-col-head {
+  border-bottom: 1px solid var(--kit-edge-strong);
+  font-weight: 700;
+  justify-content: flex-start;
+  padding-left: 2px;
+}
+html[data-skin='plain'] .pl-filled {
+  border: 1px solid var(--kit-edge-strong);
+  border-radius: 2px;
+  background-color: var(--kit-paper);
+}
+html[data-skin='plain'] .pl-card-name { font-weight: 700; color: var(--kit-ink-head); }
+html[data-skin='plain'] .pl-card-token { display: none; }
+html[data-skin='plain'] .pl-open { border-style: solid; border-width: 1px; border-radius: 2px; }
+
+html[data-skin='plain'] .pl-act {
+  background: none;
+  border: 1px solid var(--kit-edge-strong);
+  border-radius: 2px;
+}
+html[data-skin='plain'] .pl-act:hover, html[data-skin='plain'] .pl-act:focus-visible {
+  transform: none;
+  background-color: var(--kit-paper-on-hi);
+}
+/* A REFUSED ROW IN A DOCUMENT IS RULED THROUGH, not shaded. Same information,
+   said the way a printed form says it. */
+html[data-skin='plain'] .pl-act-shut {
+  background: none;
+  border-style: dashed;
+  box-shadow: none;
+  border-left-width: 4px;
+}
+html[data-skin='plain'] .pl-act-rung { box-shadow: none; border-left-style: dotted; border-left-width: 4px; }
+html[data-skin='plain'] .pl-act-shut .pl-act-name { text-decoration: line-through; }
+
+html[data-skin='plain'] .pl-sect {
+  font-weight: 700;
+  color: var(--kit-ink-head);
+  border-bottom: 1px solid var(--kit-ink-head);
+}
+html[data-skin='plain'] .pl-dept { font-weight: 700; }
+
+/* THE COINS GO. What is left is a labelled control with the season's name on it,
+   which is the same information as the pip and is a thing a worksheet has. */
+html[data-skin='plain'] .pl-coin,
+html[data-skin='plain'] .pl-coin-ghost,
+html[data-skin='plain'] .pl-coin-big,
+html[data-skin='plain'] .pl-coin-spent,
+html[data-skin='plain'] .pl-wax-fallback { display: none; }
+html[data-skin='plain'] .pl-token {
+  background: none;
+  border: 1px solid var(--kit-edge-strong);
+  border-radius: 2px;
+  padding: 5px 11px;
+}
+html[data-skin='plain'] .pl-token:hover:not(:disabled) { transform: none; background-color: var(--kit-paper-on-hi); }
+html[data-skin='plain'] .pl-token-lifted { transform: none; box-shadow: none; font-weight: 700; text-decoration: underline; }
+html[data-skin='plain'] .pl-token-aloft { border-style: dashed; }
+
+html[data-skin='plain'] .pl-class {
+  border: 1px solid var(--kit-edge-strong);
+  border-radius: 2px;
+  background: none;
+}
+html[data-skin='plain'] .pl-class-name { font-weight: 700; color: var(--kit-ink-head); }
+html[data-skin='plain'] .pl-class-grade { font-weight: 700; color: var(--kit-ink-head); }
+html[data-skin='plain'] .pl-classmenu { border: 1px solid var(--kit-edge-strong); border-radius: 2px; }
+
+html[data-skin='plain'] .pl-refusal {
+  background: none;
+  border-left: 4px solid var(--kit-ink-head);
+  padding-left: 10px;
+}
+
+/* THE THING THAT FOLLOWS THE POINTER STILL NEEDS A BODY. The coin is gone in
+   this arm, so without a shape of its own the drag would be invisible and the
+   control condition would lose the mechanic rather than lose the paint, which is
+   the one thing §16 forbids: the arms differ in presentation, never in what a
+   student can do. A plain outlined marker is what a document drags. */
+html[data-skin='plain'] .pl-air {
+  display: block;
+  width: 18px; height: 18px;
+  filter: none;
+  border: 2px solid var(--kit-ink-head);
+  background-color: var(--kit-paper-hi);
+}
+
+/* the signature line at the foot of a form */
+html[data-skin='plain'] .pl-foot { border-top: 2px solid var(--kit-ink-head); }
+html[data-skin='plain'] .pl-waxed { transform: none; }
+html[data-skin='plain'] .pl-waxed-word { font-weight: 700; color: var(--kit-ink-head); }

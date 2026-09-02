@@ -35,6 +35,7 @@ import { loadSave, subscribeSave } from '../save'
 import { nextObjective, type Objective } from '../run/objective'
 import { panelDepth } from '../ui/a11y'
 import { placeCardUp } from '../stage/stage-bus'
+import { onWorldHold, worldHeld } from '../world-bus'
 import { track } from '../telemetry'
 import './heading.css'
 
@@ -54,6 +55,11 @@ export function Heading() {
   const [shown, setShown] = useState<Shown | null>(null)
   const [, bump] = useState(0)
   useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
+
+  /* AND ON THE EDGES OF A HOLD, so a card that is already up leaves the moment
+   * somebody starts speaking. Without this the guard below was only re-read when
+   * the save happened to change, which during a conversation it does not. */
+  useEffect(() => onWorldHold(() => bump((v) => v + 1)), [])
 
   /* what the game currently thinks is next, recomputed on every save write. Pure,
    * so this costs a function call rather than a fetch. */
@@ -103,7 +109,16 @@ export function Heading() {
     const arm = () => {
       window.clearTimeout(t)
       t = window.setTimeout(() => {
-        if (panelDepth() > 0) { arm(); return }
+        /* A STUDENT READING IS NOT A STUDENT WHO HAS STOPPED, and this clock
+         * could not tell the difference. It only reset on keydown, pointerdown
+         * and wheel, and reading a station's dialogue is none of those: at
+         * twelve seconds of a conversation the game interrupted its own
+         * conversation with a line about what to do next. `worldHeld()` is the
+         * one question that covers every case at once, because a station, a
+         * cutscene, a panel and a scripted walk all take the controls the same
+         * way. The clock re-arms rather than firing, so a student who really has
+         * stopped is still told, twelve seconds after the hold comes off. */
+        if (panelDepth() > 0 || worldHeld()) { arm(); return }
         const o = nextObjective(loadSave())
         if (!o) return
         setShown({ obj: o, key: `${o.phase}:${o.anchor}:${o.map}`, why: 'idle' })
@@ -143,7 +158,13 @@ export function Heading() {
    * cards stacked in the same place and two reads out of a budget of ten seconds.
    * The wait is not a timer here, it is a question about what is on screen, so a
    * card that lingers cannot be talked over by a clock that fired anyway. */
-  if (!shown || panelDepth() > 0 || placeCardUp()) return null
+  /* AND IT NEVER TALKS OVER A CONVERSATION. `worldHeld()` is true while a
+   * station is speaking, while a cutscene is running, while a panel is up and
+   * while a script is walking the player, and this component asked none of it:
+   * it asked about panels and about the arrival card and nothing else. A line
+   * that arrives on top of a line the student is reading is two voices in one
+   * corner, and the one that gets read is neither. */
+  if (!shown || panelDepth() > 0 || placeCardUp() || worldHeld()) return null
 
   return (
     <div className="hd-wrap" role="status" aria-live="polite">

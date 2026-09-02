@@ -1,35 +1,56 @@
-/* Transition covers (GAME-DESIGN §12.1) — each is a full-screen layer that animates in,
+/* Transition covers (GAME-DESIGN §12.1): each is a full-screen layer that animates in,
    holds while the next scene mounts, and animates out. No raw spinners, no hard cuts. */
 
 /* the cover band is a piece of the kit now, so it is made of the kit's materials */
 @import '../game/ui/tokens.css';
 
-.tr-root { position: absolute; inset: 0; z-index: 90; pointer-events: auto; overflow: hidden; }
-.pix { image-rendering: pixelated; }
+.tr-root {
+  position: absolute; inset: 0; z-index: 90; pointer-events: auto; overflow: hidden;
+  /* ONE NUMBER FOR THE COVER'S OWN LENGTH, AND IT IS THE SAME NUMBER THE
+     CONTROLLER SLEEPS. `COVER_MS` in transitions.tsx is 950 and this was 950
+     retyped in nine rules; the day one of them moved, the cover either sat still
+     at the end or was cut off part way through, with nothing saying which.
+
+     It is a local custom property rather than a kit token because there is no
+     kit token for it: `--kit-t-quick` through `--kit-t-slow` are 120 to 160
+     milliseconds, which is the speed a BUTTON answers at. A cover is a scene
+     change and is deliberately eight times slower. `--kit-t-cover` is asked for
+     in this session's report; until it exists the number lives here, once. */
+  --tr-cover: 950ms;
+}
+.pix { image-rendering: var(--kit-pixel); }
 
 /* ---- fade ---- */
-.tr-fade { position: absolute; inset: 0; background: #05070a; }
-.tr-in .tr-fade { animation: trf-in 950ms ease both; }
-.tr-out .tr-fade { animation: trf-out 950ms ease both; }
+/* THE DARK A COVER FADES TO IS A TOKEN, and it is warm rather than blue-black.
+   Same ruling as the panel veils on 2026-08-30: taken to a cold near-black the
+   frame reads as a void, and the island has to still be THERE, dimmed, not
+   deleted. `--kit-wood-shadow` is the kit's own darkest warm value. */
+.tr-fade { position: absolute; inset: 0; background: var(--kit-wood-shadow); }
+.tr-in .tr-fade { animation: trf-in var(--tr-cover) ease both; }
+.tr-out .tr-fade { animation: trf-out var(--tr-cover) ease both; }
 @keyframes trf-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes trf-out { from { opacity: 1; } to { opacity: 0; } }
 
 /* ---- foam wash: a wave sweeps the screen (the default world transition) ---- */
 .tr-foam-wash {
   position: absolute; inset: 0;
-  background: linear-gradient(105deg, #0d3a46 0%, #14505c 55%, #1a6270 100%);
+  background: linear-gradient(105deg, var(--kit-sea-btn-edge) 0%, var(--kit-sea-btn-lo) 55%, var(--kit-sea) 100%);
 }
+/* THE LACE IS A SOLID TOKEN AT AN OPACITY, not four rgba values typed by hand.
+   A colour with alpha baked into it cannot be reskinned, because the plain arm
+   swaps the token and inherits somebody's guess at how see-through foam is. */
 .tr-foam-lace {
   position: absolute; top: -4%; bottom: -4%; width: 30vw; left: -32vw;
+  opacity: .82;
   background:
-    radial-gradient(closest-side, rgba(240, 250, 248, .95), rgba(240, 250, 248, 0) 70%) 0 0 / 7vw 9vh repeat,
-    linear-gradient(90deg, rgba(226, 244, 240, .9), rgba(226, 244, 240, .2));
+    radial-gradient(closest-side, var(--kit-caption-ink), transparent 70%) 0 0 / 7vw 9vh repeat,
+    linear-gradient(90deg, var(--kit-caption-ink), transparent);
   filter: blur(1px);
 }
-.tr-in .tr-foam-wash { animation: trw-in 950ms cubic-bezier(.3, .3, .2, 1) both; }
-.tr-in .tr-foam-lace { animation: trl-in 950ms cubic-bezier(.3, .3, .2, 1) both; }
-.tr-out .tr-foam-wash { animation: trw-out 950ms cubic-bezier(.6, 0, .7, .6) both; }
-.tr-out .tr-foam-lace { animation: trl-out 950ms cubic-bezier(.6, 0, .7, .6) both; }
+.tr-in .tr-foam-wash { animation: trw-in var(--tr-cover) cubic-bezier(.3, .3, .2, 1) both; }
+.tr-in .tr-foam-lace { animation: trl-in var(--tr-cover) cubic-bezier(.3, .3, .2, 1) both; }
+.tr-out .tr-foam-wash { animation: trw-out var(--tr-cover) cubic-bezier(.6, 0, .7, .6) both; }
+.tr-out .tr-foam-lace { animation: trl-out var(--tr-cover) cubic-bezier(.6, 0, .7, .6) both; }
 @keyframes trw-in { from { transform: translateX(-104%); } to { transform: translateX(0); } }
 @keyframes trl-in { from { left: -32vw; } to { left: 100vw; } }
 @keyframes trw-out { from { transform: translateX(0); } to { transform: translateX(104%); } }
@@ -37,23 +58,18 @@
 
 /* ---- iris: circle closing on a focus point (into cutscenes) ---- */
 .tr-iris {
-  position: absolute; inset: 0; background: #05070a;
+  position: absolute; inset: 0; background: var(--kit-wood-shadow);
   clip-path: circle(150% at var(--fx, 50%) var(--fy, 50%));
 }
-.tr-in .tr-iris { animation: tri-in 950ms cubic-bezier(.4, 0, .6, 1) both; }
-.tr-out .tr-iris { animation: tri-out 950ms cubic-bezier(.4, 0, .6, 1) both; }
-@keyframes tri-in {
-  from { clip-path: circle(150% at var(--fx, 50%) var(--fy, 50%)); -webkit-mask: radial-gradient(circle 150vmax at var(--fx) var(--fy), transparent 99%, #000 100%); }
-  to   { clip-path: circle(0% at var(--fx, 50%) var(--fy, 50%)); }
-}
+.tr-out .tr-iris { animation: tri-out var(--tr-cover) cubic-bezier(.4, 0, .6, 1) both; }
 @keyframes tri-out {
   from { clip-path: circle(0% at var(--fx, 50%) var(--fy, 50%)); }
   to   { clip-path: circle(150% at var(--fx, 50%) var(--fy, 50%)); }
 }
 /* the iris cover is the INVERSE hole: while 'in' plays, the black ring closes toward the
-   focus; we fake it by clipping a full black sheet from a giant circle down to nothing —
+   focus; we fake it by clipping a full dark sheet from a giant circle down to nothing,
    which reads as the world shrinking into the point */
-.tr-in .tr-iris { background: #05070a; clip-path: circle(0% at var(--fx) var(--fy)); animation: tri-close 950ms cubic-bezier(.4, 0, .6, 1) both; }
+.tr-in .tr-iris { clip-path: circle(0% at var(--fx) var(--fy)); animation: tri-close var(--tr-cover) cubic-bezier(.4, 0, .6, 1) both; }
 @keyframes tri-close {
   from { clip-path: circle(0% at var(--fx, 50%) var(--fy, 50%)); opacity: .0; }
   20%  { opacity: 1; }
@@ -62,37 +78,62 @@
 .tr-hold .tr-iris { clip-path: circle(150% at var(--fx, 50%) var(--fy, 50%)); }
 
 /* ---- scene cover: full-bleed illustrated loading (the TavernWorld pattern) ---- */
-.tr-scene { position: absolute; inset: 0; background: #06121a; }
+.tr-scene { position: absolute; inset: 0; background: var(--kit-wood-shadow); }
 .tr-scene-img {
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover;
 }
 .tr-scene-vig {
   position: absolute; inset: 0;
-  background: radial-gradient(ellipse 90% 75% at 50% 46%, transparent 42%, rgba(4, 8, 12, .55) 100%);
+  background: radial-gradient(ellipse 90% 75% at 50% 46%, transparent 42%, var(--kit-veil) 100%);
 }
-.tr-in .tr-scene { animation: trf-in 950ms ease both; }
-.tr-out .tr-scene { animation: trf-out 950ms ease both; }
+.tr-in .tr-scene { animation: trf-in var(--tr-cover) ease both; }
+.tr-out .tr-scene { animation: trf-out var(--tr-cover) ease both; }
 .tr-twinkle {
   position: absolute; width: 4px; height: 4px;
-  background: radial-gradient(circle, rgba(255, 236, 190, .95), rgba(255, 236, 190, 0) 70%);
+  background: radial-gradient(circle, var(--kit-gold-hi), transparent 70%);
   animation: tr-tw 2.4s ease-in-out infinite;
 }
 @keyframes tr-tw { 0%, 100% { opacity: 0; transform: scale(.5); } 50% { opacity: 1; transform: scale(1.4); } }
+/* W12. A LOOPING ANIMATION IS THE ONE THAT HAS TO STOP RATHER THAN SHORTEN: the
+   kit's reduced-motion rule sets every duration to 1ms, and a twinkle at 1ms on
+   an infinite loop is fourteen strobing dots. They hold still, lit, instead. */
+html[data-rm='1'] .tr-twinkle { animation: none; opacity: .7; transform: none; }
+
 .tr-scene-text {
   position: absolute; left: 50%; top: 46%;
   transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center;
   width: min(700px, 86vw);
 }
+
+/* ---- THE FOUR VOICES ------------------------------------------------------
+ *
+ * §4.1, on the Maw cover: it has to "say something different from the
+ * archipelago cover", because "if both are a name over a painting over a fact,
+ * the second one teaches the student that covers are a tax rather than an
+ * arrival." Three things move, and none of them is a colour: the painting
+ * (`covers.ts` picks it by destination), the word over the plaque (same), and
+ * where the plaque sits on the picture, which is this.
+ *
+ * An arrival hangs the name over the horizon, because that is where a name
+ * belongs when you are looking at a place from outside it. Going inside hangs
+ * it low, the way a sign in a room hangs at the height of the person reading
+ * it, with the room open above it. Two different pictures, not two captions. */
+.tr-voice-inside .tr-scene-text { top: 68%; }
+.tr-voice-crossing .tr-scene-text { top: 52%; }
+.tr-voice-ceremony .tr-scene-text { top: 42%; }
+
 /* the kicker sits on the painting rather than on the band, because the band's
    own paper starts at the place's name */
 .tr-scene-entering {
-  font-family: var(--kit-face-body, 'Deckhand', monospace);
-  font-size: 13px; letter-spacing: 6px;
-  color: var(--kit-caption-ink, #f2e8d2);
-  text-shadow: var(--kit-caption-shadow, 0 2px 4px rgba(3, 6, 10, .9));
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(13px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  letter-spacing: 6px;
+  color: var(--kit-caption-ink);
+  text-shadow: var(--kit-caption-shadow);
   margin-bottom: 8px;
+  text-align: center;
 }
 
 /* ---- THE COVER BAND -------------------------------------------------------
@@ -104,61 +145,45 @@
  * bare rectangle: the one piece of chrome in the game that was not a drawn
  * object, on the one screen with nothing else on it to look at.
  *
- * WHAT IT IS NOW. A plaque. MAPVIS draws a piece for exactly this and calls it
- * `band`, "a wide title band for the name of a place, shown when you arrive
- * somewhere": 636x161, a wooden frame round parchment, a real nine-slice at
- * 28/55/29/47, and two marked text rectangles, `title` and `subtitle`.
+ * THEN IT WAS A GRADIENT PRETENDING TO BE ONE. The class that put a drawn frame
+ * on it was conditional on the PLATFORM's `band` piece having landed, so the
+ * ordinary run of the game drew a linear-gradient with four box-shadows stacked
+ * on it: an outer dark edge, a bright keyline, a ruled inset and a sheen. Four
+ * layers is what it takes to make a div look carved, and it still does not, and
+ * the UI brief's second law is that every element is drawn art rather than a
+ * styled div.
  *
- * THE ART IS BEHIND `?kit=1` AND THE SKIN IS NOT. `src/game/ui/kit.ts` mounts
- * the platform's pieces only when the flag is on, because a nine-slice on top of
- * every panel's hand-measured percentage padding insets them twice, and that is
- * Ash's call to make in front of the screen. So the fallback below is a drawn
- * plaque in the kit's own materials rather than the old rectangle: parchment
- * between two carved rails, dark ink, one shadow. When the flag is on, the
- * platform's border-image paints over the top of it and the frame becomes the
- * real thing. Both states read as an object; only one of them is PixelLab's.
+ * WHAT IT IS NOW. `kit-surface-band`, unconditionally, which `tokens.css`
+ * answers three ways with no branch here: the platform's own `band` art when the
+ * kit has landed, the game's drawn dialogue frame nine-sliced when it has not,
+ * and a flat bordered sheet under `data-skin='plain'`. All three are the right
+ * answer for their arm and the middle one is real PixelLab art rather than CSS.
  *
- * THE INK IS DARK IN BOTH, which is the part that had to move together. The old
- * band was light lettering on near-black. `band`'s paper is parchment, so light
- * lettering on it is invisible, and a skin that only works with the flag on is
- * two designs. */
+ * THE NINE-SLICE IS THE ONLY INSET. Padding here would inset the contents a
+ * second time on top of the border-width, which is the exact defect
+ * `kit.ts` spent a paragraph on before the kit could be turned on by default.
+ *
+ * THE INK IS DARK IN EVERY ARM, which is the part that had to move together.
+ * The old band was light lettering on near-black. Every ground this can land on
+ * now is paper, so light lettering on it is invisible. */
 .tr-scene-band {
   align-self: stretch;
   box-sizing: border-box;
-  /* the frame, when there is no platform art: a carved wooden rail round a paper
-     ground, in the same tokens the plaques in the cutscene kit are made of. Four
-     layers because that is what stops a border reading as a border: a dark edge
-     outside the rail, a bright keyline where the paper meets it, a ruled inset,
-     and the sheen along the top of the paper. */
-  background:
-    linear-gradient(180deg, var(--kit-paper-hi, #f2ead4), var(--kit-paper-lo, #dbcfaf));
-  border: 5px solid var(--kit-wood-hi, #4a3421);
-  border-radius: var(--kit-r-round, 6px);
-  box-shadow:
-    0 0 0 2px var(--kit-wood-edge, #241708),
-    inset 0 0 0 1px var(--kit-paper-sheen-firm, rgba(255, 250, 235, .4)),
-    inset 0 0 0 3px var(--kit-rule-firm, rgba(138, 116, 79, .4)),
-    inset 0 3px 0 var(--kit-paper-sheen, rgba(255, 250, 235, .35)),
-    var(--kit-drop-md, 0 10px 26px rgba(2, 8, 10, .6));
-  /* THE INSETS ARE THE PIECE'S OWN, NOT A GUESS. `--band-pad-*` is written by
-     the overlay from the `title` and `subtitle` rectangles MAPVIS published, so
-     repainting the piece and re-marking it moves the type without a commit here.
-     The defaults are what the rectangle used to carry. */
-  padding: var(--band-pad-t, 18px) var(--band-pad-r, 34px) var(--band-pad-b, 20px) var(--band-pad-l, 34px);
+  padding: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
-/* with the platform's piece on, the border-image IS the frame and its own
-   border-width is the paper inset, so the drawn one steps out of the way */
-.tr-scene-band.kit-surface-band {
-  background: none;
-  border-radius: 0;
-  padding: 0;
-}
 .tr-scene-title {
-  font-family: var(--kit-face-title, 'Harbormaster', monospace);
-  --kit-fs-raw: clamp(26px, 5vh, 40px); font-size: var(--kit-fs); letter-spacing: 3px;
-  color: var(--kit-ink-head, #3c2d1c);
-  text-shadow: 0 1px 0 var(--kit-paper-sheen, rgba(255, 250, 235, .35));
+  margin: 0;
+  font-family: var(--kit-face-title);
+  /* THE PLACE'S NAME IS ON THE SAME PIPELINE AS EVERYTHING ELSE. It was a bare
+     `clamp(26px, 5vh, 40px)` inside `--kit-fs-raw`, which snapped to a whole
+     pixel and then ignored the text-size setting entirely, so a student on Large
+     read a scaled fact under a fixed place name. */
+  --kit-fs-raw: calc(clamp(26px, 5vh, 40px) * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  letter-spacing: 3px;
+  color: var(--kit-ink-head);
+  text-shadow: 0 1px 0 var(--kit-paper-sheen);
   text-align: center;
   /* the authored `title` rectangle's height, so the line sits in the band of
      paper the piece was drawn with rather than wherever the text happens to fall */
@@ -166,45 +191,77 @@
   display: flex; align-items: center; justify-content: center;
 }
 .tr-scene-subtitle {
+  margin: 0;
   max-width: 100%;
   text-align: center;
-  font-family: var(--kit-face-body, 'Deckhand', monospace);
+  font-family: var(--kit-face-body);
   /* the one real sentence a student reads on a loading screen, and it was 13px at
      85 percent over a sunset: measured at about 1.8:1 against the sky it was
      sitting on, which is unreadable on a classroom projector. It is on paper now. */
-  font-size: 15px; line-height: 1.4;
-  color: var(--kit-ink-label, #6a563c);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  line-height: 1.4;
+  color: var(--kit-ink-label);
   min-height: var(--band-sub-h, auto);
   display: flex; align-items: center; justify-content: center;
 }
-.tr-scene-bar {
+
+/* ---- THE BAR, WHICH IS THE GAUGE AND NOT A KEYFRAME -----------------------
+ *
+ * WHAT WAS HERE: `animation: tr-fill linear both` with the duration handed in
+ * from JavaScript as `(spec.holdMs ?? 2600) + 620`, filling 4% to 78% to 100%
+ * on a clock. Nothing measured the swap, so the bar was a picture of a load
+ * rather than a reading of one, and its guessed 2600 did not even match the
+ * 60 the controller actually waited.
+ *
+ * It is `Gauge` from the control kit now, reading `TransitionState.progress`.
+ * Null there means nothing can honestly be counted and Gauge draws a PACING bar,
+ * which is a different picture from a filling one on purpose. The instant the
+ * swap answers, the progress is 1 and the bar is full, because the swap
+ * answering is the work finishing. The word underneath says which of the two
+ * states it is in, because §40.31 forbids a state carried by hue alone and a
+ * Chromebook panel cannot be trusted to show 90 percent against 100. */
+.tr-scene-meter {
   margin-top: 14px;
-  width: min(300px, 46vw); height: 9px;
-  background: rgba(4, 8, 10, .9);
-  border: 1px solid rgba(240, 232, 210, .65);
-  border-radius: 2px;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(3, 6, 8, .8);
+  width: min(300px, 46vw);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
 }
-.tr-scene-bar span {
-  display: block; height: 100%;
-  background: linear-gradient(90deg, #c8a23c, #f0d489);
-  animation: tr-fill linear both;
+/* THE GAUGE IS SITTING ON A PAINTING AND NOT ON PAPER, which is the one place in
+   the game it does. Its own track is a warm translucent brown meant for a panel;
+   over `loading-port.png`, which is a gold sunset, a gold fill on a warm track is
+   a bar nobody can find. A dark ground and a light keyline give it an edge on any
+   of the four paintings. The plain arm's rule in controls.css is more specific
+   than this and still wins, which is correct: there is no painting there. */
+.tr-scene-meter .kit-gauge {
+  min-height: 24px;
+  background-color: var(--kit-veil);
+  border: 1px solid var(--kit-caption-ink);
+  border-radius: var(--kit-r-sharp);
 }
-@keyframes tr-fill { from { width: 4%; } 70% { width: 78%; } to { width: 100%; } }
+.tr-scene-work {
+  margin: 0;
+  min-height: 1.2em;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(12px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  letter-spacing: 2px;
+  color: var(--kit-caption-ink);
+  text-shadow: var(--kit-caption-shadow);
+}
 
 /* ---- chart unroll: the I-6 loading card (map switches, planner, handbook) ---- */
-.tr-chart-field { position: absolute; inset: 0; background: radial-gradient(ellipse 120% 90% at 50% 45%, #123844 0%, #0a2530 65%, #06171e 100%); }
+.tr-chart-field {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 120% 90% at 50% 45%, var(--kit-sea-ink) 0%, var(--kit-front-teal-deep) 65%, var(--kit-wood-shadow) 100%);
+}
 .tr-chart {
   position: absolute; left: 50%; top: 50%;
   width: min(760px, 88vw); aspect-ratio: 688 / 384;
   transform: translate(-50%, -50%);
 }
-.tr-chart-img { width: 100%; height: 100%; filter: drop-shadow(0 10px 28px rgba(2, 8, 10, .65)); }
-.tr-in .tr-chart { animation: trc-in 950ms cubic-bezier(.2, 1.05, .3, 1) both; }
-.tr-out .tr-chart { animation: trc-out 950ms cubic-bezier(.55, 0, .8, .4) both; }
+.tr-chart-img { width: 100%; height: 100%; filter: drop-shadow(var(--kit-drop-md)); }
+.tr-in .tr-chart { animation: trc-in var(--tr-cover) cubic-bezier(.2, 1.05, .3, 1) both; }
+.tr-out .tr-chart { animation: trc-out var(--tr-cover) cubic-bezier(.55, 0, .8, .4) both; }
 .tr-in .tr-chart-field { animation: trf-in 400ms ease both; }
-.tr-out .tr-chart-field { animation: trf-out 950ms ease both; }
+.tr-out .tr-chart-field { animation: trf-out var(--tr-cover) ease both; }
 @keyframes trc-in {
   from { transform: translate(-50%, -50%) scaleX(.06); opacity: 0; }
   45%  { opacity: 1; }
@@ -217,16 +274,95 @@
 .tr-chart-needle {
   position: absolute; left: 50%; top: 46%;
   width: 3px; height: 11%;
-  background: linear-gradient(#8a2f1e 0 52%, #e8dcc0 52% 100%);
+  background: linear-gradient(var(--kit-alarm) 0 52%, var(--kit-wood-ink) 52% 100%);
   transform-origin: 50% 100%;
   border-radius: 2px;
-  box-shadow: 0 0 4px rgba(20, 10, 4, .4);
 }
 .tr-chart-fact {
   position: absolute; left: 10%; right: 10%; bottom: 7%;
+  margin: 0;
   text-align: center;
-  font-family: 'Deckhand', monospace;
-  --kit-fs-raw: clamp(12px, 1.9vh, 16px); font-size: var(--kit-fs);
-  color: #4a3826;
-  text-shadow: 0 1px 0 rgba(255, 250, 235, .4);
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(clamp(12px, 1.9vh, 16px) * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+  text-shadow: 0 1px 0 var(--kit-paper-sheen);
 }
+
+/* =========================================================================
+ * THE PLAIN ARM (§16). Ash's ruling, 2026-08-31, verbatim: "No game art, no
+ * wood, no parchment: system font, black on white, real headings and a real
+ * form. Reads as a worksheet somebody wrote, not as the game with its paint
+ * scraped off."
+ *
+ * A COVER IS THE HARDEST SURFACE IN THE GAME TO SAY THAT ABOUT, because a cover
+ * is almost entirely vehicle: a painting, a vignette and fourteen twinkling
+ * dots. The 2026-08-28 content-and-vehicle rule decides it cleanly, and §10.4
+ * states the half that matters: "the card is content, so it renders in both arms
+ * as the same sentence." So the painting goes and the WORDS stay, in the same
+ * order, at the same sizes, saying the same thing. The renderer drops the img,
+ * the vignette and the twinkles; these rules take away the dark ground they were
+ * lit against, because a white sheet needs dark ink and a black sheet with no
+ * picture on it is just a black sheet.
+ * ========================================================================= */
+html[data-skin='plain'] .tr-fade,
+html[data-skin='plain'] .tr-iris,
+html[data-skin='plain'] .tr-foam-wash {
+  /* `--kit-wood-shadow` is transparent in this arm on purpose, and a transparent
+     cover is a hard cut with the world still readable underneath it. These three
+     are quick masks over a cut rather than pages to read, so they take the arm's
+     own darkest ink and stay dark. */
+  background: var(--kit-ink);
+}
+html[data-skin='plain'] .tr-foam-lace { display: none; }
+/* THE ONE COVER A STUDENT READS IS A PAGE, so it is a page: white, with the
+   place's name as a real heading and the fact under it. Black on white is the
+   ruling and this is the surface it applies to most literally, because the
+   painted arm's version of this screen is 100 percent picture. */
+html[data-skin='plain'] .tr-scene { background: var(--kit-paper-hi); }
+html[data-skin='plain'] .tr-chart-field { background: var(--kit-paper); }
+html[data-skin='plain'] .tr-scene-text { width: min(560px, 88vw); }
+html[data-skin='plain'] .tr-chart {
+  background: var(--kit-paper-hi);
+  border: 1px solid var(--kit-edge-strong);
+  border-radius: 2px;
+  padding: 24px 28px;
+  box-sizing: border-box;
+  aspect-ratio: auto;
+  height: auto;
+  display: flex; flex-direction: column; align-items: center;
+}
+html[data-skin='plain'] .tr-chart-fact {
+  position: static;
+  color: var(--kit-ink-body);
+  text-shadow: none;
+}
+/* the kicker is a label above a heading in a document, so it reads as one:
+   small, upper case, no glow, no letter-spacing games */
+html[data-skin='plain'] .tr-scene-entering {
+  color: var(--kit-ink-label);
+  text-shadow: none;
+  letter-spacing: 2px;
+}
+/* THE INSET HAS TO COME BACK HERE AND ONLY HERE. In the painted arms the
+   nine-slice border-width IS the padding, which is why the base rule sets none.
+   `tokens.css` answers `.kit-surface-band` in this arm with `border: 1px` and no
+   image, so with no padding the place's name would sit flush against a hairline.
+   A gutter in pixels, not a percentage: a percentage padding resolves against
+   the VIEWPORT here, which is the bug `hud.css` already had to fix once. */
+html[data-skin='plain'] .tr-scene-band { padding: 14px 18px; }
+html[data-skin='plain'] .tr-scene-title {
+  text-shadow: none;
+  letter-spacing: 0;
+  color: var(--kit-ink-head);
+  font-weight: 700;
+}
+html[data-skin='plain'] .tr-scene-subtitle { color: var(--kit-ink-body); }
+html[data-skin='plain'] .tr-scene-work {
+  color: var(--kit-ink-label);
+  text-shadow: none;
+  letter-spacing: 0;
+}
+/* a cover in a document does not swing in from the side or twinkle. It appears,
+   it says what it is loading, and it goes. */
+html[data-skin='plain'] .tr-in .tr-scene,
+html[data-skin='plain'] .tr-out .tr-scene { animation-timing-function: linear; }

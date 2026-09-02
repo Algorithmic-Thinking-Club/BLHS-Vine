@@ -152,7 +152,12 @@
    * control in the kit, because a ring that differs per panel reads as a bug. */
   --kit-focus: #ffd98a;
   --kit-focus-width: 2px;
-  --kit-focus-offset: 3px;
+  /* ONE PIXEL, MEASURED OFF A PICTURE. At three the ring is a loose rectangle
+     floating around a carved sign rather than part of it, which is what every
+     shot in `build-shots/ui/after/` shows on whichever control the panel focused
+     when it opened. An outline does not take part in layout, so tightening it
+     cannot move anything. */
+  --kit-focus-offset: 1px;
 
   /* ---- type ------------------------------------------------------------- */
   --kit-face-display: 'Harbormaster', 'Deckhand', monospace;
@@ -854,7 +859,14 @@ html[data-skin='plain'] [tabindex]:focus-visible {
  * `outline` and never `border`: an outline does not take part in layout, so a
  * ring cannot move the thing it is drawn around, which is what makes it safe to
  * put on absolutely everything. */
-:where(button, a[href], select, summary, [tabindex]:not([tabindex='-1'])):focus-visible,
+/* `textarea` and `[contenteditable]` are in the list because the PLAIN arm's own
+   list has them, and two arms with different keyboard affordances by
+   construction is a usability difference inside the one comparison the whole
+   instrument exists to make. Neither exists in the tree today, which is exactly
+   why it had to be written now rather than when the first one ships. */
+:where(button, a[href], select, summary, textarea,
+       [contenteditable]:not([contenteditable='false']),
+       [tabindex]:not([tabindex='-1'])):focus-visible,
 .kit-focusable:focus-visible {
   outline: var(--kit-focus-width) solid var(--kit-focus);
   outline-offset: var(--kit-focus-offset);

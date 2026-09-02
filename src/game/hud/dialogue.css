@@ -1,21 +1,71 @@
 /* Station dialogue. The BOX itself is the cutscene overlay's (.cs-dialogue in
    cutscene/ui-kit.css) so a line from the counselor and a line from a cutscene
-   are the same picture. Only the things around it live here. */
+   are the same picture. The column it stands in, the choices dealt above it and
+   the caret live here. */
 
 @import '../cutscene/ui-kit.css';
 
+/* ---- the veil ------------------------------------------------------------
+ *
+ * THE LAYER IS THE WHOLE FIX AND IT COST FOUR PANELS. This was `z-index: 80`
+ * with a comment arguing itself into it, and 80 is above the pause sheet (74),
+ * the Handbook (75), the planner (76), a beat (77) and the wardrobe (78). A
+ * fixed, full-screen, transparent, click-eating sheet sat over all five. So a
+ * station line arriving while a student had the Handbook open made the Handbook
+ * unclickable, with nothing on screen to say why and nothing to close.
+ *
+ * `stage/placecard.css` already wrote down where this belongs: *"under the
+ * dialogue box (72) and every panel"*. 72 it is. Over the world (0), over the
+ * HUD stack (50), over the arrival card (68), and under every panel veil, which
+ * is the order §40.15 describes: a panel is modal over a conversation, and a
+ * conversation is modal over the world. */
 .dlg-veil {
   position: fixed; inset: 0;
-  z-index: 80;                 /* over the HUD stack (50), under the Handbook (75)? no:
-                                  above both, because a station's line is modal while it
-                                  is up and clicking a HUD button underneath it would
-                                  start a second thing on top of the first */
+  z-index: 72;
   pointer-events: auto;
 }
 
-/* the box is absolute-positioned by .cs-dialogue; this only re-asserts the
-   layer, since the veil is a new stacking context */
-.dlg-box { z-index: 2; }
+/* ---- the conversation, as ONE bottom-anchored column ---------------------
+ *
+ * THE BUG THIS ENDS. The choices were positioned at
+ * `bottom: calc(max(2.4vh,16px) + min(190px,26vh) + 10px)`, which is the box's
+ * own offset plus the box's own height, retyped. §40.14 then made the box GROW
+ * to its content (`ui-kit.css`: min-height and max-height, not height), because
+ * a member writing four lines at text size L was pushing words out of a painted
+ * window. From that day the second term was a number that had stopped being
+ * true, so a long question laid its planks straight on top of the paper.
+ *
+ * One column, anchored at the bottom, and the arithmetic is deleted rather than
+ * corrected. The box is as tall as it needs to be and the choices sit on top of
+ * it because that is what a flex column does.
+ *
+ * It takes no clicks of its own: the gaps between the planks belong to the veil
+ * underneath, so a student clicking the space beside a choice advances nothing
+ * instead of hitting an invisible sheet. */
+.dlg-stack {
+  position: absolute;
+  left: 50%;
+  bottom: max(2.4vh, 16px);
+  transform: translateX(-50%);
+  width: min(560px, 58vw);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  /* the choices size their type against THIS, not against the window, so a
+     narrow Chromebook window and a projector get the same relationship between
+     a plank and the words on it */
+  container-type: inline-size;
+  pointer-events: none;
+}
+/* AND WHEN THERE IS A PANEL, THE SHEET STANDS DOWN. `Dialogue` adds this while
+   `panelDepth() > 0`: the box keeps its own clicks, the screen-wide sheet gives
+   its up, so an open Handbook cannot be made unclickable by a line arriving
+   behind it. */
+.dlg-veil-open { pointer-events: none; }
+
+.dlg-box { pointer-events: auto; }
 
 /* the caret while the typewriter is still running: §2 law 4, a static frame is
    a bug, and it is also how a player knows the line has not finished */
@@ -31,26 +81,124 @@
 @keyframes dlg-blink { 50% { opacity: 0; } }
 html[data-rm='1'] .dlg-caret { animation: none; }
 
-/* ---- the choices, fanned above the box ---- */
+/* ---- the portrait's column ----------------------------------------------
+ *
+ * The width arrives from the dialogue piece's own `portrait` region when the
+ * platform publishes one (`DialogueBox.portraitColumn`), and this is what stands
+ * when it does not. The frame itself is the kit's `portrait_frame`, so the
+ * measurements below are only the column, never the picture. */
+.dlg-portrait {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 26%;
+  display: flex;
+  pointer-events: none;
+}
+/* WHEN THE PLATFORM HAS NOT SENT A FRAME. `portrait_frame` has no committed
+   fallback in `public/art/ui/`, so with no platform kit the drawn frame is
+   simply absent and a face would float on the paper. `DialogueBox` adds this
+   class in that case: a token plate, so a portrait that has not been drawn yet
+   still leaves a clean empty frame rather than a hole. */
+.dlg-portrait-bare {
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-card);
+  background-color: var(--kit-paper-lo);
+  box-sizing: border-box;
+}
+
+/* two classes, so it beats `.kit-portrait`'s own 108 by 100 default whichever
+   order the two stylesheets happen to be injected in */
+.dlg-box .kit-portrait {
+  width: 100%;
+  height: auto;
+  align-self: stretch;
+}
+
+/* ---- THE ADVANCE CUE, WHICH IS A DRAWN PAW ------------------------------
+ *
+ * `GAME-DESIGN` §11.1 asked for "a bouncing paw-print continue cue" and MAPVIS
+ * drew it: the `cue` piece publishes frame_1 to frame_4, four frames of a paw
+ * print, and until this file nothing in `src/` had ever read that piece. What
+ * was on screen instead was the word `click`, at a size that ignored the text
+ * setting, pulsing.
+ *
+ * Four faces stacked on one square, one visible at a time, a quarter of the
+ * cycle each. A sprite sheet cannot be cross-faded without showing two paws at
+ * once, so the switch is `steps(1, end)` and the keyframe is a hard cut, which
+ * is also what a four-frame pixel animation is supposed to look like.
+ *
+ * `Glyph` draws nothing at all when the kit has not landed or the face was
+ * never cut, so a missing sheet leaves the words alone rather than four empty
+ * squares. */
+/* A GRID CELL RATHER THAN FOUR ABSOLUTE BOXES. `Glyph` sizes a face by its own
+   drawn proportion (`ui/controls.tsx`) and hands the width back inline, and an
+   inline width inside `position: absolute; inset: 0` is over-constrained: the
+   right edge is dropped and a face that is not square hangs out of its own box.
+   Four children in one grid cell stack the same way, keep each face's real
+   shape, and let the square size itself off the drawing. */
+.dlg-paw {
+  display: grid;
+  flex: none;
+}
+.dlg-paw-f {
+  grid-area: 1 / 1;
+  opacity: 0;
+  animation: dlg-paw 1400ms steps(1, end) infinite;
+}
+.dlg-paw-f2 { animation-delay: 350ms; }
+.dlg-paw-f3 { animation-delay: 700ms; }
+.dlg-paw-f4 { animation-delay: 1050ms; }
+@keyframes dlg-paw {
+  0%, 24.99% { opacity: 1; }
+  25%, 100%  { opacity: 0; }
+}
+/* a looping cue STOPS rather than shortening: an infinite animation at 1ms is a
+   strobe, which is worse than the thing the setting was turned on to stop. It
+   keeps the first frame, which is a whole paw print. */
+html[data-rm='1'] .dlg-paw-f { animation: none; opacity: 0; }
+html[data-rm='1'] .dlg-paw-f1 { opacity: 1; }
+
+/* the words beside the paw, and the only thing on screen that names both ways
+   to go on. They breathe; the paw carries the motion. */
+.dlg-hint-words {
+  animation: dlg-hintpulse 1800ms ease-in-out infinite;
+}
+@keyframes dlg-hintpulse { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
+html[data-rm='1'] .dlg-hint-words { animation: none; opacity: 1; }
+
+/* ---- the choices, dealt like held cards ---------------------------------
+ *
+ * NOT `<Plank>`, and that is a decision rather than an oversight. The kit's
+ * plank wraps its label in `.kit-plank-ink`, which is `white-space: nowrap` with
+ * an ellipsis, because a title-screen button must never break "Continue - Year
+ * 1, Spring" in half. A CHOICE is the opposite case: §40.13 asks for a defined
+ * long-option behaviour, and truncating the thing a student is being asked to
+ * decide between is the worst answer available. So it wears the same drawn
+ * plank (`kit-surface-plank`, `--kit-art-plank`, the dark rope sign Ash kept)
+ * and carries the state grammar itself, and its label wraps. */
 .dlg-choices {
-  position: absolute;
-  left: 50%;
-  bottom: calc(max(2.4vh, 16px) + min(190px, 26vh) + 10px);
-  transform: translateX(-50%);
-  width: min(560px, 58vw);
-  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
-  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  pointer-events: auto;
 }
 
 .dlg-choice {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   min-height: 44px;
-  padding: 10px 22px;
-  background: var(--kit-art-plank) center / 100% 100% no-repeat;
-  image-rendering: var(--kit-pixel);
-  border: none; outline: none; cursor: pointer;
+  padding: 10px 20px;
+  box-sizing: border-box;
+  border: none;
+  background-color: transparent;
+  cursor: pointer;
+  text-align: left;
   font-family: var(--kit-face-display);
-  --kit-fs-raw: clamp(15px, 2.2vh, 21px); font-size: var(--kit-fs);
+  --kit-fs-raw: calc(3.6cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
   color: var(--kit-plank-ink);
   text-shadow: 0 2px 0 var(--kit-plank-shadow);
   filter: drop-shadow(0 4px 10px var(--kit-plank-drop));
@@ -64,27 +212,60 @@ html[data-rm='1'] .dlg-caret { animation: none; }
 .dlg-choice:nth-child(4) { animation-delay: 165ms; }
 @keyframes dlg-deal { from { transform: translateY(10px) rotate(-1.2deg); opacity: 0; } to { transform: none; opacity: 1; } }
 
-.dlg-choice:hover { transform: translateY(-1px); filter: drop-shadow(0 6px 14px var(--kit-plank-glow)); }
-.dlg-choice:active { transform: translateY(2px); }
+.dlg-choice:hover:not(:disabled) { transform: translateY(-1px); filter: drop-shadow(0 6px 14px var(--kit-plank-glow)); }
+.dlg-choice:active:not(:disabled) { transform: translateY(2px); filter: drop-shadow(0 1px 4px var(--kit-plank-drop)); }
 html[data-rm='1'] .dlg-choice { animation: none; }
 
-html[data-textsize='s'] .dlg-choice { --kit-fs-raw: clamp(13px, 1.9vh, 18px); font-size: var(--kit-fs); }
-html[data-textsize='l'] .dlg-choice { --kit-fs-raw: clamp(18px, 2.7vh, 26px); font-size: var(--kit-fs); }
-
-/* THE KEY BESIDE THE POINTER. J1: a pointer path for every key path and a key path
-   for every pointer path, with neither as the fallback. A choice is a button you
-   can click and a number you can press, and the number is on the button so a
-   keyboard player can see it rather than having to guess it. */
-.dlg-choice-key {
-  display: inline-block;
-  min-width: 1.4em;
-  margin-right: .5em;
-  padding: 0 .25em;
-  border: 1px solid var(--kit-plank-keyline);
-  border-radius: 2px;
-  --kit-fs-raw: .74em; font-size: var(--kit-fs);
-  opacity: .8;
+/* THE ANSWERED STATE, WHICH DID NOT EXIST. A student pressed a card and the
+   whole conversation vanished with nothing saying the press had landed. The one
+   they chose stands forward and keeps its lift; the ones they did not stand
+   down, lose their shadow and sit back. Two shapes and two positions, so it
+   still reads on a panel that has crushed the colour out of it (§40.31). */
+.dlg-choice:disabled {
+  cursor: default;
+  transform: translateY(3px) scale(.97);
+  filter: grayscale(.5) brightness(.86);
 }
+.dlg-choice-chosen {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 7px 16px var(--kit-plank-glow));
+}
+
+/* THE LABEL WRAPS, which is the whole reason this is not a `<Plank>`. A member
+   can write a sentence into an option and it stays readable; the plank art is a
+   stretched shape rather than a nine-slice, so the sign grows with it. */
+.dlg-choice-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+/* THE KEY BESIDE THE POINTER. §40.28: a pointer path for every key path and a
+   key path for every pointer path, with neither as the fallback. A choice is a
+   button you can click and a number you can press, and the number is ON the
+   button so a keyboard player can see it rather than having to guess it.
+   The plate under the number is `chip/plate`, drawn by MAPVIS. When the kit has
+   not landed, or in the plain arm where drawn faces are refused on purpose, the
+   keyline below is what is left: a token-coloured shape, never a glyph. */
+.dlg-choice-key {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.7em;
+  min-height: 1.7em;
+  padding: 0 .3em;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  image-rendering: var(--kit-pixel);
+  border: 1px solid var(--kit-plank-keyline);
+  border-radius: var(--kit-r-sharp);
+  --kit-fs-raw: .8em;
+  font-size: var(--kit-fs);
+  opacity: .85;
+}
+
 .dlg-choice:focus-visible {
   outline: var(--kit-focus-width) solid var(--kit-focus);
   outline-offset: var(--kit-focus-offset);
@@ -93,3 +274,46 @@ html[data-textsize='l'] .dlg-choice { --kit-fs-raw: clamp(18px, 2.7vh, 26px); fo
   outline: var(--kit-focus-width) solid var(--kit-focus);
   outline-offset: 4px;
 }
+
+/* ---- §16, THE PLAIN ARM -------------------------------------------------
+ *
+ * This stylesheet had no plain block at all, so the control arm of the study
+ * read its questions off dark rope planks with a drop shadow under each one.
+ * Ash's ruling, 2026-08-31: a document a person could have written. No game
+ * art, no wood grain, no lift, no deal. What is left is a real form: a numbered
+ * list of buttons under a question, in the system face, black on white.
+ *
+ * The planks keep `kit-surface-plank`, which `tokens.css` already answers for
+ * this arm, so a choice looks like every other button in the plain arm rather
+ * than like a fifth kind of control. */
+html[data-skin='plain'] .dlg-choice {
+  animation: none;
+  filter: none;
+  text-shadow: none;
+  border-radius: var(--kit-r-soft);
+}
+html[data-skin='plain'] .dlg-choice:hover:not(:disabled) { transform: none; filter: none; }
+html[data-skin='plain'] .dlg-choice:active:not(:disabled) { transform: translateY(1px); }
+/* the answer still reads without a hue here either: the chosen row keeps a ring
+   drawn around it, the ones passed over go quiet */
+html[data-skin='plain'] .dlg-choice:disabled { transform: none; filter: none; opacity: .55; }
+html[data-skin='plain'] .dlg-choice-chosen {
+  transform: none;
+  filter: none;
+  outline: var(--kit-border) solid var(--kit-edge-strong);
+  outline-offset: 2px;
+}
+html[data-skin='plain'] .dlg-choice-key {
+  background: none;
+  border: 1px solid var(--kit-plank-keyline);
+  opacity: 1;
+}
+html[data-skin='plain'] .dlg-caret { animation: none; }
+/* the paw is drawn art and the arm has none. `faceStyle` already refuses a face
+   outside the paper skin, so this is the second fence rather than the first. */
+html[data-skin='plain'] .dlg-paw { display: none; }
+html[data-skin='plain'] .dlg-hint-words { animation: none; opacity: 1; }
+/* THE PORTRAIT IS THE INTERVENTION, so the control arm does not get one. §40.11:
+   "the plain arm renders the same words with no character around them", and it
+   is the one field on the line that is a picture rather than a sentence. */
+html[data-skin='plain'] .dlg-portrait { display: none; }

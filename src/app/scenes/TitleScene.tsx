@@ -4,13 +4,43 @@ import { beginAdventure, loadSave } from '../../game/save'
 import { track } from '../../game/telemetry'
 import { GearButton, SettingsPanel, applySettings, loadSettings } from '../SettingsPanel'
 import { HOME_TARGET, enterMap } from '../../game/pmap/route'
+import { Glyph, Plank } from '../../game/ui/controls'
 import './boot-title.css'
 
-// Title (GAME-DESIGN §4.2). The backdrop is the cove itself — for now a captured frame of
+// Title (GAME-DESIGN §4.2). The backdrop is the cove itself, for now a captured frame of
 // the live beach (Thor on his pier, the ship at berth) with a slow ambient drift; it swaps
 // to the real BeachIso idling underneath once the scene exposes an ambient mode (the ship
 // session owns that file right now). Wordmark on the carved signboard, gull perched on it
-// (click: it flaps to the other end), smart CTA off the save, corner controls.
+// (press: it flaps to the other end), smart CTA off the save, corner controls.
+
+/* WHAT THIS SESSION CHANGED HERE, AND WHY EVERY LINE OF IT IS APPEARANCE.
+ *
+ * `docs/ops/BRIEF-UI.md`'s do-not list gives the student route to another
+ * session: "Change the student route or the title's targets". So `resume`, `go`,
+ * `enterMap`, `HOME_TARGET` and the two `nav.go` calls below are byte for byte
+ * what they were. Nothing here decides where a press lands.
+ *
+ * THE ONE STRING A STUDENT SEES MOST WAS UNREADABLE THREE WAYS AT ONCE, measured
+ * off `build-shots/ui/before/01-title.png`:
+ *
+ *   1. It carried an EM DASH, in player copy, which this repo's own law forbids
+ *      (`src/game/run/vignettes.ts:3`), on the single most-read string in the game.
+ *   2. It DID NOT FIT. `.ti-plank` is `min(340px, 44vw)` at 512/192 with a 12%
+ *      padding, so "Continue - Year 3, Winter" wrapped to two lines and the
+ *      second line left the sign entirely.
+ *   3. The plank is the DARK WOOD one Ash chose, so pale ink is the only ink
+ *      that reads on it, and the label was carrying its own colour.
+ *
+ * All three are one fix: the sign says CONTINUE, which is a word that fits at any
+ * text size in any of the three settings, and the year and the season move onto
+ * their own small carved plate under it, where they have room and where the
+ * season wears the drawn `pip` face MAPVIS already cut for it. The plank itself
+ * is the kit's `<Plank>` now, so it inherits rest, hover, press, disabled, focus
+ * and busy from one file (`ui/controls.tsx`) instead of from three rules here.
+ *
+ * AND THE GULL IS A BUTTON. It was an `<img onClick>`: a control with a pointer
+ * path and no key path at all, which §40.28 rules out, on the one screen every
+ * student meets first. Same bird, same flap, now reachable by Tab. */
 
 export default function TitleScene() {
   const nav = useNav()
@@ -37,7 +67,7 @@ export default function TitleScene() {
    * carries all eleven anchors including the `arrive_maw` this aims at, so the real
    * room replaces it the moment Ash publishes with no code change here.
    *
-   * Both rides use the illustrated scene cover (calm, heavy — never a flash). */
+   * Both rides use the illustrated scene cover (calm, heavy, never a flash). */
   const resume = (introDone: boolean) => {
     if (introDone) {
       /* the address goes down with the navigation and never without it: PmapScene
@@ -71,18 +101,34 @@ export default function TitleScene() {
             <span className="ti-line1">BLHS</span>
             <span className="ti-line2">ISLAND EXPLORER</span>
           </div>
-          <img
+          {/* A REAL BUTTON ROUND THE BIRD. It has always been pressable and it has
+              never been reachable: §40.28 asks for a key path beside every pointer
+              path, and this one had none. The label says what pressing it does,
+              because "gull" is a noun and an accessible name is a verb. */}
+          <button
             key={gullHop}
-            className={`ti-gull pix ${gullRight ? 'ti-gull-right' : ''}`}
-            src="/art/intro/props/gull.png" alt="" draggable={false}
-            onClick={flapGull} title=""
-          />
+            type="button"
+            className={`ti-gull ${gullRight ? 'ti-gull-right' : ''}`}
+            aria-label="Send the gull to the other end of the sign"
+            onClick={flapGull}
+          >
+            <img className="ti-gull-pic pix" src="/art/intro/props/gull.png" alt="" draggable={false} />
+          </button>
         </div>
 
         <div className="ti-actions">
-          <button className="ti-plank" onClick={go}>
-            <span className="ti-plank-label">{save ? `Continue — Year ${save.year}, ${save.season}` : 'Begin Adventure'}</span>
-          </button>
+          {/* ONE WORD ON THE SIGN. The year and the season are underneath it on
+              their own plate, so the label can never wrap off the wood again and
+              the two facts a returning student wants are still both on screen. */}
+          <Plank size="lg" className="ti-plank" onClick={go}>
+            {save ? 'Continue' : 'Begin Adventure'}
+          </Plank>
+          {save && (
+            <div className="ti-berth">
+              <Glyph piece="pip" face={save.season.toLowerCase()} size={18} className="ti-berth-pip" />
+              <span className="ti-berth-ink">Year {save.year}, {save.season}</span>
+            </div>
+          )}
         </div>
       </div>
 
