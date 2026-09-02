@@ -14,7 +14,7 @@
 //
 // Route: ?scene=pmap&map=<id>  (default quayprop)  ·  &dbg=1 overlays the levels mask
 import { useEffect, useRef, useState } from 'react'
-import { Application, Assets, Container, Graphics, Rectangle, Sprite, Text, TextStyle, Texture, TextureSource } from 'pixi.js'
+import { Application, Assets, Container, Graphics, NineSliceSprite, Rectangle, Sprite, Text, TextStyle, Texture, TextureSource } from 'pixi.js'
 import {
   HW, HH, isoX, isoY, DEPTH_RANGE, loadWaterVariants, configSeaTile, animSwells,
   type SwellSprite,
@@ -70,7 +70,23 @@ import { coverFor, markSeen, seenThisSession, titleOfMap } from '../stage/covers
 import { showPlaceCard } from '../stage/stage-bus'
 import { motionMs, prefersReducedMotion } from '../ui/motion'
 import { uiBand } from '../ui/frame'
-import { kitSprite } from '../ui/kitSprite'
+import { kitNineSlice, kitPieceHeight, kitSprite, kitTexture } from '../ui/kitSprite'
+
+/* THE FIVE STATES THE IN-WORLD PROMPT CAN BE IN, which Part IV §40.5 enumerates
+ * and which this engine had four strings and one style for.
+ *
+ *   plain      an interactable, open, nothing special about it
+ *   objective  the one thing the year is currently sending the player to
+ *   barred     a door with nothing behind it, said in the world's own words
+ *   needs      a station that is closed right now, and says why
+ *   done       used already this sitting, so the room reads as somewhere that
+ *              remembers rather than as a menu of identical buttons
+ *
+ * `done` is the one with no source anywhere in the run: nothing in the save
+ * records what was touched THIS SITTING, on purpose, because a fresh sitting is
+ * supposed to be fresh. So the scene keeps its own set for the life of the page,
+ * which is exactly the lifetime the state describes. */
+export type PromptState = 'plain' | 'objective' | 'barred' | 'needs' | 'done'
 import { composeWorldText, WORLD_TEXT } from '../ui/worldText'
 import { MAW_MAP, isObjective, nextObjective } from '../run/objective'
 import { missingAnchors } from '../maw/stations'
@@ -908,6 +924,22 @@ export default function PmapScene() {
       // ---- Pixi ----
       TextureSource.defaultOptions.scaleMode = 'nearest'
       const app = new Application()
+      /* THE ACCESSIBILITY LAYER IS ON, AND THIS IS THE LINE THAT SAYS SO.
+       *
+       * Pixi builds a shadow DOM button over any display object that sets
+       * `accessible`, and until the prompt was rebuilt nothing in src/game ever
+       * set it, so the only control inside the world (the way into every
+       * station, every door and both berths) could not be reached by Tab and was
+       * invisible to a screen reader. §40.27 asks for the layer by name.
+       *
+       * NOTHING IS PASSED HERE ON PURPOSE, checked against
+       * `node_modules/pixi.js/lib/accessibility/AccessibilitySystem.js:554`
+       * rather than assumed: `activateOnTab` already defaults to true, so the
+       * overlay builds itself the first time somebody presses Tab and a student
+       * on a trackpad pays nothing for it. `enabledByDefault` is false and
+       * should stay false for the same reason. The type on `app.init` does not
+       * carry `accessibilityOptions` in this build, so passing the default back
+       * in would be a cast around a check for no gain. */
       await app.init({ resizeTo: window, background: coastCut ? '#073442' : '#05080c', antialias: false })
       if (destroyed) { app.destroy(true, { children: true }); return }
       instance = app
@@ -1908,18 +1940,199 @@ export default function PmapScene() {
       pin.zIndex = 9e9
       world.addChild(pin)
 
-      // ---- the door prompt: one tag in the pin's own text styling, shown
-      // over the nearest door whose ring Thor's feet are inside. UI, so it
-      // renders at net screen scale 1 like the pin. ----
+      /* ---- THE ONE UI ELEMENT INSIDE THE WORLD, DRAWN AT LAST -----------
+       *
+       * WHAT WAS HERE. `new TextStyle({ fontFamily: 'monospace', fontSize: 12 })`
+       * with a three pixel stroke round it and nothing behind it. Part IV §40.5
+       * had already written the verdict: this is "the one UI element inside the
+       * world" and it "is the one that is not made of the kit, not in either
+       * commissioned face, and not drawn art at all". Twelve pixels of whatever
+       * monospace the machine happens to ship, on the label a student reads more
+       * often than any other string in the game, on a school Chromebook.
+       *
+       * It was also the only text in the game the S/M/L text setting could not
+       * reach, because it is a canvas object and `--kit-text-scale` is CSS.
+       *
+       * WHAT IT IS NOW. A drawn plaque out of the kit, holding the label in the
+       * commissioned body face at a size the setting moves, plus a drawn mark
+       * that says WHICH KIND of thing this is. `socket` is the piece: 424x104
+       * with a real nine-slice, a wood frame with a rope inlay round a parchment
+       * field, which is exactly what a hanging prompt is.
+       *
+       * FIVE STATES, WHICH IS THE OTHER HALF §40.5 ASKS FOR AND THE HALF THAT WAS
+       * MISSING ENTIRELY. The prompt had four reachable STRINGS and one style, so
+       * a barred door and an open one differed only in their words, and the two
+       * states that matter most had no code path at all: the objective, and a
+       * thing already done this session. `isObjective` is imported at the top of
+       * this file and was called in exactly ONE place, to stamp a boolean into a
+       * log line, so the engine knew which anchor the year was pointing at on
+       * every frame and never told the student.
+       *
+       * AND NO STATE IS CARRIED BY HUE ALONE (§40.31). Each one changes the MARK
+       * as well as the ink, because the deployment target is a panel that crushes
+       * both lightness and saturation.
+       *
+       * THE ENGINE ANNOTATES BESIDE THE ART AND NEVER OVER IT (§40.5, verbatim:
+       * "Deliberately not a glow on the station itself, because the station is
+       * Ash's art and the marker is the engine's"). The plaque hangs above the
+       * anchor; nothing is drawn on top of the painting. */
+
+      /* the ink per state. Extracted from `src/game/ui/tokens.css` rather than
+       * invented, so the world's one piece of type is the same ink as the paper
+       * panels: --kit-ink-said, --kit-sea-ink, --kit-ink-dim, --kit-ink-label and
+       * --kit-ink-quiet.
+       *
+       * BLHS TEAL MARKS THE OBJECTIVE AND GOLD DOES NOT. `docs/ART.md`: "gold
+       * means an earned honor and nothing else". The thing the year wants you to
+       * do next has not been earned yet. */
+      const PROMPT_INK: Record<PromptState, number> = {
+        plain: 0x3b2a1a,
+        objective: 0x234c40,
+        barred: 0x8a7a60,
+        needs: 0x6a563c,
+        done: 0x5a4a34,
+      }
+      /* the drawn face each state wears, off sheets the platform already
+       * publishes. `objective` wears none here because it wears the chevron
+       * ABOVE the plaque instead, which is a bigger shape difference than a mark
+       * inside a line of text. */
+      const PROMPT_FACE: Record<PromptState, string | null> = {
+        plain: null,
+        objective: null,
+        barred: 'lock',
+        needs: 'key',
+        done: 'tick',
+      }
+
+      /* WHAT THE PROMPT IS SET IN, AND WHY IT IS NOT TWELVE ANY MORE.
+       *
+       * `scripts/type-size.mjs` measured the paper panels and Ash's verdict on
+       * them was "I cant see shit"; the floor that came out of it is 14px and it
+       * is in `tokens.css` for every DOM surface. This is the one surface that
+       * floor could not reach. Sixteen at the default setting, moved by the same
+       * three multipliers `html[data-textsize]` writes, so the world's type and
+       * the panels' type answer one control. */
+      const promptSize = (): number => {
+        const v = typeof document === 'undefined' ? '' : document.documentElement.dataset.textsize
+        return Math.round(16 * (v === 's' ? 0.86 : v === 'l' ? 1.22 : 1))
+      }
+
+      const prompt = new Container()
+      prompt.zIndex = 9e9 - 1
+      prompt.visible = false
+      prompt.sortableChildren = true
+      world.addChild(prompt)
+
+      /* the plate arrives late and may never arrive at all: a classroom behind a
+       * district filter that cannot reach the platform still has to be able to
+       * read the prompt, so the text carries its own stroke until the art lands
+       * and drops it afterwards. */
+      let promptPlate: NineSliceSprite | null = null
+      let promptPlateH = 104
+      const promptMark = new Sprite()
+      promptMark.visible = false
+      promptMark.anchor.set(0, 0.5)
       const doorTxt = new Text({
         text: '',
-        style: new TextStyle({ fontFamily: 'monospace', fontSize: 12, fontWeight: 'bold', fill: 0xbaf3ea, stroke: { color: 0x06282c, width: 3 } }),
+        style: new TextStyle({
+          /* the commissioned body face, loaded into `document.fonts` by
+           * `main.tsx` before anything renders, with monospace behind it for the
+           * cold-cache frame */
+          fontFamily: ['Deckhand', 'monospace'],
+          fontSize: promptSize(),
+          fontWeight: 'bold',
+          fill: 0xbaf3ea,
+          stroke: { color: 0x06282c, width: 3 },
+        }),
       })
-      doorTxt.anchor.set(0.5, 1)
-      doorTxt.scale.set(1 / Z)
-      doorTxt.zIndex = 9e9 - 1
-      doorTxt.visible = false
-      world.addChild(doorTxt)
+      doorTxt.anchor.set(0, 0.5)
+      prompt.addChild(promptMark, doorTxt)
+      prompt.scale.set(1 / Z)
+
+      /* WHAT THE PROMPT IS SAYING RIGHT NOW, so the layout only runs when it has
+       * changed. This sits inside the per-frame ticker's reach, and a nine-slice
+       * resize plus a text measure every frame is sixty of both a second on the
+       * slowest machine in the deployment target. */
+      let promptSaid = ''
+      let promptWas: PromptState = 'plain'
+
+      /* THE PLAQUE IS SIZED BY WHAT IS WRITTEN ON IT, which is the whole reason
+       * `kitNineSlice` had to exist: `E · cast off` and
+       * `E · enter the panther's maw` are the same plaque at two widths, and a
+       * fixed-size cut face cannot be both. */
+      const layoutPrompt = () => {
+        const markW = promptMark.visible ? promptMark.texture.width : 0
+        const gap = markW ? 8 : 0
+        const bodyW = markW + gap + doorTxt.width
+        if (promptPlate) {
+          /* the art is drawn at 104 tall and is scaled down as a whole, so every
+           * corner keeps the proportion it was painted at. The pad is in the
+           * plate's own units. */
+          const k = (doorTxt.height + 14) / promptPlateH
+          const padX = 30
+          promptPlate.width = bodyW / k + padX * 2
+          promptPlate.scale.set(k)
+          promptPlate.x = -(promptPlate.width * k) / 2
+          promptPlate.y = -(promptPlateH * k) / 2
+        }
+        const left = -bodyW / 2
+        promptMark.x = left
+        promptMark.y = 0
+        doorTxt.x = left + markW + gap
+        doorTxt.y = 0
+      }
+
+      void (async () => {
+        promptPlate = await kitNineSlice('socket', 300)
+        if (!promptPlate) return
+        promptPlateH = kitPieceHeight('socket') ?? 104
+        promptPlate.zIndex = -1
+        prompt.addChild(promptPlate)
+        /* the stroke was standing in for a background. Now that there is one, it
+         * is noise round the letters. */
+        doorTxt.style.stroke = { color: 0x000000, width: 0 }
+        doorTxt.style.fill = PROMPT_INK[promptWas]
+        layoutPrompt()
+      })()
+
+      /** say something over an anchor, in one of the five states §40.5 names */
+      const setPrompt = (text: string, state: PromptState) => {
+        if (!text) { prompt.visible = false; promptSaid = ''; return }
+        prompt.visible = true
+        if (text === promptSaid && state === promptWas) return
+        promptSaid = text
+        promptWas = state
+
+        doorTxt.text = text
+        doorTxt.style.fontSize = promptSize()
+        doorTxt.style.fill = promptPlate ? PROMPT_INK[state] : 0xbaf3ea
+        /* THE READER AND THE KEYBOARD GET THE SAME SENTENCE THE EYE GETS. */
+        prompt.accessibleTitle = text
+
+        const face = PROMPT_FACE[state]
+        if (!face) { promptMark.visible = false; layoutPrompt(); return }
+        void (async () => {
+          const t = await kitTexture('icon_set', face)
+          promptMark.visible = !!t
+          if (t) promptMark.texture = t
+          layoutPrompt()
+        })()
+        layoutPrompt()
+      }
+
+      /* A POINTER PATH THAT A READER AND A KEYBOARD CAN ALSO SEE.
+       *
+       * `doorTxt.eventMode = 'static'` was the single eventMode in all of
+       * src/game, and a canvas object cannot be reached by Tab and cannot take
+       * the kit's focus ring, so every station, every door and both berth
+       * prompts were invisible to a screen reader and unreachable from the
+       * keyboard except by walking to them and pressing E. Pixi's own
+       * accessibility layer builds a shadow DOM button over a display object
+       * that asks for one, which is what these lines ask for. */
+      prompt.eventMode = 'static'
+      prompt.cursor = 'pointer'
+      prompt.accessible = true
+      prompt.accessibleType = 'button'
 
       /* A POINTER PATH BESIDE THE E PATH.
        *
@@ -1938,9 +2151,7 @@ export default function PmapScene() {
        * painting, which is the whole of AUTHORING §12), so what it hands over is a
        * closure rather than a name, and the tap path and the key path both call it. */
       let seaTap: (() => void) | null = null
-      doorTxt.eventMode = 'static'
-      doorTxt.cursor = 'pointer'
-      doorTxt.on('pointertap', () => {
+      prompt.on('pointertap', () => {
         if (seaTap) { seaTap(); return }
         if (promptAnchor) void fire(promptAnchor)
       })
@@ -2497,11 +2708,63 @@ export default function PmapScene() {
         return b
       }
 
+      /** the reserved id a member or a station uses to make the player speak */
+      const PLAYER_ID = 'thor'
+
+      /** an anchor name, a station name or the reserved player id, turned into
+       *  the string a fourteen year old reads on the plate */
+      const speakerLabel = (who: string | undefined): string | undefined => {
+        if (!who) return undefined
+        if (who === PLAYER_ID) return loadSave()?.handle || 'You'
+        const a = anchors.get(who)
+        if (a?.label) return a.label
+        const owner = ownerOf(who, grapeHandlers)
+        if (owner) return labelFor(owner, who)
+        /* NOT SILENTLY. A `who` that resolves to nothing is a typo in somebody's
+         * island or a station naming a body the map does not carry, and both look
+         * identical from here. `intents.ts` refuses an unknown anchor for
+         * `guide_to`, `walk_to`, `look_at` and `show` and has never checked
+         * `say`, so this is the one word where a mistake reached a student as a
+         * Python identifier on a name plate. It still speaks, because a line
+         * lost is worse than a line mislabelled, and it says which name failed. */
+        console.warn(`[pmap] ${mapId}: nobody called "${who}" is on this map, so the plate says so`)
+        return who
+      }
+
       const intentWorld: IntentWorld = {
         mapId: () => mapId,
         hasAnchor: (n) => anchors.has(n),
 
-        say: (who, text, portrait) => say({ who, text, portrait }),
+        /* WHO IS SPEAKING, IN THE PLAYER'S WORDS AND NEVER IN PYTHON'S.
+         *
+         * THE BUG, PHOTOGRAPHED. `build-shots/ui/before/06-dialogue.png` shows
+         * the name plate on the game's most-read surface reading
+         * `panthers_maw`. The author string went straight to the dialogue bus
+         * with no lookup at all, so the box printed the ANCHOR NAME, which is a
+         * validated Python identifier, at the exact spot the player reads a
+         * person's name.
+         *
+         * §40.12 states the law: "the player-facing string and the code-facing
+         * string are never the same string, anywhere in this game". MAPVIS keeps
+         * `name` and `label` apart on purpose (MAPVIS-next/src/core/mask.ts:143)
+         * so renaming a door for a player cannot silently break a member's
+         * island, and this was the one surface that threw the separation away.
+         *
+         * THE PRECEDENCE IS THE ONE ALREADY WRITTEN. `grape-router.ts:46-52`
+         * decides it for the interaction prompt: the anchor's own label wins,
+         * because whoever placed it in MAPVIS gets the last word on
+         * player-facing text; then a station's written fallback; then the bare
+         * name, which is the honest last resort rather than a guess assembled
+         * out of a handler key. Reused rather than restated, because two rules
+         * for one question is how they drift.
+         *
+         * AND THE PLAYER IS NOT CALLED 'thor'. `stations.ts` yields `who: 'thor'`
+         * twice and the plate printed the literal lowercase word, while the
+         * student's own handle has been sitting in the save since the join card.
+         * `public/grapes/castaway/lines.py:11` sets `THOR = None` specifically to
+         * dodge this, so the one shipped Python island shows NO plate rather than
+         * show the wrong name. One reserved id fixes both. */
+        say: (who, text, portrait) => say({ who: speakerLabel(who), text, portrait }),
         choose: (prompt, options) => choose({ prompt, options }),
 
         guideTo(name) {
@@ -3229,6 +3492,15 @@ export default function PmapScene() {
       const inZones = new Set<string>()
       const firedTriggers = new Set<string>()
 
+      /* WHAT HAS BEEN TOUCHED THIS SITTING, which is the source for §40.5's
+       * fifth prompt state and exists nowhere else in the run.
+       *
+       * Deliberately NOT in the save. A new sitting is supposed to be a fresh
+       * room: the state means "you just did this", not "you have ever done
+       * this", and the second one is what the ledger and the flags are for. A
+       * page for the life of a page is exactly the right lifetime. */
+      const usedThisSitting = new Set<string>()
+
       /* ---- PRESSING E: an anchor name becomes a running mechanic ----
        *
        * A door is still a door. Anything else asks `ownerOf`, which asks the
@@ -3256,6 +3528,7 @@ export default function PmapScene() {
         /* a grape does not need a save to talk; a station's body is handed one */
         if (owner.by === 'station' && !sv) return
         busy = true
+        usedThisSitting.add(a.name)
         stationHold = holdWorld(`station:${a.name}`)
         engine.log('station_used', {
           map: mapId, anchor: a.name, by: owner.by,
@@ -4137,7 +4410,7 @@ export default function PmapScene() {
         /* the screen-space chrome undoes whatever zoom is live, so a camera push
          * does not blow the YOU pin up with the painting */
         const uiS = 1 / camZ
-        if (pin.scale.x !== uiS) { pin.scale.set(uiS); doorTxt.scale.set(uiS); objMark.scale.set(uiS) }
+        if (pin.scale.x !== uiS) { pin.scale.set(uiS); prompt.scale.set(uiS); objMark.scale.set(uiS) }
         ;(window as any).__walk = `thor ${pos.x.toFixed(0)},${pos.y.toFixed(0)} lvl${lvlAt(pos.x, pos.y)}`
 
         /* the position, stamped with the bundle it was written against, so the
@@ -4176,13 +4449,12 @@ export default function PmapScene() {
             s.berth && Math.hypot(s.berth.x - at.x, s.berth.y - at.y) < 90)
           if (home?.berth) {
             const p = fromSea(home.berth.x, home.berth.y)
-            doorTxt.text = home.map === mapId ? 'E · tie up here' : `E · put in at ${home.title}`
-            doorTxt.position.set(p.x, p.y - 14 + Math.sin(t * 2.1) * 1.2)
-            doorTxt.visible = true
+            setPrompt(home.map === mapId ? 'E · tie up here' : `E · put in at ${home.title}`, 'plain')
+            prompt.position.set(p.x, p.y - 26 + Math.sin(t * 2.1) * 1.2)
             promptAnchor = null
             seaFire = () => dockAt(home)
           } else {
-            doorTxt.visible = false
+            prompt.visible = false
             promptAnchor = null
           }
         }
@@ -4191,9 +4463,8 @@ export default function PmapScene() {
         if (!hull && canSail && berth && !locked && !busy && !fade) {
           const p = fromSea(berth.x, berth.y)
           if (Math.hypot(p.x - pos.x, p.y - pos.y) < 110) {
-            doorTxt.text = 'E · cast off'
-            doorTxt.position.set(p.x, p.y - 14 + Math.sin(t * 2.1) * 1.2)
-            doorTxt.visible = true
+            setPrompt('E · cast off', 'plain')
+            prompt.position.set(p.x, p.y - 26 + Math.sin(t * 2.1) * 1.2)
             promptAnchor = null
             seaFire = board
           }
@@ -4210,6 +4481,12 @@ export default function PmapScene() {
           const owner = ownerOf(near.name, grapeHandlers)
           const label = near.label || labelFor(owner, near.name)
           let text = ''
+          /* THE STATE, WHICH THE ENGINE HAS ALWAYS KNOWN AND NEVER SAID.
+           * `isObjective` was imported at the top of this file and called in
+           * exactly one place, to stamp a boolean into a log line. So the game
+           * knew on every frame which anchor the year was pointing at, and told
+           * the analysis rather than the student. */
+          let state: PromptState = 'plain'
           if (near.kind === 'door') {
             checkDoor(near.to || '')
             const built = doorState.get(near.to || '')
@@ -4220,7 +4497,7 @@ export default function PmapScene() {
              * check is in flight, because offering a door and taking it back a
              * frame later is worse than a beat of nothing. */
             if (built === 'ok') { text = `E · enter ${label}`; canFire = true }
-            else if (built === 'missing') text = `${label} · the way is barred`
+            else if (built === 'missing') { text = `${label} · the way is barred`; state = 'barred' }
           } else {
             const sv = loadSave()
             if (!owner) {
@@ -4228,23 +4505,37 @@ export default function PmapScene() {
                * placed and named that nothing answers to. Named out loud rather
                * than silently ignored, because a typo in MAPVIS and a handler
                * nobody wrote look identical from here. */
-              if (DBG) text = `${label} · nothing answers to ${near.name}`
+              if (DBG) { text = `${label} · nothing answers to ${near.name}`; state = 'barred' }
             } else if (isReady(owner, sv)) {
               text = `E · ${label}`; canFire = true
+              /* USED ALREADY THIS SITTING. Still open, still pressable, and it
+               * says so quietly rather than looking identical to the one thing
+               * in the room the student has not touched. §40.5's fifth state. */
+              if (usedThisSitting.has(near.name)) { text = `E · ${label} · again`; state = 'done' }
             } else if (owner.by === 'station') {
+              /* THE STATION IS CLOSED AND SAYS WHY, in its own sentence rather
+               * than in a greyed-out control. §40.9: a control a student can
+               * press and be told why beats one that does not respond. */
               text = sv ? (owner.station.closed?.(sv) ?? label) : label
+              state = 'needs'
             }
           }
-          doorTxt.text = text
+          /* the objective outranks every other state it can share a plaque with,
+           * because it is the one the whole frame exists to make visible */
+          if (canFire) {
+            const sv = loadSave()
+            if (sv && isObjective(sv, mapId, near.name)) state = 'objective'
+          }
           // through spotOf, because an anchor bound to somebody who paces has
           // to wear its prompt where she is standing, not where she started
           const np = anchors.spotOf(near)
-          doorTxt.position.set(np.x, np.y - 6 + Math.sin(t * 2.1) * 1.2)
-          doorTxt.visible = !!text
+          setPrompt(text, state)
+          prompt.position.set(np.x, np.y - 18 + Math.sin(t * 2.1) * 1.2)
           /* the plaque is only tappable when E would do something, so a barred
            * door and a closed station read the same to a pointer as to a key */
+          prompt.eventMode = canFire ? 'static' : 'none'
           promptAnchor = canFire ? near : null
-        } else if (!seaFire) { doorTxt.visible = false; promptAnchor = null }
+        } else if (!seaFire) { prompt.visible = false; promptSaid = ''; promptAnchor = null }
         /* the plaque takes a tap on the water too, because "press E" is meaningless
          * on a trackpad and a berth is not an exception to that */
         seaTap = seaFire

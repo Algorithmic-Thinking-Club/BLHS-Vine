@@ -137,8 +137,40 @@ export const mapvisHost = (): string =>
 
 export function kitCached(): KitPiece[] | null { return cached }
 
+/* ---- WHEN THE KIT LANDS, AND WHY ANYTHING HAS TO BE TOLD ------------------
+ *
+ * FOUND BY LOOKING, 2026-09-01. `main.tsx` fires `loadKit()` without awaiting
+ * it and nothing re-renders when it answers, so every component that asks
+ * `faceStyle(...)` on its first render asks a kit that has not arrived, gets
+ * `undefined`, and draws the fallback FOR THE LIFE OF THE PAGE unless some
+ * unrelated state change happens to re-render it. The HUD got away with it
+ * because it re-renders on every save write; the year sheet's season token did
+ * not, which is why `build-shots/ui/before/08-planner.png` shows a CSS
+ * radial-gradient circle beside a HUD that is wearing the drawn compass.
+ *
+ * One generation counter, bumped once, is the whole fix. It is a plain module
+ * rather than context because the kit lands once per page and half the readers
+ * (`kitSprite.ts`) are outside React entirely.
+ */
+let generation = 0
+const landed = new Set<() => void>()
+
+/** bumped each time the kit changes, so a hook can use it as its state */
+export const kitGeneration = (): number => generation
+
+/** told once when the kit arrives (or is swapped in a test). Returns the unsubscribe. */
+export function onKitLanded(cb: () => void): () => void {
+  landed.add(cb)
+  return () => { landed.delete(cb) }
+}
+
+function announceKit(): void {
+  generation++
+  for (const cb of [...landed]) { try { cb() } catch { /* a bad listener is not the kit's problem */ } }
+}
+
 /** for tests and for the proof harness: install a kit without a fetch */
-export function setKit(pieces: KitPiece[]) { cached = pieces; inflight = null }
+export function setKit(pieces: KitPiece[]) { cached = pieces; inflight = null; announceKit() }
 
 export async function loadKit(host = mapvisHost()): Promise<KitPiece[]> {
   if (cached) return cached
@@ -272,6 +304,33 @@ const absolutise = (css: string, url: string): string =>
  * the nine-slice is not. See the note in kitCss for the arithmetic. */
 const SHAPES = new Set(['plank'])
 
+/* ---- THE ONE PIECE THE PLATFORM DOES NOT GET TO REPLACE -------------------
+ *
+ * RULED BY ASH, 2026-09-01, in `docs/ops/BRIEF-UI.md` item 1: "The plank button
+ * is the two-month-old public/art/ui/plank-button.png: Ash saw it swapped for
+ * the MAPVIS kit plank and liked the old one better. Restore it everywhere a
+ * plank is pressed."
+ *
+ * The two pieces are different objects, not two takes on one. The local plank is
+ * DARK WOOD with a rope inlay, drawn to be read with pale ink cut into it, which
+ * is what `--kit-plank-ink: #f0e4c8` has meant since the file was written. The
+ * platform's plank is a CREAM PARCHMENT field inside a wood frame, which wants
+ * dark ink. Mounting the platform's picture under the local ink is the exact
+ * failure in `build-shots/ui/before/01-title.png` and `13-wardrobe.png`: pale
+ * letters on pale parchment, and the two labels a student reads first in the
+ * whole game ("Continue - Year 1, Spring" and "Wear it well") are both illegible.
+ *
+ * SO THE TOKEN IS NOT WRITTEN AT ALL for this handle, and `:root`'s local url in
+ * `tokens.css` stays the answer. Blocking the token rather than restyling the
+ * ink is the smaller change and the one that survives a redraw: the day Ash
+ * publishes a plank he likes, deleting the handle from this set is the whole of
+ * wearing it.
+ *
+ * The platform's parchment plank is not wasted. It is the right ground for a
+ * WRITTEN-ON surface rather than a pressed one, and `.kit-surface-rail` and
+ * `.kit-surface-socket` carry that job. */
+const LOCAL_ART = new Set(['plank'])
+
 export function kitCss(pieces: KitPiece[], host = mapvisHost()): string {
   const tokens: string[] = []
   const blocks: string[] = []
@@ -279,6 +338,9 @@ export function kitCss(pieces: KitPiece[], host = mapvisHost()): string {
     const v = classify(p)
     if (!v.ok) continue
     const url = kitArtUrl(p, host)
+    /* LOCAL_ART wins outright: no token, no block, so `:root` in tokens.css is
+     * the only thing that ever answers for this handle. */
+    if (LOCAL_ART.has(v.handle)) continue
     if (url) tokens.push(`  --kit-art-${v.handle}: url('${url}');`)
     if (v.kind !== 'surface') continue
     /* A PLANK IS A SHAPE AND NOT A FRAME, so its art comes down and its
@@ -348,6 +410,10 @@ export function applyKit(pieces: KitPiece[], host = mapvisHost()): void {
    * hot reload has moved things around in the head. */
   el.textContent = css
   document.head.appendChild(el)
+  /* AND EVERYTHING THAT DRAWS A CUT FACE IS TOLD. The stylesheet lands on the
+   * document by itself; a React component asking `faceStyle` does not, because
+   * that reads the cached record rather than a CSS variable. */
+  announceKit()
 }
 
 /* ---- reading a rectangle off a piece --------------------------------------

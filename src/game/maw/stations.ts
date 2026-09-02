@@ -134,7 +134,14 @@ export const STATIONS: Station[] = [
         yield { kind: 'set_flag', flag: FOUNDING_FLAG }
         return
       }
-      yield { kind: 'say', who: 'principal', text: 'Back again. Good. The sea does not run out.' }
+      /* THE ANCHOR NAME, NOT A NICKNAME FOR IT. `who` is resolved against the
+       * map's anchors and then against the station table (PmapScene's
+       * `speakerLabel`), and no anchor called `principal` exists on
+       * panther-maw, so this string fell through every rule and printed the
+       * lowercase word `principal` on the plate. The anchor is `principal_desk`
+       * and its station carries `fallbackLabel: 'Principal Panther'`, which is
+       * the name a student should read. */
+      yield { kind: 'say', who: 'principal_desk', text: 'Back again. Good. The sea does not run out.' }
     },
   },
 

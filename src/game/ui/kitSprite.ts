@@ -20,7 +20,7 @@
  * caller keeps the primitive it was drawing before. A student on a filtered
  * network still has to be able to find the door.
  */
-import { Assets, Rectangle, Sprite, Texture } from 'pixi.js'
+import { Assets, NineSliceSprite, Rectangle, Sprite, Texture } from 'pixi.js'
 import { kitCached, kitFace, kitPiece, mapvisHost, kitArtUrl, loadKit } from './kit'
 
 /* one decode per sheet per session, shared by every face cut from it. `pointer`
@@ -74,4 +74,58 @@ export async function kitTexture(piece: string, face: string): Promise<Texture |
 export async function kitSprite(piece: string, face: string): Promise<Sprite | null> {
   const t = await kitTexture(piece, face)
   return t ? new Sprite(t) : null
+}
+
+/* ---- A STRETCHABLE GROUND, IN THE WORLD -----------------------------------
+ *
+ * THE HOLE THIS CLOSES. Everything above cuts a FIXED rectangle out of a sheet,
+ * which is right for a mark and wrong for a ground. `KitPiece.slice` and
+ * `KitPiece.repeat` have been in the type since the reader was written and the
+ * DOM half has used them through `border-image` all along; the Pixi half read
+ * neither, so a plaque could not stretch to hold `E · enter the panther's maw`
+ * and `E · cast off` at the same weight. Everything drawn inside the world
+ * therefore had to be a fixed-size mark or a `Text` with a stroke around it, and
+ * the in-world prompt was the second one: twelve pixel operating-system
+ * monospace, which is the one UI element in this game a student reads dozens of
+ * times a session.
+ *
+ * WHY THE HEIGHT IS THE PIECE'S OWN. A nine-slice has one silent failure and it
+ * is the same one CSS has: if `top + bottom` is taller than the box, the corners
+ * overlap and the middle inverts. The kit's `socket` is 104 tall with 21 and 29
+ * of frame, so any box under 50 pixels tall is drawn wrong. Rather than clamp
+ * and hope, the sprite is BUILT at the art's own height and the caller scales the
+ * whole thing down, which keeps every corner at its drawn proportion and cannot
+ * invert. That is why this takes a width and not a height.
+ *
+ * Same contract as everything else here: null when the piece is not published,
+ * has no slice, or the platform cannot be reached, and the caller keeps whatever
+ * it was drawing.
+ */
+export async function kitNineSlice(piece: string, width: number): Promise<NineSliceSprite | null> {
+  const sheet = await sheetOf(piece)
+  if (!sheet) return null
+  const p = kitPiece(kitCached() ?? [], piece)
+  const s = p?.slice
+  if (!p || !s) return null
+  /* the constraint that kills it quietly, checked out loud. `kit.ts` refuses a
+   * piece whose slice does not fit its own image; this refuses a REQUEST whose
+   * width cannot hold the two ends. */
+  if (!(p.w > 0 && p.h > 0) || s.left + s.right >= p.w || s.top + s.bottom >= p.h) return null
+  const w = Math.max(s.left + s.right + 1, Math.round(width))
+  return new NineSliceSprite({
+    texture: sheet,
+    leftWidth: s.left,
+    topHeight: s.top,
+    rightWidth: s.right,
+    bottomHeight: s.bottom,
+    width: w,
+    height: p.h,
+  })
+}
+
+/** the drawn height of a stretchable piece, so a caller can work out the scale
+ *  it needs before the art has arrived */
+export function kitPieceHeight(piece: string): number | null {
+  const p = kitPiece(kitCached() ?? [], piece)
+  return p?.h && p.h > 0 ? p.h : null
 }

@@ -251,3 +251,43 @@ describe('the kit is worn by default, and can be taken off', () => {
     expect(kitOptedIn('?kit=off')).toBe(false)
   })
 })
+
+/* ---- THE ONE PIECE THE PLATFORM DOES NOT GET TO REPLACE -------------------
+ *
+ * Ash ruled on 2026-09-01 (docs/ops/BRIEF-UI.md item 1) that the plank is the
+ * two-month-old `public/art/ui/plank-button.png` and not MAPVIS's, because he
+ * saw the swap and liked the old one better. That ruling lives in one Set in
+ * `kit.ts` and would be undone by a one-word edit with nothing failing: the
+ * symptom is pale ink on pale parchment on the title screen and in the
+ * wardrobe, which is a thing you find by looking rather than by running.
+ *
+ * So it is held down here. The plank comes off the wire and reaches neither the
+ * token nor the stylesheet.
+ */
+const PLANK: KitPiece = {
+  name: 'plank', type: 'plank', w: 404, h: 247,
+  slice: { top: 25, right: 43, bottom: 43, left: 31 },
+  fill: true, scale: 1, repeat: { x: 'round', y: 'round' },
+  src: '/api/v1/ui/plank/image', sha: 'plankshaplankshaplanksha',
+  css: ".kit-surface-plank {\n  border-image: var(--kit-art-plank, url('/api/v1/ui/plank/image?v=planksha'))"
+    + ' 25 43 43 31 fill / 1 / 0 round;\n}',
+}
+
+describe("the plank is Ash's, and the platform cannot take it back", () => {
+  it('writes no art token for it, so :root in tokens.css stays the answer', () => {
+    const css = kitCss([PLANK, DIALOGUE], HOST)
+    expect(css).not.toContain('--kit-art-plank')
+    /* the dialogue box in the same kit still lands, so this is a refusal of one
+     * handle and not of the fetch */
+    expect(css).toContain('--kit-art-dialogue')
+  })
+
+  it('injects no rule for it either, so nothing can restyle it from the wire', () => {
+    expect(kitCss([PLANK], HOST)).not.toContain('.kit-surface-plank')
+  })
+
+  it('is not a fault, because there is nothing wrong with the piece', () => {
+    // it is a deliberate refusal to WEAR it, not a refusal to read it
+    expect(kitFaults([PLANK])).toEqual([])
+  })
+})

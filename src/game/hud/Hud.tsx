@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Handbook } from './Handbook'
 import { SettingsPanel } from '../../app/SettingsPanel'
 import { Planner } from '../planner/Planner'
@@ -19,7 +19,8 @@ import { onWorldHold, worldHeld } from '../world-bus'
 import { onPlaceCard, onStageBusy, placeCardUp } from '../stage/stage-bus'
 import { panelDepth, usePanel } from '../ui/a11y'
 import { faceStyle } from '../ui/kitFaceStyle'
-import { hudGrants } from './inventory'
+import { Glyph, Plank, useKitReady } from '../ui/controls'
+import { hudGrants, type HudElement } from './inventory'
 import './hud.css'
 
 /* WHAT A BEAT ID RESOLVES TO. World code names a beat as a string, the way a
@@ -85,6 +86,31 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
    * every other mount, so the corner cannot say two different things in two
    * scenes the way it did when IntroScene had its own gate of none at all. */
   const g = hudGrants(s)
+  useKitReady()
+
+  /* ---- WHICH CONTROLS ARE ARRIVING RIGHT NOW ------------------------------
+   *
+   * §40.2: "an element enters the HUD when the run first contains the thing it
+   * opens, and the entrance is a moment rather than a state change." `hudGrants`
+   * has answered the first half since it was written and nothing did the second,
+   * so the compass and the binder appeared between two frames the way a bug
+   * appears.
+   *
+   * A grant that was false on the previous render and is true on this one is an
+   * ARRIVAL and swings in on its hook. A grant that was already true when the
+   * page loaded is not: a student who reloads mid-run should not watch their own
+   * corner reassemble every time. The ref is seeded from the first render for
+   * exactly that reason. */
+  const seen = useRef<Set<HudElement> | null>(null)
+  const entering = new Set<HudElement>()
+  {
+    const now = new Set<HudElement>((Object.keys(g) as HudElement[]).filter((k) => g[k]))
+    if (seen.current === null) seen.current = now
+    else {
+      for (const k of now) if (!seen.current.has(k)) entering.add(k)
+      seen.current = now
+    }
+  }
 
   const anyOpen = book !== null || planner || settings || advisory || sitClass !== null
     || yearbook || graduation || wardrobe || playing !== null
@@ -190,49 +216,63 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
 
   return (
     <>
-      {/* THE HUD IS A LANDMARK AND ITS BUTTONS ARE GLYPHS. A compass emoji is
-          announced as "compass" or as nothing at all depending on the reader, so
-          each control says what it opens and that it opens a panel.
+      {/* ---- THE CORNER, DRAWN --------------------------------------------
+          §40.6's law names exactly four things that may float and the corner is
+          three of them. What was here was a `linear-gradient` square carrying an
+          operating-system compass and an operating-system book, which
+          `docs/ART.md` forbids in as many words ("Icons are drawn, never an
+          emoji or a font glyph") and which the brief's do-not list forbids
+          again.
 
-          AND ONE OF THEM IS DRAWN NOW. MAPVIS's `icon_set` sheet carries eight
-          cut faces and `compass` is one of them, so the chart button wears the
-          real thing instead of whatever compass the operating system happens to
-          ship. THE OTHER THREE DO NOT MOVE: the sheet has no `book` and no
-          `anchor`, so the Handbook spine and the pause sheet keep their emoji
-          rather than getting a blank square, and `faceStyle` refuses by name
-          instead of drawing something that is not there. */}
-      {/* THE CORNER IS EMPTY UNTIL THE GAME HAS GIVEN SOMETHING, which is §40.2's
-          law arriving in the one place it was broken. `hudGrants` is the single
-          answer both mounts read; before it there were two gates, and the second
-          one (IntroScene) had no save test at all, which is how the compass got
-          onto the beach two sections before anybody hands you a chart.
+          THEY ARE SIGNS NOW, NOT MYSTERY GLYPHS. A hanging carved plate with the
+          drawn mark AND the word, which is `plaque-small.png` at very close to
+          its own drawn 2:1. Three reasons, in order of weight: a fourteen year
+          old in an advisory room reads a word faster than they decode an icon;
+          a 120x56 sign is a real trackpad target where a 46px square is not; and
+          `icon_set` has no book face, so an icon-only Handbook control could
+          only ever have been an emoji.
 
-          A nav with nothing in it is still a landmark a screen reader announces,
-          so at n=0 there is no nav either. */}
+          THE ENTRANCE IS A MOMENT (§40.2). `hudGrants` has gated these since it
+          was written, but a control that blinks into existence between two
+          frames is a state change and the law asks for a moment, so a newly
+          granted control ARRIVES: it swings down on its hook once, and never
+          again for the life of the page. */}
       {(g.chart || g.handbook || g.tokens) && (
       <nav className="hud-stack" aria-label="Ship's controls">
         {g.chart && (
-        <button className="hud-btn" title="The chart" aria-label="The chart" aria-haspopup="dialog" onClick={() => { track('chart_opened'); openBook('chart') }}>
-          <KitGlyph piece="icon_set" face="compass">🧭</KitGlyph>
+        <button
+          className={`hud-plaque${entering.has('chart') ? ' hud-arriving' : ''}`}
+          aria-label="The chart, showing every island you have found"
+          aria-haspopup="dialog"
+          onClick={() => { track('chart_opened'); openBook('chart') }}
+        >
+          <Glyph piece="icon_set" face="compass" size={22} className="hud-plaque-mark" />
+          <span className="hud-plaque-word">Chart</span>
         </button>
         )}
         {g.handbook && (
-        <button className="hud-btn" title="The Handbook" aria-label="The Handbook" aria-haspopup="dialog" onClick={() => openBook('islands')}>
-          <KitGlyph piece="icon_set" face="book">📖</KitGlyph>
+        <button
+          className={`hud-plaque${entering.has('handbook') ? ' hud-arriving' : ''}`}
+          aria-label="The Handbook"
+          aria-haspopup="dialog"
+          onClick={() => openBook('islands')}
+        >
+          <span className="hud-plaque-mark hud-crest" aria-hidden="true" />
+          <span className="hud-plaque-word">Handbook</span>
         </button>
         )}
         {s && g.tokens && (
           <button
-            className="hud-tokenbtn hud-tokens" title="The year sheet — season tokens"
+            className={`hud-plaque hud-tokenbtn${entering.has('tokens') ? ' hud-arriving' : ''}`}
             aria-label={`The year sheet, ${s.tokens.length} season ${s.tokens.length === 1 ? 'token' : 'tokens'} unspent`}
             aria-haspopup="dialog"
             onClick={openPlanner}
           >
             {/* ---- THE SEASONS, TOLD APART BY THEIR OWN MARK ----------------
                 MAPVIS drew a `pip` sheet with five cut faces, fall, winter,
-                spring, spent and ghost, and nothing has ever read one. These were
-                three identical gold circles from a CSS radial-gradient, so a
-                student could count how many they had and could not tell WHICH,
+                spring, spent and ghost, and until the corner was rebuilt these
+                were three identical gold circles from a CSS radial-gradient, so
+                a student could count how many they had and could not tell WHICH,
                 and the one that meant "all spent" was an inline opacity of .35.
 
                 §11.3's rule is that no state may be carried by hue alone, and an
@@ -241,13 +281,18 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
                 which season each one is without a word, and `ghost` is a drawn
                 empty socket rather than a faded copy of a full one.
 
-                An undrawn face falls back to the gradient, so a build with no
-                platform looks exactly as it did. */}
-            {s.tokens.length > 0
-              ? s.tokens.map((t, i) => (
-                <span className="hud-token" key={t + i} style={faceStyle('pip', t.toLowerCase())} />
-              ))
-              : <span className="hud-token hud-token-spent" style={faceStyle('pip', 'ghost')} />}
+                An undrawn face falls back to the coin, so a build with no
+                platform still counts correctly. */}
+            <span className="hud-tokens">
+              {s.tokens.length > 0
+                ? s.tokens.map((t, i) => (
+                  <span className="hud-token" key={t + i} style={faceStyle('pip', t.toLowerCase())} />
+                ))
+                : <span className="hud-token hud-token-spent" style={faceStyle('pip', 'ghost')} />}
+            </span>
+            <span className="hud-plaque-word">
+              {s.tokens.length > 0 ? `${s.tokens.length} left` : 'Year sheet'}
+            </span>
           </button>
         )}
       </nav>
@@ -275,32 +320,20 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
 
       {paused && !anyOpen && (
         <PausePanel onClose={closeAll}>
-          <button className="pz-btn" onClick={closeAll}>Back to it</button>
-          {s?.introDone && <button className="pz-btn" onClick={openPlanner}>The Year Sheet</button>}
+          <Plank wide keyCap="Esc" onClick={closeAll}>Back to it</Plank>
+          {s?.introDone && <Plank wide onClick={openPlanner}>The Year Sheet</Plank>}
           {s?.graduated && (
-            <button className="pz-btn" onClick={() => { setPaused(false); setGraduation(true) }}>
+            <Plank wide onClick={() => { setPaused(false); setGraduation(true) }}>
               {s.flags.includes('gear2') ? 'The diploma, again' : 'Walk the stage'}
-            </button>
+            </Plank>
           )}
-          <button className="pz-btn" onClick={() => { setPaused(false); setBook('islands'); }}>Handbook</button>
-          <button className="pz-btn" onClick={() => { setPaused(false); setSettings(true) }}>Settings</button>
-          <button className="pz-btn" onClick={() => { closeAll(); nav.go('title') }}>Save &amp; leave</button>
+          <Plank wide onClick={() => { setPaused(false); setBook('islands') }}>Handbook</Plank>
+          <Plank wide onClick={() => { setPaused(false); setSettings(true) }}>Settings</Plank>
+          <Plank wide onClick={() => { closeAll(); nav.go('title') }}>Save and leave</Plank>
         </PausePanel>
       )}
     </>
   )
-}
-
-/* A GLYPH THAT PREFERS THE DRAWN MARK AND FALLS BACK TO THE ONE THE MACHINE HAS.
- *
- * The whole of the swap, in one place, so a control never has to know whether
- * the art exists. `faceStyle` hands back CSS only when the kit is worn and the
- * face was really cut; otherwise this renders the children, which is the emoji
- * the button has always shown. There is no third state and no empty square. */
-function KitGlyph({ piece, face, children }: { piece: string; face: string; children: ReactNode }) {
-  const style = faceStyle(piece, face)
-  if (!style) return <>{children}</>
-  return <span className="hud-glyph" style={style} aria-hidden="true" />
 }
 
 /* THE PAUSE SHEET, AS ITS OWN COMPONENT so it can hold the panel contract: a
@@ -313,7 +346,15 @@ function PausePanel({ onClose, children }: { onClose: () => void; children: Reac
   return (
     <div className="pz-veil" onClick={onClose}>
       <div className="pz-panel kit-surface-panel" onClick={(e) => e.stopPropagation()} {...panel}>
-        <div className="pz-title">⚓ Dropped anchor</div>
+        {/* NO GLYPH, AND THAT IS THE HONEST ANSWER RATHER THAN A COMPROMISE.
+            This read `⚓ Dropped anchor` with an operating-system anchor in the
+            school's off-brand blue, and `icon_set` has no anchor face, so the
+            choice was a drawn mark that does not exist or none at all.
+            `docs/ART.md` decides it: an emoji is not an option, and a title is
+            not a control, so the words carry it. The anchor face is an art gap
+            to be asked for, written down in the handoff rather than papered
+            over. */}
+        <div className="pz-title">Dropped anchor</div>
         {children}
         <div className="pz-note">your voyage saves itself</div>
       </div>

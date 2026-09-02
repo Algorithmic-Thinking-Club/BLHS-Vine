@@ -62,6 +62,10 @@ const LEGACY = 'src/game/ui/ui.css'
 /* the stylesheets that ARE the kit: the surfaces the painted game shows. Not
  * ui/ui.css, which only `?legacy=1` reaches and which says so in its header. */
 const KIT = [
+  /* THE CONTROL KIT, added 2026-09-01. It is the file every button, tab, field,
+   * gauge, socket and stamp in the game is now made of, so it is the one file
+   * where a retyped colour would reach twenty surfaces at once. */
+  'src/game/ui/controls.css',
   'src/game/cutscene/ui-kit.css',
   'src/game/hud/dialogue.css',
   'src/game/hud/hud.css',
@@ -523,6 +527,7 @@ describe('the text setting reaches a panel that sizes itself in container units'
 /* every stylesheet whose type is sized off a container, a viewport or an em, and
  * therefore every one that could hand the font engine a fraction */
 const SIZED = [
+  'src/game/ui/controls.css',
   'src/app/settings.css', 'src/app/transitions.css',
   'src/game/beats/beats.css', 'src/game/cutscene/ui-kit.css',
   'src/game/hud/dialogue.css', 'src/game/hud/hud.css', 'src/game/hud/wardrobe.css',

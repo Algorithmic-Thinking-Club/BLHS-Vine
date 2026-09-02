@@ -29,10 +29,14 @@ import('./game/sync').then(({ startSync }) => { startSync() })
 
 // THE UI KIT MAPVIS PUBLISHES. One fetch of the eighteen drawn pieces and their nine-slice
 // numbers, off the same host PmapScene asks for maps. It never blocks first paint, it never
-// throws, and a build with no VITE_MAPVIS_URL never even asks. It is MOUNTED only behind
-// ?kit=1, because every panel in the game still carries a percentage padding measured for a
-// stretched background and a nine-slice on top of that insets the contents twice.
-// src/game/ui/kit.ts carries the reasoning and is where the default flips.
+// throws, and a build with no VITE_MAPVIS_URL never even asks.
+//
+// IT IS WORN BY DEFAULT and ?kit=0 takes it off. The flag flipped on 2026-08-31 when the
+// double inset that made it unsafe was stripped: every panel's hand-measured percentage
+// padding became a pixel gutter and no panel draws a stretched background any more, so a
+// nine-slice is the only inset there is. This comment said the opposite for a day after that
+// and the prose was load-bearing, because kitFaceStyle.ts read it as the reason a drawn face
+// is offered at all. src/game/ui/kit.ts carries the reasoning.
 import('./game/ui/kit').then(({ loadKit, applyKit, kitFaults, kitOptedIn }) => {
   loadKit().then((pieces) => {
     if (!pieces.length) return
@@ -40,7 +44,7 @@ import('./game/ui/kit').then(({ loadKit, applyKit, kitFaults, kitOptedIn }) => {
     const worn = kitOptedIn()
     if (worn) applyKit(pieces)
     console.log(`[kit] ${pieces.length - refused} of ${pieces.length} pieces read, ${refused} refused`
-      + (worn ? ', applied' : '. Add ?kit=1 to wear it.'))
+      + (worn ? ', applied' : ', not worn because ?kit=0 is set.'))
   })
 })
 

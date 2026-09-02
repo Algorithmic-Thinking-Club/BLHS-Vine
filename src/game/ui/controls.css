@@ -1,0 +1,571 @@
+/* THE STATE GRAMMAR, WRITTEN ONCE.
+ *
+ * §40.41: for every control, rest, hover, press, disabled, focus and busy.
+ * §40.42: for every panel, closed, opening, empty, populated, loading, error and
+ * closing. Both were "enumerate first, then build, then capture each", and what
+ * the tree had instead was a hover on some buttons, a `:active` on two, and
+ * `opacity` doing the work of disabled in four different stylesheets.
+ *
+ * EVERY STATE MOVES SOMETHING THAT IS NOT A HUE. §40.31 forbids a state carried
+ * by hue alone, and the reason is the hardware: a school Chromebook panel
+ * crushes both lightness and saturation, so "the same button, greyer" is not a
+ * message. A plank that is pressed goes DOWN. A plank that is disabled loses its
+ * lift and its shadow, which is a change in shape. A plank that is busy replaces
+ * its own label with a bar that is moving.
+ *
+ * COLOURS COME FROM tokens.css AND NOWHERE ELSE, which `tokens.test.ts` holds
+ * this file to now that it is in the KIT list. Sizes go through `--kit-fs-raw`
+ * so the text setting and the integer snap both reach them.
+ */
+
+@import './tokens.css';
+
+/* ---- a drawn mark -------------------------------------------------------- */
+
+.kit-glyph {
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
+  background-repeat: no-repeat;
+  image-rendering: var(--kit-pixel);
+}
+
+/* ---- THE PLANK ----------------------------------------------------------- */
+
+.kit-plank {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  border: 0;
+  /* the sign's own drop, which is what makes the press readable: it CLOSES on
+     press rather than the colour changing */
+  filter: drop-shadow(0 3px 0 var(--kit-plank-drop));
+  cursor: pointer;
+  text-align: center;
+  transition: transform var(--kit-t-quick) ease, filter var(--kit-t-quick) ease;
+  /* the art is a shape, not a frame: `.kit-surface-plank` in tokens.css paints
+     `--kit-art-plank` stretched, and `kit.ts` keeps the platform out of that
+     handle on Ash's ruling */
+  background-color: transparent;
+}
+.kit-plank-sm { min-height: 34px; padding: 6px 16px; --kit-fs-raw: calc(15px * var(--kit-text-scale)); }
+.kit-plank-md { min-height: 46px; padding: 9px 24px; --kit-fs-raw: calc(18px * var(--kit-text-scale)); }
+.kit-plank-lg { min-height: 60px; padding: 12px 34px; --kit-fs-raw: calc(23px * var(--kit-text-scale)); }
+.kit-plank-wide { width: 100%; }
+
+/* THE LABEL IS CUT INTO THE WOOD, which is what makes it readable on a dark
+   plank and is the half the platform's parchment plank broke: pale ink on pale
+   parchment is `build-shots/ui/before/01-title.png`, where the first words a
+   returning student reads are "Continue - Year 1, Spring" and they cannot. */
+.kit-plank-ink {
+  font-family: var(--kit-face-display);
+  font-size: var(--kit-fs);
+  line-height: 1.15;
+  color: var(--kit-plank-ink);
+  text-shadow: 0 2px 0 var(--kit-plank-shadow);
+  letter-spacing: .02em;
+  /* A LABEL NEVER WRAPS ITSELF IN HALF. The title's plank wrapped "Continue -
+     Year 1, Spring" onto two lines and pushed the second one off the sign. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kit-plank-glyph { margin-right: 2px; }
+
+/* the key that also presses this, cut into the left end */
+.kit-plank-key {
+  flex: none;
+  min-width: 20px;
+  padding: 1px 5px;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-plank-ink);
+  background: var(--kit-plank-glow);
+  border: 1px solid var(--kit-plank-keyline);
+  border-radius: var(--kit-r-sharp);
+  opacity: .85;
+}
+
+/* rest -> hover: the sign lifts and warms */
+.kit-plank:hover:not(:disabled) { transform: translateY(-1px); filter: drop-shadow(0 4px 0 var(--kit-plank-drop)) brightness(1.06); }
+/* hover -> press: the sign goes INTO the page and its shadow closes up */
+.kit-plank:active:not(:disabled) { transform: translateY(2px); filter: drop-shadow(0 1px 0 var(--kit-plank-drop)); }
+/* disabled: no lift, no shadow, the ink goes quiet, and the cursor says so */
+.kit-plank:disabled {
+  cursor: not-allowed;
+  transform: none;
+  filter: grayscale(.55) brightness(.82);
+}
+.kit-plank:disabled .kit-plank-ink { color: var(--kit-wood-dark-ink); text-shadow: none; }
+/* focus is the kit's one ring, from tokens.css, drawn around the wood itself */
+
+/* busy: the label stays where it is and a bar fills under it, because a button
+   whose label vanishes is a button a student thinks they mis-clicked */
+.kit-plank[aria-busy='true'] { cursor: progress; }
+.kit-plank-busy {
+  position: absolute;
+  left: 8%; right: 8%; bottom: 14%;
+  height: 3px;
+  overflow: hidden;
+  background: var(--kit-cord-track);
+  border-radius: var(--kit-r-sharp);
+}
+.kit-plank-busy::after {
+  content: '';
+  position: absolute;
+  inset: 0 60% 0 0;
+  background: var(--kit-gold-hi);
+  animation: kit-sweep 900ms linear infinite;
+}
+@keyframes kit-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(260%); }
+}
+/* a bar that loops has to STOP under reduced motion, not run at 1ms, which is a
+   strobe and is worse for the student the setting is for */
+html[data-rm='1'] .kit-plank-busy::after { animation: none; inset: 0 40% 0 0; }
+
+/* ---- THE CHIP ------------------------------------------------------------ */
+
+.kit-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px; height: 34px;
+  box-sizing: border-box;
+  padding: 0;
+  border: var(--kit-border) solid var(--kit-wood-edge);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--kit-gold-hi), var(--kit-gold-lo) 70%);
+  box-shadow: 0 2px 0 var(--kit-wood-shadow);
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink);
+  transition: transform var(--kit-t-quick) ease;
+}
+button.kit-chip { cursor: pointer; }
+button.kit-chip:hover { transform: translateY(-2px); }
+button.kit-chip:active { transform: translateY(1px); }
+/* the drawn plate carries its own edge and its own shadow, so the CSS coin the
+   art replaces gets out of the way entirely */
+.kit-chip-drawn {
+  background-color: transparent;
+  background-repeat: no-repeat;
+  border: 0;
+  box-shadow: none;
+  image-rendering: var(--kit-pixel);
+}
+/* spent is a DIFFERENT PLATE, not a faded one. The fallback, for a build with no
+   platform, is still not lightness alone: the coin loses its dome and gets a
+   struck line across it. */
+.kit-chip-plate_spent:not(.kit-chip-drawn) {
+  background: var(--kit-paper-chip-lo);
+  box-shadow: inset 0 0 0 2px var(--kit-cord-track);
+}
+
+/* ---- THE TAB ROW, ON ONE ROW --------------------------------------------- */
+
+.kit-tabrow {
+  display: flex;
+  gap: 4px;
+  /* NEVER WRAPS. `build-shots/ui/before/09-handbook.png` is five tabs and a
+     Close on two lines, which reads as a broken panel at every window this game
+     is played at. A row that runs out of room scrolls sideways; it does not
+     become two rows and shove the page down. */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  align-items: flex-end;
+}
+.kit-tabrow::-webkit-scrollbar { height: 6px; }
+.kit-tabrow::-webkit-scrollbar-thumb { background: var(--kit-edge); border-radius: var(--kit-r-soft); }
+
+.kit-tab {
+  flex: none;
+  box-sizing: border-box;
+  min-height: 38px;
+  padding: 7px 16px;
+  border: 0;
+  background-color: transparent;
+  cursor: pointer;
+  filter: saturate(.7) brightness(.94);
+  transition: transform var(--kit-t-quick) ease, filter var(--kit-t-quick) ease;
+}
+.kit-tab-ink {
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(16px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-label);
+  white-space: nowrap;
+}
+.kit-tab:hover { filter: none; transform: translateY(-1px); }
+/* THE CHOSEN TAB IS FORWARD, not merely a different colour: it lifts out of the
+   row and its ink goes to the sea green that means chosen everywhere else. */
+.kit-tab-on { filter: none; transform: translateY(-3px); }
+.kit-tab-on .kit-tab-ink { color: var(--kit-sea-ink); }
+/* and a tab with no drawn art behind it still reads as a tab */
+.kit-tab:not([class*='kit-surface']) { border-bottom: var(--kit-border) solid var(--kit-edge); }
+
+/* ---- THE FIELD ----------------------------------------------------------- */
+
+.kit-field-row { display: flex; flex-direction: column; gap: 4px; }
+.kit-field-label {
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
+.kit-field {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 4px 10px;
+  background-color: var(--kit-field);
+  border-radius: var(--kit-r-soft);
+}
+.kit-field-input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  /* the ring is drawn on `.kit-field` instead; see the note below */
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(18px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink);
+  letter-spacing: .04em;
+}
+.kit-field-input::placeholder { color: var(--kit-field-hint); }
+.kit-field-unit {
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+}
+/* THE RING GOES ROUND THE DRAWN BOX, NOT ROUND THE BARE INPUT. The `<input>`
+   inside a field has no edge of its own, so a ring on it draws a rectangle
+   floating inside the art. The outline is moved out one level to the surface a
+   student can actually see, and `tokens.css`'s element-wide law still rings
+   every other control in the game. */
+.kit-field:focus-within {
+  background-color: var(--kit-field-focus);
+  outline: var(--kit-focus-width) solid var(--kit-focus);
+  outline-offset: var(--kit-focus-offset);
+}
+.kit-field-input:focus-visible { outline: none; }
+/* A REFUSED FIELD IS NOT A RED BORDER. The border thickens AND the reason is
+   printed under it AND it is announced. Hue alone says nothing to a third of the
+   reasons a student cannot read it. */
+.kit-field-bad { box-shadow: inset 0 0 0 2px var(--kit-alarm); }
+.kit-field-err,
+.kit-field-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+}
+.kit-field-err { color: var(--kit-alarm); }
+.kit-field-hint { color: var(--kit-ink-dim); }
+
+/* ---- THE GAUGE ----------------------------------------------------------- */
+
+.kit-gauge {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 22px;
+  overflow: hidden;
+  background-color: var(--kit-cord-track);
+  border-radius: var(--kit-r-sharp);
+}
+.kit-gauge-fill {
+  display: block;
+  height: 100%;
+  min-height: 22px;
+  width: 0;
+  background: linear-gradient(90deg, var(--kit-cord-lo), var(--kit-cord-hi));
+  transition: width var(--kit-t-slow) linear;
+}
+/* NOTHING IS BEING COUNTED, AND IT SAYS SO. The bar does not creep toward a
+   number nobody has: it paces, which reads as "working" and not as "nearly
+   there". §4.1's rule is that the arrival bar fills on the real load, so the
+   honest picture for "no number yet" has to be visibly different from progress. */
+.kit-gauge-waiting .kit-gauge-fill {
+  width: 34%;
+  animation: kit-pace 1200ms ease-in-out infinite alternate;
+}
+@keyframes kit-pace {
+  from { transform: translateX(-14%); }
+  to { transform: translateX(200%); }
+}
+html[data-rm='1'] .kit-gauge-waiting .kit-gauge-fill { animation: none; width: 100%; opacity: .5; }
+.kit-gauge-reading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink);
+}
+
+/* ---- THE SOCKET ---------------------------------------------------------- */
+
+.kit-socket {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 92px;
+  padding: 10px;
+  border: 0;
+  background-color: transparent;
+  cursor: pointer;
+  transition: transform var(--kit-t-quick) ease, filter var(--kit-t-quick) ease;
+}
+.kit-socket-cap {
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-label);
+}
+.kit-socket-well { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; }
+.kit-socket-why {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-alarm);
+  text-align: center;
+}
+/* an empty socket with no drawn art behind it is still visibly a place a thing
+   goes: a dashed well, which is the one place a dash is the right drawing */
+.kit-socket:not([class*='kit-surface']) { border: 2px dashed var(--kit-rule-firm); border-radius: var(--kit-r-card); }
+.kit-socket[data-state='over'] { transform: translateY(-2px); filter: brightness(1.1); }
+.kit-socket[data-state='over']:not([class*='kit-surface']) { border-color: var(--kit-sea); }
+.kit-socket[data-state='filled'] { cursor: grab; }
+/* A REFUSAL SHAKES ONCE AND THEN STAYS REFUSED IN WORDS. The shake is the
+   notice; the sentence under it is the message, so a student who missed the
+   motion has not missed the reason. */
+.kit-socket[data-state='refusing'] { animation: kit-refuse 260ms ease-in-out 1; }
+@keyframes kit-refuse {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+html[data-rm='1'] .kit-socket[data-state='refusing'] { animation: none; }
+
+/* ---- THE PORTRAIT FRAME -------------------------------------------------- */
+
+.kit-portrait {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  width: 108px;
+  height: 100px;
+  padding: 6px;
+  overflow: hidden;
+}
+.kit-portrait-pic {
+  max-width: 100%;
+  max-height: 100%;
+  /* BOTTOM ANCHORED, which the kit's own record requires and does not default:
+     a character centred in their own box floats off the bottom of it */
+  object-fit: contain;
+  object-position: bottom center;
+  image-rendering: var(--kit-pixel);
+}
+.kit-portrait-cap {
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(12px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-label);
+}
+.kit-portrait:not([class*='kit-surface']) {
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-card);
+  background-color: var(--kit-paper-lo);
+}
+
+/* ---- WHAT A PANEL SAYS WHEN IT HAS NOTHING ------------------------------- */
+
+.kit-empty,
+.kit-loading,
+.kit-failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 26px 20px;
+  text-align: center;
+}
+.kit-empty-mark { opacity: .6; }
+.kit-empty-what,
+.kit-loading-what,
+.kit-failed-what {
+  margin: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(17px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
+}
+.kit-failed-what { display: flex; align-items: center; gap: 8px; color: var(--kit-alarm); }
+.kit-empty-fills {
+  margin: 0;
+  max-width: 42ch;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  line-height: 1.5;
+}
+.kit-loading { gap: 12px; }
+.kit-loading .kit-gauge { max-width: 240px; }
+
+/* ---- THE PLAIN ARM ------------------------------------------------------
+ *
+ * §16, ruled 2026-08-31: a document a person could have written. So every
+ * control here becomes a plain form control on white, and the drawn marks stop
+ * being drawn. The rules are attribute-scoped, so the game arm cannot see one of
+ * them, and none of them names a picture (`tokens.test.ts` reads this file for
+ * that).
+ *
+ * A plank becomes a real button with a real border, because the ruling refused
+ * raw OS widgets: unstyled defaults read as BROKEN, and a control arm that looks
+ * broken loses on looking broken rather than on not being a game. */
+html[data-skin='plain'] .kit-glyph { display: none; }
+html[data-skin='plain'] .kit-plank {
+  filter: none;
+  border: 1px solid var(--kit-wood-edge);
+  border-radius: var(--kit-r-soft);
+  background-color: var(--kit-wood-hi);
+  padding: 8px 18px;
+  min-height: 38px;
+}
+html[data-skin='plain'] .kit-plank-ink { text-shadow: none; color: var(--kit-plank-ink); font-weight: 600; }
+html[data-skin='plain'] .kit-plank:hover:not(:disabled) { filter: none; transform: none; background-color: var(--kit-wood-lo); }
+html[data-skin='plain'] .kit-plank:active:not(:disabled) { transform: none; }
+html[data-skin='plain'] .kit-plank:disabled { filter: none; opacity: .55; }
+html[data-skin='plain'] .kit-plank-key { background: none; opacity: 1; }
+html[data-skin='plain'] .kit-chip {
+  border-radius: 2px;
+  background: var(--kit-paper-lo);
+  border: 1px solid var(--kit-edge);
+  box-shadow: none;
+  color: var(--kit-ink-body);
+}
+html[data-skin='plain'] .kit-tab {
+  filter: none;
+  border: 1px solid var(--kit-edge);
+  border-bottom: 0;
+  border-radius: var(--kit-r-sharp) var(--kit-r-sharp) 0 0;
+  background-color: var(--kit-paper-lo);
+}
+html[data-skin='plain'] .kit-tab-on { transform: none; background-color: var(--kit-paper-hi); }
+html[data-skin='plain'] .kit-tab-on .kit-tab-ink { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+html[data-skin='plain'] .kit-field { border: 1px solid var(--kit-edge-strong); background-color: var(--kit-paper-hi); border-radius: 2px; }
+html[data-skin='plain'] .kit-field-bad { box-shadow: none; border-width: 2px; border-color: var(--kit-alarm); }
+html[data-skin='plain'] .kit-gauge { border: 1px solid var(--kit-edge-strong); background-color: var(--kit-paper-hi); border-radius: 2px; }
+html[data-skin='plain'] .kit-gauge-fill { background: var(--kit-sea-ink); }
+html[data-skin='plain'] .kit-socket { border: 1px dashed var(--kit-edge-strong); border-radius: 2px; background: none; }
+html[data-skin='plain'] .kit-socket[data-state='filled'] { border-style: solid; background-color: var(--kit-paper-lo); }
+html[data-skin='plain'] .kit-portrait { border: 1px solid var(--kit-edge); border-radius: 2px; background-color: var(--kit-paper-lo); }
+
+/* ---- THE FEEDBACK SET ----------------------------------------------------
+ *
+ * `feedback.ts` owns one element under <body> and draws into it with these.
+ * It sits in the TOP CENTRE rather than the bottom, because the bottom is the
+ * conversation's (`ui/frame.ts` publishes `--ui-band` for exactly that reason)
+ * and a stamp landing on a line of dialogue is two things saying different
+ * words in the same place. */
+
+.kit-fb-layer {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* IT NEVER TAKES A CLICK. A student mid-answer keeps answering. */
+  pointer-events: none;
+}
+.kit-fb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 10px 20px;
+  max-width: min(560px, 86vw);
+  background-color: var(--kit-paper-hi);
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-round);
+  box-shadow: var(--kit-drop-sm);
+  animation: kit-fb-in 240ms var(--kit-ease-pop) both;
+}
+.kit-fb-going { animation: kit-fb-out 220ms ease-in both; }
+@keyframes kit-fb-in { from { transform: translateY(-16px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes kit-fb-out { from { transform: none; opacity: 1; } to { transform: translateY(-10px); opacity: 0; } }
+/* the card still arrives under reduced motion, it just does not travel */
+html[data-rm='1'] .kit-fb, html[data-rm='1'] .kit-fb-going { animation-duration: 1ms; }
+
+.kit-fb-mark {
+  flex: none;
+  width: 38px; height: 38px;
+  image-rendering: var(--kit-pixel);
+}
+.kit-fb-words { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kit-fb-head {
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(18px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
+.kit-fb-detail {
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+  line-height: 1.45;
+}
+/* EARNED IS THE ONLY ONE THAT WEARS GOLD. docs/ART.md: "gold means an earned
+   honor and nothing else". A saved plan is not an honour and does not get one. */
+.kit-fb-awarded { border-color: var(--kit-gold-edge); box-shadow: var(--kit-drop-sm), inset 0 0 0 1px var(--kit-gold-inset); }
+.kit-fb-awarded .kit-fb-head { color: var(--kit-sea-earned); }
+/* A WRONG ANSWER IS WARM PAPER AND NEVER A RED BUZZER. §6.9. The card leans on
+   the paper it is already made of; the only thing that moves is the ink, and it
+   moves to the quiet voice rather than to the alarm one. */
+.kit-fb-wrong { border-color: var(--kit-edge-strong); }
+.kit-fb-wrong .kit-fb-head { color: var(--kit-ink-quiet); }
+.kit-fb-right .kit-fb-head { color: var(--kit-sea-head); }
+
+html[data-skin='plain'] .kit-fb {
+  border-radius: 2px;
+  box-shadow: none;
+  background-color: var(--kit-paper-hi);
+  border: 1px solid var(--kit-edge-strong);
+}
+html[data-skin='plain'] .kit-fb-mark { display: none; }
+html[data-skin='plain'] .kit-fb-awarded { box-shadow: none; }

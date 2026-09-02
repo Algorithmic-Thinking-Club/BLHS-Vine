@@ -22,11 +22,22 @@
  * is worse than an OS emoji, and the wave 4 order says so in as many words: if a
  * face does not exist, leave the emoji and say so.
  *
- * WHAT THE LIVE SHEET ACTUALLY HAS, read off `/api/v1/ui` on 2026-08-31 rather
+ * WHAT THE LIVE SHEET ACTUALLY HAS, read off `/api/v1/ui` on 2026-09-01 rather
  * than assumed: compass, key, star, lock, tick, cross, arrow, coin. There is no
- * book and no anchor, so the Handbook spine and the pause sheet keep their
- * glyphs, and none of the six Handbook badges (whale, map, sunrise, masks,
- * anchor, book) has a face either. One of the four HUD glyphs is drawn.
+ * book, no anchor and no gear, and none of the six Handbook badges (whale, map,
+ * sunrise, masks, anchor, book) has a face either.
+ *
+ * WHAT THE SURFACES DO ABOUT THAT, ruled 2026-09-01 rather than left as an
+ * emoji. `docs/ART.md` and the UI brief's do-not list both forbid a system
+ * glyph outright, so a missing face is answered with a drawn thing that DOES
+ * exist or with words, never with whatever the machine ships:
+ *   the Handbook control wears `crest-panther.png`, which ART.md already puts on
+ *     the Handbook cover, plus the word "Handbook";
+ *   the pause sheet's title and the captain's heading drop the anchor and let
+ *     the words carry them, because a title is not a control;
+ *   the settings control becomes a small plaque reading "Settings".
+ * The four faces stay a real art gap, written into the handoff, and the day one
+ * is cut this file needs no change at all.
  */
 import type { CSSProperties } from 'react'
 import { kitCached, kitFace, kitOptedIn, kitPiece, type KitPiece } from './kit'
@@ -38,9 +49,10 @@ export function faceStyle(
   face: string,
   pieces: KitPiece[] | null = kitCached(),
   /* THE TOKEN THIS READS ONLY EXISTS ONCE `applyKit` HAS RUN, and `main.tsx`
-   * runs it behind `?kit=1`. Without the flag `var(--kit-art-icon_set)` resolves
-   * to nothing and the button would be an empty square where a compass was, so
-   * the same switch decides whether the face is offered at all. */
+   * runs it unless `?kit=0` says not to. Without the token
+   * `var(--kit-art-icon_set)` resolves to nothing and the button would be an
+   * empty square where a compass was, so the same switch decides whether the
+   * face is offered at all. */
   worn = kitOptedIn() && currentSkin() === 'paper',
 ): CSSProperties | undefined {
   if (!pieces?.length || !worn) return undefined

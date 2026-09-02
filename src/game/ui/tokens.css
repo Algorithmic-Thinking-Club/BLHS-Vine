@@ -225,6 +225,23 @@
    * renders exactly what it rendered yesterday and §16 now has a lever. */
   --kit-art-title: url('/art/ui/title-backdrop.png');
   --kit-art-scroll: url('/art/ui/parchment-scroll.png');
+  /* TWO MORE THAT WERE ALREADY DRAWN AND WERE BEING SHOWN NOWHERE, taken up on
+   * 2026-09-01 when the corner stopped being emoji.
+   *
+   * `plaque-small.png` is a dark carved plate with a rope inlay at 2:1, which is
+   * the shape a hanging sign is. It is the ground under the two corner controls
+   * and under the dialogue box's speaker plate, both of which were a
+   * `linear-gradient` in a stylesheet.
+   *
+   * `crest-panther.png` is the school's own mark and `docs/ART.md` already
+   * assigns it: "the Handbook cover carries the panther crest". The platform's
+   * `icon_set` has compass, key, star, lock, tick, cross, arrow and coin and NO
+   * book, so the Handbook control wears the crest rather than an operating-system
+   * book, which the brief's do-not list rules out and `ART.md` rules out again.
+   * The undrawn `book` face stays an art gap to be asked for, not a gap to be
+   * filled with whatever the Chromebook ships. */
+  --kit-art-plaque: url('/art/ui/plaque-small.png');
+  --kit-art-crest: url('/art/ui/crest-panther.png');
   --kit-pixel: pixelated;
 
   /* ---- THE NINE-SLICE, MEASURED OFF THE PNGS ---------------------------
@@ -515,6 +532,8 @@ html[data-skin='plain'] {
   --kit-art-chart: none;
   --kit-art-title: none;
   --kit-art-scroll: none;
+  --kit-art-plaque: none;
+  --kit-art-crest: none;
   /* AND THE FRAME'S OWN THICKNESS GOES TO NOTHING. `border-image: none` on the
    * surface rules is what really stops a nine-slice being drawn; these are here
    * because the guard in tokens.test.ts is right that every token the paper skin
@@ -530,6 +549,29 @@ html[data-skin='plain'] {
   --kit-repeat: stretch;
   --kit-art-band: none;
   --kit-art-icon_set: none;
+  /* THE OTHER TWELVE THE PLATFORM PUBLISHES, nulled on the day the control kit
+   * started wearing them (2026-09-01). `src/game/ui/controls.tsx` mounts
+   * `.kit-surface-tab`, `-field`, `-gauge`, `-socket` and `-portrait_frame`, and
+   * `feedback.ts`, `controls.tsx` and the HUD read cut faces off `chip`, `cue`,
+   * `pip`, `pointer` and `stamp` through `faceStyle`, which builds the token name
+   * from a variable and therefore cannot be found by grep.
+   *
+   * A handle mounted without a line here is the exact silent failure §16 keeps
+   * losing to: one carved wooden surface in the middle of a worksheet, no error
+   * anywhere, and the control arm quietly stops being a control arm. */
+  --kit-art-tab: none;
+  --kit-art-field: none;
+  --kit-art-gauge: none;
+  --kit-art-socket: none;
+  --kit-art-portrait_frame: none;
+  --kit-art-rail: none;
+  --kit-art-highlight_edge: none;
+  --kit-art-cover_plate: none;
+  --kit-art-chip: none;
+  --kit-art-cue: none;
+  --kit-art-pip: none;
+  --kit-art-pointer: none;
+  --kit-art-stamp: none;
   --kit-pixel: auto;
 
   --kit-front-paper: #f6f6f4;
