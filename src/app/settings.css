@@ -283,8 +283,18 @@ html[data-skin='plain'] .st-gear {
 }
 html[data-skin='plain'] .st-gear:hover,
 html[data-skin='plain'] .st-gear:active { transform: none; filter: none; }
-html[data-skin='plain'] .st-gear-mark { display: inline-block; width: 22px; height: 22px; margin-right: 7px; vertical-align: -4px; }
-.st-gear-ink {
+/* THE PREFIX WAS MISSING AND IT COST THE WORD ON THE TITLE SCREEN.
+ *
+ * This rule sat inside the plain-arm block WITHOUT the attribute on it, later in
+ * the file and at the same specificity as the paper rule above, so it won in
+ * BOTH arms: the settings plate on the title screen painted `--kit-ink-body`, a
+ * dark brown, onto dark carved wood. Probed in the browser on 2026-09-01 and the
+ * word measured rgb(74,56,38) at 40x14 on a plaque it could not be seen against;
+ * the crop showed a plate with a mark on it and nothing else.
+ *
+ * A one-class selector that means to be scoped and is not is the quietest kind
+ * of CSS bug there is, and this one hid behind a mark being added beside it. */
+html[data-skin='plain'] .st-gear-ink {
   font-family: var(--kit-face-body);
   font-size: 14px; letter-spacing: 0;
   color: var(--kit-ink-body);

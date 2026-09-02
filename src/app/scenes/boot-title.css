@@ -185,13 +185,23 @@ html[data-rm='1'] .ti-welcome { animation-duration: 1ms; }
 html[data-rm='1'] .ti-wordmark { animation-duration: 1ms; }
 /* the sign asset's interior is cut out, so back it with whitewashed planks and the
    lettering sits on wood rather than on open water */
+/* THE SIGN'S FACE IS A PAINTED BOARD, NOT GRAPH PAPER.
+ *
+ * This was three stacked gradients and two of them were `repeating`, which is
+ * to say it was a grid. The art-direction pass of 2026-09-01 called it out on
+ * the title and on the chart in the same breath: "two of the three surfaces a
+ * student will screenshot use the same pale ruled grid: a nautical chart of an
+ * ocean, and the face of a carved wooden sign. Neither is a thing that exists."
+ *
+ * `title-signboard.png` is a frame with a transparent middle, so what shows
+ * through it is whatever is behind, and this is now a drawn board. The wordmark
+ * sits on top of it and the board was generated to stay quiet enough for that:
+ * four value steps, no lettering, no lines. */
 .ti-signpaper {
   position: absolute; inset: 9% 7% 12% 7%;
   border-radius: var(--kit-r-round);
-  background:
-    repeating-linear-gradient(180deg, transparent 0 17px, var(--kit-rule-soft) 17px 19px, transparent 19px 36px),
-    repeating-linear-gradient(90deg, var(--kit-paper-sheen) 0 42px, var(--kit-rule-soft) 42px 45px),
-    linear-gradient(180deg, var(--kit-paper-hi) 0%, var(--kit-paper) 55%, var(--kit-paper-lo) 100%);
+  background: var(--kit-art-signface) center / 100% 100% no-repeat;
+  image-rendering: var(--kit-pixel);
 }
 .ti-sign { position: relative; width: 100%; display: block; filter: drop-shadow(0 6px 16px var(--kit-plank-drop)); }
 .ti-wordtext {

@@ -301,6 +301,15 @@
   --kit-art-mark-anchor: url('/art/ui/mark-anchor.png');
   --kit-art-mark-sliders: url('/art/ui/mark-sliders.png');
   --kit-art-mark-paw: url('/art/ui/mark-paw.png');
+  /* THE FACE OF THE TITLE'S SIGN, drawn 2026-09-01. `title-signboard.png` is a
+   * FRAME with a transparent middle, and what was showing through it was
+   * `.ti-signpaper`: two `repeating-linear-gradient`s making a grid. The
+   * art-direction pass read it exactly as it was built, "a carved wooden sign
+   * whose plate is ruled graph paper", and put it in the top five things wrong
+   * with the game. It is a painted board now: four planks, seams, nail heads,
+   * worn cream over grain, and deliberately quiet enough that the wordmark
+   * painted on top of it still reads. */
+  --kit-art-signface: url('/art/ui/sign-face.png');
   --kit-art-plaque: url('/art/ui/plaque-small.png');
   --kit-art-crest: url('/art/ui/crest-panther.png');
   --kit-pixel: pixelated;
@@ -594,6 +603,7 @@ html[data-skin='plain'] {
   --kit-art-title: none;
   --kit-art-scroll: none;
   --kit-mask-solid: #000000;
+  --kit-art-signface: none;
   --kit-art-mark-book: none;
   --kit-art-mark-anchor: none;
   --kit-art-mark-sliders: none;
