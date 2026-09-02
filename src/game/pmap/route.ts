@@ -14,6 +14,7 @@
  * here and writes it through here; the title and the intro write it and then
  * navigate. Nothing else may spell these parameters out.
  */
+import { transitionBusy, type TransitionSpec } from '../../app/transitions'
 import { HUB_MAP, MAW_MAP } from '../run/objective'
 
 /** which map, where in it, and whether the player arrives on the water */
@@ -70,6 +71,33 @@ export function setMapUrl(t: PmapTarget) {
 
 /** the scene id every painted map lives at, so no caller spells it */
 export const PMAP_SCENE = 'pmap'
+
+/* ---- GOING THERE, WHICH IS TWO THINGS AND NOT ONE ---------------------------
+ *
+ * Write the address, then navigate. Both callers were doing that by hand and both
+ * carried the same hole: `cover()` REFUSES when a transition is already running
+ * (transitions.tsx:81 exports the flag) and `SceneManager.go` discards the answer
+ * with a `void`, so a refused navigation left the address saying `scene=pmap&map=X`
+ * with the student still standing on the title or the beach. The next refresh
+ * teleported them into a map they had never entered.
+ *
+ * So the address is only written when the navigation is actually going to happen,
+ * and the two can no longer disagree. A refused one is a console line rather than
+ * a silent lie, because the caller has already decided the run should move.
+ */
+export function enterMap(
+  go: (to: string, spec?: TransitionSpec) => void,
+  t: PmapTarget,
+  spec?: TransitionSpec,
+): boolean {
+  if (transitionBusy()) {
+    console.warn(`[route] refused to open "${t.map}": a transition is already running`)
+    return false
+  }
+  setMapUrl(t)
+  go(PMAP_SCENE, spec)
+  return true
+}
 
 /* ---- THE ROAD: the two places the game itself sends a student ---------------
  *

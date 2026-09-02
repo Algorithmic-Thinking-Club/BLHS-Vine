@@ -1854,6 +1854,24 @@ export default function PmapScene() {
       const walker = new Walker([spx, spy])
       const pos = walker
 
+      /* ---- AND THE ARRIVAL ANCHOR IS SPENT, because it is an arrival ----
+       *
+       * `at` outranks the resume guard on purpose: a student who just walked
+       * through a door did not resume, they arrived, and the door knows better
+       * than the save where they came out. The trouble is that the anchor is
+       * written into the ADDRESS and nothing ever took it out again, so every
+       * refresh for the rest of the sitting also carried it and also skipped the
+       * guard. Continue makes that permanent — it always names `arrive_maw` —
+       * so a student who walked to the chart table and pressed F5 was put back on
+       * the bridge, and the version check that exists to catch a republished map
+       * never ran at all.
+       *
+       * One line, here, because this is the line after the anchor has been
+       * consumed: `arrive` is computed, `findGround` has had the last word, and
+       * the walker is standing on it. From here the address says only which map,
+       * which is exactly what a refresh should mean. */
+      if (target.at) setMapUrl({ map: mapId, aboard: target.aboard })
+
       // ---- the YOU marker: a proper map pin (Ash's spec 2026-08-15: "half triangle half
       // circle typical marker, with a small thor picture in the marker with YOU above").
       // The circle holds Thor's face, the tail points at him, YOU rides on top. UI, so it
@@ -3571,9 +3589,13 @@ export default function PmapScene() {
        * point that is both clearly at sea and far enough out to read as a
        * crossing rather than as a boat that has slipped its mooring.
        *
-       * MEASURED ON THE PUBLISHED HUB, 2026-09-01: the berth lands at painting
-       * (528, 530) with about 30 pixels of water under it, and the field deepens
-       * southward to 160 by y 670, which is where this lands her. */
+       * MEASURED ON THE PUBLISHED HUB (world v395, map v13), 2026-09-01: the berth
+       * lands at painting (528, 530) with 24 pixels of water under it, which is
+       * LESS than the hull's own 26 pixel probe, so a boat created there is
+       * aground before it has moved. The field deepens southward and this walk
+       * lands her at (528, 674) in 168, which is why the arrival sails and the
+       * `E · cast off` prompt at the same berth does not. That berth wants moving
+       * in MAPVIS; the arrival does not wait on it. */
       const OFFSHORE_DEPTH = DEFAULT_SAIL.probe * 3   // three boat-widths of water under the keel
       const OFFSHORE_MIN = 140                        // and far enough out to be a passage
       const OFFSHORE_MAX = 420                        // past this the island stops being in sight
@@ -3594,11 +3616,25 @@ export default function PmapScene() {
           : berth.facing ? radOf(berth.facing) + Math.PI
             : Math.atan2(b.y - pc.y, b.x - pc.x)
         if (!isFinite(dir)) dir = Math.PI / 2
+        /* THE DEEPEST POINT FOUND, NOT THE LAST ONE TRIED. The walk used to take
+         * whatever it was standing on when the loop ran out, so a berth whose
+         * seaward direction is wrong put the hull four hundred pixels out and
+         * hard aground on the first frame, silently, with a wake and no motion.
+         * Keeping the best sounding means a bad direction is a boat in the best
+         * water that direction had, and the console says the search failed. */
         let out = { x: b.x, y: b.y }
+        let best = -1
+        let found = false
         for (let d = 16; d <= OFFSHORE_MAX; d += 16) {
           const p = { x: b.x + Math.cos(dir) * d, y: b.y + Math.sin(dir) * d }
-          out = p
-          if (d >= OFFSHORE_MIN && depthAt(p.x, p.y) >= OFFSHORE_DEPTH) break
+          const deep = depthAt(p.x, p.y)
+          if (deep > best) { best = deep; out = p }
+          if (d >= OFFSHORE_MIN && deep >= OFFSHORE_DEPTH) { out = p; found = true; break }
+        }
+        if (!found) {
+          console.warn(`[pmap] ${mapId}: no water ${OFFSHORE_DEPTH}px deep within ${OFFSHORE_MAX}px`
+            + ` of the berth on its seaward line; putting her in the best of it (${Math.round(best)}px).`
+            + ' The berth or its approach wants moving in MAPVIS.')
         }
         hull.x = out.x; hull.y = out.y
         /* THE BOW POINTS AT THE ISLAND, because that is what arriving looks like.

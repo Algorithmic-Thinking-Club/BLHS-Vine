@@ -3,7 +3,7 @@ import { useNav } from '../SceneManager'
 import { beginAdventure, loadSave } from '../../game/save'
 import { track } from '../../game/telemetry'
 import { GearButton, SettingsPanel, applySettings, loadSettings } from '../SettingsPanel'
-import { HOME_TARGET, PMAP_SCENE, setMapUrl } from '../../game/pmap/route'
+import { HOME_TARGET, enterMap } from '../../game/pmap/route'
 import './boot-title.css'
 
 // Title (GAME-DESIGN §4.2). The backdrop is the cove itself — for now a captured frame of
@@ -40,11 +40,11 @@ export default function TitleScene() {
    * Both rides use the illustrated scene cover (calm, heavy — never a flash). */
   const resume = (introDone: boolean) => {
     if (introDone) {
-      /* the address goes down before the navigation: PmapScene reads its target
-       * off the url at mount, so that a refresh lands in the room the student was
-       * standing in. `route.ts` owns the shape. */
-      setMapUrl(HOME_TARGET)
-      nav.go(PMAP_SCENE, { kind: 'scene', image: '/art/ui/loading-islands.png', title: 'THE BLHS ISLANDS', holdMs: 2200 })
+      /* the address goes down with the navigation and never without it: PmapScene
+       * reads its target off the url at mount, so a refused cover would otherwise
+       * leave the address pointing at a map the student is not in. `route.ts`
+       * owns both halves. */
+      enterMap(nav.go, HOME_TARGET, { kind: 'scene', image: '/art/ui/loading-islands.png', title: 'THE BLHS ISLANDS', holdMs: 2200 })
     } else nav.go('beach', { kind: 'scene', title: 'THE FAR SHORE', holdMs: 2200 })
   }
   // no save -> Begin Adventure (starts the one run). Save -> Continue where they left off.

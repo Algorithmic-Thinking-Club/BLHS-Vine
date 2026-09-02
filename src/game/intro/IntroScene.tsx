@@ -11,7 +11,7 @@ import { track } from '../telemetry'
 import { GearButton, SettingsPanel } from '../../app/SettingsPanel'
 import { Hud } from '../hud/Hud'
 import { useNav } from '../../app/SceneManager'
-import { PMAP_SCENE, SEA_ARRIVAL, setMapUrl } from '../pmap/route'
+import { SEA_ARRIVAL, enterMap } from '../pmap/route'
 
 // The intro lives ON the beach — one scene, playable and stageable. A fresh player gets the
 // I-1/I-2 cutscene the moment the stage reports ready; a returning one just gets the cove.
@@ -69,10 +69,10 @@ export default function IntroScene() {
         writeSave({ beat: 'sea:arrive', introDone: true })
         track('cutscene_complete', { id: 'intro-beach-act' })
         track('sail_started')
-        /* the address goes down BEFORE the navigation, because PmapScene reads
-         * its target off the url at mount (route.ts says why) */
-        setMapUrl(SEA_ARRIVAL)
-        navRef.current?.go(PMAP_SCENE, { kind: 'scene', image: '/art/ui/loading-islands.png', title: 'THE BLHS ISLANDS', holdMs: 2600 })
+        /* the address goes down WITH the navigation and never without it, because
+         * PmapScene reads its target off the url at mount (route.ts says why) */
+        const go = navRef.current?.go
+        if (go) enterMap(go, SEA_ARRIVAL, { kind: 'scene', image: '/art/ui/loading-islands.png', title: 'THE BLHS ISLANDS', holdMs: 2600 })
       })
       // hand the black frame from the pre-cover to the script's own fade, seamlessly
       window.setTimeout(() => setPreCover(false), 400)
