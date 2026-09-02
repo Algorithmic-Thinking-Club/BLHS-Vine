@@ -16,6 +16,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import fs from 'node:fs'
 import path from 'node:path'
 import { DialogueBox, ADVANCE_DEAD_MS } from './DialogueBox'
+import { setKit, type KitPiece } from '../ui/kit'
 
 let host: HTMLDivElement
 let root: Root
@@ -37,6 +38,16 @@ const render = (props: Parameters<typeof DialogueBox>[0]) => {
 const line = (over: Partial<Parameters<typeof DialogueBox>[0]['line']> = {}) => ({
   text: 'The circle is drawn.', shown: 20, done: true, ...over,
 })
+
+/* the portrait frame as the platform really publishes it, so a test can install
+ * a kit rather than assume one */
+const FRAME: KitPiece = {
+  name: 'portrait_frame', type: 'portrait_frame', w: 200, h: 185,
+  slice: { top: 34, right: 38, bottom: 37, left: 29 },
+  fill: true, scale: 1, repeat: { x: 'round', y: 'round' },
+  src: '/api/v1/ui/portrait_frame/image', sha: 'pf',
+  css: '.kit-surface-portrait_frame { border-image: var(--kit-art-portrait_frame) 34 38 37 29 fill / 1 / 0 round; }',
+}
 
 describe('what the box draws', () => {
   it('shows only the characters the caller has revealed', () => {
@@ -66,12 +77,41 @@ describe('what the box draws', () => {
    * record requires, so the assertion moved with the markup: the same src, and
    * now the frame around it as well. */
   it('DRAWS THE PORTRAIT, in the drawn frame the kit publishes for it', () => {
+    /* the frame is worn only when the platform really published the piece, so a
+     * test that wants to see it has to install one. Before 2026-09-02 the class
+     * was written unconditionally and this assertion passed against a kit that
+     * did not exist, which is exactly how the no-platform path shipped broken. */
+    setKit([FRAME])
     render({ line: line({ portrait: 'pinzon' }) })
     const img = host.querySelector('.dlg-portrait img.kit-portrait-pic') as HTMLImageElement | null
     expect(img).toBeTruthy()
     expect(img!.getAttribute('src')).toBe('/art/portraits/pinzon.png')
     expect(host.querySelector('.dlg-portrait .kit-surface-portrait_frame')).toBeTruthy()
     expect(host.querySelector('.cs-dialogue')?.className).toContain('has-portrait')
+    setKit([])
+  })
+
+  /* THE HALF THAT SHIPPED BROKEN AND HAD NO TEST.
+   *
+   * `kit.ts` opens by promising that a Chromebook behind a district filter still
+   * gets a game "that looks like the art committed in this repo rather than an
+   * unpainted rectangle". Every control in the kit wrote its `kit-surface-*`
+   * class whether or not the platform had answered, and every fallback rule was
+   * guarded on that class being ABSENT, so the fallbacks were unreachable: with
+   * `?kit=0` the Handbook's tabs were five words of bare text and the portrait
+   * had no frame at all. Found by looking at `build-shots/ui/after-nokit/`.
+   *
+   * A control with no drawn ground carries `kit-bare` now, and this is the test
+   * that stops the guard going dead again. */
+  it('says so in its class when the platform published no frame, so a fallback can dress it', () => {
+    setKit([])
+    render({ line: line({ portrait: 'pinzon' }) })
+    const frame = host.querySelector('.dlg-portrait .kit-portrait')
+    expect(frame).toBeTruthy()
+    expect(frame!.className).toContain('kit-bare')
+    expect(frame!.className).not.toContain('kit-surface-')
+    /* and the picture is still there: the ground is missing, the face is not */
+    expect(host.querySelector('.dlg-portrait img.kit-portrait-pic')).toBeTruthy()
   })
 
   it('leaves no portrait frame at all when the line has none', () => {

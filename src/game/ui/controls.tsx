@@ -34,7 +34,8 @@ import {
   type ButtonHTMLAttributes, type CSSProperties, type InputHTMLAttributes, type ReactNode,
 } from 'react'
 import { faceStyle } from './kitFaceStyle'
-import { kitCached, kitFace, kitGeneration, onKitLanded } from './kit'
+import { kitCached, kitFace, kitGeneration, kitOptedIn, kitPiece, onKitLanded } from './kit'
+import { currentSkin } from './skin'
 import './controls.css'
 
 /* ---- the kit arriving ----------------------------------------------------
@@ -83,6 +84,35 @@ export function Glyph({
       title={title}
     />
   )
+}
+
+/* ---- WEARING A GROUND ONLY WHEN THERE IS ONE -----------------------------
+ *
+ * THE BUG THIS EXISTS TO KILL, found on 2026-09-02 by running the game with
+ * `?kit=0` and looking: the Handbook's tabs were five words of bare text with no
+ * tab under them, and the dialogue portrait floated with no frame.
+ *
+ * Every control here wrote `kit-surface-<piece>` into its className
+ * unconditionally, and every fallback rule in `controls.css` was guarded with
+ * `:not([class*='kit-surface'])`. That guard can never be true, because the
+ * class is always there. So the fallbacks were dead the day they were written
+ * and the only thing holding those surfaces up was the platform answering.
+ *
+ * That is the exact failure `kit.ts` opens by forbidding: "A classroom
+ * Chromebook behind a district filter that cannot reach the platform still gets
+ * a game, and it gets one that looks like the art committed in this repo rather
+ * than an unpainted rectangle." A district filter, `?kit=0`, or a slow first
+ * paint all produced a rectangle.
+ *
+ * So the class is asked for rather than assumed. `kitPiece` answers whether the
+ * platform really published this piece, `useKitReady` re-renders when it lands,
+ * and a control with no ground says so in its own class so the stylesheet can
+ * dress it. Guessing from a className was the mistake; this asks the reader that
+ * already knows. */
+export function useSurface(piece: string): string {
+  useKitReady()
+  const worn = kitOptedIn() && currentSkin() === 'paper'
+  return worn && kitPiece(kitCached() ?? [], piece) ? `kit-surface-${piece}` : 'kit-bare'
 }
 
 /** the same mark as a plain style object, for a caller that owns its own box */
@@ -209,7 +239,7 @@ export function Tab({
       type="button"
       role="tab"
       aria-selected={active}
-      className={`kit-tab kit-surface-tab${active ? ' kit-tab-on' : ''} ${className}`}
+      className={`kit-tab ${useSurface('tab')}${active ? ' kit-tab-on' : ''} ${className}`}
       {...rest}
     >
       <span className="kit-tab-ink">{children}</span>
@@ -232,12 +262,13 @@ export function Field({
   hint?: string
   className?: string
 } & InputHTMLAttributes<HTMLInputElement>) {
+  const surface = useSurface('field')
   const auto = `kf-${label.replace(/\W+/g, '-').toLowerCase()}`
   const fid = id ?? auto
   return (
     <div className={`kit-field-row ${className}`}>
       <label className="kit-field-label" htmlFor={fid}>{label}</label>
-      <span className={`kit-field kit-surface-field${error ? ' kit-field-bad' : ''}`}>
+      <span className={`kit-field ${surface}${error ? ' kit-field-bad' : ''}`}>
         <input
           id={fid}
           className="kit-field-input"
@@ -279,7 +310,7 @@ export function Gauge({
   const pct = value === null ? null : Math.max(0, Math.min(1, value))
   return (
     <div
-      className={`kit-gauge kit-surface-gauge${pct === null ? ' kit-gauge-waiting' : ''} ${className}`}
+      className={`kit-gauge ${useSurface('gauge')}${pct === null ? ' kit-gauge-waiting' : ''} ${className}`}
       role="progressbar"
       aria-label={label}
       aria-valuemin={0}
@@ -316,7 +347,7 @@ export function Socket({
   return (
     <button
       type="button"
-      className={`kit-socket kit-surface-socket ${className}`}
+      className={`kit-socket ${useSurface('socket')} ${className}`}
       data-state={state}
       aria-label={refusing ? `${caption}. ${refusing}` : caption}
       {...rest}
@@ -358,10 +389,11 @@ export function PortraitFrame({
   id, caption, className = '',
 }: { id: string; caption?: string; className?: string }) {
   const src = portraitUrl(id)
+  const surface = useSurface('portrait_frame')
   const [failed, setFailed] = useState(false)
   useEffect(() => { setFailed(false) }, [src])
   return (
-    <span className={`kit-portrait kit-surface-portrait_frame ${className}`}>
+    <span className={`kit-portrait ${surface} ${className}`}>
       {!failed && (
         <img
           className="kit-portrait-pic"

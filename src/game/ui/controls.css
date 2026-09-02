@@ -20,6 +20,16 @@
 
 @import './tokens.css';
 
+/* A CONTROL WITH NO DRAWN GROUND SAYS SO, so the stylesheet can dress it rather
+   than leaving a word floating. `useSurface` in controls.tsx writes this class
+   when the platform has not published the piece, which is what a district filter,
+   `?kit=0` and the first paint before the fetch answers all look like. */
+.kit-field.kit-bare {
+  border: var(--kit-border) solid var(--kit-edge-strong);
+  border-radius: var(--kit-r-soft);
+}
+.kit-gauge.kit-bare { border: var(--kit-border) solid var(--kit-edge); }
+
 /* ---- a drawn mark -------------------------------------------------------- */
 
 /* A LOCAL MARK, for the four the platform's sheet does not carry. Same box and
@@ -285,7 +295,7 @@ button.kit-chip:active { transform: translateY(1px); }
 .kit-tab-on { filter: none; transform: translateY(-3px); }
 .kit-tab-on .kit-tab-ink { color: var(--kit-sea-ink); }
 /* and a tab with no drawn art behind it still reads as a tab */
-.kit-tab:not([class*='kit-surface']) { border-bottom: var(--kit-border) solid var(--kit-edge); }
+.kit-tab.kit-bare { border-bottom: var(--kit-border) solid var(--kit-edge); }
 
 /* ---- THE FIELD ----------------------------------------------------------- */
 
@@ -433,9 +443,9 @@ html[data-rm='1'] .kit-gauge-waiting .kit-gauge-fill { animation: none; width: 1
 }
 /* an empty socket with no drawn art behind it is still visibly a place a thing
    goes: a dashed well, which is the one place a dash is the right drawing */
-.kit-socket:not([class*='kit-surface']) { border: 2px dashed var(--kit-rule-firm); border-radius: var(--kit-r-card); }
+.kit-socket.kit-bare { border: 2px dashed var(--kit-rule-firm); border-radius: var(--kit-r-card); }
 .kit-socket[data-state='over'] { transform: translateY(-2px); filter: brightness(1.1); }
-.kit-socket[data-state='over']:not([class*='kit-surface']) { border-color: var(--kit-sea); }
+.kit-socket.kit-bare[data-state='over'] { border-color: var(--kit-sea); }
 .kit-socket[data-state='filled'] { cursor: grab; }
 /* A REFUSAL SHAKES ONCE AND THEN STAYS REFUSED IN WORDS. The shake is the
    notice; the sentence under it is the message, so a student who missed the
@@ -492,7 +502,7 @@ html[data-rm='1'] .kit-socket[data-state='refusing'] { animation: none; }
   font-size: var(--kit-fs);
   color: var(--kit-ink-label);
 }
-.kit-portrait:not([class*='kit-surface']) {
+.kit-portrait.kit-bare {
   border: var(--kit-border) solid var(--kit-edge);
   border-radius: var(--kit-r-card);
   background-color: var(--kit-paper-lo);
