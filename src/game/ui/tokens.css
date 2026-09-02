@@ -713,12 +713,23 @@ html[data-skin='plain'] {
  * plank gets a wider end, which is what keeps the rope from stretching. The
  * default suits the 46 pixel button most of the game presses. */
 .kit-surface-plank {
-  --kit-plank-cap: 24px;
+  /* THE FILE IS 454x148 SINCE `scripts/_trim-plank.mjs` RAN, and that is why the
+   * numbers moved. It was 512x192 with the wood only occupying x29..482,
+   * y22..169, so every plank was laid out at one size and drawn at 89 percent of
+   * it, inset by 29 pixels horizontally and 22 vertically. That is what Ash saw
+   * in round two as choice planks "wider than the box under them, offset from
+   * it": the dialogue frame beside them measures a transparent margin of zero on
+   * all four sides, so one object filled its box and the other floated inside
+   * its own, and no amount of moving either could line them up.
+   *
+   * 60 of the 454 is the rope curve and its corner bolts. The cap is drawn at
+   * the art's own scale for each button height (60 x height / 148), so the rope
+   * is never squeezed sideways to make a wider button. */
+  --kit-plank-cap: 19px;
   border-style: solid;
   border-color: transparent;
   border-width: 0 var(--kit-plank-cap);
-  /* 96 of the 512 is the rope-and-iron end on each side, measured off the file */
-  border-image: var(--kit-art-plank) 0 96 fill / 0 var(--kit-plank-cap) / 0 round;
+  border-image: var(--kit-art-plank) 0 60 fill / 0 var(--kit-plank-cap) / 0 round;
   background: none;
 }
 

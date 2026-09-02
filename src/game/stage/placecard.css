@@ -25,7 +25,15 @@
 .pc-root {
   position: fixed;
   left: 50%;
-  bottom: max(12%, calc(var(--ui-band, 0px) + 2.2vh));
+  /* IT SITS IN THE MIDDLE OF THE SCREEN, NOT DOWN ON THE QUAY.
+     Ash, round two: "A low band sitting bottom-left over the quay, off the
+     screen's centre, type too small to read at Chromebook distance." At 12
+     percent from the bottom the card lands on the waterfront, which on the hub
+     is the busiest painted area and the part a player is usually standing in.
+     A card that names where you have arrived belongs where the eye already is.
+     It still yields to the conversation band, so a line of dialogue can never
+     be under it. */
+  bottom: max(38%, calc(var(--ui-band, 0px) + 4vh));
   transform: translateX(-50%);
   z-index: 68;
   pointer-events: none;
@@ -38,7 +46,11 @@
      the wrapper, the card fills it, and the query has a real number to measure
      against. A plaque that is the same width every time is also the right
      picture: it is one drawn object, not a label that grows with its text. */
-  width: min(760px, 88vw);
+  /* AND THE ROOT IS THE CARD'S OWN WIDTH. It was 760 with the card capped at 560
+     inside it and no auto margin, so the card sat 100 pixels left of the
+     transform that was supposed to be centring it. One width, stated once, is
+     what makes "centred" true rather than intended. */
+  width: min(620px, 82vw);
   /* the card's own dwell, written by PlaceCard.tsx from the one constant it also
      counts down on, so the rule under the card drains for exactly as long as the
      card is going to be there */
@@ -74,11 +86,6 @@
 .pc-card {
   box-sizing: border-box;
   width: 100%;
-  /* NARROWER THAN THE HARBOUR. At 760 the card covered the jetty, the
-     lighthouse and the beach, which is everything the player is standing on, to
-     hold three short lines with two hundred pixels of empty paper on each side.
-     The card names a place; it is not a page. */
-  max-width: min(560px, 74vw);
   container-type: inline-size;
   padding: 0;
   text-align: center;
@@ -107,7 +114,12 @@
      a fixed place name, and `notes.json` recorded "FRACTIONAL pc-name 29.6px" on
      seven of nineteen surfaces. Sized against the CARD now rather than the
      window, which is what `container-type` above is for. */
-  --kit-fs-raw: calc(clamp(19px, 4.4cqw, 30px) * var(--kit-text-scale));
+  /* READABLE FROM THE BACK OF A CLASSROOM, which is the standard Ash set in
+     round two and is not the same standard as readable at a desk. This was
+     clamp(19px, 4.4cqw, 30px), so on the deployment target the place name landed
+     at 27 pixels, which is smaller than the heading of any panel in the game and
+     smaller than the sentence under it wants to be. */
+  --kit-fs-raw: calc(clamp(28px, 7cqw, 44px) * var(--kit-text-scale));
   font-size: var(--kit-fs);
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -118,7 +130,7 @@
 .pc-line {
   margin: 0.35em 0 0;
   font-family: var(--kit-face-body);
-  --kit-fs-raw: calc(clamp(13px, 2.2cqw, 17px) * var(--kit-text-scale));
+  --kit-fs-raw: calc(clamp(15px, 2.9cqw, 21px) * var(--kit-text-scale));
   font-size: var(--kit-fs);
   line-height: 1.35;
   color: var(--kit-ink-label);
@@ -141,7 +153,7 @@
   color: var(--kit-ink-said);
   /* deliberately not smaller than the line above it. This is the sentence a lost
      student is looking for, and it was the one nobody had ever seen. */
-  --kit-fs-raw: calc(clamp(15px, 3.1cqw, 26px) * var(--kit-text-scale));
+  --kit-fs-raw: calc(clamp(17px, 3.6cqw, 26px) * var(--kit-text-scale));
   font-size: var(--kit-fs);
   line-height: 1.35;
   text-wrap: balance;

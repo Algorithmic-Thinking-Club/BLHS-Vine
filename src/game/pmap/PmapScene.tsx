@@ -71,6 +71,11 @@ import { showPlaceCard } from '../stage/stage-bus'
 import { motionMs, prefersReducedMotion } from '../ui/motion'
 import { uiBand } from '../ui/frame'
 import { kitNineSlice, kitPieceHeight, kitSprite, kitTexture } from '../ui/kitSprite'
+/* the two questions the task line has to ask before it speaks, and both of them
+ * are already answered somewhere else: an open panel is on the a11y stack, and an
+ * arrival card is on the stage bus. */
+import { panelDepth } from '../ui/a11y'
+import { placeCardUp } from '../stage/stage-bus'
 
 /* THE FIVE STATES THE IN-WORLD PROMPT CAN BE IN, which Part IV §40.5 enumerates
  * and which this engine had four strings and one style for.
@@ -2133,6 +2138,96 @@ export default function PmapScene() {
           layoutPrompt()
         })()
         layoutPrompt()
+      }
+
+      /* ---- THE TASK, ABOVE HIS HEAD, IN THE WORLD -----------------------
+       *
+       * ASH RULED IT IN ROUND TWO, on `02-hub-walking.png`: "A small dark box in
+       * the bottom-left corner, wrapped onto two lines... that one line above
+       * their head like a task objective, is fine. It goes above Thor's head in
+       * the world, one line, in the body face, on the socket plaque like the
+       * world prompt, and never in a corner."
+       *
+       * And the non-reader law it serves, from the same brief: "One line above
+       * his head is the task. It is the ONLY standing text on the screen." The
+       * player is a freshman who did not choose this game and will not read a
+       * paragraph, so the one sentence the game owes them cannot be a card in a
+       * corner that fades after seven seconds.
+       *
+       * THE SENTENCE IS NOT NEW AND WAS NEVER ON A SCREEN UNTIL LAST ROUND.
+       * `run/objective.ts` has computed one live objective from the year's own
+       * state machine since it was written, in character, seven of them. This is
+       * a renderer for an answer the game already has.
+       *
+       * IT IS THE SAME OBJECT AS THE PROMPT, deliberately: the same drawn
+       * `socket` plaque, the same body face, the same size the text setting
+       * moves. A student learns one shape and it means "the game is telling you
+       * something", whether it is hanging over a door or over Thor.
+       *
+       * WHAT IT YIELDS TO. Anything with more to say: a panel, an arrival card,
+       * a cutscene, a line of dialogue, a scripted walk. `worldHeld` counts all
+       * of those at once, which is why the check is one call and not five.
+       * It also stands aside for the door prompt, because a student standing at
+       * a station is being told two things about the same step and only the
+       * nearer one is actionable. */
+      const task = new Container()
+      task.zIndex = 9e9 - 3
+      task.visible = false
+      task.sortableChildren = true
+      world.addChild(task)
+
+      let taskPlate: NineSliceSprite | null = null
+      const taskTxt = new Text({
+        text: '',
+        style: new TextStyle({
+          fontFamily: ['Deckhand', 'monospace'],
+          fontSize: promptSize() + 3,
+          fontWeight: 'bold',
+          fill: 0xbaf3ea,
+          stroke: { color: 0x06282c, width: 3 },
+        }),
+      })
+      taskTxt.anchor.set(0.5, 0.5)
+      task.addChild(taskTxt)
+      task.scale.set(1 / Z)
+
+      let taskSaid = ''
+
+      const layoutTask = () => {
+        if (!taskPlate) return
+        const k = (taskTxt.height + 14) / promptPlateH
+        promptPlate?.width  // keep the two plaques reading one measurement
+        taskPlate.width = taskTxt.width / k + 60
+        taskPlate.scale.set(k)
+        taskPlate.x = -(taskPlate.width * k) / 2
+        taskPlate.y = -(promptPlateH * k) / 2
+      }
+
+      void (async () => {
+        taskPlate = await kitNineSlice('socket', 300)
+        if (!taskPlate) return
+        taskPlate.zIndex = -1
+        task.addChild(taskPlate)
+        taskTxt.style.stroke = { color: 0x000000, width: 0 }
+        /* the same ink the plain prompt uses, because it is the same plaque
+         * saying the same kind of thing */
+        taskTxt.style.fill = 0x3b2a1a
+        taskSaid = ''
+        layoutTask()
+      })()
+
+      /** the one live objective, drawn over Thor, or nothing */
+      const setTask = (text: string) => {
+        if (!text) { task.visible = false; taskSaid = ''; return }
+        task.visible = true
+        if (text === taskSaid) return
+        taskSaid = text
+        taskTxt.text = text
+        /* a step above the prompt. This is the sentence that is on screen all the
+         * time and is the only text a student is promised, so it is the one piece
+         * of world type that gets to be bigger than the affordances. */
+        taskTxt.style.fontSize = promptSize() + 3
+        layoutTask()
       }
 
       /* A POINTER PATH THAT A READER AND A KEYBOARD CAN ALSO SEE.
@@ -4395,6 +4490,45 @@ export default function PmapScene() {
         // a figure he is standing in front of
         thor.sh.zIndex = OVER_PLACED + pos.y - 1
         pin.position.set(pos.x, pos.y - charH - 3 + Math.sin(t * 2.1) * 1.4)
+        /* THE TASK RIDES ABOVE THE PIN, which is itself above his head, so the
+         * order down the screen is the sentence, the YOU marker, then Thor. It
+         * bobs on the same clock as the pin and the prompt so the three read as
+         * one system rather than three timers. */
+        {
+          const o = nextObjective(loadSave())
+          const quiet = !fade && !locked && !busy && !placeCardUp() && panelDepth() === 0
+          /* IT DOES NOT YIELD TO THE DOOR PROMPT, and the first pass had that
+           * wrong. Ash named what it yields to: "When a card or a dialogue is up,
+           * it yields." A prompt is neither. It is also, on the hub, permanently
+           * on screen where a student spawns (the berth is under their feet), so
+           * standing aside for it meant the one line the non-reader law calls
+           * "the only standing text on the screen" never appeared at all.
+           *
+           * The two plaques say different things in different places: one hangs
+           * over the thing E would open, and this one rides over Thor. Together
+           * they are the whole of what a student needs and neither is noise. */
+          setTask(quiet && o ? o.say : '')
+          /* CLEAR OF THE YOU PIN, IN SCREEN PIXELS RATHER THAN WORLD ONES.
+           * The pin stands about forty screen pixels above his head whatever the
+           * camera is doing, and a world-space offset shrinks with the zoom, so
+           * at the hub's wide shot the sentence was drawn straight through the
+           * marker. `uiS` is 1/camZ, which is exactly the number that turns a
+           * screen distance into a world one, and it is the same 1/camZ the
+           * marks are scaled by a few lines further down. */
+          task.position.set(pos.x, pos.y - charH - 3 - 62 / camZ + Math.sin(t * 2.1) * 1.4)
+          /* AND IT STAYS ON THE SCREEN. It is centred on Thor, and Thor spends
+           * a lot of the hub standing near an edge, so a long sentence hung over
+           * him runs off the window. Measured after placing rather than
+           * predicted from the text width, because the plaque's width is the
+           * result of a nine-slice and a scale and the bounds already know. */
+          if (task.visible) {
+            const gb = task.getBounds()
+            const pad = 10
+            const over = Math.max(0, gb.maxX - (app.screen.width - pad))
+              - Math.max(0, pad - gb.minX)
+            if (over !== 0) task.x -= over / camZ
+          }
+        }
         /* A SCRIPT'S CAMERA OUTRANKS THE FOLLOW LAW while it is set, and snaps
          * rather than lerps, because the runtime is already tweening it and two
          * smoothings in series make every camera move arrive late and soft. The

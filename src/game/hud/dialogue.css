@@ -267,14 +267,20 @@ html[data-rm='1'] .dlg-choice { animation: none; }
   opacity: .85;
 }
 
-.dlg-choice:focus-visible {
-  outline: var(--kit-focus-width) solid var(--kit-focus);
-  outline-offset: var(--kit-focus-offset);
-}
-.dlg-box:focus-visible {
-  outline: var(--kit-focus-width) solid var(--kit-focus);
-  outline-offset: 4px;
-}
+/* THE RING IS DRAWN INSIDE THE WOOD AND THIS FILE NO LONGER ARGUES.
+ *
+ * Ash, round two, on `07-choices.png`: "the focus ring hangs outside the first
+ * plank". `controls.css` already moved the ring onto the plank itself, and these
+ * two rules were quietly winning: same specificity, later in the cascade,
+ * positive offsets. On the box the offset was FOUR, which drew a rectangle four
+ * pixels clear of a carved frame across the ocean behind it.
+ *
+ * The ring itself is not gone. `controls.css` owns it for `.dlg-choice`, and the
+ * box gets its own inset rule here because the box is not a plank. A keyboard
+ * player has to be able to see where they are (§40.9); what was wrong is that
+ * the ring was drawn as a browser rectangle around a drawn object rather than as
+ * part of it. */
+.dlg-box:focus-visible { outline-offset: -6px; }
 
 /* ---- §16, THE PLAIN ARM -------------------------------------------------
  *

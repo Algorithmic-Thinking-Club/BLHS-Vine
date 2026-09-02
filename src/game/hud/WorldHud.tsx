@@ -78,8 +78,20 @@ export function WorldHud() {
           arrival card and OUTSIDE the Hud's own gate, because a student who has
           not been handed anything yet is exactly the student who needs telling.
           The year's state machine has computed this sentence since the day it was
-          written and nothing in the repository has ever rendered it. */}
-      <Heading />
+          written and nothing in the repository has ever rendered it.
+
+          NOT ON THE PAINTED MAP, WHERE IT IS DRAWN IN THE WORLD INSTEAD.
+          Ash, round two, on `02-hub-walking.png`: "A small dark box in the
+          bottom-left corner, wrapped onto two lines... it goes above Thor's head
+          in the world, one line, in the body face, on the socket plaque like the
+          world prompt, and never in a corner." `PmapScene` draws it on the same
+          plaque as the door prompt, so on that scene this would be the same
+          sentence twice.
+
+          The other world scenes keep the DOM card because they are the tile era
+          and have no plaque to hang it on. When they come off the road this
+          component and its stylesheet go with them. */}
+      {current !== 'pmap' && <Heading />}
     </>
   )
 }

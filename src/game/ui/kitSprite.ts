@@ -41,7 +41,25 @@ async function sheetOf(piece: string): Promise<Texture | null> {
       if (!p) return null
       const url = kitArtUrl(p, mapvisHost())
       if (!url) return null
-      const t: Texture = await Assets.load(url)
+      /* THE PARSER IS NAMED, BECAUSE THE URL HAS NO FILE EXTENSION.
+       *
+       * FOUND BY LOOKING, 2026-09-01. `Assets.load(url)` picks its loader by
+       * sniffing the extension, and every kit image is served from
+       * `/api/v1/ui/<piece>/image?v=<sha>`, which has none. Pixi answered with
+       * "[Assets] ...could not be loaded as we don't know how to parse it" and
+       * this function returned null, silently, forever.
+       *
+       * SO NOTHING DRAWN OFF THE KIT HAS EVER APPEARED INSIDE THE WORLD. The
+       * objective chevron was written to wear `pointer/chevron` in wave four,
+       * fell back to a monospace triangle on the first frame, and has been that
+       * triangle in every screenshot since; the prompt plaque came back empty
+       * for the same reason the day it was written. The DOM half never noticed
+       * because `kitFaceStyle` paints with a CSS background-image, which the
+       * browser sniffs by content type rather than by name.
+       *
+       * `parser` says which loader to use instead of guessing. The server
+       * sends a real content type; this is only about the file name. */
+      const t: Texture = await Assets.load({ src: url, parser: 'loadTextures' })
       /* NEAREST, ALWAYS. Every one of these is pixel art composited over a
        * painting at an integer-ish camera scale, and a linear filter is the
        * difference between a drawn edge and a smear. */

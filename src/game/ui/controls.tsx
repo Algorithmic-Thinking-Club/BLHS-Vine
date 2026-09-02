@@ -118,10 +118,22 @@ export function useFace(piece: string, face: string): CSSProperties | undefined 
 export type PlankSize = 'sm' | 'md' | 'lg'
 
 export function Plank({
-  children, keyCap, busy = false, size = 'md', wide = false, glyph, className = '',
+  children, sub, keyCap, busy = false, size = 'md', wide = false, glyph, className = '',
   disabled, ...rest
 }: {
   children: ReactNode
+  /* A SECOND LINE, INSIDE THE WOOD.
+   *
+   * Ash, round two, on the title: "One plank, 'Continue', with 'Year 1, Spring'
+   * as its second line inside the wood, the way the old one read." The first
+   * pass put the year on its own small plate under the sign, which he read as
+   * two planks where there had been one.
+   *
+   * It is a prop on the control rather than a layout each caller invents,
+   * because the reason it exists generalises: a sign says what pressing it does,
+   * and sometimes it has to say which one. The label stays the thing that never
+   * wraps; the second line is quieter, smaller, and is allowed to be absent. */
+  sub?: ReactNode
   /** the key that also presses this, drawn into the sign */
   keyCap?: string
   /** the press has been accepted and something is happening */
@@ -136,14 +148,18 @@ export function Plank({
   return (
     <button
       type="button"
-      className={`kit-plank kit-surface-plank kit-plank-${size}${wide ? ' kit-plank-wide' : ''} ${className}`}
+      className={`kit-plank kit-surface-plank kit-plank-${size}`
+        + `${wide ? ' kit-plank-wide' : ''}${sub ? ' kit-plank-two' : ''} ${className}`}
       disabled={disabled || busy}
       aria-busy={busy || undefined}
       {...rest}
     >
       {keyCap && <span className="kit-plank-key" aria-hidden="true">{keyCap}</span>}
       {glyph && <Glyph piece={glyph[0]} face={glyph[1]} size={18} className="kit-plank-glyph" />}
-      <span className="kit-plank-ink">{children}</span>
+      <span className="kit-plank-lines">
+        <span className="kit-plank-ink">{children}</span>
+        {sub && <span className="kit-plank-sub">{sub}</span>}
+      </span>
       {busy && <span className="kit-plank-busy" aria-hidden="true" />}
     </button>
   )

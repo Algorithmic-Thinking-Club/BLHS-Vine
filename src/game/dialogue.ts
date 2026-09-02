@@ -37,6 +37,10 @@ export type DialogueState =
   | { kind: 'ask'; ask: DialogueAsk; pick: (i: number) => void }
   | null
 
+/* the queue waits on the arrival card, and is woken by it. Imported for the
+ * value rather than the type, so this file is the one that owns the wait. */
+import { onStageBusy, placeCardUp } from './stage/stage-bus'
+
 type Waiting =
   | { kind: 'line'; line: DialogueLine; done: () => void }
   | { kind: 'ask'; ask: DialogueAsk; done: (i: number) => void }
@@ -60,8 +64,33 @@ function announce() {
   for (const fn of listeners) fn(v)
 }
 
+/* ---- NOTHING SPEAKS WHILE AN ARRIVAL CARD IS UP --------------------------
+ *
+ * `docs/ops/BRIEF-UI.md` item 5 asked for it in round one and round two asked
+ * again ("held while nothing else speaks"). It was the one line of that item
+ * nobody could close, because every surface that could see the card was a
+ * component and the thing that decides WHEN a line is shown is this queue.
+ *
+ * WHAT IT LOOKED LIKE. `build-shots/ui/before/06-dialogue.png`: the card naming
+ * the place and a station's first sentence on screen together, the card drawn
+ * over the box, two things introducing themselves at once to a student who has
+ * been in the world for two seconds. `scripts/ten-seconds.mjs` measured the same
+ * collision from the other end: the year's opening line landed at 0.6 seconds
+ * and the card naming the place at 2.0.
+ *
+ * WHY IT IS A HOLD AND NOT A REFUSAL. A line that arrives during a card is not
+ * dropped and is not asked to try again; it waits its turn in the queue it is
+ * already in, and the card's own dismissal pumps it. So a station body, a
+ * cutscene and a member's Python all keep the promise they were given and none
+ * of them needs to know a card exists.
+ *
+ * THE CARD RE-PUMPS RATHER THAN THIS POLLING. `stage-bus.ts` already tells the
+ * world when a card goes up or comes down, so the queue is woken by the same
+ * signal every other surface reads. A timer here would be a second clock for a
+ * thing that already has an event. */
 function pump() {
   if (current) return
+  if (placeCardUp()) return
   current = queue.shift() ?? null
   announce()
 }
@@ -95,6 +124,12 @@ export function choose(ask: DialogueAsk): Promise<number> {
     pump()
   })
 }
+
+/* WOKEN WHEN THE CARD LEAVES. Without this a line that arrived during a card
+ * would sit in the queue until the NEXT `say`, which on the hub is a station a
+ * student has not walked to yet: the opening sentence of the game, waiting for
+ * an event that may never come. */
+if (typeof window !== 'undefined') onStageBusy(() => { if (!placeCardUp()) pump() })
 
 export const dialogueState = view
 export function onDialogue(fn: (s: DialogueState) => void): () => void {

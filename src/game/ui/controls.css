@@ -51,9 +51,9 @@
      handle on Ash's ruling */
   background-color: transparent;
 }
-.kit-plank-sm { min-height: 34px; padding: 6px 10px; --kit-plank-cap: 18px; --kit-fs-raw: calc(15px * var(--kit-text-scale)); }
-.kit-plank-md { min-height: 46px; padding: 9px 14px; --kit-plank-cap: 24px; --kit-fs-raw: calc(18px * var(--kit-text-scale)); }
-.kit-plank-lg { min-height: 60px; padding: 12px 20px; --kit-plank-cap: 32px; --kit-fs-raw: calc(23px * var(--kit-text-scale)); }
+.kit-plank-sm { min-height: 34px; padding: 6px 10px; --kit-plank-cap: 14px; --kit-fs-raw: calc(15px * var(--kit-text-scale)); }
+.kit-plank-md { min-height: 46px; padding: 9px 14px; --kit-plank-cap: 19px; --kit-fs-raw: calc(18px * var(--kit-text-scale)); }
+.kit-plank-lg { min-height: 60px; padding: 12px 20px; --kit-plank-cap: 24px; --kit-fs-raw: calc(23px * var(--kit-text-scale)); }
 .kit-plank-wide { width: 100%; }
 
 /* THE LABEL IS CUT INTO THE WOOD, which is what makes it readable on a dark
@@ -74,6 +74,37 @@
   text-overflow: ellipsis;
 }
 .kit-plank-glyph { margin-right: 2px; }
+
+/* THE TWO LINES, AND THE SECOND ONE IS QUIETER. A sign with a subtitle is still
+   one sign: the label keeps its weight and its nowrap, and the line under it is
+   the quiet ink cut into the same wood. `kit-plank-two` gives the wood the room
+   to hold both without the label ever leaving it. */
+.kit-plank-lines {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  line-height: 1.1;
+}
+.kit-plank-sub {
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-plank-ink);
+  text-shadow: 0 1px 0 var(--kit-plank-shadow);
+  /* QUIETER THAN THE LABEL, NOT FAINTER THAN LEGIBLE. Every note Ash has
+     written on this kit is about reading it at Chromebook distance, and the
+     second line of the title's one plank is a fact a returning student came for.
+     It is a step down in size and that is enough of a hierarchy. */
+  opacity: .95;
+  white-space: nowrap;
+  margin-top: 3px;
+}
+.kit-plank-two.kit-plank-sm { min-height: 46px; }
+.kit-plank-two.kit-plank-md { min-height: 62px; }
+.kit-plank-two.kit-plank-lg { min-height: 78px; --kit-plank-cap: 32px; }
+html[data-skin='plain'] .kit-plank-sub { text-shadow: none; opacity: 1; }
 
 /* the key that also presses this, cut into the left end */
 .kit-plank-key {

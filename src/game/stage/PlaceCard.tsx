@@ -223,7 +223,7 @@ export function PlaceCard() {
               `pin_plate`; there is no fallback shape on purpose, so a kit that
               never landed draws the name alone rather than a coloured blob
               standing in for a drawing nobody has seen. */}
-          <Glyph piece="pointer" face="pin_tail" size={20} className="pc-pin" />
+          <Glyph piece="pointer" face="pin_tail" size={30} className="pc-pin" />
           <span className="pc-name">{card.title}</span>
         </p>
         {card.line ? <p className="pc-line">{card.line}</p> : null}

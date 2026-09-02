@@ -4,7 +4,7 @@ import { beginAdventure, loadSave } from '../../game/save'
 import { track } from '../../game/telemetry'
 import { GearButton, SettingsPanel, applySettings, loadSettings } from '../SettingsPanel'
 import { HOME_TARGET, enterMap } from '../../game/pmap/route'
-import { Glyph, Plank } from '../../game/ui/controls'
+import { Plank } from '../../game/ui/controls'
 import './boot-title.css'
 
 // Title (GAME-DESIGN §4.2). The backdrop is the cove itself, for now a captured frame of
@@ -117,18 +117,24 @@ export default function TitleScene() {
         </div>
 
         <div className="ti-actions">
-          {/* ONE WORD ON THE SIGN. The year and the season are underneath it on
-              their own plate, so the label can never wrap off the wood again and
-              the two facts a returning student wants are still both on screen. */}
-          <Plank size="lg" className="ti-plank" onClick={go}>
+          {/* ONE PLANK, TWO LINES, BOTH INSIDE THE WOOD.
+              Ash, round two, on this exact shot: "Two planks where there was one:
+              'Continue' and an empty plank under it, with the year and season
+              pushed out onto a small chip below. One plank, 'Continue', with
+              'Year 1, Spring' as its second line inside the wood, the way the old
+              one read."
+              The first pass split them because the old single line, "Continue -
+              Year 3, Winter", did not fit the sign and wrapped off the wood. Two
+              lines is the answer to both: the label never wraps, and the year and
+              the season are still on the thing a returning student presses. */}
+          <Plank
+            size="lg"
+            className="ti-plank"
+            sub={save ? `Year ${save.year}, ${save.season}` : undefined}
+            onClick={go}
+          >
             {save ? 'Continue' : 'Begin Adventure'}
           </Plank>
-          {save && (
-            <div className="ti-berth">
-              <Glyph piece="pip" face={save.season.toLowerCase()} size={18} className="ti-berth-pip" />
-              <span className="ti-berth-ink">Year {save.year}, {save.season}</span>
-            </div>
-          )}
         </div>
       </div>
 
