@@ -544,12 +544,35 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                       aria-controls={`pl-list-${season}`}
                       onClick={() => { setRefused(null); setPlacing(season) }}
                     >
-                      <Glyph
-                        piece="pip"
-                        face="ghost"
-                        size={30}
-                        fallback={<span className="pl-coin pl-coin-ghost" aria-hidden="true" />}
-                      />
+                      {/* THE SOCKET SAYS WHICH SEASON BEFORE ANY WORD DOES.
+                          Ash's non-reader law, added to the brief on
+                          2026-09-01: "Any panel a student is sent to must be
+                          usable by looking: the year sheet's empty sockets say
+                          where a token goes before any label does."
+
+                          `ghost` alone is a drawn empty ring, which says A TOKEN
+                          goes here and not WHICH, so three sockets in a row were
+                          three identical rings told apart only by the caption
+                          above them. The season's own mark, dimmed, sits inside
+                          the ring: a maple leaf, a snowflake, a sprout. The
+                          shape carries the season and the dimming carries the
+                          empty, so neither is doing the other's job and neither
+                          is a hue. */}
+                      <span className="pl-sock-well">
+                        <Glyph
+                          piece="pip"
+                          face="ghost"
+                          size={38}
+                          className="pl-sock-ring"
+                          fallback={<span className="pl-coin pl-coin-ghost" aria-hidden="true" />}
+                        />
+                        <Glyph
+                          piece="pip"
+                          face={season.toLowerCase()}
+                          size={24}
+                          className="pl-sock-want"
+                        />
+                      </span>
                     </Socket>
                   )}
 

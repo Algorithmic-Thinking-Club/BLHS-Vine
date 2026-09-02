@@ -615,3 +615,28 @@ html[data-skin='plain'] .pl-air {
 html[data-skin='plain'] .pl-foot { border-top: 2px solid var(--kit-ink-head); }
 html[data-skin='plain'] .pl-waxed { transform: none; }
 html[data-skin='plain'] .pl-waxed-word { font-weight: 700; color: var(--kit-ink-head); }
+
+/* ---- THE EMPTY SOCKET, READ BY LOOKING ------------------------------------
+ *
+ * Ash's non-reader law (docs/ops/BRIEF-UI.md, 2026-09-01): "the year sheet's
+ * empty sockets say where a token goes before any label does". The drawn ring
+ * says a token goes here; the season's own mark inside it, at the weight of a
+ * pencil guide, says WHICH. A student who reads nothing on this sheet can still
+ * see that the leaf goes in the leaf-shaped hole. */
+.pl-sock-well {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px; height: 38px;
+}
+.pl-sock-ring { position: absolute; inset: 0; }
+.pl-sock-want {
+  position: relative;
+  opacity: .38;
+  /* a guide is drawn, not lit: it loses its colour as well as its weight, so the
+     difference between a socket that is waiting and a token that is placed is
+     not one a school panel can crush */
+  filter: grayscale(.6);
+}
+html[data-skin='plain'] .pl-sock-well { width: auto; height: auto; }

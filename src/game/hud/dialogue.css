@@ -140,23 +140,24 @@ html[data-rm='1'] .dlg-caret { animation: none; }
   display: grid;
   flex: none;
 }
+/* IT BOUNCES RATHER THAN FLASHING, which is what GAME-DESIGN §11.1 commissioned
+   ("bouncing paw-print continue cue") and what a cue on cream paper can actually
+   do. The four faces are the same paw in white, brown, gold and green, so
+   cycling them was a HUE animation on a school panel that crushes hue, and one
+   quarter of the loop was a white paw on cream paper, which is nothing at all.
+   One brown paw, moving. Motion reads on any ground. */
 .dlg-paw-f {
   grid-area: 1 / 1;
-  opacity: 0;
-  animation: dlg-paw 1400ms steps(1, end) infinite;
+  animation: dlg-paw 1100ms ease-in-out infinite;
 }
-.dlg-paw-f2 { animation-delay: 350ms; }
-.dlg-paw-f3 { animation-delay: 700ms; }
-.dlg-paw-f4 { animation-delay: 1050ms; }
 @keyframes dlg-paw {
-  0%, 24.99% { opacity: 1; }
-  25%, 100%  { opacity: 0; }
+  0%, 100% { transform: translateY(0); }
+  45% { transform: translateY(-4px); }
+  70% { transform: translateY(0); }
 }
 /* a looping cue STOPS rather than shortening: an infinite animation at 1ms is a
-   strobe, which is worse than the thing the setting was turned on to stop. It
-   keeps the first frame, which is a whole paw print. */
-html[data-rm='1'] .dlg-paw-f { animation: none; opacity: 0; }
-html[data-rm='1'] .dlg-paw-f1 { opacity: 1; }
+   strobe, which is worse than the thing the setting was turned on to stop. */
+html[data-rm='1'] .dlg-paw-f { animation: none; }
 
 /* the words beside the paw, and the only thing on screen that names both ways
    to go on. They breathe; the paw carries the motion. */

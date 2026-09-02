@@ -149,21 +149,21 @@ html[data-rm='1'] .bt-stage { animation-duration: 1ms; }
   flex: none;
   height: 26px;
 }
-.bt-cueframe { opacity: 0; animation: btr-cue 1200ms steps(1, end) infinite; }
-/* THE FIRST FRAME HOLDS THE BOX OPEN and the other three lie over it. `Glyph`
-   gives a face its DRAWN aspect rather than a square, so a hard 26 by 26 here
-   would crop or letterbox whatever the sheet turns out to hold. An element at
-   zero opacity still takes its space, so the box is exactly one frame wide. */
-.bt-cf1 { position: static; animation-delay: 0ms; }
-.bt-cf2, .bt-cf3, .bt-cf4 { position: absolute; left: 0; top: 0; }
-.bt-cf2 { animation-delay: 300ms; }
-.bt-cf3 { animation-delay: 600ms; }
-.bt-cf4 { animation-delay: 900ms; }
-@keyframes btr-cue { 0%, 24.9% { opacity: 1; } 25%, 100% { opacity: 0; } }
+/* IT BOUNCES RATHER THAN FLASHING, which is what GAME-DESIGN §11.1 commissioned
+   ("bouncing paw-print continue cue") and what a cue on cream paper can actually
+   do. The four faces are the same paw in white, brown, gold and green, so
+   cycling them was a HUE animation on a school panel that crushes hue, and one
+   quarter of the loop was a white paw on cream paper, which is nothing at all.
+   One brown paw, moving. Motion reads on any ground. */
+.bt-cueframe { animation: btr-cue 1100ms ease-in-out infinite; }
+@keyframes btr-cue {
+  0%, 100% { transform: translateY(0); }
+  45% { transform: translateY(-5px); }
+  70% { transform: translateY(0); }
+}
 /* A LOOP AT 1ms IS A STROBE, which is worse for the student the setting is for.
-   The cue stops on its first frame and stays drawn. */
-html[data-rm='1'] .bt-cueframe { animation: none; opacity: 0; }
-html[data-rm='1'] .bt-cf1 { opacity: 1; }
+   The paw stops where it is and stays drawn. */
+html[data-rm='1'] .bt-cueframe { animation: none; }
 
 /* AND WHAT STANDS IN WHEN NOBODY DREW IT. The kit only wears its faces behind
    `?kit=1`, so this is what a student sees today: a token-coloured chevron drawn
@@ -508,7 +508,27 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
   --bt-doc-focus: #1d6fd8;
   --bt-doc-face: system-ui, 'Segoe UI', Roboto, sans-serif;
 
-  width: min(680px, 94vw); max-height: 90vh; overflow-y: auto;
+  /* THE SCROLL IS VISIBLE, BECAUSE AN INVISIBLE ONE COST THE LAST ITEM.
+   *
+   * The art-direction pass of 2026-09-01 opened `after-plain/19-beat.png` and
+   * found the Respect row and the submit control off the bottom of the card with
+   * nothing on screen saying there was more. The card was already
+   * `max-height: 90vh; overflow-y: auto`, so the content was reachable and NOTHING
+   * SAID SO: a browser hides an overlay scrollbar until the pointer moves, and a
+   * student who does not know a page scrolls does not scroll it.
+   *
+   * That is a study-blocking defect and not a style one. This form is how the
+   * CONTROL ARM answers every scored item in the instrument, so an unreachable
+   * submit is a run that stops, and a run that stops arrives in the export as a
+   * student who gave up rather than as a surface that failed.
+   *
+   * A visible scrollbar is also the right answer for what this arm IS. §16's
+   * ruling is a document a person could have written; a long document in a
+   * browser has a scrollbar, and hiding it would be the game-ness the arm exists
+   * to remove. */
+  width: min(680px, 94vw); max-height: 92vh; overflow-y: auto;
+  scrollbar-width: auto;
+  scrollbar-gutter: stable;
   background: var(--bt-doc-paper); color: var(--bt-doc-ink);
   border: 1px solid var(--bt-doc-rule); border-radius: 2px;
   padding: 28px 34px 30px; box-sizing: border-box;
@@ -578,3 +598,13 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
 }
 .bt-plainform .bt-out { gap: 10px; margin-top: 14px; }
 .bt-plainform .bt-retake { gap: 4px; margin: 14px 0; }
+
+/* and it is drawn rather than left to the browser's overlay, which fades out and
+   takes the only cue that there is more with it */
+.bt-plain::-webkit-scrollbar { width: 12px; }
+.bt-plain::-webkit-scrollbar-track { background: var(--bt-doc-shade); }
+.bt-plain::-webkit-scrollbar-thumb {
+  background: var(--bt-doc-rule-firm);
+  border: 3px solid var(--bt-doc-shade);
+  border-radius: 6px;
+}

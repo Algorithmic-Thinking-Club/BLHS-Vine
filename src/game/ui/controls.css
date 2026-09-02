@@ -51,9 +51,9 @@
      handle on Ash's ruling */
   background-color: transparent;
 }
-.kit-plank-sm { min-height: 34px; padding: 6px 16px; --kit-fs-raw: calc(15px * var(--kit-text-scale)); }
-.kit-plank-md { min-height: 46px; padding: 9px 24px; --kit-fs-raw: calc(18px * var(--kit-text-scale)); }
-.kit-plank-lg { min-height: 60px; padding: 12px 34px; --kit-fs-raw: calc(23px * var(--kit-text-scale)); }
+.kit-plank-sm { min-height: 34px; padding: 6px 10px; --kit-plank-cap: 18px; --kit-fs-raw: calc(15px * var(--kit-text-scale)); }
+.kit-plank-md { min-height: 46px; padding: 9px 14px; --kit-plank-cap: 24px; --kit-fs-raw: calc(18px * var(--kit-text-scale)); }
+.kit-plank-lg { min-height: 60px; padding: 12px 20px; --kit-plank-cap: 32px; --kit-fs-raw: calc(23px * var(--kit-text-scale)); }
 .kit-plank-wide { width: 100%; }
 
 /* THE LABEL IS CUT INTO THE WOOD, which is what makes it readable on a dark
@@ -94,11 +94,20 @@
 .kit-plank:hover:not(:disabled) { transform: translateY(-1px); filter: drop-shadow(0 4px 0 var(--kit-plank-drop)) brightness(1.06); }
 /* hover -> press: the sign goes INTO the page and its shadow closes up */
 .kit-plank:active:not(:disabled) { transform: translateY(2px); filter: drop-shadow(0 1px 0 var(--kit-plank-drop)); }
-/* disabled: no lift, no shadow, the ink goes quiet, and the cursor says so */
+/* DISABLED IS "NOT YET", NOT "SWITCHED OFF". The first pass took the wood to
+   grayscale at 82 percent brightness, and the art-direction pass measured the
+   result: on the year sheet the PRIMARY control, "Stamp the sheet", was the
+   lowest-contrast object on a screen where two secondary buttons were brighter
+   and warmer. A student reads that as broken rather than as waiting.
+   §40.9 is the rule underneath it: disabled should be rare, because a control a
+   student can press and be told why beats one that does not respond. So the wood
+   keeps most of its warmth, loses its lift and its light, and the sentence
+   beside it does the explaining. */
 .kit-plank:disabled {
   cursor: not-allowed;
   transform: none;
-  filter: grayscale(.55) brightness(.82);
+  filter: saturate(.45) brightness(.94);
+  opacity: .78;
 }
 .kit-plank:disabled .kit-plank-ink { color: var(--kit-wood-dark-ink); text-shadow: none; }
 /* focus is the kit's one ring, from tokens.css, drawn around the wood itself */
@@ -586,3 +595,61 @@ html[data-skin='plain'] .kit-fb {
 }
 html[data-skin='plain'] .kit-fb-mark { display: none; }
 html[data-skin='plain'] .kit-fb-awarded { box-shadow: none; }
+
+/* ---- THE FOCUS RING ON A PIECE OF WOOD -----------------------------------
+ *
+ * THE ART-DIRECTION PASS OF 2026-09-01 PUT THIS FIRST: "raw browser chrome is
+ * shipping inside the drawn game... the flat yellow focus rectangle appears on
+ * ten of twenty-three surfaces". It measured the ring around a choice plank
+ * overhanging the wood by twenty-five pixels on each side, and on the year card
+ * it was an 850x180 rectangle across the bottom third of the screen.
+ *
+ * THE RING STAYS, BECAUSE A KEYBOARD PLAYER WHO CANNOT SEE WHERE THEY ARE IS
+ * NOT PLAYING. §40.9 is explicit and the deployment target makes it sharper: on
+ * a school Chromebook the trackpad is bad enough that keys are the FASTER way to
+ * play, so this is one of the two ways the game is played and not an
+ * accommodation. What was wrong is not that it existed, it is that it was drawn
+ * as a rectangle floating around a carved object.
+ *
+ * SO IT MOVES INSIDE THE WOOD. A negative offset draws the ring on the plank
+ * itself, where it reads as the sign catching the light rather than as a browser
+ * artifact, and it can never overhang a shape it is meant to be part of. The
+ * plank also lifts, so the state is a position and a light and not a hue, which
+ * is §40.31 on the one control every surface presses.
+ *
+ * An outline still, and not a border or a box-shadow: an outline takes no part
+ * in layout, so a ring cannot move the thing it is drawn around, which is what
+ * makes it safe on absolutely everything. */
+.kit-plank:focus-visible,
+.dlg-choice:focus-visible,
+.hud-plaque:focus-visible,
+.kit-tab:focus-visible {
+  outline-offset: -3px;
+  transform: translateY(-2px);
+}
+/* THE BIG CARDS THAT ARE THEMSELVES A BUTTON. A say step, a ceremony card and
+   the year vignette are each one large surface a student presses to go on, so a
+   ring three pixels OUTSIDE one of them is a rectangle drawn across the world
+   behind it: on the year card the art-direction pass measured 132 pixels of flat
+   yellow cutting across the ocean. `usePanel` focuses the first control when a
+   panel opens, and on these surfaces the first control IS the card, so the ring
+   is on screen the instant the surface appears and before anybody has navigated
+   anything. Inside their own edge, they read as the paper catching the light. */
+.bt-say:focus-visible,
+.gr-tap:focus-visible,
+.ys-card:focus-visible {
+  outline-offset: -6px;
+}
+.kit-plank:focus-visible { filter: drop-shadow(0 5px 0 var(--kit-plank-drop)) brightness(1.1); }
+
+/* the same argument on paper: a card is a thin object and a ring three pixels
+   off it reads as a second edge, so it sits on the card's own rim */
+.kit-chip:focus-visible,
+.kit-socket:focus-visible { outline-offset: -2px; }
+
+/* AND A PANEL DOES NOT WEAR ONE AT ALL. `usePanel` moves focus into the dialog
+   when it opens, so whatever it lands on is ringed the instant the panel
+   appears, on a surface nobody has navigated yet. The panel itself is
+   `tabIndex={-1}` and is only ever focused programmatically, so its ring says
+   nothing a student can act on. */
+[role='dialog']:focus-visible { outline: none; }

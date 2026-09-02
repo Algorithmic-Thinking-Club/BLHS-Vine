@@ -98,7 +98,22 @@ export const ADVANCE_DEAD_MS = 250
 /* the four faces of the drawn paw, in the order they were cut off the sheet. A
  * name that is not on the sheet draws nothing at all rather than a blank square,
  * so this list is safe against a kit that has not landed. */
-const CUE_FRAMES = ['frame_1', 'frame_2', 'frame_3', 'frame_4'] as const
+/* ONE PAW, BOUNCING, AND NOT FOUR PAWS FLASHING.
+ *
+ * `cue` publishes frame_1 to frame_4 and they are not motion frames: they are
+ * the same paw in white, brown, gold and green. Cycling them on a cream panel
+ * did two wrong things at once. The white frame is INVISIBLE on paper, so a
+ * quarter of the loop the cue simply was not there, and the art-direction pass
+ * of 2026-09-01 read the result as "a white paw glyph half-buried under the
+ * letter r... invisible on cream and reads as a smudge". And a mark that
+ * changes colour on a loop is a hue animation, which says nothing on a panel
+ * that crushes hue.
+ *
+ * GAME-DESIGN §11.1 commissioned a "bouncing paw-print continue cue" and bounce
+ * is the word. One frame, the brown one, which reads on cream and on wood, and
+ * it MOVES, which is what a cue is for. The other three faces stay drawn and
+ * unused rather than being cycled for the sake of using them. */
+const CUE_FACE = 'frame_2'
 
 /* WHAT THE HINT SAYS, ONCE, FOR BOTH BOXES. The cutscene passed its own string
  * ending in a right-pointing triangle character, which `docs/ART.md` forbids
@@ -164,7 +179,7 @@ export function DialogueBox({
   /* the kit lands after the first render, and a face asked for before it arrives
    * answers `undefined` for the life of the page unless something re-renders */
   useKitReady()
-  const pawDrawn = !!useFace('cue', CUE_FRAMES[0])
+  const pawDrawn = !!useFace('cue', CUE_FACE)
   const keyPlate = useFace('chip', 'plate')
 
   // a new line resets the dead zone and the answer, so both are per line
@@ -327,9 +342,7 @@ export function DialogueBox({
           <div className="cs-continue-hint">
             {pawDrawn && (
               <span className="dlg-paw" aria-hidden="true">
-                {CUE_FRAMES.map((f, i) => (
-                  <Glyph key={f} piece="cue" face={f} size={16} className={`dlg-paw-f dlg-paw-f${i + 1}`} />
-                ))}
+                <Glyph piece="cue" face={CUE_FACE} size={16} className="dlg-paw-f" />
               </span>
             )}
             <span className="dlg-hint-words">{hint}</span>

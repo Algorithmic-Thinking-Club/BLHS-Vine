@@ -278,8 +278,13 @@ function GamePlay({ beat, checksOnly, attempt, arm, world, onDone }: {
           </span>
         )}
       </div>
+      {/* ONE FRAME PER LEVEL. `.bt-say` carried `kit-surface-dialogue`, so a say
+          step drew the whole ornate dialogue box INSIDE the stage's own carved
+          panel, and the art-direction pass of 2026-09-01 counted FOUR concentric
+          rectangles around two sentences, on the frame every scored item in the
+          study is read on. The stage is the paper here; the line sits on it. */}
       {step.kind === 'say' ? (
-        <button className="bt-say kit-surface-dialogue" onClick={advance}>
+        <button className="bt-say" onClick={advance}>
           <span className="bt-speakerrow">
             {/* PORTRAIT, WHICH `SceneLine` HAS CARRIED SINCE THE BOX WAS WRITTEN
                 AND NOTHING HAS EVER DRAWN. §6.5's own want, in one line: an author
@@ -325,16 +330,29 @@ function GamePlay({ beat, checksOnly, attempt, arm, world, onDone }: {
  * WHEN NOBODY DREW IT, a token-coloured chevron stands in rather than a
  * character. The kit only wears its faces behind `?kit=1`, so that fallback is
  * what a student sees today and it had to be as deliberate as the drawing. */
-const CUE_FRAMES = ['frame_1', 'frame_2', 'frame_3', 'frame_4']
+/* ONE PAW, BOUNCING, AND NOT FOUR PAWS FLASHING.
+ *
+ * `cue` publishes frame_1 to frame_4 and they are not motion frames: they are
+ * the same paw in white, brown, gold and green. Cycling them on a cream panel
+ * did two wrong things at once. The white frame is INVISIBLE on paper, so a
+ * quarter of the loop the cue simply was not there, and the art-direction pass
+ * of 2026-09-01 read the result as "a white paw glyph half-buried under the
+ * letter r... invisible on cream and reads as a smudge". And a mark that
+ * changes colour on a loop is a hue animation, which says nothing on a panel
+ * that crushes hue.
+ *
+ * GAME-DESIGN §11.1 commissioned a "bouncing paw-print continue cue" and bounce
+ * is the word. One frame, the brown one, which reads on cream and on wood, and
+ * it MOVES, which is what a cue is for. The other three faces stay drawn and
+ * unused rather than being cycled for the sake of using them. */
+const CUE_FACE = 'frame_2'
 
 function AdvanceCue() {
-  const drawn = useFace('cue', 'frame_1')
+  const drawn = useFace('cue', CUE_FACE)
   if (!drawn) return <span className="bt-cue-mark" aria-hidden="true" />
   return (
     <span className="bt-cue" aria-hidden="true">
-      {CUE_FRAMES.map((f, i) => (
-        <Glyph key={f} piece="cue" face={f} size={26} className={`bt-cueframe bt-cf${i + 1}`} />
-      ))}
+      <Glyph piece="cue" face={CUE_FACE} size={26} className="bt-cueframe" />
     </span>
   )
 }

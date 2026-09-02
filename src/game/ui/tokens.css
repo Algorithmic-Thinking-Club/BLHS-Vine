@@ -135,11 +135,30 @@
    * `tokens.test.ts` pinned the old bytes on purpose, so that the kit becoming a
    * system could not restyle the game out from under anybody. It pins these
    * instead, for the same reason, and this comment is why they moved. */
-  --kit-veil: rgba(14, 10, 8, .74);
-  --kit-veil-soft: rgba(14, 10, 8, .66);
+  /* AND THEY CAME BACK DOWN ON 2026-09-01, on a measurement rather than a
+   * feeling. The art-direction pass sampled the same pixel of open water on
+   * three surfaces: the live ocean is rgb(7,54,68), behind the pause sheet it is
+   * (11,31,35), and behind the wardrobe, the year sheet and the beat runner it is
+   * (11,20,23), which is four percent luminance. On a school panel with poor
+   * blacks that is not a dimmed world, it is a flat void with banding, and its
+   * verdict was that "a sunny island explorer spends most of its screen time as a
+   * brown rectangle floating in black".
+   *
+   * THE 2026-08-30 REASON STILL HOLDS AND IS NOT BEING UNDONE: a veil at half
+   * strength let the world's own labels compete with a word on the paper, and it
+   * was raised to stop that. Both notes are right and they are about different
+   * numbers. Sixty percent is dark enough that nothing on the water is readable
+   * through it and light enough that the painting is still a painting, and the
+   * three veils are now within twelve points of each other rather than
+   * twenty-two, so the modal system agrees with itself.
+   *
+   * The hue does not move. A cold blue-black was tried in that round and read as
+   * a void; the warm brown-black is what replaced it. */
+  --kit-veil: rgba(14, 10, 8, .6);
+  --kit-veil-soft: rgba(14, 10, 8, .56);
   /* the pause sheet keeps the world PRESENT, because a player who paused has not
    * left: it is the one veil that is deliberately lighter than the rest */
-  --kit-veil-pause: rgba(16, 11, 8, .52);
+  --kit-veil-pause: rgba(16, 11, 8, .48);
   --kit-drop-lg: 0 12px 30px rgba(2, 8, 10, .65);
   --kit-drop-md: 0 10px 26px rgba(2, 8, 10, .6);
   --kit-drop-sm: 0 10px 24px rgba(2, 8, 10, .6);
@@ -667,8 +686,33 @@ html[data-skin='plain'] {
  * SHAPE: one wide button with its own ends, drawn at roughly the aspect a button
  * is used at. Stretching it is close to correct and it looked fine for months.
  * The tool was wrong for the job, not the numbers. */
+/* ---- AND IT IS SLICED SIDEWAYS ONLY, WHICH IS NOT THE SAME MISTAKE --------
+ *
+ * `plank-button.png` is 512x192, so 2.7 to 1. A choice button is about 495 by 56,
+ * so 8.8 to 1. Stretched to fit, the rope ends squash to a third of their drawn
+ * height and the middle becomes one colour: the art-direction pass of 2026-09-01
+ * measured "49 pixel single-value runs" across the middle of a choice plank and
+ * called it the plank lesson repeated.
+ *
+ * THE LESSON WAS ABOUT THE VERTICAL AND ONLY THE VERTICAL. Commit 6851a68 failed
+ * because a full nine-slice put 33 pixels of carving above and 47 below a
+ * fifty-six pixel button, leaving a sliver for the label. Slicing SIDEWAYS has no
+ * such arithmetic: top and bottom stay zero, so the art is drawn at full height
+ * with nothing eaten, the two carved ends hold their drawn shape, and only the
+ * wood grain between them repeats. That is what a long wooden sign is.
+ *
+ * `--kit-plank-cap` is how wide each carved end is drawn, and it moves with the
+ * button's height because the ends are square-ish in the painting: a taller
+ * plank gets a wider end, which is what keeps the rope from stretching. The
+ * default suits the 46 pixel button most of the game presses. */
 .kit-surface-plank {
-  background: var(--kit-art-plank) center / 100% 100% no-repeat;
+  --kit-plank-cap: 24px;
+  border-style: solid;
+  border-color: transparent;
+  border-width: 0 var(--kit-plank-cap);
+  /* 96 of the 512 is the rope-and-iron end on each side, measured off the file */
+  border-image: var(--kit-art-plank) 0 96 fill / 0 var(--kit-plank-cap) / 0 round;
+  background: none;
 }
 
 html[data-skin='plain'] .kit-surface-panel,

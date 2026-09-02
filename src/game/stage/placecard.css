@@ -74,7 +74,11 @@
 .pc-card {
   box-sizing: border-box;
   width: 100%;
-  max-width: min(760px, 88vw);
+  /* NARROWER THAN THE HARBOUR. At 760 the card covered the jetty, the
+     lighthouse and the beach, which is everything the player is standing on, to
+     hold three short lines with two hundred pixels of empty paper on each side.
+     The card names a place; it is not a page. */
+  max-width: min(560px, 74vw);
   container-type: inline-size;
   padding: 0;
   text-align: center;

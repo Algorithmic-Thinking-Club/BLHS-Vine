@@ -144,9 +144,13 @@ describe('the tokens are extracted, not invented', () => {
      * They are pinned again at the new numbers, because the reason this list
      * exists is that a colour cannot change without somebody saying so, not that
      * a colour can never change. */
-    ['kit-veil', 'rgba(14, 10, 8, .74)', 'hud.css .hb-veil, and now every veil in the kit'],
-    ['kit-veil-soft', 'rgba(14, 10, 8, .66)', 'settings.css .st-veil'],
-    ['kit-veil-pause', 'rgba(16, 11, 8, .52)', 'hud.css .pz-veil'],
+    /* MOVED AGAIN ON 2026-09-01, and the arithmetic is at the token. The
+     * art-direction pass measured the world behind a panel at four percent
+     * luminance and read it as a void rather than as a dimmed island. The three
+     * are now within twelve points of each other instead of twenty-two. */
+    ['kit-veil', 'rgba(14, 10, 8, .6)', 'hud.css .hb-veil, and now every veil in the kit'],
+    ['kit-veil-soft', 'rgba(14, 10, 8, .56)', 'settings.css .st-veil'],
+    ['kit-veil-pause', 'rgba(16, 11, 8, .48)', 'hud.css .pz-veil'],
     ['kit-drop-lg', '0 12px 30px rgba(2, 8, 10, .65)', 'hud.css .hb-book'],
     ['kit-wood-sheen', 'rgba(210, 170, 110, .35)', 'hud.css .hud-btn'],
     ['kit-plank-shadow', 'rgba(30, 16, 6, .75)', 'dialogue.css .dlg-choice'],
