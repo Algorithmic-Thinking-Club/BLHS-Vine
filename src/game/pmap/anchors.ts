@@ -39,6 +39,13 @@ export interface Anchor {
    * [x,y,w,h] and this box test always did corners; the disagreement was
    * settled in favour of this side, because it was the one with running code. */
   rect?: [number, number, number, number]
+  /* how far the interaction circle sits from the anchor's own pixel. MAPVIS
+   * pins a bound anchor to its placement's origin, which in an isometric map is
+   * the bottom middle of the art, so a ring on a table sat under its front legs
+   * with the tabletop outside its own zone. An offset rather than a point,
+   * because the circle is the one shape that follows a placement that moves.
+   * Absent means centred, which is what every anchor meant before this. */
+  ring?: [number, number]
   to?: string
   toAnchor?: string
   placement?: string
@@ -122,6 +129,13 @@ export function readAnchors(map: AnchorSource, mapId = ''): Anchor[] {
       ...(derived ? { meta: { ...(meta || {}), derived: true } } : meta ? { meta } : {}),
     }
     if (Array.isArray(e.rect) && e.rect.length === 4) a.rect = (e.rect as number[]).map(Number) as Anchor['rect']
+    /* TOP LEVEL OR OUT OF THE BAG. MAPVIS writes this field both places on
+     * purpose, because the anchors upsert and the publish projection each copy a
+     * fixed list of columns plus the whole of meta, and a bundle published before
+     * either learned the column still carries it in meta. */
+    const rawRing = Array.isArray(e.ring) ? e.ring : meta && Array.isArray(meta.ring) ? meta.ring : null
+    if (rawRing && rawRing.length === 2 && (rawRing as unknown[]).every((n) => isFinite(Number(n))))
+      a.ring = [Math.round(Number(rawRing[0])), Math.round(Number(rawRing[1]))]
     if (Array.isArray(e.stand) && e.stand.length === 2 && e.stand.every((n) => isFinite(Number(n))))
       a.stand = [Math.round(Number(e.stand[0])), Math.round(Number(e.stand[1]))]
     if (typeof e.to === 'string' && e.to) a.to = e.to
@@ -225,8 +239,19 @@ export class AnchorSet {
       const [x0, y0, x1, y1] = a.rect
       return x >= Math.min(x0, x1) && x <= Math.max(x0, x1) && y >= Math.min(y0, y1) && y <= Math.max(y0, y1)
     }
-    const p = this.spotOf(a)
+    const p = this.ringOf(a)
     return Math.hypot(x - p.x, y - p.y) <= a.r
+  }
+
+  /* WHERE THE INTERACTION CIRCLE ACTUALLY IS, which is spotOf plus whatever the
+   * author dragged it by. Separate from spotOf on purpose: the prompt, the
+   * objective chevron and the marker all still point at the THING, and only the
+   * reach moves. A table whose ring was nudged up to cover its top should still
+   * be pointed at where it stands. */
+  ringOf(a: Anchor): { x: number; y: number } {
+    const p = this.spotOf(a)
+    if (!a.ring) return p
+    return { x: p.x + a.ring[0], y: p.y + a.ring[1] }
   }
 
   /* THE NEAREST ONE THAT WANTS A BUTTON PRESS.
@@ -244,7 +269,9 @@ export class AnchorSet {
     let bestD = Infinity
     for (const a of this.all) {
       if (a.kind !== 'point' && a.kind !== 'post' && a.kind !== 'door') continue
-      const p = this.spotOf(a)
+      // the same circle `contains` tests, or a ring the author moved would take
+      // the prompt at one distance and refuse it at another
+      const p = this.ringOf(a)
       const d = Math.hypot(x - p.x, y - p.y)
       if (d <= a.r && d < bestD) { bestD = d; best = a }
     }
