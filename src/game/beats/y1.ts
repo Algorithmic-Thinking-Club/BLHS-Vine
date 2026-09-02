@@ -7,16 +7,32 @@
 import type { CoreBeat } from './frames'
 
 const PP = 'Principal Panther'
-/* HIS FACE, DRAWN 2026-09-01 and judged before it was worn.
+/* HIS FACE, AND IT IS LOCKED.
  *
  * `SceneLine.portrait` has carried an id since the box was written and NOTHING
  * had ever set one, so `public/art/portraits/` did not exist and every
  * conversation in the game was a faceless box. The dialogue box's portrait frame
- * was rebuilt for it in round one and had nothing to hold.
+ * was rebuilt for it and had nothing to hold.
  *
- * `principal` is the file, three attempts and one inpaint deep, passed by the
- * art-direction agent against `reference/gold-standard/` before it was mounted
- * (the three-way is in `build-shots/ui/generated/`). Ash has not seen it play. */
+ * A PixelLab portrait was drawn for the slot on 2026-09-01 and Ash rejected it
+ * the next day: *"the principal panther profile photo on 19 is completely wrong.
+ * principal panther will now be locked. it is the `principal-pro` asset from
+ * MAPVIS -> panthers maw."* So the id is unchanged and the file behind it is
+ * MAPVIS's own drawing. Do not generate another one.
+ *
+ * WHERE THE FILE COMES FROM, written here because `public/art/` and `scripts/`
+ * are both gitignored in this repo and a recipe that does not survive a clone is
+ * not a recipe:
+ *
+ *   source  MAPVIS-next/work/panther-maw/library/principal-pro/south-0.png
+ *           (the eight-direction character MAPVIS drew for the Maw; `south-0`
+ *           is the one frame that faces the player)
+ *   cut     crop 48x48 at (27, 13), then nearest 2x -> 96x96
+ *
+ * Crop and grid snap only. Nothing is painted or recoloured: `docs/ART.md`'s
+ * pipeline allows both as post-processing, and 96 is exactly the aperture inside
+ * the drawn portrait frame, so it lands at an integer scale rather than smearing
+ * the one face in the game. */
 const PP_FACE = 'principal'
 
 export const CORE_Y1: CoreBeat = {
