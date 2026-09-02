@@ -95,19 +95,34 @@
   overflow: hidden;
   box-sizing: border-box;
   padding: 14px;
+  /* ---- THE PAPER IS DRAWN NOW ---------------------------------------------
+   *
+   * WHAT WAS HERE: five stacked gradients, two of them `repeating`, which is to
+   * say a grid. The comment above them argued that the spacing made it read as
+   * printing rather than as a grid control, and the art-direction pass of
+   * 2026-09-01 measured the result and disagreed in one sentence: "the nautical
+   * chart is a 950x240 pale grey-green rectangle of regular graph-paper grid...
+   * against the Octopath world map this is a spreadsheet with a sepia filter".
+   * It also noticed that the TITLE screen was made of the same ruled grid, which
+   * is how you know the material was a default rather than a decision.
+   *
+   * `chart-field.png` is a drawn sheet: foxed parchment, a weathered band on all
+   * four edges, hand-inked ticks that are not on a machine pitch, and a compass
+   * rose bled into one corner. It is deliberately EMPTY in the middle, because
+   * every island, every dock mark, the ship and the legend are drawn on top of
+   * it by `Chart.tsx` and a substrate that competes with them is worse than a
+   * plain one.
+   *
+   * The sea glow stays, because that is light on paper rather than a texture,
+   * and the fold goes: the drawn sheet has its own weathering and two accounts
+   * of the same fold is one too many. */
   background:
-    /* the sea's own light, off the top left, the way a lantern falls on paper */
-    radial-gradient(ellipse at 30% 25%, var(--kit-sea-glow-soft), transparent 62%),
-    /* THE GRATICULE. A chart is ruled and this page never was. Two hairlines in
-       the same brown ink the names are written in, at the spacing of the marks
-       rather than of the pixels, so it reads as printing and not as a grid
-       control. It is the last layer before the paper, so everything drawn sits
-       on top of it. */
-    repeating-linear-gradient(90deg, var(--kit-rule-soft) 0 1px, transparent 1px 44px),
-    repeating-linear-gradient(0deg, var(--kit-rule-soft) 0 1px, transparent 1px 44px),
-    /* the fold shadow down the middle, because a chart this size was folded */
-    linear-gradient(90deg, transparent 49.4%, var(--kit-rule) 50%, transparent 50.6%),
-    linear-gradient(180deg, var(--kit-paper-hi), var(--kit-paper-lo));
+    /* the sea's own light, off the top left, the way a lantern falls on paper.
+       It sits ON TOP of the drawn sheet, which is what makes a blank parchment
+       read as water rather than as a bright hole in the page. */
+    radial-gradient(ellipse at 32% 28%, var(--kit-sea-glow-soft), transparent 66%),
+    var(--kit-art-chart_field) center / 100% 100% no-repeat;
+  image-rendering: var(--kit-pixel);
   /* the doubled border a chart carries: a firm outer rule and a hairline inside
      it, which is one box-shadow rather than a second element */
   border: var(--kit-border) solid var(--kit-edge);

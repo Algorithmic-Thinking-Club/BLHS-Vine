@@ -267,13 +267,13 @@ export function Chart() {
           </div>
         ))}
 
-        {/* A CHART IS ORIENTED. `icon_set` publishes a compass and the HUD was
-            the only thing in the game wearing it; a rose in the corner of the
-            paper is the oldest thing a chart has and it costs one face. */}
-        <span className="ch-rose" aria-hidden="true">
-          <Glyph piece="icon_set" face="compass" size={34} fallback={<span className="ch-s ch-s-rose" />} />
-        </span>
-
+        {/* THE ROSE IS PRINTED ON THE PAPER NOW, so this one is gone.
+            `chart-field.png` was drawn on 2026-09-01 with a rose bled into its
+            corner, which is where a rose belongs on a chart, and mounting
+            `icon_set`'s HUD compass beside it put two of them on one sheet. The
+            face is a BUTTON ICON at 24 pixels; a rose on a chart is a different
+            drawing at a different size, and using one for the other was the
+            stand-in that the paper has now replaced. */}
         {rows.map((r) => (
           <div
             key={r.key}

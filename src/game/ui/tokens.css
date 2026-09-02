@@ -309,6 +309,11 @@
    * with the game. It is a painted board now: four planks, seams, nail heads,
    * worn cream over grain, and deliberately quiet enough that the wordmark
    * painted on top of it still reads. */
+  /* THE CHART'S OWN PAPER, drawn 2026-09-01. `chart-cover.png` could not serve:
+   * it has a second, fictional archipelago printed across it and a baked
+   * transparency checkerboard in its margin, which is why `--kit-art-chart` has
+   * been dead since the token layer was written. This one is blank on purpose. */
+  --kit-art-chart_field: url('/art/ui/chart-field.png');
   --kit-art-signface: url('/art/ui/sign-face.png');
   --kit-art-plaque: url('/art/ui/plaque-small.png');
   --kit-art-crest: url('/art/ui/crest-panther.png');
@@ -603,6 +608,7 @@ html[data-skin='plain'] {
   --kit-art-title: none;
   --kit-art-scroll: none;
   --kit-mask-solid: #000000;
+  --kit-art-chart_field: none;
   --kit-art-signface: none;
   --kit-art-mark-book: none;
   --kit-art-mark-anchor: none;
