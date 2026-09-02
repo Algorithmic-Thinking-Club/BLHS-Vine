@@ -6,6 +6,7 @@ import { track } from '../game/telemetry'
 import { setReducedMotion, systemPrefersReducedMotion } from '../game/ui/motion'
 import { wearAssignedSkin, type KitSkin } from '../game/ui/skin'
 import { announce, tabRowKeyDown, usePanel } from '../game/ui/a11y'
+import { HOME_TARGET, SEA_ARRIVAL, searchFor } from '../game/pmap/route'
 import './settings.css'
 
 // Settings (GAME-DESIGN §4.7), tabbed paper sheet — reachable from the title gear and the
@@ -289,7 +290,13 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                       {/* wipe here, then navigate WITHOUT ?fresh — leaving it armed in the
                           URL meant every later F5 silently wiped the run again */}
                       <button onClick={() => { beginAdventure(); location.href = '/?scene=beach' }}>Replay intro</button>
-                      <button onClick={() => { writeSave({ beat: 'island:arrive', introDone: true }); location.href = '/?scene=islandmap' }}>Skip to island</button>
+                      {/* THE TWO PLACES THE ROAD GOES, and this used to be one button
+                          onto `islandmap`, the tile map §3.0 ruled dead: a captain
+                          checking "where does the game go after the beach" was shown
+                          the wrong answer. `route.ts` spells both so this row and the
+                          title cannot drift apart. */}
+                      <button onClick={() => { writeSave({ beat: 'sea:arrive', introDone: true }); location.href = `/?${searchFor(SEA_ARRIVAL, '')}` }}>Skip to sea</button>
+                      <button onClick={() => { writeSave({ beat: 'sea:arrive', introDone: true }); location.href = `/?${searchFor(HOME_TARGET, '')}` }}>Skip to the Maw</button>
                     </div>
                   </div>
                 )}

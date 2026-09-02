@@ -49,9 +49,44 @@ const registry: SceneRegistry = {
   title: () => <TitleScene />,
   beach: () => <IntroScene />,   // the beach IS the intro map; free roam once the intro is done
   teacher: () => <TeacherScene />, // Wiseman's desk (§13.3) — its own corner, never on the student title
-  islandmap: () => <IslandMapLazy />, // the main map: the vast ocean + the Central Island (GAME-DESIGN §3)
-  atc: () => <AtcIslandLazy />, // grape island #1: room 305 as an island (docs/place-specs/atc-grape-island.md)
-  'panther-cave': () => <PantherCaveLazy />, // the Maw: the hub cave interior (docs/place-specs/panther-cave-interior.md)
+  /* ---- THE TILE ISLANDS, OFF THE ROAD 2026-09-01, AND THIS IS THE FENCE ----
+   *
+   * The same shape as the `?legacy=1` fence below and for the same reason: three
+   * ids that stay registered, are reachable only by typing `?scene=`, and are
+   * reached by NOTHING on the student road. Every fact here is a fact about the
+   * code rather than a preference.
+   *
+   * WHAT THEY ARE. `islandmap` is `src/game/island/IslandMapIso.tsx`, the tile-era
+   * overworld; `atc` is the tile grape island; `panther-cave` is the tile cave
+   * interior. 12,221 lines under `src/game/island/`.
+   *
+   * WHY THEY ARE OFF THE ROAD. THE-WALKTHROUGH §3.0, Ash's ruling of 2026-08-28:
+   * one ocean is the world and every map is a MAPVIS painting placed on it. That
+   * ruled the tile overworld dead in August, and a student pressing Continue was
+   * still landing on tile palms with a Principal Panther line five weeks later
+   * (`build-shots/fresh/r1-continue-lands-here-islandmap.png`), because the intro
+   * and the title both named `islandmap` and nobody had changed the two lines.
+   * They are `pmap` now: the intro to the ocean off the published hub, the title
+   * to `panther-maw`. `src/game/pmap/route.ts` is where both are spelled.
+   *
+   * WHAT THEY MAY NOT BE USED FOR:
+   *
+   *  - NOT A DESTINATION FOR ANYTHING LIVE. No `nav.go`, no `location.href`, no
+   *    door and no intent may name one. `enter("islandmap")` from a member's
+   *    Python is a map id and resolves through the bundle loader, not through
+   *    here, so it cannot reach these either.
+   *  - NOT A SOURCE OF WORLD FACTS. `src/game/island/registry.ts` and
+   *    `hub-mechanics.ts` carry a second island list and a second door table from
+   *    the tile era. The world is `src/game/world/composition.ts` and the anchors
+   *    are the bundle's. Reading a position out of the tile subtree is reading a
+   *    map that no longer exists.
+   *  - AND THEY ARE NOT DELETED, ON PURPOSE. Removing 12,221 lines is its own
+   *    order with its own reading; doing it inside a routing change is how a
+   *    session loses something Ash wanted kept. Move things, do not delete them.
+   */
+  islandmap: () => <IslandMapLazy />, // PARKED, ?scene= only: the tile-era overworld (§3.0 ruled it dead)
+  atc: () => <AtcIslandLazy />, // PARKED, ?scene= only: the tile grape island
+  'panther-cave': () => <PantherCaveLazy />, // PARKED, ?scene= only: the tile cave, superseded by the panther-maw bundle
   paintdemo: () => <PaintDemoLazy />, // the painted-scene layer demo (dev-only; reference art stand-in)
   harbor: () => <HarborSceneLazy />, // THE GRAND HARBOR: the island's first painted scene (our art)
   island: () => <IslandSceneLazy />, // THE HUB ISLAND: cand-1 walkable end to end (Phase A)
