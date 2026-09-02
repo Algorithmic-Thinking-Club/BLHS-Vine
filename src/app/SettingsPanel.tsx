@@ -553,6 +553,13 @@ function CtrlRow({ b }: { b: Binding }) {
 export function GearButton({ onClick }: { onClick: () => void }) {
   return (
     <button className="st-gear" onClick={onClick}>
+      {/* AND IT HAS A MARK NOW, drawn 2026-09-01 beside three others in one job.
+          The word stays: a word is legible at a glance and needs no legend, and
+          the mark is what makes it findable from the corner of the eye. It is
+          two sliders rather than a cog, because the art-direction pass pointed
+          out that a cog and the compass button two rows above it are the same
+          silhouette at 24 pixels. */}
+      <span className="st-gear-mark kit-mark kit-mark-sliders" aria-hidden="true" />
       <span className="st-gear-ink">Settings</span>
     </button>
   )

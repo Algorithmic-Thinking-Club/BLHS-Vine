@@ -300,7 +300,13 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
           aria-haspopup="dialog"
           onClick={() => openBook('islands')}
         >
-          <span className="hud-plaque-mark hud-crest" aria-hidden="true" />
+          {/* A BOOK, DRAWN 2026-09-01. This wore the school's panther crest,
+              which `docs/ART.md` puts on the Handbook's COVER and which is the
+              right mark for the school and the wrong mark for the control: a
+              student looking for their Handbook is looking for a book. The
+              platform's `icon_set` has no book face and still does not; this is
+              a local mark drawn beside three others in one job. */}
+          <span className="hud-plaque-mark kit-mark kit-mark-book" aria-hidden="true" />
           <span className="hud-plaque-word">Handbook</span>
         </button>
         )}
@@ -397,7 +403,14 @@ function PausePanel({ onClose, children }: { onClose: () => void; children: Reac
             not a control, so the words carry it. The anchor face is an art gap
             to be asked for, written down in the handoff rather than papered
             over. */}
-        <div className="pz-title">Dropped anchor</div>
+        {/* AND THE ANCHOR IS DRAWN NOW. This carried an operating-system anchor
+            in the school's off-brand blue until 2026-09-01, then nothing at all
+            because `icon_set` had no anchor face and `docs/ART.md` has no clause
+            for a placeholder. It has one now. */}
+        <div className="pz-title">
+          <span className="pz-mark kit-mark kit-mark-anchor" aria-hidden="true" />
+          Dropped anchor
+        </div>
         {children}
         <div className="pz-note">your voyage saves itself</div>
       </div>

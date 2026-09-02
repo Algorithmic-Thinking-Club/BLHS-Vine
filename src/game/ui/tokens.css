@@ -270,6 +270,37 @@
    * declaring no colour of its own, and a guard with a loophole in it stops
    * being a guard the first time somebody uses the loophole for a real colour. */
   --kit-mask-solid: #000000;
+  /* ---- THE FOUR MARKS THE PLATFORM'S SHEET DOES NOT HAVE -----------------
+   *
+   * `icon_set` publishes compass, key, star, lock, tick, cross, arrow and coin,
+   * and four surfaces needed a mark it does not carry: the Handbook control was
+   * wearing the school crest, which is the wrong object; the pause sheet's title
+   * had nothing at all; settings was a word on a plate; and the advance cue had
+   * no fallback for a build that cannot reach the platform.
+   *
+   * Drawn 2026-09-01 as ONE generation on a two by two grid, for the reason
+   * CLAUDE.md gives for every sheet: a family drawn together comes back the same
+   * weight. The palette was FORCED from the platform's own sheet rather than
+   * described, after a first attempt came back sharing zero colours with it and
+   * dark-keyed against a dark plaque: the art-direction pass measured the paw at
+   * zero percent of its pixels brighter than the wood it sits on, which is a
+   * hole in the plaque rather than a mark on it. The second attempt measures a
+   * mean colour distance of 4.2 from the kit's nearest colour, and 55 to 77
+   * percent brighter than the plaque against the kit's own 76.
+   *
+   * `scripts/_cut-icons.mjs` cuts them and doubles them with nearest, so the two
+   * sizes they are shown at (32 in the corner, 64 in a page header) are both an
+   * integer scale off the file.
+   *
+   * ONE KNOWN DEFECT, named rather than hidden: `mark-sliders` reads as two
+   * dumbbells rather than two sliders, because each bar has a cap at BOTH ends
+   * instead of one knob part way along. It sits behind the word "Settings" so it
+   * is not carrying the meaning alone, and it is batched with the next
+   * generation rather than chased on its own. */
+  --kit-art-mark-book: url('/art/ui/mark-book.png');
+  --kit-art-mark-anchor: url('/art/ui/mark-anchor.png');
+  --kit-art-mark-sliders: url('/art/ui/mark-sliders.png');
+  --kit-art-mark-paw: url('/art/ui/mark-paw.png');
   --kit-art-plaque: url('/art/ui/plaque-small.png');
   --kit-art-crest: url('/art/ui/crest-panther.png');
   --kit-pixel: pixelated;
@@ -563,6 +594,10 @@ html[data-skin='plain'] {
   --kit-art-title: none;
   --kit-art-scroll: none;
   --kit-mask-solid: #000000;
+  --kit-art-mark-book: none;
+  --kit-art-mark-anchor: none;
+  --kit-art-mark-sliders: none;
+  --kit-art-mark-paw: none;
   --kit-art-plaque: none;
   --kit-art-crest: none;
   /* AND THE FRAME'S OWN THICKNESS GOES TO NOTHING. `border-image: none` on the

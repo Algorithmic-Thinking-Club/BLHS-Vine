@@ -22,6 +22,24 @@
 
 /* ---- a drawn mark -------------------------------------------------------- */
 
+/* A LOCAL MARK, for the four the platform's sheet does not carry. Same box and
+   same rules as a cut face off a sheet; the only difference is where the picture
+   comes from, and the plain arm nulls both the same way. */
+.kit-mark {
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  image-rendering: var(--kit-pixel);
+}
+.kit-mark-book { background-image: var(--kit-art-mark-book); }
+.kit-mark-anchor { background-image: var(--kit-art-mark-anchor); }
+.kit-mark-sliders { background-image: var(--kit-art-mark-sliders); }
+.kit-mark-paw { background-image: var(--kit-art-mark-paw); }
+html[data-skin='plain'] .kit-mark { display: none; }
+
 .kit-glyph {
   display: inline-block;
   flex: none;

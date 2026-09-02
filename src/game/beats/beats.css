@@ -165,20 +165,23 @@ html[data-rm='1'] .bt-stage { animation-duration: 1ms; }
    The paw stops where it is and stays drawn. */
 html[data-rm='1'] .bt-cueframe { animation: none; }
 
-/* AND WHAT STANDS IN WHEN NOBODY DREW IT. The kit only wears its faces behind
-   `?kit=1`, so this is what a student sees today: a token-coloured chevron drawn
-   out of two borders. A shape, never a character. */
+/* AND WHAT STANDS IN WHEN THE PLATFORM CANNOT BE REACHED. It was a chevron drawn
+   out of two CSS borders, which is a shape and not a drawing, and it was the
+   honest answer for as long as nobody had drawn a paw. Somebody has: the local
+   `mark-paw` came off the same two by two sheet as the book, the anchor and the
+   sliders on 2026-09-01. A classroom behind a district filter now gets the same
+   paw the platform's `cue` sheet gives everybody else, and it bounces the same
+   way, so the two paths differ in bytes rather than in behaviour. */
 .bt-cue-mark {
   align-self: flex-end;
   flex: none;
-  width: 11px; height: 11px;
-  margin: 0 8px 6px 0;
-  border-right: 3px solid var(--kit-ink-label);
-  border-bottom: 3px solid var(--kit-ink-label);
-  transform: rotate(-45deg);
+  width: 22px; height: 22px;
+  margin: 0 6px 4px 0;
+  background: var(--kit-art-mark-paw) center / contain no-repeat;
+  image-rendering: var(--kit-pixel);
   animation: btr-nudge 1100ms ease-in-out infinite;
 }
-@keyframes btr-nudge { 0%, 100% { transform: rotate(-45deg) translate(0, 0); } 50% { transform: rotate(-45deg) translate(3px, 3px); } }
+@keyframes btr-nudge { 0%, 100% { transform: translateY(0); } 45% { transform: translateY(-5px); } 70% { transform: translateY(0); } }
 html[data-rm='1'] .bt-cue-mark { animation: none; }
 
 /* ---- one item ------------------------------------------------------------ */

@@ -148,6 +148,9 @@ html[data-rm='1'] .dlg-caret { animation: none; }
    One brown paw, moving. Motion reads on any ground. */
 .dlg-paw-f {
   grid-area: 1 / 1;
+  /* the local mark carries no intrinsic box the way a Glyph does, so it is
+     given one here and the two paths end up the same size */
+  width: 16px; height: 16px;
   animation: dlg-paw 1100ms ease-in-out infinite;
 }
 @keyframes dlg-paw {

@@ -48,7 +48,7 @@
   text-shadow: 0 2px 0 var(--kit-plank-shadow);
   white-space: nowrap;
 }
-.hud-plaque-mark { flex: none; width: 22px; height: 22px; }
+.hud-plaque-mark { flex: none; width: 26px; height: 26px; }
 /* the school's own mark, which docs/ART.md already put on the Handbook cover */
 .hud-crest {
   width: 26px; height: 26px;
@@ -454,6 +454,7 @@ html[data-skin='plain'] .hb-badge-word { letter-spacing: 0; font-weight: 700; }
   filter: drop-shadow(var(--kit-drop-md));
   animation: hb-in 220ms var(--kit-ease-pop) both;
 }
+.pz-mark { display: inline-block; width: 26px; height: 26px; margin-right: 8px; vertical-align: -5px; }
 .pz-title {
   font-family: var(--kit-face-title);
   --kit-fs-raw: calc(24px * var(--kit-text-scale)); font-size: var(--kit-fs);

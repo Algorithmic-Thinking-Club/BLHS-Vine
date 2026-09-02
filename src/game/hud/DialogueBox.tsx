@@ -340,11 +340,16 @@ export function DialogueBox({
         </div>
         {line.done && !asking && (
           <div className="cs-continue-hint">
-            {pawDrawn && (
-              <span className="dlg-paw" aria-hidden="true">
-                <Glyph piece="cue" face={CUE_FACE} size={16} className="dlg-paw-f" />
-              </span>
-            )}
+            {/* THE PAW, FROM THE PLATFORM IF IT ANSWERED AND FROM THE REPO IF IT
+                DID NOT. `cue` is the platform's four frame sheet; `mark-paw` is
+                the local one drawn on 2026-09-01 for exactly the build that
+                cannot reach the platform. Same bounce either way, so a student
+                behind a district filter sees the same cue rather than a shape. */}
+            <span className="dlg-paw" aria-hidden="true">
+              {pawDrawn
+                ? <Glyph piece="cue" face={CUE_FACE} size={16} className="dlg-paw-f" />
+                : <span className="dlg-paw-f kit-mark kit-mark-paw" />}
+            </span>
             <span className="dlg-hint-words">{hint}</span>
           </div>
         )}
