@@ -201,7 +201,15 @@ export function cordsOf(s: SaveGame): CordProgress[] {
       model: 'Six passed AP courses in total, two of them Seminar and Research. The table says nothing about the exams.',
       earned: apSeminar >= 1 && apResearch >= 1 && ap >= 6,
       progress: Math.min(1, (apSeminar + apResearch) / 2 * 0.5 + Math.min(1, Math.max(0, ap - 2) / 4) * 0.5),
-      detail: `Seminar ${apSeminar ? '✓' : '·'} Research ${apResearch ? '✓' : '·'} · ${ap} APs passed`,
+      /* WORDS, BECAUSE THIS IS DATA AND NOT A DRAWING. This composed a tick and a
+       * middle dot into a player-facing string, and a string cannot be redrawn:
+       * `docs/ART.md` forbids a font glyph as an icon, and this one reached the
+       * Handbook's cords board, the yearbook's threads section and the
+       * graduation honesty board, three surfaces that each had to filter it or
+       * ship it. `Handbook.tsx` grew a `wordsOnly` replacer for exactly this
+       * line. A surface that wants to DRAW the two halves needs them as
+       * booleans; until one does, the sentence says what it means. */
+      detail: `Seminar ${apSeminar ? 'passed' : 'not yet'}, Research ${apResearch ? 'passed' : 'not yet'}, ${ap} APs passed`,
     },
     {
       id: 'seal-biliteracy', name: 'Seal of Biliteracy', colors: 'gold medal',
