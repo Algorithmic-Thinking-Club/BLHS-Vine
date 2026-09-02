@@ -1,0 +1,21 @@
+# WHAT DOES NOT GO UP.
+#
+# api/ is discovered by Vercel as serverless functions: every .ts file in it
+# becomes a route. Four of the five test files are underscore-prefixed and are
+# therefore read as helpers, but api/handlers.test.ts is not, so Vercel would try
+# to build /api/handlers.test out of a file with no default export that imports
+# vitest, a devDependency the function build has no reason to have. Excluding the
+# tests is the fix; renaming one file would only hide the shape from the next
+# person who adds a test.
+api/*.test.ts
+
+# the same for the app's own tests and the local build, neither of which is served
+src/**/*.test.ts
+dist
+.data
+
+# the tooling and the reference library, which is 500 MB of research and captures
+scripts
+reference
+docs
+db
