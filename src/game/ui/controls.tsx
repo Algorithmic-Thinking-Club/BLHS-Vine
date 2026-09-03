@@ -385,13 +385,28 @@ export function Socket({
  * wrong. */
 export const portraitUrl = (id: string): string => `/art/portraits/${id}.png`
 
+/* A PORTRAIT IS DRAWN ART, AND THE CONTROL ARM CARRIES NONE.
+ *
+ * The beat runner already worked this way and nobody had written it down: its
+ * plain renderer simply has no portrait in it, so a student in the control group
+ * reads the principal's words without his face. That is the ruling, in Ash's own
+ * words: no game art, no wood, no parchment, reading as a worksheet somebody
+ * wrote. A hand-drawn panther in a mortarboard is game art wherever it appears.
+ *
+ * The gate is here rather than at each caller for the reason `kitSprite.ts` gives
+ * for the same gate: there are several ways in, there will be more, and an arm
+ * that leaks on the next one is worth less than one that cannot leak. It was
+ * exactly the next one that leaked, on 2026-09-02, when the year-start card
+ * gained a portrait and put it in front of the control group the same hour. */
 export function PortraitFrame({
   id, caption, className = '',
 }: { id: string; caption?: string; className?: string }) {
+  useKitReady()
   const src = portraitUrl(id)
   const surface = useSurface('portrait_frame')
   const [failed, setFailed] = useState(false)
   useEffect(() => { setFailed(false) }, [src])
+  if (currentSkin() !== 'paper') return null
   return (
     <span className={`kit-portrait ${surface} ${className}`}>
       {!failed && (

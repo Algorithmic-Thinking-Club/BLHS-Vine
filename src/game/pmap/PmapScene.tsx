@@ -99,6 +99,7 @@ import { missingAnchors } from '../maw/stations'
 import { runStation } from '../maw/run-station'
 import { isReady, labelFor, ownerOf } from './grape-router'
 import { islandOfMap } from '../roster/member-islands'
+import { vineIslandOfMap } from '../roster/vine-islands'
 import { fetchGrape, type GrapeRef } from '../../vine/py/grape-source'
 import { openGrape, type GrapeSession } from '../../vine/py/runGrape'
 
@@ -496,6 +497,36 @@ function scanRows(t: Texture): { top: number; feet: number } | null {
       if (hit) { if (top < 0) top = y; feet = y }
     }
     return feet < 0 ? null : { top, feet }
+  } catch { return null }
+}
+
+/* THE LEFT AND RIGHT EDGES OF WHATEVER IS DRAWN BETWEEN TWO ROWS.
+ *
+ * `scanRows` above finds the top and the feet, which is all the walker needs,
+ * and it is HALF of what a portrait needs. The YOU marker cropped the head as
+ * `Rectangle(0, top, FULL WIDTH, headH)`, and a walk frame is a wide canvas with
+ * a narrow cat in the middle of it: measured on the shipped sheet the drawn head
+ * is about a third of the frame's width. Fitting that whole frame into a 26 pixel
+ * aperture therefore drew the cat at a third of 26, which is the reason the face
+ * in the marker was four pixels of grey.
+ *
+ * So the band gets measured on both axes and the crop is the HEAD, not the frame
+ * the head was drawn on. */
+function scanCols(t: Texture, y0: number, y1: number): { left: number; right: number } | null {
+  try {
+    const src = t.source
+    const cv = document.createElement('canvas'); cv.width = src.pixelWidth; cv.height = src.pixelHeight
+    const g = cv.getContext('2d', { willReadFrequently: true })!
+    g.drawImage(src.resource as CanvasImageSource, 0, 0)
+    const d = g.getImageData(0, 0, cv.width, cv.height).data
+    const lo = Math.max(0, y0), hi = Math.min(cv.height - 1, y1)
+    let left = -1, right = -1
+    for (let x = 0; x < cv.width; x++) {
+      let hit = false
+      for (let y = lo; y <= hi && !hit; y++) if (d[(y * cv.width + x) * 4 + 3] > A_MIN) hit = true
+      if (hit) { if (left < 0) left = x; right = x }
+    }
+    return right < 0 ? null : { left, right }
   } catch { return null }
 }
 
@@ -1891,6 +1922,19 @@ export default function PmapScene() {
        * write the position the law is stepping. */
       const walker = new Walker([spx, spy])
       const pos = walker
+      /* AND WHICH WAY HE IS LOOKING WHEN HE GETS THERE.
+       *
+       * `anchors.arrival` has carried `facing` off the anchor since `standAt` was
+       * written, and this line is the only reader it ever needed; without it the
+       * heading was computed, returned and dropped, and every arrival on every map
+       * faced south. On `panther-maw` the spawn says south-east, into the room,
+       * and a player walking in off the bridge was turned around to face the wall
+       * behind them before they had touched a key.
+       *
+       * `walkT` is not loaded yet here, so the list of headings is the constant
+       * rather than the texture table. Same eight names, checked the same way
+       * `pose` checks them, and an unknown one leaves him at the default. */
+      if (arrive.facing && DIRS8.includes(arrive.facing)) walker.facing = arrive.facing
 
       /* ---- AND THE ARRIVAL ANCHOR IS SPENT, because it is an arrival ----
        *
@@ -1967,57 +2011,160 @@ export default function PmapScene() {
         return Math.round(16 * (v === 's' ? 0.86 : v === 'l' ? 1.22 : 1))
       }
 
+      /* ---- BRIEF-UI ROUND 4 ITEM 1: MAKING THE MARKER READ ----------------
+       *
+       * WHAT WAS WRONG, found on 2026-09-02 by cropping the shipped capture at
+       * `build-shots/ui/fixed-game/02-hub-walking.png` rather than by reading
+       * the code: the disc is filled `0x06282c`, which is the darkest ink in the
+       * palette, and the thing inside it is a BLACK PANTHER. Ash's own 2026-08-15
+       * spec asks for "a small thor picture in the marker", and the picture was
+       * there the whole time and could not be seen. Round 4: "a dark disc holding
+       * a dark head reads as a blob on the mark a student looks at most."
+       *
+       * THE FIELD IS THE FIX, NOT THE OUTLINE. A brighter rim round a dark disc
+       * separates the marker from the map and does nothing at all for the face
+       * inside it, which is the half that carries the meaning. So the field goes
+       * pale, the way every other place this game shows a face does: the beat's
+       * portrait frame is a parchment aperture, the dialogue portrait is the
+       * same, and a black cat reads on both.
+       *
+       * THE HEAD ALSO GETS ROOM. At radius 12 the aperture is 20 pixels across
+       * for a head drawn at 32, so the face was landing at 0.6 and losing its
+       * eyes to the resample. 15 gives 26 and, more to the point, an integer
+       * scale is available inside it.
+       *
+       * THE REVIEWER PICKED IT, 2026-09-02. Two candidates were drawn and both
+       * were photographed on the water and on the quay by `scripts/pin.mjs`: this
+       * circle, and the head on the kit's drawn `socket` plaque with the word
+       * beside it. The plaque lost and is deleted. Its verdict, which is worth
+       * keeping so nobody draws it again: "it is a fourth HUD button... same
+       * wood, same parchment, same ink, same rounded rectangle. Nothing says
+       * this is a person", and at the berth its wood welded to the cast-off
+       * plaque's wood with a zero pixel gap, so the two read as one two-row sign.
+       *
+       * THE CIRCLE WINS ON SILHOUETTE. It is the only round thing on the screen,
+       * and the harbour already holds two rectangles saying words. That survives
+       * being blurred to arm's-length acuity, which a fourth rectangle does not.
+       *
+       * EVERYTHING BELOW IS THE REVIEWER'S FIX LIST, worked in order. */
+
+      /* the parchment the kit's own portrait aperture is painted on, the carved
+       * brown its frame is cut from, and the light the kit lifts an edge with:
+       * read off `tokens.css` rather than invented, so the marker belongs to the
+       * same object family as every other frame in the game */
+      const PIN_FIELD = 0xf0e0bd
+      const PIN_RIM = 0x4a3524
+      const PIN_LIGHT = 0xf5efdd
+
+      /* SMALLER THAN IT WAS, NOT BIGGER. 15 out-massed the thing it marks: the
+       * reviewer measured the mark at 36 wide over a Thor 11 wide, "3.3x wider
+       * than the thing it marks", against a gold standard whose player labels are
+       * always subordinate in mass to the character. The face does not shrink
+       * with it, because the aperture is being filled properly now instead of
+       * carrying dead parchment round a head that used two thirds of it. */
       const PR = 12                        // pin circle radius in screen px
-      const PCY = -PR - 8                  // circle centre; the tail tip is the origin
-      const pinG = new Graphics()
-      pinG.moveTo(-PR * 0.7, PCY + PR * 0.66).lineTo(0, 0).lineTo(PR * 0.7, PCY + PR * 0.66)
-        .closePath().fill(0x06282c)
-      pinG.circle(0, PCY, PR).fill(0x06282c).stroke({ color: 0xbaf3ea, width: 2 })
-      pin.addChild(pinG)
+      const PCY = -PR - 10                 // circle centre; the tail tip is the origin
+
       // Thor's face: the head rows of the south idle frame, masked into the circle
       const drawnH = rig ? rig.feet - rig.top + 1 : 67
       const headH = Math.max(6, Math.round(drawnH * 0.5))
       const headSrc = walkT.south[0].source
-      const headTex = new Texture({ source: headSrc, frame: new Rectangle(0, rig ? rig.top : 0, headSrc.pixelWidth, headH) })
+      const headTop = rig ? rig.top : 0
+      const band = scanCols(walkT.south[0], headTop, headTop + headH - 1)
+      const headX = band ? band.left : 0
+      const headW = band ? band.right - band.left + 1 : headSrc.pixelWidth
+      const headTex = new Texture({ source: headSrc, frame: new Rectangle(headX, headTop, headW, headH) })
       const head = new Sprite(headTex)
       head.anchor.set(0.5, 0.5)
-      const hs = Math.min((PR * 2 - 4) / headSrc.pixelWidth, (PR * 2 - 4) / headH)
+      /* AN INTEGER SCALE, WHICH `docs/ART.md` REQUIRES AND THIS DID NOT DO.
+       * The old line was `min(aperture / headW, aperture / headH)`, an arbitrary
+       * fraction, and a non-integer resample of pixel art is the one thing the
+       * art document forbids outright: the eyes and the ear tips are one pixel
+       * each and a 0.81 downscale eats them. Halving is the clean reduction this
+       * repo has already proved on the portrait, so the ladder is 1, then 1/2,
+       * then 1/3, and the raw ratio only if the head cannot fit at a third. */
+      const aperture = PR * 2 - 2
+      const fits = (k: number) => headW * k <= aperture && headH * k <= aperture
+      const hs = fits(1) ? 1 : fits(0.5) ? 0.5 : fits(1 / 3) ? 1 / 3 : Math.min(aperture / headW, aperture / headH)
       head.scale.set(hs)
       head.position.set(0, PCY)
       const headMask = new Graphics().circle(0, PCY, PR - 1).fill(0xffffff)
       head.mask = headMask
-      pin.addChild(headMask, head)
-      /* THE SAME FACE AND THE SAME SETTING AS THE PROMPT. This was the second of
-       * the three literals §40.5 names (the prompt at 12, this at 12 and the sea
-       * marks at 13), all in operating-system monospace, all deaf to S/M/L. The
-       * pin keeps its stroke because it has no plaque behind it: it rides over
-       * open water and over a painting, and the stroke is what makes it legible
-       * on both. */
+
+      /* ---- THE MARK ITSELF, AS ONE OBJECT AND NOT THREE LOOSE PARTS -------
+       *
+       * The word used to float two pixels above a disc that floated above a tail,
+       * and the reviewer's word for the result was "assembled from random parts".
+       * So the word sits on its own parchment ribbon tucked over the disc's top
+       * edge, and word, ribbon, disc and tail are one silhouette with one outline
+       * round the whole of it.
+       *
+       * THAT ALSO RETIRES THE STROKE. The three pixel dark stroke existed because
+       * the word had no ground and had to survive both water and stone; at 16px
+       * it closed the counters of the O and the U into a dark blob. A word on a
+       * ribbon has a ground, so it takes ink like every other word in the game. */
       const youTxt = new Text({
         text: 'YOU',
         style: new TextStyle({
           fontFamily: ['Deckhand', 'monospace'],
           fontSize: promptSize(),
           fontWeight: 'bold',
-          fill: 0xbaf3ea,
-          stroke: { color: 0x06282c, width: 3 },
+          /* set below, once the pin's own two colours are in scope */
+          fill: 0xffffff,
         }),
       })
-      /* AND THE ONE LABEL A STUDENT READS MOST OFTEN GOES WITH THEM. `youTxt` is
-       * set in Deckhand, the game's commissioned body face, and the control arm
-       * carries neither commissioned face anywhere else. It keeps its stroke in
-       * both arms, because unlike the two plaques it has nothing behind it: it
-       * rides over open water and over a painting, and the stroke is the only
-       * reason it is legible on both. In the document arm the stroke is white
-       * paper rather than dark wood, which is the same job in that arm's palette. */
-      if (plainArm()) {
-        youTxt.style.fontFamily = ['system-ui', 'Segoe UI', 'Arial', 'sans-serif']
-        youTxt.style.fill = PLAIN_INK
-        youTxt.style.stroke = { color: 0xffffff, width: 3 }
-      }
+      if (plainArm()) youTxt.style.fontFamily = ['system-ui', 'Segoe UI', 'Arial', 'sans-serif']
+
+      /* ---- THE WORD RIDES ON THE DISC'S PALETTE, NOT IN A BOX ------------
+       *
+       * The reviewer asked for a parchment ribbon under the word so that word,
+       * disc and tail read as one object, and it was tried twice. IT CANNOT
+       * COEXIST WITH THE SAME REVIEW'S ITEM 5. The word is set at the world's
+       * type floor, 16px, which the S/M/L control moves; boxed, that is a 22 by
+       * 44 pixel slab on a disc 24 across, so the ribbon out-masses the disc, the
+       * mark out-masses Thor worse than before, and at a 5 pixel overlap the
+       * ribbon's underside ate the ear tips off the face the whole exercise
+       * exists to make visible. Photographed twice at `ui/pin/ring-water.png`
+       * before this was believed.
+       *
+       * Mass wins, because mass is the half of that review with a gold standard
+       * behind it: TavernWorld's player labels are always subordinate to the
+       * character. So the word keeps its own outline and joins the mark by
+       * PALETTE instead of by geometry, which is the actual complaint underneath
+       * item 3: cold cyan on a warm scene read as a debug overlay. Parchment on
+       * carved brown is the pin's own two colours, so the word is plainly part of
+       * the same object without a box round it.
+       *
+       * The stroke stays at 2 rather than the old 3: at 3 on a 16px face it
+       * closed the counters of the O and the U into a dark blob. */
+      youTxt.style.fill = plainArm() ? PLAIN_INK : PIN_FIELD
+      youTxt.style.stroke = { color: plainArm() ? 0xffffff : PIN_RIM, width: 2 }
       youTxt.anchor.set(0.5, 1)
-      youTxt.position.set(0, PCY - PR - 2)
-      pin.addChild(youTxt)
+      youTxt.position.set(0, PCY - PR - 1)
+
+      const pinG = new Graphics()
+      /* ---- DRAWN IN THE ORDER THAT LEAVES ONE OUTLINE ---------------------
+       *
+       * Each shape is filled and stroked before the next is filled over the top
+       * of it, so the disc covers the tail's open end and no line runs through
+       * the middle of the mark. A mark with an internal border is two objects
+       * however tightly they are stacked.
+       *
+       * THE TAIL IS NARROW AND LONG ENOUGH THAT THE SILHOUETTE RESOLVES. It was
+       * a wide shallow V that merged into the disc, so "half triangle half
+       * circle" never read as two shapes. */
+      pinG.moveTo(-PR * 0.45, PCY + PR * 0.80).lineTo(0, 0).lineTo(PR * 0.45, PCY + PR * 0.80)
+        .closePath().fill(PIN_FIELD).stroke({ color: PIN_RIM, width: 2 })
+      /* ONE LIGHT EDGE OUTSIDE THE DARK ONE. The halo used to be 2px at 0.85
+       * alpha, which over pale stone landed within a few values of the road and
+       * dissolved: the reviewer read the result as "a dark ring floating inside a
+       * cream blob". Opaque and one pixel gives the three crisp bands every frame
+       * in the kit is built from, light then dark then field, and that is what
+       * makes one marker read on water AND on stone. */
+      pinG.circle(0, PCY, PR + 2).stroke({ color: PIN_LIGHT, width: 1 })
+      pinG.circle(0, PCY, PR).fill(PIN_FIELD).stroke({ color: PIN_RIM, width: 2 })
+
+      pin.addChild(pinG, headMask, head, youTxt)
       pin.scale.set(1 / Z)
       pin.zIndex = 9e9
       world.addChild(pin)
@@ -3737,32 +3884,42 @@ export default function PmapScene() {
 
       /* ---- OPENING THE ISLAND THIS MAP BELONGS TO ----------------------------
        *
-       * Two ways in, and they are the same fetch.
+       * Three ways in, and they are all the same fetch.
        *
-       * The shipped way is a row in member-islands.json binding a map id to a
-       * folder, which is the only edit adding an island takes and which a member
-       * makes in their own repository.
+       * The shipped way for a MEMBER is a row in member-islands.json binding a
+       * map id to a folder, which is the only edit adding an island takes and
+       * which a member makes in their own repository.
        *
-       * The other is `?grape=<base url>`, which is a member with `serve.py`
+       * The shipped way for the VINE'S OWN content is `vine-islands.ts`, and its
+       * header says why it cannot be the same table: a member's row is a
+       * programme, the planner puts the whole roster on the menu unfiltered, and
+       * a row for the Maw would have let a student spend a season token on the
+       * room they were standing in. The vine's own islands also run UNSCOPED, so
+       * the flags they write are the bare names the rest of the engine already
+       * reads.
+       *
+       * The third is `?grape=<base url>`, which is a member with `serve.py`
        * running and a map to try their island on before anybody has merged a
        * row. That is not debug scaffolding: it is the loop between writing a
        * handler and watching it answer a real press on a real painting, and
        * without it a member waits on a merge to find out their anchor name is
-       * spelled wrong.
+       * spelled wrong. It stays first, because a member trying their own island
+       * on the Maw should get theirs and not the vine's.
        *
        * Nothing blocks the map on it. An island that will not load leaves the
        * map exactly as it was, which is a room whose furniture still works. */
       const openIsland = async () => {
         const asked = params.get('grape')
-        const bound = islandOfMap(mapId)
-        if (!asked && !bound) return
+        const ours = asked ? undefined : vineIslandOfMap(mapId)
+        const bound = ours ? undefined : islandOfMap(mapId)
+        if (!asked && !ours && !bound) return
         const ref: GrapeRef = asked
           ? { at: 'url', base: asked }
-          : { at: 'origin', island: bound!.folder }
+          : { at: 'origin', island: (ours ?? bound)!.folder }
         try {
           const pkg = await fetchGrape(ref)
           if (destroyed) return
-          const s = openGrape(pkg, intentHost)
+          const s = openGrape(pkg, intentHost, { unscoped: !!ours })
           grape = s
           stopIsland = () => { s.stop(); grape = null; grapeHandlers = [] }
           const ready = await s.ready
@@ -4250,6 +4407,11 @@ export default function PmapScene() {
         get Z() { return Z },
         get framing() { return lookAtTarget ? lastShot : null },
         get lastBerth() { return lastBerth },
+        /* WHERE THE MARKER IS ON THE SCREEN, in the window's own pixels, so a
+         * capture harness can crop to it instead of guessing a rectangle and
+         * cropping the wrong part of a moving player. `x` and `y` above are world
+         * coordinates and the camera is between them and the glass. */
+        get pinAt() { const g = pin.getGlobalPosition(); return { x: Math.round(g.x), y: Math.round(g.y) } },
         /* WHAT THE ARROW IS ACTUALLY LEADING TO, which is not the same question as
          * what a station asked for. This read `guideTarget`, the explicit
          * `guide_to` override, so a probe asking "is the game pointing anywhere"
@@ -4547,7 +4709,14 @@ export default function PmapScene() {
         // the shadow rides with him, a hair under, so it never lands on top of
         // a figure he is standing in front of
         thor.sh.zIndex = OVER_PLACED + pos.y - 1
-        pin.position.set(pos.x, pos.y - charH - 3 + Math.sin(t * 2.1) * 1.4)
+        /* THE BOB IN WHOLE SCREEN PIXELS, WHICH IT WAS NOT.
+         * `Math.sin(t) * 1.4` is a world-space offset, the pin is then scaled by
+         * 1/camZ, and the product landed on a fraction of a screen pixel on every
+         * frame, so the whole mark crawled instead of bobbing. The reviewer's
+         * word was "shimmers". Rounding the OFFSET in screen units and dividing
+         * by the zoom means the mark moves two pixels, holds, and moves back. */
+        const bob = Math.round(Math.sin(t * 2.1) * 2) / camZ
+        pin.position.set(pos.x, pos.y - charH - 3 + bob)
         /* THE TASK RIDES ABOVE THE PIN, which is itself above his head, so the
          * order down the screen is the sentence, the YOU marker, then Thor. It
          * bobs on the same clock as the pin and the prompt so the three read as
@@ -4573,7 +4742,12 @@ export default function PmapScene() {
            * marker. `uiS` is 1/camZ, which is exactly the number that turns a
            * screen distance into a world one, and it is the same 1/camZ the
            * marks are scaled by a few lines further down. */
-          task.position.set(pos.x, pos.y - charH - 3 - 62 / camZ + Math.sin(t * 2.1) * 1.4)
+          /* 62 was measured against a marker whose circle was radius 12. Round 4
+           * grew it to 15 so a face could fit, and the plaque's underside came
+           * down onto the word YOU: measured at `pin/ring-water.png`, the two
+           * were touching. The clearance is the marker's real height plus a
+           * line, so it moves with the marker instead of being re-measured. */
+          task.position.set(pos.x, pos.y - charH - 3 - 84 / camZ + Math.sin(t * 2.1) * 1.4)
           /* AND IT STAYS ON THE SCREEN. It is centred on Thor, and Thor spends
            * a lot of the hub standing near an edge, so a long sentence hung over
            * him runs off the window. Measured after placing rather than
@@ -4649,6 +4823,41 @@ export default function PmapScene() {
          * exactly that gap and the composition is where it lives instead. What a
          * player sees is unchanged: a plaque, the word E, and a tap target, so the
          * water does not need its own affordance vocabulary. */
+        /* ---- A SIGN NEVER STANDS ON THE PLAYER IT IS TALKING TO ---------
+         *
+         * THE WORST THING IN THE MARKER REVIEW, AND IT WAS NOT THE MARKER.
+         * 2026-09-02, measured off `ui/pin/ring-water.png`: at the berth the
+         * "E - cast off" plaque hangs 26 above the berth anchor, the player
+         * STANDS on that anchor, so the plaque covered Thor completely and the
+         * marker's tail terminated on the plaque's top rail. That is the spawn
+         * point. Every student's first screen had a marker pointing down at a
+         * wooden sign, and the tail is the only part of the mark that says whose
+         * mark it is.
+         *
+         * §40.5's own law is that the engine "annotates beside the art and never
+         * over it", and a player is art the same way a station is. So when the
+         * thing being annotated is within a body of the body, the plaque hangs
+         * BELOW it instead of above. At a berth that reads better anyway: the
+         * boat is downhill of the quay, and "cast off" now sits over the water it
+         * means rather than over the person it is asking. */
+        const hang = (px: number, py: number, up: number, bob: number) => {
+          prompt.position.set(px, py - up + bob)
+          if (!prompt.visible) return
+          /* MEASURED, NOT GUESSED. The first version of this asked whether the
+           * ANCHOR was within a body of the player, and at the berth it is not:
+           * the prompt fires out to 110 and Thor stands well back from the post,
+           * so the test passed, the plaque still landed on him, and the capture
+           * still showed a marker pointing at a wooden sign. What matters is not
+           * how far apart the two POINTS are, it is whether the drawn plaque
+           * overlaps the drawn body, and the plaque already knows its own box. */
+          const b = prompt.getBounds()
+          const feet = world.toGlobal({ x: pos.x, y: pos.y })
+          const crown = world.toGlobal({ x: pos.x, y: pos.y - charH })
+          const halfW = charH * 0.4 * camZ
+          const hits = b.maxY > crown.y && b.minY < feet.y
+            && b.maxX > feet.x - halfW && b.minX < feet.x + halfW
+          if (hits) prompt.position.set(px, py + Math.round(charH * 0.62) + bob)
+        }
         let seaFire: (() => void) | null = null
         if (hull && !berthing && !locked && !fade && comp) {
           const at = toSea(hull.x, hull.y)
@@ -4657,7 +4866,7 @@ export default function PmapScene() {
           if (home?.berth) {
             const p = fromSea(home.berth.x, home.berth.y)
             setPrompt(home.map === mapId ? 'E · tie up here' : `E · put in at ${home.title}`, 'plain')
-            prompt.position.set(p.x, p.y - 26 + Math.sin(t * 2.1) * 1.2)
+            hang(p.x, p.y, 26, Math.sin(t * 2.1) * 1.2)
             promptAnchor = null
             seaFire = () => dockAt(home)
           } else {
@@ -4671,7 +4880,7 @@ export default function PmapScene() {
           const p = fromSea(berth.x, berth.y)
           if (Math.hypot(p.x - pos.x, p.y - pos.y) < 110) {
             setPrompt('E · cast off', 'plain')
-            prompt.position.set(p.x, p.y - 26 + Math.sin(t * 2.1) * 1.2)
+            hang(p.x, p.y, 26, Math.sin(t * 2.1) * 1.2)
             promptAnchor = null
             seaFire = board
           }
@@ -4737,7 +4946,7 @@ export default function PmapScene() {
           // to wear its prompt where she is standing, not where she started
           const np = anchors.spotOf(near)
           setPrompt(text, state)
-          prompt.position.set(np.x, np.y - 18 + Math.sin(t * 2.1) * 1.2)
+          hang(np.x, np.y, 18, Math.sin(t * 2.1) * 1.2)
           /* the plaque is only tappable when E would do something, so a barred
            * door and a closed station read the same to a pointer as to a key */
           prompt.eventMode = canFire ? 'static' : 'none'
