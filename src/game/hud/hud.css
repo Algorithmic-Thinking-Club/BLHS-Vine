@@ -599,3 +599,17 @@ html[data-skin='plain'] .hud-token-spent {
 /* A WORKSHEET'S BUTTONS DO NOT SWING IN ON A HOOK. Same reason the page does not
    fade: the arrival is a game affordance and the document just has the control. */
 html[data-skin='plain'] .hud-arriving { animation: none; }
+
+/* ---- A PROGRESS BAR IS A RENDER, NOT A CRITERION -------------------------
+ *
+ * §16.4, in full: "the cords tab renders progress as a fraying thread, and a
+ * progress bar over a criterion is game-ness sitting on a content surface. The
+ * criterion text stays identical and the bar is a render the plain arm should
+ * not get."
+ *
+ * It got it anyway: `.hb-cordbar` had exactly one rule in the tree, a margin, and
+ * no plain form, so `fixed-plain/11-handbook-cords.png` shows an empty bordered
+ * gauge under "Highest Honors / GPA 3.76-4.0" in a document that is otherwise a
+ * worksheet. The words stay, identical in both arms, which is the half §16 cares
+ * about; the drawn bar goes. */
+html[data-skin='plain'] .hb-cordbar { display: none; }

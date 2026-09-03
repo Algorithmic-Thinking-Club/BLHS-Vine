@@ -15,7 +15,7 @@ import { track } from '../telemetry'
 import { usePanel } from '../ui/a11y'
 import { currentSkin } from '../ui/skin'
 import { Chip, Field, Gauge, Glyph, Plank, PortraitFrame, useFace } from '../ui/controls'
-import { right as sayRight, wrong as sayWrong } from '../ui/feedback'
+import { awarded, right as sayRight, wrong as sayWrong } from '../ui/feedback'
 import './beats.css'
 
 // THE ACTIVITY RUNNER, the vine's woven-check chassis (§6.7 baseline), playing any
@@ -139,6 +139,24 @@ export function CoreBeatRunner(
     })
     for (const f of beat.takeaways) collectFact(f)
     const after = loadSave()
+    /* ---- AND THE REWARD POP FIRES ON A REWARD -------------------------------
+     *
+     * `awarded()` has been in the kit since the feedback set was written and had
+     * ZERO callers in the whole tree, which is three quarters of brief item 16
+     * wired and the last quarter dead. Meanwhile this function is where a
+     * student earns a credit, collects up to four Handbook facts and moves a
+     * cord, all in one frame, and all of it happened in silence.
+     *
+     * It says the CREDIT, not the facts, and there is one pop rather than five.
+     * §40.7's reward pop is a moment, and five moments at once is a slot
+     * machine; the facts are visible in the Handbook and the takeaway list on
+     * this card names them a second later anyway.
+     *
+     * Nothing here fires in the plain arm: `feedback` is a drawn overlay and the
+     * control arm's result is a printed page. `as_plain` already branches above. */
+    if (arm !== 'plain' && beat.credit > 0) {
+      awarded(`${beat.credit} credit earned`, beat.title)
+    }
     track('core_beat_complete', {
       id: beat.id, grade, retaken: retaking.current, arm, tries: attempt.current.n,
       /* the first attempt's grade is the study's number and the ledger keeps it,

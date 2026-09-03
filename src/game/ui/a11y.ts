@@ -25,6 +25,7 @@
  * this game the moment the pause sheet opens settings.
  */
 import { useCallback, useEffect, useId, useRef } from 'react'
+import { play } from '../audio'
 
 /* ---- the stack --------------------------------------------------------- */
 
@@ -230,9 +231,29 @@ export function usePanel({ label, onClose, closeOnEscape = true }: PanelOptions)
      * registered earlier and would otherwise close the wrong thing */
     window.addEventListener('keydown', key, true)
 
+    /* ---- AND IT IS HEARD --------------------------------------------------
+     *
+     * `audio.ts` calls `open`, `close`, `click` and `deny` "the four the UI kit
+     * lives on. Every panel, every choice, every refusal", and audited on
+     * 2026-09-02 three of the four had ZERO callers anywhere in the tree. Two of
+     * them are this: every panel in the game opened and closed in silence while
+     * `open.ogg` and `close.ogg` shipped to a Chromebook that would never play
+     * them.
+     *
+     * It belongs here rather than on each panel for the same reason the focus
+     * trap does: seven surfaces use this hook, and a sound wired per panel is a
+     * sound the eighth panel forgets. `play` is already safe on its own, so
+     * there is nothing to guard: it honours the mute setting, it swallows a
+     * dropped fetch, and it queues until the first gesture unlocks audio.
+     *
+     * Only the innermost panel speaks. Opening the year sheet from the pause
+     * sheet is one event to a student and would otherwise be two sounds. */
+    if (isInnermostPanel(token)) play('open')
+
     return () => {
       window.removeEventListener('keydown', key, true)
       release()
+      play('close')
       const at = stack.lastIndexOf(token)
       if (at >= 0) stack.splice(at, 1)
       /* only if the panel still had focus. If the player has already clicked
