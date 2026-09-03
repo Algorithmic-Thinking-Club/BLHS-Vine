@@ -91,7 +91,19 @@
      taller than the binder put half the marks below a fold nobody knows is
      there, which on a chart is the same as not drawing them. */
   flex: 1 1 auto;
-  min-height: 240px;
+  /* A FLOOR THAT FITS THE SMALLEST SCREEN THE GAME SHIPS ON. At 240 the sheet
+     took the whole page at 1366x768 and pushed the legend and the empty-sea
+     sentence past the fold: `fixed-game/12-chart.png` ends on bare paper after
+     the register's last rule. Those two blocks are the entire answer to "the sea
+     has one island in it", which is not an edge case in the first deployment,
+     it IS the first deployment. So the paper yields instead of them. */
+  /* MEASURED AGAINST THE WHOLE PAGE, NOT AGAINST THE SHEET.
+     The binder at 1366x768 has about 660 of usable height, and this page owes a
+     student four things: the sheet, the one line that teaches it, the sentence
+     that says why the sea is nearly empty, and the register a teacher reads over
+     a shoulder. At 240 the sheet took enough that the fourth fell off; at 200 it
+     is still the biggest thing on the page and all four are above the fold. */
+  min-height: min(180px, 24vh);
   overflow: hidden;
   box-sizing: border-box;
   padding: 14px;
@@ -611,3 +623,17 @@ html[data-skin='plain'] .ch-row-name { font-weight: 700; color: var(--kit-ink-he
 html[data-skin='plain'] .ch-row-state,
 html[data-skin='plain'] .ch-row-closed { display: block; }
 html[data-skin='plain'] .ch-legend { color: var(--kit-ink-body); }
+
+/* ---- THE EMPTY-SEA NOTICE, SIZED FOR A PAGE THAT ALSO OWES A REGISTER -----
+ *
+ * `Empty` is the kit's own empty state and its default box is built for a whole
+ * blank page: 26 of padding top and bottom and a 42-character measure, which on
+ * this page wrapped the sentence onto three centred lines and pushed the
+ * register off the bottom at 1366x768.
+ *
+ * The sentence itself cannot give: §40.42 keeps it verbatim through any
+ * refactor, and it is a promise about the club rather than an apology for the
+ * game. So the box gives. A wider measure on a page this wide is one line
+ * instead of three, and the notice sits with the chart instead of instead of it. */
+.ch-chart .kit-empty { padding: 14px 20px 10px; gap: 6px; }
+.ch-chart .kit-empty-fills { max-width: 68ch; }

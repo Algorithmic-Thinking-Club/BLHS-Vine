@@ -495,8 +495,21 @@ html[data-skin='plain'] .hb-badge-word { letter-spacing: 0; font-weight: 700; }
  * crushes lightness hardest. `pip`'s `ghost` face is an empty socket somebody
  * drew. When it is not available the opacity is the fallback, in the stylesheet
  * where a skin can see it. */
+/* AND THE FALLBACK IS NOT THE THING THE COMMENT ABOVE FORBIDS. Four lines under
+   a paragraph explaining that lightness alone is the one distinction §11.3 rules
+   out, the fallback was lightness alone: `faceStyle('pip','ghost')` answers
+   undefined whenever the kit has not landed, so on a filtered Chromebook the
+   three pips on the corner plaque a student consults most were three identical
+   gold coins at three identical opacities. `fixed-nokit/02-hub-walking.png`.
+
+   A spent season is an EMPTY SOCKET, which is what the drawn ghost face is a
+   picture of: the coin is gone and its seat is still there. Present or absent is
+   the strongest distinction a bad panel cannot take away. */
 .hud-token-spent {
-  opacity: .35;
+  background: none;
+  border-color: var(--kit-wood-shadow);
+  box-shadow: inset 0 2px 0 var(--kit-wood-shadow);
+  opacity: .85;
 }
 .hud-token-spent[style*='background-image'] {
   /* a drawn ghost is not a faded anything, so it carries its own weight */

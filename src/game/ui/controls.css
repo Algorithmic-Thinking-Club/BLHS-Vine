@@ -235,6 +235,30 @@ button.kit-chip:active { transform: translateY(1px); }
   background: var(--kit-paper-chip-lo);
   box-shadow: inset 0 0 0 2px var(--kit-cord-track);
 }
+/* AND SO IS THE LIT ONE, WHICH HAD NO FALLBACK AT ALL. `chip` publishes three
+   drawn states and the comment above this rule says the face IS the state; only
+   two of the three were ever given an undrawn form, so with the platform out of
+   reach an EARNED plate and an unearned one were the same gold coin. That is the
+   whole of §40.31 in one element: on a panel that crushes lightness and
+   saturation, "brighter" is not a state.
+
+   So earned grows a ring the way a stamped coin does. It is a SHAPE that appears,
+   which survives a bad panel, a colour-blind reader and a photocopier alike. */
+.kit-chip-plate_lit:not(.kit-chip-drawn) {
+  background: var(--kit-paper-chip-lo);
+  box-shadow: inset 0 0 0 2px var(--kit-cord-hi), 0 0 0 2px var(--kit-cord-lo);
+}
+/* the control arm collapses all three to one grey box, because its own `.kit-chip`
+   rule outranks the two fallbacks above. A worksheet says which of three it is
+   with a rule and a mark, not with a shade. */
+html[data-skin='plain'] .kit-chip-plate_lit:not(.kit-chip-drawn) {
+  border-width: 3px;
+  border-color: var(--kit-ink-head);
+}
+html[data-skin='plain'] .kit-chip-plate_spent:not(.kit-chip-drawn) {
+  background: none;
+  border-style: dashed;
+}
 
 /* ---- THE TAB ROW, ON ONE ROW --------------------------------------------- */
 
@@ -378,7 +402,14 @@ button.kit-chip:active { transform: translateY(1px); }
   height: 100%;
   min-height: 22px;
   width: 0;
-  background: linear-gradient(90deg, var(--kit-cord-lo), var(--kit-cord-hi));
+  /* NOT THE CORD GOLD. `docs/ART.md`: "gold means an earned honor and nothing
+     else". This bar sits directly under the letter on a result card, so a
+     student who has just been given an F watched an honours-gold bar fill up to
+     say so: sampled #bd9c51 under the F in `fixed-game/21-result.png`. The card
+     one element lower already caught this and says so in its own comment; the
+     gauge above it kept the mistake. Sea green is the game's own "this is how
+     far along you are" colour and carries no honour at all. */
+  background: linear-gradient(90deg, var(--kit-sea-btn-lo), var(--kit-sea));
   transition: width var(--kit-t-slow) linear;
 }
 /* NOTHING IS BEING COUNTED, AND IT SAYS SO. The bar does not creep toward a

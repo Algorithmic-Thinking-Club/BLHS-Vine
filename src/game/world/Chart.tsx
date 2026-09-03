@@ -300,6 +300,35 @@ export function Chart() {
           at over a shoulder, so the same facts have to be legible as a list and
           not only as a picture. It is one list in both arms; the paper above it
           is what the plain arm does not get. */}
+      {/* ---- WHAT THE PICTURE MEANS, DIRECTLY UNDER THE PICTURE -----------
+       *
+       * These two blocks used to sit at the BOTTOM of the page, after the whole
+       * register, and at 1366x768 that put them past the fold: photographed at
+       * `fixed-game/12-chart.png` the page ended on bare paper after the last
+       * register rule, and a student in the shipped arm never saw either of
+       * them. The control arm saw both, only because the plain skin hides the
+       * sheet entirely and the page got shorter.
+       *
+       * They belong here anyway. The legend teaches the sheet ("pencil is rumour
+       * and ink is somewhere you have been") and the sentence explains why the
+       * sheet is nearly empty, and an explanation of a picture goes under the
+       * picture rather than under the list of everything in it. A one-island sea
+       * is not an edge case in the first deployment, it IS the first deployment. */}
+      <p className="ch-legend">
+        Pencil is rumour and ink is somewhere you have been.
+        {unvisited.length
+          ? ` ${unvisited.map((r) => r.label ?? r.name).join(' and ')} ${unvisited.length > 1 ? 'are' : 'is'} still blank.`
+          : ''}
+        {builtIn ? ' This is the chart built into the game, because the world could not be reached today.' : ''}
+      </p>
+
+      {lonely && (
+        <Empty
+          what={isles === 1 ? 'One island is on the water so far.' : 'No island is on the water yet.'}
+          fills={SEA_IS_YOUNG}
+        />
+      )}
+
       <ul className="ch-register">
         {berthed && (
           <li className="ch-row ch-row-you">
@@ -327,20 +356,6 @@ export function Chart() {
         ))}
       </ul>
 
-      <p className="ch-legend">
-        Pencil is rumour and ink is somewhere you have been.
-        {unvisited.length
-          ? ` ${unvisited.map((r) => r.label ?? r.name).join(' and ')} ${unvisited.length > 1 ? 'are' : 'is'} still blank.`
-          : ''}
-        {builtIn ? ' This is the chart built into the game, because the world could not be reached today.' : ''}
-      </p>
-
-      {lonely && (
-        <Empty
-          what={isles === 1 ? 'One island is on the water so far.' : 'No island is on the water yet.'}
-          fills={SEA_IS_YOUNG}
-        />
-      )}
     </div>
   )
 }
