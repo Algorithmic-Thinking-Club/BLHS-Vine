@@ -2052,9 +2052,15 @@ export default function PmapScene() {
        * brown its frame is cut from, and the light the kit lifts an edge with:
        * read off `tokens.css` rather than invented, so the marker belongs to the
        * same object family as every other frame in the game */
-      const PIN_FIELD = 0xf0e0bd
-      const PIN_RIM = 0x4a3524
-      const PIN_LIGHT = 0xf5efdd
+      /* AND IN THE CONTROL ARM IT IS A PLAIN DISC. Parchment is game art and so is
+       * a hand-drawn panther's face, which is exactly the reason `PortraitFrame`
+       * draws nothing under this skin. The marker still has a job there, because
+       * a student in the control group still has to find themselves on a painted
+       * island, so the SHAPE stays and the paint comes off: white field, grey
+       * rule, no halo, and the word does the identifying on its own. */
+      const PIN_FIELD = plainArm() ? 0xf6f6f4 : 0xf0e0bd
+      const PIN_RIM = plainArm() ? 0x6b6b6b : 0x4a3524
+      const PIN_LIGHT = plainArm() ? 0xffffff : 0xf5efdd
 
       /* SMALLER THAN IT WAS, NOT BIGGER. 15 out-massed the thing it marks: the
        * reviewer measured the mark at 36 wide over a Thor 11 wide, "3.3x wider
@@ -2062,17 +2068,45 @@ export default function PmapScene() {
        * always subordinate in mass to the character. The face does not shrink
        * with it, because the aperture is being filled properly now instead of
        * carrying dead parchment round a head that used two thirds of it. */
-      const PR = 12                        // pin circle radius in screen px
+      /* ---- THE DISC IS SIZED BY THE FACE, NOT CHOSEN ---------------------
+       *
+       * The review asked for two things that fight: an INTEGER scale on the head,
+       * which `docs/ART.md` requires outright, and a smaller mark, which the gold
+       * standard requires because a label must not out-mass the character it
+       * labels. It resolved them by assuming the head crop lands near 24 pixels
+       * so the ladder could pick 1 to 1. Measured on the actual sheet, it does
+       * not: `public/art/characters/thor/south.png` is 52x67 and his ears span 51
+       * of those 52, because he is drawn face-on with both ears out.
+       *
+       * So 1 to 1 would need a 51 pixel aperture, which is a marker twice the
+       * size of the thing it marks. The next rung is the clean halving this
+       * project has already proved on every sprite it downscales, and half of 52
+       * is 26. THAT is where the aperture comes from, and the radius follows it:
+       * 26 = PR * 2 - 2, so PR is 14. Nothing here is a taste call; the art
+       * picked the number and the code did the division. */
+      const PR = plainArm() ? 7 : 14       // pin circle radius in screen px
       const PCY = -PR - 10                 // circle centre; the tail tip is the origin
 
       // Thor's face: the head rows of the south idle frame, masked into the circle
       const drawnH = rig ? rig.feet - rig.top + 1 : 67
-      const headH = Math.max(6, Math.round(drawnH * 0.5))
+      /* THE WHOLE FACE AND NOTHING BELOW IT, measured off the sheet rather than
+       * guessed at. 0.50 took the neck, the shirt collar and a pixel of tail;
+       * 0.38 cut the muzzle off and left two ears over a grey slab, which is
+       * what the first attempt at this shipped. 0.42 is the band that holds both
+       * ears, both eyes and the muzzle and stops at the chin. */
+      const headH = Math.max(6, Math.round(drawnH * 0.42))
       const headSrc = walkT.south[0].source
       const headTop = rig ? rig.top : 0
       const band = scanCols(walkT.south[0], headTop, headTop + headH - 1)
-      const headX = band ? band.left : 0
-      const headW = band ? band.right - band.left + 1 : headSrc.pixelWidth
+      let headX = band ? band.left : 0
+      let headW = band ? band.right - band.left + 1 : headSrc.pixelWidth
+      /* AN EVEN CROP, SO THE HALVING IS EXACT. 51 halves to 25.5 and a half pixel
+       * is the blur the integer rule exists to prevent, so the box grows by one
+       * transparent column rather than the picture being resampled. */
+      if (headW % 2) {
+        headW += 1
+        if (headX + headW > headSrc.pixelWidth) headX = Math.max(0, headSrc.pixelWidth - headW)
+      }
       const headTex = new Texture({ source: headSrc, frame: new Rectangle(headX, headTop, headW, headH) })
       const head = new Sprite(headTex)
       head.anchor.set(0.5, 0.5)
@@ -2090,6 +2124,7 @@ export default function PmapScene() {
       head.position.set(0, PCY)
       const headMask = new Graphics().circle(0, PCY, PR - 1).fill(0xffffff)
       head.mask = headMask
+      head.visible = !plainArm()
 
       /* ---- THE MARK ITSELF, AS ONE OBJECT AND NOT THREE LOOSE PARTS -------
        *
@@ -2137,8 +2172,16 @@ export default function PmapScene() {
        *
        * The stroke stays at 2 rather than the old 3: at 3 on a 16px face it
        * closed the counters of the O and the U into a dark blob. */
+      /* PARCHMENT ON DARK, AND THE DARK IS DARKER THAN THE RIM.
+       * Measured on the quay by the reviewer: with the word filled parchment and
+       * outlined in the rim's own `0x4a3524`, the most common colour inside the
+       * word's bounding box was (205,150,93), which is the ROAD. Letter, outline
+       * and sand all sit in one mid-warm band and the word becomes a stain. The
+       * cyan it replaced had the opposite failure and was fine here. So the
+       * outline drops out of the warm band entirely; the fill stays parchment,
+       * and the pair is the same light-on-dark the disc's own three bands use. */
       youTxt.style.fill = plainArm() ? PLAIN_INK : PIN_FIELD
-      youTxt.style.stroke = { color: plainArm() ? 0xffffff : PIN_RIM, width: 2 }
+      youTxt.style.stroke = { color: plainArm() ? 0xffffff : 0x2c2620, width: 2 }
       youTxt.anchor.set(0.5, 1)
       youTxt.position.set(0, PCY - PR - 1)
 
@@ -2153,16 +2196,22 @@ export default function PmapScene() {
        * THE TAIL IS NARROW AND LONG ENOUGH THAT THE SILHOUETTE RESOLVES. It was
        * a wide shallow V that merged into the disc, so "half triangle half
        * circle" never read as two shapes. */
-      pinG.moveTo(-PR * 0.45, PCY + PR * 0.80).lineTo(0, 0).lineTo(PR * 0.45, PCY + PR * 0.80)
-        .closePath().fill(PIN_FIELD).stroke({ color: PIN_RIM, width: 2 })
+      /* A POINTER WITH AN INSIDE. At half-width 0.45 with a 2px stroke on each
+       * side, the reviewer's row scan found one fill pixel by the fourth row and
+       * pure outline for the last five: the tail was a dark drip rather than a
+       * parchment pointer, and on the quay its bottom half vanished into the
+       * market clutter. Wider, longer, and a 1px rule, so there is parchment
+       * running the whole way down to the tip. */
+      pinG.moveTo(-PR * 0.55, PCY + PR * 0.86).lineTo(0, 1).lineTo(PR * 0.55, PCY + PR * 0.86)
+        .closePath().fill(PIN_FIELD).stroke({ color: PIN_RIM, width: 1 })
       /* ONE LIGHT EDGE OUTSIDE THE DARK ONE. The halo used to be 2px at 0.85
        * alpha, which over pale stone landed within a few values of the road and
        * dissolved: the reviewer read the result as "a dark ring floating inside a
        * cream blob". Opaque and one pixel gives the three crisp bands every frame
        * in the kit is built from, light then dark then field, and that is what
        * makes one marker read on water AND on stone. */
-      pinG.circle(0, PCY, PR + 2).stroke({ color: PIN_LIGHT, width: 1 })
-      pinG.circle(0, PCY, PR).fill(PIN_FIELD).stroke({ color: PIN_RIM, width: 2 })
+      if (!plainArm()) pinG.circle(0, PCY, PR + 2).stroke({ color: PIN_LIGHT, width: 1 })
+      pinG.circle(0, PCY, PR).fill(PIN_FIELD).stroke({ color: PIN_RIM, width: plainArm() ? 1 : 2 })
 
       pin.addChild(pinG, headMask, head, youTxt)
       pin.scale.set(1 / Z)
@@ -4717,6 +4766,16 @@ export default function PmapScene() {
          * by the zoom means the mark moves two pixels, holds, and moves back. */
         const bob = Math.round(Math.sin(t * 2.1) * 2) / camZ
         pin.position.set(pos.x, pos.y - charH - 3 + bob)
+        /* AND THE WHOLE MARK LANDS ON WHOLE SCREEN PIXELS. Quantising the bob
+         * fixed the vertical crawl and left the horizontal one: the pin follows
+         * Thor's fractional world x, so the vector circle re-rasterised at a
+         * different subpixel offset every frame and the rim measured 2px on one
+         * side and 3px on the other between captures. The camera is the only
+         * thing between world and glass, so the correction is the fraction of a
+         * screen pixel divided back out by the zoom. */
+        const gp = pin.getGlobalPosition()
+        pin.x -= (gp.x - Math.round(gp.x)) / camZ
+        pin.y -= (gp.y - Math.round(gp.y)) / camZ
         /* THE TASK RIDES ABOVE THE PIN, which is itself above his head, so the
          * order down the screen is the sentence, the YOU marker, then Thor. It
          * bobs on the same clock as the pin and the prompt so the three read as
@@ -4856,7 +4915,13 @@ export default function PmapScene() {
           const halfW = charH * 0.4 * camZ
           const hits = b.maxY > crown.y && b.minY < feet.y
             && b.maxX > feet.x - halfW && b.minX < feet.x + halfW
-          if (hits) prompt.position.set(px, py + Math.round(charH * 0.62) + bob)
+          /* JUST UNDER HIS FEET, NOT CLEAR OF THE WHOLE OVERLAP. The first
+           * version dropped the plaque by a fixed 0.62 of a body from the
+           * ANCHOR, and at the berth the anchor is out in the water, so "E -
+           * cast off" ended up 45 pixels off the dock reading as a caption for
+           * the sea. Hanging it under the PLAYER keeps it on the planking he is
+           * standing on, which is the thing it is talking about. */
+          if (hits) prompt.position.set(px, pos.y + Math.round(charH * 0.22) + bob)
         }
         let seaFire: (() => void) | null = null
         if (hull && !berthing && !locked && !fade && comp) {
