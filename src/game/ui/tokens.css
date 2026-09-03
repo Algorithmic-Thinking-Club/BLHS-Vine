@@ -724,8 +724,28 @@ html[data-skin='plain'] {
   border-width: var(--kit-slice-w-panel);
   border-image: var(--kit-art-panel) var(--kit-slice-panel) fill / 1 / 0 var(--kit-repeat);
 }
+/* AN OPAQUE GROUND UNDER THE PICTURE, because a border-image that has not
+   arrived draws NOTHING and this is the surface a student reads most.
+   `fixed-game/06-dialogue.png` is a photograph of that happening: the sentence
+   and the "click, or press space" hint drawn straight onto the quay and the
+   water in dark brown ink, no box at all, while the identical shot at `?kit=0`
+   drew the full wooden panel. The layout ran, the text landed in the right
+   place, and only the paper failed to paint, because in the shipped arm the
+   piece is fetched from the platform on every load with `must-revalidate` and a
+   slow access point or a district filter is all it takes.
+
+   The plain arm has had this fallback since it was written. The paper arm did
+   not, on the same element, which is the arm a class of thirty actually plays. */
 .kit-surface-dialogue,
 .kit-surface-band {
+  background-color: var(--kit-paper);
+  /* CLIPPED TO THE PADDING BOX, so the ground can never show OUTSIDE the drawn
+     frame. The piece is a carved panel with ornate corners and transparency
+     round them, and an unclipped rectangle behind it would square those corners
+     off in the arm where the art works fine. Inside the slice widths there is
+     nothing but the parchment field, so the fallback lands exactly where the
+     paper would have been and nowhere else. */
+  background-clip: padding-box;
   border-style: solid;
   border-color: transparent;
   border-width: var(--kit-slice-w-dialogue);
@@ -792,10 +812,17 @@ html[data-skin='plain'] .kit-surface-dialogue {
   border: var(--kit-border) solid var(--kit-edge);
   border-radius: var(--kit-r-round);
 }
+/* AND THE PLANK'S SURFACE AGREES WITH THE PLANK. This was the third rule in the
+   fight that made "Begin Adventure" unreadable: `controls.css` and the two
+   surface stylesheets all dress the plain plank as paper with dark ink, and this
+   one dressed the same button as dark slate, from a later file, so it won the
+   background while they won the ink. #262626 on #3f4a4e is 1.66 to 1, on the
+   first control anybody in the control group ever presses. There is one plain
+   button in this arm now and it is a white one. */
 html[data-skin='plain'] .kit-surface-plank {
   border-image: none;
-  background-color: var(--kit-wood-hi);
-  border: var(--kit-border) solid var(--kit-wood-edge);
+  background-color: var(--kit-paper-lo);
+  border: var(--kit-border) solid var(--kit-edge-strong);
   border-radius: var(--kit-r-soft);
 }
 
@@ -945,7 +972,16 @@ html[data-skin='plain'] button:focus-visible,
 html[data-skin='plain'] input:focus-visible,
 html[data-skin='plain'] select:focus-visible,
 html[data-skin='plain'] textarea:focus-visible,
-html[data-skin='plain'] [tabindex]:focus-visible {
+/* A PANEL IS NOT A CONTROL, and `[tabindex]` alone matches `tabindex="-1"`.
+   `usePanel` puts -1 on every panel and focuses it on open, so this rule drew a
+   3px #1d6fd8 ring around the whole year sheet the instant it appeared, before
+   anybody had pressed a key. Measured at (60,300) in `fixed-plain/08-planner.png`.
+   `a11y.ts` states the rule it breaks: a ring that "appears before anybody has
+   pressed a key is not telling them where they are, it is decoration that looks
+   like a bug", and looking like a bug is the one thing the control arm cannot
+   afford. The game block a few rules down already excluded -1; this is the same
+   exclusion, written the same way. */
+html[data-skin='plain'] [tabindex]:not([tabindex='-1']):focus-visible {
   outline: var(--kit-focus-width) solid var(--kit-focus);
   outline-offset: var(--kit-focus-offset);
 }

@@ -556,16 +556,31 @@ html[data-rm='1'] .kit-socket[data-state='refusing'] { animation: none; }
  * raw OS widgets: unstyled defaults read as BROKEN, and a control arm that looks
  * broken loses on looking broken rather than on not being a game. */
 html[data-skin='plain'] .kit-glyph { display: none; }
+/* PAPER AND DARK INK, WHICH IS WHAT THE OTHER TWO STYLESHEETS ALREADY SAID.
+   Measured 2026-09-02 on `fixed-plain/01b-title-cold.png` over the label box:
+   2648 pixels of #3f4a4e carrying 133 pixels of #262626, a contrast ratio of
+   1.66 to 1, on "Begin Adventure" — the first control anybody in the control
+   group ever presses, and the same failure on "Speak it" on the join card.
+
+   THE CAUSE WAS A TIE, NOT A TYPO. `boot-title.css` and `i3.css` each dress
+   their own plank as paper with dark ink, at the same specificity as this rule,
+   which dressed it as dark wood with white ink. The background from one won and
+   the ink from the other won, and neither file was wrong on its own.
+
+   So the base agrees with them instead of fighting them, and the arm has ONE
+   button: a white field, a real edge, dark ink. That is also the plain-arm
+   ruling read literally, black on white, and it is the same button the corner
+   stack and the panels already use in this arm. */
 html[data-skin='plain'] .kit-plank {
   filter: none;
-  border: 1px solid var(--kit-wood-edge);
+  border: 1px solid var(--kit-edge-strong);
   border-radius: var(--kit-r-soft);
-  background-color: var(--kit-wood-hi);
+  background-color: var(--kit-paper-lo);
   padding: 8px 18px;
   min-height: 38px;
 }
-html[data-skin='plain'] .kit-plank-ink { text-shadow: none; color: var(--kit-plank-ink); font-weight: 600; }
-html[data-skin='plain'] .kit-plank:hover:not(:disabled) { filter: none; transform: none; background-color: var(--kit-wood-lo); }
+html[data-skin='plain'] .kit-plank-ink { text-shadow: none; color: var(--kit-ink-body); font-weight: 600; }
+html[data-skin='plain'] .kit-plank:hover:not(:disabled) { filter: none; transform: none; background-color: var(--kit-paper-tab-lo); }
 html[data-skin='plain'] .kit-plank:active:not(:disabled) { transform: none; }
 html[data-skin='plain'] .kit-plank:disabled { filter: none; opacity: .55; }
 html[data-skin='plain'] .kit-plank-key { background: none; opacity: 1; }
