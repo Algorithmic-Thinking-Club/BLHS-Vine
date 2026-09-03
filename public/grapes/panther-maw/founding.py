@@ -60,7 +60,8 @@ BEAT_MS = 1100
 def turn(who, facing):
     """Turn somebody, and carry on if this room has nobody there to turn.
 
-    THE ONLY try/except IN THIS ISLAND, AND IT IS WORTH UNDERSTANDING. A word the
+    ONE OF THE TWO PLACES THIS ISLAND CATCHES A REFUSAL, AND BOTH ARE
+    DECORATION. The other is `dress_the_wall` in island.py. A word the
     engine cannot perform does not come back as a False you can test. It is RAISED
     at the line that yielded it, and if nothing catches it, it takes the rest of
     your handler with it. That is the right default: an island whose most

@@ -56,19 +56,51 @@ from lines import (
 SEEN = "maw:seen"
 
 
+def dress_the_wall(count):
+    """Make the drawn shelf agree with what the run is holding.
+
+    THE ROOM HAS TO BE TRUE BEFORE ANYBODY PRESSES ANYTHING. A placement MAPVIS
+    put on a painting is drawn from the first frame the map is on screen, and the
+    shelf Ash drew is a case with things already on its shelves. So a first-year
+    student with nothing earned used to walk in to a full trophy case, press E,
+    and watch the whole case vanish while Thor said the hooks were empty. The
+    world was lying at walking speed and then correcting itself as a reward for
+    talking to the furniture, which is exactly backwards.
+
+    So it is synced on arrival, on EVERY load, and the press only says the line.
+
+    Guarded for the same reason `turn` is in founding.py: `show` is a hard
+    refusal on a room whose `trophy_wall` is not bound to a placement, and the
+    offline copy of this room is exactly that. A refusal here would take the
+    arrival lines with it.
+    """
+    try:
+        yield show(WALL, count > 0)
+    except Exception as refused:
+        yield log("show_refused", {"anchor": WALL, "why": str(refused)})
+
+
 @on_start
 def walking_in():
     """The engine calls this every time the room loads, before the player moves.
 
-    EVERY TIME, which is the thing to design around. This room gets crossed
-    forty times in an hour, and a room that greets you on the fortieth crossing
-    is a room you learn to walk past. So the lines are behind a flag and every
-    arrival after the first is silent.
+    EVERY TIME, which is the thing to design around, and it cuts both ways. The
+    room gets crossed forty times in an hour, so a room that greets you on the
+    fortieth crossing is a room you learn to walk past, and the lines sit behind
+    a flag. But anything about how the room LOOKS has to be redone on every one
+    of those forty crossings, because a map load draws the painting fresh and
+    knows nothing about what happened on the last one. Those two live on opposite
+    sides of the early return below, and that is the whole shape of this handler.
 
     The way he is facing when he gets here is not set in this file either. The
     spawn anchor carries a heading, MAPVIS is where somebody chose it, and the
     engine turns him before this function runs.
     """
+    # ---- what the room looks like: every load, before the early return -----
+    trophies = yield get("trophies")
+    yield from dress_the_wall(on_the_wall(trophies))
+
+    # ---- and what it says: the first time only -----------------------------
     flags = yield get("flags")
     if SEEN in flags:
         return
@@ -199,23 +231,19 @@ def the_wall():
     what `show` can express is a shelf that is there or a shelf that is not.
     Filling it trophy by trophy needs one placement per trophy, drawn and bound
     in MAPVIS, and until those exist the count is carried by the line.
+
+    AND THE PICTURE IS NOT SET HERE. `walking_in` did it when the room loaded, so
+    the shelf was already telling the truth before the player walked over. A
+    press is somebody asking about a thing, and the answer to that is a sentence.
+    It is synced again anyway, because a sticker can be earned and brought back
+    without the room reloading in between.
     """
     trophies = yield get("trophies")
     count = on_the_wall(trophies)
 
-    # THE LINE COMES FIRST AND THE PICTURE SECOND, which is the opposite of what
-    # reads best and is right anyway. `show` is a hard refusal on a map whose
-    # `trophy_wall` anchor is not bound to a placement, and a refusal is raised at
-    # the line that asked for it and takes the rest of this handler with it. Put
-    # the shelf first and a room drawn without one is a station that says nothing
-    # at all. Said first, the worst case is a wall that does not change while the
-    # sentence about it is still true.
     if count == 0:
         yield say(EMPTY_WALL, who=THOR)
     else:
         yield say(wall_line(count), who=WALL)
 
-    # and the shelf arrives with the first thing that goes on it. Before that the
-    # wall is bare, which is true, and is the one difference in this room a
-    # student can read at walking speed.
-    yield show(WALL, count > 0)
+    yield from dress_the_wall(count)
