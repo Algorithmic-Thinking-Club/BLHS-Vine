@@ -83,10 +83,28 @@
  * declared so a size inside can be a fraction of THE CARD; a percentage here
  * would resolve against the viewport, which is the bug hud.css already had to
  * fix once for the Handbook. */
+/* ---- THE QUERY CONTAINER IS THE CARD, NOT THE PAPER INSIDE IT -------------
+ *
+ * THE ARM DIFFERENCE THIS CAUSED, measured 2026-09-02 on the two captures of the
+ * same card: the sentence "Someone is waiting for you inside the mountain." runs
+ * about 321 pixels in the GAME arm and about 451 in the plain one. Identical
+ * content, materially smaller type in the treatment arm, decided by nothing but
+ * how thick the frame is drawn. In a study measuring presentation that is a
+ * confound, and it runs against the arm the study is trying to show.
+ *
+ * WHY. `container-type: inline-size` was on the element that also carries the
+ * nine-slice, and a container query measures the CONTENT box. The drawn frame's
+ * border-width is 61 and 63 pixels, so 620 of card became 496 of container and
+ * every `cqw` shrank by a fifth; `.pc-line`'s clamp then landed on its 15px floor
+ * and never reached the size it was written for. The plain arm's sheet has a 1px
+ * border, so the same rules resolved against 582 and rendered correctly.
+ *
+ * Moving the container OUT to `.pc-root`, which is the card's real width in both
+ * arms, makes the type a function of the card rather than of the picture. */
+.pc-root { container-type: inline-size; }
 .pc-card {
   box-sizing: border-box;
   width: 100%;
-  container-type: inline-size;
   padding: 0;
   text-align: center;
 }

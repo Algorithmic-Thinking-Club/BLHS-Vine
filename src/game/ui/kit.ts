@@ -185,13 +185,53 @@ export async function loadKit(host = mapvisHost()): Promise<KitPiece[]> {
        * file with index.html at 200, so `r.ok` alone lets HTML through as JSON */
       if (r.ok && (r.headers.get('content-type') || '').includes('json')) {
         const j = (await r.json()) as { ui?: unknown }
-        if (Array.isArray(j?.ui)) { cached = j.ui as KitPiece[]; return cached }
+        if (Array.isArray(j?.ui)) {
+          cached = j.ui as KitPiece[]
+          warmPieces(cached, host)
+          return cached
+        }
       }
     } catch { /* the shipped art is the fallback, and it is the point */ }
     cached = []
     return cached
   })()
   return inflight
+}
+
+/* ---- THE PICTURES, FETCHED WITH THE MANIFEST -----------------------------
+ *
+ * The loader above fetched the JSON and stopped, so every piece image was pulled
+ * by the browser the first time a rule using it painted. Caught in the act on
+ * two captures 800ms apart: the same `Gauge`, same class, same border-image url,
+ * same computed border-width, drawn once as a flat translucent box and once as
+ * the brass-cornered frame. The only difference was whether the bytes had
+ * landed, and there is no loading state for a border-image.
+ *
+ * The deployment case is thirty Chromebooks on one classroom access point, where
+ * that first paint is every panel, so the fetch happens once at start-up while
+ * the student is still reading the title rather than at the moment they open
+ * something.
+ *
+ * IT IS DELIBERATELY NOT AWAITED. A kit that has not arrived is a supported
+ * state and always has been; making the manifest wait on eighteen images would
+ * turn a slow network from "the fallback art for a moment" into "nothing at all
+ * for several seconds", which is worse and is the opposite of what this file
+ * exists to guarantee. Each image is requested and forgotten: the browser's own
+ * cache is what the CSS finds when it paints.
+ *
+ * `Image` rather than `fetch` on purpose, so the bytes land in the same cache
+ * partition a CSS `url()` reads from. */
+function warmPieces(pieces: KitPiece[], at: string): void {
+  if (typeof Image === 'undefined') return
+  for (const p of pieces) {
+    const url = kitArtUrl(p, at)
+    if (!url) continue
+    const img = new Image()
+    /* a failed warm is not an error: the piece may be unpublished, the network
+     * may be filtered, and both of those already have an answer above */
+    img.onerror = () => {}
+    img.src = url
+  }
 }
 
 /* ---- what makes a piece usable, and what makes it refusable ---------------
