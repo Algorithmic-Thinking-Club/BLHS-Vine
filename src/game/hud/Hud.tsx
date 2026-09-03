@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Handbook } from './Handbook'
+import { HelpCard } from './Help'
 import { SettingsPanel } from '../../app/SettingsPanel'
 import { Planner } from '../planner/Planner'
 import { Graduation } from '../run/Graduation'
@@ -57,6 +58,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const [yearbook, setYearbook] = useState(false)
   const [graduation, setGraduation] = useState(false)
   const [paused, setPaused] = useState(false)
+  const [help, setHelp] = useState(false)
   const [settings, setSettings] = useState(false)
   const [wardrobe, setWardrobe] = useState(false)
   /* a beat world code asked for, and the callback waiting for its grade */
@@ -391,6 +393,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       {showVignette && s && <YearStart year={s.year} onDone={() => bump((v) => v + 1)} />}
       {settings && <SettingsPanel onClose={() => { setSettings(false); setPaused(true) }} />}
 
+      {help && <HelpCard onClose={() => setHelp(false)} />}
       {paused && !anyOpen && (
         <PausePanel onClose={closeAll}>
           <Plank wide keyCap="Esc" onClick={closeAll}>Back to it</Plank>
@@ -401,6 +404,12 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
             </Plank>
           )}
           <Plank wide onClick={() => { setPaused(false); setBook('islands') }}>Handbook</Plank>
+          {/* THE SAME CARD THE QUESTION MARK OPENS, which brief item 3b asks for
+              in as many words ("Same card from the pause menu"). One component,
+              so the two roads cannot drift apart: the corner is where a student
+              finds it and the pause sheet is where a teacher tells them to look
+              when they have already pressed Escape. */}
+          <Plank wide onClick={() => { setPaused(false); setHelp(true) }}>How to play</Plank>
           <Plank wide onClick={() => { setPaused(false); setSettings(true) }}>Settings</Plank>
           <Plank wide onClick={() => { closeAll(); nav.go('title') }}>Save and leave</Plank>
         </PausePanel>

@@ -136,4 +136,22 @@ export const ALWAYS_ON = [
   /* the three surfaces that speak, none of which is furniture: each is present
    * only while it has something to say */
   'dialogue', 'place-card', 'heading',
+  /* ---- AND THE ONE PERMITTED FLOATING THING THAT IS NOT STATE -------------
+   *
+   * The question mark. Everything else on this list is either a control the run
+   * has granted or a surface with something to say right now, and that is the
+   * whole of §40.6's law: nothing floats that is not state.
+   *
+   * This is the exception the brief names, and it names the reason with it: "the
+   * one exception to §40.2's assembly rule because it exists for the student who
+   * has earned nothing yet... A teacher's whole answer to 'I don't know what to
+   * do' is 'press the question mark'."
+   *
+   * It survives the law's own test because it is not a READOUT. §40.6 forbids a
+   * GPA bar, an XP bar, a quest log, a minimap and a leaderboard, and every one
+   * of those is the game telling you a number about yourself while you play. This
+   * tells you nothing until you press it, costs one plaque of corner, and is the
+   * only thing on the screen that works when the run has given the student
+   * nothing at all. */
+  'help',
 ] as const

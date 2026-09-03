@@ -1,0 +1,211 @@
+/* THE HELP CARD AND ITS BUTTON (BRIEF-UI item 3b).
+ *
+ * "It opens one drawn card, no scrolling, readable by looking." No scrolling is
+ * the hard part and it is what every measurement below is for: the card has to
+ * hold four keys, one sentence and three names inside 768 pixels of Chromebook
+ * with the text size on L, and it has to do it without a scrollbar, because a
+ * student who is already lost will not find content that is below a fold.
+ *
+ * So the card is capped at the viewport and its rows are sized in the type's own
+ * units rather than in pixels: at S, M or L the whole card grows or shrinks with
+ * the words instead of the words overflowing a fixed box. */
+
+/* ---- THE BUTTON, A FOURTH PLAQUE IN A STACK OF THREE ---------------------
+ *
+ * It is positioned rather than flowed, because `hud-stack` belongs to the Hud
+ * and the Hud is gated on a run in progress. This button exists for the student
+ * who has no run yet, so it cannot live in that stack and still be there when it
+ * is wanted. Placing it under the three known slots keeps the corner reading as
+ * one column: three plaques are 70 tall on an 8 gutter, so the fourth sits at
+ * three of those plus the stack's own top. */
+.hp-btn {
+  position: absolute;
+  /* one slot per plaque already granted, plus its gutter. `--hp-above` is
+     written by the component from the same grants the Hud reads, and the slot
+     height is here because the two arms draw a plaque at two heights. */
+  --hp-slot: 78px;
+  top: calc(max(2.4vh, 14px) + var(--hp-above, 0) * var(--hp-slot));
+  left: max(2vw, 14px);
+  z-index: 50;
+  /* square, because it carries one character and a 164 wide plate holding a
+     question mark reads as a mistake rather than as a button */
+  width: 70px;
+  min-width: 0;
+  padding: 0 0 4px;
+}
+.hp-q {
+  --kit-fs-raw: calc(26px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1;
+}
+
+/* ---- THE CARD ----------------------------------------------------------- */
+
+.hp-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--kit-veil);
+  animation: hp-in 160ms ease-out both;
+}
+html[data-rm='1'] .hp-veil { animation: none; }
+@keyframes hp-in { from { opacity: 0 } to { opacity: 1 } }
+
+.hp-card {
+  box-sizing: border-box;
+  width: min(560px, 88vw);
+  /* NO SCROLLING, WHICH IS A REQUIREMENT AND NOT A PREFERENCE. The card is
+     allowed to be shorter than its contents on no machine: it is capped at the
+     window and its own type does the shrinking. If a future edit makes this
+     overflow, the fix is fewer words, not a scrollbar. */
+  max-height: 92vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 6px 8px;
+  font-family: var(--kit-face-body);
+  color: var(--kit-ink-body);
+  image-rendering: var(--kit-pixel);
+  animation: hp-pop 200ms var(--kit-ease-pop) both;
+}
+html[data-rm='1'] .hp-card { animation: none; }
+@keyframes hp-pop { from { transform: scale(.96); opacity: 0 } to { transform: none; opacity: 1 } }
+
+.hp-title {
+  margin: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(24px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
+
+/* ---- THE FOUR KEYS ------------------------------------------------------- */
+
+.hp-keys {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.hp-key {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+/* one column for every mark, so the four sentences start on one line down the
+   card however wide their pictures are */
+.hp-mark {
+  flex: none;
+  width: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hp-says {
+  --kit-fs-raw: calc(18px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+}
+
+/* THE ARROW CLUSTER. One drawing, four quarter turns, laid out the way the keys
+   are laid out on the machine: up over a row of left, down, right. A quarter
+   turn of pixel art lands on the grid exactly; any other angle would not, which
+   is why this is a rotation and not four drawings. */
+.hp-arrows {
+  display: grid;
+  grid-template-columns: repeat(3, 16px);
+  grid-template-rows: repeat(2, 16px);
+  gap: 1px;
+  width: auto;
+}
+.hp-ar { width: 16px; height: 16px; }
+.hp-ar-up { grid-area: 1 / 2; transform: rotate(-90deg); }
+.hp-ar-left { grid-area: 2 / 1; transform: rotate(180deg); }
+.hp-ar-down { grid-area: 2 / 2; transform: rotate(90deg); }
+.hp-ar-right { grid-area: 2 / 3; }
+
+/* THE KEY CAP, RE-INKED FOR PAPER. `.kit-plank-key` is the shape every prompt in
+   the game uses for a key and it is the right shape here, but its ink is
+   `--kit-plank-ink`, a cream chosen to sit on dark wood. On this card it sits on
+   parchment, and the first capture of the card shows E and Esc as pale ghosts on
+   a pale sheet: two of the four keys the card exists to teach, unreadable. Same
+   shape, page ink, and a rule dark enough to hold it. */
+.hp-cap {
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  padding: 2px 7px;
+  color: var(--kit-ink-head);
+  background: var(--kit-paper-key-lo, var(--kit-paper-lo));
+  border-color: var(--kit-edge-strong);
+  opacity: 1;
+}
+
+/* ---- THE SENTENCE THE CARD IS REALLY ABOUT ------------------------------- */
+
+.hp-task {
+  margin: 0;
+  padding: 10px 12px;
+  border-top: var(--kit-border) solid var(--kit-rule);
+  border-bottom: var(--kit-border) solid var(--kit-rule);
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(19px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
+
+/* ---- THE THREE CORNER THINGS -------------------------------------------- */
+
+.hp-corner {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  --kit-fs-raw: calc(16px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
+}
+.hp-corner b { color: var(--kit-ink-head); font-family: var(--kit-face-display); font-weight: 400; }
+
+.hp-close { align-self: flex-end; }
+
+/* ---- THE CONTROL ARM ----------------------------------------------------
+ *
+ * A worksheet explaining the keys is still a worksheet: no carved panel, no
+ * parchment, and the drawn marks refuse themselves through `.kit-glyph`'s own
+ * plain rule. What is left is a real definition list, which is what this card
+ * always was underneath. */
+html[data-skin='plain'] .hp-card {
+  animation: none;
+  padding: 22px 26px 20px;
+  background: var(--kit-paper-hi);
+  border: var(--kit-border) solid var(--kit-edge-strong);
+}
+html[data-skin='plain'] .hp-veil { animation: none; background: rgba(0, 0, 0, .45); }
+html[data-skin='plain'] .hp-title { font-weight: 700; }
+html[data-skin='plain'] .hp-task { font-weight: 700; }
+html[data-skin='plain'] .hp-corner b { font-weight: 700; }
+/* with the pictures refused, the column that held them would be 52px of nothing
+   in front of every line */
+html[data-skin='plain'] .hp-mark { display: none; }
+html[data-skin='plain'] .hp-btn {
+  /* a plain plaque is 38 tall on the same 8 gutter, not 70 */
+  --hp-slot: 46px;
+  width: auto;
+  min-width: 132px;
+  padding: 8px 16px;
+}
+/* AND THE KEY CAP READS IN THIS ARM TOO. `.kit-plank-key`'s plain rule drops the
+   glow and keeps `--kit-plank-ink`, which is white, so "Esc" on a white document
+   button was white on white: visible in the first plain capture of this card as
+   an empty grey box beside the word Close. */
+html[data-skin='plain'] .kit-plank-key {
+  color: var(--kit-ink-body);
+  border: 1px solid var(--kit-edge-strong);
+}

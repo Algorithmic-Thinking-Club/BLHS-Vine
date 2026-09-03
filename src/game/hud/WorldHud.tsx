@@ -4,6 +4,7 @@ import { Dialogue } from './Dialogue'
 import { WorldCutscene } from '../cutscene/WorldCutscene'
 import { PlaceCard } from '../stage/PlaceCard'
 import { Heading } from './Heading'
+import { HelpButton } from './Help'
 import { loadSave, subscribeSave } from '../save'
 import { useNav } from '../../app/SceneManager'
 import { holdWorld } from '../world-bus'
@@ -92,6 +93,13 @@ export function WorldHud() {
           and have no plaque to hang it on. When they come off the road this
           component and its stylesheet go with them. */}
       {current !== 'pmap' && <Heading />}
+      {/* THE QUESTION MARK (brief item 3b), OUTSIDE THE HUD'S GATE ON PURPOSE.
+          The Hud is mounted only once `introDone` is set, which is right for the
+          run's furniture and wrong for this: a student thirty seconds into an
+          advisory period has no run, no chart and no Handbook, and is exactly the
+          student a teacher answers with "press the question mark". It is the one
+          permitted floating element that is not state, and that is the reason. */}
+      <HelpButton />
     </>
   )
 }
