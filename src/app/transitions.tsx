@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { collectFact, grantBadge, loadSave } from '../game/save'
+import { bookwormThreshold } from '../game/badges'
 import { track } from '../game/telemetry'
 import { announce } from '../game/ui/a11y'
 import { Gauge } from '../game/ui/controls'
@@ -208,7 +209,13 @@ export async function runTransition(
   if (carriesFact) {
     collectFact(fact.id)
     track('loading_fact_shown', { id: fact.id })
-    if ((loadSave()?.facts.length ?? 0) >= 25) grantBadge('bookworm')
+    /* THE THRESHOLD IS THE POOL, READ FROM THE POOL. Twenty-five was typed here
+     * against a pool of eighteen; the pool has been nineteen for months, and the
+     * Handbook stated a goal to a student that the game could not honour. A
+     * number derived from `FACTS` cannot drift away from the content again, and
+     * `badges.ts` states the same criterion off the same constant so the card and
+     * the grant can never disagree. */
+    if ((loadSave()?.facts.length ?? 0) >= bookwormThreshold) grantBadge('bookworm')
   }
   st.phase = 'in'; emit()
   /* THE READER IS TOLD WHERE THEY ARE GOING, ONCE. A cover replaces the entire

@@ -90,9 +90,26 @@ const FOOT = 2
  * roster says the island has not risen instead. */
 const earnByCompleting = (id: string) => {
   const g = programmeById(id)
-  return g ? `complete the ${g.name} island` : 'that island has not risen yet'
+  return g ? `complete the ${g.name} island` : null
 }
 
+/* ---- A LOCKED THING SAYS WHY, AND THE SENTENCE HAS TO PARSE ---------------
+ *
+ * `earn` used to answer a string either way, and the card composed
+ * `Earn by: ${it.earn}`. With no Robotics programme on the roster that read, in
+ * both arms and on screen:
+ *
+ *   Robotics goggles
+ *   Earn by: that island has not risen yet
+ *
+ * which is not a sentence, and which is §40.41's unreachable-criterion case
+ * wearing an explanation. The fallback is `null` now and the card branches: a
+ * rule a student can act on is written as a rule, and a thing nobody has built
+ * says that in its own words instead of being pushed through "Earn by:".
+ *
+ * It stays on the list rather than being dropped, because §40.21 says the locked
+ * items are "earned and not bought" and seeing what is coming is the point of the
+ * row. What it must not do is state a condition and then never honour it. */
 const LOCKED = [
   { name: 'Letterman jacket', earn: 'reach Varsity in any sport', has: (s: ReturnType<typeof loadSave>) => !!s && Object.values(ranksOf(s)).some((y) => Number(y) >= 2) },
   { name: 'Robotics goggles', earn: earnByCompleting('robotics'), has: (s: ReturnType<typeof loadSave>) => !!programmeById('robotics') && s?.islands?.robotics === 'completed' },
@@ -259,7 +276,9 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
                         /* the earn rule is printed on the card now, and pressing
                          * it says the same words, because a student who pressed
                          * something they cannot have has asked a question */
-                        announce(got ? `${it.name}, earned` : `${it.name}. Earn by: ${it.earn}`)
+                        announce(got
+                          ? `${it.name}, earned`
+                          : it.earn ? `${it.name}. Earn by: ${it.earn}` : `${it.name}. Not on the water yet.`)
                       }}
                     >
                       <Chip state={got ? 'plate_lit' : 'plate'} className="wd-lock-plate">
@@ -269,7 +288,9 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
                       </Chip>
                       <span className="wd-lock-words">
                         <span className="wd-lock-name">{it.name}</span>
-                        <span className="wd-lock-earn">{got ? 'Earned' : `Earn by: ${it.earn}`}</span>
+                        <span className="wd-lock-earn">
+                          {got ? 'Earned' : it.earn ? `Earn by: ${it.earn}` : 'Not on the water yet.'}
+                        </span>
                       </span>
                     </button>
                   )

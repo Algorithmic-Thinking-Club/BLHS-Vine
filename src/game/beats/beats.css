@@ -544,11 +544,26 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
   border: 1px solid var(--bt-doc-rule); border-radius: 2px;
   padding: 28px 34px 30px; box-sizing: border-box;
   font-family: var(--bt-doc-face);
-  font-size: 16px; line-height: 1.55;
+  --kit-fs-raw: calc(16px * var(--kit-text-scale)); font-size: var(--kit-fs); line-height: 1.55;
 }
+/* ---- AND THIS ARM'S TYPE MOVES WITH THE TEXT-SIZE CONTROL -----------------
+ *
+ * Every size below was a raw pixel literal, while every size in the GAME arm of
+ * this same file goes through `--kit-text-scale`. So a student assigned to the
+ * control group who set the text size to L moved the whole game and did not move
+ * the one surface they answer every graded item on.
+ *
+ * That is not a cosmetic difference between the arms, it is an accessibility
+ * affordance present in one arm and absent in the other, inside the one
+ * comparison the whole instrument exists to make. `tokens.css` even computes a
+ * plain-specific clamp for exactly this and nothing here was reading it.
+ *
+ * The pattern is the one the rest of the repository uses: declare the size in
+ * `--kit-fs-raw` and read `var(--kit-fs)`, which snaps to whole pixels and holds
+ * a 14px floor. */
 .bt-plainform h2 {
   margin: 0 0 16px; padding-bottom: 8px;
-  font-size: 21px; font-weight: 700; line-height: 1.25;
+  --kit-fs-raw: calc(21px * var(--kit-text-scale)); font-size: var(--kit-fs); font-weight: 700; line-height: 1.25;
   border-bottom: 1px solid var(--bt-doc-rule);
 }
 /* THE PLACE NAME, WHICH THIS ARM WAS NOT GIVEN. The game arm draws
@@ -556,7 +571,7 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
    alone, so a control-arm student never read the words "the Advisory Hearth".
    It is one line of content, it is content the treatment arm receives, and the
    difference ran in the direction that flatters the treatment. */
-.bt-plainform .bt-plainplace { margin: -10px 0 16px; color: var(--bt-doc-ink-quiet); font-size: 15px; }
+.bt-plainform .bt-plainplace { margin: -10px 0 16px; color: var(--bt-doc-ink-quiet); --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs); }
 .bt-plainform p { margin: 0 0 10px; }
 .bt-plainform fieldset { margin: 0 0 18px; border: 1px solid var(--bt-doc-rule); border-radius: 2px; padding: 12px 16px 14px; }
 .bt-plainform legend { font-weight: 600; padding: 0 6px; }
@@ -567,16 +582,16 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
 .bt-plainform .bt-plaingroup { margin: 8px 0 4px; }
 .bt-plainform .bt-plaingroup > p { margin: 0 0 4px; font-weight: 600; }
 .bt-plainform button {
-  margin-top: 4px; padding: 7px 20px; font-size: 15px;
+  margin-top: 4px; padding: 7px 20px; --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs);
   font-family: inherit; color: var(--bt-doc-ink);
   background: var(--bt-doc-control); border: 1px solid var(--bt-doc-rule-firm); border-radius: 2px; cursor: pointer;
 }
 .bt-plainform button:disabled { color: var(--bt-doc-ink-quiet); cursor: default; }
 /* the disabled Submit says what it is waiting for here too, because a control
    arm that cannot tell a student why it will not move measures usability */
-.bt-plainform .bt-needs { display: block; margin-top: 6px; color: var(--bt-doc-ink-quiet); font-size: 14px; }
+.bt-plainform .bt-needs { display: block; margin-top: 6px; color: var(--bt-doc-ink-quiet); --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs); }
 .bt-plainform input[type='text'], .bt-plainform select {
-  font-family: inherit; font-size: 15px; color: var(--bt-doc-ink);
+  font-family: inherit; --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--bt-doc-ink);
   background: var(--bt-doc-paper); border: 1px solid var(--bt-doc-rule-firm); border-radius: 2px; padding: 4px 7px;
 }
 .bt-plainform input[type='radio'] { accent-color: var(--bt-doc-accent); width: 15px; height: 15px; vertical-align: -2px; margin-right: 6px; }
@@ -597,8 +612,8 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
    than as a page. */
 .bt-plainform.bt-result { display: block; }
 .bt-plainform .bt-grade { display: flex; align-items: baseline; gap: 14px; margin: 4px 0 6px; }
-.bt-plainform .bt-lettermark { font-family: inherit; font-size: 34px; color: var(--bt-doc-ink); }
-.bt-plainform .bt-gradesays { color: var(--bt-doc-ink-quiet); font-size: 14px; }
+.bt-plainform .bt-lettermark { font-family: inherit; --kit-fs-raw: calc(34px * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--bt-doc-ink); }
+.bt-plainform .bt-gradesays { color: var(--bt-doc-ink-quiet); --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs); }
 /* a document does not draw a bar, it prints the number */
 .bt-plainform .bt-gaugerow, .bt-plainform .bt-stamps { display: none; }
 .bt-plainform .bt-takeaways { gap: 8px; margin: 14px 0; }

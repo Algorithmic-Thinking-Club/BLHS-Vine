@@ -304,3 +304,42 @@ html[data-skin='plain'] .st-caretmark { border-top-color: var(--kit-ink-body); }
 /* a struck line under a destructive button is a game mark; a document says it in
    words, and the words are already there */
 html[data-skin='plain'] .st-dangerplank::after { display: none; }
+
+/* ---- THE GUTTER THE FRAME USED TO BE ------------------------------------
+ *
+ * `.st-inner` is `inset: 0` on purpose: in the painted arms the panel's
+ * nine-slice border-width IS the padding, about fifty pixels of carved frame, so
+ * a second inset here would inset the contents twice.
+ *
+ * The plain arm replaces that nine-slice with a one pixel rule, and nothing put
+ * the fifty pixels back. Measured on `fixed-plain/14-settings.png`: the Sound
+ * "Full" button has no right border at all because it is under the panel edge,
+ * the helper sentence breaks mid-word, and the "L" text-size button is sliced in
+ * half. The same content sits fully inside its frame in the game arm, so this is
+ * the control arm looking broken, which is the one thing §16's ruling says it
+ * must never do.
+ *
+ * `transitions.css` already wrote this rule down for the same reason on a
+ * different panel: the inset has to come back here and only here. */
+html[data-skin='plain'] .st-inner {
+  inset: 0;
+  padding: 22px 28px 20px;
+  box-sizing: border-box;
+}
+/* AND THE PAGE SCROLLS LIKE A PAGE. With the gutter back, the settings content
+   is taller than the sheet at 1366x768 and something has to give. Making the
+   sheet taller was tried and read worse: it detaches from the game arm's own
+   proportions and still runs out of room at L.
+
+   A document in a browser scrolls and shows a scrollbar while it does, which is
+   what `beats.css` already ruled for this arm's form: "hiding it would be the
+   game-ness the arm exists to remove." The game arm keeps its thin carved one. */
+html[data-skin='plain'] .st-page {
+  scrollbar-width: auto;
+  scrollbar-gutter: stable;
+}
+html[data-skin='plain'] .st-page::-webkit-scrollbar { width: 14px; }
+html[data-skin='plain'] .st-page::-webkit-scrollbar-thumb {
+  background: var(--kit-edge);
+  border-radius: 0;
+}

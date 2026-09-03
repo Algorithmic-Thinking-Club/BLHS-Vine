@@ -7,9 +7,10 @@ import { useEffect, useState } from 'react'
  * for where a map is now. */
 import { Chart } from '../world/Chart'
 import { PLACES, programmesAt } from '../roster/roster'
-import { loadSave, subscribeSave, type IslandState, type SaveGame } from '../save'
+import { loadSave, subscribeSave, type IslandState } from '../save'
 import { cordsOf, gpaOf, letterOf, NO_ATHLETIC_CORD } from '../progress'
-import { FACTS, factById } from '../facts'
+import { factById } from '../facts'
+import { badgesOf, FACT_POOL } from '../badges'
 import { track } from '../telemetry'
 import { announce, tabRowKeyDown, usePanel } from '../ui/a11y'
 import { Chip, Empty, Gauge, Glyph, Plank, Tab } from '../ui/controls'
@@ -89,44 +90,31 @@ const ISLAND_MARK: Partial<Record<IslandState, string>> = {
  * are granted by an island through the `award` intent, which is a real path, so
  * they read as not yet earned rather than as out of reach. Nothing here invents
  * a criterion for them. */
-type Badge = {
-  id: string
-  name: string
-  /** the criterion, in the words the game already states it in */
-  how: string
-  /** how many collected facts the grant asks for, for the one that counts facts */
-  facts?: number
-}
-
-const BADGES: Badge[] = [
-  { id: 'resident', name: 'Resident', how: 'Spot the orca on open water.' },
-  { id: 'cartographer', name: 'Cartographer', how: 'Discover every island on the chart.' },
-  { id: 'early-bird', name: 'Early Bird', how: 'Finish a year with time to spare.' },
-  { id: 'renaissance', name: 'Renaissance Panther', how: 'Spend a season in every category across one run.' },
-  { id: 'loyal', name: 'Loyal', how: 'Reach Captain rank on any track.' },
-  { id: 'bookworm', name: 'Bookworm', how: 'Collect 25 handbook facts.', facts: 25 },
-]
-
-/** how many true things about Bonney Lake there are to collect at all */
-const FACT_POOL = FACTS.length
-
-type BadgeState = 'earned' | 'waiting' | 'short'
-
-const badgeStateOf = (b: Badge, s: SaveGame | null): BadgeState => {
-  if (s?.badges.includes(b.id)) return 'earned'
-  return b.facts !== undefined && b.facts > FACT_POOL ? 'short' : 'waiting'
-}
+/* ---- THE THREE THINGS A CARD CAN BE ---------------------------------------
+ *
+ * `earned` and `waiting` are the obvious two. The third used to be `short`, "out
+ * of reach", and it existed because Bookworm asked for twenty-five facts against
+ * a pool of nineteen: the page narrated a defect rather than closing it, and the
+ * brief asked for it closed. `badgesOf` computes that threshold from the pool
+ * now, so nothing is arithmetically out of reach any more.
+ *
+ * What replaced it is a different and honest state. Two of the six are events in
+ * the world, not facts about the save, and no island in the shipped game grants
+ * either yet. A card that says "Not yet" about a thing nothing can do is the
+ * same lie in a friendlier voice, so those say `unbuilt`, in the words §40.42
+ * already uses everywhere else for a thing that has not risen. */
+type BadgeState = 'earned' | 'waiting' | 'unbuilt'
 
 const BADGE_WORD: Record<BadgeState, string> = {
   earned: 'Earned',
   waiting: 'Not yet',
-  short: 'Out of reach',
+  unbuilt: 'Not on the water yet',
 }
 
 const BADGE_PLATE: Record<BadgeState, 'plate' | 'plate_lit' | 'plate_spent'> = {
   earned: 'plate_lit',
   waiting: 'plate',
-  short: 'plate_spent',
+  unbuilt: 'plate_spent',
 }
 
 /* A DATA STRING WEARING A FONT GLYPH IS STILL A FONT GLYPH. `progress.ts` builds
@@ -379,8 +367,12 @@ export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => voi
                 out there and none of them is bought.
               </p>
               <div className="hb-grid">
-                {BADGES.map((b) => {
-                  const st = badgeStateOf(b, s)
+                {/* WHAT "EVERY ISLAND" MEANS, counted off the same roster this
+                    panel's own Islands page reads. A place with no painting is
+                    not an island a student has failed to find, so the
+                    denominator is the places that can actually be visited. */}
+                {badgesOf(s, PLACES.filter((p) => p.maps.length).map((p) => p.id)).map((b) => {
+                  const st: BadgeState = b.earned ? 'earned' : b.from === 'world' ? 'unbuilt' : 'waiting'
                   return (
                     <article className="hb-card hb-badge" key={b.id} data-state={st}>
                       <Chip state={BADGE_PLATE[st]} className="hb-badge-plate">
@@ -391,21 +383,25 @@ export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => voi
                         <h4 className="hb-card-title">{b.name}</h4>
                         <p className="hb-badge-word">{BADGE_WORD[st]}</p>
                         <p className="hb-card-note">{b.how}</p>
-                        {b.facts !== undefined && (
-                          <>
-                            <Gauge
-                              value={Math.min(1, facts.length / b.facts)}
-                              label={`${b.name} progress`}
-                              reading={`${facts.length} of ${b.facts}`}
-                              className="hb-badgebar"
-                            />
-                            {st === 'short' && (
-                              <p className="hb-meta">
-                                The binder holds {FACT_POOL} facts to collect today, so this one cannot
-                                be finished yet.
-                              </p>
-                            )}
-                          </>
+                        {/* WHAT THE RUN HAS DONE TOWARD IT, on the three that count
+                            something. It used to be only Bookworm, because only
+                            Bookworm had a number; the other two count as plainly
+                            and nobody had ever asked them. */}
+                        {b.detail && st !== 'unbuilt' && (
+                          <p className="hb-meta">{b.detail}</p>
+                        )}
+                        {b.id === 'bookworm' && (
+                          <Gauge
+                            value={FACT_POOL ? Math.min(1, facts.length / FACT_POOL) : null}
+                            label={`${b.name} progress`}
+                            reading={`${facts.length} of ${FACT_POOL}`}
+                            className="hb-badgebar"
+                          />
+                        )}
+                        {st === 'unbuilt' && (
+                          <p className="hb-meta">
+                            The island that gives this one has not risen yet.
+                          </p>
                         )}
                       </div>
                     </article>
