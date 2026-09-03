@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { setFlag } from '../save'
 import { announce, usePanel } from '../ui/a11y'
-import { Glyph, useFace } from '../ui/controls'
+import { Glyph, PortraitFrame, useFace } from '../ui/controls'
+import { PP_FACE } from '../beats/y1'
 import { bandFromRects, setUiBand } from '../ui/frame'
 import { VIGNETTES } from './vignettes'
 import './run.css'
@@ -123,8 +124,20 @@ export function YearStart({ year, onDone }: { year: number; onDone: () => void }
           aria-label={last ? 'Read it and begin the year' : `Read it and go on, line ${i + 1} of ${lines.length}`}
           onClick={(e) => { e.stopPropagation(); next() }}
         >
-          <span className="ys-speaker">Principal Panther · Year {year}</span>
-          <span className="ys-text">{lines[i]}</span>
+          {/* THE FACE, THE SAME LOCKED ONE THE BEAT WEARS TWO SCREENS LATER.
+              Ash ruled the portrait to `principal-pro` out of the Maw's library
+              and it reached the beat only, so the principal opened a year as a
+              name with nobody behind it and then turned up with a face in the
+              Hearth. The frame is `PortraitFrame`, which is the one place that
+              decides what a portrait looks like, so this card cannot drift from
+              the beat's. No caption: the plate beside it is already his name. */}
+          <span className="ys-body">
+            <PortraitFrame id={PP_FACE} />
+            <span className="ys-col">
+              <span className="ys-speaker">Principal Panther · Year {year}</span>
+              <span className="ys-text">{lines[i]}</span>
+            </span>
+          </span>
           <span className="ys-foot">
             {/* HOW MANY LINES ARE LEFT, AS A ROW OF MARKS. Three identical lines
                 with no count is a student who cannot tell whether they are one

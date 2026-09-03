@@ -33,7 +33,13 @@ const PP = 'Principal Panther'
  * pipeline allows both as post-processing, and 96 is exactly the aperture inside
  * the drawn portrait frame, so it lands at an integer scale rather than smearing
  * the one face in the game. */
-const PP_FACE = 'principal'
+/* EXPORTED, BECAUSE TWO SCREENS WEAR THIS FACE AND ONLY ONE OF THEM DID.
+ * `YearStart.tsx` speaks as Principal Panther for three lines and drew no
+ * portrait at all, so a student met the name two screens before the face and
+ * then met the face without being told it was the same person. The lock and its
+ * recipe are written above, so the name of the face is read from here rather
+ * than spelled again over there. */
+export const PP_FACE = 'principal'
 
 export const CORE_Y1: CoreBeat = {
   id: 'core:y1',

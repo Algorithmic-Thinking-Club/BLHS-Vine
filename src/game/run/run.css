@@ -876,3 +876,24 @@ html[data-skin='plain'] .gr-tap:active { filter: none; }
 html[data-skin='plain'] .ys-dot { border-color: var(--kit-edge-strong); }
 html[data-skin='plain'] .ys-dot-on { background: var(--kit-ink-head); border-color: var(--kit-ink-head); }
 
+
+/* THE PRINCIPAL'S FACE, AND THE WORDS BESIDE IT RATHER THAN UNDER IT.
+   The first pass stacked them: a 136 pixel portrait, then the name, then one
+   short line under all of it, on a card 820 wide. Photographed at
+   `ui/fixed-game/17-year-start.png` that is a face in the bottom-left corner and
+   two-thirds of a card of empty parchment, on the screen that opens every year.
+   Beside it, the card is shorter, the line is at reading height, and the face is
+   looking at the words it is saying. */
+.ys-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.ys-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* the column, not the card, is what the text wraps inside */
+  min-width: 0;
+  flex: 1;
+}
