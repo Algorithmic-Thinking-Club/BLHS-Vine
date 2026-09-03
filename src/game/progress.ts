@@ -107,7 +107,23 @@ export type CordProgress = {
   detail: string                 // live status line ("3 of 5 AP classes passed")
 }
 
-const AWARDS = 'docs/blhs/awards.md, from Ms. Pinzon via Wiseman, 2026-06-28'
+/* ---- WHAT A STUDENT READS, NOT WHERE WE TYPED IT ------------------------
+ *
+ * §40.12: "the player-facing string and the code-facing string are never the
+ * same string, anywhere in this game, and every surface has to be checked for
+ * which one it prints." This constant is printed. `11-handbook-cords.png` in
+ * both arms shows "docs/blhs/awards.md, from Ms. Pinzon via Wiseman, 2026-06-28"
+ * under all seven cords, and the facts page prints a markdown path with a
+ * section sign under every card.
+ *
+ * §11.35 is right that the source belongs beside the fact: a freshman being told
+ * where a claim about their own school came from is the point. But the source a
+ * freshman can act on is the SCHOOL document, which they can go and find. The
+ * repo file is where we typed it up, and the repo files are named here in a
+ * comment so the audit trail survives without being read out to a fourteen year
+ * old: awards come from `docs/blhs/awards.md`, the rest from
+ * `docs/blhs/sourced-facts.md`. */
+const AWARDS = 'the BLHS awards list, from Ms. Pinzon'
 
 /* THE SCHOOL AWARDS NO CORD FOR A CAPTAINCY, and the correct response to that is
  * to say so rather than to invent one. Football is season-locked to fall, three

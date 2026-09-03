@@ -263,11 +263,25 @@ html[data-rm='1'] .dlg-choice { animation: none; }
   background-repeat: no-repeat;
   background-size: 100% 100%;
   image-rendering: var(--kit-pixel);
-  border: 1px solid var(--kit-plank-keyline);
   border-radius: var(--kit-r-sharp);
+  /* DARK INK, BECAUSE THE PLATE UNDER IT IS CREAM. The number inherited
+     `--kit-plank-ink` from the choice, which is #f0e4c8, a light chosen for type
+     on DARK wood. The drawn `chip/plate` behind it is a cream disc, so the digit
+     was cream on cream: cropped at 12x from `fixed-game/07-choices.png` the 1 is
+     a ghost stroke. It is the key half of §40.28's pair, so it has to be
+     readable without being loud. */
+  color: var(--kit-ink-said);
   --kit-fs-raw: .8em;
   font-size: var(--kit-fs);
-  opacity: .85;
+  opacity: 1;
+}
+/* THE KEYLINE IS THE FALLBACK AND ONLY THE FALLBACK, which is what the comment
+   above this rule already said and what the rule itself did not do. Drawn
+   unconditionally it put a pale SQUARE keyline around the round drawn plate,
+   which is a styled div fighting a piece of art. `.kit-bare` is written by the
+   same reader that decides whether a face landed. */
+.dlg-choice-key.kit-bare {
+  border: 1px solid var(--kit-plank-keyline);
 }
 
 /* THE RING IS DRAWN INSIDE THE WOOD AND THIS FILE NO LONGER ARGUES.

@@ -246,6 +246,32 @@ export function DialogueBox({
         // 1..9 pick a choice, which is the key path beside the pointer path
         const n = Number(e.key)
         if (line.done && n >= 1 && n <= (options?.length ?? 0)) { pick(n - 1); e.preventDefault() }
+        /* ---- AND THE ARROWS MOVE BETWEEN THEM ---------------------------
+         *
+         * The brief's non-reader law: "the first three minutes of control are
+         * playable with arrow keys, E and a click, and nothing else." A student
+         * spends those three minutes learning that arrows are how you move,
+         * meets the first question, and finds arrows dead in both directions:
+         * the box holds the world so they cannot walk, and nothing here listened
+         * so they could not choose either. The only paths left were Tab, or a
+         * number that was cream ink on a cream plate.
+         *
+         * A choice list is a radio group by shape, so it takes the roving focus
+         * every radio group has: up and down wrap, Home and End jump. */
+        const n2 = options?.length ?? 0
+        if (line.done && n2 > 1 && /^(ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Home|End)$/.test(e.key)) {
+          const btns = [...(stackEl.current?.querySelectorAll<HTMLButtonElement>('.dlg-choice') ?? [])]
+          if (btns.length) {
+            const at = btns.findIndex((b) => b === document.activeElement)
+            const step = e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 1
+            const to = e.key === 'Home' ? 0
+              : e.key === 'End' ? btns.length - 1
+              : at < 0 ? 0
+              : (at + step + btns.length) % btns.length
+            btns[to]?.focus()
+            e.preventDefault()
+          }
+        }
         return
       }
       if (e.key === ' ' || e.key === 'Enter') { advance(); e.preventDefault() }
@@ -285,9 +311,20 @@ export function DialogueBox({
                  position move, never a hue on its own (§40.31), because a school
                  Chromebook panel crushes both lightness and saturation. */
               disabled={picked !== null && picked !== i}
+              /* THE KEY PATH REACHES A READER TOO. The digit is `aria-hidden`
+                 because a plate with a number on it read out as "1" before the
+                 option is noise, but §40.28 wants a key path for every pointer
+                 path on BOTH channels, and hiding it left the key path visible
+                 only to people who can see it. The name carries the option and
+                 then the key, in that order, because the option is the answer
+                 and the key is how to give it. */
+              aria-label={`${o}. Press ${i + 1}`}
               onClick={() => pick(i)}
             >
-              <span className="dlg-choice-key" style={keyPlate} aria-hidden="true">{i + 1}</span>
+              {/* the keyline round the number is the FALLBACK, so the number has
+                  to say whether the drawn plate landed. Written unconditionally
+                  it put a square CSS keyline around a round drawn plate. */}
+              <span className={`dlg-choice-key${keyPlate ? '' : ' kit-bare'}`} style={keyPlate} aria-hidden="true">{i + 1}</span>
               <span className="dlg-choice-label">{o}</span>
             </button>
           ))}

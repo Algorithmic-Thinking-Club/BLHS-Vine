@@ -99,7 +99,15 @@ html[data-rm='1'] .bt-stage { animation-duration: 1ms; }
 .bt-railpips .kit-chip { width: 16px; height: 16px; }
 
 /* ---- a spoken line: the whole card is the button (§6.5) ------------------ */
+/* A BUTTON DOES NOT INHERIT ITS FONT, and this is the line a student reads most
+   in every beat. `.bt-say` is a <button>, so the user-agent button font won and
+   `.bt-stage`'s body face never reached it: photographed at
+   `fixed-game/19-beat.png` the two sentences are a smooth grotesque while
+   "Perseverance" in the same panel, three lines down, is Deckhand. Two faces on
+   one card, on all four core beats and every generated class beat. The plain arm
+   fixed exactly this for its own form and the game arm never got the line. */
 .bt-say {
+  font-family: var(--kit-face-body);
   display: flex; flex-direction: column; gap: 8px;
   box-sizing: border-box;
   width: 100%;

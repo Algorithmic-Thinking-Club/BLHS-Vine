@@ -35,7 +35,7 @@ describe('the three sentences that were invented', () => {
     // docs/blhs/awards.md: "AP Seminar & Research plus 4 additional AP classes"
     expect(f.text).toContain('AP Seminar')
     expect(f.text).toContain('four more AP classes')
-    expect(f.source).toContain('awards.md')
+    expect(f.source).toContain('BLHS awards list')
   })
 
   it('the Seal of Biliteracy is the state rule, not three years and a capstone', () => {
@@ -70,5 +70,32 @@ describe('the year-2 beat teaches the same table', () => {
 
   it('names every takeaway against a real fact in the table', () => {
     for (const id of CORE_Y2.takeaways) expect(factById(id), id).toBeTruthy()
+  })
+})
+
+/* ---- AND NO PLAYER-FACING SOURCE NAMES A FILE IN THIS REPOSITORY ----------
+ *
+ * The three assertions this replaces each demanded that a string a fourteen year
+ * old READS contains "docs/blhs/awards.md". They were guarding the right thing,
+ * provenance, through the wrong string: they made the repo path a requirement of
+ * the player-facing copy, so the Handbook printed a markdown path under all seven
+ * cords and a section sign under every fact card in both arms.
+ *
+ * §40.12 is the rule: "the player-facing string and the code-facing string are
+ * never the same string, anywhere in this game, and every surface has to be
+ * checked for which one it prints." So provenance is still required, and it is
+ * required to name the SCHOOL document a student could go and find. The repo
+ * files stay named in a comment beside the constants, which is where an auditor
+ * looks and a freshman does not.
+ *
+ * This guard is stricter than what it replaces: it holds for every cord and
+ * every fact at once rather than for the eight the old list happened to name. */
+
+describe('what a student is shown as a source', () => {
+  it('never prints a path into this repository, on any fact', () => {
+    for (const f of FACTS) {
+      expect(f.source, f.id).not.toMatch(/docs\/|\.md\b|\.ts\b|src\//)
+      expect(f.source.length, f.id).toBeGreaterThan(8)
+    }
   })
 })

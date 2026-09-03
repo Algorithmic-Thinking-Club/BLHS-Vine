@@ -146,7 +146,9 @@ describe('cords & seals (§8.4 — the authoritative table)', () => {
       const c = cord(mkSave([]), id)
       expect(c.published, id).toBe(true)
       expect(c.rule, id).toBe(rule)         // verbatim from docs/blhs/awards.md
-      expect(c.source, id).toContain('docs/blhs/awards.md')
+      /* the SCHOOL's document, which a student can go and find, and never the
+       * repo file it was typed into. See the guard at the end of this file. */
+      expect(c.source, id).toContain('BLHS awards list')
     }
     // Key Club's criteria are long, so the tripwire is that the game does not shorten them
     const key = cord(mkSave([]), 'key-club')
@@ -157,7 +159,7 @@ describe('cords & seals (§8.4 — the authoritative table)', () => {
 
   it('says plainly that no athletic cord exists rather than inventing one', () => {
     expect(NO_ATHLETIC_CORD).toContain('awards no cord for reaching Captain')
-    expect(NO_ATHLETIC_CORD).toContain('docs/blhs/awards.md')
+    expect(NO_ATHLETIC_CORD).toContain('BLHS awards list')
     expect(cordsOf(mkSave([])).some((c) => /captain|varsity|athletic/i.test(c.name))).toBe(false)
   })
 })
@@ -170,5 +172,33 @@ describe('honor-reveal moments (§8.4)', () => {
     const fired = newlyCloseCords(wayBefore, after)
     expect(fired.some((c) => c.id === 'career-readiness')).toBe(true)
     expect(newlyCloseCords(before, after)).toHaveLength(0)            // no re-fire
+  })
+})
+
+/* ---- AND NO PLAYER-FACING SOURCE NAMES A FILE IN THIS REPOSITORY ----------
+ *
+ * The three assertions this replaces each demanded that a string a fourteen year
+ * old READS contains "docs/blhs/awards.md". They were guarding the right thing,
+ * provenance, through the wrong string: they made the repo path a requirement of
+ * the player-facing copy, so the Handbook printed a markdown path under all seven
+ * cords and a section sign under every fact card in both arms.
+ *
+ * §40.12 is the rule: "the player-facing string and the code-facing string are
+ * never the same string, anywhere in this game, and every surface has to be
+ * checked for which one it prints." So provenance is still required, and it is
+ * required to name the SCHOOL document a student could go and find. The repo
+ * files stay named in a comment beside the constants, which is where an auditor
+ * looks and a freshman does not.
+ *
+ * This guard is stricter than what it replaces: it holds for every cord and
+ * every fact at once rather than for the eight the old list happened to name. */
+
+describe('what a student is shown as a source', () => {
+  it('never prints a path into this repository, on any cord', () => {
+    for (const c of cordsOf(mkSave([]))) {
+      expect(c.source, c.id).not.toMatch(/docs\/|\.md\b|\.ts\b|src\//)
+      expect(c.source.length, c.id).toBeGreaterThan(8)
+    }
+    expect(NO_ATHLETIC_CORD).not.toMatch(/docs\/|\.md\b/)
   })
 })

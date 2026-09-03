@@ -35,11 +35,27 @@ export type Fact = {
   checked: string
 }
 
-const AWARDS = 'docs/blhs/awards.md (Ms. Pinzon via Wiseman)'
-const AWARDS_RESOLVED = 'docs/blhs/awards.md, resolved 2026-08-28 from district and OSPI sources'
-const SOURCED = 'docs/blhs/sourced-facts.md'
-const HANDBOOK = 'docs/blhs/sourced-facts.md · 2025-2026 BLHS Student Handbook'
-const CATALOG = 'docs/blhs/sourced-facts.md · 2024-2025 SBLSD Course Catalog'
+/* ---- WHAT A STUDENT READS, NOT WHERE WE TYPED IT ------------------------
+ *
+ * §40.12: "the player-facing string and the code-facing string are never the
+ * same string, anywhere in this game, and every surface has to be checked for
+ * which one it prints." This constant is printed. `11-handbook-cords.png` in
+ * both arms shows "docs/blhs/awards.md, from Ms. Pinzon via Wiseman, 2026-06-28"
+ * under all seven cords, and the facts page prints a markdown path with a
+ * section sign under every card.
+ *
+ * §11.35 is right that the source belongs beside the fact: a freshman being told
+ * where a claim about their own school came from is the point. But the source a
+ * freshman can act on is the SCHOOL document, which they can go and find. The
+ * repo file is where we typed it up, and the repo files are named here in a
+ * comment so the audit trail survives without being read out to a fourteen year
+ * old: awards come from `docs/blhs/awards.md`, the rest from
+ * `docs/blhs/sourced-facts.md`. */
+const AWARDS = 'the BLHS awards list, from Ms. Pinzon'
+const AWARDS_RESOLVED = 'the BLHS awards list, checked against district and state records'
+const SOURCED = 'Bonney Lake High School'
+const HANDBOOK = 'the 2025-2026 BLHS Student Handbook'
+const CATALOG = 'the 2024-2025 Sumner-Bonney Lake course catalog'
 
 export const FACTS: Fact[] = [
   { id: 'f-opened', text: 'Bonney Lake High School opened in 2005. The Panthers have been teal and black from day one.', source: `${SOURCED} §5 identity`, checked: '2026-06-28' },
