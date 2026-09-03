@@ -100,9 +100,11 @@ def the_chart_table():
     paper sheet really is a document, and the thing a student does at it is pick
     up a token and put it somewhere, which no amount of dialogue can be.
     """
-    # the log line goes first, because it is a claim about a press and the panel
-    # may sit open for two minutes afterwards
-    yield log("planner_opened", {"via": "chart_table"})
+    # NO `log("planner_opened")` HERE, and the TypeScript station this replaces
+    # had one. `Planner.tsx` fires that same event itself when the panel mounts,
+    # so the station's copy wrote a second row for one press and every count of
+    # how often a student opened the year sheet was doubled. The press is already
+    # on the record: the engine logs `station_used` with this anchor's name.
     yield say(SHEET, who=TABLE)
     yield open("planner")
 
@@ -201,12 +203,19 @@ def the_wall():
     trophies = yield get("trophies")
     count = on_the_wall(trophies)
 
-    # the shelf arrives with the first thing that goes on it. Before that the
+    # THE LINE COMES FIRST AND THE PICTURE SECOND, which is the opposite of what
+    # reads best and is right anyway. `show` is a hard refusal on a map whose
+    # `trophy_wall` anchor is not bound to a placement, and a refusal is raised at
+    # the line that asked for it and takes the rest of this handler with it. Put
+    # the shelf first and a room drawn without one is a station that says nothing
+    # at all. Said first, the worst case is a wall that does not change while the
+    # sentence about it is still true.
+    if count == 0:
+        yield say(EMPTY_WALL, who=THOR)
+    else:
+        yield say(wall_line(count), who=WALL)
+
+    # and the shelf arrives with the first thing that goes on it. Before that the
     # wall is bare, which is true, and is the one difference in this room a
     # student can read at walking speed.
     yield show(WALL, count > 0)
-
-    if count == 0:
-        yield say(EMPTY_WALL, who=THOR)
-        return
-    yield say(wall_line(count), who=WALL)

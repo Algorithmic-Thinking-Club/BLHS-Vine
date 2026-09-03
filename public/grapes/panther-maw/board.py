@@ -22,16 +22,37 @@ def earned(board):
 
 
 def close_to(board):
-    """Started and not finished, nearest first.
+    """Started and not finished, nearest first, and never two of the same number.
 
     `progress` is 0 to 1 and it is the engine's own arithmetic, so sorting on it
     is sorting on the same number the fraying thread on the tracker is drawn
     from. A cord at exactly zero is not "close to" anything, it is untouched,
     and saying otherwise on the first sheet of year one would be the counselor
     congratulating a student for existing.
+
+    THE GPA BANDS WOULD OTHERWISE BE THE ONLY THING SHE EVER SAID, and this is
+    the interesting part. Two of the seven cords are counted at graduation on the
+    whole transcript, so the moment there is a single grade their progress is
+    high and it keeps rising for four years, while the five a student EARNS BY
+    CHOOSING sit honestly at zero until they choose. Sorted by progress alone the
+    two GPA bands take both slots on every visit of every year, and the cords the
+    counselor exists to surface are never mentioned once.
+
+    So she says at most one of them. `settlesAtGraduation` is the engine's own
+    word for that, on the row, rather than this file guessing from the name.
     """
     started = [c for c in board if not c["earned"] and c["progress"] > 0]
-    return sorted(started, key=lambda c: c["progress"], reverse=True)
+    nearest = sorted(started, key=lambda c: c["progress"], reverse=True)
+
+    out = []
+    said_a_gpa_band = False
+    for cord in nearest:
+        if cord.get("settlesAtGraduation"):
+            if said_a_gpa_band:
+                continue
+            said_a_gpa_band = True
+        out.append(cord)
+    return out
 
 
 def settled_line(cord):

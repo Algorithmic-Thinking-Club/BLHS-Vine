@@ -57,6 +57,36 @@ FOUNDING = "maw:founding"
 BEAT_MS = 1100
 
 
+def turn(who, facing):
+    """Turn somebody, and carry on if this room has nobody there to turn.
+
+    THE ONLY try/except IN THIS ISLAND, AND IT IS WORTH UNDERSTANDING. A word the
+    engine cannot perform does not come back as a False you can test. It is RAISED
+    at the line that yielded it, and if nothing catches it, it takes the rest of
+    your handler with it. That is the right default: an island whose most
+    cinematic beat silently never played is the failure the whole vocabulary
+    exists to prevent, and a traceback with your own line number in it is the fix.
+
+    So the question is never "should I catch refusals", it is "is this beat worth
+    the scene". Turning somebody to face the room is decoration. The founding
+    event is the beat that ends with the flag saying it happened, and that flag is
+    what the rest of the game reads to stop pointing at this desk. Losing the
+    whole scene because a room was cut without a body bound to the desk would trade
+    something that matters for something that does not.
+
+    A room like that is real, not hypothetical: the game falls back to the copy of
+    this room committed in the engine when it cannot reach the platform, which is
+    a school network on a bad afternoon, and that copy binds no placements at all.
+
+    It still SAYS what refused. Swallowing it silently would be the other half of
+    the same mistake.
+    """
+    try:
+        yield actor_face(who, facing)
+    except Exception as refused:
+        yield log("actor_face_refused", {"actor": who, "why": str(refused)})
+
+
 def founding_event():
     """Everything from him noticing you to control coming back."""
 
@@ -78,7 +108,7 @@ def founding_event():
     # point out is west of him, so one heading covers all three, and if that ever
     # stops being true the fix is a word in the engine and not a table of angles
     # in here.
-    yield actor_face(PRINCIPAL, "west")
+    yield from turn(PRINCIPAL, "west")
 
     # ---- the room, one thing at a time ------------------------------------
     #
@@ -91,7 +121,7 @@ def founding_event():
 
     # the camera goes back to the player before anybody speaks again
     yield look_at(None)
-    yield actor_face(PRINCIPAL, "south-west")
+    yield from turn(PRINCIPAL, "south-west")
     yield say(TURNING_BACK, who=PRINCIPAL, portrait=FACE)
     yield wait(400)
 

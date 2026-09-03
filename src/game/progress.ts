@@ -102,6 +102,19 @@ export type CordProgress = {
    * is real and the rule is a gap, which is a different sentence from "you have
    * not earned it yet" and has to read differently on the board. */
   published: boolean
+  /* DOES THIS ONE ONLY SETTLE ON THE WAY OUT THE DOOR.
+   *
+   * The two GPA bands are counted at graduation on the whole transcript, so their
+   * `progress` moves the instant any grade exists and keeps moving for four
+   * years, while the five that a student's CHOICES earn sit at zero until they
+   * choose something. Anything sorting the board by `progress` therefore puts the
+   * two GPA cords on top forever and the other five are never seen. The Maw's
+   * counselor did exactly that and said the same number twice on every visit.
+   *
+   * It is a property of the cord and not of whoever is reading it, and it is
+   * already computed here (`finished` gates both `earned` flags), so it is said
+   * out loud rather than guessed at by whoever needs it next. */
+  settlesAtGraduation?: boolean
   earned: boolean
   progress: number               // 0..1 toward earning (for the fraying-thread render)
   detail: string                 // live status line ("3 of 5 AP classes passed")
@@ -176,6 +189,7 @@ export function cordsOf(s: SaveGame): CordProgress[] {
       id: 'highest-honors', name: 'Highest Honors', colors: 'double gold',
       rule: 'GPA 3.76-4.0', source: AWARDS, published: true,
       model: 'Counted at graduation, on the credit-weighted GPA of everything on your transcript.',
+      settlesAtGraduation: true,
       earned: finished && gpa >= 3.76, progress: Math.min(1, gpa / 3.76),
       detail: `GPA ${gpa ? gpa.toFixed(2) : '—'} of 3.76`,
     },
@@ -183,6 +197,7 @@ export function cordsOf(s: SaveGame): CordProgress[] {
       id: 'high-honors', name: 'High Honors', colors: 'black & silver',
       rule: 'GPA 3.5-3.759', source: AWARDS, published: true,
       model: 'Counted at graduation. The two GPA bands are exclusive, so double gold outranks this one.',
+      settlesAtGraduation: true,
       earned: finished && gpa >= 3.5 && gpa < 3.76, progress: Math.min(1, gpa / 3.5),
       detail: `GPA ${gpa ? gpa.toFixed(2) : '—'} of 3.5`,
     },

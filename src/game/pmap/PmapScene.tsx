@@ -2916,6 +2916,22 @@ export default function PmapScene() {
        * array rather than a call through the session. */
       let grape: GrapeSession | null = null
       let grapeHandlers: string[] = []
+      /* IS AN ISLAND STILL ON ITS WAY IN.
+       *
+       * `ownerOf` asks the island first and the station table second, and during
+       * the fetch and the import there IS no island: `grapeHandlers` is empty, so
+       * every anchor the island is about to claim falls through to the vine's own
+       * TypeScript station instead. On the Maw that is not a cosmetic difference.
+       * A press on the desk in that window runs the OLD `principal_desk` station,
+       * plays the founding cutscene without a word of the python around it, and
+       * writes `maw:founding`, which is permanent: the island's own founding
+       * event can then never run, for the whole of that student's run.
+       *
+       * So a room with an island coming is a room whose stations are not ready
+       * yet, and it says so by doing nothing, which is what it already does while
+       * a door is closing. The window is a fetch and a MicroPython boot, and it
+       * ends whether the island loaded or failed. */
+      let islandPending = false
 
       /* ---- WHAT A CUTSCENE OWNS WHILE IT IS RUNNING ---------------------------
        *
@@ -3945,6 +3961,14 @@ export default function PmapScene() {
        * designed against a generator first. */
       const fire = async (a: Anchor) => {
         if (busy || fade) return
+        /* AND A ROOM WHOSE ISLAND HAS NOT ARRIVED IS NOT READY TO BE PRESSED.
+         * See `islandPending` where it is declared: during the fetch and the
+         * import, every anchor the island is about to claim still resolves to the
+         * vine's own TypeScript station, so an early press runs the wrong content
+         * and, at the desk, writes a permanent flag that locks the island's own
+         * founding event out for the rest of the run. A door is exempt, because a
+         * door was never a station and never asks the router. */
+        if (islandPending && a.kind !== 'door') return
         if (a.kind === 'door') {
           if (a.to) beginExit({ map: a.to, at: a.toAnchor })
           return
@@ -3961,7 +3985,8 @@ export default function PmapScene() {
         }
         /* a grape does not need a save to talk; a station's body is handed one */
         if (owner.by === 'station' && !sv) return
-        /* AND AN ISLAND THAT IS ALREADY RUNNING SOMETHING IS NOT A PRESS AT ALL.
+        /* AND AN ISLAND THAT IS ALREADY RUNNING SOMETHING, OR STILL ON ITS WAY
+         * IN, IS NOT A PRESS AT ALL.
          *
          * `GrapeSession.call` refuses a second handler while the first is parked,
          * which is right, but it refuses by answering a report with an error in
@@ -4053,6 +4078,9 @@ export default function PmapScene() {
         const ref: GrapeRef = asked
           ? { at: 'url', base: asked }
           : { at: 'origin', island: (ours ?? bound)!.folder }
+        /* held from here to the `finally`, which is the whole of the window in
+         * which this map's anchors have an owner that has not arrived yet */
+        islandPending = true
         try {
           const pkg = await fetchGrape(ref)
           if (destroyed) return
@@ -4129,6 +4157,12 @@ export default function PmapScene() {
           }
         } catch (e) {
           console.warn(`[pmap] ${mapId}: island did not load: ${e instanceof Error ? e.message : e}`)
+        } finally {
+          /* whether it arrived or fell over. An island that failed to load leaves
+           * a room whose furniture still works, and the stations are the
+           * furniture: holding them shut past the failure would be the one
+           * outcome worse than either. */
+          islandPending = false
         }
       }
       void openIsland()
@@ -4437,6 +4471,7 @@ export default function PmapScene() {
         const a = anchors.get(name)
         if (!a) return `no anchor named ${name}`
         if (busy) return 'busy'
+        if (islandPending && a.kind !== 'door') return 'busy'
         if (fade) return 'a door is closing'
         const owner = ownerOf(a.name, grapeHandlers)
         if (!owner) return `nothing answers to ${a.name}`
@@ -5240,7 +5275,18 @@ export default function PmapScene() {
               firedTriggers.add(z.name)
               continue
             }
-            if (busy) continue
+            /* AND THE ISLAND HAS TO BE FREE TOO, checked HERE rather than left to
+             * `fire`, because this is the one caller that spends something before
+             * it calls. `busy` on the line above is already tested for exactly
+             * that reason: the name goes into `firedTriggers` next, a trigger
+             * fires once per map load, and a trigger marked spent by a call that
+             * then returned early is a trigger that is dead for the rest of the
+             * visit with nothing anywhere saying so.
+             *
+             * The guard inside `fire` is right for a key press, where dropping one
+             * costs the player a second press. It is wrong here, and putting the
+             * same question one line earlier is the whole fix. */
+            if (busy || (ownerOf(z.name, grapeHandlers)?.by === 'grape' && grape?.busy())) continue
             firedTriggers.add(z.name)
             void fire(z)
           }
