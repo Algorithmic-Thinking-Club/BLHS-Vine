@@ -2089,24 +2089,33 @@ export default function PmapScene() {
 
       // Thor's face: the head rows of the south idle frame, masked into the circle
       const drawnH = rig ? rig.feet - rig.top + 1 : 67
-      /* THE WHOLE FACE AND NOTHING BELOW IT, measured off the sheet rather than
-       * guessed at. 0.50 took the neck, the shirt collar and a pixel of tail;
-       * 0.38 cut the muzzle off and left two ears over a grey slab, which is
-       * what the first attempt at this shipped. 0.42 is the band that holds both
-       * ears, both eyes and the muzzle and stops at the chin. */
-      const headH = Math.max(6, Math.round(drawnH * 0.42))
+      /* A BAND THAT FILLS THE APERTURE, not one that floats in it. At 0.42 the
+       * crop held the whole face and nothing below it, which sounded right and
+       * measured wrong: the head landed as 14 rows inside a 26 row circle with
+       * six rows of bare parchment above and six below, so growing the disc from
+       * 24 to 28 bought one pixel of face. The aperture is round and a portrait
+       * aperture is SUPPOSED to clip an ear tip and a shoulder at the corners.
+       * At 0.58 the band is about 20 rows after halving, the face reaches the
+       * rim, and the disc is paying for itself. */
+      const headH = Math.max(6, Math.round(drawnH * 0.58))
       const headSrc = walkT.south[0].source
       const headTop = rig ? rig.top : 0
       const band = scanCols(walkT.south[0], headTop, headTop + headH - 1)
       let headX = band ? band.left : 0
       let headW = band ? band.right - band.left + 1 : headSrc.pixelWidth
-      /* AN EVEN CROP, SO THE HALVING IS EXACT. 51 halves to 25.5 and a half pixel
-       * is the blur the integer rule exists to prevent, so the box grows by one
-       * transparent column rather than the picture being resampled. */
-      if (headW % 2) {
-        headW += 1
-        if (headX + headW > headSrc.pixelWidth) headX = Math.max(0, headSrc.pixelWidth - headW)
+      /* AN EVEN CROP, SO THE HALVING IS EXACT, AND CENTRED ON ITS OWN INK.
+       * 51 halves to 25.5 and a half pixel is the blur the integer rule exists to
+       * prevent, so the box grows by one transparent column. The first version
+       * grew it on the right only, which pushed the face off centre inside the
+       * circle by three pixels: measured row by row, zero field on the left and
+       * three on the right. The box is centred on the band's own midpoint now,
+       * so the extra column falls wherever there is room for it. */
+      if (headW % 2) headW += 1
+      if (band) {
+        const mid = (band.left + band.right + 1) / 2
+        headX = Math.round(mid - headW / 2)
       }
+      headX = Math.max(0, Math.min(headX, headSrc.pixelWidth - headW))
       const headTex = new Texture({ source: headSrc, frame: new Rectangle(headX, headTop, headW, headH) })
       const head = new Sprite(headTex)
       head.anchor.set(0.5, 0.5)
@@ -2210,7 +2219,15 @@ export default function PmapScene() {
        * cream blob". Opaque and one pixel gives the three crisp bands every frame
        * in the kit is built from, light then dark then field, and that is what
        * makes one marker read on water AND on stone. */
-      if (!plainArm()) pinG.circle(0, PCY, PR + 2).stroke({ color: PIN_LIGHT, width: 1 })
+      /* THE HALO IS AN ARC, NOT A RING, because a full ring paints a light seam
+       * straight across the join where the tail meets the disc and the mark reads
+       * as a badge hanging from a pin rather than as one shape. The gap is the
+       * tail's own angular span, measured from its half-width. */
+      if (!plainArm()) {
+        const gap = Math.asin(Math.min(1, (PR * 0.55) / PR))
+        pinG.arc(0, PCY, PR + 2, Math.PI / 2 + gap, Math.PI / 2 - gap + Math.PI * 2)
+          .stroke({ color: PIN_LIGHT, width: 1 })
+      }
       pinG.circle(0, PCY, PR).fill(PIN_FIELD).stroke({ color: PIN_RIM, width: plainArm() ? 1 : 2 })
 
       pin.addChild(pinG, headMask, head, youTxt)
@@ -2436,21 +2453,69 @@ export default function PmapScene() {
           stroke: { color: 0x06282c, width: 3 },
         }),
       })
-      taskTxt.anchor.set(0.5, 0.5)
+      taskTxt.anchor.set(0, 0.5)
       const taskPaper = new Graphics()
       taskPaper.zIndex = -1
       taskPaper.visible = plainArm()
-      task.addChild(taskPaper, taskTxt)
+      /* ---- THE SENTENCE WEARS THE MARK OF THE PLACE IT POINTS AT -----------
+       *
+       * TWO PLAQUES, ONE MATERIAL, AND THAT IS ON PURPOSE. Ash's round-two
+       * ruling puts the task line "on the socket plaque LIKE THE WORLD PROMPT",
+       * so a different ground for it is not available: he asked for the shared
+       * one. But an art-direction pass then read the harbour and found the two
+       * telling apart only by their words, which is exactly what §40.31 forbids
+       * a student to have to do.
+       *
+       * So they are told apart by a MARK, which is a shape difference rather
+       * than a colour one. The prompt carries a key cap, "E ·", because pressing
+       * is what it wants. The task carries the same gold chevron the objective
+       * marker hangs over the station the year is pointing at, so the sentence
+       * and the place it is about wear one mark and a student who never reads
+       * either of them can still see that they belong together. */
+      const taskMark = new Container()
+      task.addChild(taskPaper, taskMark, taskTxt)
       task.scale.set(1 / Z)
+      let taskMarkW = 0
+      {
+        const CW = 12, CH = 8
+        const g = new Graphics()
+        g.moveTo(-CW / 2, -CH / 2).lineTo(CW / 2, -CH / 2).lineTo(0, CH / 2).closePath()
+          .fill(0xffd98a).stroke({ color: 0x3a2410, width: 2 })
+        taskMark.addChild(g)
+        taskMarkW = CW
+        void kitSprite('pointer', 'chevron').then((drawn) => {
+          if (destroyed || !drawn) return
+          drawn.anchor.set(0.5, 0.5)
+          const want = promptSize() + 2
+          drawn.scale.set(want / drawn.texture.height)
+          taskMark.removeChild(g)
+          g.destroy()
+          taskMark.addChild(drawn)
+          taskMarkW = drawn.texture.width * drawn.scale.x
+          layoutTask()
+        })
+      }
 
       let taskSaid = ''
 
+      /* AND IT IS CAPPED AT HALF THE SCREEN. Measured on `02-hub-walking.png`:
+       * the plaque ran about a thousand pixels of a 1366 pixel window, which is
+       * wider than the volcano, laid across the market rooftops, and the highest
+       * contrast object in the harbour. That, more than the shared material, is
+       * why it out-read the marker it sits above. The ruling says ONE line, so
+       * the sentence is not wrapped; the plaque stops growing and the authored
+       * strings are what has to be short. */
       const layoutTask = () => {
-        if (taskPaper.visible) drawPlainPlate(taskPaper, taskTxt.width + 34, taskTxt.height + 14)
+        const gap = taskMarkW ? 8 : 0
+        const cap = Math.max(180, app.screen.width * 0.52) / (task.scale.x || 1)
+        const bodyW = Math.min(taskMarkW + gap + taskTxt.width, cap)
+        const left = -bodyW / 2
+        taskMark.position.set(left + taskMarkW / 2, 0)
+        taskTxt.position.set(left + taskMarkW + gap, 0)
+        if (taskPaper.visible) drawPlainPlate(taskPaper, bodyW + 34, taskTxt.height + 14)
         if (!taskPlate) return
         const k = (taskTxt.height + 14) / promptPlateH
-        promptPlate?.width  // keep the two plaques reading one measurement
-        taskPlate.width = taskTxt.width / k + 60
+        taskPlate.width = bodyW / k + 60
         taskPlate.scale.set(k)
         taskPlate.x = -(taskPlate.width * k) / 2
         taskPlate.y = -(promptPlateH * k) / 2
@@ -2534,20 +2599,25 @@ export default function PmapScene() {
        * Part IV Law 2, verbatim from Ash: "all the UI (not the generic shit youve
        * been doing, using PixelLab, every UI)".
        *
-       * The glyph stays as the fallback rather than being deleted, because a
-       * classroom Chromebook behind a district filter that cannot reach the
-       * platform still has to be able to find the door. */
+       * AND THE FALLBACK IS A DRAWN SHAPE, NOT A SYSTEM GLYPH. It used to keep
+       * the monospace character on the argument that a filtered Chromebook still
+       * has to find the door, which is the right requirement and was the wrong
+       * answer: the brief's Do-not list says "use a system glyph anywhere" and
+       * `docs/ART.md` says "icons are drawn, never an emoji or a font glyph".
+       * The DOM half of the kit settled this the same week and settled it
+       * correctly: `Glyph` in `controls.tsx` draws its own shape or nothing, and
+       * never borrows one from the operating system. A triangle is a shape the
+       * engine can draw, in the palette's own two colours, so the filtered
+       * classroom gets a chevron rather than whatever font the machine ships. */
       const objMark = new Container()
       objMark.zIndex = 9e9 - 2
       objMark.visible = false
       world.addChild(objMark)
       {
-        const glyph = new Text({
-          text: '▾',
-          style: new TextStyle({ fontFamily: 'monospace', fontSize: 16, fontWeight: 'bold', fill: 0xffd98a, stroke: { color: 0x3a2410, width: 3 } }),
-        })
-        glyph.anchor.set(0.5, 1)
-        objMark.addChild(glyph)
+        const CW = 13, CH = 9
+        const glyph = new Graphics()
+        glyph.moveTo(-CW / 2, -CH).lineTo(CW / 2, -CH).lineTo(0, 0).closePath()
+          .fill(0xffd98a).stroke({ color: 0x3a2410, width: 2 })
         void kitSprite('pointer', 'chevron').then((drawn) => {
           if (destroyed || !drawn) return
           /* sized against the CHARACTER and not against the sheet, so one drawing
@@ -4915,13 +4985,22 @@ export default function PmapScene() {
           const halfW = charH * 0.4 * camZ
           const hits = b.maxY > crown.y && b.minY < feet.y
             && b.maxX > feet.x - halfW && b.minX < feet.x + halfW
-          /* JUST UNDER HIS FEET, NOT CLEAR OF THE WHOLE OVERLAP. The first
-           * version dropped the plaque by a fixed 0.62 of a body from the
-           * ANCHOR, and at the berth the anchor is out in the water, so "E -
-           * cast off" ended up 45 pixels off the dock reading as a caption for
-           * the sea. Hanging it under the PLAYER keeps it on the planking he is
-           * standing on, which is the thing it is talking about. */
-          if (hits) prompt.position.set(px, pos.y + Math.round(charH * 0.22) + bob)
+          /* BY ITS TOP EDGE, WHICH IS THE THIRD TRY AND THE REASON THE FIRST TWO
+           * FAILED. `prompt.position` is the plaque's CENTRE. Dropping the centre
+           * to just under his feet puts the plaque's top edge half a plaque
+           * ABOVE them, which is his waist, so the sign went straight back over
+           * him: measured down the marker's own axis, every row from his feet to
+           * his crown was plaque. The first try had the opposite failure, hanging
+           * so far clear that "E - cast off" floated in open sea.
+           *
+           * The bounds are already measured for the overlap test a line above,
+           * so the plaque's own height is in hand; it just has to be used.
+           * Screen height divided by the zoom is the world height, and half of
+           * that is the difference between placing a centre and placing an edge. */
+          if (hits) {
+            const worldH = b.height / camZ
+            prompt.position.set(px, pos.y + Math.round(charH * 0.22) + worldH / 2 + bob)
+          }
         }
         let seaFire: (() => void) | null = null
         if (hull && !berthing && !locked && !fade && comp) {
