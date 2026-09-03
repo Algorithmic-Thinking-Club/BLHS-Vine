@@ -59,6 +59,18 @@ export type GrapeSession = {
   handlers: () => string[]
   /** fire one handler and run it to the end */
   call: (handler: string) => Promise<GrapeReport>
+  /* IS A HANDLER RUNNING RIGHT NOW. Asked before a press rather than discovered
+   * after one: `call` already refuses a second handler while the first is parked,
+   * correctly, but the refusal comes back as a REPORT WITH AN ERROR, and the
+   * scene cannot tell that apart from the member's python raising. So a press
+   * that merely arrived early was logged as a station used and an island failed,
+   * and the two things a study counts, how often a student pressed something and
+   * how often somebody's island broke, were both wrong in the same instant.
+   *
+   * Not hypothetical. `on_start` runs on the far side of the worker after the
+   * handlers are registered, so every press in the first moment of a room lands
+   * inside that window, and the Maw's own opening is exactly that shape. */
+  busy: () => boolean
   /* the other half of the sandbox. A worker left running holds a python heap,
    * and a scene that unmounts mid-say must not leave one behind. */
   stop: () => void
@@ -67,7 +79,22 @@ export type GrapeSession = {
 export function openGrape(
   island: LoadedGrape,
   host: IntentHost,
-  opts: { onPrint?: (text: string) => void; bootMs?: number; turnMs?: number } = {},
+  opts: {
+    onPrint?: (text: string) => void; bootMs?: number; turnMs?: number
+    /* THE ONE CALLER THAT MAY TURN THE STAMP OFF, and it is not a member.
+     *
+     * `src/game/roster/vine-islands.ts` holds the maps whose python is the
+     * vine's own content rather than somebody's club, and its header carries the
+     * whole argument. The short of it: the Maw's island writes the founding flag
+     * `run/objective.ts` sequences year one off, and a stamped flag is a
+     * different string, so the room would run and the game would never notice.
+     *
+     * DEFAULTED ON, so the only way to lose the stamp is to ask for it in the
+     * engine's own source. Nothing a member writes in `island.json` reaches
+     * this, which was the point of putting the decision in a table they cannot
+     * edit rather than in a field they can. */
+    unscoped?: boolean
+  } = {},
 ): GrapeSession {
   /* new URL(..., import.meta.url) rather than a string path: it is the form
    * vite follows into a real chunk in a production build. */
@@ -77,7 +104,9 @@ export function openGrape(
    * this session performs is stamped with the island's own programme id, which
    * is what keeps one member's flags out of another's (P4). A scene that built
    * the host itself would have to remember, and one day would not. */
-  const scoped: IntentHost = { ...host, by: { grape: island.manifest.programme } }
+  const scoped: IntentHost = opts.unscoped
+    ? { ...host }
+    : { ...host, by: { grape: island.manifest.programme } }
 
   let handlers: string[] = []
   let dead: { error: string; traceback?: string } | null = null
@@ -218,6 +247,7 @@ export function openGrape(
         worker.postMessage({ t: 'call', handler } satisfies ToWorker)
       })
     },
+    busy: () => waiting !== null,
     stop() {
       if (stopped) return
       stopped = true

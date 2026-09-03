@@ -168,6 +168,41 @@ export type Intent =
 export type RunPath =
   | 'year' | 'gpa' | 'tokens' | 'cords' | 'flags' | 'islands'
   | 'handle' | 'mode' | 'graduated'
+  /* THE TWO THE VINE'S OWN CONTENT COULD READ AND A GRAPE COULD NOT.
+   *
+   * `stations.ts` is written in TypeScript beside the systems, so the counselor
+   * calls `cordsOf(save)` and reads `detail`, the live status line progress.ts
+   * writes once for the tracker board, and the trophy wall counts
+   * `s.stickers.length + s.badges.length`. Neither number is on the nine paths
+   * above, so the same two stations written in Python could not say the same
+   * sentences. stations.ts's own header names that as the failure to avoid: "if
+   * the vine's own content cannot be written in the API the members get, then the
+   * API is a demo and the members are second-class".
+   *
+   * `cords` is left exactly as it was, a list of the ids you have EARNED, because
+   * that is the cheap question and something may already be asking it. This is
+   * the expensive one beside it: every cord, earned or not, with the school's own
+   * rule and the live progress line.
+   *
+   * `trophies` is the other half of a word that could already write and could not
+   * read: `award(sticker=..., badge=...)` has always been able to put something on
+   * that wall, and nothing could ask what was on it. */
+  | 'cord_board' | 'trophies'
+  /* AND THE ONE THE FIRE HAS TO ASK BEFORE IT LIGHTS.
+   *
+   * `stations.ts` decides whether the hearth is open by calling `hasCoreBeat` and
+   * `beatDone(s.ledger, s.year)`. Neither is reachable from Python, and the two
+   * ways of writing the hearth without them are both wrong: hard-code
+   * "core:y%d", which is a typed constant of exactly the kind anchors exist to
+   * kill, or yield `play` unconditionally and re-run a beat the student already
+   * sat, which writes a second grade for the same year.
+   *
+   * Named for the QUESTION and not for the storage. There is no `ledger` path and
+   * there should not be: the comment above says a grape that could ask for an
+   * arbitrary path is a grape the save can never change underneath. This asks one
+   * thing, "is this year's advisory still owed, and what is it called", and the
+   * answer is a beat id or null. */
+  | 'advisory'
 
 /* ---- what comes back ------------------------------------------------------ */
 

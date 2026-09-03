@@ -16,6 +16,7 @@ import {
   recordGrade, setFlag, setIslandState,
 } from './save'
 import { cordsOf, gpaOf } from './progress'
+import { beatDone, coreBeatId, hasCoreBeat } from './beats/beats'
 import { programmeById } from './roster/roster'
 import { play as playSfx } from './audio'
 
@@ -59,6 +60,28 @@ export const engine: IntentEngine = {
       case 'gpa': return s ? gpaOf(s) : 0
       case 'tokens': return s?.tokens.length ?? 0
       case 'cords': return s ? cordsOf(s).filter((c) => c.earned).map((c) => c.id) : []
+      /* THE WHOLE BOARD, and it is the same rows `progress.ts` hands the tracker.
+       * Passed through entire rather than trimmed to the fields the Maw's
+       * counselor happens to use: a subset chosen here is a subset that goes
+       * stale the day a cord grows a field, and every one of these is already a
+       * string or a number a member can print. `rule` is the school's own words
+       * and `model` is what this game counts, and V3 says the second is printed
+       * beside the first and never instead of it, so both cross. */
+      case 'cord_board': return s ? cordsOf(s) : []
+      /* what is on the wall. Two lists rather than one, because a sticker and a
+       * badge are different things everywhere else in the save and flattening
+       * them here would be this file inventing a category. */
+      case 'trophies': return s
+        ? { stickers: [...s.stickers], badges: [...s.badges] }
+        : { stickers: [], badges: [] }
+      /* the beat the fire still owes this year, or null. `beats.ts` owns both
+       * halves of that question and this asks rather than re-deciding it, which
+       * is the same reason `stations.ts` has a `coreBeatIdFor` helper rather than
+       * a second copy of the rule. Null with no run, because a run that has not
+       * started owes nothing to anybody. */
+      case 'advisory': return s && hasCoreBeat(s.year) && !beatDone(s.ledger, s.year)
+        ? coreBeatId(s.year)
+        : null
       case 'flags': return s ? [...s.flags] : []
       case 'islands': return s ? { ...s.islands } : {}
       /* the two that are honestly absent. A player with no run has no name and

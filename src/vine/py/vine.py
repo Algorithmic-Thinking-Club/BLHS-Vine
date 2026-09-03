@@ -27,13 +27,29 @@ refused, and the refusal is raised on YOUR line.
 
 # ---- talking ---------------------------------------------------------------
 
-def say(text, who=None):
-    """One line in the dialogue box. Comes back when the player clicks on."""
+def say(text, who=None, portrait=None):
+    """One line in the dialogue box. Comes back when the player clicks on.
+
+    `who` is a name: an anchor's, or the word "thor" for the player, and the box
+    prints the LABEL whoever placed that anchor typed rather than the name your
+    code addresses it by.
+
+    `portrait` is the face beside it, by the id of a drawn one. There is one so
+    far, "principal". Leave it off and the box shows a plate with no face, which
+    is what almost every line in this game is.
+    """
     intent = {"kind": "say", "text": text}
     # a key left out entirely rather than sent as None: the engine's `who` is
     # optional, and an explicit null is a different thing from an absent name
     if who is not None:
         intent["who"] = who
+    # THE FACE WAS ENGINE-ONLY AND THAT WAS AN ACCIDENT. `Intent` has carried
+    # `portrait` since the box was written, the cutscene registry uses it, and
+    # this builder did not have the argument, so the one drawn face in the game
+    # was reachable from TypeScript and not from a member's island. Same field,
+    # same wire, one keyword.
+    if portrait is not None:
+        intent["portrait"] = portrait
     return intent
 
 
@@ -261,7 +277,17 @@ def play(beat, as_plain=None):
 def get(path):
     """Read one thing about the run. Comes back as the value.
 
-    year, gpa, tokens, cords, flags, islands, handle, mode, graduated.
+    year        1 to 4
+    gpa         a number, or None when nothing has been graded yet. GUARD IT.
+    tokens      how many seasons are still in hand, as a COUNT and not a list
+    cords       the ids of the cords already earned
+    cord_board  every cord as a dict: name, rule, earned, progress, detail
+    trophies    {"stickers": [...], "badges": [...]}, what is on the wall
+    flags       your island's own flags, with your programme id stripped back off
+    islands     {programme id: "misty"/"discovered"/"available"/"active"/"completed"}
+    handle      the name the player chose, or None
+    mode        "game" or "plain", which half of the class this is
+    graduated   True or False
     """
     return {"kind": "get", "path": path}
 

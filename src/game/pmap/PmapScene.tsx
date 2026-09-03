@@ -3961,6 +3961,24 @@ export default function PmapScene() {
         }
         /* a grape does not need a save to talk; a station's body is handed one */
         if (owner.by === 'station' && !sv) return
+        /* AND AN ISLAND THAT IS ALREADY RUNNING SOMETHING IS NOT A PRESS AT ALL.
+         *
+         * `GrapeSession.call` refuses a second handler while the first is parked,
+         * which is right, but it refuses by answering a report with an error in
+         * it, and from down here that is indistinguishable from the member's own
+         * python raising. So an early press took the world hold, logged
+         * `station_used` as though the student had done something, logged
+         * `island_failed` as though somebody's island was broken, and did none of
+         * it. Both of those are numbers the study reads.
+         *
+         * The window is real and this island lives in it: `on_start` runs on the
+         * far side of the worker AFTER the handlers are registered, so every
+         * press in the first moment of a room lands while the room is still
+         * introducing itself. Measured on the Maw: eight presses out of eight.
+         *
+         * Treated exactly like `busy` above it. Nothing happened, and now nothing
+         * says it did. */
+        if (owner.by === 'grape' && grape?.busy()) return
         busy = true
         usedThisSitting.add(a.name)
         stationHold = holdWorld(`station:${a.name}`)
@@ -4423,6 +4441,10 @@ export default function PmapScene() {
         const owner = ownerOf(a.name, grapeHandlers)
         if (!owner) return `nothing answers to ${a.name}`
         if (owner.by === 'station' && !loadSave()) return 'no run'
+        /* the same answer the scene now gives itself. A probe that reads "fired"
+         * for a press the room dropped is a probe that reports a working station
+         * as broken, which cost this file three runs. */
+        if (owner.by === 'grape' && grape?.busy()) return 'busy'
         void fire(a)
         return 'fired'
       }

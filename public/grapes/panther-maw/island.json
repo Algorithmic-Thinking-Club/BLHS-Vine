@@ -1,0 +1,24 @@
+{
+  "format": 1,
+  "programme": "the-maw",
+  "map": "panther-maw",
+  "title": "The Panther's Maw",
+  "owner": "the vine",
+  "entry": "island.py",
+  "modules": ["island.py", "lines.py", "founding.py", "board.py"],
+  "content": {
+    "what": {
+      "text": "The room inside the mountain that the game returns to: the year sheet, the advisory fire, the cord board, the wardrobe and the trophy wall. It is a place in an island game and it is not a room at Bonney Lake High School.",
+      "source": "docs/THE-MAW.md, and docs/walkthrough/05-first-plan.md through 08-leaving-the-maw.md"
+    },
+    "when": {
+      "text": "Whenever a student walks through the tunnel on the hub island, which is most of a session.",
+      "source": "docs/THE-WALKTHROUGH.md Part I"
+    },
+    "how_to_join": {
+      "text": "You do not join it. Everybody who plays is already inside it within the first few minutes.",
+      "source": "unknown"
+    },
+    "blurb": "the room the game returns to"
+  }
+}
