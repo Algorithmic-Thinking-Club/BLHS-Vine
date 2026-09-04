@@ -353,6 +353,50 @@ function start(buf: AudioBuffer, gain: number): void {
 
 /* ---- the two words the rest of the game says ------------------------------- */
 
+/* ---- THE UI KIT MAKES NO SOUND, AND THAT IS A RULING ---------------------
+ *
+ * Ash played the deploy title-to-Maw on 2026-09-03 and BRIEF-PLAYTHROUGH-1 law 4
+ * is the result: "No annoying sound. The two effects he heard are off. Nothing
+ * plays until he has picked a sound and said so."
+ *
+ * The two he heard were `open` and `close`, wired the day before onto `usePanel`
+ * so that every panel in the game spoke when it appeared and again when it left.
+ * They were CC0, correctly licensed, correctly levelled and gated on the mute
+ * setting, and none of that is the point: he opened four panels in two minutes
+ * and heard eight noises.
+ *
+ * SO THE GATE IS ONE FLAG AND IT IS OFF. Not a deletion: the files stay, the
+ * licences stay, the call sites stay where they belong, and turning them back on
+ * is this constant. That matters because the next thing that happens here is him
+ * choosing which sounds the kit gets, not somebody re-deriving where they go.
+ *
+ * WHAT IT DOES NOT GATE. A sound a SCRIPT asked for by name is the author
+ * speaking, not the kit chattering: the bottle in the opening, a door, whatever a
+ * member's Python plays. Those go through `play` and are unaffected, which is why
+ * the gate is a separate function rather than a mute inside `play`.
+ *
+ * THE REWARD POP IS THE ONE EXCEPTION, on his own wording: "the reward pop stays
+ * only if it is soft enough that he does not mention it." It is not a UI click,
+ * it is the game saying a credit was earned, and it fires about once a beat. It
+ * plays through `play` at a reduced gain and he judges it next time. */
+export const UI_SOUND = false
+
+/**
+ * play one of the UI kit's own effects: a panel, a control, a refusal.
+ *
+ * Silent while `UI_SOUND` is false, which is a ruling and not a bug. Everything
+ * else about it is `play`, including the unknown-name refusal, so a typo in a
+ * kit sound is still heard about by the person who wrote it.
+ */
+export function playUi(name: string, gain?: number): void {
+  /* the refusal first, exactly as `play` does it and for the same reason: a name
+   * the library does not hold is an author's mistake whether or not anybody was
+   * ever going to hear it. */
+  resolve(name)
+  if (!UI_SOUND) return
+  play(name, gain)
+}
+
 /**
  * play a named effect, once, now.
  *

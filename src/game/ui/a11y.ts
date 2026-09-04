@@ -25,7 +25,7 @@
  * this game the moment the pause sheet opens settings.
  */
 import { useCallback, useEffect, useId, useRef } from 'react'
-import { play } from '../audio'
+import { playUi } from '../audio'
 
 /* ---- the stack --------------------------------------------------------- */
 
@@ -240,6 +240,12 @@ export function usePanel({ label, onClose, closeOnEscape = true }: PanelOptions)
      * `open.ogg` and `close.ogg` shipped to a Chromebook that would never play
      * them.
      *
+     * AND THEY ARE SILENT AGAIN, ON PURPOSE, SINCE 2026-09-03. Ash played it and
+     * ruled the pair off (BRIEF-PLAYTHROUGH-1 law 4): four panels in two minutes
+     * is eight noises. `playUi` is the gate and `UI_SOUND` is the switch; the
+     * wiring stays right here so that turning it on is a decision about SOUND
+     * rather than a second search for where sound belongs.
+     *
      * It belongs here rather than on each panel for the same reason the focus
      * trap does: seven surfaces use this hook, and a sound wired per panel is a
      * sound the eighth panel forgets. `play` is already safe on its own, so
@@ -248,12 +254,12 @@ export function usePanel({ label, onClose, closeOnEscape = true }: PanelOptions)
      *
      * Only the innermost panel speaks. Opening the year sheet from the pause
      * sheet is one event to a student and would otherwise be two sounds. */
-    if (isInnermostPanel(token)) play('open')
+    if (isInnermostPanel(token)) playUi('open')
 
     return () => {
       window.removeEventListener('keydown', key, true)
       release()
-      play('close')
+      playUi('close')
       const at = stack.lastIndexOf(token)
       if (at >= 0) stack.splice(at, 1)
       /* only if the panel still had focus. If the player has already clicked

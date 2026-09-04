@@ -10,28 +10,40 @@
  * units rather than in pixels: at S, M or L the whole card grows or shrinks with
  * the words instead of the words overflowing a fixed box. */
 
-/* ---- THE BUTTON, A FOURTH PLAQUE IN A STACK OF THREE ---------------------
+/* ---- THE BUTTON, BOTTOM RIGHT, ON ITS OWN --------------------------------
  *
- * It is positioned rather than flowed, because `hud-stack` belongs to the Hud
- * and the Hud is gated on a run in progress. This button exists for the student
- * who has no run yet, so it cannot live in that stack and still be there when it
- * is wanted. Placing it under the three known slots keeps the corner reading as
- * one column: three plaques are 70 tall on an 8 gutter, so the fourth sits at
- * three of those plus the stack's own top. */
+ * IT USED TO BE A FOURTH PLAQUE UNDER THE OTHER THREE, and Ash played that and
+ * ruled against it. BRIEF-PLAYTHROUGH-1 law 3: "Help is bottom right, and it is
+ * how you leave. The `?` moves to the bottom-right corner."
+ *
+ * Two things were wrong with it in the top-left. It joined a stack of three
+ * things that OPEN A PANEL ABOUT THE RUN, and this one is not about the run, it
+ * is about the machine: a fourth item in that column reads as a fourth panel.
+ * And it sat under a stack whose height depends on what the run has granted, so
+ * it was the one control on the screen that moved.
+ *
+ * Bottom right is where a student's hand already is on a trackpad, it is where
+ * help lives in every other piece of software they use, and it is nowhere near
+ * anything that can be pressed by accident while walking.
+ *
+ * No `--hp-above` any more: it is anchored to a corner that does not move. */
 .hp-btn {
-  position: absolute;
-  /* one slot per plaque already granted, plus its gutter. `--hp-above` is
-     written by the component from the same grants the Hud reads, and the slot
-     height is here because the two arms draw a plaque at two heights. */
-  --hp-slot: 78px;
-  top: calc(max(2.4vh, 14px) + var(--hp-above, 0) * var(--hp-slot));
-  left: max(2vw, 14px);
+  position: fixed;
+  bottom: max(2.4vh, 14px);
+  right: max(2vw, 14px);
   z-index: 50;
-  /* square, because it carries one character and a 164 wide plate holding a
-     question mark reads as a mistake rather than as a button */
-  width: 70px;
+  /* SMALLER THAN ITS SIBLINGS AND IN THE ART'S OWN PROPORTION. It carries one
+     character, so a 180 wide sign would read as a mistake; but it inherits
+     `.hud-plaque`, and leaving the height at the stack's 83 while cutting the
+     width to 70 squashed a plate drawn at 2.16 to 1 into a portrait rectangle.
+     108x50 is 2.16 exactly, so this is the only undistorted plaque on the
+     screen, and its contents centre rather than sitting in the mark column the
+     other three share. */
+  width: 108px;
+  height: 50px;
   min-width: 0;
-  padding: 0 0 4px;
+  justify-content: center;
+  padding: 0 0 3px;
 }
 .hp-q {
   --kit-fs-raw: calc(26px * var(--kit-text-scale));
@@ -173,7 +185,28 @@ html[data-rm='1'] .hp-card { animation: none; }
 }
 .hp-corner b { color: var(--kit-ink-head); font-family: var(--kit-face-display); font-weight: 400; }
 
-.hp-close { align-self: flex-end; }
+/* ---- THE FIVE DOORS ------------------------------------------------------
+ *
+ * A row, not a column, because five stacked planks would push the card past the
+ * fold and the card's own rule is that it never scrolls. They wrap when the
+ * words are long or the text size is L, which is the one place this card is
+ * allowed to grow downward.
+ *
+ * "Back" is separated from the rest: it is the one that returns you to what you
+ * were doing, and the other four take you somewhere. */
+.hp-doors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding-top: 12px;
+  border-top: var(--kit-border) solid var(--kit-rule);
+}
+/* EVERY DOOR THE SAME WIDTH, so five buttons read as one set of choices rather
+   than as a ragged paragraph of buttons. The first pass pushed "Back" hard left
+   with an auto margin and let the rest wrap where they fell, which photographed
+   as three lines of different lengths and looked like a mistake. */
+.hp-door { flex: 1 1 30%; min-width: 0; justify-content: center; }
 
 /* ---- THE CONTROL ARM ----------------------------------------------------
  *
@@ -195,11 +228,9 @@ html[data-skin='plain'] .hp-corner b { font-weight: 700; }
    in front of every line */
 html[data-skin='plain'] .hp-mark { display: none; }
 html[data-skin='plain'] .hp-btn {
-  /* a plain plaque is 38 tall on the same 8 gutter, not 70 */
-  --hp-slot: 46px;
   width: auto;
-  min-width: 132px;
-  padding: 8px 16px;
+  min-width: 0;
+  padding: 8px 18px;
 }
 /* AND THE KEY CAP READS IN THIS ARM TOO. `.kit-plank-key`'s plain rule drops the
    glow and keeps `--kit-plank-ink`, which is white, so "Esc" on a white document

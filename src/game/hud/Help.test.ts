@@ -17,6 +17,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import fs from 'node:fs'
 import path from 'node:path'
 import { HelpCard, HelpButton } from './Help'
+import { onUiRequest } from '../ui-bus'
 
 let host: HTMLDivElement
 let root: Root
@@ -81,7 +82,47 @@ describe('what the help card says', () => {
     expect(card?.getAttribute('aria-modal')).toBe('true')
     /* the way out is a real control and not only the Escape key, because a
      * trackpad student never learns Escape from a card they cannot close. */
-    expect(host.querySelector('.hp-close')).toBeTruthy()
+    expect(host.querySelector('.hp-door')).toBeTruthy()
+  })
+
+  /* ---- THE FIVE DOORS, WHICH ARE WHY THIS CARD IS THE WAY OUT -------------
+   *
+   * BRIEF-PLAYTHROUGH-1 law 3, after Ash played the deploy: the card carries
+   * "the pause sheet's own buttons: Back, Year Sheet, Handbook, Settings, Save
+   * and leave. A student who does not know Esc exists can still leave."
+   *
+   * Every exit from this game used to be behind the Escape key, and nothing on
+   * the screen said so. This is the test that stops that being true again. */
+  it('carries every door the pause sheet has, so Escape is not the only way out', () => {
+    /* THE THREE PANEL DOORS NEED SOMEBODY TO OPEN THEM. They go through the same
+     * ui-bus a station uses, and the Hud is what answers it, so the card offers
+     * them exactly when a Hud is mounted. A button that does nothing is worse
+     * than a button that is not there, and this is the one card a lost student is
+     * told to trust. Subscribing here is what a mounted Hud does. */
+    const off = onUiRequest(() => {})
+    try {
+      openCard()
+      const said = [...host.querySelectorAll('.hp-door')].map((b) => b.textContent ?? '')
+      for (const word of ['Back', 'Year sheet', 'Handbook', 'Settings']) {
+        expect(said.some((t) => t.includes(word)), word).toBe(true)
+      }
+      /* "Save and leave" needs a navigator and a bare render has none, which is
+       * the one honest omission: outside a SceneManager there is no title screen
+       * to leave to. In the app it is always there. */
+      expect(said.length).toBeGreaterThanOrEqual(4)
+    } finally { off() }
+  })
+
+  it('offers only the doors that can actually open, with no Hud mounted', () => {
+    /* the other half of the same contract, and the reason it is a separate test:
+     * on the title and mid-intro there is no Hud, and three of these five would
+     * be presses that did nothing. */
+    openCard()
+    const said = [...host.querySelectorAll('.hp-door')].map((b) => b.textContent ?? '')
+    expect(said.some((t) => t.includes('Back'))).toBe(true)
+    for (const word of ['Year sheet', 'Handbook', 'Settings']) {
+      expect(said.some((t) => t.includes(word)), word).toBe(false)
+    }
   })
 })
 
@@ -96,8 +137,22 @@ describe('the button in the corner', () => {
     const btn = host.querySelector('.hp-btn')
     expect(btn).toBeTruthy()
     expect(btn?.getAttribute('aria-label')).toBe('How to play')
-    /* and it sits in the first slot, because nothing is above it yet */
-    expect((btn as HTMLElement).style.getPropertyValue('--hp-above')).toBe('0')
+  })
+
+  it('is anchored to a corner rather than to the stack it used to sit under', () => {
+    /* Law 3 moved it bottom-right. The first version measured how many plaques
+     * were above it and offset itself by that, which made it the one control on
+     * the screen whose position depended on what the run had granted. Checked in
+     * the stylesheet because jsdom applies none: what matters is that nothing
+     * computes a position for it any more. */
+    act(() => root.render(createElement(HelpButton)))
+    const btn = host.querySelector('.hp-btn') as HTMLElement
+    expect(btn.style.getPropertyValue('--hp-above')).toBe('')
+    const css = fs.readFileSync(path.join(process.cwd(), 'src/game/hud/help.css'), 'utf8')
+    const rule = css.slice(css.indexOf('.hp-btn {'), css.indexOf('}', css.indexOf('.hp-btn {')))
+    expect(rule).toContain('bottom:')
+    expect(rule).toContain('right:')
+    expect(rule).not.toContain('--hp-slot')
   })
 })
 

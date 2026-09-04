@@ -21,6 +21,21 @@ export function useNav() {
   return c
 }
 
+/**
+ * the navigator if there is one, and null if there is not.
+ *
+ * `useNav` throws, which is right for a scene: a scene rendered outside the
+ * manager is a wiring mistake and should say so loudly. It is wrong for a
+ * control that OFFERS navigation among other things. The help card carries the
+ * way out of the game (BRIEF-PLAYTHROUGH-1 law 3) alongside four other doors,
+ * and a card that throws rather than renders is a card that takes the other four
+ * with it. Outside a manager there is no title screen to leave to, so the honest
+ * answer is to offer one fewer door, not to fail.
+ */
+export function useNavMaybe(): Nav | null {
+  return useContext(NavCtx)
+}
+
 export function SceneManager({ initial, registry, overlay }: { initial: string; registry: SceneRegistry; overlay?: ReactNode }) {
   const [current, setCurrent] = useState(initial)
   /* THE STATE IS NOT THIS COMPONENT'S ANY MORE (E1). It lives at module scope in

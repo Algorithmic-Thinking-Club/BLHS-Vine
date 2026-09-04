@@ -88,6 +88,9 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
    * every other mount, so the corner cannot say two different things in two
    * scenes the way it did when IntroScene had its own gate of none at all. */
   const g = hudGrants(s)
+  /* the seasons still in hand, which is a list a fresh run has not been given
+   * yet and a spent one has emptied. The corner shows the door in both cases. */
+  const left = s?.tokens ?? []
   useKitReady()
 
   /* ---- WHICH CONTROLS ARE ARRIVING RIGHT NOW ------------------------------
@@ -282,9 +285,26 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
           frames is a state change and the law asks for a moment, so a newly
           granted control ARRIVES: it swings down on its hook once, and never
           again for the life of the page. */}
-      {(g.chart || g.handbook || g.tokens) && (
+      {/* ---- THE CORNER IS COMPLETE FROM THE FIRST FRAME -------------------
+          BRIEF-PLAYTHROUGH-1 law 2, which OVERRULES §40.2 and the paragraph
+          above it, on Ash's own play of the deploy: "two buttons in a corner
+          read as broken, not as earned. Chart, Handbook and the year sheet are
+          all present from the first world frame, aligned as one stack. What a
+          student has not earned yet is shown inside the panel, honestly, not by
+          hiding the door to it."
+
+          §40.2's argument was that a control for a thing you cannot do yet is
+          furniture. It is a good argument and it lost to a freshman looking at
+          the screen: a gap where a third button belongs does not read as "not
+          yet", it reads as a broken game, and the arrival animation that was
+          supposed to make the grant a moment mostly happened off screen.
+
+          `hudGrants` is NOT deleted and its rows are not edited. It is still the
+          honest answer to "has this been earned", the panels still read it, and
+          the arrival flourish still plays the first time a thing is really
+          granted. What changed is that the DOOR is always there. */}
       <nav className="hud-stack" aria-label="Ship's controls">
-        {g.chart && (
+        {(
         <button
           className={`hud-plaque${entering.has('chart') ? ' hud-arriving' : ''}`}
           aria-label="The chart, showing every island you have found"
@@ -295,7 +315,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
           <span className="hud-plaque-word">Chart</span>
         </button>
         )}
-        {g.handbook && (
+        {(
         <button
           className={`hud-plaque${entering.has('handbook') ? ' hud-arriving' : ''}`}
           aria-label="The Handbook"
@@ -312,13 +332,17 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
           <span className="hud-plaque-word">Handbook</span>
         </button>
         )}
-        {s && g.tokens && (
+        {(
           <button
             className={`hud-plaque hud-tokenbtn${entering.has('tokens') ? ' hud-arriving' : ''}`}
-            aria-label={s.tokens.length === 0
-              ? 'The year sheet. Every season is spent.'
-              : `The year sheet. ${s.tokens.length} season ${s.tokens.length === 1 ? 'token' : 'tokens'} unspent: `
-                + `${s.tokens.join(', ')}.`}
+            /* THE CORNER OUTLIVES THE RUN NOW (law 2), so this reads a save that
+               may not exist yet. A student on the first world frame of a fresh
+               run has no tokens because they have not been handed any, which is
+               a different sentence from having spent them all. */
+            aria-label={left.length === 0
+              ? (s ? 'The year sheet. Every season is spent.' : 'The year sheet.')
+              : `The year sheet. ${left.length} season ${left.length === 1 ? 'token' : 'tokens'} unspent: `
+                + `${left.join(', ')}.`}
             aria-haspopup="dialog"
             onClick={openPlanner}
           >
@@ -338,8 +362,8 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
                 An undrawn face falls back to the coin, so a build with no
                 platform still counts correctly. */}
             <span className="hud-tokens">
-              {s.tokens.length > 0
-                ? s.tokens.map((t, i) => (
+              {left.length > 0
+                ? left.map((t, i) => (
                   <span className="hud-token" key={t + i} style={faceStyle('pip', t.toLowerCase())} />
                 ))
                 : <span className="hud-token hud-token-spent" style={faceStyle('pip', 'ghost')} />}
@@ -371,7 +395,6 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
           </button>
         )}
       </nav>
-      )}
 
       {book && <Handbook initialTab={book} onClose={closeAll} />}
       {planner && (

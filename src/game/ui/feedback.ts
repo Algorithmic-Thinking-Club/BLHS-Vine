@@ -26,7 +26,7 @@
  */
 import { announce } from './a11y'
 import { faceStyle } from './kitFaceStyle'
-import { play } from '../audio'
+import { play, playUi } from '../audio'
 
 const LAYER_ID = 'kit-feedback'
 
@@ -146,9 +146,23 @@ export function feedback(kind: FeedbackKind, message: string, detail?: string): 
   /* SAID OUT LOUD TOO. A stamp in a corner is invisible to a reader, and "that
    * saved" is exactly the reassurance a student who cannot see it needs most. */
   announce(detail ? `${message}. ${detail}` : message)
-  /* AND HEARD. A quieter one for a wrong answer than for a right one, which is
-   * the whole of the warmth: the game notices, it does not object. */
-  play(SOUND[kind], kind === 'wrong' ? 0.4 : undefined)
+  /* ---- AND HEARD, EXCEPT THAT MOSTLY IT IS NOT ---------------------------
+   *
+   * BRIEF-PLAYTHROUGH-1 law 4, after Ash played the deploy: "No annoying sound.
+   * The two effects he heard are off. Nothing plays until he has picked a sound
+   * and said so. The reward pop stays only if it is soft enough that he does not
+   * mention it."
+   *
+   * So four of the five go through `playUi`, which is off, and `awarded` does
+   * not. A reward pop is not the kit clicking at a student, it is the game
+   * saying a credit was earned, it happens about once a beat, and his ruling
+   * names it as the one thing that may survive on condition. It is halved so the
+   * condition has a chance of holding.
+   *
+   * The quieter wrong answer stays quieter for the same reason it always was:
+   * the game notices, it does not object. It just happens to be silent today. */
+  if (kind === 'awarded') play(SOUND[kind], 0.5)
+  else playUi(SOUND[kind], kind === 'wrong' ? 0.4 : undefined)
 
   const hold = HOLD[kind]
   const timer = window.setTimeout(() => {

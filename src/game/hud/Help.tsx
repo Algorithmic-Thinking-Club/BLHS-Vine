@@ -47,18 +47,49 @@
  *
  * When the platform is unreachable the marks fall back the way every other
  * `Glyph` does, to their own shape or to nothing, never to a system character.
+ *
+ * ---- AND IT IS HOW YOU LEAVE (BRIEF-PLAYTHROUGH-1 LAW 3) ------------------
+ *
+ * Ash played the deploy on 2026-09-03 and ruled: "Help is bottom right, and it
+ * is how you leave. Its card carries the controls as pictures, what the three
+ * corner buttons are, the task line, and the pause sheet's own buttons: Back,
+ * Year Sheet, Handbook, Settings, Save and leave. A student who does not know
+ * Esc exists can still leave. Esc keeps working."
+ *
+ * THE FAILURE THAT RULING IS ABOUT. Every way out of this game went through the
+ * Escape key. The pause sheet is behind Escape, "Save and leave" is inside the
+ * pause sheet, and nothing on the screen said either of those things existed. A
+ * freshman on a Chromebook trackpad who has never played a game with a pause
+ * menu had no visible exit at all, in a room where the teacher is busy.
+ *
+ * So the five actions are HERE, as real controls, in the words the pause sheet
+ * uses. They are not a copy of that sheet: they are the same five doors reached
+ * through the same bus the sheet reaches them through, so neither can drift.
+ *
+ * `requestUi` is the door and the Hud is what answers it, which means this card
+ * works identically whether it was opened from the corner or from the pause
+ * sheet, and it works from a scene the Hud is not mounted on by simply not
+ * offering the three that need one.
  */
-import { useEffect, useState, type CSSProperties } from 'react'
-import { loadSave, subscribeSave } from '../save'
-import { hudGrants } from './inventory'
+import { useEffect, useState } from 'react'
 import { usePanel } from '../ui/a11y'
 import { Glyph, Plank } from '../ui/controls'
 import { track } from '../telemetry'
+import { requestUi, uiListenerCount } from '../ui-bus'
+import { useNavMaybe } from '../../app/SceneManager'
 import './help.css'
 
 /** the one card, opened from the corner and from the pause sheet */
 export function HelpCard({ onClose }: { onClose: () => void }) {
   const panel = usePanel({ onClose, label: 'How to play' })
+  const nav = useNavMaybe()
+  /* WHETHER ANYBODY IS LISTENING FOR A PANEL. `requestUi` answers false when no
+   * Hud is mounted, which is every frame before the intro is done. Asked once on
+   * open with a harmless request rather than guessed from the save, because the
+   * thing that matters is whether the door will OPEN, not whether the run has
+   * got far enough that it ought to. */
+  const [hudUp, setHudUp] = useState(false)
+  useEffect(() => { setHudUp(uiListenerCount() > 0) }, [])
   useEffect(() => { track('help_opened') }, [])
   return (
     <div className="hp-veil" onClick={onClose}>
@@ -116,10 +147,23 @@ export function HelpCard({ onClose }: { onClose: () => void }) {
           <li><b>Year sheet</b> where your season tokens go</li>
         </ul>
 
-        {/* the real control, not a hand-assembled one. `Plank` is what draws the
-            wood, carries the key cap and owns every state; writing the class
-            names out by hand got the ink but not the plank underneath it. */}
-        <Plank className="hp-close" keyCap="Esc" onClick={onClose}>Close</Plank>
+        {/* ---- THE FIVE DOORS, WHICH ARE THE POINT OF LAW 3 -----------------
+            The pause sheet's own buttons, in its own words, reached through the
+            same bus it reaches them through. "Back" first because it is what
+            most presses of this card want, and "Save and leave" last because it
+            is the one that ends the session.
+
+            The middle three ask the Hud, and the Hud is only mounted once a run
+            is under way, so on the title or mid-intro they are not offered: a
+            button that does nothing is worse than a button that is not there,
+            and this is the one card a lost student is told to trust. */}
+        <div className="hp-doors">
+          <Plank className="hp-door" keyCap="Esc" onClick={onClose}>Back</Plank>
+          {hudUp && <Plank className="hp-door" onClick={() => { onClose(); requestUi('planner') }}>Year sheet</Plank>}
+          {hudUp && <Plank className="hp-door" onClick={() => { onClose(); requestUi('handbook') }}>Handbook</Plank>}
+          {hudUp && <Plank className="hp-door" onClick={() => { onClose(); requestUi('settings') }}>Settings</Plank>}
+          {nav && <Plank className="hp-door" onClick={() => { onClose(); nav.go('title') }}>Save and leave</Plank>}
+        </div>
       </div>
     </div>
   )
@@ -133,28 +177,14 @@ export function HelpCard({ onClose }: { onClose: () => void }) {
  * a stack of three has to look like the three. */
 export function HelpButton() {
   const [open, setOpen] = useState(false)
-  /* HOW MANY PLAQUES ARE ABOVE IT, WHICH IS NOT A CONSTANT.
-   *
-   * The corner assembles as the run grants things, so on the first screen of a
-   * fresh run there is nothing above this button and by year one there are
-   * three. The first version hardcoded three slots and photographed the result:
-   * in a run with the full stack it sat correctly under the Year sheet, and in
-   * the control arm, where a plain button is 38 tall instead of 70, it floated
-   * in a gap with nothing above it.
-   *
-   * `hudGrants` is the same reader the Hud itself uses to decide which plaques
-   * exist, so the offset cannot drift from the thing it is measuring. The slot
-   * HEIGHT stays in CSS, because the two arms draw a plaque at two heights and
-   * only the stylesheet knows which arm is running. */
-  const [, bump] = useState(0)
-  useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
-  const g = hudGrants(loadSave())
-  const above = (g.chart ? 1 : 0) + (g.handbook ? 1 : 0) + (g.tokens ? 1 : 0)
+  /* IT NO LONGER MEASURES ANYTHING. The first version counted the plaques above
+   * it, because it sat under a stack whose height changed with what the run had
+   * granted. It is in the opposite corner now (law 3) and that corner is a fixed
+   * point, so the arithmetic and the save subscription both went with it. */
   return (
     <>
       <button
         className="hud-plaque hp-btn"
-        style={{ '--hp-above': above } as CSSProperties}
         aria-label="How to play"
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}

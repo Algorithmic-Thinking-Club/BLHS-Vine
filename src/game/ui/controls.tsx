@@ -35,7 +35,7 @@ import {
 } from 'react'
 import { faceStyle } from './kitFaceStyle'
 import { kitCached, kitFace, kitGeneration, kitOptedIn, kitPiece, onKitLanded } from './kit'
-import { play } from '../audio'
+import { playUi } from '../audio'
 import { currentSkin } from './skin'
 import './controls.css'
 
@@ -360,7 +360,7 @@ export function Socket({
    * It is not a buzzer for a wrong answer: §6.9 rules that out and `feedback.ts`
    * says so beside its own map. This is a control saying it cannot take what is
    * being offered, which is a different event. */
-  useEffect(() => { if (refusing) play('deny') }, [refusing])
+  useEffect(() => { if (refusing) playUi('deny') }, [refusing])
   return (
     <button
       type="button"
