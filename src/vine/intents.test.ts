@@ -149,6 +149,16 @@ describe('every word that takes an anchor refuses a name the map does not carry'
     expect(h.did).toEqual(['lookAt:null'])
   })
 
+  it('guide_to with a null anchor takes the arrow down and is not a missing name', async () => {
+    /* the arrow had a raise and no lower. An island that pointed once outranked
+     * the year's own next step for the life of the scene, which on the hub means
+     * every objective after that beat pointed at whatever the beat had finished
+     * with. */
+    const h = host()
+    expect((await performIntent({ kind: 'guide_to', anchor: null }, h)).ok).toBe(true)
+    expect(h.did).toEqual(['guideTo:null'])
+  })
+
   it('actor_release with no name is a tidy-up and is always legal', async () => {
     // releasing everything has to work on a map where nothing was ever driven,
     // because the scene itself calls it at the end whether or not a script did

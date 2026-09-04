@@ -37,8 +37,16 @@ export type Intent =
   | { kind: 'choose'; prompt?: string; options: string[] }
 
   /* movement and attention. guide_to draws the walkable-path arrow and returns
-   * immediately; walk_to takes the controls and returns when he arrives. */
-  | { kind: 'guide_to'; anchor: string }
+   * immediately; walk_to takes the controls and returns when he arrives.
+   *
+   * `guide_to(None)` TAKES THE ARROW DOWN, and until now nothing could. The
+   * target was set by this one word and cleared by nothing, so an island that
+   * pointed at the wall once left an arrow standing over that wall for the life
+   * of the scene, outranking the year's own next step the whole time
+   * (ARC-MANIFEST BLOCKED 9). `look_at` beside it has taken null since it was
+   * written and the scene's `guideTo` has always accepted it; the only thing
+   * that ever refused was this type and the anchor check under it. */
+  | { kind: 'guide_to'; anchor: string | null }
   | { kind: 'walk_to'; anchor: string }
   | { kind: 'look_at'; anchor: string | null; ms?: number }
 
@@ -342,7 +350,10 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
       case 'choose':
         return ok(await w().choose(i.prompt, i.options))
       case 'guide_to':
-        if (!w().hasAnchor(i.anchor)) return no(`no anchor named "${i.anchor}" on ${w().mapId()}`)
+        /* null is not a name, so it is not checked against the map. Same shape
+         * as `look_at` below, and for the same reason: letting go is a thing an
+         * island asks for on purpose, not an argument somebody forgot. */
+        if (i.anchor && !w().hasAnchor(i.anchor)) return no(`no anchor named "${i.anchor}" on ${w().mapId()}`)
         w().guideTo(i.anchor)
         return ok()
       case 'walk_to':

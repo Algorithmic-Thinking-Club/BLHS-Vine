@@ -64,7 +64,15 @@ def choose(options, prompt=None):
 # ---- moving him, and moving the camera -------------------------------------
 
 def guide_to(anchor):
-    """Draw the arrow to an anchor. Comes back at once; he still walks himself."""
+    """Draw the arrow to an anchor. Comes back at once; he still walks himself.
+
+    `guide_to(None)` takes it down again and hands the pointing back to the
+    year, which is what you want the moment your beat is over: an arrow you
+    raised and never lowered sits over the last thing you pointed at and hides
+    whatever the game wanted to send him to next.
+    """
+    # None IS the message, the same way it is in look_at, so it is sent rather
+    # than left out
     return {"kind": "guide_to", "anchor": anchor}
 
 
