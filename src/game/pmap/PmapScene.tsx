@@ -2665,6 +2665,16 @@ export default function PmapScene() {
         const glyph = new Graphics()
         glyph.moveTo(-CW / 2, -CH).lineTo(CW / 2, -CH).lineTo(0, 0).closePath()
           .fill(0xffd98a).stroke({ color: 0x3a2410, width: 2 })
+        /* AND IT IS ON THE STAGE, WHICH IT HAS NEVER BEEN. The triangle was
+         * built, described in the paragraph above as the thing that saves a
+         * filtered classroom, and never added to anything: the only `addChild`
+         * anywhere near it is the drawn face's, inside a `then` that returns
+         * early when the kit is absent. `kitSprite` refuses outright for the
+         * plain arm, so the CONTROL HALF OF THE STUDY has been looking at an
+         * empty container where the one mark that says "go here" should be, on
+         * every frame of every map, and so has any Chromebook that cannot reach
+         * the platform. The comment above claims the opposite in as many words. */
+        objMark.addChild(glyph)
         void kitSprite('pointer', 'chevron').then((drawn) => {
           if (destroyed || !drawn) return
           /* sized against the CHARACTER and not against the sheet, so one drawing
@@ -2679,6 +2689,46 @@ export default function PmapScene() {
         })
       }
       objMark.scale.set(1 / Z)
+
+      /* ---- AND THE THING ITSELF LIGHTS UP ----------------------------------
+       *
+       * The paragraph above says the engine annotates beside the art and never on
+       * top of it, and for four months that was right. `BRIEF-SELF-EVIDENT.md`
+       * overrules it, once, narrowly, and gives the reason: *"Part IV's rule that
+       * the engine never draws on the art is overruled for this one purpose: a
+       * highlight on the current objective is not decoration, it is the game's
+       * only teacher."* Ash's own test is a student who reads nothing and presses
+       * things at random, and a chevron floating in the air over a room full of
+       * furniture is a symbol that student has to be taught. A patch of light on
+       * the floor under the one thing they should walk to is not.
+       *
+       * WHAT IS OVERRULED AND WHAT IS NOT, because two briefs are easy to read as
+       * one. A mark ON one anchor, yes. The room DIMMING around it stays
+       * forbidden (ARC-MANIFEST BLOCKED 8, re-fenced by BRIEF-ENGINE-5): a mask
+       * over Ash's painting is a different thing from a light under one station.
+       *
+       * WHY A GRAPHICS AND NOT A DRAWN FACE. It has to appear in BOTH study arms,
+       * and `kitSprite` returns nothing at all in the plain one, which is exactly
+       * the defect twenty lines up. `docs/walkthrough/16-plain-arm.md` lists "the
+       * room going quiet with one thing lit" under Vehicle, unchanged: the arm is
+       * about how the game SPEAKS, and the island underneath is the game. A ring
+       * on the ground is utility and not art, which is the same argument the
+       * letterbox plate makes about itself further up this file.
+       *
+       * TEAL AND NOT GOLD. `docs/ART.md`: gold means an earned honour and nothing
+       * else, and the thing the year wants you to do next has not been earned. The
+       * plaque's own `objective` ink settled this already. */
+      const lit = new Graphics()
+      lit.visible = false
+      world.addChild(lit)
+      /* the geometry is rebuilt only when the target or its size changes. A
+       * `clear()` has no early-out in Pixi: it resets the instruction list and
+       * fires onUpdate whether or not there was anything in it, so clearing an
+       * empty context every frame is a GPU batch rebuilt every frame for nothing,
+       * on the machine this game is deployed to. The pulse rides `alpha`, which
+       * is free. */
+      let litKey = ''
+      let litR = 0
 
       /* ==== THE WORLD SUBSTRATE, ON SCREEN ======================================
        *
@@ -5586,6 +5636,33 @@ export default function PmapScene() {
           objMark.position.set(lead.x, lead.y - 14 + Math.sin(t * 2.6) * 2)
           objMark.visible = !locked && !fade
 
+          /* THE LIGHT SITS ON THE THING, NOT ON THE ARROW. `lead` is a point some
+           * way along the route, which is where the chevron belongs and is not
+           * where the table is. `spotOf` is the anchor's live position and follows
+           * a placement that wanders, which is the whole reason it exists.
+           *
+           * The radius is the anchor's own interaction ring, so the lit patch is
+           * literally the ground a student has to be standing on for E to work.
+           * Squashed by the painting's own foreshortening so it reads as lying on
+           * the floor rather than as a decal facing the camera. */
+          const spot = anchors.spotOf(mark)
+          const want = Math.max(10, Math.round(mark.r))
+          if (litKey !== mark.name || litR !== want) {
+            litKey = mark.name
+            litR = want
+            const ry = Math.max(4, want * (map.yScale || 1) * 0.5)
+            lit.clear()
+            lit.ellipse(0, 0, want, ry).fill({ color: 0x2f8e82, alpha: 0.18 })
+            lit.ellipse(0, 0, want, ry).stroke({ color: 0x2f8e82, width: 2, alpha: 0.9 })
+          }
+          lit.position.set(spot.x, spot.y)
+          /* over the painting, under anything standing on the same pixel, under
+           * Thor and under every occluder: light pooled on the ground rather than
+           * a sticker over the art */
+          lit.zIndex = spot.y - 0.5
+          lit.alpha = prefersReducedMotion() ? 0.85 : 0.7 + Math.sin(t * 2.6) * 0.3
+          lit.visible = objMark.visible
+
           /* the route itself, in dots, so "round that way" is visible rather than
            * inferred from one chevron. Engine-drawn and deliberately small: the
            * painting is Ash's and the engine does not draw furniture on it. */
@@ -5599,6 +5676,9 @@ export default function PmapScene() {
           }
         } else {
           objMark.visible = false
+          /* guarded, never cleared: see the note where `lit` is built. Both of
+           * these run on every frame of a map with nothing owed. */
+          if (lit.visible) { lit.visible = false; litKey = ''; litR = 0 }
           guideTrail.clear()
           guide = null
         }
