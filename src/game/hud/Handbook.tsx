@@ -58,10 +58,10 @@ import './hud.css'
  * binder and the chart say the same thing about the same island rather than
  * inventing a second vocabulary. */
 const ISLAND_WORD: Record<IslandState, string> = {
-  misty: 'not been',
-  discovered: 'been past',
+  misty: 'not seen yet',
+  discovered: 'seen, not started',
   available: 'open this season',
-  active: 'your flag is on it',
+  active: 'you started it',
   completed: 'done',
 }
 
@@ -108,7 +108,7 @@ type BadgeState = 'earned' | 'waiting' | 'unbuilt'
 const BADGE_WORD: Record<BadgeState, string> = {
   earned: 'Earned',
   waiting: 'Not yet',
-  unbuilt: 'Not on the water yet',
+  unbuilt: 'Not open yet',
 }
 
 const BADGE_PLATE: Record<BadgeState, 'plate' | 'plate_lit' | 'plate_spent'> = {
@@ -205,13 +205,16 @@ export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => voi
              to move it without a trackpad is to be able to land on it. */
           tabIndex={0}
         >
-          {tab === 'chart' && <Chart />}
+          {/* the chart closes the binder when it puts the ship to sea: a panel
+              over the window while the island slides past is the game hiding the
+              one thing the click was for */}
+          {tab === 'chart' && <Chart onSailing={onClose} />}
 
           {tab === 'islands' && (
             <>
               <h3 className="hb-h">Islands</h3>
               <p className="hb-lede">
-                Every island out there is one thing Bonney Lake really offers. A place can hold more
+                Each island is a real Bonney Lake club, sport or class. One place can hold more
                 than one.
               </p>
               {/* A PLACE IS NOT A PROGRAMME, and this is the one page a student can
@@ -227,7 +230,7 @@ export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => voi
                       <h4 className="hb-card-title">{p.name}</h4>
                       {p.recognise && <p className="hb-card-note">{p.recognise}</p>}
                       <p className="hb-meta">
-                        {p.maps.length ? `${p.maps.length} painting${p.maps.length > 1 ? 's' : ''}` : 'not painted yet'}
+                        {p.maps.length ? `${p.maps.length} map${p.maps.length > 1 ? 's' : ''} to walk` : 'not open yet'}
                         {p.room ? ` · ${p.room}` : ''}
                       </p>
                       {runs.length ? (
@@ -249,7 +252,7 @@ export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => voi
                                   <span className="hb-prog-name">{g.name}</span>
                                   <span className="hb-prog-state">
                                     {mark && <Glyph piece="icon_set" face={mark} size={14} className="hb-mark" />}
-                                    {rising ? 'still rising' : ISLAND_WORD[st]}
+                                    {rising ? 'not open yet' : ISLAND_WORD[st]}
                                   </span>
                                 </span>
                                 <span className="hb-meta">
@@ -260,28 +263,28 @@ export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => voi
                           })}
                         </ul>
                       ) : (
-                        <p className="hb-meta">Nothing here takes a season token.</p>
+                        <p className="hb-meta">No clubs, sports or classes here yet.</p>
                       )}
                     </article>
                   )
                 })}
               </div>
               <p className="hb-note">
-                The sea is young. Every island out there will be something Bonney Lake really offers,
-                and new ones rise as they are built.
+                More islands open as they get built. Every one of them is a real Bonney Lake club,
+                sport or class.
               </p>
             </>
           )}
 
           {tab === 'cords' && !s && (
-            <Empty what="No voyage yet." fills="The board fills once you set sail." />
+            <Empty what="You have not started yet." fills="Start playing and your cord list fills in here." />
           )}
 
           {tab === 'cords' && s && (
             <>
-              <h3 className="hb-h">Cords &amp; seals</h3>
+              <h3 className="hb-h">Graduation cords</h3>
               <p className="hb-lede">
-                What Bonney Lake drapes over a gown, and where this run stands against each one.
+                Cords Bonney Lake gives you to wear at graduation, and how close you are to each one.
               </p>
               {/* THE SCHOOL'S WORDS, THEN THE GAME'S, AND NEVER ONE AS THE OTHER (V3).
                   `rule` is verbatim from docs/blhs/awards.md and is the criterion. `model`
@@ -353,7 +356,7 @@ export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => voi
               ) : (
                 <Empty
                   what="Nothing collected yet."
-                  fills="Every loading tide teaches one true thing about Bonney Lake. They collect here."
+                  fills="Every loading screen teaches one true thing about Bonney Lake. They collect here."
                 />
               )}
             </>
@@ -363,8 +366,7 @@ export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => voi
             <>
               <h3 className="hb-h">Badges</h3>
               <p className="hb-lede">
-                Six plates, each with what it is for written on the card. Every one of them is earned
-                out there and none of them is bought.
+                Six badges. Each card says how to earn it, and you earn every one by playing.
               </p>
               <div className="hb-grid">
                 {/* WHAT "EVERY ISLAND" MEANS, counted off the same roster this
@@ -400,7 +402,7 @@ export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => voi
                         )}
                         {st === 'unbuilt' && (
                           <p className="hb-meta">
-                            The island that gives this one has not risen yet.
+                            The island that gives this badge is not open yet.
                           </p>
                         )}
                       </div>

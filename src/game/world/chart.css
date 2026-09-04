@@ -212,6 +212,56 @@
   color: var(--kit-ink-body);
 }
 
+/* ---- AND A PLACE YOU CAN ACTUALLY GO TO ----------------------------------
+ *
+ * BRIEF-SELF-EVIDENT law 2. A mark that can be sailed to is a real button, and
+ * it has to LOOK like one without turning the chart into a menu: the paper is
+ * still a chart and §9.12 says so, so the affordance is a line under the name
+ * that only appears where there is somewhere to go, and the standing marks are
+ * untouched. */
+.ch-isle-go {
+  /* a button, unstyled back down to the div it replaces, then given its own
+     affordance. Left as a real <button> so the keyboard and a screen reader get
+     it for nothing. */
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+}
+.ch-go {
+  font-family: var(--kit-face-body);
+  font-size: 11px;
+  line-height: 1.1;
+  color: var(--kit-sea-ink);
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 1px;
+  opacity: .8;
+}
+.ch-isle-go:hover .ch-go,
+.ch-isle-go:focus-visible .ch-go { opacity: 1; }
+.ch-isle-go:focus-visible { outline: 2px solid var(--kit-sea-ink); outline-offset: 3px; }
+
+/* the register's own control, which is the only one the plain arm ever sees */
+.ch-row-go {
+  appearance: none;
+  align-self: flex-start;
+  margin-top: 3px;
+  padding: 3px 9px;
+  cursor: pointer;
+  font-family: var(--kit-face-body);
+  font-size: 12px;
+  color: var(--kit-sea-ink);
+  background: none;
+  border: 1px solid var(--kit-rule);
+  border-radius: 3px;
+}
+.ch-row-go:hover { border-color: var(--kit-sea-ink); }
+.ch-row-go:focus-visible { outline: 2px solid var(--kit-sea-ink); outline-offset: 2px; }
+
 /* THE DOCK: a rail with six standing places on it. The rail is what makes an
    EMPTY place readable, because an empty place is only legible when the place
    itself is drawn. */
@@ -623,6 +673,16 @@ html[data-skin='plain'] .ch-row-name { font-weight: 700; color: var(--kit-ink-he
 html[data-skin='plain'] .ch-row-state,
 html[data-skin='plain'] .ch-row-closed { display: block; }
 html[data-skin='plain'] .ch-legend { color: var(--kit-ink-body); }
+/* the control arm's own way to sea. A form button on a worksheet, not a plaque:
+   the arm is about how the game speaks and the sailing is the game. */
+html[data-skin='plain'] .ch-row-go {
+  margin-top: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--kit-ink-body);
+  border-radius: 2px;
+  color: var(--kit-ink-head);
+  font-weight: 600;
+}
 
 /* ---- THE EMPTY-SEA NOTICE, SIZED FOR A PAGE THAT ALSO OWES A REGISTER -----
  *

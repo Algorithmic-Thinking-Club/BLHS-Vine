@@ -56,6 +56,8 @@ import { loadSave, subscribeSave } from '../save'
 import { mooringFor } from '../run/resume'
 import { Empty, Failed, Glyph, Loading } from '../ui/controls'
 import { announce } from '../ui/a11y'
+import { requestSail, sailListenerCount } from './sail-bus'
+import { note } from '../ui/feedback'
 import './chart.css'
 
 /* THE SENTENCE §40.42 KEEPS, WORD FOR WORD. The moment's own instruction is that
@@ -64,8 +66,11 @@ import './chart.css'
  * island is not an edge case in the first deployment, it IS the first
  * deployment, so the sentence a student reads during it is a promise about the
  * club rather than an apology for the game. */
-const SEA_IS_YOUNG = 'The sea is young. Every island out there will be something Bonney Lake really '
-  + 'offers, and new ones rise as they are built.'
+/* THE WORDS PASS, 2026-09-04, rewrote this sentence. The moment asked for it
+ * verbatim, and Ash's literal-words ruling outranks that: it now names what an
+ * island really is and who is building the others. */
+const SEA_IS_YOUNG = 'Every island here is a real Bonney Lake club, sport or class. '
+  + 'Students are still building the rest.'
 
 /* ---- one thing standing at one place on a dock ---------------------------
  *
@@ -113,9 +118,40 @@ type Row = {
   dock: Dock
   line: string
   name: string
+  /** can she be sent there from where the student is standing right now */
+  sailable: boolean
 }
 
-export function Chart() {
+/* ---- WHAT A CLICK ON A PLACE DOES --------------------------------------
+ *
+ * BRIEF-SELF-EVIDENT law 2, which is the whole of why this page grew a control:
+ * *"Click an island on the chart and the ship sails there by itself."* Before
+ * this the chart was a picture and a list, and the only way to move a boat in
+ * this game was a student holding an arrow key at sea, which a freshman who has
+ * never been told there is a boat will not do.
+ *
+ * WHAT IS CLICKABLE, and it is the field the page already computes. `dock.named`
+ * is false for a rumour and for anywhere still under mist, which is exactly the
+ * set a student must not be able to sail to: the chart refuses to even print
+ * those names, so a button on one would be a button to somewhere the game has
+ * not told them exists. Then it needs a map to arrive on, a berth to tie to, and
+ * it must not be the island they are standing on.
+ *
+ * IT IS THE SAME CONTROL IN BOTH ARMS. The picture is hidden under the plain
+ * skin and the register list is not, so the row carries the button and the mark
+ * on the paper carries a second one. A study where one arm can sail from the
+ * chart and the other cannot is measuring the boat, not the game. */
+function sailableRow(r: { dock: Dock; slot: WorldSlot }, here: string | undefined): boolean {
+  return r.dock.named
+    && r.dock.state !== 'rising'
+    && !!r.slot.map
+    && !!r.slot.berth
+    && r.slot.map !== here
+}
+
+/** `onSailing` lets whatever opened the chart get out of the way once the ship
+ *  is moving. The Handbook passes its own close. */
+export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
   const [comp, setComp] = useState<WorldComposition | null>(compositionCache)
   const [, bump] = useState(0)
   const [inked, setInked] = useState<ReadonlySet<string>>(() => new Set())
@@ -143,17 +179,28 @@ export function Chart() {
   const berthed: WorldSlot | null = moor?.slot ?? null
   const from: WorldPt | null = berthed ? berthed.at : null
 
+  /* WHERE HE IS STANDING, so the island he is on is not offered as somewhere to
+   * sail to. Read off the address rather than off the save: the save's `where` is
+   * written once a second while walking and the URL is the truth about which
+   * painting is on screen right now. */
+  const here = new URLSearchParams(window.location.search).get('map') ?? undefined
+  /* and whether anything is listening at all. The chart opens over the year sheet
+   * and over an interior, and neither has an ocean under it, so the button is not
+   * drawn rather than drawn and refused. */
+  const afloat = sailListenerCount() > 0
+
   const rows: Row[] = slots.map((s) => {
     const dock = dockOf(s, save, from)
     return {
       key: s.map ?? s.place ?? s.title,
       slot: s,
       dock,
+      sailable: afloat && sailableRow({ dock, slot: s }, here),
       line: stateLine(dock.state, s, save),
       /* A MISTY ISLAND HAS NO NAME ON THE CHART. Printing the title of a place a
          student has never sailed to is the chart doing the discovering for them,
          which is the one thing it is for. */
-      name: dock.named ? s.title : dock.state === 'rumour' ? 'a rumour' : 'something out there',
+      name: dock.named ? s.title : dock.state === 'rumour' ? 'a place nobody has built yet' : 'a place you have not found',
     }
   })
 
@@ -172,7 +219,7 @@ export function Chart() {
     if (!fresh.length) return
     setInked(new Set(fresh))
     const said = rows.filter((r) => fresh.includes(r.key)).map((r) => r.name)
-    announce(`The mist has cleared. ${said.join(' and ')} ${said.length > 1 ? 'are' : 'is'} on the chart now.`)
+    announce(`You found ${said.join(' and ')}. ${said.length > 1 ? 'They are' : 'It is'} on the chart now.`)
   })
 
   useEffect(() => {
@@ -181,11 +228,26 @@ export function Chart() {
     return () => window.clearTimeout(t)
   }, [inked])
 
+  /* EVERY CLICK ANSWERS, INCLUDING THE ONES THAT CANNOT GO. A row that swallows a
+   * press is the dead end the law is about, so a refusal is a sentence on the
+   * screen and in the reader's ear rather than nothing happening. */
+  const sail = (r: Row) => {
+    void requestSail(r.slot).then((a) => {
+      if (a.ok) {
+        announce(`Sailing to ${r.name}.`)
+        onSailing?.()
+        return
+      }
+      note(a.why)
+      announce(a.why)
+    })
+  }
+
   if (!comp) {
     return (
       <div className="ch-chart">
-        <h2 className="ch-h">The sea so far</h2>
-        <Loading what="The chart is still being unrolled." />
+        <h2 className="ch-h">Chart</h2>
+        <Loading what="Loading the chart." />
       </div>
     )
   }
@@ -197,11 +259,10 @@ export function Chart() {
        it has to say so instead of drawing blank paper. */
     return (
       <div className="ch-chart">
-        <h2 className="ch-h">The sea so far</h2>
-        <Failed what="The chart came back with no water on it." />
+        <h2 className="ch-h">Chart</h2>
+        <Failed what="The chart could not be loaded." />
         <p className="ch-legend">
-          The world document answered and had no places in it. Nothing you have done is lost, and
-          the sea comes back the moment the document does.
+          The list of places came back empty. Nothing you have done is lost.
         </p>
       </div>
     )
@@ -248,12 +309,12 @@ export function Chart() {
 
   return (
     <div className="ch-chart">
-      <h2 className="ch-h">The sea so far</h2>
+      <h2 className="ch-h">Chart</h2>
 
       <div
         className="ch-sea"
         role="img"
-        aria-label={`A chart of the sea, with ${rows.length} place${rows.length === 1 ? '' : 's'} on it. Every one of them is listed underneath.`}
+        aria-label={`A map of the places in the game. It has ${rows.length} place${rows.length === 1 ? '' : 's'} on it, and every one is listed underneath.`}
       >
         {/* the named water, drawn under everything, so "anywhere you have not
             been" is a thing on the page rather than a coordinate test */}
@@ -274,18 +335,41 @@ export function Chart() {
             face is a BUTTON ICON at 24 pixels; a rose on a chart is a different
             drawing at a different size, and using one for the other was the
             stand-in that the paper has now replaced. */}
-        {rows.map((r) => (
-          <div
-            key={r.key}
-            className={`ch-isle ch-${r.dock.state}`}
-            data-inked={inked.has(r.key) ? '1' : undefined}
-            style={{ left: `${fx(r.slot.at.x)}%`, top: `${fy(r.slot.at.y)}%` }}
-          >
-            <DockRow dock={r.dock} />
-            <span className="ch-name">{r.name}</span>
-            <span className="ch-note">{r.line}</span>
-          </div>
-        ))}
+        {rows.map((r) => {
+          const body = (
+            <>
+              <DockRow dock={r.dock} />
+              <span className="ch-name">{r.name}</span>
+              <span className="ch-note">{r.line}</span>
+            </>
+          )
+          const at = { left: `${fx(r.slot.at.x)}%`, top: `${fy(r.slot.at.y)}%` }
+          /* a button only where there is somewhere to go. A control that is
+           * always there and usually refuses teaches a student that the chart
+           * does not work. */
+          return r.sailable ? (
+            <button
+              key={r.key}
+              type="button"
+              className={`ch-isle ch-${r.dock.state} ch-isle-go`}
+              data-inked={inked.has(r.key) ? '1' : undefined}
+              style={at}
+              onClick={() => sail(r)}
+            >
+              {body}
+              <span className="ch-go">Sail here</span>
+            </button>
+          ) : (
+            <div
+              key={r.key}
+              className={`ch-isle ch-${r.dock.state}`}
+              data-inked={inked.has(r.key) ? '1' : undefined}
+              style={at}
+            >
+              {body}
+            </div>
+          )
+        })}
 
         {berthed && (
           <div className="ch-you" style={{ left: `${fx(berthed.at.x)}%`, top: `${fy(berthed.at.y)}%` }}>
@@ -315,16 +399,16 @@ export function Chart() {
        * picture rather than under the list of everything in it. A one-island sea
        * is not an edge case in the first deployment, it IS the first deployment. */}
       <p className="ch-legend">
-        Pencil is rumour and ink is somewhere you have been.
+        Faint marks are places you have not been to. Solid marks are places you have.
         {unvisited.length
-          ? ` ${unvisited.map((r) => r.label ?? r.name).join(' and ')} ${unvisited.length > 1 ? 'are' : 'is'} still blank.`
+          ? ` ${unvisited.map((r) => r.label ?? r.name).join(' and ')} ${unvisited.length > 1 ? 'are areas' : 'is an area'} you have not sailed to yet.`
           : ''}
-        {builtIn ? ' This is the chart built into the game, because the world could not be reached today.' : ''}
+        {builtIn ? ' The place list would not download, so this is the copy built into the game.' : ''}
       </p>
 
       {lonely && (
         <Empty
-          what={isles === 1 ? 'One island is on the water so far.' : 'No island is on the water yet.'}
+          what={isles === 1 ? 'One island is on the map so far.' : 'No island is on the map yet.'}
           fills={SEA_IS_YOUNG}
         />
       )}
@@ -335,7 +419,7 @@ export function Chart() {
             <span className="ch-row-marks" aria-hidden="true"><span className="ch-s ch-s-ship" /></span>
             <span className="ch-row-words">
               <span className="ch-row-name">{boat}</span>
-              <span className="ch-row-state">you are here, tied up at {berthed.title}</span>
+              <span className="ch-row-state">You are here, docked at {berthed.title}</span>
             </span>
           </li>
         )}
@@ -345,6 +429,14 @@ export function Chart() {
             <span className="ch-row-words">
               <span className="ch-row-name">{r.name}</span>
               <span className="ch-row-state">{r.line}</span>
+              {/* THE PLAIN ARM'S ONLY WAY ONTO THE WATER. The paper above is
+                  hidden under that skin and this list is not, so the row carries
+                  its own control rather than the picture carrying the only one. */}
+              {r.sailable && (
+                <button type="button" className="ch-row-go" onClick={() => sail(r)}>
+                  Sail to {r.name}
+                </button>
+              )}
               {/* THE SCHOOL'S OWN SENTENCE, AND NEVER AN ERROR. §9.17 state 6:
                   out of season "must never read as broken", and the words come
                   off `SPORT_SEASONS` rather than being written per island. */}

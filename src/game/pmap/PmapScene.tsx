@@ -43,7 +43,7 @@ import { publishRuntime } from '../cutscene/stage-bus'
 import { resolveScript, scriptById } from '../cutscene/scripts'
 import { aheadOn, findPath, type Pt } from './path'
 import { setMapUrl, targetFromUrl, type PmapTarget } from './route'
-import { loadSave, recordExposure, recordPosition } from '../save'
+import { loadSave, recordExposure, recordPosition, recordVessel } from '../save'
 import { resumeFor, stampOf, RESUME_REASONS, type WorldStamp } from '../run/resume'
 import { placeOfMap } from '../roster/roster'
 import { setContext } from '../telemetry'
@@ -61,6 +61,7 @@ import {
   type WorldComposition, type WorldSlot, type Berth, type WorldMark,
 } from '../world/composition'
 import { stateOf, STATE_INK } from '../world/states'
+import { onSailRequest } from '../world/sail-bus'
 import {
   newHull, stepHull, berthHelm, DEFAULT_SAIL, HELM_IDLE,
   type Berthing, type Helm, type HullState,
@@ -577,6 +578,8 @@ export default function PmapScene() {
     /* AND A WALK HE STARTED WITH A CLICK STOPS TOO. Set by `start()` once the
      * scene's own walk state exists; a no-op before that and after teardown. */
     let cancelPlayerWalk = () => { /* no scene yet */ }
+    /* and the chart's own way into the water, taken down with the scene */
+    let offSail = () => { /* no ocean yet */ }
     const offHold = onWorldHold((held) => { if (held) { dropKeys(); cancelPlayerWalk() } })
 
     const start = async () => {
@@ -665,7 +668,7 @@ export default function PmapScene() {
       } catch (e) {
         console.error(`[pmap] could not load ${dir}/map.json`, e)
         if (hostRef.current) hostRef.current.innerHTML =
-          `<div style="color:#c9d6e2;font:14px system-ui;padding:24px">PMAP: no map called "${mapId}". Publish it from MAPVIS, or drop a bundle in public/maps-painted/${mapId}/.</div>`
+          `<div style="color:#c9d6e2;font:14px system-ui;padding:24px">This place did not load. Reload the page and try again. (map: ${mapId})</div>`
         return
       }
       // narrowed once, here, so nothing below has to keep asking
@@ -4298,8 +4301,8 @@ export default function PmapScene() {
            * painting exists for what is past them. Silence while the check is in
            * flight, because offering a door and taking it back a frame later is
            * worse than a beat of nothing. */
-          if (built === 'ok') { text = `E · enter ${label}`; canFire = true }
-          else if (built === 'missing') { text = `${label} · the way is barred`; state = 'barred' }
+          if (built === 'ok') { text = `E · Go to ${label}`; canFire = true }
+          else if (built === 'missing') { text = `${label} · not open yet`; state = 'barred' }
         } else {
           const sv = loadSave()
           if (!owner) {
@@ -4767,6 +4770,14 @@ export default function PmapScene() {
          * The hub's own berth is on the hub, so the leg that ends where it started
          * must not tear the scene down and rebuild it. */
         stepAshore()
+        /* AND THE CHART FINDS OUT WHERE SHE IS TIED UP. `recordVessel` has existed
+         * since the resume guard was written and had no caller anywhere in the
+         * game, so `mooringFor` answered "home" for the whole of every run: the
+         * boat marker on the chart, and the distance the mist thins against, were
+         * both pinned to the island a student started on however far they sailed.
+         * A chart you sail from that never moves your own boat is the chart
+         * failing at the one thing it is for. */
+        recordVessel({ berthedAt: s.place ?? s.map ?? mapId, legs: (loadSave()?.vessel?.legs ?? 0) + 1 })
         engine.log('voyage_arrived', { map: mapId, to: s.map ?? mapId, place: s.place ?? null })
         if (!s.map || s.map === mapId) { v?.done(); return }
         /* AND ON ANOTHER MAP IT IS ANSWERED AT THE DOOR RATHER THAN BEHIND IT.
@@ -4778,6 +4789,68 @@ export default function PmapScene() {
         v?.done()
         beginExit({ map: s.map, at: s.berth?.at })
       }
+
+      /* ---- AND THE CHART CAN SEND HER ---------------------------------------
+       *
+       * BRIEF-SELF-EVIDENT law 2: *"Click an island on the chart and the ship
+       * sails there by itself."* Everything this needs already existed and none
+       * of it was reachable from a panel: `board` puts him aboard, `dockAt` takes
+       * a slot and runs the same decelerating manoeuvre the keyboard's `E · put in
+       * at` runs, and the follower's watchdog measures PROGRESS rather than
+       * elapsed time, so one call really will cross an ocean.
+       *
+       * NOT THROUGH `route`. That word resolves a path NAME out of the loaded
+       * bundle, and every published bundle but the stand-in has `paths: []`: there
+       * is no drawn line from the hub to anywhere and there will not be one per
+       * island. A click is a destination, not a route, so the line is the straight
+       * one and it is CHECKED before she leaves.
+       *
+       * THE CHECK IS THE ONE `sailRoute` ALREADY USES, sampled every eight pixels
+       * from where she really is rather than from a waypoint somebody typed.
+       * Without it a straight line across a headland grounds her, the manoeuvre's
+       * watchdog gives up four seconds later, and a fourteen year old is left in
+       * open ocean being told to try the approach again. That is a dead end, and
+       * the whole law is that there are none. */
+      offSail = onSailRequest((want, answer) => {
+        if (!comp || !canSail || !berth) {
+          answer({ ok: false, why: 'There is no water under you right now.' }); return
+        }
+        if (!want.berth) {
+          answer({ ok: false, why: `${want.title} has no dock yet.` }); return
+        }
+        if (want.map && want.map === mapId) {
+          answer({ ok: false, why: 'You are already there.' }); return
+        }
+        if (berthing || voyage) {
+          answer({ ok: false, why: 'The boat is already sailing somewhere.' }); return
+        }
+        if (worldHeld() || fade || busy) {
+          answer({ ok: false, why: 'Not while something else is happening.' }); return
+        }
+
+        /* WHERE SHE IS LEAVING FROM, which is where she is if she is already out
+         * and the berth she is tied to if she is not. Measured before boarding, so
+         * a refusal never leaves a student hidden on a hull in open water, which
+         * is the mistake `sailRoute` was fixed for once already. */
+        const from = hull ? { x: hull.x, y: hull.y } : fromSea(berth.x, berth.y)
+        const to = fromSea(want.berth.x, want.berth.y)
+        const n = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) / 8))
+        for (let k = 0; k <= n; k++) {
+          const x = from.x + (to.x - from.x) * (k / n), y = from.y + (to.y - from.y) * (k / n)
+          if (depthAt(x, y) >= DEFAULT_SAIL.probe) continue
+          console.warn(`[pmap] ${mapId}: the straight line to ${want.title} runs aground `
+            + `near ${Math.round(x)},${Math.round(y)}; a sail path wants drawing in MAPVIS`)
+          engine.log('sail_refused', { map: mapId, to: want.map ?? null, why: 'aground' })
+          answer({ ok: false, why: `There is land in the way between here and ${want.title}.` })
+          return
+        }
+
+        if (!hull) board()
+        if (!hull) { answer({ ok: false, why: 'You could not get in the boat.' }); return }
+        dockAt(want)
+        engine.log('sail_clicked', { map: mapId, to: want.map ?? null, place: want.place ?? null })
+        answer({ ok: true })
+      })
 
       /* ---- ARRIVING ON THE WATER, WHICH IS HOW THE INTRO NOW ENDS ----
        *
@@ -5189,7 +5262,7 @@ export default function PmapScene() {
                 shortBy: Math.round(Math.hypot(fromSea(s?.berth?.x ?? 0, s?.berth?.y ?? 0).x - hull.x,
                   fromSea(s?.berth?.x ?? 0, s?.berth?.y ?? 0).y - hull.y)),
               })
-              void say({ text: 'She will not come round from here. Take her out and try the approach again.' })
+              void say({ text: 'The boat cannot dock from here. Back away and try again.' })
               /* AND THE ROUTE THAT ASKED FOR IT HEARS ABOUT IT. A voyage whose
                * final manoeuvre gave up used to leave the script that started it
                * awaiting a promise nothing could settle, which on a station means
@@ -5532,7 +5605,7 @@ export default function PmapScene() {
             s.berth && Math.hypot(s.berth.x - at.x, s.berth.y - at.y) < 90)
           if (home?.berth) {
             const p = fromSea(home.berth.x, home.berth.y)
-            setPrompt(home.map === mapId ? 'E · tie up here' : `E · put in at ${home.title}`, 'plain')
+            setPrompt(home.map === mapId ? 'E · Dock here' : `E · Dock at ${home.title}`, 'plain')
             hang(p.x, p.y, 26, Math.sin(t * 2.1) * 1.2)
             promptAnchor = null
             seaFire = () => dockAt(home)
@@ -5546,7 +5619,7 @@ export default function PmapScene() {
         if (!hull && canSail && berth && !locked && !busy && !fade) {
           const p = fromSea(berth.x, berth.y)
           if (Math.hypot(p.x - pos.x, p.y - pos.y) < 110) {
-            setPrompt('E · cast off', 'plain')
+            setPrompt('E · Get in the boat', 'plain')
             hang(p.x, p.y, 26, Math.sin(t * 2.1) * 1.2)
             promptAnchor = null
             seaFire = board
@@ -6029,6 +6102,7 @@ export default function PmapScene() {
       destroyed = true
       window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku)
       offHold()
+      offSail()
       /* anything a station was still waiting on is resolved rather than left
        * hanging. A body parked on an unresolved say() holds its world lock for
        * ever, and the next map opens with no controls and no way to tell why. */
