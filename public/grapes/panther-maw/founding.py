@@ -48,6 +48,21 @@ from lines import FACE, GREETING, PRINCIPAL, TOUR, TURNING_BACK
 # and you would not want to.
 FOUNDING = "maw:founding"
 
+# THE HANDOVER, WHICH NOTHING IN THE GAME HAS EVER WRITTEN.
+#
+# The corner shows the chart, the binder and the season pips from the first frame
+# now, because two buttons in a corner read as broken rather than as earned. What
+# it still owes is the MOMENT: `src/game/hud/inventory.ts` fires an arrival
+# flourish on each of these the first time it is really handed over, and hangs it
+# on a flag nobody anywhere in the engine, the API or any island was setting. So
+# the flourish could never play, and anything that later asked the save what the
+# student had been given got an answer that was simply false.
+#
+# This is the beat that hands them over. Bare, for the same reason FOUNDING is
+# bare, and the strings belong to `inventory.ts`.
+CHART = "chart:granted"
+HANDBOOK = "handbook:granted"
+
 # how long the camera rests on a thing before it drifts back to the player.
 #
 # A DURATION IS THE AUTHOR'S AND A DISTANCE IS THE MAP'S. Nothing in this file
@@ -133,4 +148,6 @@ def founding_event():
     yield cutscene("maw-founding")
 
     yield set_flag(FOUNDING)
+    yield set_flag(CHART)
+    yield set_flag(HANDBOOK)
     yield log("founding_seen", {"where": "principal_desk"})
