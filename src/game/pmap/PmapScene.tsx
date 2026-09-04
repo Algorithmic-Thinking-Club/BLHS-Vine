@@ -574,7 +574,10 @@ export default function PmapScene() {
      * opened a panel is still held when it closes and fires the station again,
      * and a held `d` walks Thor into a wall behind the year sheet */
     const dropKeys = () => { for (const k of Object.keys(keys)) keys[k] = false }
-    const offHold = onWorldHold((held) => { if (held) dropKeys() })
+    /* AND A WALK HE STARTED WITH A CLICK STOPS TOO. Set by `start()` once the
+     * scene's own walk state exists; a no-op before that and after teardown. */
+    let cancelPlayerWalk = () => { /* no scene yet */ }
+    const offHold = onWorldHold((held) => { if (held) { dropKeys(); cancelPlayerWalk() } })
 
     const start = async () => {
       const params = new URLSearchParams(window.location.search)
@@ -985,6 +988,25 @@ export default function PmapScene() {
       const world = new Container()
       world.sortableChildren = true
       app.stage.addChild(world)
+
+      /* ---- THE CANVAS TAKES A POINTER, WHICH IT NEVER HAS ------------------
+       *
+       * BRIEF-SELF-EVIDENT law 2, and it calls this the biggest single gap in
+       * the whole law: *"Click a glowing station and Thor walks there. Click a
+       * glowing door and he goes through. Painted maps have no pointer handler
+       * today."* One plaque took a tap and nothing else in any painted map did,
+       * so a freshman on a school trackpad who had not worked out that WASD
+       * moves a panther had no way to move at all.
+       *
+       * Pixi's default event mode is `passive`, which means the stage is never a
+       * hit target while its children still are. That is exactly why the plaque
+       * worked and the painting under it did not. `static` plus a hit area the
+       * size of the screen is the whole of turning the canvas into a surface.
+       *
+       * `app.screen` is ONE Rectangle that the renderer mutates in place when the
+       * window resizes, so this needs no resize listener and never goes stale. */
+      app.stage.eventMode = 'static'
+      app.stage.hitArea = app.screen
 
       // ---- camera scale: contain zoom pulled out to 0.55x (Ash, 2026-08-15: "needs to
       // be a lot more zoomed out" — the island floats in open sea, it does not fill the
@@ -2599,7 +2621,13 @@ export default function PmapScene() {
        * painting, which is the whole of AUTHORING §12), so what it hands over is a
        * closure rather than a name, and the tap path and the key path both call it. */
       let seaTap: (() => void) | null = null
-      prompt.on('pointertap', () => {
+      prompt.on('pointertap', (e) => {
+        /* AND IT DOES NOT ALSO REACH THE FLOOR UNDER IT. `pointertap` bubbles
+         * from the plaque through the world to the stage, and the stage is a
+         * walk surface now, so without this a tap on `E · open the chart` opened
+         * the chart AND started a walk to whatever pixel the plaque was hanging
+         * over. */
+        e.stopPropagation()
         if (seaTap) { seaTap(); return }
         if (promptAnchor) void fire(promptAnchor)
       })
@@ -4040,8 +4068,23 @@ export default function PmapScene() {
         until: number
         label: string
         done: () => void
+        /* WHOSE WALK IT IS, and it decides one thing: whether an opening panel
+         * cancels it. The ticker runs an auto-walk while the world is HELD on
+         * purpose, because a station's own `walk_to` has to keep working while
+         * that station holds the world. A walk the PLAYER started has no such
+         * claim, so without this flag opening the Handbook mid-stride left Thor
+         * walking on underneath the panel with the keys already dropped. */
+        byPlayer?: boolean
       }
       let autoWalk: AutoWalk | null = null
+      /* the hold hook is installed outside `start()`, above `autoWalk`, so it
+       * reaches this through a box rather than through the binding */
+      cancelPlayerWalk = () => {
+        if (!autoWalk?.byPlayer) return
+        const w = autoWalk
+        autoWalk = null
+        w.done()
+      }
       let lookAtTarget: { x: number; y: number; until: number } | null = null
       /* which named shot the camera is holding, and which named berth the last
        * voyage aimed at. Neither changes what the scene does; both are the answer
@@ -4060,7 +4103,7 @@ export default function PmapScene() {
       /* ONE WALK, THREE CALLERS: `walk_to` from a grape, `actorMove` from a script,
        * and the idle auto-walk a `walkTo` gate falls back to when a player stands
        * still. They were three different things and only one of them existed. */
-      const startWalk = (goal: { x: number; y: number }, reach: number, facing: string | null, done: () => void, label = 'a point') => {
+      const startWalk = (goal: { x: number; y: number }, reach: number, facing: string | null, done: () => void, label = 'a point', byPlayer = false) => {
         /* THE ONE ALREADY RUNNING IS RESOLVED, NEVER DROPPED. `walk_to` hands its
          * promise's resolve in as `done`, so overwriting a live walk leaves a
          * station body awaiting a promise nothing can settle: `busy` stays true,
@@ -4075,8 +4118,75 @@ export default function PmapScene() {
         }
         const r = findPath(doc, cfg, { x: pos.x, y: pos.y }, goal, { step: 4, reach })
         if (!r.reached) console.warn(`[pmap] walk to ${label}: no route from here, steering straight at it`)
-        autoWalk = { goal, reach, facing, route: r.points, ri: 0, until: performance.now() + 20000, label, done }
+        autoWalk = { goal, reach, facing, route: r.points, ri: 0, until: performance.now() + 20000, label, done, byPlayer }
       }
+
+      /* ---- A CLICK IS A DESTINATION ------------------------------------------
+       *
+       * The one law this game is measured against, verbatim: *"A student who
+       * reads nothing, is told nothing, and presses things at random must still
+       * do the right thing next, and see that it worked."* Its second clause is
+       * *"clicking the lit thing does it"*, and until this function the answer on
+       * every painted map was that nothing happened, because the only thing on
+       * the canvas that had ever taken a pointer was one plaque you had to
+       * already be standing next to.
+       *
+       * TWO BRANCHES AND NOT THREE. `nearestInteractive` has taken arbitrary
+       * coordinates since it was written and includes doors, so "a station, a
+       * door, or the floor" is really "something that wants a press, or the
+       * floor". It has only ever been called with the player's own position.
+       *
+       * THE ANCHOR WINS OVER THE FLOOR, because a ring sits over walkable ground
+       * and testing the floor first would walk him to the chart table and stop
+       * beside it doing nothing, which is precisely the dead end the law forbids.
+       */
+      const walkTap = (px: number, py: number): 'fired' | 'walking' | 'busy' | 'nothing' => {
+        /* ONE GATE, AND IT IS THE ONE THE E PRESS USES. `worldHeld` counts a
+         * panel, a dialogue, a cutscene, a door mid-swap, a station mid-sentence
+         * and a scripted route all at once, so `runtime.running` needs no second
+         * test here. Aboard is not a refusal of this feature, it is a different
+         * feature: a hull is steered, and the chart is what sails it. */
+        if (hull || berthing || worldHeld() || busy || fade) return 'busy'
+
+        const a = anchors.nearestInteractive(px, py)
+        if (a && offerOf(a).canFire) {
+          const g = anchors.standAt(a)
+          /* THE SAME REACH `walk_to` USES, so a click and a member's own line put
+           * him in the same place. An authored stand point is exact; without one
+           * the ring's own radius is the tolerance the author drew. */
+          startWalk(g, a.stand ? 3 : Math.max(4, a.r * 0.5), g.facing ?? null,
+            () => { void fire(a) }, a.name, true)
+          engine.log('click_walk', { map: mapId, anchor: a.name })
+          return 'fired'
+        }
+
+        /* THE FLOOR, AND HE WALKS AS FAR AS HE REALLY CAN GET. `startWalk` ends
+         * on arriving within `reach` and otherwise runs its full twenty second
+         * deadline, so handing it a click on the sea or on the far side of a wall
+         * would leave a fourteen year old watching a panther shuffle for twenty
+         * seconds. The search already answers how far it got; walking to THAT is
+         * the honest reading of a click nobody can reach. */
+        const r = findPath(doc, cfg, { x: pos.x, y: pos.y }, { x: px, y: py }, { step: 4 })
+        const end = r.reached ? { x: px, y: py } : r.points[r.points.length - 1]
+        if (!end || (Math.hypot(end.x - pos.x, end.y - pos.y) < 6 && !r.reached)) return 'nothing'
+        startWalk(end, 6, null, () => { /* he simply arrives */ }, 'a point he clicked', true)
+        engine.log('click_walk', { map: mapId, to: [Math.round(end.x), Math.round(end.y)], reached: r.reached })
+        return 'walking'
+      }
+
+      /* A DRAG IS NOT A TAP, and Pixi does not know the difference: `pointertap`
+       * fires whenever the down target is in the up target's path, with no
+       * distance test anywhere in it, and a stage-sized hit area puts the stage in
+       * both paths for a drag across the whole window. Six pixels is the slop the
+       * year sheet's own token drag already uses. */
+      const TAP_SLOP = 6
+      let tapDown: { x: number; y: number } | null = null
+      app.stage.on('pointerdown', (e) => { tapDown = { x: e.global.x, y: e.global.y } })
+      app.stage.on('pointertap', (e) => {
+        if (tapDown && Math.hypot(e.global.x - tapDown.x, e.global.y - tapDown.y) > TAP_SLOP) return
+        const p = world.toLocal(e.global)
+        walkTap(p.x, p.y)
+      })
 
       /* THE GUIDE'S ROUTE, kept between frames because a search is not free and the
        * answer only changes when the player has moved or the target has. */
@@ -4100,6 +4210,76 @@ export default function PmapScene() {
        * this", and the second one is what the ledger and the flags are for. A
        * page for the life of a page is exactly the right lifetime. */
       const usedThisSitting = new Set<string>()
+
+      /* ---- WHAT ONE ANCHOR IS OFFERING, ASKED FROM TWO PLACES ---------------
+       *
+       * This was the body of an `if (near)` inside the ticker, deriving a local
+       * `canFire` for the anchor nearest THE PLAYER and for no other. The E press
+       * read that local and there was nothing else to read, which was fine while
+       * the only way to reach a station was to walk into it.
+       *
+       * A click can reach an anchor forty pixels away or four hundred, and it has
+       * to get the same answer the plaque would give if the player were standing
+       * there. The prompt's own comment already said why: *"These two disagreeing
+       * is worse than either being wrong."* So the question is a function now,
+       * asked by the ticker for the plaque and by the pointer for whatever was
+       * clicked, and there is one set of rules about what is pressable.
+       */
+      const offerOf = (a: Anchor): { text: string; state: PromptState; canFire: boolean } => {
+        /* THE SAME RESOLVER THE PRESS USES. A grape-owned anchor the prompt did
+         * not know about is a handler that can never be reached by a key or by a
+         * tap. */
+        const owner = ownerOf(a.name, grapeHandlers)
+        const label = a.label || labelFor(owner, a.name)
+        let text = ''
+        let canFire = false
+        /* THE STATE, WHICH THE ENGINE HAS ALWAYS KNOWN AND NEVER SAID.
+         * `isObjective` was imported at the top of this file and called in
+         * exactly one place, to stamp a boolean into a log line. So the game knew
+         * on every frame which anchor the year was pointing at, and told the
+         * analysis rather than the student. */
+        let state: PromptState = 'plain'
+        if (a.kind === 'door') {
+          checkDoor(a.to || '')
+          const built = doorState.get(a.to || '')
+          /* a door with nothing behind it is barred in the world's own words.
+           * This is what lets the Maw ship as one room with two bridges that end
+           * in tunnels: the side doors are real, named, and honestly shut until a
+           * painting exists for what is past them. Silence while the check is in
+           * flight, because offering a door and taking it back a frame later is
+           * worse than a beat of nothing. */
+          if (built === 'ok') { text = `E · enter ${label}`; canFire = true }
+          else if (built === 'missing') { text = `${label} · the way is barred`; state = 'barred' }
+        } else {
+          const sv = loadSave()
+          if (!owner) {
+            /* W13, on the prompt as well as on the press. An anchor somebody
+             * placed and named that nothing answers to. Named out loud rather
+             * than silently ignored, because a typo in MAPVIS and a handler
+             * nobody wrote look identical from here. */
+            if (DBG) { text = `${label} · nothing answers to ${a.name}`; state = 'barred' }
+          } else if (isReady(owner, sv)) {
+            text = `E · ${label}`; canFire = true
+            /* USED ALREADY THIS SITTING. Still open, still pressable, and it says
+             * so quietly rather than looking identical to the one thing in the
+             * room the student has not touched. §40.5's fifth state. */
+            if (usedThisSitting.has(a.name)) { text = `E · ${label} · again`; state = 'done' }
+          } else if (owner.by === 'station') {
+            /* THE STATION IS CLOSED AND SAYS WHY, in its own sentence rather than
+             * in a greyed-out control. §40.9: a control a student can press and be
+             * told why beats one that does not respond. */
+            text = sv ? (owner.station.closed?.(sv) ?? label) : label
+            state = 'needs'
+          }
+        }
+        /* the objective outranks every other state it can share a plaque with,
+         * because it is the one the whole frame exists to make visible */
+        if (canFire) {
+          const sv = loadSave()
+          if (sv && isObjective(sv, mapId, a.name)) state = 'objective'
+        }
+        return { text, state, canFire }
+      }
 
       /* ---- PRESSING E: an anchor name becomes a running mechanic ----
        *
@@ -4678,6 +4858,12 @@ export default function PmapScene() {
       /* fire and FORGET: the returned promise only settles when the whole station
        * body has finished, and a body waiting on a click cannot settle from inside
        * the call that started it. A harness polls the state instead. */
+      /* THE CLICK PATH, PROVABLE WITHOUT FAKING A POINTER EVENT. `__station`
+       * exists for the same reason: a gate that has to synthesise a
+       * FederatedPointerEvent is a gate testing Pixi rather than the game. This
+       * takes PAINTING pixels, which is what the router works in once
+       * `world.toLocal` has run, and answers in the router's own four words. */
+      ;(window as any).__click = (x: number, y: number) => walkTap(x, y)
       ;(window as any).__station = (name: string) => {
         const a = anchors.get(name)
         if (!a) return `no anchor named ${name}`
@@ -4873,6 +5059,19 @@ export default function PmapScene() {
          * fade runs, and overwriting `input` here put that back. Overriding
          * `locked` IS deliberate, because a station's own walk has to work while
          * the world is held; overriding `fade` never was. */
+        /* AND HE CAN CHANGE HIS MIND. A walk a STATION asked for owns the body
+         * until it arrives, which is the point of `walk_to`. A walk the player
+         * started by clicking is a suggestion, and a student who clicks the far
+         * side of the room and then reaches for the keys must not be ignored for
+         * the four seconds it takes to get there: that reads as the game having
+         * frozen, on the exact input a student falls back to when a click did
+         * something they did not expect. */
+        if (autoWalk?.byPlayer && (input['w'] || input['a'] || input['s'] || input['d']
+          || input['arrowup'] || input['arrowdown'] || input['arrowleft'] || input['arrowright'])) {
+          const w = autoWalk
+          autoWalk = null
+          w.done()
+        }
         if (autoWalk && !fade) {
           /* AT THE STAND-AT POINT, not at the middle of the thing. A chart
            * table's anchor is the tabletop, so steering at it walks the player
@@ -5306,64 +5505,13 @@ export default function PmapScene() {
 
         const near = hull || seaFire || locked || busy || fade
           ? null : anchors.nearestInteractive(pos.x, pos.y)
-        let canFire = false
-        if (near) {
-          /* THE SAME RESOLVER THE PRESS USES. These two disagreeing is worse
-           * than either being wrong: the prompt decides whether E is ever
-           * offered, so a grape-owned anchor the prompt did not know about is a
-           * handler that can never be reached by a key or by a tap. */
-          const owner = ownerOf(near.name, grapeHandlers)
-          const label = near.label || labelFor(owner, near.name)
-          let text = ''
-          /* THE STATE, WHICH THE ENGINE HAS ALWAYS KNOWN AND NEVER SAID.
-           * `isObjective` was imported at the top of this file and called in
-           * exactly one place, to stamp a boolean into a log line. So the game
-           * knew on every frame which anchor the year was pointing at, and told
-           * the analysis rather than the student. */
-          let state: PromptState = 'plain'
-          if (near.kind === 'door') {
-            checkDoor(near.to || '')
-            const built = doorState.get(near.to || '')
-            /* a door with nothing behind it is barred in the world's own words.
-             * This is what lets the Maw ship as one room with two bridges that
-             * end in tunnels: the side doors are real, named, and honestly shut
-             * until a painting exists for what is past them. Silence while the
-             * check is in flight, because offering a door and taking it back a
-             * frame later is worse than a beat of nothing. */
-            if (built === 'ok') { text = `E · enter ${label}`; canFire = true }
-            else if (built === 'missing') { text = `${label} · the way is barred`; state = 'barred' }
-          } else {
-            const sv = loadSave()
-            if (!owner) {
-              /* W13, on the prompt as well as on the press. An anchor somebody
-               * placed and named that nothing answers to. Named out loud rather
-               * than silently ignored, because a typo in MAPVIS and a handler
-               * nobody wrote look identical from here. */
-              if (DBG) { text = `${label} · nothing answers to ${near.name}`; state = 'barred' }
-            } else if (isReady(owner, sv)) {
-              text = `E · ${label}`; canFire = true
-              /* USED ALREADY THIS SITTING. Still open, still pressable, and it
-               * says so quietly rather than looking identical to the one thing
-               * in the room the student has not touched. §40.5's fifth state. */
-              if (usedThisSitting.has(near.name)) { text = `E · ${label} · again`; state = 'done' }
-            } else if (owner.by === 'station') {
-              /* THE STATION IS CLOSED AND SAYS WHY, in its own sentence rather
-               * than in a greyed-out control. §40.9: a control a student can
-               * press and be told why beats one that does not respond. */
-              text = sv ? (owner.station.closed?.(sv) ?? label) : label
-              state = 'needs'
-            }
-          }
-          /* the objective outranks every other state it can share a plaque with,
-           * because it is the one the whole frame exists to make visible */
-          if (canFire) {
-            const sv = loadSave()
-            if (sv && isObjective(sv, mapId, near.name)) state = 'objective'
-          }
+        const st = near ? offerOf(near) : null
+        const canFire = !!st?.canFire
+        if (near && st) {
           // through spotOf, because an anchor bound to somebody who paces has
           // to wear its prompt where she is standing, not where she started
           const np = anchors.spotOf(near)
-          setPrompt(text, state)
+          setPrompt(st.text, st.state)
           hang(np.x, np.y, 18, Math.sin(t * 2.1) * 1.2)
           /* the plaque is only tappable when E would do something, so a barred
            * door and a closed station read the same to a pointer as to a key */
