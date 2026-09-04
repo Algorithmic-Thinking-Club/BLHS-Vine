@@ -4758,6 +4758,13 @@ export default function PmapScene() {
          * each other's case. */
         const v = voyage
         voyage = null
+        /* AND THE FOLLOWER IS CLEARED HERE RATHER THAN LEFT TO `stepAshore`,
+         * which returns on its first line when there is no hull. One path where
+         * that guard fires leaves `sailing` set with no voyage behind it, and the
+         * `already on a route` refusal in `sailRoute` then holds for the life of
+         * the map: every crossing after it refused, with nothing running. */
+        sailing = null
+        sailingTo = null
         if (!s) {
           /* nothing named this stop. It cannot happen through `sailRoute` any
            * more, which refuses a line that ends nowhere, but `dockAt` is also
