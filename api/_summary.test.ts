@@ -6,7 +6,7 @@
  * twice, or merges places into programmes, a test names it.
  */
 import { describe, it, expect } from 'vitest'
-import { summarise, exportRows, eventName, EXPORT_COLUMNS, IDLE_CAP_MS, type StoredEvent } from './_summary'
+import { summarise, exportRows, eventName, EXPORT_COLUMNS, IDLE_CAP_MS, type StoredEvent } from './_summary.js'
 
 const T0 = Date.UTC(2026, 8, 1, 9, 0, 0)
 

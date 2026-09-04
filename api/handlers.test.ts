@@ -9,7 +9,7 @@ import joinHandler from './join'
 import stateHandler from './state'
 import logHandler from './log'
 import teacherHandler from './teacher'
-import { armFor } from './_logic'
+import { armFor } from './_logic.js'
 
 const DB = path.join(os.tmpdir(), `blhs-handler-test-${process.pid}.json`)
 

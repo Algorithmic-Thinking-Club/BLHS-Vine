@@ -2,7 +2,7 @@
 // never change once a class is live — the locked-output tests below are the tripwire (if a
 // refactor changes these, it would silently reassign arms mid-study; do not "fix" the test).
 import { describe, it, expect } from 'vitest'
-import { armFor, cleanHandle, newCode, newId, GLYPHS } from './_logic'
+import { armFor, cleanHandle, newCode, newId, GLYPHS } from './_logic.js'
 
 describe('armFor (deterministic study arm, §13.2)', () => {
   it('locked outputs — changing these reassigns arms mid-study', () => {
