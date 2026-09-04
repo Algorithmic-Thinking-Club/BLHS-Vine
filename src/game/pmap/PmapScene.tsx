@@ -1009,7 +1009,26 @@ export default function PmapScene() {
        * THE SAIL ZOOM IS THE FLOOR. What the camera is allowed to pull out to is
        * decided by what a player can be driving, so the ocean's grid is sized once
        * for the widest shot instead of being right at load and wrong at sea. */
-      const SAIL_ZOOM = 0.45
+      /* ---- HOW FAR OUT THE SEA IS ALLOWED TO PULL, AND IT IS HIS CALL ----
+       *
+       * BRIEF-PLAYTHROUGH-1 law 6, after he sailed it: "The sea is too far out.
+       * The sailing zoom floor (0.45 of the opening view) is too wide. A session
+       * tries two tighter values, screenshots both on the deploy, and he picks."
+       *
+       * So it is a value with two candidates rather than a number somebody chose.
+       * `?sail=0.6` and `?sail=0.75` are the two, captured side by side by
+       * `scripts/zoom.mjs`; the default stays where he found it until he says
+       * otherwise, because moving it on my own judgement is the thing this law
+       * exists to stop.
+       *
+       * Clamped to something sane either way: below a third the ocean's block-LOD
+       * takes over and the island is a smudge, and above 1 the "floor" would be
+       * closer than the walking shot, which is not a floor. */
+      const SAIL_ZOOM = ((): number => {
+        const raw = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('sail')
+        const n = raw === null ? NaN : Number(raw)
+        return Number.isFinite(n) && n >= 0.33 && n <= 1 ? n : 0.45
+      })()
       let camZ = Z
       const Z_MIN = Z * SAIL_ZOOM
 
