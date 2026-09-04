@@ -1,8 +1,8 @@
 // GET  /api/state?participantId=... -> { save } | 404
 // POST /api/state { participantId, save } -> { ok }
 // The server copy of the run (§7.7's top layer): cross-device resume by class code + handle.
-import { json, readBody } from './_db'
-import { store } from './_store'
+import { json, readBody } from './_db.js'
+import { store } from './_store.js'
 
 // a SaveGame is a few KB; anything over this is not a save (guards the jsonb column)
 const MAX_SAVE_BYTES = 256 * 1024

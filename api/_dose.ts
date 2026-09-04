@@ -15,7 +15,7 @@
  * here on purpose. The beat is the only row in the table that means "a student
  * was looking at this, right now" rather than "something happened".
  */
-import { atMs, eventName, type Env, type StoredEvent } from './_summary'
+import { atMs, eventName, type Env, type StoredEvent } from './_summary.js'
 
 /* The cadence `startHeartbeat()` ticks at. It is repeated rather than imported
  * because src/game/telemetry.ts touches localStorage and window at module scope

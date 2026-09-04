@@ -12,10 +12,10 @@
 // joined, last_seen, year, beat, graduated, verification. No score, no duration, no
 // attempts, because the browser holds one student's save and the dependent variable lives
 // in the events table. This op is the first thing in api/ that has ever read that table.
-import { json, readBody } from './_db'
-import { store } from './_store'
-import { newCode, newId } from './_logic'
-import { exportRows, summarise, EXPORT_COLUMNS } from './_summary'
+import { json, readBody } from './_db.js'
+import { store } from './_store.js'
+import { newCode, newId } from './_logic.js'
+import { exportRows, summarise, EXPORT_COLUMNS } from './_summary.js'
 import { transcriptOf } from '../src/game/progress'
 import { runCode } from '../src/vine/verify'
 import type { SaveGame } from '../src/game/save'

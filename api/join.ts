@@ -8,9 +8,9 @@
 //      runs in study mode (§13.2). A returning student re-joins as themselves (same class +
 //      handle = the SAME run, §7.7) — even after the class closes to NEW joiners; a genuine
 //      twin gets a kind numeric suffix instead of an error wall.
-import { json, readBody } from './_db'
-import { store } from './_store'
-import { armFor, cleanHandle, newId } from './_logic'
+import { json, readBody } from './_db.js'
+import { store } from './_store.js'
+import { armFor, cleanHandle, newId } from './_logic.js'
 
 export default async function handler(req: any, res: any) {
   const db = store()

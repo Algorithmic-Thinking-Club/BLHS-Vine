@@ -3,8 +3,8 @@
 // castaway/demo sessions never reach this endpoint (the client keeps them local, §2.9);
 // captain/dev sessions arrive flagged dev:true in the envelope and are excluded from any
 // study export by that flag.
-import { json, readBody } from './_db'
-import { store } from './_store'
+import { json, readBody } from './_db.js'
+import { store } from './_store.js'
 
 const MAX_BATCH = 500
 

@@ -15,10 +15,10 @@
 // It degrades exactly like every other endpoint: no DATABASE_URL and no BLHS_DEV_DB means
 // store() returns null and this answers 503 { offline: true }. Under `npm run dev` the vite
 // bridge sets BLHS_DEV_DB=file, so this is queryable locally with no database at all.
-import { json, readBody } from './_db'
-import { store } from './_store'
-import { dose, doseMinutes, gapCapMs, HEARTBEAT_MS } from './_dose'
-import { summarise } from './_summary'
+import { json, readBody } from './_db.js'
+import { store } from './_store.js'
+import { dose, doseMinutes, gapCapMs, HEARTBEAT_MS } from './_dose.js'
+import { summarise } from './_summary.js'
 
 export default async function handler(req: any, res: any) {
   const db = store()
