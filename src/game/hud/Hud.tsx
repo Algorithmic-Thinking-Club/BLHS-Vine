@@ -3,6 +3,7 @@ import { Handbook } from './Handbook'
 import { HelpCard } from './Help'
 import { SettingsPanel } from '../../app/SettingsPanel'
 import { Planner } from '../planner/Planner'
+import { PickYear } from '../planner/PickYear'
 import { Graduation } from '../run/Graduation'
 import { CoreBeatRunner } from '../beats/ActivityRunner'
 import { coreBeatFor, coreBeatId } from '../beats/beats'
@@ -91,6 +92,8 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   /* the seasons still in hand, which is a list a fresh run has not been given
    * yet and a spent one has emptied. The corner shows the door in both cases. */
   const left = s?.tokens ?? []
+  /* the one plan the cards are for: year one, before the wax */
+  const firstPlan = (s?.year ?? 1) === 1 && !s?.plans?.[1]?.stamped
   useKitReady()
 
   /* ---- WHICH CONTROLS ARE ARRIVING RIGHT NOW ------------------------------
@@ -397,7 +400,17 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       </nav>
 
       {book && <Handbook initialTab={book} onClose={closeAll} />}
-      {planner && (
+      {/* ---- THE FIRST PLAN IS CARDS, EVERY LATER ONE IS THE SHEET --------
+          BRIEF-YEAR-ONE beat 4 replaces the year sheet for the first plan with
+          "one screen of big drawn cards", because the sheet asks a student four
+          minutes into the game to understand season tokens, a season lock, a
+          two-class limit and a drag before they have chosen anything.
+
+          The switch is the plan's own state and not a flag: an unstamped year
+          one is the first plan and nothing else in the game is. Once the wax is
+          on it the sheet is the right instrument and it opens as it always did,
+          including for year one, so a student can look at what they chose. */}
+      {planner && !firstPlan && (
         <Planner
           onClose={closeAll}
           onAdvisory={() => { setPlanner(false); setAdvisory(true) }}
@@ -405,6 +418,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
           onYearbook={() => { setPlanner(false); setYearbook(true) }}
         />
       )}
+      {planner && firstPlan && <PickYear year={s?.year ?? 1} onClose={closeAll} />}
       {advisory && yearBeat && <CoreBeatRunner beat={yearBeat} onClose={closeAll} />}
       {playing && <CoreBeatRunner beat={playing.beat} forceArm={playing.plain ? 'plain' : undefined} onClose={closeAll} />}
       {wardrobe && <Wardrobe onClose={closeAll} />}

@@ -57,8 +57,8 @@ import { setContext } from '../telemetry'
  * and is unit-tested; this file is where it is drawn. */
 import {
   loadComposition, slotOfMap, seaSlots, discoveredSlots, residentSlots, regionAt,
-  berthOf, markNames,
-  type WorldComposition, type WorldSlot, type Berth,
+  berthOf, markNames, marksOf,
+  type WorldComposition, type WorldSlot, type Berth, type WorldMark,
 } from '../world/composition'
 import { stateOf, STATE_INK } from '../world/states'
 import {
@@ -3104,16 +3104,51 @@ export default function PmapScene() {
         path: Pathway
         pts: { x: number; y: number }[]
         i: number
+        /* seconds of slack left, counted DOWN on the ticker's own dt rather than
+         * against a wall clock. A crossing is thirty seconds of a thirty minute
+         * session and a student who switches tab is not a student whose ship
+         * should be scuttled: `performance.now()` kept running while the follower
+         * did not, so a backgrounded tab killed the voyage and the island with
+         * it. Ticked time is the only clock that measures the thing being timed. */
+        left: number
+      } | null = null
+
+      /* ---- A VOYAGE OUTLIVES THE FOLLOWING ---------------------------------
+       *
+       * `sailing` is the waypoint follower, and it hands over to the berthing
+       * manoeuvre with a leg still to run, so the two cannot be one record. The
+       * promise the island is holding belongs to the CROSSING, and a crossing is
+       * not over until the ship has stopped and the student is standing on the
+       * island.
+       *
+       * It used to settle at that handover, on the argument that docking tears
+       * the scene down and a promise settled after it would settle into a dead
+       * scene. That is true of a berth on ANOTHER map and false of a berth on
+       * this one, and beat 2 of year one is the second kind: the hub's own berth
+       * is on the hub, so `docked()` steps ashore and nothing is torn down at
+       * all. Settling early meant `route(who="ship")` reported done with the boat
+       * still moving, the player still hidden, and the next line of the island's
+       * script running over the top of its own arrival (ARC-MANIFEST BLOCKED 2).
+       *
+       * So it settles at every place a voyage can really end: alongside, given up
+       * on, put ashore by hand, or torn down with the map. */
+      let voyage: {
+        path: Pathway
         done: () => void
         fail: (e: Error) => void
-        until: number
       } | null = null
+      const endVoyage = (err?: Error) => {
+        const v = voyage
+        if (!v) return
+        voyage = null
+        if (err) v.fail(err); else v.done()
+      }
       const sailRoute = (p: Pathway, backwards: boolean): Promise<void> => {
         if (p.kind !== 'sail')
           throw new NotBuilt('route', `"${p.name}" is a ${p.kind} route, so the ship cannot take it`)
         if (!canSail || !berth)
           throw new NotBuilt('route', `${mapId} has no berth on the world, so there is nothing here to sail`)
-        if (sailing) throw new NotBuilt('route', `"${p.name}" cannot start: the ship is already on a route`)
+        if (sailing || voyage) throw new NotBuilt('route', `"${p.name}" cannot start: the ship is already on a route`)
 
         /* EVERY REFUSAL HAPPENS BEFORE ANYBODY GETS IN THE BOAT.
          *
@@ -3150,6 +3185,27 @@ export default function PmapScene() {
           throw new NotBuilt('route', `"${p.name}" ends at a berth called "${String(p.meta.berth)}", `
             + `which the world does not have. It has: ${comp ? markNames(comp).join(', ') || 'none' : 'no world at all'}`)
 
+        /* AND ALMOST NO LINE NAMES ONE AT ALL, because there is nowhere in MAPVIS
+         * to type it. The path patch is points, kind, closed, twoWay, facing and
+         * marks; the tool's only meta editor is map scoped, so a berth key typed
+         * there is read by nothing (ARC-MANIFEST BLOCKED 1). Every sail line drawn
+         * this summer therefore arrives here anonymous, and anonymous used to mean:
+         * run the line, stop the boat at the last waypoint, dock at nothing, and
+         * leave the student hidden on a stationary hull with the camera pulled out
+         * and no way back. `docked()` returns on its first line when nothing named
+         * the stop, so the step ashore simply never ran.
+         *
+         * The line has been saying where it ends all along. A berth is a fixed
+         * point on the water and the last waypoint is a point on the water, so an
+         * author who drew the line to the dock has already named the dock. */
+        const ends = pts[pts.length - 1] ?? from
+        const dest = destBerth(p, ends)
+        if (!dest)
+          throw new NotBuilt('route', `"${p.name}" ends at ${Math.round(ends.x)},${Math.round(ends.y)}, `
+            + `which is not within ${BERTH_REACH} pixels of any berth on the world, so there is `
+            + `nowhere for the ship to tie up. `
+            + `${comp ? `The world has: ${markNames(comp).join(', ') || 'no berths'}` : 'There is no world at all'}`)
+
         if (!hull) board()
         if (!hull) throw new NotBuilt('route', `the ship could not be boarded on ${mapId}`)
         /* the timeout is measured off the LINE rather than off a constant, so a
@@ -3157,11 +3213,84 @@ export default function PmapScene() {
          * when something goes wrong. Three times the cruise time, which is the
          * slack a full-speed turn and a deceleration need. */
         const secs = (lengthOf(p, backwards) / DEFAULT_SAIL.cruise) * 3 + 8
-        engine.log('voyage_started', { map: mapId, path: p.name, legs: pts.length })
+        engine.log('voyage_started', {
+          map: mapId, path: p.name, legs: pts.length,
+          berth: dest.berth.name, to: dest.slot?.map ?? mapId,
+        })
+        sailing = { path: p, pts, i: 1, left: secs }
+        sailingTo = dest
         return new Promise<void>((done, fail) => {
-          sailing = { path: p, pts, i: 1, done, fail, until: performance.now() + secs * 1000 }
+          voyage = { path: p, done, fail }
         })
       }
+
+      /* WHERE A LINE ENDS WHEN NOBODY NAMED IT, AND HOW FAR IS TOO FAR.
+       *
+       * Two hundred and twenty pixels is a little over two of the hull's own turn
+       * radii at cruise, which is the distance inside which the decelerating
+       * manoeuvre can honestly come round onto a heading. Past that a line is not
+       * ending at a berth, it is ending somewhere, and answering it with whichever
+       * berth happened to be closest would sail a student to another island
+       * because an author's last click was loose. The refusal prints the number,
+       * so the person who drew the line can see how far out they were. */
+      const BERTH_REACH = 220
+      /* WHICH ISLAND A BERTH BELONGS TO, asked three ways because the live world
+       * answers to two spellings. `marks[0].island` on the published composition
+       * reads `the_hub` while that slot's map is `hub` and its place is
+       * `home-island`, so a match on any one field alone drops the real answer on
+       * the real document. No slot at all is a legal outcome and not a failure: a
+       * berth free-placed on open water is a place to tie up on THIS map, which is
+       * what `docked()` does when nothing named the stop. */
+      const slotOfBerth = (b: { name?: string; island?: string }): WorldSlot | undefined => {
+        if (!comp) return undefined
+        return comp.slots.find((q) => b.name && q.berth?.name === b.name)
+          ?? comp.slots.find((q) => b.island && (q.map === b.island || q.place === b.island))
+      }
+      const destBerth = (p: Pathway, ends: { x: number; y: number }):
+        { berth: Berth; slot: WorldSlot | undefined } | undefined => {
+        const named = berthNamedBy(p)
+        if (named) return { berth: named, slot: slotOfBerth(named) }
+        if (!comp) return undefined
+        /* EVERY BERTH ON THE WORLD, IN THIS PAINTING'S PIXELS. `fromSea` is the
+         * one conversion and `drawSlots` already reads the whole composition
+         * through it, so a berth on another island is a comparable point rather
+         * than a number in a different space.
+         *
+         * Through `marksOf` rather than over `comp.slots`, because that is the set
+         * `berthOf` resolves a NAMED berth out of: a berth free-placed on the
+         * water is not on any slot, and a nearest-berth rule that could not see
+         * one would disagree with the named rule about what a berth is. The map is
+         * keyed by name AND by island, so the same mark is in it twice and the
+         * dedupe is on the name. */
+        let best: WorldMark | undefined
+        let bestD = Infinity
+        const seen = new Set<string>()
+        for (const m of marksOf(comp).values()) {
+          if (m.kind !== 'berth' || seen.has(m.name)) continue
+          seen.add(m.name)
+          const at = fromSea(m.x, m.y)
+          const d = Math.hypot(at.x - ends.x, at.y - ends.y)
+          if (d < bestD) { bestD = d; best = m }
+        }
+        if (!best || bestD > BERTH_REACH) return undefined
+        console.log(`[pmap] ${mapId}: "${p.name}" names no berth, and its last waypoint is `
+          + `${Math.round(bestD)}px from "${best.name}", so that is where she is going`)
+        const b: Berth = {
+          x: best.x, y: best.y, name: best.name,
+          ...(best.facing ? { facing: best.facing } : {}),
+          ...(best.at ? { at: best.at } : {}),
+        }
+        const slot = slotOfBerth(best)
+        /* a slot's OWN berth carries an approach point that a free mark cannot,
+         * and the approach is what makes the manoeuvre read as seamanship rather
+         * than as a boat driving at a wall. Taken when the slot we landed on is
+         * the one this berth is really on. */
+        if (slot?.berth?.name === best.name && slot.berth.approach) b.approach = slot.berth.approach
+        return { berth: b, slot }
+      }
+      /* the destination the follower hands to the manoeuvre, resolved on the
+       * frame the word was said rather than on the frame the last leg begins */
+      let sailingTo: { berth: Berth; slot: WorldSlot | undefined } | null = null
       /* the berth a sail route ends at, when it names one. `meta` is the carrier
        * for the same reason a look and a framing ride it: MAPVIS drops unknown
        * top-level fields on the way through, and the meta bag survives. */
@@ -3865,7 +3994,9 @@ export default function PmapScene() {
          * never happened answers false, which is the truth, and a voyage that was
          * interrupted refuses at the line that asked for it. */
         while (waiters.length) waiters.pop()!.done(false)
-        if (sailing) { const s3 = sailing; sailing = null; s3.fail(new NotBuilt('route', 'the map was left while the ship was still on the route')) }
+        sailing = null
+        sailingTo = null
+        endVoyage(new NotBuilt('route', 'the map was left while the ship was still on the route'))
         /* AND THE WALK, WHICH IS THE ONE THAT LEAKS A GLOBAL. `walkRoute` takes a
          * world hold and releases it in a `finally` behind the leg it is
          * awaiting, so a door swap or a scene teardown mid-route left that hold
@@ -4336,11 +4467,14 @@ export default function PmapScene() {
          * island awaiting a promise nothing would ever settle again. Refused here,
          * at the one place a hull stops existing, so there is no second copy of
          * this rule anywhere to forget. */
-        if (sailing) {
-          const s4 = sailing; sailing = null
-          engine.log('voyage_interrupted', { map: mapId, path: s4.path.name, at: s4.i })
-          s4.fail(new NotBuilt('route', `the crossing on "${s4.path.name}" ended when the ship was put ashore`))
+        if (voyage) {
+          const at = sailing ? `waypoint ${sailing.i}` : 'the final approach'
+          engine.log('voyage_interrupted', { map: mapId, path: voyage.path.name, at })
+          endVoyage(new NotBuilt('route',
+            `the crossing on "${voyage.path.name}" ended at ${at}, when the ship was put ashore`))
         }
+        sailing = null
+        sailingTo = null
         hull = null
         berthing = null
         if (hullSp) hullSp.visible = false
@@ -4383,12 +4517,35 @@ export default function PmapScene() {
         const s = docking
         berthing = null
         docking = null
-        if (!s) return
+        /* THE VOYAGE IS TAKEN OFF THE HOOK BEFORE THE STEP ASHORE, not after.
+         * `stepAshore` refuses a live voyage, correctly, because a hull that stops
+         * existing mid-crossing is a crossing that failed. An arrival is the one
+         * case where the hull stopping existing is the crossing SUCCEEDING, so the
+         * promise is detached here and answered below, and the two can never read
+         * each other's case. */
+        const v = voyage
+        voyage = null
+        if (!s) {
+          /* nothing named this stop. It cannot happen through `sailRoute` any
+           * more, which refuses a line that ends nowhere, but `dockAt` is also
+           * reachable from the player's own prompt and this is the honest floor. */
+          stepAshore()
+          v?.done()
+          return
+        }
         /* ARRIVING SOMEWHERE YOU ALREADY ARE IS STEPPING ASHORE, not a map swap.
          * The hub's own berth is on the hub, so the leg that ends where it started
          * must not tear the scene down and rebuild it. */
-        if (!s.map || s.map === mapId) { stepAshore(); return }
         stepAshore()
+        engine.log('voyage_arrived', { map: mapId, to: s.map ?? mapId, place: s.place ?? null })
+        if (!s.map || s.map === mapId) { v?.done(); return }
+        /* AND ON ANOTHER MAP IT IS ANSWERED AT THE DOOR RATHER THAN BEHIND IT.
+         * `beginExit` tears this scene down and, with it, the worker that asked,
+         * which is `enter()`'s own shape (BLOCKED 10): nothing after it runs.
+         * Answering first means the island's line reports the truth about the
+         * crossing, and the line after it never gets to be wrong about anything
+         * because it is never reached. */
+        v?.done()
         beginExit({ map: s.map, at: s.berth?.at })
       }
 
@@ -4654,6 +4811,11 @@ export default function PmapScene() {
         get hull() { return hull ? { x: hull.x, y: hull.y, speed: hull.speed, aground: hull.aground } : null },
         get berthing() { return berthing ? { stage: berthing.stage } : null },
         get sailing() { return sailing ? { path: sailing.path.name, leg: sailing.i } : null },
+        /* THE WHOLE CROSSING, which `sailing` is only the first half of. A proof
+         * asking whether a voyage is still running read null through the entire
+         * final approach, so "the ship arrived" and "the ship is coming alongside"
+         * were the same answer. */
+        get voyage() { return voyage ? { path: voyage.path.name, to: sailingTo?.berth.name ?? null } : null },
         get waiting() { return waiters.map((w2) => w2.a.name) },
         get driven() { return [...driven.keys()].length },
         /* which bound placements are on screen, by the name their author typed,
@@ -4783,10 +4945,9 @@ export default function PmapScene() {
                * final manoeuvre gave up used to leave the script that started it
                * awaiting a promise nothing could settle, which on a station means
                * that map is finished until a page reload. */
-              if (sailing) {
-                const s2 = sailing; sailing = null
-                s2.fail(new NotBuilt('route', 'the ship could not come alongside at the end of the route'))
-              }
+              sailing = null
+              sailingTo = null
+              endVoyage(new NotBuilt('route', 'the ship could not come alongside at the end of the route'))
             }
           } else if (sailing) {
             /* ---- A ROUTE, STEERED --------------------------------------------
@@ -4802,10 +4963,12 @@ export default function PmapScene() {
             const dx = aim.x - hull.x, dy = aim.y - hull.y
             const d = Math.hypot(dx, dy)
             const ahead = Math.cos(hull.heading) * dx + Math.sin(hull.heading) * dy
-            if (performance.now() > s2.until) {
+            s2.left -= dt
+            if (s2.left <= 0) {
               sailing = null
+              sailingTo = null
               engine.log('voyage_gave_up', { map: mapId, at: s2.i, of: s2.pts.length })
-              s2.fail(new NotBuilt('route', `the ship did not reach waypoint ${s2.i} of ${s2.pts.length - 1} in time`))
+              endVoyage(new NotBuilt('route', `the ship did not reach waypoint ${s2.i} of ${s2.pts.length - 1} in time`))
             } else if (s2.i < s2.pts.length - 1 && (d < 40 || (ahead < 0 && d < DEFAULT_SAIL.cruise))) {
               s2.i++
               hull = stepHull(hull, { throttle: 1, turn: 0, fullSail: false }, dt, depthAt)
@@ -4813,10 +4976,12 @@ export default function PmapScene() {
               /* the last leg becomes the manoeuvre. `berthing` takes over on the
                * next frame through the branch above, so there is exactly one thing
                * driving the hull at any instant. */
-              const b = berthNamedBy(s2.path)
+              /* THE BERTH WAS DECIDED WHEN THE WORD WAS SAID. It used to be
+               * looked up here, on the frame the last leg begins, which is why an
+               * unnamed line could get this far at all and then stop at nothing. */
+              const b = sailingTo?.berth
               const end = b ? fromSea(b.x, b.y) : aim
-              const slotFor = b && comp ? comp.slots.find((q) => q.berth?.name === b.name) : undefined
-              docking = slotFor ?? null
+              docking = sailingTo?.slot ?? null
               lastBerth = b?.name ?? null
               berthing = {
                 target: end,
@@ -4826,11 +4991,9 @@ export default function PmapScene() {
               }
               sailing = null
               engine.log('voyage_arriving', { map: mapId, path: s2.path.name, berth: b?.name ?? null })
-              /* THE ROUTE IS DONE WHEN THE LINE IS RUN, and the manoeuvre that
-               * follows is the world's business rather than the script's: docking
-               * tears this scene down, so a promise settled after it would be a
-               * promise settled into a scene that no longer exists. */
-              s2.done()
+              /* AND THE PROMISE IS NOT SETTLED HERE. The line has been run and the
+               * crossing has not ended: she is still moving, he is still hidden,
+               * and `docked()` is the instant he is standing on the island. */
             } else {
               const turn = Math.atan2(Math.sin(Math.atan2(dy, dx) - hull.heading), Math.cos(Math.atan2(dy, dx) - hull.heading))
               hull = stepHull(hull, {
