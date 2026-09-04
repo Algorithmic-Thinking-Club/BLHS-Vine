@@ -4286,6 +4286,37 @@ export default function PmapScene() {
       const radOf = (f: string | undefined): number =>
         f === 'east' ? 0 : f === 'south' ? Math.PI / 2 : f === 'north' ? -Math.PI / 2 : Math.PI
 
+      /* ---- THE ARRIVAL CARD, WHICH IS OWED AND NOT ALWAYS PAID AT ONCE ----
+       *
+       * §80.4's five conditions are unchanged: fired on arrival, once per session
+       * per map, dismissing itself, never taking input, never showing a slug. What
+       * moves is WHEN "arrival" is, and for one entry only.
+       *
+       * A sea arrival enters this scene already offshore, aboard, with the island
+       * in the middle distance, so the card naming the place fired while the
+       * student was still a hundred and forty pixels out on the water with a
+       * tiller in their hands (ARC-MANIFEST BLOCKED 6). It named somewhere they
+       * had not got to yet, over a boat, and it was gone before they landed. The
+       * card is the one surface that tells a student where they are, and it was
+       * spending itself on the crossing.
+       *
+       * So the card is OWED at load and PAID at the moment he stands on the
+       * island, which for every other kind of entry is the same instant and for
+       * this one is the tie-up. `markSeen` travels with it rather than staying at
+       * load, or a student who reloads mid-crossing has burned the card on a map
+       * they have still never set foot on. */
+      let cardOwed = !seenThisSession(mapId)
+      const arrivalCard = () => {
+        if (!cardOwed) return
+        cardOwed = false
+        markSeen(mapId)
+        const place = placeOfMap(mapId)
+        showPlaceCard({
+          title: titleOfMap(mapId, typeof map.title === 'string' ? map.title : undefined),
+          line: slot?.place && place ? place.recognise : undefined,
+        })
+      }
+
       const board = () => {
         if (!canSail || !berth || hull) return
         const at = fromSea(berth.x, berth.y)
@@ -4322,6 +4353,10 @@ export default function PmapScene() {
          * never runs `beginExit`, so without this line a refresh after tying up
          * put the student back offshore with the walk they had just done undone. */
         if (target.aboard) setMapUrl({ map: mapId, at: target.at })
+        /* AND THIS IS WHERE HE HAS ARRIVED. Paid here rather than at load for the
+         * sea entry, and a no-op for every other one because the card was already
+         * spent on the frame the map opened. */
+        arrivalCard()
         engine.log('disembarked', { map: mapId })
       }
 
@@ -5579,23 +5614,20 @@ export default function PmapScene() {
 
       /* ---- THE PLACE CARD: WHERE YOU ARE, ONCE, ON ARRIVAL ----
        *
-       * §80.4's five conditions in one call: fired on map entry, once per session
-       * per map, dismissing itself, never taking input, never showing a slug. It
-       * fires here rather than in `beginExit` because a cold boot into a map is an
-       * arrival too, and because the name has to be resolved by the map that
-       * actually loaded rather than by the door that guessed at it.
+       * §80.4's five conditions, in `arrivalCard` above: fired on arrival, once
+       * per session per map, dismissing itself, never taking input, never showing
+       * a slug. It is paid here rather than in `beginExit` because a cold boot
+       * into a map is an arrival too, and because the name has to be resolved by
+       * the map that actually loaded rather than by the door that guessed at it.
        *
        * The shown-already set is the SAME one `coverFor` reads, so the painted
        * cover and the card cannot disagree about whether this is a first arrival,
        * which is the failure two separate sets always produce. */
-      if (!seenThisSession(mapId)) {
-        markSeen(mapId)
-        const place = placeOfMap(mapId)
-        showPlaceCard({
-          title: titleOfMap(mapId, typeof map.title === 'string' ? map.title : undefined),
-          line: slot?.place && place ? place.recognise : undefined,
-        })
-      }
+      /* PAID NOW UNLESS HE IS STILL ON THE WATER. `arriveAboard` has either put a
+       * hull under him by this line or warned and left him on foot, so the hull
+       * is the honest test of which arrival this is rather than the URL that
+       * asked for one. */
+      if (!(target.aboard && hull)) arrivalCard()
 
       console.log(`[pmap] loaded "${map.id}" ${W}x${H} zoom x${Z}${coastCut ? ' with ocean' : ' (interior, no ocean)'}${doors.length ? ` · ${doors.length} door${doors.length > 1 ? 's' : ''}` : ''}. WASD to walk.`)
     }
