@@ -16,6 +16,7 @@ import {
   recordGrade, setFlag, setIslandState,
 } from './save'
 import { cordsOf, gpaOf } from './progress'
+import { grant } from './grant'
 import { beatDone, coreBeatId, hasCoreBeat } from './beats/beats'
 import { programmeById } from './roster/roster'
 import { play as playSfx } from './audio'
@@ -126,6 +127,61 @@ export const engine: IntentEngine = {
       throw new NotBuilt('award', 'there is no run to write this onto. '
         + 'Start a run first, or use the standalone harness only for logic that does not score.')
 
+    /* AND THE STUDENT IS TOLD, WHICH IS THE THING THIS WORD HAS NEVER DONE.
+     *
+     * This is the single entry point for every grant a member's island can make,
+     * and it wrote six things to the save and moved nothing on the screen. A
+     * fourteen year old answered an island's questions, finished it, and the game
+     * did not react. `src/game/grant.ts` has the whole argument for why the answer
+     * is one call here rather than a hook on the writes: six writes, one thing
+     * earned, and half of what a run earns is computed rather than stored. */
+    const before = loadSave()
+    writeAward(a)
+    grant(before, loadSave(), saidOf(a))
+  },
+
+  log(event, data) {
+    track(event, data)
+  },
+
+  /* A PAUSE IS A PAUSE IN ANY SCENE, which is why it is here and not on the
+   * world. A member testing an island's pacing in the standalone harness, with no
+   * painting loaded at all, should get the same rhythm they will get on the map;
+   * putting this on `IntentWorld` would have made timing the one thing that could
+   * not be tried without a map.
+   *
+   * The ceiling is applied in `performIntent` rather than here, because that is
+   * where the refusal for a negative number lives and one word should not be
+   * validated in two places. */
+  wait(ms) {
+    return new Promise<void>((r) => setTimeout(r, ms))
+  },
+
+  /* SOUND IS GLOBAL AND SO IS THIS. There is one pair of speakers whichever scene
+   * is up, so an effect does not belong to a map, and an unknown name throws
+   * `NotBuilt` out of the library, which `performIntent` turns into a refusal at
+   * the member's own line. */
+  sound(name, gain) {
+    playSfx(name, gain)
+  },
+
+  /* the study arm this participant was assigned at join. A grape never chooses
+   * it; it can only force plain for a specific activity (see intents.ts). */
+  mode(): SessionMode {
+    return loadSave()?.arm === 'plain' ? 'plain' : 'game'
+  },
+}
+
+/* ---- THE WRITES, LIFTED OUT SO THE ANSWER CAN WRAP THEM -------------------
+ *
+ * Word for word what `award` used to be, moved down here unchanged. It has two
+ * early returns in it, which is the whole reason it is a function rather than a
+ * block: naming a programme and no grade is a completion and stops there, and
+ * the answer above still has to happen on that path.
+ */
+type AwardArgs = Parameters<IntentEngine['award']>[0]
+
+function writeAward(a: AwardArgs) {
     if (a.fact) collectFact(a.fact)
     if (a.sticker) collectSticker(a.sticker)
     if (a.badge) grantBadge(a.badge)
@@ -196,36 +252,25 @@ export const engine: IntentEngine = {
        * learning measure blur into each other with nothing to unpick them. */
       track('programme_completed', { programme: g.id, place: g.place, grade: a.grade, year })
     }
-  },
+}
 
-  log(event, data) {
-    track(event, data)
-  },
-
-  /* A PAUSE IS A PAUSE IN ANY SCENE, which is why it is here and not on the
-   * world. A member testing an island's pacing in the standalone harness, with no
-   * painting loaded at all, should get the same rhythm they will get on the map;
-   * putting this on `IntentWorld` would have made timing the one thing that could
-   * not be tried without a map.
-   *
-   * The ceiling is applied in `performIntent` rather than here, because that is
-   * where the refusal for a negative number lives and one word should not be
-   * validated in two places. */
-  wait(ms) {
-    return new Promise<void>((r) => setTimeout(r, ms))
-  },
-
-  /* SOUND IS GLOBAL AND SO IS THIS. There is one pair of speakers whichever scene
-   * is up, so an effect does not belong to a map, and an unknown name throws
-   * `NotBuilt` out of the library, which `performIntent` turns into a refusal at
-   * the member's own line. */
-  sound(name, gain) {
-    playSfx(name, gain)
-  },
-
-  /* the study arm this participant was assigned at join. A grape never chooses
-   * it; it can only force plain for a specific activity (see intents.ts). */
-  mode(): SessionMode {
-    return loadSave()?.arm === 'plain' ? 'plain' : 'game'
-  },
+/* WHAT THE CARD SAYS, in the words a fourteen year old reads.
+ *
+ * The programme's own name when there is one, because that is the thing they
+ * just finished and the roster already holds what it is called. A grade is a
+ * detail under it and never the headline: §6.9's rule is that this game is warm
+ * about performance, and a number in the largest text on the screen is not.
+ * Everything else falls back through what was actually given. */
+function saidOf(a: AwardArgs): { what: string; detail?: string } {
+  const g = programmeById(a.programme)
+  if (g) {
+    return {
+      what: `${g.name} is done.`,
+      detail: typeof a.grade === 'number' ? `It goes on your transcript.` : undefined,
+    }
+  }
+  if (a.badge) return { what: 'You earned a badge.', detail: a.badge }
+  if (a.sticker) return { what: 'Something new for the wall.', detail: a.sticker }
+  if (a.fact) return { what: 'That went in the Handbook.' }
+  return { what: 'That counted.' }
 }

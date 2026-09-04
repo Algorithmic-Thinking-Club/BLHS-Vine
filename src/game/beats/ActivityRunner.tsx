@@ -15,7 +15,8 @@ import { track } from '../telemetry'
 import { usePanel } from '../ui/a11y'
 import { currentSkin } from '../ui/skin'
 import { Chip, Field, Gauge, Glyph, Plank, PortraitFrame, useFace } from '../ui/controls'
-import { awarded, right as sayRight, wrong as sayWrong } from '../ui/feedback'
+import { right as sayRight, wrong as sayWrong } from '../ui/feedback'
+import { grant } from '../grant'
 import './beats.css'
 
 // THE ACTIVITY RUNNER, the vine's woven-check chassis (§6.7 baseline), playing any
@@ -155,7 +156,11 @@ export function CoreBeatRunner(
      * Nothing here fires in the plain arm: `feedback` is a drawn overlay and the
      * control arm's result is a printed page. `as_plain` already branches above. */
     if (arm !== 'plain' && beat.credit > 0) {
-      awarded(`${beat.credit} credit earned`, beat.title)
+      /* THROUGH `grant` RATHER THAN STRAIGHT AT THE POP, so a credit that tips a
+       * cord over its line says so. Four of the six badges and all seven cords are
+       * worked out from the run rather than stored, so nothing anywhere redraws
+       * when one of them is finally met, and this is the frame it happens on. */
+      grant(before, after, { what: `${beat.credit} credit earned`, detail: beat.title })
     }
     track('core_beat_complete', {
       id: beat.id, grade, retaken: retaking.current, arm, tries: attempt.current.n,
