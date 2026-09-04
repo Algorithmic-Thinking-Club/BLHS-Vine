@@ -28,8 +28,8 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 6px 10px 12px;
+  gap: 8px;
+  padding: 4px 8px 10px;
   font-family: var(--kit-face-body);
   color: var(--kit-ink-body);
   image-rendering: var(--kit-pixel);
@@ -38,7 +38,7 @@
 .py-title {
   margin: 0;
   font-family: var(--kit-face-display);
-  --kit-fs-raw: calc(28px * var(--kit-text-scale));
+  --kit-fs-raw: calc(24px * var(--kit-text-scale));
   font-size: var(--kit-fs);
   color: var(--kit-ink-head);
 }
@@ -49,7 +49,7 @@
   color: var(--kit-ink-quiet);
 }
 .py-h {
-  margin: 6px 0 0;
+  margin: 2px 0 0;
   font-family: var(--kit-face-display);
   --kit-fs-raw: calc(18px * var(--kit-text-scale));
   font-size: var(--kit-fs);
@@ -66,7 +66,53 @@
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 10px;
 }
-.py-grid-class { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+
+/* ---- THE CLASS LIST ------------------------------------------------------
+ *
+ * Three columns of rows, so ten of them are three lines of screen rather than
+ * two rows of carved frames. Each row is still a real tap target at 34 tall and
+ * still says which state it is in with a SHAPE, the drawn tick, rather than with
+ * a shade. */
+.py-classes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 4px 10px;
+}
+.py-class {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 4px 10px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--kit-ink-body);
+  border-radius: var(--kit-r-soft);
+  transition: background var(--kit-t-quick) ease;
+}
+.py-class:hover { background: var(--kit-paper-lo); }
+/* the seat the tick sits in is drawn whether or not the tick is, so a row does
+   not move sideways the moment it is chosen */
+.py-tick {
+  flex: none;
+  width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+  border: var(--kit-border) solid var(--kit-edge-strong);
+  border-radius: var(--kit-r-sharp);
+}
+.py-class-on { background: var(--kit-paper-lo); }
+.py-class-on .py-tick { border-color: var(--kit-sea-ink); }
+.py-class-name {
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1.15;
+}
+.py-class-on .py-class-name { color: var(--kit-ink-head); }
+.py-count { color: var(--kit-ink-quiet); font-family: var(--kit-face-body); }
+
 
 .py-card {
   position: relative;
@@ -74,11 +120,22 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
-  /* a hand, not a row. 96 is two lines of name plus two of detail with air, and
-     it is well past the 44px a trackpad needs. */
-  min-height: 96px;
-  padding: 12px 14px;
+  gap: 2px;
+  /* a hand, not a row, and well past the 44px a trackpad needs.
+     THE PADDING IS THE ART'S, NOT A GUESS. The `tab` piece is a carved frame with
+     an iron bracket in each corner, and at 14 the words sat ON those brackets:
+     photographed on the first capture, "Football" was squeezed into the middle
+     third of its own card. The frame's own slice is 36/49, so the contents start
+     inside it. */
+  min-height: 104px;
+  /* NEARLY NO PADDING, BECAUSE THE FRAME IS THE PADDING. `kit-surface-tab` is a
+     nine-slice whose border-width IS its carved edge, 49 pixels each side, and a
+     padding on top of that insets the contents TWICE: at 22 the words had about
+     a hundred pixels of a two-hundred pixel card to live in, so "Girls Flag
+     Football" wrapped onto three lines inside its own sign. This is the same
+     mistake `transitions.css` records for the settings panel, from the other
+     end. */
+  padding: 4px 2px;
   border: 0;
   text-align: left;
   cursor: pointer;
@@ -86,7 +143,14 @@
   color: var(--kit-ink-body);
   transition: transform var(--kit-t-quick) ease, filter var(--kit-t-quick) ease;
 }
-.py-card-sm { min-height: 62px; }
+/* A CLASS IS A SMALLER DECISION THAN A SEASON, and the screen has to hold both
+   plus the wall plus the button inside 768 pixels. The brief's "big drawn cards"
+   is about the five things you DO; the classes are a list you pick two from. */
+.py-card-sm {
+  min-height: 0;
+  padding: 4px 2px;
+  justify-content: center;
+}
 .py-card:hover { transform: translateY(-2px); filter: brightness(1.04); }
 .py-card:active { transform: translateY(1px); }
 
@@ -97,11 +161,16 @@
 .py-card-on {
   box-shadow: inset 0 0 0 3px var(--kit-sea);
 }
+/* THE STAMP SITS IN THE FRAME'S OWN TOP-RIGHT and the name keeps clear of it.
+   With the double padding removed the name reaches the full inner field, which
+   is right, and it promptly ran under the stamp: photographed with Football
+   taken, the tick was on the word. A stamp lands on a card, not on its name. */
 .py-stamp {
   position: absolute;
-  top: 6px;
-  right: 8px;
+  top: 10px;
+  right: 12px;
 }
+.py-card-on .py-card-name { padding-right: 30px; }
 
 .py-card-name {
   font-family: var(--kit-face-display);
@@ -144,8 +213,8 @@
 .py-slot {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: 9px;
+  padding: 6px 9px;
   /* AN OUTLINE IS A HOLE, and a hole is drawn as an absence: a dashed seat with
      nothing in it. It is the same vocabulary the year sheet's empty socket uses,
      so a student who meets one has met the other. */
@@ -154,8 +223,8 @@
 }
 .py-slot-hole {
   flex: none;
-  width: 26px;
-  height: 26px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   border: 2px dashed var(--kit-rule-firm);
 }
@@ -217,3 +286,11 @@ html[data-skin='plain'] .py-card-name { font-weight: 700; }
 html[data-skin='plain'] .py-card-on .py-card-name::after { content: ' — chosen'; font-weight: 400; }
 html[data-skin='plain'] .py-slot,
 html[data-skin='plain'] .py-slot-hole { border-style: solid; border-color: var(--kit-edge); }
+
+/* the class card carries one line and nothing else, so its name is body-sized:
+   at display size the longer catalogue names wrapped to three lines and the row
+   grew past the fold this screen is not allowed to have */
+.py-card-sm .py-card-name {
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+}

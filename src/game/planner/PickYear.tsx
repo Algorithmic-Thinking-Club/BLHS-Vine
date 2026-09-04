@@ -166,20 +166,33 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
           })}
         </div>
 
-        <h3 className="py-h">Two classes</h3>
-        <div className="py-grid py-grid-class">
+        {/* ---- THE CLASSES ARE A LIST, NOT TEN MORE CARDS -----------------
+            "Big drawn cards" is about the five things you DO; a class is a
+            smaller decision and there are ten of them offered in year one.
+            Photographed as cards: the `tab` piece is a carved frame whose own
+            nine-slice is 36 tall at the top and 35 at the bottom, so a card
+            cannot be shorter than 71 pixels however little is written on it, and
+            ten of them pushed the wall and the button that ends the beat clean
+            off a 768 pixel screen. A screen the brief calls "one screen".
+
+            So the frames go and the marks stay: a row per class, a drawn tick
+            when it is yours, and the same two-pick rule underneath. */}
+        <h3 className="py-h">Two classes<span className="py-count"> {plan.classes.length} of 2</span></h3>
+        <div className="py-classes">
           {classes.map((c) => {
             const on = plan.classes.includes(c.id)
             const no = refused?.id === c.id ? refused.why : null
             return (
               <button
                 key={c.id}
-                className={`py-card py-card-sm kit-surface-tab${on ? ' py-card-on' : ''}`}
+                className={`py-class${on ? ' py-class-on' : ''}`}
                 aria-pressed={on}
                 onClick={() => takeClass(c)}
               >
-                {on && <Glyph piece="stamp" face="approved" size={22} className="py-stamp" />}
-                <span className="py-card-name">{c.name}</span>
+                <span className="py-tick" aria-hidden="true">
+                  {on && <Glyph piece="icon_set" face="tick" size={15} />}
+                </span>
+                <span className="py-class-name">{c.name}</span>
                 {no && <span className="py-no">{no}</span>}
               </button>
             )

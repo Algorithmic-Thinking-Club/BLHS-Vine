@@ -613,7 +613,21 @@ html[data-skin='plain'] .kit-plank {
 html[data-skin='plain'] .kit-plank-ink { text-shadow: none; color: var(--kit-ink-body); font-weight: 600; }
 html[data-skin='plain'] .kit-plank:hover:not(:disabled) { filter: none; transform: none; background-color: var(--kit-paper-tab-lo); }
 html[data-skin='plain'] .kit-plank:active:not(:disabled) { transform: none; }
-html[data-skin='plain'] .kit-plank:disabled { filter: none; opacity: .55; }
+/* A DISABLED BUTTON IN THIS ARM STILL HAS TO BE READ. The plain plank became
+   paper with dark ink on 2026-09-02, and this rule's 0.55 opacity was written
+   against the dark slate it used to be: on #ececea it left "That is my year"
+   as a grey ghost on a grey button, which is not "not yet", it is broken.
+   §40.9's rule is that a disabled control should be rare and should answer; the
+   sentence beside it does the answering, so this only has to look unavailable
+   without becoming unreadable. */
+html[data-skin='plain'] .kit-plank:disabled {
+  filter: none;
+  opacity: 1;
+  background-color: var(--kit-paper-hi);
+  border-style: dashed;
+  cursor: not-allowed;
+}
+html[data-skin='plain'] .kit-plank:disabled .kit-plank-ink { color: var(--kit-ink-dim); }
 html[data-skin='plain'] .kit-plank-key { background: none; opacity: 1; }
 html[data-skin='plain'] .kit-chip {
   border-radius: 2px;
