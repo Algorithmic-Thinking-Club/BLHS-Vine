@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNav } from '../../app/SceneManager'
 import { track } from '../telemetry'
 import { checkClass, joinClass } from '../net'
 import { loadSave, subscribeSave, writeSave } from '../save'
@@ -183,6 +184,7 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
   const [joining, setJoining] = useState(false)
   const [joinErr, setJoinErr] = useState('')
   const result = useRef<Result>({ handle: 'Panther', pronouns: 'they/them', boatName: 'The Bonney', castaway: false, thorLook: 'classic' })
+  const nav = useNav()
 
   /* §16.2, THE ONE RULE THIS SECTION IMPOSES ON THE OPENING ACT: "nothing on
    * screen may move when the arm is drawn". The arm arrives on the save write
@@ -224,6 +226,31 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
   }, [card])
 
   const next = (c: Card) => setCard(c)
+
+  /* ---- AND A WAY BACK, WHICH THE LETTER DID NOT HAVE ----------------------
+   *
+   * BRIEF-PLAYTHROUGH-1, on the beach scroll: "no way back from a card". Ash met
+   * five cards in a row, each of which committed a choice about his own name,
+   * pronouns, appearance and boat, and not one of them could be undone. The only
+   * control that went anywhere was the one that went forward.
+   *
+   * The order is the reading order, so back is the card before. Two exceptions,
+   * both of them honest rather than convenient:
+   *
+   *   The code card has nothing before it, so its Back leaves the game the way
+   *   the help card's does. There is no run yet, so nothing is lost, and a
+   *   student who opened this by accident has a door.
+   *
+   *   A student who has ALREADY joined starts on `identity`, because the code is
+   *   answered and re-asking it would be a question with one possible answer.
+   *   Their Back is the same leave, for the same reason. */
+  const ORDER: Card[] = ['code', 'identity', 'word', 'wardrobe', 'boat']
+  const first: Card = alreadyJoined ? 'identity' : 'code'
+  const back = () => {
+    const at = ORDER.indexOf(card)
+    if (at <= 0 || card === first) { nav.go('title'); return }
+    setCard(ORDER[at - 1])
+  }
   const finish = () => {
     const r = result.current
     // the save's handle is the truth once joined (the server may have suffixed a twin)
@@ -282,6 +309,22 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
     <div className="i3-root">
       <div className={`i3-scroll ${card === 'rollup' ? 'i3-rollup' : ''}`} {...panel}>
         <div className="i3-paper" ref={stage} tabIndex={-1}>
+          {/* ONE BACK, ON THE PAPER, NOT ONE PER CARD. The order asks for "a Back
+              on every card" and the way to be sure of that is to put it outside
+              the cards, where no card can forget it and no card can move it. It
+              sits in the letter's own top-left corner, above whatever the card
+              is, so it is in the same place on all five. */}
+          {card !== 'rollup' && (
+            <button className="i3-back" onClick={back}>
+              {/* the same drawn arrow the help card lays out in four quarter
+                  turns, at half a turn. One arrow in the game, and a rotation of
+                  pixel art by a right angle is lossless where any other angle is
+                  not. `Glyph` draws nothing at all when the platform has not
+                  answered, so the word carries it on its own. */}
+              <Glyph piece="icon_set" face="arrow" size={12} className="i3-back-mark" />
+              {card === first ? 'Leave' : 'Back'}
+            </button>
+          )}
           {card === 'code' && (
             <CodeCard
               initial={code}

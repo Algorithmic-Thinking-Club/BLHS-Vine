@@ -30,7 +30,19 @@
 }
 
 .i3-scroll {
-  width: min(430px, 92vw, 52vh);             /* 52vh keeps the 384:688 scroll inside short screens */
+  /* AS BIG AS THE DEPLOYMENT TARGET ALLOWS, which is what "fit it at 1366x768"
+     comes down to for a picture whose proportions are fixed. The scroll is drawn
+     384 by 688, so its height is 1.79 times its width and the height is always
+     what runs out first on a landscape screen. At 52vh it stood 716 tall in a 768
+     window and left 52 pixels of margin doing nothing; 54vh is 742 and leaves 26,
+     which is the last of the screen it can honestly take.
+
+     THE REST OF "SMALL" IS NOT A NUMBER IN THIS FILE. A portrait scroll on a
+     landscape screen uses a third of the width whatever this line says, and the
+     paper inside it is a 232 pixel column. That is a decision about which drawn
+     object the join sits on, and it is Ash's, so it is reported with pictures
+     rather than changed here. */
+  width: min(430px, 92vw, 54vh);
   aspect-ratio: 384 / 688;
   background: var(--kit-art-scroll) center / 100% 100% no-repeat;
   image-rendering: var(--kit-pixel);
@@ -65,9 +77,32 @@ html[data-rm='1'] .i3-rollup { animation-duration: 1ms; }
   position: absolute; inset: 16% 21% 22% 21%;
   display: flex; flex-direction: column;
 }
+/* ---- ONE SKELETON, FIVE CARDS -------------------------------------------
+ *
+ * "Sudden jumps", from his play. The paper's own box never moved: measured card
+ * by card by `scripts/scroll.mjs` it is 232x444 on all five. What moved was
+ * everything INSIDE it. The cards were centred flex columns of different
+ * heights, so the letter began at the top on one card and in the middle on the
+ * next, and the button that says "go on" landed at a different height every
+ * time. A student's eye has to find the same control again after every press.
+ *
+ * A grid fixes the places rather than the sizes: whatever a card puts in the
+ * head sits at the top, whatever it puts in the body takes the slack, and the
+ * button is at the bottom on all five. Nothing has to agree on a height for the
+ * layout to hold still. */
 .i3-card {
   display: flex; flex-direction: column; align-items: center;
   height: 100%;
+  width: 100%;
+  /* THE SKELETON IS TWO LINES, NOT A GRID. A grid was tried first and made it
+     worse: the cards have five to eight children rather than a head, a body and
+     a foot, so a three-row template did nothing for them, and the implicit
+     COLUMN sized itself to the widest child and carried the heading straight off
+     the right-hand deckle. Photographed before it was believed.
+     Pinning the button to the bottom is the whole of what "no jump" needs: the
+     head is at the top because it is first, the button is at the bottom because
+     of `margin-top: auto` below, and the slack falls in the middle where nothing
+     is looking. */
   /* LARGE TEXT GETS ROOM RATHER THAN A CLIP. The paper is a drawn rectangle and
      cannot grow, so at `--kit-text-scale: 1.22` the wardrobe card asks for more
      height than the deckle has. A card that scrolls is readable; a card that
@@ -75,6 +110,15 @@ html[data-rm='1'] .i3-rollup { animation-duration: 1ms; }
   overflow-y: auto; overflow-x: hidden;
   scrollbar-width: thin;
 }
+/* NOTHING ON THE PAPER IS WIDER THAN THE PAPER. Photographed before the fix on
+   the identity card: the name field and its "Spin a name" plank ran past the
+   right-hand deckle and sat on the drawn frame, and so did the pronoun chips.
+   A drawn edge is not a suggestion. */
+.i3-card > * { max-width: 100%; box-sizing: border-box; }
+/* THE BUTTON IS ALWAYS AT THE BOTTOM OF THE PAPER, on all five cards, which is
+   what stops the "sudden jumps" his play named: the control a student is looking
+   for next was landing at a different height on every card. */
+.i3-card > .i3-plank { margin-top: auto; }
 .i3-card::-webkit-scrollbar { width: 6px; }
 .i3-card::-webkit-scrollbar-thumb { background: var(--kit-edge); border-radius: var(--kit-r-soft); }
 
@@ -294,10 +338,26 @@ html[data-rm='1'] .i3-shake { animation: none; }
    `<button className="i3-plank i5-plank">` and this session does not own that
    file, so the standalone rules have to keep working. They are scoped to
    `:not(.kit-plank)` so nothing is declared twice on the same element. */
+/* THE LABEL IS THE WORDS, SO THE PLANK IS WHAT GIVES. "Thor looks great
+   already" on a 241 pixel paper ran off both ends of its own sign: photographed
+   at `ui/scroll-after/04-wardrobe.png`, the T and the y were outside the wood.
+   Rewriting the sentence is the words session's job and not this one's, so the
+   sign takes the sentence instead: the ink wraps rather than overflowing, and it
+   steps down a size on the narrow paper the letter is drawn on. */
 .i3-plank {
   margin-top: 0;
   margin-bottom: 0;
   min-width: 58%;
+  max-width: 100%;
+  height: auto;
+  min-height: 34px;
+}
+.i3-plank .kit-plank-ink {
+  --kit-fs-raw: calc(3.9cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  white-space: normal;
+  line-height: 1.2;
+  text-align: center;
 }
 .i3-plank:not(.kit-plank) {
   aspect-ratio: 512 / 150;
@@ -355,9 +415,9 @@ html[data-rm='1'] .i5-plank { animation-duration: 1ms; }
   margin-top: 1cqw;
   max-width: 100%;
 }
-.i3-trunk { width: 17cqw; image-rendering: pixelated; filter: drop-shadow(0 2px 5px var(--kit-mirror-drop)); }
+.i3-trunk { width: 15cqw; image-rendering: pixelated; filter: drop-shadow(0 2px 5px var(--kit-mirror-drop)); }
 .i3-tailor {
-  width: 13cqw; image-rendering: pixelated;
+  width: 11.5cqw; image-rendering: pixelated;
   filter: drop-shadow(0 2px 5px var(--kit-mirror-drop));
   animation: i3-fuss 3.2s ease-in-out infinite;   /* she fusses him into frame */
   transform-origin: 50% 95%;
@@ -400,7 +460,48 @@ html[data-rm='1'] .i3-thorview { animation-duration: 1ms; }
    are visible and "say what real thing earns them"; what was here was three emoji
    with a padlock emoji hung on the corner and the criterion inside a `title`
    attribute, which is pointer-only and is therefore not visible at all. */
-.i3-locked { display: flex; flex-direction: column; gap: 1.2cqw; margin-top: 3.5cqw; width: 100%; }
+/* THE TRUNK'S CARD IS THE ONE THAT DOES NOT FIT, and the button is what falls
+   off the bottom of it. Measured by `scripts/scroll.mjs` at 1366x768: the card
+   asks for more height than the paper has, so the plank that goes on sits below
+   a fold with no visible scrollbar to say so, on the one card where a student
+   has already made their choice and is waiting to move.
+
+   The locked rows are the slack. They are a preview of three things a student
+   cannot have yet, so they are the part of this card that can afford to be
+   compact: less air above them, less between them, and the two lines inside each
+   row sit closer together. Nothing is removed and nothing is made unreadable.
+
+   MEASURED, TWICE. The first pass took 43 pixels off and the card still asked
+   for 43 more than the paper had, so the button was still under the fold. The
+   rows that were actually paying for it, in order: the locked list at 140, the
+   trunk row at 91, and the note under it at 42 for one wrapped sentence. The
+   list gives 30 and the note gives the rest by stopping being two lines. */
+/* AND IT IS THE ROW THAT YIELDS, which is the difference between a fix and a
+   negotiation. Two passes of shaving pixels off this card each got it under by
+   less than they took, because the content is what it is and the paper is a
+   drawn rectangle that cannot grow. So the list scrolls INSIDE its own box and
+   the button below it is always on the paper. A student can reach what they came
+   for, and the three things they cannot have yet are the part that has to be
+   scrolled to see all of. */
+.i3-locked {
+  display: flex; flex-direction: column;
+  gap: .5cqw; margin-top: 1.1cqw; width: 100%;
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+/* the note under the locked list gives up its air. It is the quietest sentence
+   on the card and it was costing 42 pixels of a card that was 43 over. */
+/* a scrolling list needs a hairline under it, or its cut-off last row reads as
+   the sentence below it overlapping the row above */
+.i3-locked + .i3-reassure {
+  margin-top: 1.4cqw;
+  padding-top: 1.2cqw;
+  border-top: var(--kit-border) solid var(--kit-rule);
+  width: 100%;
+  --kit-fs-raw: calc(3.2cqw * var(--kit-text-scale));
+}
 .i3-lockrow {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -408,7 +509,7 @@ html[data-rm='1'] .i3-thorview { animation-duration: 1ms; }
   align-items: center;
   gap: 0 2cqw;
   text-align: left;
-  padding: 1.2cqw 2cqw;
+  padding: .55cqw 2cqw;
   background: linear-gradient(180deg, var(--kit-paper-chip-lo), var(--kit-paper-tab-lo));
   border: var(--kit-border) solid var(--kit-edge-strong);
   border-radius: var(--kit-r-soft);
@@ -671,3 +772,52 @@ html[data-skin='plain'] .i3-lockearn { font-family: var(--kit-face-body); font-s
 html[data-skin='plain'] .i3-trunk,
 html[data-skin='plain'] .i3-tailor,
 html[data-skin='plain'] .i3-thorview { filter: none; animation: none; }
+
+/* ---- THE WAY BACK -------------------------------------------------------
+ *
+ * BRIEF-PLAYTHROUGH-1: "a Back on every card". It is drawn once on the paper
+ * rather than five times in the cards, so it cannot be forgotten by a sixth card
+ * and cannot move between the five that exist.
+ *
+ * Top-left, small, and quiet: it is the least important control on the letter
+ * and it must never compete with the one that goes on. A chevron turned to point
+ * left is the mark, which is the same drawn arrow the help card and the world
+ * marker use, so "back" looks the way "go here" looks, mirrored. */
+/* IT IS IN THE FLOW, NOT OVER IT. Absolutely positioned in the paper's top-left
+   it collided with whatever the card put first: on the identity card the centred
+   heading is the full width of the paper and simply covered it, and the control
+   the order exists to add was invisible on the very first screenshot of it.
+   A row of its own above the card cannot be covered by anything. */
+.i3-back {
+  align-self: flex-start;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 4px;
+  border: 0;
+  background: none;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(3.4cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-label);
+  cursor: pointer;
+  opacity: .75;
+  transition: opacity var(--kit-t-quick) ease;
+}
+.i3-back:hover { opacity: 1; }
+/* the drawn arrow at half a turn. `icon_set/arrow` points right, so a back arrow
+   is that same drawing rotated, which keeps one arrow in the game and costs
+   nothing: a right-angle rotation of pixel art lands on the grid exactly. */
+.i3-back-mark { flex: none; transform: rotate(180deg); }
+/* THE PAPER IS A COLUMN: the way back, then the card. Two rows, and the card
+   takes the slack, so every card starts at the same y and the Back is in the
+   same corner on all five. */
+.i3-paper { gap: 2px; }
+
+html[data-skin='plain'] .i3-back {
+  opacity: 1;
+  color: var(--kit-ink-body);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
