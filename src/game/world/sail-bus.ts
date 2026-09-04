@@ -33,10 +33,20 @@ type SailDetail = {
 }
 
 let listening = 0
+let here: string | null = null
 
 /** how many scenes can take a sail request right now. The chart asks before it
  *  draws a control, so it never offers a button that cannot do anything. */
 export const sailListenerCount = (): number => listening
+
+/* WHICH PAINTING IS ON SCREEN, ANSWERED BY THE SCENE THAT IS DRAWING IT.
+ *
+ * The chart has to know where the student is standing so it does not offer to
+ * sail them to the island they are already on. Reading it off the address is a
+ * guess: `?map=` is absent on a cold boot and `targetFromUrl` fills it with a
+ * test bundle's id, so the guess is wrong exactly when a student is most likely
+ * to be lost. The scene knows, and it is the only thing that does. */
+export const sailFrom = (): string | null => (listening > 0 ? here : null)
 
 /** ask the world to take the ship to this slot. Resolves when the scene has
  *  decided, not when the ship arrives: a crossing is watched, not awaited. */
@@ -57,15 +67,22 @@ export function requestSail(slot: WorldSlot): Promise<SailAnswer> {
   })
 }
 
-export function onSailRequest(fn: (slot: WorldSlot, answer: (a: SailAnswer) => void) => void): () => void {
+export function onSailRequest(
+  mapId: string,
+  fn: (slot: WorldSlot, answer: (a: SailAnswer) => void) => void,
+): () => void {
   const h = (e: Event) => {
     const d = (e as CustomEvent<SailDetail>).detail
     if (d) fn(d.slot, d.answer)
   }
   window.addEventListener(EVENT, h)
   listening++
+  here = mapId
   return () => {
     window.removeEventListener(EVENT, h)
     listening--
+    /* the last one out puts the light off. A map id left behind by a torn-down
+     * scene is a chart refusing to offer the island a student has just left. */
+    if (listening <= 0) { listening = 0; here = null }
   }
 }

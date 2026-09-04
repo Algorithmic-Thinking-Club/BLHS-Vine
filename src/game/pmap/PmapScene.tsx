@@ -4818,7 +4818,7 @@ export default function PmapScene() {
        * watchdog gives up four seconds later, and a fourteen year old is left in
        * open ocean being told to try the approach again. That is a dead end, and
        * the whole law is that there are none. */
-      offSail = onSailRequest((want, answer) => {
+      offSail = onSailRequest(mapId, (want, answer) => {
         if (!comp || !canSail || !berth) {
           answer({ ok: false, why: 'There is no water under you right now.' }); return
         }

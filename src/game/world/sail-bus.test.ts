@@ -9,7 +9,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import type { WorldSlot } from './composition'
-import { onSailRequest, requestSail, sailListenerCount } from './sail-bus'
+import { onSailRequest, requestSail, sailFrom, sailListenerCount } from './sail-bus'
 
 const slot = (over: Partial<WorldSlot> = {}): WorldSlot => ({
   map: 'stadium', place: 'stadium', title: 'The Stadium',
@@ -29,14 +29,14 @@ describe('asking the world to sail somewhere', () => {
     /* the fallback refusal is dispatched synchronously AFTER the event, so a
      * listener that has already answered has to win. If this ever inverts, every
      * successful crossing is reported to the student as a refusal. */
-    const off = onSailRequest((_s, answer) => answer({ ok: true }))
+    const off = onSailRequest('hub', (_s, answer) => answer({ ok: true }))
     const a = await requestSail(slot())
     off()
     expect(a.ok).toBe(true)
   })
 
   it('lets the scene answer with its own sentence', async () => {
-    const off = onSailRequest((_s, answer) => answer({ ok: false, why: 'There is land in the way.' }))
+    const off = onSailRequest('hub', (_s, answer) => answer({ ok: false, why: 'There is land in the way.' }))
     const a = await requestSail(slot())
     off()
     expect(a).toEqual({ ok: false, why: 'There is land in the way.' })
@@ -47,7 +47,7 @@ describe('asking the world to sail somewhere', () => {
      * travelled as a name would resolve to nothing and the boat would stop in
      * open water with nobody to dock at */
     let got: WorldSlot | null = null
-    const off = onSailRequest((s, answer) => { got = s; answer({ ok: true }) })
+    const off = onSailRequest('hub', (s, answer) => { got = s; answer({ ok: true }) })
     await requestSail(slot({ title: 'The Stadium' }))
     off()
     expect(got).not.toBeNull()
@@ -57,14 +57,25 @@ describe('asking the world to sail somewhere', () => {
 
   it('counts its listeners, so a panel over an interior draws no button at all', () => {
     const before = sailListenerCount()
-    const off = onSailRequest(() => { /* mounted */ })
+    const off = onSailRequest('hub', () => { /* mounted */ })
     expect(sailListenerCount()).toBe(before + 1)
     off()
     expect(sailListenerCount()).toBe(before)
   })
 
+  it('names the painting on screen, and forgets it when the scene goes', () => {
+    /* the chart uses this to stop offering the island he is standing on. Read
+     * off the address it was a guess, and a wrong one on a cold boot, where
+     * `?map=` is absent and the fallback is a test bundle's id. */
+    expect(sailFrom()).toBeNull()
+    const off = onSailRequest('hub', () => { /* mounted */ })
+    expect(sailFrom()).toBe('hub')
+    off()
+    expect(sailFrom()).toBeNull()
+  })
+
   it('does not let a scene answer twice, so a torn-down map cannot overwrite a live answer', async () => {
-    const off = onSailRequest((_s, answer) => {
+    const off = onSailRequest('hub', (_s, answer) => {
       answer({ ok: true })
       answer({ ok: false, why: 'second thoughts' })
     })

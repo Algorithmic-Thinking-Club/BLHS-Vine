@@ -56,7 +56,7 @@ import { loadSave, subscribeSave } from '../save'
 import { mooringFor } from '../run/resume'
 import { Empty, Failed, Glyph, Loading } from '../ui/controls'
 import { announce } from '../ui/a11y'
-import { requestSail, sailListenerCount } from './sail-bus'
+import { requestSail, sailFrom, sailListenerCount } from './sail-bus'
 import { note } from '../ui/feedback'
 import './chart.css'
 
@@ -180,13 +180,11 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
   const from: WorldPt | null = berthed ? berthed.at : null
 
   /* WHERE HE IS STANDING, so the island he is on is not offered as somewhere to
-   * sail to. Read off the address rather than off the save: the save's `where` is
-   * written once a second while walking and the URL is the truth about which
-   * painting is on screen right now. */
-  const here = new URLSearchParams(window.location.search).get('map') ?? undefined
-  /* and whether anything is listening at all. The chart opens over the year sheet
+   * sail to, and whether anything can take him anywhere at all. Both come from
+   * the scene that is drawing the painting: the chart opens over the year sheet
    * and over an interior, and neither has an ocean under it, so the button is not
-   * drawn rather than drawn and refused. */
+   * drawn rather than drawn and then refused. */
+  const here = sailFrom() ?? undefined
   const afloat = sailListenerCount() > 0
 
   const rows: Row[] = slots.map((s) => {
