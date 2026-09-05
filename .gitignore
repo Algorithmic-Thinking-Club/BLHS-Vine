@@ -101,6 +101,10 @@ scripts/*
 # eight items live inside PmapScene, which has no unit test and cannot have one,
 # so this script is the only thing that says they work.
 !scripts/y1-proof.mjs
+# THE THIRD TIME THIS RULE ALMOST ATE SOMETHING LOAD-BEARING. vendor-islands.mjs
+# runs inside `npm run build`, so swallowed by scripts/* it would be a deploy
+# that fails on Vercel and works on the one machine that has the file.
+!scripts/vendor-islands.mjs
 
 # Internal asset registries (kept local)
 **/*-registry.md
@@ -155,3 +159,17 @@ ext.json
 
 .vercel
 .env*
+
+# THE VINE'S OWN ISLANDS ARE BUILD OUTPUT HERE, NOT SOURCE.
+#
+# Ruled by Ash 2026-09-04 (docs/ops/BRIEF-YEAR-ONE.md, WHERE IT LIVES): the
+# opening and the Maw are written in blhs-islands and never again in this repo.
+# `scripts/vendor-islands.mjs` writes these two folders at dev, test and build
+# time from that repository. Committing them would put an editable second copy
+# back exactly where the ruling took one away, and the next person to fix a line
+# would fix it in the copy the player never sees.
+#
+# The fixtures beside them (hello, broken, maw-demo) ARE this repo's own and
+# stay tracked. The vendor never touches those.
+public/grapes/panther-maw/
+public/grapes/castaway/

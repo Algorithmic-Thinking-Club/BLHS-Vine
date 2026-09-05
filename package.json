@@ -4,12 +4,13 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -p tsconfig.json && vite build",
+    "dev": "node scripts/vendor-islands.mjs && vite",
+    "build": "node scripts/vendor-islands.mjs && tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "node scripts/vendor-islands.mjs && vitest run",
+    "test:watch": "node scripts/vendor-islands.mjs && vitest",
+    "vendor": "node scripts/vendor-islands.mjs"
   },
   "dependencies": {
     "@micropython/micropython-webassembly-pyscript": "^1.29.0-6",
