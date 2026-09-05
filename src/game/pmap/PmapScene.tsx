@@ -4259,7 +4259,65 @@ export default function PmapScene() {
        * and testing the floor first would walk him to the chart table and stop
        * beside it doing nothing, which is precisely the dead end the law forbids.
        */
+      /* WHAT THE `E` PRESS WOULD DO AT SEA, hoisted out of the ticker so a click
+       * and a key cannot disagree about it. The same move `offerOf` needed, for
+       * the same reason: the plaque said one thing and the pointer knew nothing
+       * about it. Reassigned every frame by the prompt block below. */
+      let seaFire: (() => void) | null = null
+      /* WHERE A CLICK ASKED THE BOAT TO GO. Not a route and not a path: the helm
+       * is steered toward it with the same one-line manoeuvre the voyage follower
+       * uses between waypoints, so the physics, the grounding and the wake are
+       * all the shipped ones and there is no second way to sail. */
+      let sailTap: { x: number; y: number; until: number } | null = null
+
       const walkTap = (px: number, py: number): 'fired' | 'walking' | 'busy' | 'nothing' => {
+        /* ---- ABOARD, A CLICK STEERS AND PUTS IN ------------------------------
+         *
+         * SWEEP-1 item 3. This function opened by refusing outright whenever a
+         * hull existed, on the reasoning that "a hull is steered, and the chart
+         * is what sails it". The chart does sail, and it is the right door for
+         * crossing to ANOTHER island. But the road every student takes is the
+         * intro handing them to `?aboard=1` off their own island, where the chart
+         * has nothing to offer: the only slot on the published world is the one
+         * they are looking at, and `requestSail` refuses it with "You are already
+         * there". So the crossing was arrow keys or nothing. Measured: fifty
+         * clicks spread over the whole 1366x768 glass, and the hull never moved a
+         * pixel.
+         *
+         * Two answers, in the order a student means them. If the boat is close
+         * enough that the game is already offering to tie up, a click takes that
+         * offer, which is the same `E · Dock here` the plaque names. Otherwise
+         * the click is a heading: she turns toward it and runs, and `stepHull`
+         * grounds her on shallow water exactly as it does under the keys. */
+        if (hull) {
+          if (berthing || worldHeld() || busy || fade) return 'busy'
+          if (seaFire) { seaFire(); return 'fired' }
+          /* WATER IS A HEADING. LAND IS A REQUEST TO PUT IN.
+           *
+           * The first version steered at whatever was clicked, and a click on the
+           * island ran her onto the beach and held her there under power: she
+           * moved 377 pixels, grounded, and every click after that did nothing at
+           * all, which is the twenty-second shuffle again with a boat. A student
+           * clicking the island does not mean "sail into that rock", they mean
+           * "take me there", and the game already owns that manoeuvre. `dockAt`
+           * is the same decelerating approach the `E · Dock here` plaque fires,
+           * and it works for the map you are already on, which is exactly the
+           * crossing the intro hands over. */
+          if (depthAt(px, py) >= DEFAULT_SAIL.probe) {
+            sailTap = { x: px, y: py, until: performance.now() + 30000 }
+            engine.log('sail_tap', { map: mapId, to: [Math.round(px), Math.round(py)] })
+            return 'walking'
+          }
+          if (slot?.berth) {
+            sailTap = null
+            dockAt(slot)
+            engine.log('sail_tap_ashore', { map: mapId, place: slot.place ?? null })
+            return 'fired'
+          }
+          note('There is nowhere to tie up here.')
+          return 'nothing'
+        }
+
         /* ONE GATE, AND IT IS THE ONE THE E PRESS USES. `worldHeld` counts a
          * panel, a dialogue, a cutscene, a door mid-swap, a station mid-sentence
          * and a scripted route all at once, so `runtime.running` needs no second
@@ -5475,10 +5533,32 @@ export default function PmapScene() {
             }
           } else {
             if (helmOverride && performance.now() > helmOverride.until) helmOverride = null
-            const helm: Helm = helmOverride ? helmOverride.helm : fade || locked ? HELM_IDLE : {
+            /* A HAND ON THE KEYS OUTRANKS A CLICK, the same law the walk holds:
+             * a click is a suggestion and a key is the student changing their
+             * mind, so the tap is dropped the instant one is touched rather than
+             * fighting it across the water. */
+            const steering = !!(input['arrowup'] || input['w'] || input['arrowdown'] || input['s']
+              || input['arrowleft'] || input['a'] || input['arrowright'] || input['d'])
+            if (sailTap && (steering || fade || locked || helmOverride)) sailTap = null
+            /* AND SHE STOPS WHEN SHE IS THERE, OR WHEN SHE HAS STOPPED GETTING
+             * THERE. `stepHull` grounds her on shallow water, so a click on the
+             * far side of an island runs her onto the beach and leaves her
+             * there under power; `aground` is the honest end of that. */
+            if (sailTap && (Math.hypot(sailTap.x - hull.x, sailTap.y - hull.y) < 26
+              || performance.now() > sailTap.until || hull.aground)) sailTap = null
+            let helm: Helm = helmOverride ? helmOverride.helm : fade || locked ? HELM_IDLE : {
               throttle: (input['arrowup'] || input['w']) ? 1 : 0,
               turn: (input['arrowright'] || input['d']) ? 1 : (input['arrowleft'] || input['a']) ? -1 : 0,
               fullSail: !!input['shift'],
+            }
+            if (sailTap && !helmOverride && !fade && !locked) {
+              /* THE VOYAGE FOLLOWER'S OWN MANOEUVRE, copied deliberately rather
+               * than shared: it is three lines, and the follower's copy is inside
+               * a branch that also owns waypoints and arrival. Two callers, one
+               * shape, and no new abstraction between the player and the tiller. */
+              const want = Math.atan2(sailTap.y - hull.y, sailTap.x - hull.x)
+              const turn = Math.atan2(Math.sin(want - hull.heading), Math.cos(want - hull.heading))
+              helm = { throttle: 1, turn: Math.abs(turn) < 0.05 ? 0 : turn > 0 ? 1 : -1, fullSail: false }
             }
             hull = stepHull(hull, helm, dt, depthAt)
           }
@@ -5747,7 +5827,7 @@ export default function PmapScene() {
             prompt.position.set(px, pos.y + Math.round(charH * 0.22) + worldH / 2 + bob)
           }
         }
-        let seaFire: (() => void) | null = null
+        seaFire = null
         if (hull && !berthing && !locked && !fade && comp) {
           const at = toSea(hull.x, hull.y)
           const home = comp.slots.find((s) =>
