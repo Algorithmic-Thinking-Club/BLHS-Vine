@@ -2652,6 +2652,16 @@ export default function PmapScene() {
          * the chart AND started a walk to whatever pixel the plaque was hanging
          * over. */
         e.stopPropagation()
+        /* THE RING WINS. A plaque hanging over the lit pool of a DIFFERENT
+         * station takes the tap for the station under the pointer, not for the
+         * one the plaque belongs to: the light on the floor is the game's only
+         * teacher and a click on it has to do what it teaches. `walkTap` is the
+         * same gate the stage uses, so nothing is pressable from here that is
+         * not pressable from the floor. */
+        const w = world.toLocal(e.global)
+        if (litAnchor && insideLit(w.x, w.y) && litAnchor.name !== promptAnchor?.name) {
+          if (walkTap(w.x, w.y) !== 'busy') return
+        }
         if (seaTap) { seaTap(); return }
         if (promptAnchor) void fire(promptAnchor)
       })
@@ -2753,6 +2763,14 @@ export default function PmapScene() {
        * is free. */
       let litKey = ''
       let litR = 0
+      let litRy = 0
+      /* WHICH ANCHOR THE LIGHT IS ON, so the plaque can tell "the thing under my
+       * pointer" from "the thing the year wants". Set where the ring is drawn. */
+      let litAnchor: Anchor | null = null
+      /* is a world point inside the lit pool on the floor */
+      const insideLit = (wx: number, wy: number): boolean =>
+        lit.visible && !!litAnchor && litR > 0
+        && Math.hypot((wx - lit.x) / (litR + 2), (wy - lit.y) / (litRy + 2)) <= 1
 
       /* ==== THE WORLD SUBSTRATE, ON SCREEN ======================================
        *
@@ -4270,6 +4288,34 @@ export default function PmapScene() {
        * all the shipped ones and there is no second way to sail. */
       let sailTap: { x: number; y: number; until: number } | null = null
 
+      /* ---- A CLICK ON AN ANCHOR, FROM WHEREVER THE CLICK CAME ---------------
+       *
+       * Hoisted out of `walkTap` so the station plaque can hand a click to the
+       * lit ring under it (STATE-OF-THE-GAME road-closer 4). The plaque used to
+       * be the only thing that could take a tap over the objective, so a student
+       * standing at the hearth with the year-sheet ring twenty pixels away fired
+       * Advisory again four times and never moved. True when the anchor is
+       * pressable and a walk to it has started; false otherwise, so the caller
+       * can fall through to the floor. */
+      const tapAnchor = (a: Anchor): boolean => {
+        if (!offerOf(a).canFire) return false
+        const g = anchors.standAt(a)
+        /* THE NAME THE STUDENT HAS BEEN READING, not the one the author typed.
+         * This passed `a.name`, so a walk that could not finish was going to
+         * say "you cannot get to panthers_maw from here" in front of a
+         * freshman. It is the same resolution `offerOf` prints on the plaque,
+         * so the sentence and the prompt agree. */
+        const shown = a.label || labelFor(ownerOf(a.name, grapeHandlers), a.name)
+        /* THE SAME REACH `walk_to` USES, so a click and a member's own line put
+         * him in the same place. An authored stand point is exact; without one
+         * the ring's own radius is the tolerance the author drew. */
+        startWalk(g, a.stand ? 3 : Math.max(4, a.r * 0.5), g.facing ?? null,
+          () => { /* nothing was waiting on it */ }, shown,
+          { byPlayer: true, arrive: () => { void fire(a) } })
+        engine.log('click_walk', { map: mapId, anchor: a.name })
+        return true
+      }
+
       const walkTap = (px: number, py: number): 'fired' | 'walking' | 'busy' | 'nothing' => {
         /* ---- ABOARD, A CLICK STEERS AND PUTS IN ------------------------------
          *
@@ -4326,23 +4372,7 @@ export default function PmapScene() {
         if (hull || berthing || worldHeld() || busy || fade) return 'busy'
 
         const a = anchors.nearestInteractive(px, py)
-        if (a && offerOf(a).canFire) {
-          const g = anchors.standAt(a)
-          /* THE NAME THE STUDENT HAS BEEN READING, not the one the author typed.
-           * This passed `a.name`, so a walk that could not finish was going to
-           * say "you cannot get to panthers_maw from here" in front of a
-           * freshman. It is the same resolution `offerOf` prints on the plaque,
-           * so the sentence and the prompt agree. */
-          const shown = a.label || labelFor(ownerOf(a.name, grapeHandlers), a.name)
-          /* THE SAME REACH `walk_to` USES, so a click and a member's own line put
-           * him in the same place. An authored stand point is exact; without one
-           * the ring's own radius is the tolerance the author drew. */
-          startWalk(g, a.stand ? 3 : Math.max(4, a.r * 0.5), g.facing ?? null,
-            () => { /* nothing was waiting on it */ }, shown,
-            { byPlayer: true, arrive: () => { void fire(a) } })
-          engine.log('click_walk', { map: mapId, anchor: a.name })
-          return 'fired'
-        }
+        if (a && tapAnchor(a)) return 'fired'
 
         /* THE FLOOR, AND HE WALKS AS FAR AS HE REALLY CAN GET. `startWalk` ends
          * on arriving within `reach` and otherwise runs its full twenty second
@@ -5835,6 +5865,28 @@ export default function PmapScene() {
             prompt.position.set(px, pos.y + Math.round(charH * 0.22) + worldH / 2 + bob)
           }
         }
+        /* ---- AND NEVER ON THE LIGHT EITHER ----------------------------------
+         *
+         * The drop below the body is exactly what put the plaque on the ring: the
+         * Maw's stations stand twenty painting pixels apart, so "just under his
+         * feet" at the hearth is the year-sheet table's pool of light. Measured
+         * 2026-09-05: `E · The Hearth · again` at 658-797 x 426-444 over a ring
+         * at 666,424. The plaque steps sideways off the light, toward whichever
+         * side is nearer, and back if that would leave the glass. The tap guard
+         * on the plaque is the second fence; this is the one the eye sees. */
+        const clearOfLit = (own: Anchor | null) => {
+          if (!prompt.visible || !lit.visible || !litAnchor || own?.name === litAnchor.name) return
+          const b = prompt.getBounds()
+          const r = lit.getBounds()
+          const gap = 6
+          if (b.maxX <= r.minX - gap || b.minX >= r.maxX + gap || b.maxY <= r.minY - gap || b.minY >= r.maxY + gap) return
+          const right = (r.maxX + gap) - b.minX
+          const left = b.maxX - (r.minX - gap)
+          let dx = right <= left ? right : -left
+          if (b.maxX + dx > app.screen.width - 4) dx = -left
+          else if (b.minX + dx < 4) dx = right
+          prompt.x += dx / camZ
+        }
         seaFire = null
         if (hull && !berthing && !locked && !fade && comp) {
           const at = toSea(hull.x, hull.y)
@@ -5873,6 +5925,7 @@ export default function PmapScene() {
           const np = anchors.spotOf(near)
           setPrompt(st.text, st.state)
           hang(np.x, np.y, 18, Math.sin(t * 2.1) * 1.2)
+          clearOfLit(near)
           /* the plaque is only tappable when E would do something, so a barred
            * door and a closed station read the same to a pointer as to a key */
           prompt.eventMode = canFire ? 'static' : 'none'
@@ -5965,10 +6018,12 @@ export default function PmapScene() {
            * is answered against the body: about two of him across is a pool a
            * fourteen year old sees without being told to look. */
           const want = Math.max(mark.r, Math.round(map.character.heightPx * 1.1), 22)
+          litAnchor = mark
           if (litKey !== mark.name || litR !== want) {
             litKey = mark.name
             litR = want
             const ry = Math.max(6, want * (map.yScale || 1) * 0.5)
+            litRy = ry
             /* AND IT IS NOT CARRIED BY HUE ALONE (§40.31). The deployment target
              * is a Chromebook panel that crushes lightness and saturation, and
              * this thing sits on sand, on stone and on grass depending on which
@@ -6008,7 +6063,8 @@ export default function PmapScene() {
           objMark.visible = false
           /* guarded, never cleared: see the note where `lit` is built. Both of
            * these run on every frame of a map with nothing owed. */
-          if (lit.visible) { lit.visible = false; litKey = ''; litR = 0 }
+          if (lit.visible) { lit.visible = false; litKey = ''; litR = 0; litRy = 0 }
+          litAnchor = null
           guideTrail.clear()
           guide = null
         }
