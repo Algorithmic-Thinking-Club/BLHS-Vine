@@ -99,5 +99,5 @@ def on_the_wall(trophies):
 def wall_line(count):
     """What the wall says about itself, which is a fact and not a compliment."""
     if count == 1:
-        return "One trophy on the wall now. You earned it."
-    return "%d trophies on the wall now. You earned every one of them." % count
+        return "One badge on the wall now. You earned it."
+    return "%d badges on the wall now. You earned every one of them." % count

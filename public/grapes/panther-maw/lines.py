@@ -63,7 +63,7 @@ GREETING = "Welcome to Bonney Lake High School, Panther. I am the principal here
 TOUR = [
     (HEARTH, "That fire is Advisory. Every school year starts there."),
     (COUNSELOR, "She is the counselor. Ask her about your honor cords."),
-    (WALL, "That wall holds your trophies. Everything you earn goes up there."),
+    (WALL, "That wall holds your badges. Everything you earn goes up there."),
 ]
 
 TURNING_BACK = "Now go to the year sheet table and plan your first year."
@@ -99,4 +99,4 @@ NOOK = "Pick a new coat color. Nothing here costs anything."
 
 # ---- the trophy wall ---------------------------------------------------------
 
-EMPTY_WALL = "Nothing on the wall yet. Everything I earn goes up here."
+EMPTY_WALL = "No badges on the wall yet. Every badge I earn goes up here."
