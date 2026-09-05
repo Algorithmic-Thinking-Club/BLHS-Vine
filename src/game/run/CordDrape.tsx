@@ -52,6 +52,13 @@ export function CordDrape({ year, onDone }: { year: number; onDone: () => void }
     .sort((a, b) => Number(b.earned) - Number(a.earned) || b.progress - a.progress)[0] ?? null
 
   const filled = onTheWall(s, year)
+  /* A CORD IS COUNTED AT GRADUATION AND NOWHERE ELSE. `cordsOf` can read a
+   * GPA cord as met after one year, and the first capture of this card showed
+   * High Honors with a full bar, a seal and "Earned." to a freshman
+   * (STATE-OF-THE-GAME confusing 9). Gold, the seal and the word are for the
+   * stage in year four; before that the card says where they stand and when
+   * it counts. */
+  const closed = !!cord?.earned && !!s?.graduated
 
   useEffect(() => {
     track('cord_draped', { year, cord: cord?.id ?? null, progress: cord?.progress ?? 0, wall: filled })
@@ -80,22 +87,32 @@ export function CordDrape({ year, onDone }: { year: number; onDone: () => void }
                 into pixels would be inventing a picture of a real award. The
                 colours are printed under the name in the school's own words and
                 the ribbon stays the game's own. */}
-            <div className={`cd-drape${cord.earned ? ' cd-drape-earned' : ''}`} aria-hidden="true">
+            <div className={`cd-drape${closed ? ' cd-drape-earned' : ''}`} aria-hidden="true">
               <span className="cd-collar" />
               <span className="cd-fall cd-fall-l" />
               <span className="cd-fall cd-fall-r" />
-              {cord.earned && <Glyph piece="stamp" face="awarded" size={30} className="cd-seal" />}
+              {closed && <Glyph piece="stamp" face="awarded" size={30} className="cd-seal" />}
             </div>
 
+            <p className="cd-lead">{closed ? 'Your cord' : 'The cord you are closest to'}</p>
             <h2 className="cd-name">{cord.name}</h2>
-            <p className="cd-colors">{cord.colors}</p>
+            {/* the ribbon above is the game's own; the school's colours are
+                printed so nobody reads a teal loop as "black and silver" */}
+            <p className="cd-colors">Its real colours: {cord.colors}</p>
 
             {/* WHERE THEY STAND, IN THE SCHOOL'S NUMBERS. `detail` is the live
                 reading `cordsOf` computes against the real criterion, so this is
                 the same sentence the Handbook's cords board shows and the same
                 one the yearbook's bar is drawn from. */}
             <Gauge value={cord.progress} label={`${cord.name}, ${cord.detail}`} className="cd-bar" />
-            <p className="cd-stands">{cord.earned ? 'Earned.' : cord.detail}</p>
+            <p className="cd-stands">{closed ? 'Earned.' : cord.detail}</p>
+            {!closed && (
+              <p className="cd-when">
+                {cord.earned
+                  ? 'On track. Cords are counted at graduation, in year four. Keep this up and it is yours.'
+                  : 'Not yet. Cords are counted at graduation, in year four. Keep going.'}
+              </p>
+            )}
 
             <p className="cd-rule">
               <span className="cd-rulelabel">Bonney Lake gives it for</span> {cord.rule}
@@ -115,8 +132,8 @@ export function CordDrape({ year, onDone }: { year: number; onDone: () => void }
 
         <p className="cd-wall">
           {filled === 0
-            ? 'Nothing on the wall this year.'
-            : `${filled} ${filled === 1 ? 'thing' : 'things'} on your wall.`}
+            ? 'No badges on your wall this year.'
+            : `${filled} ${filled === 1 ? 'badge' : 'badges'} on your wall.`}
         </p>
 
         <div className="cd-foot">

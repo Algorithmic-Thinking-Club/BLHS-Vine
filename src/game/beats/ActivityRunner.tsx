@@ -155,7 +155,11 @@ export function CoreBeatRunner(
      *
      * Nothing here fires in the plain arm: `feedback` is a drawn overlay and the
      * control arm's result is a printed page. `as_plain` already branches above. */
-    if (arm !== 'plain' && beat.credit > 0) {
+    /* AND ONLY ON A PASS. This fired on any grade at all, so a student who
+     * scored an F watched a gold "0.5 credit earned" pop over a card that said
+     * no credit was earned (STATE-OF-THE-GAME confusing 9). The result card's
+     * own stamp has always been gated on `PASSING_GRADE`; the pop follows it. */
+    if (arm !== 'plain' && beat.credit > 0 && grade >= PASSING_GRADE) {
       /* THROUGH `grant` RATHER THAN STRAIGHT AT THE POP, so a credit that tips a
        * cord over its line says so. Four of the six badges and all seven cords are
        * worked out from the run rather than stored, so nothing anywhere redraws
@@ -515,22 +519,26 @@ function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
 
   return (
     <div className="bt-move" data-holding={held ? '1' : undefined}>
-      <div className="bt-drops">
+      {/* ---- A PIECE LANDS INSIDE ITS BOX ---------------------------------
+          STATE-OF-THE-GAME ugly 10: "a placed chip sits under its still-empty
+          dashed box rather than inside it, the R row jumps down when P gets a
+          chip". The mouth was a button and the landed pieces were a row UNDER
+          it, so the dashed hole stayed empty after the drop and the column
+          grew. The mouth is a box now, the pieces sit in it, and the target a
+          student presses is a clear button laid over the box only while
+          something is held (a button cannot hold buttons). The box is as tall
+          as a piece from the start, so nothing moves when one arrives, and a
+          full box goes from dashed to solid, which is the answer the law asks
+          for: the thing you touched changed. `data-count` carries how many
+          places there are so five can share one row. */}
+      <div className="bt-drops" data-count={places.length}>
         {places.map((pl) => {
           const sitting = inPlace(pl.value)
+          const lit = !!held && !revealed
           return (
-            <div className="bt-drop" key={pl.value}>
+            <div className={`bt-drop${sitting.length ? ' bt-drop-full' : ''}`} key={pl.value}>
               <span className="bt-drop-name">{pl.text}</span>
-              <button
-                type="button"
-                className={`bt-drop-well${held ? ' bt-drop-lit' : ''}`}
-                disabled={revealed || !held}
-                aria-label={held ? `Put ${labelOfField(held)} in ${pl.text}` : `${pl.text}, empty`}
-                onClick={() => put(pl.value)}
-              >
-                {sitting.length === 0 && !held && <span className="bt-drop-empty" aria-hidden="true" />}
-              </button>
-              <span className="bt-drop-holds">
+              <div className={`bt-drop-well${lit ? ' bt-drop-lit' : ''}`} aria-label={sitting.length ? undefined : `${pl.text}, empty`}>
                 {sitting.map((f) => {
                   const got = revealed && fieldRight(check, f, picks)
                   return (
@@ -538,7 +546,7 @@ function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
                       type="button"
                       key={f.id}
                       className={`bt-piece bt-piece-set${revealed ? (got ? ' bt-piece-true' : ' bt-piece-miss') : ''}`}
-                      disabled={revealed}
+                      disabled={revealed || lit}
                       aria-label={`${f.label}, in ${pl.text}. Press to take it back.`}
                       onClick={() => lift(f.id)}
                     >
@@ -549,7 +557,15 @@ function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
                     </button>
                   )
                 })}
-              </span>
+                {lit && (
+                  <button
+                    type="button"
+                    className="bt-drop-target"
+                    aria-label={`Put ${labelOfField(held!)} in ${pl.text}`}
+                    onClick={() => put(pl.value)}
+                  />
+                )}
+              </div>
             </div>
           )
         })}

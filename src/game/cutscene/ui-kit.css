@@ -175,7 +175,7 @@ html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
   align-items: center;
   gap: 6px;
   font-family: var(--kit-face-body);
-  --kit-fs-raw: calc(13px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  --kit-fs-raw: calc(16px * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-ink-label);
   pointer-events: none;
 }

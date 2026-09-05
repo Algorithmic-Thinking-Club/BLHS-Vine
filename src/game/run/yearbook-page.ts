@@ -63,6 +63,7 @@
 import type { SaveGame } from '../save'
 import { SEASONS, writeSave } from '../save'
 import { cordsOf, gpaOf, letterOf } from '../progress'
+import { wallOf } from './wall'
 import { placeById } from '../roster/roster'
 import { nudgeLine, yearStatus } from './year'
 
@@ -234,19 +235,34 @@ export function yearbookPage(s: SaveGame, year: number = s.year): YearbookPage {
    * A sticker carries no year, so a Year 1 page and a Year 3 page show the same
    * list. That is stated under the heading rather than hidden, for the same
    * reason the threads section states its own. */
+  /* THE SAME BADGES THE WALL HANGS. This listed `s.stickers`, a bag of ids no
+   * island grants yet, so a year with a filled Advisory frame on the wall read
+   * "No badges yet" here (STATE-OF-THE-GAME confusing 9). The wall's frames
+   * for THIS year come first, by the same reader the wall and the drape use;
+   * stickers, when an island ever grants one, follow. */
+  const wall = wallOf(s, year).filter((w) => w.earned)
   const marks: YearbookSection = {
     id: 'marks',
-    heading: 'Badges you were given',
-    rows: s.stickers.map((id) => ({
-      key: id,
-      title: stickerLabel(id),
-      meta: 'you earned this',
-      done: true,
-      face: ['stamp', 'awarded'] as [string, string],
-    })),
-    empty: 'No badges yet. A badge is for something you did, never for a grade you got.',
+    heading: 'Badges on your wall',
+    rows: [
+      ...wall.map((w) => ({
+        key: w.id,
+        title: w.name,
+        meta: w.says ?? 'done',
+        done: true,
+        face: ['stamp', 'awarded'] as [string, string],
+      })),
+      ...s.stickers.map((id) => ({
+        key: `sticker:${id}`,
+        title: stickerLabel(id),
+        meta: 'you earned this',
+        done: true,
+        face: ['stamp', 'awarded'] as [string, string],
+      })),
+    ],
+    empty: 'No badges on the wall yet. Finish a thing and its badge goes up.',
     caveat: s.year > 1 && s.stickers.length > 0
-      ? 'every mark from every year, not only this one'
+      ? 'stickers are from every year, not only this one'
       : undefined,
   }
 

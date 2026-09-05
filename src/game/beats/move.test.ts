@@ -77,16 +77,17 @@ describe('a piece goes where you put it', () => {
     expect(host.querySelector('.bt-piece-held')).toBeTruthy()
     /* a place a student cannot drop into is not a target, so the lit state and
      * the enabled state are the same state */
-    const wells = [...host.querySelectorAll('.bt-drop-well')] as HTMLButtonElement[]
+    const wells = [...host.querySelectorAll('.bt-drop-well')]
     expect(wells).toHaveLength(5)
-    expect(wells.every((w) => !w.disabled)).toBe(true)
+    /* the target a press lands on exists only while something is held */
+    expect(host.querySelectorAll('.bt-drop-target')).toHaveLength(5)
     expect(wells.every((w) => w.className.includes('bt-drop-lit'))).toBe(true)
   })
 
   it('pressing a place LANDS the piece there, which is the whole frame', () => {
     openTheSort()
     click(host.querySelector('.bt-pool .bt-piece'))
-    click(host.querySelectorAll('.bt-drop-well')[0])
+    click(host.querySelectorAll('.bt-drop-target')[0])
     /* it left the pool */
     expect([...host.querySelectorAll('.bt-pool .bt-piece')].map((p) => p.textContent))
       .toEqual(['Ownership', 'Work Ethic', 'Engagement', 'Respect'])
@@ -95,13 +96,15 @@ describe('a piece goes where you put it', () => {
     expect([...holds].map((p) => p.textContent)).toEqual(['Perseverance'])
     /* nothing is held any more: the hand is empty and the places go dark */
     expect(host.querySelector('.bt-piece-held')).toBeNull()
-    expect((host.querySelectorAll('.bt-drop-well')[0] as HTMLButtonElement).disabled).toBe(true)
+    expect(host.querySelector('.bt-drop-target')).toBeNull()
+    /* and the piece is INSIDE its box, not under it */
+    expect(host.querySelectorAll('.bt-drop-well')[0].querySelector('.bt-piece-set')).toBeTruthy()
   })
 
   it('pressing a landed piece takes it back out, which is the undo nobody has to be told about', () => {
     openTheSort()
     click(host.querySelector('.bt-pool .bt-piece'))
-    click(host.querySelectorAll('.bt-drop-well')[0])
+    click(host.querySelectorAll('.bt-drop-target')[0])
     click(host.querySelectorAll('.bt-drop')[0].querySelector('.bt-piece-set'))
     /* back in the hand, and out of the place */
     expect(host.querySelector('.bt-piece-held')).toBeTruthy()
@@ -114,7 +117,7 @@ describe('a piece goes where you put it', () => {
     expect(commit()?.disabled).toBe(true)
     for (let i = 0; i < 5; i++) {
       click(host.querySelector('.bt-pool .bt-piece'))
-      click(host.querySelectorAll('.bt-drop-well')[i])
+      click(host.querySelectorAll('.bt-drop-target')[i])
     }
     expect(commit()?.disabled).toBe(false)
   })
@@ -132,7 +135,7 @@ describe('a piece goes where you put it', () => {
       const field = derived.fields.find((f) => f.label === name)!
       const where = derived.fields[0].options.findIndex((o) => o.value === field.correct)
       click(piece)
-      click(host.querySelectorAll('.bt-drop-well')[where])
+      click(host.querySelectorAll('.bt-drop-target')[where])
     }
     /* every piece sits in the place its own field calls correct */
     for (const f of derived.fields) {

@@ -33,7 +33,7 @@ import type { SaveGame } from '../save'
 import { classById } from '../planner/catalog'
 import { programmeById } from '../roster/roster'
 import { coreBeatId } from '../beats/beats'
-import { letterOf as letter } from '../progress'
+import { PASSING_GRADE, letterOf as letter } from '../progress'
 
 export type WallSeat = {
   id: string
@@ -70,14 +70,20 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
   /* ADVISORY IS ALWAYS A SEAT, chosen or not, because every student is in it and
    * because it is the first thing that can fill the wall. Its ledger id is the
    * year's core beat, which is the same id the beat runner records under. */
+  /* A BADGE IS FOR A PASS. A frame filled on an F read "F, and the 25th
+   * credit on its way" (`fix-2/drape-01-wall.png`), which is a badge for a
+   * thing that was not earned and a credit that is not coming. The result card
+   * gates its stamp on `PASSING_GRADE`; so does the wall. A failed try keeps
+   * its frame empty and says what to do about it. */
   const core = done(coreBeatId(year))
+  const corePassed = !!core && core.grade >= PASSING_GRADE
   out.push({
     id: 'advisory',
     name: 'Advisory',
     kind: 'advisory',
-    earned: !!core,
-    says: core ? `${letter(core.grade)}, and the 25th credit on its way` : null,
-    wants: 'Finish Advisory at the hearth',
+    earned: corePassed,
+    says: corePassed ? `${letter(core!.grade)}, credit earned` : null,
+    wants: core ? `You got an ${letter(core.grade)}. Do Advisory again at the hearth` : 'Finish Advisory at the hearth',
   })
 
   for (const [, id] of Object.entries(plan.slots)) {
@@ -97,13 +103,14 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
   for (const id of plan.classes) {
     const cl = classById(id)
     const row = done(`class:${id}`)
+    const passed = !!row && row.grade >= PASSING_GRADE
     out.push({
       id: `class:${id}`,
       name: cl?.name ?? id,
       kind: 'class',
-      earned: !!row,
-      says: row ? letter(row.grade) : null,
-      wants: 'Sit the class and pass it',
+      earned: passed,
+      says: passed ? `${letter(row!.grade)}, credit earned` : null,
+      wants: row ? `You got an ${letter(row.grade)}. Sit the class again` : 'Sit the class and pass it',
     })
   }
 

@@ -687,6 +687,13 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
 }
+/* FIVE ON ONE ROW. At 820 wide `minmax(150px)` fits four, so the POWER frame
+   wrapped 4+1 with R alone on a second row (ugly 10). Up to six places share
+   the row; the auto-fit above is for a frame with more. */
+.bt-drops[data-count='5'] { grid-template-columns: repeat(5, 1fr); }
+.bt-drops[data-count='6'] { grid-template-columns: repeat(6, 1fr); }
+.bt-drops[data-count='4'] { grid-template-columns: repeat(4, 1fr); }
+.bt-drops[data-count='3'] { grid-template-columns: repeat(3, 1fr); }
 .bt-drop { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .bt-drop-name {
   font-family: var(--kit-face-display);
@@ -698,12 +705,31 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
    reachable while something is held, so tab does not walk through six dead
    targets on the way to the pool. */
 .bt-drop-well {
-  min-height: 34px;
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 5px;
+  /* as tall as one piece plus its padding from the first frame, so a piece
+     landing in it moves nothing */
+  min-height: 50px;
+  padding: 5px;
   border: 2px dashed var(--kit-rule-firm);
   border-radius: var(--kit-r-card);
   background: none;
-  cursor: default;
-  padding: 0;
+}
+/* a full box is a solid box: the shape says it took the piece */
+.bt-drop-full .bt-drop-well { border-style: solid; border-color: var(--kit-edge-strong); background: var(--kit-paper-hi); }
+/* the target, laid over the box while something is held; it has no look of its
+   own because the box under it is already lit */
+.bt-drop-target {
+  position: absolute;
+  inset: -2px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--kit-r-card);
 }
 /* IT GLOWS, IT DOES NOT MOVE, and that is a fix rather than a preference. The
    first version pulsed `translateY` and the target's box therefore never stopped
@@ -724,8 +750,8 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
   50% { box-shadow: 0 0 0 4px var(--kit-sea-glow); }
 }
 html[data-rm='1'] .bt-drop-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-sea-glow); }
-.bt-drop-empty { display: block; height: 30px; }
-.bt-drop-holds { display: flex; flex-wrap: wrap; gap: 5px; }
+.bt-drop-well .bt-piece { max-width: 100%; }
+.bt-drop-well .bt-piece:disabled { cursor: default; opacity: 1; }
 
 /* ---- A PIECE ------------------------------------------------------------- */
 

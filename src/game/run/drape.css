@@ -39,6 +39,20 @@ html[data-rm='1'] .cd-veil { animation: none; }
 html[data-rm='1'] .cd-card { animation: none; }
 @keyframes cd-rise { from { transform: translateY(18px); opacity: 0 } to { transform: none; opacity: 1 } }
 
+/* what the name under it IS, before the name: a cord in progress is not a prize */
+.cd-lead {
+  margin: 0;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
+}
+.cd-when {
+  margin: 0;
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+  line-height: 1.4;
+}
 .cd-who {
   margin: 0;
   font-family: var(--kit-face-display);

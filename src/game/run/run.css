@@ -756,7 +756,7 @@ html[data-rm='1'] .ys-card { animation: none; }
  * platform says what to do rather than showing a blank square. */
 .ys-cue {
   display: flex; align-items: center; gap: 8px;
-  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  --kit-fs-raw: calc(16px * var(--kit-text-scale));
   font-size: var(--kit-fs);
   color: var(--kit-ink-label);
   letter-spacing: .04em;

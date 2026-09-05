@@ -51,12 +51,17 @@ export function TrophyWall({ onClose }: { onClose: () => void }) {
             checks and because beat 8's own sentence is a count: "the wall has
             three things on it". It is said in words rather than as a fraction,
             since a fraction reads as a score and this is not one. */}
+        {/* ONE WORD AND ONE COUNT. Thor said "no badges", this said "1 of 5
+            frames filled", the drape said "3 things", the yearbook said "no
+            badges yet" about a different list (STATE-OF-THE-GAME confusing 9).
+            The thing on the wall is a BADGE, the count is how many frames are
+            filled, and the drape and the yearbook read the same `onTheWall`. */}
         <p className="tw-lede">
           {seats.length === 0
-            ? 'Nothing is on the wall yet. Pick your year and the empty frames appear.'
+            ? 'No badges yet. Pick your year and an empty frame appears for each thing you choose.'
             : filled === 0
-              ? `${seats.length} empty frames. Finish a thing and it goes up here.`
-              : `${filled} of ${seats.length} frames filled.`}
+              ? `No badges on the wall yet. ${seats.length} empty ${seats.length === 1 ? 'frame' : 'frames'}: finish a thing and its badge goes up here.`
+              : `${filled} ${filled === 1 ? 'badge' : 'badges'} on the wall, ${seats.length - filled} ${seats.length - filled === 1 ? 'frame' : 'frames'} still empty.`}
         </p>
 
         <div className="tw-wall">
