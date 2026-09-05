@@ -74,6 +74,7 @@
   --kit-wood-shadow: #1a1006;
   --kit-wood-sheen: rgba(210, 170, 110, .35);
   --kit-wood-ink: #e8dcc0;                   /* type cut into wood */
+  --kit-wood-plank: #6e4a2c;                 /* the plank's own mid wood, the ground under its art */
   --kit-wood-dark-hi: #3d2b1a;               /* the skip plaque, which recedes */
   --kit-wood-dark-lo: #2c1e0f;
   --kit-wood-dark-edge: #1e1206;
@@ -800,8 +801,23 @@ html[data-skin='plain'] {
   border-style: solid;
   border-color: transparent;
   border-width: 0 var(--kit-plank-cap);
-  border-image: var(--kit-art-plank) 0 60 fill / 0 var(--kit-plank-cap) / 0 round;
-  background: none;
+  /* ROUND SIDEWAYS, STRETCH UPWARDS. One word here drew every tall plank as two.
+   * `round` on both axes tiles the middle piece, and the middle piece is the
+   * whole 148 pixel height of the painting scaled by the cap (cap / 60), so a
+   * button taller than about 1.8 of that got a SECOND plank tiled under the
+   * first: the title's 340x106 Begin Adventure, cap 24, was two 59 pixel planks
+   * with the label floating in the seam between them, which is
+   * `state/beach/02-title-begin-plank-crop.png` and the first thing every
+   * student presses. The grain may repeat along the sign; it never stacks. */
+  border-image: var(--kit-art-plank) 0 60 fill / 0 var(--kit-plank-cap) / 0 round stretch;
+  /* A GROUND UNDER THE WOOD, for the frame before the png lands. "Leave this
+     for now" rendered as bare cream text on the paper for a beat on every
+     open of the POWER frame (STATE-OF-THE-GAME ugly 10), because a
+     border-image that has not arrived draws nothing at all. The middle slice
+     is opaque wood and paints over this the moment it exists, so the only
+     time it shows is the one this is for. Clipped to the padding box so it
+     cannot square off the carved ends. */
+  background: var(--kit-wood-plank) padding-box;
 }
 
 html[data-skin='plain'] .kit-surface-panel,

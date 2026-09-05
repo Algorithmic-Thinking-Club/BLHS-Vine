@@ -285,6 +285,11 @@ html[data-rm='1'] .ti-actions { animation-duration: 1ms; }
   width: min(340px, 44vw);
   aspect-ratio: 512 / 160;
   padding: 0 26px;
+  /* THE CAP FOLLOWS THE HEIGHT. The plank's carved ends are cut 60 wide on a
+     148 tall painting, and `.kit-plank-lg` sizes them for a 60 pixel button.
+     This one is 106 tall by its aspect ratio, so at 24 the rope ends were
+     squeezed to less than half their drawn width. 43 is 60 x 106 / 148. */
+  --kit-plank-cap: 43px;
   filter: drop-shadow(0 5px 12px var(--kit-plank-drop));
 }
 .ti-actions .ti-plank:hover:not(:disabled) { filter: drop-shadow(0 7px 14px var(--kit-plank-drop)) brightness(1.06); }

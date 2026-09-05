@@ -76,6 +76,7 @@ import { usePanel } from '../ui/a11y'
 import { Glyph, Plank } from '../ui/controls'
 import { track } from '../telemetry'
 import { requestUi, uiListenerCount } from '../ui-bus'
+import { holdWorld } from '../world-bus'
 import { useNavMaybe } from '../../app/SceneManager'
 import './help.css'
 
@@ -91,6 +92,17 @@ export function HelpCard({ onClose }: { onClose: () => void }) {
   const [hudUp, setHudUp] = useState(false)
   useEffect(() => { setHudUp(uiListenerCount() > 0) }, [])
   useEffect(() => { track('help_opened') }, [])
+  /* ---- AND IT IS THE PAUSE ----------------------------------------------
+   *
+   * STATE-OF-THE-GAME confusing 10: "pause exists only behind Esc, which
+   * nothing on the hub names". Law 3 already made this card the way out, and
+   * the pause sheet's doors are here, but the card did not HOLD the world: it
+   * mounts outside the Hud, so `anyOpen` never counted it, and a student
+   * reading how to walk could be walked into the sea by a key still held down.
+   * Held here, for the life of the card, through the same lease every panel
+   * takes, so the question mark in the corner is the pause button a trackpad
+   * student can see and the sentence under the title is true. */
+  useEffect(() => holdWorld('help'), [])
   return (
     <div className="hp-veil" onClick={onClose}>
       <div
@@ -99,6 +111,7 @@ export function HelpCard({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="hp-title">How to play</h2>
+        <p className="hp-paused">The game is paused while this card is open.</p>
 
         {/* THE FOUR KEYS, AS PICTURES AND IN THE ORDER A STUDENT MEETS THEM.
             Move, then act, then the same act with a trackpad, then the way out
@@ -163,9 +176,15 @@ export function HelpCard({ onClose }: { onClose: () => void }) {
             button that does nothing is worse than a button that is not there,
             and this is the one card a lost student is told to trust. */}
         <div className="hp-doors">
-          <Plank className="hp-door" keyCap="Esc" onClick={onClose}>Back to the game</Plank>
+          <Plank className="hp-door hp-door-back" keyCap="Esc" onClick={onClose}>Back to the game</Plank>
           {hudUp && <Plank className="hp-door" onClick={() => { onClose(); requestUi('planner') }}>Year sheet</Plank>}
           {hudUp && <Plank className="hp-door" onClick={() => { onClose(); requestUi('handbook') }}>Handbook</Plank>}
+          {/* THE WALL HAD NO DOOR FROM ANYWHERE (STATE-OF-THE-GAME confusing
+              10): no plaque, no pause plank, no Handbook tab, only a station in
+              the Maw a student has to walk to. `open('wall')` has been a word
+              on the bus since the wall was built; this is the first control
+              that says it. */}
+          {hudUp && <Plank className="hp-door" onClick={() => { onClose(); requestUi('wall') }}>Trophy wall</Plank>}
           {hudUp && <Plank className="hp-door" onClick={() => { onClose(); requestUi('settings') }}>Settings</Plank>}
           {nav && <Plank className="hp-door" onClick={() => { onClose(); nav.go('title') }}>Save and leave</Plank>}
         </div>

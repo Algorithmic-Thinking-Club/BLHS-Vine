@@ -45,6 +45,9 @@
   justify-content: center;
   padding: 0 0 3px;
 }
+/* the same rule the corner stack follows: while any panel is up, including this
+   button's own card, the question mark is inert and stays out of the picture */
+html[data-panels]:not([data-panels='0']) .hp-btn { visibility: hidden; }
 .hp-q {
   --kit-fs-raw: calc(26px * var(--kit-text-scale));
   font-size: var(--kit-fs);
@@ -93,6 +96,14 @@ html[data-rm='1'] .hp-card { animation: none; }
   --kit-fs-raw: calc(24px * var(--kit-text-scale));
   font-size: var(--kit-fs);
   color: var(--kit-ink-head);
+}
+/* the one line that says what pressing the corner did: the world is held
+   while this card is open, so this card IS the pause a student can find */
+.hp-paused {
+  margin: -8px 0 0;
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
 }
 
 /* ---- THE FOUR KEYS ------------------------------------------------------- */
@@ -206,7 +217,15 @@ html[data-rm='1'] .hp-card { animation: none; }
    than as a ragged paragraph of buttons. The first pass pushed "Back" hard left
    with an auto margin and let the rest wrap where they fell, which photographed
    as three lines of different lengths and looked like a mistake. */
-.hp-door { flex: 1 1 30%; min-width: 0; justify-content: center; }
+/* TWO TO A ROW, AND BACK ON A ROW OF ITS OWN. Three to a row gave each door
+   about 170 pixels, and inside a plank's carved ends, its padding and the Esc
+   cap that left 70 for "Back to the game": the ink's own nowrap-and-ellipsis
+   cut it to "Back to the gam" on the deploy (`deploy-now/02b-help.png`), on
+   the one plank a lost student is told to press. Back is the door most presses
+   want and it is the one that carries a key cap, so it gets the full width;
+   the four that take you somewhere pair up under it. */
+.hp-door { flex: 1 1 42%; min-width: 0; justify-content: center; }
+.hp-door-back { flex-basis: 100%; }
 
 /* ---- THE CONTROL ARM ----------------------------------------------------
  *
