@@ -4157,6 +4157,8 @@ export default function PmapScene() {
         facing: string | null
         route: Pt[]
         ri: number
+        /** how long the walker has reported a blocked move on the current leg */
+        stuckMs?: number
         until: number
         label: string
         /* whether the walk law could find a way to `goal` at all when this walk
@@ -4215,6 +4217,50 @@ export default function PmapScene() {
       /* ONE WALK, THREE CALLERS: `walk_to` from a grape, `actorMove` from a script,
        * and the idle auto-walk a `walkTo` gate falls back to when a player stands
        * still. They were three different things and only one of them existed. */
+      /* ---- STEERING A BODY AT A POINT, IN THE EIGHT MOVES IT CAN MAKE ---------
+       *
+       * STATE-OF-THE-GAME road-closer 5. The walk pressed `right` when the
+       * waypoint was more than a pixel to the right and `down` when it was more
+       * than a pixel down, so a waypoint five pixels right and one pixel down on
+       * a bridge that falls half a pixel for every pixel across became a pure
+       * sideways move into the bridge's edge, and the walker reports a blocked
+       * move by not moving. Measured on the served Maw: a click on the counselor
+       * from the tunnel mouth stopped at 255,146, halfway along the north-west
+       * bridge, for the whole twenty-second deadline, with a route the search
+       * had found and approved.
+       *
+       * The walker only knows eight headings, so the steering is chosen among
+       * those eight: the one nearest the line to the waypoint, then a step either
+       * side of it, each tried against the same law the walker is about to apply
+       * with the same step it is about to take. The first legal one is pressed.
+       * The compass is in the walker's own units, where a vertical key moves
+       * `yScale` of a horizontal one. */
+      const OCTANTS: { ux: number; uy: number; keys: Record<string, boolean> }[] = [
+        { ux: 1, uy: 0, keys: { arrowright: true } },
+        { ux: 1, uy: 1, keys: { arrowright: true, arrowdown: true } },
+        { ux: 0, uy: 1, keys: { arrowdown: true } },
+        { ux: -1, uy: 1, keys: { arrowleft: true, arrowdown: true } },
+        { ux: -1, uy: 0, keys: { arrowleft: true } },
+        { ux: -1, uy: -1, keys: { arrowleft: true, arrowup: true } },
+        { ux: 0, uy: -1, keys: { arrowup: true } },
+        { ux: 1, uy: -1, keys: { arrowright: true, arrowup: true } },
+      ]
+      const steerToward = (dx: number, dy: number, dt: number): Record<string, boolean> => {
+        if (Math.hypot(dx, dy) < 0.5) return {}
+        const ys = map.yScale || 1
+        const o = ((Math.round(Math.atan2(dy / ys, dx) / (Math.PI / 4)) % 8) + 8) % 8
+        const cur = lvlAt(pos.x, pos.y)
+        const sp = cfg.speed * TEST_SPEED * dt
+        for (const off of [0, 1, -1, 2, -2]) {
+          const c = OCTANTS[(o + off + 8) % 8]
+          const m = Math.hypot(c.ux, c.uy)
+          const nx = pos.x + (c.ux / m) * sp
+          const ny = pos.y + (c.uy / m) * sp * ys
+          if (lawCanStandFrom(doc, cfg, nx, ny, cur)) return c.keys
+        }
+        return OCTANTS[o].keys
+      }
+
       const startWalk = (
         goal: { x: number; y: number }, reach: number, facing: string | null,
         done: () => void, label = 'a point',
@@ -5174,6 +5220,13 @@ export default function PmapScene() {
        * path a station or a grape takes, so a proof run is the shipped code and not
        * a second one written to be provable. */
       ;(window as any).__anchors = () => JSON.stringify(anchors.all.map((a) => ({ name: a.name, kind: a.kind, x: a.x, y: a.y, r: a.r })))
+      /* THE SEARCH THE WALK USES, from where he stands, so a probe can ask
+       * whether a route exists on the served mask without inferring it from a
+       * body that stopped. The same call `startWalk` makes, same step. */
+      ;(window as any).__findPath = (x: number, y: number, step = 4) => {
+        const r = findPath(doc, cfg, { x: pos.x, y: pos.y }, { x, y }, { step })
+        return JSON.stringify({ reached: r.reached, nodes: r.nodes, points: r.points.map((p) => [Math.round(p.x), Math.round(p.y)]) })
+      }
       /* WHERE A PLACED BODY IS RIGHT NOW, by placement id or name, so a proof
        * can watch `actor_move` walk somebody rather than infer it from a
        * screenshot of two figures eleven pixels tall. Read off the sprite, which
@@ -5463,12 +5516,16 @@ export default function PmapScene() {
              * is what stalled in a maze; steering at the next point of a route the
              * walk law itself approved cannot. */
             while (A.ri < A.route.length && Math.hypot(A.route[A.ri].x - pos.x, A.route[A.ri].y - pos.y) <= 4) A.ri++
+            /* A LEG HE HAS BEEN JAMMED ON IS GIVEN UP FOR THE NEXT ONE. The route
+             * is grid nodes and the walker is a body with hips, so a leg the
+             * search approved can still catch on a bridge edge between two of its
+             * own samples. Half a second of no progress skips the waypoint rather
+             * than waiting twenty seconds on it. */
+            if (walker.blocked) A.stuckMs = (A.stuckMs ?? 0) + dt * 1000
+            else A.stuckMs = 0
+            if (A.stuckMs > 500 && A.ri < A.route.length) { A.ri++; A.stuckMs = 0 }
             const wp = A.ri < A.route.length ? A.route[A.ri] : A.goal
-            const dx = wp.x - pos.x, dy = wp.y - pos.y
-            input = {
-              arrowright: dx > 1, arrowleft: dx < -1,
-              arrowdown: dy > 1, arrowup: dy < -1,
-            }
+            input = steerToward(wp.x - pos.x, wp.y - pos.y, dt)
           }
         }
 
