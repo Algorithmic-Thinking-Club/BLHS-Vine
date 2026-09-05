@@ -5144,6 +5144,14 @@ export default function PmapScene() {
        * path a station or a grape takes, so a proof run is the shipped code and not
        * a second one written to be provable. */
       ;(window as any).__anchors = () => JSON.stringify(anchors.all.map((a) => ({ name: a.name, kind: a.kind, x: a.x, y: a.y, r: a.r })))
+      /* WHERE A PLACED BODY IS RIGHT NOW, by placement id or name, so a proof
+       * can watch `actor_move` walk somebody rather than infer it from a
+       * screenshot of two figures eleven pixels tall. Read off the sprite, which
+       * is what is drawn, not off the driven record. */
+      ;(window as any).__placed = (id: string) => {
+        const sp = placedById.get(id)
+        return sp ? JSON.stringify({ x: Math.round(sp.position.x), y: Math.round(sp.position.y), visible: sp.visible }) : null
+      }
       ;(window as any).__intent = (i: unknown) => performIntent(i as Intent, intentHost)
       /* fire and FORGET: the returned promise only settles when the whole station
        * body has finished, and a body waiting on a click cannot settle from inside
