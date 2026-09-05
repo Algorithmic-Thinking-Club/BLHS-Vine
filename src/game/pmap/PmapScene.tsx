@@ -77,6 +77,7 @@ import { currentSkin } from '../ui/skin'
  * are already answered somewhere else: an open panel is on the a11y stack, and an
  * arrival card is on the stage bus. */
 import { panelDepth } from '../ui/a11y'
+import { note } from '../ui/feedback'
 import { placeCardUp } from '../stage/stage-bus'
 
 /* THE FIVE STATES THE IN-WORLD PROMPT CAN BE IN, which Part IV §40.5 enumerates
@@ -4140,6 +4141,11 @@ export default function PmapScene() {
         ri: number
         until: number
         label: string
+        /* whether the walk law could find a way to `goal` at all when this walk
+         * started. False means he is being steered straight at something the mask
+         * does not connect to, and the end of the walk owes the player a sentence
+         * rather than a console line. */
+        routed: boolean
         /* SETTLING IS NOT ARRIVING, and conflating them fired stations nobody
          * pressed.
          *
@@ -4210,10 +4216,27 @@ export default function PmapScene() {
         }
         const r = findPath(doc, cfg, { x: pos.x, y: pos.y }, goal, { step: 4, reach })
         if (!r.reached) console.warn(`[pmap] walk to ${label}: no route from here, steering straight at it`)
+        /* A WALK WITH NO ROUTE IS NOT GOING TO ARRIVE, AND IT MAY NOT PRETEND FOR
+         * TWENTY SECONDS. SWEEP-1 item 2: the published hub lands the student in a
+         * pocket of the mask with no route to the one door the game lights, and a
+         * click on it was accepted, walked him ninety pixels, jammed on a wall and
+         * then gave up into `console.warn`. What a fourteen year old saw was the
+         * game agreeing to do something and then not doing it, with no word.
+         *
+         * Two things change, both here so that every caller inherits them: the
+         * click, the door, `walk_to` from a member's Python, and the year's own
+         * guide. The deadline for a route that does not reach is three seconds
+         * rather than twenty, which is long enough to see him try and short
+         * enough not to read as a freeze; and `routed` travels with the walk so
+         * the end of it knows the difference between "he did not get there yet"
+         * and "there was never a way". The goal is deliberately NOT moved to the
+         * end of the partial route: `arrive` is the thing the click meant, it is
+         * gated on reaching `goal`, and aiming at the partial end would fire a
+         * door from across the room, which is the bug `7c08560` fixed. */
         autoWalk = {
           goal, reach, facing, route: r.points, ri: 0,
-          until: performance.now() + 20000, label, done,
-          byPlayer: opts.byPlayer, arrive: opts.arrive,
+          until: performance.now() + (r.reached ? 20000 : 3000), label, done,
+          routed: r.reached, byPlayer: opts.byPlayer, arrive: opts.arrive,
         }
       }
 
@@ -4247,11 +4270,17 @@ export default function PmapScene() {
         const a = anchors.nearestInteractive(px, py)
         if (a && offerOf(a).canFire) {
           const g = anchors.standAt(a)
+          /* THE NAME THE STUDENT HAS BEEN READING, not the one the author typed.
+           * This passed `a.name`, so a walk that could not finish was going to
+           * say "you cannot get to panthers_maw from here" in front of a
+           * freshman. It is the same resolution `offerOf` prints on the plaque,
+           * so the sentence and the prompt agree. */
+          const shown = a.label || labelFor(ownerOf(a.name, grapeHandlers), a.name)
           /* THE SAME REACH `walk_to` USES, so a click and a member's own line put
            * him in the same place. An authored stand point is exact; without one
            * the ring's own radius is the tolerance the author drew. */
           startWalk(g, a.stand ? 3 : Math.max(4, a.r * 0.5), g.facing ?? null,
-            () => { /* nothing was waiting on it */ }, a.name,
+            () => { /* nothing was waiting on it */ }, shown,
             { byPlayer: true, arrive: () => { void fire(a) } })
           engine.log('click_walk', { map: mapId, anchor: a.name })
           return 'fired'
@@ -5312,6 +5341,15 @@ export default function PmapScene() {
           const arrived = Math.hypot(A.goal.x - pos.x, A.goal.y - pos.y) <= A.reach
           if (arrived || performance.now() > A.until) {
             if (!arrived) console.warn(`[pmap] the walk to ${A.label} gave up; no route from here`)
+            /* AND HE IS TOLD, ON THE GLASS. Law 5 is that every action answers,
+             * and a walk the player asked for that cannot end is an action with
+             * no answer at all. Only for a walk the PLAYER started: a member's
+             * `walk_to` that cannot route is the island's bug to hear about in
+             * the console, not a sentence to put in front of a student, and the
+             * year's own guide walk re-issues itself every few seconds and would
+             * stutter the same line forever. `note` is the kit's own quiet
+             * toast, it never takes focus and it never blocks. */
+            if (!arrived && !A.routed && A.byPlayer) note(`You cannot get to ${A.label} from here.`)
             /* THE SIDE IT IS USED FROM. arrival() was facing's only consumer
              * anywhere, so a heading on a post was parsed and then read by
              * nothing and every actor walked up to a station still facing the
