@@ -634,3 +634,125 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
   border: 3px solid var(--bt-doc-shade);
   border-radius: 6px;
 }
+
+/* ---- THE FRAME THAT MOVES (BRIEF-YEAR-ONE beat 5) ------------------------
+ *
+ * "Put the bell schedule in order, sort the POWER values" — done rather than
+ * quizzed. A pool of pieces, a row of places, and a piece that visibly leaves
+ * one and arrives in the other.
+ *
+ * The whole grammar is two states and they are both SHAPES rather than shades,
+ * because the panel this ships on crushes lightness and saturation (§40.31): a
+ * held piece is lifted and outlined, and a place that can take it grows a dashed
+ * mouth. A student who cannot see colour still sees which thing is in their hand
+ * and where it can go. */
+
+.bt-move { display: flex; flex-direction: column; gap: 12px; }
+
+.bt-drops {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.bt-drop { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bt-drop-name {
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
+/* the mouth. It is a button so a keyboard can drop into it, and it is only
+   reachable while something is held, so tab does not walk through six dead
+   targets on the way to the pool. */
+.bt-drop-well {
+  min-height: 34px;
+  border: 2px dashed var(--kit-rule-firm);
+  border-radius: var(--kit-r-card);
+  background: none;
+  cursor: default;
+  padding: 0;
+}
+/* IT GLOWS, IT DOES NOT MOVE, and that is a fix rather than a preference. The
+   first version pulsed `translateY` and the target's box therefore never stopped
+   moving: a pointer aiming at it is aiming at a thing that is somewhere else by
+   the time the press lands, and the capture harness could not click it at all
+   because an element with an endless transform is never "stable". A drop target
+   that is hard to hit is the opposite of the law it exists to serve.
+   A shadow pulse says the same thing and the box holds still. */
+.bt-drop-lit {
+  cursor: pointer;
+  border-color: var(--kit-sea);
+  border-style: dashed;
+  background: var(--kit-sea-fill);
+  animation: bt-mouth 1.4s ease-in-out infinite;
+}
+@keyframes bt-mouth {
+  0%, 100% { box-shadow: 0 0 0 0 var(--kit-sea-glow); }
+  50% { box-shadow: 0 0 0 4px var(--kit-sea-glow); }
+}
+html[data-rm='1'] .bt-drop-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-sea-glow); }
+.bt-drop-empty { display: block; height: 30px; }
+.bt-drop-holds { display: flex; flex-wrap: wrap; gap: 5px; }
+
+/* ---- A PIECE ------------------------------------------------------------- */
+
+.bt-pool {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 10px;
+  border-top: var(--kit-border) solid var(--kit-rule);
+}
+.bt-pool-done {
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
+}
+.bt-piece {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border: var(--kit-border) solid var(--kit-edge-strong);
+  border-radius: var(--kit-r-card);
+  background: linear-gradient(180deg, var(--kit-paper-card-hi), var(--kit-paper-card-lo));
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+  cursor: pointer;
+  transition: transform var(--kit-t-quick) ease, box-shadow var(--kit-t-quick) ease;
+}
+.bt-piece:hover:not(:disabled) { transform: translateY(-1px); }
+/* HELD IS LIFTED, which is the one thing a hand does that a radio button cannot.
+   It is a shadow and a raise, not a colour, so it survives the panel. */
+.bt-piece-held {
+  transform: translateY(-3px);
+  box-shadow: 0 3px 0 var(--kit-plank-drop), inset 0 0 0 2px var(--kit-sea);
+}
+.bt-piece-set { background: var(--kit-paper-hi); }
+.bt-piece-true { box-shadow: inset 0 0 0 2px var(--kit-sea-earned); }
+.bt-piece-miss { box-shadow: inset 0 0 0 2px var(--kit-alarm); }
+.bt-piece-mark { flex: none; }
+
+.bt-move-truth {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
+}
+.bt-move-truth li { display: flex; align-items: center; gap: 6px; }
+
+/* ---- THE CONTROL ARM NEVER SEES THIS FRAME ------------------------------
+ *
+ * `.bt-plainform` renders the same item as a form of selects, derived from the
+ * same `plainOf`, and that is the arm's whole design. These rules are named here
+ * only so the next person does not go looking for a plain version of a thing
+ * that must not have one: a control arm that could drag would be the treatment. */

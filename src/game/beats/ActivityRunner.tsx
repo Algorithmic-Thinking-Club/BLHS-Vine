@@ -200,7 +200,7 @@ export function CoreBeatRunner(
    * out of a score; they can leave the card that reports it. */
   const scoring = phase === 'play' || phase === 'retake'
   const panel = usePanel({
-    label: `${beat.title} · ${scoring ? 'activity' : 'result'}`,
+    label: `${beat.title} · ${scoring ? 'questions' : 'your grade'}`,
     onClose,
     closeOnEscape: !scoring,
   })
@@ -251,8 +251,8 @@ const labelOf = (f: PlainField, value: string) => f.options.find((o) => o.value 
  * It also says it out loud: `feedback()` announces through the kit's one live
  * region, so a correction reaches a student who cannot see the card. */
 function speak(gotAll: boolean, authored: string, truth: string): void {
-  if (gotAll) sayRight('That is it', authored || undefined)
-  else sayWrong('Have another look', authored || truth)
+  if (gotAll) sayRight('Right', authored || undefined)
+  else sayWrong('Not quite', authored || truth)
 }
 
 // ---- the game arm: step-by-step, at the player's pace --------------------------------
@@ -393,7 +393,7 @@ function AdvanceCue() {
  * nothing about why. A refused control now carries the reason in words beside
  * itself and in its own tooltip, off the SAME completeness test that gates the
  * press, so the sentence cannot drift from the rule. */
-function Commit({ ready, needs, onCommit, label = 'That is my answer' }: {
+function Commit({ ready, needs, onCommit, label = 'Check my answer' }: {
   ready: boolean
   /** what is still missing, in words, for the student and for the tooltip */
   needs: string
@@ -404,6 +404,157 @@ function Commit({ ready, needs, onCommit, label = 'That is my answer' }: {
     <div className="bt-foot">
       <Plank size="md" disabled={!ready} title={ready ? undefined : needs} onClick={onCommit}>{label}</Plank>
       {!ready && <span className="bt-needs">{needs}</span>}
+    </div>
+  )
+}
+
+/* ---- PUTTING THINGS WHERE THEY GO, WHICH IS BEAT 5'S WHOLE IDEA ----------
+ *
+ * BRIEF-YEAR-ONE beat 5: "The year's real content, done rather than QUIZZED: put
+ * the bell schedule in order, sort the POWER values, walk through how joining
+ * works. One thing lit per step."
+ *
+ * Both of the first two were quizzes. `sort` and `order` rendered as a grid of
+ * radio chips, one row per item, and a student answered them by reading five
+ * rows and pressing five buttons. That is a worksheet with wood around it, and
+ * BRIEF-SELF-EVIDENT rules it out: "a student who reads nothing, is told
+ * nothing, and presses things at random must still do the right thing next, and
+ * see that it worked."
+ *
+ * So the thing MOVES. There is a pool of pieces and there are places to put
+ * them. Press a piece, it lifts and the places light; press a place and it lands
+ * there. Press it again and it comes back. A student who reads nothing sees a
+ * thing leave one box and arrive in another, which is the sentence the frame was
+ * trying to say in words.
+ *
+ * ONE RENDERER FOR TWO KINDS, because underneath they are the same question.
+ * `plainOf` derives one field per item for both, with the options being the
+ * buckets for a sort and the positions for an order, so the only difference is
+ * whether a place holds one piece or many. That difference is one boolean, and
+ * making it two components would be two places for the scoring to drift.
+ *
+ * NOTHING ABOUT SCORING MOVES. It writes the same `Response` map the chips
+ * wrote, `palette.ts` scores it with the same function, and the control arm's
+ * form is untouched: the arms still cannot disagree, they just are not the same
+ * shape any more, which is the entire point of the study.
+ *
+ * KEYBOARD, ALWAYS. Every piece and every place is a real button, so tab and
+ * enter walk the whole frame. §11.3 says the keyboard is a supported way to
+ * play and on a school trackpad it is often the faster one.
+ */
+function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
+  check: CheckStep
+  render: ReturnType<typeof plainOf>
+  picks: Response
+  revealed: boolean
+  /** a place holds one piece (an ordering) rather than many (a sort) */
+  single: boolean
+  onSet: (fieldId: string, value: string) => void
+  onTouch: () => void
+}) {
+  const [held, setHeld] = useState<string | null>(null)
+
+  /* the places, taken off the first field because every field offers the same
+   * ones: the buckets of a sort, the positions of an order */
+  const places = render.fields[0]?.options ?? []
+  const pool = render.fields.filter((f) => !picks[f.id])
+  const inPlace = (v: string) => render.fields.filter((f) => picks[f.id] === v)
+
+  const put = (place: string) => {
+    if (!held || revealed) return
+    /* an ordering's place holds one thing, so dropping onto a full slot swaps
+     * the sitting piece back into the pool rather than refusing. A refusal here
+     * would be the game saying no to the only move a student can see. */
+    if (single) for (const f of inPlace(place)) onSet(f.id, '')
+    onSet(held, place)
+    setHeld(null)
+  }
+
+  const lift = (fieldId: string) => {
+    if (revealed) return
+    onTouch()
+    /* pressing a piece that is already placed takes it back out, which is the
+     * undo a student finds without being told there is one */
+    if (picks[fieldId]) { onSet(fieldId, ''); setHeld(fieldId); return }
+    setHeld((h) => (h === fieldId ? null : fieldId))
+  }
+
+  const labelOfField = (id: string) => render.fields.find((f) => f.id === id)?.label ?? id
+
+  return (
+    <div className="bt-move" data-holding={held ? '1' : undefined}>
+      <div className="bt-drops">
+        {places.map((pl) => {
+          const sitting = inPlace(pl.value)
+          return (
+            <div className="bt-drop" key={pl.value}>
+              <span className="bt-drop-name">{pl.text}</span>
+              <button
+                type="button"
+                className={`bt-drop-well${held ? ' bt-drop-lit' : ''}`}
+                disabled={revealed || !held}
+                aria-label={held ? `Put ${labelOfField(held)} in ${pl.text}` : `${pl.text}, empty`}
+                onClick={() => put(pl.value)}
+              >
+                {sitting.length === 0 && !held && <span className="bt-drop-empty" aria-hidden="true" />}
+              </button>
+              <span className="bt-drop-holds">
+                {sitting.map((f) => {
+                  const got = revealed && fieldRight(check, f, picks)
+                  return (
+                    <button
+                      type="button"
+                      key={f.id}
+                      className={`bt-piece bt-piece-set${revealed ? (got ? ' bt-piece-true' : ' bt-piece-miss') : ''}`}
+                      disabled={revealed}
+                      aria-label={`${f.label}, in ${pl.text}. Press to take it back.`}
+                      onClick={() => lift(f.id)}
+                    >
+                      {revealed && (
+                        <Glyph piece="icon_set" face={got ? 'tick' : 'cross'} size={13} className="bt-piece-mark" />
+                      )}
+                      {f.label}
+                    </button>
+                  )
+                })}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* THE POOL EMPTIES AS THE PLACES FILL, which is the progress bar this
+          frame does not need: a student can see how much is left by looking at
+          what is still in their hand. */}
+      <div className="bt-pool" aria-label="Still to place">
+        {pool.map((f) => (
+          <button
+            type="button"
+            key={f.id}
+            className={`bt-piece${held === f.id ? ' bt-piece-held' : ''}`}
+            aria-pressed={held === f.id}
+            disabled={revealed}
+            onClick={() => lift(f.id)}
+          >
+            {f.label}
+          </button>
+        ))}
+        {pool.length === 0 && <span className="bt-pool-done">Everything is placed.</span>}
+      </div>
+
+      {/* AND THE TRUTH, WHEN IT IS TIME, BESIDE WHAT THEY THOUGHT. §6.9: nothing
+          is taken away. A piece in the wrong place keeps its place and gains a
+          line saying where it belonged. */}
+      {revealed && (
+        <ul className="bt-move-truth">
+          {render.fields.filter((f) => !fieldRight(check, f, picks)).map((f) => (
+            <li key={f.id}>
+              <Glyph piece="icon_set" face="tick" size={13} />
+              {f.label} goes in {labelOf(f, f.correct)}.
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
@@ -496,9 +647,48 @@ function CheckPlay({ check, world, last, onDone }: {
           : (
             <Commit
               ready={typed.trim() !== ''}
-              needs="Type a number first, then this is your answer."
+              needs="Type a number first, then press Check my answer."
               onCommit={() => { setRevealed(true); speak(got, authored, truth) }}
             />
+          )}
+      </div>
+    )
+  }
+
+  /* ---- A SORT AND AN ORDERING ARE DONE WITH THE HANDS (beat 5) ------------
+   * The rows of chips below are still what every other multi-field kind gets;
+   * these two get the frame that moves, because they are the two the year's own
+   * content is made of and because "done rather than quizzed" is the whole
+   * difference between beat 5 and a worksheet. */
+  if (check.kind === 'sort' || check.kind === 'order') {
+    const done = render.fields.every((f) => picks[f.id])
+    const got = scoreOf(check, picks)
+    const of = pointsOf(check)
+    return (
+      <div className="bt-check" data-state={revealed ? (got === of ? 'right' : 'wrong') : done ? 'answering' : 'presented'}>
+        <div className="bt-prompt">{render.prompt}</div>
+        <MovePlay
+          check={check}
+          render={render}
+          picks={picks}
+          revealed={revealed}
+          single={check.kind === 'order'}
+          onSet={(id, v) => { if (v === '') { touch(); setPicks((p) => { const n = { ...p }; delete n[id]; return n }) } else set(id, v) }}
+          onTouch={touch}
+        />
+        {!revealed
+          ? (
+            <Commit
+              ready={done}
+              needs="Put everything somewhere first, then press Check my answer."
+              onCommit={() => { setRevealed(true); speak(got === of, replyFor(render, render.fields[0]?.id ?? '', ''), '') }}
+            />
+          )
+          : (
+            <div className="bt-foot">
+              <Plank size="md" onClick={() => onDone(picks, latency())}>Keep going</Plank>
+              {last && <span className="bt-needs">That was the last one.</span>}
+            </div>
           )}
       </div>
     )
@@ -559,7 +749,7 @@ function CheckPlay({ check, world, last, onDone }: {
         ? (
           <Commit
             ready={allAnswered}
-            needs={missing === 1 ? 'One row still has nothing on it.' : `${missing} rows still have nothing on them.`}
+            needs={missing === 1 ? 'One item still has no answer.' : `${missing} items still have no answer.`}
             onCommit={() => {
               setRevealed(true)
               speak(earned === outOf, rowReply, `${earned} of ${outOf} landed in the right place.`)
@@ -694,10 +884,10 @@ function ShowdownPlay({ check, onDone, onTouch }: {
       <div className="bt-drive">
         <Gauge
           value={progressOf(s)}
-          label={`Yards to the line against ${check.opponent}`}
-          reading={`${yardsRemaining(s)} to go`}
+          label={`Yards gained against ${check.opponent}`}
+          reading={`${yardsRemaining(s)} yards to go`}
         />
-        <span className="bt-driveword">{check.opponent} · down {s.round + 1} of {s.total}</span>
+        <span className="bt-driveword">{check.opponent} · question {s.round + 1} of {s.total}</span>
       </div>
       <div className="bt-subprompt">{round.prompt}</div>
       <div className="bt-options">
@@ -712,7 +902,7 @@ function ShowdownPlay({ check, onDone, onTouch }: {
               disabled={picked !== null}
               onClick={() => {
                 onTouch()
-                speak(!!o.correct, o.reply ?? '', o.correct ? 'Moved the chains.' : 'No gain.')
+                speak(!!o.correct, o.reply ?? '', o.correct ? 'Right.' : 'The right answer is marked.')
                 setS((x) => showdownReduce(x, { kind: 'pick', index: i }, check.rounds))
               }}
             >
@@ -736,11 +926,11 @@ function ShowdownPlay({ check, onDone, onTouch }: {
       {picked !== null && (
         <>
           <div className={`bt-reply${got ? '' : ' bt-reply-miss'}`}>
-            {round.options[picked].reply || (got ? 'Moved the chains.' : 'No gain.')}
+            {round.options[picked].reply || (got ? 'Right.' : 'Not quite.')}
           </div>
           <div className="bt-foot">
             <Plank size="md" onClick={() => setS((x) => showdownReduce(x, { kind: 'next' }, check.rounds))}>
-              {s.round + 1 >= s.total ? 'The last snap' : 'Next down'}
+              {s.round + 1 >= s.total ? 'Last question. Keep going' : 'Next question'}
             </Plank>
           </div>
         </>
@@ -812,7 +1002,7 @@ function DoPlay({ check, world, render, last, onDone, onTouch }: {
     return (
       <div className="bt-check" data-state="presented">
         <div className="bt-prompt">{render.prompt}</div>
-        <div className="bt-reply">Go there. The path is marked.</div>
+        <div className="bt-reply">Walk to {check.goal.label}. The arrow points the way.</div>
       </div>
     )
   }
@@ -989,7 +1179,7 @@ function PlainFieldRow({ field, prompt, value, onSet }: {
       <label>
         {field.label}{' '}
         <select value={value} onChange={(e) => onSet(e.target.value)}>
-          <option value="" disabled>choose</option>
+          <option value="" disabled>Pick one</option>
           {field.options.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
         </select>
       </label>
@@ -1070,7 +1260,7 @@ function ResultCard({ beat, score, arm, canRetake, onReview, onClose }: {
       <div className="bt-grade">
         <span className="bt-lettermark">{letterOf(grade)}</span>
         <span className="bt-gradelines">
-          <span className="bt-gradenum">{grade.toFixed(2)} · {score.earned} of {score.total} this run</span>
+          <span className="bt-gradenum">Grade points {grade.toFixed(2)} of 4.00 · {score.earned} of {score.total} points this run</span>
           <span className="bt-gradesays">
             {differs
               ? `This run scored ${thisRun.toFixed(2)}. The school keeps the higher attempt, so ${grade.toFixed(2)} is the one on your transcript.`
@@ -1096,32 +1286,32 @@ function ResultCard({ beat, score, arm, canRetake, onReview, onClose }: {
           {honors && (
             <span className="bt-stamp bt-stamp-honor">
               <Glyph piece="stamp" face="awarded" size={26} />
-              <span className="bt-stampword">Top marks</span>
+              <span className="bt-stampword">You got an A</span>
             </span>
           )}
         </div>
       )}
       {facts.length > 0 && (
         <div className="bt-takeaways">
-          <div className="bt-h">{facts.length === 1 ? 'One card you keep' : `${facts.length} cards you keep`}</div>
+          <div className="bt-h">{facts.length === 1 ? 'One fact saved to your Handbook' : `${facts.length} facts saved to your Handbook`}</div>
           {facts.map((f) => <div className="bt-fact" key={f.id}>{f.text}</div>)}
         </div>
       )}
       {closeCords.length > 0 && (
-        <div className="bt-counselor">The counselor noticed: {closeCords.map((n) => n.name).join(', ')}. Watch the Handbook.</div>
+        <div className="bt-counselor">Cords you are close to earning: {closeCords.map((n) => n.name).join(', ')}. Open the Handbook to see them.</div>
       )}
       {canRetake && (
         <div className="bt-retake">
-          <span className="bt-needs">Under a B-. The Universal Retake Policy is real here, and it is the school's own.</span>
+          <span className="bt-needs">You scored under a B-, so you can take this again. The Universal Retake Policy is real at Bonney Lake.</span>
           {arm === 'plain'
-            ? <button onClick={onReview}>Review, then run it back</button>
-            : <Plank size="md" onClick={onReview}>Review, then run it back</Plank>}
+            ? <button onClick={onReview}>Review, then retake</button>
+            : <Plank size="md" onClick={onReview}>Review, then retake</Plank>}
         </div>
       )}
       <div className="bt-out">
         {arm === 'plain'
-          ? <button onClick={onClose}>Back to the year</button>
-          : <Plank size="md" onClick={onClose}>Back to the year</Plank>}
+          ? <button onClick={onClose}>Back to the game</button>
+          : <Plank size="md" onClick={onClose}>Back to the game</Plank>}
       </div>
     </div>
   )
@@ -1133,7 +1323,7 @@ function ReviewCard({ beat, arm, onRetake, onBack }: { beat: CoreBeat; arm: 'gam
   return (
     <div className={arm === 'plain' ? 'bt-plainform bt-result' : 'bt-result'}>
       <CardHead beat={beat} arm={arm} />
-      <div className="bt-prompt">Review first. That is the policy, and it works.</div>
+      <div className="bt-prompt">Read these first. Then you can retake it.</div>
       <div className="bt-takeaways">
         {facts.map((f) => <div className="bt-fact" key={f.id}>{f.text}</div>)}
       </div>
@@ -1141,14 +1331,14 @@ function ReviewCard({ beat, arm, onRetake, onBack }: { beat: CoreBeat; arm: 'gam
         {arm === 'plain'
           ? (
             <>
-              <button onClick={onRetake}>Run it back</button>
-              <button onClick={onBack}>Not yet</button>
+              <button onClick={onRetake}>Retake it</button>
+              <button onClick={onBack}>Back to my score</button>
             </>
           )
           : (
             <>
-              <Plank size="md" onClick={onRetake}>Run it back</Plank>
-              <Plank size="md" onClick={onBack}>Not yet</Plank>
+              <Plank size="md" onClick={onRetake}>Retake it</Plank>
+              <Plank size="md" onClick={onBack}>Back to my score</Plank>
             </>
           )}
       </div>
