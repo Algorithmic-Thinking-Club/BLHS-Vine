@@ -886,6 +886,26 @@ export default function PmapScene() {
           .then((r) => { if (isJson(r)) doorState.set(to, 'ok'); else return local() })
           .catch(() => local())
       }
+      /* AND EVERY DOOR IS ASKED ABOUT NOW, not the first time somebody happens to
+       * stand next to one.
+       *
+       * It was lazy because the only caller was the prompt, and the prompt only
+       * runs for the door you are already touching. A CLICK can reach a door from
+       * across the map and asks the same question the prompt asks: is this
+       * pressable. A door whose check has not started answers no, so clicking the
+       * one lit door on the hub walked him to it and left him standing there,
+       * which is the dead end the whole self-evident law is about. Measured in a
+       * browser before this line: the click router answered "walking" where it
+       * should have answered "fired".
+       *
+       * It fixes the prompt too. The barred branch keeps silence "while the check
+       * is in flight, because offering a door and taking it back a frame later is
+       * worse than a beat of nothing", and that in-flight window was every first
+       * approach to every door in the game.
+       *
+       * One fetch per distinct target, deduped on the first line of `checkDoor`.
+       * The hub has one. */
+      for (const d of doors) checkDoor(d.to || '')
 
       const sdata = pixelsOf(sceneImg, W, H)
       const ldata = pixelsOf(levelsImg, W, H)
@@ -5145,6 +5165,17 @@ export default function PmapScene() {
             if (sp) out[a.placement] = sp.visible
           }
           return out
+        },
+        /* WHAT IS ON THIS MAP TO BE CLICKED, by the names their author typed.
+         * A gate proving the pointer path has to aim at something, and reading a
+         * coordinate out of a bundle in the harness would be the harness holding
+         * its own copy of the map: the first time an anchor moves in MAPVIS the
+         * proof passes against a place that is no longer there. */
+        get anchors() {
+          return anchors.all.map((a) => {
+            const p2 = anchors.spotOf(a)
+            return { name: a.name, kind: a.kind, x: Math.round(p2.x), y: Math.round(p2.y), r: a.r }
+          })
         },
         get paths() { return pathNames(paths) },
         get shots() { return [...shots.keys()] },
