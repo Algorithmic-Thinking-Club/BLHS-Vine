@@ -1,0 +1,157 @@
+/* THE CORD DRAPE (BRIEF-YEAR-ONE beat 8), the last screen of the thirty minutes.
+ *
+ * One card, centred, with a cord falling down it. Everything else the game shows
+ * at a year's end is a page or a list; this is a moment, so it is narrow, tall
+ * and quiet, and it has exactly one control.
+ */
+
+.cd-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* darker than a panel's veil: this is the one screen that is meant to be the
+     only thing in the room */
+  background: rgba(8, 12, 16, .78);
+  animation: cd-in 320ms ease-out both;
+}
+html[data-rm='1'] .cd-veil { animation: none; }
+@keyframes cd-in { from { opacity: 0 } to { opacity: 1 } }
+
+.cd-card {
+  box-sizing: border-box;
+  width: min(520px, 92vw);
+  max-height: 94vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 14px;
+  text-align: center;
+  font-family: var(--kit-face-body);
+  color: var(--kit-ink-body);
+  image-rendering: var(--kit-pixel);
+  animation: cd-rise 420ms var(--kit-ease-pop) both;
+}
+html[data-rm='1'] .cd-card { animation: none; }
+@keyframes cd-rise { from { transform: translateY(18px); opacity: 0 } to { transform: none; opacity: 1 } }
+
+.cd-who {
+  margin: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-label);
+}
+
+/* ---- THE CORD ------------------------------------------------------------
+ *
+ * A collar and two falls, which is the shape of the thing at a real ceremony.
+ * It is drawn in code rather than generated because it is two rounded bars and a
+ * curve, and `docs/ART.md` reserves PixelLab for pictures: a rope is geometry.
+ * The one drawn piece on it is the kit's own `awarded` stamp, and that only when
+ * a cord is actually closed.
+ *
+ * IT DRAPES. The falls grow downward on open, once, which is the whole of the
+ * verb in the brief: the counselor puts it ON him. */
+.cd-drape {
+  position: relative;
+  width: 132px;
+  height: 96px;
+  margin-top: 2px;
+}
+/* THE RIBBON'S OWN TWO TONES, and they are the game's progress colours until the
+   cord actually closes. `docs/ART.md`: the cord gold means an earned honour and
+   nothing else, and after one year nothing is earned. */
+.cd-drape { --cd-hi: var(--kit-sea); --cd-lo: var(--kit-sea-btn-lo); }
+.cd-drape-earned { --cd-hi: var(--kit-cord-hi); --cd-lo: var(--kit-cord-lo); }
+.cd-collar {
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  transform: translateX(-50%);
+  width: 74px;
+  height: 16px;
+  border: 3px solid var(--cd-hi);
+  border-bottom: 0;
+  border-radius: 40px 40px 0 0;
+}
+.cd-fall {
+  position: absolute;
+  top: 18px;
+  width: 11px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, var(--cd-hi), var(--cd-lo));
+  transform-origin: 50% 0;
+  animation: cd-fallgrow 520ms 160ms var(--kit-ease-rise) both;
+}
+.cd-fall-l { left: 27px; height: 66px; }
+.cd-fall-r { right: 27px; height: 74px; }
+@keyframes cd-fallgrow { from { transform: scaleY(0) } to { transform: scaleY(1) } }
+html[data-rm='1'] .cd-fall { animation: none; }
+.cd-seal { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); }
+
+.cd-name {
+  margin: 2px 0 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(24px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+  line-height: 1.15;
+}
+.cd-colors {
+  margin: 0;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-label);
+}
+.cd-bar { width: 100%; max-width: 340px; }
+.cd-stands {
+  margin: 0;
+  --kit-fs-raw: calc(16px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-sea-ink);
+}
+/* the school's words, labelled as the school's, exactly as the ceremony does it */
+.cd-rule {
+  margin: 4px 0 0;
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-soft);
+  line-height: 1.35;
+}
+.cd-rulelabel { color: var(--kit-ink-label); }
+
+.cd-wall {
+  margin: 6px 0 0;
+  padding-top: 8px;
+  width: 100%;
+  border-top: var(--kit-border) solid var(--kit-rule);
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
+}
+.cd-foot { margin-top: 6px; }
+
+/* ---- THE CONTROL ARM ----------------------------------------------------
+ *
+ * A note from the counselor rather than a ceremony: the same cord, the same
+ * numbers, the same criterion, on paper. The drape is the game-ness and it is
+ * what goes, which is §16's line exactly. */
+html[data-skin='plain'] .cd-veil { animation: none; background: rgba(0, 0, 0, .5); }
+html[data-skin='plain'] .cd-card {
+  animation: none;
+  text-align: left;
+  align-items: stretch;
+  background: var(--kit-paper-hi);
+  border: var(--kit-border) solid var(--kit-edge-strong);
+  padding: 24px 28px 22px;
+}
+html[data-skin='plain'] .cd-drape { display: none; }
+html[data-skin='plain'] .cd-who { font-weight: 700; color: var(--kit-ink-body); }
+html[data-skin='plain'] .cd-name { font-weight: 700; }
+html[data-skin='plain'] .cd-stands { color: var(--kit-ink-body); }
+html[data-skin='plain'] .cd-foot { align-self: flex-end; }

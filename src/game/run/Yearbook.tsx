@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { loadSave } from '../save'
+import { CordDrape } from './CordDrape'
 import { track } from '../telemetry'
 import { announce, tabRowKeyDown, usePanel } from '../ui/a11y'
 import { Chip, Gauge, Glyph, Plank, Tab, useKitReady } from '../ui/controls'
@@ -204,6 +205,7 @@ function Section({ sec, step }: { sec: YearbookSection; step: number }) {
 
 export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGraduate?: () => void }) {
   const [turned, setTurned] = useState(false)
+  const [draping, setDraping] = useState(false)
   // the year this book is OPEN AT. Starts on the live one; the spine moves it.
   const [year, setYear] = useState(() => loadSave()?.year ?? 1)
   const panel = usePanel({ label: 'The yearbook', onClose })
@@ -248,9 +250,27 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
      * write in the run. `turnYearPage` is the single patch. */
     turnYearPage(s, year)
     setTurned(true)
+    /* ---- AND THE COUNSELOR DRAPES A CORD (BRIEF-YEAR-ONE beat 8) ---------
+     *
+     * "The counselor drapes the first cord on him. The wall has three things on
+     * it. The yearbook page turns in school words. Year two, next time."
+     *
+     * The drape comes AFTER the write, on purpose and in that order: the cord it
+     * shows is read from the save, and a year that has not turned yet is a year
+     * whose numbers are still moving. It is also the last screen of the thirty
+     * minutes, so it is the last thing shown.
+     *
+     * It rides on the turn rather than on a station because the turn is the only
+     * moment in the run that happens exactly once per year and cannot be missed.
+     * A member's island can still raise it by name through the ui-bus. */
+    setDraping(true)
   }
 
   const move = page.move
+
+  if (draping) {
+    return <CordDrape year={year} onDone={() => setDraping(false)} />
+  }
 
   return (
     <div className="yb-veil" onClick={onClose}>
