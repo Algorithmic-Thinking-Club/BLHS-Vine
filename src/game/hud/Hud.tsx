@@ -4,6 +4,7 @@ import { HelpCard } from './Help'
 import { SettingsPanel } from '../../app/SettingsPanel'
 import { Planner } from '../planner/Planner'
 import { PickYear } from '../planner/PickYear'
+import { TrophyWall } from '../run/TrophyWall'
 import { Graduation } from '../run/Graduation'
 import { CoreBeatRunner } from '../beats/ActivityRunner'
 import { coreBeatFor, coreBeatId } from '../beats/beats'
@@ -61,6 +62,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const [paused, setPaused] = useState(false)
   const [help, setHelp] = useState(false)
   const [settings, setSettings] = useState(false)
+  const [wall, setWall] = useState(false)
   const [wardrobe, setWardrobe] = useState(false)
   /* a beat world code asked for, and the callback waiting for its grade */
   const [playing, setPlaying] = useState<null | { beat: CoreBeat; plain: boolean; done: (g: number | null) => void }>(null)
@@ -121,7 +123,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   }
 
   const anyOpen = book !== null || planner || settings || advisory || sitClass !== null
-    || yearbook || graduation || wardrobe || playing !== null
+    || yearbook || graduation || wardrobe || wall || playing !== null
 
   /* Esc = pause, only while nothing else owns the frame (the planner eats its own Esc).
    *
@@ -196,6 +198,10 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     if (which === 'chart') { track('chart_opened'); setBook('chart') }
     if (which === 'wardrobe') { track('wardrobe_opened', { via: 'world' }); setWardrobe(true) }
     if (which === 'settings') { setSettings(true) }
+    /* THE WALL, which BRIEF-YEAR-ONE reaches for in four of its eight beats: the
+     * empty outline that makes a student want the year, and the thing that fills
+     * every time they finish something. */
+    if (which === 'wall') { track('wall_requested', { via: 'world' }); setWall(true) }
     /* THE SIXTH DOOR, and the page had exactly one before it: a button inside the
      * planner that only appears while THIS year is closable. So a student could
      * not look at year one the moment year one ended, and no island and no
@@ -224,7 +230,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const openPlanner = () => { setPaused(false); setPlanner(true) }
   const closeAll = () => {
     setBook(null); setPlanner(false); setAdvisory(false); setSitClass(null); setYearbook(false)
-    setGraduation(false); setPaused(false); setSettings(false); setWardrobe(false)
+    setGraduation(false); setPaused(false); setSettings(false); setWardrobe(false); setWall(false)
     /* whoever asked for a beat is told it ended, even when it ended by being
      * closed. A station body awaiting a grade that never resolves would hold
      * the world lock for ever, and the map would have no controls and no
@@ -423,6 +429,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       {planner && firstPlan && <PickYear year={s?.year ?? 1} onClose={closeAll} />}
       {advisory && yearBeat && <CoreBeatRunner beat={yearBeat} onClose={closeAll} />}
       {playing && <CoreBeatRunner beat={playing.beat} forceArm={playing.plain ? 'plain' : undefined} onClose={closeAll} />}
+      {wall && <TrophyWall onClose={closeAll} />}
       {wardrobe && <Wardrobe onClose={closeAll} />}
       {sitClass && sitClassDef && s && (
         <CoreBeatRunner beat={classBeat(sitClassDef, s.year)} onClose={() => { setSitClass(null); setPlanner(true) }} />

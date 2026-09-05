@@ -12,7 +12,12 @@
  * only door to a year's page was a button inside the planner, so the chart table
  * could open the sheet a year is planned on and not the book that year produces,
  * and no island could ever send a student to look at their own. */
-export type UiRequest = 'planner' | 'handbook' | 'chart' | 'settings' | 'advisory' | 'wardrobe' | 'yearbook'
+/* `wall` is the seventh, and BRIEF-YEAR-ONE needs it four times: the wall is the
+ * payoff of beat 4 and the thing that fills in beats 5, 6, 7 and 8. It goes on
+ * the bus rather than into one scene because an island has to be able to send a
+ * student to look at what they have earned, which is the same argument the
+ * yearbook's own entry above makes. */
+export type UiRequest = 'planner' | 'handbook' | 'chart' | 'settings' | 'advisory' | 'wardrobe' | 'yearbook' | 'wall'
 
 const EVENT = 'blhs:open-ui'
 const BEAT_EVENT = 'blhs:play-beat'

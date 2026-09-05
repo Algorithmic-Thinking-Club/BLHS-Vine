@@ -1,0 +1,142 @@
+/* THE TROPHY WALL (BRIEF-YEAR-ONE beats 4 to 8).
+ *
+ * A wall of frames, some full and some empty. The state a student reads first is
+ * carried by the SHAPE of the plate, not by its colour: a filled frame has a
+ * drawn stamp in it and an empty one has a dashed hole. That survives the panel
+ * this ships on, which crushes lightness and saturation (§40.31), and it survives
+ * a student who is not looking closely, which is every student in beat 4.
+ */
+
+.tw-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--kit-veil);
+}
+
+.tw-sheet {
+  box-sizing: border-box;
+  width: min(880px, 92vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px 10px 12px;
+  font-family: var(--kit-face-body);
+  color: var(--kit-ink-body);
+  image-rendering: var(--kit-pixel);
+}
+
+.tw-title {
+  margin: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(24px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
+.tw-lede {
+  margin: 0;
+  --kit-fs-raw: calc(16px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
+}
+
+/* ---- THE WALL ------------------------------------------------------------
+ *
+ * Two columns rather than one, because a single column of six frames is a list
+ * and a wall is a wall: the point of the shape is that a student can take in how
+ * much is empty at a glance. */
+.tw-wall {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 10px;
+}
+
+.tw-frame {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-card);
+  background: var(--kit-paper-lo);
+}
+/* A FULL FRAME IS HEAVIER, in edge weight rather than in hue: it has something in
+   it, so it holds the wall's attention the way a hung picture does. */
+.tw-frame-full {
+  border-width: 3px;
+  border-color: var(--kit-edge-strong);
+  background: var(--kit-paper-hi);
+}
+
+.tw-plate {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* THE HOLE IS THE OUTLINE THE BRIEF ASKS FOR, and it is the same dashed seat the
+   year sheet's empty socket and the pick screen's wall preview use, so a student
+   who has met one of them has met all three. */
+.tw-hole {
+  width: 34px;
+  height: 34px;
+  border: 2px dashed var(--kit-rule-firm);
+  border-radius: 50%;
+}
+
+.tw-words { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tw-name {
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(17px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+  line-height: 1.15;
+}
+/* what is in it reads as a record; what would fill it reads as an instruction,
+   which is the difference the self-evident law cares about */
+.tw-got {
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-sea-earned);
+}
+.tw-wants {
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-soft);
+}
+
+.tw-foot { display: flex; justify-content: flex-end; margin-top: 2px; }
+
+/* ---- THE CONTROL ARM ----------------------------------------------------
+ *
+ * The same wall as a printed record: a table of what was chosen and what came of
+ * it. No carved panel, no stamp, no dashed picture hooks. The words are
+ * identical, which is the half §16 cares about. */
+html[data-skin='plain'] .tw-sheet {
+  background: var(--kit-paper-hi);
+  border: var(--kit-border) solid var(--kit-edge-strong);
+  padding: 22px 26px 20px;
+}
+html[data-skin='plain'] .tw-veil { background: rgba(0, 0, 0, .45); }
+html[data-skin='plain'] .tw-title { font-weight: 700; }
+html[data-skin='plain'] .tw-frame {
+  background: none;
+  border: 0;
+  border-bottom: var(--kit-border) solid var(--kit-rule);
+  border-radius: 0;
+  padding: 8px 2px;
+}
+html[data-skin='plain'] .tw-frame-full { border-bottom-color: var(--kit-ink-head); }
+html[data-skin='plain'] .tw-name { font-weight: 700; }
+/* a worksheet says which it is in a word, because it has no stamp and no hook */
+html[data-skin='plain'] .tw-plate { width: 0; }
+html[data-skin='plain'] .tw-hole { display: none; }
+html[data-skin='plain'] .tw-frame-full .tw-name::after { content: ' — done'; font-weight: 400; }
+html[data-skin='plain'] .tw-got { color: var(--kit-ink-body); }

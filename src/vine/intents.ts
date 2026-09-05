@@ -124,7 +124,7 @@ export type Intent =
   /* the sit-down panels. Deliberately a short closed list: a station that opens
    * a panel is a station that could have been a scene, so making this cheap to
    * add would be making the wrong thing cheap. */
-  | { kind: 'open'; ui: 'planner' | 'handbook' | 'chart' | 'wardrobe' | 'settings' }
+  | { kind: 'open'; ui: 'planner' | 'handbook' | 'chart' | 'wardrobe' | 'settings' | 'wall' }
 
   /* a scored activity. `beat` names one the engine can build; both study arms
    * render from the same items, which is what as_plain() means in practice and
@@ -268,7 +268,7 @@ export interface IntentWorld {
 /* The engine half. Supplied once at boot rather than per scene, because the
  * save file and the logger do not change when the camera does. */
 export interface IntentEngine {
-  openUi(ui: 'planner' | 'handbook' | 'chart' | 'wardrobe' | 'settings'): void
+  openUi(ui: 'planner' | 'handbook' | 'chart' | 'wardrobe' | 'settings' | 'wall'): void
   playBeat(beat: string, asPlain: boolean): Promise<number | null>
   read(path: RunPath): unknown
   setFlag(flag: string): void
