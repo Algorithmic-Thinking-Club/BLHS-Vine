@@ -28,7 +28,7 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   padding: 4px 8px 10px;
   font-family: var(--kit-face-body);
   color: var(--kit-ink-body);
@@ -76,40 +76,79 @@
 .py-classes {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 4px 10px;
+  gap: 5px 10px;
 }
+/* ---- THE BOX THAT IS LIT -------------------------------------------------
+ *
+ * The rows were 34 tall with an 18 pixel tick beside five 184 pixel carved
+ * cards, and a student pressed the cards three times and never looked down.
+ * The box is the required thing, so it is drawn as one: a bordered field with
+ * the verb as its heading, rows as tall as a plank, ticks a hand can see, and
+ * a gold glow that pulses until the two ticks are in. Gold is the objective
+ * colour the world uses on a lit station; here it is the same word. */
+.py-classbox {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 12px 4px;
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-card);
+  background: var(--kit-paper-lo);
+  transition: box-shadow var(--kit-t-mid) ease, border-color var(--kit-t-mid) ease;
+}
+.py-classes-h { margin: 0; }
+.py-lit {
+  border-color: var(--kit-gold-edge);
+  animation: py-glow 1.6s ease-in-out infinite;
+}
+@keyframes py-glow {
+  0%, 100% { box-shadow: 0 0 0 2px var(--kit-gold-inset), 0 0 14px var(--kit-gold-inset); }
+  50% { box-shadow: 0 0 0 4px var(--kit-gold-hi), 0 0 22px var(--kit-gold-inset); }
+}
+html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gold-hi); }
 .py-class {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 34px;
+  gap: 10px;
+  min-height: 36px;
   padding: 4px 10px;
-  border: 0;
-  background: none;
+  border: var(--kit-border) solid var(--kit-edge);
+  background: var(--kit-paper-hi);
   cursor: pointer;
   text-align: left;
   font-family: inherit;
   color: var(--kit-ink-body);
   border-radius: var(--kit-r-soft);
-  transition: background var(--kit-t-quick) ease;
+  transition: background var(--kit-t-quick) ease, transform var(--kit-t-quick) ease;
 }
-.py-class:hover { background: var(--kit-paper-lo); }
+.py-class:hover { background: var(--kit-paper); transform: translateY(-1px); }
 /* the seat the tick sits in is drawn whether or not the tick is, so a row does
    not move sideways the moment it is chosen */
 .py-tick {
   flex: none;
-  width: 18px; height: 18px;
+  width: 24px; height: 24px;
   display: flex; align-items: center; justify-content: center;
-  border: var(--kit-border) solid var(--kit-edge-strong);
+  border: 2px solid var(--kit-edge-strong);
   border-radius: var(--kit-r-sharp);
+  background: var(--kit-paper);
 }
-.py-class-on { background: var(--kit-paper-lo); }
-.py-class-on .py-tick { border-color: var(--kit-sea-ink); }
+.py-class-on { background: var(--kit-sea-paper); border-color: var(--kit-sea); }
+.py-class-on .py-tick { border-color: var(--kit-sea-ink); background: var(--kit-paper-hi); }
 .py-class-name {
-  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  --kit-fs-raw: calc(16px * var(--kit-text-scale));
   font-size: var(--kit-fs);
   line-height: 1.15;
 }
+/* the line under the rows: what to do, or why the last press was refused. It
+   has a height whether or not it has a refusal, so the sheet never jumps. */
+.py-classnote {
+  margin: 0;
+  min-height: 1.3em;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-quiet);
+}
+.py-classnote-no { color: var(--kit-alarm); }
 .py-class-on .py-class-name { color: var(--kit-ink-head); }
 .py-count { color: var(--kit-ink-quiet); font-family: var(--kit-face-body); }
 
@@ -127,7 +166,11 @@
      photographed on the first capture, "Football" was squeezed into the middle
      third of its own card. The frame's own slice is 36/49, so the contents start
      inside it. */
-  min-height: 104px;
+  /* 84 and not 104: with the class box grown into a real box the sheet ran
+     past 768 and cut its own foot off, and the planks that end the beat were
+     two slivers under the fold (`fix-2/yearsheet-01`). A 164 pixel card is
+     still a hand. */
+  min-height: 84px;
   /* NEARLY NO PADDING, BECAUSE THE FRAME IS THE PADDING. `kit-surface-tab` is a
      nine-slice whose border-width IS its carved edge, 49 pixels each side, and a
      padding on top of that insets the contents TWICE: at 22 the words had about
@@ -152,6 +195,13 @@
   justify-content: center;
 }
 .py-card:hover { transform: translateY(-2px); filter: brightness(1.04); }
+/* THE WHITE CORNERS GO. The `tab` piece is a carved frame with rounded corners
+   drawn on an OPAQUE white ground, so each card showed a white square poking
+   out of all four corners (`state/beat4/z5-card-corners.png`). The art is the
+   platform's and is not redrawn for this; the card clips itself to the frame's
+   own rounding instead. `border-radius` does not clip a border-image, a
+   clip-path does. */
+.py-card { clip-path: inset(0 round 18px); }
 .py-card:active { transform: translateY(1px); }
 
 /* TAKEN IS A STAMP AND A RULE, NOT A TINT. §40.31: no state carried by hue alone,
@@ -167,10 +217,9 @@
    taken, the tick was on the word. A stamp lands on a card, not on its name. */
 .py-stamp {
   position: absolute;
-  top: 10px;
-  right: 12px;
+  bottom: 8px;
+  right: 10px;
 }
-.py-card-on .py-card-name { padding-right: 30px; }
 
 .py-card-name {
   font-family: var(--kit-face-display);
@@ -182,19 +231,25 @@
   line-height: 1.15;
 }
 .py-card-where {
-  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
   font-size: var(--kit-fs);
   color: var(--kit-sea-ink);
 }
 .py-card-earns {
-  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
   font-size: var(--kit-fs);
   color: var(--kit-ink-soft);
 }
 /* the school's own reason, on the card that was pressed, which is where §5.9 says
-   a refusal belongs: not in a corner and not in a toast */
+   a refusal belongs: not in a corner and not in a toast.
+   IT TAKES NO ROOM. In flow it grew the card by two lines, the grid row with
+   it, and everything under the grid moved 38 pixels the instant a refusal
+   appeared (ugly 5). It sits on the card's bottom edge, inside the frame, in
+   the space the three lines above never reach. */
 .py-no {
-  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  position: absolute;
+  left: 2px; right: 2px; bottom: 4px;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
   font-size: var(--kit-fs);
   color: var(--kit-alarm);
   line-height: 1.25;
@@ -236,10 +291,17 @@
   color: var(--kit-ink-quiet);
 }
 .py-slot-rule {
-  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
   font-size: var(--kit-fs);
   color: var(--kit-ink-soft);
+  /* one line per frame so the wall is one row tall whatever is on it */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* ONE ROW OF FRAMES, however many there are: the wall grew a grid row per
+   three picks and pushed the plank toward the fold. Six seats fit one row at
+   this width; more than that wraps, which a full year never reaches. */
+.py-wall { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 6px; }
+.py-slot { padding: 5px 8px; }
 
 /* ---- THE END OF THE BEAT ------------------------------------------------ */
 
@@ -251,10 +313,18 @@
   margin-top: 4px;
 }
 .py-notyet {
-  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  --kit-fs-raw: calc(16px * var(--kit-text-scale));
   font-size: var(--kit-fs);
-  color: var(--kit-ink-quiet);
+  color: var(--kit-ink-head);
 }
+.py-close { margin-right: auto; }
+/* once the sheet can be stamped the glow moves to the plank that stamps it */
+.py-go.py-lit { animation: py-glow-plank 1.6s ease-in-out infinite; }
+@keyframes py-glow-plank {
+  0%, 100% { filter: drop-shadow(0 3px 0 var(--kit-plank-drop)) drop-shadow(0 0 4px var(--kit-gold-hi)); }
+  50% { filter: drop-shadow(0 3px 0 var(--kit-plank-drop)) drop-shadow(0 0 12px var(--kit-gold-hi)); }
+}
+html[data-rm='1'] .py-go.py-lit { animation: none; filter: drop-shadow(0 3px 0 var(--kit-plank-drop)) drop-shadow(0 0 8px var(--kit-gold-hi)); }
 
 /* ---- THE CONTROL ARM ----------------------------------------------------
  *
@@ -286,6 +356,13 @@ html[data-skin='plain'] .py-card-name { font-weight: 700; }
 html[data-skin='plain'] .py-card-on .py-card-name::after { content: ' — chosen'; font-weight: 400; }
 html[data-skin='plain'] .py-slot,
 html[data-skin='plain'] .py-slot-hole { border-style: solid; border-color: var(--kit-edge); }
+/* a form's required fieldset: a heavier rule, no glow, and a bold heading */
+html[data-skin='plain'] .py-classbox { background: none; border: 2px solid var(--kit-edge-strong); border-radius: var(--kit-r-sharp); animation: none; box-shadow: none; }
+html[data-skin='plain'] .py-lit { border-color: var(--kit-ink-head); }
+html[data-skin='plain'] .py-class { background: none; border-color: var(--kit-edge); }
+html[data-skin='plain'] .py-class-on { background: var(--kit-paper-lo); border-color: var(--kit-ink-head); }
+html[data-skin='plain'] .py-go.py-lit { animation: none; filter: none; }
+html[data-skin='plain'] .py-card { clip-path: none; }
 
 /* the class card carries one line and nothing else, so its name is body-sized:
    at display size the longer catalogue names wrapped to three lines and the row
