@@ -404,6 +404,39 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
   line-height: 1.4;
 }
 
+/* ---- the way out of a graded frame (SWEEP-1 item 5) -----------------------
+ *
+ * Quiet on purpose. It sits under the item, separated by a rule, at the size of
+ * a footnote rather than of a choice, because the thing a student is meant to
+ * press is `Check my answer` and this is the door for the one who cannot. Loud
+ * enough to find when you are stuck, plain enough not to compete when you are
+ * not. */
+.bt-leave {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 18px; padding-top: 12px;
+  border-top: 1px solid var(--kit-rule, rgba(0, 0, 0, 0.18));
+  opacity: 0.86;
+}
+.bt-leave-why {
+  --kit-fs-raw: calc(13px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+  line-height: 1.4;
+}
+/* AND IN THE PLAIN ARM IT HAS TO BE FINDABLE WITHOUT DISCOVERING A SCROLL.
+ * The plain card is 705px tall against 1295px of content, so an exit at the
+ * natural end of the document sits 538px under an uncued fold, which is not an
+ * exit at all. Sticky to the foot of the card, on the document's own paper so
+ * nothing reads through it. This does NOT fix the fold itself: five of the nine
+ * questions are still below it and that is SWEEP-1 item 51, BRIEF-UI's to
+ * answer. */
+.bt-plain-scoring { display: flex; flex-direction: column; }
+.bt-plain-scoring .bt-plainform { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.bt-plain .bt-leave {
+  border-top: 1px solid var(--bt-doc-rule); opacity: 1;
+  flex: 0 0 auto; margin-top: 14px; padding-top: 12px;
+}
+.bt-plain .bt-leave-why { color: var(--bt-doc-ink-quiet); }
+
 /* ---- the result card: the ending of every activity in the game ----------
  *
  * §10.22's law: "One result. `ResultCard` is the ending of every activity in the

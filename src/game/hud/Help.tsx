@@ -127,7 +127,12 @@ export function HelpCard({ onClose }: { onClose: () => void }) {
           </li>
           <li className="hp-key">
             <span className="hp-mark" aria-hidden="true"><span className="kit-plank-key hp-cap">Esc</span></span>
-            <span className="hp-says">Esc closes anything</span>
+            {/* NOT "closes anything", WHICH WAS NOT TRUE. SWEEP-1 item 60: a
+                graded activity refuses Escape on purpose, so the one card a lost
+                student opens was teaching a key that does nothing in the one
+                place they are most likely to be stuck. That frame carries its
+                own way out now and this says what Escape really does. */}
+            <span className="hp-says">Esc closes a panel, or pauses the game</span>
           </li>
         </ul>
 

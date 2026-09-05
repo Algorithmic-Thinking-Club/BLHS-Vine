@@ -209,7 +209,13 @@ export function CoreBeatRunner(
 
   return (
     <div className="bt-veil">
-      <div {...panel} className={arm === 'plain' ? 'bt-plain' : 'bt-stage kit-surface-panel'}>
+      {/* `bt-plain-scoring` exists so the footer rule below can turn the plain card
+          into a scrolling document with a fixed foot WITHOUT touching the result
+          and review cards, which are the same element in a different phase and
+          are not laid out that way. */}
+      <div {...panel} className={arm === 'plain'
+        ? `bt-plain${scoring ? ' bt-plain-scoring' : ''}`
+        : 'bt-stage kit-surface-panel'}>
         {(phase === 'play' || phase === 'retake') && (arm === 'plain'
           ? <PlainForm beat={beat} checksOnly={phase === 'retake'} attempt={attempt.current} arm={arm} onDone={finish} />
           : <GamePlay beat={beat} checksOnly={phase === 'retake'} attempt={attempt.current} arm={arm} world={world} onDone={finish} />)}
@@ -223,6 +229,32 @@ export function CoreBeatRunner(
         )}
         {phase === 'review' && (
           <ReviewCard beat={beat} arm={arm} onRetake={startRetake} onBack={() => setPhase('result')} />
+        )}
+        {/* A WAY OUT OF A GRADED FRAME, WHICH IS NOT THE SAME AS A WAY TO DODGE ONE.
+          *
+          * SWEEP-1 item 5: once Advisory opened at the hearth there was no exit of
+          * any kind. Escape is refused here on purpose and that stays; the corner
+          * is behind the veil; and `Check my answer` is disabled until every slot
+          * is filled. So a freshman who could not finish the item had a page
+          * reload and nothing else, in the middle of the one advisory block this
+          * game gets. The law is law 6, "no dead ends... if a panel is open, its
+          * close is obvious and Esc is never required".
+          *
+          * It is deliberately not a dismiss and does not read as one. Nothing is
+          * scored, nothing is recorded, the beat stays owed, and the hearth stays
+          * lit, so the student comes back to it rather than skipping it. That is
+          * the same state as never having opened the frame, which is why it costs
+          * the study nothing: a skipped item and an unopened item are one row.
+          *
+          * Escape stays shut. A key that throws away a half-filled answer by
+          * accident is a worse bargain than a button somebody has to mean. */}
+        {scoring && (
+          <div className="bt-leave">
+            {arm === 'plain'
+              ? <button type="button" onClick={onClose}>Leave this for now</button>
+              : <Plank size="sm" onClick={onClose}>Leave this for now</Plank>}
+            <span className="bt-leave-why">Nothing is marked until you check your answer. You can come back to this.</span>
+          </div>
         )}
       </div>
     </div>
