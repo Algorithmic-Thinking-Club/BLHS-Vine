@@ -30,7 +30,7 @@ const esc = () => act(() => { window.dispatchEvent(new KeyboardEvent('keydown', 
 
 const PANELS: [string, (onClose: () => void) => unknown, string][] = [
   ['the settings sheet', (onClose) => createElement(SettingsPanel, { onClose }), 'Settings'],
-  ['the outfitter', (onClose) => createElement(Wardrobe, { onClose }), "The outfitter's nook"],
+  ['the outfitter', (onClose) => createElement(Wardrobe, { onClose }), 'Your clothes'],
   ['the Handbook', (onClose) => createElement(Handbook, { onClose, initialTab: 'islands' }), 'The Handbook'],
 ]
 

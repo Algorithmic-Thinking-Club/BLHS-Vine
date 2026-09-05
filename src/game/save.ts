@@ -434,10 +434,10 @@ export function canRestart(): RestartVerdict {
   return {
     allowed: false,
     why: g.classCode
-      ? `This device already joined ${g.classCode} as one participant. Starting over would enter you a second time, `
-        + 'and the two runs could not be told apart afterwards. Ask your teacher to reset you.'
-      : 'This device already joined a class as one participant. Starting over would enter you a second time. '
-        + 'Ask your teacher to reset you.',
+      ? `You already started this game with the code ${g.classCode}. `
+        + 'Ask your teacher if you need to start over.'
+      : 'You already started this game on this device. '
+        + 'Ask your teacher if you need to start over.',
   }
 }
 

@@ -262,7 +262,9 @@ check('a rumour is on it, at a real position, unnamed', isles.join(' ~ '), /ch-r
 check('and every mark carries a SHAPE as well as a colour, so state does not rely on hue',
   isles.join(' ~ '), /[?*~·○▲✓]/)
 const regions = await page.$$eval('.ch-region-name', (n) => n.map((e) => e.textContent))
-check('the named water is on the paper too', regions.join(','), 'the Reach')
+/* the expected string moved with the words pass, 2026-09-04: `the_reach`'s
+   LABEL is now "the far water". The region's NAME is untouched. */
+check('the named water is on the paper too', regions.join(','), 'the far water')
 await shot('3-chart')
 await page.keyboard.press('Escape').catch(() => {})
 await page.click('.hb-veil', { position: { x: 10, y: 10 } }).catch(() => {})
@@ -512,11 +514,11 @@ await writeRun({
 await page.evaluate(() => { void window.__intent({ kind: 'open', ui: 'yearbook' }) })
 await page.waitForSelector('.yb-page', { timeout: 10000 })
 check('year four is closable, so the book offers the stage rather than a turn',
-  await page.textContent('.yb-page'), /Close the book|Walk the stage/)
+  await page.textContent('.yb-page'), /Finish all four years|Walk the stage/)
 /* the last turn is `endYear`, and the fourth one is terminal: it marks the run
  * graduated instead of refilling tokens, because senior year does not repeat */
 await page.evaluate(() => {
-  const b = [...document.querySelectorAll('button')].find((x) => /close the book|turn the page/i.test(x.textContent))
+  const b = [...document.querySelectorAll('button')].find((x) => /finish all four years|end this year/i.test(x.textContent))
   b?.click()
 })
 await page.waitForTimeout(600)

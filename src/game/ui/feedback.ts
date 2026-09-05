@@ -178,11 +178,11 @@ export function feedback(kind: FeedbackKind, message: string, detail?: string): 
 export const saved = (what = 'Saved'): void => feedback('saved', what)
 
 /** a correct answer. Short, because there is nothing to fix. */
-export const right = (what = 'That is it', detail?: string): void => feedback('right', what, detail)
+export const right = (what = 'Right', detail?: string): void => feedback('right', what, detail)
 
 /** a wrong answer, WITHOUT A BUZZER. The message is what to do next, never what
  *  was wrong with the student. */
-export const wrong = (what = 'Not that one', detail?: string): void => feedback('wrong', what, detail)
+export const wrong = (what = 'Not quite', detail?: string): void => feedback('wrong', what, detail)
 
 /** something earned: a cord, a badge, a sticker, a fact. Gold is honors only
  *  (`docs/ART.md`), so this is the ONLY one of the five that wears it. */

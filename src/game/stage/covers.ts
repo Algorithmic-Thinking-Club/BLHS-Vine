@@ -154,7 +154,7 @@ const CLASS_ART: Record<CoverClass, string> = {
 const KICKER: Record<CoverVoice, string> = {
   arrival: 'E N T E R I N G',
   inside: 'I N S I D E',
-  crossing: 'B O U N D   F O R',
+  crossing: 'G O I N G   T O',
   ceremony: 'T H E   C E R E M O N Y',
 }
 

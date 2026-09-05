@@ -28,7 +28,7 @@ export function refuseSlot(
   programmeId: string, season: Season, s: SaveGame | null, year: number,
 ): string | null {
   const plan = s?.plans?.[year]
-  if (plan?.stamped) return 'The wax is on this sheet. Year ' + year + ' is set.'
+  if (plan?.stamped) return 'Your year sheet is stamped. Year ' + year + ' cannot be changed.'
 
   const g = programmeById(programmeId)
   /* A SLOT THAT POINTS AT NOTHING is refused rather than written. The save used
@@ -49,10 +49,10 @@ export function refuseSlot(
    * second token buys a row that already exists. */
   const taken = Object.entries(plan?.slots ?? {})
     .find(([se, id]) => se !== season && id === programmeId)
-  if (taken) return `Your ${taken[0].toLowerCase()} token is already on ${g.name}.`
+  if (taken) return `You already picked ${g.name} for ${taken[0].toLowerCase()}. Pick something else.`
 
   if (!plan?.slots?.[season] && s && !s.tokens.includes(season))
-    return `You have no ${season.toLowerCase()} token left.`
+    return `You already used your ${season.toLowerCase()} pick this year.`
 
   return null
 }
@@ -60,14 +60,14 @@ export function refuseSlot(
 /** why this class may not go on the sheet, or null when it may */
 export function refuseClass(classId: string, s: SaveGame | null, year: number): string | null {
   const plan = s?.plans?.[year]
-  if (plan?.stamped) return 'The wax is on this sheet. Year ' + year + ' is set.'
+  if (plan?.stamped) return 'Your year sheet is stamped. Year ' + year + ' cannot be changed.'
   const c = classById(classId)
   if (!c) return `Nothing in the catalog is called "${classId}".`
-  if (plan?.classes.includes(classId)) return `${c.name} is already on this year's sheet.`
+  if (plan?.classes.includes(classId)) return `${c.name} is already picked for this year.`
   /* THE TWO-PICK LIMIT IS SCARCITY AND NOT A WIDGET STATE, which is why it says
    * so out loud instead of the pick button quietly disappearing. */
   if ((plan?.classes.length ?? 0) >= 2)
-    return 'Two focus classes a year. Drop one before you add another.'
+    return 'Two focus classes a year. Remove one before you add another.'
   if (!c.years.includes(year)) return `${c.name} is not open to you in year ${year}.`
   /* THE PREREQUISITE LADDER IS NOT CHECKED HERE and that is deliberate: it needs
    * every year's picks, not this year's, and `eligibleClasses` in the catalog

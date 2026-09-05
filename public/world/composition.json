@@ -40,7 +40,7 @@
     {
       "map": "hub",
       "place": "home-island",
-      "title": "the Central Island",
+      "title": "Bonney Lake High School",
       "at": {
         "x": 0,
         "y": 0
@@ -74,7 +74,7 @@
     {
       "map": "hub-a2",
       "place": "home-island",
-      "title": "the Central Island",
+      "title": "Bonney Lake High School",
       "at": {
         "x": 0,
         "y": 0
@@ -108,7 +108,7 @@
     {
       "map": "panther-maw",
       "place": "home-island",
-      "title": "the Panther’s Maw",
+      "title": "the Panther’s Maw, inside the mountain",
       "at": {
         "x": 0,
         "y": 0
@@ -127,7 +127,7 @@
     },
     {
       "place": "stadium",
-      "title": "a field somebody keeps mentioning",
+      "title": "the stadium",
       "at": {
         "x": 1480,
         "y": -260
@@ -155,7 +155,7 @@
     },
     {
       "name": "the_reach",
-      "label": "the Reach",
+      "label": "the far water",
       "kind": "sailable",
       "rect": {
         "x": 1100,
@@ -166,7 +166,7 @@
     },
     {
       "name": "the_grey",
-      "label": "the grey",
+      "label": "the fog",
       "kind": "mist",
       "rect": {
         "x": -2600,

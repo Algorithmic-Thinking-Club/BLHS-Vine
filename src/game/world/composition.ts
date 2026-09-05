@@ -194,7 +194,7 @@ export const FALLBACK: WorldComposition = {
        * painting is 669x377 and USING THE CANVAS OVERSTATES ITS AREA BY 75 PERCENT.
        * MAPVIS's own manifest emits `base: {w:688,h:640,ox:0,oy:0}` today, which is
        * the canvas, so it is not yet the source for this. */
-      map: 'hub', place: 'home-island', title: 'the Central Island',
+      map: 'hub', place: 'home-island', title: 'Bonney Lake High School',
       at: { x: 0, y: 0 },
       footprint: { w: 669, h: 377 }, origin: { x: 7, y: 194 }, canvas: { w: 688, h: 640 },
       placements: 94,
@@ -215,7 +215,7 @@ export const FALLBACK: WorldComposition = {
       /* the same island as a local file, for a session with no platform. Its
        * painting is cropped differently (465x335 at x 92) and the composition
        * says so rather than assuming a canvas is a painting. */
-      map: 'hub-a2', place: 'home-island', title: 'the Central Island',
+      map: 'hub-a2', place: 'home-island', title: 'Bonney Lake High School',
       at: { x: 0, y: 0 },
       footprint: { w: 465, h: 335 }, origin: { x: 92, y: 0 }, canvas: { w: 688, h: 384 },
       placements: 0,
@@ -226,7 +226,7 @@ export const FALLBACK: WorldComposition = {
       /* THE ROOM IS NOT ON THE WATER. It is the same place as the hub, reached
        * through a door, and it carries no slot of its own: one position per
        * place is what stops the same painting being drawn twice on the chart. */
-      map: 'panther-maw', place: 'home-island', title: 'the Panther’s Maw',
+      map: 'panther-maw', place: 'home-island', title: 'the Panther’s Maw, inside the mountain',
       at: { x: 0, y: 0 }, footprint: { w: 512, h: 512 }, canvas: { w: 512, h: 512 }, placements: 0,
       state: 'available', release: 1400,
     },
@@ -234,15 +234,15 @@ export const FALLBACK: WorldComposition = {
       /* A SLOT THAT IS EMPTY ON PURPOSE, at a real future position, carrying a
        * state and reading as a rumour. §12: the rise happens where the rumour
        * was, which is only possible if the rumour had a coordinate. */
-      place: 'stadium', title: 'a field somebody keeps mentioning',
+      place: 'stadium', title: 'the stadium',
       at: { x: 1480, y: -260 }, footprint: { w: 688, h: 377 },
       state: 'rumour', release: 1400, discover: 520,
     },
   ],
   regions: [
     { name: 'home_water', label: 'the home water', kind: 'sailable', rect: { x: -900, y: -700, w: 2000, h: 1500 } },
-    { name: 'the_reach', label: 'the Reach', kind: 'sailable', rect: { x: 1100, y: -900, w: 1400, h: 1600 } },
-    { name: 'the_grey', label: 'the grey', kind: 'mist', rect: { x: -2600, y: -2200, w: 1600, h: 4400 } },
+    { name: 'the_reach', label: 'the far water', kind: 'sailable', rect: { x: 1100, y: -900, w: 1400, h: 1600 } },
+    { name: 'the_grey', label: 'the fog', kind: 'mist', rect: { x: -2600, y: -2200, w: 1600, h: 4400 } },
   ],
 }
 

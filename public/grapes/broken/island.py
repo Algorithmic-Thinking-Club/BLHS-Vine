@@ -22,7 +22,7 @@ WHO = "the broken island"
 def break_it():
     yield say("I am going to break on the line after your answer.", who=WHO)
 
-    pick = yield choose(["Break it.", "Break it anyway."])
+    pick = yield choose(["Break the island.", "Break the island anyway."])
 
     # a number plus a string. This is the bug, and it is line 27 of island.py.
     score = pick + " points"

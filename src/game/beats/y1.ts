@@ -44,19 +44,24 @@ export const PP_FACE = 'principal'
 export const CORE_Y1: CoreBeat = {
   id: 'core:y1',
   year: 1,
-  title: 'This is the place',
-  place: 'the Advisory Hearth',
+  /* THE TITLE AND THE PLACE ARE READ TOGETHER, at the top of every screen of
+   * this activity in both arms ("place · title"). They were 'This is the place'
+   * and 'the Advisory Hearth', which named neither the room nor the lesson.
+   * The words pass, 2026-09-04: Advisory is Advisory, and a title says what the
+   * activity teaches. */
+  title: 'POWER, Mondays, and joining a club',
+  place: 'Advisory',
   kind: 'core',
   credit: 0.5,
   takeaways: ['f-power-full', 'f-monday', 'f-25th-credit', 'f-join-clubs'],
   steps: [
-    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'Every year at Bonney Lake starts right here, at the fire. Advisory. Most Mondays we sit down together and make sure nobody is lost.' } },
-    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'The first thing this school hands you is five letters. POWER. Learn what they stand for and you will know what we care about.' } },
+    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'This is Advisory. Every year at Bonney Lake starts here. Most Mondays we sit down together and make sure nobody is lost.' } },
+    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'The POWER values are what we ask of every student here. Perseverance, Ownership, Work Ethic, Engagement, Respect.' } },
     {
       kind: 'check',
       check: {
         kind: 'sort', id: 'y1-power',
-        prompt: 'Put each value with its letter.',
+        prompt: 'Put each POWER value with its letter.',
         buckets: ['P', 'O', 'W', 'E', 'R'],
         items: [
           { label: 'Perseverance', bucket: 'P' },
@@ -68,8 +73,8 @@ export const CORE_Y1: CoreBeat = {
         objective: 'name the five POWER values',
       },
     },
-    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'Now, the rhythm of a week. Mondays run late here. School starts at 8:30 instead of 7:25, and advisory meets that morning.' } },
-    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'And advisory is not filler. Pass it every semester and it quietly pays out an elective credit across four years. The catalog calls it the 25th credit.' } },
+    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'Mondays start late here. School starts at 8:30 instead of 7:25, and Advisory meets that morning.' } },
+    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'Advisory is not filler. Pass it every semester and you earn one elective credit over four years. The catalog calls it the 25th credit.' } },
     {
       kind: 'check',
       check: {
@@ -77,13 +82,13 @@ export const CORE_Y1: CoreBeat = {
         prompt: 'It is Monday morning at Bonney Lake. When does school start?',
         options: [
           { text: '7:25, same as every day', reply: 'That is Tuesday through Friday. Mondays are the late ones.' },
-          { text: '8:30. Mondays start late', correct: true, reply: 'Right. Late start, and advisory meets that morning.' },
+          { text: '8:30. Mondays start late', correct: true, reply: 'Right. Late start, and Advisory meets that morning.' },
           { text: 'Whenever you wake up', reply: 'Bold. Wrong, but bold.' },
         ],
         objective: 'know the Monday late start',
       },
     },
-    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'Out on the water, every island is a real club, a real sport, a real class. And joining is not paperwork.' } },
+    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'Every island out there is a real club, a real sport or a real class. To join one, you just show up.' } },
     { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'DECA meets Thursdays at 2:10 in the 200 Flex. Robotics builds Mondays and Thursdays in rooms 206 and 207. Your Handbook keeps the whole list.' } },
     {
       kind: 'check',
@@ -98,6 +103,10 @@ export const CORE_Y1: CoreBeat = {
         objective: 'know how joining works',
       },
     },
-    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'That is the lay of the land, Panther. Spend your seasons well.' } },
+    /* IT USED TO SEND HIM BACK TO A THING HE HAD ALREADY DONE. `objective.ts`
+     * runs the `plan` phase BEFORE the `core` phase, so by the time Advisory
+     * ends his year sheet is stamped, and this line told him to go and spend
+     * three season tokens the game would then refuse. */
+    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'That is the start, Panther. Your year is planned, so the rest of it is out on the water.' } },
   ],
 }

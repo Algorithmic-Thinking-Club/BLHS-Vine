@@ -48,7 +48,7 @@
       "r": 20,
       "to": "hub",
       "toAnchor": "panthers_maw",
-      "label": "the harbour",
+      "label": "the harbor",
       "meta": {
         "why": "the far side of the tunnel he walked into"
       }
@@ -60,7 +60,7 @@
       "y": 232,
       "r": 30,
       "facing": "south",
-      "label": "the chart table"
+      "label": "Open the year sheet"
     },
     {
       "name": "hearth",
@@ -69,7 +69,7 @@
       "y": 258,
       "r": 30,
       "facing": "south",
-      "label": "the Advisory Hearth"
+      "label": "Advisory"
     },
     {
       "name": "counselor",
@@ -180,7 +180,7 @@
       "x": 256,
       "y": 476,
       "r": 20,
-      "label": "the harbour",
+      "label": "the harbor",
       "to": "hub"
     },
     {

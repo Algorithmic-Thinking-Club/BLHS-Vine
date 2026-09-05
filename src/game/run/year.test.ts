@@ -83,7 +83,7 @@ describe('yearStatus (§7.5 derived, resumable anywhere)', () => {
 
     st = yearStatus(save.loadSave()!)
     expect(st.readyForYearbook).toBe(true)             // rising islands never block (§7.6)
-    expect(nudgeLine(st)).toContain('still rising')
+    expect(nudgeLine(st)).toContain('not open yet')
 
     // the page turns
     save.setFlag('yearbook:y1')

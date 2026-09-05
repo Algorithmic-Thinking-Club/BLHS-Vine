@@ -56,13 +56,20 @@ import './hud.css'
  * §40.12: a code-facing string on a player-facing surface is a bug. These are
  * `src/game/world/states.ts`'s own words for the same five states, so the
  * binder and the chart say the same thing about the same island rather than
- * inventing a second vocabulary. */
+ * inventing a second vocabulary.
+ *
+ * THEY NO LONGER MATCH, 2026-09-04. The words pass rewrote this list and
+ * `states.ts`'s `stateLine` in the same session and landed on two vocabularies:
+ * the chart writes a whole sentence ("You have sailed past here.") where the
+ * binder writes a chip ("seen, not started"). Only `active` still agrees, and
+ * only by accident. Reconcile the two lists in ONE edit or this paragraph is a
+ * lie the next reader will believe. */
 const ISLAND_WORD: Record<IslandState, string> = {
-  misty: 'not seen yet',
-  discovered: 'seen, not started',
-  available: 'open this season',
-  active: 'you started it',
-  completed: 'done',
+  misty: 'you have not been here',
+  discovered: 'you have been past',
+  available: 'you can sign up here',
+  active: 'you started this',
+  completed: 'you finished this',
 }
 
 /* AND THE MARK BESIDE THE WORD, because §40.31 says no state may be carried by
@@ -282,9 +289,9 @@ export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => voi
 
           {tab === 'cords' && s && (
             <>
-              <h3 className="hb-h">Graduation cords</h3>
+              <h3 className="hb-h">Cords and seals</h3>
               <p className="hb-lede">
-                Cords Bonney Lake gives you to wear at graduation, and how close you are to each one.
+                Cords and seals you can earn by graduation, and how close you are to each one.
               </p>
               {/* THE SCHOOL'S WORDS, THEN THE GAME'S, AND NEVER ONE AS THE OTHER (V3).
                   `rule` is verbatim from docs/blhs/awards.md and is the criterion. `model`

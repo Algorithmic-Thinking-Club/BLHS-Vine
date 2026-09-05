@@ -18,36 +18,38 @@ export function coreY4(save: SaveGame): CoreBeat {
   const gpa = gpaOf(save)
 
   const capeLine = earned.length
-    ? `If the stage were today, your cape carries: ${earned.map((c) => c.name).join(', ')}. Earned, not given.`
-    : 'No cords locked yet, and that is not a scold. Half of them settle senior year, which is now.'
+    ? `If graduation were today, you would wear these cords: ${earned.map((c) => c.name).join(', ')}. You earned them.`
+    : 'No cords earned yet, and that is fine. Half of them are decided senior year, which is now.'
   const reachLine = close.length
-    ? `Still in reach if you move: ${close.map((c) => c.name).join(', ')}. The counselor can name the exact gap.`
-    : 'Whatever is still in reach, this is the year it gets reached.'
+    ? `You could still earn these this year: ${close.map((c) => c.name).join(', ')}. Ask your counselor what is missing.`
+    : 'Anything you have not earned yet is still open this year. Senior grades count.'
 
   // the GPA check is personal: their real number against the real bands
-  const gpaText = gpa === null ? 'unwritten' : gpa.toFixed(2)
+  /* 'unwritten' read as broken English inside a graded prompt ("Your GPA stands
+   * at unwritten."). A student with no grades yet has a blank one. */
+  const gpaText = gpa === null ? 'blank' : gpa.toFixed(2)
   const correct: 'gold' | 'silver' | 'none' =
     gpa !== null && gpa >= 3.76 ? 'gold' : gpa !== null && gpa >= 3.5 ? 'silver' : 'none'
   const gpaCheck: BeatStep = {
     kind: 'check',
     check: {
       kind: 'choice', id: 'y4-gpa-audit',
-      prompt: `Your GPA stands at ${gpaText}. If you walked the stage today, which honor cord rides it?`,
+      prompt: `Your GPA right now is ${gpaText}. Which honor cord does that earn at graduation?`,
       options: [
         {
-          text: 'Double gold. Highest Honors, 3.76 to 4.0',
+          text: 'Highest Honors. GPA 3.76 to 4.0, double gold cords',
           correct: correct === 'gold',
-          reply: correct === 'gold' ? 'Double gold. Keep it there through June.' : 'Not yet. Double gold starts at 3.76.',
+          reply: correct === 'gold' ? 'Highest Honors. Keep that GPA through June.' : 'Not yet. Highest Honors starts at 3.76.',
         },
         {
-          text: 'Black and silver. High Honors, 3.5 to 3.759',
+          text: 'High Honors. GPA 3.5 to 3.759, black and silver cords',
           correct: correct === 'silver',
-          reply: correct === 'silver' ? 'Black and silver, and double gold is close enough to chase.' : correct === 'gold' ? 'You are past that band. Aim higher on purpose.' : 'High Honors starts at 3.5. Know your number.',
+          reply: correct === 'silver' ? 'High Honors it is, and Highest Honors is only a little further.' : correct === 'gold' ? 'You are above that. Your GPA earns Highest Honors.' : 'High Honors starts at 3.5. Check your GPA again.',
         },
         {
           text: 'Neither yet',
           correct: correct === 'none',
-          reply: correct === 'none' ? 'Honest. And senior year grades still count, so it is not settled.' : 'Better than that. Check your number again.',
+          reply: correct === 'none' ? 'Honest. And senior year grades still count, so it is not settled.' : 'Better than that. Check your GPA again.',
         },
       ],
       objective: 'read your own transcript',
@@ -57,26 +59,28 @@ export function coreY4(save: SaveGame): CoreBeat {
   return {
     id: 'core:y4',
     year: 4,
-    title: 'Finish like a Panther',
-    place: 'the Advisory Hearth',
+    /* was 'the Advisory Hearth · Finish like a Panther'. Advisory is Advisory,
+     * and the title now says what the activity does. */
+    title: 'Check what you have earned',
+    place: 'Advisory',
     kind: 'core',
     credit: 0.5,
     takeaways: ['f-hsbp', 'f-honor-gpa'],
     steps: [
-      { kind: 'say', line: { speaker: PP, text: 'Last year, Panther. Let us take stock like it is already June.' } },
+      { kind: 'say', line: { speaker: PP, text: 'Senior year, Panther. Let us count what you have earned, like it is already June.' } },
       { kind: 'say', line: { speaker: PP, text: capeLine } },
       { kind: 'say', line: { speaker: PP, text: reachLine } },
       gpaCheck,
-      { kind: 'say', line: { speaker: PP, text: 'One thing the state wants before anyone walks: the High School and Beyond Plan. Yours, finished.' } },
+      { kind: 'say', line: { speaker: PP, text: 'One thing the state wants before you graduate: a finished High School and Beyond Plan.' } },
       {
         kind: 'check',
         check: {
           kind: 'choice', id: 'y4-hsbp',
-          prompt: 'The High School and Beyond Plan is...',
+          prompt: 'What is the High School and Beyond Plan?',
           options: [
             { text: 'A scholarship essay contest', reply: 'No. It is required of everyone, essay or not.' },
             { text: 'A required plan: where you are headed after graduation, and how', correct: true, reply: 'That one. Every Washington graduate finishes it. No credits attached, no diploma without it.' },
-            { text: 'A summer camp application', reply: 'It outlasts any summer. It is your map out of here.' },
+            { text: 'A summer camp application', reply: 'It outlasts any summer. It is your plan for after graduation.' },
           ],
           objective: 'know the HSBP',
         },

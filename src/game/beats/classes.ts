@@ -44,7 +44,12 @@ export function classPlacement(c: ClassDef, places?: readonly Place[]): ClassPla
    * be telling a freshman about the roster. It reads the way an unpainted place
    * reads on the chart, it admits there is nowhere to go, and it invents nothing.
    * The machine-readable half is `place` and `map` being undefined. */
-  if (!place) return { line: 'a classroom the map does not have yet' }
+  /* THE LINE IS NOW A PLACE AND NOT A CONFESSION. It read 'a classroom the map
+   * does not have yet', which is the author talking to the reader about the
+   * roster, and a fourteen-year-old reads it as the game being broken. It still
+   * claims no room, because none is sourced, and the machine-readable half of
+   * the absence is `place` and `map` staying undefined. */
+  if (!place) return { line: 'a classroom at Bonney Lake High School' }
   return {
     place,
     map: place.arrival,
@@ -60,12 +65,14 @@ function cordCheck(c: ClassDef): CheckStep {
   const isCapstone = c.tags.includes('lang-capstone')
   const isLang = c.tags.includes('lang')
 
+  /* CTE IS SPELLED OUT ON EVERY BUTTON THAT USES IT. Nothing in a class beat
+   * ever defined the acronym, and these options are where a student meets it. */
   const AP = { text: 'AP Honors. Five passed AP classes earn it.', key: 'ap' }
-  const CTE = { text: 'Career Readiness. It counts as a CTE credit.', key: 'cte' }
-  const SEAL = { text: 'The Seal of Biliteracy. Language years add up.', key: 'lang' }
-  const BOTH = { text: 'Two at once. AP Honors and a CTE credit.', key: 'both' }
-  const CAP = { text: 'It can cap a Seal of Biliteracy track.', key: 'cap' }
-  const NONE = { text: 'No cord rides on it. Some things you take for the love of it.', key: 'none' }
+  const CTE = { text: 'Career Readiness. It counts as a Career and Technical Education credit.', key: 'cte' }
+  const SEAL = { text: 'The Seal of Biliteracy. Language credits add up toward it.', key: 'lang' }
+  const BOTH = { text: 'Two at once. AP Honors and a Career and Technical Education credit.', key: 'both' }
+  const CAP = { text: 'It can finish the four language credits for the Seal of Biliteracy.', key: 'cap' }
+  const NONE = { text: 'No cord comes from this one. Some classes you take because you want to.', key: 'none' }
 
   const correctKey = isAp && isCte ? 'both' : isCapstone ? 'cap' : isAp ? 'ap' : isCte && isLang ? 'both-lang' : isCte ? 'cte' : isLang ? 'lang' : 'none'
   // assemble exactly three options, one correct, distractors from the other cords
@@ -74,7 +81,7 @@ function cordCheck(c: ClassDef): CheckStep {
     correctKey === 'both' ? BOTH
       : correctKey === 'cap' ? CAP
         : correctKey === 'ap' ? AP
-          : correctKey === 'both-lang' ? { text: 'Two at once. A CTE credit, and it keeps a language track alive.', key: 'both-lang' }
+          : correctKey === 'both-lang' ? { text: 'Two at once. A Career and Technical Education credit, and it counts toward your language credits.', key: 'both-lang' }
             : correctKey === 'cte' ? CTE
               : correctKey === 'lang' ? SEAL
                 : NONE
@@ -84,14 +91,19 @@ function cordCheck(c: ClassDef): CheckStep {
   const options = [...distractors.map((o) => ({
     text: o.text,
     reply: dual && (o.key === 'ap' || o.key === 'cte' || o.key === 'lang')
-      ? 'True, but only half of it. This class pulls double duty.'
-      : 'Not this one. Check the sheet again.',
+      ? 'True, but only half of it. This class counts for two things.'
+      /* THE WRONG REPLY MUST NOT ASSERT A WRONG FACT. This read 'This class does
+       * not count toward that honor', which is false on AP Spanish: it carries
+       * 'ap' and 'lang-capstone', so the AP Honors distractor it is shown IS a
+       * cord it counts toward. The reply refuses the pick without claiming
+       * anything the catalog contradicts. */
+      : 'Not quite. Check what this class counts toward.',
   })),
   { text: correct.text, correct: true, reply: 'Exactly. The counselor keeps count either way.' }]
 
   return {
     kind: 'choice', id: `${c.id}-cord`,
-    prompt: `Graduation day: which honor does ${c.name} actually move?`,
+    prompt: `Which honor does ${c.name} count toward?`,
     options,
     objective: 'know what the class counts toward',
   }
@@ -103,11 +115,11 @@ function ladderCheck(c: ClassDef): CheckStep | null {
   if (!req) return null
   return {
     kind: 'choice', id: `${c.id}-ladder`,
-    prompt: `What does ${c.name} expect you to have behind you?`,
+    prompt: `What do you need before you can take ${c.name}?`,
     options: [
-      { text: 'Nothing. It is open to anyone', reply: `It builds on ${req.name}. The ladder is real.` },
-      { text: `${req.name}, from an earlier year`, correct: true, reply: 'Right. One rung at a time.' },
-      { text: 'A signed permission slip', reply: 'No slips. Just the rung below it.' },
+      { text: 'Nothing. It is open to anyone', reply: `It builds on ${req.name}, so you take that one first.` },
+      { text: `${req.name}, from an earlier year`, correct: true, reply: 'Right. That one comes first.' },
+      { text: 'A signed permission slip', reply: `No slip needed. Just ${req.name} first.` },
     ],
     objective: 'know the prerequisite',
   }
@@ -121,15 +133,15 @@ export function classBeat(c: ClassDef, year: number): CoreBeat {
       kind: 'say', line: {
         speaker: T,
         text: c.requires && classById(c.requires)
-          ? `This course builds straight on ${classById(c.requires)!.name}. You climbed that rung already, which is why you are in the room.`
-          : `No prerequisites here. You showed up, and that is the whole entry fee.`,
+          ? `This class builds on ${classById(c.requires)!.name}, which you already took. That is why you can be here.`
+          : `No class is required before this one. Anyone can take it.`,
       },
     },
     { kind: 'check', check: cordCheck(c) },
   ]
   const ladder = ladderCheck(c)
   if (ladder) steps.push({ kind: 'check', check: ladder })
-  steps.push({ kind: 'say', line: { speaker: T, text: 'That is the shape of it. The grade goes on the sheet either way, so make the semester count.' } })
+  steps.push({ kind: 'say', line: { speaker: T, text: 'That is the class. Your grade goes on your transcript either way, so make the semester count.' } })
 
   return {
     id: `class:${c.id}`,

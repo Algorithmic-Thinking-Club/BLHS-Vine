@@ -62,8 +62,9 @@ import './i3.css'
 
 const LETTER =
   'Panther. We saved you a spot.\n' +
-  'Bonney Lake takes new explorers every fall, and the tide brought your invitation right on time.\n' +
-  'Your teacher left you a code. Speak it, and the harbor will know your name.'
+  'Bonney Lake High School takes new students every fall. This is your invitation.\n' +
+  'Sail to Bonney Lake High School. Go into the mountain and find the principal.\n' +
+  'Your teacher left you a class code. Type it in the six boxes below.'
 
 const PRINCIPAL_WORD =
   'Out there, every island is something Bonney Lake really offers. Clubs, sports, classes, honors. ' +
@@ -161,9 +162,9 @@ type Card = 'code' | 'identity' | 'word' | 'wardrobe' | 'boat' | 'rollup'
 
 const CARD_SAID: Record<Card, string> = {
   code: 'A letter from Bonney Lake. Type the class code your teacher gave you.',
-  identity: 'The harbor knows that code. Choose the name your class will see.',
+  identity: 'That code worked. Choose the name your class will see.',
   word: 'The letter turns over. A word from the Principal.',
-  wardrobe: 'The trunk creaks open. Choose what Thor wears.',
+  wardrobe: 'Pick what Thor wears.',
   boat: 'A postscript. Name your boat.',
   rollup: 'The letter rolls itself up.',
 }
@@ -291,12 +292,12 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
        * are different problems with different answers: one is "check the board",
        * the other is "ask your teacher to open it". */
       setJoinErr(r.reason === 'class_closed'
-        ? 'That class is not boarding right now. Your teacher can open it again.'
-        : 'The harbor does not know that code any more. Check it on the board.')
+        ? 'That class is closed right now. Your teacher can open it again.'
+        : 'That code does not work any more. Check it with your teacher.')
       setCard('code')
       return
     }
-    setJoinErr('The harbor is busy. Give it one more try.')
+    setJoinErr('Something went wrong. Give it one more try.')
   }
 
   /* THE PARCHMENT IS MODAL AND WAS NOT SAYING SO. Focus could Tab out of the
@@ -322,7 +323,7 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
                   not. `Glyph` draws nothing at all when the platform has not
                   answered, so the word carries it on its own. */}
               <Glyph piece="icon_set" face="arrow" size={12} className="i3-back-mark" />
-              {card === first ? 'Leave' : 'Back'}
+              {card === first ? 'Quit to the title screen' : 'Back'}
             </button>
           )}
           {card === 'code' && (
@@ -402,19 +403,19 @@ function CodeCard({ initial, err: outerErr, onVerified, onCastaway }: {
   const submit = async () => {
     const joined = code.join('')
     if (Date.now() < lockUntil.current) {
-      refuse('The harbor master needs a breather. Try again in a minute.')
+      refuse('Too many tries. Wait a minute, then try again.')
       return
     }
     tries.current++
     track('join_attempt', { len: joined.length, tries: tries.current })
     if (joined.length < 6) {
-      refuse('Six letters. The harbor is picky about names.')
+      refuse('The code is six characters. Fill in every box.')
       return
     }
     if (tries.current >= 5) {
       tries.current = 0
       lockUntil.current = Date.now() + 60_000
-      refuse('The harbor master needs a breather. Try again in a minute.')
+      refuse('Too many tries. Wait a minute, then try again.')
       return
     }
     // verify the class only: the REAL join happens on the identity card, with the
@@ -437,10 +438,10 @@ function CodeCard({ initial, err: outerErr, onVerified, onCastaway }: {
       return
     }
     refuse(r.reason === 'unknown_code'
-      ? 'The harbor does not know that code. Check it with your teacher.'
+      ? 'That code does not work. Check it with your teacher.'
       : r.reason === 'class_closed'
-        ? 'That class is not boarding right now. Your teacher can open it again.'
-        : 'The harbor is busy. Give it one more try.')
+        ? 'That class is closed right now. Your teacher can open it again.'
+        : 'Something went wrong. Give it one more try.')
   }
 
   return (
@@ -482,10 +483,10 @@ function CodeCard({ initial, err: outerErr, onVerified, onCastaway }: {
           </div>
           {err && <div className="i3-err" id="i3-code-err" role="alert">{err}</div>}
           <button className="i3-castaway" onClick={() => { track('demo_entered'); onCastaway() }}>
-            No code? The sea takes strays too.
+            No code? Play without a class.
           </button>
           <Plank className="i3-plank" busy={checking} onClick={() => void submit()}>
-            {checking ? 'Asking the harbor' : 'Speak it'}
+            {checking ? 'Checking the code' : 'Join my class'}
           </Plank>
         </>
       )}
@@ -515,8 +516,8 @@ function IdentityCard(p: {
   return (
     <div className="i3-card">
       <div className="i3-head">
-        {p.castaway ? 'The sea takes strays too.'
-          : p.className ? `Ah. ${p.className}.` : 'The harbor knows that code.'}
+        {p.castaway ? 'Playing without a class.'
+          : p.className ? `Found your class: ${p.className}.` : 'That code worked.'}
       </div>
       {/* A REAL LABEL, TIED TO THE BOX. It was a floating sentence above an
           unlabelled field, so a reader heard "edit text" and nothing else. */}
@@ -527,7 +528,7 @@ function IdentityCard(p: {
             id="i3-handle"
             className="i3-field"
             value={p.handle}
-            placeholder="your deck name"
+            placeholder="your name"
             autoComplete="off"
             aria-invalid={bad || undefined}
             aria-describedby={bad ? 'i3-handle-err' : 'i3-handle-note'}
@@ -539,7 +540,7 @@ function IdentityCard(p: {
             control was one pictograph. A word is the name AND the instruction. */}
         <Plank size="sm" className="i3-spin" onClick={spin}>Spin a name</Plank>
       </div>
-      {bad && <div className="i3-err" id="i3-handle-err" role="alert">The harbor master raised an eyebrow. Try another.</div>}
+      {bad && <div className="i3-err" id="i3-handle-err" role="alert">That name is not allowed. Try another one.</div>}
       {p.err && <div className="i3-err" role="alert">{p.err}</div>}
       <div className="i3-reassure" id="i3-handle-note">This name is what your class sees. Your real name never leaves the room.</div>
       <div className="i3-chips" role="group" aria-label="Pronouns">
@@ -553,7 +554,7 @@ function IdentityCard(p: {
         ))}
       </div>
       <Plank className="i3-plank i3-plank-solo" busy={p.joining} onClick={confirm}>
-        {p.joining ? 'Telling the harbor' : ok ? 'That is me' : 'Spin one for me'}
+        {p.joining ? 'Joining your class' : ok ? 'That is me' : 'Spin one for me'}
       </Plank>
     </div>
   )
@@ -591,13 +592,13 @@ function WordCard({ onNext }: { onNext: () => void }) {
  * quietly duplicated a third time. */
 const earnByCompleting = (id: string) => {
   const g = programmeById(id)
-  return g ? `complete the ${g.name} island` : 'that island has not risen yet'
+  return g ? `complete the ${g.name} island` : 'that island is not open yet'
 }
 
 const LOCKED = [
   { name: 'Letterman jacket', earn: 'reach Varsity in any sport' },
   { name: 'Robotics goggles', earn: earnByCompleting('robotics') },
-  { name: 'Graduation cap', earn: 'finish a four-year run' },
+  { name: 'Graduation cap', earn: 'finish all four years' },
 ]
 
 function drawThor(cv: HTMLCanvasElement, hue: number | null) {
@@ -623,7 +624,7 @@ function WardrobeCard(p: { look: string; setLook: (v: string) => void; onNext: (
   const spin = () => pick(Object.keys(LOOKS)[Math.floor(Math.random() * Object.keys(LOOKS).length)])
   return (
     <div className="i3-card">
-      <div className="i3-head">The trunk creaks open.</div>
+      <div className="i3-head">Pick what Thor wears.</div>
       <div className="i3-wardrobe">
         <img className="i3-trunk" src="/art/island/castaway-trunk.png" alt="" draggable={false}
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
@@ -673,9 +674,9 @@ function WardrobeCard(p: { look: string; setLook: (v: string) => void; onNext: (
           </button>
         ))}
       </div>
-      <div className="i3-reassure">Locked things are earned out there, not bought.</div>
+      <div className="i3-reassure">Locked items are earned by playing, never bought.</div>
       <Plank className="i3-plank i3-plank-solo" onClick={() => { track('dressing_done', { look: p.look }); p.onNext() }}>
-        {p.look === 'classic' ? 'Thor looks great already' : 'Wear it well'}
+        {p.look === 'classic' ? 'Keep this outfit' : 'Wear this outfit'}
       </Plank>
     </div>
   )
@@ -686,23 +687,23 @@ function BoatCard(p: { boat: string; setBoat: (v: string) => void; onNext: () =>
   const [spun, setSpun] = useState(false)
   const ok = p.boat.trim().length >= 2 && !isBlocked(p.boat)
   const bad = isBlocked(p.boat)
-  const postscript = useMemo(() => 'P.S. The rigger at the pier is yours. She will need a name.', [])
+  const postscript = useMemo(() => 'P.S. The boat at the pier is yours. Give it a name.', [])
   const confirm = () => {
     track('boat_named', { generated: spun, skipped: !ok })
     p.onNext()
   }
-  const spin = () => { const v = spinBoat(); p.setBoat(v); setSpun(true); announce(`Ship named ${v}`) }
+  const spin = () => { const v = spinBoat(); p.setBoat(v); setSpun(true); announce(`Boat named ${v}`) }
   return (
     <div className="i3-card">
       <div className="i3-letter i3-ps">{postscript}</div>
-      <label className="i3-sub" htmlFor="i3-boat">Her name</label>
+      <label className="i3-sub" htmlFor="i3-boat">Your boat's name</label>
       <div className="i3-fieldrow">
         <span className="i3-fieldbox kit-surface-field">
           <input
             id="i3-boat"
             className="i3-field"
             value={p.boat}
-            placeholder="her name"
+            placeholder="your boat name"
             autoComplete="off"
             aria-invalid={bad || undefined}
             aria-describedby={bad ? 'i3-boat-err' : undefined}
@@ -712,8 +713,8 @@ function BoatCard(p: { boat: string; setBoat: (v: string) => void; onNext: () =>
         </span>
         <Plank size="sm" className="i3-spin" onClick={spin}>Spin a name</Plank>
       </div>
-      {bad && <div className="i3-err" id="i3-boat-err" role="alert">She would sink from embarrassment. Another.</div>}
-      <Plank className="i3-plank i3-plank-solo" onClick={confirm}>{ok ? 'Paint it on' : 'Call her The Bonney'}</Plank>
+      {bad && <div className="i3-err" id="i3-boat-err" role="alert">That boat name will not work. Try another.</div>}
+      <Plank className="i3-plank i3-plank-solo" onClick={confirm}>{ok ? 'Paint it on' : 'Name it The Bonney'}</Plank>
     </div>
   )
 }

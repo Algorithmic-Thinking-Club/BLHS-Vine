@@ -76,9 +76,9 @@ export function checkCode(s: SaveGame, code: string): boolean {
  * this deck is the frame around them. */
 export const DIPLOMA_COPY = {
   school: 'BONNEY LAKE HIGH SCHOOL',
-  subtitle: 'the island voyage · four years',
+  subtitle: 'four years of high school',
   certifies: 'certifies that the Panther known as',
-  completed: 'completed the four-year voyage',
+  completed: 'completed four years of high school',
   verification: 'verification',
   roster: 'your teacher checks this code against the advisory roster',
   unnamed: 'Panther',
@@ -118,18 +118,18 @@ export function diplomaRows(s: SaveGame, d: FrozenRun = diplomaOf(s)): DiplomaRo
   const cords = sealedCordNames(s, d)
   const ranks = rankLines(t)
   const rows: DiplomaRow[] = [
-    { label: 'GPA', value: t.gpa === null ? 'unwritten' : `${t.gpa.toFixed(2)} (${letterOf(t.gpa)})` },
+    { label: 'GPA', value: t.gpa === null ? 'none yet' : `${t.gpa.toFixed(2)} (${letterOf(t.gpa)})` },
     { label: 'Cords and seals', value: cords.length ? cords.join(', ') : 'none' },
   ]
   if (ranks.length) rows.push({ label: 'Ranks', value: ranks.map((r) => `${r.rank}, ${r.name}`).join(' · ') })
   rows.push(
     { label: 'Islands completed', value: String(t.islandsCompleted) },
-    { label: 'Places seen', value: String(t.placesSeen) },
+    { label: 'Places you saw', value: String(t.placesSeen) },
     { label: 'Programmes finished', value: String(t.programmesCompleted) },
     { label: 'True things learned', value: String(t.factsLearned) },
     { label: 'Years completed', value: `${d.year} of 4` },
     { label: 'Advisory class code', value: s.classCode || 'joined no class' },
-    { label: 'Sealed', value: sealedDate(d) },
+    { label: 'Date finished', value: sealedDate(d) },
   )
   return rows
 }
@@ -198,7 +198,7 @@ export function standingsOf(s: SaveGame, d: FrozenRun = diplomaOf(s)): Standing[
     out.push({
       id: `rank:${track}`,
       name: `${rank}, ${name}`,
-      what: rank === 'Captain' ? NO_ATHLETIC_CORD : 'Years invested in one track, and the ladder counts years rather than grades.',
+      what: rank === 'Captain' ? NO_ATHLETIC_CORD : 'Years in the same sport or club. This counts years, not grades.',
       count: `${years} ${years === 1 ? 'year' : 'years'}`,
     })
   }
@@ -206,7 +206,7 @@ export function standingsOf(s: SaveGame, d: FrozenRun = diplomaOf(s)): Standing[
     out.push({
       id: 'programmes',
       name: 'Programmes finished',
-      what: 'A season token spent, and the thing at the end of it actually sailed.',
+      what: 'You spent a season token on it and finished it.',
       count: `${t.programmesCompleted} of them`,
     })
   }
@@ -214,15 +214,15 @@ export function standingsOf(s: SaveGame, d: FrozenRun = diplomaOf(s)): Standing[
     out.push({
       id: 'islands',
       name: 'Islands completed',
-      what: 'An island entered and carried through to its own end.',
+      what: 'An island is one club, sport or class. You finished this one.',
       count: `${t.islandsCompleted} of them`,
     })
   }
   if (t.placesSeen > 0) {
     out.push({
       id: 'places',
-      name: 'Places you found',
-      what: 'Every place this school has that you laid eyes on, ashore or from the water.',
+      name: 'Places you saw',
+      what: 'Every place at this school you saw, inside or from outside.',
       count: `${t.placesSeen} ${t.placesSeen === 1 ? 'place' : 'places'}`,
     })
   }
@@ -237,7 +237,7 @@ export function standingsOf(s: SaveGame, d: FrozenRun = diplomaOf(s)): Standing[
   if (s.stickers.length > 0) {
     out.push({
       id: 'marks',
-      name: 'Marks on the wall',
+      name: 'Marks you were given',
       what: 'Given for something you did. Never for a grade.',
       count: `${s.stickers.length} ${s.stickers.length === 1 ? 'mark' : 'marks'}`,
     })
@@ -268,7 +268,7 @@ export function standingsOf(s: SaveGame, d: FrozenRun = diplomaOf(s)): Standing[
 export function artifactText(s: SaveGame, d: FrozenRun = diplomaOf(s)): string {
   const t = d.transcript
   return [
-    `${DIPLOMA_COPY.school} · the island voyage`,
+    `${DIPLOMA_COPY.school} · four years of high school`,
     `Panther: ${t.handle || 'unnamed'}`,
     ...diplomaRows(s, d).map((r) => `${r.label}: ${r.value}`),
     `Verification: ${d.code}`,

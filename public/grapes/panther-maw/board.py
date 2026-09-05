@@ -57,7 +57,7 @@ def close_to(board):
 
 def settled_line(cord):
     """One earned cord, said out loud."""
-    return "%s is yours. That one is settled." % cord["name"]
+    return "You earned %s. That one is yours." % cord["name"]
 
 
 def progress_line(cord):
@@ -67,7 +67,7 @@ def progress_line(cord):
     classes passed") and read by both the tracker and this line, so the person
     and the board can never disagree about the same cord.
     """
-    return "%s. %s" % (cord["name"], cord["detail"])
+    return "Still working toward %s. %s" % (cord["name"], cord["detail"])
 
 
 def counsel(board, most=2):
@@ -99,5 +99,5 @@ def on_the_wall(trophies):
 def wall_line(count):
     """What the wall says about itself, which is a fact and not a compliment."""
     if count == 1:
-        return "One thing up there now. Earned somewhere out on the water."
-    return "%d up there now. All of it earned somewhere out on the water." % count
+        return "One trophy on the wall now. You earned it."
+    return "%d trophies on the wall now. You earned every one of them." % count

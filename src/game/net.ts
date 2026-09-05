@@ -23,7 +23,7 @@ export type CheckResult =
  *  real join happens there. Joining here with a placeholder handle merged whole classes
  *  into one participant (the Act Zero critical). */
 export async function checkClass(code: string): Promise<CheckResult> {
-  if (isCaptain()) return { ok: true, className: "the Captain's own crew" }
+  if (isCaptain()) return { ok: true, className: "the Captain's own class" }
   try {
     const r = await fetch(`/api/join?code=${encodeURIComponent(code)}`)
     if (r.status === 503) return { ok: false, reason: 'offline' }
@@ -41,7 +41,7 @@ export async function joinClass(code: string, handle: string): Promise<JoinResul
   if (isCaptain()) {
     // the captain walks through any harbor gate
     writeSave({ participantId: 'captain', arm: 'game', classCode: code.toUpperCase() })
-    return { ok: true, participantId: 'captain', arm: 'game', className: "the Captain's own crew" }
+    return { ok: true, participantId: 'captain', arm: 'game', className: "the Captain's own class" }
   }
   try {
     const r = await fetch('/api/join', {

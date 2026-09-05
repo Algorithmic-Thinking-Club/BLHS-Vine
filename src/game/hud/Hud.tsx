@@ -306,11 +306,11 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
           honest answer to "has this been earned", the panels still read it, and
           the arrival flourish still plays the first time a thing is really
           granted. What changed is that the DOOR is always there. */}
-      <nav className="hud-stack" aria-label="Ship's controls">
+      <nav className="hud-stack" aria-label="Game menu">
         {(
         <button
           className={`hud-plaque${entering.has('chart') ? ' hud-arriving' : ''}`}
-          aria-label="The chart, showing every island you have found"
+          aria-label="Chart. The map of islands you have found."
           aria-haspopup="dialog"
           onClick={() => { track('chart_opened'); openBook('chart') }}
         >
@@ -321,7 +321,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
         {(
         <button
           className={`hud-plaque${entering.has('handbook') ? ' hud-arriving' : ''}`}
-          aria-label="The Handbook"
+          aria-label="Handbook. What the school offers, and what you have earned."
           aria-haspopup="dialog"
           onClick={() => openBook('islands')}
         >
@@ -343,9 +343,11 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
                run has no tokens because they have not been handed any, which is
                a different sentence from having spent them all. */
             aria-label={left.length === 0
-              ? (s ? 'The year sheet. Every season is spent.' : 'The year sheet.')
-              : `The year sheet. ${left.length} season ${left.length === 1 ? 'token' : 'tokens'} unspent: `
-                + `${left.join(', ')}.`}
+              ? (s
+                ? 'Year sheet. You have used all three season tokens.'
+                : 'Year sheet. Pick your classes and activities.')
+              : `Year sheet. Pick your classes and activities. ${left.length} season `
+                + `${left.length === 1 ? 'token' : 'tokens'} not used yet: ${left.join(', ')}.`}
             aria-haspopup="dialog"
             onClick={openPlanner}
           >
@@ -433,11 +435,11 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       {help && <HelpCard onClose={() => setHelp(false)} />}
       {paused && !anyOpen && (
         <PausePanel onClose={closeAll}>
-          <Plank wide keyCap="Esc" onClick={closeAll}>Back to it</Plank>
-          {s?.introDone && <Plank wide onClick={openPlanner}>The Year Sheet</Plank>}
+          <Plank wide keyCap="Esc" onClick={closeAll}>Back to the game</Plank>
+          {s?.introDone && <Plank wide onClick={openPlanner}>Year sheet</Plank>}
           {s?.graduated && (
             <Plank wide onClick={() => { setPaused(false); setGraduation(true) }}>
-              {s.flags.includes('gear2') ? 'The diploma, again' : 'Walk the stage'}
+              {s.flags.includes('gear2') ? 'Walk the stage again' : 'Walk the stage'}
             </Plank>
           )}
           <Plank wide onClick={() => { setPaused(false); setBook('islands') }}>Handbook</Plank>
@@ -479,10 +481,10 @@ function PausePanel({ onClose, children }: { onClose: () => void; children: Reac
             for a placeholder. It has one now. */}
         <div className="pz-title">
           <span className="pz-mark kit-mark kit-mark-anchor" aria-hidden="true" />
-          Dropped anchor
+          Paused
         </div>
         {children}
-        <div className="pz-note">your voyage saves itself</div>
+        <div className="pz-note">Your progress saves by itself.</div>
       </div>
     </div>
   )

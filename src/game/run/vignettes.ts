@@ -5,17 +5,17 @@
 export const VIGNETTES: Record<number, string[]> = {
   1: [
     'Year one, Panther. Everything out there is new because you are.',
-    'Three seasons, two classes, one fire to sit by. That is a year here.',
+    'Three seasons, two classes, and Advisory. That is a year here.',
     'Nobody does all of it. The good ones choose like it matters.',
   ],
   2: [
     'Year two. You know where the doors are now.',
-    'This is the year to look at the ladder nobody talks about. Cords, seals, the quiet honors.',
-    'Climb a rung on purpose this time.',
+    'This is the year to look at cords, seals and honors. Nobody talks about those enough.',
+    'Pick one and go earn it.',
   ],
   3: [
-    'Year three, the long game. Credits start mattering in rows now.',
-    'Twenty-four of them stand between anyone and the stage.',
+    'Year three, the long game. Credits start counting now.',
+    'You need twenty-four credits to walk the stage.',
     'Plan the end from here. It is closer than it looks.',
   ],
   4: [

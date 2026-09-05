@@ -113,7 +113,7 @@ const earnByCompleting = (id: string) => {
 const LOCKED = [
   { name: 'Letterman jacket', earn: 'reach Varsity in any sport', has: (s: ReturnType<typeof loadSave>) => !!s && Object.values(ranksOf(s)).some((y) => Number(y) >= 2) },
   { name: 'Robotics goggles', earn: earnByCompleting('robotics'), has: (s: ReturnType<typeof loadSave>) => !!programmeById('robotics') && s?.islands?.robotics === 'completed' },
-  { name: 'Graduation cap', earn: 'finish a four-year run', has: (s: ReturnType<typeof loadSave>) => !!s?.graduated },
+  { name: 'Graduation cap', earn: 'finish all four years', has: (s: ReturnType<typeof loadSave>) => !!s?.graduated },
 ]
 
 export function Wardrobe({ onClose }: { onClose: () => void }) {
@@ -195,14 +195,14 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
   /* Escape used to be a window listener of this component's own, so it fired
    * even when something had opened on top of the wardrobe. The panel hook owns
    * it now and only the innermost panel answers. */
-  const panel = usePanel({ label: "The outfitter's nook", onClose })
+  const panel = usePanel({ label: 'Your clothes', onClose })
 
   return (
     <div className="wd-veil" onClick={onClose}>
       <div className="wd-panel kit-surface-panel" onClick={(e) => e.stopPropagation()} {...panel}>
         <header className="wd-top">
-          <h2 className="wd-head">The outfitter&apos;s nook</h2>
-          <p className="wd-sub">Try a dye on. Nothing here is bought.</p>
+          <h2 className="wd-head">Your clothes</h2>
+          <p className="wd-sub">Pick a coat color. Nothing here costs anything.</p>
         </header>
 
         <div className="wd-body">
@@ -278,7 +278,7 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
                          * something they cannot have has asked a question */
                         announce(got
                           ? `${it.name}, earned`
-                          : it.earn ? `${it.name}. Earn by: ${it.earn}` : `${it.name}. Not on the water yet.`)
+                          : it.earn ? `${it.name}. Earn by: ${it.earn}` : `${it.name}. Not open yet.`)
                       }}
                     >
                       <Chip state={got ? 'plate_lit' : 'plate'} className="wd-lock-plate">
@@ -289,20 +289,20 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
                       <span className="wd-lock-words">
                         <span className="wd-lock-name">{it.name}</span>
                         <span className="wd-lock-earn">
-                          {got ? 'Earned' : it.earn ? `Earn by: ${it.earn}` : 'Not on the water yet.'}
+                          {got ? 'Earned' : it.earn ? `Earn by: ${it.earn}` : 'Not open yet.'}
                         </span>
                       </span>
                     </button>
                   )
                 })}
               </div>
-              <p className="wd-note">Locked things are earned out there, not bought.</p>
+              <p className="wd-note">You earn these by playing.</p>
             </section>
           </div>
         </div>
 
         <div className="wd-foot">
-          <Plank size="lg" keyCap="Esc" onClick={onClose}>Wear it well</Plank>
+          <Plank size="lg" keyCap="Esc" onClick={onClose}>Back to the game</Plank>
         </div>
       </div>
     </div>

@@ -270,7 +270,9 @@ function saidOf(a: AwardArgs): { what: string; detail?: string } {
     }
   }
   if (a.badge) return { what: 'You earned a badge.', detail: a.badge }
-  if (a.sticker) return { what: 'Something new for the wall.', detail: a.sticker }
+  /* "the wall" is §11.9's trophy wall and it is not built, so a student who
+   * earned a sticker was sent to a place the game does not have. */
+  if (a.sticker) return { what: 'You earned a badge.', detail: a.sticker }
   if (a.fact) return { what: 'That went in the Handbook.' }
   return { what: 'That counted.' }
 }

@@ -51,7 +51,7 @@ export const introI1I2: Script = {
     { t: 'camera', to: SPAWN, zoom: 1.7, ms: 700 },            // back to Thor: your move
     { t: 'stage', call: 'pointAt', data: BOTTLE_AT },          // the guide chevron
     { t: 'fx', name: 'glint', at: BOTTLE_AT },
-    { t: 'gate', kind: 'walkTo', target: WALK_STOP, radius: 0.9, prompt: 'walk to it', idleAutoMs: 6000 },
+    { t: 'gate', kind: 'walkTo', target: WALK_STOP, radius: 0.9, prompt: 'Walk to the bottle. Press W A S D or the arrow keys', idleAutoMs: 6000 },
     { t: 'stage', call: 'pointClear' },
     { t: 'actorFace', actor: 'thor', dir: 'north-west' },
     { t: 'camera', to: BOTTLE_AT, zoom: 2.6, ms: 2500 },       // the slow push-in
@@ -68,12 +68,12 @@ export const introI1I2: Script = {
     { t: 'cameraFollow', actor: 'thor' },
 
     // ---- I-4 · the walk to the port (player-driven; the pier is the only exit) ----
-    { t: 'say', who: 'Thor', text: 'A boat with my name on it. Might as well see her.' },
+    { t: 'say', who: 'Thor', text: 'That is my boat, down at the pier. Time to walk down and take it.' },
     { t: 'stage', call: 'showBoatName' },                      // her fresh name hangs at the berth
     { t: 'stage', call: 'pointAt', data: { x: 73, y: 44.5 } }, // the chevron leads: the pier
-    { t: 'gate', kind: 'walkTo', target: { x: 73, y: 44.5 }, radius: 1.3, prompt: 'head for the pier', idleAutoMs: 14000 },
+    { t: 'gate', kind: 'walkTo', target: { x: 73, y: 44.5 }, radius: 1.3, prompt: 'Walk to the pier', idleAutoMs: 14000 },
     { t: 'stage', call: 'pointAt', data: { ship: true } },     // ...then the ship herself
-    { t: 'gate', kind: 'walkTo', target: { x: 73, y: 33 }, radius: 1.4, prompt: 'walk out to her', idleAutoMs: 12000 },
+    { t: 'gate', kind: 'walkTo', target: { x: 73, y: 33 }, radius: 1.4, prompt: 'Walk to your boat', idleAutoMs: 12000 },
     { t: 'stage', call: 'pointClear' },
     { t: 'stage', call: 'boardShip' },                         // the hop arc; he takes the deck
 

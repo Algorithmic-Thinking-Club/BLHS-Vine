@@ -120,7 +120,7 @@ def the_principal():
         yield from founding_event()
         return
 
-    yield say("Back again. Good. The sea does not run out.",
+    yield say("Back again, Panther. Plan your next year at the year sheet table.",
               who=PRINCIPAL, portrait=FACE)
 
 

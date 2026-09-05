@@ -11,6 +11,6 @@ WHO = "the vine"
 OPENING = "This is Python, and it is running in a worker while the engine draws."
 
 BRANCHES = [
-    "An if statement in island.py picked this line over the other one.",
-    "Same file, different line, chosen on the Python side.",
+    "You picked the first button, so you got this line.",
+    "You picked the second button, so you got this one instead.",
 ]

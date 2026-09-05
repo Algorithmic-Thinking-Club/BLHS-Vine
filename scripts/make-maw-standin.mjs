@@ -149,10 +149,10 @@ const anchors = [
     meta: { why: 'where the hub door puts you: on the bridge, facing in' } },
 
   { name: 'maw_entrance', kind: 'door', x: 256, y: 476, r: 20, to: 'hub', toAnchor: 'panthers_maw',
-    label: 'the harbour', meta: { why: 'the far side of the tunnel he walked into' } },
+    label: 'the harbor', meta: { why: 'the far side of the tunnel he walked into' } },
 
-  { name: 'chart_table', kind: 'post', x: 170, y: 232, r: 30, facing: 'south', label: 'the chart table' },
-  { name: 'hearth', kind: 'post', x: 256, y: 258, r: 30, facing: 'south', label: 'the Advisory Hearth' },
+  { name: 'chart_table', kind: 'post', x: 170, y: 232, r: 30, facing: 'south', label: 'Open the year sheet' },
+  { name: 'hearth', kind: 'post', x: 256, y: 258, r: 30, facing: 'south', label: 'Advisory' },
   { name: 'counselor', kind: 'post', x: 342, y: 232, r: 30, facing: 'south', label: 'the counselor' },
   /* THE FIRST AUTHORED FRAMING, and the reason it exists is a defect the brief
    * names: `maw-founding` carried `zoom: 1.35` in its own source, which is a

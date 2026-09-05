@@ -70,7 +70,7 @@ export type BadgeRow = {
 function visitedEvery(s: SaveGame, isles: string[]): { done: boolean; detail: string } {
   const seen = new Set((s.exposure ?? []).map((e) => e.place))
   const found = isles.filter((i) => seen.has(i)).length
-  return { done: isles.length > 0 && found >= isles.length, detail: `${found} of ${isles.length} found` }
+  return { done: isles.length > 0 && found >= isles.length, detail: `${found} of ${isles.length} islands seen` }
 }
 
 /** every category the roster offers, which is what "every category" has to mean */
@@ -85,7 +85,7 @@ function everyCategory(s: SaveGame): { done: boolean; detail: string } {
     }
   }
   const n = CATEGORIES.filter((c) => spent.has(c)).length
-  return { done: n >= CATEGORIES.length, detail: `${n} of ${CATEGORIES.length} kinds` }
+  return { done: n >= CATEGORIES.length, detail: `${n} of ${CATEGORIES.length} kinds of activity` }
 }
 
 function anyCaptain(s: SaveGame): { done: boolean; detail: string } {
@@ -95,7 +95,7 @@ function anyCaptain(s: SaveGame): { done: boolean; detail: string } {
   /* `rankName` answers null below JV, which is the honest answer for a student
    * who has not stayed with anything yet and is not a string to print. */
   const named = rankName(best)
-  return { done: named === 'Captain', detail: named ?? 'no track yet' }
+  return { done: named === 'Captain', detail: named ?? 'No rank yet' }
 }
 
 /**
@@ -113,13 +113,13 @@ export function badgesOf(s: SaveGame | null, isles: string[] = []): BadgeRow[] {
   const cap = s ? anyCaptain(s) : { done: false, detail: '' }
   return [
     {
-      id: 'resident', name: 'Resident', from: 'world',
+      id: 'resident', name: 'Orca Spotter', from: 'world',
       how: 'Spot the orca on open water.',
       earned: has('resident'),
     },
     {
-      id: 'cartographer', name: 'Cartographer', from: 'run',
-      how: 'Discover every island on the chart.',
+      id: 'cartographer', name: 'Island Finder', from: 'run',
+      how: 'See every island on the chart.',
       earned: has('cartographer') || carto.done,
       detail: carto.detail,
     },
@@ -129,14 +129,14 @@ export function badgesOf(s: SaveGame | null, isles: string[] = []): BadgeRow[] {
       earned: has('early-bird'),
     },
     {
-      id: 'renaissance', name: 'Renaissance Panther', from: 'run',
-      how: 'Spend a season in every kind of thing the school offers.',
+      id: 'renaissance', name: 'All-Around Panther', from: 'run',
+      how: 'Spend a season on a sport and a season in a club.',
       earned: has('renaissance') || ren.done,
       detail: ren.detail,
     },
     {
       id: 'loyal', name: 'Loyal', from: 'run',
-      how: `Reach ${rankName(3) ?? 'Captain'} on any track.`,
+      how: `Reach ${rankName(3) ?? 'Captain'} in any sport or club.`,
       earned: has('loyal') || cap.done,
       detail: cap.detail,
     },
@@ -145,9 +145,9 @@ export function badgesOf(s: SaveGame | null, isles: string[] = []): BadgeRow[] {
       /* THE NUMBER IS THE POOL AND IS WRITTEN FROM IT. Twenty-five was typed
        * once against a pool of eighteen and the pool has been nineteen for
        * months; a student read a goal the game could not honour. */
-      how: `Collect all ${FACT_POOL} handbook facts.`,
+      how: `Collect all ${FACT_POOL} school facts.`,
       earned: has('bookworm') || facts >= FACT_POOL,
-      detail: `${facts} of ${FACT_POOL}`,
+      detail: `${facts} of ${FACT_POOL} facts`,
     },
   ]
 }

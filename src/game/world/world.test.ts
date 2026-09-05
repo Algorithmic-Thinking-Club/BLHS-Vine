@@ -56,11 +56,11 @@ describe('the world composition', () => {
    * could sail between. */
   it('draws one dot per place, so the hub and the Maw are one island', () => {
     const drawn = seaSlots(FALLBACK)
-    expect(drawn.map((s) => s.title)).toEqual(['the Central Island', 'a field somebody keeps mentioning'])
+    expect(drawn.map((s) => s.title)).toEqual(['Bonney Lake High School', 'the stadium'])
   })
 
   it('resolves a map to its slot and a place to the one that has the berth', () => {
-    expect(slotOfMap(FALLBACK, 'panther-maw')?.title).toBe('the Panther’s Maw')
+    expect(slotOfMap(FALLBACK, 'panther-maw')?.title).toBe('the Panther’s Maw, inside the mountain')
     expect(slotOfPlace(FALLBACK, 'home-island')?.map).toBe('hub')
     expect(slotOfMap(FALLBACK, 'nothing-here')).toBeUndefined()
   })

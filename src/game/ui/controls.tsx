@@ -317,7 +317,7 @@ export function Gauge({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={pct === null ? undefined : Math.round(pct * 100)}
-      aria-valuetext={pct === null ? 'working' : `${Math.round(pct * 100)} percent`}
+      aria-valuetext={pct === null ? 'Loading' : `${Math.round(pct * 100)} percent`}
     >
       <span className="kit-gauge-fill" style={pct === null ? undefined : { width: `${pct * 100}%` }} />
       {reading && <span className="kit-gauge-reading">{reading}</span>}

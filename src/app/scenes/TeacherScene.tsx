@@ -116,7 +116,7 @@ export default function TeacherScene() {
   return (
     <div className="tc-root">
       <div className="tc-head">
-        <h1>BLHS Island Explorer — teacher's desk</h1>
+        <h1>BLHS Island Explorer: teacher's desk</h1>
         <p>Classes live here. Students never log in: they enter the class code inside the game's story.</p>
         {offline && <div className="tc-offline">Server not configured yet (no database connected). Everything here goes live the moment it is.</div>}
       </div>
@@ -147,9 +147,9 @@ export default function TeacherScene() {
           {active ? (
             <>
               <div className="tc-codecard">
-                <div className="tc-codelabel">{active.name} — join code</div>
+                <div className="tc-codelabel">{active.name}: join code</div>
                 <div className="tc-code">{active.code}</div>
-                <div className="tc-sub">{open ? 'Open — students can join' : 'Closed'}
+                <div className="tc-sub">{open ? 'Open: students can join' : 'Closed'}
                   <button className="tc-mini" onClick={toggleOpen}>{open ? 'Close joining' : 'Reopen'}</button>
                   <button className="tc-mini" onClick={() => void exportCsv()} disabled={busy || !roster?.length}>Export CSV</button>
                   {exported && <span className="tc-dim"> · {exported}</span>}
@@ -164,8 +164,8 @@ export default function TeacherScene() {
                   <tbody>
                     {roster.map((r, i) => (
                       <tr key={i}><td>{r.handle}</td><td>{r.arm}</td><td>{r.year}</td><td>{r.beat}</td>
-                        <td>{r.graduated ? <b>{r.code}</b> : '—'}</td>
-                        <td>{r.last_seen ? new Date(r.last_seen).toLocaleString() : '—'}</td></tr>
+                        <td>{r.graduated ? <b>{r.code}</b> : 'not yet'}</td>
+                        <td>{r.last_seen ? new Date(r.last_seen).toLocaleString() : 'not yet'}</td></tr>
                     ))}
                   </tbody>
                 </table>

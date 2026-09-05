@@ -2,7 +2,7 @@
 
 // The cutscene interpreter. Tick-driven: the host scene calls tick(dtMs) from its own loop,
 // so cutscene time and world time can never drift apart. Two execution modes per step:
-// LIVE (animated over time) and INSTANT (jump straight to the end state) â€” instant is what
+// LIVE (animated over time) and INSTANT (jump straight to the end state). Instant is what
 // makes hold-to-skip honest: the world lands exactly where the script would have left it.
 //
 // Dialogue pacing, letterbox/vignette/fade tweens and typewriter text live here (screen
@@ -13,7 +13,7 @@ const VIGNETTE_MS = 600
 const FADE_MS = 500
 const CAPTION_FADE_MS = 350
 const CHARS_PER_S = 38               // typewriter base speed
-const PUNCT_PAUSE_MS = 160           // extra beat after . ! ? â€¦
+const PUNCT_PAUSE_MS = 160           // extra beat after . ! ? ...
 const DIALOGUE_MIN_MS = 250          // ignore advance clicks for the first beat of a line
 
 const eases: Record<Ease, (v: number) => number> = {

@@ -31,8 +31,8 @@ def pressed():
     game owns when, the island owns what.
     """
     pick = yield choose(
-        ["Prove the answer got back into Python.", "I believe you."],
-        prompt="Which way?",
+        ["Pick the first one.", "Pick the second one."],
+        prompt="Pick a button.",
     )
 
     yield say("You clicked button %d, and Python counted it." % pick, who=WHO)

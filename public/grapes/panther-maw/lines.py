@@ -48,55 +48,55 @@ FACE = "principal"
 # fortieth crossing is a room you learn to walk past.
 
 ARRIVED = [
-    "The bridge ends and the hall opens up.",
-    "Someone has been keeping this swept.",
+    "This is the Panther's Maw, the school hall inside the mountain.",
+    "The principal is at the desk. Talk to him first.",
 ]
 
 
 # ---- the founding event ------------------------------------------------------
 
-GREETING = "You made it up the bridge. Most of them stop halfway."
+GREETING = "Welcome to Bonney Lake High School, Panther. I am the principal here."
 
 # the room pointed out, one station per line, one idea per line. Three, because
 # three is the most the non-reader law allows in a row, and because the chart
 # table is introduced by the cutscene below and does not want saying twice.
 TOUR = [
-    (HEARTH, "That fire is advisory. Every year here starts at it."),
-    (COUNSELOR, "She keeps the cord list. Ask her what you are near."),
-    (WALL, "That wall is yours to fill. It starts empty."),
+    (HEARTH, "That fire is Advisory. Every school year starts there."),
+    (COUNSELOR, "She is the counselor. Ask her about your honor cords."),
+    (WALL, "That wall holds your trophies. Everything you earn goes up there."),
 ]
 
-TURNING_BACK = "The rest of it you will find on your own."
+TURNING_BACK = "Now go to the year sheet table and plan your first year."
 
 
 # ---- the fire ----------------------------------------------------------------
 
-CIRCLE = "The circle is drawn. Advisory is starting."
-BANKED = "The fire is banked. Nothing is owed here this year."
+CIRCLE = "Advisory is starting. Answer the questions."
+BANKED = "Advisory is done for this year. Come back next year."
 # said after the beat, and only when the player actually finished it. `play`
 # comes back None when they closed the panel, and None is not a score.
-SAT = "That is this year's advisory settled."
-LEFT = "The circle is still drawn. Come back when you have a minute."
+SAT = "That is this year's Advisory done."
+LEFT = "You did not finish Advisory. Come back when you have a minute."
 
 
 # ---- the counselor -----------------------------------------------------------
 
-NOTHING_YET = "Nothing on your cape yet. That is what four years are for."
+NOTHING_YET = "No cord started yet. That is what four years are for."
 ASK = "Ask about the cords?"
-SHOW_ME = "Show me the board"
+SHOW_ME = "Open the Handbook"
 NOT_NOW = "Not now"
 
 
 # ---- the chart table ---------------------------------------------------------
 
-SHEET = "Four years, one sheet. Less room than it sounds like."
+SHEET = "This is the year sheet. Plan all four years here."
 
 
 # ---- the outfitter -----------------------------------------------------------
 
-NOOK = "Nothing here is bought. Try a dye on."
+NOOK = "Pick a new coat color. Nothing here costs anything."
 
 
 # ---- the trophy wall ---------------------------------------------------------
 
-EMPTY_WALL = "Empty hooks, all the way along. Someone expects this to fill."
+EMPTY_WALL = "Nothing on the wall yet. Everything I earn goes up here."

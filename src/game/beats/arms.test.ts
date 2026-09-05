@@ -128,7 +128,7 @@ describe('the game arm draws every kind', () => {
       expect(html, `${c.kind}`).toContain(r.prompt)
       if (c.kind === 'showdown') {
         // the drive bar and the first round, not all the rounds at once
-        expect(html).toContain('to go')
+        expect(html).toContain('yards to go')
         expect(html).toContain(c.rounds[0].prompt)
       } else if (c.kind === 'do') {
         // no world was supplied, so it falls back to naming its places
@@ -188,7 +188,7 @@ describe('W8: a do staged in the world, and what happens when it cannot be', () 
   it('waits for the walk rather than showing the answer', async () => {
     const world: BeatWorld = { issue: async () => ok(), onReached: () => () => {} }
     const m = await mount(beat, world)
-    expect(m.html()).toContain('The path is marked')
+    expect(m.html()).toContain('Walk to The activities board')
     // the places are NOT listed while the world is staging it: walking there IS the answer
     expect(m.html()).not.toContain('The trophy case')
     await m.unmount()
@@ -211,7 +211,7 @@ describe('W8: a do staged in the world, and what happens when it cannot be', () 
     const m = await mount(beat, world)
     await act(async () => { fire!('panther_maw') })
     // still waiting: walking past something on the way is not an answer
-    expect(m.html()).toContain('The path is marked')
+    expect(m.html()).toContain('Walk to The activities board')
     await m.unmount()
   })
 
@@ -261,9 +261,9 @@ describe('CONTENT CONSTANCY, played through: the control arm gets the instructio
     expect(m.text(), 'the right answer is confirmed').toContain('Monday is the late start.')
     expect(m.text()).toContain('the answer is Walk into the meeting')
     // and the grade comes AFTER the correction, not instead of it
-    expect(m.text()).not.toContain('Back to the year')
+    expect(m.text()).not.toContain('Back to the game')
     await m.click('Continue')
-    expect(m.text()).toContain('Back to the year')
+    expect(m.text()).toContain('Back to the game')
     await m.unmount()
   })
 

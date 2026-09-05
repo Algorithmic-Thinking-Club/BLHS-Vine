@@ -24,14 +24,14 @@ SPOTTED = "Something washed ashore."
 # paragraph in it is a wall.
 MESSAGE = [
     "The paper is dry, which means somebody corked it properly.",
-    "“If you are reading this, you are further from home than you meant to be.",
-    "Take the boat. Make for the light on the central island, and ask for the Maw.”",
+    "It says I am further from home than I meant to be.",
+    "Take the boat to the central island. Find the principal inside the mountain.",
 ]
 
 # after the message, before he moves
-DECIDED = "A boat with my name on it. Might as well see her."
+DECIDED = "A boat at the pier. Time to walk down and take it."
 
 # the arrow has been up for a while and he has not moved
-NUDGED = "It is not going to open itself."
+NUDGED = "Walk over to that bottle. It is not going to open itself."
 
-CAST_OFF = "Right. The light on the central island."
+CAST_OFF = "Right. Sail for the light on the central island."

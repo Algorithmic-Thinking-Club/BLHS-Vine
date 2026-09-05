@@ -146,8 +146,8 @@ const AWARDS = 'the BLHS awards list, from Ms. Pinzon'
  * line on the diploma, and that is the honest answer until somebody with
  * authority decides otherwise. */
 export const NO_ATHLETIC_CORD =
-  'Bonney Lake awards no cord for reaching Captain. Ranks are printed on the diploma instead. ' +
-  `Source: ${AWARDS}, which lists every cord the school gives and has no athletic award in it.`
+  'Bonney Lake awards no cord for reaching Captain. Your rank is printed on your diploma instead. ' +
+  `Source: ${AWARDS}.`
 
 const count = (s: SaveGame, f: (e: SaveGame['ledger'][number]) => boolean) => s.ledger.filter(f).length
 
@@ -188,23 +188,27 @@ export function cordsOf(s: SaveGame): CordProgress[] {
     {
       id: 'highest-honors', name: 'Highest Honors', colors: 'double gold',
       rule: 'GPA 3.76-4.0', source: AWARDS, published: true,
-      model: 'Counted at graduation, on the credit-weighted GPA of everything on your transcript.',
+      model: 'Counted at graduation, from your GPA across all four years.',
       settlesAtGraduation: true,
       earned: finished && gpa >= 3.76, progress: Math.min(1, gpa / 3.76),
-      detail: `GPA ${gpa ? gpa.toFixed(2) : '—'} of 3.76`,
+      /* NO GRADES IS NOT A ZERO. `gpaOf` answers null before the first graded row
+       * and this line printed "GPA 0.00 of 3.76" over it, which tells a freshman
+       * on their first minute in the Handbook that they have a 0.00. The words are
+       * the ones `Yearbook.tsx` already uses for the same state. */
+      detail: gpa ? `GPA ${gpa.toFixed(2)} of 3.76` : 'No GPA yet. You need 3.76.',
     },
     {
       id: 'high-honors', name: 'High Honors', colors: 'black & silver',
       rule: 'GPA 3.5-3.759', source: AWARDS, published: true,
-      model: 'Counted at graduation. The two GPA bands are exclusive, so double gold outranks this one.',
+      model: 'Counted at graduation. You can only get one of these two, and Highest Honors comes first.',
       settlesAtGraduation: true,
       earned: finished && gpa >= 3.5 && gpa < 3.76, progress: Math.min(1, gpa / 3.5),
-      detail: `GPA ${gpa ? gpa.toFixed(2) : '—'} of 3.5`,
+      detail: gpa ? `GPA ${gpa.toFixed(2)} of 3.5` : 'No GPA yet. You need 3.5.',
     },
     {
       id: 'career-readiness', name: 'Career Readiness', colors: 'green, teal & purple',
       rule: 'Must have completed at least two CTE credits', source: AWARDS, published: true,
-      model: 'A year-long CTE class is one credit, so the game counts two passed CTE classes. A D passes.',
+      model: 'Pass two CTE classes. CTE is Career and Technical Education, like Culinary Arts. A D passes.',
       earned: cte >= 2, progress: Math.min(1, cte / 2),
       detail: `${cte} of 2 CTE credits`,
     },
@@ -213,23 +217,23 @@ export function cordsOf(s: SaveGame): CordProgress[] {
       rule: 'Active International Key Club member for at least 2 years, including senior year; GPA over 3.0; '
         + '40+ volunteer hours each year over 4 years (over 160 hours total); attend 15 meetings each year and 5+ service events',
       source: AWARDS, published: true,
-      model: 'The game counts the years you invested and your GPA. It does not count hours, meetings or events, '
-        + 'because it never asked you for any.',
+      model: 'This game only counts your years in Key Club and your GPA. '
+        + 'It does not count hours, meetings or events.',
       earned: keyYears >= 2 && s.year >= 4 && gpa >= 3.0,
       progress: Math.min(1, (Math.min(keyYears, 2) / 2) * 0.7 + (gpa >= 3.0 ? 0.3 : 0)),
-      detail: `${keyYears} of 2 years · GPA ${gpa ? gpa.toFixed(2) : '—'} of 3.0`,
+      detail: `${keyYears} of 2 years · ${gpa ? `GPA ${gpa.toFixed(2)} of 3.0` : 'no GPA yet'}`,
     },
     {
       id: 'ap-honors', name: 'AP Honors', colors: 'AP blue',
       rule: 'Pass 5 or more AP courses', source: AWARDS, published: true,
-      model: 'Passing means a D or better, which is the district rule for every course. Not the exam: the course.',
+      model: 'Passing means a D or better, the same as any other class. The class counts, not the AP exam.',
       earned: ap >= 5, progress: Math.min(1, ap / 5),
       detail: `${ap} of 5 AP classes passed`,
     },
     {
       id: 'ap-capstone', name: 'AP Capstone', colors: 'capstone silver',
       rule: 'AP Seminar & Research plus 4 additional AP classes', source: AWARDS, published: true,
-      model: 'Six passed AP courses in total, two of them Seminar and Research. The table says nothing about the exams.',
+      model: 'Pass six AP classes in all. Two of them have to be AP Seminar and AP Research. The exams are not counted.',
       earned: apSeminar >= 1 && apResearch >= 1 && ap >= 6,
       progress: Math.min(1, (apSeminar + apResearch) / 2 * 0.5 + Math.min(1, Math.max(0, ap - 2) / 4) * 0.5),
       /* WORDS, BECAUSE THIS IS DATA AND NOT A DRAWING. This composed a tick and a
@@ -246,8 +250,8 @@ export function cordsOf(s: SaveGame): CordProgress[] {
       id: 'seal-biliteracy', name: 'Seal of Biliteracy', colors: 'gold medal',
       rule: 'Awarded to students who show proficiency in English and at least one other language before high school graduation',
       source: `${AWARDS} · RCW 28A.300.575 · WAC 392-410-350 (OSPI)`, published: true,
-      model: 'Washington accepts four credits of one world language, or a qualifying assessment at Intermediate-Mid '
-        + 'or better. The game counts the four credits, in ONE language, and takes the English requirement as met by graduating.',
+      model: 'Take four credits of the same world language. '
+        + 'Graduating counts as the English part.',
       earned: lang.best >= 4,
       progress: Math.min(1, lang.best / 4),
       detail: lang.family
@@ -264,15 +268,15 @@ export function cordsOf(s: SaveGame): CordProgress[] {
     ...['Valedictorian', 'Salutatorian'].map((name, i) => ({
       id: name.toLowerCase(),
       name,
-      colors: 'not specified',
+      colors: 'color not announced',
       rule: 'Bonney Lake High School has not published criteria for this award.',
       source: `${AWARDS}, which marks this a known gap`,
-      model: `In this game it would go to the ${i === 0 ? 'highest' : 'second-highest'} cumulative GPA in the class. `
-        + 'That is the game\'s own model and not the school\'s rule, and nothing here claims to know the school\'s.',
+      model: `In this game it would go to the ${i === 0 ? 'highest' : 'second-highest'} GPA in the class. `
+        + 'That is the game\'s own model, not a rule from Bonney Lake.',
       published: false,
       earned: false,
       progress: 0,
-      detail: 'criteria not published',
+      detail: 'Not awarded in this game.',
     })),
   ]
 }

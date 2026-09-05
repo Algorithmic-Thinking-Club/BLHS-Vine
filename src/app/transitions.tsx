@@ -370,7 +370,7 @@ export function TransitionOverlay({ st, version }: { st: TransitionState; versio
      * same sentence." The picture, the vignette and the twinkles are vehicle. */
     const painted = currentSkin() === 'paper'
     const carriesFact = spec.fact !== false
-    const title = spec.title ?? 'THE OPEN SEA'
+    const title = spec.title ?? 'THE SEA'
     return (
       <div className={`tr-root ${cls}`}>
         <div className={`tr-scene tr-voice-${spec.voice ?? 'arrival'}`}>

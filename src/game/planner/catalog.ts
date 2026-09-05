@@ -162,15 +162,15 @@ export type ClassOffer = {
  * should need a PASS rather than a pick, and this sentence stays true either
  * way, because it claims only that the ladder is the game's. */
 export const LADDER_NOTE =
-  'Which class sits above which is this game\u2019s ladder. Bonney Lake publishes no prerequisite rule, so this one is ours.'
+  'Some classes need an earlier class first. This game sets that order, not the school.'
 
 /** when a course opens, in the catalog's own grade eligibility */
 function whenItOpens(years: number[]): string {
   const ys = [...years].sort((a, b) => a - b)
-  if (ys.length === 1) return `year ${ys[0]} only`
+  if (ys.length === 1) return `open in year ${ys[0]} only`
   const runsToTheEnd = ys[ys.length - 1] === 4 && ys.every((y, i) => y === ys[0] + i)
-  if (runsToTheEnd) return `not until year ${ys[0]}`
-  return `year ${ys.join(' and ')} only`
+  if (runsToTheEnd) return `opens in year ${ys[0]}`
+  return `open in years ${ys.join(', ')} only`
 }
 
 /** every course in the catalog, with the reason it is shut when it is shut */
@@ -179,12 +179,12 @@ export function classOffer(year: number, pickedByYear: Record<number, string[]>)
   for (let y = 1; y < year; y++) for (const id of pickedByYear[y] ?? []) before.add(id)
   const thisYear = new Set(pickedByYear[year] ?? [])
   return CLASSES.map((c): ClassOffer => {
-    if (thisYear.has(c.id)) return { c, why: 'already on this sheet', ladder: false }
+    if (thisYear.has(c.id)) return { c, why: 'already picked this year', ladder: false }
     if (before.has(c.id)) return { c, why: 'you have taken it', ladder: false }
     if (!c.years.includes(year)) return { c, why: whenItOpens(c.years), ladder: false }
     if (c.requires && !before.has(c.requires)) {
       const rung = classById(c.requires)
-      return { c, why: `after ${rung?.name ?? c.requires}`, ladder: true }
+      return { c, why: `take ${rung?.name ?? c.requires} first`, ladder: true }
     }
     return { c, why: null, ladder: false }
   })

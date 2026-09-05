@@ -4,9 +4,9 @@
 // so the sprite stays the same drawing in a different dye.
 
 export const LOOKS: Record<string, { label: string; hue: number | null }> = {
-  classic: { label: 'harbor teal', hue: null },
+  classic: { label: 'panther teal', hue: null },
   gold: { label: 'panther gold', hue: 46 },
-  slate: { label: 'sea slate', hue: 215 },
+  slate: { label: 'slate', hue: 215 },
   ember: { label: 'ember', hue: 18 },
 }
 

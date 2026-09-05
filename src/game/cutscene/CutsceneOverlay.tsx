@@ -139,7 +139,7 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
         {ui.skippable && (
           <button
             type="button" className="cs-skip" style={{ pointerEvents: 'auto' }}
-            aria-label={isCaptain() ? 'Skip the whole cutscene' : 'Skip to the next beat'}
+            aria-label={isCaptain() ? 'Skip the whole scene' : 'Skip this part of the scene'}
             /* no pointer hold here on purpose: a click already skips at once, and
                a hold that ALSO skips would fire the timer and then the click and
                skip two beats for one press */

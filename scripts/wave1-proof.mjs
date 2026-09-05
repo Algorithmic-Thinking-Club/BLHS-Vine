@@ -105,7 +105,7 @@ await page.waitForFunction(() => !document.querySelector('.cs-dialogue'), null, 
 console.log('\n1 · a scripted line and a choice through the real box')
 check('the counselor station started', await page.evaluate(() => window.__station('counselor')), 'fired')
 await settled()
-check('a station body put a line in the one dialogue box', await line(), /cape|settled|of 5|of 2|of 4/)
+check('a station body put a line in the one dialogue box', await line(), /No cord started|settled|of 5|of 2|of 4/)
 await shot('2-say')
 // click through the counselor's lines until the choice is on screen
 for (let i = 0; i < 8; i++) {
@@ -114,8 +114,8 @@ for (let i = 0; i < 8; i++) {
   await settled().catch(() => {})
 }
 const options = await page.$$eval('.dlg-choice', (b) => b.map((x) => x.textContent.trim()))
-check('choose rendered every option as a real button', options.join(' | '), 'Show me the board')
-check('and printed the number key beside it, so a keyboard can answer too', options.join(' | '), /1.*Show me/)
+check('choose rendered every option as a real button', options.join(' | '), 'Open the Handbook')
+check('and printed the number key beside it, so a keyboard can answer too', options.join(' | '), /1.*Open the Handbook/)
 
 /* THE CONTESTED CENTRE STRIP, AS AN ASSERTION RATHER THAN AS A PICTURE.
  *

@@ -65,7 +65,7 @@ export type Station = {
 export const STATIONS: Station[] = [
   {
     name: 'chart_table',
-    fallbackLabel: 'The chart table',
+    fallbackLabel: 'Open the year sheet',
     needs: 'a table big enough to spread a paper sheet on, with standing room on one side',
     *run() {
       yield { kind: 'log', event: 'planner_opened', data: { via: 'chart_table' } }
@@ -75,17 +75,17 @@ export const STATIONS: Station[] = [
 
   {
     name: 'hearth',
-    fallbackLabel: 'The Advisory Hearth',
+    fallbackLabel: 'Advisory',
     needs: 'a fire with room for a small circle around it; the yearly beat is staged here',
     available: (s) => !!coreBeatIdFor(s),
-    closed: () => 'The fire is banked. Nothing is owed here this year.',
+    closed: () => 'Advisory is done for this year.',
     *run(s) {
       const beat = coreBeatIdFor(s)
       if (!beat) return
       /* the beat runs through the same two-arm runner the plain study arm uses,
        * so the control arm is honoured by construction rather than by a second
        * code path somebody has to remember to keep in step */
-      yield { kind: 'say', who: 'hearth', text: 'The circle is drawn. Advisory is starting.' }
+      yield { kind: 'say', who: 'hearth', text: 'Advisory is starting.' }
       yield { kind: 'play', beat }
     },
   },
@@ -110,16 +110,16 @@ export const STATIONS: Station[] = [
         .sort((a, b) => b.progress - a.progress)
 
       if (!earned.length && !close.length) {
-        yield { kind: 'say', who: 'counselor', text: 'Nothing on your cape yet. That is what four years are for.' }
+        yield { kind: 'say', who: 'counselor', text: 'No cord started yet. That is what four years are for.' }
       } else {
         for (const c of earned.slice(0, 2)) {
-          yield { kind: 'say', who: 'counselor', text: `${c.name} is yours. That one is settled.` }
+          yield { kind: 'say', who: 'counselor', text: `You earned ${c.name}. That one is yours.` }
         }
         for (const c of close.slice(0, 2)) {
-          yield { kind: 'say', who: 'counselor', text: `${c.name}. ${c.detail}` }
+          yield { kind: 'say', who: 'counselor', text: `Still working toward ${c.name}. ${c.detail}` }
         }
       }
-      const pick = yield { kind: 'choose', prompt: 'Ask about the cords?', options: ['Show me the board', 'Not now'] }
+      const pick = yield { kind: 'choose', prompt: 'Ask about the cords?', options: ['Open the Handbook', 'Not now'] }
       if (pick === 0) yield { kind: 'open', ui: 'handbook' }
     },
   },
@@ -141,7 +141,7 @@ export const STATIONS: Station[] = [
        * lowercase word `principal` on the plate. The anchor is `principal_desk`
        * and its station carries `fallbackLabel: 'Principal Panther'`, which is
        * the name a student should read. */
-      yield { kind: 'say', who: 'principal_desk', portrait: 'principal', text: 'Back again. Good. The sea does not run out.' }
+      yield { kind: 'say', who: 'principal_desk', portrait: 'principal', text: 'Back again. Good. Your year sheet shows what you picked this year.' }
     },
   },
 
@@ -158,15 +158,15 @@ export const STATIONS: Station[] = [
       yield {
         kind: 'say', who: 'thor',
         text: n === 0
-          ? 'Empty hooks, all the way along. Someone expects this to fill.'
-          : `${n} up there now. All of it earned somewhere out on the water.`,
+          ? 'No badges on the wall yet. Every badge I earn goes up here.'
+          : `Badges on the wall: ${n}. I earned every one of them.`,
       }
     },
   },
 
   {
     name: 'outfitter',
-    fallbackLabel: 'The outfitter',
+    fallbackLabel: 'Change clothes',
     needs: 'a nook with a mirror or a rail; revisitable, the heron tailor moves in',
     *run() {
       yield { kind: 'open', ui: 'wardrobe' }
@@ -191,13 +191,13 @@ export const STATIONS: Station[] = [
     needs: 'the lip of the platform where the south bridge lands; a trigger, not a post',
     *run() {
       yield { kind: 'log', event: 'hall_entered', data: { by: 'trigger' } }
-      yield { kind: 'say', who: 'thor', text: 'The bridge ends and the hall opens up. Someone has been keeping it swept.' }
+      yield { kind: 'say', who: 'thor', text: 'This is the Maw. The principal and the year sheet are in here.' }
     },
   },
 
   {
     name: 'maw_entrance',
-    fallbackLabel: 'Back to the harbour',
+    fallbackLabel: 'the harbor',
     needs: 'the tunnel door, on the far side of the one the player came through',
     *run() {
       /* `at` names where in the hub to arrive, which is the whole reason
@@ -211,7 +211,7 @@ export const STATIONS: Station[] = [
 
 /* the two bridges that end in tunnels. They carry real names and real doors so
  * the room reads as a place with more of itself past the walls, and PmapScene
- * already says "the way is barred" for a door whose bundle does not exist. When
+ * already says "not open yet" for a door whose bundle does not exist. When
  * a painting lands for either one, it is a new bundle and nothing here changes.
  */
 export const FUTURE_ROOMS = ['east_tunnel', 'west_tunnel'] as const

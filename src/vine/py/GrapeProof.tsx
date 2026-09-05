@@ -267,7 +267,7 @@ export default function GrapeProof() {
             fontFamily: "'Harbormaster', 'Deckhand', monospace", fontSize: 26,
             color: '#f0d9a8', letterSpacing: '.02em',
           }}>
-            island under construction
+            This island stopped working
           </div>
           <div style={{
             marginTop: 10, fontFamily: "'Deckhand', monospace", fontSize: 16, color: '#c8b189',
@@ -291,7 +291,7 @@ export default function GrapeProof() {
               fontFamily: "'Deckhand', monospace", fontSize: 15,
             }}
           >
-            load it again
+            Load the island again
           </button>
         </div>
       )}

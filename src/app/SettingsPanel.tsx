@@ -170,8 +170,8 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   }
   const commitBoat = (raw: string) => {
     const v = cleanName(raw, 18).trim()
-    if (v.length >= 2 && !isBlocked(v)) { edit({ boatName: v }); setBoatDraft(v); track('boat_renamed'); saved(`Ship renamed ${v}`) }
-    else { setBoatDraft(save?.boatName ?? ''); announce('That ship name was not accepted. The old one is back.') }
+    if (v.length >= 2 && !isBlocked(v)) { edit({ boatName: v }); setBoatDraft(v); track('boat_renamed'); saved(`Boat renamed ${v}`) }
+    else { setBoatDraft(save?.boatName ?? ''); announce('That boat name was not accepted. The old one is back.') }
   }
 
   const toggleFs = () => {
@@ -245,14 +245,14 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                           field: a reader landing in the box heard the label and
                           nothing about why what they typed was refused. */}
                       <input
-                        className="st-idfield" value={nameDraft} placeholder="your deck name"
+                        className="st-idfield" value={nameDraft} placeholder="your name"
                         aria-invalid={nameBad} aria-describedby={nameBad ? 'st-warn-name' : undefined}
                         onChange={(e) => setNameDraft(cleanName(e.target.value))}
                         onBlur={(e) => commitName(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                       />
                     </label>
-                    {nameBad && <div className="st-fieldwarn" id="st-warn-name" role="alert">The harbor master raised an eyebrow. Try another.</div>}
+                    {nameBad && <div className="st-fieldwarn" id="st-warn-name" role="alert">That name will not work. Try another.</div>}
 
                     <div className="st-editrow">
                       <span className="st-idlabel" id="st-lbl-pronouns">Pronouns</span>
@@ -265,7 +265,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                         aria-label={`Pronouns, ${save.pronouns || 'not set'}. Choose.`}
                         onClick={() => setPickPronoun((v) => !v)}
                       >
-                        <span className="st-idpick-ink">{save.pronouns || 'set'}</span>
+                        <span className="st-idpick-ink">{save.pronouns || 'Not set'}</span>
                         {/* WAS A U+25BE. The drawn `pointer` sheet has a chevron
                             and this is what it is for; the fallback is a shape
                             the token layer draws, never another character. */}
@@ -288,16 +288,16 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                     )}
 
                     <label className="st-editrow">
-                      <span className="st-idlabel">Ship</span>
+                      <span className="st-idlabel">Boat</span>
                       <input
-                        className="st-idfield" value={boatDraft} placeholder="her name"
+                        className="st-idfield" value={boatDraft} placeholder="your boat's name"
                         aria-invalid={boatBad} aria-describedby={boatBad ? 'st-warn-boat' : undefined}
                         onChange={(e) => setBoatDraft(cleanName(e.target.value, 18))}
                         onBlur={(e) => commitBoat(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
                       />
                     </label>
-                    {boatBad && <div className="st-fieldwarn" id="st-warn-boat" role="alert">She would sink from embarrassment. Another.</div>}
+                    {boatBad && <div className="st-fieldwarn" id="st-warn-boat" role="alert">That boat name will not work. Try another.</div>}
 
                     {save.classCode && <div className="st-idrow"><span className="st-idlabel">Class</span><span className="st-idval">{save.classCode}</span></div>}
                     <div className="st-idrow"><span className="st-idlabel">Progress</span><span className="st-idval">{save.introDone ? `Year ${save.year}, ${save.season}` : 'Just started'}</span></div>
@@ -308,8 +308,8 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                      card with nothing in it; the kit says what the page is and
                      what fills it, in one shape used everywhere. */
                   <Empty
-                    what="No explorer yet."
-                    fills="Begin your adventure and this page fills with your name, your pronouns and your ship."
+                    what="You have not started a game yet."
+                    fills="Begin your adventure and this page fills with your name, your pronouns and your boat."
                   />
                 )}
 
@@ -381,21 +381,21 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
               <>
                 <div className="st-dangerhead">Restart adventure</div>
                 <div className="st-dangerbody">
-                  This erases this device's voyage completely, your name, your ship and every year of
-                  progress, and starts you back at Begin Adventure. It cannot be undone.
+                  This erases your saved game on this device: your name, your boat and every
+                  year of progress. You start over at Begin Adventure. It cannot be undone.
                 </div>
                 {!save ? (
-                  <div className="st-dangerbody st-dangerbody-quiet">No voyage yet, so there is nothing to erase.</div>
+                  <div className="st-dangerbody st-dangerbody-quiet">No saved game yet, so there is nothing to erase.</div>
                 ) : !verdict.allowed && !captain ? (
                   <div className="st-dangerbody st-dangerbody-quiet">{verdict.why}</div>
                 ) : !confirmRestart ? (
-                  <Plank className="st-dangerplank" onClick={() => { setConfirmRestart(true); announce('Confirm: erase this voyage?') }}>
+                  <Plank className="st-dangerplank" onClick={() => { setConfirmRestart(true); announce('Confirm: erase this saved game?') }}>
                     Restart adventure
                   </Plank>
                 ) : (
                   <div className="st-confirmrow">
                     <Plank className="st-dangerplank" id="st-confirm-erase" onClick={restart}>Yes, erase it all</Plank>
-                    <Plank onClick={() => setConfirmRestart(false)}>Keep my voyage</Plank>
+                    <Plank onClick={() => setConfirmRestart(false)}>Keep my game</Plank>
                   </div>
                 )}
 
@@ -404,7 +404,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                      words, which is a font glyph on a heading, and a heading needs
                      no mark at all: the words are the whole of it. */
                   <div className="st-captain">
-                    <div className="st-captain-head">Captain&apos;s tools</div>
+                    <div className="st-captain-head">Teacher tools</div>
                     <div className="st-captain-row">
                       {/* wipe here, then navigate WITHOUT ?fresh: leaving it armed in the
                           URL meant every later F5 silently wiped the run again */}
@@ -423,7 +423,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
             )}
           </div>
 
-          <Plank className="st-close" onClick={onClose}>Back to it</Plank>
+          <Plank className="st-close" onClick={onClose}>Back to the game</Plank>
         </div>
       </div>
     </div>
@@ -472,7 +472,7 @@ type Binding = {
 }
 
 const ON_FOOT: Binding[] = [
-  { what: 'Walk', keys: ['W', 'A', 'S', 'D'], alt: ['Arrow keys'], pointer: 'click where you want to go', where: 'pmap/walk.ts step()' },
+  { what: 'Walk', keys: ['W', 'A', 'S', 'D'], alt: ['Arrow keys'], pointer: 'on an island, click where you want to go', where: 'pmap/walk.ts step()' },
   { what: 'Sprint on the beach', keys: ['Shift'], pointer: null, where: 'BeachIso.tsx sprinting' },
   { what: 'Jump on the beach', keys: ['Space'], pointer: null, where: 'BeachIso.tsx jumpQueued' },
   { what: 'Use what you are standing at', keys: ['E'], pointer: 'tap the sign that appears, or click the thing itself from anywhere', where: 'PmapScene.tsx prompt pointertap' },
@@ -481,13 +481,13 @@ const AT_THE_HELM: Binding[] = [
   { what: 'Sail ahead', keys: ['W'], alt: ['Up arrow'], pointer: null, where: 'PmapScene.tsx throttle' },
   { what: 'Steer', keys: ['A', 'D'], alt: ['Left and right arrows'], pointer: null, where: 'PmapScene.tsx turn' },
   { what: 'Full sail', keys: ['Shift'], pointer: null, where: 'PmapScene.tsx fullSail' },
-  { what: 'Put in at a berth', keys: ['E'], pointer: 'tap the berth sign', where: 'PmapScene.tsx seaTap' },
+  { what: 'Dock the boat', keys: ['E'], pointer: 'tap the sign that appears', where: 'PmapScene.tsx seaTap' },
 ]
 const ANYWHERE: Binding[] = [
   { what: 'Pause', keys: ['Esc'], pointer: null, where: 'hud/Hud.tsx Escape' },
-  { what: 'Open the chart', keys: [], pointer: 'the compass at the top left', where: 'hud/Hud.tsx openBook' },
-  { what: 'Open the Handbook', keys: [], pointer: 'the crest at the top left', where: 'hud/Hud.tsx openBook' },
-  { what: 'Open settings', keys: [], pointer: 'the Settings plate in the corner', where: 'app/SettingsPanel.tsx GearButton' },
+  { what: 'Open the chart', keys: [], pointer: 'the Chart button at the top left', where: 'hud/Hud.tsx openBook' },
+  { what: 'Open the Handbook', keys: [], pointer: 'the Handbook button at the top left', where: 'hud/Hud.tsx openBook' },
+  { what: 'Open settings', keys: [], pointer: 'press Esc, then Settings', where: 'app/SettingsPanel.tsx GearButton' },
 ]
 
 function ControlsPage() {
@@ -496,14 +496,14 @@ function ControlsPage() {
       <div className="st-ctrlsec">On foot</div>
       {ON_FOOT.map((b) => <CtrlRow key={b.what} b={b} />)}
 
-      <div className="st-ctrlsec">At the helm</div>
+      <div className="st-ctrlsec">On the boat</div>
       {AT_THE_HELM.map((b) => <CtrlRow key={b.what} b={b} />)}
 
       <div className="st-ctrlsec">Anywhere</div>
       {ANYWHERE.map((b) => <CtrlRow key={b.what} b={b} />)}
 
       <div className="st-ctrlnote">
-        Lost? The Handbook in the corner always says where to go next, and the arrow on screen
+        Lost? The line above your head says what to do next, and the arrow in the room
         points at it. Nothing in this game is on a timer.
       </div>
     </div>

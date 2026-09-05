@@ -28,7 +28,9 @@ describe('Y2 — the hidden ladder (Ms. Pinzon’s real criteria)', () => {
     const sort = checksOf(CORE_Y2).find((c) => c.kind === 'sort')
     if (sort?.kind !== 'sort') throw new Error('missing sort')
     const pairs = Object.fromEntries(sort.items.map((i) => [i.bucket, i.label]))
-    expect(pairs['Double gold']).toContain('3.76')
+    /* the bucket is the honor's NAME now, not the cord's colour: 'Double gold'
+       named nothing a student could look up (the words pass, 2026-09-04). */
+    expect(pairs['Highest Honors']).toContain('3.76')
     expect(pairs['Career Readiness']).toContain('Two CTE credits')
     expect(pairs['AP Honors']).toContain('Five passed AP')
     /* "Proficiency in two languages" was the old sort answer and it describes a rule
@@ -79,21 +81,22 @@ describe('Y4 — the generated audit (the student’s own numbers)', () => {
     expect(winners).toHaveLength(1)
     return winners[0].text
   }
-  it('a 3.8 GPA audits to double gold', () => {
-    expect(correctText(mkSave([entry({ grade: 3.8 })]))).toContain('Double gold')
+  it('a 3.8 GPA audits to Highest Honors', () => {
+    expect(correctText(mkSave([entry({ grade: 3.8 })]))).toContain('Highest Honors')
   })
-  it('a 3.6 GPA audits to black and silver', () => {
-    expect(correctText(mkSave([entry({ grade: 3.6 })]))).toContain('Black and silver')
+  it('a 3.6 GPA audits to High Honors', () => {
+    expect(correctText(mkSave([entry({ grade: 3.6 })]))).toContain('High Honors')
   })
   it('a 2.0 GPA audits honestly to neither', () => {
     expect(correctText(mkSave([entry({ grade: 2.0 })]))).toContain('Neither')
   })
-  it('an empty transcript audits to neither, with the GPA read as unwritten', () => {
+  it('an empty transcript audits to neither, with the GPA read as blank', () => {
     const b = coreY4(mkSave([]))
     expect(correctText(mkSave([]))).toContain('Neither')
     const c = checksOf(b)[0]
     if (c.kind !== 'choice') throw new Error()
-    expect(c.prompt).toContain('unwritten')
+    /* 'unwritten' made the prompt read "Your GPA stands at unwritten." */
+    expect(c.prompt).toContain('blank')
   })
   it('reads earned cords onto the cape line', () => {
     // 2 CTE credits -> Career Readiness earned

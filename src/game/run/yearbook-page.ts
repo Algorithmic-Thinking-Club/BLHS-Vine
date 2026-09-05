@@ -189,44 +189,44 @@ export function yearbookPage(s: SaveGame, year: number = s.year): YearbookPage {
   /* ---- the transcript, which is the only truly per-year section ---- */
   const paper: YearbookSection = {
     id: 'paper',
-    heading: 'The year on paper',
+    heading: 'Your grades this year',
     rows: s.ledger.filter((e) => e.year === year).map((e) => ({
       key: e.id,
       title: e.title,
       meta: `${e.season} · ${letterOf(e.grade)}${e.retaken ? ' · retaken' : ''}`,
     })),
-    empty: 'A quiet year on the transcript. Nothing was graded.',
+    empty: 'Nothing was graded this year. A quiet one on the transcript.',
   }
 
   /* ---- what the three tokens bought ---- */
   const seasons: YearbookSection = {
     id: 'seasons',
-    heading: 'Seasons spent',
+    heading: 'Clubs and sports you picked',
     rows: st.voyages.map((v) => ({
       key: v.season,
       title: v.name,
-      meta: `${v.season} · ${v.done ? 'sailed' : v.playable ? 'the dock waits' : 'island still rising'}`,
+      meta: `${v.season} · ${v.done ? 'finished' : v.playable ? 'not done yet' : 'not open yet'}`,
       done: v.done,
       /* the pip sheet has fall, winter and spring drawn as three different coins,
        * which is what the HUD's tokens wear. A row that carries its own season
        * mark says which season it was without the student reading the word. */
       face: ['pip', v.season.toLowerCase()] as [string, string],
     })),
-    empty: 'Three tokens in hand all year, and not one of them placed.',
+    empty: 'No club or sport picked all year. All three season tokens are unused.',
   }
 
   /* ---- the awareness record, per year and per place, which is what the study
    * actually measures and what a student is most likely to be surprised by ---- */
   const waters: YearbookSection = {
     id: 'waters',
-    heading: 'Water you crossed',
+    heading: 'Places you saw',
     rows: (s.exposure ?? []).filter((e) => e.year === year).map((e) => ({
       key: e.place,
       title: placeById(e.place)?.name ?? e.place,
-      meta: e.docked ? 'you went ashore' : 'seen from the water',
+      meta: e.docked ? 'you went inside' : 'you only saw it from outside',
       done: e.docked,
     })),
-    empty: 'You never left the home water this year.',
+    empty: 'You did not see any new places this year.',
   }
 
   /* ---- the marks, §12.9's section, and the caveat it cannot avoid ----
@@ -236,24 +236,24 @@ export function yearbookPage(s: SaveGame, year: number = s.year): YearbookPage {
    * reason the threads section states its own. */
   const marks: YearbookSection = {
     id: 'marks',
-    heading: 'Marks you were given',
+    heading: 'Badges you were given',
     rows: s.stickers.map((id) => ({
       key: id,
       title: stickerLabel(id),
-      meta: 'earned out on the water',
+      meta: 'you earned this',
       done: true,
       face: ['stamp', 'awarded'] as [string, string],
     })),
-    empty: 'Nothing on the wall yet. A mark is for something you did, never for a grade you got.',
+    empty: 'No badges yet. A badge is for something you did, never for a grade you got.',
     caveat: s.year > 1 && s.stickers.length > 0
-      ? 'every mark the run has collected, because nothing recorded which year each one arrived'
+      ? 'every mark from every year, not only this one'
       : undefined,
   }
 
   /* ---- the cords, and the caveat that they are not a snapshot ---- */
   const threads: YearbookSection = {
     id: 'threads',
-    heading: 'Threads becoming rope',
+    heading: 'Your cords',
     rows: cordsOf(s)
       .filter((c) => c.earned || c.progress > 0)
       .sort((a, b) => b.progress - a.progress)
@@ -270,8 +270,8 @@ export function yearbookPage(s: SaveGame, year: number = s.year): YearbookPage {
         rule: c.rule,
         done: c.earned,
       })),
-    empty: 'No thread has caught yet. There is time.',
-    caveat: year < s.year ? 'as the threads stand today, not as they stood then' : undefined,
+    empty: 'No cord started yet. There is time.',
+    caveat: year < s.year ? 'as your cords stand today, not as they stood then' : undefined,
   }
 
   return {

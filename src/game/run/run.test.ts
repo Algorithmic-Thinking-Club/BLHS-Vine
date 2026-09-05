@@ -84,8 +84,8 @@ describe('the yearbook assembles in a fixed order for any year', () => {
     const page = yearbookPage(save.loadSave()!, 4)
     expect(page.sections.map((s) => s.id)).toEqual([...YEARBOOK_SECTIONS])
     expect(page.sections.find((s) => s.id === 'paper')!.rows).toHaveLength(1)
-    expect(page.sections.find((s) => s.id === 'seasons')!.rows[0].meta).toContain('sailed')
-    expect(page.sections.find((s) => s.id === 'waters')!.rows[0].meta).toBe('you went ashore')
+    expect(page.sections.find((s) => s.id === 'seasons')!.rows[0].meta).toContain('finished')
+    expect(page.sections.find((s) => s.id === 'waters')!.rows[0].meta).toBe('you went inside')
     expect(page.gpa).toBe(4)
     expect(page.final).toBe(true)
   })
@@ -174,7 +174,7 @@ describe('the objective reaches the yearbook', () => {
     save.writeSave({ ledger: save.loadSave()!.ledger.filter((e) => e.id !== 'class:spanish-1') })
     const o = nextObjective(save.loadSave())
     expect(o?.phase).toBe('rising')
-    expect(o?.say).toContain('has not risen')
+    expect(o?.say).toContain('not open yet')
   })
 
   it('still points at a real voyage when there is one to sail', async () => {
@@ -241,7 +241,7 @@ describe('the transcript is frozen at graduation', () => {
     const text = artifactText(save.loadSave()!)
     expect(text).toContain('BONNEY LAKE HIGH SCHOOL')
     expect(text).toContain('Kestrel')
-    expect(text).toContain('Places seen: 1')
+    expect(text).toContain('Places you saw: 1')
     expect(text).toContain('Verification:')
   })
 })
@@ -523,18 +523,20 @@ describe('one refusal string, and the verb enforces the same rule', () => {
     const save = await freshSave()
     save.beginAdventure()
     save.assignSlot(1, 'Fall', 'atc')
-    expect(refuseSlot('atc', 'Winter', save.loadSave()!, 1)).toContain('fall token')
+    const why = refuseSlot('atc', 'Winter', save.loadSave()!, 1)
+    expect(why).toContain('Algorithmic Thinking Club')
+    expect(why).toContain('fall')
     expect(save.assignSlot(1, 'Winter', 'atc')).toBeNull()
   })
 
-  it('says the wax is on rather than going quiet after the stamp', async () => {
+  it('says the year sheet is stamped rather than going quiet after the stamp', async () => {
     const save = await freshSave()
     save.beginAdventure()
     save.assignSlot(1, 'Fall', 'atc')
     save.pickClass(1, 'ap-human-geo'); save.pickClass(1, 'band')
     save.stampPlan(1, ['atc'])
-    expect(refuseSlot('football', 'Fall', save.loadSave()!, 1)).toContain('wax')
-    expect(refuseClass('choir', save.loadSave()!, 1)).toContain('wax')
+    expect(refuseSlot('football', 'Fall', save.loadSave()!, 1)).toContain('stamped')
+    expect(refuseClass('choir', save.loadSave()!, 1)).toContain('stamped')
   })
 
   it('states the two-pick limit out loud instead of hiding the button', async () => {

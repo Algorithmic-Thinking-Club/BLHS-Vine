@@ -64,7 +64,7 @@ export type HudRow = {
 export const HUD_INVENTORY: HudRow[] = [
   {
     el: 'chart',
-    says: 'The chart hangs on your rail now. It shows every island you have found.',
+    says: 'You have the Chart now. It shows every island you have found.',
     rule: 'the first island discovered makes the chart worth opening (§40.2)',
     permanent: true,
     /* §2.6's bottle unfurls a chart, which is earlier than the first discovery,
@@ -92,7 +92,7 @@ export const HUD_INVENTORY: HudRow[] = [
   },
   {
     el: 'tokens',
-    says: 'Three seasons. Spend them at the chart table.',
+    says: 'Three season tokens. Spend them on the year sheet.',
     rule: 'the binder and the year\'s three tokens are handed over in one moment (§4.10)',
     /* NOT PERMANENT, and this answers Q40.2.a. §15.2: "In Gear 2 the token pips
      * leave the HUD entirely, because scarcity is over." A graduate has no year
@@ -102,7 +102,7 @@ export const HUD_INVENTORY: HudRow[] = [
   },
   {
     el: 'cape',
-    says: 'A cord has started. The cape is on its hook.',
+    says: 'You started your first cord. It shows on your cape.',
     rule: 'the first cord in progress puts the cape within reach (§40.2)',
     permanent: true,
     /* THE FOURTH ELEMENT THE LAW IMPLIES AND NO SECTION ENUMERATES. §40.2 names

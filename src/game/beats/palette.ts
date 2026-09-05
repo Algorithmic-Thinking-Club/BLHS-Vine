@@ -202,7 +202,7 @@ export const PALETTE: { [K in CheckStep['kind']]: Entry<K> } = {
         id: `${c.id}:${it.label}`,
         label: it.label,
         input: 'select' as const,
-        options: c.items.map((_, i) => ({ value: String(i + 1), text: String(i + 1) })),
+        options: c.items.map((_, i) => ({ value: String(i + 1), text: `Position ${i + 1}` })),
         correct: String(it.position),
       })),
       replies: c.reply && c.items.length

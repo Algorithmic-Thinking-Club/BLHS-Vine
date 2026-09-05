@@ -149,11 +149,11 @@ export function seasonAt(slot: WorldSlot, now?: Season | null): Season | null {
 /** what the chart writes beside a slot, in the register that state deserves */
 export function stateLine(st: SlotState, slot: WorldSlot, s: SaveGame | null): string {
   switch (st) {
-    case 'rumour': return 'somebody mentioned it'
-    case 'rising': return 'rising now'
-    case 'misty': return 'not been'
+    case 'rumour': return 'It will be something Bonney Lake really offers.'
+    case 'rising': return 'Opening now.'
+    case 'misty': return 'Sail closer to see what this is.'
     case 'discovered': {
-      if (!s) return 'been past'
+      if (!s) return 'You have sailed past here.'
       /* RESTING IS A SENTENCE ABOUT A PLACE, and a place could not say it before
        * the roster split. Football is out of season and flag football is not, at
        * the same island, on the same afternoon, so the sentence only belongs to a
@@ -164,19 +164,19 @@ export function stateLine(st: SlotState, slot: WorldSlot, s: SaveGame | null): s
         return `${shut.name} is a ${lower(own)} sport. Come back in ${lower(own)}.`
       }
       const spent = tokenSpent(slot, s)
-      if (spent) return `Your ${lower(seasonOf(spent)!)} token is spent, so ${spent.name} waits for next year.`
+      if (spent) return `Your ${lower(seasonOf(spent)!)} season token is spent. ${spent.name} stays closed this year.`
       const here = programmesAt(slot.place)
-      if (here.length && !here.some((p) => p.playable)) return 'still rising'
+      if (here.length && !here.some((p) => p.playable)) return 'Not open yet.'
       const ashore = (s.exposure ?? []).some((e) => e.place === slot.place && e.docked)
-      return ashore ? 'been ashore' : 'been past'
+      return ashore ? 'You have been here.' : 'You have sailed past here.'
     }
     case 'available': {
       const open = s ? programmesAt(slot.place).filter((p) => affordable(p, s)) : []
       const locked = open.map((p) => seasonOf(p)).find((x): x is Season => !!x)
-      return locked ? `open on your ${lower(locked)} token` : 'open this season'
+      return locked ? `You can sign up here with your ${lower(locked)} season token.` : 'You can sign up here with any season token.'
     }
-    case 'active': return 'your flag is on it'
-    case 'completed': return 'done'
+    case 'active': return 'You started it.'
+    case 'completed': return 'You finished everything here.'
   }
 }
 
@@ -281,15 +281,15 @@ export function dockOf(slot: WorldSlot, s: SaveGame | null, from: WorldPt | null
   })
 
   if (st === 'misty') {
-    return bare(mark('fog', null, 'ch-s-fog', 'a bank of fog', true), fogAt(slot, from))
+    return bare(mark('fog', null, 'ch-s-fog', 'You have not found this place yet.', true), fogAt(slot, from))
   }
   if (st === 'rumour') {
-    return bare(mark('pencil', null, 'ch-s-pencil', 'a pencil ring', true))
+    return bare(mark('pencil', null, 'ch-s-pencil', 'Nobody has built this place yet.', true))
   }
   if (st === 'rising') {
     /* named, because §9.18's whole beat is a student watching a place they had
      * only heard of become a place with a name on it */
-    const d = bare(mark('rising', null, 'ch-s-rising', 'water breaking', true))
+    const d = bare(mark('rising', null, 'ch-s-rising', 'This place is opening now.', true))
     return { ...d, named: true }
   }
 
@@ -302,14 +302,18 @@ export function dockOf(slot: WorldSlot, s: SaveGame | null, from: WorldPt | null
     : null
 
   const standing: Record<DockObject, DockDrawn> = {
-    pin: mark('pin', ['pointer', 'pin_tail'], 'ch-s-pin', 'a marker', true),
+    pin: mark('pin', ['pointer', 'pin_tail'], 'ch-s-pin', 'A real place you have seen.', true),
     pip: mark('pip', pipFace, inSeason ? 'ch-s-pip' : 'ch-s-pip-shut',
-      season ? (inSeason ? `a ${lower(season)} coin` : `a ${lower(season)} coin, resting`) : 'no season coin',
+      season
+        ? (inSeason
+          ? `Something here runs in ${lower(season)}, and it is ${lower(season)} now.`
+          : `Something here runs in ${lower(season)}, and it is not ${lower(season)} now.`)
+        : 'Nothing here is locked to one season.',
       !!season),
-    open: mark('open', ['icon_set', 'star'], 'ch-s-star', 'a star', st === 'available'),
-    flag: mark('flag', null, 'ch-s-flag', 'your flag', st === 'active'),
-    stamp: mark('stamp', ['stamp', 'approved'], 'ch-s-stamp', 'the finished stamp', st === 'completed'),
-    ashore: mark('ashore', ['icon_set', 'tick'], 'ch-s-tick', 'a landing tick', ashore),
+    open: mark('open', ['icon_set', 'star'], 'ch-s-star', 'You can sign up here.', st === 'available'),
+    flag: mark('flag', null, 'ch-s-flag', 'You started something here.', st === 'active'),
+    stamp: mark('stamp', ['stamp', 'approved'], 'ch-s-stamp', 'You finished everything here.', st === 'completed'),
+    ashore: mark('ashore', ['icon_set', 'tick'], 'ch-s-tick', 'You have been here.', ashore),
   }
 
   /* THE ROW IS BUILT FROM `DOCK_ORDER` AND NOT FROM THE ORDER SOMEBODY TYPED.
@@ -344,11 +348,11 @@ export function dockOf(slot: WorldSlot, s: SaveGame | null, from: WorldPt | null
  * reads as an instruction to open it. Bracketed, it reads as what it is: an
  * annotation on a chart. */
 export const STATE_INK: Record<SlotState, { tint: number; mark: string; dim: number }> = {
-  rumour: { tint: 0x8a7a60, mark: '(a rumour)', dim: 0.35 },
-  rising: { tint: 0xffd98a, mark: '(rising)', dim: 1 },
-  misty: { tint: 0x6d7f86, mark: '(not been)', dim: 0.45 },
-  discovered: { tint: 0xcbbb95, mark: '(seen)', dim: 0.8 },
-  available: { tint: 0xe6d6a8, mark: '(open)', dim: 1 },
-  active: { tint: 0xffc861, mark: '(yours)', dim: 1 },
-  completed: { tint: 0x7fd0a6, mark: '(done)', dim: 1 },
+  rumour: { tint: 0x8a7a60, mark: '(not built yet)', dim: 0.35 },
+  rising: { tint: 0xffd98a, mark: '(opening now)', dim: 1 },
+  misty: { tint: 0x6d7f86, mark: '(you have not been here)', dim: 0.45 },
+  discovered: { tint: 0xcbbb95, mark: '(you have been past)', dim: 0.8 },
+  available: { tint: 0xe6d6a8, mark: '(you can sign up here)', dim: 1 },
+  active: { tint: 0xffc861, mark: '(you started this)', dim: 1 },
+  completed: { tint: 0x7fd0a6, mark: '(you finished this)', dim: 1 },
 }

@@ -172,11 +172,15 @@ export const PLACES: Place[] = [
      * between them already walks with no page reload, and before the roster
      * there was no way to say they were the same place. */
     id: 'home-island',
-    name: 'the Central Island',
+    /* NAMED FOR THE SCHOOL ITSELF, 2026-09-04. This place IS Bonney Lake High
+     * School, and "the Central Island" was the one label on the chart that never
+     * said so. The `source` line below still describes the home base rather than
+     * a sourced BLHS location, and that has not changed. */
+    name: 'Bonney Lake High School',
     maps: ['hub', 'panther-maw'],
     arrival: 'hub',
     paintings: 2,
-    recognise: 'the harbour and the mountain the school lives inside',
+    recognise: 'You land at the harbor. The school is inside the mountain.',
     source: 'the game\'s own home base; not a claim about a real BLHS location',
   },
   {
@@ -222,19 +226,25 @@ const OURS: Programme[] = [
   {
     id: 'football', name: 'Football', place: 'stadium', kind: 'sport',
     tags: [], rankTrack: 'football', playable: false,
-    blurb: 'Varsity, JV and Freshmen. Coach Bruce. No tryouts, and Fridays get loud.',
+    /* THE THIRD STADIUM SPORT SAYS ITS SEASON TOO, 2026-09-04. The other two got
+     * one in the words pass and this one did not, and the Handbook card prints no
+     * season of its own: the blurb is the only place a student reads it. Two of
+     * three saying when they run teaches the third runs any time, at the one
+     * place in the game built to teach that three sports share a field and not a
+     * season. Fall is `SPORT_SEASONS.football`, off the same sourced table. */
+    blurb: 'Varsity, JV and Freshmen. Coach Bruce. No tryouts, it runs in fall, and Fridays get loud.',
     host: 'Ashton Bruce', source: SPORTS_SRC,
   },
   {
     id: 'girls-flag-football', name: 'Girls Flag Football', place: 'stadium', kind: 'sport',
     tags: [], rankTrack: 'girls-flag-football', playable: false,
-    blurb: 'Varsity, JV and C. Coach Jarvis. No-cut, and it runs while the field is quiet.',
+    blurb: 'Varsity, JV and C. Coach Jarvis. No-cut, and it runs in winter.',
     host: 'Eric Jarvis', source: SPORTS_SRC,
   },
   {
     id: 'track-field', name: 'Track and Field', place: 'stadium', kind: 'sport',
     tags: [], rankTrack: 'track-field', playable: false,
-    blurb: 'Varsity and JV, co-ed. Coach Wilson. No-cut, and the oval is the whole place.',
+    blurb: 'Varsity and JV, co-ed. Coach Wilson. No-cut, and it runs in spring.',
     host: 'Brooke Wilson', source: SPORTS_SRC,
   },
   {

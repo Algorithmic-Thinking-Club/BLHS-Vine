@@ -99,7 +99,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
     }
     const se = seasonFor(p)
     if (!se) {
-      setRefused({ id: p.id, why: 'Every season is spoken for. Take something off first.' })
+      setRefused({ id: p.id, why: 'You have used all three season tokens. Take one off first.' })
       return
     }
     const no = refuseSlot(p.id, se, loadSave(), year)

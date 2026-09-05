@@ -37,7 +37,10 @@ describe('a class names a roster place or says it has none', () => {
       const at = classPlacement(c)
       expect(at.place).toBeUndefined()
       expect(at.map).toBeUndefined()
-      expect(at.line).toBe('a classroom the map does not have yet')
+      /* the line is in the player's register: it names the school and claims no
+         room, because none is sourced. The absence a test guards is `place` and
+         `map` being undefined, above, not the sentence. */
+      expect(at.line).toBe('a classroom at Bonney Lake High School')
     }
   })
 

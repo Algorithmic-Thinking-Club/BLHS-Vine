@@ -1314,7 +1314,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             pos.tx = V.tx; pos.ty = V.ty
             bobOff = V.bob
           }
-          // contextual E: Board (ashore, near her) / Disembark (crewed, land in reach)
+          // contextual E: Board (ashore, near her) / Get off (crewed, land in reach)
           const bxp = isoX(V.tx, V.ty), byp = isoY(V.tx, V.ty)
           const bz = Math.floor(V.tx + V.ty) * 16 + 12
           let label: string | null = null, cpx = 0, cpy = 0, cpz = 0
@@ -1325,7 +1325,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
               // keel line, not to the hull center (the near rail is a tile closer)
               const near = keelNear(V, pos.tx, pos.ty)
               if (Math.hypot(pos.tx - near.tx, pos.ty - near.ty) < 4.4) {
-                label = 'Board'; cpx = bxp; cpy = byp - 150; cpz = bz + 40
+                label = 'Get on'; cpx = bxp; cpy = byp - 150; cpz = bz + 40
                 action = () => {
                   V.hop = { t: 0, ax: pos.tx, ay: pos.ty, bx: V.tx, by: V.ty, lift0: renderLift, lift1: 24, to: 'ship' }
                 }
@@ -1346,7 +1346,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
               }
               if (landing) {
                 const L = landing
-                label = 'Disembark'; cpx = bxp; cpy = byp - 150; cpz = bz + 40
+                label = 'Get off'; cpx = bxp; cpy = byp - 150; cpz = bz + 40
                 action = () => { V.hop = { t: 0, ax: V.tx, ay: V.ty, bx: L.tx, by: L.ty, lift0: 24, lift1: L.lift, to: 'land', landLayer: L.layer } }
               }
             }

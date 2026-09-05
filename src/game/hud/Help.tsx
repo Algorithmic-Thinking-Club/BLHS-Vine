@@ -142,9 +142,9 @@ export function HelpCard({ onClose }: { onClose: () => void }) {
             not the run has granted it, because this card is read by the student
             who has none of them and wants to know what is coming. */}
         <ul className="hp-corner">
-          <li><b>Chart</b> every island you have found</li>
+          <li><b>Chart</b> the map of islands you have found</li>
           <li><b>Handbook</b> what the school offers, and what you have collected</li>
-          <li><b>Year sheet</b> where your season tokens go</li>
+          <li><b>Year sheet</b> pick your classes and activities</li>
         </ul>
 
         {/* ---- THE FIVE DOORS, WHICH ARE THE POINT OF LAW 3 -----------------
@@ -158,7 +158,7 @@ export function HelpCard({ onClose }: { onClose: () => void }) {
             button that does nothing is worse than a button that is not there,
             and this is the one card a lost student is told to trust. */}
         <div className="hp-doors">
-          <Plank className="hp-door" keyCap="Esc" onClick={onClose}>Back</Plank>
+          <Plank className="hp-door" keyCap="Esc" onClick={onClose}>Back to the game</Plank>
           {hudUp && <Plank className="hp-door" onClick={() => { onClose(); requestUi('planner') }}>Year sheet</Plank>}
           {hudUp && <Plank className="hp-door" onClick={() => { onClose(); requestUi('handbook') }}>Handbook</Plank>}
           {hudUp && <Plank className="hp-door" onClick={() => { onClose(); requestUi('settings') }}>Settings</Plank>}

@@ -23,9 +23,9 @@ from vine import say, set_flag
 @on_talk("hearth")
 def take_the_hearth():
     yield say("A member's python is answering this anchor, not the vine's.",
-              who="the hearth")
-    yield say("The station that used to own it is the fallback now.", who="the hearth")
+              who="Advisory")
+    yield say("The station that used to own it is the fallback now.", who="Advisory")
     # written bare; the engine files it under this island's own programme id
     yield set_flag("took_the_hearth")
     yield say("Flag written as %s:took_the_hearth." % manifest()["programme"],
-              who="the hearth")
+              who="Advisory")

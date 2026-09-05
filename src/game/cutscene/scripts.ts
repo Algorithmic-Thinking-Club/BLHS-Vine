@@ -58,14 +58,14 @@ export const SCRIPTS: AuthoredScript[] = [
        * has not framed it. */
       { t: 'cameraAt', anchor: 'principal_desk', framing: 'close', zoom: 1.35, ms: 900 },
       { t: 'say', who: 'Principal Panther', text: 'You made it inside. Most of them stand on the bridge a while first.', portrait: 'principal' },
-      { t: 'say', who: 'Principal Panther', text: 'This is the Maw. Everything you plan, you plan in here, and everything you bring back, you bring back to here.' },
+      { t: 'say', who: 'Principal Panther', text: 'This is the Maw. You plan your year in here. Classes, clubs, sports.' },
       { t: 'vignette', to: 0, ms: 500 },
-      { t: 'say', who: 'Principal Panther', text: 'The chart table is behind you. Four years fit on one sheet, which is less room than it sounds like.' },
+      { t: 'say', who: 'Principal Panther', text: 'The year sheet table is behind you. That is where you pick your classes.' },
       { t: 'cameraFollow', actor: 'thor' },
       { t: 'letterbox', on: false },
       /* control handed back before the script ends, which is H3: the last beat is
        * the player's. The gate is not required, so hold-to-skip may pass it. */
-      { t: 'gateAt', anchor: 'chart_table', radius: 26, prompt: 'Walk to the chart table', required: false },
+      { t: 'gateAt', anchor: 'chart_table', radius: 26, prompt: 'Walk to the year sheet table', required: false },
     ],
   },
 ]

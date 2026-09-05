@@ -49,8 +49,8 @@ await shot('1-say')
 await page.click('.dlg-box')
 await page.waitForSelector('.dlg-choice', { timeout: 30000 })
 const options = await page.$$eval('.dlg-choice', (b) => b.map((x) => x.textContent.trim()))
-check('choose rendered both options as buttons', options.join(' | '), 'I believe you.')
-check('the prompt came from the python side', await line(), 'Which way?')
+check('choose rendered both options as buttons', options.join(' | '), 'Pick the second one.')
+check('the prompt came from the python side', await line(), 'Pick a button.')
 await shot('2-choose')
 
 // 3. the chosen index arrives back in Python and changes the next line.
@@ -64,7 +64,7 @@ await shot('3-branched')
 
 await page.click('.dlg-box')
 await settled()
-check('the branch continues on the python side', await line(), 'Same file, different line')
+check('the branch continues on the python side', await line(), 'You picked the second button')
 await shot('4-next')
 
 // 4. the sandbox: a member's raise stops the island, not the game
@@ -76,8 +76,8 @@ await page.click('.dlg-box')
 await page.waitForSelector('.dlg-choice', { timeout: 30000 })
 await page.click('.dlg-choice:nth-child(1)')
 
-const panel = await page.waitForSelector('text=island under construction', { timeout: 30000 })
-check('a raise shows the player "island under construction"', await panel.textContent(), 'island under construction')
+const panel = await page.waitForSelector('text=This island stopped working', { timeout: 30000 })
+check('a raise shows the player "This island stopped working"', await panel.textContent(), 'This island stopped working')
 const body = await page.textContent('body')
 check('the traceback names the member file', body, 'broken.py')
 check('the traceback names the line they wrote', body, /line 20/)
@@ -85,7 +85,7 @@ check('and says what was actually wrong', body, "unsupported types for __add__: 
 await shot('5-under-construction')
 
 // the game kept running: the page is still live and can start the island again
-await page.click('button:has-text("run it again")')
+await page.click('button:has-text("Load the island again")')
 await page.waitForSelector('.cs-dialogue', { timeout: 30000 })
 await settled()
 check('the engine survived it and reran the island', await line(), 'I am going to break')

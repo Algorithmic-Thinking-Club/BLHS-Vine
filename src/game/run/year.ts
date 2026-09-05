@@ -89,10 +89,10 @@ export function yearStatus(s: SaveGame, forYear = s.year): YearStatus {
 /** the yearbook's one gentle nudge (§7.6) — observed, never scolding */
 export function nudgeLine(st: YearStatus): string {
   const rising = st.voyages.find((v) => !v.playable && !v.done)
-  if (rising) return `The ${rising.name} island is still rising from the sea. Your flag waits at its dock.`
+  if (rising) return `The ${rising.name} island is not open yet, so that season did not run.`
   const open = SEASONS.find((se) => !st.voyages.some((v) => v.season === se))
-  if (open) return `You left ${open.toLowerCase()} open this year. The sea kept the time.`
+  if (open) return `You left ${open.toLowerCase()} open this year. You never spent that season token.`
   const unplayed = st.voyages.find((v) => v.playable && !v.done)
-  if (unplayed) return `You never did sail for ${unplayed.name}. The dock remembers.`
+  if (unplayed) return `You signed up for ${unplayed.name} and never went.`
   return 'Not a season wasted.'
 }

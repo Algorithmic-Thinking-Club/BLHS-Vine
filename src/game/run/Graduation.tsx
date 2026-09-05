@@ -111,7 +111,7 @@ function earnedMoment(cordId: string, s: SaveGame): Moment {
   const nth = (tag: string, n: number): string => {
     const hits = s.ledger.filter((e) => e.tags?.includes(tag) && e.grade >= PASSING_GRADE)
     const hit = hits[n - 1]
-    return hit ? `${hit.title}, year ${hit.year}` : 'the transcript remembers'
+    return hit ? `${hit.title}, year ${hit.year}` : 'a class on your transcript'
   }
   switch (cordId) {
     case 'highest-honors':
@@ -128,7 +128,7 @@ function earnedMoment(cordId: string, s: SaveGame): Moment {
     case 'seal-biliteracy':
       return { kind: 'event', line: `the fourth credit: ${nth('lang', 4)}` }
     default:
-      return { kind: 'event', line: 'earned, and the ledger knows where' }
+      return { kind: 'event', line: 'earned from what you did these four years' }
   }
 }
 
@@ -370,8 +370,7 @@ export function Graduation({ onClose }: { onClose: () => void }) {
                 MAPVIS's character pipeline at the game's own resolution, and it
                 is the proof that the pipeline can make this figure properly. */}
             <p className="gr-line">
-              The falls terrace, dressed at last. Everyone you met these four years is in the crowd,
-              and the ones you ranked with stand in the front row.
+              Graduation day. Everyone you met these four years is in the crowd.
             </p>
             <p className="gr-line">Thor walks the stage in teal. The stole reads BONNEY LAKE.</p>
           </TapCard>
@@ -380,9 +379,9 @@ export function Graduation({ onClose }: { onClose: () => void }) {
         {stage === 'honours' && here && (
           <TapCard
             label={isCord(here)
-              ? `${here.name}. Drape the next one, ${idx + 1} of ${honours.length}`
-              : `${here.name}. Go on, ${idx + 1} of ${honours.length}`}
-            cue={idx + 1 < honours.length ? `${idx + 1} of ${honours.length}` : 'and the board'}
+              ? `${here.name}. Next card, ${idx + 1} of ${honours.length}`
+              : `${here.name}. Next card, ${idx + 1} of ${honours.length}`}
+            cue={idx + 1 < honours.length ? `${idx + 1} of ${honours.length}` : 'see the cords you missed'}
             className={isCord(here) ? 'gr-cordcard' : 'gr-standcard'}
             onAdvance={nextHonour}
           >
@@ -414,7 +413,7 @@ export function Graduation({ onClose }: { onClose: () => void }) {
                     than pointing at one row that did not produce it. */}
                 {earnedMoment(here.id, s).kind === 'accumulation' && (
                   here.id === 'key-club'
-                    ? <p className="gr-series">{keyYears} {keyYears === 1 ? 'year' : 'years'} on the track</p>
+                    ? <p className="gr-series">{keyYears} {keyYears === 1 ? 'year' : 'years'} in Key Club</p>
                     : (
                       <ul className="gr-series" aria-label="Grade point average, year by year">
                         {series.map((p) => (
@@ -445,7 +444,7 @@ export function Graduation({ onClose }: { onClose: () => void }) {
              did nothing on every graduation since it was written. It is a plain
              region with one real control at the bottom. */
           <div className="gr-card gr-boardcard kit-surface-panel">
-            <h2 className="gr-title">{earned.length ? 'And the board, for honesty' : 'The board, for next time'}</h2>
+            <h2 className="gr-title">{earned.length ? 'The cords you did not earn' : 'The cords you could earn next time'}</h2>
             {board.length === 0 ? (
               <p className="gr-line">Every cord this school gives is on your cape. Nobody does that.</p>
             ) : (
@@ -479,7 +478,7 @@ export function Graduation({ onClose }: { onClose: () => void }) {
               </>
             )}
             <div className="gr-acts">
-              <Plank size="lg" onClick={() => setStage('diploma')}>The diploma</Plank>
+              <Plank size="lg" onClick={() => setStage('diploma')}>See your diploma</Plank>
             </div>
           </div>
         )}
@@ -527,7 +526,7 @@ export function Graduation({ onClose }: { onClose: () => void }) {
                 {copied ? 'Copied it again' : 'Copy it as text'}
               </Plank>
               <Plank size="md" glyph={['icon_set', 'compass']} onClick={finish}>
-                The ocean is yours now
+                Start free play
               </Plank>
             </div>
             <canvas ref={canvasRef} className="gr-canvas" />

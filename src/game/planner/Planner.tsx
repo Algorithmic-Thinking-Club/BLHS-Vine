@@ -101,17 +101,17 @@ import './planner.css'
 // Honors 10 English)" in half on every row that needed two lines.
 
 const CORE_BEAT_DESC: Record<number, string> = {
-  1: 'This is the place. POWER values, the bell schedule, how joining works',
-  2: 'The hidden ladder. Every cord and seal, and the Universal Retake Policy',
-  3: 'The long game. The 24 credits, dual credit, AP Capstone’s exact rule',
-  4: 'Finish like a Panther. The cords audit and the road to the stage',
+  1: 'You learn the POWER values, the bell schedule, and how to join a club',
+  2: 'You learn every cord and seal, and the Universal Retake Policy',
+  3: 'You learn the 24 credits, dual credit, and the exact rule for AP Capstone',
+  4: 'You check your cords and find out what you need to walk the stage',
 }
 
 /* ONE STRING FOR THE OPEN-SEASON RULE, WHICH IS §5.15'S FINDING. The sheet said
  * "seasons left open stay open, the year sails without them" under the disabled
  * stamp and "unspent seasons stay open for free sailing" inside the confirm:
  * two sentences for one idea on one screen, three inches apart. */
-const OPEN_SEASONS = 'Seasons left open stay open, and the year sails without them.'
+const OPEN_SEASONS = 'You can leave a season empty and still save the year.'
 
 /* how far a pointer has to travel before a press becomes a drag. Small enough
  * that a deliberate drag never feels sticky, large enough that a trackpad tap
@@ -193,7 +193,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
     airRef.current = null
     grabAt.current = null
     setAir(null)
-    announce(`the ${season.toLowerCase()} token is back in your hand`)
+    announce(`Nothing placed. ${season} is still open.`)
   }
 
   const shutColumn = () => {
@@ -259,7 +259,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
       deliberationMs: Date.now() - openedAt.current, changes: changes.current,
     })
     setPlacing(null)
-    announce(`${programmeById(activityId)?.name ?? activityId} takes your ${season.toLowerCase()} token`)
+    announce(`You joined ${programmeById(activityId)?.name ?? activityId} for ${season}.`)
     focusAfter(`pl-sock-${season}`)
   }
 
@@ -271,7 +271,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
      * `changes` counter on whatever they placed next. Reversal is the behaviour
      * that most directly shows a decision being weighed. */
     track('slot_lifted', { year, season, deliberationMs: Date.now() - openedAt.current, changes: changes.current })
-    announce(`the ${season.toLowerCase()} token is back in your hand`)
+    announce(`${season} is empty again. You can pick something else.`)
   }
 
   const addClass = (id: string) => {
@@ -283,7 +283,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
     pickClass(year, id)
     track('class_picked', { year, class: id })
     setPickingClass(false)
-    announce(`${classById(id)?.name ?? id} is on the sheet`)
+    announce(`${classById(id)?.name ?? id} added to your classes.`)
     focusAfter('pl-pick')
   }
 
@@ -300,7 +300,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
      * today it is a CSS gradient with an emoji in it." The wax is drawn art on the
      * sheet, and the kit's own saved() carries it off the sheet as well, which is
      * also how it reaches a screen reader. */
-    saved(`The wax is on. Year ${year} is set.`)
+    saved(`Year ${year} is stamped and saved.`)
   }
 
   // ---- THE DRAG ------------------------------------------------------------
@@ -369,13 +369,13 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
    * would spend a season token on whatever the coin happened to be over. */
   const abort = (e: React.PointerEvent<HTMLButtonElement>) => {
     const held = letGo(e)
-    if (held?.moved) announce(`the ${held.season.toLowerCase()} token is back in your hand`)
+    if (held?.moved) announce(`Nothing placed. ${held.season} is still open.`)
   }
 
   /* WHERE A DROPPED TOKEN GOES, and every branch of it is a sentence rather than
    * a snap-back. §5.5: "A token that silently snaps back has taught nothing." */
   const land = (held: Airborne) => {
-    if (!held.over) { announce(`the ${held.season.toLowerCase()} token is back in your hand`); return }
+    if (!held.over) { announce(`Nothing placed. ${held.season} is still open.`); return }
     if (held.over !== held.season) {
       /* THE ONE REFUSAL THAT IS NOT IN `refusal.ts`, and it is here on purpose.
        * Every sentence in that file is a fact about the school or about scarcity.
@@ -384,14 +384,14 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
        * is no such thing as a spare token that could go anywhere. §5.4 asks for
        * that model to be said out loud rather than left as an absence, and the
        * only moment a student can be told is the moment they try it. */
-      refuse(held.over, `That is your ${held.season.toLowerCase()} token. It only spends on ${held.season.toLowerCase()}.`)
+      refuse(held.over, `That is your ${held.season.toLowerCase()} token. Drop it on ${held.season}.`)
       track('slot_refused', { year, season: held.over, activity: null, why: 'wrong season token' })
       return
     }
     if (held.act) { place(held.season, held.act); return }
     setRefused(null)
     setPlacing(held.season)
-    announce(`the ${held.season.toLowerCase()} token is on the ${held.season.toLowerCase()} column. Choose what it is for.`)
+    announce(`Now pick your ${held.season.toLowerCase()} activity.`)
   }
 
   const pressToken = (season: Season) => {
@@ -431,7 +431,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
     : plan.classes.length < 2
       ? `${2 - plan.classes.length} focus ${plan.classes.length === 1 ? 'class' : 'classes'} still to choose.`
       : picked.every((c) => !cordHint(c.tags))
-        ? 'Neither class on this sheet moves a cord. Some things you take for the love of it.'
+        ? 'Neither class counts toward a graduation cord. That is allowed. Take what you like.'
         : null
 
   /** the years whose page has turned, which is the shelf the sheet can reach */
@@ -440,7 +440,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
   const slotsFilled = SEASONS.filter((se) => plan.slots[se]).length
   const canStamp = !plan.stamped && plan.classes.length === 2
   const stampNote = plan.stamped ? null
-    : plan.classes.length < 2 ? 'The harbor master wants two classes on the sheet.'
+    : plan.classes.length < 2 ? 'Pick two classes.'
       : slotsFilled < SEASONS.length ? OPEN_SEASONS
         : null
 
@@ -460,7 +460,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
             first thing a keyboard student lands on every time the sheet opens:
             the way out, offered before the way in. */}
         <div className="pl-head">
-          <h2 className="pl-title">The Year Sheet</h2>
+          <h2 className="pl-title">Year sheet</h2>
           <span className="pl-year">Year {year} of 4</span>
         </div>
 
@@ -481,7 +481,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                 attended
               </span>
             )
-            : onAdvisory && <Plank size="sm" onClick={onAdvisory}>attend now</Plank>}
+            : onAdvisory && <Plank size="sm" onClick={onAdvisory}>go to Advisory</Plank>}
         </div>
 
         <div className="pl-body">
@@ -497,7 +497,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
               const menu = PROGRAMMES.map((a) => ({ a, why: refuseSlot(a.id, season, s, year) }))
               const wrongToken = !!air?.moved && air.over === season && air.season !== season
               const shownRefusal = wrongToken
-                ? `That is your ${air.season.toLowerCase()} token. It only spends on ${air.season.toLowerCase()}.`
+                ? `That is your ${air.season.toLowerCase()} token. Drop it on ${air.season}.`
                 : refused?.where === season ? refused.why : null
               return (
                 <section className="pl-col" key={season}>
@@ -523,10 +523,10 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                           size={22}
                           fallback={<span className="pl-coin pl-coin-spent" aria-hidden="true" />}
                         />
-                        <span>your {season.toLowerCase()} token is on this</span>
+                        <span>this is your {season.toLowerCase()} activity</span>
                       </div>
                       {!plan.stamped && (
-                        <Plank size="sm" wide onClick={() => lift(season)}>lift the token</Plank>
+                        <Plank size="sm" wide onClick={() => lift(season)}>remove this activity</Plank>
                       )}
                     </div>
                   ) : plan.stamped ? (
@@ -536,8 +536,8 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                       id={`pl-sock-${season}`}
                       data-drop-season={season}
                       caption={s.tokens.includes(season)
-                        ? `place your ${season.toLowerCase()} token`
-                        : `no ${season.toLowerCase()} token left`}
+                        ? `pick your ${season.toLowerCase()} activity`
+                        : `you already used your ${season.toLowerCase()} pick`}
                       over={!!air?.moved && air.over === season && air.season === season}
                       refusing={shownRefusal}
                       aria-expanded={placing === season}
@@ -580,8 +580,8 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                     <div className="pl-menu" id={`pl-list-${season}`} ref={listRef}>
                       {menu.length === 0 && (
                         <Empty
-                          what="Nothing sails this season yet"
-                          fills="New islands are still rising. A programme joins the roster when its island ships."
+                          what="No activities open yet"
+                          fills="Clubs and sports show up here when they open."
                         />
                       )}
                       {menu.map(({ a, why }) => (
@@ -619,7 +619,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                           </span>
                         </button>
                       ))}
-                      <Plank size="sm" wide onClick={shutColumn}>never mind</Plank>
+                      <Plank size="sm" wide onClick={shutColumn}>cancel</Plank>
                     </div>
                   )}
                 </section>
@@ -629,7 +629,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
 
           <div className="pl-rail">
             <section>
-              <h3 className="pl-sect">Tokens in hand</h3>
+              <h3 className="pl-sect">Your season tokens</h3>
               {/* §5.4: three tokens and three columns, one token per column and
                   never a pool. The coin is the drawn `pip` face and the season's
                   NAME is printed beside it, because a face that only arrives with
@@ -640,7 +640,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                     type="button"
                     key={t + i}
                     className={`pl-token${air?.season === t && air.moved ? ' pl-token-aloft' : ''}${placing === t ? ' pl-token-lifted' : ''}`}
-                    aria-label={`the ${t.toLowerCase()} token. Place it on ${t}.`}
+                    aria-label={`Your ${t.toLowerCase()} season token. Press it to pick your ${t.toLowerCase()} activity.`}
                     disabled={plan.stamped}
                     onPointerDown={grab(t)}
                     onPointerMove={carry}
@@ -657,7 +657,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                     <span className="pl-token-name">{t}</span>
                   </button>
                 ))}
-                {s.tokens.length === 0 && <span className="pl-token-hint">All spent. Choices made.</span>}
+                {s.tokens.length === 0 && <span className="pl-token-hint">You have used all three season tokens.</span>}
               </div>
               {s.tokens.length > 0 && (
                 <p className="pl-token-note">
@@ -668,8 +668,8 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                        recommends making the forfeit visible; the fix belongs in
                        `save.ts`, so until then the sheet at least does not let a
                        physical object vanish between screens without a word. */
-                    ? 'The wax is on. These stay in your hand until the year turns, and the year turn takes them back.'
-                    : 'Drag a token onto a season, or press it.'}
+                    ? 'Your year sheet is stamped. Leftover season tokens are gone when the year ends.'
+                    : 'Drag a season token onto a season, or press the token.'}
                 </p>
               )}
             </section>
@@ -691,10 +691,10 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                         size="sm"
                         className="pl-class-x"
                         glyph={['icon_set', 'cross']}
-                        aria-label={`drop ${c.name}`}
-                        onClick={() => { dropClass(year, id); announce(`${c.name} is off the sheet`) }}
+                        aria-label={`remove ${c.name}`}
+                        onClick={() => { dropClass(year, id); announce(`${c.name} removed from your classes.`) }}
                       >
-                        drop
+                        remove
                       </Plank>
                     )}
                     {plan.stamped && (sat
@@ -707,7 +707,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                           )}
                         </>
                       )
-                      : onSitClass && <Plank size="sm" onClick={() => onSitClass(id)}>sit the class</Plank>)}
+                      : onSitClass && <Plank size="sm" onClick={() => onSitClass(id)}>go to class</Plank>)}
                   </div>
                 )
               })}
@@ -742,7 +742,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                               <span className="pl-act-name">{c.name}</span>
                               <span className="pl-act-why">
                                 {why && <Glyph piece="icon_set" face="lock" size={13} className="pl-act-lock" />}
-                                {why ?? hint ?? 'no cord rides on it'}
+                                {why ?? hint ?? 'does not count toward a cord'}
                               </span>
                             </button>
                           )
@@ -756,7 +756,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                     wide
                     onClick={() => { setRefused(null); setPickingClass(false); focusAfter('pl-pick') }}
                   >
-                    never mind
+                    cancel
                   </Plank>
                 </div>
               )}
@@ -765,7 +765,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
 
             {(notes.length > 0 || marginOnPlan) && (
               <section>
-                <h3 className="pl-sect">In the margin, in pencil</h3>
+                <h3 className="pl-sect">Cords you are working toward</h3>
                 {marginOnPlan && <p className="pl-note-plan">{marginOnPlan}</p>}
 <ul className="pl-notes">
                   {notes.map((c) => (
@@ -793,9 +793,9 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                 year and its spine walks back. */}
             {onYearbook && pastPages.length > 0 && (
               <section>
-                <h3 className="pl-sect">The shelf</h3>
+                <h3 className="pl-sect">Past yearbooks</h3>
                 <Plank size="sm" wide onClick={onYearbook}>
-                  read a yearbook that turned ({pastPages.map((y) => `year ${y}`).join(', ')})
+                  open a past yearbook ({pastPages.map((y) => `year ${y}`).join(', ')})
                 </Plank>
               </section>
             )}
@@ -818,19 +818,19 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                     className="pl-wax"
                     fallback={<span className="pl-wax-fallback" aria-hidden="true" />}
                   />
-                  <span className="pl-waxed-word">Stamped. Year {year} is set.</span>
+                  <span className="pl-waxed-word">Your year sheet is stamped. Year {year} is saved.</span>
                 </div>
                 <div className="pl-foot-said">
                   {(() => {
                     const st = yearStatus(s)
                     if (st.readyForYearbook && !st.yearbookSeen && onYearbook) {
-                      return <Plank size="md" onClick={onYearbook}>The year is written. Open the yearbook</Plank>
+                      return <Plank size="md" onClick={onYearbook}>Open the yearbook</Plank>
                     }
                     if (!st.readyForYearbook) {
                       const waits: string[] = []
-                      if (!st.coreBeatDone) waits.push('advisory')
+                      if (!st.coreBeatDone) waits.push('Advisory')
                       if (st.classesPending.length) waits.push(`${st.classesPending.length} class${st.classesPending.length > 1 ? 'es' : ''}`)
-                      return waits.length ? <p className="pl-stamp-note">The yearbook waits on: {waits.join(', ')}.</p> : null
+                      return waits.length ? <p className="pl-stamp-note">Finish {waits.join(' and ')} to open the yearbook.</p> : null
                     }
                     return null
                   })()}
@@ -839,13 +839,13 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                       reorganises itself behind the paper and the student closes a
                       panel onto a game that changed its mind. One line of
                       acknowledgment, read off the same function the arrow reads. */}
-                  {objective && <p className="pl-stamp-note">The room has moved on. {objective.say}</p>}
+                  {objective && <p className="pl-stamp-note">Next: {objective.say}</p>}
                 </div>
               </>
             ) : confirming ? (
               <>
-                <Plank size="lg" glyph={['stamp', 'sealed']} onClick={stamp}>Press the wax</Plank>
-                <Plank size="md" onClick={() => { setConfirming(false); focusAfter('pl-stamp') }}>wait</Plank>
+                <Plank size="lg" glyph={['stamp', 'sealed']} onClick={stamp}>Yes, stamp the year sheet</Plank>
+                <Plank size="md" onClick={() => { setConfirming(false); focusAfter('pl-stamp') }}>go back</Plank>
                 <p className="pl-stamp-note">
                   Nothing on this sheet can be changed afterward.
                   {slotsFilled < SEASONS.length && ` ${OPEN_SEASONS}`}
@@ -860,13 +860,13 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                   title={stampNote ?? undefined}
                   onClick={() => setConfirming(true)}
                 >
-                  Stamp the sheet
+                  Stamp the year sheet
                 </Plank>
                 {stampNote && <p className="pl-stamp-note">{stampNote}</p>}
               </>
             )}
           </div>
-          <Plank size="sm" className="pl-close" onClick={onClose}>put the pen down</Plank>
+          <Plank size="sm" className="pl-close" onClick={onClose}>close</Plank>
         </div>
       </div>
 

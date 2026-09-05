@@ -62,7 +62,7 @@ export function nextObjective(s: SaveGame | null): Objective | null {
   if (!s.flags.includes(FOUNDING_FLAG)) {
     return {
       anchor: 'principal_desk', map: MAW_MAP, phase: 'founding',
-      say: 'Someone is waiting for you inside the mountain.',
+      say: 'Go into the mountain and find the principal.',
     }
   }
 
@@ -72,20 +72,20 @@ export function nextObjective(s: SaveGame | null): Objective | null {
    * world is quiet, so the objective's job is only to stop pointing anywhere
    * else while it is owed. */
   if (!y.vignetteSeen) {
-    return { anchor: 'principal_desk', map: MAW_MAP, phase: 'vignette', say: `Year ${y.year} is starting.` }
+    return { anchor: 'principal_desk', map: MAW_MAP, phase: 'vignette', say: `Year ${y.year} is starting. Read what Principal Panther says.` }
   }
 
   if (!y.planStamped) {
     return {
       anchor: 'chart_table', map: MAW_MAP, phase: 'plan',
-      say: 'The year sheet is unstamped. The chart table is waiting.',
+      say: 'Go to the year sheet table. Pick two classes and stamp it.',
     }
   }
 
   if (!y.coreBeatDone) {
     return {
       anchor: 'hearth', map: MAW_MAP, phase: 'core',
-      say: 'Advisory is at the fire.',
+      say: 'Go to Advisory, at the fire in the Maw.',
     }
   }
 
@@ -106,14 +106,14 @@ export function nextObjective(s: SaveGame | null): Objective | null {
     const next = sailable[0]
     return {
       anchor: 'maw_entrance', map: MAW_MAP, phase: 'voyage',
-      say: `${next.name} is waiting, ${next.season.toLowerCase()} term.`,
+      say: `Go to ${next.name} for ${next.season.toLowerCase()} term.`,
     }
   }
 
   if (y.readyForYearbook && !y.yearbookSeen) {
     return {
       anchor: 'chart_table', map: MAW_MAP, phase: 'yearbook',
-      say: 'The year is done. The sheet wants closing.',
+      say: 'The year is done. Press Open the yearbook.',
     }
   }
 
@@ -125,11 +125,11 @@ export function nextObjective(s: SaveGame | null): Objective | null {
   if (rising.length && !y.readyForYearbook) {
     return {
       anchor: 'chart_table', map: MAW_MAP, phase: 'rising',
-      say: `${rising[0].name} has not risen from the sea yet. The year goes on without it.`,
+      say: `${rising[0].name} is not open yet. Open your year sheet.`,
     }
   }
 
-  return { anchor: 'chart_table', map: MAW_MAP, phase: 'done', say: 'Nothing is owed. The island is yours to wander.' }
+  return { anchor: 'chart_table', map: MAW_MAP, phase: 'done', say: 'Nothing left to do this year. Look around, or open your year sheet.' }
 }
 
 /* is this anchor, on this map, the thing the player is currently being sent to */

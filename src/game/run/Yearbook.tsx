@@ -111,7 +111,7 @@ function moveWords(move: GpaMove, from: number | null): string {
   if (move === 'up' && from !== null) return `up from ${from.toFixed(2)} last year`
   if (move === 'down' && from !== null) return `down from ${from.toFixed(2)} last year`
   if (move === 'held' && from !== null) return 'exactly where it stood last year'
-  return 'inked for the first time'
+  return 'your first GPA'
 }
 
 /* ---- ONE ROW ------------------------------------------------------------- */
@@ -254,7 +254,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
               <span className="yb-year">
                 Year {page.year}
                 <span className="yb-yearstate">
-                  {page.turned ? 'closed' : page.current ? 'still open' : 'a page back'}
+                  {page.turned ? 'closed' : page.current ? 'still open' : 'a past year'}
                 </span>
               </span>
             </header>
@@ -266,16 +266,17 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                   {/* NOT AN ELLIPSIS. This read `. . .`, and Harbormaster draws a
                       period as a filled square, so the largest thing on the page
                       of a student who has not been graded yet was three teal
-                      blocks (`build-shots/ui/after/15-yearbook.png`). §12's own
-                      empty-ledger word is "unwritten" and it is a sentence rather
-                      than a number, so it is set as one. */}
+                      blocks (`build-shots/ui/after/15-yearbook.png`). The
+                      empty-ledger case is a sentence rather than a number, so it
+                      is set as one, and the words pass made it literal: §12's
+                      own "unwritten" is now "no GPA yet". */}
                   <span className={`yb-num${shown === null ? ' yb-num-none' : ''}`}>
-                    {shown === null ? 'unwritten' : shown.toFixed(2)}
+                    {shown === null ? 'no GPA yet' : shown.toFixed(2)}
                   </span>
                   {page.letter && <span className="yb-letter">{page.letter}</span>}
                 </span>
                 <span className="yb-numsaid">
-                  <span className="yb-numlabel">grade point average, inked</span>
+                  <span className="yb-numlabel">grade point average</span>
                   <span className="yb-nummove">
                     {move !== 'first' && move !== 'held' && (
                       <Glyph
@@ -292,7 +293,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                       through this year; this one is the year alone. */}
                   <span className="yb-yearmean">
                     {page.yearGpa === null
-                      ? 'this year graded nothing of its own'
+                      ? 'nothing was graded this year'
                       : `this year alone: ${page.yearGpa.toFixed(2)}`}
                   </span>
                 </span>
@@ -340,13 +341,13 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                 {canTurn ? (
                   <>
                     <Plank size="lg" glyph={['icon_set', 'arrow']} onClick={turn}>
-                      {lastYear ? 'Close the book' : 'Turn the page'}
+                      {lastYear ? 'Finish all four years' : 'End this year'}
                     </Plank>
-                    <Plank size="md" onClick={onClose}>Not yet</Plank>
+                    <Plank size="md" onClick={onClose}>Keep playing this year</Plank>
                   </>
                 ) : (
                   <Plank size="lg" keyCap="Esc" onClick={onClose}>
-                    {page.turned ? 'Close the book' : 'Back to the sea'}
+                    {page.turned ? 'Close the yearbook' : 'Back to the game'}
                   </Plank>
                 )}
               </div>
@@ -356,12 +357,12 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
           <div className="yb-turned">
             {lastYear ? (
               <>
-                <h2 className="yb-title">Four years, written.</h2>
-                <p className="yb-turnedline">The falls terrace is dressed. They are waiting on you now.</p>
+                <h2 className="yb-title">Four years finished.</h2>
+                <p className="yb-turnedline">Your graduation is ready. Everyone is waiting for you.</p>
                 <div className="yb-acts">
                   {onGraduate
                     ? <Plank size="lg" glyph={['icon_set', 'star']} onClick={onGraduate}>Walk the stage</Plank>
-                    : <Plank size="lg" onClick={onClose}>Back to the sea</Plank>}
+                    : <Plank size="lg" onClick={onClose}>Back to the game</Plank>}
                 </div>
               </>
             ) : (
@@ -373,7 +374,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                     begun happened where nobody was looking. The same three drawn
                     season faces the corner wears are here, on the page that
                     handed them over. */}
-                <div className="yb-refill" aria-label="Three new season tokens">
+                <div className="yb-refill" aria-label="Three new season tokens. You can pick three more clubs or sports.">
                   {(['fall', 'winter', 'spring'] as const).map((season, i) => (
                     <span
                       key={season}
@@ -388,9 +389,9 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                     </span>
                   ))}
                 </div>
-                <p className="yb-turnedline">Three new tokens in hand. The chart table is waiting.</p>
+                <p className="yb-turnedline">Three new season tokens. Go to the year sheet table and plan this year.</p>
                 <div className="yb-acts">
-                  <Plank size="lg" onClick={onClose}>Back to the sea</Plank>
+                  <Plank size="lg" onClick={onClose}>Back to the game</Plank>
                 </div>
               </>
             )}
