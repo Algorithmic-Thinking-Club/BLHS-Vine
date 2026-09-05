@@ -4278,9 +4278,18 @@ export default function PmapScene() {
        * year sheet's own token drag already uses. */
       const TAP_SLOP = 6
       let tapDown: { x: number; y: number } | null = null
-      app.stage.on('pointerdown', (e) => { tapDown = { x: e.global.x, y: e.global.y } })
+      /* AND ONLY THE BUTTON A PERSON MEANS. `pointertap` fires for every button
+       * Pixi sees, so a two-finger tap on a Chromebook trackpad opened the
+       * browser's own context menu AND sent Thor walking to whatever was under
+       * it. The drag guard does not help: a right-click is stationary, so it
+       * passes the slop test cleanly. Button 0 is the primary one for a mouse, a
+       * finger and a pen alike. */
+      app.stage.on('pointerdown', (e) => {
+        tapDown = e.button === 0 ? { x: e.global.x, y: e.global.y } : null
+      })
       app.stage.on('pointertap', (e) => {
-        if (tapDown && Math.hypot(e.global.x - tapDown.x, e.global.y - tapDown.y) > TAP_SLOP) return
+        if (e.button !== 0 || !tapDown) return
+        if (Math.hypot(e.global.x - tapDown.x, e.global.y - tapDown.y) > TAP_SLOP) return
         const p = world.toLocal(e.global)
         walkTap(p.x, p.y)
       })
@@ -4862,9 +4871,17 @@ export default function PmapScene() {
        * watchdog gives up four seconds later, and a fourteen year old is left in
        * open ocean being told to try the approach again. That is a dead end, and
        * the whole law is that there are none. */
-      offSail = onSailRequest(mapId, (want, answer) => {
-        if (!comp || !canSail || !berth) {
-          answer({ ok: false, why: 'There is no water under you right now.' }); return
+      /* AND IT IS ONLY OFFERED WHERE THERE IS WATER. This was registered for any
+       * map at all, so the count the chart reads to decide whether to draw a
+       * button was 1 inside the Maw, which is a windowless room and is exactly
+       * where a student opens the chart, because the chart table is in it. Every
+       * island on the paper grew a Sail button and every one of them answered
+       * that there was no water. The comment on the chart's own control says
+       * why that is worse than no button: a control that is always there and
+       * usually refuses teaches a student that the chart does not work. */
+      if (canSail && berth) offSail = onSailRequest(mapId, (want, answer) => {
+        if (!comp) {
+          answer({ ok: false, why: 'The chart has not come back yet.' }); return
         }
         if (!want.berth) {
           answer({ ok: false, why: `${want.title} has no dock yet.` }); return
