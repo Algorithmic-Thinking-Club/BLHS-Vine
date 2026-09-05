@@ -159,7 +159,15 @@ function Row({ row, section }: { row: YearbookRow; section: YearbookSection['id'
             : <span className="yb-rowmeta">{row.meta}</span>}
         </span>
         <Gauge value={row.progress ?? 0} label={`${row.title}, ${row.meta}`} />
-        {row.rule && <span className="yb-rule">{row.rule}</span>}
+        {/* THE CRITERION IS NOT ON THIS PAGE, and that is not a softening of
+            §14.14. The law is that a school criterion is QUOTED and never
+            written, and Key Club's runs to forty words about volunteer hours,
+            meetings and service events across four years. Quoted in full on a
+            yearbook page it ran off the bottom of the spread and was cut
+            mid-sentence, which is the one thing worse than not showing it.
+            The Handbook's cords page carries every criterion verbatim and is one
+            press away. What stays here is the live reading against it, which is
+            the part that is about THIS year and is what a yearbook is for. */}
       </li>
     )
   }
@@ -291,25 +299,42 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                       second number beside it so the movement has something to
                       attribute itself to". The big number is the transcript
                       through this year; this one is the year alone. */}
+                  {/* AND NOT WHEN IT IS THE SAME NUMBER TWICE. Q12.5.a asks for a
+                      second number so the movement has something to attribute
+                      itself to, which is exactly right from year two on. In year
+                      one the transcript IS the year, so the line read "3.56"
+                      followed by "this year alone: 3.56" under a heading that
+                      already said "your first GPA": one fact, three times, at the
+                      top of the page a student reads first. */}
                   <span className="yb-yearmean">
                     {page.yearGpa === null
                       ? 'nothing was graded this year'
-                      : `this year alone: ${page.yearGpa.toFixed(2)}`}
+                      : page.gpa !== null && Math.abs(page.yearGpa - page.gpa) < 0.005
+                        ? ''
+                        : `this year alone: ${page.yearGpa.toFixed(2)}`}
                   </span>
                 </span>
               </section>
 
-              {/* ---- THE SPREAD: two facing pages, one order ---- */}
+              {/* ---- THE SPREAD: two facing pages, one order ----
+                  THE SPLIT IS NOT DECIDED HERE ANY MORE. It was: sections one and
+                  two on the left, three four and five on the right, and that is a
+                  guess about how tall a section is that was wrong the moment a
+                  student had cords. Photographed on a real year one at
+                  `ui/p1-game/15b-yearbook-full.png`, the right column carried
+                  three drawn cord gauges at 122 pixels each, ran past the bottom
+                  of the spread and lost the third one, while the left column sat
+                  half empty beside it.
+
+                  The sections flow now and the browser balances them, so the page
+                  is right for a freshman with two rows and for a senior with
+                  twenty without either being arranged by hand. The binding down
+                  the middle is a `column-rule`, which is the same line it always
+                  was. */}
               <div className="yb-spread">
-                <div className="yb-col">
-                  <Section sec={page.sections[0]} step={1} />
-                  <Section sec={page.sections[1]} step={2} />
-                </div>
-                <div className="yb-col">
-                  <Section sec={page.sections[2]} step={3} />
-                  <Section sec={page.sections[3]} step={4} />
-                  <Section sec={page.sections[4]} step={5} />
-                </div>
+                {page.sections.map((sec, i) => (
+                  <Section key={sec.id} sec={sec} step={i + 1} />
+                ))}
               </div>
 
               {/* ---- ONE LINE ABOUT A ROAD NOT TAKEN, alone and last (§12.11).

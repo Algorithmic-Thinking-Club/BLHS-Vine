@@ -52,7 +52,7 @@ describe('the seats', () => {
 describe('what fills a seat', () => {
   it('finishing Advisory fills its frame and says the grade', () => {
     const s = withPlan({
-      ledger: [{ id: 'core:y1', kind: 'core', title: 'Advisory', grade: 3.6, year: 1, season: 'Fall' }],
+      ledger: [{ id: 'core:y1', kind: 'core', title: 'Advisory', credit: 0.5, grade: 3.6, year: 1, season: 'Fall' }],
     })
     const advisory = wallOf(s)[0]
     expect(advisory.earned).toBe(true)
@@ -79,7 +79,7 @@ describe('what fills a seat', () => {
     /* 3.5 is the A-/B+ boundary and the one place two tables would disagree. The
      * yearbook and the wall have to say the same thing about one grade. */
     const s = withPlan({
-      ledger: [{ id: 'core:y1', kind: 'core', title: 'Advisory', grade: 3.5, year: 1, season: 'Fall' }],
+      ledger: [{ id: 'core:y1', kind: 'core', title: 'Advisory', credit: 0.5, grade: 3.5, year: 1, season: 'Fall' }],
     })
     expect(wallOf(s)[0].says).toContain('A-')
   })

@@ -229,25 +229,28 @@ html[data-rm='1'] .yb-move-first .yb-num { animation: none; }
 
 /* ---- THE SPREAD ----------------------------------------------------------- */
 
+/* TWO COLUMNS THAT BALANCE THEMSELVES. A grid with a hand-made split is a guess
+   about how tall each section is, and the guess was wrong as soon as a student
+   had cords: three drawn gauges made the right column half again as tall as the
+   left, and the page clipped the last of them.
+   The binding down the middle is `column-rule`, which is the same line the old
+   `border-left` drew and now sits where the balance puts it. */
 .yb-spread {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px 34px;
-  align-items: start;
+  columns: 2;
+  column-gap: 64px;
+  column-rule: 1px solid var(--kit-rule-soft);
 }
-/* the binding down the middle of a real spread, which is also what stops two
-   columns of dashed rules reading as one wide table */
-.yb-spread > .yb-col + .yb-col {
-  padding-left: 30px;
-  border-left: 1px solid var(--kit-rule-soft);
+/* a section is a unit and is never split across the fold of the spread */
+.yb-spread > .yb-sect {
+  break-inside: avoid;
+  margin-bottom: 12px;
 }
 .yb-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 /* one column when the sheet cannot hold two. `container-type: inline-size` on
    .yb-page is what makes this a question about the PAPER and not about the
    window, which is the distinction the percentage-padding bug turned on. */
 @container (max-width: 720px) {
-  .yb-spread { grid-template-columns: 1fr; }
-  .yb-spread > .yb-col + .yb-col { padding-left: 0; border-left: 0; }
+  .yb-spread { columns: 1; column-rule: 0; }
 }
 
 .yb-sect { display: flex; flex-direction: column; gap: 5px; }
