@@ -445,10 +445,17 @@ function CodeCard({ initial, err: outerErr, onVerified, onCastaway }: {
   }
 
   return (
-    <div className="i3-card" onClick={() => { if (!tw.done) tw.finish() }}>
-      <div className="i3-letter">{tw.shown}{!tw.done && <span className="i3-caret" aria-hidden="true" />}</div>
+    /* THE CARD THAT OVERFLOWED ITS OWN PAPER. SWEEP-1 items 11, 44 and 93: at rest
+       the plank's bottom third was sliced off, and the moment the student pressed
+       it with empty boxes the refusal line added a row and pushed BOTH controls
+       off the bottom, leaving a card with a red error on it and nothing to press.
+       A pointer-only run stalls there for good, and it is the first card of the
+       game. The letter takes the slack and scrolls; the signature, the boxes, the
+       refusal and the two controls are a foot that is always on the paper. */
+    <div className="i3-card i3-card-code" onClick={() => { if (!tw.done) tw.finish() }}>
+      <div className="i3-letter i3-letter-scroll">{tw.shown}{!tw.done && <span className="i3-caret" aria-hidden="true" />}</div>
       {tw.done && (
-        <>
+        <div className="i3-codefoot">
           <Signature />
           {/* SIX LABELLED BOXES. They had no labels at all, so a reader landing in
               one heard "edit text" six times with no way to tell which of six it
@@ -488,7 +495,7 @@ function CodeCard({ initial, err: outerErr, onVerified, onCastaway }: {
           <Plank className="i3-plank" busy={checking} onClick={() => void submit()}>
             {checking ? 'Checking the code' : 'Join my class'}
           </Plank>
-        </>
+        </div>
       )}
     </div>
   )

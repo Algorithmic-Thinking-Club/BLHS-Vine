@@ -122,6 +122,27 @@ html[data-rm='1'] .i3-rollup { animation-duration: 1ms; }
 .i3-card::-webkit-scrollbar { width: 6px; }
 .i3-card::-webkit-scrollbar-thumb { background: var(--kit-edge); border-radius: var(--kit-r-soft); }
 
+/* ---- the code card, which has more to hold than the paper is tall ---------
+ *
+ * SWEEP-1 items 11, 44 and 93. Everything a student must press on this card is a
+ * foot that never scrolls, and the letter above it takes whatever room is left.
+ * Without this the plank was already clipped at rest and disappeared completely
+ * the moment a refusal added a line, which ends a pointer-only run for good on
+ * the first card of the game. */
+.i3-card-code { overflow-y: hidden; }
+.i3-card-code > .i3-letter-scroll {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  width: 100%;
+}
+.i3-codefoot {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; align-items: center;
+  width: 100%;
+}
+/* the foot owns the bottom now, so the two controls stop fighting the card for it */
+.i3-codefoot > .i3-castaway { margin-top: 1.2cqw; }
+.i3-codefoot > .i3-plank { margin-top: 0; }
+
 .i3-letter {
   font-family: var(--kit-face-body);
   --kit-fs-raw: calc(4.9cqw * var(--kit-text-scale));
