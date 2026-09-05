@@ -96,7 +96,7 @@ import { placeCardUp } from '../stage/stage-bus'
  * which is exactly the lifetime the state describes. */
 export type PromptState = 'plain' | 'objective' | 'barred' | 'needs' | 'done'
 import { composeWorldText, WORLD_TEXT } from '../ui/worldText'
-import { MAW_MAP, isObjective, nextObjective } from '../run/objective'
+import { MAW_MAP, isObjective, nextObjective, objectiveLine } from '../run/objective'
 import { missingAnchors } from '../maw/stations'
 import { runStation } from '../maw/run-station'
 import { isReady, labelFor, ownerOf } from './grape-router'
@@ -5784,7 +5784,7 @@ export default function PmapScene() {
            * The two plaques say different things in different places: one hangs
            * over the thing E would open, and this one rides over Thor. Together
            * they are the whole of what a student needs and neither is noise. */
-          setTask(quiet && o ? o.say : '')
+          setTask(quiet && o ? objectiveLine(o, mapId) : '')
           /* CLEAR OF THE YOU PIN, IN SCREEN PIXELS RATHER THAN WORLD ONES.
            * The pin stands about forty screen pixels above his head whatever the
            * camera is doing, and a world-space offset shrinks with the zoom, so

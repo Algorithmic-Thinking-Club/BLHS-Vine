@@ -165,7 +165,9 @@ describe('the objective reaches the yearbook', () => {
     const save = await stampedYear()
     const o = nextObjective(save.loadSave())
     expect(o?.phase).toBe('yearbook')
-    expect(o?.anchor).toBe('chart_table')
+    /* the counselor is who turns the page (islands/panther-maw/island.py), so
+     * she is the lit thing when the year can close */
+    expect(o?.anchor).toBe('counselor')
   })
 
   it('names committed-but-unsailable as its own state instead of a dead arrow', async () => {

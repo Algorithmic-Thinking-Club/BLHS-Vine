@@ -20,6 +20,7 @@
  */
 import type { SaveGame } from '../save'
 import { yearStatus } from './year'
+import { classById } from '../planner/catalog'
 
 export type Objective = {
   /* the anchor this points at. Every map that can be the objective's home has to
@@ -28,8 +29,13 @@ export type Objective = {
   anchor: string
   /* the map that anchor lives on, so the arrow can say "not here, out there" */
   map: string
-  /* shown to the player. In-character, never a checklist item. */
+  /* shown to the player ON THE OBJECTIVE'S OWN MAP. Literal, school words, a
+   * verb first (BRIEF-PLAYTHROUGH-1 law 1). `away` is the same step said from
+   * any other map, which today is always the hub and always begins with going
+   * into the mountain; `objectiveLine` picks. A consumer that does not know
+   * where the player is standing reads `say`. */
   say: string
+  away: string
   /* the year phase this belongs to, for logging and for the debug overlay.
    *
    * `rising` is the THIRD VOYAGE STATE §80.6 asks for by name:
@@ -47,6 +53,16 @@ export const HUB_MAP = 'hub'
  * string; save.ts already uses this `thing:detail` shape for `vignette:y1`. */
 export const FOUNDING_FLAG = 'maw:founding'
 
+/* THE LINE FOR WHERE HE IS STANDING. STATE-OF-THE-GAME confusing 6: "Go into
+ * the mountain and find the principal" was on the hub while the principal was
+ * talking to him at the dock, and on the Maw's arrival card while he was
+ * already inside the mountain with the principal walking over. One sentence
+ * cannot be right on both sides of a door, so there are two and the map picks. */
+export function objectiveLine(o: Objective | null, mapId: string | null | undefined): string {
+  if (!o) return ''
+  return mapId && mapId !== o.map ? o.away : o.say
+}
+
 /* THE ORDER, and it is the order §7.5 prints.
  *
  * Read top to bottom, first match wins. Adding a beat means adding a clause
@@ -58,11 +74,14 @@ export function nextObjective(s: SaveGame | null): Objective | null {
   if (s.graduated) return null
 
   /* the founding event: the first time in, before anything else can be true.
-   * It is not a year beat, it happens once per run. */
+   * It is not a year beat, it happens once per run. Inside the mountain he
+   * walks over on his own (islands/panther-maw/founding.py), so the line there
+   * names the person and not the door. */
   if (!s.flags.includes(FOUNDING_FLAG)) {
     return {
       anchor: 'principal_desk', map: MAW_MAP, phase: 'founding',
-      say: 'Go into the mountain and find the principal.',
+      say: 'Talk to Principal Panther.',
+      away: 'Go into the mountain and find the principal.',
     }
   }
 
@@ -72,20 +91,26 @@ export function nextObjective(s: SaveGame | null): Objective | null {
    * world is quiet, so the objective's job is only to stop pointing anywhere
    * else while it is owed. */
   if (!y.vignetteSeen) {
-    return { anchor: 'principal_desk', map: MAW_MAP, phase: 'vignette', say: `Year ${y.year} is starting. Read what Principal Panther says.` }
+    return {
+      anchor: 'principal_desk', map: MAW_MAP, phase: 'vignette',
+      say: `Year ${y.year} is starting. Read what Principal Panther says.`,
+      away: `Go into the mountain. Year ${y.year} is starting.`,
+    }
   }
 
   if (!y.planStamped) {
     return {
       anchor: 'chart_table', map: MAW_MAP, phase: 'plan',
       say: 'Go to the year sheet table. Pick two classes and stamp it.',
+      away: 'Go into the mountain and open your year sheet.',
     }
   }
 
   if (!y.coreBeatDone) {
     return {
       anchor: 'hearth', map: MAW_MAP, phase: 'core',
-      say: 'Go to Advisory, at the fire in the Maw.',
+      say: 'Go to the fire. Advisory is starting.',
+      away: 'Go into the mountain. Advisory is at the fire.',
     }
   }
 
@@ -106,30 +131,60 @@ export function nextObjective(s: SaveGame | null): Objective | null {
     const next = sailable[0]
     return {
       anchor: 'maw_entrance', map: MAW_MAP, phase: 'voyage',
-      say: `Go to ${next.name} for ${next.season.toLowerCase()} term.`,
+      say: `Go out to the harbor and sail to ${next.name} for ${next.season.toLowerCase()} term.`,
+      away: `Get in the boat and sail to ${next.name} for ${next.season.toLowerCase()} term.`,
     }
   }
 
+  /* THE YEAR CAN CLOSE, AND THE COUNSELOR IS WHO CLOSES IT. BRIEF-YEAR-ONE
+   * beat 8: she drapes the first cord and turns the page. The Maw's own python
+   * opens the yearbook when she is pressed with Advisory done and the page not
+   * yet turned (islands/panther-maw/island.py), so she is the lit thing. This
+   * pointed at the chart table and said "Press Open the yearbook", which is a
+   * button inside a panel the student had not opened (STATE-OF-THE-GAME
+   * confusing 9). */
   if (y.readyForYearbook && !y.yearbookSeen) {
     return {
-      anchor: 'chart_table', map: MAW_MAP, phase: 'yearbook',
-      say: 'The year is done. Press Open the yearbook.',
+      anchor: 'counselor', map: MAW_MAP, phase: 'yearbook',
+      say: 'The year is done. Talk to the counselor.',
+      away: 'Go into the mountain and talk to the counselor. The year is done.',
     }
   }
 
   /* THE THIRD VOYAGE STATE: committed, and nothing to sail to. It is below the
    * yearbook rather than above it because it can never resolve on its own, and
    * an objective that cannot be completed is not an objective. It is here at all
-   * so the state has a name and a sentence rather than being silence. */
+   * so the state has a name and a sentence rather than being silence.
+   *
+   * AND IT NAMES THE NEXT REAL THING. STATE-OF-THE-GAME confusing 8: after
+   * Advisory the lit thing was the year-sheet table and the line said "Open
+   * your year sheet", which the sheet's own next line then repeated, so the
+   * objective pointed at itself. What is really owed is a class still on the
+   * sheet, sat from the sheet, so the line says which; and when no class is
+   * owed the counselor is who can say where the year stands. */
   const rising = y.voyages.filter((v) => !v.done && !v.playable)
   if (rising.length && !y.readyForYearbook) {
+    const owed = y.classesPending[0]
+    if (owed) {
+      const name = classById(owed)?.name ?? owed
+      return {
+        anchor: 'chart_table', map: MAW_MAP, phase: 'rising',
+        say: `${rising[0].name} is not open yet. Open your year sheet and sit ${name}.`,
+        away: `${rising[0].name} is not open yet. Go into the mountain and open your year sheet.`,
+      }
+    }
     return {
-      anchor: 'chart_table', map: MAW_MAP, phase: 'rising',
-      say: `${rising[0].name} is not open yet. Open your year sheet.`,
+      anchor: 'counselor', map: MAW_MAP, phase: 'rising',
+      say: `${rising[0].name} is not open yet. Talk to the counselor.`,
+      away: `${rising[0].name} is not open yet. Go into the mountain and talk to the counselor.`,
     }
   }
 
-  return { anchor: 'chart_table', map: MAW_MAP, phase: 'done', say: 'Nothing left to do this year. Look around, or open your year sheet.' }
+  return {
+    anchor: 'chart_table', map: MAW_MAP, phase: 'done',
+    say: 'Nothing left to do this year. Look around, or open your year sheet.',
+    away: 'Nothing left to do this year. Look around.',
+  }
 }
 
 /* is this anchor, on this map, the thing the player is currently being sent to */

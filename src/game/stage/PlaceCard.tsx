@@ -13,9 +13,9 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { dialogueState, onDialogue } from '../dialogue'
-import { nextObjective } from '../run/objective'
+import { nextObjective, objectiveLine } from '../run/objective'
 import { loadSave } from '../save'
-import { onPlaceCard, setPlaceCardUp, type PlaceCardRequest } from './stage-bus'
+import { onPlaceCard, sceneDrawn, setPlaceCardUp, type PlaceCardRequest } from './stage-bus'
 import { transitionBusy } from '../../app/transitions'
 import { announce, panelDepth } from '../ui/a11y'
 import { Glyph, useKitReady } from '../ui/controls'
@@ -167,7 +167,11 @@ export function PlaceCard() {
   /* the one live thing the year wants next, read at the moment of arrival. Pure,
    * so it is a function call rather than a fetch, and it is the same function the
    * standalone heading and the world's own marker both read. */
-  const heading = card ? nextObjective(loadSave())?.say ?? '' : ''
+  /* SAID FOR THE MAP HE HAS JUST ARRIVED ON. The card fires after the scene's
+   * first frame, so `sceneDrawn` is the map under his feet, and the line reads
+   * "talk to the principal" inside the mountain rather than "go into the
+   * mountain" (STATE-OF-THE-GAME confusing 6). */
+  const heading = card ? objectiveLine(nextObjective(loadSave()), sceneDrawn()) : ''
 
   /* ---- SAID OUT LOUD, ONCE ------------------------------------------------
    *
