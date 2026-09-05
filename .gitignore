@@ -97,6 +97,10 @@ scripts/*
 !scripts/wave1-proof.mjs
 !scripts/wave2-proof.mjs
 !scripts/make-maw-standin.mjs
+# and the year one gate, for the reason written above it: seven of ENGINE-Y1's
+# eight items live inside PmapScene, which has no unit test and cannot have one,
+# so this script is the only thing that says they work.
+!scripts/y1-proof.mjs
 
 # Internal asset registries (kept local)
 **/*-registry.md
@@ -148,3 +152,6 @@ public/art/scenes/town-square/
 baga.html
 blockout.html
 ext.json
+
+.vercel
+.env*
