@@ -1,0 +1,1470 @@
+{
+  "assets": [
+    {
+      "id": "a10",
+      "group": "effects",
+      "frames": [
+        "assets/lava-flowing/0.png",
+        "assets/lava-flowing/1.png",
+        "assets/lava-flowing/2.png",
+        "assets/lava-flowing/3.png",
+        "assets/lava-flowing/4.png",
+        "assets/lava-flowing/5.png",
+        "assets/lava-flowing/6.png",
+        "assets/lava-flowing/7.png"
+      ],
+      "fps": 6,
+      "x": 139,
+      "y": 152,
+      "scale": 1,
+      "scaleX": 1,
+      "scaleY": 2.304,
+      "rot": 0,
+      "flipX": false,
+      "flipY": true,
+      "lookNames": [
+        "undefined"
+      ],
+      "foot": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "framesAt": [
+        [
+          423,
+          619,
+          16,
+          64
+        ],
+        [
+          440,
+          619,
+          16,
+          64
+        ],
+        [
+          457,
+          619,
+          16,
+          64
+        ],
+        [
+          474,
+          619,
+          16,
+          64
+        ],
+        [
+          491,
+          619,
+          16,
+          64
+        ],
+        [
+          508,
+          619,
+          16,
+          64
+        ],
+        [
+          525,
+          619,
+          16,
+          64
+        ],
+        [
+          542,
+          619,
+          16,
+          64
+        ]
+      ]
+    },
+    {
+      "id": "a11",
+      "group": "effects",
+      "frames": [
+        "assets/lava-flowing/0.png",
+        "assets/lava-flowing/1.png",
+        "assets/lava-flowing/2.png",
+        "assets/lava-flowing/3.png",
+        "assets/lava-flowing/4.png",
+        "assets/lava-flowing/5.png",
+        "assets/lava-flowing/6.png",
+        "assets/lava-flowing/7.png"
+      ],
+      "fps": 6,
+      "x": 278,
+      "y": 92,
+      "scale": 1,
+      "scaleX": 1,
+      "scaleY": 0.824,
+      "rot": 0,
+      "flipX": false,
+      "flipY": true,
+      "lookNames": [
+        "undefined"
+      ],
+      "foot": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "framesAt": [
+        [
+          423,
+          619,
+          16,
+          64
+        ],
+        [
+          440,
+          619,
+          16,
+          64
+        ],
+        [
+          457,
+          619,
+          16,
+          64
+        ],
+        [
+          474,
+          619,
+          16,
+          64
+        ],
+        [
+          491,
+          619,
+          16,
+          64
+        ],
+        [
+          508,
+          619,
+          16,
+          64
+        ],
+        [
+          525,
+          619,
+          16,
+          64
+        ],
+        [
+          542,
+          619,
+          16,
+          64
+        ]
+      ]
+    },
+    {
+      "id": "a12",
+      "group": "effects",
+      "frames": [
+        "assets/lava-sparks/0.png",
+        "assets/lava-sparks/1.png",
+        "assets/lava-sparks/2.png",
+        "assets/lava-sparks/3.png",
+        "assets/lava-sparks/4.png",
+        "assets/lava-sparks/5.png",
+        "assets/lava-sparks/6.png",
+        "assets/lava-sparks/7.png"
+      ],
+      "fps": 6,
+      "x": 408,
+      "y": 309,
+      "scale": 1,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rot": 1.5469,
+      "flipX": false,
+      "flipY": false,
+      "lookNames": [
+        "undefined"
+      ],
+      "foot": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "framesAt": [
+        [
+          673,
+          619,
+          40,
+          28
+        ],
+        [
+          714,
+          619,
+          40,
+          28
+        ],
+        [
+          755,
+          619,
+          40,
+          28
+        ],
+        [
+          796,
+          619,
+          40,
+          28
+        ],
+        [
+          837,
+          619,
+          40,
+          28
+        ],
+        [
+          878,
+          619,
+          40,
+          28
+        ],
+        [
+          919,
+          619,
+          40,
+          28
+        ],
+        [
+          960,
+          619,
+          40,
+          28
+        ]
+      ]
+    },
+    {
+      "id": "a13",
+      "group": "effects",
+      "frames": [
+        "assets/lava-sparks/0.png",
+        "assets/lava-sparks/1.png",
+        "assets/lava-sparks/2.png",
+        "assets/lava-sparks/3.png",
+        "assets/lava-sparks/4.png",
+        "assets/lava-sparks/5.png",
+        "assets/lava-sparks/6.png",
+        "assets/lava-sparks/7.png"
+      ],
+      "fps": 6,
+      "x": 587,
+      "y": 214,
+      "scale": 1,
+      "scaleX": 1,
+      "scaleY": 1,
+      "rot": -1.0556,
+      "flipX": false,
+      "flipY": false,
+      "lookNames": [
+        "undefined"
+      ],
+      "foot": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "framesAt": [
+        [
+          673,
+          619,
+          40,
+          28
+        ],
+        [
+          714,
+          619,
+          40,
+          28
+        ],
+        [
+          755,
+          619,
+          40,
+          28
+        ],
+        [
+          796,
+          619,
+          40,
+          28
+        ],
+        [
+          837,
+          619,
+          40,
+          28
+        ],
+        [
+          878,
+          619,
+          40,
+          28
+        ],
+        [
+          919,
+          619,
+          40,
+          28
+        ],
+        [
+          960,
+          619,
+          40,
+          28
+        ]
+      ]
+    },
+    {
+      "id": "a25",
+      "name": "principal_desk",
+      "group": "props",
+      "dirs": {
+        "north-east": [
+          "assets/principal-pro/north-east-0.png",
+          "assets/principal-pro/north-east-1.png",
+          "assets/principal-pro/north-east-2.png",
+          "assets/principal-pro/north-east-3.png",
+          "assets/principal-pro/north-east-4.png",
+          "assets/principal-pro/north-east-5.png",
+          "assets/principal-pro/north-east-6.png",
+          "assets/principal-pro/north-east-7.png"
+        ],
+        "north-west": [
+          "assets/principal-pro/north-west-0.png",
+          "assets/principal-pro/north-west-1.png",
+          "assets/principal-pro/north-west-2.png",
+          "assets/principal-pro/north-west-3.png",
+          "assets/principal-pro/north-west-4.png",
+          "assets/principal-pro/north-west-5.png",
+          "assets/principal-pro/north-west-6.png",
+          "assets/principal-pro/north-west-7.png"
+        ],
+        "south-east": [
+          "assets/principal-pro/south-east-0.png",
+          "assets/principal-pro/south-east-1.png",
+          "assets/principal-pro/south-east-2.png",
+          "assets/principal-pro/south-east-3.png",
+          "assets/principal-pro/south-east-4.png",
+          "assets/principal-pro/south-east-5.png",
+          "assets/principal-pro/south-east-6.png",
+          "assets/principal-pro/south-east-7.png"
+        ],
+        "south-west": [
+          "assets/principal-pro/south-west-0.png",
+          "assets/principal-pro/south-west-1.png",
+          "assets/principal-pro/south-west-2.png",
+          "assets/principal-pro/south-west-3.png",
+          "assets/principal-pro/south-west-4.png",
+          "assets/principal-pro/south-west-5.png",
+          "assets/principal-pro/south-west-6.png",
+          "assets/principal-pro/south-west-7.png"
+        ],
+        "east": [
+          "assets/principal-pro/east-0.png",
+          "assets/principal-pro/east-1.png",
+          "assets/principal-pro/east-2.png",
+          "assets/principal-pro/east-3.png",
+          "assets/principal-pro/east-4.png",
+          "assets/principal-pro/east-5.png",
+          "assets/principal-pro/east-6.png",
+          "assets/principal-pro/east-7.png"
+        ],
+        "west": [
+          "assets/principal-pro/west-0.png",
+          "assets/principal-pro/west-1.png",
+          "assets/principal-pro/west-2.png",
+          "assets/principal-pro/west-3.png",
+          "assets/principal-pro/west-4.png",
+          "assets/principal-pro/west-5.png",
+          "assets/principal-pro/west-6.png",
+          "assets/principal-pro/west-7.png"
+        ],
+        "north": [
+          "assets/principal-pro/north-0.png",
+          "assets/principal-pro/north-1.png",
+          "assets/principal-pro/north-2.png",
+          "assets/principal-pro/north-3.png",
+          "assets/principal-pro/north-4.png",
+          "assets/principal-pro/north-5.png",
+          "assets/principal-pro/north-6.png",
+          "assets/principal-pro/north-7.png"
+        ],
+        "south": [
+          "assets/principal-pro/south-0.png",
+          "assets/principal-pro/south-1.png",
+          "assets/principal-pro/south-2.png",
+          "assets/principal-pro/south-3.png",
+          "assets/principal-pro/south-4.png",
+          "assets/principal-pro/south-5.png",
+          "assets/principal-pro/south-6.png",
+          "assets/principal-pro/south-7.png"
+        ]
+      },
+      "src": "assets/principal-pro/south-west-0.png",
+      "facing": "south-west",
+      "fps": 8,
+      "x": 382,
+      "y": 195,
+      "scale": 0.22,
+      "scaleX": 0.22,
+      "scaleY": 0.22,
+      "rot": 0,
+      "flipX": false,
+      "flipY": false,
+      "lookNames": [
+        "undefined"
+      ],
+      "foot": [
+        0.44,
+        -8.02,
+        5.94,
+        4.28
+      ],
+      "srcAt": [
+        526,
+        106,
+        104,
+        104
+      ],
+      "dirsAt": {
+        "north-east": [
+          [
+            1,
+            1,
+            104,
+            104
+          ],
+          [
+            106,
+            1,
+            104,
+            104
+          ],
+          [
+            211,
+            1,
+            104,
+            104
+          ],
+          [
+            316,
+            1,
+            104,
+            104
+          ],
+          [
+            421,
+            1,
+            104,
+            104
+          ],
+          [
+            526,
+            1,
+            104,
+            104
+          ],
+          [
+            631,
+            1,
+            104,
+            104
+          ],
+          [
+            736,
+            1,
+            104,
+            104
+          ]
+        ],
+        "north-west": [
+          [
+            841,
+            1,
+            104,
+            104
+          ],
+          [
+            946,
+            1,
+            104,
+            104
+          ],
+          [
+            1051,
+            1,
+            104,
+            104
+          ],
+          [
+            1156,
+            1,
+            104,
+            104
+          ],
+          [
+            1261,
+            1,
+            104,
+            104
+          ],
+          [
+            1366,
+            1,
+            104,
+            104
+          ],
+          [
+            1471,
+            1,
+            104,
+            104
+          ],
+          [
+            1576,
+            1,
+            104,
+            104
+          ]
+        ],
+        "south-east": [
+          [
+            1681,
+            1,
+            104,
+            104
+          ],
+          [
+            1786,
+            1,
+            104,
+            104
+          ],
+          [
+            1891,
+            1,
+            104,
+            104
+          ],
+          [
+            1,
+            106,
+            104,
+            104
+          ],
+          [
+            106,
+            106,
+            104,
+            104
+          ],
+          [
+            211,
+            106,
+            104,
+            104
+          ],
+          [
+            316,
+            106,
+            104,
+            104
+          ],
+          [
+            421,
+            106,
+            104,
+            104
+          ]
+        ],
+        "south-west": [
+          [
+            526,
+            106,
+            104,
+            104
+          ],
+          [
+            631,
+            106,
+            104,
+            104
+          ],
+          [
+            736,
+            106,
+            104,
+            104
+          ],
+          [
+            841,
+            106,
+            104,
+            104
+          ],
+          [
+            946,
+            106,
+            104,
+            104
+          ],
+          [
+            1051,
+            106,
+            104,
+            104
+          ],
+          [
+            1156,
+            106,
+            104,
+            104
+          ],
+          [
+            1261,
+            106,
+            104,
+            104
+          ]
+        ],
+        "east": [
+          [
+            1366,
+            106,
+            104,
+            104
+          ],
+          [
+            1471,
+            106,
+            104,
+            104
+          ],
+          [
+            1576,
+            106,
+            104,
+            104
+          ],
+          [
+            1681,
+            106,
+            104,
+            104
+          ],
+          [
+            1786,
+            106,
+            104,
+            104
+          ],
+          [
+            1891,
+            106,
+            104,
+            104
+          ],
+          [
+            1,
+            211,
+            104,
+            104
+          ],
+          [
+            106,
+            211,
+            104,
+            104
+          ]
+        ],
+        "west": [
+          [
+            211,
+            211,
+            104,
+            104
+          ],
+          [
+            316,
+            211,
+            104,
+            104
+          ],
+          [
+            421,
+            211,
+            104,
+            104
+          ],
+          [
+            526,
+            211,
+            104,
+            104
+          ],
+          [
+            631,
+            211,
+            104,
+            104
+          ],
+          [
+            736,
+            211,
+            104,
+            104
+          ],
+          [
+            841,
+            211,
+            104,
+            104
+          ],
+          [
+            946,
+            211,
+            104,
+            104
+          ]
+        ],
+        "north": [
+          [
+            1576,
+            316,
+            100,
+            100
+          ],
+          [
+            1677,
+            316,
+            100,
+            100
+          ],
+          [
+            1778,
+            316,
+            100,
+            100
+          ],
+          [
+            1879,
+            316,
+            100,
+            100
+          ],
+          [
+            1,
+            421,
+            100,
+            100
+          ],
+          [
+            102,
+            421,
+            100,
+            100
+          ],
+          [
+            203,
+            421,
+            100,
+            100
+          ],
+          [
+            304,
+            421,
+            100,
+            100
+          ]
+        ],
+        "south": [
+          [
+            1051,
+            211,
+            104,
+            104
+          ],
+          [
+            1156,
+            211,
+            104,
+            104
+          ],
+          [
+            1261,
+            211,
+            104,
+            104
+          ],
+          [
+            1366,
+            211,
+            104,
+            104
+          ],
+          [
+            1471,
+            211,
+            104,
+            104
+          ],
+          [
+            1576,
+            211,
+            104,
+            104
+          ],
+          [
+            1681,
+            211,
+            104,
+            104
+          ],
+          [
+            1786,
+            211,
+            104,
+            104
+          ]
+        ]
+      }
+    },
+    {
+      "id": "a26",
+      "group": "props",
+      "src": "assets/principal-desk.png",
+      "x": 376,
+      "y": 203,
+      "scale": 0.344,
+      "scaleX": 0.344,
+      "scaleY": 0.344,
+      "rot": 0,
+      "flipX": true,
+      "flipY": false,
+      "lookNames": [
+        "undefined"
+      ],
+      "foot": [
+        0.86,
+        -6.95,
+        7.74,
+        5.57
+      ],
+      "srcAt": [
+        559,
+        619,
+        64,
+        56
+      ]
+    },
+    {
+      "id": "a30",
+      "name": "chart_table",
+      "group": "props",
+      "src": "assets/gen-a-low-table-of.png",
+      "x": 330,
+      "y": 226,
+      "scale": 0.4,
+      "scaleX": 0.4,
+      "scaleY": 0.4,
+      "rot": 0,
+      "flipX": false,
+      "flipY": false,
+      "lookNames": [
+        "undefined"
+      ],
+      "foot": [
+        2.2,
+        -3.94,
+        3.8,
+        2.74
+      ],
+      "srcAt": [
+        624,
+        619,
+        48,
+        40
+      ]
+    },
+    {
+      "id": "a38",
+      "name": "counselor",
+      "group": "props",
+      "dirs": {
+        "north-east": [
+          "assets/counselor-pro/north-east-0.png",
+          "assets/counselor-pro/north-east-1.png",
+          "assets/counselor-pro/north-east-2.png",
+          "assets/counselor-pro/north-east-3.png",
+          "assets/counselor-pro/north-east-4.png",
+          "assets/counselor-pro/north-east-5.png",
+          "assets/counselor-pro/north-east-6.png",
+          "assets/counselor-pro/north-east-7.png"
+        ],
+        "north-west": [
+          "assets/counselor-pro/north-west-0.png"
+        ],
+        "south-east": [
+          "assets/counselor-pro/south-east-0.png",
+          "assets/counselor-pro/south-east-1.png",
+          "assets/counselor-pro/south-east-2.png",
+          "assets/counselor-pro/south-east-3.png",
+          "assets/counselor-pro/south-east-4.png",
+          "assets/counselor-pro/south-east-5.png",
+          "assets/counselor-pro/south-east-6.png",
+          "assets/counselor-pro/south-east-7.png"
+        ],
+        "south-west": [
+          "assets/counselor-pro/south-west-0.png"
+        ],
+        "east": [
+          "assets/counselor-pro/east-0.png",
+          "assets/counselor-pro/east-1.png",
+          "assets/counselor-pro/east-2.png",
+          "assets/counselor-pro/east-3.png",
+          "assets/counselor-pro/east-4.png",
+          "assets/counselor-pro/east-5.png",
+          "assets/counselor-pro/east-6.png",
+          "assets/counselor-pro/east-7.png"
+        ],
+        "west": [
+          "assets/counselor-pro/west-0.png",
+          "assets/counselor-pro/west-1.png",
+          "assets/counselor-pro/west-2.png",
+          "assets/counselor-pro/west-3.png",
+          "assets/counselor-pro/west-4.png",
+          "assets/counselor-pro/west-5.png",
+          "assets/counselor-pro/west-6.png",
+          "assets/counselor-pro/west-7.png"
+        ],
+        "north": [
+          "assets/counselor-pro/north-0.png",
+          "assets/counselor-pro/north-1.png",
+          "assets/counselor-pro/north-2.png",
+          "assets/counselor-pro/north-3.png",
+          "assets/counselor-pro/north-4.png",
+          "assets/counselor-pro/north-5.png",
+          "assets/counselor-pro/north-6.png",
+          "assets/counselor-pro/north-7.png"
+        ],
+        "south": [
+          "assets/counselor-pro/south-0.png",
+          "assets/counselor-pro/south-1.png",
+          "assets/counselor-pro/south-2.png",
+          "assets/counselor-pro/south-3.png",
+          "assets/counselor-pro/south-4.png",
+          "assets/counselor-pro/south-5.png",
+          "assets/counselor-pro/south-6.png",
+          "assets/counselor-pro/south-7.png"
+        ]
+      },
+      "src": "assets/counselor-pro/south-0.png",
+      "facing": "south",
+      "fps": 8,
+      "x": 324,
+      "y": 181,
+      "scale": 0.207,
+      "scaleX": 0.207,
+      "scaleY": 0.207,
+      "rot": 0,
+      "flipX": false,
+      "flipY": false,
+      "lookNames": [
+        "undefined"
+      ],
+      "foot": [
+        0.52,
+        -6.76,
+        5.07,
+        3.65
+      ],
+      "srcAt": [
+        777,
+        522,
+        96,
+        96
+      ],
+      "dirsAt": {
+        "north-east": [
+          [
+            405,
+            421,
+            100,
+            100
+          ],
+          [
+            506,
+            421,
+            100,
+            100
+          ],
+          [
+            607,
+            421,
+            100,
+            100
+          ],
+          [
+            708,
+            421,
+            100,
+            100
+          ],
+          [
+            809,
+            421,
+            100,
+            100
+          ],
+          [
+            910,
+            421,
+            100,
+            100
+          ],
+          [
+            1011,
+            421,
+            100,
+            100
+          ],
+          [
+            1112,
+            421,
+            100,
+            100
+          ]
+        ],
+        "north-west": [
+          [
+            196,
+            619,
+            80,
+            80
+          ]
+        ],
+        "south-east": [
+          [
+            1213,
+            421,
+            100,
+            100
+          ],
+          [
+            1314,
+            421,
+            100,
+            100
+          ],
+          [
+            1415,
+            421,
+            100,
+            100
+          ],
+          [
+            1516,
+            421,
+            100,
+            100
+          ],
+          [
+            1617,
+            421,
+            100,
+            100
+          ],
+          [
+            1718,
+            421,
+            100,
+            100
+          ],
+          [
+            1819,
+            421,
+            100,
+            100
+          ],
+          [
+            1920,
+            421,
+            100,
+            100
+          ]
+        ],
+        "south-west": [
+          [
+            277,
+            619,
+            80,
+            80
+          ]
+        ],
+        "east": [
+          [
+            1891,
+            211,
+            104,
+            104
+          ],
+          [
+            1,
+            316,
+            104,
+            104
+          ],
+          [
+            106,
+            316,
+            104,
+            104
+          ],
+          [
+            211,
+            316,
+            104,
+            104
+          ],
+          [
+            316,
+            316,
+            104,
+            104
+          ],
+          [
+            421,
+            316,
+            104,
+            104
+          ],
+          [
+            526,
+            316,
+            104,
+            104
+          ],
+          [
+            631,
+            316,
+            104,
+            104
+          ]
+        ],
+        "west": [
+          [
+            736,
+            316,
+            104,
+            104
+          ],
+          [
+            841,
+            316,
+            104,
+            104
+          ],
+          [
+            946,
+            316,
+            104,
+            104
+          ],
+          [
+            1051,
+            316,
+            104,
+            104
+          ],
+          [
+            1156,
+            316,
+            104,
+            104
+          ],
+          [
+            1261,
+            316,
+            104,
+            104
+          ],
+          [
+            1366,
+            316,
+            104,
+            104
+          ],
+          [
+            1471,
+            316,
+            104,
+            104
+          ]
+        ],
+        "north": [
+          [
+            1,
+            522,
+            96,
+            96
+          ],
+          [
+            98,
+            522,
+            96,
+            96
+          ],
+          [
+            195,
+            522,
+            96,
+            96
+          ],
+          [
+            292,
+            522,
+            96,
+            96
+          ],
+          [
+            389,
+            522,
+            96,
+            96
+          ],
+          [
+            486,
+            522,
+            96,
+            96
+          ],
+          [
+            583,
+            522,
+            96,
+            96
+          ],
+          [
+            680,
+            522,
+            96,
+            96
+          ]
+        ],
+        "south": [
+          [
+            777,
+            522,
+            96,
+            96
+          ],
+          [
+            874,
+            522,
+            96,
+            96
+          ],
+          [
+            971,
+            522,
+            96,
+            96
+          ],
+          [
+            1068,
+            522,
+            96,
+            96
+          ],
+          [
+            1165,
+            522,
+            96,
+            96
+          ],
+          [
+            1262,
+            522,
+            96,
+            96
+          ],
+          [
+            1359,
+            522,
+            96,
+            96
+          ],
+          [
+            1456,
+            522,
+            96,
+            96
+          ]
+        ]
+      }
+    },
+    {
+      "id": "a41",
+      "name": "hearth",
+      "group": "props",
+      "frames": [
+        "assets/hearth-2/0.png",
+        "assets/hearth-2/1.png",
+        "assets/hearth-2/2.png",
+        "assets/hearth-2/3.png",
+        "assets/hearth-2/4.png",
+        "assets/hearth-2/5.png",
+        "assets/hearth-2/6.png",
+        "assets/hearth-2/7.png",
+        "assets/hearth-2/8.png"
+      ],
+      "fps": 8,
+      "x": 355,
+      "y": 214,
+      "scale": 0.282,
+      "scaleX": 0.282,
+      "scaleY": 0.282,
+      "rot": 0,
+      "flipX": false,
+      "flipY": false,
+      "lookNames": [
+        "undefined"
+      ],
+      "foot": [
+        0,
+        -5.8,
+        6.49,
+        4.67
+      ],
+      "framesAt": [
+        [
+          1626,
+          522,
+          64,
+          96
+        ],
+        [
+          1691,
+          522,
+          64,
+          96
+        ],
+        [
+          1756,
+          522,
+          64,
+          96
+        ],
+        [
+          1821,
+          522,
+          64,
+          96
+        ],
+        [
+          1886,
+          522,
+          64,
+          96
+        ],
+        [
+          1951,
+          522,
+          64,
+          96
+        ],
+        [
+          1,
+          619,
+          64,
+          96
+        ],
+        [
+          66,
+          619,
+          64,
+          96
+        ],
+        [
+          131,
+          619,
+          64,
+          96
+        ]
+      ]
+    },
+    {
+      "id": "a42",
+      "name": "outfitter",
+      "group": "props",
+      "src": "assets/outfitter-wardrobe.png",
+      "x": 426,
+      "y": 202,
+      "scale": 0.243,
+      "scaleX": 0.243,
+      "scaleY": 0.243,
+      "rot": 0,
+      "flipX": false,
+      "flipY": false,
+      "lookNames": [
+        "undefined"
+      ],
+      "foot": [
+        0.61,
+        -5.08,
+        5.71,
+        4.11
+      ],
+      "srcAt": [
+        1553,
+        522,
+        72,
+        96
+      ]
+    },
+    {
+      "id": "a44",
+      "name": "the_trophy_wall",
+      "group": "props",
+      "src": "assets/trophy-shelf.png",
+      "x": 290,
+      "y": 203,
+      "scale": 0.296,
+      "scaleX": 0.296,
+      "scaleY": 0.296,
+      "rot": 0,
+      "flipX": true,
+      "flipY": false,
+      "lookNames": [
+        "undefined"
+      ],
+      "foot": [
+        -0.44,
+        -5.9,
+        6.96,
+        5.01
+      ],
+      "srcAt": [
+        358,
+        619,
+        64,
+        80
+      ]
+    }
+  ],
+  "atlas": "atlas.png"
+}

@@ -1,8 +1,15 @@
 {
   "id": "panther-maw",
-  "w": 512,
-  "h": 512,
+  "w": 688,
+  "h": 384,
+  "base": {
+    "w": 688,
+    "h": 384,
+    "ox": 0,
+    "oy": 0
+  },
   "class": "room",
+  "title": "Panther's Maw",
   "encoding": {
     "blocked": 0,
     "L0": 40,
@@ -15,161 +22,206 @@
     "stepTolerance": 10
   },
   "spawn": [
-    256,
-    438
+    164,
+    106
   ],
   "character": {
-    "heightPx": 36,
-    "hip": 4,
-    "hipDY": 2
+    "heightPx": 20,
+    "hip": 2,
+    "hipDY": 1
   },
-  "speed": 68,
-  "yScale": 0.72,
+  "speed": 54,
+  "yScale": 0.7200000286102295,
   "stairs": [],
   "occluders": [],
   "anchors": [
     {
-      "name": "arrive_maw",
-      "kind": "spawn",
-      "x": 256,
-      "y": 438,
-      "r": 10,
-      "label": "",
-      "facing": "north",
+      "name": "east_tunnel",
+      "kind": "door",
+      "x": 531,
+      "y": 117,
+      "r": 14,
+      "to": "maw-east",
+      "label": "The East Gallery",
       "meta": {
-        "why": "where the hub door puts you: on the bridge, facing in"
+        "docId": 3
       }
     },
     {
       "name": "maw_entrance",
       "kind": "door",
-      "x": 256,
-      "y": 476,
-      "r": 20,
+      "x": 158,
+      "y": 95,
+      "r": 18,
       "to": "hub",
       "toAnchor": "panthers_maw",
-      "label": "the harbor",
+      "label": "Hub Island",
       "meta": {
-        "why": "the far side of the tunnel he walked into"
+        "docId": 1
+      }
+    },
+    {
+      "name": "west_tunnel",
+      "kind": "door",
+      "x": 139,
+      "y": 318,
+      "r": 20,
+      "to": "maw-west",
+      "label": "The West Gallery",
+      "meta": {
+        "docId": 4
       }
     },
     {
       "name": "chart_table",
       "kind": "post",
-      "x": 170,
-      "y": 232,
-      "r": 30,
-      "facing": "south",
-      "label": "Open the year sheet"
-    },
-    {
-      "name": "hearth",
-      "kind": "post",
-      "x": 256,
-      "y": 258,
-      "r": 30,
-      "facing": "south",
-      "label": "Advisory"
+      "x": 330,
+      "y": 226,
+      "r": 10,
+      "stand": [
+        335,
+        211
+      ],
+      "placement": "chart_table",
+      "facing": "south-west",
+      "meta": {
+        "ring": [
+          0,
+          -8
+        ],
+        "when": "The Chart Table",
+        "docId": 7,
+        "shape": "circle"
+      }
     },
     {
       "name": "counselor",
       "kind": "post",
-      "x": 342,
-      "y": 232,
-      "r": 30,
-      "facing": "south",
-      "label": "the counselor"
+      "x": 324,
+      "y": 181,
+      "r": 12,
+      "placement": "counselor",
+      "facing": "north",
+      "label": "The Counselor",
+      "meta": {
+        "ring": [
+          0,
+          -6
+        ],
+        "docId": 10
+      }
     },
     {
-      "name": "principal_desk",
+      "name": "hearth",
       "kind": "post",
-      "x": 196,
-      "y": 322,
-      "r": 30,
-      "facing": "north",
-      "label": "Principal Panther",
+      "x": 355,
+      "y": 214,
+      "r": 10,
+      "stand": [
+        349,
+        212
+      ],
+      "placement": "hearth",
+      "facing": "north-east",
+      "label": "The Hearth",
       "meta": {
-        "framing": {
-          "zoom": 1.5,
-          "dy": -14,
-          "name": "default"
-        },
-        "framings": {
-          "close": {
-            "zoom": 1.9,
-            "dy": -18
-          },
-          "wide": {
-            "zoom": 1.05,
-            "dy": 0
-          }
-        }
+        "ring": [
+          -1,
+          -6
+        ],
+        "docId": 9
       }
     },
     {
       "name": "outfitter",
       "kind": "post",
-      "x": 316,
-      "y": 322,
-      "r": 30,
-      "facing": "north",
-      "label": "the outfitter"
-    },
-    {
-      "name": "trophy_wall",
-      "kind": "point",
-      "x": 256,
-      "y": 178,
-      "r": 26,
-      "label": "the trophy wall",
+      "x": 426,
+      "y": 202,
+      "r": 14,
+      "stand": [
+        420,
+        201
+      ],
+      "placement": "outfitter",
+      "facing": "north-east",
+      "label": "The Outfitter",
       "meta": {
-        "why": "a WALL, so it costs no floor and no station slot"
+        "ring": [
+          -5,
+          -5
+        ],
+        "docId": 11
       }
     },
     {
-      "name": "east_tunnel",
-      "kind": "door",
-      "x": 480,
-      "y": 250,
-      "r": 20,
-      "to": "maw-east",
-      "label": "the east tunnel"
+      "name": "principal_desk",
+      "kind": "post",
+      "x": 382,
+      "y": 195,
+      "r": 14,
+      "stand": [
+        370,
+        201
+      ],
+      "placement": "principal_desk",
+      "facing": "north-east",
+      "label": "Principal Panther",
+      "meta": {
+        "ring": [
+          -5,
+          -4
+        ],
+        "docId": 8
+      }
     },
     {
-      "name": "west_tunnel",
-      "kind": "door",
-      "x": 32,
-      "y": 250,
-      "r": 20,
-      "to": "maw-west",
-      "label": "the west tunnel"
+      "name": "trophy_wall",
+      "kind": "post",
+      "x": 290,
+      "y": 203,
+      "r": 14,
+      "stand": [
+        298,
+        201
+      ],
+      "placement": "the_trophy_wall",
+      "facing": "north-west",
+      "label": "The Trophy Wall",
+      "meta": {
+        "ring": [
+          4,
+          -11
+        ],
+        "docId": 12
+      }
     },
     {
       "name": "the_hall",
       "kind": "region",
-      "x": 256,
-      "y": 255,
-      "r": 8,
+      "x": 355,
+      "y": 204,
+      "r": 14,
       "rect": [
-        120,
-        158,
-        392,
-        352
+        273,
+        166,
+        439,
+        249
       ],
-      "label": "the hall",
+      "label": "The Hall",
       "meta": {
-        "why": "the platform itself, for ambience and for a grape to test against"
+        "docId": 6,
+        "shape": "rect"
       }
     },
     {
-      "name": "hall_step",
-      "kind": "trigger",
-      "x": 256,
-      "y": 346,
-      "r": 26,
-      "label": "",
+      "name": "arrive_maw",
+      "kind": "spawn",
+      "x": 185,
+      "y": 115,
+      "r": 14,
+      "facing": "south-east",
       "meta": {
-        "why": "the lip of the platform: the first step off the bridge, fired once"
+        "docId": 2
       }
     }
   ],
@@ -177,29 +229,37 @@
     {
       "id": 1,
       "type": "door",
-      "x": 256,
-      "y": 476,
-      "r": 20,
-      "label": "the harbor",
+      "x": 158,
+      "y": 95,
+      "r": 18,
+      "label": "Hub Island",
       "to": "hub"
-    },
-    {
-      "id": 2,
-      "type": "door",
-      "x": 480,
-      "y": 250,
-      "r": 20,
-      "label": "the east tunnel",
-      "to": "maw-east"
     },
     {
       "id": 3,
       "type": "door",
-      "x": 32,
-      "y": 250,
+      "x": 531,
+      "y": 117,
+      "r": 14,
+      "label": "The East Gallery",
+      "to": "maw-east"
+    },
+    {
+      "id": 4,
+      "type": "door",
+      "x": 139,
+      "y": 318,
       "r": 20,
-      "label": "the west tunnel",
+      "label": "The West Gallery",
       "to": "maw-west"
     }
-  ]
+  ],
+  "contract": 2,
+  "slug": "panther-maw",
+  "version": 4,
+  "provenance": {
+    "owner": "algorithmicthinkingclub@gmail.com",
+    "publishedAt": "2026-09-03T03:02:01.241Z",
+    "version": 4
+  }
 }
