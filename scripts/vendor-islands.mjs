@@ -33,7 +33,7 @@ const DEST = path.join(ROOT, 'public', 'grapes')
  *
  * Every id here must have a row in src/game/roster/vine-islands.ts, or be the
  * opening; `vendor-islands.test.ts` fails when they drift apart. */
-const ISLANDS = ['panther-maw', 'castaway']
+const ISLANDS = ['panther-maw', 'castaway', 'the-hub']
 
 /* the fixtures this repo really does own: the grape harness runs them, they are
  * committed here, and the vendor never touches them */

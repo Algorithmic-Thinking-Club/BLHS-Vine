@@ -54,6 +54,11 @@ export const VINE_ISLANDS: VineIsland[] = [
     folder: 'panther-maw',
     what: "the home base: the founding event, the planner, the fire, the cords, the wardrobe, the wall",
   },
+  {
+    map: 'hub',
+    folder: 'the-hub',
+    what: "the central island: the ship sails herself in, and three people on the way up from the dock",
+  },
 ]
 
 const byMap = new Map(VINE_ISLANDS.map((i) => [i.map, i]))
