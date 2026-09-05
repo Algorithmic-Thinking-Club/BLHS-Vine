@@ -4140,7 +4140,22 @@ export default function PmapScene() {
         ri: number
         until: number
         label: string
+        /* SETTLING IS NOT ARRIVING, and conflating them fired stations nobody
+         * pressed.
+         *
+         * `done` settles whatever was waiting on this walk, and it MUST run on
+         * every path out, including every cancellation, or a station body waits
+         * on a promise nothing can keep. So a click-walk that put its action in
+         * `done` ran that action when it was cancelled: press a key two paces
+         * into a walk you started by clicking the chart table, and the year sheet
+         * opened. On a door it was worse, because the action is `beginExit` and
+         * the map swapped from across the room.
+         *
+         * `arrive` is the other half and it runs on ONE path: he actually got
+         * there. Not on the give-up clock either, because a walk that never
+         * reached the table is not a student who pressed it. */
         done: () => void
+        arrive?: () => void
         /* WHOSE WALK IT IS, and it decides one thing: whether an opening panel
          * cancels it. The ticker runs an auto-walk while the world is HELD on
          * purpose, because a station's own `walk_to` has to keep working while
@@ -4176,7 +4191,11 @@ export default function PmapScene() {
       /* ONE WALK, THREE CALLERS: `walk_to` from a grape, `actorMove` from a script,
        * and the idle auto-walk a `walkTo` gate falls back to when a player stands
        * still. They were three different things and only one of them existed. */
-      const startWalk = (goal: { x: number; y: number }, reach: number, facing: string | null, done: () => void, label = 'a point', byPlayer = false) => {
+      const startWalk = (
+        goal: { x: number; y: number }, reach: number, facing: string | null,
+        done: () => void, label = 'a point',
+        opts: { byPlayer?: boolean; arrive?: () => void } = {},
+      ) => {
         /* THE ONE ALREADY RUNNING IS RESOLVED, NEVER DROPPED. `walk_to` hands its
          * promise's resolve in as `done`, so overwriting a live walk leaves a
          * station body awaiting a promise nothing can settle: `busy` stays true,
@@ -4191,7 +4210,11 @@ export default function PmapScene() {
         }
         const r = findPath(doc, cfg, { x: pos.x, y: pos.y }, goal, { step: 4, reach })
         if (!r.reached) console.warn(`[pmap] walk to ${label}: no route from here, steering straight at it`)
-        autoWalk = { goal, reach, facing, route: r.points, ri: 0, until: performance.now() + 20000, label, done, byPlayer }
+        autoWalk = {
+          goal, reach, facing, route: r.points, ri: 0,
+          until: performance.now() + 20000, label, done,
+          byPlayer: opts.byPlayer, arrive: opts.arrive,
+        }
       }
 
       /* ---- A CLICK IS A DESTINATION ------------------------------------------
@@ -4228,7 +4251,8 @@ export default function PmapScene() {
            * him in the same place. An authored stand point is exact; without one
            * the ring's own radius is the tolerance the author drew. */
           startWalk(g, a.stand ? 3 : Math.max(4, a.r * 0.5), g.facing ?? null,
-            () => { void fire(a) }, a.name, true)
+            () => { /* nothing was waiting on it */ }, a.name,
+            { byPlayer: true, arrive: () => { void fire(a) } })
           engine.log('click_walk', { map: mapId, anchor: a.name })
           return 'fired'
         }
@@ -4242,7 +4266,7 @@ export default function PmapScene() {
         const r = findPath(doc, cfg, { x: pos.x, y: pos.y }, { x: px, y: py }, { step: 4 })
         const end = r.reached ? { x: px, y: py } : r.points[r.points.length - 1]
         if (!end || (Math.hypot(end.x - pos.x, end.y - pos.y) < 6 && !r.reached)) return 'nothing'
-        startWalk(end, 6, null, () => { /* he simply arrives */ }, 'a point he clicked', true)
+        startWalk(end, 6, null, () => { /* he simply arrives */ }, 'a point he clicked', { byPlayer: true })
         engine.log('click_walk', { map: mapId, to: [Math.round(end.x), Math.round(end.y)], reached: r.reached })
         return 'walking'
       }
@@ -4851,7 +4875,19 @@ export default function PmapScene() {
         if (berthing || voyage) {
           answer({ ok: false, why: 'The boat is already sailing somewhere.' }); return
         }
-        if (worldHeld() || fade || busy) {
+        /* NOT `worldHeld()`, WHICH IS THE STATE THIS IS ALWAYS ASKED FROM.
+         *
+         * The chart lives inside the Handbook, an open panel takes
+         * `holdWorld('hud:panel')`, and the request is dispatched synchronously
+         * while that panel is still on screen. So a guard on the world hold
+         * refused EVERY chart click in both study arms, always: the student read
+         * "not while something else is happening" about a game in which nothing
+         * was happening except the panel they were being asked to click.
+         *
+         * What actually has to be refused is something DRIVING the world: a door
+         * mid-swap, a station mid-sentence, a cutscene mid-shot. A panel is not
+         * one of those, and it closes itself the moment this answers yes. */
+        if (fade || busy || runtime.running) {
           answer({ ok: false, why: 'Not while something else is happening.' }); return
         }
 
@@ -5144,6 +5180,21 @@ export default function PmapScene() {
         get guide() { return guideTarget?.name ?? leading ?? null },
         get guideAsked() { return guideTarget?.name ?? null },
         get walkLabel() { return autoWalk?.label ?? null },
+        /* THE LIGHT ON THE THING HE SHOULD WALK TO, in window pixels, because
+         * "the objective is lit" is a claim about a picture and a boolean cannot
+         * carry it. A capture harness can crop to this; a gate can assert it is
+         * on screen at all, which is the failure that would otherwise be invisible
+         * in a screenshot of a busy painting. */
+        get lit() {
+          if (!lit.visible) return null
+          const g = lit.getGlobalPosition()
+          const bb = lit.getBounds()
+          return {
+            at: { x: Math.round(g.x), y: Math.round(g.y) },
+            w: Math.round(bb.width), h: Math.round(bb.height),
+            alpha: +lit.alpha.toFixed(2),
+          }
+        },
         get hull() { return hull ? { x: hull.x, y: hull.y, speed: hull.speed, aground: hull.aground } : null },
         get berthing() { return berthing ? { stage: berthing.stage } : null },
         get sailing() { return sailing ? { path: sailing.path.name, leg: sailing.i } : null },
@@ -5251,6 +5302,11 @@ export default function PmapScene() {
             if (A.facing && walkT[A.facing]) walker.facing = A.facing
             autoWalk = null
             A.done()
+            /* AND ONLY NOW. `arrive` is the thing a click meant, and it runs
+             * after `autoWalk` is already null so that anything it does which
+             * takes the world (a station does, a door does) cannot cancel a walk
+             * that has just finished. */
+            if (arrived) A.arrive?.()
           } else {
             /* ALONG THE ROUTE, waypoint by waypoint. Steering straight at the goal
              * is what stalled in a maze; steering at the next point of a route the
@@ -5757,21 +5813,41 @@ export default function PmapScene() {
            * Squashed by the painting's own foreshortening so it reads as lying on
            * the floor rather than as a decal facing the camera. */
           const spot = anchors.spotOf(mark)
-          const want = Math.max(10, Math.round(mark.r))
+          /* HOW BIG, AND IT IS NOT THE RING'S OWN RADIUS. Measured in a browser
+           * on the live hub: `panthers_maw` carries r 14, which drew a 35 by 14
+           * pixel ellipse on a 1366 wide screen, in a painting full of market
+           * stalls. It was there and it taught nobody anything. An author sets
+           * `r` for how close you have to STAND, which is a different question
+           * from how big the light that says "here" has to be, and the second one
+           * is answered against the body: about two of him across is a pool a
+           * fourteen year old sees without being told to look. */
+          const want = Math.max(mark.r, Math.round(map.character.heightPx * 1.1), 22)
           if (litKey !== mark.name || litR !== want) {
             litKey = mark.name
             litR = want
-            const ry = Math.max(4, want * (map.yScale || 1) * 0.5)
+            const ry = Math.max(6, want * (map.yScale || 1) * 0.5)
+            /* AND IT IS NOT CARRIED BY HUE ALONE (§40.31). The deployment target
+             * is a Chromebook panel that crushes lightness and saturation, and
+             * this thing sits on sand, on stone and on grass depending on which
+             * station the year is pointing at. So the shape is a dark ring with a
+             * bright one inside it: the dark one is what makes it read on pale
+             * ground, and it is the painting's own outline brown rather than a
+             * colour the engine invented. */
             lit.clear()
-            lit.ellipse(0, 0, want, ry).fill({ color: 0x2f8e82, alpha: 0.18 })
-            lit.ellipse(0, 0, want, ry).stroke({ color: 0x2f8e82, width: 2, alpha: 0.9 })
+            lit.ellipse(0, 0, want + 2, ry + 2).stroke({ color: 0x3a2410, width: 3, alpha: 0.55 })
+            lit.ellipse(0, 0, want, ry).fill({ color: 0x2f8e82, alpha: 0.3 })
+            lit.ellipse(0, 0, want, ry).stroke({ color: 0x5fd8c6, width: 2 })
           }
           lit.position.set(spot.x, spot.y)
           /* over the painting, under anything standing on the same pixel, under
            * Thor and under every occluder: light pooled on the ground rather than
            * a sticker over the art */
           lit.zIndex = spot.y - 0.5
-          lit.alpha = prefersReducedMotion() ? 0.85 : 0.7 + Math.sin(t * 2.6) * 0.3
+          /* THE PULSE BREATHES, IT DOES NOT BLINK. A light that drops to a third
+           * of itself reads as a thing that is broken; the whole range here stays
+           * bright enough to be the answer to "what do I do", and it is off
+           * entirely for a student who asked for less motion. */
+          lit.alpha = prefersReducedMotion() ? 1 : 0.82 + Math.sin(t * 2.6) * 0.18
           lit.visible = objMark.visible
 
           /* the route itself, in dots, so "round that way" is visible rather than
