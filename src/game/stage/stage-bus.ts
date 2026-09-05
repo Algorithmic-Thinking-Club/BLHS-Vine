@@ -60,3 +60,31 @@ export function onStageBusy(fn: () => void): () => void {
   busyListeners.add(fn)
   return () => { busyListeners.delete(fn) }
 }
+
+/* ---- IS THERE A WORLD ON THE GLASS AT ALL ---------------------------------
+ *
+ * STATE-OF-THE-GAME confusing 5 and ugly 1. A map load is two to twenty
+ * seconds of black, and the year's opening speech mounted on a timer from the
+ * HUD's own mount, so Principal Panther's first line of the year could open over
+ * nothing: no room, no body, no place. `Hud.tsx` gated on `settled`, which was a
+ * clock, and a clock does not know whether the painting arrived.
+ *
+ * The scene says so here the moment its first frame is on screen, and says
+ * so again with `null` when it tears down for a door. The HUD reads it the way
+ * it reads the card: as one more reason the world is not quiet yet. */
+let drawnMap: string | null = null
+const drawnListeners = new Set<(map: string | null) => void>()
+
+/** the id of the map whose first frame is on screen, or null while loading */
+export const sceneDrawn = (): string | null => drawnMap
+
+export function setSceneDrawn(map: string | null): void {
+  if (map === drawnMap) return
+  drawnMap = map
+  for (const fn of drawnListeners) fn(map)
+}
+
+export function onSceneDrawn(fn: (map: string | null) => void): () => void {
+  drawnListeners.add(fn)
+  return () => { drawnListeners.delete(fn) }
+}

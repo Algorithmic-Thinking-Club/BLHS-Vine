@@ -68,7 +68,7 @@ import {
 } from '../world/sail'
 import { cover } from '../../app/transitions'
 import { coverFor, markSeen, seenThisSession, titleOfMap } from '../stage/covers'
-import { showPlaceCard } from '../stage/stage-bus'
+import { setSceneDrawn, showPlaceCard } from '../stage/stage-bus'
 import { motionMs, prefersReducedMotion } from '../ui/motion'
 import { uiBand } from '../ui/frame'
 import { kitNineSlice, kitPieceHeight, kitSprite, kitTexture } from '../ui/kitSprite'
@@ -3010,6 +3010,7 @@ export default function PmapScene() {
            * exactly the right amount of trust. */
           recordPosition({ map: to.map, ...(to.at ? { anchor: to.at } : {}) })
           ;(window as unknown as { __sceneReady?: boolean }).__sceneReady = false
+          setSceneDrawn(null)
           /* re-runs the effect on the new target, which tears this Pixi app down
            * and builds the next one */
           setTarget(to)
@@ -6445,6 +6446,9 @@ export default function PmapScene() {
       })
 
       ;(window as any).__sceneReady = true
+      /* and the HUD is told the same thing, so nothing it mounts can open over
+       * the black that came before this frame */
+      setSceneDrawn(mapId)
 
       /* ---- THE PLACE CARD: WHERE YOU ARE, ONCE, ON ARRIVAL ----
        *
@@ -6467,9 +6471,11 @@ export default function PmapScene() {
     }
 
     ;(window as any).__sceneReady = false
+    setSceneDrawn(null)
     start().catch((err) => console.error('[PmapScene] failed', err))
     return () => {
       destroyed = true
+      setSceneDrawn(null)
       window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku)
       offHold()
       offSail()

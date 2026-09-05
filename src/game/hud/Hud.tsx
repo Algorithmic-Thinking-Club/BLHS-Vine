@@ -19,7 +19,8 @@ import { useNav } from '../../app/SceneManager'
 import { track } from '../telemetry'
 import { onBeatRequest, onUiRequest } from '../ui-bus'
 import { onWorldHold, worldHeld } from '../world-bus'
-import { onPlaceCard, onStageBusy, placeCardUp } from '../stage/stage-bus'
+import { onPlaceCard, onSceneDrawn, onStageBusy, placeCardUp, sceneDrawn } from '../stage/stage-bus'
+import { FOUNDING_FLAG } from '../run/objective'
 import { panelDepth, usePanel } from '../ui/a11y'
 import { faceStyle } from '../ui/kitFaceStyle'
 import { Glyph, Plank, useKitReady } from '../ui/controls'
@@ -243,6 +244,12 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
    * already been in this sitting), so nothing waits for ever on a card that is
    * never coming. */
   const [settled, setSettled] = useState(false)
+  /* AND WHETHER THERE IS A WORLD ON THE GLASS AT ALL. The timer above started
+   * at this component's mount, which is before the map has loaded, so on a slow
+   * load the year's first line opened over pure black (STATE-OF-THE-GAME
+   * confusing 5, ugly 1). The scene says when its first frame is up; the settle
+   * clock starts again from that moment. */
+  const [drawn, setDrawn] = useState(!!sceneDrawn())
   useEffect(() => {
     let t = window.setTimeout(() => setSettled(true), 2600)
     const off = onPlaceCard(() => {
@@ -250,7 +257,14 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       window.clearTimeout(t)
       t = window.setTimeout(() => setSettled(true), 5200)
     })
-    return () => { window.clearTimeout(t); off() }
+    const offDrawn = onSceneDrawn((map) => {
+      setDrawn(!!map)
+      if (!map) return
+      setSettled(false)
+      window.clearTimeout(t)
+      t = window.setTimeout(() => setSettled(true), 2600)
+    })
+    return () => { window.clearTimeout(t); off(); offDrawn() }
   }, [])
 
   const yearBeat = s ? coreBeatFor(s.year, s) : null
@@ -268,8 +282,15 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
    * The comment on `ys-card` records the earlier half of this same bug: "in the
    * Maw the year's first line covered the place card every single time". This is
    * the rest of it. Where you are, then what the year is. */
-  const showVignette = !!s?.introDone && !anyOpen && !paused && !held && !s.graduated
-    && !cardUp && settled && !s.flags.includes(`vignette:y${s.year}`)
+  /* AND NEVER BEFORE THE PRINCIPAL HAS BEEN MET. The founding is the year's
+   * opening: he walks over and says one line, in the Maw, and writes the
+   * year-one vignette flag himself (islands/panther-maw/founding.py). Until
+   * that flag exists nothing on any map is owed a speech from him, so the card
+   * cannot race the founding on the Maw or play at the dock on the hub while
+   * the task line says to go and find him (STATE-OF-THE-GAME confusing 5). */
+  const showVignette = !!s?.introDone && s.flags.includes(FOUNDING_FLAG)
+    && !anyOpen && !paused && !held && !s.graduated
+    && !cardUp && settled && drawn && !s.flags.includes(`vignette:y${s.year}`)
 
   return (
     <>
