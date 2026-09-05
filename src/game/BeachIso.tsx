@@ -1125,6 +1125,53 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       }
       if (onStage) onStage(stage)
 
+      /* ---- A CLICK IS A DESTINATION ON THE BEACH TOO -------------------------
+       *
+       * SWEEP-1 item 4, and it is the first four minutes of the game for every
+       * student. This file had no pointer handler of any kind: no `pointerdown`,
+       * no `pointertap`, no `eventMode`. The first instruction the game has ever
+       * given is "Walk to the bottle. Press W A S D or the arrow keys", and a
+       * freshman on a trackpad clicked the sand, moved zero pixels, and stood
+       * still for about twenty seconds until the script gave up and walked him
+       * itself. `PmapScene` grew this in `bd9cac7` for the painted maps; the
+       * beach, which is the one map every student meets first, never did.
+       *
+       * IT STEERS, IT DOES NOT TELEPORT AND IT DOES NOT PATHFIND. The target is
+       * fed back in as the same `dx`/`dy` the keys produce, so every probe, every
+       * corner assist and every collider below applies unchanged: he stops where
+       * a person walking with the keys would stop, and the walkTo gates resolve
+       * on the same radius test they already use. There is no route search on
+       * this map to give him, so a click behind a rock walks him into the rock
+       * and stops, which is the honest reading of a click nobody can reach.
+       *
+       * THE INVERSE OF `ocean.ts`'s PROJECTION, which is the only geometry here:
+       * x is (tx - ty) * HW and y is (tx + ty) * HH, so tx is (x/HW + y/HH) / 2
+       * and ty is (y/HH - x/HW) / 2. Height is ignored on purpose: the pier is
+       * the only lifted ground and a click on it lands a tile or so short, which
+       * the walk then closes on foot. */
+      let clickWalk: { tx: number; ty: number; until: number; last: number; lx: number; ly: number } | null = null
+      instance.stage.eventMode = 'static'
+      instance.stage.hitArea = instance.screen
+      /* THE SAME TWO GUARDS `PmapScene` LEARNED THE HARD WAY: a drag across the
+       * window is not a tap, and a two-finger trackpad tap is not a press. */
+      const TAP_SLOP = 6
+      let tapDown: { x: number; y: number } | null = null
+      instance.stage.on('pointerdown', (e) => {
+        tapDown = e.button === 0 ? { x: e.global.x, y: e.global.y } : null
+      })
+      instance.stage.on('pointertap', (e) => {
+        if (e.button !== 0 || !tapDown) return
+        if (Math.hypot(e.global.x - tapDown.x, e.global.y - tapDown.y) > TAP_SLOP) return
+        /* a cutscene holding the controls owns him, and so does the boat: the
+         * hull is steered, not walked, and the sail is its own gate. */
+        if (inputMuted) return
+        if (veh && (veh.state === 'crewed' || veh.hop)) return
+        const p = world.toLocal(e.global)
+        const tx = (p.x / HW + p.y / HH) / 2
+        const ty = (p.y / HH - p.x / HW) / 2
+        clickWalk = { tx, ty, until: performance.now() + 12000, last: performance.now(), lx: pos.tx, ly: pos.ty }
+      })
+
       instance.ticker.add((tk) => {
         const dt = tk.deltaTime
         cs.tick?.(tk.deltaMS)                        // the cutscene runtime rides the same clock
@@ -1133,6 +1180,23 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         if (keys['s'] || keys['arrowdown']) dy += 1
         if (keys['a'] || keys['arrowleft']) dx -= 1
         if (keys['d'] || keys['arrowright']) dx += 1
+        /* AND HE CAN CHANGE HIS MIND, the same law `PmapScene` holds: a walk the
+         * player started by clicking is a suggestion, so the moment a key is
+         * touched the click is dropped rather than fighting it for the four
+         * seconds it would take to arrive. */
+        if (clickWalk && (dx || dy)) clickWalk = null
+        if (clickWalk && !inputMuted) {
+          const now = performance.now()
+          const ddx = clickWalk.tx - pos.tx, ddy = clickWalk.ty - pos.ty
+          /* HE HAS STOPPED GETTING ANYWHERE, so the walk is over. Without this a
+           * click on the sea or behind a rock leaves him pushing into it until
+           * the deadline, which is the twenty-second shuffle this whole change
+           * exists to end. Half a second of no real progress is the test. */
+          const crept = Math.hypot(pos.tx - clickWalk.lx, pos.ty - clickWalk.ly)
+          if (crept > 0.05) { clickWalk.last = now; clickWalk.lx = pos.tx; clickWalk.ly = pos.ty }
+          if (Math.hypot(ddx, ddy) <= 0.35 || now > clickWalk.until || now - clickWalk.last > 500) clickWalk = null
+          else { dx = ddx; dy = ddy }
+        }
         let moving = dx || dy
         const sprinting = !!keys['shift'] && moving
         // aboard = Thor's position belongs to the boat, not the ground grid

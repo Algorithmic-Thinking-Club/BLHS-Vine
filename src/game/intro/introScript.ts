@@ -51,7 +51,13 @@ export const introI1I2: Script = {
     { t: 'camera', to: SPAWN, zoom: 1.7, ms: 700 },            // back to Thor: your move
     { t: 'stage', call: 'pointAt', data: BOTTLE_AT },          // the guide chevron
     { t: 'fx', name: 'glint', at: BOTTLE_AT },
-    { t: 'gate', kind: 'walkTo', target: WALK_STOP, radius: 0.9, prompt: 'Walk to the bottle. Press W A S D or the arrow keys', idleAutoMs: 6000 },
+    /* THE FIRST INSTRUCTION IN THE GAME, AND IT NAMED THE ONE THING THAT DID NOT
+     * WORK. SWEEP-1 items 4 and 13: this said "Press W A S D or the arrow keys"
+     * to a freshman on a trackpad, on a scene with no pointer handler at all, so
+     * clicking the sand moved him zero pixels and he stood still for about twenty
+     * seconds. The beach takes a click now, so the sentence leads with the thing
+     * every student can already do and keeps the keys as the second half. */
+    { t: 'gate', kind: 'walkTo', target: WALK_STOP, radius: 0.9, prompt: 'Click the bottle to walk there. Arrow keys work too', idleAutoMs: 6000 },
     { t: 'stage', call: 'pointClear' },
     { t: 'actorFace', actor: 'thor', dir: 'north-west' },
     { t: 'camera', to: BOTTLE_AT, zoom: 2.6, ms: 2500 },       // the slow push-in

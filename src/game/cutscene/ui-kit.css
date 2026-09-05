@@ -226,9 +226,23 @@ html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
 .cs-prompt {
   position: absolute;
   left: 50%;
-  bottom: 9vh;
+  bottom: 12vh;
   transform: translateX(-50%);
-  padding: 6px 20px 8px;
+  /* THE PLAQUE IS STRETCHED, SO ITS END CAPS SCALE AND A FIXED PADDING CANNOT
+   * CLEAR THEM. SWEEP-1 item 26: the first and last letters of the game's one
+   * instruction were drawn outside the wood, on bare sand, and its bottom edge
+   * sat under the letterbox bar. 20px of side padding was measured against one
+   * particular sentence; `background-size: 100% 100%` means the carved ends grow
+   * with the box, so the clearance has to be a share of the width and not a
+   * number of pixels. 5% each side holds the caps at every length this line
+   * takes, with a pixel floor for a very short one.
+   *
+   * The width is capped and the line is allowed to wrap: without it a long
+   * sentence stretches one plaque across the whole screen, which reads as a
+   * banner rather than as a label on the world. */
+  padding: 8px max(30px, 7.5%) 13px;
+  max-width: min(58vw, 640px);
+  text-align: center;
   background: var(--kit-art-plaque) center / 100% 100% no-repeat;
   image-rendering: var(--kit-pixel);
   font-family: var(--kit-face-body);
