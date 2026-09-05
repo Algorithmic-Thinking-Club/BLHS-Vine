@@ -38,6 +38,15 @@ async function fresh() {
   return { audio, NotBuilt }
 }
 
+/* SOUND IS OFF UNTIL SOMEBODY CHOOSES IT, so any test whose subject is the queue
+ * or the unlock has to say out loud that a student turned it on. Before Ash's
+ * law 4 landed these tests were passing on a default nobody had picked, which is
+ * exactly what SWEEP-1 item 6 found shipping. Written the way the Sound control
+ * writes it. */
+function soundOn() {
+  localStorage.setItem('blhs_settings_v1', JSON.stringify({ sound: 'full', mute: false }))
+}
+
 beforeEach(() => { localStorage.clear() })
 
 describe('a name the library does not hold', () => {
@@ -140,6 +149,7 @@ describe('the table and the folder', () => {
 
 describe('before the browser has let anything make a sound', () => {
   it('queues the ask instead of throwing it at the caller', async () => {
+    soundOn()
     const { audio } = await fresh()
     expect(audio.isUnlocked()).toBe(false)
     expect(() => audio.play('click')).not.toThrow()
@@ -165,6 +175,24 @@ describe('before the browser has let anything make a sound', () => {
     expect(() => audio.play('click')).not.toThrow()
     expect(audio.pending()).toBe(0)
     audio.setMuted(false)
+  })
+
+  /* THE LAW, PINNED. Ash ruled after his first playthrough that nothing plays
+   * until he has picked a sound. SWEEP-1 item 6 found the opposite shipping: an
+   * absent settings blob meant the whole library. These two say which way round
+   * it is, so nobody can flip the default back without a red test. */
+  it('is silent on a machine that has never opened Settings', async () => {
+    localStorage.removeItem('blhs_settings_v1')
+    const { audio } = await fresh()
+    audio.play('click')
+    expect(audio.pending()).toBe(0)
+  })
+
+  it('plays once somebody has actually chosen a sound', async () => {
+    localStorage.setItem('blhs_settings_v1', JSON.stringify({ sound: 'full', mute: false }))
+    const { audio } = await fresh()
+    audio.play('click')
+    expect(audio.pending()).toBe(1)
   })
 
   it('reads the mute out of the settings sheet the student actually clicks', async () => {
@@ -242,6 +270,7 @@ describe('the first-gesture unlock, against a browser that behaves like Chrome',
   })
 
   it('resumes on the first pointerdown and lets the held click through', async () => {
+    soundOn()
     const { ctx, started } = stubWebAudio({ fetchOk: true })
     const { audio } = await fresh()
     audio.play('click')
@@ -260,6 +289,7 @@ describe('the first-gesture unlock, against a browser that behaves like Chrome',
   })
 
   it('plays the second one straight through, decoding the file only once', async () => {
+    soundOn()
     const { started } = stubWebAudio({ fetchOk: true })
     let fetches = 0
     const inner = globalThis.fetch
@@ -282,6 +312,7 @@ describe('the first-gesture unlock, against a browser that behaves like Chrome',
   })
 
   it('swallows a fetch that failed, and does not go back for it every click', async () => {
+    soundOn()
     stubWebAudio({ fetchOk: false })
     let fetches = 0
     const inner = globalThis.fetch

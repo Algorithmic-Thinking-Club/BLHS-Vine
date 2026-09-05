@@ -142,18 +142,33 @@ const queue: { name: string; gain: number; at: number }[] = []
  * The raw string is compared before it is parsed, so the common case (nothing
  * changed since the last click) is a `getItem` and a string equality rather than
  * a `JSON.parse` on every button in the game. */
+/* SILENCE IS THE DEFAULT, AND IT IS A RULING RATHER THAN A TASTE.
+ *
+ * BRIEF-PLAYTHROUGH-1 law 4, in Ash's words after his first playthrough: "No
+ * annoying sound. The two effects he heard are off. Nothing plays until he has
+ * picked a sound and said so." `f0a5661` quieted the UI kit and stopped there,
+ * so SWEEP-1 item 6 measured a cold profile with nothing in localStorage and
+ * still heard the opening fetch surf-in.ogg, cork-pop.mp3 and sail-snap.ogg and
+ * open a buffer source. The reason was here: an absent settings blob answered
+ * "not muted", so every student who had never opened Settings got the full
+ * library.
+ *
+ * Absence now means silence. Only an explicit `mute: false`, which is what the
+ * Sound control writes the moment somebody chooses Quiet or Full, turns it on.
+ * `SettingsPanel.tsx` opens on Off for the same blob, so the switch and the
+ * speaker never disagree about what a student is getting. */
 const SETTINGS_KEY = 'blhs_settings_v1'
 let lastSettingsRaw: string | null = null
-let lastMute = false
+let lastMute = true
 
 function isMuted(): boolean {
-  if (typeof localStorage === 'undefined') return false
+  if (typeof localStorage === 'undefined') return true
   let raw: string | null = null
   try { raw = localStorage.getItem(SETTINGS_KEY) } catch { return lastMute }
   if (raw === lastSettingsRaw) return lastMute
   lastSettingsRaw = raw
-  try { lastMute = !!(JSON.parse(raw ?? '{}') as { mute?: boolean }).mute }
-  catch { lastMute = false }
+  try { lastMute = (JSON.parse(raw ?? '{}') as { mute?: boolean }).mute !== false }
+  catch { lastMute = true }
   return lastMute
 }
 

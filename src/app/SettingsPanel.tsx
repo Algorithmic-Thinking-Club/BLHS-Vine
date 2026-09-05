@@ -63,7 +63,11 @@ export type Settings = {
   skin: KitSkin
 }
 const KEY = 'blhs_settings_v1'
-const FALLBACK: Settings = { sound: 'full', mute: false, textSize: 'm', reducedMotion: false, skin: 'paper' }
+/* SOUND OPENS ON OFF. Ash's law 4 after his first playthrough is that nothing
+ * plays until he has picked a sound and said so, and `src/game/audio.ts` now
+ * treats an absent blob as silence. The switch has to open on the same answer
+ * the speaker is giving, or the sheet says Full at a student hearing nothing. */
+const FALLBACK: Settings = { sound: 'off', mute: true, textSize: 'm', reducedMotion: false, skin: 'paper' }
 
 const SOUND_LEVELS: SoundLevel[] = ['off', 'quiet', 'full']
 const SOUND_WORD: Record<SoundLevel, string> = { off: 'Off', quiet: 'Quiet', full: 'Full' }
@@ -86,7 +90,7 @@ export function loadSettings(): Settings {
      * right one. The boolean is what those blobs carry, so the level is read
      * back off it rather than defaulting to Full and un-muting a student who
      * muted the game last week. */
-    if (!stored.sound) s.sound = stored.mute ? 'off' : 'full'
+    if (!stored.sound) s.sound = stored.mute === false ? 'full' : 'off'
     s.mute = s.sound === 'off'
     return s
   } catch { return base }
