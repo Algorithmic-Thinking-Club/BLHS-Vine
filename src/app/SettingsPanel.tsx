@@ -6,7 +6,7 @@ import { track } from '../game/telemetry'
 import { setReducedMotion, systemPrefersReducedMotion } from '../game/ui/motion'
 import { wearAssignedSkin, type KitSkin } from '../game/ui/skin'
 import { announce, tabRowKeyDown, usePanel } from '../game/ui/a11y'
-import { Empty, Glyph, Plank, Tab } from '../game/ui/controls'
+import { Empty, Glyph, Plank, Scroller, Tab } from '../game/ui/controls'
 import { saved } from '../game/ui/feedback'
 import { HOME_TARGET, SEA_ARRIVAL, searchFor } from '../game/pmap/route'
 import './settings.css'
@@ -219,6 +219,8 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const TAB_NAMES: Record<Tabs, string> = { account: 'Account', controls: 'Controls', danger: 'Danger Zone' }
   /* THE TAB IS A STATE SWAP AND IT IS SILENT. Nothing changes but the page under
    * the row, so a reader is told which page it now is. */
+  /* a new tab starts at its top: the page is one scroller for all three, so
+   * without this the Controls tab opened wherever Account had been scrolled to */
   const pickTab = (t: Tabs) => { setTab(t); announce(`${TAB_NAMES[t]} settings`) }
 
   return (
@@ -237,7 +239,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
             ))}
           </div>
 
-          <div className="st-page">
+          <Scroller className="st-page" key={tab}>
             {tab === 'account' && (
               <>
                 {save ? (
@@ -425,7 +427,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                 )}
               </>
             )}
-          </div>
+          </Scroller>
 
           <Plank className="st-close" onClick={onClose}>Back to the game</Plank>
         </div>

@@ -13,7 +13,7 @@ import { factById } from '../facts'
 import { badgesOf, FACT_POOL } from '../badges'
 import { track } from '../telemetry'
 import { announce, tabRowKeyDown, usePanel } from '../ui/a11y'
-import { Chip, Empty, Gauge, Glyph, Plank, Tab } from '../ui/controls'
+import { Chip, Empty, Gauge, Glyph, Plank, Scroller, Tab } from '../ui/controls'
 import './hud.css'
 
 /* THE HANDBOOK, WHICH IS THE INVENTORY (§40.17 to §40.20, and §40.6's law that
@@ -201,7 +201,7 @@ export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => voi
 
         {/* the page is keyed on the tab so it arrives rather than swapping, which
             is the one movement in the binder and is the page turn it stands for */}
-        <div
+        <Scroller
           className="hb-page"
           id="hb-page"
           key={tab}
@@ -419,7 +419,7 @@ export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => voi
               </div>
             </>
           )}
-        </div>
+        </Scroller>
       </div>
     </div>
   )

@@ -30,8 +30,8 @@
  * be filled with whatever the Chromebook happens to ship.
  */
 import {
-  useEffect, useState, useSyncExternalStore,
-  type ButtonHTMLAttributes, type CSSProperties, type InputHTMLAttributes, type ReactNode,
+  useEffect, useRef, useState, useSyncExternalStore,
+  type ButtonHTMLAttributes, type CSSProperties, type HTMLAttributes, type InputHTMLAttributes, type ReactNode,
 } from 'react'
 import { faceStyle } from './kitFaceStyle'
 import { kitCached, kitFace, kitGeneration, kitOptedIn, kitPiece, onKitLanded } from './kit'
@@ -457,6 +457,52 @@ export function PortraitFrame({
  * An empty page is TOLD HONESTLY and says what fills it. That is §40.20's rule
  * in as many words and it is the difference between "you have not done that
  * yet" and "this is broken". */
+/* ---- A PAGE THAT SCROLLS INSIDE ITS PANEL, AND SAYS SO --------------------
+ *
+ * STATE-OF-THE-GAME ugly 6: "Handbook and Settings pages cut their content at
+ * the panel's bottom edge with no scrollbar". Both pages already scrolled; the
+ * CUE was the missing half, because ChromeOS and a headless Chromium both draw
+ * overlay scrollbars that exist only while the pointer is moving, so on a
+ * still screen a card sliced by the panel's rail was the only sign. A fade at
+ * the fold is easy to read as the paper's own shading.
+ *
+ * So the scroller watches itself: while there is more below the fold, a small
+ * drawn chevron and two words sit on the fold. It goes away at the bottom. The
+ * wrapper is what the cue is pinned to; the inner element is the scroller and
+ * keeps whatever class and role the caller gave it, so `.hb-page` and
+ * `.st-page` are still those elements. Keyed callers key the Scroller, which
+ * remounts the inner too, so a new tab starts at its top. */
+export function Scroller({ className = '', wrapClassName = '', children, ...rest }: HTMLAttributes<HTMLDivElement> & { wrapClassName?: string }) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const [more, setMore] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const check = () => setMore(el.scrollTop + el.clientHeight < el.scrollHeight - 2)
+    check()
+    el.addEventListener('scroll', check, { passive: true })
+    /* the page's contents arrive after the first paint (a kit face, a chart),
+       so the answer is re-asked when they do; both observers are absent in
+       jsdom and the cue simply stays as first measured there */
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(check) : null
+    ro?.observe(el)
+    const mo = typeof MutationObserver !== 'undefined' ? new MutationObserver(check) : null
+    mo?.observe(el, { childList: true, subtree: true })
+    return () => { el.removeEventListener('scroll', check); ro?.disconnect(); mo?.disconnect() }
+  }, [])
+  return (
+    <div className={`kit-scrollwrap ${wrapClassName}`}>
+      <div ref={ref} className={className} {...rest}>{children}</div>
+      {more && (
+        <span className="kit-morecue" aria-hidden="true">
+          <span className="kit-morecue-caret" />
+          more below
+        </span>
+      )}
+    </div>
+  )
+}
+
 export function Empty({ what, fills }: { what: string; fills: string }) {
   return (
     <div className="kit-empty" role="note">

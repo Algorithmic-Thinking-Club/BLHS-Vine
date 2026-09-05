@@ -117,7 +117,7 @@ html[data-skin='plain'] .kit-mark { display: none; }
 }
 .kit-plank-sub {
   font-family: var(--kit-face-body);
-  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
   font-size: var(--kit-fs);
   color: var(--kit-plank-ink);
   text-shadow: 0 1px 0 var(--kit-plank-shadow);
@@ -165,10 +165,16 @@ html[data-skin='plain'] .kit-plank-sub { text-shadow: none; opacity: 1; }
 .kit-plank:disabled {
   cursor: not-allowed;
   transform: none;
-  filter: saturate(.45) brightness(.94);
-  opacity: .78;
+  filter: saturate(.5) brightness(.9);
+  opacity: .92;
 }
-.kit-plank:disabled .kit-plank-ink { color: var(--kit-wood-dark-ink); text-shadow: none; }
+/* THE INK STAYS THE PLANK'S OWN INK. It went to `--kit-wood-dark-ink` with no
+   shadow, which is a tan on a brown: "That is my year" photographed as a grey
+   smear on wood (`state/beat4/z6-disabled-plank.png`) and "Check my answer" the
+   same on the POWER frame. Disabled is "not yet", and a student has to be able
+   to read WHAT is not yet. The cream ink and its cut shadow are what make any
+   plank legible; the wood going quieter and the lift going away are the state. */
+.kit-plank:disabled .kit-plank-ink { color: var(--kit-plank-ink); opacity: .85; }
 /* focus is the kit's one ring, from tokens.css, drawn around the wood itself */
 
 /* busy: the label stays where it is and a bar fills under it, because a button
@@ -538,6 +544,39 @@ html[data-rm='1'] .kit-socket[data-state='refusing'] { animation: none; }
   border-radius: var(--kit-r-card);
   background-color: var(--kit-paper-lo);
 }
+
+/* ---- THE SCROLLER'S CUE --------------------------------------------------- */
+
+.kit-scrollwrap { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.kit-scrollwrap > :first-child { flex: 1; min-height: 0; }
+/* on the fold, in the middle, in the panel's own paper so it reads as a note
+   pinned to the edge rather than as a floating widget */
+.kit-morecue {
+  position: absolute;
+  left: 50%; bottom: 4px;
+  transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 12px 4px;
+  border: var(--kit-border) solid var(--kit-edge-strong);
+  border-radius: var(--kit-r-round);
+  background: var(--kit-paper-hi);
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+  pointer-events: none;
+  animation: kit-morecue-bob 1.4s ease-in-out infinite;
+}
+/* a caret and not a cut face: the sheet's chevron points sideways and a
+   scroll cue that points left is worse than none */
+.kit-morecue-caret {
+  width: 0; height: 0;
+  border-left: 5px solid transparent; border-right: 5px solid transparent;
+  border-top: 6px solid var(--kit-ink-head);
+}
+@keyframes kit-morecue-bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -3px); } }
+html[data-rm='1'] .kit-morecue { animation: none; }
+html[data-skin='plain'] .kit-morecue { animation: none; border-radius: 2px; }
 
 /* ---- WHAT A PANEL SAYS WHEN IT HAS NOTHING ------------------------------- */
 

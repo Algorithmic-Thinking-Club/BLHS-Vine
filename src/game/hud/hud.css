@@ -25,6 +25,14 @@
   display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
   z-index: 50;
 }
+/* AND IT STEPS OUT OF THE WAY OF A PANEL. A panel's veil is translucent on
+   purpose so the world stays present behind it, and the three plaques showed
+   through it sliced by the panel's own edge ("Handboo", "Year sh", "Cl" in
+   `state/frame/`). `a11y.ts` counts open panels onto the root; while one is
+   up the corner is inert anyway, so hiding it costs nothing a student could
+   press. `visibility` rather than `display` so nothing reflows on the way
+   back. */
+html[data-panels]:not([data-panels='0']) .hud-stack { visibility: hidden; }
 /* ---- ONE SHAPE, THREE TIMES ----------------------------------------------
  *
  * BRIEF-PLAYTHROUGH-1 law 2 asks for the three "aligned as one stack", and they

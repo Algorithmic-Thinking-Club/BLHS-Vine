@@ -54,9 +54,29 @@ html[data-rm='1'] .st-panel { animation-duration: 1ms; }
   font-size: var(--kit-fs);
 }
 
-.st-page { flex: 1; overflow-y: auto; border-top: var(--kit-border) solid var(--kit-edge); padding-top: 3cqw; display: flex; flex-direction: column; }
-.st-page::-webkit-scrollbar { width: 7px; }
-.st-page::-webkit-scrollbar-thumb { background: var(--kit-edge); border-radius: var(--kit-r-soft); }
+.st-page {
+  flex: 1;
+  /* `min-height: 0` IS THE WHOLE FIX. A flex child's minimum height is its
+     content, so `flex: 1` never let this page shrink to the room it had; it
+     overflowed the panel and pushed the Back plank over its own last rows,
+     which is why Reduced motion and Fullscreen were hidden under "Back to the
+     game" (ugly 6). With a real minimum it scrolls inside the panel. */
+  min-height: 0;
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  border-top: var(--kit-border) solid var(--kit-edge);
+  padding-top: 3cqw;
+  display: flex; flex-direction: column;
+  /* the cue that there is more, in a picture: the page fades at the fold the
+     way the Handbook's does, because ChromeOS hides its scrollbar until the
+     pointer moves */
+  -webkit-mask-image: linear-gradient(to bottom, var(--kit-mask-solid) calc(100% - 22px), transparent);
+  mask-image: linear-gradient(to bottom, var(--kit-mask-solid) calc(100% - 22px), transparent);
+}
+.st-page::-webkit-scrollbar { width: 10px; }
+.st-page::-webkit-scrollbar-track { background: var(--kit-paper-lo); border-radius: var(--kit-r-soft); }
+.st-page::-webkit-scrollbar-thumb { background: var(--kit-edge); border: 2px solid var(--kit-paper-lo); border-radius: var(--kit-r-soft); }
+html[data-skin='plain'] .st-page { -webkit-mask-image: none; mask-image: none; }
 
 /* ---- account tab: the identity card + preferences ---- */
 .st-idcard {
@@ -218,7 +238,7 @@ html[data-rm='1'] .st-panel { animation-duration: 1ms; }
 .st-captain-head { font-family: var(--kit-face-display); --kit-fs-raw: calc(4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-sea-head); text-align: center; margin-bottom: 1.6cqw; }
 .st-captain-row { display: flex; gap: 1.6cqw; justify-content: center; flex-wrap: wrap; }
 
-.st-close { margin-top: 3cqw; align-self: center; min-width: 55%; }
+.st-close { flex: none; margin-top: 3cqw; align-self: center; min-width: 55%; }
 
 /* ---- THE CORNER CONTROL -------------------------------------------------
  *

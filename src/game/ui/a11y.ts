@@ -31,6 +31,18 @@ import { playUi } from '../audio'
 
 const stack: string[] = []
 
+/* THE CORNER READS THIS. STATE-OF-THE-GAME ugly 7: every panel drew over the
+ * corner stack, so the plaques showed through the veil as sliced "Handboo" /
+ * "Year sh" / "Cl" behind the Handbook and the pick sheet ran under the `?`.
+ * The stack already knows the answer, so it is written on the root as a count
+ * and `hud.css` and `help.css` hide the corner while it is not zero. A count
+ * rather than a flag so that closing the inner of two panels does not bring
+ * the corner back under the outer one. */
+const syncPanels = () => {
+  if (typeof document === 'undefined') return
+  document.documentElement.dataset.panels = String(stack.length)
+}
+
 /** how many panels are open, for code outside a panel that needs to keep its
  *  hands off the Escape key while one is */
 export const panelDepth = (): number => stack.length
@@ -187,6 +199,7 @@ export function usePanel({ label, onClose, closeOnEscape = true }: PanelOptions)
     const el = node.current
     if (!el) return
     stack.push(token)
+    syncPanels()
     /* WHERE FOCUS CAME FROM. `document.activeElement` at open is the button the
      * player pressed, and it is the only correct place to put focus back: a panel
      * that returns focus to <body> makes the next Tab start from the top of the
@@ -262,6 +275,7 @@ export function usePanel({ label, onClose, closeOnEscape = true }: PanelOptions)
       playUi('close')
       const at = stack.lastIndexOf(token)
       if (at >= 0) stack.splice(at, 1)
+      syncPanels()
       /* only if the panel still had focus. If the player has already clicked
        * something else, stealing it back is the rudest thing a panel can do. */
       if (cameFrom && (!document.activeElement || document.activeElement === document.body || el.contains(document.activeElement))) {
