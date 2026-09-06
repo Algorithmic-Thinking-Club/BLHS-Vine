@@ -1735,21 +1735,34 @@ export default function PmapScene() {
          * exactly one, so nothing was protecting the route between two halves of
          * an island. Two guards were not enough and the third is the only one that
          * asks the question that matters. */
+        /* WITH THE WALKER'S OWN BODY, NOT A ONE PIXEL ONE. This fill tested
+         * `ldata[i] === blocked` per pixel, and a pixel has no hips: it slipped
+         * through a one pixel gap beside a stamped figure that `canStandFrom`,
+         * the law every real step obeys, refuses because the hip probes land on
+         * the stamp. So the guard measured a route nobody could walk and passed
+         * it. On the published hub at v15 that was a figure on the quay at about
+         * 476,471: the dock lost every pixel past it for a body with hips, the
+         * fill lost 2.4 percent, and a student stepped off the boat into a
+         * pocket the guard had just certified as open (SWEEP-1's first defect,
+         * back again with the engine as the cause). The fill now asks the law,
+         * level tolerance included, so it can only reach what a body can. */
         const reach = (from: { x: number; y: number }) => {
           const seen = new Uint8Array(W * H)
           const q = new Int32Array(W * H)
           let head = 0, tail = 0, n = 0
-          const push = (x: number, y: number) => {
+          const push = (x: number, y: number, fromLvl: number) => {
             if (x < 0 || y < 0 || x >= W || y >= H) return
             const i = y * W + x
-            if (seen[i] || ldata[i * 4] === blocked) return
+            if (seen[i] || !canStandFrom(x, y, fromLvl)) return
             seen[i] = 1; q[tail++] = i; n++
           }
-          push(Math.round(from.x), Math.round(from.y))
+          const sx = Math.round(from.x), sy = Math.round(from.y)
+          push(sx, sy, lvlAt(sx, sy))
           while (head < tail) {
             const i = q[head++]
             const x = i % W, y = (i / W) | 0
-            push(x + 1, y); push(x - 1, y); push(x, y + 1); push(x, y - 1)
+            const l = lvlAt(x, y)
+            push(x + 1, y, l); push(x - 1, y, l); push(x, y + 1, l); push(x, y - 1, l)
           }
           return { n, seen }
         }
