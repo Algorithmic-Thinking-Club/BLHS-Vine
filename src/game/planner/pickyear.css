@@ -42,12 +42,6 @@
   font-size: var(--kit-fs);
   color: var(--kit-ink-head);
 }
-.py-lede {
-  margin: 0;
-  --kit-fs-raw: calc(16px * var(--kit-text-scale));
-  font-size: var(--kit-fs);
-  color: var(--kit-ink-quiet);
-}
 .py-h {
   margin: 2px 0 0;
   font-family: var(--kit-face-display);
@@ -59,11 +53,16 @@
 /* ---- THE CARDS ----------------------------------------------------------
  *
  * One row of five, and they share a width so the row reads as a set of equal
- * choices rather than as a ranked list. `auto-fit` rather than a fixed five, so
- * a narrower window rewraps instead of shrinking them below a real tap target. */
+ * choices rather than as a ranked list. A flex row rather than a grid, because
+ * once a card is taken the row holds two kinds of thing: the locked card at its
+ * full size, and the chips the untaken ones step back into, sitting beside it
+ * at their own size. A grid would stretch a chip to a card's height and the
+ * step back would be a step nowhere. A narrower window wraps instead of
+ * shrinking a card below a real tap target. */
 .py-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
 }
 
@@ -86,6 +85,7 @@
  * the verb as its heading, rows as tall as a plank, ticks a hand can see, and
  * a gold glow that pulses until the two ticks are in. Gold is the objective
  * colour the world uses on a lit station; here it is the same word. */
+.py-cardbox,
 .py-classbox {
   display: flex;
   flex-direction: column;
@@ -96,7 +96,7 @@
   background: var(--kit-paper-lo);
   transition: box-shadow var(--kit-t-mid) ease, border-color var(--kit-t-mid) ease;
 }
-.py-classes-h { margin: 0; }
+.py-cards-h, .py-classes-h { margin: 0; }
 .py-lit {
   border-color: var(--kit-gold-edge);
   animation: py-glow 1.6s ease-in-out infinite;
@@ -132,7 +132,24 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
   border-radius: var(--kit-r-sharp);
   background: var(--kit-paper);
 }
-.py-class-on { background: var(--kit-sea-paper); border-color: var(--kit-sea); }
+.py-class-on { background: var(--kit-sea-paper); border-color: var(--kit-sea); cursor: default; }
+.py-class-on:hover { background: var(--kit-sea-paper); transform: none; }
+/* the small way back out of a ticked row, at its far end, never the row itself */
+.py-untick {
+  margin-left: auto;
+  flex: none;
+  padding: 1px 7px;
+  border: 1px solid var(--kit-edge);
+  border-radius: var(--kit-r-soft);
+  background: var(--kit-paper-hi);
+  color: var(--kit-ink-quiet);
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1.2;
+  cursor: pointer;
+}
+.py-untick:hover { color: var(--kit-ink-head); background: var(--kit-paper); }
 .py-class-on .py-tick { border-color: var(--kit-sea-ink); background: var(--kit-paper-hi); }
 .py-class-name {
   --kit-fs-raw: calc(16px * var(--kit-text-scale));
@@ -156,6 +173,10 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
 .py-card {
   position: relative;
   box-sizing: border-box;
+  flex: 1 1 190px;
+  /* every card in a row is the height of the tallest, so five choices read as
+     five equal signs and not as a skyline */
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -210,7 +231,62 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
    neither, and the difference survives a bad screen and a colour-blind reader. */
 .py-card-on {
   box-shadow: inset 0 0 0 3px var(--kit-sea);
+  /* LOCKED. It is a sign now and not a button: it keeps a card's width rather
+     than growing to fill the row its chips share, and it does not lift under
+     the pointer, because nothing happens when it is pressed. */
+  flex: 0 0 218px;
+  cursor: default;
+  /* ROOM FOR THE BOTTOM ROW. The stamp and the put-back sit on the card's
+     bottom edge, and the words ran under them (`fix-4/pick-2` first take). */
+  padding-bottom: 34px;
 }
+.py-card-on:hover { transform: none; filter: none; }
+/* THE ONE WAY BACK, inside the locked card, in the corner the stamp leaves free.
+   Small on purpose: an undo is never the loudest thing on the screen. */
+.py-putback {
+  position: absolute;
+  left: 10px;
+  bottom: 9px;
+  padding: 2px 8px;
+  border: 1px solid var(--kit-edge);
+  border-radius: var(--kit-r-soft);
+  background: var(--kit-paper-hi);
+  color: var(--kit-ink-quiet);
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1.2;
+  cursor: pointer;
+}
+.py-putback:hover { color: var(--kit-ink-head); background: var(--kit-paper); }
+/* ---- THE SHELF: what steps back once something is chosen --------------------
+ *
+ * A chip is the card's name and nothing else, one line, no frame, dim. It is
+ * still a real control, because a student can take up to three, and it is
+ * deliberately SMALLER than a class row: the class box is the lit thing at this
+ * stage and a student steering by size has to land on it and not here. */
+.py-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid var(--kit-edge);
+  border-radius: var(--kit-r-sharp);
+  background: var(--kit-paper-lo);
+  color: var(--kit-ink-quiet);
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1.2;
+  white-space: nowrap;
+  opacity: .82;
+  cursor: pointer;
+  transition: opacity var(--kit-t-quick) ease, background var(--kit-t-quick) ease;
+}
+.py-chip:hover { opacity: 1; background: var(--kit-paper-hi); color: var(--kit-ink-head); }
+.py-chip-no { color: var(--kit-alarm); }
 /* THE STAMP SITS IN THE FRAME'S OWN TOP-RIGHT and the name keeps clear of it.
    With the double padding removed the name reaches the full inner field, which
    is right, and it promptly ran under the stamp: photographed with Football
@@ -318,6 +394,10 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
   color: var(--kit-ink-head);
 }
 .py-close { margin-right: auto; }
+/* THE PLANK THAT ENDS THE BEAT IS THE BIGGEST CONTROL ON THE SCREEN, by a
+   margin and not by luck: at its natural size it was smaller than a class row,
+   so a student steering by size would untick a class before pressing it. */
+.py-go { min-width: 330px; min-height: 66px; }
 /* once the sheet can be stamped the glow moves to the plank that stamps it */
 .py-go.py-lit { animation: py-glow-plank 1.6s ease-in-out infinite; }
 @keyframes py-glow-plank {
@@ -357,12 +437,16 @@ html[data-skin='plain'] .py-card-on .py-card-name::after { content: ' — chosen
 html[data-skin='plain'] .py-slot,
 html[data-skin='plain'] .py-slot-hole { border-style: solid; border-color: var(--kit-edge); }
 /* a form's required fieldset: a heavier rule, no glow, and a bold heading */
+html[data-skin='plain'] .py-cardbox,
 html[data-skin='plain'] .py-classbox { background: none; border: 2px solid var(--kit-edge-strong); border-radius: var(--kit-r-sharp); animation: none; box-shadow: none; }
 html[data-skin='plain'] .py-lit { border-color: var(--kit-ink-head); }
 html[data-skin='plain'] .py-class { background: none; border-color: var(--kit-edge); }
 html[data-skin='plain'] .py-class-on { background: var(--kit-paper-lo); border-color: var(--kit-ink-head); }
 html[data-skin='plain'] .py-go.py-lit { animation: none; filter: none; }
 html[data-skin='plain'] .py-card { clip-path: none; }
+html[data-skin='plain'] .py-chip { background: none; border-color: var(--kit-edge-strong); opacity: 1; }
+html[data-skin='plain'] .py-putback,
+html[data-skin='plain'] .py-untick { background: none; border-color: var(--kit-edge-strong); }
 
 /* the class card carries one line and nothing else, so its name is body-sized:
    at display size the longer catalogue names wrapped to three lines and the row

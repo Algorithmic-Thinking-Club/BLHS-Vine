@@ -28,6 +28,25 @@
  *   NOTHING IS DRAGGED. `assignSlot` is the same writer the sheet's drop calls,
  *   so a plan made here and a plan made there are the same object.
  *
+ * ---- ONE THING IS LIT, AND IT IS NEVER THE THING YOU JUST PRESSED -----------
+ *
+ * The dimwit run (scripts/dimwit.mjs) pressed Key Club, then pressed it again,
+ * then again, forever: a taken card was still a button, still the biggest thing
+ * on the glass, and pressing it put the pick back. The loudest thing on the
+ * screen was an undo. So the screen has three stages and exactly one of them is
+ * lit at a time:
+ *
+ *   1. no card taken: the card box glows. Press a card.
+ *   2. a card taken, classes owed: the taken card LOCKS. It is no longer a
+ *      button; it is a stamped sign with a small "Put back" inside it. The
+ *      cards not taken step back into a shelf of small chips beside it, still
+ *      takeable, dimmer, and never louder than a class row. The class box glows.
+ *   3. both classes ticked: the plank that ends the beat glows, and it is the
+ *      biggest control on the screen.
+ *
+ * "Loudest" here is a real number, the largest control that is not a way out,
+ * because that is the number a student who reads nothing is steering by.
+ *
  * ---- WHAT IT REFUSES, AND HOW ---------------------------------------------
  *
  * `refuseSlot` and `refuseClass` decide, exactly as they do for the sheet: one
@@ -89,16 +108,9 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
   }
 
   const takeActivity = (p: Programme) => {
-    const seat = seatOf(p.id)
-    if (seat) {                       // pressing a chosen card puts it back
-      clearSlot(year, seat)
-      setRefused(null)
-      redraw()
-      return
-    }
     const se = seasonFor(p)
     if (!se) {
-      setRefused({ id: p.id, why: 'You have used all three season tokens. Take one off first.' })
+      setRefused({ id: p.id, why: 'You have used all three season tokens. Put one back first.' })
       return
     }
     const no = refuseSlot(p.id, se, loadSave(), year)
@@ -110,8 +122,26 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
     redraw()
   }
 
+  /* PUTTING BACK IS ITS OWN SMALL CONTROL, inside the locked card, and never the
+   * card itself. A card that undoes on a second press is a card whose loudest
+   * affordance is the undo, which is the loop the dimwit run found. */
+  const putBack = (p: Programme, seat: Season) => {
+    clearSlot(year, seat)
+    setRefused(null)
+    track('pick_put_back', { what: p.id, season: seat })
+    redraw()
+  }
+  /* the same rule for a class: a ticked row is a locked row with a small untick
+   * inside it. The dimwit run ticked AP Human Geography and then, with the row
+   * still the loudest thing on the glass, unticked it. */
+  const untick = (c: ClassDef) => {
+    dropClass(year, c.id)
+    setRefused(null)
+    track('pick_put_back', { what: c.id })
+    redraw()
+  }
+
   const takeClass = (c: ClassDef) => {
-    if (plan.classes.includes(c.id)) { dropClass(year, c.id); setRefused(null); redraw(); return }
     const no = refuseClass(c.id, loadSave(), year)
     if (no) { setRefused({ id: c.id, why: no }); track('pick_refused', { what: c.id, why: no }); return }
     pickClass(year, c.id)
@@ -124,13 +154,18 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
   const chosen = SEASONS.filter((se) => plan.slots[se]).length
   const classesLeft = 2 - plan.classes.length
   const ready = classesLeft === 0 && chosen > 0
+  /* THE ONE LIT THING. Cards first, because a student who has picked nothing
+   * should be looking at the big pictures; then the class box; then the plank. */
+  const stage: 'cards' | 'classes' | 'go' = chosen === 0 ? 'cards' : classesLeft > 0 ? 'classes' : 'go'
   /* THE REASON IS ON THE BUTTON, ALWAYS, because §40.9's rule is that a disabled
    * control a student cannot interrogate is worse than one that answers. In the
    * plainest words there are: a freshman read "Pick 2 more classes." beside a
    * grey plank and did not connect it to the small boxes above. */
-  const notYet = classesLeft > 0
-    ? `Not yet: tick ${classesLeft === 2 ? 'two classes' : 'one more class'} in the box above.`
-    : chosen === 0 ? 'Not yet: press one club or sport card.' : null
+  const notYet = stage === 'cards'
+    ? 'Not yet: press one club or sport card.'
+    : stage === 'classes'
+      ? `Not yet: tick ${classesLeft === 2 ? 'two classes' : 'one more class'} in the box above.`
+      : null
 
   /* ---- WHAT THE WALL WILL HOLD, AND IT ANSWERS THE PICK -------------------
    *
@@ -155,38 +190,78 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
    * jumps */
   const classNo = refused && classes.some((c) => c.id === refused.id) ? refused.why : null
 
+  const taken = activities.filter((p) => seatOf(p.id))
+  const onOffer = activities.filter((p) => !seatOf(p.id))
+
   return (
     <div className="py-veil" onClick={onClose}>
       <div {...panel} className="py-sheet kit-surface-panel" onClick={(e) => e.stopPropagation()}>
         <h2 className="py-title">Pick what you will do this year</h2>
-        <p className="py-lede">Press a card to take it. Press it again to put it back.</p>
 
-        <h3 className="py-h">Clubs and sports</h3>
-        <div className="py-grid">
-          {activities.map((p) => {
-            const seat = seatOf(p.id)
-            const no = refused?.id === p.id ? refused.why : null
-            return (
-              <button
-                key={p.id}
-                className={`py-card kit-surface-tab${seat ? ' py-card-on' : ''}`}
-                aria-pressed={!!seat}
-                onClick={() => takeActivity(p)}
-              >
-                <span className="py-card-name">{p.name}</span>
-                <span className="py-card-where">{seat ? `${seat}. Yours.` : (seasonOf(p) ?? 'any season')}</span>
-                <span className="py-card-earns">{earnsOf(p)}</span>
-                {/* THE STAMP SITS IN THE FRAME'S FREE CORNER, bottom right, where
-                    no word reaches: at the top right it landed on "Field" of
-                    "Track and Field" (`fix-2/yearsheet-04`). The refusal takes
-                    the bottom edge instead, and the two never share a card: a
-                    card that is yours is put back by a press, never refused. */}
-                {seat && <Glyph piece="stamp" face="approved" size={26} className="py-stamp" />}
-                {no && <span className="py-no">{no}</span>}
-              </button>
-            )
-          })}
-        </div>
+        {/* ---- THE CARDS, IN A BOX THAT IS LIT UNTIL ONE IS TAKEN ---------- */}
+        <section className={`py-cardbox${stage === 'cards' ? ' py-lit' : ''}`} aria-labelledby="py-cards-h">
+          <h3 className="py-h py-cards-h" id="py-cards-h">
+            Press a club or sport
+            <span className="py-count"> {chosen === 0 ? 'none yet' : `${chosen} taken`}</span>
+          </h3>
+          <div className="py-grid">
+            {/* A TAKEN CARD IS LOCKED. Not a button any more: a stamped sign with
+                the season on it and one small control that puts it back. The
+                stamp sits in the frame's free corner, bottom right, where no word
+                reaches (`fix-2/yearsheet-04`); the put-back takes the other one. */}
+            {taken.map((p) => {
+              const seat = seatOf(p.id) as Season
+              return (
+                <div
+                  key={p.id}
+                  className="py-card kit-surface-tab py-card-on"
+                  role="group"
+                  aria-label={`${p.name}, ${seat}. Yours.`}
+                >
+                  <span className="py-card-name">{p.name}</span>
+                  <span className="py-card-where">{seat}. Yours.</span>
+                  <span className="py-card-earns">{earnsOf(p)}</span>
+                  <Glyph piece="stamp" face="approved" size={26} className="py-stamp" />
+                  <button type="button" className="py-putback" onClick={() => putBack(p, seat)}>Put back</button>
+                </div>
+              )
+            })}
+            {/* THE CARDS NOT TAKEN. Big drawn signs while nothing is chosen; once
+                something is, they step back into a shelf of small chips beside
+                the locked card, still takeable, dimmer, and never louder than the
+                class rows the student is meant to be looking at. */}
+            {onOffer.map((p) => {
+              const no = refused?.id === p.id ? refused.why : null
+              if (chosen > 0) {
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="py-chip"
+                    onClick={() => takeActivity(p)}
+                    title={`${p.name}, ${seasonOf(p) ?? 'any season'}`}
+                  >
+                    <span className="py-chip-name">{p.name}</span>
+                    {no && <span className="py-chip-no" role="alert">{no}</span>}
+                  </button>
+                )
+              }
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="py-card kit-surface-tab"
+                  onClick={() => takeActivity(p)}
+                >
+                  <span className="py-card-name">{p.name}</span>
+                  <span className="py-card-where">{seasonOf(p) ?? 'any season'}</span>
+                  <span className="py-card-earns">{earnsOf(p)}</span>
+                  {no && <span className="py-no">{no}</span>}
+                </button>
+              )
+            })}
+          </div>
+        </section>
 
         {/* ---- THE CLASSES ARE A LIST, NOT TEN MORE CARDS -----------------
             "Big drawn cards" is about the five things you DO; a class is a
@@ -199,7 +274,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
 
             So the frames go and the marks stay: a row per class, a drawn tick
             when it is yours, and the same two-pick rule underneath. */}
-        {/* ---- THE TWO REQUIRED CLASSES ARE THE LIT THING -----------------
+        {/* ---- THE TWO REQUIRED CLASSES ARE THE LIT THING, ONCE A CARD IS ---
             STATE-OF-THE-GAME confusing 7 and ugly 5: "five 208x184 cards dwarf
             the 262x34 class rows... nothing on the screen is lit." The
             self-evident law's first rule is that exactly one thing is lit and
@@ -208,7 +283,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
             until both ticks are in, the heading is the verb, and the count says
             how many are still owed. Once two are ticked the glow moves to the
             plank that ends the beat, so there is always one next thing. */}
-        <section className={`py-classbox${classesLeft > 0 ? ' py-lit' : ''}`} aria-labelledby="py-classes-h">
+        <section className={`py-classbox${stage === 'classes' ? ' py-lit' : ''}`} aria-labelledby="py-classes-h">
           <h3 className="py-h py-classes-h" id="py-classes-h">
             Tick two classes
             <span className="py-count"> {classesLeft === 0 ? 'both picked' : `${classesLeft} more to tick`}</span>
@@ -216,16 +291,25 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
           <div className="py-classes">
             {classes.map((c) => {
               const on = plan.classes.includes(c.id)
+              if (on) {
+                return (
+                  <div key={c.id} className="py-class py-class-on" role="group" aria-label={`${c.name}, ticked`}>
+                    <span className="py-tick" aria-hidden="true">
+                      <Glyph piece="icon_set" face="tick" size={16} />
+                    </span>
+                    <span className="py-class-name">{c.name}</span>
+                    <button type="button" className="py-untick" onClick={() => untick(c)}>Untick</button>
+                  </div>
+                )
+              }
               return (
                 <button
                   key={c.id}
-                  className={`py-class${on ? ' py-class-on' : ''}`}
-                  aria-pressed={on}
+                  type="button"
+                  className="py-class"
                   onClick={() => takeClass(c)}
                 >
-                  <span className="py-tick" aria-hidden="true">
-                    {on && <Glyph piece="icon_set" face="tick" size={16} />}
-                  </span>
+                  <span className="py-tick" aria-hidden="true" />
                   <span className="py-class-name">{c.name}</span>
                 </button>
               )
@@ -233,7 +317,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
           </div>
           {/* one line, always there, so a refusal does not move the rows */}
           <p className={`py-classnote${classNo ? ' py-classnote-no' : ''}`} role={classNo ? 'alert' : undefined}>
-            {classNo ?? (classesLeft === 0 ? 'Press a ticked class to untick it.' : 'Press a class to tick it.')}
+            {classNo ?? (classesLeft === 0 ? 'Press Untick on a class to change it.' : 'Press a class to tick it.')}
           </p>
         </section>
 
@@ -258,8 +342,10 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
           {/* A WAY OUT THAT IS A WORD. The sheet had no close at all: Esc, or a
               click on the dark edge, which nothing on screen names (confusing
               10). Closing keeps every pick, because every pick is already
-              written to the save the moment it is pressed. */}
-          <Plank size="md" keyCap="Esc" className="py-close" onClick={onClose}>Close for now</Plank>
+              written to the save the moment it is pressed.
+              SMALL ON PURPOSE. At medium it was bigger than a class row, so the
+              way out outranked the way on for a student steering by size. */}
+          <Plank size="sm" keyCap="Esc" className="py-close" onClick={onClose}>Close for now</Plank>
           {notYet && <span className="py-notyet">{notYet}</span>}
           <Plank
             size="lg"
