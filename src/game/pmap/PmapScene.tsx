@@ -5900,7 +5900,10 @@ export default function PmapScene() {
            * line, so it moves with the marker instead of being re-measured. */
           /* over the hull when he is aboard: Thor is hidden at the berth then,
            * and a sentence hung over an empty quay is a sentence about nothing */
-          if (hull) task.position.set(hull.x, hull.y - 18 - 84 / camZ + Math.sin(t * 2.1) * 1.4)
+          /* the eighty-four is clearance for the YOU pin, which is not drawn at
+           * sea, so over the hull the sentence sits a ship's height up and no
+           * more: measured, the pin's clearance put it over the jetty */
+          if (hull) task.position.set(hull.x, hull.y - 20 - 30 / camZ + Math.sin(t * 2.1) * 1.4)
           else task.position.set(pos.x, pos.y - charH - 3 - 84 / camZ + Math.sin(t * 2.1) * 1.4)
           /* AND IT STAYS ON THE SCREEN. It is centred on Thor, and Thor spends
            * a lot of the hub standing near an edge, so a long sentence hung over
