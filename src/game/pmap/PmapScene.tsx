@@ -43,6 +43,7 @@ import type { CutsceneStage } from '../cutscene/types'
 import { publishRuntime } from '../cutscene/stage-bus'
 import { resolveScript, scriptById } from '../cutscene/scripts'
 import { aheadOn, findPath, onFloor, type Pt } from './path'
+import { warmMap } from './warm'
 import { setMapUrl, targetFromUrl, type PmapTarget } from './route'
 import { loadSave, recordExposure, recordPosition, recordVessel } from '../save'
 import { resumeFor, stampOf, RESUME_REASONS, type WorldStamp } from '../run/resume'
@@ -930,7 +931,17 @@ export default function PmapScene() {
           .catch(() => doorState.set(to, 'missing'))
         if (wantLocal || !host) { void local(); return }
         void fetch(`${host}/api/v1/maps/${encodeURIComponent(to)}`)
-          .then((r) => { if (isJson(r)) doorState.set(to, 'ok'); else return local() })
+          .then((r) => {
+            if (!isJson(r)) return local()
+            doorState.set(to, 'ok')
+            /* AND THE ROOM BEHIND IT IS PULLED DOWN NOW rather than when he
+             * opens it. BRIEF-ARRIVAL's measured "the Maw's is another 12 s" is
+             * one bundle download standing between a student pressing E and the
+             * room appearing, and the answer to "is this door real" has already
+             * cost the round trip that finds out where the files are. Quiet,
+             * one at a time, and behind whatever the scene is doing. */
+            void warmMap(to)
+          })
           .catch(() => local())
       }
       /* AND EVERY DOOR IS ASKED ABOUT NOW, not the first time somebody happens to
@@ -4771,7 +4782,19 @@ export default function PmapScene() {
          * the honest reading of a click nobody can reach. */
         const r = findPath(doc, cfg, { x: pos.x, y: pos.y }, { x: px, y: py }, { step: 4 })
         const end = r.reached ? { x: px, y: py } : r.points[r.points.length - 1]
-        if (!end || (Math.hypot(end.x - pos.x, end.y - pos.y) < 6 && !r.reached)) return 'nothing'
+        if (!end || (Math.hypot(end.x - pos.x, end.y - pos.y) < 6 && !r.reached)) {
+          /* AND IT SAYS SO, because this is the one branch where a tap does
+           * nothing at all. Found by the item 7 diagnosis: five taps on the live
+           * hub, four walked him and the fifth "moved him nowhere and said
+           * nothing". He is already as close to that spot as the floor allows,
+           * so there is no walk to start; without a word, a student learns that
+           * clicking sometimes works and sometimes does not, which is the worst
+           * thing this game can teach in its first minute. The world's own
+           * words, and `note` already coalesces repeats. */
+          note('You cannot get there from here.')
+          engine.log('click_nowhere', { map: mapId, to: [Math.round(px), Math.round(py)] })
+          return 'nothing'
+        }
         startWalk(end, 6, null, () => { /* he simply arrives */ }, 'a point he clicked', { byPlayer: true })
         engine.log('click_walk', { map: mapId, to: [Math.round(end.x), Math.round(end.y)], reached: r.reached })
         return 'walking'

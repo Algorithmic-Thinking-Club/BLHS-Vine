@@ -12,6 +12,7 @@ import { GearButton, SettingsPanel } from '../../app/SettingsPanel'
 import { Hud } from '../hud/Hud'
 import { useNav } from '../../app/SceneManager'
 import { SEA_ARRIVAL, enterMap } from '../pmap/route'
+import { warmMap } from '../pmap/warm'
 
 // The intro lives ON the beach — one scene, playable and stageable. A fresh player gets the
 // I-1/I-2 cutscene the moment the stage reports ready; a returning one just gets the cove.
@@ -74,6 +75,14 @@ export default function IntroScene() {
         const go = navRef.current?.go
         if (go) enterMap(go, SEA_ARRIVAL, { kind: 'scene', image: '/art/ui/loading-islands.png', title: 'THE BLHS ISLANDS', holdMs: 2600 })
       })
+      /* AND THE HUB COMES DOWN WHILE HE IS STILL ON THE BEACH.
+       *
+       * BRIEF-ARRIVAL measured the crossing's cover at fourteen seconds of
+       * black, and nearly all of it is one bundle download that could have
+       * happened during the two minutes of the opening. This asks for it now;
+       * `warmMap` is quiet, sequential and cannot fail loudly, so the beach is
+       * unchanged whether it finishes, half finishes or never starts. */
+      void warmMap(SEA_ARRIVAL.map)
       // hand the black frame from the pre-cover to the script's own fade, seamlessly
       window.setTimeout(() => setPreCover(false), 400)
     } else {
