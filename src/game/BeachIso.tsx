@@ -1149,7 +1149,75 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
        * and ty is (y/HH - x/HW) / 2. Height is ignored on purpose: the pier is
        * the only lifted ground and a click on it lands a tile or so short, which
        * the walk then closes on foot. */
-      let clickWalk: { tx: number; ty: number; until: number; last: number; lx: number; ly: number } | null = null
+      let clickWalk: { tx: number; ty: number; until: number; last: number; lx: number; ly: number; route: { tx: number; ty: number }[]; ri: number } | null = null
+      /* ---- AND IT DOES FIND A WAY ROUND, NOW ----------------------------------
+       *
+       * "It does not pathfind" above was the honest state and it cost the pier:
+       * one click from the bottle steered him straight at the pier, into the
+       * flagpole, where he stood for eleven seconds with the arrows still
+       * pointing past it (STATE-OF-THE-GAME confusing 3). The pier needed four
+       * to eleven clicks. The map is a tile grid with the surface engine and the
+       * prop circles already deciding what a tile is worth, so a breadth-first
+       * search over tile centres with those same two tests is a route the walk
+       * can follow, and the corner assist closes the last fraction of a tile.
+       * Diagonal steps need both orthogonal neighbours open, so the route never
+       * cuts a corner the body would catch on. A goal that cannot be reached
+       * gets the closest tile the search found, which is what a click nobody can
+       * reach honestly means. */
+      const routeTo = (gx: number, gy: number): { tx: number; ty: number }[] => {
+        const sx = Math.round(pos.tx), sy = Math.round(pos.ty)
+        const ex = Math.round(gx), ey = Math.round(gy)
+        const open = (fx: number, fy: number, x: number, y: number) =>
+          canGo(fx, fy, x, y) && !collideMove(x, y, x, y)
+        const key = (x: number, y: number) => y * 1000 + x
+        const came = new Map<number, number>()
+        const seen = new Set<number>([key(sx, sy)])
+        let q: [number, number][] = [[sx, sy]]
+        let best: [number, number] = [sx, sy]
+        let bestD = Math.hypot(sx - gx, sy - gy)
+        let found: [number, number] | null = null
+        let nodes = 0
+        const D: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
+        while (q.length && nodes < 9000 && !found) {
+          const next: [number, number][] = []
+          for (const [cx, cy] of q) {
+            nodes++
+            const d = Math.hypot(cx - gx, cy - gy)
+            if (d < bestD) { bestD = d; best = [cx, cy] }
+            if (cx === ex && cy === ey) { found = [cx, cy]; break }
+            for (const [ox, oy] of D) {
+              const nx = cx + ox, ny = cy + oy
+              const k = key(nx, ny)
+              if (seen.has(k) || !open(cx, cy, nx, ny)) continue
+              if (ox && oy && !(open(cx, cy, cx + ox, cy) && open(cx, cy, cx, cy + oy))) continue
+              seen.add(k)
+              came.set(k, key(cx, cy))
+              next.push([nx, ny])
+            }
+          }
+          q = next
+        }
+        const end = found ?? best
+        const out: { tx: number; ty: number }[] = []
+        let k: number | undefined = key(end[0], end[1])
+        const startK = key(sx, sy)
+        while (k !== undefined && k !== startK) {
+          const x = k % 1000, y = (k - x) / 1000
+          out.push({ tx: x, ty: y })
+          k = came.get(k)
+        }
+        out.reverse()
+        /* collinear waypoints are dropped, so a straight run is one leg */
+        const thin: { tx: number; ty: number }[] = []
+        for (let i = 0; i < out.length; i++) {
+          const a = thin[thin.length - 1], b = out[i], c = out[i + 1]
+          if (a && c && Math.sign(b.tx - a.tx) === Math.sign(c.tx - b.tx) && Math.sign(b.ty - a.ty) === Math.sign(c.ty - b.ty)
+            && (b.tx - a.tx) * (c.ty - b.ty) === (b.ty - a.ty) * (c.tx - b.tx)) continue
+          thin.push(b)
+        }
+        if (found) thin.push({ tx: gx, ty: gy })
+        return thin
+      }
       instance.stage.eventMode = 'static'
       instance.stage.hitArea = instance.screen
       /* THE SAME TWO GUARDS `PmapScene` LEARNED THE HARD WAY: a drag across the
@@ -1169,7 +1237,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         const p = world.toLocal(e.global)
         const tx = (p.x / HW + p.y / HH) / 2
         const ty = (p.y / HH - p.x / HW) / 2
-        clickWalk = { tx, ty, until: performance.now() + 12000, last: performance.now(), lx: pos.tx, ly: pos.ty }
+        clickWalk = { tx, ty, until: performance.now() + 12000, last: performance.now(), lx: pos.tx, ly: pos.ty, route: routeTo(tx, ty), ri: 0 }
       })
 
       instance.ticker.add((tk) => {
@@ -1195,7 +1263,13 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           const crept = Math.hypot(pos.tx - clickWalk.lx, pos.ty - clickWalk.ly)
           if (crept > 0.05) { clickWalk.last = now; clickWalk.lx = pos.tx; clickWalk.ly = pos.ty }
           if (Math.hypot(ddx, ddy) <= 0.35 || now > clickWalk.until || now - clickWalk.last > 500) clickWalk = null
-          else { dx = ddx; dy = ddy }
+          else {
+            /* along the route, waypoint by waypoint; the last leg is the click itself */
+            const R = clickWalk
+            while (R.ri < R.route.length && Math.hypot(R.route[R.ri].tx - pos.tx, R.route[R.ri].ty - pos.ty) <= 0.45) R.ri++
+            const wp = R.ri < R.route.length ? R.route[R.ri] : { tx: R.tx, ty: R.ty }
+            dx = wp.tx - pos.tx; dy = wp.ty - pos.ty
+          }
         }
         let moving = dx || dy
         const sprinting = !!keys['shift'] && moving
@@ -1614,7 +1688,22 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           for (let i = 0; i < pointer.sps.length; i++) {
             const sp = pointer.sps[i]
             const t2 = (i + 1.2) / (pointer.sps.length + 1.4)  // skip Thor's feet, stop short of the goal
-            if (len < 90) { sp.alpha = 0; continue }           // arrived: the trail fades out
+            /* A NEAR TARGET STILL GETS ITS MARK. "Arrived" used to hide the whole
+             * trail inside ninety pixels, and the bottle settles about seventy
+             * from where Thor wakes, so the first gate in the game (walk to the
+             * bottle) had nothing lit on it at all: sampled at +0.3, +3.3 and
+             * +6.4 s, zero chevrons (STATE-OF-THE-GAME confusing 2). Inside that
+             * range one chevron hangs over the target itself, pointing down at
+             * it and bobbing, and the rest of the trail stays out of the way. */
+            if (len < 90) {
+              if (i !== 0) { sp.alpha = 0; continue }
+              sp.position.set(bx2, by2 - 34 + 4 * Math.sin(wt * 3.4))
+              sp.rotation = 0
+              sp.alpha = 0.9
+              sp.scale.set(1)
+              sp.zIndex = 999990
+              continue
+            }
             const px2 = ax + ddx * t2, py2 = ay + ddy * t2
             sp.position.set(px2, py2 - 22 + 4.5 * Math.sin(wt * 3.4 - i * 0.85))
             sp.rotation = rot
