@@ -33,10 +33,11 @@ import { AnchorSet, type Anchor } from './anchors'
 import { framingOf, framingNames, shotOf, projectFramings, shotsOf, type NamedShot } from './framings'
 import { readPaths, legsOf, lengthOf, pathNames, walkFaults, type Pathway } from './paths'
 import { holdWorld, onWorldHold, worldHeld } from '../world-bus'
+import { cinemaOn, onCinema, setCinema } from '../stage/cinema'
 import { choose, clearDialogue, say } from '../dialogue'
 import { engine } from '../intent-engine'
 import { play as playSfx } from '../audio'
-import { NotBuilt, WAIT_FOR_CEILING_MS, performIntent, type Intent, type IntentHost, type IntentWorld } from '../../vine/intents'
+import { NotBuilt, PACE_OF, WAIT_FOR_CEILING_MS, performIntent, type Intent, type IntentHost, type IntentWorld } from '../../vine/intents'
 import { CutsceneRuntime } from '../cutscene/runtime'
 import type { CutsceneStage } from '../cutscene/types'
 import { publishRuntime } from '../cutscene/stage-bus'
@@ -583,6 +584,31 @@ export default function PmapScene() {
     let offSail = () => { /* no ocean yet */ }
     const offHold = onWorldHold((held) => { if (held) { dropKeys(); cancelPlayerWalk() } })
 
+    /* ---- THE MOVIE (BRIEF-ARRIVAL item 1) ---------------------------------
+     *
+     * The bars, the HUD corner, the help button and the arrival card are DOM
+     * and stand down in cinema.css. What is left is this scene's own furniture,
+     * and almost all of it is already switched by one variable: `locked =
+     * worldHeld()` puts away the plaque, the objective chevron, the lit ring
+     * and the task line, and it idles the helm and refuses every tap. So the
+     * movie takes a world hold and inherits every one of those for free.
+     *
+     * TWO SURFACES DO NOT FOLLOW THE HOLD, and both of them are exactly what a
+     * letterboxed crossing must not have on screen: the YOU pin over Thor's
+     * head, whose visibility is only ever written by boarding, stepping ashore
+     * and `actorShow`, and the sea labels, which are built once and never
+     * hidden by anything at all. `pinWanted` is what those three write now, and
+     * the frame draws `pinWanted && !movieOn`. */
+    let movieOn = false
+    let movieHold: null | (() => void) = null
+    let onMovie: (on: boolean) => void = () => { /* no scene yet */ }
+    const offCinema = onCinema((on) => {
+      movieOn = on
+      if (on) movieHold ??= holdWorld('movie')
+      else { movieHold?.(); movieHold = null }
+      onMovie(on)
+    })
+
     const start = async () => {
       const params = new URLSearchParams(window.location.search)
       const mapId = target.map
@@ -767,6 +793,17 @@ export default function PmapScene() {
          * exactly once, from the driven pass, at the frame the move really ends,
          * and never from the code that started it. */
         move: null | { tx: number; ty: number; speed: number; done: boolean; then?: () => void }
+        /* HOW FAR THROUGH ITS WALK CYCLE, in frames.
+         *
+         * BRIEF-ARRIVAL item 6: "The principal sprints out, glitched. He walks
+         * over at walking pace, with his walk cycle." The driven pass drew
+         * `vs[0]` and only ever `vs[0]`, so a placement carrying a full eight
+         * heading walk set slid across the floor on one frozen frame while the
+         * life pass two blocks above it was already advancing `animT` by
+         * `dt * look.fps` for every ambient figure on the same map. It was not
+         * the speed that read as a sprint, it was a man in a running pose
+         * travelling without moving his legs. */
+        animT: number
       }
       const driven = new Map<Sprite, Driven>()
       const looksOf = new Map<Sprite, Look[]>()
@@ -781,7 +818,7 @@ export default function PmapScene() {
       const actorSprite = (name: string): Sprite | null => placedById.get(name) ?? null
       const take = (sp: Sprite): Driven => {
         let d = driven.get(sp)
-        if (!d) { d = { x: sp.position.x, y: sp.position.y, visible: sp.visible, look: null, facing: null, move: null }; driven.set(sp, d) }
+        if (!d) { d = { x: sp.position.x, y: sp.position.y, visible: sp.visible, look: null, facing: null, move: null, animT: 0 }; driven.set(sp, d) }
         return d
       }
 
@@ -1057,18 +1094,61 @@ export default function PmapScene() {
       // frame). Fractional zoom is accepted here on his order; nearest sampling keeps it
       // honest. ?z=N overrides, fractions allowed. ----
       const zOverride = parseFloat(params.get('z') || '0')
-      /* A ROOM FILLS THE VIEW. The island formula floors the fit to a whole
-       * number and pulls out to 1.18 of it, which is right for an island in
-       * open sea and wrong for a room: the Maw at 688x384 on a 1366x768 window
-       * floored to 1 and drew at native size in the middle of a black field with
-       * the corner planks far away (STATE-OF-THE-GAME ugly 2, SWEEP-1 item 5).
-       * A room takes the tighter of the two fits at the nearest half step
-       * below it, so the pixels stay whole-or-half and the painting is as big
-       * as the glass allows. */
-      const fit = Math.min(app.screen.width / W, app.screen.height / H)
+      /* ---- THREE SHOTS, NOT ONE NUMBER (BRIEF-ARRIVAL items 3, 4 and 8) ----
+       *
+       * There was one zoom, decided at load, and everything else was a fraction
+       * of it. That is why item 3 could not be written: "the camera zooms OUT to
+       * the whole island" is a no-op when the walking shot ALREADY shows the
+       * whole island. Measured on hub v15 at 1366x768 the walking zoom is 1.18,
+       * the painting is 669x377, and it draws 789x445 in the middle of a
+       * 1366x768 window with Thor 21 pixels tall. There is nothing to pull back
+       * to and nothing to push in on.
+       *
+       * So the three shots are named and computed separately.
+       *
+       * ISLAND is the shot that already exists and that Ash likes: the old
+       * expression, byte for byte, so the wide frame is the picture he has been
+       * looking at all week. It is now what `view("island")` asks for rather
+       * than what a player walks around in.
+       *
+       * WALK is new and is sized off the CHARACTER rather than off the canvas,
+       * because what makes a walking shot right is how big the person is, and
+       * the canvas is 688x640 on the hub with 263 rows of it transparent sea.
+       * The Maw's cover fit puts a 20px character at 40 screen pixels on the
+       * window Ash plays at, and that is the one character scale he has ruled
+       * on, so it is the target here too, carried by the window height so a
+       * bigger screen does not make a smaller person.
+       *
+       * A ROOM FILLS THE VIEW, and now really does. The old room branch took
+       * the CONTAIN fit rounded down to a half step: on the Maw that is
+       * floor(1.985*2)/2 = 1.5, which is 688x384 drawn at 1032x576 inside a
+       * black field on all four sides, which is item 8 exactly. A room takes
+       * the COVER fit at a whole number now, which is 2.0 at 1366x768: the
+       * painting reaches both edges and the pixels stay square. */
+      const fitIn = Math.min(app.screen.width / W, app.screen.height / H)
+      /* named `fitCover` and not `cover`, because `cover` is the door
+       * transition imported at the top of this file and shadowing it here made
+       * every door in the game a number */
+      const fitCover = Math.max(app.screen.width / W, app.screen.height / H)
+      /* the wide shot, and it is the painting's own extent that has to fit in
+       * it rather than the canvas: the hub's canvas is 640 tall and its picture
+       * is 377 of them, so fitting the canvas would frame 263 rows of sea */
+      const Z_ISLAND = Math.max(1, Math.floor(fitIn)) * 1.18
+      /* how tall the person is meant to be on the glass, in the window Ash
+       * plays at. Forty is the Maw's own answer at cover fit, which is the only
+       * character scale in this game he has ruled on. */
+      const BODY_ON_GLASS = 40
+      const bodyH = Math.max(6, map.character?.heightPx || 18)
+      const Z_WALK = Math.max(
+        Z_ISLAND,
+        Math.round(((app.screen.height / 768) * BODY_ON_GLASS / bodyH) * 4) / 4,
+      )
       const Z = zOverride > 0 ? zOverride
-        : coastCut ? Math.max(1, Math.floor(fit)) * 1.18
-          : Math.max(1, Math.floor(fit * 2) / 2)
+        : coastCut ? Z_WALK
+          /* whole pixels, and never below the cover: a room that rounded DOWN
+           * would be back in its black field. The epsilon is there so a cover
+           * of 2.0000001 does not open at 3. */
+          : Math.max(1, Math.ceil(fitCover - 1e-3))
       world.scale.set(Z)
 
       /* ---- D1: THE ZOOM IS A LIVE VALUE AND NOT A LOAD-TIME CONSTANT ----
@@ -1106,8 +1186,16 @@ export default function PmapScene() {
         return Number.isFinite(n) && n >= 0.33 && n <= 1 ? n : 0.45
       })()
       let camZ = Z
-      /* the sailing floor is for water, and a room has none */
-      const Z_MIN = coastCut ? Z * SAIL_ZOOM : Z
+      /* the sailing floor is for water, and a room has none.
+       *
+       * IT HANGS OFF THE WIDE SHOT AND NOT OFF THE WALKING ONE. It used to be
+       * `Z * SAIL_ZOOM`, and `Z` has just become the tight walking shot, so
+       * leaving it there would have pulled the whole sea in by the same factor
+       * the ground zoomed by and made the crossing a close-up. Measured against
+       * the wide shot it is the same 0.531 on hub v15 at 1366x768 that shipped
+       * before this change, and the ocean's block-LOD is sized off the same
+       * number it always was. */
+      const Z_MIN = coastCut ? Z_ISLAND * SAIL_ZOOM : Z
 
       // ---- the engine ocean under the painting (island class only) ----
       // THE VAST VIRTUAL SEA, ported from the old tile hub (IslandMapIso P0, the accepted
@@ -2343,6 +2431,11 @@ export default function PmapScene() {
       pin.scale.set(1 / Z)
       pin.zIndex = 9e9
       world.addChild(pin)
+      /* WHETHER THE MARKER BELONGS ON SCREEN AT ALL, kept apart from whether it
+       * is drawn this frame. Boarding, stepping ashore and the stage's own
+       * `actorShow` write this; the movie reads it. Two writers on one boolean
+       * is how a marker comes back mid-crossing. */
+      let pinWanted = pin.visible
 
       /* ---- THE ONE UI ELEMENT INSIDE THE WORLD, DRAWN AT LAST -----------
        *
@@ -2767,6 +2860,43 @@ export default function PmapScene() {
         })
       }
       objMark.scale.set(1 / Z)
+
+      /* ---- THE BIG POINTER OVER THE THING ITSELF (BRIEF-ARRIVAL item 5) ----
+       *
+       * *"At the door a large pointer arrow hangs above the tunnel."* And the
+       * measurement that makes it more than a nicety: on the live hub the one
+       * lit thing was a ring on the ground at the door's own coordinate, which
+       * lands on a painted teal fountain, so the single surface whose whole job
+       * is to say WHERE was invisible in the one place it mattered most.
+       *
+       * The chevron above rides the ROUTE, sixty pixels ahead of the player,
+       * which answers "which way" and never answers "which thing". This answers
+       * the second question: it hangs over the target itself, well above the
+       * art, at a size a fourteen year old sees without being told to look, and
+       * it is the same drawn mark so the two read as one system. */
+      const bigMark = new Container()
+      bigMark.zIndex = 9e9 - 2
+      bigMark.visible = false
+      world.addChild(bigMark)
+      {
+        const CW = 26, CH = 20
+        const glyph = new Graphics()
+        glyph.moveTo(-CW / 2, -CH).lineTo(CW / 2, -CH).lineTo(0, 0).closePath()
+          .fill(0xffd98a).stroke({ color: 0x3a2410, width: 3 })
+        bigMark.addChild(glyph)
+        void kitSprite('pointer', 'chevron').then((drawn) => {
+          if (destroyed || !drawn) return
+          drawn.anchor.set(0.5, 1)
+          /* about a body and a half tall, against the character rather than
+           * against the sheet, for the reason the small one gives */
+          const want = Math.max(20, Math.round(map.character.heightPx * 1.5))
+          drawn.scale.set(want / drawn.texture.height)
+          bigMark.removeChild(glyph)
+          glyph.destroy()
+          bigMark.addChild(drawn)
+        })
+      }
+      bigMark.scale.set(1 / Z)
 
       /* ---- AND THE THING ITSELF LIGHTS UP ----------------------------------
        *
@@ -3811,7 +3941,7 @@ export default function PmapScene() {
         },
 
         /* ---- A2: SOMEBODY ELSE'S BODY -------------------------------------- */
-        actorMove(actor, to, facing) {
+        actorMove(actor, to, facing, pace) {
           const sp = actorBody(actor, 'actor_move')
           const target = anchors.get(to)
           if (!target) throw new NotBuilt('actor_move', `no anchor named "${to}" on ${mapId}`)
@@ -3828,7 +3958,12 @@ export default function PmapScene() {
           if (dir) d.facing = dir
           return new Promise<void>((resolve) => {
             d.move = {
-              tx: at.x, ty: at.y, speed: map.speed, done: false,
+              /* THE PACE (BRIEF-ARRIVAL item 6), as a fraction of the map's own
+               * speed rather than as a number of pixels. `map.speed` is what the
+               * PLAYER walks at, which is the right default for somebody
+               * crossing a room to meet you and too quick for somebody who is
+               * meant to be strolling. */
+              tx: at.x, ty: at.y, speed: map.speed * PACE_OF[pace ?? 'walk'], done: false,
               then: () => {
                 /* the caller's heading wins, then the anchor's own, then
                  * whatever the walk left it on */
@@ -3967,6 +4102,53 @@ export default function PmapScene() {
           engine.log('framing', { map: mapId, shot, zoom: s.framing.zoom ?? null })
           if (ms === undefined) return Promise.resolve()
           return new Promise<void>((r) => setTimeout(() => { zoomTo(Z); r() }, ms))
+        },
+
+        /* ---- THE SHOTS NOBODY AUTHORS (BRIEF-ARRIVAL item 3) ---------------
+         *
+         * `framing` needs a name somebody dragged into place on one anchor, and
+         * there is no anchor the whole island hangs off. This composes the three
+         * shots that are a function of the painting and the window, so they work
+         * on a map the day it is exported and on every map after it.
+         *
+         * IT AWAITS THE MOVE. A pull-out that has not arrived is a shot the next
+         * line of the island would talk over, and the whole reason item 3 exists
+         * is that the beat is "hold here for a moment". The ceiling is there
+         * because a zoom that cannot settle, on a frame budget that has gone
+         * wrong, must not be an island that never continues. */
+        view(shot, ms) {
+          const to = shot === 'island' ? Z_ISLAND : shot === 'sail' ? Z_MIN : Z
+          /* THE WIDE SHOT CENTRES THE PAINTING AND NOT THE PLAYER, which is the
+           * whole difference between "the whole island" and "zoomed out a bit".
+           * Held until something else takes the camera, exactly as an untimed
+           * `framing` is: a shot that expired on its own would be a cut nobody
+           * asked for in the middle of an arrival card. */
+          if (shot === 'island') {
+            lookAtTarget = { x: pc.x, y: pc.y, until: ms === undefined ? Infinity : performance.now() + ms }
+            lastShot = 'island'
+          } else {
+            lookAtTarget = null
+            lastShot = null
+          }
+          /* WRITTEN PAST `zoomTo`'S FLOOR, on purpose. That floor is `Z_MIN`,
+           * which is the sailing shot on an island and the opening shot itself
+           * in a room, so a room asked for the wide view would have been handed
+           * back exactly what it already had. These three values ARE the floor
+           * and the ceiling: they are computed here from the painting and the
+           * window and there is nothing sane to clamp them against. */
+          camZWant = to
+          engine.log('view', { map: mapId, shot, zoom: +to.toFixed(3) })
+          const arrived = new Promise<void>((r) => {
+            const t0 = performance.now()
+            const tick = () => {
+              if (destroyed) { r(); return }
+              if (Math.abs(camZ - camZWant) < 0.01 || performance.now() - t0 > VIEW_CEILING_MS) { r(); return }
+              requestAnimationFrame(tick)
+            }
+            requestAnimationFrame(tick)
+          })
+          if (ms === undefined) return arrived
+          return arrived.then(() => new Promise<void>((r) => setTimeout(r, ms)))
         },
 
         /* ---- A5: WAITING FOR HIM TO GET THERE -------------------------------
@@ -4149,7 +4331,7 @@ export default function PmapScene() {
         },
 
         actorShow: (actor, visible) => {
-          if (IS_THOR(actor)) { thor.sp.visible = visible; thor.sh.visible = visible; pin.visible = visible; return }
+          if (IS_THOR(actor)) { thor.sp.visible = visible; thor.sh.visible = visible; pinWanted = visible; return }
           const sp = actorSprite(actor)
           if (!sp) { console.warn(`[pmap] actorShow: no placement named "${actor}" on ${mapId}`); return }
           take(sp).visible = visible
@@ -4624,6 +4806,25 @@ export default function PmapScene() {
       const guideTrail = new Graphics()
       guideTrail.zIndex = 9e9 - 3
       world.addChild(guideTrail)
+      /* how many arrow marks are on the ground this frame. A `Graphics` cannot
+       * be asked what is in it, and "the way is drawn" is the claim BRIEF-ARRIVAL
+       * item 4 makes, so the number is kept rather than inferred from a
+       * screenshot of a painting full of market stalls. */
+      let trailMarks = 0
+
+      /* IS THE YEAR'S NEXT STEP SOMEWHERE HE CAN WALK TO FROM HERE.
+       *
+       * The same question the objective marker answers to decide what to point
+       * at, asked one block earlier by the berth so it knows whether to offer
+       * the water. On this map in minute one the answer is always yes, because
+       * every objective in year one lives inside the mountain and the tunnel is
+       * a door on this painting. `loadSave` is cached and `nextObjective` is a
+       * read, so asking twice a frame costs what asking once did. */
+      const leadsInland = (): boolean => {
+        const o = nextObjective(loadSave())
+        if (!o || o.phase === 'done') return false
+        return o.map === mapId || doors.some((d) => d.to === o.map)
+      }
 
       /* WHICH REGIONS AND TRIGGERS THE FEET ARE INSIDE, from the last frame.
        * `AnchorSet.regionsAt` has been real since anchors were read and its only
@@ -4820,6 +5021,7 @@ export default function PmapScene() {
             })
           }
         } finally {
+          liftMovieAfterHandler(a.name)
           stationHold?.(); stationHold = null
           busy = false
           /* the E that opened this is very likely still down; forget it or the
@@ -4827,6 +5029,26 @@ export default function PmapScene() {
           ePrev = true
           keys['e'] = false
         }
+      }
+
+      /* THE BARS ARE NOT ALLOWED TO OUTLIVE THE HANDLER THAT RAISED THEM.
+       *
+       * `movie(True)` is the one word in the vocabulary that can leave a student
+       * with no controls and nothing on screen but a picture, so it is the one
+       * word that must not depend on an author remembering its opposite. An
+       * island's handler is the natural scope: everything the crossing does
+       * happens inside `on_start`, and anything still wanting bars after the
+       * handler has returned is a scene nobody is driving.
+       *
+       * Loud rather than silent, because an island that leaves them up is an
+       * island with a bug in it, and the two minute ceiling in cinema.ts is a
+       * net under a net rather than the mechanism. */
+      const liftMovieAfterHandler = (who: string) => {
+        if (!cinemaOn()) return
+        console.warn(`[pmap] ${mapId}: "${who}" finished with the movie bars still up, `
+          + 'so they are coming down. An island that says movie(True) should say movie(False).')
+        engine.log('movie_left_up', { map: mapId, handler: who })
+        setCinema(false)
       }
 
       /* ---- OPENING THE ISLAND THIS MAP BELONGS TO ----------------------------
@@ -4924,6 +5146,16 @@ export default function PmapScene() {
            * the one place it survived was the first thing an island ever does. */
           if (ready.handlers.includes('start')) {
             const report = await s.call('start')
+            /* AND THE BARS COME DOWN WHEN THE OPENING IS OVER, whether or not
+             * the island remembered. `movie(True)` takes the controls away and
+             * puts the whole HUD behind two black bars; an island that raises
+             * them and then raises an exception on the next line leaves a
+             * student looking at a laptop that appears to have died. The
+             * vocabulary's own rule for driven actors is the same one: "a
+             * placement stays driven until something takes it out, and the scene
+             * does that itself at the end whether or not the author
+             * remembered." */
+            liftMovieAfterHandler('start')
             if (report.error) {
               console.warn(`[pmap] ${mapId}: the island's opening stopped: ${report.error}`)
               if (report.traceback) console.warn(report.traceback)
@@ -4988,18 +5220,63 @@ export default function PmapScene() {
         const slack = view - span
         return slack >= 0 ? Math.min(slack, Math.max(0, want)) : Math.min(0, Math.max(slack, want))
       }
+      /* A ROOM HOLDS STILL (BRIEF-ARRIVAL item 8: "and holds still").
+       *
+       * At the cover fit a room is on the glass whole, give or take the few
+       * pixels the aspect ratios disagree by, so following a body inside it is
+       * a painting sliding a hair under a person who is already fully visible.
+       * That slide is the second half of what item 8 is about.
+       *
+       * Per axis, and by measurement rather than by class, because a room that
+       * really is much wider than the glass still has to be walked around: an
+       * axis the painting overflows by less than a quarter of the view is
+       * pinned to the middle of the painting, and one it overflows by more
+       * follows the body as before. */
+      const ROOM_DRIFT = 1.25
+      let holdStill = !coastCut
+      /* the longest `view` will stand and watch its own zoom arrive before it
+       * lets the island get on. The travel is a 0.42 second exponential, so a
+       * second and a half is four time constants and then some; past it,
+       * something has gone wrong with the frame budget and a beat that never
+       * continues is worse than a beat that continues early. */
+      const VIEW_CEILING_MS = 1500
+      /* where the camera really is, in fractions of a pixel, so the rounding
+       * below never eats the ease. Seeded by the first snap. */
+      let camFX = 0, camFY = 0
       const camTo = (cx: number, cy: number, snap = false) => {
         const vw = app.screen.width, vh = app.screen.height
         const fh = freeH(vh)
+        if (holdStill && !camFree) {
+          if (W * camZ <= vw * ROOM_DRIFT) cx = W / 2
+          if (H * camZ <= vh * ROOM_DRIFT) cy = H / 2
+        }
+        /* AND WHEN IT ALL FITS, IT IS THE PAINTING THAT GETS CENTRED, not the
+         * canvas it was saved on. The hub's canvas is 688x640 and its picture is
+         * 669x377 sitting 194 rows down inside it, so centring the canvas hung
+         * the island sixty-two painting pixels low in its own frame and every
+         * wide shot of it was off. `painted` is the extent three sources already
+         * agree on, and `pc` is its middle. */
         const tx = camFree ? vw / 2 - cx * camZ
-          : W * camZ <= vw ? (vw - W * camZ) / 2 : Math.min(0, Math.max(vw - W * camZ, vw / 2 - cx * camZ))
+          : W * camZ <= vw ? (vw - painted.w * camZ) / 2 - painted.ox * camZ
+            : Math.min(0, Math.max(vw - W * camZ, vw / 2 - cx * camZ))
         /* vertically the picture is centred in the FREE frame and fenced against
          * the WINDOW, so it is allowed to run on under the box (where the box is
          * covering it) and is never pulled off its own bottom edge to do it */
         const ty = camFree ? fh / 2 - cy * camZ
-          : H * camZ <= fh ? (fh - H * camZ) / 2 : fence(fh / 2 - cy * camZ, H * camZ, vh)
-        if (snap) { world.x = tx; world.y = ty }
-        else { world.x += (tx - world.x) * 0.09; world.y += (ty - world.y) * 0.09 }
+          : H * camZ <= fh ? (fh - painted.h * camZ) / 2 - painted.oy * camZ
+            : fence(fh / 2 - cy * camZ, H * camZ, vh)
+        /* WHOLE PIXELS (item 8 again), and the easing kept off them.
+         *
+         * The lerp used to run on `world.x` itself, which left the painting
+         * parked on a fractional offset for as long as the camera was moving
+         * and every frame it was still. Rounding `world.x` in place instead
+         * would stall the follow: nine percent of anything under five and a
+         * half pixels rounds to nothing and the camera would stop that far
+         * short of where it was going, forever. So the ease runs on a number
+         * nobody draws, and what gets drawn is that number rounded. */
+        if (snap) { camFX = tx; camFY = ty }
+        else { camFX += (tx - camFX) * 0.09; camFY += (ty - camFY) * 0.09 }
+        world.x = Math.round(camFX); world.y = Math.round(camFY)
       }
       camTo(pos.x, pos.y, true)
 
@@ -5088,9 +5365,13 @@ export default function PmapScene() {
         const at = fromSea(berth.x, berth.y)
         hull = newHull(at.x, at.y, radOf(berth.facing))
         if (hullSp) hullSp.visible = true
-        thor.sp.visible = false; thor.sh.visible = false; pin.visible = false
+        thor.sp.visible = false; thor.sh.visible = false; pinWanted = false
         camFree = true
-        zoomTo(Z * SAIL_ZOOM)
+        /* Z_MIN and not `Z * SAIL_ZOOM`: the sailing shot is measured off the
+         * WIDE shot now, and `Z` is the tight walking one. Spelling the old
+         * expression here would have pulled the crossing in to 1.01 from the
+         * 0.531 that shipped. */
+        zoomTo(Z_MIN)
         engine.log('boarded', { map: mapId, place: slot?.place ?? null })
       }
 
@@ -5114,7 +5395,7 @@ export default function PmapScene() {
         berthing = null
         if (hullSp) hullSp.visible = false
         wakeG.clear()
-        thor.sp.visible = true; thor.sh.visible = true; pin.visible = true
+        thor.sp.visible = true; thor.sh.visible = true; pinWanted = true
         camFree = false
         zoomTo(Z)
         /* AND THE ADDRESS STOPS SAYING HE IS AT SEA. `aboard` is how the intro
@@ -5377,7 +5658,7 @@ export default function PmapScene() {
          * law to travel, and a travel under a cover is a zoom the student never
          * sees followed by a frame that is wrong for the length of it, so the
          * arrival snaps and only the sailing after it is eased. */
-        camZ = camZWant = Math.max(Z_MIN, Z * SAIL_ZOOM)
+        camZ = camZWant = Z_MIN
         world.scale.set(camZ)
         camTo(hull.x, hull.y, true)
         console.log(`[pmap] ${mapId}: arrived by sea at ${Math.round(out.x)},${Math.round(out.y)}`
@@ -5580,6 +5861,22 @@ export default function PmapScene() {
         get guide() { return guideTarget?.name ?? leading ?? null },
         get guideAsked() { return guideTarget?.name ?? null },
         get walkLabel() { return autoWalk?.label ?? null },
+        /* THE BIG POINTER OVER THE THING, in window pixels. Item 5 is a claim
+         * about a picture: "at the door a large pointer arrow hangs above the
+         * tunnel". A boolean cannot carry where it hangs or whether it is on
+         * top of the sentence over Thor's head, and both were wrong once. */
+        get pointer() {
+          if (!bigMark.visible) return null
+          const b = bigMark.getBounds()
+          return {
+            x: Math.round(b.x + b.width / 2), y: Math.round(b.y),
+            w: Math.round(b.width), h: Math.round(b.height),
+          }
+        },
+        /** how many arrow marks are drawn along the route right now */
+        get trail() { return trailMarks },
+        /** whether the movie frame is up, read off the same switch it is set on */
+        get movie() { return cinemaOn() },
         /* THE LIGHT ON THE THING HE SHOULD WALK TO, in window pixels, because
          * "the objective is lit" is a claim about a picture and a boolean cannot
          * carry it. A capture harness can crop to this; a gate can assert it is
@@ -5595,7 +5892,7 @@ export default function PmapScene() {
             alpha: +lit.alpha.toFixed(2),
           }
         },
-        get hull() { return hull ? { x: hull.x, y: hull.y, speed: hull.speed, aground: hull.aground } : null },
+        get hull() { return hull ? { x: hull.x, y: hull.y, speed: hull.speed, heading: hull.heading, aground: hull.aground } : null },
         /* the drawn ship's box on the glass, so a proof can say whether a
          * plaque is on top of her rather than guessing from a texture name */
         get hullBox() {
@@ -5612,6 +5909,23 @@ export default function PmapScene() {
         get voyage() { return voyage ? { path: voyage.path.name, to: sailingTo?.berth.name ?? null } : null },
         get waiting() { return waiters.map((w2) => w2.a.name) },
         get driven() { return [...driven.keys()].length },
+        /* WHAT EACH DRIVEN BODY IS DOING, by the name its placement carries.
+         * `driven` above is a count, and a count cannot tell a body walking
+         * with its legs going from a body sliding on one frozen frame, which is
+         * exactly the difference BRIEF-ARRIVAL item 6 is about. A screenshot
+         * cannot tell them apart either: the background moves under him. */
+        get drivenNow() {
+          const out: Record<string, { x: number; y: number; frame: number; moving: boolean }> = {}
+          for (const [sp, d] of driven) {
+            let name = '?'
+            for (const [id, s2] of placedById) if (s2 === sp) { name = id; break }
+            out[name] = {
+              x: Math.round(d.x), y: Math.round(d.y),
+              frame: Math.floor(d.animT), moving: !!d.move,
+            }
+          }
+          return out
+        },
         /* which bound placements are on screen, by the name their author typed,
          * because "the bottle appeared" is a claim about a picture and not about
          * a boolean somewhere */
@@ -6070,13 +6384,27 @@ export default function PmapScene() {
            * measured against the live scale now and a stale fill is a shelf that
            * has slid off its own coastline. */
           if (stepZoom(dt)) refreshSea()
-          if (hull) camTo(hull.x, hull.y)
-          else camTo(pos.x, pos.y)
+          /* AND THE BODY LETS GO WHILE A SHOT IS HELD. Both this and the
+           * `look_at` hold below called `camTo` in the same frame, each easing
+           * nine percent toward its own target, so a held shot settled about
+           * halfway between the composition somebody asked for and wherever the
+           * player happened to be standing. Neither one was wrong on its own,
+           * and nothing said they were both running. */
+          if (!lookAtTarget) {
+            if (hull) camTo(hull.x, hull.y)
+            else camTo(pos.x, pos.y)
+          }
         }
         /* the screen-space chrome undoes whatever zoom is live, so a camera push
          * does not blow the YOU pin up with the painting */
         const uiS = 1 / camZ
-        if (pin.scale.x !== uiS) { pin.scale.set(uiS); prompt.scale.set(uiS); objMark.scale.set(uiS) }
+        if (pin.scale.x !== uiS) { pin.scale.set(uiS); prompt.scale.set(uiS); objMark.scale.set(uiS); bigMark.scale.set(uiS) }
+        /* THE TWO SURFACES A WORLD HOLD DOES NOT REACH. Everything else in this
+         * scene's chrome is already switched by `locked`; these two are written
+         * from elsewhere, so the movie states them itself every frame rather
+         * than trying to be the last writer. */
+        pin.visible = pinWanted && !movieOn
+        slotMarks.visible = !movieOn
         ;(window as any).__walk = `thor ${pos.x.toFixed(0)},${pos.y.toFixed(0)} lvl${lvlAt(pos.x, pos.y)}`
 
         /* the position, stamped with the bundle it was written against, so the
@@ -6209,8 +6537,25 @@ export default function PmapScene() {
           }
         }
         /* stepping aboard is offered where the boat is tied, and only to a body on
-         * foot, so a student cannot board from the far side of the island */
-        if (!hull && canSail && berth && !locked && !busy && !fade) {
+         * foot, so a student cannot board from the far side of the island.
+         *
+         * AND ONLY WHEN THE YEAR HAS NOTHING FOR HIM HERE. BRIEF-ARRIVAL, off
+         * the measured landing: *"the 'Get in the boat' plaque is on from the
+         * landing frame at Thor's feet and one click on it puts him back in the
+         * boat."* That is not a coincidence of the hub's layout, it is the hub's
+         * spawn sitting 55 painting pixels from its own berth, inside this 110
+         * pixel radius, so the very first thing the game offers a student after
+         * a ninety second crossing is the way back onto the water. `walkTap`
+         * fires `seaFire` before it does anything else, so a click meant to walk
+         * inland re-boards him.
+         *
+         * `08-leaving-the-maw.md` already ruled the shape: *"The boarding prompt
+         * must not be reachable while the year still owes something in the
+         * Maw."* `nextObjective` is the year's own answer to what is owed, and
+         * on this map in minute one it is always the door into the mountain. So
+         * the berth is quiet while the year is pointing somewhere on land, and
+         * it is there the moment the year wants him at sea. */
+        if (!hull && canSail && berth && !locked && !busy && !fade && !leadsInland()) {
           const p = fromSea(berth.x, berth.y)
           if (Math.hypot(p.x - pos.x, p.y - pos.y) < 110) {
             setPrompt('Get in the boat', 'plain')
@@ -6311,7 +6656,42 @@ export default function PmapScene() {
           const g = guide!
           const lead = aheadOn(g.route, { x: pos.x, y: pos.y }, 60, map.yScale) ?? goal
           objMark.position.set(lead.x, lead.y - 14 + Math.sin(t * 2.6) * 2)
-          objMark.visible = !locked && !fade
+          /* THE ARROWS SURVIVE A SCRIPTED WALK, and this is the whole of item 4
+           * on the drawing side. `locked` is a world hold, and `walk_to` takes
+           * one for the length of the walk, so an island that auto-walked him to
+           * the door hid the marks along the route it was walking him down: the
+           * one moment the trail exists to be seen was the one moment it was not
+           * drawn. A held world means a conversation or a panel; an auto-walk is
+           * the opposite, it is the game showing him the way.
+           *
+           * A movie outranks both. Item 1 is "no plaques" and a chevron over the
+           * water during the crossing is a plaque. */
+          objMark.visible = !fade && !movieOn && (!locked || !!autoWalk)
+
+          /* THE BIG ONE HANGS OVER THE THING, and it is placed against the
+           * CHARACTER rather than against the anchor's own radius: two and a bit
+           * bodies up is above the archway on a door and above the head on a
+           * person, on a map whose people are eighteen pixels and on one whose
+           * people are forty. It bobs on the same clock as the small chevron, a
+           * little further, because it is meant to catch an eye that is not
+           * looking for it. */
+          const over = anchors.spotOf(mark)
+          /* HOW HIGH, AND IT MOVES OUT OF THE WAY RATHER THAN LIVING OUT OF
+           * THE WAY. Two and a bit bodies is where it belongs: close enough to
+           * the thing that it is plainly ABOUT the thing. But the sentence over
+           * Thor's head rides about a hundred screen pixels above him, so at the
+           * one moment this pointer exists for, him arriving at the tunnel, the
+           * arrow and the words were measured on the same pixels. Standing off
+           * for good would leave it floating in the mountain on every other
+           * frame, so it steps up only while he is close enough for the two to
+           * collide, which is the same dodge the plaque already does around the
+           * body and around the light. */
+          const atIt = Math.hypot(over.x - pos.x, (over.y - pos.y) * (map.yScale || 1))
+            < map.character.heightPx * 2.5
+          const lift = Math.round(map.character.heightPx * (atIt ? 3.6 : 2.3))
+          bigMark.position.set(over.x, over.y - lift + Math.sin(t * 2.6) * 3)
+          bigMark.zIndex = 9e9 - 2
+          bigMark.visible = objMark.visible
 
           /* THE LIGHT SITS ON THE THING, NOT ON THE ARROW. `lead` is a point some
            * way along the route, which is where the chevron belongs and is not
@@ -6362,19 +6742,87 @@ export default function PmapScene() {
           lit.alpha = prefersReducedMotion() ? 1 : 0.82 + Math.sin(t * 2.6) * 0.18
           lit.visible = objMark.visible
 
-          /* the route itself, in dots, so "round that way" is visible rather than
-           * inferred from one chevron. Engine-drawn and deliberately small: the
-           * painting is Ash's and the engine does not draw furniture on it. */
+          /* ---- THE ROUTE ITSELF, IN CLEAN ARROW MARKS ON THE GROUND ------
+           *
+           * BRIEF-ARRIVAL item 4: *"Clean arrow marks on the ground follow that
+           * whole route."* This drew 1.2 pixel dots every second waypoint at 42
+           * percent alpha, which on a 688 pixel painting full of market stalls
+           * is a dotted line nobody sees and which says nothing about which
+           * direction it runs.
+           *
+           * So they are arrowheads, spaced by DISTANCE rather than by waypoint
+           * index (the search returns a point every four pixels, so every second
+           * one was a mark every eight pixels of a six hundred pixel route:
+           * seventy-five of them), each turned to face the way the route goes,
+           * squashed by the painting's own foreshortening so they lie on the
+           * floor rather than standing on it, and CONSUMED as he walks: a mark
+           * behind the player is a mark saying go back.
+           *
+           * Still engine-drawn and still deliberately quiet. The painting is
+           * Ash's and the engine does not draw furniture on it. */
           guideTrail.clear()
+          /* CLEARED WITH THE PICTURE AND NOT ONLY WITH THE TARGET. This was set
+           * inside the draw and reset only in the no-objective branch below, so
+           * a frame that had a target and drew nothing (the movie is up, a panel
+           * is open, the world is held) reported the count from the last frame
+           * that did draw. The gate caught it: the crossing said twenty-one
+           * marks were on the ground behind two black bars. */
+          trailMarks = 0
           if (objMark.visible && g.route.length > 1) {
-            for (let i = 0; i < g.route.length; i += 2) {
-              const d = g.route[i]
-              if (Math.hypot(d.x - pos.x, d.y - pos.y) < 10) continue
-              guideTrail.circle(d.x, d.y, 1.2).fill({ color: 0xffd98a, alpha: 0.42 })
+            const ys = map.yScale || 1
+            const STEP = Math.max(14, Math.round(map.character.heightPx * 0.9))
+            const HALF = Math.max(3, map.character.heightPx * 0.26)
+            let run = 0
+            /* THE FIRST MARK IS NOT AT HIS FEET. One body's worth of clearance,
+             * so the trail starts in front of him and reads as a road rather
+             * than as something stuck to the body. */
+            let next = map.character.heightPx * 1.1
+            const marks: { x: number; y: number; cos: number; sin: number }[] = []
+            for (let i = 1; i < g.route.length && marks.length < 90; i++) {
+              const a = g.route[i - 1], b = g.route[i]
+              const dx = b.x - a.x, dy = (b.y - a.y) * ys
+              const seg = Math.hypot(dx, dy)
+              if (seg < 0.001) continue
+              while (run + seg >= next) {
+                const k = (next - run) / seg
+                const x = a.x + (b.x - a.x) * k
+                const y = a.y + (b.y - a.y) * k
+                next += STEP
+                /* behind him, or so close that the mark would sit under his own
+                 * feet, is a mark that has been used up */
+                if (Math.hypot(x - pos.x, (y - pos.y) * ys) < map.character.heightPx * 0.8) continue
+                const ang = Math.atan2(dy, dx)
+                marks.push({ x, y, cos: Math.cos(ang), sin: Math.sin(ang) / ys })
+              }
+              run += seg
             }
+            /* TWICE, DARK UNDER BRIGHT, for the reason the lit ring gives at
+             * length: the deployment target is a Chromebook panel that crushes
+             * lightness and saturation, and one warm stroke on warm stone
+             * disappears. The dark pass is the painting's own outline brown. */
+            for (const pass of [
+              { color: 0x3a2410, width: 4.2, alpha: 0.5 },
+              { color: 0xffd98a, width: 2, alpha: 0.9 },
+            ]) {
+              for (const m of marks) {
+                /* an open arrowhead: two strokes meeting at the point, which
+                 * reads as a direction at a few pixels across where a filled
+                 * triangle reads as a blob */
+                const tipX = m.x + m.cos * HALF, tipY = m.y + m.sin * HALF
+                for (const side of [-1, 1] as const) {
+                  const bx = m.x - m.cos * HALF * 0.55 + side * m.sin * HALF * 0.85 * ys
+                  const by = m.y - m.sin * HALF * 0.55 + side * m.cos * HALF * 0.85 / ys
+                  guideTrail.moveTo(bx, by).lineTo(tipX, tipY)
+                }
+              }
+              guideTrail.stroke({ ...pass, cap: 'round', join: 'round' })
+            }
+            trailMarks = marks.length
           }
         } else {
           objMark.visible = false
+          bigMark.visible = false
+          trailMarks = 0
           /* guarded, never cleared: see the note where `lit` is built. Both of
            * these run on every frame of a map with nothing owed. */
           if (lit.visible) { lit.visible = false; litKey = ''; litR = 0; litRy = 0 }
@@ -6442,10 +6890,19 @@ export default function PmapScene() {
           }
         }
 
-        /* a camera hold from look_at, released when its clock runs out */
+        /* a camera hold from look_at, released when its clock runs out.
+         *
+         * The room's hold-still rule stands aside for it: a composed shot is
+         * somebody saying where the camera goes, and pinning it back to the
+         * middle of the painting would answer them by ignoring them. */
         if (lookAtTarget) {
           if (performance.now() > lookAtTarget.until) lookAtTarget = null
-          else camTo(lookAtTarget.x, lookAtTarget.y)
+          else {
+            const was = holdStill
+            holdStill = false
+            camTo(lookAtTarget.x, lookAtTarget.y)
+            holdStill = was
+          }
         }
 
         // E is an edge, not a hold: one press, one interaction
@@ -6647,7 +7104,13 @@ export default function PmapScene() {
         for (const [sp, d] of driven) {
           if (d.move) {
             const dx = d.move.tx - d.x, dy = d.move.ty - d.y
-            const dist = Math.hypot(dx, dy)
+            /* THE PAINTING'S OWN FORESHORTENING IS IN THE DISTANCE, the way it
+             * is everywhere else a body moves. Raw pixels made a driven actor
+             * walk `1/yScale` times too fast northward and too slow eastward on
+             * the same map, so the same `actor_move` was a stroll or a sprint
+             * depending on which way the anchor happened to be. */
+            const ys2 = map.yScale || 1
+            const dist = Math.hypot(dx, dy * ys2)
             const stepPx = d.move.speed * dt
             if (dist <= Math.max(stepPx, 0.5)) {
               d.x = d.move.tx; d.y = d.move.ty
@@ -6671,13 +7134,23 @@ export default function PmapScene() {
             const set = looksOf.get(sp)
             const look = set && (set[d.look ?? 0] ?? set[0])
             if (look) {
+              /* THE LEGS RUN WHILE THE BODY TRAVELS, and stop the frame it
+               * stops. Same rule and the same clock as the life pass: `moving`
+               * there is "is this leg travelling or is this a pause", and here
+               * it is simply whether a move is live. A body standing still goes
+               * back to frame zero of its heading, which is the pose whoever
+               * drew the set meant as the still one. */
+              if (d.move) d.animT += dt * (look.fps || 8)
+              else d.animT = 0
               /* the heading first, because a face and a heading are two questions
                * about the same picture and the heading is the narrower one: a look
                * with no views for the direction asked falls back through
                * NEAREST_VIEW and then to the look's own first frame. */
               const views = d.facing ? look.views : null
               const vs = views && (views[d.facing!] || views[NEAREST_VIEW[d.facing!]] || views.south)
-              const want = vs && vs.length ? vs[0] : look.frames[0]
+              const want = vs && vs.length
+                ? vs[d.move ? Math.floor(d.animT) % vs.length : 0]
+                : look.frames[d.move && look.frames.length ? Math.floor(d.animT) % look.frames.length : 0]
               if (want && sp.texture !== want) sp.texture = want
             }
           }
@@ -6741,6 +7214,12 @@ export default function PmapScene() {
       window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku)
       offHold()
       offSail()
+      /* THE BARS COME DOWN WITH THE SCENE. A map torn down mid-movie by a door,
+       * a refresh or a crash would otherwise leave two black bars and a taken
+       * world hold over whatever loads next, which is a dead-looking laptop. */
+      offCinema()
+      movieHold?.(); movieHold = null
+      setCinema(false)
       /* anything a station was still waiting on is resolved rather than left
        * hanging. A body parked on an unresolved say() holds its world lock for
        * ever, and the next map opens with no controls and no way to tell why. */

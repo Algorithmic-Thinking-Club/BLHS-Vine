@@ -41,6 +41,7 @@ function stubWorld(over: Partial<IntentWorld> = {}) {
     actorRelease: (a) => { did.push(`actorRelease:${a ?? '*'}`) },
     route: async (p, who, back) => { did.push(`route:${p}:${who}:${back}`) },
     framing: async (s) => { did.push(`framing:${s}`) },
+    view: async (v) => { did.push(`view:${v}`) },
     waitFor: async (a) => { did.push(`waitFor:${a}`); return true },
     ...over,
   }
@@ -58,6 +59,7 @@ const stubEngine = (): { engine: IntentEngine; did: string[] } => {
       setFlag: (f) => { did.push(`setFlag:${f}`) },
       award: (a) => { did.push(`award:${JSON.stringify(a)}`) },
       log: (e) => { did.push(`log:${e}`) },
+      movie: (on) => { did.push(`movie:${on}`) },
       mode: () => 'game',
       /* no real timer in a test: the point of a `wait` here is that it was asked
        * for and that the ceiling was applied, and a test that really slept would

@@ -3,6 +3,7 @@ import { Hud } from './Hud'
 import { Dialogue } from './Dialogue'
 import { WorldCutscene } from '../cutscene/WorldCutscene'
 import { PlaceCard } from '../stage/PlaceCard'
+import { MovieBars } from '../stage/MovieBars'
 import { Heading } from './Heading'
 import { HelpButton } from './Help'
 import { loadSave, subscribeSave } from '../save'
@@ -100,6 +101,10 @@ export function WorldHud() {
           student a teacher answers with "press the question mark". It is the one
           permitted floating element that is not state, and that is the reason. */}
       <HelpButton />
+      {/* THE MOVIE FRAME (BRIEF-ARRIVAL item 1). Last in the list and highest of
+          the DOM chrome, because the bars are what everything else stands down
+          behind. It draws nothing at all until an island says `movie(True)`. */}
+      <MovieBars />
     </>
   )
 }

@@ -56,6 +56,9 @@ const world: IntentWorld = {
   fx: noMap('fx'),
   enter: noMap('enter'),
   cutscene: noMap('cutscene'),
+  /* the composed shots need a painting to be composed of, like every other
+   * camera word here */
+  view: noMap('view'),
   /* THE DIRECTOR HALF, AND EVERY ONE OF IT NEEDS A MAP. A pose is a body on a
    * painting, an actor is a placement on one, a route is a line drawn across
    * one, a shot is a camera looking at one and a region is a rectangle on one.

@@ -1,0 +1,50 @@
+/* THE MOVIE FRAME, and what stands down inside it. BRIEF-ARRIVAL item 1.
+
+   THE LAYER. Read off the tree the same way placecard.css does: the world canvas
+   is 0, the HUD corner and the help button are 50, the objective card 46, the
+   arrival card 68, the cutscene overlay 72, the panels 73 to 80, a transition
+   cover 90, the feedback stamps 120. The bars go at 70: over the world, over the
+   arrival card, and UNDER the cutscene overlay and the door cover, because a
+   real cutscene draws inside the movie frame and a door swap covers the lot. */
+
+.cin-root {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+  user-select: none;
+}
+
+.cin-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* the same depth and the same ink as the cutscene runtime's own letterbox
+     (CutsceneOverlay.tsx: `${ui.letterbox * 10}vh`, #04060a), because a student
+     must not be able to tell which of the two frames they are looking at */
+  height: 10vh;
+  background: #04060a;
+  transition: transform 450ms cubic-bezier(0.33, 0, 0.2, 1);
+}
+
+.cin-top { top: 0; transform: translateY(-100%); }
+.cin-bottom { bottom: 0; transform: translateY(100%); }
+.cin-root[data-on='1'] .cin-bar { transform: translateY(0); }
+
+/* THE CHROME STANDS DOWN, by the same mechanism `data-panels` already uses for
+   the corner and the help button, so there is one way of doing this and not two.
+   Visibility rather than display: nothing reflows, nothing remeasures its own
+   band, and a surface that publishes a height to the camera keeps publishing it
+   instead of making the picture jump when the bars come down. */
+html[data-movie='1'] .hud-stack,
+html[data-movie='1'] .hp-btn,
+html[data-movie='1'] .pc-root,
+html[data-movie='1'] .hd-card {
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cin-bar { transition-duration: 60ms; }
+}
+
+html[data-rm='1'] .cin-bar { transition-duration: 60ms; }

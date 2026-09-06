@@ -125,6 +125,9 @@ describe('the absence list is enforced rather than intended', () => {
        * a grant, and the brief that asked for it asked for exactly this: that it
        * be added to the absence list rather than smuggled past it. */
       HelpButton: 'help',
+      /* the movie frame, which is on the list because it MOUNTS on the play
+       * screen even though it draws nothing until an island asks for it */
+      MovieBars: 'movie-bars',
     }
     const strangers = mounted.filter((m) => !(m in KNOWN))
     expect(strangers,

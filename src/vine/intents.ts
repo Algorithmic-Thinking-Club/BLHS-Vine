@@ -84,7 +84,16 @@ export type Intent =
    * frame, so an actor a scene forgot about stands still for the rest of the
    * visit. `actor_release` with no name releases every one of them, and the
    * scene does that itself at the end whether or not the author remembered. */
-  | { kind: 'actor_move'; actor: string; to: string; facing?: string }
+  /* `pace` is BRIEF-ARRIVAL item 6, and the brief names it: "a walking pace for
+   * actor_move". A driven body travelled at the MAP's speed, which is the
+   * player's own sprint-walk, and it travelled on one frozen frame, so the
+   * principal covered the Maw in four seconds without moving his legs and Ash
+   * read that as a sprint. The frames are fixed in the scene for every driven
+   * body. This is the other half: a scene may be told that somebody is
+   * strolling, walking or running, and the words are paces rather than numbers
+   * because a number here would be painting pixels per second, which is a
+   * quantity no author of a scene should have to hold. */
+  | { kind: 'actor_move'; actor: string; to: string; facing?: string; pace?: Pace }
   | { kind: 'actor_face'; actor: string; facing: string }
   | { kind: 'actor_look'; actor: string; look: string }
   | { kind: 'actor_release'; actor?: string }
@@ -108,6 +117,26 @@ export type Intent =
    * `shot: null` gives the camera back, exactly as `look_at(None)` does. */
   | { kind: 'framing'; shot: string | null; ms?: number }
 
+  /* THE SHOTS NOBODY HAS TO AUTHOR. `framing` names a composition somebody
+   * dragged into place on one anchor, which is the right word for "the shot of
+   * the tunnel mouth" and no help at all for "show me the whole island": there
+   * is no anchor the whole island hangs off, and no author should have to
+   * re-drag that shot on every map ever made.
+   *
+   * BRIEF-ARRIVAL item 3 is this word. "The moment he is on the dock the camera
+   * zooms OUT to the whole island, for a moment." It could not be written,
+   * because the walking shot ALREADY showed the whole island: measured on hub
+   * v15 at 1366x768 the walking zoom was 1.18 and the painting drew 789 by 445
+   * in the middle of the window with Thor twenty-one pixels tall. There was
+   * nothing to pull back to.
+   *
+   * Three names, computed by the scene off the painting and the window:
+   *   island  the whole painted extent, centred, held still
+   *   walk    the shot a player walks around in, following the body
+   *   sail    the shot the sea is crossed at
+   * A room has no sea and answers `sail` with `walk`. */
+  | { kind: 'view'; view: ViewShot; ms?: number }
+
   /* TIME, so a scene can breathe and so it can react. `wait` is a pause a
    * person can feel; `wait_for` blocks until the player walks into a named
    * region, which is the only way to write "when he gets there" without a
@@ -120,6 +149,29 @@ export type Intent =
    * be replaced without touching a caller. A name the library does not hold
    * refuses and lists what it does, like every other named word here. */
   | { kind: 'sound'; name: string; gain?: number }
+
+  /* THE MOVIE, which is BRIEF-ARRIVAL item 1 and Ash's own word for it.
+   *
+   * *"The crossing is a cutscene. Same point of view the ship had sailing out
+   * from the beach, with the two black bars top and bottom, like a movie. No
+   * HUD, no plaques, no 'Get in the boat', no drive-ship control of any kind.
+   * There is no reason a student can drive the ship in the middle of a
+   * cutscene. He watches."*
+   *
+   * WHY IT IS A MODE AND NOT A SCRIPT. `cutscene(name)` already exists and runs
+   * a step list registered in TypeScript, which is the wrong side of the ruling
+   * that says the crossing is written in the islands repo. And a script would
+   * have to own the movement, while the thing actually moving the ship here is
+   * `route(who="ship")`, which is a word the island already has. So this word
+   * changes what the FRAME looks like and touches nothing about what is in it:
+   * bars in, chrome out, hands off, and every other word carries on working.
+   *
+   * IT CANNOT BE LEFT ON. A student sitting behind two black bars with no
+   * controls, because an island raised them and then raised an exception, is a
+   * dead session that looks like a dead laptop. So the scene lifts them on
+   * teardown and a ceiling lifts them anyway, the same shape as the two wait
+   * ceilings below. */
+  | { kind: 'movie'; on: boolean }
 
   /* the sit-down panels. Deliberately a short closed list: a station that opens
    * a panel is a station that could have been a scene, so making this cheap to
@@ -172,6 +224,21 @@ export type Intent =
   /* instrumentation. Law 11: every meaningful interaction emits a typed event.
    * A grape gets to add to the record; it does not get to write the record. */
   | { kind: 'log'; event: string; data?: Record<string, unknown> }
+
+/* HOW FAST A DRIVEN BODY TRAVELS, as three words rather than as a number. The
+ * scene turns each into a fraction of the map's own speed, so a pace means the
+ * same thing on a map whose people are eighteen pixels tall and on one whose
+ * people are forty. */
+export type Pace = 'stroll' | 'walk' | 'run'
+export const PACES: Pace[] = ['stroll', 'walk', 'run']
+/* Walk is the map's own speed and is what everything got before this existed.
+ * A stroll is two thirds of it, which is the pace a person crosses a room at
+ * when they are not in a hurry, and a run is half again. */
+export const PACE_OF: Record<Pace, number> = { stroll: 0.62, walk: 1, run: 1.5 }
+
+/** the shots the engine composes itself, off the painting and the window */
+export type ViewShot = 'island' | 'walk' | 'sail'
+export const VIEW_SHOTS: ViewShot[] = ['island', 'walk', 'sail']
 
 export type RunPath =
   | 'year' | 'gpa' | 'tokens' | 'cords' | 'flags' | 'islands'
@@ -256,12 +323,15 @@ export interface IntentWorld {
   /* the director half. Each one is a word for something MAPVIS already authors
    * and the game could not previously say. */
   pose(pose: string | undefined, facing: string | undefined): Promise<void>
-  actorMove(actor: string, to: string, facing?: string): Promise<void>
+  actorMove(actor: string, to: string, facing?: string, pace?: Pace): Promise<void>
   actorFace(actor: string, facing: string): void
   actorLook(actor: string, look: string): void
   actorRelease(actor?: string): void
   route(path: string, who: string, backwards: boolean): Promise<void>
   framing(shot: string | null, ms?: number): Promise<void>
+  /* the composed shots the engine works out for itself. Awaited, because a
+   * pull-out that has not arrived is a shot the next line would talk over. */
+  view(shot: ViewShot, ms?: number): Promise<void>
   waitFor(anchor: string, ms?: number): Promise<boolean>
 }
 
@@ -285,6 +355,12 @@ export interface IntentEngine {
    * scene, for the same reason. */
   wait(ms: number): Promise<void>
   sound(name: string, gain?: number): void
+  /* AND THE THIRD. The bars and the chrome are the WINDOW, not the map: a
+   * scene with no painting still has a HUD to put away and a frame to draw, and
+   * an island's opening should be able to say "this part is watched" wherever
+   * it is being run. The scene listens to the same switch for its own in-world
+   * furniture, so there is one flag and not two. */
+  movie(on: boolean): void
 }
 
 /* WHO IS SPEAKING, WHEN IT IS NOT THE VINE.
@@ -408,7 +484,11 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
       case 'actor_move':
         if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
         if (!w().hasAnchor(i.to)) return no(`no anchor named "${i.to}" on ${w().mapId()}`)
-        await w().actorMove(i.actor, i.to, i.facing)
+        /* a pace nobody drew is a typo, and it reads the same way every other
+         * named thing in this file reads: refused by name, with the list */
+        if (i.pace && !PACES.includes(i.pace))
+          return no(`"${i.pace}" is not a pace. They are: ${PACES.join(', ')}`)
+        await w().actorMove(i.actor, i.to, i.facing, i.pace)
         return ok()
       case 'actor_face':
         if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
@@ -433,6 +513,12 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         await w().framing(i.shot, i.ms)
         return ok()
 
+      case 'view':
+        if (!VIEW_SHOTS.includes(i.view))
+          return no(`"${i.view}" is not a shot this engine composes. They are: ${VIEW_SHOTS.join(', ')}`)
+        await w().view(i.view, i.ms)
+        return ok()
+
       /* `wait_for` ANSWERS WHETHER IT HAPPENED. A timeout that resolves the same
        * as an arrival is a timeout an author cannot branch on, so the value is
        * the answer to "did he get there", and a wait with no timeout can only
@@ -449,6 +535,12 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         return ok()
       case 'sound':
         engine.sound(i.name, i.gain)
+        return ok()
+      case 'movie':
+        /* NO MAP NEEDED, on purpose. The bars are a property of the window and
+         * an island opening in the standalone harness should still be able to
+         * say that a stretch of it is watched rather than played. */
+        engine.movie(i.on === true)
         return ok()
 
       case 'open':

@@ -55,13 +55,29 @@ function bodyOf(name: string): string {
 }
 
 describe('the intent vocabulary, both sides of the worker', () => {
-  /* FIFTEEN, THEN TWENTY-FIVE. The number is asserted rather than counted at
-   * runtime so that GROWING the vocabulary is a deliberate edit to this line and
-   * never a side effect of somebody adding a case. Wave four added the ten
-   * director words: a body of his own, four for driving somebody else's, routes,
-   * framings, two kinds of waiting, and sound. */
-  it('is twenty-five words on the engine side', () => {
-    expect(engineWords.size).toBe(25)
+  /* FIFTEEN, THEN TWENTY-FIVE, THEN TWENTY-SEVEN. The number is asserted rather
+   * than counted at runtime so that GROWING the vocabulary is a deliberate edit
+   * to this line and never a side effect of somebody adding a case. Wave four
+   * added the ten director words: a body of his own, four for driving somebody
+   * else's, routes, framings, two kinds of waiting, and sound.
+   *
+   * BRIEF-ARRIVAL added two, and both are the frame rather than the world.
+   * `movie` is the two black bars, the HUD out of the way and the controls
+   * taken, for a stretch the student watches. `view` is the three shots the
+   * engine composes off the painting and the window, so an island can ask for
+   * the whole island without an author having dragged that shot onto an anchor
+   * first. The third thing the brief asked for, a walking pace, is an argument
+   * on `actor_move` and not a word, because "walk somebody there" and "walk
+   * somebody there slowly" are one sentence. */
+  it('is twenty-seven words on the engine side', () => {
+    expect(engineWords.size).toBe(27)
+  })
+
+  it('has the two frame words on both sides', () => {
+    for (const w of ['movie', 'view']) {
+      expect(engineWords.has(w), `intents.ts is missing ${w}`).toBe(true)
+      expect(pythonWords.has(w), `vine.py is missing ${w}`).toBe(true)
+    }
   })
 
   it('has the ten director words on both sides', () => {

@@ -154,4 +154,17 @@ export const ALWAYS_ON = [
    * only thing on the screen that works when the run has given the student
    * nothing at all. */
   'help',
+  /* ---- AND THE FRAME, WHICH IS THE OPPOSITE OF A FLOATING READOUT --------
+   *
+   * The two black bars (BRIEF-ARRIVAL item 1). They pass this law by inverting
+   * it: §40.6 forbids things that ADD themselves to a play screen, and this
+   * draws nothing at all until an island says `movie(True)`, at which point the
+   * screen is not a play screen any more. It takes the controls, puts every
+   * other surface on this list away, and takes itself away again when the
+   * stretch it framed is over.
+   *
+   * It is on the list rather than smuggled past it because the test reads
+   * WorldHud's render and does not care what a component draws, which is right:
+   * the mount is the commitment. */
+  'movie-bars',
 ] as const

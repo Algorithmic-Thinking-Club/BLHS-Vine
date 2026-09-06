@@ -125,11 +125,22 @@ def pose(name=None, facing=None):
 # so a person you walked across a square goes back to her rounds instead of
 # standing where your scene abandoned her.
 
-def actor_move(actor, to, facing=None):
-    """Walk somebody to an anchor. Comes back when they get there."""
+def actor_move(actor, to, facing=None, pace=None):
+    """Walk somebody to an anchor. Comes back when they get there.
+
+    `pace` is how fast: "stroll", "walk" or "run". Left out it is a walk, which
+    is the same speed the player walks this map at. A name nobody drew is
+    refused on your line with the list of the ones that exist.
+
+    They walk with their legs going, if whoever drew them drew a walk cycle for
+    the heading they are travelling on, and they stand on the first frame of it
+    when they stop.
+    """
     intent = {"kind": "actor_move", "actor": actor, "to": to}
     if facing is not None:
         intent["facing"] = facing
+    if pace is not None:
+        intent["pace"] = pace
     return intent
 
 
@@ -169,6 +180,31 @@ def route(path, who=None, backwards=False):
         intent["who"] = who
     if backwards:
         intent["backwards"] = True
+    return intent
+
+
+def view(shot, ms=None):
+    """One of the three shots the engine composes for itself.
+
+        island   the whole painted island, centred and held still
+        walk     the shot you walk around in, following the body
+        sail     the shot the sea is crossed at
+
+    `framing` needs a name somebody dragged into place on one anchor, which is
+    right for "the shot of the tunnel mouth" and no help at all for "show me the
+    whole island": there is no anchor the island hangs off. These three are a
+    function of the painting and the window, so they work on a map the day it is
+    exported and on every map after it.
+
+    IT COMES BACK WHEN THE CAMERA HAS ARRIVED, so the next line of your island
+    does not talk over a move that is still travelling. Pass `ms` to hold the
+    shot for that long as well, then it comes back.
+
+    A room has no sea and answers "sail" with the walking shot.
+    """
+    intent = {"kind": "view", "view": shot}
+    if ms is not None:
+        intent["ms"] = ms
     return intent
 
 
@@ -222,6 +258,22 @@ def sound(name, gain=None):
 
 
 # ---- the world ---------------------------------------------------------------
+
+def movie(on=True):
+    """Two black bars, no HUD, no plaques, and the controls taken away.
+
+    This is for a stretch the student WATCHES. Everything else keeps working:
+    the ship still sails her route, somebody can still say a line, the camera
+    can still be moved. What changes is the frame around it.
+
+    `movie(False)` gives it all back. TURN IT OFF. An island that raises the
+    bars and then raises an exception leaves a student behind two black bars
+    with no controls, which looks like a broken laptop rather than a game; the
+    engine lifts them on its own after two minutes and says so loudly, and that
+    is a safety net rather than a way of writing this.
+    """
+    return {"kind": "movie", "on": bool(on)}
+
 
 def show(anchor, visible=True):
     """Make the thing at an anchor appear or disappear."""

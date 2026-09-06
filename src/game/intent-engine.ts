@@ -20,6 +20,7 @@ import { grant } from './grant'
 import { beatDone, coreBeatId, hasCoreBeat } from './beats/beats'
 import { programmeById } from './roster/roster'
 import { play as playSfx } from './audio'
+import { setCinema } from './stage/cinema'
 
 export const engine: IntentEngine = {
   /* AND IT REFUSES WHEN NOTHING IS MOUNTED TO HEAR IT. This was a dispatch into
@@ -163,6 +164,15 @@ export const engine: IntentEngine = {
    * the member's own line. */
   sound(name, gain) {
     playSfx(name, gain)
+  },
+
+  /* THE FRAME IS GLOBAL FOR THE SAME REASON THE SPEAKERS ARE. Bars, the HUD
+   * corner, the help button and the arrival card are all properties of the
+   * window rather than of the painting, and a scene with no map still has all
+   * four. The painted scene subscribes to the same switch for its own in-world
+   * plaques and marker, so there is one flag rather than one per surface. */
+  movie(on) {
+    setCinema(on)
   },
 
   /* the study arm this participant was assigned at join. A grape never chooses
