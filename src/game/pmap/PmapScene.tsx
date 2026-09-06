@@ -587,6 +587,15 @@ export default function PmapScene() {
       const params = new URLSearchParams(window.location.search)
       const mapId = target.map
       const DBG = params.has('dbg')
+      /* the loading word goes up before the first fetch, because the fetch is
+       * most of the wait: measured, the plate that went up after the bundle had
+       * arrived covered eighteen of thirty-four samples of the black */
+      loadingPlate = document.createElement('div')
+      loadingPlate.setAttribute('aria-live', 'polite')
+      loadingPlate.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;'
+        + 'background:#05080c;color:#baf3ea;font:bold 18px Deckhand,monospace;letter-spacing:.04em;pointer-events:none;z-index:2'
+      loadingPlate.textContent = `Loading ${titleOfMap(mapId)}`
+      hostRef.current?.appendChild(loadingPlate)
 
       /* WHAT OPENING THIS MAP COSTS, MEASURED HERE RATHER THAN CLAIMED.
        *
@@ -1008,6 +1017,17 @@ export default function PmapScene() {
       if (destroyed) { app.destroy(true, { children: true }); return }
       instance = app
       hostRef.current?.appendChild(app.canvas)
+      /* ---- SOMETHING ON THE GLASS WHILE THE MAP IS ON ITS WAY --------------
+       *
+       * STATE-OF-THE-GAME ugly 1: every map load was a black canvas with the
+       * corner plaques for two to twenty seconds and nothing that said loading,
+       * and the Maw then popped in at native size in the top-left corner for a
+       * frame before the camera snapped. The stage stays hidden until the first
+       * frame is placed, and a plate in the world's own face says what is
+       * happening. It is a DOM element rather than a Pixi one because there is
+       * no texture yet to draw one with; the drawn cover a door uses stays the
+       * door's. Removed at the same instant the scene says it is ready. */
+      app.stage.visible = false
 
       const world = new Container()
       world.sortableChildren = true
@@ -6511,6 +6531,10 @@ export default function PmapScene() {
         }
       })
 
+      /* the camera has been placed and the world built: the first frame the
+       * student sees is the right one */
+      app.stage.visible = true
+      loadingPlate?.remove(); loadingPlate = null
       ;(window as any).__sceneReady = true
       /* and the HUD is told the same thing, so nothing it mounts can open over
        * the black that came before this frame */
@@ -6536,12 +6560,14 @@ export default function PmapScene() {
       console.log(`[pmap] loaded "${map.id}" ${W}x${H} zoom x${Z}${coastCut ? ' with ocean' : ' (interior, no ocean)'}${doors.length ? ` · ${doors.length} door${doors.length > 1 ? 's' : ''}` : ''}. WASD to walk.`)
     }
 
+    let loadingPlate: HTMLDivElement | null = null
     ;(window as any).__sceneReady = false
     setSceneDrawn(null)
     start().catch((err) => console.error('[PmapScene] failed', err))
     return () => {
       destroyed = true
       setSceneDrawn(null)
+      loadingPlate?.remove(); loadingPlate = null
       window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku)
       offHold()
       offSail()
