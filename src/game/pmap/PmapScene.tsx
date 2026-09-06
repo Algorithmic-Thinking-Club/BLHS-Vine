@@ -57,7 +57,7 @@ import { setContext } from '../telemetry'
  * and is unit-tested; this file is where it is drawn. */
 import {
   loadComposition, slotOfMap, seaSlots, discoveredSlots, residentSlots, regionAt,
-  berthOf, markNames, marksOf,
+  berthOf, markNames, marksOf, approachTo, approachNames,
   type WorldComposition, type WorldSlot, type Berth, type WorldMark,
 } from '../world/composition'
 import { stateOf, STATE_INK } from '../world/states'
@@ -3458,6 +3458,47 @@ export default function PmapScene() {
         return b
       }
 
+      /* THE CROSSING THE OCEAN PAGE ALREADY DREW, turned into a route.
+       *
+       * `route()` takes a path on a map, and a map path is canvas pixels inside
+       * one painting. The ocean's own marks are world pixels and no word read
+       * them, so the same voyage had to be authored twice: once where a person
+       * thinks about it and once where the engine could see it. Ash found that
+       * on 2026-09-05 by asking what the ocean page was for.
+       *
+       * A berth's name now IS a sail route: the marks nearest that berth,
+       * farthest out first, ending at the berth. Synthesised as an ordinary
+       * `Pathway` rather than as a second kind of thing to follow, so the depth
+       * pre-flight, the berth resolution, the follower and the manoeuvre are all
+       * the ones that already exist and there is no second code path to keep
+       * level with the first.
+       *
+       * IT NAMES ITS OWN BERTH, which is the field ARC-MANIFEST BLOCKED 1 says
+       * MAPVIS has nowhere to type. A line drawn in the tool still falls back to
+       * nearest-wins; a line read off the world knows exactly where it ends.
+       */
+      const seaRouteNamed = (name: string): Pathway | null => {
+        if (!comp) return null
+        const marks = approachTo(comp, name)
+        /* one mark is the berth on its own, which is a voyage of zero legs that
+         * would report a crossing it never made */
+        if (marks.length < 2) return null
+        const berth = marks[marks.length - 1]
+        return {
+          name,
+          kind: 'sail',
+          points: marks.map((m) => {
+            const p = fromSea(m.x, m.y)
+            return { x: Math.round(p.x), y: Math.round(p.y) }
+          }),
+          closed: false,
+          twoWay: false,
+          ...(berth.facing ? { facing: berth.facing } : {}),
+          marks: [],
+          meta: { berth: berth.name },
+        }
+      }
+
       /** the reserved id a member or a station uses to make the player speak */
       const PLAYER_ID = 'thor'
 
@@ -3839,9 +3880,16 @@ export default function PmapScene() {
          * body can stand on, and the tool had no way to know whether that was a
          * mistake or a boat". */
         route(pathName, who, backwards) {
-          const p = paths.find((q) => q.name === pathName)
-          if (!p)
-            throw new NotBuilt('route', `no path named "${pathName}" on ${mapId}. It has: ${pathNames(paths).join(', ') || 'none'}`)
+          /* A MAP PATH FIRST, because a line somebody drew on the painting is the
+           * more specific answer and a map that names a route after a berth
+           * should get its own drawing rather than the world's. */
+          const p = paths.find((q) => q.name === pathName) ?? seaRouteNamed(pathName)
+          if (!p) {
+            const sea = comp ? approachNames(comp) : []
+            throw new NotBuilt('route', `no path named "${pathName}" on ${mapId}. `
+              + `It has: ${pathNames(paths).join(', ') || 'none'}`
+              + (sea.length ? `; and the ocean can be sailed to: ${sea.join(', ')}` : ''))
+          }
           if (backwards && !p.twoWay)
             throw new NotBuilt('route', `"${pathName}" is one-way, so it cannot be run backwards`)
           if (who === 'ship') return sailRoute(p, backwards)

@@ -11,7 +11,7 @@ import {
   FALLBACK, compositionFaults, distanceTo, discoveredSlots, residentSlots,
   regionAt, seaSlots, slotOfMap, slotOfPlace, residencyBytes, overBudget,
   slotBytes, maxResident, trimToBudget, paintedCentre,
-  marksOf, markByName, markNames, berthOf, LOCAL_WORLD,
+  marksOf, markByName, markNames, berthOf, approachTo, approachNames, LOCAL_WORLD,
   TEXTURE_BUDGET_BYTES, PAINTING_PX_CEILING, SLOT_STATES,
   type WorldComposition, type WorldSlot,
 } from './composition'
@@ -752,5 +752,81 @@ describe('coming alongside', () => {
       h = stepHull(h, r.helm, 1 / 60, deep)
     }
     expect(b.stage).toBe('done')
+  })
+})
+
+/* ---- THE OCEAN'S OWN CROSSING ----------------------------------------------
+ *
+ * Ash, 2026-09-05: "what is the point of having berths and waypoints on the
+ * ocean, if we need to add paths in the individual maps." Nothing read a
+ * non-berth mark, so the answer was none. These are the rule that changed it.
+ */
+describe('the approach a berth already has on the world', () => {
+  /* the live document as it stands on the platform at v397, which is the shape
+   * the rule has to be right about before it is right about anything invented */
+  const OCEAN: WorldComposition = {
+    version: 397,
+    slots: [{
+      map: 'hub', place: 'home-island', title: 'The Hub',
+      at: { x: 2077.5, y: 1973.5 }, footprint: { w: 669, h: 377 },
+      state: 'available', release: 1400,
+      berth: { name: 'the_hub_berth', x: 2264, y: 2145, facing: 'north' },
+    }],
+    marks: [
+      { name: 'the_hub_berth', kind: 'berth', x: 2264, y: 2145, facing: 'north', island: 'the_hub' },
+      { name: 'the_far_start', kind: 'waypoint', x: 2199, y: 2504 },
+      { name: 'slow_down_ic', kind: 'waypoint', x: 2229, y: 2162, island: 'the_hub' },
+    ],
+  } as unknown as WorldComposition
+
+  it('reads the three marks Ash drew, farthest out first, ending at the berth', () => {
+    expect(approachTo(OCEAN, 'the_hub_berth').map((m) => m.name))
+      .toEqual(['the_far_start', 'slow_down_ic', 'the_hub_berth'])
+  })
+
+  it('answers to the island alias too, because marksOf keys a mark both ways', () => {
+    expect(approachTo(OCEAN, 'the_hub').map((m) => m.name))
+      .toEqual(['the_far_start', 'slow_down_ic', 'the_hub_berth'])
+  })
+
+  /* `the_far_start` carries NO island on the live document. Grouping on that
+   * field would have dropped the far end of the only crossing in the game and
+   * left a two point line that starts 39px from the dock. */
+  it('keeps a mark that carries no island at all', () => {
+    expect(approachTo(OCEAN, 'the_hub_berth').some((m) => m.name === 'the_far_start')).toBe(true)
+  })
+
+  it('gives a mark to the berth it is nearest and not to the other one', () => {
+    const two: WorldComposition = {
+      ...OCEAN,
+      slots: [],
+      marks: [
+        { name: 'near_berth', kind: 'berth', x: 0, y: 0 },
+        { name: 'far_berth', kind: 'berth', x: 1000, y: 0 },
+        { name: 'by_the_near', kind: 'waypoint', x: 100, y: 0 },
+        { name: 'by_the_far', kind: 'waypoint', x: 900, y: 0 },
+      ],
+    } as unknown as WorldComposition
+    expect(approachTo(two, 'near_berth').map((m) => m.name)).toEqual(['by_the_near', 'near_berth'])
+    expect(approachTo(two, 'far_berth').map((m) => m.name)).toEqual(['by_the_far', 'far_berth'])
+  })
+
+  it('refuses a name that is not a berth, and one nobody authored', () => {
+    expect(approachTo(OCEAN, 'slow_down_ic')).toEqual([])
+    expect(approachTo(OCEAN, 'never_authored')).toEqual([])
+  })
+
+  /* a berth on its own is a voyage of no legs; the scene needs two points to
+   * make a Pathway and would otherwise report a crossing it never made */
+  it('gives a lone berth back as one mark, which is not a route', () => {
+    const bare: WorldComposition = {
+      version: 1, slots: [],
+      marks: [{ name: 'lonely', kind: 'berth', x: 5, y: 5 }],
+    } as unknown as WorldComposition
+    expect(approachTo(bare, 'lonely')).toHaveLength(1)
+  })
+
+  it('lists every berth a crossing can be addressed to, for the refusal', () => {
+    expect(approachNames(OCEAN)).toEqual(['the_hub_berth'])
   })
 })

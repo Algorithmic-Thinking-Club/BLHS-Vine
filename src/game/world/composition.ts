@@ -436,6 +436,67 @@ export function berthOf(c: WorldComposition, name: string): Berth | undefined {
   return { x: m.x, y: m.y, name: m.name, ...(m.facing ? { facing: m.facing } : {}), ...(m.at ? { at: m.at } : {}) }
 }
 
+/* ---- THE VOYAGE THE WORLD ITSELF AUTHORS ------------------------------------
+ *
+ * Ash, 2026-09-05, standing in front of the ocean page with three marks on it:
+ * "what is the point of having berths and waypoints on the ocean, if we need to
+ * add paths in the individual maps." There was no point. The berth was read and
+ * every other mark was authored into nothing, because `route()` takes a path on
+ * a map and a map path is drawn in canvas pixels inside one painting. So the
+ * ocean looked exactly like a voyage editor and was a layout of islands.
+ *
+ * This is the reader that was missing. The marks around a berth ARE the
+ * approach, so a crossing can be drawn where a person thinks about crossings.
+ *
+ * WHICH MARKS BELONG TO WHICH BERTH, without a field anybody has to type. A mark
+ * goes to the berth it is NEAREST, which is the same nearest-wins rule the
+ * destination already used, and it needs no `island` on the mark: the live
+ * `the_far_start` carries none, so grouping by that field would have silently
+ * dropped the far end of the only crossing in the game.
+ *
+ * THE ORDER IS FARTHEST FIRST, and that is a real limit worth stating rather
+ * than hiding. A ship comes in, so the mark furthest out to sea is where the
+ * crossing starts and the berth is where it ends. It is the only ordering
+ * available today because MAPVIS has nowhere to type a sequence, and it is
+ * wrong for exactly one shape of voyage: a line that runs out and doubles back.
+ * When the tool grows an order, this reads it instead of guessing.
+ */
+export function approachTo(c: WorldComposition, berthName: string): WorldMark[] {
+  const all = marksOf(c)
+  const berth = all.get(berthName)
+  if (!berth || berth.kind !== 'berth') return []
+
+  /* `marksOf` keys the same mark twice, by name and by island, so the values are
+   * walked through a dedupe on the name or a mark with an island would be in the
+   * crossing twice and the ship would sail to the same water two legs running */
+  const seen = new Set<string>()
+  const berths: WorldMark[] = []
+  const loose: WorldMark[] = []
+  for (const m of all.values()) {
+    if (seen.has(m.name)) continue
+    seen.add(m.name)
+    ;(m.kind === 'berth' ? berths : loose).push(m)
+  }
+
+  const d = (a: WorldMark, b: WorldMark) => Math.hypot(a.x - b.x, a.y - b.y)
+  const mine = loose.filter((m) => {
+    let best = berth
+    for (const b of berths) if (d(m, b) < d(m, best)) best = b
+    return best.name === berth.name
+  })
+
+  mine.sort((a, b) => d(b, berth) - d(a, berth))
+  return [...mine, berth]
+}
+
+/** every berth a crossing could be addressed to, for the refusal that lists them */
+export const approachNames = (c: WorldComposition): string[] =>
+  [...marksOf(c).values()]
+    .filter((m) => m.kind === 'berth')
+    .map((m) => m.name)
+    .filter((n, i, a) => a.indexOf(n) === i)
+    .sort()
+
 /* ---- the questions the world asks it ---------------------------------------
  *
  * All pure, all exported, all tested. The scene reads answers; it does not
