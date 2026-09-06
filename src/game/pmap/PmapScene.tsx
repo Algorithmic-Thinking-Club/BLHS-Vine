@@ -1529,8 +1529,6 @@ export default function PmapScene() {
               const look0 = await loadLook(a)
               if (!look0) { console.warn(`[pmap] asset "${a.id}" lists no src and no frames, skipped`); continue }
               const frames = look0.frames
-              const views = look0.views
-              const srcs = a.frames && a.frames.length ? a.frames : a.src ? [a.src] : []
               /* every look up front, so the swap is a texture assignment rather
                * than a load mid-round.
                *
@@ -1645,19 +1643,30 @@ export default function PmapScene() {
                 // it is a question about the fences near it and the answer never
                 // changes. Same body width the movers use.
                 standing.push({ x: a.x, y: a.y, r: bodyRadius(Math.abs(asx) * inkOf(frames[0])) })
-                if (views) {
-                  /* A view set that never travels still has frames worth running.
-                   * Someone breathing at a stall has no life to carry a clock, and
-                   * views only lived on lifeAssets, so every standing figure held
-                   * frame zero forever. It rests in whichever heading its own src
-                   * belongs to, which is the one the placement was made facing. */
-                  const rest =
-                    Object.keys(views).find((k) => (srcs[0] || '').endsWith(k + '-0.png')) ||
-                    (views.south ? 'south' : Object.keys(views)[0])
-                  const set = views[rest]
-                  if (set && set.length > 1)
-                    animAssets.push({ sp, frames: set, fps: look0.fps, t: Math.random() * set.length })
-                }
+                /* AND ITS HEADING FRAMES DO NOT RUN, because they are a WALK.
+                 *
+                 * This used to pick the heading the placement was made facing and
+                 * loop it, on the reasoning that "a view set that never travels
+                 * still has frames worth running" and that someone breathing at a
+                 * stall has no life to carry a clock. Both halves are wrong about
+                 * what a heading set IS. Ash found it on 2026-09-05: six of the
+                 * hub's eleven people carry no life, and every one of them was
+                 * walking on the spot, forever, facing the way it was placed.
+                 *
+                 * Measured across the hub's whole library before changing it:
+                 * every heading holding more than one frame came out of PixelLab's
+                 * sprite pipeline and is a walk cycle. Nothing in `dirs` is an idle
+                 * loop. The thing that really does breathe on the spot does it
+                 * through `life.bob`, which is a behaviour, and an animated prop
+                 * with no life keeps looping through `frames` a few lines up, which
+                 * this never touched. So a figure with nothing to do stands in the
+                 * pose its cycle was drawn from, which is frame zero, which is the
+                 * texture the sprite already has.
+                 *
+                 * MAPVIS had the identical bug by a different route: editor.ts
+                 * passed `!L || L.moving`, so no life read as moving. Fixed there
+                 * the same day. The two have to agree or the editor preview lies
+                 * about the game. */
               }
               placed++
             } catch (e) {
