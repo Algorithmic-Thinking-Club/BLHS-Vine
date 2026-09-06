@@ -461,6 +461,16 @@ export function berthOf(c: WorldComposition, name: string): Berth | undefined {
  * wrong for exactly one shape of voyage: a line that runs out and doubles back.
  * When the tool grows an order, this reads it instead of guessing.
  */
+/* WHERE THE HULL IS BORN ON A SEA ARRIVAL, when the world names it. BRIEF-YEAR-ONE
+ * (Ash, 2026-09-03 13:30): a world-page mark named `the_far_start`, of any kind
+ * but berth, replaces the offshore point the scene used to derive by sounding
+ * outward from the berth. The live document carries it at 2199,2504. */
+export const FAR_START = 'the_far_start'
+export const farStart = (c: WorldComposition): WorldMark | undefined => {
+  const m = marksOf(c).get(FAR_START)
+  return m && m.kind !== 'berth' ? m : undefined
+}
+
 export function approachTo(c: WorldComposition, berthName: string): WorldMark[] {
   const all = marksOf(c)
   const berth = all.get(berthName)
@@ -486,7 +496,44 @@ export function approachTo(c: WorldComposition, berthName: string): WorldMark[] 
   })
 
   mine.sort((a, b) => d(b, berth) - d(a, berth))
+  /* AND THE FAR START IS FIRST WHATEVER ITS DISTANCE, because it is where the
+   * hull already is. A crossing that began anywhere else would sail the ship
+   * away from the island before it sailed her toward it. */
+  const fs = mine.findIndex((m) => m.name === FAR_START)
+  if (fs > 0) mine.unshift(...mine.splice(fs, 1))
   return [...mine, berth]
+}
+
+/* ---- WHAT A ROUTE NAME MEANS ON THE WATER ---------------------------------
+ *
+ * The hub's island asks for `route("the_hub_approach", who="ship")`, which is
+ * the name BRIEF-MAPVIS-COPILOT told Ash to draw on the hub, and the hub at v15
+ * carries no path at all. The world page carries the crossing instead, as marks,
+ * so a name a map does not answer is asked of the world before it is refused:
+ *
+ *   a berth's own name            the_hub_berth
+ *   a berth's island alias        the_hub          (marksOf keys it both ways)
+ *   either of those + _approach   the_hub_approach, the_hub_berth_approach
+ *   a slot's map or place + it    hub_approach, home_island_approach
+ *
+ * The answer is the berth's name, which `approachTo` turns into the marks. A
+ * name that means nothing here is undefined, and the caller refuses out loud;
+ * nothing is invented for a spelling nobody authored.
+ */
+const slug = (s: string | undefined): string => (s ?? '').replace(/-/g, '_')
+export function berthOfRoute(c: WorldComposition, name: string): string | undefined {
+  const all = marksOf(c)
+  const asBerth = (key: string): string | undefined => {
+    if (!key) return undefined
+    const m = all.get(key)
+    if (m?.kind === 'berth') return m.name
+    const s = c.slots.find((q) => q.berth?.name && (slug(q.map) === key || slug(q.place) === key))
+    return s?.berth?.name
+  }
+  const direct = asBerth(name)
+  if (direct) return direct
+  const m = /^(.+)_approach$/.exec(name)
+  return m ? asBerth(m[1]) : undefined
 }
 
 /** every berth a crossing could be addressed to, for the refusal that lists them */

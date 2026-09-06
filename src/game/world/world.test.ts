@@ -11,7 +11,7 @@ import {
   FALLBACK, compositionFaults, distanceTo, discoveredSlots, residentSlots,
   regionAt, seaSlots, slotOfMap, slotOfPlace, residencyBytes, overBudget,
   slotBytes, maxResident, trimToBudget, paintedCentre,
-  marksOf, markByName, markNames, berthOf, approachTo, approachNames, LOCAL_WORLD,
+  marksOf, markByName, markNames, berthOf, approachTo, approachNames, berthOfRoute, farStart, LOCAL_WORLD,
   TEXTURE_BUDGET_BYTES, PAINTING_PX_CEILING, SLOT_STATES,
   type WorldComposition, type WorldSlot,
 } from './composition'
@@ -828,5 +828,77 @@ describe('the approach a berth already has on the world', () => {
 
   it('lists every berth a crossing can be addressed to, for the refusal', () => {
     expect(approachNames(OCEAN)).toEqual(['the_hub_berth'])
+  })
+
+  /* THE FAR START IS WHERE THE HULL IS, so it leads the crossing whatever its
+   * distance from the berth. Farthest-first would have put a mark drawn further
+   * out ahead of it and sailed the ship away from the island before toward it. */
+  it('starts the crossing at the_far_start even when another mark is farther out', () => {
+    const wide: WorldComposition = {
+      ...OCEAN,
+      marks: [
+        ...OCEAN.marks!,
+        { name: 'the_way_out', kind: 'waypoint', x: 2199, y: 2900 },
+      ],
+    } as unknown as WorldComposition
+    expect(approachTo(wide, 'the_hub_berth').map((m) => m.name))
+      .toEqual(['the_far_start', 'the_way_out', 'slow_down_ic', 'the_hub_berth'])
+  })
+
+  it('names the far start, and only when it is not a berth', () => {
+    expect(farStart(OCEAN)?.name).toBe('the_far_start')
+    expect(farStart(OCEAN)).toMatchObject({ x: 2199, y: 2504 })
+    const berthed: WorldComposition = {
+      ...OCEAN,
+      marks: [{ name: 'the_far_start', kind: 'berth', x: 1, y: 1 }],
+    } as unknown as WorldComposition
+    expect(farStart(berthed)).toBeUndefined()
+    expect(farStart({ version: 1, slots: [] } as unknown as WorldComposition)).toBeUndefined()
+  })
+})
+
+/* ---- THE NAME AN ISLAND ASKS BY ----------------------------------------------
+ *
+ * `islands/the-hub/island.py` says `route("the_hub_approach", who="ship")` and
+ * the hub at v15 has no path by that name. The world page carries the crossing,
+ * so the name is understood there: the berth's own name, its island alias, a
+ * slot's map or place, each with or without `_approach`.
+ */
+describe('what a route name means on the water', () => {
+  const OCEAN: WorldComposition = {
+    version: 397,
+    slots: [{
+      map: 'hub', place: 'home-island', title: 'The Hub',
+      at: { x: 2077.5, y: 1973.5 }, footprint: { w: 669, h: 377 },
+      state: 'available', release: 1400,
+      berth: { name: 'the_hub_berth', x: 2264, y: 2145, facing: 'north' },
+    }],
+    marks: [
+      { name: 'the_hub_berth', kind: 'berth', x: 2264, y: 2145, facing: 'north', island: 'the_hub' },
+      { name: 'the_far_start', kind: 'waypoint', x: 2199, y: 2504 },
+      { name: 'slow_down_ic', kind: 'waypoint', x: 2229, y: 2162, island: 'the_hub' },
+    ],
+  } as unknown as WorldComposition
+
+  it('answers the name the hub island really asks by', () => {
+    expect(berthOfRoute(OCEAN, 'the_hub_approach')).toBe('the_hub_berth')
+  })
+
+  it('answers the berth, its alias, and the slot, each with or without _approach', () => {
+    for (const n of ['the_hub_berth', 'the_hub', 'the_hub_berth_approach', 'hub', 'hub_approach', 'home_island_approach'])
+      expect(berthOfRoute(OCEAN, n), n).toBe('the_hub_berth')
+  })
+
+  it('refuses a waypoint, a spelling nobody authored, and a bare suffix', () => {
+    expect(berthOfRoute(OCEAN, 'slow_down_ic')).toBeUndefined()
+    expect(berthOfRoute(OCEAN, 'slow_down_ic_approach')).toBeUndefined()
+    expect(berthOfRoute(OCEAN, 'the_stadium_approach')).toBeUndefined()
+    expect(berthOfRoute(OCEAN, '_approach')).toBeUndefined()
+    expect(berthOfRoute(OCEAN, 'approach')).toBeUndefined()
+  })
+
+  it('gives the whole crossing for that name, far start first', () => {
+    const b = berthOfRoute(OCEAN, 'the_hub_approach')!
+    expect(approachTo(OCEAN, b).map((m) => m.name)).toEqual(['the_far_start', 'slow_down_ic', 'the_hub_berth'])
   })
 })

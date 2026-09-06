@@ -57,7 +57,7 @@ import { setContext } from '../telemetry'
  * and is unit-tested; this file is where it is drawn. */
 import {
   loadComposition, slotOfMap, seaSlots, discoveredSlots, residentSlots, regionAt,
-  berthOf, markNames, marksOf, approachTo, approachNames,
+  berthOf, markNames, marksOf, approachTo, approachNames, berthOfRoute, farStart,
   type WorldComposition, type WorldSlot, type Berth, type WorldMark,
 } from '../world/composition'
 import { stateOf, STATE_INK } from '../world/states'
@@ -3329,7 +3329,10 @@ export default function PmapScene() {
          * measured from where the hull will really start, which is the berth, and
          * not from the first waypoint an author happened to type. */
         const pts = legsOf(p, backwards)
-        const from = fromSea(berth.x, berth.y)
+        /* FROM WHERE SHE IS, which on a sea arrival is the far start and not the
+         * berth: measuring the first leg from a dock she is not at refused a
+         * crossing over the one stretch of water she was never going to sail. */
+        const from = hull ? { x: hull.x, y: hull.y } : fromSea(berth.x, berth.y)
         const line = [from, ...pts]
         for (let i = 1; i < line.length; i++) {
           const a2 = line[i - 1], b2 = line[i]
@@ -3492,7 +3495,15 @@ export default function PmapScene() {
        */
       const seaRouteNamed = (name: string): Pathway | null => {
         if (!comp) return null
-        const marks = approachTo(comp, name)
+        /* THE NAME THE ISLAND ASKED BY, not only the berth's own. The hub's
+         * Python says `the_hub_approach` because that is the line it was told
+         * would be drawn on the map; the map has none, and the world has the
+         * same crossing as marks. `berthOfRoute` is the one place that spelling
+         * is understood, so the members' repo and the ocean page agree about
+         * what a crossing is called without either having to change. */
+        const berthName = berthOfRoute(comp, name)
+        if (!berthName) return null
+        const marks = approachTo(comp, berthName)
         /* one mark is the berth on its own, which is a voyage of zero legs that
          * would report a crossing it never made */
         if (marks.length < 2) return null
@@ -3901,7 +3912,9 @@ export default function PmapScene() {
             const sea = comp ? approachNames(comp) : []
             throw new NotBuilt('route', `no path named "${pathName}" on ${mapId}. `
               + `It has: ${pathNames(paths).join(', ') || 'none'}`
-              + (sea.length ? `; and the ocean can be sailed to: ${sea.join(', ')}` : ''))
+              + (sea.length
+                ? `; and the ocean can be sailed to: ${sea.join(', ')}, by that name or as "<island>_approach"`
+                : ''))
           }
           if (backwards && !p.twoWay)
             throw new NotBuilt('route', `"${pathName}" is one-way, so it cannot be run backwards`)
@@ -5315,16 +5328,35 @@ export default function PmapScene() {
           : berth.facing ? radOf(berth.facing) + Math.PI
             : Math.atan2(b.y - pc.y, b.x - pc.x)
         if (!isFinite(dir)) dir = Math.PI / 2
+        let out = { x: b.x, y: b.y }
+        let best = -1
+        let found = false
+        /* THE FAR START, WHEN THE WORLD NAMES ONE. BRIEF-YEAR-ONE: a world mark
+         * called `the_far_start` is where the hull is born on a sea arrival, so
+         * the crossing begins where Ash put it on the ocean page and not at a
+         * point derived by sounding. It has to be water, checked against the
+         * same field the hull sails on; a far start on the beach is said out
+         * loud and the sounding below takes over, so a moved painting cannot
+         * strand a student aground on the first frame. */
+        const fs = comp ? farStart(comp) : undefined
+        if (fs) {
+          const at = fromSea(fs.x, fs.y)
+          const deep = depthAt(at.x, at.y)
+          if (deep >= DEFAULT_SAIL.probe) {
+            out = at; best = deep; found = true
+            console.log(`[pmap] ${mapId}: the hull is born at ${fs.name} (${Math.round(at.x)},${Math.round(at.y)}), ${Math.round(deep)}px of water`)
+          } else {
+            console.warn(`[pmap] ${mapId}: ${fs.name} at ${Math.round(at.x)},${Math.round(at.y)} has ${Math.round(deep)}px of water, `
+              + `inside the hull's ${DEFAULT_SAIL.probe}px probe, so the hull is born off the berth instead. It wants moving on the ocean page.`)
+          }
+        }
         /* THE DEEPEST POINT FOUND, NOT THE LAST ONE TRIED. The walk used to take
          * whatever it was standing on when the loop ran out, so a berth whose
          * seaward direction is wrong put the hull four hundred pixels out and
          * hard aground on the first frame, silently, with a wake and no motion.
          * Keeping the best sounding means a bad direction is a boat in the best
          * water that direction had, and the console says the search failed. */
-        let out = { x: b.x, y: b.y }
-        let best = -1
-        let found = false
-        for (let d = 16; d <= OFFSHORE_MAX; d += 16) {
+        for (let d = 16; !found && d <= OFFSHORE_MAX; d += 16) {
           const p = { x: b.x + Math.cos(dir) * d, y: b.y + Math.sin(dir) * d }
           const deep = depthAt(p.x, p.y)
           if (deep > best) { best = deep; out = p }
