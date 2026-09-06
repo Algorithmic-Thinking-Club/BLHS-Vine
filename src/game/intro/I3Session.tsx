@@ -662,31 +662,28 @@ function WardrobeCard(p: { look: string; setLook: (v: string) => void; onNext: (
         ))}
       </div>
       <Plank size="sm" className="i3-spin i3-spin-wide" onClick={spin}>Surprise me</Plank>
-      {/* THE LOCKED ITEMS SAY WHAT THEY ARE AND WHAT EARNS THEM, ON THE CARD.
-          §2.10: "locked items are visible and say what real thing earns them,
-          because a locked thing a student can see is a reason to come back." They
-          were three emoji with a padlock emoji on the corner and the criterion in
-          a `title` attribute, which is pointer-only and is not visible at all. */}
-      <div className="i3-locked" role="group" aria-label="Locked items">
+      {/* THE LOCKED ITEMS SAY WHAT THEY ARE AND WHAT EARNS THEM, ON THE CARD,
+          AND THEY ARE NOT BUTTONS. §2.10: "locked items are visible and say what
+          real thing earns them, because a locked thing a student can see is a
+          reason to come back." The first cut drew each one as a grey row wider
+          than any plank on the card, and the dimwit run pressed "Letterman
+          jacket" three times before it found "Keep this outfit": the loudest
+          thing on the card was a thing nobody can have yet. So this is a quiet
+          list, plain text with the lock mark, nothing to press and nothing to
+          tab to. A screen reader gets the same words off the list itself. */}
+      <ul className="i3-locked" aria-label="Locked items">
         {LOCKED.map((it) => (
-          <button
-            key={it.name}
-            className="i3-lockrow"
-            aria-label={`${it.name}, locked. Earn it by: ${it.earn}.`}
-            onClick={() => {
-              track('locked_item_inspected', { item: it.name })
-              announce(`${it.name}. Earn it by: ${it.earn}.`)
-            }}
-          >
+          <li key={it.name} className="i3-lockrow">
             <Glyph
-              piece="icon_set" face="lock" size={15} className="i3-lockmark"
+              piece="icon_set" face="lock" size={12} className="i3-lockmark"
               fallback={<span className="i3-lockmark i3-lockshape" aria-hidden="true" />}
             />
             <span className="i3-lockname">{it.name}</span>
+            {' '}
             <span className="i3-lockearn">{it.earn}</span>
-          </button>
+          </li>
         ))}
-      </div>
+      </ul>
       <div className="i3-reassure">Locked items are earned by playing, never bought.</div>
       <Plank className="i3-plank i3-plank-solo" onClick={() => { track('dressing_done', { look: p.look }); p.onNext() }}>
         {p.look === 'classic' ? 'Keep this outfit' : 'Wear this outfit'}
