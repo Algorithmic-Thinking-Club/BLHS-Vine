@@ -5468,6 +5468,13 @@ export default function PmapScene() {
           }
         },
         get hull() { return hull ? { x: hull.x, y: hull.y, speed: hull.speed, aground: hull.aground } : null },
+        /* the drawn ship's box on the glass, so a proof can say whether a
+         * plaque is on top of her rather than guessing from a texture name */
+        get hullBox() {
+          if (!hullSp || !hullSp.visible || !hull) return null
+          const b = hullSp.getBounds()
+          return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) }
+        },
         get berthing() { return berthing ? { stage: berthing.stage } : null },
         get sailing() { return sailing ? { path: sailing.path.name, leg: sailing.i } : null },
         /* THE WHOLE CROSSING, which `sailing` is only the first half of. A proof
@@ -6051,6 +6058,18 @@ export default function PmapScene() {
             const p = fromSea(home.berth.x, home.berth.y)
             setPrompt(home.map === mapId ? 'Dock here' : `Dock at ${home.title}`, 'plain')
             hang(p.x, p.y, 26, Math.sin(t * 2.1) * 1.2)
+            /* AND NOT ON THE SHIP. The berth is where she is making for, so
+             * the plaque hung over the berth was hung over her as she came
+             * alongside, and a 20-pixel ship under a 140-pixel sign is a sign
+             * with no ship (STATE-OF-THE-GAME ugly 8). The same overlap test
+             * the body gets, against the hull's own drawn box, and the plaque
+             * drops under her. */
+            if (hullSp && prompt.visible) {
+              const pb = prompt.getBounds()
+              const hb = hullSp.getBounds()
+              if (pb.maxX > hb.minX && pb.minX < hb.maxX && pb.maxY > hb.minY && pb.minY < hb.maxY)
+                prompt.y = hull.y + (hb.height / 2 + pb.height / 2 + 6) / camZ
+            }
             promptAnchor = null
             seaFire = () => dockAt(home)
           } else {
@@ -6080,6 +6099,15 @@ export default function PmapScene() {
           const np = anchors.spotOf(near)
           setPrompt(st.text, st.state)
           hang(np.x, np.y, 18, Math.sin(t * 2.1) * 1.2)
+          /* A DOOR'S PLAQUE HANGS BELOW THE DOOR, on the ground in front of it,
+           * because the anchor is the threshold and eighteen pixels above a
+           * threshold is the door itself: on the hub the sign sat squarely on
+           * the tunnel mouth it was naming (STATE-OF-THE-GAME ugly 8). The
+           * body test above still wins when he is standing in the way. */
+          if (near.kind === 'door' && prompt.visible) {
+            const pb = prompt.getBounds()
+            prompt.y = np.y + (pb.height / 2 + 8) / camZ + Math.sin(t * 2.1) * 1.2
+          }
           clearOfLit(near)
           /* the plaque is only tappable when E would do something, so a barred
            * door and a closed station read the same to a pointer as to a key */
