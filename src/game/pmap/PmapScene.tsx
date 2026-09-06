@@ -4334,6 +4334,10 @@ export default function PmapScene() {
        * uses between waypoints, so the physics, the grounding and the wake are
        * all the shipped ones and there is no second way to sail. */
       let sailTap: { x: number; y: number; until: number } | null = null
+      /* the most one click on the water moves her, in painting pixels. About a
+       * third of the hub's width: enough to feel driven, never enough to lose
+       * the island off the edge of the glass at the sailing zoom. */
+      const SAIL_TAP_LEG = 220
 
       /* ---- A CLICK ON AN ANCHOR, FROM WHEREVER THE CLICK CAME ---------------
        *
@@ -4397,8 +4401,19 @@ export default function PmapScene() {
            * and it works for the map you are already on, which is exactly the
            * crossing the intro hands over. */
           if (depthAt(px, py) >= DEFAULT_SAIL.probe) {
-            sailTap = { x: px, y: py, until: performance.now() + 30000 }
-            engine.log('sail_tap', { map: mapId, to: [Math.round(px), Math.round(py)] })
+            /* AND NOT OUT OF SIGHT OF LAND. At the sailing zoom a click at the
+             * window's edge is over a thousand painting pixels away, so one
+             * click below the ship ran her until the island had left the screen
+             * and a student was alone on open water with nothing lit
+             * (STATE-OF-THE-GAME confusing 1). A click is a nudge: she runs
+             * toward it for at most one leg and stops, and the island is still
+             * there to click. */
+            const far = Math.hypot(px - hull.x, py - hull.y)
+            const leg = Math.min(far, SAIL_TAP_LEG)
+            const tx = far > 0 ? hull.x + ((px - hull.x) * leg) / far : px
+            const ty = far > 0 ? hull.y + ((py - hull.y) * leg) / far : py
+            sailTap = { x: tx, y: ty, until: performance.now() + 30000 }
+            engine.log('sail_tap', { map: mapId, to: [Math.round(px), Math.round(py)], leg: Math.round(leg) })
             return 'walking'
           }
           if (slot?.berth) {
@@ -5654,7 +5669,17 @@ export default function PmapScene() {
                * shape, and no new abstraction between the player and the tiller. */
               const want = Math.atan2(sailTap.y - hull.y, sailTap.x - hull.x)
               const turn = Math.atan2(Math.sin(want - hull.heading), Math.cos(want - hull.heading))
-              helm = { throttle: 1, turn: Math.abs(turn) < 0.05 ? 0 : turn > 0 ? 1 : -1, fullSail: false }
+              /* AND THE THROTTLE COMES OFF IN TIME TO STOP THERE. At cruise she
+               * needs cruise squared over twice the drag to shed her way, which
+               * is 187 painting pixels on the shipped numbers, so a leg driven
+               * under power to its last pixel overshot by nearly its own length
+               * (measured: a 220 leg ran 379). The same sum `berthHelm` uses:
+               * once the water left is what she needs to stop in, the tap is
+               * spent and she coasts to it. */
+              const left = Math.hypot(sailTap.x - hull.x, sailTap.y - hull.y)
+              const stopIn = (hull.speed * hull.speed) / (2 * DEFAULT_SAIL.drag)
+              if (left <= stopIn + 8) sailTap = null
+              else helm = { throttle: 1, turn: Math.abs(turn) < 0.05 ? 0 : turn > 0 ? 1 : -1, fullSail: false }
             }
             hull = stepHull(hull, helm, dt, depthAt)
           }
@@ -5784,7 +5809,15 @@ export default function PmapScene() {
            * The two plaques say different things in different places: one hangs
            * over the thing E would open, and this one rides over Thor. Together
            * they are the whole of what a student needs and neither is noise. */
-          setTask(quiet && o ? objectiveLine(o, mapId) : '')
+          /* AT SEA THE SENTENCE IS ABOUT THE SEA. STATE-OF-THE-GAME confusing 1:
+           * after the box closed the only words on the water were the door's
+           * task line over on the island, and nothing said that the island is a
+           * thing you click. While the student holds the tiller with nothing
+           * scripted driving her, the one line is the one instruction; while a
+           * voyage or a berthing is driving, there is nothing to ask of him. */
+          const freeAtSea = !!hull && !berthing && !voyage && !helmOverride
+          setTask(quiet && hull ? (freeAtSea ? 'Click the island to sail there.' : '')
+            : quiet && o ? objectiveLine(o, mapId) : '')
           /* CLEAR OF THE YOU PIN, IN SCREEN PIXELS RATHER THAN WORLD ONES.
            * The pin stands about forty screen pixels above his head whatever the
            * camera is doing, and a world-space offset shrinks with the zoom, so
@@ -5797,7 +5830,10 @@ export default function PmapScene() {
            * down onto the word YOU: measured at `pin/ring-water.png`, the two
            * were touching. The clearance is the marker's real height plus a
            * line, so it moves with the marker instead of being re-measured. */
-          task.position.set(pos.x, pos.y - charH - 3 - 84 / camZ + Math.sin(t * 2.1) * 1.4)
+          /* over the hull when he is aboard: Thor is hidden at the berth then,
+           * and a sentence hung over an empty quay is a sentence about nothing */
+          if (hull) task.position.set(hull.x, hull.y - 18 - 84 / camZ + Math.sin(t * 2.1) * 1.4)
+          else task.position.set(pos.x, pos.y - charH - 3 - 84 / camZ + Math.sin(t * 2.1) * 1.4)
           /* AND IT STAYS ON THE SCREEN. It is centred on Thor, and Thor spends
            * a lot of the hub standing near an edge, so a long sentence hung over
            * him runs off the window. Measured after placing rather than
