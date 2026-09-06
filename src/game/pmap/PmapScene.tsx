@@ -1057,8 +1057,18 @@ export default function PmapScene() {
       // frame). Fractional zoom is accepted here on his order; nearest sampling keeps it
       // honest. ?z=N overrides, fractions allowed. ----
       const zOverride = parseFloat(params.get('z') || '0')
+      /* A ROOM FILLS THE VIEW. The island formula floors the fit to a whole
+       * number and pulls out to 1.18 of it, which is right for an island in
+       * open sea and wrong for a room: the Maw at 688x384 on a 1366x768 window
+       * floored to 1 and drew at native size in the middle of a black field with
+       * the corner planks far away (STATE-OF-THE-GAME ugly 2, SWEEP-1 item 5).
+       * A room takes the tighter of the two fits at the nearest half step
+       * below it, so the pixels stay whole-or-half and the painting is as big
+       * as the glass allows. */
+      const fit = Math.min(app.screen.width / W, app.screen.height / H)
       const Z = zOverride > 0 ? zOverride
-        : Math.max(1, Math.floor(Math.min(app.screen.width / W, app.screen.height / H))) * 1.18
+        : coastCut ? Math.max(1, Math.floor(fit)) * 1.18
+          : Math.max(1, Math.floor(fit * 2) / 2)
       world.scale.set(Z)
 
       /* ---- D1: THE ZOOM IS A LIVE VALUE AND NOT A LOAD-TIME CONSTANT ----
@@ -1096,7 +1106,8 @@ export default function PmapScene() {
         return Number.isFinite(n) && n >= 0.33 && n <= 1 ? n : 0.45
       })()
       let camZ = Z
-      const Z_MIN = Z * SAIL_ZOOM
+      /* the sailing floor is for water, and a room has none */
+      const Z_MIN = coastCut ? Z * SAIL_ZOOM : Z
 
       // ---- the engine ocean under the painting (island class only) ----
       // THE VAST VIRTUAL SEA, ported from the old tile hub (IslandMapIso P0, the accepted
