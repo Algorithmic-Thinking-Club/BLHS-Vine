@@ -1160,6 +1160,23 @@ export default function PmapScene() {
            * would be back in its black field. The epsilon is there so a cover
            * of 2.0000001 does not open at 3. */
           : Math.max(1, Math.ceil(fitCover - 1e-3))
+
+      /* ---- AND THE ZOOM AN AUTHORED SHOT IS A MULTIPLE OF -------------------
+       *
+       * A framing does not carry a scale, it carries a MULTIPLE of the opening
+       * view, and MAPVIS converts on the way out using this scene's own
+       * expression to do it (framings.ts says so at length). So the moment `Z`
+       * changed, every shot anybody had ever composed changed with it: the
+       * castaway opening's `the_waking` is zoom 2.6, which was 3.07 against the
+       * old 1.18 and would have been 5.85 against the new 2.25, a face filling
+       * the screen with nothing erroring anywhere.
+       *
+       * This is the old expression, both classes, kept byte for byte, so a shot
+       * dragged into place last week frames what it framed last week. It is a
+       * SEPARATE number from the walking shot on purpose: what a scene opens at
+       * and what an author composed against are two questions, and this file
+       * used one variable for both. */
+      const Z_SHOT = coastCut ? Z_ISLAND : Math.max(1, Math.floor(fitIn * 2) / 2)
       world.scale.set(Z)
 
       /* ---- D1: THE ZOOM IS A LIVE VALUE AND NOT A LOAD-TIME CONSTANT ----
@@ -4109,7 +4126,7 @@ export default function PmapScene() {
            * a shot that expires mid-line is a cut nobody asked for */
           lookAtTarget = { x: at.x, y: at.y, until: ms === undefined ? Infinity : performance.now() + ms }
           lastShot = shot
-          if (s.framing.zoom !== undefined) zoomTo(Z * s.framing.zoom)
+          if (s.framing.zoom !== undefined) zoomTo(Z_SHOT * s.framing.zoom)
           engine.log('framing', { map: mapId, shot, zoom: s.framing.zoom ?? null })
           if (ms === undefined) return Promise.resolve()
           return new Promise<void>((r) => setTimeout(() => { zoomTo(Z); r() }, ms))
@@ -6398,7 +6415,7 @@ export default function PmapScene() {
            * wave-1 proof shots. `camZWant` is the follow law's own desire and
            * only board, disembark and `zoomTo` may change it, so releasing the
            * camera now travels back to whatever the body was asking for. */
-          const z = Z * (csCam.zoom || 1)
+          const z = Z_SHOT * (csCam.zoom || 1)
           if (camZ !== z) { camZ = z; world.scale.set(camZ); refreshSea() }
           camTo(csCam.x, csCam.y, true)
         } else {
