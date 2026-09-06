@@ -4386,6 +4386,11 @@ export default function PmapScene() {
          * offer, which is the same `E · Dock here` the plaque names. Otherwise
          * the click is a heading: she turns toward it and runs, and `stepHull`
          * grounds her on shallow water exactly as it does under the keys. */
+        /* A TAP ON THE ARRIVAL CARD IS NOT A DESTINATION. The card takes no
+         * pointer, so a student clicking it to make it go away clicked the floor
+         * under it and Thor set off for wherever that was (STATE-OF-THE-GAME
+         * confusing 10). The card dismisses itself; the tap is spent on it. */
+        if (placeCardUp()) return 'busy'
         if (hull) {
           if (berthing || worldHeld() || busy || fade) return 'busy'
           if (seaFire) { seaFire(); return 'fired' }
@@ -4510,6 +4515,31 @@ export default function PmapScene() {
        * asked by the ticker for the plaque and by the pointer for whatever was
        * clicked, and there is one set of rules about what is pressable.
        */
+      /* ---- WHAT THE PLAQUE SAYS: THE ACTION, IN WORDS A TRACKPAD CAN USE ----
+       *
+       * STATE-OF-THE-GAME confusing 10: every station plaque read "E · The
+       * Hearth", naming a key on a game played on a school trackpad, and naming
+       * the furniture rather than the thing pressing does. The plaque is a
+       * button now (it has taken a tap since the pointer path landed), so it
+       * reads like one: a verb and the thing. The E key still does exactly what
+       * it did; only the words changed. The Maw's own stations are named here
+       * because the engine knows what each one opens; anything else says talk
+       * to whoever the author bound to it, or go to it. */
+      const ACTIONS: Record<string, string> = {
+        chart_table: 'Open the year sheet',
+        hearth: 'Sit down for Advisory',
+        counselor: 'Talk to the counselor',
+        principal_desk: 'Talk to Principal Panther',
+        trophy_wall: 'Look at the trophy wall',
+        outfitter: 'Open the wardrobe',
+      }
+      const actionFor = (a: Anchor, label: string): string => {
+        if (ACTIONS[a.name]) return ACTIONS[a.name]
+        const l = label.replace(/^The\s+/, 'the ')
+        if (a.kind === 'door') return `Go to ${l}`
+        return a.placement || /^dock_/.test(a.name) ? `Talk to ${l}` : `Go to ${l}`
+      }
+
       const offerOf = (a: Anchor): { text: string; state: PromptState; canFire: boolean } => {
         /* THE SAME RESOLVER THE PRESS USES. A grape-owned anchor the prompt did
          * not know about is a handler that can never be reached by a key or by a
@@ -4533,7 +4563,7 @@ export default function PmapScene() {
            * painting exists for what is past them. Silence while the check is in
            * flight, because offering a door and taking it back a frame later is
            * worse than a beat of nothing. */
-          if (built === 'ok') { text = `E · Go to ${label}`; canFire = true }
+          if (built === 'ok') { text = actionFor(a, label); canFire = true }
           else if (built === 'missing') { text = `${label} · not open yet`; state = 'barred' }
         } else {
           const sv = loadSave()
@@ -4544,11 +4574,11 @@ export default function PmapScene() {
              * nobody wrote look identical from here. */
             if (DBG) { text = `${label} · nothing answers to ${a.name}`; state = 'barred' }
           } else if (isReady(owner, sv)) {
-            text = `E · ${label}`; canFire = true
+            text = actionFor(a, label); canFire = true
             /* USED ALREADY THIS SITTING. Still open, still pressable, and it says
              * so quietly rather than looking identical to the one thing in the
              * room the student has not touched. §40.5's fifth state. */
-            if (usedThisSitting.has(a.name)) { text = `E · ${label} · again`; state = 'done' }
+            if (usedThisSitting.has(a.name)) { text = `${actionFor(a, label)} again`; state = 'done' }
           } else if (owner.by === 'station') {
             /* THE STATION IS CLOSED AND SAYS WHY, in its own sentence rather than
              * in a greyed-out control. §40.9: a control a student can press and be
@@ -5988,7 +6018,7 @@ export default function PmapScene() {
             s.berth && Math.hypot(s.berth.x - at.x, s.berth.y - at.y) < 90)
           if (home?.berth) {
             const p = fromSea(home.berth.x, home.berth.y)
-            setPrompt(home.map === mapId ? 'E · Dock here' : `E · Dock at ${home.title}`, 'plain')
+            setPrompt(home.map === mapId ? 'Dock here' : `Dock at ${home.title}`, 'plain')
             hang(p.x, p.y, 26, Math.sin(t * 2.1) * 1.2)
             promptAnchor = null
             seaFire = () => dockAt(home)
@@ -6002,7 +6032,7 @@ export default function PmapScene() {
         if (!hull && canSail && berth && !locked && !busy && !fade) {
           const p = fromSea(berth.x, berth.y)
           if (Math.hypot(p.x - pos.x, p.y - pos.y) < 110) {
-            setPrompt('E · Get in the boat', 'plain')
+            setPrompt('Get in the boat', 'plain')
             hang(p.x, p.y, 26, Math.sin(t * 2.1) * 1.2)
             promptAnchor = null
             seaFire = board
