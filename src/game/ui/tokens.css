@@ -521,6 +521,7 @@ html[data-skin='plain'] {
   --kit-plank-drop: transparent;
   --kit-plank-glow: transparent;
   --kit-plank-keyline: rgba(255, 255, 255, .5);
+  --kit-wood-plank: var(--kit-paper-lo);            /* the plank's ground is paper in this arm */
 
   --kit-sea: #2f6f7a;
   --kit-sea-ink: #1d4f5a;

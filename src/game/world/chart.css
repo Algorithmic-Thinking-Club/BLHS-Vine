@@ -234,7 +234,10 @@
 }
 .ch-go {
   font-family: var(--kit-face-body);
-  font-size: 11px;
+  /* through the kit's floor, which is 14: this was a raw 11 on the one word
+     that sails a student somewhere */
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
   line-height: 1.1;
   color: var(--kit-sea-ink);
   border-bottom: 1px solid currentColor;
@@ -253,7 +256,8 @@
   padding: 3px 9px;
   cursor: pointer;
   font-family: var(--kit-face-body);
-  font-size: 12px;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
   color: var(--kit-sea-ink);
   background: none;
   border: 1px solid var(--kit-rule);

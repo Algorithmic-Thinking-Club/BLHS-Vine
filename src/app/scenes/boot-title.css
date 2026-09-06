@@ -468,7 +468,7 @@ html[data-skin='plain'] .ti-berth-ink {
 }
 html[data-skin='plain'] .ti-credit {
   font-family: var(--kit-face-body);
-  font-size: 13px; letter-spacing: 0;
+  font-size: 14px; letter-spacing: 0;
   color: var(--kit-ink-dim);
   opacity: 1;
   text-shadow: none;
