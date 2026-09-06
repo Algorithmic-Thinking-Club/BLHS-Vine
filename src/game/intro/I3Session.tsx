@@ -489,11 +489,17 @@ function CodeCard({ initial, err: outerErr, onVerified, onCastaway }: {
             ))}
           </div>
           {err && <div className="i3-err" id="i3-code-err" role="alert">{err}</div>}
-          <button className="i3-castaway" onClick={() => { track('demo_entered'); onCastaway() }}>
-            No code? Play without a class.
-          </button>
+          {/* AS LOUD AS THE PLANK ABOVE IT. This was a 15px dotted-underline line,
+              and it is the only way on for a student with no code: "Join my class"
+              refuses empty boxes, so the loudest thing on the first card was a
+              refusal and the way forward was the quietest (STATE-OF-THE-GAME
+              confusing 4; the dimwit run stalled here). Two planks, the code one
+              first because a class is the ordinary case. */}
           <Plank className="i3-plank" busy={checking} onClick={() => void submit()}>
             {checking ? 'Checking the code' : 'Join my class'}
+          </Plank>
+          <Plank className="i3-plank" onClick={() => { track('demo_entered'); onCastaway() }}>
+            No code? Play without a class.
           </Plank>
         </div>
       )}
@@ -530,7 +536,7 @@ function IdentityCard(p: {
           unlabelled field, so a reader heard "edit text" and nothing else. */}
       <label className="i3-sub" htmlFor="i3-handle">What should your class call you?</label>
       <div className="i3-fieldrow">
-        <span className="i3-fieldbox kit-surface-field">
+        <span className="i3-fieldbox">
           <input
             id="i3-handle"
             className="i3-field"
@@ -705,7 +711,7 @@ function BoatCard(p: { boat: string; setBoat: (v: string) => void; onNext: () =>
       <div className="i3-letter i3-ps">{postscript}</div>
       <label className="i3-sub" htmlFor="i3-boat">Your boat's name</label>
       <div className="i3-fieldrow">
-        <span className="i3-fieldbox kit-surface-field">
+        <span className="i3-fieldbox">
           <input
             id="i3-boat"
             className="i3-field"
