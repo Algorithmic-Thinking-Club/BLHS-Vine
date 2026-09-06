@@ -8,7 +8,7 @@
  * tall: a one-pixel line is not walkable and never was.
  */
 import { describe, it, expect } from 'vitest'
-import { findPath, aheadOn } from './path'
+import { findPath, aheadOn, onFloor } from './path'
 import { defaultCfg, canStandFrom, type MaskDoc, type WalkCfg } from './walk'
 
 const W = 60, H = 40
@@ -138,5 +138,51 @@ describe('where the arrow sits', () => {
   })
   it('answers nothing for an empty route rather than a coordinate nobody chose', () => {
     expect(aheadOn([], { x: 0, y: 0 }, 10)).toBeNull()
+  })
+})
+
+/* ---- a goal that is not on the floor ---------------------------------------
+ *
+ * The hub's `panthers_maw` was placed on the tunnel mouth, which is level 0, so
+ * a walk to it could never report arrival however good the route was. These are
+ * the numbers measured off the published bundle on 2026-09-05.
+ */
+describe('onFloor', () => {
+  /* the hub, near the tunnel: everything above row 385 is the doorway and is
+   * blocked, the terrace lip below it stands */
+  const hubish = (_x: number, y: number) => y >= 385
+
+  it('leaves a goal that already stands exactly where it is', () => {
+    const r = onFloor({ x: 343, y: 400 }, hubish, 0.72)
+    expect(r.moved).toBe(false)
+    expect(r.at).toEqual({ x: 343, y: 400 })
+  })
+
+  it('steps the hub door onto the terrace lip 7px south', () => {
+    const r = onFloor({ x: 343, y: 378 }, hubish, 0.72)
+    expect(r.moved).toBe(true)
+    expect(r.at).toEqual({ x: 343, y: 385 })
+  })
+
+  /* the search is in the metric findPath's reach test uses, so vertical ground
+   * costs 1/yScale. A pixel 8 across beats one 7 below, which raw distance would
+   * get backwards, and picking by raw distance is how an earlier note concluded
+   * the arrow cleared by a tenth of a pixel when it did not. */
+  it('measures in the search own y corrected metric, not in raw pixels', () => {
+    const cross = (x: number, y: number) => (x === 351 && y === 378) || (x === 343 && y === 385)
+    const r = onFloor({ x: 343, y: 378 }, cross, 0.72)
+    expect(r.at).toEqual({ x: 351, y: 378 })
+  })
+
+  it('keeps the spot when nothing within reach stands, rather than inventing one', () => {
+    const r = onFloor({ x: 343, y: 378 }, () => false, 0.72)
+    expect(r.moved).toBe(false)
+    expect(r.at).toEqual({ x: 343, y: 378 })
+  })
+
+  it('will not reach past the limit it was given', () => {
+    const far = (_x: number, y: number) => y >= 500
+    expect(onFloor({ x: 343, y: 378 }, far, 0.72, 24).moved).toBe(false)
+    expect(onFloor({ x: 343, y: 378 }, far, 0.72, 200).moved).toBe(true)
   })
 })

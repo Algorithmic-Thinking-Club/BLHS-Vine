@@ -158,3 +158,57 @@ export function aheadOn(points: Pt[], from: Pt, ahead: number, yScale = 1): Pt |
   }
   return points[points.length - 1]
 }
+
+/* ---- A GOAL THAT IS NOT ON THE FLOOR ----------------------------------------
+ *
+ * Ash, 2026-09-05, on the hub: "the panthers_maw door was reachable before".
+ * He was right, and the engine was the thing in the wrong.
+ *
+ * A door anchor sits on the door, and a door in a painting is a tunnel mouth or
+ * a plank or a hole in a cliff. It is not floor, and the mask says so: the hub's
+ * `panthers_maw` pixel was level 0. So `findPath` was asked to arrive AT a wall.
+ * It found the whole 98 point route up the stairs and then refused to call it
+ * reached, because the closest legal node on its own 4px lattice was 11.05 away
+ * in the y corrected metric against a tolerance of 7. The route was right and
+ * the arrival test could not pass, which is the worst shape a failure can take:
+ * `startWalk` then cuts the deadline from 20 seconds to 3 on a walk that needs
+ * 12, so the body sets off correctly and is stopped a quarter of the way there.
+ *
+ * The author should not have to know any of that. Every map with a door has this
+ * and the hub is simply the first one anybody walked to. So the goal moves, once,
+ * to the nearest pixel a body can really stand on, and the caller is told it is
+ * now an exact spot rather than a radius around a guess.
+ *
+ * MEASURED IN THE SEARCH'S OWN METRIC, not in raw pixels, or this would pick a
+ * pixel the lattice cannot get near and hand back a goal that fails differently.
+ * A previous note in ARC-MANIFEST reads the arrow as clearing by a tenth of a
+ * pixel for exactly that reason: it measured raw distance and the search does not.
+ */
+export function onFloor(
+  spot: Pt,
+  standable: (x: number, y: number) => boolean,
+  yScale = 1,
+  within = 24,
+): { at: Pt; moved: boolean } {
+  if (standable(spot.x, spot.y)) return { at: spot, moved: false }
+  const ys = yScale || 1
+  let best: Pt | null = null
+  let bestD = Infinity
+  /* the box is squashed the same way the metric is, so the search looks at the
+   * ground the metric considers near rather than at a circle on the screen */
+  const x0 = Math.ceil(spot.x - within), x1 = Math.floor(spot.x + within)
+  const y0 = Math.ceil(spot.y - within * ys), y1 = Math.floor(spot.y + within * ys)
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      const d = Math.hypot(x - spot.x, (y - spot.y) / ys)
+      if (d > within || d >= bestD) continue
+      if (!standable(x, y)) continue
+      bestD = d; best = { x, y }
+    }
+  }
+  /* NOTHING WITHIN REACH IS THE HONEST ANSWER AND THE SPOT IS KEPT. Moving the
+   * goal somewhere arbitrary would trade a walk that refuses for a walk that
+   * arrives at the wrong place, and the caller's own deadline already handles
+   * a goal nobody can get to. */
+  return best ? { at: best, moved: true } : { at: spot, moved: false }
+}

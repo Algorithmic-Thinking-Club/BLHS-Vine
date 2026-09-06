@@ -41,7 +41,7 @@ import { CutsceneRuntime } from '../cutscene/runtime'
 import type { CutsceneStage } from '../cutscene/types'
 import { publishRuntime } from '../cutscene/stage-bus'
 import { resolveScript, scriptById } from '../cutscene/scripts'
-import { aheadOn, findPath, type Pt } from './path'
+import { aheadOn, findPath, onFloor, type Pt } from './path'
 import { setMapUrl, targetFromUrl, type PmapTarget } from './route'
 import { loadSave, recordExposure, recordPosition, recordVessel } from '../save'
 import { resumeFor, stampOf, RESUME_REASONS, type WorldStamp } from '../run/resume'
@@ -3572,9 +3572,9 @@ export default function PmapScene() {
         walkTo(name) {
           const a = anchors.get(name)
           if (!a) return Promise.resolve()
-          const goal = anchors.standAt(a)
+          const { goal, reach } = walkGoal(a)
           return new Promise<void>((resolve) => {
-            startWalk(goal, a.stand ? 3 : Math.max(4, a.r * 0.5), goal.facing ?? null, resolve, name)
+            startWalk(goal, reach, goal.facing ?? null, resolve, name)
           })
         },
 
@@ -4341,6 +4341,33 @@ export default function PmapScene() {
         return OCTANTS[o].keys
       }
 
+      /* WHERE A WALK TO AN ANCHOR REALLY ENDS, AND HOW CLOSE COUNTS.
+       *
+       * Both callers asked this the same way and got it wrong the same way, so
+       * it is answered once. An authored stand point is exact and is trusted
+       * whole. Without one the anchor's own pixel is used, and if that pixel is
+       * not floor, which is every door ever placed on a painted doorway, the
+       * goal steps to the nearest pixel that is. See `onFloor` in path.ts for
+       * what that cost on the hub.
+       *
+       * A MOVED GOAL IS AN EXACT GOAL, so it takes the stand point's tolerance
+       * of 3 rather than a radius around a spot nobody can stand on. A goal that
+       * was already on the floor keeps the reach it always had, so nothing that
+       * works today walks differently tomorrow. */
+      const walkGoal = (a: Anchor) => {
+        const g = anchors.standAt(a)
+        if (a.stand) return { goal: g, reach: 3 }
+        const { at, moved } = onFloor(g, canStand, cfg.yScale, Math.max(24, a.r))
+        if (moved) {
+          console.info(`[pmap] ${mapId}: "${a.name}" sits on ground nobody can stand on, `
+            + `so a walk to it ends at ${at.x},${at.y} instead`)
+        }
+        return {
+          goal: { ...at, facing: g.facing },
+          reach: moved ? 3 : Math.max(4, a.r * 0.5),
+        }
+      }
+
       const startWalk = (
         goal: { x: number; y: number }, reach: number, facing: string | null,
         done: () => void, label = 'a point',
@@ -4429,7 +4456,7 @@ export default function PmapScene() {
        * can fall through to the floor. */
       const tapAnchor = (a: Anchor): boolean => {
         if (!offerOf(a).canFire) return false
-        const g = anchors.standAt(a)
+        const { goal: g, reach } = walkGoal(a)
         /* THE NAME THE STUDENT HAS BEEN READING, not the one the author typed.
          * This passed `a.name`, so a walk that could not finish was going to
          * say "you cannot get to panthers_maw from here" in front of a
@@ -4439,7 +4466,7 @@ export default function PmapScene() {
         /* THE SAME REACH `walk_to` USES, so a click and a member's own line put
          * him in the same place. An authored stand point is exact; without one
          * the ring's own radius is the tolerance the author drew. */
-        startWalk(g, a.stand ? 3 : Math.max(4, a.r * 0.5), g.facing ?? null,
+        startWalk(g, reach, g.facing ?? null,
           () => { /* nothing was waiting on it */ }, shown,
           { byPlayer: true, arrive: () => { void fire(a) } })
         engine.log('click_walk', { map: mapId, anchor: a.name })
