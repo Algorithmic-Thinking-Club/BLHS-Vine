@@ -4356,15 +4356,23 @@ export default function PmapScene() {
        * works today walks differently tomorrow. */
       const walkGoal = (a: Anchor) => {
         const g = anchors.standAt(a)
-        if (a.stand) return { goal: g, reach: 3 }
+        /* AN AUTHORED STAND POINT IS CHECKED TOO, and that is not distrust of the
+         * author: a stand point on ground the walk law refuses is a mistake every
+         * single time, and it is invisible in the tool because the mask and the
+         * anchor are drawn in different passes. The Maw's `hearth` is one. Its
+         * stand point (349,212) is one pixel past the floor's edge, so a walk to
+         * the fire aimed at a wall with a tolerance of 3 and could never arrive,
+         * on the station a student sits at first in every year. */
         const { at, moved } = onFloor(g, canStand, cfg.yScale, Math.max(24, a.r))
         if (moved) {
-          console.info(`[pmap] ${mapId}: "${a.name}" sits on ground nobody can stand on, `
-            + `so a walk to it ends at ${at.x},${at.y} instead`)
+          console.info(`[pmap] ${mapId}: "${a.name}"'s ${a.stand ? 'stand point' : 'own pixel'} `
+            + `is ground nobody can stand on, so a walk to it ends at ${at.x},${at.y} instead`)
         }
         return {
           goal: { ...at, facing: g.facing },
-          reach: moved ? 3 : Math.max(4, a.r * 0.5),
+          /* an exact spot, authored or found, is worth the tight tolerance; only
+           * a raw anchor centre still falls back to a radius around itself */
+          reach: a.stand || moved ? 3 : Math.max(4, a.r * 0.5),
         }
       }
 
