@@ -7049,7 +7049,14 @@ export default function PmapScene() {
          * is driving there is nothing to ask of him, so the scene says nothing
          * and the year gets the panel back. */
         {
-          const freeAtSea = !!hull && !berthing && !voyage && !helmOverride && !tiedUp
+          /* AND NOT INSIDE THE FILM. Measured on the cold road, the crossing
+           * arrives with the bars up and the island's script a beat behind the
+           * scene's first frame, so for two seconds the panel at the top of a
+           * cutscene read "Click the island to sail there." at a student whose
+           * controls had been taken away. `movieOn` is the statement that
+           * somebody else is directing; a scene has nothing to ask for while
+           * that is true. */
+          const freeAtSea = !!hull && !berthing && !voyage && !helmOverride && !tiedUp && !movieOn
           setWorldObjective(freeAtSea ? 'Click the island to sail there.' : null)
         }
         /* A SCRIPT'S CAMERA OUTRANKS THE FOLLOW LAW while it is set, and snaps
