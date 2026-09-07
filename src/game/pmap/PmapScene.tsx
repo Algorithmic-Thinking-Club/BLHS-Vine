@@ -32,6 +32,7 @@ import { TEST_SPEED, Walker, canStand as lawCanStand, canStandFrom as lawCanStan
 import { AnchorSet, type Anchor } from './anchors'
 import { framingOf, framingNames, shotOf, projectFramings, shotsOf, type NamedShot } from './framings'
 import { readPaths, legsOf, lengthOf, pathNames, walkFaults, type Pathway } from './paths'
+import { followStep } from './follow'
 import { holdWorld, onWorldHold, worldHeld } from '../world-bus'
 import { carryCinemaThroughDoor, cinemaOn, onCinema, setCinema, takeCinemaCarry } from '../stage/cinema'
 import { choose, clearDialogue, say } from '../dialogue'
@@ -6761,28 +6762,25 @@ export default function PmapScene() {
              * above ends this walk before the hold below can freeze it. */
             if (A.follow) {
               const lead = driven.get(A.follow.body)
-              const ysf = map.yScale || 1
               if (lead) {
-                const away = Math.hypot(lead.x - pos.x, (lead.y - pos.y) / ysf)
-                if (away <= A.follow.gap) {
+                const step = followStep({
+                  leader: lead, leaderSpeed: lead.move ? lead.move.speed : null,
+                  me: pos, gap: A.follow.gap, restSpeed: A.follow.speed,
+                  /* HIS OWN SPEED IS `SPD`, which this scene set to twice the
+                   * map's number in 2026-08-15's "make thor faster". Dividing a
+                   * pace by `map.speed` instead would answer 1 for an ordinary
+                   * walk and leave him exactly twice as fast as the man in
+                   * front of him, which is the defect wearing a fix. */
+                  ownSpeed: SPD, yScale: map.yScale || 1,
+                })
+                if (step.hold) {
                   input = {}
-                  walkDt = 0
                   /* holding station is not being stuck: the deadline is about a
                    * walk that cannot arrive, and this one is waiting on purpose */
                   A.until = performance.now() + A.budget
                   A.stuckMs = 0
-                } else {
-                  /* AGAINST `SPD` AND NOT AGAINST `map.speed`, which is the
-                   * whole of the arithmetic. The student walks at SPD, which
-                   * this scene has set to twice the map's own number since
-                   * 2026-08-15 ("make thor faster"), and a led body walks at
-                   * the map's number times its pace. Dividing by the map's
-                   * number gives 1 for an ordinary walk and leaves Thor exactly
-                   * twice as fast as the man in front of him, which is the
-                   * defect. */
-                  const want = lead.move ? lead.move.speed : A.follow.speed
-                  walkDt = dt * Math.max(0, Math.min(1, want / (SPD || 1)))
                 }
+                walkDt = dt * step.paceScale
               }
             }
           }
