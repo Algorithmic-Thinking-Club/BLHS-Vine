@@ -106,6 +106,12 @@ scripts/*
 # the repo for exactly the reason written above the wave gates — a gate nobody
 # can check out is a gate that passed once, on one machine, on somebody's word.
 !scripts/dimwit.mjs
+# and the arrival gate. Same argument as the wave gates and the same reason it
+# had to exist: every one of BRIEF-ARRIVAL's eight items is a claim about a
+# PICTURE, and all eight live inside PmapScene, the cutscene chrome and the
+# published maps, where no unit test reaches. Twenty-nine checks, run against
+# the LIVE deploy and the live published bundles.
+!scripts/arrival-proof.mjs
 # THE THIRD TIME THIS RULE ALMOST ATE SOMETHING LOAD-BEARING. vendor-islands.mjs
 # runs inside `npm run build`, so swallowed by scripts/* it would be a deploy
 # that fails on Vercel and works on the one machine that has the file.
