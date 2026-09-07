@@ -53,8 +53,15 @@
      here because the choices are measured against the same column. */
   --dlg-box-h: min(220px, 30vh);
   /* it MOVES when the bars move rather than jumping, and it uses the bars' own
-     curve and duration (`stage/cinema.css`) so the two travel together */
-  transition: bottom 450ms cubic-bezier(0.33, 0, 0.2, 1);
+     curve and duration (`stage/cinema.css`) so the two travel together. The
+     duration is a named value rather than a typed one, for the reason
+     `tokens.css` gives about every other duration in the kit: the reduced-motion
+     rule has to have one place to answer. The kit's own `--kit-t-*` are 120 to
+     160ms and this is not one of those; it is the letterbox's travel, and a box
+     that arrives a third of a second before the bar it stands on is worse than
+     one that does not move at all. */
+  --dlg-bar-travel: 450ms;
+  transition: bottom var(--dlg-bar-travel) cubic-bezier(0.33, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -119,9 +126,11 @@ html[data-movie='1'] .dlg-stack,
 html[data-letterbox='1'] .dlg-stack {
   bottom: calc(10vh + max(2.4vh, 16px));
 }
-html[data-rm='1'] .dlg-stack { transition-duration: 60ms; }
+/* the same 60ms the bars shorten to, from the same setting, so the two still
+   agree when a student has asked for less motion */
+html[data-rm='1'] .dlg-stack { --dlg-bar-travel: 60ms; }
 @media (prefers-reduced-motion: reduce) {
-  .dlg-stack { transition-duration: 60ms; }
+  .dlg-stack { --dlg-bar-travel: 60ms; }
 }
 
 /* the caret while the typewriter is still running: §2 law 4, a static frame is
@@ -397,7 +406,9 @@ html[data-skin='plain'] .dlg-caret { animation: none; }
 /* the paw is drawn art and the arm has none. `faceStyle` already refuses a face
    outside the paper skin, so this is the second fence rather than the first. */
 html[data-skin='plain'] .dlg-paw { display: none; }
-html[data-skin='plain'] .dlg-hint-words { animation: none; opacity: 1; }
+/* the words used to pulse and no longer do (`.dlg-hint-words` above), so the
+   arm's own override of that pulse is gone with it rather than left standing
+   over an animation that does not exist. */
 /* THE PORTRAIT IS THE INTERVENTION, so the control arm does not get one. §40.11:
    "the plain arm renders the same words with no character around them", and it
    is the one field on the line that is a picture rather than a sentence. */

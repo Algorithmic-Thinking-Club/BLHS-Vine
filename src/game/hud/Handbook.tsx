@@ -14,7 +14,9 @@ import { badgesOf, FACT_POOL } from '../badges'
 import { track } from '../telemetry'
 import { announce, tabRowKeyDown, usePanel } from '../ui/a11y'
 import { Chip, Empty, Gauge, Glyph, Plank, Scroller, Tab } from '../ui/controls'
+import { DIRECTORY, directoryCount } from './directory'
 import './hud.css'
+import './directory.css'
 
 /* THE HANDBOOK, WHICH IS THE INVENTORY (§40.17 to §40.20, and §40.6's law that
  * there is no separate inventory and no quest log). Facts, badges and the record
@@ -132,11 +134,17 @@ const BADGE_PLATE: Record<BadgeState, 'plate' | 'plate_lit' | 'plate_spent'> = {
  * detail of the nine that carries one. */
 const wordsOnly = (s: string): string => s.replace(/✓/g, 'done')
 
-type Tab = 'chart' | 'islands' | 'cords' | 'facts' | 'badges'
+export type Tab = 'school' | 'chart' | 'islands' | 'cords' | 'facts' | 'badges'
 
-const TABS: Tab[] = ['chart', 'islands', 'cords', 'facts', 'badges']
+/* THE DIRECTORY IS THE FIRST PAGE, which is the whole of BRIEF-INTRO-FILM
+ * section 5 in one array index. Ash's line for the handover is *"The Guide is
+ * every club and class at Bonney Lake"*, and a binder that opens on the sea
+ * chart is not that. The chart keeps its page and the Map plaque still opens
+ * straight to it. */
+const TABS: Tab[] = ['school', 'chart', 'islands', 'cords', 'facts', 'badges']
 
 const TAB_WORD: Record<Tab, string> = {
+  school: 'Bonney Lake',
   chart: 'Chart',
   islands: 'Islands',
   cords: 'Cords',
@@ -144,7 +152,7 @@ const TAB_WORD: Record<Tab, string> = {
   badges: 'Badges',
 }
 
-export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => void; initialTab?: Tab }) {
+export function Handbook({ onClose, initialTab = 'school' }: { onClose: () => void; initialTab?: Tab }) {
   const [tab, setTab] = useState<Tab>(initialTab)
   const [, bump] = useState(0)
   useEffect(() => { track('handbook_opened', { tab: initialTab }); return subscribeSave(() => bump((v) => v + 1)) }, [initialTab])
@@ -216,6 +224,62 @@ export function Handbook({ onClose, initialTab = 'chart' }: { onClose: () => voi
               over the window while the island slides past is the game hiding the
               one thing the click was for */}
           {tab === 'chart' && <Chart onSailing={onClose} />}
+
+          {/* ---- THE REAL BONNEY LAKE DIRECTORY (BRIEF-INTRO-FILM section 5) --
+              Ash, on what playing the game means until an island exists: *"the
+              Guide as the REAL Bonney Lake directory (every club, sport and
+              class from `docs/blhs/sourced-facts.md`, with meeting days and
+              rooms where sourced; Example placeholders are only for pickable
+              programme cards, never for the directory)"*.
+
+              It is the one page in the build that answers a question a freshman
+              actually walked in with, and it answers it with the school's own
+              published words. `directory.ts` holds the rows and the argument for
+              why they keep their real names where a programme card cannot;
+              `directory.test.ts` reads `sourced-facts.md` off disk and refuses a
+              row that is not in it. */}
+          {tab === 'school' && (
+            <>
+              <h3 className="hb-h">Bonney Lake High School</h3>
+              <p className="hb-lede">
+                Everything the school runs: {directoryCount('clubs')} clubs, {directoryCount('sports')} teams
+                and the course catalog. This is the real list, with the days and rooms the school publishes.
+              </p>
+              {DIRECTORY.map((sec) => (
+                <section className="dir-sec" key={sec.id}>
+                  <h4 className="hb-h">
+                    {sec.title} <span className="dir-count">{directoryCount(sec.id)}</span>
+                  </h4>
+                  <p className="hb-lede">{sec.lede}</p>
+                  {sec.groups.map((grp) => (
+                    <div className="dir-group" key={grp.heading}>
+                      <div className="dir-group-head">
+                        <h5 className="dir-group-name">{grp.heading}</h5>
+                        <span className="dir-count">{grp.rows.length}</span>
+                      </div>
+                      <ul className="dir-list">
+                        {grp.rows.map((r) => (
+                          <li className="dir-row" key={r.name}>
+                            <span className="dir-name">
+                              {r.name}
+                              {r.what && <span className="dir-what">{r.what}</span>}
+                            </span>
+                            <span className={`dir-meets${r.meets ? '' : ' dir-gap'}`}>
+                              {r.meets ?? r.note}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </section>
+              ))}
+              <p className="hb-note">
+                Straight from the school: the clubs hub, the athletics pages and the course catalog.
+                Nothing on this page was made up for the game.
+              </p>
+            </>
+          )}
 
           {tab === 'islands' && (
             <>

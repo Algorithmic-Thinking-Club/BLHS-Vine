@@ -1,0 +1,133 @@
+/* THE GUIDE'S DIRECTORY PAGE.
+ *
+ * Its own file rather than more of `hud.css`, which is 33,000 characters and is
+ * being edited by another session in the same tree tonight. Everything here is a
+ * token, so the control arm gets a worksheet and the game arm gets paper without
+ * this file knowing which is which; the plain block at the foot is only the two
+ * rules the tokens cannot answer.
+ *
+ * A DIRECTORY IS ROWS, NOT CARDS. The Islands page draws cards because each card
+ * is a place with a state. This is a list of true sentences about a school, and a
+ * student reading it is scanning for one name, so it is set as a list: the name
+ * in the display face, what it is under it, and the day, time and room on the
+ * right where the eye is already going. Two columns where the binder is wide
+ * enough and one where it is not, which is `auto-fill`'s own answer rather than a
+ * breakpoint somebody typed. */
+
+.dir-sec { margin: 0 0 26px; }
+.dir-sec:last-of-type { margin-bottom: 6px; }
+
+.dir-count {
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(1.4cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-soft);
+}
+
+.dir-group { margin: 0 0 14px; }
+
+/* THE COUNT SITS ON THE HEADING, not at the other end of the rule. Justified
+   apart it was a lone "8" a thousand pixels from the word "Spring", which reads
+   as a page number rather than as how many teams play in the spring. */
+.dir-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--kit-rule);
+}
+
+.dir-group-name {
+  margin: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(1.8cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
+
+.dir-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  /* TWO COLUMNS AT MOST, AND ONE WHEN THE BINDER IS NARROW. At 330 the control
+     arm's smaller system face fitted THREE across a 1030px page and every name
+     and every meeting time wrapped inside its own column, which is a directory
+     that is harder to scan than a single list. `min()` keeps the floor from
+     overflowing a small window. */
+  grid-template-columns: repeat(auto-fill, minmax(min(430px, 100%), 1fr));
+  gap: 2px 20px;
+  align-content: start;
+}
+
+.dir-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 2px;
+  /* a hairline between rows rather than a box round each one: the page is a
+     table of contents and a border on every entry makes 74 boxes */
+  border-bottom: 1px solid var(--kit-hairline);
+}
+
+.dir-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(1.6cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+  line-height: 1.25;
+}
+
+/* WHAT IT IS, UNDER THE NAME AND NOT BESIDE IT. A club's description is a
+   sentence and the meeting time is four words, so they cannot share a line
+   without one of them being cut. */
+.dir-what {
+  display: block;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(1.4cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-body);
+  line-height: 1.35;
+}
+
+/* THE ANSWER TO THE QUESTION THE PAGE IS FOR, so it is set apart rather than
+   buried in the sentence: when, and where. */
+.dir-meets {
+  flex: 0 0 auto;
+  max-width: 46%;
+  text-align: right;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(1.4cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-said);
+  line-height: 1.35;
+}
+
+/* AND THE GAP, PRINTED RATHER THAN FILLED. A club the school has not published a
+   time for says so, in the same place the time would have been, quietly. It is
+   the difference between "nothing here" and "nobody has said". */
+.dir-gap { color: var(--kit-ink-soft); font-style: italic; }
+
+.dir-from {
+  margin: 4px 0 0;
+  --kit-fs-raw: calc(1.25cqw * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-soft);
+}
+
+/* ---- §16, THE PLAIN ARM ------------------------------------------------
+ * The tokens already turn the faces into the system font and the paper into
+ * white, so only the two rules that are shape rather than colour are here: the
+ * hairlines go to a real rule so the list reads as a table on a worksheet, and
+ * the italic gap becomes a plain parenthetical, because italic body text is a
+ * game tell and the control arm is meant to look like something a person typed. */
+html[data-skin='plain'] .dir-row { border-bottom: 1px solid var(--kit-edge); }
+html[data-skin='plain'] .dir-gap { font-style: normal; }
+html[data-skin='plain'] .dir-name { font-weight: 700; }
+/* the name is bold and the sentence under it is not: it is a child of the name
+   so it inherited the weight, and a whole page set bold is a page with no
+   emphasis in it at all */
+html[data-skin='plain'] .dir-what { font-weight: 400; }
