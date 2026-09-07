@@ -98,11 +98,17 @@ export function Dialogue() {
    * They are the same thing except across the gap between two lines, where the
    * bus is empty for one paint and this keeps the last line on the glass so the
    * box does not blink out and rise again. See HANDOVER_MS. */
+  const speaker = useRef<{ who?: string; portrait?: string }>({})
   const [held, setHeld] = useState<DialogueState>(st)
   useEffect(() => {
     if (st) { setHeld(st); return }
-    const t = setTimeout(() => setHeld(null), HANDOVER_MS)
+    const t = setTimeout(() => { setHeld(null); speaker.current = {} }, HANDOVER_MS)
     return () => clearTimeout(t)
+    /* the speaker is forgotten with the box, so a `choose` that opens a NEW
+     * conversation cannot wear the plate of somebody who spoke on the other
+     * side of the room ten minutes ago. `speaker` is a ref, so it is not a
+     * dependency and cannot be one. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [st])
 
   const text = held?.kind === 'line' ? held.line.text : held?.kind === 'ask' ? (held.ask.prompt ?? '') : ''
@@ -120,7 +126,6 @@ export function Dialogue() {
    * appears and disappears inside one conversation. A NEW speaker clears it,
    * because inheriting a face across speakers would put the wrong panther in
    * the frame. */
-  const speaker = useRef<{ who?: string; portrait?: string }>({})
   if (held?.kind === 'line' && held.line.who) {
     if (speaker.current.who !== held.line.who) speaker.current = { who: held.line.who, portrait: held.line.portrait }
     else if (held.line.portrait) speaker.current.portrait = held.line.portrait

@@ -50,8 +50,16 @@
   width: min(560px, 58vw);
   z-index: 2;
   /* ONE BOX, ONE SIZE. See `.dlg-box.cs-dialogue` below; the number lives up
-     here because the choices are measured against the same column. */
-  --dlg-box-h: min(220px, 30vh);
+     here because the choices are measured against the same column.
+
+     IT ANSWERS THE TEXT SETTING, which is not the same thing as answering the
+     content. A student who has turned the type up to L reads a 46px line at 64px
+     of leading, so three lines need 240px of paper, and a box fixed at 220 would
+     put them in a scroller for the whole game. The setting changes once, in
+     Settings, and never while a line is being read, so the box is still ONE size
+     for the whole of a sitting: it is sized for the reader rather than for the
+     sentence. The vh ceiling stops it eating a small window. */
+  --dlg-box-h: min(calc(220px * var(--kit-text-scale)), 34vh);
   /* it MOVES when the bars move rather than jumping, and it uses the bars' own
      curve and duration (`stage/cinema.css`) so the two travel together. The
      duration is a named value rather than a typed one, for the reason
