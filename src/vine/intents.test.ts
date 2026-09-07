@@ -63,6 +63,7 @@ const stubEngine = (): { engine: IntentEngine; did: string[] } => {
       award: (a) => { did.push(`award:${JSON.stringify(a)}`) },
       log: (e) => { did.push(`log:${e}`) },
       movie: (on) => { did.push(`movie:${on}`) },
+      objective: (t) => { did.push(`objective:${t ?? '-'}`) },
       mode: () => 'game',
       /* no real timer in a test: the point of a `wait` here is that it was asked
        * for and that the ceiling was applied, and a test that really slept would

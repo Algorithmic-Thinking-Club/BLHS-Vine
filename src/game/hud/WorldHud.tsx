@@ -4,7 +4,7 @@ import { Dialogue } from './Dialogue'
 import { WorldCutscene } from '../cutscene/WorldCutscene'
 import { PlaceCard } from '../stage/PlaceCard'
 import { MovieBars } from '../stage/MovieBars'
-import { Heading } from './Heading'
+import { ObjectivePanel } from './Objective'
 import { HelpButton } from './Help'
 import { loadSave, subscribeSave } from '../save'
 import { useNav } from '../../app/SceneManager'
@@ -76,24 +76,18 @@ export function WorldHud() {
           door swap tears the scene down and rebuilds it, and a card mounted inside
           the thing being rebuilt is a card that flashes. */}
       <PlaceCard />
-      {/* AND THE ONE SENTENCE THAT SAYS WHAT TO DO NEXT. It mounts beside the
-          arrival card and OUTSIDE the Hud's own gate, because a student who has
-          not been handed anything yet is exactly the student who needs telling.
-          The year's state machine has computed this sentence since the day it was
-          written and nothing in the repository has ever rendered it.
+      {/* AND THE ONE SENTENCE THAT SAYS WHAT TO DO NEXT, at the top of the
+          screen, on every frame of every world scene, in a cutscene and out of
+          one. BRIEF-MAW-RAIL-3 A. It is outside the Hud's own gate for the
+          reason the dialogue box is: a student thirty seconds into an advisory
+          period has no run yet and is exactly the student who needs telling.
 
-          NOT ON THE PAINTED MAP, WHERE IT IS DRAWN IN THE WORLD INSTEAD.
-          Ash, round two, on `02-hub-walking.png`: "A small dark box in the
-          bottom-left corner, wrapped onto two lines... it goes above Thor's head
-          in the world, one line, in the body face, on the socket plaque like the
-          world prompt, and never in a corner." `PmapScene` draws it on the same
-          plaque as the door prompt, so on that scene this would be the same
-          sentence twice.
-
-          The other world scenes keep the DOM card because they are the tile era
-          and have no plaque to hang it on. When they come off the road this
-          component and its stylesheet go with them. */}
-      {current !== 'pmap' && <Heading />}
+          IT REPLACED TWO RENDERERS AND NEITHER IS COMING BACK. `Heading` said
+          this in the bottom-left corner of the tile scenes and `PmapScene` drew
+          it on a plaque over Thor's head, and both hid themselves whenever
+          anything else was speaking, which is when a lost student is most lost.
+          One panel, one place, and it does not go away. */}
+      <ObjectivePanel />
       {/* THE QUESTION MARK (brief item 3b), OUTSIDE THE HUD'S GATE ON PURPOSE.
           The Hud is mounted only once `introDone` is set, which is right for the
           run's furniture and wrong for this: a student thirty seconds into an

@@ -211,6 +211,26 @@ export type Intent =
    * ceilings below. */
   | { kind: 'movie'; on: boolean }
 
+  /* WHAT THE STUDENT IS SUPPOSED TO BE DOING, SAID BY WHOEVER IS DIRECTING.
+   *
+   * BRIEF-MAW-RAIL-3 A, Ash after playing rail-2: a panel at the top centre says
+   * the current objective at every moment, and *"it reads `nextObjective`
+   * outside a cutscene and the cutscene's own current step inside one (the
+   * island sets it with a word, `objective("Follow the principal")`, so a member
+   * can too)"*.
+   *
+   * WHY THE ENGINE COULD NOT ALREADY SAY IT. `run/objective.ts` sequences the
+   * YEAR: the founding, the stamp, the fire, the voyage, the page. Inside a
+   * cutscene the student is being walked between those, and the honest sentence
+   * for the thirty seconds he is following somebody across a room is "Follow the
+   * principal", which is a step no state machine over the save can know about.
+   * It belongs to whoever wrote the scene.
+   *
+   * `objective(None)` HANDS IT BACK, and the bars coming down hand it back too,
+   * because a sentence about a step that ended is worse than no sentence. One
+   * short imperative and never a paragraph: the panel draws one line. */
+  | { kind: 'objective'; text: string | null }
+
   /* STEPPING OFF THE BOAT, WHICH USED TO BE WELDED TO ARRIVING.
    *
    * A scripted crossing ties the ship up at the dock and leaves the player
@@ -448,6 +468,10 @@ export interface IntentEngine {
    * it is being run. The scene listens to the same switch for its own in-world
    * furniture, so there is one flag and not two. */
   movie(on: boolean): void
+  /* AND THE FOURTH, for the same reason. The panel that says what to do next is
+   * chrome around the window rather than anything on a map, so an island run in
+   * the standalone harness can still say what it is asking of the student. */
+  objective(text: string | null): void
 }
 
 /* WHO IS SPEAKING, WHEN IT IS NOT THE VINE.
@@ -643,6 +667,13 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
          * an island opening in the standalone harness should still be able to
          * say that a stretch of it is watched rather than played. */
         engine.movie(i.on === true)
+        return ok()
+      case 'objective':
+        /* NO MAP NEEDED EITHER, and no anchor: this is a sentence and not a
+         * place. A blank string means the same as None, so an island that
+         * builds the line out of its own state cannot leave an empty plaque on
+         * the glass. */
+        engine.objective(typeof i.text === 'string' && i.text.trim() ? i.text.trim() : null)
         return ok()
 
       case 'open':

@@ -84,7 +84,7 @@ export const HUD_INVENTORY: HudRow[] = [
      * behind a beat that happens minutes in. Both are right and they disagree.
      *
      * The law holds, because what a lost student in minute one actually needs is
-     * the heading sentence and it is on screen from the first arrival. A Handbook
+     * the objective panel and it is on screen from the first arrival. A Handbook
      * is a reference, not a rescue. If that turns out to be wrong in a real room
      * it is one line here, and this comment is why it is written down rather than
      * argued about in a review. */
@@ -133,9 +133,21 @@ export const ALWAYS_ON = [
   'chart', 'handbook', 'tokens', 'cape',
   /* the world's own marks, which are not DOM and are not in the corner */
   'prompt', 'objective-mark', 'you-pin',
-  /* the three surfaces that speak, none of which is furniture: each is present
+  /* the two surfaces that speak, neither of which is furniture: each is present
    * only while it has something to say */
-  'dialogue', 'place-card', 'heading',
+  'dialogue', 'place-card',
+  /* ---- AND THE ONE SENTENCE THAT IS ALWAYS THERE -------------------------
+   *
+   * The objective panel, top centre (BRIEF-MAW-RAIL-3 A). It replaced `heading`,
+   * which was the same sentence in the bottom-left corner of the tile scenes and
+   * which stood down whenever anything else spoke.
+   *
+   * It survives §40.6 the same way `help` does and for a stronger reason: it is
+   * not a readout about the student, it is the game's one instruction, and the
+   * absence list's own replacement clause names it. The list forbids a quest
+   * log; this is the thing §40.6 says to have INSTEAD of one, "deliberately one
+   * live thing at a time". */
+  'objective',
   /* ---- AND THE ONE PERMITTED FLOATING THING THAT IS NOT STATE -------------
    *
    * The question mark. Everything else on this list is either a control the run

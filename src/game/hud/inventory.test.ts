@@ -119,7 +119,7 @@ describe('the absence list is enforced rather than intended', () => {
     const mounted = [...hud.matchAll(/<([A-Z][A-Za-z]*)\s*\/?>/g)].map((m) => m[1])
     const KNOWN: Record<string, string> = {
       Hud: 'chart', Dialogue: 'dialogue', WorldCutscene: 'dialogue',
-      PlaceCard: 'place-card', Heading: 'heading',
+      PlaceCard: 'place-card', ObjectivePanel: 'objective',
       /* the question mark, which is on the list with its reason written beside
        * it in `inventory.ts`. It is the one thing here that is not state and not
        * a grant, and the brief that asked for it asked for exactly this: that it

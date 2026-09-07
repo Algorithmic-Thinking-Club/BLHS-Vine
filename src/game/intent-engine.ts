@@ -21,6 +21,7 @@ import { beatDone, coreBeatId, hasCoreBeat } from './beats/beats'
 import { programmeById } from './roster/roster'
 import { play as playSfx } from './audio'
 import { setCinema } from './stage/cinema'
+import { setObjectiveSaid } from './hud/objective-bus'
 
 export const engine: IntentEngine = {
   /* AND IT REFUSES WHEN NOTHING IS MOUNTED TO HEAR IT. This was a dispatch into
@@ -184,6 +185,19 @@ export const engine: IntentEngine = {
    * plaques and marker, so there is one flag rather than one per surface. */
   movie(on) {
     setCinema(on)
+    /* AND THE BARS COMING DOWN HAND THE PANEL BACK TO THE YEAR. An island that
+     * said "Follow the principal" and then ended, or refused, would otherwise
+     * leave that sentence over a student who is now standing in an empty room
+     * with nobody to follow. The word is the scene's for exactly as long as the
+     * scene is running. */
+    if (!on) setObjectiveSaid(null)
+  },
+
+  /* WHAT THE STUDENT IS SUPPOSED TO BE DOING, said by whoever is directing.
+   * BRIEF-MAW-RAIL-3 A. It is chrome around the window, so it needs no map and
+   * lives here rather than on the world. */
+  objective(text) {
+    setObjectiveSaid(text)
   },
 
   /* the study arm this participant was assigned at join. A grape never chooses

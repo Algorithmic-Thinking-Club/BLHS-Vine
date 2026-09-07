@@ -1,0 +1,74 @@
+/* THE OBJECTIVE PANEL. BRIEF-MAW-RAIL-3 A: top centre, always, inside the bars.
+ *
+ * THE LAYER, read off the same tree cinema.css reads: the world canvas is 0, the
+ * HUD corner and the help button are 50, the arrival card 68, the bars 70, the
+ * cutscene overlay 72, the panels 73 to 80, a door cover 90. This sits at 71,
+ * which is ABOVE the bars and below a real cutscene's own letterbox. That one
+ * number is the whole of "inside the bars when they are up, never hidden": every
+ * other piece of chrome in the game stands down behind the black and this one
+ * rides on top of it, because the one thing a student watching a six minute
+ * cutscene has no other way to learn is what any of it is for.
+ */
+.ob-wrap {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 71;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;      /* it is an announcement, not a control */
+  user-select: none;
+  /* CLEAR OF THE TOP BAR WHEN THE BAR IS THERE, and the transition matches the
+     bars' own so the panel rides down with the black rather than jumping ahead
+     of it. `10vh` is the bar's height, stated once in cinema.css and repeated
+     here because a CSS custom property on `html` would have to be written by the
+     component that draws the bars, and that component is allowed not to mount. */
+  padding-top: max(1.6vh, 10px);
+  transition: padding-top 450ms cubic-bezier(0.33, 0, 0.2, 1);
+}
+html[data-movie='1'] .ob-wrap { padding-top: calc(10vh + max(1.6vh, 10px)); }
+html[data-rm='1'] .ob-wrap { transition-duration: 60ms; }
+@media (prefers-reduced-motion: reduce) { .ob-wrap { transition-duration: 60ms; } }
+
+.ob-panel {
+  margin: 0;
+  max-width: min(720px, 76vw);
+  box-sizing: border-box;
+  padding: 6px 18px 8px;
+  image-rendering: var(--kit-pixel);
+  filter: drop-shadow(var(--kit-drop-md));
+  font-family: var(--kit-face-body, 'Deckhand', monospace);
+  color: var(--kit-ink-said);
+  text-align: center;
+  /* sized against the window rather than against the box, because this panel is
+     one line and never wraps: a container query would size the type off a width
+     the type itself decided. */
+  --kit-fs-raw: clamp(16px, calc(1.35vw * var(--kit-text-scale) + 8px), 26px);
+  font-size: var(--kit-fs);
+  line-height: 1.3;
+  /* ONE LINE, CLIPPED, NEVER WRAPPED. Ash: "never a paragraph". A sentence too
+     long for the panel is a sentence that needs rewriting, and the ellipsis says
+     so out loud instead of quietly growing a second row. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* IT ARRIVES RATHER THAN FADING, the kit's law: a panel that fades is
+     see-through for the length of its entrance and the world reads straight
+     through the paper. */
+  animation: ob-drop 260ms var(--kit-ease-rise, cubic-bezier(.2, .9, .3, 1)) both;
+}
+@keyframes ob-drop {
+  from { transform: translateY(-8px); }
+  to   { transform: translateY(0); }
+}
+html[data-rm='1'] .ob-panel { animation-duration: 1ms; }
+
+/* THE PLAIN ARM READS THE SAME SENTENCE. It is the game telling a student what
+   to do next, which is vehicle rather than taught content, so it is present in
+   both arms and only its dressing changes (tokens.css answers
+   `.kit-surface-band` in that arm with a flat bordered sheet). */
+html[data-skin='plain'] .ob-panel {
+  filter: none;
+  padding: 8px 16px;
+}

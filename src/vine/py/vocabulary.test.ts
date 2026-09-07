@@ -81,8 +81,13 @@ describe('the intent vocabulary, both sides of the worker', () => {
    * `actor_move` for the reason the paragraph above gives about pace, read the
    * other way: "walk him there" and "walk him there while I follow" are two
    * sentences with two bodies in the second one. */
-  it('is thirty words on the engine side', () => {
-    expect(engineWords.size).toBe(30)
+  /* AND THIRTY-ONE. BRIEF-MAW-RAIL-3 added `objective`: the one line at the top
+   * of the screen, said by whoever is directing. It is a word rather than a
+   * consequence of `say` because the panel is not dialogue: it stands while
+   * nobody is speaking, and inside a cutscene it is the only thing on the glass
+   * that says what the student is watching is for. */
+  it('is thirty-one words on the engine side', () => {
+    expect(engineWords.size).toBe(31)
   })
 
   it('has the frame words on both sides', () => {

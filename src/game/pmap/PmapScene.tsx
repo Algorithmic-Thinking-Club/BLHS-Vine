@@ -76,12 +76,13 @@ import { uiBand } from '../ui/frame'
 import { kitNineSlice, kitPieceHeight, kitSprite, kitTexture } from '../ui/kitSprite'
 import { goldenHour } from '../ui/atmosphere'
 import { currentSkin } from '../ui/skin'
-/* the two questions the task line has to ask before it speaks, and both of them
- * are already answered somewhere else: an open panel is on the a11y stack, and an
- * arrival card is on the stage bus. */
-import { panelDepth } from '../ui/a11y'
+/* an arrival card is on the stage bus, which is the one question the world's
+ * chrome asks that it cannot answer itself. */
 import { note } from '../ui/feedback'
 import { placeCardUp } from '../stage/stage-bus'
+/* and the one sentence this scene knows that the year does not, which the panel
+ * at the top of the screen prints (BRIEF-MAW-RAIL-3 A) */
+import { setWorldObjective } from '../hud/objective-bus'
 
 /* THE FIVE STATES THE IN-WORLD PROMPT CAN BE IN, which Part IV §40.5 enumerates
  * and which this engine had four strings and one style for.
@@ -99,7 +100,7 @@ import { placeCardUp } from '../stage/stage-bus'
  * which is exactly the lifetime the state describes. */
 export type PromptState = 'plain' | 'objective' | 'barred' | 'needs' | 'done'
 import { composeWorldText, WORLD_TEXT } from '../ui/worldText'
-import { MAW_MAP, isObjective, nextObjective, objectiveLine } from '../run/objective'
+import { MAW_MAP, isObjective, nextObjective } from '../run/objective'
 import { missingAnchors } from '../maw/stations'
 import { runStation } from '../maw/run-station'
 import { isReady, labelFor, ownerOf } from './grape-router'
@@ -2694,155 +2695,24 @@ export default function PmapScene() {
         layoutPrompt()
       }
 
-      /* ---- THE TASK, ABOVE HIS HEAD, IN THE WORLD -----------------------
+      /* ---- THE TASK PLAQUE OVER THOR IS GONE, AND IT IS NOT COMING BACK ---
        *
-       * ASH RULED IT IN ROUND TWO, on `02-hub-walking.png`: "A small dark box in
-       * the bottom-left corner, wrapped onto two lines... that one line above
-       * their head like a task objective, is fine. It goes above Thor's head in
-       * the world, one line, in the body face, on the socket plaque like the
-       * world prompt, and never in a corner."
+       * BRIEF-MAW-RAIL-3 A, Ash after playing rail-2: *"A panel at the top
+       * centre of the screen that says the current objective at every moment,
+       * during cutscenes AND normal play... The small task plaque over Thor goes
+       * away; this panel replaces it."*
        *
-       * And the non-reader law it serves, from the same brief: "One line above
-       * his head is the task. It is the ONLY standing text on the screen." The
-       * player is a freshman who did not choose this game and will not read a
-       * paragraph, so the one sentence the game owes them cannot be a card in a
-       * corner that fades after seven seconds.
+       * WHAT WAS WRONG WITH IT, in his own frames. It hid itself whenever the
+       * world was not quiet, which inside a six minute cutscene is always, so
+       * the one sentence that says what any of this is for was missing for the
+       * whole of the part a student understands least. It also rode on the
+       * camera, so it grew and shrank with the zoom and ran off the edge of the
+       * window whenever he stood near one.
        *
-       * THE SENTENCE IS NOT NEW AND WAS NEVER ON A SCREEN UNTIL LAST ROUND.
-       * `run/objective.ts` has computed one live objective from the year's own
-       * state machine since it was written, in character, seven of them. This is
-       * a renderer for an answer the game already has.
-       *
-       * IT IS THE SAME OBJECT AS THE PROMPT, deliberately: the same drawn
-       * `socket` plaque, the same body face, the same size the text setting
-       * moves. A student learns one shape and it means "the game is telling you
-       * something", whether it is hanging over a door or over Thor.
-       *
-       * WHAT IT YIELDS TO. Anything with more to say: a panel, an arrival card,
-       * a cutscene, a line of dialogue, a scripted walk. `worldHeld` counts all
-       * of those at once, which is why the check is one call and not five.
-       * It also stands aside for the door prompt, because a student standing at
-       * a station is being told two things about the same step and only the
-       * nearer one is actionable. */
-      const task = new Container()
-      task.zIndex = 9e9 - 3
-      task.visible = false
-      task.sortableChildren = true
-      world.addChild(task)
-
-      let taskPlate: NineSliceSprite | null = null
-      const taskTxt = new Text({
-        text: '',
-        style: new TextStyle({
-          fontFamily: ['Deckhand', 'monospace'],
-          fontSize: promptSize() + 3,
-          fontWeight: 'bold',
-          fill: 0xbaf3ea,
-          stroke: { color: 0x06282c, width: 3 },
-        }),
-      })
-      taskTxt.anchor.set(0, 0.5)
-      const taskPaper = new Graphics()
-      taskPaper.zIndex = -1
-      taskPaper.visible = plainArm()
-      /* ---- THE SENTENCE WEARS THE MARK OF THE PLACE IT POINTS AT -----------
-       *
-       * TWO PLAQUES, ONE MATERIAL, AND THAT IS ON PURPOSE. Ash's round-two
-       * ruling puts the task line "on the socket plaque LIKE THE WORLD PROMPT",
-       * so a different ground for it is not available: he asked for the shared
-       * one. But an art-direction pass then read the harbour and found the two
-       * telling apart only by their words, which is exactly what §40.31 forbids
-       * a student to have to do.
-       *
-       * So they are told apart by a MARK, which is a shape difference rather
-       * than a colour one. The prompt carries a key cap, "E ·", because pressing
-       * is what it wants. The task carries the same gold chevron the objective
-       * marker hangs over the station the year is pointing at, so the sentence
-       * and the place it is about wear one mark and a student who never reads
-       * either of them can still see that they belong together. */
-      const taskMark = new Container()
-      task.addChild(taskPaper, taskMark, taskTxt)
-      task.scale.set(1 / Z)
-      let taskMarkW = 0
-      {
-        const CW = 12, CH = 8
-        const g = new Graphics()
-        g.moveTo(-CW / 2, -CH / 2).lineTo(CW / 2, -CH / 2).lineTo(0, CH / 2).closePath()
-          .fill(0xffd98a).stroke({ color: 0x3a2410, width: 2 })
-        taskMark.addChild(g)
-        taskMarkW = CW
-        void kitSprite('pointer', 'chevron').then((drawn) => {
-          if (destroyed || !drawn) return
-          drawn.anchor.set(0.5, 0.5)
-          const want = promptSize() + 2
-          drawn.scale.set(want / drawn.texture.height)
-          taskMark.removeChild(g)
-          g.destroy()
-          taskMark.addChild(drawn)
-          taskMarkW = drawn.texture.width * drawn.scale.x
-          layoutTask()
-        })
-      }
-
-      let taskSaid = ''
-
-      /* AND IT IS CAPPED AT HALF THE SCREEN. Measured on `02-hub-walking.png`:
-       * the plaque ran about a thousand pixels of a 1366 pixel window, which is
-       * wider than the volcano, laid across the market rooftops, and the highest
-       * contrast object in the harbour. That, more than the shared material, is
-       * why it out-read the marker it sits above. The ruling says ONE line, so
-       * the sentence is not wrapped; the plaque stops growing and the authored
-       * strings are what has to be short. */
-      const layoutTask = () => {
-        const gap = taskMarkW ? 8 : 0
-        /* HALF THE SCREEN, IN SCREEN PIXELS, AND THE DIVISOR WAS THE BUG. The
-         * plaque is a child of `world`, which is scaled by `camZ`, wearing
-         * `1 / camZ` of its own, so its local units ARE window pixels and the
-         * conversion is the identity. Dividing by the scale multiplied the cap
-         * by the zoom instead: 1598 pixels of cap on a 1366 pixel window at the
-         * walking shot, so the rule the art-direction round asked for stopped
-         * biting at all. */
-        const cap = Math.max(180, app.screen.width * 0.52)
-        const bodyW = Math.min(taskMarkW + gap + taskTxt.width, cap)
-        const left = -bodyW / 2
-        taskMark.position.set(left + taskMarkW / 2, 0)
-        taskTxt.position.set(left + taskMarkW + gap, 0)
-        if (taskPaper.visible) drawPlainPlate(taskPaper, bodyW + 34, taskTxt.height + 14)
-        if (!taskPlate) return
-        const k = (taskTxt.height + 14) / promptPlateH
-        taskPlate.width = bodyW / k + 60
-        taskPlate.scale.set(k)
-        taskPlate.x = -(taskPlate.width * k) / 2
-        taskPlate.y = -(promptPlateH * k) / 2
-      }
-
-      void (async () => {
-        taskPlate = await kitNineSlice('socket', 300)
-        if (!taskPlate) return
-        taskPlate.zIndex = -1
-        task.addChild(taskPlate)
-        taskTxt.style.stroke = { color: 0x000000, width: 0 }
-        /* the same ink the plain prompt uses, because it is the same plaque
-         * saying the same kind of thing */
-        taskTxt.style.fill = 0x3b2a1a
-        taskSaid = ''
-        layoutTask()
-      })()
-
-      /** the one live objective, drawn over Thor, or nothing */
-      const setTask = (text: string) => {
-        if (!text) { task.visible = false; taskSaid = ''; return }
-        task.visible = true
-        if (text === taskSaid) return
-        taskSaid = text
-        taskTxt.text = text
-        /* a step above the prompt. This is the sentence that is on screen all the
-         * time and is the only text a student is promised, so it is the one piece
-         * of world type that gets to be bigger than the affordances. */
-        taskTxt.style.fontSize = promptSize() + 3
-        plaqueStyle(taskTxt, taskPlate ? 0x3b2a1a : 0xbaf3ea)
-        layoutTask()
-      }
+       * `hud/Objective.tsx` is the renderer now: DOM, top centre, over the black
+       * bars rather than behind them, one line, on every frame. This scene still
+       * has one thing to say that the year cannot know, which is that he is at
+       * sea holding the tiller, and it says it through `setWorldObjective`. */
 
       /* A POINTER PATH THAT A READER AND A KEYBOARD CAN ALSO SEE.
        *
@@ -6804,63 +6674,21 @@ export default function PmapScene() {
         const gp = pin.getGlobalPosition()
         pin.x -= (gp.x - Math.round(gp.x)) / camZ
         pin.y -= (gp.y - Math.round(gp.y)) / camZ
-        /* THE TASK RIDES ABOVE THE PIN, which is itself above his head, so the
-         * order down the screen is the sentence, the YOU marker, then Thor. It
-         * bobs on the same clock as the pin and the prompt so the three read as
-         * one system rather than three timers. */
+        /* THE ONE SENTENCE THIS SCENE KNOWS AND THE YEAR DOES NOT.
+         *
+         * He is on the water holding the tiller, and the year's own state machine
+         * has no word for that: it is sequencing a stamp, a fire and a page. So
+         * the scene says it, and the panel at the top of the screen prints it
+         * under the island's word and over the year's (`hud/objective-bus.ts`).
+         *
+         * STATE-OF-THE-GAME confusing 1: after the box closed, the only words on
+         * the water were the door's task line over on the island, and nothing
+         * said that the island is a thing you click. While a voyage or a berthing
+         * is driving there is nothing to ask of him, so the scene says nothing
+         * and the year gets the panel back. */
         {
-          const o = nextObjective(loadSave())
-          const quiet = !fade && !locked && !busy && !placeCardUp() && panelDepth() === 0
-          /* IT DOES NOT YIELD TO THE DOOR PROMPT, and the first pass had that
-           * wrong. Ash named what it yields to: "When a card or a dialogue is up,
-           * it yields." A prompt is neither. It is also, on the hub, permanently
-           * on screen where a student spawns (the berth is under their feet), so
-           * standing aside for it meant the one line the non-reader law calls
-           * "the only standing text on the screen" never appeared at all.
-           *
-           * The two plaques say different things in different places: one hangs
-           * over the thing E would open, and this one rides over Thor. Together
-           * they are the whole of what a student needs and neither is noise. */
-          /* AT SEA THE SENTENCE IS ABOUT THE SEA. STATE-OF-THE-GAME confusing 1:
-           * after the box closed the only words on the water were the door's
-           * task line over on the island, and nothing said that the island is a
-           * thing you click. While the student holds the tiller with nothing
-           * scripted driving her, the one line is the one instruction; while a
-           * voyage or a berthing is driving, there is nothing to ask of him. */
           const freeAtSea = !!hull && !berthing && !voyage && !helmOverride && !tiedUp
-          setTask(quiet && hull ? (freeAtSea ? 'Click the island to sail there.' : '')
-            : quiet && o ? objectiveLine(o, mapId) : '')
-          /* CLEAR OF THE YOU PIN, IN SCREEN PIXELS RATHER THAN WORLD ONES.
-           * The pin stands about forty screen pixels above his head whatever the
-           * camera is doing, and a world-space offset shrinks with the zoom, so
-           * at the hub's wide shot the sentence was drawn straight through the
-           * marker. `uiS` is 1/camZ, which is exactly the number that turns a
-           * screen distance into a world one, and it is the same 1/camZ the
-           * marks are scaled by a few lines further down. */
-          /* 62 was measured against a marker whose circle was radius 12. Round 4
-           * grew it to 15 so a face could fit, and the plaque's underside came
-           * down onto the word YOU: measured at `pin/ring-water.png`, the two
-           * were touching. The clearance is the marker's real height plus a
-           * line, so it moves with the marker instead of being re-measured. */
-          /* over the hull when he is aboard: Thor is hidden at the berth then,
-           * and a sentence hung over an empty quay is a sentence about nothing */
-          /* the eighty-four is clearance for the YOU pin, which is not drawn at
-           * sea, so over the hull the sentence sits a ship's height up and no
-           * more: measured, the pin's clearance put it over the jetty */
-          if (hull) task.position.set(hull.x, hull.y - 20 - 30 / camZ + Math.sin(t * 2.1) * 1.4)
-          else task.position.set(pos.x, pos.y - charH - 3 - 84 / camZ + Math.sin(t * 2.1) * 1.4)
-          /* AND IT STAYS ON THE SCREEN. It is centred on Thor, and Thor spends
-           * a lot of the hub standing near an edge, so a long sentence hung over
-           * him runs off the window. Measured after placing rather than
-           * predicted from the text width, because the plaque's width is the
-           * result of a nine-slice and a scale and the bounds already know. */
-          if (task.visible) {
-            const gb = task.getBounds()
-            const pad = 10
-            const over = Math.max(0, gb.maxX - (app.screen.width - pad))
-              - Math.max(0, pad - gb.minX)
-            if (over !== 0) task.x -= over / camZ
-          }
+          setWorldObjective(freeAtSea ? 'Click the island to sail there.' : null)
         }
         /* A SCRIPT'S CAMERA OUTRANKS THE FOLLOW LAW while it is set, and snaps
          * rather than lerps, because the runtime is already tweening it and two
@@ -6902,15 +6730,6 @@ export default function PmapScene() {
         const uiS = 1 / camZ
         if (pin.scale.x !== uiS) {
           pin.scale.set(uiS); prompt.scale.set(uiS); objMark.scale.set(uiS); bigMark.scale.set(uiS)
-          /* AND THE TASK LINE, WHICH WAS THE ONE THAT WAS NOT HERE. It was set
-           * once at load to `1 / Z` and never again, so its size on the glass
-           * was `camZ / Z` and only right at the walking shot. At the sailing
-           * zoom that is 0.24 of what it was drawn at, and the sentence it
-           * carries out there is the only instruction on the water. Re-laid as
-           * well as re-scaled, because the plaque's width is cut against a cap
-           * in its own units and those units have just changed. */
-          task.scale.set(uiS)
-          if (task.visible) layoutTask()
         }
         /* THE TWO SURFACES A WORLD HOLD DOES NOT REACH. Everything else in this
          * scene's chrome is already switched by `locked`; these two are written
@@ -7834,6 +7653,10 @@ export default function PmapScene() {
       offCinema()
       movieHold?.(); movieHold = null
       setCinema(false)
+      /* and the sentence this scene was contributing to the objective panel goes
+       * with it, for the same reason: "Click the island to sail there" over the
+       * next map would be an instruction about a boat that is not there. */
+      setWorldObjective(null)
       /* anything a station was still waiting on is resolved rather than left
        * hanging. A body parked on an unresolved say() holds its world lock for
        * ever, and the next map opens with no controls and no way to tell why. */
