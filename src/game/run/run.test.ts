@@ -511,7 +511,11 @@ describe('one refusal string, and the verb enforces the same rule', () => {
     save.beginAdventure()
     const s = save.loadSave()!
     const why = refuseSlot('football', 'Spring', s, 1)
-    expect(why).toContain('Football')
+    /* the name the roster prints, which is the placeholder while nothing has an
+       island behind it (BRIEF-MAW-RAIL-3 B). A refusal that named the real sport
+       would be the one surface still telling a student that Football is a thing
+       he can nearly do. */
+    expect(why).toContain(programmeById('football')!.name)
     expect(why).toContain('fall sport')
     expect(refuseSlot('football', 'Fall', s, 1)).toBeNull()
     expect(refuseSlot('atc', 'Spring', s, 1)).toBeNull()      // a club takes any season
@@ -537,7 +541,7 @@ describe('one refusal string, and the verb enforces the same rule', () => {
     save.beginAdventure()
     save.assignSlot(1, 'Fall', 'atc')
     const why = refuseSlot('atc', 'Winter', save.loadSave()!, 1)
-    expect(why).toContain('Algorithmic Thinking Club')
+    expect(why).toContain(programmeById('atc')!.name)
     expect(why).toContain('fall')
     expect(save.assignSlot(1, 'Winter', 'atc')).toBeNull()
   })

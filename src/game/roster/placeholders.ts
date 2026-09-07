@@ -43,19 +43,12 @@
  * anybody has drawn it, and the catalog is a true thing worth reading. So the
  * cards get letters and the electives get their names and a quiet mark, and both
  * become pressable by exactly the same one line in `member-islands.json`. */
-import { PROGRAMMES, programmeById } from './roster'
+import { programmeById } from './roster'
+import { EXAMPLE_BLURB, NO_ISLAND_YET, exampleLabel } from './example'
 
-/** what a placeholder says about itself, in one line, on every surface */
-export const EXAMPLE_BLURB = 'An island a member has not built yet.'
-
-/** A, B, ... Z, then AA. Past twenty-six is not a case anybody will meet, and
- *  answering it is cheaper than a comment saying it cannot happen. */
-export function exampleLabel(n: number): string {
-  let out = ''
-  let i = n
-  do { out = String.fromCharCode(65 + (i % 26)) + out; i = Math.floor(i / 26) - 1 } while (i >= 0)
-  return `Example ${out}`
-}
+/* the words themselves live in `example.ts`, which imports nothing, so the
+ * roster can mask its own entries with them without importing this file back */
+export { EXAMPLE_BLURB, NO_ISLAND_YET, exampleLabel }
 
 /** is there a playable island behind this programme id */
 export const programmeIsReal = (id: string): boolean => programmeById(id)?.playable === true
@@ -66,20 +59,23 @@ export const programmeIsReal = (id: string): boolean => programmeById(id)?.playa
  * one line in `member-islands.json` and no change here. */
 export const classIsReal = (id: string): boolean => programmeIsReal(id)
 
-/** what a class with no island behind it says about itself, quietly */
-export const NO_ISLAND_YET = 'no island yet'
-
-/* THE LETTERS, built once at module scope, over the roster and nothing else. */
-const letters = new Map<string, string>()
-{
-  let n = 0
-  for (const p of PROGRAMMES) if (!p.playable) letters.set(p.id, exampleLabel(n++))
-}
+/* ---- AND THE LETTERS ARE READ, NOT ASSIGNED ------------------------------
+ *
+ * They used to be counted here, over the roster, into a map this file owned. The
+ * roster masks its own entries now (BRIEF-MAW-RAIL-3 B), so a placeholder's name
+ * IS "Example A" everywhere it is printed and there is nothing left for this file
+ * to decide. Two places counting one alphabet is two answers to one question, and
+ * the surfaces that never called `shownName` are the reason the mask moved.
+ */
 
 /** the placeholder name for an id, or null when a real island stands behind it */
-export const exampleNameOf = (id: string): string | null => letters.get(id) ?? null
+export const exampleNameOf = (id: string): string | null => {
+  const p = programmeById(id)
+  return p && !p.playable ? p.name : null
+}
 
-/** what to PRINT for an id: the example name when it is a placeholder, else the
- *  real name the caller already had. Every surface that names a pick goes
- *  through this, so no fake real name can reach a student from any of them. */
-export const shownName = (id: string, real: string): string => letters.get(id) ?? real
+/** what to PRINT for an id. Kept because a caller may hold a name from an older
+ *  save or from a row the roster no longer carries, and because it reads at the
+ *  call site as the promise it is; the roster's mask is what actually enforces
+ *  it now, so on anything the roster knows about this is the identity. */
+export const shownName = (id: string, real: string): string => exampleNameOf(id) ?? real

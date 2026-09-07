@@ -35,6 +35,7 @@
  */
 import type { Season } from '../save'
 import { MEMBER_ISLANDS } from './member-islands'
+import { EXAMPLE_BLURB, EXAMPLE_SOURCE, exampleLabel, examplePlace } from './example'
 
 export type MapId = string
 export type PlaceId = string
@@ -165,7 +166,11 @@ export type Programme = {
 const SPORTS_SRC = 'blhs.sumnersd.org/athletics/our-sports, 2025-26'
 const CLUBS_SRC = 'blhs.sumnersd.org/activities/clubs-activities/blhs-clubs, 2025-26'
 
-export const PLACES: Place[] = [
+/* THE AUTHORED TRUTH, WHICH THE MASK BELOW SITS ON TOP OF. Exported so the
+ * roster's own test can ask what was written rather than what is printed;
+ * nothing that draws a screen may read it, because a screen that reads it is a
+ * screen printing a real school name with no island behind it. */
+export const SOURCED_PLACES: Place[] = [
   {
     /* the home base, and the first place in the game made of more than one
      * painting. The hub and the Maw are two map ids and one location, the door
@@ -267,7 +272,8 @@ const OURS: Programme[] = [
  * sourced programme the school actually has. An id already on the roster is
  * refused by `rosterFaults` and said out loud, which is the right answer: two
  * things called `football` is a question for a person. */
-export const PROGRAMMES: Programme[] = [
+/** the authored truth, under the mask. See `SOURCED_PLACES`. */
+export const SOURCED_PROGRAMMES: Programme[] = [
   ...OURS,
   ...MEMBER_ISLANDS.map((i): Programme => ({
     id: i.programme,
@@ -283,6 +289,76 @@ export const PROGRAMMES: Programme[] = [
     source: i.source,
   })),
 ]
+
+/* ---- AND THE CATALOG ITSELF IS THE PLACEHOLDER LAYER ----------------------
+ *
+ * BRIEF-MAW-RAIL-3 B, Ash after playing rail-2: *"Rail-2 put placeholders on the
+ * pick screen only. Ash still saw 'Algorithmic Thinking Club', 'Football',
+ * 'Girls Flag Football' in the Guide, the wall, the yearbook, the year-two sheet
+ * and the task line. The catalog itself becomes the placeholder layer: clubs and
+ * sports are Example A to E everywhere."*
+ *
+ * WHY THAT IS ONE FUNCTION AND NOT TEN COMPONENTS. Rail-2 answered the same
+ * ruling with `shownName(id, real)` at each surface that printed a name, and
+ * shipped it wired into three of them. The Guide, the wall's own frames, the
+ * yearbook, the planner, the Wardrobe and the badge list all still read
+ * `programme.name` straight, and every one of them was a real school name with
+ * nothing behind it. A rule enforced at the call site is a rule with a hole in it
+ * for every call site somebody has not visited yet.
+ *
+ * So the name a placeholder HAS is Example A. There is no second name to print
+ * by accident, in this repo or in a member's island, and the day a row in
+ * `member-islands.json` says `"playable": true` the entry is masked no longer and
+ * every one of those surfaces says the real thing with no edit anywhere.
+ *
+ * WHAT IS MASKED AND WHAT IS NOT. The name, the one-line blurb, the host and the
+ * source: everything a student READS. Not the id, the place, the kind, the
+ * season, the tags or the rank track, which are the WIRING: a placeholder still
+ * sits in the right season, still moves the right cord and still records against
+ * the right key, so the day it becomes real nothing about it has to be rebuilt.
+ *
+ * WHERE THE REAL WORDS WENT. Nowhere: `SOURCED_PROGRAMMES` above is untouched
+ * and every blurb, host and citation is still written there, which is what makes
+ * this a mask rather than a deletion.
+ *
+ * A CLASS IS NOT MASKED, and that is Ash's own refinement the same evening:
+ * *"electives are their real names everywhere and inert until an island links to
+ * them."* A club in this game IS an island somebody built, so a club nobody has
+ * built has no name to print; a course is a true thing about Bonney Lake whether
+ * or not anybody has drawn it. `planner/catalog.ts` keeps its real names and
+ * `placeholders.ts` marks them inert. */
+export const PROGRAMMES: Programme[] = (() => {
+  let n = 0
+  return SOURCED_PROGRAMMES.map((p) => p.playable ? p : {
+    ...p,
+    name: exampleLabel(n++),
+    blurb: EXAMPLE_BLURB,
+    host: undefined,
+    source: EXAMPLE_SOURCE,
+  })
+})()
+
+/* AND A PLACE NOBODY CAN GO TO YET IS ONE TOO. The Guide's Islands page prints a
+ * place name over the programmes that happen there, so "the Algorithmic Thinking
+ * Club" was on that page as a heading with Example A underneath it, which is the
+ * exact confusion this brief is about, said twice on one card.
+ *
+ * THE TEST IS THE SAME ONE, ASKED OF THE PLACE: has it a painting, or anything
+ * real happening at it. The home island has both and keeps its name; the
+ * stadium, 200 Flex and the ATC room have neither today and get a letter. The
+ * first playable programme at a place hands that place its real name back, on
+ * the same one row in `member-islands.json`. */
+export const PLACES: Place[] = (() => {
+  const real = new Set(PROGRAMMES.filter((p) => p.playable).map((p) => p.place))
+  let n = 0
+  return SOURCED_PLACES.map((p) => (p.maps.length || real.has(p.id)) ? p : {
+    ...p,
+    name: examplePlace(n++),
+    recognise: undefined,
+    room: undefined,
+    source: EXAMPLE_SOURCE,
+  })
+})()
 
 /* ---- THE ONE RESOLVER ------------------------------------------------------
  *

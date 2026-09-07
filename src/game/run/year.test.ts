@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { classBeat } from '../beats/classes'
 import { CLASSES, classById } from '../planner/catalog'
 import { checksOf } from '../beats/frames'
+import { programmeById } from '../roster/roster'
 
 async function freshSave() {
   vi.resetModules()
@@ -71,7 +72,12 @@ describe('yearStatus (§7.5 derived, resumable anywhere)', () => {
     st = yearStatus(save.loadSave()!)
     expect(st.planStamped).toBe(true)
     expect(st.readyForYearbook).toBe(false)            // advisory + classes still owed
-    expect(st.voyages.map((v) => v.name)).toEqual(['Football', 'Algorithmic Thinking Club'])
+    /* the names the roster is printing, which today are placeholders because
+       nothing has an island behind it (BRIEF-MAW-RAIL-3 B). What this line is
+       about is that a voyage is named off the programme it points at and in the
+       order the seasons run, and that holds either way. */
+    expect(st.voyages.map((v) => v.name))
+      .toEqual([programmeById('football')!.name, programmeById('atc')!.name])
     expect(st.voyages.every((v) => !v.playable)).toBe(true)   // islands still rising
 
     // advisory + both classes

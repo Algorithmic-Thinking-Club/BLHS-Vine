@@ -10,8 +10,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   PLACES, PROGRAMMES, placeById, placeOfMap, placeOfProgramme, programmeById,
   programmeOfRankTrack, programmesAt, programmeAllowedIn, isPlayable, rankTrackOf,
-  rosterFaults, seasonOf, SPORT_SEASONS,
+  rosterFaults, seasonOf, SPORT_SEASONS, SOURCED_PLACES, SOURCED_PROGRAMMES,
 } from './roster'
+import { EXAMPLE_BLURB } from './example'
 
 beforeEach(() => { localStorage.clear() })
 
@@ -102,8 +103,15 @@ describe('playability is a field, not a hardcoded Set (N1)', () => {
 })
 
 describe('the rank track is its own key space', () => {
-  it('resolves keyclub back to Key Club, which a programme lookup could not', () => {
-    expect(programmeOfRankTrack('keyclub')?.name).toBe('Key Club')
+  it('resolves keyclub back to its programme, which a programme lookup could not', () => {
+    /* THE NAME IS THE MASKED ONE, and that is the point of the lookup rather
+       than a hole in it: the diploma printed the raw key `keyclub` because the
+       track and the programme are spelled differently, and what it has to print
+       is whatever that programme is currently CALLED. Today Key Club has no
+       island so it is an Example (BRIEF-MAW-RAIL-3 B); the day it has one, this
+       resolves to the real name through the same line. */
+    expect(programmeOfRankTrack('keyclub')?.id).toBe('key-club')
+    expect(programmeOfRankTrack('keyclub')?.name).toBe(programmeById('key-club')!.name)
     expect(programmeById('keyclub')).toBeUndefined()
   })
 })
@@ -157,7 +165,44 @@ describe('every entry says where it came from', () => {
     for (const g of PROGRAMMES) expect(g.source.length).toBeGreaterThan(0)
   })
   it('leaves a room number absent rather than inventing one for ATC', () => {
-    expect(placeById('atc-room')!.room).toBeUndefined()
-    expect(placeById('flex-200')!.room).toBe('200 Flex')
+    /* asked of the SOURCED table, because the shipped one is masked: a place a
+       student cannot go to yet carries a letter and no room number at all
+       (BRIEF-MAW-RAIL-3 B), and the thing this test is about is that nobody
+       invented a room for ATC when they wrote the entry. */
+    expect(SOURCED_PLACES.find((p) => p.id === 'atc-room')!.room).toBeUndefined()
+    expect(SOURCED_PLACES.find((p) => p.id === 'flex-200')!.room).toBe('200 Flex')
+  })
+
+  /* ---- AND THE MASK ITSELF (BRIEF-MAW-RAIL-3 B) --------------------------- */
+  it('prints no real club or sport name while nothing has an island behind it', () => {
+    /* the failure this catches is the one Ash met twice: a real school name on a
+       surface with nothing behind it. It is asked of the SHIPPED table, so it
+       covers every screen at once rather than the three that remembered to call
+       a helper. */
+    for (const g of PROGRAMMES) {
+      if (g.playable) continue
+      expect(g.name, `${g.id} is a placeholder and still prints a name`).toMatch(/^Example [A-Z]+$/)
+      expect(g.host, `${g.id} is a placeholder and still names a person`).toBeUndefined()
+      expect(g.blurb).toBe(EXAMPLE_BLURB)
+    }
+    for (const p of PLACES) {
+      if (p.maps.length || PROGRAMMES.some((g) => g.place === p.id && g.playable)) continue
+      expect(p.name, `${p.id} is a place nobody can go to and still prints a name`)
+        .toMatch(/^Example place [A-Z]+$/)
+      expect(p.room).toBeUndefined()
+    }
+  })
+
+  it('keeps the wiring under the mask, so a real island needs no other edit', () => {
+    /* the id, the place, the kind, the season, the tags and the rank track are
+       what makes a placeholder become a real thing by one row in
+       member-islands.json. Masking those would be deleting the entry. */
+    const kc = programmeById('key-club')!
+    const src = SOURCED_PROGRAMMES.find((p) => p.id === 'key-club')!
+    expect(kc.place).toBe(src.place)
+    expect(kc.kind).toBe(src.kind)
+    expect(kc.tags).toEqual(src.tags)
+    expect(kc.rankTrack).toBe(src.rankTrack)
+    expect(seasonOf(programmeById('football')!)).toBe('Fall')
   })
 })

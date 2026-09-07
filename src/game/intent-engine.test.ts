@@ -13,18 +13,23 @@ async function fresh() {
   const save = await import('./save')
   const { engine } = await import('./intent-engine')
   const progress = await import('./progress')
-  return { save, engine, progress }
+  const roster = await import('./roster/roster')
+  return { save, engine, progress, roster }
 }
 
 beforeEach(() => { localStorage.clear() })
 
 describe('award, named at a programme', () => {
   it('writes the island\'s real title, an island\'s credit, and the programme\'s tags', async () => {
-    const { save, engine } = await fresh()
+    const { save, engine, roster } = await fresh()
     save.beginAdventure()
     engine.award({ programme: 'key-club', grade: 3.5 })
     const row = save.loadSave()!.ledger[0]
-    expect(row.title).toBe('Key Club')
+    /* THE NAME THE ROSTER IS CURRENTLY PRINTING, which today is the placeholder
+       (BRIEF-MAW-RAIL-3 B) and the day Key Club has an island is "Key Club". The
+       thing under test is that the row is titled off the ROSTER rather than off
+       the id, and asking it this way survives either. */
+    expect(row.title).toBe(roster.programmeById('key-club')!.name)
     expect(row.kind).toBe('island')
     expect(row.credit).toBe(1)
     expect(row.tags).toContain('key-club')
