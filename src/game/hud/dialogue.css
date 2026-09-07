@@ -49,6 +49,12 @@
   transform: translateX(-50%);
   width: min(560px, 58vw);
   z-index: 2;
+  /* ONE BOX, ONE SIZE. See `.dlg-box.cs-dialogue` below; the number lives up
+     here because the choices are measured against the same column. */
+  --dlg-box-h: min(220px, 30vh);
+  /* it MOVES when the bars move rather than jumping, and it uses the bars' own
+     curve and duration (`stage/cinema.css`) so the two travel together */
+  transition: bottom 450ms cubic-bezier(0.33, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -66,6 +72,57 @@
 .dlg-veil-open { pointer-events: none; }
 
 .dlg-box { pointer-events: auto; }
+
+/* ---- ONE BOX, ONE SIZE, AND IT DOES NOT BREATHE -------------------------
+ *
+ * Ash, BRIEF-INTRO-FILM: *"the dialogue panel is glitchy"*, and the first
+ * named glitch is *"the box resizing between lines"*. Measured on the Maw with
+ * `scripts/box-steady.mjs` at 1366x768: FIVE distinct box geometries across two
+ * sentences, and four of them inside ONE sentence, because §40.14's
+ * `min-height` / `max-height` pair lets the paper grow a line at a time as the
+ * typewriter reveals characters. The box was 190px tall for "Welcome to" and
+ * 222px tall four words later, so the frame, the plate, the face and the words
+ * all slid up the screen while the student was reading them.
+ *
+ * §40.14's reasoning stands and its conclusion does not survive Ash's eyes. A
+ * box that grows to its content cannot be steady, because the content changes
+ * forty-five times a second. So the height is ONE number, sized for three lines
+ * of the box's own type plus the cue's reserved strip (measured: 51.8px a line
+ * at the default setting, 24px for the cue, 22px of padding, 201px in all), and
+ * a fourth line does what §40.14 already built for the fifth: it scrolls,
+ * inside `.cs-dialogue-body`, rather than moving the box it is written in.
+ *
+ * Two classes so it beats `.cs-dialogue`'s own pair whichever order the two
+ * stylesheets are injected in. */
+.dlg-box.cs-dialogue {
+  height: var(--dlg-box-h);
+  min-height: var(--dlg-box-h);
+  max-height: var(--dlg-box-h);
+}
+
+/* ---- AND IT STANDS ON THE BAR RATHER THAN THROUGH IT ---------------------
+ *
+ * Ash: *"the box drawn under the cutscene bars"*. What the frames show is the
+ * other half of the same fault: `.dlg-veil` is z-index 72 and the movie frame
+ * is 70, so the paper was drawn straight OVER the bottom bar, sixty pixels of
+ * it, on 38 of 38 frames measured. Either way round it is a box that does not
+ * know the film is running.
+ *
+ * The bars are 10vh of ink each (`stage/cinema.css`, and the cutscene runtime's
+ * own letterbox is drawn to the same depth on purpose), so the box stands on
+ * top of the lower one and keeps its usual margin above it. `html[data-movie]`
+ * is the movie frame an island raises; `html[data-letterbox]` is the cutscene
+ * runtime's, which is what the beach opening uses. Both, because a student
+ * cannot tell which of the two frames they are looking at and neither should
+ * the box. */
+html[data-movie='1'] .dlg-stack,
+html[data-letterbox='1'] .dlg-stack {
+  bottom: calc(10vh + max(2.4vh, 16px));
+}
+html[data-rm='1'] .dlg-stack { transition-duration: 60ms; }
+@media (prefers-reduced-motion: reduce) {
+  .dlg-stack { transition-duration: 60ms; }
+}
 
 /* the caret while the typewriter is still running: §2 law 4, a static frame is
    a bug, and it is also how a player knows the line has not finished */
@@ -163,12 +220,16 @@ html[data-rm='1'] .dlg-caret { animation: none; }
 html[data-rm='1'] .dlg-paw-f { animation: none; }
 
 /* the words beside the paw, and the only thing on screen that names both ways
-   to go on. They breathe; the paw carries the motion. */
-.dlg-hint-words {
-  animation: dlg-hintpulse 1800ms ease-in-out infinite;
-}
-@keyframes dlg-hintpulse { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
-html[data-rm='1'] .dlg-hint-words { animation: none; opacity: 1; }
+   to go on.
+
+   THEY DO NOT BREATHE ANY MORE. Ash: *"the advance cue flashing"*. They were on
+   `dlg-hintpulse`, an infinite opacity ramp from .6 to 1 and back every 1.8
+   seconds, and `box-steady.mjs` read thirteen different opacities off them
+   across two lines. Two things pulsing beside each other is one thing too many:
+   the paw carries the motion, which is what a cue is for, and the words are a
+   label, which is what a label is for. Held at a quiet weight so the sentence
+   is legible without competing with the line above it. */
+.dlg-hint-words { opacity: .78; }
 
 /* ---- the choices, dealt like held cards ---------------------------------
  *
