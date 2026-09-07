@@ -85,6 +85,108 @@
  * the verb as its heading, rows as tall as a plank, ticks a hand can see, and
  * a gold glow that pulses until the two ticks are in. Gold is the objective
  * colour the world uses on a lit station; here it is the same word. */
+/* ---- THE SEVEN PERIODS (BRIEF-MAW-RAIL-2) --------------------------------
+ *
+ * A schedule looks like a schedule or it teaches nothing: a numbered column
+ * down the left, one subject per line, and the two blank lines plainly blank.
+ * The five filled rows are quiet and are not controls; the first blank one is
+ * the only pressable thing in the box and it says so on itself.
+ *
+ * THE FIVE REQUIRED ROWS ARE SHORTER THAN THE TWO ELECTIVE ONES, on purpose and
+ * not to save space alone. They are not decisions, so they do not get a
+ * decision's height, and the two rows that ARE the screen stand up out of the
+ * column without a colour being spent on it. */
+.py-periods {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.py-period { display: block; }
+.py-per-press {
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 28px;
+  padding: 2px 10px;
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-soft);
+  background: var(--kit-paper-hi);
+  text-align: left;
+  font-family: inherit;
+  color: var(--kit-ink-body);
+}
+.py-per-static { cursor: default; }
+.py-period-elective .py-per-press { min-height: 38px; background: var(--kit-paper); }
+/* the number is a fixed column so seven rows read as one list and not as seven
+   sentences that happen to start with the word Period */
+.py-per-no {
+  flex: none;
+  width: 88px;
+  color: var(--kit-ink-quiet);
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+}
+.py-per-name {
+  --kit-fs-raw: calc(16px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1.15;
+}
+.py-period-elective .py-per-name {
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(18px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
+/* a blank period is drawn blank: the word sits on a ruled line the way it does
+   on a paper timetable, so "there is something missing here" is a picture */
+.py-per-blank {
+  color: var(--kit-ink-quiet);
+  border-bottom: 2px dashed var(--kit-edge-strong);
+  padding-bottom: 1px;
+}
+.py-per-cue {
+  margin-left: auto;
+  color: var(--kit-ink-quiet);
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+}
+/* the one row a student may press. Gold is the objective colour the world uses
+   on a lit station and it is the same word here. */
+.py-period-live .py-per-press {
+  cursor: pointer;
+  border-color: var(--kit-gold-edge);
+  background: var(--kit-paper-hi);
+  transition: background var(--kit-t-quick) ease, transform var(--kit-t-quick) ease;
+}
+.py-period-live .py-per-press:hover { background: var(--kit-paper); transform: translateY(-1px); }
+.py-period-on .py-per-press { background: var(--kit-sea-paper); border-color: var(--kit-sea); }
+.py-period-on .py-per-name { color: var(--kit-ink-head); }
+
+/* the list, drawn inside the row it fills. Three columns, because ten of them
+   in one column is a page and ten in four is a grid of small words. */
+.py-electives {
+  margin: 4px 0 2px 88px;
+  padding: 6px 8px;
+  border: var(--kit-border) solid var(--kit-gold-edge);
+  border-radius: var(--kit-r-soft);
+  background: var(--kit-paper-lo);
+}
+.py-elect-h {
+  margin: 0 0 5px;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(16px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
+.py-electives .py-classes { grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
+.py-electives .py-class { min-height: 40px; }
+
+.py-schedule,
 .py-cardbox,
 .py-classbox {
   display: flex;
@@ -96,7 +198,7 @@
   background: var(--kit-paper-lo);
   transition: box-shadow var(--kit-t-mid) ease, border-color var(--kit-t-mid) ease;
 }
-.py-cards-h, .py-classes-h { margin: 0; }
+.py-cards-h, .py-classes-h, .py-sched-h { margin: 0; }
 .py-lit {
   border-color: var(--kit-gold-edge);
   animation: py-glow 1.6s ease-in-out infinite;

@@ -4034,9 +4034,31 @@ export default function PmapScene() {
            * settle leaves the script that yielded it waiting forever, and on a
            * station that means the map is finished until a page reload. */
           if (d.move) { const orphan = d.move.then; d.move = null; orphan?.() }
+          /* ---- SOMEBODY WALKING OVER TO MEET YOU STOPS IN FRONT OF YOU ------
+           *
+           * The Maw's opening is `actor_move(principal, "arrive_maw")` and
+           * `arrive_maw` is the spawn, which is the pixel the student is standing
+           * on when the cover lifts. So the one beat in the game where a person
+           * comes over to say hello ended with that person drawn inside the
+           * player, and at the close shot he is eighty pixels tall and it is the
+           * first thing anybody sees.
+           *
+           * Fenced to the case: only a goal that is already within a body length
+           * of the player moves, and it moves back along the line the walker is
+           * coming down, so he stops where a person stops. A crate carried to the
+           * other side of the room is untouched. */
+          const ysm = map.yScale || 1
+          let gx = at.x, gy = at.y
+          const clear = map.character.heightPx * 1.1
+          if (Math.hypot(gx - pos.x, (gy - pos.y) * ysm) < clear) {
+            const ax = d.x - pos.x, ay = d.y - pos.y
+            const away = Math.hypot(ax, ay * ysm) || 1
+            gx = pos.x + (ax / away) * clear
+            gy = pos.y + (ay / away) * clear
+          }
           /* face the way it is going while it goes, so a body drawn eight ways
            * does not moonwalk across the square */
-          const dir = dirFrom(at.x - d.x, (at.y - d.y) * map.yScale)
+          const dir = dirFrom(gx - d.x, (gy - d.y) * map.yScale)
           if (dir) d.facing = dir
           return new Promise<void>((resolve) => {
             d.move = {
@@ -4045,7 +4067,7 @@ export default function PmapScene() {
                * PLAYER walks at, which is the right default for somebody
                * crossing a room to meet you and too quick for somebody who is
                * meant to be strolling. */
-              tx: at.x, ty: at.y, speed: map.speed * PACE_OF[pace ?? 'walk'], done: false,
+              tx: gx, ty: gy, speed: map.speed * PACE_OF[pace ?? 'walk'], done: false,
               then: () => {
                 /* the caller's heading wins, then the anchor's own, then
                  * whatever the walk left it on */

@@ -1,9 +1,27 @@
-/* PICK WHAT YOU'LL DO THIS YEAR: beat 4 of the thirty minutes, as one screen.
+/* YOUR SCHEDULE, YEAR ONE: beat 2 of the rail, as one screen.
  *
- * BRIEF-YEAR-ONE, beat 4: "One screen of big drawn cards: Football, Girls Flag
- * Football, Track, ATC, Key Club, and the two classes. He picks. The empty
- * trophy wall shows the outline of what those choices can earn. Now he wants
- * it."
+ * ---- WHY IT IS A SCHEDULE AND NOT A PICK -----------------------------------
+ *
+ * BRIEF-MAW-RAIL-2, Ash after playing rail-1: *"I have no idea what is going on:
+ * a fire, click two classes, it makes no sense."* And the page's own answer:
+ * *"'Pick what you will do this year, tick two classes' is not a thing a
+ * freshman has ever done. Filling in a schedule is."*
+ *
+ * That is the whole change and it is a change of FRAME, not of data. The screen
+ * still writes exactly what it wrote before: two class ids and one programme,
+ * through `pickClass` and `assignSlot`, stamped by `stampPlan`, tracked by the
+ * same four events. What moved is what a fourteen year old thinks they are
+ * looking at. Seven periods down the page, five of them already filled with the
+ * things everybody takes, two of them blank and saying Elective. A student who
+ * has never seen this game has filled one of these in at every school they have
+ * ever been to.
+ *
+ * THE FIVE FILLED PERIODS SAY ONE WORD EACH, and that is deliberate rather than
+ * lazy. `docs/blhs/sourced-facts.md` publishes the graduation requirements
+ * (English 4, Math 3, Science 3, Social Studies 3, Health and Fitness 2) and does
+ * NOT publish a freshman course list, so anything more specific than the subject
+ * would be invented. The brief says so in as many words: "if the source does not
+ * name them, label them plainly and say nothing more."
  *
  * ---- WHY IT IS NOT THE YEAR SHEET -----------------------------------------
  *
@@ -36,13 +54,18 @@
  * screen was an undo. So the screen has three stages and exactly one of them is
  * lit at a time:
  *
- *   1. no card taken: the card box glows. Press a card.
- *   2. a card taken, classes owed: the taken card LOCKS. It is no longer a
- *      button; it is a stamped sign with a small "Put back" inside it. The
- *      cards not taken step back into a shelf of small chips beside it, still
- *      takeable, dimmer, and never louder than a class row. The class box glows.
- *   3. both classes ticked: the plank that ends the beat glows, and it is the
- *      biggest control on the screen.
+ *   1. a period still blank: the schedule glows and the FIRST blank period is
+ *      the only one that can be pressed. Pressing it opens the elective list
+ *      under it, headed with that period's own number, so what a pick fills is
+ *      never a guess. Only one blank period is live at a time, because
+ *      `plan.classes` is a list and a pick lands at the end of it: two live
+ *      blanks would let a student press Period 7 and watch Period 6 fill.
+ *   2. both electives in, nothing after school: the after-school box glows. A
+ *      taken card LOCKS. It is no longer a button; it is a stamped sign with a
+ *      small "Put back" inside it, and the cards not taken step back into a
+ *      shelf of small chips beside it.
+ *   3. both: the plank that ends the beat glows, and it is the biggest control
+ *      on the screen.
  *
  * "Loudest" here is a real number, the largest control that is not a way out,
  * because that is the number a student who reads nothing is steering by.
@@ -70,6 +93,25 @@ import './pickyear.css'
  * nothing. Everything else on the roster is a later year's problem. */
 const YEAR_ONE_ACTIVITIES = ['football', 'girls-flag-football', 'track-field', 'atc', 'key-club']
 
+/* THE FIVE PERIODS A FRESHMAN DOES NOT CHOOSE, in the plainest words there are.
+ *
+ * Every one of them is a graduation requirement in `docs/blhs/sourced-facts.md`
+ * ("English 4 · Math 3 · Science 3 · Social Studies 3 · Health & Fitness 2"),
+ * and not one of them is a course title, because the source does not publish a
+ * freshman course list and a made-up one would be the game teaching a student
+ * something untrue about their own school. History is the plain word for Social
+ * Studies and PE is the plain word for the fitness half of Health & Fitness. */
+const REQUIRED = ['English', 'Math', 'Science', 'PE', 'History']
+/* how many periods the sheet shows. The five above, then the two the student
+ * fills. `sourced-facts.md` prints a six-period Tuesday-to-Friday bell schedule
+ * plus the Monday Advisory block, so the number of ROWS here is the brief's and
+ * not the bell schedule's, and no times are printed beside them: a time is the
+ * part that would be inventing something. */
+const PERIODS = 7
+const ELECTIVE_AT = REQUIRED.length
+
+const YEAR_WORD = ['', 'one', 'two', 'three', 'four']
+
 /** what a card can win, in the school's own words, for the wall outline */
 function earnsOf(p: Programme): string {
   if (p.kind === 'sport') return 'JV, Varsity, Captain'
@@ -77,9 +119,12 @@ function earnsOf(p: Programme): string {
 }
 
 export function PickYear({ year, onClose }: { year: number; onClose: () => void }) {
-  const panel = usePanel({ onClose, label: `Pick what you will do in year ${year}` })
+  const panel = usePanel({ onClose, label: `Your schedule for year ${year}` })
   const [, bump] = useState(0)
   const [refused, setRefused] = useState<{ id: string; why: string } | null>(null)
+  /* which blank period's elective list is open, as the period NUMBER, so the
+   * heading over the list and the row it fills cannot disagree */
+  const [openAt, setOpenAt] = useState<number | null>(null)
   const redraw = () => bump((v) => v + 1)
 
   const s = loadSave()
@@ -137,6 +182,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
   const untick = (c: ClassDef) => {
     dropClass(year, c.id)
     setRefused(null)
+    setOpenAt(null)
     track('pick_put_back', { what: c.id })
     redraw()
   }
@@ -146,6 +192,10 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
     if (no) { setRefused({ id: c.id, why: no }); track('pick_refused', { what: c.id, why: no }); return }
     pickClass(year, c.id)
     setRefused(null)
+    /* THE LIST SHUTS ON A PICK, so the student watches the period they pressed
+     * fill in. Leaving it open and re-heading it for the next blank would save
+     * one press and hide the only thing this screen is for. */
+    setOpenAt(null)
     saidSaved(c.name)
     track('pick_taken', { what: c.id })
     redraw()
@@ -154,61 +204,143 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
   const chosen = SEASONS.filter((se) => plan.slots[se]).length
   const classesLeft = 2 - plan.classes.length
   const ready = classesLeft === 0 && chosen > 0
-  /* THE ONE LIT THING. Cards first, because a student who has picked nothing
-   * should be looking at the big pictures; then the class box; then the plank. */
-  const stage: 'cards' | 'classes' | 'go' = chosen === 0 ? 'cards' : classesLeft > 0 ? 'classes' : 'go'
+  /* THE ONE LIT THING, AND THE SCHEDULE COMES FIRST NOW. The page is read top
+   * to bottom and the periods are at the top of it, so a lit box further down
+   * would be the screen pointing away from the thing a student is looking at.
+   * Then the after-school box, then the plank. */
+  const stage: 'schedule' | 'after' | 'go' = classesLeft > 0 ? 'schedule' : chosen === 0 ? 'after' : 'go'
   /* THE REASON IS ON THE BUTTON, ALWAYS, because §40.9's rule is that a disabled
-   * control a student cannot interrogate is worse than one that answers. In the
-   * plainest words there are: a freshman read "Pick 2 more classes." beside a
-   * grey plank and did not connect it to the small boxes above. */
-  const notYet = stage === 'cards'
-    ? 'Not yet: press one club or sport card.'
-    : stage === 'classes'
-      ? `Not yet: tick ${classesLeft === 2 ? 'two classes' : 'one more class'} in the box above.`
+   * control a student cannot interrogate is worse than one that answers. */
+  const notYet = stage === 'schedule'
+    ? `Not yet: fill ${classesLeft === 2 ? 'both Elective periods' : 'the last Elective period'}.`
+    : stage === 'after'
+      ? 'Not yet: press one club or sport below.'
       : null
 
-  /* ---- WHAT THE WALL WILL HOLD, AND IT ANSWERS THE PICK -------------------
-   *
-   * STATE-OF-THE-GAME confusing 7: "What you could put on the wall never
-   * answers the pick: it shows the same three cords before and after Football."
-   * It listed the top three published cords, which is a fact about the school
-   * and not about this student. The wall itself (`wall.ts`) hangs one frame per
-   * thing chosen, so this is that: Advisory, which everyone is in, then a frame
-   * for every card pressed and every class ticked, in the order they will be
-   * met. Press Football and a Football frame appears; put it back and it goes.
-   * The count under the heading is the same count the trophy wall shows. */
-  const outline: { id: string; name: string; earns: string }[] = [
-    { id: 'advisory', name: 'Advisory', earns: 'a grade and a credit' },
-    ...SEASONS.map((se) => plan.slots[se]).filter((id): id is string => !!id).map((id) => {
-      const p = PROGRAMMES.find((x) => x.id === id)
-      return { id: `programme:${id}`, name: p?.name ?? id, earns: p ? earnsOf(p) : '' }
-    }),
-    ...plan.classes.map((id) => ({ id: `class:${id}`, name: CLASSES.find((c) => c.id === id)?.name ?? id, earns: 'a grade and a credit' })),
-  ]
-  /* the one refusal that belongs to a class, said under the class box on its own
-   * line rather than inside a row, so the rows never grow and the plank never
-   * jumps */
+  /* the one refusal that belongs to a class, said under the list on its own line
+   * rather than inside a row, so the rows never grow and the plank never jumps */
   const classNo = refused && classes.some((c) => c.id === refused.id) ? refused.why : null
 
   const taken = activities.filter((p) => seatOf(p.id))
   const onOffer = activities.filter((p) => !seatOf(p.id))
+  /* AND THE CARDS STEP BACK WHILE THE ELECTIVE LIST IS OPEN, not only once
+   * something is taken. One question is being asked, "which elective goes in
+   * Period 6", and a row of hand-sized signs about football is the loudest thing
+   * on a screen asking it. Measured the way the self-evident law measures: a
+   * card is about 18,000 pixels of glass and a class row about 15,000, so a
+   * student steering by size answers the wrong question. */
+  const shelved = chosen > 0 || openAt !== null
+
+  /* ---- THE SEVEN ROWS ------------------------------------------------------
+   *
+   * Periods 1 to 5 are the requirements and are not controls. Periods 6 and 7
+   * are the two class ids the save has always held, in the order they were
+   * picked, and only the FIRST blank one can be pressed: `pickClass` appends, so
+   * a live Period 7 beside a blank Period 6 would let a student press one row
+   * and watch a different row fill. */
+  const firstBlankAt = ELECTIVE_AT + plan.classes.length
+  const rows = Array.from({ length: PERIODS }, (_, i) => {
+    const n = i + 1
+    if (i < ELECTIVE_AT) return { n, kind: 'required' as const, name: REQUIRED[i], cls: null }
+    const id = plan.classes[i - ELECTIVE_AT]
+    const cls = id ? CLASSES.find((c) => c.id === id) ?? null : null
+    return { n, kind: 'elective' as const, name: cls?.name ?? 'Elective', cls }
+  })
 
   return (
     <div className="py-veil" onClick={onClose}>
       <div {...panel} className="py-sheet kit-surface-panel" onClick={(e) => e.stopPropagation()}>
-        <h2 className="py-title">Pick what you will do this year</h2>
+        <h2 className="py-title">Your schedule, year {YEAR_WORD[year] ?? year}</h2>
 
-        {/* ---- THE CARDS, IN A BOX THAT IS LIT UNTIL ONE IS TAKEN ---------- */}
-        <section className={`py-cardbox${stage === 'cards' ? ' py-lit' : ''}`} aria-labelledby="py-cards-h">
+        {/* ---- THE SEVEN PERIODS ----------------------------------------- */}
+        <section className={`py-schedule${stage === 'schedule' ? ' py-lit' : ''}`} aria-labelledby="py-sched-h">
+          <h3 className="py-h py-sched-h" id="py-sched-h">
+            Fill your two Elective periods
+            <span className="py-count"> {classesLeft === 0 ? 'both filled' : `${classesLeft} to fill`}</span>
+          </h3>
+          <ol className="py-periods">
+            {rows.map((r) => {
+              const live = r.kind === 'elective' && !r.cls && r.n === firstBlankAt + 1
+              const open = openAt === r.n
+              const body = (
+                <>
+                  <span className="py-per-no">Period {r.n}</span>
+                  <span className={`py-per-name${r.cls || r.kind === 'required' ? '' : ' py-per-blank'}`}>{r.name}</span>
+                </>
+              )
+              return (
+                <li
+                  key={r.n}
+                  className={`py-period py-period-${r.kind}${r.cls ? ' py-period-on' : ''}${live ? ' py-period-live' : ''}`}
+                >
+                  {/* a blank period a student may fill is a button; every other
+                      row on this sheet is furniture and is not pressable, which
+                      is what stops the loudest thing on the glass being an undo */}
+                  {live && !open ? (
+                    <button type="button" className="py-per-press" onClick={() => setOpenAt(r.n)}>
+                      {body}
+                      <span className="py-per-cue">Press to choose</span>
+                    </button>
+                  ) : (
+                    <div className="py-per-press py-per-static">
+                      {body}
+                      {r.cls && (
+                        <button type="button" className="py-untick" onClick={() => untick(r.cls as ClassDef)}>Change</button>
+                      )}
+                    </div>
+                  )}
+                  {/* ---- THE ELECTIVE LIST, UNDER THE ROW IT FILLS --------
+                      Headed with the period's own number, so what a pick does is
+                      never a guess, and drawn inside the row so the answer lands
+                      where the question was asked. */}
+                  {open && (
+                    <div className="py-electives">
+                      <p className="py-elect-h">Pick an elective for Period {r.n}</p>
+                      <div className="py-classes">
+                        {classes.map((c) => {
+                          const on = plan.classes.includes(c.id)
+                          if (on) {
+                            return (
+                              <div key={c.id} className="py-class py-class-on" role="group" aria-label={`${c.name}, already on your schedule`}>
+                                <span className="py-tick" aria-hidden="true">
+                                  <Glyph piece="icon_set" face="tick" size={16} />
+                                </span>
+                                <span className="py-class-name">{c.name}</span>
+                              </div>
+                            )
+                          }
+                          return (
+                            <button key={c.id} type="button" className="py-class" onClick={() => takeClass(c)}>
+                              <span className="py-tick" aria-hidden="true" />
+                              <span className="py-class-name">{c.name}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <p className={`py-classnote${classNo ? ' py-classnote-no' : ''}`} role={classNo ? 'alert' : undefined}>
+                        {classNo ?? 'Press one to put it in this period.'}
+                      </p>
+                    </div>
+                  )}
+                </li>
+              )
+            })}
+          </ol>
+        </section>
+
+        {/* ---- AFTER SCHOOL, WHICH IS THE OTHER HALF OF A YEAR HERE -------
+            Same five cards, same season rule, same writer. What changed is that
+            they are now under a heading that says WHEN they happen, because "a
+            club or a sport" and "a class" were two rows of the same screen with
+            nothing saying that one of them is at 2:30. */}
+        <section className={`py-cardbox${stage === 'after' ? ' py-lit' : ''}`} aria-labelledby="py-cards-h">
           <h3 className="py-h py-cards-h" id="py-cards-h">
-            Press a club or sport
+            After school: pick one
             <span className="py-count"> {chosen === 0 ? 'none yet' : `${chosen} taken`}</span>
           </h3>
           <div className="py-grid">
             {/* A TAKEN CARD IS LOCKED. Not a button any more: a stamped sign with
-                the season on it and one small control that puts it back. The
-                stamp sits in the frame's free corner, bottom right, where no word
-                reaches (`fix-2/yearsheet-04`); the put-back takes the other one. */}
+                the season on it and one small control that puts it back. */}
             {taken.map((p) => {
               const seat = seatOf(p.id) as Season
               return (
@@ -228,11 +360,10 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
             })}
             {/* THE CARDS NOT TAKEN. Big drawn signs while nothing is chosen; once
                 something is, they step back into a shelf of small chips beside
-                the locked card, still takeable, dimmer, and never louder than the
-                class rows the student is meant to be looking at. */}
+                the locked card, still takeable and never louder than the way on. */}
             {onOffer.map((p) => {
               const no = refused?.id === p.id ? refused.why : null
-              if (chosen > 0) {
+              if (shelved) {
                 return (
                   <button
                     key={p.id}
@@ -263,88 +394,10 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
           </div>
         </section>
 
-        {/* ---- THE CLASSES ARE A LIST, NOT TEN MORE CARDS -----------------
-            "Big drawn cards" is about the five things you DO; a class is a
-            smaller decision and there are ten of them offered in year one.
-            Photographed as cards: the `tab` piece is a carved frame whose own
-            nine-slice is 36 tall at the top and 35 at the bottom, so a card
-            cannot be shorter than 71 pixels however little is written on it, and
-            ten of them pushed the wall and the button that ends the beat clean
-            off a 768 pixel screen. A screen the brief calls "one screen".
-
-            So the frames go and the marks stay: a row per class, a drawn tick
-            when it is yours, and the same two-pick rule underneath. */}
-        {/* ---- THE TWO REQUIRED CLASSES ARE THE LIT THING, ONCE A CARD IS ---
-            STATE-OF-THE-GAME confusing 7 and ugly 5: "five 208x184 cards dwarf
-            the 262x34 class rows... nothing on the screen is lit." The
-            self-evident law's first rule is that exactly one thing is lit and
-            the world shows it. On this screen the required thing is two ticks
-            in a list a student could miss, so the list is a box, the box glows
-            until both ticks are in, the heading is the verb, and the count says
-            how many are still owed. Once two are ticked the glow moves to the
-            plank that ends the beat, so there is always one next thing. */}
-        <section className={`py-classbox${stage === 'classes' ? ' py-lit' : ''}`} aria-labelledby="py-classes-h">
-          <h3 className="py-h py-classes-h" id="py-classes-h">
-            Tick two classes
-            <span className="py-count"> {classesLeft === 0 ? 'both picked' : `${classesLeft} more to tick`}</span>
-          </h3>
-          <div className="py-classes">
-            {classes.map((c) => {
-              const on = plan.classes.includes(c.id)
-              if (on) {
-                return (
-                  <div key={c.id} className="py-class py-class-on" role="group" aria-label={`${c.name}, ticked`}>
-                    <span className="py-tick" aria-hidden="true">
-                      <Glyph piece="icon_set" face="tick" size={16} />
-                    </span>
-                    <span className="py-class-name">{c.name}</span>
-                    <button type="button" className="py-untick" onClick={() => untick(c)}>Untick</button>
-                  </div>
-                )
-              }
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  className="py-class"
-                  onClick={() => takeClass(c)}
-                >
-                  <span className="py-tick" aria-hidden="true" />
-                  <span className="py-class-name">{c.name}</span>
-                </button>
-              )
-            })}
-          </div>
-          {/* one line, always there, so a refusal does not move the rows */}
-          <p className={`py-classnote${classNo ? ' py-classnote-no' : ''}`} role={classNo ? 'alert' : undefined}>
-            {classNo ?? (classesLeft === 0 ? 'Press Untick on a class to change it.' : 'Press a class to tick it.')}
-          </p>
-        </section>
-
-        {/* ---- WHAT THE WALL WILL HOLD -----------------------------------
-            Beat 4's last sentence, and the one that does the wanting: "The empty
-            trophy wall shows the outline of what those choices can earn." One
-            empty frame per thing chosen, in the order they will be met. */}
-        <h3 className="py-h">Your wall this year<span className="py-count"> {outline.length} empty {outline.length === 1 ? 'frame' : 'frames'}</span></h3>
-        <ul className="py-wall">
-          {outline.map((c) => (
-            <li className="py-slot" key={c.id}>
-              <span className="py-slot-hole" aria-hidden="true" />
-              <span className="py-slot-words">
-                <span className="py-slot-name">{c.name}</span>
-                <span className="py-slot-rule">{c.earns}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-
         <div className="py-foot">
-          {/* A WAY OUT THAT IS A WORD. The sheet had no close at all: Esc, or a
-              click on the dark edge, which nothing on screen names (confusing
-              10). Closing keeps every pick, because every pick is already
-              written to the save the moment it is pressed.
-              SMALL ON PURPOSE. At medium it was bigger than a class row, so the
-              way out outranked the way on for a student steering by size. */}
+          {/* A WAY OUT THAT IS A WORD, and small on purpose: at medium it was
+              bigger than a period row, so the way out outranked the way on for a
+              student steering by size. */}
           <Plank size="sm" keyCap="Esc" className="py-close" onClick={onClose}>Close for now</Plank>
           {notYet && <span className="py-notyet">{notYet}</span>}
           <Plank
@@ -356,29 +409,24 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
               stampPlan(year, taken)
               track('pickyear_stamped', { year, slots: plan.slots, classes: plan.classes })
               /* ---- AND THE STAMP POPS (BRIEF-MAW-RAIL beat 2) --------------
-               * "The stamp pops and the card he picked appears on the wall as an
-               * empty frame with its name. That is the first reward and the
-               * first time he wants something." The frames have appeared under
-               * his hand since the screen was written; the stamp itself landed
-               * in silence and the panel simply vanished, so the one moment beat
-               * 4 is built to make him want was the quietest thing on the glass.
+               * The frames have appeared under his hand since the screen was
+               * written; the stamp itself landed in silence and the panel simply
+               * vanished, so the one moment this beat is built to make him want
+               * was the quietest thing on the glass.
                *
-               * It says what he chose, because that is what he is going to go
-               * and do, and `awarded` rather than `saved` because this is a
-               * grant and not a keystroke being remembered. */
-              const first = PROGRAMMES.find((pg) => pg.id === taken[0])
-              /* THE POP DOES NOT SAY WHAT THE PRINCIPAL IS ABOUT TO SAY. He
+               * THE POP DOES NOT SAY WHAT THE PRINCIPAL IS ABOUT TO SAY. He
                * hands over the corner's My Year button on the next line
                * (islands/panther-maw/lines.py), and watched on the dev server
                * the two were the same sentence stacked on one frame. */
+              const first = PROGRAMMES.find((pg) => pg.id === taken[0])
               awarded(
-                first ? `${first.name} is yours.` : 'Your year is set.',
-                `Year ${year} is on the sheet.`,
+                first ? `${first.name} is yours.` : 'Your schedule is set.',
+                `Year ${year} is on your schedule.`,
               )
               onClose()
             }}
           >
-            That is my year
+            That is my schedule
           </Plank>
         </div>
       </div>

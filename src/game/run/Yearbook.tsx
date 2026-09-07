@@ -279,11 +279,21 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
           <>
             <header className="yb-head">
               <h2 className="yb-title">Yearbook</h2>
+              {/* AND "STILL OPEN" IS NOT SAID ON THE PAGE THAT IS ABOUT TO
+                  CLOSE. BRIEF-MAW-RAIL-2, off Ash's own frames: the counselor
+                  says "Year one is done" and opens this book, and the book
+                  answers "Year 1 still open" in the same second. It is true in
+                  the save's own terms and it is the game contradicting the
+                  person who just spoke, on the last screen of the thirty
+                  minutes. A year that can be closed says its number and nothing
+                  else; the plank underneath is what says what happens next. */}
               <span className="yb-year">
                 Year {page.year}
-                <span className="yb-yearstate">
-                  {page.turned ? 'closed' : page.current ? 'still open' : 'a past year'}
-                </span>
+                {!(page.current && !page.turned && page.ready) && (
+                  <span className="yb-yearstate">
+                    {page.turned ? 'closed' : page.current ? 'still open' : 'a past year'}
+                  </span>
+                )}
               </span>
             </header>
 
