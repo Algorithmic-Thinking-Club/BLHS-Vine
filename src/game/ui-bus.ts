@@ -22,6 +22,20 @@ export type UiRequest = 'planner' | 'handbook' | 'chart' | 'settings' | 'advisor
 const EVENT = 'blhs:open-ui'
 const BEAT_EVENT = 'blhs:play-beat'
 
+/* WHAT GOES ON THE WIRE, now that a caller can wait. `done` is called once, when
+ * the panel that answered this request has closed and nothing else is open, and
+ * it is absent for every fire-and-forget caller, which is all of them but the
+ * rail. */
+export type UiOpen = { ui: UiRequest; done?: () => void }
+
+/* THE LONGEST A CALLER MAY BE LEFT WAITING ON A PANEL. The same shape as the two
+ * wait ceilings in the vocabulary and the movie's: a panel holds the controls, so
+ * a student sitting in the wardrobe is not stuck, but a `done` that is never
+ * called for some other reason would leave the island that asked parked for the
+ * rest of the sitting and every station in the room dead with it. Ten minutes is
+ * longer than an advisory period spends on any one panel. */
+export const OPEN_CEILING_MS = 600_000
+
 /* HOW MANY THINGS ARE LISTENING, which is the whole difference between "the panel
  * opened" and "the event went into the air". A CustomEvent with no listener is
  * indistinguishable from a delivered one at the dispatch site, so `open` answered
@@ -31,13 +45,48 @@ const BEAT_EVENT = 'blhs:play-beat'
 let listening = 0
 export const uiListenerCount = () => listening
 
-export function requestUi(which: UiRequest): boolean {
-  window.dispatchEvent(new CustomEvent<UiRequest>(EVENT, { detail: which }))
+export function requestUi(which: UiRequest, done?: () => void): boolean {
+  window.dispatchEvent(new CustomEvent<UiOpen>(EVENT, { detail: { ui: which, done } }))
   return listening > 0
 }
 
-export function onUiRequest(fn: (which: UiRequest) => void): () => void {
-  const h = (e: Event) => fn((e as CustomEvent<UiRequest>).detail)
+/* OPEN IT AND COME BACK WHEN IT IS SHUT.
+ *
+ * `open` has always returned the instant the screen was up, which is right for a
+ * station saying one line and opening the wardrobe, and useless for a rail: the
+ * Maw's year one walks the student to the table, opens the pick screen, and the
+ * next thing it has to do is walk him to the fire, which cannot happen while the
+ * cards are still on the glass. Written here rather than as a poll in the
+ * island's own Python for the reason `wait_for` exists: a member polling the save
+ * in a loop is the failure this vocabulary was built to make unnecessary.
+ *
+ * Refuses the same way `requestUi` does, by answering false, when nothing is
+ * mounted to hear it. */
+export function requestUiAndWait(which: UiRequest): Promise<void> | false {
+  let settle: (() => void) | null = null
+  const p = new Promise<void>((r) => { settle = r })
+  let ceiling = 0
+  const done = () => {
+    if (!settle) return
+    const s = settle
+    settle = null
+    window.clearTimeout(ceiling)
+    s()
+  }
+  if (!requestUi(which, done)) return false
+  ceiling = window.setTimeout(() => {
+    console.error(`[ui-bus] "${which}" was opened ${OPEN_CEILING_MS / 1000}s ago and nothing has `
+      + 'said it closed, so whoever was waiting on it is being let go.')
+    done()
+  }, OPEN_CEILING_MS)
+  return p
+}
+
+export function onUiRequest(fn: (which: UiRequest, done?: () => void) => void): () => void {
+  const h = (e: Event) => {
+    const d = (e as CustomEvent<UiOpen>).detail
+    fn(d.ui, d.done)
+  }
   window.addEventListener(EVENT, h)
   listening++
   /* idempotent, because React runs a cleanup twice in strict mode and a count

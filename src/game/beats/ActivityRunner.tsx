@@ -164,7 +164,17 @@ export function CoreBeatRunner(
        * cord over its line says so. Four of the six badges and all seven cords are
        * worked out from the run rather than stored, so nothing anywhere redraws
        * when one of them is finally met, and this is the frame it happens on. */
-      grant(before, after, { what: `${beat.credit} credit earned`, detail: beat.title })
+      /* AND IT SAYS THE THING THAT HAPPENED, because it is now the whole result.
+       * "0.5 credit earned" over "POWER, Mondays, and joining a club" is an
+       * accountant's sentence: the student finished ADVISORY, and the credit is
+       * the detail under it. */
+      /* the core beat's `place` is the lesson's own name ("Advisory") and a
+       * class beat's is a room, so the pop reads whichever of the two is the
+       * thing the student just finished */
+      grant(before, after, {
+        what: `${beat.kind === 'core' ? beat.place : beat.title} is done.`,
+        detail: `${beat.credit} credit, on your transcript.`,
+      })
     }
     track('core_beat_complete', {
       id: beat.id, grade, retaken: retaking.current, arm, tries: attempt.current.n,
@@ -177,6 +187,26 @@ export function CoreBeatRunner(
       for (const c of newlyCloseCords(before, after)) track('cord_progress', { cord: c.id, progress: c.progress })
     }
     setFinalScore(score)
+    /* ---- THE POP IS THE RESULT (BRIEF-MAW-RAIL beat 3) --------------------
+     *
+     * "No speech before, no result card of a hundred words after: the pop is the
+     * result." The card that used to land here is a letter, a grade to two
+     * decimal places, a raw count, a gauge, two stamps, four takeaway facts, a
+     * counselor's line and two planks, on the screen a fourteen year old reaches
+     * after answering three questions. The grant pop above already says the
+     * thing that happened, out loud and in the world, and the four facts are in
+     * the Guide where the principal has just told him to look for them.
+     *
+     * IT IS NOT GONE FOR EVERYBODY, AND BOTH EXCEPTIONS ARE REAL.
+     *
+     * The PLAIN ARM keeps it. That arm is the study's control and its result is
+     * a printed page by construction; there is no pop in it to be the result.
+     *
+     * A GRADE UNDER A B- keeps it too, in either arm, because that is the one
+     * outcome with something for the student to DO: the Universal Retake Policy
+     * is real at Bonney Lake, the offer lives on that card, and cutting it would
+     * be cutting a school fact and a second chance to save a reader six lines. */
+    if (arm !== 'plain' && grade >= PASSING_GRADE) { onClose(); return }
     setPhase('result')
   }
 

@@ -190,9 +190,35 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     onBlurWorld?.(want)
   })
 
+  /* WHOEVER IS WAITING FOR A PANEL TO CLOSE.
+   *
+   * `open(ui, wait=True)` hands a callback down the ui-bus and parks the island
+   * that asked until this component says the screen has gone. It is fired off
+   * NOTHING BEING OPEN rather than off each panel's own close, because a panel
+   * can hand off to another one (the sheet opens a class, the yearbook opens the
+   * graduation), and half of them close through `closeAll` while the rest do not.
+   * "Every panel is shut" is one condition and cannot be forgotten by the next
+   * panel somebody adds. */
+  const waiting = useRef<null | (() => void)>(null)
+  const sawOpen = useRef(false)
+  useEffect(() => {
+    if (anyOpen || paused) { sawOpen.current = true; return }
+    if (!sawOpen.current) return
+    sawOpen.current = false
+    const done = waiting.current
+    waiting.current = null
+    done?.()
+  })
+  /* and nobody is left parked when the HUD itself goes away, which is what a door
+   * out of the room is */
+  useEffect(() => () => { waiting.current?.(); waiting.current = null }, [])
+
   // the ui-bus: the world's diegetic stations open these same panels (ui-bus.ts)
-  useEffect(() => onUiRequest((which) => {
+  useEffect(() => onUiRequest((which, done) => {
     setPaused(false)
+    /* a second waiter would orphan the first, so the one already parked is let
+     * go before this one takes its place */
+    if (done) { waiting.current?.(); waiting.current = done }
     if (which === 'planner') { track('planner_requested', { via: 'world' }); setPlanner(true) }
     if (which === 'advisory') { setAdvisory(true) }
     if (which === 'handbook') { setBook('islands') }
@@ -319,7 +345,13 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
           BRIEF-PLAYTHROUGH-1 law 2, which OVERRULES §40.2 and the paragraph
           above it, on Ash's own play of the deploy: "two buttons in a corner
           read as broken, not as earned. Chart, Handbook and the year sheet are
-          all present from the first world frame, aligned as one stack. What a
+          all present from the first world frame, aligned as one stack.
+
+          AND THEY ARE CALLED MAP, GUIDE AND MY YEAR (BRIEF-MAW-RAIL). Chart,
+          Handbook and Year sheet are the words a school uses about a school and
+          they mean nothing to a fourteen year old looking for the button that
+          shows where he can go. Each one is handed over by the principal during
+          the rail with one line naming it, at the moment it first matters. What a
           student has not earned yet is shown inside the panel, honestly, not by
           hiding the door to it."
 
@@ -337,18 +369,18 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
         {(
         <button
           className={`hud-plaque${entering.has('chart') ? ' hud-arriving' : ''}`}
-          aria-label="Chart. The map of islands you have found."
+          aria-label="Map. The islands you have found."
           aria-haspopup="dialog"
           onClick={() => { track('chart_opened'); openBook('chart') }}
         >
           <Glyph piece="icon_set" face="compass" size={22} className="hud-plaque-mark" />
-          <span className="hud-plaque-word">Chart</span>
+          <span className="hud-plaque-word">Map</span>
         </button>
         )}
         {(
         <button
           className={`hud-plaque${entering.has('handbook') ? ' hud-arriving' : ''}`}
-          aria-label="Handbook. What the school offers, and what you have earned."
+          aria-label="Guide. What the school offers, and what you have earned."
           aria-haspopup="dialog"
           onClick={() => openBook('islands')}
         >
@@ -359,7 +391,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
               platform's `icon_set` has no book face and still does not; this is
               a local mark drawn beside three others in one job. */}
           <span className="hud-plaque-mark kit-mark kit-mark-book" aria-hidden="true" />
-          <span className="hud-plaque-word">Handbook</span>
+          <span className="hud-plaque-word">Guide</span>
         </button>
         )}
         {(
@@ -371,9 +403,9 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
                a different sentence from having spent them all. */
             aria-label={left.length === 0
               ? (s
-                ? 'Year sheet. You have used all three season tokens.'
-                : 'Year sheet. Pick your classes and activities.')
-              : `Year sheet. Pick your classes and activities. ${left.length} season `
+                ? 'My Year. You have used all three season tokens.'
+                : 'My Year. Pick your classes and activities.')
+              : `My Year. Pick your classes and activities. ${left.length} season `
                 + `${left.length === 1 ? 'token' : 'tokens'} not used yet: ${left.join(', ')}.`}
             aria-haspopup="dialog"
             onClick={openPlanner}
@@ -423,7 +455,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
                 So it says what it OPENS, the way "Chart" and "Handbook" do two
                 rows above it. The number a reader needs is on the aria-label,
                 where it can be exact without competing with the pips. */}
-            <span className="hud-plaque-word">Year sheet</span>
+            <span className="hud-plaque-word">My Year</span>
           </button>
         )}
       </nav>
@@ -464,13 +496,13 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       {paused && !anyOpen && (
         <PausePanel onClose={closeAll}>
           <Plank wide keyCap="Esc" onClick={closeAll}>Back to the game</Plank>
-          {s?.introDone && <Plank wide onClick={openPlanner}>Year sheet</Plank>}
+          {s?.introDone && <Plank wide onClick={openPlanner}>My Year</Plank>}
           {s?.graduated && (
             <Plank wide onClick={() => { setPaused(false); setGraduation(true) }}>
               {s.flags.includes('gear2') ? 'Walk the stage again' : 'Walk the stage'}
             </Plank>
           )}
-          <Plank wide onClick={() => { setPaused(false); setBook('islands') }}>Handbook</Plank>
+          <Plank wide onClick={() => { setPaused(false); setBook('islands') }}>Guide</Plank>
           {/* THE SAME CARD THE QUESTION MARK OPENS, which brief item 3b asks for
               in as many words ("Same card from the pause menu"). One component,
               so the two roads cannot drift apart: the corner is where a student

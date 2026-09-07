@@ -74,6 +74,7 @@ import { setSceneDrawn, showPlaceCard } from '../stage/stage-bus'
 import { motionMs, prefersReducedMotion } from '../ui/motion'
 import { uiBand } from '../ui/frame'
 import { kitNineSlice, kitPieceHeight, kitSprite, kitTexture } from '../ui/kitSprite'
+import { goldenHour } from '../ui/atmosphere'
 import { currentSkin } from '../ui/skin'
 /* the two questions the task line has to ask before it speaks, and both of them
  * are already answered somewhere else: an open panel is on the a11y stack, and an
@@ -1199,6 +1200,12 @@ export default function PmapScene() {
        * middle of it, and because "character level" is what he asked for at the
        * other end of the same paragraph. */
       const Z_SHIP = Z
+
+      /* AND THE CHARACTER SHOT, which is Ash's "Character POV view during thors
+       * auto walk". The walking shot puts him at forty screen pixels, which is
+       * the size a player walks around at; this is the size a person is when the
+       * camera is ABOUT him, and an auto-walk is a scene rather than a walk. */
+      const Z_CLOSE = Z * 1.6
       world.scale.set(Z)
 
       /* ---- D1: THE ZOOM IS A LIVE VALUE AND NOT A LOAD-TIME CONSTANT ----
@@ -4194,7 +4201,8 @@ export default function PmapScene() {
         view(shot, ms) {
           const to = shot === 'island' ? Z_ISLAND
             : shot === 'ship' ? Z_SHIP
-              : shot === 'sail' ? Z_MIN : Z
+              : shot === 'close' ? Z_CLOSE
+                : shot === 'sail' ? Z_MIN : Z
           /* THE WIDE SHOT CENTRES THE PAINTING AND NOT THE PLAYER, which is the
            * whole difference between "the whole island" and "zoomed out a bit".
            * Held until something else takes the camera, exactly as an untimed
@@ -4919,8 +4927,29 @@ export default function PmapScene() {
       const trailLayer = new Container()
       trailLayer.zIndex = 9e9 - 3
       world.addChild(trailLayer)
+      /* THE EIGHT HEADINGS, DRAWN. One PixelLab spend on Ash's word, 2026-09-06:
+       * a flat painted arrow marking on stone, cream with a muted gold core and
+       * the painting's own dark outline, one drawing per heading so that nothing
+       * here ever rotates a pixel drawing. `public/art/world/trail/`.
+       *
+       * They are drawn square-on, with no foreshortening in the art, so the
+       * squash into the painting's ground plane is applied here by the map's own
+       * yScale: a north arrow gets shorter and an east arrow does not, which is
+       * what lying flat on an isometric floor means.
+       *
+       * The kit's `trail_dot` stays as the floor. A district filter, an offline
+       * Chromebook or a missing file leaves a student a dotted line rather than
+       * no line at all. */
+      const TRAIL_DIRS = ['east', 'south-east', 'south', 'south-west',
+        'west', 'north-west', 'north', 'north-east'] as const
+      const trailArt = new Map<string, Texture>()
       let trailTex: Texture | null = null
       void kitTexture('pointer', 'trail_dot').then((t) => { if (!destroyed) trailTex = t })
+      for (const d of TRAIL_DIRS) {
+        void Assets.load(`/art/world/trail/${d}.png`)
+          .then((t: Texture) => { if (!destroyed && t) trailArt.set(d, t) })
+          .catch(() => { /* the dot carries it */ })
+      }
       /* how many arrow marks are on the ground this frame. A `Graphics` cannot
        * be asked what is in it, and "the way is drawn" is the claim BRIEF-ARRIVAL
        * item 4 makes, so the number is kept rather than inferred from a
@@ -5873,7 +5902,32 @@ export default function PmapScene() {
        * that a resume never restores a ship at sea. */
       let lastWhere = 0
       const seenPlaces = new Set<string>((loadSave()?.exposure ?? []).map((e) => e.place))
-      app.renderer.on('resize', () => refreshSea())
+      /* ---- GOLDEN HOUR, ON THE PAINTING AS IT IS ON THE BEACH ------------
+       *
+       * Ash, 2026-09-06: "Golden hour atmosphere keep it, after the island
+       * transition loads. right now its empty" and "golden hour atmosphere
+       * throughout". The beach either side of this scene is at golden hour and
+       * the cover it lifts on is a gold sunset; the painted map opened at flat
+       * noon and read as empty between them.
+       *
+       * A STAGE SIBLING ABOVE THE WORLD, so the light does not zoom with the
+       * painting: a vignette that scaled with the camera would be a hole in the
+       * middle of the picture. Above the world and below every plaque, because
+       * light falls on a place and not on a sign about it.
+       *
+       * ISLANDS ONLY. A room is lit by whatever is painted in it, and the Maw is
+       * lit by lava; a warm sun through a mountain is a mistake, not an
+       * atmosphere. */
+      let atmos: ReturnType<typeof goldenHour> | null = null
+      if (coastCut) {
+        atmos = goldenHour()
+        app.stage.addChild(atmos.layer)
+        atmos.resize(app.screen.width, app.screen.height)
+      }
+      app.renderer.on('resize', () => {
+        refreshSea()
+        atmos?.resize(app.screen.width, app.screen.height)
+      })
 
       // ---- debug hooks (the proof harness, same names as PaintedScene) ----
       // __app: the perf-probe handle (IslandMapIso's documented lesson — pump
@@ -6613,7 +6667,13 @@ export default function PmapScene() {
          * scene's chrome is already switched by `locked`; these two are written
          * from elsewhere, so the movie states them itself every frame rather
          * than trying to be the last writer. */
-        pin.visible = pinWanted && !movieOn
+        /* AND THE MARKER STAYS WHILE HE IS BEING WALKED. Measured on the
+         * close shot: with the bars up and the pin away there were eleven
+         * figures on the quay and no way at all to tell which one was Thor,
+         * during the one stretch whose whole job is showing him where HE goes.
+         * A movie hides the furniture; the answer to "which one am I" is not
+         * furniture. */
+        pin.visible = pinWanted && (!movieOn || !!autoWalk)
         slotMarks.visible = !movieOn
         ;(window as any).__walk = `thor ${pos.x.toFixed(0)},${pos.y.toFixed(0)} lvl${lvlAt(pos.x, pos.y)}`
 
@@ -6876,7 +6936,11 @@ export default function PmapScene() {
            *
            * A movie outranks both. Item 1 is "no plaques" and a chevron over the
            * water during the crossing is a plaque. */
-          objMark.visible = !fade && !movieOn && (!locked || !!autoWalk)
+          /* AND IT SURVIVES THE BARS WHILE HE IS BEING WALKED. Ash's third
+           * note: the auto-walk itself is behind the bars with the corner gone,
+           * and the marks on the ground are the whole point of that walk. A
+           * movie hides plaques; the way he is being taken is not a plaque. */
+          objMark.visible = !fade && (!!autoWalk || (!locked && !movieOn))
 
           /* THE BIG ONE HANGS OVER THE THING, and it is placed against the
            * CHARACTER rather than against the anchor's own radius: two and a bit
@@ -6981,12 +7045,16 @@ export default function PmapScene() {
           let shown = 0
           if (objMark.visible && trailTex && g.route.length > 1) {
             const ys = map.yScale || 1
-            const STEP = Math.max(14, Math.round(map.character.heightPx * 1.05))
+            /* SPACED AGAINST THE BODY AND NOT AGAINST THE SEARCH. One and a
+             * half of him between marks reads as a road at the walking shot and
+             * still at the close one, where the old 1.05 put them nearly
+             * touching. */
+            const STEP = Math.max(16, Math.round(map.character.heightPx * 1.5))
             let run = 0
             /* the first mark is one body clear of his feet, so the way reads as
              * a road in front of him rather than as something stuck to him */
             let next = map.character.heightPx * 1.2
-            const marks: { x: number; y: number; t: number }[] = []
+            const marks: { x: number; y: number; t: number; dir: string }[] = []
             for (let i = 1; i < g.route.length && marks.length < 64; i++) {
               const a = g.route[i - 1], b = g.route[i]
               const dx = b.x - a.x, dy = (b.y - a.y) * ys
@@ -6998,29 +7066,35 @@ export default function PmapScene() {
                 const y = a.y + (b.y - a.y) * k
                 next += STEP
                 if (Math.hypot(x - pos.x, (y - pos.y) * ys) < map.character.heightPx * 0.9) continue
-                marks.push({ x, y, t: 0 })
+                /* the heading is read off the pixels the ROUTE moves, squashed
+                 * the same way a body's own facing is read (life.ts says why),
+                 * so an arrow and a walker agree about which way north is */
+                marks.push({ x, y, t: 0, dir: dirFrom(b.x - a.x, (b.y - a.y) * ys) })
               }
               run += seg
             }
             for (let i = 0; i < marks.length; i++) marks[i].t = marks.length < 2 ? 1 : i / (marks.length - 1)
             for (const m of marks) {
+              const art = trailArt.get(m.dir) ?? trailTex
+              if (!art) continue
               let sp = trailSprites[shown]
               if (!sp) {
-                sp = new Sprite(trailTex)
+                sp = new Sprite(art)
                 sp.anchor.set(0.5, 0.5)
                 trailSprites.push(sp)
                 trailLayer.addChild(sp)
               }
-              if (sp.texture !== trailTex) sp.texture = trailTex
-              /* WHOLE PIXELS AND ONE BODY WIDE AT MOST. The face is 25 across on
-               * a sheet drawn for the DOM, so it is sized against the character
-               * the way every other world mark is, and rounded so a drawn pixel
-               * lands on a screen pixel at the walking shot. */
-              const want = Math.max(3, Math.round(map.character.heightPx * (0.36 + 0.22 * m.t)))
+              if (sp.texture !== art) sp.texture = art
+              /* SIZED AGAINST THE CHARACTER AND SNAPPED TO WHOLE PIXELS. The
+               * drawing is 24 across and lands at about twelve painting pixels,
+               * which is the same clean halving the character sets take, and the
+               * height carries the ground plane's own squash. */
+              const arrow = trailArt.has(m.dir)
+              const want = Math.max(3, Math.round(map.character.heightPx * (arrow ? 0.42 + 0.16 * m.t : 0.36 + 0.22 * m.t)))
               sp.width = want
-              sp.height = Math.max(1, Math.round(want * ys))
+              sp.height = Math.max(1, Math.round(want * (arrow ? ys : ys)))
               sp.position.set(Math.round(m.x), Math.round(m.y))
-              sp.alpha = 0.6 + 0.4 * m.t
+              sp.alpha = 0.62 + 0.38 * m.t
               sp.visible = true
               shown++
             }

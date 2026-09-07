@@ -54,9 +54,26 @@ export const CORE_Y1: CoreBeat = {
   kind: 'core',
   credit: 0.5,
   takeaways: ['f-power-full', 'f-monday', 'f-25th-credit', 'f-join-clubs'],
+  /* ---- THREE THINGS DONE BY HAND, ONE SHORT LINE BEFORE EACH ------------
+   *
+   * BRIEF-MAW-RAIL, beat 3, word for word: "Advisory is three things done by
+   * hand, each with one short line before it: put the five POWER letters in
+   * order, pick when a Monday starts, pick how you join a club. Every answer
+   * pops right or wrong on the spot with a one-line reply. No speech before, no
+   * result card of a hundred words after: the pop is the result."
+   *
+   * SIX SPEECHES BECAME THREE LINES. What was here opened with two paragraphs
+   * before the first thing a student could touch, put another two between the
+   * first item and the second, and closed with a sixth nobody reads. Ash played
+   * it: "a bunch of words, a bunch of instructions that open to read more words."
+   *
+   * THE FACTS DID NOT GO WITH THEM, and that is the part to check when editing
+   * this. All four takeaways are still taught: POWER by matching the five,
+   * the late start by the line and the item, the 25th credit inside the reply
+   * to the Monday item, and joining by the last item. Every one is sourced in
+   * `docs/blhs/sourced-facts.md` and none of it is invented to fill a line. */
   steps: [
-    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'This is Advisory. Every year at Bonney Lake starts here. Most Mondays we sit down together and make sure nobody is lost.' } },
-    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'The POWER values are what we ask of every student here. Perseverance, Ownership, Work Ethic, Engagement, Respect.' } },
+    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'Every year here starts in Advisory. These five are Panther POWER.' } },
     {
       kind: 'check',
       check: {
@@ -73,8 +90,7 @@ export const CORE_Y1: CoreBeat = {
         objective: 'name the five POWER values',
       },
     },
-    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'Mondays start late here. School starts at 8:30 instead of 7:25, and Advisory meets that morning.' } },
-    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'Advisory is not filler. Pass it every semester and you earn one elective credit over four years. The catalog calls it the 25th credit.' } },
+    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'Mondays start late here, and Advisory meets that morning.' } },
     {
       kind: 'check',
       check: {
@@ -82,14 +98,16 @@ export const CORE_Y1: CoreBeat = {
         prompt: 'It is Monday morning at Bonney Lake. When does school start?',
         options: [
           { text: '7:25, same as every day', reply: 'That is Tuesday through Friday. Mondays are the late ones.' },
-          { text: '8:30. Mondays start late', correct: true, reply: 'Right. Late start, and Advisory meets that morning.' },
+          /* THE 25TH CREDIT RIDES HERE. It used to have a speech of its own, and
+           * the reply to the item it belongs to is where a student is actually
+           * reading. .125 a semester over eight semesters is the one credit. */
+          { text: '8:30. Mondays start late', correct: true, reply: 'Right. Pass Advisory every semester and it is worth one elective credit, the 25th credit.' },
           { text: 'Whenever you wake up', reply: 'Bold. Wrong, but bold.' },
         ],
         objective: 'know the Monday late start',
       },
     },
-    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'Every island out there is a real club, a real sport or a real class. To join one, you just show up.' } },
-    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'DECA meets Thursdays at 2:10 in the 200 Flex. Robotics builds Mondays and Thursdays in rooms 206 and 207. Your Handbook keeps the whole list.' } },
+    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'Every island out there is a real club, sport or class at this school.' } },
     {
       kind: 'check',
       check: {
@@ -98,15 +116,10 @@ export const CORE_Y1: CoreBeat = {
         options: [
           { text: 'File a form with the main office', reply: 'No forms. The office would just point you back at the meeting.' },
           { text: 'Wait to be invited', reply: 'You would be waiting a while. Clubs here take whoever shows up.' },
-          { text: 'Find its meeting time and walk in', correct: true, reply: 'That is the whole trick. The Handbook has every room and time.' },
+          { text: 'Find its meeting time and walk in', correct: true, reply: 'That is the whole trick. Your Guide has every room and time.' },
         ],
         objective: 'know how joining works',
       },
     },
-    /* IT USED TO SEND HIM BACK TO A THING HE HAD ALREADY DONE. `objective.ts`
-     * runs the `plan` phase BEFORE the `core` phase, so by the time Advisory
-     * ends his year sheet is stamped, and this line told him to go and spend
-     * three season tokens the game would then refuse. */
-    { kind: 'say', line: { speaker: PP, portrait: PP_FACE, text: 'That is the start, Panther. Your year is planned, so the rest of it is out on the water.' } },
   ],
 }

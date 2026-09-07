@@ -61,7 +61,7 @@ import { SEASONS, assignSlot, clearSlot, loadSave, pickClass, dropClass, stampPl
 import { refuseClass, refuseSlot } from '../run/refusal'
 import { usePanel } from '../ui/a11y'
 import { Glyph, Plank } from '../ui/controls'
-import { saved as saidSaved } from '../ui/feedback'
+import { awarded, saved as saidSaved } from '../ui/feedback'
 import { track } from '../telemetry'
 import './pickyear.css'
 
@@ -352,8 +352,25 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
             className={`py-go${ready ? ' py-lit' : ''}`}
             disabled={!ready}
             onClick={() => {
-              stampPlan(year, SEASONS.map((se) => plan.slots[se]).filter((x): x is string => !!x))
+              const taken = SEASONS.map((se) => plan.slots[se]).filter((x): x is string => !!x)
+              stampPlan(year, taken)
               track('pickyear_stamped', { year, slots: plan.slots, classes: plan.classes })
+              /* ---- AND THE STAMP POPS (BRIEF-MAW-RAIL beat 2) --------------
+               * "The stamp pops and the card he picked appears on the wall as an
+               * empty frame with its name. That is the first reward and the
+               * first time he wants something." The frames have appeared under
+               * his hand since the screen was written; the stamp itself landed
+               * in silence and the panel simply vanished, so the one moment beat
+               * 4 is built to make him want was the quietest thing on the glass.
+               *
+               * It says what he chose, because that is what he is going to go
+               * and do, and `awarded` rather than `saved` because this is a
+               * grant and not a keystroke being remembered. */
+              const first = PROGRAMMES.find((pg) => pg.id === taken[0])
+              awarded(
+                first ? `${first.name} is yours.` : 'Your year is set.',
+                `Year ${year} is on the sheet. It is in My Year, in the corner.`,
+              )
               onClose()
             }}
           >

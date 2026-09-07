@@ -160,9 +160,9 @@ export function HelpCard({ onClose }: { onClose: () => void }) {
             not the run has granted it, because this card is read by the student
             who has none of them and wants to know what is coming. */}
         <ul className="hp-corner">
-          <li><b>Chart</b> the map of islands you have found</li>
-          <li><b>Handbook</b> what the school offers, and what you have collected</li>
-          <li><b>Year sheet</b> pick your classes and activities</li>
+          <li><b>Map</b> the islands you have found</li>
+          <li><b>Guide</b> what the school offers, and what you have collected</li>
+          <li><b>My Year</b> pick your classes and activities</li>
         </ul>
 
         {/* ---- THE FIVE DOORS, WHICH ARE THE POINT OF LAW 3 -----------------
@@ -177,8 +177,8 @@ export function HelpCard({ onClose }: { onClose: () => void }) {
             and this is the one card a lost student is told to trust. */}
         <div className="hp-doors">
           <Plank className="hp-door hp-door-back" keyCap="Esc" onClick={onClose}>Back to the game</Plank>
-          {hudUp && <Plank className="hp-door" onClick={() => { onClose(); requestUi('planner') }}>Year sheet</Plank>}
-          {hudUp && <Plank className="hp-door" onClick={() => { onClose(); requestUi('handbook') }}>Handbook</Plank>}
+          {hudUp && <Plank className="hp-door" onClick={() => { onClose(); requestUi('planner') }}>My Year</Plank>}
+          {hudUp && <Plank className="hp-door" onClick={() => { onClose(); requestUi('handbook') }}>Guide</Plank>}
           {/* THE WALL HAD NO DOOR FROM ANYWHERE (STATE-OF-THE-GAME confusing
               10): no plaque, no pause plank, no Handbook tab, only a station in
               the Maw a student has to walk to. `open('wall')` has been a word

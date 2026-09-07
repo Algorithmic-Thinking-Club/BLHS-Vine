@@ -81,7 +81,23 @@ export function yearStatus(s: SaveGame, forYear = s.year): YearStatus {
     classesDone,
     classesPending,
     voyages,
-    readyForYearbook: plan.stamped && coreBeatDone && classesPending.length === 0 && plan.classes.length === 2,
+    /* THE YEAR CLOSES ON THE STAMP AND ADVISORY, AND THE CLASSES DO NOT HOLD IT.
+     *
+     * BRIEF-MAW-RAIL's year one is five beats: the principal, the pick, the fire,
+     * the wall, the counselor. Its fourth beat is the wall "showing what filled
+     * and what is still empty, in his own picks' names", and its fifth is the
+     * page turning, so the page is meant to turn with the two picked classes
+     * still unsat. This line read `classesPending.length === 0 && classes.length
+     * === 2` and made that unreachable: a freshman walked to the counselor and
+     * she had nothing to say, because the year model was waiting on two three
+     * minute activities nothing on screen had sent him to.
+     *
+     * THE CLASSES ARE NOT CUT. They are still on the sheet, still scored, still
+     * tagged, still moving the cords, and My Year still offers them by name. What
+     * changed is that they are the year's OPTIONAL depth rather than its gate,
+     * which is what the yearbook's own nudge line has always said out loud about
+     * a season nobody spent. */
+    readyForYearbook: plan.stamped && coreBeatDone,
     yearbookSeen: s.flags.includes(`yearbook:y${year}`),
   }
 }

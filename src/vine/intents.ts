@@ -133,6 +133,7 @@ export type Intent =
    * Three names, computed by the scene off the painting and the window:
    *   island  the whole painted extent, centred, held still
    *   walk    the shot a player walks around in, following the body
+   *   close   in on the character, for a walk somebody is watching
    *   ship    riding with the hull, close enough that she is a ship
    *   sail    the wide sailing floor, the shot open water is crossed at
    * A room has no sea and answers `sail` and `ship` with `walk`.
@@ -193,8 +194,25 @@ export type Intent =
 
   /* the sit-down panels. Deliberately a short closed list: a station that opens
    * a panel is a station that could have been a scene, so making this cheap to
-   * add would be making the wrong thing cheap. */
-  | { kind: 'open'; ui: 'planner' | 'handbook' | 'chart' | 'wardrobe' | 'settings' | 'wall' }
+   * add would be making the wrong thing cheap.
+   *
+   * `yearbook` was MISSING from this list and has been opened by name from the
+   * Maw's own Python since the day the counselor was written. Nothing broke,
+   * because this union is a compile-time promise and the string travels over
+   * postMessage from a runtime that has never seen it, which is precisely the
+   * hole `performIntent` exists to close: the one list that is supposed to be
+   * the capability list did not carry a capability the engine has. */
+  /* `wait` IS WHAT TURNS A MENU INTO A RAIL. Without it `open` comes back the
+   * instant the screen is up, so an island that opens the pick screen has said
+   * the last thing it can say: anything after that line runs underneath the
+   * cards. BRIEF-MAW-RAIL's year one is five beats in a row, three of which are
+   * a panel, and it cannot be written as one handler at all until this word can
+   * come back when the panel closes.
+   *
+   * Left out, the word behaves exactly as it did, which matters: every existing
+   * caller opens a panel as the last thing a station does and must not start
+   * blocking. */
+  | { kind: 'open'; ui: 'planner' | 'handbook' | 'chart' | 'wardrobe' | 'settings' | 'wall' | 'yearbook'; wait?: boolean }
 
   /* a scored activity. `beat` names one the engine can build; both study arms
    * render from the same items, which is what as_plain() means in practice and
@@ -255,8 +273,8 @@ export const PACES: Pace[] = ['stroll', 'walk', 'run']
 export const PACE_OF: Record<Pace, number> = { stroll: 0.62, walk: 1, run: 1.5 }
 
 /** the shots the engine composes itself, off the painting and the window */
-export type ViewShot = 'island' | 'walk' | 'ship' | 'sail'
-export const VIEW_SHOTS: ViewShot[] = ['island', 'walk', 'ship', 'sail']
+export type ViewShot = 'island' | 'walk' | 'close' | 'ship' | 'sail'
+export const VIEW_SHOTS: ViewShot[] = ['island', 'walk', 'close', 'ship', 'sail']
 
 export type RunPath =
   | 'year' | 'gpa' | 'tokens' | 'cords' | 'flags' | 'islands'
@@ -296,6 +314,18 @@ export type RunPath =
    * thing, "is this year's advisory still owed, and what is it called", and the
    * answer is a beat id or null. */
   | 'advisory'
+  /* AND THE ONE A RAIL HAS TO ASK BEFORE IT MOVES ON.
+   *
+   * Same shape as `advisory` above and for the same reason. The Maw's year one
+   * opens the pick screen and then has to know whether the student really
+   * stamped it or pressed Close for now, because a rail that walks him to the
+   * fire with no year on the sheet has walked him past the only decision in the
+   * beat. Nothing on the paths above can answer it: `tokens` counts seasons in
+   * hand and does not move on a stamp, and `flags` carries nothing about a plan.
+   *
+   * Named for the question, "is this year's sheet stamped", and it is about THIS
+   * year because that is the only year a student can stamp. */
+  | 'planned'
 
 /* ---- what comes back ------------------------------------------------------ */
 
@@ -358,7 +388,9 @@ export interface IntentWorld {
 /* The engine half. Supplied once at boot rather than per scene, because the
  * save file and the logger do not change when the camera does. */
 export interface IntentEngine {
-  openUi(ui: 'planner' | 'handbook' | 'chart' | 'wardrobe' | 'settings' | 'wall'): void
+  /* `wait` makes this a promise the caller may await. Left out it is exactly the
+   * fire-and-forget call it always was, so no existing station changes shape. */
+  openUi(ui: 'planner' | 'handbook' | 'chart' | 'wardrobe' | 'settings' | 'wall' | 'yearbook', wait?: boolean): void | Promise<void>
   playBeat(beat: string, asPlain: boolean): Promise<number | null>
   read(path: RunPath): unknown
   setFlag(flag: string): void
@@ -567,7 +599,9 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         return ok()
 
       case 'open':
-        engine.openUi(i.ui)
+        /* awaited whichever way it answers: without `wait` the engine hands back
+         * nothing and this is the same synchronous call it always was */
+        await engine.openUi(i.ui, i.wait === true)
         return ok()
       case 'play': {
         /* THE CONTROL ARM IS NOT OPTIONAL. as_plain defaults to the arm this

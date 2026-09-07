@@ -81,6 +81,7 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
   const page = await open(`${base}/?scene=pmap&map=hub&aboard=1`)
   const seen = []
   let duringMovie = null, atIslandShot = null, duringWalk = null, atDoor = null
+  const walkFrames = []
   const t0 = Date.now()
   /* sampled rather than waited on, because every one of these claims is about a
    * moment and the moments are what the brief lists */
@@ -96,14 +97,20 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
      * order: she ties up, the camera pulls out, the card plays, and only then
      * does he hop out. `hull` is therefore still true here. */
     if (!s.movie && s.hull && s.camZ < s.Z * 0.75 && !atIslandShot) atIslandShot = s
-    if (s.walk && !duringWalk) duringWalk = s
+    /* MID-WALK, NOT THE FIRST FRAME OF IT. The first sample that sees a walk
+     * label can land in the same frame the label appears, before the guide has
+     * recomputed its route or React has mounted the bars, and it is right about
+     * all three. The third sample is the walk actually happening. */
+    if (s.walk) { walkFrames.push(s); if (walkFrames.length === 3) duringWalk = s }
     if (!s.walk && duringWalk && Math.hypot(s.x - 343, s.y - 385) < 12) { atDoor = s; break }
     await page.waitForTimeout(400)
   }
 
   const movieFrames = seen.filter((s) => s.movie)
   ok('1', 'the crossing draws two black bars',
-    movieFrames.length >= 3 && movieFrames.filter((s) => s.bars).length >= movieFrames.length - 1,
+    /* two stretches now, the crossing and the walk, so up to two mount frames
+     * can see the flag before React has drawn the bars */
+    movieFrames.length >= 3 && movieFrames.filter((s) => s.bars).length >= movieFrames.length - 2,
     `${movieFrames.filter((s) => s.bars).length} of ${movieFrames.length} movie frames had them`)
   ok('1', 'and no HUD corner under them', duringMovie && !duringMovie.hudCorner)
   ok('1', 'and no help button', duringMovie && !duringMovie.help)
@@ -139,8 +146,12 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
     !seen.some((s) => s.hull && !s.movie && (s.prompt === 'Dock here' || s.prompt === 'Get in the boat')))
 
   ok('4', 'he walks himself to the tunnel', !!duringWalk && duringWalk.walk === 'panthers_maw')
-  ok('4', 'the camera is back at the walking shot while he walks',
-    !!duringWalk && duringWalk.camZ > duringWalk.Z * 0.9, duringWalk ? `zoom ${duringWalk.camZ}` : '')
+  ok('4', 'the camera is in close on him while he walks',
+    !!duringWalk && duringWalk.camZ > duringWalk.Z * 1.4, duringWalk ? `zoom ${duringWalk.camZ} against a walking ${duringWalk.Z}` : '')
+  ok('4', 'and the walk is behind the bars with the corner away',
+    !!duringWalk && duringWalk.bars && !duringWalk.hudCorner)
+  ok('4', 'and he can still be told apart from the crowd',
+    !!duringWalk && duringWalk.pin)
   ok('5', 'drawn marks are laid along the route while he walks',
     !!duringWalk && duringWalk.trail >= 4, duringWalk ? `${duringWalk.trail} marks` : '')
   ok('4', 'and he arrives at the door', !!atDoor, atDoor ? `${atDoor.x},${atDoor.y}` : 'never arrived')

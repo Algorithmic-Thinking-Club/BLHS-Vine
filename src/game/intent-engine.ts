@@ -8,7 +8,7 @@
  */
 import type { IntentEngine, RunPath } from '../vine/intents'
 import type { SessionMode } from '../vine/contract'
-import { requestBeat, requestUi } from './ui-bus'
+import { requestBeat, requestUi, requestUiAndWait } from './ui-bus'
 import { NotBuilt } from '../vine/intents'
 import { track } from './telemetry'
 import {
@@ -30,8 +30,14 @@ export const engine: IntentEngine = {
    * `playBeat` beside it was given this exact fix once already, and the WorldHud
    * split in wave 4 turned the unmounted case from an edge into the normal state
    * for anything that runs before a run has begun. */
-  openUi(ui) {
-    if (requestUi(ui)) return
+  openUi(ui, wait) {
+    /* AND IT CAN COME BACK WHEN THE PANEL SHUTS. `requestUiAndWait` answers false
+     * on exactly the same condition `requestUi` does, so the refusal below reads
+     * the same either way and there is one sentence for one failure. */
+    if (wait) {
+      const p = requestUiAndWait(ui)
+      if (p) return p
+    } else if (requestUi(ui)) return
     throw new NotBuilt('open', `nothing is mounted to open "${ui}" here. `
       + 'A panel needs the world HUD, which does not mount until a run has started.')
   },
@@ -85,6 +91,11 @@ export const engine: IntentEngine = {
         ? coreBeatId(s.year)
         : null
       case 'flags': return s ? [...s.flags] : []
+      /* IS THIS YEAR'S SHEET STAMPED. The rail's own question, and it is asked of
+       * the plan rather than of a flag because the stamp is the plan's own field
+       * and a flag beside it would be a second truth that can drift. False with
+       * no run, because a run that has not started has planned nothing. */
+      case 'planned': return !!(s && s.plans[s.year]?.stamped)
       case 'islands': return s ? { ...s.islands } : {}
       /* the two that are honestly absent. A player with no run has no name and
        * has not graduated, and neither is a number an island can do arithmetic

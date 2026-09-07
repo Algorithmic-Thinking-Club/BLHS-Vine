@@ -827,10 +827,13 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                       return <Plank size="md" onClick={onYearbook}>Open the yearbook</Plank>
                     }
                     if (!st.readyForYearbook) {
-                      const waits: string[] = []
-                      if (!st.coreBeatDone) waits.push('Advisory')
-                      if (st.classesPending.length) waits.push(`${st.classesPending.length} class${st.classesPending.length > 1 ? 'es' : ''}`)
-                      return waits.length ? <p className="pl-stamp-note">Finish {waits.join(' and ')} to open the yearbook.</p> : null
+                      /* ONLY WHAT REALLY HOLDS THE YEAR. The classes stopped
+                         gating the yearbook (`year.ts`), so naming them here
+                         would send a student off to sit two activities and then
+                         find the book had been open the whole time. */
+                      return !st.coreBeatDone
+                        ? <p className="pl-stamp-note">Finish Advisory to open the yearbook.</p>
+                        : null
                     }
                     return null
                   })()}

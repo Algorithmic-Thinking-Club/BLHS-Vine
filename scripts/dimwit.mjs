@@ -53,7 +53,11 @@ const say = (s) => { trail.push(s); console.log(s) }
 const BACKWARD = /^back$|^close$|skip|quit|settings|back to the|back to my|leave this/i
 /* THE CORNER, which is a door the world never points at. Excluded from the road
  * run for the reason at the top of this file. */
-const CORNER = /^chart$|^handbook$|^year sheet$|^\?$/i
+/* The corner is Map, Guide and My Year since BRIEF-MAW-RAIL; the three old names
+ * stay in the pattern because a stale deploy is exactly what this run is pointed
+ * at half the time, and a corner it does not recognise is a corner it walks
+ * through. */
+const CORNER = /^map$|^guide$|^my year$|^chart$|^handbook$|^year sheet$|^\?$/i
 
 const browser = await chromium.launch({ headless: !has('headed') })
 const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 }, deviceScaleFactor: 1 })

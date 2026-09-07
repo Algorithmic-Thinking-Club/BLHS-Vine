@@ -188,6 +188,7 @@ def view(shot, ms=None):
 
         island   the whole painted island, centred and held still
         walk     the shot you walk around in, following the body
+        close    in on the character, for a walk somebody is watching
         ship     riding with the boat, close enough that she is a boat
         sail     the wide sailing floor, the shot open water is crossed at
 
@@ -320,13 +321,28 @@ def cutscene(script):
 
 # ---- the panels a player sits down with -------------------------------------
 
-def open(ui):
-    """Open one panel: planner, handbook, chart, wardrobe or settings."""
+def open(ui, wait=False):
+    """Open one panel: planner, handbook, chart, wardrobe, wall or settings.
+
+    Comes back the instant the screen is up. Pass `wait=True` and it comes back
+    when the panel has been CLOSED instead, which is what you want when the next
+    thing your island does has to happen after the student has finished with it:
+
+        yield open("planner", wait=True)   # he picks his year
+        yield walk_to("hearth")            # and only then does he walk on
+
+    Without it the line after this one runs underneath the panel, which is right
+    for a station that opens the wardrobe and says nothing else, and wrong for
+    anything that is walking somebody through a sequence.
+    """
     # this shadows the builtin `open` if you import it by name, and that costs
     # nothing: there is no filesystem inside the worker to open a file on. The
     # name matches the engine's word, and one spelling is worth more than one
     # builtin nobody can use here.
-    return {"kind": "open", "ui": ui}
+    intent = {"kind": "open", "ui": ui}
+    if wait:
+        intent["wait"] = True
+    return intent
 
 
 # ---- doing something that gets a score --------------------------------------
@@ -357,6 +373,7 @@ def get(path):
     cord_board  every cord as a dict: name, rule, earned, progress, detail
     trophies    {"stickers": [...], "badges": [...]}, what is on the wall
     flags       your island's own flags, with your programme id stripped back off
+    planned     True once this year's sheet has been stamped
     islands     {programme id: "misty"/"discovered"/"available"/"active"/"completed"}
     handle      the name the player chose, or None
     mode        "game" or "plain", which half of the class this is

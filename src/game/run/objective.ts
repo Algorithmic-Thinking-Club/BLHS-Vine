@@ -30,7 +30,10 @@ export type Objective = {
   /* the map that anchor lives on, so the arrow can say "not here, out there" */
   map: string
   /* shown to the player ON THE OBJECTIVE'S OWN MAP. Literal, school words, a
-   * verb first (BRIEF-PLAYTHROUGH-1 law 1). `away` is the same step said from
+   * verb first (BRIEF-PLAYTHROUGH-1 law 1), and SHORT: BRIEF-MAW-RAIL cut every
+   * one of these down to the verb and its target, because this sentence hangs
+   * over Thor's head while the thing it names is already lit and pointed at, and
+   * a second clause explaining the first is the reading the rail exists to cut. `away` is the same step said from
    * any other map, which today is always the hub and always begins with going
    * into the mountain; `objectiveLine` picks. A consumer that does not know
    * where the player is standing reads `say`. */
@@ -81,7 +84,7 @@ export function nextObjective(s: SaveGame | null): Objective | null {
     return {
       anchor: 'principal_desk', map: MAW_MAP, phase: 'founding',
       say: 'Talk to Principal Panther.',
-      away: 'Go into the mountain and find the principal.',
+      away: 'Go into the mountain.',
     }
   }
 
@@ -93,23 +96,23 @@ export function nextObjective(s: SaveGame | null): Objective | null {
   if (!y.vignetteSeen) {
     return {
       anchor: 'principal_desk', map: MAW_MAP, phase: 'vignette',
-      say: `Year ${y.year} is starting. Read what Principal Panther says.`,
-      away: `Go into the mountain. Year ${y.year} is starting.`,
+      say: 'Talk to Principal Panther.',
+      away: 'Go into the mountain.',
     }
   }
 
   if (!y.planStamped) {
     return {
       anchor: 'chart_table', map: MAW_MAP, phase: 'plan',
-      say: 'Go to the year sheet table. Pick two classes and stamp it.',
-      away: 'Go into the mountain and open your year sheet.',
+      say: 'Go to the table and pick your year.',
+      away: 'Go into the mountain and pick your year.',
     }
   }
 
   if (!y.coreBeatDone) {
     return {
       anchor: 'hearth', map: MAW_MAP, phase: 'core',
-      say: 'Go to the fire. Advisory is starting.',
+      say: 'Go to the fire.',
       away: 'Go into the mountain. Advisory is at the fire.',
     }
   }
@@ -131,8 +134,8 @@ export function nextObjective(s: SaveGame | null): Objective | null {
     const next = sailable[0]
     return {
       anchor: 'maw_entrance', map: MAW_MAP, phase: 'voyage',
-      say: `Go out to the harbor and sail to ${next.name} for ${next.season.toLowerCase()} term.`,
-      away: `Get in the boat and sail to ${next.name} for ${next.season.toLowerCase()} term.`,
+      say: `Go out to the harbor and sail to ${next.name}.`,
+      away: `Get in the boat and sail to ${next.name}.`,
     }
   }
 
@@ -146,8 +149,8 @@ export function nextObjective(s: SaveGame | null): Objective | null {
   if (y.readyForYearbook && !y.yearbookSeen) {
     return {
       anchor: 'counselor', map: MAW_MAP, phase: 'yearbook',
-      say: 'The year is done. Talk to the counselor.',
-      away: 'Go into the mountain and talk to the counselor. The year is done.',
+      say: 'Talk to the counselor.',
+      away: 'Go into the mountain and talk to the counselor.',
     }
   }
 
@@ -169,21 +172,21 @@ export function nextObjective(s: SaveGame | null): Objective | null {
       const name = classById(owed)?.name ?? owed
       return {
         anchor: 'chart_table', map: MAW_MAP, phase: 'rising',
-        say: `${rising[0].name} is not open yet. Open your year sheet and sit ${name}.`,
-        away: `${rising[0].name} is not open yet. Go into the mountain and open your year sheet.`,
+        say: `Open My Year and sit ${name}.`,
+        away: `Go into the mountain and open My Year.`,
       }
     }
     return {
       anchor: 'counselor', map: MAW_MAP, phase: 'rising',
-      say: `${rising[0].name} is not open yet. Talk to the counselor.`,
-      away: `${rising[0].name} is not open yet. Go into the mountain and talk to the counselor.`,
+      say: 'Talk to the counselor.',
+      away: 'Go into the mountain and talk to the counselor.',
     }
   }
 
   return {
     anchor: 'chart_table', map: MAW_MAP, phase: 'done',
-    say: 'Nothing left to do this year. Look around, or open your year sheet.',
-    away: 'Nothing left to do this year. Look around.',
+    say: 'Nothing left this year. Look around.',
+    away: 'Nothing left this year. Look around.',
   }
 }
 
