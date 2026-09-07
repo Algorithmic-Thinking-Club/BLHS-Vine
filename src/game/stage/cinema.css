@@ -58,6 +58,27 @@ html[data-movie='1'] .hp-btn {
   visibility: hidden;
 }
 
+/* ---- AND ON THE BEACH IT IS THERE, WHICH IS NOT THE SAME QUESTION ----------
+
+   Ash, 2026-09-06: "the help button should also show on the beach map cutscene
+   part too." That is the OPENING, drawn by the cutscene runtime's own letterbox
+   rather than by the movie frame above, and the two are ruled differently on
+   purpose: inside a movie everything pressable is gone and the objective panel
+   on the top bar says what is happening, while the beach opening is a student's
+   first two minutes with no panel, no corner and nothing else to ask.
+
+   `data-letterbox` is set by CutsceneOverlay while its bars are up. It is
+   fenced against `data-movie` so the ruling above always wins where both are
+   true, rather than leaving two rules of equal weight to be settled by which
+   file loaded last. The button also has to climb: the bars are 10vh of ink at
+   z-index 72 and it lives at 50, so "visible" was a control drawn underneath a
+   black rectangle. */
+html[data-letterbox='1']:not([data-movie='1']) .hp-btn {
+  visibility: visible;
+  bottom: calc(10vh + max(2.4vh, 14px));
+  z-index: 73;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cin-bar { transition-duration: 60ms; }
 }

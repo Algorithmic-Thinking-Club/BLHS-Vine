@@ -66,6 +66,22 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
   const ui = rt.ui
   if (!ui.active) return <>{children}</>
 
+  /* THE DOCUMENT SAYS WHEN THERE ARE BARS, so the one control that is allowed
+   * to stay through them can climb over them.
+   *
+   * Ash, 2026-09-06: "the help button should also show on the beach map cutscene
+   * part too." It mounts there now, and it was still invisible: the question mark
+   * lives at z-index 50 with a 2.4vh bottom margin, and these bars are 10vh of ink
+   * at 72, so it was drawn underneath one. `cinema.css` already lifts it over the
+   * MOVIE frame; this is the same signal from the cutscene runtime's own frame,
+   * and the same rule catches both. */
+  useEffect(() => {
+    const on = ui.active && ui.letterbox > 0.02
+    if (on) document.documentElement.dataset.letterbox = '1'
+    else delete document.documentElement.dataset.letterbox
+    return () => { delete document.documentElement.dataset.letterbox }
+  }, [ui.active, ui.letterbox])
+
   const barH = `${(ui.letterbox * 10).toFixed(2)}vh`
 
   return (
