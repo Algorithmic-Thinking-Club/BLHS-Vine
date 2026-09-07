@@ -411,6 +411,12 @@ html[data-skin='plain'] .dlg-choice-key {
   opacity: 1;
 }
 html[data-skin='plain'] .dlg-caret { animation: none; }
+/* AND THE SHEET IS SIZED FOR THE TYPE ON IT. One box one size is a rule about a
+   sitting, not about the two arms: the control arm's system face sets a line at
+   about 34px where the game's drawn face sets one at 51.8, so a box built for
+   three of the game's lines is half empty with three of these in it. Same rule,
+   measured against this arm's own type. */
+html[data-skin='plain'] .dlg-stack { --dlg-box-h: min(calc(152px * var(--kit-text-scale)), 26vh); }
 /* the paw is drawn art and the arm has none. `faceStyle` already refuses a face
    outside the paper skin, so this is the second fence rather than the first. */
 html[data-skin='plain'] .dlg-paw { display: none; }
