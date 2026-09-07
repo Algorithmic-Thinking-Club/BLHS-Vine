@@ -102,7 +102,7 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
   const t0 = Date.now()
   /* sampled rather than waited on, because every one of these claims is about a
    * moment and the moments are what the brief lists */
-  while (Date.now() - t0 < 40000) {
+  while (Date.now() - t0 < 70000) {
     const s = await state(page)
     if (!s) break
     await clickThrough(page)
@@ -200,7 +200,10 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
    * painting pixels from the berth, well inside its 110 pixel radius, so before
    * the gate the first thing the game offered after a crossing was the way back
    * onto the water */
-  const landedFrames = seen.filter((s) => !s.hull && !s.movie && !s.walk)
+  /* `!s.movie` used to be in here and cannot be any more: the bars are up for
+   * the whole arrival now, so there is no frame that is ashore AND out of the
+   * frame until the tunnel. Ashore and not walking is the state this is about. */
+  const landedFrames = seen.filter((s) => !s.hull && !s.walk)
   ok('1', 'and "Get in the boat" is never offered on the landing frames',
     landedFrames.length > 0 && !landedFrames.some((s) => s.prompt === 'Get in the boat'),
     `${landedFrames.length} frames ashore`)

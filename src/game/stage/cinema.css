@@ -51,6 +51,16 @@ html[data-movie='1'] .hd-card {
   visibility: hidden;
 }
 
+/* AND IT SITS ON THE BAR RATHER THAN BEHIND IT. Found by looking at the live
+   frame: the question mark is `bottom: max(2.4vh, 14px)` at z-index 50, and the
+   lower bar is 10vh of solid ink at 70, so "always there" was a button drawn
+   underneath a black rectangle. It moves up clear of the bar and rides above
+   it, which is the only way the promise is kept. */
+html[data-movie='1'] .hp-btn {
+  bottom: calc(10vh + max(2.4vh, 14px));
+  z-index: 71;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cin-bar { transition-duration: 60ms; }
 }
