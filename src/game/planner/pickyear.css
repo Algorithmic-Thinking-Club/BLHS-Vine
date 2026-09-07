@@ -227,11 +227,19 @@
   font-style: italic;
 }
 /* the catalog scrolls inside its own box rather than growing the sheet, so a
-   longer course list one day cannot put the plank under the fold again */
+   longer course list one day cannot put the plank under the fold again.
+
+   FOUR WHOLE ROWS, WHICH 128 WAS NOT. The thirteen year-one electives lay out as
+   four rows of four, and at 128 the fourth row was cut through the middle in the
+   game arm and through the words in the plain arm, where a two-line label like
+   "Intro to Engineering Design (PLTW)" makes every row taller. A scroll box that
+   stops halfway down a row reads as a broken list rather than as a list with
+   more in it. The plank cannot fall under the fold either way now: `.py-foot` is
+   pinned to the bottom of the sheet. */
 .py-electives .py-classes {
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 4px 8px;
-  max-height: 128px;
+  max-height: min(178px, 25vh);
   overflow-y: auto;
 }
 .py-electives .py-class { min-height: 28px; padding: 1px 8px; gap: 8px; }
