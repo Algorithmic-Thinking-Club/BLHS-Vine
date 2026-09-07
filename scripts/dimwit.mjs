@@ -105,6 +105,11 @@ const look = () => page.evaluate(() => {
     press: press.filter((e) => e.text),
     texts: [...new Set(texts)],
     map: p ? { map: p.map, x: Math.round(p.x), y: Math.round(p.y), hull: p.hull, guide: p.guide, lit: p.lit } : null,
+    /* THE BARS ARE UP AND NOTHING IS HIS. A watched stretch is not a stall and
+     * must not be counted as one: the crossing into the hub is a cutscene the
+     * student sits through, and the sea budget below was written when the ship
+     * was something he steered. */
+    movie: document.documentElement.dataset.movie === '1',
     stamped: !!(save && save.plans && Object.values(save.plans).some((pl) => pl && pl.stamped)),
   }
 })
@@ -138,6 +143,10 @@ for (let i = 0; i < 320 && !done; i++) {
      * talking is refused and must not be counted against the crossing. */
     const held = v.texts.some((t) => /click, or press space|go on|begin the year/i.test(t))
     if (held) { await page.mouse.click(683, 640); continue }
+    /* AND A WATCHED CROSSING IS NOT TWENTY WASTED CLICKS. `movie` means the
+     * bars are up and every control on the glass is gone on purpose, so this
+     * waits it out rather than spending its sea budget on a cutscene. */
+    if (v.movie) { await page.waitForTimeout(650); continue }
     if (sea === 0) say('at sea: clicking toward the island')
     if (sea++ > 20) { say('STOP: twenty clicks at sea and still afloat'); await shot('adrift'); break }
     await page.mouse.click(683, 210)
