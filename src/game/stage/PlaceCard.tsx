@@ -182,7 +182,20 @@ export function PlaceCard() {
    * the rail reading "Talk to Principal Panther." while the principal was
    * already walking across the room to talk to HIM. An instruction a student
    * cannot act on, contradicted by the thing on screen, is the "it makes no
-   * sense" Ash named. The title stays; the errand waits for the bars. */
+   * sense" Ash named. The title stays; the errand waits for the bars.
+   *
+   * ---- AND SINCE RAIL-3 IT IS NOT PRINTED HERE AT ALL --------------------
+   *
+   * BRIEF-MAW-RAIL-3 A put the objective in a panel at the top of the screen
+   * that is there on EVERY frame, in a cutscene and out of one. So for the four
+   * seconds this card is up, the same sentence was on the glass twice, four
+   * hundred pixels apart, in two different frames: measured on the plain arm's
+   * live capture, "Go to the fire." above the card and "Go to the fire." inside
+   * it. Ash's own rule about this game is that more text is never the answer.
+   *
+   * The line is still COMPUTED, and it is still what the card announces to a
+   * screen reader, because a reader gets one announcement at the arrival and
+   * cannot see a panel it did not read. What is gone is the second printing. */
   const heading = card && !cinemaOn() ? objectiveLine(nextObjective(loadSave()), sceneDrawn()) : ''
 
   /* ---- SAID OUT LOUD, ONCE ------------------------------------------------
@@ -257,7 +270,9 @@ export function PlaceCard() {
             keeps the OTHER two moments, when the objective changes under a
             student who is already standing there and when a student has frozen,
             because neither of those is an arrival. */}
-        {heading ? <p className="pc-heading">{heading}</p> : null}
+        {/* the errand is the objective panel's, at the top of the screen, on
+            every frame. See `heading` above for why it is computed and not
+            drawn. */}
         {/* THE ONE HONEST CLOCK ON THIS SURFACE. A card with no dismiss and no
             control has to say that it is going to leave on its own, or a student
             reads it as something they are supposed to do something about. This
