@@ -4223,7 +4223,16 @@ export default function PmapScene() {
             py = pos.y + uy * clearP
           }
           d.x = px; d.y = py
-          d.facing = facing ?? dirFrom(pos.x - px, (pos.y - py) * ysp) ?? d.facing
+          if (facing) d.facing = facing
+          else {
+            /* WITH NO HEADING GIVEN THEY END UP LOOKING AT EACH OTHER, which is
+             * the whole reason to place a body before a scene: somebody is
+             * waiting for him and he has just walked in on them. Ash's own note
+             * on the stops, applied to the one stop nobody walks to. */
+            d.facing = dirFrom(pos.x - px, (pos.y - py) * ysp) ?? d.facing
+            const back = dirFrom(px - pos.x, (py - pos.y) * ysp)
+            if (back) walker.facing = back
+          }
           sp.position.set(d.x, d.y)
           sp.zIndex = d.y
         },
@@ -7091,8 +7100,30 @@ export default function PmapScene() {
           }
         }
 
+        /* THE ONE LIT THING IS PRESSABLE FROM WHERE THE GAME PUT HIM.
+         *
+         * Measured at the end of the arrival: `walk_to` lands him on the door's
+         * stand point at 346,390, and the push-apart pass then shoves him clear
+         * of the two guards flanking the arch, out to 322,386. That is 21
+         * pixels from an anchor whose reach is 14, so the walk ended with the
+         * student standing at the tunnel and NO verb line anywhere on the
+         * screen. Intermittent, because it depends where the ambient crowd
+         * happens to be standing.
+         *
+         * So the thing the game is currently POINTING AT reaches a little
+         * further than everything else: one body height, and only for the one
+         * anchor the guide has lit. Every other anchor keeps the radius its
+         * author chose. This is the self-evident law's own sentence, made true
+         * at the one moment it was not: one lit thing, a verb line that names
+         * it, and pressing it does it. */
+        const guided = leading ? anchors.get(leading) : undefined
         const near = hull || seaFire || locked || busy || fade
-          ? null : anchors.nearestInteractive(pos.x, pos.y)
+          ? null
+          : anchors.nearestInteractive(pos.x, pos.y)
+            ?? (guided && guided.kind !== 'region' && guided.kind !== 'trigger'
+              && Math.hypot(anchors.standAt(guided).x - pos.x,
+                (anchors.standAt(guided).y - pos.y) / (map.yScale || 1)) <= map.character.heightPx
+              ? guided : undefined)
         const st = near ? offerOf(near) : null
         const canFire = !!st?.canFire
         if (near && st) {

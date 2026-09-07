@@ -21,15 +21,20 @@
   background: var(--kit-veil);
 }
 
+/* EVERY ROW OF IT ON A 768 PIXEL SCREEN AT ONCE, WITH THE LIST OPEN. Seven
+   periods, thirteen electives and five cards is a lot of sheet, and the first
+   version pushed the plank that ends the beat off the bottom, which on a screen
+   with no other way out is the worst thing it could push off. The numbers below
+   are measured against that layout rather than chosen. */
 .py-sheet {
   box-sizing: border-box;
   width: min(1180px, 94vw);
-  max-height: 94vh;
+  max-height: 96vh;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 4px 8px 10px;
+  gap: 4px;
+  padding: 4px 8px 8px;
   font-family: var(--kit-face-body);
   color: var(--kit-ink-body);
   image-rendering: var(--kit-pixel);
@@ -38,7 +43,7 @@
 .py-title {
   margin: 0;
   font-family: var(--kit-face-display);
-  --kit-fs-raw: calc(24px * var(--kit-text-scale));
+  --kit-fs-raw: calc(22px * var(--kit-text-scale));
   font-size: var(--kit-fs);
   color: var(--kit-ink-head);
 }
@@ -111,8 +116,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 28px;
-  padding: 2px 10px;
+  min-height: 23px;
+  padding: 1px 10px;
   border: var(--kit-border) solid var(--kit-edge);
   border-radius: var(--kit-r-soft);
   background: var(--kit-paper-hi);
@@ -121,7 +126,7 @@
   color: var(--kit-ink-body);
 }
 .py-per-static { cursor: default; }
-.py-period-elective .py-per-press { min-height: 38px; background: var(--kit-paper); }
+.py-period-elective .py-per-press { min-height: 34px; background: var(--kit-paper); }
 /* the number is a fixed column so seven rows read as one list and not as seven
    sentences that happen to start with the word Period */
 .py-per-no {
@@ -174,8 +179,8 @@
    Four rows of four fits with the after-school shelf and the foot still on the
    glass, which is what "one screen" means. */
 .py-electives {
-  margin: 4px 0 2px 40px;
-  padding: 6px 8px;
+  margin: 3px 0 2px 40px;
+  padding: 4px 8px;
   border: var(--kit-border) solid var(--kit-gold-edge);
   border-radius: var(--kit-r-soft);
   background: var(--kit-paper-lo);
@@ -200,7 +205,16 @@
   cursor: default;
   opacity: 0.72;
   filter: saturate(0.55);
+  /* A NAME AND ONE LINE, AND SHORT WITH IT. A real card is a hand-sized sign
+     because it is a choice; an Example is a picture of one, and five of them at
+     a real card's height pushed the plank that ends the beat clean off a 768
+     pixel screen, which on a cutscene with no other way out is the one thing
+     that must never happen. */
+  min-height: 40px;
+  justify-content: center;
 }
+.py-card-example .py-card-name { --kit-fs-raw: calc(16px * var(--kit-text-scale)); }
+.py-card-example .py-card-earns { --kit-fs-raw: calc(12px * var(--kit-text-scale)); }
 .py-card-example .py-card-where { font-style: italic; }
 .py-class-waiting { cursor: default; opacity: 0.75; }
 .py-class-waiting:hover { background: var(--kit-paper-hi); transform: none; }
@@ -212,9 +226,16 @@
   font-size: var(--kit-fs);
   font-style: italic;
 }
-.py-electives .py-classes { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 5px 8px; }
-.py-electives .py-class { min-height: 34px; padding: 2px 8px; gap: 8px; }
-.py-electives .py-tick { width: 20px; height: 20px; }
+/* the catalog scrolls inside its own box rather than growing the sheet, so a
+   longer course list one day cannot put the plank under the fold again */
+.py-electives .py-classes {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 4px 8px;
+  max-height: 128px;
+  overflow-y: auto;
+}
+.py-electives .py-class { min-height: 28px; padding: 1px 8px; gap: 8px; }
+.py-electives .py-tick { width: 18px; height: 18px; }
 
 .py-schedule,
 .py-cardbox,
@@ -323,7 +344,7 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
      past 768 and cut its own foot off, and the planks that end the beat were
      two slivers under the fold (`fix-2/yearsheet-01`). A 164 pixel card is
      still a hand. */
-  min-height: 84px;
+  min-height: 78px;
   /* NEARLY NO PADDING, BECAUSE THE FRAME IS THE PADDING. `kit-surface-tab` is a
      nine-slice whose border-width IS its carved edge, 49 pixels each side, and a
      padding on top of that insets the contents TWICE: at 22 the words had about

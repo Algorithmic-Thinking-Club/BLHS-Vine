@@ -148,9 +148,11 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
 
   useEffect(() => { track('pickyear_opened', { year }) }, [year])
 
-  const activities = YEAR_ONE_ACTIVITIES
-    .map((id) => PROGRAMMES.find((p) => p.id === id))
-    .filter((p): p is Programme => !!p)
+  /* IN THE ROSTER'S OWN ORDER, so the row reads Example A, B, C, D, E rather
+   * than B, C, D, A, E. `placeholders.ts` counts the letters down the roster,
+   * and this list used to be written in the brief's order, so the alphabet
+   * arrived shuffled on the one screen a student reads it on. */
+  const activities = PROGRAMMES.filter((p) => YEAR_ONE_ACTIVITIES.includes(p.id))
 
   const classes = CLASSES.filter((c) => c.years.includes(year) && !c.requires)
 
@@ -381,7 +383,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                       <p className={`py-classnote${classNo ? ' py-classnote-no' : ''}`} role={classNo ? 'alert' : undefined}>
                         {classNo ?? (realClasses.length
                           ? 'Press one to put it in this period.'
-                          : 'None of these has an island yet. Stamp your schedule to go on.')}
+                          : 'None of these has an island yet. Press "That is my schedule" below.')}
                       </p>
                     </div>
                   )}
@@ -445,7 +447,6 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                     aria-label={example + '. ' + EXAMPLE_BLURB}
                   >
                     <span className="py-card-name">{example}</span>
-                    <span className="py-card-where">placeholder</span>
                     <span className="py-card-earns">{EXAMPLE_BLURB}</span>
                   </div>
                 )
