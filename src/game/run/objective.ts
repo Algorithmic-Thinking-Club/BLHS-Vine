@@ -20,7 +20,6 @@
  */
 import type { SaveGame } from '../save'
 import { yearStatus } from './year'
-import { classById } from '../planner/catalog'
 
 export type Objective = {
   /* the anchor this points at. Every map that can be the objective's home has to
@@ -154,35 +153,25 @@ export function nextObjective(s: SaveGame | null): Objective | null {
     }
   }
 
-  /* THE THIRD VOYAGE STATE: committed, and nothing to sail to. It is below the
-   * yearbook rather than above it because it can never resolve on its own, and
-   * an objective that cannot be completed is not an objective. It is here at all
-   * so the state has a name and a sentence rather than being silence.
+  /* THE THIRD VOYAGE STATE HAS NO CLAUSE ANY MORE, and the reason is worth
+   * writing down rather than leaving as a gap.
    *
-   * AND IT NAMES THE NEXT REAL THING. STATE-OF-THE-GAME confusing 8: after
-   * Advisory the lit thing was the year-sheet table and the line said "Open
-   * your year sheet", which the sheet's own next line then repeated, so the
-   * objective pointed at itself. What is really owed is a class still on the
-   * sheet, sat from the sheet, so the line says which; and when no class is
-   * owed the counselor is who can say where the year stands. */
-  const rising = y.voyages.filter((v) => !v.done && !v.playable)
-  if (rising.length && !y.readyForYearbook) {
-    const owed = y.classesPending[0]
-    if (owed) {
-      const name = classById(owed)?.name ?? owed
-      return {
-        anchor: 'chart_table', map: MAW_MAP, phase: 'rising',
-        say: `Open My Year and sit ${name}.`,
-        away: `Go into the mountain and open My Year.`,
-      }
-    }
-    return {
-      anchor: 'counselor', map: MAW_MAP, phase: 'rising',
-      say: 'Talk to the counselor.',
-      away: 'Go into the mountain and talk to the counselor.',
-    }
-  }
-
+   * `rising` was reached when the year could not close: committed to a season
+   * that will never sail, with a class still owed on the sheet. Since
+   * BRIEF-MAW-RAIL the classes stopped gating the yearbook (`year.ts`), so a
+   * stamped year with Advisory sat is ALWAYS closable, the clause above always
+   * returns first, and everything under it became unreachable. Ten lines that
+   * cannot run are worse than none: they read as a state the game still has.
+   *
+   * What that state was honest about is not lost. A season nobody could sail and
+   * a class nobody sat are both named in the yearbook's own nudge line
+   * (`nudgeLine`), which is where a student reads what became of the year, and
+   * both are on the sheet under My Year the whole time. The `rising` phase stays
+   * in the type: it is the walkthrough's name for the state and the day an
+   * island can rise mid-year it is the clause that comes back.
+   *
+   * The line below is the fallback the compiler needs and nothing in a year
+   * currently reaches. */
   return {
     anchor: 'chart_table', map: MAW_MAP, phase: 'done',
     say: 'Nothing left this year. Look around.',

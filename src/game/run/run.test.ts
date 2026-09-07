@@ -61,11 +61,16 @@ describe('the yearbook assembles in a fixed order for any year', () => {
     save.writeSave({ introDone: true })
     save.pickClass(1, 'ap-human-geo'); save.pickClass(1, 'spanish-1')
     save.stampPlan(1, [])
-    // stamped, but advisory and both classes are still owed
+    // stamped, and Advisory still owed, which is the one thing that holds a year
     expect(yearbookPage(save.loadSave()!, 1).ready).toBe(false)
     save.recordGrade({ id: 'core:y1', title: 'Advisory', kind: 'core', credit: .5, grade: 4, year: 1, season: 'Fall' })
+    /* AND THE CLASSES DO NOT HOLD IT (BRIEF-MAW-RAIL, `year.ts`). The rail walks
+       a student from the pick screen to the fire to the wall to the counselor,
+       and its fourth beat shows the wall with the classes honestly still empty.
+       They are the year's optional depth, on the sheet and in the nudge line,
+       and they are not a gate. */
+    expect(yearbookPage(save.loadSave()!, 1).ready).toBe(true)
     save.recordGrade({ id: 'class:ap-human-geo', title: 'x', kind: 'class', credit: .5, grade: 4, year: 1, season: 'Fall' })
-    expect(yearbookPage(save.loadSave()!, 1).ready).toBe(false)
     save.recordGrade({ id: 'class:spanish-1', title: 'y', kind: 'class', credit: .5, grade: 4, year: 1, season: 'Fall' })
     expect(yearbookPage(save.loadSave()!, 1).ready).toBe(true)
   })
@@ -170,13 +175,19 @@ describe('the objective reaches the yearbook', () => {
     expect(o?.anchor).toBe('counselor')
   })
 
-  it('names committed-but-unsailable as its own state instead of a dead arrow', async () => {
+  it('sends him to the counselor with a class still owed and an island still rising', async () => {
+    /* This used to expect the `rising` phase, which was the state "committed to
+       a season that cannot sail, with a class still on the sheet". Since
+       BRIEF-MAW-RAIL the classes do not hold the year open, so the page can turn
+       and the counselor is the one lit thing. What the old state was honest
+       about is said in the yearbook's nudge line instead. */
     const save = await stampedYear()
-    // the year is not closable yet: one class still owed
     save.writeSave({ ledger: save.loadSave()!.ledger.filter((e) => e.id !== 'class:spanish-1') })
     const o = nextObjective(save.loadSave())
-    expect(o?.phase).toBe('rising')
-    expect(o?.say).toContain('not open yet')
+    expect(o?.phase).toBe('yearbook')
+    expect(o?.anchor).toBe('counselor')
+    const { yearStatus, nudgeLine } = await import('./year')
+    expect(nudgeLine(yearStatus(save.loadSave()!))).toContain('not open yet')
   })
 
   it('still points at a real voyage when there is one to sail', async () => {

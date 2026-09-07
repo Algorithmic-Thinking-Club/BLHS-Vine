@@ -110,5 +110,15 @@ export function nudgeLine(st: YearStatus): string {
   if (open) return `You left ${open.toLowerCase()} open this year. You never spent that season token.`
   const unplayed = st.voyages.find((v) => v.playable && !v.done)
   if (unplayed) return `You signed up for ${unplayed.name} and never went.`
+  /* A CLASS ON THE SHEET THAT WAS NEVER SAT. It used to hold the year OPEN, so
+   * it could never be a nudge; now that the year closes on the stamp and
+   * Advisory (`readyForYearbook` above), this is where a student is told what
+   * they left behind. Last of the four, because a whole season nobody spent is a
+   * bigger miss than one class still waiting on the sheet. */
+  if (st.classesPending.length) {
+    return st.classesPending.length === 1
+      ? 'You picked a class this year and never sat it. It is still on your sheet.'
+      : `You picked ${st.classesPending.length} classes this year and sat neither of them.`
+  }
   return 'Not a season wasted.'
 }
