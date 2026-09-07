@@ -821,8 +821,49 @@ export default function PmapScene() {
          * the speed that read as a sprint, it was a man in a running pose
          * travelling without moving his legs. */
         animT: number
+        /* HOW FAR IT REALLY TRAVELLED ON THIS FRAME, in ground pixels.
+         *
+         * BRIEF-MAW-RAIL-3 E names "the walk cycle not matching the speed" as
+         * one of the four things wrong with the led walk, and it was: `animT`
+         * advanced by `dt * fps` off the clock alone, so a body strolling at two
+         * thirds pace moved its legs at full pace, and a body held up by
+         * anything at all marched on the spot. The cycle is advanced by the
+         * DISTANCE covered now, which is what a stride is, and at the map's own
+         * speed the arithmetic comes out at exactly the old `dt * fps`. */
+        moved: number
       }
       const driven = new Map<Sprite, Driven>()
+
+      /* WHERE THE ROUTE IS, A GIVEN DISTANCE AHEAD OF WHERE THE BODY IS.
+       *
+       * Used for the heading, which is the whole reason it exists: a heading
+       * taken off the four pixel leg a body has just started flips between two
+       * neighbouring compass points forever on a diagonal route, and a heading
+       * taken off a point a body's height further on turns when the ROUTE turns.
+       *
+       * Ground distance, so it means the same thing north and east on a
+       * foreshortened painting, and it walks the remaining waypoints rather than
+       * guessing: the answer is a real point on the route or, past the end of
+       * it, the route's last point. */
+      const aheadAlong = (
+        m: { tx: number; ty: number; via?: { x: number; y: number }[] },
+        fx: number, fy: number, want: number, ys: number,
+      ): { x: number; y: number } => {
+        let x = fx, y = fy
+        let left = want
+        const legs: { x: number; y: number }[] = [{ x: m.tx, y: m.ty }, ...(m.via ?? [])]
+        for (const leg of legs) {
+          const dx = leg.x - x, dy = leg.y - y
+          const d = Math.hypot(dx, dy / ys)
+          if (d >= left) {
+            const k = d > 0 ? left / d : 0
+            return { x: x + dx * k, y: y + dy * k }
+          }
+          left -= d
+          x = leg.x; y = leg.y
+        }
+        return { x, y }
+      }
       const looksOf = new Map<Sprite, Look[]>()
       /* WHAT EACH FACE IS CALLED, indexed exactly the way `art` indexes them:
        * slot 0 is the placement's own picture and slot 1 is looks[0]. MAPVIS's own
@@ -835,7 +876,7 @@ export default function PmapScene() {
       const actorSprite = (name: string): Sprite | null => placedById.get(name) ?? null
       const take = (sp: Sprite): Driven => {
         let d = driven.get(sp)
-        if (!d) { d = { x: sp.position.x, y: sp.position.y, visible: sp.visible, look: null, facing: null, move: null, animT: 0 }; driven.set(sp, d) }
+        if (!d) { d = { x: sp.position.x, y: sp.position.y, visible: sp.visible, look: null, facing: null, move: null, animT: 0, moved: 0 }; driven.set(sp, d) }
         return d
       }
 
@@ -4014,9 +4055,15 @@ export default function PmapScene() {
           const leader = new Promise<void>((settle) => {
             if (d.move) { const orphan = d.move.then; d.move = null; orphan?.() }
             const first = legs[0]
-            const dir0 = dirFrom(first.x - d.x, (first.y - d.y) * ys)
-            if (dir0) d.facing = dir0
             d.move = { tx: first.x, ty: first.y, via: legs.slice(1), speed, done: false, then: settle }
+            /* THE FIRST HEADING IS TAKEN THE SAME WAY EVERY LATER ONE IS: off a
+             * point a body's height along the route, not off the first four
+             * pixel leg. Setting it here as well as in the driven pass means the
+             * frame the walk starts on is already facing the right way, rather
+             * than turning on the frame after it. */
+            const look0 = aheadAlong(d.move, d.x, d.y, Math.max(6, map.character.heightPx * 0.9), ys)
+            const dir0 = dirFrom(look0.x - d.x, (look0.y - d.y) * ys)
+            if (dir0) d.facing = dir0
           })
 
           const behind = (async () => {
@@ -6284,13 +6331,25 @@ export default function PmapScene() {
          * exactly the difference BRIEF-ARRIVAL item 6 is about. A screenshot
          * cannot tell them apart either: the background moves under him. */
         get drivenNow() {
-          const out: Record<string, { x: number; y: number; frame: number; moving: boolean }> = {}
+          const out: Record<string, {
+            x: number; y: number; frame: number; moving: boolean; facing: string | null
+          }> = {}
           for (const [sp, d] of driven) {
             let name = '?'
             for (const [id, s2] of placedById) if (s2 === sp) { name = id; break }
             out[name] = {
-              x: Math.round(d.x), y: Math.round(d.y),
+              /* NOT ROUNDED ANY MORE. A body walking at forty pixels a second on
+               * a sixty hertz frame moves two thirds of a pixel per frame, so a
+               * rounded position quantises every measurement of its speed into
+               * zeroes and ones and a harness measuring smoothness measures its
+               * own rounding (BRIEF-MAW-RAIL-3 E asks for the position every
+               * frame). Two decimals is a tenth of a painting pixel. */
+              x: +d.x.toFixed(2), y: +d.y.toFixed(2),
               frame: Math.floor(d.animT), moving: !!d.move,
+              /* AND WHICH WAY HE IS FACING, which is the other half of E: a
+               * heading that flips between two neighbours on alternate frames is
+               * a man twitching, and no screenshot can see it. */
+              facing: d.facing,
             }
           }
           return out
@@ -7516,8 +7575,8 @@ export default function PmapScene() {
          * moment it lets go. Its behaviour is pure in the clock, so it resumes where
          * the clock says rather than where it was left. */
         for (const [sp, d] of driven) {
+          d.moved = 0
           if (d.move) {
-            const dx = d.move.tx - d.x, dy = d.move.ty - d.y
             /* THE PAINTING'S OWN FORESHORTENING IS IN THE DISTANCE, the way it
              * is everywhere else a body moves, AND IT DIVIDES.
              *
@@ -7532,10 +7591,45 @@ export default function PmapScene() {
              * northward, which on panther-maw is 1.93x on a near-vertical leg,
              * and item 6 is a man who sprints. */
             const ys2 = map.yScale || 1
-            const dist = Math.hypot(dx, dy / ys2)
-            const stepPx = d.move.speed * dt
-            if (dist <= Math.max(stepPx, 0.5)) {
+            /* ---- ONE FRAME IS ONE DISTANCE, SPENT ALONG THE WHOLE ROUTE ----
+             *
+             * BRIEF-MAW-RAIL-3 E: "Measure his position and heading every frame
+             * on the led walks and remove the jitter: heading flips on isometric
+             * steps, speed changes, the walk cycle not matching the speed,
+             * snapping at the end of a move."
+             *
+             * MEASURED BEFORE THIS (`scripts/lead-smooth.mjs`, four led walks on
+             * the published Maw): the speed a frame really drew varied by 24 to
+             * 30 percent about its own mean. This loop is why. A route out of
+             * `findPath` carries a waypoint every four pixels and a body at
+             * walking pace covers about seven tenths of a pixel a frame, so a
+             * waypoint lands every fifth or sixth frame, and on that frame the
+             * old code put the body ON the waypoint, threw the REST of that
+             * frame's budget away and started the next leg from a standstill.
+             * One short frame in six, for the length of the walk. Nothing reads
+             * as a limp like a regular short step.
+             *
+             * So a frame's travel is a DISTANCE and it is spent: the body walks
+             * along as many legs as it takes to use it up and lands part way
+             * down one with nothing left over. Every frame covers the same
+             * ground whatever the waypoints are doing, and the arrival is a stop
+             * rather than a snap because the last leg is consumed like any
+             * other. */
+            let budget = d.move.speed * dt
+            let settle: (() => void) | undefined
+            for (let guard = 0; guard < 64 && d.move && budget > 0; guard++) {
+              const dx = d.move.tx - d.x, dy = d.move.ty - d.y
+              const dist = Math.hypot(dx, dy / ys2)
+              if (dist > budget) {
+                const k = budget / dist
+                d.x += dx * k; d.y += dy * k
+                d.moved += budget
+                budget = 0
+                break
+              }
               d.x = d.move.tx; d.y = d.move.ty
+              d.moved += dist
+              budget -= dist
               /* the next waypoint is picked up on the SAME frame, so there is
                * never a frame with no move on the record and the legs never go
                * back to standing in the middle of a walk */
@@ -7543,8 +7637,6 @@ export default function PmapScene() {
               if (via && via.length) {
                 const next = via.shift() as { x: number; y: number }
                 d.move.tx = next.x; d.move.ty = next.y
-                const turn = dirFrom(next.x - d.x, (next.y - d.y) * ys2)
-                if (turn) d.facing = turn
                 continue
               }
               d.move.done = true
@@ -7552,13 +7644,27 @@ export default function PmapScene() {
                * frame it really happened, so an awaited `actor_move` and a polled
                * `actorMove` are the same move seen two ways. Cleared before it is
                * called so a handler that starts the next leg cannot re-enter it. */
-              const settle = d.move.then
+              settle = d.move.then
               d.move = null
-              settle?.()
-            } else {
-              d.x += (dx / dist) * stepPx
-              d.y += (dy / dist) * stepPx
             }
+            /* ---- AND HE LOOKS WHERE HE IS GOING, NOT AT THE NEXT FOUR PIXELS -
+             *
+             * The heading used to be recomputed at every waypoint off the leg it
+             * had just started, and on a foreshortened painting that leg is a
+             * four pixel vector: two neighbouring headings are a few degrees
+             * apart down there, so a route drifting along a diagonal flipped the
+             * body between them again and again and a set drawn eight ways
+             * twitched.
+             *
+             * It is taken from a point about a body's height ahead along the
+             * route instead. That point travels smoothly, so the heading changes
+             * when the ROUTE turns and not when a waypoint happens to land. */
+            if (d.move) {
+              const at = aheadAlong(d.move, d.x, d.y, Math.max(6, map.character.heightPx * 0.9), ys2)
+              const turn = dirFrom(at.x - d.x, (at.y - d.y) * ys2)
+              if (turn) d.facing = turn
+            }
+            settle?.()
           }
           sp.position.set(d.x, d.y)
           sp.visible = d.visible
@@ -7567,13 +7673,19 @@ export default function PmapScene() {
             const set = looksOf.get(sp)
             const look = set && (set[d.look ?? 0] ?? set[0])
             if (look) {
-              /* THE LEGS RUN WHILE THE BODY TRAVELS, and stop the frame it
-               * stops. Same rule and the same clock as the life pass: `moving`
-               * there is "is this leg travelling or is this a pause", and here
-               * it is simply whether a move is live. A body standing still goes
-               * back to frame zero of its heading, which is the pose whoever
-               * drew the set meant as the still one. */
-              if (d.move) d.animT += dt * (look.fps || 8)
+              /* THE LEGS RUN AT THE SPEED THE BODY IS REALLY TRAVELLING, and
+               * stop the frame it stops.
+               *
+               * BRIEF-MAW-RAIL-3 E, the third of the four: "the walk cycle not
+               * matching the speed". It was `dt * fps`, which is the clock and
+               * not the ground, so a body strolling at two thirds pace moved its
+               * legs at full pace and skated, and a body held up for a frame
+               * marched on the spot. A stride is a DISTANCE: this is how far the
+               * map's own walker covers in one frame of the cycle, and dividing
+               * the ground really covered by it gives the same number as the old
+               * line at the map's own speed and a smaller one at a stroll. */
+              const stride = map.speed / (look.fps || 8)
+              if (d.move) d.animT += stride > 0 ? d.moved / stride : 0
               else d.animT = 0
               /* the heading first, because a face and a heading are two questions
                * about the same picture and the heading is the narrower one: a look
