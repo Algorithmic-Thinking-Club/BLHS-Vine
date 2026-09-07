@@ -77,7 +77,12 @@ export function ObjectivePanel() {
 
   return (
     <div className="ob-wrap" role="status" aria-live="polite">
-      <p className="ob-panel kit-surface-band" title={text}>{text}</p>
+      {/* NO `kit-surface-band` HERE, and that is the restyle. The band is the big
+          nine-sliced parchment plaque the dialogue box and the arrival card wear,
+          and it drew this one line on an ornate sheet a hundred pixels tall.
+          `objective.css` dresses the box in `--kit-art-plaque` instead, which is
+          the narrow carved sign the beach already says "Walk to the pier" on. */}
+      <p className="ob-panel" title={text}>{text}</p>
     </div>
   )
 }
