@@ -2946,7 +2946,10 @@ export default function PmapScene() {
           drawn.anchor.set(0.5, 1)
           /* about a body and a half tall, against the character rather than
            * against the sheet, for the reason the small one gives */
-          const want = Math.max(20, Math.round(map.character.heightPx * 1.5))
+          /* LARGE, and Ash's word for it is "large". At one and a half bodies
+           * it measured 61 screen pixels at the walking shot on a 768 pixel
+           * window, which is a mark; at nearly two it is a sign. */
+          const want = Math.max(24, Math.round(map.character.heightPx * 1.9))
           drawn.scale.set(want / drawn.texture.height)
           bigMark.removeChild(glyph)
           glyph.destroy()
@@ -6895,7 +6898,11 @@ export default function PmapScene() {
            * body and around the light. */
           const atIt = Math.hypot(over.x - pos.x, (over.y - pos.y) * (map.yScale || 1))
             < map.character.heightPx * 2.5
-          const lift = Math.round(map.character.heightPx * (atIt ? 3.6 : 2.3))
+          /* 3.6 cleared the sentence over his head and put the arrow in the
+           * mountainside ninety pixels above the archway, pointing at rock. 3.0
+           * clears it by about thirty and keeps the arrow on the door, which is
+           * the thing it is for. */
+          const lift = Math.round(map.character.heightPx * (atIt ? 3.0 : 2.3))
           bigMark.position.set(over.x, over.y - lift + Math.sin(t * 2.6) * 3)
           bigMark.zIndex = 9e9 - 2
           bigMark.visible = objMark.visible
