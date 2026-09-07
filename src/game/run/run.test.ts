@@ -166,26 +166,30 @@ describe('the objective reaches the yearbook', () => {
     return save
   }
 
-  it('sends the student to the sheet once the year is owed nothing it can do', async () => {
+  it('sends the student to the principal once the year is owed nothing it can do', async () => {
     const save = await stampedYear()
     const o = nextObjective(save.loadSave())
     expect(o?.phase).toBe('yearbook')
-    /* the counselor is who turns the page (islands/panther-maw/island.py), so
-     * she is the lit thing when the year can close */
-    expect(o?.anchor).toBe('counselor')
+    /* THE CLOSING FILM STARTS HERE, and the principal is who meets him
+     * (BRIEF-INTRO-FILM: the ending is its own film, triggered by the year having
+     * nothing left owing). It was the counselor while the ending was the tail of
+     * one long introduction; she still turns the page, inside the film he opens. */
+    expect(o?.anchor).toBe('principal_desk')
+    expect(o?.say).toBe('The principal is waiting.')
+    expect(o?.away).toBe('Sail home. The principal is waiting.')
   })
 
-  it('sends him to the counselor with a class still owed and an island still rising', async () => {
+  it('sends him to the principal with a class still owed and an island still rising', async () => {
     /* This used to expect the `rising` phase, which was the state "committed to
        a season that cannot sail, with a class still on the sheet". Since
        BRIEF-MAW-RAIL the classes do not hold the year open, so the page can turn
-       and the counselor is the one lit thing. What the old state was honest
+       and the closing film is the one lit thing. What the old state was honest
        about is said in the yearbook's nudge line instead. */
     const save = await stampedYear()
     save.writeSave({ ledger: save.loadSave()!.ledger.filter((e) => e.id !== 'class:spanish-1') })
     const o = nextObjective(save.loadSave())
     expect(o?.phase).toBe('yearbook')
-    expect(o?.anchor).toBe('counselor')
+    expect(o?.anchor).toBe('principal_desk')
     const { yearStatus, nudgeLine } = await import('./year')
     expect(nudgeLine(yearStatus(save.loadSave()!))).toContain('not open yet')
   })
