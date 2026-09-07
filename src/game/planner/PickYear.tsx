@@ -367,9 +367,13 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                * and do, and `awarded` rather than `saved` because this is a
                * grant and not a keystroke being remembered. */
               const first = PROGRAMMES.find((pg) => pg.id === taken[0])
+              /* THE POP DOES NOT SAY WHAT THE PRINCIPAL IS ABOUT TO SAY. He
+               * hands over the corner's My Year button on the next line
+               * (islands/panther-maw/lines.py), and watched on the dev server
+               * the two were the same sentence stacked on one frame. */
               awarded(
                 first ? `${first.name} is yours.` : 'Your year is set.',
-                `Year ${year} is on the sheet. It is in My Year, in the corner.`,
+                `Year ${year} is on the sheet.`,
               )
               onClose()
             }}

@@ -434,7 +434,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                     </span>
                   ))}
                 </div>
-                <p className="yb-turnedline">Three new season tokens. Go to the year sheet table and plan this year.</p>
+                <p className="yb-turnedline">Three new season tokens. Go to the table and pick your year.</p>
                 <div className="yb-acts">
                   <Plank size="lg" onClick={onClose}>Back to the game</Plank>
                 </div>
