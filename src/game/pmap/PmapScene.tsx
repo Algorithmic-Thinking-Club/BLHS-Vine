@@ -33,7 +33,7 @@ import { AnchorSet, type Anchor } from './anchors'
 import { framingOf, framingNames, shotOf, projectFramings, shotsOf, type NamedShot } from './framings'
 import { readPaths, legsOf, lengthOf, pathNames, walkFaults, type Pathway } from './paths'
 import { holdWorld, onWorldHold, worldHeld } from '../world-bus'
-import { cinemaOn, onCinema, setCinema } from '../stage/cinema'
+import { carryCinemaThroughDoor, cinemaOn, onCinema, setCinema, takeCinemaCarry } from '../stage/cinema'
 import { choose, clearDialogue, say } from '../dialogue'
 import { engine } from '../intent-engine'
 import { play as playSfx } from '../audio'
@@ -3174,6 +3174,14 @@ export default function PmapScene() {
       const beginExit = (to: PmapTarget) => {
         if (fade) return
         fade = true
+        /* THE FILM GOES THROUGH THE DOOR WITH HIM. BRIEF-INTRO-FILM section 1:
+         * the introduction is one cutscene from Set Sail to the counselor, and
+         * the tunnel is in the middle of it. This scene's teardown lowers the
+         * bars, which is right for every other way a map ends and wrong for
+         * this one, so the exception is armed here and consumed there. Armed
+         * only when they are ALREADY up: a door taken during ordinary play
+         * carries nothing. */
+        carryCinemaThroughDoor()
         /* the controls go away for the whole transition. Walking during one means
          * arriving somewhere the player did not aim for. */
         releaseExit = holdWorld(`pmap:exit->${to.map}`)
@@ -4114,17 +4122,32 @@ export default function PmapScene() {
           const behind = (async () => {
             const t0 = performance.now()
             /* wait for him to be clear, on frames rather than on a timer, so the
-             * gap is a distance a person can see and not a guess about speed */
+             * gap is a distance a person can see and not a guess about speed.
+             *
+             * THE FORESHORTENING DIVIDES, the way it does in the driven pass
+             * and in `path.ts`. It multiplied here, so one function measured one
+             * distance two ways: on a leg going north up the Maw this counted
+             * the leader as 29 pixels clear where the station-keeping gate in
+             * the ticker counts the same picture as 56, and a head start and
+             * the rule that has to hold it must agree or the gap is whatever
+             * the leg's angle happens to be. */
             while (!destroyed
               && performance.now() - t0 < LEAD_CEILING_MS
-              && Math.hypot(d.x - pos.x, (d.y - pos.y) * ys) < gap) {
+              && Math.hypot(d.x - pos.x, (d.y - pos.y) / ys) < gap) {
               await new Promise<void>((r2) => { requestAnimationFrame(() => r2()) })
             }
             if (destroyed) return
             await new Promise<void>((r2) => {
               /* the reach IS the gap: he stops two body lengths short of where
-               * the leader is standing, which is what following looks like */
-              startWalk(goal, gap, goal.facing ?? null, r2, `${to}, behind ${actor}`)
+               * the leader is standing, which is what following looks like.
+               *
+               * AND THE GAP IS KEPT EVERY FRAME AFTER THIS ONE, not only on the
+               * frame the walk starts. `follow` is what the ticker reads: it
+               * holds him at the leader's own pace and stands him still the
+               * moment he is closer to the leader than the gap, so the man in
+               * front is always the man in front. */
+              startWalk(goal, gap, goal.facing ?? null, r2, `${to}, behind ${actor}`,
+                { follow: { body: sp, gap, speed } })
             })
           })()
 
@@ -4731,6 +4754,34 @@ export default function PmapScene() {
         /** how close he has ever been to the goal, in painting pixels */
         best: number
         label: string
+        /* ---- HE IS FOLLOWING SOMEBODY, AND MUST NEVER GET IN FRONT ---------
+         *
+         * BRIEF-INTRO-FILM section 2, Ash on rail-4: *"Thor zooms past the
+         * principal."* MEASURED every frame on the published v6, on the tunnel
+         * to table walk: the principal left 207,123 and reached the table in
+         * 3.14 seconds at 46 px/s with his eight frame cycle running. Thor
+         * covered the same ground in 1.2 SECONDS, at 97 px/s, and then stood
+         * still for the remaining two while the man he was following walked up
+         * behind him and through him.
+         *
+         * TWO CAUSES, BOTH HERE. The student walks at `map.speed * 2`
+         * (SPD, this scene's own number since 2026-08-15) and a led body walks
+         * at `map.speed * PACE_OF[pace]`, so Thor is exactly twice as fast as
+         * the man in front of him. And `lead_to` measured the two body lengths
+         * ONCE, as a head start, then aimed him at the STATION with a reach of
+         * two body lengths, so nothing after the first frame knew where the
+         * leader was at all.
+         *
+         * So a follow is station-keeping, read per frame off the leader's own
+         * live position, and the pace is his pace and not the student's. */
+        follow?: {
+          /** the body being followed, read live out of `driven` */
+          body: Sprite
+          /** how far behind him the student walks, in painting pixels of ground */
+          gap: number
+          /** the pace to close the last of it at, once the leader has stopped */
+          speed: number
+        }
         /* whether the walk law could find a way to `goal` at all when this walk
          * started. False means he is being steered straight at something the mask
          * does not connect to, and the end of the walk owes the player a sentence
@@ -4869,7 +4920,7 @@ export default function PmapScene() {
       const startWalk = (
         goal: { x: number; y: number }, reach: number, facing: string | null,
         done: () => void, label = 'a point',
-        opts: { byPlayer?: boolean; arrive?: () => void } = {},
+        opts: { byPlayer?: boolean; arrive?: () => void; follow?: AutoWalk['follow'] } = {},
       ) => {
         /* THE ONE ALREADY RUNNING IS RESOLVED, NEVER DROPPED. `walk_to` hands its
          * promise's resolve in as `done`, so overwriting a live walk leaves a
@@ -4912,6 +4963,7 @@ export default function PmapScene() {
           best: Math.hypot(goal.x - pos.x, goal.y - pos.y),
           label, done,
           routed: r.reached, byPlayer: opts.byPlayer, arrive: opts.arrive,
+          follow: opts.follow,
         }
       }
 
@@ -6512,6 +6564,7 @@ export default function PmapScene() {
         get drivenNow() {
           const out: Record<string, {
             x: number; y: number; frame: number; moving: boolean; facing: string | null
+            tex: string
           }> = {}
           for (const [sp, d] of driven) {
             let name = '?'
@@ -6525,6 +6578,18 @@ export default function PmapScene() {
                * frame). Two decimals is a tenth of a painting pixel. */
               x: +d.x.toFixed(2), y: +d.y.toFixed(2),
               frame: Math.floor(d.animT), moving: !!d.move,
+              /* AND THE PICTURE ITSELF, not the counter that is supposed to
+               * choose it. `frame` is `Math.floor(animT)` and it counted up
+               * beautifully through a whole led walk while the body on screen
+               * never changed its drawing, because the counter and the texture
+               * are two different things and only one of them is what Ash was
+               * looking at. This is the source rectangle the sprite is really
+               * showing, so "his legs are going" is a claim a harness can hold. */
+              tex: (() => {
+                const t = sp.texture
+                const f = t?.frame
+                return f ? `${t.source?.label ?? ''}#${f.x},${f.y},${f.width},${f.height}` : String(t?.uid ?? '')
+              })(),
               /* AND WHICH WAY HE IS FACING, which is the other half of E: a
                * heading that flips between two neighbours on alternate frames is
                * a man twitching, and no screenshot can see it. */
@@ -6588,6 +6653,12 @@ export default function PmapScene() {
          * underneath it. */
         const locked = worldHeld()
         let input: Record<string, boolean> = fade || locked ? {} : keys
+        /* THE SLICE OF THIS FRAME THE WALK LAW IS GIVEN, which is the whole
+         * frame for anybody walking under his own steam and a fraction of it
+         * for somebody keeping pace with a body in front of him. Scaling the
+         * time is how a pace is expressed without touching walk.ts, which is a
+         * verbatim copy of MAPVIS's own law and must not be patched here. */
+        let walkDt = dt
 
         /* AUTO-WALK: `walk_to("hearth")` in the API. It steers with the player's
          * own walk law rather than sliding the sprite, so it stops at walls, at
@@ -6668,6 +6739,52 @@ export default function PmapScene() {
             if (A.stuckMs > 500 && A.ri < A.route.length) { A.ri++; A.stuckMs = 0 }
             const wp = A.ri < A.route.length ? A.route[A.ri] : A.goal
             input = steerToward(wp.x - pos.x, wp.y - pos.y, dt)
+            /* ---- AND IF HE IS FOLLOWING, HE KEEPS HIS PLACE ------------------
+             *
+             * Two rules, both read off the leader's own record this frame, so
+             * neither can drift the way a head start does.
+             *
+             * ONE: he goes at the LEADER'S pace, never his own. `walkDt` is the
+             * slice of this frame the walk law is given, so scaling it scales
+             * the ground covered and the walk cycle by exactly the same amount
+             * (walk.ts advances `animT` off the same dt), and a student
+             * following a stroll strolls instead of skating.
+             *
+             * TWO: inside the gap he stops. Not slows, stops, because two body
+             * lengths is a distance a person can see and anything closer is a
+             * boy walking through a man. The gap is measured in ground, with
+             * the painting's foreshortening divided out, the way every other
+             * distance in this scene is.
+             *
+             * When the leader has stopped for good, the goal is where he is
+             * standing and the walk's own `reach` IS the gap, so the arrival
+             * above ends this walk before the hold below can freeze it. */
+            if (A.follow) {
+              const lead = driven.get(A.follow.body)
+              const ysf = map.yScale || 1
+              if (lead) {
+                const away = Math.hypot(lead.x - pos.x, (lead.y - pos.y) / ysf)
+                if (away <= A.follow.gap) {
+                  input = {}
+                  walkDt = 0
+                  /* holding station is not being stuck: the deadline is about a
+                   * walk that cannot arrive, and this one is waiting on purpose */
+                  A.until = performance.now() + A.budget
+                  A.stuckMs = 0
+                } else {
+                  /* AGAINST `SPD` AND NOT AGAINST `map.speed`, which is the
+                   * whole of the arithmetic. The student walks at SPD, which
+                   * this scene has set to twice the map's own number since
+                   * 2026-08-15 ("make thor faster"), and a led body walks at
+                   * the map's number times its pace. Dividing by the map's
+                   * number gives 1 for an ordinary walk and leaves Thor exactly
+                   * twice as fast as the man in front of him, which is the
+                   * defect. */
+                  const want = lead.move ? lead.move.speed : A.follow.speed
+                  walkDt = dt * Math.max(0, Math.min(1, want / (SPD || 1)))
+                }
+              }
+            }
           }
         }
 
@@ -6870,7 +6987,7 @@ export default function PmapScene() {
           input['arrowup'] || input['w'] || input['arrowdown'] || input['s'] ||
           input['arrowleft'] || input['a'] || input['arrowright'] || input['d']
         )
-        if (!hull) walker.step(doc, cfg, input, dt)
+        if (!hull) walker.step(doc, cfg, input, walkDt)
         /* A POSE ENDS WHEN HE GETS UP, and getting up is moving. A script that
          * lays him down and then walks him has said two things and the second one
          * wins; leaving the pose on would slide a sleeping body across the sand.
@@ -7975,12 +8092,18 @@ export default function PmapScene() {
       window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku)
       offHold()
       offSail()
-      /* THE BARS COME DOWN WITH THE SCENE. A map torn down mid-movie by a door,
-       * a refresh or a crash would otherwise leave two black bars and a taken
-       * world hold over whatever loads next, which is a dead-looking laptop. */
+      /* THE BARS COME DOWN WITH THE SCENE. A map torn down mid-movie by a
+       * refresh or a crash would otherwise leave two black bars and a taken
+       * world hold over whatever loads next, which is a dead-looking laptop.
+       *
+       * UNLESS THE SCENE IS ENDING BECAUSE OF A DOOR THE FILM WALKED THROUGH.
+       * `beginExit` arms that one exception and this consumes it, so the hub
+       * and the Maw are one continuous frame and every other unmount still
+       * lowers them. The world HOLD is released either way: the arriving scene
+       * takes its own on the frame it subscribes. */
       offCinema()
       movieHold?.(); movieHold = null
-      setCinema(false)
+      if (!takeCinemaCarry()) setCinema(false)
       /* and the sentence this scene was contributing to the objective panel goes
        * with it, for the same reason: "Click the island to sail there" over the
        * next map would be an instruction about a boat that is not there. */

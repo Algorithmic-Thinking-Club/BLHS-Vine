@@ -62,6 +62,36 @@ function mark(v: boolean) {
   else delete document.documentElement.dataset.movie
 }
 
+/* ---- THE FRAME SURVIVES A DOOR --------------------------------------------
+ *
+ * BRIEF-INTRO-FILM section 1, Ash 2026-09-07: *"The bars survive the map change
+ * from the hub to the Maw."* The introduction is ONE film from Set Sail to the
+ * counselor, and a door in the middle of it is a camera move, not an ending.
+ *
+ * WHY IT IS A TOKEN AND NOT A SECOND FLAG. `PmapScene`'s teardown lowers the
+ * bars on purpose and must keep doing it: a map torn down by a refresh or a
+ * crash mid-movie would otherwise leave two black bars over whatever loads
+ * next, which is a dead-looking laptop, and that guard is the reason the word
+ * is safe to hand to a member at all. So the exception is armed at exactly one
+ * place, `beginExit`, and it is CONSUMED by the first teardown that reads it.
+ * It cannot leak into the next unmount, and it cannot be armed by anything but
+ * a door that was taken while the bars were already up.
+ *
+ * The arriving scene needs nothing: `onCinema` fires with the current value the
+ * moment it subscribes, so the new map takes its own world hold on its first
+ * frame and the picture never breaks. */
+let carry = false
+
+/** a door is being taken and the frame is to go through it with the player */
+export function carryCinemaThroughDoor() { carry = cinemaOn() }
+
+/** the teardown asking whether this unmount is that door. Reading it disarms it. */
+export function takeCinemaCarry(): boolean {
+  const was = carry
+  carry = false
+  return was
+}
+
 export function setCinema(v: boolean) {
   if (on === v) return
   on = v
