@@ -63,9 +63,6 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rt])
 
-  const ui = rt.ui
-  if (!ui.active) return <>{children}</>
-
   /* THE DOCUMENT SAYS WHEN THERE ARE BARS, so the one control that is allowed
    * to stay through them can climb over them.
    *
@@ -74,13 +71,24 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
    * lives at z-index 50 with a 2.4vh bottom margin, and these bars are 10vh of ink
    * at 72, so it was drawn underneath one. `cinema.css` already lifts it over the
    * MOVIE frame; this is the same signal from the cutscene runtime's own frame,
-   * and the same rule catches both. */
+   * and the same rule catches both.
+   *
+   * ABOVE THE EARLY RETURN, WHICH IS NOT A STYLE POINT. It was written below it,
+   * and `ui.active` flips while this component is mounted, so the number of hooks
+   * this render called changed between two renders and React threw "Rendered
+   * fewer hooks than expected" in the middle of the beach opening: black screen,
+   * cold run dead at 142 seconds. A hook cannot sit under a conditional return.
+   * The effect itself is unchanged and still reads `ui.active`, so nothing about
+   * what it does has moved. */
   useEffect(() => {
-    const on = ui.active && ui.letterbox > 0.02
+    const on = rt.ui.active && rt.ui.letterbox > 0.02
     if (on) document.documentElement.dataset.letterbox = '1'
     else delete document.documentElement.dataset.letterbox
     return () => { delete document.documentElement.dataset.letterbox }
-  }, [ui.active, ui.letterbox])
+  }, [rt.ui.active, rt.ui.letterbox])
+
+  const ui = rt.ui
+  if (!ui.active) return <>{children}</>
 
   const barH = `${(ui.letterbox * 10).toFixed(2)}vh`
 
