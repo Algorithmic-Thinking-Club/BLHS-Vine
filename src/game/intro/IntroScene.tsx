@@ -10,9 +10,11 @@ import { loadSave, writeSave } from '../save'
 import { track } from '../telemetry'
 import { GearButton, SettingsPanel } from '../../app/SettingsPanel'
 import { Hud } from '../hud/Hud'
+import { HelpButton } from '../hud/Help'
 import { useNav } from '../../app/SceneManager'
 import { SEA_ARRIVAL, enterMap } from '../pmap/route'
 import { warmMap } from '../pmap/warm'
+import { setCinema } from '../stage/cinema'
 
 // The intro lives ON the beach — one scene, playable and stageable. A fresh player gets the
 // I-1/I-2 cutscene the moment the stage reports ready; a returning one just gets the cove.
@@ -73,6 +75,13 @@ export default function IntroScene() {
         /* the address goes down WITH the navigation and never without it, because
          * PmapScene reads its target off the url at mount (route.ts says why) */
         const go = navRef.current?.go
+        /* THE FRAME GOES UP BEFORE THE COVER DOES, so there is no frame of the
+         * corner showing between the transition lifting and the island saying
+         * `movie(True)`. Ash, watching it: "there can sometimes be a flash,
+         * where i can see the three buttons on the top right." The crossing is
+         * a watched stretch from the moment this button is pressed, and this is
+         * the one line in the game that knows that. */
+        setCinema(true)
         if (go) enterMap(go, SEA_ARRIVAL, { kind: 'scene', image: '/art/ui/loading-islands.png', title: 'THE BLHS ISLANDS', holdMs: 2600 })
       })
       /* AND THE HUB COMES DOWN WHILE HE IS STILL ON THE BEACH.
@@ -134,6 +143,14 @@ export default function IntroScene() {
       )}
       {/* free roam carries the real HUD (§11.1) + pause; the gear stays for muscle memory */}
       {!inCutscene && <Hud onBlurWorld={setBlurred} />}
+      {/* AND THE QUESTION MARK, THROUGH THE CUTSCENE AS WELL. Ash, 2026-09-06:
+          "the help button should also show on the beach map cutscene part too."
+          The corner is the run's furniture and stands down for a cutscene; this
+          is the one control that answers "I do not know what is happening", and
+          the beach opening is the first two minutes of the game, which is where
+          that question gets asked. It is the same component the painted maps
+          mount, so there is one question mark in the game and not two. */}
+      <HelpButton />
       {!inCutscene && <GearButton onClick={() => setSettingsOpen(true)} />}
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       {preCover && <div style={{ position: 'absolute', inset: 0, background: '#05070a', zIndex: 60 }} />}

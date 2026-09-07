@@ -5694,6 +5694,40 @@ export default function PmapScene() {
        * a hull is arriving on it or leaving on it. This was two expressions with
        * two answers: casting off read only "east", so a berth facing south put a
        * boat out pointing west into its own island. */
+      /* THE DIRECTION THE DOCK RUNS, near a point, in painting radians.
+       *
+       * A principal-axis fit over the standable pixels around the berth: the
+       * quay and the jetty are the only ground out there, so the biggest
+       * eigenvector of their spread IS the harbour's own line. `near` is the
+       * heading to break the tie between the two ways along it.
+       *
+       * Falls back to the heading it was given when there is not enough ground
+       * to fit, which is the honest answer for a berth in open water. */
+      const dockAxis = (bx: number, by: number, near: number): number => {
+        const R = 52, STEP = 3
+        let n = 0, mx = 0, my = 0
+        const pts: [number, number][] = []
+        for (let y = by - R; y <= by + R; y += STEP) {
+          for (let x = bx - R; x <= bx + R; x += STEP) {
+            if (Math.hypot(x - bx, y - by) > R || !canStand(x, y)) continue
+            pts.push([x, y]); mx += x; my += y; n++
+          }
+        }
+        if (n < 12) return near
+        mx /= n; my /= n
+        let xx = 0, xy = 0, yy = 0
+        for (const [x, y] of pts) {
+          const dx = x - mx, dy = y - my
+          xx += dx * dx; xy += dx * dy; yy += dy * dy
+        }
+        /* the major axis of the covariance, which is one atan2 rather than an
+         * eigen solver: 0.5 * atan2(2b, a - c) */
+        const ang = 0.5 * Math.atan2(2 * xy, xx - yy)
+        /* and the end of it she is already pointing at */
+        const flip = Math.cos(ang - near) < 0 ? Math.PI : 0
+        return ang + flip
+      }
+
       const radOf = (f: string | undefined): number =>
         f === 'east' ? 0 : f === 'south' ? Math.PI / 2 : f === 'north' ? -Math.PI / 2 : Math.PI
 
@@ -5765,6 +5799,9 @@ export default function PmapScene() {
           endVoyage(new NotBuilt('route',
             `the crossing on "${voyage.path.name}" ended at ${at}, when the ship was put ashore`))
         }
+        /* read before she stops being a hull: it is the tie-breaker for which
+         * way along the dock she lies */
+        const cameInOn = hull.heading
         sailing = null
         sailingTo = null
         hull = null
@@ -5772,10 +5809,28 @@ export default function PmapScene() {
         if (hullSp) hullSp.visible = !!berth
         wakeG.clear()
         tiedUp = false
-        /* she is left at the berth, pointing the way the berth points */
+        /* SHE LIES ALONG THE HARBOUR, MEASURED OFF THE PAINTING.
+         *
+         * Ash, twice: "the boat still docks in the wrong orientation relative to
+         * the island and harbor isometrically." The berth carries a `facing`,
+         * and that word is a COMPASS BEARING typed on the ocean page: "north"
+         * means up the world, which on an isometric painting is not the way the
+         * jetty runs. Measured against the live hub it was about forty five
+         * degrees out, and the painted rowboats tied up beside her all lie the
+         * other way.
+         *
+         * So the heading is read off the dock instead. The walkable pixels
+         * around the berth ARE the jetty and the quay, and their principal axis
+         * is the line the harbour was drawn along; a moored hull lies on it.
+         * That is derived from the map, so it is right on the next harbour
+         * somebody paints without anybody typing a bearing.
+         *
+         * OF THE TWO WAYS ALONG THAT LINE, SHE KEEPS THE ONE SHE CAME IN ON, so
+         * tying up is never a hull spinning through a hundred and eighty
+         * degrees at the moment she stops. */
         if (berth) {
           const at = fromSea(berth.x, berth.y)
-          moored = { x: at.x, y: at.y, heading: radOf(berth.facing) }
+          moored = { x: at.x, y: at.y, heading: dockAxis(at.x, at.y, cameInOn) }
         }
         thor.sp.visible = true; thor.sh.visible = true; pinWanted = true
         camFree = false
@@ -6047,6 +6102,24 @@ export default function PmapScene() {
          * The berth is the thing she is making for, so the heading is the line to
          * it and not the reverse of the line out. */
         hull.heading = Math.atan2(b.y - out.y, b.x - out.x)
+        /* AND SHE ALREADY HAS WAY ON WHEN THE COVER LIFTS.
+         *
+         * Ash, watching the deploy: "the biggest problem here is that sometimes
+         * the boat can freeze, before starting normally. we want an instant view
+         * of the boat moving as soon as the transition screen goes away. not a
+         * pause."
+         *
+         * That pause is real and it is not a stall: the hull is born here, at
+         * load, and nothing moves her until the island's `on_start` reaches
+         * `route(..., who="ship")`, which is on the far side of a worker boot
+         * and an HTTP fetch. On the dev server that is under two seconds and on
+         * the deploy it has been measured at eight.
+         *
+         * A ship arriving is a ship UNDER WAY, so she is born at cruise on the
+         * line to the berth. `stepHull` carries her from the first frame, and
+         * when the follower does pick her up it is a course correction on a boat
+         * already moving rather than a start from dead. */
+        hull.speed = DEFAULT_SAIL.cruise
         if (hullSp) { hullSp.position.set(hull.x, hull.y); hullSp.zIndex = OVER_PLACED + hull.y }
         /* THE CAMERA IS ALREADY OUT WHEN THE COVER LIFTS. `zoomTo` asks the follow
          * law to travel, and a travel under a cover is a zoom the student never

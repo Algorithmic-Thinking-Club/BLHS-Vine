@@ -432,6 +432,9 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       // drift + coherent mirroring carry the de-gridding instead.)
       // ---- AMBIENT LIFE ----
       const shadowTexLife = makeShadow()
+      /* the light version, for a contact pool ON WATER rather than a shadow on
+       * sand. See the ship's own ring for why the two are not the same thing. */
+      const wakeTexLife = makeWakePool()
       // crabs skitter along the wrack line in quick sideways bursts, then freeze
       type Crab = { sp: Sprite; sh: Sprite; d: number; s: number; home: number; tgt: number; next: number; speed: number }
       const crabs: Crab[] = []
@@ -784,8 +787,19 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           // 1.55 tiles off the NE edge + 0.3 up along it: the hull clears the corner post
           const bx0 = plat.x + 169.5 + 1.55 * HW - 0.3 * HW, by0 = plat.y + 63.5 - 1.55 * HH - 0.3 * HH
           const btx = (bx0 / HW + by0 / HH) / 2, bty = (by0 / HH - bx0 / HW) / 2
-          const ring = new Sprite(shadowTexLife); ring.anchor.set(0.5)
-          ring.tint = 0xeafff6; ring.blendMode = 'add'
+          /* THE WATERLINE POOL, AND IT IS A LIGHT TEXTURE RATHER THAN A DARK
+           * ONE TINTED PALE.
+           *
+           * Ash, 2026-09-06, on the title page: "the ship on the landing page
+           * is busted." What is under her is this: a soft dark ellipse the size
+           * of the hull, sitting down and to the right of her. Every other pool
+           * in this file is `makeShadow()` (a violet-teal SHADOW) tinted almost
+           * white and blended additively, which cancels to nearly nothing when
+           * the blend takes and draws a dark blob when it does not. A contact
+           * pool on water is LIGHT, so it is drawn light, and then it reads the
+           * same whichever way the blend resolves. */
+          const ring = new Sprite(wakeTexLife); ring.anchor.set(0.5)
+          ring.blendMode = 'add'
           world.addChild(ring)
           const hull = new Sprite()
           world.addChild(hull)
@@ -1519,7 +1533,10 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           V.ring.alpha = 0.34 + 0.08 * Math.sin(bt * 0.55 + 1.1) + Math.min(0.1, Math.abs(V.spd) * 1.6)
           const rw = M.w * 1.22 + Math.min(22, Math.abs(V.spd) * 260)
           V.ring.width = rw
-          V.ring.height = Math.max(rw * 0.23, M.w < 110 ? 38 : 0) // bow-on hulls get a rounder pool
+          /* a bow-on hull gets a rounder pool, and 38 was half the height of the
+           * ship: on the title page, where she lies almost bow-on, that drew a
+           * pool taller than her own deck. Twenty is a waterline. */
+          V.ring.height = Math.max(rw * 0.23, M.w < 110 ? 20 : 0)
           const hc = Math.cos(heel), hs = Math.sin(heel) // offsets lean with the hull (pivot = waterline center)
           const gl = glows[V.glowI]
           gl.sp.position.set(bxp + M.lampX * hc - M.lampY * hs, byp + M.lampX * hs + M.lampY * hc + V.bob)
@@ -1815,6 +1832,19 @@ function makeFleck(a: number, b: number) {
   ctx.fillStyle = hx(a); ctx.beginPath(); ctx.ellipse(6, 6, 3.4, 2, 0, 0, Math.PI * 2); ctx.fill()
   const t = Texture.from(cv); t.source.scaleMode = 'nearest'; return t
 }
+/* A PALE POOL, for the waterline contact under a floating hull. `makeShadow`
+ * beside it is the SAND shadow and is deliberately dark; a hull does not cast
+ * one of those onto the sea, it displaces light. */
+function makeWakePool() {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64
+  const ctx = cv.getContext('2d')!, g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
+  g.addColorStop(0, 'rgba(226,255,247,0.85)')
+  g.addColorStop(0.5, 'rgba(200,246,240,0.35)')
+  g.addColorStop(1, 'rgba(190,240,236,0)')
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64)
+  const t = Texture.from(cv); t.source.scaleMode = 'linear'; return t
+}
+
 function makeShadow() {
   // cool violet-teal shadow (golden hour shadows go cool, never black or gray) — a dense core
   // that still registers over bright sand, feathering out
