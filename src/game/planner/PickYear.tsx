@@ -81,6 +81,7 @@ import { useEffect, useState } from 'react'
 import { PROGRAMMES, seasonOf, type Programme } from '../roster/roster'
 import { EXAMPLE_BLURB, NO_ISLAND_YET, classIsReal, exampleNameOf, shownName } from '../roster/placeholders'
 import { CLASSES, type ClassDef } from './catalog'
+import { scheduleOwed } from './schedule'
 import { SEASONS, assignSlot, clearSlot, loadSave, pickClass, dropClass, stampPlan, type Season } from '../save'
 import { refuseClass, refuseSlot } from '../run/refusal'
 import { usePanel } from '../ui/a11y'
@@ -235,21 +236,17 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
    * the schedule starts asking for it again, with no edit here. */
   const realClasses = classes.filter((c) => classIsReal(c.id))
   const realActivities = activities.filter((p) => p.playable)
-  const owesClass = realClasses.length > 0 && classesLeft > 0
-  const owesActivity = realActivities.length > 0 && chosen === 0
-  const ready = !owesClass && !owesActivity
-  /* THE ONE LIT THING, AND THE SCHEDULE COMES FIRST NOW. The page is read top
-   * to bottom and the periods are at the top of it, so a lit box further down
-   * would be the screen pointing away from the thing a student is looking at.
-   * Then the after-school box, then the plank. */
-  const stage: 'schedule' | 'after' | 'go' = owesClass ? 'schedule' : owesActivity ? 'after' : 'go'
-  /* THE REASON IS ON THE BUTTON, ALWAYS, because §40.9's rule is that a disabled
-   * control a student cannot interrogate is worse than one that answers. */
-  const notYet = stage === 'schedule'
-    ? `Not yet: fill ${classesLeft === 2 ? 'both Elective periods' : 'the last Elective period'}.`
-    : stage === 'after'
-      ? 'Not yet: press one club or sport below.'
-      : null
+  /* THE RULE ITSELF IS `planner/schedule.ts`, so it can be tested without
+   * mounting a panel (BRIEF-MAW-RAIL-3 F). It was eight lines here, and a rule
+   * that can only be exercised by rendering a screen is a rule that quietly
+   * stops being true. This counts the four numbers; that decides. */
+  const owed = scheduleOwed({
+    electivesLeft: classesLeft,
+    chosen,
+    realClasses: realClasses.length,
+    realActivities: realActivities.length,
+  })
+  const { ready, stage, notYet } = owed
 
   /* the one refusal that belongs to a class, said under the list on its own line
    * rather than inside a row, so the rows never grow and the plank never jumps */
