@@ -605,9 +605,13 @@ export default function PmapScene() {
     let movieHold: null | (() => void) = null
     let onMovie: (on: boolean) => void = () => { /* no scene yet */ }
     const offCinema = onCinema((on) => {
+      /* the frame going UP always takes the controls; the frame coming DOWN
+       * always gives them back. In between, a handler ending can give them back
+       * on its own and leave the frame standing (see `liftMovieAfterHandler`),
+       * which is why the release is guarded rather than assumed. */
+      if (on && !movieOn) movieHold ??= holdWorld('movie')
+      if (!on) { movieHold?.(); movieHold = null }
       movieOn = on
-      if (on) movieHold ??= holdWorld('movie')
-      else { movieHold?.(); movieHold = null }
       onMovie(on)
     })
 
@@ -794,7 +798,17 @@ export default function PmapScene() {
          * the intent layer awaits instead, and both are the same move. It fires
          * exactly once, from the driven pass, at the frame the move really ends,
          * and never from the code that started it. */
-        move: null | { tx: number; ty: number; speed: number; done: boolean; then?: () => void }
+        /* `via` IS THE REST OF THE ROUTE AND IT IS WHY A LED WALK HAS LEGS.
+         *
+         * A driven body used to be given ONE point at a time, and a walk that
+         * paths round furniture is fifty four-pixel points. Each one settled its
+         * own promise, the caller set the next one a microtask later, and the
+         * frame in between had no `move` on the record: `animT` is reset to zero
+         * on exactly that frame, so the walk cycle restarted every four pixels
+         * and what Ash saw was a man sliding with his legs twitching. The whole
+         * route travels as one move now and the promise settles once, at the end
+         * of it. */
+        move: null | { tx: number; ty: number; via?: { x: number; y: number }[]; speed: number; done: boolean; then?: () => void }
         /* HOW FAR THROUGH ITS WALK CYCLE, in frames.
          *
          * BRIEF-ARRIVAL item 6: "The principal sprints out, glitched. He walks
@@ -4121,18 +4135,19 @@ export default function PmapScene() {
             console.warn(`[pmap] lead_to: no route for "${actor}" to ${to}, steering straight at it`)
           }
 
-          const leader = (async () => {
-            for (const leg of legs) {
-              if (destroyed) return
-              const dd = take(sp)
-              if (dd.move) { const orphan = dd.move.then; dd.move = null; orphan?.() }
-              const dir = dirFrom(leg.x - dd.x, (leg.y - dd.y) * ys)
-              if (dir) dd.facing = dir
-              await new Promise<void>((settle) => {
-                dd.move = { tx: leg.x, ty: leg.y, speed, done: false, then: settle }
-              })
-            }
-          })()
+          /* ONE MOVE CARRYING THE WHOLE ROUTE, not one move per waypoint. A leg
+           * at a time settled a promise every four pixels and left one frame in
+           * between with nothing on the record, and that frame is where `animT`
+           * goes back to zero: the walk cycle restarted every four pixels and the
+           * man slid. `via` is the rest of the route and the driven pass walks it
+           * without ever putting the body down. */
+          const leader = new Promise<void>((settle) => {
+            if (d.move) { const orphan = d.move.then; d.move = null; orphan?.() }
+            const first = legs[0]
+            const dir0 = dirFrom(first.x - d.x, (first.y - d.y) * ys)
+            if (dir0) d.facing = dir0
+            d.move = { tx: first.x, ty: first.y, via: legs.slice(1), speed, done: false, then: settle }
+          })
 
           const behind = (async () => {
             const t0 = performance.now()
@@ -4151,12 +4166,66 @@ export default function PmapScene() {
             })
           })()
 
+          /* ---- AND THEY LOOK AT EACH OTHER WHEN THEY STOP -------------------
+           *
+           * Ash, playing it: *"FACING AT EVERY STOP IS WRONG. When they stop, the
+           * principal turns to face Thor and Thor faces the principal."* Both
+           * headings are set here rather than in the island, because neither of
+           * them is a compass point anybody can write down: which way "at him" is
+           * depends on where the two bodies ended up, and an author who had to
+           * name it would be naming it wrong on the first map that moved a table.
+           *
+           * The leader ends standing on the station's own spot, so the player
+           * facing the leader is the player facing the furniture, which is the
+           * other half of what he asked for in one rule. */
           return Promise.all([leader, behind]).then(() => {
             if (destroyed) return
             const end = take(sp)
             const back = dirFrom(pos.x - end.x, (pos.y - end.y) * ys)
             if (back) end.facing = back
+            const at = dirFrom(end.x - pos.x, (end.y - pos.y) * ys)
+            if (at) walker.facing = at
           })
+        },
+
+        /* ---- SOMEBODY IS ALREADY THERE WHEN THE SCENE OPENS ----------------
+         *
+         * Ash, watching the Maw open: *"THE PRINCIPAL DOES NOT WALK TO THOR ANY
+         * MORE. He is ALREADY WAITING at the tunnel mouth when Thor comes in."*
+         * Nothing in the vocabulary could set a scene: every word that moved a
+         * body walked it, so the only way to have a person waiting at the door
+         * was to walk them there while the student watched.
+         *
+         * It uses the same clearance `actor_move` does, so placing somebody at
+         * the spawn puts them BESIDE the player rather than inside him, and with
+         * no heading given they are turned to look at him. */
+        place(actor, at, facing) {
+          const sp = actorBody(actor, 'place')
+          const target = anchors.get(at)
+          if (!target) throw new NotBuilt('place', `no anchor named "${at}" on ${mapId}`)
+          if (facing && !DIRS8.includes(facing)) {
+            throw new NotBuilt('place', `"${facing}" is not a heading. They are: ${DIRS8.join(', ')}`)
+          }
+          const spot = anchors.standAt(target)
+          const d = take(sp)
+          if (d.move) { const orphan = d.move.then; d.move = null; orphan?.() }
+          const ysp = map.yScale || 1
+          let px = spot.x, py = spot.y
+          const clearP = map.character.heightPx * 1.1
+          if (Math.hypot(px - pos.x, (py - pos.y) * ysp) < clearP) {
+            /* he steps aside along the line he was standing on before, and if he
+             * was standing on the player himself, off to one side of him */
+            const ax = d.x - pos.x, ay = d.y - pos.y
+            const away = Math.hypot(ax, ay * ysp) || 1
+            const ux = away > 1 ? ax / away : 1
+            const uy = away > 1 ? ay / away : 0
+            px = pos.x + ux * clearP
+            py = pos.y + uy * clearP
+          }
+          d.x = px; d.y = py
+          d.facing = facing ?? dirFrom(pos.x - px, (pos.y - py) * ysp) ?? d.facing
+          sp.position.set(d.x, d.y)
+          sp.zIndex = d.y
         },
 
         /* A REFUSAL LEAVES NOTHING BEHIND, which is what `take()` before the check
@@ -5327,11 +5396,25 @@ export default function PmapScene() {
        * island with a bug in it, and the two minute ceiling in cinema.ts is a
        * net under a net rather than the mechanism. */
       const liftMovieAfterHandler = (who: string) => {
-        if (!cinemaOn()) return
-        console.warn(`[pmap] ${mapId}: "${who}" finished with the movie bars still up, `
-          + 'so they are coming down. An island that says movie(True) should say movie(False).')
-        engine.log('movie_left_up', { map: mapId, handler: who })
-        setCinema(false)
+        if (!cinemaOn() || !movieHold) return
+        /* THE CONTROLS COME BACK AND THE FRAME STAYS, which is the split Ash
+         * asked for by watching: "after the auto walk ends and thor has 'Go to
+         * panther's maw' the black boxes disappear, and it zoomed out, and the
+         * three buttons are back. none of that should happen."
+         *
+         * The bars are a PICTURE and the lock is a LEASE, and they were one
+         * thing. A handler holds the controls for exactly as long as it is
+         * running, which is already the rule every station obeys; the frame it
+         * composed outlives it, until the island lowers it or the map changes.
+         * So the arrival ends with him standing at the tunnel, inside the same
+         * frame he arrived in, able to press the one thing there is to press.
+         *
+         * AND THIS IS THE SAFETY NET IT ALWAYS WAS. An island that raises the
+         * bars and then raises an exception used to leave a student with no
+         * controls at all; now it leaves them a frame they can play inside, and
+         * the ceiling in cinema.ts takes the frame itself. */
+        movieHold(); movieHold = null
+        engine.log('movie_hold_released', { map: mapId, handler: who })
       }
 
       /* ---- OPENING THE ISLAND THIS MAP BELONGS TO ----------------------------
@@ -5624,6 +5707,24 @@ export default function PmapScene() {
        * moment where neither is, which is what "a defined instant" means. */
       let berthing: Berthing | null = null
       let docking: WorldSlot | null = null
+      /* WHERE SHE IS TIED UP, ONCE SHE IS NOT A VEHICLE ANY MORE.
+       *
+       * Ash, 2026-09-06: "Once thor hops out, the ship stays. and make sure it
+       * is facing the proper orientation, currently, though it disappears, it
+       * docks in the wrong orientation."
+       *
+       * Stepping ashore used to hide the hull outright, so a student who had
+       * just watched a ship sail in for ten seconds looked at an empty jetty.
+       * A moored ship is SCENERY and not a hull: `hull` stays null, so the walk
+       * law runs and nothing about her is driven, and this is only where the
+       * drawing sits and which way it points.
+       *
+       * THE HEADING IS THE BERTH'S OWN, which is the same expression `board`
+       * uses to point her when a player casts off. The berthing manoeuvre ends
+       * on whatever heading it took to come alongside, and that is the wrong
+       * orientation he is describing: a ship that arrives lying one way and
+       * leaves lying another. One number, read once, used at both ends. */
+      let moored: { x: number; y: number; heading: number } | null = null
       /* SHE IS TIED UP AND HE HAS NOT STEPPED OFF YET, which is a state that did
        * not exist before the arrival was reordered: berthing used to put the
        * body on the dock in the same call. In it the hull is still the driven
@@ -5678,6 +5779,8 @@ export default function PmapScene() {
       const board = () => {
         if (!canSail || !berth || hull) return
         const at = fromSea(berth.x, berth.y)
+        /* she stops being scenery the instant she is a boat again */
+        moored = null
         hull = newHull(at.x, at.y, radOf(berth.facing))
         if (hullSp) hullSp.visible = true
         thor.sp.visible = false; thor.sh.visible = false; pinWanted = false
@@ -5714,9 +5817,14 @@ export default function PmapScene() {
         sailingTo = null
         hull = null
         berthing = null
-        if (hullSp) hullSp.visible = false
+        if (hullSp) hullSp.visible = !!berth
         wakeG.clear()
         tiedUp = false
+        /* she is left at the berth, pointing the way the berth points */
+        if (berth) {
+          const at = fromSea(berth.x, berth.y)
+          moored = { x: at.x, y: at.y, heading: radOf(berth.facing) }
+        }
         thor.sp.visible = true; thor.sh.visible = true; pinWanted = true
         camFree = false
         if (!keepShot) zoomTo(Z)
@@ -6259,7 +6367,13 @@ export default function PmapScene() {
          * on screen at all, which is the failure that would otherwise be invisible
          * in a screenshot of a busy painting. */
         get lit() {
-          if (!lit.visible) return null
+          /* A TORN-DOWN SCENE ANSWERS NULL RATHER THAN THROWING. `getGlobalPosition`
+           * walks up to the stage, and after teardown the ring has no parent, so a
+           * proof or a harness that reads this bag one frame after a door, a reload
+           * or an HMR swap died on `Cannot read properties of null (reading 'x')`
+           * inside a getter that exists only to be read from outside. Watched it
+           * kill a cold run at the sort item. */
+          if (!lit.visible || destroyed || !lit.parent) return null
           const g = lit.getGlobalPosition()
           const bb = lit.getBounds()
           return {
@@ -6569,14 +6683,17 @@ export default function PmapScene() {
             }
             hull = stepHull(hull, helm, dt, depthAt)
           }
-          if (hull && hullSp) {
-            hullSp.position.set(hull.x, hull.y)
-            hullSp.zIndex = OVER_PLACED + hull.y
+          /* a hull under way, or a ship tied up: one drawing, two states, and
+           * the moored one is not steered by anybody */
+          const draw = hull ?? moored
+          if (draw && hullSp) {
+            hullSp.position.set(draw.x, draw.y)
+            hullSp.zIndex = OVER_PLACED + draw.y
             if (hullViews.length) {
               /* the 16 views run anticlockwise from east, which is how the sheet
                * was drawn; a heading is therefore an index and never a rotation,
                * so the light in the painting stays where the sun is */
-              const i = ((Math.round((hull.heading / (Math.PI * 2)) * 16) % 16) + 16) % 16
+              const i = ((Math.round((draw.heading / (Math.PI * 2)) * 16) % 16) + 16) % 16
               const t2 = hullViews[i]
               if (t2 && hullSp.texture !== t2) hullSp.texture = t2
             }
@@ -7567,6 +7684,17 @@ export default function PmapScene() {
             const stepPx = d.move.speed * dt
             if (dist <= Math.max(stepPx, 0.5)) {
               d.x = d.move.tx; d.y = d.move.ty
+              /* the next waypoint is picked up on the SAME frame, so there is
+               * never a frame with no move on the record and the legs never go
+               * back to standing in the middle of a walk */
+              const via = d.move.via
+              if (via && via.length) {
+                const next = via.shift() as { x: number; y: number }
+                d.move.tx = next.x; d.move.ty = next.y
+                const turn = dirFrom(next.x - d.x, (next.y - d.y) * ys2)
+                if (turn) d.facing = turn
+                continue
+              }
               d.move.done = true
               /* the arrival is announced from here and from nowhere else, at the
                * frame it really happened, so an awaited `actor_move` and a polled

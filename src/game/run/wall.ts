@@ -30,6 +30,7 @@
  * ledger says whether it was done.
  */
 import type { SaveGame } from '../save'
+import { shownName } from '../roster/placeholders'
 import { classById } from '../planner/catalog'
 import { programmeById } from '../roster/roster'
 import { coreBeatId } from '../beats/beats'
@@ -92,7 +93,10 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
     const c = (s.completions ?? []).find((x) => x.programme === id && x.year === year)
     out.push({
       id: `programme:${id}`,
-      name: p?.name ?? id,
+      /* NEVER A FAKE REAL NAME ON THE WALL. A frame for a club nobody has
+       * built says Example A, the same as the card it came off, so the two
+       * surfaces cannot disagree about what a student picked. */
+      name: p ? shownName(p.id, p.name) : id,
       kind: 'activity',
       earned: !!c,
       says: c ? (c.rank ? `${letter(c.grade)}, ${c.rank}` : letter(c.grade)) : null,
@@ -106,6 +110,8 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
     const passed = !!row && row.grade >= PASSING_GRADE
     out.push({
       id: `class:${id}`,
+      /* an elective keeps its real name everywhere, which is the ruling:
+       * the course is a true thing about the school. */
       name: cl?.name ?? id,
       kind: 'class',
       earned: passed,

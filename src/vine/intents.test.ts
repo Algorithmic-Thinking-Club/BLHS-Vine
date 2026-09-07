@@ -38,6 +38,7 @@ function stubWorld(over: Partial<IntentWorld> = {}) {
     pose: async (p, f) => { did.push(`pose:${p ?? '-'}:${f ?? '-'}`) },
     actorMove: async (a, t) => { did.push(`actorMove:${a}:${t}`) },
     leadTo: async (a, t) => { did.push(`leadTo:${a}:${t}`) },
+    place: (a, t) => { did.push(`place:${a}:${t}`) },
     actorFace: (a, f) => { did.push(`actorFace:${a}:${f}`) },
     actorLook: (a, l) => { did.push(`actorLook:${a}:${l}`) },
     actorRelease: (a) => { did.push(`actorRelease:${a ?? '*'}`) },

@@ -114,6 +114,17 @@ export type Intent =
    * the visit. This is a walk with two bodies in it and it is over when they
    * have both arrived. */
   | { kind: 'lead_to'; actor: string; to: string; pace?: Pace }
+  /* PUT SOMEBODY SOMEWHERE, WITH NO WALK IN IT.
+   *
+   * Ash, 2026-09-06, watching the Maw open: *"THE PRINCIPAL DOES NOT WALK TO
+   * THOR ANY MORE. He is ALREADY WAITING at the tunnel mouth when Thor comes
+   * in."* A scene has to be SET before it starts, and every word here moved a
+   * body by walking it, so the only way to have somebody waiting at the door was
+   * to walk them there in front of the student, which is the thing being cut.
+   *
+   * With no `facing` they end up looking at the player, because a body placed
+   * before a scene begins is nearly always somebody waiting for him. */
+  | { kind: 'place'; actor: string; at: string; facing?: string }
   | { kind: 'actor_face'; actor: string; facing: string }
   | { kind: 'actor_look'; actor: string; look: string }
   | { kind: 'actor_release'; actor?: string }
@@ -396,6 +407,8 @@ export interface IntentWorld {
   actorMove(actor: string, to: string, facing?: string, pace?: Pace): Promise<void>
   /** somebody walks ahead, the player follows, and it ends when they both stop */
   leadTo(actor: string, to: string, pace?: Pace): Promise<void>
+  /** put a body at an anchor with no walk in it, facing the player by default */
+  place(actor: string, at: string, facing?: string): void
   actorFace(actor: string, facing: string): void
   actorLook(actor: string, look: string): void
   actorRelease(actor?: string): void
@@ -570,6 +583,11 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         if (i.pace && !PACES.includes(i.pace))
           return no(`"${i.pace}" is not a pace. They are: ${PACES.join(', ')}`)
         await w().leadTo(i.actor, i.to, i.pace)
+        return ok()
+      case 'place':
+        if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
+        if (!w().hasAnchor(i.at)) return no(`no anchor named "${i.at}" on ${w().mapId()}`)
+        w().place(i.actor, i.at, i.facing)
         return ok()
       case 'actor_face':
         if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)

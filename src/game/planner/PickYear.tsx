@@ -79,10 +79,12 @@
  */
 import { useEffect, useState } from 'react'
 import { PROGRAMMES, seasonOf, type Programme } from '../roster/roster'
+import { EXAMPLE_BLURB, NO_ISLAND_YET, classIsReal, exampleNameOf, shownName } from '../roster/placeholders'
 import { CLASSES, type ClassDef } from './catalog'
 import { SEASONS, assignSlot, clearSlot, loadSave, pickClass, dropClass, stampPlan, type Season } from '../save'
 import { refuseClass, refuseSlot } from '../run/refusal'
 import { usePanel } from '../ui/a11y'
+import { cinemaOn } from '../stage/cinema'
 import { Glyph, Plank } from '../ui/controls'
 import { awarded, saved as saidSaved } from '../ui/feedback'
 import { track } from '../telemetry'
@@ -119,7 +121,21 @@ function earnsOf(p: Programme): string {
 }
 
 export function PickYear({ year, onClose }: { year: number; onClose: () => void }) {
-  const panel = usePanel({ onClose, label: `Your schedule for year ${year}` })
+  /* ---- INSIDE A CUTSCENE THERE IS NO WAY OUT ------------------------------
+   *
+   * Ash, 2026-09-06: *"THOR MUST NEVER BE ABLE TO LEAVE THE MAW CUTSCENE... From
+   * the tunnel to 'Year two, next time' there is no way out: no 'Leave this for
+   * now' plank on Advisory during the rail, no 'Close for now' on the schedule,
+   * Esc does nothing, doors and stations are dead, the corner is hidden. The
+   * cutscene runs continuously until it is over."*
+   *
+   * The movie flag is the whole test and it is the right one: the bars being up
+   * IS the statement that something else is directing, so a panel raised inside
+   * them has no dismiss, no Escape and no click-off. Outside a movie the screen
+   * behaves exactly as it did. */
+  const held = cinemaOn()
+  const shut = held ? () => { /* the rail is driving; there is no way out */ } : onClose
+  const panel = usePanel({ onClose: shut, closeOnEscape: !held, label: `Your schedule for year ${year}` })
   const [, bump] = useState(0)
   const [refused, setRefused] = useState<{ id: string; why: string } | null>(null)
   /* which blank period's elective list is open, as the period NUMBER, so the
@@ -203,12 +219,28 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
 
   const chosen = SEASONS.filter((se) => plan.slots[se]).length
   const classesLeft = 2 - plan.classes.length
-  const ready = classesLeft === 0 && chosen > 0
+  /* ---- WHAT IS ACTUALLY PICKABLE TODAY, WHICH IS NOTHING ------------------
+   *
+   * Every club and sport on the roster and every elective in the catalog is a
+   * placeholder until a row in `member-islands.json` puts a playable island
+   * behind it (`roster/placeholders.ts`). So the screen is READ today and picked
+   * the day a member ships one, and the plank has to end the beat either way:
+   * Ash, "the plank 'That is my schedule' works with nothing picked, since the
+   * year already closes on the stamp plus Advisory."
+   *
+   * The rule is written against what exists rather than against today: a pick is
+   * OWED only where there is something real to pick. The moment one island lands
+   * the schedule starts asking for it again, with no edit here. */
+  const realClasses = classes.filter((c) => classIsReal(c.id))
+  const realActivities = activities.filter((p) => p.playable)
+  const owesClass = realClasses.length > 0 && classesLeft > 0
+  const owesActivity = realActivities.length > 0 && chosen === 0
+  const ready = !owesClass && !owesActivity
   /* THE ONE LIT THING, AND THE SCHEDULE COMES FIRST NOW. The page is read top
    * to bottom and the periods are at the top of it, so a lit box further down
    * would be the screen pointing away from the thing a student is looking at.
    * Then the after-school box, then the plank. */
-  const stage: 'schedule' | 'after' | 'go' = classesLeft > 0 ? 'schedule' : chosen === 0 ? 'after' : 'go'
+  const stage: 'schedule' | 'after' | 'go' = owesClass ? 'schedule' : owesActivity ? 'after' : 'go'
   /* THE REASON IS ON THE BUTTON, ALWAYS, because §40.9's rule is that a disabled
    * control a student cannot interrogate is worse than one that answers. */
   const notYet = stage === 'schedule'
@@ -244,11 +276,15 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
     if (i < ELECTIVE_AT) return { n, kind: 'required' as const, name: REQUIRED[i], cls: null }
     const id = plan.classes[i - ELECTIVE_AT]
     const cls = id ? CLASSES.find((c) => c.id === id) ?? null : null
-    return { n, kind: 'elective' as const, name: cls?.name ?? 'Elective', cls }
+    /* NUMBERED, so two blank lines reading "Elective" cannot be read as one
+       thing said twice. Ash could not tell whether the screen wanted one
+       elective or several, and the rows themselves are where that is answered. */
+    const blank = `Elective ${i - ELECTIVE_AT + 1}`
+    return { n, kind: 'elective' as const, name: cls ? shownName(cls.id, cls.name) : blank, cls }
   })
 
   return (
-    <div className="py-veil" onClick={onClose}>
+    <div className="py-veil" onClick={shut}>
       <div {...panel} className="py-sheet kit-surface-panel" onClick={(e) => e.stopPropagation()}>
         <h2 className="py-title">Your schedule, year {YEAR_WORD[year] ?? year}</h2>
 
@@ -256,7 +292,11 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
         <section className={`py-schedule${stage === 'schedule' ? ' py-lit' : ''}`} aria-labelledby="py-sched-h">
           <h3 className="py-h py-sched-h" id="py-sched-h">
             Fill your two Elective periods
-            <span className="py-count"> {classesLeft === 0 ? 'both filled' : `${classesLeft} to fill`}</span>
+            {/* THE COUNT IS UNMISTAKABLE AND IT IS NOT A SENTENCE. Ash, playing
+                it: he could not tell whether he picks one elective or several.
+                "n of 2 electives" says how many the year takes and how many he
+                has, in four words, on the box he is looking at. */}
+            <span className="py-count"> {plan.classes.length} of 2 electives</span>
           </h3>
           <ol className="py-periods">
             {rows.map((r) => {
@@ -285,7 +325,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                     <div className="py-per-press py-per-static">
                       {body}
                       {r.cls && (
-                        <button type="button" className="py-untick" onClick={() => untick(r.cls as ClassDef)}>Change</button>
+                        <button type="button" className="py-untick" onClick={() => untick(r.cls as ClassDef)}>Put back</button>
                       )}
                     </div>
                   )}
@@ -309,6 +349,24 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                               </div>
                             )
                           }
+                          /* ---- AN ELECTIVE KEEPS ITS REAL NAME AND WAITS ----
+                              Ash's refinement: "the elective list is fixed by
+                              the school, so keep REAL BLHS elective names...
+                              Every elective is INERT today, drawn as a real name
+                              with a quiet no-island-yet mark, and becomes
+                              pickable the moment a member-islands.json row links
+                              to its id." Unlike a club, a course is a true thing
+                              about Bonney Lake whether or not anybody has drawn
+                              it, so the catalog is worth reading now. */
+                          if (!classIsReal(c.id)) {
+                            return (
+                              <div key={c.id} className="py-class py-class-waiting" role="group" aria-label={c.name + ', ' + NO_ISLAND_YET}>
+                                <span className="py-tick" aria-hidden="true" />
+                                <span className="py-class-name">{c.name}</span>
+                                <span className="py-class-waitmark">{NO_ISLAND_YET}</span>
+                              </div>
+                            )
+                          }
                           return (
                             <button key={c.id} type="button" className="py-class" onClick={() => takeClass(c)}>
                               <span className="py-tick" aria-hidden="true" />
@@ -317,8 +375,13 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                           )
                         })}
                       </div>
+                      {/* NEVER A DEAD END (law 6). With nothing pickable this
+                          line is the one that says what to do instead, and it
+                          names the control that does it. */}
                       <p className={`py-classnote${classNo ? ' py-classnote-no' : ''}`} role={classNo ? 'alert' : undefined}>
-                        {classNo ?? 'Press one to put it in this period.'}
+                        {classNo ?? (realClasses.length
+                          ? 'Press one to put it in this period.'
+                          : 'None of these has an island yet. Stamp your schedule to go on.')}
                       </p>
                     </div>
                   )}
@@ -363,6 +426,30 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                 the locked card, still takeable and never louder than the way on. */}
             {onOffer.map((p) => {
               const no = refused?.id === p.id ? refused.why : null
+              /* ---- A CLUB NOBODY HAS BUILT IS AN EXAMPLE AND IT DOES NOT TAKE
+                  A PRESS. Ash, 2026-09-06: "if you want placeholders, label them
+                  Example A, Example B and so on, with placeholder text, and it
+                  should clearly be a placeholder and not work." Football, Key
+                  Club and the rest are real things at a real school with no
+                  island behind them, and a freshman who presses one and gets
+                  nothing cannot tell that from a bug. It is a div rather than a
+                  disabled button on purpose: a disabled control is still a
+                  control, and this is a picture of one. */
+              const example = exampleNameOf(p.id)
+              if (example) {
+                return (
+                  <div
+                    key={p.id}
+                    className="py-card kit-surface-tab py-card-example"
+                    role="group"
+                    aria-label={example + '. ' + EXAMPLE_BLURB}
+                  >
+                    <span className="py-card-name">{example}</span>
+                    <span className="py-card-where">placeholder</span>
+                    <span className="py-card-earns">{EXAMPLE_BLURB}</span>
+                  </div>
+                )
+              }
               if (shelved) {
                 return (
                   <button
@@ -398,7 +485,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
           {/* A WAY OUT THAT IS A WORD, and small on purpose: at medium it was
               bigger than a period row, so the way out outranked the way on for a
               student steering by size. */}
-          <Plank size="sm" keyCap="Esc" className="py-close" onClick={onClose}>Close for now</Plank>
+          {!held && <Plank size="sm" keyCap="Esc" className="py-close" onClick={onClose}>Close for now</Plank>}
           {notYet && <span className="py-notyet">{notYet}</span>}
           <Plank
             size="lg"
@@ -418,9 +505,12 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                * hands over the corner's My Year button on the next line
                * (islands/panther-maw/lines.py), and watched on the dev server
                * the two were the same sentence stacked on one frame. */
+              /* AND THE POP NEVER SAYS A FAKE REAL NAME. Nothing pickable
+                 today means this is undefined and it says the plain thing; the
+                 day a member island lands it says that island's own name. */
               const first = PROGRAMMES.find((pg) => pg.id === taken[0])
               awarded(
-                first ? `${first.name} is yours.` : 'Your schedule is set.',
+                first ? `${shownName(first.id, first.name)} is yours.` : 'Your schedule is set.',
                 `Year ${year} is on your schedule.`,
               )
               onClose()

@@ -19,6 +19,7 @@
  * than reinvented per island.
  */
 import type { SaveGame } from '../save'
+import { shownName } from '../roster/placeholders'
 import { yearStatus } from './year'
 
 export type Objective = {
@@ -133,8 +134,13 @@ export function nextObjective(s: SaveGame | null): Objective | null {
     const next = sailable[0]
     return {
       anchor: 'maw_entrance', map: MAW_MAP, phase: 'voyage',
-      say: `Go out to the harbor and sail to ${next.name}.`,
-      away: `Get in the boat and sail to ${next.name}.`,
+      /* THE NAME IS THE ONE THE STUDENT SAW ON THE CARD. A programme with
+       * no island behind it is an Example on the schedule and must be an
+       * Example here too, or the year sends him to sail to Football.
+       * Unreachable today, because a voyage is only offered for a playable
+       * programme, and correct the day one is not. */
+      say: `Go out to the harbor and sail to ${shownName(next.programmeId, next.name)}.`,
+      away: `Get in the boat and sail to ${shownName(next.programmeId, next.name)}.`,
     }
   }
 

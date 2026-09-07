@@ -25,7 +25,15 @@ describe('the seats', () => {
   it('is one seat per thing chosen, plus Advisory, which everybody is in', () => {
     const seats = wallOf(withPlan())
     expect(seats.map((w) => w.name)).toEqual([
-      'Advisory', 'Football', 'Algorithmic Thinking Club', 'AP Human Geography', 'Spanish I',
+      /* THE CLUBS AND SPORTS READ AS EXAMPLES AND THE ELECTIVES DO NOT, which
+         is Ash's ruling of 2026-09-06 and the shape `roster/placeholders.ts`
+         gives it: a club in this game IS an island somebody built, so one nobody
+         has built has no name to print, and a course is a true thing about the
+         school whether or not anybody has drawn it. The letters follow the
+         ROSTER's own order, where ATC is written before Football, and the wall
+         lists by SEASON, so the Fall frame is Example B and the Winter one is
+         Example A. */
+      'Advisory', 'Example B', 'Example A', 'AP Human Geography', 'Spanish I',
     ])
     /* Advisory first because it is beat 5, then the seasons, then the classes:
      * the order a student meets them is the order the thirty minutes happens in */
@@ -62,7 +70,7 @@ describe('what fills a seat', () => {
 
   it('finishing a sport fills its frame with the grade AND the rank', () => {
     const s = withPlan({ completions: [{ programme: 'football', year: 1, grade: 3.2, rank: 'JV', at: 1 }] })
-    const football = wallOf(s).find((w) => w.name === 'Football')!
+    const football = wallOf(s).find((w) => w.name === 'Example B')!
     expect(football.earned).toBe(true)
     expect(football.says).toBe('B+, JV')
   })
@@ -72,7 +80,7 @@ describe('what fills a seat', () => {
      * wall that forgot the year would show year two's football on year one's
      * wall the moment a student played the same sport twice. */
     const s = withPlan({ completions: [{ programme: 'football', year: 2, grade: 4, rank: 'Varsity', at: 1 }] })
-    expect(wallOf(s).find((w) => w.name === 'Football')!.earned).toBe(false)
+    expect(wallOf(s).find((w) => w.name === 'Example B')!.earned).toBe(false)
   })
 
   it('reads the letter from progress.ts rather than rounding on its own', () => {

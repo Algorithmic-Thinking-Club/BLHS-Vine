@@ -9,6 +9,7 @@ import {
   turnYearPage, yearbookPage, yearbookYears, yearTurned,
   type GpaMove, type YearbookRow, type YearbookSection,
 } from './yearbook-page'
+import { cinemaOn } from '../stage/cinema'
 import './run.css'
 
 /* THE YEARBOOK SPREAD (§7.6, §12.4 to §12.16): the year's full page, and the page
@@ -398,7 +399,12 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                     <Plank size="lg" glyph={['icon_set', 'arrow']} onClick={turn}>
                       {lastYear ? 'Finish all four years' : 'End this year'}
                     </Plank>
-                    <Plank size="md" onClick={onClose}>Keep playing this year</Plank>
+                    {/* NOT INSIDE A CUTSCENE. This is the last beat of the rail
+                        and "Keep playing this year" walks out of it: the page
+                        does not turn, the counselor never says the last line,
+                        and the thirty minutes end on a shrug. Everywhere else it
+                        is the right offer and it stays. */}
+                    {!cinemaOn() && <Plank size="md" onClick={onClose}>Keep playing this year</Plank>}
                   </>
                 ) : (
                   <Plank size="lg" keyCap="Esc" onClick={onClose}>

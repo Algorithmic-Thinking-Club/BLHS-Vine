@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { cinemaOn } from '../stage/cinema'
 import type { CheckStep } from '../../vine/contract'
 import { checksOf, playableSteps, pointsOf, type BeatStep, type BeatWorld, type CoreBeat } from './frames'
 import {
@@ -282,7 +283,14 @@ export function CoreBeatRunner(
           *
           * Escape stays shut. A key that throws away a half-filled answer by
           * accident is a worse bargain than a button somebody has to mean. */}
-        {scoring && (
+        {/* AND NONE OF IT INSIDE A CUTSCENE. Ash, 2026-09-06: "THOR MUST NEVER
+            BE ABLE TO LEAVE THE MAW CUTSCENE. Today after the schedule he can
+            leave Advisory, the principal says come back later and the rail ends."
+            The argument above is about a student stuck on an item in a room he
+            owns; on the rail he is not stuck, he is being taken somewhere, and
+            the way on is finishing the three items. The plank stays for every
+            other way into this beat. */}
+        {scoring && !cinemaOn() && (
           <div className="bt-leave">
             {arm === 'plain'
               ? <button type="button" onClick={onClose}>Leave this for now</button>

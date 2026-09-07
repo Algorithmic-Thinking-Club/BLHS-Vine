@@ -187,6 +187,31 @@
   font-size: var(--kit-fs);
   color: var(--kit-ink-head);
 }
+/* ---- WHAT HAS NO ISLAND BEHIND IT YET -----------------------------------
+ *
+ * Two shapes and they are different on purpose (roster/placeholders.ts). A club
+ * card with no island has no name to print, so it is an Example, drawn as a card
+ * so a student sees the shape of what is coming and quiet enough that nothing
+ * asks to be pressed. An elective keeps its real name, because the course is a
+ * true thing about the school whether or not anybody has drawn it, and carries a
+ * small mark saying it is not walkable yet. Neither one is a disabled button: a
+ * disabled control is still a control, and these are pictures of one. */
+.py-card-example {
+  cursor: default;
+  opacity: 0.72;
+  filter: saturate(0.55);
+}
+.py-card-example .py-card-where { font-style: italic; }
+.py-class-waiting { cursor: default; opacity: 0.75; }
+.py-class-waiting:hover { background: var(--kit-paper-hi); transform: none; }
+.py-class-waitmark {
+  margin-left: auto;
+  flex: none;
+  color: var(--kit-ink-quiet);
+  --kit-fs-raw: calc(12px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  font-style: italic;
+}
 .py-electives .py-classes { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 5px 8px; }
 .py-electives .py-class { min-height: 34px; padding: 2px 8px; gap: 8px; }
 .py-electives .py-tick { width: 20px; height: 20px; }

@@ -70,6 +70,7 @@ const world: IntentWorld = {
   pose: noMap('pose'),
   actorMove: noMap('actor_move'),
   leadTo: noMap('lead_to'),
+  place: noMap('place'),
   actorFace: noMap('actor_face'),
   actorLook: noMap('actor_look'),
   actorRelease: noMap('actor_release'),

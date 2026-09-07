@@ -38,12 +38,19 @@ const engineWords = new Set(all(code, /kind: '([a-z_]+)'/g))
 /** every kind a builder in vine.py puts on the wire */
 const pythonWords = new Set(all(py, /"kind": "([a-z_]+)"/g))
 
+/* A HELPER IS NOT A WORD. `as_a_cutscene` wraps `movie` at both ends so an
+ * island cannot leave the bars up on a refusal; it puts nothing new on the wire
+ * and has no kind of its own, so counting it as a builder would make the two
+ * checks at the foot of this file fail on a function that adds no vocabulary.
+ * Named here rather than sniffed, so adding one is a deliberate edit. */
+const HELPERS = new Set(['as_a_cutscene'])
+
 /** each `def` in vine.py, its body, and the kinds that body emits */
 const builders = py.split(/^def /m).slice(1).map((block) => ({
   name: block.slice(0, block.indexOf('(')),
   body: block,
   emits: all(block, /"kind": "([a-z_]+)"/g),
-}))
+})).filter((b) => !HELPERS.has(b.name))
 
 /** the body of one builder, and it THROWS on a name that is not there: a helper
  *  that answers '' for a missing word makes every `not.toContain` below pass by
@@ -74,8 +81,8 @@ describe('the intent vocabulary, both sides of the worker', () => {
    * `actor_move` for the reason the paragraph above gives about pace, read the
    * other way: "walk him there" and "walk him there while I follow" are two
    * sentences with two bodies in the second one. */
-  it('is twenty-nine words on the engine side', () => {
-    expect(engineWords.size).toBe(29)
+  it('is thirty words on the engine side', () => {
+    expect(engineWords.size).toBe(30)
   })
 
   it('has the frame words on both sides', () => {
@@ -85,9 +92,9 @@ describe('the intent vocabulary, both sides of the worker', () => {
     }
   })
 
-  it('has the eleven director words on both sides', () => {
-    const director = ['pose', 'actor_move', 'lead_to', 'actor_face', 'actor_look', 'actor_release',
-      'route', 'framing', 'wait', 'wait_for', 'sound']
+  it('has the twelve director words on both sides', () => {
+    const director = ['pose', 'actor_move', 'lead_to', 'place', 'actor_face', 'actor_look',
+      'actor_release', 'route', 'framing', 'wait', 'wait_for', 'sound']
     for (const w of director) {
       expect(engineWords.has(w), `intents.ts is missing ${w}`).toBe(true)
       expect(pythonWords.has(w), `vine.py is missing ${w}`).toBe(true)

@@ -168,6 +168,23 @@ def lead_to(actor, to, pace=None):
     return intent
 
 
+def place(actor, at, facing=None):
+    """Put somebody at an anchor with no walk in it. For SETTING a scene.
+
+    Use it before anything starts moving: the principal is already waiting at
+    the tunnel mouth when the student walks in, rather than jogging over to him
+    while he watches. With no `facing` they are turned to look at the player,
+    because a body placed before a scene begins is nearly always waiting for him.
+
+    Placing somebody where the player is standing puts them BESIDE him, not
+    inside him, which is the same clearance `actor_move` uses.
+    """
+    intent = {"kind": "place", "actor": actor, "at": at}
+    if facing is not None:
+        intent["facing"] = facing
+    return intent
+
+
 def actor_face(actor, facing):
     """Turn somebody, without moving them."""
     return {"kind": "actor_face", "actor": actor, "facing": facing}
@@ -307,10 +324,48 @@ def movie(on=True):
     `movie(False)` gives it all back. TURN IT OFF. An island that raises the
     bars and then raises an exception leaves a student behind two black bars
     with no controls, which looks like a broken laptop rather than a game; the
-    engine lifts them on its own after two minutes and says so loudly, and that
+    engine lifts them on its own after ten minutes and says so loudly, and that
     is a safety net rather than a way of writing this.
+
+    Most scenes should use `cutscene()` below instead, which is this word with
+    the turning-off already written.
     """
     return {"kind": "movie", "on": bool(on)}
+
+
+def as_a_cutscene(scene):
+    """Run a whole scene inside the bars, and take them down whatever happens.
+
+        yield from as_a_cutscene(my_scene())
+
+    where `my_scene` is a generator function of your own. The bars go up, the
+    corner goes away and the controls are taken before your first line; they
+    come back after your last one, and they come back even if a word in the
+    middle refuses and your scene stops on the spot.
+
+    THAT LAST PART IS THE WHOLE REASON IT EXISTS. `movie(True)` is one line and
+    `movie(False)` is one line, and the gap between them is the one place in this
+    API where forgetting leaves a student looking at a laptop that appears to
+    have died. Written this way there is no forgetting: the `finally` is the
+    engine's promise rather than yours.
+
+    WHY IT IS NOT `with cutscene():`, which is the shape you would reach for
+    first. Every word here HAPPENS by being yielded, and a `with` block's
+    __enter__ and __exit__ are ordinary calls that cannot yield anything out of
+    the generator they are written in. So the bars would not go up until the next
+    line that happened to yield, and on the way out they would not come down at
+    all. This is `with` with a `yield from` in front of it and it gives the same
+    guarantee.
+
+    AND IT IS NOT CALLED `cutscene`, because that word is already taken by the
+    one below it, which plays a scene somebody registered in the engine. Two
+    different things with one name is worse than a longer name.
+    """
+    yield movie(True)
+    try:
+        yield from scene
+    finally:
+        yield movie(False)
 
 
 def show(anchor, visible=True):
