@@ -446,7 +446,24 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                 </div>
                 <p className="yb-turnedline">Three new season tokens. Go to the table and pick your year.</p>
                 <div className="yb-acts">
-                  <Plank size="lg" onClick={onClose}>Back to the game</Plank>
+                  {/* THE WAY ON IS NOT DRESSED AS A WAY BACK. This is the last
+                      control of the thirty minutes and it read "Back to the
+                      game", so the only thing a student could press to finish
+                      year one was worded as a retreat, and both reads-nothing
+                      harnesses classify it as backwards and stop dead on it
+                      (BRIEF-MAW-RAIL's own "left undone" list). Nothing is being
+                      gone back to: the page has turned, the year is over, and
+                      what is on the other side of this plank is the counselor
+                      saying the last line.
+
+                      NOT "Go on" EITHER, which was the first try: that is the
+                      dialogue box's own advance word, printed under every line
+                      in the game, so a plank wearing it is two different
+                      controls with one name. This is the same shape as the
+                      schedule's plank, which is the other thing in this half
+                      hour a student presses to say a piece of paper is
+                      finished. */}
+                  <Plank size="lg" onClick={onClose}>That is year one</Plank>
                 </div>
               </>
             )}

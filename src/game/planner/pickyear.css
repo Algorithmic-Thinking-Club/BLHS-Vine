@@ -167,10 +167,14 @@
 .py-period-on .py-per-press { background: var(--kit-sea-paper); border-color: var(--kit-sea); }
 .py-period-on .py-per-name { color: var(--kit-ink-head); }
 
-/* the list, drawn inside the row it fills. Three columns, because ten of them
-   in one column is a page and ten in four is a grid of small words. */
+/* the list, drawn inside the row it fills.
+   FOUR COLUMNS AND NOT THREE, measured rather than chosen: year one offers
+   thirteen electives, and at three columns the list ran five rows deep, pushed
+   the whole sheet past 768 and put the plank that ends the beat under the fold.
+   Four rows of four fits with the after-school shelf and the foot still on the
+   glass, which is what "one screen" means. */
 .py-electives {
-  margin: 4px 0 2px 88px;
+  margin: 4px 0 2px 40px;
   padding: 6px 8px;
   border: var(--kit-border) solid var(--kit-gold-edge);
   border-radius: var(--kit-r-soft);
@@ -183,8 +187,9 @@
   font-size: var(--kit-fs);
   color: var(--kit-ink-head);
 }
-.py-electives .py-classes { grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
-.py-electives .py-class { min-height: 40px; }
+.py-electives .py-classes { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 5px 8px; }
+.py-electives .py-class { min-height: 34px; padding: 2px 8px; gap: 8px; }
+.py-electives .py-tick { width: 20px; height: 20px; }
 
 .py-schedule,
 .py-cardbox,

@@ -26,11 +26,26 @@
  * shape as WAIT_CEILING_MS and WAIT_FOR_CEILING_MS in the vocabulary.
  */
 
-/* Longer than any crossing this game has: the hub approach is about four
- * seconds of sailing on the shipped physics, and the longest authored beat in
- * the walkthrough is under a minute. Two minutes is a movie that has gone
- * wrong. */
-export const MOVIE_CEILING_MS = 120_000
+/* TEN MINUTES, AND IT USED TO BE TWO.
+ *
+ * Two was sized against the arrival: a four second crossing and a walk up a
+ * hill, where anything past a minute is a movie that has gone wrong. Then
+ * BRIEF-MAW-RAIL-2 made the whole of year one one movie, from the tunnel mouth
+ * to "Year two, next time", with four screens inside it that a fourteen year old
+ * fills in at his own speed. Measured on the road: the schedule is about a
+ * minute, Advisory is three items and about ninety seconds, the wall and the
+ * yearbook are another two, and the walks and the lines are thirty seconds on
+ * top. A student who reads takes five or six minutes and the bars came down in
+ * the middle of his schedule, with the corner arriving over the top of a
+ * cutscene, which is exactly the seam this brief exists to remove.
+ *
+ * It is still a ceiling and it still matters, because the thing it catches is an
+ * island that raised the bars and then hung: the engine already lifts them when
+ * a handler ends and when the scene is torn down, so what is left is a handler
+ * that never returns at all. Ten minutes is longer than the longest thing
+ * anybody can author today and shorter than the advisory period this is played
+ * in. */
+export const MOVIE_CEILING_MS = 600_000
 
 let on = false
 let ceiling: ReturnType<typeof setTimeout> | null = null

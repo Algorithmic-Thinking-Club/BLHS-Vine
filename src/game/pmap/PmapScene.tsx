@@ -6796,7 +6796,23 @@ export default function PmapScene() {
          * during the one stretch whose whole job is showing him where HE goes.
          * A movie hides the furniture; the answer to "which one am I" is not
          * furniture. */
-        pin.visible = pinWanted && (!movieOn || !!autoWalk)
+        /* ---- THE YOU MARKER STAYS PUT INSTEAD OF BLINKING -----------------
+         *
+         * `!movieOn || !!autoWalk` was written for the arrival, where the only
+         * thing on screen during a movie is a boat and then one walking body.
+         * The Maw's rail is a movie with TWO panthers in it that walks in stages:
+         * the principal sets off, the student waits for him to be clear, walks up
+         * behind him, and stands there while a line is read. `autoWalk` is set
+         * for the middle third of that only, so across one beat the marker came
+         * on, went off, and came back, which is the kind of seam this brief was
+         * written to remove.
+         *
+         * Steady, and it is worth MORE now than it was on the hub: two panthers
+         * the same size are walking the same floor and the marker is the only
+         * thing on screen that says which one is you. `pinWanted` is already
+         * exactly "he is on his feet and visible", so it is the whole condition:
+         * aboard a boat, mid-transition or hidden by `show`, it was false anyway. */
+        pin.visible = pinWanted
         slotMarks.visible = !movieOn
         ;(window as any).__walk = `thor ${pos.x.toFixed(0)},${pos.y.toFixed(0)} lvl${lvlAt(pos.x, pos.y)}`
 
@@ -7063,7 +7079,15 @@ export default function PmapScene() {
            * note: the auto-walk itself is behind the bars with the corner gone,
            * and the marks on the ground are the whole point of that walk. A
            * movie hides plaques; the way he is being taken is not a plaque. */
-          objMark.visible = !fade && (!!autoWalk || (!locked && !movieOn))
+          /* AND THEY STAY UP FOR THE WHOLE LEG, NOT FOR THE WALKING THIRD OF IT.
+           * Same seam as the YOU marker a few hundred lines up: `autoWalk` is set
+           * only while the body is travelling, so on the rail the arrows appeared
+           * as the student set off, vanished while he stood waiting for the
+           * principal to get ahead, and vanished again the moment he arrived with
+           * the line still being read. `guideTarget` is the island having SAID
+           * "the way is that way", which is true for the whole beat and is taken
+           * down by `guide_to(None)` when the rail lets go. */
+          objMark.visible = !fade && (!!autoWalk || !!guideTarget || (!locked && !movieOn))
 
           /* THE BIG ONE HANGS OVER THE THING, and it is placed against the
            * CHARACTER rather than against the anchor's own radius: two and a bit
