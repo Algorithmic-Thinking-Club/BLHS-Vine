@@ -69,6 +69,7 @@ const world: IntentWorld = {
    * why a member can time and score a scene in this harness with no map at all. */
   pose: noMap('pose'),
   actorMove: noMap('actor_move'),
+  leadTo: noMap('lead_to'),
   actorFace: noMap('actor_face'),
   actorLook: noMap('actor_look'),
   actorRelease: noMap('actor_release'),

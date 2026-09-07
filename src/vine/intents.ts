@@ -94,6 +94,26 @@ export type Intent =
    * because a number here would be painting pixels per second, which is a
    * quantity no author of a scene should have to hold. */
   | { kind: 'actor_move'; actor: string; to: string; facing?: string; pace?: Pace }
+  /* SOMEBODY WALKS AHEAD AND THE PLAYER FOLLOWS, which is the one shape a
+   * guided tour has and which could not be written with the two words beside it.
+   *
+   * BRIEF-MAW-RAIL-2, Ash after playing rail-1: *"Nobody knows why he is at a
+   * fire. From now on the principal walks AHEAD and Thor follows him, the way a
+   * real freshman orientation works: the person in charge takes you round."*
+   *
+   * `actor_move` then `walk_to` is the obvious spelling and it is wrong twice
+   * over: `actor_move` blocks until the leader ARRIVES, so the student stands
+   * still watching a man cross a room and then walks the same floor alone
+   * afterwards; and both bodies aim at the same stand point, so they finish
+   * standing inside each other. This starts them together, lets the leader get a
+   * couple of body lengths clear, walks the player up behind him, and turns the
+   * leader round to face the student when they both stop.
+   *
+   * ONE WORD AND NOT A FOLLOW MODE. A mode would have to be switched off, and an
+   * island that forgot would leave the player welded to somebody for the rest of
+   * the visit. This is a walk with two bodies in it and it is over when they
+   * have both arrived. */
+  | { kind: 'lead_to'; actor: string; to: string; pace?: Pace }
   | { kind: 'actor_face'; actor: string; facing: string }
   | { kind: 'actor_look'; actor: string; look: string }
   | { kind: 'actor_release'; actor?: string }
@@ -374,6 +394,8 @@ export interface IntentWorld {
    * and the game could not previously say. */
   pose(pose: string | undefined, facing: string | undefined): Promise<void>
   actorMove(actor: string, to: string, facing?: string, pace?: Pace): Promise<void>
+  /** somebody walks ahead, the player follows, and it ends when they both stop */
+  leadTo(actor: string, to: string, pace?: Pace): Promise<void>
   actorFace(actor: string, facing: string): void
   actorLook(actor: string, look: string): void
   actorRelease(actor?: string): void
@@ -541,6 +563,13 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         if (i.pace && !PACES.includes(i.pace))
           return no(`"${i.pace}" is not a pace. They are: ${PACES.join(', ')}`)
         await w().actorMove(i.actor, i.to, i.facing, i.pace)
+        return ok()
+      case 'lead_to':
+        if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
+        if (!w().hasAnchor(i.to)) return no(`no anchor named "${i.to}" on ${w().mapId()}`)
+        if (i.pace && !PACES.includes(i.pace))
+          return no(`"${i.pace}" is not a pace. They are: ${PACES.join(', ')}`)
+        await w().leadTo(i.actor, i.to, i.pace)
         return ok()
       case 'actor_face':
         if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)

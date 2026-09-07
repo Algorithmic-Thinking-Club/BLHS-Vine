@@ -144,6 +144,30 @@ def actor_move(actor, to, facing=None, pace=None):
     return intent
 
 
+def lead_to(actor, to, pace=None):
+    """Somebody walks ahead to an anchor and the player follows them there.
+
+    Comes back when they have BOTH stopped. The leader sets off, the player
+    comes up behind him once he is a couple of body lengths clear, and the
+    leader turns round to face the player at the end of it, which is when you
+    say your line.
+
+    This is the shape a guided tour has, and writing it as `actor_move` and then
+    `walk_to` does not work: `actor_move` waits for the leader to ARRIVE, so the
+    student stands still watching a man cross a room and then walks the same
+    floor on his own afterwards, and both bodies aim at the same standing spot
+    and finish inside each other.
+
+    The leader goes ROUND things. `actor_move` carries a body straight at its
+    target, which is right for a crate and wrong for a person crossing a room
+    with a fire in the middle of it.
+    """
+    intent = {"kind": "lead_to", "actor": actor, "to": to}
+    if pace is not None:
+        intent["pace"] = pace
+    return intent
+
+
 def actor_face(actor, facing):
     """Turn somebody, without moving them."""
     return {"kind": "actor_face", "actor": actor, "facing": facing}

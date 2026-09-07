@@ -69,8 +69,13 @@ describe('the intent vocabulary, both sides of the worker', () => {
    * first. The third thing the brief asked for, a walking pace, is an argument
    * on `actor_move` and not a word, because "walk somebody there" and "walk
    * somebody there slowly" are one sentence. */
-  it('is twenty-eight words on the engine side', () => {
-    expect(engineWords.size).toBe(28)
+  /* AND TWENTY-NINE. BRIEF-MAW-RAIL-2 added `lead_to`: somebody walks ahead and
+   * the player follows them there. It is a word rather than an argument on
+   * `actor_move` for the reason the paragraph above gives about pace, read the
+   * other way: "walk him there" and "walk him there while I follow" are two
+   * sentences with two bodies in the second one. */
+  it('is twenty-nine words on the engine side', () => {
+    expect(engineWords.size).toBe(29)
   })
 
   it('has the frame words on both sides', () => {
@@ -80,8 +85,8 @@ describe('the intent vocabulary, both sides of the worker', () => {
     }
   })
 
-  it('has the ten director words on both sides', () => {
-    const director = ['pose', 'actor_move', 'actor_face', 'actor_look', 'actor_release',
+  it('has the eleven director words on both sides', () => {
+    const director = ['pose', 'actor_move', 'lead_to', 'actor_face', 'actor_look', 'actor_release',
       'route', 'framing', 'wait', 'wait_for', 'sound']
     for (const w of director) {
       expect(engineWords.has(w), `intents.ts is missing ${w}`).toBe(true)
