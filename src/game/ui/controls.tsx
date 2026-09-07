@@ -402,6 +402,40 @@ export function Socket({
  * wrong. */
 export const portraitUrl = (id: string): string => `/art/portraits/${id}.png`
 
+/* ---- AND THE FACE IS IN THE BROWSER BEFORE THE FIRST LINE IS SPOKEN -------
+ *
+ * BRIEF-MAW-RAIL-3 G, off the live frames: *"The principal's portrait frame was
+ * empty on his first line at the tunnel; the face is there from the first
+ * character."*
+ *
+ * It was not a missing file. `PortraitFrame` renders an `<img>` when the line
+ * arrives, and the browser then goes and fetches it: on a dev server that is a
+ * few milliseconds and invisible, and on a school access point it is however
+ * long it is, which on the deploy was long enough to photograph. The first line
+ * of the game is the one line guaranteed to hit a cold cache, so it is the one
+ * line that shows an empty frame.
+ *
+ * So the file is fetched when the world mounts, minutes of reading before
+ * anybody speaks, and the `<img>` that appears later is a cache hit. It costs one
+ * request for one 96 pixel png.
+ *
+ * THE LIST IS THE DRAWN PORTRAITS AND IT IS ONE. `public/art/portraits/` holds
+ * `principal.png` and nothing else, and Ash locked that face
+ * (`src/game/beats/y1.ts`). A portrait added to that folder is added here, and
+ * the cost of forgetting is what happens today: one slow first frame. */
+export const DRAWN_PORTRAITS = ['principal']
+
+let warmed = false
+export function warmPortraits() {
+  if (warmed || typeof Image === 'undefined') return
+  warmed = true
+  for (const id of DRAWN_PORTRAITS) {
+    const img = new Image()
+    img.decoding = 'async'
+    img.src = portraitUrl(id)
+  }
+}
+
 /* A PORTRAIT IS DRAWN ART, AND THE CONTROL ARM CARRIES NONE.
  *
  * The beat runner already worked this way and nobody had written it down: its

@@ -873,6 +873,10 @@ export default function PmapScene() {
        * compacted list would silently renumber every look after the unnamed one. */
       const lookNamesOf = new Map<Sprite, string[]>()
 
+      /* anchors this scene has already complained about, so a room that syncs
+       * its shelf on every load says it once rather than once a crossing */
+      const saidUnbound = new Set<string>()
+
       const actorSprite = (name: string): Sprite | null => placedById.get(name) ?? null
       const take = (sp: Sprite): Driven => {
         let d = driven.get(sp)
@@ -3765,7 +3769,29 @@ export default function PmapScene() {
            * authoring mistake and the author is the one who has to hear it.
            * Warning to the console and returning made `show` answer ok on every
            * bundle in this project, because not one of them binds a placement. */
-          if (!id) throw new NotBuilt('show', `anchor "${name}" is not bound to a placement`)
+          if (!id) {
+            /* ---- AND IT IS SAID IN PLAIN WORDS, ONCE, TO WHOEVER AUTHORED IT
+             *
+             * BRIEF-MAW-RAIL-3 G, on the trophy wall: *"'What you earn goes up
+             * here' opens on an empty spot because the published Maw carries no
+             * placement bound to `trophy_wall`. That is Ash's hands in MAPVIS.
+             * The engine says so once in the console, not to the student, and
+             * the line still plays."*
+             *
+             * The refusal below is the island's to catch and it carries the same
+             * fact, but it lands as a python traceback string inside whatever
+             * `except` the island wrote, which is not where anybody looks. This
+             * is the sentence a person reads, it names the map and the fix, and
+             * it is said once per anchor per scene because a room synced on
+             * every load would otherwise print it forty times an hour. */
+            if (!saidUnbound.has(name)) {
+              saidUnbound.add(name)
+              console.warn(`[pmap] ${mapId} has an anchor called "${name}" with no placement bound to it, `
+                + 'so nothing in the world can be shown or hidden by that name. Bind a placement to it in '
+                + 'MAPVIS and republish. The island carries on; the student sees the room as it is.')
+            }
+            throw new NotBuilt('show', `anchor "${name}" is not bound to a placement`)
+          }
           const sp = placedById.get(id)
           if (!sp) throw new NotBuilt('show', `no placement "${id}" on ${mapId}`)
           sp.visible = visible

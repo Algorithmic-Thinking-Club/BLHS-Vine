@@ -9,6 +9,7 @@ import { HelpButton } from './Help'
 import { loadSave, subscribeSave } from '../save'
 import { useNav } from '../../app/SceneManager'
 import { holdWorld } from '../world-bus'
+import { warmPortraits } from '../ui/controls'
 
 // The HUD's global mount for WORLD scenes (§11.1): the island map, the grape islands,
 // the Maw. The beach mounts its own Hud inside IntroScene (it must yield to the intro
@@ -26,6 +27,10 @@ export function WorldHud() {
   const { current } = useNav()
   const [, bump] = useState(0)
   useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
+  /* THE ONE DRAWN FACE IS FETCHED BEFORE ANYBODY SPEAKS (BRIEF-MAW-RAIL-3 G).
+   * Here rather than in the dialogue box, because by the time the box mounts the
+   * line it is mounting for is already on screen. */
+  useEffect(() => { warmPortraits() }, [])
   const s = loadSave()
 
   /* THE CONTROL LOCK. Hud has taken an onBlurWorld callback since July and
