@@ -55,7 +55,7 @@
       "r": 18,
       "to": "hub",
       "toAnchor": "panthers_maw",
-      "label": "Hub Island",
+      "label": "The Harbor",
       "meta": {
         "docId": 1
       }
@@ -75,21 +75,22 @@
     {
       "name": "chart_table",
       "kind": "post",
-      "x": 330,
-      "y": 226,
+      "x": 288,
+      "y": 229,
       "r": 10,
       "stand": [
-        335,
-        211
+        295,
+        213
       ],
       "placement": "chart_table",
       "facing": "south-west",
+      "label": "Open the year sheet",
       "meta": {
         "ring": [
-          0,
-          -8
+          1,
+          -7
         ],
-        "when": "The Chart Table",
+        "when": "always",
         "docId": 7,
         "shape": "circle"
       }
@@ -100,13 +101,17 @@
       "x": 324,
       "y": 181,
       "r": 12,
+      "stand": [
+        324,
+        185
+      ],
       "placement": "counselor",
       "facing": "north",
       "label": "The Counselor",
       "meta": {
         "ring": [
           0,
-          -6
+          -4
         ],
         "docId": 10
       }
@@ -123,7 +128,7 @@
       ],
       "placement": "hearth",
       "facing": "north-east",
-      "label": "The Hearth",
+      "label": "Advisory",
       "meta": {
         "ring": [
           -1,
@@ -219,6 +224,10 @@
       "x": 185,
       "y": 115,
       "r": 14,
+      "stand": [
+        185,
+        114
+      ],
       "facing": "south-east",
       "meta": {
         "docId": 2
@@ -232,7 +241,7 @@
       "x": 158,
       "y": 95,
       "r": 18,
-      "label": "Hub Island",
+      "label": "The Harbor",
       "to": "hub"
     },
     {
@@ -256,10 +265,10 @@
   ],
   "contract": 2,
   "slug": "panther-maw",
-  "version": 4,
+  "version": 6,
   "provenance": {
     "owner": "algorithmicthinkingclub@gmail.com",
-    "publishedAt": "2026-09-03T03:02:01.241Z",
-    "version": 4
+    "publishedAt": "2026-09-07T21:25:02.027Z",
+    "version": 6
   }
 }
