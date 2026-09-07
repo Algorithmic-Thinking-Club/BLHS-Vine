@@ -534,13 +534,35 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
 
 /* ---- THE END OF THE BEAT ------------------------------------------------ */
 
+/* ---- THE WAY ON NEVER GOES UNDER THE FOLD -------------------------------
+ *
+ * Measured on the dev server, `scripts/_plankfit.mjs`, with the elective list
+ * open: at 1366x768 the plank's bottom edge was at 750 of 768, and at 1280x720
+ * it was at 749 of 720, which is OFF THE SCREEN. The sheet scrolls, so the
+ * plank was reachable and a student who reads nothing would never know it was
+ * there, and BRIEF-SELF-EVIDENT law 6 is that there is no screen where nothing
+ * is next.
+ *
+ * A taller cap is the wrong fix, because the list of courses grows the day the
+ * catalog does and the fold moves back. The foot is pinned to the bottom of the
+ * sheet instead, so the periods scroll under it and the one control that ends
+ * the beat is on the glass at every window size and every list length. It
+ * carries the sheet's own paper so rows do not read through it. */
 .py-foot {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 14px;
   margin-top: 4px;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: 6px 0 2px;
+  background: var(--kit-paper);
 }
+/* with no paper token behind it (the plain arm answers `--kit-paper` too, so
+   this is only the no-kit case) the plank still needs a ground of its own */
+html[data-skin='plain'] .py-foot { background: var(--kit-paper-hi, #fff); }
 .py-notyet {
   --kit-fs-raw: calc(16px * var(--kit-text-scale));
   font-size: var(--kit-fs);

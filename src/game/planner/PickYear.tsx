@@ -79,7 +79,7 @@
  */
 import { useEffect, useState } from 'react'
 import { PROGRAMMES, seasonOf, type Programme } from '../roster/roster'
-import { EXAMPLE_BLURB, NO_ISLAND_YET, classIsReal, exampleNameOf, shownName } from '../roster/placeholders'
+import { EXAMPLE_BLURB, classIsReal, exampleNameOf, shownName } from '../roster/placeholders'
 import { CLASSES, type ClassDef } from './catalog'
 import { scheduleOwed } from './schedule'
 import { SEASONS, assignSlot, clearSlot, loadSave, pickClass, dropClass, stampPlan, type Season } from '../save'
@@ -222,18 +222,19 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
 
   const chosen = SEASONS.filter((se) => plan.slots[se]).length
   const classesLeft = 2 - plan.classes.length
-  /* ---- WHAT IS ACTUALLY PICKABLE TODAY, WHICH IS NOTHING ------------------
+  /* ---- WHAT IS ACTUALLY PICKABLE TODAY, AND IT IS THE ELECTIVES -----------
    *
-   * Every club and sport on the roster and every elective in the catalog is a
-   * placeholder until a row in `member-islands.json` puts a playable island
-   * behind it (`roster/placeholders.ts`). So the screen is READ today and picked
-   * the day a member ships one, and the plank has to end the beat either way:
-   * Ash, "the plank 'That is my schedule' works with nothing picked, since the
-   * year already closes on the stamp plus Advisory."
+   * BRIEF-INTRO-FILM section 3 splits the sheet in two. THE ELECTIVES ARE
+   * PICKABLE AND REQUIRED whatever the roster says, because a course is a thing
+   * the district runs and picking two is what a freshman does; the island behind
+   * one is what is not built. THE CLUBS AND SPORTS are islands, so there is no
+   * honest name to print on one nobody has made, they stay Example A to E, and
+   * that half is owed only where a `member-islands.json` row puts something real
+   * on the screen (`roster/placeholders.ts`).
    *
-   * The rule is written against what exists rather than against today: a pick is
-   * OWED only where there is something real to pick. The moment one island lands
-   * the schedule starts asking for it again, with no edit here. */
+   * `realClasses` is still counted, and it is still handed to the rule, because
+   * it is what makes an elective's island reachable the day one lands. It is no
+   * longer what decides whether the period has to be filled. */
   const realClasses = classes.filter((c) => classIsReal(c.id))
   const realActivities = activities.filter((p) => p.playable)
   /* THE RULE ITSELF IS `planner/schedule.ts`, so it can be tested without
@@ -348,24 +349,24 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                               </div>
                             )
                           }
-                          /* ---- AN ELECTIVE KEEPS ITS REAL NAME AND WAITS ----
-                              Ash's refinement: "the elective list is fixed by
-                              the school, so keep REAL BLHS elective names...
-                              Every elective is INERT today, drawn as a real name
-                              with a quiet no-island-yet mark, and becomes
-                              pickable the moment a member-islands.json row links
-                              to its id." Unlike a club, a course is a true thing
-                              about Bonney Lake whether or not anybody has drawn
-                              it, so the catalog is worth reading now. */
-                          if (!classIsReal(c.id)) {
-                            return (
-                              <div key={c.id} className="py-class py-class-waiting" role="group" aria-label={c.name + ', ' + NO_ISLAND_YET}>
-                                <span className="py-tick" aria-hidden="true" />
-                                <span className="py-class-name">{c.name}</span>
-                                <span className="py-class-waitmark">{NO_ISLAND_YET}</span>
-                              </div>
-                            )
-                          }
+                          /* ---- AN ELECTIVE IS PICKABLE, AND THAT IS A RULING
+                              BRIEF-INTRO-FILM section 3, which overrules the
+                              rail-2 refinement that stood here: "Electives are
+                              PICKABLE and REQUIRED: two, from the real BLHS
+                              elective list, because choosing electives is a
+                              thing every freshman actually does, and the island
+                              behind an elective is what is 'not built yet', not
+                              the choice."
+
+                              So the `classIsReal` gate that drew every one of
+                              these as an inert div with a "no island yet" mark
+                              is gone. A course the district publishes is a true
+                              thing about Bonney Lake and picking two of them is
+                              the thing this screen is FOR; what does not exist
+                              yet is an island to sail to, and a mark saying so
+                              on all thirteen rows was the screen apologising
+                              thirteen times for something the student had not
+                              asked about. */
                           return (
                             <button key={c.id} type="button" className="py-class" onClick={() => takeClass(c)}>
                               <span className="py-tick" aria-hidden="true" />
@@ -378,9 +379,12 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                           line is the one that says what to do instead, and it
                           names the control that does it. */}
                       <p className={`py-classnote${classNo ? ' py-classnote-no' : ''}`} role={classNo ? 'alert' : undefined}>
-                        {classNo ?? (realClasses.length
-                          ? 'Press one to put it in this period.'
-                          : 'None of these has an island yet. Press "That is my schedule" below.')}
+                        {/* ONE INSTRUCTION, ALWAYS THE SAME ONE. It used to
+                            branch on whether any elective had an island and say
+                            "None of these has an island yet" when none did,
+                            which is now every row's own answer to a question the
+                            student is not asking: they are all pickable. */}
+                        {classNo ?? 'Press one to put it in this period.'}
                       </p>
                     </div>
                   )}
@@ -396,9 +400,18 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
             club or a sport" and "a class" were two rows of the same screen with
             nothing saying that one of them is at 2:30. */}
         <section className={`py-cardbox${stage === 'after' ? ' py-lit' : ''}`} aria-labelledby="py-cards-h">
+          {/* ---- AND THIS HALF SAYS OUT LOUD THAT IT IS SHUT ---------------
+              BRIEF-INTRO-FILM section 3: *"it reads 'After school: no clubs open
+              yet' over the example cards so nobody hunts for a live one."* The
+              heading said "pick one" over five cards that cannot be pressed,
+              which is an instruction a student cannot follow and no way of
+              telling that from a broken screen. It says "pick one" again, on its
+              own, the day a member's row makes one of them real. */}
           <h3 className="py-h py-cards-h" id="py-cards-h">
-            After school: pick one
-            <span className="py-count"> {chosen === 0 ? 'none yet' : `${chosen} taken`}</span>
+            {realActivities.length ? 'After school: pick one' : 'After school: no clubs open yet'}
+            {realActivities.length > 0 && (
+              <span className="py-count"> {chosen === 0 ? 'none yet' : `${chosen} taken`}</span>
+            )}
           </h3>
           <div className="py-grid">
             {/* A TAKEN CARD IS LOCKED. Not a button any more: a stamped sign with

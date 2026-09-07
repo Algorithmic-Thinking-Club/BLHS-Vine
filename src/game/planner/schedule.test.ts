@@ -1,15 +1,19 @@
-/* THE PLANK RULE, BUILT AND TESTED THE DAY IT WAS RULED.
+/* THE PLANK RULE.
  *
- * BRIEF-MAW-RAIL-3 F: *"'That is my schedule' works with nothing picked ONLY
- * while nothing real exists. The moment a real island is linked to a slot, that
- * slot is required and the plank stays quiet until it is filled, with the
- * counter saying what is missing. Build the rule and the test now."*
+ * BRIEF-INTRO-FILM section 3 rewrote half of it and left the other half alone,
+ * so this file now proves two different rules on one sheet:
  *
- * The half that needs a test is the SECOND sentence, because the first one is
- * what a student sees today and the second one is a promise about a day nobody
- * has lived through yet. So the last two cases here drive the rule off the same
- * table a member's pull request writes into, exactly as `placeholders.test.ts`
- * does, and watch the schedule start asking for a pick on its own.
+ *   THE ELECTIVES ARE OWED ALWAYS. *"Electives are PICKABLE and REQUIRED: two...
+ *   The plank stays quiet until both periods are filled."* Nothing about the
+ *   roster can change that, which is what the first block asserts by driving the
+ *   rule with `realClasses: 0`.
+ *
+ *   THE AFTER-SCHOOL SLOT IS OWED ONLY WHERE SOMETHING REAL EXISTS, which is
+ *   BRIEF-MAW-RAIL-3 F's rule, kept: *"the moment a real island is linked to a
+ *   slot, that slot is required and the plank stays quiet until it is filled,
+ *   with the counter saying what is missing."* That half is a promise about a
+ *   day nobody has lived through yet, so the last block drives it off the same
+ *   `member-islands.json` a member's pull request writes into.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { scheduleOwed } from './schedule'
@@ -19,9 +23,22 @@ beforeEach(() => {
   vi.doUnmock('../roster/member-islands')
 })
 
-describe('the plank, while nothing on the sheet is real', () => {
-  it('is live with nothing picked at all', () => {
+describe('the two electives are owed whatever the roster says', () => {
+  it('is QUIET with nothing picked at all, which reverses rail-3', () => {
     const o = scheduleOwed({ electivesLeft: 2, chosen: 0, realClasses: 0, realActivities: 0 })
+    expect(o.ready).toBe(false)
+    expect(o.stage).toBe('schedule')
+    expect(o.notYet).toBe('Not yet: fill both Elective periods.')
+  })
+
+  it('says which one is missing when one is in', () => {
+    const o = scheduleOwed({ electivesLeft: 1, chosen: 0, realClasses: 0, realActivities: 0 })
+    expect(o.ready).toBe(false)
+    expect(o.notYet).toBe('Not yet: fill the last Elective period.')
+  })
+
+  it('goes live on the second elective, with no club picked and none real', () => {
+    const o = scheduleOwed({ electivesLeft: 0, chosen: 0, realClasses: 0, realActivities: 0 })
     expect(o.ready).toBe(true)
     expect(o.stage).toBe('go')
     expect(o.notYet).toBeNull()
@@ -29,16 +46,6 @@ describe('the plank, while nothing on the sheet is real', () => {
 })
 
 describe('the plank, the moment something real exists', () => {
-  it('waits for both elective periods and says which', () => {
-    const both = scheduleOwed({ electivesLeft: 2, chosen: 0, realClasses: 1, realActivities: 0 })
-    expect(both.ready).toBe(false)
-    expect(both.stage).toBe('schedule')
-    expect(both.notYet).toBe('Not yet: fill both Elective periods.')
-
-    const one = scheduleOwed({ electivesLeft: 1, chosen: 0, realClasses: 1, realActivities: 0 })
-    expect(one.notYet).toBe('Not yet: fill the last Elective period.')
-  })
-
   it('waits for one club or sport and says so', () => {
     const o = scheduleOwed({ electivesLeft: 0, chosen: 0, realClasses: 0, realActivities: 1 })
     expect(o.ready).toBe(false)
@@ -77,14 +84,19 @@ const fakeRow = {
 }
 
 describe('one row in member-islands.json starts the schedule asking', () => {
-  it('asks for nothing while the table is empty', async () => {
+  it('asks for nothing AFTER SCHOOL while the table is empty', async () => {
     const { PROGRAMMES } = await import('../roster/roster')
     const { classIsReal } = await import('../roster/placeholders')
     const { CLASSES } = await import('./catalog')
     const real = PROGRAMMES.filter((p) => p.playable).length
     const realClasses = CLASSES.filter((c) => classIsReal(c.id)).length
     expect(real + realClasses).toBe(0)
-    expect(scheduleOwed({ electivesLeft: 2, chosen: 0, realClasses, realActivities: real }).ready).toBe(true)
+    /* the electives are filled here on purpose: this case is about the OTHER
+       half of the sheet, and with a blank period the plank is quiet for a reason
+       that has nothing to do with the roster */
+    const o = scheduleOwed({ electivesLeft: 0, chosen: 0, realClasses, realActivities: real })
+    expect(o.owesActivity).toBe(false)
+    expect(o.ready).toBe(true)
   })
 
   it('asks for the after-school slot the moment a club is playable', async () => {
@@ -92,7 +104,7 @@ describe('one row in member-islands.json starts the schedule asking', () => {
     const { PROGRAMMES } = await import('../roster/roster')
     const real = PROGRAMMES.filter((p) => p.playable).length
     expect(real).toBe(1)
-    const o = scheduleOwed({ electivesLeft: 2, chosen: 0, realClasses: 0, realActivities: real })
+    const o = scheduleOwed({ electivesLeft: 0, chosen: 0, realClasses: 0, realActivities: real })
     expect(o.ready, 'a real club exists and the plank still ends the beat').toBe(false)
     expect(o.notYet).toBe('Not yet: press one club or sport below.')
   })

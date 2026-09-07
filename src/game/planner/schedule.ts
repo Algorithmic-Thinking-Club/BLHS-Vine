@@ -1,23 +1,31 @@
 /* WHEN THE SCHEDULE IS FINISHED, AND WHAT IS MISSING WHEN IT IS NOT.
  *
- * BRIEF-MAW-RAIL-3 F, Ash's ruling in full: *"'That is my schedule' works with
- * nothing picked ONLY while nothing real exists. The moment a real island is
- * linked to a slot, that slot is required and the plank stays quiet until it is
- * filled, with the counter saying what is missing. Build the rule and the test
- * now."*
+ * ---- THE RULING THIS FILE NOW ANSWERS TO --------------------------------
  *
- * ---- WHY IT IS WRITTEN AGAINST WHAT EXISTS AND NOT AGAINST TODAY ----------
+ * BRIEF-INTRO-FILM section 3, Ash, 2026-09-07, and it OUTRANKS the
+ * BRIEF-MAW-RAIL-3 F rule this file was written for: *"Electives are PICKABLE
+ * and REQUIRED: two, from the real BLHS elective list (the sourced catalog),
+ * because choosing electives is a thing every freshman actually does, and the
+ * island behind an elective is what is 'not built yet', not the choice. The
+ * plank stays quiet until both periods are filled. Clubs and sports: the
+ * placeholder cards stay, inert, and that section is not required until a real
+ * club island exists."*
  *
- * The obvious version of "the plank works with nothing picked" is a boolean
- * somebody flips the day the first island lands, and the day it lands nobody
- * remembers this file exists. So the rule is: A PICK IS OWED ONLY WHERE THERE IS
- * SOMETHING REAL TO PICK. With an empty roster the schedule asks for nothing and
- * the plank is the way on, because every card on the screen is a picture of a
- * card. With one playable elective it asks for both elective periods again, and
- * with one playable club it asks for the after-school slot again, on its own,
- * with no edit anywhere.
+ * So the two halves of this sheet are now ruled DIFFERENTLY, and the difference
+ * is real rather than an inconsistency:
  *
- * ---- WHY IT IS ITS OWN FILE ------------------------------------------------
+ *   AN ELECTIVE IS A COURSE THE SCHOOL RUNS. Spanish I is a true thing about
+ *   Bonney Lake whether or not anybody has drawn an island for it, and picking
+ *   two of them is the thing every freshman in the building does in February.
+ *   It is owed always, and the island is the part that is not built.
+ *
+ *   A CLUB IN THIS GAME IS AN ISLAND SOMEBODY BUILT. There is no honest name to
+ *   print on a card nobody has made, which is why they are Example A to E, and
+ *   requiring a student to press a picture of a card is requiring nothing. So
+ *   that half stays owed only where there is something real to press, which is
+ *   BRIEF-MAW-RAIL-3 F's rule, kept, for the half it was right about.
+ *
+ * ---- WHY IT IS ITS OWN FILE ----------------------------------------------
  *
  * It was eight lines inside `PickYear.tsx`'s render, which is a rule that can
  * only be tested by mounting a panel, and a rule nobody can test is a rule that
@@ -27,7 +35,7 @@
  */
 
 export type ScheduleOwed = {
-  /** an elective period is empty and there is a real elective to put in it */
+  /** an elective period is still empty */
   owesClass: boolean
   /** nothing after school and there is a real club or sport to join */
   owesActivity: boolean
@@ -43,6 +51,11 @@ export type ScheduleOwed = {
   notYet: string | null
 }
 
+/* HOW MANY ELECTIVE PERIODS A YEAR HAS. Two, which is the number of blank rows
+ * `PickYear` draws and the number `refuseClass` stops a third pick at, and the
+ * three of them have to agree or the sheet asks for a row it does not have. */
+export const ELECTIVES_OWED = 2
+
 export function scheduleOwed(n: {
   /** how many of this year's elective periods are still blank (0, 1 or 2) */
   electivesLeft: number
@@ -53,10 +66,16 @@ export function scheduleOwed(n: {
   /** how many clubs and sports on offer have one */
   realActivities: number
 }): ScheduleOwed {
-  const owesClass = n.realClasses > 0 && n.electivesLeft > 0
+  /* BOTH PERIODS, ALWAYS, and `realClasses` is deliberately not read here any
+   * more. It stays on the argument list because the caller counts it for the
+   * after-school half and because deleting a field a member's island writes
+   * into would be the third place this ruling has to be found. */
+  const owesClass = n.electivesLeft > 0
   const owesActivity = n.realActivities > 0 && n.chosen === 0
   const ready = !owesClass && !owesActivity
   const stage = owesClass ? 'schedule' : owesActivity ? 'after' : 'go'
+  /* WHAT IS MISSING, COUNTED, because Ash asked for the counter to say it and
+   * because "Not yet" on its own is a refusal with no way out of it. */
   const notYet = owesClass
     ? `Not yet: fill ${n.electivesLeft > 1 ? 'both Elective periods' : 'the last Elective period'}.`
     : owesActivity
