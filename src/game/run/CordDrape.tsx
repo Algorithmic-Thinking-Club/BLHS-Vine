@@ -137,7 +137,18 @@ export function CordDrape({ year, onDone }: { year: number; onDone: () => void }
         </p>
 
         <div className="cd-foot">
-          <Plank size="lg" onClick={onDone}>Year two, next time</Plank>
+          {/* ---- NO PROMISE ABOUT NEXT TIME, ANYWHERE -----------------------
+              BRIEF-INTRO-FILM section 4, twice on one page: *"No 'Year two'
+              wording anywhere; the intro does not end with a promise about next
+              time."* This plank was "Year two, next time", which is the last
+              control of the thirty minutes and was the game promising a session
+              nobody has designed and nobody will play in an advisory block.
+
+              The same shape as the other two things a student presses to say a
+              piece of paper is finished, "That is my schedule" and "That is year
+              one": a sentence about what just happened, which every reads-nothing
+              harness classifies as forward and no student reads as a way back. */}
+          <Plank size="lg" onClick={onDone}>That is my first cord</Plank>
         </div>
       </div>
     </div>

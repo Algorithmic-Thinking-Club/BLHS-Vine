@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { loadSave } from '../save'
 import { CordDrape } from './CordDrape'
+import { YearCard } from './YearCard'
 import { track } from '../telemetry'
 import { announce, tabRowKeyDown, usePanel } from '../ui/a11y'
 import { Chip, Gauge, Glyph, Plank, Tab, useKitReady } from '../ui/controls'
@@ -280,8 +281,33 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
 
   const move = page.move
 
+  /* ---- INSIDE THE FILM THE BOOK IS ONE CARD -------------------------------
+   *
+   * BRIEF-INTRO-FILM section 4: *"the yearbook page as ONE card (what he picked,
+   * what he earned, nothing else)"*. The spread below is untouched and is still
+   * what My Year opens; what changes is the one place a student meets this book
+   * without having asked for it, which is the last minute of the introduction.
+   *
+   * The bars being up IS the statement that something else is directing, which
+   * is the same test the schedule uses to take its own way out away.
+   *
+   * The cord still rides on the turn, so the order inside the film is card,
+   * press, cord, and then the film has the floor back. */
+  const inFilm = cinemaOn()
+
   if (draping) {
-    return <CordDrape year={year} onDone={() => setDraping(false)} />
+    return (
+      <CordDrape
+        year={year}
+        /* the film does not go back to a book it has already shown: the drape is
+           the last screen and the corner is what comes after it */
+        onDone={() => { setDraping(false); if (inFilm) onClose() }}
+      />
+    )
+  }
+
+  if (inFilm) {
+    return <YearCard year={year} page={page} onDone={canTurn ? turn : onClose} />
   }
 
   return (
@@ -445,8 +471,14 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                  the counselor had just said the opposite out loud. */
               <>
                 <h2 className="yb-title">Year {year} is done.</h2>
+                {/* NO PROMISE ABOUT NEXT TIME (BRIEF-INTRO-FILM section 4). This
+                    said "Year two is next time", which is the one wording that
+                    page forbids outright, on the screen a student reaches by
+                    opening My Year after the film. What is true and useful is
+                    what the room is now: his. */}
                 <p className="yb-turnedline">
-                  That is year one. Year two is next time. The Maw is yours to walk until then.
+                  That is year one. The Maw is yours to walk, and the Guide has every club and
+                  class at Bonney Lake in it.
                 </p>
                 <div className="yb-acts">
                   <Plank size="lg" onClick={onClose}>That is year one</Plank>

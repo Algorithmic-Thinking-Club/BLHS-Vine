@@ -102,6 +102,20 @@ html[data-panels]:not([data-panels='0']) .hud-stack { visibility: hidden; }
    render the run first contains the thing it opens. It never plays again, and a
    reload mid-run plays none of them. */
 .hud-arriving { animation: hud-hang 620ms var(--kit-ease-pop) both; transform-origin: 24% -6px; }
+
+/* ---- A DOOR THE FILM HAS NOT HANDED OVER YET ----------------------------
+ *
+ * BRIEF-INTRO-FILM section 4: *"the corner appears one plaque at a time with
+ * one line each said by the principal"*. `hud/corner-bus.ts` decides which; this
+ * is the whole of the picture.
+ *
+ * VISIBILITY, NEVER DISPLAY. The three plaques hang under each other, so
+ * removing one from the flow would slide the ones below it up the screen as the
+ * principal named them, and the corner moving while a student is being told what
+ * is in it is the exact confusion BRIEF-SELF-EVIDENT law 7 names. Each door
+ * keeps its place in the dark and swings in on its hook (`hud-arriving`) on the
+ * line that hands it over. */
+.hud-plaque-waiting { visibility: hidden; pointer-events: none; }
 @keyframes hud-hang {
   0% { transform: translateY(-26px) rotate(-9deg); opacity: 0; }
   55% { transform: none; opacity: 1; }

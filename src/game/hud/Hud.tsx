@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Handbook } from './Handbook'
+import { Handbook, type Tab as HandbookTab } from './Handbook'
 import { HelpCard } from './Help'
 import { SettingsPanel } from '../../app/SettingsPanel'
 import { Planner } from '../planner/Planner'
 import { PickYear } from '../planner/PickYear'
+import { onCornerChange, plaqueShown, plaquesRevealed } from './corner-bus'
 import { TrophyWall } from '../run/TrophyWall'
 import { Graduation } from '../run/Graduation'
 import { CoreBeatRunner } from '../beats/ActivityRunner'
@@ -54,7 +55,7 @@ function gradeFromLedger(beatId: string): number | null {
 
 export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const nav = useNav()
-  const [book, setBook] = useState<null | 'chart' | 'islands'>(null)
+  const [book, setBook] = useState<null | HandbookTab>(null)
   const [planner, setPlanner] = useState(false)
   const [advisory, setAdvisory] = useState(false)
   const [sitClass, setSitClass] = useState<string | null>(null)
@@ -69,6 +70,13 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const [playing, setPlaying] = useState<null | { beat: CoreBeat; plain: boolean; done: (g: number | null) => void }>(null)
   const [, bump] = useState(0)
   useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
+  /* ---- AND THE CORNER CAN BE HANDED OVER ONE PLAQUE AT A TIME -------------
+   *
+   * BRIEF-INTRO-FILM section 4. `corner-bus.ts` holds the staging and answers
+   * `plaqueShown`; this is only the redraw. Nothing is hidden unless an island
+   * armed the handover, so a run that never says a word gets the whole corner
+   * from its first frame, which is BRIEF-PLAYTHROUGH-1 law 2 unchanged. */
+  useEffect(() => onCornerChange(() => bump((v) => v + 1)), [])
   /* IS THE WORLD ACTUALLY QUIET. The vignette's own rule has always been "only
    * while the world is quiet" and it only ever checked this component's own
    * panels, so a station mid-sentence or a cutscene mid-shot counted as quiet and
@@ -92,6 +100,9 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
    * every other mount, so the corner cannot say two different things in two
    * scenes the way it did when IntroScene had its own gate of none at all. */
   const g = hudGrants(s)
+  /* which doors the film has handed over so far, so the one that just landed
+     swings in on its hook and the ones still to come stand in the dark */
+  const handedOver = plaquesRevealed()
   /* the seasons still in hand, which is a list a fresh run has not been given
    * yet and a spent one has emptied. The corner shows the door in both cases. */
   const left = s?.tokens ?? []
@@ -122,6 +133,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       seen.current = now
     }
   }
+
 
   const anyOpen = book !== null || planner || settings || advisory || sitClass !== null
     || yearbook || graduation || wardrobe || wall || playing !== null
@@ -253,7 +265,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     setPlaying({ beat, plain: req.plain, done: req.done })
   }), [onBlurWorld, s])
 
-  const openBook = (tab: 'chart' | 'islands') => { setPaused(false); setBook(tab) }
+  const openBook = (tab: HandbookTab) => { setPaused(false); setBook(tab) }
   const openPlanner = () => { setPaused(false); setPlanner(true) }
   const closeAll = () => {
     setBook(null); setPlanner(false); setAdvisory(false); setSitClass(null); setYearbook(false)
@@ -365,11 +377,21 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
           honest answer to "has this been earned", the panels still read it, and
           the arrival flourish still plays the first time a thing is really
           granted. What changed is that the DOOR is always there. */}
+      {/* ---- THE HANDOVER, ONE PLAQUE AT A TIME (BRIEF-INTRO-FILM section 4)
+          Each door keeps its place in the stack whether or not it has been
+          handed over yet, so the two that are still coming do not push the one
+          that arrived down the screen as they land. `visibility` rather than
+          `display` for exactly that: the corner is stable (BRIEF-SELF-EVIDENT
+          law 7) and a control that moves while a student is looking at it is
+          the thing that law is about. Outside a staged handover `plaqueShown`
+          is true for all three and none of this is on. */}
       <nav className="hud-stack" aria-label="Game menu">
         {(
         <button
-          className={`hud-plaque${entering.has('chart') ? ' hud-arriving' : ''}`}
+          className={`hud-plaque${plaqueShown('map') ? '' : ' hud-plaque-waiting'}${handedOver.includes('map') ? ' hud-arriving' : ''}${entering.has('chart') ? ' hud-arriving' : ''}`}
           aria-label="Map. The islands you have found."
+          aria-hidden={!plaqueShown('map')}
+          tabIndex={plaqueShown('map') ? undefined : -1}
           aria-haspopup="dialog"
           onClick={() => { track('chart_opened'); openBook('chart') }}
         >
@@ -379,10 +401,15 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
         )}
         {(
         <button
-          className={`hud-plaque${entering.has('handbook') ? ' hud-arriving' : ''}`}
+          className={`hud-plaque${plaqueShown('guide') ? '' : ' hud-plaque-waiting'}${handedOver.includes('guide') ? ' hud-arriving' : ''}${entering.has('handbook') ? ' hud-arriving' : ''}`}
           aria-label="Guide. What the school offers, and what you have earned."
+          aria-hidden={!plaqueShown('guide')}
+          tabIndex={plaqueShown('guide') ? undefined : -1}
           aria-haspopup="dialog"
-          onClick={() => openBook('islands')}
+          /* THE GUIDE OPENS ON THE SCHOOL, not on the game's own island list.
+             BRIEF-INTRO-FILM section 5 and the principal's own handover line:
+             "The Guide is every club and class at Bonney Lake." */
+          onClick={() => openBook('school')}
         >
           {/* A BOOK, DRAWN 2026-09-01. This wore the school's panther crest,
               which `docs/ART.md` puts on the Handbook's COVER and which is the
@@ -396,7 +423,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
         )}
         {(
           <button
-            className={`hud-plaque hud-tokenbtn${entering.has('tokens') ? ' hud-arriving' : ''}`}
+            className={`hud-plaque${plaqueShown('my-year') ? '' : ' hud-plaque-waiting'}${handedOver.includes('my-year') ? ' hud-arriving' : ''} hud-tokenbtn${entering.has('tokens') ? ' hud-arriving' : ''}`}
             /* THE CORNER OUTLIVES THE RUN NOW (law 2), so this reads a save that
                may not exist yet. A student on the first world frame of a fresh
                run has no tokens because they have not been handed any, which is
