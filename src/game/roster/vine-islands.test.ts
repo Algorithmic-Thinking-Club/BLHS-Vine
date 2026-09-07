@@ -94,10 +94,26 @@ describe('the questions a station has to be able to ask', () => {
     expect(engine.read('advisory')).toBeNull()
   })
 
+  /* the rail's own question. Without it the Maw could open the pick screen and
+   * had no way to find out whether the student stamped it or pressed Close for
+   * now, so a rail would walk him to the fire with an empty sheet. */
+  it('planned is false until the sheet is really stamped', async () => {
+    const { save, engine } = await fresh()
+    save.beginAdventure()
+    expect(engine.read('planned')).toBe(false)
+    save.assignSlot(1, 'Fall', 'atc')
+    save.pickClass(1, 'ap-human-geo'); save.pickClass(1, 'band')
+    // picked, and the wax is not on it
+    expect(engine.read('planned')).toBe(false)
+    save.stampPlan(1, ['atc'])
+    expect(engine.read('planned')).toBe(true)
+  })
+
   it('every new path answers with no run at all, like the nine before them', async () => {
     const { engine } = await fresh()
     expect(engine.read('cord_board')).toEqual([])
     expect(engine.read('trophies')).toEqual({ stickers: [], badges: [] })
     expect(engine.read('advisory')).toBeNull()
+    expect(engine.read('planned')).toBe(false)
   })
 })

@@ -54,7 +54,7 @@ const stubEngine = (): { engine: IntentEngine; did: string[] } => {
   return {
     did,
     engine: {
-      openUi: (u) => { did.push(`openUi:${u}`) },
+      openUi: (u, wait) => { did.push(`openUi:${u}${wait ? ':wait' : ''}`) },
       playBeat: async (b) => { did.push(`playBeat:${b}`); return 3 },
       read: (p) => { did.push(`read:${p}`); return 42 },
       setFlag: (f) => { did.push(`setFlag:${f}`) },
@@ -346,6 +346,38 @@ describe('the driver hands a refusal back to the line that asked', () => {
     }
     await runStation(body() as Generator<Intent, void, unknown>, h, 'a station')
     expect(seen[0]).toContain('which is not an intent')
+  })
+
+  /* ---- open(wait): the word BRIEF-MAW-RAIL's five beats could not be written
+   * without. Without it `open` comes back the instant the screen is up, so the
+   * beat after a panel runs underneath it. */
+  it('open says whether it is waiting, and a waiting one holds the body up', async () => {
+    const h = host()
+    let opened: string | null = null
+    const engine = h.engine as unknown as { openUi: (u: string, w?: boolean) => Promise<void> | void }
+    let release: (() => void) | null = null
+    engine.openUi = (u, w) => {
+      opened = `${u}${w ? ':wait' : ''}`
+      return w ? new Promise<void>((r) => { release = r }) : undefined
+    }
+    const after: string[] = []
+    function* body(): Generator<Intent, void, unknown> {
+      yield { kind: 'open', ui: 'planner', wait: true }
+      after.push('the beat after the panel')
+    }
+    const ran = runStation(body(), h, 'the rail')
+    await Promise.resolve()
+    expect(opened).toBe('planner:wait')
+    expect(after).toEqual([])          // still parked on the cards
+    release!()
+    await ran
+    expect(after).toEqual(['the beat after the panel'])
+  })
+
+  it('open without wait is the same fire and forget call it always was', async () => {
+    const h = host()
+    await performIntent({ kind: 'open', ui: 'wardrobe' }, h)
+    expect(h.edid).toEqual(['openUi:wardrobe'])
   })
 
   it('a body that never stops is stopped, rather than the browser tab', async () => {
