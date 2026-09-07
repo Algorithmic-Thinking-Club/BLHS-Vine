@@ -35,30 +35,27 @@
    the corner and the help button, so there is one way of doing this and not two.
    Visibility rather than display: nothing reflows, nothing remeasures its own
    band, and a surface that publishes a height to the camera keeps publishing it
-   instead of making the picture jump when the bars come down. */
-/* THE CORNER GOES AND THE QUESTION MARK STAYS, ruled by Ash 2026-09-06: "the
+   instead of making the picture jump when the bars come down.
+
+   THE ARRIVAL CARD DRAWS UNDER THEM TOO, and that is a ruling from the other
+   end: the bars are up for the WHOLE arrival now, so a card that hid behind
+   them would never play at all.
+
+   ---- AND THE QUESTION MARK GOES WITH THE CORNER, WHICH REVERSES A RULING ----
+
+   It used to be raised ONTO the lower bar, on Ash's words of 2026-09-06: "the
    three buttons on the top left should never show up. The help button should
-   always be there though." The corner is the run's own furniture and a watched
-   stretch is not the run; the question mark is the one control that answers "I
-   do not know what is happening", and a student behind two black bars is
-   exactly the student asking it.
-
-   THE ARRIVAL CARD DRAWS UNDER THEM TOO, and that is the same ruling from the
-   other end: the bars are up for the WHOLE arrival now, so a card that hid
-   behind them would never play at all. */
+   always be there though." He then played that build and ruled the other way
+   (BRIEF-MAW-RAIL-3 G): *"The help button inside the bars: hidden during the
+   cutscene like the corner."* Which is the consistent answer: everything a
+   student could press is gone for the length of a stretch he watches, so a
+   control drawn on the black is the one thing on the glass that is not part of
+   the picture. What replaced it is the reason he can afford to lose it: the
+   objective panel now rides on the top bar and says what is happening, which is
+   the question the help button was there to answer. */
 html[data-movie='1'] .hud-stack,
-html[data-movie='1'] .hd-card {
-  visibility: hidden;
-}
-
-/* AND IT SITS ON THE BAR RATHER THAN BEHIND IT. Found by looking at the live
-   frame: the question mark is `bottom: max(2.4vh, 14px)` at z-index 50, and the
-   lower bar is 10vh of solid ink at 70, so "always there" was a button drawn
-   underneath a black rectangle. It moves up clear of the bar and rides above
-   it, which is the only way the promise is kept. */
 html[data-movie='1'] .hp-btn {
-  bottom: calc(10vh + max(2.4vh, 14px));
-  z-index: 71;
+  visibility: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {

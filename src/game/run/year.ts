@@ -11,6 +11,32 @@ import { hasCoreBeat, beatDone } from '../beats/beats'
 import { classDone } from '../beats/classes'
 import { programmeById, placeOfProgramme } from '../roster/roster'
 
+/* ---- WHERE THE THIRTY MINUTES STOP -----------------------------------------
+ *
+ * BRIEF-MAW-RAIL-3 C, Ash after playing rail-2: *"After 'Year two, next time'
+ * nothing wakes up. No 'Go to the table and pick your year', no lit table, no
+ * year-two planner, no year-two Advisory. The yearbook is the end screen, the
+ * corner appears, the Maw is his to walk, and the objective panel reads 'Explore
+ * the Maw. Year two, next time.' Year two is not designed yet and is not
+ * reachable in a thirty-minute advisory block anyway. The four-year machinery
+ * stays in the code; it does not run on."*
+ *
+ * SO IT IS ONE NUMBER AND NOT A DELETION. Every part of the four-year model is
+ * where it was: `yearStatus` still takes a year, the yearbook still composes a
+ * page for any of them, the beats for years two to four are still written and
+ * still tested. What this says is that the RUN stops handing out another year
+ * once this one's page has turned, which is the difference between a game that
+ * is over and a game that has been cut down to one year.
+ *
+ * Raise it to 2 and year two opens on its own, with the sheet asking for a
+ * schedule and the fire owing `core:y2`, because nothing else in the run reads a
+ * year number to decide what it is allowed to do. */
+export const SESSION_ENDS_AFTER_YEAR = 1
+
+/** the last page a student turns has turned: nothing else in the run wakes up */
+export const sessionOver = (s: SaveGame | null): boolean =>
+  !!s && s.flags.includes(`yearbook:y${SESSION_ENDS_AFTER_YEAR}`)
+
 export type VoyageStatus = {
   season: Season
   /** what the token was spent on. A slot points at a PROGRAMME, never at a map. */

@@ -9,6 +9,7 @@ import {
   turnYearPage, yearbookPage, yearbookYears, yearTurned,
   type GpaMove, type YearbookRow, type YearbookSection,
 } from './yearbook-page'
+import { SESSION_ENDS_AFTER_YEAR } from './year'
 import { cinemaOn } from '../stage/cinema'
 import './run.css'
 
@@ -235,6 +236,16 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
    * could open the book in October and end year one by pressing a button. */
   const canTurn = page.current && !page.turned && page.ready
   const lastYear = year >= 4
+  /* ---- AND THE OTHER KIND OF LAST PAGE -----------------------------------
+   *
+   * BRIEF-MAW-RAIL-3 C: after "Year two, next time" nothing wakes up, and *"the
+   * yearbook is the end screen"*. So the page a student turns at the end of year
+   * one is terminal in the same way the fourth one is, without being a
+   * graduation: the run stops handing out years (`year.ts`), and this screen has
+   * to stop promising one. It read "Year 2. Three new season tokens. Go to the
+   * table and pick your year," which is the exact sentence he was told would
+   * never be said again. */
+  const sessionEnds = !lastYear && year >= SESSION_ENDS_AFTER_YEAR
 
   const turn = () => {
     track('year_end', {
@@ -424,6 +435,21 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                   {onGraduate
                     ? <Plank size="lg" glyph={['icon_set', 'star']} onClick={onGraduate}>Walk the stage</Plank>
                     : <Plank size="lg" onClick={onClose}>Back to the game</Plank>}
+                </div>
+              </>
+            ) : sessionEnds ? (
+              /* ---- THE END OF THE THIRTY MINUTES, WHICH IS NOT A GRADUATION --
+                 The page has turned, the cord is draped, the room is his, and
+                 nothing else in the run is owed. BRIEF-MAW-RAIL-3 C. What used
+                 to be here promised year two and three fresh season tokens, and
+                 the counselor had just said the opposite out loud. */
+              <>
+                <h2 className="yb-title">Year {year} is done.</h2>
+                <p className="yb-turnedline">
+                  That is year one. Year two is next time. The Maw is yours to walk until then.
+                </p>
+                <div className="yb-acts">
+                  <Plank size="lg" onClick={onClose}>That is year one</Plank>
                 </div>
               </>
             ) : (

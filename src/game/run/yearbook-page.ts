@@ -65,7 +65,7 @@ import { SEASONS, writeSave } from '../save'
 import { cordsOf, gpaOf, letterOf } from '../progress'
 import { wallOf } from './wall'
 import { placeById } from '../roster/roster'
-import { nudgeLine, yearStatus } from './year'
+import { SESSION_ENDS_AFTER_YEAR, nudgeLine, yearStatus } from './year'
 
 export type YearbookRow = {
   key: string
@@ -341,6 +341,20 @@ export const threadWidth = (s: SaveGame, cordId: string): number => {
 export function turnYearPage(s: SaveGame, year: number): SaveGame {
   const mark = `yearbook:y${year}`
   const flags = s.flags.includes(mark) ? s.flags : [...s.flags, mark]
+  /* ---- AND THE THIRTY MINUTES STOP HERE ---------------------------------
+   *
+   * BRIEF-MAW-RAIL-3 C: after "Year two, next time" nothing wakes up. The page
+   * turns, the mark is written, the yearbook is the end screen and the room is
+   * his; what does NOT happen is the year advancing, because advancing it is
+   * what lights the table again, refills three season tokens and puts year two's
+   * Advisory back on the fire. An advisory period is thirty minutes and year two
+   * is not designed.
+   *
+   * WRITTEN AS THE FLAG ALONE, which is the same shape the fourth turn already
+   * has: that one marks the run graduated instead of advancing, and this one
+   * marks the page turned instead of advancing. The year model reads
+   * `sessionOver` off exactly this flag. */
+  if (s.year >= SESSION_ENDS_AFTER_YEAR && s.year < 4) return writeSave({ flags })
   return s.year >= 4
     ? writeSave({ flags, graduated: true })
     : writeSave({ flags, year: s.year + 1, season: 'Fall', tokens: [...SEASONS] })

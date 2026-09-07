@@ -20,7 +20,7 @@
  */
 import type { SaveGame } from '../save'
 import { shownName } from '../roster/placeholders'
-import { yearStatus } from './year'
+import { sessionOver, yearStatus } from './year'
 
 export type Objective = {
   /* the anchor this points at. Every map that can be the objective's home has to
@@ -75,6 +75,28 @@ export function objectiveLine(o: Objective | null, mapId: string | null | undefi
 export function nextObjective(s: SaveGame | null): Objective | null {
   if (!s || !s.introDone) return null
   if (s.graduated) return null
+
+  /* ---- THE THIRTY MINUTES ARE OVER, AND NOTHING WAKES UP -----------------
+   *
+   * BRIEF-MAW-RAIL-3 C, Ash after playing rail-2: *"After 'Year two, next time'
+   * nothing wakes up. No 'Go to the table and pick your year', no lit table, no
+   * year-two planner, no year-two Advisory... the objective panel reads 'Explore
+   * the Maw. Year two, next time.'"*
+   *
+   * FIRST, ABOVE EVERY YEAR CLAUSE, because this is a statement about the RUN
+   * and the clauses below are statements about a year. `year.ts` stops advancing
+   * the year at the same flag, so nothing under here would fire anyway; being
+   * first is what makes that a belt and not a coincidence.
+   *
+   * THE ANCHOR IS NOTHING ON PURPOSE. Every other objective names a station and
+   * the world lights it; this one names none, so no ring comes on, no chevron
+   * hangs anywhere and no plaque offers a press. The room is his and the panel
+   * says so. `isObjective` compares by name and an anchor is never called '', so
+   * nothing on any map can match it. */
+  if (sessionOver(s)) {
+    const line = 'Explore the Maw. Year two, next time.'
+    return { anchor: '', map: MAW_MAP, phase: 'done', say: line, away: line }
+  }
 
   /* the founding event: the first time in, before anything else can be true.
    * It is not a year beat, it happens once per run. Inside the mountain he
