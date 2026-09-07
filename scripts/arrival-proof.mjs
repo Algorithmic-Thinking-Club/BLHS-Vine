@@ -137,10 +137,17 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
     movieFrames.length >= 3 && movieFrames.filter((s) => s.bars).length >= movieFrames.length - 2,
     `${movieFrames.filter((s) => s.bars).length} of ${movieFrames.length} movie frames had them`)
   ok('1', 'and no HUD corner under them', duringMovie && !duringMovie.hudCorner)
-  /* the question mark STAYS, ruled 2026-09-06: it is the one control that
-   * answers "I do not know what is happening", which is what a student behind
-   * two black bars is asking */
-  ok('1', 'and the help button is still there', duringMovie && duringMovie.help)
+  /* THE QUESTION MARK GOES TOO, AND THIS CHECK IS THE REVERSE OF WHAT IT WAS.
+   *
+   * It read "and the help button is still there" on Ash's words of 2026-09-06,
+   * that it should always be there. He played that build and ruled the other way
+   * (BRIEF-MAW-RAIL-3 G): "The help button inside the bars: hidden during the
+   * cutscene like the corner." `cinema.css` does exactly that, and the objective
+   * panel riding on the top bar is what makes it affordable, because that panel
+   * answers the question the button was there for. The beach opening keeps its
+   * question mark, and that is a different rule in the same file: it has no
+   * panel and no corner to ask instead. */
+  ok('1', 'and the help button goes with the corner', duringMovie && !duringMovie.help)
   ok('1', 'and no plaque, arrow or lit ring', duringMovie && !duringMovie.lit && duringMovie.trail === 0)
   ok('1', 'and no arrival card', duringMovie && !duringMovie.card)
 
@@ -215,6 +222,17 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
   const end = await state(page)
   ok('5', 'a large drawn pointer hangs over the tunnel', !!end.pointer, JSON.stringify(end.pointer))
   ok('5', 'and it is clear of the sentence over his head', !!end.pointer && end.pointer.h >= 24)
+  /* AND CLEAR OF THE PANEL AT THE TOP, which is a newer obstruction than the
+   * sentence and a worse one, because it does not move out of the way. The
+   * objective panel rides across every frame now and at the tunnel the camera is
+   * close enough that the arrow was behind it with only its tip showing. */
+  const band = await page.evaluate(() => {
+    const el = document.querySelector('.ob-wrap')
+    return el ? Math.round(el.getBoundingClientRect().bottom) : 0
+  })
+  ok('5', 'and it hangs below the objective panel, not behind it',
+    !!end.pointer && end.pointer.y >= band,
+    `pointer top ${end.pointer?.y}, panel bottom ${band}`)
   /* THE PLAQUE FIRST, THEN THE PRESS, which is the order a player does it in.
    * The frame stays up at the tunnel and the controls come back when the
    * island's handler RETURNS, a beat after the walk ends, so a press fired on
@@ -347,7 +365,22 @@ console.log('\nTHE PANTHER\'S MAW  (items 6 and 8)')
   ok('6', 'and its walk cycle runs while it does', frames.size >= 4, `${frames.size} distinct frames`)
   ok('6', 'and it stands on its first frame when it stops', !near?.moving && near?.frame === 0)
 
-  /* item 8's other half: the painting holds still while a body walks it */
+  /* item 8's other half: the painting holds still while a body walks it.
+   *
+   * SETTLED FIRST, AND THAT IS A CORRECTION. This read the zoom the instant the
+   * principal stopped and compared it a second and a half later, which was true
+   * while the Maw held one shot for the whole room. It does not any more: the
+   * year one rail is one cutscene with camera moves in it, so the reading landed
+   * mid-ease and the check reported the room scrolling under the player when
+   * what it had actually caught was a camera still on its way somewhere. The
+   * claim was never "the Maw has one zoom forever", it is "walking does not move
+   * the picture", so the camera is allowed to arrive before the walk begins. */
+  await page.waitForFunction(() => {
+    const z = Math.round(window.__pmap.camZ * 1000)
+    const was = window.__gateZ
+    window.__gateZ = z
+    return was === z
+  }, null, { timeout: 20000, polling: 500 }).catch(() => { /* the assert below says so */ })
   const camA = await page.evaluate(() => ({ x: Math.round(window.__pmap.camZ * 1000) }))
   await page.keyboard.down('ArrowRight')
   await page.waitForTimeout(1600)

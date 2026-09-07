@@ -3515,6 +3515,25 @@ export default function PmapScene() {
             + `nowhere for the ship to tie up. `
             + `${comp ? `The world has: ${markNames(comp).join(', ') || 'no berths'}` : 'There is no world at all'}`)
 
+        /* ---- AND A CROSSING DOES NOT START WHERE IT ENDS -------------------
+         *
+         * `board()` below exists for a player who is standing at a dock and asks
+         * to sail somewhere. On a line that ENDS at this map's own berth, with a
+         * body already ashore, it means something else entirely: get in the
+         * boat, sail out to the far start, and come back to the dock he was
+         * standing on. Nobody writes that on purpose.
+         *
+         * Somebody hits it by accident every time. The hub replays its whole
+         * arrival for anyone who reloads before reaching the tunnel, which is
+         * Ash's ruling of 2026-09-07, and a reload halfway up the quay came back
+         * with `aboard` gone from the address and no hull. Measured: he was put
+         * aboard for one second, the camera cut to the sailing scale, and the
+         * island's next line pulled him straight back out. Refused instead, so
+         * the island's own `except` catches it and the rest of the arrival --
+         * the shot, the line, the marks and the walk -- runs from where he is. */
+        if (!hull && (!dest.slot?.map || dest.slot.map === mapId))
+          throw new NotBuilt('route', `"${p.name}" ends at "${dest.berth.name}" on ${mapId}, `
+            + `which is where he is already standing, and he is not aboard`)
         if (!hull) board()
         if (!hull) throw new NotBuilt('route', `the ship could not be boarded on ${mapId}`)
         /* the timeout is measured off the LINE rather than off a constant, so a
@@ -5134,6 +5153,12 @@ export default function PmapScene() {
        * item 4 makes, so the number is kept rather than inferred from a
        * screenshot of a painting full of market stalls. */
       let trailMarks = 0
+      /* the bottom edge of the objective panel in window pixels, and when it was
+       * last read. Zero means there is no panel on the glass at all, which is
+       * the honest answer in the standalone harness and in a scene that mounts
+       * no HUD. The pointer's clamp is the only thing that reads it. */
+      let panelBand = 0
+      let panelBandAt = -99
 
       /* IS THE YEAR'S NEXT STEP SOMEWHERE HE CAN WALK TO FROM HERE.
        *
@@ -7306,6 +7331,34 @@ export default function PmapScene() {
            * the thing it is for. */
           const lift = Math.round(map.character.heightPx * (atIt ? 3.0 : 2.3))
           bigMark.position.set(over.x, over.y - lift + Math.sin(t * 2.6) * 3)
+          /* ---- AND IT STAYS UNDER THE PANEL AT THE TOP OF THE SCREEN --------
+           *
+           * The dodge above is about the sentence over Thor's head, which moves
+           * with him. This is about a band that does not move at all: the
+           * objective panel rides across the top of every frame now, and at the
+           * tunnel the camera is close enough that three bodies of lift puts the
+           * arrow behind it. Measured on the hub at the moment the walk ends,
+           * only the tip of the chevron cleared the panel, which is the one
+           * surface whose whole job is to be seen and the one moment it is for.
+           *
+           * The band is READ rather than typed, so it cannot go stale when
+           * somebody resizes the panel, and it falls back to nothing when there
+           * is no panel at all. Once a second: the panel does not move, and a
+           * layout read every frame on a body walking is a frame cost for a
+           * number that is the same. */
+          if (t - panelBandAt > 1) {
+            panelBandAt = t
+            const el = document.querySelector('.ob-wrap')
+            const r = el ? el.getBoundingClientRect() : null
+            panelBand = r && r.height > 0 ? r.bottom : 0
+          }
+          if (panelBand > 0) {
+            /* the sprite hangs by its foot (anchor 0.5, 1), so its top edge is a
+             * whole height above where it is placed */
+            const topPx = world.y + (bigMark.y - bigMark.height) * camZ
+            const short = panelBand + 4 - topPx
+            if (short > 0) bigMark.y += short / camZ
+          }
           bigMark.zIndex = 9e9 - 2
           bigMark.visible = objMark.visible
 
