@@ -21,6 +21,7 @@ import { announce, panelDepth } from '../ui/a11y'
 import { Glyph, useKitReady } from '../ui/controls'
 import { bandFromRects, setUiBandStacked } from '../ui/frame'
 import { prefersReducedMotion } from '../ui/motion'
+import { cinemaOn } from './cinema'
 import './placecard.css'
 
 const DWELL_MS = 3200
@@ -175,7 +176,14 @@ export function PlaceCard() {
    * first frame, so `sceneDrawn` is the map under his feet, and the line reads
    * "talk to the principal" inside the mountain rather than "go into the
    * mountain" (STATE-OF-THE-GAME confusing 6). */
-  const heading = card ? objectiveLine(nextObjective(loadSave()), sceneDrawn()) : ''
+  /* AND NOT WHILE SOMETHING ELSE IS DIRECTING (BRIEF-MAW-RAIL-2). The card is
+   * where you ARE, which is worth reading inside the bars, and the heading is
+   * what to DO, which is not: the Maw's arrival card landed over the opening of
+   * the rail reading "Talk to Principal Panther." while the principal was
+   * already walking across the room to talk to HIM. An instruction a student
+   * cannot act on, contradicted by the thing on screen, is the "it makes no
+   * sense" Ash named. The title stays; the errand waits for the bars. */
+  const heading = card && !cinemaOn() ? objectiveLine(nextObjective(loadSave()), sceneDrawn()) : ''
 
   /* ---- SAID OUT LOUD, ONCE ------------------------------------------------
    *
