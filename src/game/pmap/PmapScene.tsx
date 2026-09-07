@@ -2737,7 +2737,14 @@ export default function PmapScene() {
        * strings are what has to be short. */
       const layoutTask = () => {
         const gap = taskMarkW ? 8 : 0
-        const cap = Math.max(180, app.screen.width * 0.52) / (task.scale.x || 1)
+        /* HALF THE SCREEN, IN SCREEN PIXELS, AND THE DIVISOR WAS THE BUG. The
+         * plaque is a child of `world`, which is scaled by `camZ`, wearing
+         * `1 / camZ` of its own, so its local units ARE window pixels and the
+         * conversion is the identity. Dividing by the scale multiplied the cap
+         * by the zoom instead: 1598 pixels of cap on a 1366 pixel window at the
+         * walking shot, so the rule the art-direction round asked for stopped
+         * biting at all. */
+        const cap = Math.max(180, app.screen.width * 0.52)
         const bodyW = Math.min(taskMarkW + gap + taskTxt.width, cap)
         const left = -bodyW / 2
         taskMark.position.set(left + taskMarkW / 2, 0)
@@ -4862,8 +4869,30 @@ export default function PmapScene() {
        * read, so asking twice a frame costs what asking once did. */
       const leadsInland = (): boolean => {
         const o = nextObjective(loadSave())
-        if (!o || o.phase === 'done') return false
-        return o.map === mapId || doors.some((d) => d.to === o.map)
+        if (!o) return false
+        /* THE PHASES WHOSE WHOLE POINT IS LEAVING, NAMED RATHER THAN INFERRED.
+         *
+         * The first version of this asked one question, "is the objective
+         * reachable on foot from here", and got the most important case exactly
+         * backwards. In the `voyage` phase the objective is `maw_entrance` on
+         * the Maw, which is the door OUT, and the line it says from the hub is
+         * "Get in the boat and sail to <island>". The hub carries a door to the
+         * Maw, so the foot test answered yes and the berth went quiet: a student
+         * read "get in the boat" standing on a dock with no boat on offer, no E,
+         * no tap and nothing else to press.
+         *
+         * It is latent only because every row in the roster is `playable:
+         * false` today and `member-islands.json` is empty. The first ATC island
+         * makes it the ordinary path through year one.
+         *
+         * `rising` is committed-but-unsailable and `done` is a finished year;
+         * neither is a reason to lock somebody on an island. */
+        if (o.phase === 'voyage' || o.phase === 'rising' || o.phase === 'done') return false
+        /* AND A DOOR ONLY COUNTS WHEN IT REALLY OPENS. `checkDoor` answers
+         * 'checking' for as long as the platform takes and 'missing' on a
+         * filtered school network, and a barred door plus a silenced berth is a
+         * student with no way off the island at all. */
+        return o.map === mapId || doors.some((d) => d.to === o.map && doorState.get(d.to) === 'ok')
       }
 
       /* WHICH REGIONS AND TRIGGERS THE FEET ARE INSIDE, from the last frame.
@@ -5901,6 +5930,19 @@ export default function PmapScene() {
         get guide() { return guideTarget?.name ?? leading ?? null },
         get guideAsked() { return guideTarget?.name ?? null },
         get walkLabel() { return autoWalk?.label ?? null },
+        /* WHAT THE IN-WORLD PLAQUE IS SAYING, which is the only way to ask
+         * whether the boat is on offer: the plaque is Pixi text and the berth is
+         * not an anchor, so there is nothing in the DOM and nothing in
+         * `anchors` that carries it. */
+        get prompt() { return prompt.visible ? promptSaid : null },
+        /* WHAT THE YEAR WANTS NEXT, as the sequencer answers it. `guide` above
+         * says what is being POINTED at, which is a door when the thing is on
+         * another map; this is the step itself, and the phase is what the berth
+         * reads to decide whether to offer the water. */
+        get objective() {
+          const o = nextObjective(loadSave())
+          return o ? { anchor: o.anchor, map: o.map, phase: o.phase } : null
+        },
         /* THE BIG POINTER OVER THE THING, in window pixels. Item 5 is a claim
          * about a picture: "at the door a large pointer arrow hangs above the
          * tunnel". A boolean cannot carry where it hangs or whether it is on
@@ -6438,7 +6480,18 @@ export default function PmapScene() {
         /* the screen-space chrome undoes whatever zoom is live, so a camera push
          * does not blow the YOU pin up with the painting */
         const uiS = 1 / camZ
-        if (pin.scale.x !== uiS) { pin.scale.set(uiS); prompt.scale.set(uiS); objMark.scale.set(uiS); bigMark.scale.set(uiS) }
+        if (pin.scale.x !== uiS) {
+          pin.scale.set(uiS); prompt.scale.set(uiS); objMark.scale.set(uiS); bigMark.scale.set(uiS)
+          /* AND THE TASK LINE, WHICH WAS THE ONE THAT WAS NOT HERE. It was set
+           * once at load to `1 / Z` and never again, so its size on the glass
+           * was `camZ / Z` and only right at the walking shot. At the sailing
+           * zoom that is 0.24 of what it was drawn at, and the sentence it
+           * carries out there is the only instruction on the water. Re-laid as
+           * well as re-scaled, because the plaque's width is cut against a cap
+           * in its own units and those units have just changed. */
+          task.scale.set(uiS)
+          if (task.visible) layoutTask()
+        }
         /* THE TWO SURFACES A WORLD HOLD DOES NOT REACH. Everything else in this
          * scene's chrome is already switched by `locked`; these two are written
          * from elsewhere, so the movie states them itself every frame rather
@@ -7145,12 +7198,20 @@ export default function PmapScene() {
           if (d.move) {
             const dx = d.move.tx - d.x, dy = d.move.ty - d.y
             /* THE PAINTING'S OWN FORESHORTENING IS IN THE DISTANCE, the way it
-             * is everywhere else a body moves. Raw pixels made a driven actor
-             * walk `1/yScale` times too fast northward and too slow eastward on
-             * the same map, so the same `actor_move` was a stroll or a sprint
-             * depending on which way the anchor happened to be. */
+             * is everywhere else a body moves, AND IT DIVIDES.
+             *
+             * A vertical painting pixel covers more ground than a horizontal
+             * one on a foreshortened painting, so it costs MORE travel, not
+             * less. Every other measurement in the engine says so the same way:
+             * `path.ts` measures `hypot(dx, dy / ys)`, `life.ts` separates on
+             * `(b.y - a.y) / yScale`, and `walk.ts` moves the player's vertical
+             * step `* cfg.yScale`, which is the same statement seen from the
+             * other end. The first pass here multiplied, which is the mistake
+             * turned inside out: it made a driven body 1/yScale times too FAST
+             * northward, which on panther-maw is 1.93x on a near-vertical leg,
+             * and item 6 is a man who sprints. */
             const ys2 = map.yScale || 1
-            const dist = Math.hypot(dx, dy * ys2)
+            const dist = Math.hypot(dx, dy / ys2)
             const stepPx = d.move.speed * dt
             if (dist <= Math.max(stepPx, 0.5)) {
               d.x = d.move.tx; d.y = d.move.ty
