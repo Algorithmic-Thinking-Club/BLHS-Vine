@@ -88,6 +88,9 @@ const state = (page) => page.evaluate(() => {
     lit: p.lit, driven: p.drivenNow,
     bars: !!document.querySelector('.cin-root'),
     hudCorner: seen('.hud-stack'), help: seen('.hp-btn'), card: seen('.pc-root'),
+    /* read BEFORE the harness clicks it away, because the order of the card and
+     * the first spoken line is one of the things being checked */
+    dlg: !!document.querySelector('.dlg-box'),
     pin: (() => { const a = p.pinAt; return a && a.x > -1e5 })(),
   }
 })
@@ -112,10 +115,12 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
      * in the same frame as the flag reads "movie, no bars" and is right about
      * both. The second one is the honest one. */
     if (s.movie && s.voyage && s.bars && !duringMovie) duringMovie = s
-    /* THE WIDE SHOT IS AT THE DOCK WITH HIM STILL ABOARD, which is Ash's second
-     * order: she ties up, the camera pulls out, the card plays, and only then
-     * does he hop out. `hull` is therefore still true here. */
-    if (s.hull && s.camZ < s.Z * 0.75 && !atIslandShot) atIslandShot = s
+    /* THE WIDE SHOT IS AT THE DOCK WITH HIM ALREADY OFF THE BOAT, which is
+     * Ash's THIRD order, 2026-09-07: she ties up, he hops out, the camera pulls
+     * out, and the card plays over that shot. `hull` is therefore gone by here,
+     * and it is what separates this frame from the sailing shot the map opens
+     * on, which is also wider than the walking one. */
+    if (!s.hull && s.camZ < s.Z * 0.75 && !atIslandShot) atIslandShot = s
     /* MID-WALK, NOT THE FIRST FRAME OF IT. The first sample that sees a walk
      * label can land in the same frame the label appears, before the guide has
      * recomputed its route or React has mounted the bars, and it is right about
@@ -153,15 +158,35 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
   ok('1', 'and the crossing is close on the ship, not the whole island',
     !!duringMovie && duringMovie.camZ > duringMovie.Z * 0.9,
     duringMovie ? `zoom ${duringMovie.camZ} against a walking ${duringMovie.Z}` : '')
-  ok('2', 'the island is framed at the dock with the ship tied up',
-    !!atIslandShot && atIslandShot.hull,
+  /* THIS PAIR IS THE 2026-09-07 RULING AND IT REPLACES THE OLD ONE.
+   *
+   * What stood here until today pinned the opposite order: "the island is
+   * framed at the dock with the ship tied up" and "the arrival card plays
+   * there, with him still aboard", both asserting `hull`. Ash watched that and
+   * ruled against it: the card names the place, so it must not play over a boy
+   * still sitting in a boat. Landing is a person standing on the boards. The
+   * hop-out therefore comes BEFORE the pull-out now, and both of these read
+   * `!hull` where they used to read `hull`. */
+  const hopped = seen.find((s) => !s.hull)
+  ok('3', 'he hops out as soon as she is tied up',
+    !!hopped, hopped ? `${hopped.x},${hopped.y}` : 'never stepped off')
+  ok('2', 'and THEN the island is framed, with him already on the dock',
+    !!atIslandShot && !atIslandShot.hull && seen.indexOf(hopped) <= seen.indexOf(atIslandShot),
     atIslandShot ? `zoom ${atIslandShot.camZ} against a walking ${atIslandShot.Z}` : 'never happened')
   ok('3', 'and the pull-out really is wider than the walking shot',
     !!atIslandShot && atIslandShot.camZ < atIslandShot.Z * 0.8)
 
   const carded = seen.find((s) => s.card)
-  ok('2', 'the arrival card plays there, with him still aboard',
-    !!carded && carded.hull)
+  ok('2', 'the arrival card plays over that shot, with him ashore',
+    !!carded && !carded.hull && carded.camZ < carded.Z * 0.8,
+    carded ? `zoom ${carded.camZ}` : 'no card')
+  /* AND NOBODY SPEAKS BEFORE IT. Ash: the card must play "before any dialogue
+   * line on the hub". The hub says one line at the wide shot and it used to be
+   * said first, so the first thing a student read named nothing. */
+  const spoke = seen.find((s) => s.dlg)
+  ok('2', 'and no line is spoken before the card',
+    !spoke || (!!carded && seen.indexOf(carded) <= seen.indexOf(spoke)),
+    spoke ? `card at sample ${seen.indexOf(carded)}, first line at ${seen.indexOf(spoke)}` : 'no line seen')
   ok('1', 'and the bars never come down in the middle',
     seen.filter((s, i) => i > seen.indexOf(duringMovie) && i < seen.indexOf(duringWalk) && !s.movie).length === 0,
     'from the first frame to the tunnel')
@@ -171,8 +196,8 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
   ok('4', 'and the camera goes from the island to him in one move',
     between.filter((s) => Math.abs(s.camZ - s.Z) < 0.08).length <= 1,
     `${between.filter((s) => Math.abs(s.camZ - s.Z) < 0.08).length} frames parked at the walking shot`)
-  const hopped = seen.find((s, i) => !s.hull && i > seen.indexOf(atIslandShot))
-  ok('3', 'and THEN he hops out', !!hopped, hopped ? `${hopped.x},${hopped.y}` : 'never stepped off')
+  /* the hop-out is checked above now, before the pull-out, where the 2026-09-07
+   * ruling puts it */
   ok('1', 'no sea plaque is offered while she is tied up',
     !seen.some((s) => s.hull && !s.movie && (s.prompt === 'Dock here' || s.prompt === 'Get in the boat')))
 

@@ -4375,6 +4375,22 @@ export default function PmapScene() {
             }
             requestAnimationFrame(tick)
           })
+          /* ---- AND THE WIDE SHOT IS WHERE A PLACE GETS ITS NAME ------------
+           *
+           * Ash, 2026-09-07, on the hub arrival: the card plays over "the
+           * pull-out to the whole island". Paying it any earlier means paying
+           * it over a camera that is still moving, and measured on the hub the
+           * pull-out is longer than the card's whole life: the card opened on a
+           * shot of the dock and was gone by the time the island was on screen.
+           *
+           * So an owed card is paid HERE, once the move has settled, and only
+           * for the shot whose entire job is to show the place. It is a no-op
+           * for every ordinary arrival, where the card was spent on the frame
+           * the map opened, and for the second `view("island")` of a session. */
+          if (shot === 'island') return arrived.then(() => {
+            arrivalCard()
+            return ms === undefined ? undefined : new Promise<void>((r) => setTimeout(r, ms))
+          })
           if (ms === undefined) return arrived
           return arrived.then(() => new Promise<void>((r) => setTimeout(r, ms)))
         },
@@ -4676,6 +4692,25 @@ export default function PmapScene() {
         /** how long the walker has reported a blocked move on the current leg */
         stuckMs?: number
         until: number
+        /* ---- THE DEADLINE IS ABOUT PROGRESS, NOT ABOUT ELAPSED TIME ---------
+         *
+         * `until` used to be set once, twenty seconds ahead, and never moved. The
+         * walk law steers PER FRAME and the clock runs in wall time, so the two
+         * only agree while the frame rate does: measured in a browser rendering
+         * the hub at 7fps, the dock-to-tunnel walk covered 392 of its ~400 pixels
+         * and was cut off fourteen pixels from the door, every run. A school
+         * Chromebook that drops frames is the same machine, and the walk it
+         * silently abandons is the one that shows a student the way to the school.
+         *
+         * So a routed walk that is still getting closer keeps its budget renewed,
+         * and `ceiling` is the thing that can never be renewed: it cannot hang. A
+         * walk with NO route keeps the flat three seconds it has, deliberately,
+         * because "he tries and then stops" is the answer a dead end is owed. */
+        /** the budget renewed on progress, and the wall it can never pass */
+        budget: number
+        ceiling: number
+        /** how close he has ever been to the goal, in painting pixels */
+        best: number
         label: string
         /* whether the walk law could find a way to `goal` at all when this walk
          * started. False means he is being steered straight at something the mask
@@ -4848,9 +4883,15 @@ export default function PmapScene() {
          * end of the partial route: `arrive` is the thing the click meant, it is
          * gated on reaching `goal`, and aiming at the partial end would fire a
          * door from across the room, which is the bug `7c08560` fixed. */
+        const budget = r.reached ? 20000 : 3000
         autoWalk = {
           goal, reach, facing, route: r.points, ri: 0,
-          until: performance.now() + (r.reached ? 20000 : 3000), label, done,
+          until: performance.now() + budget, budget,
+          /* two minutes, which is longer than any walk on any map in this game
+           * and short enough that a body wedged on geometry still answers */
+          ceiling: performance.now() + 120000,
+          best: Math.hypot(goal.x - pos.x, goal.y - pos.y),
+          label, done,
           routed: r.reached, byPlayer: opts.byPlayer, arrive: opts.arrive,
         }
       }
@@ -5840,10 +5881,17 @@ export default function PmapScene() {
          * never runs `beginExit`, so without this line a refresh after tying up
          * put the student back offshore with the walk they had just done undone. */
         if (target.aboard) setMapUrl({ map: mapId, at: target.at })
-        /* AND THIS IS WHERE HE HAS ARRIVED. Paid here rather than at load for the
-         * sea entry, and a no-op for every other one because the card was already
-         * spent on the frame the map opened. */
-        arrivalCard()
+        /* AND THIS IS WHERE HE HAS ARRIVED, unless somebody is directing.
+         *
+         * Paid here rather than at load for the sea entry, and a no-op for every
+         * other one because the card was already spent on the frame the map
+         * opened. `keepShot` is only ever true for `ashore()`, which is an
+         * island saying "he steps off now" as one line of a longer shot list, and
+         * on the hub the very next line is the pull-out. Paying it here in that
+         * case put the name of the island over a shot of the dock and took it
+         * away again before the island was on screen; `view("island")` pays it
+         * when the pull-out has settled, which is Ash's order of 2026-09-07. */
+        if (!keepShot) arrivalCard()
         engine.log('disembarked', { map: mapId })
       }
 
@@ -5897,18 +5945,25 @@ export default function PmapScene() {
          * The hub's own berth is on the hub, so the leg that ends where it started
          * must not tear the scene down and rebuild it.
          *
-         * EXCEPT WHEN A SCRIPT IS DIRECTING, AND THAT IS ASH'S SECOND PASS. His
-         * order at the dock is now: she reaches it, the camera pulls out to the
-         * whole island, the arrival card plays THERE, and THEN Thor hops out.
-         * The hop-out was welded to the arrival, so the island had no way to put
+         * EXCEPT WHEN A SCRIPT IS DIRECTING, AND THAT IS ASH'S SECOND PASS. The
+         * hop-out was welded to the arrival, so the island had no way to put
          * anything between the two. Here the ship simply ties up: the hull stays
-         * where she is, the body stays aboard, the card is paid because he HAS
-         * arrived, and the island says when he steps off with `ashore()`.
+         * where she is, the body stays aboard, and the island says when he steps
+         * off with `ashore()`.
+         *
+         * AND THE CARD IS NOT PAID HERE, ruled by Ash 2026-09-07 after playing
+         * it: "the THE HUB card must play after the ship has landed and before
+         * any dialogue line on the hub". Paying it at the tie-up put the name of
+         * the place on the screen while he was still sitting in the boat, which
+         * is the same defect the sea entry had one moment earlier in the run and
+         * for the same reason. The card is owed on through the tie-up and paid
+         * by `stepAshore`, which is the line already commented "AND THIS IS
+         * WHERE HE HAS ARRIVED" and is now the only place that pays it.
          *
          * Only for a voyage a script started. A player who tied up himself gets
          * exactly what he always got, because he asked for it and there is
          * nobody to say what happens next. */
-        if (v) { tiedUp = true; arrivalCard() } else stepAshore()
+        if (v) tiedUp = true; else stepAshore()
         /* AND THE CHART FINDS OUT WHERE SHE IS TIED UP. `recordVessel` has existed
          * since the resume guard was written and had no caller anywhere in the
          * game, so `mooringFor` answered "home" for the whole of every run: the
@@ -6540,8 +6595,17 @@ export default function PmapScene() {
            * there, which is also why the arrival radius can be tight: a marked
            * spot is a spot, not an area. */
           const A = autoWalk
-          const arrived = Math.hypot(A.goal.x - pos.x, A.goal.y - pos.y) <= A.reach
-          if (arrived || performance.now() > A.until) {
+          const gap = Math.hypot(A.goal.x - pos.x, A.goal.y - pos.y)
+          const arrived = gap <= A.reach
+          /* GROUND GAINED BUYS TIME, and only ground gained: a body walking in a
+           * circle, or jammed on a corner, never gets closer than it has already
+           * been and so never renews anything. A whole pixel, so that the jitter
+           * of a body settling against a wall is not read as travel. */
+          if (A.routed && gap < A.best - 1) {
+            A.best = gap
+            A.until = performance.now() + A.budget
+          }
+          if (arrived || performance.now() > Math.min(A.until, A.ceiling)) {
             if (!arrived) console.warn(`[pmap] the walk to ${A.label} gave up; no route from here`)
             /* AND HE IS TOLD, ON THE GLASS. Law 5 is that every action answers,
              * and a walk the player asked for that cannot end is an action with
