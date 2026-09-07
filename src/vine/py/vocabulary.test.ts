@@ -69,12 +69,12 @@ describe('the intent vocabulary, both sides of the worker', () => {
    * first. The third thing the brief asked for, a walking pace, is an argument
    * on `actor_move` and not a word, because "walk somebody there" and "walk
    * somebody there slowly" are one sentence. */
-  it('is twenty-seven words on the engine side', () => {
-    expect(engineWords.size).toBe(27)
+  it('is twenty-eight words on the engine side', () => {
+    expect(engineWords.size).toBe(28)
   })
 
-  it('has the two frame words on both sides', () => {
-    for (const w of ['movie', 'view']) {
+  it('has the frame words on both sides', () => {
+    for (const w of ['movie', 'view', 'ashore']) {
       expect(engineWords.has(w), `intents.ts is missing ${w}`).toBe(true)
       expect(pythonWords.has(w), `vine.py is missing ${w}`).toBe(true)
     }

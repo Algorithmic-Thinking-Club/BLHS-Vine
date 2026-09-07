@@ -55,6 +55,8 @@ const world: IntentWorld = {
   show: noMap('show'),
   fx: noMap('fx'),
   enter: noMap('enter'),
+  /* a boat is a body on a painting, like everything else here */
+  ashore: noMap('ashore'),
   cutscene: noMap('cutscene'),
   /* the composed shots need a painting to be composed of, like every other
    * camera word here */

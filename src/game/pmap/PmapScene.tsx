@@ -1177,6 +1177,28 @@ export default function PmapScene() {
        * and what an author composed against are two questions, and this file
        * used one variable for both. */
       const Z_SHOT = coastCut ? Z_ISLAND : Math.max(1, Math.floor(fitIn * 2) / 2)
+
+      /* ---- AND THE SHOT THE CROSSING IS WATCHED FROM (BRIEF-ARRIVAL, Ash's
+       * second pass) -------------------------------------------------------
+       *
+       * His words after playing the first build: *"The crossing is much closer.
+       * Same zoom on the ship as when she sailed OUT from the beach, this time
+       * sailing INTO the island: the camera rides with the ship, behind the
+       * bars. Not the wide shot of the whole island with the ship as a speck,
+       * which is what shipped."*
+       *
+       * What shipped was 0.531, which is the sailing FLOOR, and at it the hull
+       * draws 38 pixels on a 1366 pixel window: a speck, exactly as he says.
+       * The ship is drawn about four character heights long, so at the walking
+       * shot she is around a hundred and sixty pixels, which is a ship. Riding
+       * with her was never the problem and is unchanged: the camera has followed
+       * the hull since the day there was one.
+       *
+       * It is the walking shot itself rather than a fourth number, because the
+       * whole arrival is then one scale with one deliberate pull-out in the
+       * middle of it, and because "character level" is what he asked for at the
+       * other end of the same paragraph. */
+      const Z_SHIP = Z
       world.scale.set(Z)
 
       /* ---- D1: THE ZOOM IS A LIVE VALUE AND NOT A LOAD-TIME CONSTANT ----
@@ -4151,8 +4173,25 @@ export default function PmapScene() {
          * is that the beat is "hold here for a moment". The ceiling is there
          * because a zoom that cannot settle, on a frame budget that has gone
          * wrong, must not be an island that never continues. */
+        /* ---- HE STEPS OFF, WHEN THE ISLAND SAYS SO ------------------------
+         *
+         * A scripted crossing ties the ship up and leaves him aboard, so that
+         * the pull-out and the arrival card can happen with the ship at the dock
+         * and the student still watching. This is the line that ends that.
+         *
+         * It is the same `stepAshore` the berth prompt has always fired, so
+         * there is one way to get off a boat and not two. Answering rather than
+         * refusing when he is already on his feet: an island that says it twice,
+         * or says it on a map it did not sail to, has not done anything wrong. */
+        ashore() {
+          stepAshore()
+          return Promise.resolve()
+        },
+
         view(shot, ms) {
-          const to = shot === 'island' ? Z_ISLAND : shot === 'sail' ? Z_MIN : Z
+          const to = shot === 'island' ? Z_ISLAND
+            : shot === 'ship' ? Z_SHIP
+              : shot === 'sail' ? Z_MIN : Z
           /* THE WIDE SHOT CENTRES THE PAINTING AND NOT THE PLAYER, which is the
            * whole difference between "the whole island" and "zoomed out a bit".
            * Held until something else takes the camera, exactly as an untimed
@@ -4161,6 +4200,11 @@ export default function PmapScene() {
           if (shot === 'island') {
             lookAtTarget = { x: pc.x, y: pc.y, until: ms === undefined ? Infinity : performance.now() + ms }
             lastShot = 'island'
+            /* AND IT IS FENCED TO THE PAINTING WHILE IT IS HELD. `camFree` is
+             * true for as long as a hull exists, which is now true at the dock
+             * as well, and a free camera pointed at the middle of a painting
+             * shows whatever is past the edges of it. */
+            camFree = false
           } else {
             lookAtTarget = null
             lastShot = null
@@ -4850,9 +4894,30 @@ export default function PmapScene() {
       /* THE GUIDE'S ROUTE, kept between frames because a search is not free and the
        * answer only changes when the player has moved or the target has. */
       let guide: { key: string; route: Pt[]; from: Pt; reached: boolean; at: number } | null = null
-      const guideTrail = new Graphics()
-      guideTrail.zIndex = 9e9 - 3
-      world.addChild(guideTrail)
+      /* ---- THE WAY, IN DRAWN MARKS AND NOT IN CODE ----------------------
+       *
+       * Ash, after playing the first build: *"The arrow marks are a joke. It
+       * looks like a 3 year old drew them. Geometrically bad, visually ugly."*
+       * They were two stroked polylines per mark, built with `Graphics` every
+       * frame, which is art made by code and the standing rule forbids exactly
+       * that: all art comes from PixelLab, code is for utility only.
+       *
+       * So a mark is a DRAWN piece now. `pointer/trail_dot` is the face the kit
+       * sheet already carries under that name, drawn for this job by whoever
+       * drew the sheet, and it is round: a round mark cannot be rotated wrong,
+       * cannot fight the painting's isometric plane and has no geometry to get
+       * ugly. Which way the way runs is carried by the marks GROWING and
+       * brightening toward the target instead of by a shape, so nothing here
+       * turns a pixel drawing on its side.
+       *
+       * A pool rather than one sprite per frame, because a route is up to ninety
+       * marks and this is a 4 GB Chromebook. */
+      const trailSprites: Sprite[] = []
+      const trailLayer = new Container()
+      trailLayer.zIndex = 9e9 - 3
+      world.addChild(trailLayer)
+      let trailTex: Texture | null = null
+      void kitTexture('pointer', 'trail_dot').then((t) => { if (!destroyed) trailTex = t })
       /* how many arrow marks are on the ground this frame. A `Graphics` cannot
        * be asked what is in it, and "the way is drawn" is the claim BRIEF-ARRIVAL
        * item 4 makes, so the number is kept rather than inferred from a
@@ -5386,6 +5451,14 @@ export default function PmapScene() {
        * moment where neither is, which is what "a defined instant" means. */
       let berthing: Berthing | null = null
       let docking: WorldSlot | null = null
+      /* SHE IS TIED UP AND HE HAS NOT STEPPED OFF YET, which is a state that did
+       * not exist before the arrival was reordered: berthing used to put the
+       * body on the dock in the same call. In it the hull is still the driven
+       * body, so every sea affordance was live over the wide shot at the dock -
+       * `Dock here` on a boat already docked, and a task line reading "Click the
+       * island to sail there" about the island she is moored to. Both are the
+       * "no plaques" rule leaking one beat past the bars. */
+      let tiedUp = false
       /* the harness drives the helm the player drives, for a stated number of
        * milliseconds, so a proof run sails the shipped physics rather than warping
        * a boat to a coordinate and calling that a leg */
@@ -5464,6 +5537,7 @@ export default function PmapScene() {
         berthing = null
         if (hullSp) hullSp.visible = false
         wakeG.clear()
+        tiedUp = false
         thor.sp.visible = true; thor.sh.visible = true; pinWanted = true
         camFree = false
         zoomTo(Z)
@@ -5527,8 +5601,20 @@ export default function PmapScene() {
         }
         /* ARRIVING SOMEWHERE YOU ALREADY ARE IS STEPPING ASHORE, not a map swap.
          * The hub's own berth is on the hub, so the leg that ends where it started
-         * must not tear the scene down and rebuild it. */
-        stepAshore()
+         * must not tear the scene down and rebuild it.
+         *
+         * EXCEPT WHEN A SCRIPT IS DIRECTING, AND THAT IS ASH'S SECOND PASS. His
+         * order at the dock is now: she reaches it, the camera pulls out to the
+         * whole island, the arrival card plays THERE, and THEN Thor hops out.
+         * The hop-out was welded to the arrival, so the island had no way to put
+         * anything between the two. Here the ship simply ties up: the hull stays
+         * where she is, the body stays aboard, the card is paid because he HAS
+         * arrived, and the island says when he steps off with `ashore()`.
+         *
+         * Only for a voyage a script started. A player who tied up himself gets
+         * exactly what he always got, because he asked for it and there is
+         * nobody to say what happens next. */
+        if (v) { tiedUp = true; arrivalCard() } else stepAshore()
         /* AND THE CHART FINDS OUT WHERE SHE IS TIED UP. `recordVessel` has existed
          * since the resume guard was written and had no caller anywhere in the
          * game, so `mooringFor` answered "home" for the whole of every run: the
@@ -5727,7 +5813,11 @@ export default function PmapScene() {
          * law to travel, and a travel under a cover is a zoom the student never
          * sees followed by a frame that is wrong for the length of it, so the
          * arrival snaps and only the sailing after it is eased. */
-        camZ = camZWant = Z_MIN
+        /* THE CROSSING OPENS CLOSE. `arriveAboard` is only ever the scripted
+         * sea arrival (`?aboard=1`), which is the crossing Ash watched and
+         * called too far out; a player boarding at a berth still gets the wide
+         * sailing floor from `board`. */
+        camZ = camZWant = Z_SHIP
         world.scale.set(camZ)
         camTo(hull.x, hull.y, true)
         console.log(`[pmap] ${mapId}: arrived by sea at ${Math.round(out.x)},${Math.round(out.y)}`
@@ -6407,7 +6497,7 @@ export default function PmapScene() {
            * thing you click. While the student holds the tiller with nothing
            * scripted driving her, the one line is the one instruction; while a
            * voyage or a berthing is driving, there is nothing to ask of him. */
-          const freeAtSea = !!hull && !berthing && !voyage && !helmOverride
+          const freeAtSea = !!hull && !berthing && !voyage && !helmOverride && !tiedUp
           setTask(quiet && hull ? (freeAtSea ? 'Click the island to sail there.' : '')
             : quiet && o ? objectiveLine(o, mapId) : '')
           /* CLEAR OF THE YOU PIN, IN SCREEN PIXELS RATHER THAN WORLD ONES.
@@ -6602,7 +6692,7 @@ export default function PmapScene() {
           prompt.x += dx / camZ
         }
         seaFire = null
-        if (hull && !berthing && !locked && !fade && comp) {
+        if (hull && !berthing && !locked && !fade && !tiedUp && comp) {
           const at = toSea(hull.x, hull.y)
           const home = comp.slots.find((s) =>
             s.berth && Math.hypot(s.berth.x - at.x, s.berth.y - at.y) < 90)
@@ -6853,74 +6943,68 @@ export default function PmapScene() {
            *
            * Still engine-drawn and still deliberately quiet. The painting is
            * Ash's and the engine does not draw furniture on it. */
-          guideTrail.clear()
-          /* CLEARED WITH THE PICTURE AND NOT ONLY WITH THE TARGET. This was set
-           * inside the draw and reset only in the no-objective branch below, so
-           * a frame that had a target and drew nothing (the movie is up, a panel
-           * is open, the world is held) reported the count from the last frame
-           * that did draw. The gate caught it: the crossing said twenty-one
-           * marks were on the ground behind two black bars. */
-          trailMarks = 0
-          if (objMark.visible && g.route.length > 1) {
+          /* the marks are placed by GROUND DISTANCE and not by waypoint index:
+           * the search returns a point every four pixels, so the old "every
+           * second one" was a mark every eight pixels of a six hundred pixel
+           * route, seventy-five of them. */
+          let shown = 0
+          if (objMark.visible && trailTex && g.route.length > 1) {
             const ys = map.yScale || 1
-            const STEP = Math.max(14, Math.round(map.character.heightPx * 0.9))
-            const HALF = Math.max(3, map.character.heightPx * 0.26)
+            const STEP = Math.max(14, Math.round(map.character.heightPx * 1.05))
             let run = 0
-            /* THE FIRST MARK IS NOT AT HIS FEET. One body's worth of clearance,
-             * so the trail starts in front of him and reads as a road rather
-             * than as something stuck to the body. */
-            let next = map.character.heightPx * 1.1
-            const marks: { x: number; y: number; cos: number; sin: number }[] = []
-            for (let i = 1; i < g.route.length && marks.length < 90; i++) {
+            /* the first mark is one body clear of his feet, so the way reads as
+             * a road in front of him rather than as something stuck to him */
+            let next = map.character.heightPx * 1.2
+            const marks: { x: number; y: number; t: number }[] = []
+            for (let i = 1; i < g.route.length && marks.length < 64; i++) {
               const a = g.route[i - 1], b = g.route[i]
               const dx = b.x - a.x, dy = (b.y - a.y) * ys
               const seg = Math.hypot(dx, dy)
               if (seg < 0.001) continue
-              while (run + seg >= next) {
+              while (run + seg >= next && marks.length < 64) {
                 const k = (next - run) / seg
                 const x = a.x + (b.x - a.x) * k
                 const y = a.y + (b.y - a.y) * k
                 next += STEP
-                /* behind him, or so close that the mark would sit under his own
-                 * feet, is a mark that has been used up */
-                if (Math.hypot(x - pos.x, (y - pos.y) * ys) < map.character.heightPx * 0.8) continue
-                const ang = Math.atan2(dy, dx)
-                marks.push({ x, y, cos: Math.cos(ang), sin: Math.sin(ang) / ys })
+                if (Math.hypot(x - pos.x, (y - pos.y) * ys) < map.character.heightPx * 0.9) continue
+                marks.push({ x, y, t: 0 })
               }
               run += seg
             }
-            /* TWICE, DARK UNDER BRIGHT, for the reason the lit ring gives at
-             * length: the deployment target is a Chromebook panel that crushes
-             * lightness and saturation, and one warm stroke on warm stone
-             * disappears. The dark pass is the painting's own outline brown. */
-            for (const pass of [
-              { color: 0x3a2410, width: 4.2, alpha: 0.5 },
-              { color: 0xffd98a, width: 2, alpha: 0.9 },
-            ]) {
-              for (const m of marks) {
-                /* an open arrowhead: two strokes meeting at the point, which
-                 * reads as a direction at a few pixels across where a filled
-                 * triangle reads as a blob */
-                const tipX = m.x + m.cos * HALF, tipY = m.y + m.sin * HALF
-                for (const side of [-1, 1] as const) {
-                  const bx = m.x - m.cos * HALF * 0.55 + side * m.sin * HALF * 0.85 * ys
-                  const by = m.y - m.sin * HALF * 0.55 + side * m.cos * HALF * 0.85 / ys
-                  guideTrail.moveTo(bx, by).lineTo(tipX, tipY)
-                }
+            for (let i = 0; i < marks.length; i++) marks[i].t = marks.length < 2 ? 1 : i / (marks.length - 1)
+            for (const m of marks) {
+              let sp = trailSprites[shown]
+              if (!sp) {
+                sp = new Sprite(trailTex)
+                sp.anchor.set(0.5, 0.5)
+                trailSprites.push(sp)
+                trailLayer.addChild(sp)
               }
-              guideTrail.stroke({ ...pass, cap: 'round', join: 'round' })
+              if (sp.texture !== trailTex) sp.texture = trailTex
+              /* WHOLE PIXELS AND ONE BODY WIDE AT MOST. The face is 25 across on
+               * a sheet drawn for the DOM, so it is sized against the character
+               * the way every other world mark is, and rounded so a drawn pixel
+               * lands on a screen pixel at the walking shot. */
+              const want = Math.max(3, Math.round(map.character.heightPx * (0.36 + 0.22 * m.t)))
+              sp.width = want
+              sp.height = Math.max(1, Math.round(want * ys))
+              sp.position.set(Math.round(m.x), Math.round(m.y))
+              sp.alpha = 0.6 + 0.4 * m.t
+              sp.visible = true
+              shown++
             }
-            trailMarks = marks.length
           }
+          for (let i = shown; i < trailSprites.length; i++) trailSprites[i].visible = false
+          trailMarks = shown
         } else {
           objMark.visible = false
           bigMark.visible = false
+          for (const sp of trailSprites) sp.visible = false
           trailMarks = 0
           /* guarded, never cleared: see the note where `lit` is built. Both of
            * these run on every frame of a map with nothing owed. */
           if (lit.visible) { lit.visible = false; litKey = ''; litR = 0; litRy = 0 }
           litAnchor = null
-          guideTrail.clear()
           guide = null
         }
 

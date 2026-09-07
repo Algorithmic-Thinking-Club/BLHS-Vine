@@ -133,8 +133,14 @@ export type Intent =
    * Three names, computed by the scene off the painting and the window:
    *   island  the whole painted extent, centred, held still
    *   walk    the shot a player walks around in, following the body
-   *   sail    the shot the sea is crossed at
-   * A room has no sea and answers `sail` with `walk`. */
+   *   ship    riding with the hull, close enough that she is a ship
+   *   sail    the wide sailing floor, the shot open water is crossed at
+   * A room has no sea and answers `sail` and `ship` with `walk`.
+   *
+   * `ship` IS ASH'S SECOND PASS ON ITEM 1: "The crossing is much closer... the
+   * camera rides with the ship... Not the wide shot of the whole island with the
+   * ship as a speck, which is what shipped." `sail` is the old floor and is what
+   * a player at the tiller still gets; `ship` is what a watched crossing gets. */
   | { kind: 'view'; view: ViewShot; ms?: number }
 
   /* TIME, so a scene can breathe and so it can react. `wait` is a pause a
@@ -172,6 +178,18 @@ export type Intent =
    * teardown and a ceiling lifts them anyway, the same shape as the two wait
    * ceilings below. */
   | { kind: 'movie'; on: boolean }
+
+  /* STEPPING OFF THE BOAT, WHICH USED TO BE WELDED TO ARRIVING.
+   *
+   * A scripted crossing ties the ship up at the dock and leaves the player
+   * aboard, because Ash's order at the dock is the pull-out and the arrival card
+   * FIRST and the hop-out after them. There was no way to write that: the body
+   * came off the boat inside the same call that berthed her. This is the second
+   * half, said by the island at the moment it means.
+   *
+   * A no-op on a body already on its feet, so an island that says it twice, or
+   * on a map it never sailed to, is not punished for it. */
+  | { kind: 'ashore' }
 
   /* the sit-down panels. Deliberately a short closed list: a station that opens
    * a panel is a station that could have been a scene, so making this cheap to
@@ -237,8 +255,8 @@ export const PACES: Pace[] = ['stroll', 'walk', 'run']
 export const PACE_OF: Record<Pace, number> = { stroll: 0.62, walk: 1, run: 1.5 }
 
 /** the shots the engine composes itself, off the painting and the window */
-export type ViewShot = 'island' | 'walk' | 'sail'
-export const VIEW_SHOTS: ViewShot[] = ['island', 'walk', 'sail']
+export type ViewShot = 'island' | 'walk' | 'ship' | 'sail'
+export const VIEW_SHOTS: ViewShot[] = ['island', 'walk', 'ship', 'sail']
 
 export type RunPath =
   | 'year' | 'gpa' | 'tokens' | 'cords' | 'flags' | 'islands'
@@ -318,6 +336,8 @@ export interface IntentWorld {
    * the only one an author can compose with. */
   fx(name: string, anchor?: string, data?: unknown): Promise<void>
   enter(map: string, at?: string): Promise<void>
+  /** put the player off a berthed boat and onto the dock */
+  ashore(): Promise<void>
   cutscene(script: string): Promise<void>
 
   /* the director half. Each one is a word for something MAPVIS already authors
@@ -535,6 +555,9 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         return ok()
       case 'sound':
         engine.sound(i.name, i.gain)
+        return ok()
+      case 'ashore':
+        await w().ashore()
         return ok()
       case 'movie':
         /* NO MAP NEEDED, on purpose. The bars are a property of the window and

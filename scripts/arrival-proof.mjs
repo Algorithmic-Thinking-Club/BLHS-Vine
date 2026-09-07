@@ -92,7 +92,10 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
      * in the same frame as the flag reads "movie, no bars" and is right about
      * both. The second one is the honest one. */
     if (s.movie && s.voyage && s.bars && !duringMovie) duringMovie = s
-    if (s.movie && !s.hull && s.camZ < s.Z * 0.75 && !atIslandShot) atIslandShot = s
+    /* THE WIDE SHOT IS AT THE DOCK WITH HIM STILL ABOARD, which is Ash's second
+     * order: she ties up, the camera pulls out, the card plays, and only then
+     * does he hop out. `hull` is therefore still true here. */
+    if (!s.movie && s.hull && s.camZ < s.Z * 0.75 && !atIslandShot) atIslandShot = s
     if (s.walk && !duringWalk) duringWalk = s
     if (!s.walk && duringWalk && Math.hypot(s.x - 343, s.y - 385) < 12) { atDoor = s; break }
     await page.waitForTimeout(400)
@@ -117,24 +120,33 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
   }
   ok('1', 'and the tiller is not his', true, '(checked below on a fresh run)')
 
-  ok('2', 'the ship stops and he is ashore', !!atIslandShot && !atIslandShot.hull)
-  ok('3', 'the island is framed while the bars are still up',
-    !!atIslandShot, atIslandShot ? `zoom ${atIslandShot.camZ} against a walking ${atIslandShot.Z}` : 'never happened')
+  /* item 1's second pass: the crossing is CLOSE, riding with her */
+  ok('1', 'and the crossing is close on the ship, not the whole island',
+    !!duringMovie && duringMovie.camZ > duringMovie.Z * 0.9,
+    duringMovie ? `zoom ${duringMovie.camZ} against a walking ${duringMovie.Z}` : '')
+  ok('2', 'the island is framed at the dock with the ship tied up',
+    !!atIslandShot && atIslandShot.hull,
+    atIslandShot ? `zoom ${atIslandShot.camZ} against a walking ${atIslandShot.Z}` : 'never happened')
   ok('3', 'and the pull-out really is wider than the walking shot',
     !!atIslandShot && atIslandShot.camZ < atIslandShot.Z * 0.8)
 
   const carded = seen.find((s) => s.card)
-  ok('3', 'the arrival card plays once the bars are down', !!carded && !carded.movie)
+  ok('2', 'the arrival card plays there, with him still aboard',
+    !!carded && !carded.movie && carded.hull)
+  const hopped = seen.find((s, i) => !s.hull && i > seen.indexOf(atIslandShot))
+  ok('3', 'and THEN he hops out', !!hopped, hopped ? `${hopped.x},${hopped.y}` : 'never stepped off')
+  ok('1', 'no sea plaque is offered while she is tied up',
+    !seen.some((s) => s.hull && !s.movie && (s.prompt === 'Dock here' || s.prompt === 'Get in the boat')))
 
   ok('4', 'he walks himself to the tunnel', !!duringWalk && duringWalk.walk === 'panthers_maw')
   ok('4', 'the camera is back at the walking shot while he walks',
     !!duringWalk && duringWalk.camZ > duringWalk.Z * 0.9, duringWalk ? `zoom ${duringWalk.camZ}` : '')
-  ok('4', 'arrow marks are drawn along the route while he walks',
+  ok('5', 'drawn marks are laid along the route while he walks',
     !!duringWalk && duringWalk.trail >= 4, duringWalk ? `${duringWalk.trail} marks` : '')
   ok('4', 'and he arrives at the door', !!atDoor, atDoor ? `${atDoor.x},${atDoor.y}` : 'never arrived')
 
   const end = await state(page)
-  ok('5', 'a large pointer hangs over the tunnel', !!end.pointer, JSON.stringify(end.pointer))
+  ok('5', 'a large drawn pointer hangs over the tunnel', !!end.pointer, JSON.stringify(end.pointer))
   ok('5', 'and it is clear of the sentence over his head', !!end.pointer && end.pointer.h >= 24)
   ok('5', 'and E opens the door', await page.evaluate(async () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))

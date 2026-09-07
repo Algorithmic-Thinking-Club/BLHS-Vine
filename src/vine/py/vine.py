@@ -188,7 +188,8 @@ def view(shot, ms=None):
 
         island   the whole painted island, centred and held still
         walk     the shot you walk around in, following the body
-        sail     the shot the sea is crossed at
+        ship     riding with the boat, close enough that she is a boat
+        sail     the wide sailing floor, the shot open water is crossed at
 
     `framing` needs a name somebody dragged into place on one anchor, which is
     right for "the shot of the tunnel mouth" and no help at all for "show me the
@@ -200,7 +201,7 @@ def view(shot, ms=None):
     does not talk over a move that is still travelling. Pass `ms` to hold the
     shot for that long as well, then it comes back.
 
-    A room has no sea and answers "sail" with the walking shot.
+    A room has no sea and answers "sail" and "ship" with the walking shot.
     """
     intent = {"kind": "view", "view": shot}
     if ms is not None:
@@ -258,6 +259,18 @@ def sound(name, gain=None):
 
 
 # ---- the world ---------------------------------------------------------------
+
+def ashore():
+    """Put the player off a berthed boat and onto the dock.
+
+    A crossing you scripted ties the ship up and leaves him ABOARD, so that you
+    can pull the camera out, play a card and let him look at where he has landed
+    before anybody moves. This is the line that ends that.
+
+    Harmless on a body already on its feet.
+    """
+    return {"kind": "ashore"}
+
 
 def movie(on=True):
     """Two black bars, no HUD, no plaques, and the controls taken away.
