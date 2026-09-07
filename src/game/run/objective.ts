@@ -94,7 +94,16 @@ export function nextObjective(s: SaveGame | null): Objective | null {
    * says so. `isObjective` compares by name and an anchor is never called '', so
    * nothing on any map can match it. */
   if (sessionOver(s)) {
-    const line = 'Explore the Maw. Year two, next time.'
+    /* BRIEF-INTRO-FILM section 4, Ash 2026-09-07: the handover line is *"Explore.
+     * Talk to anyone. Open the Guide."* and there is **no "Year two" wording
+     * anywhere**. The intro does not end with a promise about next time.
+     *
+     * SAID IN TWO PLACES ON PURPOSE. The island says it out loud at the handover
+     * (`islands/panther-maw/founding.py`), and the island's word is dropped the
+     * moment the bars come down, which is one line later. So this is what the
+     * panel falls back to for the rest of the session, and if the two disagreed
+     * the sentence would change by itself a second after he read it. */
+    const line = 'Explore. Talk to anyone. Open the Guide.'
     return { anchor: '', map: MAW_MAP, phase: 'done', say: line, away: line }
   }
 
@@ -174,10 +183,20 @@ export function nextObjective(s: SaveGame | null): Objective | null {
    * button inside a panel the student had not opened (STATE-OF-THE-GAME
    * confusing 9). */
   if (y.readyForYearbook && !y.yearbookSeen) {
+    /* AND THE CLOSING FILM IS WHAT HAPPENS HERE. BRIEF-INTRO-FILM: the ending is
+     * its own film, it starts when the year has nothing left owing, and the
+     * PRINCIPAL is the one who meets him. So the anchor is his desk rather than
+     * her post: the film runs itself the moment the room loads with the year in
+     * this phase, and the desk is the thing to press for a student who walked
+     * out of the middle of it.
+     *
+     * The away line is Ash's own wording. A student standing on the hub with the
+     * year finished is not being told to go into a mountain, he is being told to
+     * come home, because somebody is waiting for him. */
     return {
-      anchor: 'counselor', map: MAW_MAP, phase: 'yearbook',
-      say: 'Talk to the counselor.',
-      away: 'Go into the mountain and talk to the counselor.',
+      anchor: 'principal_desk', map: MAW_MAP, phase: 'yearbook',
+      say: 'The principal is waiting.',
+      away: 'Sail home. The principal is waiting.',
     }
   }
 

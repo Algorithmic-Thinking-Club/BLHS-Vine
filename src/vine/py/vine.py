@@ -483,6 +483,17 @@ def get(path):
     handle      the name the player chose, or None
     mode        "game" or "plain", which half of the class this is
     graduated   True or False
+    phase       where the year is, in the sequencer's own words: "founding",
+                "vignette", "plan", "core", "voyage", "rising", "yearbook" or
+                "done". **"yearbook" is how you ask whether the year is
+                finished.** Do not write that question as "Advisory is over":
+                the day one island can be sailed to, a stamped sheet still owes
+                a voyage and this is the only thing that knows it.
+    picks       what he actually chose and earned THIS year, for a line that
+                names it: {"classes": [{"id","name"}], "seasons":
+                [{"season","id","name"}], "graded": [{"title","grade","kind"}],
+                "gpa": a number or None}. The names are already masked, so an
+                island nobody has built prints as an Example here too.
     """
     return {"kind": "get", "path": path}
 

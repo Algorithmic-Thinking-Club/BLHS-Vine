@@ -350,6 +350,25 @@ export type RunPath =
    * read: `award(sticker=..., badge=...)` has always been able to put something on
    * that wall, and nothing could ask what was on it. */
   | 'cord_board' | 'trophies'
+  /* ---- WHERE THE YEAR IS, AND WHAT HE HAS ACTUALLY DONE IN IT --------------
+   *
+   * BRIEF-INTRO-FILM, Ash 2026-09-07: the introduction and the ending are two
+   * films, and the ending is triggered by *"every task on this year is done"*.
+   * An island cannot ask that today. It can ask `planned` and it can ask
+   * `advisory`, so the only way to write the trigger was to AND those two
+   * together, which is Advisory hardcoded as the last thing in a year and is
+   * wrong the day the first island can be sailed to.
+   *
+   * `phase` is `nextObjective`'s own answer, which is the machinery that already
+   * knows: 'founding', 'vignette', 'plan', 'core', 'voyage', 'rising',
+   * 'yearbook' or 'done'. The year is finished when it says 'yearbook', and
+   * that clause already accounts for a voyage nobody has sailed. One sequencer,
+   * read rather than re-decided, the same rule `objective.ts` opens with.
+   *
+   * `picks` is what the principal congratulates him ON. The closing film says
+   * one line naming the student and what he really did, and every piece of it
+   * has to come off the save or it is a compliment about somebody else. */
+  | 'phase' | 'picks'
   /* AND THE ONE THE FIRE HAS TO ASK BEFORE IT LIGHTS.
    *
    * `stations.ts` decides whether the hearth is open by calling `hasCoreBeat` and

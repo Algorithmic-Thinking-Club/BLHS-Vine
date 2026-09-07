@@ -19,6 +19,10 @@ import { cordsOf, gpaOf } from './progress'
 import { grant } from './grant'
 import { beatDone, coreBeatId, hasCoreBeat } from './beats/beats'
 import { programmeById } from './roster/roster'
+import { shownName } from './roster/placeholders'
+import { classById } from './planner/catalog'
+import { letterOf } from './progress'
+import { nextObjective } from './run/objective'
 import { play as playSfx } from './audio'
 import { setCinema } from './stage/cinema'
 import { setObjectiveSaid } from './hud/objective-bus'
@@ -104,6 +108,48 @@ export const engine: IntentEngine = {
       case 'handle': return s?.handle ?? null
       case 'graduated': return !!s?.graduated
       case 'mode': return engine.mode()
+      /* ---- WHERE THE YEAR IS, ASKED OF THE ONE THING THAT DECIDES IT -------
+       *
+       * BRIEF-INTRO-FILM: the closing film fires when every task on the year is
+       * done, and it must NOT be written as "Advisory is over". Today Advisory
+       * is the last thing in a year because nothing can be sailed to; the day
+       * the first island lands, a stamped sheet with a season token on it owes
+       * a voyage, and an ending that fired at the fire would play in the middle
+       * of the student's year.
+       *
+       * `nextObjective` already answers this and the whole game is sequenced
+       * off it, so the island reads the sequencer instead of keeping a second
+       * copy of the rule. 'yearbook' is the phase that means the year can close.
+       * Null when there is no run and when the run is over. */
+      case 'phase': return nextObjective(s)?.phase ?? null
+      /* ---- AND WHAT HE ACTUALLY DID IN IT ---------------------------------
+       *
+       * The principal congratulates him BY NAME on what he really chose and
+       * really earned, so every word of that line comes off the save. Names are
+       * masked the same way every other surface masks them (roster/placeholders):
+       * a programme nobody has built is an Example here as well, or the ending
+       * would congratulate a freshman on a football season that does not exist.
+       *
+       * The letter is `progress.ts`'s own, not a rounding done here, because the
+       * yearbook and the wall print it from there and three spellings of one
+       * grade is how a game tells a student two different things about the same
+       * afternoon. */
+      case 'picks': {
+        if (!s) return { classes: [], seasons: [], graded: [], gpa: null }
+        const plan = s.plans[s.year] ?? { slots: {}, classes: [], stamped: false }
+        return {
+          classes: plan.classes.map((id) => ({ id, name: classById(id)?.name ?? id })),
+          seasons: Object.entries(plan.slots)
+            .filter(([, id]) => !!id)
+            .map(([season, id]) => ({
+              season, id,
+              name: shownName(id as string, programmeById(id as string)?.name ?? (id as string)),
+            })),
+          graded: s.ledger.filter((r) => r.year === s.year)
+            .map((r) => ({ title: r.title, grade: letterOf(r.grade), kind: r.kind })),
+          gpa: gpaOf(s),
+        }
+      }
     }
   },
 
