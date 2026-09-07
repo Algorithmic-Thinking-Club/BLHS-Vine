@@ -7111,8 +7111,10 @@ export default function PmapScene() {
          * happens to be standing.
          *
          * So the thing the game is currently POINTING AT reaches a little
-         * further than everything else: one body height, and only for the one
-         * anchor the guide has lit. Every other anchor keeps the radius its
+         * further than everything else: one and a half body heights, which is
+         * more than the furthest a push can carry him (a keep-out circle is
+         * about one body across), and only for the one anchor the guide has
+         * lit. Every other anchor keeps the radius its
          * author chose. This is the self-evident law's own sentence, made true
          * at the one moment it was not: one lit thing, a verb line that names
          * it, and pressing it does it. */
@@ -7121,8 +7123,8 @@ export default function PmapScene() {
           ? null
           : anchors.nearestInteractive(pos.x, pos.y)
             ?? (guided && guided.kind !== 'region' && guided.kind !== 'trigger'
-              && Math.hypot(anchors.standAt(guided).x - pos.x,
-                (anchors.standAt(guided).y - pos.y) / (map.yScale || 1)) <= map.character.heightPx
+              && Math.hypot(anchors.standAt(guided).x - pos.x, anchors.standAt(guided).y - pos.y)
+                <= map.character.heightPx * 1.6
               ? guided : undefined)
         const st = near ? offerOf(near) : null
         const canFire = !!st?.canFire

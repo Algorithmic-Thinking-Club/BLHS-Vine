@@ -190,11 +190,19 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
   const end = await state(page)
   ok('5', 'a large drawn pointer hangs over the tunnel', !!end.pointer, JSON.stringify(end.pointer))
   ok('5', 'and it is clear of the sentence over his head', !!end.pointer && end.pointer.h >= 24)
-  ok('5', 'and E opens the door', await page.evaluate(async () => {
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }))
-    await new Promise((r) => setTimeout(r, 2500))
-    return !!document.querySelector('.tr-root') || window.__pmap.map !== 'hub'
-  }))
+  /* THE PLAQUE FIRST, THEN THE PRESS, which is the order a player does it in.
+   * The frame stays up at the tunnel and the controls come back when the
+   * island's handler RETURNS, a beat after the walk ends, so a press fired on
+   * the arrival frame lands while the world is still held and does nothing.
+   * Waiting for the offer is both more honest and what a student does. */
+  await page.waitForFunction(() => window.__pmap?.prompt === "Go to Panther's Maw", null, { timeout: 15000 })
+    .catch(() => { /* the assert below says so */ })
+  const offered = await page.evaluate(() => window.__pmap?.prompt ?? null)
+  ok('5', 'the door offers itself inside the frame', offered === "Go to Panther's Maw", String(offered))
+  await page.keyboard.press('e')
+  await page.waitForTimeout(3000)
+  ok('5', 'and E opens it', await page.evaluate(() =>
+    !!document.querySelector('.tr-root') || window.__pmap?.map !== 'hub'))
 
   /* the measured landing defect, read off the plaque itself: he lands 55
    * painting pixels from the berth, well inside its 110 pixel radius, so before
@@ -287,24 +295,32 @@ console.log('\nTHE PANTHER\'S MAW  (items 6 and 8)')
    * comes off the platform and the founding starts several seconds later: the
    * window closed with the principal still halfway across the hall and the
    * gate reported item 6 broken when it was late. */
+  /* DRIVEN BY THIS GATE RATHER THAN BY WHOEVER OWNS THE ROOM. Item 6 is an
+   * ENGINE claim: a body a script walks moves at a walking pace with its legs
+   * going. Which body walks where, and when, is the Maw island's content and it
+   * is being rewritten; a gate that waits for somebody else's beat is a gate
+   * that goes red when they change their mind. So this asks the engine for the
+   * move itself, through the same `actor_move` a member's island would use. */
   const frames = new Set()
-  let far = null, near = null, moved = false
+  let far = null, near = null
+  const walking = page.evaluate(() => window.__pmap.perform(
+    { kind: 'actor_move', actor: 'principal_desk', to: 'chart_table' }))
   const t1 = Date.now()
-  while (Date.now() - t1 < 45000) {
-    const d = await page.evaluate(() => window.__pmap.drivenNow)
-    const who = Object.values(d)[0]
+  while (Date.now() - t1 < 20000) {
+    const who = Object.values(await page.evaluate(() => window.__pmap.drivenNow))[0]
     if (who) {
-      if (who.moving) { frames.add(who.frame); moved = true }
-      if (!far) far = who
+      if (who.moving) frames.add(who.frame)
+      if (!far && who.moving) far = who
       near = who
-      if (moved && !who.moving) break
     }
-    await page.waitForTimeout(200)
+    await page.waitForTimeout(150)
+    if (far && near && !near.moving) break
   }
-  ok('6', 'the principal is driven across the room', !!far && !!near && Math.hypot(near.x - far.x, near.y - far.y) > 40,
+  await walking.catch(() => {})
+  ok('6', 'a driven body really crosses the room', !!far && !!near && Math.hypot(near.x - far.x, near.y - far.y) > 40,
     far && near ? `${far.x},${far.y} -> ${near.x},${near.y}` : 'never moved')
-  ok('6', 'and his walk cycle runs while he does', frames.size >= 4, `${frames.size} distinct frames`)
-  ok('6', 'and he stands still on his first frame when he stops', !near?.moving && near?.frame === 0)
+  ok('6', 'and its walk cycle runs while it does', frames.size >= 4, `${frames.size} distinct frames`)
+  ok('6', 'and it stands on its first frame when it stops', !near?.moving && near?.frame === 0)
 
   /* item 8's other half: the painting holds still while a body walks it */
   const camA = await page.evaluate(() => ({ x: Math.round(window.__pmap.camZ * 1000) }))
