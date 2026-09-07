@@ -21,7 +21,6 @@ import { announce, panelDepth } from '../ui/a11y'
 import { Glyph, useKitReady } from '../ui/controls'
 import { bandFromRects, setUiBandStacked } from '../ui/frame'
 import { prefersReducedMotion } from '../ui/motion'
-import { cinemaOn } from './cinema'
 import './placecard.css'
 
 const DWELL_MS = 3200
@@ -91,26 +90,16 @@ export function PlaceCard() {
      * dependency list, so every line of a four-line conversation would tear the
      * timer down and start the fifteen seconds again, and a card could queue
      * behind a long scene for a minute and still call itself fresh. */
-    /* AND IT WAITS OUT A MOVIE (BRIEF-ARRIVAL items 2 and 3). Ash's order at
-     * the dock is: the ship ties up, the camera pulls out to the whole island,
-     * and THEN the card. The card is asked for the moment he steps ashore,
-     * which is inside the crossing, so without this it would land behind the
-     * black bars and be gone before they lifted. */
-    const clear = () => !transitionBusy() && dialogueState() === null && panelDepth() === 0 && !cinemaOn()
+    /* IT NO LONGER WAITS A MOVIE OUT, and that is Ash's ruling of 2026-09-06
+     * that the bars stay up for the whole arrival. They used to come down at
+     * the dock so this could play; now it plays inside them, which is where a
+     * title card belongs anyway. `cinema.css` stopped hiding it to match. */
+    const clear = () => !transitionBusy() && dialogueState() === null && panelDepth() === 0
     if (clear()) { setPhase('in'); return }
-    /* THE CEILING COUNTS QUIET TIME ONLY. Fifteen seconds is the answer to "a
-     * conversation is running long and this card is now about somewhere the
-     * student has left". A movie is not that: it is a stretch somebody wrote
-     * with the card deliberately held behind it, and counting it would throw
-     * the arrival card away on any crossing over fifteen seconds. */
-    let waited = 0
-    let last = performance.now()
+    const t0 = performance.now()
     const held = window.setInterval(() => {
-      const now = performance.now()
-      if (!cinemaOn()) waited += now - last
-      last = now
       if (clear()) { window.clearInterval(held); setPhase('in'); return }
-      if (waited > WAIT_CEILING_MS) { window.clearInterval(held); setCard(null) }
+      if (performance.now() - t0 > WAIT_CEILING_MS) { window.clearInterval(held); setCard(null) }
     }, 100)
     return () => window.clearInterval(held)
   }, [card, phase])

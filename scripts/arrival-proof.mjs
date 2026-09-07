@@ -34,6 +34,20 @@ const ok = (item, what, good, detail = '') => {
   else { fails.push(`${item}  ${what}${detail ? '  ' + detail : ''}`); console.log(`  FAIL ${item}  ${what}${detail ? '  ' + detail : ''}`) }
 }
 
+
+/* A LINE IS A CLICK, and a harness that does not make it is a harness watching a
+ * game wait for a player. The arrival says one line at the wide shot; a student
+ * clicks it and so does this. */
+const clickThrough = async (page) => {
+  /* ONLY THE BOX, and only when one is really up. A looser selector matched the
+   * full-screen veil, so the harness went on clicking the glass after the line
+   * was gone and let itself through the tunnel door in the middle of the run. */
+  const up = await page.evaluate(() => !!document.querySelector('.dlg-box'))
+  if (!up) return false
+  await page.keyboard.press('Space')
+  return true
+}
+
 const SAVE = {
   v: 2, id: 'r_gate', handle: 'BraveTide', pronouns: 'they/them', boatName: 'Kestrel',
   year: 1, season: 'Fall', beat: 'maw:arrive', introDone: true, arm: 'game',
@@ -57,6 +71,9 @@ async function open(url, save = SAVE) {
 
 const state = (page) => page.evaluate(() => {
   const p = window.__pmap
+  /* the scene can go while a loop is sampling it: a door swap tears it down and
+   * builds a new one, and for a few frames there is nothing to ask */
+  if (!p) return null
   const seen = (sel) => {
     const el = document.querySelector(sel)
     if (!el) return false
@@ -87,6 +104,8 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
    * moment and the moments are what the brief lists */
   while (Date.now() - t0 < 40000) {
     const s = await state(page)
+    if (!s) break
+    await clickThrough(page)
     seen.push(s)
     /* NOT THE FIRST SAMPLE THAT SEES THE FLAG. `setCinema` flips a module
      * variable and React mounts the bars on its next render, so a sample taken
@@ -96,7 +115,7 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
     /* THE WIDE SHOT IS AT THE DOCK WITH HIM STILL ABOARD, which is Ash's second
      * order: she ties up, the camera pulls out, the card plays, and only then
      * does he hop out. `hull` is therefore still true here. */
-    if (!s.movie && s.hull && s.camZ < s.Z * 0.75 && !atIslandShot) atIslandShot = s
+    if (s.hull && s.camZ < s.Z * 0.75 && !atIslandShot) atIslandShot = s
     /* MID-WALK, NOT THE FIRST FRAME OF IT. The first sample that sees a walk
      * label can land in the same frame the label appears, before the guide has
      * recomputed its route or React has mounted the bars, and it is right about
@@ -113,7 +132,10 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
     movieFrames.length >= 3 && movieFrames.filter((s) => s.bars).length >= movieFrames.length - 2,
     `${movieFrames.filter((s) => s.bars).length} of ${movieFrames.length} movie frames had them`)
   ok('1', 'and no HUD corner under them', duringMovie && !duringMovie.hudCorner)
-  ok('1', 'and no help button', duringMovie && !duringMovie.help)
+  /* the question mark STAYS, ruled 2026-09-06: it is the one control that
+   * answers "I do not know what is happening", which is what a student behind
+   * two black bars is asking */
+  ok('1', 'and the help button is still there', duringMovie && duringMovie.help)
   ok('1', 'and no plaque, arrow or lit ring', duringMovie && !duringMovie.lit && duringMovie.trail === 0)
   ok('1', 'and no arrival card', duringMovie && !duringMovie.card)
 
@@ -139,7 +161,16 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
 
   const carded = seen.find((s) => s.card)
   ok('2', 'the arrival card plays there, with him still aboard',
-    !!carded && !carded.movie && carded.hull)
+    !!carded && carded.hull)
+  ok('1', 'and the bars never come down in the middle',
+    seen.filter((s, i) => i > seen.indexOf(duringMovie) && i < seen.indexOf(duringWalk) && !s.movie).length === 0,
+    'from the first frame to the tunnel')
+  /* Ash watched a two step shift: full island, half island, then him. The
+   * walking shot must never be a resting place between the two. */
+  const between = seen.filter((s, i) => i > seen.indexOf(atIslandShot) && i <= seen.indexOf(duringWalk))
+  ok('4', 'and the camera goes from the island to him in one move',
+    between.filter((s) => Math.abs(s.camZ - s.Z) < 0.08).length <= 1,
+    `${between.filter((s) => Math.abs(s.camZ - s.Z) < 0.08).length} frames parked at the walking shot`)
   const hopped = seen.find((s, i) => !s.hull && i > seen.indexOf(atIslandShot))
   ok('3', 'and THEN he hops out', !!hopped, hopped ? `${hopped.x},${hopped.y}` : 'never stepped off')
   ok('1', 'no sea plaque is offered while she is tied up',

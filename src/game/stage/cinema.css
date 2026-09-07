@@ -36,9 +36,17 @@
    Visibility rather than display: nothing reflows, nothing remeasures its own
    band, and a surface that publishes a height to the camera keeps publishing it
    instead of making the picture jump when the bars come down. */
+/* THE CORNER GOES AND THE QUESTION MARK STAYS, ruled by Ash 2026-09-06: "the
+   three buttons on the top left should never show up. The help button should
+   always be there though." The corner is the run's own furniture and a watched
+   stretch is not the run; the question mark is the one control that answers "I
+   do not know what is happening", and a student behind two black bars is
+   exactly the student asking it.
+
+   THE ARRIVAL CARD DRAWS UNDER THEM TOO, and that is the same ruling from the
+   other end: the bars are up for the WHOLE arrival now, so a card that hid
+   behind them would never play at all. */
 html[data-movie='1'] .hud-stack,
-html[data-movie='1'] .hp-btn,
-html[data-movie='1'] .pc-root,
 html[data-movie='1'] .hd-card {
   visibility: hidden;
 }

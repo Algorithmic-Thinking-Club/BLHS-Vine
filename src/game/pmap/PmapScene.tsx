@@ -1205,7 +1205,22 @@ export default function PmapScene() {
        * auto walk". The walking shot puts him at forty screen pixels, which is
        * the size a player walks around at; this is the size a person is when the
        * camera is ABOUT him, and an auto-walk is a scene rather than a walk. */
-      const Z_CLOSE = Z * 1.6
+      /* TWICE, AND THE NUMBER IS ASH'S OWN (BRIEF-MAW-RAIL-2 item 2): "In the
+       * Maw that means about twice the current zoom: Thor roughly eighty screen
+       * pixels tall, a station filling about a quarter of the glass, the room
+       * never all on screen at once." 1.6 was a guess and it read as the same
+       * shot slightly nearer. Measured on the shipped bundles at 1366x768: the
+       * Maw is a room at cover fit 2.0 with a 20 pixel character, so twice is
+       * 4.0 and eighty pixels exactly; the hub's walking shot is 2.25 with an 18
+       * pixel character, so twice is 4.5 and eighty-one. One rule, two maps, the
+       * number he asked for on both.
+       *
+       * AND IT IS WHAT MAKES THE ROOM FOLLOW HIM. `holdStill` pins a room to its
+       * own middle while the painting fits inside the window plus a quarter, so
+       * at 2.0 the Maw is centred and motionless whatever Thor does. At 4.0 it
+       * overflows on both axes and the camera rides him, which is the whole of
+       * "character point of view". */
+      const Z_CLOSE = Z * 2
       world.scale.set(Z)
 
       /* ---- D1: THE ZOOM IS A LIVE VALUE AND NOT A LOAD-TIME CONSTANT ----
@@ -4042,6 +4057,86 @@ export default function PmapScene() {
           })
         },
 
+        /* ---- HE LEADS AND THE STUDENT FOLLOWS (BRIEF-MAW-RAIL-2) -----------
+         *
+         * Ash after playing rail-1: the room walked Thor alone from station to
+         * station and nobody could tell why he was standing at a fire. A person
+         * takes you round on a real orientation, so the principal goes first.
+         *
+         * WHAT MAKES IT ONE WORD RATHER THAN TWO. `actor_move` comes back when
+         * the LEADER arrives, so writing it as two lines leaves the student
+         * standing still watching a man walk away and then walking the same floor
+         * on his own. Both bodies also aim at the same stand point, which is two
+         * people finishing on one pixel. Here the leader sets off, the student
+         * comes up behind him once he is a couple of body lengths clear, and the
+         * word is over when they have both stopped.
+         *
+         * THE LEADER PATHS. `actor_move` steers straight at the anchor, which is
+         * right for a crate being carried and wrong for a man crossing a room
+         * with a hearth in the middle of it. This searches the level mask with
+         * the walk law the player obeys and walks the legs it comes back with,
+         * so he goes round the furniture instead of through it.
+         *
+         * AND HE TURNS ROUND. The whole reason a person leads is that they then
+         * face you and say the line. */
+        leadTo(actor, to, pace) {
+          const sp = actorBody(actor, 'lead_to')
+          const target = anchors.get(to)
+          if (!target) throw new NotBuilt('lead_to', `no anchor named "${to}" on ${mapId}`)
+          const { goal } = walkGoal(target)
+          const ys = map.yScale || 1
+          /* two body lengths, which is the gap Ash names and is also far enough
+           * that the leader is never drawn inside the person following him */
+          const gap = Math.max(12, Math.round(map.character.heightPx * 2))
+          /* if the leader cannot move at all, the student is not made to stand
+           * there watching nothing: he sets off anyway after this */
+          const LEAD_CEILING_MS = 2500
+          const d = take(sp)
+          const speed = map.speed * PACE_OF[pace ?? 'walk']
+          const r = findPath(doc, cfg, { x: d.x, y: d.y }, goal, { step: 4, reach: 3 })
+          const legs = r.points.length > 1 ? r.points.slice(1) : [{ x: goal.x, y: goal.y }]
+          if (!r.reached) {
+            console.warn(`[pmap] lead_to: no route for "${actor}" to ${to}, steering straight at it`)
+          }
+
+          const leader = (async () => {
+            for (const leg of legs) {
+              if (destroyed) return
+              const dd = take(sp)
+              if (dd.move) { const orphan = dd.move.then; dd.move = null; orphan?.() }
+              const dir = dirFrom(leg.x - dd.x, (leg.y - dd.y) * ys)
+              if (dir) dd.facing = dir
+              await new Promise<void>((settle) => {
+                dd.move = { tx: leg.x, ty: leg.y, speed, done: false, then: settle }
+              })
+            }
+          })()
+
+          const behind = (async () => {
+            const t0 = performance.now()
+            /* wait for him to be clear, on frames rather than on a timer, so the
+             * gap is a distance a person can see and not a guess about speed */
+            while (!destroyed
+              && performance.now() - t0 < LEAD_CEILING_MS
+              && Math.hypot(d.x - pos.x, (d.y - pos.y) * ys) < gap) {
+              await new Promise<void>((r2) => { requestAnimationFrame(() => r2()) })
+            }
+            if (destroyed) return
+            await new Promise<void>((r2) => {
+              /* the reach IS the gap: he stops two body lengths short of where
+               * the leader is standing, which is what following looks like */
+              startWalk(goal, gap, goal.facing ?? null, r2, `${to}, behind ${actor}`)
+            })
+          })()
+
+          return Promise.all([leader, behind]).then(() => {
+            if (destroyed) return
+            const end = take(sp)
+            const back = dirFrom(pos.x - end.x, (pos.y - end.y) * ys)
+            if (back) end.facing = back
+          })
+        },
+
         /* A REFUSAL LEAVES NOTHING BEHIND, which is what `take()` before the check
          * did not honour and what cost the wave 4 proof an hour.
          *
@@ -4194,7 +4289,7 @@ export default function PmapScene() {
          * refusing when he is already on his feet: an island that says it twice,
          * or says it on a map it did not sail to, has not done anything wrong. */
         ashore() {
-          stepAshore()
+          stepAshore(true)
           return Promise.resolve()
         },
 
@@ -5573,7 +5668,13 @@ export default function PmapScene() {
         engine.log('boarded', { map: mapId, place: slot?.place ?? null })
       }
 
-      const stepAshore = () => {
+      /* `keepShot` IS THE SCRIPTED PATH, and it exists because of a two-step
+       * camera Ash caught by watching: the wide island shot travelled to the
+       * WALKING shot because that is what stepping ashore has always asked for,
+       * and then the island's own `view("close")` travelled again on top of it.
+       * Full island, half island, then him. One move, so the scripted caller
+       * says where the camera goes and this says nothing. */
+      const stepAshore = (keepShot = false) => {
         if (!hull) return
         /* A VOYAGE ENDS WHEN THE BOAT DOES. The route follower is ticked inside
          * `if (hull)`, so anything that put the player ashore mid-crossing, and
@@ -5596,7 +5697,7 @@ export default function PmapScene() {
         tiedUp = false
         thor.sp.visible = true; thor.sh.visible = true; pinWanted = true
         camFree = false
-        zoomTo(Z)
+        if (!keepShot) zoomTo(Z)
         /* AND THE ADDRESS STOPS SAYING HE IS AT SEA. `aboard` is how the intro
          * hands this scene an arrival on the water, and a berth on this same map
          * never runs `beginExit`, so without this line a refresh after tying up
@@ -7043,7 +7144,18 @@ export default function PmapScene() {
            * second one" was a mark every eight pixels of a six hundred pixel
            * route, seventy-five of them. */
           let shown = 0
-          if (objMark.visible && trailTex && g.route.length > 1) {
+          /* THE DRAWN ARROWS NO LONGER WAIT ON THE PLATFORM, and that is why
+           * Ash saw no marks at all in rail-1.
+           *
+           * This read `objMark.visible && trailTex`, and `trailTex` is
+           * `pointer/trail_dot` cut out of the kit sheet MAPVIS hosts. So every
+           * mark on the ground, including the eight arrows drawn for this job and
+           * shipped inside this repo at `public/art/world/trail/`, was gated on
+           * one fetch of `/api/v1/ui` finishing. A slow platform, a school filter,
+           * a cold cache or the plain study arm and the whole trail is silently
+           * nothing, on the one walk it exists for. The dot is a FLOOR under the
+           * arrows and was never meant to be a licence for them. */
+          if (objMark.visible && (trailArt.size > 0 || trailTex) && g.route.length > 1) {
             const ys = map.yScale || 1
             /* SPACED AGAINST THE BODY AND NOT AGAINST THE SEARCH. One and a
              * half of him between marks reads as a road at the walking shot and
@@ -7090,7 +7202,12 @@ export default function PmapScene() {
                * which is the same clean halving the character sets take, and the
                * height carries the ground plane's own squash. */
               const arrow = trailArt.has(m.dir)
-              const want = Math.max(3, Math.round(map.character.heightPx * (arrow ? 0.42 + 0.16 * m.t : 0.36 + 0.22 * m.t)))
+              /* BIG ENOUGH TO READ (BRIEF-MAW-RAIL-2 item 4: "big enough to read
+               * at the close zoom"). 0.42 of the body put an arrow at eight
+               * painting pixels, which is a smudge under a person twenty pixels
+               * tall. Half a body up to four fifths of one reads as a marking
+               * painted on the floor, which is what it is. */
+              const want = Math.max(3, Math.round(map.character.heightPx * (arrow ? 0.55 + 0.25 * m.t : 0.36 + 0.22 * m.t)))
               sp.width = want
               sp.height = Math.max(1, Math.round(want * (arrow ? ys : ys)))
               sp.position.set(Math.round(m.x), Math.round(m.y))
