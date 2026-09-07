@@ -5216,6 +5216,26 @@ export default function PmapScene() {
         const ours = asked ? undefined : vineIslandOfMap(mapId)
         const bound = ours ? undefined : islandOfMap(mapId)
         if (!asked && !ours && !bound) return
+        /* ---- THE BARS GO UP BEFORE THE ISLAND CAN ASK FOR THEM -------------
+         *
+         * Measured on the deploy: the cover lifts, and then the ship sits
+         * motionless in open water with the whole HUD on for eight seconds
+         * while the MicroPython worker boots and the island is fetched. Only
+         * then does `on_start` run and say `movie(True)`. On the dev server that
+         * gap is two seconds and invisible; on a school Chromebook it will be
+         * longer than eight.
+         *
+         * A sea arrival is only ever the scripted crossing (`?aboard=1` is
+         * written by one line in the intro), and its first frame is the first
+         * frame of a cutscene. So the frame is raised HERE, the moment this
+         * scene knows an island is coming, and the island's own `movie(True)`
+         * is then the no-op it should be. What was a frozen-looking game is a
+         * held opening shot.
+         *
+         * It is lowered again on every path out of this function that does not
+         * reach a running island, because bars over a map nobody is directing
+         * is the failure this whole word is fenced against. */
+        if (target.aboard) setCinema(true)
         const ref: GrapeRef = asked
           ? { at: 'url', base: asked }
           : { at: 'origin', island: (ours ?? bound)!.folder }
@@ -5237,6 +5257,7 @@ export default function PmapScene() {
             console.warn(`[pmap] ${mapId}: island did not load: ${ready.error}`)
             engine.log('island_failed', { map: mapId, error: ready.error, when: 'load' })
             grape = null
+            setCinema(false)
             return
           }
           grapeHandlers = ready.handlers
@@ -5308,6 +5329,9 @@ export default function PmapScene() {
           }
         } catch (e) {
           console.warn(`[pmap] ${mapId}: island did not load: ${e instanceof Error ? e.message : e}`)
+          /* and the frame comes down with it: an island that never arrived is an
+           * island that will never say `movie(False)` */
+          setCinema(false)
         } finally {
           /* whether it arrived or fell over. An island that failed to load leaves
            * a room whose furniture still works, and the stations are the
