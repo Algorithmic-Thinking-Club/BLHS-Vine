@@ -62,7 +62,10 @@ describe('what the help card says', () => {
   it('names the three things in the corner, whether or not the run has granted them', () => {
     openCard()
     const corner = host.querySelector('.hp-corner')?.textContent ?? ''
-    for (const name of ['Chart', 'Handbook', 'Year sheet']) expect(corner).toContain(name)
+    /* Map, Guide and My Year since BRIEF-MAW-RAIL: Chart, Handbook and Year
+       sheet are the school's own words for these and mean nothing to a
+       freshman looking for the button that shows where he can go. */
+    for (const name of ['Map', 'Guide', 'My Year']) expect(corner).toContain(name)
   })
 
   it('spells no key with a system character, on any row', () => {
@@ -103,7 +106,7 @@ describe('what the help card says', () => {
     try {
       openCard()
       const said = [...host.querySelectorAll('.hp-door')].map((b) => b.textContent ?? '')
-      for (const word of ['Back', 'Year sheet', 'Handbook', 'Settings']) {
+      for (const word of ['Back', 'My Year', 'Guide', 'Settings']) {
         expect(said.some((t) => t.includes(word)), word).toBe(true)
       }
       /* "Save and leave" needs a navigator and a bare render has none, which is
@@ -120,7 +123,7 @@ describe('what the help card says', () => {
     openCard()
     const said = [...host.querySelectorAll('.hp-door')].map((b) => b.textContent ?? '')
     expect(said.some((t) => t.includes('Back'))).toBe(true)
-    for (const word of ['Year sheet', 'Handbook', 'Settings']) {
+    for (const word of ['My Year', 'Guide', 'Settings']) {
       expect(said.some((t) => t.includes(word)), word).toBe(false)
     }
   })
