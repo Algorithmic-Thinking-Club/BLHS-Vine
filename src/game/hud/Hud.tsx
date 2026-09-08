@@ -428,12 +428,14 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
                may not exist yet. A student on the first world frame of a fresh
                run has no tokens because they have not been handed any, which is
                a different sentence from having spent them all. */
-            aria-label={left.length === 0
-              ? (s
-                ? 'My Year. You have used all three season tokens.'
-                : 'My Year. Pick your classes and activities.')
-              : `My Year. Pick your classes and activities. ${left.length} season `
-                + `${left.length === 1 ? 'token' : 'tokens'} not used yet: ${left.join(', ')}.`}
+            /* NO SEASONS IN IT (BRIEF-CLOSE-THE-LOOP section 4). This read out
+               which of Fall, Winter and Spring were unspent, to a student who has
+               never been shown a season anywhere and whose sheet does not have
+               columns. What a screen reader needs here is what the button opens
+               and whether the year is still open, which is what it says now. */
+            aria-label={s?.plans?.[s.year]?.stamped
+              ? 'My Year. Your schedule, and the classes you picked.'
+              : 'My Year. Pick your classes and what you join.'}
             aria-haspopup="dialog"
             onClick={openPlanner}
           >

@@ -437,6 +437,11 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
   /** the years whose page has turned, which is the shelf the sheet can reach */
   const pastPages = yearbookYears(s).filter((y) => yearTurned(s, y))
 
+  /* IS THERE A CLUB OR SPORT TO PICK AT ALL. One question, asked once, and every
+   * season-shaped thing on this sheet hangs off it (BRIEF-CLOSE-THE-LOOP section
+   * 4). `PROGRAMMES` is already masked by the roster, so this is the same test
+   * `PickYear` and the objective sequencer make. */
+  const offersActivities = PROGRAMMES.some((p) => p.playable)
   const slotsFilled = SEASONS.filter((se) => plan.slots[se]).length
   const canStamp = !plan.stamped && plan.classes.length === 2
   const stampNote = plan.stamped ? null
@@ -485,6 +490,28 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
         </div>
 
         <div className="pl-body">
+          {/* ---- THE SEASONS COME OFF THE SHEET UNTIL THERE IS ONE ----------
+              BRIEF-CLOSE-THE-LOOP section 4: *"Wiseman's model stays in the code
+              and disappears from every screen until a real sport with a season
+              exists. One club or sport a year; no tokens shown; the words Fall,
+              Winter and Spring appear nowhere a student reads."*
+
+              Ash, 2026-09-08: *"what even happened to the fall, winter, spring
+              shit. how does that even work. what even is that about. NONE of that
+              is explained, and even I dont know, which is the bigger problem."*
+
+              Nothing is deleted. `SEASONS`, `assignSlot`, the season lock and the
+              token splice are all still underneath, and the moment one programme
+              on the roster is playable this whole block draws again exactly as it
+              did. What a student is spared is three empty columns and three coins
+              for a choice the game cannot currently offer him. */}
+          {!offersActivities ? (
+            <section className="pl-col pl-col-none">
+              <h3 className="pl-colhead">After school</h3>
+              <p className="pl-empty">Nobody has built a club or sport island yet.</p>
+              <p className="pl-note">Your two Elective periods are the whole of this year's picks.</p>
+            </section>
+          ) : (
           <div className="pl-cols" role="group" aria-label="The three seasons">
             {SEASONS.map((season) => {
               const committed = plan.slots[season] ? programmeById(plan.slots[season]!) : null
@@ -626,8 +653,10 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
               )
             })}
           </div>
+          )}
 
           <div className="pl-rail">
+            {offersActivities && (
             <section>
               <h3 className="pl-sect">Your season tokens</h3>
               {/* §5.4: three tokens and three columns, one token per column and
@@ -673,6 +702,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                 </p>
               )}
             </section>
+            )}
 
             <section>
               <h3 className="pl-sect">Focus classes, pick 2</h3>
@@ -851,7 +881,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                 <Plank size="md" onClick={() => { setConfirming(false); focusAfter('pl-stamp') }}>go back</Plank>
                 <p className="pl-stamp-note">
                   Nothing on this sheet can be changed afterward.
-                  {slotsFilled < SEASONS.length && ` ${OPEN_SEASONS}`}
+                  {offersActivities && slotsFilled < SEASONS.length && ` ${OPEN_SEASONS}`}
                 </p>
               </>
             ) : (

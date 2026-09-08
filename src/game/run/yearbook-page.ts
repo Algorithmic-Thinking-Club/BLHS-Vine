@@ -213,7 +213,7 @@ export function yearbookPage(s: SaveGame, year: number = s.year): YearbookPage {
        * mark says which season it was without the student reading the word. */
       face: ['pip', v.season.toLowerCase()] as [string, string],
     })),
-    empty: 'No club or sport picked all year. All three season tokens are unused.',
+    empty: 'You did not join a club or a sport this year.',
   }
 
   /* ---- the awareness record, per year and per place, which is what the study

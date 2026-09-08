@@ -10,6 +10,7 @@ import { Empty, Glyph, Plank, Scroller, Tab } from '../game/ui/controls'
 import { saved } from '../game/ui/feedback'
 import { HOME_TARGET, SEA_ARRIVAL, searchFor } from '../game/pmap/route'
 import './settings.css'
+import { runLine } from '../game/run/year'
 
 /* SETTINGS, PAUSE'S SECOND SHEET (§40.22 to §40.26), reachable from the title
  * plate and from the pause panel. Three tabs: ACCOUNT (who this explorer is, plus
@@ -306,7 +307,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                     {boatBad && <div className="st-fieldwarn" id="st-warn-boat" role="alert">That boat name will not work. Try another.</div>}
 
                     {save.classCode && <div className="st-idrow"><span className="st-idlabel">Class</span><span className="st-idval">{save.classCode}</span></div>}
-                    <div className="st-idrow"><span className="st-idlabel">Progress</span><span className="st-idval">{save.introDone ? `Year ${save.year}, ${save.season}` : 'Just started'}</span></div>
+                    <div className="st-idrow"><span className="st-idlabel">Progress</span><span className="st-idval">{runLine(save)}</span></div>
                   </div>
                 ) : (
                   /* THE PANEL'S EMPTY STATE, TOLD THE WAY EVERY OTHER ONE IS

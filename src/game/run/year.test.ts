@@ -102,7 +102,16 @@ describe('yearStatus (§7.5 derived, resumable anywhere)', () => {
     expect(st2.vignetteSeen).toBe(false)               // the year-2 vignette waits
   })
 
-  it('nudges about an open season when everything slotted has sailed', async () => {
+  /* THE EMPTY-SEASON NUDGE IS GONE, and this is the fence that it stays gone.
+   *
+   * It used to read "You left winter open this year. You never spent that season
+   * token." BRIEF-CLOSE-THE-LOOP section 4 takes the season model off every
+   * screen until a real sport with a season exists, and Ash's own words on
+   * 2026-09-08 are the reason: *"what even happened to the fall, winter, spring
+   * shit... NONE of that is explained, and even I dont know."* A student who left
+   * a column empty on a sheet that never showed him columns has not left
+   * anything, and telling him he did is the yearbook inventing a failure. */
+  it('never nudges about a season, because no student was ever shown one', async () => {
     const { save, year } = await freshYear()
     vi.resetModules()
     const s = await import('../save')
@@ -113,7 +122,10 @@ describe('yearStatus (§7.5 derived, resumable anywhere)', () => {
     s.stampPlan(1, ['atc'])
     s.setIslandState('atc', 'completed')
     const st = y.yearStatus(s.loadSave()!)
-    expect(y.nudgeLine(st).toLowerCase()).toContain('winter')
+    const line = y.nudgeLine(st).toLowerCase()
+    expect(line).not.toMatch(/fall|winter|spring|season token/)
+    /* and it still says something true: two classes on the sheet, neither sat */
+    expect(line).toContain('classes')
     void save; void year
   })
 

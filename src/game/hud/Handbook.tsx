@@ -17,6 +17,7 @@ import { Chip, Empty, Gauge, Glyph, Plank, Scroller, Tab } from '../ui/controls'
 import { DIRECTORY, directoryCount } from './directory'
 import './hud.css'
 import './directory.css'
+import { runLine } from '../run/year'
 
 /* THE HANDBOOK, WHICH IS THE INVENTORY (§40.17 to §40.20, and §40.6's law that
  * there is no separate inventory and no quest log). Facts, badges and the record
@@ -182,7 +183,7 @@ export function Handbook({ onClose, initialTab = 'school' }: { onClose: () => vo
                 no GPA and is told nothing about one. */}
             {s && (
               <p className="hb-run">
-                {s.handle ? `${s.handle} · ` : ''}Year {s.year}, {s.season}
+                {s.handle ? `${s.handle} · ` : ''}{runLine(s)}
                 {gpa !== null && ` · GPA ${gpa.toFixed(2)} (${letterOf(gpa)})`}
               </p>
             )}

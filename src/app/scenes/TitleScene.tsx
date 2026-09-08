@@ -5,6 +5,8 @@ import { track } from '../../game/telemetry'
 import { GearButton, SettingsPanel, applySettings, loadSettings } from '../SettingsPanel'
 import { HOME_TARGET, enterMap } from '../../game/pmap/route'
 import { Plank } from '../../game/ui/controls'
+import { Yearbook } from '../../game/run/Yearbook'
+import { runLine, sessionOver } from '../../game/run/year'
 import './boot-title.css'
 
 // Title (GAME-DESIGN §4.2). The backdrop is the cove itself, for now a captured frame of
@@ -45,6 +47,11 @@ import './boot-title.css'
 export default function TitleScene() {
   const nav = useNav()
   const save = loadSave()
+  /* THE RUN IS OVER, which every other screen in the game has known since the
+   * yearbook page turned and this one never asked. */
+  const over = sessionOver(save)
+  const [book, setBook] = useState(false)
+  const openBook = () => { track('yearbook_opened', { via: 'title' }); setBook(true) }
   const [gullRight, setGullRight] = useState(false)
   const [gullHop, setGullHop] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -127,18 +134,48 @@ export default function TitleScene() {
               Year 3, Winter", did not fit the sign and wrapped off the wood. Two
               lines is the answer to both: the label never wraps, and the year and
               the season are still on the thing a returning student presses. */}
-          <Plank
-            size="lg"
-            className="ti-plank"
-            sub={save ? `Year ${save.year}, ${save.season}` : undefined}
-            onClick={go}
-          >
-            {save ? 'Continue' : 'Begin Adventure'}
-          </Plank>
+          {/* ---- AND THE RUN'S END IS A STATE OF THE TITLE ------------------
+              BRIEF-CLOSE-THE-LOOP section 3: the ending goes to black and lands
+              here, and *"the title then reads 'Year one is done' with the
+              yearbook openable from it, never 'Continue, Fall, Year 1'. A reload
+              lands on that same title state."*
+
+              Ash's own report of the bug: *"i reloaded the page. it still says
+              continue, fall year 1. i dont know if thats a glitch, cause year one
+              is technically over."* Not a glitch: nothing on this screen had ever
+              read whether the run was finished, so a student who played the whole
+              thirty minutes was offered the same sign as one who had played none
+              of it, and pressing it put him back in the room he had just left.
+
+              TWO PLANKS ONLY HERE, and the one-plank rule above still holds for
+              every other state. A finished run has two different things a student
+              might want and they are not the same size: the yearbook is what he
+              turns in, and walking back into the Maw is a second thought. */}
+          {over ? (
+            <>
+              <Plank size="lg" className="ti-plank" sub="Year one is done" onClick={openBook}>
+                Your yearbook
+              </Plank>
+              <Plank size="sm" className="ti-again" onClick={go}>Back to the island</Plank>
+            </>
+          ) : (
+            <Plank
+              size="lg"
+              className="ti-plank"
+              sub={save ? runLine(save) : undefined}
+              onClick={go}
+            >
+              {save ? 'Continue' : 'Begin Adventure'}
+            </Plank>
+          )}
         </div>
       </div>
 
       <div className="ti-credit">made by the Algorithmic Thinking Club</div>
+      {/* THE YEARBOOK OVER THE TITLE, which is the only panel in the game that
+          opens outside a world scene. It is the thing a student turns in, so the
+          screen the run ends on has to be able to raise it. */}
+      {book && <Yearbook onClose={() => setBook(false)} />}
       <GearButton onClick={() => setSettingsOpen(true)} />
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
     </div>

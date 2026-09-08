@@ -37,6 +37,36 @@ export const SESSION_ENDS_AFTER_YEAR = 1
 export const sessionOver = (s: SaveGame | null): boolean =>
   !!s && s.flags.includes(`yearbook:y${SESSION_ENDS_AFTER_YEAR}`)
 
+/* WHERE A RUN IS, IN ONE LINE, WITH NO SEASON IN IT.
+ *
+ * BRIEF-CLOSE-THE-LOOP section 4: *"the words Fall, Winter and Spring appear
+ * nowhere a student reads, including the title's continue line, the yearbook, My
+ * Year and the recovery line."* Wiseman's three-seasons model stays in the code
+ * and comes off the screen until a real sport with a season exists.
+ *
+ * ASH, 2026-09-08, AND HE IS THE STRONGEST EVIDENCE FOR IT: *"what even happened
+ * to the fall, winter, spring shit. how does that even work. what even is that
+ * about. NONE of that is explained, and even I dont know, which is the bigger
+ * problem."* A model the person who commissioned it cannot explain is not a model
+ * a fourteen year old is going to work out from a three-letter chip.
+ *
+ * AND IT WAS A LIE AS WELL AS A PUZZLE. `save.season` is written in exactly two
+ * places and both write `'Fall'`, so the title, the Handbook header and the
+ * settings page have all read "Year 1, Fall" from the first frame of the game to
+ * the last, on a run that has no seasons in it.
+ *
+ * THE SESSION BEING OVER IS PART OF THE ANSWER, which is the other half of the
+ * same complaint: *"i reloaded the page. it still says continue, fall year 1. i
+ * dont know if thats a glitch, cause year one is technically over."* It was not a
+ * glitch; nothing anywhere read the end of the run. Now one function does, and
+ * every surface that used to spell the season reads this instead. */
+export function runLine(s: SaveGame | null): string {
+  if (!s) return ''
+  if (sessionOver(s)) return 'Year one is done'
+  if (!s.introDone) return 'Just started'
+  return s.year === 1 ? 'Year one' : `Year ${s.year}`
+}
+
 export type VoyageStatus = {
   season: Season
   /** what the token was spent on. A slot points at a PROGRAMME, never at a map. */
@@ -131,9 +161,11 @@ export function yearStatus(s: SaveGame, forYear = s.year): YearStatus {
 /** the yearbook's one gentle nudge (§7.6) — observed, never scolding */
 export function nudgeLine(st: YearStatus): string {
   const rising = st.voyages.find((v) => !v.playable && !v.done)
-  if (rising) return `The ${rising.name} island is not open yet, so that season did not run.`
-  const open = SEASONS.find((se) => !st.voyages.some((v) => v.season === se))
-  if (open) return `You left ${open.toLowerCase()} open this year. You never spent that season token.`
+  if (rising) return `The ${rising.name} island is not open yet, so nobody could sail there.`
+  /* THE EMPTY-SEASON NUDGE IS CUT rather than reworded, and section 4 is why: it
+   * is the one line in the yearbook that could only be said in seasons. A student
+   * who left a column empty on a sheet that never showed him columns has not left
+   * anything. It comes back the day a real sport with a season exists. */
   const unplayed = st.voyages.find((v) => v.playable && !v.done)
   if (unplayed) return `You signed up for ${unplayed.name} and never went.`
   /* A CLASS ON THE SHEET THAT WAS NEVER SAT. It used to hold the year OPEN, so

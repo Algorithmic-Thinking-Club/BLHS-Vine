@@ -640,3 +640,10 @@ html[data-skin='plain'] .pl-waxed-word { font-weight: 700; color: var(--kit-ink-
   filter: grayscale(.6);
 }
 html[data-skin='plain'] .pl-sock-well { width: auto; height: auto; }
+
+/* THE SHEET WITH NO CLUBS ON IT (BRIEF-CLOSE-THE-LOOP section 4). Three empty
+   season columns for a choice the game cannot offer were the loudest thing on
+   this screen; one honest paragraph is the whole of what is true today. */
+.pl-col-none { max-width: 44ch; }
+.pl-col-none .pl-empty { margin: 6px 0 4px; opacity: 0.86; }
+.pl-col-none .pl-note { margin: 0; opacity: 0.66; --kit-fs-raw: calc(13px * var(--kit-text-scale)); font-size: var(--kit-fs); }

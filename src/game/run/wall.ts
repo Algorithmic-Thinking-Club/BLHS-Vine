@@ -100,7 +100,7 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
       kind: 'activity',
       earned: !!c,
       says: c ? (c.rank ? `${letter(c.grade)}, ${c.rank}` : letter(c.grade)) : null,
-      wants: p?.kind === 'sport' ? 'Sail there and finish the season' : 'Sail there and finish the year',
+      wants: 'Sail there and finish it',
     })
   }
 

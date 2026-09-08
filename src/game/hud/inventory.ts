@@ -92,7 +92,7 @@ export const HUD_INVENTORY: HudRow[] = [
   },
   {
     el: 'tokens',
-    says: 'Three season tokens. Spend them on the year sheet.',
+    says: 'Your year sheet. Pick your classes and what you join.',
     rule: 'the binder and the year\'s three tokens are handed over in one moment (§4.10)',
     /* NOT PERMANENT, and this answers Q40.2.a. §15.2: "In Gear 2 the token pips
      * leave the HUD entirely, because scarcity is over." A graduate has no year
