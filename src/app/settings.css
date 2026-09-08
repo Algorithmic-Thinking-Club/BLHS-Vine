@@ -10,6 +10,12 @@
 .st-panel {
   position: relative;
   width: min(680px, 84vw); aspect-ratio: 448 / 470;
+  /* AND NEVER TALLER THAN THE WINDOW. The ratio alone makes a 680px panel 713px
+     tall, which is three pixels short of a 720 high Chromebook and clips the
+     moment the browser is zoomed or the OS is scaled. The width gives way
+     instead, so the ratio is kept and the panel always fits. */
+  max-height: 92vh;
+  max-width: calc(92vh * 448 / 470);
   box-sizing: border-box;   /* the frame is a border now and has to fit inside the ratio */
   /* the frame is a nine-slice on .kit-surface-panel now, not a stretched picture */
   image-rendering: var(--kit-pixel);

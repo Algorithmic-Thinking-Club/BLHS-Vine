@@ -29,6 +29,15 @@ body {
   font-family: var(--font-body);
 }
 
+/* THE CONTROL ARM IS BLACK ON WHITE, INCLUDING THE GROUND UNDER EVERYTHING.
+   This shell is the app's own dark palette from before the kit existed, and the
+   plain arm never answered it, so every pixel no panel covered was charcoal. */
+html[data-skin='plain'] body {
+  background: var(--kit-paper-hi, #fff);
+  color: var(--kit-ink, #111);
+  font-family: var(--kit-face-body, system-ui, 'Segoe UI', Roboto, sans-serif);
+}
+
 .boot {
   min-height: 100%;
   display: flex;

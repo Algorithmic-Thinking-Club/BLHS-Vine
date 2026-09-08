@@ -14,6 +14,7 @@ import './hud.css'
 import './directory.css'
 import { runLine } from '../run/year'
 import { firstLook, markLooked, type Plaque } from './first-look'
+import './handbook.css'
 
 /* the Handbook, which is the inventory: facts, badges and the record of what a student did */
 

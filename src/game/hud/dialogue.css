@@ -245,3 +245,15 @@ html[data-skin='plain'] .dlg-paw { display: none; }
    "the plain arm renders the same words with no character around them", and it
    is the one field on the line that is a picture rather than a sentence. */
 html[data-skin='plain'] .dlg-portrait { display: none; }
+
+/* THE PLAIN BOX GROWS TO HOLD ITS OWN WORDS.
+   The fixed height keeps the game arm's parchment from jumping while a line
+   types in, and the control arm has no picture to keep still. With the height
+   pinned, a speaker name plus two wrapped lines pushed the "click, or press
+   space" hint out of the bottom of the white box and onto the painted sea,
+   where it was grey on teal and effectively unreadable. */
+html[data-skin='plain'] .dlg-box.cs-dialogue {
+  height: auto;
+  min-height: var(--dlg-box-h);
+  max-height: 40vh;
+}

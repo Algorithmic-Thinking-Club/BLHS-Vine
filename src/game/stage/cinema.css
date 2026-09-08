@@ -43,3 +43,14 @@ html[data-letterbox='1']:not([data-movie='1']) .hp-btn {
 }
 
 html[data-rm='1'] .cin-bar { transition-duration: 60ms; }
+
+/* ============ THE CONTROL ARM DOES NOT GET FILM BARS ============
+   Two black bars over a worksheet is game furniture, and it was doing real
+   damage as well as reading wrong: at 1366x768 the bars are 76px each, drawn at
+   z 95 over everything, so a beat card cut its own heading off at the top and
+   its last question off at the bottom.
+
+   The movie STATE is untouched. It still holds the controls, still stands the
+   corner down, still carries through a door. The plain arm simply does not paint
+   the frame, the way it does not paint a plank or a plaque. */
+html[data-skin='plain'] .cin-bar { display: none; }

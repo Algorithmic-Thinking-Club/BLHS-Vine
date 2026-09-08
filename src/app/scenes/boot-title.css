@@ -378,3 +378,25 @@ html[data-skin='plain'] .ti-credit {
   opacity: 1;
   text-shadow: none;
 }
+
+/* ============ THE BOOT SPLASH IN THE CONTROL ARM ============
+   Every plain rule in this file was a `.ti-` rule, so the title came off the
+   paint and the splash before it did not: the FIRST FRAME of the control arm
+   was a pixel-art crest on a dark teal field with a foam sweep and sparkles.
+   A worksheet opens on paper with its credit line and nothing else. */
+html[data-skin='plain'] .bt-boot {
+  background: var(--kit-paper-hi);
+  cursor: pointer;
+}
+html[data-skin='plain'] .bt-foamline,
+html[data-skin='plain'] .bt-crest,
+html[data-skin='plain'] .bt-glint,
+html[data-skin='plain'] .bt-sparkle,
+html[data-skin='plain'] .bt-crestwrap::before { display: none; }
+html[data-skin='plain'] .bt-credit {
+  margin-top: 0;
+  color: var(--kit-ink);
+  letter-spacing: normal;
+  text-transform: none;
+  animation: none;
+}

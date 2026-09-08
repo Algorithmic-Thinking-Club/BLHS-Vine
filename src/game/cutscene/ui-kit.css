@@ -280,3 +280,8 @@ html[data-skin='plain'] .cs-skip {
   opacity: 1;
 }
 html[data-skin='plain'] .cs-skip-fill { background: var(--kit-sea-glow); }
+
+/* the cutscene's own letterbox, declined in the control arm for the same reason
+   the movie frame is: film bars over a worksheet are game furniture, and at
+   1366x768 they cover 152px of the document */
+html[data-skin='plain'] .cs-letterbox { display: none !important; }

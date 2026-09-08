@@ -19,6 +19,7 @@ import { nextObjective } from './run/objective'
 import { play as playSfx } from './audio'
 import { setCinema } from './stage/cinema'
 import { setObjectiveSaid } from './hud/objective-bus'
+import { currentSkin } from './ui/skin'
 
 export const engine: IntentEngine = {
   /* opens a panel, and refuses when nothing is mounted to hear it */
@@ -138,9 +139,17 @@ export const engine: IntentEngine = {
   },
 
   /* the study arm this participant was assigned at join. A grape never chooses
-   * it; it can only force plain for a specific activity (see intents.ts). */
+   * it; it can only force plain for a specific activity (see intents.ts).
+   *
+   * The skin is read ONLY when there is no arm, which is a run nobody joined and
+   * which produces no study row: that case is `?skin=plain`, the review door, and
+   * without it the whole page went plain while every beat a member's island
+   * played stayed in game rendering. It cannot mislabel a real participant,
+   * because the study log's arm comes off the Logger's own config. */
   mode(): SessionMode {
-    return loadSave()?.arm === 'plain' ? 'plain' : 'game'
+    const arm = loadSave()?.arm
+    if (arm === 'plain' || arm === 'game') return arm
+    return currentSkin() === 'plain' ? 'plain' : 'game'
   },
 }
 

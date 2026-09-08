@@ -36,7 +36,10 @@ const out = arg('out', `road-${skin || 'game'}-${view.width}x${view.height}`)
  * the furniture for us. */
 const BACKWARD = /^back$|^close$|skip|quit|settings|back to the|back to my|leave this|save and leave/i
 
-const url = `${base}/?scene=title${skin ? `&skin=${skin}` : ''}`
+/* the real front door, which is the boot splash and not the title: a cold
+ * student never types a scene id, and the splash is the first frame either arm
+ * ever shows. */
+const url = `${base}/${skin ? `?skin=${skin}` : ''}`
 const h = await boot('road', { save: null, url, headed: has('headed'), view, dir: `reference/_archive/build-shots/${out}` })
 
 h.say(`the road, cold, ${view.width}x${view.height}, ${skin || 'game'} arm, against ${base}`)

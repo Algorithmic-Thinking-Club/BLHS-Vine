@@ -71,9 +71,10 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
             background: `radial-gradient(ellipse ${100 - ui.vignette * 78}% ${100 - ui.vignette * 80}% at 50% 46%, transparent 38%, rgba(4,6,9,${0.55 + ui.vignette * 0.45}) 100%)`,
           }} />
         )}
-        {/* letterbox */}
-        <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: barH, background: '#04060a' }} />
-        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: barH, background: '#04060a' }} />
+        {/* letterbox. The height is animated so it stays inline; the class is what
+            lets the control arm decline the bars, the way it declines a plank. */}
+        <div className="cs-letterbox" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: barH, background: '#04060a' }} />
+        <div className="cs-letterbox" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: barH, background: '#04060a' }} />
         {/* full fade */}
         {ui.fade > 0.003 && <div style={{ position: 'absolute', inset: 0, background: ui.fadeColor, opacity: ui.fade }} />}
 
