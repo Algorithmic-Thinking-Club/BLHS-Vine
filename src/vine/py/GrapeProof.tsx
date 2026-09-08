@@ -55,6 +55,10 @@ const world: IntentWorld = {
   show: noMap('show'),
   fx: noMap('fx'),
   enter: noMap('enter'),
+  /* THE HARNESS HAS NO RUN TO END. `?scene=grape` is a bench for one file of a
+   * member's Python; there is no save behind it and no title to go back to, so
+   * this refuses by name the way every other world word does here. */
+  endRun: noMap('end_run'),
   /* a boat is a body on a painting, like everything else here */
   ashore: noMap('ashore'),
   cutscene: noMap('cutscene'),

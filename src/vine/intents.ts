@@ -299,6 +299,23 @@ export type Intent =
    * repository. This is the caller. */
   | { kind: 'enter'; map: string; at?: string; cover?: CoverOccasion }
   | { kind: 'cutscene'; script: string }
+  /* THE RUN IS OVER AND THE SCREEN GOES BACK TO WHERE IT STARTED.
+   *
+   * ASH, 2026-09-08: *"I actually ended on an open note, i did not know how to do
+   * a 'end of year' thing. so i left it at thor goes to dock. what happens next i
+   * needed your help… It needs to tie in back to the title screen."*
+   * BRIEF-CLOSE-THE-LOOP section 3: *"…to black, and the title screen. The title
+   * then reads 'Year one is done' with the yearbook openable from it."*
+   *
+   * IT IS NOT `enter`. Every other destination in this vocabulary is a map an
+   * author drew; the title is the frame around the whole game, and a scene id in
+   * an island's Python would be the one place a member could steer the app
+   * itself. This says the RUN has finished and lets the engine decide that means
+   * the title, the same way `open("wall")` says a panel by meaning rather than by
+   * component.
+   *
+   * NOTHING IS ERASED. The save is the finished run and the title reads it. */
+  | { kind: 'end_run' }
 
   /* run state. `get` reads, and the paths it accepts are the ones progress.ts
    * can answer, so a grape cannot ask a question the engine has to invent an
@@ -520,6 +537,8 @@ export interface IntentWorld {
   /** put the player off a berthed boat and onto the dock */
   ashore(): Promise<void>
   cutscene(script: string): Promise<void>
+  /** the run has finished: leave the world for the title (BRIEF-CLOSE-THE-LOOP 3) */
+  endRun(): Promise<void>
 
   /* the director half. Each one is a word for something MAPVIS already authors
    * and the game could not previously say. */
@@ -674,6 +693,9 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         if (i.cover && !COVER_OCCASIONS.includes(i.cover))
           return no(`"${i.cover}" is not an occasion. They are: ${COVER_OCCASIONS.join(', ')}`)
         await w().enter(i.map, i.at, i.cover)
+        return ok()
+      case 'end_run':
+        await w().endRun()
         return ok()
       case 'cutscene':
         await w().cutscene(i.script)

@@ -480,6 +480,16 @@ def enter(map, at=None, cover=None):
     return intent
 
 
+def end_run():
+    """The run is over. Leave the world and go back to the title screen.
+
+    For the last line of a closing film, and for nothing else. The save is kept:
+    the title reads it and says the year is done, and the yearbook opens from
+    there. Nothing after this line is going to run.
+    """
+    return {"kind": "end_run"}
+
+
 def cutscene(script):
     """Play an authored cutscene. Comes back when it is over."""
     return {"kind": "cutscene", "script": script}

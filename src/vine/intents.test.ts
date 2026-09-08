@@ -28,6 +28,7 @@ function stubWorld(over: Partial<IntentWorld> = {}) {
     say: async (who, text) => { did.push(`say:${who ?? '-'}:${text}`) },
     choose: async (_p, o) => { did.push(`choose:${o.join('|')}`); return 1 },
     guideTo: (a) => { did.push(`guideTo:${a}`) },
+    endRun: async () => { did.push('endRun') },
     walkTo: async (a) => { did.push(`walkTo:${a}`) },
     lookAt: async (a) => { did.push(`lookAt:${a}`) },
     show: (a, v) => { did.push(`show:${a}:${v}`) },

@@ -102,6 +102,7 @@ import { setObjectiveSaid, setWorldObjective } from '../hud/objective-bus'
 export type PromptState = 'plain' | 'objective' | 'barred' | 'needs' | 'done'
 import { composeWorldText, WORLD_TEXT } from '../ui/worldText'
 import { MAW_MAP, isObjective, nextObjective } from '../run/objective'
+import { sessionOver } from '../run/year'
 import { missingAnchors } from '../maw/stations'
 import { runStation } from '../maw/run-station'
 import { isReady, labelFor, ownerOf } from './grape-router'
@@ -109,6 +110,7 @@ import { islandOfMap } from '../roster/member-islands'
 import { vineIslandOfMap } from '../roster/vine-islands'
 import { fetchGrape, type GrapeRef } from '../../vine/py/grape-source'
 import { openGrape, type GrapeSession } from '../../vine/py/runGrape'
+import { useNavMaybe } from '../../app/SceneManager'
 
 /* when a heading has no view, the next best one it might have, so a set drawn
  * four ways still faces roughly right instead of snapping to south */
@@ -550,6 +552,11 @@ function scanCols(t: Texture, y0: number, y1: number): { left: number; right: nu
  */
 
 export default function PmapScene() {
+  /* THE WAY OUT OF THE WORLD, for `end_run` and nothing else. `useNavMaybe`
+   * rather than `useNav` because several proof harnesses mount this scene on its
+   * own, and a hook that throws there would take the whole map down to give a
+   * finished run somewhere to go. */
+  const navMaybe = useNavMaybe()
   const hostRef = useRef<HTMLDivElement>(null)
   /* THE MAP IS STATE, WHICH IS WHAT KILLED THE RELOAD.
    *
@@ -4097,6 +4104,33 @@ export default function PmapScene() {
           return playFx(name, at)
         },
 
+        /* THE RUN IS OVER (BRIEF-CLOSE-THE-LOOP section 3). The world goes
+         * behind a cover and the app leaves for the title, which then reads the
+         * finished save and says the year is done.
+         *
+         * IT NEVER RESOLVES, ON PURPOSE, and that is the same contract `enter`
+         * keeps: the scene this promise was made in is being torn down, so an
+         * island that wrote a line after this one has written a line for a worker
+         * that will not be alive to run it. `vine.py` says so at the word. */
+        endRun() {
+          engine.log('run_ended', { from: mapId })
+          /* THE BARS COME DOWN ON THE WAY OUT. The closing film carries its frame
+           * through the door on purpose, so the last thing standing when a run
+           * ends is a letterbox, and the title screen is not a film. */
+          engine.movie(false)
+          ;(window as unknown as { __sceneReady?: boolean }).__sceneReady = false
+          setSceneDrawn(null)
+          /* ONE COVER, AND IT IS THE ROUTER'S. `SceneManager.go` opens a cover of
+           * its own, and `cover()` refuses a second caller while one is running
+           * (`app/transitions.tsx`, "ONE AT A TIME"). Wrapping this in a cover and
+           * calling `go` inside the swap therefore did exactly nothing: the fade
+           * played, the navigation was refused, and the run sat on the dock behind
+           * black bars for as long as anybody watched. Measured, twice. */
+          if (navMaybe) navMaybe.go('title', { kind: 'fade', holdMs: 600 })
+          else window.location.href = '/?scene=title'
+          return new Promise<void>(() => { /* the scene does not come back */ })
+        },
+
         enter(map, at, cover) {
           beginExit({ map, at }, cover)
           /* resolves when the fade has actually swapped the map, so a station
@@ -5582,7 +5616,21 @@ export default function PmapScene() {
          * makes it the ordinary path through year one.
          *
          * `rising` is committed-but-unsailable and `done` is a finished year;
-         * neither is a reason to lock somebody on an island. */
+         * neither is a reason to lock somebody on an island.
+         *
+         * EXCEPT WHEN THE RUN ITSELF IS OVER, which is a different `done`.
+         * Ash, 2026-09-08, playing rail-7: *"the ending cutscene correctly
+         * transitions to the dock. For some reason, thor can hop on the ship. and
+         * then drive the ship? He is never supposed to be able to drive the
+         * ship."* He is right and this line is why: the closing film puts him on
+         * the dock, `yearbook:y1` makes the phase `done`, and `done` opened the
+         * berth. So the last thing a finished year offered was a boat with
+         * nowhere to go and a tiller nobody had ever given him.
+         *
+         * BRIEF-CLOSE-THE-LOOP section 3 rules it: *"the berth quiet from the
+         * moment the closing starts."* `sessionOver` is that moment, and it is
+         * the same flag the title now reads to say the year is done. */
+        if (sessionOver(loadSave())) return true
         if (o.phase === 'voyage' || o.phase === 'rising' || o.phase === 'done') return false
         /* AND A DOOR ONLY COUNTS WHEN IT REALLY OPENS. `checkDoor` answers
          * 'checking' for as long as the platform takes and 'missing' on a

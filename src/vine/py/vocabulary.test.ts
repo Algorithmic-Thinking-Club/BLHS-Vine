@@ -86,8 +86,13 @@ describe('the intent vocabulary, both sides of the worker', () => {
    * consequence of `say` because the panel is not dialogue: it stands while
    * nobody is speaking, and inside a cutscene it is the only thing on the glass
    * that says what the student is watching is for. */
-  it('is thirty-one words on the engine side', () => {
-    expect(engineWords.size).toBe(31)
+  /* AND THIRTY-TWO. BRIEF-CLOSE-THE-LOOP section 3 added `end_run`: the run is
+   * over, leave the world for the title. It is a word rather than an `enter` to a
+   * reserved map name because the title is the frame around the whole game and
+   * not a place anybody painted, and because a member's island being able to name
+   * an app scene is the one door this vocabulary should not open. */
+  it('is thirty-two words on the engine side', () => {
+    expect(engineWords.size).toBe(32)
   })
 
   it('has the frame words on both sides', () => {
