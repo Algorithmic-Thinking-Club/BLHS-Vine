@@ -93,7 +93,7 @@ export type Intent =
    * strolling, walking or running, and the words are paces rather than numbers
    * because a number here would be painting pixels per second, which is a
    * quantity no author of a scene should have to hold. */
-  | { kind: 'actor_move'; actor: string; to: string; facing?: string; pace?: Pace }
+  | { kind: 'actor_move'; actor: string; to: string; off?: Offset; facing?: string; pace?: Pace }
   /* SOMEBODY WALKS AHEAD AND THE PLAYER FOLLOWS, which is the one shape a
    * guided tour has and which could not be written with the two words beside it.
    *
@@ -113,7 +113,7 @@ export type Intent =
    * island that forgot would leave the player welded to somebody for the rest of
    * the visit. This is a walk with two bodies in it and it is over when they
    * have both arrived. */
-  | { kind: 'lead_to'; actor: string; to: string; pace?: Pace }
+  | { kind: 'lead_to'; actor: string; to: string; off?: Offset; pace?: Pace }
   /* PUT SOMEBODY SOMEWHERE, WITH NO WALK IN IT.
    *
    * Ash, 2026-09-06, watching the Maw open: *"THE PRINCIPAL DOES NOT WALK TO
@@ -124,7 +124,7 @@ export type Intent =
    *
    * With no `facing` they end up looking at the player, because a body placed
    * before a scene begins is nearly always somebody waiting for him. */
-  | { kind: 'place'; actor: string; at: string; facing?: string }
+  | { kind: 'place'; actor: string; at: string; off?: Offset; facing?: string }
   | { kind: 'actor_face'; actor: string; facing: string }
   | { kind: 'actor_look'; actor: string; look: string }
   | { kind: 'actor_release'; actor?: string }
@@ -277,7 +277,17 @@ export type Intent =
 
   /* scene changes. `at` is the arrival anchor in the target map, without which
    * every door into a room drops the player on that room's one global spawn. */
-  | { kind: 'enter'; map: string; at?: string }
+  /* `cover` is the ONE thing a door is allowed to say about its own picture,
+   * and it is not a picture, it is an occasion. The rule this file keeps is that
+   * a cover is chosen by where you are GOING (`src/game/stage/covers.ts`), so
+   * that twenty islands with three rooms each do not become sixty authors
+   * choosing sixty ways, and nothing here overturns it.
+   *
+   * The end of a school year is not a door. `ceremonyCover` was written for it
+   * in another session, carries the archipelago painting and no fact card
+   * because the run is over rather than waiting, and had no caller in the whole
+   * repository. This is the caller. */
+  | { kind: 'enter'; map: string; at?: string; cover?: CoverOccasion }
   | { kind: 'cutscene'; script: string }
 
   /* run state. `get` reads, and the paths it accepts are the ones progress.ts
@@ -322,6 +332,51 @@ export const PACES: Pace[] = ['stroll', 'walk', 'run']
  * A stroll is two thirds of it, which is the pace a person crosses a room at
  * when they are not in a hurry, and a run is half again. */
 export const PACE_OF: Record<Pace, number> = { stroll: 0.62, walk: 1, run: 1.5 }
+
+/* A SECOND MARK BESIDE A STATION, AND THE ONE EXCEPTION TO "ANCHORS, NEVER
+ * COORDINATES".
+ *
+ * Ash, 2026-09-07, after playing rail-6: *"The principal and Thor are in ugly
+ * random spots instead of clean spots: if they are supposed to be at the
+ * schedule, Thor is at the staircase and the principal is covering the table."*
+ * Both halves of that are the same missing idea. A station carries ONE mark, the
+ * `stand` point its author drew for the student to stand on, and every word that
+ * moves a body at a station aims at it: the leader arrives on it, so he is
+ * standing where the student is meant to stand and in front of the thing he is
+ * talking about, and the student is left wherever two body lengths behind
+ * happened to land, which on the Maw is out on the entrance bridge.
+ *
+ * A CONVERSATION NEEDS TWO MARKS AND MAPVIS AUTHORS ONE. The honest fix is a
+ * second anchor beside each station, and the day MAPVIS has them this argument
+ * ends and the offsets go. Until then a scene may say "beside that one, this far
+ * over", which is a mark expressed in terms of a mark somebody authored, and
+ * therefore still moves when the table moves.
+ *
+ * PAINTING PIXELS, and no apology for it. Every other quantity in this file is a
+ * word rather than a number because numbers do not travel between maps; this one
+ * cannot be a word, because "beside" is a different direction at every station in
+ * every room. It is bounded instead: an offset is small, it is snapped to legal
+ * floor by the scene the way an authored stand point is, and an island that
+ * writes one has to prove it with `__probe` and a picture. */
+export type Offset = [number, number]
+/** how far from a station's own mark a second mark may be asked for */
+export const OFFSET_LIMIT = 96
+export const offsetFault = (o: unknown): string | null => {
+  if (o === undefined || o === null) return null
+  if (!Array.isArray(o) || o.length !== 2) return 'off is two numbers, across and down'
+  const [dx, dy] = o as unknown[]
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) return 'off is two numbers, across and down'
+  if (Math.abs(dx as number) > OFFSET_LIMIT || Math.abs(dy as number) > OFFSET_LIMIT)
+    return `off is a step aside, not a journey: keep both numbers inside ${OFFSET_LIMIT}`
+  return null
+}
+
+/* THE OCCASIONS A DOOR MAY DECLARE, and there is one. Not a picture and not a
+ * kind: an island says what the moment IS and the cover registry says what that
+ * looks like, which is the same division `view` keeps for the camera. A second
+ * one is a word here and a line there. */
+export type CoverOccasion = 'ceremony'
+export const COVER_OCCASIONS: CoverOccasion[] = ['ceremony']
 
 /** the shots the engine composes itself, off the painting and the window */
 export type ViewShot = 'island' | 'walk' | 'close' | 'ship' | 'sail'
@@ -435,7 +490,7 @@ export interface IntentWorld {
    * "Plays once, ends" is the shape the brief asks for and a step that ends is
    * the only one an author can compose with. */
   fx(name: string, anchor?: string, data?: unknown): Promise<void>
-  enter(map: string, at?: string): Promise<void>
+  enter(map: string, at?: string, cover?: CoverOccasion): Promise<void>
   /** put the player off a berthed boat and onto the dock */
   ashore(): Promise<void>
   cutscene(script: string): Promise<void>
@@ -443,11 +498,11 @@ export interface IntentWorld {
   /* the director half. Each one is a word for something MAPVIS already authors
    * and the game could not previously say. */
   pose(pose: string | undefined, facing: string | undefined): Promise<void>
-  actorMove(actor: string, to: string, facing?: string, pace?: Pace): Promise<void>
+  actorMove(actor: string, to: string, off?: Offset, facing?: string, pace?: Pace): Promise<void>
   /** somebody walks ahead, the player follows, and it ends when they both stop */
-  leadTo(actor: string, to: string, pace?: Pace): Promise<void>
+  leadTo(actor: string, to: string, off?: Offset, pace?: Pace): Promise<void>
   /** put a body at an anchor with no walk in it, facing the player by default */
-  place(actor: string, at: string, facing?: string): void
+  place(actor: string, at: string, off?: Offset, facing?: string): void
   actorFace(actor: string, facing: string): void
   actorLook(actor: string, look: string): void
   actorRelease(actor?: string): void
@@ -589,7 +644,9 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         await w().fx(i.name, i.anchor, i.data)
         return ok()
       case 'enter':
-        await w().enter(i.map, i.at)
+        if (i.cover && !COVER_OCCASIONS.includes(i.cover))
+          return no(`"${i.cover}" is not an occasion. They are: ${COVER_OCCASIONS.join(', ')}`)
+        await w().enter(i.map, i.at, i.cover)
         return ok()
       case 'cutscene':
         await w().cutscene(i.script)
@@ -618,19 +675,22 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
          * named thing in this file reads: refused by name, with the list */
         if (i.pace && !PACES.includes(i.pace))
           return no(`"${i.pace}" is not a pace. They are: ${PACES.join(', ')}`)
-        await w().actorMove(i.actor, i.to, i.facing, i.pace)
+        if (offsetFault(i.off)) return no(offsetFault(i.off) as string)
+        await w().actorMove(i.actor, i.to, i.off, i.facing, i.pace)
         return ok()
       case 'lead_to':
         if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
         if (!w().hasAnchor(i.to)) return no(`no anchor named "${i.to}" on ${w().mapId()}`)
         if (i.pace && !PACES.includes(i.pace))
           return no(`"${i.pace}" is not a pace. They are: ${PACES.join(', ')}`)
-        await w().leadTo(i.actor, i.to, i.pace)
+        if (offsetFault(i.off)) return no(offsetFault(i.off) as string)
+        await w().leadTo(i.actor, i.to, i.off, i.pace)
         return ok()
       case 'place':
         if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
         if (!w().hasAnchor(i.at)) return no(`no anchor named "${i.at}" on ${w().mapId()}`)
-        w().place(i.actor, i.at, i.facing)
+        if (offsetFault(i.off)) return no(offsetFault(i.off) as string)
+        w().place(i.actor, i.at, i.off, i.facing)
         return ok()
       case 'actor_face':
         if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)

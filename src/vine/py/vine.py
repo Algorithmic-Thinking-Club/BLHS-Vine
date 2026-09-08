@@ -124,18 +124,43 @@ def pose(name=None, facing=None):
 # so a person you walked across a square goes back to her rounds instead of
 # standing where your scene abandoned her.
 
-def actor_move(actor, to, facing=None, pace=None):
+# ---- `off`, and the one place this vocabulary lets you type a number ---------
+#
+# A station carries ONE mark, the standing spot its author drew for the STUDENT.
+# So every word that takes a body to a station takes it to the student's own
+# spot: the principal arrives standing in front of the table he is about to talk
+# about, and the student ends up wherever "behind him" happened to land.
+#
+# `off` is a second mark, said in terms of the one somebody authored: "that spot,
+# this far across and this far down", in painting pixels. Use it for the person
+# who is standing BESIDE the thing rather than in front of it.
+#
+#     yield lead_to("principal_desk", "chart_table", off=(-20, 6))
+#
+# It is a step aside and not a journey: both numbers are small, the scene snaps
+# the result onto legal floor, and anything over ninety-six is refused on your
+# own line. Prove yours with a picture before you keep it. The day MAPVIS lets an
+# author drop a second post beside a station, this argument is over and these
+# become anchor names like everything else.
+
+
+def actor_move(actor, to, off=None, facing=None, pace=None):
     """Walk somebody to an anchor. Comes back when they get there.
 
     `pace` is how fast: "stroll", "walk" or "run". Left out it is a walk, which
     is the same speed the player walks this map at. A name nobody drew is
     refused on your line with the list of the ones that exist.
 
+    `off` is two numbers, across and down, from the anchor's own standing spot,
+    for a body that belongs beside a thing rather than on it.
+
     They walk with their legs going, if whoever drew them drew a walk cycle for
     the heading they are travelling on, and they stand on the first frame of it
     when they stop.
     """
     intent = {"kind": "actor_move", "actor": actor, "to": to}
+    if off is not None:
+        intent["off"] = [off[0], off[1]]
     if facing is not None:
         intent["facing"] = facing
     if pace is not None:
@@ -143,7 +168,7 @@ def actor_move(actor, to, facing=None, pace=None):
     return intent
 
 
-def lead_to(actor, to, pace=None):
+def lead_to(actor, to, off=None, pace=None):
     """Somebody walks ahead to an anchor and the player follows them there.
 
     Comes back when they have BOTH stopped. The leader sets off, the player
@@ -151,23 +176,30 @@ def lead_to(actor, to, pace=None):
     leader turns round to face the player at the end of it, which is when you
     say your line.
 
+    `off` moves where the LEADER ends up, two numbers from the anchor's standing
+    spot, and it is what you want at nearly every station: without it he stops on
+    the spot the student is meant to stand on, in front of the thing. With it he
+    stops beside it, and `walk_to` on the next line brings the student up onto
+    the spot itself.
+
     This is the shape a guided tour has, and writing it as `actor_move` and then
     `walk_to` does not work: `actor_move` waits for the leader to ARRIVE, so the
     student stands still watching a man cross a room and then walks the same
-    floor on his own afterwards, and both bodies aim at the same standing spot
-    and finish inside each other.
+    floor on his own afterwards.
 
     The leader goes ROUND things. `actor_move` carries a body straight at its
     target, which is right for a crate and wrong for a person crossing a room
     with a fire in the middle of it.
     """
     intent = {"kind": "lead_to", "actor": actor, "to": to}
+    if off is not None:
+        intent["off"] = [off[0], off[1]]
     if pace is not None:
         intent["pace"] = pace
     return intent
 
 
-def place(actor, at, facing=None):
+def place(actor, at, off=None, facing=None):
     """Put somebody at an anchor with no walk in it. For SETTING a scene.
 
     Use it before anything starts moving: the principal is already waiting at
@@ -175,10 +207,15 @@ def place(actor, at, facing=None):
     while he watches. With no `facing` they are turned to look at the player,
     because a body placed before a scene begins is nearly always waiting for him.
 
+    `off` is two numbers from the anchor's standing spot, so that "waiting at the
+    door" is a spot you chose rather than a spot the clearance rule picked.
+
     Placing somebody where the player is standing puts them BESIDE him, not
     inside him, which is the same clearance `actor_move` uses.
     """
     intent = {"kind": "place", "actor": actor, "at": at}
+    if off is not None:
+        intent["off"] = [off[0], off[1]]
     if facing is not None:
         intent["facing"] = facing
     return intent
@@ -409,13 +446,26 @@ def fx(name, anchor=None, data=None):
     return intent
 
 
-def enter(map, at=None):
-    """Go to another map. `at` is the anchor there to arrive on."""
-    # without `at` every door into a room drops the player on that room's one
-    # global spawn, however far that is from the door they walked through
+def enter(map, at=None, cover=None):
+    """Go to another map. `at` is the anchor there to arrive on.
+
+    Without `at` the player lands on that map's own spawn, however far that is
+    from the door they walked through, so name one whenever you mean a door.
+
+    `cover` is the only thing you may say about the picture that plays over the
+    change, and it says what the MOMENT is rather than what to draw: "ceremony"
+    is the end of a year. Everything else takes the cover the place you are
+    going to has, which is how twenty islands with three rooms each avoid
+    becoming sixty people choosing sixty different transitions.
+
+    THE MAP IS TORN DOWN AND YOUR ISLAND GOES WITH IT. Nothing after this line
+    is going to run, so put your bars down and write your flags first.
+    """
     intent = {"kind": "enter", "map": map}
     if at is not None:
         intent["at"] = at
+    if cover is not None:
+        intent["cover"] = cover
     return intent
 
 
