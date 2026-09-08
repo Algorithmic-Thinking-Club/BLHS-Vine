@@ -297,8 +297,14 @@ await page.waitForSelector('.tr-scene', { timeout: 10000 })
 check('a door swap raised a real cover, not a rectangle', await page.textContent('.tr-scene-entering'), 'E N T E R I N G')
 check('the cover names the DESTINATION, in words rather than a slug',
   await page.textContent('.tr-scene-title'), /PANTHER/i)
-const coverFact = await page.textContent('.tr-scene-fact')
-check('and it carries one real sourced fact off the fact table', coverFact, (t) => t.length > 20)
+/* AND IT CARRIES NOTHING ELSE. This check used to read the loading fact out of
+ * `.tr-scene-fact` and assert it was a real sentence. Ash ruled the trivia line
+ * off every cover on 2026-09-06: "a cover says where you are going and nothing
+ * else", naming the "INSIDE BONNEY LAKE HIGH SCHOOL / Around 1,700 students..."
+ * line by sight. The element is gone, so the check is inverted rather than
+ * deleted: a fact line coming back on a cover is now the failure. */
+check('and it carries no trivia line under the name',
+  await page.$('.tr-scene-fact'), (el) => el === null)
 await shot('5-cover')
 await page.waitForFunction(() => !document.querySelector('.tr-root'), null, { timeout: 30000 })
 await ready()

@@ -110,6 +110,12 @@ const look = () => page.evaluate(() => {
      * student sits through, and the sea budget below was written when the ship
      * was something he steered. */
     movie: document.documentElement.dataset.movie === '1',
+    /* AND A COVER IS UP, WHICH IS ALSO NOT A STALL. `.tr-root` is the painted
+     * transition; while it is on the glass the scene under it is being torn
+     * down and rebuilt, so `__pmap` is briefly gone and there is nothing to
+     * press. That used to read as "nothing on the screen is pressable and
+     * nothing is talking", which is this run's own word for a dead end. */
+    covered: !!document.querySelector('.tr-root'),
     stamped: !!(save && save.plans && Object.values(save.plans).some((pl) => pl && pl.stamped)),
   }
 })
@@ -219,7 +225,20 @@ for (let i = 0; i < 320 && !done; i++) {
    * "talking" in the dialogue sense: the whole card is the button, and pressing
    * it finishes the line. A dimwit presses the middle of the screen. Three
    * tries, so a genuinely dead screen still ends the run. */
-  if (blind++ < 3) { await page.mouse.click(683, 384); continue }
+  /* A COVER IS THE GAME WORKING. Every door in the game plays a painted one
+   * since 2026-09-07, and a painted cover holds for the best part of four
+   * seconds by design, which is longer than three blind clicks. A run that
+   * gives up in the middle of one is measuring the harness. It is still
+   * BOUNDED: the step budget above ends the run either way, and a cover that
+   * never lifts ends it with a picture of itself. */
+  if (v.covered) { blind = 0; await page.waitForTimeout(700); continue }
+  /* AND EIGHT SECONDS RATHER THAN TWO. Three tries was written when the only
+   * thing that could be under a blind click was a card still typing itself out.
+   * A map swap can put a real loading frame on the glass for a second or two on
+   * a cold cache, and a run that calls that a dead end is a run that reports the
+   * game as broken because the game was busy. Eight seconds of nothing is still
+   * a dead end and still ends the run with a picture of it. */
+  if (blind++ < 12) { await page.mouse.click(683, 384); continue }
   say('STOP: nothing on the screen is pressable and nothing is talking')
   await shot('nothing')
   break
