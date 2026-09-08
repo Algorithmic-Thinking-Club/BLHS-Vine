@@ -126,9 +126,34 @@ const COVER_ART: Record<string, string> = {
    * the harbour is the picture rather than the archipelago seen from the sky */
   hub: ART_PORT,
   'hub-a2': ART_PORT,
-  /* §4.1's cover, by name. A room inside a volcano, and the one picture in the
-   * set that is an interior. */
-  'panther-maw': ART_MAW,
+  /* THE MAW WEARS ITS OWN ROOM (BRIEF-CLOSE-THE-LOOP section 5).
+   *
+   * Ash, 2026-09-08: *"Do not call it 'Bonney Lake Highschool' call it the
+   * Panthers Maw, on the transition screen, and any other dialogue. and change
+   * the transition picture for it, to something better."*
+   *
+   * `loading-maw.png` is a generic lit cavern with a waterfall and a lectern,
+   * drawn before the room existed and showing a place that is not in the game.
+   * `scene.png` IS the room: the same oval floor, the same two bridges and the
+   * same lava the student is about to be standing in. A cover is a picture of
+   * where you are going, and this is the only picture of it. */
+  'panther-maw': '/maps-painted/panther-maw/scene.png',
+}
+
+/* ---- AND WHAT IT IS CALLED, WHICH THE PLACE WAS ANSWERING FOR IT ----------
+ *
+ * `titleOfMap` falls through the world composition, the bundle's own title, and
+ * then the PLACE. The Maw belongs to `home-island`, whose name is Bonney Lake
+ * High School, and the live world publishes no slot for the Maw, so every cover
+ * into the room a student spends the whole game in said the name of the school
+ * that contains it. Ash saw it and said so.
+ *
+ * ONE TABLE, KEYED THE SAME WAY THE ART IS, because it is the same class of
+ * decision: what this destination is called, said once, where somebody looking
+ * for it will find it. The day the platform's world publishes a slot for the Maw
+ * this row agrees with it and can go. */
+const MAP_TITLE: Record<string, string> = {
+  'panther-maw': "The Panther's Maw",
 }
 
 const CLASS_ART: Record<CoverClass, string> = {
@@ -251,6 +276,10 @@ export function titleOfMap(mapId: string, bundleTitle?: string): string {
   const c = compositionCache()
   const slot = c ? slotOfMap(c, mapId) : undefined
   if (slot?.title) return slot.title
+  /* THE OVERRIDE SITS ABOVE THE BUNDLE AND BELOW THE WORLD. A slot Ash authored
+   * in MAPVIS always wins; below that, a map this game knows the name of says it
+   * rather than borrowing the name of the place it happens to sit inside. */
+  if (MAP_TITLE[mapId]) return MAP_TITLE[mapId]
   if (bundleTitle) return bundleTitle
   const place = placeOfMap(mapId)
   if (place?.name) return place.name
