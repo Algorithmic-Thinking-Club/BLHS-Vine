@@ -33,7 +33,7 @@ export const CLOSABLE = () => {
   return s
 }
 
-export async function boot(name, { save, url, headed = false, clearSeen = true, dir: where } = {}) {
+export async function boot(name, { save, url, headed = false, clearSeen = true, dir: where, view } = {}) {
   /* `dir` so a run can put its frames where a brief asks for them rather than
    * always under the pass-2 tree. Everything that called this before passes
    * nothing and lands exactly where it always did. */
@@ -41,7 +41,7 @@ export async function boot(name, { save, url, headed = false, clearSeen = true, 
   fs.mkdirSync(dir, { recursive: true })
   for (const f of fs.readdirSync(dir)) fs.unlinkSync(path.join(dir, f))
   const browser = await chromium.launch({ headless: !headed })
-  const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 }, deviceScaleFactor: 1 })
+  const ctx = await browser.newContext({ viewport: view ?? { width: 1366, height: 768 }, deviceScaleFactor: 1 })
   const page = await ctx.newPage()
   const t0 = Date.now()
   const log = []

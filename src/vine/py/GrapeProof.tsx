@@ -24,6 +24,8 @@ const world: IntentWorld = {
   show: noMap('show'),
   fx: noMap('fx'),
   enter: noMap('enter'),
+  /* and there is no ocean on a bench, so a voyage refuses by name too */
+  sailTo: noMap('sail_to'),
   /* THE HARNESS HAS NO RUN TO END. `?scene=grape` is a bench for one file of a
    * member's Python; there is no save behind it and no title to go back to, so
    * this refuses by name the way every other world word does here. */

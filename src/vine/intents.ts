@@ -72,6 +72,10 @@ export type Intent =
    * every door into a room drops the player on that room's one global spawn. */
   /* cover names the occasion behind the loading screen, not the picture itself */
   | { kind: 'enter'; map: string; at?: string; cover?: CoverOccasion }
+  /* sail to another island. The engine owns the whole journey: out of the room,
+   * down the quay, aboard, across the water and ashore. A member never names a
+   * route, a berth or a camera to be carried there. */
+  | { kind: 'sail_to'; map: string }
   | { kind: 'cutscene'; script: string }
   /* the run has finished and the screen goes back to the title */
   | { kind: 'end_run' }
@@ -170,6 +174,8 @@ export interface IntentWorld {
   /* play a named effect and come back when it has finished */
   fx(name: string, anchor?: string, data?: unknown): Promise<void>
   enter(map: string, at?: string, cover?: CoverOccasion): Promise<void>
+  /** sail to another island and come back when the player is standing on it */
+  sailTo(map: string): Promise<void>
   /** put the player off a berthed boat and onto the dock */
   ashore(): Promise<void>
   cutscene(script: string): Promise<void>
@@ -290,6 +296,10 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         if (i.cover && !COVER_OCCASIONS.includes(i.cover))
           return no(`"${i.cover}" is not an occasion. They are: ${COVER_OCCASIONS.join(', ')}`)
         await w().enter(i.map, i.at, i.cover)
+        return ok()
+      case 'sail_to':
+        if (typeof i.map !== 'string' || !i.map.trim()) return no('sail_to wants the name of a map to sail to')
+        await w().sailTo(i.map.trim())
         return ok()
       case 'end_run':
         await w().endRun()

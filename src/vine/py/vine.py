@@ -480,6 +480,22 @@ def enter(map, at=None, cover=None):
     return intent
 
 
+def sail_to(map):
+    """Sail to another island. One word, and the engine does the whole journey.
+
+    Thor walks himself out of whatever room he is in, down the quay to the dock,
+    hops aboard, and the ship sails herself across behind the two black bars. He
+    steps off on the other side and that island's own `@on_start` takes over.
+
+    You never say a route, a berth, a camera or a cover. There is nothing to get
+    right: name the island and the engine reads the way there off the world.
+
+    THE MAP IS TORN DOWN AT THE FAR END, the same as `enter`, so nothing after
+    this line runs. Say what you have to say before it.
+    """
+    return {"kind": "sail_to", "map": map}
+
+
 def end_run():
     """The run is over. Leave the world and go back to the title screen.
 

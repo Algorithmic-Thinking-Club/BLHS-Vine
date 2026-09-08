@@ -35,13 +35,18 @@ import {
   berthOf, markNames, marksOf, approachTo, approachNames, berthOfRoute, farStart,
   type WorldComposition, type WorldSlot, type Berth, type WorldMark,
 } from '../world/composition'
+/* the voyage, held outside the scene so it survives the doors it goes through */
+import {
+  beginVoyage as beginTravel, endVoyage as endTravel, setLeg as setTravelLeg,
+  voyage as travelPlan, LEG_CEILING_MS,
+} from '../world/travel'
 import { stateOf, STATE_INK } from '../world/states'
 import { onSailRequest } from '../world/sail-bus'
 import {
   newHull, stepHull, berthHelm, DEFAULT_SAIL, HELM_IDLE,
   type Berthing, type Helm, type HullState,
 } from '../world/sail'
-import { cover } from '../../app/transitions'
+import { cover, transitionBusy } from '../../app/transitions'
 import { ceremonyCover, coverFor, markSeen, seenThisSession, titleOfMap } from '../stage/covers'
 import { setSceneDrawn, showPlaceCard } from '../stage/stage-bus'
 import { motionMs, prefersReducedMotion } from '../ui/motion'
@@ -1865,6 +1870,16 @@ export default function PmapScene() {
           from: mapId, to: to.map, at: to.at ?? null,
           cover: choice.spec.kind, occasion: occasion ?? null,
         })
+        /* A REFUSED COVER IS A REFUSED DOOR, and it used to be neither.
+         *
+         * `cover()` answers false and never runs the swap when a transition is
+         * already up. That answer was thrown away with `void`, and the two costs
+         * were both silent: `fade` stays true and is assigned nowhere else, so
+         * every later door, every station and the controls were dead until a
+         * reload; and `.finally` still resolved the island's `enter()` promise,
+         * so the island was told the door had worked and ran its next line on a
+         * map that had not changed. `docked()` takes this path on a crossing that
+         * lands on another map, so a refusal here loses the voyage as well. */
         void cover(choice.spec, async () => {
           /* the url is kept in step with replaceState, so nothing outside this component is lost */
           setMapUrl(to)
@@ -1877,9 +1892,19 @@ export default function PmapScene() {
            * and builds the next one */
           setTarget(to)
           await waitForScene()
+        }).then((swapped) => {
+          if (swapped) return
+          /* the map did not change, so this scene is still live and has to be
+           * given back: the door is open again, the controls come back, and the
+           * island hears a refusal on its own line rather than a false ok */
+          fade = false
+          engine.log('door_refused', { from: mapId, to: to.map, why: 'a transition was already running' })
+          console.warn(`[pmap] refused to open "${to.map}": a transition is already running`)
+          exitReject?.(new NotBuilt('enter', `"${to.map}" did not open, because a transition was already running`))
+          exitReject = null; exitResolve = null
         }).finally(() => {
           releaseExit?.(); releaseExit = null
-          exitResolve?.(); exitResolve = null
+          exitResolve?.(); exitResolve = null; exitReject = null
         })
       }
 
@@ -2261,12 +2286,54 @@ export default function PmapScene() {
           return new Promise<void>(() => { /* the scene does not come back */ })
         },
 
+        /* THE WHOLE JOURNEY, AS ONE WORD (BRIEF-TRAVEL).
+         *
+         * Ash: "Thor has to walk out to the dock, hop back on to his boat, and it
+         * should sail to the island he selects autonomously." A member writes
+         * nothing about travel, so everything here is read off the world rather
+         * than named by the island: which door leads to water, where the berth is,
+         * which line the ship takes and what plays on the far side.
+         *
+         * It is armed here and PERFORMED ACROSS MAP CHANGES, because `enter` tears
+         * this scene and the island that called it down. `world/travel.ts` holds
+         * the leg the way `stage/cinema.ts` holds the bars, and the arriving scene
+         * picks it up. Nothing after this line in a member's island runs. */
+        sailTo(to) {
+          if (!comp) throw new NotBuilt('sail_to', 'there is no world document, so there is nowhere to sail to')
+          if (to === mapId) throw new NotBuilt('sail_to', `you are already on "${to}"`)
+          const want = berthOfRoute(comp, to.replace(/-/g, '_'))
+          if (!want) {
+            const have = comp.slots.filter((q) => q.berth).map((q) => q.map ?? q.place).filter(Boolean)
+            throw new NotBuilt('sail_to', `"${to}" has no berth on the world, so there is no way to sail to it.`
+              + ` What can be sailed to: ${have.join(', ') || '(nothing)'}`)
+          }
+          /* a room has no water in it, so the first leg is the walk out to the map that has */
+          const leg = canSail && berth ? 'crossing' : 'to-dock'
+          /* COMING HOME IS THE SAME JOURNEY WITH ONE MORE STEP. BRIEF-TRAVEL:
+           * "the return trip home ... ends at the Maw's tunnel". The destination
+           * is an island either way; what makes it home is that the home base is
+           * a door off it, so the landing walks him up and takes that door. */
+          const home = !!comp && comp.slots.some((q) => q.map === MAW_MAP && q.place === slotOfMap(comp, to)?.place)
+          if (leg === 'to-dock' && !doorToWater()) {
+            throw new NotBuilt('sail_to', `${mapId} has no berth and no door onto a map that has one,`
+              + ' so there is no way down to the water from here')
+          }
+          beginTravel({ to, from: mapId, leg, home })
+          /* the whole journey is watched, from the first step to the far shore */
+          setCinema(true)
+          /* AND THE TASK LINE SAYS WHERE HE IS GOING. It reads off the year, which
+           * still believes he is in the Maw, so during the voyage it said "Go into
+           * the mountain" over a ship sailing away from it. */
+          engine.objective(`Sailing to ${titleOfMap(to)}.`)
+          return runVoyageLeg()
+        },
+
         enter(map, at, cover) {
           beginExit({ map, at }, cover)
           /* resolves when the fade has actually swapped the map, so a station
            * body that walks somebody through a door does not run its next line
            * against a scene that is being torn down */
-          return new Promise<void>((r) => { exitResolve = r })
+          return new Promise<void>((r, j) => { exitResolve = r; exitReject = j })
         },
 
         /* cutscene plays, and refuses an unknown script or one whose anchors this map lacks */
@@ -2882,6 +2949,8 @@ export default function PmapScene() {
       /* what the objective marker resolved to on the last frame */
       let leading: string | null = null
       let exitResolve: (() => void) | null = null
+      /* and how a refused door tells the island, instead of resolving as if it opened */
+      let exitReject: ((e: Error) => void) | null = null
 
       /* ONE WALK, THREE CALLERS: `walk_to` from a grape, `actorMove` from a script,
        * and the idle auto-walk a `walkTo` gate falls back to when a player stands
@@ -3277,9 +3346,22 @@ export default function PmapScene() {
             engine.log('anchor_missing', { map: mapId, claimed: missing })
           }
           if (DBG) console.info(`[pmap] ${mapId}: island claims ${ready.handlers.join(', ')}`)
+          /* AN ISLAND BEING SAILED THROUGH DOES NOT GET TO OPEN.
+           *
+           * A voyage passes over the hub on the way out: the map loads, and the
+           * hub's own `@on_start` is the ARRIVAL, so it played its docking line
+           * over a ship that was already leaving. Measured on the first proof:
+           * "The principal is waiting for you up there." on screen while Thor
+           * sailed away from him. The landing leg is different and does open the
+           * island, because on the far shore the arrival is the point. */
+          const through = travelPlan()
+          const passing = !!through && through.leg !== 'landing'
+          if (passing) {
+            console.log(`[pmap] ${mapId}: a voyage to ${through!.to} is passing through, so this island does not open`)
+          }
           /* the engine calls the island's opening handler unprompted, and reads its report */
-          if (!ready.handlers.includes('start')) islandStarted = true
-          if (ready.handlers.includes('start')) {
+          if (passing || !ready.handlers.includes('start')) islandStarted = true
+          if (!passing && ready.handlers.includes('start')) {
             const report = await s.call('start')
             /* and the room has finished dressing itself, said once, for anything watching */
             islandStarted = true
@@ -3631,6 +3713,184 @@ export default function PmapScene() {
           + ` · ${Math.round(depthAt(out.x, out.y))}px of water`)
       }
       if (target.aboard) arriveAboard()
+
+      /* THE DEPARTURE, which is the arrival read the other way round.
+       *
+       * `board()` puts the hull ON the berth, and a berth is by definition the
+       * shallowest water an island has: the published hub's has 24px under it
+       * against a 26px probe, so a boat created there is aground before she has
+       * moved. The arrival dodges that by sounding outward along the berth's
+       * seaward line for water deep enough to sail; a departure wants exactly the
+       * same sounding, so it is one function used twice rather than two that
+       * drift. Returns the point and how much water was under it. */
+      const soundOffshore = (): { x: number; y: number; deep: number } | null => {
+        if (!berth) return null
+        const b = fromSea(berth.x, berth.y)
+        let dir = berth.approach
+          ? Math.atan2(fromSea(berth.approach.x, berth.approach.y).y - b.y, fromSea(berth.approach.x, berth.approach.y).x - b.x)
+          : berth.facing ? radOf(berth.facing) + Math.PI
+            : Math.atan2(b.y - pc.y, b.x - pc.x)
+        if (!isFinite(dir)) dir = Math.PI / 2
+        let out = { x: b.x, y: b.y }
+        let best = -1
+        for (let d = 16; d <= OFFSHORE_MAX; d += 16) {
+          const p = { x: b.x + Math.cos(dir) * d, y: b.y + Math.sin(dir) * d }
+          const deep = depthAt(p.x, p.y)
+          if (deep > best) { best = deep; out = p }
+          if (d >= OFFSHORE_MIN && deep >= OFFSHORE_DEPTH) return { ...p, deep }
+        }
+        return best >= DEFAULT_SAIL.probe ? { ...out, deep: best } : null
+      }
+
+      /* the way out of a room, which is the door onto a map that has water */
+      const doorToWater = (): Anchor | null => {
+        if (!comp) return null
+        for (const a of anchors.all) {
+          if (a.kind !== 'door' || !a.to) continue
+          if (slotOfMap(comp, a.to)?.berth) return a
+        }
+        return null
+      }
+
+      /* how long the ship is watched leaving before the cover takes the rest of
+       * the crossing. Long enough to read as sailing, short enough that nobody
+       * sits through open water: the beach opening waits 1.8s and Ash accepted
+       * that shot, and a departure has the island to leave behind it. */
+      const CAST_OFF_SHOW_MS = 3200
+
+      /* ONE LEG OF A VOYAGE, AND THE SCENE THAT CAN PERFORM IT PERFORMS IT.
+       *
+       * Called by `sail_to` on the map it was said on, and again by every map the
+       * voyage lands on, so the journey is carried by whichever scene is alive
+       * rather than by the island that started it. */
+      const runVoyageLeg = async (): Promise<void> => {
+        const v = travelPlan()
+        if (!v) return
+        /* THE COVER COMES OFF FIRST. `waitForScene` resolves when the map is
+         * drawn, which is before the transition has finished lifting, so the
+         * first proof cast off underneath the picture: the ship was already at
+         * sea when the hub's loading card faded out over the top of her. */
+        const t0 = performance.now()
+        while (transitionBusy() && !destroyed && performance.now() - t0 < LEG_CEILING_MS) {
+          await new Promise<void>((r) => setTimeout(r, 100))
+        }
+        if (destroyed) return
+        try {
+          if (v.leg === 'to-dock') {
+            const door = doorToWater()
+            if (!door) { endTravel('there is no way down to the water from here'); setCinema(false); return }
+            guideTarget = door
+            await new Promise<void>((r) => {
+              const { goal, reach } = walkGoal(door)
+              startWalk(goal, reach, goal.facing ?? null, r, door.name)
+            })
+            guideTarget = null
+            setTravelLeg('crossing')
+            beginExit({ map: door.to!, at: door.toAnchor })
+            return
+          }
+
+          if (v.leg === 'crossing') {
+            if (!canSail || !berth) { endTravel(`${mapId} has no berth`); setCinema(false); return }
+            /* down the quay to the ship, along the floor rather than through it */
+            const quay = anchors.all.find((a) => a.kind === 'post' && /dock|quay|berth|jetty|pier/i.test(a.name))
+            if (quay) {
+              guideTarget = quay
+              await new Promise<void>((r) => {
+                const { goal, reach } = walkGoal(quay)
+                startWalk(goal, reach, goal.facing ?? null, r, quay.name)
+              })
+              guideTarget = null
+            }
+            void intentWorld.view('ship')
+            board()
+            if (!hull) { endTravel('he could not get in the boat'); setCinema(false); return }
+            /* off the berth and into water she can actually sail, the same sounding
+             * the arrival uses, because a berth is the shallowest water there is */
+            const out = soundOffshore()
+            if (out) {
+              hull.heading = Math.atan2(out.y - hull.y, out.x - hull.x)
+              hull.speed = DEFAULT_SAIL.cruise
+              sailing = null
+              helmOverride = { helm: { throttle: 1, turn: 0, fullSail: false }, until: performance.now() + CAST_OFF_SHOW_MS }
+            }
+            engine.log('cast_off', { from: mapId, to: v.to })
+            await new Promise<void>((r) => setTimeout(r, CAST_OFF_SHOW_MS))
+            setTravelLeg('landing')
+            /* and the rest of the crossing happens under the cover, which is what a
+             * cover is for. `aboard` is what makes the far map open ON THE WATER
+             * with the ship already under way, the same arrival the beach opening
+             * gets; without it he simply appears on the far island's spawn and the
+             * whole second half of the voyage never happens. */
+            beginExit({ map: v.to, aboard: true })
+            return
+          }
+
+          if (v.leg === 'landing') {
+            /* the far shore. `arriveAboard` has already put her offshore under way,
+             * so all that is owed is the run in, the tie-up and the card. An island
+             * that wants to direct its own arrival has already done it by the time
+             * this runs, and `sailing` or `berthing` being live says so. */
+            if (!canSail || !berth) { endTravel(`${v.to} has no berth`); setCinema(false); return }
+            if (!hull) { endTravel('there is no ship on the water here'); setCinema(false); return }
+            if (sailing || berthing) { endTravel('the island is sailing herself in'); return }
+            void intentWorld.view('ship')
+            dockAt(slot!)
+            /* the tie-up is the ticker's job; wait for it rather than racing it */
+            const t0 = performance.now()
+            while (hull && performance.now() - t0 < LEG_CEILING_MS) {
+              await new Promise<void>((r) => setTimeout(r, 120))
+              if (!berthing && !hull) break
+              if (tiedUp) break
+            }
+            await new Promise<void>((r) => setTimeout(r, 700))
+            stepAshore(true)
+            void intentWorld.view('island')
+            /* the year's own sentence comes back the moment he is standing on it */
+            engine.objective(null)
+            /* COMING HOME ENDS AT THE TUNNEL, not on the dock. He walks up the quay
+             * with the marks on the ground and goes in, which is the arrival he
+             * already knows played backwards. */
+            const back = v.home ? anchors.all.find((a) => a.kind === 'door' && a.to === MAW_MAP) : null
+            if (back) {
+              await new Promise<void>((r) => setTimeout(r, 900))
+              void intentWorld.view('close')
+              guideTarget = back
+              await new Promise<void>((r) => {
+                const { goal, reach } = walkGoal(back)
+                startWalk(goal, reach, goal.facing ?? null, r, back.name)
+              })
+              guideTarget = null
+              endTravel()
+              beginExit({ map: back.to!, at: back.toAnchor })
+              return
+            }
+            endTravel()
+            return
+          }
+        } catch (e) {
+          console.warn(`[travel] the leg failed: ${e instanceof Error ? e.message : e}`)
+          endTravel('the leg failed')
+          setCinema(false)
+        }
+      }
+
+      /* AND A VOYAGE IN PROGRESS PICKS ITSELF UP HERE.
+       *
+       * The journey outlives the island that started it, so every map that loads
+       * asks whether somebody is travelling through it and performs the leg it
+       * can. It waits for the island first: an island that wants to direct its own
+       * arrival (the hub does) has to get there before the engine's default does. */
+      void (async () => {
+        if (!travelPlan()) return
+        const t0 = performance.now()
+        while (!islandStarted && !destroyed && performance.now() - t0 < 12000) {
+          await new Promise<void>((r) => setTimeout(r, 120))
+        }
+        if (destroyed || !travelPlan()) return
+        setCinema(true)
+        await runVoyageLeg()
+      })()
 
       // the sea's first fill happens AFTER the camera snap so the pool sees the real
       // viewport; a grown viewport later needs more pooled ocean under it (the old
@@ -4753,8 +5013,11 @@ export default function PmapScene() {
        * with it, for the same reason: "Click the island to sail there" over the
        * next map would be an instruction about a boat that is not there. */
       setWorldObjective(null)
-      /* and the island's own objective line goes too, since nobody is left who could clear it */
-      setObjectiveSaid(null)
+      /* and the island's own objective line goes too, since nobody is left who
+       * could clear it. A VOYAGE IS THE EXCEPTION: the engine is still carrying
+       * one across this door and clears the line itself when he lands, so
+       * wiping it here put "Go into the mountain" over a ship sailing away. */
+      if (!travelPlan()) setObjectiveSaid(null)
       /* anything a station was still waiting on is resolved rather than left
        * hanging. A body parked on an unresolved say() holds its world lock for
        * ever, and the next map opens with no controls and no way to tell why. */

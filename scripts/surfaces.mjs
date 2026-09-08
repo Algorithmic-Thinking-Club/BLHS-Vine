@@ -51,10 +51,16 @@ const has = (k) => process.argv.includes(`--${k}`)
 const base = (arg('base', 'http://localhost:5173')).replace(/\/$/, '')
 const OUT = path.join('reference/_archive/build-shots', arg('out', has('plain') ? 'surfaces-plain' : 'surfaces'))
 const only = arg('only', '').split(',').filter(Boolean)
-/* THE DEPLOYMENT TARGET IS 1366x768 AND THE HARNESS SHOT 1280x800, which is
- * wider AND taller than the machine this game is actually played on. Every
- * "it fits" in a review shot was measured on a screen no student has. */
-const VIEW = has('chromebook') ? { width: 1366, height: 768 } : { width: 1280, height: 800 }
+/* the window the shots are taken in. `--chromebook` is the deployment target;
+ * `--view=1280x720` is any other size. The default is wider and taller than the
+ * machine this game is played on, so a review at the default proves less. */
+const VIEW = (() => {
+  const v = arg('view', '')
+  const m = /^(\d{3,5})x(\d{3,5})$/.exec(v)
+  if (m) return { width: +m[1], height: +m[2] }
+  if (v) { console.error(`--view wants WIDTHxHEIGHT, got "${v}"`); process.exit(2) }
+  return has('chromebook') ? { width: 1366, height: 768 } : { width: 1280, height: 800 }
+})()
 fs.mkdirSync(OUT, { recursive: true })
 
 /* A RUN WITH SOMETHING IN IT. An empty save photographs empty panels, and an

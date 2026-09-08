@@ -22,6 +22,7 @@ function stubWorld(over: Partial<IntentWorld> = {}) {
     show: (a, v) => { did.push(`show:${a}:${v}`) },
     fx: async (n) => { did.push(`fx:${n}`) },
     enter: async (m) => { did.push(`enter:${m}`) },
+    sailTo: async (m) => { did.push(`sail_to:${m}`) },
     ashore: async () => { did.push('ashore') },
     cutscene: async (s) => { did.push(`cutscene:${s}`) },
     pose: async (p, f) => { did.push(`pose:${p ?? '-'}:${f ?? '-'}`) },

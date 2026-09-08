@@ -45,8 +45,15 @@ describe('the intent vocabulary, both sides of the worker', () => {
   /* `lead_to` is its own word: somebody walks ahead and the player follows them there */
   /* `objective` is its own word: the one line at the top of the screen, not dialogue */
   /* `end_run` is its own word: the run is over and the world gives way to the title */
-  it('is thirty-two words on the engine side', () => {
-    expect(engineWords.size).toBe(32)
+  /* `sail_to` is its own word: the engine takes the player to another island, and a
+     member writes nothing about the walk out, the boarding, the crossing or the landing */
+  it('is thirty-three words on the engine side', () => {
+    expect(engineWords.size).toBe(33)
+  })
+
+  it('has sail_to on both sides, so a member can say it', () => {
+    expect(engineWords.has('sail_to'), 'intents.ts is missing sail_to').toBe(true)
+    expect(pythonWords.has('sail_to'), 'vine.py is missing sail_to').toBe(true)
   })
 
   it('has the frame words on both sides', () => {
