@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNav } from '../../app/SceneManager'
 import { track } from '../telemetry'
-import { checkClass, joinClass } from '../net'
+import { checkClass, classesAreOpen, joinClass } from '../net'
 import { loadSave, subscribeSave, writeSave } from '../save'
 import { LOOKS, drawRecolored } from '../thorLook'
 import { cleanName, isBlocked, PRONOUN_CHOICES } from '../names'
@@ -175,6 +175,31 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
   const saved = loadSave()
   const alreadyJoined = !!saved?.participantId || !!saved?.castaway
   const [card, setCard] = useState<Card>(alreadyJoined ? 'identity' : 'code')
+  /* ---- AND THE CODE CARD ONLY EXISTS IF THERE IS A CLASS TO JOIN ----------
+   *
+   * BRIEF-CLOSE-THE-LOOP section 6, from Ash: *"'Join my class' what was that
+   * even for… as of right now i can just enter any number / code."* No database
+   * has ever been created, so `/api/join` answers 503 to everyone and the card
+   * accepts anything on purpose (a blocked join excludes the students whose
+   * network is worst). A screen that asks for a code and takes any code teaches a
+   * student the game is not listening, so with no server there is no screen.
+   *
+   * IT SKIPS FORWARD RATHER THAN NEVER MOUNTING, because the probe is a round
+   * trip and the letter is typing itself out over the top of it either way. The
+   * student sees the letter, and the foot of it either grows six boxes or does
+   * not. `castaway` is set on the way past so the run stays local, which is
+   * exactly what "play without a class" already did. */
+  useEffect(() => {
+    if (alreadyJoined) return
+    let gone = false
+    void classesAreOpen().then((open) => {
+      if (gone || open) return
+      track('join_skipped', { why: 'no server' })
+      setCastaway(true)
+      setCard((c) => (c === 'code' ? 'identity' : c))
+    })
+    return () => { gone = true }
+  }, [alreadyJoined])
   const [castaway, setCastaway] = useState(!!saved?.castaway)
   const [code, setCode] = useState(saved?.classCode ?? '')
   const [className, setClassName] = useState<string | undefined>()
@@ -245,8 +270,11 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
    *   A student who has ALREADY joined starts on `identity`, because the code is
    *   answered and re-asking it would be a question with one possible answer.
    *   Their Back is the same leave, for the same reason. */
-  const ORDER: Card[] = ['code', 'identity', 'word', 'wardrobe', 'boat']
-  const first: Card = alreadyJoined ? 'identity' : 'code'
+  /* WITH NO CLASS TO JOIN THERE IS NO CARD TO GO BACK TO, so Back from the name
+   * leaves the game rather than returning to a screen that was skipped. */
+  const ORDER: Card[] = castaway ? ['identity', 'word', 'wardrobe', 'boat']
+    : ['code', 'identity', 'word', 'wardrobe', 'boat']
+  const first: Card = ORDER[0]
   const back = () => {
     const at = ORDER.indexOf(card)
     if (at <= 0 || card === first) { nav.go('title'); return }

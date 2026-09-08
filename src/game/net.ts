@@ -37,6 +37,48 @@ export async function checkClass(code: string): Promise<CheckResult> {
   }
 }
 
+/* IS THERE A CLASS TO JOIN AT ALL (BRIEF-CLOSE-THE-LOOP section 6).
+ *
+ * ASH, 2026-09-08: *"'Join my class' what was that even for. does it still apply?
+ * How would that even work. Also as of right now i can just enter any number /
+ * code."* He can, and that is by design and is worse than a bug: `checkClass`
+ * waves a student through on `offline` deliberately, because a blocked join
+ * excludes exactly the students whose network is worst, and NO DATABASE HAS EVER
+ * BEEN CREATED for this project (`docs/ops/STUDY-LOGGING.md`), so `/api/join`
+ * answers 503 for everybody and every code is accepted.
+ *
+ * A screen that asks a fourteen year old for a six character code and then takes
+ * any six characters teaches him the game is not listening. The brief's ruling:
+ * *"The class code card appears only when `/api/join` answers; with no server
+ * (today) it is skipped and the student goes straight to the name."*
+ *
+ * ONE HEAD REQUEST WITH NO CODE ON IT, and 503 is the only answer that means no.
+ * A 400 or a 404 is a server that is up and did not like an empty query, which is
+ * a server that can take a real code. Cached for the session, because the intro
+ * asks once and the answer cannot change inside it. */
+let classesLive: boolean | null = null
+export async function classesAreOpen(): Promise<boolean> {
+  if (classesLive !== null) return classesLive
+  if (isCaptain()) { classesLive = true; return true }
+  try {
+    const r = await fetch('/api/join?code=', { method: 'GET' })
+    /* A JSON ANSWER IS A SERVER; ANYTHING ELSE IS THE SINGLE PAGE APP. On the
+     * deploy this is a real function and it answers 503 `{offline: true}` with no
+     * database behind it, which is the honest no. On a dev server there is no
+     * function at all and Vite hands back index.html at 200, so the status alone
+     * would read as a live class service and put the code card back. Measured on
+     * both, 2026-09-08. */
+    const ct = r.headers.get('content-type') ?? ''
+    classesLive = r.status !== 503 && ct.includes('json')
+  } catch {
+    classesLive = false
+  }
+  return classesLive
+}
+
+/** the proof harness and the tests need to ask again */
+export function forgetClassProbe() { classesLive = null }
+
 export async function joinClass(code: string, handle: string): Promise<JoinResult> {
   if (isCaptain()) {
     // the captain walks through any harbor gate
