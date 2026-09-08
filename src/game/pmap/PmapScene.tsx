@@ -38,7 +38,7 @@ import { carryCinemaThroughDoor, cinemaOn, onCinema, setCinema, takeCinemaCarry 
 import { choose, clearDialogue, say } from '../dialogue'
 import { engine } from '../intent-engine'
 import { play as playSfx } from '../audio'
-import { NotBuilt, PACE_OF, WAIT_FOR_CEILING_MS, performIntent, type Intent, type IntentHost, type IntentWorld } from '../../vine/intents'
+import { NotBuilt, PACE_OF, WAIT_FOR_CEILING_MS, performIntent, type Intent, type IntentHost, type IntentWorld, type CoverOccasion, type Offset } from '../../vine/intents'
 import { CutsceneRuntime } from '../cutscene/runtime'
 import type { CutsceneStage } from '../cutscene/types'
 import { publishRuntime } from '../cutscene/stage-bus'
@@ -70,7 +70,7 @@ import {
   type Berthing, type Helm, type HullState,
 } from '../world/sail'
 import { cover } from '../../app/transitions'
-import { coverFor, markSeen, seenThisSession, titleOfMap } from '../stage/covers'
+import { ceremonyCover, coverFor, markSeen, seenThisSession, titleOfMap } from '../stage/covers'
 import { setSceneDrawn, showPlaceCard } from '../stage/stage-bus'
 import { motionMs, prefersReducedMotion } from '../ui/motion'
 import { uiBand } from '../ui/frame'
@@ -2144,6 +2144,40 @@ export default function PmapScene() {
           return r ? new Texture({ source: t.source, frame: new Rectangle(0, 0, t.source.pixelWidth, r.feet + 1) }) : t
         })
       }
+      /* ---- WHERE THE MIDDLE OF HIM ACTUALLY IS, PER HEADING ---------------
+       *
+       * ASH, PLAYING 2026-09-06: the YOU marker sits a little to the side of him.
+       * The marker was hung at `pos.x`, and `pos.x` is where the SPRITE is
+       * anchored, which `thorSp.anchor.set(0.5, 1)` makes the midpoint of the
+       * FRAME rather than the midpoint of the cat drawn on it. A walk sheet is a
+       * wide square canvas with a narrow panther somewhere inside it, and where
+       * inside depends on which way he is looking: measured on the shipped
+       * frames at 144 wide, the drawn body's middle runs from 6 source pixels
+       * left of the frame's centre facing north to 9 right of it facing
+       * south-west. That is a 15 pixel swing under a mark that never moved, and
+       * on the Maw's 2.0 zoom it is the couple of pixels he can see.
+       *
+       * So the mark hangs over the INK. One alpha scan per heading at load, the
+       * idle frame, converted into world units by the same scale the body is
+       * drawn at, and the ticker adds it. Frame to frame inside one heading the
+       * middle moves under half a world pixel, which the pin's own whole-pixel
+       * quantiser eats, so the idle frame is the whole table and the mark does
+       * not wobble through a stride. */
+      const pinDx: Record<string, number> = {}
+      /* the same scan kept as an EDGE PAIR as well, in world units either side of
+       * `pos.x`, because "the mark is off to the side" has to be checkable by a
+       * harness and a midpoint compared against itself proves nothing. `__pmap.
+       * thorBox` reports these on the glass, so the offset is a subtraction. */
+      const pinInk: Record<string, { l: number; r: number }> = {}
+      for (const d of DIRS8) {
+        const t0 = walkT[d][0]
+        const band = scanCols(t0, 0, t0.source.pixelHeight - 1)
+        const half = t0.source.pixelWidth / 2
+        pinDx[d] = band ? ((band.left + band.right + 1) / 2 - half) * thorScale : 0
+        pinInk[d] = band
+          ? { l: (band.left - half) * thorScale, r: (band.right + 1 - half) * thorScale }
+          : { l: 0, r: 0 }
+      }
       const shadTex = radial(64, [[0, 'rgba(6,10,14,0.85)'], [0.65, 'rgba(6,10,14,0.35)'], [1, 'rgba(6,10,14,0)']])
       const sh = new Sprite(shadTex)
       sh.anchor.set(0.5); sh.width = 30 * thorScale; sh.height = 11 * thorScale; sh.alpha = 0.35
@@ -2666,7 +2700,151 @@ export default function PmapScene() {
       const promptPaper = new Graphics()
       promptPaper.zIndex = -1
       promptPaper.visible = plainArm()
-      prompt.addChild(promptPaper, promptMark, doorTxt)
+
+      /* ---- THE KEY, DRAWN, BECAUSE THE PLAQUE IS A BUTTON -----------------
+       *
+       * ASH, PLAYING 2026-09-06: "a small button panel with bold E in the middle.
+       * Make it look good."
+       *
+       * WHY IT IS SHAPES AND NOT A LETTER. `docs/ART.md` says icons are drawn,
+       * never an emoji or a font glyph, and the beach's own chip has been setting
+       * its E in whatever monospace the machine ships since the day it was
+       * written. A keycap is a small object with a face, a rim and a side wall
+       * you can see the depth of, and none of that is available to a character in
+       * a text run. So the cap is a box with a lit face and a shaded wall, and
+       * the E is four rectangles: a stem and three arms, at a stroke thick enough
+       * to survive a school panel that crushes contrast.
+       *
+       * WHY IT IS NOT OFF THE KIT. The platform's `icon_set` publishes compass,
+       * key, star, lock, tick, cross, arrow and coin, and there is no keycap face
+       * in it; `plaque` was never drawn at all. Asking `kitTexture` for one would
+       * answer null on every machine, so this draws rather than pretends. The day
+       * a keycap sheet is published, this is the one place that changes.
+       *
+       * IT IS IN WHOLE PIXELS. The prompt's net scale is one (the world's zoom
+       * multiplied by the 1/camZ this container carries), so every number below
+       * is a screen pixel and the cap cannot land on a half one. */
+      /* THE FACE IS LIGHTER THAN THE PLAQUE IT SITS ON. Photographed first with
+       * the cap in the socket's own parchment and the two were the same value, so
+       * the key read as a rectangle ruled onto the sign rather than as an object
+       * lying on it. A key is a thing you could pick up: lighter face, warm wall
+       * under it, dark rim round the lot. */
+      const CAP_FACE = plainArm() ? 0xffffff : 0xfdf6e3
+      const CAP_RIM = plainArm() ? 0x555555 : 0x2c2015
+      const CAP_WALL = plainArm() ? 0xbdbdbd : 0x9a7448
+      const CAP_INK = plainArm() ? 0x1b1b1b : 0x2c2015
+      const capG = new Graphics()
+      const capBox = { w: 0, h: 0 }
+      /** the cap at a side length, drawn from its own top left corner */
+      const drawKeycap = (side: number) => {
+        const s = Math.max(12, side % 2 ? side + 1 : side)   // even, so the E centres
+        const d = 2                                          // the side wall you can see
+        capBox.w = s
+        capBox.h = s + d
+        capG.clear()
+        // the whole key, rim and all
+        capG.rect(0, 0, s, s + d).fill(CAP_RIM)
+        // the wall under the face, which is what makes it read as pressable
+        capG.rect(1, 1, s - 2, s + d - 2).fill(CAP_WALL)
+        // the face
+        capG.rect(1, 1, s - 2, s - 2).fill(CAP_FACE)
+        // and one lit row along the top of the face, the way every drawn edge in
+        // this kit is lit: light, then dark, then field
+        if (!plainArm()) capG.rect(2, 2, s - 4, 1).fill(0xfdf3dc)
+        /* THE E. Boxed inside the face with a margin, a stem and three arms. The
+         * middle arm is short, which is what makes an E read as an E rather than
+         * as a comb, and the stroke is a fifth of the letter's height so it is
+         * BOLD at sixteen pixels and still bold at eleven. */
+        const m = Math.max(3, Math.round(s * 0.26))
+        const x0 = m, y0 = m
+        const lw = s - m * 2, lh = s - m * 2
+        const th = Math.max(2, Math.round(lh / 5))
+        capG.rect(x0, y0, th, lh).fill(CAP_INK)                       // the stem
+        capG.rect(x0, y0, lw, th).fill(CAP_INK)                       // top arm
+        capG.rect(x0, y0 + Math.round((lh - th) / 2), Math.round(lw * 0.76), th).fill(CAP_INK)
+        capG.rect(x0, y0 + lh - th, lw, th).fill(CAP_INK)             // bottom arm
+      }
+      drawKeycap(Math.round(promptSize() * 1.15))
+
+      /* ---- WHAT A PRESS LOOKS LIKE ----------------------------------------
+       *
+       * ASH, SAME BREATH: "when E is pressed (or the prompt is clicked) a thin
+       * grey line wraps around the box in a short animation, about 250 ms, once."
+       *
+       * A grey line running clockwise round the plaque's own edge, starting at
+       * the top left corner, arriving back where it started, and gone. It is the
+       * only acknowledgement the world gives that a key was heard: everything
+       * else about a station happens a beat later, inside a handler, and until
+       * this there was no frame between the press and whatever the island decided
+       * to do that said the game had it.
+       *
+       * REDUCED MOTION GETS THE WHOLE RING AT ONCE and holds it the same 250, so
+       * the acknowledgement survives the setting rather than being one of the
+       * things it deletes.
+       *
+       * IT IS NOT A CHILD OF THE PLAQUE, and that is the part that took a second
+       * try. `fire()` sets `busy` on the frame the key goes down, the ticker then
+       * offers no anchor while a station is running, and the plaque hides: a ring
+       * parented to it was deleted about sixteen milliseconds into its own two
+       * hundred and fifty. So the ring is its own object in the world, it copies
+       * where the plaque was standing at the moment of the press, and it finishes
+       * over that spot whatever the plaque does next. */
+      const WRAP_MS = 250
+      /* IT RUNS THREE PIXELS OUTSIDE THE PLATE, not along it. Photographed on the
+       * plate's own edge first, in both arms, and in both arms it was invisible:
+       * the carved socket already has a light rim there and the plain plate
+       * already has a grey rule there, so the one thing on screen that says the
+       * key was heard was hidden inside the two lines it was drawn on top of.
+       * Outside the plate it has the painting behind it and nothing else. */
+      const WRAP_PAD = 3
+      const WRAP_INK = plainArm() ? 0x4a4a4a : 0xdcdcdc
+      const wrapG = new Graphics()
+      wrapG.zIndex = 9e9 - 1
+      wrapG.visible = false
+      world.addChild(wrapG)
+      const wrapBox = { w: 0, h: 0 }
+      const wrapAt2 = { x: 0, y: 0, w: 0, h: 0 }
+      let wrapAt = 0
+      const drawWrap = (p: number) => {
+        const w = wrapAt2.w + WRAP_PAD * 2, h = wrapAt2.h + WRAP_PAD * 2
+        if (!(wrapAt2.w > 4 && wrapAt2.h > 4)) { wrapG.visible = false; return }
+        const x0 = -Math.round(w / 2), y0 = -Math.round(h / 2)
+        const x1 = x0 + Math.round(w), y1 = y0 + Math.round(h)
+        wrapG.clear()
+        // the four edges walked in order, each one drawn up to whatever of it the
+        // clock has paid for
+        const legs: [number, number, number, number][] = [
+          [x0, y0, x1, y0], [x1, y0, x1, y1], [x1, y1, x0, y1], [x0, y1, x0, y0],
+        ]
+        const total = 2 * (w + h)
+        let left = total * Math.max(0, Math.min(1, p))
+        for (const [ax, ay, bx, by] of legs) {
+          if (left <= 0) break
+          const len = Math.hypot(bx - ax, by - ay)
+          const k = Math.min(1, left / len)
+          wrapG.moveTo(ax, ay).lineTo(ax + (bx - ax) * k, ay + (by - ay) * k)
+          left -= len
+        }
+        wrapG.stroke({ color: WRAP_INK, width: 2, cap: 'square' })
+        wrapG.visible = true
+      }
+      /** say the press was heard, once, on the plaque the press was for */
+      const startWrap = () => {
+        if (!prompt.visible || !(wrapBox.w > 4)) return
+        wrapAt = performance.now()
+        wrapAt2.x = prompt.x; wrapAt2.y = prompt.y
+        wrapAt2.w = wrapBox.w; wrapAt2.h = wrapBox.h
+      }
+      const tickWrap = () => {
+        if (!wrapAt) return
+        const p = (performance.now() - wrapAt) / WRAP_MS
+        if (p >= 1) { wrapAt = 0; wrapG.visible = false; wrapG.clear(); return }
+        wrapG.position.set(wrapAt2.x, wrapAt2.y)
+        wrapG.scale.set(prompt.scale.x)
+        drawWrap(prefersReducedMotion() ? 1 : p)
+      }
+
+      prompt.addChild(promptPaper, capG, promptMark, doorTxt)
       prompt.scale.set(1 / Z)
 
       /* WHAT THE PROMPT IS SAYING RIGHT NOW, so the layout only runs when it has
@@ -2683,23 +2861,36 @@ export default function PmapScene() {
       const layoutPrompt = () => {
         const markW = promptMark.visible ? promptMark.texture.width : 0
         const gap = markW ? 8 : 0
-        const bodyW = markW + gap + doorTxt.width
-        if (promptPaper.visible) drawPlainPlate(promptPaper, bodyW + 28, doorTxt.height + 14)
+        /* THE KEY LEADS, because it is the thing being named: a student reads
+         * left to right and the sentence is "press this, and this happens". */
+        const capGap = 9
+        const bodyW = capBox.w + capGap + markW + gap + doorTxt.width
+        const plateH = Math.max(doorTxt.height + 14, capBox.h + 10)
+        if (promptPaper.visible) drawPlainPlate(promptPaper, bodyW + 28, plateH)
+        /* the ring runs round the PLATE's own edge, so it has to be measured off
+         * whichever plate is really under the words: the platform's carved socket
+         * where the kit landed, the plain arm's rectangle where it did not. */
+        wrapBox.w = bodyW + 28
+        wrapBox.h = plateH
         if (promptPlate) {
           /* the art is drawn at 104 tall and is scaled down as a whole, so every
            * corner keeps the proportion it was painted at. The pad is in the
            * plate's own units. */
-          const k = (doorTxt.height + 14) / promptPlateH
+          const k = plateH / promptPlateH
           const padX = 30
           promptPlate.width = bodyW / k + padX * 2
           promptPlate.scale.set(k)
           promptPlate.x = -(promptPlate.width * k) / 2
           promptPlate.y = -(promptPlateH * k) / 2
+          wrapBox.w = promptPlate.width * k
+          wrapBox.h = plateH
         }
         const left = -bodyW / 2
-        promptMark.x = left
+        capG.x = Math.round(left)
+        capG.y = -Math.round(capBox.h / 2)
+        promptMark.x = left + capBox.w + capGap
         promptMark.y = 0
-        doorTxt.x = left + markW + gap
+        doorTxt.x = left + capBox.w + capGap + markW + gap
         doorTxt.y = 0
       }
 
@@ -2726,6 +2917,9 @@ export default function PmapScene() {
 
         doorTxt.text = text
         doorTxt.style.fontSize = promptSize()
+        /* the cap is sized off the same setting the words are, so S/M/L moves the
+         * key and the sentence together instead of leaving one of them behind */
+        drawKeycap(Math.round(promptSize() * 1.15))
         plaqueStyle(doorTxt, promptPlate ? PROMPT_INK[state] : 0xbaf3ea)
         /* THE READER AND THE KEYBOARD GET THE SAME SENTENCE THE EYE GETS. */
         prompt.accessibleTitle = text
@@ -2808,8 +3002,10 @@ export default function PmapScene() {
         if (litAnchor && insideLit(w.x, w.y) && litAnchor.name !== promptAnchor?.name) {
           if (walkTap(w.x, w.y) !== 'busy') return
         }
-        if (seaTap) { seaTap(); return }
-        if (promptAnchor) void fire(promptAnchor)
+        /* THE TAP GETS THE SAME ACKNOWLEDGEMENT THE KEY GETS. A trackpad is the
+         * deployment target's only pointer and it has no travel to feel. */
+        if (seaTap) { startWrap(); seaTap(); return }
+        if (promptAnchor) { startWrap(); void fire(promptAnchor) }
       })
 
       /* the objective marker: a small chevron over the one station the year is
@@ -3172,7 +3368,7 @@ export default function PmapScene() {
        * a cold one on a school network does not uncover onto a half-built map. */
       let fade = false
       let releaseExit: (() => void) | null = null
-      const beginExit = (to: PmapTarget) => {
+      const beginExit = (to: PmapTarget, occasion?: CoverOccasion) => {
         if (fade) return
         fade = true
         /* THE FILM GOES THROUGH THE DOOR WITH HIM. BRIEF-INTRO-FILM section 1:
@@ -3186,8 +3382,17 @@ export default function PmapScene() {
         /* the controls go away for the whole transition. Walking during one means
          * arriving somewhere the player did not aim for. */
         releaseExit = holdWorld(`pmap:exit->${to.map}`)
-        const choice = coverFor(to.map)
-        engine.log('door_taken', { from: mapId, to: to.map, at: to.at ?? null, cover: choice.spec.kind })
+        /* THE END OF A YEAR IS NOT A DOOR, and this is the only thing an island
+         * may say about its own cover. `covers.ts` keeps the rule that the
+         * DESTINATION decides the picture, which is right for the sixty doors
+         * twenty islands will have; the ceremony is an occasion rather than a
+         * destination, and `ceremonyCover` has been written and callerless since
+         * the session that wrote it said so at its own definition. */
+        const choice = occasion === 'ceremony' ? ceremonyCover(titleOfMap(to.map)) : coverFor(to.map)
+        engine.log('door_taken', {
+          from: mapId, to: to.map, at: to.at ?? null,
+          cover: choice.spec.kind, occasion: occasion ?? null,
+        })
         void cover(choice.spec, async () => {
           /* the URL is kept in step so a refresh lands in the room the player was
            * standing in, but with replaceState rather than a navigation: the whole
@@ -3867,8 +4072,8 @@ export default function PmapScene() {
           return playFx(name, at)
         },
 
-        enter(map, at) {
-          beginExit({ map, at })
+        enter(map, at, cover) {
+          beginExit({ map, at }, cover)
           /* resolves when the fade has actually swapped the map, so a station
            * body that walks somebody through a door does not run its next line
            * against a scene that is being torn down */
@@ -4002,11 +4207,18 @@ export default function PmapScene() {
         },
 
         /* ---- A2: SOMEBODY ELSE'S BODY -------------------------------------- */
-        actorMove(actor, to, facing, pace) {
+        actorMove(actor, to, off, facing, pace) {
           const sp = actorBody(actor, 'actor_move')
           const target = anchors.get(to)
           if (!target) throw new NotBuilt('actor_move', `no anchor named "${to}" on ${mapId}`)
-          const at = anchors.standAt(target)
+          const home = anchors.standAt(target)
+          /* WITH NO OFFSET NOTHING ABOUT THIS WORD CHANGES, which is why the
+           * snap is inside the branch: an authored stand point has always been
+           * taken as given here, and an offset is the only reason a body is
+           * being sent to a pixel nobody drew. */
+          const at = off
+            ? { ...asideFrom(target, home.x, home.y, off), facing: home.facing }
+            : home
           const d = take(sp)
           /* the leg already running is SETTLED and never dropped, for the reason
            * `startWalk` gives at length about the player: a promise nothing can
@@ -4028,8 +4240,11 @@ export default function PmapScene() {
            * other side of the room is untouched. */
           const ysm = map.yScale || 1
           let gx = at.x, gy = at.y
+          /* AND AN OFFSET SWITCHES IT OFF, for the reason `place` gives at
+           * length: the push is a guess made when nobody said where, and a
+           * number somebody typed is somebody saying where. */
           const clear = map.character.heightPx * 1.1
-          if (Math.hypot(gx - pos.x, (gy - pos.y) * ysm) < clear) {
+          if (!off && Math.hypot(gx - pos.x, (gy - pos.y) * ysm) < clear) {
             const ax = d.x - pos.x, ay = d.y - pos.y
             const away = Math.hypot(ax, ay * ysm) || 1
             gx = pos.x + (ax / away) * clear
@@ -4080,11 +4295,21 @@ export default function PmapScene() {
          *
          * AND HE TURNS ROUND. The whole reason a person leads is that they then
          * face you and say the line. */
-        leadTo(actor, to, pace) {
+        leadTo(actor, to, off, pace) {
           const sp = actorBody(actor, 'lead_to')
           const target = anchors.get(to)
           if (!target) throw new NotBuilt('lead_to', `no anchor named "${to}" on ${mapId}`)
-          const { goal } = walkGoal(target)
+          /* THE LEADER'S MARK AND THE STUDENT'S ARE THE SAME MARK WITHOUT `off`,
+           * and that is the defect Ash named on rail-6: the man arrives standing
+           * on the spot the student is meant to stand on, in front of the thing
+           * he is about to talk about, and the student is left wherever two body
+           * lengths behind him happened to land. With `off` the leader stops
+           * BESIDE the station and the spot is left free for the student, who is
+           * walked onto it by the `walk_to` the island says next. */
+          const { goal: standAt } = walkGoal(target)
+          const goal = off
+            ? { ...asideFrom(target, standAt.x, standAt.y, off), facing: standAt.facing }
+            : standAt
           const ys = map.yScale || 1
           /* two body lengths, which is the gap Ash names and is also far enough
            * that the leader is never drawn inside the person following him */
@@ -4185,20 +4410,39 @@ export default function PmapScene() {
          * It uses the same clearance `actor_move` does, so placing somebody at
          * the spawn puts them BESIDE the player rather than inside him, and with
          * no heading given they are turned to look at him. */
-        place(actor, at, facing) {
+        place(actor, at, off, facing) {
           const sp = actorBody(actor, 'place')
           const target = anchors.get(at)
           if (!target) throw new NotBuilt('place', `no anchor named "${at}" on ${mapId}`)
           if (facing && !DIRS8.includes(facing)) {
             throw new NotBuilt('place', `"${facing}" is not a heading. They are: ${DIRS8.join(', ')}`)
           }
-          const spot = anchors.standAt(target)
+          const home = anchors.standAt(target)
+          const spot = off
+            ? { ...asideFrom(target, home.x, home.y, off), facing: home.facing }
+            : home
           const d = take(sp)
           if (d.move) { const orphan = d.move.then; d.move = null; orphan?.() }
           const ysp = map.yScale || 1
           let px = spot.x, py = spot.y
+          /* THE CLEARANCE PUSH IS THE FALLBACK AND AN OFFSET IS THE CHOICE, so an
+           * offset switches it off.
+           *
+           * It exists because `place(x, at=the spawn)` puts a body on the pixel
+           * the player is standing on, and it decides the spot from whichever way
+           * the sprite happened to be lying when the word was said, which is the
+           * "ugly random spot" half of what Ash saw on rail-6. Measured: every
+           * offset under about twenty painting pixels was silently thrown away
+           * and replaced by that same guess, so `off` could not author anything
+           * closer than a body length, and a body length is further apart than
+           * two people having a conversation stand.
+           *
+           * An author who says where somebody goes has said where they go. If
+           * that is on top of the player it is visible in the first screenshot,
+           * which is a better teacher than a rule that quietly moves the picture
+           * out from under them. */
           const clearP = map.character.heightPx * 1.1
-          if (Math.hypot(px - pos.x, (py - pos.y) * ysp) < clearP) {
+          if (!off && Math.hypot(px - pos.x, (py - pos.y) * ysp) < clearP) {
             /* he steps aside along the line he was standing on before, and if he
              * was standing on the player himself, off to one side of him */
             const ax = d.x - pos.x, ay = d.y - pos.y
@@ -4916,6 +5160,29 @@ export default function PmapScene() {
            * a raw anchor centre still falls back to a radius around itself */
           reach: a.stand || moved ? 3 : Math.max(4, a.r * 0.5),
         }
+      }
+
+      /* A SECOND MARK BESIDE THE ONE SOMEBODY AUTHORED. `off` is the vocabulary's
+       * one number (`src/vine/intents.ts` has the whole argument): a station
+       * carries a single stand point, drawn for the STUDENT, and a conversation
+       * at a station needs two marks. This is the other one, expressed from the
+       * authored one so it still moves when the table moves.
+       *
+       * SNAPPED, LIKE AN AUTHORED STAND POINT IS. `walkGoal` already refuses to
+       * trust a hand-drawn stand point on ground the walk law will not have, for
+       * the reason it gives about the hearth; an offset is hand-drawn twice over
+       * and gets the same treatment. Said out loud when it moves, because an
+       * offset that is quietly corrected by nine pixels is an offset whose author
+       * thinks they authored the picture they are looking at. */
+      const asideFrom = (a: Anchor, x: number, y: number, off: Offset) => {
+        const want = { x: x + off[0], y: y + off[1] }
+        const { at, moved } = onFloor(want, canStand, cfg.yScale, Math.max(24, a.r))
+        if (moved) {
+          console.info(`[pmap] ${mapId}: "${a.name}" plus off ${off[0]},${off[1]} is ${Math.round(want.x)},`
+            + `${Math.round(want.y)}, which is ground nobody can stand on, so the body goes to `
+            + `${Math.round(at.x)},${Math.round(at.y)} instead`)
+        }
+        return at
       }
 
       const startWalk = (
@@ -6490,6 +6757,18 @@ export default function PmapScene() {
          * cropping the wrong part of a moving player. `x` and `y` above are world
          * coordinates and the camera is between them and the glass. */
         get pinAt() { const g = pin.getGlobalPosition(); return { x: Math.round(g.x), y: Math.round(g.y) } },
+        /* AND WHAT IT IS SUPPOSED TO BE OVER, in the same window pixels, so
+         * "the marker is off to the side" is a subtraction rather than an
+         * opinion. The DRAWN body, not the frame it is drawn on: a walk sheet is
+         * 144 wide with a 52 wide cat somewhere inside it, so the sprite's own
+         * bounds answer the wrong question by about a body width. */
+        get thorBox() {
+          const ink = pinInk[walker.facing] ?? { l: 0, r: 0 }
+          const g = world.toGlobal({ x: pos.x, y: pos.y })
+          const l = g.x + ink.l * camZ
+          const r = g.x + ink.r * camZ
+          return { left: Math.round(l), right: Math.round(r), mid: Math.round((l + r) / 2) }
+        },
         /* WHAT THE ARROW IS ACTUALLY LEADING TO, which is not the same question as
          * what a station asked for. This read `guideTarget`, the explicit
          * `guide_to` override, so a probe asking "is the game pointing anywhere"
@@ -6504,6 +6783,17 @@ export default function PmapScene() {
          * not an anchor, so there is nothing in the DOM and nothing in
          * `anchors` that carries it. */
         get prompt() { return prompt.visible ? promptSaid : null },
+        /* AND WHERE IT IS HANGING, in window pixels, for the same reason `pinAt`
+         * exists: a capture harness cannot crop to a canvas object it cannot
+         * find, and the plaque moves with the player, the anchor and the camera. */
+        get promptAt() {
+          if (!prompt.visible) return null
+          const b = prompt.getBounds()
+          return {
+            x: Math.round(b.minX + b.width / 2), y: Math.round(b.minY + b.height / 2),
+            w: Math.round(b.width), h: Math.round(b.height),
+          }
+        },
         /* WHAT THE YEAR WANTS NEXT, as the sequencer answers it. `guide` above
          * says what is being POINTED at, which is a door when the thing is on
          * another map; this is the step itself, and the phase is what the berth
@@ -7034,7 +7324,11 @@ export default function PmapScene() {
          * word was "shimmers". Rounding the OFFSET in screen units and dividing
          * by the zoom means the mark moves two pixels, holds, and moves back. */
         const bob = Math.round(Math.sin(t * 2.1) * 2) / camZ
-        pin.position.set(pos.x, pos.y - charH - 3 + bob)
+        /* OVER THE MIDDLE OF HIM AND NOT OVER THE MIDDLE OF HIS CANVAS. See
+         * `pinDx` at load: `pos.x` is the frame's centre, and the cat is not
+         * drawn in the centre of the frame. A pose keeps whatever heading he was
+         * left facing, which is the same heading the pose art is drawn for. */
+        pin.position.set(pos.x + (pinDx[walker.facing] ?? 0), pos.y - charH - 3 + bob)
         /* AND THE WHOLE MARK LANDS ON WHOLE SCREEN PIXELS. Quantising the bob
          * fixed the vertical crawl and left the horizontal one: the pin follows
          * Thor's fractional world x, so the vector circle re-rasterised at a
@@ -7728,10 +8022,13 @@ export default function PmapScene() {
         // E is an edge, not a hold: one press, one interaction
         const eNow = !!keys['e']
         if (eNow && !ePrev) {
-          if (seaFire) { seaFire(); keys['e'] = false }
-          else if (near && canFire) fire(near)
+          if (seaFire) { startWrap(); seaFire(); keys['e'] = false }
+          else if (near && canFire) { startWrap(); fire(near) }
         }
         ePrev = eNow
+        /* the ring runs on the scene's own clock, after the press, so it is drawn
+         * even while the handler that press started is holding the world */
+        tickWrap()
 
         /* ---- W7: THE ONE-SHOTS, TICKED ----
          *
