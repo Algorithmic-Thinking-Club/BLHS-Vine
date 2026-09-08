@@ -372,6 +372,36 @@ console.log('\nTHE PANTHER\'S MAW  (items 6 and 8)')
    * SAMPLED EVERY 60MS RATHER THAN EVERY 150. The walk to the table is about
    * three seconds and the cycle is eight frames over 76 painting pixels of
    * ground; at 150ms this gate saw two or three of them and called it broken. */
+  /* AND IT WAITS FOR THE ROOM TO FINISH DRESSING ITSELF FIRST.
+   *
+   * `walking_in` in the Maw's island runs on every load and is allowed to move
+   * this exact body: since 2026-09-08 it steps the principal in front of whoever
+   * just walked in, because Ash moved his post to six pixels from the spot the
+   * tunnel puts a student on. That is one worker round trip after the scene
+   * draws, and this gate used to start its own `actor_move` inside that window:
+   * `place` cancels a move in flight, so the engine did exactly what it was
+   * asked and the gate measured fourteen pixels instead of a hundred and called
+   * the engine broken.
+   *
+   * Waiting for the body to be still for a quarter of a second is the honest
+   * fix. It is not waiting for somebody's BEAT, which the note above rules out;
+   * it is waiting for the room to stop being loaded, which every real caller of
+   * `actor_move` also does by virtue of being a line in a scene rather than the
+   * first thing that happens. */
+  const settled = async () => {
+    let was = null, still = 0
+    const t = Date.now()
+    while (Date.now() - t < 15000) {
+      const now = await page.evaluate(() => window.__placed('principal_desk'))
+      still = now && now === was ? still + 1 : 0
+      was = now
+      if (still >= 3) return true
+      await page.waitForTimeout(120)
+    }
+    return false
+  }
+  await settled()
+
   const frames = new Set()
   const pics = new Set()
   let far = null, near = null
