@@ -9,9 +9,10 @@
  * same depth and the same colour the runtime's do, because a student should not
  * be able to tell which of the two is on screen.
  *
- * Below the cutscene overlay (72) and below the transition cover (90) on
- * purpose: a real cutscene draws over the movie frame, and a door swap covers
- * everything, which is the order those three things happen in.
+ * Below the cutscene overlay (72) on purpose, because a real cutscene draws over
+ * the movie frame. ABOVE the transition cover (90) since 2026-09-06, because Ash
+ * asked for the tunnel door inside the introduction to keep its frame: "the bars
+ * stay up; the cover plays between them." The reasoning is in cinema.css.
  */
 import { useEffect, useState } from 'react'
 import { onCinema } from './cinema'

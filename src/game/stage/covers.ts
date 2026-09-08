@@ -139,24 +139,32 @@ const CLASS_ART: Record<CoverClass, string> = {
 
 /* ---- WHAT THE COVER SAYS OVER THE PICTURE --------------------------------
  *
- * §4.1, on the second painted cover a student meets: it has to "say something
- * different from the archipelago cover", because "if both are a name over a
- * painting over a fact, the second one teaches the student that covers are a tax
- * rather than an arrival."
+ * ONE WORD, SPACED BY HAND rather than by letter-spacing alone, which is how the
+ * kicker has always been drawn: the tracking on its own reads as tracking and
+ * this reads as lettering.
  *
- * So the word changes with the kind of arrival, and the plaque moves with it
- * (`transitions.css`, the four voices). Reaching a place and stepping into a
- * room are not the same event and no longer read as one.
+ * §4.1 wanted the word to change with the kind of arrival, and it did: ENTERING,
+ * INSIDE, GOING TO and THE CEREMONY, with the plaque moving up and down the
+ * painting to match. That is the design Ash looked at and called bad.
  *
- * SPACED BY HAND rather than by letter-spacing alone, which is how the kicker
- * has always been drawn: the tracking on its own reads as tracking and this
- * reads as lettering. */
-const KICKER: Record<CoverVoice, string> = {
-  arrival: 'E N T E R I N G',
-  inside: 'I N S I D E',
-  crossing: 'G O I N G   T O',
-  ceremony: 'T H E   C E R E M O N Y',
-}
+ * ---- AND THEN ASH PLAYED IT, 2026-09-06 ----------------------------------
+ *
+ * His words: the two covers he likes are the archipelago one and the far shore
+ * one, "every other cover is bad", and a cover "says where you are going and
+ * nothing else". The two he likes are the two that were written by hand before
+ * any of the reasoning above existed: `kind: 'scene'`, one word over a painting
+ * over a name, no fact, no per-destination voice.
+ *
+ * So the four voices collapse to one word. What §4.1 wanted was for the second
+ * cover to feel like a different EVENT from the first, and the answer it reached
+ * for was a different caption and a different plaque height; the answer Ash gave
+ * after looking at both is that the painting behind it is the difference and the
+ * lettering is not supposed to move at all. The type stays where the archipelago
+ * cover puts it on every destination in the game.
+ *
+ * `CoverVoice` survives because the picture is still chosen by it and because it
+ * is a published type. It no longer changes a word or a position. */
+const ENTERING = 'E N T E R I N G'
 
 /* ---- the cover for a destination -------------------------------------------
  *
@@ -175,12 +183,21 @@ export type CoverChoice = { spec: TransitionSpec; first: boolean; title: string 
 export function coverFor(mapId: string, bundleTitle?: string): CoverChoice {
   const first = !seenThisSession(mapId)
   const title = titleOfMap(mapId, bundleTitle)
-  if (!first) {
-    /* THE QUICK ONE STILL HAS A MINIMUM DWELL. A fetch that comes back in
-     * eighty milliseconds under a cover with no floor is a flash, which reads as
-     * a bug rather than as a transition. */
-    return { spec: { kind: 'iris', holdMs: 240 }, first, title }
-  }
+  /* ---- EVERY DOOR GETS THE PAINTED COVER, EVERY TIME ----------------------
+   *
+   * ASH, PLAYING 2026-09-06: "no cover plays at all when walking from the hub
+   * into the Maw or from the Maw back out to the hub."
+   *
+   * He is right, and this was the line. Q80.4.c's recommendation on record was
+   * painted for arrivals and quick for interior doors, and the shown-already set
+   * turned every door after the first into a 240 millisecond iris, which at a
+   * door you take four times in a session is indistinguishable from a hard cut.
+   * The Maw is the door the whole first act runs through, so the one transition a
+   * student takes most often in the game was the one with nothing on it.
+   *
+   * `first` still travels with the choice, because the ARRIVAL CARD is a genuine
+   * first-time-here event and its rule has not changed. Only the cover has: a
+   * cover is the page turning, and a page turns the same way every time. */
   const voice: CoverVoice = coverClassOf(mapId)
   /* NO `holdMs` HERE ON PURPOSE. It used to say 1800 while the bar's CSS was
    * drawn for `(holdMs ?? 2600) + 620` and the controller waited
@@ -193,7 +210,7 @@ export function coverFor(mapId: string, bundleTitle?: string): CoverChoice {
       kind: 'scene',
       title: title.toUpperCase(),
       image: COVER_ART[mapId] ?? CLASS_ART[voice],
-      kicker: KICKER[voice],
+      kicker: ENTERING,
       voice,
     },
     first,
@@ -220,7 +237,7 @@ export function ceremonyCover(title: string): CoverChoice {
       title: title.toUpperCase(),
       holdMs: 2400,
       image: ART_ISLANDS,
-      kicker: KICKER.ceremony,
+      kicker: ENTERING,
       voice: 'ceremony',
       fact: false,
     },

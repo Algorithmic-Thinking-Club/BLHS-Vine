@@ -107,22 +107,22 @@ html[data-rm='1'] .tr-twinkle { animation: none; opacity: .7; transform: none; }
   width: min(700px, 86vw);
 }
 
-/* ---- THE FOUR VOICES ------------------------------------------------------
+/* ---- THE FOUR VOICES ARE ONE LAYOUT NOW, RULED BY ASH 2026-09-06 ----------
  *
- * §4.1, on the Maw cover: it has to "say something different from the
- * archipelago cover", because "if both are a name over a painting over a fact,
- * the second one teaches the student that covers are a tax rather than an
- * arrival." Three things move, and none of them is a colour: the painting
- * (`covers.ts` picks it by destination), the word over the plaque (same), and
- * where the plaque sits on the picture, which is this.
+ * §4.1 moved the plaque down the painting for a room and up for an arrival, on
+ * the argument that reaching a place and stepping into a room are different
+ * events and should not read as one. Ash played it and ruled the other way: the
+ * two covers he likes are the archipelago and the far shore, "every other cover
+ * is bad", and every cover is to be the same design with the destination's own
+ * painting behind it. The picture is what makes the Maw different from the
+ * archipelago; the lettering staying put is what makes them the same GAME.
  *
- * An arrival hangs the name over the horizon, because that is where a name
- * belongs when you are looking at a place from outside it. Going inside hangs
- * it low, the way a sign in a room hangs at the height of the person reading
- * it, with the room open above it. Two different pictures, not two captions. */
-.tr-voice-inside .tr-scene-text { top: 68%; }
-.tr-voice-crossing .tr-scene-text { top: 52%; }
-.tr-voice-ceremony .tr-scene-text { top: 42%; }
+ * The classes are still written onto the element, because `covers.ts` still
+ * chooses the PAINTING by voice and a stylesheet that has forgotten the word
+ * cannot be pointed at when somebody asks where the picture came from. They
+ * simply no longer move anything.
+ *
+ * Do not put these three rules back without Ash saying so. */
 
 /* the kicker sits on the painting rather than on the band, because the band's
    own paper starts at the place's name */

@@ -696,23 +696,54 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       const wakeFx: { sp: Sprite; vx: number; vy: number; age: number; life: number; s0: number }[] = []
       let lastPuff = 0, eHeld = false, hopJy = 0, bobOff = 0
       const camS = { x: 0, y: 0, on: false } // eased camera state while riding the ship
-      // the E-prompt chip: chunky pixel plate + keycap, cached per label
+      /* ---- THE E-PROMPT CHIP: A DRAWN KEYCAP AND A LABEL, CACHED PER LABEL ----
+       *
+       * ASH, PLAYING 2026-09-06: every prompt a student presses E for shows "a
+       * small button panel with bold E in the middle. Make it look good."
+       *
+       * WHAT WAS HERE. A 13 pixel box with the character `E` set in `bold 11px
+       * monospace` inside it, which is the operating system's E on a school
+       * Chromebook and is the one thing `docs/ART.md` forbids outright: "icons
+       * are drawn, never an emoji or a font glyph". It also sat one pixel off
+       * centre inside its own box, because a text baseline is not a box centre.
+       *
+       * SO THE KEY IS SHAPES. A face, a rim, and a side wall you can see the
+       * depth of, then the letter as a stem and three arms with a short middle
+       * one. Same drawing as the painted maps' plaque (`pmap/PmapScene.tsx`,
+       * `drawKeycap`), in this scene's own cooler palette, so a student meets one
+       * object for "a key" from the first minute of the game onward. Deliberately
+       * not shared code: that one draws into Pixi Graphics at the world's scale
+       * and this one bakes a texture, and a shared helper would have to be either
+       * a canvas or a display object and cannot be both. */
       const chipCache = new Map<string, Texture>()
       const chipTexFor = (label: string) => {
         const hit = chipCache.get(label)
         if (hit) return hit
         const c = document.createElement('canvas')
         const g = c.getContext('2d')!
+        const CAP = 14                                   // the key's face, square
         g.font = 'bold 11px monospace'
-        const w = Math.ceil(g.measureText(label).width) + 36
+        const w = Math.ceil(g.measureText(label).width) + CAP + 24
         c.width = w; c.height = 22
         g.font = 'bold 11px monospace'
+        // the plate
         g.fillStyle = 'rgba(9,30,38,0.94)'; g.fillRect(1, 1, w - 2, 20)
         g.strokeStyle = '#2b6b6d'; g.lineWidth = 1; g.strokeRect(1.5, 1.5, w - 3, 19)
-        g.fillStyle = '#12333e'; g.fillRect(5, 5, 13, 13)
-        g.strokeStyle = '#54c9b4'; g.strokeRect(5.5, 5.5, 12, 12)
-        g.fillStyle = '#c9f5ea'; g.fillText('E', 8, 15)
-        g.fillStyle = '#eafff6'; g.fillText(label, 24, 15)
+        // the key: rim, then the wall under the face, then the face, then a lit row
+        const kx = 5, ky = 3
+        g.fillStyle = '#0a2028'; g.fillRect(kx, ky, CAP, CAP + 2)
+        g.fillStyle = '#2b6b6d'; g.fillRect(kx + 1, ky + 1, CAP - 2, CAP)
+        g.fillStyle = '#c9f5ea'; g.fillRect(kx + 1, ky + 1, CAP - 2, CAP - 2)
+        g.fillStyle = '#eafff6'; g.fillRect(kx + 2, ky + 2, CAP - 4, 1)
+        /* the E, drawn: a stem and three arms, the middle one short, at a stroke
+         * a fifth of the letter's height so it is bold at this size */
+        const m = 4, lx = kx + m, ly = ky + m, lw = CAP - m * 2, lh = CAP - m * 2, th = 2
+        g.fillStyle = '#0a2028'
+        g.fillRect(lx, ly, th, lh)
+        g.fillRect(lx, ly, lw, th)
+        g.fillRect(lx, ly + Math.round((lh - th) / 2), Math.round(lw * 0.76), th)
+        g.fillRect(lx, ly + lh - th, lw, th)
+        g.fillStyle = '#eafff6'; g.fillText(label, kx + CAP + 6, 15)
         const t = Texture.from(c)
         t.source.scaleMode = 'nearest'
         chipCache.set(label, t)

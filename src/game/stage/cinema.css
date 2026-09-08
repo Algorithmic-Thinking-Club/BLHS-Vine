@@ -4,13 +4,28 @@
    is 0, the HUD corner and the help button are 50, the objective card 46, the
    arrival card 68, the cutscene overlay 72, the panels 73 to 80, a transition
    cover 90, the feedback stamps 120. The bars go at 70: over the world, over the
-   arrival card, and UNDER the cutscene overlay and the door cover, because a
-   real cutscene draws inside the movie frame and a door swap covers the lot. */
+   arrival card, and UNDER the cutscene overlay, because a real cutscene draws
+   inside the movie frame.
+
+   ---- AND OVER THE DOOR COVER, WHICH REVERSES A RULING -----------------------
+
+   This used to say "and a door swap covers the lot", so the tunnel door taken in
+   the middle of the introduction wiped the frame off the screen for four seconds
+   and put it back. Ash, 2026-09-06, on the cover playing inside the film: "the
+   bars stay up; the cover plays between them."
+
+   Which is the right shape. The bars are the statement that somebody else is
+   driving, and that stays true through a door; the cover is the page turning
+   inside the film rather than instead of it. Only the BARS climb: everything
+   else the movie frame carries, the caption and anything pressable, stays under
+   the cover, because a control on top of a transition is a control a student can
+   press while the game is between two places. */
 
 .cin-root {
   position: fixed;
   inset: 0;
-  z-index: 70;
+  /* over the transition cover at 90, so the frame survives a door */
+  z-index: 95;
   pointer-events: none;
   user-select: none;
 }

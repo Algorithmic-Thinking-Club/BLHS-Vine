@@ -205,18 +205,35 @@ export async function runTransition(
   const pool = FACTS.filter((f) => !learned.has(f.id))
   const fact = (pool.length ? pool : FACTS)[Math.floor(Math.random() * (pool.length ? pool.length : FACTS.length))]
   st.fact = fact.text
-  const carriesFact = spec.fact !== false && (spec.kind === 'chart' || spec.kind === 'scene')
+  /* ---- THE TRIVIA SENTENCE IS OFF THE COVER, RULED BY ASH 2026-09-06 -------
+   *
+   * His words: a cover "says where you are going and nothing else", and the line
+   * he named was "INSIDE BONNEY LAKE HIGH SCHOOL / Around 1,700 students...".
+   *
+   * SO THE COVER NO LONGER COLLECTS ONE EITHER. That is the half that matters and
+   * the half that would have been easy to get wrong: `collectFact` writes the id
+   * into the save's learned pool, the Handbook's facts tab reads that pool, and
+   * the bookworm badge counts it. A cover that banks a fact nobody was shown
+   * teaches the Handbook a lie about what the student has read, and the study's
+   * whole point is measuring what they learned.
+   *
+   * The pool still fills the two honest ways: a beat's takeaways
+   * (`beats/ActivityRunner.tsx`) and an island's own `award(fact=...)`
+   * (`intent-engine.ts`). The badge check stays, unconditional, because the count
+   * it reads still grows through play and the grant must not depend on which kind
+   * of transition happens to run next. */
+  const carriesFact = spec.fact !== false && spec.kind === 'chart'
   if (carriesFact) {
     collectFact(fact.id)
     track('loading_fact_shown', { id: fact.id })
-    /* THE THRESHOLD IS THE POOL, READ FROM THE POOL. Twenty-five was typed here
-     * against a pool of eighteen; the pool has been nineteen for months, and the
-     * Handbook stated a goal to a student that the game could not honour. A
-     * number derived from `FACTS` cannot drift away from the content again, and
-     * `badges.ts` states the same criterion off the same constant so the card and
-     * the grant can never disagree. */
-    if ((loadSave()?.facts.length ?? 0) >= bookwormThreshold) grantBadge('bookworm')
   }
+  /* THE THRESHOLD IS THE POOL, READ FROM THE POOL. Twenty-five was typed here
+   * against a pool of eighteen; the pool has been nineteen for months, and the
+   * Handbook stated a goal to a student that the game could not honour. A
+   * number derived from `FACTS` cannot drift away from the content again, and
+   * `badges.ts` states the same criterion off the same constant so the card and
+   * the grant can never disagree. */
+  if ((loadSave()?.facts.length ?? 0) >= bookwormThreshold) grantBadge('bookworm')
   st.phase = 'in'; emit()
   /* THE READER IS TOLD WHERE THEY ARE GOING, ONCE. A cover replaces the entire
    * screen and, until this line, said nothing at all to a screen reader: no
@@ -369,7 +386,6 @@ export function TransitionOverlay({ st, version }: { st: TransitionState; versio
      * §10.4 restates: "the card is content, so it renders in both arms as the
      * same sentence." The picture, the vignette and the twinkles are vehicle. */
     const painted = currentSkin() === 'paper'
-    const carriesFact = spec.fact !== false
     const title = spec.title ?? 'THE SEA'
     return (
       <div className={`tr-root ${cls}`}>
@@ -400,14 +416,12 @@ export function TransitionOverlay({ st, version }: { st: TransitionState; versio
                 when the platform has sent nothing, and answers it with a flat
                 bordered sheet under `data-skin='plain'`, so one class gives all
                 three arms the right thing and the nine-slice is the inset. */}
+            {/* THE NAME OF THE PLACE, AND NOTHING UNDER IT. The band's authored
+                `subtitle` rectangle held the loading fact until 2026-09-06; see
+                the ruling in `runTransition` above. The plaque holds one line
+                now, which is what the two covers Ash likes have always held. */}
             <div className="tr-scene-band kit-surface-band" style={band.style}>
               <h1 className="tr-scene-title">{title}</h1>
-              {/* two names on purpose: the band's authored rectangle is called
-                  `subtitle` and this line is what goes in it, and `tr-scene-fact`
-                  is the handle `scripts/wave2-proof.mjs` reads the loading fact
-                  out of. Renaming it would break a proof run this session does
-                  not own. */}
-              {carriesFact && <p className="tr-scene-subtitle tr-scene-fact">{st.fact}</p>}
             </div>
             <div className="tr-scene-meter">
               <Gauge
