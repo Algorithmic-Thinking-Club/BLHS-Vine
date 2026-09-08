@@ -3,10 +3,7 @@ import { useNav } from '../SceneManager'
 import { track } from '../../game/telemetry'
 import './boot-title.css'
 
-// Boot splash (GAME-DESIGN §4.1): ~1.5s on a deep-teal field — a foam line sweeps across,
-// the panther crest presses in with a squash-settle, the club credit sits below. Click
-// anywhere to skip the moment it can. Toys: clicking the crest makes it purr (teal sparkle);
-// 2% of boots the eyes glint gold.
+// the boot splash: a foam line sweeps, the club crest presses in, and a click skips it
 
 const BOOT_MS = 1600
 

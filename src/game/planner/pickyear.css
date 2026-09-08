@@ -1,15 +1,4 @@
-/* PICK WHAT YOU'LL DO THIS YEAR (BRIEF-YEAR-ONE beat 4).
- *
- * The brief asks for "big drawn cards", and big is the requirement rather than a
- * preference: this is the fourth minute of the game, the student has read
- * nothing, and BRIEF-SELF-EVIDENT's law is that they must be able to do the right
- * thing by pressing the obvious one. A grid of small tidy rows is a form. A row
- * of cards the size of a hand is a choice.
- *
- * The whole screen fits 1366x768 without scrolling: five activity cards on one
- * row, the classes on two, the wall outline under them, and the button that ends
- * the beat always in the same corner.
- */
+/* the year-one planning sheet: activity cards, the class list, the wall and the way on */
 
 .py-veil {
   position: fixed;
@@ -21,11 +10,7 @@
   background: var(--kit-veil);
 }
 
-/* EVERY ROW OF IT ON A 768 PIXEL SCREEN AT ONCE, WITH THE LIST OPEN. Seven
-   periods, thirteen electives and five cards is a lot of sheet, and the first
-   version pushed the plank that ends the beat off the bottom, which on a screen
-   with no other way out is the worst thing it could push off. The numbers below
-   are measured against that layout rather than chosen. */
+/* the whole sheet fits one screen with the elective list open */
 .py-sheet {
   box-sizing: border-box;
   width: min(1180px, 94vw);
@@ -55,15 +40,7 @@
   color: var(--kit-ink-head);
 }
 
-/* ---- THE CARDS ----------------------------------------------------------
- *
- * One row of five, and they share a width so the row reads as a set of equal
- * choices rather than as a ranked list. A flex row rather than a grid, because
- * once a card is taken the row holds two kinds of thing: the locked card at its
- * full size, and the chips the untaken ones step back into, sitting beside it
- * at their own size. A grid would stretch a chip to a card's height and the
- * step back would be a step nowhere. A narrower window wraps instead of
- * shrinking a card below a real tap target. */
+/* ---- the cards: one row of five, all sharing a width ---- */
 .py-grid {
   display: flex;
   flex-wrap: wrap;
@@ -71,36 +48,14 @@
   gap: 10px;
 }
 
-/* ---- THE CLASS LIST ------------------------------------------------------
- *
- * Three columns of rows, so ten of them are three lines of screen rather than
- * two rows of carved frames. Each row is still a real tap target at 34 tall and
- * still says which state it is in with a SHAPE, the drawn tick, rather than with
- * a shade. */
+/* ---- the class list: three columns of rows, each a real tap target ---- */
 .py-classes {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 5px 10px;
 }
-/* ---- THE BOX THAT IS LIT -------------------------------------------------
- *
- * The rows were 34 tall with an 18 pixel tick beside five 184 pixel carved
- * cards, and a student pressed the cards three times and never looked down.
- * The box is the required thing, so it is drawn as one: a bordered field with
- * the verb as its heading, rows as tall as a plank, ticks a hand can see, and
- * a gold glow that pulses until the two ticks are in. Gold is the objective
- * colour the world uses on a lit station; here it is the same word. */
-/* ---- THE SEVEN PERIODS (BRIEF-MAW-RAIL-2) --------------------------------
- *
- * A schedule looks like a schedule or it teaches nothing: a numbered column
- * down the left, one subject per line, and the two blank lines plainly blank.
- * The five filled rows are quiet and are not controls; the first blank one is
- * the only pressable thing in the box and it says so on itself.
- *
- * THE FIVE REQUIRED ROWS ARE SHORTER THAN THE TWO ELECTIVE ONES, on purpose and
- * not to save space alone. They are not decisions, so they do not get a
- * decision's height, and the two rows that ARE the screen stand up out of the
- * column without a colour being spent on it. */
+/* ---- the box that is lit: the required thing, glowing until it is filled ---- */
+/* ---- the seven periods, with the two blank ones plainly blank ---- */
 .py-periods {
   display: flex;
   flex-direction: column;
@@ -172,12 +127,7 @@
 .py-period-on .py-per-press { background: var(--kit-sea-paper); border-color: var(--kit-sea); }
 .py-period-on .py-per-name { color: var(--kit-ink-head); }
 
-/* the list, drawn inside the row it fills.
-   FOUR COLUMNS AND NOT THREE, measured rather than chosen: year one offers
-   thirteen electives, and at three columns the list ran five rows deep, pushed
-   the whole sheet past 768 and put the plank that ends the beat under the fold.
-   Four rows of four fits with the after-school shelf and the foot still on the
-   glass, which is what "one screen" means. */
+/* the elective list, drawn inside the row it fills, four columns wide */
 .py-electives {
   margin: 3px 0 2px 40px;
   padding: 4px 8px;
@@ -192,24 +142,12 @@
   font-size: var(--kit-fs);
   color: var(--kit-ink-head);
 }
-/* ---- WHAT HAS NO ISLAND BEHIND IT YET -----------------------------------
- *
- * Two shapes and they are different on purpose (roster/placeholders.ts). A club
- * card with no island has no name to print, so it is an Example, drawn as a card
- * so a student sees the shape of what is coming and quiet enough that nothing
- * asks to be pressed. An elective keeps its real name, because the course is a
- * true thing about the school whether or not anybody has drawn it, and carries a
- * small mark saying it is not walkable yet. Neither one is a disabled button: a
- * disabled control is still a control, and these are pictures of one. */
+/* ---- what has no island behind it yet: an example card and a waiting class ---- */
 .py-card-example {
   cursor: default;
   opacity: 0.72;
   filter: saturate(0.55);
-  /* A NAME AND ONE LINE, AND SHORT WITH IT. A real card is a hand-sized sign
-     because it is a choice; an Example is a picture of one, and five of them at
-     a real card's height pushed the plank that ends the beat clean off a 768
-     pixel screen, which on a cutscene with no other way out is the one thing
-     that must never happen. */
+  /* an example is a picture of a card, so it stays short */
   min-height: 40px;
   justify-content: center;
 }
@@ -226,16 +164,7 @@
   font-size: var(--kit-fs);
   font-style: italic;
 }
-/* the catalog scrolls inside its own box rather than growing the sheet, so a
-   longer course list one day cannot put the plank under the fold again.
-
-   FOUR WHOLE ROWS, WHICH 128 WAS NOT. The thirteen year-one electives lay out as
-   four rows of four, and at 128 the fourth row was cut through the middle in the
-   game arm and through the words in the plain arm, where a two-line label like
-   "Intro to Engineering Design (PLTW)" makes every row taller. A scroll box that
-   stops halfway down a row reads as a broken list rather than as a list with
-   more in it. The plank cannot fall under the fold either way now: `.py-foot` is
-   pinned to the bottom of the sheet. */
+/* the catalog scrolls inside its own box rather than growing the sheet */
 .py-electives .py-classes {
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 4px 8px;
@@ -342,24 +271,10 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  /* a hand, not a row, and well past the 44px a trackpad needs.
-     THE PADDING IS THE ART'S, NOT A GUESS. The `tab` piece is a carved frame with
-     an iron bracket in each corner, and at 14 the words sat ON those brackets:
-     photographed on the first capture, "Football" was squeezed into the middle
-     third of its own card. The frame's own slice is 36/49, so the contents start
-     inside it. */
-  /* 84 and not 104: with the class box grown into a real box the sheet ran
-     past 768 and cut its own foot off, and the planks that end the beat were
-     two slivers under the fold (`fix-2/yearsheet-01`). A 164 pixel card is
-     still a hand. */
+  /* a hand rather than a row, with the frame's own carving doing the padding */
+  /* how tall a card is, sized so the sheet still fits one screen */
   min-height: 78px;
-  /* NEARLY NO PADDING, BECAUSE THE FRAME IS THE PADDING. `kit-surface-tab` is a
-     nine-slice whose border-width IS its carved edge, 49 pixels each side, and a
-     padding on top of that insets the contents TWICE: at 22 the words had about
-     a hundred pixels of a two-hundred pixel card to live in, so "Girls Flag
-     Football" wrapped onto three lines inside its own sign. This is the same
-     mistake `transitions.css` records for the settings panel, from the other
-     end. */
+  /* nearly no padding, because the nine-slice frame is the padding */
   padding: 4px 2px;
   border: 0;
   text-align: left;
@@ -377,19 +292,11 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
   justify-content: center;
 }
 .py-card:hover { transform: translateY(-2px); filter: brightness(1.04); }
-/* THE WHITE CORNERS GO. The `tab` piece is a carved frame with rounded corners
-   drawn on an OPAQUE white ground, so each card showed a white square poking
-   out of all four corners (`state/beat4/z5-card-corners.png`). The art is the
-   platform's and is not redrawn for this; the card clips itself to the frame's
-   own rounding instead. `border-radius` does not clip a border-image, a
-   clip-path does. */
+/* the card clips itself to the frame's own rounded corners */
 .py-card { clip-path: inset(0 round 18px); }
 .py-card:active { transform: translateY(1px); }
 
-/* TAKEN IS A STAMP AND A RULE, NOT A TINT. §40.31: no state carried by hue alone,
-   because the panel this ships on crushes both lightness and saturation. A card
-   that is yours has a drawn stamp on it and a heavy edge; a card that is not has
-   neither, and the difference survives a bad screen and a colour-blind reader. */
+/* taken is a stamp and a heavy edge, never a tint on its own */
 .py-card-on {
   box-shadow: inset 0 0 0 3px var(--kit-sea);
   /* LOCKED. It is a sign now and not a button: it keeps a card's width rather
@@ -420,12 +327,7 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
   cursor: pointer;
 }
 .py-putback:hover { color: var(--kit-ink-head); background: var(--kit-paper); }
-/* ---- THE SHELF: what steps back once something is chosen --------------------
- *
- * A chip is the card's name and nothing else, one line, no frame, dim. It is
- * still a real control, because a student can take up to three, and it is
- * deliberately SMALLER than a class row: the class box is the lit thing at this
- * stage and a student steering by size has to land on it and not here. */
+/* ---- the shelf: what a card steps back into once something else is chosen ---- */
 .py-chip {
   flex: none;
   display: inline-flex;
@@ -448,10 +350,7 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
 }
 .py-chip:hover { opacity: 1; background: var(--kit-paper-hi); color: var(--kit-ink-head); }
 .py-chip-no { color: var(--kit-alarm); }
-/* THE STAMP SITS IN THE FRAME'S OWN TOP-RIGHT and the name keeps clear of it.
-   With the double padding removed the name reaches the full inner field, which
-   is right, and it promptly ran under the stamp: photographed with Football
-   taken, the tick was on the word. A stamp lands on a card, not on its name. */
+/* where the stamp sits on a taken card, clear of the name */
 .py-stamp {
   position: absolute;
   bottom: 8px;
@@ -477,12 +376,7 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
   font-size: var(--kit-fs);
   color: var(--kit-ink-soft);
 }
-/* the school's own reason, on the card that was pressed, which is where §5.9 says
-   a refusal belongs: not in a corner and not in a toast.
-   IT TAKES NO ROOM. In flow it grew the card by two lines, the grid row with
-   it, and everything under the grid moved 38 pixels the instant a refusal
-   appeared (ugly 5). It sits on the card's bottom edge, inside the frame, in
-   the space the three lines above never reach. */
+/* the school's own reason for a refusal, drawn on the card that was pressed */
 .py-no {
   position: absolute;
   left: 2px; right: 2px; bottom: 4px;
@@ -542,20 +436,7 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
 
 /* ---- THE END OF THE BEAT ------------------------------------------------ */
 
-/* ---- THE WAY ON NEVER GOES UNDER THE FOLD -------------------------------
- *
- * Measured on the dev server, `scripts/_plankfit.mjs`, with the elective list
- * open: at 1366x768 the plank's bottom edge was at 750 of 768, and at 1280x720
- * it was at 749 of 720, which is OFF THE SCREEN. The sheet scrolls, so the
- * plank was reachable and a student who reads nothing would never know it was
- * there, and BRIEF-SELF-EVIDENT law 6 is that there is no screen where nothing
- * is next.
- *
- * A taller cap is the wrong fix, because the list of courses grows the day the
- * catalog does and the fold moves back. The foot is pinned to the bottom of the
- * sheet instead, so the periods scroll under it and the one control that ends
- * the beat is on the glass at every window size and every list length. It
- * carries the sheet's own paper so rows do not read through it. */
+/* ---- the foot is pinned to the sheet, so the way on is never under the fold ---- */
 .py-foot {
   display: flex;
   align-items: center;
@@ -589,12 +470,7 @@ html[data-skin='plain'] .py-foot { background: var(--kit-paper-hi, #fff); }
 }
 html[data-rm='1'] .py-go.py-lit { animation: none; filter: drop-shadow(0 3px 0 var(--kit-plank-drop)) drop-shadow(0 0 8px var(--kit-gold-hi)); }
 
-/* ---- THE CONTROL ARM ----------------------------------------------------
- *
- * The same choices as a real form on white paper: headings, a fieldset feel, and
- * buttons that are buttons. No carved tabs, no stamp, no dashed sockets pretending
- * to be seats on a wall. The information is identical, which is the half §16
- * cares about; the game-ness is what goes. */
+/* ---- the control arm: the same choices as a plain form on white paper ---- */
 html[data-skin='plain'] .py-sheet {
   background: var(--kit-paper-hi);
   border: var(--kit-border) solid var(--kit-edge-strong);

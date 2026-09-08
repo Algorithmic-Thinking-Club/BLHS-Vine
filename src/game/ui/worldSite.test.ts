@@ -1,10 +1,4 @@
-/* WHERE A DIEGETIC PANEL DRAWS, AND WHAT IT MUST NOT COVER.
- *
- * The one placed piece of world UI in the game is drawn at `near.y - 6` with a
- * sine wobble: an offset typed once, true for one map, and with no idea what is
- * underneath it. Every failure below is one a hardcoded offset produces the first
- * time somebody paints a different room.
- */
+// where a panel placed in the world draws, and what it must not cover
 import { describe, it, expect } from 'vitest'
 import { normaliseSite, placeAtSite, type Rect, type WorldUiSite } from './worldSite'
 

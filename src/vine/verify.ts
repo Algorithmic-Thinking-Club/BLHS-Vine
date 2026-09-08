@@ -1,9 +1,4 @@
-// The turn-in artifact's verification (§9.5): a short code an advisory teacher can check
-// against their roster. Pure and dependency-free ON PURPOSE — the client stamps it on the
-// diploma, and api/teacher.ts computes the same code server-side from the SYNCED save, so
-// the two match only if the run the student prints is the run the server watched happen.
-// (FNV-1a over the canonical transcript: this is proof-of-completion for a classroom, not
-// cryptography; the server's copy of the save is the actual trust anchor.)
+// the turn-in artifact's short code, computed the same way on the client and the server
 
 export type Transcript = {
   participantId: string
@@ -12,12 +7,7 @@ export type Transcript = {
   cords: string[]          // earned cord ids, sorted
   ranks: Record<string, number>
   islandsCompleted: number
-  /* THE TWO NUMBERS THAT USED TO BE ONE. `placesSeen` is the awareness measure
-   * and `programmesCompleted` is the learning one, and a student who sailed to
-   * the stadium in three seasons is one of the first and up to three of the
-   * second. NEITHER IS IN `canonical` BELOW and neither ever will be: the code is
-   * frozen so that a diploma printed today still checks against a roster
-   * tomorrow, and these two are for the export rather than for the check. */
+  /* the awareness measure and the learning one, both kept out of the frozen code below */
   placesSeen: number
   programmesCompleted: number
   factsLearned: number

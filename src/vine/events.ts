@@ -58,10 +58,7 @@ export interface GrapeCompleted extends EventBase {
   rankTier?: string
 }
 
-// Vine-level instrumentation (title, intro cutscenes, sailing, planner...) rides one flexible
-// shape: the GAME-DESIGN §13.1 taxonomy names go in `name`, payload in `data`. Grape events
-// above stay narrowly typed because near-beginners author against them; the vine's own events
-// evolve too fast for forty bespoke interfaces.
+// one loose shape for the vine's own events, with the taxonomy name in name and payload in data
 export interface GameEvent extends EventBase {
   type: 'game'
   name: string

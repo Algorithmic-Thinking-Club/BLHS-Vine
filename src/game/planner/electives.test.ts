@@ -1,16 +1,4 @@
-/* THE ELECTIVE LIST A FRESHMAN IS HANDED, AND THAT EVERY ROW ON IT IS REAL.
- *
- * BRIEF-INTRO-FILM section 3: *"two electives PICKABLE and REQUIRED from the
- * real sourced elective list"*, and the standing law under it, CLAUDE.md's:
- * every school fact traces to `docs/blhs/sourced-facts.md`, nothing invented.
- *
- * The screen itself is proved with frames, because a panel is a picture. What
- * this file proves is the part a picture cannot: that the rows the panel draws
- * are the year-one rows of the catalog, that there are enough of them for a
- * student to have a choice, that not one of them is an "Example" placeholder
- * (which is the clubs' rule and never the courses'), and that the two-pick
- * ceiling the plank counts against is the one `refuseClass` enforces.
- */
+/* the year-one elective list a freshman is handed, and that every row on it is a real course */
 import { describe, it, expect } from 'vitest'
 import { CLASSES } from './catalog'
 import { ELECTIVES_OWED, scheduleOwed } from './schedule'
@@ -36,10 +24,7 @@ describe('the year-one elective list', () => {
   })
 
   it('has no placeholder name anywhere in it', () => {
-    /* Example A to E is the CLUBS' rule (`roster/placeholders.ts`). A course is a
-     * true thing about Bonney Lake whether or not anybody has drawn an island for
-     * it, so a course wearing a placeholder name would be the game hiding a fact
-     * it actually has. */
+    /* a placeholder name belongs to the clubs and never to a real course */
     for (const c of offered(1)) expect(c.name).not.toMatch(/example/i)
   })
 

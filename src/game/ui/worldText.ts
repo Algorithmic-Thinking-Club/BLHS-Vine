@@ -1,35 +1,4 @@
-/* PLAYER TEXT COMPOSITED INTO WORLD ART.
- *
- * I9, load-bearing at five moments, and AUTHORING §14's first bullet: "where
- * player-supplied or run-supplied text lands on a piece of art, at what size and
- * orientation, with a baseline and an alignment". It is the only capability in
- * the kit that is not a panel, and §80.5 states the cost of not having it
- * plainly: without it the game's text cannot be in the world, so everything the
- * world would have said gets said in a box.
- *
- * THE PRECEDENT IS ALREADY IN THE REPO and it is why this file exists as a kit
- * capability rather than a second copy of it. `BeachIso.tsx:688` builds a wood
- * chip out of `document.createElement('canvas')`, measures the label, draws a
- * keycap and a name, caches by string and hands the result to `Texture.from`.
- * `showBoatName` at :1039 hangs the player's own boat name over the berth with
- * it, and the comment there says out loud what this file fixes: "the painted
- * stern text is a later art pass". That chip is beach-shaped, lives inside a
- * 1500-line scene, knows the beach's palette and cannot be reached from any
- * other map, so the signpost, the dock crest, the trophy plaque, the room number
- * and the scoreboard would each have grown their own.
- *
- * WHAT IS ART AND WHAT IS TEXT. All art comes from PixelLab and nothing here
- * draws any. This composites a STRING, in a font, onto a transparent canvas, so
- * a painted signpost keeps being a painted signpost and stops needing one
- * painting per island, which is the twenty-dialects failure AUTHORING §14 names.
- * The sign is art. The name on it is what a student typed.
- *
- * THE LAYOUT IS PURE AND THE PAINTING IS NOT, deliberately. `layoutWorldText`
- * takes a measuring function and returns numbers, so what a slot does with a
- * fourteen-year-old's twenty-two character boat name is testable without a
- * canvas at all. `composeWorldText` is the half that needs a 2D context, and it
- * says so when it cannot get one instead of returning a blank texture.
- */
+/* player text composited onto a transparent canvas a scene can paint into the world */
 
 export type WorldTextAlign = 'left' | 'center' | 'right'
 export type WorldTextBaseline = 'top' | 'middle' | 'bottom'
@@ -98,11 +67,7 @@ const DEFAULTS = {
 export const fontOf = (s: WorldTextStyle): string =>
   `${s.weight ?? DEFAULTS.weight} ${Math.max(1, Math.round(s.size))}px ${s.face}`
 
-/* A MONOSPACE GUESS IS A GUESS AND IT SAYS SO. happy-dom returns null from
- * getContext('2d'), so a test and a worker have no glyphs to measure. The
- * estimate is per-face rather than one number because 0.6em is right for the
- * monospace fallback and far too wide for a proportional face, and a slot sized
- * off a bad estimate is a name that runs off the stern. */
+/* a per-face estimate of character width, used only where there is no canvas to measure */
 export function estimatedCharWidth(style: WorldTextStyle): number {
   if (style.charWidth !== undefined) return style.charWidth
   return /mono|Deckhand|Harbormaster/i.test(style.face) ? 0.6 : 0.52
@@ -245,11 +210,7 @@ export function measureWorldText(text: string, style: WorldTextStyle): WorldText
 const cache = new Map<string, WorldTextImage>()
 const keyOf = (text: string, s: WorldTextStyle) => `${text}|${JSON.stringify(s)}`
 
-/**
- * Compose `text` onto a transparent canvas a Pixi scene can hand to
- * `Texture.from`. Returns null when this environment has no 2D context, which is
- * an honest refusal rather than a blank texture the caller draws anyway.
- */
+/** composes text onto a transparent canvas, or returns null with no 2D context */
 export function composeWorldText(text: string, style: WorldTextStyle): WorldTextImage | null {
   if (typeof document === 'undefined') return null
   const key = keyOf(text, style)
@@ -317,13 +278,7 @@ function drawLine(g: CanvasRenderingContext2D, line: string, x: number, y: numbe
 /** for a scene that has rebuilt its art and wants the strings composed again */
 export const clearWorldTextCache = (): void => { cache.clear() }
 
-/* ---- THE SIX SLOTS §14 NAMES ------------------------------------------
- *
- * Presets rather than six functions: a slot is a style, and an author who needs
- * a seventh writes one object instead of a seventh code path. Sizes are in art
- * pixels against the 18px-tall person `map.json` calls a character, so a room
- * number reads at the same distance a doorway does.
- */
+/* the six named slots: a stern, a signpost, a crest, a plaque, a room number, a scoreboard */
 export const WORLD_TEXT: Record<
   'sternName' | 'signpost' | 'dockCrest' | 'trophyPlaque' | 'roomNumber' | 'scoreboard',
   WorldTextStyle

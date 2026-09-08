@@ -1,7 +1,4 @@
-// The core-beat registry (§7.3): the fixed measured content, one per year. Y1-Y3 are
-// static data; Y4 GENERATES from the save (the cords audit reads the student's real
-// cape). The runner and the year glue resolve through coreBeatFor, so where a beat comes
-// from is nobody else's business.
+// the registry of core beats, one per year, asked for through coreBeatFor
 
 import type { SaveGame } from '../save'
 import type { CoreBeat } from './frames'

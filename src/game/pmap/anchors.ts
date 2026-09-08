@@ -1,25 +1,4 @@
-/* ANCHORS, READ AT LAST.
- *
- * MAPVIS has published these since 2026-08-26 and the game has never once
- * looked at them. PmapScene read `map.events` and filtered `type === 'door'`,
- * which is the shape from before anchors existed, so `name`, `kind`, `meta` and
- * `toAnchor` all arrived in every bundle and went straight in the bin. The whole
- * addressing system the Python API is meant to sit on was already in the file.
- *
- * This module is the reader. It is deliberately its own file and not a few more
- * lines in PmapScene, because an anchor is a contract with another repo and the
- * next person to change it should find one place that knows the shape.
- *
- * The contract, verbatim from MAPVIS-next/src/core/mask.ts:143-192:
- *
- *   AnchorKind = 'point' | 'region' | 'door' | 'post' | 'spawn' | 'trigger'
- *   MapAnchor  = { id, name, kind, x, y, r, rect?, to, toAnchor?, placement?,
- *                  facing?, label, meta? }
- *
- * `name` is what code addresses and `label` is what a player reads, and they are
- * two fields for the reason the tool's own comment gives: one string doing both
- * means renaming a door for the player silently breaks a member's island.
- */
+/* the reader for a map's anchors, the named places code addresses on a map */
 
 export type AnchorKind = 'point' | 'region' | 'door' | 'post' | 'spawn' | 'trigger'
 
@@ -39,12 +18,7 @@ export interface Anchor {
    * [x,y,w,h] and this box test always did corners; the disagreement was
    * settled in favour of this side, because it was the one with running code. */
   rect?: [number, number, number, number]
-  /* how far the interaction circle sits from the anchor's own pixel. MAPVIS
-   * pins a bound anchor to its placement's origin, which in an isometric map is
-   * the bottom middle of the art, so a ring on a table sat under its front legs
-   * with the tabletop outside its own zone. An offset rather than a point,
-   * because the circle is the one shape that follows a placement that moves.
-   * Absent means centred, which is what every anchor meant before this. */
+  /* how far the interaction circle sits from the anchor's own pixel, centred if absent */
   ring?: [number, number]
   to?: string
   toAnchor?: string
@@ -54,10 +28,7 @@ export interface Anchor {
   meta?: Record<string, unknown>
 }
 
-/* the two shapes a bundle can carry. `anchors` is current; `events` is what
- * every bundle exported before August and is still written alongside for
- * exactly this reason. A reader that handles both is a reader that never has to
- * care which era a map came from. */
+/* the two shapes a bundle can carry, the current `anchors` and the older `events` */
 export interface AnchorSource {
   anchors?: unknown
   events?: unknown
@@ -68,23 +39,7 @@ export interface AnchorSource {
   yScale?: unknown
 }
 
-/* HOW FAR A STANDING SPOT MAY BE FROM THE THING IT BELONGS TO, in body lengths.
- *
- * A `stand` is "the floor beside this", so it is always within arm's reach of the
- * thing: measured across every post Ash has authored, the furthest legitimate one
- * is the chart table's at just over one body length, and most are a third of that.
- *
- * IT IS CHECKED BECAUSE MAPVIS LEAVES IT BEHIND WHEN A POST MOVES. Maw v7,
- * published 2026-09-08: Ash moved the counselor onto the desk and the principal
- * out to the tunnel mouth, both posts travelled, and neither `stand` did. So the
- * counselor's standing spot was sixty pixels of floor away from the counselor,
- * and the principal's was two hundred and fourteen, on the far side of the hall
- * and twelve pixels from the counselor. Walking to the principal walked you to
- * her; walking to the counselor walked you to nothing at all.
- *
- * A spot that far away is not this anchor's spot, it is the ghost of where the
- * post used to be, and the anchor's own pixel is a better answer than a wrong
- * one. Said out loud, with both numbers, because the real fix is in the tool. */
+/* how far a standing spot may be from the thing it belongs to, in body lengths */
 const STAND_REACH_BODIES = 2
 
 const num = (v: unknown, fallback: number) => (isFinite(Number(v)) ? Number(v) : fallback)
@@ -94,16 +49,7 @@ const num = (v: unknown, fallback: number) => (isFinite(Number(v)) ? Number(v) :
  * a legal python identifier is a name the API cannot expose. */
 export const isAnchorName = (s: unknown) => typeof s === 'string' && /^[a-z][a-z0-9_]{0,47}$/.test(s)
 
-/* THE TOLERANT PARSE, and it stays tolerant on purpose.
- *
- * A map is authored in another repo by a person, and it will arrive with a kind
- * this build has not heard of, or a door with no target, or a name somebody
- * typed in caps. None of that is a reason to show a black screen. An anchor that
- * cannot be understood is dropped with a console line naming it, and the rest of
- * the map loads. The alternative is a map that refuses to open because one
- * trigger was misspelt, which is the failure mode that makes a tool unusable for
- * the person it was built for.
- */
+/* read a bundle's anchors, dropping any it cannot understand so the map still loads */
 export function readAnchors(map: AnchorSource, mapId = ''): Anchor[] {
   const raw = Array.isArray(map.anchors) ? map.anchors
     : Array.isArray(map.events) ? map.events
@@ -119,10 +65,7 @@ export function readAnchors(map: AnchorSource, mapId = ''): Anchor[] {
     if (!e || typeof e !== 'object') continue
     if (!isFinite(Number(e.x)) || !isFinite(Number(e.y))) continue
 
-    /* a legacy event carries `type`, not `kind`, and every legacy event was a
-     * door. A legacy door also has no name, so one is derived from its label the
-     * way MAPVIS derives it, and marked derived so anything reading meta knows
-     * the name is a guess rather than something a person chose. */
+    /* an older event carries `type` instead of `kind` and was always a door */
     const legacyType = typeof e.type === 'string' ? e.type : ''
     const kindRaw = typeof e.kind === 'string' ? e.kind : legacyType === 'door' || !legacyType ? 'door' : 'point'
     if (!(ANCHOR_KINDS as string[]).includes(kindRaw)) {
@@ -158,10 +101,7 @@ export function readAnchors(map: AnchorSource, mapId = ''): Anchor[] {
       ...(derived ? { meta: { ...(meta || {}), derived: true } } : meta ? { meta } : {}),
     }
     if (Array.isArray(e.rect) && e.rect.length === 4) a.rect = (e.rect as number[]).map(Number) as Anchor['rect']
-    /* TOP LEVEL OR OUT OF THE BAG. MAPVIS writes this field both places on
-     * purpose, because the anchors upsert and the publish projection each copy a
-     * fixed list of columns plus the whole of meta, and a bundle published before
-     * either learned the column still carries it in meta. */
+    /* the ring offset can arrive as its own field or inside the meta bag */
     const rawRing = Array.isArray(e.ring) ? e.ring : meta && Array.isArray(meta.ring) ? meta.ring : null
     if (rawRing && rawRing.length === 2 && (rawRing as unknown[]).every((n) => isFinite(Number(n))))
       a.ring = [Math.round(Number(rawRing[0])), Math.round(Number(rawRing[1]))]
@@ -226,24 +166,10 @@ export class AnchorSet {
   has(name: string): boolean { return this.byName.has(name) }
   ofKind(kind: AnchorKind): Anchor[] { return this.all.filter((a) => a.kind === kind) }
 
-  /* WHO KNOWS WHERE THE PAINTED THINGS ARE. Handed in by the scene once its
-   * placements are on screen. Without it every anchor answers with the x and y
-   * the bundle carries, which is what a map with no movers wants and is what
-   * every reader before this got. */
+  /* hand in who knows where the painted things are drawn this frame */
   follow(spots: LiveSpots | null) { this.live = spots }
 
-  /* WHERE THIS ANCHOR IS RIGHT NOW, which is not always where it was exported.
-   *
-   * A bound anchor is a name ON a painted thing, and seventeen of the hub's
-   * people wander: their position is a function of the clock, so the bundle can
-   * only honestly carry where they start. MAPVIS writes the home position for
-   * that reason, deliberately, and the following happens here. Without this the
-   * prompt ring, the objective marker and the interaction test for every
-   * anchor on a figure who paces all sit on the spot she left at load.
-   *
-   * Everything below asks through here rather than reading a.x directly, so
-   * there is one answer to the question and no caller has to know a placement
-   * exists. */
+  /* where this anchor is right now, following the painted thing it is bound to */
   spotOf(a: Anchor): { x: number; y: number } {
     if (a.placement && this.live) {
       const p = this.live(a.placement)
@@ -252,16 +178,7 @@ export class AnchorSet {
     return { x: a.x, y: a.y }
   }
 
-  /* WHERE A BODY ENDS UP AT THIS ANCHOR, and which way it looks once it is
-   * there. Different from spotOf, which is where the thing itself is: a chart
-   * table's spot is the tabletop and its stand-at is the floor beside it, and
-   * one point cannot be both. walk_to steers here and an arrival through a door
-   * lands here, so a station's prompt can hover over the table while the player
-   * stands where a person would.
-   *
-   * A bound anchor carries its stand-at along by however far the placement has
-   * moved, so the floor beside somebody who paces stays beside her. Absent, the
-   * answer is the anchor itself, which is what every map did before this. */
+  /* the floor a body ends up on at this anchor, and which way it looks there */
   standAt(a: Anchor): { x: number; y: number; facing?: string } {
     const spot = this.spotOf(a)
     if (!a.stand) return { ...spot, facing: a.facing }
@@ -272,10 +189,7 @@ export class AnchorSet {
     }
   }
 
-  /* is a point inside this anchor's reach. A region uses its rectangle when it
-   * has one, because a rectangle is what the author drew and a circle around its
-   * centre is a different shape than the one they meant. Everything else is the
-   * radius, which is what the door prompt has always used. */
+  /* is a point inside this anchor's reach, by its rectangle if it has one */
   contains(a: Anchor, x: number, y: number): boolean {
     if (a.kind === 'region' && a.rect) {
       const [x0, y0, x1, y1] = a.rect
@@ -285,27 +199,14 @@ export class AnchorSet {
     return Math.hypot(x - p.x, y - p.y) <= a.r
   }
 
-  /* WHERE THE INTERACTION CIRCLE ACTUALLY IS, which is spotOf plus whatever the
-   * author dragged it by. Separate from spotOf on purpose: the prompt, the
-   * objective chevron and the marker all still point at the THING, and only the
-   * reach moves. A table whose ring was nudged up to cover its top should still
-   * be pointed at where it stands. */
+  /* where the interaction circle sits, which is the spot plus the author's offset */
   ringOf(a: Anchor): { x: number; y: number } {
     const p = this.spotOf(a)
     if (!a.ring) return p
     return { x: p.x + a.ring[0], y: p.y + a.ring[1] }
   }
 
-  /* THE NEAREST ONE THAT WANTS A BUTTON PRESS.
-   *
-   * `point`, `post` and `door` are things you walk up to and interact with.
-   * `region` and `trigger` fire by being entered and must never take the prompt,
-   * or standing in a big region would suppress the table you are standing at.
-   * `spawn` is an address, not a place.
-   *
-   * Nearest wins, which is why station spacing is a real constraint: two posts
-   * whose rings overlap mean one of them is unreachable from the overlap.
-   */
+  /* the nearest anchor a player can walk up to and press a button at */
   nearestInteractive(x: number, y: number): Anchor | null {
     let best: Anchor | null = null
     let bestD = Infinity

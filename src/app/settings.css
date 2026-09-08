@@ -1,16 +1,4 @@
-/* The settings sheet (§40.22 to §40.26): tabbed paper on the square kit panel. The content
-   sits in an absolutely-positioned inner so its inset resolves against the PANEL (plain %
-   padding would resolve against the full-width veil and swallow the panel).
-
-   Materials from game/ui/tokens.css, sizes multiplied by the text setting. This sheet is
-   where a student turns the text up, and it is the panel that has to answer its own control
-   first.
-
-   WHAT MOVED OUT OF THIS FILE, 2026-09-01. Four controls used to be drawn here as private
-   rectangles: the tab, the two danger buttons and the Back to it button. They are the kit's
-   `<Tab>` and `<Plank>` now (`game/ui/controls.css`), so rest, hover, press, disabled, focus
-   and busy come from one file instead of from four rules each with a different idea of what a
-   press looks like. What is left here is only what is particular to this sheet. */
+/* the settings sheet: tabbed paper on the square kit panel, with its content in an inner box */
 
 @import '../game/ui/tokens.css';
 
@@ -33,20 +21,13 @@
 @keyframes st-in { from { transform: translateY(12px) scale(.97); } to { transform: none; } }
 html[data-rm='1'] .st-panel { animation-duration: 1ms; }
 .st-inner {
-  /* WAS 17% 17% 13%, the paper zone measured off the stretched picture. The frame
-     is a nine-slice now and its own border-width is that inset, in pixels, so a
-     second one here would inset the contents twice. Absolutely positioned
-     children resolve against the PADDING box, which is already inside the
-     frame. */
+  /* no inset of its own, since the panel's nine-slice border width is already the padding */
   position: absolute; inset: 0;
   display: flex; flex-direction: column; align-items: stretch;
   container-type: inline-size;   /* cqw below resolves against THIS inner's width */
 }
 
-/* THE ROW NEVER WRAPS. `.kit-tabrow` is what enforces that (it scrolls sideways
-   instead), and the only thing left for this sheet to say is that its three tabs
-   share the width evenly. Two classes deep so it wins over `.kit-tab { flex: none }`
-   whichever order the two stylesheets land in. */
+/* the sheet's three tabs share the row's width evenly */
 .st-tabs { margin-bottom: 3cqw; }
 .st-tabs .st-tab { flex: 1 1 auto; }
 .st-tabs .st-tab .kit-tab-ink {
@@ -56,11 +37,7 @@ html[data-rm='1'] .st-panel { animation-duration: 1ms; }
 
 .st-page {
   flex: 1;
-  /* `min-height: 0` IS THE WHOLE FIX. A flex child's minimum height is its
-     content, so `flex: 1` never let this page shrink to the room it had; it
-     overflowed the panel and pushed the Back plank over its own last rows,
-     which is why Reduced motion and Fullscreen were hidden under "Back to the
-     game" (ugly 6). With a real minimum it scrolls inside the panel. */
+  /* a real minimum height, so the page scrolls inside the panel instead of overflowing it */
   min-height: 0;
   overflow-y: scroll;
   scrollbar-gutter: stable;
@@ -96,27 +73,13 @@ html[data-skin='plain'] .st-page { -webkit-mask-image: none; mask-image: none; }
   flex: 1; min-width: 0; text-align: right;
   font-family: var(--kit-face-display); --kit-fs-raw: calc(4.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink);
   background: var(--kit-field); border: none;
-  /* the pencil rule under the box is drawn as a shadow rather than as a border,
-     so THICKENING it on focus costs no layout: a border that grows moves the
-     field, and a field that jumps under a student mid-type is worse than no
-     focus state at all */
+  /* the pencil rule under the box is a shadow, so thickening it on focus costs no layout */
   box-shadow: inset 0 -2px 0 var(--kit-field-rule);
   border-radius: var(--kit-r-sharp) var(--kit-r-sharp) 0 0; padding: .6cqw 1.2cqw;
   transition: box-shadow var(--kit-t-quick) ease, background-color var(--kit-t-quick) ease;
 }
 .st-idfield::placeholder { color: var(--kit-field-hint); }
-/* THE ONE CONTROL IN THE KIT THE FOCUS RING DOES NOT REACH, and until now what it
-   fell back to was a hue swap and an alpha step: `tokens.css` excludes
-   `.st-idfield` and `.i3-field` by name, with a reason (a ring inside a drawn
-   field is a second outline round a box a mouse user clicks into constantly).
-   §40.31 says no state may be carried by hue alone, so the exclusion has to be
-   paid for with a SHAPE. The rule under the box goes from two pixels to four and
-   the paper behind it lightens: one of those two survives a Chromebook panel that
-   crushes saturation, and it is not the colour.
-
-   `:focus-visible` rather than `:focus`, because that is the pseudo-class the rest
-   of the kit is written against. A text input matches it however it was focused,
-   including by a click, so nothing is lost by the change. */
+/* the focus state for the field the ring skips: a thicker rule and lighter paper */
 .st-idfield:focus-visible {
   background: var(--kit-field-focus);
   box-shadow: inset 0 -4px 0 var(--kit-sea);
@@ -179,10 +142,7 @@ html[data-skin='plain'] .st-page { -webkit-mask-image: none; mask-image: none; }
 .st-ctrlnote { font-family: var(--kit-face-body); --kit-fs-raw: calc(3.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); line-height: 1.4; color: var(--kit-ink-soft); text-align: center; margin-top: 3cqw; }
 
 .st-row {
-  /* WRAPS AT LARGE. Three sound buttons and a label are about 500 of the 539
-     pixels this panel gives them at `--kit-text-scale: 1.22`, and the row after
-     that has to fall onto a second line rather than push its own label out of
-     the sheet. */
+  /* the row wraps onto a second line rather than push its own label out of the sheet */
   width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 2cqw; flex-wrap: wrap;
   font-family: var(--kit-face-body); --kit-fs-raw: calc(4.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-body); margin: 2cqw 0;
 }
@@ -201,11 +161,7 @@ html[data-skin='plain'] .st-page { -webkit-mask-image: none; mask-image: none; }
 }
 .st-seg, .st-level { display: flex; gap: 1.4cqw; }
 .st-levelbtn { padding: 1cqw 2cqw; --kit-fs-raw: calc(3.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs); }
-/* THE CHOSEN ONE IS PRESSED IN. §40.31: no state carried by hue alone, and the
-   hardware is the argument, not the guideline. A school Chromebook panel crushes
-   lightness and saturation, so the sea-green border and the glow can both be most
-   of the way gone; the button sitting a pixel lower than its neighbours cannot be.
-   The word inside it is the third signal and `aria-pressed` is the fourth. */
+/* the chosen button is pressed in as well as recoloured */
 .st-on {
   border-color: var(--kit-sea); color: var(--kit-sea-ink);
   box-shadow: 0 0 0 2px var(--kit-sea-glow), inset 0 2px 3px var(--kit-cord-track);
@@ -220,10 +176,7 @@ html[data-skin='plain'] .st-page { -webkit-mask-image: none; mask-image: none; }
 .st-dangerhead { font-family: var(--kit-face-display); --kit-fs-raw: calc(5.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-alarm); margin-bottom: 2cqw; }
 .st-dangerbody { font-family: var(--kit-face-body); --kit-fs-raw: calc(3.9cqw * var(--kit-text-scale)); font-size: var(--kit-fs); line-height: 1.5; color: var(--kit-ink-label); margin-bottom: 4cqw; }
 .st-dangerbody-quiet { opacity: .75; }
-/* THE DESTRUCTIVE PLANK IS STILL A PLANK, because a second button material for
-   one button is how this sheet ended up with four. What marks it is a struck line
-   under the label, in the alarm ink, which is a MARK and not only a colour, plus
-   the words, which already say what it does. */
+/* the destructive button is an ordinary plank marked with a struck line in the alarm ink */
 .st-dangerplank { position: relative; }
 .st-dangerplank::after {
   content: '';
@@ -240,15 +193,7 @@ html[data-skin='plain'] .st-page { -webkit-mask-image: none; mask-image: none; }
 
 .st-close { flex: none; margin-top: 3cqw; align-self: center; min-width: 55%; }
 
-/* ---- THE CORNER CONTROL -------------------------------------------------
- *
- * WAS A 40 PIXEL WOODEN SQUARE WITH `U+2699` IN IT, which is an operating-system glyph
- * and is forbidden three times over (`docs/ART.md`, Part IV Law 2, the UI brief's
- * do-not list). The live `icon_set` has no gear face, so the answer is not another
- * picture: it is the carved plate `plaque-small.png`, drawn at 2:1 for exactly
- * this shape and already the ground under the HUD's two corner controls, with the
- * word on it. Three corner controls, one family, no glyph, and a target a trackpad
- * can actually hit. */
+/* the corner control that opens this sheet, drawn as a carved plate with a word on it */
 .st-gear {
   position: absolute; bottom: max(2.2vh, 12px); right: max(2vw, 14px); z-index: 70;
   display: inline-flex; align-items: center; justify-content: center;
@@ -273,25 +218,10 @@ html[data-skin='plain'] .st-page { -webkit-mask-image: none; mask-image: none; }
 .st-gear:active { transform: translateY(2px); filter: drop-shadow(0 1px 0 var(--kit-plank-drop)); }
 .st-gear:focus-visible { opacity: 1; }
 
-/* the transition library's reduced-motion hook. It lives here rather than in
-   `transitions.css` because this session does not own that file; the two hooks
-   that used to sit beside it, for the title backdrop and the intro scroll, have
-   moved into the files that actually start those animations. */
+/* the transition library's reduced-motion hook */
 html[data-rm='1'] .tr-root * { animation-duration: 200ms !important; }
 
-/* =========================================================================
- * THE PLAIN ARM
- *
- * Almost the whole sheet is already made of tokens, so `html[data-skin='plain']`
- * reaches it without a rule: the paper goes white, the ink goes black, the two
- * game faces become the system face, and the panel's nine-slice frame is switched
- * off in `tokens.css`. What needs saying here is the one surface that is a
- * PICTURE rather than a colour.
- *
- * `--kit-art-plaque: none` leaves the corner control as an invisible button with a
- * word floating in it, which is exactly the failure §16 would ship with. So it
- * becomes what a document's own button is: a rectangle with a border.
- * ========================================================================= */
+/* the plain arm, where the corner control becomes a plain bordered rectangle */
 html[data-skin='plain'] .st-gear {
   background: var(--kit-paper-lo);
   border: 1px solid var(--kit-edge-strong);
@@ -303,17 +233,7 @@ html[data-skin='plain'] .st-gear {
 }
 html[data-skin='plain'] .st-gear:hover,
 html[data-skin='plain'] .st-gear:active { transform: none; filter: none; }
-/* THE PREFIX WAS MISSING AND IT COST THE WORD ON THE TITLE SCREEN.
- *
- * This rule sat inside the plain-arm block WITHOUT the attribute on it, later in
- * the file and at the same specificity as the paper rule above, so it won in
- * BOTH arms: the settings plate on the title screen painted `--kit-ink-body`, a
- * dark brown, onto dark carved wood. Probed in the browser on 2026-09-01 and the
- * word measured rgb(74,56,38) at 40x14 on a plaque it could not be seen against;
- * the crop showed a plate with a mark on it and nothing else.
- *
- * A one-class selector that means to be scoped and is not is the quietest kind
- * of CSS bug there is, and this one hid behind a mark being added beside it. */
+/* the word on the corner control, in the plain arm only */
 html[data-skin='plain'] .st-gear-ink {
   font-family: var(--kit-face-body);
   font-size: 14px; letter-spacing: 0;
@@ -325,35 +245,13 @@ html[data-skin='plain'] .st-caretmark { border-top-color: var(--kit-ink-body); }
    words, and the words are already there */
 html[data-skin='plain'] .st-dangerplank::after { display: none; }
 
-/* ---- THE GUTTER THE FRAME USED TO BE ------------------------------------
- *
- * `.st-inner` is `inset: 0` on purpose: in the painted arms the panel's
- * nine-slice border-width IS the padding, about fifty pixels of carved frame, so
- * a second inset here would inset the contents twice.
- *
- * The plain arm replaces that nine-slice with a one pixel rule, and nothing put
- * the fifty pixels back. Measured on `fixed-plain/14-settings.png`: the Sound
- * "Full" button has no right border at all because it is under the panel edge,
- * the helper sentence breaks mid-word, and the "L" text-size button is sliced in
- * half. The same content sits fully inside its frame in the game arm, so this is
- * the control arm looking broken, which is the one thing §16's ruling says it
- * must never do.
- *
- * `transitions.css` already wrote this rule down for the same reason on a
- * different panel: the inset has to come back here and only here. */
+/* the plain arm's panel has no carved frame, so its padding is put back by hand */
 html[data-skin='plain'] .st-inner {
   inset: 0;
   padding: 22px 28px 20px;
   box-sizing: border-box;
 }
-/* AND THE PAGE SCROLLS LIKE A PAGE. With the gutter back, the settings content
-   is taller than the sheet at 1366x768 and something has to give. Making the
-   sheet taller was tried and read worse: it detaches from the game arm's own
-   proportions and still runs out of room at L.
-
-   A document in a browser scrolls and shows a scrollbar while it does, which is
-   what `beats.css` already ruled for this arm's form: "hiding it would be the
-   game-ness the arm exists to remove." The game arm keeps its thin carved one. */
+/* the plain arm's page scrolls with an ordinary browser scrollbar */
 html[data-skin='plain'] .st-page {
   scrollbar-width: auto;
   scrollbar-gutter: stable;

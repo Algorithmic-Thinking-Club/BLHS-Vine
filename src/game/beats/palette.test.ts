@@ -1,9 +1,4 @@
-// THE PALETTE AND THE TWO ARMS.
-//
-// The arm-parity test is the one that matters. 80.7 asks for it in those words:
-// prove the plain arm's items identical to the game arm's BY CONSTRUCTION rather
-// than by review. It runs over every kind in the table, so a ninth kind added
-// without a plain rendering fails here rather than in a classroom.
+// the palette, and the check that both arms derive the same items from it
 import { describe, it, expect } from 'vitest'
 import type { CheckStep } from '../../vine/contract'
 import fs from 'node:fs'
@@ -234,10 +229,7 @@ describe('ARM PARITY: the plain arm is the game arm, differently drawn', () => {
   })
 
   it('the runner holds no scoring of its own any more', () => {
-    /* a source tripwire, because the failure mode is a second scoring path added
-     * back into one arm and nothing structural to stop it. `correctIndex`, a raw
-     * `.bucket` read and `.position` were the three marks of the old inline
-     * switches; the runner must reach all three through the palette. */
+    /* a source tripwire against a second scoring path being added back into one arm */
     const src = fs.readFileSync(path.resolve('src/game/beats/ActivityRunner.tsx'), 'utf8')
     for (const mark of ['correctIndex', '.bucket', '.position']) {
       expect(src.includes(mark), `ActivityRunner still reads ${mark}`).toBe(false)

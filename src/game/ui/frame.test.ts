@@ -1,13 +1,4 @@
-/* THE ONE NUMBER BETWEEN THE CONVERSATION AND THE CAMERA.
- *
- * Small module, load-bearing rule: the eyes round of 2026-08-30 failed the wave
- * screenshots because a choice plank and the player were drawn on the same
- * pixels, and this is what stops it. The thing worth pinning is not the
- * arithmetic, it is the REGISTER: two surfaces are along the bottom of the
- * window at the same time in this game (the year's card and a station's line),
- * and a single shared variable meant whichever unmounted last wrote zero over
- * the one that was still up, which drops the picture straight back onto it.
- */
+// the band of screen the UI is holding, so the camera never draws the player under a panel
 import { describe, it, expect, beforeEach } from 'vitest'
 import { bandFromRects, setUiBand, setUiBandStacked, uiBand } from './frame'
 

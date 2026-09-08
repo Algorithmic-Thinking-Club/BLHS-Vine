@@ -1,40 +1,4 @@
-/* THE YEAR SHEET (§5.1 to §5.19), REBUILT AS A DOCUMENT ON A CHART TABLE.
- *
- * WHAT WAS HERE AND WHY IT HAD TO GO, item by item, because every one of these
- * was a real symptom and not a taste.
- *
- * 1. EVERY SIZE WAS A FUNCTION OF THE SHEET'S WIDTH. `cqw` against a panel that
- *    is `min(1240px, 92vw)` means the type gets bigger as the window gets wider
- *    and the layout never reflows, so the deployment target, a 1366x768
- *    Chromebook, got the narrow end of a scale tuned on a desktop. Worse, the
- *    vertical rhythm was set by a horizontal measurement, so the stamp block
- *    fell off the bottom of a scrolling rail with nothing saying it was there.
- *    Everything below is in PIXELS, multiplied by `--kit-text-scale`, which is
- *    what the S / M / L control moves. A document is set in points and stays.
- *
- * 2. IT SPELLED THE TWO GAME FACES OUT, about twenty times. §16's plain arm
- *    swaps `--kit-face-body` to `system-ui`, and a rule that types
- *    `'Deckhand', monospace` renders straight through it. `tokens.css` currently
- *    carries a blanket `html[data-skin='plain'] *` rule to catch exactly this
- *    file and four others; the blanket stays, and this file no longer needs it.
- *
- * 3. IT HAD ZERO PLAIN-ARM RULES. The year sheet is the densest reading surface
- *    in the run and one of four places real BLHS content is delivered, so the
- *    control condition rendering it as the game with the paint scraped off is
- *    the confound §16 was ruled to prevent. The plain arm is at the bottom of
- *    this file and it is a worksheet: white paper, ruled sections, real headings,
- *    no wood and no coins.
- *
- * 4. EVERY COLOUR WAS A LITERAL. Thirty-one hexes, most of them a second copy of
- *    a value that already had a name. They come from `ui/tokens.css` now, which
- *    is what makes point 3 possible at all.
- *
- * THE ARM DOES NOT CHANGE THE DOCUMENT, ONLY ITS PAINT. §5.19 rules that the
- * planner is vehicle and renders identically in both arms, and the guard it asks
- * for is that the rendered OUTPUT is the same for `arm: 'game'` and
- * `arm: 'plain'`. `Planner.tsx` reads `save.arm` zero times, so that holds: the
- * plain block below is a stylesheet, which is what §16 defines an arm as.
- */
+/* the year sheet: the planning document a student fills in on the chart table */
 
 @import '../ui/tokens.css';
 
@@ -49,25 +13,13 @@
 .pl-sheet {
   /* 88vh rather than a fixed height, so the footer is on screen at 768 tall and
      the two scrolling regions inside absorb the difference */
-  /* HEIGHT IS A CEILING AND NOT A SIZE, corrected 2026-09-01 off
-     `build-shots/ui/after/08-planner.png`: a fixed 676 pixels on the deployment
-     target left the three season columns as two thirds of a page of blank paper
-     under a socket, on the sheet a student meets first. A year with nothing
-     committed IS mostly empty, and the honest picture of that is a shorter
-     sheet, not a tall one with a hole in it. The ceiling keeps the footer on
-     screen at 768 tall, which is what the fixed height was for. */
+  /* the height is a ceiling and not a size, so an empty year makes a shorter sheet */
   width: min(1240px, 92vw); height: auto; max-height: min(820px, 88vh);
-  /* THE FRAME IS A NINE-SLICE ON `.kit-surface-panel`, not a stretched picture,
-     and its own border-width is the outer inset. A literal url here would be a
-     surface §16's plain arm cannot reach: the arm swaps `--kit-art-panel` to
-     `none` and a hardcoded png keeps drawing straight through it. */
+  /* the frame is a nine-slice on `.kit-surface-panel`, never a picture spelled out here */
   image-rendering: var(--kit-pixel);
   filter: drop-shadow(var(--kit-drop-lg));
   display: flex; flex-direction: column;
-  /* PIXEL GUTTERS AND NEVER A PERCENTAGE. A percentage padding resolves against
-     the containing block, which for this is a veil pinned to the viewport, so
-     `padding: 12.5% 16%` took about 200px off each side of an 880px panel and
-     got worse the wider the window. */
+  /* pixel gutters, never a percentage, because the containing block is the whole window */
   padding: 14px 18px 12px;
   box-sizing: border-box;
   animation: pl-in 260ms var(--kit-ease-pop) both;
@@ -126,11 +78,7 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
 /* the columns are as tall as what is in them. Three seasons rarely fill equally
    and a sheet where they do is a sheet that has been padded. */
 .pl-cols { flex: 1.8; display: flex; align-items: flex-start; gap: 10px; min-height: 0; }
-/* THE HEAD AND THE SOCKET DO NOT SCROLL, ONLY THE LIST DOES, and that is not a
-   tidiness decision. §5.7 puts the refusal IN the socket, so a column that
-   scrolled as one piece would push the sentence off the top the moment a student
-   moved down the roster looking for what they could have instead. The reason has
-   to still be on screen while they act on it. */
+/* the head and the socket stay put and only the list scrolls, so a refusal stays readable */
 .pl-col {
   flex: 1; display: flex; flex-direction: column; gap: 8px;
   min-height: 0; overflow: hidden;
@@ -160,10 +108,7 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
 /* the drawn socket, sized for a column rather than for a form row. §5.6's
    three presses from a standing start to a committed season all start here. */
 .pl-col .kit-socket { flex: none; min-height: 78px; }
-/* A REFUSAL IS WARM, NEVER A BUZZER (§6.9, and PLAYTEST.md says it again). The
-   kit paints a socket's reason in alarm ink because most sockets refuse an
-   error; this one refuses with a fact about the school, and a student meeting
-   the WIAA calendar for the first time has not done anything wrong. */
+/* a refusal here is written in the quiet ink, because it is a fact and not an error */
 .pl-col .kit-socket-why { color: var(--kit-ink-quiet); }
 
 /* ---- a committed season (§5.6): the card that carries a sourced sentence -- */
@@ -247,17 +192,7 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
 .pl-act:hover, .pl-act:focus-visible { transform: translateY(-1px); background: var(--kit-paper-on-hi); }
 .pl-act:active { transform: translateY(1px); }
 
-/* A REFUSED ROW IS STILL A ROW (§5.7). It used to be filtered out of the menu,
-   so a student who came looking for a fall sport in spring found an absence and
-   no sentence. It renders present, it still takes a press, and the press prints
-   the reason instead of doing nothing. Never `disabled`: a disabled control is
-   unreachable by keyboard and cannot say why it refused, and §5.18 requires the
-   reason to read on FOCUS because hover has no keyboard equivalent.
-
-   AND IT IS NOT TOLD APART BY HUE. §40.31: a school Chromebook panel crushes
-   both lightness and saturation. A shut row loses its lift, its edge goes from
-   solid to dashed, and it gains an inset bar down its left side, so three things
-   that are not colour have moved. */
+/* a row that will refuse: still pressable, and told apart by its shape rather than a colour */
 .pl-act-shut {
   background: var(--kit-paper-chip-lo);
   border-style: dashed;
@@ -322,11 +257,7 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
   color: var(--kit-ink-head);
 }
 
-/* THE COIN, WHEN NOBODY DREW ONE. `pip` publishes fall, winter, spring, spent
-   and ghost, and this is what stands in for a build with no platform kit. It is
-   NOT what tells one token from another: the season's name is printed beside it
-   for exactly that reason, because §5.4's finding was that three identical pips
-   with a `title` attribute are a counter and not three tokens. */
+/* the plain coin a build with no drawn kit falls back to; the season's name is printed beside it */
 .pl-coin {
   display: inline-block; flex: none;
   width: 24px; height: 24px; border-radius: 50%;
@@ -484,21 +415,7 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
   filter: drop-shadow(var(--kit-drop-sm));
 }
 
-/* =========================================================================
- * THE PLAIN ARM (§16), which this file had none of.
- *
- * Ash's ruling, 2026-08-31: "No game art, no wood, no parchment: system font,
- * black on white, real headings and a real form. Reads as a worksheet somebody
- * wrote, not as the game with its paint scraped off." Raw OS widgets were
- * refused, because unstyled defaults look BROKEN and a control condition that
- * looks broken loses on looking broken instead of on not being a game.
- *
- * So the year sheet becomes the form it always was underneath: a printed
- * planning sheet with a title, ruled section headings, three season blocks and a
- * signature line at the bottom. The tokens stop being coins and become named
- * checkboxes-in-words, because a gold disc is game art. Nothing that is ASKED
- * changes: same programmes, same refusals, same sentences, same order.
- * ========================================================================= */
+/* the plain study arm: the same sheet as a printed form, with no game art on it */
 
 html[data-skin='plain'] .pl-sheet {
   animation: none;
@@ -598,11 +515,7 @@ html[data-skin='plain'] .pl-refusal {
   padding-left: 10px;
 }
 
-/* THE THING THAT FOLLOWS THE POINTER STILL NEEDS A BODY. The coin is gone in
-   this arm, so without a shape of its own the drag would be invisible and the
-   control condition would lose the mechanic rather than lose the paint, which is
-   the one thing §16 forbids: the arms differ in presentation, never in what a
-   student can do. A plain outlined marker is what a document drags. */
+/* the thing dragged under the pointer, as a plain outlined marker rather than a coin */
 html[data-skin='plain'] .pl-air {
   display: block;
   width: 18px; height: 18px;
@@ -616,13 +529,7 @@ html[data-skin='plain'] .pl-foot { border-top: 2px solid var(--kit-ink-head); }
 html[data-skin='plain'] .pl-waxed { transform: none; }
 html[data-skin='plain'] .pl-waxed-word { font-weight: 700; color: var(--kit-ink-head); }
 
-/* ---- THE EMPTY SOCKET, READ BY LOOKING ------------------------------------
- *
- * Ash's non-reader law (docs/ops/BRIEF-UI.md, 2026-09-01): "the year sheet's
- * empty sockets say where a token goes before any label does". The drawn ring
- * says a token goes here; the season's own mark inside it, at the weight of a
- * pencil guide, says WHICH. A student who reads nothing on this sheet can still
- * see that the leaf goes in the leaf-shaped hole. */
+/* an empty socket, drawn so a student can see which season goes in it without reading */
 .pl-sock-well {
   position: relative;
   display: inline-flex;

@@ -1,13 +1,4 @@
-/* THE THREE THINGS THE MAW'S PYTHON NEEDED THAT NOTHING HAD, each checked at
- * the seam where getting it wrong would have been silent.
- *
- * 1. The room finds its own python without a member-islands row, because a row
- *    would have put the Maw on the year sheet as a spendable programme.
- * 2. The vine's own islands are NOT flag-scoped, because the Maw writes the
- *    founding flag `run/objective.ts` sequences the first year off.
- * 3. `get` can answer the three questions the counselor, the wall and the fire
- *    ask, which the vine's TypeScript could reach and a member's python could not.
- */
+/* tests that the Maw finds its own python, stays off the roster, and can be asked its questions */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { VINE_ISLANDS, vineIslandOfMap } from './vine-islands'
 import { islandOfMap } from './member-islands'
@@ -28,10 +19,7 @@ describe('the vine owns some maps and a member owns the rest', () => {
   })
 
   it('and does it WITHOUT putting the room on the roster', () => {
-    /* THE WHOLE REASON THIS TABLE EXISTS. `Planner.tsx` puts every programme on
-     * the menu with no filter and `refuseSlot` never reads `playable`, so a
-     * member-islands row for the Maw would have been a season token a student
-     * could spend on the room they were standing in. */
+    /* a roster row for the Maw would make it a season token a student could spend */
     expect(islandOfMap('panther-maw')).toBeUndefined()
     expect(PROGRAMMES.some((p) => p.id === 'the-maw' || p.id === 'panther-maw')).toBe(false)
   })
@@ -52,10 +40,7 @@ describe('the questions a station has to be able to ask', () => {
     save.beginAdventure()
     const board = engine.read('cord_board') as { name: string; detail: string; progress: number }[]
     expect(board.length).toBeGreaterThan(0)
-    /* `detail` is the line `progress.ts` writes once for the tracker board, and
-     * the counselor says the same words because both read this. A counselor with
-     * only `cords` could say which cords were finished and nothing about the
-     * seven that were not, which is every cord in year one. */
+    /* `detail` is the tracker board's own status line, so the counselor says the same words */
     for (const c of board) {
       expect(typeof c.name).toBe('string')
       expect(typeof c.detail).toBe('string')

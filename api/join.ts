@@ -1,13 +1,4 @@
-// GET  /api/join?code=ABC234 -> { className, open } | 404
-//      the code card's cheap in-fiction confirmation ("Ah. Mr. Wiseman's crew.") — checks the
-//      class WITHOUT creating a participant, because the student picks their handle on the
-//      NEXT card. (Joining at the code card with a placeholder handle merged every student
-//      in a class into one participant — the Act Zero critical.)
-// POST /api/join { code, handle } -> { participantId, classId, className, arm }
-//      the real join (§4.3): arm assignment is deterministic per participant when the class
-//      runs in study mode (§13.2). A returning student re-joins as themselves (same class +
-//      handle = the SAME run, §7.7) — even after the class closes to NEW joiners; a genuine
-//      twin gets a kind numeric suffix instead of an error wall.
+// joining a class: GET checks a code, POST creates or resumes that student's run
 import { json, readBody } from './_db.js'
 import { store } from './_store.js'
 import { armFor, cleanHandle, newId } from './_logic.js'

@@ -1,19 +1,4 @@
-/* I-3: the parchment session (§2.7 to §2.11). The scroll unfurls up over the live beach,
-   every control drawn in the kit's material language. The scroll asset carries its own
-   rollers, stains and wax seal.
-
-   LAYOUT LAW: the scroll is a size container and EVERY inner measurement is in cqw
-   (fractions of the paper's width) so nothing is sized by the viewport and nothing can
-   outgrow the paper and clip (the vh-clamp bug Ash caught).
-
-   AND EVERY SIZE NOW ANSWERS THE TEXT SETTING. §40.26: `data-textsize` reached four rules in
-   the whole tree and this file was not one of them, so a student who turned the text up got
-   it in the dialogue box and nowhere else, including on the screen where they type their own
-   name. Every size here is `--kit-fs-raw` times `--kit-text-scale` through the kit's snap, and
-   the card scrolls rather than clipping when Large asks for more room than the paper has.
-
-   NO COLOUR IS TYPED HERE ANY MORE. This file carried about thirty literal hexes, which is a
-   surface `html[data-skin='plain']` cannot reach however many tokens sit above it. */
+/* the parchment scroll session: the letter, the code, the name and the wardrobe cards */
 
 /* said out loud rather than inherited by luck: this file reads --kit-art-scroll,
    --kit-art-plank, --kit-art-crest and --kit-pixel, and it used to spell the pngs out */
@@ -30,18 +15,7 @@
 }
 
 .i3-scroll {
-  /* AS BIG AS THE DEPLOYMENT TARGET ALLOWS, which is what "fit it at 1366x768"
-     comes down to for a picture whose proportions are fixed. The scroll is drawn
-     384 by 688, so its height is 1.79 times its width and the height is always
-     what runs out first on a landscape screen. At 52vh it stood 716 tall in a 768
-     window and left 52 pixels of margin doing nothing; 54vh is 742 and leaves 26,
-     which is the last of the screen it can honestly take.
-
-     THE REST OF "SMALL" IS NOT A NUMBER IN THIS FILE. A portrait scroll on a
-     landscape screen uses a third of the width whatever this line says, and the
-     paper inside it is a 232 pixel column. That is a decision about which drawn
-     object the join sits on, and it is Ash's, so it is reported with pictures
-     rather than changed here. */
+  /* as big as a 1366x768 screen allows for a scroll drawn 384 by 688 */
   width: min(430px, 92vw, 54vh);
   aspect-ratio: 384 / 688;
   background: var(--kit-art-scroll) center / 100% 100% no-repeat;
@@ -61,11 +35,7 @@
   from { transform: translateY(0) scaleY(1); opacity: 1; }
   to   { transform: translateY(38vh) scaleY(.1); opacity: 0; }
 }
-/* AN ENTRANCE SHORTENS AND A LOOP STOPS, which is the distinction `tokens.css`
-   draws and the reason animations are not tokens. The unfurl and the roll are
-   entrances: at a millisecond the card is simply there. This rule used to live in
-   `settings.css`, three directories away, because the token layer could not reach
-   a file it did not own; it belongs beside the animation it answers. */
+/* the unfurl and the roll are entrances, so reduced motion shortens them to nothing */
 html[data-rm='1'] .i3-scroll,
 html[data-rm='1'] .i3-rollup { animation-duration: 1ms; }
 
@@ -77,43 +47,17 @@ html[data-rm='1'] .i3-rollup { animation-duration: 1ms; }
   position: absolute; inset: 16% 21% 22% 21%;
   display: flex; flex-direction: column;
 }
-/* ---- ONE SKELETON, FIVE CARDS -------------------------------------------
- *
- * "Sudden jumps", from his play. The paper's own box never moved: measured card
- * by card by `scripts/scroll.mjs` it is 232x444 on all five. What moved was
- * everything INSIDE it. The cards were centred flex columns of different
- * heights, so the letter began at the top on one card and in the middle on the
- * next, and the button that says "go on" landed at a different height every
- * time. A student's eye has to find the same control again after every press.
- *
- * A grid fixes the places rather than the sizes: whatever a card puts in the
- * head sits at the top, whatever it puts in the body takes the slack, and the
- * button is at the bottom on all five. Nothing has to agree on a height for the
- * layout to hold still. */
+/* one skeleton for all five cards, so the button never moves between them */
 .i3-card {
   display: flex; flex-direction: column; align-items: center;
   height: 100%;
   width: 100%;
-  /* THE SKELETON IS TWO LINES, NOT A GRID. A grid was tried first and made it
-     worse: the cards have five to eight children rather than a head, a body and
-     a foot, so a three-row template did nothing for them, and the implicit
-     COLUMN sized itself to the widest child and carried the heading straight off
-     the right-hand deckle. Photographed before it was believed.
-     Pinning the button to the bottom is the whole of what "no jump" needs: the
-     head is at the top because it is first, the button is at the bottom because
-     of `margin-top: auto` below, and the slack falls in the middle where nothing
-     is looking. */
-  /* LARGE TEXT GETS ROOM RATHER THAN A CLIP. The paper is a drawn rectangle and
-     cannot grow, so at `--kit-text-scale: 1.22` the wardrobe card asks for more
-     height than the deckle has. A card that scrolls is readable; a card that
-     clips loses the button at the bottom of it. */
+  /* the button is pinned to the bottom instead of the card being laid out on a grid */
+  /* large text scrolls the card rather than clipping the button off the paper */
   overflow-y: auto; overflow-x: hidden;
   scrollbar-width: thin;
 }
-/* NOTHING ON THE PAPER IS WIDER THAN THE PAPER. Photographed before the fix on
-   the identity card: the name field and its "Spin a name" plank ran past the
-   right-hand deckle and sat on the drawn frame, and so did the pronoun chips.
-   A drawn edge is not a suggestion. */
+/* nothing on the paper is drawn wider than the paper */
 .i3-card > * { max-width: 100%; box-sizing: border-box; }
 /* THE BUTTON IS ALWAYS AT THE BOTTOM OF THE PAPER, on all five cards, which is
    what stops the "sudden jumps" his play named: the control a student is looking
@@ -122,13 +66,7 @@ html[data-rm='1'] .i3-rollup { animation-duration: 1ms; }
 .i3-card::-webkit-scrollbar { width: 6px; }
 .i3-card::-webkit-scrollbar-thumb { background: var(--kit-edge); border-radius: var(--kit-r-soft); }
 
-/* ---- the code card, which has more to hold than the paper is tall ---------
- *
- * SWEEP-1 items 11, 44 and 93. Everything a student must press on this card is a
- * foot that never scrolls, and the letter above it takes whatever room is left.
- * Without this the plank was already clipped at rest and disappeared completely
- * the moment a refusal added a line, which ends a pointer-only run for good on
- * the first card of the game. */
+/* the code card: the controls sit in a foot that never scrolls, the letter takes the rest */
 .i3-card-code { overflow-y: hidden; }
 .i3-card-code > .i3-letter-scroll {
   flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
@@ -154,10 +92,7 @@ html[data-rm='1'] .i3-rollup { animation-duration: 1ms; }
   width: 100%;
 }
 .i3-ps { margin-top: 7cqw; }
-/* THE CARET WAS A FONT GLYPH (U+2590), which `docs/ART.md` forbids and which the
-   student sees for the first four seconds of the game. It is a drawn rectangle in
-   the letter's own ink now: a shape rather than a character, so it cannot be
-   rendered as a box on a machine whose font lacks it. */
+/* the typing caret, drawn as a rectangle rather than a font glyph */
 .i3-caret {
   display: inline-block;
   width: .5em; height: 1em;
@@ -181,10 +116,7 @@ html[data-rm='1'] .i3-caret { animation: none; }
   color: var(--kit-ink-quiet);
   white-space: nowrap;
 }
-/* WAS A PAW PRINT EMOJI WITH A SEPIA FILTER ON IT. The school's own crest is the
-   drawn mark that means Principal Panther, `docs/ART.md` already assigns it, and
-   with no art at all the name signs the letter by itself, which is what a
-   signature is. */
+/* the school crest that signs the letter */
 .i3-crest {
   width: 5.4cqw; height: 5.4cqw; flex: none;
   background: var(--kit-art-crest) center / contain no-repeat;
@@ -213,11 +145,7 @@ html[data-rm='1'] .i3-caret { animation: none; }
   cursor: pointer;
 }
 
-/* the six carved code boxes, inside the letter itself, sized so 6 + 5 gaps = the paper.
-   DELIBERATELY NOT WEARING `kit-surface-field`: the platform's field is a nine-slice
-   whose four insets are drawn for a full-width box, and a nine-slice on a 37 pixel
-   square is the plank lesson of `6851a68` in a smaller frame. The two WIDE fields on
-   the identity and boat cards wear it; these keep their own carving. */
+/* the six carved code boxes, sized so six of them plus five gaps fill the paper */
 .i3-codeboxes { display: flex; gap: 1.2cqw; margin: 5cqw 0 1.5cqw; }
 .i3-codebox {
   width: 8.6cqw;   /* 6 boxes + 5 gaps = the measured paper column exactly */
@@ -231,18 +159,12 @@ html[data-rm='1'] .i3-caret { animation: none; }
   border: var(--kit-border) solid var(--kit-edge);
   border-radius: var(--kit-r-soft);
   box-shadow: inset 0 2px 3px var(--kit-cord-track), 0 1px 0 var(--kit-paper-sheen-firm);
-  /* the focus ring is NOT switched off here. §40.9: five stylesheets deleted it and
-     none replaced it. tokens.css rings every focusable element by kind, and a
-     field carrying its own focus treatment is the one documented exception there
-     rather than a silent `outline: none` here. */
+  /* the focus ring is left to tokens.css, which rings every focusable element by kind */
   caret-color: var(--kit-ink-label);
   padding: 0;
   transition: box-shadow var(--kit-t-quick) ease;
 }
-/* THE FOCUSED BOX IS THE ONE THAT SITS PROUD. `:focus-visible` rather than
-   `:focus`, and the state moves a SHAPE as well as a colour: the inset carving
-   inverts into a raised edge, so a Chromebook panel that has crushed the sea green
-   out of the ring still shows which of six boxes is live. */
+/* the focused code box is ringed and raised so it reads on a washed-out screen */
 .i3-codebox:focus-visible {
   border-color: var(--kit-sea);
   box-shadow: 0 0 0 3px var(--kit-sea-glow), inset 0 -3px 0 var(--kit-sea);
@@ -279,10 +201,7 @@ html[data-rm='1'] .i3-shake { animation: none; }
 }
 
 .i3-fieldrow { display: flex; gap: 2cqw; align-items: stretch; width: 100%; margin-top: 1cqw; }
-/* THE DRAWN FIELD, WORN ON THE BOX AND NOT ON THE INPUT. `kit-surface-field` is a
-   nine-slice and an `<input>` has no room inside one; the wrapper takes the frame
-   and the input sits in it with no edge of its own, which is exactly the shape
-   `controls.css` uses for the kit's own `Field`. */
+/* the drawn field frame goes on the wrapper box, not on the input inside it */
 .i3-fieldbox {
   flex: 1; min-width: 0;
   display: flex; align-items: center;
@@ -306,11 +225,7 @@ html[data-rm='1'] .i3-shake { animation: none; }
   padding: 1cqw 1.4cqw;
 }
 .i3-field::placeholder { color: var(--kit-field-hint); }
-/* §40.31, PAID FOR PROPERLY. `tokens.css` excludes this field from the kit's ring
-   with a reason, and what it fell back to before was a hue swap and an alpha step
-   on `:focus`. A school Chromebook panel crushes both. So the box gains a rule
-   four pixels thick and the paper behind it lightens: the thickness is what
-   survives the hardware. */
+/* the focused name field gains a thick rule and lighter paper, which survives cheap panels */
 .i3-fieldbox:focus-within {
   background-color: var(--kit-field-focus);
   box-shadow: inset 0 -4px 0 var(--kit-sea), 0 0 0 2px var(--kit-sea-glow);
@@ -353,18 +268,8 @@ html[data-rm='1'] .i3-shake { animation: none; }
 }
 .i3-castaway:hover { color: var(--kit-ink-quiet); }
 
-/* THE PLANK, TWO WAYS, AND THE SECOND ONE IS WHY THE ART RULES STAY HERE.
-   Every button on the parchment is the kit's `<Plank>` now, which brings its own
-   wood and its own six states. But `IntroScene.tsx` mounts Set Sail as a bare
-   `<button className="i3-plank i5-plank">` and this session does not own that
-   file, so the standalone rules have to keep working. They are scoped to
-   `:not(.kit-plank)` so nothing is declared twice on the same element. */
-/* THE LABEL IS THE WORDS, SO THE PLANK IS WHAT GIVES. "Thor looks great
-   already" on a 241 pixel paper ran off both ends of its own sign: photographed
-   at `ui/scroll-after/04-wardrobe.png`, the T and the y were outside the wood.
-   Rewriting the sentence is the words session's job and not this one's, so the
-   sign takes the sentence instead: the ink wraps rather than overflowing, and it
-   steps down a size on the narrow paper the letter is drawn on. */
+/* the plank rules, scoped so a bare button and the kit's own plank are not styled twice */
+/* the sign gives way to the words: the ink wraps and steps down on narrow paper */
 .i3-plank {
   margin-top: 0;
   margin-bottom: 0;
@@ -410,13 +315,7 @@ html[data-rm='1'] .i3-shake { animation: none; }
   padding-bottom: 12vh;
   pointer-events: auto;
 }
-/* TWO CLASSES DEEP, and this is the trap it steps over. Set Sail is one element
-   carrying both class names, and `.i3-plank:not(.kit-plank)` above is a
-   two-class selector: a single-class rule here would LOSE, and the button would
-   inherit a size in `cqw` while standing outside the scroll, which is the one
-   place in this file with no query container. `cqw` with no container falls back
-   to the viewport, so the label would have come out at about sixty-five pixels on
-   a Chromebook. */
+/* two classes deep so it beats the rule above, and sized in vh because it stands outside the scroll */
 .i3-plank.i5-plank {
   min-width: min(380px, 60vw);
   aspect-ratio: 512 / 170;
@@ -477,39 +376,10 @@ html[data-rm='1'] .i3-thorview { animation-duration: 1ms; }
    other by hue and the chosen state cannot also be one. */
 .i3-swatch-on { border-color: var(--kit-sea); box-shadow: 0 0 0 3px var(--kit-sea-glow); transform: translateY(2px); }
 
-/* THE LOCKED ITEMS ARE ROWS, NOT PICTOGRAPHS. §2.10 asks for locked items that
-   are visible and "say what real thing earns them"; what was here was three emoji
-   with a padlock emoji hung on the corner and the criterion inside a `title`
-   attribute, which is pointer-only and is therefore not visible at all. */
-/* THE TRUNK'S CARD IS THE ONE THAT DOES NOT FIT, and the button is what falls
-   off the bottom of it. Measured by `scripts/scroll.mjs` at 1366x768: the card
-   asks for more height than the paper has, so the plank that goes on sits below
-   a fold with no visible scrollbar to say so, on the one card where a student
-   has already made their choice and is waiting to move.
-
-   The locked rows are the slack. They are a preview of three things a student
-   cannot have yet, so they are the part of this card that can afford to be
-   compact: less air above them, less between them, and the two lines inside each
-   row sit closer together. Nothing is removed and nothing is made unreadable.
-
-   MEASURED, TWICE. The first pass took 43 pixels off and the card still asked
-   for 43 more than the paper had, so the button was still under the fold. The
-   rows that were actually paying for it, in order: the locked list at 140, the
-   trunk row at 91, and the note under it at 42 for one wrapped sentence. The
-   list gives 30 and the note gives the rest by stopping being two lines. */
-/* AND IT IS THE ROW THAT YIELDS, which is the difference between a fix and a
-   negotiation. Two passes of shaving pixels off this card each got it under by
-   less than they took, because the content is what it is and the paper is a
-   drawn rectangle that cannot grow. So the list scrolls INSIDE its own box and
-   the button below it is always on the paper. A student can reach what they came
-   for, and the three things they cannot have yet are the part that has to be
-   scrolled to see all of. */
-/* AND NOW THE ROWS ARE NOT BUTTONS. They were three grey plates as wide as the
-   paper, and the dimwit run pressed "Letterman jacket" three times before it
-   found "Keep this outfit" underneath them. A locked thing is a note, not a
-   control: small, plain, the lock mark beside the name, the earn rule after a
-   dot, nothing raised and nothing to press. The planks are the only two things
-   on the card that look like buttons now, and the big one is the way on. */
+/* the locked items are readable rows saying what earns them, not pictographs */
+/* the wardrobe card is the tallest, so the locked rows are the part that goes compact */
+/* the locked list scrolls inside its own box so the button below is always on the paper */
+/* a locked thing is a note rather than a control, so nothing here looks pressable */
 .i3-locked {
   display: flex; flex-direction: column;
   gap: .3cqw; margin-top: 1.1cqw; width: 100%;
@@ -530,12 +400,7 @@ html[data-rm='1'] .i3-thorview { animation-duration: 1ms; }
   width: 100%;
   --kit-fs-raw: calc(3.2cqw * var(--kit-text-scale));
 }
-/* RUNNING TEXT, NOT A GRID. The kit floors every size at 15px, so three rows of
-   name-over-rule were 108px in a box that has 88: two of the three fit on one
-   line as a sentence and the third wraps once, and the whole list is on the
-   paper with room left. The row sets its own size, or the line box is struck
-   at the card's size and three small lines come out as tall as the plates
-   they replaced. */
+/* each locked row is running text at its own size, so all three fit the box */
 .i3-lockrow {
   display: block;
   text-align: left;
@@ -575,36 +440,7 @@ html[data-rm='1'] .i3-thorview { animation-duration: 1ms; }
   color: var(--kit-ink-soft);
 }
 
-/* =========================================================================
- * THE PLAIN ARM: the intro card as a form on a page
- *
- * TWO OF THE FIVE LITERAL ART URLS WERE IN THIS FILE. Nulling the tokens is only
- * half of it: the card IS the scroll asset, so `--kit-art-scroll: none` on its
- * own leaves a 384-by-688 empty rectangle with the letter inset 16% from an edge
- * that is no longer drawn, and the plank becomes an invisible button with pale
- * type floating in it.
- *
- * SO THE CARD BECOMES A CARD. A white sheet, a real border, real padding instead
- * of the four percentages measured off the deckle, and no fixed aspect ratio so
- * it is as tall as its content. The type is set in px rather than in fractions
- * of the paper's width, because a worksheet is set in points and a game frame is
- * not; that is the same reason the token layer clamps `--kit-fs` in this arm.
- *
- * WHAT STAYS, AND IT IS NOT AN OVERSIGHT. Thor, the trunk and the tailor stay on
- * the wardrobe card. They are not decoration there: they are WHAT IS BEING
- * PICKED, and a control arm that cannot see the thing it is choosing loses on
- * being unusable rather than on being plain. The gull and the signboard on the
- * title screen have no such job and are gone. Every word and every control is in
- * the same order it is in the game arm.
- *
- * §16.2 AND WHEN THIS BLOCK IS ACTUALLY REACHED. The arm resolves in the middle
- * of the identity card, and `I3Session.tsx` HOLDS the skin for the length of the
- * session so that nothing on the parchment changes at that instant, which is the
- * one rule §16 imposes on the opening act. So a student who was assigned the
- * plain arm at the join sees this block from the beach onwards rather than from
- * mid-letter; a student who arrived with `?skin=plain` sees it from the first
- * frame, which is what the review door is for.
- * ========================================================================= */
+/* the plain arm: the same cards and the same words, set as a form on a white page */
 
 html[data-skin='plain'] .i3-scroll {
   width: min(600px, 92vw);
@@ -790,21 +626,8 @@ html[data-skin='plain'] .i3-trunk,
 html[data-skin='plain'] .i3-tailor,
 html[data-skin='plain'] .i3-thorview { filter: none; animation: none; }
 
-/* ---- THE WAY BACK -------------------------------------------------------
- *
- * BRIEF-PLAYTHROUGH-1: "a Back on every card". It is drawn once on the paper
- * rather than five times in the cards, so it cannot be forgotten by a sixth card
- * and cannot move between the five that exist.
- *
- * Top-left, small, and quiet: it is the least important control on the letter
- * and it must never compete with the one that goes on. A chevron turned to point
- * left is the mark, which is the same drawn arrow the help card and the world
- * marker use, so "back" looks the way "go here" looks, mirrored. */
-/* IT IS IN THE FLOW, NOT OVER IT. Absolutely positioned in the paper's top-left
-   it collided with whatever the card put first: on the identity card the centred
-   heading is the full width of the paper and simply covered it, and the control
-   the order exists to add was invisible on the very first screenshot of it.
-   A row of its own above the card cannot be covered by anything. */
+/* the way back, drawn once on the paper so every card has it in the same corner */
+/* it sits in a row above the card rather than over whatever the card puts first */
 .i3-back {
   align-self: flex-start;
   flex: none;

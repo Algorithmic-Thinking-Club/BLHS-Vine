@@ -1,12 +1,4 @@
-/* THE ANSWER EVERY GRANT OWES, TESTED WHERE IT CAN BE.
- *
- * `grant.ts` exists because `award()` wrote six things to the save and moved
- * nothing on the screen. The half of it worth a test is not the pop, which is a
- * div; it is the DERIVED half: four of the six badges and all seven cords are
- * worked out from the run rather than stored, so nothing anywhere redraws when a
- * student finally meets one, and the diff in this file is the only thing that
- * notices. That is the part a refactor of `badgesOf` would silently break.
- */
+/* the tests for grant: what a student earns has to reach the screen and the world */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { SaveGame } from './save'
 import { GRANT_EVENT, grant } from './grant'
@@ -49,12 +41,7 @@ describe('a grant says so', () => {
   })
 
   it('says a badge the run has just crossed the line for, which nothing writes down', () => {
-    /* Bookworm is a count of facts against the whole pool, computed off the run.
-     * No field named after it changes, so before this diff a student met it and
-     * the game said nothing, on any screen they were looking at.
-     *
-     * The threshold is READ off the pool rather than typed here, for the same
-     * reason the badge's own words are: it was 25 against a pool of 18 once. */
+    /* Bookworm is a count of facts against the whole pool, so nothing writes it down */
     const facts = (n: number) => Array.from({ length: n }, (_, i) => `f${i}`)
     const before = run({ facts: facts(bookwormThreshold - 1) })
     const after = run({ facts: facts(bookwormThreshold) })

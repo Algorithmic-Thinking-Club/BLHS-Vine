@@ -1,10 +1,4 @@
-/* The MicroPython wasm build ships no types.
- *
- * Only what the worker actually calls is declared here, and every line is
- * measured off scripts/mp-spike.mjs rather than copied from the docs, because
- * the docs are wrong about the one that matters: runPython() returns null in
- * this build and values come back out through globals.get().
- */
+// hand-written types for the parts of the MicroPython wasm build the worker calls
 declare module '@micropython/micropython-webassembly-pyscript/micropython.mjs' {
   export interface MicroPython {
     /* returns null in this build. Read the answer out of globals instead. */
@@ -16,13 +10,7 @@ declare module '@micropython/micropython-webassembly-pyscript/micropython.mjs' {
       get(key: string): unknown
       set(key: string, value: unknown): void
     }
-    /* the in-memory filesystem. A member's island is written here as real
-     * files so `import` finds them and a traceback names them.
-     *
-     * mkdirTree and not mkdir: measured, mkdir throws on a directory that
-     * already exists and writeFile never creates a parent, so an island landing
-     * in its own folder needs the idempotent one. The real FS has 94 members;
-     * these two are what the worker calls. */
+    /* the in-memory filesystem a member's island is written into as real files */
     FS: {
       writeFile(path: string, data: string): void
       mkdirTree(path: string): void

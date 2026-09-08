@@ -1,31 +1,4 @@
-/* THE INTENT VOCABULARY: the engine capability list, written down as data.
- *
- * This is the API. Not a layer over it, not a plan for one. Every mechanic in
- * the game asks for what it wants by putting one of these objects on the wire,
- * and the engine performs it. The Maw's stations go through here. A member's
- * Python grape will go through here. There is no second path, because a second
- * path is how this repo got PmapScene importing nothing from src/vine/.
- *
- * WHY OBJECTS AND NOT FUNCTIONS. The member's code runs as MicroPython in a
- * worker (VINE-AND-GRAPE.md), so an intent has to survive postMessage. Making
- * it JSON from the first line costs nothing today and is the only reason the
- * runtime stays swappable tomorrow. A function call would have to be torn out
- * and rebuilt as a message the day the worker lands, and that rebuild is
- * exactly the kind of retrofit that never happens.
- *
- * WHY THE KIND IS THE PYTHON NAME. `kind: 'guide_to'` is snake_case on purpose.
- * A member writes `yield self.guide_to("chart_table")`, the worker posts
- * `{kind: 'guide_to', anchor: 'chart_table'}`, and nothing in between translates
- * anything. A vocabulary with a lookup table in the middle is a vocabulary with
- * two spellings of every word and a place for them to drift apart.
- *
- * WHY ANCHORS AND NEVER COORDINATES. Every intent that touches a place takes an
- * anchor NAME. MAPVIS is the only thing that can create one (src/core/mask.ts),
- * it validates them as python identifiers where they are typed, and it keeps
- * `name` separate from `label` so renaming a door for the player cannot break
- * the code that addresses it. An x and a y in a grape would break the moment Ash
- * moved a table.
- */
+/* the list of things the engine can be asked to do, as plain data a grape sends over */
 import type { SessionMode } from './contract'
 
 /* ---- what the engine can be asked to do ---------------------------------- */
@@ -36,243 +9,53 @@ export type Intent =
   | { kind: 'say'; who?: string; text: string; portrait?: string }
   | { kind: 'choose'; prompt?: string; options: string[] }
 
-  /* movement and attention. guide_to draws the walkable-path arrow and returns
-   * immediately; walk_to takes the controls and returns when he arrives.
-   *
-   * `guide_to(None)` TAKES THE ARROW DOWN, and until now nothing could. The
-   * target was set by this one word and cleared by nothing, so an island that
-   * pointed at the wall once left an arrow standing over that wall for the life
-   * of the scene, outranking the year's own next step the whole time
-   * (ARC-MANIFEST BLOCKED 9). `look_at` beside it has taken null since it was
-   * written and the scene's `guideTo` has always accepted it; the only thing
-   * that ever refused was this type and the anchor check under it. */
+  /* guide_to draws the arrow to a place, and null takes the arrow down */
   | { kind: 'guide_to'; anchor: string | null }
-  /* `off` is the student's own mark, and it is the same word `lead_to` and
-   * `place` take. It was the last body in the game that could not be offset: a
-   * station carries one standing spot, a scene needs two, and until now the
-   * second one could only ever be given to somebody else.
-   *
-   * IT IS FOR A MAP THAT HAS NOT SAID, and not for overruling one that has.
-   * Maw v7 moved the counselor onto the desk and left her standing spot on the
-   * far side of the hall, so the engine drops it (`pmap/anchors.ts`) and the
-   * honest answer to "where does a student stand at the desk" is nowhere in the
-   * bundle. An island may say it until MAPVIS does. */
+  /* walk the player to an anchor, with an optional small step aside from its mark */
   | { kind: 'walk_to'; anchor: string; off?: Offset }
   | { kind: 'look_at'; anchor: string | null; ms?: number }
 
-  /* ---- THE DIRECTOR CLASS -------------------------------------------------
-   *
-   * Everything below this line consumes data MAPVIS ALREADY AUTHORS and the
-   * game had no word for. That is the whole shape of wave four: the tool has
-   * been publishing named paths, named shots, named looks and free-placed
-   * berths for weeks, and each one was reader-less, so an author could draw a
-   * route and then had no sentence in which to use it. A capability with an
-   * authoring surface and no vocabulary is half a feature, and half a feature
-   * is how this repo got 9,829 unreachable lines.
-   *
-   * THE PLAYER'S OWN BODY. He could walk and he could be looked at, and there
-   * was no way to say what he was doing while standing still. `pose` is that:
-   * a named body state and a heading, neither of which moves him. The heading
-   * alone is the common case, because "turn and look at her" is a beat in
-   * nearly every scene and the only way to write it was to walk him one pixel.
-   * A pose whose art does not exist refuses by name and lists what does. */
+  /* the director words start here: pose sets the player's body and heading, and does not move him */
   | { kind: 'pose'; pose?: string; facing?: string }
 
-  /* OTHER BODIES. A placement bound to an anchor is a body with a name, and
-   * these four words are the whole of what a scene needs to do to one: send it
-   * somewhere, turn it, change its face, and let it go. `actor` is an ANCHOR
-   * name and never a placement id, for the reason at the top of this file: a
-   * placement id is a number MAPVIS assigned and an anchor name is a string a
-   * person chose.
-   *
-   * ONE OBJECT PER CHARACTER, NEVER TWO. A driven actor is the placement that
-   * was already on the map, taken over in place, not a second sprite created
-   * beside it. Two would drift apart the first time one of them was moved.
-   *
-   * AND THEY ARE ALWAYS RELEASED. A placement stays driven until something
-   * takes it out, and the driven pass re-asserts its frozen position every
-   * frame, so an actor a scene forgot about stands still for the rest of the
-   * visit. `actor_release` with no name releases every one of them, and the
-   * scene does that itself at the end whether or not the author remembered. */
-  /* `pace` is BRIEF-ARRIVAL item 6, and the brief names it: "a walking pace for
-   * actor_move". A driven body travelled at the MAP's speed, which is the
-   * player's own sprint-walk, and it travelled on one frozen frame, so the
-   * principal covered the Maw in four seconds without moving his legs and Ash
-   * read that as a sprint. The frames are fixed in the scene for every driven
-   * body. This is the other half: a scene may be told that somebody is
-   * strolling, walking or running, and the words are paces rather than numbers
-   * because a number here would be painting pixels per second, which is a
-   * quantity no author of a scene should have to hold. */
+  /* driving another body on the map: send it, turn it, change its face, let it go */
+  /* send a body to an anchor, at a named walking pace */
   | { kind: 'actor_move'; actor: string; to: string; off?: Offset; facing?: string; pace?: Pace }
-  /* SOMEBODY WALKS AHEAD AND THE PLAYER FOLLOWS, which is the one shape a
-   * guided tour has and which could not be written with the two words beside it.
-   *
-   * BRIEF-MAW-RAIL-2, Ash after playing rail-1: *"Nobody knows why he is at a
-   * fire. From now on the principal walks AHEAD and Thor follows him, the way a
-   * real freshman orientation works: the person in charge takes you round."*
-   *
-   * `actor_move` then `walk_to` is the obvious spelling and it is wrong twice
-   * over: `actor_move` blocks until the leader ARRIVES, so the student stands
-   * still watching a man cross a room and then walks the same floor alone
-   * afterwards; and both bodies aim at the same stand point, so they finish
-   * standing inside each other. This starts them together, lets the leader get a
-   * couple of body lengths clear, walks the player up behind him, and turns the
-   * leader round to face the student when they both stop.
-   *
-   * ONE WORD AND NOT A FOLLOW MODE. A mode would have to be switched off, and an
-   * island that forgot would leave the player welded to somebody for the rest of
-   * the visit. This is a walk with two bodies in it and it is over when they
-   * have both arrived. */
+  /* somebody walks ahead and the player follows, ending when they have both arrived */
   | { kind: 'lead_to'; actor: string; to: string; off?: Offset; pace?: Pace }
-  /* PUT SOMEBODY SOMEWHERE, WITH NO WALK IN IT.
-   *
-   * Ash, 2026-09-06, watching the Maw open: *"THE PRINCIPAL DOES NOT WALK TO
-   * THOR ANY MORE. He is ALREADY WAITING at the tunnel mouth when Thor comes
-   * in."* A scene has to be SET before it starts, and every word here moved a
-   * body by walking it, so the only way to have somebody waiting at the door was
-   * to walk them there in front of the student, which is the thing being cut.
-   *
-   * With no `facing` they end up looking at the player, because a body placed
-   * before a scene begins is nearly always somebody waiting for him. */
+  /* put somebody at a spot with no walk in it, facing the player by default */
   | { kind: 'place'; actor: string; at: string; off?: Offset; facing?: string }
   | { kind: 'actor_face'; actor: string; facing: string }
   | { kind: 'actor_look'; actor: string; look: string }
   | { kind: 'actor_release'; actor?: string }
 
-  /* ROUTES. A named authored polyline, travelled by the player, by a driven
-   * actor, or by the ship. Waypoints, a facing to end on, and a kind that is
-   * checked: a walk route over ground no body can stand on refuses, a sail
-   * route over land refuses, and a camera is held to nothing.
-   *
-   * THE VOYAGE IS THIS WORD APPLIED TO THE SHIP. There was no way to start a
-   * crossing from a script at all: the hull existed, the berthing manoeuvre
-   * existed and was tested, and the only thing that could put a player on the
-   * water was a player pressing a key. `route(..., who="ship")` is the trigger,
-   * and it ends at a named berth because a berth is off every painting and is
-   * the one place in this game that cannot be an anchor. */
+  /* travel a named authored path, as the player, a driven actor, or the ship */
   | { kind: 'route'; path: string; who?: string; backwards?: boolean }
 
-  /* FRAMINGS BY NAME. `look_at` reads an anchor's unnamed default and always
-   * has; this invokes a shot somebody named. The unnamed default is left alone
-   * and stays what `look_at` uses, so nothing that works today changes.
-   * `shot: null` gives the camera back, exactly as `look_at(None)` does. */
+  /* point the camera at a shot somebody named; null gives the camera back */
   | { kind: 'framing'; shot: string | null; ms?: number }
 
-  /* THE SHOTS NOBODY HAS TO AUTHOR. `framing` names a composition somebody
-   * dragged into place on one anchor, which is the right word for "the shot of
-   * the tunnel mouth" and no help at all for "show me the whole island": there
-   * is no anchor the whole island hangs off, and no author should have to
-   * re-drag that shot on every map ever made.
-   *
-   * BRIEF-ARRIVAL item 3 is this word. "The moment he is on the dock the camera
-   * zooms OUT to the whole island, for a moment." It could not be written,
-   * because the walking shot ALREADY showed the whole island: measured on hub
-   * v15 at 1366x768 the walking zoom was 1.18 and the painting drew 789 by 445
-   * in the middle of the window with Thor twenty-one pixels tall. There was
-   * nothing to pull back to.
-   *
-   * Three names, computed by the scene off the painting and the window:
-   *   island  the whole painted extent, centred, held still
-   *   walk    the shot a player walks around in, following the body
-   *   close   in on the character, for a walk somebody is watching
-   *   ship    riding with the hull, close enough that she is a ship
-   *   sail    the wide sailing floor, the shot open water is crossed at
-   * A room has no sea and answers `sail` and `ship` with `walk`.
-   *
-   * `ship` IS ASH'S SECOND PASS ON ITEM 1: "The crossing is much closer... the
-   * camera rides with the ship... Not the wide shot of the whole island with the
-   * ship as a speck, which is what shipped." `sail` is the old floor and is what
-   * a player at the tiller still gets; `ship` is what a watched crossing gets. */
+  /* the standard shots the engine works out itself: island, walk, close, ship, sail */
   | { kind: 'view'; view: ViewShot; ms?: number }
 
-  /* TIME, so a scene can breathe and so it can react. `wait` is a pause a
-   * person can feel; `wait_for` blocks until the player walks into a named
-   * region, which is the only way to write "when he gets there" without a
-   * polling loop in a member's Python. */
+  /* pause for a while, or hold until the player walks into a named region */
   | { kind: 'wait'; ms: number }
   | { kind: 'wait_for'; anchor: string; ms?: number }
 
-  /* SOUND. One named effect from the ruled library, played once. The name is
-   * the vocabulary and the file is an implementation detail, so an effect can
-   * be replaced without touching a caller. A name the library does not hold
-   * refuses and lists what it does, like every other named word here. */
+  /* play one named effect from the sound library, once */
   | { kind: 'sound'; name: string; gain?: number }
 
-  /* THE MOVIE, which is BRIEF-ARRIVAL item 1 and Ash's own word for it.
-   *
-   * *"The crossing is a cutscene. Same point of view the ship had sailing out
-   * from the beach, with the two black bars top and bottom, like a movie. No
-   * HUD, no plaques, no 'Get in the boat', no drive-ship control of any kind.
-   * There is no reason a student can drive the ship in the middle of a
-   * cutscene. He watches."*
-   *
-   * WHY IT IS A MODE AND NOT A SCRIPT. `cutscene(name)` already exists and runs
-   * a step list registered in TypeScript, which is the wrong side of the ruling
-   * that says the crossing is written in the islands repo. And a script would
-   * have to own the movement, while the thing actually moving the ship here is
-   * `route(who="ship")`, which is a word the island already has. So this word
-   * changes what the FRAME looks like and touches nothing about what is in it:
-   * bars in, chrome out, hands off, and every other word carries on working.
-   *
-   * IT CANNOT BE LEFT ON. A student sitting behind two black bars with no
-   * controls, because an island raised them and then raised an exception, is a
-   * dead session that looks like a dead laptop. So the scene lifts them on
-   * teardown and a ceiling lifts them anyway, the same shape as the two wait
-   * ceilings below. */
+  /* one flag saying this stretch is watched rather than played: bars in, chrome out */
   | { kind: 'movie'; on: boolean }
 
-  /* WHAT THE STUDENT IS SUPPOSED TO BE DOING, SAID BY WHOEVER IS DIRECTING.
-   *
-   * BRIEF-MAW-RAIL-3 A, Ash after playing rail-2: a panel at the top centre says
-   * the current objective at every moment, and *"it reads `nextObjective`
-   * outside a cutscene and the cutscene's own current step inside one (the
-   * island sets it with a word, `objective("Follow the principal")`, so a member
-   * can too)"*.
-   *
-   * WHY THE ENGINE COULD NOT ALREADY SAY IT. `run/objective.ts` sequences the
-   * YEAR: the founding, the stamp, the fire, the voyage, the page. Inside a
-   * cutscene the student is being walked between those, and the honest sentence
-   * for the thirty seconds he is following somebody across a room is "Follow the
-   * principal", which is a step no state machine over the save can know about.
-   * It belongs to whoever wrote the scene.
-   *
-   * `objective(None)` HANDS IT BACK, and the bars coming down hand it back too,
-   * because a sentence about a step that ended is worse than no sentence. One
-   * short imperative and never a paragraph: the panel draws one line. */
+  /* the one short line saying what the student should be doing now; null hands it back */
   | { kind: 'objective'; text: string | null }
 
-  /* STEPPING OFF THE BOAT, WHICH USED TO BE WELDED TO ARRIVING.
-   *
-   * A scripted crossing ties the ship up at the dock and leaves the player
-   * aboard, because Ash's order at the dock is the pull-out and the arrival card
-   * FIRST and the hop-out after them. There was no way to write that: the body
-   * came off the boat inside the same call that berthed her. This is the second
-   * half, said by the island at the moment it means.
-   *
-   * A no-op on a body already on its feet, so an island that says it twice, or
-   * on a map it never sailed to, is not punished for it. */
+  /* step the player off a berthed boat onto the dock */
   | { kind: 'ashore' }
 
-  /* the sit-down panels. Deliberately a short closed list: a station that opens
-   * a panel is a station that could have been a scene, so making this cheap to
-   * add would be making the wrong thing cheap.
-   *
-   * `yearbook` was MISSING from this list and has been opened by name from the
-   * Maw's own Python since the day the counselor was written. Nothing broke,
-   * because this union is a compile-time promise and the string travels over
-   * postMessage from a runtime that has never seen it, which is precisely the
-   * hole `performIntent` exists to close: the one list that is supposed to be
-   * the capability list did not carry a capability the engine has. */
-  /* `wait` IS WHAT TURNS A MENU INTO A RAIL. Without it `open` comes back the
-   * instant the screen is up, so an island that opens the pick screen has said
-   * the last thing it can say: anything after that line runs underneath the
-   * cards. BRIEF-MAW-RAIL's year one is five beats in a row, three of which are
-   * a panel, and it cannot be written as one handler at all until this word can
-   * come back when the panel closes.
-   *
-   * Left out, the word behaves exactly as it did, which matters: every existing
-   * caller opens a panel as the last thing a station does and must not start
-   * blocking. */
+  /* the sit-down panels, kept to a short closed list on purpose */
+  /* wait makes open come back when the panel is closed rather than when it opens */
   | { kind: 'open'; ui: 'planner' | 'handbook' | 'chart' | 'wardrobe' | 'settings' | 'wall' | 'yearbook'; wait?: boolean }
 
   /* a scored activity. `beat` names one the engine can build; both study arms
@@ -287,34 +70,10 @@ export type Intent =
 
   /* scene changes. `at` is the arrival anchor in the target map, without which
    * every door into a room drops the player on that room's one global spawn. */
-  /* `cover` is the ONE thing a door is allowed to say about its own picture,
-   * and it is not a picture, it is an occasion. The rule this file keeps is that
-   * a cover is chosen by where you are GOING (`src/game/stage/covers.ts`), so
-   * that twenty islands with three rooms each do not become sixty authors
-   * choosing sixty ways, and nothing here overturns it.
-   *
-   * The end of a school year is not a door. `ceremonyCover` was written for it
-   * in another session, carries the archipelago painting and no fact card
-   * because the run is over rather than waiting, and had no caller in the whole
-   * repository. This is the caller. */
+  /* cover names the occasion behind the loading screen, not the picture itself */
   | { kind: 'enter'; map: string; at?: string; cover?: CoverOccasion }
   | { kind: 'cutscene'; script: string }
-  /* THE RUN IS OVER AND THE SCREEN GOES BACK TO WHERE IT STARTED.
-   *
-   * ASH, 2026-09-08: *"I actually ended on an open note, i did not know how to do
-   * a 'end of year' thing. so i left it at thor goes to dock. what happens next i
-   * needed your help… It needs to tie in back to the title screen."*
-   * BRIEF-CLOSE-THE-LOOP section 3: *"…to black, and the title screen. The title
-   * then reads 'Year one is done' with the yearbook openable from it."*
-   *
-   * IT IS NOT `enter`. Every other destination in this vocabulary is a map an
-   * author drew; the title is the frame around the whole game, and a scene id in
-   * an island's Python would be the one place a member could steer the app
-   * itself. This says the RUN has finished and lets the engine decide that means
-   * the title, the same way `open("wall")` says a panel by meaning rather than by
-   * component.
-   *
-   * NOTHING IS ERASED. The save is the finished run and the title reads it. */
+  /* the run has finished and the screen goes back to the title */
   | { kind: 'end_run' }
 
   /* run state. `get` reads, and the paths it accepts are the ones progress.ts
@@ -322,17 +81,7 @@ export type Intent =
    * answer to. */
   | { kind: 'get'; path: RunPath }
   | { kind: 'set_flag'; flag: string }
-  /* THE LEDGER ROW AN ISLAND WRITES. It used to carry a grade and nothing else,
-   * so every island's grade landed as `kind: 'core'`, `credit: 0.5`, no tags, and
-   * an id made of a base-36 timestamp. That row moved the GPA the same amount as
-   * every other island, could never move a cord no matter what the island was
-   * about, appeared on the transcript titled "Awarded", and weighted the GPA
-   * twice if the island was played twice.
-   *
-   * `programme` is the fix and it is one word: it names the roster entry this
-   * grade belongs to, and from that the engine knows the title, the credit, the
-   * kind, the cord tags, the rank track and a stable id. A grape says what it
-   * finished; it does not get to say what that is worth. */
+  /* the ledger row an island writes when it finishes a programme */
   | {
     kind: 'award'
     /** the roster programme this grade completes, when it completes one */
@@ -349,10 +98,7 @@ export type Intent =
    * A grape gets to add to the record; it does not get to write the record. */
   | { kind: 'log'; event: string; data?: Record<string, unknown> }
 
-/* HOW FAST A DRIVEN BODY TRAVELS, as three words rather than as a number. The
- * scene turns each into a fraction of the map's own speed, so a pace means the
- * same thing on a map whose people are eighteen pixels tall and on one whose
- * people are forty. */
+/* how fast a driven body travels, as a word rather than a number */
 export type Pace = 'stroll' | 'walk' | 'run'
 export const PACES: Pace[] = ['stroll', 'walk', 'run']
 /* Walk is the map's own speed and is what everything got before this existed.
@@ -360,47 +106,10 @@ export const PACES: Pace[] = ['stroll', 'walk', 'run']
  * when they are not in a hurry, and a run is half again. */
 export const PACE_OF: Record<Pace, number> = { stroll: 0.62, walk: 1, run: 1.5 }
 
-/* A SECOND MARK BESIDE A STATION, AND THE ONE EXCEPTION TO "ANCHORS, NEVER
- * COORDINATES".
- *
- * Ash, 2026-09-07, after playing rail-6: *"The principal and Thor are in ugly
- * random spots instead of clean spots: if they are supposed to be at the
- * schedule, Thor is at the staircase and the principal is covering the table."*
- * Both halves of that are the same missing idea. A station carries ONE mark, the
- * `stand` point its author drew for the student to stand on, and every word that
- * moves a body at a station aims at it: the leader arrives on it, so he is
- * standing where the student is meant to stand and in front of the thing he is
- * talking about, and the student is left wherever two body lengths behind
- * happened to land, which on the Maw is out on the entrance bridge.
- *
- * A CONVERSATION NEEDS TWO MARKS AND MAPVIS AUTHORS ONE. The honest fix is a
- * second anchor beside each station, and the day MAPVIS has them this argument
- * ends and the offsets go. Until then a scene may say "beside that one, this far
- * over", which is a mark expressed in terms of a mark somebody authored, and
- * therefore still moves when the table moves.
- *
- * PAINTING PIXELS, and no apology for it. Every other quantity in this file is a
- * word rather than a number because numbers do not travel between maps; this one
- * cannot be a word, because "beside" is a different direction at every station in
- * every room. It is bounded instead: an offset is small, it is snapped to legal
- * floor by the scene the way an authored stand point is, and an island that
- * writes one has to prove it with `__probe` and a picture. */
+/* a small step aside from an anchor's own mark, in painting pixels across and down */
 export type Offset = [number, number]
 
-/* THE PLAYER, AS A PLACE. It is already the word for the player as a SPEAKER
- * (`say(who="thor")` puts the student's chosen name on the plate), and this is
- * the same word doing the same job on the other side of a sentence.
- *
- * ASH, 2026-09-08: *"The principal panther arguably is like an extension of
- * thor. he pops up in front of thor at any time. he isnt bound to the entrance
- * of the maw."* Every word that put a body somewhere took an anchor name, so
- * the only way to have somebody waiting for the student was to name a fixed
- * pixel and hope he was standing near it. The Maw's closing film named the
- * tunnel, so a student who finished his year at the fire and pressed the
- * principal got a man who appeared across the room and had to walk back.
- *
- * `place(actor, "thor")` is the answer and it is one word: wherever the student
- * is, that is where the scene is. */
+/* the name that means the player, both as a speaker and as a place to stand */
 export const PLAYER = 'thor'
 /** how far from a station's own mark a second mark may be asked for */
 export const OFFSET_LIMIT = 96
@@ -414,10 +123,7 @@ export const offsetFault = (o: unknown): string | null => {
   return null
 }
 
-/* THE OCCASIONS A DOOR MAY DECLARE, and there is one. Not a picture and not a
- * kind: an island says what the moment IS and the cover registry says what that
- * looks like, which is the same division `view` keeps for the camera. A second
- * one is a word here and a line there. */
+/* the occasions a door may declare, which the cover registry turns into a picture */
 export type CoverOccasion = 'ceremony'
 export const COVER_OCCASIONS: CoverOccasion[] = ['ceremony']
 
@@ -428,79 +134,18 @@ export const VIEW_SHOTS: ViewShot[] = ['island', 'walk', 'close', 'ship', 'sail'
 export type RunPath =
   | 'year' | 'gpa' | 'tokens' | 'cords' | 'flags' | 'islands'
   | 'handle' | 'mode' | 'graduated'
-  /* THE TWO THE VINE'S OWN CONTENT COULD READ AND A GRAPE COULD NOT.
-   *
-   * `stations.ts` is written in TypeScript beside the systems, so the counselor
-   * calls `cordsOf(save)` and reads `detail`, the live status line progress.ts
-   * writes once for the tracker board, and the trophy wall counts
-   * `s.stickers.length + s.badges.length`. Neither number is on the nine paths
-   * above, so the same two stations written in Python could not say the same
-   * sentences. stations.ts's own header names that as the failure to avoid: "if
-   * the vine's own content cannot be written in the API the members get, then the
-   * API is a demo and the members are second-class".
-   *
-   * `cords` is left exactly as it was, a list of the ids you have EARNED, because
-   * that is the cheap question and something may already be asking it. This is
-   * the expensive one beside it: every cord, earned or not, with the school's own
-   * rule and the live progress line.
-   *
-   * `trophies` is the other half of a word that could already write and could not
-   * read: `award(sticker=..., badge=...)` has always been able to put something on
-   * that wall, and nothing could ask what was on it. */
+  /* every cord with its rule and progress line, and what is on the trophy wall */
   | 'cord_board' | 'trophies'
-  /* ---- WHERE THE YEAR IS, AND WHAT HE HAS ACTUALLY DONE IN IT --------------
-   *
-   * BRIEF-INTRO-FILM, Ash 2026-09-07: the introduction and the ending are two
-   * films, and the ending is triggered by *"every task on this year is done"*.
-   * An island cannot ask that today. It can ask `planned` and it can ask
-   * `advisory`, so the only way to write the trigger was to AND those two
-   * together, which is Advisory hardcoded as the last thing in a year and is
-   * wrong the day the first island can be sailed to.
-   *
-   * `phase` is `nextObjective`'s own answer, which is the machinery that already
-   * knows: 'founding', 'vignette', 'plan', 'core', 'voyage', 'rising',
-   * 'yearbook' or 'done'. The year is finished when it says 'yearbook', and
-   * that clause already accounts for a voyage nobody has sailed. One sequencer,
-   * read rather than re-decided, the same rule `objective.ts` opens with.
-   *
-   * `picks` is what the principal congratulates him ON. The closing film says
-   * one line naming the student and what he really did, and every piece of it
-   * has to come off the save or it is a compliment about somebody else. */
+  /* which step of the year he is on, and what he actually picked in it */
   | 'phase' | 'picks'
-  /* AND THE ONE THE FIRE HAS TO ASK BEFORE IT LIGHTS.
-   *
-   * `stations.ts` decides whether the hearth is open by calling `hasCoreBeat` and
-   * `beatDone(s.ledger, s.year)`. Neither is reachable from Python, and the two
-   * ways of writing the hearth without them are both wrong: hard-code
-   * "core:y%d", which is a typed constant of exactly the kind anchors exist to
-   * kill, or yield `play` unconditionally and re-run a beat the student already
-   * sat, which writes a second grade for the same year.
-   *
-   * Named for the QUESTION and not for the storage. There is no `ledger` path and
-   * there should not be: the comment above says a grape that could ask for an
-   * arbitrary path is a grape the save can never change underneath. This asks one
-   * thing, "is this year's advisory still owed, and what is it called", and the
-   * answer is a beat id or null. */
+  /* is this year's advisory still owed, answered as a beat id or null */
   | 'advisory'
-  /* AND THE ONE A RAIL HAS TO ASK BEFORE IT MOVES ON.
-   *
-   * Same shape as `advisory` above and for the same reason. The Maw's year one
-   * opens the pick screen and then has to know whether the student really
-   * stamped it or pressed Close for now, because a rail that walks him to the
-   * fire with no year on the sheet has walked him past the only decision in the
-   * beat. Nothing on the paths above can answer it: `tokens` counts seasons in
-   * hand and does not move on a stamp, and `flags` carries nothing about a plan.
-   *
-   * Named for the question, "is this year's sheet stamped", and it is about THIS
-   * year because that is the only year a student can stamp. */
+  /* is this year's plan sheet stamped */
   | 'planned'
 
 /* ---- what comes back ------------------------------------------------------ */
 
-/* One shape for every reply so the worker protocol has one envelope and a
- * beginner's `pick = yield self.choose([...])` is the same machinery as
- * `yield self.say(...)`. `ok: false` is a refusal the engine can explain, never
- * an exception thrown across a runtime boundary. */
+/* one shape for every reply, so a refusal is an answer rather than an exception */
 export type IntentResult =
   | { ok: true; value?: unknown }
   | { ok: false; why: string }
@@ -510,13 +155,7 @@ export const no = (why: string): IntentResult => ({ ok: false, why })
 
 /* ---- who honours them ----------------------------------------------------- */
 
-/* The half of the vocabulary that needs a world. A scene implements this and
- * the intents that touch a map become possible; a scene that does not is still
- * a legal place to run a grape, it just cannot be asked to walk anybody.
- *
- * Everything NOT in here (open, play, get, set_flag, award, log) is answered by
- * the engine itself and works in any scene, which is what makes a grape's logic
- * testable with no map at all. */
+/* the half of the vocabulary that needs a map, implemented by whichever scene is up */
 export interface IntentWorld {
   /* the map this scene is showing, so `enter` knows when it is a no-op */
   mapId(): string
@@ -528,10 +167,7 @@ export interface IntentWorld {
   walkTo(anchor: string, off?: Offset): Promise<void>
   lookAt(anchor: string | null, ms?: number): Promise<void>
   show(anchor: string, visible: boolean): void
-  /* IT IS AWAITED NOW. It returned void, so `performIntent` answered ok the
-   * instant the effect started and a script's next line ran over the top of it.
-   * "Plays once, ends" is the shape the brief asks for and a step that ends is
-   * the only one an author can compose with. */
+  /* play a named effect and come back when it has finished */
   fx(name: string, anchor?: string, data?: unknown): Promise<void>
   enter(map: string, at?: string, cover?: CoverOccasion): Promise<void>
   /** put the player off a berthed boat and onto the dock */
@@ -574,18 +210,10 @@ export interface IntentEngine {
   }): void
   log(event: string, data?: Record<string, unknown>): void
   mode(): SessionMode
-  /* THE TWO DIRECTOR WORDS THAT NEED NO MAP. A pause is a pause in the standalone
-   * harness too, and an effect plays out of the same speakers whichever scene is
-   * up, so putting either on the world would make a grape's own pacing untestable
-   * without a painting. Sound refuses an unknown name here rather than at the
-   * scene, for the same reason. */
+  /* the two director words that need no map: a pause and a sound */
   wait(ms: number): Promise<void>
   sound(name: string, gain?: number): void
-  /* AND THE THIRD. The bars and the chrome are the WINDOW, not the map: a
-   * scene with no painting still has a HUD to put away and a frame to draw, and
-   * an island's opening should be able to say "this part is watched" wherever
-   * it is being run. The scene listens to the same switch for its own in-world
-   * furniture, so there is one flag and not two. */
+  /* raise or drop the movie bars, which belong to the window rather than a map */
   movie(on: boolean): void
   /* AND THE FOURTH, for the same reason. The panel that says what to do next is
    * chrome around the window rather than anything on a map, so an island run in
@@ -593,31 +221,13 @@ export interface IntentEngine {
   objective(text: string | null): void
 }
 
-/* WHO IS SPEAKING, WHEN IT IS NOT THE VINE.
- *
- * P4. `set_flag` took an arbitrary string and wrote it into one flat list shared
- * by every island in the game, so two members both shipping a flag called `done`
- * collided silently in a student's save, and an island could write `yearbook:y1`
- * and move something that was never its business.
- *
- * A flag is now prefixed with the id of whoever asked. The vine's own stations
- * have no `by` and keep the bare names they already wrote, because renaming
- * those would rewrite every existing save. A grape always has one. */
+/* which island is speaking, so its flags get its own name in front of them */
 export type IntentBy = { grape: string }
 
-/* THE LONGEST A SCENE MAY BE ASKED TO STAND STILL. Thirty seconds is already
- * longer than any beat in the walkthrough and four times the longest pause in the
- * beach opening; past it, a student cannot tell a scripted pause from a frozen
- * tab, and neither can the person marking the study data. A member who typed a
- * number in seconds gets a long pause and not a dead session. */
+/* the longest pause a scene may be asked to hold */
 export const WAIT_CEILING_MS = 30_000
 
-/* AND THE LONGEST IT MAY WAIT FOR HIM TO WALK SOMEWHERE. Longer than a pause,
- * because this one is waiting on a person and a person browses; short enough that
- * an anchor behind a locked door, or one a player has decided not to visit, ends
- * as a `False` an island can branch on rather than as a scene that has stopped.
- * Two minutes is about a twentieth of the advisory session this game is played
- * in, which is the unit that matters. */
+/* the longest it may wait for the player to walk somewhere */
 export const WAIT_FOR_CEILING_MS = 120_000
 
 export type IntentHost = {
@@ -629,12 +239,7 @@ export type IntentHost = {
 
 /* ---- the one place an intent is performed --------------------------------- */
 
-/* Exhaustive on purpose. A new capability is a new case here and a new line in
- * the union above, and TypeScript refuses to build until both exist. That is
- * the whole enforcement mechanism for "the vocabulary is the capability list":
- * you cannot name something the engine cannot do, because naming it does not
- * compile.
- */
+/* the one place an intent is carried out, with a case for every word in the union */
 export async function performIntent(i: Intent, host: IntentHost): Promise<IntentResult> {
   const { world, engine, by } = host
   /* the island's own corner of the flag list. A member writes set_flag("met"),
@@ -668,12 +273,7 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         await w().walkTo(i.anchor, i.off)
         return ok()
       case 'look_at':
-        /* THE ONLY ANCHOR-TAKING WORD THAT DID NOT CHECK ITS ANCHOR. guide_to,
-         * walk_to and show all refuse a name the map does not carry; this one went
-         * straight through, resolved on the next tick, and answered ok with the
-         * camera never having moved. A typo in an anchor name is the single most
-         * likely mistake a member will make, and this was the one word that would
-         * not tell them. `null` still means "let the camera go" and is not a name. */
+        /* the anchor is checked here too, and null means let the camera go */
         if (i.anchor && !w().hasAnchor(i.anchor)) return no(`no anchor named "${i.anchor}" on ${w().mapId()}`)
         await w().lookAt(i.anchor, i.ms)
         return ok()
@@ -682,10 +282,7 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         w().show(i.anchor, i.visible)
         return ok()
       case 'fx':
-        /* THE ANCHOR IS CHECKED HERE AND NOT ONLY INSIDE THE SCENE, so the word
-         * behaves like every other anchor-taking word and the refusal reads the
-         * same. Awaited, because an effect that has not finished is a step that
-         * has not finished. */
+        /* the anchor is checked here so the refusal reads like every other word's */
         if (i.anchor && !w().hasAnchor(i.anchor)) return no(`no anchor named "${i.anchor}" on ${w().mapId()}`)
         await w().fx(i.name, i.anchor, i.data)
         return ok()
@@ -704,19 +301,12 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
       /* ---- the director class -------------------------------------------- */
 
       case 'pose':
-        /* SAYING NOTHING IS NOT AN INSTRUCTION. Both fields optional makes the
-         * common case short (`pose(facing="north")`), and both absent makes a
-         * call that would stand there reporting success while doing nothing at
-         * all, which is the one thing no word in this file is allowed to do. */
+        /* both fields are optional, but a call with neither is not an instruction */
         if (!i.pose && !i.facing) return no('pose needs a pose, a facing, or both')
         await w().pose(i.pose, i.facing)
         return ok()
 
-      /* AN ACTOR IS AN ANCHOR NAME, so the four words below check it exactly the
-       * way `show` does and the mistake an author will actually make, a typo,
-       * reads the same everywhere. The anchor also has to be bound to something,
-       * and that half is the scene's to answer because only the scene knows what
-       * it loaded. */
+      /* an actor is an anchor name, so the words below check it the way show does */
       case 'actor_move':
         if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
         if (!w().hasAnchor(i.to)) return no(`no anchor named "${i.to}" on ${w().mapId()}`)
@@ -774,10 +364,7 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         await w().view(i.view, i.ms)
         return ok()
 
-      /* `wait_for` ANSWERS WHETHER IT HAPPENED. A timeout that resolves the same
-       * as an arrival is a timeout an author cannot branch on, so the value is
-       * the answer to "did he get there", and a wait with no timeout can only
-       * ever answer true. */
+      /* wait_for answers whether he actually got there, so an island can branch on it */
       case 'wait_for':
         if (!w().hasAnchor(i.anchor)) return no(`no anchor named "${i.anchor}" on ${w().mapId()}`)
         return ok(await w().waitFor(i.anchor, i.ms))
@@ -801,10 +388,7 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         engine.movie(i.on === true)
         return ok()
       case 'objective':
-        /* NO MAP NEEDED EITHER, and no anchor: this is a sentence and not a
-         * place. A blank string means the same as None, so an island that
-         * builds the line out of its own state cannot leave an empty plaque on
-         * the glass. */
+        /* no map needed: this is a sentence, and a blank one means the same as none */
         engine.objective(typeof i.text === 'string' && i.text.trim() ? i.text.trim() : null)
         return ok()
 
@@ -814,12 +398,7 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         await engine.openUi(i.ui, i.wait === true)
         return ok()
       case 'play': {
-        /* THE CONTROL ARM IS NOT OPTIONAL. as_plain defaults to the arm this
-         * participant was assigned at join, so a grape that never mentions it
-         * still renders both ways and the study stays content-constant. A grape
-         * CAN force plain (a teaching moment that should read the same either
-         * way); it cannot force game, because that would let one island opt the
-         * control arm out of its own control. */
+        /* as_plain defaults to the study arm this participant was assigned at join */
         const plain = i.as_plain ?? engine.mode() === 'plain'
         return ok(await engine.playBeat(i.beat, plain))
       }
@@ -859,21 +438,7 @@ class NoWorld extends Error {
   constructor(readonly what: string) { super(what) }
 }
 
-/* NO INTENT MAY RESOLVE SUCCESSFULLY WITHOUT PERFORMING.
- *
- * Three of the fifteen words used to report success while doing nothing. `show`
- * warned to the console and returned. `fx` logged "(not built)" and returned.
- * `cutscene` logged "not implemented" and resolved. Each was written kindly, so
- * an author would see the engine had heard them, and each did the opposite:
- * `performIntent` saw a call that did not throw and answered `ok`.
- *
- * The person deceived is the AUTHOR, not the player. A member writes an arrival
- * script, runs it, sees no error, and ships an island whose most cinematic beat
- * never plays and reports that it worked. That survives a year, and one did.
- *
- * So an unbuilt capability throws this, the catch above turns it into
- * `{ok: false, why}`, and the refusal travels back across the worker to the line
- * of Python that asked. A word that cannot perform says so. */
+/* thrown by a word the engine cannot perform yet, so the caller gets a refusal */
 export class NotBuilt extends Error {
   constructor(readonly what: string, detail?: string) {
     super(detail ? `${what} is not built yet. ${detail}` : `${what} is not built yet`)

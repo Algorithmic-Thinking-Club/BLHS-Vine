@@ -1,38 +1,4 @@
-/* THE ROSTER: what exists in the world, and which key addresses which part of it.
- *
- * One key called `islandId` used to be five things at once. It was a map id, a
- * planner entry's target, a completion key, a rank track and a member of the
- * playable set, and the real school does not agree that those are one thing.
- * The stadium is the proof: Football runs there in fall under Ashton Bruce,
- * Girls Flag Football in winter under Eric Jarvis and Track and Field in spring
- * under Brooke Wilson. Three programmes, one place, one painting. Under one key
- * the first of them to finish marks the other two finished, and the student
- * spends a winter token on a voyage the year model already believes is over.
- * Nothing in any file an author can see says so.
- *
- * SO THERE ARE FOUR KEYS AND NOTHING HOLDS TWO OF THEM IN ONE FIELD.
- *
- *   a MAP id       one painting, one MAPVIS bundle. `hub`, `panther-maw`.
- *   a PLACE id     one real BLHS location, holding one to four maps, one world
- *                  position, one discovery and one recognition brief.
- *   a PROGRAMME id one thing a student can do at a place: one season, one host,
- *                  one rank track, one completion record per year.
- *   an ACTIVITY SLOT  the planner entry that spends a season token on a
- *                  programme. That one is the run's (80.6) and lives in the
- *                  save; the roster only says what a slot may point at.
- *
- * THE ROSTER IS SHARED BY EVERY STUDENT AND IS NEVER IN THE SAVE. It changes on
- * a deploy. What one student did with it is the run's, and that boundary is the
- * whole reason this file exists.
- *
- * A PROGRAMME NAMES ITS PLACE, and the place's programme list is derived. That
- * way a member building one programme never has to edit another member's file,
- * and the board at the shore still gets a list to read.
- *
- * NOTHING HERE IS INVENTED. Every entry carries where it came from. A field
- * nobody has sourced is absent rather than guessed, which is why ATC has no room
- * number and the stadium has no painting.
- */
+// the roster: the places, programmes and maps that exist in the world, and how each is addressed
 import type { Season } from '../save'
 import { MEMBER_ISLANDS } from './member-islands'
 import { EXAMPLE_BLURB, EXAMPLE_SOURCE, exampleLabel, examplePlace } from './example'
@@ -41,11 +7,7 @@ export type MapId = string
 export type PlaceId = string
 export type ProgrammeId = string
 
-/* ---- the season vocabulary, as ONE source ---------------------------------
- *
- * The sheet, the ledger, the sports table, the dock's out-of-season line and a
- * programme manifest all ask the same question and they now ask it here.
- * blhs.sumnersd.org/athletics/our-sports, 2025-26. */
+/** which season each school sport runs in, the one source every screen asks */
 export const SPORT_SEASONS: Record<string, Season> = {
   // fall
   'cross-country': 'Fall', football: 'Fall', 'girls-golf': 'Fall', 'girls-soccer': 'Fall',
@@ -66,42 +28,14 @@ export type Place = {
   id: PlaceId
   /** the real place's name as the player reads it */
   name: string
-  /* THE MAPS THIS PLACE IS MADE OF, which is W2 and the reason a place is not a
-   * map. Two to four connected districts at full resolution is MAPS.md's own
-   * answer to getting detail out of a small painting, and this is the field that
-   * answer needs. Empty means nobody has painted it yet, and that is honest
-   * rather than broken: the dock says so and the voyage reads as still rising. */
+  // the paintings this place is made of, one to four; empty means nobody has painted it yet
   maps: MapId[]
   /** which of its maps a voyage arrives at. Absent while the place has no maps. */
   arrival?: MapId
 
-  /* THERE IS NO `at` HERE, AND PUTTING ONE BACK IS THE BUG. Ruled 2026-08-29.
-   *
-   * This type carried `at?: {x, y}`, commented "where it sits on the ocean, in
-   * the ocean's own untransformed screen space", set by no place and read by no
-   * file. It was written before the world composition existed. A POSITION IS THE
-   * COMPOSITION'S: `src/game/world/composition.ts`, where a slot carries `at`, a
-   * `footprint`, a `state`, a `release` radius and a `berth`, and names a roster
-   * place by id.
-   *
-   * Two fields spelling one fact is the same defect as one key spelling four,
-   * which is the whole reason this file exists. It would have been worse here
-   * than the `islandId` conflation was, because only ONE of the two is authored:
-   * MAPVIS W2 writes the composition, and nothing anywhere writes a roster. A
-   * place moved in MAPVIS and a stale `at` still sitting in this file would
-   * disagree silently, and the reader that happened to pick this one would put
-   * an island in the wrong water with no error.
-   *
-   * The split, said once: THE ROSTER SAYS WHAT EXISTS AND WHAT HAPPENS THERE.
-   * THE COMPOSITION SAYS WHERE IT IS. A place with no slot has not been placed
-   * on the water yet, which is a true thing about it and reads correctly as a
-   * missing slot rather than as a coordinate of zero. `slotOfPlace(c, placeId)`
-   * is the lookup; there is nothing to add to this type to get one. */
+  // a place has no position here: the roster says what exists, the world composition says where
 
-  /* W14, THE PAINTING BUDGET. How many paintings this place has been authorised.
-   * Every generation is Ash's hands and his explicit word for that specific
-   * spend, so a member who needs a second district finds the number here rather
-   * than at review. It is a count of what is ALLOWED, not of what exists. */
+  // how many paintings this place is allowed, which is not how many it has
   paintings: number
   /* P16's recognition brief: which real place this is and what a student's eye
    * is holding. Absent when nobody has written one; never guessed. */
@@ -109,23 +43,7 @@ export type Place = {
   /** where it really is in the building, when a source says. Never invented. */
   room?: string
 
-  /* WHICH CLASS DEPARTMENTS SIT HERE, and it is the field a class beat resolves
-   * its room through. `src/game/beats/classes.ts` carried a `HALL` table that
-   * mapped a department to 'the AP Academy', 'the international hall', 'the
-   * Trades Harbor' and 'the arts wing'. Not one of those is a real BLHS place,
-   * not one is on this roster and not one is on a map, so a class beat named a
-   * room a student could not walk to and the objective arrow could never point
-   * at a class.
-   *
-   * IT IS EMPTY ON EVERY PLACE TODAY AND THAT IS THE ANSWER, not an omission.
-   * `docs/blhs/sourced-facts.md` carries a room for a club (200 Flex, Rm 104,
-   * Rm 206/207) and carries none for a department: the course catalog lists what
-   * is taught and never where. So a class resolves to nothing and says so, in
-   * the same register an unpainted place says it has no painting.
-   *
-   * Typed as a string rather than the planner's `Dept` because the roster must
-   * not import the planner; the planner's vocabulary is 'ap' | 'lang' | 'cte' |
-   * 'arts' and `rosterFaults` refuses two places claiming one department. */
+  // which class departments are taught here, so a class beat can name a real room
   teaches?: string[]
 
   /** where the two lines above came from */
@@ -148,10 +66,7 @@ export type Programme = {
    * programme rather than one per place: Q80.11.b is open and this is the
    * simple answer, marked as a choice rather than a fact. */
   rankTrack?: string
-  /* N1: PLAYABILITY IS A PROPERTY OF THE PROGRAMME, read here.
-   * `PLAYABLE_ISLANDS` was a hardcoded Set in year.ts whose own neighbours
-   * claimed the list "grows as grapes ship with zero planner-code changes",
-   * which was true about the planner and false about the Set. */
+  // whether this programme has a playable island behind it
   playable: boolean
   /** the one-line WHAT IT IS, sourced */
   blurb: string
@@ -166,21 +81,12 @@ export type Programme = {
 const SPORTS_SRC = 'blhs.sumnersd.org/athletics/our-sports, 2025-26'
 const CLUBS_SRC = 'blhs.sumnersd.org/activities/clubs-activities/blhs-clubs, 2025-26'
 
-/* THE AUTHORED TRUTH, WHICH THE MASK BELOW SITS ON TOP OF. Exported so the
- * roster's own test can ask what was written rather than what is printed;
- * nothing that draws a screen may read it, because a screen that reads it is a
- * screen printing a real school name with no island behind it. */
+/** the real place names, under the placeholder mask below. Screens read PLACES, not this. */
 export const SOURCED_PLACES: Place[] = [
   {
-    /* the home base, and the first place in the game made of more than one
-     * painting. The hub and the Maw are two map ids and one location, the door
-     * between them already walks with no page reload, and before the roster
-     * there was no way to say they were the same place. */
+    // the home base, one place made of two paintings with a door between them
     id: 'home-island',
-    /* NAMED FOR THE SCHOOL ITSELF, 2026-09-04. This place IS Bonney Lake High
-     * School, and "the Central Island" was the one label on the chart that never
-     * said so. The `source` line below still describes the home base rather than
-     * a sourced BLHS location, and that has not changed. */
+    // this place is the school itself, so it carries the school's name
     name: 'Bonney Lake High School',
     maps: ['hub', 'panther-maw'],
     arrival: 'hub',
@@ -231,12 +137,7 @@ const OURS: Programme[] = [
   {
     id: 'football', name: 'Football', place: 'stadium', kind: 'sport',
     tags: [], rankTrack: 'football', playable: false,
-    /* THE THIRD STADIUM SPORT SAYS ITS SEASON TOO, 2026-09-04. The other two got
-     * one in the words pass and this one did not, and the Handbook card prints no
-     * season of its own: the blurb is the only place a student reads it. Two of
-     * three saying when they run teaches the third runs any time, at the one
-     * place in the game built to teach that three sports share a field and not a
-     * season. Fall is `SPORT_SEASONS.football`, off the same sourced table. */
+    // the blurb names the season, because the card a student reads shows no season of its own
     blurb: 'Varsity, JV and Freshmen. Coach Bruce. No tryouts, it runs in fall, and Fridays get loud.',
     host: 'Ashton Bruce', source: SPORTS_SRC,
   },
@@ -260,18 +161,7 @@ const OURS: Programme[] = [
   },
 ]
 
-/* ---- AND WHAT ATC SHIPPED, WHICH IS DATA -----------------------------------
- *
- * N1 said playability is a property of the programme and this is the other half
- * of it: a member's island reaches the roster by a PULL REQUEST THAT ADDS ONE
- * ROW to a data file in their own repository. Ash merging it is the gate and the
- * only gate. Nobody opens the engine to ship an island, which was true of every
- * document about the member model and false of every line of code until now.
- *
- * Appended rather than merged, so a data row can never quietly redefine a
- * sourced programme the school actually has. An id already on the roster is
- * refused by `rosterFaults` and said out loud, which is the right answer: two
- * things called `football` is a question for a person. */
+// what members shipped is appended from a data file, so a row can never redefine a sourced one
 /** the authored truth, under the mask. See `SOURCED_PLACES`. */
 export const SOURCED_PROGRAMMES: Programme[] = [
   ...OURS,
@@ -290,43 +180,7 @@ export const SOURCED_PROGRAMMES: Programme[] = [
   })),
 ]
 
-/* ---- AND THE CATALOG ITSELF IS THE PLACEHOLDER LAYER ----------------------
- *
- * BRIEF-MAW-RAIL-3 B, Ash after playing rail-2: *"Rail-2 put placeholders on the
- * pick screen only. Ash still saw 'Algorithmic Thinking Club', 'Football',
- * 'Girls Flag Football' in the Guide, the wall, the yearbook, the year-two sheet
- * and the task line. The catalog itself becomes the placeholder layer: clubs and
- * sports are Example A to E everywhere."*
- *
- * WHY THAT IS ONE FUNCTION AND NOT TEN COMPONENTS. Rail-2 answered the same
- * ruling with `shownName(id, real)` at each surface that printed a name, and
- * shipped it wired into three of them. The Guide, the wall's own frames, the
- * yearbook, the planner, the Wardrobe and the badge list all still read
- * `programme.name` straight, and every one of them was a real school name with
- * nothing behind it. A rule enforced at the call site is a rule with a hole in it
- * for every call site somebody has not visited yet.
- *
- * So the name a placeholder HAS is Example A. There is no second name to print
- * by accident, in this repo or in a member's island, and the day a row in
- * `member-islands.json` says `"playable": true` the entry is masked no longer and
- * every one of those surfaces says the real thing with no edit anywhere.
- *
- * WHAT IS MASKED AND WHAT IS NOT. The name, the one-line blurb, the host and the
- * source: everything a student READS. Not the id, the place, the kind, the
- * season, the tags or the rank track, which are the WIRING: a placeholder still
- * sits in the right season, still moves the right cord and still records against
- * the right key, so the day it becomes real nothing about it has to be rebuilt.
- *
- * WHERE THE REAL WORDS WENT. Nowhere: `SOURCED_PROGRAMMES` above is untouched
- * and every blurb, host and citation is still written there, which is what makes
- * this a mask rather than a deletion.
- *
- * A CLASS IS NOT MASKED, and that is Ash's own refinement the same evening:
- * *"electives are their real names everywhere and inert until an island links to
- * them."* A club in this game IS an island somebody built, so a club nobody has
- * built has no name to print; a course is a true thing about Bonney Lake whether
- * or not anybody has drawn it. `planner/catalog.ts` keeps its real names and
- * `placeholders.ts` marks them inert. */
+/** the programmes as a student reads them: anything not playable wears an Example A name */
 export const PROGRAMMES: Programme[] = (() => {
   let n = 0
   return SOURCED_PROGRAMMES.map((p) => p.playable ? p : {
@@ -338,16 +192,7 @@ export const PROGRAMMES: Programme[] = (() => {
   })
 })()
 
-/* AND A PLACE NOBODY CAN GO TO YET IS ONE TOO. The Guide's Islands page prints a
- * place name over the programmes that happen there, so "the Algorithmic Thinking
- * Club" was on that page as a heading with Example A underneath it, which is the
- * exact confusion this brief is about, said twice on one card.
- *
- * THE TEST IS THE SAME ONE, ASKED OF THE PLACE: has it a painting, or anything
- * real happening at it. The home island has both and keeps its name; the
- * stadium, 200 Flex and the ATC room have neither today and get a letter. The
- * first playable programme at a place hands that place its real name back, on
- * the same one row in `member-islands.json`. */
+/** the places as a student reads them: one with no painting and nothing playable gets a letter */
 export const PLACES: Place[] = (() => {
   const real = new Set(PROGRAMMES.filter((p) => p.playable).map((p) => p.place))
   let n = 0
@@ -360,13 +205,7 @@ export const PLACES: Place[] = (() => {
   })
 })()
 
-/* ---- THE ONE RESOLVER ------------------------------------------------------
- *
- * Every question anybody asks about which key means what is answered here, so a
- * second reading of the key space cannot grow somewhere else. Maps are indexed
- * once at module scope rather than scanned per call, because the objective
- * arrow asks `placeOfMap` every frame.
- */
+// the lookups, built once at module scope because the objective arrow asks them every frame
 
 const placeIndex = new Map<PlaceId, Place>(PLACES.map((p) => [p.id, p]))
 const programmeIndex = new Map<ProgrammeId, Programme>(PROGRAMMES.map((p) => [p.id, p]))
@@ -383,11 +222,7 @@ export const programmeById = (id: ProgrammeId | undefined): Programme | undefine
 export const placeOfMap = (mapId: MapId | undefined): Place | undefined =>
   mapId ? mapIndex.get(mapId) : undefined
 
-/* WHERE A DEPARTMENT'S CLASSES SIT, and today the honest answer is nowhere.
- * A class beat asks this instead of reading an invented hall name off a table,
- * so the day somebody sources a room for the AP department the beat names it and
- * the arrow points at it with no code change. Undefined is a real answer and
- * every caller has to have a line for it. */
+// which place teaches a department, and undefined is a real answer every caller must handle
 const deptIndex = new Map<string, Place>()
 for (const p of PLACES) for (const d of p.teaches ?? []) if (!deptIndex.has(d)) deptIndex.set(d, p)
 
@@ -430,24 +265,14 @@ export const isPlayable = (id: ProgrammeId | undefined): boolean =>
 export const rankTrackOf = (id: ProgrammeId | undefined): string | null =>
   programmeById(id)?.rankTrack ?? null
 
-/* AND BACK THE OTHER WAY, which is the lookup the diploma needed and did not
- * have. `save.ranks` is keyed by rank track and the cape printed
- * `activityById(track)?.name ?? track`, so Key Club's ladder, whose track is
- * spelled `keyclub` and whose programme id is spelled `key-club`, printed the
- * raw key on a graduating student's diploma. A track is its own key space and
- * resolving it is a lookup rather than a spelling. */
+// back the other way: a rank track is its own key space, so resolve it rather than spell it
 const trackIndex = new Map<string, Programme>()
 for (const p of PROGRAMMES) if (p.rankTrack && !trackIndex.has(p.rankTrack)) trackIndex.set(p.rankTrack, p)
 
 export const programmeOfRankTrack = (track: string | undefined): Programme | undefined =>
   track ? trackIndex.get(track) : undefined
 
-/* ---- the refusal the boundary is worth ------------------------------------
- *
- * Publish-time rather than render-time, which is F9's argument applied to a key
- * rather than to an anchor. It runs in the roster's test and is exported so a
- * future manifest loader can run it over a member's entry before it ships.
- */
+// what a broken roster entry looks like, checked at publish time rather than while drawing
 export type RosterFault = { key: string; why: string }
 
 export function rosterFaults(places = PLACES, programmes = PROGRAMMES): RosterFault[] {
@@ -455,10 +280,7 @@ export function rosterFaults(places = PLACES, programmes = PROGRAMMES): RosterFa
   const seenMap = new Map<MapId, PlaceId>()
   const seenDept = new Map<string, PlaceId>()
   for (const p of places) {
-    /* A DEPARTMENT SITS IN ONE PLACE. Two places claiming one department is the
-     * `HALL` table growing back in data: a class beat would resolve whichever
-     * entry happened to be first and the answer would move when somebody
-     * reordered the list. */
+    // a department sits in exactly one place, so two places claiming it is a fault
     for (const d of p.teaches ?? []) {
       const owner = seenDept.get(d)
       if (owner) out.push({ key: d, why: `department is taught at both "${owner}" and "${p.id}"` })

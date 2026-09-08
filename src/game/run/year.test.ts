@@ -72,10 +72,7 @@ describe('yearStatus (§7.5 derived, resumable anywhere)', () => {
     st = yearStatus(save.loadSave()!)
     expect(st.planStamped).toBe(true)
     expect(st.readyForYearbook).toBe(false)            // advisory + classes still owed
-    /* the names the roster is printing, which today are placeholders because
-       nothing has an island behind it (BRIEF-MAW-RAIL-3 B). What this line is
-       about is that a voyage is named off the programme it points at and in the
-       order the seasons run, and that holds either way. */
+    /* a voyage is named off the programme it points at, in the order the seasons run */
     expect(st.voyages.map((v) => v.name))
       .toEqual([programmeById('football')!.name, programmeById('atc')!.name])
     expect(st.voyages.every((v) => !v.playable)).toBe(true)   // islands still rising
@@ -102,15 +99,7 @@ describe('yearStatus (§7.5 derived, resumable anywhere)', () => {
     expect(st2.vignetteSeen).toBe(false)               // the year-2 vignette waits
   })
 
-  /* THE EMPTY-SEASON NUDGE IS GONE, and this is the fence that it stays gone.
-   *
-   * It used to read "You left winter open this year. You never spent that season
-   * token." BRIEF-CLOSE-THE-LOOP section 4 takes the season model off every
-   * screen until a real sport with a season exists, and Ash's own words on
-   * 2026-09-08 are the reason: *"what even happened to the fall, winter, spring
-   * shit... NONE of that is explained, and even I dont know."* A student who left
-   * a column empty on a sheet that never showed him columns has not left
-   * anything, and telling him he did is the yearbook inventing a failure. */
+  /* the yearbook never nudges a student about a season he left empty */
   it('never nudges about a season, because no student was ever shown one', async () => {
     const { save, year } = await freshYear()
     vi.resetModules()

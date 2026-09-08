@@ -1,18 +1,4 @@
-/* THE GUIDE'S DIRECTORY PAGE.
- *
- * Its own file rather than more of `hud.css`, which is 33,000 characters and is
- * being edited by another session in the same tree tonight. Everything here is a
- * token, so the control arm gets a worksheet and the game arm gets paper without
- * this file knowing which is which; the plain block at the foot is only the two
- * rules the tokens cannot answer.
- *
- * A DIRECTORY IS ROWS, NOT CARDS. The Islands page draws cards because each card
- * is a place with a state. This is a list of true sentences about a school, and a
- * student reading it is scanning for one name, so it is set as a list: the name
- * in the display face, what it is under it, and the day, time and room on the
- * right where the eye is already going. Two columns where the binder is wide
- * enough and one where it is not, which is `auto-fill`'s own answer rather than a
- * breakpoint somebody typed. */
+/* the Guide's directory page, set as rows of clubs and classes rather than cards */
 
 .dir-sec { margin: 0 0 26px; }
 .dir-sec:last-of-type { margin-bottom: 6px; }
@@ -51,11 +37,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  /* TWO COLUMNS AT MOST, AND ONE WHEN THE BINDER IS NARROW. At 330 the control
-     arm's smaller system face fitted THREE across a 1030px page and every name
-     and every meeting time wrapped inside its own column, which is a directory
-     that is harder to scan than a single list. `min()` keeps the floor from
-     overflowing a small window. */
+  /* two columns at most, and one when the binder is narrow */
   grid-template-columns: repeat(auto-fill, minmax(min(430px, 100%), 1fr));
   gap: 2px 20px;
   align-content: start;
@@ -118,12 +100,7 @@
   color: var(--kit-ink-soft);
 }
 
-/* ---- §16, THE PLAIN ARM ------------------------------------------------
- * The tokens already turn the faces into the system font and the paper into
- * white, so only the two rules that are shape rather than colour are here: the
- * hairlines go to a real rule so the list reads as a table on a worksheet, and
- * the italic gap becomes a plain parenthetical, because italic body text is a
- * game tell and the control arm is meant to look like something a person typed. */
+/* the plain arm: real rules between rows and no italics, so it reads as a worksheet */
 html[data-skin='plain'] .dir-row { border-bottom: 1px solid var(--kit-edge); }
 html[data-skin='plain'] .dir-gap { font-style: normal; }
 html[data-skin='plain'] .dir-name { font-weight: 700; }

@@ -1,11 +1,4 @@
-/* WHAT `award` WRITES, which used to be one number and a lie about it.
- *
- * Every island's grade landed as `kind: 'core'`, `credit: 0.5`, no tags, and an id
- * made of a base-36 timestamp. So an island moved the GPA the same amount as
- * every other island, could never move a cord no matter what it was about,
- * appeared on the transcript titled "Awarded", and weighted the GPA twice if the
- * island was played twice. Four separate consequences of four missing fields.
- */
+/* what award writes into the ledger: a real title, an island's credit, tags and a stable id */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 async function fresh() {
@@ -25,10 +18,7 @@ describe('award, named at a programme', () => {
     save.beginAdventure()
     engine.award({ programme: 'key-club', grade: 3.5 })
     const row = save.loadSave()!.ledger[0]
-    /* THE NAME THE ROSTER IS CURRENTLY PRINTING, which today is the placeholder
-       (BRIEF-MAW-RAIL-3 B) and the day Key Club has an island is "Key Club". The
-       thing under test is that the row is titled off the ROSTER rather than off
-       the id, and asking it this way survives either. */
+    /* the row is titled off the roster rather than off the id */
     expect(row.title).toBe(roster.programmeById('key-club')!.name)
     expect(row.kind).toBe('island')
     expect(row.credit).toBe(1)
@@ -110,16 +100,7 @@ describe('award with no programme behind it', () => {
   })
 })
 
-/* ---- WHAT THE CLOSING FILM READS ------------------------------------------
- *
- * BRIEF-INTRO-FILM, Ash 2026-09-07: the ending is its own film, it starts when
- * *"every task on this year is done"*, and the principal congratulates the
- * student *"BY NAME on what he actually did (the picks and grades from the
- * save, one line)"*. Neither question could be asked from Python before today,
- * and the two wrong ways of asking them are what these cases fence off: an
- * island deciding for itself that Advisory is the end of a year, and an island
- * printing a programme's authored name over the top of the roster's mask.
- */
+/* ---- what the closing film reads: where the year is, and what the student picked ---- */
 describe('phase, which is where the year is', () => {
   it('is the sequencer\'s own answer and not a second copy of the rule', async () => {
     const { save, engine } = await fresh()

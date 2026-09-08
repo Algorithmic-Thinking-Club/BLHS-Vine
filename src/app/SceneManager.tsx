@@ -5,11 +5,7 @@ import {
 } from './transitions'
 import { setContext, startHeartbeat, track } from '../game/telemetry'
 
-// The backbone of the whole game: scenes (boot, title, the intro beach, the island map,
-// interiors, the graduation summary) register by id; every navigation runs through ONE
-// transition controller (GAME-DESIGN §12.1) — cover-in, swap, cover-out — so there is never
-// a hard cut or a blank frame. `go(to)` keeps the old fade; `go(to, spec)` picks a crafted
-// cover (foam wash, iris on a focus point, the chart-unroll loading card).
+// scenes register by id, and every navigation runs through one covered transition
 
 export type SceneRegistry = Record<string, () => ReactNode>
 
@@ -21,27 +17,14 @@ export function useNav() {
   return c
 }
 
-/**
- * the navigator if there is one, and null if there is not.
- *
- * `useNav` throws, which is right for a scene: a scene rendered outside the
- * manager is a wiring mistake and should say so loudly. It is wrong for a
- * control that OFFERS navigation among other things. The help card carries the
- * way out of the game (BRIEF-PLAYTHROUGH-1 law 3) alongside four other doors,
- * and a card that throws rather than renders is a card that takes the other four
- * with it. Outside a manager there is no title screen to leave to, so the honest
- * answer is to offer one fewer door, not to fail.
- */
+/** the navigator if there is one, and null if there is not, so a caller can go without it */
 export function useNavMaybe(): Nav | null {
   return useContext(NavCtx)
 }
 
 export function SceneManager({ initial, registry, overlay }: { initial: string; registry: SceneRegistry; overlay?: ReactNode }) {
   const [current, setCurrent] = useState(initial)
-  /* THE STATE IS NOT THIS COMPONENT'S ANY MORE (E1). It lives at module scope in
-   * transitions.tsx so a door swap inside a painted map can drive the same
-   * controller, and this component is now one of three callers rather than the
-   * owner. What is left here is re-rendering the overlay when it changes. */
+  /* the transition state lives at module scope, so all this does is re-render the overlay */
   const [, setTrVersion] = useState(0)
   useEffect(() => subscribeTransition(() => setTrVersion(transitionVersion())), [])
 
@@ -58,11 +41,7 @@ export function SceneManager({ initial, registry, overlay }: { initial: string; 
   const nav = useMemo<Nav>(() => ({ go, current }), [go, current])
   const Scene = registry[current]
 
-  /* THE CLOCK STARTS HERE, once, for the whole run, because the scene manager is
-   * the one component that outlives every scene. A duration owned by a scene is a
-   * duration lost when the scene is torn down, and the bell lands mid-scene far
-   * more often than at a boundary. Every heartbeat carries which scene is on
-   * screen, so time on task is per scene without any scene knowing about it. */
+  /* the run's clock starts here once, since this component outlives every scene */
   useEffect(() => { startHeartbeat() }, [])
   useEffect(() => {
     setContext({ scene: current })

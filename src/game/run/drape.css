@@ -1,9 +1,4 @@
-/* THE CORD DRAPE (BRIEF-YEAR-ONE beat 8), the last screen of the thirty minutes.
- *
- * One card, centred, with a cord falling down it. Everything else the game shows
- * at a year's end is a page or a list; this is a moment, so it is narrow, tall
- * and quiet, and it has exactly one control.
- */
+/* the cord drape: one narrow card with a cord falling down it and a single button */
 
 .cd-veil {
   position: fixed;
@@ -61,16 +56,7 @@ html[data-rm='1'] .cd-card { animation: none; }
   color: var(--kit-ink-label);
 }
 
-/* ---- THE CORD ------------------------------------------------------------
- *
- * A collar and two falls, which is the shape of the thing at a real ceremony.
- * It is drawn in code rather than generated because it is two rounded bars and a
- * curve, and `docs/ART.md` reserves PixelLab for pictures: a rope is geometry.
- * The one drawn piece on it is the kit's own `awarded` stamp, and that only when
- * a cord is actually closed.
- *
- * IT DRAPES. The falls grow downward on open, once, which is the whole of the
- * verb in the brief: the counselor puts it ON him. */
+/* the cord itself, a collar and two falls that grow downward once when it opens */
 .cd-drape {
   position: relative;
   width: 132px;
@@ -150,11 +136,7 @@ html[data-rm='1'] .cd-fall { animation: none; }
 }
 .cd-foot { margin-top: 6px; }
 
-/* ---- THE CONTROL ARM ----------------------------------------------------
- *
- * A note from the counselor rather than a ceremony: the same cord, the same
- * numbers, the same criterion, on paper. The drape is the game-ness and it is
- * what goes, which is §16's line exactly. */
+/* the plain arm: the same words as a note on paper, with no drawn cord */
 html[data-skin='plain'] .cd-veil { animation: none; background: rgba(0, 0, 0, .5); }
 html[data-skin='plain'] .cd-card {
   animation: none;

@@ -1,44 +1,11 @@
-/* THE PANTHER'S MAW: what is in it, as data.
- *
- * This file is the anchor list. Every `name` below is a string Ash types into
- * MAPVIS when he places the anchor, and nothing else in the game hardcodes a
- * position in this room. Move the chart table three feet left and no code
- * changes, because the code never knew where it was.
- *
- * IT IS WRITTEN AS GENERATORS ON PURPOSE. A station yields intents and gets
- * results back, which is the exact shape a member's Python takes:
- *
- *     @on_interact("chart_table")            *run() {
- *     def plan(self):                          yield { kind: 'say', ... }
- *         yield self.say(...)                  const p = yield { kind: 'choose', ... }
- *         p = yield self.choose([...])       }
- *
- * If the vine's own content cannot be written in the API the members get, then
- * the API is a demo and the members are second-class. Writing the Maw this way
- * is the test, taken now rather than discovered in October.
- *
- * WHICH STATIONS ARE SCENES AND WHICH ARE PANELS (Ash, 2026-08-27: "i dont want
- * too much UI to dictate. UI is very important, but the main room is also very
- * important, thats where the user returns to after adventuring"). So the panel
- * is the fallback and not the default:
- *   scenes  hearth, counselor, principal_desk, trophy_wall
- *   panels  chart_table (a paper sheet really is a document, and the token drag
- *           IS the mechanic, §7.2), outfitter
- *   neither the Handbook, which is on the HUD and does not get a lectern. A
- *           station whose whole job is opening a panel the player can already
- *           open from anywhere is a slot spent on a second door to the room
- *           they are standing in.
- */
+/* what is in the Panther's Maw, as a list of anchor names and what each one does */
 import type { Intent } from '../../vine/intents'
 import type { SaveGame } from '../save'
 import { cordsOf } from '../progress'
 import { beatDone, coreBeatId, hasCoreBeat } from '../beats/beats'
 import { FOUNDING_FLAG, HUB_MAP } from '../run/objective'
 
-/* what a station's body is allowed to be. It receives IntentResult values back
- * through `yield`, which is untyped for the same reason the Python side is: the
- * result shape depends on the intent, and a beginner should not have to
- * annotate it. */
+/* what a station's body is: a generator that yields intents and gets results back */
 export type StationRun = Generator<Intent, void, unknown>
 
 export type Station = {
@@ -95,16 +62,10 @@ export const STATIONS: Station[] = [
     fallbackLabel: 'The counselor',
     needs: 'somewhere a person stands and can be spoken to; a post anchor with a facing',
     *run(s) {
-      /* §8.4's honor reveal, said out loud by somebody rather than read off a
-       * board. The content is the real cord table from docs/blhs/awards.md, so
-       * this is a character delivering true information about the player's own
-       * run, which is the entire "surface the hidden earnable things" ask. */
+      /* the real honor cords, said out loud by a person rather than read off a board */
       const cords = cordsOf(s)
       const earned = cords.filter((c) => c.earned)
-      /* started but not finished, nearest first. `detail` is already the live
-       * status line progress.ts writes for the tracker board ("3 of 5 AP classes
-       * passed"), so the counselor says the same words the board would, and
-       * there is one source for both. */
+      /* cords started but not finished, nearest first, in the board's own words */
       const close = cords
         .filter((c) => !c.earned && c.progress > 0)
         .sort((a, b) => b.progress - a.progress)
@@ -134,13 +95,7 @@ export const STATIONS: Station[] = [
         yield { kind: 'set_flag', flag: FOUNDING_FLAG }
         return
       }
-      /* THE ANCHOR NAME, NOT A NICKNAME FOR IT. `who` is resolved against the
-       * map's anchors and then against the station table (PmapScene's
-       * `speakerLabel`), and no anchor called `principal` exists on
-       * panther-maw, so this string fell through every rule and printed the
-       * lowercase word `principal` on the plate. The anchor is `principal_desk`
-       * and its station carries `fallbackLabel: 'Principal Panther'`, which is
-       * the name a student should read. */
+      /* `who` has to be the anchor name, because that is what the name plate is looked up by */
       yield { kind: 'say', who: 'principal_desk', portrait: 'principal', text: 'Back again. Good. Your year sheet shows what you picked this year.' }
     },
   },
@@ -150,10 +105,7 @@ export const STATIONS: Station[] = [
     fallbackLabel: 'The trophy wall',
     needs: 'WALL, not floor. It costs no station slot; it fills as the run goes on',
     *run(s) {
-      /* no panel at all. The wall itself is the readout, and what is on it came
-       * from the run. This is the "world reflects state" rule Ash set for the
-       * ship in August, generalised: a thing you walk up to that changed because
-       * of something you did four years ago is worth more than a list. */
+      /* no panel: the wall itself is the readout, filled by what the run has done */
       const n = s.stickers.length + s.badges.length
       yield {
         kind: 'say', who: 'thor',
@@ -174,18 +126,7 @@ export const STATIONS: Station[] = [
   },
 
   {
-    /* THE ONE THING NOBODY PRESSES A BUTTON FOR.
-     *
-     * Every other station in this table is an errand: a prompt appears, you press
-     * E, something happens. A trigger is the other kind, and it is the only
-     * voluntary, unprompted, ungraded action in the whole design: you walked
-     * somewhere, and the room noticed. It fires once per map load by entry, from
-     * `regionsAt`, which had been correct since anchors were first read and had
-     * exactly one caller, a test.
-     *
-     * Deliberately small. A trigger that starts a scene the first time a player
-     * steps somewhere is a trap in a room they have to cross forty times, so this
-     * one says a line and gets out of the way. */
+    /* a trigger rather than an errand: it fires by walking in, says one line, and gets out of the way */
     name: 'hall_step',
     fallbackLabel: '',
     needs: 'the lip of the platform where the south bridge lands; a trigger, not a post',
@@ -200,20 +141,13 @@ export const STATIONS: Station[] = [
     fallbackLabel: 'the harbor',
     needs: 'the tunnel door, on the far side of the one the player came through',
     *run() {
-      /* `at` names where in the hub to arrive, which is the whole reason
-       * toAnchor exists: without it every door into a map drops the player on
-       * that map's single global spawn, and walking back out of the Maw would
-       * put Thor at the dock instead of at the tunnel mouth he just left. */
+      /* `at` names where in the hub to come out, so walking back out lands at the tunnel mouth */
       yield { kind: 'enter', map: HUB_MAP, at: 'panthers_maw' }
     },
   },
 ]
 
-/* the two bridges that end in tunnels. They carry real names and real doors so
- * the room reads as a place with more of itself past the walls, and PmapScene
- * already says "not open yet" for a door whose bundle does not exist. When
- * a painting lands for either one, it is a new bundle and nothing here changes.
- */
+/* the two side tunnels, which are real doors with no map behind them yet */
 export const FUTURE_ROOMS = ['east_tunnel', 'west_tunnel'] as const
 
 export const stationByName = (name: string): Station | undefined =>
@@ -228,10 +162,7 @@ export function missingAnchors(has: (name: string) => boolean): string[] {
   return REQUIRED_ANCHORS.filter((n) => !has(n))
 }
 
-/* the year's beat id, or null when there is nothing owed: either the year has no
- * authored content, or the ledger already has it. beats.ts owns both questions,
- * so this asks rather than re-deciding, and the id stays one string in one file
- * ("core:y1", with the colon). */
+/* the year's beat id, or null when the year has none or the ledger already has it */
 function coreBeatIdFor(s: SaveGame): string | null {
   if (!hasCoreBeat(s.year)) return null
   if (beatDone(s.ledger, s.year)) return null

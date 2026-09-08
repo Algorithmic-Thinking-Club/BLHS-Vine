@@ -1,22 +1,4 @@
-/* THE DRIVER, on the engine side.
- *
- * src/game/maw/run-station.ts pumps a TypeScript generator through the intent
- * vocabulary. This pumps a MicroPython one through the same vocabulary, across
- * a worker. It is the same twenty lines with postMessage where `body.next()`
- * was, which is the point: the protocol was designed against a generator first
- * so that this file would be a translation and not an invention.
- *
- *   worker says {t:'intent'}  ->  performIntent does it  ->  {t:'resume'} back
- *
- * A refusal is sent back as `ok:false` and the python side raises it at the
- * yield that asked, so a member's mistake lands on a member's line. Nothing is
- * shared: JSON over postMessage, no SharedArrayBuffer, no Atomics.wait.
- *
- * AN ISLAND IS OPENED ONCE AND CALLED MANY TIMES. `openGrape` loads the package
- * and comes back with the handlers it registered; `call` fires one of them. That
- * is the shape a map scene needs, where the island loads on entry and a handler
- * runs every time the player presses E on one of its anchors.
- */
+/* the engine side of running a member's python island in a worker, one intent at a time */
 import { no, performIntent, type Intent, type IntentHost, type IntentResult } from '../intents'
 import { PROTOCOL, type FromWorker, type ToWorker } from './protocol'
 import type { LoadedGrape } from './grape-source'
@@ -26,17 +8,7 @@ import type { LoadedGrape } from './grape-source'
  * browser tab. The same number, for the same reason, as run-station.ts. */
 const MAX_STEPS = 10_000
 
-/* TWO CLOCKS, AND THEY ARE NOT THE SAME CLOCK.
- *
- * BOOT covers MicroPython starting and the island importing. Generous, because
- * it includes fetching and compiling wasm on a 4 GB school Chromebook.
- *
- * TURNAROUND covers the member's python and nothing else: the gap between the
- * engine posting and the worker answering. It is short because that gap is pure
- * computation. THE PLAYER'S THINKING TIME IS NOT IN IT, because a `say` is the
- * ENGINE waiting for a click while the worker sits idle, so the clock is stopped
- * for as long as an intent is being performed. Get that wrong and every slow
- * reader kills their own island. */
+/* two clocks: one for the island starting up, one for the member's python answering */
 const BOOT_MS = 20_000
 const TURN_MS = 5_000
 
@@ -59,17 +31,7 @@ export type GrapeSession = {
   handlers: () => string[]
   /** fire one handler and run it to the end */
   call: (handler: string) => Promise<GrapeReport>
-  /* IS A HANDLER RUNNING RIGHT NOW. Asked before a press rather than discovered
-   * after one: `call` already refuses a second handler while the first is parked,
-   * correctly, but the refusal comes back as a REPORT WITH AN ERROR, and the
-   * scene cannot tell that apart from the member's python raising. So a press
-   * that merely arrived early was logged as a station used and an island failed,
-   * and the two things a study counts, how often a student pressed something and
-   * how often somebody's island broke, were both wrong in the same instant.
-   *
-   * Not hypothetical. `on_start` runs on the far side of the worker after the
-   * handlers are registered, so every press in the first moment of a room lands
-   * inside that window, and the Maw's own opening is exactly that shape. */
+  /** whether a handler is running right now, asked before a press rather than after one */
   busy: () => boolean
   /* the other half of the sandbox. A worker left running holds a python heap,
    * and a scene that unmounts mid-say must not leave one behind. */
@@ -81,18 +43,7 @@ export function openGrape(
   host: IntentHost,
   opts: {
     onPrint?: (text: string) => void; bootMs?: number; turnMs?: number
-    /* THE ONE CALLER THAT MAY TURN THE STAMP OFF, and it is not a member.
-     *
-     * `src/game/roster/vine-islands.ts` holds the maps whose python is the
-     * vine's own content rather than somebody's club, and its header carries the
-     * whole argument. The short of it: the Maw's island writes the founding flag
-     * `run/objective.ts` sequences year one off, and a stamped flag is a
-     * different string, so the room would run and the game would never notice.
-     *
-     * DEFAULTED ON, so the only way to lose the stamp is to ask for it in the
-     * engine's own source. Nothing a member writes in `island.json` reaches
-     * this, which was the point of putting the decision in a table they cannot
-     * edit rather than in a field they can. */
+    /* the engine's own islands may skip the programme stamp on their flags */
     unscoped?: boolean
   } = {},
 ): GrapeSession {
@@ -100,10 +51,7 @@ export function openGrape(
    * vite follows into a real chunk in a production build. */
   const worker = new Worker(new URL('./grape.worker.ts', import.meta.url), { type: 'module' })
 
-  /* WHO IS SPEAKING, ATTACHED HERE SO NO CALLER CAN FORGET IT. Every intent
-   * this session performs is stamped with the island's own programme id, which
-   * is what keeps one member's flags out of another's (P4). A scene that built
-   * the host itself would have to remember, and one day would not. */
+  /* every intent is stamped with the island's own programme id, so flags stay apart */
   const scoped: IntentHost = opts.unscoped
     ? { ...host }
     : { ...host, by: { grape: island.manifest.programme } }
@@ -119,10 +67,7 @@ export function openGrape(
   const disarm = () => { if (clock) { clearTimeout(clock); clock = null } }
   const arm = (ms: number, why: string) => {
     disarm()
-    /* the island stopped answering. Nothing will ever arrive, so ending it here
-     * is the difference between a sentence and a scene that hangs forever. No
-     * traceback: this is the engine giving up, not python raising, and rendering
-     * the same sentence twice with one of them in a <pre> reads like one. */
+    /* the island stopped answering, so the call ends here rather than hanging */
     clock = setTimeout(() => kill(why), ms)
   }
 
@@ -145,12 +90,7 @@ export function openGrape(
     finish(error, traceback)
   }
 
-  /* A TORN-DOWN CALL IS NOT A FINISHED ONE, and `finish()` with no argument said
-   * it was. A scene unmounting mid-say settled the call as a clean success, so a
-   * caller could not tell "the handler ran to the end" from "I terminated the
-   * worker while the player was reading", and an island whose award never ran
-   * reported no error at all. The harness only survived that because it throws
-   * the value away after unmount; PmapScene's fire() will not. */
+/* what a torn-down call settles with, so nobody reads it as a clean finish */
   const CLOSED = 'this island was closed before it finished'
 
   let readyResolve!: (r: GrapeReport) => void
@@ -229,11 +169,7 @@ export function openGrape(
     handlers: () => handlers,
     call(handler: string): Promise<GrapeReport> {
       const report: GrapeReport = { steps: 0, refused: [] }
-      /* `stopped` and not just `dead`. stop() leaves `dead` null, so a call after
-       * a teardown used to take the happy path, post to a terminated worker,
-       * which is a silent no-op, and then never settle at all: a promise nobody
-       * can ever resolve, a slot nobody can ever free, and a five second timer
-       * whose kill() returns immediately because the session is already stopped. */
+      /* a call after teardown answers here rather than posting into a dead worker */
       if (stopped || dead) {
         return Promise.resolve({ ...report, error: dead?.error ?? CLOSED, traceback: dead?.traceback })
       }

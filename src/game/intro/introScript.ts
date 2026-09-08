@@ -1,12 +1,6 @@
 import type { Script } from '../cutscene/types'
 
-// The introduction, beats I-1 + I-2 (GAME-DESIGN §5), as cutscene data. The beach map is
-// cutscene-staged: Thor wakes above the wrack line, the tide delivers the bottle, one soft
-// input gate teaches "you move Thor" with zero tutorial text. Coordinates are beach tiles;
-// the shore near spawn sits around s = tx+ty ≈ 109 (see BeachIso's shoreAt).
-//
-// I-3 (the parchment UI session) continues from the `ui` gate at the end — the unfurl is the
-// world-to-UI transition, so the gate id is where the React session takes over.
+// the opening on the beach as cutscene data: Thor wakes and the tide brings him a bottle
 
 const SPAWN = { x: 58.2, y: 56.4 }             // just above the wrack line — the tide breathes in frame
 const BOTTLE_D = 3                              // shore column just east of the spawn
@@ -51,12 +45,7 @@ export const introI1I2: Script = {
     { t: 'camera', to: SPAWN, zoom: 1.7, ms: 700 },            // back to Thor: your move
     { t: 'stage', call: 'pointAt', data: BOTTLE_AT },          // the guide chevron
     { t: 'fx', name: 'glint', at: BOTTLE_AT },
-    /* THE FIRST INSTRUCTION IN THE GAME, AND IT NAMED THE ONE THING THAT DID NOT
-     * WORK. SWEEP-1 items 4 and 13: this said "Press W A S D or the arrow keys"
-     * to a freshman on a trackpad, on a scene with no pointer handler at all, so
-     * clicking the sand moved him zero pixels and he stood still for about twenty
-     * seconds. The beach takes a click now, so the sentence leads with the thing
-     * every student can already do and keeps the keys as the second half. */
+    /* the first instruction in the game, leading with the click every student can do */
     { t: 'gate', kind: 'walkTo', target: WALK_STOP, radius: 0.9, prompt: 'Click the bottle to walk there. Arrow keys work too', idleAutoMs: 6000 },
     { t: 'stage', call: 'pointClear' },
     { t: 'actorFace', actor: 'thor', dir: 'north-west' },

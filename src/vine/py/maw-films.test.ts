@@ -1,32 +1,9 @@
-/* THE TWO FILMS NEVER PLAY IN ONE SITTING, AND THIS IS WHAT HOLDS IT.
- *
- * Ash, 2026-09-07, after playing rail-5: *"it removed the cutscene, random
- * dialogue that I don't think was supposed to happen, then the cutscene came
- * back, and the principal teleported back to the door, came back."* That was the
- * introduction handing the game over and the ending starting on the very next
- * line of the same handler, because with no islands the year is finished the
- * moment Advisory is sat.
- *
- * His rule: the closing plays on ENTERING the Maw with the year done, and never
- * in the same sitting as the opening. It is four lines of python and there is no
- * way to assert it from TypeScript by running it, because the island runs in
- * MicroPython in a worker and a test that needed a system python would be a test
- * that does not run (`vocabulary.test.ts` argues that at length and this file
- * uses the same technique for the same reason).
- *
- * So it is read as source, and the reading is structural rather than a grep for
- * a magic string: every call to the ending is found, the `if` it lives under is
- * found, and the condition is checked. A refactor that keeps the words and loses
- * the rule fails here.
- */
+/* the opening film and the closing film never play in the same sitting */
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-/* the VENDORED copy, which is what the game actually serves. The source of truth
- * is `C:\Users\ashcy\blhs-islands`, and reading that would pass on this machine
- * and fail on a clone; `scripts/vendor-islands.mjs` runs before test, dev and
- * build, so this file is always there and is always the one that ships. */
+/* the vendored copy, which is the one the game actually serves */
 const read = (f: string) =>
   fs.readFileSync(path.resolve(process.cwd(), 'public', 'grapes', 'panther-maw', f), 'utf8')
 
@@ -51,11 +28,7 @@ function conditionOver(src: string, needle: string): string {
 }
 
 describe('the opening and the ending are never the same sitting', () => {
-  /* THE LATCH IS A MODULE VARIABLE AND NOT A FLAG, which is the whole design.
-   * The engine opens a fresh MicroPython worker per map load (runGrape.ts), so a
-   * module variable is empty again the moment he walks back in through the
-   * tunnel. A `set_flag` would remember for the rest of the run and the ending
-   * would never play at all. */
+  /* the latch is a module variable, so it dies with the map load and not with the run */
   it('remembers the opening in something that dies with the map load', () => {
     expect(island).toMatch(/^_OPENED_HERE = \[\]$/m)
     /* nothing about this visit goes into the save */
@@ -86,18 +59,7 @@ describe('the opening and the ending are never the same sitting', () => {
     }
   })
 
-  /* AND THE THIRD ROAD IS CLOSED RATHER THAN GATED, which is BRIEF-MAW-NOW.
-   *
-   * The counselor used to open the yearbook herself the moment the year had
-   * nothing left owing. Turning the page writes `yearbook:y1`, and that is the
-   * flag the ending's own trigger goes false on, so the press a student is most
-   * likely to make after being handed the room and told to talk to anyone DELETED
-   * the ending: no congratulation, no wall, no cover, no walk back out to the
-   * dock, and no road left to any of it. Gating that on `_OPENED_HERE` only moved
-   * the loss from the first sitting to the second.
-   *
-   * So no station raises the yearbook at all. The closing film does, once, and it
-   * is the only thing in the game that can close a year. */
+  /* the third road is closed rather than gated: no station opens the yearbook */
   it('leaves the page-turning to the film and to nothing else', () => {
     expect(island, 'a station outside the closing film opens the yearbook')
       .not.toMatch(/open\("yearbook"/)
@@ -105,10 +67,7 @@ describe('the opening and the ending are never the same sitting', () => {
       .toMatch(/yield open\("yearbook", wait=True\)/)
   })
 
-  /* TRUE ON THE NEXT ENTRY. The latch is the only thing added to the trigger, so
-   * a load that did not play the opening asks exactly what it always asked, and
-   * that question is `get("phase") == "yearbook"` — held by objective.test.ts and
-   * intent-engine.test.ts on the TypeScript side. */
+  /* true on the next entry, since the latch is the only thing added to the trigger */
   it('asks the sequencer and nothing else about whether the year is done', () => {
     expect(founding).toMatch(/def year_is_done\(\):/)
     expect(founding).toMatch(/phase = yield get\("phase"\)/)
@@ -117,11 +76,7 @@ describe('the opening and the ending are never the same sitting', () => {
 })
 
 describe('the trophy case', () => {
-  /* Ash, 2026-09-07: *"The 'what you earn goes up here' asset is still
-   * nonexistent."* It was hidden by the island on the first frame of every load,
-   * because `show(WALL, count > 0)` and nothing in year one awards a sticker or
-   * a badge. The case is drawn furniture and stays on the wall; the panel is
-   * where the honest count lives. */
+  /* the case is drawn furniture and stays on the wall whatever the count is */
   it('is never hidden by the room dressing itself', () => {
     const body = founding.slice(founding.indexOf('def dress_the_wall('))
     const end = body.indexOf('\ndef ', 1)

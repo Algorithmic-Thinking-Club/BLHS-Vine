@@ -1,28 +1,4 @@
-/* GOLDEN HOUR, CARRIED OFF THE BEACH AND ONTO THE PAINTING.
- *
- * Ash, 2026-09-06: *"Golden hour atmosphere keep it, after the island transition
- * loads. right now its empty."* and *"golden hour atmosphere throughout."*
- *
- * WHAT HE MEANS BY KEEP IT. The tile beach he kept is at golden hour and says so
- * in its own comments: a warm tropical tint, a low sun glow, a horizon band, a
- * ray wash and a warm vignette, layered over the composited world. The cover art
- * the crossing lifts on, `loading-port.png`, is a gold sunset. Then the painted
- * map opened at flat noon with a cold teal sea, and against the two screens
- * either side of it that reads as empty.
- *
- * SO IT IS THE SAME FIVE LAYERS, MOVED HERE RATHER THAN INVENTED AGAIN. Every
- * number is the beach's own, so the light does not change when the ocean does.
- *
- * IT IS NOT A SHADER AND IT IS NOT ART. The standing rule is that all art comes
- * from PixelLab and code never draws any; this draws no object, no edge and no
- * shape. It is five canvas gradients over the top of the composited frame, which
- * is the same thing a camera's own light is, and it is the technique already
- * shipped and accepted on the beach.
- *
- * STAGE SIBLINGS ABOVE THE WORLD, NOT CHILDREN OF IT. The world is scaled and
- * panned by the camera; the light is not. A vignette that zoomed with the
- * painting would be a hole in the middle of it.
- */
+// golden hour light: five gradient layers laid over the world, the same ones the beach uses
 import { Container, Sprite, Texture } from 'pixi.js'
 
 export type Atmosphere = { layer: Container; resize: (w: number, h: number) => void }
@@ -56,10 +32,7 @@ export function vgradient(size: number, stops: [number, string][]): Texture {
   return t
 }
 
-/**
- * The five layers, in one container the caller adds above its world and resizes
- * with the window. Nothing in here ticks; light does not animate.
- */
+/** the five layers in one container the caller adds above its world and resizes with the window */
 export function goldenHour(): Atmosphere {
   const layer = new Container()
   /* it is light, not a control: it must never eat a click meant for the ground */

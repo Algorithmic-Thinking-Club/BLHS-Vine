@@ -1,44 +1,4 @@
-/* MOUNTING ONE SMALL MARK OFF A SHEET, AND REFUSING WHEN NOBODY DREW IT.
- *
- * WHY SHEETS EXIST AT ALL. PixelLab will not draw anything under 192 pixels on a
- * side, so a family of small marks is generated as ONE picture and cut up
- * afterwards. Six of the platform's eighteen pieces are sheets, and `icon_set` is
- * the one the HUD needs: 512x256 carrying compass, key, star, lock, tick, cross,
- * arrow and coin, each with its own rectangle on the wire.
- *
- * WHY THIS IS NOT IN `kit.ts`. That file is the reader for the platform's
- * document and stays about the document. This is a CSS detail: a face is shown
- * by scaling the whole sheet up so the wanted rectangle is exactly the element,
- * then sliding the sheet until that rectangle is the bit on screen. The two
- * percentages below are the standard sprite-sheet arithmetic and the only thing
- * worth saying about them is the trap: `background-position` in percent is NOT
- * "move by this much of the image", it aligns the same percentage point of the
- * image with that percentage point of the box, so the denominator is the
- * leftover travel and not the sheet width.
- *
- * WHAT IT REFUSES. `undefined`, whenever the kit was never fetched, the platform
- * kit is not worn, the piece is not in it, or nobody cut a face by that name. THE
- * CALLER KEEPS ITS GLYPH in that case. A blank square where a compass used to be
- * is worse than an OS emoji, and the wave 4 order says so in as many words: if a
- * face does not exist, leave the emoji and say so.
- *
- * WHAT THE LIVE SHEET ACTUALLY HAS, read off `/api/v1/ui` on 2026-09-01 rather
- * than assumed: compass, key, star, lock, tick, cross, arrow, coin. There is no
- * book, no anchor and no gear, and none of the six Handbook badges (whale, map,
- * sunrise, masks, anchor, book) has a face either.
- *
- * WHAT THE SURFACES DO ABOUT THAT, ruled 2026-09-01 rather than left as an
- * emoji. `docs/ART.md` and the UI brief's do-not list both forbid a system
- * glyph outright, so a missing face is answered with a drawn thing that DOES
- * exist or with words, never with whatever the machine ships:
- *   the Handbook control wears `crest-panther.png`, which ART.md already puts on
- *     the Handbook cover, plus the word "Handbook";
- *   the pause sheet's title and the captain's heading drop the anchor and let
- *     the words carry them, because a title is not a control;
- *   the settings control becomes a small plaque reading "Settings".
- * The four faces stay a real art gap, written into the handoff, and the day one
- * is cut this file needs no change at all.
- */
+/* shows one small mark cut out of a sheet of them, and refuses when nobody drew that face */
 import type { CSSProperties } from 'react'
 import { kitCached, kitFace, kitOptedIn, kitPiece, type KitPiece } from './kit'
 import { currentSkin } from './skin'
@@ -48,11 +8,7 @@ export function faceStyle(
   piece: string,
   face: string,
   pieces: KitPiece[] | null = kitCached(),
-  /* THE TOKEN THIS READS ONLY EXISTS ONCE `applyKit` HAS RUN, and `main.tsx`
-   * runs it unless `?kit=0` says not to. Without the token
-   * `var(--kit-art-icon_set)` resolves to nothing and the button would be an
-   * empty square where a compass was, so the same switch decides whether the
-   * face is offered at all. */
+  /* whether the platform's kit is worn, since the css token only exists once it is */
   worn = kitOptedIn() && currentSkin() === 'paper',
 ): CSSProperties | undefined {
   if (!pieces?.length || !worn) return undefined

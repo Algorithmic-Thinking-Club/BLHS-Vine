@@ -1,18 +1,4 @@
-/* THE FENCE ROUND THE PLAY SCREEN.
- *
- * Part IV asks for this twice and in two different sections, which is how much it
- * matters. §40.2: "one place that lists every HUD element and its unlock
- * condition." §40.6: "the absence list enforced somewhere a new element has to
- * pass." Both are answered by `inventory.ts` plus this file, and this file is the
- * half that has teeth: an element added without a grant condition fails here, and
- * an element added to the always-on list without being in the table fails here.
- *
- * WHY A TEST AND NOT A CONVENTION. §40.6's whole position is that the minimal HUD
- * is what separates "a game a freshman reads in four seconds" from "a game a
- * freshman needs a teacher to explain", in a room where the teacher has a whole
- * advisory class of them. A convention survives until the first member asks for a
- * counter in the corner. A failing build survives that conversation.
- */
+/* the tests that keep the play screen minimal: every element granted and nothing extra */
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -41,10 +27,7 @@ const MID_YEAR_TWO = run({
 const GRADUATED = run({ year: 4, graduated: true, flags: [CHART_FLAG, HANDBOOK_FLAG], tokens: [] } as Partial<SaveGame>)
 
 describe('the HUD assembles as the game grants things', () => {
-  /* THE LAW, AT THE ONE MOMENT IT WAS BROKEN. §40.2 names the failure by line:
-   * "the compass and the Handbook button are rendered unconditionally the moment
-   * a world scene mounts". A student in minute one had a binder spine two
-   * sections before anybody hands them a binder. */
+  /* nothing is in the corner until the game has handed it over */
   it('gives a brand new run NOTHING in the corner', () => {
     const g = hudGrants(FRESH)
     expect(g).toEqual({ chart: false, handbook: false, tokens: false, cape: false })
@@ -66,10 +49,7 @@ describe('the HUD assembles as the game grants things', () => {
     expect(hudGrants(MID_YEAR_TWO).cape).toBe(true)
   })
 
-  /* Q40.2.a, answered. The file asks which elements are transient and which are
-   * permanent, "because a permanent element that vanishes reads as a bug and a
-   * transient one that lingers is clutter". §15.2 rules on this one: the pips
-   * leave at graduation because scarcity is over. */
+  /* the season pips are transient and leave at graduation; everything else stays */
   it('takes the pips away at graduation and leaves everything else', () => {
     const g = hudGrants(GRADUATED)
     expect(g.tokens).toBe(false)
@@ -120,10 +100,7 @@ describe('the absence list is enforced rather than intended', () => {
     const KNOWN: Record<string, string> = {
       Hud: 'chart', Dialogue: 'dialogue', WorldCutscene: 'dialogue',
       PlaceCard: 'place-card', ObjectivePanel: 'objective',
-      /* the question mark, which is on the list with its reason written beside
-       * it in `inventory.ts`. It is the one thing here that is not state and not
-       * a grant, and the brief that asked for it asked for exactly this: that it
-       * be added to the absence list rather than smuggled past it. */
+      /* the question mark, which is on the list rather than smuggled past it */
       HelpButton: 'help',
       /* the movie frame, which is on the list because it MOUNTS on the play
        * screen even though it draws nothing until an island asks for it */

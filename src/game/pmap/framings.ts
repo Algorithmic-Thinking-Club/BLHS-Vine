@@ -1,33 +1,9 @@
-/* A FRAMING: a named shot hung off an anchor.
- *
- * §80.4's third item and the brief's own words for the defect it removes:
- * *"hand-typed camera numbers are a defect from today."* `maw-founding` carries
- * `zoom: 1.35` in its source, which is a number somebody guessed at a keyboard
- * for one painting, and the moment that painting is replaced the shot is wrong
- * and nothing says so. A framing is the same shot AUTHORED WHERE THE THING IS,
- * so re-cutting a map moves its own close-up with it.
- *
- * BRIEF-MAPVIS-W2 ITEM 3 IS BUILDING THE AUTHORING FOR THIS: a named shot with
- * an offset, a zoom and a target, dragged until it looks right. This file is the
- * game's half of that contract and it does not wait for it: an anchor's `meta`
- * bag already survives export and already reaches the game (`anchors.ts:47`), so
- * a framing rides in the bag today and moves to its own field the day MAPVIS
- * emits one, with the reader unchanged.
- *
- * THE PRECEDENCE RULE, and it is the whole point: THE MAP WINS. A script may
- * type a zoom and an authored framing overrides it, because the person who cut
- * the map is the person who knows how far out it reads and the person who wrote
- * the script is usually not. A script that types a number over a framing is told
- * so once, by name, rather than silently losing.
- */
+/* a framing: a named camera shot authored on the map, hung off an anchor */
 
 export type Framing = {
   /** how far in, as a multiple of the map's own load-time scale */
   zoom?: number
-  /* WHERE THE SHOT SITS RELATIVE TO THE ANCHOR, in painting pixels. §80.4's
-   * stadium asks for "the camera behind him rather than centred on him", which
-   * `look_at` cannot express because it is a hold at an x and a y with no
-   * offset. This is the offset. */
+  /* where the shot sits relative to the anchor, in painting pixels */
   dx?: number
   dy?: number
   /** what a person called it, for a log line and for a MAPVIS round trip */
@@ -87,10 +63,7 @@ export function framingNames(meta: MetaBag): string[] {
   return out
 }
 
-/* THE SHOT, RESOLVED. Given where the anchor is and what the map's own scale is,
- * this is the x, y and zoom `cameraSet` takes, and it is the one place the
- * offset is applied so a framing means the same thing to a cutscene, a panel
- * cover and an arrival. */
+/* the shot resolved into the x, y and zoom the camera takes */
 export function shotOf(
   at: { x: number; y: number },
   f: Framing | null,
@@ -103,21 +76,7 @@ export function shotOf(
   }
 }
 
-/* ---- THE OTHER SHAPE THE SAME FRAMINGS ARRIVE IN ---------------------------
- *
- * MAPVIS publishes named shots into the anchor `meta` bag, which is what this
- * file reads and what the handoff says explicitly not to "fix" by moving to a
- * top-level array. But the shots MAPVIS published BEFORE it moved are top-level
- * arrays, and one of them is on the live platform right now: `hub` at v13 carries
- * `framings: [{name: "the_maw_mouth", anchor: "panthers_maw", dx, dy, zoom}]` and
- * an anchor whose meta holds nothing but `{docId, derived}`.
- *
- * So the reader takes both and folds one into the other at load. The game's
- * running shape stays the meta bag, exactly as the contract law says, and a map
- * nobody is going to republish still answers `framing("the_maw_mouth")`. The day
- * every bundle carries the meta form this function finds nothing and costs a loop
- * over an empty array.
- */
+/* the older top-level shot list, folded into the meta bag at load */
 type HasMeta = { name: string; meta?: Record<string, unknown> }
 
 export function projectFramings(anchors: HasMeta[], raw: unknown, mapId = ''): number {
@@ -130,21 +89,13 @@ export function projectFramings(anchors: HasMeta[], raw: unknown, mapId = ''): n
     const on = typeof r.anchor === 'string' ? r.anchor : ''
     const f = readOne(r, name || undefined)
     if (!name) continue
-    /* AND A SHOT THAT SAYS NOTHING SAYS SO. A named entry with no zoom and no
-     * offset is dropped by `readOne`, which is right, and used to be dropped
-     * SILENTLY, which is not: the missing-anchor case beside it warns by name, so
-     * an author fixing one and not the other has no way to tell the two apart.
-     * The shot most likely to hit this is the innocent one, a wide at the map's
-     * own opening scale with nothing dragged. */
+    /* a named shot with no zoom and no offset is dropped, and says so */
     if (!f) {
       console.warn(`[framings] ${mapId}: shot "${name}" carries no zoom and no offset, so there is nothing to frame`)
       continue
     }
     const a = by.get(on)
-    /* AN ANCHOR THIS MAP DOES NOT HAVE IS THE MISTAKE THAT WILL ACTUALLY HAPPEN,
-     * because a shot survives the anchor it was hung off being renamed or cut.
-     * Named at load with the map it came from, rather than discovered as a shot
-     * that quietly never fires. */
+    /* a shot hung off an anchor this map does not have is named at load */
     if (!a) {
       console.warn(`[framings] ${mapId}: shot "${name}" hangs off anchor "${on || '(none)'}", which is not on this map`)
       continue
@@ -158,11 +109,7 @@ export function projectFramings(anchors: HasMeta[], raw: unknown, mapId = ''): n
      * not overwrite the half that is already right. */
     const had = set[name] === undefined ? null : readOne(set[name], name)
     if (!had) { set[name] = f; folded++ }
-    /* a shot marked `entry` is what the map opens on, which is the unnamed
-     * default `look_at` and an arrival both read. It opens on WHICHEVER COPY WON
-     * above: a map that opens at the old zoom while answering the same name with
-     * the new one is the migration running backwards, with one name meaning two
-     * numbers and nothing saying which one a scene got. */
+    /* a shot marked entry is what the map opens on, using whichever copy won above */
     if (r.entry === true && meta.framing === undefined) meta.framing = had ?? f
   }
   return folded
@@ -173,11 +120,7 @@ export function projectFramings(anchors: HasMeta[], raw: unknown, mapId = ''): n
  *  needs, which is what stops a cast at every call site. */
 export type NamedShot<T extends HasMeta = HasMeta> = { name: string; anchor: T; framing: Framing }
 
-/* EVERY NAMED SHOT ON THIS MAP, INDEXED BY THE NAME A PERSON TYPED. A framing is
- * authored against an anchor, but nobody writing a scene thinks "the second
- * framing on the door"; they think "the maw mouth". Names are validated unique
- * per map where they are typed, so one flat index is the honest lookup, and a
- * collision keeps the first and says which anchor lost. */
+/* every named shot on this map, indexed by the name a person typed */
 export function shotsOf<T extends HasMeta>(anchors: readonly T[]): Map<string, NamedShot<T>> {
   const out = new Map<string, NamedShot<T>>()
   for (const a of anchors) {

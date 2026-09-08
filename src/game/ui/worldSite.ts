@@ -1,23 +1,4 @@
-/* A WORLD-SPACE UI SITE, AND THE AREA IT MUST NOT COVER.
- *
- * AUTHORING §14's second bullet: "a named place in the room, with an extent,
- * where a diegetic panel or card draws, and the area it must not cover". 6.3 asks
- * for checks to surface as world objects rather than as a modal, and Q6.3.a is
- * the honest half of that: a panel that does not blur has to stay readable
- * against a painting nobody has painted yet.
- *
- * WHAT IS THERE TODAY, read at the point of contact rather than off a doc: the
- * one placed piece of world UI in the game is the station prompt, drawn at
- * `near.y - 6` with a sine wobble, an offset typed once and true for one map. A
- * site says where instead, and a keep-clear rect says what the panel is FOR, so
- * a card about a person cannot land on that person's face.
- *
- * THE SPLIT. MAPVIS authors WHERE, which is the site: a name, a rect and a
- * keep-clear rect, and the anchor kinds in `mask.ts` are already the shape it
- * would be published in. This file is the arithmetic the engine runs on it, so
- * it holds no map data and imports nothing. The scene wiring that reads a site
- * off a bundle is the stage's.
- */
+// works out where a card or panel drawn in the world should sit, and what it must not cover
 
 export type Rect = { x: number; y: number; w: number; h: number }
 export type Size = { w: number; h: number }
@@ -86,19 +67,7 @@ const clampInto = (r: Rect, view: Rect): Rect => ({
   y: Math.round(Math.min(Math.max(r.y, view.y), Math.max(view.y, view.y + view.h - r.h))),
 })
 
-/**
- * Where to draw `content` at `site`, given what the camera can currently see.
- *
- * The rules, in order, and each one is a defect it prevents:
- *  1. try the author's preferred sides and take the first that is inside the
- *     site, inside the view and clear of the keep-clear rect,
- *  2. if none is, take the first that is merely clear of the keep-clear rect and
- *     clamp it into the view, because a card half off the screen is still
- *     readable and a card on the face it is about is not,
- *  3. if the site itself is off screen entirely, say so with `fallback` and hand
- *     back a clamped position, so the caller can put the content in a panel
- *     instead of drawing it somewhere nobody is looking.
- */
+/** where to draw content at a site, given what the camera can currently see */
 export function placeAtSite(site: WorldUiSite, content: Size, view: Rect): SitePlacement {
   const order = site.prefer?.length ? site.prefer : DEFAULT_ORDER
   const clear = site.keepClear
@@ -107,10 +76,7 @@ export function placeAtSite(site: WorldUiSite, content: Size, view: Rect): SiteP
   const clean: { r: Rect; side: SiteSide }[] = []
   for (const side of order) {
     const r = candidate(site, content, side)
-    /* `over` means "centred in the site, keep-clear ignored". It is last in the
-     * default order and is never picked automatically while a keep-clear rect
-     * exists, so the only way to land on the thing the panel is about is for an
-     * author to ask for it by name. */
+    // `over` ignores the keep-clear area, so it is only ever used when an author asks for it
     if (clear && (side === 'over' || overlaps(r, clear))) continue
     clean.push({ r, side })
     if (inside(r, view) && inside(r, site.rect)) {
@@ -118,12 +84,7 @@ export function placeAtSite(site: WorldUiSite, content: Size, view: Rect): SiteP
     }
   }
 
-  /* NOTHING FITTED WHOLE, so something gives, and what gives is never the
-   * keep-clear promise. Clamping a candidate into the view can push it straight
-   * back onto the thing it was avoiding: a card asked to sit above a face at the
-   * top of the screen has nowhere to go, and sliding it down puts it on the
-   * face. So every clean side is clamped and the first one that STILL misses is
-   * the answer, which is how "above" becomes "below" on its own. */
+  // nothing fitted whole, so slide sides into view and take the first that still misses the face
   for (const c of clean) {
     const at = clampInto(c.r, view)
     if (clear && overlaps(at, clear)) continue

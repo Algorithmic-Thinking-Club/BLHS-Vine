@@ -1,11 +1,4 @@
-/* THE WORLD'S ARITHMETIC, tested without a browser.
- *
- * Everything the ocean asks the composition and everything the hull asks the
- * water is a pure function, so a failure here names the rule rather than the
- * map. That is the same discipline `path.test.ts` is built on and the reason
- * these two modules were written as data plus functions instead of as scene
- * code with the answers inlined.
- */
+/* the world's arithmetic, tested as pure functions without a browser */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   FALLBACK, compositionFaults, distanceTo, discoveredSlots, residentSlots,
@@ -33,11 +26,7 @@ describe('the world composition', () => {
     expect(compositionFaults(FALLBACK, known)).toEqual([])
   })
 
-  /* THE DOCUMENT THAT IS ACTUALLY SERVED, not only the constant beside it.
-   * `loadComposition` refuses a faulty document and falls back now, so a
-   * composition.json that broke its own rules would quietly stop being the world
-   * the student sails and nothing on screen would say which slot did it. This is
-   * where that gets caught, at the commit rather than at the render. */
+  /* the composition.json this repo ships has to pass the same rules as the constant */
   it('the shipped public/world/composition.json passes the same rules', async () => {
     const { readFileSync } = await import('node:fs')
     const doc = JSON.parse(readFileSync('public/world/composition.json', 'utf8')) as WorldComposition
@@ -65,14 +54,7 @@ describe('the world composition', () => {
     expect(slotOfMap(FALLBACK, 'nothing-here')).toBeUndefined()
   })
 
-  /* DISCOVERY IS MEASURED OFF THE PAINTED EXTENT, NOT OFF THE CANVAS.
-   *
-   * Measured on the published hub's own scene.png, 2026-08-29: the canvas is
-   * 688x640 and the opaque pixels run x 7..675, y 194..570. So the painting is
-   * 669x377 and USING THE CANVAS OVERSTATES ITS AREA BY 75 PERCENT. The doc's
-   * 41 percent is the same fact counted the other way, as the fraction of the
-   * canvas that is empty; both are right and this is the one that matters,
-   * because a radius is measured off an area. */
+  /* discovery is measured off the painted extent rather than off the whole canvas */
   it('measures discovery off the painted extent and not off the canvas', () => {
     const hub = slotOfMap(FALLBACK, 'hub')!
     expect(hub.footprint).toEqual({ w: 669, h: 377 })
@@ -83,10 +65,7 @@ describe('the world composition', () => {
     expect(250 < 640 / 2).toBe(true)
   })
 
-  /* AND THE PAINTING IS NOT IN THE MIDDLE OF ITS OWN CANVAS. The hub's opaque
-   * rows are 194 to 570 of 640, so its centre is 62 pixels below the canvas
-   * centre and a slot placed by half the canvas puts the island 62 pixels north
-   * of where the chart says it is. */
+  /* a painting is placed by its own centre, because it is not in the middle of its canvas */
   it('places a painting by its own centre and not by half its canvas', () => {
     const hub = slotOfMap(FALLBACK, 'hub')!
     expect(paintedCentre(hub, 688, 640)).toEqual({ x: 341.5, y: 382.5 })
@@ -131,39 +110,21 @@ describe('the world composition', () => {
     expect(regionAt(FALLBACK, { x: 9000, y: 9000 })).toBeUndefined()
   })
 
-  /* THE CHROMEBOOK NUMBER, ARITHMETIC RATHER THAN A GUESS. A6 asks for a memory
-   * budget computed rather than guessed and the harvest marks it `[nothing]`.
-   * The per-map cost is measured off the bundles on disk, so island twelve is a
-   * number here rather than a worry. */
+  /* what a resident map costs in memory, computed off the bundles on disk */
   it('computes what a resident map costs from the measured bundle', () => {
     const hub = slotOfMap(FALLBACK, 'hub')!
-    /* THREE decoded layers at the CANVAS size, which is what PmapScene really
-     * loads and really pays for, plus the hub's own 94 placements at ITS OWN
-     * measured 14,806 pixels each. Every term here was wrong in the first draft:
-     * a fourth layer the engine never loads, at the painted extent rather than
-     * the canvas, times a per-placement figure taken by dividing the proof
-     * bundle's asset pixels by its FILE count instead of its two placements. The
-     * two errors partly cancelled, which is the worst kind of luck: the total
-     * looked plausible and not one term was true. */
+    /* three decoded layers at the canvas size, plus the hub's own placements */
     expect(slotBytes(hub)).toBe((688 * 640 * 3 + 94 * 14_806) * 4)
     expect(slotBytes(hub) / 1048576).toBeGreaterThan(10)
     expect(slotBytes(hub) / 1048576).toBeLessThan(11)
     expect(overBudget([hub])).toBe(false)
-    /* WHAT A MAP COSTS IS MOSTLY ITS DRESSING, not its painting: the hub's 94
-     * placements are twice as many pixels as all four of its full-canvas layers
-     * put together. That is why the placement count is a field on a slot rather
-     * than one constant for every map, and it is the number a member adding
-     * their fiftieth villager is spending. */
+    /* a map costs mostly its placements rather than its painting */
     expect(94 * 14_806).toBeGreaterThan(669 * 377)
     const maw = slotOfMap(FALLBACK, 'panther-maw')!
     expect(slotBytes(maw)).toBeLessThan(slotBytes(hub))
   })
 
-  /* THE SENTENCE ISLAND TWELVE NEVER HAD. Twenty-four dressed maps is the whole
-   * of what a 256 MB texture budget holds, which means the roster can double
-   * from the current four places before residency starts dropping anything, and
-   * the day it does the drop is a decision with a number rather than a tab
-   * running out of memory. */
+  /* how many dressed maps fit in the texture budget at once */
   it('says how many dressed maps fit at once, which island twelve never had', () => {
     const hub = slotOfMap(FALLBACK, 'hub')!
     const n = maxResident(hub)
@@ -219,10 +180,7 @@ describe('the world composition', () => {
     expect(f.some((x) => x.key === 'home')).toBe(true)
   })
 
-  /* WHICH SLOT, AND WHETHER IT IS ABOUT A SLOT AT ALL. That one field is the
-   * difference between a chart missing one island and a chart missing every
-   * island, so it is worth a test of its own rather than a corner of the one
-   * above. */
+  /* a fault names the slot it is about, or names none when it is about the document */
   it('says which slot is at fault, and says nothing of the kind about the document', () => {
     const doc: WorldComposition = {
       version: 2,
@@ -242,16 +200,7 @@ describe('the world composition', () => {
   })
 })
 
-/* ---- the document the platform is actually serving ---------------------------
- *
- * Verbatim off `curl https://mapvis-atc.vercel.app/api/v1/world`. It is in here
- * rather than a shape somebody typed for the reason the whole reader existed
- * silently broken for two days: nobody had ever run the real document through
- * the real checker. Two faults were tripping at once, a footprint of 688x640
- * against the pixel ceiling and a `home` naming a place by its title, and every
- * island, region and berth MAPVIS had authored was binned on every load with one
- * console.warn as the only symptom.
- */
+/* the document the platform is really serving, copied verbatim off the live api */
 const LIVE: WorldComposition = {
   version: 395,
   home: { slot: 'home-island' },
@@ -277,10 +226,7 @@ describe('the world the platform is serving', () => {
     expect(compositionFaults(LIVE, known)).toEqual([])
   })
 
-  /* THE TWO FAULTS THAT USED TO TRIP, STANDING STILL. The footprint is now the
-   * painting and not the canvas, and the difference is the whole margin between
-   * passing and losing every island: the canvas is over the ceiling and the
-   * painting inside it is not. */
+  /* the live footprint is the painting rather than the canvas, and home names a place id */
   it('carries a footprint under the ceiling and a home that names a place id', () => {
     const hub = LIVE.slots[0]
     expect(hub.footprint.w * hub.footprint.h).toBeLessThan(PAINTING_PX_CEILING)
@@ -289,12 +235,7 @@ describe('the world the platform is serving', () => {
   })
 })
 
-/* ---- the marks on the water -------------------------------------------------
- *
- * A berth is off every painting, so it is the one place in the game that cannot
- * be an anchor, and until this reader the only way to reach one was to already
- * know which slot it hung off.
- */
+/* a berth sits off every painting, so it is looked up by name on the world instead */
 describe('the marks a route can end at', () => {
   it('indexes a berth by its name and by the island it belongs to', () => {
     expect(markNames(LIVE)).toEqual(['the_hub', 'the_hub_berth'])
@@ -346,10 +287,7 @@ describe('the marks a route can end at', () => {
     expect(marksOf(moved).get('the_hub_berth')?.x).toBe(2400)
   })
 
-  /* BUT A BERTH IS ASKED FOR THROUGH berthOf, AND THE SLOT'S COPY IS THE ONE
-   * CARRYING THE APPROACH. `sail.ts:270-288` steers the two-stage run-in off it,
-   * and a mark has no approach field at all, so answering with the mark is a
-   * hull that turns in at the last second. */
+  /* the slot's copy of a berth is the one carrying the approach point */
   it('prefers the slot berth over a bare mark of the same name', () => {
     const withApproach: WorldComposition = {
       ...LIVE,
@@ -374,12 +312,7 @@ describe('the marks a route can end at', () => {
   })
 })
 
-/* ---- where the document comes from ------------------------------------------
- *
- * `loadComposition` took its default at both call sites for the whole of this
- * project, so the platform had never once been read. These drive the three
- * answers it can get and the partial failure the handoff calls the real bug.
- */
+/* where the composition is loaded from, and what happens when a slot in it is faulty */
 describe('loading the composition', () => {
   const PLATFORM = 'https://mapvis-atc.vercel.app/api/v1/world'
 
@@ -662,10 +595,7 @@ describe('coming alongside', () => {
     expect(r.helm.throttle).toBe(1)
   })
 
-  /* A HULL ORBITS A WAYPOINT IT CANNOT TURN TIGHTLY ENOUGH TO HIT. At cruise her
-   * turn radius is about 92 pixels and the capture circle is 36, so steering at
-   * a point and waiting to be inside it is a manoeuvre that never finishes. This
-   * is that failure, driven, and it is the one the proof run found. */
+  /* a waypoint the hull cannot turn tightly enough to hit counts as passed, not orbited */
   it('passes a waypoint rather than orbiting one it cannot turn tightly enough to hit', () => {
     let h = newHull(1780, -212, 0)
     let b: Berthing = {
@@ -699,14 +629,7 @@ describe('coming alongside', () => {
     expect(r.helm).toEqual(HELM_IDLE)
   })
 
-  /* ---- THE TWO WAYS A MANOEUVRE USED TO FREEZE THE GAME -------------------
-   *
-   * Both found by driving the shipped code against the published hub's own
-   * distance field: 47 of 392 in-water starts inside the dock prompt's radius
-   * never finished, and every approach from the north or the west hung. While a
-   * manoeuvre runs the player's helm is ignored, the dock prompt is suppressed
-   * and stepping ashore is unreachable, so a manoeuvre that cannot finish is a
-   * reload. These two tests are that failure, standing still. */
+  /* the two ways a berthing manoeuvre can fail to finish while it holds the helm */
 
   /** a coast running east-west at y = 0: deep to the south, land to the north */
   const shelf = (_x: number, y: number) => y
@@ -755,12 +678,7 @@ describe('coming alongside', () => {
   })
 })
 
-/* ---- THE OCEAN'S OWN CROSSING ----------------------------------------------
- *
- * Ash, 2026-09-05: "what is the point of having berths and waypoints on the
- * ocean, if we need to add paths in the individual maps." Nothing read a
- * non-berth mark, so the answer was none. These are the rule that changed it.
- */
+/* the crossing a berth already carries on the world, read off its waypoint marks */
 describe('the approach a berth already has on the world', () => {
   /* the live document as it stands on the platform at v397, which is the shape
    * the rule has to be right about before it is right about anything invented */
@@ -857,13 +775,7 @@ describe('the approach a berth already has on the world', () => {
   })
 })
 
-/* ---- THE NAME AN ISLAND ASKS BY ----------------------------------------------
- *
- * `islands/the-hub/island.py` says `route("the_hub_approach", who="ship")` and
- * the hub at v15 has no path by that name. The world page carries the crossing,
- * so the name is understood there: the berth's own name, its island alias, a
- * slot's map or place, each with or without `_approach`.
- */
+/* the names an island can ask a sea route by, and which berth each one means */
 describe('what a route name means on the water', () => {
   const OCEAN: WorldComposition = {
     version: 397,

@@ -1,39 +1,9 @@
-/* WHERE AN ISLAND COMES FROM, AND WHAT MAKES ONE LOADABLE.
- *
- * A member's island is a folder in their own repository: an island.json and the
- * .py files it lists. Nothing here knows how to run one. This file's whole job
- * is to turn "where" into "a manifest and some source", and to refuse anything
- * that is not an island with a sentence naming the field.
- *
- * THREE PLACES AN ISLAND CAN LIVE, and they are the same fetch with a different
- * base URL, which is the reason a member's own machine and a branch on GitHub
- * are not two code paths:
- *
- *   a branch      raw.githubusercontent.com/<owner>/<repo>/<branch>/islands/<id>/
- *   their laptop  http://localhost:5280/islands/<id>/   (serve.py in that repo)
- *   this app      /grapes/<id>/                         (the engine's own fixtures)
- *
- * THE RULES ARE THE MEMBERS' REPO'S RULES. tools/manifest.py in blhs-islands
- * checks the same things on the member's machine before they push, and says the
- * same things. Two implementations of one format is a real cost, and it is worth
- * paying: the member gets the answer in a second on their own laptop instead of
- * a minute later in a browser, and the engine still never trusts what it fetched.
- * Where they can differ they are commented.
- */
+/* fetching a member's island folder and checking that it really is an island */
 
-/* THE FORMAT VERSION, and the one that matters more than the wire version in
- * protocol.ts, because the engine and a member's repository ship on different
- * days. A number it does not know is refused BY NUMBER, so a member reads "this
- * game speaks format 1" instead of watching their island fail strangely. */
+/* the island.json format this game speaks; any other number is refused by number */
 export const FORMAT = 1
 
-/* ONE FACT ABOUT A REAL SCHOOL, AND WHERE IT CAME FROM.
- *
- * The same shape `src/game/facts.ts` already uses, for the same reason: a
- * sentence about BLHS with nothing behind it is a sentence the game tells a
- * student as though it were true. `source` is a citation, or the literal
- * "unknown", which is a claim a member is making on purpose rather than a field
- * they forgot. There is no third option and that is the whole point. */
+/* one fact about the real school, and the citation it came from */
 export type SourcedFact = { text: string; source: string }
 
 /** the explicit marker. Absent is a mistake; this is a decision. */
@@ -102,13 +72,7 @@ const TEXT_MAX = 80
  * member shipping either one would shadow the real thing with a stale copy */
 const ENGINE_OWNED = ['vine.py', 'grape.py']
 
-/* names python already has. An island shipping random.py does not get a warning,
- * it replaces the real one for everything in that runtime.
- *
- * THE SAME LIST IS IN blhs-islands/tools/manifest.py AND A TEST THERE FAILS IF
- * THEY DIVERGE. They had already drifted by four names within a day of being
- * written, which is exactly long enough for a member to be refused by the game
- * for a file their own checker called fine. Sorted so a diff is readable. */
+/* module names python already has, which an island may not ship a file for */
 export const TAKEN = new Set([
   'abc', 'array', 'asyncio', 'binascii', 'builtins', 'collections', 'copy',
   'enum', 'errno', 'functools', 'gc', 'grape', 'hashlib', 'heapq', 'inspect',
@@ -257,10 +221,7 @@ function moduleFaults(m: Record<string, unknown>): string[] {
   }
 
   for (const name of mods) {
-    /* the literal lower-case suffix, not a case-insensitive one. `island.PY`
-     * used to pass here, take its stem with a blind slice, pass everything else,
-     * and then die at `__import__("island.PY")` in driver.py, whose endswith IS
-     * case sensitive. GitHub serves case-sensitively too. */
+    /* the suffix has to be a lower case .py, because that is what python imports */
     if (typeof name !== 'string' || !name.endsWith('.py')) {
       out.push(`\`modules\` has ${JSON.stringify(name)} in it, which is not a .py filename. `
         + 'The extension is lower case, because that is what you type after `import`')
@@ -321,11 +282,7 @@ export function baseUrlOf(ref: GrapeRef): string {
   return `https://raw.githubusercontent.com/${ref.owner}/${ref.repo}/${ref.branch}/${path}/`
 }
 
-/* THE ID AND THE URL HAVE TO AGREE. This used to strip a query and a fragment
- * before taking the last segment while the fetch kept them, so
- * `.../skeleton?v=2` reported the island as `skeleton` and asked the server for
- * something else. That id is not cosmetic: it becomes the folder on the runtime
- * filesystem and the sys.path root the member's own imports resolve against. */
+/* the island's id, which is the last folder in its base url */
 export function islandIdOf(base: string): string {
   const path = base.split(/[?#]/)[0]
   const parts = path.split('/').filter(Boolean)
@@ -334,16 +291,7 @@ export function islandIdOf(base: string): string {
   return /^[a-z][a-z0-9+.-]*:$/i.test(parts[0] ?? '') && parts.length < 3 ? '' : last
 }
 
-/* WHERE A GRAPE MAY BE FETCHED FROM, and it is not "anywhere".
- *
- * `?scene=grape` is registered in the same scene table as every other scene, so
- * it is reachable on the deployed game and not only on localhost. A `from` that
- * accepted any origin meant a link could make somebody's browser run a
- * stranger's python on the real domain, and `log` reaches telemetry, which
- * reaches the Neon events table the AP Research study is measured out of. The
- * sandbox holds (nothing escapes the wasm runtime) and the data does not.
- *
- * So: a member's own machine, or the repository islands actually live in. */
+/* the only hosts an island may be fetched from: this app, your own machine, github raw */
 const ALLOWED = [/^localhost$/, /^127\.0\.0\.1$/, /^\[::1\]$/, /^raw\.githubusercontent\.com$/]
 
 function allowedHost(base: string): boolean {
@@ -356,14 +304,7 @@ function allowedHost(base: string): boolean {
   }
 }
 
-/* THE URL SURFACE OF THE HARNESS, parsed in one place so the scene does not
- * grow its own reading of it.
- *
- *   ?scene=grape                      the app's own /grapes/hello/
- *   ?scene=grape&island=broken        another of the app's own
- *   ?scene=grape&from=http://...      a member's serve.py, or anything
- *   ?scene=grape&gh=own/repo@main:islands/skeleton
- */
+/* read the harness url and work out which island it is asking for */
 export function parseGrapeRef(params: URLSearchParams, fallback = 'hello'): GrapeRef {
   const from = params.get('from')
   if (from) return { at: 'url', base: from }
@@ -389,10 +330,7 @@ export function parseGrapeRef(params: URLSearchParams, fallback = 'hello'): Grap
 
 export class GrapeSourceError extends Error {}
 
-/* An island is a handful of small text files. These are not tuned numbers, they
- * are the point past which something is wrong: the runtime holds every module as
- * a string, structured-clones it to the worker and writes it into an in-memory
- * filesystem, on the 4 GB Chromebook this whole runtime choice was made for. */
+/* how many files an island may list and how big each one may be */
 const MAX_MODULES = 24
 const MAX_BYTES = 256 * 1024
 
@@ -400,22 +338,11 @@ async function grab(url: string, ms: number): Promise<string> {
   const stop = new AbortController()
   const timer = setTimeout(() => stop.abort(), ms)
   try {
-    /* THE BODY READ IS INSIDE THE CLOCK. fetch resolves on headers, so clearing
-     * the timer once it returns disarms the abort before a single byte of the
-     * body has arrived, and a server that sends headers and then stalls hangs
-     * this forever with no error and no way back. That happens before openGrape
-     * exists, so BOOT_MS is not behind it either: it is the one silent hang the
-     * whole sandbox is built to make impossible. */
+    /* reading the body stays inside the timeout, so a stalled server cannot hang */
     const res = await fetch(url, { cache: 'no-store', signal: stop.signal })
     if (!res.ok) throw new GrapeSourceError(`${url} answered ${res.status}`)
 
-    /* A DEV SERVER ON THE PORT YOU MEANT ANSWERS EVERYTHING WITH ITS index.html,
-     * with a 200 and no complaint, and then the island is a page of HTML and the
-     * error is about python syntax. Measured while building the members' repo:
-     * port 5275 was already taken by a vite server, and a static server that
-     * fails to bind does not fail loudly. The content type is the honest test,
-     * and the body is the second fence, because neither JSON nor python ever
-     * legitimately begins with a `<`. */
+    /* catch a server answering with a web page instead of the file that was asked for */
     const kind = res.headers.get('content-type') ?? ''
     const body = await res.text()
     if (/text\/html/i.test(kind) || body.trimStart().startsWith('<')) {

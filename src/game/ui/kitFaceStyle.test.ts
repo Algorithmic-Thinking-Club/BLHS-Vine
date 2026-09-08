@@ -1,15 +1,4 @@
-/* THE TWO PLACES THE GAME NOW WEARS A PIECE, AND WHAT THEY DO WHEN IT IS NOT THERE.
- *
- * `kit.ts` reads the platform's document. These two turn a piece into something on
- * screen: `faceStyle` cuts one mark out of a sheet for a HUD button, `bandDress`
- * measures the arrival plaque out of the `band` piece's marked rectangles. Both
- * are one bad answer away from being worse than what they replaced, in the same
- * way and for the same reason: an empty square where a compass was, or the name of
- * a place printed through a wooden frame.
- *
- * So every test below is about a REFUSAL, and the fixtures are trimmed copies of
- * the real rows off `/api/v1/ui` on 2026-08-31 rather than invented shapes.
- */
+/* the two places a kit piece becomes something on screen, and how each of them refuses */
 import { describe, it, expect } from 'vitest'
 import { faceStyle } from './kitFaceStyle'
 import { bandDress } from '../../app/transitions'

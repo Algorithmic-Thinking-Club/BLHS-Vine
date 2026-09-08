@@ -1,7 +1,4 @@
-// The client's side of the wire (GAME-DESIGN §7.7/§13): join, state sync, and where the
-// event logger drains. Offline-first is the law — every call degrades to local dev mode
-// without a visible seam (the beach never cares whether Neon exists), and the save keeps
-// writing locally either way. Captain bypasses code verification outright (god authority).
+// the client's side of the wire: joining a class, syncing the save, and where the logger drains
 
 import { loadSave, writeSave, type SaveGame } from './save'
 import { isCaptain } from './captain'
@@ -18,10 +15,7 @@ export type CheckResult =
   | { ok: true; className?: string }
   | { ok: false; reason: 'offline' | 'unknown_code' | 'class_closed' | 'error' }
 
-/** the code card's cheap class lookup — confirms the code (and names the crew, in fiction)
- *  WITHOUT creating a participant; the student picks their handle on the next card and the
- *  real join happens there. Joining here with a placeholder handle merged whole classes
- *  into one participant (the Act Zero critical). */
+/** confirms a class code and names the class, without creating a participant */
 export async function checkClass(code: string): Promise<CheckResult> {
   if (isCaptain()) return { ok: true, className: "the Captain's own class" }
   try {
@@ -37,37 +31,14 @@ export async function checkClass(code: string): Promise<CheckResult> {
   }
 }
 
-/* IS THERE A CLASS TO JOIN AT ALL (BRIEF-CLOSE-THE-LOOP section 6).
- *
- * ASH, 2026-09-08: *"'Join my class' what was that even for. does it still apply?
- * How would that even work. Also as of right now i can just enter any number /
- * code."* He can, and that is by design and is worse than a bug: `checkClass`
- * waves a student through on `offline` deliberately, because a blocked join
- * excludes exactly the students whose network is worst, and NO DATABASE HAS EVER
- * BEEN CREATED for this project (`docs/ops/STUDY-LOGGING.md`), so `/api/join`
- * answers 503 for everybody and every code is accepted.
- *
- * A screen that asks a fourteen year old for a six character code and then takes
- * any six characters teaches him the game is not listening. The brief's ruling:
- * *"The class code card appears only when `/api/join` answers; with no server
- * (today) it is skipped and the student goes straight to the name."*
- *
- * ONE HEAD REQUEST WITH NO CODE ON IT, and 503 is the only answer that means no.
- * A 400 or a 404 is a server that is up and did not like an empty query, which is
- * a server that can take a real code. Cached for the session, because the intro
- * asks once and the answer cannot change inside it. */
+/* whether there is a class service to join at all, asked once and cached for the session */
 let classesLive: boolean | null = null
 export async function classesAreOpen(): Promise<boolean> {
   if (classesLive !== null) return classesLive
   if (isCaptain()) { classesLive = true; return true }
   try {
     const r = await fetch('/api/join?code=', { method: 'GET' })
-    /* A JSON ANSWER IS A SERVER; ANYTHING ELSE IS THE SINGLE PAGE APP. On the
-     * deploy this is a real function and it answers 503 `{offline: true}` with no
-     * database behind it, which is the honest no. On a dev server there is no
-     * function at all and Vite hands back index.html at 200, so the status alone
-     * would read as a live class service and put the code card back. Measured on
-     * both, 2026-09-08. */
+    /* a JSON answer is a real server, and anything else is the single page app */
     const ct = r.headers.get('content-type') ?? ''
     classesLive = r.status !== 503 && ct.includes('json')
   } catch {

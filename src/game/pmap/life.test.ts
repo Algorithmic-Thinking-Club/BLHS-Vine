@@ -1,16 +1,4 @@
-/* A BEHAVIOUR HAS TO ACTUALLY GO SOMEWHERE.
- *
- * On 2026-09-05 every walking person on the hub stood on the spot playing their
- * walk cycle. The evaluation was never at fault: the map's row had lost `life`
- * off all 22 placements that carried one, so lifeAt was being asked about
- * nothing. Nothing in the repo would have noticed, because every test about
- * life until now asked the shape of the data rather than whether a figure
- * given a real behaviour covers real ground.
- *
- * So these run the shipped hub's own behaviours for ten seconds at sixty frames
- * and assert travel in painting pixels. A wander that returns to its start
- * every frame passes a shape check and fails this one.
- */
+/* a behaviour has to actually go somewhere, measured in painting pixels */
 import { describe, it, expect } from 'vitest'
 import { lifeAt, type Life } from './life'
 
@@ -103,10 +91,7 @@ describe('a wandering placement over ten seconds', () => {
 
 describe('a placement with no behaviour', () => {
   it('is not moving, which is what says its walk cycle should not run', () => {
-    /* THE OTHER HALF OF THE SAME MORNING. A heading set is a gait, so the caller
-     * runs it while `moving` and holds frame zero otherwise. lifeAt has always
-     * answered this correctly; what went wrong on the hub was upstream of it,
-     * where a placement carrying no life at all never got asked. */
+    /* a heading set is a gait, so a placement with no behaviour reports not moving */
     const s = lifeAt({ kind: 'wander', seed: 1, range: 0, speedMin: 0, speedMax: 0 } as Life, 4, HOME)
     expect(s.moving).toBe(false)
     expect(s.dx).toBe(0)

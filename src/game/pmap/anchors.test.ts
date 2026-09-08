@@ -1,7 +1,4 @@
-// THE ANCHOR CONTRACT, WHICH LIVES IN ANOTHER REPO. MAPVIS-next authors these and this
-// game reads them, so the two sides can drift with nobody noticing until a map opens
-// wrong. These tests are the fence: they assert the exact shape MAPVIS-next/src/core/
-// mask.ts:143-192 exports, and the real hub bundle's door is in here verbatim.
+// the anchor contract: MAPVIS authors anchors and this game reads them, so both must agree
 import { describe, it, expect } from 'vitest'
 import { AnchorSet, readAnchors, anchorName, isAnchorName } from './anchors'
 
@@ -174,11 +171,7 @@ describe('AnchorSet: the questions a scene asks every frame', () => {
   })
 })
 
-/* A NAME ON A PAINTED THING, which is the half of the contract that had no
- * writer until 2026-08-28. `placement` was typed, tabled, exported and read as
- * the entire body of the `show` intent, with no way for a human to put a value
- * in it, so the binding could not exist on any bundle MAPVIS could produce.
- * These are the reader's side of it. */
+/* an anchor can name a painted placement, which is how show finds a thing to hide */
 describe('an anchor bound to a placement', () => {
   const bound = () =>
     new AnchorSet('maw', readAnchors({
@@ -227,13 +220,7 @@ describe('an anchor bound to a placement', () => {
   })
 })
 
-/* THE STAND-AT POINT AND THE SIDE A THING IS USED FROM. One point was doing
- * four jobs at once: the interaction ring's centre, the prompt's origin, the
- * objective chevron's origin and walk_to's steering target. So a table's anchor
- * either sat on unwalkable pixels or sat on the floor with the prompt hovering
- * over bare ground. stations.ts states the requirement in prose to somebody who
- * never opens it: "a table big enough to spread a paper sheet on, with standing
- * room on one side". */
+/* the spot a body stands on at an anchor, and which way it faces when it gets there */
 describe('where a body ends up, and which way it looks', () => {
   const set = () =>
     new AnchorSet('maw', readAnchors({
@@ -275,10 +262,7 @@ describe('where a body ends up, and which way it looks', () => {
   })
 })
 
-/* rect's four numbers meant two different things: the MAPVIS schema commented
- * [x,y,w,h] and this box test always destructured corners. Nothing was
- * authoritative because no rect had ever been authored, so whoever built the
- * input would have picked the winner by accident. These pin the answer. */
+/* what a region's rect of four numbers means, pinned down */
 describe('a region with an area', () => {
   const set = new AnchorSet('hall', readAnchors({
     anchors: [{ name: 'the_hall', kind: 'region', x: 300, y: 300, r: 8, label: '',
@@ -309,18 +293,7 @@ describe('a region with an area', () => {
 })
 
 describe('a standing spot that was left behind when its post moved', () => {
-  /* MAW v7, PUBLISHED 2026-09-08, AND THIS IS THE REAL DATA.
-   *
-   * Ash moved two posts in MAPVIS: the counselor onto the desk and the principal
-   * out to the tunnel mouth. Both posts travelled and neither `stand` did, so the
-   * counselor's standing spot was sixty pixels of floor away from the counselor
-   * and the principal's was two hundred and fourteen, on the far side of the hall
-   * and twelve pixels from HER post. Measured in a browser: walking to the
-   * principal walked you to the counselor and raised her plaque, and walking to
-   * the counselor walked you to a piece of empty floor with nothing on it.
-   *
-   * The real fix is in MAPVIS, and the game still has to survive a bundle that
-   * carries the ghost of where a post used to be. */
+  /* real bundle data where a post moved and its standing spot stayed behind */
   const v7 = () => readAnchors({
     yScale: 0.72,
     character: { heightPx: 20 },

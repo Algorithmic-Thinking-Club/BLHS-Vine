@@ -1,51 +1,9 @@
-/* ONE CUT FACE OFF THE PLATFORM'S KIT, AS A PIXI SPRITE.
- *
- * `kitFaceStyle.ts` already does this for the DOM, where a face is a background
- * image with a negative offset. The world is not the DOM: the objective chevron,
- * the guide trail and the YOU pin are Pixi objects inside the scene's own
- * transform, and Part IV §40.5's own recommendation is that they stay that way,
- * "because a prompt that lags the camera by a frame is worse than a prompt that
- * has to be styled twice". So the same faces have to arrive twice, and this is
- * the second way.
- *
- * WHY IT MATTERS THAT THESE ARE DRAWN. §40.5 records that the one UI element
- * inside the world "is the one that is not made of the kit, not in either
- * commissioned face, and not drawn art at all". The marks were a monospace `▾`, a
- * `Graphics` circle and a monospace label. MAPVIS has published a `pointer` sheet
- * carrying chevron, hand, trail_dot, bearing, pin_tail and pin_plate since wave
- * four and nothing in this repository had ever read one of them.
- *
- * IT NEVER THROWS AND IT NEVER BLOCKS. A face that is not drawn, a platform that
- * cannot be reached, a district filter in the way: each answers `null`, and every
- * caller keeps the primitive it was drawing before. A student on a filtered
- * network still has to be able to find the door.
- */
+/* one cut face off the platform's kit, as a pixi sprite for things drawn in the world */
 import { Assets, NineSliceSprite, Rectangle, Sprite, Texture } from 'pixi.js'
 import { kitCached, kitFace, kitPiece, mapvisHost, kitArtUrl, loadKit } from './kit'
 import { currentSkin } from './skin'
 
-/* ---- THE CONTROL ARM GETS NO DRAWN ART, INCLUDING IN THE WORLD -----------
- *
- * FOUND BY LOOKING, 2026-09-02, at `build-shots/ui/fixed-plain/02-hub-walking.png`.
- * Every DOM surface went to a document under `data-skin='plain'` and the two
- * plaques hanging in the world did not: "Someone is waiting for you inside the
- * mountain." and "E - cast off" were still the platform's carved socket, still
- * in the game's commissioned face, in the arm that is supposed to carry neither.
- *
- * It is the same shape as the six surfaces wave four already caught: a code path
- * that reaches the art WITHOUT going through a token, so nulling the tokens
- * cannot stop it. `tokens.css` is the fence for the DOM and it has no reach into
- * Pixi at all, so the fence has to stand here as well.
- *
- * WHY IT IS ONE GATE RATHER THAN A CHECK AT EACH CALL. There are four ways into
- * this file and there will be more, and a study arm that leaks on the fifth is
- * worth less than one that cannot leak. Every caller already handles `null`,
- * because a district filter looks exactly like this, so refusing here costs
- * nothing that was not already paid for.
- *
- * AND THE WORLD ITSELF STAYS PAINTED. The arm is about how the game SPEAKS: the
- * panels, the box, the plaques. The island underneath is the game, and taking it
- * away would be measuring a different thing. */
+/* the plain study arm gets no drawn art, in the world as well as in the dom */
 function artAllowed(): boolean {
   return currentSkin() === 'paper'
 }
@@ -68,24 +26,7 @@ async function sheetOf(piece: string): Promise<Texture | null> {
       if (!p) return null
       const url = kitArtUrl(p, mapvisHost())
       if (!url) return null
-      /* THE PARSER IS NAMED, BECAUSE THE URL HAS NO FILE EXTENSION.
-       *
-       * FOUND BY LOOKING, 2026-09-01. `Assets.load(url)` picks its loader by
-       * sniffing the extension, and every kit image is served from
-       * `/api/v1/ui/<piece>/image?v=<sha>`, which has none. Pixi answered with
-       * "[Assets] ...could not be loaded as we don't know how to parse it" and
-       * this function returned null, silently, forever.
-       *
-       * SO NOTHING DRAWN OFF THE KIT HAS EVER APPEARED INSIDE THE WORLD. The
-       * objective chevron was written to wear `pointer/chevron` in wave four,
-       * fell back to a monospace triangle on the first frame, and has been that
-       * triangle in every screenshot since; the prompt plaque came back empty
-       * for the same reason the day it was written. The DOM half never noticed
-       * because `kitFaceStyle` paints with a CSS background-image, which the
-       * browser sniffs by content type rather than by name.
-       *
-       * `parser` says which loader to use instead of guessing. The server
-       * sends a real content type; this is only about the file name. */
+      /* the loader is named, because the kit image url carries no file extension */
       const t: Texture = await Assets.load({ src: url, parser: 'loadTextures' })
       /* NEAREST, ALWAYS. Every one of these is pixel art composited over a
        * painting at an integer-ish camera scale, and a linear filter is the
@@ -123,31 +64,7 @@ export async function kitSprite(piece: string, face: string): Promise<Sprite | n
   return t ? new Sprite(t) : null
 }
 
-/* ---- A STRETCHABLE GROUND, IN THE WORLD -----------------------------------
- *
- * THE HOLE THIS CLOSES. Everything above cuts a FIXED rectangle out of a sheet,
- * which is right for a mark and wrong for a ground. `KitPiece.slice` and
- * `KitPiece.repeat` have been in the type since the reader was written and the
- * DOM half has used them through `border-image` all along; the Pixi half read
- * neither, so a plaque could not stretch to hold `E · enter the panther's maw`
- * and `E · cast off` at the same weight. Everything drawn inside the world
- * therefore had to be a fixed-size mark or a `Text` with a stroke around it, and
- * the in-world prompt was the second one: twelve pixel operating-system
- * monospace, which is the one UI element in this game a student reads dozens of
- * times a session.
- *
- * WHY THE HEIGHT IS THE PIECE'S OWN. A nine-slice has one silent failure and it
- * is the same one CSS has: if `top + bottom` is taller than the box, the corners
- * overlap and the middle inverts. The kit's `socket` is 104 tall with 21 and 29
- * of frame, so any box under 50 pixels tall is drawn wrong. Rather than clamp
- * and hope, the sprite is BUILT at the art's own height and the caller scales the
- * whole thing down, which keeps every corner at its drawn proportion and cannot
- * invert. That is why this takes a width and not a height.
- *
- * Same contract as everything else here: null when the piece is not published,
- * has no slice, or the platform cannot be reached, and the caller keeps whatever
- * it was drawing.
- */
+/* a stretchable nine-slice ground, built at the art's own height so it cannot invert */
 export async function kitNineSlice(piece: string, width: number): Promise<NineSliceSprite | null> {
   if (!artAllowed()) return null
   const sheet = await sheetOf(piece)

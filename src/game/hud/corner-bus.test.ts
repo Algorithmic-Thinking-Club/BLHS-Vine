@@ -1,10 +1,4 @@
-/* THE HANDOVER, PROVED FROM THE SIDE THE ISLAND CALLS IT FROM.
- *
- * BRIEF-INTRO-FILM section 4. The picture is proved with frames; what a picture
- * cannot prove is the two things that would ruin a sitting if they were wrong:
- * that a run which never says a word still gets the whole corner, and that a
- * film which arms the handover and then dies gets it back anyway.
- */
+// the corner handover, tested from the side an island calls it from
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   HANDOVER_CEILING_MS, PLAQUES, PLAQUE_EVENT,

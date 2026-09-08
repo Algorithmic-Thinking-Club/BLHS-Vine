@@ -14,77 +14,13 @@ import { SESSION_ENDS_AFTER_YEAR } from './year'
 import { cinemaOn } from '../stage/cinema'
 import './run.css'
 
-/* THE YEARBOOK SPREAD (§7.6, §12.4 to §12.16): the year's full page, and the page
- * turn that IS the year turning.
- *
- * WHAT THE COMPONENT DOES AND DOES NOT DECIDE. Everything about what is on the
- * page is `yearbook-page.ts`, which is a pure function of the save and a year, so
- * the page a test renders and the page a student reads are the same document.
- * This file draws it and owns exactly three behaviours: which year is open, the
- * composition, and the turn.
- *
- * PAST PAGES ARE REACHABLE, which is §80.6's own word and the reason the year is
- * state rather than a snapshot of `s.year`. The spine along the bottom holds one
- * tab per year lived, and a turned year opens read-only: there is no turn control
- * on a page that has already turned, because the turn is the year ending and that
- * is not something a student may do twice.
- *
- * ---- IT COMPOSES, IT DOES NOT OPEN ----------------------------------------
- *
- * §12.4, verbatim, and it is the whole moment:
- *
- *   *"Composes, not opens. The distinction is the entire moment. A panel that
- *   appears already complete is a report. A page that assembles itself in front
- *   of the student, one section landing after the other, is the year being
- *   written down while they watch, and the pause between sections is what makes
- *   each one legible instead of a wall."*
- *
- * The order is fixed and it is not arbitrary: the number first, because it is the
- * one thing the student came for; then the year's rows, because that is what
- * produced the number; then the seasons, because that is what the student chose
- * rather than what they scored; then the marks and the cords; then the nudge,
- * alone, last, with nothing of the record under it.
- *
- * `YEARBOOK_SECTIONS` holds that order and this file never re-sorts it. Every
- * section carries a `--yb-step` delay, and `run.css` lands them one after
- * another. UNDER REDUCED MOTION THEY ALL LAND AT ONCE, which is the rule and not
- * a courtesy: a staged page at one millisecond a step is a flicker, and a
- * flickering page is worse for the student the setting is for than a page that is
- * simply present.
- *
- * ---- THE SPREAD USES THE WIDTH --------------------------------------------
- *
- * `build-shots/ui/before/15-yearbook.png` is eleven short lines of type pinned to
- * the top left of a 940 by 800 sheet, with about two thirds of the paper blank.
- * §7.6 calls this "the year's full-page spread", and a spread is two facing
- * pages: the transcript and what it bought on the left, what the student saw and
- * was given and is still working toward on the right, the nudge across the foot
- * of both. It collapses to one column when the window cannot hold two, which on a
- * 1366 by 768 Chromebook it can. */
+/* the year's full yearbook spread, and the page turn that is the year ending */
 
 /* how long one section waits before it lands. Six sections at 130ms is under a
  * second for the whole page, which is a composition rather than a load. */
 const STEP_MS = 130
 
-/* ---- THE NUMBER INKING ITSELF (§12.5) ------------------------------------
- *
- * §12.5 names three cases and they are three different pictures, so the hook
- * answers all three rather than running one animation and hoping:
- *
- *   FIRST      year one has no previous value. The number writes in from blank,
- *              which is a CSS wipe in `run.css`, and it happens exactly once in a
- *              run.
- *   UP or DOWN it travels, digit by digit, from last year's value to this one's.
- *              Downward is not softened: *"It moves down. It does not get a
- *              consolation line."*
- *   HELD       a year of straight passes at the same level moves a credit-weighted
- *              mean by hundredths or not at all, and that is the COMMON case.
- *              *"A number that visibly tries to move and does not is worse than a
- *              number that lands."* So nothing runs. The number is simply there,
- *              and the words beside it say it held.
- *
- * `prefersReducedMotion()` is read from `ui/motion.ts` rather than from the
- * attribute, because that file is the one value the CSS and the renderer share. */
+/* the gpa inking itself: written in the first year, travelling after that, still when it held */
 function useInkedNumber(from: number | null, to: number | null, move: GpaMove): number | null {
   const travels = (move === 'up' || move === 'down') && from !== null && to !== null
   const [shown, setShown] = useState<number | null>(travels && !prefersReducedMotion() ? from : to)
@@ -107,10 +43,7 @@ function useInkedNumber(from: number | null, to: number | null, move: GpaMove): 
   return shown
 }
 
-/* THE MOVEMENT, IN WORDS, because §40.31 forbids a state carried by hue alone and
- * a school Chromebook panel crushes both lightness and saturation. The chevron
- * beside it turns, which is a SHAPE moving, and the sentence is what carries the
- * meaning when the drawn face is not worn. */
+/* the movement of the number said in words, so it is not carried by colour alone */
 function moveWords(move: GpaMove, from: number | null): string {
   if (move === 'up' && from !== null) return `up from ${from.toFixed(2)} last year`
   if (move === 'down' && from !== null) return `down from ${from.toFixed(2)} last year`
@@ -122,10 +55,7 @@ function moveWords(move: GpaMove, from: number | null): string {
 
 function Row({ row, section }: { row: YearbookRow; section: YearbookSection['id'] }) {
   if (section === 'marks') {
-    /* A MARK IS A DRAWN OBJECT, not a line of text. §12.9's section had never
-       rendered anything at all, and what it is for is the record of a thing that
-       happened rather than a score: the `chip` plate is the thing on the wall and
-       the `stamp` face is what was pressed into it. */
+    /* a mark is a drawn plate with a stamp on it, not a line of text */
     return (
       <li className="yb-row yb-row-mark">
         <Chip state="plate_lit" className="yb-markchip">
@@ -138,17 +68,7 @@ function Row({ row, section }: { row: YearbookRow; section: YearbookSection['id'
   }
 
   if (section === 'threads') {
-    /* A CORD IS PARTIAL PROGRESS AND NEVER A LOCKED ACHIEVEMENT (§12.8). The bar
-       is a real drawn gauge on a real number out of `cordsOf`, the school's own
-       criterion sits under it, and an earned one wears the approval stamp so the
-       finished state is a MARK arriving rather than a bar going a different
-       colour.
-
-       THE CRITERION IS QUOTED, NEVER WRITTEN. §14.14 is a law for the whole game
-       and it is at its sharpest here, because this is the page where a fourteen
-       year old reads what a real cord takes: one source of truth, and the source
-       is `docs/blhs/awards.md` through `cordsOf`. Nothing in this file composes a
-       sentence about a school award. */
+    /* a cord is partial progress on a real number, with the school's criterion quoted */
     return (
       <li className={`yb-row yb-row-thread${row.done ? ' yb-row-done' : ''}`}>
         <span className="yb-threadhead">
@@ -163,15 +83,7 @@ function Row({ row, section }: { row: YearbookRow; section: YearbookSection['id'
             : <span className="yb-rowmeta">{row.meta}</span>}
         </span>
         <Gauge value={row.progress ?? 0} label={`${row.title}, ${row.meta}`} />
-        {/* THE CRITERION IS NOT ON THIS PAGE, and that is not a softening of
-            §14.14. The law is that a school criterion is QUOTED and never
-            written, and Key Club's runs to forty words about volunteer hours,
-            meetings and service events across four years. Quoted in full on a
-            yearbook page it ran off the bottom of the spread and was cut
-            mid-sentence, which is the one thing worse than not showing it.
-            The Handbook's cords page carries every criterion verbatim and is one
-            press away. What stays here is the live reading against it, which is
-            the part that is about THIS year and is what a yearbook is for. */}
+        {/* the criterion itself lives in the Handbook, one press away */}
       </li>
     )
   }
@@ -217,10 +129,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
   const page = s ? yearbookPage(s, year) : null
   const shown = useInkedNumber(page?.priorGpa ?? null, page?.gpa ?? null, page?.move ?? 'first')
 
-  /* SAID OUT LOUD, because the movement is the moment and the movement is drawn.
-   * A reader gets the sections for free (they are all in the DOM from the first
-   * frame; only the landing is staged), and gets nothing at all from a number
-   * counting up, which is exactly the part a student is meant to notice. */
+  /* the number and its movement said out loud for a screen reader */
   useEffect(() => {
     if (!page) return
     announce(page.gpa === null
@@ -231,21 +140,10 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
   if (!s || !page) return null
 
   const years = yearbookYears(s)
-  /* THE TURN BELONGS TO THE LIVE YEAR, ONLY ONCE, AND ONLY WHEN THE YEAR IS
-   * REALLY OWED NOTHING. A page reached through the spine or off the sheet's
-   * shelf is a record and never a control: without the `ready` half a student
-   * could open the book in October and end year one by pressing a button. */
+  /* the turn belongs to the live year, once, and only when the year owes nothing */
   const canTurn = page.current && !page.turned && page.ready
   const lastYear = year >= 4
-  /* ---- AND THE OTHER KIND OF LAST PAGE -----------------------------------
-   *
-   * BRIEF-MAW-RAIL-3 C: after "Year two, next time" nothing wakes up, and *"the
-   * yearbook is the end screen"*. So the page a student turns at the end of year
-   * one is terminal in the same way the fourth one is, without being a
-   * graduation: the run stops handing out years (`year.ts`), and this screen has
-   * to stop promising one. It read "Year 2. Three new season tokens. Go to the
-   * table and pick your year," which is the exact sentence he was told would
-   * never be said again. */
+  /* the last page of the session, which ends the run without being a graduation */
   const sessionEnds = !lastYear && year >= SESSION_ENDS_AFTER_YEAR
 
   const turn = () => {
@@ -254,45 +152,16 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
       entries: s.ledger.filter((e) => e.year === year).map((e) => ({ id: e.id, grade: e.grade })),
       stickers: s.stickers.length, facts: s.facts.length, nudge: page.nudge,
     })
-    /* ONE WRITE, NOT TWO (§12.13). `setFlag` then `endYear` was two separate
-     * `localStorage` writes with no transaction between them, and a failure
-     * landing in the gap left the save carrying `yearbook:y1` with the year still
-     * 1: the objective falls through to "nothing is owed", the yearbook will not
-     * re-offer its own turn, and there is no button anywhere in the game that
-     * advances the year. Unlikely and unrecoverable, on the ONE irreversible
-     * write in the run. `turnYearPage` is the single patch. */
+    /* one write for the flag and the year, so a failure cannot land between them */
     turnYearPage(s, year)
     setTurned(true)
-    /* ---- AND THE COUNSELOR DRAPES A CORD (BRIEF-YEAR-ONE beat 8) ---------
-     *
-     * "The counselor drapes the first cord on him. The wall has three things on
-     * it. The yearbook page turns in school words. Year two, next time."
-     *
-     * The drape comes AFTER the write, on purpose and in that order: the cord it
-     * shows is read from the save, and a year that has not turned yet is a year
-     * whose numbers are still moving. It is also the last screen of the thirty
-     * minutes, so it is the last thing shown.
-     *
-     * It rides on the turn rather than on a station because the turn is the only
-     * moment in the run that happens exactly once per year and cannot be missed.
-     * A member's island can still raise it by name through the ui-bus. */
+    /* the counselor drapes the first cord, after the write, as the last screen */
     setDraping(true)
   }
 
   const move = page.move
 
-  /* ---- INSIDE THE FILM THE BOOK IS ONE CARD -------------------------------
-   *
-   * BRIEF-INTRO-FILM section 4: *"the yearbook page as ONE card (what he picked,
-   * what he earned, nothing else)"*. The spread below is untouched and is still
-   * what My Year opens; what changes is the one place a student meets this book
-   * without having asked for it, which is the last minute of the introduction.
-   *
-   * The bars being up IS the statement that something else is directing, which
-   * is the same test the schedule uses to take its own way out away.
-   *
-   * The cord still rides on the turn, so the order inside the film is card,
-   * press, cord, and then the film has the floor back. */
+  /* inside the film the book is one card rather than the full spread */
   const inFilm = cinemaOn()
 
   if (draping) {
@@ -317,14 +186,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
           <>
             <header className="yb-head">
               <h2 className="yb-title">Yearbook</h2>
-              {/* AND "STILL OPEN" IS NOT SAID ON THE PAGE THAT IS ABOUT TO
-                  CLOSE. BRIEF-MAW-RAIL-2, off Ash's own frames: the counselor
-                  says "Year one is done" and opens this book, and the book
-                  answers "Year 1 still open" in the same second. It is true in
-                  the save's own terms and it is the game contradicting the
-                  person who just spoke, on the last screen of the thirty
-                  minutes. A year that can be closed says its number and nothing
-                  else; the plank underneath is what says what happens next. */}
+              {/* a year that can still be closed says its number and nothing else */}
               <span className="yb-year">
                 Year {page.year}
                 {!(page.current && !page.turned && page.ready) && (
@@ -339,13 +201,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
               {/* ---- THE NUMBER, FIRST, BECAUSE IT IS WHAT THEY CAME FOR ---- */}
               <section className={`yb-number yb-move-${move}`} style={{ '--yb-step': '0ms' } as CSSProperties}>
                 <span className="yb-numwrap">
-                  {/* NOT AN ELLIPSIS. This read `. . .`, and Harbormaster draws a
-                      period as a filled square, so the largest thing on the page
-                      of a student who has not been graded yet was three teal
-                      blocks (`build-shots/ui/after/15-yearbook.png`). The
-                      empty-ledger case is a sentence rather than a number, so it
-                      is set as one, and the words pass made it literal: §12's
-                      own "unwritten" is now "no GPA yet". */}
+                  {/* a sentence rather than a number when nothing has been graded */}
                   <span className={`yb-num${shown === null ? ' yb-num-none' : ''}`}>
                     {shown === null ? 'no GPA yet' : shown.toFixed(2)}
                   </span>
@@ -363,17 +219,8 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                     )}
                     {moveWords(move, page.priorGpa)}
                   </span>
-                  {/* Q12.5.a on record: cumulative, "with the year's own mean as a
-                      second number beside it so the movement has something to
-                      attribute itself to". The big number is the transcript
-                      through this year; this one is the year alone. */}
-                  {/* AND NOT WHEN IT IS THE SAME NUMBER TWICE. Q12.5.a asks for a
-                      second number so the movement has something to attribute
-                      itself to, which is exactly right from year two on. In year
-                      one the transcript IS the year, so the line read "3.56"
-                      followed by "this year alone: 3.56" under a heading that
-                      already said "your first GPA": one fact, three times, at the
-                      top of the page a student reads first. */}
+                  {/* the year's own mean beside the cumulative one */}
+                  {/* and not printed at all when it would be the same number twice */}
                   <span className="yb-yearmean">
                     {page.yearGpa === null
                       ? 'nothing was graded this year'
@@ -384,21 +231,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                 </span>
               </section>
 
-              {/* ---- THE SPREAD: two facing pages, one order ----
-                  THE SPLIT IS NOT DECIDED HERE ANY MORE. It was: sections one and
-                  two on the left, three four and five on the right, and that is a
-                  guess about how tall a section is that was wrong the moment a
-                  student had cords. Photographed on a real year one at
-                  `ui/p1-game/15b-yearbook-full.png`, the right column carried
-                  three drawn cord gauges at 122 pixels each, ran past the bottom
-                  of the spread and lost the third one, while the left column sat
-                  half empty beside it.
-
-                  The sections flow now and the browser balances them, so the page
-                  is right for a freshman with two rows and for a senior with
-                  twenty without either being arranged by hand. The binding down
-                  the middle is a `column-rule`, which is the same line it always
-                  was. */}
+              {/* the spread: sections flow across two columns and the browser balances them */}
               <div className="yb-spread">
                 {page.sections.map((sec, i) => (
                   <Section key={sec.id} sec={sec} step={i + 1} />
@@ -436,11 +269,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                     <Plank size="lg" glyph={['icon_set', 'arrow']} onClick={turn}>
                       {lastYear ? 'Finish all four years' : 'End this year'}
                     </Plank>
-                    {/* NOT INSIDE A CUTSCENE. This is the last beat of the rail
-                        and "Keep playing this year" walks out of it: the page
-                        does not turn, the counselor never says the last line,
-                        and the thirty minutes end on a shrug. Everywhere else it
-                        is the right offer and it stays. */}
+                    {/* the offer to keep playing is hidden inside a cutscene */}
                     {!cinemaOn() && <Plank size="md" onClick={onClose}>Keep playing this year</Plank>}
                   </>
                 ) : (
@@ -464,18 +293,10 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                 </div>
               </>
             ) : sessionEnds ? (
-              /* ---- THE END OF THE THIRTY MINUTES, WHICH IS NOT A GRADUATION --
-                 The page has turned, the cord is draped, the room is his, and
-                 nothing else in the run is owed. BRIEF-MAW-RAIL-3 C. What used
-                 to be here promised year two and three fresh season tokens, and
-                 the counselor had just said the opposite out loud. */
+              /* the end of the thirty minutes, which is not a graduation */
               <>
                 <h2 className="yb-title">Year {year} is done.</h2>
-                {/* NO PROMISE ABOUT NEXT TIME (BRIEF-INTRO-FILM section 4). This
-                    said "Year two is next time", which is the one wording that
-                    page forbids outright, on the screen a student reaches by
-                    opening My Year after the film. What is true and useful is
-                    what the room is now: his. */}
+                {/* what is true now, the room being his, rather than a promise about next time */}
                 <p className="yb-turnedline">
                   That is year one. The Maw is yours to walk, and the Guide has every club and
                   class at Bonney Lake in it.
@@ -487,12 +308,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
             ) : (
               <>
                 <h2 className="yb-title">Year {year + 1}.</h2>
-                {/* THE REFILL, WHERE THE STUDENT CAN SEE IT (§12.14). Three tokens
-                    land at the turn and the pips that hold them are on the HUD
-                    behind this veil, so the one plain signal that a new year has
-                    begun happened where nobody was looking. The same three drawn
-                    season faces the corner wears are here, on the page that
-                    handed them over. */}
+                {/* the three new season tokens, shown on the page that hands them over */}
                 <div className="yb-refill" aria-label="Three new season tokens. You can pick three more clubs or sports.">
                   {(['fall', 'winter', 'spring'] as const).map((season, i) => (
                     <span
@@ -510,23 +326,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                 </div>
                 <p className="yb-turnedline">Three new season tokens. Go to the table and pick your year.</p>
                 <div className="yb-acts">
-                  {/* THE WAY ON IS NOT DRESSED AS A WAY BACK. This is the last
-                      control of the thirty minutes and it read "Back to the
-                      game", so the only thing a student could press to finish
-                      year one was worded as a retreat, and both reads-nothing
-                      harnesses classify it as backwards and stop dead on it
-                      (BRIEF-MAW-RAIL's own "left undone" list). Nothing is being
-                      gone back to: the page has turned, the year is over, and
-                      what is on the other side of this plank is the counselor
-                      saying the last line.
-
-                      NOT "Go on" EITHER, which was the first try: that is the
-                      dialogue box's own advance word, printed under every line
-                      in the game, so a plank wearing it is two different
-                      controls with one name. This is the same shape as the
-                      schedule's plank, which is the other thing in this half
-                      hour a student presses to say a piece of paper is
-                      finished. */}
+                  {/* the way on is worded as finishing, not as going back */}
                   <Plank size="lg" onClick={onClose}>That is year one</Plank>
                 </div>
               </>

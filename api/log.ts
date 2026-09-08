@@ -1,8 +1,4 @@
-// POST /api/log [ LogEnvelope, ... ] -> { ok, n }
-// The offline-first logger's drain (src/vine/logging.ts batches into here). Append-only;
-// castaway/demo sessions never reach this endpoint (the client keeps them local, §2.9);
-// captain/dev sessions arrive flagged dev:true in the envelope and are excluded from any
-// study export by that flag.
+// POST /api/log: the append-only endpoint the client's batched event queue drains into
 import { json, readBody } from './_db.js'
 import { store } from './_store.js'
 

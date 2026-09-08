@@ -1,9 +1,4 @@
-// CORE BEAT, YEAR 4 — "Finish like a Panther" (§7.3): the cords AUDIT. This beat is
-// GENERATED from the student's own save: Principal Panther reads their actual cape
-// (cordsOf) and the first check asks what their real GPA earns TODAY — the same math the
-// graduation ceremony will use. Plus the High School and Beyond Plan (a real non-credit
-// graduation requirement) and the regalia as flavor (teal gowns, the BONNEY LAKE stole —
-// reference/blhs-grad-capes). No em-dashes in player copy (law §2.8).
+// core beat, year 4: the cords audit, generated from the student's own save
 
 import type { SaveGame } from '../save'
 import { cordsOf, gpaOf } from '../progress'

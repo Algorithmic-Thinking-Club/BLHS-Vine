@@ -1,31 +1,4 @@
-/* EVERY ELEMENT ON THE PLAY SCREEN, AND WHAT THE RUN HAS TO CONTAIN FOR IT.
- *
- * Part IV §40.2 states the law this file exists to enforce:
- *
- *   "The HUD assembles as the game grants things. It is not fully present from
- *    the first frame with half of it inert... a control that exists before the
- *    thing it controls is a prototype tell."
- *
- * And it names the failure by line: "Today the compass and the Handbook button
- * are rendered unconditionally the moment a world scene mounts, and only the
- * token pips are gated on anything." That was still true this morning. A student
- * in the first minute had a Handbook spine two sections before §4.10 hands them
- * the binder, and pressing it opened a book whose Islands page said the sea is
- * young and whose Cords page said there is no voyage yet.
- *
- * TWO OF PART IV'S WANTS ARE ONE FILE. §40.2 asks for "one place that lists every
- * HUD element and its unlock condition"; §40.6 asks for "the absence list
- * enforced somewhere a new element has to pass". Both are this table plus the
- * test beside it, and the test is the half that matters: a new element added
- * without a grant condition fails the build, so this screen cannot quietly rot
- * back into a dashboard after the session that built it ends.
- *
- * WHY IT IS A PURE FUNCTION OF THE SAVE. There were two mounts of the HUD with
- * two different gates: `WorldHud.tsx` behind `s?.introDone`, and `IntroScene.tsx`
- * behind nothing at all, which is how the compass got onto the beach. Two gates
- * is two answers to one question. There is one answer now and both mounts read
- * it.
- */
+/* every element that can appear on the play screen, and what the run must contain for it */
 import type { SaveGame } from '../save'
 import { cordsOf } from '../progress'
 
@@ -35,21 +8,11 @@ export type HudElement = 'chart' | 'handbook' | 'tokens' | 'cape'
 
 export type HudGrants = Record<HudElement, boolean>
 
-/* THE FLAGS THAT DO THE GRANTING, named here rather than typed as strings at
- * three call sites. §4.10 is the moment the binder is handed over in the Maw and
- * `handbook_granted` is the event it fires; the flag is what a save remembers
- * about it afterwards. */
+/* the save flags that do the granting, named once instead of typed at three call sites */
 export const CHART_FLAG = 'chart:granted'
 export const HANDBOOK_FLAG = 'handbook:granted'
 
-/* ---- THE TABLE ------------------------------------------------------------
- *
- * One row per element, in the order it appears in the corner, each with the
- * condition in words and the condition as code beside it so the two cannot
- * drift. `why` is not decoration: §40.2's Deployment line requires an entrance to
- * name the new thing in the world's own words, once, at the moment it arrives,
- * "because the teacher is not going to be free".
- */
+/* one row per element, with the condition in words beside the condition as code */
 export type HudRow = {
   el: HudElement
   /** what a person reads when it arrives */
@@ -78,16 +41,7 @@ export const HUD_INVENTORY: HudRow[] = [
     says: 'The Handbook is yours. Everything the school has told you is in it.',
     rule: '§4.10 hands the binder over in the Maw',
     permanent: true,
-    /* THE ONE TENSION IN THIS TABLE, NAMED RATHER THAN DECIDED QUIETLY. §40.17
-     * calls the Handbook "the deployment-critical panel", the reference a student
-     * opens when they are lost and the teacher is busy, and §40.2's law gates it
-     * behind a beat that happens minutes in. Both are right and they disagree.
-     *
-     * The law holds, because what a lost student in minute one actually needs is
-     * the objective panel and it is on screen from the first arrival. A Handbook
-     * is a reference, not a rescue. If that turns out to be wrong in a real room
-     * it is one line here, and this comment is why it is written down rather than
-     * argued about in a review. */
+    /* a reference rather than a rescue, so it waits for the binder; the objective panel is the rescue */
     has: (s) => s.flags.includes(HANDBOOK_FLAG),
   },
   {
@@ -105,10 +59,7 @@ export const HUD_INVENTORY: HudRow[] = [
     says: 'You started your first cord. It shows on your cape.',
     rule: 'the first cord in progress puts the cape within reach (§40.2)',
     permanent: true,
-    /* THE FOURTH ELEMENT THE LAW IMPLIES AND NO SECTION ENUMERATES. §40.2 names
-     * the trigger in words and then never lists the thing it triggers, so naming
-     * it here is part of closing the Want. Nothing mounts it yet; the row exists
-     * so that whoever does cannot invent a different condition. */
+    /* nothing mounts the cape yet, and the row is here so whoever does uses this condition */
     has: (s) => cordsOf(s).some((c) => c.progress > 0),
   },
 ]
@@ -123,11 +74,7 @@ export function hudGrants(s: SaveGame | null): HudGrants {
   return out
 }
 
-/* WHAT IS ON THE PLAY SCREEN AT ALL, which is the absence list §40.6 asks to have
- * enforced. Everything NOT in this list is a thing that must not float: no GPA
- * bar, no XP bar, no quest log, no minimap, no leaderboard, each with a diegetic
- * replacement named in that section. The test beside this file renders the screen
- * at four run states and asserts the always-on set is exactly this. */
+/* the whole list of what may be on the play screen, and anything not here must not float */
 export const ALWAYS_ON = [
   /* the corner, and only what has been granted */
   'chart', 'handbook', 'tokens', 'cape',
@@ -136,47 +83,10 @@ export const ALWAYS_ON = [
   /* the two surfaces that speak, neither of which is furniture: each is present
    * only while it has something to say */
   'dialogue', 'place-card',
-  /* ---- AND THE ONE SENTENCE THAT IS ALWAYS THERE -------------------------
-   *
-   * The objective panel, top centre (BRIEF-MAW-RAIL-3 A). It replaced `heading`,
-   * which was the same sentence in the bottom-left corner of the tile scenes and
-   * which stood down whenever anything else spoke.
-   *
-   * It survives §40.6 the same way `help` does and for a stronger reason: it is
-   * not a readout about the student, it is the game's one instruction, and the
-   * absence list's own replacement clause names it. The list forbids a quest
-   * log; this is the thing §40.6 says to have INSTEAD of one, "deliberately one
-   * live thing at a time". */
+  /* the game's one instruction, top centre, and the thing there is instead of a quest log */
   'objective',
-  /* ---- AND THE ONE PERMITTED FLOATING THING THAT IS NOT STATE -------------
-   *
-   * The question mark. Everything else on this list is either a control the run
-   * has granted or a surface with something to say right now, and that is the
-   * whole of §40.6's law: nothing floats that is not state.
-   *
-   * This is the exception the brief names, and it names the reason with it: "the
-   * one exception to §40.2's assembly rule because it exists for the student who
-   * has earned nothing yet... A teacher's whole answer to 'I don't know what to
-   * do' is 'press the question mark'."
-   *
-   * It survives the law's own test because it is not a READOUT. §40.6 forbids a
-   * GPA bar, an XP bar, a quest log, a minimap and a leaderboard, and every one
-   * of those is the game telling you a number about yourself while you play. This
-   * tells you nothing until you press it, costs one plaque of corner, and is the
-   * only thing on the screen that works when the run has given the student
-   * nothing at all. */
+  /* the question mark, which tells you nothing until you press it and works from the first frame */
   'help',
-  /* ---- AND THE FRAME, WHICH IS THE OPPOSITE OF A FLOATING READOUT --------
-   *
-   * The two black bars (BRIEF-ARRIVAL item 1). They pass this law by inverting
-   * it: §40.6 forbids things that ADD themselves to a play screen, and this
-   * draws nothing at all until an island says `movie(True)`, at which point the
-   * screen is not a play screen any more. It takes the controls, puts every
-   * other surface on this list away, and takes itself away again when the
-   * stretch it framed is over.
-   *
-   * It is on the list rather than smuggled past it because the test reads
-   * WorldHud's render and does not care what a component draws, which is right:
-   * the mount is the commitment. */
+  /* the two black bars, which draw nothing until an island asks for a cutscene */
   'movie-bars',
 ] as const

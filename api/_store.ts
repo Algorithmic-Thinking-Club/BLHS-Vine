@@ -1,10 +1,4 @@
-// The storage seam behind every endpoint. Two backends, one interface:
-//  - neonStore: the real thing (Neon Postgres over @neondatabase/serverless).
-//  - fileStore: a dev-only JSON file (.data/dev-db.json), enabled ONLY when the vite dev
-//    bridge sets BLHS_DEV_DB=file because no DATABASE_URL exists. It exists so the join /
-//    state-sync / teacher flows can actually be clicked and tested locally — on Vercel a
-//    missing DATABASE_URL still degrades to 503 offline, never to a file.
-// Handlers stay thin; the unit tests run the whole handler stack against the file store.
+// the storage seam behind every endpoint: real Neon Postgres, or a dev-only json file
 
 import { neon } from '@neondatabase/serverless'
 import fs from 'node:fs'
@@ -39,11 +33,7 @@ export interface Store {
   getState(participantId: string): Promise<unknown | null>
   putState(participantId: string, save: unknown): Promise<void>
   appendEvents(rows: EventRow[]): Promise<void>
-  /* THE READ NOBODY EVER WROTE. Every event this project logs has been going into
-   * a table with no query against it, and sixteen moments in the design say "it
-   * has been recorded and never assembled". Bounded, because a class of thirty
-   * across four sittings is a lot of rows and a teacher pressing Export should not
-   * be able to ask for all of them at once. */
+  /* read a class's logged events back, capped so one export cannot ask for everything */
   readEvents(classId: string, limit?: number): Promise<StoredEventRow[]>
   roster(classId: string): Promise<RosterRow[]>
   setOpen(classId: string, open: boolean): Promise<void>
@@ -105,11 +95,7 @@ function neonStore(url: string): Store {
                 select * from unnest(${pids}::text[], ${sids}::text[], ${payloads}::jsonb[])`
     },
     async readEvents(classId, limit = EVENT_READ_CAP) {
-      /* the join is to participants and NOT to the events table's own
-       * participant_id constraint, because there is none on purpose: pre-join
-       * events arrive under the device's anon id and captain sessions under
-       * 'captain'. Those rows are real and are simply not this class's, so an
-       * inner join is the right filter rather than a bug. */
+      /* the inner join to participants is what filters the rows down to this class */
       const r = await sql`
         select e.participant_id, e.session_id, e.at, e.payload
         from events e join participants p on p.id = e.participant_id

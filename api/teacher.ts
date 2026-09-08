@@ -1,17 +1,4 @@
-// The teacher side (§13.3) — capability keys, no accounts: creating a class returns a
-// teacher_key; holding the key IS being the teacher (kept in their browser, shareable to a
-// co-teacher on purpose). Correlated with join by design: this endpoint is why a class
-// code exists at all.
-//   POST /api/teacher { op: 'create', name, studyMode? }           -> { classId, code, teacherKey }
-//   POST /api/teacher { op: 'roster', classId, teacherKey }        -> { name, code, open, roster: [...] }
-//   POST /api/teacher { op: 'export', classId, teacherKey }        -> { columns, rows, events }
-//   POST /api/teacher { op: 'setOpen', classId, teacherKey, open } -> { ok }
-//
-// THE EXPORT IS BUILT HERE AND NOT IN THE BROWSER, and that is the whole of what changed.
-// The CSV used to be eight columns assembled client-side out of roster state: handle, arm,
-// joined, last_seen, year, beat, graduated, verification. No score, no duration, no
-// attempts, because the browser holds one student's save and the dependent variable lives
-// in the events table. This op is the first thing in api/ that has ever read that table.
+// the teacher side: create a class, read the roster, export the study csv, open or close it
 import { json, readBody } from './_db.js'
 import { store } from './_store.js'
 import { newCode, newId } from './_logic.js'
@@ -49,14 +36,7 @@ export default async function handler(req: any, res: any) {
   const rosterOf = async () => (await db.roster(cls.id)).map(({ save, ...r }) => {
     const s = save as SaveGame | null
     const graduated = !!s?.graduated
-    /* THE SEAL FIRST, AND THE LIVE RECOMPUTE ONLY AS A FALLBACK. A transcript is
-     * frozen at graduation now (`src/game/run/diploma.ts`), and the last button
-     * on the graduation screen unlocks post-graduation play, so a graduate who
-     * kept playing moved a live `transcriptOf(s)` while the code printed on their
-     * diploma did not move with it. The roster then reported a different number
-     * from the paper in the student's hand, in front of a class, which reads
-     * exactly like cheating. The recompute stays for runs that graduated before
-     * there was a seal to read. */
+    /* the sealed diploma code first, and a live recompute only for runs sealed before it */
     return { ...r, graduated, code: graduated && s ? (s.diploma?.code ?? runCode(transcriptOf(s))) : null }
   })
 

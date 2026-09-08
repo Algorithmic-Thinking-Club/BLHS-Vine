@@ -22,14 +22,7 @@ export interface LoggerConfig {
   flushIntervalMs?: number
 }
 
-// Offline-first: events queue to localStorage and POST in batches. If there's no endpoint
-// (dev) or the network is down, the queue survives and retries on the next flush. This is the
-// AP Research data layer, so nothing is dropped on a flaky Chromebook connection.
-//
-// Identity is LIVE, not construction-time: a student joins their class mid-session (the
-// bottle, I-3), and every event from that moment must carry the real participantId and arm.
-// setIdentity() re-points the envelope stamp; events already queued keep the identity they
-// were stamped with (they happened pre-join, and the anon id says so honestly).
+// events queue to localStorage and POST in batches, stamped with whoever the player is now
 export class Logger {
   private cfg: LoggerConfig
   private identity: LoggerIdentity

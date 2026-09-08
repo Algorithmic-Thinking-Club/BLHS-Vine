@@ -1,11 +1,4 @@
-/* THE PANELS THEMSELVES, NOT THE PRIMITIVE THEY USE.
- *
- * `a11y.test.ts` proves the hook keeps its five promises. This proves the real
- * panels in the game actually call it, which is the half that rots: a seventh
- * panel gets written next month, nobody wires it, and nothing errors. The count
- * this session started from was one aria attribute in `src/` and zero roles, and
- * the way that number goes back up is a test that names the panels.
- */
+/* tests that the real panels in the game call the panel hook, not just that the hook works */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createElement, act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -102,26 +95,7 @@ describe('the settings sheet answers its own controls', () => {
   })
 })
 
-/* ---- AND THE ONES NOBODY REMEMBERED TO WIRE ------------------------------
- *
- * The list above is three panels because it was written when three panels
- * existed. On 2026-09-01 the tree had NINE full-screen overlays and five of them
- * had never called `usePanel`: the year sheet, the yearbook, graduation, the
- * year-start vignette and the beat runner's stage. Two of those are worse than
- * an accessibility gap. The year sheet is the panel a student MUST finish to
- * stamp a year, and because it never pushed onto the stack `panelDepth()` read
- * zero while it was open, so the arrival card and the objective heading both
- * believed the world was quiet and drew over the top of it. The graduation
- * stages were click-only `<div>`s, and they are the only road to the diploma,
- * which is the study's turn-in artifact: a keyboard-only student was stopped on
- * the first screen of the ceremony.
- *
- * A list cannot catch the tenth panel. This reads the tree instead: anything
- * that renders a full-screen veil is a panel, and a panel owes the contract.
- * The rule is deliberately about the VEIL rather than about a name, because the
- * veil is the thing that makes a surface modal and it is what every one of the
- * nine has in common.
- */
+/* reads the whole tree, so anything drawing a full-screen veil is checked without being listed */
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -151,28 +125,7 @@ describe('every panel in the tree took the contract, not just the ones on a list
     const offenders: string[] = []
     for (const file of everyComponent()) {
       const src = fs.readFileSync(path.resolve(process.cwd(), file), 'utf8')
-      /* A MODAL VEIL IS ONE YOU CAN CLICK OUT OF, and that is the whole of the
-       * test. Every dismissible surface in this kit draws `<div className="xx-veil"
-       * onClick={onClose}>`; the two full-screen elements that are NOT panels
-       * fail exactly that check and fail it for the right reason:
-       *
-       *   `.ti-veil` on the title is a cool gradient over the painted cove so the
-       *   wordmark owns the sky. It is inert, and a title is not something a
-       *   student closes because there is nothing behind it to go back to.
-       *
-       *   `.dlg-veil` around a line of station dialogue IS clickable, but what it
-       *   does is ADVANCE, not close, and making it modal would put a focus trap
-       *   around every sentence anybody in the game says.
-       *
-       * The first draft of this test used "the veil has an onClick" as the tell,
-       * and it was wrong in the direction that matters: it let THREE real panels
-       * through. The beat stage, graduation and the year-start vignette all
-       * deliberately refuse a veil click (a beat never Esc-quits, the ceremony
-       * takes `closeOnEscape: false`, and the vignette advances rather than
-       * closing), so a rule about clicking exempted exactly the surfaces whose
-       * modality is strictest. The two exceptions are named instead, with the
-       * reason, because there are two of them and a name that has to be written
-       * down is a name somebody has to defend. */
+      /* every veil counts as a panel except the two named in NOT_A_PANEL */
       const tags = [...src.matchAll(/<[a-zA-Z][^>]*className=["'`][^"'`]*([a-z]{2,3}-veil)[^>]*>/g)]
       const modal = tags.filter((m) => !NOT_A_PANEL.has(m[1]))
       if (!modal.length) continue

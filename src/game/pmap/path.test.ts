@@ -1,12 +1,4 @@
-/* THE ARROW GOES ROUND THE WALL, and it goes round it by the same law the body
- * walks by. These are built on hand-drawn masks rather than on a real bundle, so
- * a failure names the geometry rather than the map.
- *
- * The level encoding is MAPVIS's: 0 is blocked, 40 is L0, and a step is legal when
- * the two levels differ by no more than `stepTolerance`. The hip probes read the
- * row ABOVE the feet, which is why every corridor below is at least three pixels
- * tall: a one-pixel line is not walkable and never was.
- */
+/* the arrow routes round walls by the same walk law the body uses, on hand-drawn masks */
 import { describe, it, expect } from 'vitest'
 import { findPath, aheadOn, onFloor } from './path'
 import { defaultCfg, canStandFrom, type MaskDoc, type WalkCfg } from './walk'
@@ -141,12 +133,7 @@ describe('where the arrow sits', () => {
   })
 })
 
-/* ---- a goal that is not on the floor ---------------------------------------
- *
- * The hub's `panthers_maw` was placed on the tunnel mouth, which is level 0, so
- * a walk to it could never report arrival however good the route was. These are
- * the numbers measured off the published bundle on 2026-09-05.
- */
+/* ---- a goal that is not on the floor */
 describe('onFloor', () => {
   /* the hub, near the tunnel: everything above row 385 is the doorway and is
    * blocked, the terrace lip below it stands */
@@ -164,10 +151,7 @@ describe('onFloor', () => {
     expect(r.at).toEqual({ x: 343, y: 385 })
   })
 
-  /* the search is in the metric findPath's reach test uses, so vertical ground
-   * costs 1/yScale. A pixel 8 across beats one 7 below, which raw distance would
-   * get backwards, and picking by raw distance is how an earlier note concluded
-   * the arrow cleared by a tenth of a pixel when it did not. */
+  /* the search uses findPath's own metric, where vertical ground costs 1/yScale */
   it('measures in the search own y corrected metric, not in raw pixels', () => {
     const cross = (x: number, y: number) => (x === 351 && y === 378) || (x === 343 && y === 385)
     const r = onFloor({ x: 343, y: 378 }, cross, 0.72)

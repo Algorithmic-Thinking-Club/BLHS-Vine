@@ -1,10 +1,4 @@
-/* THE READER'S ARITHMETIC, which is the whole dependent variable.
- *
- * Nothing in api/ has ever read the events table, so every number below is one
- * the study could not previously produce. These tests are the contract: if a
- * refactor changes what "time on task" means, or lets a duplicate batch count
- * twice, or merges places into programmes, a test names it.
- */
+/* the reader's arithmetic over the events table, which is the study's dependent variable */
 import { describe, it, expect } from 'vitest'
 import { summarise, exportRows, eventName, EXPORT_COLUMNS, IDLE_CAP_MS, type StoredEvent } from './_summary.js'
 
@@ -65,10 +59,7 @@ describe('time on task', () => {
   })
 
   it('measures off WHEN THE EVENT HAPPENED, not when its row was written', () => {
-    /* the offline-queue collapse: a Chromebook that lost the network drains six
-     * events in one POST, and `appendEvents` writes the whole batch on one
-     * timestamp. Read off the row, every gap inside a batch was zero, so
-     * active_minutes was smallest for the students whose network was worst. */
+    /* an offline batch lands on one row timestamp, so gaps come off the event's own time */
     const inserted = new Date(T0 + 10 * 60_000).toISOString()
     const rows = [0, 15_000, 30_000, 45_000].map((o) => ({ ...ev('heartbeat', o), at: inserted }))
     const [m] = summarise(rows)

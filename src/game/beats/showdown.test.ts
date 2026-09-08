@@ -33,10 +33,7 @@ describe('the drive', () => {
   })
 
   it('carries earned and total between rounds and nothing else', () => {
-    /* 80.7: the chassis carries `earned` and `total` between rounds and nothing
-     * else. `picks` is the answer sheet the palette scores, `round` and `picked`
-     * are where the drive is. There is no streak, no multiplier and no clock, and
-     * this test is here so adding one is a visible act. */
+    /* the state is exactly these six fields: no streak, no multiplier and no clock */
     expect(Object.keys(startShowdown(ROUNDS)).sort())
       .toEqual(['done', 'earned', 'picked', 'picks', 'round', 'total'])
   })
@@ -131,10 +128,7 @@ describe('THE TIMING LAW: the item scores and the body does not', () => {
   })
 
   it('the chassis file contains no clock at all', () => {
-    /* a source tripwire, and it earns its keep: a timing element added to a scored
-     * frame takes that island out of the study, and the frame most likely to grow
-     * a countdown is the loudest one. A member cannot widen a window that does not
-     * exist, and neither can a future session. */
+    /* a source tripwire, so nobody adds a timer to a scored frame */
     const src = fs.readFileSync(path.resolve('src/game/beats/showdown.ts'), 'utf8')
     const code = src.split('\n').filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*') && !l.trim().startsWith('/*')).join('\n')
     for (const clock of ['Date', 'performance', 'setTimeout', 'setInterval', 'requestAnimationFrame']) {

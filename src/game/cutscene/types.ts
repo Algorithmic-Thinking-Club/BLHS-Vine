@@ -1,12 +1,4 @@
-// The cutscene script language (GAME-DESIGN §12.2). One declarative format powers the intro
-// and, later, island cutscenes. Scripts are plain data: an array of steps the runtime plays
-// in order. World-touching steps (camera, actors, fx) go through the CutsceneStage interface
-// a scene implements; screen-space steps (letterbox, dialogue, captions, fades) render in the
-// CutsceneOverlay. Every step knows how to finish INSTANTLY so hold-to-skip can fast-forward
-// to the next required interaction without leaving the world in a half-state.
-//
-// This is a superset of the grape contract's CutsceneStep (src/vine/contract.ts) — that small
-// format stays the beginner-facing API and maps into this one.
+// the cutscene script language: a cutscene is a plain list of steps the runtime plays in order
 
 export type Ease = 'linear' | 'in' | 'out' | 'inOut'
 

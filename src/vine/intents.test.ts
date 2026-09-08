@@ -1,16 +1,4 @@
-/* THE LAW, TESTED AT LAST.
- *
- * src/vine/intents.ts:222 carries the rule the whole API rests on: no intent may
- * resolve successfully without performing, because the person a silent no-op
- * deceives is the AUTHOR, not the player. A member writes an arrival script, runs
- * it, sees no error, and ships an island whose most cinematic beat never plays and
- * reports that it worked. That survived a year, and one did.
- *
- * The enforcement is a single try/catch in one function and NOTHING TESTED IT.
- * 238 tests passed in twenty files and not one imported `performIntent` or
- * `runStation`, so every one of the three words that used to lie could have come
- * back and the suite would still have been green. These tests are the fence.
- */
+/* the law that no intent may resolve successfully without performing, tested */
 import { describe, it, expect, vi } from 'vitest'
 import {
   performIntent, NotBuilt, WAIT_CEILING_MS, WAIT_FOR_CEILING_MS,
@@ -157,10 +145,7 @@ describe('every word that takes an anchor refuses a name the map does not carry'
   })
 
   it('guide_to with a null anchor takes the arrow down and is not a missing name', async () => {
-    /* the arrow had a raise and no lower. An island that pointed once outranked
-     * the year's own next step for the life of the scene, which on the hub means
-     * every objective after that beat pointed at whatever the beat had finished
-     * with. */
+    /* the arrow had a raise and no lower, so one island outranked every later step */
     const h = host()
     expect((await performIntent({ kind: 'guide_to', anchor: null }, h)).ok).toBe(true)
     expect(h.did).toEqual(['guideTo:null'])
@@ -244,13 +229,7 @@ describe('the director class', () => {
   })
 
   it('caps wait_for too, because an anchor behind a locked door is a wait nothing ends', async () => {
-    /* THE WORST BUG THIS WAVE SHIPPED AND CAUGHT. `fire()` holds the controls for
-     * the length of a station handler and the ticker hands the walk law an EMPTY
-     * input while it is held, so `wait_for` from an `@on_talk` waited for a player
-     * who had been made unable to move. With no `ms` there was no deadline either:
-     * the promise never settled, `fire`'s finally never ran, and every station,
-     * every door and the controls were dead until a page reload. The scene half of
-     * the fix hands the controls back; this half is that it cannot be endless. */
+    /* an unbounded wait_for in a station handler waits for a player who cannot move */
     let asked: number | undefined = -1
     const h = host({ waitFor: async (_a, ms) => { asked = ms; return true } })
     await performIntent({ kind: 'wait_for', anchor: 'chart_table' }, h)

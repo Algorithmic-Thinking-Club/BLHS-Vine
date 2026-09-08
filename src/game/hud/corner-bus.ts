@@ -1,48 +1,4 @@
-/* THE CORNER, HANDED OVER ONE PLAQUE AT A TIME.
- *
- * BRIEF-INTRO-FILM section 4: *"then the handover: the bars come down, the
- * corner appears one plaque at a time with one line each said by the principal,
- * 'My Year is what you picked. The Guide is every club and class at Bonney
- * Lake. The Map is where you sail.'"*
- *
- * ---- WHY THIS IS A BUS AND NOT A PROP ------------------------------------
- *
- * The lines are the island's, in Python, in the members' repo, and the corner is
- * React mounted beside a Pixi canvas. Nothing owns both, which is the same
- * reason `ui-bus.ts` and `dialogue.ts` exist. This is the third one, kept apart
- * from `ui-bus` on purpose: that bus OPENS a panel and this one only says
- * whether a door is drawn yet.
- *
- * ---- WHAT AN ISLAND CALLS -------------------------------------------------
- *
- * One window CustomEvent, `blhs:hud-plaque`, carrying one string:
- *
- *   'arm'      hide all three. Said once, before the bars come down.
- *   'map'      draw the Map plaque, on its hook, as an arrival.
- *   'guide'    the same for the Guide.
- *   'my-year'  the same for My Year.
- *   'all'      draw whatever is left and stop staging. The way out.
- *
- * so an engine word on the other side of the worker is one line:
- *
- *   window.dispatchEvent(new CustomEvent('blhs:hud-plaque', { detail: 'map' }))
- *
- * and `revealPlaque('map')` below is the same thing with a name.
- *
- * ---- THE DEFAULT IS EVERYTHING, AND THAT IS THE IMPORTANT PART -----------
- *
- * BRIEF-PLAYTHROUGH-1 law 2 is that the corner is complete from the first world
- * frame, because "two buttons in a corner read as broken, not as earned". That
- * law is not being reversed: nothing is hidden until an island explicitly ARMS
- * the handover, the arming lives in memory rather than in the save, and a reload
- * hands all three back. A student who walks away in the middle of the film and
- * comes back gets a whole corner, not a broken one.
- *
- * THERE IS A CEILING FOR THE SAME REASON THE MOVIE HAS ONE. An island that arms
- * the handover and then throws, or is torn down by a door, would otherwise leave
- * a student looking at a corner with no doors in it and no way to get one. Ninety
- * seconds after the last thing happened the corner comes back on its own and says
- * so in the console. */
+/* the bus an island uses to hand over the corner plaques one at a time */
 
 export type Plaque = 'map' | 'guide' | 'my-year'
 export const PLAQUES: Plaque[] = ['map', 'guide', 'my-year']
@@ -111,10 +67,7 @@ export function onCornerChange(fn: () => void): () => void {
   return () => { listeners.delete(fn) }
 }
 
-/* THE WIRE. One listener for the life of the page, added at import, because the
- * caller is on the other side of a worker and cannot hold a reference to any of
- * the functions above. A detail that is not one of the five words is ignored and
- * says so, rather than silently arming a corner nobody asked for. */
+/* the one page listener, so a word sent from the worker reaches the functions above */
 if (typeof window !== 'undefined') {
   window.addEventListener(PLAQUE_EVENT, (e: Event) => {
     const d = (e as CustomEvent<unknown>).detail

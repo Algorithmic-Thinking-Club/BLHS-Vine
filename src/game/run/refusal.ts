@@ -1,24 +1,4 @@
-/* THE RUN'S REFUSALS, AS STRINGS, IN ONE PLACE (N3).
- *
- * §80.6 draws this boundary with the kit and it is worth stating the way the
- * substrate cut states it: *"refusals cross this line as strings. N3 asks for one
- * refusal string served to click, drop and keyboard alike, and the reason it is
- * the run's rather than the kit's is that the refusal is a fact about the school
- * or about scarcity, not about the widget."*
- *
- * WHAT WAS WRONG BEFORE THIS FILE. The season lock existed in exactly one place,
- * `Planner.tsx`'s menu, as a `.filter(programmeAllowedIn)`. A filter is not a
- * refusal: it removes the thing rather than saying why the thing is not there, so
- * a student who came looking for football in spring found an absence and no
- * sentence. Worse, `assignSlot` in `save.ts` never checked a season at all, so
- * the rule lived in a render and any other caller (a keyboard path, a drag, a
- * grape, a test) could put a fall sport on a spring token and the year model
- * would believe it.
- *
- * So the rule is here, the words are here, and the verb in the save calls the
- * same function the sheet prints. There is one sentence per refusal and every
- * surface serves that one.
- */
+/* the run's refusals as sentences, in one place, so every surface says the same thing */
 import type { SaveGame, Season } from '../save'
 import { programmeById, programmeAllowedIn, seasonOf } from '../roster/roster'
 import { classById } from '../planner/catalog'
@@ -69,9 +49,6 @@ export function refuseClass(classId: string, s: SaveGame | null, year: number): 
   if ((plan?.classes.length ?? 0) >= 2)
     return 'Two focus classes a year. Remove one before you add another.'
   if (!c.years.includes(year)) return `${c.name} is not open to you in year ${year}.`
-  /* THE PREREQUISITE LADDER IS NOT CHECKED HERE and that is deliberate: it needs
-   * every year's picks, not this year's, and `eligibleClasses` in the catalog
-   * already computes it for the menu. What is refused here is what one year's
-   * sheet can see for itself. */
+  /* the prerequisite ladder is not checked here, because it needs every year's picks */
   return null
 }

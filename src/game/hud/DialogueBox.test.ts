@@ -1,15 +1,4 @@
-/* THE ONE BOX, held to being one.
- *
- * Two dialogue renderers existed and everything downstream inherited whichever one
- * its host happened to reach. Twelve islands will not all reach the same one, so
- * the split reappearing is a silent regression: nothing errors, the game still
- * runs, and half the islands quietly get a different box. These tests are the
- * tripwire, and the source check at the bottom is the one that catches it.
- *
- * Written with createElement rather than JSX because the runner only collects
- * `.ts`, and a rendering test that has to be a `.tsx` is a rendering test nobody
- * runs.
- */
+/* holds the game to one dialogue box, so islands cannot end up rendering two of them */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createElement, act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -70,17 +59,9 @@ describe('what the box draws', () => {
     expect(host.querySelector('.cs-emote')?.textContent).toContain('?')
   })
 
-  /* UPDATED 2026-09-01 with the surface it tests. The portrait used to be a bare
-   * `<img class="cs-portrait">` with nothing drawn around it, which is what this
-   * asserted. It is `PortraitFrame` now, which wears the kit's own
-   * `portrait_frame` piece and bottom-anchors the picture the way the kit's
-   * record requires, so the assertion moved with the markup: the same src, and
-   * now the frame around it as well. */
+  /* the portrait is drawn inside the kit's own frame piece */
   it('DRAWS THE PORTRAIT, in the drawn frame the kit publishes for it', () => {
-    /* the frame is worn only when the platform really published the piece, so a
-     * test that wants to see it has to install one. Before 2026-09-02 the class
-     * was written unconditionally and this assertion passed against a kit that
-     * did not exist, which is exactly how the no-platform path shipped broken. */
+    /* the frame is only worn when the platform really published the piece */
     setKit([FRAME])
     render({ line: line({ portrait: 'pinzon' }) })
     const img = host.querySelector('.dlg-portrait img.kit-portrait-pic') as HTMLImageElement | null
@@ -91,18 +72,7 @@ describe('what the box draws', () => {
     setKit([])
   })
 
-  /* THE HALF THAT SHIPPED BROKEN AND HAD NO TEST.
-   *
-   * `kit.ts` opens by promising that a Chromebook behind a district filter still
-   * gets a game "that looks like the art committed in this repo rather than an
-   * unpainted rectangle". Every control in the kit wrote its `kit-surface-*`
-   * class whether or not the platform had answered, and every fallback rule was
-   * guarded on that class being ABSENT, so the fallbacks were unreachable: with
-   * `?kit=0` the Handbook's tabs were five words of bare text and the portrait
-   * had no frame at all. Found by looking at `build-shots/ui/after-nokit/`.
-   *
-   * A control with no drawn ground carries `kit-bare` now, and this is the test
-   * that stops the guard going dead again. */
+  /* a control with no drawn ground says so in its class, so a fallback can dress it */
   it('says so in its class when the platform published no frame, so a fallback can dress it', () => {
     setKit([])
     render({ line: line({ portrait: 'pinzon' }) })
@@ -132,10 +102,7 @@ describe('what the box draws', () => {
     expect(host.querySelector('.cs-dialogue')?.getAttribute('data-state')).toBe('asking')
   })
 
-  /* THE CHOICES AND THE BOX ARE ONE COLUMN, which is what stopped a long
-   * question laying its planks on top of its own paper: the choices used to be
-   * positioned off a retyped copy of the box's height, and the box has grown to
-   * its content since §40.14. */
+  /* the box and its choices are one column, so the planks cannot land on the paper */
   it('holds the box and its choices in one bottom-anchored stack', () => {
     render({ line: line(), options: ['a', 'b'] })
     const stack = host.querySelector('.dlg-stack')
@@ -202,11 +169,7 @@ describe('a pointer path for every key path, and the reverse', () => {
     act(() => { buttons[1].click() })
     expect(onPick).toHaveBeenCalledWith(1)
 
-    /* AND ONE ANSWER PER QUESTION. Added with the answered state, 2026-09-01:
-     * the box marks the card that was pressed and stands the others down, so a
-     * second press on the same question is refused rather than resolving an ask
-     * that has already resolved. The key path is checked on a fresh question
-     * below, because on this one it is correctly ignored. */
+    /* one answer per question: a second press on the same one is refused */
     act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: '1' })) })
     expect(onPick).toHaveBeenCalledTimes(1)
     expect(host.querySelector('.dlg-choice-chosen')?.textContent).toContain('Not now')

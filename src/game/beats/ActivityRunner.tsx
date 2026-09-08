@@ -20,88 +20,21 @@ import { right as sayRight, wrong as sayWrong } from '../ui/feedback'
 import { grant } from '../grant'
 import './beats.css'
 
-// THE ACTIVITY RUNNER, the vine's woven-check chassis (§6.7 baseline), playing any
-// CoreBeat in either study arm from the SAME data (law §2.12: content constant, game-ness
-// the variable):
-//  - game arm: dialogue at the player's pace, checks woven between lines, warmth on wrong
-//    answers (a hint and the truth, never a buzzer), a result card with the real letter.
-//  - plain arm: the same lines as plain text, the same items as a standard form (the AP
-//    Research control).
-// Completion writes the ledger (recordGrade -> GPA §8.1), collects the takeaway facts,
-// and fires the §13.1 events. The Universal Retake Policy is the retry mechanic: under a
-// B- the checks may run back ONCE, after reviewing the takeaways (score.ts).
-//
-// BOTH ARMS NOW RENDER THE SAME DERIVED ITEMS, and this is the change that matters more
-// than the eight kinds. `palette.ts` turns a check into a PlainRender: a prompt, a list of
-// answerable fields with their options, and the reply strings. The plain arm draws that as
-// a form. The game arm draws THE SAME OBJECT as buttons in a panel with the dialogue around
-// it. Neither arm reads the raw check to decide what an item is any more, and neither one
-// scores: they both hand the same Response map back to the same `scoreOf`.
-//
-// This used to be two switches, one per arm, over three kinds, free to disagree. That is
-// how a control arm ends up with a harder version of the same item and nobody finds out,
-// because both arms still emit an identical event shape and the data cannot tell you.
-//
-// ---------------------------------------------------------------------------------------
-// EVERY STATE THIS RUNNER CAN BE IN, COUNTED UP FRONT (§40.42), because the order says
-// enumerate first and then build each, and because six of these ten had no drawing at all:
-//
-//   1 idle        the panel is up on a spoken line. The whole card is the button and the
-//                 advance cue is moving (§6.5). Drawn: `.bt-say` + the `cue` sheet.
-//   2 presented   an item is on screen, answerable, and nothing has been touched. The
-//                 commit control is REFUSED and says in words what it is waiting for.
-//   3 answering   at least one field is set. The commit control is live. On a sort every
-//                 assignment stays reversible right up to the press (§6.8).
-//   4 right       committed, and every field earned its point. `right()` speaks the
-//                 author's own confirmation.
-//   5 wrong       committed, and at least one field did not. Both halves of the mistake
-//                 stay on screen: the chosen option keeps its pressed state and the row
-//                 gains its truth (§6.9). `wrong()` speaks the author's own reply. Never
-//                 a red fill and never a buzzer.
-//   6 revealed    the settled state 4 and 5 share: every control is disabled and an
-//                 unpicked wrong option is visibly SPENT rather than merely inert.
-//   7 finished    the last item is answered. The game arm says so beside the last
-//                 "Keep going"; the plain arm's whole graded form IS this state, with the
-//                 per-item corrections printed before any grade is shown.
-//   8 result      the result card: the letter, the grade to 2dp, the raw count, the
-//                 gauge, what was earned, the takeaways, the counselor's line, the way out.
-//   9 review      the takeaways again, before the retake unlocks ("legitimate effort").
-//  10 retake      the check set running back, attempt 2, with `attempt.n` carrying it.
-//
-// A note on 7, honestly: handing the accumulator to `finish()` is synchronous, so there is
-// no loading frame to draw between the last answer and the result card, and inventing one
-// would be a bar that fills on a timer. What 7 gets instead is a word: the last item says
-// it is the last one, and the plain arm's graded form is a real screen a student sits on.
+// plays a scored beat in either arm from the same data, then writes the grade to the ledger
 
 type Answer = { earned: number; total: number; tries: number; latencyMs: number }
 type Answers = Record<string, Answer>
 
-/* WHICH ATTEMPT THIS IS, and it used to be the literal 1 in five places across
- * both arms, so the retake count could never be anything else. The Universal
- * Retake Policy is real school policy the game teaches correctly and could not
- * measure, and this is the whole of what was missing: the runner already knows,
- * because it is the thing that re-ran the checks. */
+/** which try at this beat the student is on */
 type Attempt = { n: number }
 
-/* Both arms take their latency from timing.ts, which is where the convention is
- * written down and the only place it is. The whole-page number the plain form used
- * to report as `latencyMs` is not lost, it is named: `formMs`, which is honestly
- * what it always was. */
+/* both arms take their answer latency from timing.ts, where the convention is written down */
 
 export function CoreBeatRunner(
   { beat, onClose, forceArm, world }: {
     beat: CoreBeat
     onClose: () => void
-    /* AS_PLAIN, HERE FROM THE FIRST SCORED THING RATHER THAN RETROFITTED.
-     *
-     * Normally the arm is whatever the participant was assigned at join and
-     * nothing in the world may choose it. This overrides it for ONE activity,
-     * which is what `yield self.play(X, as_plain=True)` becomes: an author
-     * saying this particular beat should read the same either way.
-     *
-     * In practice it can only ever force plain, because src/vine/intents.ts
-     * refuses the other direction: letting an island force the game arm would
-     * let one island opt the control group out of being a control group. */
+    /** forces one activity to read plain, whatever arm the student was assigned */
     forceArm?: 'game' | 'plain'
     /* W8. Optional on purpose: a beat with a `do` item is still playable with no
      * map, because the item falls back to naming its places. See frames.ts. */
@@ -109,14 +42,7 @@ export function CoreBeatRunner(
   },
 ) {
   const save = loadSave()
-  /* THE ARM, AND WHY THE SKIN IS THE LAST WORD RATHER THAN A SECOND SOURCE.
-   *
-   * An assigned arm always wins: a joined student's condition is the server's to
-   * say and nothing on the page may move it. The skin is only consulted when
-   * there is NO arm, which is a run nobody joined and which produces no study
-   * row. That case is `?skin=plain`, the review door, and without this line it
-   * lied: the whole game went plain and this one frame, the frame every scored
-   * item in the run is read on, stayed a painted panel. */
+  /* an assigned arm always wins, and the skin is only consulted when there is no arm */
   const arm = forceArm
     ?? save?.arm
     ?? (currentSkin() === 'plain' ? 'plain' : 'game')
@@ -141,34 +67,11 @@ export function CoreBeatRunner(
     })
     for (const f of beat.takeaways) collectFact(f)
     const after = loadSave()
-    /* ---- AND THE REWARD POP FIRES ON A REWARD -------------------------------
-     *
-     * `awarded()` has been in the kit since the feedback set was written and had
-     * ZERO callers in the whole tree, which is three quarters of brief item 16
-     * wired and the last quarter dead. Meanwhile this function is where a
-     * student earns a credit, collects up to four Handbook facts and moves a
-     * cord, all in one frame, and all of it happened in silence.
-     *
-     * It says the CREDIT, not the facts, and there is one pop rather than five.
-     * §40.7's reward pop is a moment, and five moments at once is a slot
-     * machine; the facts are visible in the Handbook and the takeaway list on
-     * this card names them a second later anyway.
-     *
-     * Nothing here fires in the plain arm: `feedback` is a drawn overlay and the
-     * control arm's result is a printed page. `as_plain` already branches above. */
-    /* AND ONLY ON A PASS. This fired on any grade at all, so a student who
-     * scored an F watched a gold "0.5 credit earned" pop over a card that said
-     * no credit was earned (STATE-OF-THE-GAME confusing 9). The result card's
-     * own stamp has always been gated on `PASSING_GRADE`; the pop follows it. */
+    /* one reward pop, in the game arm only, saying the credit rather than the facts */
+    /* and only on a pass, so it agrees with the result card's own stamp */
     if (arm !== 'plain' && beat.credit > 0 && grade >= PASSING_GRADE) {
-      /* THROUGH `grant` RATHER THAN STRAIGHT AT THE POP, so a credit that tips a
-       * cord over its line says so. Four of the six badges and all seven cords are
-       * worked out from the run rather than stored, so nothing anywhere redraws
-       * when one of them is finally met, and this is the frame it happens on. */
-      /* AND IT SAYS THE THING THAT HAPPENED, because it is now the whole result.
-       * "0.5 credit earned" over "POWER, Mondays, and joining a club" is an
-       * accountant's sentence: the student finished ADVISORY, and the credit is
-       * the detail under it. */
+      /* through `grant` so a credit that tips a cord over its line says so too */
+      /* and it names the thing that was finished, with the credit as the detail under it */
       /* the core beat's `place` is the lesson's own name ("Advisory") and a
        * class beat's is a room, so the pop reads whichever of the two is the
        * thing the student just finished */
@@ -188,25 +91,7 @@ export function CoreBeatRunner(
       for (const c of newlyCloseCords(before, after)) track('cord_progress', { cord: c.id, progress: c.progress })
     }
     setFinalScore(score)
-    /* ---- THE POP IS THE RESULT (BRIEF-MAW-RAIL beat 3) --------------------
-     *
-     * "No speech before, no result card of a hundred words after: the pop is the
-     * result." The card that used to land here is a letter, a grade to two
-     * decimal places, a raw count, a gauge, two stamps, four takeaway facts, a
-     * counselor's line and two planks, on the screen a fourteen year old reaches
-     * after answering three questions. The grant pop above already says the
-     * thing that happened, out loud and in the world, and the four facts are in
-     * the Guide where the principal has just told him to look for them.
-     *
-     * IT IS NOT GONE FOR EVERYBODY, AND BOTH EXCEPTIONS ARE REAL.
-     *
-     * The PLAIN ARM keeps it. That arm is the study's control and its result is
-     * a printed page by construction; there is no pop in it to be the result.
-     *
-     * A GRADE UNDER A B- keeps it too, in either arm, because that is the one
-     * outcome with something for the student to DO: the Universal Retake Policy
-     * is real at Bonney Lake, the offer lives on that card, and cutting it would
-     * be cutting a school fact and a second chance to save a reader six lines. */
+    /* the pop is the result, so the card is kept only for the plain arm and for a failing grade */
     if (arm !== 'plain' && grade >= PASSING_GRADE) { onClose(); return }
     setPhase('result')
   }
@@ -218,21 +103,7 @@ export function CoreBeatRunner(
     setPhase('retake')
   }
 
-  /* THE ONE PANEL IN THE KIT THAT WAS NOT A PANEL.
-   *
-   * Six surfaces use `usePanel` and this one did not, which is why the wave-2
-   * proof could not get rid of it: it clicked `.bt-close` and `.bt-veil`, and
-   * neither was ever a dismiss, so the planner opened UNDERNEATH the quiz and
-   * the capture named "10-planner" is a picture of the quiz. That is the
-   * screenshot defect. Underneath it were three real ones: Tab walked out of a
-   * graded frame into the HUD behind it, a screen reader was never told the
-   * frame was there, and `panelDepth()` read zero, so the place card believed
-   * the world was quiet and could talk over a scored item.
-   *
-   * `closeOnEscape` is false while the items are up and true once the result is
-   * on screen, which is the distinction `a11y.ts` wrote the option for: "a panel
-   * that is not dismissible (a graded frame mid-run)". A student cannot escape
-   * out of a score; they can leave the card that reports it. */
+  /* a real panel: focus is held inside it, and Escape only works once the score is up */
   const scoring = phase === 'play' || phase === 'retake'
   const panel = usePanel({
     label: `${beat.title} · ${scoring ? 'questions' : 'your grade'}`,
@@ -244,10 +115,7 @@ export function CoreBeatRunner(
 
   return (
     <div className="bt-veil">
-      {/* `bt-plain-scoring` exists so the footer rule below can turn the plain card
-          into a scrolling document with a fixed foot WITHOUT touching the result
-          and review cards, which are the same element in a different phase and
-          are not laid out that way. */}
+      {/* `bt-plain-scoring` lets the plain card scroll with a fixed foot while items are up */}
       <div {...panel} className={arm === 'plain'
         ? `bt-plain${scoring ? ' bt-plain-scoring' : ''}`
         : 'bt-stage kit-surface-panel'}>
@@ -265,31 +133,8 @@ export function CoreBeatRunner(
         {phase === 'review' && (
           <ReviewCard beat={beat} arm={arm} onRetake={startRetake} onBack={() => setPhase('result')} />
         )}
-        {/* A WAY OUT OF A GRADED FRAME, WHICH IS NOT THE SAME AS A WAY TO DODGE ONE.
-          *
-          * SWEEP-1 item 5: once Advisory opened at the hearth there was no exit of
-          * any kind. Escape is refused here on purpose and that stays; the corner
-          * is behind the veil; and `Check my answer` is disabled until every slot
-          * is filled. So a freshman who could not finish the item had a page
-          * reload and nothing else, in the middle of the one advisory block this
-          * game gets. The law is law 6, "no dead ends... if a panel is open, its
-          * close is obvious and Esc is never required".
-          *
-          * It is deliberately not a dismiss and does not read as one. Nothing is
-          * scored, nothing is recorded, the beat stays owed, and the hearth stays
-          * lit, so the student comes back to it rather than skipping it. That is
-          * the same state as never having opened the frame, which is why it costs
-          * the study nothing: a skipped item and an unopened item are one row.
-          *
-          * Escape stays shut. A key that throws away a half-filled answer by
-          * accident is a worse bargain than a button somebody has to mean. */}
-        {/* AND NONE OF IT INSIDE A CUTSCENE. Ash, 2026-09-06: "THOR MUST NEVER
-            BE ABLE TO LEAVE THE MAW CUTSCENE. Today after the schedule he can
-            leave Advisory, the principal says come back later and the rail ends."
-            The argument above is about a student stuck on an item in a room he
-            owns; on the rail he is not stuck, he is being taken somewhere, and
-            the way on is finishing the three items. The plank stays for every
-            other way into this beat. */}
+        {/* a way out that scores nothing and leaves the beat still owed */}
+        {/* and never inside a cutscene, where the way on is finishing the items */}
         {scoring && !cinemaOn() && (
           <div className="bt-leave">
             {arm === 'plain'
@@ -313,17 +158,7 @@ const replyFor = (r: PlainRender, field: string, value: string): string =>
 
 const labelOf = (f: PlainField, value: string) => f.options.find((o) => o.value === value)?.text ?? value
 
-/* WARMTH, IN THE AUTHOR'S OWN WORDS, THROUGH THE KIT'S ONE FEEDBACK SET.
- *
- * §6.9 is the law: "a wrong answer in this game is met with warmth and
- * information. Not with a penalty and not with a colour that means failure." The
- * mechanism that delivers it is the DATA and not a tone setting, so this hands
- * `feedback.ts` the reply the author wrote for the answer the student actually
- * gave and never a generic line. `wrong()` is warm ink on the same paper
- * `right()` uses; nothing in this file fills anything with the alarm colour.
- *
- * It also says it out loud: `feedback()` announces through the kit's one live
- * region, so a correction reaches a student who cannot see the card. */
+/* says whether that was right, in the author's own words, out loud as well as on screen */
 function speak(gotAll: boolean, authored: string, truth: string): void {
   if (gotAll) sayRight('Right', authored || undefined)
   else sayWrong('Not quite', authored || truth)
@@ -351,11 +186,7 @@ function GamePlay({ beat, checksOnly, attempt, arm, world, onDone }: {
   }
 
   const step = steps[idx]
-  /* THE SPINE, READ OFF THE BEAT RATHER THAN TYPED. §6.9's open finding is that a
-   * student is never told how many items there are or which one they are on, and
-   * §6.4's law is that the scorable spine is derived and never declared, so the
-   * rail counts the same steps `checksOf` counts and cannot disagree with the
-   * denominator on the result card. */
+  /* how many items there are, counted off the beat so the rail and the score agree */
   const total = steps.filter((s) => s.kind === 'check').length
   const answered = steps.slice(0, idx).filter((s) => s.kind === 'check').length
   const last = idx + 1 >= steps.length
@@ -375,24 +206,12 @@ function GamePlay({ beat, checksOnly, attempt, arm, world, onDone }: {
           </span>
         )}
       </div>
-      {/* ONE FRAME PER LEVEL. `.bt-say` carried `kit-surface-dialogue`, so a say
-          step drew the whole ornate dialogue box INSIDE the stage's own carved
-          panel, and the art-direction pass of 2026-09-01 counted FOUR concentric
-          rectangles around two sentences, on the frame every scored item in the
-          study is read on. The stage is the paper here; the line sits on it. */}
+      {/* one frame per level: the stage is the paper, so a spoken line gets no box of its own */}
       {step.kind === 'say' ? (
         <button className="bt-say" onClick={advance}>
           <span className="bt-speakerrow">
-            {/* PORTRAIT, WHICH `SceneLine` HAS CARRIED SINCE THE BOX WAS WRITTEN
-                AND NOTHING HAS EVER DRAWN. §6.5's own want, in one line: an author
-                who sets one on a beat's line now sees it, in the kit's drawn frame,
-                and `PortraitFrame` says out loud in the console when the art is
-                missing rather than hiding the face silently. */}
-            {/* NO CAPTION. The name plate is six pixels to the right of this
-                frame saying the same words, and inside a 136 pixel frame a
-                second copy of "Principal Panther" took the space the face was
-                supposed to occupy. A caption belongs on a portrait that has
-                nothing beside it. */}
+            {/* the speaker's portrait, when the author set one on the line */}
+            {/* no caption, because the name plate beside the frame already says it */}
             {step.line.portrait && <PortraitFrame id={step.line.portrait} />}
             <span className="bt-speaker">{step.line.speaker}</span>
           </span>
@@ -423,30 +242,8 @@ function GamePlay({ beat, checksOnly, attempt, arm, world, onDone }: {
   )
 }
 
-/* THE ADVANCE CUE, DRAWN. It was the emoji paw print, which `docs/ART.md` rules
- * out ("Icons are drawn, never an emoji or a font glyph") and which §6.5 already
- * named as a placeholder that twenty islands would otherwise inherit. The kit
- * publishes a four frame paw on the `cue` sheet, so the frames are stacked and
- * shown one at a time by the stylesheet.
- *
- * WHEN NOBODY DREW IT, a token-coloured chevron stands in rather than a
- * character. The kit only wears its faces behind `?kit=1`, so that fallback is
- * what a student sees today and it had to be as deliberate as the drawing. */
-/* ONE PAW, BOUNCING, AND NOT FOUR PAWS FLASHING.
- *
- * `cue` publishes frame_1 to frame_4 and they are not motion frames: they are
- * the same paw in white, brown, gold and green. Cycling them on a cream panel
- * did two wrong things at once. The white frame is INVISIBLE on paper, so a
- * quarter of the loop the cue simply was not there, and the art-direction pass
- * of 2026-09-01 read the result as "a white paw glyph half-buried under the
- * letter r... invisible on cream and reads as a smudge". And a mark that
- * changes colour on a loop is a hue animation, which says nothing on a panel
- * that crushes hue.
- *
- * GAME-DESIGN §11.1 commissioned a "bouncing paw-print continue cue" and bounce
- * is the word. One frame, the brown one, which reads on cream and on wood, and
- * it MOVES, which is what a cue is for. The other three faces stay drawn and
- * unused rather than being cycled for the sake of using them. */
+/* the drawn advance cue, with a token-coloured chevron standing in when the kit is off */
+/* one paw that bounces, because the four cue frames are colours rather than motion */
 const CUE_FACE = 'frame_2'
 
 function AdvanceCue() {
@@ -459,14 +256,7 @@ function AdvanceCue() {
   )
 }
 
-/* THE COMMIT CONTROL, AND WHY IT IS ITS OWN COMPONENT.
- *
- * `docs/ops/BRIEF-UI.md` item 8: "the four disabled buttons in ActivityRunner.tsx
- * replaced by controls that answer". Four commits in this file could be refused
- * and all four were a grey rectangle that did nothing when pressed and said
- * nothing about why. A refused control now carries the reason in words beside
- * itself and in its own tooltip, off the SAME completeness test that gates the
- * press, so the sentence cannot drift from the rule. */
+/* the check-my-answer button, which says in words what it is waiting for when it is refused */
 function Commit({ ready, needs, onCommit, label = 'Check my answer' }: {
   ready: boolean
   /** what is still missing, in words, for the student and for the tooltip */
@@ -482,40 +272,7 @@ function Commit({ ready, needs, onCommit, label = 'Check my answer' }: {
   )
 }
 
-/* ---- PUTTING THINGS WHERE THEY GO, WHICH IS BEAT 5'S WHOLE IDEA ----------
- *
- * BRIEF-YEAR-ONE beat 5: "The year's real content, done rather than QUIZZED: put
- * the bell schedule in order, sort the POWER values, walk through how joining
- * works. One thing lit per step."
- *
- * Both of the first two were quizzes. `sort` and `order` rendered as a grid of
- * radio chips, one row per item, and a student answered them by reading five
- * rows and pressing five buttons. That is a worksheet with wood around it, and
- * BRIEF-SELF-EVIDENT rules it out: "a student who reads nothing, is told
- * nothing, and presses things at random must still do the right thing next, and
- * see that it worked."
- *
- * So the thing MOVES. There is a pool of pieces and there are places to put
- * them. Press a piece, it lifts and the places light; press a place and it lands
- * there. Press it again and it comes back. A student who reads nothing sees a
- * thing leave one box and arrive in another, which is the sentence the frame was
- * trying to say in words.
- *
- * ONE RENDERER FOR TWO KINDS, because underneath they are the same question.
- * `plainOf` derives one field per item for both, with the options being the
- * buckets for a sort and the positions for an order, so the only difference is
- * whether a place holds one piece or many. That difference is one boolean, and
- * making it two components would be two places for the scoring to drift.
- *
- * NOTHING ABOUT SCORING MOVES. It writes the same `Response` map the chips
- * wrote, `palette.ts` scores it with the same function, and the control arm's
- * form is untouched: the arms still cannot disagree, they just are not the same
- * shape any more, which is the entire point of the study.
- *
- * KEYBOARD, ALWAYS. Every piece and every place is a real button, so tab and
- * enter walk the whole frame. §11.3 says the keyboard is a supported way to
- * play and on a school trackpad it is often the faster one.
- */
+/* a sort or an ordering done by hand: press a piece, press a place, and it lands there */
 function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
   check: CheckStep
   render: ReturnType<typeof plainOf>
@@ -557,18 +314,7 @@ function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
 
   return (
     <div className="bt-move" data-holding={held ? '1' : undefined}>
-      {/* ---- A PIECE LANDS INSIDE ITS BOX ---------------------------------
-          STATE-OF-THE-GAME ugly 10: "a placed chip sits under its still-empty
-          dashed box rather than inside it, the R row jumps down when P gets a
-          chip". The mouth was a button and the landed pieces were a row UNDER
-          it, so the dashed hole stayed empty after the drop and the column
-          grew. The mouth is a box now, the pieces sit in it, and the target a
-          student presses is a clear button laid over the box only while
-          something is held (a button cannot hold buttons). The box is as tall
-          as a piece from the start, so nothing moves when one arrives, and a
-          full box goes from dashed to solid, which is the answer the law asks
-          for: the thing you touched changed. `data-count` carries how many
-          places there are so five can share one row. */}
+      {/* a piece lands inside its box, and a full box goes from dashed to solid */}
       <div className="bt-drops" data-count={places.length}>
         {places.map((pl) => {
           const sitting = inPlace(pl.value)
@@ -645,16 +391,7 @@ function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
   )
 }
 
-/* ONE CHECK, IN THE GAME ARM, RENDERED OFF THE SAME DERIVED ITEM THE FORM USES.
- *
- * `plainOf` gives the prompt, the answerable fields and the replies. What changes
- * between the arms is the control and the warmth around it: buttons in a panel and
- * a spoken correction here, radios and printed corrections there. The item itself
- * is one object and neither arm gets to have its own version of it.
- *
- * Two kinds ask for more than a field list and get their own branch: `showdown`,
- * which is round by round and carries a drive between rounds, and `do`, which is
- * answered by walking somewhere when there is a world to walk in. */
+/* one check in the game arm, drawn off the same derived item the plain form uses */
 function CheckPlay({ check, world, last, onDone }: {
   check: CheckStep
   world?: BeatWorld
@@ -741,11 +478,7 @@ function CheckPlay({ check, world, last, onDone }: {
     )
   }
 
-  /* ---- A SORT AND AN ORDERING ARE DONE WITH THE HANDS (beat 5) ------------
-   * The rows of chips below are still what every other multi-field kind gets;
-   * these two get the frame that moves, because they are the two the year's own
-   * content is made of and because "done rather than quizzed" is the whole
-   * difference between beat 5 and a worksheet. */
+  /* a sort and an ordering get the frame that moves rather than the rows of chips below */
   if (check.kind === 'sort' || check.kind === 'order') {
     const done = render.fields.every((f) => picks[f.id])
     const got = scoreOf(check, picks)
@@ -844,10 +577,7 @@ function CheckPlay({ check, world, last, onDone }: {
         )
         : (
           <>
-            {/* THE COUNT §6.9 SAYS IS MISSING. Five rows used to reveal at once
-                with nothing saying how many were right, so a student who got four
-                of five read four confirmations and one correction at the same time
-                and was never told it was four. */}
+            {/* how many rows landed right, said in words rather than left to be counted */}
             <div className="bt-count">{earned} of {outOf} in the right place.</div>
             {rowReply && <div className={`bt-reply${earned === outOf ? '' : ' bt-reply-miss'}`}>{rowReply}</div>}
             <div className="bt-foot">
@@ -936,16 +666,7 @@ function OneOf({ check, render, field, picked, last, onPick, onDone }: {
   )
 }
 
-/* THE SHOWDOWN, in the game arm. The chassis (showdown.ts) holds every piece of
- * state and this draws it. The drive bar is the only thing on screen that the
- * plain arm does not get, and it is a pure function of rounds correct, so the
- * student who is losing on the field is losing on the transcript too and for the
- * same reason. There is no clock in this component either.
- *
- * THE BAR IS THE KIT'S GAUGE NOW rather than a `<span>` with an inline width, so
- * the drawn track and its drawn fill are the same ones the arrival cover and the
- * result card use, and a reader is told the number through `role=progressbar`
- * instead of watching a decoration it cannot see. */
+/* the showdown in the game arm: rounds of questions with a drive bar off rounds correct */
 function ShowdownPlay({ check, onDone, onTouch }: {
   check: Extract<CheckStep, { kind: 'showdown' }>
   onDone: (r: Response) => void
@@ -1025,14 +746,7 @@ function ShowdownPlay({ check, onDone, onTouch }: {
   )
 }
 
-/* A `do`, WITH A WORLD TO DO IT IN. W8's whole surface, and it is this small.
- *
- * The beat asks for the arrow to the goal with `guide_to`, which is an intent an
- * island can already issue, and then waits for the one event it is allowed to
- * hear: the player reached a named anchor. Every anchor named by the item counts,
- * the goal and the decoys alike, because walking to the wrong place IS the wrong
- * answer and the student has to be able to give it. `scoreOf` decides which one it
- * was, in the same line it decides a quiz. */
+/* a `do` answered by walking: the arrow points, and reaching a named anchor is the answer */
 function DoPlay({ check, world, render, last, onDone, onTouch }: {
   check: Extract<CheckStep, { kind: 'do' }>
   world: BeatWorld
@@ -1042,15 +756,7 @@ function DoPlay({ check, world, render, last, onDone, onTouch }: {
   onTouch: () => void
 }) {
   const [reached, setReached] = useState<string | null>(null)
-  /* THE STAGING CAN BE REFUSED, AND A REFUSED ITEM MUST NOT BE A LOCKED DOOR.
-   *
-   * `guide_to` answers `{ok: false}` when the map has no anchor by that name,
-   * which is the single most likely mistake an author will make here. Waiting on
-   * an arrival that can never come would strand the student inside a beat with no
-   * way out and no way to say why. So a refusal drops the item to the same
-   * buttons a runner with no world shows, and the student answers the question
-   * they were always going to be asked. The author still learns: the refusal
-   * carries their anchor name and lands in the console. */
+  /* a refused staging falls back to buttons rather than stranding the student */
   const [staged, setStaged] = useState<'waiting' | 'refused'>('waiting')
   const [picked, setPicked] = useState<string | null>(null)
   const done = useRef(false)
@@ -1150,35 +856,14 @@ function PlainForm({ beat, checksOnly, attempt, arm, onDone }: {
     setGraded(out)
   }
 
-  /* PER-ITEM CORRECTIVE FEEDBACK, WHICH THIS ARM USED TO BE DENIED (L2).
-   *
-   * The form rendered the prompts and the options and dropped every `reply`. The
-   * game student was told why they were wrong and what the truth is; the control
-   * student was told nothing and moved straight to a grade. Content constancy is
-   * the study's whole claim and this broke it in the direction that flatters the
-   * treatment, across every island at once, undetectably, because both arms emit
-   * the same event shape.
-   *
-   * So the same words, presented the way this arm presents everything: printed
-   * under the item rather than spoken by somebody.
-   *
-   * AND CORRECTNESS IS THE PALETTE'S TO SAY, WHICH IT WAS NOT. This compared
-   * `given === f.correct`, a raw string compare, while `PALETTE.number.score` had
-   * been scoring the same answer against a declared tolerance since the kind was
-   * added. On the shipped item (answer 3.76, tolerance 0.05) a control-arm student
-   * who typed 3.80 was scored correct by the accumulator and told "the answer is
-   * 3.76" by the line under it, in the same frame. `fieldRight` is now the only
-   * thing either arm asks. */
+  /* the graded form: the same authored replies, printed, with the palette saying what is right */
   if (graded) {
     const earned = Object.values(graded).reduce((n, a) => n + a.earned, 0)
     const outOf = Object.values(graded).reduce((n, a) => n + a.total, 0)
     return (
       <div className="bt-plainform">
         <h2>{beat.title}</h2>
-        {/* THE PLACE, WHICH THIS ARM WAS NOT GIVEN. The game arm prints
-            "place · title" at the top of every screen of the activity and the
-            plain arm printed the title alone, so one line of authored content
-            reached one arm only, in the direction that flatters the treatment. */}
+        {/* the place, so both arms print the same authored content */}
         <p className="bt-plainplace">{beat.place}</p>
         <p className="bt-plainscore">{earned} of {outOf} correct.</p>
         {renders.map((r, i) => {
@@ -1234,17 +919,7 @@ function PlainForm({ beat, checksOnly, attempt, arm, onDone }: {
   )
 }
 
-/* one row of the form, drawn from the field the palette derived. A radio for a
- * pick, a select for a row of many, a text box for a number. There is no branch on
- * the check's kind anywhere in this arm any more, which is what stops a new kind
- * from shipping with no control-arm rendering: it has fields or it does not exist.
- *
- * EVERY CONTROL HERE HAS A NAME MADE OF WORDS. A number field carried the UNIT as
- * its label and the unit is optional, so on an item that declared none the input
- * had no label and no aria-label at all and a screen reader said "edit text" on a
- * SCORED item. A radio group with no label was the same defect one level up: a
- * showdown puts several groups inside one fieldset, so the legend cannot name
- * them. */
+/* one row of the plain form: a radio, a select or a text box, each with a name made of words */
 function PlainFieldRow({ field, prompt, value, onSet }: {
   field: PlainField
   /** the item's own question, which is the group's name when the row has none */
@@ -1283,14 +958,7 @@ function PlainFieldRow({ field, prompt, value, onSet }: {
   )
 }
 
-/* THE CARD'S OWN HEAD, IN WHICHEVER ARM IT IS BEING READ IN.
- *
- * The game arm draws the place beside the title, which is the line that tells a
- * student the activity belongs to a room in the world. The plain arm gets the
- * same two pieces of content as a real heading and a line under it, because §16
- * is a document and a document has headings; what it is not allowed to do is
- * quietly print one fewer piece of content than the treatment arm, which is
- * exactly what it used to do with `beat.place`. */
+/* the activity's place and title, drawn the way whichever arm is reading it draws things */
 function CardHead({ beat, arm }: { beat: CoreBeat; arm: 'game' | 'plain' }) {
   if (arm === 'plain') {
     return (
@@ -1309,24 +977,7 @@ function CardHead({ beat, arm }: { beat: CoreBeat; arm: 'game' | 'plain' }) {
 
 // ---- result + review ------------------------------------------------------------------
 
-/* THE RESULT CARD IS THE ENDING OF EVERY ACTIVITY IN THE GAME.
- *
- * §10.22 states it as a law rather than as a convenience: "one result. ResultCard
- * is the ending of every activity in the game, so a member never designs a win
- * screen and no island's ending looks unlike the rest of the game." Four core
- * beats, fifty-one class beats and every island an ATC member will ever write end
- * here, so this is the single highest-leverage card in the project.
- *
- * WHAT IT SAYS, AND WHICH NUMBER IS WHICH. §6.18's open want is "a result card
- * that states which number it is showing", because the card reads the LEDGER
- * (`entry?.grade`) and was handed THIS RUN's score, and after a retake that did
- * not beat the first attempt those are two different numbers with nothing on
- * screen saying so. Both are printed now and the card says out loud which one is
- * the transcript's.
- *
- * GOLD IS EARNED HONORS AND NOTHING ELSE (docs/ART.md), so the `stamp` sheet's
- * gold rosette is spent on an A and on nothing else. Passing wears the plain
- * approval stamp, which is what earning the credit actually is. */
+/* the card every activity ends on: the letter, the grade, what was earned and the way out */
 function ResultCard({ beat, score, arm, canRetake, onReview, onClose }: {
   beat: CoreBeat; score: BeatScore; arm: 'game' | 'plain'
   canRetake: boolean; onReview: () => void; onClose: () => void

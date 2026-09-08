@@ -1,13 +1,4 @@
-// BOTH ARMS, ACTUALLY RENDERED, over all eight kinds.
-//
-// palette.test.ts proves the two arms cannot disagree about what an item IS. It
-// cannot prove either arm draws it, and "the control arm gets a blank fieldset"
-// is exactly the failure that is invisible in the data. So this renders the real
-// CoreBeatRunner to a string in each arm and reads the output.
-//
-// No JSX: the vitest include glob is `src/**/*.test.ts`, so a .tsx test would not
-// run at all and would look like it was passing. createElement says the same thing
-// and runs.
+// renders the real beat runner in both study arms over all eight item kinds and reads the output
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -245,11 +236,7 @@ describe('W8: a do staged in the world, and what happens when it cannot be', () 
 })
 
 describe('CONTENT CONSTANCY, played through: the control arm gets the instruction', () => {
-  /* the defect, in one sentence: PlainForm rendered the prompts and the options
-   * and dropped every `reply`, so the treatment student was told why they were
-   * wrong and what the truth is and the control student was told nothing. The unit
-   * test above proves the strings are on the derived item. This one answers the
-   * form the way a fourteen year old does and reads the screen they get back. */
+  /* answers the form the way a student does and reads back whether the reply was printed */
   const beat = beatWith([CHECKS[0], CHECKS[1]])
 
   it('prints the reply for what the student picked, right and wrong, before the grade', async () => {

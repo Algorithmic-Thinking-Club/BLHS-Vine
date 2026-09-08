@@ -1,15 +1,4 @@
-/* WHAT A PLACEHOLDER IS CALLED, AND WHAT IT SAYS ABOUT ITSELF.
- *
- * The vocabulary only. It imports nothing, which is the whole reason it is its
- * own file: `roster.ts` masks its own entries with these words, and
- * `placeholders.ts` reads the masked roster back, so the two cannot import each
- * other and the letters cannot be assigned in two places.
- *
- * Ash, 2026-09-06: *"If you want placeholders, label them Example A, Example B
- * and so on, with placeholder text, and it should clearly be a placeholder and
- * not work. But everything should already be wired up for when actual islands
- * come over."*
- */
+/* what a placeholder island is called and what it says about itself, as words only */
 
 /** what a placeholder says about itself, in one line, on every surface */
 export const EXAMPLE_BLURB = 'An island a member has not built yet.'

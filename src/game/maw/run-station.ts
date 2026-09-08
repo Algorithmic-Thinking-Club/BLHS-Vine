@@ -1,25 +1,4 @@
-/* THE DRIVER: pump a generator of intents until it is done.
- *
- * Nine lines of real work, and it is the load-bearing nine. This is the exact
- * protocol the MicroPython worker will speak, written first against TypeScript
- * generators so the shape is proven before the runtime lands:
- *
- *   the body yields an intent  ->  the engine performs it
- *   the engine sends the result back in  ->  the body resumes with it
- *   the engine throws in  ->  the body sees an exception at the yield
- *
- * That last line is PEP 342's `generator.throw()`, and it is why a failed intent
- * is not swallowed. A member who asks to walk to an anchor that does not exist
- * gets a traceback pointing at their own line, not a station that quietly did
- * nothing. VINE-AND-GRAPE.md flags `generator.send()` in the wasm build as the
- * one unproven load-bearing assumption in the whole design; when that spike
- * runs, this file is the shape it has to match.
- *
- * WHY NOT ASYNC/AWAIT. A dropped `await` is silent and a dropped `yield` is a
- * generator object that obviously never ran, which `type(x).__name__` catches at
- * dispatch and can be explained to a beginner in one sentence. That difference
- * is worth the whole design.
- */
+// the driver: pump a generator of intents until it is done, handing each result back in
 import { performIntent, type Intent, type IntentHost } from '../../vine/intents'
 
 /* a body that has stopped making progress. Not a real limit anyone reaches: a

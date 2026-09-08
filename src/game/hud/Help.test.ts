@@ -1,16 +1,4 @@
-/* THE CARD A TEACHER POINTS AT (BRIEF-UI item 3b).
- *
- * The brief's sentence is the specification and it is short enough to test
- * literally: "It opens one drawn card, no scrolling, readable by looking: the
- * four keys (arrows, E, click, Esc) as pictures, what the three corner things
- * are, and the sentence 'the line above your head is your task'."
- *
- * Every assertion below is one clause of that sentence. They are here because
- * this card's whole value is that a teacher can say one thing across a full
- * advisory room and be right, and a card that has quietly lost a key, or grown a
- * scrollbar, or started spelling an arrow with a font character, is a card that
- * makes the teacher wrong without anybody noticing.
- */
+// holds the help card to what it promises: four keys, the three corner things, and a way out
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createElement, act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -70,10 +58,7 @@ describe('what the help card says', () => {
 
   it('spells no key with a system character, on any row', () => {
     openCard()
-    /* `docs/ART.md`: "Icons are drawn, never an emoji or a font glyph", and the
-     * brief's do-not list says the same in four words. The arrows are the trap:
-     * an arrow is one keystroke away from being a font character and the card
-     * would look finished. */
+    // every mark on the card is drawn art, never an emoji or a font character
     const GLYPHS = /[←-⇿■-◿⬀-⯿\u{1F300}-\u{1FAFF}️]/u
     expect(host.textContent ?? '').not.toMatch(GLYPHS)
   })
@@ -88,20 +73,9 @@ describe('what the help card says', () => {
     expect(host.querySelector('.hp-door')).toBeTruthy()
   })
 
-  /* ---- THE FIVE DOORS, WHICH ARE WHY THIS CARD IS THE WAY OUT -------------
-   *
-   * BRIEF-PLAYTHROUGH-1 law 3, after Ash played the deploy: the card carries
-   * "the pause sheet's own buttons: Back, Year Sheet, Handbook, Settings, Save
-   * and leave. A student who does not know Esc exists can still leave."
-   *
-   * Every exit from this game used to be behind the Escape key, and nothing on
-   * the screen said so. This is the test that stops that being true again. */
+  // the card carries the pause sheet's own doors, so Escape is not the only way out
   it('carries every door the pause sheet has, so Escape is not the only way out', () => {
-    /* THE THREE PANEL DOORS NEED SOMEBODY TO OPEN THEM. They go through the same
-     * ui-bus a station uses, and the Hud is what answers it, so the card offers
-     * them exactly when a Hud is mounted. A button that does nothing is worse
-     * than a button that is not there, and this is the one card a lost student is
-     * told to trust. Subscribing here is what a mounted Hud does. */
+    // the panel doors need a listener to open them, so subscribing here stands in for a mounted Hud
     const off = onUiRequest(() => {})
     try {
       openCard()
@@ -131,10 +105,7 @@ describe('what the help card says', () => {
 
 describe('the button in the corner', () => {
   it('is there with nothing granted, which is the whole reason it exists', () => {
-    /* §40.2 says the HUD assembles as the run grants things, and this is the one
-     * exception. With no save at all there is no chart, no Handbook and no
-     * tokens, and the student in front of that screen is exactly the one a
-     * teacher answers with "press the question mark". */
+    // the help button is the one HUD control that is there before the run has granted anything
     localStorage.removeItem('blhs_save_v2')
     act(() => root.render(createElement(HelpButton)))
     const btn = host.querySelector('.hp-btn')
@@ -143,11 +114,7 @@ describe('the button in the corner', () => {
   })
 
   it('is anchored to a corner rather than to the stack it used to sit under', () => {
-    /* Law 3 moved it bottom-right. The first version measured how many plaques
-     * were above it and offset itself by that, which made it the one control on
-     * the screen whose position depended on what the run had granted. Checked in
-     * the stylesheet because jsdom applies none: what matters is that nothing
-     * computes a position for it any more. */
+    // it sits in a fixed corner, so nothing computes its position from what else is on screen
     act(() => root.render(createElement(HelpButton)))
     const btn = host.querySelector('.hp-btn') as HTMLElement
     expect(btn.style.getPropertyValue('--hp-above')).toBe('')
@@ -161,11 +128,7 @@ describe('the button in the corner', () => {
 
 describe('the card as a document, for the study\'s control arm', () => {
   it('has a plain rule for every part of itself that is drawn', () => {
-    /* the leak this catches is the one that has bitten twice: a surface built in
-     * the game arm and never given its plain form, so the control group reads
-     * the same screen with the game's paint on it. Checked in the stylesheet
-     * rather than in a render, because the arm is decided by an attribute on
-     * <html> and jsdom does not apply a stylesheet. */
+    // every drawn part of the card has a plain rule, so the control arm never sees game paint
     const css = fs.readFileSync(path.join(process.cwd(), 'src/game/hud/help.css'), 'utf8')
     for (const part of ['.hp-card', '.hp-veil', '.hp-mark', '.hp-btn']) {
       expect(css, part).toContain(`html[data-skin='plain'] ${part}`)

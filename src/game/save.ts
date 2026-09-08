@@ -1,9 +1,4 @@
-// THE RUN — one student, one run (GAME-DESIGN §7.7). A device holds a single local save,
-// keyed to that student's participant (class code + handle); the server (Neon) is the
-// cross-device truth. NOT a multi-save roster — that was reverted (it rested on a
-// shared-Chromebook premise BLHS doesn't have; students are 1:1). "Begin Adventure" starts
-// the one run; "Continue" resumes it; the only reset is Settings → Danger Zone → Restart.
-// Autosaved on every write, subscribable so HUD/Handbook react live.
+// the one local save for one student's run, autosaved on every write and subscribable
 
 import type { Transcript } from '../vine/verify'
 import type { VesselRecord } from './world/sail'
@@ -13,12 +8,7 @@ const KEY = 'blhs_save_v2'
 const OLD_V1 = 'blhs_save_v1'
 const ROSTER_KEY = 'blhs_saves'   // the reverted roster's keys, cleaned up on load
 const ACTIVE_KEY = 'blhs_active'
-/* THE ONE-RUN GUARD'S OWN KEY, AND IT IS DELIBERATELY NOT WIPED BY `clearSave`.
- * Q14: "Restart adventure" plus a new handle writes a second participant row in
- * the same class with an independently drawn arm. A guard the restart erases is
- * not a guard, so the fact that this device already joined a class outlives the
- * run it joined with. It holds no name, no progress and no grades: one id, one
- * class code and a count. */
+/* the one-run guard's key, holding one id, one class code and a count, and never wiped */
 const GUARD_KEY = 'blhs_run_guard'
 
 const newId = () => 'r' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4)
@@ -37,16 +27,9 @@ export type LedgerEntry = {
   season: Season
   retaken?: boolean
   tags?: string[]
-  /* WHICH ATTEMPT THIS ROW IS ON, counted here rather than passed in. `tries` was
-   * hardcoded to 1 at every callsite in both arms, so a retake count could never
-   * be anything else, and the retake is real school policy that the game teaches
-   * correctly and could not measure. Counting it at the one place that writes the
-   * ledger is the only version of this that cannot be hardcoded again. */
+  /* which attempt this row is on, counted where the ledger is written */
   attempts?: number
-  /* THE FIRST ATTEMPT'S GRADE, NEVER OVERWRITTEN.
-   * Best-of-two is correct for the student and wrong for the study: the first
-   * attempt is the only honest measure of what they knew before the review card
-   * told them. Two fields because keeping one of them loses the other. */
+  /* the first attempt's grade, kept alongside the best one and never overwritten */
   firstGrade?: number
   /** the rank ladder this row counts a year toward, when it counts toward one */
   rank?: string
@@ -54,53 +37,20 @@ export type LedgerEntry = {
 
 export type IslandState = 'misty' | 'discovered' | 'available' | 'active' | 'completed'
 
-/* EXPOSURE IS NOT COMPLETION, and they were the same string.
- *
- * A student who sailed to the stadium in three seasons saw one PLACE three times
- * and may have finished three PROGRAMMES or none. Counting places as programmes
- * inflates the independent variable by the modelling rather than by anything the
- * student did, and counting programmes as places deflates the awareness measure
- * by exactly the same amount. Neither error is visible once it is collected,
- * which is why the split is in the record and not in the analysis.
- *
- * This is the awareness hypothesis's instrument: per student, per place, per
- * year, and whether they ever got off the boat. It is also the cheapest data in
- * the game and the most likely to survive a district review, because it is a
- * list of which school programmes a pseudonymous participant saw. */
+/* one row per place per year saying the student saw it, and whether they got off the boat */
 export type Exposure = { place: string; year: number; docked: boolean }
 
-/* THE COMPLETION RECORD (W3): one entry per PROGRAMME per YEAR, append-only.
- *
- * `save.islands` is one mutable value per key, and `stampPlan` wrote 'active'
- * over it without reading what was there, so re-slotting a programme in a second
- * year erased the record that it was finished in the first. That is not an edge
- * case: it is the ordinary path of a rank ladder, which re-slots the same
- * programme three years running and therefore destroyed its own history twice on
- * the way up. */
+/* the completion record: one append-only entry per programme per year */
 export type Completion = { programme: string; year: number; grade: number; rank?: string; at: number }
 
-/* one year's sheet at the chart table (§7.2): season slots + the 2 focus classes.
- * A SLOT POINTS AT A PROGRAMME AND NEVER AT A MAP. That is what lets one place
- * hold football in the fall and flag football in the winter without either one
- * marking the other complete. */
+/* one year's sheet: a programme in each season slot plus the two focus classes */
 export type YearPlan = {
   slots: Partial<Record<Season, string>>   // season -> programme id (roster/roster.ts)
   classes: string[]                        // up to 2 class ids
   stamped: boolean                         // the harbor master's wax: the year is committed
 }
 
-/* WHERE THE RUN WAS, AND AGAINST WHICH VERSION OF THE WORLD IT WAS WRITTEN.
- *
- * AUTHORING §13: *"MAPVIS publishes immutable versions and any map can be re-cut
- * at any time, so a saved position can land inside blocked pixels or outside the
- * painting, and a name a run scored against can be gone. `publishBundle` adds
- * `contract`, `slug` and `version`; the game uses `version` only to build a fetch
- * prefix and nothing records which version a save was written against."*
- *
- * Nothing did. This is the record that makes the guard in `run/resume.ts`
- * possible: three numbers and a name, written on every map change. THE ANCHOR IS
- * THE ADDRESS THAT SURVIVES and x,y is the one that does not, which is why they
- * are separate fields and why the guard drops one and keeps the other. */
+/* where the run was standing, and which version of the map and world it was written against */
 export type RunPosition = {
   /** the map id the body was standing on */
   map: string
@@ -116,17 +66,7 @@ export type RunPosition = {
   at: number
 }
 
-/* THE TRANSCRIPT AS IT STOOD WHEN THE STUDENT WALKED THE STAGE.
- *
- * §80.6: *"a transcript frozen at graduation and stored on the save, because
- * `_store.ts`'s `putState` is an upsert with `on conflict do update` and there is
- * no snapshot at all, and the failure that prevents looks exactly like a student
- * cheating in front of a class."* The diploma printed a code computed from the
- * LIVE save, so a graduate who played one more island after the ceremony held a
- * printed code the teacher's roster no longer produced, and the only reading
- * available to a teacher holding two different codes is that the student made one
- * up. Frozen once, never overwritten, and the printed artifact is drawn from the
- * frozen copy rather than recomputed. */
+/* the transcript as it stood at graduation, frozen once so the printed code keeps matching */
 export type FrozenRun = {
   transcript: Transcript
   /** the verification code, computed once over the frozen transcript */
@@ -211,22 +151,12 @@ if (typeof window !== 'undefined') {
   })
 }
 
-/* A DAMAGED SAVE IS NOT NO SAVE, and the two used to be one `null`.
- *
- * §80.6 asks for the distinction by name, with the server copy offered as
- * recovery. A student whose localStorage got truncated saw "Begin Adventure", and
- * pressing it wrote a fresh run over four years of work with no warning and no
- * way back. So the read says which of the three it found, and the title screen
- * can offer a pull instead of a wipe. */
+/* which of no save, a good save or a damaged one the last read found */
 export type SaveHealth = 'none' | 'ok' | 'damaged'
 let health: SaveHealth = 'none'
 export const saveHealth = (): SaveHealth => { loadSave(); return health }
 
-/* THE WRECK IS KEPT. Whatever was in the slot when it stopped parsing is moved
- * aside rather than written over, so a student who lands on "Begin Adventure"
- * with four years behind them has not already lost them by the time anybody
- * notices. Nothing in the game reads this yet; it exists so the bytes survive
- * long enough for somebody to. */
+/* a save that stopped parsing is moved aside rather than written over */
 const WRECK_KEY = 'blhs_save_damaged'
 export const damagedSave = (): string | null => {
   try { return localStorage.getItem(WRECK_KEY) } catch { return null }
@@ -242,12 +172,7 @@ const readRaw = (): SaveGame | null => {
   const wrecked = (): null => { health = 'damaged'; keepTheWreck(raw!); return null }
   try {
     const s = JSON.parse(raw) as SaveGame
-    /* FORWARD-COMPATIBLE READS DEFAULT RATHER THAN WIPE. This was
-     * `s.v === 2 ? norm(s) : null`, so a save written by a NEWER deploy read as
-     * no save at all, and the next Begin Adventure erased it. A newer shape is
-     * still this student's run and every field this build knows about is still
-     * where it was, so it is read and normalised. Anything older or shapeless is
-     * damaged, which is a different sentence. */
+    /* a save from a newer deploy is still read and normalised, never treated as no save */
     if (!s || typeof s !== 'object' || typeof s.id !== 'string' || typeof (s.v as unknown) !== 'number') return wrecked()
     if (s.v < 2) return wrecked()
     health = 'ok'
@@ -291,19 +216,7 @@ export function loadSave(): SaveGame | null {
 
 export function hasSave() { return loadSave() !== null }
 
-/* ---- WRITING, WITH A REAL FAILURE PATH -------------------------------------
- *
- * §80.6: *"every write is a save with no save button anywhere ... and `writeSave`
- * guarded with a real failure path."* `localStorage.setItem` was bare, and it
- * throws: a school Chromebook with a full profile raises QuotaExceededError, and
- * a district image with site data blocked raises SecurityError on the first
- * touch. Unguarded, the exception unwound through whatever verb was running, so
- * a student's grade was lost inside a stack trace nobody saw.
- *
- * The rule now: the write is attempted, the in-memory run is updated either way
- * so the session keeps playing, and the failure is RECORDED rather than thrown.
- * Losing the tab is bad; losing the tab mid-beat with no grade written is worse.
- */
+/* writing: a failed write is recorded rather than thrown, and the run keeps playing */
 export type SaveFault = { kind: 'quota' | 'blocked'; at: number; message: string }
 let fault: SaveFault | null = null
 /** the last write that did not reach the disk, or null. A banner reads this. */
@@ -331,22 +244,14 @@ function commit(s: SaveGame): boolean {
 export function writeSave(patch: Partial<SaveGame>) {
   const base = readRaw() ?? cache ?? fresh()
   const next = { ...base, ...patch, savedAt: Date.now() }
-  /* THE GUARD'S RECORD IS STAMPED WHERE EVERY WRITE PASSES, because `net.ts`
-   * owns the join and is not this substrate's to edit. The first server-assigned
-   * participant this device ever carried is the one the class roster knows, and
-   * a later restart cannot change it because this key outlives `clearSave`. */
+  /* the guard's record is stamped here, where every write passes */
   if (patch.participantId) rememberParticipant(next)
   commit(next)
   cache = next; emit()
   return next
 }
 
-/* ONE PUSH ON `pagehide`, which is the only lifecycle event a Chromebook tab
- * reliably gets: it is fired when the tab is frozen, discarded or backgrounded on
- * a machine under memory pressure, and `beforeunload` is not. Every verb already
- * writes through, so there is nothing pending in the normal case. What this is
- * for is the abnormal one: a write that faulted left the run in memory and not on
- * the disk, and the last moment to try again is now. */
+/* one last try on pagehide, for a run that is in memory because a write faulted */
 if (typeof window !== 'undefined') {
   window.addEventListener('pagehide', () => {
     if (fault && cache) commit(cache)
@@ -375,23 +280,7 @@ export function clearSave() {
   cache = null; emit()
 }
 
-/* ---- THE ONE-RUN-PER-PARTICIPANT GUARD (Q14, load-bearing) -----------------
- *
- * §80.6: *"`SettingsPanel.tsx:183-195` renders 'Restart adventure' behind a
- * confirm and sits OUTSIDE the `isCaptain()` block that begins at line 199.
- * Restart plus a new handle writes a second participant row in the same class
- * with an independently drawn arm."*
- *
- * Two rows for one student is not a lost save, it is a corrupted study: the arm
- * is drawn per participant, so the same fourteen year old can appear once in the
- * game arm and once in the plain arm, and no analysis downstream can tell that
- * the two rows are one person. There is no way to detect it after the fact and no
- * way to repair it, which is why the guard is a refusal rather than a warning.
- *
- * The predicate lives here, next to the record it reads. The button is
- * `SettingsPanel.tsx`'s and that file is not this substrate's; what it owes is
- * one call.
- */
+/* the guard that keeps one device to one participant, so a restart cannot make a second row */
 export type RunGuard = {
   /** the first server-assigned participant this device ever carried */
   participantId: string
@@ -414,10 +303,7 @@ function putGuard(g: RunGuard) {
   try { localStorage.setItem(GUARD_KEY, JSON.stringify(g)) } catch { /* blocked: the guard is best effort */ }
 }
 
-/* WRITTEN ONCE AND NEVER MOVED. A second join with a different id is exactly the
- * thing being guarded against, so a later id does not overwrite the first. The
- * captain's own id is not a participant row on any class roster, so it is not
- * recorded and never locks a demo machine. */
+/* records the first participant this device carried, once, and never the captain's */
 function rememberParticipant(s: SaveGame) {
   const pid = s.participantId
   if (!pid || pid === 'captain' || runGuard()) return
@@ -458,17 +344,9 @@ export function releaseGuard() {
   try { localStorage.removeItem(GUARD_KEY) } catch { /* nothing to release */ }
 }
 
-// ---- domain verbs (systems write through these, never by hand-editing fields) ----
-// Verbs REQUIRE an existing run and return null without one: a passive collector (a loading
-// fact, a badge check) firing before Begin Adventure must not conjure a phantom save that
-// then greets a brand-new student with "Welcome back".
+// the domain verbs systems write through, each needing an existing run and returning null without one
 
-/* THE ONE PLACE THE LEDGER IS WRITTEN, which is why the attempt count lives here.
- *
- * Best-of-two is kept for the student and the first attempt is kept for the
- * study, and a worse retake still counts as an attempt: a student who ran it back
- * and did worse tried twice, and a row that says otherwise is the retake policy
- * being unmeasurable rather than unused. */
+/* the one place the ledger is written, keeping the best grade, the first grade and the count */
 export function recordGrade(e: LedgerEntry) {
   const s = loadSave()
   if (!s) return null
@@ -478,16 +356,7 @@ export function recordGrade(e: LedgerEntry) {
     const was = ledger[i]
     const attempts = (was.attempts ?? 1) + 1
     const firstGrade = was.firstGrade ?? was.grade
-    /* A RETAKE IS SPENT BY BEING TAKEN, NOT BY WORKING.
-     *
-     * `retaken: true` only ever went on the improving branch, and
-     * `retakeAvailable` is `grade < B- && !retaken`. So a student who ran it
-     * back and did the same or worse still had a grade under a B- and still had
-     * no `retaken` flag, and was offered the retake again. And again. The
-     * Universal Retake Policy is ONCE (docs/blhs/sourced-facts.md), and the one
-     * student it was unlimited for is the one it says the least kind thing
-     * about: the one who keeps failing it. Best-of-two is unchanged; what
-     * carries now is the fact that the second attempt happened. */
+    /* a retake is spent by being taken, so a worse second attempt still marks the row retaken */
     ledger[i] = e.grade > was.grade
       ? { ...e, retaken: true, attempts, firstGrade }
       /* the flag is ADDED, never written as false: a row that has not been
@@ -500,10 +369,7 @@ export function recordGrade(e: LedgerEntry) {
   return writeSave({ ledger })
 }
 
-/* THE AWARENESS RECORD. Called when a place is shown to a student, and again
- * with docked=true when they actually land. One row per place per year: seeing
- * the stadium three times in one year is one exposure, seeing it in three years
- * is three, and that is what the awareness claim needs to be countable at all. */
+/* called when a place is shown to a student, and again with docked=true when they land */
 export function recordExposure(place: string, docked = false) {
   const s = loadSave()
   if (!s || !place) return null
@@ -518,10 +384,7 @@ export function recordExposure(place: string, docked = false) {
   return writeSave({ exposure: rows })
 }
 
-/* ONE ROW PER PROGRAMME PER YEAR, APPEND-ONLY, WRITTEN BY A RESULT.
- * Re-finishing the same programme in the same year updates that year's row and
- * never adds a second; finishing it again next year is a new row, which is what
- * a three-year ladder is made of. */
+/* writes one row per programme per year, updating this year's rather than adding a second */
 export function recordCompletion(programme: string, grade: number, rank?: string) {
   const s = loadSave()
   if (!s || !programme) return null
@@ -582,17 +445,10 @@ export function spendToken(season: Season): ReturnType<typeof writeSave> | null 
   return writeSave({ tokens })
 }
 
-/* THE LEDGER ID OF A PROGRAMME'S VOYAGE, one convention stated once so the
- * completion record and the transcript row can find each other. It is stable in
- * the programme and the year, which is the whole of M1's "stably identified":
- * playing the same island twice in one year updates one row instead of weighting
- * the GPA twice, which a base-36 timestamp could never do. */
+/* the ledger id of a programme's voyage, stable in the programme and the year */
 export const islandLedgerId = (programme: string, year: number) => `island:${programme}:y${year}`
 
-/** the state of one PROGRAMME in this run. Keyed by programme id, which is the
- *  key the planner's slot holds, never a map id or a place id. Setting it to
- *  'completed' writes the append-only record too, because completion is a result
- *  and a mutable field cannot remember three years of a ladder. */
+/** the state of one programme in this run, keyed by programme id */
 export function setIslandState(id: string, state: IslandState) {
   const s = loadSave()
   if (!s) return null
@@ -654,10 +510,7 @@ export function assignSlot(year: number, season: Season, activityId: string) {
   if (!s) return null
   const plan = planOf(s, year)
   if (plan.stamped) return null
-  /* THE SEASON LOCK IS ENFORCED HERE AND NOT ONLY IN THE SHEET'S MENU. It lived
-   * in a `.filter()` inside `Planner.tsx`, so the rule was a render: any other
-   * caller could put a fall sport on a spring token and the year model believed
-   * it. One function decides and one sentence explains, `run/refusal.ts`. */
+  /* the season lock is enforced here and not only in the sheet's menu */
   if (refuseSlot(activityId, season, s, year)) return null
   const tokens = [...s.tokens]
   if (!plan.slots[season]) {
@@ -702,22 +555,14 @@ export function dropClass(year: number, classId: string) {
   return writeSave({ plans: { ...s.plans, [year]: { ...plan, classes: plan.classes.filter((c) => c !== classId) } } })
 }
 
-/** the harbor master's stamp: the year commits. The programmes the sheet slotted flip to
- *  'active' (§6.4) in the same write. The argument is PROGRAMME ids, which is what a slot
- *  holds; it used to be island ids and the translation is what merged a shared place's
- *  programmes into one record. */
+/** the harbor master's stamp: the year commits and its slotted programmes flip to active */
 export function stampPlan(year: number, activeProgrammeIds: string[] = []) {
   const s = loadSave()
   if (!s) return null
   const plan = planOf(s, year)
   if (plan.stamped) return null
   const islands = { ...s.islands }
-  /* THE STAMP WRITES INTENT AND NEVER COMPLETION. It used to write 'active' with
-   * no read of what was there, so re-slotting a programme in a second year erased
-   * the record that it was finished in the first, which is the ordinary path of a
-   * rank ladder. The per-year completion record is the history now, and this
-   * mutable field is only the colour on a chart, so a finished programme keeps
-   * its colour until the year's own record says otherwise. */
+  /* the stamp writes intent and never completion, so a finished programme keeps its colour */
   for (const id of activeProgrammeIds) if (islands[id] !== 'completed') islands[id] = 'active'
   return writeSave({
     plans: { ...s.plans, [year]: { ...plan, stamped: true } },

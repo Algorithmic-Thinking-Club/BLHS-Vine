@@ -1,29 +1,4 @@
-/* ONE STATEMENT PER FACT, AND EVERY ONE SAYS WHERE IT CAME FROM.
- *
- * This ships to fourteen year olds who have not started at this school yet, and
- * some of them will believe whatever the game says about it. So a sentence about
- * Bonney Lake lives here once, with the document it came out of and the date
- * somebody checked it, and nothing anywhere else may state the same fact in its
- * own words.
- *
- * IT USED TO LIVE IN A TRANSITION COMPONENT. `FACTS` was an array inside
- * src/app/transitions.tsx, which is a loading screen, and three surfaces imported
- * it from there: the loading card, the Handbook's Facts tab and a beat's takeaway
- * cards. A fact table is not a UI concern and a loading pool is not the fact
- * table; the pool is a view of it, and it is derived at the bottom of this file.
- *
- * WHAT A SOURCE MAY BE. A document this repository holds, with the section, or a
- * public URL. `docs/research/blhs-awards-authoritative.md` and
- * `docs/research/blhs-specifics.md` were cited by eight files and NEITHER HAS
- * EVER EXISTED; the real documents are `docs/blhs/awards.md`, forwarded from
- * Ms. Pinzon via Wiseman, and `docs/blhs/sourced-facts.md`. A citation nobody can
- * follow is not a citation, and eight of them survived because nothing ever
- * checked.
- *
- * AND WHAT A SOURCE MAY NOT BE. If no document says it, it does not go here. The
- * marker for a thing the school really awards whose criteria nobody has published
- * is in progress.ts, next to the cord it is about, and it says so on screen.
- */
+/* one statement per fact about the school, each with the document it came from and the date */
 
 export type Fact = {
   id: string
@@ -35,22 +10,7 @@ export type Fact = {
   checked: string
 }
 
-/* ---- WHAT A STUDENT READS, NOT WHERE WE TYPED IT ------------------------
- *
- * §40.12: "the player-facing string and the code-facing string are never the
- * same string, anywhere in this game, and every surface has to be checked for
- * which one it prints." This constant is printed. `11-handbook-cords.png` in
- * both arms shows "docs/blhs/awards.md, from Ms. Pinzon via Wiseman, 2026-06-28"
- * under all seven cords, and the facts page prints a markdown path with a
- * section sign under every card.
- *
- * §11.35 is right that the source belongs beside the fact: a freshman being told
- * where a claim about their own school came from is the point. But the source a
- * freshman can act on is the SCHOOL document, which they can go and find. The
- * repo file is where we typed it up, and the repo files are named here in a
- * comment so the audit trail survives without being read out to a fourteen year
- * old: awards come from `docs/blhs/awards.md`, the rest from
- * `docs/blhs/sourced-facts.md`. */
+/* the source lines a student reads, naming the school's document rather than a repo path */
 const AWARDS = 'the BLHS awards list, from Ms. Pinzon'
 const AWARDS_RESOLVED = 'the BLHS awards list, checked against district and state records'
 const SOURCED = 'Bonney Lake High School'
@@ -64,14 +24,7 @@ export const FACTS: Fact[] = [
   { id: 'f-students', text: 'Around 1,700 students walk the halls of BLHS. Every one of them started as a freshman.', source: `${SOURCED} §5 identity`, checked: '2026-06-28' },
   { id: 'f-becu', text: 'BLHS has a real BECU credit union branch inside the school. It opened in 2006.', source: `${SOURCED} §5 campus fact`, checked: '2026-06-28' },
 
-  /* THE CORD FACTS, and three of them said something no source does.
-   *
-   * `f-seal` claimed three years of a language earn the Seal of Biliteracy and
-   * `f-capstone` ended "with the exams passed". Neither clause is in the school's
-   * table or in the state rule; both were written by somebody filling a gap. The
-   * criteria below are the school's own words and the state's own rule, and where
-   * the game counts something simpler than the rule, progress.ts says so beside
-   * the rule rather than printing the simplification as the criterion. */
+  /* the cord facts, whose criteria are the school's own words and the state rule */
   { id: 'f-cte-cord', text: 'CTE means Career and Technical Education. Earn two CTE credits and you get the Career Readiness cord at graduation.', source: `${AWARDS} Career Readiness`, checked: '2026-06-28' },
   { id: 'f-seal', text: 'The Seal of Biliteracy goes to students who show proficiency in English and at least one other language before graduation. In Washington that means four credits of one world language, or passing an approved language test.', source: `${AWARDS} Seal of Biliteracy · RCW 28A.300.575 · WAC 392-410-350`, checked: '2026-08-28' },
   { id: 'f-cords', text: 'The counseling office tracks every honor cord. This game tracks them for you too.', source: `${SOURCED} §counseling`, checked: '2026-08-28' },

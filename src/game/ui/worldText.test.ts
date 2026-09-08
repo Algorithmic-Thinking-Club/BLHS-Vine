@@ -1,15 +1,4 @@
-/* PLAYER TEXT IN WORLD ART, MEASURED RATHER THAN LOOKED AT.
- *
- * The picture is not testable here and is not what breaks. What breaks is the
- * arithmetic: a name that runs off the stern, a signpost that silently drops its
- * second line, a canvas cut to the unrotated box that clips the corners off a
- * tilted plaque, a room number that wraps. Those are numbers, so they are tested
- * as numbers, with a measuring function that is a straight multiplication.
- *
- * happy-dom returns null from getContext('2d'), which is the same answer a
- * worker gives, so the split between a pure layout and a painting step is not a
- * testing convenience: it is the only reason any of this can be checked at all.
- */
+// the arithmetic behind player text painted into world art: wrapping, truncation and canvas size
 import { describe, it, expect } from 'vitest'
 import {
   composeWorldText, estimatedCharWidth, fontOf, layoutWorldText, measureWorldText,

@@ -1,52 +1,8 @@
-/* THE BEAT RUNNER: the chassis every measured item in this study is read on.
- *
- * §6.4 to §6.13 and §10.22 to §10.31. Four core beats, fifty-one class beats and
- * every island an ATC member will ever write are drawn by these rules, so a
- * defect here is inherited twenty times over. That is the whole reason the file
- * is written at this length.
- *
- * WHAT WAS WRONG WITH IT, MEASURED RATHER THAN FELT (2026-09-01). `.bt-stage`
- * carried `padding: 11% 13% 11.5%` and sat inside `.bt-veil`, which is
- * `inset: 0` on a fixed root, so THE PERCENTAGES RESOLVED AGAINST THE VIEWPORT
- * AND NOT AGAINST THE CARD. On the 1366 wide Chromebook this game is deployed to
- * that is 177 pixels of padding on each side of a 680 pixel card, leaving a 325
- * pixel content box. `container-type: inline-size` then made every `cqw` a
- * fraction of THAT, so `bt-prompt` at 2.8cqw, `bt-text` at 2.7, `bt-opt` at 2.4,
- * `bt-speaker` at 2.4, `bt-place` at 2.4 and `bt-reply` at 2.3 all landed under
- * the 14 pixel floor and all clamped to exactly 14. The graded frame had no
- * typographic hierarchy at all: the question, the answer and the correction were
- * the same size as the room's name.
- *
- * SO THE TYPE IS IN PIXELS NOW, which is the one place in this kit that is the
- * right call. Every other panel scales its type with its own width because it
- * grows; this card is `min(820px, 94vw)` and is the same width on every machine
- * in the room, so a ratio buys nothing and costs the hierarchy. `--kit-text-scale`
- * still multiplies every one of them, so S, M and L still move the whole card,
- * and `--kit-fs` still snaps the result onto whole pixels for the bitmap faces.
- *
- * AND THE FRAME IS A FRAME. `.bt-stage` wears `.kit-surface-panel`, so the
- * nine-slice holds the carved corners at their drawn size and its own
- * `border-width` is the honest inset. The `background: var(--kit-art-panel)`
- * line and the plain-arm pixel override that used to stand in for it are both
- * gone: tokens.css already answers both, in one place, for every panel.
- *
- * NO STATE IS CARRIED BY HUE ALONE (§40.31). A school Chromebook panel crushes
- * lightness and saturation, so every state below moves a SHAPE as well: the
- * settled option is hatched, the chosen one is pressed into the page, the true
- * one gains a word and a drawn tick, a refused commit says in words what it is
- * waiting for, and a wrong reply's rule is dashed where a right one's is solid.
- *
- * AND NEVER A RED BUZZER (§6.9, PLAYTEST.md script 10). Nothing in this file
- * fills with `--kit-alarm`. A wrong answer is met with the author's own words on
- * the same warm paper the right one gets.
- */
+/* the frame every scored beat is drawn on: the card, its items and its result */
 
 @import '../ui/tokens.css';
 
-/* ONE VEIL VALUE FOR THE WHOLE KIT. This spelled its own `rgba(5, 12, 15, .6)`
-   while tokens.css already owned the number for six other panels, so raising the
-   veil after the eyes round would have raised it everywhere except the one
-   surface the review actually failed. */
+/* the dark wash behind the card */
 .bt-veil {
   position: absolute; inset: 0; z-index: 77;
   background: var(--kit-veil);
@@ -73,12 +29,7 @@
 html[data-rm='1'] .bt-stage { animation-duration: 1ms; }
 @keyframes btr-arrive { from { transform: translateY(14px) scale(.97); } to { transform: none; } }
 
-/* ---- the head: where you are, and how far through you are ----------------
- *
- * §6.9's open finding: "all five rows reveal at once and nothing says how many
- * were right", and underneath it a student who has answered two of three items
- * has never been told there are three. The rail reads the beat's own scorable
- * spine (`checksOf`), not a number anybody typed. */
+/* ---- the head: where you are, and how far through the beat you are ---- */
 .bt-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .bt-place {
   font-family: var(--kit-face-title);
@@ -99,13 +50,7 @@ html[data-rm='1'] .bt-stage { animation-duration: 1ms; }
 .bt-railpips .kit-chip { width: 16px; height: 16px; }
 
 /* ---- a spoken line: the whole card is the button (§6.5) ------------------ */
-/* A BUTTON DOES NOT INHERIT ITS FONT, and this is the line a student reads most
-   in every beat. `.bt-say` is a <button>, so the user-agent button font won and
-   `.bt-stage`'s body face never reached it: photographed at
-   `fixed-game/19-beat.png` the two sentences are a smooth grotesque while
-   "Perseverance" in the same panel, three lines down, is Deckhand. Two faces on
-   one card, on all four core beats and every generated class beat. The plain arm
-   fixed exactly this for its own form and the game arm never got the line. */
+/* the spoken line, where the whole card is the button */
 .bt-say {
   font-family: var(--kit-face-body);
   display: flex; flex-direction: column; gap: 8px;
@@ -122,10 +67,7 @@ html[data-rm='1'] .bt-stage { animation-duration: 1ms; }
 .bt-say:active { transform: translateY(1px); filter: none; }
 
 .bt-speakerrow { display: flex; align-items: center; gap: 10px; }
-/* THE SPEAKER IS A HANGING SIGN, not a coloured word. `plaque-small.png` is a
-   dark carved 2:1 plate with a rope inlay, which is the shape a name plate is,
-   and it reached this surface as `--kit-art-plaque` rather than as a url so the
-   plain arm can take it away (tokens.css nulls the handle). */
+/* the speaker's name, drawn on a hanging sign */
 .bt-speaker {
   display: inline-flex; align-items: center; justify-content: center;
   box-sizing: border-box;
@@ -146,10 +88,7 @@ html[data-rm='1'] .bt-stage { animation-duration: 1ms; }
   color: var(--kit-ink-said);
 }
 
-/* THE ADVANCE CUE IS DRAWN. It was an operating-system paw emoji, which
-   `docs/ART.md` rules out in as many words, and the kit publishes a four frame
-   paw print on the `cue` sheet for exactly this job. The frames are stacked and
-   one is shown at a time, which is how a sprite sheet animates with no library. */
+/* the drawn paw print that says press to continue */
 .bt-cue {
   align-self: flex-end;
   position: relative;
@@ -157,12 +96,7 @@ html[data-rm='1'] .bt-stage { animation-duration: 1ms; }
   flex: none;
   height: 26px;
 }
-/* IT BOUNCES RATHER THAN FLASHING, which is what GAME-DESIGN §11.1 commissioned
-   ("bouncing paw-print continue cue") and what a cue on cream paper can actually
-   do. The four faces are the same paw in white, brown, gold and green, so
-   cycling them was a HUE animation on a school panel that crushes hue, and one
-   quarter of the loop was a white paw on cream paper, which is nothing at all.
-   One brown paw, moving. Motion reads on any ground. */
+/* the paw bounces rather than changing colour */
 .bt-cueframe { animation: btr-cue 1100ms ease-in-out infinite; }
 @keyframes btr-cue {
   0%, 100% { transform: translateY(0); }
@@ -173,13 +107,7 @@ html[data-rm='1'] .bt-stage { animation-duration: 1ms; }
    The paw stops where it is and stays drawn. */
 html[data-rm='1'] .bt-cueframe { animation: none; }
 
-/* AND WHAT STANDS IN WHEN THE PLATFORM CANNOT BE REACHED. It was a chevron drawn
-   out of two CSS borders, which is a shape and not a drawing, and it was the
-   honest answer for as long as nobody had drawn a paw. Somebody has: the local
-   `mark-paw` came off the same two by two sheet as the book, the anchor and the
-   sliders on 2026-09-01. A classroom behind a district filter now gets the same
-   paw the platform's `cue` sheet gives everybody else, and it bounces the same
-   way, so the two paths differ in bytes rather than in behaviour. */
+/* the local paw used when the platform's art cannot be reached */
 .bt-cue-mark {
   align-self: flex-end;
   flex: none;
@@ -233,11 +161,7 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
 .bt-opt:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
 .bt-opt:disabled { cursor: default; transform: none; box-shadow: none; }
 
-/* A LOCKED ITEM READS AS LOCKED. Every option disables the moment one is picked
-   (§6.10: one item, one attempt, always), and an unpicked wrong option used to
-   be pixel-identical to a live button, so a student kept clicking it and nothing
-   happened. Settled is a change of MATERIAL: the paper goes to a flat hatch, the
-   card stops standing off the page and the spine thins to a rule. */
+/* an option that can no longer be pressed goes to a flat hatch */
 .bt-opt:disabled:not(.bt-opt-true):not(.bt-opt-miss) {
   background: repeating-linear-gradient(135deg, var(--kit-paper-lo) 0 6px, var(--kit-paper) 6px 12px);
   border-color: var(--kit-rule-firm);
@@ -302,11 +226,7 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
   color: var(--kit-sea-ink);
 }
 
-/* THE BUCKET WAS A FIXED 4.2cqw SQUARE with no wrap and no overflow, which is
-   about 28 pixels on a Chromebook. `y2.ts` ships the buckets 'Double gold',
-   'Career Readiness', 'AP Honors' and 'Seal of Biliteracy', so the Year 2 core
-   beat drew "Seal of Biliteracy" inside a 28 pixel square, four per row. A
-   bucket is a chip that is as wide as its own words and the row wraps. */
+/* a bucket is a chip as wide as its own words, and the row wraps */
 .bt-buckets { display: flex; flex-wrap: wrap; gap: 6px; flex: 2 1 260px; }
 .bt-bucket {
   display: inline-flex; align-items: center; gap: 6px;
@@ -358,13 +278,7 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
 .bt-numrow { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
 .bt-numrow .kit-field-row { flex: 0 1 280px; }
 
-/* ---- the correction ------------------------------------------------------
- *
- * NEVER A RED BUZZER. §6.9's law and PLAYTEST.md script 10 step 3: "the row
- * reveals its true letter gently (no red buzzer, ever)". Both replies sit on the
- * same warm paper. What separates them is the rule down the left, which is solid
- * for a confirmation and DASHED for a correction, so the difference survives a
- * screen that has crushed the two greens into one. */
+/* ---- the correction: both replies on the same paper, told apart by the rule ---- */
 .bt-reply {
   --kit-fs-raw: calc(16px * var(--kit-text-scale)); font-size: var(--kit-fs);
   line-height: 1.5;
@@ -393,24 +307,14 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
 
 /* ---- the commit row, and the control that says what it wants ------------- */
 .bt-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-/* A DISABLED BUTTON THAT ANSWERS NOTHING IS A PROTOTYPE TELL. Four of them shipped
-   here: the commit on a sort, on a number, on a form and the option row after a
-   pick. A refused control now says in words what it is still waiting for, beside
-   itself and in its own tooltip, wired to the same completeness test that gates
-   the press. */
+/* a refused commit says in words what it is still waiting for */
 .bt-needs {
   --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-ink-dim);
   line-height: 1.4;
 }
 
-/* ---- the way out of a graded frame (SWEEP-1 item 5) -----------------------
- *
- * Quiet on purpose. It sits under the item, separated by a rule, at the size of
- * a footnote rather than of a choice, because the thing a student is meant to
- * press is `Check my answer` and this is the door for the one who cannot. Loud
- * enough to find when you are stuck, plain enough not to compete when you are
- * not. */
+/* ---- the quiet way out of a graded frame ---- */
 .bt-leave {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
   margin-top: 18px; padding-top: 12px;
@@ -422,13 +326,7 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
   color: var(--kit-ink-dim);
   line-height: 1.4;
 }
-/* AND IN THE PLAIN ARM IT HAS TO BE FINDABLE WITHOUT DISCOVERING A SCROLL.
- * The plain card is 705px tall against 1295px of content, so an exit at the
- * natural end of the document sits 538px under an uncued fold, which is not an
- * exit at all. Sticky to the foot of the card, on the document's own paper so
- * nothing reads through it. This does NOT fix the fold itself: five of the nine
- * questions are still below it and that is SWEEP-1 item 51, BRIEF-UI's to
- * answer. */
+/* in the plain arm the exit sticks to the foot of the card so it can be found */
 .bt-plain-scoring { display: flex; flex-direction: column; }
 .bt-plain-scoring .bt-plainform { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 .bt-plain .bt-leave {
@@ -437,11 +335,7 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
 }
 .bt-plain .bt-leave-why { color: var(--bt-doc-ink-quiet); }
 
-/* ---- the result card: the ending of every activity in the game ----------
- *
- * §10.22's law: "One result. `ResultCard` is the ending of every activity in the
- * game, so a member never designs a win screen and no island's ending looks
- * unlike the rest of the game." */
+/* ---- the result card: the ending of every activity in the game ---- */
 .bt-result { display: flex; flex-direction: column; gap: 14px; }
 .bt-h {
   font-family: var(--kit-face-title);
@@ -513,33 +407,7 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
 .bt-out { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .bt-retake { display: flex; flex-direction: column; gap: 6px; }
 
-/* ---- the plain arm: a document, not the game with the paint scraped off ----
- *
- * ASH'S RULING, 2026-08-31: "No game art, no wood, no parchment: system font,
- * black on white, real headings and a real form. Reads as a worksheet somebody
- * wrote, not as the game with its paint scraped off."
- *
- * WHY IT IS NOT RAW OS WIDGETS, which was the other candidate and was refused:
- * an unstyled browser default reads as BROKEN, and a control condition that
- * looks broken loses on looking broken rather than on not being a game. That is
- * a confound in the exact comparison the instrument exists to make.
- *
- * WHY THE DOCUMENT'S OWN MATERIALS ARE WRITTEN OUT HERE RATHER THAN READ OFF THE
- * TOKEN LAYER,
- * which is the one exception in the kit and needs its reason at the byte. This
- * surface has to be a document in EITHER skin, because `as_plain=True` shows it
- * to a GAME-arm student for one beat when an author says the item should read
- * the same both ways. Pointing `.bt-plain` at `--kit-paper` would make it
- * parchment on that path, which is the opposite of what the flag means, and
- * tokens.css is not this session's to edit. So the document's materials are
- * declared ONCE, here, as local properties, and every rule below reads one of
- * them: the day tokens.css grows a document group this is a ten line change
- * rather than a sweep. It is reported as wanted rather than left silent.
- *
- * THE CONTROLS IN THIS ARM ARE PLAIN ELEMENTS AND NEVER THE KIT'S. A `<Plank>`
- * inside `.bt-plain` would be a carved wooden sign in the middle of a worksheet
- * on the `as_plain` path, because the plank's art is switched off by the SKIN
- * and not by the arm. */
+/* ---- the plain arm: a worksheet, with its own paper and ink declared here ---- */
 .bt-plain {
   --bt-doc-paper: #ffffff;
   --bt-doc-shade: #f5f5f5;
@@ -552,24 +420,7 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
   --bt-doc-focus: #1d6fd8;
   --bt-doc-face: system-ui, 'Segoe UI', Roboto, sans-serif;
 
-  /* THE SCROLL IS VISIBLE, BECAUSE AN INVISIBLE ONE COST THE LAST ITEM.
-   *
-   * The art-direction pass of 2026-09-01 opened `after-plain/19-beat.png` and
-   * found the Respect row and the submit control off the bottom of the card with
-   * nothing on screen saying there was more. The card was already
-   * `max-height: 90vh; overflow-y: auto`, so the content was reachable and NOTHING
-   * SAID SO: a browser hides an overlay scrollbar until the pointer moves, and a
-   * student who does not know a page scrolls does not scroll it.
-   *
-   * That is a study-blocking defect and not a style one. This form is how the
-   * CONTROL ARM answers every scored item in the instrument, so an unreachable
-   * submit is a run that stops, and a run that stops arrives in the export as a
-   * student who gave up rather than as a surface that failed.
-   *
-   * A visible scrollbar is also the right answer for what this arm IS. §16's
-   * ruling is a document a person could have written; a long document in a
-   * browser has a scrollbar, and hiding it would be the game-ness the arm exists
-   * to remove. */
+  /* the scrollbar is drawn and visible, so nothing sits under an uncued fold */
   width: min(680px, 94vw); max-height: 92vh; overflow-y: auto;
   scrollbar-width: auto;
   scrollbar-gutter: stable;
@@ -579,31 +430,13 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
   font-family: var(--bt-doc-face);
   --kit-fs-raw: calc(16px * var(--kit-text-scale)); font-size: var(--kit-fs); line-height: 1.55;
 }
-/* ---- AND THIS ARM'S TYPE MOVES WITH THE TEXT-SIZE CONTROL -----------------
- *
- * Every size below was a raw pixel literal, while every size in the GAME arm of
- * this same file goes through `--kit-text-scale`. So a student assigned to the
- * control group who set the text size to L moved the whole game and did not move
- * the one surface they answer every graded item on.
- *
- * That is not a cosmetic difference between the arms, it is an accessibility
- * affordance present in one arm and absent in the other, inside the one
- * comparison the whole instrument exists to make. `tokens.css` even computes a
- * plain-specific clamp for exactly this and nothing here was reading it.
- *
- * The pattern is the one the rest of the repository uses: declare the size in
- * `--kit-fs-raw` and read `var(--kit-fs)`, which snaps to whole pixels and holds
- * a 14px floor. */
+/* ---- and this arm's type moves with the text-size control too ---- */
 .bt-plainform h2 {
   margin: 0 0 16px; padding-bottom: 8px;
   --kit-fs-raw: calc(21px * var(--kit-text-scale)); font-size: var(--kit-fs); font-weight: 700; line-height: 1.25;
   border-bottom: 1px solid var(--bt-doc-rule);
 }
-/* THE PLACE NAME, WHICH THIS ARM WAS NOT GIVEN. The game arm draws
-   "place · title" at the top of the stage and the plain arm printed the title
-   alone, so a control-arm student never read the words "the Advisory Hearth".
-   It is one line of content, it is content the treatment arm receives, and the
-   difference ran in the direction that flatters the treatment. */
+/* the place name, which this arm prints above the title */
 .bt-plainform .bt-plainplace { margin: -10px 0 16px; color: var(--bt-doc-ink-quiet); --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs); }
 .bt-plainform p { margin: 0 0 10px; }
 .bt-plainform fieldset { margin: 0 0 18px; border: 1px solid var(--bt-doc-rule); border-radius: 2px; padding: 12px 16px 14px; }
@@ -639,10 +472,7 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
 }
 .bt-plainform .bt-counselor { border-top: 1px solid var(--bt-doc-rule); padding-top: 8px; color: var(--bt-doc-ink-quiet); }
 .bt-plainform .bt-h { font-weight: 700; margin-bottom: 4px; }
-/* A DOCUMENT IS BLOCK FLOW, not a flex column. The result and review cards are
-   one component in both arms, so the game arm's `gap` would otherwise sit on top
-   of a worksheet's own heading and paragraph margins and read as a layout rather
-   than as a page. */
+/* a document is block flow rather than a flex column */
 .bt-plainform.bt-result { display: block; }
 .bt-plainform .bt-grade { display: flex; align-items: baseline; gap: 14px; margin: 4px 0 6px; }
 .bt-plainform .bt-lettermark { font-family: inherit; --kit-fs-raw: calc(34px * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--bt-doc-ink); }
@@ -668,17 +498,7 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
   border-radius: 6px;
 }
 
-/* ---- THE FRAME THAT MOVES (BRIEF-YEAR-ONE beat 5) ------------------------
- *
- * "Put the bell schedule in order, sort the POWER values" — done rather than
- * quizzed. A pool of pieces, a row of places, and a piece that visibly leaves
- * one and arrives in the other.
- *
- * The whole grammar is two states and they are both SHAPES rather than shades,
- * because the panel this ships on crushes lightness and saturation (§40.31): a
- * held piece is lifted and outlined, and a place that can take it grows a dashed
- * mouth. A student who cannot see colour still sees which thing is in their hand
- * and where it can go. */
+/* ---- the frame that moves: a pool of pieces and the places they go ---- */
 
 .bt-move { display: flex; flex-direction: column; gap: 12px; }
 
@@ -731,13 +551,7 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
   cursor: pointer;
   border-radius: var(--kit-r-card);
 }
-/* IT GLOWS, IT DOES NOT MOVE, and that is a fix rather than a preference. The
-   first version pulsed `translateY` and the target's box therefore never stopped
-   moving: a pointer aiming at it is aiming at a thing that is somewhere else by
-   the time the press lands, and the capture harness could not click it at all
-   because an element with an endless transform is never "stable". A drop target
-   that is hard to hit is the opposite of the law it exists to serve.
-   A shadow pulse says the same thing and the box holds still. */
+/* a lit drop target glows and holds still, so it stays easy to hit */
 .bt-drop-lit {
   cursor: pointer;
   border-color: var(--kit-sea);
@@ -809,9 +623,4 @@ html[data-rm='1'] .bt-drop-lit { animation: none; box-shadow: 0 0 0 3px var(--ki
 }
 .bt-move-truth li { display: flex; align-items: center; gap: 6px; }
 
-/* ---- THE CONTROL ARM NEVER SEES THIS FRAME ------------------------------
- *
- * `.bt-plainform` renders the same item as a form of selects, derived from the
- * same `plainOf`, and that is the arm's whole design. These rules are named here
- * only so the next person does not go looking for a plain version of a thing
- * that must not have one: a control arm that could drag would be the treatment. */
+/* ---- the control arm answers this item as a plain form and never sees this frame ---- */

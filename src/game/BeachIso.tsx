@@ -8,12 +8,7 @@ import {
 } from './ocean'
 import { play as playSfx, preload as preloadSfx } from './audio'
 
-// PHASE I-1 — the opening beach, built as a TRUE 2:1 ISOMETRIC tilemap on the same engine that
-// renders the campus (HW=32/HH=16 diamonds, level heights, walkable grid, depth-sorted billboard
-// props, collision, Thor walking). Sea sits in the far (small tx+ty), a wavy foam shoreline, then
-// a sand beach you walk. Palms / rocks / driftwood are upright iso billboards with grounded
-// shadows and collision. This replaces the flat front-on backdrop: it is a real isometric, walkable
-// beach, the basic floor the whole intro is built on.
+// the opening beach: a walkable isometric tilemap of sea, foam, sand and props the whole intro plays on
 
 const dirs8 = ['south', 'north', 'east', 'west', 'south-east', 'north-east', 'north-west', 'south-west']
 const cardinals = ['south', 'north', 'east', 'west']
@@ -97,10 +92,7 @@ function composeBeach(): PropDef[] {
   }
   const rnd = (a: number, b: number, x: number, y: number) => a + (b - a) * hash(x * 3.17, y * 7.31)
 
-  // 1. THE JUNGLE WALL — dense layered treeline enclosing the beach's landward side. Two staggered
-  // rows of broadleaf bushes with palms rising out of them; solid enough that the sand never runs
-  // to bare map edge. Scale/mirror variance so no two stamps read alike; the flowered hedge stays
-  // an occasional accent, never a repeated motif. The wall bends toward the sea on the far left.
+  // 1. the jungle wall: a layered treeline closing off the beach's landward side
   for (let d = -92; d <= 92; d += 4) {
     // the shared wall line (also the walkable clamp) + per-stamp jitter for the art
     const sWall = wallS(d) + rnd(-1, 1, d, 1)
@@ -236,25 +228,14 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
     const kd = (e: KeyboardEvent) => { if (inputMuted) return; keys[e.key.toLowerCase()] = true; if (e.key === ' ') { jumpQueued = true; e.preventDefault() } }
     const ku = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = false }
 
-    /* THE INTRO'S THREE SOUNDS ARE FETCHED WHILE PIXI IS STILL BUILDING THE MAP.
-     *
-     * `surf-in` is the first step of the script and it plays over black, so it is
-     * the one cue in the game with no cover for a cold fetch: a decode that starts
-     * when the step runs arrives after the fade has already opened his eyes. This
-     * is deliberately not awaited. It is a hint to the network, and a school wifi
-     * that never answers it costs the intro nothing but silence. */
+    /* the intro's three sounds are fetched while pixi is still building the map */
     void preloadSfx(['surf_in', 'cork_pop', 'sail_snap']).catch(() => {})
 
     const start = async () => {
       TextureSource.defaultOptions.scaleMode = 'nearest'
       const instance = new Application()
       await instance.init({ background: 0x083744, antialias: false, resizeTo: ref.current ?? window }) // abyss = the deep end of the ramp, so off-map sea blends
-      /* DESTROYED ONCE, EVER. `app` is what the effect's cleanup tears down, so
-       * an abort that destroys the instance has to make sure the cleanup cannot
-       * find it again. Measured on the production build, 2026-09-08:
-       * `[BeachIso] failed TypeError: this._cancelResize is not a function`,
-       * which is Pixi's own ResizePlugin being asked to stop twice, and the beach
-       * fell over on the road every student takes. */
+      /* an aborted start drops the handle so the cleanup cannot destroy the same app twice */
       if (destroyed || !ref.current) { app = null; instance.destroy(true); return }
       app = instance; ref.current.appendChild(instance.canvas)
       // BEACH-LOCAL zoom (Thor reads bigger; each map sets its own). ?zoom= overrides for
@@ -274,10 +255,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         ...Array.from({ length: 16 }, (_, b) => load('shipRv' + b, `/art/intro/port/ship16/v${b}.png`)),
         ...Object.entries(PROP_SRC).map(([k, u]) => load(k, u)),
       ])
-      // ---- DRAWN-GEOMETRY measurement: read a texture's pixels once and find where its art
-      // actually touches the ground. Every sprite ships with transparent padding + off-center
-      // bases (a palm's trunk lands 17px from the sprite center), so anchors and colliders
-      // derived from the CANVAS SIZE are wrong by design — these come from the pixels. ----
+      // read a texture's pixels once to find where its art actually touches the ground
       type BaseInfo = { feet: number; pts: { x: number; y: number; hw: number }[] }
       const baseCache = new Map<Texture, Map<number, BaseInfo | null>>()
       const measureBase = (t: Texture, frac = 0.12): BaseInfo | null => {
@@ -433,10 +411,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       const { skirtSegs, wetSegs, fronts } = buildShoreFoam(world,
         { skirt: tex['skirt'], foamlace: tex['foamlace'], foamlace2: tex['foamlace2'], foamtrail: tex['foamtrail'] },
         { shoreAt, dMin: -88, dMax: 88 })
-      // (a cross-seam swell-line overlay was tried here and rejected — its wavy horizontal lines
-      // read flat/top-down against the iso world and tiled visibly at distance. The ramp + patch
-      // drift + coherent mirroring carry the de-gridding instead.)
-      // ---- AMBIENT LIFE ----
+      // ambient life: crabs on the wrack line, a gliding gull, and glints on the open water
       const shadowTexLife = makeShadow()
       /* the light version, for a contact pool ON WATER rather than a shadow on
        * sand. See the ship's own ring for why the two are not the same thing. */
@@ -465,12 +440,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       // sun glints twinkling on the open water (ocean module)
       const sparkles = tex['sparkle'] ? buildSparkles(world, tex['sparkle'], shoreAt) : []
 
-      // ---- THE SURFACE ENGINE: a sparse per-tile override map on top of the ground grid.
-      // Every tile resolves to { walk, layer, lift, z }: ground is layer 0 (sand dunes lift via
-      // liftAt); structures register elevated layer-1 tiles; a `trans` tile (stairs/ramp) is the
-      // only legal bridge between layers. Movement legality = target walkable AND same layer or
-      // crossing a transition — which makes "can't fall off the deck, use the stairs" a property
-      // of the data, not special-case code. Future maps (ship decks, cliffs, bridges) reuse this. ----
+      // the surface map: what each tile walks like, which layer it is on, and how high it sits
       type Surf = { walk: boolean; layer: number; lift: number; z: number; trans?: boolean }
       const surf = new Map<string, Surf>()
       const setSurf = (x: number, y: number, s: Surf) => surf.set(x + ',' + y, s)
@@ -592,20 +562,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         g.width = g.height = size; g.position.set(gx, gy); g.zIndex = z
         world.addChild(g); glows.push({ sp: g, ph: hash(gx, gy) * 6.28 })
       }
-      // ---- THE SHIP IS THE AVATAR (Ash's design, and the one that finally fits the
-      // medium): boarding doesn't put Thor ON the ship, it makes Thor BECOME the ship —
-      // his sprite hides, a little head pokes over the quarterdeck, and the PAINTED
-      // 8-view PixelLab ship (the art he loved from the start) is the thing you steer.
-      // Facing steps are avatar grammar, not vehicle jank: Thor himself snaps between a
-      // handful of facings and reads buttery because the MOTION is continuous — the ship
-      // inherits exactly that: continuous momentum physics, 8 painted facings behind
-      // hysteresis. Deck-walking (the endless source of iso glitches) no longer exists.
-      // Piloting is a PILOT SEAM: keyboard today, phase-2 cutscenes drive the same boat. ----
-      // SIXTEEN painted views (22.5 deg steps, k=0 bow screen-right, clockwise) — the
-      // ladder Ash approved; he drove 24 and called for the revert to 16, so 16 is the
-      // locked count (all frames height-normalized; the heel micro-rotation carries the
-      // eye through each step). Meta is a 16-point table; metaAt() lerps it to any
-      // NVIEWS if the count ever changes again. w = drawn hull width (the foam ring).
+      // boarding turns Thor into the ship, steered as sixteen painted views with continuous momentum
       const SHIPMETA: { lampX: number; lampY: number; w: number; headX: number; headY: number }[] = [
         { lampX: 5, lampY: -50, w: 175, headX: -18, headY: -38 },  // E
         { lampX: 6, lampY: -70, w: 138, headX: -12, headY: -42 },  // ESE
@@ -676,11 +633,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         const c = Math.cos(V.ang), s = Math.sin(V.ang)
         return { tx: V.tx + c * u - s * v, ty: V.ty + s * u + c * v }
       }
-      // The hull is a rotation-invariant CIRCLE of probes (center + 8 at r=1.5), so what
-      // fits going in always fits turning around — heading-shaped probe rects trapped the
-      // hull in shallow pockets no heading could leave. boatPen measures total violation
-      // (shallows past the draft, pier/platform tiles, prop circles, map fringe); a move is
-      // legal when it is clean OR strictly backs out of trouble — the walker's escape rule.
+      // how much of the hull is somewhere it should not be: shallows, structures, props or the map edge
       const boatPen = (tx: number, ty: number) => {
         let pen = 0
         for (let i = 0; i < 9; i++) {
@@ -702,25 +655,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       const wakeFx: { sp: Sprite; vx: number; vy: number; age: number; life: number; s0: number }[] = []
       let lastPuff = 0, eHeld = false, hopJy = 0, bobOff = 0
       const camS = { x: 0, y: 0, on: false } // eased camera state while riding the ship
-      /* ---- THE E-PROMPT CHIP: A DRAWN KEYCAP AND A LABEL, CACHED PER LABEL ----
-       *
-       * ASH, PLAYING 2026-09-06: every prompt a student presses E for shows "a
-       * small button panel with bold E in the middle. Make it look good."
-       *
-       * WHAT WAS HERE. A 13 pixel box with the character `E` set in `bold 11px
-       * monospace` inside it, which is the operating system's E on a school
-       * Chromebook and is the one thing `docs/ART.md` forbids outright: "icons
-       * are drawn, never an emoji or a font glyph". It also sat one pixel off
-       * centre inside its own box, because a text baseline is not a box centre.
-       *
-       * SO THE KEY IS SHAPES. A face, a rim, and a side wall you can see the
-       * depth of, then the letter as a stem and three arms with a short middle
-       * one. Same drawing as the painted maps' plaque (`pmap/PmapScene.tsx`,
-       * `drawKeycap`), in this scene's own cooler palette, so a student meets one
-       * object for "a key" from the first minute of the game onward. Deliberately
-       * not shared code: that one draws into Pixi Graphics at the world's scale
-       * and this one bakes a texture, and a shared helper would have to be either
-       * a canvas or a display object and cannot be both. */
+      /* the E prompt: a drawn keycap and a label, baked into a texture and cached per label */
       const chipCache = new Map<string, Texture>()
       const chipTexFor = (label: string) => {
         const hit = chipCache.get(label)
@@ -758,11 +693,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       const chipSp = new Sprite()
       chipSp.anchor.set(0.5, 1); chipSp.visible = false; chipSp.zIndex = 999999
       world.addChild(chipSp)
-      // Every sprite is anchored by MEASURED deck landmarks and composited offline first
-      // (scripts/port_align.py renders this exact math), so the joints are computed, never
-      // eyeballed. pier-iso2 is the straightened pier: the raw gen's walkway axis ran -0.65,
-      // not true-iso -0.5, which is why every placement formula used to drift — a lossless
-      // per-column shear fixed the axis, so ONE tile column now tracks the drawn centerline.
+      // the pier and dock are placed off measured deck landmarks, so the joints are computed
       const PIER_TX = 73, TY0 = 43, DECK_LIFT = 30 // start tile; deck top = jetty's drawn 47px * 0.63
       const jettyZ = 117 * 16 + 9 // the jetty sorts like any prop at its base row
       const pierZ = jettyZ - 4    // jetty deck edge covers the cap start
@@ -824,17 +755,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           // 1.55 tiles off the NE edge + 0.3 up along it: the hull clears the corner post
           const bx0 = plat.x + 169.5 + 1.55 * HW - 0.3 * HW, by0 = plat.y + 63.5 - 1.55 * HH - 0.3 * HH
           const btx = (bx0 / HW + by0 / HH) / 2, bty = (by0 / HH - bx0 / HW) / 2
-          /* THE WATERLINE POOL, AND IT IS A LIGHT TEXTURE RATHER THAN A DARK
-           * ONE TINTED PALE.
-           *
-           * Ash, 2026-09-06, on the title page: "the ship on the landing page
-           * is busted." What is under her is this: a soft dark ellipse the size
-           * of the hull, sitting down and to the right of her. Every other pool
-           * in this file is `makeShadow()` (a violet-teal SHADOW) tinted almost
-           * white and blended additively, which cancels to nearly nothing when
-           * the blend takes and draws a dark blob when it does not. A contact
-           * pool on water is LIGHT, so it is drawn light, and then it reads the
-           * same whichever way the blend resolves. */
+          /* the waterline pool under the hull, drawn as a light texture rather than a pale shadow */
           const ring = new Sprite(wakeTexLife); ring.anchor.set(0.5)
           ring.blendMode = 'add'
           world.addChild(ring)
@@ -896,11 +817,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         const f = surfAt(Math.round(fx), Math.round(fy))
         return t.layer === f.layer || !!t.trans || !!f.trans
       }
-      // prop colliders are tested as a SWEPT move: the whole step segment is checked against
-      // EVERY nearby circle. (A point-test at the destination let fast steps tunnel through
-      // thin trunks, and testing only the deepest circle let Thor escape one collider INTO
-      // its neighbor — the walk-through-the-asset glitch.) A circle he's already inside only
-      // permits moves that back OUT of it, so a bad state resolves instead of wedging.
+      // prop colliders are tested against the whole step segment, and a circle he is inside only lets him back out
       const collideMove = (x0: number, y0: number, x1: number, y1: number) => {
         if (surfAt(Math.round(x1), Math.round(y1)).layer !== 0) return false // decks hold no props
         const arr = colMap.get(Math.round(x1) + ',' + Math.round(y1))
@@ -920,10 +837,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         }
         return false
       }
-      // corner-probe an axis move for SURFACES (no edge-sticking, no corner-clipping), then
-      // the single center test for colliders. Probes take explicit coords so CORNER ASSIST can
-      // ask "would this move pass from the lane center?" — hugging a narrow walkway's edge then
-      // GLIDES Thor toward the lane instead of pinning him (the old sticky-pier feel).
+      // corner-probe an axis move against the surfaces, then test the colliders once at the centre
       const CR = 0.22, LANE = 0.27
       const probeX = (nx: number, aty: number) => {
         const sgn = Math.sign(nx - pos.tx)
@@ -934,10 +848,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         return canGo(atx, pos.ty, atx - CR, ny + sgn * CR) && canGo(atx, pos.ty, atx + CR, ny + sgn * CR) && !collideMove(pos.tx, pos.ty, atx, ny)
       }
 
-      // ---- CUTSCENE STAGE: the intro (and future scripted beats) direct the live scene through
-      // this. All state is read by the ticker; nothing here duplicates engine systems — scripted
-      // moves run through the same probes as the player, poses override only the texture pick,
-      // and the camera override reuses the same follow math with a scriptable target. ----
+      // the cutscene state a script writes and the ticker reads: control, camera, a walk and a pose
       const cs = {
         control: true,                                        // playerControl (gates flip it on)
         cam: null as null | { x: number; y: number; zoom: number },
@@ -1150,21 +1061,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           if (a) { a.sp.visible = visible; a.sh.visible = visible }
         },
         fx: (name, at) => csFx(name, at),
-        /* THE CUES WERE SCRIPTED A YEAR BEFORE THERE WAS ANYTHING TO PLAY THEM.
-         *
-         * This was an empty function carrying a comment about waiting on a score,
-         * which meant `introScript.ts` named three sounds, the runtime dutifully
-         * called this on all three, and the beach was silent through the whole
-         * intro with nothing anywhere reporting that. `src/game/audio.ts` is that
-         * player, and the three cues (`surf-in`, `cork-pop`, `sail-snap`) are in
-         * its registry under the underscore spelling with the hyphens forgiven.
-         *
-         * IT IS NOT WRAPPED IN A TRY. A cue the library does not hold throws
-         * `NotBuilt` out through the runtime and stops the intro, on purpose and
-         * by the same law as `fx`: a swallowed refusal here is how a script ships
-         * naming a sound nobody drew. `audio.test.ts` walks every cue in the
-         * script against the registry, so the throw is a guard against a future
-         * edit rather than a live risk. */
+        /* play a named sound cue, and throw rather than go quiet if the library does not hold it */
         audio: (cue) => playSfx(cue),
         call: csCall,
         playerControl: (on) => {
@@ -1176,45 +1073,9 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       }
       if (onStage) onStage(stage)
 
-      /* ---- A CLICK IS A DESTINATION ON THE BEACH TOO -------------------------
-       *
-       * SWEEP-1 item 4, and it is the first four minutes of the game for every
-       * student. This file had no pointer handler of any kind: no `pointerdown`,
-       * no `pointertap`, no `eventMode`. The first instruction the game has ever
-       * given is "Walk to the bottle. Press W A S D or the arrow keys", and a
-       * freshman on a trackpad clicked the sand, moved zero pixels, and stood
-       * still for about twenty seconds until the script gave up and walked him
-       * itself. `PmapScene` grew this in `bd9cac7` for the painted maps; the
-       * beach, which is the one map every student meets first, never did.
-       *
-       * IT STEERS, IT DOES NOT TELEPORT AND IT DOES NOT PATHFIND. The target is
-       * fed back in as the same `dx`/`dy` the keys produce, so every probe, every
-       * corner assist and every collider below applies unchanged: he stops where
-       * a person walking with the keys would stop, and the walkTo gates resolve
-       * on the same radius test they already use. There is no route search on
-       * this map to give him, so a click behind a rock walks him into the rock
-       * and stops, which is the honest reading of a click nobody can reach.
-       *
-       * THE INVERSE OF `ocean.ts`'s PROJECTION, which is the only geometry here:
-       * x is (tx - ty) * HW and y is (tx + ty) * HH, so tx is (x/HW + y/HH) / 2
-       * and ty is (y/HH - x/HW) / 2. Height is ignored on purpose: the pier is
-       * the only lifted ground and a click on it lands a tile or so short, which
-       * the walk then closes on foot. */
+      /* a click on the sand is a destination, steered with the same input the keys produce */
       let clickWalk: { tx: number; ty: number; until: number; last: number; lx: number; ly: number; route: { tx: number; ty: number }[]; ri: number } | null = null
-      /* ---- AND IT DOES FIND A WAY ROUND, NOW ----------------------------------
-       *
-       * "It does not pathfind" above was the honest state and it cost the pier:
-       * one click from the bottle steered him straight at the pier, into the
-       * flagpole, where he stood for eleven seconds with the arrows still
-       * pointing past it (STATE-OF-THE-GAME confusing 3). The pier needed four
-       * to eleven clicks. The map is a tile grid with the surface engine and the
-       * prop circles already deciding what a tile is worth, so a breadth-first
-       * search over tile centres with those same two tests is a route the walk
-       * can follow, and the corner assist closes the last fraction of a tile.
-       * Diagonal steps need both orthogonal neighbours open, so the route never
-       * cuts a corner the body would catch on. A goal that cannot be reached
-       * gets the closest tile the search found, which is what a click nobody can
-       * reach honestly means. */
+      /* a breadth-first search over tile centres for a route round whatever is in the way */
       const routeTo = (gx: number, gy: number): { tx: number; ty: number }[] => {
         const sx = Math.round(pos.tx), sy = Math.round(pos.ty)
         const ex = Math.round(gx), ey = Math.round(gy)
@@ -1299,18 +1160,12 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         if (keys['s'] || keys['arrowdown']) dy += 1
         if (keys['a'] || keys['arrowleft']) dx -= 1
         if (keys['d'] || keys['arrowright']) dx += 1
-        /* AND HE CAN CHANGE HIS MIND, the same law `PmapScene` holds: a walk the
-         * player started by clicking is a suggestion, so the moment a key is
-         * touched the click is dropped rather than fighting it for the four
-         * seconds it would take to arrive. */
+        /* touching a key drops the clicked walk, so the player can always change their mind */
         if (clickWalk && (dx || dy)) clickWalk = null
         if (clickWalk && !inputMuted) {
           const now = performance.now()
           const ddx = clickWalk.tx - pos.tx, ddy = clickWalk.ty - pos.ty
-          /* HE HAS STOPPED GETTING ANYWHERE, so the walk is over. Without this a
-           * click on the sea or behind a rock leaves him pushing into it until
-           * the deadline, which is the twenty-second shuffle this whole change
-           * exists to end. Half a second of no real progress is the test. */
+          /* half a second of no real progress ends the walk rather than pushing into a wall */
           const crept = Math.hypot(pos.tx - clickWalk.lx, pos.ty - clickWalk.ly)
           if (crept > 0.05) { clickWalk.last = now; clickWalk.lx = pos.tx; clickWalk.ly = pos.ty }
           if (Math.hypot(ddx, ddy) <= 0.35 || now > clickWalk.until || now - clickWalk.last > 500) clickWalk = null
@@ -1330,11 +1185,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           // dt clamped: a hitched frame must not turn one step into a quarter-tile leap
           const l = Math.hypot(dx, dy), ux = dx / l, uy = dy / l, sp = (sprinting ? 0.128 : 0.075) * Math.min(dt, 2)
           const ntx = pos.tx + ux * sp, nty = pos.ty + uy * sp
-          // corner assist: when an axis move fails, glide toward a lane center that lets it
-          // pass. On sand only the CURRENT lane is trued up (subtle); on a deck the neighbor
-          // lanes count too, so a wide platform FUNNELS into its 1-wide walkway instead of
-          // pinning Thor at the edge. The glide itself must probe clean — applying it
-          // unchecked could shove him inside a collider (the old noclip entry point).
+          // corner assist: when an axis move fails, glide toward a lane centre that lets it pass
           const onDeck = surfAt(Math.round(pos.tx), Math.round(pos.ty)).layer > 0
           if (ux !== 0) {
             if (probeX(ntx, pos.ty)) pos.tx = ntx
@@ -1433,13 +1284,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           // a calm ride: the swell lifts her gently and only a touch more under way (kept
           // small — the straight waterline crop must never lift clear of the foam ring)
           V.bob = Math.sin(bt * (0.75 + V.spd * 5) + 2.1) * 1.1 * (1 + V.spd * 4)
-          // the pilot (while Thor crews her): A/D is the RUDDER, W the throttle, S brakes
-          // through zero into slow astern, nothing coasts her down long and gently. The
-          // rudder is INERTIAL — it lays over in about a third of a second — so every
-          // course change eases in and out instead of kinking, and its bite grows with
-          // way on. The heading is continuous, the sprite is the nearest of 8 painted
-          // views behind hysteresis — the avatar grammar Thor himself uses. This block is
-          // the seam the phase-2 cutscene pilot replaces.
+          // the helm: A and D are the rudder, W the throttle, S brakes through zero into slow astern
           if (V.state === 'crewed' && !V.hop) {
             const dtc = Math.min(dt, 2)
             const steer = ((keys['d'] || keys['arrowright']) ? 1 : 0) - ((keys['a'] || keys['arrowleft']) ? 1 : 0)
@@ -1464,10 +1309,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
               if (p1 <= 1e-4 || p1 < p0 - 1e-4) { V.tx = nx; V.ty = ny; return true }
               return false
             }
-            // blocked ahead: GLIDE along the blocker on whichever axis still passes (the
-            // walker's own trick), bleeding way instead of killing the throttle — a hull
-            // that zeroed spd on contact sat DEAD at every obstacle until the bow had been
-            // slow-turned fully clear
+            // blocked ahead: glide along the blocker on whichever axis still passes, bleeding way
             if (!tryMove(V.tx + c7 * step, V.ty + s7 * step)) {
               const slid = tryMove(V.tx + c7 * step * 0.7, V.ty) || tryMove(V.tx, V.ty + s7 * step * 0.7)
               V.spd *= slid ? 0.985 : 0.8 // sign-safe: astern bleeds and retries the same way
@@ -1485,10 +1327,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             hopJy = -34 * Math.sin(Math.PI * k)
             if (k >= 1) {
               if (hp.to === 'land') {
-                // stepped ashore: onto the DOCK near the berth means docking (the ship
-                // snaps the last stretch home); anywhere else — mid-pier, the beach —
-                // she stays ANCHORED where she was left (an on-screen teleport home from
-                // across the bay read as a glitch)
+                // stepping onto the dock near the berth moors her; anywhere else she stays where she was left
                 const berthD = Math.hypot(V.tx - V.berthTx, V.ty - V.berthTy)
                 if ((hp.landLayer === 1 && berthD < 6) || berthD < 1.6) { V.tx = V.berthTx; V.ty = V.berthTy; V.ang = Math.PI; setBucket(V, true); V.state = 'moored' }
                 else V.state = 'anchored'
@@ -1550,10 +1389,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           } else chipSp.visible = false
           if (keys['e'] && !eHeld && action && !csHeld) action()
           eHeld = !!keys['e']
-          // ---- RENDER: the painted view + HEEL — the sprite leans through the residual
-          // angle between the continuous heading and the drawn view's center, so the eye
-          // is carried across the 22.5-degree steps (it reads as a ship heeling into her
-          // turn, which is what a ship does); the lamp and head ride the lean ----
+          // draw her: the painted view, plus a lean through the angle between the heading and that view
           const M = metaAt(V.bucket)
           const bc9 = ((bucketCoord(V.ang) % NVIEWS) + NVIEWS) % NVIEWS
           let resid = bc9 - V.bucket
@@ -1742,13 +1578,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           for (let i = 0; i < pointer.sps.length; i++) {
             const sp = pointer.sps[i]
             const t2 = (i + 1.2) / (pointer.sps.length + 1.4)  // skip Thor's feet, stop short of the goal
-            /* A NEAR TARGET STILL GETS ITS MARK. "Arrived" used to hide the whole
-             * trail inside ninety pixels, and the bottle settles about seventy
-             * from where Thor wakes, so the first gate in the game (walk to the
-             * bottle) had nothing lit on it at all: sampled at +0.3, +3.3 and
-             * +6.4 s, zero chevrons (STATE-OF-THE-GAME confusing 2). Inside that
-             * range one chevron hangs over the target itself, pointing down at
-             * it and bobbing, and the rest of the trail stays out of the way. */
+            /* a target too close for a trail gets one chevron bobbing over it instead */
             if (len < 90) {
               if (i !== 0) { sp.alpha = 0; continue }
               sp.position.set(bx2, by2 - 34 + 4 * Math.sin(wt * 3.4))
@@ -1813,11 +1643,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         resizeFx(vw, vh)
       })
 
-      // ---- golden-hour atmosphere: a warm low sun glow + a broad warm horizon haze + a soft warm
-      // vignette, layered over the composited world so the beach feels dreamy and sun-soaked. ----
-      // BEACH-LOCAL atmosphere, now actually visible: a full-screen warm tropical tint for cohesive
-      // warmth, a soft golden sun glow upper-left, and a real (but warm + soft, not black) cinematic
-      // vignette framing the scene.
+      // golden hour light: a warm tint, a low sun, a horizon haze, a ray wash and a warm vignette
       const warm = new Sprite(Texture.WHITE); warm.tint = 0xffc87e; warm.alpha = 0.09; instance.stage.addChild(warm)
       const sun = new Sprite(radial(512, [[0, 'rgba(255,216,150,0.22)'], [0.5, 'rgba(255,206,138,0.07)'], [1, 'rgba(255,206,138,0)']])); sun.anchor.set(0.5); sun.blendMode = 'add'; instance.stage.addChild(sun)
       // distant sun-glimmer: a soft gold band fading down across the far water

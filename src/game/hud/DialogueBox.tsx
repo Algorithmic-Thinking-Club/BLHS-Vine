@@ -1,74 +1,4 @@
-/* THE ONE BOX.
- *
- * Ash ruled on 2026-08-28 that the two dialogue renderers collapse into one
- * component, and this is it. There were two: `cutscene/CutsceneOverlay.tsx` drew
- * the cutscene's box and `hud/Dialogue.tsx` drew the world's, which is the one
- * `PmapScene`'s `say` reaches. Two components, two behaviours, one job.
- *
- * WHY IT MATTERS MORE THAN IT LOOKS. The dialogue box is the delivery surface for
- * nearly every measured piece of content in the run: every station, every NPC,
- * every tutorial line, every island host and every member's Python speaks through
- * it. Twelve islands will not all reach the same one, so whichever box an island's
- * host happened to hit is the text sizing, the advance behaviour and the portrait
- * support that island inherits. The plain arm makes that structural rather than
- * cosmetic: §16 is the same content with the world taken away, and if the split is
- * made at two components it gets made twice, or once at the wrong layer.
- *
- * WHAT IT OWNS. The picture and the behaviour: the portrait frame, the name
- * plaque, the text that is being typed, the caret, the advance affordance, and the
- * choices. It does NOT own the typewriter's clock, because the two callers pace it
- * differently for real reasons: the cutscene runtime ticks on the host scene's own
- * ticker so cutscene time and world time cannot drift, and the world box runs on
- * rAF because there is no scene clock to ride. Both hand this component a `shown`
- * count and a `done` flag, so the picture is identical either way.
- *
- * ---- WHAT THE UI SESSION OF 2026-09-01 REBUILT, AND WHY EACH PIECE MOVED ----
- *
- * THE PORTRAIT IS DRAWN INSIDE A DRAWN FRAME. It was a bare `<img>` with no frame
- * around it, floating on the paper. `PortraitFrame` wears `portrait_frame`, which
- * MAPVIS drew and nothing in `src/` had ever mounted, and it bottom-anchors the
- * picture, which the kit's own record marks REQUIRED and does not default: a
- * character centred in their own box floats off the bottom of it. The column's
- * width is read off the dialogue piece's own `portrait` region when the platform
- * publishes one, so a repaint moves the layout instead of a percentage in a
- * comment doing it. A portrait nobody has drawn yet leaves a clean empty frame and
- * says which id it wanted, because a silent hide is how an author ships a faceless
- * scene without ever being told.
- *
- * THE ADVANCE CUE IS THE DRAWN PAW. `GAME-DESIGN` §11.1 commissioned "a bouncing
- * paw-print continue cue", MAPVIS drew it as `cue` with frame_1 to frame_4, and
- * nothing in this repository had ever read that piece. Four faces on a slow loop,
- * one shown at a time, stopped on frame one under reduced motion. The words beside
- * it name BOTH paths, click and space, because "press E" is meaningless on a
- * trackpad and a click is meaningless on a keyboard, and neither is the fallback
- * for the other. The default lives here and the cutscene overlay's per-call
- * override is deleted: one box, one sentence.
- *
- * THE CHOICES AND THE BOX ARE ONE COLUMN. `dialogue.css` used to hardcode the
- * choices at `bottom: calc(... + min(190px, 26vh) + 10px)`, which was the box's
- * height back when the box had one. §40.14 made the box grow to its content, so a
- * long question at text size L put the planks straight on top of the paper. They
- * are a bottom-anchored flex column now and the arithmetic is gone.
- *
- * EVERY STATE IS ON THE ELEMENT. §40.41 wants the states enumerated rather than
- * implied, so `data-state` carries typing, complete, asking and answered, and the
- * stylesheet keys off it. `answered` is the one that did not exist: a student
- * pressed a choice and the whole conversation vanished with no acknowledgement
- * that the press had landed.
- *
- * A POINTER PATH FOR EVERY KEY PATH AND THE REVERSE. Every choice is a real
- * button, focusable and clickable, and is also on a number key. Advancing is a
- * click anywhere on the box and is also space or enter.
- *
- * THE SKIN IS ONE STRING. `skin` becomes a data attribute the stylesheet keys off,
- * so a look swaps by adding rules rather than by editing this file. The kit's own
- * skin is the wider one and lives on <html> (`ui/skin.ts`); this prop stays
- * because one line in one scene may want a different box from the rest of the game
- * without changing the rest of the game. The box also carries
- * `kit-surface-dialogue`, which is what a skin with no art paints a background
- * onto: a texture token set to `none` and nothing behind it is an invisible
- * dialogue box, and §16's plain arm is exactly that skin.
- */
+/* the one dialogue box: portrait, name plaque, the typed line, the cue and the choices */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { announce } from '../ui/a11y'
 import { bandFromRects, setUiBand } from '../ui/frame'
@@ -89,46 +19,19 @@ export type BoxLine = {
   emote?: string
 }
 
-/* THE FIRST QUARTER SECOND IS DEAD, on purpose. A student holding space through a
- * scene, or mashing it, eats the line they never read. The cutscene runtime has
- * had this rule since it was written and the world box did not, so the same student
- * lost lines in one half of the game and not the other. */
+/* how long after a line appears presses are ignored, so a held key does not eat it */
 export const ADVANCE_DEAD_MS = 250
 
 /* the four faces of the drawn paw, in the order they were cut off the sheet. A
  * name that is not on the sheet draws nothing at all rather than a blank square,
  * so this list is safe against a kit that has not landed. */
-/* ONE PAW, BOUNCING, AND NOT FOUR PAWS FLASHING.
- *
- * `cue` publishes frame_1 to frame_4 and they are not motion frames: they are
- * the same paw in white, brown, gold and green. Cycling them on a cream panel
- * did two wrong things at once. The white frame is INVISIBLE on paper, so a
- * quarter of the loop the cue simply was not there, and the art-direction pass
- * of 2026-09-01 read the result as "a white paw glyph half-buried under the
- * letter r... invisible on cream and reads as a smudge". And a mark that
- * changes colour on a loop is a hue animation, which says nothing on a panel
- * that crushes hue.
- *
- * GAME-DESIGN §11.1 commissioned a "bouncing paw-print continue cue" and bounce
- * is the word. One frame, the brown one, which reads on cream and on wood, and
- * it MOVES, which is what a cue is for. The other three faces stay drawn and
- * unused rather than being cycled for the sake of using them. */
+/* which drawn paw face the continue cue wears */
 const CUE_FACE = 'frame_2'
 
-/* WHAT THE HINT SAYS, ONCE, FOR BOTH BOXES. The cutscene passed its own string
- * ending in a right-pointing triangle character, which `docs/ART.md` forbids
- * outright, and the world box passed the single word `click`, which tells a
- * keyboard player nothing. Both paths, in words, in one place. */
+/* the words under the cue, naming both the click and the key */
 const DEFAULT_HINT = 'click, or press space'
 
-/* HOW WIDE THE PICTURE'S COLUMN IS, ASKED OF THE ART RATHER THAN GUESSED.
- *
- * `docs/UI-KIT.md`'s opening complaint is that the inside of every painted
- * surface is a percentage somebody measured in an image editor and typed into a
- * stylesheet. The dialogue piece can publish a `portrait` region, so when it does
- * the column is that region's own share of the piece's width and Ash repainting
- * the box moves the layout with it. When it does not, the stylesheet's own
- * fallback stands, and that is a stated default rather than a silent one. */
+/* how wide the portrait column is, read off the dialogue art when it publishes a region */
 function portraitColumn(): string | undefined {
   const pieces = kitCached()
   if (!pieces?.length) return undefined
@@ -138,15 +41,7 @@ function portraitColumn(): string | undefined {
   return `${Math.round((slot.w / piece.w) * 1000) / 10}%`
 }
 
-/* AND WHETHER THERE IS A DRAWN FRAME AT ALL.
- *
- * `portrait_frame` is one of the eleven grounds MAPVIS publishes and there is no
- * committed fallback for it in `public/art/ui/`, so on a build with no platform
- * (a member on a train, `?kit=0`, a district filter) `.kit-surface-portrait_frame`
- * resolves to nothing and the picture would float exactly the way it did before
- * any of this. When the piece is not there the column wears a plain token plate
- * instead, so a portrait that has not been drawn yet still leaves a clean empty
- * frame rather than a hole. */
+/* whether the kit published a drawn portrait frame */
 const frameIsDrawn = (): boolean =>
   kitOptedIn() && !!kitPiece(kitCached() ?? [], 'portrait_frame')
 
@@ -170,10 +65,7 @@ export function DialogueBox({
   const stackEl = useRef<HTMLDivElement>(null)
   const asking = !!options?.length
 
-  /* WHICH ONE THEY PRESSED, HELD LONG ENOUGH TO BE SEEN. The driver usually tears
-   * the box down on the next tick, so this is a frame or two of acknowledgement
-   * rather than a screen a student sits in. It is also the guard that stops a
-   * second press answering a question that has already been answered. */
+  /* which choice they pressed, held long enough to be seen */
   const [picked, setPicked] = useState<number | null>(null)
 
   /* the kit lands after the first render, and a face asked for before it arrives
@@ -185,22 +77,7 @@ export function DialogueBox({
   // a new line resets the dead zone and the answer, so both are per line
   useEffect(() => { shownAt.current = performance.now(); setPicked(null) }, [line.text])
 
-  /* HOW MUCH OF THE WINDOW THE CONVERSATION IS USING, PUBLISHED.
-   *
-   * The eyes round found choice planks drawn on top of the player: the box lays
-   * itself out from the bottom of the window and the camera composes the
-   * painting into the whole window, so nothing stopped them wanting the same
-   * pixels. This box is the only thing that knows how tall the stack really is
-   * (a two-choice question and a four-choice one are 130px apart), so it says,
-   * and `src/game/pmap/PmapScene.tsx` lifts the picture by that much.
-   *
-   * ONE ELEMENT ANSWERS IT NOW. It used to be measured off the box and the
-   * choices separately, which was right while they were two absolutely
-   * positioned things; they are one column, so the column is the measurement.
-   *
-   * Layout effect, because the number has to be right before the next frame the
-   * ticker draws, and re-measured whenever the stack can have changed height:
-   * a question opening, a question being answered, or the window resizing. */
+  /* publishes how tall the conversation is, so the scene can lift the picture above it */
   useLayoutEffect(() => {
     const measure = () => setUiBand('dialogue', bandFromRects([stackEl.current]))
     measure()
@@ -215,10 +92,7 @@ export function DialogueBox({
     if (asking && line.done) firstChoice.current?.focus()
   }, [asking, line.done])
 
-  /* THE LINE, SAID ONCE, WHEN IT IS FINISHED. Every measured piece of content in
-   * the run comes through this box, so a student using a reader who cannot hear
-   * a line cannot hear the game. Announced on completion rather than while it is
-   * typing, because the partial text changes every frame. */
+  /* says the finished line once, for a student using a screen reader */
   useEffect(() => {
     if (!line.done) return
     announce(line.who ? `${line.who}: ${line.text}` : line.text)
@@ -246,18 +120,7 @@ export function DialogueBox({
         // 1..9 pick a choice, which is the key path beside the pointer path
         const n = Number(e.key)
         if (line.done && n >= 1 && n <= (options?.length ?? 0)) { pick(n - 1); e.preventDefault() }
-        /* ---- AND THE ARROWS MOVE BETWEEN THEM ---------------------------
-         *
-         * The brief's non-reader law: "the first three minutes of control are
-         * playable with arrow keys, E and a click, and nothing else." A student
-         * spends those three minutes learning that arrows are how you move,
-         * meets the first question, and finds arrows dead in both directions:
-         * the box holds the world so they cannot walk, and nothing here listened
-         * so they could not choose either. The only paths left were Tab, or a
-         * number that was cream ink on a cream plate.
-         *
-         * A choice list is a radio group by shape, so it takes the roving focus
-         * every radio group has: up and down wrap, Home and End jump. */
+        /* up, down, home and end move the focus between the choices */
         const n2 = options?.length ?? 0
         if (line.done && n2 > 1 && /^(ArrowUp|ArrowDown|ArrowLeft|ArrowRight|Home|End)$/.test(e.key)) {
           const btns = [...(stackEl.current?.querySelectorAll<HTMLButtonElement>('.dlg-choice') ?? [])]
@@ -278,11 +141,7 @@ export function DialogueBox({
     }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
-    /* the deps are the things the handler branches on, not nothing. With no array
-     * at all this tore down and re-registered a window listener on every render,
-     * and the world box re-renders once per animation frame while a line is
-     * typing: sixty add/remove pairs a second, on the lowest-end machine in the
-     * deployment target, during the most common interaction in the game. */
+    /* the deps are what the handler branches on, so the listener is not rebuilt each frame */
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bindKeys, asking, line.done, options, onPick, onAdvance, picked])
 
@@ -295,11 +154,7 @@ export function DialogueBox({
 
   return (
     <div ref={stackEl} className="dlg-stack" data-state={state}>
-      {/* THE CHOICES SIT ABOVE THE BOX rather than inside it, dealt like held
-          cards (§11.1). They are the same column as the box now, so the box may
-          grow to whatever a member wrote without the planks landing on the paper:
-          the old rule positioned them off a hardcoded 190px that stopped being
-          the box's height the day §40.14 was fixed. */}
+      {/* the choices sit above the box, dealt like held cards */}
       {asking && line.done && (
         <div className="dlg-choices" role="group" aria-label="Choices" onClick={(e) => e.stopPropagation()}>
           {options!.map((o, i) => (
@@ -311,13 +166,7 @@ export function DialogueBox({
                  position move, never a hue on its own (§40.31), because a school
                  Chromebook panel crushes both lightness and saturation. */
               disabled={picked !== null && picked !== i}
-              /* THE KEY PATH REACHES A READER TOO. The digit is `aria-hidden`
-                 because a plate with a number on it read out as "1" before the
-                 option is noise, but §40.28 wants a key path for every pointer
-                 path on BOTH channels, and hiding it left the key path visible
-                 only to people who can see it. The name carries the option and
-                 then the key, in that order, because the option is the answer
-                 and the key is how to give it. */
+              /* the accessible name carries the option and then the key that picks it */
               aria-label={`${o}. Press ${i + 1}`}
               onClick={() => pick(i)}
             >
@@ -337,10 +186,7 @@ export function DialogueBox({
         data-state={state}
         role={asking ? 'group' : 'button'}
         tabIndex={asking ? -1 : 0}
-        /* NOT A LIVE REGION, WHICH IT USED TO BE. `aria-live` sat on this box
-           while the typewriter rewrote its text forty-five times a second, so a
-           reader was handed a new announcement every 22ms and could not follow
-           one sentence. The finished line is announced once instead, above. */
+        /* not a live region: the finished line is announced once instead, above */
         aria-label={asking ? undefined : 'Continue'}
         onClick={(e) => { e.stopPropagation(); advance() }}
       >
@@ -349,20 +195,11 @@ export function DialogueBox({
             className={`dlg-portrait${frameIsDrawn() ? '' : ' dlg-portrait-bare'}`}
             style={{ width: portraitColumn() }}
           >
-            {/* the frame is the kit's own `portrait_frame`, and it warns with the
-                path it wanted when the art is not drawn yet. There is no
-                public/art/portraits/ in this repository, so today every portrait
-                takes that path and leaves a clean empty frame. */}
+            {/* the kit's own portrait frame, which says so when the picture is not drawn yet */}
             <PortraitFrame id={line.portrait} />
           </span>
         )}
-        {/* THE PLAQUE HANGS OFF THE BOX, not off the text column. It is absolutely
-            positioned at the box's own top edge, so making it a child of the text
-            column positioned it against that column instead and dropped it onto
-            the first line. A sibling, so its containing block is the box.
-            The picture is `--kit-art-plaque`, the small carved plate Ash already
-            has on the HUD, stretched as a SHAPE and never nine-sliced: eighty
-            pixels of carving on a twenty-pixel plate is the `6851a68` lesson. */}
+        {/* the name plaque hangs off the box's own top edge */}
         {line.who && (
           <div className="cs-nameplaque">
             {line.who}
@@ -377,11 +214,7 @@ export function DialogueBox({
         </div>
         {line.done && !asking && (
           <div className="cs-continue-hint">
-            {/* THE PAW, FROM THE PLATFORM IF IT ANSWERED AND FROM THE REPO IF IT
-                DID NOT. `cue` is the platform's four frame sheet; `mark-paw` is
-                the local one drawn on 2026-09-01 for exactly the build that
-                cannot reach the platform. Same bounce either way, so a student
-                behind a district filter sees the same cue rather than a shape. */}
+            {/* the paw from the platform when it answered, and the local one when it did not */}
             <span className="dlg-paw" aria-hidden="true">
               {pawDrawn
                 ? <Glyph piece="cue" face={CUE_FACE} size={16} className="dlg-paw-f" />

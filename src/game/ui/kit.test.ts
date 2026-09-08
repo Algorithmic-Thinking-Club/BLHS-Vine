@@ -1,23 +1,4 @@
-/* THE READER FOR SOMEBODY ELSE'S DOCUMENT, PINNED WHERE IT GETS THINGS WRONG.
- *
- * The kit is the second document in this game that is authored in one repo and
- * consumed in another, and the first one taught the lesson this file exists to
- * hold: `loadComposition` threw away every island MAPVIS had authored because
- * two fields failed one check, it said so in a console line nobody was reading,
- * and it stayed broken for weeks with no visible symptom. So the tests below are
- * not about CSS. They are about the four places a cross-repo reader rots:
- *
- *   1. the name on the wire is not the name the consumer mounts, and the one
- *      piece where that is true is the one every line of dialogue draws on.
- *   2. the url has to be rewritten twice, absolute and versioned, or the bytes
- *      either 404 on a school Chromebook or cache forever at the wrong art.
- *   3. a refusal has to be partial and named. One bad piece is one bad piece.
- *   4. applying twice must replace rather than stack, because a hot reload and a
- *      re-fetch both call it and two kits in the head is two answers.
- *
- * The fixtures are trimmed copies of real rows off `mapvis-atc.vercel.app`, so
- * the shapes are the platform's rather than this file's idea of them.
- */
+// the reader for the UI kit MAPVIS publishes: handles, urls, partial refusals and applying it
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   applyKit, kitArtUrl, kitCss, kitFace, kitFaults, kitHandle, kitOptedIn,
@@ -235,10 +216,7 @@ describe('the cache, and the Chromebook that cannot reach the platform', () => {
 })
 
 describe('the kit is worn by default, and can be taken off', () => {
-  /* THE DEFAULT TURNED OVER, 2026-08-31, on Ash's order, in the same edit that
-   * stripped the double inset. Both halves had to move together: the kit on its
-   * own would have inset every panel twice, and the strip on its own would have
-   * left every panel with no frame at all. */
+  /* the kit is worn by default, and `?kit=0` is what takes it off */
   it('is worn unless somebody says otherwise', () => {
     expect(kitOptedIn('')).toBe(true)
     expect(kitOptedIn('?map=hub')).toBe(true)
@@ -252,18 +230,7 @@ describe('the kit is worn by default, and can be taken off', () => {
   })
 })
 
-/* ---- THE ONE PIECE THE PLATFORM DOES NOT GET TO REPLACE -------------------
- *
- * Ash ruled on 2026-09-01 (docs/ops/BRIEF-UI.md item 1) that the plank is the
- * two-month-old `public/art/ui/plank-button.png` and not MAPVIS's, because he
- * saw the swap and liked the old one better. That ruling lives in one Set in
- * `kit.ts` and would be undone by a one-word edit with nothing failing: the
- * symptom is pale ink on pale parchment on the title screen and in the
- * wardrobe, which is a thing you find by looking rather than by running.
- *
- * So it is held down here. The plank comes off the wire and reaches neither the
- * token nor the stylesheet.
- */
+// the plank is the game's own art, so the platform's version of it is read and never worn
 const PLANK: KitPiece = {
   name: 'plank', type: 'plank', w: 404, h: 247,
   slice: { top: 25, right: 43, bottom: 43, left: 31 },

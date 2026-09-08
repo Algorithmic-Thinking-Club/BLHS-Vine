@@ -1,31 +1,4 @@
-/* THE KIT'S ONE MATERIAL LAYER, AND THE ONLY PLACE A COLOUR IS DECIDED.
- *
- * §80.5's job for this substrate is "twenty surfaces behaving like one game", and
- * what was here instead was one hardcoded paper-on-wood look with the same eleven
- * hexes retyped across six stylesheets: `#8a744f` thirteen times, `#4a3826` eight,
- * the wood plaque gradient five. Nothing was wrong with the look. What was wrong
- * is that there was no way to change it, so §16's plain arm, which is the same
- * content with the game-ness taken away, would have had to be a second set of
- * stylesheets and would then have drifted from the first one the day after it
- * was written.
- *
- * EVERY VALUE BELOW IS EXTRACTED, NOT INVENTED. Each one was already in the tree
- * at the byte, and `tokens.test.ts` holds them to it, so turning the kit into a
- * system did not restyle the game out from under anybody. The default skin has to
- * render what shipped yesterday, and the test is how that is checked rather than
- * asserted.
- *
- * THREE FAMILIES, BECAUSE THE REPO HAS THREE. The paper kit is what the game
- * shows: dialogue, Handbook, settings, wardrobe, pause. The front group is the
- * title and intro chrome (`theme.css`'s `--c-*`, which reach `boot-title.css`,
- * `i3.css` and `run.css`, files this session does not own, so they are aliased
- * here rather than renamed there and a skin still reaches them). The glass group
- * is `ui/ui.css`, the tile-era HUD that only `?legacy=1` can still reach; it is
- * named here for completeness and no shipping surface uses it.
- *
- * A SKIN IS AN ATTRIBUTE ON <html>, the same way `data-rm` and `data-textsize`
- * already are, so one line in `applySettings` swaps every surface at once.
- */
+/* the kit's colour, type and shape tokens, and the only place a colour is decided */
 
 :root {
   /* ---- ink: what type is made of on paper ------------------------------- */
@@ -114,47 +87,8 @@
   --kit-alarm-edge: #7c2c1a;
   --kit-alarm-ink: #fff;
 
-  /* ---- what a panel sits on, and what it casts --------------------------
-   *
-   * THE VEILS WENT UP AFTER THE EYES ROUND, 2026-08-30. They were .5, .45 and
-   * .35, which leaves half the world legible behind a panel that has taken the
-   * whole screen, and the review read the arm-game shot as text-over-text: the
-   * world's own "the Central Island" label competing with the panel's speaker
-   * name for the same pixels. A veil is not a tint, it is the thing that says
-   * the world has stopped for a moment, and at half strength it says neither.
-   * The world is still there, it is just properly dim.
-   *
-   * AND THEY ARE WARM, WHICH THE FIRST PASS AT THIS GOT WRONG. Taken to .82 of a
-   * cold blue-black they read as a void with a sign floating in it: the eyes
-   * round came back with "78 to 93 percent of the frame is #050810" and the
-   * TavernWorld reference beside it, where the world stays lit and warm behind
-   * every panel. The island has to still be THERE, dimmed, not deleted. So the
-   * veil is a warm brown-black at .74 rather than a navy one at .82, which is
-   * dark enough that nothing on the water competes with a word on the paper and
-   * light enough that the painting is still a painting behind it.
-   *
-   * `tokens.test.ts` pinned the old bytes on purpose, so that the kit becoming a
-   * system could not restyle the game out from under anybody. It pins these
-   * instead, for the same reason, and this comment is why they moved. */
-  /* AND THEY CAME BACK DOWN ON 2026-09-01, on a measurement rather than a
-   * feeling. The art-direction pass sampled the same pixel of open water on
-   * three surfaces: the live ocean is rgb(7,54,68), behind the pause sheet it is
-   * (11,31,35), and behind the wardrobe, the year sheet and the beat runner it is
-   * (11,20,23), which is four percent luminance. On a school panel with poor
-   * blacks that is not a dimmed world, it is a flat void with banding, and its
-   * verdict was that "a sunny island explorer spends most of its screen time as a
-   * brown rectangle floating in black".
-   *
-   * THE 2026-08-30 REASON STILL HOLDS AND IS NOT BEING UNDONE: a veil at half
-   * strength let the world's own labels compete with a word on the paper, and it
-   * was raised to stop that. Both notes are right and they are about different
-   * numbers. Sixty percent is dark enough that nothing on the water is readable
-   * through it and light enough that the painting is still a painting, and the
-   * three veils are now within twelve points of each other rather than
-   * twenty-two, so the modal system agrees with itself.
-   *
-   * The hue does not move. A cold blue-black was tried in that round and read as
-   * a void; the warm brown-black is what replaced it. */
+  /* what a panel sits on, and what it casts */
+  /* the veils: warm brown-black, dark enough to hide the world's own labels behind a panel */
   --kit-veil: rgba(14, 10, 8, .6);
   --kit-veil-soft: rgba(14, 10, 8, .56);
   /* the pause sheet keeps the world PRESENT, because a player who paused has not
@@ -172,11 +106,7 @@
    * control in the kit, because a ring that differs per panel reads as a bug. */
   --kit-focus: #ffd98a;
   --kit-focus-width: 2px;
-  /* ONE PIXEL, MEASURED OFF A PICTURE. At three the ring is a loose rectangle
-     floating around a carved sign rather than part of it, which is what every
-     shot in `build-shots/ui/after/` shows on whichever control the panel focused
-     when it opened. An outline does not take part in layout, so tightening it
-     cannot move anything. */
+  /* how far the ring sits out from the control it is drawn around */
   --kit-focus-offset: 1px;
 
   /* ---- type ------------------------------------------------------------- */
@@ -184,12 +114,7 @@
   --kit-face-title: 'Harbormaster', monospace;
   --kit-face-body: 'Deckhand', monospace;
 
-  /* I6, TEXT SIZING THAT ACTUALLY REACHES A PANEL. §80.5 measured `textSize`
-   * honoured by four CSS rules in the whole tree, two for cutscene text and two
-   * for a dialogue choice. Every other panel is sized in `cqw`, which tracks the
-   * panel's width and ignores the setting entirely, so a student who asked for
-   * large text got it in the dialogue box and nowhere else. One multiplier the
-   * panels fold into their own sizes fixes all of them at once. */
+  /* one multiplier every panel folds into its own sizes, so the text setting reaches them all */
   --kit-text-scale: 1;
 
   /* ---- shape ------------------------------------------------------------ */
@@ -200,12 +125,7 @@
   --kit-r-pill: 14px;
   --kit-border: 2px;
 
-  /* ---- motion, which is where reduced motion enters the whole kit -------
-   * A transition duration is a token so `html[data-rm='1']` can take all of them
-   * to nothing in one rule below. An ANIMATION is not: an entrance shortens but
-   * a decorative loop has to STOP, because an infinite loop at 1ms is a strobe,
-   * which is worse for the student the setting exists for. Those are written out
-   * one at a time in the file that owns them. */
+  /* motion: transition durations as tokens, so reduced motion can zero all of them at once */
   --kit-t-quick: 120ms;
   --kit-t-fast: 130ms;
   --kit-t-mid: 140ms;
@@ -214,140 +134,31 @@
   --kit-ease-rise: cubic-bezier(.23, 1.1, .35, 1);
   --kit-ease-deal: cubic-bezier(.2, 1.15, .35, 1);
 
-  /* ---- surfaces: the PixelLab art the chrome is actually made of --------
-   * All art comes from PixelLab and code never draws it. A skin that has no art
-   * says `none` here and falls back to the flat colours above, which is what the
-   * plain arm needs and is the only reason these are tokens at all.
-   *
-   * THESE FOUR ARE ALSO THE OVERRIDE POINT FOR THE PLATFORM'S KIT.
-   * `src/game/ui/kit.ts` fetches MAPVIS's eighteen published pieces and writes
-   * `--kit-art-<handle>` back onto `:root` from an injected stylesheet, which is
-   * how the platform's art replaces the four files below without a commit here.
-   * The names have to keep matching: MAPVIS calls its piece `dialogue_box` and
-   * emits the handle `dialogue` because that is what this line has said for
-   * months, and the day one of these is renamed the platform stops landing.
-   *
-   * NO LOCAL NINE-SLICE NUMBERS SIT HERE YET, ON PURPOSE. `docs/UI-KIT.md`
-   * section 3 asks for `--kit-slice-panel` and a real `border-image` rule beside
-   * each of these, and the four insets have to be measured off the pngs first. A
-   * pass over the three files on 2026-08-31 measured `panel-square.png` cleanly
-   * at roughly 72/69/67/69 and could not measure the other two: the dialogue box
-   * carries anchor motifs at the quarter points of its top and bottom edges and
-   * the plank is wood grain end to end, so the interior never settles and every
-   * tolerance gives a different answer. Guessing them would repaint every panel
-   * in the game off a number nobody checked. The measurement is Ash's, in front
-   * of the picture, and `docs/UI-KIT.md` Q6 is where it is asked. */
+  /* surfaces: the PixelLab art the chrome is made of, and where the platform's kit lands */
   --kit-art-panel: url('/art/ui/panel-square.png');
   --kit-art-dialogue: url('/art/ui/dialogue-box.png');
   --kit-art-plank: url('/art/ui/plank-button.png');
   --kit-art-chart: url('/art/ui/chart-cover.png');
-  /* THESE TWO ARE NEW HERE AND OLD IN THE TREE, added 2026-08-31. Both were
-   * typed as literal urls in a stylesheet, which is a surface the plain arm
-   * cannot reach however many tokens sit above it: `--kit-art-panel: none` does
-   * nothing to a rule that spelled the png out. The backdrop is the title
-   * screen's painted cove (`boot-title.css`), the scroll is the intro's
-   * parchment card (`i3.css`). Same bytes, one indirection, so the default skin
-   * renders exactly what it rendered yesterday and §16 now has a lever. */
+  /* the title screen's painted cove and the intro's parchment card */
   --kit-art-title: url('/art/ui/title-backdrop.png');
   --kit-art-scroll: url('/art/ui/parchment-scroll.png');
-  /* TWO MORE THAT WERE ALREADY DRAWN AND WERE BEING SHOWN NOWHERE, taken up on
-   * 2026-09-01 when the corner stopped being emoji.
-   *
-   * `plaque-small.png` is a dark carved plate with a rope inlay at 2:1, which is
-   * the shape a hanging sign is. It is the ground under the two corner controls
-   * and under the dialogue box's speaker plate, both of which were a
-   * `linear-gradient` in a stylesheet.
-   *
-   * `crest-panther.png` is the school's own mark and `docs/ART.md` already
-   * assigns it: "the Handbook cover carries the panther crest". The platform's
-   * `icon_set` has compass, key, star, lock, tick, cross, arrow and coin and NO
-   * book, so the Handbook control wears the crest rather than an operating-system
-   * book, which the brief's do-not list rules out and `ART.md` rules out again.
-   * The undrawn `book` face stays an art gap to be asked for, not a gap to be
-   * filled with whatever the Chromebook ships. */
-  /* NOT AN INK, AND IT IS A TOKEN ANYWAY. A `mask-image` gradient needs a fully
-   * opaque stop, and the colour of that stop is meaningless: only its alpha is
-   * read. It lives here because `tokens.test.ts` holds every kit stylesheet to
-   * declaring no colour of its own, and a guard with a loophole in it stops
-   * being a guard the first time somebody uses the loophole for a real colour. */
+  /* the carved plaque under the corner controls, and the school's panther crest */
+  /* an opaque stop for a mask gradient, where only the alpha is ever read */
   --kit-mask-solid: #000000;
-  /* ---- THE FOUR MARKS THE PLATFORM'S SHEET DOES NOT HAVE -----------------
-   *
-   * `icon_set` publishes compass, key, star, lock, tick, cross, arrow and coin,
-   * and four surfaces needed a mark it does not carry: the Handbook control was
-   * wearing the school crest, which is the wrong object; the pause sheet's title
-   * had nothing at all; settings was a word on a plate; and the advance cue had
-   * no fallback for a build that cannot reach the platform.
-   *
-   * Drawn 2026-09-01 as ONE generation on a two by two grid, for the reason
-   * CLAUDE.md gives for every sheet: a family drawn together comes back the same
-   * weight. The palette was FORCED from the platform's own sheet rather than
-   * described, after a first attempt came back sharing zero colours with it and
-   * dark-keyed against a dark plaque: the art-direction pass measured the paw at
-   * zero percent of its pixels brighter than the wood it sits on, which is a
-   * hole in the plaque rather than a mark on it. The second attempt measures a
-   * mean colour distance of 4.2 from the kit's nearest colour, and 55 to 77
-   * percent brighter than the plaque against the kit's own 76.
-   *
-   * `scripts/_cut-icons.mjs` cuts them and doubles them with nearest, so the two
-   * sizes they are shown at (32 in the corner, 64 in a page header) are both an
-   * integer scale off the file.
-   *
-   * ONE KNOWN DEFECT, named rather than hidden: `mark-sliders` reads as two
-   * dumbbells rather than two sliders, because each bar has a cap at BOTH ends
-   * instead of one knob part way along. It sits behind the word "Settings" so it
-   * is not carrying the meaning alone, and it is batched with the next
-   * generation rather than chased on its own. */
+  /* four marks the platform's icon sheet does not carry, drawn as one family */
   --kit-art-mark-book: url('/art/ui/mark-book.png');
   --kit-art-mark-anchor: url('/art/ui/mark-anchor.png');
   --kit-art-mark-sliders: url('/art/ui/mark-sliders.png');
   --kit-art-mark-paw: url('/art/ui/mark-paw.png');
-  /* THE FACE OF THE TITLE'S SIGN, drawn 2026-09-01. `title-signboard.png` is a
-   * FRAME with a transparent middle, and what was showing through it was
-   * `.ti-signpaper`: two `repeating-linear-gradient`s making a grid. The
-   * art-direction pass read it exactly as it was built, "a carved wooden sign
-   * whose plate is ruled graph paper", and put it in the top five things wrong
-   * with the game. It is a painted board now: four planks, seams, nail heads,
-   * worn cream over grain, and deliberately quiet enough that the wordmark
-   * painted on top of it still reads. */
-  /* THE CHART'S OWN PAPER, drawn 2026-09-01. `chart-cover.png` could not serve:
-   * it has a second, fictional archipelago printed across it and a baked
-   * transparency checkerboard in its margin, which is why `--kit-art-chart` has
-   * been dead since the token layer was written. This one is blank on purpose. */
+  /* the painted board that shows through the title sign's frame */
+  /* blank chart paper, since the drawn chart cover has another archipelago printed on it */
   --kit-art-chart_field: url('/art/ui/chart-field.png');
   --kit-art-signface: url('/art/ui/sign-face.png');
   --kit-art-plaque: url('/art/ui/plaque-small.png');
   --kit-art-crest: url('/art/ui/crest-panther.png');
   --kit-pixel: pixelated;
 
-  /* ---- THE NINE-SLICE, MEASURED OFF THE PNGS ---------------------------
-   *
-   * Ash, 2026-08-31, on a folder of screenshots: "there are so many UI bugs...
-   * So many sizing problems... and plain out broken UI." He was right, and one
-   * cause sits underneath most of it.
-   *
-   * EVERY PANEL DREW ITS FRAME AS `background: <png> center / 100% 100%`, which
-   * stretches one picture to whatever size the panel happens to be. The Handbook
-   * is 720x520 and the pause sheet is 320 wide, so the same carved corner was
-   * drawn at two quite different aspect ratios in the same session. Nothing
-   * reads as carved after that. It reads soft and rounded and cheap, which is
-   * exactly how it looked.
-   *
-   * A nine-slice holds the corners at their DRAWN size and stretches only the
-   * middle, which is the difference between a frame and a photograph of a frame.
-   *
-   * The numbers are MEASURED, not guessed: `scripts/measure-slice.mjs` walks in
-   * from each edge and finds where the frame stops and the paper starts. Run it
-   * again if the art is redrawn and paste what it prints; do not hand-tune these.
-   *
-   * THE ONE CONSTRAINT THAT KILLS IT SILENTLY: `top + bottom < h` and
-   * `left + right < w`, or the browser drops the border-image with NO error at
-   * all and the panel renders as a ring around a hole. All three pass with room.
-   *
-   * `chart-cover.png` is deliberately absent. It measured 119/270/29/298, which
-   * is not a frame, because that file has an archipelago printed across the
-   * middle of it and a baked transparency checkerboard in its margin. It owes a
-   * redraw and it is not usable as a ground until it gets one. */
+  /* nine-slice insets measured off the pngs, so a frame's corners keep their drawn size */
   --kit-slice-panel: 72 70 70 69;
   --kit-slice-w-panel: 72px 70px 70px 69px;
   --kit-slice-dialogue: 45 63 42 61;
@@ -385,58 +196,8 @@
 html[data-textsize='s'] { --kit-text-scale: 0.86; }
 html[data-textsize='l'] { --kit-text-scale: 1.22; }
 
-/* ---- THE TYPE LANDS ON WHOLE PIXELS -----------------------------------------
- *
- * WHY THIS EXISTS BEFORE THE FONT DOES. Every size in the kit is a container
- * width times a setting, so the number that comes out is fractional at nearly
- * every window: on a 1280 wide screen the year sheet's smallest hint computed to
- * 12.672px, and at Small to 10.898px. A vector face absorbs that. A BITMAP face
- * does not: the glyph grid is resampled at 1.056 of its drawn size and letters
- * lose or gain a column, which is the "Fall" that reads as "Pall" the ENGINE-3
- * eyes round found on the text-dense planner. The order says snap it now, as
- * code, so the day a real pixel font is mounted it is landing on whole pixels
- * rather than being blamed for this.
- *
- * HOW IT IS DONE WITHOUT REWRITING ANY RULE TWICE. A rule keeps the exact size
- * it always wrote, moved one word left into `--kit-fs-raw`, and asks for
- * `var(--kit-fs)`. Nothing about a panel's own sizing moves, the cqw and the
- * text setting are still written where a person reads them, and the snapping
- * lives here in one place. It takes a `clamp()` in `vh` the same way it takes a
- * `calc()` in `cqw`, which is what the dialogue box needs.
- *
- * WHY THE UNIVERSAL SELECTOR RATHER THAN `:root`. A custom property declared on
- * `:root` has its own `var()`s substituted AT `:root`, so `--kit-fs-raw` would
- * resolve once, against the root's value, and every panel in the game would come
- * out the same size. Declared on every element, each one resolves its own. There
- * are a few hundred nodes in this DOM and the rest of the game is a canvas.
- *
- * WHY `@supports` RATHER THAN TWO DECLARATIONS IN ONE BLOCK. The usual
- * belt-and-braces trick, an old declaration followed by a new one the browser
- * drops, DOES NOT WORK through `var()`: a value carrying a variable is parsed as
- * valid and only fails at computed-value time, and a property that is invalid at
- * computed-value time falls back to INHERIT, not to the declaration above it. On
- * a district-image Chromebook that predates `round()` (Chrome 125, May 2024)
- * every panel would silently inherit the body's 16px, which is worse than a
- * fractional size. The feature query asks first and the fallback arm is the
- * exact expression that ships today. */
-/* ---- AND A FLOOR, MEASURED 2026-08-31 --------------------------------------
- *
- * Ash, on a folder of screenshots of the panels: *"I cant see shit."* That is a
- * measurement and `scripts/type-size.mjs` took it. Every size in this game is
- * written as a RATIO of its panel (`calc(2.4cqw * scale)`), and a ratio says
- * nothing about what a person actually reads, so nobody had ever looked. The
- * yearbook had EIGHT of its twelve text elements under 14 pixels, with body copy
- * at 10 and 11. Ten pixel text is decoration; it is not something a fourteen year
- * old reads on a school Chromebook at arm's length.
- *
- * 14px is the floor and it is not a taste number: it is the smallest size most
- * design systems will put in front of an adult, and this audience is younger and
- * the screen is worse. The ceiling stops a heading on a very wide monitor turning
- * into a poster. Between them the ratio still does the work, so a panel that
- * grows still grows its type.
- *
- * This is the PAPER skin. The plain arm has its own clamp further down with a
- * higher floor, because a document is read closer than a game is. */
+/* every element's font size snaps to a whole pixel, since a bitmap face cannot take a fraction */
+/* and a floor and a ceiling on it, so a panel's ratio can never make text too small to read */
 *, *::before, *::after { --kit-fs: clamp(14px, var(--kit-fs-raw), 44px); }
 @supports (font-size: round(1px, 1px)) {
   /* `max` keeps a panel mid-entrance, whose container is momentarily narrow,
@@ -444,11 +205,7 @@ html[data-textsize='l'] { --kit-text-scale: 1.22; }
   *, *::before, *::after { --kit-fs: max(1px, round(clamp(14px, var(--kit-fs-raw), 44px), 1px)); }
 }
 
-/* REDUCED MOTION, THE PART A TOKEN CAN CARRY. Every transition in the kit reads
- * one of the four durations above, so this one rule ends all of them. The
- * animations are handled where they are written, for the strobe reason above.
- * `src/game/ui/motion.ts` is the other half, for everything drawn on the canvas,
- * and it writes this attribute so both halves read ONE value. */
+/* reduced motion takes every transition in the kit to nothing */
 html[data-rm='1'] {
   --kit-t-quick: 1ms;
   --kit-t-fast: 1ms;
@@ -456,19 +213,7 @@ html[data-rm='1'] {
   --kit-t-slow: 1ms;
 }
 
-/* =======================================================================
- * SKIN: plain
- *
- * §16 is the study's other arm: the same content with the game-ness taken away.
- * It is not a joke skin and it is not a dark mode. Everything that is a picture
- * becomes a shape, every carved edge becomes a line, the two game faces become
- * whatever the machine already has, and nothing casts a shadow. If a surface
- * still reads as a wooden sign under this attribute, that surface is not on the
- * token layer and the test says which one.
- *
- * It is also the honest low-chrome fallback: a Chromebook that never loaded
- * /art/ui/ still gets a readable panel instead of an unpainted rectangle.
- * ======================================================================= */
+/* skin: plain, the study's other arm, the same content with the game-ness taken away */
 html[data-skin='plain'] {
   --kit-ink: #1b1b1b;
   --kit-ink-body: #262626;
@@ -552,21 +297,12 @@ html[data-skin='plain'] {
   --kit-veil: rgba(20, 22, 24, .8);
   --kit-veil-soft: rgba(20, 22, 24, .72);
   --kit-veil-pause: rgba(20, 22, 24, .52);
-  /* NOTHING CASTS A SHADOW ON A WORKSHEET. These were a card shadow, which is a
-   * material effect: a sheet of paper lifted off a surface. A document is ink on
-   * a page. They stay as declarations rather than being deleted because
-   * `filter: drop-shadow(var(--kit-drop-lg))` with the token unset is an invalid
-   * filter, and an invalid filter falls back to `inherit` rather than to nothing.
-   * A fully transparent offset-zero shadow is valid and draws no pixels. */
+  /* nothing casts a shadow here, and a transparent one is safer than an unset token */
   --kit-drop-lg: 0 0 0 rgba(0, 0, 0, 0);
   --kit-drop-md: 0 0 0 rgba(0, 0, 0, 0);
   --kit-drop-sm: 0 0 0 rgba(0, 0, 0, 0);
   --kit-mirror-drop: transparent;
-  /* THE ONE SHADOW THAT STAYS, and it is not decoration. A cutscene caption is
-   * white type sitting on the PAINTED WORLD, which is the vehicle and is
-   * identical in both arms, so the scrim behind it is the only thing making it
-   * readable over a bright sky. Taking it out would cost the control arm
-   * legibility, which is a usability confound, not a plainer document. */
+  /* the caption scrim stays, because white type on the painted world needs it in both arms */
   --kit-caption-shadow: 0 1px 2px rgba(0, 0, 0, .6);
   --kit-caption-ink: #ffffff;
 
@@ -593,16 +329,7 @@ html[data-skin='plain'] {
   --kit-ease-rise: ease-out;
   --kit-ease-deal: ease-out;
 
-  /* EVERY ART HANDLE THE REPO CAN MOUNT, NULLED, and the list is longer than the
-   * four that ship in `:root` on purpose. `src/game/ui/kit.ts` writes
-   * `--kit-art-<handle>` onto `:root` for every published piece it reads, so a
-   * handle with no local default still arrives at runtime with a picture in it
-   * and lands on whatever class carries it. `band` reaches the arrival cover
-   * (`app/transitions.tsx`) and `icon_set` reaches `kitFaceStyle.ts`; both are
-   * mounted in `src/` today and neither had a null here. `tokens.test.ts` reads
-   * the tree for `--kit-art-` and fails if a fifth one is mounted without a line
-   * in this block, because the failure mode is silent: one wooden surface in a
-   * plain sheet, no error anywhere. */
+  /* every art handle the repo can mount, nulled, including ones with no local default */
   --kit-art-panel: none;
   --kit-art-dialogue: none;
   --kit-art-plank: none;
@@ -618,12 +345,7 @@ html[data-skin='plain'] {
   --kit-art-mark-paw: none;
   --kit-art-plaque: none;
   --kit-art-crest: none;
-  /* AND THE FRAME'S OWN THICKNESS GOES TO NOTHING. `border-image: none` on the
-   * surface rules is what really stops a nine-slice being drawn; these are here
-   * because the guard in tokens.test.ts is right that every token the paper skin
-   * declares must be ANSWERED here, and because a border-width left at 72px in a
-   * document would be a 72 pixel margin nobody asked for if a rule ever set a
-   * border colour. */
+  /* and the frame's own thickness goes to nothing */
   --kit-slice-panel: 0;
   --kit-slice-w-panel: 0;
   --kit-slice-dialogue: 0;
@@ -633,16 +355,7 @@ html[data-skin='plain'] {
   --kit-repeat: stretch;
   --kit-art-band: none;
   --kit-art-icon_set: none;
-  /* THE OTHER TWELVE THE PLATFORM PUBLISHES, nulled on the day the control kit
-   * started wearing them (2026-09-01). `src/game/ui/controls.tsx` mounts
-   * `.kit-surface-tab`, `-field`, `-gauge`, `-socket` and `-portrait_frame`, and
-   * `feedback.ts`, `controls.tsx` and the HUD read cut faces off `chip`, `cue`,
-   * `pip`, `pointer` and `stamp` through `faceStyle`, which builds the token name
-   * from a variable and therefore cannot be found by grep.
-   *
-   * A handle mounted without a line here is the exact silent failure §16 keeps
-   * losing to: one carved wooden surface in the middle of a worksheet, no error
-   * anywhere, and the control arm quietly stops being a control arm. */
+  /* the other twelve pieces the platform publishes, nulled the same way */
   --kit-art-tab: none;
   --kit-art-field: none;
   --kit-art-gauge: none;
@@ -677,147 +390,36 @@ html[data-skin='plain'] {
   --kit-front-ease: ease-out;
 }
 
-/* THE PLAIN ARM HAS NO PICTURES, so the surfaces that ARE art need a colour to
- * fall back onto. `background: none center / 100% 100% no-repeat` on its own is
- * an invisible panel, which is the failure §16 would ship with.
- *
- * AND IT KEEPS WINNING OVER THE PLATFORM'S KIT, which is the thing to not break.
- * `src/game/ui/kit.ts` injects MAPVIS's `.kit-surface-*` blocks into the head at
- * runtime, and those are one class each. These three rules carry an attribute as
- * well, so they are a point of specificity above whatever arrives, and the
- * `border` shorthand below resets `border-image` to its initial value, which is
- * the property the injected blocks set. §16's arm is the study's independent
- * variable and it does not get drawn art from anywhere, including the platform.
- *
- * The rules cover panel, dialogue and plank because those were the three handles
- * anything in `src/` mounted. `band` is the fourth, taken up by the arrival cover
- * (`src/app/transitions.tsx`), and it is here in the same edit the way this note
- * asks. MAPVIS publishes ten more (field, gauge, rail, socket, tab,
- * portrait_frame and the rest) and the next one to be used needs its own line,
- * or the plain arm gets a wooden surface in a plain sheet and nothing errors. */
-/* ---- THE FRAME, DRAWN AS A FRAME ---------------------------------------
- *
- * These three rules are what every panel in the game now gets its edge from, and
- * the panels themselves carry NO background picture any more. The middle is
- * painted by `fill`, so one declaration draws the paper and the carving together
- * and they can never be sized differently from each other again.
- *
- * `border-width` IS THE PADDING. That is the second half of the fix and the more
- * important one. Every panel used to carry a hand-measured PERCENTAGE padding
- * (`padding: 12.5% 16% 13% 15.5%` on the year sheet), and a percentage padding
- * resolves against the CONTAINING BLOCK, which for these is a veil pinned to the
- * viewport. So on a 1280 wide screen the year sheet took about 200 pixels of
- * padding on each side of an 880 pixel panel, leaving a 477 pixel content box
- * inside a 880 pixel frame. `container-type: inline-size` then made `cqw` a
- * fraction of THAT, so the type shrank with it. One bug, and it produced both
- * symptoms at once: enormous dead space AND unreadable text, on every panel,
- * getting worse the wider the window.
- *
- * The frame's own thickness is the honest inset, it is in pixels, and it does
- * not know or care how wide the window is.
- *
- * The platform's kit overrides all six numbers when it arrives (`src/game/ui/
- * kit.ts` injects its own `.kit-surface-*` block last), which is the point: the
- * local art is what a member with no network sees, and Ash's redraw is what a
- * student sees. */
+/* the plain arm keeps its flat colours even when the platform's art arrives */
+/* the panel frame, drawn as a nine-slice whose border width is also the panel's padding */
 .kit-surface-panel {
   border-style: solid;
   border-color: transparent;
   border-width: var(--kit-slice-w-panel);
   border-image: var(--kit-art-panel) var(--kit-slice-panel) fill / 1 / 0 var(--kit-repeat);
 }
-/* AN OPAQUE GROUND UNDER THE PICTURE, because a border-image that has not
-   arrived draws NOTHING and this is the surface a student reads most.
-   `fixed-game/06-dialogue.png` is a photograph of that happening: the sentence
-   and the "click, or press space" hint drawn straight onto the quay and the
-   water in dark brown ink, no box at all, while the identical shot at `?kit=0`
-   drew the full wooden panel. The layout ran, the text landed in the right
-   place, and only the paper failed to paint, because in the shipped arm the
-   piece is fetched from the platform on every load with `must-revalidate` and a
-   slow access point or a district filter is all it takes.
-
-   The plain arm has had this fallback since it was written. The paper arm did
-   not, on the same element, which is the arm a class of thirty actually plays. */
+/* an opaque ground under the picture, for when the border-image has not arrived */
 .kit-surface-dialogue,
 .kit-surface-band {
   background-color: var(--kit-paper);
-  /* CLIPPED TO THE PADDING BOX, so the ground can never show OUTSIDE the drawn
-     frame. The piece is a carved panel with ornate corners and transparency
-     round them, and an unclipped rectangle behind it would square those corners
-     off in the arm where the art works fine. Inside the slice widths there is
-     nothing but the parchment field, so the fallback lands exactly where the
-     paper would have been and nowhere else. */
+  /* clipped to the padding box, so the ground never shows outside the drawn frame */
   background-clip: padding-box;
   border-style: solid;
   border-color: transparent;
   border-width: var(--kit-slice-w-dialogue);
   border-image: var(--kit-art-dialogue) var(--kit-slice-dialogue) fill / 1 / 0 var(--kit-repeat);
 }
-/* A PLANK IS NOT NINE-SLICED, AND THIS IS WHY, WRITTEN DOWN SO IT IS NOT TRIED
- * AGAIN. Ash, 2026-08-31, on the first attempt: the buttons were "just ugly and
- * shitty", and he was right.
- *
- * `plank-button.png` measures 33 top and 47 bottom. A choice button is about 56
- * pixels tall. Eighty pixels of border on a fifty-six pixel button leaves a sliver
- * for the label and a slab of carving around it, on every button in the game at
- * once: the title screen, settings, the wardrobe and every choice.
- *
- * A nine-slice is for a thing whose MIDDLE grows, which is a panel. A plank is a
- * SHAPE: one wide button with its own ends, drawn at roughly the aspect a button
- * is used at. Stretching it is close to correct and it looked fine for months.
- * The tool was wrong for the job, not the numbers. */
-/* ---- AND IT IS SLICED SIDEWAYS ONLY, WHICH IS NOT THE SAME MISTAKE --------
- *
- * `plank-button.png` is 512x192, so 2.7 to 1. A choice button is about 495 by 56,
- * so 8.8 to 1. Stretched to fit, the rope ends squash to a third of their drawn
- * height and the middle becomes one colour: the art-direction pass of 2026-09-01
- * measured "49 pixel single-value runs" across the middle of a choice plank and
- * called it the plank lesson repeated.
- *
- * THE LESSON WAS ABOUT THE VERTICAL AND ONLY THE VERTICAL. Commit 6851a68 failed
- * because a full nine-slice put 33 pixels of carving above and 47 below a
- * fifty-six pixel button, leaving a sliver for the label. Slicing SIDEWAYS has no
- * such arithmetic: top and bottom stay zero, so the art is drawn at full height
- * with nothing eaten, the two carved ends hold their drawn shape, and only the
- * wood grain between them repeats. That is what a long wooden sign is.
- *
- * `--kit-plank-cap` is how wide each carved end is drawn, and it moves with the
- * button's height because the ends are square-ish in the painting: a taller
- * plank gets a wider end, which is what keeps the rope from stretching. The
- * default suits the 46 pixel button most of the game presses. */
+/* a plank is a shape rather than a panel, so it is never nine-sliced top and bottom */
+/* it is sliced sideways only: the carved ends hold their shape and the grain between repeats */
 .kit-surface-plank {
-  /* THE FILE IS 454x148 SINCE `scripts/_trim-plank.mjs` RAN, and that is why the
-   * numbers moved. It was 512x192 with the wood only occupying x29..482,
-   * y22..169, so every plank was laid out at one size and drawn at 89 percent of
-   * it, inset by 29 pixels horizontally and 22 vertically. That is what Ash saw
-   * in round two as choice planks "wider than the box under them, offset from
-   * it": the dialogue frame beside them measures a transparent margin of zero on
-   * all four sides, so one object filled its box and the other floated inside
-   * its own, and no amount of moving either could line them up.
-   *
-   * 60 of the 454 is the rope curve and its corner bolts. The cap is drawn at
-   * the art's own scale for each button height (60 x height / 148), so the rope
-   * is never squeezed sideways to make a wider button. */
+  /* how wide each carved end is drawn, at the art's own scale for the button's height */
   --kit-plank-cap: 19px;
   border-style: solid;
   border-color: transparent;
   border-width: 0 var(--kit-plank-cap);
-  /* ROUND SIDEWAYS, STRETCH UPWARDS. One word here drew every tall plank as two.
-   * `round` on both axes tiles the middle piece, and the middle piece is the
-   * whole 148 pixel height of the painting scaled by the cap (cap / 60), so a
-   * button taller than about 1.8 of that got a SECOND plank tiled under the
-   * first: the title's 340x106 Begin Adventure, cap 24, was two 59 pixel planks
-   * with the label floating in the seam between them, which is
-   * `state/beach/02-title-begin-plank-crop.png` and the first thing every
-   * student presses. The grain may repeat along the sign; it never stacks. */
+  /* round sideways and stretch upwards, so the grain repeats along the sign but never stacks */
   border-image: var(--kit-art-plank) 0 60 fill / 0 var(--kit-plank-cap) / 0 round stretch;
-  /* A GROUND UNDER THE WOOD, for the frame before the png lands. "Leave this
-     for now" rendered as bare cream text on the paper for a beat on every
-     open of the POWER frame (STATE-OF-THE-GAME ugly 10), because a
-     border-image that has not arrived draws nothing at all. The middle slice
-     is opaque wood and paints over this the moment it exists, so the only
-     time it shows is the one this is for. Clipped to the padding box so it
-     cannot square off the carved ends. */
+  /* a ground under the wood, for the frames before the png lands */
   background: var(--kit-wood-plank) padding-box;
 }
 
@@ -829,13 +431,7 @@ html[data-skin='plain'] .kit-surface-dialogue {
   border: var(--kit-border) solid var(--kit-edge);
   border-radius: var(--kit-r-round);
 }
-/* AND THE PLANK'S SURFACE AGREES WITH THE PLANK. This was the third rule in the
-   fight that made "Begin Adventure" unreadable: `controls.css` and the two
-   surface stylesheets all dress the plain plank as paper with dark ink, and this
-   one dressed the same button as dark slate, from a later file, so it won the
-   background while they won the ink. #262626 on #3f4a4e is 1.66 to 1, on the
-   first control anybody in the control group ever presses. There is one plain
-   button in this arm now and it is a white one. */
+/* the plain plank is a white button, so its ground and its ink agree */
 html[data-skin='plain'] .kit-surface-plank {
   border-image: none;
   background-color: var(--kit-paper-lo);
@@ -843,44 +439,9 @@ html[data-skin='plain'] .kit-surface-plank {
   border-radius: var(--kit-r-soft);
 }
 
-/* =======================================================================
- * THE PLAIN ARM IS A DOCUMENT, and this is the part tokens alone cannot say.
- *
- * ASH RULED IT ON 2026-08-31, on a question open since ENGINE-3: *"No game art,
- * no wood, no parchment: system font, black on white, real headings and a real
- * form. Reads as a worksheet somebody wrote, not as the game with its paint
- * scraped off."* Raw OS widgets were the other candidate and were REFUSED, and
- * the reason is the study rather than taste: unstyled browser defaults read as
- * BROKEN, and a control condition that looks broken loses on looking broken
- * instead of on not being a game. That is a confound in the one comparison the
- * whole instrument exists to make.
- *
- * Every rule below is scoped to the attribute, so the game arm cannot see any of
- * it. Nothing here changes what a student is ASKED. §2.12 is the parity rule:
- * the same items, the same options, the same order, the same wording, in both
- * arms, off one derived object (`beats/palette.ts`). This file dresses them.
- * ======================================================================= */
+/* the plain arm is a document, and the rules below dress it as a worksheet */
 
-/* ---- TYPE A PERSON READS A WORKSHEET AT ---------------------------------
- *
- * Every size in the kit is a fraction of a panel (`cqw`) or of the window
- * (`vh`), because a game frame scales with its frame. A document does not: a
- * worksheet is set in points and stays there. The two ends of that are what the
- * band below fixes, and both were real on this tree: the year sheet's hint
- * computed to 12.7px at 1280 wide, which is below anything a district would put
- * in front of a fourteen year old, and the result card's letter mark computed to
- * 51px, which is a poster.
- *
- * THE INTEGER SNAP SURVIVES THIS, which is the part that had to be got right.
- * The paper skin's formula is `round(var(--kit-fs-raw), 1px)`; this is the same
- * formula with the raw size clamped first, so the snap still happens last and a
- * bitmap face still lands on whole pixels. `--kit-text-scale` is untouched and
- * still inside `--kit-fs-raw`, so S / M / L still move the whole document.
- *
- * The two declarations mirror `:root`'s pair for the same reason spelled out
- * there: a `var()` value is only invalid at COMPUTED-value time, and that falls
- * back to inherit rather than to the declaration above it, so the pre-`round()`
- * Chromebook needs a real declaration outside the feature query. */
+/* type sized the way a worksheet is, held between a floor and a ceiling */
 html[data-skin='plain'] *,
 html[data-skin='plain'] *::before,
 html[data-skin='plain'] *::after {
@@ -894,37 +455,10 @@ html[data-skin='plain'] *::after {
   }
 }
 
-/* ---- ONE FACE, AND NO WAY BACK TO THE GAME'S ----------------------------
- *
- * FOUND BY LOOKING, 2026-08-31, on the first plain-arm screenshot of the year
- * sheet. `--kit-face-body` is `system-ui` in this arm and the sheet still came
- * back in Harbormaster and Deckhand, because the token layer only reaches the
- * six stylesheets it was written for. `planner.css`, `run.css`, `chart.css`,
- * `beats.css` and `stage/placecard.css` spell `'Deckhand', monospace` out, about
- * fifty times between them, and every one of those is a surface §16 cannot
- * reach. The year sheet, the yearbook, graduation and the chart are four of the
- * places BLHS content is actually delivered.
- *
- * WHY A BLANKET RULE RATHER THAN FIFTY EDITS. The edits are the right long-term
- * answer and they are the UI-kit job (`docs/UI-KIT.md`), not this one: those
- * files also carry about ninety hardcoded colours, a third of which have no
- * token yet, so tokenising the face without the ink is a half-done pass that
- * LOOKS done. This is one rule, it cannot be defeated by a single-class
- * selector, it changes nothing in the paper skin, and the ruling it enforces is
- * literal: no `Deckhand`, no `Harbormaster`, anywhere in this arm.
- *
- * `*` rather than `body`, because `font-family` is inherited but a form control
- * does not inherit it: a `<select>` left out of this rule is a browser-default
- * face sitting inside a system-font document, which reads as the broken look the
- * ruling refused. */
+/* one face everywhere in this arm, so no stylesheet can reach back to a game font */
 html[data-skin='plain'] * { font-family: var(--kit-face-body); }
 
-/* ---- A REAL FORM ---------------------------------------------------------
- *
- * The controls a student actually fills in. They are left recognisable rather
- * than restyled: a box with a real border, a real focus ring, the system font,
- * and `accent-color` so a radio is the browser's own radio in the document's own
- * ink. That is the line between "plain" and "unstyled" the ruling drew. */
+/* the form controls a student fills in, left recognisable rather than restyled */
 html[data-skin='plain'] input,
 html[data-skin='plain'] select,
 html[data-skin='plain'] textarea {
@@ -960,10 +494,7 @@ html[data-skin='plain'] a {
 }
 html[data-skin='plain'] a:hover { color: var(--kit-ink-head); }
 
-/* ---- HEADINGS THAT ARE A HIERARCHY --------------------------------------
- * Three levels, each visibly a step, with the margins that make a page read as
- * paragraphs rather than as a wall. Sizes are absolute for the same reason the
- * band above exists. */
+/* three heading levels, each visibly a step, at absolute sizes */
 html[data-skin='plain'] h1 { font-size: 26px; line-height: 1.25; margin: 0 0 14px; font-weight: 700; color: var(--kit-ink-head); }
 html[data-skin='plain'] h2 { font-size: 20px; line-height: 1.3; margin: 22px 0 10px; font-weight: 700; color: var(--kit-ink-head); }
 html[data-skin='plain'] h3 { font-size: 17px; line-height: 1.35; margin: 18px 0 8px; font-weight: 600; color: var(--kit-ink-head); }
@@ -973,63 +504,20 @@ html[data-skin='plain'] h3:first-child { margin-top: 0; }
 html[data-skin='plain'] p { margin: 0 0 10px; line-height: 1.55; }
 html[data-skin='plain'] hr { border: 0; border-top: 1px solid var(--kit-rule); margin: 18px 0; }
 
-/* THE RING REACHES EVERY CONTROL IN THIS ARM, INCLUDING THE ONES THE KIT'S OWN
- * LIST DOES NOT NAME. That list is a roll-call of game classes (`.pz-btn`,
- * `.hb-tab`, `.st-toggle`), and the plain arm's controls are plain elements with
- * no class at all: the form's radios, its select, its Submit. A control arm that
- * cannot be operated from the keyboard loses on usability rather than on
- * presentation, which measures the wrong thing.
- *
- * A text input is included here where the paper skin deliberately excludes
- * `.st-idfield`. The reason there was that a game field already shows focus with
- * its own paper and rule; a document field shows focus the way every form on the
- * web does, and a student who clicked into it seeing a ring is not a bug. */
+/* the focus ring reaches this arm's plain elements too, which carry no kit class */
 html[data-skin='plain'] a:focus-visible,
 html[data-skin='plain'] button:focus-visible,
 html[data-skin='plain'] input:focus-visible,
 html[data-skin='plain'] select:focus-visible,
 html[data-skin='plain'] textarea:focus-visible,
-/* A PANEL IS NOT A CONTROL, and `[tabindex]` alone matches `tabindex="-1"`.
-   `usePanel` puts -1 on every panel and focuses it on open, so this rule drew a
-   3px #1d6fd8 ring around the whole year sheet the instant it appeared, before
-   anybody had pressed a key. Measured at (60,300) in `fixed-plain/08-planner.png`.
-   `a11y.ts` states the rule it breaks: a ring that "appears before anybody has
-   pressed a key is not telling them where they are, it is decoration that looks
-   like a bug", and looking like a bug is the one thing the control arm cannot
-   afford. The game block a few rules down already excluded -1; this is the same
-   exclusion, written the same way. */
+/* a panel carries tabindex -1 and is not a control, so it gets no ring */
 html[data-skin='plain'] [tabindex]:not([tabindex='-1']):focus-visible {
   outline: var(--kit-focus-width) solid var(--kit-focus);
   outline-offset: var(--kit-focus-offset);
 }
 
-/* ---- ONE FOCUS RING, AND IT IS A LAW RATHER THAN A LIST ------------------
- *
- * Part IV §40.9 asks for ":focus-visible on every interactive element in the
- * tree" and for "no `outline: none` without a replacement". What was here was a
- * hand-typed list of eighteen class selectors, which is the right ring reached
- * the wrong way: it covers every control that existed on the day it was written
- * and cannot cover the next one. The nineteenth button ships invisible to a
- * keyboard, nothing errors, and the person who finds out is a student on a
- * Chromebook whose trackpad is bad enough that keys are the faster way to play.
- *
- * SO IT MATCHES ELEMENTS, NOT CLASSES. Everything the browser will ever focus is
- * one of these, so a control cannot be added without being covered. The class
- * hook stays for anything that makes a focusable out of a div.
- *
- * §40.9's own Q asks whether the ring is drawn art or a browser outline and
- * answers it: an outline, styled to the kit's accent, "because a focus ring that
- * is late or missing on one control is worse than one that is plain everywhere".
- * That is why this is an outline and why it is not per-control art.
- *
- * `outline` and never `border`: an outline does not take part in layout, so a
- * ring cannot move the thing it is drawn around, which is what makes it safe to
- * put on absolutely everything. */
-/* `textarea` and `[contenteditable]` are in the list because the PLAIN arm's own
-   list has them, and two arms with different keyboard affordances by
-   construction is a usability difference inside the one comparison the whole
-   instrument exists to make. Neither exists in the tree today, which is exactly
-   why it had to be written now rather than when the first one ships. */
+/* one focus ring for the whole game, matched on elements rather than a list of classes */
+/* textarea and contenteditable are listed so the first one to ship is already covered */
 :where(button, a[href], select, summary, textarea,
        [contenteditable]:not([contenteditable='false']),
        [tabindex]:not([tabindex='-1'])):focus-visible,
@@ -1038,11 +526,7 @@ html[data-skin='plain'] [tabindex]:not([tabindex='-1']):focus-visible {
   outline-offset: var(--kit-focus-offset);
 }
 
-/* THE ONE EXCEPTION, NAMED AND REASONED. A text input matches :focus-visible
- * however it was focused, including by a click, and these fields already show
- * focus with their own background and rule. A ring there is a second outline
- * around a control a mouse user clicks into constantly. Everything else in the
- * tree is covered above whether or not anybody remembers this file exists. */
+/* the game's own text fields show focus with their own paper, so they are the exception */
 input:focus-visible {
   outline: none;
 }

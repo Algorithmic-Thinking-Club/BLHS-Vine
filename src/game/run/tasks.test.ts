@@ -1,10 +1,4 @@
-/* THE TASK SHEET SAYS THE SAME THING THE ARROW SAYS.
- *
- * The whole value of a quest log beside a compass is that they agree. These read
- * both off one save and assert they do, because the failure a student would
- * actually meet is a sheet saying "Advisory" is still owed over an arrow that has
- * moved on, and no screenshot catches that.
- */
+/* the tests that keep the task sheet and the objective arrow saying the same thing */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 async function fresh() {
@@ -99,10 +93,7 @@ describe('the year as a list', () => {
     save.setFlag('yearbook:y1')
     const list = tasks.tasksOf(save.loadSave())
     const { done, total } = tasks.tasksDone(list)
-    /* six rows: the schedule, Advisory, two classes, the island and the year's
-     * end. Five are counted and three are ticked. The island is the one left out
-     * of the denominator: the classes count against him because he could sit
-     * them, and an island nobody has built is not a thing he failed to do. */
+    /* six rows, five of them counted: an island nobody has built is left out */
     expect(list).toHaveLength(6)
     expect(total).toBe(5)
     expect(done).toBe(3)

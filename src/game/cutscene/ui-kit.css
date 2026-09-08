@@ -1,11 +1,4 @@
-/* The PixelLab UI kit chrome (GAME-DESIGN §11): aged paper on carved driftwood.
-   Textures live in /public/art/ui/, both game faces in /public/fonts/. Structure and
-   behavior live in the components; this file owns every texture, face, and easing so
-   the kit reads as ONE material system everywhere.
-
-   Every value it used to spell out is now a token from ui/tokens.css, which is what
-   makes the skin swap possible: this file says WHICH material, the token layer says
-   what that material is today. */
+/* the kit's chrome: which texture, face and easing each surface wears, off the tokens */
 
 @import '../ui/tokens.css';
 
@@ -22,40 +15,13 @@
 
 /* ---- dialogue: the standard lower-third paper box ---- */
 .cs-dialogue {
-  /* IT NO LONGER PLACES ITSELF. It used to be `position: absolute` with its own
-   * left, bottom, width and centring transform, and the choices were positioned
-   * separately off a retyped copy of its height. That copy stopped being true
-   * the day the box was allowed to grow (below), which put a long question's
-   * planks on top of the paper. `.dlg-stack` in `hud/dialogue.css` is the one
-   * bottom-anchored column that holds the box and its choices, and this is
-   * simply the widest thing in it. */
+  /* the box does not place itself: the column in hud/dialogue.css puts it where it goes */
   position: relative;
   width: 100%;
-  /* ---- IT GROWS TO ITS CONTENT NOW, BETWEEN A FLOOR AND A CEILING ----------
-   *
-   * Part IV §40.14 is about this one declaration. It was `height: min(190px, 26vh)`,
-   * a FIXED height, and the comment beside it said why: content must not grow the
-   * box past this, because the box must never cover Thor. Both halves of that are
-   * right and the conclusion was wrong. At text size L the type is up to 44px, and
-   * "a 44-pixel line at 1.4 line height in a 190-pixel box holds three lines with
-   * nothing to spare, and there is no scroll, no page break, no ellipsis and no
-   * measurement." A member writing a four-line answer at size L pushed text out of
-   * a painted window, and found out in a classroom.
-   *
-   * A nine-slice is what makes a height a variable rather than a constant, which
-   * §40.14 says outright and which is now true of this box, so the fix it asked
-   * for is available: a floor so a one-word line still looks like a box that was
-   * drawn, and a ceiling so it can never take the screen or cover him.
-   *
-   * The scar in this file stays honoured: NO percentage height, because it can
-   * clip to zero at some zooms, which is the old empty-box bug. These are min and
-   * max, not height, and neither is a percentage of anything. */
+  /* it grows to its content between a floor and a ceiling, never a percentage height */
   min-height: min(190px, 26vh);
   max-height: min(400px, 48vh);
-  /* CONTAINER QUERIES ON THE BOX, which §40.7 names as the one surface a student
-   * reads most that did not have them. Every other panel in the kit sizes its
-   * type against its own inline size; this one sized against the VIEWPORT, so the
-   * type and the box it lives in were answering two different questions. */
+  /* the type inside sizes against this box rather than against the window */
   container-type: inline-size;
   /* the frame is a nine-slice on .kit-surface-dialogue now, not a stretched picture */
   image-rendering: var(--kit-pixel);
@@ -64,26 +30,12 @@
   padding: 10px 14px 12px;   /* a gutter INSIDE the frame; the frame's own border-width is the rest */
   box-sizing: border-box;
   display: flex;
-  /* STRETCH, NOT CENTRE, and it is the whole reason the box still ate words after
-     it was allowed to grow. `align-items: center` on a flex container whose child
-     is taller than it overflows the child EQUALLY IN BOTH DIRECTIONS, so the first
-     line goes up past the top edge and the last goes down past the bottom, and
-     neither can be scrolled to because the scroll container starts below the
-     content. Measured: at text size L the sentence started halfway through its own
-     first word. The body fills the height now and centres its own text inside
-     itself, so a short line still sits in the middle of the paper and a long one
-     scrolls instead of disappearing. */
+  /* stretch rather than centre, so the body fills the height and centres its own text */
   align-items: stretch;
   cursor: pointer;
   animation: cs-rise 260ms var(--kit-ease-rise) both;
 }
-/* NO OPACITY. The box's own art is opaque and its first frame used to be
-   transparent, so for 260ms the painting, its labels and the player were all
-   legible through the paper; the eyes round caught it in the wave-1 "after"
-   shot. It rises, which is the entrance, and it is never see-through doing it.
-   The centring transform came out of here with the positioning: the column above
-   owns that now, and a keyframe that re-declared it was the reason this could
-   never be a plain vertical move. */
+/* the box rises into place and is never see-through while it does */
 @keyframes cs-rise {
   from { transform: translateY(14px); }
   to   { transform: translateY(0); }
@@ -92,13 +44,7 @@
    drops the travel: an entrance shortens, it does not become a cut */
 html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
 
-/* THE PORTRAIT FRAME. `portrait` has been a field on both line types for months
-   and until 2026-09-01 the only thing that consumed it was a bare `<img>` with
-   nothing drawn around it, so a face floated on the paper with no frame. The
-   picture takes a column beside the paper and the text takes what is left; the
-   column and the frame itself live in `hud/dialogue.css` and in the kit's own
-   `portrait_frame` piece, because the frame is a kit control rather than a
-   dialogue detail. */
+/* the gap between the speaker's picture and the words when a line carries a portrait */
 .cs-dialogue.has-portrait { gap: 4%; }
 
 /* the text column, so the plaque and the line stay together whether or not there
@@ -106,22 +52,9 @@ html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
 .cs-dialogue-body {
   flex: 1 1 auto;
   min-width: 0;
-  /* THE CUE'S STRIP IS RESERVED, NOT SHARED. `.cs-continue-hint` is absolutely
-     positioned at `right: 13%; bottom: 13%`, so on any line that fills the box
-     the paw and the words "click, or press space" were drawn straight through
-     the last sentence: `build-shots/ui/after/06-dialogue.png` has the cue
-     sitting on top of "properly". Absolute positioning takes an element out of
-     flow, which means the flow has to be told about it, and this is that. The box
-     grows by a line rather than the line being covered. */
+  /* a reserved strip at the foot so the advance cue never sits on top of the last line */
   padding-bottom: calc(24px * var(--kit-text-scale));
-  /* AND PAST THE CEILING IT SCROLLS RATHER THAN CLIPS. §40.14 asks for "a defined
-     behaviour for a line that still does not fit" and this is it. The box grows to
-     its ceiling first, because a box that scrolls when it could have grown is a box
-     that made a student work for no reason; past the ceiling the alternative to a
-     scrollbar is eating the first two lines of a sentence, which is what it did.
-     Measured: a 180-character line at text size L needed 308px of paper in a box
-     that could give it 227, and the screenshot showed the sentence starting halfway
-     through. A student can never be shown a word that is not there. */
+  /* text past the box's ceiling scrolls rather than being clipped away */
   overflow-y: auto;
   overscroll-behavior: contain;
   /* a flex child will not shrink below its content without this, which is what
@@ -129,12 +62,7 @@ html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
   min-height: 0;
   display: flex;
   flex-direction: column;
-  /* SAFE centre. Plain `center` has the same flaw `align-items: center` had one
-     rule up: when the content is taller than the box it centres the OVERFLOW too,
-     so the first line sits above the scroll container's own top and cannot be
-     reached by scrolling to it. `safe` means centre while it fits and fall back to
-     the start when it does not, which is the difference between a long line a
-     student can read and a long line that begins halfway through. */
+  /* centre the text while it fits and start from the top when it does not */
   justify-content: safe center;
   /* deliberately NOT a positioned ancestor: the name plaque is absolute against
      the BOX, and a relative column here would become its containing block and drop
@@ -147,12 +75,7 @@ html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
   /* cqw, not vh: the box is a container now, so the line scales with the paper
      it is written on. The clamp keeps it readable on a narrow window and stops it
      becoming a headline on a projector. */
-  /* 8.3cqw MEASURED, not guessed. The box carries about 408px of paper inside its
-     frame at the default width, so a cqw here is roughly 4 pixels and the first
-     pass at this (4.6cqw) rendered 25px at text size L where the old viewport-based
-     rule rendered 44. Smaller is the wrong direction on the surface a student reads
-     most. 8.3 puts M at about 34 and L at about 41, which is the size the old rule
-     reached at its ceiling, and now the box grows to hold it instead of clipping. */
+  /* the size is a share of the paper's own width, floored and capped in pixels */
   --kit-fs-raw: clamp(22px, calc(8.3cqw * var(--kit-text-scale)), 46px); font-size: var(--kit-fs);
   line-height: 1.4;
   color: var(--kit-ink-said);
@@ -162,12 +85,7 @@ html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
      the box is a fixed-height flex box that centers this line, so text fills the paper. */
 }
 
-/* THE CONTINUE CUE: A DRAWN PAW AND WORDS THAT NAME BOTH WAYS TO GO ON.
-   It was the single word `click`, at a raw viewport size that ignored the text
-   setting, pulsing on its own. `click` is a lie to a keyboard player and `press
-   space` is a lie to a trackpad, so it says both, and the paw beside it is the
-   `cue` piece MAPVIS drew and nothing had ever read (`hud/dialogue.css` animates
-   the four frames). Bottom right of the paper, out of the text's way. */
+/* the continue cue in the paper's bottom right: a drawn paw and words naming both ways on */
 .cs-continue-hint {
   position: absolute;
   right: 13%; bottom: 13%;
@@ -180,21 +98,10 @@ html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
   pointer-events: none;
 }
 
-/* THE SPEAKER'S PLATE IS A DRAWN PLATE. It was two hand-typed gradient stops, a
-   border and two inset shadows pretending to be carved wood, beside a box whose
-   frame is real drawn art: at classroom distance the fake sat a shade off the
-   real one on every line in the game. `--kit-art-plaque` is the small carved
-   plate already committed to this repo and already worn by the HUD's own token
-   counter, stretched as a SHAPE and never nine-sliced. `6851a68` is the lesson:
-   a nine-slice on a control this small spends its whole height on carving and
-   leaves a sliver for the word. */
+/* the speaker's name on a drawn carved plate, stretched as a shape rather than nine-sliced */
 .cs-nameplaque {
   position: absolute;
-  /* PIXELS, NOT A PERCENTAGE, and that changed with §40.14. `top: -9%` resolves
-     against the containing block's HEIGHT, and the box's height is a variable
-     now: the plate hung 17px above a one-line box and 36px above a four-line
-     one, so the speaker's name moved every time somebody wrote a longer
-     sentence. The frame's top rail is in the same place either way. */
+  /* pixels rather than a percentage, so the plate does not move when the box grows */
   top: -18px;
   left: 6.5%;
   padding: 4px 18px 6px;
@@ -228,18 +135,7 @@ html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
   left: 50%;
   bottom: 12vh;
   transform: translateX(-50%);
-  /* THE PLAQUE IS STRETCHED, SO ITS END CAPS SCALE AND A FIXED PADDING CANNOT
-   * CLEAR THEM. SWEEP-1 item 26: the first and last letters of the game's one
-   * instruction were drawn outside the wood, on bare sand, and its bottom edge
-   * sat under the letterbox bar. 20px of side padding was measured against one
-   * particular sentence; `background-size: 100% 100%` means the carved ends grow
-   * with the box, so the clearance has to be a share of the width and not a
-   * number of pixels. 5% each side holds the caps at every length this line
-   * takes, with a pixel floor for a very short one.
-   *
-   * The width is capped and the line is allowed to wrap: without it a long
-   * sentence stretches one plaque across the whole screen, which reads as a
-   * banner rather than as a label on the world. */
+  /* side padding is a share of the width so the plaque's carved ends never cover a letter */
   padding: 8px max(30px, 7.5%) 13px;
   max-width: min(58vw, 640px);
   text-align: center;
@@ -268,21 +164,13 @@ html[data-rm='1'] .cs-prompt { animation: none; opacity: 1; }
   align-items: center;
   gap: 6px;
   padding: 5px 16px 7px;
-  /* THE LAST STYLED DIV IN THIS FILE, and it wears the drawn plate now like the
-     other two. It was a two-stop linear gradient inside a one-pixel border,
-     sitting in the corner of a screen whose every other surface is painted, and
-     `docs/ops/BRIEF-UI.md` law 2 is that every element is drawn art rather than
-     a styled div. It still RECEDES, which is the thing about it worth keeping:
-     the opacity below is what makes it quiet, not a duller colour. */
+  /* the skip control wears the same drawn plate, kept quiet by opacity rather than colour */
   background: var(--kit-art-plaque) center / 100% 100% no-repeat;
   image-rendering: var(--kit-pixel);
   border: 0;
   overflow: hidden;
   font-family: var(--kit-face-body);
-  /* IT WAS A RAW 13px AND IT WENT ROUND THE TEXT SETTING. Every other size in
-     the kit multiplies by `--kit-text-scale` and snaps to a whole pixel; this
-     one did neither, so a student who set text to L for a reason got a skip
-     control that stayed at 13. */
+  /* the skip words answer the text setting like every other size in the kit */
   --kit-fs-raw: calc(13px * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-wood-dark-ink);
   opacity: .62;
@@ -323,19 +211,7 @@ html[data-rm='1'] .cs-prompt { animation: none; opacity: 1; }
   pointer-events: none;
 }
 
-/* =========================================================================
- * §16, THE PLAIN ARM. This file had no plain block at all, which means the
- * study's CONTROL condition read every cutscene caption, every walk-to prompt,
- * every speaker's name and every skip control off carved wood in the game's own
- * faces. Ash ruled the arm on 2026-08-31: a document a person could have
- * written, system font, black on white, real headings, no game art, no wood, no
- * parchment, and NOT raw OS widgets.
- *
- * Nothing below changes a single word a student is asked or told. It changes
- * what those words are printed on. Every rule is scoped to the attribute, so the
- * game arm cannot see any of it, and none of them names a picture: the art
- * tokens are already `none` in this arm and a url here would put it back.
- * ========================================================================= */
+/* the plain arm: the same words printed on a document rather than on carved wood */
 
 /* the box becomes a block: a heading, then the words, then the instruction,
    which is the order a worksheet is read in. The paper and the rule around it

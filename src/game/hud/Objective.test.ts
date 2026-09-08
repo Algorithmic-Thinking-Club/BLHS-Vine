@@ -1,20 +1,4 @@
-/* THE OBJECTIVE PANEL WEARS THE BEACH'S BAR, and this file is the fence.
- *
- * Ash, after playing rail-3: *"the panel on the top middle needs to be the very
- * narrow dark brown panel, the one from the beach map where it says stuff like
- * 'Walk to the pier'."* That bar is `.cs-prompt` in `cutscene/ui-kit.css`, and
- * what it wears is `--kit-art-plaque`.
- *
- * The panel was built wearing `kit-surface-band`, the big nine-sliced parchment
- * plaque the dialogue box and the arrival card wear, which is the natural thing
- * to reach for and is why it needs a test rather than a comment: nothing in the
- * tree fails when one class name is swapped back, and the failure is a hundred
- * pixels of ornate sheet at the top of every frame of the game.
- *
- * These read the files as text on purpose. jsdom does not resolve a background
- * shorthand carrying a custom property, so a computed-style assertion here would
- * pass on an empty string and prove nothing.
- */
+/* checks the objective bar keeps wearing the beach prompt's drawn plaque */
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -35,17 +19,10 @@ describe('the objective panel is the beach bar', () => {
     expect(promptBlock).toContain('background: var(--kit-art-plaque) center / 100% 100% no-repeat')
   })
 
-  /* THE COMMENTS ARE ALLOWED TO SAY THE WORD and the code is not, which is why
-   * this strips them first: both files name the band in prose, because the whole
-   * point of writing it down is that the next session does not reach for it
-   * again. Asserting on the raw text would fail on its own explanation. */
+  /* the comments are allowed to name the band, so they are stripped before matching */
   it('is not the parchment band any more', () => {
     const bare = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '')
-    /* THE ONE LINE IS STILL ITS OWN ELEMENT WEARING ITS OWN CLASS. It stopped
-     * being a `<p>` on 2026-09-08: BRIEF-CLOSE-THE-LOOP section 7 makes pressing
-     * it drop the year's task sheet, and a paragraph is not a control. What this
-     * is fencing is the DRESSING, so it asserts the class and the title and lets
-     * the tag be whatever the affordance needs. */
+    /* the one line is still its own element wearing its own class */
     expect(bare(tsx)).toMatch(/className="ob-panel"/)
     expect(bare(tsx)).toMatch(/title=\{text\}/)
     /* THE BAR MAY NOT WEAR THE BAND AND THE SHEET UNDER IT MUST. Asserted on the
@@ -67,11 +44,7 @@ describe('the objective panel is the beach bar', () => {
     expect(panelBlock).toContain('--kit-face-body')
   })
 
-  /* THE CAPS ARE A SHARE OF THE WIDTH AND NOT A NUMBER OF PIXELS. The picture is
-   * stretched to the box, so its carved ends grow with it; a fixed side padding
-   * puts the first and last letters on the carving. `.cs-prompt` measured this
-   * once and paid for it, and the panel inherits the number rather than a second
-   * guess at it. */
+  /* the side padding is a share of the width, so the letters clear the carved ends */
   it('clears the carved ends the way the beach bar does', () => {
     expect(panelBlock).toContain('padding: 8px max(30px, 7.5%) 13px')
     expect(promptBlock).toContain('padding: 8px max(30px, 7.5%) 13px')

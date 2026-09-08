@@ -1,20 +1,4 @@
-// THE OCEAN — the game's shared water system, extracted VERBATIM from BeachIso.tsx (2026-07-02).
-// This is the transport layer every map sails on: the beach imports it, the island map imports it,
-// every future map imports it. It is never re-implemented (STATE-OF-PLAY §3: enhance, don't replace).
-//
-// What lives here (all values byte-identical to the beach the day of extraction):
-//   - the 16 NORMALIZED water variant tiles (water-n/: shared base color, texture as luma deviation)
-//   - the depth ramp W_RAMP (glassy waterline aqua -> turquoise -> teal -> navy abyss) + the
-//     depth-keyed dither that kills ramp banding without re-introducing the diamond checker
-//   - traveling swell brightness waves (phase along tx+ty with a slower crossing wave)
-//   - the AERIAL PERSPECTIVE veil (world-space canvas sliced per s-row so depth sorting stays honest)
-//   - the TIDE: two staggered foam-lace fronts + water film + trail bubbles + waterline skirt/seam +
-//     the wet-sand memory sheet, all riding the map's smooth shore curve at sub-tile precision
-//   - sun glints twinkling on the open water
-//
-// Geometry is the CALLER's: every builder takes the map's own shoreAt(d) curve (and the tile loop
-// passes ds = signed diagonal distance from the waterline), so the beach keeps its cove and the
-// island map feeds its own coast while the water itself stays the same water.
+// the shared water every map sails on: tiles, the depth ramp, swell, the tide and the foam
 
 import { Assets, Container, Rectangle, Sprite, Texture } from 'pixi.js'
 
@@ -99,16 +83,9 @@ export async function loadWaterVariants(): Promise<Texture[]> {
 
 export type SwellSprite = { sp: Sprite; ph: number; ph2: number; base: number; amp: number; shoreD?: number }
 
-// Configure an EXISTING sprite as the sea tile at (tx,ty) — the virtualized-sea path.
-// The look is a pure function of (tx,ty,ds), so a recycled pool sprite is pixel-identical
-// to a fresh one; the island's vast ocean re-points its pool as the camera moves. blk > 1
-// covers a blk x blk block with one sprite (far-zoom LOD: the micro-texture is subpixel
-// out there; the depth ramp + drifting patches carry all the variation that survives).
+// set up an existing sprite as the sea tile at (tx,ty), for the recycled sprite pool
 export function configSeaTile(sp: Sprite, tx: number, ty: number, ds: number, waterV: Texture[], fallback: Texture | undefined, blk = 1): SwellSprite | null {
-  // depth in [0,1], DITHERED per tile so the ramp steps interleave instead of banding.
-  // The dither is DEPTH-KEYED: strong on the shallow plateau (flat ramp, banding risk,
-  // cheap dither), near-zero through the lit mid-band where the ramp is STEEP — there
-  // a +-0.04 dep dither was +-10 luma per tile, i.e. the visible diamond checker
+  // depth in [0,1], dithered per tile so the ramp steps interleave instead of banding
   const raw = -ds / DEPTH_RANGE
   const dAmp = raw < 0.14 ? 0.1 : raw < 0.55 ? 0.022 : 0.05
   const dep = Math.min(1, Math.max(0, raw + (hash(tx * 7.7, ty * 5.3) - 0.5) * dAmp))
@@ -153,11 +130,7 @@ export function seaTile(world: Container, tx: number, ty: number, ds: number, wa
   out.push(m)
 }
 
-// ---- AERIAL PERSPECTIVE WASH: the far field flattens toward the abyss so the per-tile
-// texture (and any hint of the diamond lattice) dissolves with distance, the way the
-// reference oceans read. One world-space canvas follows the exact shore-depth math, then
-// gets sliced into a strip per s-row so depth sorting stays honest: sea props and boats
-// keep a waterline immersion on their bottom rows, towers above it stay untouched. ----
+// the distance wash: the far field flattens toward the abyss, sliced into one strip per row
 export function buildAerialVeil(world: Container, o: { x0: number; spanPx: number; sMax: number; shoreAt: (d: number) => number; res?: number }) {
   const RES = o.res ?? 4 // world px per canvas px (a veil, not detail — low res is free)
   const x0 = o.x0, cw = Math.ceil(o.spanPx / RES), sMax = o.sMax, ch = Math.ceil((sMax * HH) / RES)
@@ -272,10 +245,7 @@ export function buildShoreFoam(
           fp.anchor.set(0.5, 1); fp.position.set(d * HW, shoreAt(d) * HH); fp.alpha = 0
           world.addChild(fp); filmSegs.push({ sp: fp, d, jit })
         }
-        // alternate strip halves run MIRRORED so the lace motif's repeat period doubles
-        // (foam is stochastic — a mirrored continuation still reads continuous); each segment
-        // carries TWO slices at different offsets and swaps during the lull, so consecutive
-        // waves never show the same lace shapes
+        // each segment carries two mirrored lace slices and swaps them during the lull
         const period = Math.max(32, laceT.width - 32)
         const sliceAt = (base: number) => {
           const run = Math.floor(base / period) % 2 === 1

@@ -1,12 +1,4 @@
-/* THE CHART'S WAY INTO THE WATER, AND THE ANSWER IT ALWAYS GETS BACK.
- *
- * The one thing this bus must never do is swallow a click. A student presses an
- * island on the chart and either the ship is going, or they are told why not, and
- * "nothing visibly happened" is the dead end BRIEF-SELF-EVIDENT is written
- * against. The chart opens over interiors and over the year sheet, where there is
- * no ocean under it at all, so the no-listener case is not an edge case: it is
- * most of the places this panel can be opened from.
- */
+/* the chart's way into the water, and the answer a click always gets back */
 import { describe, it, expect } from 'vitest'
 import type { WorldSlot } from './composition'
 import { onSailRequest, requestSail, sailFrom, sailListenerCount } from './sail-bus'

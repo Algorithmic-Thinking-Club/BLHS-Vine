@@ -1,36 +1,11 @@
-/* THE SOUND LIBRARY, HELD TO THE TWO THINGS IT CAN LIE ABOUT.
- *
- * A sound player fails quietly by nature. Nobody notices a missing click on a
- * muted Chromebook, nobody notices a registry row pointing at a file that never
- * shipped, and nobody notices a licence column that stopped matching the folder
- * six commits ago. All three are invisible until the wrong person notices: a
- * member whose island is silent, a student whose build 404s, or a district
- * reviewer asking where an audio file came from.
- *
- * So this file checks the two halves that cannot be seen by playing the game.
- * FIRST, that a name the library does not hold refuses out loud, which is the
- * `intents.ts` law and the only thing standing between an author and a silent
- * typo. SECOND, that the table and the folder agree in BOTH directions: every
- * row has a file on disk, and every file on disk has a row, because an orphan
- * ogg is an unlicensed byte in a build that goes to minors.
- */
+/* tests for the sound library: an unknown name refuses, and the table matches the folder */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
 const SFX_DIR = path.resolve(process.cwd(), 'public/sfx')
 
-/* A CLEAN MODULE PER TEST, and the refusal class that goes with it.
- *
- * The player keeps the pre-unlock queue and the mute cache at module scope,
- * because there is one pair of speakers and no reason for two of anything. That
- * makes every test that counts the queue depend on the ones before it, so the
- * module is reloaded each time.
- *
- * `NotBuilt` has to come out of the same reload. `resetModules` rebuilds the
- * whole graph including `vine/intents`, so a `NotBuilt` imported once at the top
- * of this file is a DIFFERENT class object from the one the reloaded player
- * throws, and every `instanceof` quietly fails on an error that is correct. */
+/* a clean copy of the player per test, with the refusal class from the same reload */
 async function fresh() {
   vi.resetModules()
   const audio = await import('./audio')
@@ -38,11 +13,7 @@ async function fresh() {
   return { audio, NotBuilt }
 }
 
-/* SOUND IS OFF UNTIL SOMEBODY CHOOSES IT, so any test whose subject is the queue
- * or the unlock has to say out loud that a student turned it on. Before Ash's
- * law 4 landed these tests were passing on a default nobody had picked, which is
- * exactly what SWEEP-1 item 6 found shipping. Written the way the Sound control
- * writes it. */
+/* turns sound on the way the Sound control does, because it is off until somebody picks it */
 function soundOn() {
   localStorage.setItem('blhs_settings_v1', JSON.stringify({ sound: 'full', mute: false }))
 }
@@ -77,11 +48,7 @@ describe('a name the library does not hold', () => {
 describe('a registry name with no file behind it', () => {
   it('refuses the same way a name nobody wrote down does', async () => {
     const { audio } = await fresh()
-    /* a reserved word is the tempting middle case: agreed with a member, listed
-     * in the table, no recording made yet. Reporting success for it is exactly
-     * the deception `fx` shipped, so it throws like anything else that cannot
-     * perform. Injected here rather than kept in the real table, because a
-     * permanently fileless row would be a permanently broken name. */
+    /* a row in the table with no recording behind it, injected rather than shipped */
     ;(audio.SFX as Record<string, unknown>).thunder =
       { file: null, license: 'CC0-1.0', source: 'https://example.invalid', author: 'nobody' }
     let msg = ''
@@ -153,10 +120,7 @@ describe('before the browser has let anything make a sound', () => {
     const { audio } = await fresh()
     expect(audio.isUnlocked()).toBe(false)
     expect(() => audio.play('click')).not.toThrow()
-    /* THE POINT OF THE QUEUE IS THE FIRST CLICK. Chrome suspends the context
-     * until a real gesture, and the gesture and the click that wants a sound are
-     * the same event, so dropping pre-unlock asks would make the first button in
-     * the game the one silent button in the game. */
+    /* the queue exists for the very first click, which is also the gesture that unlocks sound */
     expect(audio.pending()).toBe(1)
   })
 
@@ -177,10 +141,7 @@ describe('before the browser has let anything make a sound', () => {
     audio.setMuted(false)
   })
 
-  /* THE LAW, PINNED. Ash ruled after his first playthrough that nothing plays
-   * until he has picked a sound. SWEEP-1 item 6 found the opposite shipping: an
-   * absent settings blob meant the whole library. These two say which way round
-   * it is, so nobody can flip the default back without a red test. */
+  /* pins the rule that nothing plays until a student has picked a sound setting */
   it('is silent on a machine that has never opened Settings', async () => {
     localStorage.removeItem('blhs_settings_v1')
     const { audio } = await fresh()
@@ -229,16 +190,7 @@ describe('preload', () => {
   })
 })
 
-/* HAPPY-DOM HAS NO WEB AUDIO, so every test above this line runs down the
- * "there is no output device" branch and proves nothing about the branch a
- * student's Chromebook actually takes. The unlock is the part of this file most
- * likely to be wrong and least likely to be noticed when it is: a resume that
- * never lands, or a flush that fires before the context is running, is a game
- * that is simply quiet, and quiet looks a lot like working.
- *
- * So the browser is stood up here in miniature: a context that starts suspended
- * exactly the way Chrome's autoplay policy leaves it, and a fetch that fails the
- * way school wifi does. */
+/* a miniature Web Audio stack: a context that starts suspended, and a fetch that can fail */
 function stubWebAudio(opts: { fetchOk: boolean }) {
   const started: number[] = []
   const ctx = {

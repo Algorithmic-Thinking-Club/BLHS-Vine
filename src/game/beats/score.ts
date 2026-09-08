@@ -1,7 +1,4 @@
-// Scoring + the Universal Retake Policy as pure logic (§8.1). The real policy, teaching
-// itself: score under a B- (2.7 on the real BLHS scale) and you may retake ONCE, after
-// reviewing the takeaways ("legitimate effort"). The ledger is the retake truth — a kept
-// best grade marked `retaken` means the retake is spent.
+// scoring a beat, and the school's retake policy: under a B- you may retake once
 
 import type { SaveGame } from '../save'
 import { checksOf, type CoreBeat } from './frames'

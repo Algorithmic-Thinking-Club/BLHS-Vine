@@ -1,13 +1,4 @@
-/* Cozy-premium front-end theme (per docs/research/art-ocean-ui-bar.md §C).
-   Anchors: aged paper + carved wood UI chrome; teal lives in the world + as accent;
-   GOLD is reserved for earned honors only; nothing pure-black or pure-white.
-
-   THESE TWENTY-TWO NAMES ARE NOW ALIASES, not values. They are read by
-   boot-title.css, i3.css and run.css, which this session does not own, so
-   renaming them there would have been a rewrite of three files to change one
-   thing. Pointing them at the token layer instead means a skin swap reaches the
-   title screen and the intro without either file learning a new word. Every
-   value is byte-for-byte what was here; game/ui/tokens.css holds them. */
+/* the front-end theme names, kept as aliases pointing at the kit's token layer */
 
 @import '../game/ui/tokens.css';
 

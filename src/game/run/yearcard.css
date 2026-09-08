@@ -1,13 +1,4 @@
-/* THE ONE CARD AT THE END OF THE FILM (BRIEF-INTRO-FILM section 4).
- *
- * It borrows the yearbook's veil and its paper so a student cannot tell it is a
- * different component from the book the corner opens; what it does not borrow is
- * the SPREAD, because a spread is a thing to read and this is a thing to be
- * handed. Two lists, side by side, and one plank.
- *
- * Every size goes through `--kit-fs-raw` and `var(--kit-fs)`, which is where
- * `tokens.css` clamps it to a band a fourteen year old can read and snaps it to
- * a whole pixel so the bitmap faces do not lose a column out of a letter. */
+/* the one card at the end of the film: two lists side by side and one plank */
 
 .yc-card {
   width: min(760px, 88vw);
@@ -100,10 +91,7 @@ html[data-rm='1'] .yc-card { animation: none; }
    that is the number a student who reads nothing is steering by */
 .yc-go { min-width: 300px; min-height: 62px; }
 
-/* ---- §16, THE PLAIN ARM -------------------------------------------------
-   A worksheet somebody wrote: no paper texture, no drop shadow, no entrance.
-   `tokens.css` already answers the faces and the colours for this arm, so what
-   is left here is the staging. */
+/* the plain arm: no paper texture, no shadow and no entrance animation */
 html[data-skin='plain'] .yc-card {
   animation: none;
   filter: none;

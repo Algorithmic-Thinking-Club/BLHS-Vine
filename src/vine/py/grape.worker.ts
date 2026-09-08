@@ -1,24 +1,6 @@
-/* THE WORKER: a member's python, running off the main thread.
- *
- * The whole reason the sandbox is free. A member's island is a different
- * runtime in a different thread, so an island that crashes, or spins, cannot
- * take the engine down with it: the worst it can do is stop being an island.
- * The July design listed that as something to build; the runtime choice gives
- * it away (VINE-AND-GRAPE.md).
- *
- * WHAT THE SPIKE SETTLED, and must not be relearned (scripts/mp-spike.mjs):
- *   runPython() always returns null in this build. Values come out through
- *   globals.get(), and they come out as JSON strings, which is exactly what a
- *   worker postMessage carries anyway. So the shape that was proven in node is
- *   the shape that ships, rather than an FFI convenience that dies here.
- */
+// the worker: a member's python running off the main thread, so a crash cannot take the engine down
 import { loadMicroPython, type MicroPython } from '@micropython/micropython-webassembly-pyscript/micropython.mjs'
-/* the wasm goes through the bundler rather than being read off a path we
- * guessed. In dev this resolves inside node_modules; in a production build vite
- * emits a hashed asset and hands back its real URL, and loadMicroPython's `url`
- * option is the supported way to point the runtime at it (it becomes
- * Module.locateFile). Without this, a built worker asks for micropython.wasm
- * next to its own hashed chunk and gets a 404. */
+/* the wasm goes through the bundler, so the runtime is pointed at its real built URL */
 import wasmUrl from '@micropython/micropython-webassembly-pyscript/micropython.wasm?url'
 import VINE_PY from './vine.py?raw'
 import GRAPE_PY from './grape.py?raw'
@@ -32,13 +14,7 @@ const post = (m: FromWorker) => (self as unknown as { postMessage(m: unknown): v
 
 let mp: MicroPython | null = null
 
-/* ~170 KB and under a tenth of a second, which is the entire reason this is
- * MicroPython and not Pyodide: a freshman plays the finished game on a 4 GB
- * school Chromebook. Booted once per session and reused for every call and
- * resume in it. NOT once per game: openGrape makes a worker per island, so a
- * second island pays the boot again. That is the honest reading of one `new
- * Worker` in runGrape.ts, and it is fine at this size; a shared worker would be
- * a change there rather than a comment here. */
+/* start MicroPython once for this worker and reuse it for every call and resume */
 async function boot(): Promise<MicroPython> {
   if (mp) return mp
   const py = await loadMicroPython({
@@ -46,11 +22,7 @@ async function boot(): Promise<MicroPython> {
     stdout: (text) => post({ t: 'print', text }),
     stderr: (text) => post({ t: 'print', text }),
   })
-  /* THE TWO MEMBER-FACING MODULES ARE REAL FILES on the runtime's own
-   * filesystem, so `from vine import say` and `from grape import on_talk` are
-   * ordinary imports and not a trick. They are written HERE, by the engine,
-   * which is what makes a member's own copy of either one harmless: theirs is
-   * for their editor, this one is the one that runs. */
+  /* the two member-facing modules are written as real files, so importing them is ordinary */
   py.FS.writeFile('vine.py', VINE_PY)
   py.FS.writeFile('grape.py', GRAPE_PY)
   py.runPython(DRIVER_PY)
@@ -58,13 +30,7 @@ async function boot(): Promise<MicroPython> {
   return py
 }
 
-/* Run one call and hand back whatever the pump left in `_step`.
- *
- * A python exception surfaces here with its traceback attached, and this is
- * the sandbox in nine lines: the island stops, the worker survives it, and the
- * engine is told in a message rather than by dying. The spike measured that
- * state defined before the crash is still intact afterwards, which is why a
- * crash inside one handler does not cost the island its other handlers. */
+/* run one call and hand back whatever the pump left in `_step`, or report a crash */
 function step(py: MicroPython, call: string): PyStep | null {
   try {
     py.runPython(call)
@@ -85,15 +51,7 @@ self.addEventListener('message', (ev: MessageEvent) => { void handle(ev.data as 
  * until an intent has come back, so there is no interleaving to guard against
  * and no SharedArrayBuffer anywhere near this. */
 async function handle(msg: ToWorker) {
-  /* EVERYTHING is inside this, and that is the point rather than tidiness.
-   *
-   * handle() is invoked as a floating promise, so anything that throws out of
-   * it becomes a rejection nobody catches: no message goes back, and the engine
-   * waits for an answer that is never coming. A silent hang is worse than a
-   * crash and it is the one failure the sandbox exists to make impossible, so
-   * the guard has to cover the filesystem write and the JSON parse too, not
-   * just the runtime starting. Found by review: a filename the filesystem
-   * refused hung the harness on "is running" with nothing on screen. */
+  /* everything is inside this guard, so nothing can throw without a message going back */
   try {
     if (msg.t === 'load' && msg.v !== PROTOCOL) {
       /* the two halves are built from the same repo, so this is a stale cached

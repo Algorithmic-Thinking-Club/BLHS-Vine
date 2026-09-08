@@ -1,51 +1,4 @@
-/* THE CHART: this registry drawn on paper.
- *
- * §80.2 calls the chart "this registry drawn on paper" and the archipelago shot
- * "this registry at its widest", which is the whole argument for the chart not
- * being a second list: it reads the same composition the water is built from, so
- * an island that rises between two sittings appears on the chart with no code
- * change and no second edit.
- *
- * WHAT IT REPLACED. The Handbook's chart page read `ISLANDS` from
- * `src/game/island/registry.ts`, the tile-era registry, which holds exactly one
- * entry, `{id: 'central', cx: 192, cy: 192, radius: 78}`, with `tile-space
- * center` on the coordinates, for a map the game loads under a different id.
- * That is AUTHORING §12's own example of the world composition document being
- * missing, and this is the page that had been standing in for it.
- *
- * ---- WHAT THIS PASS IS FOR, 2026-09-01 -------------------------------------
- *
- * §9.12 calls the chart "the second most looked-at panel in the game after the
- * dialogue box" and then says the thing this file was failing: *"It is drawn
- * art, not a styled div."* What was on it was seven FONT CHARACTERS, one per
- * state, which `docs/ART.md` forbids outright, laid over two gradients.
- *
- * SO A STATE IS NOW WHICH OBJECTS ARE STANDING AT THE DOCK. §9.17's law,
- * verbatim: *"Every island state is legible at a glance, at sailing distance, on
- * a Chromebook screen, and is distinguished from every other state by which
- * objects are present at the dock ... the discriminator is a thing present or
- * absent at a known place, not a change of appearance on a thing that is always
- * there."* `states.ts` resolves the six standing places and this file draws
- * them, in the same order on every island, with the empty places still drawn so
- * that absence reads as absence rather than as a shorter row.
- *
- * FIVE STORED, TWO COMPUTED, AND NOTHING WRITTEN. Available and in-season are
- * recomputed on every draw off `save.tokens` and `SPORT_SEASONS`, because a
- * token spent at the chart table changes what half the ocean looks like without
- * anything touching `save.islands`, and a computed state written into a save is
- * a cache with no invalidation.
- *
- * WHAT IT IS NOT, and both are §9.12 and §9.13 in as many words. It is not a
- * second planner: nothing here commits anything, there is no control on the
- * paper at all, and the year is stamped at the chart table in §5. And it is not
- * a completion score: there is no percentage anywhere on this surface, because
- * `GAME-DESIGN.md` §10 puts that in Gear 2, after a run is over, and a
- * percentage during a run turns four years into a checklist.
- *
- * THREE HONEST PANEL STATES, which §40.42 asks for and which this page had none
- * of: the document has not answered yet, the document answered with no water on
- * it, and the sea holds one island because the platform has published one.
- */
+/* the chart: the world composition drawn on paper, with each island's state read off it */
 import { useEffect, useRef, useState } from 'react'
 import {
   compositionCache, compositionReport, loadComposition, regionAt, seaSlots,
@@ -60,30 +13,14 @@ import { requestSail, sailFrom, sailListenerCount } from './sail-bus'
 import { note } from '../ui/feedback'
 import './chart.css'
 
-/* THE SENTENCE §40.42 KEEPS, WORD FOR WORD. The moment's own instruction is that
- * the five existing empty states survive "verbatim through any refactor", and
- * this is the one the Handbook's Islands tab already prints. The sea holding one
- * island is not an edge case in the first deployment, it IS the first
- * deployment, so the sentence a student reads during it is a promise about the
- * club rather than an apology for the game. */
+/* the sentence for a sea holding one island, kept word for word */
 /* THE WORDS PASS, 2026-09-04, rewrote this sentence. The moment asked for it
  * verbatim, and Ash's literal-words ruling outranks that: it now names what an
  * island really is and who is building the others. */
 const SEA_IS_YOUNG = 'Every island here is a real Bonney Lake club, sport or class. '
   + 'Students are still building the rest.'
 
-/* ---- one thing standing at one place on a dock ---------------------------
- *
- * `Glyph` wears the platform's cut face when the kit is worn and falls back to
- * whatever node it is handed otherwise, and the fallback here is always a
- * drawing made out of the token layer. Never a character: `docs/ART.md` says
- * "Icons are drawn, never an emoji or a font glyph" and the three objects nobody
- * has drawn yet (a pennant, a fog bank, the water breaking) are token shapes
- * carrying a word rather than a symbol borrowed from the operating system.
- *
- * AN EMPTY PLACE IS STILL DRAWN. That is the whole mechanic: a notch on the rail
- * where a thing is not, so "no star" is something a student sees rather than
- * something they have to notice the absence of. */
+/* ---- one thing standing at one place on a dock, with the empty places still drawn */
 function Mark({ m, big = false }: { m: DockDrawn; big?: boolean }) {
   const shape = <span className={`ch-s ${m.shape}`} />
   if (!m.on) return <span className="ch-slot ch-slot-off" aria-hidden="true" />
@@ -122,25 +59,7 @@ type Row = {
   sailable: boolean
 }
 
-/* ---- WHAT A CLICK ON A PLACE DOES --------------------------------------
- *
- * BRIEF-SELF-EVIDENT law 2, which is the whole of why this page grew a control:
- * *"Click an island on the chart and the ship sails there by itself."* Before
- * this the chart was a picture and a list, and the only way to move a boat in
- * this game was a student holding an arrow key at sea, which a freshman who has
- * never been told there is a boat will not do.
- *
- * WHAT IS CLICKABLE, and it is the field the page already computes. `dock.named`
- * is false for a rumour and for anywhere still under mist, which is exactly the
- * set a student must not be able to sail to: the chart refuses to even print
- * those names, so a button on one would be a button to somewhere the game has
- * not told them exists. Then it needs a map to arrive on, a berth to tie to, and
- * it must not be the island they are standing on.
- *
- * IT IS THE SAME CONTROL IN BOTH ARMS. The picture is hidden under the plain
- * skin and the register list is not, so the row carries the button and the mark
- * on the paper carries a second one. A study where one arm can sail from the
- * chart and the other cannot is measuring the boat, not the game. */
+/* ---- clicking a named island sails the ship there, the same control in both arms */
 function sailableRow(r: { dock: Dock; slot: WorldSlot }, here: string | undefined): boolean {
   return r.dock.named
     && r.dock.state !== 'rising'
@@ -165,25 +84,15 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
 
   const save = loadSave()
 
-  /* THE PANEL HAS NOT GOT ITS DOCUMENT YET. §40.42's list of panel states has
-     loading in it and this page rendered a bare sentence in the dim voice, which
-     is the same shape as "there is nothing here" and reads as an empty feature
-     rather than as a fetch in flight. */
+  /* the panel has not got its document yet, which is not the same as an empty sea */
   const slots = comp ? seaSlots(comp) : []
 
-  /* WHERE THE BOAT IS TIED UP, which is the only distance the run has actually
-     recorded. `mooringFor` already answers it for the resume guard and returns
-     the home slot when a run has never sailed, so the mist has something honest
-     to thin against from the first sitting. */
+  /* where the boat is tied up, which is the distance the mist thins against */
   const moor = comp && save ? mooringFor(save.vessel, comp) : null
   const berthed: WorldSlot | null = moor?.slot ?? null
   const from: WorldPt | null = berthed ? berthed.at : null
 
-  /* WHERE HE IS STANDING, so the island he is on is not offered as somewhere to
-   * sail to, and whether anything can take him anywhere at all. Both come from
-   * the scene that is drawing the painting: the chart opens over the year sheet
-   * and over an interior, and neither has an ocean under it, so the button is not
-   * drawn rather than drawn and then refused. */
+  /* where he is standing, so his own island is not offered, and whether a boat can take him */
   const here = sailFrom() ?? undefined
   const afloat = sailListenerCount() > 0
 
@@ -202,11 +111,7 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
     }
   })
 
-  /* THE MIST PARTS AND THE CHART INKS. §9.14: "the dissolve is staged rather
-     than switched ... a hard swap reads as a bug." The stage itself is a
-     distance and lives in `dockOf`; this is the other half, the one-shot the
-     mark plays on the draw it stops being a smudge, and it is announced because
-     a mark appearing on paper is invisible to a reader. */
+  /* the mist parts and the mark inks in, once, on the draw it stops being a smudge */
   useEffect(() => {
     const fresh: string[] = []
     for (const r of rows) {
@@ -251,10 +156,7 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
   }
 
   if (!slots.length) {
-    /* THE DOCUMENT ANSWERED WITH NOTHING ON IT. `tryWorld` drops a faulty slot
-       and keeps the rest, so this is the case where every slot was refused or
-       the world was authored empty: a real error rather than an empty sea, and
-       it has to say so instead of drawing blank paper. */
+    /* the document answered with nothing on it, which is an error rather than an empty sea */
     return (
       <div className="ch-chart">
         <h2 className="ch-h">Chart</h2>
@@ -266,16 +168,7 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
     )
   }
 
-  /* THE PAPER FITS WHAT IS ON IT. A fixed frame drawn around a hardcoded extent
-   * is what the tile-era chart did, and the first island placed outside that
-   * extent falls off the page. The bounds are computed from the composition.
-   *
-   * THE MARGIN IS A FRACTION OF THE SPREAD AND NOT A CONSTANT. A flat 700 pixels
-   * of padding is nothing around a wide archipelago and is most of the page
-   * around two islands: measured on the shipped composition it put both marks
-   * inside the middle third and left two thirds of the paper empty, on a page
-   * that is already only 273 pixels wide inside the binder. A floor keeps a
-   * single-island composition from being drawn at one point. */
+  /* the paper fits what is on it, with a margin taken as a fraction of the spread */
   const xs = slots.map((s) => s.at.x)
   const ys = slots.map((s) => s.at.y)
   const spread = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys))
@@ -289,11 +182,7 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
   const unvisited = (comp.regions ?? []).filter((r) => r.kind === 'sailable'
     && !slots.some((s) => known.has(s.place ?? '') && regionAt(comp, s.at)?.name === r.name))
 
-  /* THE BOAT CARRIES HER OWN NAME. §9.13, and it is the same trick §2.11 named:
-     the name was typed at the pier, painted on the stern, and this is its third
-     appearance, which is the game proving again that it listened. A run that has
-     not named her yet still gets a marker, because a student needs to know where
-     they are more than the boat needs a name. */
+  /* the boat marker carries the name the student typed at the pier */
   const boat = save?.boatName?.trim() || 'your boat'
 
   /* the platform could not be reached and the game is drawing the copy built
@@ -326,13 +215,7 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
           </div>
         ))}
 
-        {/* THE ROSE IS PRINTED ON THE PAPER NOW, so this one is gone.
-            `chart-field.png` was drawn on 2026-09-01 with a rose bled into its
-            corner, which is where a rose belongs on a chart, and mounting
-            `icon_set`'s HUD compass beside it put two of them on one sheet. The
-            face is a BUTTON ICON at 24 pixels; a rose on a chart is a different
-            drawing at a different size, and using one for the other was the
-            stand-in that the paper has now replaced. */}
+        {/* the compass rose is printed on the paper itself, so nothing is mounted for it */}
         {rows.map((r) => {
           const body = (
             <>
@@ -377,25 +260,8 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
         )}
       </div>
 
-      {/* ---- THE READING, WHICH IS ALSO THE PLAIN ARM ----------------------
-          §9.13's deployment line: this is the screen a teacher ends up pointing
-          at over a shoulder, so the same facts have to be legible as a list and
-          not only as a picture. It is one list in both arms; the paper above it
-          is what the plain arm does not get. */}
-      {/* ---- WHAT THE PICTURE MEANS, DIRECTLY UNDER THE PICTURE -----------
-       *
-       * These two blocks used to sit at the BOTTOM of the page, after the whole
-       * register, and at 1366x768 that put them past the fold: photographed at
-       * `fixed-game/12-chart.png` the page ended on bare paper after the last
-       * register rule, and a student in the shipped arm never saw either of
-       * them. The control arm saw both, only because the plain skin hides the
-       * sheet entirely and the page got shorter.
-       *
-       * They belong here anyway. The legend teaches the sheet ("pencil is rumour
-       * and ink is somewhere you have been") and the sentence explains why the
-       * sheet is nearly empty, and an explanation of a picture goes under the
-       * picture rather than under the list of everything in it. A one-island sea
-       * is not an edge case in the first deployment, it IS the first deployment. */}
+      {/* ---- the register list, which is the same facts as a list and is in both arms */}
+      {/* ---- what the picture means, directly under the picture */}
       <p className="ch-legend">
         Faint marks are places you have not been to. Solid marks are places you have.
         {unvisited.length

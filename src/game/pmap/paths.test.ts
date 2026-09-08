@@ -1,15 +1,4 @@
-/* THE ROUTES MAPVIS HAS BEEN PUBLISHING SINCE WAVE 3, and the reader that is
- * finally reading one.
- *
- * The contract lives in another repo (MAPVIS-next/src/core/mask.ts:749-792), so
- * the two sides can drift with nobody noticing until a route walks a body into
- * the sea. These are the fence. The hub's own `the_dock_walk` is in here
- * verbatim off the published bundle, including the fact that it carries no
- * `kind` field at all, because the field was added after it was drawn.
- *
- * Everything here is pure: `walkFaults` takes the standability probe as an
- * argument, so a failure names the rule rather than the map.
- */
+/* checks the reader for the routes MAPVIS publishes inside a map bundle */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readPaths, legsOf, lengthOf, pathNames, walkFaults, isPathName, type Pathway } from './paths'
 
@@ -42,10 +31,7 @@ describe('reading a route MAPVIS actually published', () => {
     expect(p.marks).toEqual([])
   })
 
-  /* A MISSING KIND IS A WALK AND IT IS SILENT ABOUT IT. That is MAPVIS's own
-   * default, not a guess made on this side, and every route published before the
-   * field existed lands here. A warning would fire on every load of the only map
-   * the game ships, which is how a log stops being read. */
+  /* a route with no kind is a walk, quietly, which is MAPVIS's own default */
   it('reads a route with no kind at all as a walk, and says nothing about it', () => {
     expect(one(THE_DOCK_WALK)!.kind).toBe('walk')
     expect(warns).toEqual([])
@@ -70,11 +56,7 @@ describe('reading a route MAPVIS actually published', () => {
   })
 
   it('refuses the WHOLE route for one unreadable waypoint, at the index that broke it', () => {
-    /* it used to drop the bad point and keep the rest, which silently renumbers
-     * every mark after it: `[A, bad, C]` becomes `[A, C]` and the mark that meant
-     * the middle now resolves to the end, with nothing said. A dropped route is a
-     * beat that does not play; a renumbered one is a beat that plays in the wrong
-     * place, and only one of those two is findable. */
+    /* one bad waypoint refuses the whole route rather than renumber every mark after it */
     expect(one({ name: 'half_a_point', points: [[0, 0], { x: 5 }] })).toBeUndefined()
     expect(warns.join()).toContain('unreadable waypoint at index 1')
     warns.length = 0

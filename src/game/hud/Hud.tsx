@@ -28,10 +28,7 @@ import { Glyph, Plank, useKitReady } from '../ui/controls'
 import { hudGrants, type HudElement } from './inventory'
 import './hud.css'
 
-/* WHAT A BEAT ID RESOLVES TO. World code names a beat as a string, the way a
- * grape will, and this is the only place a string becomes a CoreBeat. Y4's is
- * generated from the live save, so it has to be asked for rather than looked up
- * in a table, which is exactly why coreBeatFor takes the save. */
+/* turns a beat id string into the beat itself, which is the only place that happens */
 function beatById(id: string, s: ReturnType<typeof loadSave>): CoreBeat | null {
   if (!s) return null
   for (let y = 1; y <= 4; y++) if (id === coreBeatId(y)) return coreBeatFor(y, s)
@@ -46,12 +43,7 @@ function gradeFromLedger(beatId: string): number | null {
   return e ? e.grade : null
 }
 
-// The diegetic HUD (§11.1): corner compass (the chart), the Handbook spine, and the
-// season tokens while unspent. NOTHING else floats. Esc pauses (§4.8): the world blurs,
-// a small anchor panel — saves happen anyway, the button is reassurance.
-// The HUD is also the mount point every sit-down UI opens through: world code (any
-// lane's POI or cutscene) calls requestUi('planner'|'handbook'|...) on the ui-bus and
-// the HUD answers — the Maw's chart table opens the SAME planner the token pips do.
+// the corner controls, the pause sheet, and the mount point every sit-down panel opens through
 
 export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const nav = useNav()
@@ -70,29 +62,12 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const [playing, setPlaying] = useState<null | { beat: CoreBeat; plain: boolean; done: (g: number | null) => void }>(null)
   const [, bump] = useState(0)
   useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
-  /* ---- AND THE CORNER CAN BE HANDED OVER ONE PLAQUE AT A TIME -------------
-   *
-   * BRIEF-INTRO-FILM section 4. `corner-bus.ts` holds the staging and answers
-   * `plaqueShown`; this is only the redraw. Nothing is hidden unless an island
-   * armed the handover, so a run that never says a word gets the whole corner
-   * from its first frame, which is BRIEF-PLAYTHROUGH-1 law 2 unchanged. */
+  /* redraws when the corner hands over another plaque */
   useEffect(() => onCornerChange(() => bump((v) => v + 1)), [])
-  /* IS THE WORLD ACTUALLY QUIET. The vignette's own rule has always been "only
-   * while the world is quiet" and it only ever checked this component's own
-   * panels, so a station mid-sentence or a cutscene mid-shot counted as quiet and
-   * the year's opening lines mounted straight over the top of them. Measured on
-   * the Maw stand-in: the founding cutscene's second line and the year-one
-   * vignette were on screen at once, in two boxes, in the same corner.
-   *
-   * world-bus.ts already knows the answer for every case at once, which is the
-   * whole reason it counts holds rather than toggling a boolean. */
+  /* whether anything in the world is talking, counted across every scene by the world bus */
   const [held, setHeld] = useState(worldHeld)
   useEffect(() => { setHeld(worldHeld()); return onWorldHold(setHeld) }, [])
-  /* AND AN ARRIVAL CARD IS THE WORLD NOT BEING QUIET EITHER. An arrival is what
-   * starts a year, so the card naming the place and the year's opening line fired
-   * on the same instant and shared the bottom of the window with the body behind
-   * both of them, which the eyes round caught on the very shot taken to prove
-   * that had stopped. They take turns now. */
+  /* whether an arrival card is up, which also counts as the world not being quiet */
   const [cardUp, setCardUp] = useState(placeCardUp)
   useEffect(() => { setCardUp(placeCardUp()); return onStageBusy(() => setCardUp(placeCardUp())) }, [])
   const s = loadSave()
@@ -110,19 +85,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const firstPlan = (s?.year ?? 1) === 1 && !s?.plans?.[1]?.stamped
   useKitReady()
 
-  /* ---- WHICH CONTROLS ARE ARRIVING RIGHT NOW ------------------------------
-   *
-   * §40.2: "an element enters the HUD when the run first contains the thing it
-   * opens, and the entrance is a moment rather than a state change." `hudGrants`
-   * has answered the first half since it was written and nothing did the second,
-   * so the compass and the binder appeared between two frames the way a bug
-   * appears.
-   *
-   * A grant that was false on the previous render and is true on this one is an
-   * ARRIVAL and swings in on its hook. A grant that was already true when the
-   * page loaded is not: a student who reloads mid-run should not watch their own
-   * corner reassemble every time. The ref is seeded from the first render for
-   * exactly that reason. */
+  /* which controls became granted on this render, so only those swing in on their hook */
   const seen = useRef<Set<HudElement> | null>(null)
   const entering = new Set<HudElement>()
   {
@@ -138,62 +101,20 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const anyOpen = book !== null || planner || settings || advisory || sitClass !== null
     || yearbook || graduation || wardrobe || wall || playing !== null
 
-  /* Esc = pause, only while nothing else owns the frame (the planner eats its own Esc).
-   *
-   * ESCAPE CLOSES THE INNERMOST THING, and this used to be the only rule about
-   * it: one handler here that knew which of its own panels were open and closed
-   * whichever it recognised. A panel it did not know about, a station's dialogue
-   * or a member's grape, would have had Escape pause the game underneath it. The
-   * panels that open through `usePanel` now answer for themselves on the capture
-   * phase, so this only ever runs when no panel is up at all. */
+  /* Escape pauses, but only when no panel is up to answer it first */
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.repeat) return
       if (panelDepth() > 0) return                                            // a panel is on top and has already answered
       if (planner || advisory || sitClass || yearbook || graduation) return   // the sheet eats its own Esc; a beat never Esc-quits
-      /* THE SIDE EFFECT CAME OUT OF THE UPDATER, 2026-09-01.
-       *
-       * This read `setPaused((p) => { onBlurWorld?.(!p); return !p })`, and React
-       * runs an updater function DURING RENDER. `onBlurWorld` takes a world-bus
-       * lease, the bus tells its subscribers, and one of those subscribers is now
-       * the Heading, so pressing Escape logged "Cannot update a component
-       * (Heading) while rendering a different component (Hud)" on every pause.
-       *
-       * It was latent for as long as nothing but this component listened to the
-       * bus, which is the shape of every bug of this kind: correct until somebody
-       * else subscribes. The toggle is pure now and the lease is taken in the
-       * effect below, where a side effect belongs. */
+      /* a pure toggle; the world lease is taken in the effect below instead */
       setPaused((p) => !p)
     }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
   }, [planner, advisory, sitClass, yearbook, graduation, onBlurWorld])
 
-  /* ---- WHO HOLDS THE CONTROLS, DERIVED RATHER THAN REMEMBERED --------------
-   *
-   * There were TWELVE `onBlurWorld?.(...)` calls scattered through this
-   * component, one beside every `setX(true)` and one in `closeAll`, and the
-   * lease behind them is a single shared one. Two bugs came out of that on
-   * 2026-09-01 and both are the same bug.
-   *
-   * The first was loud: `setPaused((p) => { onBlurWorld?.(!p); return !p })`
-   * took the lease INSIDE a state updater, and React runs an updater during
-   * render, so pressing Escape logged "Cannot update a component (Heading) while
-   * rendering a different component (Hud)" every single time. It was latent for
-   * as long as nothing but this component listened to the world bus, which is
-   * the shape of every bug of this kind: correct until somebody else subscribes.
-   *
-   * The second is quiet and worse. Opening a panel from the pause sheet runs
-   * `setPaused(false)` and `onBlurWorld(true)` in one handler, so a
-   * pause-shaped effect would then fire `onBlurWorld(false)` on the next render
-   * and hand the controls back with a panel still on screen. That is exactly the
-   * failure `world-bus.ts` counts leases to prevent, defeated one layer up.
-   *
-   * So the hold is a FUNCTION OF WHAT IS OPEN. Nothing takes it, nothing
-   * releases it, and a panel added next month cannot forget either half: it only
-   * has to be in `anyOpen`. The ref keeps a re-render with no change from
-   * touching the bus, because `onBlurWorld` is redefined by its parent on every
-   * render and would otherwise be a new dependency sixty times a second. */
+  /* the world hold is derived from what is open, so no panel can forget to release it */
   const heldByUs = useRef(false)
   useEffect(() => {
     const want = anyOpen || paused
@@ -202,15 +123,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     onBlurWorld?.(want)
   })
 
-  /* WHOEVER IS WAITING FOR A PANEL TO CLOSE.
-   *
-   * `open(ui, wait=True)` hands a callback down the ui-bus and parks the island
-   * that asked until this component says the screen has gone. It is fired off
-   * NOTHING BEING OPEN rather than off each panel's own close, because a panel
-   * can hand off to another one (the sheet opens a class, the yearbook opens the
-   * graduation), and half of them close through `closeAll` while the rest do not.
-   * "Every panel is shut" is one condition and cannot be forgotten by the next
-   * panel somebody adds. */
+  /* whoever asked for a panel and is parked until every panel is shut again */
   const waiting = useRef<null | (() => void)>(null)
   const sawOpen = useRef(false)
   useEffect(() => {
@@ -237,25 +150,13 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     if (which === 'chart') { track('chart_opened'); setBook('chart') }
     if (which === 'wardrobe') { track('wardrobe_opened', { via: 'world' }); setWardrobe(true) }
     if (which === 'settings') { setSettings(true) }
-    /* THE WALL, which BRIEF-YEAR-ONE reaches for in four of its eight beats: the
-     * empty outline that makes a student want the year, and the thing that fills
-     * every time they finish something. */
+    /* the trophy wall, which fills in every time a student finishes something */
     if (which === 'wall') { track('wall_requested', { via: 'world' }); setWall(true) }
-    /* THE SIXTH DOOR, and the page had exactly one before it: a button inside the
-     * planner that only appears while THIS year is closable. So a student could
-     * not look at year one the moment year one ended, and no island and no
-     * station could ever send them to their own book. `open('yearbook')` is a
-     * word a member's Python can already say. */
+    /* the yearbook, which any island can now send a student to by name */
     if (which === 'yearbook') { track('yearbook_opened', { via: 'world' }); setYearbook(true) }
   }), [onBlurWorld])
 
-  /* A SCORED ACTIVITY ASKED FOR BY WORLD CODE, WITH ITS GRADE COMING BACK.
-   *
-   * The Maw's hearth yields `{kind:'play', beat:'core:y1'}` and waits for the
-   * number. Same call a grape's `score = yield self.play(DebugRace)` will make,
-   * so it is here from the first station rather than invented for the first
-   * island. The runner is the existing two-arm one, so the plain study arm is
-   * honoured by construction and not by a second code path. */
+  /* a scored activity world code asked for, with its grade going back to whoever asked */
   useEffect(() => onBeatRequest((req) => {
     setPaused(false)
     const beat = beatById(req.beat, s)
@@ -270,23 +171,13 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const closeAll = () => {
     setBook(null); setPlanner(false); setAdvisory(false); setSitClass(null); setYearbook(false)
     setGraduation(false); setPaused(false); setSettings(false); setWardrobe(false); setWall(false)
-    /* whoever asked for a beat is told it ended, even when it ended by being
-     * closed. A station body awaiting a grade that never resolves would hold
-     * the world lock for ever, and the map would have no controls and no
-     * explanation. The ledger is the truth about what was scored. */
+    /* whoever asked for a beat is told it ended, even when it ended by being closed */
     setPlaying((p) => { p?.done(gradeFromLedger(p.beat.id)); return null })
   }
   // resolved per render on purpose: Y4's audit beat is GENERATED from the live save
-  /* HAS THE WORLD FINISHED ARRIVING. Set a beat after the last arrival card, and
-   * on a timer for a map that shows no card at all (a room the student has
-   * already been in this sitting), so nothing waits for ever on a card that is
-   * never coming. */
+  /* whether the world has finished arriving, on a timer so nothing waits for ever */
   const [settled, setSettled] = useState(false)
-  /* AND WHETHER THERE IS A WORLD ON THE GLASS AT ALL. The timer above started
-   * at this component's mount, which is before the map has loaded, so on a slow
-   * load the year's first line opened over pure black (STATE-OF-THE-GAME
-   * confusing 5, ugly 1). The scene says when its first frame is up; the settle
-   * clock starts again from that moment. */
+  /* whether a map has drawn its first frame, so nothing opens over a black screen */
   const [drawn, setDrawn] = useState(!!sceneDrawn())
   useEffect(() => {
     let t = window.setTimeout(() => setSettled(true), 2600)
@@ -309,82 +200,17 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const sitClassDef = sitClass ? classById(sitClass) : null
   // the year-start vignette (§7.5 minute one): once per year, only while the
   // world is quiet, and an arrival card on screen is the world not being quiet
-  /* AND IT WAITS FOR THE ARRIVAL TO FINISH, which is the half `!cardUp` cannot
-   * express. Measured cold with scripts/ten-seconds.mjs: Principal Panther's
-   * first line of the year landed at 0.6 seconds and the card naming the place
-   * landed at 2.0, so the year opened by having somebody talk at a student who
-   * did not yet know where they were standing. `!cardUp` is false before a card
-   * has been requested as well as after it has gone, so it stopped the two
-   * OVERLAPPING and never put them in an order.
-   *
-   * The comment on `ys-card` records the earlier half of this same bug: "in the
-   * Maw the year's first line covered the place card every single time". This is
-   * the rest of it. Where you are, then what the year is. */
-  /* AND NEVER BEFORE THE PRINCIPAL HAS BEEN MET. The founding is the year's
-   * opening: he walks over and says one line, in the Maw, and writes the
-   * year-one vignette flag himself (islands/panther-maw/founding.py). Until
-   * that flag exists nothing on any map is owed a speech from him, so the card
-   * cannot race the founding on the Maw or play at the dock on the hub while
-   * the task line says to go and find him (STATE-OF-THE-GAME confusing 5). */
+  /* and it waits for the arrival card first: where you are, then what the year is */
+  /* and never before the principal has been met, which the founding flag records */
   const showVignette = !!s?.introDone && s.flags.includes(FOUNDING_FLAG)
     && !anyOpen && !paused && !held && !s.graduated
     && !cardUp && settled && drawn && !s.flags.includes(`vignette:y${s.year}`)
 
   return (
     <>
-      {/* ---- THE CORNER, DRAWN --------------------------------------------
-          §40.6's law names exactly four things that may float and the corner is
-          three of them. What was here was a `linear-gradient` square carrying an
-          operating-system compass and an operating-system book, which
-          `docs/ART.md` forbids in as many words ("Icons are drawn, never an
-          emoji or a font glyph") and which the brief's do-not list forbids
-          again.
-
-          THEY ARE SIGNS NOW, NOT MYSTERY GLYPHS. A hanging carved plate with the
-          drawn mark AND the word, which is `plaque-small.png` at very close to
-          its own drawn 2:1. Three reasons, in order of weight: a fourteen year
-          old in an advisory room reads a word faster than they decode an icon;
-          a 120x56 sign is a real trackpad target where a 46px square is not; and
-          `icon_set` has no book face, so an icon-only Handbook control could
-          only ever have been an emoji.
-
-          THE ENTRANCE IS A MOMENT (§40.2). `hudGrants` has gated these since it
-          was written, but a control that blinks into existence between two
-          frames is a state change and the law asks for a moment, so a newly
-          granted control ARRIVES: it swings down on its hook once, and never
-          again for the life of the page. */}
-      {/* ---- THE CORNER IS COMPLETE FROM THE FIRST FRAME -------------------
-          BRIEF-PLAYTHROUGH-1 law 2, which OVERRULES §40.2 and the paragraph
-          above it, on Ash's own play of the deploy: "two buttons in a corner
-          read as broken, not as earned. Chart, Handbook and the year sheet are
-          all present from the first world frame, aligned as one stack.
-
-          AND THEY ARE CALLED MAP, GUIDE AND MY YEAR (BRIEF-MAW-RAIL). Chart,
-          Handbook and Year sheet are the words a school uses about a school and
-          they mean nothing to a fourteen year old looking for the button that
-          shows where he can go. Each one is handed over by the principal during
-          the rail with one line naming it, at the moment it first matters. What a
-          student has not earned yet is shown inside the panel, honestly, not by
-          hiding the door to it."
-
-          §40.2's argument was that a control for a thing you cannot do yet is
-          furniture. It is a good argument and it lost to a freshman looking at
-          the screen: a gap where a third button belongs does not read as "not
-          yet", it reads as a broken game, and the arrival animation that was
-          supposed to make the grant a moment mostly happened off screen.
-
-          `hudGrants` is NOT deleted and its rows are not edited. It is still the
-          honest answer to "has this been earned", the panels still read it, and
-          the arrival flourish still plays the first time a thing is really
-          granted. What changed is that the DOOR is always there. */}
-      {/* ---- THE HANDOVER, ONE PLAQUE AT A TIME (BRIEF-INTRO-FILM section 4)
-          Each door keeps its place in the stack whether or not it has been
-          handed over yet, so the two that are still coming do not push the one
-          that arrived down the screen as they land. `visibility` rather than
-          `display` for exactly that: the corner is stable (BRIEF-SELF-EVIDENT
-          law 7) and a control that moves while a student is looking at it is
-          the thing that law is about. Outside a staged handover `plaqueShown`
-          is true for all three and none of this is on. */}
+      {/* the corner controls: hanging carved signs with a drawn mark and a word on each */}
+      {/* all three doors stand from the first world frame, called Map, Guide and My Year */}
+      {/* each door keeps its place in the stack even before it has been handed over */}
       <nav className="hud-stack" aria-label="Game menu">
         {(
         <button
@@ -411,12 +237,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
              "The Guide is every club and class at Bonney Lake." */
           onClick={() => openBook('school')}
         >
-          {/* A BOOK, DRAWN 2026-09-01. This wore the school's panther crest,
-              which `docs/ART.md` puts on the Handbook's COVER and which is the
-              right mark for the school and the wrong mark for the control: a
-              student looking for their Handbook is looking for a book. The
-              platform's `icon_set` has no book face and still does not; this is
-              a local mark drawn beside three others in one job. */}
+          {/* a drawn book mark, because a student looking for the Guide looks for a book */}
           <span className="hud-plaque-mark kit-mark kit-mark-book" aria-hidden="true" />
           <span className="hud-plaque-word">Guide</span>
         </button>
@@ -424,36 +245,15 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
         {(
           <button
             className={`hud-plaque${plaqueShown('my-year') ? '' : ' hud-plaque-waiting'}${handedOver.includes('my-year') ? ' hud-arriving' : ''} hud-tokenbtn${entering.has('tokens') ? ' hud-arriving' : ''}`}
-            /* THE CORNER OUTLIVES THE RUN NOW (law 2), so this reads a save that
-               may not exist yet. A student on the first world frame of a fresh
-               run has no tokens because they have not been handed any, which is
-               a different sentence from having spent them all. */
-            /* NO SEASONS IN IT (BRIEF-CLOSE-THE-LOOP section 4). This read out
-               which of Fall, Winter and Spring were unspent, to a student who has
-               never been shown a season anywhere and whose sheet does not have
-               columns. What a screen reader needs here is what the button opens
-               and whether the year is still open, which is what it says now. */
+            /* this reads a save that may not exist yet, because the corner outlives the run */
+            /* the label says what the button opens and whether the year is still open */
             aria-label={s?.plans?.[s.year]?.stamped
               ? 'My Year. Your schedule, and the classes you picked.'
               : 'My Year. Pick your classes and what you join.'}
             aria-haspopup="dialog"
             onClick={openPlanner}
           >
-            {/* ---- THE SEASONS, TOLD APART BY THEIR OWN MARK ----------------
-                MAPVIS drew a `pip` sheet with five cut faces, fall, winter,
-                spring, spent and ghost, and until the corner was rebuilt these
-                were three identical gold circles from a CSS radial-gradient, so
-                a student could count how many they had and could not tell WHICH,
-                and the one that meant "all spent" was an inline opacity of .35.
-
-                §11.3's rule is that no state may be carried by hue alone, and an
-                inline opacity is worse than hue: it is lightness alone, on the
-                hardware that crushes lightness hardest. Three struck faces say
-                which season each one is without a word, and `ghost` is a drawn
-                empty socket rather than a faded copy of a full one.
-
-                An undrawn face falls back to the coin, so a build with no
-                platform still counts correctly. */}
+            {/* the season tokens still in hand, each drawn with its own face rather than a colour */}
             <span className="hud-tokens">
               {left.length > 0
                 ? left.map((t, i) => (
@@ -461,45 +261,14 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
                 ))
                 : <span className="hud-token hud-token-spent" style={faceStyle('pip', 'ghost')} />}
             </span>
-            {/* THE WORD IS THE DOOR, NEVER THE COUNT.
-                Ash, 2026-09-02: "3 left is still a bit inaccurate. is it 3 left
-                or 4 left or something completely different." He is right, twice
-                over, and §40.4 had already said so:
-
-                  "A student can read how much of their year is unspent without
-                   opening anything, and the thing they read is the thing they
-                   press. There is no separate count, no label, no tooltip, and
-                   no number."
-
-                The pips ARE the readout. A number beside them is the same fact
-                said twice, and the second telling is the one that can be wrong.
-
-                And it WAS wrong, in the way he suspected. "3 left" reads as
-                three things left to do, and a year is three season tokens AND
-                two focus classes: `canStamp` refuses a sheet until two classes
-                are picked, so a student holding three tokens and no classes has
-                five decisions left, not three. Every count on a control that is
-                not counting everything is a lie about the rest.
-
-                So it says what it OPENS, the way "Chart" and "Handbook" do two
-                rows above it. The number a reader needs is on the aria-label,
-                where it can be exact without competing with the pips. */}
+            {/* the word says what the button opens; the pips are the only count on it */}
             <span className="hud-plaque-word">My Year</span>
           </button>
         )}
       </nav>
 
       {book && <Handbook initialTab={book} onClose={closeAll} />}
-      {/* ---- THE FIRST PLAN IS CARDS, EVERY LATER ONE IS THE SHEET --------
-          BRIEF-YEAR-ONE beat 4 replaces the year sheet for the first plan with
-          "one screen of big drawn cards", because the sheet asks a student four
-          minutes into the game to understand season tokens, a season lock, a
-          two-class limit and a drag before they have chosen anything.
-
-          The switch is the plan's own state and not a flag: an unstamped year
-          one is the first plan and nothing else in the game is. Once the wax is
-          on it the sheet is the right instrument and it opens as it always did,
-          including for year one, so a student can look at what they chose. */}
+      {/* the first plan is a screen of cards; every later one is the full year sheet */}
       {planner && !firstPlan && (
         <Planner
           onClose={closeAll}
@@ -532,11 +301,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
             </Plank>
           )}
           <Plank wide onClick={() => { setPaused(false); setBook('islands') }}>Guide</Plank>
-          {/* THE SAME CARD THE QUESTION MARK OPENS, which brief item 3b asks for
-              in as many words ("Same card from the pause menu"). One component,
-              so the two roads cannot drift apart: the corner is where a student
-              finds it and the pause sheet is where a teacher tells them to look
-              when they have already pressed Escape. */}
+          {/* the same help card the corner opens, so the two roads cannot drift apart */}
           <Plank wide onClick={() => { setPaused(false); setHelp(true) }}>How to play</Plank>
           <Plank wide onClick={() => { setPaused(false); setSettings(true) }}>Settings</Plank>
           <Plank wide onClick={() => { closeAll(); nav.go('title') }}>Save and leave</Plank>
@@ -546,28 +311,14 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   )
 }
 
-/* THE PAUSE SHEET, AS ITS OWN COMPONENT so it can hold the panel contract: a
- * hook cannot be called inside a conditional branch of the HUD, and a panel that
- * only sometimes traps focus is worse than one that never does, because the
- * failure is intermittent. The line under the buttons was an inline style, which
- * is the one place a skin cannot reach, and it is `.pz-note` now. */
+/* the pause sheet, its own component so it can always hold the panel contract */
 function PausePanel({ onClose, children }: { onClose: () => void; children: ReactNode }) {
   const panel = usePanel({ label: 'Paused', onClose })
   return (
     <div className="pz-veil" onClick={onClose}>
       <div className="pz-panel kit-surface-panel" onClick={(e) => e.stopPropagation()} {...panel}>
-        {/* NO GLYPH, AND THAT IS THE HONEST ANSWER RATHER THAN A COMPROMISE.
-            This read `⚓ Dropped anchor` with an operating-system anchor in the
-            school's off-brand blue, and `icon_set` has no anchor face, so the
-            choice was a drawn mark that does not exist or none at all.
-            `docs/ART.md` decides it: an emoji is not an option, and a title is
-            not a control, so the words carry it. The anchor face is an art gap
-            to be asked for, written down in the handoff rather than papered
-            over. */}
-        {/* AND THE ANCHOR IS DRAWN NOW. This carried an operating-system anchor
-            in the school's off-brand blue until 2026-09-01, then nothing at all
-            because `icon_set` had no anchor face and `docs/ART.md` has no clause
-            for a placeholder. It has one now. */}
+        {/* the title carries no emoji: the words do the work */}
+        {/* and the anchor beside them is a drawn mark */}
         <div className="pz-title">
           <span className="pz-mark kit-mark kit-mark-anchor" aria-hidden="true" />
           Paused

@@ -1,11 +1,4 @@
-/* THE FOUR KEYS, and the break that made them four.
- *
- * The stadium holds Football in fall, Girls Flag Football in winter and Track and
- * Field in spring, on one field, painted once. Under one `islandId` the first of
- * them to finish marked the other two finished, and the student spent a winter
- * token on a voyage the year model already believed was over. Nothing in any file
- * an author could see said so, which is why it is a test rather than a comment.
- */
+// holds the roster's four key spaces apart: a map, a place, a programme and a rank track
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   PLACES, PROGRAMMES, placeById, placeOfMap, placeOfProgramme, programmeById,
@@ -104,12 +97,7 @@ describe('playability is a field, not a hardcoded Set (N1)', () => {
 
 describe('the rank track is its own key space', () => {
   it('resolves keyclub back to its programme, which a programme lookup could not', () => {
-    /* THE NAME IS THE MASKED ONE, and that is the point of the lookup rather
-       than a hole in it: the diploma printed the raw key `keyclub` because the
-       track and the programme are spelled differently, and what it has to print
-       is whatever that programme is currently CALLED. Today Key Club has no
-       island so it is an Example (BRIEF-MAW-RAIL-3 B); the day it has one, this
-       resolves to the real name through the same line. */
+    // the name that comes back is whatever the programme is currently called, mask included
     expect(programmeOfRankTrack('keyclub')?.id).toBe('key-club')
     expect(programmeOfRankTrack('keyclub')?.name).toBe(programmeById('key-club')!.name)
     expect(programmeById('keyclub')).toBeUndefined()
@@ -148,10 +136,7 @@ describe('the year model keys completion on the programme (the fatal break)', ()
 
 describe('a place says WHAT it is and never WHERE it is', () => {
   it('carries no position, because the composition owns that and only one of them is authored', () => {
-    /* `Place.at?: {x, y}` was declared here, set by nobody and read by nobody,
-     * while src/game/world/composition.ts holds the real one on a slot. MAPVIS W2
-     * writes the composition and nothing writes a roster, so a second copy could
-     * only ever go stale and put an island in the wrong water without an error. */
+    // a place carries no coordinates of its own, because the world composition owns those
     for (const p of PLACES) expect(p).not.toHaveProperty('at')
     const fields = new Set(PLACES.flatMap((p) => Object.keys(p)))
     for (const banned of ['at', 'x', 'y', 'position', 'footprint', 'berth'])
@@ -165,20 +150,14 @@ describe('every entry says where it came from', () => {
     for (const g of PROGRAMMES) expect(g.source.length).toBeGreaterThan(0)
   })
   it('leaves a room number absent rather than inventing one for ATC', () => {
-    /* asked of the SOURCED table, because the shipped one is masked: a place a
-       student cannot go to yet carries a letter and no room number at all
-       (BRIEF-MAW-RAIL-3 B), and the thing this test is about is that nobody
-       invented a room for ATC when they wrote the entry. */
+    // asked of the sourced table, since the shipped one strips a room number along with the name
     expect(SOURCED_PLACES.find((p) => p.id === 'atc-room')!.room).toBeUndefined()
     expect(SOURCED_PLACES.find((p) => p.id === 'flex-200')!.room).toBe('200 Flex')
   })
 
   /* ---- AND THE MASK ITSELF (BRIEF-MAW-RAIL-3 B) --------------------------- */
   it('prints no real club or sport name while nothing has an island behind it', () => {
-    /* the failure this catches is the one Ash met twice: a real school name on a
-       surface with nothing behind it. It is asked of the SHIPPED table, so it
-       covers every screen at once rather than the three that remembered to call
-       a helper. */
+    // asked of the shipped table, so it covers every screen at once
     for (const g of PROGRAMMES) {
       if (g.playable) continue
       expect(g.name, `${g.id} is a placeholder and still prints a name`).toMatch(/^Example [A-Z]+$/)

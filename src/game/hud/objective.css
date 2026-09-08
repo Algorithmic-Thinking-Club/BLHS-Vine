@@ -1,14 +1,4 @@
-/* THE OBJECTIVE PANEL. BRIEF-MAW-RAIL-3 A: top centre, always, inside the bars.
- *
- * THE LAYER, read off the same tree cinema.css reads: the world canvas is 0, the
- * HUD corner and the help button are 50, the arrival card 68, the bars 70, the
- * cutscene overlay 72, the panels 73 to 80, a door cover 90. This sits at 71,
- * which is ABOVE the bars and below a real cutscene's own letterbox. That one
- * number is the whole of "inside the bars when they are up, never hidden": every
- * other piece of chrome in the game stands down behind the black and this one
- * rides on top of it, because the one thing a student watching a six minute
- * cutscene has no other way to learn is what any of it is for.
- */
+/* the objective panel: one line at the top centre, sitting above the cutscene bars */
 .ob-wrap {
   position: fixed;
   top: 0;
@@ -19,11 +9,7 @@
   justify-content: center;
   pointer-events: none;      /* it is an announcement, not a control */
   user-select: none;
-  /* CLEAR OF THE TOP BAR WHEN THE BAR IS THERE, and the transition matches the
-     bars' own so the panel rides down with the black rather than jumping ahead
-     of it. `10vh` is the bar's height, stated once in cinema.css and repeated
-     here because a CSS custom property on `html` would have to be written by the
-     component that draws the bars, and that component is allowed not to mount. */
+  /* clear of the top bar when the bar is there, moving on the bars' own transition */
   padding-top: max(1.6vh, 10px);
   transition: padding-top 450ms cubic-bezier(0.33, 0, 0.2, 1);
 }
@@ -31,34 +17,7 @@ html[data-movie='1'] .ob-wrap { padding-top: calc(10vh + max(1.6vh, 10px)); }
 html[data-rm='1'] .ob-wrap { transition-duration: 60ms; }
 @media (prefers-reduced-motion: reduce) { .ob-wrap { transition-duration: 60ms; } }
 
-/* ---- IT IS THE BEACH'S OWN INSTRUCTION BAR, AND NOTHING ELSE -------------
- *
- * Ash, after playing rail-3: *"the panel on the top middle needs to be the very
- * narrow dark brown panel, the one from the beach map where it says stuff like
- * 'Walk to the pier'."*
- *
- * That bar is `.cs-prompt` in `cutscene/ui-kit.css`, and the thing it wears is
- * `--kit-art-plaque` (`/art/ui/plaque-small.png`), a small carved sign stretched
- * to its box. It was built as `kit-surface-band`, which is the big nine-sliced
- * parchment plaque the dialogue box and the arrival card wear, so the one line
- * saying what to do next was drawn on a hundred-pixel-tall ornate sheet at the
- * top of the screen. Two surfaces were saying one kind of thing, and this is the
- * one the game already had for it.
- *
- * SO EVERY DECLARATION BELOW THAT DRESSES THE BOX IS COPIED FROM `.cs-prompt`
- * ON PURPOSE: the same piece, the same face, the same 16px, the same wood ink
- * and the same padding formula. The two are the same sentence in two places, and
- * a student who learns to read one has learned to read the other. What is NOT
- * copied is the pulse, because this one is furniture rather than a nudge, and
- * the position, because this one lives at the top.
- *
- * THE PADDING IS A PERCENTAGE AND IT HAS TO BE. `background-size: 100% 100%`
- * means the carved end caps grow with the box, so a fixed side padding cannot
- * clear them at every sentence length: the first and last letters land on the
- * carving. 7.5% each side with a 30px floor is what `.cs-prompt` measured, and
- * the percentage resolves against `.ob-wrap`, which is the window, exactly as
- * the cutscene overlay resolves it for the beach.
- */
+/* it wears the beach's own narrow instruction sign, copied from `.cs-prompt` */
 .ob-panel {
   margin: 0;
   max-width: min(58vw, 640px);
@@ -89,26 +48,9 @@ html[data-rm='1'] .ob-wrap { transition-duration: 60ms; }
 }
 html[data-rm='1'] .ob-panel { animation-duration: 1ms; }
 
-/* NO GROUND UNDER THE WOOD, WHICH IS THE ONE PLACE THIS DEPARTS FROM THE OTHER
-   SURFACES IN THE KIT. The dialogue frame and the band carry a paper background
-   colour so a piece that has not arrived still draws a box, because those are
-   nine-slices whose middle is opaque and whose fallback lands exactly where the
-   paper would have. This piece is a SHAPE: `plaque-small.png` is 384x192 with
-   the carved sign occupying x25..358 and y27..162, so 6.5 percent of the box is
-   transparent at each side and about 14 percent at top and bottom. A solid
-   rectangle behind it is a dark slab half a bar taller than the bar, with the
-   plaque floating inside it. `.cs-prompt` has never had one either, and the
-   picture is local to this deploy rather than fetched from the platform, so
-   there is no slow-access-point frame for it to cover. */
+/* no ground under the wood, because the plaque is a shape rather than a nine-slice */
 
-/* THE PLAIN ARM READS THE SAME SENTENCE. It is the game telling a student what
-   to do next, which is vehicle rather than taught content, so it is present in
-   both arms and only its dressing changes. No carved sign and no pixel face
-   here: a flat dark bar with the system face on it, which is the same SHAPE the
-   student in the other arm reads and none of the same paint. `--kit-wood-lo`
-   and `--kit-wood-ink` are the plain arm's own answers for a dark surface
-   (#333c40 under #f4f4f2, about 9 to 1), so the contrast is stated by the token
-   layer rather than by a colour typed here. */
+/* the plain arm reads the same sentence on a flat dark bar in the system face */
 html[data-skin='plain'] .ob-panel {
   background-image: none;
   background-color: var(--kit-wood-lo);
@@ -120,17 +62,7 @@ html[data-skin='plain'] .ob-panel {
   max-width: min(72vw, 640px);
 }
 
-/* ---- THE TASK SHEET (BRIEF-CLOSE-THE-LOOP section 7) ----------------------
- *
- * Ash, 2026-09-08: "when a student clicks on the panel on the top middle, maybe
- * it expands to show a task list sheet?" It drops out of the bar it belongs to,
- * so the thing a student pressed and the thing that appeared are one object.
- *
- * THE WRAP STOPS BEING INERT AND THE PANEL STARTS BEING A CONTROL. `.ob-wrap`
- * keeps `pointer-events: none` so the strip either side of the sign is still
- * world a student can click through; only the sign itself and the sheet take
- * a press. That was the whole reason the wrap was inert and it still holds.
- */
+/* ---- the task sheet, which drops out of the sign when a student presses it */
 .ob-wrap { flex-direction: column; align-items: center; }
 
 /* the live region, which is the sentence and never the list */
@@ -148,10 +80,7 @@ html[data-skin='plain'] .ob-panel {
   cursor: pointer;
   border: 0;
   display: block;
-  /* THE PRESS IS NOT A HOVER STATE. A carved sign that lifts under the pointer
-     reads as a button on a desktop and does nothing at all on the Chromebook
-     trackpads this ships to, so the affordance is the chevron and the feedback
-     is the press. */
+  /* the press is the feedback, since a hover lift does nothing on a trackpad */
   transition: transform 90ms ease-out;
 }
 .ob-panel:active { transform: translateY(1px); }
@@ -170,10 +99,7 @@ html[data-skin='plain'] .ob-panel {
 .ob-sheet {
   pointer-events: auto;
   margin-top: 6px;
-  /* NARROW, AND IT HAS TO BE. It is anchored under a bar at the top centre of
-     the screen, which is directly above whatever the game is pointing at, and at
-     430px it covered the tunnel mouth and the prompt over it. A quest log is a
-     glance, not a page: this is about the width of the sign it hangs from. */
+  /* narrow, because it hangs under a bar at the top centre and must not cover the world */
   width: min(62vw, 340px);
   box-sizing: border-box;
   padding: 11px 16px 12px;

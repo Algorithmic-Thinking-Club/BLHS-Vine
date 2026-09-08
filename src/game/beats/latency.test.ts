@@ -1,12 +1,4 @@
-// L3 ON THE WIRE. timing.ts is unit-tested next door; this proves the two arms
-// actually put the convention on the event, by playing a beat in each arm with
-// real milliseconds passing in the places the two old conventions disagreed.
-//
-// The old plain arm stamped every item with the elapsed time at submit, so two
-// items answered a beat apart carried the same number and the last item on a long
-// form always looked like the hardest one. The old game arm stamped at the "Keep
-// going" click, so the time spent reading the correction landed inside the
-// student's answering time, in one arm only.
+// proves both arms put the answer-latency convention on the event they send
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'

@@ -1,32 +1,4 @@
-/* THE CHART PAGE. It draws the composition, so what is on it is what is on the
-   water, and an island that rises between two sittings appears here with no
-   second edit.
-
-   ---- WHAT THIS PASS CHANGED, 2026-09-01 ----------------------------------
-
-   §9.12 calls this the second most looked-at panel in the game and then says the
-   thing the page was failing: "It is drawn art, not a styled div." Two defects
-   under that, and the second is the one that mattered.
-
-   The obvious one: seven FONT CHARACTERS carried the seven states, one glyph per
-   state, which `docs/ART.md` forbids in as many words.
-
-   The real one: seven glyphs in one place is seven APPEARANCES OF THE SAME
-   OBJECT, and §9.17 rules that out. "The discriminator is a thing present or
-   absent at a known place, not a change of appearance on a thing that is always
-   there." So this file now draws a DOCK: six standing places in the same order
-   on every island, the empty ones still drawn as notches on the rail, and a
-   state is which of them hold something. Nothing on this page changes colour to
-   mean anything, which is also §40.31: a school Chromebook panel crushes both
-   lightness and saturation, and "the same mark, greyer" is not a message.
-
-   Every colour is a token and every size goes through `--kit-fs`, so the text
-   setting and the integer snap both reach the page and §16's arm can take the
-   whole thing to a document.
-
-   Sized in pixel gutters rather than percentages, because a percentage padding
-   resolves against the CONTAINING BLOCK and this page's containing block is a
-   binder pinned to the viewport, which is the bug `hud.css` already fixed once. */
+/* the chart page, which draws the world composition as a sea chart with a register under it */
 
 @import '../ui/tokens.css';
 
@@ -54,36 +26,7 @@
   font-weight: normal;
 }
 
-/* ---- THE SEA, AS A SHEET OF CHART PAPER -----------------------------------
- *
- * WHY IT IS NOT `--kit-art-chart`, WHICH IS THE OBVIOUS ANSWER AND IS WRONG.
- * That token points at `/art/ui/chart-cover.png`, and the file was measured on
- * 2026-08-31 rather than assumed. Two things are true about it and both are
- * disqualifying: it is a scroll with A MAP ALREADY PRINTED ON IT, coastlines,
- * dotted routes and a compass rose, so the live marks would sit on top of a
- * second, fictional archipelago; and its margin is a BAKED CHECKERBOARD, eight
- * pixel squares alternating fully transparent and opaque near-black (2,2,6),
- * which is a transparency preview that got painted into the art. That is a
- * defect in the file, not in the way it was used.
- *
- * `parchment-scroll.png` was measured too and cannot nine-slice: it carries a
- * wax seal and an anchor in the middle of its paper, so the centre tile either
- * repeats the seal across the page or stretches it.
- *
- * AND THE PLATFORM HAS NOTHING BETTER TO OFFER THIS SURFACE, which is worth
- * saying so nobody spends the afternoon finding out again. Of the eighteen
- * published pieces the only stretchable ones with a blank middle are `panel` and
- * `band`, and both draw their middle with `border-image ... fill`, which paints
- * OVER the element's own background. Mounting either here would cover the
- * graticule and the fold with flat parchment, so the page would lose the ruling
- * to gain a frame. A BLANK CHART FIELD IS A PIECE THE KIT DOES NOT HAVE, it is
- * in this session's report, and the day it is drawn it lands on this one class.
- *
- * Until then the sheet is made of the kit's own materials, the same tokens the
- * binder and the year sheet are made of, and it is a chart rather than a
- * rectangle: aged paper, a graticule ruled across it in the ink the names are
- * written in, a doubled border the way a real chart is bordered, four brass
- * tacks, and the fold a sheet this size was folded along. */
+/* the sea itself, drawn as a sheet of chart paper pinned into the binder */
 .ch-sea {
   position: relative;
   width: 100%;
@@ -91,43 +34,13 @@
      taller than the binder put half the marks below a fold nobody knows is
      there, which on a chart is the same as not drawing them. */
   flex: 1 1 auto;
-  /* A FLOOR THAT FITS THE SMALLEST SCREEN THE GAME SHIPS ON. At 240 the sheet
-     took the whole page at 1366x768 and pushed the legend and the empty-sea
-     sentence past the fold: `fixed-game/12-chart.png` ends on bare paper after
-     the register's last rule. Those two blocks are the entire answer to "the sea
-     has one island in it", which is not an edge case in the first deployment,
-     it IS the first deployment. So the paper yields instead of them. */
-  /* MEASURED AGAINST THE WHOLE PAGE, NOT AGAINST THE SHEET.
-     The binder at 1366x768 has about 660 of usable height, and this page owes a
-     student four things: the sheet, the one line that teaches it, the sentence
-     that says why the sea is nearly empty, and the register a teacher reads over
-     a shoulder. At 240 the sheet took enough that the fourth fell off; at 200 it
-     is still the biggest thing on the page and all four are above the fold. */
+  /* a floor low enough that the legend and the register still fit on a small screen */
+  /* measured against the whole binder page, not against the sheet on its own */
   min-height: min(180px, 24vh);
   overflow: hidden;
   box-sizing: border-box;
   padding: 14px;
-  /* ---- THE PAPER IS DRAWN NOW ---------------------------------------------
-   *
-   * WHAT WAS HERE: five stacked gradients, two of them `repeating`, which is to
-   * say a grid. The comment above them argued that the spacing made it read as
-   * printing rather than as a grid control, and the art-direction pass of
-   * 2026-09-01 measured the result and disagreed in one sentence: "the nautical
-   * chart is a 950x240 pale grey-green rectangle of regular graph-paper grid...
-   * against the Octopath world map this is a spreadsheet with a sepia filter".
-   * It also noticed that the TITLE screen was made of the same ruled grid, which
-   * is how you know the material was a default rather than a decision.
-   *
-   * `chart-field.png` is a drawn sheet: foxed parchment, a weathered band on all
-   * four edges, hand-inked ticks that are not on a machine pitch, and a compass
-   * rose bled into one corner. It is deliberately EMPTY in the middle, because
-   * every island, every dock mark, the ship and the legend are drawn on top of
-   * it by `Chart.tsx` and a substrate that competes with them is worse than a
-   * plain one.
-   *
-   * The sea glow stays, because that is light on paper rather than a texture,
-   * and the fold goes: the drawn sheet has its own weathering and two accounts
-   * of the same fold is one too many. */
+  /* a drawn parchment sheet with the sea's own light laid over it */
   background:
     /* the sea's own light, off the top left, the way a lantern falls on paper.
        It sits ON TOP of the drawn sheet, which is what makes a blank parchment
@@ -146,10 +59,7 @@
     0 2px 6px var(--kit-hairline);
 }
 
-/* THE FOUR TACKS THAT HOLD IT DOWN. Small brass heads in the corners, in the
-   same gold the season tokens are made of, so the sheet reads as pinned to the
-   binder rather than printed on it. `::before` carries the top pair and
-   `::after` the bottom, which is two elements for four marks. */
+/* the four brass tacks in the corners that hold the sheet down */
 .ch-sea::before, .ch-sea::after {
   content: '';
   position: absolute; left: 9px; right: 9px; height: 14px;
@@ -212,13 +122,7 @@
   color: var(--kit-ink-body);
 }
 
-/* ---- AND A PLACE YOU CAN ACTUALLY GO TO ----------------------------------
- *
- * BRIEF-SELF-EVIDENT law 2. A mark that can be sailed to is a real button, and
- * it has to LOOK like one without turning the chart into a menu: the paper is
- * still a chart and §9.12 says so, so the affordance is a line under the name
- * that only appears where there is somewhere to go, and the standing marks are
- * untouched. */
+/* a mark you can sail to, which is a real button with a line under its name */
 .ch-isle-go {
   /* a button, unstyled back down to the div it replaces, then given its own
      affordance. Left as a real <button> so the keyboard and a screen reader get
@@ -281,11 +185,7 @@
    to be standing on */
 .ch-dock-bare { border-bottom: 0; padding-bottom: 0; }
 
-/* THE HEIGHT IS FIXED AND THE WIDTH IS A FLOOR, because `Glyph` treats `size` as
-   a HEIGHT and lets a cut face keep its drawn proportion. Every token drawing
-   below is square, so with no platform kit the six places are exactly the same
-   width and the rail reads as a ruler; a wider drawn face still stands in its
-   own place in the same order. */
+/* one standing place on the rail: fixed height, and a width that is only a floor */
 .ch-slot {
   display: inline-flex;
   align-items: flex-end;
@@ -305,10 +205,7 @@
   background: var(--kit-rule-firm);
 }
 
-/* THE NAME TAKES THE STATE'S OWN INK, which is what `.ch-<state>` on the island
-   above it is for. The note under it does not: it is the same quiet voice on
-   every island, because the words in it already say the state and a second thing
-   saying it in colour is the hue-alone failure §40.31 rules out. */
+/* the island's name, written in the state's own ink on a small paper label */
 .ch-name {
   --kit-fs-raw: calc(17px * var(--kit-text-scale));
   font-size: var(--kit-fs);
@@ -367,15 +264,7 @@
   white-space: nowrap;
 }
 
-/* ---- THE TOKEN DRAWINGS THAT STAND IN FOR THE CUT FACES -------------------
- *
- * `faceStyle` hands back nothing unless the platform kit is worn, so on a build
- * with no network every one of these is what a student actually sees, and
- * `docs/ART.md` rules out the easy answer: "Icons are drawn, never an emoji or a
- * font glyph." So each one is a SHAPE built out of the token layer, told apart
- * by its outline rather than by its colour, and the three the platform has never
- * drawn (a pennant, a fog bank, water breaking) are in this session's report as
- * art still owed. */
+/* shapes built from tokens that stand in for the drawn faces when no kit is worn */
 
 .ch-s {
   display: block;
@@ -471,11 +360,7 @@
   transform: rotate(40deg);
 }
 
-/* THE FOG, AND IT THINS IN STAGES. §9.14: "the dissolve is staged rather than
-   switched ... a hard swap reads as a bug." The stage is a real distance,
-   computed in `states.ts` off where the boat has actually been tied up, and it
-   moves the SIZE of the bank as well as its weight so it is not lightness on its
-   own doing the work. */
+/* the fog bank over an unvisited island, which thins in stages rather than switching off */
 .ch-s-fog {
   border-radius: 46% 54% 52% 48% / 58% 46% 54% 42%;
   background: radial-gradient(circle at 42% 40%, var(--kit-paper-hi), var(--kit-rule-soft) 75%, transparent 90%);
@@ -559,12 +444,7 @@ html[data-rm='1'] .ch-s-rising { animation: none; box-shadow: inset 0 0 0 2px va
 html[data-rm='1'] .ch-isle[data-inked='1'] .ch-dock,
 html[data-rm='1'] .ch-isle[data-inked='1'] .ch-name { animation: none; }
 
-/* ---- THE REGISTER, WHICH IS THE READING AND IS ALSO THE PLAIN ARM --------
- *
- * §9.13's deployment line: this is the screen a teacher points at over a
- * student's shoulder, so the same facts have to survive being read as a list.
- * It is also where the dock's objects are paired with their words, so the page
- * teaches its own language instead of needing a legend under it. */
+/* the register: the same places read as a plain list under the chart */
 
 .ch-register {
   list-style: none;
@@ -596,10 +476,7 @@ html[data-rm='1'] .ch-isle[data-inked='1'] .ch-name { animation: none; }
   color: var(--kit-ink-body);
   line-height: 1.4;
 }
-/* THE SCHOOL'S OWN SENTENCE, IN THE QUIET VOICE AND NEVER IN THE ALARM ONE.
-   §9.17: out of season "must never read as broken or as an error". Nothing about
-   this line is red, nothing about it is a padlock, and it is a fact about the
-   real school that the game happens to be teaching by refusing. */
+/* the line saying a place is out of season, in the quiet voice and never an alarm */
 .ch-row-closed {
   font-family: var(--kit-face-body);
   --kit-fs-raw: calc(13px * var(--kit-text-scale));
@@ -619,19 +496,7 @@ html[data-rm='1'] .ch-isle[data-inked='1'] .ch-name { animation: none; }
   line-height: 1.45;
 }
 
-/* ---- THE INK ON PAPER ------------------------------------------------------
- *
- * `STATE_INK` carries the tint the WATER draws a slot in, on a dark sea, and
- * those values are unreadable on aged paper: `discovered`'s 0xcbbb95 is a pale
- * tan, which on this page is the page. One table for two surfaces was the
- * mistake; the OBJECTS ON THE DOCK are the shared thing, because that is what
- * §9.17 asks for, and the colour is per surface because a colour is only ever a
- * colour against something.
- *
- * Nothing below carries a state on its own. Every one of the seven is already
- * told apart by which objects are standing on its dock; these only stop the ink
- * of a rumour and the ink of a finished island being the same weight of brown on
- * a page a student leans over. */
+/* the ink each state is written in on paper, which is not the tint the water uses */
 .ch-rumour { color: var(--kit-ink-dim); }
 .ch-rising { color: var(--kit-sea-head); }
 .ch-misty { color: var(--kit-ink-soft); }
@@ -640,23 +505,7 @@ html[data-rm='1'] .ch-isle[data-inked='1'] .ch-name { animation: none; }
 .ch-active { color: var(--kit-ink); }
 .ch-completed { color: var(--kit-sea-earned); }
 
-/* =======================================================================
- * §16, THE PLAIN ARM: THE CHART AS A DOCUMENT
- *
- * Ash's ruling, 2026-08-31: "No game art, no wood, no parchment: system font,
- * black on white, real headings and a real form. Reads as a worksheet somebody
- * wrote, not as the game with its paint scraped off."
- *
- * A worksheet does not have a drawn sea on it. So the paper goes, every token
- * drawing goes, and what is left is the thing a document would actually be: a
- * heading and a list of places with their state written out. Nothing about the
- * MECHANIC changes, which is Q9.15.a's own answer: the plain arm discovers
- * islands the same way and the exposure measure stays comparable across arms.
- * Only the picture is gone.
- *
- * No rule in this block names a picture, a pixel-art rendering or a game face,
- * which `tokens.test.ts` reads this file for.
- * ======================================================================= */
+/* the plain study arm: the chart with the picture gone, read as a worksheet */
 
 html[data-skin='plain'] .ch-sea { display: none; }
 /* the marks were the picture and the picture is what this arm does not get */
@@ -688,16 +537,6 @@ html[data-skin='plain'] .ch-row-go {
   font-weight: 600;
 }
 
-/* ---- THE EMPTY-SEA NOTICE, SIZED FOR A PAGE THAT ALSO OWES A REGISTER -----
- *
- * `Empty` is the kit's own empty state and its default box is built for a whole
- * blank page: 26 of padding top and bottom and a 42-character measure, which on
- * this page wrapped the sentence onto three centred lines and pushed the
- * register off the bottom at 1366x768.
- *
- * The sentence itself cannot give: §40.42 keeps it verbatim through any
- * refactor, and it is a promise about the club rather than an apology for the
- * game. So the box gives. A wider measure on a page this wide is one line
- * instead of three, and the notice sits with the chart instead of instead of it. */
+/* the empty-sea notice, made shorter and wider so the register still fits under it */
 .ch-chart .kit-empty { padding: 14px 20px 10px; gap: 6px; }
 .ch-chart .kit-empty-fills { max-width: 68ch; }

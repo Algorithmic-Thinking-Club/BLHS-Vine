@@ -1,29 +1,4 @@
-/* THE FOCUS CONTRACT, WHICH THIS REPO DID NOT HAVE.
- *
- * The count §80.5 published, checked again today before writing any of this:
- * `src/` held exactly ONE aria or role occurrence in the whole tree,
- * `aria-label="Settings"` on the gear at `SettingsPanel.tsx:236`, and zero
- * `role=` attributes anywhere. Six panels open over the game and not one of them
- * moved focus into itself, held focus inside itself, gave focus back on close, or
- * told a screen reader it was there. A student on a keyboard could Tab out of the
- * open Handbook into the buttons underneath it, press one, and open a second
- * panel behind the first with no way to see either.
- *
- * §80.5 files this under the instrument rather than under compliance and that is
- * the sharper argument: a keyboard-only student who cannot finish the planner
- * cannot finish the year, and they arrive in the export as a run that stopped,
- * not as a failure of the game. Attrition is the measurement, so the fix is one.
- *
- * WHAT A PANEL OWES, all five of them enforced here rather than remembered:
- *   1. focus moves into it when it opens,
- *   2. Tab cannot leave it,
- *   3. Escape closes the INNERMOST one and nothing else,
- *   4. the background is inert and hidden from the reader while it is up,
- *   5. focus returns to whatever opened it when it closes.
- *
- * The stack is what makes 3 and 4 correct with two panels open, which happens in
- * this game the moment the pause sheet opens settings.
- */
+/* the focus contract every panel in the kit is held to: trap, escape, inert background, return */
 import { useCallback, useEffect, useId, useRef } from 'react'
 import { playUi } from '../audio'
 
@@ -31,13 +6,7 @@ import { playUi } from '../audio'
 
 const stack: string[] = []
 
-/* THE CORNER READS THIS. STATE-OF-THE-GAME ugly 7: every panel drew over the
- * corner stack, so the plaques showed through the veil as sliced "Handboo" /
- * "Year sh" / "Cl" behind the Handbook and the pick sheet ran under the `?`.
- * The stack already knows the answer, so it is written on the root as a count
- * and `hud.css` and `help.css` hide the corner while it is not zero. A count
- * rather than a flag so that closing the inner of two panels does not bring
- * the corner back under the outer one. */
+/* writes how many panels are open onto the root, so the corner plaques can hide themselves */
 const syncPanels = () => {
   if (typeof document === 'undefined') return
   document.documentElement.dataset.panels = String(stack.length)
@@ -54,10 +23,7 @@ export const isInnermostPanel = (token: string): boolean => stack[stack.length -
 
 const LIVE_ID = 'kit-live-region'
 
-/* REFERENCE COUNTED, because two panels hide the same background. Without the
- * count the second panel to open records "already hidden" as the state to
- * restore, and closing both leaves the game inert with nothing on top of it:
- * a black-hole bug that only appears when a student opens settings from pause. */
+/* what was hidden and how many panels are hiding it, since two can hide the same background */
 type Held = { count: number; hadHidden: string | null; hadInert: boolean }
 const held = new Map<Element, Held>()
 
@@ -90,10 +56,7 @@ function backgroundOf(panel: Element): Element[] {
   while (node && node.parentElement) {
     for (const sib of Array.from(node.parentElement.children)) {
       if (sib === node) continue
-      /* NOT THE LIVE REGION. It is a child of <body>, so the sweep counted it as
-       * background and hid it, and a hidden live region is not read: every
-       * announcement a panel made while it was open went nowhere, which is the
-       * one place announcements matter most. */
+      /* never the live region, because a hidden one is not read out */
       if (sib.id === LIVE_ID) continue
       if (sib.tagName === 'SCRIPT' || sib.tagName === 'STYLE') continue
       out.push(sib)
@@ -125,10 +88,7 @@ const FOCUSABLE = [
 
 export function focusablesIn(root: Element): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE))
-    /* AN ANCESTOR'S inert COUNTS. A browser refuses focus to everything under an
-     * inert node, and checking only the control itself said the button under an
-     * open panel was still somewhere Tab could land, which is the exact thing
-     * making the background inert was for. */
+    /* an ancestor's inert counts, since a browser refuses focus to everything under one */
     .filter((el) => !el.closest('[inert], [aria-hidden="true"]'))
 }
 
@@ -151,10 +111,7 @@ function liveRegion(): HTMLElement | null {
   return el
 }
 
-/* A VISUAL-ONLY CHANGE, SAID OUT LOUD. Picking a coat recolours a canvas, saving
- * a name redraws a card, opening a tab swaps a page: all of them are silent to a
- * reader today. The same message twice in a row is not announced by most readers,
- * so a trailing space alternates to force it. */
+/* says a visual-only change out loud, alternating a trailing space so a repeat is still read */
 let flip = false
 export function announce(message: string): void {
   const el = liveRegion()
@@ -200,36 +157,11 @@ export function usePanel({ label, onClose, closeOnEscape = true }: PanelOptions)
     if (!el) return
     stack.push(token)
     syncPanels()
-    /* WHERE FOCUS CAME FROM. `document.activeElement` at open is the button the
-     * player pressed, and it is the only correct place to put focus back: a panel
-     * that returns focus to <body> makes the next Tab start from the top of the
-     * page, which on this HUD is the compass, three controls away from the one
-     * they were on. */
+    /* where focus came from, so it can be put back on the control that opened this */
     const cameFrom = document.activeElement as HTMLElement | null
     const release = makeBackgroundInert(el)
 
-    /* THE PANEL ITSELF, NOT THE FIRST THING IN IT.
-     *
-     * This focused the first focusable control, which is what a lot of dialogs
-     * do and is allowed by the ARIA practices, and on this kit it was wrong for
-     * a reason you can only see in a picture. Chromium treats focus moved
-     * programmatically after a key press as keyboard focus, and a panel is
-     * usually opened by a key press, so `:focus-visible` matched on the first
-     * control the instant the panel appeared. The art-direction pass of
-     * 2026-09-01 put the result at the top of its list: a flat yellow rectangle
-     * on ten of twenty-three surfaces, "raw browser chrome shipping inside the
-     * drawn game", and on the year card an 850x180 ring across the bottom third
-     * of the screen because the first control there is the whole card.
-     *
-     * The practices allow either. Focusing the dialog is the better half here:
-     * the reader still hears the panel announce itself, Tab still walks straight
-     * into the first control, Escape still closes, and nothing is ringed until a
-     * student actually navigates. A ring that appears before anybody has pressed
-     * a key is not telling them where they are, it is decoration that looks like
-     * a bug.
-     *
-     * The panel carries `tabIndex={-1}` from the binding below, which is what
-     * makes it focusable without putting it in the tab order. */
+    /* focus the panel itself and not the first control in it, so nothing is ringed yet */
     el.focus?.()
 
     const key = (e: KeyboardEvent) => {
@@ -244,29 +176,7 @@ export function usePanel({ label, onClose, closeOnEscape = true }: PanelOptions)
      * registered earlier and would otherwise close the wrong thing */
     window.addEventListener('keydown', key, true)
 
-    /* ---- AND IT IS HEARD --------------------------------------------------
-     *
-     * `audio.ts` calls `open`, `close`, `click` and `deny` "the four the UI kit
-     * lives on. Every panel, every choice, every refusal", and audited on
-     * 2026-09-02 three of the four had ZERO callers anywhere in the tree. Two of
-     * them are this: every panel in the game opened and closed in silence while
-     * `open.ogg` and `close.ogg` shipped to a Chromebook that would never play
-     * them.
-     *
-     * AND THEY ARE SILENT AGAIN, ON PURPOSE, SINCE 2026-09-03. Ash played it and
-     * ruled the pair off (BRIEF-PLAYTHROUGH-1 law 4): four panels in two minutes
-     * is eight noises. `playUi` is the gate and `UI_SOUND` is the switch; the
-     * wiring stays right here so that turning it on is a decision about SOUND
-     * rather than a second search for where sound belongs.
-     *
-     * It belongs here rather than on each panel for the same reason the focus
-     * trap does: seven surfaces use this hook, and a sound wired per panel is a
-     * sound the eighth panel forgets. `play` is already safe on its own, so
-     * there is nothing to guard: it honours the mute setting, it swallows a
-     * dropped fetch, and it queues until the first gesture unlocks audio.
-     *
-     * Only the innermost panel speaks. Opening the year sheet from the pause
-     * sheet is one event to a student and would otherwise be two sounds. */
+    /* the panel open sound, wired once here for every panel, and only the innermost one */
     if (isInnermostPanel(token)) playUi('open')
 
     return () => {

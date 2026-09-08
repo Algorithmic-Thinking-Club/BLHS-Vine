@@ -1,20 +1,4 @@
-/* THE PLANK RULE.
- *
- * BRIEF-INTRO-FILM section 3 rewrote half of it and left the other half alone,
- * so this file now proves two different rules on one sheet:
- *
- *   THE ELECTIVES ARE OWED ALWAYS. *"Electives are PICKABLE and REQUIRED: two...
- *   The plank stays quiet until both periods are filled."* Nothing about the
- *   roster can change that, which is what the first block asserts by driving the
- *   rule with `realClasses: 0`.
- *
- *   THE AFTER-SCHOOL SLOT IS OWED ONLY WHERE SOMETHING REAL EXISTS, which is
- *   BRIEF-MAW-RAIL-3 F's rule, kept: *"the moment a real island is linked to a
- *   slot, that slot is required and the plank stays quiet until it is filled,
- *   with the counter saying what is missing."* That half is a promise about a
- *   day nobody has lived through yet, so the last block drives it off the same
- *   `member-islands.json` a member's pull request writes into.
- */
+// when the year sheet's plank goes live: both electives always, the after-school slot only if real
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { scheduleOwed } from './schedule'
 

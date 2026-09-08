@@ -1,24 +1,4 @@
-/* THE OUTFITTER'S NOOK (§4.5, §40.21), which is the game's CHARACTER VIEW.
- *
- * WHAT WAS WRONG, photographed at `build-shots/ui/before/13-wardrobe.png`: a
- * 760 square sheet with a small panther floating in the top third of it, four
- * unlabelled colour circles, three operating-system emoji wearing an
- * operating-system padlock, and a plank whose label could not be read at all.
- * Every one of those is fixed in the component or here.
- *
- * THE PANEL IS A LANDSCAPE NOW AND NOT A SQUARE. A square was the shape of the
- * old contents rather than of the job: a mirror wants height and a list of
- * choices wants width, and stacking them in a column meant the figure got a
- * third of the sheet and the choices got a sixth. Two columns give the mirror the
- * full height of the panel and put every control beside it where a student can
- * see the change land.
- *
- * Sizes are container-query units TIMES the text setting, because a panel that
- * reflows with its own width and ignores S/M/L was §80.5's I6 finding. GUTTERS
- * ARE PIXELS: a percentage padding resolves against the CONTAINING BLOCK, which
- * for a panel inside a viewport-pinned veil is the viewport, and the nine-slice
- * frame's own border-width is already the honest inset.
- */
+/* the outfitter's nook: a tall mirror on the left and every clothing choice beside it */
 
 @import '../ui/tokens.css';
 
@@ -30,11 +10,7 @@
 
 .wd-panel {
   width: min(920px, 92vw);
-  /* TALLER THAN IT IS COMFORTABLE, on purpose. The mirror is the point of this
-     panel and it is bound by height rather than by width at every window: on the
-     1366x768 Chromebook this deploys to, the figure ends up drawn at about 3.6
-     times his 62x80 stage, which is a panther a metre from the reader's eye. The
-     old square panel gave him a third of that. */
+  /* tall on purpose, because the mirror is the point and it is bound by height */
   height: min(660px, 90vh);
   /* the frame is a nine-slice on .kit-surface-panel, so its border-width is the
      whole of the inset and nothing here adds a second one */
@@ -86,11 +62,7 @@ html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
   .wd-side { overflow: visible; }
 }
 
-/* THE MIRROR WEARS THE PIECE THAT WAS DRAWN FOR EXACTLY THIS. `portrait_frame`
-   is the platform's frame-around-a-character, and until now the only thing in
-   the tree that mounted it was a 108 pixel box in the dialogue kit. The border
-   underneath is the fallback for a build with no platform, and the injected
-   block overrides it the moment the kit lands. */
+/* the mirror, framed by the platform's own portrait frame when one has landed */
 .wd-mirror {
   display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
   gap: 6px;
@@ -102,19 +74,7 @@ html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
   background: linear-gradient(180deg, var(--kit-paper-card-hi), var(--kit-paper-card-lo));
 }
 
-/* `transform: scale(4)` WAS A MAGNIFIER THAT ESCAPED THE LAYOUT and was replaced
-   by `object-fit: contain`, which magnifies him to fill the stage and IS the
-   layout. That was right and it was fitting the wrong picture: the walk sheet is
-   144 square with a 52x67 panther in the middle of it, so nine tenths of what
-   was being fitted was transparency. The component draws the cropped standing
-   frame into a fixed 62x80 box now, so `contain` fills the stage with the
-   panther and his feet stay on one line through a whole turn.
-
-   `pixelated` is what keeps that a magnification rather than a blur, and it is
-   deliberately a literal rather than `var(--kit-pixel)`: the character is the
-   game's content and is identical in both study arms, the way a cutscene caption
-   over the painted world is, so blurring him in the plain arm would cost the
-   control condition legibility rather than take away a piece of chrome. */
+/* the panther in the mirror, scaled up to fill the stage and kept crisp in both arms */
 .wd-thor {
   flex: 1; min-height: 0;
   width: 100%;
@@ -198,10 +158,7 @@ html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
 
 /* ---- what is not yours yet ---- */
 .wd-locks { display: flex; flex-direction: column; gap: 8px; }
-/* THE CRITERION IS ON THE CARD, not in a `title`. §40.21: locked things are
-   earned out there and the rule is SHOWN, and a tooltip is pointer-only, so on
-   the machine this ships to it was a rule nobody could read with a trackpad they
-   are already fighting. */
+/* a locked item, with what earns it printed on the card rather than in a tooltip */
 .wd-lock {
   display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center;
   box-sizing: border-box;
@@ -246,20 +203,7 @@ html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
 /* ---- the way out ---- */
 .wd-foot { flex: none; padding: 8px 20px 14px; }
 
-/* ---- THE PLAIN ARM (§16) --------------------------------------------------
- *
- * The same nook as a worksheet: no carved frame, no paper gradient, no cast
- * shadow, and the two headings become the real hierarchy `tokens.css` sets for
- * this arm. The dye circles stay, because a colour choice IS the content and
- * taking it away would change what the control arm is asked; they become squares
- * with a rule, which is how a document prints a swatch.
- *
- * `border-image: none` is the one border-image value allowed inside a plain
- * block and it is required here rather than optional: the platform injects a
- * nine-slice onto `.kit-surface-portrait_frame` at runtime, one class of
- * specificity, and without this rule a carved wooden frame appears around the
- * mirror in the middle of a document. Nothing else here names a picture, a
- * pixel rendering or a game face. */
+/* the plain study arm: the same nook as a worksheet, with the frames and paint taken off */
 html[data-skin='plain'] .wd-mirror {
   border-image: none;
   border: 1px solid var(--kit-edge);

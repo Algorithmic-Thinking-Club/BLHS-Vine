@@ -1,23 +1,4 @@
-/* THE ISLANDS ATC HAS SHIPPED, AS DATA AND NOT AS SOURCE.
- *
- * A member never opens this repository. The path from "I built an island" to
- * "the game knows about it" has to be a pull request against blhs-islands that
- * adds ONE ROW, Ash merging it, and nothing else. Before this, `playable` was a
- * hardcoded Set in year.ts and a programme was a literal in roster.ts, so the
- * only way onto the roster was for somebody to edit the engine, which is the
- * one thing the whole member model says never happens.
- *
- * So the row lives in `member-islands.json`, which is data. Adding an island is
- * a diff nobody has to read as code, and `npm run build` does not care.
- *
- * WHERE THE MASTER COPY LIVES, and why there are two. The member's copy is
- * `islands.json` in blhs-islands, which is where their PR lands and where
- * `tools/manifest.py` checks it against the folders that actually exist. This
- * one is the engine's copy of the same rows, because a game that asked GitHub
- * for its roster at boot would be a game that does not open on a school network
- * with a bad afternoon. A test in the members' repo fails when the two differ,
- * the same fence that holds vine.py and grape.py together.
- */
+/* the islands ATC has shipped, read as one row of data each rather than written as code */
 import type { Season } from '../save'
 import data from './member-islands.json'
 

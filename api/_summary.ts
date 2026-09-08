@@ -1,18 +1,4 @@
-/* THE READER'S ARITHMETIC. Pure, no I/O, unit-tested in api/_summary.test.ts.
- *
- * `api/log.ts` appends and `api/_store.ts` inserts opaque jsonb and NOTHING HAS
- * EVER READ IT BACK. Nineteen moments in the design wait on a query that does not
- * exist, and every event the document asks for is worth nothing until one does.
- * The teacher export was eight columns of pure state, built in the browser from
- * literals: handle, arm, joined, last_seen, year, beat, graduated, verification.
- * No score, no duration, no attempts. The most informative island in the study
- * produced exactly the same eight columns as the least informative one.
- *
- * This file is the fold. It takes the envelopes for one class and answers, per
- * participant, the questions a reviewer asks first: how long, how much, how well,
- * and how many tries. It is separate from the handler because the handler does
- * I/O and this does arithmetic, and arithmetic is the part that has to be right.
- */
+/* the reader's arithmetic: folding logged events into one row of measures per participant */
 
 /** the envelope shape the client ships (src/vine/events.ts LogEnvelope), read defensively:
  *  these rows come off a database and out of a build that may be older than this code */
@@ -52,23 +38,13 @@ export type Measures = {
   /** a member's island threw, or the engine did. R8: a failure in one arm and not
    *  the other is indistinguishable from an effect unless somebody counts them. */
   failures: number
-  /* EVENTS THE FOLD DID NOT RECOGNISE. A rename or a shape change on the client
-   * turns a measured column into a clean 0 for every participant, and a 0 in a
-   * teacher's CSV is indistinguishable from "this student never did it". The
-   * person deceived there is the researcher, on the study's own dependent
-   * variable. It is a column so that it is visible rather than inferred. */
+  /* events this fold did not recognise, counted rather than silently dropped */
   unknown: number
   /** captain / dev sessions are shipped for debugging and excluded from a study export */
   dev: boolean
 }
 
-/* HOW LONG A GAP MAY COUNT AS TIME ON TASK.
- *
- * A student who leaves the tab open over lunch produces one enormous gap between
- * two events, and counting it whole would say they spent two hours on an island.
- * The client sends a heartbeat every 15 seconds while the tab is visible, so a gap
- * longer than this cap means the tab was hidden, the machine slept or the network
- * dropped, and the honest answer is "at most this much". */
+/* the longest gap between two events that may still count as time on task */
 export const IDLE_CAP_MS = 60_000
 
 /** a stored row's clock as milliseconds, whatever the driver handed back. Exported
@@ -110,20 +86,7 @@ export function eventName(e: Env): string {
   return ev.type === 'game' ? String(ev.name ?? '') : String(ev.type ?? '')
 }
 
-/* WHEN AN EVENT HAPPENED, WHICH IS NOT WHEN ITS ROW WAS WRITTEN.
- *
- * `activeMs` read the row's `at` and that is the INSERT time. `appendEvents`
- * writes a whole batch in one statement, so every event in one POST lands on one
- * timestamp, and the offline queue that src/vine/logging.ts exists to provide is
- * exactly the thing that makes a batch long. A Chromebook that lost the network
- * for ten minutes drains its queue at once and every gap inside it measured
- * zero, so `active_minutes` in the teacher's CSV was smallest for precisely the
- * students whose network was worst. Measured: six events posted in one batch,
- * fifteen seconds apart on the client, folded to activeMs 0.
- *
- * The client's stamp is `Date.now()` at the moment the event happened, which is
- * the question being asked. A wrong client clock is bounded here by IDLE_CAP_MS
- * either way, because that cap is applied to every gap regardless. */
+/* when an event happened on the client, which is not when its row was written */
 const whenOf = (row: StoredEvent): number => {
   const at = (row.payload as Env | null)?.event?.at
   return typeof at === 'number' && Number.isFinite(at) && at > 0 ? at : atMs(row.at)
@@ -174,10 +137,7 @@ export function summarise(rows: StoredEvent[]): Measures[] {
     }
     const { m } = bucket
     m.events++
-    /* the arm rides the envelope from the Logger's identity rather than being
-     * stamped per callsite, so a run that joined mid-session carries the anon
-     * arm on its early events and the real one after. The last word wins,
-     * because that is the arm the server assigned. */
+    /* the arm rides the envelope, and the last one seen wins */
     if (env.mode) m.arm = env.mode
     if (env.dev) m.dev = true
     bucket.sessions.add(sid)
@@ -203,10 +163,7 @@ export function summarise(rows: StoredEvent[]): Measures[] {
       if (d.correct === true) m.checksCorrect++
       const t = num(d.tries); if (t !== null) m.maxTries = Math.max(m.maxTries, t)
     }
-    /* EXPOSURE AND COMPLETION ARE COUNTED SEPARATELY, in the export as in the
-     * record. Counting places as programmes inflates the independent variable by
-     * the modelling; counting programmes as places deflates the awareness measure
-     * by exactly the same amount, and neither error is visible afterwards. */
+    /* places seen and programmes completed are counted as two separate things */
     if (name === 'place_seen' && typeof d.place === 'string') bucket.places.add(d.place)
     if (name === 'programme_completed' && typeof d.programme === 'string') bucket.programmes.add(d.programme)
     if (name === 'island_failed' || name === 'engine_error') m.failures++

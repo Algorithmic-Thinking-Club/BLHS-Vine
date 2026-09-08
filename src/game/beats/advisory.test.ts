@@ -1,26 +1,4 @@
-/* ONE ADVISORY LESSON PER YEAR, AND THE FIRE GOES QUIET ONCE IT IS SAT.
- *
- * BRIEF-MAW-RAIL-3 D, after Ash played rail-2: *"Verify that year one's Advisory
- * is `y1` (POWER, Mondays, joining) and that nothing can make the same lesson
- * play twice in one run; Ash reports doing 'the same quiz every time'. If the
- * hearth's replay ('again') is reachable inside year one, it is not: once sat,
- * the fire is quiet until next year."*
- *
- * The island asks ONE question before it lights the fire, `get("advisory")`, and
- * that question is this whole rule: it answers with the beat this year still
- * owes, or with nothing. So the test is written against that read rather than
- * against the panel, because the read is what every road to the fire goes
- * through: the rail's third beat, a press on the hearth, and anything a member
- * writes.
- *
- * WHAT "SAT" MEANS, AND IT IS NOT "PASSED". A student who answered and scored an
- * F has sat Advisory: the ledger has the row, the transcript has the grade, and
- * offering the same lesson again from the fire would be the game pretending it
- * did not happen. The retake is a different thing in a different place: it is the
- * school's own Universal Retake Policy, it lives inside the result card, it needs
- * a grade under a B-, and `recordGrade` merges it into the SAME row rather than
- * writing a second one.
- */
+/* tests that a year owes exactly one Advisory lesson and that sitting it makes the fire quiet */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { CORE_Y1 } from './y1'
 import { coreBeatFor, coreBeatId, hasCoreBeat } from './beats'

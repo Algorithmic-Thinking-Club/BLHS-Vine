@@ -1,8 +1,4 @@
-/* THE FACT TABLE IS THE TRIPWIRE. Every sentence this game says about a real
- * school carries the document it came from and the date somebody read it, and
- * these tests are what stop the next person filling a gap with a plausible
- * sentence. Three shipped facts were exactly that, and nothing caught them.
- */
+/* checks every fact the game states about the school carries a real source and a date */
 import { describe, it, expect } from 'vitest'
 import { FACTS, factById } from './facts'
 import { CORE_Y2 } from './beats/y2'
@@ -73,23 +69,7 @@ describe('the year-2 beat teaches the same table', () => {
   })
 })
 
-/* ---- AND NO PLAYER-FACING SOURCE NAMES A FILE IN THIS REPOSITORY ----------
- *
- * The three assertions this replaces each demanded that a string a fourteen year
- * old READS contains "docs/blhs/awards.md". They were guarding the right thing,
- * provenance, through the wrong string: they made the repo path a requirement of
- * the player-facing copy, so the Handbook printed a markdown path under all seven
- * cords and a section sign under every fact card in both arms.
- *
- * §40.12 is the rule: "the player-facing string and the code-facing string are
- * never the same string, anywhere in this game, and every surface has to be
- * checked for which one it prints." So provenance is still required, and it is
- * required to name the SCHOOL document a student could go and find. The repo
- * files stay named in a comment beside the constants, which is where an auditor
- * looks and a freshman does not.
- *
- * This guard is stricter than what it replaces: it holds for every cord and
- * every fact at once rather than for the eight the old list happened to name. */
+/* and no string a student reads names a file in this repository */
 
 describe('what a student is shown as a source', () => {
   it('never prints a path into this repository, on any fact', () => {

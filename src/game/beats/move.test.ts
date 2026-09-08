@@ -1,21 +1,4 @@
-/* THE FRAME THAT MOVES, AND THAT IT ACTUALLY MOVES.
- *
- * BRIEF-YEAR-ONE beat 5 turned `sort` and `order` from grids of radio chips into
- * a pool of pieces and a set of places, on the rule that the year's content is
- * "done rather than quizzed". A frame like that has one failure mode that a
- * screenshot cannot catch and a person will not notice until they try it: the
- * pieces light up, the places light up, and nothing lands.
- *
- * That is exactly what the first browser capture of it showed, and it is why
- * this file exists rather than another picture. Every assertion is one press a
- * student makes.
- *
- * IT ALSO PINS THE THING THE STUDY DEPENDS ON. The response map this frame
- * writes has to be the same map the radio chips wrote, because `palette.ts`
- * scores both arms from it and the control arm's form was not changed at all. A
- * frame that moves pieces beautifully and writes a different shape would break
- * the arm-parity guarantee silently.
- */
+// presses a student makes on the sort and order frames, and checks the pieces actually land
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createElement, act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'

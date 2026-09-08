@@ -1,32 +1,4 @@
-/* PATHING OVER THE LEVEL MASK, BY THE WALK CONTRACT.
- *
- * `guide_to` pointed. It put a marker over the objective and left the player to
- * work out how to get there, which is right on an open platform and useless the
- * moment there is a wall in the way. Ash's own example of an engine capability was
- * an arrow "following walkability", and that is a search over the mask rather than
- * a line drawn between two points.
- *
- * IT ASKS THE SAME LAW THE BODY OBEYS AND NEVER A SECOND OPINION. Legality here is
- * `canStandFrom(doc, cfg, x, y, fromLevel)` out of walk.ts, which is MAPVIS's own
- * file copied verbatim: feet plus two hip probes, all three standing, all three
- * agreeing on level within `stepTolerance`. A path found by any other test is a
- * path the walker cannot walk, and the failure looks like a bug in the arrow
- * rather than in the search. MAPVIS's site/Walk.tsx is the cautionary tale: a
- * second reading of this law drifted four ways and produced invisible walls and a
- * character who could walk off the quay.
- *
- * WHY A COARSE GRID. A hub painting is 688x640, which is 440,320 cells, and a
- * guide is recomputed whenever the player has moved. Stepping the search on a grid
- * of a few painting pixels cuts the work by the square of the step while changing
- * nothing about which side of a wall a route goes, because the wall is thicker
- * than the step. The step is a parameter so a map with thin architecture can drop
- * it, and the y axis is squashed by the painting's own `yScale` so a diagonal step
- * covers the same ground on screen as a straight one.
- *
- * WHY IT IS ITS OWN FILE. It is pure: coordinates in, coordinates out, no Pixi, no
- * scene, no clock. That is what makes it testable without a browser, which is the
- * only reason anybody will ever know whether it still works.
- */
+/* finding a walkable route over the level mask, using the same walk law the body obeys */
 import { canStandFrom, type MaskDoc, type WalkCfg } from './walk'
 
 export type Pt = { x: number; y: number }
@@ -49,12 +21,7 @@ const DIRS: [number, number][] = [
   [1, 1], [1, -1], [-1, 1], [-1, -1],
 ]
 
-/* WHAT COMES BACK, and `reached` is the half that matters as much as the route.
- *
- * A search that cannot get there returns the best it managed with `reached:
- * false`, rather than nothing. An arrow that vanishes when the way is shut tells
- * the player nothing; an arrow that points at the closest the route gets, plus a
- * caller that knows it is not a real route, can say "not from here" honestly. */
+/* the route, plus whether it actually got there, since a blocked search returns its best try */
 export type PathResult = { points: Pt[]; reached: boolean; nodes: number }
 
 export function findPath(
@@ -92,11 +59,7 @@ export function findPath(
   let bestD = Math.hypot(wx(startC.cx) - to.x, (wy(startC.cy) - to.y) / ys)
   let found: { cx: number; cy: number } | null = null
 
-  /* Breadth-first rather than A*, and the reason is honesty rather than laziness:
-   * every step here costs the same (the grid is uniform and the walk law does not
-   * charge more for a ramp), so BFS is already shortest-first and an A* heuristic
-   * would only reorder the queue. The node cap is what bounds it, not the
-   * heuristic. */
+  /* breadth-first, since every step on this grid costs the same, bounded by the node cap */
   while (q.length && nodes < maxNodes) {
     const next: typeof q = []
     for (const cur of q) {
@@ -142,10 +105,7 @@ export function findPath(
   return { points, reached: !!found, nodes }
 }
 
-/* THE POINT THE ARROW SITS ON: far enough along the route to say "that way",
- * near enough to still be about where the player is standing. Measured along the
- * route rather than as a straight distance, so a corridor doubling back does not
- * put the arrow on the far side of a wall the player has not reached yet. */
+/* the point a set distance along the route, which is where the guiding arrow sits */
 export function aheadOn(points: Pt[], from: Pt, ahead: number, yScale = 1): Pt | null {
   if (!points.length) return null
   const ys = yScale || 1
@@ -159,31 +119,7 @@ export function aheadOn(points: Pt[], from: Pt, ahead: number, yScale = 1): Pt |
   return points[points.length - 1]
 }
 
-/* ---- A GOAL THAT IS NOT ON THE FLOOR ----------------------------------------
- *
- * Ash, 2026-09-05, on the hub: "the panthers_maw door was reachable before".
- * He was right, and the engine was the thing in the wrong.
- *
- * A door anchor sits on the door, and a door in a painting is a tunnel mouth or
- * a plank or a hole in a cliff. It is not floor, and the mask says so: the hub's
- * `panthers_maw` pixel was level 0. So `findPath` was asked to arrive AT a wall.
- * It found the whole 98 point route up the stairs and then refused to call it
- * reached, because the closest legal node on its own 4px lattice was 11.05 away
- * in the y corrected metric against a tolerance of 7. The route was right and
- * the arrival test could not pass, which is the worst shape a failure can take:
- * `startWalk` then cuts the deadline from 20 seconds to 3 on a walk that needs
- * 12, so the body sets off correctly and is stopped a quarter of the way there.
- *
- * The author should not have to know any of that. Every map with a door has this
- * and the hub is simply the first one anybody walked to. So the goal moves, once,
- * to the nearest pixel a body can really stand on, and the caller is told it is
- * now an exact spot rather than a radius around a guess.
- *
- * MEASURED IN THE SEARCH'S OWN METRIC, not in raw pixels, or this would pick a
- * pixel the lattice cannot get near and hand back a goal that fails differently.
- * A previous note in ARC-MANIFEST reads the arrow as clearing by a tenth of a
- * pixel for exactly that reason: it measured raw distance and the search does not.
- */
+/* move a goal that is not on the floor, like a door, to the nearest pixel a body can stand on */
 export function onFloor(
   spot: Pt,
   standable: (x: number, y: number) => boolean,
@@ -206,9 +142,6 @@ export function onFloor(
       bestD = d; best = { x, y }
     }
   }
-  /* NOTHING WITHIN REACH IS THE HONEST ANSWER AND THE SPOT IS KEPT. Moving the
-   * goal somewhere arbitrary would trade a walk that refuses for a walk that
-   * arrives at the wrong place, and the caller's own deadline already handles
-   * a goal nobody can get to. */
+  /* with no floor within reach the original spot is kept rather than moved somewhere random */
   return best ? { at: best, moved: true } : { at: spot, moved: false }
 }

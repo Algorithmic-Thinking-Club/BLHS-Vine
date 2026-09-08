@@ -1,25 +1,4 @@
-/* THE MOVIE FRAME, and what stands down inside it. BRIEF-ARRIVAL item 1.
-
-   THE LAYER. Read off the tree the same way placecard.css does: the world canvas
-   is 0, the HUD corner and the help button are 50, the objective card 46, the
-   arrival card 68, the cutscene overlay 72, the panels 73 to 80, a transition
-   cover 90, the feedback stamps 120. The bars go at 70: over the world, over the
-   arrival card, and UNDER the cutscene overlay, because a real cutscene draws
-   inside the movie frame.
-
-   ---- AND OVER THE DOOR COVER, WHICH REVERSES A RULING -----------------------
-
-   This used to say "and a door swap covers the lot", so the tunnel door taken in
-   the middle of the introduction wiped the frame off the screen for four seconds
-   and put it back. Ash, 2026-09-06, on the cover playing inside the film: "the
-   bars stay up; the cover plays between them."
-
-   Which is the right shape. The bars are the statement that somebody else is
-   driving, and that stays true through a door; the cover is the page turning
-   inside the film rather than instead of it. Only the BARS climb: everything
-   else the movie frame carries, the caption and anything pressable, stays under
-   the cover, because a control on top of a transition is a control a student can
-   press while the game is between two places. */
+/* the black bars that frame a stretch the player watches, and what stands down inside them */
 
 .cin-root {
   position: fixed;
@@ -46,48 +25,13 @@
 .cin-bottom { bottom: 0; transform: translateY(100%); }
 .cin-root[data-on='1'] .cin-bar { transform: translateY(0); }
 
-/* THE CHROME STANDS DOWN, by the same mechanism `data-panels` already uses for
-   the corner and the help button, so there is one way of doing this and not two.
-   Visibility rather than display: nothing reflows, nothing remeasures its own
-   band, and a surface that publishes a height to the camera keeps publishing it
-   instead of making the picture jump when the bars come down.
-
-   THE ARRIVAL CARD DRAWS UNDER THEM TOO, and that is a ruling from the other
-   end: the bars are up for the WHOLE arrival now, so a card that hid behind
-   them would never play at all.
-
-   ---- AND THE QUESTION MARK GOES WITH THE CORNER, WHICH REVERSES A RULING ----
-
-   It used to be raised ONTO the lower bar, on Ash's words of 2026-09-06: "the
-   three buttons on the top left should never show up. The help button should
-   always be there though." He then played that build and ruled the other way
-   (BRIEF-MAW-RAIL-3 G): *"The help button inside the bars: hidden during the
-   cutscene like the corner."* Which is the consistent answer: everything a
-   student could press is gone for the length of a stretch he watches, so a
-   control drawn on the black is the one thing on the glass that is not part of
-   the picture. What replaced it is the reason he can afford to lose it: the
-   objective panel now rides on the top bar and says what is happening, which is
-   the question the help button was there to answer. */
+/* the hud corner and the help button hide while the movie frame is up */
 html[data-movie='1'] .hud-stack,
 html[data-movie='1'] .hp-btn {
   visibility: hidden;
 }
 
-/* ---- AND ON THE BEACH IT IS THERE, WHICH IS NOT THE SAME QUESTION ----------
-
-   Ash, 2026-09-06: "the help button should also show on the beach map cutscene
-   part too." That is the OPENING, drawn by the cutscene runtime's own letterbox
-   rather than by the movie frame above, and the two are ruled differently on
-   purpose: inside a movie everything pressable is gone and the objective panel
-   on the top bar says what is happening, while the beach opening is a student's
-   first two minutes with no panel, no corner and nothing else to ask.
-
-   `data-letterbox` is set by CutsceneOverlay while its bars are up. It is
-   fenced against `data-movie` so the ruling above always wins where both are
-   true, rather than leaving two rules of equal weight to be settled by which
-   file loaded last. The button also has to climb: the bars are 10vh of ink at
-   z-index 72 and it lives at 50, so "visible" was a control drawn underneath a
-   black rectangle. */
+/* the help button stays up in the opening, which draws its own letterbox instead */
 html[data-letterbox='1']:not([data-movie='1']) .hp-btn {
   visibility: visible;
   bottom: calc(10vh + max(2.4vh, 14px));

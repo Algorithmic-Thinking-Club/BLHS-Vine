@@ -1,47 +1,4 @@
-/* THE BADGES, DERIVED FROM THE RUN RATHER THAN WAITED FOR.
- *
- * BRIEF-UI item 10 asks for "the badges page with no badge whose criterion is
- * unreachable", and §40.41 lists that as one of four live instances of the same
- * defect. Audited 2026-09-02, the page had six cards and this state:
- *
- *   `grep grantBadge src/` returned two call sites. One is `transitions.tsx`,
- *   which grants Bookworm at twenty-five collected facts against a pool of
- *   nineteen. The other is the `award` intent, which an island can call and
- *   which no island calls, because no island in the shipped game names a badge.
- *
- * So five cards read "Not yet" forever and the sixth read "Out of reach", and
- * the page was honest about it without being right.
- *
- * ---- WHAT CHANGED, AND WHAT DID NOT ---------------------------------------
- *
- * `progress.ts` already had the answer for cords: `cordsOf` computes them from
- * the save on every read, so a cord cannot be "granted" wrongly and cannot be
- * missed. Three of these six are exactly that kind of fact and were being
- * treated as events:
- *
- *   Cartographer  every island on the chart has been visited. The chart already
- *                 knows both halves of that; nothing had ever compared them.
- *   Renaissance   a season spent in every category the roster has. `plans` holds
- *                 every season a student has ever committed.
- *   Loyal         Captain on any track. `ranksOf` computes the ladder already
- *                 and the rank names are in one place.
- *
- * The other two stay events, honestly:
- *
- *   Resident      spotting an orca is a thing that happens in the world, not a
- *                 fact about the save. It stays on the `award` path.
- *   Early Bird    "with time to spare" has no clock behind it in this game yet,
- *                 and inventing one to make a badge grantable would be inventing
- *                 a mechanic to fit a label.
- *
- * Both of those now say which they are, so a student reads "no island gives this
- * one yet" instead of a criterion that will never come true silently.
- *
- * AND BOOKWORM'S NUMBER IS THE POOL. The threshold is computed from `FACTS`
- * rather than typed, so the criterion cannot drift away from the content again:
- * adding a fact raises the bar, and there is no arithmetic left that can make it
- * unreachable.
- */
+/* the six badges, most of them worked out from the run rather than granted by an event */
 import { FACTS } from './facts'
 import type { SaveGame } from './save'
 import { ranksOf, rankName } from './progress'
@@ -98,13 +55,7 @@ function anyCaptain(s: SaveGame): { done: boolean; detail: string } {
   return { done: named === 'Captain', detail: named ?? 'No rank yet' }
 }
 
-/**
- * every badge, with its criterion and whether the run has met it.
- *
- * `isles` is the chart's own island list, handed in rather than imported,
- * because the world document is loaded asynchronously and this file must stay a
- * pure function of what it is given.
- */
+/** every badge, with its criterion and whether this run has met it */
 export function badgesOf(s: SaveGame | null, isles: string[] = []): BadgeRow[] {
   const has = (id: string) => !!s?.badges?.includes(id)
   const facts = s?.facts.length ?? 0

@@ -1,13 +1,4 @@
-/* The progression engine (GAME-DESIGN §8) — GPA math and the cord table, which mirrors
- * docs/blhs/awards.md EXACTLY. These tests ARE that table: if a refactor changes who earns
- * a cord, a test names the real award it broke.
- *
- * THREE OF THESE TESTS USED TO ASSERT INVENTED CRITERIA and cited a document that has
- * never existed. They said a D does not pass an AP class, that the Seal of Biliteracy
- * takes three language years and a capstone, and that the board must never mention
- * Valedictorian. The first two are contradicted by SBLSD policy 2410 and by Washington's
- * RCW 28A.300.575, and the third confused "do not invent criteria" with "do not mention
- * the award". They now assert the sourced rules, which is what a tripwire is for. */
+/* tests for the GPA math and the honor cord table, which mirrors the school's own awards list */
 import { describe, it, expect } from 'vitest'
 import { gpaOf, letterOf, rankName, cordsOf, newlyCloseCords, NO_ATHLETIC_CORD } from './progress'
 import type { LedgerEntry, SaveGame } from './save'
@@ -175,23 +166,7 @@ describe('honor-reveal moments (§8.4)', () => {
   })
 })
 
-/* ---- AND NO PLAYER-FACING SOURCE NAMES A FILE IN THIS REPOSITORY ----------
- *
- * The three assertions this replaces each demanded that a string a fourteen year
- * old READS contains "docs/blhs/awards.md". They were guarding the right thing,
- * provenance, through the wrong string: they made the repo path a requirement of
- * the player-facing copy, so the Handbook printed a markdown path under all seven
- * cords and a section sign under every fact card in both arms.
- *
- * §40.12 is the rule: "the player-facing string and the code-facing string are
- * never the same string, anywhere in this game, and every surface has to be
- * checked for which one it prints." So provenance is still required, and it is
- * required to name the SCHOOL document a student could go and find. The repo
- * files stay named in a comment beside the constants, which is where an auditor
- * looks and a freshman does not.
- *
- * This guard is stricter than what it replaces: it holds for every cord and
- * every fact at once rather than for the eight the old list happened to name. */
+/* a source a student reads must name a school document, never a file in this repo */
 
 describe('what a student is shown as a source', () => {
   it('never prints a path into this repository, on any cord', () => {

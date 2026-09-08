@@ -1,13 +1,4 @@
-/* WHAT IS ON THE WALL IS WHAT THE RUN DID, AND NOTHING ELSE.
- *
- * BRIEF-YEAR-ONE hangs four of its eight beats on this: the empty outline in
- * beat 4 that makes a freshman want the year, the thing that goes up in beats 5,
- * 6 and 7, and beat 8's "the wall has three things on it". A wall that can show
- * a trophy nobody earned, or miss one somebody did, breaks the payoff of the
- * whole thirty minutes and it breaks it silently.
- *
- * So this is the guard on the derivation rather than on the drawing.
- */
+/* checks the wall shows exactly what the run did, one seat per thing the student chose */
 import { describe, it, expect, beforeEach } from 'vitest'
 import { beginAdventure, loadSave, type SaveGame } from '../save'
 import { wallOf, onTheWall } from './wall'
@@ -25,14 +16,7 @@ describe('the seats', () => {
   it('is one seat per thing chosen, plus Advisory, which everybody is in', () => {
     const seats = wallOf(withPlan())
     expect(seats.map((w) => w.name)).toEqual([
-      /* THE CLUBS AND SPORTS READ AS EXAMPLES AND THE ELECTIVES DO NOT, which
-         is Ash's ruling of 2026-09-06 and the shape `roster/placeholders.ts`
-         gives it: a club in this game IS an island somebody built, so one nobody
-         has built has no name to print, and a course is a true thing about the
-         school whether or not anybody has drawn it. The letters follow the
-         ROSTER's own order, where ATC is written before Football, and the wall
-         lists by SEASON, so the Fall frame is Example B and the Winter one is
-         Example A. */
+      /* clubs and sports nobody has built read as examples, and the electives read as named */
       'Advisory', 'Example B', 'Example A', 'AP Human Geography', 'Spanish I',
     ])
     /* Advisory first because it is beat 5, then the seasons, then the classes:

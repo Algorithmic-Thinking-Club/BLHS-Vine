@@ -1,18 +1,4 @@
-/* THE FOCUS CONTRACT, TESTED BY BREAKING IT.
- *
- * Each of these is a thing a keyboard-only student could do before this session
- * and could not do anything about: Tab out of the open Handbook onto a button
- * underneath it, press Escape and pause the game instead of closing the panel in
- * front of them, close two panels and find the whole game inert with nothing on
- * top of it, or pick a coat and get no confirmation that anything happened.
- *
- * §80.5 files these under the instrument rather than under compliance: a student
- * who cannot finish a panel cannot finish the year, and they arrive in the export
- * as a run that stopped.
- *
- * Written with createElement rather than JSX because the runner only collects
- * `.ts`, the same reason DialogueBox.test.ts is.
- */
+// what an open panel owes a keyboard: it takes focus, keeps it, gives it back, and answers Escape
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createElement, act, useState, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -47,15 +33,7 @@ function Panel({ label, onClose, extra }: { label: string; onClose?: () => void;
 const esc = () => act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })) })
 
 describe('a panel takes focus, holds it, and gives it back', () => {
-  /* THE EXPECTATION MOVED ON 2026-09-01 AND THE REASON IS AT THE CALL SITE.
-   *
-   * This asserted that focus lands on the first CONTROL. It now lands on the
-   * panel, which the ARIA practices allow and which this kit needs: Chromium
-   * counts programmatic focus after a key press as keyboard focus, so the first
-   * control was ringed the instant any panel opened, and the art-direction pass
-   * measured that as a flat yellow rectangle on ten of twenty-three surfaces.
-   * What the panel owes is unchanged and is still asserted below: focus goes
-   * INTO it, cannot leave it, and comes back on close. */
+  /* focus lands on the panel itself rather than on its first control, so nothing is ringed yet */
   it('moves focus into the panel itself, so nothing is ringed before a key is pressed', () => {
     act(() => root.render(createElement(Panel, { label: 'Handbook' })))
     const box = host.querySelector('.box')!

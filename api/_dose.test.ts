@@ -1,11 +1,4 @@
-/* THE EXPOSURE MEASURE, pinned.
- *
- * Dose is the number the AP Research comparison cannot be read without, and
- * until api/_dose.ts it was produced by nothing: heartbeats went into a table
- * and no query turned one back into a duration. Every test here is a claim about
- * what "time on task" means, and a refactor that changes one of them is changing
- * the study's independent variable rather than tidying a fold.
- */
+/* the exposure measure, pinned: what time on task means in this study */
 import { describe, it, expect, beforeEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -262,12 +255,7 @@ describe('who the dose belongs to', () => {
   })
 })
 
-/* ---- and the same fold through the shipped endpoint, against the file store ---
- *
- * The fold above is the arithmetic. These two prove the read exists end to end:
- * a beat posted to api/log.ts comes back out of api/dose.ts as a duration, with
- * no database anywhere. Same pattern as api/handlers.test.ts.
- */
+/* the same fold through the shipped endpoint, against the file store */
 const DB = path.join(os.tmpdir(), `blhs-dose-test-${process.pid}.json`)
 
 beforeEach(() => {

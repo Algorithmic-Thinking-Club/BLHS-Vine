@@ -1,10 +1,4 @@
-// CORE BEAT, YEAR 2 — "The hidden ladder" (§7.3): every real cord and seal, taught two
-// years before it is too late to earn them, plus the Universal Retake Policy — which the
-// student has probably already USED as a game mechanic by now; this beat names it as the
-// real rule it is. All criteria verbatim-faithful to docs/blhs/awards.md (the list
-// Ms. Pinzon sent through Mr. Wiseman — she hosts, respectfully), with the 2026-08-28
-// resolutions folded in: a D passes, and the Seal is Washington's own rule. No em-dashes
-// in player copy (law §2.8).
+// year two's core beat: every honor cord and seal, and the school's retake policy
 
 import type { CoreBeat } from './frames'
 
@@ -13,10 +7,7 @@ const CP = 'Counselor Pinzon'
 export const CORE_Y2: CoreBeat = {
   id: 'core:y2',
   year: 2,
-  /* "place · title" is printed above every step of this activity in both arms.
-   * It was 'the counseling grove · The hidden ladder'. The words pass,
-   * 2026-09-04: the room is the counselor's office and the title says what the
-   * activity is about. */
+  /* the place and title are printed above every step of the activity, in both arms */
   title: 'Honor cords, and how to earn them',
   place: "the counselor's office",
   kind: 'core',

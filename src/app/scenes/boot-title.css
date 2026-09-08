@@ -1,12 +1,7 @@
 /* Boot splash + title screen (GAME-DESIGN §4.1 / §4.2), the first two frames a student
    ever sees, so every easing here is deliberate. Fonts + kit textures from the UI kit. */
 
-/* SAID OUT LOUD RATHER THAN INHERITED BY LUCK. This file reads `--kit-art-title`,
-   `--kit-art-plank`, `--kit-art-plaque` and `--kit-pixel`, and it used to get away
-   with spelling the pngs out. An @import is what makes the dependency real:
-   without it the tokens only exist because some other stylesheet happened to be
-   loaded first, and the day the title screen is opened on its own it would paint
-   nothing. */
+/* the tokens this file paints with, so the title screen can be opened on its own */
 @import '../../game/ui/tokens.css';
 
 @font-face {
@@ -22,13 +17,7 @@
 
 .pix { image-rendering: pixelated; }
 
-/* ============ BOOT ============
-   The splash is a different surface from the title and this session did not
-   rebuild it, so its five deep-teal values are left exactly as they shipped. They
-   are the one group in this file with no token behind them: `--kit-front-sea-deep`
-   is the nearest and it is not the same colour, and swapping a surface Ash has
-   already approved for a near-miss is not a tokenising win. They are reported as
-   tokens the kit still owes rather than quietly changed. */
+/* the boot splash, whose five deep teal values have no kit token behind them yet */
 
 .bt-boot {
   position: absolute; inset: 0;
@@ -132,22 +121,13 @@ html[data-rm='1'] .bt-credit { animation-duration: 1ms; }
   from { transform: scale(1.02) translate(0.6%, -0.5%); }
   to   { transform: scale(1.09) translate(-1.2%, 0.8%); }
 }
-/* A DRIFT THAT LOOPS FOREVER HAS TO STOP RATHER THAN SHORTEN. `settings.css`
-   already carried this rule from across the tree, because the token layer could
-   not reach a file it did not own; it belongs in the file that starts the
-   animation, and the media query stays for a machine whose OS asked before this
-   game ever loaded. */
+/* a drift that loops forever stops under reduced motion rather than running fast */
 html[data-rm='1'] .ti-backdrop { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   .ti-backdrop { animation: none; }
 }
 
-/* gentle contrast veil so the wordmark owns the sky/water.
-   THE FOUR VALUES HERE ARE THE OTHER GROUP THE KIT DOES NOT OWN. A veil over a
-   painting is not `--kit-veil`, which is the warm brown-black a PANEL sits on and
-   is deliberately opaque enough to stop the world competing with a word. This one
-   has to leave the cove legible, so it is a cool sky wash at a fifth of that
-   strength, and there is no token pair for it yet. Asked for, not invented. */
+/* a gentle contrast veil so the wordmark owns the sky and the water */
 .ti-veil {
   position: absolute; inset: 0;
   background:
@@ -160,11 +140,7 @@ html[data-rm='1'] .ti-backdrop { animation: none; }
   padding-top: 7.5vh;
 }
 
-/* WAS A LITTLE TINTED BOX WITH A BORDER, which is a panel, and a panel over a
-   painting is one more rectangle in a frame that already has a signboard and a
-   plank in it. It is a caption now, which is what it is: two words over a picture,
-   with the kit's own caption ink and the shadow that makes ink readable on any
-   pixel of a painting. */
+/* the welcome line is a caption over the painting, not a panel */
 .ti-welcome {
   font-family: var(--kit-face-body);
   --kit-fs-raw: calc(2vh * var(--kit-text-scale));
@@ -185,18 +161,7 @@ html[data-rm='1'] .ti-welcome { animation-duration: 1ms; }
 html[data-rm='1'] .ti-wordmark { animation-duration: 1ms; }
 /* the sign asset's interior is cut out, so back it with whitewashed planks and the
    lettering sits on wood rather than on open water */
-/* THE SIGN'S FACE IS A PAINTED BOARD, NOT GRAPH PAPER.
- *
- * This was three stacked gradients and two of them were `repeating`, which is
- * to say it was a grid. The art-direction pass of 2026-09-01 called it out on
- * the title and on the chart in the same breath: "two of the three surfaces a
- * student will screenshot use the same pale ruled grid: a nautical chart of an
- * ocean, and the face of a carved wooden sign. Neither is a thing that exists."
- *
- * `title-signboard.png` is a frame with a transparent middle, so what shows
- * through it is whatever is behind, and this is now a drawn board. The wordmark
- * sits on top of it and the board was generated to stay quiet enough for that:
- * four value steps, no lettering, no lines. */
+/* the sign's face is a painted board behind the cut-out middle of the signboard */
 .ti-signpaper {
   position: absolute; inset: 9% 7% 12% 7%;
   border-radius: var(--kit-r-round);
@@ -227,10 +192,7 @@ html[data-rm='1'] .ti-wordmark { animation-duration: 1ms; }
   text-shadow: 0 2px 0 var(--kit-paper-sheen), 0 -1px 0 var(--kit-hairline);
 }
 
-/* THE GULL IS A BUTTON NOW. Same bird, same landing, and a Tab can reach it: it
-   was an `<img onClick>`, a pointer path with no key path, which §40.28 rules out
-   on the one screen every student meets first. The button carries no chrome of its
-   own, because a hit target drawn on a bird would look like a bug. */
+/* the gull is a button, so a key can reach it, and it carries no chrome of its own */
 .ti-gull {
   position: absolute;
   top: -9.5%;
@@ -265,30 +227,12 @@ html[data-rm='1'] .ti-gull-right { animation-duration: 1ms; }
 }
 html[data-rm='1'] .ti-actions { animation-duration: 1ms; }
 
-/* THE SIGN IS THE KIT'S PLANK NOW, so rest, hover, press, disabled, focus and busy
-   all come from `ui/controls.css` and this rule only says how big the title's own
-   one is. The three rules that used to live here (a background, a hover and an
-   active) were a fourth private copy of a button.
-
-   THE PADDING IS IN PIXELS AND HAS TO BE. It was `0 12%`, and a percentage padding
-   resolves against the CONTAINING BLOCK, which for this button is a stack pinned
-   to the viewport: on a wide window the label was being squeezed by a quarter of
-   the SCREEN. That is the same bug `tokens.css` records against every panel.
-
-   TWO CLASSES DEEP ON PURPOSE. `controls.css` and this file both land in the same
-   bundle and their relative order depends on an import order in a component, so a
-   single-class rule here is a coin flip against `.kit-plank-lg`'s own padding. The
-   three states are written together for the same reason: overriding only the rest
-   state leaves the hover coming from one file and the rest from another, which is
-   how a button ends up jumping between two shadows. */
+/* the title's own plank sizing, on top of the kit button's six states */
 .ti-actions .ti-plank {
   width: min(340px, 44vw);
   aspect-ratio: 512 / 160;
   padding: 0 26px;
-  /* THE CAP FOLLOWS THE HEIGHT. The plank's carved ends are cut 60 wide on a
-     148 tall painting, and `.kit-plank-lg` sizes them for a 60 pixel button.
-     This one is 106 tall by its aspect ratio, so at 24 the rope ends were
-     squeezed to less than half their drawn width. 43 is 60 x 106 / 148. */
+  /* the carved cap follows the button's height, 60 x 106 / 148 */
   --kit-plank-cap: 43px;
   filter: drop-shadow(0 5px 12px var(--kit-plank-drop));
 }
@@ -300,10 +244,7 @@ html[data-rm='1'] .ti-actions { animation-duration: 1ms; }
   letter-spacing: 1px;
 }
 
-/* WHERE THE RUN IS, ON ITS OWN PLATE. `plaque-small.png` is a dark carved 2:1
-   plate and this is the shape it was drawn for. The season wears the `pip` face
-   MAPVIS cut for it (fall, winter, spring), and the WORD is beside it rather than
-   under it, so the plate still says which season with no art at all. */
+/* where the run is, on its own carved plate, with the season word beside the pip */
 .ti-berth {
   display: inline-flex; align-items: center; gap: 8px;
   min-width: min(240px, 34vw);
@@ -334,30 +275,7 @@ html[data-rm='1'] .ti-actions { animation-duration: 1ms; }
   text-shadow: var(--kit-caption-shadow);
 }
 
-/* =========================================================================
- * THE PLAIN ARM: the title as the cover of a document
- *
- * TWO OF THE FIVE LITERAL ART URLS LEFT IN THE TREE ON 2026-08-31 WERE HERE, and
- * taking them through the token layer is only half the job: `--kit-art-title:
- * none` on a full-bleed backdrop leaves an empty teal box, and `--kit-art-plank:
- * none` on a 512x192 button leaves an invisible one with a label floating in it.
- * So the layout says what it becomes instead, rather than what it stops being.
- *
- * WHAT IS HIDDEN AND WHY EACH ONE. The painted cove, the carved signboard, the
- * whitewashed planks behind its cut-out interior, the gull and the carved berth
- * plate are all drawn game objects; the ruling is that this arm has no game art.
- * The WORDS on the sign are not art, so they stay, in the same order, and become
- * the page's heading. The year and the season stay too, as a line of type.
- * Nothing a student can read or press is removed.
- *
- * THE SCOPE QUESTION THIS RAISES AND DOES NOT SETTLE. The 2026-08-28 ruling puts
- * navigation and art in the VEHICLE, which stays identical across arms, and only
- * diverges the surfaces that deliver or score BLHS content. The title screen
- * delivers no BLHS content, so by that reading it is vehicle and should stay
- * painted in both arms. It is here because the order that closed the ruling
- * named these five surfaces by name. It is one block and deleting it puts the
- * title back exactly as it was; Ash has not seen either version.
- * ========================================================================= */
+/* the plain arm: the title as the cover of a document, with no game art on it */
 
 html[data-skin='plain'] .ti-root { background: var(--kit-paper-hi); }
 html[data-skin='plain'] .ti-backdrop,
@@ -366,20 +284,7 @@ html[data-skin='plain'] .ti-signpaper,
 html[data-skin='plain'] .ti-sign,
 html[data-skin='plain'] .ti-gull { display: none; }
 
-/* THE CONTROL ARM'S COVER PAGE, and it is a page rather than a column.
- *
- * The art-direction pass of 2026-09-01 opened this shot and read it as the thing
- * the ruling refused: "everything sits in the top-left 470px of a 1366px page
- * with 80 percent white void... an unstyled left-flush page is what this looks
- * like". That matters more here than anywhere else in the arm, because §16.20 is
- * explicit that "plain" names a RENDER and not a worse experience, and Ash's own
- * ruling threw out raw OS widgets on the grounds that looking broken is itself a
- * confound in the one comparison the instrument exists to make. The first screen
- * of the control arm looking unfinished is that confound at full strength.
- *
- * A printed cover page centres its block in the sheet and rules a line under the
- * title. That is all this is, and it is still a document: no art, no wood, one
- * face, black on white. */
+/* the control arm's cover page, a centred block with a rule under the title */
 html[data-skin='plain'] .ti-stack {
   padding: 0 32px;
   align-items: center;

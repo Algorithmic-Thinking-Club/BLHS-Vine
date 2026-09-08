@@ -1,9 +1,4 @@
-// THE YEAR'S RHYTHM as pure state (§7.5) — what this year still asks of the student,
-// derived entirely from the save. The required spine of a year: the stamped sheet, the
-// advisory core beat, and the two focus classes. Committed island voyages complete when
-// their islands are playable (§6.6 — the grape phase); until then they read honestly as
-// "still rising" and never block the yearbook. Every beat is individually resumable
-// because every beat's doneness lives on the ledger/plan, not in component state.
+// what a year still asks of the student, worked out from the save alone
 
 import type { SaveGame, Season } from '../save'
 import { SEASONS, completedIn } from '../save'
@@ -11,55 +6,14 @@ import { hasCoreBeat, beatDone } from '../beats/beats'
 import { classDone } from '../beats/classes'
 import { programmeById, placeOfProgramme } from '../roster/roster'
 
-/* ---- WHERE THE THIRTY MINUTES STOP -----------------------------------------
- *
- * BRIEF-MAW-RAIL-3 C, Ash after playing rail-2: *"After 'Year two, next time'
- * nothing wakes up. No 'Go to the table and pick your year', no lit table, no
- * year-two planner, no year-two Advisory. The yearbook is the end screen, the
- * corner appears, the Maw is his to walk, and the objective panel reads 'Explore
- * the Maw. Year two, next time.' Year two is not designed yet and is not
- * reachable in a thirty-minute advisory block anyway. The four-year machinery
- * stays in the code; it does not run on."*
- *
- * SO IT IS ONE NUMBER AND NOT A DELETION. Every part of the four-year model is
- * where it was: `yearStatus` still takes a year, the yearbook still composes a
- * page for any of them, the beats for years two to four are still written and
- * still tested. What this says is that the RUN stops handing out another year
- * once this one's page has turned, which is the difference between a game that
- * is over and a game that has been cut down to one year.
- *
- * Raise it to 2 and year two opens on its own, with the sheet asking for a
- * schedule and the fire owing `core:y2`, because nothing else in the run reads a
- * year number to decide what it is allowed to do. */
+/* the last year the run hands out, so the session ends once that year's page turns */
 export const SESSION_ENDS_AFTER_YEAR = 1
 
 /** the last page a student turns has turned: nothing else in the run wakes up */
 export const sessionOver = (s: SaveGame | null): boolean =>
   !!s && s.flags.includes(`yearbook:y${SESSION_ENDS_AFTER_YEAR}`)
 
-/* WHERE A RUN IS, IN ONE LINE, WITH NO SEASON IN IT.
- *
- * BRIEF-CLOSE-THE-LOOP section 4: *"the words Fall, Winter and Spring appear
- * nowhere a student reads, including the title's continue line, the yearbook, My
- * Year and the recovery line."* Wiseman's three-seasons model stays in the code
- * and comes off the screen until a real sport with a season exists.
- *
- * ASH, 2026-09-08, AND HE IS THE STRONGEST EVIDENCE FOR IT: *"what even happened
- * to the fall, winter, spring shit. how does that even work. what even is that
- * about. NONE of that is explained, and even I dont know, which is the bigger
- * problem."* A model the person who commissioned it cannot explain is not a model
- * a fourteen year old is going to work out from a three-letter chip.
- *
- * AND IT WAS A LIE AS WELL AS A PUZZLE. `save.season` is written in exactly two
- * places and both write `'Fall'`, so the title, the Handbook header and the
- * settings page have all read "Year 1, Fall" from the first frame of the game to
- * the last, on a run that has no seasons in it.
- *
- * THE SESSION BEING OVER IS PART OF THE ANSWER, which is the other half of the
- * same complaint: *"i reloaded the page. it still says continue, fall year 1. i
- * dont know if thats a glitch, cause year one is technically over."* It was not a
- * glitch; nothing anywhere read the end of the run. Now one function does, and
- * every surface that used to spell the season reads this instead. */
+/* where a run is, in one line a student reads, with no season named in it */
 export function runLine(s: SaveGame | null): string {
   if (!s) return ''
   if (sessionOver(s)) return 'Year one is done'
@@ -95,17 +49,9 @@ export type YearStatus = {
   yearbookSeen: boolean
 }
 
-/* `PLAYABLE_ISLANDS` was a hardcoded `new Set<string>([])` here, and shipping an
- * island meant editing it plus the activity array plus a deploy, with no review
- * step. Playability is a field on a programme in the roster now, so a programme
- * that can run says so where everything else about it is written. */
+/* whether a programme can run today is a field on it in the roster, not a list kept here */
 
-/* THE YEAR IS AN ARGUMENT, because the yearbook has to compose a page for a year
- * that already turned. It read `s.year` and nothing else, so every derived answer
- * in the run was about today and a past page could only be rendered by lying
- * about which year it was. Everything below already took a year: `completedIn`,
- * `beatDone` and `hasCoreBeat` all do, so the only thing that was current-year
- * about this function was the one line that read the field. */
+/* the state of one year, taking the year as an argument so a past page can be composed */
 export function yearStatus(s: SaveGame, forYear = s.year): YearStatus {
   const year = forYear
   const plan = s.plans[year] ?? { slots: {}, classes: [], stamped: false }
@@ -113,10 +59,7 @@ export function yearStatus(s: SaveGame, forYear = s.year): YearStatus {
     const id = plan.slots[season]
     if (!id) return []
     const g = programmeById(id)
-    /* COMPLETION IS KEYED BY THE PROGRAMME AND NEVER BY THE PLACE. Two entries
-     * naming one stadium used to be done the moment either was, because both
-     * read the same island id, so a student spent a winter token on a voyage the
-     * year model already believed was over. */
+    /* completion is keyed by the programme and never by the place it happens at */
     return [{
       season, programmeId: id, name: g?.name ?? id, placeId: placeOfProgramme(id)?.id,
       playable: !!g?.playable,
@@ -137,22 +80,7 @@ export function yearStatus(s: SaveGame, forYear = s.year): YearStatus {
     classesDone,
     classesPending,
     voyages,
-    /* THE YEAR CLOSES ON THE STAMP AND ADVISORY, AND THE CLASSES DO NOT HOLD IT.
-     *
-     * BRIEF-MAW-RAIL's year one is five beats: the principal, the pick, the fire,
-     * the wall, the counselor. Its fourth beat is the wall "showing what filled
-     * and what is still empty, in his own picks' names", and its fifth is the
-     * page turning, so the page is meant to turn with the two picked classes
-     * still unsat. This line read `classesPending.length === 0 && classes.length
-     * === 2` and made that unreachable: a freshman walked to the counselor and
-     * she had nothing to say, because the year model was waiting on two three
-     * minute activities nothing on screen had sent him to.
-     *
-     * THE CLASSES ARE NOT CUT. They are still on the sheet, still scored, still
-     * tagged, still moving the cords, and My Year still offers them by name. What
-     * changed is that they are the year's OPTIONAL depth rather than its gate,
-     * which is what the yearbook's own nudge line has always said out loud about
-     * a season nobody spent. */
+    /* the year closes on the stamp and advisory, and the picked classes do not hold it */
     readyForYearbook: plan.stamped && coreBeatDone,
     yearbookSeen: s.flags.includes(`yearbook:y${year}`),
   }
@@ -162,17 +90,10 @@ export function yearStatus(s: SaveGame, forYear = s.year): YearStatus {
 export function nudgeLine(st: YearStatus): string {
   const rising = st.voyages.find((v) => !v.playable && !v.done)
   if (rising) return `The ${rising.name} island is not open yet, so nobody could sail there.`
-  /* THE EMPTY-SEASON NUDGE IS CUT rather than reworded, and section 4 is why: it
-   * is the one line in the yearbook that could only be said in seasons. A student
-   * who left a column empty on a sheet that never showed him columns has not left
-   * anything. It comes back the day a real sport with a season exists. */
+  /* no nudge about an empty season, since the sheet never showed a student one */
   const unplayed = st.voyages.find((v) => v.playable && !v.done)
   if (unplayed) return `You signed up for ${unplayed.name} and never went.`
-  /* A CLASS ON THE SHEET THAT WAS NEVER SAT. It used to hold the year OPEN, so
-   * it could never be a nudge; now that the year closes on the stamp and
-   * Advisory (`readyForYearbook` above), this is where a student is told what
-   * they left behind. Last of the four, because a whole season nobody spent is a
-   * bigger miss than one class still waiting on the sheet. */
+  /* a class on the sheet that was never sat, said last because it is the smaller miss */
   if (st.classesPending.length) {
     return st.classesPending.length === 1
       ? 'You picked a class this year and never sat it. It is still on your sheet.'

@@ -1,12 +1,6 @@
 ﻿import type { CutsceneStage, Ease, OverlayState, Script, Step, Vec } from './types'
 
-// The cutscene interpreter. Tick-driven: the host scene calls tick(dtMs) from its own loop,
-// so cutscene time and world time can never drift apart. Two execution modes per step:
-// LIVE (animated over time) and INSTANT (jump straight to the end state). Instant is what
-// makes hold-to-skip honest: the world lands exactly where the script would have left it.
-//
-// Dialogue pacing, letterbox/vignette/fade tweens and typewriter text live here (screen
-// space); everything world-side is delegated to the CutsceneStage the scene provides.
+// the cutscene interpreter: the scene ticks it, and any step can play out or jump to its end
 
 const LETTERBOX_MS = 450
 const VIGNETTE_MS = 600
@@ -251,13 +245,7 @@ export class CutsceneRuntime {
           while (shown < d.text.length && shown < budget) {
             const ch = d.text[shown]
             shown++
-            /* THE ELLIPSIS WAS THREE MOJIBAKE BYTES AND NEVER MATCHED ANYTHING.
-             * A file saved once as latin-1 turned one character into
-             * 'a-euro-notsign', and the three bytes it became are not something
-             * `d.text[shown]` can ever equal, so the pause this branch exists to
-             * add after an ellipsis has never once been added, in any scene, on
-             * any line. Three typed dots still land three pauses, which is what
-             * an ellipsis is for and is the reason nobody noticed. */
+            /* a sentence-ending character adds a small pause to the typewriter */
             if ('.!?…'.includes(ch)) live.extra += PUNCT_PAUSE_MS
           }
           d.shown = shown
@@ -285,15 +273,7 @@ export class CutsceneRuntime {
           this.stage.playerControl(false)
           return true
         }
-        /* THE POLL SAYS THE WALK IS OVER, and that has to end the gate.
-         *
-         * This read the poll and returned false either way, so the only exit was
-         * the position test above. On the beach `actorPlace` lands the actor
-         * exactly and the test always passed, which hid it. On a painted map the
-         * walk stops where the mask stops or gives up on its clock, and then the
-         * poll latched true forever against a position test that could never pass:
-         * a cutscene with no letterbox left, no controls, and no way out but
-         * hold-to-skip. As close as the world lets him get IS arrival. */
+        /* the walk's own poll saying it has finished also ends the gate */
         if (live.auto) {
           if (!live.auto()) return false
           this.ui.prompt = null

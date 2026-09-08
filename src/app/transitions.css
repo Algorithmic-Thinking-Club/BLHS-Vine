@@ -6,25 +6,13 @@
 
 .tr-root {
   position: absolute; inset: 0; z-index: 90; pointer-events: auto; overflow: hidden;
-  /* ONE NUMBER FOR THE COVER'S OWN LENGTH, AND IT IS THE SAME NUMBER THE
-     CONTROLLER SLEEPS. `COVER_MS` in transitions.tsx is 950 and this was 950
-     retyped in nine rules; the day one of them moved, the cover either sat still
-     at the end or was cut off part way through, with nothing saying which.
-
-     It is a local custom property rather than a kit token because there is no
-     kit token for it: `--kit-t-quick` through `--kit-t-slow` are 120 to 160
-     milliseconds, which is the speed a BUTTON answers at. A cover is a scene
-     change and is deliberately eight times slower. `--kit-t-cover` is asked for
-     in this session's report; until it exists the number lives here, once. */
+  /* how long a cover runs, and it is the same number the controller sleeps */
   --tr-cover: 950ms;
 }
 .pix { image-rendering: var(--kit-pixel); }
 
 /* ---- fade ---- */
-/* THE DARK A COVER FADES TO IS A TOKEN, and it is warm rather than blue-black.
-   Same ruling as the panel veils on 2026-08-30: taken to a cold near-black the
-   frame reads as a void, and the island has to still be THERE, dimmed, not
-   deleted. `--kit-wood-shadow` is the kit's own darkest warm value. */
+/* the dark a cover fades to, warm rather than blue-black */
 .tr-fade { position: absolute; inset: 0; background: var(--kit-wood-shadow); }
 .tr-in .tr-fade { animation: trf-in var(--tr-cover) ease both; }
 .tr-out .tr-fade { animation: trf-out var(--tr-cover) ease both; }
@@ -107,22 +95,7 @@ html[data-rm='1'] .tr-twinkle { animation: none; opacity: .7; transform: none; }
   width: min(700px, 86vw);
 }
 
-/* ---- THE FOUR VOICES ARE ONE LAYOUT NOW, RULED BY ASH 2026-09-06 ----------
- *
- * §4.1 moved the plaque down the painting for a room and up for an arrival, on
- * the argument that reaching a place and stepping into a room are different
- * events and should not read as one. Ash played it and ruled the other way: the
- * two covers he likes are the archipelago and the far shore, "every other cover
- * is bad", and every cover is to be the same design with the destination's own
- * painting behind it. The picture is what makes the Maw different from the
- * archipelago; the lettering staying put is what makes them the same GAME.
- *
- * The classes are still written onto the element, because `covers.ts` still
- * chooses the PAINTING by voice and a stylesheet that has forgotten the word
- * cannot be pointed at when somebody asks where the picture came from. They
- * simply no longer move anything.
- *
- * Do not put these three rules back without Ash saying so. */
+/* ---- the four cover voices share one layout, and only the painting changes ---- */
 
 /* the kicker sits on the painting rather than on the band, because the band's
    own paper starts at the place's name */
@@ -136,36 +109,7 @@ html[data-rm='1'] .tr-twinkle { animation: none; opacity: .7; transform: none; }
   text-align: center;
 }
 
-/* ---- THE COVER BAND -------------------------------------------------------
- *
- * WHAT WAS HERE. A `rgba(16, 11, 9, .93)` rectangle with a one pixel line round
- * it, holding the name of the place a student is walking into, sitting on top of
- * the widest painting in the game. The 2026-08-30 eyes round raised the opacity
- * so nothing read through it, which fixed the legibility and left the surface a
- * bare rectangle: the one piece of chrome in the game that was not a drawn
- * object, on the one screen with nothing else on it to look at.
- *
- * THEN IT WAS A GRADIENT PRETENDING TO BE ONE. The class that put a drawn frame
- * on it was conditional on the PLATFORM's `band` piece having landed, so the
- * ordinary run of the game drew a linear-gradient with four box-shadows stacked
- * on it: an outer dark edge, a bright keyline, a ruled inset and a sheen. Four
- * layers is what it takes to make a div look carved, and it still does not, and
- * the UI brief's second law is that every element is drawn art rather than a
- * styled div.
- *
- * WHAT IT IS NOW. `kit-surface-band`, unconditionally, which `tokens.css`
- * answers three ways with no branch here: the platform's own `band` art when the
- * kit has landed, the game's drawn dialogue frame nine-sliced when it has not,
- * and a flat bordered sheet under `data-skin='plain'`. All three are the right
- * answer for their arm and the middle one is real PixelLab art rather than CSS.
- *
- * THE NINE-SLICE IS THE ONLY INSET. Padding here would inset the contents a
- * second time on top of the border-width, which is the exact defect
- * `kit.ts` spent a paragraph on before the kit could be turned on by default.
- *
- * THE INK IS DARK IN EVERY ARM, which is the part that had to move together.
- * The old band was light lettering on near-black. Every ground this can land on
- * now is paper, so light lettering on it is invisible. */
+/* ---- the cover band: the drawn plate the place's name sits on ---- */
 .tr-scene-band {
   align-self: stretch;
   box-sizing: border-box;
@@ -175,10 +119,7 @@ html[data-rm='1'] .tr-twinkle { animation: none; opacity: .7; transform: none; }
 .tr-scene-title {
   margin: 0;
   font-family: var(--kit-face-title);
-  /* THE PLACE'S NAME IS ON THE SAME PIPELINE AS EVERYTHING ELSE. It was a bare
-     `clamp(26px, 5vh, 40px)` inside `--kit-fs-raw`, which snapped to a whole
-     pixel and then ignored the text-size setting entirely, so a student on Large
-     read a scaled fact under a fixed place name. */
+  /* the place's name scales with the text-size setting like everything else */
   --kit-fs-raw: calc(clamp(26px, 5vh, 40px) * var(--kit-text-scale));
   font-size: var(--kit-fs);
   letter-spacing: 3px;
@@ -205,32 +146,13 @@ html[data-rm='1'] .tr-twinkle { animation: none; opacity: .7; transform: none; }
   display: flex; align-items: center; justify-content: center;
 }
 
-/* ---- THE BAR, WHICH IS THE GAUGE AND NOT A KEYFRAME -----------------------
- *
- * WHAT WAS HERE: `animation: tr-fill linear both` with the duration handed in
- * from JavaScript as `(spec.holdMs ?? 2600) + 620`, filling 4% to 78% to 100%
- * on a clock. Nothing measured the swap, so the bar was a picture of a load
- * rather than a reading of one, and its guessed 2600 did not even match the
- * 60 the controller actually waited.
- *
- * It is `Gauge` from the control kit now, reading `TransitionState.progress`.
- * Null there means nothing can honestly be counted and Gauge draws a PACING bar,
- * which is a different picture from a filling one on purpose. The instant the
- * swap answers, the progress is 1 and the bar is full, because the swap
- * answering is the work finishing. The word underneath says which of the two
- * states it is in, because §40.31 forbids a state carried by hue alone and a
- * Chromebook panel cannot be trusted to show 90 percent against 100. */
+/* ---- the bar, which is the real gauge reading the load rather than a keyframe ---- */
 .tr-scene-meter {
   margin-top: 14px;
   width: min(300px, 46vw);
   display: flex; flex-direction: column; align-items: center; gap: 6px;
 }
-/* THE GAUGE IS SITTING ON A PAINTING AND NOT ON PAPER, which is the one place in
-   the game it does. Its own track is a warm translucent brown meant for a panel;
-   over `loading-port.png`, which is a gold sunset, a gold fill on a warm track is
-   a bar nobody can find. A dark ground and a light keyline give it an edge on any
-   of the four paintings. The plain arm's rule in controls.css is more specific
-   than this and still wins, which is correct: there is no painting there. */
+/* the gauge sits on a painting, so it gets a dark ground and a light keyline */
 .tr-scene-meter .kit-gauge {
   min-height: 24px;
   background-color: var(--kit-veil);
@@ -288,36 +210,15 @@ html[data-rm='1'] .tr-twinkle { animation: none; opacity: .7; transform: none; }
   text-shadow: 0 1px 0 var(--kit-paper-sheen);
 }
 
-/* =========================================================================
- * THE PLAIN ARM (§16). Ash's ruling, 2026-08-31, verbatim: "No game art, no
- * wood, no parchment: system font, black on white, real headings and a real
- * form. Reads as a worksheet somebody wrote, not as the game with its paint
- * scraped off."
- *
- * A COVER IS THE HARDEST SURFACE IN THE GAME TO SAY THAT ABOUT, because a cover
- * is almost entirely vehicle: a painting, a vignette and fourteen twinkling
- * dots. The 2026-08-28 content-and-vehicle rule decides it cleanly, and §10.4
- * states the half that matters: "the card is content, so it renders in both arms
- * as the same sentence." So the painting goes and the WORDS stay, in the same
- * order, at the same sizes, saying the same thing. The renderer drops the img,
- * the vignette and the twinkles; these rules take away the dark ground they were
- * lit against, because a white sheet needs dark ink and a black sheet with no
- * picture on it is just a black sheet.
- * ========================================================================= */
+/* ---- the plain arm: the painting goes and the words stay ---- */
 html[data-skin='plain'] .tr-fade,
 html[data-skin='plain'] .tr-iris,
 html[data-skin='plain'] .tr-foam-wash {
-  /* `--kit-wood-shadow` is transparent in this arm on purpose, and a transparent
-     cover is a hard cut with the world still readable underneath it. These three
-     are quick masks over a cut rather than pages to read, so they take the arm's
-     own darkest ink and stay dark. */
+  /* these three are quick masks over a cut, so they stay dark in this arm */
   background: var(--kit-ink);
 }
 html[data-skin='plain'] .tr-foam-lace { display: none; }
-/* THE ONE COVER A STUDENT READS IS A PAGE, so it is a page: white, with the
-   place's name as a real heading and the fact under it. Black on white is the
-   ruling and this is the surface it applies to most literally, because the
-   painted arm's version of this screen is 100 percent picture. */
+/* the one cover a student reads is a page, so it is drawn as one */
 html[data-skin='plain'] .tr-scene { background: var(--kit-paper-hi); }
 html[data-skin='plain'] .tr-chart-field { background: var(--kit-paper); }
 html[data-skin='plain'] .tr-scene-text { width: min(560px, 88vw); }
@@ -343,12 +244,7 @@ html[data-skin='plain'] .tr-scene-entering {
   text-shadow: none;
   letter-spacing: 2px;
 }
-/* THE INSET HAS TO COME BACK HERE AND ONLY HERE. In the painted arms the
-   nine-slice border-width IS the padding, which is why the base rule sets none.
-   `tokens.css` answers `.kit-surface-band` in this arm with `border: 1px` and no
-   image, so with no padding the place's name would sit flush against a hairline.
-   A gutter in pixels, not a percentage: a percentage padding resolves against
-   the VIEWPORT here, which is the bug `hud.css` already had to fix once. */
+/* the plain band needs its own gutter, having no nine-slice border to inset it */
 html[data-skin='plain'] .tr-scene-band { padding: 14px 18px; }
 html[data-skin='plain'] .tr-scene-title {
   text-shadow: none;

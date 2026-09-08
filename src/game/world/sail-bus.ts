@@ -1,22 +1,4 @@
-/* SAIL THERE, ASKED FROM A PANEL AND ANSWERED BY THE WATER.
- *
- * `docs/ops/BRIEF-SELF-EVIDENT.md` law 2: *"Click an island on the chart and the
- * ship sails there by itself."* The chart is React, the ocean is Pixi, and no
- * component owns both, which is the same seam `dialogue.ts`, `ui-bus.ts` and
- * `stage-bus.ts` all sit on and the same reason this is a bus.
- *
- * IT RUNS THE OTHER WAY FROM `ui-bus`. That one is the scene asking React to open
- * a panel. This is a panel asking the scene to do something in the world, and
- * before it the only React-to-scene signal in the game was a boolean saying the
- * controls were taken away.
- *
- * IT ANSWERS, ALWAYS, AND THAT IS THE POINT. A student clicks an island and one
- * of three things is true: she is going, she cannot go from here, or nothing is
- * listening because the chart was opened from a screen with no ocean under it.
- * All three have to reach the panel, because a chart row that swallows a click is
- * exactly the dead end the law forbids. `requestBeat` in `ui-bus.ts` already has
- * this shape and this is it again, with a sentence instead of a boolean.
- */
+/* sail there: a panel asks the scene to take the ship somewhere, and the scene answers */
 import type { WorldSlot } from './composition'
 
 const EVENT = 'blhs:sail-to'
@@ -39,13 +21,7 @@ let here: string | null = null
  *  draws a control, so it never offers a button that cannot do anything. */
 export const sailListenerCount = (): number => listening
 
-/* WHICH PAINTING IS ON SCREEN, ANSWERED BY THE SCENE THAT IS DRAWING IT.
- *
- * The chart has to know where the student is standing so it does not offer to
- * sail them to the island they are already on. Reading it off the address is a
- * guess: `?map=` is absent on a cold boot and `targetFromUrl` fills it with a
- * test bundle's id, so the guess is wrong exactly when a student is most likely
- * to be lost. The scene knows, and it is the only thing that does. */
+/* which painting is on screen, answered by the scene drawing it rather than by the url */
 export const sailFrom = (): string | null => (listening > 0 ? here : null)
 
 /** ask the world to take the ship to this slot. Resolves when the scene has
@@ -59,10 +35,7 @@ export function requestSail(slot: WorldSlot): Promise<SailAnswer> {
       resolve(a)
     }
     window.dispatchEvent(new CustomEvent<SailDetail>(EVENT, { detail: { slot, answer } }))
-    /* NOBODY HEARD IT. The listener count is not enough on its own: a scene can
-     * be mounted and mid-teardown, so the honest test is whether anything
-     * actually answered by the time the dispatch returned. Synchronous, because
-     * `dispatchEvent` runs its listeners before it returns. */
+    /* nobody heard it, which the dispatch answering synchronously is what proves */
     answer({ ok: false, why: 'There is no water under you right now.' })
   })
 }

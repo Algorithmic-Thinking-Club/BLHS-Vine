@@ -1,18 +1,4 @@
-/* THE VENDORED ISLANDS ARE REALLY THERE, AND THE BUILD REALLY FETCHES THEM.
- *
- * Since 2026-09-05 `public/grapes/panther-maw/` and `public/grapes/castaway/`
- * are build output, written by `scripts/vendor-islands.mjs` out of the repo that
- * owns them (docs/ops/BRIEF-YEAR-ONE.md, WHERE IT LIVES). They are gitignored,
- * so a clone that never runs the vendor has two empty spaces where the home base
- * and the opening should be.
- *
- * That is the failure this file is for. `loader.test.ts` walks whatever happens
- * to be in `public/grapes` and asserts each one loads, which is exactly right
- * for a fixture and useless here: with the folders absent it iterates the three
- * fixtures, passes, and says nothing about the two islands that carry the first
- * twenty minutes of the game. A green run that tested less than it did yesterday
- * is the thing to catch.
- */
+/* the vendored islands are really on disk and the build really fetches them */
 import { describe, expect, it } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'

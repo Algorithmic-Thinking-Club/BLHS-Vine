@@ -12,53 +12,7 @@ import { prefersReducedMotion } from '../ui/motion'
 import { applySkin, currentSkin, wearAssignedSkin } from '../ui/skin'
 import './i3.css'
 
-/* I-3: THE PARCHMENT SESSION (§2.7 to §2.11). The cork has just popped; the
- * parchment unfurls upward and the whole setup happens on it without leaving the
- * beach. The letter writes itself in, the class code goes into six carved boxes
- * inside the letter, then handle and pronouns, the Principal's word, the trunk,
- * and the boat's name. Every card is skippable to a default that is not an insult.
- *
- * WHAT THIS SESSION REBUILT, WITH THE SECTION THAT ASKED FOR EACH.
- *
- * EVERY EMOJI IS GONE. There were six of them on the first surface a student ever
- * types into: a paw on the Principal's signature, three dice, a coat, goggles, a
- * cap and a padlock. `docs/ART.md`: "Icons are drawn, never an emoji or a font
- * glyph." A die is now the words "Spin a name", which is also what the button
- * DOES; the padlock is `icon_set`'s drawn lock with a token-drawn shape behind
- * it; the three locked items say their own names; and the signature wears
- * `crest-panther.png`, which is the school's own mark and the one drawn thing in
- * the kit that means Principal Panther. The typewriter's block caret was a font
- * glyph too and is a drawn rectangle now.
- *
- * EVERY CONTROL HAS A NAME MADE OF WORDS (§40.27, §40.28). The audit's list, all
- * of it on this one screen: five coat swatches told apart by hue alone with no
- * name at all, three locked chips whose entire accessible name was emoji soup and
- * whose criterion sat in a `title` a keyboard cannot reach, six code boxes with
- * no labels, and the handle and boat fields with none either. `Wardrobe.tsx`
- * fixed the identical swatch control weeks ago and this copy was left behind,
- * which is the copy every student meets FIRST.
- *
- * THE OFFLINE STOP IS GONE (§50.19, §2.7). It used to set "The harbor lost the
- * wind. Check the wifi and try once more." and return, in production, with no
- * queue and no retry anywhere in the join path. §50.19 is unambiguous about why
- * that is a study defect rather than a UX one: "a blocked join differentially
- * excludes exactly the students whose network is worst, and they do not appear in
- * the data as excluded. They appear as absent." So the run STARTS, with a
- * provisional local identity, and the join is queued and retried in the
- * background until it lands. The student sees no error at all, because a failed
- * join is not a thing a fourteen year old can fix.
- *
- * AND NOTHING ON THE PARCHMENT MOVES WHEN THE ARM IS DRAWN (§16.2). That is the
- * one rule §16 imposes on this act and it was being broken by construction:
- * `ui/skin.ts` subscribes to the save and swaps the skin on every write, and the
- * write that carries the arm lands in the middle of the identity card. A
- * plain-arm student would have watched the letter they were reading turn into a
- * worksheet the instant they pressed a button, and the student beside them would
- * not have. §16.2 says the whole opening act is vehicle and runs identically, so
- * the skin is HELD for the life of this session and released as the scroll rolls
- * away. Nothing about the assignment changes; only the frame it becomes visible
- * on does.
- */
+// the parchment setup on the beach: class code, name and pronouns, outfit and boat name
 
 const LETTER =
   'Panther. We saved you a spot.\n' +
@@ -77,29 +31,7 @@ const BOATS = ['Second Wind', "Panther's Wake", 'Late Pass', 'Salt & Chalk', 'Fi
 const spinHandle = () => HANDLE_A[Math.floor(Math.random() * HANDLE_A.length)] + HANDLE_B[Math.floor(Math.random() * HANDLE_B.length)]
 const spinBoat = () => BOATS[Math.floor(Math.random() * BOATS.length)]
 
-/* ---- THE JOIN THAT KEEPS TRYING -------------------------------------------
- *
- * §50.19, in its own words: "the join is attempted, and when it fails for network
- * reasons the run STARTS ANYWAY with a provisional local identity, the join intent
- * is queued, and it retries in the background until it lands. The student sees no
- * error at all, because a failed join is not a thing a fourteen year old can fix.
- * When the join lands, the participant id is written into the save."
- *
- * IT LIVES AT MODULE SCOPE AND NOT IN THE COMPONENT, because the retry has to
- * outlive the parchment: the student is on the pier by the time the second attempt
- * goes out. `joinClass` already writes the participant id and the arm into the
- * save on success, and `net.ts`'s state sync already pushes from there, so nothing
- * downstream of this needs to know a queue happened.
- *
- * THE BACKOFF IS DELIBERATELY SLOW AND FINITE. One code is read off a board and
- * typed by a whole class in the same minute against one serverless function
- * (§2.7's deployment line), so a retry storm from thirty Chromebooks is the exact
- * shape of failure that keeps the endpoint down. Seven attempts over about twelve
- * minutes covers a wifi drop and an advisory block, and then it stops rather than
- * hammering a class period.
- *
- * A REFUSAL IS NOT A NETWORK FAILURE and does not retry: an unknown code or a
- * closed class is an answer, and asking again gets the same one. */
+// a class join that failed on the network retries quietly in the background until it lands
 const RETRY_MS = [5_000, 15_000, 45_000, 120_000, 300_000, 300_000, 300_000]
 let retryTimer = 0
 
@@ -120,11 +52,7 @@ function queueJoin(code: string, handle: string, attempt = 0): void {
   }, RETRY_MS[attempt])
 }
 
-/* the typewriter over a block of text; a press finishes it instantly.
- *
- * REDUCED MOTION FINISHES IT BEFORE IT STARTS. A letter that types itself in is a
- * moving picture of text, which is precisely what the setting is asked for, and a
- * student who turned it on was watching this for four seconds anyway. */
+// reveals a block of text a character at a time; a press finishes it instantly
 function useTypewriter(text: string, cps = 42) {
   const [n, setN] = useState(0)
   const done = n >= text.length
@@ -144,10 +72,7 @@ function useTypewriter(text: string, cps = 42) {
   return { shown: text.slice(0, n), done, finish: () => setN(text.length) }
 }
 
-/** the Principal's own mark, which is the drawn thing a paw print emoji was
- *  standing in for. `crest-panther.png` is the school's crest and `docs/ART.md`
- *  already assigns it; with no art it is simply absent and the name carries the
- *  signature, which is what a signature is. */
+/** the Principal's signature: the school crest beside the name */
 function Signature() {
   return (
     <div className="i3-sig">
@@ -175,20 +100,7 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
   const saved = loadSave()
   const alreadyJoined = !!saved?.participantId || !!saved?.castaway
   const [card, setCard] = useState<Card>(alreadyJoined ? 'identity' : 'code')
-  /* ---- AND THE CODE CARD ONLY EXISTS IF THERE IS A CLASS TO JOIN ----------
-   *
-   * BRIEF-CLOSE-THE-LOOP section 6, from Ash: *"'Join my class' what was that
-   * even for… as of right now i can just enter any number / code."* No database
-   * has ever been created, so `/api/join` answers 503 to everyone and the card
-   * accepts anything on purpose (a blocked join excludes the students whose
-   * network is worst). A screen that asks for a code and takes any code teaches a
-   * student the game is not listening, so with no server there is no screen.
-   *
-   * IT SKIPS FORWARD RATHER THAN NEVER MOUNTING, because the probe is a round
-   * trip and the letter is typing itself out over the top of it either way. The
-   * student sees the letter, and the foot of it either grows six boxes or does
-   * not. `castaway` is set on the way past so the run stays local, which is
-   * exactly what "play without a class" already did. */
+  // with no class service answering there is no code to type, so the card skips itself
   useEffect(() => {
     if (alreadyJoined) return
     let gone = false
@@ -212,64 +124,26 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
   const result = useRef<Result>({ handle: 'Panther', pronouns: 'they/them', boatName: 'The Bonney', castaway: false, thorLook: 'classic' })
   const nav = useNav()
 
-  /* §16.2, THE ONE RULE THIS SECTION IMPOSES ON THE OPENING ACT: "nothing on
-   * screen may move when the arm is drawn". The arm arrives on the save write
-   * inside `joinClass`, and `ui/skin.ts` subscribes to that write and swaps the
-   * document's skin, so a plain-arm student would have seen the letter in front of
-   * them turn into a worksheet at the instant of their own button press. Two
-   * students side by side would have seen they were sorted.
-   *
-   * The hold is the whole fix and it is four lines. `skin.ts` subscribes at its
-   * own import, which happens before this component mounts, so its listener runs
-   * first and this one puts the skin back on the same tick, before a frame is
-   * painted. The hold is released on unmount, when the scroll has already rolled
-   * away, and `wearAssignedSkin` then applies the arm for the rest of the run.
-   *
-   * NOTHING ABOUT THE ASSIGNMENT CHANGES. The arm is still drawn server-side, at
-   * the same moment, off the same hash, and it still reaches the save. Only the
-   * frame it becomes VISIBLE on moves, from the middle of a letter to after it. */
+  // holds the skin steady for the whole session so the study arm cannot change the letter mid-read
   useEffect(() => {
     const held = currentSkin()
     const off = subscribeSave(() => { if (currentSkin() !== held) applySkin(held) })
     return () => { off(); wearAssignedSkin() }
   }, [])
 
-  /* A CARD SWAP IS SILENT AND IT REPLACES THE WHOLE SCREEN. A reader was left on
-   * a page that had changed under them with nothing said, and a keyboard player
-   * was left focused on a button that no longer existed, which drops focus to
-   * <body> and starts the next Tab at the top of the document. */
+  // each new card says its name out loud and takes focus, since it replaces the whole screen
   const stage = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     announce(CARD_SAID[card])
     if (card === 'rollup') return
-    /* THE PAPER ITSELF IS THE FALLBACK, and it is not a nicety. Two cards begin
-     * with a letter typing itself in and carry no control at all for four
-     * seconds, so there is nothing to focus; without this, focus lands on <body>,
-     * which is OUTSIDE the panel, and the next Tab starts at the top of the
-     * document instead of at the button that just appeared. */
+    // the paper takes focus when a card has no control yet, so Tab stays inside the letter
     const first = stage.current?.querySelector<HTMLElement>('input, button')
     ;(first ?? stage.current)?.focus()
   }, [card])
 
   const next = (c: Card) => setCard(c)
 
-  /* ---- AND A WAY BACK, WHICH THE LETTER DID NOT HAVE ----------------------
-   *
-   * BRIEF-PLAYTHROUGH-1, on the beach scroll: "no way back from a card". Ash met
-   * five cards in a row, each of which committed a choice about his own name,
-   * pronouns, appearance and boat, and not one of them could be undone. The only
-   * control that went anywhere was the one that went forward.
-   *
-   * The order is the reading order, so back is the card before. Two exceptions,
-   * both of them honest rather than convenient:
-   *
-   *   The code card has nothing before it, so its Back leaves the game the way
-   *   the help card's does. There is no run yet, so nothing is lost, and a
-   *   student who opened this by accident has a door.
-   *
-   *   A student who has ALREADY joined starts on `identity`, because the code is
-   *   answered and re-asking it would be a question with one possible answer.
-   *   Their Back is the same leave, for the same reason. */
+  // the reading order of the cards, so Back is the card before and Back from the first one leaves
   /* WITH NO CLASS TO JOIN THERE IS NO CARD TO GO BACK TO, so Back from the name
    * leaves the game rather than returning to a screen that was skipped. */
   const ORDER: Card[] = castaway ? ['identity', 'word', 'wardrobe', 'boat']
@@ -328,28 +202,17 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
     setJoinErr('Something went wrong. Give it one more try.')
   }
 
-  /* THE PARCHMENT IS MODAL AND WAS NOT SAYING SO. Focus could Tab out of the
-   * letter into the live beach behind it, which is a canvas with nothing on it to
-   * land on. `closeOnEscape` is false because there is no way out of the opening:
-   * every card is skippable to a default, and none of them is dismissible. */
+  // the parchment is a modal panel that traps focus, and Escape does not dismiss it
   const panel = usePanel({ label: 'A letter from Bonney Lake', closeOnEscape: false })
 
   return (
     <div className="i3-root">
       <div className={`i3-scroll ${card === 'rollup' ? 'i3-rollup' : ''}`} {...panel}>
         <div className="i3-paper" ref={stage} tabIndex={-1}>
-          {/* ONE BACK, ON THE PAPER, NOT ONE PER CARD. The order asks for "a Back
-              on every card" and the way to be sure of that is to put it outside
-              the cards, where no card can forget it and no card can move it. It
-              sits in the letter's own top-left corner, above whatever the card
-              is, so it is in the same place on all five. */}
+          {/* one Back for every card, on the paper rather than inside the cards */}
           {card !== 'rollup' && (
             <button className="i3-back" onClick={back}>
-              {/* the same drawn arrow the help card lays out in four quarter
-                  turns, at half a turn. One arrow in the game, and a rotation of
-                  pixel art by a right angle is lossless where any other angle is
-                  not. `Glyph` draws nothing at all when the platform has not
-                  answered, so the word carries it on its own. */}
+              {/* the drawn arrow, turned to point back; the word stands alone without it */}
               <Glyph piece="icon_set" face="arrow" size={12} className="i3-back-mark" />
               {card === first ? 'Quit to the title screen' : 'Back'}
             </button>
@@ -417,11 +280,7 @@ function CodeCard({ initial, err: outerErr, onVerified, onCastaway }: {
     if (e.key === 'Backspace' && !code[i] && i > 0) refs.current[i - 1]?.focus()
     if (e.key === 'Enter') void submit()
   }
-  /* A REFUSAL IS WARM AND IT IS SAID OUT LOUD. §2.7: "a wrong code shakes and says
-   * one kind line", never a red wall, and PLAYTEST.md's rule is broader than this
-   * screen: no red buzzer, ever. The shake is the notice, the sentence is the
-   * message, and `announce` is the third channel, for the student who cannot see
-   * either. */
+  // a refused code shakes the boxes, prints one kind line, and says it out loud
   const refuse = (line: string) => {
     setErr(line)
     setShake((s) => s + 1)
@@ -456,10 +315,7 @@ function CodeCard({ initial, err: outerErr, onVerified, onCastaway }: {
       onVerified(joined.toUpperCase(), r.className)
       return
     }
-    /* §50.19 AGAIN, AND THIS IS THE HALF THAT USED TO SAIL THROUGH ONLY IN DEV.
-     * A student on bad wifi is carried forward with the code they typed; the class
-     * is verified for real by the join on the next card, and if THAT is offline
-     * too the join goes in the queue. Nobody is stopped by a network. */
+    // a student on bad wifi carries on with the code they typed rather than being stopped
     if (r.reason === 'offline') {
       track('class_check_offline')
       onVerified(joined.toUpperCase())
@@ -473,22 +329,13 @@ function CodeCard({ initial, err: outerErr, onVerified, onCastaway }: {
   }
 
   return (
-    /* THE CARD THAT OVERFLOWED ITS OWN PAPER. SWEEP-1 items 11, 44 and 93: at rest
-       the plank's bottom third was sliced off, and the moment the student pressed
-       it with empty boxes the refusal line added a row and pushed BOTH controls
-       off the bottom, leaving a card with a red error on it and nothing to press.
-       A pointer-only run stalls there for good, and it is the first card of the
-       game. The letter takes the slack and scrolls; the signature, the boxes, the
-       refusal and the two controls are a foot that is always on the paper. */
+    /* the letter scrolls and takes the slack, so the boxes and the two buttons stay on the paper */
     <div className="i3-card i3-card-code" onClick={() => { if (!tw.done) tw.finish() }}>
       <div className="i3-letter i3-letter-scroll">{tw.shown}{!tw.done && <span className="i3-caret" aria-hidden="true" />}</div>
       {tw.done && (
         <div className="i3-codefoot">
           <Signature />
-          {/* SIX LABELLED BOXES. They had no labels at all, so a reader landing in
-              one heard "edit text" six times with no way to tell which of six it
-              was or how many were left. The group is named once and each box says
-              where it sits in the code. */}
+          {/* six code boxes, the group named once and each box saying where it sits */}
           <div
             key={shake}
             className={`i3-codeboxes ${shake ? 'i3-shake' : ''}`}
@@ -517,12 +364,7 @@ function CodeCard({ initial, err: outerErr, onVerified, onCastaway }: {
             ))}
           </div>
           {err && <div className="i3-err" id="i3-code-err" role="alert">{err}</div>}
-          {/* AS LOUD AS THE PLANK ABOVE IT. This was a 15px dotted-underline line,
-              and it is the only way on for a student with no code: "Join my class"
-              refuses empty boxes, so the loudest thing on the first card was a
-              refusal and the way forward was the quietest (STATE-OF-THE-GAME
-              confusing 4; the dimwit run stalled here). Two planks, the code one
-              first because a class is the ordinary case. */}
+          {/* two buttons of equal weight: join a class, or play without one */}
           <Plank className="i3-plank" busy={checking} onClick={() => void submit()}>
             {checking ? 'Checking the code' : 'Join my class'}
           </Plank>
@@ -618,19 +460,9 @@ function WordCard({ onNext }: { onNext: () => void }) {
   )
 }
 
-// ---- card 4: the wardrobe (§2.10), the castaway trunk creaks open ----
-// v1 slots what exists honestly: Thor's shirt accent recolors LIVE on a canvas (the sprite
-// really changes), the earnable items show locked with their real earn rules, one randomize
-// control, fully skippable. Outfit/headwear sprite swaps join as their character states land.
+// ---- card 4: the wardrobe, where Thor's coat recolors live and locked items show their rules ----
 
-/* THE CRITERION COMES OFF THE ROSTER RATHER THAN OUT OF A STRING. `Wardrobe.tsx`
- * already fixed this for the outfitter's copy of the same list: the goggles used
- * to promise "complete the Robotics island" about an island that is on no roster,
- * in no registry and in no catalog, so the chip advertised an unlock nothing in
- * the game could grant. §16.2 asks for ONE SOURCE for every BLHS criterion string
- * wherever it surfaces, and this is the second surface. The two lists are still
- * two lists and that is the thing left undone here, written down rather than
- * quietly duplicated a third time. */
+// what earns a locked item, named off the roster so it can never promise an island nobody built
 const earnByCompleting = (id: string) => {
   const g = programmeById(id)
   return g ? `complete the ${g.name} island` : 'that island is not open yet'
@@ -673,11 +505,7 @@ function WardrobeCard(p: { look: string; setLook: (v: string) => void; onNext: (
         <img className="i3-tailor" src="/art/characters/heron/south-west.png" alt="" draggable={false}
           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
       </div>
-      {/* FIVE NAMELESS BUTTONS TOLD APART BY HUE ALONE, which is the audit's own
-          phrase, on the control every student meets before any other. The name was
-          already in `thorLook.ts` and only a `title` had it, and a title is
-          pointer-only. `Wardrobe.tsx:88-99` fixed the identical control and this
-          copy was left behind. */}
+      {/* the coat swatches, each carrying its own name rather than being told apart by colour */}
       <div className="i3-swatches" role="group" aria-label="Coats">
         {Object.entries(LOOKS).map(([k, v]) => (
           <button
@@ -690,15 +518,7 @@ function WardrobeCard(p: { look: string; setLook: (v: string) => void; onNext: (
         ))}
       </div>
       <Plank size="sm" className="i3-spin i3-spin-wide" onClick={spin}>Surprise me</Plank>
-      {/* THE LOCKED ITEMS SAY WHAT THEY ARE AND WHAT EARNS THEM, ON THE CARD,
-          AND THEY ARE NOT BUTTONS. §2.10: "locked items are visible and say what
-          real thing earns them, because a locked thing a student can see is a
-          reason to come back." The first cut drew each one as a grey row wider
-          than any plank on the card, and the dimwit run pressed "Letterman
-          jacket" three times before it found "Keep this outfit": the loudest
-          thing on the card was a thing nobody can have yet. So this is a quiet
-          list, plain text with the lock mark, nothing to press and nothing to
-          tab to. A screen reader gets the same words off the list itself. */}
+      {/* a quiet list of locked items and what earns each one, with nothing to press */}
       <ul className="i3-locked" aria-label="Locked items">
         {LOCKED.map((it) => (
           <li key={it.name} className="i3-lockrow">

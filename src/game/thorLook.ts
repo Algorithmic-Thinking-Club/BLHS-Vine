@@ -1,7 +1,4 @@
-// Thor's wardrobe look (§4.5) — ONE recolor used by both the wardrobe preview and the
-// world's sprite loader, so what you pick is what walks out onto the sand. The accent
-// swap targets only the teal shirt pixels (hue 150-215, sat > .22) and keeps value/sat,
-// so the sprite stays the same drawing in a different dye.
+// the one shirt recolor used by both the wardrobe preview and the world's sprite loader
 
 export const LOOKS: Record<string, { label: string; hue: number | null }> = {
   classic: { label: 'panther teal', hue: null },

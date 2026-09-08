@@ -1,65 +1,9 @@
-/* THE SEVEN STATES, RESOLVED FOR ONE STUDENT, AND SAID AS OBJECTS ON A DOCK.
- *
- * The composition says a slot's AUTHORED state, which is the world's own answer
- * and is the same for everybody: a rumour is a rumour on every Chromebook in the
- * room. What a particular student has done with a place is the run's, and this
- * file is the one join between them.
- *
- * §80.6's own boundary, stated the other way round: THE ROSTER IS WHAT EXISTS,
- * THE COMPOSITION IS WHERE IT IS, AND THE RUN IS WHAT THIS STUDENT DID WITH IT.
- * Nothing here writes. G6's rule is that availability and in-season are computed
- * per draw and never stored, and that is why this is a function rather than a
- * field: a stored state is a state that can disagree with the ledger.
- *
- * WHY IT IS NOT IN `composition.ts`. That file must stay readable by world code
- * that has no business importing a save. The test §80.2 sets for the boundary is
- * that no island id and no programme id appears anywhere in world code, and the
- * split is what keeps it true: the world asks this file for a colour and never
- * learns that a place holds three programmes in three seasons.
- *
- * ---- WHAT CHANGED ON 2026-09-01, AND WHY IT IS THE WHOLE POINT ----
- *
- * §9.17 states the law this file exists to serve, verbatim: *"Every island state
- * is legible at a glance, at sailing distance, on a Chromebook screen, and is
- * distinguished from every other state by which objects are present at the
- * dock."* And the sentence after it is the one that had never been obeyed
- * anywhere in the tree: *"the discriminator is a thing present or absent at a
- * known place, not a change of appearance on a thing that is always there."*
- *
- * What was here was `STATE_INK`, a table of seven CHARACTERS: `?`, `*`, `~`, a
- * middle dot, a hollow circle, a triangle and a tick. Two things were wrong with
- * it and only one of them is the obvious one. `docs/ART.md` forbids the
- * characters outright: *"Icons are drawn, never an emoji or a font glyph."* The
- * deeper one is that seven marks in one place, each a different SHAPE OF THE
- * SAME OBJECT, is exactly the design §9.17 refuses: a student sailing past has
- * to recognise a symbol rather than notice whether a thing is there.
- *
- * So a dock is a ROW OF FIXED SLOTS and a state is which of them are occupied.
- * The slots never move and never change what they are, so "is the star there"
- * is a question a student answers without hovering, without colour, and without
- * having learned a legend. `dockOf` is the whole of it and the chart draws
- * exactly what it returns.
- *
- * AND AVAILABLE IS A TOKEN QUESTION, WHICH IT WAS NOT. §9.17 point 3: *"the
- * player holds an unspent token that this island would accept ... a function of
- * `save.tokens`, the island's season lock in SPORT_SEASONS, and whether the
- * island is already completed."* What was here asked `programmeAllowedIn(p,
- * s.season)`, which is the run's CURRENT season and says nothing about whether
- * the token for it is still in the student's hand. `save.tokens` had no reader
- * on this path at all, so the scarcity Wiseman's four-year model exists to
- * produce was invisible on the one surface §9.13 puts it on.
- */
+/* the seven island states resolved for one student, joining the authored world to their run */
 import { completedIn, type SaveGame, type Season } from '../save'
 import { programmesAt, programmeAllowedIn, seasonOf, type Programme } from '../roster/roster'
 import { distanceTo, type SlotState, type WorldPt, type WorldSlot } from './composition'
 
-/* ---- what a student can spend today ---------------------------------------
- *
- * One programme, one question: would a token still in this student's hand be
- * accepted here this year. A club takes any season, so it is affordable while
- * any token is unspent; a sport takes its own season out of `SPORT_SEASONS`, so
- * football stops being affordable the moment the Fall token goes somewhere else,
- * which is the mechanic and is the thing being taught. */
+/* would a token still in this student's hand be accepted at this programme this year */
 export function affordable(p: Programme, s: SaveGame): boolean {
   if (!p.playable) return false
   /* finishing it THIS YEAR closes it for this year and not for the run: a rank
@@ -100,24 +44,10 @@ export function stateOf(slot: WorldSlot, s: SaveGame | null): SlotState {
   return 'discovered'
 }
 
-/* ---- the season a place keeps, in the school's own words -------------------
- *
- * §9.17 state 6: *"it must never read as broken or as an error ... the
- * explanation is in the school's own words"*, and §9.13 says the source is
- * `SPORT_SEASONS` so the answer is always the real one. `seasonOf` reads that
- * table, so nothing here knows the name of a sport or the shape of a year.
- *
- * The sentence is `GAME-DESIGN.md` §6.4's own draft, kept word for word because
- * it is already right: *"Football is a fall sport. Come back in fall."* */
+/* a season name in lower case, for the sentence a place says about being out of season */
 const lower = (x: Season): string => x.toLowerCase()
 
-/* RESTING IS A FACT ABOUT THE PLACE AND NOT ABOUT ONE PROGRAMME, which is the
- * correction §9.17 makes in its own words: *"Football is out of season and flag
- * football is not, at the same island, on the same afternoon."* The stadium
- * holds a fall sport, a winter sport and a spring sport, so the stadium is never
- * shut, and a chart that said "come back in fall" over it in January would be
- * teaching a student something false about their own school. A place is resting
- * only when it keeps seasons AND none of them is the one the run is in. */
+/* a place is resting only when it keeps seasons and none of them is the one the run is in */
 function restingIn(slot: WorldSlot, s: SaveGame): Programme | null {
   const locked = programmesAt(slot.place).filter((p) => !!seasonOf(p))
   if (!locked.length) return null
@@ -154,10 +84,7 @@ export function stateLine(st: SlotState, slot: WorldSlot, s: SaveGame | null): s
     case 'misty': return 'Sail closer to see what this is.'
     case 'discovered': {
       if (!s) return 'You have sailed past here.'
-      /* RESTING IS A SENTENCE ABOUT A PLACE, and a place could not say it before
-       * the roster split. Football is out of season and flag football is not, at
-       * the same island, on the same afternoon, so the sentence only belongs to a
-       * place where nothing at all runs right now. */
+      /* the resting sentence, which belongs only to a place where nothing runs right now */
       const shut = restingIn(slot, s)
       if (shut) {
         const own = seasonOf(shut)!
@@ -180,34 +107,7 @@ export function stateLine(st: SlotState, slot: WorldSlot, s: SaveGame | null): s
   }
 }
 
-/* ---- THE DOCK, AS A ROW OF SLOTS THAT ARE OCCUPIED OR EMPTY ----------------
- *
- * Six standing places, always in this order, always all six drawn. A state is
- * WHICH ONES HOLD SOMETHING, so an empty slot is as much of a reading as a full
- * one and nothing has to change appearance to say anything.
- *
- *   pin     this is a real place and you have laid eyes on it
- *   pip     the season it keeps, and whether that season is the one you are in
- *   open    a token you still hold would be taken here
- *   flag    yours: a season on your sheet is committed to this place
- *   stamp   everything this place offers is finished
- *   ashore  you have been off the boat, which the exposure record knows and
- *           nothing had ever drawn (§9.15 asks for seen and entered to be told
- *           apart on the chart and in the log; this is the chart half)
- *
- * THE FACES ARE THE PLATFORM'S OWN AND THE SHAPES ARE WHAT SHIPS TODAY.
- * `faceStyle` hands back nothing unless the kit is worn, so every object names
- * both: the cut face MAPVIS drew, and a class the chart draws it as out of the
- * token layer. Neither is ever a character.
- *
- * THREE OBJECTS HAVE NO DRAWN FACE AND ARE REPORTED RATHER THAN FAKED. Nobody
- * has drawn a pennant, a fog bank or the water breaking over a rising island,
- * and `icon_set` publishes compass, key, star, lock, tick, cross and coin, none
- * of which is any of those. A padlock in particular is the ONE thing state 6
- * must never wear: §9.17 says out of season *"must never read as broken or as an
- * error"*, and a padlock is the drawing of a refusal. So those three are token
- * shapes plus a word, and the gap is in the session's report.
- */
+/* the dock: six objects in a fixed order, where the state is which of them are standing */
 export type DockObject = 'pin' | 'pip' | 'open' | 'flag' | 'stamp' | 'ashore'
 
 /** the order the six stand in, left to right, on every island in the game */
@@ -247,13 +147,7 @@ export type Dock = {
   named: boolean
 }
 
-/* THE MIST THINS IN STAGES RATHER THAN SWITCHING, which is §9.14's own rule and
- * the reason it gives: *"a hard swap reads as a bug."* On the water the stage is
- * the hull's live distance. On the chart the only distance the run has actually
- * recorded is where the boat was last tied up, so that is what this measures,
- * and it is honest: an island you have moored two harbours away from is fainter
- * than one you have moored beside. Four stages over three discovery radii,
- * because a smudge that goes from nothing to a name in one frame is the swap. */
+/* how much fog is left, in four stages, by how far the slot is from where the boat last moored */
 function fogAt(slot: WorldSlot, from: WorldPt | null): 0 | 1 | 2 | 3 {
   if (!from) return 3
   const reach = Math.max(1, slot.discover ?? slot.release / 2)
@@ -293,10 +187,7 @@ export function dockOf(slot: WorldSlot, s: SaveGame | null, from: WorldPt | null
     return { ...d, named: true }
   }
 
-  /* THE SEASON COIN. `pip` publishes fall, winter, spring, spent and ghost, so
-   * the coin wears the season it belongs to when that season is now, and the
-   * drawn empty socket when it is not. A place with no season keeps its slot
-   * empty, which is itself the reading: nothing here is season locked. */
+  /* the season coin, wearing its own season when that season is now and a ghost when it is not */
   const pipFace: [string, string] | null = season
     ? ['pip', inSeason ? lower(season) : 'ghost']
     : null
@@ -316,11 +207,7 @@ export function dockOf(slot: WorldSlot, s: SaveGame | null, from: WorldPt | null
     ashore: mark('ashore', ['icon_set', 'tick'], 'ch-s-tick', 'You have been here.', ashore),
   }
 
-  /* THE ROW IS BUILT FROM `DOCK_ORDER` AND NOT FROM THE ORDER SOMEBODY TYPED.
-   * §9.17's law only holds while a thing stands in the SAME place on every
-   * island: a marker that moves is a marker a student has to find again, and at
-   * sailing distance there is no time for that. One list, read here, so the
-   * order cannot be edited in one branch and not the other. */
+  /* the row is built from DOCK_ORDER, so a marker stands in the same place on every island */
   return {
     state: st,
     slots: DOCK_ORDER.map((k) => standing[k]),
@@ -328,25 +215,7 @@ export function dockOf(slot: WorldSlot, s: SaveGame | null, from: WorldPt | null
   }
 }
 
-/* ---- THE INK EACH STATE IS DRAWN IN, ON THE WATER --------------------------
- *
- * This table is the WORLD's, not the chart's. `PmapScene` writes a slot's name
- * on the ocean in `ink.tint` at `ink.dim`, and the chart reads its own ink off
- * `chart.css` because a colour is only ever a colour against something: these
- * tints are chosen against a dark sea and `discovered`'s pale tan is the colour
- * of the paper the chart is drawn on.
- *
- * `mark` USED TO BE A CHARACTER AND IS NOW A WORD. `docs/ART.md` forbids a font
- * glyph as an icon and the seven that were here were seven icons typed as
- * characters. The right answer on the water is §9.17's own: a placement per
- * marker at the dock anchor, toggled by `show`, and that cannot be authored
- * until MAPVIS carries placement binding through publish. Until it does, the
- * world says the state in a word rather than in a symbol nobody was taught.
- *
- * The brackets are not decoration. `PmapScene` composes the label as
- * `${ink.mark} ${title}`, so an unbracketed "open" in front of a place name
- * reads as an instruction to open it. Bracketed, it reads as what it is: an
- * annotation on a chart. */
+/* the tint, the bracketed word and the dimness each state's label is drawn in on the water */
 export const STATE_INK: Record<SlotState, { tint: number; mark: string; dim: number }> = {
   rumour: { tint: 0x8a7a60, mark: '(not built yet)', dim: 0.35 },
   rising: { tint: 0xffd98a, mark: '(opening now)', dim: 1 },

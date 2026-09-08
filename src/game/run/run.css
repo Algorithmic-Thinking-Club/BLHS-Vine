@@ -1,34 +1,4 @@
-/* THE RUN'S THREE OVERLAYS: the year-start card, the yearbook spread, and the
- * graduation ceremony with the diploma on the end of it.
- *
- * ---- WHY THIS FILE WAS REWRITTEN, 2026-09-01 -------------------------------
- *
- * It spelled `'Deckhand'` and `'Harbormaster'` out fourteen times and typed
- * twenty hex colours of its own, and it had NO plain-arm block at all. §16's
- * ruling is that the control condition is *"a document a person could have
- * written: system font, black on white, real headings and a real form"*, and the
- * only reason a plain-arm student was not reading the yearbook, the ceremony and
- * their own diploma in the game's pixel faces on parchment is the one blanket
- * `html[data-skin='plain'] * { font-family: ... }` rule in `tokens.css`, written
- * as a stopgap with a comment saying these fifty spellings are the real job.
- * This is that job for these three surfaces.
- *
- * The diploma matters most of the three, because it is the one screen in this
- * game a student hands to somebody else, and §14.29 rules that it is the study's
- * INSTRUMENT: identical in both arms in every criterion, number and code, with
- * only the staging allowed to differ. A skin is staging. Nothing below moves a
- * value.
- *
- * ---- EVERY SIZE IS THE PAIR ------------------------------------------------
- *
- * `--kit-fs-raw` times the text scale, then `var(--kit-fs)`, which is where
- * `tokens.css` clamps it to a band a fourteen year old can read and snaps it to a
- * whole pixel so a bitmap face does not lose a column out of a letter. The old
- * file sized everything in `cqw`, a fraction of the panel, which is why eight of
- * the yearbook's twelve text elements measured under 14px and two of them at 10.
- * Absolute pixels through the same pair keep the text setting and the snap and
- * stop the type changing size when the window does.
- */
+/* the run's three overlays: the year-start card, the yearbook spread and graduation */
 
 @import '../ui/tokens.css';
 
@@ -46,22 +16,10 @@
   box-sizing: border-box;
 }
 
-/* THE SPREAD USES THE WIDTH. `build-shots/ui/before/15-yearbook.png` is eleven
-   short lines pinned to the top left of a 940 by 800 sheet with two thirds of the
-   paper blank, and §7.6 calls this "the year's full-page spread". A spread is two
-   facing pages.
-
-   THE FRAME IS A NINE-SLICE ON .kit-surface-panel, not a stretched picture, and
-   `border-width` IS the inset. The percentage padding that used to sit here
-   resolved against the VIEWPORT rather than against the panel, which is the bug
-   `hud.css` already fixed for the Handbook. */
+/* the spread uses the full width, and the frame's own border-width is the inset */
 .yb-page {
   width: min(1080px, 94vw);
-  /* A PAGE, NOT A BOX WITH A PAGE IN IT. The old sheet was a fixed 800 tall
-     whatever was on it, so year one, whose five sections are five short lines
-     each, was two thirds empty paper. It grows to hold a senior's transcript and
-     shrinks to a freshman's, between a floor that still reads as a page and a
-     ceiling that fits a 768-tall Chromebook. */
+  /* the page grows and shrinks to what is on it, between a floor and a ceiling */
   height: auto;
   min-height: min(560px, 82vh);
   max-height: min(760px, 94vh);
@@ -117,20 +75,7 @@ html[data-rm='1'] .yb-page { animation: none; }
 .yb-body::-webkit-scrollbar { width: 6px; }
 .yb-body::-webkit-scrollbar-thumb { background: var(--kit-edge); border-radius: var(--kit-r-sharp); }
 
-/* ---- THE COMPOSITION (§12.4) ---------------------------------------------
- *
- * *"A panel that appears already complete is a report. A page that assembles
- * itself in front of the student, one section landing after the other, is the
- * year being written down while they watch."*
- *
- * Each section carries its own `--yb-step` from the component, in the fixed
- * order the data module publishes. Six steps at 130ms is under a second for the
- * whole page.
- *
- * AND UNDER REDUCED MOTION THEY ALL LAND AT ONCE. The setting is not "the same
- * animation, faster": a staged page at one millisecond a step is six flickers,
- * which is worse for the student the setting exists for than a page that is
- * simply there. */
+/* the page lands section by section, or all at once under reduced motion */
 .yb-number,
 .yb-sect,
 .yb-nudge {
@@ -188,11 +133,7 @@ html[data-rm='1'] .yb-nudge { animation: none; }
   color: var(--kit-ink-dim);
 }
 
-/* THE DIRECTION IS A SHAPE THAT TURNS, NEVER A COLOUR THAT CHANGES (§40.31). A
-   school Chromebook panel crushes lightness and saturation, so "green for up,
-   red for down" is not a message on the hardware this ships to, and the sentence
-   beside it carries the meaning either way. The drawn chevron rotates; where the
-   sheet is not worn, a token-coloured triangle does the same turn. */
+/* direction is a shape that turns rather than a colour that changes */
 .yb-movemark { transform: rotate(-90deg); }
 .yb-movemark-down { transform: rotate(90deg); }
 .yb-caret {
@@ -229,12 +170,7 @@ html[data-rm='1'] .yb-move-first .yb-num { animation: none; }
 
 /* ---- THE SPREAD ----------------------------------------------------------- */
 
-/* TWO COLUMNS THAT BALANCE THEMSELVES. A grid with a hand-made split is a guess
-   about how tall each section is, and the guess was wrong as soon as a student
-   had cords: three drawn gauges made the right column half again as tall as the
-   left, and the page clipped the last of them.
-   The binding down the middle is `column-rule`, which is the same line the old
-   `border-left` drew and now sits where the balance puts it. */
+/* two columns that balance themselves, with the binding drawn by column-rule */
 .yb-spread {
   columns: 2;
   column-gap: 64px;
@@ -299,17 +235,11 @@ html[data-rm='1'] .yb-move-first .yb-num { animation: none; }
   text-align: right;
 }
 
-/* ---- A MARK ON THE WALL (§12.9) -------------------------------------------
-   The section that had never rendered anything. A mark is a drawn object rather
-   than a line of type, so it is the `chip` plate with a `stamp` face pressed into
-   it, which is what the two sheets were cut for. */
+/* a mark on the wall: a chip plate with a stamp face pressed into it */
 .yb-row-mark { gap: 12px; }
 .yb-markchip { flex: none; }
 
-/* ---- A THREAD BECOMING ROPE (§12.8) ---------------------------------------
-   Never pass or fail. A real gauge on a real number out of `cordsOf`, the
-   school's own criterion under it, and an earned one gets a STAMP arriving
-   rather than a bar going a different colour. */
+/* a cord's progress: a real gauge, the school's criterion, and a stamp once earned */
 .yb-row-thread { flex-direction: column; align-items: stretch; gap: 5px; padding: 8px 0; }
 .yb-threadhead { display: flex; align-items: baseline; gap: 10px; }
 .yb-earned { display: flex; align-items: center; gap: 5px; }
@@ -345,12 +275,7 @@ html[data-rm='1'] .yb-move-first .yb-num { animation: none; }
   text-align: center;
 }
 
-/* ---- THE FOOT: the spine, and the one control -----------------------------
- *
- * `.yb-turn` used to carry `align-self: flex-start`, which graduation then reused
- * in a ROW of three buttons with three different label lengths and top-aligned
- * all of them. There is no `align-self` on a button in this file any more: the
- * ROW decides the alignment, once, and both surfaces use the same row. */
+/* the foot: the spine and the one control, with the row deciding the alignment */
 .yb-foot {
   flex: none;
   display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
@@ -436,15 +361,7 @@ html[data-rm='1'] .yb-newtoken { animation: none; }
 @keyframes gr-card-in { from { transform: translateY(16px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
 html[data-rm='1'] .gr-card { animation: none; }
 
-/* A CARD THAT ADVANCES IS A REAL CONTROL (§14.34). It was a plain `div` with an
-   onClick and no role, no tabIndex and no key handler, on the only route to the
-   diploma. It carries `role="button"` and a tab stop now, and `tokens.css`'s one
-   element-wide ring reaches it through `[tabindex]`.
-
-   NO `border` DECLARATION HERE, EVER. `.kit-surface-panel` draws the whole frame
-   with `border-image` and its `border-width` IS the panel's inset, and a `border:
-   0` typed in this file wins on source order and deletes the frame with nothing
-   erroring. The first draft of this rule did exactly that. */
+/* a card that advances is a real control, and it must never declare a border here */
 .gr-tap {
   cursor: pointer;
   transition: filter var(--kit-t-mid) ease;
@@ -554,23 +471,13 @@ ul.gr-series { list-style: none; margin: 0; padding: 0; display: flex; gap: 18px
   font-size: var(--kit-fs);
   color: var(--kit-sea-head);
 }
-/* A CORD AND A NAMED ACCOMPLISHMENT MUST NEVER BE MISTAKEN FOR EACH OTHER, and
-   Q14.19.a puts the whole weight of the zero-cord stage on exactly this: *"no new
-   award objects ... the visual distinction between a cord and a named
-   accomplishment is where the honesty lives."* The cord's heading stands behind
-   the gold rule `docs/ART.md` reserves for an earned honour. The standing's
-   stands behind a plain one, because it is a true thing the student did and not
-   an award the school gives. */
+/* a cord and a named accomplishment are told apart by the rule beside the heading */
 .gr-cordcard .gr-cordname { border-left: 5px solid var(--kit-cord-lo); padding-left: 14px; }
 .gr-standcard .gr-standname { border-left: 5px solid var(--kit-rule-firm); padding-left: 14px; }
 
 /* ---- THE HONESTY BOARD (§14.20) ------------------------------------------- */
 
-/* THE BOARD IS A REGION AND NOT A CONTROL. `run.css:115` used to set
-   `cursor: pointer` on every `.gr-card`, and the board card has never had a
-   handler of any kind, so it showed a hand and did nothing on every graduation
-   since it was written. Only `.gr-tap` takes a pointer now, and this says so out
-   loud rather than relying on the absence of a rule. */
+/* the board is a region and not a control, so it says its own cursor out loud */
 .gr-boardcard { cursor: default; }
 .gr-boardlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .gr-boardrow {
@@ -687,13 +594,7 @@ ul.gr-series { list-style: none; margin: 0; padding: 0; display: flex; gap: 18px
 .ys-veil {
   position: absolute; inset: 0; z-index: 73;
 }
-/* TAP ANYWHERE, AND THE RING IS ROUND THE CARD. The whole surface takes a
-   pointer, because a student on a trackpad expects it to; the CARD is the tab
-   stop and the thing a keyboard player can see, which is why the focus target is
-   not this full-screen layer. A ring traced round the window edge tells a
-   keyboard player nothing about where they are, and the card carries
-   `tabIndex={0}`, so `tokens.css`'s one element-wide ring reaches it with no rule
-   of this file's own. */
+/* tap anywhere on the surface, but the card is the tab stop the ring goes round */
 .ys-wrap {
   position: absolute; inset: 0;
   display: flex; align-items: flex-end; justify-content: center;
@@ -730,10 +631,7 @@ html[data-rm='1'] .ys-card { animation: none; }
 }
 .ys-foot { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 
-/* HOW MANY LINES ARE LEFT, AS A ROW OF MARKS. Three identical lines with no count
-   is a student who cannot tell whether they are one tap from the world or five.
-   The mark that has been read is FILLED and the ones to come are open rings, so
-   the state is a shape and not a lightness. */
+/* how many lines are left, as marks: the read one filled and the rest open rings */
 .ys-dots { display: flex; gap: 6px; }
 .ys-dot {
   width: 9px; height: 9px;
@@ -743,17 +641,7 @@ html[data-rm='1'] .ys-card { animation: none; }
 }
 .ys-dot-on { background: var(--kit-sea-ink); border-color: var(--kit-sea-ink); }
 
-/* ---- THE ADVANCE CUE, DRAWN ----------------------------------------------
- *
- * It was the character U+1F43E, an operating-system paw, on three surfaces.
- * `docs/ART.md`: *"Icons are drawn, never an emoji or a font glyph."* MAPVIS drew
- * a `cue` sheet with four frames of a paw print for exactly this and nothing had
- * ever shown one.
- *
- * The four frames are mounted at once and cross-faded here, because a cut face is
- * a background-position computed in JS and a keyframe cannot compute one. The
- * WORDS are always present whether or not the sheet is worn, so a build with no
- * platform says what to do rather than showing a blank square. */
+/* the drawn advance cue: four paw frames mounted at once and cross-faded */
 .ys-cue {
   display: flex; align-items: center; gap: 8px;
   --kit-fs-raw: calc(16px * var(--kit-text-scale));
@@ -778,24 +666,7 @@ html[data-rm='1'] .ys-paw-f { animation: none; opacity: 0; }
 html[data-rm='1'] .ys-paw-f1 { opacity: 1; }
 .ys-cue-word { white-space: nowrap; }
 
-/* ============================================================================
- * THE PLAIN ARM (§16, ruled by Ash 2026-08-31)
- *
- * *"No game art, no wood, no parchment: system font, black on white, real
- * headings and a real form. Reads as a worksheet somebody wrote, not as the game
- * with its paint scraped off."* Raw OS widgets were the other candidate and were
- * REFUSED, because unstyled defaults read as BROKEN and a control condition that
- * looks broken loses on looking broken rather than on not being a game, which is
- * a confound in the one comparison the whole instrument exists to make.
- *
- * These three surfaces are where it matters most in this file: the yearbook and
- * the ceremony are two of the four places BLHS content is actually delivered, and
- * the diploma is the study's turn-in artifact.
- *
- * NOTHING BELOW CHANGES WHAT A STUDENT IS TOLD. Same sections, same order, same
- * criteria, same numbers, same code, same words. The paper goes white, the drawn
- * frames come off, the shadows go, and the page becomes a document.
- * ==========================================================================*/
+/* the plain arm: white paper, system font, no drawn frames, and all the same words */
 
 html[data-skin='plain'] .yb-veil,
 html[data-skin='plain'] .gr-veil {
@@ -880,13 +751,7 @@ html[data-skin='plain'] .ys-dot { border-color: var(--kit-edge-strong); }
 html[data-skin='plain'] .ys-dot-on { background: var(--kit-ink-head); border-color: var(--kit-ink-head); }
 
 
-/* THE PRINCIPAL'S FACE, AND THE WORDS BESIDE IT RATHER THAN UNDER IT.
-   The first pass stacked them: a 136 pixel portrait, then the name, then one
-   short line under all of it, on a card 820 wide. Photographed at
-   `ui/fixed-game/17-year-start.png` that is a face in the bottom-left corner and
-   two-thirds of a card of empty parchment, on the screen that opens every year.
-   Beside it, the card is shorter, the line is at reading height, and the face is
-   looking at the words it is saying. */
+/* the principal's face with the words beside it rather than under it */
 .ys-body {
   display: flex;
   align-items: flex-start;

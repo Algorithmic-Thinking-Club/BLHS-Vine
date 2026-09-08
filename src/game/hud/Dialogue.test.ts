@@ -1,22 +1,4 @@
-/* THE BOX IS STEADY, held to it.
- *
- * Ash, BRIEF-INTRO-FILM, after playing rail-4: *"the dialogue panel is
- * glitchy"*, and the brief names the glitches: the box resizing between lines,
- * the portrait popping in late or empty, the typewriter restarting, the advance
- * cue flashing, the box drawn under the cutscene bars, two box styles for one
- * speaker. Three of those are geometry and live in `dialogue.css`, where a
- * stylesheet test would only be reading the file back to itself; they are
- * measured in a browser instead (`scripts/film-b-box.mjs`).
- *
- * The other three are BEHAVIOUR in this file and this is the tripwire for them:
- * the box does not unmount between two consecutive lines, a question keeps the
- * face and the plate of whoever asked it, and the typewriter starts over when
- * the sentence repeats and never runs backwards when a student clicks through
- * it.
- *
- * Written with createElement rather than JSX because the runner only collects
- * `.ts`, which is the same reason `DialogueBox.test.ts` beside it is.
- */
+/* tests that the dialogue box stays steady: one element across lines, and no typewriter glitches */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createElement, act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
@@ -76,11 +58,7 @@ const face = () => host.querySelector('.dlg-portrait img')?.getAttribute('src') 
 
 describe('the box does not blink between lines', () => {
   it('KEEPS THE SAME ELEMENT across two consecutive lines from one speaker', async () => {
-    /* THE MEASURED DEFECT. `scripts/film-b-box.mjs` counted two box mounts for
-     * two consecutive sentences of the Maw's film: the bus empties for one
-     * paint between any two lines, because `finish()` announces the empty
-     * queue before it resolves the promise the island is waiting on, so the
-     * box unmounted and `cs-rise` replayed on the far side. */
+    /* the box used to unmount for one paint between two lines and replay its entrance */
     const first = say({ who: 'Principal Panther', text: 'One.', portrait: 'principal' })
     await act(async () => {})
     const before = box()
@@ -114,10 +92,7 @@ describe('the box does not blink between lines', () => {
 
 describe('one speaker, one box', () => {
   it('a QUESTION keeps the name plate and the face of whoever was speaking', async () => {
-    /* `DialogueAsk` carries a prompt and options and no speaker at all, so the
-     * principal asking something lost his plate AND his portrait on the one
-     * line where a student most needs to know who is asking. Ash saw it as
-     * "two box styles for one speaker". */
+    /* a question carries no speaker of its own, so it keeps the last one's plate and face */
     const said = say({ who: 'Principal Panther', text: 'Ready?', portrait: 'principal' })
     await act(async () => {})
     expect(plate()).toBe('Principal Panther')
@@ -173,10 +148,7 @@ describe('the typewriter', () => {
   })
 
   it('NEVER RUNS BACKWARDS when a student clicks a half-typed line', async () => {
-    /* `advance` fills the line in and the rAF loop was still scheduled, so the
-     * next frame wrote the clock's own smaller count back and the sentence
-     * visibly shrank. Mashing the box made the words go backwards on every
-     * press, which is the restart a student actually meets. */
+    /* filling a line in used to leave the typing loop running, so the sentence shrank back */
     const said = say({ text: 'A reasonably long sentence to type out.' })
     await act(async () => {})
     /* past the box's own quarter-second dead zone, which refuses a press before

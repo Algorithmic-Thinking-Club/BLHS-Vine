@@ -1,21 +1,4 @@
-/* THE VOCABULARY HAS ONE SPELLING, AND THIS IS WHAT ENFORCES IT.
- *
- * src/vine/intents.ts is the capability list and its switch is exhaustive, so a
- * word the engine cannot do does not compile. Nothing did the same job on the
- * other side of the worker: vine.py exposed `say` and `choose` and NOTHING ELSE,
- * so thirteen things the engine could already perform were unreachable from a
- * member's island and no test noticed, because a missing Python function is not
- * a TypeScript error.
- *
- * The other direction is worse and this catches it too: a Python builder that
- * emits a kind the union does not have compiles fine, ships fine, and comes back
- * as a refusal at runtime on a member's line, which is the last place anybody
- * wants to learn a word does not exist.
- *
- * Read as text on purpose. The real vine.py runs in MicroPython in a worker, and
- * a test that needed a system python to check the spelling would be a test that
- * does not run.
- */
+/* checks the intent vocabulary is spelled the same in intents.ts and in vine.py */
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -38,11 +21,7 @@ const engineWords = new Set(all(code, /kind: '([a-z_]+)'/g))
 /** every kind a builder in vine.py puts on the wire */
 const pythonWords = new Set(all(py, /"kind": "([a-z_]+)"/g))
 
-/* A HELPER IS NOT A WORD. `as_a_cutscene` wraps `movie` at both ends so an
- * island cannot leave the bars up on a refusal; it puts nothing new on the wire
- * and has no kind of its own, so counting it as a builder would make the two
- * checks at the foot of this file fail on a function that adds no vocabulary.
- * Named here rather than sniffed, so adding one is a deliberate edit. */
+/* helpers that wrap other words and put nothing new on the wire, so they are not words */
 const HELPERS = new Set(['as_a_cutscene'])
 
 /** each `def` in vine.py, its body, and the kinds that body emits */
@@ -62,35 +41,10 @@ function bodyOf(name: string): string {
 }
 
 describe('the intent vocabulary, both sides of the worker', () => {
-  /* FIFTEEN, THEN TWENTY-FIVE, THEN TWENTY-SEVEN. The number is asserted rather
-   * than counted at runtime so that GROWING the vocabulary is a deliberate edit
-   * to this line and never a side effect of somebody adding a case. Wave four
-   * added the ten director words: a body of his own, four for driving somebody
-   * else's, routes, framings, two kinds of waiting, and sound.
-   *
-   * BRIEF-ARRIVAL added two, and both are the frame rather than the world.
-   * `movie` is the two black bars, the HUD out of the way and the controls
-   * taken, for a stretch the student watches. `view` is the three shots the
-   * engine composes off the painting and the window, so an island can ask for
-   * the whole island without an author having dragged that shot onto an anchor
-   * first. The third thing the brief asked for, a walking pace, is an argument
-   * on `actor_move` and not a word, because "walk somebody there" and "walk
-   * somebody there slowly" are one sentence. */
-  /* AND TWENTY-NINE. BRIEF-MAW-RAIL-2 added `lead_to`: somebody walks ahead and
-   * the player follows them there. It is a word rather than an argument on
-   * `actor_move` for the reason the paragraph above gives about pace, read the
-   * other way: "walk him there" and "walk him there while I follow" are two
-   * sentences with two bodies in the second one. */
-  /* AND THIRTY-ONE. BRIEF-MAW-RAIL-3 added `objective`: the one line at the top
-   * of the screen, said by whoever is directing. It is a word rather than a
-   * consequence of `say` because the panel is not dialogue: it stands while
-   * nobody is speaking, and inside a cutscene it is the only thing on the glass
-   * that says what the student is watching is for. */
-  /* AND THIRTY-TWO. BRIEF-CLOSE-THE-LOOP section 3 added `end_run`: the run is
-   * over, leave the world for the title. It is a word rather than an `enter` to a
-   * reserved map name because the title is the frame around the whole game and
-   * not a place anybody painted, and because a member's island being able to name
-   * an app scene is the one door this vocabulary should not open. */
+  /* the count is written down here, so growing the vocabulary is a deliberate edit */
+  /* `lead_to` is its own word: somebody walks ahead and the player follows them there */
+  /* `objective` is its own word: the one line at the top of the screen, not dialogue */
+  /* `end_run` is its own word: the run is over and the world gives way to the title */
   it('is thirty-two words on the engine side', () => {
     expect(engineWords.size).toBe(32)
   })

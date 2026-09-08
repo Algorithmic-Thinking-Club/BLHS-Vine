@@ -1,10 +1,4 @@
-/* The follow rule, against the numbers really measured on the published Maw v6.
- *
- * Every case here is a frame that was captured off the running game, not a
- * number invented to make a rule pass. The map is `panther-maw` at yScale 0.72
- * and speed 54, the scene walks Thor at SPD = 108, and `lead_to` asks for
- * `pace="walk"`, which is 54.
- */
+/* checks the rule for walking behind somebody, against frames measured on a real map */
 import { describe, it, expect } from 'vitest'
 import { followStep, groundApart } from './follow'
 
@@ -74,11 +68,7 @@ describe('walking behind the principal', () => {
   })
 
   it('is not the thing that stops him at the end of the walk', () => {
-    /* the measured resting frame: Thor at 284,175 and the principal on the
-     * table's stand point at 295,213 is 54 ground pixels, which is OUTSIDE the
-     * gap. What stopped him there is the walk's own reach, and that is worth
-     * writing down: the gap keeps him out of the leader's back, and the walk is
-     * still what decides where the beat ends. */
+    /* the gap keeps him off the leader's back, and the walk's own reach ends the beat */
     const s = followStep(frame([295, 213], [284, 175], null))
     expect(s.apart).toBeCloseTo(53.9, 1)
     expect(s.hold).toBe(false)

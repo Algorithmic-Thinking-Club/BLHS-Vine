@@ -1,26 +1,4 @@
-/* THE WORLD BUS: who currently owns the player's input.
- *
- * The other half of ui-bus.ts. That one carries "open the planner" from the
- * world to the HUD; this one carries "the world is not yours right now" from
- * the HUD back to whatever scene is mounted.
- *
- * It has to be a bus and not a prop because the two live in different component
- * trees: WorldHud is mounted globally by SceneManager and the scene is mounted
- * beside it, so there is no parent holding both. Hud already takes an
- * `onBlurWorld` callback for the visual blur and WorldHud has never passed it.
- *
- * WHY IT COUNTS INSTEAD OF TOGGLING. A cutscene can start while the planner is
- * open, and the planner can be closed from inside a beat. A boolean gets that
- * wrong in one specific way that looks like a bug and is very hard to find: the
- * inner thing finishes, sets the flag false, and the player gets the controls
- * back while a panel is still on screen, so Thor walks off behind it. Counting
- * holds makes the release order stop mattering.
- *
- * THE BUG THIS FIXES, which is live today: PmapScene attaches keydown to window
- * and Walker.step reads that map every frame with nothing in between. Open the
- * year sheet from the chart table and Thor keeps walking underneath it, and the
- * `e` that closed the panel re-fires into the station and opens it again.
- */
+/* who currently owns the player's input, counted so the release order stops mattering */
 
 export type HoldRelease = () => void
 
@@ -44,10 +22,7 @@ export function holdWorld(reason: string): HoldRelease {
   announce()
   let released = false
   return () => {
-    /* releasing twice is normal, not a mistake: a React effect cleanup can run
-     * after the same code path already released on its own. Second call is a
-     * no-op rather than a decrement, or the count goes negative and the world
-     * unlocks under something that still owns it. */
+    /* releasing twice is normal, and the second call does nothing */
     if (released) return
     released = true
     holds.delete(key)

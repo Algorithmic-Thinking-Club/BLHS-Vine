@@ -1,45 +1,10 @@
-/* DOSE: the exposure measure, and the one number the study cannot be argued
- * without. Pure, no I/O, unit-tested in api/_dose.test.ts.
- *
- * `src/game/telemetry.ts` has been posting a `heartbeat` every fifteen seconds
- * since the clock landed, and NOTHING HAS EVER READ ONE BACK as a duration.
- * `api/_summary.ts` counts how many arrived and sums the gaps between ALL
- * events, which is a different measure wearing the same word: an island that
- * emits forty events a minute and an island that emits four both produce
- * heartbeats at the same rate, and only the heartbeat can be compared across
- * them. §80.16.4 names the hole. An unfalsifiable dose is the failure mode of an
- * intervention comparison, because "the game arm learned more" and "the game arm
- * sat there longer" are the same table until somebody can say how long.
- *
- * SO THIS FOLD READS HEARTBEATS AND NOTHING ELSE. Every other event is ignored
- * here on purpose. The beat is the only row in the table that means "a student
- * was looking at this, right now" rather than "something happened".
- */
+/* dose: how long a student was actually looking at the game, folded from heartbeats */
 import { atMs, eventName, type Env, type StoredEvent } from './_summary.js'
 
-/* The cadence `startHeartbeat()` ticks at. It is repeated rather than imported
- * because src/game/telemetry.ts touches localStorage and window at module scope
- * and a serverless handler has neither. The drift is fenced two ways: every beat
- * carries its own `everyMs` in its data and this fold prefers it, and
- * api/_dose.test.ts pins the pair. */
+/* how often the game sends a heartbeat, repeated here because the client cannot import */
 export const HEARTBEAT_MS = 15_000
 
-/* HOW MANY MISSED BEATS STILL COUNT AS A STUDENT WHO IS THERE.
- *
- * The beat fires every fifteen seconds and only while the tab is visible, so a
- * hidden tab, a closed lid or a dead page leaves exactly one long gap and no
- * partial evidence. Two beats fifteen seconds apart is a student sitting there.
- * ONE dropped tick puts them thirty seconds apart with the student still sitting
- * there, and that happens on the machine this game is actually for: a 4 GB
- * Chromebook loading a 688x377 painting stalls its main thread long enough to
- * miss a tick. Throwing that away would undercount exactly the hardware the
- * study runs on. TWO dropped ticks is forty-five seconds, and nothing the
- * renderer does takes forty-five seconds; that is a tab that went away.
- *
- * So the line sits between them, at two and a half intervals. It is written as a
- * multiple of the cadence rather than as a number so that changing the tick
- * cannot silently change what "on task" means.
- */
+/* how big a gap between beats still counts as a student who is there */
 export const GAP_INTERVALS = 2.5
 export const gapCapMs = (everyMs = HEARTBEAT_MS) => Math.round(everyMs * GAP_INTERVALS)
 
@@ -79,10 +44,7 @@ export type ParticipantDose = {
   byMap: DoseSlice[]
   byScene: DoseSlice[]
   bySession: DoseSlice[]
-  /* SESSIONS TIMED OFF THE SERVER'S CLOCK RATHER THAN THE CLIENT'S, which is a
-   * warning and not a detail. See pickClock below: a server-timed session
-   * measures when the batch was INSERTED, and an offline queue draining fifteen
-   * minutes of beats in one POST inserts them all in the same transaction. */
+  /** how many of these sessions were timed off the server's clock rather than the client's */
   serverClocked: number
 }
 
@@ -111,24 +73,7 @@ const str = (v: unknown): string | null => (typeof v === 'string' && v ? v : nul
 const posNum = (v: unknown): number | null =>
   typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null
 
-/* WHICH CLOCK TIMES A SESSION, decided once for the whole session rather than
- * per row.
- *
- * The server's `at` is the insert time. `appendEvents` writes a whole batch in
- * one statement, so every beat in one POST lands on one timestamp, and the
- * offline-first queue that logging.ts exists to provide is precisely the thing
- * that makes a batch long. A Chromebook that lost the network for ten minutes
- * drains forty beats at once and the server clock says the student was there for
- * zero seconds.
- *
- * The client's `at` is `Date.now()` at the instant the beat fired, which is the
- * question being asked. It can be wrong on a machine whose clock is wrong, but
- * it is wrong CONSISTENTLY within one session, and a dose is a difference of two
- * stamps rather than an absolute time, so a skewed clock cancels.
- *
- * Mixing them inside one session would subtract one clock from the other and
- * invent a gap out of the offset, so the session takes the client's only when
- * EVERY beat in it has one. */
+/* which clock times a session: the client's when every beat has one, else the server's */
 function pickClock(beats: Beat[]): 'client' | 'server' {
   return beats.every((b) => b.client !== null) ? 'client' : 'server'
 }
@@ -147,10 +92,7 @@ export function dose(rows: StoredEvent[]): DoseReport {
   for (const row of rows) {
     const env = (row.payload ?? {}) as Env
     if (eventName(env) !== 'heartbeat') continue
-    /* the same dedup `summarise` does, and for the same reason: the queue
-     * survives a page death mid-POST and a batch can ship twice. A duplicated
-     * beat is worse here than there, because it lands at the same instant as its
-     * twin and turns one real interval into two, one of which is zero. */
+    /* drop a beat that was sent twice, because the queue can ship a batch again */
     if (env.eid) {
       if (seenEid.has(env.eid)) continue
       seenEid.add(env.eid)
@@ -216,12 +158,7 @@ export function dose(rows: StoredEvent[]): DoseReport {
         const cap = gapCapMs(beats[i].everyMs)
         if (gap > cap) { m.awayMs += gap; m.breaks++; continue }
         m.onTaskMs += gap
-        /* THE INTERVAL IS CREDITED TO THE BEAT THAT CLOSED IT, not the one that
-         * opened it. Either rule is an estimate when the student changed map
-         * mid-interval and neither can be better than half an interval wrong;
-         * one rule is used for the cadence and the same one for the context, so
-         * there is no second convention to get backwards, and the slices sum to
-         * onTaskMs exactly. */
+        /* the interval is credited to the beat that closed it, so the slices sum exactly */
         credit(maps, beats[i].map, gap)
         credit(scenes, beats[i].scene, gap)
         credit(places, beats[i].place, gap)
@@ -252,10 +189,7 @@ export function dose(rows: StoredEvent[]): DoseReport {
   }
 }
 
-/* A BEAT WITH NO MAP IS ITS OWN BUCKET AND NOT A DROPPED ROW. The title screen,
- * the planner and the yearbook all beat with `map: null`, and folding them away
- * would make every per-map dose add up to less than the run without saying why.
- * `(none)` is a key a reader can see. */
+/* the bucket for one slice key, where a beat with no map gets its own visible key */
 const slotFor = (into: Map<string, DoseSlice>, key: string | null): DoseSlice => {
   const k = key ?? '(none)'
   const slice = into.get(k) ?? { key: k, onTaskMs: 0, beats: 0 }

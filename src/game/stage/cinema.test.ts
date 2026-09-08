@@ -1,19 +1,4 @@
-/* THE FRAME, AND THE ONE DOOR IT IS ALLOWED THROUGH.
- *
- * BRIEF-INTRO-FILM section 1: the introduction is ONE cutscene from the beach's
- * Set Sail to the counselor, and the tunnel between the hub and the Maw is in
- * the middle of it. `PmapScene`'s teardown lowers the bars on every unmount,
- * which is the guard that makes `movie(True)` safe to hand to a member at all,
- * and it is also what put a seam in the middle of Ash's film: measured on the
- * dev server, the corner was on screen for 24 frames between the Maw's painting
- * appearing and its island raising the bars again, and the deploy's worker boot
- * makes that seconds rather than frames.
- *
- * So there is exactly one exception, it is armed at exactly one place, and it is
- * consumed by the first teardown that reads it. These cases are about that: that
- * it cannot be armed when the bars are down, and that it cannot survive into a
- * second unmount.
- */
+// the letterbox bars, and the one door a cutscene is allowed to carry them through
 import { describe, it, expect, beforeEach } from 'vitest'
 import { carryCinemaThroughDoor, cinemaOn, onCinema, setCinema, takeCinemaCarry } from './cinema'
 

@@ -1,11 +1,4 @@
-/* THE ENGINE HALF OF THE VOCABULARY.
- *
- * src/vine/intents.ts splits an intent into two: the ones that need a map
- * (say, walk_to, enter) and the ones that do not (open, play, get, award, log).
- * This is the second half. It is built once at module scope rather than per
- * scene, because the save file and the logger do not change when the camera
- * does, and it is what lets a grape's logic be exercised with no map at all.
- */
+/* the half of the intent vocabulary that needs no map: the save, the ui and the logger */
 import type { IntentEngine, RunPath } from '../vine/intents'
 import type { SessionMode } from '../vine/contract'
 import { requestBeat, requestUi, requestUiAndWait } from './ui-bus'
@@ -28,13 +21,7 @@ import { setCinema } from './stage/cinema'
 import { setObjectiveSaid } from './hud/objective-bus'
 
 export const engine: IntentEngine = {
-  /* AND IT REFUSES WHEN NOTHING IS MOUNTED TO HEAR IT. This was a dispatch into
-   * the air: a CustomEvent nobody listens for looks identical to one that was
-   * delivered, so `open("planner")` answered ok on a scene with no HUD and an
-   * author saw their island run straight past the panel it was built around.
-   * `playBeat` beside it was given this exact fix once already, and the WorldHud
-   * split in wave 4 turned the unmounted case from an edge into the normal state
-   * for anything that runs before a run has begun. */
+  /* opens a panel, and refuses when nothing is mounted to hear it */
   openUi(ui, wait) {
     /* AND IT CAN COME BACK WHEN THE PANEL SHUTS. `requestUiAndWait` answers false
      * on exactly the same condition `requestUi` does, so the refusal below reads
@@ -51,21 +38,7 @@ export const engine: IntentEngine = {
     return requestBeat(beat, plain)
   },
 
-  /* the questions progress.ts can actually answer, and no others. A closed list
-   * is deliberate: a grape that could ask for an arbitrary path would be a grape
-   * that reaches into the save's shape, and then the save can never change.
-   *
-   * EVERY PATH ANSWERS IN ITS OWN TYPE, WITH OR WITHOUT A SAVE. This used to
-   * return null for all nine the moment there was no run, and the damage was
-   * subtle in both directions. `mode` came back null while `engine.mode()` said
-   * 'game', so an island could not find out which half of the class it was
-   * talking to and every unjoined player silently read as neither arm. `year`
-   * came back null, so `get("year") + 1` threw inside the MEMBER'S own island
-   * over a state the engine created. And the empty ones, `flags` and `cords` and
-   * `islands`, came back as something you cannot iterate.
-   *
-   * A run that has not started is a real state, not a missing one. It is year
-   * one, no tokens spent, nothing earned, and whatever arm the mode says. */
+  /* the closed list of questions an island can ask about the run */
   read(path: RunPath): unknown {
     const s = loadSave()
     switch (path) {
@@ -73,13 +46,7 @@ export const engine: IntentEngine = {
       case 'gpa': return s ? gpaOf(s) : 0
       case 'tokens': return s?.tokens.length ?? 0
       case 'cords': return s ? cordsOf(s).filter((c) => c.earned).map((c) => c.id) : []
-      /* THE WHOLE BOARD, and it is the same rows `progress.ts` hands the tracker.
-       * Passed through entire rather than trimmed to the fields the Maw's
-       * counselor happens to use: a subset chosen here is a subset that goes
-       * stale the day a cord grows a field, and every one of these is already a
-       * string or a number a member can print. `rule` is the school's own words
-       * and `model` is what this game counts, and V3 says the second is printed
-       * beside the first and never instead of it, so both cross. */
+      /* the whole cord board, the same rows the tracker gets */
       case 'cord_board': return s ? cordsOf(s) : []
       /* what is on the wall. Two lists rather than one, because a sticker and a
        * badge are different things everywhere else in the save and flattening
@@ -87,19 +54,12 @@ export const engine: IntentEngine = {
       case 'trophies': return s
         ? { stickers: [...s.stickers], badges: [...s.badges] }
         : { stickers: [], badges: [] }
-      /* the beat the fire still owes this year, or null. `beats.ts` owns both
-       * halves of that question and this asks rather than re-deciding it, which
-       * is the same reason `stations.ts` has a `coreBeatIdFor` helper rather than
-       * a second copy of the rule. Null with no run, because a run that has not
-       * started owes nothing to anybody. */
+      /* the beat this year still owes, or null */
       case 'advisory': return s && hasCoreBeat(s.year) && !beatDone(s.ledger, s.year)
         ? coreBeatId(s.year)
         : null
       case 'flags': return s ? [...s.flags] : []
-      /* IS THIS YEAR'S SHEET STAMPED. The rail's own question, and it is asked of
-       * the plan rather than of a flag because the stamp is the plan's own field
-       * and a flag beside it would be a second truth that can drift. False with
-       * no run, because a run that has not started has planned nothing. */
+      /* whether this year's plan has been stamped */
       case 'planned': return !!(s && s.plans[s.year]?.stamped)
       case 'islands': return s ? { ...s.islands } : {}
       /* the two that are honestly absent. A player with no run has no name and
@@ -108,32 +68,9 @@ export const engine: IntentEngine = {
       case 'handle': return s?.handle ?? null
       case 'graduated': return !!s?.graduated
       case 'mode': return engine.mode()
-      /* ---- WHERE THE YEAR IS, ASKED OF THE ONE THING THAT DECIDES IT -------
-       *
-       * BRIEF-INTRO-FILM: the closing film fires when every task on the year is
-       * done, and it must NOT be written as "Advisory is over". Today Advisory
-       * is the last thing in a year because nothing can be sailed to; the day
-       * the first island lands, a stamped sheet with a season token on it owes
-       * a voyage, and an ending that fired at the fire would play in the middle
-       * of the student's year.
-       *
-       * `nextObjective` already answers this and the whole game is sequenced
-       * off it, so the island reads the sequencer instead of keeping a second
-       * copy of the rule. 'yearbook' is the phase that means the year can close.
-       * Null when there is no run and when the run is over. */
+      /* which phase of the year the run is in, asked of the sequencer */
       case 'phase': return nextObjective(s)?.phase ?? null
-      /* ---- AND WHAT HE ACTUALLY DID IN IT ---------------------------------
-       *
-       * The principal congratulates him BY NAME on what he really chose and
-       * really earned, so every word of that line comes off the save. Names are
-       * masked the same way every other surface masks them (roster/placeholders):
-       * a programme nobody has built is an Example here as well, or the ending
-       * would congratulate a freshman on a football season that does not exist.
-       *
-       * The letter is `progress.ts`'s own, not a rounding done here, because the
-       * yearbook and the wall print it from there and three spellings of one
-       * grade is how a game tells a student two different things about the same
-       * afternoon. */
+      /* the classes, seasons and grades the student actually picked this year */
       case 'picks': {
         if (!s) return { classes: [], seasons: [], graded: [], gpa: null }
         const plan = s.plans[s.year] ?? { slots: {}, classes: [], stamped: false }
@@ -153,47 +90,20 @@ export const engine: IntentEngine = {
     }
   },
 
-  /* A WRITE INTO A RUN THAT DOES NOT EXIST IS NOT A WRITE. `save.ts:626-630`
-   * returns early when there is no save, which is right, and this reported ok
-   * anyway, which is not: an island setting a flag and reading it back two lines
-   * later got an empty list, with no error anywhere to explain it. That is the
-   * state a member DEVELOPS in, because the standalone harness has no run.
-   *
-   * Every path is still exactly as safe as it was; what changed is that the
-   * author is told. */
+  /* remembers a flag, and refuses when there is no run to remember it in */
   setFlag(flag) {
     if (!loadSave()) throw new NotBuilt('set_flag', `there is no run to remember "${flag}" in`)
     setFlag(flag)
   },
 
-  /* one call, because a station awarding a grade and a sticker in the same beat
-   * should not have to know which of four functions each one lives behind.
-   * Every one of these is idempotent on the save side already.
-   *
-   * ONE INTENT COMPLETES AN ISLAND AND RECORDS ITS GRADE TOGETHER (M2). Naming a
-   * programme is what turns a bare number into a transcript row that says what it
-   * was, weighs what an island weighs, carries the cord tags the programme
-   * carries, counts a year on that programme's ladder, and marks the programme
-   * finished in this year and no other. */
+  /* one call for everything an island can grant: a grade, a completion, a sticker or a badge */
   award(a) {
-    /* AND THE SAME FOR THE ROW AN ISLAND EARNED. Every one of these writes goes
-     * through `loadSave()` and returns early without one, so an island awarding a
-     * grade with no run threw all of it away and answered ok: no ledger row, no
-     * completion, no fact, no sticker, no badge, and the study's own dependent
-     * variable reading zero programmes finished with nothing anywhere saying why.
-     * Refused BEFORE the first write, so the four collectors cannot half-happen. */
+    /* nothing is written unless there is a run, so the writes cannot half happen */
     if (!loadSave())
       throw new NotBuilt('award', 'there is no run to write this onto. '
         + 'Start a run first, or use the standalone harness only for logic that does not score.')
 
-    /* AND THE STUDENT IS TOLD, WHICH IS THE THING THIS WORD HAS NEVER DONE.
-     *
-     * This is the single entry point for every grant a member's island can make,
-     * and it wrote six things to the save and moved nothing on the screen. A
-     * fourteen year old answered an island's questions, finished it, and the game
-     * did not react. `src/game/grant.ts` has the whole argument for why the answer
-     * is one call here rather than a hook on the writes: six writes, one thing
-     * earned, and half of what a run earns is computed rather than stored. */
+    /* the student is told on screen, once, for the whole grant */
     const before = loadSave()
     writeAward(a)
     grant(before, loadSave(), saidOf(a))
@@ -203,39 +113,20 @@ export const engine: IntentEngine = {
     track(event, data)
   },
 
-  /* A PAUSE IS A PAUSE IN ANY SCENE, which is why it is here and not on the
-   * world. A member testing an island's pacing in the standalone harness, with no
-   * painting loaded at all, should get the same rhythm they will get on the map;
-   * putting this on `IntentWorld` would have made timing the one thing that could
-   * not be tried without a map.
-   *
-   * The ceiling is applied in `performIntent` rather than here, because that is
-   * where the refusal for a negative number lives and one word should not be
-   * validated in two places. */
+  /* waits, in any scene, with or without a map loaded */
   wait(ms) {
     return new Promise<void>((r) => setTimeout(r, ms))
   },
 
-  /* SOUND IS GLOBAL AND SO IS THIS. There is one pair of speakers whichever scene
-   * is up, so an effect does not belong to a map, and an unknown name throws
-   * `NotBuilt` out of the library, which `performIntent` turns into a refusal at
-   * the member's own line. */
+  /* plays a sound effect by name */
   sound(name, gain) {
     playSfx(name, gain)
   },
 
-  /* THE FRAME IS GLOBAL FOR THE SAME REASON THE SPEAKERS ARE. Bars, the HUD
-   * corner, the help button and the arrival card are all properties of the
-   * window rather than of the painting, and a scene with no map still has all
-   * four. The painted scene subscribes to the same switch for its own in-world
-   * plaques and marker, so there is one flag rather than one per surface. */
+  /* turns the movie frame on or off across every surface */
   movie(on) {
     setCinema(on)
-    /* AND THE BARS COMING DOWN HAND THE PANEL BACK TO THE YEAR. An island that
-     * said "Follow the principal" and then ended, or refused, would otherwise
-     * leave that sentence over a student who is now standing in an empty room
-     * with nobody to follow. The word is the scene's for exactly as long as the
-     * scene is running. */
+    /* the bars coming down hand the objective line back to the year */
     if (!on) setObjectiveSaid(null)
   },
 
@@ -253,13 +144,7 @@ export const engine: IntentEngine = {
   },
 }
 
-/* ---- THE WRITES, LIFTED OUT SO THE ANSWER CAN WRAP THEM -------------------
- *
- * Word for word what `award` used to be, moved down here unchanged. It has two
- * early returns in it, which is the whole reason it is a function rather than a
- * block: naming a programme and no grade is a completion and stops there, and
- * the answer above still has to happen on that path.
- */
+/* the writes award makes, lifted out so the answer can wrap them */
 type AwardArgs = Parameters<IntentEngine['award']>[0]
 
 function writeAward(a: AwardArgs) {
@@ -272,22 +157,13 @@ function writeAward(a: AwardArgs) {
     const year = s.year
     const g = programmeById(a.programme)
 
-    /* A NAME NOBODY IS ON THE ROSTER FOR IS SAID OUT LOUD. The grade is still
-     * kept, because a grade that has been earned should not be lost to a typo,
-     * and the row carries the name that was asked for. What was missing was any
-     * way at all for the author to find out: no warning, no event, no refusal,
-     * and an island that silently never completes while the study's own dependent
-     * variable reads zero programmes finished. */
+    /* a programme nobody is on the roster for is said out loud and the grade is kept */
     if (a.programme && !g) {
       console.warn(`[award] no programme named "${a.programme}" on the roster; the grade is kept and the island is not marked finished`)
       track('award_unknown_programme', { programme: a.programme })
     }
 
-    /* NAMING A PROGRAMME AND NO GRADE IS HOW A MEMBER SAYS THEY FINISHED IT, and
-     * it used to return before anything happened and still answer ok: no ledger
-     * row, no completion, no event, and an island the planner never sees close.
-     * Completion is a result and a grade is a number, and only one of them is
-     * required to have happened. */
+    /* naming a programme with no grade is how a member says they finished it */
     if (typeof a.grade !== 'number') {
       if (g) {
         recordCompletion(g.id, 0, g.rankTrack ?? undefined)
@@ -296,11 +172,7 @@ function writeAward(a: AwardArgs) {
       }
       return
     }
-    /* an unknown programme is not refused here: `performIntent` would turn a
-     * throw into a refusal at the member's own line, and a grade that has been
-     * earned should not be lost to a typo in the name of strictness. It lands as
-     * the anonymous row it always was, and the name it was given is on it so the
-     * author can see what they asked for. */
+    /* an unknown programme still lands as an anonymous row carrying the name it was given */
     const tags = [...(g?.tags ?? []), ...(a.tags ?? [])]
     const entry = g
       ? {
@@ -327,21 +199,12 @@ function writeAward(a: AwardArgs) {
     if (g) {
       recordCompletion(g.id, a.grade, g.rankTrack ?? undefined)
       setIslandState(g.id, 'completed')
-      /* the completion half of the split, on the wire as well as in the save.
-       * Exposure is per place and completion is per programme, and the export has
-       * to carry both as separate counts or the awareness measure and the
-       * learning measure blur into each other with nothing to unpick them. */
+      /* completion goes on the wire as well as into the save */
       track('programme_completed', { programme: g.id, place: g.place, grade: a.grade, year })
     }
 }
 
-/* WHAT THE CARD SAYS, in the words a fourteen year old reads.
- *
- * The programme's own name when there is one, because that is the thing they
- * just finished and the roster already holds what it is called. A grade is a
- * detail under it and never the headline: §6.9's rule is that this game is warm
- * about performance, and a number in the largest text on the screen is not.
- * Everything else falls back through what was actually given. */
+/* what the card says, in the words a fourteen year old reads */
 function saidOf(a: AwardArgs): { what: string; detail?: string } {
   const g = programmeById(a.programme)
   if (g) {

@@ -1,11 +1,7 @@
 import { useEffect, useState } from 'react'
 import './teacher.css'
 
-// The teacher screen (GAME-DESIGN §13.3) — deliberately plain web UI: this is Wiseman's
-// tool, not the game. Create a class -> get the join code (projector-sized) -> watch the
-// roster fill live (handles only, §2.9) -> export CSV. No accounts: creating a class
-// returns a capability key kept in this browser; losing it means making a new class.
-// Route: /?scene=teacher (its own corner of the app, never on the student title).
+// the teacher screen: make a class, show the join code, watch the roster, export the csv
 
 type ClassRef = { classId: string; teacherKey: string; name: string; code: string }
 type RosterRow = {
@@ -74,14 +70,7 @@ export default function TeacherScene() {
     setOpen(!open)
   }
 
-  /* THE EXPORT COMES OFF THE SERVER NOW.
-   *
-   * This used to build eight columns here, out of the roster state the browser
-   * already had: handle, arm, joined, last_seen, year, beat, graduated,
-   * verification. No score, no duration, no attempts, because a browser holds one
-   * student's save and the dependent variable lives in the events table. The
-   * server reads that table (api/teacher.ts op 'export'), so the file a teacher
-   * hands over is the one a reviewer can read. */
+  /* the csv comes off the server, which is the side that holds the events table */
   const exportCsv = async () => {
     if (!active) return
     setBusy(true)
@@ -91,10 +80,7 @@ export default function TeacherScene() {
         body: JSON.stringify({ op: 'export', classId: active.classId, teacherKey: active.teacherKey }),
       })
       if (r.status === 503) { setOffline(true); return }
-      /* A REJECTED KEY IS NOT AN OFFLINE SERVER. Only 503 means offline; a 403
-       * used to parse to { error: 'bad_key' }, throw on the spread below, and land
-       * in the catch as "server not configured", so a teacher with a stale key was
-       * told to wait for something that was already working. */
+      /* a rejected key is not an offline server: only a 503 means offline */
       if (!r.ok) { setExported(`the server refused that (${r.status}). Check the class key.`); return }
       const d = await r.json() as { columns: string[]; rows: (string | number)[][]; events: number }
       const csv = [d.columns, ...d.rows]

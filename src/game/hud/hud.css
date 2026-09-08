@@ -1,74 +1,23 @@
-/* The diegetic HUD + Handbook + pause (GAME-DESIGN §11.1, §8.5, §4.8).
-   Law: NOTHING floats but the compass, the Handbook spine, unspent season tokens, and the
-   context prompt. No GPA bar, no XP bar — numbers live inside the Handbook's paper.
-
-   Materials come from ui/tokens.css. Sizes are container-query units TIMES the text
-   setting, because a panel that reflows with its own width and ignores S/M/L was
-   §80.5's I6 finding: the setting reached the dialogue box and nothing else. */
+/* the styles for the corner plaques, the Handbook panel and the pause sheet */
 
 @import '../ui/tokens.css';
 
-/* ---- THE CORNER, WHICH IS THREE HANGING SIGNS -------------------------------
- *
- * Was: a 46px `linear-gradient` square with an operating-system compass in it,
- * and a second one with an operating-system book. §40.6 allows exactly four
- * things to float and these are three of them, so they are the most-looked-at
- * chrome in the game and they were the least drawn.
- *
- * `plaque-small.png` is 2.16:1 and these are 2.14:1, so the carving is drawn at
- * almost exactly the shape it was painted at. It is a SHAPE and not a
- * nine-slice: the brief's do-not list names nine-slicing a small button as the
- * plank lesson of 6851a68, and the arithmetic is the same here.
- */
+/* the top-left corner, which is a column of three hanging signs */
 .hud-stack {
   position: absolute; top: max(2.4vh, 14px); left: max(2vw, 14px);
   display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
   z-index: 50;
 }
-/* AND IT STEPS OUT OF THE WAY OF A PANEL. A panel's veil is translucent on
-   purpose so the world stays present behind it, and the three plaques showed
-   through it sliced by the panel's own edge ("Handboo", "Year sh", "Cl" in
-   `state/frame/`). `a11y.ts` counts open panels onto the root; while one is
-   up the corner is inert anyway, so hiding it costs nothing a student could
-   press. `visibility` rather than `display` so nothing reflows on the way
-   back. */
+/* the corner hides itself while any panel is open */
 html[data-panels]:not([data-panels='0']) .hud-stack { visibility: hidden; }
-/* ---- ONE SHAPE, THREE TIMES ----------------------------------------------
- *
- * BRIEF-PLAYTHROUGH-1 law 2 asks for the three "aligned as one stack", and they
- * were not: photographed at `ui/r4-game/02-hub-walking.png` the corner held
- * three DIFFERENT internal layouts. Chart and Handbook centred a mark-plus-word
- * pair, so the word started at a different x on each because the words are
- * different lengths; the Year sheet stacked its pips ABOVE its word in a column.
- * Three signs, three arrangements, and the reason his eye read the corner as
- * uncentred rather than as a set.
- *
- * A stack is a stack when the same thing is in the same place on every row. The
- * mark sits in a fixed 26 pixel column at the left and the word starts at the
- * same x on all three, so the eye runs straight down the words and the marks
- * make their own column beside them. */
+/* one sign shape shared by all three rows, mark in a fixed column then the word */
 .hud-plaque {
   display: flex; align-items: center; justify-content: flex-start; gap: 10px;
   box-sizing: border-box;
-  /* WIDE ENOUGH FOR THE LONGEST WORD IT CARRIES. "Handbook" plus its mark and
-     the gutter measures 113, and at 150 that left 110 of field, so the one sign
-     with the longest label was the one that overflowed. The art is drawn at
-     2.16 to 1 and this is 2.34, which is a six percent stretch on a carved plate
-     and does not read. */
-  /* AND IT IS 180x83, WHICH IS THE ART'S OWN RATIO. `plaque-small.png` is drawn
-     at 2.16 to 1; 164x70 was 2.34, an eight percent stretch, and once the three
-     signs shared one grid the field left for the word was 88 pixels and both
-     "Handbook" and "Year sheet" ran onto the rope inlay. 180x83 is 2.17, so the
-     plate is stretched by half a percent instead of eight, and the word gets 104.
-     Bigger and less distorted at once, which is available exactly because the
-     question mark left this stack for the bottom-right corner (law 3). */
+  /* wide enough for the longest word a sign carries */
+  /* 180x83 is the plaque art's own ratio, so the plate is not stretched */
   width: 180px; height: 83px;
-  /* THE PADDING IS THE ROPE, MEASURED RATHER THAN GUESSED. `plaque-small.png`
-     carries a carved frame and a rope inlay around a field, and at fourteen
-     pixels the contents were sitting ON that frame rather than inside it: Ash,
-     2026-09-02, "the 3 left clips out of the button panel". Probed at 1366x768,
-     the token row ran to x=170 inside a plaque whose box ends at 177, so the
-     word was seven pixels from the outer edge and well past the inlay. */
+  /* the gutter that keeps the contents inside the carved frame and its rope inlay */
   padding: 0 20px 4px;
   border: 0;
   background: var(--kit-art-plaque) center / 100% 100% no-repeat;
@@ -103,18 +52,7 @@ html[data-panels]:not([data-panels='0']) .hud-stack { visibility: hidden; }
    reload mid-run plays none of them. */
 .hud-arriving { animation: hud-hang 620ms var(--kit-ease-pop) both; transform-origin: 24% -6px; }
 
-/* ---- A DOOR THE FILM HAS NOT HANDED OVER YET ----------------------------
- *
- * BRIEF-INTRO-FILM section 4: *"the corner appears one plaque at a time with
- * one line each said by the principal"*. `hud/corner-bus.ts` decides which; this
- * is the whole of the picture.
- *
- * VISIBILITY, NEVER DISPLAY. The three plaques hang under each other, so
- * removing one from the flow would slide the ones below it up the screen as the
- * principal named them, and the corner moving while a student is being told what
- * is in it is the exact confusion BRIEF-SELF-EVIDENT law 7 names. Each door
- * keeps its place in the dark and swings in on its hook (`hud-arriving`) on the
- * line that hands it over. */
+/* a plaque the game has not handed over yet keeps its place but stays unseen */
 .hud-plaque-waiting { visibility: hidden; pointer-events: none; }
 @keyframes hud-hang {
   0% { transform: translateY(-26px) rotate(-9deg); opacity: 0; }
@@ -125,22 +63,8 @@ html[data-panels]:not([data-panels='0']) .hud-stack { visibility: hidden; }
 }
 html[data-rm='1'] .hud-arriving { animation-duration: 1ms; }
 
-/* THE SEASONS SIT ABOVE THEIR COUNT, NOT BESIDE IT.
- *
- * Three pips at 24 plus the words "3 left" is about 135 pixels of content in a
- * sign whose field is 110 wide, and there is no honest way to fit that on one
- * line: shrinking the pips to make room would take the drawn seasonal marks down
- * to a size where a maple leaf and a snowflake are the same smudge, which is the
- * whole thing the `pip` sheet was worn to fix.
- *
- * A sign can have two lines. The title's plank already does. Stacked, the widest
- * thing in here is the pip row at 80, which clears the field with room, and the
- * count reads under the marks it is counting. */
-/* THE PIPS ARE THIS ROW'S MARK, so they sit in the mark column with the compass
-   and the book rather than in a second row of their own. Three of them at 26
-   across is the same footprint one mark has, which is what lets the three signs
-   share one grid. §40.4's law is untouched: the pips are still the readout and
-   there is still no number anywhere near them. */
+/* the season pips are the year sheet row's own mark */
+/* they sit in the same 26 pixel mark column the compass and the book use */
 .hud-tokenbtn { flex-direction: row; gap: 10px; padding-bottom: 4px; }
 .hud-tokens { display: flex; gap: 2px; flex: none; width: 26px; }
 .hud-token {
@@ -155,46 +79,7 @@ html[data-rm='1'] .hud-arriving { animation-duration: 1ms; }
 }
 .hud-tokenbtn:hover .hud-token { transform: translateY(-1px); }
 
-/* ---- THE HANDBOOK BINDER, WHICH IS THE GAME'S INVENTORY ---------------------
- *
- * §40.6's law is that there is no separate inventory and no quest log, so facts,
- * badges and the whole record of a run live in this one panel. §40.17 calls it
- * "the deployment-critical panel": it is what a lost student opens when the
- * teacher is across a full advisory room, which makes its legibility worth more
- * than its completeness.
- *
- * THREE MEASURED FAULTS, AND ALL THREE WERE LAYOUT. Photographed at
- * `build-shots/ui/before/09-handbook.png` and `12-chart.png`.
- *
- * 1. THE TAB ROW WRAPPED ONTO TWO LINES at every window this game is played at,
- *    because `.hb-tabs` was `flex-wrap: wrap` and carried six controls. It is
- *    `kit-tabrow` from the control kit now, which never wraps and scrolls
- *    sideways instead, and the Close moved out of the tablist entirely, where it
- *    never belonged: a button with no `role="tab"` inside `role="tablist"` is a
- *    row a screen reader counts wrong.
- *
- * 2. THE PAGE WAS INSET TWICE, and this is the fault under both the enormous
- *    dead space and the clipped chart. `.hb-tabs` carried `margin: 15cqw 17.5cqw
- *    2.2cqw 17cqw` and `.hb-page` carried `margin: 0 17.5cqw 15.5cqw 17cqw`.
- *    Those numbers were measured for a background STRETCHED to 100% by 100%,
- *    where the frame's carving is part of the picture and the paper zone has to
- *    be found by hand. Since 2026-08-31 the frame is a nine-slice, so
- *    `border-width` IS the inset and it is in real pixels. On a 1080 wide binder
- *    the old margins took another 184 pixels off each side and 167 off the
- *    bottom, which is a 570 pixel column of content inside a 941 pixel sheet,
- *    and a chart page with a third of the paper below it empty.
- *
- * 3. THE CONTENT WAS A TABLE OF CONTENTS, not a collection: one dashed row per
- *    thing, pinned to the top left, on a sheet the size of a book. The pages are
- *    a grid of cards now, so a shelf of facts reads as a shelf and a board of
- *    cords reads as a board.
- *
- * SIZES ARE CONTAINER UNITS TIMES THE TEXT SETTING, which is the kit's law: a
- * panel that reflows with its own width and ignores S/M/L was §80.5's I6 finding.
- * GUTTERS ARE PIXELS, because a percentage padding resolves against the
- * CONTAINING BLOCK, which for a panel inside a viewport-pinned veil is the
- * viewport, and that is the bug this file already fixed once for `.hb-book`.
- */
+/* the Handbook binder, the one panel holding facts, badges and the record of a run */
 .hb-veil {
   position: absolute; inset: 0; z-index: 75;
   background: var(--kit-veil);
@@ -212,15 +97,7 @@ html[data-rm='1'] .hud-arriving { animation-duration: 1ms; }
   container-type: inline-size;
   animation: hb-in 260ms var(--kit-ease-pop) both;
 }
-/* A PANEL ARRIVES, IT DOES NOT FADE UP. This carried `opacity: 0` on its first
-   frame, and the fresh-eyes round caught every proof screenshot mid-entrance: a
-   paper panel at a third of its opacity with the painting, the world's own
-   labels and the player marker all legible straight through it. The art behind
-   these panels is fully opaque (alpha 255 across panel-square.png), so the only
-   thing that was ever see-through was the entrance itself, and §11 asked for a
-   panel that arrives rather than one that dissolves in. Shared by the Handbook,
-   the pause sheet, the planner, the yearbook, the graduation card, the beat
-   stage and the year card, which is why one keyframe answers all seven. */
+/* the entrance every panel in the game arrives on: it travels in, it does not fade */
 @keyframes hb-in { from { transform: translateY(14px) scale(.97); } to { transform: none; } }
 /* the binder still arrives under reduced motion, it just does not travel */
 html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1ms; }
@@ -248,10 +125,7 @@ html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1m
   text-shadow: 0 1px 0 var(--kit-paper-sheen-firm);
   line-height: 1.1;
 }
-/* THE ONE NUMBER IN THE GAME, IN THE ONE PLACE IT IS ALLOWED. §8.1 forbids a
-   floating GPA so that it lives in this binder, and §40.1's law is that a
-   control appears when the game has granted the thing it is about: a student who
-   has not sat a class has no GPA and this line does not mention one. */
+/* the line under the title saying what this run is, and the only place a GPA shows */
 .hb-run {
   margin: 2px 0 0;
   font-family: var(--kit-face-body);
@@ -271,18 +145,9 @@ html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1m
 
 /* ---- the page ---- */
 .hb-page {
-  /* `scroll` AND NOT `auto`. An overlay scrollbar is drawn only while the
-     pointer is moving, so on a still screen the only sign that the page
-     continues was a card sliced in half by the book's bottom rail. A track that
-     is always there is the cue, and it costs a fixed gutter rather than a
-     reflow every time a tab's content crosses the fold. */
+  /* an always-drawn scrollbar, so a page that continues says so on a still screen */
   flex: 1; min-height: 0; overflow-y: scroll;
-  /* AND THE PAGE FADES AT THE FOLD, because a scrollbar is not a cue this
-     deployment can rely on: ChromeOS draws OVERLAY scrollbars, which appear only
-     while the pointer is moving, so on a still screen the only sign the page
-     continued was a card sliced in half by the book's bottom rail. A mask is not
-     an element, so it costs no layout and cannot be scrolled away, and it says
-     "more" in the one language Ash's non-reader law allows: a picture. */
+  /* and the page fades out at the bottom edge as a second cue that there is more */
   -webkit-mask-image: linear-gradient(to bottom, var(--kit-mask-solid) calc(100% - 22px), transparent);
   mask-image: linear-gradient(to bottom, var(--kit-mask-solid) calc(100% - 22px), transparent);
   padding: 16px 18px 18px;
@@ -297,18 +162,7 @@ html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1m
 }
 @keyframes hb-turn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 html[data-rm='1'] .hb-page { animation-duration: 1ms; }
-/* THE SCROLL IS VISIBLE AND THE GUTTER IS ALWAYS THERE.
- *
- * The art-direction pass of 2026-09-01 opened the Islands page and found
- * "200 Flex" and "the Algorithmic Thinking Club" cut in half by the book's
- * bottom rail "with no scrollbar, fade or any cue that content continues". The
- * page was already `overflow-y: auto`, so nothing was lost and NOTHING SAID SO:
- * a browser hides an overlay scrollbar until the pointer moves, and Ash's
- * non-reader law is about exactly this student, the one who will not go looking.
- *
- * `scrollbar-gutter: stable` is the other half: without it the page reflows by
- * eight pixels the moment a tab's content grows past the fold, so every column
- * on the Handbook shifts when you change page. */
+/* the scrollbar is drawn and its gutter is always reserved, so pages never reflow */
 .hb-page { scrollbar-gutter: stable; }
 .hb-page::-webkit-scrollbar { width: 10px; }
 .hb-page::-webkit-scrollbar-track { background: var(--kit-paper-lo); border-radius: var(--kit-r-soft); }
@@ -334,11 +188,7 @@ html[data-rm='1'] .hb-page { animation-duration: 1ms; }
    this page and must keep reading the same ink as everything around it. */
 .hb-dim { color: var(--kit-ink-dim); }
 
-/* ---- A PAGE IS A COLLECTION, NOT A LIST ------------------------------------
- *
- * `auto-fill` rather than a fixed column count, because the binder is 1080 wide
- * on a laptop and 88vw of a small window on a Chromebook, and a two-column page
- * that becomes two half-width columns is worse than one that becomes one. */
+/* a Handbook page is a grid of cards that fits as many columns as the width allows */
 .hb-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -348,13 +198,7 @@ html[data-rm='1'] .hb-page { animation-duration: 1ms; }
 .hb-grid-wide { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
 .hb-grid-cords { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); }
 
-/* THE CARD IS PAPER ON PAPER, and it is the one thing on these pages that is not
-   drawn art. The kit publishes no small written-on plate that nine-slices: of
-   the eleven stretchable grounds, `panel` and `band` paint their middle with
-   `border-image ... fill`, so a card wearing one would be a second carved frame
-   inside the binder's own. It is built out of the token layer instead, the way
-   the chart sheet is and for the same measured reason, and the gap is reported
-   rather than filled with something that fits badly. */
+/* a card is paper on paper, built from tokens rather than from drawn art */
 .hb-card {
   display: flex; flex-direction: column; gap: 5px;
   box-sizing: border-box;
@@ -454,10 +298,7 @@ html[data-rm='1'] .hb-page { animation-duration: 1ms; }
 
 /* ---- the badges page ---- */
 .hb-badge { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; }
-/* THE PLATE IS THE STATE, which is what `chip` was drawn for: plate, plate_lit
-   and plate_spent are three pictures somebody made, and the six emoji they
-   replace were told apart by `filter: saturate(.4) opacity(.5)`, which is
-   lightness and saturation alone and is exactly what §11.3 forbids. */
+/* the drawn plate behind a badge, which is what says whether it is earned */
 .hb-badge .hb-badge-plate { width: 58px; height: 58px; }
 .hb-badge-words { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 /* and the word, because the plate alone is still one channel */
@@ -475,21 +316,11 @@ html[data-rm='1'] .hb-page { animation-duration: 1ms; }
 .hb-badge[data-state='short'] .kit-chip:not(.kit-chip-drawn) { background: var(--kit-paper-chip-lo); }
 .hb-badge[data-state='earned'] .hb-badge-word { color: var(--kit-sea-earned); }
 .hb-badge[data-state='earned'] { border-left-width: 6px; border-left-color: var(--kit-gold-edge); }
-/* OUT OF REACH IS NOT LOCKED AND MUST NOT LOOK LOCKED. §40.20: the game states a
-   goal of twenty-five facts over a pool of nineteen, so Bookworm cannot be
-   finished. It carries no padlock, because a padlock says "later"; it carries a
-   struck edge and a sentence saying how many facts exist to collect today. */
+/* a badge that cannot be finished today wears a dashed edge rather than a padlock */
 .hb-badge[data-state='short'] { border-style: dashed; }
 .hb-badgebar { margin-top: 4px; }
 
-/* ---- THE PLAIN ARM (§16) --------------------------------------------------
- *
- * The same binder as a document somebody typed: no crest, no carved frame, no
- * paper gradient, and the headings become the real `h2`/`h3` hierarchy
- * `tokens.css` sets for this arm, which is why every heading on these pages is a
- * real heading element rather than a styled div. Nothing here names a picture,
- * a pixel rendering or a game face; `tokens.test.ts` reads this file for all
- * three. */
+/* the plain arm: the same binder drawn as a typed document with no game art */
 html[data-skin='plain'] .hb-crest { display: none; }
 html[data-skin='plain'] .hb-head { padding: 16px 20px 8px; }
 html[data-skin='plain'] .hb-title { text-shadow: none; font-weight: 700; }
@@ -516,11 +347,7 @@ html[data-skin='plain'] .hb-badge-word { letter-spacing: 0; font-weight: 700; }
   width: min(440px, 76vw);
   /* the frame is a nine-slice on .kit-surface-panel now, not a stretched picture */
   image-rendering: var(--kit-pixel);
-  /* NO FIXED ASPECT RATIO ANY MORE. It was 1:1, and the sheet's own list of
-     buttons is derived from the run: five for a student mid-year, seven for a
-     graduate. A square panel around a list that changes length is a square
-     panel with a hole in it at one length and a squeeze at the other. It is a
-     column that is as tall as what is in it. */
+  /* no fixed shape: the sheet is as tall as the list of buttons the run gives it */
   display: flex; flex-direction: column; align-items: stretch; justify-content: center;
   gap: 10px;
   padding: 18px 22px 22px;   /* a gutter INSIDE the frame; the border-width is the rest */
@@ -540,24 +367,7 @@ html[data-skin='plain'] .hb-badge-word { letter-spacing: 0; font-weight: 700; }
 .pz-note { font-family: var(--kit-face-body); --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-dim); text-align: center; margin-top: 4px; }
 .hud-blur { filter: blur(2px) brightness(.92); }
 
-/* THE SPENT YEAR, AS A DRAWN SOCKET RATHER THAN A FADED COPY.
- *
- * This was `style={{ opacity: .35 }}` written inline on the element, which is the
- * one place a skin cannot reach and the one distinction §11.3 forbids outright:
- * lightness alone, on a school Chromebook panel, which is the hardware that
- * crushes lightness hardest. `pip`'s `ghost` face is an empty socket somebody
- * drew. When it is not available the opacity is the fallback, in the stylesheet
- * where a skin can see it. */
-/* AND THE FALLBACK IS NOT THE THING THE COMMENT ABOVE FORBIDS. Four lines under
-   a paragraph explaining that lightness alone is the one distinction §11.3 rules
-   out, the fallback was lightness alone: `faceStyle('pip','ghost')` answers
-   undefined whenever the kit has not landed, so on a filtered Chromebook the
-   three pips on the corner plaque a student consults most were three identical
-   gold coins at three identical opacities. `fixed-nokit/02-hub-walking.png`.
-
-   A spent season is an EMPTY SOCKET, which is what the drawn ghost face is a
-   picture of: the coin is gone and its seat is still there. Present or absent is
-   the strongest distinction a bad panel cannot take away. */
+/* a spent season pip is drawn as an empty socket rather than a faded coin */
 .hud-token-spent {
   background: none;
   border-color: var(--kit-wood-shadow);
@@ -583,25 +393,7 @@ html[data-skin='plain'] .hb-badge-word { letter-spacing: 0; font-weight: 700; }
    student has ever scrolled does. */
 html[data-skin='plain'] .hb-page { -webkit-mask-image: none; mask-image: none; }
 
-/* ---- THE CORNER IN THE CONTROL ARM ----------------------------------------
- *
- * FOUND BY LOOKING, 2026-09-02, at `build-shots/ui/fixed-plain/02-hub-walking.png`:
- * three white words floating on the ocean with nothing under them to press. The
- * corner was rebuilt into three drawn plaques this round, every one of them a
- * `--kit-art-*` background, and the plain block nulls that art, so the study's
- * control arm lost its buttons outright. Nothing above this line said so,
- * because the plain block in this file only ever reached the Handbook.
- *
- * IT IS THE ONE FAILURE ASH'S PLAIN-ARM RULING NAMES BY HAND. Raw OS widgets
- * were rejected because unstyled defaults look BROKEN, and looking broken is
- * itself a confound in a study measuring presentation. A button with no button
- * under it is further down that road than a default one, and this is the corner
- * a lost student opens the Handbook from.
- *
- * SO THE CORNER IS A WORKSHEET'S OWN BUTTON: a white field, a real edge, dark
- * ink, no carving and no rope. It still sits over the painted world, because the
- * world is the GAME and the arm is about how the game speaks, not about taking
- * the game away. */
+/* in the plain arm the corner signs become plain white buttons with a real edge */
 html[data-skin='plain'] .hud-plaque {
   width: auto;
   min-width: 132px;
@@ -628,10 +420,7 @@ html[data-skin='plain'] .hud-plaque-word {
 html[data-skin='plain'] .hud-crest,
 html[data-skin='plain'] .hud-plaque-mark { display: none; }
 
-/* THE PIPS KEEP THE COUNT AND LOSE THE GOLD. How many season tokens are left is
-   information a student acts on, so it stays; a gold coin with a highlight on it
-   is jewelry, so that goes. A spent one is an empty ring rather than a faded
-   coin, which is the same reading without the shine. */
+/* the pips keep the count in the plain arm and lose the gold coin look */
 html[data-skin='plain'] .hud-tokenbtn {
   height: auto;
   min-height: 38px;
@@ -653,16 +442,5 @@ html[data-skin='plain'] .hud-token-spent {
    fade: the arrival is a game affordance and the document just has the control. */
 html[data-skin='plain'] .hud-arriving { animation: none; }
 
-/* ---- A PROGRESS BAR IS A RENDER, NOT A CRITERION -------------------------
- *
- * §16.4, in full: "the cords tab renders progress as a fraying thread, and a
- * progress bar over a criterion is game-ness sitting on a content surface. The
- * criterion text stays identical and the bar is a render the plain arm should
- * not get."
- *
- * It got it anyway: `.hb-cordbar` had exactly one rule in the tree, a margin, and
- * no plain form, so `fixed-plain/11-handbook-cords.png` shows an empty bordered
- * gauge under "Highest Honors / GPA 3.76-4.0" in a document that is otherwise a
- * worksheet. The words stay, identical in both arms, which is the half §16 cares
- * about; the drawn bar goes. */
+/* the plain arm keeps the cord criterion in words and drops the drawn progress bar */
 html[data-skin='plain'] .hb-cordbar { display: none; }

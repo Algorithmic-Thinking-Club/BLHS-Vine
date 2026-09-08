@@ -1,12 +1,4 @@
-// CAPTAIN MODE — Ash's god authority for testing (standing directive 2026-07-02, law §2.14).
-// Enable once with ?captain=<key> on any URL; it persists on the device. Grants: one-click
-// skip through ENTIRE cutscenes (required gates included, defaults applied), beat tools in
-// the settings sheet, and whatever future systems need a master key.
-//
-// The key ships via env config, never committed (law §2.14): dev builds accept 'thor';
-// production only honors VITE_CAPTAIN_KEY, so a deploy WITHOUT that env var has no captain
-// mode at all — students cannot stumble into it. Captain sessions log flagged dev:true and
-// never sync state (net.ts), so god-mode play can't contaminate the study.
+// captain mode: a testing key turned on with ?captain=<key>, which skips gates and never syncs
 
 const KEY = 'blhs_captain'
 

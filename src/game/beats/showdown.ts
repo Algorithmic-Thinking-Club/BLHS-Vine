@@ -1,39 +1,4 @@
-// THE SHOWDOWN CHASSIS: the turn-based frame, where knowledge is the ammunition.
-//
-// The stadium's last drive is the frame that argued for widening the palette in the
-// first place. It is not a choice, a quiz or a sort, and it is the whole reason
-// that island is a place a student stands in rather than a page they read. A debate
-// round, a robotics match and a DECA roleplay are the same frame with different
-// words on the buttons.
-//
-// NO CLOCK. NOT ANYWHERE IN THIS FILE.
-//
-// This is the sharpest content decision 80.7 produced and it is worth stating in
-// full rather than assuming: in the boss frame the item scores and the body does
-// not. Progress is a function of rounds remaining minus rounds correct AND NOTHING
-// ELSE. No timing window, no streak bonus, no reaction time, no elapsed anything.
-// A student who answers every round correctly and dawdles over each one drives the
-// length of the field, and a student who answers fast and wrong does not move.
-//
-// Two reasons, and the second is the load-bearing one:
-//
-//   1. The alternative confounds the study with reaction time on a machine whose
-//      input latency nobody has measured. The deployment target is a 4 GB school
-//      Chromebook and the measurement would have to be made on one.
-//   2. A member who widens their own timing window makes their island's grade
-//      easier in a way the transcript cannot see. So the window is not a member's
-//      to set, and the frame that would most obviously want one does not have one
-//      at all. There is nothing here to widen.
-//
-// The test in showdown.test.ts reads this file's own source and fails if `Date`,
-// `performance` or `setTimeout` ever appears in it, because a rule this easy to
-// break by accident deserves a tripwire and not a paragraph.
-//
-// RESUME IS A PROPERTY OF THE CHASSIS, not something a frame opts into. A drive is
-// the longest thing in the palette and therefore the one a bell lands inside, and
-// the frames most worth resuming are written by the people least likely to think
-// about it. So the whole of the per-round state is this one serialisable object:
-// hand it back and the drive continues where it stopped.
+// the showdown chassis: a turn-based drive where correct answers, and no clock, move the ball
 
 import type { ShowdownRound } from '../../vine/contract'
 import type { Response } from './palette'
@@ -92,11 +57,7 @@ export function showdownReduce(s: ShowdownState, a: ShowdownAction, rounds: Show
 
 /* ---- what the game arm draws ------------------------------------------------ */
 
-/** THE YARD LINE. `total - earned` over `total`, times the length of the field.
- *
- *  Read the signature: a state and a field length. There is no third argument and
- *  there is nowhere for one to go. That is the timing law expressed as an API
- *  rather than as a comment somebody has to obey. */
+/** the yard line: the rounds not yet earned, over the total, across the field */
 export const yardsRemaining = (s: ShowdownState, fieldYards = 80): number =>
   s.total === 0 ? 0 : Math.round(fieldYards * ((s.total - s.earned) / s.total))
 

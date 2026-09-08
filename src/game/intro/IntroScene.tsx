@@ -16,10 +16,7 @@ import { SEA_ARRIVAL, enterMap } from '../pmap/route'
 import { warmMap } from '../pmap/warm'
 import { setCinema } from '../stage/cinema'
 
-// The intro lives ON the beach — one scene, playable and stageable. A fresh player gets the
-// I-1/I-2 cutscene the moment the stage reports ready; a returning one just gets the cove.
-// The runtime ticks on the Pixi clock (stage.onTick), so cutscene time never drifts from
-// world time, and the overlay + the I-3 parchment session render over the live canvas.
+// the intro plays on the beach itself, with the cutscene runtime ticking on the Pixi clock
 
 export default function IntroScene() {
   const [rt, setRt] = useState<CutsceneRuntime | null>(null)
@@ -28,11 +25,7 @@ export default function IntroScene() {
   const nav = useNav()
   const navRef = useRef(nav)
   useEffect(() => { navRef.current = nav }, [nav])
-  // when the intro will play, the scene must NEVER flash the raw beach before the script's
-  // black takes over — this cover holds until the runtime's own fade owns the frame.
-  // ANY unfinished intro replays (not just beat intro:i1): a refresh mid-intro used to fall
-  // into free roam with no path to the ship — a permanent soft-lock. The replay is quick for
-  // a resumed student because the I-3 gate auto-resolves from the saved identity below.
+// an unfinished intro always replays, and this cover holds until the script's own fade starts
   const willPlayIntro = useRef(!loadSave()?.introDone)
   const [preCover, setPreCover] = useState(willPlayIntro.current)
 
@@ -52,45 +45,18 @@ export default function IntroScene() {
     if (!save?.introDone) {
       track('cutscene_start', { id: 'intro' })
       runtime.play(introI1I2, () => {
-        /* THE WHOLE BEACH ACT IS DONE (I-1..I-5) and the ship is in open water.
-         *
-         * THE MAP SWITCH (I-6): the BLHS Islands painting covers the load and the
-         * ONE OCEAN takes over. It used to be the tile island map, which the
-         * walkthrough's §3.0 ruled dead in August and which a student pressing
-         * Continue still landed on as late as yesterday: tile palms and a
-         * Principal Panther line, on a map nothing else in the game reads.
-         *
-         * §3.0 is Ash's ruling of 2026-08-28 and it is one sentence: one ocean is
-         * the world and every map is a painting placed on it. So the cover lifts
-         * on the ocean off the published hub, with Thor aboard, the camera out at
-         * sailing scale and the tiller his. `aboard` is the whole of the request;
-         * `route.ts` is where the address is spelled and `PmapScene`'s
-         * `arriveAboard` is where it is performed.
-         *
-         * introDone flips true here, so from now on Continue lands in the Maw,
-         * not on the beach. */
+        /* the beach act is over: the intro is marked done and the ship crosses to the hub */
         writeSave({ beat: 'sea:arrive', introDone: true })
         track('cutscene_complete', { id: 'intro-beach-act' })
         track('sail_started')
         /* the address goes down WITH the navigation and never without it, because
          * PmapScene reads its target off the url at mount (route.ts says why) */
         const go = navRef.current?.go
-        /* THE FRAME GOES UP BEFORE THE COVER DOES, so there is no frame of the
-         * corner showing between the transition lifting and the island saying
-         * `movie(True)`. Ash, watching it: "there can sometimes be a flash,
-         * where i can see the three buttons on the top right." The crossing is
-         * a watched stretch from the moment this button is pressed, and this is
-         * the one line in the game that knows that. */
+        /* the movie frame goes up before the cover lifts, so the corner never flashes */
         setCinema(true)
         if (go) enterMap(go, SEA_ARRIVAL, { kind: 'scene', image: '/art/ui/loading-islands.png', title: 'THE BLHS ISLANDS', holdMs: 2600 })
       })
-      /* AND THE HUB COMES DOWN WHILE HE IS STILL ON THE BEACH.
-       *
-       * BRIEF-ARRIVAL measured the crossing's cover at fourteen seconds of
-       * black, and nearly all of it is one bundle download that could have
-       * happened during the two minutes of the opening. This asks for it now;
-       * `warmMap` is quiet, sequential and cannot fail loudly, so the beach is
-       * unchanged whether it finishes, half finishes or never starts. */
+      /* the hub's bundle is fetched quietly while he is still on the beach */
       void warmMap(SEA_ARRIVAL.map)
       // hand the black frame from the pre-cover to the script's own fade, seamlessly
       window.setTimeout(() => setPreCover(false), 400)
@@ -143,13 +109,7 @@ export default function IntroScene() {
       )}
       {/* free roam carries the real HUD (§11.1) + pause; the gear stays for muscle memory */}
       {!inCutscene && <Hud onBlurWorld={setBlurred} />}
-      {/* AND THE QUESTION MARK, THROUGH THE CUTSCENE AS WELL. Ash, 2026-09-06:
-          "the help button should also show on the beach map cutscene part too."
-          The corner is the run's furniture and stands down for a cutscene; this
-          is the one control that answers "I do not know what is happening", and
-          the beach opening is the first two minutes of the game, which is where
-          that question gets asked. It is the same component the painted maps
-          mount, so there is one question mark in the game and not two. */}
+      {/* the help button stays through the cutscene, since that is when the question is asked */}
       <HelpButton />
       {!inCutscene && <GearButton onClick={() => setSettingsOpen(true)} />}
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}

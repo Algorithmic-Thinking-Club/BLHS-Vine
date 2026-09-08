@@ -1,23 +1,4 @@
-/* THE OBJECTIVE: what the player is supposed to do next, as an anchor name.
- *
- * The Maw is the year's state machine wearing a body. Four of the six beats in
- * GAME-DESIGN §7.5's forty-minute rhythm happen inside it, in a fixed order, and
- * the player is SENT to each one. So "what is reachable in the Maw" is really
- * "what state is the year in, and what is the one live thing in that state".
- *
- * yearStatus() already computed all of this and nothing ever read it as a
- * sequence. This turns it into a single name, and that name is what the guide
- * arrow points at, what the station highlights, and what `guide_to` resolves.
- *
- * ONE LIVE THING AT A TIME, on purpose. A home base with six glowing stations is
- * a menu. A home base with one glowing station and five you may choose to visit
- * is a place with a story running through it. The optional stations are not
- * disabled when they are not the objective, they are just quiet.
- *
- * This is also the most reusable thing in the project: it is exactly what a
- * grape needs for a quest step, so it is built once here and inherited rather
- * than reinvented per island.
- */
+/* the one thing the player is supposed to do next, named as an anchor on a map */
 import type { SaveGame } from '../save'
 import { shownName } from '../roster/placeholders'
 import { sessionOver, yearStatus } from './year'
@@ -29,22 +10,10 @@ export type Objective = {
   anchor: string
   /* the map that anchor lives on, so the arrow can say "not here, out there" */
   map: string
-  /* shown to the player ON THE OBJECTIVE'S OWN MAP. Literal, school words, a
-   * verb first (BRIEF-PLAYTHROUGH-1 law 1), and SHORT: BRIEF-MAW-RAIL cut every
-   * one of these down to the verb and its target, because this sentence hangs
-   * over Thor's head while the thing it names is already lit and pointed at, and
-   * a second clause explaining the first is the reading the rail exists to cut. `away` is the same step said from
-   * any other map, which today is always the hub and always begins with going
-   * into the mountain; `objectiveLine` picks. A consumer that does not know
-   * where the player is standing reads `say`. */
+  /* the step said on the objective's own map, and the same step said from any other map */
   say: string
   away: string
-  /* the year phase this belongs to, for logging and for the debug overlay.
-   *
-   * `rising` is the THIRD VOYAGE STATE §80.6 asks for by name:
-   * committed-but-unsailable. O5 exists because the arrow pointed at an island
-   * that will never rise and never resolved on its own, and a state that has no
-   * name is a state nothing can render differently. */
+  /* the year phase this belongs to, for logging and for the debug overlay */
   phase: 'founding' | 'vignette' | 'plan' | 'core' | 'voyage' | 'rising' | 'yearbook' | 'done'
 }
 
@@ -56,83 +25,26 @@ export const HUB_MAP = 'hub'
  * string; save.ts already uses this `thing:detail` shape for `vignette:y1`. */
 export const FOUNDING_FLAG = 'maw:founding'
 
-/* THE LINE FOR WHERE HE IS STANDING. STATE-OF-THE-GAME confusing 6: "Go into
- * the mountain and find the principal" was on the hub while the principal was
- * talking to him at the dock, and on the Maw's arrival card while he was
- * already inside the mountain with the principal walking over. One sentence
- * cannot be right on both sides of a door, so there are two and the map picks. */
+/* picks the sentence for where the player is standing, on the objective's map or off it */
 export function objectiveLine(o: Objective | null, mapId: string | null | undefined): string {
   if (!o) return ''
-  /* AND NOT KNOWING WHERE HE IS COUNTS AS BEING SOMEWHERE ELSE.
-   *
-   * `sceneDrawn()` is null before a scene has drawn and on every scene that is
-   * not a painted map, and the old reading gave all of those the sentence for
-   * STANDING IN THE MAW. Measured on the cold run, 2026-09-07: the very first
-   * thing the panel ever says to a freshman is "Talk to Principal Panther." for
-   * 1.7 seconds while he is out on the water in a boat, having never met one.
-   * It is the same defect on the beach, on the title, and for a frame at every
-   * door in the game.
-   *
-   * The two sentences are "here is the thing" and "here is how to get to the
-   * thing", and the second one is the honest answer to a question nobody can
-   * answer yet: it names the mountain, which is true from everywhere including
-   * inside it, and it self-corrects on the first frame the scene reports. */
+  /* not knowing which map he is on counts as being somewhere else */
   return mapId === o.map ? o.say : o.away
 }
 
-/* THE ORDER, and it is the order §7.5 prints.
- *
- * Read top to bottom, first match wins. Adding a beat means adding a clause
- * here, which is the point: the sequence lives in one readable place instead of
- * being spread across whichever component happened to need it.
- */
+/* the year's beats in order, read top to bottom with the first match winning */
 export function nextObjective(s: SaveGame | null): Objective | null {
   if (!s || !s.introDone) return null
   if (s.graduated) return null
 
-  /* ---- THE THIRTY MINUTES ARE OVER, AND NOTHING WAKES UP -----------------
-   *
-   * BRIEF-MAW-RAIL-3 C, Ash after playing rail-2: *"After 'Year two, next time'
-   * nothing wakes up. No 'Go to the table and pick your year', no lit table, no
-   * year-two planner, no year-two Advisory... the objective panel reads 'Explore
-   * the Maw. Year two, next time.'"*
-   *
-   * FIRST, ABOVE EVERY YEAR CLAUSE, because this is a statement about the RUN
-   * and the clauses below are statements about a year. `year.ts` stops advancing
-   * the year at the same flag, so nothing under here would fire anyway; being
-   * first is what makes that a belt and not a coincidence.
-   *
-   * THE ANCHOR IS NOTHING ON PURPOSE. Every other objective names a station and
-   * the world lights it; this one names none, so no ring comes on, no chevron
-   * hangs anywhere and no plaque offers a press. The room is his and the panel
-   * says so. `isObjective` compares by name and an anchor is never called '', so
-   * nothing on any map can match it. */
+  /* the session is over, so nothing is lit and the room is the player's to look around */
   if (sessionOver(s)) {
-    /* IT SAYS THE YEAR IS OVER, because by the time this clause is true it is.
-     *
-     * BRIEF-MAW-NOW item 3, Ash 2026-09-07 after playing rail-6: the closing
-     * film ends with the student put back out on the hub dock and *"the bar says
-     * the year is over"*. It said `Explore. Talk to anyone. Open the Guide.`,
-     * which is the HANDOVER's sentence: the words the principal hands the room
-     * over with, forty minutes and a whole year earlier. A panel that reads the
-     * same before the year and after it is a panel that never noticed the year.
-     *
-     * NO "YEAR TWO" WORDING, which is BRIEF-INTRO-FILM section 4 and still
-     * holds: nothing here promises a next time, because nobody has designed one.
-     * It states what happened and leaves the room open.
-     *
-     * SAID IN ONE PLACE NOW. The handover's sentence is still pinned by the
-     * island (`islands/panther-maw/founding.py`), and the island is careful not
-     * to pin it once the year is closed, so the two cannot contradict each other
-     * on the same frame. */
+    /* the line for a year that has finished, which says so and leaves the room open */
     const line = 'Year one is done. Look around.'
     return { anchor: '', map: MAW_MAP, phase: 'done', say: line, away: line }
   }
 
-  /* the founding event: the first time in, before anything else can be true.
-   * It is not a year beat, it happens once per run. Inside the mountain he
-   * walks over on his own (islands/panther-maw/founding.py), so the line there
-   * names the person and not the door. */
+  /* the founding event, which happens once per run before any year beat */
   if (!s.flags.includes(FOUNDING_FLAG)) {
     return {
       anchor: 'principal_desk', map: MAW_MAP, phase: 'founding',
@@ -170,61 +82,21 @@ export function nextObjective(s: SaveGame | null): Objective | null {
     }
   }
 
-  /* out of the Maw and onto the water. The anchor is the way OUT, because the
-   * thing to do is somewhere this map cannot reach, and an arrow that points at
-   * the exit is more honest than one that points at nothing.
-   *
-   * A VOYAGE THAT CANNOT BE SAILED DOES NOT OUTRANK THE YEARBOOK, and it used to.
-   * This clause read `y.voyages.filter((v) => !v.done)` with no test of whether
-   * the programme could run, so the moment a token landed on anything unplayable
-   * the arrow pointed at the exit for the rest of the year and the `yearbook`
-   * phase below became unreachable. Every programme on the roster is unplayable
-   * today, so that was every stamped year: the year model said the yearbook was
-   * ready (`year.ts` deliberately does not wait on a rising island) and the
-   * sequencer disagreed with it, forever, on the ordinary path. */
+  /* out to the water, pointing at the exit, and only for a voyage that can be sailed */
   const sailable = y.voyages.filter((v) => !v.done && v.playable)
   if (sailable.length) {
     const next = sailable[0]
     return {
       anchor: 'maw_entrance', map: MAW_MAP, phase: 'voyage',
-      /* THE NAME IS THE ONE THE STUDENT SAW ON THE CARD. A programme with
-       * no island behind it is an Example on the schedule and must be an
-       * Example here too, or the year sends him to sail to Football.
-       * Unreachable today, because a voyage is only offered for a playable
-       * programme, and correct the day one is not. */
+      /* the programme name the student saw on the card, not the roster's raw one */
       say: `Go out to the harbor and sail to ${shownName(next.programmeId, next.name)}.`,
       away: `Get in the boat and sail to ${shownName(next.programmeId, next.name)}.`,
     }
   }
 
-  /* THE YEAR CAN CLOSE, AND THE COUNSELOR IS WHO CLOSES IT. BRIEF-YEAR-ONE
-   * beat 8: she drapes the first cord and turns the page. The Maw's own python
-   * opens the yearbook when she is pressed with Advisory done and the page not
-   * yet turned (islands/panther-maw/island.py), so she is the lit thing. This
-   * pointed at the chart table and said "Press Open the yearbook", which is a
-   * button inside a panel the student had not opened (STATE-OF-THE-GAME
-   * confusing 9). */
+  /* the year has nothing left owing and the yearbook page has not been turned yet */
   if (y.readyForYearbook && !y.yearbookSeen) {
-    /* AND THE CLOSING FILM IS WHAT HAPPENS HERE. BRIEF-INTRO-FILM: the ending is
-     * its own film, it starts when the year has nothing left owing, and the
-     * PRINCIPAL is the one who meets him. So the anchor is his desk rather than
-     * her post: the film runs itself the moment the room loads with the year in
-     * this phase, and the desk is the thing to press for a student who walked
-     * out of the middle of it.
-     *
-     * AND THE AWAY LINE SENDS HIM BACK IN THROUGH THE TUNNEL, which is the whole
-     * of what the ending waits on now. Ash ruled on 2026-09-07, after the
-     * introduction handed the game over and the ending started three seconds
-     * later: the closing plays on ENTERING the Maw with the year done, and never
-     * in the same sitting as the opening. So the one sentence a student reads
-     * once he is out of the mountain has to name the way back in.
-     *
-     * IT SAID "Sail home" AND THE ONLY MAP IT IS EVER READ ON IS THE HUB, which
-     * is the same island the mountain is in: nobody sails anywhere, he walks up
-     * the quay. The day an island exists there is a second away map and this
-     * wants "Sail home." in front of it, which needs a per-map away line rather
-     * than one string, and that is a change to make when there is a map to make
-     * it for. */
+    /* the closing plays at the principal's desk, so the away line names the way back in */
     return {
       anchor: 'principal_desk', map: MAW_MAP, phase: 'yearbook',
       say: 'The principal is waiting.',
@@ -232,25 +104,7 @@ export function nextObjective(s: SaveGame | null): Objective | null {
     }
   }
 
-  /* THE THIRD VOYAGE STATE HAS NO CLAUSE ANY MORE, and the reason is worth
-   * writing down rather than leaving as a gap.
-   *
-   * `rising` was reached when the year could not close: committed to a season
-   * that will never sail, with a class still owed on the sheet. Since
-   * BRIEF-MAW-RAIL the classes stopped gating the yearbook (`year.ts`), so a
-   * stamped year with Advisory sat is ALWAYS closable, the clause above always
-   * returns first, and everything under it became unreachable. Ten lines that
-   * cannot run are worse than none: they read as a state the game still has.
-   *
-   * What that state was honest about is not lost. A season nobody could sail and
-   * a class nobody sat are both named in the yearbook's own nudge line
-   * (`nudgeLine`), which is where a student reads what became of the year, and
-   * both are on the sheet under My Year the whole time. The `rising` phase stays
-   * in the type: it is the walkthrough's name for the state and the day an
-   * island can rise mid-year it is the clause that comes back.
-   *
-   * The line below is the fallback the compiler needs and nothing in a year
-   * currently reaches. */
+  /* the fallback when nothing above matched, which no ordinary year reaches */
   return {
     anchor: 'chart_table', map: MAW_MAP, phase: 'done',
     say: 'Nothing left this year. Look around.',

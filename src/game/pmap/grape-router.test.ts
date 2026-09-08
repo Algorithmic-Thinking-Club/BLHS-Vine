@@ -1,10 +1,4 @@
-/* WHO OWNS AN ANCHOR, AND THE ORDER, WHICH IS THE WHOLE POINT.
- *
- * §80.8 asks for the router order to be "written down rather than discovered",
- * because six stations in one hardcoded array is a shape that works exactly once
- * and the Maw stops being a special case the moment there is a second author.
- * A comment saying so is not written down. This is.
- */
+/* who owns an anchor, and in what order the router asks */
 import { describe, it, expect } from 'vitest'
 import { isReady, labelFor, ownerOf } from './grape-router'
 import { STATIONS } from '../maw/stations'

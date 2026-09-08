@@ -25,14 +25,7 @@ export function WorldHud() {
   useEffect(() => { warmPortraits() }, [])
   const s = loadSave()
 
-  /* THE CONTROL LOCK. Hud has taken an onBlurWorld callback since July and
-   * nothing has ever passed it, so opening a panel over a walkable map left the
-   * character walking underneath it. The callback is turned into a world-bus
-   * hold, which is what the scenes read.
-   *
-   * A ref rather than state because the release must survive re-renders and must
-   * not be a dependency of anything: dropping it on a render would hand the
-   * controls back with the year sheet still open. */
+  /* the control lock: an open panel holds the world so the character stops walking */
   const release = useRef<null | (() => void)>(null)
   const blurWorld = (on: boolean) => {
     if (on) release.current ??= holdWorld('hud:panel')
@@ -43,22 +36,7 @@ export function WorldHud() {
   const inWorld = WORLD_SCENES.has(current)
   if (!inWorld) return null
 
-  /* THE BOX THE OPENING SPEAKS THROUGH CANNOT BE BEHIND A FLAG THE OPENING SETS.
-   *
-   * Everything below used to be behind `s?.introDone`, and that is circular in
-   * exactly one place: the opening. An island that composes the first two minutes
-   * of the game, which is the whole point of wave four's gate, runs BEFORE any
-   * run has said the intro is done, so `say` queued lines into a bus with nothing
-   * mounted to draw them. The island did not fail, nothing warned, and the scene
-   * simply waited forever for a click on a box that was never on screen. Two
-   * hours of a proof run went into finding that, and the symptom was a beautiful
-   * painting with nobody talking on it.
-   *
-   * The split is by what each piece is FOR. The dialogue, the cutscene chrome and
-   * the arrival card are how the world speaks, and the world can speak from its
-   * first frame. The Hud is the run's own furniture, the year sheet, the
-   * Handbook, the token count, and none of that means anything before there is a
-   * run, so it keeps the guard it always had. */
+  /* what mounts from the first frame, and what waits until there is a run */
   return (
     <>
       {s?.introDone && <Hud onBlurWorld={blurWorld} />}
@@ -73,24 +51,9 @@ export function WorldHud() {
           door swap tears the scene down and rebuilds it, and a card mounted inside
           the thing being rebuilt is a card that flashes. */}
       <PlaceCard />
-      {/* AND THE ONE SENTENCE THAT SAYS WHAT TO DO NEXT, at the top of the
-          screen, on every frame of every world scene, in a cutscene and out of
-          one. BRIEF-MAW-RAIL-3 A. It is outside the Hud's own gate for the
-          reason the dialogue box is: a student thirty seconds into an advisory
-          period has no run yet and is exactly the student who needs telling.
-
-          IT REPLACED TWO RENDERERS AND NEITHER IS COMING BACK. `Heading` said
-          this in the bottom-left corner of the tile scenes and `PmapScene` drew
-          it on a plaque over Thor's head, and both hid themselves whenever
-          anything else was speaking, which is when a lost student is most lost.
-          One panel, one place, and it does not go away. */}
+      {/* the one sentence saying what to do next, on every frame of every world scene */}
       <ObjectivePanel />
-      {/* THE QUESTION MARK (brief item 3b), OUTSIDE THE HUD'S GATE ON PURPOSE.
-          The Hud is mounted only once `introDone` is set, which is right for the
-          run's furniture and wrong for this: a student thirty seconds into an
-          advisory period has no run, no chart and no Handbook, and is exactly the
-          student a teacher answers with "press the question mark". It is the one
-          permitted floating element that is not state, and that is the reason. */}
+      {/* the question mark, outside the Hud's gate so a student with no run can still ask */}
       <HelpButton />
       {/* THE MOVIE FRAME (BRIEF-ARRIVAL item 1). Last in the list and highest of
           the DOM chrome, because the bars are what everything else stands down

@@ -1,11 +1,4 @@
-/* THE TROPHY WALL (BRIEF-YEAR-ONE beats 4 to 8).
- *
- * A wall of frames, some full and some empty. The state a student reads first is
- * carried by the SHAPE of the plate, not by its colour: a filled frame has a
- * drawn stamp in it and an empty one has a dashed hole. That survives the panel
- * this ships on, which crushes lightness and saturation (§40.31), and it survives
- * a student who is not looking closely, which is every student in beat 4.
- */
+/* the trophy wall: a grid of frames, where a filled one holds a stamp and an empty one a hole */
 
 .tw-veil {
   position: fixed;
@@ -45,11 +38,7 @@
   color: var(--kit-ink-quiet);
 }
 
-/* ---- THE WALL ------------------------------------------------------------
- *
- * Two columns rather than one, because a single column of six frames is a list
- * and a wall is a wall: the point of the shape is that a student can take in how
- * much is empty at a glance. */
+/* the wall itself, laid out in columns so how much is empty reads at a glance */
 .tw-wall {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -114,11 +103,7 @@
 
 .tw-foot { display: flex; justify-content: flex-end; margin-top: 2px; }
 
-/* ---- THE CONTROL ARM ----------------------------------------------------
- *
- * The same wall as a printed record: a table of what was chosen and what came of
- * it. No carved panel, no stamp, no dashed picture hooks. The words are
- * identical, which is the half §16 cares about. */
+/* the plain arm: the same wall as a printed record, with the same words and no game art */
 html[data-skin='plain'] .tw-sheet {
   background: var(--kit-paper-hi);
   border: var(--kit-border) solid var(--kit-edge-strong);

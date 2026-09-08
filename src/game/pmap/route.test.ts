@@ -4,13 +4,7 @@ import {
 } from './route'
 import { HUB_MAP, MAW_MAP } from '../run/objective'
 
-/* THE ADDRESS OF THE PAINTED WORLD, which is now the road itself.
- *
- * Two scenes write this and one reads it, and the three of them agreeing is the
- * whole of "Set Sail lands on the ocean" and "Continue lands in the Maw". Before
- * these there was no test anywhere that a target survives being spelled as a
- * query and read back, and the parameters were spelled by hand in three places.
- */
+/* the painted world's address in the url, written by two scenes and read by one */
 
 const q = (s: string) => new URLSearchParams(s)
 
@@ -38,11 +32,7 @@ describe('the pmap address', () => {
     }
   })
 
-  /* THE TWO DELETIONS ARE THE POINT. A target with no anchor has to REMOVE the
-   * one already on the address, or walking out of the Maw keeps saying you came
-   * in at the bridge and the resume guard never runs again; and stepping ashore
-   * has to remove `aboard`, or a refresh puts the student back out at sea with
-   * the walk they just did undone. */
+  /* a new target has to delete the parts of the old address it does not carry */
   it('deletes an anchor the new target does not carry', () => {
     expect(q(searchFor({ map: 'hub' }, '?scene=pmap&map=hub&at=quay')).has('at')).toBe(false)
   })

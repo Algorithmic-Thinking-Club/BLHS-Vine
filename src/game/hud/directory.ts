@@ -1,54 +1,4 @@
-/* THE BONNEY LAKE DIRECTORY: every club, every sport and every course the
- * school actually offers, as the school itself publishes them.
- *
- * ---- THE RULING -----------------------------------------------------------
- *
- * BRIEF-INTRO-FILM section 5, Ash, 2026-09-07: *"the Guide as the REAL Bonney
- * Lake directory (every club, sport and class from `docs/blhs/sourced-facts.md`,
- * with meeting days and rooms where sourced; Example placeholders are only for
- * pickable programme cards, never for the directory)"*.
- *
- * That is the answer to a real question a freshman has, and today it is the only
- * part of the game that can answer it, because no island is built. A student who
- * finishes the film can open the Guide and find out that Key Club meets Tuesday
- * at 2:10 in 200 Flex, which is a true and useful thing about their school.
- *
- * ---- WHY THIS DOES NOT CONTRADICT "NO FAKE REAL NAMES" --------------------
- *
- * BRIEF-MAW-RAIL-3 B masks every PROGRAMME name to Example A..E, and that mask
- * stays exactly where it is. The two rules are about two different things and
- * the difference is whether a student can PRESS it:
- *
- *   A PROGRAMME CARD IS A PROMISE. Pressing it is supposed to sail you to an
- *   island somebody built. There is none, so printing "Football" on it tells a
- *   student they can play football in this game and they cannot. Example A.
- *
- *   A DIRECTORY ROW IS A FACT ABOUT THE SCHOOL. Nothing is pressed, nothing is
- *   promised, and the fact is true whether or not anybody ever draws an island
- *   for it. Masking it would make the game print a FALSE thing about Bonney Lake
- *   to hide the absence of a feature, which is the opposite of what section B
- *   serves. It is the same ruling the honor cords already carry (rail-3
- *   judgement call 2) and it is applied here for the same reason.
- *
- * `directory.test.ts` holds that line from both sides: no row may be called
- * Example anything, and no row may carry a press.
- *
- * ---- WHAT IS IN A ROW, AND WHAT IS DELIBERATELY NOT ----------------------
- *
- * `meets` is verbatim from the hub table in `docs/blhs/sourced-facts.md`, and a
- * club the source does not give a time for says so in the school's own words
- * rather than being given one. Nothing here is rounded, tidied or guessed.
- *
- * ADVISOR AND COACH NAMES ARE LEFT OUT ON PURPOSE. The source has them and the
- * brief does not ask for them: it asks for "meeting day, time and room". They
- * are named staff at a real school and this is a build that will be handed to
- * fourteen year olds, so the field that is not needed is the field that is not
- * printed. The names stay in `docs/blhs/` where the research lives.
- *
- * EVERY LINE HERE TRACES TO `docs/blhs/sourced-facts.md`, section 1 for the
- * clubs, section 2 for the sports and section 3 for the courses. Adding a row
- * that is not in that file is the one thing this module must never do.
- */
+/* every club, sport and course Bonney Lake really offers, as the school publishes them */
 
 export type DirectoryRow = {
   /** the school's own name for it */
@@ -134,10 +84,7 @@ const CLUBS: DirectoryGroup[] = [
   },
 ]
 
-/* ---- 2. SPORTS -----------------------------------------------------------
- * sourced-facts.md §2. A sport has no meeting room: what a student needs to know
- * before signing up is the season, the teams that exist and whether there are
- * cuts, and all three are published. */
+/* the sports, by season, with the teams that exist and whether there are cuts */
 
 const SPORTS: DirectoryGroup[] = [
   {

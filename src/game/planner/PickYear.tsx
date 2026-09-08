@@ -1,82 +1,4 @@
-/* YOUR SCHEDULE, YEAR ONE: beat 2 of the rail, as one screen.
- *
- * ---- WHY IT IS A SCHEDULE AND NOT A PICK -----------------------------------
- *
- * BRIEF-MAW-RAIL-2, Ash after playing rail-1: *"I have no idea what is going on:
- * a fire, click two classes, it makes no sense."* And the page's own answer:
- * *"'Pick what you will do this year, tick two classes' is not a thing a
- * freshman has ever done. Filling in a schedule is."*
- *
- * That is the whole change and it is a change of FRAME, not of data. The screen
- * still writes exactly what it wrote before: two class ids and one programme,
- * through `pickClass` and `assignSlot`, stamped by `stampPlan`, tracked by the
- * same four events. What moved is what a fourteen year old thinks they are
- * looking at. Seven periods down the page, five of them already filled with the
- * things everybody takes, two of them blank and saying Elective. A student who
- * has never seen this game has filled one of these in at every school they have
- * ever been to.
- *
- * THE FIVE FILLED PERIODS SAY ONE WORD EACH, and that is deliberate rather than
- * lazy. `docs/blhs/sourced-facts.md` publishes the graduation requirements
- * (English 4, Math 3, Science 3, Social Studies 3, Health and Fitness 2) and does
- * NOT publish a freshman course list, so anything more specific than the subject
- * would be invented. The brief says so in as many words: "if the source does not
- * name them, label them plainly and say nothing more."
- *
- * ---- WHY IT IS NOT THE YEAR SHEET -----------------------------------------
- *
- * The year sheet is a good instrument and the wrong first screen. It asks a
- * student who has been in the game four minutes to understand three season
- * tokens, a season lock, a two-class limit and a drag before anything has been
- * chosen, and BRIEF-SELF-EVIDENT rules that out in one sentence: "a student who
- * reads nothing, is told nothing, and presses things at random must still do the
- * right thing next, and see that it worked."
- *
- * So the first plan is made of cards. You press a thing you like; it is yours;
- * the card says so. Every rule the sheet enforces is still enforced, by the same
- * functions, and the ones a first-year student cannot violate are simply never
- * shown to them:
- *
- *   THE SEASON IS DECIDED FOR THEM, not hidden from them. A sport already has a
- *   season by school rule (`seasonOf`), and a club takes whichever season is
- *   free. The card says which one it landed in, so the mechanic is TAUGHT by
- *   watching rather than explained before it happens. When the sheet opens later
- *   in the year, the student has already seen where things go.
- *
- *   NOTHING IS DRAGGED. `assignSlot` is the same writer the sheet's drop calls,
- *   so a plan made here and a plan made there are the same object.
- *
- * ---- ONE THING IS LIT, AND IT IS NEVER THE THING YOU JUST PRESSED -----------
- *
- * The dimwit run (scripts/dimwit.mjs) pressed Key Club, then pressed it again,
- * then again, forever: a taken card was still a button, still the biggest thing
- * on the glass, and pressing it put the pick back. The loudest thing on the
- * screen was an undo. So the screen has three stages and exactly one of them is
- * lit at a time:
- *
- *   1. a period still blank: the schedule glows and the FIRST blank period is
- *      the only one that can be pressed. Pressing it opens the elective list
- *      under it, headed with that period's own number, so what a pick fills is
- *      never a guess. Only one blank period is live at a time, because
- *      `plan.classes` is a list and a pick lands at the end of it: two live
- *      blanks would let a student press Period 7 and watch Period 6 fill.
- *   2. both electives in, nothing after school: the after-school box glows. A
- *      taken card LOCKS. It is no longer a button; it is a stamped sign with a
- *      small "Put back" inside it, and the cards not taken step back into a
- *      shelf of small chips beside it.
- *   3. both: the plank that ends the beat glows, and it is the biggest control
- *      on the screen.
- *
- * "Loudest" here is a real number, the largest control that is not a way out,
- * because that is the number a student who reads nothing is steering by.
- *
- * ---- WHAT IT REFUSES, AND HOW ---------------------------------------------
- *
- * `refuseSlot` and `refuseClass` decide, exactly as they do for the sheet: one
- * rule, one sentence, one place. A card that cannot be taken is not hidden and is
- * not silent, because §40.41 and the self-evident law agree on that: it says the
- * school's own reason on the card that was pressed.
- */
+/* the screen where a student fills in their schedule for one year */
 import { useEffect, useState } from 'react'
 import { firstLook, markLooked } from '../hud/first-look'
 import { PROGRAMMES, seasonOf, type Programme } from '../roster/roster'
@@ -97,20 +19,9 @@ import './pickyear.css'
  * nothing. Everything else on the roster is a later year's problem. */
 const YEAR_ONE_ACTIVITIES = ['football', 'girls-flag-football', 'track-field', 'atc', 'key-club']
 
-/* THE FIVE PERIODS A FRESHMAN DOES NOT CHOOSE, in the plainest words there are.
- *
- * Every one of them is a graduation requirement in `docs/blhs/sourced-facts.md`
- * ("English 4 · Math 3 · Science 3 · Social Studies 3 · Health & Fitness 2"),
- * and not one of them is a course title, because the source does not publish a
- * freshman course list and a made-up one would be the game teaching a student
- * something untrue about their own school. History is the plain word for Social
- * Studies and PE is the plain word for the fitness half of Health & Fitness. */
+/* the five periods a freshman does not choose, named as plain subjects */
 const REQUIRED = ['English', 'Math', 'Science', 'PE', 'History']
-/* how many periods the sheet shows. The five above, then the two the student
- * fills. `sourced-facts.md` prints a six-period Tuesday-to-Friday bell schedule
- * plus the Monday Advisory block, so the number of ROWS here is the brief's and
- * not the bell schedule's, and no times are printed beside them: a time is the
- * part that would be inventing something. */
+/* how many rows the sheet shows: the five above plus the two the student fills */
 const PERIODS = 7
 const ELECTIVE_AT = REQUIRED.length
 
@@ -123,18 +34,7 @@ function earnsOf(p: Programme): string {
 }
 
 export function PickYear({ year, onClose }: { year: number; onClose: () => void }) {
-  /* ---- INSIDE A CUTSCENE THERE IS NO WAY OUT ------------------------------
-   *
-   * Ash, 2026-09-06: *"THOR MUST NEVER BE ABLE TO LEAVE THE MAW CUTSCENE... From
-   * the tunnel to 'Year two, next time' there is no way out: no 'Leave this for
-   * now' plank on Advisory during the rail, no 'Close for now' on the schedule,
-   * Esc does nothing, doors and stations are dead, the corner is hidden. The
-   * cutscene runs continuously until it is over."*
-   *
-   * The movie flag is the whole test and it is the right one: the bars being up
-   * IS the statement that something else is directing, so a panel raised inside
-   * them has no dismiss, no Escape and no click-off. Outside a movie the screen
-   * behaves exactly as it did. */
+  /* inside a cutscene this panel has no way out: no dismiss, no Escape, no click-off */
   const held = cinemaOn()
   const shut = held ? () => { /* the rail is driving; there is no way out */ } : onClose
   const panel = usePanel({ onClose: shut, closeOnEscape: !held, label: `Your schedule for year ${year}` })
@@ -150,10 +50,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
 
   useEffect(() => { track('pickyear_opened', { year }) }, [year])
 
-  /* IN THE ROSTER'S OWN ORDER, so the row reads Example A, B, C, D, E rather
-   * than B, C, D, A, E. `placeholders.ts` counts the letters down the roster,
-   * and this list used to be written in the brief's order, so the alphabet
-   * arrived shuffled on the one screen a student reads it on. */
+  /* the year one activities, kept in the roster's own order */
   const activities = PROGRAMMES.filter((p) => YEAR_ONE_ACTIVITIES.includes(p.id))
 
   const classes = CLASSES.filter((c) => c.years.includes(year) && !c.requires)
@@ -162,10 +59,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
   const seatOf = (id: string): Season | null =>
     (SEASONS.find((se) => plan.slots[se] === id) ?? null)
 
-  /* THE SEASON A CLUB TAKES IS THE FIRST FREE ONE, and a sport's is the school's.
-   * That is the whole of the placement rule a first-year student needs, and it is
-   * the same rule the sheet enforces from the other end: the sheet refuses a
-   * football token on spring, this simply never offers one. */
+  /* a sport takes the season the school gives it and a club takes the first free one */
   const seasonFor = (p: Programme): Season | null => {
     const own = seasonOf(p)
     if (own) return own
@@ -223,25 +117,10 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
 
   const chosen = SEASONS.filter((se) => plan.slots[se]).length
   const classesLeft = 2 - plan.classes.length
-  /* ---- WHAT IS ACTUALLY PICKABLE TODAY, AND IT IS THE ELECTIVES -----------
-   *
-   * BRIEF-INTRO-FILM section 3 splits the sheet in two. THE ELECTIVES ARE
-   * PICKABLE AND REQUIRED whatever the roster says, because a course is a thing
-   * the district runs and picking two is what a freshman does; the island behind
-   * one is what is not built. THE CLUBS AND SPORTS are islands, so there is no
-   * honest name to print on one nobody has made, they stay Example A to E, and
-   * that half is owed only where a `member-islands.json` row puts something real
-   * on the screen (`roster/placeholders.ts`).
-   *
-   * `realClasses` is still counted, and it is still handed to the rule, because
-   * it is what makes an elective's island reachable the day one lands. It is no
-   * longer what decides whether the period has to be filled. */
+  /* how many classes and activities on this screen have a real island behind them */
   const realClasses = classes.filter((c) => classIsReal(c.id))
   const realActivities = activities.filter((p) => p.playable)
-  /* THE RULE ITSELF IS `planner/schedule.ts`, so it can be tested without
-   * mounting a panel (BRIEF-MAW-RAIL-3 F). It was eight lines here, and a rule
-   * that can only be exercised by rendering a screen is a rule that quietly
-   * stops being true. This counts the four numbers; that decides. */
+  /* the rule for what this screen still owes lives in planner/schedule.ts */
   const owed = scheduleOwed({
     electivesLeft: classesLeft,
     chosen,
@@ -260,21 +139,10 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
 
   const taken = activities.filter((p) => seatOf(p.id))
   const onOffer = activities.filter((p) => !seatOf(p.id))
-  /* AND THE CARDS STEP BACK WHILE THE ELECTIVE LIST IS OPEN, not only once
-   * something is taken. One question is being asked, "which elective goes in
-   * Period 6", and a row of hand-sized signs about football is the loudest thing
-   * on a screen asking it. Measured the way the self-evident law measures: a
-   * card is about 18,000 pixels of glass and a class row about 15,000, so a
-   * student steering by size answers the wrong question. */
+  /* true when the after-school cards shrink to chips so they never outshout the list */
   const shelved = chosen > 0 || openAt !== null
 
-  /* ---- THE SEVEN ROWS ------------------------------------------------------
-   *
-   * Periods 1 to 5 are the requirements and are not controls. Periods 6 and 7
-   * are the two class ids the save has always held, in the order they were
-   * picked, and only the FIRST blank one can be pressed: `pickClass` appends, so
-   * a live Period 7 beside a blank Period 6 would let a student press one row
-   * and watch a different row fill. */
+  /* the seven period rows: five requirements, then the two electives, first blank live */
   const firstBlankAt = ELECTIVE_AT + plan.classes.length
   const rows = Array.from({ length: PERIODS }, (_, i) => {
     const n = i + 1
@@ -301,10 +169,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
         <section className={`py-schedule${stage === 'schedule' ? ' py-lit' : ''}`} aria-labelledby="py-sched-h">
           <h3 className="py-h py-sched-h" id="py-sched-h">
             Fill your two Elective periods
-            {/* THE COUNT IS UNMISTAKABLE AND IT IS NOT A SENTENCE. Ash, playing
-                it: he could not tell whether he picks one elective or several.
-                "n of 2 electives" says how many the year takes and how many he
-                has, in four words, on the box he is looking at. */}
+            {/* how many electives are in and how many the year takes */}
             <span className="py-count"> {plan.classes.length} of 2 electives</span>
           </h3>
           <ol className="py-periods">
@@ -338,10 +203,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                       )}
                     </div>
                   )}
-                  {/* ---- THE ELECTIVE LIST, UNDER THE ROW IT FILLS --------
-                      Headed with the period's own number, so what a pick does is
-                      never a guess, and drawn inside the row so the answer lands
-                      where the question was asked. */}
+                  {/* the elective list, drawn inside the very row a pick fills */}
                   {open && (
                     <div className="py-electives">
                       <p className="py-elect-h">Pick an elective for Period {r.n}</p>
@@ -358,24 +220,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                               </div>
                             )
                           }
-                          /* ---- AN ELECTIVE IS PICKABLE, AND THAT IS A RULING
-                              BRIEF-INTRO-FILM section 3, which overrules the
-                              rail-2 refinement that stood here: "Electives are
-                              PICKABLE and REQUIRED: two, from the real BLHS
-                              elective list, because choosing electives is a
-                              thing every freshman actually does, and the island
-                              behind an elective is what is 'not built yet', not
-                              the choice."
-
-                              So the `classIsReal` gate that drew every one of
-                              these as an inert div with a "no island yet" mark
-                              is gone. A course the district publishes is a true
-                              thing about Bonney Lake and picking two of them is
-                              the thing this screen is FOR; what does not exist
-                              yet is an island to sail to, and a mark saying so
-                              on all thirteen rows was the screen apologising
-                              thirteen times for something the student had not
-                              asked about. */
+                          /* every elective the district publishes can be picked */
                           return (
                             <button key={c.id} type="button" className="py-class" onClick={() => takeClass(c)}>
                               <span className="py-tick" aria-hidden="true" />
@@ -388,11 +233,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                           line is the one that says what to do instead, and it
                           names the control that does it. */}
                       <p className={`py-classnote${classNo ? ' py-classnote-no' : ''}`} role={classNo ? 'alert' : undefined}>
-                        {/* ONE INSTRUCTION, ALWAYS THE SAME ONE. It used to
-                            branch on whether any elective had an island and say
-                            "None of these has an island yet" when none did,
-                            which is now every row's own answer to a question the
-                            student is not asking: they are all pickable. */}
+                        {/* one instruction under the list, or the refusal if there is one */}
                         {classNo ?? 'Press one to put it in this period.'}
                       </p>
                     </div>
@@ -403,19 +244,9 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
           </ol>
         </section>
 
-        {/* ---- AFTER SCHOOL, WHICH IS THE OTHER HALF OF A YEAR HERE -------
-            Same five cards, same season rule, same writer. What changed is that
-            they are now under a heading that says WHEN they happen, because "a
-            club or a sport" and "a class" were two rows of the same screen with
-            nothing saying that one of them is at 2:30. */}
+        {/* after school, the other half of a year: the clubs and sports cards */}
         <section className={`py-cardbox${stage === 'after' ? ' py-lit' : ''}`} aria-labelledby="py-cards-h">
-          {/* ---- AND THIS HALF SAYS OUT LOUD THAT IT IS SHUT ---------------
-              BRIEF-INTRO-FILM section 3: *"it reads 'After school: no clubs open
-              yet' over the example cards so nobody hunts for a live one."* The
-              heading said "pick one" over five cards that cannot be pressed,
-              which is an instruction a student cannot follow and no way of
-              telling that from a broken screen. It says "pick one" again, on its
-              own, the day a member's row makes one of them real. */}
+          {/* the heading only asks for a pick when a club is really open */}
           <h3 className="py-h py-cards-h" id="py-cards-h">
             {realActivities.length ? 'After school: pick one' : 'After school: no clubs open yet'}
             {realActivities.length > 0 && (
@@ -447,15 +278,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                 the locked card, still takeable and never louder than the way on. */}
             {onOffer.map((p) => {
               const no = refused?.id === p.id ? refused.why : null
-              /* ---- A CLUB NOBODY HAS BUILT IS AN EXAMPLE AND IT DOES NOT TAKE
-                  A PRESS. Ash, 2026-09-06: "if you want placeholders, label them
-                  Example A, Example B and so on, with placeholder text, and it
-                  should clearly be a placeholder and not work." Football, Key
-                  Club and the rest are real things at a real school with no
-                  island behind them, and a freshman who presses one and gets
-                  nothing cannot tell that from a bug. It is a div rather than a
-                  disabled button on purpose: a disabled control is still a
-                  control, and this is a picture of one. */
+              /* a club with no island behind it is drawn as an example and cannot be pressed */
               const example = exampleNameOf(p.id)
               if (example) {
                 return (
@@ -515,16 +338,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
               const taken = SEASONS.map((se) => plan.slots[se]).filter((x): x is string => !!x)
               stampPlan(year, taken)
               track('pickyear_stamped', { year, slots: plan.slots, classes: plan.classes })
-              /* ---- AND THE STAMP POPS (BRIEF-MAW-RAIL beat 2) --------------
-               * The frames have appeared under his hand since the screen was
-               * written; the stamp itself landed in silence and the panel simply
-               * vanished, so the one moment this beat is built to make him want
-               * was the quietest thing on the glass.
-               *
-               * THE POP DOES NOT SAY WHAT THE PRINCIPAL IS ABOUT TO SAY. He
-               * hands over the corner's My Year button on the next line
-               * (islands/panther-maw/lines.py), and watched on the dev server
-               * the two were the same sentence stacked on one frame. */
+              /* the stamp pops, so setting a schedule is a moment rather than a vanish */
               /* AND THE POP NEVER SAYS A FAKE REAL NAME. Nothing pickable
                  today means this is undefined and it says the plain thing; the
                  day a member island lands it says that island's own name. */

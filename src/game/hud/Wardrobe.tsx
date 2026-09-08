@@ -1,53 +1,4 @@
-/* THE OUTFITTER, WHICH IS THE CHARACTER VIEW (§4.5, §40.21).
- *
- * §4.5 says the dressing room is revisitable and §3.2 gives it a nook in the
- * Maw. Until the wardrobe became a panel the only one in the game was card four
- * of the intro's setup chain (intro/I3Session.tsx), which can only be reached
- * once, before the run starts, and which returns a handle and a boat name along
- * with the look. This is the same wardrobe with nothing else attached: it
- * changes one field on the save and closes.
- *
- * IT IS A MIRROR AND HAS NO CONFIRM BUTTON. A mirror you can stand at and change
- * your mind in is a mirror; an OK button would make it a form. Every pick writes
- * the save on the spot.
- *
- * ---- WHAT THIS PASS FIXED, AND WHY EACH ONE WAS A REAL DEFECT ---------------
- *
- * 1. THOR WAS TINY IN A LARGE SHEET (`build-shots/ui/before/13-wardrobe.png`),
- *    and the cause was not the CSS. The mirror drew `walk/south/0.png`, which is
- *    a 144x144 SHEET with a 52x67 character standing in the middle of it, so
- *    `object-fit: contain` was faithfully fitting ninety-two pixels of
- *    transparency. `south.png` and its seven neighbours are the cropped standing
- *    frames, measured today at 44x70 to 54x75, and fitting one of those fills the
- *    stage with the panther instead of with air. §40.21's own want, in as many
- *    words: "the preview as a standing figure rather than one walk frame".
- *
- * 2. HE DID NOT REACT. §14.10: "what must not happen is a paper doll". Eight
- *    headings are drawn and none of them had ever been shown outside the world,
- *    so a coat change now turns him all the way round once, and the two turn
- *    controls let a student look at their own back. The spin is skipped outright
- *    under reduced motion rather than run fast, because a figure snapping through
- *    eight frames in a tenth of a second is worse than one that does not move.
- *
- * 3. THE LOCKED ITEMS WERE AN OPERATING-SYSTEM COAT, GOGGLES AND CAP WITH AN
- *    OPERATING-SYSTEM PADLOCK, and the earn rule was hidden in a `title`, which
- *    is pointer-only. `docs/ART.md` forbids the glyphs outright and §40.21 says
- *    the criterion is SHOWN. Each one is a drawn `chip` plate carrying the
- *    kit's own `lock` face, with the name and the real rule printed beside it.
- *
- * 4. "WEAR IT WELL" WAS UNREADABLE, pale ink on the platform's pale parchment
- *    plank. It is the kit's `Plank` now, which wears the dark wood Ash chose and
- *    the ink that was written for it.
- *
- * 5. THE SWATCHES WERE FIVE NAMELESS CIRCLES whose only channel was hue, on the
- *    hardware that crushes hue hardest. Each one carries its own name, the
- *    chosen one carries a drawn tick and sits forward, and the line under them
- *    says out loud what is being worn.
- *
- * The locked items are shown with their REAL earn rules and are never buyable.
- * §8.3: cosmetics come only from learning outcomes, because a decoration loop is
- * somewhere a student can hide from the learning, and the study would see it.
- */
+/* the outfitter: a mirror where the player picks a coat colour and sees what is still locked */
 import { useEffect, useRef, useState } from 'react'
 import { LOOKS, drawRecolored } from '../thorLook'
 import { loadSave, writeSave } from '../save'
@@ -60,56 +11,24 @@ import { saved } from '../ui/feedback'
 import { prefersReducedMotion } from '../ui/motion'
 import './wardrobe.css'
 
-/* ---- which way he is standing --------------------------------------------
- *
- * The ring is in the order a figure turns clockwise as you look at them, so
- * "turn right" steps forward through it and "turn left" steps back. Every one of
- * the eight is a real cropped standing frame in `public/art/characters/thor/`. */
+/* the eight headings, in the order a figure turns clockwise */
 const RING = ['south', 'south-west', 'west', 'north-west', 'north', 'north-east', 'east', 'south-east'] as const
 type Heading = typeof RING[number]
 
 const headingWord = (h: Heading): string => h.replace('-', ' ')
 
-/* THE STAGE IS A FIXED BOX AND THE FIGURE IS PLACED INTO IT. The eight frames
- * are cropped to their own ink, so they are eight different sizes, and drawing
- * each straight into the canvas would change his apparent height every time he
- * turned. Widest measured 54, tallest 75. He is centred across this box and
- * stood on its floor, so his feet stay on one line through a whole rotation. */
+/* the fixed box the figure is placed into, so his feet stay on one line as he turns */
 const STAGE_W = 62
 const STAGE_H = 80
 const FOOT = 2
 
-/* the earn rules are the real ones from §8.2 and §8.4, not placeholders. A
- * locked chip that lies about how to unlock it is worse than no chip.
- *
- * WHICH IS WHY THE ROBOTICS CHIP NOW ASKS THE ROSTER. It read
- * `s.islands.robotics === 'completed'` against a raw string that is on no
- * roster, in no registry and in no catalog, so the chip promised an unlock that
- * nothing in the game could ever grant and said "complete the Robotics island"
- * about an island that does not exist. A chip whose programme is not on the
- * roster says the island has not risen instead. */
+/* the real earn rule for an item, or null when no such island is on the roster */
 const earnByCompleting = (id: string) => {
   const g = programmeById(id)
   return g ? `complete the ${g.name} island` : null
 }
 
-/* ---- A LOCKED THING SAYS WHY, AND THE SENTENCE HAS TO PARSE ---------------
- *
- * `earn` used to answer a string either way, and the card composed
- * `Earn by: ${it.earn}`. With no Robotics programme on the roster that read, in
- * both arms and on screen:
- *
- *   Robotics goggles
- *   Earn by: that island has not risen yet
- *
- * which is not a sentence, and which is §40.41's unreachable-criterion case
- * wearing an explanation. The fallback is `null` now and the card branches: a
- * rule a student can act on is written as a rule, and a thing nobody has built
- * says that in its own words instead of being pushed through "Earn by:".
- *
- * It stays on the list rather than being dropped, because §40.21 says the locked
- * items are "earned and not bought" and seeing what is coming is the point of the
- * row. What it must not do is state a condition and then never honour it. */
+/* ---- the locked items, each with the rule that unlocks it ---- */
 const LOCKED = [
   { name: 'Letterman jacket', earn: 'reach Varsity in any sport', has: (s: ReturnType<typeof loadSave>) => !!s && Object.values(ranksOf(s)).some((y) => Number(y) >= 2) },
   { name: 'Robotics goggles', earn: earnByCompleting('robotics'), has: (s: ReturnType<typeof loadSave>) => !!programmeById('robotics') && s?.islands?.robotics === 'completed' },
@@ -174,10 +93,7 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
     setLook(k)
     writeSave({ thorLook: k })
     track('cosmetic_change', { look: k, via: 'outfitter' })
-    /* HE SHOWS IT OFF. §14.10's rule against a paper doll: the figure in the
-     * mirror reacts to the change rather than being repainted while standing
-     * still. Under reduced motion he simply wears it, because eight frames at
-     * one millisecond each is a flicker and not a turn. */
+    /* he turns all the way round once, unless the student asked for less motion */
     if (!prefersReducedMotion()) setSpin(RING.length)
     /* THE MIRROR IS THE ONLY VISIBLE FEEDBACK, and it is a canvas. A player who
      * cannot see the recolour has pressed a button that does nothing at all, so
@@ -210,12 +126,7 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
             {/* the mirror is a picture: what it shows is announced beside it */}
             <canvas ref={cvRef} className="wd-thor" aria-hidden="true" />
             <p className="wd-facing">Facing {headingWord(RING[facing])}</p>
-            {/* THE CHEVRON GOES THROUGH THE PLANK'S OWN `glyph` SLOT rather than
-                into its label. The label span is `white-space: nowrap; overflow:
-                hidden`, so a mark dropped inside it is a mark that can be clipped
-                by its own button. The left one is the same drawing mirrored,
-                because a mirrored drawing is still the drawing and a second
-                character borrowed from the operating system is not. */}
+            {/* the turn controls, taking their chevron from the plank's own glyph slot */}
             <div className="wd-turns">
               <Plank size="sm" glyph={['icon_set', 'arrow']} className="wd-turn wd-turn-left" onClick={() => turn(-1)}>
                 Turn left
@@ -244,10 +155,7 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
                     <span
                       className="wd-dye"
                       aria-hidden="true"
-                      /* THE ONE COLOUR IN THIS FILE THAT IS NOT A TOKEN, and it is
-                         not chrome: it is the dye itself, out of `thorLook.ts`,
-                         which is the content of the choice. The unchanged coat has
-                         no hue of its own and borrows the front group's teal. */
+                      /* the dye itself, out of thorLook.ts, which is the content of the choice */
                       style={{ background: v.hue === null ? 'var(--kit-front-teal)' : `hsl(${v.hue}, 48%, 42%)` }}
                     />
                     <span className="wd-swatch-name">{v.label}</span>

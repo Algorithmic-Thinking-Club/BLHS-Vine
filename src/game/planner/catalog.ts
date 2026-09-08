@@ -1,17 +1,4 @@
-// THE PLANNER CATALOG (GAME-DESIGN §7.2): what a CLASS pick can buy.
-// EVERY entry is real BLHS content from docs/blhs/sourced-facts.md (law §2.7: real facts
-// only, nothing invented): the AP list and grade eligibility are the 2024-2025 SBLSD
-// course catalog, the language and CTE sequences likewise. The game-year mapping: year 1
-// = 9th grade … year 4 = 12th. Tags feed progress.ts's cord evaluators verbatim ('ap' /
-// 'cte' / 'lang' / 'lang-capstone'). A class pick IS cord progress, which is why the
-// planner can show counselor hints inline.
-//
-// WHAT A SEASON TOKEN BUYS IS NO LONGER HERE. `ACTIVITIES`, `ActivityDef`,
-// `activityById`, `activityAllowedIn` and `SPORT_SEASONS` were this file's, and every one
-// of them was about what EXISTS in the world rather than about one student's sheet. They
-// are the roster's now (src/game/roster/roster.ts), because the entry they described
-// carried a programme id and a place id in one field and the stadium proves those are two
-// things. The planner reads the roster; the roster does not know the planner exists.
+// the planner catalog: what a class pick can buy, built from the real BLHS course list
 
 // ---- CLASSES (the 2-pick strip) -------------------------------------------------------
 // Grade eligibility from the catalog, expressed as game years (1..4). Ledger ids are
@@ -108,10 +95,7 @@ export function eligibleClasses(year: number, pickedByYear: Record<number, strin
 
 /** the inline cord-relevance line (§7.2): why this pick matters, in the counselor's voice */
 export function cordHint(tags: string[]): string | null {
-  /* THE SEAL HAS NO CAPSTONE. This said "the Seal of Biliteracy's capstone" about
-   * a fourth-year language class, which described a rule nobody wrote: Washington
-   * counts four credits of one world language, and the fourth one is the fourth
-   * credit rather than a capstone that unlocks the other three. */
+  /* a fourth year of one language is the fourth credit, not a capstone */
   if (tags.includes('lang-capstone')) return 'the fourth credit of one language: the Seal of Biliteracy'
   const parts: string[] = []
   if (tags.includes('ap')) parts.push('counts toward AP Honors (5 APs)')
@@ -120,47 +104,17 @@ export function cordHint(tags: string[]): string | null {
   return parts.length ? parts.join(' · ') : null
 }
 
-// ---- WHAT THE PICKER OFFERS, AND WHAT IT REFUSES OUT LOUD ------------------
-//
-// §5.10 on what shipped, word for word: *"Spanish II is not in the Year 1
-// picker. It is not greyed out and it does not say why. It is simply not
-// there."* `eligibleClasses` above is a filter, and a filter is not a refusal:
-// it removes the course, so the student meets a shorter list instead of the
-// ladder, and then `beats/classes.ts` generates a `ladderCheck` asking *"What
-// does Spanish II expect you to have behind you?"* about a rung the sheet took
-// off the board. The sheet hides the rule and the beat grades it.
-//
-// So the picker reads THIS instead. Every course in the catalog comes back, in
-// catalog order, each carrying the reason it cannot be taken or `null` when it
-// can. Catalog order is not an accident and must not be sorted: Spanish I, II,
-// III, IV in sequence IS the ladder, and rearranging the list so the takeable
-// ones sit at the top would hide the exact shape the refusal exists to teach.
-//
-// THE TWO FUNCTIONS HAVE TO AGREE, and there is nothing in the type system that
-// makes them. A course whose `why` is null here is precisely a course
-// `eligibleClasses` returns: same four conditions, same order, one negated. If
-// one is edited the other is being edited too.
+// what the picker offers: every course in catalog order, each with the reason it is shut
 
 export type ClassOffer = {
   c: ClassDef
   /** why this course cannot go on this year's sheet, or null when it can */
   why: string | null
-  /* IS THE REASON THE GAME'S OR THE SCHOOL'S. Grade eligibility is the district
-   * catalog's and can be said in the register the game uses for sourced school
-   * facts. The prerequisite chain is NOT: §5.10 checked and *"nothing anywhere
-   * in `docs/blhs/` states a prerequisite rule at all"*, so a sheet that printed
-   * "Spanish I comes first" in the school's voice would be printing an unsourced
-   * policy in the one register reserved for sourced ones. The flag is how the
-   * sheet tells the two apart when it draws them. */
+  /* true when the reason is the game's own ladder rather than the district catalog's */
   ladder: boolean
 }
 
-/* THE SHEET SAYS WHOSE RULE THE LADDER IS, once, above the picker rather than on
- * every row. §5.10's want, exactly: *"the prerequisite rule decided, stated on
- * the sheet as the game's own, and never printed in the register the game uses
- * for sourced school facts."* Q5.10.a is still open on whether satisfaction
- * should need a PASS rather than a pick, and this sentence stays true either
- * way, because it claims only that the ladder is the game's. */
+/* the line above the picker saying the prerequisite order is the game's rule, not the school's */
 export const LADDER_NOTE =
   'Some classes need an earlier class first. This game sets that order, not the school.'
 

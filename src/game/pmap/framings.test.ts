@@ -1,10 +1,4 @@
-/* THE MAP OWNS THE SHOT, and the script's typed number is only a fallback.
- *
- * The defect these are written against is a real line that shipped: `maw-founding`
- * carried `zoom: 1.35`, guessed once at a keyboard for one painting, with nothing
- * to notice when that painting was re-cut. A framing is authored where the thing
- * is, so the close-up moves with the desk.
- */
+/* tests that a camera shot comes off the map itself, with a script's number only a fallback */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { framingOf, framingNames, shotOf, projectFramings, shotsOf } from './framings'
 import { resolveScript, type AuthoredScript } from '../cutscene/scripts'
@@ -89,14 +83,7 @@ describe('resolving a script against a map that frames itself', () => {
   })
 })
 
-/* ---- THE OTHER SHAPE THE SAME SHOTS ARRIVE IN -------------------------------
- *
- * MAPVIS writes shots into the anchor meta bag now, and the handoff says in so
- * many words not to "fix" that by moving it to a top-level array. But the hub
- * that is live on the platform was published BEFORE that move, so its one shot
- * is a top-level entry hanging off an anchor whose meta holds nothing but
- * `{docId, derived}`. Nobody is going to republish it, so the reader takes both.
- */
+/* the older shape shots arrive in, a flat top-level list, which the reader also takes */
 const HUB_SHOTS = [{ name: 'the_maw_mouth', anchor: 'panthers_maw', dx: 0, dy: 0, zoom: 1, entry: true }]
 
 /** the hub's door, verbatim off v13, fresh each time because folding writes to it */
@@ -114,10 +101,7 @@ describe('folding the live hub top-level shots onto its anchors', () => {
   it('lands the one shot the platform is serving today on the door it belongs to', () => {
     const door = mawDoor()
     expect(projectFramings([door], HUB_SHOTS, 'hub')).toBe(1)
-    /* zoom 1 is what saves this shot. It is a MULTIPLE OF THE OPENING VIEW and
-     * not a scale, so 1 is a real instruction, and it is also the only field
-     * with a value: dx and dy are both 0, and a shot carrying neither a zoom nor
-     * an offset reads as nothing at all and vanishes here. */
+    /* zoom is a multiple of the opening view, so 1 is a real instruction and not an empty shot */
     expect(framingOf(door.meta, 'the_maw_mouth')).toEqual({ zoom: 1, dx: 0, dy: 0, name: 'the_maw_mouth' })
   })
 

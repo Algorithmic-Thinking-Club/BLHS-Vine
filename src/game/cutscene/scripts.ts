@@ -1,22 +1,4 @@
-/* THE SCRIPT REGISTRY: a name a station or a grape yields, and the steps behind it.
- *
- * `{ kind: 'cutscene', script: 'maw-founding' }` has been in the Maw's station
- * table since the room was written, and there has never been anything anywhere
- * that turned that string into steps. The intent threw, correctly, and what it
- * threw about was two missing things at once: no stage on a painted map, and no
- * table of scripts. This is the second one.
- *
- * WHY ANCHOR NAMES AND NOT COORDINATES, here as everywhere. A cutscene step takes
- * a world position, so the scene resolves an anchor name into one at play time
- * (`resolveScript` below). A script with an x and a y in it would break the moment
- * Ash moved the desk, and moving the desk is the whole reason anchors exist.
- *
- * WHAT THIS CONTENT IS. The lines below are ENGINE PROOF: enough of a scene to
- * show that a painted map can be directed, written so nothing in it states a fact
- * about the real school. Principal Panther is a character in an island game and
- * says nothing a student could mistake for Bonney Lake. The real founding scene is
- * Ash's to write and his verdict is the only thing that makes it good.
- */
+/* the table of cutscene scripts, keyed by the name a station or an island yields */
 import type { Script, Step } from './types'
 
 /* a step whose position is an ANCHOR NAME rather than a point. The scene swaps it
@@ -31,10 +13,7 @@ import { shotOf, type Framing } from '../pmap/framings'
 
 export type AuthoredStep =
   | Step
-  /* `zoom` is the FALLBACK now and not the shot. If the anchor carries a framing
-   * the map's own number wins, because the person who cut the map knows how far
-   * out it reads and the person writing the script usually does not. `framing`
-   * asks for one by name when an anchor carries more than one. */
+  /* `zoom` is only the fallback: a framing the map itself carries wins */
   | ({ t: 'cameraAt'; anchor: string; zoom?: number; framing?: string; ms: number })
   | ({ t: 'moveTo'; actor: string; anchor: string; speed?: number; face?: string })
   | ({ t: 'gateAt'; anchor: string; radius?: number; prompt?: string; required?: boolean })
@@ -43,19 +22,12 @@ export type AuthoredScript = { id: string; steps: AuthoredStep[] }
 
 export const SCRIPTS: AuthoredScript[] = [
   {
-    /* THE FOUNDING EVENT, staged at `principal_desk`. Short on purpose: it is the
-     * first thing a student sees inside the mountain and §7.5's whole year is
-     * forty minutes. It uses one of everything the stage owes so that a run of it
-     * proves the stage rather than proving one step. */
+    /* the founding scene at the principal's desk, short and using one of every step */
     id: 'maw-founding',
     steps: [
       { t: 'letterbox', on: true },
       { t: 'vignette', to: 0.55, ms: 500 },
-      /* NO NUMBER HERE ANY MORE. It read `zoom: 1.35`, which was a value somebody
-       * typed once for one painting, and the day that painting is re-cut the shot
-       * is wrong and nothing says so. The desk carries its own framing and this
-       * asks for it by name; the fallback is only reached on a map whose author
-       * has not framed it. */
+      /* the desk's own close-up shot, asked for by name, with a number as the fallback */
       { t: 'cameraAt', anchor: 'principal_desk', framing: 'close', zoom: 1.35, ms: 900 },
       { t: 'say', who: 'Principal Panther', text: 'You made it inside. Most of them stand on the bridge a while first.', portrait: 'principal' },
       { t: 'say', who: 'Principal Panther', text: 'This is the Maw. You plan your year in here. Classes, clubs, sports.' },
@@ -73,13 +45,7 @@ export const SCRIPTS: AuthoredScript[] = [
 const byId = new Map(SCRIPTS.map((s) => [s.id, s]))
 export const scriptById = (id: string) => byId.get(id)
 
-/* TURN ANCHOR NAMES INTO POSITIONS, once, at play time.
- *
- * A step naming an anchor the map does not have is DROPPED and named, rather than
- * played at the origin. Landing the camera in the rock is the kind of failure that
- * reads as "cutscenes are broken" when what happened is one typo, and a script
- * written for the Maw will one day be played on a map that spells a post
- * differently. */
+/* turn a script's anchor names into positions, dropping any the map does not have */
 export function resolveScript(
   s: AuthoredScript,
   spotOf: (name: string) => { x: number; y: number } | null,

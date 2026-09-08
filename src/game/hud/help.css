@@ -1,44 +1,12 @@
-/* THE HELP CARD AND ITS BUTTON (BRIEF-UI item 3b).
- *
- * "It opens one drawn card, no scrolling, readable by looking." No scrolling is
- * the hard part and it is what every measurement below is for: the card has to
- * hold four keys, one sentence and three names inside 768 pixels of Chromebook
- * with the text size on L, and it has to do it without a scrollbar, because a
- * student who is already lost will not find content that is below a fold.
- *
- * So the card is capped at the viewport and its rows are sized in the type's own
- * units rather than in pixels: at S, M or L the whole card grows or shrinks with
- * the words instead of the words overflowing a fixed box. */
+/* the help card and its button, capped to the window so it never needs scrolling */
 
-/* ---- THE BUTTON, BOTTOM RIGHT, ON ITS OWN --------------------------------
- *
- * IT USED TO BE A FOURTH PLAQUE UNDER THE OTHER THREE, and Ash played that and
- * ruled against it. BRIEF-PLAYTHROUGH-1 law 3: "Help is bottom right, and it is
- * how you leave. The `?` moves to the bottom-right corner."
- *
- * Two things were wrong with it in the top-left. It joined a stack of three
- * things that OPEN A PANEL ABOUT THE RUN, and this one is not about the run, it
- * is about the machine: a fourth item in that column reads as a fourth panel.
- * And it sat under a stack whose height depends on what the run has granted, so
- * it was the one control on the screen that moved.
- *
- * Bottom right is where a student's hand already is on a trackpad, it is where
- * help lives in every other piece of software they use, and it is nowhere near
- * anything that can be pressed by accident while walking.
- *
- * No `--hp-above` any more: it is anchored to a corner that does not move. */
+/* the help button, anchored on its own in the bottom-right corner */
 .hp-btn {
   position: fixed;
   bottom: max(2.4vh, 14px);
   right: max(2vw, 14px);
   z-index: 50;
-  /* SMALLER THAN ITS SIBLINGS AND IN THE ART'S OWN PROPORTION. It carries one
-     character, so a 180 wide sign would read as a mistake; but it inherits
-     `.hud-plaque`, and leaving the height at the stack's 83 while cutting the
-     width to 70 squashed a plate drawn at 2.16 to 1 into a portrait rectangle.
-     108x50 is 2.16 exactly, so this is the only undistorted plaque on the
-     screen, and its contents centre rather than sitting in the mark column the
-     other three share. */
+  /* smaller than the corner plaques, kept in the plate art's own 2.16 to 1 shape */
   width: 108px;
   height: 50px;
   min-width: 0;
@@ -72,10 +40,7 @@ html[data-rm='1'] .hp-veil { animation: none; }
 .hp-card {
   box-sizing: border-box;
   width: min(560px, 88vw);
-  /* NO SCROLLING, WHICH IS A REQUIREMENT AND NOT A PREFERENCE. The card is
-     allowed to be shorter than its contents on no machine: it is capped at the
-     window and its own type does the shrinking. If a future edit makes this
-     overflow, the fix is fewer words, not a scrollbar. */
+  /* the card never scrolls: it is capped at the window and its own type shrinks */
   max-height: 92vh;
   overflow: hidden;
   display: flex;
@@ -135,10 +100,7 @@ html[data-rm='1'] .hp-card { animation: none; }
   font-size: var(--kit-fs);
 }
 
-/* THE ARROW CLUSTER. One drawing, four quarter turns, laid out the way the keys
-   are laid out on the machine: up over a row of left, down, right. A quarter
-   turn of pixel art lands on the grid exactly; any other angle would not, which
-   is why this is a rotation and not four drawings. */
+/* the arrow cluster: one drawing turned four quarter turns, laid out like the keys */
 .hp-arrows {
   display: grid;
   grid-template-columns: repeat(3, 16px);
@@ -152,12 +114,7 @@ html[data-rm='1'] .hp-card { animation: none; }
 .hp-ar-down { grid-area: 2 / 2; transform: rotate(90deg); }
 .hp-ar-right { grid-area: 2 / 3; }
 
-/* THE KEY CAP, RE-INKED FOR PAPER. `.kit-plank-key` is the shape every prompt in
-   the game uses for a key and it is the right shape here, but its ink is
-   `--kit-plank-ink`, a cream chosen to sit on dark wood. On this card it sits on
-   parchment, and the first capture of the card shows E and Esc as pale ghosts on
-   a pale sheet: two of the four keys the card exists to teach, unreadable. Same
-   shape, page ink, and a rule dark enough to hold it. */
+/* the key cap, re-inked so it reads on parchment instead of on dark wood */
 .hp-cap {
   --kit-fs-raw: calc(15px * var(--kit-text-scale));
   font-size: var(--kit-fs);
@@ -196,15 +153,7 @@ html[data-rm='1'] .hp-card { animation: none; }
 }
 .hp-corner b { color: var(--kit-ink-head); font-family: var(--kit-face-display); font-weight: 400; }
 
-/* ---- THE FIVE DOORS ------------------------------------------------------
- *
- * A row, not a column, because five stacked planks would push the card past the
- * fold and the card's own rule is that it never scrolls. They wrap when the
- * words are long or the text size is L, which is the one place this card is
- * allowed to grow downward.
- *
- * "Back" is separated from the rest: it is the one that returns you to what you
- * were doing, and the other four take you somewhere. */
+/* the five doors, in a row that wraps, with Back kept apart from the four that go somewhere */
 .hp-doors {
   display: flex;
   flex-wrap: wrap;
@@ -213,26 +162,12 @@ html[data-rm='1'] .hp-card { animation: none; }
   padding-top: 12px;
   border-top: var(--kit-border) solid var(--kit-rule);
 }
-/* EVERY DOOR THE SAME WIDTH, so five buttons read as one set of choices rather
-   than as a ragged paragraph of buttons. The first pass pushed "Back" hard left
-   with an auto margin and let the rest wrap where they fell, which photographed
-   as three lines of different lengths and looked like a mistake. */
-/* TWO TO A ROW, AND BACK ON A ROW OF ITS OWN. Three to a row gave each door
-   about 170 pixels, and inside a plank's carved ends, its padding and the Esc
-   cap that left 70 for "Back to the game": the ink's own nowrap-and-ellipsis
-   cut it to "Back to the gam" on the deploy (`deploy-now/02b-help.png`), on
-   the one plank a lost student is told to press. Back is the door most presses
-   want and it is the one that carries a key cap, so it gets the full width;
-   the four that take you somewhere pair up under it. */
+/* every door the same width, so five buttons read as one set of choices */
+/* two to a row, with Back on a row of its own because its words are the longest */
 .hp-door { flex: 1 1 42%; min-width: 0; justify-content: center; }
 .hp-door-back { flex-basis: 100%; }
 
-/* ---- THE CONTROL ARM ----------------------------------------------------
- *
- * A worksheet explaining the keys is still a worksheet: no carved panel, no
- * parchment, and the drawn marks refuse themselves through `.kit-glyph`'s own
- * plain rule. What is left is a real definition list, which is what this card
- * always was underneath. */
+/* the control arm: no carved panel and no parchment, just a plain definition list */
 html[data-skin='plain'] .hp-card {
   animation: none;
   padding: 22px 26px 20px;
@@ -251,10 +186,7 @@ html[data-skin='plain'] .hp-btn {
   min-width: 0;
   padding: 8px 18px;
 }
-/* AND THE KEY CAP READS IN THIS ARM TOO. `.kit-plank-key`'s plain rule drops the
-   glow and keeps `--kit-plank-ink`, which is white, so "Esc" on a white document
-   button was white on white: visible in the first plain capture of this card as
-   an empty grey box beside the word Close. */
+/* and the key cap reads in this arm too, dark ink on the white document button */
 html[data-skin='plain'] .kit-plank-key {
   color: var(--kit-ink-body);
   border: 1px solid var(--kit-edge-strong);

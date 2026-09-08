@@ -1,10 +1,4 @@
-// CLASS BEATS (§7.4) — the 2-3 minute focus-class scenes, GENERATED from the catalog so
-// all ~45 real courses play without a line of invented course content: the beat teaches
-// what the class IS, where it sits in the ladder (prerequisites), and which real cord it
-// feeds — and the checks are derived from those same truths, so the grading is honest.
-// Passing writes a tagged ledger entry: sitting AP Human Geography literally moves the
-// AP Honors counter (progress.ts reads the tags). Deeper per-course flavor (the "one
-// taste of the real course" minigames) is a later content pass on this same chassis.
+// the generated 2 to 3 minute class beats, built from the real course catalog
 
 import type { CheckStep } from '../../vine/contract'
 import type { ClassDef } from '../planner/catalog'
@@ -12,20 +6,7 @@ import { classById } from '../planner/catalog'
 import { placeOfDept, type MapId, type Place } from '../roster/roster'
 import type { BeatStep, CoreBeat } from './frames'
 
-/* WHERE A CLASS SITS, RESOLVED THROUGH THE ROSTER RATHER THAN INVENTED.
- *
- * This was `HALL: Record<Dept, string>` and it read 'the AP Academy', 'the
- * international hall', 'the Trades Harbor' and 'the arts wing'. Four names, none
- * of them a real BLHS place, none of them on the roster and none of them on a
- * map, so `beat.place` was a sentence nobody could navigate to: the objective
- * arrow resolves an anchor on a map and there was no map to resolve against.
- *
- * A place is the roster's and the roster's law is that a field nobody has
- * sourced is absent rather than guessed. `docs/blhs/sourced-facts.md` carries a
- * room for a club and none for a department, so EVERY DEPARTMENT RESOLVES TO
- * NOTHING TODAY and the beat says so. That reads worse than 'the AP Academy' and
- * it is the point: an honest absence is a thing somebody can go and source, and
- * an invented hall is a thing nobody knows is wrong. */
+/* where a class sits, resolved through the roster, and absent when nothing is sourced */
 export type ClassPlacement = {
   /** the roster place, when a source has put this department somewhere */
   place?: Place
@@ -39,16 +20,8 @@ export type ClassPlacement = {
 
 export function classPlacement(c: ClassDef, places?: readonly Place[]): ClassPlacement {
   const place = placeOfDept(c.dept, places)
-  /* THE ABSENCE IS IN THE PLAYER'S REGISTER, not the author's. `ActivityRunner`
-   * prints this line at the top of the beat, so 'nobody has sourced a room' would
-   * be telling a freshman about the roster. It reads the way an unpainted place
-   * reads on the chart, it admits there is nowhere to go, and it invents nothing.
-   * The machine-readable half is `place` and `map` being undefined. */
-  /* THE LINE IS NOW A PLACE AND NOT A CONFESSION. It read 'a classroom the map
-   * does not have yet', which is the author talking to the reader about the
-   * roster, and a fourteen-year-old reads it as the game being broken. It still
-   * claims no room, because none is sourced, and the machine-readable half of
-   * the absence is `place` and `map` staying undefined. */
+  /* the line the beat prints is in the player's words, not the author's */
+  /* it names a place without claiming a room, since no room is sourced */
   if (!place) return { line: 'a classroom at Bonney Lake High School' }
   return {
     place,
@@ -92,11 +65,7 @@ function cordCheck(c: ClassDef): CheckStep {
     text: o.text,
     reply: dual && (o.key === 'ap' || o.key === 'cte' || o.key === 'lang')
       ? 'True, but only half of it. This class counts for two things.'
-      /* THE WRONG REPLY MUST NOT ASSERT A WRONG FACT. This read 'This class does
-       * not count toward that honor', which is false on AP Spanish: it carries
-       * 'ap' and 'lang-capstone', so the AP Honors distractor it is shown IS a
-       * cord it counts toward. The reply refuses the pick without claiming
-       * anything the catalog contradicts. */
+      /* a wrong reply refuses the pick without asserting a fact the catalog contradicts */
       : 'Not quite. Check what this class counts toward.',
   })),
   { text: correct.text, correct: true, reply: 'Exactly. The counselor keeps count either way.' }]

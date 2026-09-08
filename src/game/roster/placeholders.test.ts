@@ -1,22 +1,4 @@
-/* THE WIRING IS LIVE, AND THIS IS THE PROOF.
- *
- * Ash's ruling, 2026-09-06: the pick screen may show placeholders today, and
- * *"everything should already be wired up for when actual islands come over"*. A
- * claim like that is worth exactly as much as the test under it, because the
- * failure mode is invisible: a screen full of Examples looks the same whether the
- * roster is being read or whether somebody hard-coded five example cards.
- *
- * So the test adds a fake row to the SAME table a member's pull request adds one
- * to, and asserts three things: the row appears under its real name, it is
- * pickable, and the five that are still placeholders stay inert beside it. It
- * does that with no edit anywhere in `src/`, which is the whole claim.
- *
- * HOW THE ROW GETS IN. `roster.ts` reads `member-islands.json` through
- * `member-islands.ts` at module scope, so the row has to be there before the
- * module is imported. `vi.doMock` plus a dynamic import is the one shape that
- * does that, and it is why every import in this file that touches the roster is
- * inside its own test rather than at the top.
- */
+/* checks that a member's roster row goes live with no code change anywhere in src */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 /** the shape `member-islands.ts` hands the roster, filled in for one fake row */

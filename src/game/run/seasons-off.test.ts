@@ -1,21 +1,4 @@
-/* THE SEASONS ARE OFF THE SURFACE, AND THIS IS WHAT KEEPS THEM OFF.
- *
- * BRIEF-CLOSE-THE-LOOP section 4: *"Wiseman's model (three seasons a year, one
- * club or sport per season) stays in the code and disappears from every screen
- * until a real sport with a season exists. One club or sport a year; no tokens
- * shown; the words Fall, Winter and Spring appear nowhere a student reads."*
- *
- * Ash, 2026-09-08, which is why: *"what even happened to the fall, winter, spring
- * shit. how does that even work. what even is that about. NONE of that is
- * explained, and even I dont know, which is the bigger problem."*
- *
- * SO IT IS A GREP, DELIBERATELY, over the files that draw the chrome a student
- * cannot avoid. A unit test can only see the strings one code path produces; the
- * failure this is guarding against is a future session reaching for `save.season`
- * because it is right there on the type. The directory is exempt and says so:
- * the school really does run sports in three seasons and the Guide is the one
- * page allowed to print the school's own list.
- */
+/* a grep keeping the season words off every screen a student cannot avoid */
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'

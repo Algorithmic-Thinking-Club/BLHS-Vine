@@ -74,10 +74,7 @@ describe('the ledger + retake policy (§8.1)', () => {
     expect(e.retaken).toBe(true)
     expect(retakeAvailable(save.loadSave()!, 'core:y1')).toBe(false)
   })
-  /* THE HOLE THE SKEPTIC PASS FOUND. `retaken` only ever went on the improving
-   * branch, so a retake that did the same or worse left the row under the B-
-   * line with no flag on it, and the policy that says ONCE offered it again
-   * every time. Unlimited, and only for the student who keeps failing. */
+  /* a retake is flagged whatever it scores, so the policy can only offer it once */
   it('a retake that does NOT improve is still spent', async () => {
     const save = await freshSave()
     const { retakeAvailable } = await import('./score')

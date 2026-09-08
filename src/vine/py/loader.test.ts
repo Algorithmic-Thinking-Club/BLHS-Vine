@@ -1,18 +1,4 @@
-/* THE LOADER, AND THE FORMAT IT REFUSES.
- *
- * Nothing in here starts a worker. happy-dom has no Worker, and more to the
- * point the worker is where MicroPython lives and a unit test has no business
- * booting a wasm runtime. What IS tested here is everything on this side of the
- * boundary: what counts as an island, where one comes from, and what the fetch
- * does when the thing at the other end is not one.
- *
- * The python half is proven by running it, in the browser, at ?scene=grape.
- *
- * THESE RULES ARE ALSO WRITTEN IN blhs-islands/tools/manifest.py, because a
- * member gets the answer on their own machine in a second instead of in a
- * browser a minute later. Two implementations of one format is a real cost and
- * it is the right trade, but only while both are tested. This is one half.
- */
+/* the loader: what counts as an island, where one comes from, and what it refuses */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -78,10 +64,7 @@ describe('what counts as an island', () => {
   })
 
   it('says nothing about contents while the shape is still wrong', () => {
-    /* the one line that matters would otherwise be buried under the complaints
-     * about fields that are not there to complain about. Asserted as a property
-     * rather than a count, so adding a required field does not move a number in
-     * a test that is not about counting. */
+    /* asserted as a property rather than a count, so a new required field moves no number */
     const f = manifestFaults({ format: 1 })
     expect(f.length).toBeGreaterThan(1)
     expect(f.every((line) => line.includes('is missing, and it is required'))).toBe(true)
@@ -295,10 +278,7 @@ describe('fetching one', () => {
   })
 
   it('refuses a web page, which is what a dev server on that port answers with', async () => {
-    /* MEASURED while building the members' repo: port 5275 was already taken by a
-     * vite server, and a static server that fails to bind does not fail loudly.
-     * Without this the island is a page of HTML and the error is about python
-     * syntax, which sends a member looking in entirely the wrong place. */
+    /* html back instead of python means the dev server is not the one that answered */
     serving({ 'island.json': '<!doctype html>\n<html><body>vite</body></html>' })
     await expect(fetchGrape(ref)).rejects.toThrow(/web page/)
   })
@@ -349,10 +329,7 @@ describe('fetching one', () => {
   })
 
   it('gives up on a server that sends headers and then stalls', async () => {
-    /* fetch resolves on HEADERS. Clearing the abort timer once it returns left
-     * the body read with no clock on it at all, so a stalled body hung the whole
-     * scene with no error and no way back, before openGrape and its BOOT_MS ever
-     * existed. That is the one silent hang the sandbox is built to prevent. */
+    /* fetch resolves on headers, so the body read needs its own clock */
     const headers = { get: () => 'text/plain' }
     vi.stubGlobal('fetch', vi.fn(async (_u: string, init: { signal: AbortSignal }) => ({
       ok: true,
@@ -377,11 +354,7 @@ describe('fetching one', () => {
 describe('where an island may be loaded from', () => {
   afterEach(() => { vi.unstubAllGlobals() })
 
-  /* ?scene=grape is in the same scene table as every other scene, so it is
-   * reachable on the deployed game. A `from` that took any origin meant a link
-   * could run a stranger's python on the real domain, and `log` reaches the Neon
-   * events table the study is measured out of. Nothing escapes the wasm sandbox;
-   * the study's data was the thing at risk. */
+  /* the grape harness is reachable on the deployed game, so a `from` origin has to be allowed */
   const reach = (base: string) => fetchGrape({ at: 'url', base })
 
   it('refuses an origin that is neither this machine nor the islands repository', async () => {

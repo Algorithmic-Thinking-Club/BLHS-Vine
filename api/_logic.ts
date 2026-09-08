@@ -1,7 +1,4 @@
-// Pure logic shared by the api handlers — no I/O, unit-tested in api/_logic.test.ts.
-// The arm hash is STUDY-CRITICAL: it decides game vs plain per participant and must never
-// change once a class is live (a silent refactor would reassign arms mid-study). The test
-// suite locks its exact outputs.
+// pure logic shared by the api handlers, with no i/o, including the participant arm hash
 
 import { randomBytes, randomUUID } from 'node:crypto'
 

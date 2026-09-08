@@ -1,28 +1,4 @@
-/* THE PROOF, and only the proof.
- *
- * A harness scene in the same family as ?scene=objmap and ?scene=pmap: it
- * exists so one thing can be watched working end to end with nothing else in
- * the frame. What it watches is the whole pipe, with no piece of it faked.
- *
- *   a base url            ->  island.json fetched and refused if it is not one
- *   every module it lists ->  written into MicroPython's own filesystem
- *   the import            ->  the decorators run, and `ready` names the handlers
- *   pressing a button     ->  {t:'call'}, which is the ENGINE calling the island
- *   yield say(...)        ->  performIntent (src/vine/intents.ts)
- *   IntentWorld.say       ->  the dialogue bus (src/game/dialogue.ts)
- *   <Dialogue />          ->  the real box, the real typewriter, the real art
- *   the player clicks     ->  the index goes back in, python branches on it
- *
- * THE BUTTONS ARE STANDING IN FOR ONE THING AND ONE ONLY: PmapScene's `fire()`,
- * which is what will call a grape when a player presses E on an anchor and which
- * does not exist yet. Everything else here is the real thing.
- *
- *   ?scene=grape                          public/grapes/hello/
- *   ?scene=grape&island=broken            the one that crashes
- *   ?scene=grape&from=http://localhost:5280/islands/skeleton/
- *   ?scene=grape&gh=owner/repo@main:islands/skeleton
- *   &arm=plain                            render the island's control arm
- */
+/* the harness scene that runs a python island end to end with nothing faked */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Dialogue } from '../../game/hud/Dialogue'
 import { choose, clearDialogue, say } from '../../game/dialogue'
@@ -32,14 +8,7 @@ import type { SessionMode } from '../contract'
 import { fetchGrape, parseGrapeRef, baseUrlOf, type LoadedGrape } from './grape-source'
 import { openGrape, type GrapeReport, type GrapeSession } from './runGrape'
 
-/* THE WORLD HALF, for a scene with no map.
- *
- * say and choose are real. Every other word in the WORLD half refuses out loud:
- * performIntent catches a throw and turns it into { ok: false }, and the driver
- * raises that at the member's own yield, so an island asking this harness to
- * walk somebody gets told rather than quietly doing nothing. The ENGINE half
- * (open, play, get, set_flag, award, log) really performs, and what it did is
- * listed on screen by the wrapper below. */
+/* the world half for a scene with no map: say and choose work, the rest refuse out loud */
 const noMap = (what: string) => (): never => {
   throw new Error(`${what} needs a map, and the proof harness has none`)
 }
@@ -65,12 +34,7 @@ const world: IntentWorld = {
   /* the composed shots need a painting to be composed of, like every other
    * camera word here */
   view: noMap('view'),
-  /* THE DIRECTOR HALF, AND EVERY ONE OF IT NEEDS A MAP. A pose is a body on a
-   * painting, an actor is a placement on one, a route is a line drawn across
-   * one, a shot is a camera looking at one and a region is a rectangle on one.
-   * `wait` and `sound` are the two director words that do NOT appear here,
-   * because neither needs a world, which is why they are on the engine half and
-   * why a member can time and score a scene in this harness with no map at all. */
+  /* the director words all need a painting, so every one of them refuses here */
   pose: noMap('pose'),
   actorMove: noMap('actor_move'),
   leadTo: noMap('lead_to'),
@@ -101,17 +65,7 @@ export default function GrapeProof() {
   const run = useRef<GrapeSession | null>(null)
   const alive = useRef(true)
 
-  /* THE ARM TOGGLE, and the reason it is a wrapper rather than a change to the
-   * engine. `engine.mode()` answers 'game' with no save, but `engine.read('mode')`
-   * answers null, because intent-engine.ts returns early when there is no save.
-   * So an island asking `get("mode")` in a bare harness cannot find out which
-   * half of the class it is talking to, and the control arm can never be looked
-   * at. §80.8 asks for exactly this toggle. It is scoped to the harness on
-   * purpose: the real answer belongs in the engine and is NEEDS.md item 5.
-   *
-   * It also watches. An award with no save loads nothing and says nothing, so
-   * without this the harness would show a member a green run that recorded
-   * exactly zero, which is the deception intents.ts:253 exists to outlaw. */
+  /* a wrapper that picks the study arm for the harness and notes what the engine did */
   const host = useMemo(() => {
     const note = (what: string, detail: string) =>
       setSeen((s) => [...s, { what, detail }])
@@ -263,10 +217,7 @@ export default function GrapeProof() {
         </div>
       )}
 
-      {/* THE ISLAND STOPPED; THIS PAGE DID NOT. The button below is the honest
-          half of the claim: it re-runs from a page still alive after a member's
-          python raised in it. The buttons above still work too, because a crash
-          in one handler does not unload the island. */}
+      {/* the crash card: the island stopped and this page can still re-run it */}
       {report?.error && (
         <div style={{
           position: 'absolute', left: '50%', top: '36%', transform: 'translate(-50%, -50%)',

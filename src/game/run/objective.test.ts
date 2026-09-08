@@ -1,16 +1,4 @@
-/* WHERE THE YEAR SENDS HIM, AND WHAT IT SAYS WHEN THERE IS NOWHERE LEFT.
- *
- * BRIEF-INTRO-FILM, Ash 2026-09-07, splits the introduction into two films and
- * makes this file the thing that decides when the second one starts. So two of
- * these claims are about a sentence a student reads and two are about a phase an
- * island reads, and both kinds get to fail here rather than in a browser.
- *
- * The phase clause matters more than it looks. `islands/panther-maw/island.py`
- * asks `get("phase")` and starts the ending when the answer is "yearbook"; if
- * that clause ever stops being reachable, the ending stops existing and nothing
- * anywhere says so. That is exactly how the `rising` phase died (see the long
- * comment in objective.ts), and the fix cost a session.
- */
+/* where the year sends the player, and the phase an island reads off it */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 async function fresh() {
@@ -74,12 +62,7 @@ describe('the phase an island reads', () => {
     expect(o.anchor).toBe('principal_desk')
   })
 
-  /* AND THE SENTENCE OUT ON THE QUAY IS THE ONE THAT STARTS THE ENDING. Ash,
-   * 2026-09-07: the closing film plays on entering the Maw with the year done
-   * and never in the same sitting as the opening, so once the introduction has
-   * handed the game over the only thing the panel can honestly say from the hub
-   * is the way back in. "Sail home" was read on the hub, which is the same
-   * island the mountain is in. */
+  /* the sentence out on the quay is the one that starts the ending */
   it('and it sends him back in through the tunnel, not out to sea', async () => {
     const { save, objective } = await fresh()
     started(save)
@@ -100,12 +83,7 @@ describe('the phase an island reads', () => {
 })
 
 describe('the last sentence of the session', () => {
-  /* BRIEF-MAW-NOW item 3, Ash 2026-09-07: after the closing film *"the bar says
-   * the year is over"*. This clause is only reachable once `yearbook:y1` is
-   * written, which is the last thing that happens in year one, so the handover's
-   * own sentence -- said an hour and a whole year earlier -- is the wrong words
-   * here. BRIEF-INTRO-FILM section 4 still holds on the half that matters: no
-   * "Year two" wording anywhere, because nobody has designed one. */
+  /* the bar says the year is over once the yearbook page has turned */
   it('says the year is over and promises nothing about next time', async () => {
     const { save, objective } = await fresh()
     started(save)

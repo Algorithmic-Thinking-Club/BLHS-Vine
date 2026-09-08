@@ -1,19 +1,4 @@
-/* WHERE THE PAINTED WORLD IS ASKED FOR, AND WHO IS ALLOWED TO ASK.
- *
- * `PmapScene` reads its map off the URL at mount and has done since doors became
- * rooms, which is right: a refresh lands a student back in the room they were
- * standing in rather than at a spawn. The consequence is that a scene which wants
- * to SEND somebody into the painted world has to write that URL before it
- * navigates, and `beginExit` inside PmapScene was the only code that knew the
- * shape. So the title and the intro could not open a map at all, and the road out
- * of the beach went to the tile island because that was the only id a `nav.go`
- * could name.
- *
- * This file is that shape, in one place, importable by a scene that must not pull
- * four thousand lines of Pixi into its own chunk. PmapScene reads the target from
- * here and writes it through here; the title and the intro write it and then
- * navigate. Nothing else may spell these parameters out.
- */
+/* the one place that spells the url a scene writes to send somebody into a painted map */
 import { transitionBusy, type TransitionSpec } from '../../app/transitions'
 import { HUB_MAP, MAW_MAP } from '../run/objective'
 
@@ -23,15 +8,7 @@ export type PmapTarget = {
   /** the arrival anchor. A door names one; without it the save's own position is
    *  asked for, and the guard in run/resume.ts decides how much of it to trust. */
   at?: string
-  /* ARRIVING BY SEA IS A DIFFERENT ARRIVAL AND NOT A FLAG ON A BODY.
-   *
-   * §80.3's law is that what the camera follows and how far out it sits are both
-   * a function of what the player is driving, so "he is on the water" cannot be
-   * expressed by moving a walker: it is the hull being the driven body from the
-   * first frame, the camera pulled out to sailing scale before the cover lifts,
-   * and the island in the middle distance rather than under the feet. The scene
-   * already has all three verbs; what it had no way to hear was somebody asking
-   * for them at load. */
+  /* true when the player arrives on the water rather than on foot */
   aboard?: boolean
 }
 
@@ -58,13 +35,7 @@ export function searchFor(t: PmapTarget, search = window.location.search): strin
   return q.toString()
 }
 
-/* WRITTEN WITH replaceState AND NEVER WITH A NAVIGATION.
- *
- * `location.href = ...` reloads the page, which destroys SceneManager, remounts
- * React, throws away the cutscene runtime and the logger's queue and re-downloads
- * the bundle. PmapScene's own door learned that lesson at c7f10d5 and this is the
- * same rule for the scenes that come BEFORE the map: set the address, then let
- * the scene manager's cover do the swap. */
+/* written with replaceState, because a real navigation would reload the whole page */
 export function setMapUrl(t: PmapTarget) {
   window.history.replaceState(null, '', `${window.location.pathname}?${searchFor(t)}`)
 }
@@ -72,19 +43,7 @@ export function setMapUrl(t: PmapTarget) {
 /** the scene id every painted map lives at, so no caller spells it */
 export const PMAP_SCENE = 'pmap'
 
-/* ---- GOING THERE, WHICH IS TWO THINGS AND NOT ONE ---------------------------
- *
- * Write the address, then navigate. Both callers were doing that by hand and both
- * carried the same hole: `cover()` REFUSES when a transition is already running
- * (transitions.tsx:81 exports the flag) and `SceneManager.go` discards the answer
- * with a `void`, so a refused navigation left the address saying `scene=pmap&map=X`
- * with the student still standing on the title or the beach. The next refresh
- * teleported them into a map they had never entered.
- *
- * So the address is only written when the navigation is actually going to happen,
- * and the two can no longer disagree. A refused one is a console line rather than
- * a silent lie, because the caller has already decided the run should move.
- */
+/* ---- write the address only when the navigation is really going to happen */
 export function enterMap(
   go: (to: string, spec?: TransitionSpec) => void,
   t: PmapTarget,
@@ -99,25 +58,10 @@ export function enterMap(
   return true
 }
 
-/* ---- THE ROAD: the two places the game itself sends a student ---------------
- *
- * Ash's two rulings, as two values rather than as strings typed into two scenes.
- * Both were literals in the middle of a component before this, which is how the
- * intro came to send everybody to a tile island for a month after the ruling that
- * killed it.
- *
- * The map ids come off `run/objective.ts`, which is where the Maw's own name
- * already lives, so the year's state machine and the road cannot disagree about
- * what the Maw is called.
- */
+/* ---- the road: the two places the game itself sends a student */
 
 /** AFTER SET SAIL: the one ocean, off the published hub, with the tiller his. */
 export const SEA_ARRIVAL: PmapTarget = { map: HUB_MAP, aboard: true }
 
-/* CONTINUE: THE MAW, ALWAYS. Ash's rule is that the Maw is Thor's home and where
- * a run resumes, so this is an explicit anchor and not a saved position: an `at`
- * outranks the resume guard by design (PmapScene reads the save's own position
- * only when no door named an arrival), which is exactly the behaviour wanted
- * here. `RunPosition` keeps being written on every map change for the study log;
- * it is simply not what Continue reads. */
+/* continue always lands in the Maw, by naming an anchor rather than a saved position */
 export const HOME_TARGET: PmapTarget = { map: MAW_MAP, at: 'arrive_maw' }

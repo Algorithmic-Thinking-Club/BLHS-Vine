@@ -33,10 +33,7 @@ describe('Y2 — the hidden ladder (Ms. Pinzon’s real criteria)', () => {
     expect(pairs['Highest Honors']).toContain('3.76')
     expect(pairs['Career Readiness']).toContain('Two CTE credits')
     expect(pairs['AP Honors']).toContain('Five passed AP')
-    /* "Proficiency in two languages" was the old sort answer and it describes a rule
-       nobody wrote: Washington's seal is four credits of ONE world language (or a
-       qualifying assessment), which is why two years of Spanish and two of French earn
-       nothing. RCW 28A.300.575, WAC 392-410-350, resolved 2026-08-28. */
+    /* the seal is four credits of one world language, not two different ones */
     expect(pairs['Seal of Biliteracy']).toContain('one world language')
   })
   it('the retake answer carries the real 79% threshold', () => {

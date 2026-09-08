@@ -1,34 +1,4 @@
-/* PATHS: the named lines a body, a hull or a camera is sent along.
- *
- * MAPVIS has authored these since wave 3 and nothing here has ever read one. The
- * hub on the platform carries `the_dock_walk` today and it has carried it since
- * 2026-08-29. This module is the reader, and it is its own file for the same
- * reason `anchors.ts` is: a path is a contract with another repo, and the next
- * person to change it should find one place that knows the shape.
- *
- * The contract, verbatim from MAPVIS-next/src/core/mask.ts:749-792:
- *
- *   PathKind = 'walk' | 'sail' | 'camera'
- *   PathMark = { at: number, name: string, label?: string }
- *   MapPath  = { id, name, kind, points: [x,y][], closed, twoWay,
- *                facing?, marks?, meta? }
- *
- * WHY A ROUTE AND NOT A LIST OF walk_to CALLS. A member can already write four
- * `walk_to` calls in a row, and the result is a body that stops dead at every
- * corner, turns, and starts again, because each call is its own arrival. A route
- * is one movement with waypoints inside it, and the shape of the line was drawn
- * by the person looking at the painting rather than typed by the person looking
- * at the code. It is also the only way a SAIL line can exist at all: there are no
- * anchors on water, so there is nothing for four `walk_to` calls to name.
- *
- * WHY THE KIND MATTERS AND IS NOT DECORATION. MAPVIS's own note on it: "the hub's
- * own the_dock_walk runs over pixels no body can stand on, and the tool had no
- * way to know whether that was a mistake or a boat." A walk route is held to the
- * floor, a sail route is expected to leave it, and a camera has no feet and is
- * held to nothing. A route that cannot be honoured refuses at the line that asked
- * for it, which is the NotBuilt law: no word may report success without
- * performing.
- */
+/* paths: the named lines a body, a hull or a camera is sent along, read off a map bundle */
 
 export type PathKind = 'walk' | 'sail' | 'camera'
 
@@ -56,10 +26,7 @@ export type Pathway = {
 
 export type PathSource = { paths?: unknown }
 
-/* `Number(null)` IS ZERO AND `isFinite(0)` IS TRUE, which is how a waypoint of
- * `[null, 471]` reads as a real point on the left edge of the painting instead of
- * as the broken point it is. Same for `''`, `false` and `[]`. The type is checked
- * before the value, so only a number or a string that says a number is a number. */
+/* reads a number, and only a number, so null and empty strings do not become zero */
 const num = (v: unknown): number | null => {
   if (typeof v === 'number') return isFinite(v) ? v : null
   if (typeof v === 'string' && v.trim() !== '' && isFinite(Number(v))) return Number(v)
@@ -71,10 +38,7 @@ const num = (v: unknown): number | null => {
  * legal python identifier is a name the API cannot expose */
 export const isPathName = (s: unknown) => typeof s === 'string' && /^[a-z][a-z0-9_]{0,47}$/.test(s)
 
-/* THE TOLERANT PARSE, for the reason `anchors.ts` gives at length: a map is
- * authored in another repo by a person, and one malformed route is not a reason
- * to show a black screen. A path that cannot be understood is dropped with a
- * console line naming it, and the rest of the map loads. */
+/* reads the paths off a map, dropping any one that cannot be understood */
 export function readPaths(map: PathSource, mapId = ''): Pathway[] {
   const raw = Array.isArray(map.paths) ? map.paths : []
   const out: Pathway[] = []
@@ -90,13 +54,7 @@ export function readPaths(map: PathSource, mapId = ''): Pathway[] {
       console.warn(`[paths] ${mapId}: duplicate path name "${name}", keeping the first`)
       continue
     }
-    /* A DROPPED WAYPOINT RENUMBERS EVERY MARK AFTER IT, silently. `[A, bad, C]`
-     * parsing to `[A, C]` keeps a route that still runs and moves the mark that
-     * meant the middle onto the end, and nothing anywhere says so: the only marks
-     * that get named are the ones that fall past the new end. A path with an
-     * unreadable point is refused whole, at the index that broke it, because one
-     * dropped route is a beat that does not play and a quietly renumbered one is
-     * a beat that plays in the wrong place. */
+    /* a path with an unreadable waypoint is refused whole rather than renumbered */
     const pts: { x: number; y: number }[] = []
     let broken = -1
     const raw = Array.isArray(e.points) ? e.points : []
@@ -119,10 +77,7 @@ export function readPaths(map: PathSource, mapId = ''): Pathway[] {
       console.warn(`[paths] ${mapId}: path "${name}" has ${pts.length} usable point${pts.length === 1 ? '' : 's'} and needs two`)
       continue
     }
-    /* WALK IS THE DEFAULT AND IT IS MAPVIS'S OWN DEFAULT, not a guess made here:
-     * "a route drawn by a person clicking ground is a walk until they say it is a
-     * boat". Every path published before the field existed lands here, including
-     * the hub's, and being held to the floor is the correct thing to do to them. */
+    /* walk is the default kind, and it is MAPVIS's own default too */
     const kindRaw = typeof e.kind === 'string' ? e.kind : 'walk'
     const kind = (PATH_KINDS as string[]).includes(kindRaw) ? kindRaw as PathKind : 'walk'
     if (kind !== kindRaw)
@@ -178,13 +133,7 @@ export function lengthOf(p: Pathway, backwards = false): number {
 
 export const pathNames = (ps: Pathway[]): string[] => ps.map((p) => p.name).sort()
 
-/* THE ONE CHECK THAT MAKES A KIND MEAN SOMETHING. `standable` is the scene's own
- * probe, the same one the anchors and the walk obey, handed in rather than
- * imported so this module stays pure and testable with no map at all.
- *
- * It samples along the line rather than only at the waypoints, because a route
- * with two legal ends and a wall in the middle is exactly the route a person
- * draws by clicking twice, and checking only the corners passes it. */
+/* which points on a walk route are not standable, sampled along the line and not just at corners */
 export function walkFaults(
   p: Pathway,
   standable: (x: number, y: number) => boolean,

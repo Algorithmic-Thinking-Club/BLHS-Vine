@@ -1,9 +1,4 @@
-/* THE RUN CLOSING (§80.6): the yearbook, graduation's seal, the resume guard, the
- * one-run guard, and the refusals the sheet serves.
- *
- * Every describe here is a defect that was live in this repo, named in the block
- * comment above it. None of these is a hypothetical.
- */
+/* the tests for closing a run: the yearbook, the seal, the resume guard and the refusals */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { yearbookPage, yearbookYears, yearTurned, YEARBOOK_SECTIONS } from './yearbook-page'
 import { resumeTarget, mooringFor, stampOf, RESUME_REASONS } from './resume'
@@ -25,14 +20,7 @@ async function freshSave() {
 
 beforeEach(() => { localStorage.clear() })
 
-/* ---- THE YEARBOOK -----------------------------------------------------------
- *
- * `Yearbook.tsx` rendered `{st.voyages.length > 0 && ...}` and
- * `{cords.length > 0 && ...}`, so the page a freshman saw and the page a senior
- * saw were two documents with two different shapes. And it read `loadSave()` and
- * `yearStatus(s)`, both of which mean "today", so year one's page stopped
- * existing the moment year two began.
- */
+/* the yearbook page assembles in a fixed order for any year, past or present */
 describe('the yearbook assembles in a fixed order for any year', () => {
   it('gives a nearly empty year one all four sections, each saying it is empty', async () => {
     const save = await freshSave()
@@ -48,10 +36,7 @@ describe('the yearbook assembles in a fixed order for any year', () => {
     expect(page.gpa).toBeNull()
     expect(page.current).toBe(true)
     expect(page.turned).toBe(false)
-    /* THE PAGE CARRIES ITS OWN GATE. The book used to be reachable only inside
-     * the window where the year was closable, so the turn could assume it. It is
-     * reachable from the sheet's shelf at any moment now, and without this a
-     * student could end year one in October by opening a book. */
+    /* the page carries its own gate, so a year cannot be ended early */
     expect(page.ready).toBe(false)
   })
 
@@ -64,11 +49,7 @@ describe('the yearbook assembles in a fixed order for any year', () => {
     // stamped, and Advisory still owed, which is the one thing that holds a year
     expect(yearbookPage(save.loadSave()!, 1).ready).toBe(false)
     save.recordGrade({ id: 'core:y1', title: 'Advisory', kind: 'core', credit: .5, grade: 4, year: 1, season: 'Fall' })
-    /* AND THE CLASSES DO NOT HOLD IT (BRIEF-MAW-RAIL, `year.ts`). The rail walks
-       a student from the pick screen to the fire to the wall to the counselor,
-       and its fourth beat shows the wall with the classes honestly still empty.
-       They are the year's optional depth, on the sheet and in the nudge line,
-       and they are not a gate. */
+    /* the classes do not hold the year open */
     expect(yearbookPage(save.loadSave()!, 1).ready).toBe(true)
     save.recordGrade({ id: 'class:ap-human-geo', title: 'x', kind: 'class', credit: .5, grade: 4, year: 1, season: 'Fall' })
     save.recordGrade({ id: 'class:spanish-1', title: 'y', kind: 'class', credit: .5, grade: 4, year: 1, season: 'Fall' })
@@ -142,15 +123,7 @@ describe('the yearbook assembles in a fixed order for any year', () => {
   })
 })
 
-/* ---- THE SEQUENCER REACHING THE YEARBOOK -----------------------------------
- *
- * `nextObjective`'s voyage clause read `y.voyages.filter((v) => !v.done)` with no
- * test of whether the programme could actually run. Every programme on the roster
- * is unplayable today, so one stamped token pointed the arrow at the exit for the
- * rest of the year and the `yearbook` phase below it was unreachable. The year
- * model deliberately does not wait on a rising island, so the two disagreed
- * forever, on the ordinary path.
- */
+/* the objective reaching the yearbook once the year is owed nothing it can do */
 describe('the objective reaches the yearbook', () => {
   async function stampedYear() {
     const save = await freshSave()
@@ -170,26 +143,15 @@ describe('the objective reaches the yearbook', () => {
     const save = await stampedYear()
     const o = nextObjective(save.loadSave())
     expect(o?.phase).toBe('yearbook')
-    /* THE CLOSING FILM STARTS HERE, and the principal is who meets him
-     * (BRIEF-INTRO-FILM: the ending is its own film, triggered by the year having
-     * nothing left owing). It was the counselor while the ending was the tail of
-     * one long introduction; she still turns the page, inside the film he opens. */
+    /* the closing film starts here and the principal is who meets him */
     expect(o?.anchor).toBe('principal_desk')
     expect(o?.say).toBe('The principal is waiting.')
-    /* AND THE AWAY LINE NAMES THE TUNNEL. Ash, 2026-09-07: the ending plays on
-     * ENTERING the Maw with the year done, so the sentence a student reads once
-     * he is out of the mountain has to be the way back in. It said "Sail home",
-     * and the only map it is ever read on is the hub, which is the same island
-     * the mountain is in. */
+    /* the away line names the tunnel, since the ending plays on entering the Maw */
     expect(o?.away).toBe('Go back into the mountain. The principal is waiting.')
   })
 
   it('sends him to the principal with a class still owed and an island still rising', async () => {
-    /* This used to expect the `rising` phase, which was the state "committed to
-       a season that cannot sail, with a class still on the sheet". Since
-       BRIEF-MAW-RAIL the classes do not hold the year open, so the page can turn
-       and the closing film is the one lit thing. What the old state was honest
-       about is said in the yearbook's nudge line instead. */
+    /* the classes no longer hold the year open, so the page can turn */
     const save = await stampedYear()
     save.writeSave({ ledger: save.loadSave()!.ledger.filter((e) => e.id !== 'class:spanish-1') })
     const o = nextObjective(save.loadSave())
@@ -212,13 +174,7 @@ describe('the objective reaches the yearbook', () => {
   })
 })
 
-/* ---- THE SEAL ---------------------------------------------------------------
- *
- * `Graduation.tsx` computed `runCode(transcriptOf(s))` from the LIVE save at
- * render, and the last button on that flow unlocks Gear 2 and opens the ocean. So
- * a graduate played one more island and the code the teacher's roster computed
- * was no longer the code on the printed page.
- */
+/* the transcript is frozen at graduation and the printed code never moves */
 describe('the transcript is frozen at graduation', () => {
   it('keeps the printed code the same after the graduate plays on', async () => {
     const save = await freshSave()
@@ -268,14 +224,7 @@ describe('the transcript is frozen at graduation', () => {
   })
 })
 
-/* ---- THE MAP-VERSION GUARD --------------------------------------------------
- *
- * AUTHORING §13: MAPVIS publishes immutable versions and any map can be re-cut at
- * any time. Nothing recorded which version a save was written against, so a
- * re-cut that put a wall where a student stood resumed thirty Chromebooks inside
- * blocked pixels, with the walk law refusing every direction and no error
- * anywhere.
- */
+/* a resume never trusts a saved position across a republished map or world */
 describe('a resume never trusts a position across a republish', () => {
   const now = { map: 'hub', mapVersion: 7, worldVersion: 1 }
 
@@ -323,12 +272,7 @@ describe('a resume never trusts a position across a republish', () => {
   })
 })
 
-/* ---- THE SHIP ---------------------------------------------------------------
- *
- * §80.6 asks for "a rule that never restores a ship at sea" and Q80.6.c's
- * recommendation on record is a dock, because a dock is a named anchor on a known
- * map and a point on open water is neither.
- */
+/* a run never restores a ship at sea, only at a named berth */
 describe('a run never restores a ship at sea', () => {
   const c: WorldComposition = {
     version: 1,
@@ -360,13 +304,7 @@ describe('a run never restores a ship at sea', () => {
   })
 })
 
-/* ---- THE ONE-RUN-PER-PARTICIPANT GUARD (Q14) --------------------------------
- *
- * `SettingsPanel.tsx:183-195` renders "Restart adventure" behind a confirm and
- * sits OUTSIDE the `isCaptain()` block. Restart plus a new handle writes a second
- * participant row in the same class with an independently drawn arm, and no
- * analysis downstream can tell that the two rows are one person.
- */
+/* one run per participant, and the guard survives a wipe */
 describe('one run per participant', () => {
   it('lets a device that never joined a class start over', async () => {
     const save = await freshSave()
@@ -439,13 +377,7 @@ describe('one run per participant', () => {
   })
 })
 
-/* ---- THE SAVE, HARDENED -----------------------------------------------------
- *
- * `localStorage.setItem` was bare and it throws: a school Chromebook with a full
- * profile raises QuotaExceededError and a district image with site data blocked
- * raises SecurityError. And `readRaw` was `s.v === 2 ? norm(s) : null`, so a save
- * from a newer deploy read as NO SAVE and the next Begin Adventure erased it.
- */
+/* the save keeps playing when the disk refuses, and reads a newer deploy's file */
 describe('the save has a real failure path and a forward-compatible read', () => {
   it('keeps the run playable and records the fault when the disk refuses', async () => {
     const save = await freshSave()
@@ -507,23 +439,14 @@ describe('the save has a real failure path and a forward-compatible read', () =>
   })
 })
 
-/* ---- THE REFUSALS (N3) ------------------------------------------------------
- *
- * The season lock lived in a `.filter()` inside `Planner.tsx`'s menu. A filter is
- * not a refusal: it removed the programme rather than saying why, and
- * `assignSlot` never checked a season at all, so any caller that was not that
- * render could put a fall sport on a spring token.
- */
+/* one refusal string, and the verb enforces the same rule the menu does */
 describe('one refusal string, and the verb enforces the same rule', () => {
   it('says why a fall sport is not available in spring, in the school\'s own fact', async () => {
     const save = await freshSave()
     save.beginAdventure()
     const s = save.loadSave()!
     const why = refuseSlot('football', 'Spring', s, 1)
-    /* the name the roster prints, which is the placeholder while nothing has an
-       island behind it (BRIEF-MAW-RAIL-3 B). A refusal that named the real sport
-       would be the one surface still telling a student that Football is a thing
-       he can nearly do. */
+    /* the name the roster prints, which is the placeholder while nothing is playable */
     expect(why).toContain(programmeById('football')!.name)
     expect(why).toContain('fall sport')
     expect(refuseSlot('football', 'Fall', s, 1)).toBeNull()
@@ -576,11 +499,7 @@ describe('one refusal string, and the verb enforces the same rule', () => {
   })
 
   it('reads a sport\'s season through the resolver, because no sport carries the field', async () => {
-    /* the sheet printed `a ${a.season?.toLowerCase()} sport` and NO SHIPPED SPORT
-     * SETS `season`: it comes from the school's own `SPORT_SEASONS` table keyed by
-     * id, so every sport on the menu read "a undefined sport". This is the
-     * tripwire, not the render: as long as the field stays empty, anything reading
-     * it directly is wrong. */
+    /* no shipped sport sets season; it comes from the school's own table */
     const { seasonOf, PROGRAMMES } = await import('../roster/roster')
     const sports = PROGRAMMES.filter((p) => p.kind === 'sport')
     expect(sports.length).toBeGreaterThan(0)

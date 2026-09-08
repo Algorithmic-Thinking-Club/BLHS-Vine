@@ -1,15 +1,4 @@
-/* WHERE A CLASS SITS, AND THE FOUR INVENTED HALLS THAT USED TO ANSWER IT.
- *
- * `classes.ts` carried `HALL: Record<Dept, string>` reading 'the AP Academy',
- * 'the international hall', 'the Trades Harbor' and 'the arts wing'. Four names,
- * none of them a real BLHS place, none of them on the roster, none of them on a
- * map. A class beat's `place` was therefore a sentence nobody could navigate to,
- * and the objective arrow, which resolves an anchor on a map, could never point
- * at a class.
- *
- * This is a tripwire in both directions: the invented names may not come back,
- * and the resolver has to really resolve when a place is finally sourced.
- */
+/* the tests for where a class beat says it happens, which has to be a real place */
 import { describe, it, expect } from 'vitest'
 import { classBeat, classPlacement } from './classes'
 import { CLASSES, classById, type ClassDef } from '../planner/catalog'
@@ -26,11 +15,7 @@ describe('a class names a roster place or says it has none', () => {
   })
 
   it('reads as an honest absence today, because no department is sourced anywhere', () => {
-    /* `docs/blhs/sourced-facts.md` carries a room for a club and none for a
-     * department: the course catalog says what is taught and never where. So the
-     * roster teaches nothing, every class resolves to nothing, and the beat says
-     * so instead of guessing. When somebody sources a room this test is the one
-     * that fails, and that is the correct failure. */
+    /* no department has a sourced room yet, so a class resolves to no place at all */
     expect(PLACES.every((p) => !p.teaches?.length)).toBe(true)
     for (const dept of ['ap', 'lang', 'cte', 'arts'] as const) {
       const c = CLASSES.find((x) => x.dept === dept)!

@@ -1,17 +1,4 @@
-/* ONE VALUE FOR REDUCED MOTION, NOT TWO THAT USUALLY AGREE.
- *
- * W12's finding was that `data-rm` is read by CSS and nothing drawn on the Pixi
- * canvas can see it. The fix was `motion.ts`. What that fix left behind, and what
- * these tests hold, is the other direction: `motion.ts` also reads the OS media
- * query and the stylesheets do not, so the two could disagree and a student whose
- * Chromebook already asked for less motion got a shortened camera move and a
- * full-length panel animation in the same second.
- *
- * The attribute is the file's output now. What the stylesheets match on is
- * exactly the boolean the renderer is handed, and every `html[data-rm='1']` rule
- * in the tree, including the ones in files this session does not own, starts
- * honouring the OS setting without being edited.
- */
+/* one reduced-motion value, read the same way by the stylesheets and by the renderer */
 import { describe, it, expect, beforeEach } from 'vitest'
 import { motionAmp, motionMs, onReducedMotion, prefersReducedMotion, setReducedMotion } from './motion'
 

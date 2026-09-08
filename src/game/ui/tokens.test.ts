@@ -1,21 +1,4 @@
-/* THE KIT IS ONE SYSTEM, HELD TO IT BY READING THE STYLESHEETS.
- *
- * Three claims are made about the kit and all three are the kind that rot
- * silently, because nothing errors when they stop being true:
- *
- *   1. the default skin renders what shipped before the token layer existed. The
- *      only honest proof is that every token's value is the literal it replaced,
- *      byte for byte, so the table below is the diff nobody has to eyeball.
- *   2. every kit stylesheet reads the token layer. A single retyped `#8a744f` is
- *      a surface the plain arm cannot reach, and it is invisible until somebody
- *      switches arms and finds one wooden panel in a plain sheet.
- *   3. every animation has a reduced-motion answer. Six of them did not, and the
- *      way that was found was by grepping, which is a thing that happens once.
- *
- * These read the CSS as text on purpose. happy-dom does not resolve custom
- * properties through `getComputedStyle` the way a browser does, and a test that
- * needed a real engine would be a test that never runs.
- */
+// holds the kit to one system by reading the stylesheets as text: token values, art, and motion
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -130,16 +113,7 @@ describe('the tokens are extracted, not invented', () => {
     ['kit-alarm', '#a3492c', 'settings.css .st-dangerhead'],
     ['kit-caption-ink', '#f2e8d2', 'ui-kit.css .cs-caption'],
     ['kit-focus', '#ffd98a', 'dialogue.css .dlg-choice:focus-visible'],
-    /* THE THREE VEILS ARE THE ONLY EXTRACTED VALUES THAT HAVE MOVED, and they
-     * moved on an order: the fresh-eyes round of 2026-08-30 read a fullscreen
-     * panel over a half-visible world as text-over-text and failed the surface.
-     * They are pinned again at the new numbers, because the reason this list
-     * exists is that a colour cannot change without somebody saying so, not that
-     * a colour can never change. */
-    /* MOVED AGAIN ON 2026-09-01, and the arithmetic is at the token. The
-     * art-direction pass measured the world behind a panel at four percent
-     * luminance and read it as a void rather than as a dimmed island. The three
-     * are now within twelve points of each other instead of twenty-two. */
+    // the three veils are pinned at values that were deliberately changed, not at the originals
     ['kit-veil', 'rgba(14, 10, 8, .6)', 'hud.css .hb-veil, and now every veil in the kit'],
     ['kit-veil-soft', 'rgba(14, 10, 8, .56)', 'settings.css .st-veil'],
     ['kit-veil-pause', 'rgba(16, 11, 8, .48)', 'hud.css .pz-veil'],
@@ -214,17 +188,7 @@ describe('every kit stylesheet reads the token layer', () => {
   })
 })
 
-/* ---- §16: THE PLAIN ARM HAS NO ART, PROVED BY READING THE TREE -----------
- *
- * The adversarial pass of 2026-08-31 found five surfaces still painting PixelLab
- * art under `html[data-skin='plain']`, and every one of them failed the same
- * way: the rule spelled the png out, so `--kit-art-panel: none` could never
- * reach it. `.bt-stage` was one of them, and that is the frame every scored item
- * in the study is read on.
- *
- * Nothing errors when this rots. A wooden panel appears in a plain sheet, the
- * control arm quietly stops being a control arm, and the only way anyone finds
- * out is by looking. So it is read off the files instead. */
+// proves the plain arm paints no game art, by reading every stylesheet rather than by looking
 
 const artHandlesIn = (src: string): string[] =>
   [...src.matchAll(/--kit-art-([A-Za-z0-9_-]+)/g)]
@@ -278,12 +242,7 @@ describe('the plain arm has no art anywhere, and nothing can quietly add some', 
         const body = m[2]
         if (!sel.includes("data-skin='plain'")) continue
         if (/url\(/.test(body)) offenders.push(`${file} · ${sel.trim()}: a url`)
-        /* `border-image: none` is the OPPOSITE of art and has to be allowed, or
-         * this guard forbids the one declaration that turns a frame OFF. Since
-         * 2026-08-31 the paper skin draws every panel as a nine-slice, so the
-         * plain arm has to say `none` out loud: it would inherit one otherwise,
-         * and a carved wooden frame around a worksheet is exactly what this test
-         * exists to catch. Any other value is still an offence. */
+        // `border-image: none` turns a frame off, so it is allowed; any other value is not
         for (const bi of body.matchAll(/border-image[a-z-]*:\s*([^;]+)/g)) {
           if (bi[1].trim() !== 'none') offenders.push(`${file} · ${sel.trim()}: a border-image`)
         }
@@ -301,10 +260,7 @@ describe('the plain arm has no art anywhere, and nothing can quietly add some', 
     expect(tokens).toContain('--kit-fs: clamp(15px, var(--kit-fs-raw), 28px);')
     expect(tokens).toContain('--kit-fs: max(1px, round(clamp(15px, var(--kit-fs-raw), 28px), 1px));')
     // and the fallback arm is still a real declaration outside the feature query
-    /* SEARCHED FROM THE PLAIN BLOCK, not from the top of the file. The paper skin
-     * grew its own clamp on 2026-08-31, so a bare indexOf for 'max(1px, round(clamp('
-     * found the PAPER one, which sits earlier, and the ordering check compared two
-     * different arms and failed on a file that was correct. */
+    // searched from the plain block, since the paper skin has a clamp of its own further up
     const from = tokens.indexOf("html[data-skin='plain'] *,")
     const loose = tokens.indexOf('--kit-fs: clamp(15px, var(--kit-fs-raw), 28px);', from)
     const snapped = tokens.indexOf('--kit-fs: max(1px, round(clamp(15px,', from)
@@ -321,12 +277,7 @@ describe('the plain arm has no art anywhere, and nothing can quietly add some', 
     }
   })
 
-  /* FOUND BY LOOKING RATHER THAN BY READING, 2026-08-31: the first plain-arm
-   * screenshot of the year sheet came back in Harbormaster. The token layer only
-   * ever reached six stylesheets, and `planner.css`, `run.css`, `chart.css`,
-   * `beats.css` and `stage/placecard.css` spell the two game faces out about
-   * fifty times between them. Four of those are surfaces BLHS content is
-   * delivered on. One rule ends all of it and this holds the rule down. */
+  // one rule puts the system face on the whole plain arm, past any stylesheet naming a game face
   it('puts one face on the whole arm, past every stylesheet that spells a game face out', () => {
     expect(tokens).toContain("html[data-skin='plain'] * { font-family: var(--kit-face-body); }")
   })
@@ -355,13 +306,7 @@ describe('the plain arm has no art anywhere, and nothing can quietly add some', 
   })
 })
 
-/* ---- the wire that was never run ------------------------------------------
- *
- * `save.ts` has recorded the assigned arm since join day and `intent-engine.ts`
- * has read it, and until 2026-08-31 nothing put it on <html>. A student the
- * server had assigned to the control group played the full painted game
- * everywhere except inside four beat screens, which is not a control condition.
- * These hold the wire down at both ends: the pure order, and the attribute. */
+// the arm the server assigned actually reaches the document's skin attribute
 describe('the assigned study arm reaches the skin', () => {
   it('ranks the URL over the arm and the arm over any stored preference', () => {
     expect(resolveSkin('?skin=plain', 'game', 'paper')).toBe('plain')
@@ -511,12 +456,7 @@ describe('the text setting reaches a panel that sizes itself in container units'
   })
 })
 
-/* ---- the integer snap ---------------------------------------------------
- *
- * A container width times a setting is fractional at nearly every window, and a
- * bitmap face resampled at 1.056 of its drawn size drops a column out of a
- * letter. The snap is code rather than a promise, so these hold the two halves
- * of it: the formula exists in both arms, and no surface goes round it. */
+// type sizes land on whole pixels, because a bitmap face resampled at a fraction loses strokes
 
 /* every stylesheet whose type is sized off a container, a viewport or an em, and
  * therefore every one that could hand the font engine a fraction */
@@ -532,11 +472,7 @@ describe('type lands on whole pixels', () => {
   const css = strip(read(TOKENS))
 
   it('snaps through one formula rather than in every stylesheet', () => {
-    /* THE PAPER SKIN GREW A FLOOR AND A CEILING on 2026-08-31. Ash could not read
-     * the panels and the measurement agreed: eight of the yearbook's twelve text
-     * elements were under 14px, two of them at 10. A size in this game is a RATIO
-     * of its panel, so nothing stopped a ratio resolving to decoration. The snap
-     * is unchanged and now wraps a clamp instead of a bare ratio. */
+    // the snap wraps a clamp, so a size that is a ratio of its panel still has a floor and ceiling
     expect(css).toContain('*, *::before, *::after { --kit-fs: clamp(14px, var(--kit-fs-raw), 44px); }')
     expect(css).toContain('@supports (font-size: round(1px, 1px))')
     expect(css).toContain('round(clamp(14px, var(--kit-fs-raw), 44px), 1px)')
@@ -569,22 +505,7 @@ describe('type lands on whole pixels', () => {
   }
 })
 
-/* ---- THE KEYBOARD PATH IS VISIBLE, AND STAYS VISIBLE --------------------------
- *
- * Part IV §40.9: "There is a fifth state and the repo actively removes it."
- * `outline: none` appears in five stylesheets and nothing replaced it, so a
- * student driving the game from the keyboard, which §11.3 says is a supported way
- * to play, could not see what was selected in any panel in the game. On a school
- * Chromebook the trackpad is bad enough that keys are the FASTER way to play, so
- * this is not an accommodation, it is the second of the two ways the game is
- * played and it was invisible.
- *
- * The ring is now matched by ELEMENT rather than by a list of eighteen classes,
- * because a list covers the controls that existed the day it was written and the
- * nineteenth button ships blind. These two guard that shape rather than the ring
- * itself: one that the law is a law, and one that nobody re-adds a bare
- * `outline: none` on top of it.
- */
+// every focusable element carries a visible focus ring, and nothing switches it back off
 describe('a keyboard player can always see where they are', () => {
   const css = strip(read(TOKENS))
 
@@ -599,11 +520,7 @@ describe('a keyboard player can always see where they are', () => {
   })
 
   it('lets nobody switch the ring off again without saying why', () => {
-    /* `outline: none` is legitimate in exactly one shape: turning off the default
-     * ring in order to draw a better one, in the same block or the next. What is
-     * not legitimate is deleting it and stopping. Every occurrence in the tree has
-     * to sit in a file that also has a `:focus-visible` rule, which is the cheapest
-     * check that catches the real failure and does not fight the real use. */
+    // `outline: none` is allowed only in a file that also draws its own focus ring
     const offenders: string[] = []
     for (const file of everyStylesheet()) {
       const sheet = strip(read(file))
