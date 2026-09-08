@@ -83,7 +83,7 @@ import { note } from '../ui/feedback'
 import { placeCardUp } from '../stage/stage-bus'
 /* and the one sentence this scene knows that the year does not, which the panel
  * at the top of the screen prints (BRIEF-MAW-RAIL-3 A) */
-import { setWorldObjective } from '../hud/objective-bus'
+import { setObjectiveSaid, setWorldObjective } from '../hud/objective-bus'
 
 /* THE FIVE STATES THE IN-WORLD PROMPT CAN BE IN, which Part IV §40.5 enumerates
  * and which this engine had four strings and one style for.
@@ -6366,6 +6366,15 @@ export default function PmapScene() {
         if (busy) return 'busy'
         if (islandPending && a.kind !== 'door') return 'busy'
         if (fade) return 'a door is closing'
+        /* A DOOR BEFORE ANYBODY IS ASKED WHO OWNS IT, which is the order `fire`
+         * itself keeps and the order this handle did not. Nothing claims a door
+         * (that is what makes it a door), so the owner lookup below answered
+         * "nothing answers to panthers_maw" for a door the game takes fine with
+         * a press of E, and a proof run could walk out of the Maw only because
+         * `maw_entrance` happens to be spelled the same as a TypeScript station.
+         * A handle that reports a working door as broken is worse than no
+         * handle. */
+        if (a.kind === 'door') { void fire(a); return 'fired' }
         const owner = ownerOf(a.name, grapeHandlers)
         if (!owner) return `nothing answers to ${a.name}`
         if (owner.by === 'station' && !loadSave()) return 'no run'
@@ -8113,6 +8122,24 @@ export default function PmapScene() {
        * with it, for the same reason: "Click the island to sail there" over the
        * next map would be an instruction about a boat that is not there. */
       setWorldObjective(null)
+      /* AND SO DOES THE ISLAND'S, which outranks both of the others and outlived
+       * every one of them. `stopIsland()` four lines down kills the worker that
+       * said it, so from here on nobody is left who could take it back.
+       *
+       * Measured on the cold run, 2026-09-07: the Maw's handover says "Explore.
+       * Talk to anyone. Open the Guide.", the student walks out through the
+       * tunnel, and that sentence was still over his head on the quay with the
+       * room it was about behind a door. The year had the right words waiting
+       * ("Go back into the mountain. The principal is waiting.") and could not
+       * get to the panel to say them, because rank 1 was still occupied by a
+       * dead island. `objective-bus.ts`'s own header already promised this
+       * ("cleared ... when a scene is torn down") and nothing did it.
+       *
+       * THE FILM IS NOT AN EXCEPTION, unlike the bars above it. A door the film
+       * walks through hands the next map to the next island, and that island
+       * says its own step within a frame or two of loading; the year's sentence
+       * underneath is true for the gap. A stale one is not true for any of it. */
+      setObjectiveSaid(null)
       /* anything a station was still waiting on is resolved rather than left
        * hanging. A body parked on an unresolved say() holds its world lock for
        * ever, and the next map opens with no controls and no way to tell why. */
