@@ -393,22 +393,20 @@ console.log('\nTHE PANTHER\'S MAW  (items 6 and 8)')
    * dressed the room and equally true BEFORE it has started: on the deploy the
    * bundle comes off the platform and the worker starts seconds later, so the
    * gate waited, saw a man standing still at his home pixel, set off, and the
-   * island's `place` landed in the middle of the move. `__pmap.island.busy` is
-   * the scene's own answer to the same question every other caller asks it. */
+   * island's `place` landed in the middle of the move. Watching `busy` alone was
+   * the same mistake one level up: an island that has not loaded yet is not busy
+   * either. `started` is the scene's own record of the handler it calls
+   * unprompted having RETURNED, which is the question this gate actually has. */
   const settled = async () => {
     const t = Date.now()
-    let quiet = 0
-    while (Date.now() - t < 20000) {
-      const busy = await page.evaluate(() => !!window.__pmap.island?.busy)
-      quiet = busy ? 0 : quiet + 1
-      /* a second of quiet, because a handler yields between words and the gap
-       * between two of them is not the end of it */
-      if (quiet >= 8) return true
+    while (Date.now() - t < 25000) {
+      const i = await page.evaluate(() => window.__pmap.island ?? null)
+      if (i?.started && !i.busy) return true
       await page.waitForTimeout(125)
     }
     return false
   }
-  await settled()
+  if (!await settled()) console.log('  (the room never reported finishing its opening)')
 
   const frames = new Set()
   const pics = new Set()

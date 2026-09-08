@@ -3470,6 +3470,9 @@ export default function PmapScene() {
        * array rather than a call through the session. */
       let grape: GrapeSession | null = null
       let grapeHandlers: string[] = []
+      /* whether the room's own python has finished the handler the engine calls
+       * unprompted on every load. See the note where it is set. */
+      let islandStarted = false
       /* IS AN ISLAND STILL ON ITS WAY IN.
        *
        * `ownerOf` asks the island first and the station table second, and during
@@ -5941,8 +5944,16 @@ export default function PmapScene() {
            * painting with a man standing still and not one line anywhere. Silence
            * is the failure this whole vocabulary exists to make impossible, and
            * the one place it survived was the first thing an island ever does. */
+          if (!ready.handlers.includes('start')) islandStarted = true
           if (ready.handlers.includes('start')) {
             const report = await s.call('start')
+            /* AND THE ROOM HAS FINISHED DRESSING ITSELF, said once, here. It is
+             * the question anything that drives a body at load time has to be
+             * able to ask, and `busy` cannot answer it: an island that has not
+             * loaded yet is not busy either, so a harness watching `busy` sets
+             * off before the room has started rather than after it has finished.
+             * `scripts/arrival-proof.mjs` lost two rounds to exactly that. */
+            islandStarted = true
             /* AND THE BARS COME DOWN WHEN THE OPENING IS OVER, whether or not
              * the island remembered. `movie(True)` takes the controls away and
              * puts the whole HUD behind two black bars; an island that raises
@@ -5970,6 +5981,9 @@ export default function PmapScene() {
             }
           }
         } catch (e) {
+          /* an island that never arrived has finished arriving, which is the
+           * honest answer for anybody waiting on it */
+          islandStarted = true
           console.warn(`[pmap] ${mapId}: island did not load: ${e instanceof Error ? e.message : e}`)
           /* and the frame comes down with it: an island that never arrived is an
            * island that will never say `movie(False)` */
@@ -7020,7 +7034,9 @@ export default function PmapScene() {
          * question anything driving an actor at load time has to be able to ask.
          * `scripts/arrival-proof.mjs` guessed it from a body being still and the
          * guess was true before the island had started as well as after. */
-        get island() { return { handlers: grapeHandlers, busy: !!grape?.busy() } },
+        get island() {
+          return { handlers: grapeHandlers, busy: !!grape?.busy(), started: islandStarted }
+        },
         perform: (i: unknown) => performIntent(i as Intent, intentHost),
       }
 
