@@ -91,6 +91,14 @@ const look = () => page.evaluate(() => {
     press.push({
       text: (el.innerText || el.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 70),
       box: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
+      /* CHROME IS NOT THE WAY ON, and since 2026-09-08 the objective bar is a
+       * control: pressing it drops the year's task sheet. This run presses the
+       * loudest thing on the glass, and on a quiet map that is a wooden sign at
+       * the top of the screen that opens a list and closes it again forever. The
+       * corner and the help plaque were already excluded by name; this is the
+       * same rule said once, by where a control lives rather than by its
+       * wording, so the next always-present control inherits it. */
+      chrome: !!el.closest('.ob-wrap, .hud-stack, .hp-btn, .hud-help')
     })
   }
   const texts = []
@@ -102,7 +110,7 @@ const look = () => page.evaluate(() => {
   const p = window.__pmap
   const save = (() => { try { return JSON.parse(localStorage.getItem('blhs_save_v2') || 'null') } catch { return null } })()
   return {
-    press: press.filter((e) => e.text),
+    press: press.filter((e) => e.text && !e.chrome),
     texts: [...new Set(texts)],
     map: p ? { map: p.map, x: Math.round(p.x), y: Math.round(p.y), hull: p.hull, guide: p.guide, lit: p.lit } : null,
     /* THE BARS ARE UP AND NOTHING IS HIS. A watched stretch is not a stall and
