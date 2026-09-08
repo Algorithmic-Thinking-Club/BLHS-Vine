@@ -176,7 +176,12 @@ describe('the objective reaches the yearbook', () => {
      * one long introduction; she still turns the page, inside the film he opens. */
     expect(o?.anchor).toBe('principal_desk')
     expect(o?.say).toBe('The principal is waiting.')
-    expect(o?.away).toBe('Sail home. The principal is waiting.')
+    /* AND THE AWAY LINE NAMES THE TUNNEL. Ash, 2026-09-07: the ending plays on
+     * ENTERING the Maw with the year done, so the sentence a student reads once
+     * he is out of the mountain has to be the way back in. It said "Sail home",
+     * and the only map it is ever read on is the hub, which is the same island
+     * the mountain is in. */
+    expect(o?.away).toBe('Go back into the mountain. The principal is waiting.')
   })
 
   it('sends him to the principal with a class still owed and an island still rising', async () => {
