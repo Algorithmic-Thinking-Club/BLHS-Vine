@@ -61,7 +61,31 @@ export interface Anchor {
 export interface AnchorSource {
   anchors?: unknown
   events?: unknown
+  /* read only to size the stand-point sanity check below, and both optional
+   * because a hand-written fixture is allowed to be two anchors and nothing
+   * else. The fallbacks are the numbers every bundle in this project carries. */
+  character?: { heightPx?: number } | unknown
+  yScale?: unknown
 }
+
+/* HOW FAR A STANDING SPOT MAY BE FROM THE THING IT BELONGS TO, in body lengths.
+ *
+ * A `stand` is "the floor beside this", so it is always within arm's reach of the
+ * thing: measured across every post Ash has authored, the furthest legitimate one
+ * is the chart table's at just over one body length, and most are a third of that.
+ *
+ * IT IS CHECKED BECAUSE MAPVIS LEAVES IT BEHIND WHEN A POST MOVES. Maw v7,
+ * published 2026-09-08: Ash moved the counselor onto the desk and the principal
+ * out to the tunnel mouth, both posts travelled, and neither `stand` did. So the
+ * counselor's standing spot was sixty pixels of floor away from the counselor,
+ * and the principal's was two hundred and fourteen, on the far side of the hall
+ * and twelve pixels from the counselor. Walking to the principal walked you to
+ * her; walking to the counselor walked you to nothing at all.
+ *
+ * A spot that far away is not this anchor's spot, it is the ghost of where the
+ * post used to be, and the anchor's own pixel is a better answer than a wrong
+ * one. Said out loud, with both numbers, because the real fix is in the tool. */
+const STAND_REACH_BODIES = 2
 
 const num = (v: unknown, fallback: number) => (isFinite(Number(v)) ? Number(v) : fallback)
 
@@ -86,6 +110,11 @@ export function readAnchors(map: AnchorSource, mapId = ''): Anchor[] {
       : []
   const out: Anchor[] = []
   const seen = new Set<string>()
+  /* the two numbers the stand-point check is sized in. Every bundle carries
+   * both; a fixture that carries neither gets the shape every bundle has. */
+  const ch = map.character as { heightPx?: unknown } | undefined
+  const body = Math.max(4, num(ch?.heightPx, 20))
+  const ys = num(map.yScale, 1) || 1
   for (const e of raw as Record<string, unknown>[]) {
     if (!e || typeof e !== 'object') continue
     if (!isFinite(Number(e.x)) || !isFinite(Number(e.y))) continue
@@ -136,8 +165,21 @@ export function readAnchors(map: AnchorSource, mapId = ''): Anchor[] {
     const rawRing = Array.isArray(e.ring) ? e.ring : meta && Array.isArray(meta.ring) ? meta.ring : null
     if (rawRing && rawRing.length === 2 && (rawRing as unknown[]).every((n) => isFinite(Number(n))))
       a.ring = [Math.round(Number(rawRing[0])), Math.round(Number(rawRing[1]))]
-    if (Array.isArray(e.stand) && e.stand.length === 2 && e.stand.every((n) => isFinite(Number(n))))
-      a.stand = [Math.round(Number(e.stand[0])), Math.round(Number(e.stand[1]))]
+    if (Array.isArray(e.stand) && e.stand.length === 2 && e.stand.every((n) => isFinite(Number(n)))) {
+      const sx = Math.round(Number(e.stand[0])), sy = Math.round(Number(e.stand[1]))
+      /* GROUND PIXELS, NOT SCREEN ONES. The painting is squashed, so a spot the
+       * same number of pixels below a post is further away on the floor than one
+       * beside it, and this has to measure the floor. */
+      const apart = Math.hypot(sx - a.x, (sy - a.y) / ys)
+      const reach = STAND_REACH_BODIES * body + a.r
+      if (apart <= reach) a.stand = [sx, sy]
+      else {
+        console.warn(`[anchors] ${mapId}: "${name}" stands at ${sx},${sy}, which is ${Math.round(apart)}`
+          + ` pixels of floor from the post itself at ${a.x},${a.y} and past its reach of ${Math.round(reach)}.`
+          + ' A standing spot is the floor beside a thing, so this one was left behind when the post moved.'
+          + " Using the post's own pixel. Drag the standing spot with it in MAPVIS and republish.")
+      }
+    }
     if (typeof e.to === 'string' && e.to) a.to = e.to
     if (typeof e.toAnchor === 'string' && e.toAnchor) a.toAnchor = e.toAnchor
     if (typeof e.placement === 'string' && e.placement) a.placement = e.placement

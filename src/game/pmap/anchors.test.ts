@@ -307,3 +307,52 @@ describe('a region with an area', () => {
     expect(set.contains(hall, 390, 300)).toBe(true)
   })
 })
+
+describe('a standing spot that was left behind when its post moved', () => {
+  /* MAW v7, PUBLISHED 2026-09-08, AND THIS IS THE REAL DATA.
+   *
+   * Ash moved two posts in MAPVIS: the counselor onto the desk and the principal
+   * out to the tunnel mouth. Both posts travelled and neither `stand` did, so the
+   * counselor's standing spot was sixty pixels of floor away from the counselor
+   * and the principal's was two hundred and fourteen, on the far side of the hall
+   * and twelve pixels from HER post. Measured in a browser: walking to the
+   * principal walked you to the counselor and raised her plaque, and walking to
+   * the counselor walked you to a piece of empty floor with nothing on it.
+   *
+   * The real fix is in MAPVIS, and the game still has to survive a bundle that
+   * carries the ghost of where a post used to be. */
+  const v7 = () => readAnchors({
+    yScale: 0.72,
+    character: { heightPx: 20 },
+    anchors: [
+      { name: 'chart_table', kind: 'post', x: 288, y: 229, r: 10, stand: [295, 213], label: 'Open the year sheet' },
+      { name: 'counselor', kind: 'post', x: 382, y: 196, r: 14, stand: [324, 185], label: 'The Counselor' },
+      { name: 'principal_desk', kind: 'post', x: 191, y: 116, r: 14, stand: [370, 201], label: 'Principal Panther' },
+      { name: 'trophy_wall', kind: 'post', x: 290, y: 203, r: 14, stand: [298, 201], label: 'The Trophy Wall' },
+    ],
+  }, 'panther-maw')
+
+  it('keeps every standing spot that is really beside its post', () => {
+    const a = v7()
+    /* the chart table's is the furthest legitimate one Ash has ever drawn, at
+     * just over a body length, and it must survive: it is the spot the whole
+     * year-one film puts the student on. */
+    expect(a.find((x) => x.name === 'chart_table')!.stand).toEqual([295, 213])
+    expect(a.find((x) => x.name === 'trophy_wall')!.stand).toEqual([298, 201])
+  })
+
+  it('drops the two that are the ghost of where the post used to be', () => {
+    const a = v7()
+    expect(a.find((x) => x.name === 'counselor')!.stand).toBeUndefined()
+    expect(a.find((x) => x.name === 'principal_desk')!.stand).toBeUndefined()
+  })
+
+  it('so a walk to either one goes to the post, not to the other post', () => {
+    const set = new AnchorSet('panther-maw', v7())
+    /* the number that mattered: the principal's ghost spot is twelve pixels from
+     * the counselor, so before this the film walked the student to her and
+     * called it the principal. */
+    expect(set.standAt(set.get('principal_desk')!)).toMatchObject({ x: 191, y: 116 })
+    expect(set.standAt(set.get('counselor')!)).toMatchObject({ x: 382, y: 196 })
+  })
+})

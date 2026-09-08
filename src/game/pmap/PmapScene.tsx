@@ -38,7 +38,7 @@ import { carryCinemaThroughDoor, cinemaOn, onCinema, setCinema, takeCinemaCarry 
 import { choose, clearDialogue, say } from '../dialogue'
 import { engine } from '../intent-engine'
 import { play as playSfx } from '../audio'
-import { NotBuilt, PACE_OF, WAIT_FOR_CEILING_MS, performIntent, type Intent, type IntentHost, type IntentWorld, type CoverOccasion, type Offset } from '../../vine/intents'
+import { NotBuilt, PACE_OF, PLAYER, WAIT_FOR_CEILING_MS, performIntent, type Intent, type IntentHost, type IntentWorld, type CoverOccasion, type Offset } from '../../vine/intents'
 import { CutsceneRuntime } from '../cutscene/runtime'
 import type { CutsceneStage } from '../cutscene/types'
 import { publishRuntime } from '../cutscene/stage-bus'
@@ -2839,6 +2839,21 @@ export default function PmapScene() {
         if (!wrapAt) return
         const p = (performance.now() - wrapAt) / WRAP_MS
         if (p >= 1) { wrapAt = 0; wrapG.visible = false; wrapG.clear(); return }
+        /* ---- AND THE SIGN STAYS UP FOR THE LENGTH OF ITS OWN RING ---------
+         *
+         * `fire()` raises `busy` on the frame the key goes down and the ticker
+         * offers no anchor while a station is running, so the plaque was gone
+         * about sixteen milliseconds into a two hundred and fifty millisecond
+         * acknowledgement OF THAT PLAQUE. Photographed at 350ms on the tunnel
+         * door: a grey line drawn across open sand where a sign used to be,
+         * which reads as a rendering fault rather than as a button answering.
+         *
+         * This runs after the prompt block for the frame, so it is the last
+         * writer, and it holds the sign exactly where it was when it was pressed
+         * rather than wherever the player has since been walked. A quarter of a
+         * second, once, and then the frame's own logic takes it away. */
+        prompt.visible = true
+        prompt.position.set(wrapAt2.x, wrapAt2.y)
         wrapG.position.set(wrapAt2.x, wrapAt2.y)
         wrapG.scale.set(prompt.scale.x)
         drawWrap(prefersReducedMotion() ? 1 : p)
@@ -3967,12 +3982,19 @@ export default function PmapScene() {
          * the route, so it goes round a wall instead of leaning on it. The clock is
          * still there, because a goal that is genuinely unreachable has to give up
          * rather than hang the body that asked for it. */
-        walkTo(name) {
+        walkTo(name, off) {
           const a = anchors.get(name)
           if (!a) return Promise.resolve()
           const { goal, reach } = walkGoal(a)
+          /* AN OFFSET IS A MARK AND SO IT GETS A MARK'S TOLERANCE. `reach` is
+           * three pixels for a spot somebody authored and a radius for a bare
+           * anchor centre; a spot an island typed is authored, so it takes the
+           * three. */
+          const mark = off
+            ? { ...asideFrom(a, goal.x, goal.y, off), facing: goal.facing }
+            : goal
           return new Promise<void>((resolve) => {
-            startWalk(goal, reach, goal.facing ?? null, resolve, name)
+            startWalk(mark, off ? 3 : reach, mark.facing ?? null, resolve, name)
           })
         },
 
@@ -4215,9 +4237,15 @@ export default function PmapScene() {
           /* WITH NO OFFSET NOTHING ABOUT THIS WORD CHANGES, which is why the
            * snap is inside the branch: an authored stand point has always been
            * taken as given here, and an offset is the only reason a body is
-           * being sent to a pixel nobody drew. */
+           * being sent to a pixel nobody drew.
+           *
+           * AND AN OFFSET IS MEASURED FROM WHERE THE STUDENT REALLY ENDS UP,
+           * which is `walkGoal`'s floor-snapped answer rather than the raw stand
+           * point. The Maw's counselor is five pixels off legal floor, so the two
+           * disagreed by five and the same number meant one thing in `lead_to`
+           * and another here. One base, one meaning. */
           const at = off
-            ? { ...asideFrom(target, home.x, home.y, off), facing: home.facing }
+            ? { ...asideFrom(target, walkGoal(target).goal.x, walkGoal(target).goal.y, off), facing: home.facing }
             : home
           const d = take(sp)
           /* the leg already running is SETTLED and never dropped, for the reason
@@ -4412,18 +4440,62 @@ export default function PmapScene() {
          * no heading given they are turned to look at him. */
         place(actor, at, off, facing) {
           const sp = actorBody(actor, 'place')
-          const target = anchors.get(at)
-          if (!target) throw new NotBuilt('place', `no anchor named "${at}" on ${mapId}`)
+          const ysp = map.yScale || 1
+          const clearP = map.character.heightPx * 1.1
+          /* ---- THE PLAYER IS A PLACE ---------------------------------------
+           *
+           * ASH, 2026-09-08: *"The principal panther arguably is like an
+           * extension of thor. he pops up in front of thor at any time. he isnt
+           * bound to the entrance of the maw."*
+           *
+           * With no offset he arrives one body length AHEAD of the student, on
+           * the heading the student is facing, which is what "in front of" means
+           * and is the one thing the old clearance rule could not do: that rule
+           * pushed a body along the line from the player to wherever its sprite
+           * happened to be lying, so the spot was decided by the last thing that
+           * moved the sprite. Same distance, a direction somebody chose.
+           *
+           * `AHEAD` is the eight headings as unit vectors ON THE GROUND, and the
+           * down component is MULTIPLIED by the squash to turn a ground step into
+           * a painting step. `groundApart` in `follow.ts` divides to go the other
+           * way and its header is the record of this being got backwards twice
+           * already; measured here on the third: dividing put him thirty-three
+           * pixels of floor down the ramp instead of twenty-two, which reads as a
+           * man standing off by himself rather than in front of you. */
+          const AHEAD: Record<string, [number, number]> = {
+            east: [1, 0], 'south-east': [0.7071, 0.7071], south: [0, 1], 'south-west': [-0.7071, 0.7071],
+            west: [-1, 0], 'north-west': [-0.7071, -0.7071], north: [0, -1], 'north-east': [0.7071, -0.7071],
+          }
+          const target = at === PLAYER ? null : anchors.get(at)
+          if (at !== PLAYER && !target) throw new NotBuilt('place', `no anchor named "${at}" on ${mapId}`)
           if (facing && !DIRS8.includes(facing)) {
             throw new NotBuilt('place', `"${facing}" is not a heading. They are: ${DIRS8.join(', ')}`)
           }
-          const home = anchors.standAt(target)
+          const home = target
+            ? anchors.standAt(target)
+            : (() => {
+              const [ux, uy] = AHEAD[walker.facing] ?? AHEAD.south
+              /* SNAPPED, because "in front of him" is a direction and the room
+               * decides whether there is floor that way. A student standing with
+               * his back to the hall has a wall in front of him, and a man drawn
+               * inside a wall is worse than a man half a step to the side of
+               * where the scene asked for him. */
+              const want = { x: pos.x + ux * clearP, y: pos.y + uy * clearP * ysp }
+              return { ...onFloor(want, canStand, ysp, Math.round(clearP)).at, facing: undefined }
+            })()
           const spot = off
-            ? { ...asideFrom(target, home.x, home.y, off), facing: home.facing }
+            ? target
+              /* the same base `lead_to` and `actor_move` use: where the walk law
+               * really puts a body at this anchor, not the raw authored pixel */
+              ? { ...asideFrom(target, walkGoal(target).goal.x, walkGoal(target).goal.y, off), facing: home.facing }
+              /* AND FROM THE PLAYER'S OWN FEET when he is the place, not from
+               * the spot one body ahead of them: an author writing an offset has
+               * said where, and adding the default step to it would put the body
+               * somewhere neither of them asked for. */
+              : { ...onFloor({ x: pos.x + off[0], y: pos.y + off[1] }, canStand, ysp, 24).at, facing: undefined }
             : home
           const d = take(sp)
           if (d.move) { const orphan = d.move.then; d.move = null; orphan?.() }
-          const ysp = map.yScale || 1
           let px = spot.x, py = spot.y
           /* THE CLEARANCE PUSH IS THE FALLBACK AND AN OFFSET IS THE CHOICE, so an
            * offset switches it off.
@@ -4440,9 +4512,9 @@ export default function PmapScene() {
            * An author who says where somebody goes has said where they go. If
            * that is on top of the player it is visible in the first screenshot,
            * which is a better teacher than a rule that quietly moves the picture
-           * out from under them. */
-          const clearP = map.character.heightPx * 1.1
-          if (!off && Math.hypot(px - pos.x, (py - pos.y) * ysp) < clearP) {
+           * out from under them. And so has an author who named the player as the
+           * place: "in front of him" is already a direction and a distance. */
+          if (!off && at !== PLAYER && Math.hypot(px - pos.x, (py - pos.y) * ysp) < clearP) {
             /* he steps aside along the line he was standing on before, and if he
              * was standing on the player himself, off to one side of him */
             const ax = d.x - pos.x, ay = d.y - pos.y
@@ -6742,6 +6814,9 @@ export default function PmapScene() {
        * honest arrangement. `perform` is the shipped `performIntent` against the
        * shipped host, so a check exercises the path a member's python takes and
        * not a second one written to be checkable. */
+      /* the last place the YOU marker really was, so `pinAt` can answer during a
+       * teardown instead of throwing. See the note on it below. */
+      let lastPinAt = { x: 0, y: 0 }
       ;(window as any).__pmap = {
         get map() { return mapId },
         get x() { return pos.x },
@@ -6756,7 +6831,20 @@ export default function PmapScene() {
          * capture harness can crop to it instead of guessing a rectangle and
          * cropping the wrong part of a moving player. `x` and `y` above are world
          * coordinates and the camera is between them and the glass. */
-        get pinAt() { const g = pin.getGlobalPosition(); return { x: Math.round(g.x), y: Math.round(g.y) } },
+        /* A TORN-DOWN SCENE ANSWERS WITH THE LAST FRAME IT HAD RATHER THAN
+         * THROWING, which is the guard `lit` below has carried since somebody
+         * measured what happens when a harness reads this bag one frame after a
+         * door. `getGlobalPosition` walks up to the stage, and after teardown the
+         * pin has no parent, so it died on "Cannot read properties of null
+         * (reading 'x')" and took the whole capture run with it. Measured again
+         * on 2026-09-08: a cold run that photographed the closing film crashed on
+         * the frame the ending walks out of the mountain. */
+        get pinAt() {
+          if (!pin.parent) return lastPinAt
+          const g = pin.getGlobalPosition()
+          lastPinAt = { x: Math.round(g.x), y: Math.round(g.y) }
+          return lastPinAt
+        },
         /* AND WHAT IT IS SUPPOSED TO BE OVER, in the same window pixels, so
          * "the marker is off to the side" is a subtraction rather than an
          * opinion. The DRAWN body, not the frame it is drawn on: a walk sheet is

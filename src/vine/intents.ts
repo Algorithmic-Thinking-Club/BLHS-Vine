@@ -47,7 +47,17 @@ export type Intent =
    * written and the scene's `guideTo` has always accepted it; the only thing
    * that ever refused was this type and the anchor check under it. */
   | { kind: 'guide_to'; anchor: string | null }
-  | { kind: 'walk_to'; anchor: string }
+  /* `off` is the student's own mark, and it is the same word `lead_to` and
+   * `place` take. It was the last body in the game that could not be offset: a
+   * station carries one standing spot, a scene needs two, and until now the
+   * second one could only ever be given to somebody else.
+   *
+   * IT IS FOR A MAP THAT HAS NOT SAID, and not for overruling one that has.
+   * Maw v7 moved the counselor onto the desk and left her standing spot on the
+   * far side of the hall, so the engine drops it (`pmap/anchors.ts`) and the
+   * honest answer to "where does a student stand at the desk" is nowhere in the
+   * bundle. An island may say it until MAPVIS does. */
+  | { kind: 'walk_to'; anchor: string; off?: Offset }
   | { kind: 'look_at'; anchor: string | null; ms?: number }
 
   /* ---- THE DIRECTOR CLASS -------------------------------------------------
@@ -359,6 +369,22 @@ export const PACE_OF: Record<Pace, number> = { stroll: 0.62, walk: 1, run: 1.5 }
  * floor by the scene the way an authored stand point is, and an island that
  * writes one has to prove it with `__probe` and a picture. */
 export type Offset = [number, number]
+
+/* THE PLAYER, AS A PLACE. It is already the word for the player as a SPEAKER
+ * (`say(who="thor")` puts the student's chosen name on the plate), and this is
+ * the same word doing the same job on the other side of a sentence.
+ *
+ * ASH, 2026-09-08: *"The principal panther arguably is like an extension of
+ * thor. he pops up in front of thor at any time. he isnt bound to the entrance
+ * of the maw."* Every word that put a body somewhere took an anchor name, so
+ * the only way to have somebody waiting for the student was to name a fixed
+ * pixel and hope he was standing near it. The Maw's closing film named the
+ * tunnel, so a student who finished his year at the fire and pressed the
+ * principal got a man who appeared across the room and had to walk back.
+ *
+ * `place(actor, "thor")` is the answer and it is one word: wherever the student
+ * is, that is where the scene is. */
+export const PLAYER = 'thor'
 /** how far from a station's own mark a second mark may be asked for */
 export const OFFSET_LIMIT = 96
 export const offsetFault = (o: unknown): string | null => {
@@ -482,7 +508,7 @@ export interface IntentWorld {
   say(who: string | undefined, text: string, portrait?: string): Promise<void>
   choose(prompt: string | undefined, options: string[]): Promise<number>
   guideTo(anchor: string | null): void
-  walkTo(anchor: string): Promise<void>
+  walkTo(anchor: string, off?: Offset): Promise<void>
   lookAt(anchor: string | null, ms?: number): Promise<void>
   show(anchor: string, visible: boolean): void
   /* IT IS AWAITED NOW. It returned void, so `performIntent` answered ok the
@@ -619,7 +645,8 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         return ok()
       case 'walk_to':
         if (!w().hasAnchor(i.anchor)) return no(`no anchor named "${i.anchor}" on ${w().mapId()}`)
-        await w().walkTo(i.anchor)
+        if (offsetFault(i.off)) return no(offsetFault(i.off) as string)
+        await w().walkTo(i.anchor, i.off)
         return ok()
       case 'look_at':
         /* THE ONLY ANCHOR-TAKING WORD THAT DID NOT CHECK ITS ANCHOR. guide_to,
@@ -688,7 +715,11 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         return ok()
       case 'place':
         if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
-        if (!w().hasAnchor(i.at)) return no(`no anchor named "${i.at}" on ${w().mapId()}`)
+        /* THE PLAYER IS A PLACE AND NOT AN ANCHOR, so he is exempt from the one
+         * check every other name here gets. Nothing else in the vocabulary is,
+         * and nothing else should be. */
+        if (i.at !== PLAYER && !w().hasAnchor(i.at))
+          return no(`no anchor named "${i.at}" on ${w().mapId()}`)
         if (offsetFault(i.off)) return no(offsetFault(i.off) as string)
         w().place(i.actor, i.at, i.off, i.facing)
         return ok()

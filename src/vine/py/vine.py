@@ -75,9 +75,20 @@ def guide_to(anchor):
     return {"kind": "guide_to", "anchor": anchor}
 
 
-def walk_to(anchor):
-    """Take the controls and walk him there. Comes back when he arrives."""
-    return {"kind": "walk_to", "anchor": anchor}
+def walk_to(anchor, off=None):
+    """Take the controls and walk him there. Comes back when he arrives.
+
+    He ends up on the standing spot whoever drew the anchor put there, turned the
+    way they drew it to be looked at, which is nearly always what you want.
+
+    `off` is two numbers from that spot, for the case where the map has not said:
+    a post somebody moved without moving its standing spot, or a new thing nobody
+    has drawn a spot for yet. It is the same `off` `lead_to` and `place` take.
+    """
+    intent = {"kind": "walk_to", "anchor": anchor}
+    if off is not None:
+        intent["off"] = [off[0], off[1]]
+    return intent
 
 
 def look_at(anchor, ms=None):
