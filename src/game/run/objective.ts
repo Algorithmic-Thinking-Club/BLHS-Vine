@@ -190,13 +190,23 @@ export function nextObjective(s: SaveGame | null): Objective | null {
      * this phase, and the desk is the thing to press for a student who walked
      * out of the middle of it.
      *
-     * The away line is Ash's own wording. A student standing on the hub with the
-     * year finished is not being told to go into a mountain, he is being told to
-     * come home, because somebody is waiting for him. */
+     * AND THE AWAY LINE SENDS HIM BACK IN THROUGH THE TUNNEL, which is the whole
+     * of what the ending waits on now. Ash ruled on 2026-09-07, after the
+     * introduction handed the game over and the ending started three seconds
+     * later: the closing plays on ENTERING the Maw with the year done, and never
+     * in the same sitting as the opening. So the one sentence a student reads
+     * once he is out of the mountain has to name the way back in.
+     *
+     * IT SAID "Sail home" AND THE ONLY MAP IT IS EVER READ ON IS THE HUB, which
+     * is the same island the mountain is in: nobody sails anywhere, he walks up
+     * the quay. The day an island exists there is a second away map and this
+     * wants "Sail home." in front of it, which needs a per-map away line rather
+     * than one string, and that is a change to make when there is a map to make
+     * it for. */
     return {
       anchor: 'principal_desk', map: MAW_MAP, phase: 'yearbook',
       say: 'The principal is waiting.',
-      away: 'Sail home. The principal is waiting.',
+      away: 'Go back into the mountain. The principal is waiting.',
     }
   }
 

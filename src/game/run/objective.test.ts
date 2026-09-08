@@ -74,7 +74,13 @@ describe('the phase an island reads', () => {
     expect(o.anchor).toBe('principal_desk')
   })
 
-  it('and it sends him home from anywhere else, in Ash\'s own words', async () => {
+  /* AND THE SENTENCE OUT ON THE QUAY IS THE ONE THAT STARTS THE ENDING. Ash,
+   * 2026-09-07: the closing film plays on entering the Maw with the year done
+   * and never in the same sitting as the opening, so once the introduction has
+   * handed the game over the only thing the panel can honestly say from the hub
+   * is the way back in. "Sail home" was read on the hub, which is the same
+   * island the mountain is in. */
+  it('and it sends him back in through the tunnel, not out to sea', async () => {
     const { save, objective } = await fresh()
     started(save)
     save.setFlag(objective.FOUNDING_FLAG)
@@ -86,7 +92,10 @@ describe('the phase an island reads', () => {
       credit: 0.5, grade: 4, year: 1, season: 'Fall',
     })
     const o = objective.nextObjective(save.loadSave())
-    expect(objective.objectiveLine(o, 'hub')).toBe('Sail home. The principal is waiting.')
+    expect(objective.objectiveLine(o, 'hub')).toBe('Go back into the mountain. The principal is waiting.')
+    /* and on the Maw itself it is still the short one, because he is standing in
+     * the room the man is in */
+    expect(objective.objectiveLine(o, 'panther-maw')).toBe('The principal is waiting.')
   })
 })
 
