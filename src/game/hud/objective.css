@@ -170,9 +170,13 @@ html[data-skin='plain'] .ob-panel {
 .ob-sheet {
   pointer-events: auto;
   margin-top: 6px;
-  width: min(78vw, 430px);
+  /* NARROW, AND IT HAS TO BE. It is anchored under a bar at the top centre of
+     the screen, which is directly above whatever the game is pointing at, and at
+     430px it covered the tunnel mouth and the prompt over it. A quest log is a
+     glance, not a page: this is about the width of the sign it hangs from. */
+  width: min(62vw, 340px);
   box-sizing: border-box;
-  padding: 14px 20px 16px;
+  padding: 11px 16px 12px;
   text-align: left;
   font-family: var(--kit-face-body, 'Deckhand', monospace);
   color: var(--kit-ink, #2b2016);

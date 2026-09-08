@@ -249,7 +249,13 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       TextureSource.defaultOptions.scaleMode = 'nearest'
       const instance = new Application()
       await instance.init({ background: 0x083744, antialias: false, resizeTo: ref.current ?? window }) // abyss = the deep end of the ramp, so off-map sea blends
-      if (destroyed || !ref.current) { instance.destroy(true); return }
+      /* DESTROYED ONCE, EVER. `app` is what the effect's cleanup tears down, so
+       * an abort that destroys the instance has to make sure the cleanup cannot
+       * find it again. Measured on the production build, 2026-09-08:
+       * `[BeachIso] failed TypeError: this._cancelResize is not a function`,
+       * which is Pixi's own ResizePlugin being asked to stop twice, and the beach
+       * fell over on the road every student takes. */
+      if (destroyed || !ref.current) { app = null; instance.destroy(true); return }
       app = instance; ref.current.appendChild(instance.canvas)
       // BEACH-LOCAL zoom (Thor reads bigger; each map sets its own). ?zoom= overrides for
       // validation shots (the bar check runs zoomed in AND out).
@@ -354,7 +360,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         ...Array.from({ length: 16 }, (_, i) => Assets.load(`/art/intro/sand-n/${i}.png`).then((t) => { sandV[i] = t }).catch(() => {})),
         loadWaterVariants().then((v) => { waterV = v }),
       ])
-      if (destroyed) { instance.destroy(true); return }
+      if (destroyed) { app = null; instance.destroy(true); return }
 
       const world = new Container(); world.scale.set(ZOOM); world.sortableChildren = true
       instance.stage.addChild(world)
@@ -1835,7 +1841,16 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
     }
 
     start().catch((err) => { console.error('[BeachIso] failed', err) })
-    return () => { destroyed = true; window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); if (app) app.destroy(true, { children: true }) }
+    return () => {
+      destroyed = true
+      window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku)
+      /* AND THE HANDLE IS DROPPED BEFORE THE TEARDOWN, not after, so a second
+       * cleanup (a remount inside one frame, which is what an abort race is)
+       * has nothing to destroy rather than destroying the same app twice. */
+      const dying = app
+      app = null
+      if (dying) { try { dying.destroy(true, { children: true }) } catch { /* already gone */ } }
+    }
   }, [])
   return <div ref={ref} style={{ position: 'fixed', inset: 0, background: '#083744' }} />
 }

@@ -141,12 +141,21 @@ function TaskSheet({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const away = () => onClose()
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }
-    /* the frame after this one, or the press that OPENED it closes it again */
-    const t = setTimeout(() => window.addEventListener('pointerdown', away), 0)
+    /* IN THE CAPTURE PHASE, which is the whole of why it used to stay open.
+     * The sheet stops propagation on its own presses so that a click meant to
+     * dismiss it does not also walk Thor across the room. A bubble-phase listener
+     * on the window therefore never heard the one press most likely to be aimed
+     * at it: the one that lands ON the sheet, because the sheet is sitting over
+     * the middle of the screen where the thing he wants is. Measured on the
+     * production build: it covered the tunnel mouth and the "E Go to Panther's
+     * Maw" prompt, ate every click aimed at them, and the run stood on the quay
+     * for five minutes. Capture runs before the sheet, so any press anywhere
+     * closes it, and the sheet still keeps that press away from the world. */
+    const t = setTimeout(() => window.addEventListener('pointerdown', away, true), 0)
     window.addEventListener('keydown', key, true)
     return () => {
       clearTimeout(t)
-      window.removeEventListener('pointerdown', away)
+      window.removeEventListener('pointerdown', away, true)
       window.removeEventListener('keydown', key, true)
     }
   }, [onClose])
