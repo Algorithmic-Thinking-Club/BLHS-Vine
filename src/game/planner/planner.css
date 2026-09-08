@@ -647,3 +647,11 @@ html[data-skin='plain'] .pl-sock-well { width: auto; height: auto; }
 .pl-col-none { max-width: 44ch; }
 .pl-col-none .pl-empty { margin: 6px 0 4px; opacity: 0.86; }
 .pl-col-none .pl-note { margin: 0; opacity: 0.66; --kit-fs-raw: calc(13px * var(--kit-text-scale)); font-size: var(--kit-fs); }
+
+/* THE SAME ONE LINE, ON THE SHEET (BRIEF-CLOSE-THE-LOOP 1). */
+.pl-firstlook, .py-firstlook {
+  margin: 2px 0 0;
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  opacity: 0.78;
+}

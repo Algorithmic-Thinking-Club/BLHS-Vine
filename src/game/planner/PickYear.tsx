@@ -78,6 +78,7 @@
  * school's own reason on the card that was pressed.
  */
 import { useEffect, useState } from 'react'
+import { firstLook, markLooked } from '../hud/first-look'
 import { PROGRAMMES, seasonOf, type Programme } from '../roster/roster'
 import { EXAMPLE_BLURB, classIsReal, exampleNameOf, shownName } from '../roster/placeholders'
 import { CLASSES, type ClassDef } from './catalog'
@@ -248,6 +249,10 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
     realActivities: realActivities.length,
   })
   const { ready, stage, notYet } = owed
+  /* said once, and marked when the panel is really up: a read that also wrote
+   * would blank itself on the second render */
+  const [told] = useState(() => firstLook('my-year'))
+  useEffect(() => { markLooked('my-year') }, [])
 
   /* the one refusal that belongs to a class, said under the list on its own line
    * rather than inside a row, so the rows never grow and the plank never jumps */
@@ -287,6 +292,10 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
     <div className="py-veil" onClick={shut}>
       <div {...panel} className="py-sheet kit-surface-panel" onClick={(e) => e.stopPropagation()}>
         <h2 className="py-title">Your schedule, year {YEAR_WORD[year] ?? year}</h2>
+        {/* WHAT MY YEAR IS, THE FIRST TIME IT IS OPENED (BRIEF-CLOSE-THE-LOOP
+            section 1). The principal used to say it in the cutscene, about a
+            button in the other corner of the screen. */}
+        {told && <p className="py-firstlook">{told}</p>}
 
         {/* ---- THE SEVEN PERIODS ----------------------------------------- */}
         <section className={`py-schedule${stage === 'schedule' ? ' py-lit' : ''}`} aria-labelledby="py-sched-h">

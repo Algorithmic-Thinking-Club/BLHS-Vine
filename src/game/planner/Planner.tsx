@@ -78,6 +78,7 @@ import { cordsOf, letterOf } from '../progress'
 import { beatDone } from '../beats/beats'
 import { classDone } from '../beats/classes'
 import { retakeAvailable } from '../beats/score'
+import { firstLook, markLooked } from '../hud/first-look'
 import { yearStatus } from '../run/year'
 import { nextObjective } from '../run/objective'
 import { refuseClass, refuseSlot } from '../run/refusal'
@@ -442,6 +443,10 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
    * 4). `PROGRAMMES` is already masked by the roster, so this is the same test
    * `PickYear` and the objective sequencer make. */
   const offersActivities = PROGRAMMES.some((p) => p.playable)
+  /* said once, and marked when the panel is really up: a read that also wrote
+   * would blank itself on the second render */
+  const [told] = useState(() => firstLook('my-year'))
+  useEffect(() => { markLooked('my-year') }, [])
   const slotsFilled = SEASONS.filter((se) => plan.slots[se]).length
   const canStamp = !plan.stamped && plan.classes.length === 2
   const stampNote = plan.stamped ? null
@@ -466,6 +471,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
             the way out, offered before the way in. */}
         <div className="pl-head">
           <h2 className="pl-title">Year sheet</h2>
+          {told && <p className="pl-firstlook">{told}</p>}
           <span className="pl-year">Year {year} of 4</span>
         </div>
 

@@ -18,6 +18,7 @@ import { DIRECTORY, directoryCount } from './directory'
 import './hud.css'
 import './directory.css'
 import { runLine } from '../run/year'
+import { firstLook, markLooked, type Plaque } from './first-look'
 
 /* THE HANDBOOK, WHICH IS THE INVENTORY (§40.17 to §40.20, and §40.6's law that
  * there is no separate inventory and no quest log). Facts, badges and the record
@@ -168,6 +169,13 @@ export function Handbook({ onClose, initialTab = 'school' }: { onClose: () => vo
   /** what this run has collected, which two pages count against the same pool */
   const facts = s?.facts ?? []
 
+  /* WHICH PLAQUE OPENED THIS. One binder, two doors: `Guide` lands on the school
+   * page and `Map` lands on the chart, so which line to say is a question about
+   * where the student came in, not about which tab is showing now. */
+  const cameFrom: Plaque = initialTab === 'chart' ? 'map' : 'guide'
+  const [told] = useState(() => firstLook(cameFrom))
+  useEffect(() => { markLooked(cameFrom) }, [cameFrom])
+
   return (
     <div className="hb-veil" onClick={onClose}>
       <div className="hb-book kit-surface-panel" onClick={(e) => e.stopPropagation()} {...panel}>
@@ -189,6 +197,12 @@ export function Handbook({ onClose, initialTab = 'school' }: { onClose: () => vo
             )}
           </div>
         </header>
+
+        {/* WHAT THIS PAGE IS, THE FIRST TIME IT IS OPENED (BRIEF-CLOSE-THE-LOOP
+            section 1). The three handover sentences are cut from the film; each
+            plaque says its own line here instead, where the student is looking at
+            the thing rather than holding a word until they find it. */}
+        {told && <p className="hb-firstlook">{told}</p>}
 
         <div className="hb-bar">
           <div className="kit-tabrow hb-tabs" role="tablist" aria-label="Handbook pages">

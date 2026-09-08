@@ -1,0 +1,12 @@
+
+/* WHAT THIS PAGE IS, THE FIRST TIME IT IS OPENED (BRIEF-CLOSE-THE-LOOP 1). One
+   line, under the title, in the binder's own ink. It is not a callout box: a
+   student who has read it once never sees it again, so it does not have to earn
+   permanent furniture. */
+.hb-firstlook {
+  margin: 0 0 2px;
+  padding: 0 var(--hb-pad, 18px);
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  opacity: 0.78;
+}
