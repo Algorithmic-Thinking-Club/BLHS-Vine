@@ -318,7 +318,26 @@ console.log('\nTHE BOAT ON THE DOCK  (the measured landing defect)')
 /* ---- THE MAW: items 6 and 8 ---------------------------------------------- */
 console.log('\nTHE PANTHER\'S MAW  (items 6 and 8)')
 {
-  const page = await open(`${base}/?scene=pmap&map=panther-maw&at=arrive_maw`)
+  /* THE ROOM WITH NOBODY DIRECTING IT, which this section always meant and
+   * never asked for. The Maw's island runs a film on every load while year one
+   * still owes something, and that film PLACES the principal at the tunnel and
+   * then LEADS him to the table. So the move this gate starts below was racing
+   * two of the island's own words for the same body: measured, the body the gate
+   * asked to walk to the table ended up at 206,124, which is the tunnel mouth,
+   * and the walk cycle it counted was two bodies' worth of nothing.
+   *
+   * The save below has both films behind it (`maw:railed`, `maw:handed_over`,
+   * the year's page turned) so `walking_in` dresses the wall and returns, and
+   * the only thing driving anybody in the room is this gate. */
+  const QUIET = {
+    ...SAVE,
+    flags: ['hub:crossed', 'maw:founding', 'vignette:y1', 'maw:railed', 'maw:handed_over',
+      'maw:wall_shown', 'chart:granted', 'handbook:granted', 'yearbook:y1'],
+    plans: { 1: { slots: {}, classes: ['ap-human-geo', 'spanish-1'], stamped: true } },
+    ledger: [{ id: 'core:y1', title: 'POWER, Mondays, and joining a club', kind: 'core',
+      credit: 0.5, grade: 4, year: 1, season: 'Fall', attempts: 1, firstGrade: 4 }],
+  }
+  const page = await open(`${base}/?scene=pmap&map=panther-maw&at=arrive_maw`, QUIET)
   const s0 = await state(page)
   /* item 8: the cover fit, whole pixels, and the picture holds still */
   const fit = await page.evaluate(() => {
@@ -344,7 +363,17 @@ console.log('\nTHE PANTHER\'S MAW  (items 6 and 8)')
    * is being rewritten; a gate that waits for somebody else's beat is a gate
    * that goes red when they change their mind. So this asks the engine for the
    * move itself, through the same `actor_move` a member's island would use. */
+  /* AND THE PICTURE IS COUNTED, NOT THE COUNTER. `frame` is `Math.floor(animT)`
+   * and it counts up whether or not the sprite's texture ever changes; Ash's
+   * report on rail-4 was "the principal has no walking animation", which is a
+   * claim about the drawing. `tex` is the source rectangle the sprite is really
+   * showing, so a body sliding with one picture on it fails here.
+   *
+   * SAMPLED EVERY 60MS RATHER THAN EVERY 150. The walk to the table is about
+   * three seconds and the cycle is eight frames over 76 painting pixels of
+   * ground; at 150ms this gate saw two or three of them and called it broken. */
   const frames = new Set()
+  const pics = new Set()
   let far = null, near = null
   const walking = page.evaluate(() => window.__pmap.perform(
     { kind: 'actor_move', actor: 'principal_desk', to: 'chart_table' }))
@@ -352,17 +381,25 @@ console.log('\nTHE PANTHER\'S MAW  (items 6 and 8)')
   while (Date.now() - t1 < 20000) {
     const who = Object.values(await page.evaluate(() => window.__pmap.drivenNow))[0]
     if (who) {
-      if (who.moving) frames.add(who.frame)
+      if (who.moving) { frames.add(who.frame); pics.add(who.tex) }
       if (!far && who.moving) far = who
       near = who
     }
-    await page.waitForTimeout(150)
+    await page.waitForTimeout(60)
     if (far && near && !near.moving) break
   }
   await walking.catch(() => {})
+  /* THE NUMBER MOVED WITH THE TABLE. On v4 `chart_table` stood at 335,211 and
+   * the principal's own stand point is 370,201, which is 36 painting pixels of
+   * ground: this check's own threshold of 40 could not be met by the walk it was
+   * measuring, and it passed on the frames of a fight between two words. On v6
+   * the table is at 288,229 with its stand at 295,213, so the walk is about 76
+   * pixels of ground and the threshold is met by the walk itself. */
   ok('6', 'a driven body really crosses the room', !!far && !!near && Math.hypot(near.x - far.x, near.y - far.y) > 40,
     far && near ? `${far.x},${far.y} -> ${near.x},${near.y}` : 'never moved')
   ok('6', 'and its walk cycle runs while it does', frames.size >= 4, `${frames.size} distinct frames`)
+  ok('6', 'and the DRAWING really changes, not just the counter', pics.size >= 4,
+    `${pics.size} distinct textures`)
   ok('6', 'and it stands on its first frame when it stops', !near?.moving && near?.frame === 0)
 
   /* item 8's other half: the painting holds still while a body walks it.
