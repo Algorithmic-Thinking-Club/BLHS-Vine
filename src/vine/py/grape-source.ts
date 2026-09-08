@@ -334,7 +334,40 @@ export class GrapeSourceError extends Error {}
 const MAX_MODULES = 24
 const MAX_BYTES = 256 * 1024
 
+/* A DROPPED CONNECTION IS NOT AN ISLAND THAT DOES NOT EXIST.
+ *
+ * Measured on the live deploy, 2026-09-08: one `net::ERR_ABORTED` on
+ * `panther-maw/island.py` and the whole home island failed to load. The room
+ * still drew and still walked, so nothing looked broken, but the principal never
+ * walked the student through the year and the closing never played. The console
+ * said so and nobody was reading the console.
+ *
+ * That is a school wifi failure mode, not a server one: the files answered 200
+ * to a `curl` a minute later and the same run passed on the next attempt. So a
+ * transport failure is tried again, and only a transport failure: a 404, a web
+ * page where a file should be, and a file over the size cap are all permanent
+ * and still fail on the first try with the sentence they always had. */
+const RETRIES = 2
+const RETRY_PAUSE_MS = 350
+
+class Transient extends Error {}
+
 async function grab(url: string, ms: number): Promise<string> {
+  let last: Error | null = null
+  for (let attempt = 0; attempt <= RETRIES; attempt++) {
+    if (attempt) await new Promise<void>((r) => setTimeout(r, RETRY_PAUSE_MS * attempt))
+    try {
+      return await grabOnce(url, ms)
+    } catch (e) {
+      if (!(e instanceof Transient)) throw e
+      last = e
+      console.warn(`[island] ${url} did not answer (try ${attempt + 1} of ${RETRIES + 1}): ${e.message}`)
+    }
+  }
+  throw new GrapeSourceError(last?.message ?? `could not reach ${url}`)
+}
+
+async function grabOnce(url: string, ms: number): Promise<string> {
   const stop = new AbortController()
   const timer = setTimeout(() => stop.abort(), ms)
   try {
@@ -358,7 +391,8 @@ async function grab(url: string, ms: number): Promise<string> {
     return body
   } catch (e) {
     if (e instanceof GrapeSourceError) throw e
-    throw new GrapeSourceError(
+    /* transient: the connection, not the file. `grab` tries these again. */
+    throw new Transient(
       stop.signal.aborted
         ? `${url} did not answer within ${ms} ms. Is the server still running?`
         : `could not reach ${url}: ${e instanceof Error ? e.message : String(e)}`)
