@@ -36,9 +36,10 @@
  * clipped with an ellipsis and the title carries the whole of it, which is the
  * honest failure: the fix for a long objective is a shorter objective.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { loadSave, subscribeSave } from '../save'
 import { nextObjective, objectiveLine } from '../run/objective'
+import { taskHeading, tasksDone, tasksOf } from '../run/tasks'
 import { objectiveSaid, onObjectiveSaid, worldObjective } from './objective-bus'
 import { onSceneDrawn, sceneDrawn } from '../stage/stage-bus'
 import { track } from '../telemetry'
@@ -54,6 +55,18 @@ export function ObjectivePanel() {
    * is mounted above every world scene and has to know which it is looking at. */
   const [map, setMap] = useState<string | null>(sceneDrawn())
   useEffect(() => { setMap(sceneDrawn()); return onSceneDrawn(setMap) }, [])
+
+  /* THE SHEET IS OPEN OR IT IS NOT, and that is the whole of its state. It is not
+   * in the save: what a student has open is not part of their run, and a sheet
+   * that survived a reload would be a sheet nobody asked for. */
+  const [open, setOpen] = useState(false)
+  const opens = useRef(0)
+  const toggle = () => {
+    setOpen((was) => {
+      if (!was) track('task_sheet_opened', { at: ++opens.current })
+      return !was
+    })
+  }
 
   /* THE THREE VOICES, IN ORDER. The island outranks the year because inside a
    * cutscene the year is describing a step the student is being walked past.
@@ -76,13 +89,94 @@ export function ObjectivePanel() {
   if (!text) return null
 
   return (
-    <div className="ob-wrap" role="status" aria-live="polite">
+    <div className="ob-wrap">
+      {/* THE SENTENCE IS STILL AN ANNOUNCEMENT and the sheet under it is not, so
+          the live region is only ever this line: a screen reader that read the
+          whole task list out again every time the arrow changed would be reading
+          five rows to say one word changed. */}
+      <div className="ob-live" role="status" aria-live="polite">{text}</div>
       {/* NO `kit-surface-band` HERE, and that is the restyle. The band is the big
           nine-sliced parchment plaque the dialogue box and the arrival card wear,
           and it drew this one line on an ornate sheet a hundred pixels tall.
           `objective.css` dresses the box in `--kit-art-plaque` instead, which is
           the narrow carved sign the beach already says "Walk to the pier" on. */}
-      <p className="ob-panel" title={text}>{text}</p>
+      <button
+        type="button"
+        className="ob-panel"
+        title={text}
+        aria-expanded={open}
+        aria-label={`${text} Press to see everything this year asks for.`}
+        onClick={(e) => { e.stopPropagation(); toggle() }}
+      >
+        {text}
+        {/* THE ONLY THING THAT SAYS THE BAR IS PRESSABLE. A carved sign that has
+            been furniture for a week does not read as a control, and a student
+            who never presses it never finds the list. Two small chevrons rather
+            than a word, because the panel is one line and a word would eat it. */}
+        <span className="ob-more" aria-hidden="true">{open ? '▴' : '▾'}</span>
+      </button>
+      {open && <TaskSheet onClose={() => setOpen(false)} />}
+    </div>
+  )
+}
+
+/* ---- THE SHEET ------------------------------------------------------------
+ *
+ * BRIEF-CLOSE-THE-LOOP section 7. Everything on it is derived (`run/tasks.ts`),
+ * so it cannot disagree with the arrow above it, and nothing on it is pressable:
+ * it answers "what is this year" and the room answers "how". A list of five
+ * buttons would be the menu §40.6 rules out.
+ */
+function TaskSheet({ onClose }: { onClose: () => void }) {
+  const [, bump] = useState(0)
+  useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
+  const save = loadSave()
+  const list = tasksOf(save)
+  const { done, total } = tasksDone(list)
+
+  /* ANYWHERE ELSE CLOSES IT, which is the brief's own word, and Escape does too,
+   * because every other panel in this game closes on Escape and a student who has
+   * learned that will try it here. Captured on the window so a click on the world
+   * canvas closes it as readily as a click on the chrome. */
+  useEffect(() => {
+    const away = () => onClose()
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }
+    /* the frame after this one, or the press that OPENED it closes it again */
+    const t = setTimeout(() => window.addEventListener('pointerdown', away), 0)
+    window.addEventListener('keydown', key, true)
+    return () => {
+      clearTimeout(t)
+      window.removeEventListener('pointerdown', away)
+      window.removeEventListener('keydown', key, true)
+    }
+  }, [onClose])
+
+  if (!list.length) return null
+
+  return (
+    <div className="ob-sheet kit-surface-band" onPointerDown={(e) => e.stopPropagation()}>
+      <p className="ob-sheet-head">
+        {taskHeading(save?.year ?? 1)}
+        <span className="ob-sheet-count">{done} of {total} done</span>
+      </p>
+      <ul className="ob-tasks">
+        {list.map((t) => (
+          <li
+            key={t.id}
+            className={`ob-task${t.done ? ' is-done' : ''}${t.barred && !t.done ? ' is-barred' : ''}`}
+          >
+            {/* THE MARK IS A CHARACTER AND NOT AN EMOJI. `docs/ART.md` forbids
+                emoji, and the plain arm has to read the same shape in a system
+                face, so a tick and an empty box are the whole vocabulary. */}
+            <span className="ob-mark" aria-hidden="true">{t.done ? '✓' : t.barred ? '–' : '▢'}</span>
+            <span className="ob-task-body">
+              <span className="ob-task-name">{t.name}</span>
+              {t.note && <span className="ob-task-note">{t.note}</span>}
+            </span>
+            <span className="ob-sr">{t.done ? ' done' : t.barred ? ' not open yet' : ' still to do'}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

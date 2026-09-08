@@ -41,9 +41,23 @@ describe('the objective panel is the beach bar', () => {
    * again. Asserting on the raw text would fail on its own explanation. */
   it('is not the parchment band any more', () => {
     const bare = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '')
-    expect(bare(tsx)).toContain('<p className="ob-panel" title={text}>')
-    expect(bare(tsx)).not.toContain('kit-surface-band')
-    expect(bare(css)).not.toContain('kit-surface-band')
+    /* THE ONE LINE IS STILL ITS OWN ELEMENT WEARING ITS OWN CLASS. It stopped
+     * being a `<p>` on 2026-09-08: BRIEF-CLOSE-THE-LOOP section 7 makes pressing
+     * it drop the year's task sheet, and a paragraph is not a control. What this
+     * is fencing is the DRESSING, so it asserts the class and the title and lets
+     * the tag be whatever the affordance needs. */
+    expect(bare(tsx)).toMatch(/className="ob-panel"/)
+    expect(bare(tsx)).toMatch(/title=\{text\}/)
+    /* THE BAR MAY NOT WEAR THE BAND AND THE SHEET UNDER IT MUST. Asserted on the
+     * class attribute rather than on the whole file, because the file now draws
+     * two surfaces and only one of them is the one line at the top of the game. */
+    expect(bare(tsx)).not.toMatch(/className="ob-panel[^"]*kit-surface-band/)
+    expect(bare(tsx)).toMatch(/className="ob-sheet kit-surface-band"/)
+    /* the SHEET is allowed the band, and the bar is not: a task list is exactly
+     * the ornate parchment sheet the dialogue box wears, and one line of chrome
+     * at the top of every frame is not */
+    const panelOnly = bare(css).slice(0, bare(css).indexOf('.ob-sheet {'))
+    expect(panelOnly).not.toContain('kit-surface-band')
   })
 
   it('reads at the size the beach bar reads at', () => {
@@ -77,7 +91,11 @@ describe('the objective panel is the beach bar', () => {
   /* THE PLAIN ARM IS A DOCUMENT: no game art and no pixel face, and it still has
    * to be a dark bar with light type rather than nothing at all. */
   it('is a plain dark bar in the plain arm', () => {
-    const plain = css.slice(css.indexOf("html[data-skin='plain'] .ob-panel {"))
+    /* BOUNDED TO ITS OWN BLOCK. It used to slice to the end of the file, which
+     * was harmless while this was the last rule in it and became a false failure
+     * the moment the task sheet added plain-arm rules of its own underneath. */
+    const from = css.indexOf("html[data-skin='plain'] .ob-panel {")
+    const plain = css.slice(from, css.indexOf('}', from) + 1)
     expect(plain).toContain('background-image: none')
     expect(plain).toContain('background-color: var(--kit-wood-lo)')
     expect(plain).toContain('color: var(--kit-wood-ink)')
