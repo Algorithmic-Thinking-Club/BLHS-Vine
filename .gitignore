@@ -116,6 +116,9 @@ scripts/*
 # runs inside `npm run build`, so swallowed by scripts/* it would be a deploy
 # that fails on Vercel and works on the one machine that has the file.
 !scripts/vendor-islands.mjs
+!scripts/ending-fix.mjs
+!scripts/play-harness.mjs
+!scripts/surfaces.mjs
 
 # Internal asset registries (kept local)
 **/*-registry.md

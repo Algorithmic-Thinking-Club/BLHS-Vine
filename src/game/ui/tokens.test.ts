@@ -52,15 +52,7 @@ function everySource(dir = 'src'): string[] {
   return out
 }
 
-/* THE ONE STYLESHEET THESE AUDITS SKIP, and it is skipped by name rather than by
- * a pattern. `ui/ui.css` is the tile-era HUD that only `?legacy=1` can reach; its
- * own header says so, `App.tsx`'s legacy fence says the branch logs nothing and
- * routes nothing, and no shipping surface loads it. Its Thor walk-cycle urls are
- * not a plain-arm defect because no arm reaches them. */
-const LEGACY = 'src/game/ui/ui.css'
-
-/* the stylesheets that ARE the kit: the surfaces the painted game shows. Not
- * ui/ui.css, which only `?legacy=1` reaches and which says so in its header. */
+/* the stylesheets that ARE the kit: the surfaces the painted game shows. */
 const KIT = [
   /* THE CONTROL KIT, added 2026-09-01. It is the file every button, tab, field,
    * gauge, socket and stamp in the game is now made of, so it is the one file
@@ -266,7 +258,6 @@ describe('the plain arm has no art anywhere, and nothing can quietly add some', 
   it('lets no stylesheet spell an art url out where a token cannot reach it', () => {
     const offenders: string[] = []
     for (const file of everyStylesheet()) {
-      if (file === LEGACY) continue
       const css = strip(read(file))
       for (const m of css.matchAll(/([-a-z]+)\s*:\s*([^;{}]*url\(\s*['"]?\/art\/[^;{}]*)/g)) {
         /* tokens.css's own `:root` is where the urls are SUPPOSED to live: that
@@ -470,8 +461,7 @@ function reducedClasses(css: string): Set<string> {
 }
 
 describe('reduced motion reaches every animation the kit runs', () => {
-  const FILES = [...KIT, 'src/game/ui/ui.css']
-  for (const file of FILES) {
+  for (const file of KIT) {
     it(`${path.basename(file)} answers the setting on every animation it starts`, () => {
       const css = strip(read(file))
       const covered = reducedClasses(css)
@@ -616,7 +606,6 @@ describe('a keyboard player can always see where they are', () => {
      * check that catches the real failure and does not fight the real use. */
     const offenders: string[] = []
     for (const file of everyStylesheet()) {
-      if (file === LEGACY) continue
       const sheet = strip(read(file))
       if (!/outline:\s*none/.test(sheet)) continue
       if (!/:focus-visible/.test(sheet) && file !== TOKENS) {

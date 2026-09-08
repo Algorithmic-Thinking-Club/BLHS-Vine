@@ -11,17 +11,9 @@ import { useNav } from '../../app/SceneManager'
 import { holdWorld } from '../world-bus'
 import { warmPortraits } from '../ui/controls'
 
-// The HUD's global mount for WORLD scenes (§11.1): the island map, the grape islands,
-// the Maw. The beach mounts its own Hud inside IntroScene (it must yield to the intro
-// cutscene), so it is excluded here. New world scenes join the list when they register.
-// This is what makes the planner/handbook reachable everywhere the game is playable —
-// including through the ui-bus from other lanes' scene code.
-//
-// `pmap` was missing from this list, which meant no HUD mounted over a MAPVIS bundle at
-// all: the Maw could name a chart table and press E on it and there would be nothing
-// listening to open the year sheet. One entry, and every station in every painted map
-// becomes able to reach the vine's UIs.
-const WORLD_SCENES = new Set(['islandmap', 'atc', 'panther-cave', 'pmap'])
+// The scenes this HUD mounts over. The beach mounts its own Hud inside IntroScene so it
+// can yield to the intro cutscene, so it is not listed here.
+const WORLD_SCENES = new Set(['pmap'])
 
 export function WorldHud() {
   const { current } = useNav()
