@@ -109,3 +109,86 @@ describe('award with no programme behind it', () => {
     expect(save.loadSave()!.completions).toEqual([])
   })
 })
+
+/* ---- WHAT THE CLOSING FILM READS ------------------------------------------
+ *
+ * BRIEF-INTRO-FILM, Ash 2026-09-07: the ending is its own film, it starts when
+ * *"every task on this year is done"*, and the principal congratulates the
+ * student *"BY NAME on what he actually did (the picks and grades from the
+ * save, one line)"*. Neither question could be asked from Python before today,
+ * and the two wrong ways of asking them are what these cases fence off: an
+ * island deciding for itself that Advisory is the end of a year, and an island
+ * printing a programme's authored name over the top of the roster's mask.
+ */
+describe('phase, which is where the year is', () => {
+  it('is the sequencer\'s own answer and not a second copy of the rule', async () => {
+    const { save, engine } = await fresh()
+    vi.resetModules()
+    const objective = await import('./run/objective')
+    save.beginAdventure()
+    save.writeSave({ introDone: true })
+    expect(engine.read('phase')).toBe(objective.nextObjective(save.loadSave())!.phase)
+  })
+
+  it('reaches "yearbook" only when the whole year is done, not when Advisory is', async () => {
+    const { save, engine } = await fresh()
+    save.beginAdventure()
+    save.writeSave({ introDone: true })
+    save.setFlag('maw:founding')
+    save.setFlag('vignette:y1')
+    /* Advisory sat with NO stamped sheet: the fire is over and the year is not,
+     * which is precisely the state an ending written as "advisory is None" would
+     * have played in. */
+    save.recordGrade({
+      id: 'core:y1', title: 'POWER, Mondays, and joining a club', kind: 'core',
+      credit: 0.5, grade: 4, year: 1, season: 'Fall',
+    })
+    expect(engine.read('phase')).not.toBe('yearbook')
+    save.pickClass(1, 'ap-human-geo')
+    save.stampPlan(1)
+    expect(engine.read('phase')).toBe('yearbook')
+  })
+
+  it('answers for a run that has not started rather than throwing', async () => {
+    const { engine } = await fresh()
+    expect(engine.read('phase')).toBe(null)
+  })
+})
+
+describe('picks, which is what he is congratulated on', () => {
+  it('names the classes he chose and the grade he earned', async () => {
+    const { save, engine } = await fresh()
+    save.beginAdventure()
+    save.pickClass(1, 'ap-human-geo')
+    save.recordGrade({
+      id: 'core:y1', title: 'POWER, Mondays, and joining a club', kind: 'core',
+      credit: 0.5, grade: 4, year: 1, season: 'Fall',
+    })
+    const p = engine.read('picks') as {
+      classes: { id: string; name: string }[]
+      graded: { title: string; grade: string; kind: string }[]
+      gpa: number | null
+    }
+    expect(p.classes.map((c) => c.id)).toEqual(['ap-human-geo'])
+    expect(p.classes[0].name).toBe('AP Human Geography')
+    expect(p.graded[0].kind).toBe('core')
+    /* THE LETTER COMES FROM progress.ts, which is where the wall and the
+     * yearbook read it, so one afternoon cannot be described three ways. */
+    expect(p.graded[0].grade).toBe('A')
+  })
+
+  it('masks a season programme nobody has built, the way every other surface does', async () => {
+    const { save, engine, roster } = await fresh()
+    save.beginAdventure()
+    save.assignSlot(1, 'Fall', 'football')
+    const p = engine.read('picks') as { seasons: { id: string; name: string }[] }
+    expect(p.seasons[0].id).toBe('football')
+    expect(p.seasons[0].name).toBe(roster.programmeById('football')!.name)
+    expect(p.seasons[0].name).not.toBe('Football')
+  })
+
+  it('is empty and not broken with no run at all', async () => {
+    const { engine } = await fresh()
+    expect(engine.read('picks')).toEqual({ classes: [], seasons: [], graded: [], gpa: null })
+  })
+})
