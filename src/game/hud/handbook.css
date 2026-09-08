@@ -1,9 +1,15 @@
-
-/* one line under the title saying what a page is, shown only the first time it is opened */
+/* one line under the title saying what a page is, shown only the first time it is opened.
+ *
+ * IT HAD NO INK AND NO ROOM. This file was written for BRIEF-CLOSE-THE-LOOP 1 and
+ * never imported, so the line rendered at a browser default; wiring the import in
+ * showed the second half of the problem, which is that it sets a size and an
+ * opacity and never says what colour it is or where it sits. It inherited a pale
+ * ink meant for the header's dark plate and drew it over parchment, and with no
+ * top margin it rode up into the book's own edge. */
 .hb-firstlook {
-  margin: 0 0 2px;
+  margin: 0 0 10px;
   padding: 0 var(--hb-pad, 18px);
   --kit-fs-raw: calc(13px * var(--kit-text-scale));
   font-size: var(--kit-fs);
-  opacity: 0.78;
+  color: var(--kit-ink-quiet);
 }
