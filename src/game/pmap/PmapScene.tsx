@@ -7011,7 +7011,16 @@ export default function PmapScene() {
         },
         get paths() { return pathNames(paths) },
         get shots() { return [...shots.keys()] },
-        get island() { return { handlers: grapeHandlers } },
+        /* `busy` is whether the room's python is in the middle of a handler, and
+         * it is on this bag for the same reason everything else here is: it is a
+         * variable the game is already using (`__station` refuses on it, and so
+         * does the trigger pass), and a harness that has to infer it from a
+         * screenshot infers it wrong. `on_start` runs on every load and is
+         * allowed to move bodies, so "has the room finished dressing itself" is a
+         * question anything driving an actor at load time has to be able to ask.
+         * `scripts/arrival-proof.mjs` guessed it from a body being still and the
+         * guess was true before the island had started as well as after. */
+        get island() { return { handlers: grapeHandlers, busy: !!grape?.busy() } },
         perform: (i: unknown) => performIntent(i as Intent, intentHost),
       }
 

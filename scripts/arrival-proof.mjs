@@ -388,15 +388,23 @@ console.log('\nTHE PANTHER\'S MAW  (items 6 and 8)')
    * it is waiting for the room to stop being loaded, which every real caller of
    * `actor_move` also does by virtue of being a line in a scene rather than the
    * first thing that happens. */
+  /* ASKED, NOT GUESSED. The first version of this wait watched the principal for
+   * a quarter of a second of stillness, which is true after the island has
+   * dressed the room and equally true BEFORE it has started: on the deploy the
+   * bundle comes off the platform and the worker starts seconds later, so the
+   * gate waited, saw a man standing still at his home pixel, set off, and the
+   * island's `place` landed in the middle of the move. `__pmap.island.busy` is
+   * the scene's own answer to the same question every other caller asks it. */
   const settled = async () => {
-    let was = null, still = 0
     const t = Date.now()
-    while (Date.now() - t < 15000) {
-      const now = await page.evaluate(() => window.__placed('principal_desk'))
-      still = now && now === was ? still + 1 : 0
-      was = now
-      if (still >= 3) return true
-      await page.waitForTimeout(120)
+    let quiet = 0
+    while (Date.now() - t < 20000) {
+      const busy = await page.evaluate(() => !!window.__pmap.island?.busy)
+      quiet = busy ? 0 : quiet + 1
+      /* a second of quiet, because a handler yields between words and the gap
+       * between two of them is not the end of it */
+      if (quiet >= 8) return true
+      await page.waitForTimeout(125)
     }
     return false
   }
