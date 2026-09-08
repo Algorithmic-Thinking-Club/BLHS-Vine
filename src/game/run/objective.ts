@@ -63,7 +63,21 @@ export const FOUNDING_FLAG = 'maw:founding'
  * cannot be right on both sides of a door, so there are two and the map picks. */
 export function objectiveLine(o: Objective | null, mapId: string | null | undefined): string {
   if (!o) return ''
-  return mapId && mapId !== o.map ? o.away : o.say
+  /* AND NOT KNOWING WHERE HE IS COUNTS AS BEING SOMEWHERE ELSE.
+   *
+   * `sceneDrawn()` is null before a scene has drawn and on every scene that is
+   * not a painted map, and the old reading gave all of those the sentence for
+   * STANDING IN THE MAW. Measured on the cold run, 2026-09-07: the very first
+   * thing the panel ever says to a freshman is "Talk to Principal Panther." for
+   * 1.7 seconds while he is out on the water in a boat, having never met one.
+   * It is the same defect on the beach, on the title, and for a frame at every
+   * door in the game.
+   *
+   * The two sentences are "here is the thing" and "here is how to get to the
+   * thing", and the second one is the honest answer to a question nobody can
+   * answer yet: it names the mountain, which is true from everywhere including
+   * inside it, and it self-corrects on the first frame the scene reports. */
+  return mapId === o.map ? o.say : o.away
 }
 
 /* THE ORDER, and it is the order §7.5 prints.
@@ -94,16 +108,24 @@ export function nextObjective(s: SaveGame | null): Objective | null {
    * says so. `isObjective` compares by name and an anchor is never called '', so
    * nothing on any map can match it. */
   if (sessionOver(s)) {
-    /* BRIEF-INTRO-FILM section 4, Ash 2026-09-07: the handover line is *"Explore.
-     * Talk to anyone. Open the Guide."* and there is **no "Year two" wording
-     * anywhere**. The intro does not end with a promise about next time.
+    /* IT SAYS THE YEAR IS OVER, because by the time this clause is true it is.
      *
-     * SAID IN TWO PLACES ON PURPOSE. The island says it out loud at the handover
-     * (`islands/panther-maw/founding.py`), and the island's word is dropped the
-     * moment the bars come down, which is one line later. So this is what the
-     * panel falls back to for the rest of the session, and if the two disagreed
-     * the sentence would change by itself a second after he read it. */
-    const line = 'Explore. Talk to anyone. Open the Guide.'
+     * BRIEF-MAW-NOW item 3, Ash 2026-09-07 after playing rail-6: the closing
+     * film ends with the student put back out on the hub dock and *"the bar says
+     * the year is over"*. It said `Explore. Talk to anyone. Open the Guide.`,
+     * which is the HANDOVER's sentence: the words the principal hands the room
+     * over with, forty minutes and a whole year earlier. A panel that reads the
+     * same before the year and after it is a panel that never noticed the year.
+     *
+     * NO "YEAR TWO" WORDING, which is BRIEF-INTRO-FILM section 4 and still
+     * holds: nothing here promises a next time, because nobody has designed one.
+     * It states what happened and leaves the room open.
+     *
+     * SAID IN ONE PLACE NOW. The handover's sentence is still pinned by the
+     * island (`islands/panther-maw/founding.py`), and the island is careful not
+     * to pin it once the year is closed, so the two cannot contradict each other
+     * on the same frame. */
+    const line = 'Year one is done. Look around.'
     return { anchor: '', map: MAW_MAP, phase: 'done', say: line, away: line }
   }
 

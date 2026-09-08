@@ -100,12 +100,13 @@ describe('the phase an island reads', () => {
 })
 
 describe('the last sentence of the session', () => {
-  /* BRIEF-INTRO-FILM section 4: *"the objective bar reads 'Explore. Talk to
-   * anyone. Open the Guide.' and the game is his. No 'Year two' wording
-   * anywhere."* The island says the same words at the handover and its word is
-   * dropped when the bars come down, so this is what the panel falls back to for
-   * the rest of the session and the two must not differ by a character. */
-  it('hands the game over and promises nothing about next time', async () => {
+  /* BRIEF-MAW-NOW item 3, Ash 2026-09-07: after the closing film *"the bar says
+   * the year is over"*. This clause is only reachable once `yearbook:y1` is
+   * written, which is the last thing that happens in year one, so the handover's
+   * own sentence -- said an hour and a whole year earlier -- is the wrong words
+   * here. BRIEF-INTRO-FILM section 4 still holds on the half that matters: no
+   * "Year two" wording anywhere, because nobody has designed one. */
+  it('says the year is over and promises nothing about next time', async () => {
     const { save, objective } = await fresh()
     started(save)
     save.setFlag(objective.FOUNDING_FLAG)
@@ -119,7 +120,11 @@ describe('the last sentence of the session', () => {
     save.setFlag('yearbook:y1')
     const o = objective.nextObjective(save.loadSave())!
     expect(o.phase).toBe('done')
-    expect(o.say).toBe('Explore. Talk to anyone. Open the Guide.')
+    /* BRIEF-MAW-NOW item 3: this clause is only true once the yearbook page has
+     * turned, so it must not still be reading the sentence the principal handed
+     * the room over with an hour earlier. */
+    expect(o.say).toBe('Year one is done. Look around.')
+    expect(o.say).not.toBe('Explore. Talk to anyone. Open the Guide.')
     expect(o.say).not.toMatch(/year two/i)
     expect(o.away).toBe(o.say)
     /* AND NOTHING ON ANY MAP LIGHTS. The anchor is empty on purpose: the room is

@@ -74,10 +74,8 @@ describe('the opening and the ending are never the same sitting', () => {
   })
 
   /* FALSE ON THE LOAD THAT PLAYED THE OPENING. Every road to the ending is
-   * gated, and there are three: the room loading, the principal being pressed,
-   * and the counselor turning the page (which writes `yearbook:y1`, the flag the
-   * ending's own trigger goes false on, so an ungated counselor deletes the
-   * ending rather than merely playing it early). */
+   * gated, and there are two: the room loading, and somebody who is in the film
+   * being pressed by a student who walked away from it. */
   it('will not start the ending on that load, by any road', () => {
     const endings = [...island.matchAll(/yield from ending\(\)/g)]
     expect(endings.length, 'no road to the ending is left in island.py').toBeGreaterThan(0)
@@ -86,7 +84,25 @@ describe('the opening and the ending are never the same sitting', () => {
       const cond = conditionOver(island, `${line}yield from ending()`)
       expect(cond, `an ungated ending: ${cond}`).toContain('not _OPENED_HERE')
     }
-    expect(conditionOver(island, 'yield open("yearbook")')).toContain('not _OPENED_HERE')
+  })
+
+  /* AND THE THIRD ROAD IS CLOSED RATHER THAN GATED, which is BRIEF-MAW-NOW.
+   *
+   * The counselor used to open the yearbook herself the moment the year had
+   * nothing left owing. Turning the page writes `yearbook:y1`, and that is the
+   * flag the ending's own trigger goes false on, so the press a student is most
+   * likely to make after being handed the room and told to talk to anyone DELETED
+   * the ending: no congratulation, no wall, no cover, no walk back out to the
+   * dock, and no road left to any of it. Gating that on `_OPENED_HERE` only moved
+   * the loss from the first sitting to the second.
+   *
+   * So no station raises the yearbook at all. The closing film does, once, and it
+   * is the only thing in the game that can close a year. */
+  it('leaves the page-turning to the film and to nothing else', () => {
+    expect(island, 'a station outside the closing film opens the yearbook')
+      .not.toMatch(/open\("yearbook"/)
+    expect(founding, 'the closing film no longer turns the page')
+      .toMatch(/yield open\("yearbook", wait=True\)/)
   })
 
   /* TRUE ON THE NEXT ENTRY. The latch is the only thing added to the trigger, so
