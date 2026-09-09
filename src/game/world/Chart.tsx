@@ -9,7 +9,8 @@ import { loadSave, subscribeSave } from '../save'
 import { mooringFor } from '../run/resume'
 import { Empty, Failed, Glyph, Loading } from '../ui/controls'
 import { announce } from '../ui/a11y'
-import { requestSail, sailFrom, sailListenerCount } from './sail-bus'
+import { requestVoyage, sailFrom, sailListenerCount, voyageListenerCount } from './sail-bus'
+import { picksOf } from '../run/pick'
 import { note } from '../ui/feedback'
 import './chart.css'
 
@@ -94,7 +95,12 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
 
   /* where he is standing, so his own island is not offered, and whether a boat can take him */
   const here = sailFrom() ?? undefined
-  const afloat = sailListenerCount() > 0
+  /* A VOYAGE IS OFFERED FROM ANY MAP WITH A SCENE UNDER IT, not only from one
+   * with water: the first leg of the journey is the walk out of the room, and
+   * `sail_to` owns that. The old test was "is there an ocean under this
+   * painting", which is why the chart's only control was dead in the Maw, which
+   * is the room a student spends year one in. */
+  const afloat = voyageListenerCount() > 0 || sailListenerCount() > 0
 
   const rows: Row[] = slots.map((s) => {
     const dock = dockOf(s, save, from)
@@ -135,7 +141,19 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
    * press is the dead end the law is about, so a refusal is a sentence on the
    * screen and in the reader's ear rather than nothing happening. */
   const sail = (r: Row) => {
-    void requestSail(r.slot).then((a) => {
+    /* ---- THE PIN SAILS THE WHOLE WAY (Ash, 2026-09-08 item 3) -------------
+     *
+     * `requestSail` handed the helm to a hull on THIS painting's own ocean and
+     * steered it at the pin in real time, sounding the straight line against
+     * this map's depth field. That is the right machine for a berth a hundred
+     * pixels away and it cannot leave the canvas: anything further off is
+     * refused as aground, which is every island in the world.
+     *
+     * `requestVoyage` is the journey: walk out of the room, down the quay,
+     * aboard, bars up, across under a cover, tie up, step off, card. It is
+     * `sail_to`, the same word a member's island writes, so a pin on the chart
+     * and a line in somebody's python are one machine with one set of rules. */
+    void requestVoyage(r.slot.map!).then((a) => {
       if (a.ok) {
         announce(`Sailing to ${r.name}.`)
         onSailing?.()
@@ -168,9 +186,35 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
     )
   }
 
+  /* ---- HIS OWN YEAR IS ON THE CHART -------------------------------------
+   *
+   * ASH, 2026-09-08 item 3: *"a map view opens, drawn to the real world
+   * composition, the hub in the middle and his picked islands around it, plus
+   * any island already built."*
+   *
+   * The world document holds the places somebody has BUILT, which today is the
+   * hub and one stand-in beach. A student's four picks are not places yet, so
+   * the chart he opened showed him one dot and nothing about the year he had
+   * just planned: the map of the world had nothing of his on it.
+   *
+   * They are drawn in a ring around home, at a radius the paper then makes room
+   * for, and they are NOT pressable: a pick with no island is played from the
+   * year sheet, which is what its note says. The day one is built it is a real
+   * slot on the real document and it leaves this ring on its own. */
+  const home = slots.find((q) => q.map === 'hub') ?? slots[0]
+  const owed = picksOf(save).filter((p) => !p.map)
+  const RING = 1150
+  const ghosts = owed.map((p, i) => {
+    const a = -Math.PI / 2 + (i * 2 * Math.PI) / Math.max(1, owed.length)
+    return {
+      pick: p,
+      at: { x: home.at.x + Math.cos(a) * RING, y: home.at.y + Math.sin(a) * RING * 0.62 },
+    }
+  })
+
   /* the paper fits what is on it, with a margin taken as a fraction of the spread */
-  const xs = slots.map((s) => s.at.x)
-  const ys = slots.map((s) => s.at.y)
+  const xs = [...slots.map((s) => s.at.x), ...ghosts.map((g) => g.at.x)]
+  const ys = [...slots.map((s) => s.at.y), ...ghosts.map((g) => g.at.y)]
   const spread = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys))
   const pad = Math.max(320, spread * 0.35)
   const x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad
@@ -212,6 +256,21 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
             height: `${(r.rect.h / Math.max(1, y1 - y0)) * 100}%`,
           }}>
             <span className="ch-region-name">{r.label ?? r.name}</span>
+          </div>
+        ))}
+
+        {/* what he picked and nobody has built: on the paper, in its own hand,
+            and never a control, because its button is on the year sheet */}
+        {ghosts.map((g) => (
+          <div
+            key={`pick:${g.pick.id}`}
+            className="ch-isle ch-rumour ch-isle-pick"
+            style={{ left: `${fx(g.at.x)}%`, top: `${fy(g.at.y)}%` }}
+          >
+            <span className="ch-name">{g.pick.name}</span>
+            <span className="ch-note">
+              {g.pick.done ? 'counted as done' : 'no island yet. Open My Year and press Go'}
+            </span>
           </div>
         ))}
 

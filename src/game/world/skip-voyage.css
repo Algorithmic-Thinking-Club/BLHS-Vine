@@ -1,0 +1,28 @@
+/* the crossing's own skip: top left, small, and never mistaken for the HUD */
+.sv-skip {
+  position: fixed;
+  left: 14px;
+  top: 14px;
+  z-index: 96;                 /* over the movie bars, which are 95 */
+  font: 600 12px/1 var(--font-ui, system-ui, sans-serif);
+  letter-spacing: 0.06em;
+  padding: 7px 11px;
+  color: #f2ece0;
+  background: rgba(12, 12, 14, 0.62);
+  border: 1px solid rgba(242, 236, 224, 0.34);
+  border-radius: 3px;
+  cursor: pointer;
+  opacity: 0.72;
+  transition: opacity 140ms ease, background 140ms ease;
+}
+.sv-skip:hover,
+.sv-skip:focus-visible { opacity: 1; background: rgba(12, 12, 14, 0.86); }
+.sv-skip[disabled] { cursor: default; opacity: 0.5; }
+
+/* the plain arm draws no bars, so the plaque has to read on the page itself */
+html[data-skin='plain'] .sv-skip {
+  color: #101010;
+  background: #fff;
+  border-color: #101010;
+  opacity: 1;
+}

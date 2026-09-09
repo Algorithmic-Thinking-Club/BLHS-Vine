@@ -4,6 +4,7 @@ import { Dialogue } from './Dialogue'
 import { WorldCutscene } from '../cutscene/WorldCutscene'
 import { PlaceCard } from '../stage/PlaceCard'
 import { MovieBars } from '../stage/MovieBars'
+import { SkipVoyage } from '../world/SkipVoyage'
 import { ObjectivePanel } from './Objective'
 import { HelpButton } from './Help'
 import { loadSave, subscribeSave } from '../save'
@@ -59,6 +60,8 @@ export function WorldHud() {
           the DOM chrome, because the bars are what everything else stands down
           behind. It draws nothing at all until an island says `movie(True)`. */}
       <MovieBars />
+      {/* and the one control a crossing offers, over the bars it sits on */}
+      <SkipVoyage />
     </>
   )
 }

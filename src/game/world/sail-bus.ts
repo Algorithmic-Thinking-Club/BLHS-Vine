@@ -21,8 +21,10 @@ let here: string | null = null
  *  draws a control, so it never offers a button that cannot do anything. */
 export const sailListenerCount = (): number => listening
 
-/* which painting is on screen, answered by the scene drawing it rather than by the url */
-export const sailFrom = (): string | null => (listening > 0 ? here : null)
+/* which painting is on screen, answered by the scene drawing it rather than by
+ * the url. A map with no ocean under it still answers, since a journey starts
+ * with the walk out of the room and the chart needs to know which room. */
+export const sailFrom = (): string | null => (listening > 0 || voyagers > 0 ? here : null)
 
 /** ask the world to take the ship to this slot. Resolves when the scene has
  *  decided, not when the ship arrives: a crossing is watched, not awaited. */
@@ -101,16 +103,21 @@ export function requestVoyage(map: string): Promise<SailAnswer> {
   })
 }
 
-export function onVoyageRequest(fn: (map: string, answer: (a: SailAnswer) => void) => void): () => void {
+export function onVoyageRequest(
+  mapId: string,
+  fn: (map: string, answer: (a: SailAnswer) => void) => void,
+): () => void {
   const h = (e: Event) => {
     const d = (e as CustomEvent<VoyageDetail>).detail
     if (d) fn(d.map, d.answer)
   }
   window.addEventListener(VOYAGE, h)
   voyagers++
+  here = mapId
   return () => {
     window.removeEventListener(VOYAGE, h)
     voyagers--
     if (voyagers <= 0) voyagers = 0
+    if (listening <= 0 && voyagers <= 0) here = null
   }
 }

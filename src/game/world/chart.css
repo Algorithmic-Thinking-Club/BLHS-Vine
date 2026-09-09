@@ -540,3 +540,15 @@ html[data-skin='plain'] .ch-row-go {
 /* the empty-sea notice, made shorter and wider so the register still fits under it */
 .ch-chart .kit-empty { padding: 14px 20px 10px; gap: 6px; }
 .ch-chart .kit-empty-fills { max-width: 68ch; }
+
+/* ---- A PICK NOBODY HAS BUILT YET ------------------------------------------
+ *
+ * Ash, 2026-09-08 item 3: his picked islands go on the chart around the hub. It
+ * is a mark in pencil rather than a pin in ink, and it is a div and not a
+ * button on purpose: the thing that plays it is the year sheet. */
+.ch-isle-pick {
+  border-style: dashed;
+  opacity: 0.82;
+  cursor: default;
+}
+.ch-isle-pick .ch-name { font-style: italic; }

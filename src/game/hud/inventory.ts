@@ -89,4 +89,10 @@ export const ALWAYS_ON = [
   'help',
   /* the two black bars, which draw nothing until an island asks for a cutscene */
   'movie-bars',
+  /* THE CROSSING'S OWN SKIP (Ash, 2026-09-08 item 3), top left, and present only
+   * while a voyage is actually running. It is the same justification the movie
+   * bars have: it is not a readout of anything, it is the offer the game is
+   * making at that moment, and there is no other way to make it. A student who
+   * has watched the boat once is allowed to say so. */
+  'skip-voyage',
 ] as const

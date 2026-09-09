@@ -29,6 +29,8 @@ export type VoyagePlan = {
 }
 
 let plan: VoyagePlan | null = null
+/* a student has asked to be there already, and the leg in flight honours it */
+let skipped = false
 const subs = new Set<(p: VoyagePlan | null) => void>()
 
 function tell() { for (const s of [...subs]) { try { s(plan) } catch (e) { console.error('[travel] a listener threw', e) } } }
@@ -39,6 +41,7 @@ export const voyage = (): VoyagePlan | null => plan
 /** start a voyage. The scene that armed it performs the first leg. */
 export function beginVoyage(p: VoyagePlan) {
   plan = p
+  skipped = false
   console.log(`[travel] ${p.from} -> ${p.to}, leg ${p.leg}${p.home ? ', going home' : ''}`)
   tell()
 }
@@ -56,6 +59,7 @@ export function endVoyage(why = 'arrived') {
   if (!plan) return
   console.log(`[travel] ${plan.from} -> ${plan.to} ended: ${why}`)
   plan = null
+  skipped = false
   tell()
 }
 
@@ -69,3 +73,26 @@ export function onVoyage(f: (p: VoyagePlan | null) => void): () => void {
  * never finishes is a dead session behind two black bars. Every leg is given a
  * deadline by the scene performing it; this is the number they share. */
 export const LEG_CEILING_MS = 90_000
+
+/* ---- SKIP (Ash, 2026-09-08 item 3) ---------------------------------------
+ *
+ * *"A small 'Esc: skip' sits top-left during the crossing; Esc lands him at the
+ * destination dock."*
+ *
+ * A crossing is about twenty seconds of watching a boat, once. A student on his
+ * fourth voyage of an advisory period has seen it, and a game that makes him
+ * watch it anyway is a game he is waiting on rather than playing. It is a FLAG
+ * and not an abort: the journey still finishes, at the same dock, with the same
+ * card, so nothing downstream has to know whether it was watched.
+ *
+ * IT IS NOT THE CUTSCENE SKIP. That one lives on `CutsceneRuntime` and
+ * fast-forwards authored steps to their end states; a voyage has no steps. */
+export function skipVoyage() {
+  if (!plan || skipped) return
+  skipped = true
+  console.log('[travel] skipped by the student')
+  tell()
+}
+
+/** has the student asked to be there already */
+export const voyageSkipped = (): boolean => skipped

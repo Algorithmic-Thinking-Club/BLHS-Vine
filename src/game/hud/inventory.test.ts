@@ -105,6 +105,7 @@ describe('the absence list is enforced rather than intended', () => {
       /* the movie frame, which is on the list because it MOUNTS on the play
        * screen even though it draws nothing until an island asks for it */
       MovieBars: 'movie-bars',
+      SkipVoyage: 'skip-voyage',
     }
     const strangers = mounted.filter((m) => !(m in KNOWN))
     expect(strangers,

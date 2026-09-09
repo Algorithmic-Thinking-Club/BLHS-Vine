@@ -38,10 +38,11 @@ import {
 /* the voyage, held outside the scene so it survives the doors it goes through */
 import {
   beginVoyage as beginTravel, endVoyage as endTravel, setLeg as setTravelLeg,
-  voyage as travelPlan, LEG_CEILING_MS,
+  voyage as travelPlan, voyageSkipped, LEG_CEILING_MS,
 } from '../world/travel'
 import { stateOf, STATE_INK } from '../world/states'
 import { onSailRequest, onVoyageRequest } from '../world/sail-bus'
+import { requestUi } from '../ui-bus'
 import {
   newHull, stepHull, berthHelm, DEFAULT_SAIL, HELM_IDLE,
   type Berthing, type Helm, type HullState,
@@ -66,7 +67,6 @@ import { setObjectiveSaid, setWorldObjective } from '../hud/objective-bus'
 export type PromptState = 'plain' | 'objective' | 'barred' | 'needs' | 'done'
 import { composeWorldText, WORLD_TEXT } from '../ui/worldText'
 import { MAW_MAP, isObjective, nextObjective } from '../run/objective'
-import { sessionOver } from '../run/year'
 import { missingAnchors } from '../maw/stations'
 import { runStation } from '../maw/run-station'
 import { isReady, labelFor, ownerOf } from './grape-router'
@@ -3248,17 +3248,6 @@ export default function PmapScene() {
       let panelBand = 0
       let panelBandAt = -99
 
-      /* whether the year's next step is somewhere he can walk to from here */
-      const leadsInland = (): boolean => {
-        const o = nextObjective(loadSave())
-        if (!o) return false
-        /* the phases whose whole point is leaving, named rather than inferred from the map */
-        if (sessionOver(loadSave())) return true
-        if (o.phase === 'voyage' || o.phase === 'rising' || o.phase === 'done') return false
-        /* and a door only counts when the check says it really opens */
-        return o.map === mapId || doors.some((d) => d.to === o.map && doorState.get(d.to) === 'ok')
-      }
-
       /* which regions and triggers the feet were inside on the last frame */
       const inZones = new Set<string>()
       const firedTriggers = new Set<string>()
@@ -3717,7 +3706,7 @@ export default function PmapScene() {
        * IT IS OFFERED FROM ANY MAP, not only from one with water: the first leg
        * of the journey is the walk out of the room and `sail_to` owns that. Its
        * own four refusals are the gate, and they name what can be sailed to. */
-      offVoyage = onVoyageRequest((want, answer) => {
+      offVoyage = onVoyageRequest(mapId, (want, answer) => {
         if (fade || busy || runtime.running) {
           answer({ ok: false, why: 'Not while something else is happening.' }); return
         }
@@ -3897,6 +3886,26 @@ export default function PmapScene() {
           await new Promise<void>((r) => setTimeout(r, 100))
         }
         if (destroyed) return
+        /* ---- THE SKIP LANDS HIM AT THE DOCK (Ash, 2026-09-08 item 3) ------
+         *
+         * *"Esc lands him at the destination dock."* Not "cancels the voyage",
+         * which would leave a student who pressed a pick standing where he was
+         * with nothing having happened. It is the same arrival by the shorter
+         * road: the far map opens at the berth's own anchor, on foot rather than
+         * aboard, and the card plays there the way it always does.
+         *
+         * IT IS CHECKED AT THE TOP OF EVERY LEG and again after the walk, so a
+         * press during the walk out of the room is honoured before the ship is
+         * ever boarded. */
+        const skipToShore = (): boolean => {
+          if (!voyageSkipped()) return false
+          const at = comp ? slotOfMap(comp, v.to)?.berth?.at : undefined
+          console.log(`[travel] skipped, landing on ${v.to}${at ? ` at ${at}` : ''}`)
+          endTravel('skipped')
+          beginExit({ map: v.to, at })
+          return true
+        }
+        if (skipToShore()) return
         try {
           if (v.leg === 'to-dock') {
             const door = doorToWater()
@@ -3907,6 +3916,7 @@ export default function PmapScene() {
               startWalk(goal, reach, goal.facing ?? null, r, door.name)
             })
             guideTarget = null
+            if (skipToShore()) return
             setTravelLeg('crossing')
             beginExit({ map: door.to!, at: door.toAnchor })
             return
@@ -3924,6 +3934,7 @@ export default function PmapScene() {
               })
               guideTarget = null
             }
+            if (skipToShore()) return
             void intentWorld.view('ship')
             board()
             if (!hull) { endTravel('he could not get in the boat'); setCinema(false); return }
@@ -3938,6 +3949,7 @@ export default function PmapScene() {
             }
             engine.log('cast_off', { from: mapId, to: v.to })
             await new Promise<void>((r) => setTimeout(r, CAST_OFF_SHOW_MS))
+            if (skipToShore()) return
             setTravelLeg('landing')
             /* and the rest of the crossing happens under the cover, which is what a
              * cover is for. `aboard` is what makes the far map open ON THE WATER
@@ -4664,14 +4676,33 @@ export default function PmapScene() {
             promptAnchor = null
           }
         }
-        /* the boarding plaque is offered at the berth, and only when the year wants him at sea */
-        if (!hull && canSail && berth && !locked && !busy && !fade && !leadsInland()) {
+        /* ---- E ON THE SHIP IS THE TRAVEL MAP -------------------------------
+         *
+         * ASH, 2026-09-08 item 3: *"Thor walks to any dock and presses E on his
+         * ship; a map view opens, drawn to the real world composition, the hub in
+         * the middle and his picked islands around it. Pressing one sails there
+         * behind the bars, he steps off, the card plays."*
+         *
+         * It used to put him IN the boat, on this painting's own ocean, with a
+         * tiller and no destination: the only way to then go anywhere was to open
+         * the Map plaque in the corner while afloat and press a pin. So the boat
+         * was a vehicle a student could drive around a puddle, and the thing it
+         * is for was two screens away behind a control that looks like a book.
+         *
+         * The ship is a DOOR now, and the chart is what is on the other side of
+         * it. Nothing else in the game asks a student to get into a vehicle and
+         * then work out where it goes.
+         *
+         * AND IT IS OFFERED WHENEVER HE IS STANDING AT IT, where it used to be
+         * hidden any time the year had a step on land (`leadsInland`). A student
+         * who wants to look at the map of the world is allowed to look at it. */
+        if (!hull && canSail && berth && !locked && !busy && !fade) {
           const p = fromSea(berth.x, berth.y)
           if (Math.hypot(p.x - pos.x, p.y - pos.y) < 110) {
-            setPrompt('Get in the boat', 'plain')
+            setPrompt('Open the chart', 'plain')
             hang(p.x, p.y, 26, Math.sin(t * 2.1) * 1.2)
             promptAnchor = null
-            seaFire = board
+            seaFire = () => { requestUi('chart') }
           }
         }
 
