@@ -96,9 +96,18 @@ describe('the phase an island reads', () => {
   })
 })
 
-describe('the last sentence of the session', () => {
-  /* the bar says the year is over once the yearbook page has turned */
-  it('says the year is over and promises nothing about next time', async () => {
+describe('a closed year asks for nothing', () => {
+  /* ---- ASH, 2026-09-09 ---------------------------------------------------
+   *
+   * It used to answer "Year one is done. Look around." once the page had turned.
+   * That sentence had exactly one place left to draw, because the only in-world
+   * moment with the page already turned IS the closing film: it sat across the
+   * top of the congratulation, the Sail Home button and the ship leaving. Seen
+   * on the live deploy in `sail-home-live/2-sail-home.png`.
+   *
+   * It was not true either. There is nothing to look around at: the film has the
+   * controls and what comes next is the title with the next year on it. */
+  it('says nothing at all once the page has turned', async () => {
     const { save, objective } = await fresh()
     started(save)
     save.setFlag(objective.FOUNDING_FLAG)
@@ -110,17 +119,24 @@ describe('the last sentence of the session', () => {
       credit: 0.5, grade: 4, year: 1, season: 'Fall',
     })
     save.setFlag('yearbook:y1')
-    const o = objective.nextObjective(save.loadSave())!
-    expect(o.phase).toBe('done')
-    /* BRIEF-MAW-NOW item 3: this clause is only true once the yearbook page has
-     * turned, so it must not still be reading the sentence the principal handed
-     * the room over with an hour earlier. */
-    expect(o.say).toBe('Year one is done. Look around.')
-    expect(o.say).not.toBe('Explore. Talk to anyone. Open the Guide.')
-    expect(o.say).not.toMatch(/year two/i)
-    expect(o.away).toBe(o.say)
-    /* AND NOTHING ON ANY MAP LIGHTS. The anchor is empty on purpose: the room is
-     * his and there is no one thing he is being sent to. */
-    expect(o.anchor).toBe('')
+    expect(objective.nextObjective(save.loadSave())).toBeNull()
+    /* and an empty objective draws no bar at all, which is what the panel does
+     * with a null: `hud/Objective.tsx` returns null on an empty sentence */
+    expect(objective.objectiveLine(null, 'panther-maw')).toBe('')
+  })
+
+  /* and the next year opens the whole thing back up, which is what the title's
+   * "Start year 2" does: `endYear` bumps the year and this stops being closed */
+  it('and asks again the moment the next year starts', async () => {
+    const { save, objective } = await fresh()
+    started(save)
+    save.setFlag(objective.FOUNDING_FLAG)
+    save.setFlag('vignette:y1')
+    save.setFlag('yearbook:y1')
+    expect(objective.nextObjective(save.loadSave())).toBeNull()
+    save.endYear()
+    const o = objective.nextObjective(save.loadSave())
+    expect(o, 'year two opens with nothing lit').not.toBeNull()
+    expect(o!.phase).toBe('vignette')
   })
 })

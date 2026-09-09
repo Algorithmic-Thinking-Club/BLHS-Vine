@@ -37,12 +37,18 @@ export function nextObjective(s: SaveGame | null): Objective | null {
   if (!s || !s.introDone) return null
   if (s.graduated) return null
 
-  /* the session is over, so nothing is lit and the room is the player's to look around */
-  if (sessionOver(s)) {
-    /* the line for a year that has finished, which says so and leaves the room open */
-    const line = 'Year one is done. Look around.'
-    return { anchor: '', map: MAW_MAP, phase: 'done', say: line, away: line }
-  }
+  /* ---- A CLOSED YEAR ASKS NOTHING (Ash, 2026-09-09) ---------------------
+   *
+   * It used to answer "Year one is done. Look around." and that sentence had
+   * exactly one place left to draw: across the top of the closing film, over the
+   * congratulation, the Sail Home button and the ship leaving. There is nowhere
+   * else it can appear, because the only in-world moment with the page already
+   * turned IS the ending.
+   *
+   * And it was not true either. There is nothing to look around at: the film has
+   * the controls, and what comes next is the title screen with the next year on
+   * it. The bar is furniture for a game still being played. */
+  if (sessionOver(s)) return null
 
   /* the founding event, which happens once per run before any year beat */
   if (!s.flags.includes(FOUNDING_FLAG)) {
