@@ -2605,7 +2605,13 @@ export default function PmapScene() {
           if (to === PLAYER) {
             const d0 = take(sp)
             const ys0 = map.yScale || 1
-            const clear0 = map.character.heightPx * 1.1
+            /* CLOSER THAN THE PUSH-APART GAP. A full body length plus ten
+             * percent is the distance that keeps two figures from overlapping;
+             * at the close shot this film is watched on it is a hundred and
+             * twenty screen pixels, and the man who came to congratulate you
+             * ends up talking from the other side of the fire. Somebody standing
+             * WITH you stands closer than somebody merely not inside you. */
+            const clear0 = map.character.heightPx * 0.72
             const ax0 = d0.x - pos.x, ay0 = d0.y - pos.y
             const away0 = Math.hypot(ax0, ay0 * ys0) || 1
             const want = { x: pos.x + (ax0 / away0) * clear0, y: pos.y + (ay0 / away0) * clear0 }
