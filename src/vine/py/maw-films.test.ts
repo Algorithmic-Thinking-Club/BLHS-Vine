@@ -67,6 +67,31 @@ describe('the opening and the ending are never the same sitting', () => {
       .toMatch(/yield open\("yearbook", wait=True\)/)
   })
 
+  /* ---- WHO CAN START THE ENDING, AND IT IS NOT THE COUNSELOR --------------
+   *
+   * ASH, 2026-09-08: *"pressing the principal starts the closing film (the
+   * counselor never starts it), walking into the Maw with the year done also
+   * starts it."* Two roads, named, and she is not one of them: the closing is the
+   * principal coming to find you, and a student who wanders to her first should
+   * not trigger the man walking up behind him.
+   *
+   * Read as source because both roads are `on_talk`/`on_start` handlers in
+   * MicroPython, and the thing being fenced is WHICH handler holds the call. */
+  it('has exactly two roads into the ending, and neither is the counselor', () => {
+    const of = (fn: string) => {
+      const at = island.indexOf(`def ${fn}(`)
+      if (at < 0) throw new Error(`island.py has no ${fn}()`)
+      const end = island.indexOf('@on_', at + 4)
+      return island.slice(at, end > 0 ? end : undefined)
+    }
+    expect(of('walking_in'), 'walking in with the year done no longer starts it')
+      .toContain('yield from ending()')
+    expect(of('the_principal'), 'pressing the principal no longer starts it')
+      .toContain('yield from ending()')
+    expect(of('the_counselor'), 'the counselor starts the ending again')
+      .not.toContain('yield from ending()')
+  })
+
   /* true on the next entry, since the latch is the only thing added to the trigger */
   it('asks the sequencer and nothing else about whether the year is done', () => {
     expect(founding).toMatch(/def year_is_done\(\):/)

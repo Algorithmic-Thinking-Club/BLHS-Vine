@@ -46,12 +46,15 @@ describe('the yearbook assembles in a fixed order for any year', () => {
     save.writeSave({ introDone: true })
     save.pickClass(1, 'ap-human-geo'); save.pickClass(1, 'spanish-1')
     save.stampPlan(1, [])
-    // stamped, and Advisory still owed, which is the one thing that holds a year
+    // stamped, and Advisory still owed
     expect(yearbookPage(save.loadSave()!, 1).ready).toBe(false)
     save.recordGrade({ id: 'core:y1', title: 'Advisory', kind: 'core', credit: .5, grade: 4, year: 1, season: 'Fall' })
-    /* the classes do not hold the year open */
-    expect(yearbookPage(save.loadSave()!, 1).ready).toBe(true)
+    /* AND THE TWO PICKED CLASSES HOLD IT OPEN TOO (Ash, 2026-09-08). They are the
+     * middle of year one: the objective bar names the first of them the moment
+     * Advisory is sat, and the page cannot turn while either is unsat. */
+    expect(yearbookPage(save.loadSave()!, 1).ready).toBe(false)
     save.recordGrade({ id: 'class:ap-human-geo', title: 'x', kind: 'class', credit: .5, grade: 4, year: 1, season: 'Fall' })
+    expect(yearbookPage(save.loadSave()!, 1).ready).toBe(false)
     save.recordGrade({ id: 'class:spanish-1', title: 'y', kind: 'class', credit: .5, grade: 4, year: 1, season: 'Fall' })
     expect(yearbookPage(save.loadSave()!, 1).ready).toBe(true)
   })
@@ -145,18 +148,34 @@ describe('the objective reaches the yearbook', () => {
     expect(o?.phase).toBe('yearbook')
     /* the closing film starts here and the principal is who meets him */
     expect(o?.anchor).toBe('principal_desk')
-    expect(o?.say).toBe('The principal is waiting.')
+    expect(o?.say).toBe('Find the principal. Year one is done.')
     /* the away line names the tunnel, since the ending plays on entering the Maw */
-    expect(o?.away).toBe('Go back into the mountain. The principal is waiting.')
+    expect(o?.away).toBe('Go back into the mountain. Year one is done.')
   })
 
-  it('sends him to the principal with a class still owed and an island still rising', async () => {
-    /* the classes no longer hold the year open, so the page can turn */
+  /* ASH, 2026-09-08, reversing the rule this test used to hold: *"The year is
+   * done only when every picked thing with play behind it is done: both classes
+   * today, and every picked club or sport the day its island exists, through the
+   * voyage clause that already exists. A pick with nothing behind it cannot be
+   * picked, so it never holds the year open."*
+   *
+   * The two halves of that sentence are the two assertions below, on one save: a
+   * class he chose and never sat holds the year open and the bar names it; the
+   * island nobody has built does not, and never will. */
+  it('holds the year open for an unsat class and never for an unbuilt island', async () => {
     const save = await stampedYear()
     save.writeSave({ ledger: save.loadSave()!.ledger.filter((e) => e.id !== 'class:spanish-1') })
     const o = nextObjective(save.loadSave())
-    expect(o?.phase).toBe('yearbook')
-    expect(o?.anchor).toBe('principal_desk')
+    expect(o?.phase).toBe('class')
+    expect(o?.say).toContain('Spanish I')
+    /* and the sheet is where it is sat, so that is where the arrow points */
+    expect(o?.anchor).toBe('chart_table')
+
+    /* sit it, and the only thing left on the sheet is an island nobody has
+     * built: the year closes anyway, because it can never be finished */
+    save.recordGrade({ id: 'class:spanish-1', title: 'y', kind: 'class', credit: .5, grade: 4, year: 1, season: 'Fall' })
+    const after = nextObjective(save.loadSave())
+    expect(after?.phase).toBe('yearbook')
     const { yearStatus, nudgeLine } = await import('./year')
     expect(nudgeLine(yearStatus(save.loadSave()!))).toContain('not open yet')
   })

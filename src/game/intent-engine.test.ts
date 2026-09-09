@@ -127,6 +127,15 @@ describe('phase, which is where the year is', () => {
     expect(engine.read('phase')).not.toBe('yearbook')
     save.pickClass(1, 'ap-human-geo')
     save.stampPlan(1)
+    /* AND STILL NOT, BECAUSE A PICKED CLASS IS PART OF THE YEAR. Ash, 2026-09-08:
+     * *"The year is done only when every picked thing with play behind it is
+     * done: both classes today."* The sheet is stamped and Advisory is sat, and
+     * the one thing he chose is still unsat, so the arrow sends him to it. */
+    expect(engine.read('phase')).toBe('class')
+    save.recordGrade({
+      id: 'class:ap-human-geo', title: 'AP Human Geography', kind: 'class',
+      credit: 0.5, grade: 4, year: 1, season: 'Fall',
+    })
     expect(engine.read('phase')).toBe('yearbook')
   })
 

@@ -644,9 +644,15 @@ export default function PmapScene() {
        * is 377 of them, so fitting the canvas would frame 263 rows of sea */
       const Z_ISLAND = Math.max(1, Math.floor(fitIn)) * 1.18
       /* how tall the person is meant to be on the glass, in the window Ash
-       * plays at. Forty is the Maw's own answer at cover fit, which is the only
-       * character scale in this game he has ruled on. */
-      const BODY_ON_GLASS = 40
+       * plays at.
+       *
+       * ONE STEP CLOSER, 2026-09-08. His words, twice: *"when thor in panther maw,
+       * needs to be zoomed in. same with hub"* and *"zoom the Maw and the hub in
+       * one step closer on Thor."* Forty was the Maw's own answer at cover fit
+       * and the Maw has moved (below), so the island follows it rather than the
+       * two drifting apart: fifty-two puts a twenty pixel body at about sixty on
+       * a 768 tall window, which is what the room now gives him. */
+      const BODY_ON_GLASS = 52
       const bodyH = Math.max(6, map.character?.heightPx || 18)
       const Z_WALK = Math.max(
         Z_ISLAND,
@@ -656,8 +662,16 @@ export default function PmapScene() {
         : coastCut ? Z_WALK
           /* whole pixels, and never below the cover: a room that rounded DOWN
            * would be back in its black field. The epsilon is there so a cover
-           * of 2.0000001 does not open at 3. */
-          : Math.max(1, Math.ceil(fitCover - 1e-3))
+           * of 2.0000001 does not open at 3.
+           *
+           * AND ONE WHOLE STEP IN FROM THERE (Ash, 2026-09-08: *"zoom the Maw and
+           * the hub in one step closer on Thor"*). The Maw's cover fit is exactly
+           * 2 at 1366x768, which drew a twenty pixel character forty pixels tall
+           * in the middle of a room wide enough to hold five stations, and he
+           * read as a detail rather than as the person you are. Three is the next
+           * whole number, which is the only kind this may be: a fractional room
+           * zoom puts the painting on half pixels and the whole map softens. */
+          : Math.max(1, Math.ceil(fitCover - 1e-3) + 1)
 
       /* the zoom an authored shot is a multiple of, kept separate from the walking shot */
       const Z_SHOT = coastCut ? Z_ISLAND : Math.max(1, Math.floor(fitIn * 2) / 2)

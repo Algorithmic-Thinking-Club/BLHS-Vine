@@ -55,6 +55,13 @@ describe('the phase an island reads', () => {
       id: 'core:y1', title: 'POWER, Mondays, and joining a club', kind: 'core',
       credit: 0.5, grade: 4, year: 1, season: 'Fall',
     })
+    /* AND THE CLASS HE PICKED IS SAT. Ash, 2026-09-08: the year is not done until
+     * every picked thing with play behind it is, and a class is the only such
+     * thing in year one today. */
+    save.recordGrade({
+      id: 'class:ap-human-geo', title: 'AP Human Geography', kind: 'class',
+      credit: 0.5, grade: 4, year: 1, season: 'Fall',
+    })
     const o = objective.nextObjective(save.loadSave())!
     expect(o.phase).toBe('yearbook')
     /* AND THE PRINCIPAL IS WHO IT POINTS AT, because the ending is his film. A
@@ -74,11 +81,15 @@ describe('the phase an island reads', () => {
       id: 'core:y1', title: 'POWER, Mondays, and joining a club', kind: 'core',
       credit: 0.5, grade: 4, year: 1, season: 'Fall',
     })
+    save.recordGrade({
+      id: 'class:ap-human-geo', title: 'AP Human Geography', kind: 'class',
+      credit: 0.5, grade: 4, year: 1, season: 'Fall',
+    })
     const o = objective.nextObjective(save.loadSave())
-    expect(objective.objectiveLine(o, 'hub')).toBe('Go back into the mountain. The principal is waiting.')
+    expect(objective.objectiveLine(o, 'hub')).toBe('Go back into the mountain. Year one is done.')
     /* and on the Maw itself it is still the short one, because he is standing in
      * the room the man is in */
-    expect(objective.objectiveLine(o, 'panther-maw')).toBe('The principal is waiting.')
+    expect(objective.objectiveLine(o, 'panther-maw')).toBe('Find the principal. Year one is done.')
   })
 })
 

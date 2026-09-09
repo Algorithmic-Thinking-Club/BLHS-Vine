@@ -6,7 +6,7 @@ import {
 } from './catalog'
 /* what a season token may be spent on is the roster's, not the planner's. A slot
  * points at a programme id and the roster says what programmes exist. */
-import { PROGRAMMES, programmeById, seasonOf } from '../roster/roster'
+import { PROGRAMMES, islandForClass, programmeById, seasonOf } from '../roster/roster'
 import {
   assignSlot, clearSlot, dropClass, loadSave, pickClass, SEASONS, stampPlan, subscribeSave,
   type Season, type YearPlan,
@@ -544,7 +544,16 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                           )}
                         </>
                       )
-                      : onSitClass && <Plank size="sm" onClick={() => onSitClass(id)}>go to class</Plank>)}
+                      : onSitClass && (
+                        <Plank size="sm" onClick={() => onSitClass(id)}>
+                          {/* ONE BUTTON, TWO DESTINATIONS, and the roster picks
+                              (`islandForClass`). Today every course is a beat on
+                              this sheet; the day a course has a painted island
+                              the same press sails there and only the word
+                              changes, rather than a second control appearing. */}
+                          {islandForClass(id) ? 'sail there' : 'go to class'}
+                        </Plank>
+                      ))}
                   </div>
                 )
               })}

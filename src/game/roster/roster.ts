@@ -246,6 +246,32 @@ export const programmesAt = (placeId: PlaceId | undefined): Programme[] =>
   placeId ? PROGRAMMES.filter((p) => p.place === placeId) : []
 
 /** the season a programme runs in: a sport's is the school's, a club takes any */
+/* WHERE A CLASS IS SAT, AND IT IS ONE QUESTION WITH ONE ANSWER.
+ *
+ * ASH, 2026-09-08: *"My Year's 'Go to class' plays that class's beat… when a
+ * class has an island, the same button sails there instead, decided by the
+ * roster, no second button."*
+ *
+ * ONE BUTTON IS THE WHOLE POINT. A sheet that grew a second control the day
+ * somebody shipped an island would be a sheet whose two classes look different
+ * from each other for a reason a student cannot see. The button means "go to this
+ * class"; whether that is a quiz on the sheet or a voyage is the roster's
+ * business, and this is the roster answering.
+ *
+ * A CLASS AND A PROGRAMME SHARE AN ID WHEN THEY ARE THE SAME THING. The four key
+ * spaces at the top of this file stay separate; this is the one deliberate
+ * crossing and it is opt-in. A course only has an island if somebody put a
+ * programme carrying the course's own id on the roster, made it playable, and
+ * gave its place a painting. Nothing in the catalog does today, so every class is
+ * a beat and the button says so. */
+export function islandForClass(classId: string): { programme: Programme; map: string } | null {
+  const g = PROGRAMMES.find((p) => p.id === classId)
+  if (!g?.playable) return null
+  const place = PLACES.find((pl) => pl.id === g.place)
+  const map = place?.arrival ?? place?.maps[0]
+  return map ? { programme: g, map } : null
+}
+
 export function seasonOf(p: Programme): Season | undefined {
   return p.kind === 'sport' ? (p.season ?? SPORT_SEASONS[p.id]) : undefined
 }

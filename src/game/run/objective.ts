@@ -1,6 +1,7 @@
 /* the one thing the player is supposed to do next, named as an anchor on a map */
 import type { SaveGame } from '../save'
 import { shownName } from '../roster/placeholders'
+import { classById } from '../planner/catalog'
 import { sessionOver, yearStatus } from './year'
 
 export type Objective = {
@@ -14,7 +15,7 @@ export type Objective = {
   say: string
   away: string
   /* the year phase this belongs to, for logging and for the debug overlay */
-  phase: 'founding' | 'vignette' | 'plan' | 'core' | 'voyage' | 'rising' | 'yearbook' | 'done'
+  phase: 'founding' | 'vignette' | 'plan' | 'core' | 'class' | 'voyage' | 'rising' | 'yearbook' | 'done'
 }
 
 export const MAW_MAP = 'panther-maw'
@@ -82,6 +83,31 @@ export function nextObjective(s: SaveGame | null): Objective | null {
     }
   }
 
+  /* ---- THE MIDDLE OF YEAR ONE IS THE TWO CLASSES -------------------------
+   *
+   * ASH, 2026-09-08: *"The middle of year one is the two classes… after the
+   * handover the objective bar says 'Go to <first class>. Open My Year.'"*
+   *
+   * With no island on the roster this is the whole of the year between the
+   * handover and the ending, and it was the missing middle: a student was handed
+   * the room and the bar said "Explore. Talk to anyone." over a hall he had just
+   * been walked round. The two classes were on his sheet, scored, and moving the
+   * only cords this game can move, and nothing anywhere sent him to them.
+   *
+   * IT NAMES THE CLASS AND THE DOOR TO IT. "Open My Year" is the second half on
+   * purpose: the class is sat from the year sheet, which is a corner button
+   * rather than a place in the room, so a sentence naming only the class would
+   * send a student looking for a classroom that is not painted. */
+  if (y.classesPending.length) {
+    const next = classById(y.classesPending[0])
+    const name = next?.name ?? y.classesPending[0]
+    return {
+      anchor: 'chart_table', map: MAW_MAP, phase: 'class',
+      say: `Go to ${name}. Open My Year.`,
+      away: `Go into the mountain. ${name} is on your year sheet.`,
+    }
+  }
+
   /* out to the water, pointing at the exit, and only for a voyage that can be sailed */
   const sailable = y.voyages.filter((v) => !v.done && v.playable)
   if (sailable.length) {
@@ -99,8 +125,14 @@ export function nextObjective(s: SaveGame | null): Objective | null {
     /* the closing plays at the principal's desk, so the away line names the way back in */
     return {
       anchor: 'principal_desk', map: MAW_MAP, phase: 'yearbook',
-      say: 'The principal is waiting.',
-      away: 'Go back into the mountain. The principal is waiting.',
+      /* ASH, 2026-09-08: *"the bar says 'Find the principal. Year one is done.'"*
+       * It said "The principal is waiting", which is a fact about a man and not
+       * about the year: a student read it identically at the founding, when the
+       * principal really was waiting to start everything. This one says WHY he
+       * is being sent, and the second sentence is the only thing on the glass
+       * that tells him the year is over before the film says so. */
+      say: 'Find the principal. Year one is done.',
+      away: 'Go back into the mountain. Year one is done.',
     }
   }
 

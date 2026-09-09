@@ -119,8 +119,16 @@ describe('the year as a list', () => {
       id: 'core:y1', title: 'Advisory', kind: 'core', credit: 0.5,
       grade: 4, year: 1, season: 'Fall',
     })
-    /* with nothing to sail to the arrow goes to the principal, and the last row
-     * stops being barred on the same save */
+    /* THE MIDDLE OF THE YEAR IS THE TWO CLASSES (Ash, 2026-09-08), so Advisory
+     * being sat hands the arrow to the first of them rather than to the ending */
+    expect(objective.nextObjective(save.loadSave())!.phase).toBe('class')
+    for (const id of ['ap-human-geo', 'spanish-1']) {
+      save.recordGrade({
+        id: `class:${id}`, title: id, kind: 'class', credit: 0.5, grade: 4, year: 1, season: 'Fall',
+      })
+    }
+    /* and with both sat and nothing to sail to, the arrow goes to the principal
+     * and the last row stops being barred on the same save */
     expect(objective.nextObjective(save.loadSave())!.phase).toBe('yearbook')
     const late = tasks.tasksOf(save.loadSave())
     expect(row(late, 'core').done).toBe(true)

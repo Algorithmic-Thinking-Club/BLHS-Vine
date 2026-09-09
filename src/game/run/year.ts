@@ -81,7 +81,25 @@ export function yearStatus(s: SaveGame, forYear = s.year): YearStatus {
     classesPending,
     voyages,
     /* the year closes on the stamp and advisory, and the picked classes do not hold it */
-    readyForYearbook: plan.stamped && coreBeatDone,
+    /* THE YEAR IS DONE WHEN EVERY PICKED THING WITH PLAY BEHIND IT IS DONE.
+     *
+     * ASH, 2026-09-08: *"The year is done only when every picked thing with play
+     * behind it is done: both classes today, and every picked club or sport the
+     * day its island exists, through the voyage clause that already exists. A
+     * pick with nothing behind it cannot be picked, so it never holds the year
+     * open."*
+     *
+     * The class clause was taken out on 2026-09-05 because a student walked to
+     * the counselor and she had nothing to say: the year was waiting on two
+     * activities nothing on screen had sent him to. That was the right diagnosis
+     * and the wrong fix. The bar sends him to them now (`objective.ts`, the
+     * `class` clause), so the gate can go back to being honest.
+     *
+     * THE VOYAGES ARE NOT IN THIS EXPRESSION and still must not be. A committed
+     * voyage is held by `nextObjective`'s own clause, which counts only the
+     * playable ones, so an island nobody has built can never hold a year open.
+     * Two gates for two kinds of thing, and the second one already existed. */
+    readyForYearbook: plan.stamped && coreBeatDone && classesPending.length === 0,
     yearbookSeen: s.flags.includes(`yearbook:y${year}`),
   }
 }

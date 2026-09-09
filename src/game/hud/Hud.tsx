@@ -273,7 +273,20 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
         <Planner
           onClose={closeAll}
           onAdvisory={() => { setPlanner(false); setAdvisory(true) }}
-          onSitClass={(id) => { setPlanner(false); setSitClass(id) }}
+          onSitClass={(id) => {
+            setPlanner(false)
+            /* THE SAME PRESS, ONE DESTINATION TODAY. Ash, 2026-09-08: *"when a
+               class has an island, the same button sails there instead, decided
+               by the roster, no second button."* `islandForClass` is that
+               decision and it answers null for every course in the catalog,
+               because no course carries a playable programme with a painted
+               place. `Planner` already reads it for the button's word; the day
+               it answers, this is the line that changes, and the sheet does not.
+               Wiring a voyage nothing can reach would be a second untested path
+               through the year, which is how the unreachable half of this
+               repository got written. */
+            setSitClass(id)
+          }}
           onYearbook={() => { setPlanner(false); setYearbook(true) }}
         />
       )}

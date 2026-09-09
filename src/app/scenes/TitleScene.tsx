@@ -73,13 +73,17 @@ export default function TitleScene() {
         <div className="ti-actions">
           {/* one plank, two lines, with the year and season inside the wood */}
           {/* a finished run is its own title state: the yearbook, and a way back into the Maw */}
+          {/* ONE PLANK HERE TOO, AND IT IS THE YEARBOOK. Ash, 2026-09-08, on the
+              version that had two: *"the title says 'Year one is done' with 'Your
+              yearbook' and nothing else, no 'Back to the island', no year two."*
+              He read the second plank and asked the obvious question: if the year
+              is fully done, should it not say Start Year 2. It should not, because
+              there is no year two, and a way back into a finished room is a way
+              back to nothing. The run ends here. */}
           {over ? (
-            <>
-              <Plank size="lg" className="ti-plank" sub="Year one is done" onClick={openBook}>
-                Your yearbook
-              </Plank>
-              <Plank size="sm" className="ti-again" onClick={go}>Back to the island</Plank>
-            </>
+            <Plank size="lg" className="ti-plank" sub="Year one is done" onClick={openBook}>
+              Your yearbook
+            </Plank>
           ) : (
             <Plank
               size="lg"
