@@ -94,7 +94,7 @@ page.on('pageerror', (e) => { failures++; console.log(`  FAIL page error · ${e.
  * 1 · THE CANVAS TAKES A POINTER
  * ==========================================================================*/
 console.log('\n1 · click to walk')
-await page.goto(`${base}/?scene=pmap&map=hub`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${base}/?scene=pmap&deep=1&map=hub`, { waitUntil: 'domcontentloaded' })
 await ready(page)
 
 const stageMode = await page.evaluate(() => {
@@ -186,7 +186,7 @@ console.log('\n4 · the crossing')
  * the rule working correctly as the card being broken, which is exactly the
  * shape of proof failure this repo has shipped before. */
 await page.evaluate(() => sessionStorage.removeItem('blhs_seen_v1'))
-await page.goto(`${base}/?scene=pmap&map=hub&aboard=1`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${base}/?scene=pmap&deep=1&map=hub&aboard=1`, { waitUntil: 'domcontentloaded' })
 await ready(page)
 
 const afloat = await page.evaluate(() => ({
@@ -243,7 +243,7 @@ console.log('\n6 · click to sail')
  * every click, because the open Handbook is itself a world hold, and a check on
  * the listener count passed happily while the feature could not fire once. */
 await page.evaluate(() => sessionStorage.removeItem('blhs_seen_v1'))
-await page.goto(`${base}/?scene=pmap&map=hub`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${base}/?scene=pmap&deep=1&map=hub`, { waitUntil: 'domcontentloaded' })
 await ready(page)
 
 const chart = await page.evaluate(async () => {
@@ -282,7 +282,7 @@ if (chart.away) {
  * room and it is where the chart table stands, so it is where a student opens
  * the chart. A control that is always there and usually refuses teaches them
  * that the chart does not work. */
-await page.goto(`${base}/?scene=pmap&map=panther-maw`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${base}/?scene=pmap&deep=1&map=panther-maw`, { waitUntil: 'domcontentloaded' })
 await ready(page)
 const indoors = await page.evaluate(async () => {
   const bus = await import('/src/game/world/sail-bus.ts')

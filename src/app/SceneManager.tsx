@@ -4,6 +4,7 @@ import {
   type TransitionSpec,
 } from './transitions'
 import { setContext, startHeartbeat, track } from '../game/telemetry'
+import { markTabLive } from './entry'
 
 // scenes register by id, and every navigation runs through one covered transition
 
@@ -46,6 +47,11 @@ export function SceneManager({ initial, registry, overlay }: { initial: string; 
   useEffect(() => {
     setContext({ scene: current })
     track('scene_shown', { scene: current })
+    /* AND THIS TAB SAYS IT IS THE ONE HAVING THE RUN. It is what makes a
+     * refresh mid-play come back to the same map while a pasted address in a
+     * fresh window does not (`app/entry.ts`). Stamped on scene changes only, so
+     * a tab left open all afternoon goes stale and lands on the title. */
+    markTabLive()
   }, [current])
 
   return (

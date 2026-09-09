@@ -21,6 +21,6 @@ await shot('r1-continue-lands-here-islandmap', 'http://localhost:5173/?scene=isl
 await shot('r2-boot-cold', 'http://localhost:5173/', null, 3500)
 await shot('r3-title-cold', 'http://localhost:5173/?scene=title', null, 3000)
 await shot('r4-beach-intro-ts', 'http://localhost:5173/?scene=beach', null, 6000)
-await shot('r5-castaway-python', 'http://localhost:5173/?scene=pmap&map=castaway&grape=/grapes/castaway/', SAVE, 9000)
+await shot('r5-castaway-python', 'http://localhost:5173/?scene=pmap&deep=1&map=castaway&grape=/grapes/castaway/', SAVE, 9000)
 await b.close()
 console.log('done')

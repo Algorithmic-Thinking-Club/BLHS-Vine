@@ -40,7 +40,7 @@ save.flags = [...save.flags, 'hub:crossed']
 
 const h = await boot('travel', {
   save,
-  url: `${base}/?scene=pmap&map=${from}&at=arrive_maw&world=local`,
+  url: `${base}/?scene=pmap&deep=1&map=${from}&at=arrive_maw&world=local`,
   headed: has('headed'),
   dir: 'reference/_archive/build-shots/travel',
 })

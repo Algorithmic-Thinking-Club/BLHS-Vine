@@ -252,7 +252,7 @@ await page.evaluate((sv) => {
   localStorage.setItem('blhs_save_v2', JSON.stringify(sv))
   sessionStorage.clear()
 }, doneYear)
-await page.goto(`${base}/?scene=pmap&map=panther-maw&at=arrive_maw`, { waitUntil: 'domcontentloaded' })
+await page.goto(`${base}/?scene=pmap&deep=1&map=panther-maw&at=arrive_maw`, { waitUntil: 'domcontentloaded' })
 await page.waitForFunction(() => !!window.__pmap, null, { timeout: 120000 })
 /* THE FILM STARTS WHEN THE ISLAND DOES, not on a stopwatch. A single sample at
  * 4.5 seconds read a cold page whose python worker had not finished booting, so

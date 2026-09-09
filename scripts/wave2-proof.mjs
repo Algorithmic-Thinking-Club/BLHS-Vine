@@ -170,7 +170,7 @@ console.log(`\n=== wave 2 · ${tag}: ${base} · hub v${hubV} ===\n`)
 // ---------------------------------------------------------------- 1. the world
 console.log('1 · the world: the real hub, placed on a composition the engine reads')
 
-await page.goto(`${base}/?scene=pmap&map=hub&v=${hubV}&${WORLD}`, { waitUntil: 'domcontentloaded', timeout: 30000 })
+await page.goto(`${base}/?scene=pmap&deep=1&map=hub&v=${hubV}&${WORLD}`, { waitUntil: 'domcontentloaded', timeout: 30000 })
 await ready()
 
 const sea0 = await json('__sea')

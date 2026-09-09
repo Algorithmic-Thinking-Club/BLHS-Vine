@@ -98,7 +98,7 @@ const state = (page) => page.evaluate(() => {
 /* ---- THE CROSSING AND THE DOCK: items 1 to 5 ----------------------------- */
 console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
 {
-  const page = await open(`${base}/?scene=pmap&map=hub&aboard=1`)
+  const page = await open(`${base}/?scene=pmap&deep=1&map=hub&aboard=1`)
   const seen = []
   let duringMovie = null, atIslandShot = null, duringWalk = null, atDoor = null
   const walkFrames = []
@@ -266,7 +266,7 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
 /* ---- THE TILLER, on its own run, because a key press is destructive ------- */
 console.log('\nTHE TILLER DURING THE CROSSING  (item 1)')
 {
-  const page = await open(`${base}/?scene=pmap&map=hub&aboard=1`)
+  const page = await open(`${base}/?scene=pmap&deep=1&map=hub&aboard=1`)
   await page.waitForFunction(() => window.__pmap.movie === true, null, { timeout: 20000 }).catch(() => {})
   const a = await page.evaluate(() => window.__pmap.hull && { ...window.__pmap.hull })
   for (const k of ['ArrowUp', 'ArrowLeft', 'Shift']) await page.keyboard.down(k)
@@ -305,7 +305,7 @@ console.log('\nTHE BOAT ON THE DOCK  (the measured landing defect)')
     ['plan', ['hub:crossed', 'maw:founding', 'chart:granted', 'handbook:granted', 'vignette:y1'], false],
   ]
   for (const [label, flags, wantBoat] of phases) {
-    const page = await open(`${base}/?scene=pmap&map=hub`, { ...SAVE, flags })
+    const page = await open(`${base}/?scene=pmap&deep=1&map=hub`, { ...SAVE, flags })
     await page.waitForTimeout(2600)
     const r = await page.evaluate(() => ({ p: window.__pmap.prompt, ph: window.__pmap.objective?.phase }))
     const offered = r.p === 'Get in the boat'
@@ -337,7 +337,7 @@ console.log('\nTHE PANTHER\'S MAW  (items 6 and 8)')
     ledger: [{ id: 'core:y1', title: 'POWER, Mondays, and joining a club', kind: 'core',
       credit: 0.5, grade: 4, year: 1, season: 'Fall', attempts: 1, firstGrade: 4 }],
   }
-  const page = await open(`${base}/?scene=pmap&map=panther-maw&at=arrive_maw`, QUIET)
+  const page = await open(`${base}/?scene=pmap&deep=1&map=panther-maw&at=arrive_maw`, QUIET)
   const s0 = await state(page)
   /* item 8: the cover fit, whole pixels, and the picture holds still */
   const fit = await page.evaluate(() => {

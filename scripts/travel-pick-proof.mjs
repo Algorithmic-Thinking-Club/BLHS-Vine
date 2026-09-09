@@ -91,7 +91,7 @@ console.log(`\ntravel + picks, against ${base}\n`)
 /* ==== 4: ONE BUTTON PER PICK ============================================== */
 {
   console.log('4  one button per pick, and the roster decides')
-  const page = await open(`${base}/?scene=pmap&world=local&map=panther-maw`)
+  const page = await open(`${base}/?scene=pmap&deep=1&world=local&map=panther-maw`)
   await until(page, () => !!window.__pmap?.island?.started, 25000)
   await wait(1200)
 
@@ -169,7 +169,7 @@ console.log(`\ntravel + picks, against ${base}\n`)
 /* ==== 3: TRAVEL =========================================================== */
 {
   console.log('\n3  travel, the whole thing')
-  const page = await open(`${base}/?scene=pmap&world=local&map=panther-maw`)
+  const page = await open(`${base}/?scene=pmap&deep=1&world=local&map=panther-maw`)
   await until(page, () => !!window.__pmap?.island?.started, 25000)
   await wait(1200)
 
@@ -238,7 +238,7 @@ console.log(`\ntravel + picks, against ${base}\n`)
 /* ==== 3b: ESC LANDS HIM AT THE DOCK ====================================== */
 {
   console.log('\n3b esc lands him at the destination dock')
-  const page = await open(`${base}/?scene=pmap&world=local&map=panther-maw`)
+  const page = await open(`${base}/?scene=pmap&deep=1&world=local&map=panther-maw`)
   await until(page, () => !!window.__pmap?.island?.started, 25000)
   await wait(1200)
   const armed = await page.evaluate(async () => {

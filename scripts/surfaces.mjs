@@ -108,7 +108,7 @@ const q = (extra = '') => `${has('nokit') ? '&kit=0' : ''}${has('plain') ? '&ski
  *
  * `save` overrides the run for that one shot. `ui` opens a panel through the same
  * bus a station uses. `open` is anything else. */
-const HUB = () => `${base}/?scene=pmap&map=hub${q()}`
+const HUB = () => `${base}/?scene=pmap&deep=1&map=hub${q()}`
 
 const SURFACES = [
   { name: '01-title', url: () => `${base}/?scene=title${q()}`, settle: 2200, fresh: true },
@@ -149,7 +149,7 @@ const SURFACES = [
     wait: '.hp-card',
   },
   { name: '03-hub-arrival-card', url: HUB, settle: 900, fresh: true },
-  { name: '04-maw-room', url: () => `${base}/?scene=pmap&map=panther-maw&src=local${q()}`, settle: 3000 },
+  { name: '04-maw-room', url: () => `${base}/?scene=pmap&deep=1&map=panther-maw&src=local${q()}`, settle: 3000 },
   { name: '05-beach-intro', url: () => `${base}/?scene=beach${q()}`, settle: 4000, fresh: true },
   /* THE JOIN CARDS, WHICH ARE THE FIRST TWO MINUTES OF THE GAME AND HAD NEVER
    * BEEN PHOTOGRAPHED. They live on the beach behind a run that has not joined,
@@ -441,7 +441,7 @@ for (const s of SURFACES) {
     await page.goto(s.url(), { waitUntil: 'domcontentloaded', timeout: 30000 })
     /* a painted map says when it is ready; a react screen does not, so the wait is
      * conditional on there being something to wait for */
-    if (s.url().includes('scene=pmap')) {
+    if (s.url().includes('scene=pmap&deep=1')) {
       await page.waitForFunction(() => window.__sceneReady === true, null, { timeout: 30000 }).catch(() => bad.push('the scene never became ready'))
     }
     await page.waitForTimeout(s.settle)

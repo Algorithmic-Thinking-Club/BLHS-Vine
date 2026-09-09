@@ -81,7 +81,7 @@ const settled = () => page.waitForSelector('.cs-continue-hint, .dlg-choice', { t
 const json = (fn, ...a) => page.evaluate(([f, args]) => JSON.parse(window[f](...args)), [fn, a])
 
 console.log(`\n=== wave 1 · ${tag}: ${base} ===\n`)
-await page.goto(`${base}/?scene=pmap&map=panther-maw&src=local`, { waitUntil: 'domcontentloaded', timeout: 30000 })
+await page.goto(`${base}/?scene=pmap&deep=1&map=panther-maw&src=local`, { waitUntil: 'domcontentloaded', timeout: 30000 })
 await page.waitForFunction(() => window.__sceneReady === true, null, { timeout: 60000 })
 
 const anchors = await json('__anchors')
