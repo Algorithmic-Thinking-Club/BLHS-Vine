@@ -150,8 +150,20 @@ console.log(`\ntravel + picks, against ${base}\n`)
   const bar2 = await page.evaluate(() => document.querySelector('.ob-live')?.textContent?.trim() ?? '')
   ok('4.8', 'the bar names the NEXT pick', /Spanish/i.test(bar2), JSON.stringify(bar2))
 
-  /* the wall, off the corner, with the frame filled */
-  await page.evaluate(() => document.querySelector('[data-tour="wall"]')?.click())
+  /* ---- THE WALL, OFF THE YEAR SHEET (Ash, 2026-09-09) -------------------
+   *
+   * It was a plaque in the corner for a day and he read five signs there as a
+   * toolbar: *"when it was 3 on the top left it was cute, now its 5, it looks
+   * like a list of ugly buttons."* It lives on the sheet's own foot now, behind
+   * the door that already means "your year", which is what it is about. */
+  /* pressing a pick shuts the sheet, so it is opened again the way a student
+   * would: the corner, then the plank on the sheet's own foot */
+  await page.click('[data-tour="my-year"]')
+  await until(page, () => !!document.querySelector('.pl-mine'), 8000)
+  await page.evaluate(() => {
+    const b = [...document.querySelectorAll('button')].find((e) => /your trophy wall/i.test(e.innerText))
+    b?.click()
+  })
   await until(page, () => !!document.querySelector('.tw-sheet'), 8000)
   await wait(2400)
   await page.screenshot({ path: `${SHOTS}/4-wall.png` })
@@ -162,7 +174,7 @@ console.log(`\ntravel + picks, against ${base}\n`)
   }))
   ok('4.9', 'the wall has a frame for every pick plus Advisory', wall.frames === 4, `${wall.frames}`)
   ok('4.10', 'and the counted pick filled its frame', wall.full >= 2, `${wall.full} filled`)
-  ok('4.11', 'the wall is reachable from the corner at all', /trophy wall/i.test(wall.text))
+  ok('4.11', 'the wall is reachable from the year sheet at all', /trophy wall/i.test(wall.text))
   await page.close()
 }
 

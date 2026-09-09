@@ -281,49 +281,19 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
             <span className="hud-plaque-word">My Year</span>
           </button>
         )}
-        {/* ---- THE WALL AND THE WARDROBE (Ash, 2026-09-08 item 8) -----------
+        {/* ---- AND ONLY THREE (Ash, 2026-09-09) --------------------------
          *
-         * *"The trophy wall and the wardrobe get a way in from the corner."*
+         * The wall and the wardrobe hung here for a day, as two smaller plaques
+         * under the three. His verdict: *"when it was 3 on the top left it was
+         * cute, now its 5, it looks like a list of ugly buttons."*
          *
-         * Both were reachable only from inside a cutscene: the wall when the
-         * principal walked you to it, the wardrobe not at all in a shipped run.
-         * The wall is the picture of everything the student has done, and it was
-         * a screen he could see twice in a session and never again by choosing
-         * to. The wardrobe is the one place his own character is his.
-         *
-         * THEY ARRIVE WITH THE OTHER THREE and are held by the same grant, so the
-         * corner is either handed over or it is not. Two smaller plaques under
-         * the three, because they are things to LOOK at rather than the three
-         * doors the year runs through, and the corner has to stay readable at a
-         * glance on a Chromebook. */}
-        {(
-        <button
-          className={`hud-plaque hud-plaque-sm${plaqueShown('my-year') ? '' : ' hud-plaque-waiting'}`}
-          data-tour="wall"
-          aria-label="The trophy wall. Everything you have finished this year."
-          aria-hidden={!plaqueShown('my-year')}
-          tabIndex={plaqueShown('my-year') ? undefined : -1}
-          aria-haspopup="dialog"
-          onClick={() => { track('wall_requested', { via: 'corner' }); setPaused(false); setWall(true) }}
-        >
-          <Glyph piece="stamp" face="awarded" size={16} className="hud-plaque-mark" />
-          <span className="hud-plaque-word">Wall</span>
-        </button>
-        )}
-        {(
-        <button
-          className={`hud-plaque hud-plaque-sm${plaqueShown('my-year') ? '' : ' hud-plaque-waiting'}`}
-          data-tour="wardrobe"
-          aria-label="The wardrobe. What your character wears."
-          aria-hidden={!plaqueShown('my-year')}
-          tabIndex={plaqueShown('my-year') ? undefined : -1}
-          aria-haspopup="dialog"
-          onClick={() => { track('wardrobe_opened', { via: 'corner' }); setPaused(false); setWardrobe(true) }}
-        >
-          <Glyph piece="icon_set" face="cape" size={16} className="hud-plaque-mark" />
-          <span className="hud-plaque-word">You</span>
-        </button>
-        )}
+         * He is right and the reasoning behind putting them here was thin. The
+         * corner is three DOORS the year runs through, and a corner is a shape
+         * before it is a menu: the moment it is long enough to read as a list, a
+         * student stops seeing three things and starts seeing a toolbar. The wall
+         * and the wardrobe are both things you LOOK at rather than places the
+         * year sends you, so they belong behind the door that already means "your
+         * year" (`planner/Planner.tsx`, the sheet's own foot). */}
       </nav>
 
       {book && <Handbook initialTab={book} onClose={closeAll} />}
@@ -367,6 +337,12 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
             track('pick_counted', { id: pick.id, kind: pick.kind })
             awarded(noIslandLine(pick), 'It goes on your year sheet and on the wall.')
             announce(noIslandLine(pick))
+          }}
+          onLook={(what) => {
+            /* the sheet stays open underneath, so shutting the wall puts him back
+             * on the year he opened it from rather than in the room */
+            if (what === 'wall') { track('wall_requested', { via: 'sheet' }); setWall(true) }
+            else { track('wardrobe_opened', { via: 'sheet' }); setWardrobe(true) }
           }}
           onYearbook={() => { setPlanner(false); setYearbook(true) }}
         />

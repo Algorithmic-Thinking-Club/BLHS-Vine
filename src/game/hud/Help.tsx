@@ -25,6 +25,28 @@ export function HelpCard({ onClose }: { onClose: () => void }) {
         className="hp-card kit-surface-panel"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* ---- REPLAY THE TUTORIAL (Ash, 2026-09-09) ---------------------
+            *
+            * *"Inside the question mark panel, on the top right, add a small
+            * button that expands to 'replay tutorial' that replays the
+            * tutorial."*
+            *
+            * Top right of the card, small until it is reached for, and it is
+            * the same `open('tour')` an island says: one tutorial, two doors
+            * into it. It only appears where a Hud is mounted to answer, since
+            * the card also opens off the title where there is no corner to
+            * point at. */}
+        {hudUp && (
+          <button
+            type="button"
+            className="hp-replay"
+            onClick={() => { track('tour_replayed'); onClose(); requestUi('tour') }}
+          >
+            <Glyph piece="icon_set" face="arrow" size={13} className="hp-replay-mark" />
+            <span className="hp-replay-word">Replay tutorial</span>
+          </button>
+        )}
+
         <h2 className="hp-title">How to play</h2>
         <p className="hp-paused">The game is paused while this card is open.</p>
 

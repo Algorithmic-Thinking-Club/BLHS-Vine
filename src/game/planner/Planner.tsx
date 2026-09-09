@@ -60,13 +60,16 @@ type Airborne = {
 /** what is refused, and where the sentence has to appear */
 type Refusal = { where: Season | 'classes'; why: string }
 
-export function Planner({ onClose, onAdvisory, onPlayPick, onYearbook }: {
+export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }: {
   onClose: () => void
   onAdvisory?: () => void
   /* ONE BUTTON PER PICK (Ash, 2026-09-08 item 4). The sheet says what a pick is
    * and presses it; what a press MEANS, a voyage or a card, is the roster's and
    * the HUD's business and not this panel's. */
   onPlayPick?: (pick: Pick) => void
+  /* the two panels that are about HIM rather than about the school, raised from
+   * the sheet's own foot since the corner went back to three doors */
+  onLook?: (what: 'wall' | 'wardrobe') => void
   onYearbook?: () => void
 }) {
   const [, bump] = useState(0)
@@ -662,6 +665,24 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onYearbook }: {
             )}
           </div>
         </div>
+
+        {/* ---- THE WALL AND THE WARDROBE (Ash, 2026-09-09) -----------------
+            *
+            * They were two extra plaques in the corner for a day and he read the
+            * corner as a toolbar: *"when it was 3 on the top left it was cute,
+            * now its 5, it looks like a list of ugly buttons."* So they are here,
+            * behind the door that already means "your year", which is where both
+            * of them are ABOUT: the wall is this sheet's picks with what you
+            * earned on them, and the wardrobe is the panther holding the sheet.
+            *
+            * ON THE SHEET AND NOT IN THE HANDBOOK, because the Guide is about the
+            * SCHOOL and these two are about him. */}
+        {onLook && (
+          <div className="pl-mine">
+            <Plank size="sm" onClick={() => onLook('wall')}>Your trophy wall</Plank>
+            <Plank size="sm" onClick={() => onLook('wardrobe')}>Your character</Plank>
+          </div>
+        )}
 
         {/* the stamp is a flex footer outside the scroll, so it cannot leave the screen */}
         <div className="pl-foot">

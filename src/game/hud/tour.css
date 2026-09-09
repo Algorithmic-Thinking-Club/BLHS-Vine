@@ -1,7 +1,19 @@
 /* the handover tutorial: one control lit, everything else out of the way */
 .tr-tour { position: fixed; inset: 0; z-index: 120; pointer-events: none; }
 .tr-tour .tr-skip,
+.tr-tour .tr-veil,
 .tr-tour .tr-say { pointer-events: auto; }
+
+/* the whole screen goes on, the way every other card in this game does */
+.tr-veil {
+  position: absolute;
+  inset: 0;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.tr-veil:focus-visible { outline: 2px solid #f0d89a; outline-offset: -4px; }
 
 .tr-dim {
   position: absolute;
@@ -52,9 +64,32 @@
 }
 @keyframes tr-in { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
 .tr-line { margin: 0; font: 500 14px/1.45 var(--font-ui, system-ui, sans-serif); }
+.tr-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+.tr-next {
+  font: 700 11px/1 var(--font-ui, system-ui, sans-serif);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  color: #221c14;
+  background: #e6d8b4;
+  border: 1px solid #8a7a5c;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.tr-next:hover, .tr-next:focus-visible { background: #f0e4c6; }
+html[data-skin='plain'] .tr-next {
+  background: #fff;
+  border-color: #101010;
+  border-radius: 0;
+}
 .tr-count {
   display: block;
-  margin-top: 8px;
   font: 600 11px/1 var(--font-ui, system-ui, sans-serif);
   letter-spacing: 0.08em;
   opacity: 0.6;

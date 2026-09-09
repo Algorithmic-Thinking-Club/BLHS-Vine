@@ -43,12 +43,14 @@ import {
 import { stateOf, STATE_INK } from '../world/states'
 import { onSailRequest, onVoyageRequest } from '../world/sail-bus'
 import { requestUi } from '../ui-bus'
+import { runEnding, setRunEnding } from '../hud/objective-bus'
+import { sessionOver } from '../run/year'
 import {
   newHull, stepHull, berthHelm, DEFAULT_SAIL, HELM_IDLE,
   type Berthing, type Helm, type HullState,
 } from '../world/sail'
 import { cover, transitionBusy } from '../../app/transitions'
-import { ceremonyCover, coverFor, markSeen, seenThisSession, titleOfMap } from '../stage/covers'
+import { ceremonyCover, coverFor, markSeen, titleOfMap } from '../stage/covers'
 import { setSceneDrawn, showPlaceCard } from '../stage/stage-bus'
 import { motionMs, prefersReducedMotion } from '../ui/motion'
 import { uiBand } from '../ui/frame'
@@ -2319,6 +2321,12 @@ export default function PmapScene() {
              * frame through the door on purpose, so the last thing standing when
              * a run ends is a letterbox, and the title screen is not a film. */
             engine.movie(false)
+            /* AND THE FLAG IS NOT DROPPED HERE. The router's fade to the title
+             * runs six hundred milliseconds with this scene still mounted and the
+             * ship still on the water, so clearing it on this line brought the
+             * bar back for the last half second of the departure. Measured
+             * 2026-09-09. It is cleared where it can do no harm: the next world
+             * scene that mounts. */
             ;(window as unknown as { __sceneReady?: boolean }).__sceneReady = false
             setSceneDrawn(null)
             /* one cover at a time, and it is the router's, so this does not open a second */
@@ -2326,39 +2334,128 @@ export default function PmapScene() {
             else window.location.href = '/?scene=title'
           }
 
-          /* ---- AND HE SAILS OUT OF IT (Ash, 2026-09-08 item 6) --------------
+          /* ---- SAILING HOME, IN FOUR MOVES (Ash, 2026-09-09) ----------------
            *
-           * *"the ship sailing out to black, the title reading 'Year one is
-           * done'"*.
+           * *"Thor gets teleported to the dock, still in cutscene mode. Then he
+           * hops on the boat smoothly, and the boat slowly sails normally back
+           * out into the ocean. Then title screen comes back."*
            *
-           * The last shot of year one was the camera sitting on a boy standing on
-           * a quay for two and a half seconds and then a fade, which is a scene
-           * ending because it ran out rather than because it finished. He arrived
-           * on that water in a boat in the first minute of the game and the boat
-           * is tied up ten feet away.
+           * WHAT HE PLAYED INSTEAD: *"thor violently gets teleported, thor
+           * doesnt even hop on the boat, the boat just starts zooming straight
+           * downwards, and then the title screen comes on. extremely buggy."*
            *
-           * IT IS NOT A ROUTE AND IT IS NOT AN AUTHORED PATH. The hub has no sail
-           * line drawn on it and asking for one would put this behind Ash's hands
-           * in MAPVIS. `soundOffshore` is the same reading the crossing already
-           * uses to leave a berth: the deepest water off the dock, which is by
-           * construction the way out. Full sail along it, four seconds, fade.
+           * Three separate faults, and all three were in the four lines this
+           * replaces. `board()` was called on the frame the word arrived, with
+           * the camera sitting on Thor, so the jump to the berth happened in shot
+           * and the hop never existed as a picture: one frame a boy on a quay,
+           * the next a boat two hundred pixels away. And the heading came from
+           * `soundOffshore`, which steers along `berth.approach` because that is
+           * the line a ship comes IN on; on the hub that is down and to the
+           * right, so she left at full sail straight at the bottom of the screen.
            *
-           * AND IT REFUSES QUIETLY. A map with no water under it (the Maw, every
-           * room a member ever builds) ends the way it always did, on the frame it
-           * is asked. This is the flourish and never the mechanism. */
-          if (!canSail || !berth || hull) { home(); return new Promise<void>(() => {}) }
-          board()
-          const she = hull as HullState | null
-          if (!she) { home(); return new Promise<void>(() => {}) }
-          const out = soundOffshore()
-          if (!out) { stepAshore(true); home(); return new Promise<void>(() => {}) }
-          she.heading = Math.atan2(out.y - she.y, out.x - she.x)
-          she.speed = DEFAULT_SAIL.cruise
-          sailing = null
-          helmOverride = { helm: { throttle: 1, turn: 0, fullSail: true }, until: performance.now() + SAIL_OUT_MS }
-          void intentWorld.view('ship')
-          engine.log('sailed_out', { from: mapId })
-          window.setTimeout(home, SAIL_OUT_MS)
+           * SO THE CAMERA GOES FIRST AND HE MOVES WHILE IT IS AWAY. That is the
+           * whole trick and it is why a teleport reads as an arrival: the shot
+           * travels to the boat, he is put on the dock behind it, and by the time
+           * anybody is looking he is standing there. Then a beat, then he gets
+           * in, then she goes.
+           *
+           * AND SHE LEAVES SEAWARD AND SLOWLY. `seaward` picks the heading whose
+           * whole line stays deepest inside a half-turn of "away from the middle
+           * of the island", so she cannot be pointed at the beach or at the
+           * camera, and the helm is held at half throttle from a standstill
+           * rather than full sail from cruising speed. */
+          if (!canSail || !berth) { home(); return new Promise<void>(() => {}) }
+
+          const nap = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
+          /* out to sea: away from the middle of the painting, corrected to the
+           * heading with the most water under it, so she never leaves aground */
+          const seaward = (from: { x: number; y: number }): number | null => {
+            /* ---- THE MOST OPEN WATER, NOT MERELY WATER ---------------------
+             *
+             * The first version took the heading whose SHALLOWEST sample was
+             * deepest, which on the hub picked very nearly straight down the
+             * screen: the water below the dock is deep enough everywhere, so it
+             * won on a tie and she left toward the bottom of the frame. Ash saw
+             * that as the boat "zooming straight downwards".
+             *
+             * This sums the depth along the whole line instead, so a heading
+             * that stays in open sea for two hundred pixels beats one that is
+             * merely deep for the first thirty, and it rejects outright any line
+             * that touches ground. Half a turn either side of "away from the
+             * middle of the island", which is wide enough to find the real way
+             * out on a painting whose harbour faces any direction. */
+            const base = Math.atan2(from.y - pc.y, from.x - pc.x)
+            let best: { dir: number; open: number } | null = null
+            for (let k = -5; k <= 5; k++) {
+              const dir = base + (k * Math.PI) / 12
+              let open = 0
+              let aground = false
+              for (let d = 24; d <= OFFSHORE_MAX; d += 24) {
+                const deep = depthAt(from.x + Math.cos(dir) * d, from.y + Math.sin(dir) * d)
+                if (deep < DEFAULT_SAIL.probe) { aground = true; break }
+                open += deep
+              }
+              if (aground) continue
+              if (!best || open > best.open) best = { dir, open }
+            }
+            return best ? best.dir : null
+          }
+
+          void (async () => {
+            /* the frame stays up for all of it: this is the last shot of the year */
+            engine.movie(true)
+            /* ---- AND NOTHING IS OWED, SO NOTHING IS SAID -------------------
+             *
+             * `objective(null)` hands the sentence back to the YEAR, and the
+             * year has one for a closed run: "Year one is done. Look around."
+             * It drew across the top of the departure. There is nothing to look
+             * around at and no next step; the bar is furniture for a game that is
+             * still being played, so the last shot takes it down. */
+            setRunEnding(true)
+            engine.objective(null)
+            const b = fromSea(berth.x, berth.y)
+
+            /* 1: the shot leaves him and travels to his boat */
+            camFree = true
+            zoomTo(Z_MIN)
+            camTo(b.x, b.y)
+            await nap(CAM_TO_DOCK_MS)
+            if (destroyed) return
+
+            /* 2: and he is standing on the dock when it arrives */
+            if (!hull) {
+              const { at } = onFloor({ x: b.x, y: b.y }, canStand, cfg.yScale, 44)
+              pos.x = at.x
+              pos.y = at.y
+              const look = dirFrom(b.x - at.x, (b.y - at.y) * (cfg.yScale || 1))
+              if (look) walker.facing = look
+            }
+            await nap(DOCK_BEAT_MS)
+            if (destroyed) return
+
+            /* 3: he gets in, which is a picture and not a swap */
+            board()
+            void intentWorld.view('ship')
+            await nap(BOARD_BEAT_MS)
+            if (destroyed) return
+
+            /* 4: and she goes, from a standstill, out */
+            const she = hull as HullState | null
+            if (she) {
+              const dir = seaward(she) ?? she.heading
+              she.heading = dir
+              she.speed = 0
+              sailing = null
+              helmOverride = {
+                helm: { throttle: SAIL_OUT_THROTTLE, turn: 0, fullSail: false },
+                until: performance.now() + SAIL_OUT_MS + 400,
+              }
+              engine.log('sailed_out', { from: mapId })
+            }
+            await nap(SAIL_OUT_MS)
+            if (destroyed) return
+            home()
+          })()
           return new Promise<void>(() => { /* the scene does not come back */ })
         },
 
@@ -3153,6 +3250,38 @@ export default function PmapScene() {
       /* where a walk to an anchor really ends and how close counts as arrived */
       const walkGoal = (a: Anchor) => {
         const g = anchors.standAt(a)
+        /* ---- NOBODY STANDS ON THE THING THEY CAME TO LOOK AT ---------------
+         *
+         * ASH, 2026-09-09: *"the principal panther and thor movements /
+         * placements are a bit buggy / weird. A lot better than original, but
+         * still problems and unclearness."*
+         *
+         * An anchor with no usable standing spot fell back to its OWN PIXEL,
+         * which is the middle of the desk, the fire or the person. Two of the
+         * Maw's posts are in that state on the published v7: the counselor's
+         * stand point is sixty pixels of floor from her post and the principal's
+         * is two hundred and fourteen, so the engine drops both and used the
+         * posts themselves. A student walked to a station and stood inside it.
+         *
+         * SO THE FALLBACK IS THE FLOOR IN FRONT OF IT, one body length back
+         * along the line he is walking in on. `onFloor` below still has the last
+         * word, so a spot with no floor behind it is corrected the way it always
+         * was. An authored stand point is untouched: this is only what happens
+         * when MAPVIS has not been given one, or the one it has is stale. */
+        /* A POST AND NOT A DOOR. A post is a thing in the room you stand
+         * BESIDE; a door is a place you walk INTO, and pushing a body a body
+         * length back from one leaves him short of the tunnel he was sent to.
+         * Caught by `arrival-proof` on the hub's `panthers_maw`. */
+        if (!a.stand && a.kind === 'post') {
+          const ys0 = cfg.yScale || 1
+          const back = map.character.heightPx * 1.1
+          const dx = pos.x - g.x, dy = (pos.y - g.y) / ys0
+          const len = Math.hypot(dx, dy)
+          if (len > 1) {
+            g.x += (dx / len) * back
+            g.y += (dy / len) * back * ys0
+          }
+        }
         /* an authored stand point is checked too, since one off the floor can never be reached */
         const { at, moved } = onFloor(g, canStand, cfg.yScale, Math.max(24, a.r))
         if (moved) {
@@ -3659,8 +3788,34 @@ export default function PmapScene() {
       const radOf = (f: string | undefined): number =>
         f === 'east' ? 0 : f === 'south' ? Math.PI / 2 : f === 'north' ? -Math.PI / 2 : Math.PI
 
-      /* the arrival card is owed at load and paid when he really stands on the island */
-      let cardOwed = !seenThisSession(mapId)
+      /* ---- THE CARD IS OWED ON EVERY ARRIVAL (Ash, 2026-09-09) ----------
+       *
+       * *"Many times, the panel that says 'THE HUB' shows. Sometimes it does
+       * not. I dont know why sometimes it just doesnt show."*
+       *
+       * It was `!seenThisSession(mapId)`, a forty-five minute memory in
+       * sessionStorage shared with the loading cover's own first-time flourish.
+       * So the card played the first time you reached the hub in a sitting and
+       * never again, and a student who goes through the tunnel four times sees it
+       * once. From the chair that is exactly "sometimes, and I don't know why".
+       *
+       * ARRIVING SOMEWHERE IS THE EVENT, not arriving somewhere new. The name of
+       * the place you have just walked into is worth saying every time you walk
+       * into it, and it is three seconds. The COVER keeps its session memory,
+       * because that one really is about the first time. */
+      /* ---- EXCEPT ON THE WAY OUT (Ash, 2026-09-09, seen in the shot) -----
+       *
+       * The ending arrives on the hub under the ceremony cover, and the card
+       * drew "THE HUB · You land at the harbor" across the frame while he was
+       * casting off from it. That arrival is not a landing, it is the last shot
+       * of the year, so it is owed nothing. `ceremony` is the occasion the
+       * closing film's `enter` is the only arrival that happens with the year's
+       * page already turned, so the save answers it without any new plumbing. */
+      /* a world scene mounting is a run that is not in its last shot, whatever
+       * the one before it was doing (`hud/objective-bus.ts` says why here) */
+      setRunEnding(false)
+
+      let cardOwed = !sessionOver(loadSave())
       const arrivalCard = () => {
         if (!cardOwed) return
         cardOwed = false
@@ -3940,8 +4095,20 @@ export default function PmapScene() {
        * the crossing. Long enough to read as sailing, short enough that nobody
        * sits through open water: the beach opening waits 1.8s and Ash accepted
        * that shot, and a departure has the island to leave behind it. */
-      /* how long the last shot of year one runs: him at the tiller, full sail, out */
-const SAIL_OUT_MS = 4200
+      /* ---- THE LAST SHOT OF YEAR ONE, IN FOUR BEATS ----------------------------
+ *
+ * Ash, 2026-09-09: the camera goes to the boat, he is put on the dock behind it,
+ * a beat, he gets in, and she leaves slowly. The numbers are the beats. */
+/** the shot travelling from wherever he is standing to his boat */
+const CAM_TO_DOCK_MS = 1100
+/** him standing at the dock looking at her, before he moves */
+const DOCK_BEAT_MS = 900
+/** aboard, settled, before a line is cast off */
+const BOARD_BEAT_MS = 700
+/** and the departure itself, which is the shot the title fades in over */
+const SAIL_OUT_MS = 5200
+/** half a helm from a standstill: she leaves, she does not bolt */
+const SAIL_OUT_THROTTLE = 0.5
 
 const CAST_OFF_SHOW_MS = 3200
 
@@ -4676,7 +4843,13 @@ const CAST_OFF_SHOW_MS = 3200
         /* the one sentence this scene knows and the year does not: he is holding the tiller */
         {
           /* and not inside the film, because a scene asks for nothing while somebody else directs */
-          const freeAtSea = !!hull && !berthing && !voyage && !helmOverride && !tiedUp && !movieOn
+          /* AND NEVER IN THE LAST SHOT. `end_run` puts him aboard and holds a
+           * beat before it touches the helm, and in that gap this offered him
+           * the tiller over a departure he is not steering. Measured on the
+           * shot 2026-09-09: "Click the island to sail there" across the top of
+           * the ship leaving at the end of year one. */
+          const freeAtSea = !!hull && !berthing && !voyage && !helmOverride
+            && !tiedUp && !movieOn && !runEnding()
           setWorldObjective(freeAtSea ? 'Click the island to sail there.' : null)
         }
         /* a script's camera outranks the follow law and snaps, since the runtime tweens it */

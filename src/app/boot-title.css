@@ -1,0 +1,22 @@
+
+/* ---- OPEN IN ANOTHER TAB (Ash, 2026-09-09) --------------------------------
+ *
+ * Above the plank, so it is read before the press. Two tabs both writing this
+ * save is how a finished class disappears with nothing said. */
+.ti-elsewhere {
+  max-width: 34ch;
+  margin: 0 auto 10px;
+  padding: 8px 14px;
+  text-align: center;
+  font: 500 13px/1.45 var(--font-ui, system-ui, sans-serif);
+  color: #f3e6c8;
+  background: rgba(24, 18, 10, 0.62);
+  border: 1px solid rgba(240, 216, 154, 0.42);
+  border-radius: 4px;
+}
+html[data-skin='plain'] .ti-elsewhere {
+  color: #101010;
+  background: #fff;
+  border-color: #101010;
+  border-radius: 0;
+}

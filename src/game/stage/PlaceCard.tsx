@@ -14,7 +14,18 @@ import './placecard.css'
 
 const DWELL_MS = 3200
 /* how long a card will queue behind something else before it is dropped instead */
-const WAIT_CEILING_MS = 15000
+/* ---- A CARD THAT IS OWED IS PAID (Ash, 2026-09-09) ------------------------
+ *
+ * The other half of "sometimes it just doesnt show". The card waits for a clear
+ * screen, and on an arrival that opens a film it can wait behind a line of
+ * dialogue: at fifteen seconds it used to give up and bin the card, and a line
+ * starting under a card already up used to bin it too. Both of those turn a card
+ * a student is owed into no card at all, silently.
+ *
+ * It waits three times as long now, it SHOWS at the ceiling rather than giving
+ * up, and a card cut short by somebody talking goes back to waiting instead of
+ * being thrown away. Once. */
+const WAIT_CEILING_MS = 45000
 
 /** held: asked for, waiting for the screen to be free. in: on screen. out: leaving. */
 type CardPhase = 'held' | 'in' | 'out'
@@ -43,7 +54,11 @@ export function PlaceCard() {
     const t0 = performance.now()
     const held = window.setInterval(() => {
       if (clear()) { window.clearInterval(held); setPhase('in'); return }
-      if (performance.now() - t0 > WAIT_CEILING_MS) { window.clearInterval(held); setCard(null) }
+      /* AT THE CEILING IT SHOWS ANYWAY. A place card is three seconds of the
+       * name of the place; a screen that has been busy for forty-five seconds is
+       * a screen that is not going to get quiet, and no card at all is the worse
+       * of the two answers. */
+      if (performance.now() - t0 > WAIT_CEILING_MS) { window.clearInterval(held); setPhase('in') }
     }, 100)
     return () => window.clearInterval(held)
   }, [card, phase])
@@ -66,12 +81,21 @@ export function PlaceCard() {
     return () => window.clearTimeout(t)
   }, [phase])
 
-  /* somebody started talking underneath it. The card leaves rather than shares
-   * the bottom of the window, and it does not come back: an arrival card behind
-   * a conversation is about where the student was before the conversation. */
+  /* somebody started talking underneath it. The card leaves rather than sharing
+   * the bottom of the window with a dialogue box, and then it COMES BACK once:
+   * an arrival that opens on a line of dialogue is the ordinary case (the hub's
+   * own island says one on the way in), and binning the card there is how a
+   * student ends up not knowing where he has landed. */
+  const requeued = useRef(false)
   useEffect(() => {
-    if (phase === 'in' && speaking) setPhase('out')
+    if (phase !== 'in' || !speaking) return
+    if (requeued.current) { setPhase('out'); return }
+    requeued.current = true
+    setPhase('held')
   }, [phase, speaking])
+
+  /* and a new card is a new arrival, so it gets its own second chance */
+  useEffect(() => { requeued.current = false }, [card])
 
   const visible = !!card && phase !== 'held' && panelDepth() === 0
 

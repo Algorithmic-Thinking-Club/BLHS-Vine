@@ -38,8 +38,18 @@ const STEPS: Step[] = [
   { tour: 'help', line: 'And this stays here the whole time. Press it whenever you are not sure what to do.' },
 ]
 
-/** how long one control is lit, so four of them come in under fifteen seconds */
-export const STEP_MS = 3400
+/* ---- IT WAITS FOR HIM (Ash, 2026-09-09) ----------------------------------
+ *
+ * *"It is much better and I like it. However, it automatically flips through the
+ * cards, just make it so that the user has to click to move past the button
+ * tutorial."*
+ *
+ * The clock was there to hold the whole thing under fifteen seconds, which was
+ * his own number, and it bought that at the cost of the one thing a tutorial
+ * needs: the reader setting the pace. A freshman who is still working out what
+ * "My Year" means loses the card mid-sentence. Four presses is still under
+ * fifteen seconds for anybody who is following it, and it is as long as it needs
+ * to be for anybody who is not. */
 
 export function Tour({ onDone }: { onDone: () => void }) {
   const [at, setAt] = useState(0)
@@ -53,14 +63,14 @@ export function Tour({ onDone }: { onDone: () => void }) {
     onDone()
   }
 
-  /* the step clock. One timer per step rather than one for the whole run, so a
-   * step whose control is missing still moves the tour along. */
+  /* every step is read out when it arrives, and then it waits */
   useEffect(() => {
     if (at >= STEPS.length) { finish('watched'); return }
     announce(STEPS[at].line)
-    const t = window.setTimeout(() => setAt((v) => v + 1), STEP_MS)
-    return () => window.clearTimeout(t)
   }, [at])
+
+  /** the one move: on to the next control, or out of the way after the last */
+  const next = () => setAt((v) => v + 1)
 
   /* where the thing being pointed at is, measured every frame of the step */
   useEffect(() => {
@@ -76,9 +86,13 @@ export function Tour({ onDone }: { onDone: () => void }) {
     return () => { live = false }
   }, [at])
 
+  /* ENTER AND SPACE GO ON, ESCAPE GOES AWAY. They all used to skip the lot,
+   * which is what a keyboard reader would hit trying to read the next card. */
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); finish('skipped') }
+      if (e.repeat) return
+      if (e.key === 'Escape') { e.preventDefault(); finish('skipped'); return }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); next() }
     }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
@@ -98,8 +112,20 @@ export function Tour({ onDone }: { onDone: () => void }) {
     }
     : { left: '50%', top: '42%', transform: 'translate(-50%, -50%)' }
 
+  const last = at === STEPS.length - 1
+
   return (
     <div className="tr-tour" role="dialog" aria-label="How this screen works">
+      {/* THE WHOLE VEIL IS THE BUTTON, which is how every other card in this game
+          reads: a student clicks the screen to go on rather than hunting a
+          control. The card carries the words for it, and the ring is still the
+          thing being talked about. */}
+      <button
+        type="button"
+        className="tr-veil"
+        aria-label={last ? 'Finish' : 'Next'}
+        onClick={next}
+      />
       {/* the dim, which everything but the one lit control stands behind */}
       <div className="tr-dim" aria-hidden="true" />
       {box && (
@@ -129,7 +155,12 @@ export function Tour({ onDone }: { onDone: () => void }) {
       )}
       <div className="tr-say" style={style}>
         <p className="tr-line">{step.line}</p>
-        <span className="tr-count">{at + 1} of {STEPS.length}</span>
+        <span className="tr-foot">
+          <span className="tr-count">{at + 1} of {STEPS.length}</span>
+          <button type="button" className="tr-next" onClick={next}>
+            {last ? 'Got it' : 'Next'}
+          </button>
+        </span>
       </div>
       <button type="button" className="tr-skip" onClick={() => finish('skipped')}>Skip</button>
     </div>

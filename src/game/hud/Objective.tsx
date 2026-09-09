@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { loadSave, subscribeSave } from '../save'
 import { nextObjective, objectiveLine } from '../run/objective'
 import { taskHeading, tasksDone, tasksOf, type Task } from '../run/tasks'
-import { objectiveSaid, onObjectiveSaid, worldObjective } from './objective-bus'
+import { objectiveSaid, onObjectiveSaid, runEnding, worldObjective } from './objective-bus'
 import { onSceneDrawn, sceneDrawn } from '../stage/stage-bus'
 import { track } from '../telemetry'
 import { requestUi } from '../ui-bus'
@@ -38,6 +38,8 @@ export function ObjectivePanel() {
   const world = worldObjective()
   const o = nextObjective(loadSave())
   const text = said ?? world ?? objectiveLine(o, map)
+  /* raised by `end_run` for the length of the departure, and dropped with it */
+  const ending = runEnding()
 
   /* SAID ONCE PER SENTENCE, not once per render. What the study wants is which
    * objective a student was looking at and when it changed. */
@@ -48,7 +50,14 @@ export function ObjectivePanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text])
 
-  if (!text) return null
+  /* ---- THE LAST SHOT OF THE YEAR SAYS NOTHING (Ash, 2026-09-09) ----------
+   *
+   * `end_run` raises this on the objective bus while the ship leaves. The year's own sentence
+   * for a closed run is "Year one is done. Look around.", and it drew across the
+   * top of the departure over a boy who was leaving and had nothing left to look
+   * at. Unmounted rather than hidden, so the live region stops saying it to a
+   * screen reader too. */
+  if (!text || ending) return null
 
   return (
     <div className="ob-wrap">

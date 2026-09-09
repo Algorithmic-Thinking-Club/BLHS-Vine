@@ -4,7 +4,7 @@ import {
   type TransitionSpec,
 } from './transitions'
 import { setContext, startHeartbeat, track } from '../game/telemetry'
-import { markTabLive } from './entry'
+import { CLAIM_BEAT_MS, PLAYING_SCENES, claimPlaying, markTabLive, releasePlaying } from './entry'
 
 // scenes register by id, and every navigation runs through one covered transition
 
@@ -52,6 +52,21 @@ export function SceneManager({ initial, registry, overlay }: { initial: string; 
      * fresh window does not (`app/entry.ts`). Stamped on scene changes only, so
      * a tab left open all afternoon goes stale and lands on the title. */
     markTabLive()
+  }, [current])
+
+  /* ---- ONE TAB HOLDS THE RUN (Ash, 2026-09-09) ---------------------------
+   *
+   * A scene that is having the run renews a claim in localStorage every few
+   * seconds; the title reads it and tells a second tab what is going on. Both
+   * tabs write the whole save on every change, so without this the older copy
+   * lands on top of the newer one and a student loses a class with nothing said.
+   * Leaving the world lets the claim go at once, so walking out to the title in
+   * one tab frees the other on its next look. */
+  useEffect(() => {
+    if (!PLAYING_SCENES.has(current)) { releasePlaying(); return }
+    claimPlaying()
+    const beat = window.setInterval(claimPlaying, CLAIM_BEAT_MS)
+    return () => { window.clearInterval(beat); releasePlaying() }
   }, [current])
 
   return (

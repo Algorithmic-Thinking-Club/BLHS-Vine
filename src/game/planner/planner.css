@@ -562,3 +562,11 @@ html[data-skin='plain'] .pl-sock-well { width: auto; height: auto; }
   font-size: var(--kit-fs);
   opacity: 0.78;
 }
+
+/* the two panels that are about him, on the sheet's own foot (Ash, 2026-09-09) */
+.pl-mine {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 6px 0 2px;
+}

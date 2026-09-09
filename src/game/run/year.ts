@@ -9,14 +9,38 @@ import { programmeById, placeOfProgramme } from '../roster/roster'
 /* the last year the run hands out, so the session ends once that year's page turns */
 export const SESSION_ENDS_AFTER_YEAR = 1
 
-/** the last page a student turns has turned: nothing else in the run wakes up */
+/* ---- THE YEAR HE IS IN HAS BEEN CLOSED --------------------------------------
+ *
+ * ASH, 2026-09-09, on the title screen a finished run lands on: *"the option
+ * says 'your yearbook'. This is useful. But the main button should be 'start
+ * year 2' with the button below being 'your yearbook', am I right?"*
+ *
+ * He is, and year two is real: `beats/y2.ts` is an authored Advisory at the
+ * counselor's office about every honor cord the school gives, the catalog offers
+ * classes for years one to four, and `endYear()` already hands out a fresh sheet
+ * and three fresh season tokens. Nothing was missing but a way in.
+ *
+ * SO THIS ASKS ABOUT THE YEAR HE IS IN rather than about year one for ever. It
+ * used to read the flag for `SESSION_ENDS_AFTER_YEAR` and nothing else, so once
+ * year one's page turned the run was shut permanently: the Maw went quiet, the
+ * bar said "look around", and the only thing left in the game was a yearbook.
+ * Starting year two now makes this false again and the whole year opens.
+ *
+ * `SESSION_ENDS_AFTER_YEAR` is still the STUDY's number and is still read by the
+ * yearbook, which is where the session's own ending is written. This is the
+ * game's question and that is the study's; they were one line and should not
+ * have been. */
 export const sessionOver = (s: SaveGame | null): boolean =>
-  !!s && s.flags.includes(`yearbook:y${SESSION_ENDS_AFTER_YEAR}`)
+  !!s && !s.graduated && s.flags.includes(`yearbook:y${s.year}`)
+
+/** the next year there is authored content for, or null at the end of the road */
+export const nextYear = (s: SaveGame | null): number | null =>
+  s && !s.graduated && sessionOver(s) && s.year < 4 ? s.year + 1 : null
 
 /* where a run is, in one line a student reads, with no season named in it */
 export function runLine(s: SaveGame | null): string {
   if (!s) return ''
-  if (sessionOver(s)) return 'Year one is done'
+  if (sessionOver(s)) return s.year === 1 ? 'Year one is done' : `Year ${s.year} is done`
   if (!s.introDone) return 'Just started'
   return s.year === 1 ? 'Year one' : `Year ${s.year}`
 }

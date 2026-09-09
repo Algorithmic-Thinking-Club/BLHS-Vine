@@ -38,6 +38,8 @@ html[data-rm='1'] .hp-veil { animation: none; }
 @keyframes hp-in { from { opacity: 0 } to { opacity: 1 } }
 
 .hp-card {
+  /* the replay control hangs off the card's own top right corner */
+  position: relative;
   box-sizing: border-box;
   width: min(560px, 88vw);
   /* the card never scrolls: it is capped at the window and its own type shrinks */
@@ -190,4 +192,48 @@ html[data-skin='plain'] .hp-btn {
 html[data-skin='plain'] .kit-plank-key {
   color: var(--kit-ink-body);
   border: 1px solid var(--kit-edge-strong);
+}
+
+/* ---- REPLAY THE TUTORIAL (Ash, 2026-09-09) --------------------------------
+ *
+ * Top right of the card, a mark until it is reached for and then a word: a
+ * student who does not need it never reads it, and one who does finds it where
+ * he is already looking for help. */
+.hp-replay {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  max-width: 30px;
+  overflow: hidden;
+  padding: 6px 8px;
+  color: var(--kit-ink, #221c14);
+  background: rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(80, 66, 44, 0.45);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: max-width 180ms ease, background 140ms ease;
+}
+.hp-replay:hover,
+.hp-replay:focus-visible { max-width: 190px; background: rgba(0, 0, 0, 0.12); }
+.hp-replay-mark { flex: 0 0 auto; transform: rotate(-90deg); }
+.hp-replay-word {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding-left: 7px;
+  font: 700 11px/1 var(--font-ui, system-ui, sans-serif);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+/* a touch screen has no hover, so there it is simply the whole control */
+@media (hover: none) {
+  .hp-replay { max-width: 190px; }
+}
+html[data-skin='plain'] .hp-replay {
+  background: #fff;
+  border-color: #101010;
+  border-radius: 0;
+  max-width: 190px;
 }
