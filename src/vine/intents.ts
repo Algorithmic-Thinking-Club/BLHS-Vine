@@ -56,7 +56,7 @@ export type Intent =
 
   /* the sit-down panels, kept to a short closed list on purpose */
   /* wait makes open come back when the panel is closed rather than when it opens */
-  | { kind: 'open'; ui: 'planner' | 'handbook' | 'chart' | 'wardrobe' | 'settings' | 'wall' | 'yearbook'; wait?: boolean }
+  | { kind: 'open'; ui: 'planner' | 'handbook' | 'chart' | 'wardrobe' | 'settings' | 'wall' | 'yearbook' | 'tour'; wait?: boolean }
 
   /* a scored activity. `beat` names one the engine can build; both study arms
    * render from the same items, which is what as_plain() means in practice and
@@ -206,7 +206,7 @@ export interface IntentWorld {
 export interface IntentEngine {
   /* `wait` makes this a promise the caller may await. Left out it is exactly the
    * fire-and-forget call it always was, so no existing station changes shape. */
-  openUi(ui: 'planner' | 'handbook' | 'chart' | 'wardrobe' | 'settings' | 'wall' | 'yearbook', wait?: boolean): void | Promise<void>
+  openUi(ui: 'planner' | 'handbook' | 'chart' | 'wardrobe' | 'settings' | 'wall' | 'yearbook' | 'tour', wait?: boolean): void | Promise<void>
   playBeat(beat: string, asPlain: boolean): Promise<number | null>
   read(path: RunPath): unknown
   setFlag(flag: string): void
@@ -319,7 +319,10 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
       /* an actor is an anchor name, so the words below check it the way show does */
       case 'actor_move':
         if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
-        if (!w().hasAnchor(i.to)) return no(`no anchor named "${i.to}" on ${w().mapId()}`)
+        /* THE PLAYER IS A DESTINATION AND NEVER AN ANCHOR, the same exemption
+         * `place` carries: "walk over to him" is a thing a film says and no map
+         * has a post for, because he is standing wherever he stopped. */
+        if (i.to !== PLAYER && !w().hasAnchor(i.to)) return no(`no anchor named "${i.to}" on ${w().mapId()}`)
         /* a pace nobody drew is a typo, and it reads the same way every other
          * named thing in this file reads: refused by name, with the list */
         if (i.pace && !PACES.includes(i.pace))

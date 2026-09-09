@@ -2314,15 +2314,51 @@ export default function PmapScene() {
         /* the run is over: the world goes behind a cover and the app leaves for the title */
         endRun() {
           engine.log('run_ended', { from: mapId })
-          /* THE BARS COME DOWN ON THE WAY OUT. The closing film carries its frame
-           * through the door on purpose, so the last thing standing when a run
-           * ends is a letterbox, and the title screen is not a film. */
-          engine.movie(false)
-          ;(window as unknown as { __sceneReady?: boolean }).__sceneReady = false
-          setSceneDrawn(null)
-          /* one cover at a time, and it is the router's, so this does not open a second one */
-          if (navMaybe) navMaybe.go('title', { kind: 'fade', holdMs: 600 })
-          else window.location.href = '/?scene=title'
+          const home = () => {
+            /* THE BARS COME DOWN ON THE WAY OUT. The closing film carries its
+             * frame through the door on purpose, so the last thing standing when
+             * a run ends is a letterbox, and the title screen is not a film. */
+            engine.movie(false)
+            ;(window as unknown as { __sceneReady?: boolean }).__sceneReady = false
+            setSceneDrawn(null)
+            /* one cover at a time, and it is the router's, so this does not open a second */
+            if (navMaybe) navMaybe.go('title', { kind: 'fade', holdMs: 600 })
+            else window.location.href = '/?scene=title'
+          }
+
+          /* ---- AND HE SAILS OUT OF IT (Ash, 2026-09-08 item 6) --------------
+           *
+           * *"the ship sailing out to black, the title reading 'Year one is
+           * done'"*.
+           *
+           * The last shot of year one was the camera sitting on a boy standing on
+           * a quay for two and a half seconds and then a fade, which is a scene
+           * ending because it ran out rather than because it finished. He arrived
+           * on that water in a boat in the first minute of the game and the boat
+           * is tied up ten feet away.
+           *
+           * IT IS NOT A ROUTE AND IT IS NOT AN AUTHORED PATH. The hub has no sail
+           * line drawn on it and asking for one would put this behind Ash's hands
+           * in MAPVIS. `soundOffshore` is the same reading the crossing already
+           * uses to leave a berth: the deepest water off the dock, which is by
+           * construction the way out. Full sail along it, four seconds, fade.
+           *
+           * AND IT REFUSES QUIETLY. A map with no water under it (the Maw, every
+           * room a member ever builds) ends the way it always did, on the frame it
+           * is asked. This is the flourish and never the mechanism. */
+          if (!canSail || !berth || hull) { home(); return new Promise<void>(() => {}) }
+          board()
+          const she = hull as HullState | null
+          if (!she) { home(); return new Promise<void>(() => {}) }
+          const out = soundOffshore()
+          if (!out) { stepAshore(true); home(); return new Promise<void>(() => {}) }
+          she.heading = Math.atan2(out.y - she.y, out.x - she.x)
+          she.speed = DEFAULT_SAIL.cruise
+          sailing = null
+          helmOverride = { helm: { throttle: 1, turn: 0, fullSail: true }, until: performance.now() + SAIL_OUT_MS }
+          void intentWorld.view('ship')
+          engine.log('sailed_out', { from: mapId })
+          window.setTimeout(home, SAIL_OUT_MS)
           return new Promise<void>(() => { /* the scene does not come back */ })
         },
 
@@ -2456,6 +2492,43 @@ export default function PmapScene() {
         /* ---- A2: SOMEBODY ELSE'S BODY -------------------------------------- */
         actorMove(actor, to, off, facing, pace) {
           const sp = actorBody(actor, 'actor_move')
+          /* ---- "thor" IS A DESTINATION -------------------------------------
+           *
+           * ASH, 2026-09-08 item 6: *"the principal walking to him"*. The closing
+           * film opened with `place`, which puts a body in front of the player on
+           * the frame it is said, and that reads as the man APPEARING rather than
+           * arriving: one frame he is at his desk across the hall, the next he is
+           * six inches from your face. Ash saw that at the founding too and said
+           * so ("he pops up in front of thor at any time").
+           *
+           * `place(x, "thor")` already means "beside the player" and this is the
+           * same sentence with a walk in it. The stopping distance is the
+           * clearance push below, which is the same one `place` uses, so the two
+           * words leave a body in the same spot and only one of them travels. */
+          if (to === PLAYER) {
+            const d0 = take(sp)
+            const ys0 = map.yScale || 1
+            const clear0 = map.character.heightPx * 1.1
+            const ax0 = d0.x - pos.x, ay0 = d0.y - pos.y
+            const away0 = Math.hypot(ax0, ay0 * ys0) || 1
+            const want = { x: pos.x + (ax0 / away0) * clear0, y: pos.y + (ay0 / away0) * clear0 }
+            const { at: spot } = onFloor(want, canStand, ys0, Math.round(clear0))
+            const dir0 = dirFrom(spot.x - d0.x, (spot.y - d0.y) * ys0)
+            if (dir0) d0.facing = dir0
+            if (d0.move) { const orphan = d0.move.then; d0.move = null; orphan?.() }
+            return new Promise<void>((resolve) => {
+              d0.move = {
+                tx: spot.x, ty: spot.y, speed: map.speed * PACE_OF[pace ?? 'walk'], done: false,
+                then: () => {
+                  /* and he is looking at the boy when he gets there, which is the
+                   * whole reason he walked over */
+                  const at0 = dirFrom(pos.x - d0.x, (pos.y - d0.y) * ys0)
+                  d0.facing = facing ?? at0 ?? d0.facing
+                  resolve()
+                },
+              }
+            })
+          }
           const target = anchors.get(to)
           if (!target) throw new NotBuilt('actor_move', `no anchor named "${to}" on ${mapId}`)
           const home = anchors.standAt(target)
@@ -3867,7 +3940,10 @@ export default function PmapScene() {
        * the crossing. Long enough to read as sailing, short enough that nobody
        * sits through open water: the beach opening waits 1.8s and Ash accepted
        * that shot, and a departure has the island to leave behind it. */
-      const CAST_OFF_SHOW_MS = 3200
+      /* how long the last shot of year one runs: him at the tiller, full sail, out */
+const SAIL_OUT_MS = 4200
+
+const CAST_OFF_SHOW_MS = 3200
 
       /* ONE LEG OF A VOYAGE, AND THE SCENE THAT CAN PERFORM IT PERFORMS IT.
        *

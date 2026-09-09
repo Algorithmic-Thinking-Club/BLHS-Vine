@@ -91,6 +91,7 @@ export function HelpButton() {
     <>
       <button
         className="hud-plaque hp-btn"
+        data-tour="help"
         aria-label="How to play"
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}

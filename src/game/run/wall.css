@@ -125,3 +125,18 @@ html[data-skin='plain'] .tw-plate { width: 0; }
 html[data-skin='plain'] .tw-hole { display: none; }
 html[data-skin='plain'] .tw-frame-full .tw-name::after { content: ' — done'; font-weight: 400; }
 html[data-skin='plain'] .tw-got { color: var(--kit-ink-body); }
+
+/* ---- A FRAME LANDING (Ash, 2026-09-08 item 6) ------------------------------
+ *
+ * The wall fills one frame at a time now, so a badge ARRIVES rather than being
+ * already there. Half a second apart with a pop each, in the order the year
+ * happened, which is the only moment a student sees the whole of what he did. */
+.tw-frame-land { animation: tw-land 320ms cubic-bezier(0.2, 1.5, 0.4, 1) both; }
+@keyframes tw-land {
+  from { transform: scale(0.86) rotate(-2deg); opacity: 0 }
+  60%  { transform: scale(1.06) rotate(1deg);  opacity: 1 }
+  to   { transform: none; opacity: 1 }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tw-frame-land { animation: none; }
+}

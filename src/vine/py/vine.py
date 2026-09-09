@@ -168,6 +168,11 @@ def actor_move(actor, to, off=None, facing=None, pace=None):
     They walk with their legs going, if whoever drew them drew a walk cycle for
     the heading they are travelling on, and they stand on the first frame of it
     when they stop.
+
+    `to` can also be the word "thor", which means "walk over to the player and
+    stop in front of him, facing him". Use that when somebody is coming to find
+    the student; `place` is the same spot with no walk, for a body that should
+    already be there when a shot opens.
     """
     intent = {"kind": "actor_move", "actor": actor, "to": to}
     if off is not None:
@@ -521,6 +526,11 @@ def cutscene(script):
 
 def open(ui, wait=False):
     """Open one panel: planner, handbook, chart, wardrobe, wall or settings.
+
+    "tour" is the odd one and it is not a panel: it lights the three corner
+    plaques and the help mark one at a time with a pointer and a line each, and
+    comes back when it is over or when the student skips it. Say it once, with
+    `wait=True`, at the moment you have finished handing the room over.
 
     Comes back the instant the screen is up. Pass `wait=True` and it comes back
     when the panel has been CLOSED instead, which is what you want when the next

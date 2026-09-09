@@ -1,0 +1,98 @@
+/* the handover tutorial: one control lit, everything else out of the way */
+.tr-tour { position: fixed; inset: 0; z-index: 120; pointer-events: none; }
+.tr-tour .tr-skip,
+.tr-tour .tr-say { pointer-events: auto; }
+
+.tr-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 8, 10, 0.58);
+  animation: tr-fade 260ms ease both;
+}
+@keyframes tr-fade { from { opacity: 0 } to { opacity: 1 } }
+
+/* THE RING IS DRAWN OVER THE DIM AND THE CONTROL IS NOT LIFTED OUT OF IT. A
+ * plaque raised above the veil would need its own stacking context and would
+ * change the thing the student is about to press; a ring around it says which
+ * one just as clearly and moves nothing. */
+.tr-ring {
+  position: absolute;
+  border: 2px solid #f0d89a;
+  border-radius: 6px;
+  animation: tr-pulse 1200ms ease-in-out infinite;
+}
+@keyframes tr-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(240, 216, 154, 0.18), 0 0 16px rgba(240, 216, 154, 0.30) }
+  50%      { box-shadow: 0 0 0 5px rgba(240, 216, 154, 0.30), 0 0 30px rgba(240, 216, 154, 0.55) }
+}
+
+/* the pointer, which bobs at the thing rather than sitting on it */
+.tr-hand {
+  position: absolute;
+  font-size: 22px;
+  line-height: 22px;
+  color: #f0d89a;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+  animation: tr-nudge 900ms ease-in-out infinite;
+}
+@keyframes tr-nudge { 0%, 100% { transform: translateX(0) } 50% { transform: translateX(-7px) } }
+.tr-hand-left { animation-name: tr-nudge-left; }
+@keyframes tr-nudge-left { 0%, 100% { transform: translateX(0) } 50% { transform: translateX(7px) } }
+
+.tr-say {
+  position: absolute;
+  max-width: min(300px, 44vw);
+  padding: 12px 14px;
+  background: #f6efe0;
+  color: #221c14;
+  border: 1px solid #8a7a5c;
+  border-radius: 4px;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
+  animation: tr-in 220ms ease both;
+}
+@keyframes tr-in { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+.tr-line { margin: 0; font: 500 14px/1.45 var(--font-ui, system-ui, sans-serif); }
+.tr-count {
+  display: block;
+  margin-top: 8px;
+  font: 600 11px/1 var(--font-ui, system-ui, sans-serif);
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+}
+
+.tr-skip {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  font: 600 12px/1 var(--font-ui, system-ui, sans-serif);
+  letter-spacing: 0.06em;
+  padding: 8px 14px;
+  color: #f2ece0;
+  background: rgba(12, 12, 14, 0.7);
+  border: 1px solid rgba(242, 236, 224, 0.4);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.tr-skip:hover, .tr-skip:focus-visible { background: rgba(12, 12, 14, 0.92); }
+
+/* the plain arm: a worksheet's own callout, no gold and no glow */
+html[data-skin='plain'] .tr-dim { background: rgba(255, 255, 255, 0.72); }
+html[data-skin='plain'] .tr-ring {
+  border-color: #101010;
+  box-shadow: none;
+  animation: none;
+}
+html[data-skin='plain'] .tr-hand { color: #101010; text-shadow: none; }
+html[data-skin='plain'] .tr-say {
+  background: #fff;
+  color: #101010;
+  border-color: #101010;
+  border-radius: 0;
+  box-shadow: none;
+}
+html[data-skin='plain'] .tr-skip {
+  color: #101010;
+  background: #fff;
+  border-color: #101010;
+  border-radius: 0;
+}

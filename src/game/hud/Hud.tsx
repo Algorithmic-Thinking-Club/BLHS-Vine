@@ -13,6 +13,7 @@ import { classBeat } from '../beats/classes'
 import { classById } from '../planner/catalog'
 import type { CoreBeat } from '../beats/frames'
 import { Wardrobe } from './Wardrobe'
+import { Tour } from './Tour'
 import { Yearbook } from '../run/Yearbook'
 import { YearStart } from '../run/YearStart'
 import { loadSave, subscribeSave } from '../save'
@@ -60,6 +61,8 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const [settings, setSettings] = useState(false)
   const [wall, setWall] = useState(false)
   const [wardrobe, setWardrobe] = useState(false)
+  /* the handover tutorial, holding whoever is waiting for it to be over */
+  const [tour, setTour] = useState<null | (() => void)>(null)
   /* a beat world code asked for, and the callback waiting for its grade */
   const [playing, setPlaying] = useState<null | { beat: CoreBeat; plain: boolean; done: (g: number | null) => void }>(null)
   const [, bump] = useState(0)
@@ -156,6 +159,15 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     if (which === 'wall') { track('wall_requested', { via: 'world' }); setWall(true) }
     /* the yearbook, which any island can now send a student to by name */
     if (which === 'yearbook') { track('yearbook_opened', { via: 'world' }); setYearbook(true) }
+    /* THE TOUR IS NOT A PANEL and does not go through `anyOpen`. It is fourteen
+     * seconds of the corner being explained with the world still under it, and
+     * it answers its own waiter when it ends rather than when everything shuts:
+     * holding the world would stop the very controls it is pointing at. */
+    if (which === 'tour') {
+      track('tour_opened')
+      if (done) { waiting.current = null }
+      setTour(() => done ?? (() => { /* nobody is waiting on it */ }))
+    }
   }), [onBlurWorld])
 
   /* a scored activity world code asked for, with its grade going back to whoever asked */
@@ -216,6 +228,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
         {(
         <button
           className={`hud-plaque${plaqueShown('map') ? '' : ' hud-plaque-waiting'}${handedOver.includes('map') ? ' hud-arriving' : ''}${entering.has('chart') ? ' hud-arriving' : ''}`}
+          data-tour="map"
           aria-label="Map. The islands you have found."
           aria-hidden={!plaqueShown('map')}
           tabIndex={plaqueShown('map') ? undefined : -1}
@@ -229,6 +242,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
         {(
         <button
           className={`hud-plaque${plaqueShown('guide') ? '' : ' hud-plaque-waiting'}${handedOver.includes('guide') ? ' hud-arriving' : ''}${entering.has('handbook') ? ' hud-arriving' : ''}`}
+          data-tour="guide"
           aria-label="Guide. What the school offers, and what you have earned."
           aria-hidden={!plaqueShown('guide')}
           tabIndex={plaqueShown('guide') ? undefined : -1}
@@ -246,6 +260,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
         {(
           <button
             className={`hud-plaque${plaqueShown('my-year') ? '' : ' hud-plaque-waiting'}${handedOver.includes('my-year') ? ' hud-arriving' : ''} hud-tokenbtn${entering.has('tokens') ? ' hud-arriving' : ''}`}
+            data-tour="my-year"
             /* this reads a save that may not exist yet, because the corner outlives the run */
             /* the label says what the button opens and whether the year is still open */
             aria-label={s?.plans?.[s.year]?.stamped
@@ -318,6 +333,8 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       {playing && <CoreBeatRunner beat={playing.beat} forceArm={playing.plain ? 'plain' : undefined} onClose={closeAll} />}
       {wall && <TrophyWall onClose={closeAll} />}
       {wardrobe && <Wardrobe onClose={closeAll} />}
+      {/* the fourteen seconds that explain the corner (Ash, 2026-09-08 item 7) */}
+      {tour && <Tour onDone={() => { const f = tour; setTour(null); f() }} />}
       {yearbook && <Yearbook onClose={closeAll} onGraduate={() => { setYearbook(false); setGraduation(true) }} />}
       {graduation && <Graduation onClose={closeAll} />}
       {showVignette && s && <YearStart year={s.year} onDone={() => bump((v) => v + 1)} />}

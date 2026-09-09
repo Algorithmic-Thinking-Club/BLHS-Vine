@@ -2,7 +2,7 @@
 
 /* yearbook: a door to a year's own page that any island can send a student to */
 /* wall: a door to what a student has earned, openable from any island */
-export type UiRequest = 'planner' | 'handbook' | 'chart' | 'settings' | 'advisory' | 'wardrobe' | 'yearbook' | 'wall'
+export type UiRequest = 'planner' | 'handbook' | 'chart' | 'settings' | 'advisory' | 'wardrobe' | 'yearbook' | 'wall' | 'tour'
 
 const EVENT = 'blhs:open-ui'
 const BEAT_EVENT = 'blhs:play-beat'
