@@ -9,7 +9,7 @@ import { loadSave, subscribeSave } from '../save'
 import { mooringFor } from '../run/resume'
 import { Empty, Failed, Glyph, Loading } from '../ui/controls'
 import { announce } from '../ui/a11y'
-import { requestVoyage, sailFrom, sailListenerCount, voyageListenerCount } from './sail-bus'
+import { requestSail, requestVoyage, sailFrom, sailListenerCount, voyageListenerCount } from './sail-bus'
 import { picksOf } from '../run/pick'
 import { note } from '../ui/feedback'
 import './chart.css'
@@ -61,12 +61,20 @@ type Row = {
 }
 
 /* ---- clicking a named island sails the ship there, the same control in both arms */
-function sailableRow(r: { dock: Dock; slot: WorldSlot }, here: string | undefined): boolean {
+function sailableRow(r: { dock: Dock; slot: WorldSlot }, here: string | undefined, onWater: boolean): boolean {
   return r.dock.named
     && r.dock.state !== 'rising'
     && !!r.slot.map
     && !!r.slot.berth
-    && r.slot.map !== here
+    /* ---- THE ISLAND YOU ARE ON IS OFFERED WHEN YOU ARE AFLOAT ON IT --------
+     *
+     * It never was, and that was right while a pin meant "sail there": you
+     * cannot sail to where you are standing. But a student holding the tiller on
+     * his own island's water has to be able to PUT IN, and the pin is the only
+     * control on this page. Measured on the live deploy 2026-09-08: the beach
+     * opening left a student adrift off the hub with the bar reading "Click the
+     * island to sail there" and the one island on the chart not pressable. */
+    && (r.slot.map !== here || onWater)
 }
 
 /** `onSailing` lets whatever opened the chart get out of the way once the ship
@@ -108,7 +116,7 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
       key: s.map ?? s.place ?? s.title,
       slot: s,
       dock,
-      sailable: afloat && sailableRow({ dock, slot: s }, here),
+      sailable: afloat && sailableRow({ dock, slot: s }, here, sailListenerCount() > 0),
       line: stateLine(dock.state, s, save),
       /* A MISTY ISLAND HAS NO NAME ON THE CHART. Printing the title of a place a
          student has never sailed to is the chart doing the discovering for them,
@@ -159,8 +167,16 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
         onSailing?.()
         return
       }
-      note(a.why)
-      announce(a.why)
+      /* AND THE OTHER KIND OF SAILING IS THE FALLBACK, not a second control.
+       * `requestVoyage` is the journey between islands and refuses the island
+       * you are on; `requestSail` hands the helm to a hull on this painting's
+       * own ocean, which is what putting in to your own harbour is. One pin,
+       * one press, and the scene picks the machine that can answer it. */
+      void requestSail(r.slot).then((b) => {
+        if (b.ok) { announce(`Sailing to ${r.name}.`); onSailing?.(); return }
+        note(a.why)
+        announce(a.why)
+      })
     })
   }
 
@@ -186,35 +202,13 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
     )
   }
 
-  /* ---- HIS OWN YEAR IS ON THE CHART -------------------------------------
-   *
-   * ASH, 2026-09-08 item 3: *"a map view opens, drawn to the real world
-   * composition, the hub in the middle and his picked islands around it, plus
-   * any island already built."*
-   *
-   * The world document holds the places somebody has BUILT, which today is the
-   * hub and one stand-in beach. A student's four picks are not places yet, so
-   * the chart he opened showed him one dot and nothing about the year he had
-   * just planned: the map of the world had nothing of his on it.
-   *
-   * They are drawn in a ring around home, at a radius the paper then makes room
-   * for, and they are NOT pressable: a pick with no island is played from the
-   * year sheet, which is what its note says. The day one is built it is a real
-   * slot on the real document and it leaves this ring on its own. */
-  const home = slots.find((q) => q.map === 'hub') ?? slots[0]
+  /* what he picked that nobody has built. They are drawn round the edge of the
+   * paper rather than in the sea; the note where they are drawn says why. */
   const owed = picksOf(save).filter((p) => !p.map)
-  const RING = 1150
-  const ghosts = owed.map((p, i) => {
-    const a = -Math.PI / 2 + (i * 2 * Math.PI) / Math.max(1, owed.length)
-    return {
-      pick: p,
-      at: { x: home.at.x + Math.cos(a) * RING, y: home.at.y + Math.sin(a) * RING * 0.62 },
-    }
-  })
 
   /* the paper fits what is on it, with a margin taken as a fraction of the spread */
-  const xs = [...slots.map((s) => s.at.x), ...ghosts.map((g) => g.at.x)]
-  const ys = [...slots.map((s) => s.at.y), ...ghosts.map((g) => g.at.y)]
+  const xs = slots.map((s) => s.at.x)
+  const ys = slots.map((s) => s.at.y)
   const spread = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys))
   const pad = Math.max(320, spread * 0.35)
   const x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad
@@ -259,18 +253,35 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
           </div>
         ))}
 
-        {/* what he picked and nobody has built: on the paper, in its own hand,
-            and never a control, because its button is on the year sheet */}
-        {ghosts.map((g) => (
+        {/* ---- HIS OWN YEAR, ROUND THE EDGE OF THE PAPER --------------------
+         *
+         * ASH, 2026-09-08 item 3: *"the hub in the middle and his picked islands
+         * around it, plus any island already built."*
+         *
+         * THEY ARE PLACED ON THE PAPER AND NOT IN THE SEA. A world coordinate
+         * would have to be invented for a place nobody has built, and the first
+         * version did exactly that: a ring around the hub, which on a chart four
+         * times wider than it is tall collapsed into the middle and drew four
+         * dashed boxes straight through the islands that really exist.
+         *
+         * So the corners, by index, clear of the water in the middle where the
+         * real slots live. It is the same picture Ash asked for on a page this
+         * shape, and it cannot collide with anything the world document holds.
+         * The day somebody builds one of these it becomes a real slot with a real
+         * berth and leaves this list on its own. */}
+        {owed.map((p, i) => (
           <div
-            key={`pick:${g.pick.id}`}
+            key={`pick:${p.id}`}
             className="ch-isle ch-rumour ch-isle-pick"
-            style={{ left: `${fx(g.at.x)}%`, top: `${fy(g.at.y)}%` }}
+            /* the corners in this order because the compass rose is printed at
+               the top right of the paper, so that one is filled last */
+            style={{
+              left: `${[12, 12, 88, 88][i % 4]}%`,
+              top: `${[22, 78, 78, 24][i % 4]}%`,
+            }}
           >
-            <span className="ch-name">{g.pick.name}</span>
-            <span className="ch-note">
-              {g.pick.done ? 'counted as done' : 'no island yet. Open My Year and press Go'}
-            </span>
+            <span className="ch-name">{p.name}</span>
+            <span className="ch-note">{p.done ? 'counted as done' : 'no island yet'}</span>
           </div>
         ))}
 

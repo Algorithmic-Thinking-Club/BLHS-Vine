@@ -550,5 +550,12 @@ html[data-skin='plain'] .ch-row-go {
   border-style: dashed;
   opacity: 0.82;
   cursor: default;
+  /* narrow, so four of them round the hub do not run into each other or into
+     the islands somebody really built */
+  max-width: 14ch;
+  text-align: center;
+  /* the corners are named as percentages of the paper, so the mark is centred on
+     its own point the way every other one is */
+  transform: translate(-50%, -50%);
 }
 .ch-isle-pick .ch-name { font-style: italic; }

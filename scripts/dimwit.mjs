@@ -240,6 +240,16 @@ for (let i = 0; i < 320 && !done; i++) {
    * BOUNDED: the step budget above ends the run either way, and a cover that
    * never lifts ends it with a picture of itself. */
   if (v.covered) { blind = 0; await page.waitForTimeout(700); continue }
+  /* AND SO ARE THE BARS. A watched stretch is the game working exactly as much
+   * as a cover is: the beach crossing is half a minute of a boat sailing with
+   * the controls held and nothing on the glass to press. Twelve blind clicks go
+   * by in about two seconds, so without this the run reported the live deploy as
+   * a dead end in the middle of the opening voyage. Measured 2026-09-08. */
+  if (await page.evaluate(() => document.documentElement.dataset.movie === '1')) {
+    blind = 0
+    await page.waitForTimeout(900)
+    continue
+  }
   /* AND EIGHT SECONDS RATHER THAN TWO. Three tries was written when the only
    * thing that could be under a blind click was a card still typing itself out.
    * A map swap can put a real loading frame on the glass for a second or two on
