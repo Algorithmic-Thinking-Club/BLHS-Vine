@@ -206,7 +206,12 @@ console.log(`\ntravel + picks, against ${base}\n`)
       const r = document.querySelector('.sv-skip').getBoundingClientRect()
       return { left: Math.round(r.left), top: Math.round(r.top), text: document.querySelector('.sv-skip').textContent }
     })
-    ok('3.6', 'top left, and it says what the key is', at.left < 200 && at.top < 200 && /esc/i.test(at.text), JSON.stringify(at))
+    /* AND INSIDE THE FRAME. The bars are 10vh each, so a plaque at 14px is drawn
+     * under the top one and the offer is invisible on every game-arm crossing.
+     * Measured on the live deploy 2026-09-08 off `3-crossing.png`. */
+    const bar = await page.evaluate(() => Math.round(window.innerHeight * 0.1))
+    ok('3.6', 'top left, and it says what the key is', at.left < 200 && at.top < 260 && /esc/i.test(at.text), JSON.stringify(at))
+    ok('3.6b', 'and it clears the movie bar rather than hiding under it', at.top >= bar, `top ${at.top} against a ${bar}px bar`)
   }
   await page.screenshot({ path: `${SHOTS}/3-crossing.png` })
 
