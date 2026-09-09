@@ -87,12 +87,12 @@ describe('the phase an island reads', () => {
     })
     const o = objective.nextObjective(save.loadSave())
     expect(objective.objectiveLine(o, 'hub')).toBe('Go back to the Maw. The principal is waiting.')
-    /* ONE SENTENCE ON BOTH SIDES OF THE DOOR (Ash, 2026-09-08 item 6). It used
-     * to shorten on the Maw's own map, on the reasoning that a student standing
-     * in the room does not need telling which room. He does: the man is one of
-     * six people in a hall and "the principal is waiting" is the half that says
-     * which. */
-    expect(objective.objectiveLine(o, 'panther-maw')).toBe('Go back to the Maw. The principal is waiting.')
+    /* AND INSIDE THE MAW IT SAYS THE OTHER HALF OF THE SAME FACT. "Go back to
+     * the Maw" over a student standing in the Maw is the game telling him to do
+     * a thing he has already done, and that is the common road now: he presses
+     * Go on his last pick at the chart table and the year closes with him ten
+     * feet from the man the arrow is already pointing at. */
+    expect(objective.objectiveLine(o, 'panther-maw')).toBe('Find the principal. Year one is done.')
   })
 })
 

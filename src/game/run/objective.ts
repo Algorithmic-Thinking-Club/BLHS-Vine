@@ -119,10 +119,16 @@ export function nextObjective(s: SaveGame | null): Objective | null {
        * is being sent, and the second sentence is the only thing on the glass
        * that tells him the year is over before the film says so. */
       /* ASH, 2026-09-08 item 6: *"When every pick is done the bar says 'Go back
-       * to the Maw. The principal is waiting.'"* His words, both halves: where
-       * to go and who is there, which is the only sentence in the year that
-       * tells a student it is over before a film says so. */
-      say: 'Go back to the Maw. The principal is waiting.',
+       * to the Maw. The principal is waiting.'"* That is the AWAY line and it is
+       * his words exactly.
+       *
+       * INSIDE THE MAW IT SAYS THE OTHER HALF, because "go back to the Maw" over
+       * a student standing in the Maw is the game telling him to do a thing he
+       * has already done. The common road ends exactly there: he presses Go on
+       * his last pick at the chart table and the year closes with him ten feet
+       * from the man. Same fact, said from where he is: the arrow is already on
+       * the principal and this is the sentence that goes with it. */
+      say: 'Find the principal. Year one is done.',
       away: 'Go back to the Maw. The principal is waiting.',
     }
   }

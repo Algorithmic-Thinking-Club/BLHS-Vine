@@ -143,6 +143,6 @@ describe('the year as a list', () => {
     const late = tasks.tasksOf(save.loadSave())
     expect(row(late, 'core').done).toBe(true)
     expect(row(late, 'end').barred).toBeUndefined()
-    expect(row(late, 'end').note).toMatch(/principal is waiting/i)
+    expect(row(late, 'end').note).toMatch(/find the principal/i)
   })
 })

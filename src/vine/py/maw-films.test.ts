@@ -46,17 +46,39 @@ describe('the opening and the ending are never the same sitting', () => {
     expect(latchAt).toBeLessThan(railAt)
   })
 
-  /* FALSE ON THE LOAD THAT PLAYED THE OPENING. Every road to the ending is
-   * gated, and there are two: the room loading, and somebody who is in the film
-   * being pressed by a student who walked away from it. */
-  it('will not start the ending on that load, by any road', () => {
+  /* ---- NEITHER ROAD CAN PUT THE TWO FILMS IN ONE SITTING ------------------
+   *
+   * There are two roads and they are fenced differently, on purpose.
+   *
+   * THE ROOM LOADING keeps the latch. That is the road Ash named ("walking into
+   * the Maw with the year done starts the ending film"), and it is the one that
+   * would otherwise fire on the very load the opening just played on.
+   *
+   * THE PRESS is fenced by the HANDOVER instead, and it had to move. The year
+   * closes at the chart table now: a student presses Go on his last pick ten
+   * feet from the man, the bar lights the desk, and under the latch pressing him
+   * got a hello and nothing in the room could end the year. Measured on the live
+   * deploy 2026-09-08 with the cold gate sitting there four minutes.
+   *
+   * IT STILL CANNOT RUN THEM TOGETHER, which is the thing Ash actually ruled
+   * out: `maw:handed_over` is the opening's last line, and every pick on the
+   * sheet has to be finished after it. The opening finishes no picks. */
+  it('will not start the ending on the load that played the opening', () => {
     const endings = [...island.matchAll(/yield from ending\(\)/g)]
     expect(endings.length, 'no road to the ending is left in island.py').toBeGreaterThan(0)
-    for (const e of endings) {
+    const fences = endings.map((e) => {
       const line = island.slice(0, e.index).split('\n').pop()!
-      const cond = conditionOver(island, `${line}yield from ending()`)
-      expect(cond, `an ungated ending: ${cond}`).toContain('not _OPENED_HERE')
+      return conditionOver(island, `${line}yield from ending()`)
+    })
+    /* the load road, which is the one the latch is for */
+    expect(fences.some((c) => c.includes('not _OPENED_HERE')),
+      `no road keeps the latch: ${JSON.stringify(fences)}`).toBe(true)
+    /* and every road is fenced by SOMETHING that means the opening is over */
+    for (const c of fences) {
+      expect(/not _OPENED_HERE|HANDED_OVER in flags/.test(c), `an ungated ending: ${c}`).toBe(true)
     }
+    /* both roads ask the sequencer whether the year is really done */
+    for (const c of fences) expect(c, `a road that does not check the year: ${c}`).toContain('done')
   })
 
   /* the third road is closed rather than gated: no station opens the yearbook */

@@ -151,8 +151,9 @@ describe('the objective reaches the yearbook', () => {
     expect(o?.phase).toBe('yearbook')
     /* the closing film starts here and the principal is who meets him */
     expect(o?.anchor).toBe('principal_desk')
-    /* ASH, 2026-09-08 item 6, his words on both sides of the door */
-    expect(o?.say).toBe('Go back to the Maw. The principal is waiting.')
+    /* ASH, 2026-09-08 item 6: his sentence is the one said from anywhere else,
+     * and inside the Maw it says the other half of the same fact */
+    expect(o?.say).toBe('Find the principal. Year one is done.')
     expect(o?.away).toBe('Go back to the Maw. The principal is waiting.')
   })
 

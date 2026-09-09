@@ -63,7 +63,7 @@ export function tasksOf(s: SaveGame | null): Task[] {
     ...(st.yearbookSeen || sessionOver(s)
       ? {}
       : st.readyForYearbook
-        ? { note: 'Go back to the Maw. The principal is waiting' }
+        ? { note: 'Find the principal, inside the Panther’s Maw' }
         : { barred: true, note: 'After your schedule and Advisory' }),
   })
 

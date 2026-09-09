@@ -145,6 +145,10 @@ for (let i = 0; i < 460; i++) {
     if (opened) { await page.waitForTimeout(700); continue }
   }
   /* the ending is a press on the principal, and he is a station in the room */
+  /* THE CLOSING STARTS AT THE MAN. Ash's own trigger is walking into the Maw
+   * with the year done, and the other road is pressing him, which is the one a
+   * student on this road takes: the year closes at the chart table with him
+   * already standing in the room, so no map load is coming. */
   if (r.bar && /(Find the principal|The principal is waiting)/i.test(r.bar) && r.map === 'panther-maw') {
     const fired = await page.evaluate(() => (window.__station ? window.__station('principal_desk') : 'no handle'))
     if (fired === 'fired') { await page.waitForTimeout(900); continue }
