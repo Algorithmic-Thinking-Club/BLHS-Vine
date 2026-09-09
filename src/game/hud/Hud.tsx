@@ -281,6 +281,49 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
             <span className="hud-plaque-word">My Year</span>
           </button>
         )}
+        {/* ---- THE WALL AND THE WARDROBE (Ash, 2026-09-08 item 8) -----------
+         *
+         * *"The trophy wall and the wardrobe get a way in from the corner."*
+         *
+         * Both were reachable only from inside a cutscene: the wall when the
+         * principal walked you to it, the wardrobe not at all in a shipped run.
+         * The wall is the picture of everything the student has done, and it was
+         * a screen he could see twice in a session and never again by choosing
+         * to. The wardrobe is the one place his own character is his.
+         *
+         * THEY ARRIVE WITH THE OTHER THREE and are held by the same grant, so the
+         * corner is either handed over or it is not. Two smaller plaques under
+         * the three, because they are things to LOOK at rather than the three
+         * doors the year runs through, and the corner has to stay readable at a
+         * glance on a Chromebook. */}
+        {(
+        <button
+          className={`hud-plaque hud-plaque-sm${plaqueShown('my-year') ? '' : ' hud-plaque-waiting'}`}
+          data-tour="wall"
+          aria-label="The trophy wall. Everything you have finished this year."
+          aria-hidden={!plaqueShown('my-year')}
+          tabIndex={plaqueShown('my-year') ? undefined : -1}
+          aria-haspopup="dialog"
+          onClick={() => { track('wall_requested', { via: 'corner' }); setPaused(false); setWall(true) }}
+        >
+          <Glyph piece="stamp" face="awarded" size={16} className="hud-plaque-mark" />
+          <span className="hud-plaque-word">Wall</span>
+        </button>
+        )}
+        {(
+        <button
+          className={`hud-plaque hud-plaque-sm${plaqueShown('my-year') ? '' : ' hud-plaque-waiting'}`}
+          data-tour="wardrobe"
+          aria-label="The wardrobe. What your character wears."
+          aria-hidden={!plaqueShown('my-year')}
+          tabIndex={plaqueShown('my-year') ? undefined : -1}
+          aria-haspopup="dialog"
+          onClick={() => { track('wardrobe_opened', { via: 'corner' }); setPaused(false); setWardrobe(true) }}
+        >
+          <Glyph piece="icon_set" face="cape" size={16} className="hud-plaque-mark" />
+          <span className="hud-plaque-word">You</span>
+        </button>
+        )}
       </nav>
 
       {book && <Handbook initialTab={book} onClose={closeAll} />}

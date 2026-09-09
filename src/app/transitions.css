@@ -262,3 +262,24 @@ html[data-skin='plain'] .tr-scene-work {
    it says what it is loading, and it goes. */
 html[data-skin='plain'] .tr-in .tr-scene,
 html[data-skin='plain'] .tr-out .tr-scene { animation-timing-function: linear; }
+
+/* ---- THE FACT ON THE ARRIVAL COVER (Ash, 2026-09-08 item 8) ---------------
+ *
+ * Under the loading bar, in the space that was already empty. It is the one
+ * screen in year one a student is looking at with nothing else to do, and until
+ * today the nineteen facts about the school could only reach him on a cover the
+ * shipped game never plays. */
+.tr-scene-fact {
+  max-width: 46ch;
+  margin: 14px auto 0;
+  font: 400 13px/1.5 var(--font-ui, system-ui, sans-serif);
+  color: #efe6d2;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+  opacity: 0.92;
+}
+html[data-skin='plain'] .tr-scene-fact {
+  color: #101010;
+  text-shadow: none;
+  font-size: 14px;
+}

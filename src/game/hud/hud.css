@@ -444,3 +444,20 @@ html[data-skin='plain'] .hud-arriving { animation: none; }
 
 /* the plain arm keeps the cord criterion in words and drops the drawn progress bar */
 html[data-skin='plain'] .hb-cordbar { display: none; }
+
+/* ---- THE TWO SMALLER PLAQUES (Ash, 2026-09-08 item 8) ---------------------
+ *
+ * The wall and the wardrobe hang under the three doors. They are smaller because
+ * they are things to look at rather than the three the year runs through, and a
+ * corner of five equal signs is a menu bar. */
+.hud-plaque-sm {
+  padding-block: 5px;
+  opacity: 0.88;
+}
+.hud-plaque-sm .hud-plaque-word {
+  /* the same snap every other size in this file goes through, so the word lands
+     on whole pixels at every text-scale setting */
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+}
+.hud-plaque-sm:hover, .hud-plaque-sm:focus-visible { opacity: 1; }

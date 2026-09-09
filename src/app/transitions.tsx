@@ -130,8 +130,23 @@ export async function runTransition(
   const pool = FACTS.filter((f) => !learned.has(f.id))
   const fact = (pool.length ? pool : FACTS)[Math.floor(Math.random() * (pool.length ? pool.length : FACTS.length))]
   st.fact = fact.text
-  /* only the chart cover shows a fact, and only a fact that was shown is banked as learned */
-  const carriesFact = spec.fact !== false && spec.kind === 'chart'
+  /* ---- A FACT IS COLLECTED WHERE A STUDENT IS (Ash, 2026-09-08 item 8) ----
+   *
+   * *"The Facts tab reads 0 of 19 forever because facts only collect on covers
+   * no student sees: collect them where a student actually is."*
+   *
+   * The one cover that carried a fact was `kind: 'chart'`, and nothing in the
+   * shipped game ever asks for one: every door and every voyage goes through
+   * `coverFor`, which returns `kind: 'scene'`. So the pool was nineteen facts
+   * about the school that a student could not collect by playing, the Guide's
+   * Facts tab read 0 of 19 for the whole of year one, and the Bookworm badge was
+   * unreachable.
+   *
+   * THE SCENE COVER IS WHERE HE IS. It is up for a second and a half every time
+   * he goes through the tunnel, sails anywhere or comes home, and it has room
+   * under the loading bar that was empty. It is the one screen in this game a
+   * student is already looking at with nothing to do. */
+  const carriesFact = spec.fact !== false && (spec.kind === 'chart' || spec.kind === 'scene')
   if (carriesFact) {
     collectFact(fact.id)
     track('loading_fact_shown', { id: fact.id })
@@ -286,6 +301,9 @@ export function TransitionOverlay({ st, version }: { st: TransitionState; versio
               />
               <p className="tr-scene-work">{WORK_WORD[st.work]}</p>
             </div>
+            {/* and the thing he learns while he waits, which is the only place in
+                year one nineteen true sentences about the school can reach him */}
+            {spec.fact !== false && <p className="tr-scene-fact">{st.fact}</p>}
           </div>
         </div>
       </div>
