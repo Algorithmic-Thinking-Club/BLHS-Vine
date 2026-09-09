@@ -33,7 +33,11 @@ async function land(url, seed = true) {
   const p = await b.newPage({ viewport: { width: 1280, height: 720 } })
   if (seed) await p.addInitScript((s) => localStorage.setItem('blhs_save_v2', JSON.stringify(s)), SAVE)
   await p.goto(url, { waitUntil: 'domcontentloaded' })
-  await p.waitForTimeout(3500)
+  /* A DEEP LINK IS ALLOWED TO BE SLOW. The map comes off the platform, so on the
+   * live deploy a cold fetch takes longer than a fixed sample: this waits for the
+   * scene and falls through on the roads that are meant to land on the title. */
+  await p.waitForFunction(() => !!window.__pmap, null, { timeout: 25000 }).catch(() => {})
+  await p.waitForTimeout(2500)
   const st = await p.evaluate(() => ({
     url: location.search,
     pmap: !!window.__pmap,
