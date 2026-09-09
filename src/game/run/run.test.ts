@@ -3,10 +3,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { yearbookPage, yearbookYears, yearTurned, YEARBOOK_SECTIONS } from './yearbook-page'
 import { resumeTarget, mooringFor, stampOf, RESUME_REASONS } from './resume'
 import { nextObjective, FOUNDING_FLAG } from './objective'
+import { picksOf, pickVerb } from './pick'
 /* STATICALLY, on purpose: `vi.resetModules()` only affects later imports, so a
  * dynamic `import('../roster/roster')` inside a test would hand back a second
  * copy of the roster that `objective.ts` is not reading. */
-import { programmeById } from '../roster/roster'
+import { PLACES, programmeById } from '../roster/roster'
 import { refuseSlot, refuseClass } from './refusal'
 import type { WorldComposition } from '../world/composition'
 
@@ -142,54 +143,72 @@ describe('the objective reaches the yearbook', () => {
     return save
   }
 
-  it('sends the student to the principal once the year is owed nothing it can do', async () => {
+  it('sends the student to the principal once every pick is done', async () => {
     const save = await stampedYear()
+    /* the club he picked is finished the way item 4 finishes one with no island */
+    save.recordCompletion('football', 3)
     const o = nextObjective(save.loadSave())
     expect(o?.phase).toBe('yearbook')
     /* the closing film starts here and the principal is who meets him */
     expect(o?.anchor).toBe('principal_desk')
-    expect(o?.say).toBe('Find the principal. Year one is done.')
-    /* the away line names the tunnel, since the ending plays on entering the Maw */
-    expect(o?.away).toBe('Go back into the mountain. Year one is done.')
+    /* ASH, 2026-09-08 item 6, his words on both sides of the door */
+    expect(o?.say).toBe('Go back to the Maw. The principal is waiting.')
+    expect(o?.away).toBe('Go back to the Maw. The principal is waiting.')
   })
 
-  /* ASH, 2026-09-08, reversing the rule this test used to hold: *"The year is
-   * done only when every picked thing with play behind it is done: both classes
-   * today, and every picked club or sport the day its island exists, through the
-   * voyage clause that already exists. A pick with nothing behind it cannot be
-   * picked, so it never holds the year open."*
+  /* ---- EVERY PICK HOLDS THE YEAR, AND EVERY PICK CAN BE FINISHED ----------
    *
-   * The two halves of that sentence are the two assertions below, on one save: a
-   * class he chose and never sat holds the year open and the bar names it; the
-   * island nobody has built does not, and never will. */
-  it('holds the year open for an unsat class and never for an unbuilt island', async () => {
+   * ASH, 2026-09-08 item 4 and item 6 together. The rule this test used to hold
+   * was that a club nobody had built could never hold the year open, because
+   * nothing could finish it. There is one button per pick now and it always
+   * finishes the pick, so the exception went with it: the year waits on
+   * everything he chose, and nothing he chose is a dead end. */
+  it('holds the year open for every pick and lets every pick be finished', async () => {
     const save = await stampedYear()
     save.writeSave({ ledger: save.loadSave()!.ledger.filter((e) => e.id !== 'class:spanish-1') })
     const o = nextObjective(save.loadSave())
     expect(o?.phase).toBe('class')
     expect(o?.say).toContain('Spanish I')
-    /* and the sheet is where it is sat, so that is where the arrow points */
+    /* the sheet is where a pick is played, so that is where the arrow points */
     expect(o?.anchor).toBe('chart_table')
 
-    /* sit it, and the only thing left on the sheet is an island nobody has
-     * built: the year closes anyway, because it can never be finished */
+    /* sit it, and the club he picked is what is left: it holds the year now */
     save.recordGrade({ id: 'class:spanish-1', title: 'y', kind: 'class', credit: .5, grade: 4, year: 1, season: 'Fall' })
-    const after = nextObjective(save.loadSave())
-    expect(after?.phase).toBe('yearbook')
-    const { yearStatus, nudgeLine } = await import('./year')
-    expect(nudgeLine(yearStatus(save.loadSave()!))).toContain('not open yet')
+    const mid = nextObjective(save.loadSave())
+    expect(mid?.phase).toBe('class')
+    expect(mid?.say).toContain('Example B')
+
+    /* and pressing its one button counts it, which closes the year. The button
+     * writes exactly this row (`run/pick.ts`, `countAsDone`); it is written here
+     * rather than called because this file resets the save module per test. */
+    save.recordCompletion('football', 3)
+    expect(nextObjective(save.loadSave())?.phase).toBe('yearbook')
   })
 
-  it('still points at a real voyage when there is one to sail', async () => {
+  it('names the voyage when the pick has an island behind it', async () => {
     const save = await stampedYear()
     const g = programmeById('football')!
-    const was = g.playable
+    const stadium = PLACES.find((p) => p.id === g.place)!
+    const was = { playable: g.playable, maps: stadium.maps, arrival: stadium.arrival }
+    /* THE ROSTER IS THE ONLY THING THAT DECIDES, so this is the whole of what a
+     * member's island shipping looks like from here: a playable programme whose
+     * place has a painting. Nothing in the year, the sheet or the bar changes. */
     ;(g as { playable: boolean }).playable = true
+    ;(stadium as { maps: string[] }).maps = ['stadium-a1']
+    ;(stadium as { arrival?: string }).arrival = 'stadium-a1'
     try {
       const o = nextObjective(save.loadSave())
-      expect(o?.phase).toBe('voyage')
-      expect(o?.anchor).toBe('maw_entrance')
-    } finally { (g as { playable: boolean }).playable = was }
+      /* one clause for every pick, so the phase is the same and the WORD changes */
+      expect(o?.phase).toBe('class')
+      expect(o?.say).toBe('Sail to Example B. Open My Year.')
+      const club = picksOf(save.loadSave())!.find((p) => p.id === 'football')!
+      expect(club.map).toBe('stadium-a1')
+      expect(pickVerb(club)).toBe('Sail to Example B')
+    } finally {
+      ;(g as { playable: boolean }).playable = was.playable
+      ;(stadium as { maps: string[] }).maps = was.maps
+      ;(stadium as { arrival?: string }).arrival = was.arrival
+    }
   })
 })
 

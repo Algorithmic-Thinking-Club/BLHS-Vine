@@ -34,16 +34,30 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
   /* ADVISORY IS ALWAYS A SEAT, chosen or not, because every student is in it and
    * because it is the first thing that can fill the wall. Its ledger id is the
    * year's core beat, which is the same id the beat runner records under. */
-  /* a frame only fills on a passing grade; a failed try stays empty */
+  /* ---- A FRAME FILLS WHEN THE THING WAS DONE, NOT WHEN IT WENT WELL ------
+   *
+   * ASH, 2026-09-08 item 5: *"A pick always completes when it is played; a
+   * retake under a B- is offered, never required."*
+   *
+   * It used to need a passing grade, and that is what Ash played as Air Force
+   * JROTC hanging. That beat scores exactly one item, so one wrong click is a
+   * flat F: the year counted the pick as finished, the sheet replaced the button
+   * with a letter, the retake was spent, and the wall sat there with an empty
+   * frame reading "You got an F. Sit the class again" beside no control anywhere
+   * that would sit it. Done and unearned at the same time, with no way back in.
+   *
+   * So the frame is about ATTENDANCE and the caption is about the grade. A
+   * student who sat it sees it filled and sees what he got, which is what a
+   * trophy case in a school actually holds. */
   const core = done(coreBeatId(year))
   const corePassed = !!core && core.grade >= PASSING_GRADE
   out.push({
     id: 'advisory',
     name: 'Advisory',
     kind: 'advisory',
-    earned: corePassed,
-    says: corePassed ? `${letter(core!.grade)}, credit earned` : null,
-    wants: core ? `You got an ${letter(core.grade)}. Do Advisory again at the hearth` : 'Finish Advisory at the hearth',
+    earned: !!core,
+    says: core ? (corePassed ? `${letter(core.grade)}, credit earned` : `${letter(core.grade)}, no credit`) : null,
+    wants: 'Finish Advisory at the hearth',
   })
 
   for (const [, id] of Object.entries(plan.slots)) {
@@ -59,7 +73,7 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
       kind: 'activity',
       earned: !!c,
       says: c ? (c.rank ? `${letter(c.grade)}, ${c.rank}` : letter(c.grade)) : null,
-      wants: 'Sail there and finish it',
+      wants: 'Go to it from your year sheet',
     })
   }
 
@@ -73,9 +87,12 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
        * the course is a true thing about the school. */
       name: cl?.name ?? id,
       kind: 'class',
-      earned: passed,
-      says: passed ? `${letter(row!.grade)}, credit earned` : null,
-      wants: row ? `You got an ${letter(row.grade)}. Sit the class again` : 'Sit the class and pass it',
+      earned: !!row,
+      /* CREDIT IS A SEPARATE FACT FROM THE FRAME and the caption carries it. A
+       * counted pick (no island yet) is written with a real credit and a B, so
+       * this reads the same as a sat one until somebody builds the island. */
+      says: row ? (passed ? `${letter(row.grade)}${row.credit ? ', credit earned' : ', counted'}` : `${letter(row.grade)}, no credit`) : null,
+      wants: 'Go to it from your year sheet',
     })
   }
 

@@ -1,8 +1,7 @@
 /* the one thing the player is supposed to do next, named as an anchor on a map */
 import type { SaveGame } from '../save'
-import { shownName } from '../roster/placeholders'
-import { classById } from '../planner/catalog'
 import { sessionOver, yearStatus } from './year'
+import { picksOf } from './pick'
 
 export type Objective = {
   /* the anchor this points at. Every map that can be the objective's home has to
@@ -83,40 +82,28 @@ export function nextObjective(s: SaveGame | null): Objective | null {
     }
   }
 
-  /* ---- THE MIDDLE OF YEAR ONE IS THE TWO CLASSES -------------------------
+  /* ---- THE MIDDLE OF YEAR ONE IS WHAT HE PICKED ---------------------------
    *
-   * ASH, 2026-09-08: *"The middle of year one is the two classes… after the
-   * handover the objective bar says 'Go to <first class>. Open My Year.'"*
+   * ASH, 2026-09-08 item 4: *"one button per pick, the roster decides"*, and the
+   * bar is the other half of that: *"marks it complete... and the bar names the
+   * next pick."*
    *
-   * With no island on the roster this is the whole of the year between the
-   * handover and the ending, and it was the missing middle: a student was handed
-   * the room and the bar said "Explore. Talk to anyone." over a hall he had just
-   * been walked round. The two classes were on his sheet, scored, and moving the
-   * only cords this game can move, and nothing anywhere sent him to them.
+   * There were two clauses here and they were the same clause. One named a class
+   * and sent him to the year sheet; the other named a club and sent him to the
+   * harbour, and only if somebody had built its island, because a club with no
+   * island could not be finished. Both of those are now one row on one sheet with
+   * one button that always finishes it, so this is one clause.
    *
-   * IT NAMES THE CLASS AND THE DOOR TO IT. "Open My Year" is the second half on
-   * purpose: the class is sat from the year sheet, which is a corner button
+   * IT NAMES THE PICK AND THE DOOR TO IT. "Open My Year" is the second half on
+   * purpose: a pick is played from the year sheet, which is a corner button
    * rather than a place in the room, so a sentence naming only the class would
    * send a student looking for a classroom that is not painted. */
-  if (y.classesPending.length) {
-    const next = classById(y.classesPending[0])
-    const name = next?.name ?? y.classesPending[0]
+  const owed = picksOf(s).find((p) => !p.done)
+  if (owed) {
     return {
       anchor: 'chart_table', map: MAW_MAP, phase: 'class',
-      say: `Go to ${name}. Open My Year.`,
-      away: `Go into the mountain. ${name} is on your year sheet.`,
-    }
-  }
-
-  /* out to the water, pointing at the exit, and only for a voyage that can be sailed */
-  const sailable = y.voyages.filter((v) => !v.done && v.playable)
-  if (sailable.length) {
-    const next = sailable[0]
-    return {
-      anchor: 'maw_entrance', map: MAW_MAP, phase: 'voyage',
-      /* the programme name the student saw on the card, not the roster's raw one */
-      say: `Go out to the harbor and sail to ${shownName(next.programmeId, next.name)}.`,
-      away: `Get in the boat and sail to ${shownName(next.programmeId, next.name)}.`,
+      say: `${owed.map ? `Sail to ${owed.name}` : `Go to ${owed.name}`}. Open My Year.`,
+      away: `Go into the mountain. ${owed.name} is on your year sheet.`,
     }
   }
 
@@ -131,8 +118,12 @@ export function nextObjective(s: SaveGame | null): Objective | null {
        * principal really was waiting to start everything. This one says WHY he
        * is being sent, and the second sentence is the only thing on the glass
        * that tells him the year is over before the film says so. */
-      say: 'Find the principal. Year one is done.',
-      away: 'Go back into the mountain. Year one is done.',
+      /* ASH, 2026-09-08 item 6: *"When every pick is done the bar says 'Go back
+       * to the Maw. The principal is waiting.'"* His words, both halves: where
+       * to go and who is there, which is the only sentence in the year that
+       * tells a student it is over before a film says so. */
+      say: 'Go back to the Maw. The principal is waiting.',
+      away: 'Go back to the Maw. The principal is waiting.',
     }
   }
 

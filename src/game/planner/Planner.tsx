@@ -6,7 +6,7 @@ import {
 } from './catalog'
 /* what a season token may be spent on is the roster's, not the planner's. A slot
  * points at a programme id and the roster says what programmes exist. */
-import { PROGRAMMES, islandForClass, programmeById, seasonOf } from '../roster/roster'
+import { PROGRAMMES, programmeById, seasonOf } from '../roster/roster'
 import {
   assignSlot, clearSlot, dropClass, loadSave, pickClass, SEASONS, stampPlan, subscribeSave,
   type Season, type YearPlan,
@@ -14,9 +14,9 @@ import {
 import { cordsOf, letterOf } from '../progress'
 import { beatDone } from '../beats/beats'
 import { classDone } from '../beats/classes'
-import { retakeAvailable } from '../beats/score'
 import { firstLook, markLooked } from '../hud/first-look'
 import { yearStatus } from '../run/year'
+import { picksOf, pickVerb, type Pick } from '../run/pick'
 import { nextObjective } from '../run/objective'
 import { refuseClass, refuseSlot } from '../run/refusal'
 import { yearbookYears, yearTurned } from '../run/yearbook-page'
@@ -60,10 +60,13 @@ type Airborne = {
 /** what is refused, and where the sentence has to appear */
 type Refusal = { where: Season | 'classes'; why: string }
 
-export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
+export function Planner({ onClose, onAdvisory, onPlayPick, onYearbook }: {
   onClose: () => void
   onAdvisory?: () => void
-  onSitClass?: (classId: string) => void
+  /* ONE BUTTON PER PICK (Ash, 2026-09-08 item 4). The sheet says what a pick is
+   * and presses it; what a press MEANS, a voyage or a card, is the roster's and
+   * the HUD's business and not this panel's. */
+  onPlayPick?: (pick: Pick) => void
   onYearbook?: () => void
 }) {
   const [, bump] = useState(0)
@@ -71,6 +74,9 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
   const s = loadSave()
   const year = s?.year ?? 1
   const plan: YearPlan = s?.plans[year] ?? { slots: {}, classes: [], stamped: false }
+  /* what he picked, as one list with one verb, so a class row and a club card
+   * cannot drift apart again (`run/pick.ts` says why they are one thing) */
+  const picks = picksOf(s, year)
 
   const openedAt = useRef(Date.now())
   const changes = useRef(0)
@@ -396,6 +402,20 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                       {!plan.stamped && (
                         <Plank size="sm" wide onClick={() => lift(season)}>remove this activity</Plank>
                       )}
+                      {/* AND A CLUB GETS THE SAME ONE BUTTON A CLASS GETS. It never
+                          had one: a season slot was a thing you chose and then
+                          could not do anything with until an island existed, which
+                          is three of a student's four picks sitting inert on the
+                          sheet that is supposed to be his to-do list. */}
+                      {plan.stamped && (() => {
+                        const pick = picks.find((q) => q.kind === 'activity' && q.id === committed.id)
+                        if (!pick) return null
+                        return pick.done
+                          ? <div className="pl-card-done">done</div>
+                          : onPlayPick && (
+                            <Plank size="sm" wide onClick={() => onPlayPick(pick)}>{pickVerb(pick)}</Plank>
+                          )
+                      })()}
                     </div>
                   ) : plan.stamped ? (
                     <div className="pl-open">left open this year</div>
@@ -519,6 +539,7 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                 const hint = cordHint(c.tags)
                 const sat = classDone(s.ledger, id)
                 const grade = sat ? s.ledger.find((e) => e.id === `class:${id}`)?.grade : undefined
+                const pick = picks.find((q) => q.kind === 'class' && q.id === id)
                 return (
                   <div className="pl-class" key={id}>
                     <span className="pl-class-name">{c.name}</span>
@@ -535,24 +556,13 @@ export function Planner({ onClose, onAdvisory, onSitClass, onYearbook }: {
                       </Plank>
                     )}
                     {plan.stamped && (sat
-                      ? (
-                        <>
-                          <span className="pl-class-grade">{grade !== undefined ? letterOf(grade) : 'passed'}</span>
-                          {/* the Universal Retake (§8.1), from the sheet too: under a B-, once */}
-                          {onSitClass && retakeAvailable(s, `class:${id}`) && (
-                            <Plank size="sm" onClick={() => onSitClass(id)}>retake</Plank>
-                          )}
-                        </>
-                      )
-                      : onSitClass && (
-                        <Plank size="sm" onClick={() => onSitClass(id)}>
-                          {/* ONE BUTTON, TWO DESTINATIONS, and the roster picks
-                              (`islandForClass`). Today every course is a beat on
-                              this sheet; the day a course has a painted island
-                              the same press sails there and only the word
-                              changes, rather than a second control appearing. */}
-                          {islandForClass(id) ? 'sail there' : 'go to class'}
-                        </Plank>
+                      ? <span className="pl-class-grade">{grade !== undefined ? letterOf(grade) : 'done'}</span>
+                      : onPlayPick && pick && (
+                        /* ONE BUTTON, TWO FUTURES, and the roster picks. Today no
+                           course has an island, so it reads "Go" and counts the
+                           pick; the day somebody paints one the same press is a
+                           voyage and only the word changes. */
+                        <Plank size="sm" onClick={() => onPlayPick(pick)}>{pickVerb(pick)}</Plank>
                       ))}
                   </div>
                 )

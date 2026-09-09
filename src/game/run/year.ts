@@ -99,7 +99,22 @@ export function yearStatus(s: SaveGame, forYear = s.year): YearStatus {
      * voyage is held by `nextObjective`'s own clause, which counts only the
      * playable ones, so an island nobody has built can never hold a year open.
      * Two gates for two kinds of thing, and the second one already existed. */
-    readyForYearbook: plan.stamped && coreBeatDone && classesPending.length === 0,
+    /* ---- AND EVERY PICK, NOT ONLY THE CLASSES (Ash, 2026-09-08 item 6) -----
+     *
+     * *"THE YEAR ENDS in the Maw. When every pick is done the bar says 'Go back
+     * to the Maw. The principal is waiting.'"*
+     *
+     * The voyages used to be left out of this expression and had to be: a club
+     * whose island nobody had built could never be finished, so counting it here
+     * would have held year one open for ever, and the objective's own voyage
+     * clause counted only the playable ones as a way round that.
+     *
+     * ITEM 4 CLOSED THAT HOLE. Every pick now has exactly one button and it
+     * always finishes the pick: a voyage where there is an island, a card that
+     * counts it where there is not. So nothing on this sheet can be unfinishable
+     * any more, and the year gate can mean what it says. */
+    readyForYearbook: plan.stamped && coreBeatDone
+      && classesPending.length === 0 && voyages.every((v) => v.done),
     yearbookSeen: s.flags.includes(`yearbook:y${year}`),
   }
 }

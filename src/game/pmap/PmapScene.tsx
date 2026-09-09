@@ -41,7 +41,7 @@ import {
   voyage as travelPlan, LEG_CEILING_MS,
 } from '../world/travel'
 import { stateOf, STATE_INK } from '../world/states'
-import { onSailRequest } from '../world/sail-bus'
+import { onSailRequest, onVoyageRequest } from '../world/sail-bus'
 import {
   newHull, stepHull, berthHelm, DEFAULT_SAIL, HELM_IDLE,
   type Berthing, type Helm, type HullState,
@@ -332,6 +332,7 @@ export default function PmapScene() {
     let cancelPlayerWalk = () => { /* no scene yet */ }
     /* and the chart's own way into the water, taken down with the scene */
     let offSail = () => { /* no ocean yet */ }
+    let offVoyage = () => { /* nothing to sail to yet */ }
     const offHold = onWorldHold((held) => { if (held) { dropKeys(); cancelPlayerWalk() } })
 
     /* the movie: a world hold puts this scene's furniture away, and these two follow it too */
@@ -3702,6 +3703,33 @@ export default function PmapScene() {
         beginExit({ map: s.map, at: s.berth?.at })
       }
 
+      /* ---- THE WHOLE JOURNEY, ASKED FOR BY A PANEL -----------------------
+       *
+       * ASH, 2026-09-08 item 3: *"pressing a pick puts Thor at his current
+       * island's dock, he presses E on his ship, the bars go up, the ship sails
+       * herself to that pick's island, he steps off, the island's card plays."*
+       *
+       * Which is `sail_to`, the word a member's island already writes, and the
+       * only thing missing was a way for React to say it. The year sheet's one
+       * button per pick and the travel map's pins both come through here, so
+       * there is exactly one voyage in this game and three doors into it.
+       *
+       * IT IS OFFERED FROM ANY MAP, not only from one with water: the first leg
+       * of the journey is the walk out of the room and `sail_to` owns that. Its
+       * own four refusals are the gate, and they name what can be sailed to. */
+      offVoyage = onVoyageRequest((want, answer) => {
+        if (fade || busy || runtime.running) {
+          answer({ ok: false, why: 'Not while something else is happening.' }); return
+        }
+        if (travelPlan()) { answer({ ok: false, why: 'You are already on your way.' }); return }
+        try {
+          void intentWorld.sailTo(want)
+          answer({ ok: true })
+        } catch (e) {
+          answer({ ok: false, why: e instanceof Error ? e.message : 'There is no way to sail there.' })
+        }
+      })
+
       /* the chart can send her: a click is a destination, and the line is checked first */
       /* and it is only offered where there is water, so a room grows no Sail button */
       if (canSail && berth) offSail = onSailRequest(mapId, (want, answer) => {
@@ -5099,6 +5127,7 @@ export default function PmapScene() {
       window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku)
       offHold()
       offSail()
+      offVoyage()
       /* the cinema bars come down with the scene, unless a film walked through a door */
       offCinema()
       movieHold?.(); movieHold = null

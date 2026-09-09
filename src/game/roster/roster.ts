@@ -265,7 +265,18 @@ export const programmesAt = (placeId: PlaceId | undefined): Programme[] =>
  * gave its place a painting. Nothing in the catalog does today, so every class is
  * a beat and the button says so. */
 export function islandForClass(classId: string): { programme: Programme; map: string } | null {
-  const g = PROGRAMMES.find((p) => p.id === classId)
+  return islandForProgramme(classId)
+}
+
+/* ---- AND THE SAME QUESTION FOR A CLUB OR A SPORT -------------------------
+ *
+ * ASH, 2026-09-08 item 4: *"one button per pick, the roster decides"*. A club
+ * and a class are the same question with the same answer, and asking it twice in
+ * two places is how they came to have two different controls. `islandForClass`
+ * is now this with the course id passed in, kept because a dozen callers say it
+ * and it is the sentence they mean. */
+export function islandForProgramme(id: string | undefined): { programme: Programme; map: string } | null {
+  const g = PROGRAMMES.find((p) => p.id === id)
   if (!g?.playable) return null
   const place = PLACES.find((pl) => pl.id === g.place)
   const map = place?.arrival ?? place?.maps[0]

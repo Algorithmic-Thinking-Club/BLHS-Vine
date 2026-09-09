@@ -1,8 +1,7 @@
 // the year's tasks as a list under the objective bar, derived from the save rather than stored
 import type { SaveGame } from '../save'
-import { classById } from '../planner/catalog'
-import { shownName } from '../roster/placeholders'
 import { sessionOver, yearStatus } from './year'
+import { picksOf } from './pick'
 
 export type Task = {
   /** stable across renders, and never shown */
@@ -41,25 +40,19 @@ export function tasksOf(s: SaveGame | null): Task[] {
     ...(st.coreBeatDone ? {} : { note: 'At the fire, inside the Panther’s Maw' }),
   })
 
-  // the classes on this year's schedule, since they are the only thing that moves a cord
-  for (const id of s.plans[st.year]?.classes ?? []) {
-    const c = classById(id)
+  /* ---- EVERY PICK, WITH ONE NOTE, BECAUSE THERE IS ONE BUTTON ------------
+   *
+   * ASH, 2026-09-08 item 4. A class row and a club row used to be built by two
+   * loops with two different notes ("Sit it from your schedule" against "Sail
+   * there from the harbor") and a third state for a club nobody had built. There
+   * is one control now and it always finishes the pick, so there is one row
+   * shape, and nothing on this sheet is barred any more. */
+  for (const p of picksOf(s)) {
     out.push({
-      id: `class:${id}`,
-      name: c?.name ?? id,
-      done: st.classesDone.includes(id),
-      ...(st.classesDone.includes(id) ? {} : { note: 'Sit it from your schedule' }),
-    })
-  }
-
-  for (const v of st.voyages) {
-    out.push({
-      id: `voyage:${v.programmeId}`,
-      name: shownName(v.programmeId, v.name),
-      done: v.done,
-      ...(v.playable
-        ? (v.done ? {} : { note: 'Sail there from the harbor' })
-        : { barred: true, note: 'Nobody has built this island yet' }),
+      id: `${p.kind === 'class' ? 'class' : 'voyage'}:${p.id}`,
+      name: p.name,
+      done: p.done,
+      ...(p.done ? {} : { note: p.map ? 'Sail there from your year sheet' : 'Open My Year and go' }),
     })
   }
 
@@ -70,7 +63,7 @@ export function tasksOf(s: SaveGame | null): Task[] {
     ...(st.yearbookSeen || sessionOver(s)
       ? {}
       : st.readyForYearbook
-        ? { note: 'The principal is waiting in the Maw' }
+        ? { note: 'Go back to the Maw. The principal is waiting' }
         : { barred: true, note: 'After your schedule and Advisory' }),
   })
 

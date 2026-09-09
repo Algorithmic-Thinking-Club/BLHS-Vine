@@ -22,7 +22,10 @@ import { onBeatRequest, onUiRequest } from '../ui-bus'
 import { onWorldHold, worldHeld } from '../world-bus'
 import { onPlaceCard, onSceneDrawn, onStageBusy, placeCardUp, sceneDrawn } from '../stage/stage-bus'
 import { FOUNDING_FLAG } from '../run/objective'
-import { panelDepth, usePanel } from '../ui/a11y'
+import { announce, panelDepth, usePanel } from '../ui/a11y'
+import { awarded, note } from '../ui/feedback'
+import { countAsDone, noIslandLine } from '../run/pick'
+import { requestVoyage } from '../world/sail-bus'
 import { faceStyle } from '../ui/kitFaceStyle'
 import { Glyph, Plank, useKitReady } from '../ui/controls'
 import { hudGrants, type HudElement } from './inventory'
@@ -50,7 +53,6 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const [book, setBook] = useState<null | HandbookTab>(null)
   const [planner, setPlanner] = useState(false)
   const [advisory, setAdvisory] = useState(false)
-  const [sitClass, setSitClass] = useState<string | null>(null)
   const [yearbook, setYearbook] = useState(false)
   const [graduation, setGraduation] = useState(false)
   const [paused, setPaused] = useState(false)
@@ -98,7 +100,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   }
 
 
-  const anyOpen = book !== null || planner || settings || advisory || sitClass !== null
+  const anyOpen = book !== null || planner || settings || advisory
     || yearbook || graduation || wardrobe || wall || playing !== null
 
   /* Escape pauses, but only when no panel is up to answer it first */
@@ -106,13 +108,13 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     const key = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.repeat) return
       if (panelDepth() > 0) return                                            // a panel is on top and has already answered
-      if (planner || advisory || sitClass || yearbook || graduation) return   // the sheet eats its own Esc; a beat never Esc-quits
+      if (planner || advisory || yearbook || graduation) return   // the sheet eats its own Esc; a beat never Esc-quits
       /* a pure toggle; the world lease is taken in the effect below instead */
       setPaused((p) => !p)
     }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
-  }, [planner, advisory, sitClass, yearbook, graduation, onBlurWorld])
+  }, [planner, advisory, yearbook, graduation, onBlurWorld])
 
   /* the world hold is derived from what is open, so no panel can forget to release it */
   const heldByUs = useRef(false)
@@ -169,7 +171,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const openBook = (tab: HandbookTab) => { setPaused(false); setBook(tab) }
   const openPlanner = () => { setPaused(false); setPlanner(true) }
   const closeAll = () => {
-    setBook(null); setPlanner(false); setAdvisory(false); setSitClass(null); setYearbook(false)
+    setBook(null); setPlanner(false); setAdvisory(false); setYearbook(false)
     setGraduation(false); setPaused(false); setSettings(false); setWardrobe(false); setWall(false)
     /* whoever asked for a beat is told it ended, even when it ended by being closed */
     setPlaying((p) => { p?.done(gradeFromLedger(p.beat.id)); return null })
@@ -197,7 +199,6 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   }, [])
 
   const yearBeat = s ? coreBeatFor(s.year, s) : null
-  const sitClassDef = sitClass ? classById(sitClass) : null
   // the year-start vignette (§7.5 minute one): once per year, only while the
   // world is quiet, and an arrival card on screen is the world not being quiet
   /* and it waits for the arrival card first: where you are, then what the year is */
@@ -273,19 +274,41 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
         <Planner
           onClose={closeAll}
           onAdvisory={() => { setPlanner(false); setAdvisory(true) }}
-          onSitClass={(id) => {
+          onPlayPick={(pick) => {
+            /* ---- ONE BUTTON PER PICK, AND THIS IS WHAT IT DOES --------------
+             *
+             * ASH, 2026-09-08 item 4: *"A pick with an island: the button reads
+             * 'Sail to <name>' and sails there. A pick with no island: the button
+             * reads 'Go', opens a card '<name>: no island yet. Counted as done.',
+             * marks it complete, fills its frame on the wall, and the bar names
+             * the next pick."*
+             *
+             * THE SHEET SHUTS EITHER WAY, because both roads are things that
+             * happen in the world: a voyage needs the map underneath it and the
+             * card is drawn by the same runner every other card in this game is.
+             * A panel left open over a ship casting off was the old shape and it
+             * is why the year sheet used to reopen itself afterwards.
+             *
+             * NOTHING HERE PLAYS A QUIZ. `classBeat` used to be the destination
+             * and a single wrong click on its one scored item was a terminal F on
+             * a pick the year then counted as done, which Ash played as a hang.
+             * Advisory is still a real beat at the hearth; a class is a place. */
             setPlanner(false)
-            /* THE SAME PRESS, ONE DESTINATION TODAY. Ash, 2026-09-08: *"when a
-               class has an island, the same button sails there instead, decided
-               by the roster, no second button."* `islandForClass` is that
-               decision and it answers null for every course in the catalog,
-               because no course carries a playable programme with a painted
-               place. `Planner` already reads it for the button's word; the day
-               it answers, this is the line that changes, and the sheet does not.
-               Wiring a voyage nothing can reach would be a second untested path
-               through the year, which is how the unreachable half of this
-               repository got written. */
-            setSitClass(id)
+            if (pick.map) {
+              void requestVoyage(pick.map).then((a) => {
+                if (a.ok) { announce(`Sailing to ${pick.name}.`); return }
+                /* a refused voyage is not a lost pick: he is told, and the sheet
+                 * comes back with the same button still on it */
+                announce(a.why)
+                note(a.why)
+                setPlanner(true)
+              })
+              return
+            }
+            countAsDone(pick)
+            track('pick_counted', { id: pick.id, kind: pick.kind })
+            awarded(noIslandLine(pick), 'It goes on your year sheet and on the wall.')
+            announce(noIslandLine(pick))
           }}
           onYearbook={() => { setPlanner(false); setYearbook(true) }}
         />
@@ -295,9 +318,6 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       {playing && <CoreBeatRunner beat={playing.beat} forceArm={playing.plain ? 'plain' : undefined} onClose={closeAll} />}
       {wall && <TrophyWall onClose={closeAll} />}
       {wardrobe && <Wardrobe onClose={closeAll} />}
-      {sitClass && sitClassDef && s && (
-        <CoreBeatRunner beat={classBeat(sitClassDef, s.year)} onClose={() => { setSitClass(null); setPlanner(true) }} />
-      )}
       {yearbook && <Yearbook onClose={closeAll} onGraduate={() => { setYearbook(false); setGraduation(true) }} />}
       {graduation && <Graduation onClose={closeAll} />}
       {showVignette && s && <YearStart year={s.year} onDone={() => bump((v) => v + 1)} />}

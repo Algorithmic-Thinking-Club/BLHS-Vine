@@ -19,10 +19,17 @@ export const emptyScore = (beat: CoreBeat): BeatScore => ({
 export const gradeOf = (s: BeatScore): number =>
   s.total === 0 ? 4 : Math.round((s.earned / s.total) * 4 * 100) / 100
 
-/** B- on the real BLHS scale (docs/blhs/sourced-facts.md §grading: B- = 2.7) — the retake
- *  threshold. It is a GAME rule about when a retake is offered and is never printed as the
- *  school's; the school's own trigger is under 79% with legitimate effort. */
-export const RETAKE_BELOW = 2.7
+/** B- ON THE SCALE THIS GAME PRINTS, which is `progress.ts`'s `letterOf`, where
+ *  B- starts at 2.5. It was 2.7 and that was one number disagreeing with another:
+ *  a 2.6 printed the letter "B-" in the result card's big mark and, ten lines
+ *  under it, the sentence "You scored under a B-, so you can take this again". A
+ *  2-of-3 lands there, which is an ordinary way to finish an ordinary beat.
+ *
+ *  It is a GAME rule about when a retake is OFFERED, never printed as the
+ *  school's; the school's own trigger is under 79% with legitimate effort. And it
+ *  is only ever an offer: nothing in the year waits on a retake being taken
+ *  (Ash, 2026-09-08 item 5), which `run/wall.ts` is the other half of. */
+export const RETAKE_BELOW = 2.5
 
 /** may this beat be retaken right now? (§8.1: under B-, once, per the ledger's memory) */
 export function retakeAvailable(save: SaveGame, beatId: string): boolean {

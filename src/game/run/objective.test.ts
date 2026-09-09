@@ -86,10 +86,13 @@ describe('the phase an island reads', () => {
       credit: 0.5, grade: 4, year: 1, season: 'Fall',
     })
     const o = objective.nextObjective(save.loadSave())
-    expect(objective.objectiveLine(o, 'hub')).toBe('Go back into the mountain. Year one is done.')
-    /* and on the Maw itself it is still the short one, because he is standing in
-     * the room the man is in */
-    expect(objective.objectiveLine(o, 'panther-maw')).toBe('Find the principal. Year one is done.')
+    expect(objective.objectiveLine(o, 'hub')).toBe('Go back to the Maw. The principal is waiting.')
+    /* ONE SENTENCE ON BOTH SIDES OF THE DOOR (Ash, 2026-09-08 item 6). It used
+     * to shorten on the Maw's own map, on the reasoning that a student standing
+     * in the room does not need telling which room. He does: the man is one of
+     * six people in a hall and "the principal is waiting" is the half that says
+     * which. */
+    expect(objective.objectiveLine(o, 'panther-maw')).toBe('Go back to the Maw. The principal is waiting.')
   })
 })
 

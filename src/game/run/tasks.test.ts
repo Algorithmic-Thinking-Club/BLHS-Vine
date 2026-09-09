@@ -68,18 +68,25 @@ describe('the year as a list', () => {
     expect(row(list, 'plan').done).toBe(true)
   })
 
-  it('marks an island nobody has built as barred, not as failed', async () => {
+  /* ---- NOTHING ON THE SHEET IS BARRED ANY MORE ---------------------------
+   *
+   * ASH, 2026-09-08 item 4. A club nobody had built used to be drawn differently
+   * from a club he had not got to yet, because it was a different thing: there
+   * was no control anywhere that could finish it. There is one now, so a row
+   * whose island does not exist is an ordinary unfinished row, and the note says
+   * which button finishes it rather than apologising for the island. */
+  it('leaves an island nobody has built as an ordinary unfinished row', async () => {
     const { save, tasks } = await fresh()
     started(save)
     save.assignSlot(1, 'Fall', 'football')
     save.stampPlan(1, ['football'])
     const hit = row(tasks.tasksOf(save.loadSave()), 'voyage:football')
-    expect(hit.barred).toBe(true)
+    expect(hit.barred).toBeUndefined()
     expect(hit.done).toBe(false)
-    expect(hit.note).toMatch(/nobody has built/i)
+    expect(hit.note).toBe('Open My Year and go')
   })
 
-  it('leaves a barred row out of the count, so a finished year reads finished', async () => {
+  it('counts every pick, since every pick can be finished', async () => {
     const { save, tasks } = await fresh()
     started(save)
     save.setFlag('maw:founding'); save.setFlag('vignette:y1')
@@ -90,13 +97,16 @@ describe('the year as a list', () => {
       id: 'core:y1', title: 'Advisory', kind: 'core', credit: 0.5,
       grade: 4, year: 1, season: 'Fall',
     })
+    save.recordCompletion('football', 3)
     save.setFlag('yearbook:y1')
     const list = tasks.tasksOf(save.loadSave())
     const { done, total } = tasks.tasksDone(list)
-    /* six rows, five of them counted: an island nobody has built is left out */
+    /* six rows and all six counted, because all six have a button. Four are
+     * ticked: the schedule, Advisory, the club that was counted, and the year's
+     * own last row; the two classes were never sat. */
     expect(list).toHaveLength(6)
-    expect(total).toBe(5)
-    expect(done).toBe(3)
+    expect(total).toBe(6)
+    expect(done).toBe(4)
   })
 
   it('agrees with the arrow about what is still owed', async () => {

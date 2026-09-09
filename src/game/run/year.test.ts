@@ -84,9 +84,21 @@ describe('yearStatus (§7.5 derived, resumable anywhere)', () => {
     expect(st.classesPending).toEqual(['spanish-1'])
     save.recordGrade({ id: 'class:spanish-1', title: 't', kind: 'class', credit: 0.5, grade: 3.43, year: 1, season: 'Winter', tags: ['lang'] })
 
+    /* ---- EVERY PICK HOLDS THE YEAR (Ash, 2026-09-08 items 4 and 6) --------
+     *
+     * The two clubs used to be exempt, because nothing could finish a club whose
+     * island nobody had built and the year would have hung on them for ever.
+     * There is one button per pick now and it always finishes the pick, so the
+     * exemption is gone and the gate means what it says. */
     st = yearStatus(save.loadSave()!)
-    expect(st.readyForYearbook).toBe(true)             // rising islands never block (§7.6)
+    expect(st.readyForYearbook).toBe(false)            // the two clubs are still owed
     expect(nudgeLine(st)).toContain('not open yet')
+
+    /* pressing each club's one button counts it (`run/pick.ts`, `countAsDone`) */
+    save.recordCompletion('football', 3)
+    save.recordCompletion('atc', 3)
+    st = yearStatus(save.loadSave()!)
+    expect(st.readyForYearbook).toBe(true)
 
     // the page turns
     save.setFlag('yearbook:y1')

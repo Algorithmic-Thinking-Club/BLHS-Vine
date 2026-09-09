@@ -59,3 +59,58 @@ export function onSailRequest(
     if (listening <= 0) { listening = 0; here = null }
   }
 }
+
+/* ---- THE WHOLE JOURNEY, ASKED FOR FROM A PANEL ----------------------------
+ *
+ * ASH, 2026-09-08: *"Pressing a pick puts Thor at his current island's dock, he
+ * presses E on his ship, the bars go up, the ship sails herself to that pick's
+ * island, he steps off, the island's card plays."*
+ *
+ * `requestSail` above is the OTHER kind of sailing and both are wanted. It hands
+ * the helm to a real hull on this painting's own ocean and steers it there in
+ * real time, which is what the chart's pin has always done and what makes the
+ * water feel like water. It cannot leave the painting: the line is sounded
+ * against this map's depth field, so anything further away than the canvas is
+ * refused as aground.
+ *
+ * This one is the journey between islands: walk out, board, bars, cross under a
+ * cover, tie up, step off, card. It is `sail_to`, the same word a member's island
+ * writes, reached from React so that a button on the year sheet and a line in
+ * somebody's python are the same machine. A member still writes nothing about
+ * travel; this is the engine asking itself.
+ *
+ * IT IS A SECOND EVENT AND NOT A FLAG ON THE FIRST because the two answer
+ * different questions ("can this hull reach that pin" against "is that island a
+ * place with a dock") and a scene that can do one may refuse the other. */
+const VOYAGE = 'blhs:voyage-to'
+
+type VoyageDetail = { map: string; answer: (a: SailAnswer) => void }
+
+let voyagers = 0
+
+/** how many scenes could take a voyage right now, so a panel can hide a dead button */
+export const voyageListenerCount = (): number => voyagers
+
+/** ask the world to sail the whole way to this map. Resolves on the decision. */
+export function requestVoyage(map: string): Promise<SailAnswer> {
+  return new Promise<SailAnswer>((resolve) => {
+    let settled = false
+    const answer = (a: SailAnswer) => { if (!settled) { settled = true; resolve(a) } }
+    window.dispatchEvent(new CustomEvent<VoyageDetail>(VOYAGE, { detail: { map, answer } }))
+    answer({ ok: false, why: 'There is nowhere to sail from right now.' })
+  })
+}
+
+export function onVoyageRequest(fn: (map: string, answer: (a: SailAnswer) => void) => void): () => void {
+  const h = (e: Event) => {
+    const d = (e as CustomEvent<VoyageDetail>).detail
+    if (d) fn(d.map, d.answer)
+  }
+  window.addEventListener(VOYAGE, h)
+  voyagers++
+  return () => {
+    window.removeEventListener(VOYAGE, h)
+    voyagers--
+    if (voyagers <= 0) voyagers = 0
+  }
+}
