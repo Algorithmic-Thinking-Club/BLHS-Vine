@@ -98,7 +98,10 @@ for (let i = 0; i < 460; i++) {
   if (r.bar && /Open My Year/i.test(r.bar) && !sawClassBar) {
     sawClassBar = r.bar; say(`*** THE BAR NAMES A CLASS: ${JSON.stringify(r.bar)} ***`)
   }
-  if (r.bar && /Find the principal/i.test(r.bar) && !sawEndBar) {
+  /* ASH, 2026-09-08 item 6, his own sentence: *"the bar says 'Go back to the
+   * Maw. The principal is waiting.'"* It used to read "Find the principal. Year
+   * one is done." and this watches for either, so an old deploy still reports. */
+  if (r.bar && /(Find the principal|The principal is waiting)/i.test(r.bar) && !sawEndBar) {
     sawEndBar = r.bar; say(`*** THE BAR SAYS THE YEAR IS DONE: ${JSON.stringify(r.bar)} ***`)
   }
   if (!turned && v.save?.flags?.includes('yearbook:y1')) {
@@ -126,7 +129,10 @@ for (let i = 0; i < 460; i++) {
   if (commit) { await hit(commit); continue }
   /* THE MIDDLE OF THE YEAR. The sheet's one button sits the class, or sails to it
    * the day the roster says so; the word changes and the press does not. */
-  const goClass = v.press.find((e) => !e.disabled && /^(go to class|sail there)$/i.test(e.text))
+  /* ASH, 2026-09-08 item 4 changed the word on it: a pick with no island reads
+   * "Go", one with an island reads "Sail to <name>", and the same press finishes
+   * the pick either way. The quiz that used to be behind "go to class" is gone. */
+  const goClass = v.press.find((e) => !e.disabled && /^(go|go to class|sail there|sail to .+)$/i.test(e.text))
   if (goClass) { await hit(goClass); continue }
   /* and the bar is the only thing that says where: My Year is a corner plaque,
    * which this run treats as chrome, so it is opened by name when the bar asks */
@@ -139,7 +145,7 @@ for (let i = 0; i < 460; i++) {
     if (opened) { await page.waitForTimeout(700); continue }
   }
   /* the ending is a press on the principal, and he is a station in the room */
-  if (r.bar && /Find the principal/i.test(r.bar) && r.map === 'panther-maw') {
+  if (r.bar && /(Find the principal|The principal is waiting)/i.test(r.bar) && r.map === 'panther-maw') {
     const fired = await page.evaluate(() => (window.__station ? window.__station('principal_desk') : 'no handle'))
     if (fired === 'fired') { await page.waitForTimeout(900); continue }
   }
