@@ -3,7 +3,10 @@
   position: fixed;
   left: 14px;
   top: 14px;
-  z-index: 96;                 /* over the movie bars, which are 95 */
+  /* over the movie bars (95) AND over the loading cover (90), because a cover in
+     the middle of a crossing is part of the crossing and the offer should not
+     blink out under it */
+  z-index: 96;
   font: 600 12px/1 var(--font-ui, system-ui, sans-serif);
   letter-spacing: 0.06em;
   padding: 7px 11px;

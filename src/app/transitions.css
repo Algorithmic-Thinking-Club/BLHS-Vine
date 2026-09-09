@@ -270,16 +270,22 @@ html[data-skin='plain'] .tr-out .tr-scene { animation-timing-function: linear; }
  * today the nineteen facts about the school could only reach him on a cover the
  * shipped game never plays. */
 .tr-scene-fact {
-  max-width: 46ch;
-  margin: 14px auto 0;
-  font: 400 13px/1.5 var(--font-ui, system-ui, sans-serif);
-  color: #efe6d2;
+  /* ON ITS OWN PLATE. Measured on the live cover 2026-09-08: cream type straight
+     on the painting landed on a sunset sky at almost no contrast and overlapped
+     the loading bar's own line. A cover is a painting and a sentence needs a
+     ground under it, the same way the place name has a band. */
+  max-width: 44ch;
+  margin: 22px auto 0;
+  padding: 9px 14px;
+  font: 400 13px/1.55 var(--font-ui, system-ui, sans-serif);
+  color: #f2ead6;
   text-align: center;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
-  opacity: 0.92;
+  background: rgba(14, 12, 10, 0.66);
+  border-radius: 3px;
 }
 html[data-skin='plain'] .tr-scene-fact {
   color: #101010;
-  text-shadow: none;
+  background: transparent;
+  padding: 0;
   font-size: 14px;
 }

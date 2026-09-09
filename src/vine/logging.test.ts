@@ -163,13 +163,13 @@ describe('the study endpoint saying it is offline', () => {
       return { ok: false, status: 503, json: async () => ({ offline: true }) } as unknown as Response
     }))
     const log = mkLogger('/api/log')
-    log.log('a', {})
+    log.log(EV)
     await log.flush()
     expect(calls).toHaveLength(1)
     /* and every later event is dropped rather than queued for a collector that
      * will never come */
-    log.log('b', {})
-    log.log('c', {})
+    log.log(EV)
+    log.log(EV)
     await log.flush()
     await log.flush()
     expect(calls, 'it asked again after being told there is no database').toHaveLength(1)
@@ -182,7 +182,7 @@ describe('the study endpoint saying it is offline', () => {
       return { ok: false, status: 500, json: async () => ({}) } as unknown as Response
     }))
     const log = mkLogger('/api/log')
-    log.log('a', {})
+    log.log(EV)
     await log.flush()
     await log.flush()
     expect(n, 'a dropped request is exactly what the retry is for').toBe(2)
