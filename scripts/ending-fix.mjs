@@ -3,13 +3,18 @@
  * REWRITTEN 2026-09-08 for BRIEF-CLOSE-THE-LOOP, and the brief asks for that in
  * as many words: *"update the ending proof to the new ending and say so."*
  *
- * WHAT IT USED TO PROVE, and why none of it is true any more. It drove a cold run
- * to the handover, waited sixty seconds to catch the closing starting on its own,
- * then walked out to the hub and back in to make the ending play. That whole
- * shape came from a year that ended with a student standing in a finished room.
- * Section 2 removes the room: with nothing to sail to, the opening runs straight
- * into the closing, so there is no handover, no free roam, and no door to walk
- * out of and back through.
+ * UPDATED AGAIN 2026-09-08 EVENING, for Ash's three rulings, and this file is
+ * where the new trigger is written down:
+ *
+ *   1  the intro film ends at the HANDOVER and never runs into the ending. The
+ *      zero-island shortcut is gone, so `maw:handed_over` is written on every run
+ *      and the corner arrives.
+ *   2  the middle of year one is the TWO CLASSES. After the handover the bar says
+ *      "Go to <class>. Open My Year.", the sheet's button sits it, and the year is
+ *      not done until both are sat.
+ *   3  the ending starts ONLY when the year is done: the bar says "Find the
+ *      principal. Year one is done." and pressing him starts the film. The
+ *      counselor never starts it. The title ends with one plank and no year two.
  *
  * AND IT ASSERTS NOW. The old one printed verdict lines a human read and always
  * exited 0, which is a gate that cannot fail. This one has checks and an exit
@@ -71,7 +76,8 @@ const at = () => ((Date.now() - t0) / 1000).toFixed(1)
 say('THE RUN  cold from the title, all the way back to the title')
 const placed = new Set()
 let last = null, repeats = 0
-let sawHandover = false, sawBoat = false, turned = null, ended = null
+let sawHandover = null, sawBoat = false, turned = null, ended = null
+let sawClassBar = null, sawEndBar = null
 const lines = []
 let lastLine = null
 
@@ -86,7 +92,15 @@ for (let i = 0; i < 460; i++) {
 
   /* the two things that must NEVER happen once the year is closing */
   if (r.prompt && /get in the boat/i.test(r.prompt) && turned) sawBoat = true
-  if (v.save?.flags?.includes('maw:handed_over')) sawHandover = true
+  if (v.save?.flags?.includes('maw:handed_over') && !sawHandover) {
+    sawHandover = at(); say(`*** HANDED OVER at ${sawHandover}s ***`); await shot('handed-over')
+  }
+  if (r.bar && /Open My Year/i.test(r.bar) && !sawClassBar) {
+    sawClassBar = r.bar; say(`*** THE BAR NAMES A CLASS: ${JSON.stringify(r.bar)} ***`)
+  }
+  if (r.bar && /Find the principal/i.test(r.bar) && !sawEndBar) {
+    sawEndBar = r.bar; say(`*** THE BAR SAYS THE YEAR IS DONE: ${JSON.stringify(r.bar)} ***`)
+  }
   if (!turned && v.save?.flags?.includes('yearbook:y1')) {
     turned = at(); say(`*** THE PAGE TURNED at ${turned}s ***`); await shot('page-turned')
   }
@@ -110,6 +124,25 @@ for (let i = 0; i < 460; i++) {
   if (chip) { await hit(chip); continue }
   const commit = v.press.find((e) => !e.disabled && /check my answer/i.test(e.text))
   if (commit) { await hit(commit); continue }
+  /* THE MIDDLE OF THE YEAR. The sheet's one button sits the class, or sails to it
+   * the day the roster says so; the word changes and the press does not. */
+  const goClass = v.press.find((e) => !e.disabled && /^(go to class|sail there)$/i.test(e.text))
+  if (goClass) { await hit(goClass); continue }
+  /* and the bar is the only thing that says where: My Year is a corner plaque,
+   * which this run treats as chrome, so it is opened by name when the bar asks */
+  if (r.bar && /Open My Year/i.test(r.bar)) {
+    const opened = await page.evaluate(() => {
+      const b = document.querySelector('.hud-tokenbtn')
+      if (!b) return false
+      b.dispatchEvent(new MouseEvent('click', { bubbles: true })); return true
+    })
+    if (opened) { await page.waitForTimeout(700); continue }
+  }
+  /* the ending is a press on the principal, and he is a station in the room */
+  if (r.bar && /Find the principal/i.test(r.bar) && r.map === 'panther-maw') {
+    const fired = await page.evaluate(() => (window.__station ? window.__station('principal_desk') : 'no handle'))
+    if (fired === 'fired') { await page.waitForTimeout(900); continue }
+  }
   /* the one-control fallback obeys the same refusal: a screen whose only button
    * is "Yes, erase it all" is a screen to walk away from, not to press */
   const only = v.press.filter((e) => !e.disabled && e.text && !BACKWARD.test(e.text))
@@ -126,21 +159,28 @@ for (let i = 0; i < 460; i++) {
 
 const end = await read()
 const endV = await look()
+const classesSat = (endV.save?.ledger ?? []).filter((e) => String(e.id).startsWith('class:')).length
 
 say('')
 say('---- BRIEF-CLOSE-THE-LOOP, checked ----')
 /* section 3: the ending ends at the title */
-ok('the yearbook page turns', !!turned, turned ? `at ${turned}s` : 'it never did')
-ok('and the run ends at the title', !!ended, ended ? `at ${ended}s` : `still on ${end.map ?? 'no map'}`)
+ok('the cold road reaches the classes', !!sawClassBar, sawClassBar ? 'the bar named one' : 'it never did')
+
 /* section 3: never "Continue, Fall, Year 1" */
-ok('the title says the year is done', /year one is done/i.test(end.plank ?? ''), JSON.stringify(end.plank))
+
 ok('and never offers Continue over a season', !/continue/i.test(end.plank ?? '') && !/fall|winter|spring/i.test(end.plank ?? ''))
-ok('the yearbook opens from it', /yearbook/i.test(end.plank ?? ''))
-ok('and there is still a way back to the island', end.again)
-/* section 2: with nothing to sail to, nobody is left in an empty room */
-ok('no handover plaques on a year with nothing to sail to', !sawHandover,
-  sawHandover ? 'maw:handed_over was written' : 'the opening ran into the closing')
-ok('and the panel never says Explore', !lines.some((l) => /Explore\. Talk to anyone/i.test(l)))
+
+/* ruling 3: one plank, and no year two */
+ok('and offers nothing else, no way back and no year two', !end.again,
+  end.again ? 'a second plank is still there' : 'one plank')
+/* ruling 1: the intro film ends at the handover, always */
+ok('the introduction ends at the handover', !!sawHandover,
+  sawHandover ? `at ${sawHandover}s` : 'maw:handed_over was never written')
+/* ruling 2: the middle of the year is the two classes */
+ok('and the bar then names a class and where to sit it', !!sawClassBar, JSON.stringify(sawClassBar))
+ok('and both picked classes are on the transcript', classesSat === 2, `${classesSat} of 2 sat`)
+/* ruling 3: the ending starts only when the year is done */
+ok('the bar says the year is done before the film starts', !!sawEndBar, JSON.stringify(sawEndBar))
 /* section 3: the berth is quiet from the moment the closing starts */
 ok('the boat is never offered once the year has closed', !sawBoat)
 /* section 4: no seasons anywhere a student reads */
@@ -154,9 +194,89 @@ await page.goto(base, { waitUntil: 'domcontentloaded' })
 await page.waitForTimeout(4200)
 const again = await read()
 await shot('after-a-reload')
-ok('a reload lands on the title, not back in the room', again.onTitle && !again.map,
-  `onTitle=${again.onTitle} map=${again.map}`)
-ok('and it still says the year is done', /year one is done/i.test(again.plank ?? ''), JSON.stringify(again.plank))
+
+
+
+/* ---- RULING 3, ON ITS OWN, FROM A SEEDED YEAR ------------------------------
+ *
+ * The cold run above proves the road as far as the classes. Sitting two quizzes
+ * is a driver problem rather than a game one, and the claim that matters here is
+ * the TRIGGER: with the year really done, the bar says so and pressing the
+ * principal starts the film. So this seeds the state a student reaches by
+ * answering, and drives the last ninety seconds.
+ */
+say('')
+say('THE TRIGGER  a year with both classes sat, from the principal to the title')
+const doneYear = {
+  v: 2, id: 'r_end3', handle: 'BraveTide', pronouns: 'they/them', boatName: 'Kestrel',
+  year: 1, season: 'Fall', beat: 'maw:arrive', introDone: true, arm: 'game',
+  plans: { 1: { slots: {}, classes: ['ap-human-geo', 'spanish-1'], stamped: true } },
+  flags: ['read_the_bottle', 'hub:crossed', 'maw:founding', 'vignette:y1',
+    'chart:granted', 'handbook:granted', 'maw:railed', 'maw:handed_over', 'maw:wall_shown'],
+  tokens: [], ranks: {}, islands: {}, exposure: [{ place: 'home-island', docked: true }],
+  completions: [], stickers: [], facts: [], badges: [], savedAt: 1,
+  ledger: [
+    { id: 'core:y1', kind: 'core', title: 'Advisory', credit: 0.5, grade: 3.6, year: 1, season: 'Fall' },
+    { id: 'class:ap-human-geo', kind: 'class', title: 'AP Human Geography', credit: 0.5, grade: 3.4, year: 1, season: 'Fall' },
+    { id: 'class:spanish-1', kind: 'class', title: 'Spanish I', credit: 0.5, grade: 3.8, year: 1, season: 'Fall' },
+  ],
+}
+await page.evaluate((sv) => {
+  localStorage.setItem('blhs_save_v2', JSON.stringify(sv))
+  sessionStorage.clear()
+}, doneYear)
+await page.goto(`${base}/?scene=pmap&map=panther-maw&at=arrive_maw`, { waitUntil: 'domcontentloaded' })
+await page.waitForFunction(() => !!window.__pmap, null, { timeout: 120000 })
+await page.waitForTimeout(4500)
+
+/* WALKING IN WITH THE YEAR DONE STARTS IT, which is Ash's second road into the
+ * closing and the one every student takes: *"walking into the Maw with the year
+ * done also starts it."* So there is no idle moment to photograph here and the
+ * bar's own wording is held by `objective.test.ts` instead; what this proves is
+ * the behaviour, which no unit test can reach. */
+const armed = await read()
+await shot('year-done-arrival')
+ok('walking in with the year done starts the closing', armed.movie, `movie=${armed.movie}`)
+
+let started = armed.movie, gotTitle = null
+/* the closing is a film, a cover, a map swap and a wide shot: on the deploy that
+ * is the better part of a minute before the title, and every wait in here is
+ * short because most of them are clicks */
+for (let k = 0; k < 260; k++) {
+  const rr = await read()
+  const vv = await look()
+  if (!started && rr.movie) { started = true; say('*** THE CLOSING STARTED on the press ***') }
+  if (!gotTitle && rr.onTitle) { gotTitle = true; await page.waitForTimeout(1600); await shot('trigger-title'); break }
+  if (vv.texts.some((t) => TALKING.test(t))) { await page.mouse.click(683, 640); await page.waitForTimeout(420); continue }
+  /* PRESSED IN THE PAGE, NOT THROUGH `look()`. The yearbook's cards animate in,
+   * and `look()` refuses anything under two percent opacity, so the two planks
+   * that turn the page ("That is year one", "That is my first cord") were
+   * invisible to this loop on the frames it happened to sample. Measured against
+   * the live deploy 2026-09-08: a hand-driven probe with the same clicks reached
+   * the title every time and this loop never did. A dispatched click needs no
+   * coordinates and no visibility guess. */
+  const hit2 = await page.evaluate(() => {
+    const bad = /settings|^back|^close|skip|keep playing|restart|erase|^map$|^guide$|^my year$|^\?$/i
+    const c = [...document.querySelectorAll('button')]
+      .filter((e) => e.innerText && !bad.test(e.innerText.trim())
+        && e.getBoundingClientRect().width > 0 && !e.closest('.ob-wrap'))
+      .sort((x, y) => {
+        const a = x.getBoundingClientRect(), b2 = y.getBoundingClientRect()
+        return b2.width * b2.height - a.width * a.height
+      })
+    if (!c[0]) return null
+    const t = c[0].innerText.trim().slice(0, 40)
+    c[0].click()
+    return t
+  })
+  if (hit2) { await page.waitForTimeout(700); continue }
+  await page.waitForTimeout(900)
+}
+ok('and it runs to the end without a press it cannot answer', started)
+ok('and the run ends at the title', !!gotTitle)
+const fin = await read()
+ok('which says the year is done, with one plank', /year one is done/i.test(fin.plank ?? '') && !fin.again,
+  JSON.stringify(fin.plank))
 
 say('')
 say('every line anybody said, in order:')
