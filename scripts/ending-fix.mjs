@@ -254,7 +254,15 @@ await page.evaluate((sv) => {
 }, doneYear)
 await page.goto(`${base}/?scene=pmap&map=panther-maw&at=arrive_maw`, { waitUntil: 'domcontentloaded' })
 await page.waitForFunction(() => !!window.__pmap, null, { timeout: 120000 })
-await page.waitForTimeout(4500)
+/* THE FILM STARTS WHEN THE ISLAND DOES, not on a stopwatch. A single sample at
+ * 4.5 seconds read a cold page whose python worker had not finished booting, so
+ * a road that works reported movie=false and then started nine seconds later.
+ * This waits for the frame the way a student waits for it, with a ceiling. */
+for (let k = 0; k < 40; k++) {
+  const r0 = await read()
+  if (r0.movie) break
+  await page.waitForTimeout(700)
+}
 
 /* ---- THE TRIGGER, AS ASH RULED IT ON 2026-09-08 (item 6) -------------------
  *
