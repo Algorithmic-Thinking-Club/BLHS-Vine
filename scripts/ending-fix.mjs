@@ -229,11 +229,22 @@ await page.goto(`${base}/?scene=pmap&map=panther-maw&at=arrive_maw`, { waitUntil
 await page.waitForFunction(() => !!window.__pmap, null, { timeout: 120000 })
 await page.waitForTimeout(4500)
 
-/* WALKING IN WITH THE YEAR DONE STARTS IT, which is Ash's second road into the
- * closing and the one every student takes: *"walking into the Maw with the year
- * done also starts it."* So there is no idle moment to photograph here and the
- * bar's own wording is held by `objective.test.ts` instead; what this proves is
- * the behaviour, which no unit test can reach. */
+/* ---- THE TRIGGER, AS ASH RULED IT ON 2026-09-08 (item 6) -------------------
+ *
+ * *"THE YEAR ENDS in the Maw. When every pick is done the bar says 'Go back to
+ * the Maw. The principal is waiting.' Walking into the Maw with the year done
+ * starts the ending film."*
+ *
+ * Which is what this drives, and it is a CHANGED trigger since the last time
+ * this script was written: the gate used to be the two classes alone, and it is
+ * now every pick the student made, clubs included, because item 4 gave every one
+ * of them a button that always finishes it. The seed above is a year with both
+ * classes sat and nothing else picked, which is the shape a student reaches by
+ * pressing Go twice on the year sheet.
+ *
+ * There is no idle moment to photograph here and the bar's own wording is held
+ * by `objective.test.ts`; what this proves is the behaviour, which no unit test
+ * can reach. */
 const armed = await read()
 await shot('year-done-arrival')
 ok('walking in with the year done starts the closing', armed.movie, `movie=${armed.movie}`)
@@ -256,7 +267,10 @@ for (let k = 0; k < 260; k++) {
    * the title every time and this loop never did. A dispatched click needs no
    * coordinates and no visibility guess. */
   const hit2 = await page.evaluate(() => {
-    const bad = /settings|^back|^close|skip|keep playing|restart|erase|^map$|^guide$|^my year$|^\?$/i
+    /* the chrome, which a driver must never press: the corner (Map, Guide, My
+       Year, and since 2026-09-08 Wall and You), the skips, and anything that
+       would restart the run out from under the thing being proved */
+    const bad = /settings|^back|^close|skip|keep playing|restart|erase|^map$|^guide$|^my year$|^wall$|^you$|^\?$/i
     const c = [...document.querySelectorAll('button')]
       .filter((e) => e.innerText && !bad.test(e.innerText.trim())
         && e.getBoundingClientRect().width > 0 && !e.closest('.ob-wrap'))
