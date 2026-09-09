@@ -366,6 +366,24 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onYearbook }: {
               <h3 className="pl-colhead">After school</h3>
               <p className="pl-empty">Nobody has built a club or sport island yet.</p>
               <p className="pl-note">Your two Elective periods are the whole of this year's picks.</p>
+              {/* ---- A CLUB ALREADY ON THE SHEET STILL HAS ITS BUTTON --------
+                *
+                * Nothing on the roster is playable today, so the seasons come off
+                * the sheet and a student cannot pick a club at all. A SAVE can
+                * still hold one: an older run, a member's island that shipped and
+                * was then turned off, a teacher's seeded device. Without this the
+                * pick would sit on the year gate with no control anywhere that
+                * finishes it, which is the exact shape item 4 exists to kill. */}
+              {picks.filter((p) => p.kind === 'activity').map((p) => (
+                <div className="pl-class" key={p.id}>
+                  <span className="pl-class-name">{p.name}</span>
+                  {p.done
+                    ? <span className="pl-class-grade">done</span>
+                    : onPlayPick && (
+                      <Plank size="sm" onClick={() => onPlayPick(p)}>{pickVerb(p)}</Plank>
+                    )}
+                </div>
+              ))}
             </section>
           ) : (
           <div className="pl-cols" role="group" aria-label="The three seasons">

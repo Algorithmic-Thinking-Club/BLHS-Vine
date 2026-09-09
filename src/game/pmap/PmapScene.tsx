@@ -3993,6 +3993,25 @@ const CAST_OFF_SHOW_MS = 3200
             })
             guideTarget = null
             if (skipToShore()) return
+            /* ---- THE WAY OUT MAY BE THE DESTINATION ------------------------
+             *
+             * "Home is the hub on that same map" (Ash, 2026-09-08 item 3), and
+             * the hub is exactly one door from the Maw. So a student who presses
+             * the hub on the chart while standing in the mountain has ARRIVED the
+             * moment he walks through the tunnel: there is no water to cross and
+             * no boat to get into.
+             *
+             * Without this the voyage set off on a crossing leg from the hub to
+             * the hub, `sail_to`'s own "you are already on it" refusal never got
+             * a chance to fire because the plan was already armed, and the
+             * journey sat on the crossing leg with the bars up. Measured on the
+             * first run of `travel-pick-proof.mjs`. */
+            if (door.to === v.to) {
+              endTravel('the door was the destination')
+              setCinema(false)
+              beginExit({ map: door.to!, at: door.toAnchor })
+              return
+            }
             setTravelLeg('crossing')
             beginExit({ map: door.to!, at: door.toAnchor })
             return

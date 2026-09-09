@@ -31,15 +31,17 @@ export function SkipVoyage() {
   useEffect(() => {
     if (!plan || gone) return
     const h = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      /* a panel open over the crossing owns Escape first, which is the settings
-       * sheet's rule everywhere else in the game */
-      if (document.querySelector('[data-panel-open="1"]')) return
+      if (e.key !== 'Escape' || e.repeat) return
+      /* ON THE WAY DOWN, AND IT KEEPS THE KEY. The HUD pauses the game on
+       * Escape, so without the capture and the stop a student who skipped a
+       * crossing also got the pause veil over the arrival he had just asked
+       * for. During a voyage this is the only thing Escape means. */
       e.preventDefault()
+      e.stopPropagation()
       take()
     }
-    window.addEventListener('keydown', h)
-    return () => window.removeEventListener('keydown', h)
+    window.addEventListener('keydown', h, true)
+    return () => window.removeEventListener('keydown', h, true)
   })
 
   const take = () => {
