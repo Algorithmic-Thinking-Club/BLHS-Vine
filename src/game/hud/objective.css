@@ -177,3 +177,22 @@ html[data-skin='plain'] .ob-sheet {
   color: var(--kit-ink, #1b1b1b);
 }
 html[data-skin='plain'] .ob-sheet-head { font-family: inherit; font-weight: 600; }
+
+/* ---- A ROW THAT DOES THE THING IT NAMES -----------------------------------
+ *
+ * Ash, 2026-09-08: the game needs guideability. A row for something still owed
+ * opens the panel its note names, so reading the sheet and acting on it are one
+ * press instead of two. A finished row is text, and looks like text. */
+.ob-task.is-live {
+  cursor: pointer;
+  border-radius: 3px;
+}
+.ob-task.is-live:hover,
+.ob-task.is-live:focus-visible {
+  background: rgba(255, 255, 255, 0.09);
+  outline: none;
+}
+.ob-task.is-live:focus-visible { box-shadow: 0 0 0 2px rgba(240, 216, 154, 0.6); }
+html[data-skin='plain'] .ob-task.is-live:hover,
+html[data-skin='plain'] .ob-task.is-live:focus-visible { background: #eee; }
+html[data-skin='plain'] .ob-task.is-live:focus-visible { box-shadow: 0 0 0 2px #101010; }

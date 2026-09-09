@@ -1,11 +1,13 @@
 /* the objective panel: one short line at the top of the screen saying what to do now */
+import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { loadSave, subscribeSave } from '../save'
 import { nextObjective, objectiveLine } from '../run/objective'
-import { taskHeading, tasksDone, tasksOf } from '../run/tasks'
+import { taskHeading, tasksDone, tasksOf, type Task } from '../run/tasks'
 import { objectiveSaid, onObjectiveSaid, worldObjective } from './objective-bus'
 import { onSceneDrawn, sceneDrawn } from '../stage/stage-bus'
 import { track } from '../telemetry'
+import { requestUi } from '../ui-bus'
 import './objective.css'
 
 export function ObjectivePanel() {
@@ -70,7 +72,30 @@ export function ObjectivePanel() {
   )
 }
 
-/* the sheet under the bar: everything this year asks for, derived and never pressable */
+/* ---- THE SHEET UNDER THE BAR, AND EVERY ROW IS A WAY IN ------------------
+ *
+ * ASH, 2026-09-08: *"THERE ALSO NEEDS GUIDEABILITY... TO MAKE THE GAME MORE
+ * UNDERSTANDABLE."*
+ *
+ * It was a readout: five nouns and a note each, correct and inert. A student who
+ * opened it read "AP Human Geography · Open My Year and go", closed it, and then
+ * had to find the sign in the corner that the note had just named. Two steps
+ * where the game already knew the answer.
+ *
+ * SO A ROW DOES THE THING IT NAMES. The schedule and every pick open the year
+ * sheet, Advisory opens Advisory, the last row closes nothing and says where the
+ * man is. A finished row is not a control, because there is nothing left to do
+ * to it, and neither is a row for something that happens in the world rather
+ * than behind a button. */
+/** which panel a row opens, or null for a row nothing on screen can finish */
+function openerOf(t: Task): 'planner' | 'advisory' | null {
+  if (t.done || t.barred) return null
+  if (t.id === 'plan' || t.id.startsWith('class:') || t.id.startsWith('voyage:')) return 'planner'
+  if (t.id === 'core') return 'advisory'
+  /* the last row is a place in the world and not a panel, so it stays a line */
+  return null
+}
+
 function TaskSheet({ onClose }: { onClose: () => void }) {
   const [, bump] = useState(0)
   useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
@@ -104,7 +129,20 @@ function TaskSheet({ onClose }: { onClose: () => void }) {
         {list.map((t) => (
           <li
             key={t.id}
-            className={`ob-task${t.done ? ' is-done' : ''}${t.barred && !t.done ? ' is-barred' : ''}`}
+            className={`ob-task${t.done ? ' is-done' : ''}${t.barred && !t.done ? ' is-barred' : ''}${openerOf(t) ? ' is-live' : ''}`}
+            {...(openerOf(t)
+              ? {
+                role: 'button' as const,
+                tabIndex: 0,
+                onClick: () => { requestUi(openerOf(t)!); onClose() },
+                onKeyDown: (e: React.KeyboardEvent) => {
+                  if (e.key !== 'Enter' && e.key !== ' ') return
+                  e.preventDefault()
+                  requestUi(openerOf(t)!)
+                  onClose()
+                },
+              }
+              : {})}
           >
             {/* THE MARK IS A CHARACTER AND NOT AN EMOJI. `docs/ART.md` forbids
                 emoji, and the plain arm has to read the same shape in a system
