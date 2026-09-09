@@ -57,7 +57,11 @@ export class Logger {
     saveQueue(this.queue)
   }
 
+  /** the endpoint has said it has no database, so this page stops asking */
+  private offline = false
+
   async flush() {
+    if (this.offline) { this.queue = []; return }
     if (this.queue.length === 0) return
     // castaway/demo: nothing ships, ever (§2.9) — drain so the queue can't grow unbounded
     if (this.identity.localOnly) {
@@ -85,6 +89,29 @@ export class Logger {
           body,
           keepalive: body.length < 40_000,
         })
+        /* ---- 503 { offline: true } IS THE SERVER SAYING "NOT TODAY" -------
+         *
+         * `api/log.ts` answers 503 when there is no DATABASE_URL on the deploy,
+         * which is the honest degrade it was built for and is the live state
+         * today. The queue kept every event and retried every five seconds for
+         * the whole session: a browser console filling with red on a school
+         * Chromebook, and one request per student per five seconds against an
+         * access point with thirty of them on it.
+         *
+         * A 503 offline is settled for this page, so it stops asking and drains
+         * the queue rather than growing one nobody will ever collect. Any OTHER
+         * failure keeps the queue and retries, because a dropped wifi packet is
+         * exactly what the retry is for. */
+        if (res.status === 503) {
+          const said = await res.json().catch(() => null) as { offline?: boolean } | null
+          if (said?.offline) {
+            console.info('[log] the study endpoint is offline on this deploy, so nothing is being sent')
+            this.offline = true
+            this.queue = []
+            saveQueue(this.queue)
+            break
+          }
+        }
         if (!res.ok) break
         // events logged DURING the fetch appended past batch.length; keep them
         this.queue = this.queue.slice(batch.length)

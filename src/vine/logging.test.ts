@@ -146,3 +146,45 @@ describe('flush', () => {
     log.dispose()
   })
 })
+
+/* ---- A DEPLOY WITH NO DATABASE IS ASKED ONCE ------------------------------
+ *
+ * `api/log.ts` answers 503 `{offline:true}` when the deploy carries no
+ * DATABASE_URL, which is its honest degrade and is the live state today. The
+ * logger kept the queue and retried every five seconds for the whole session:
+ * a console full of red on a school Chromebook, and one request per student per
+ * five seconds against one access point. Measured on the live deploy 2026-09-08
+ * while driving the ending gate, which logged fifteen of them in ten minutes. */
+describe('the study endpoint saying it is offline', () => {
+  it('is believed, once, and the queue stops growing', async () => {
+    const calls: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      calls.push('sent')
+      return { ok: false, status: 503, json: async () => ({ offline: true }) } as unknown as Response
+    }))
+    const log = mkLogger('/api/log')
+    log.log('a', {})
+    await log.flush()
+    expect(calls).toHaveLength(1)
+    /* and every later event is dropped rather than queued for a collector that
+     * will never come */
+    log.log('b', {})
+    log.log('c', {})
+    await log.flush()
+    await log.flush()
+    expect(calls, 'it asked again after being told there is no database').toHaveLength(1)
+  })
+
+  it('but an ordinary failure still keeps the queue and retries', async () => {
+    let n = 0
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      n++
+      return { ok: false, status: 500, json: async () => ({}) } as unknown as Response
+    }))
+    const log = mkLogger('/api/log')
+    log.log('a', {})
+    await log.flush()
+    await log.flush()
+    expect(n, 'a dropped request is exactly what the retry is for').toBe(2)
+  })
+})
