@@ -134,6 +134,23 @@ for (let i = 0; i < 460; i++) {
    * the pick either way. The quiz that used to be behind "go to class" is gone. */
   const goClass = v.press.find((e) => !e.disabled && /^(go|go to class|sail there|sail to .+)$/i.test(e.text))
   if (goClass) { await hit(goClass); continue }
+  /* ---- ADRIFT, WHICH THE BAR SAYS AND THE CHART ANSWERS -----------------
+   *
+   * "Click the island to sail there" is the one sentence the SCENE says rather
+   * than the year: he is holding the tiller. The control is a pin on the chart,
+   * and the chart is behind the Map plaque, which this driver treats as chrome.
+   * Without this the run flipped Handbook tabs at the hub for four minutes.
+   * Measured on the live deploy 2026-09-08, twice. */
+  if (r.bar && /Click the island to sail there/i.test(r.bar)) {
+    const put = await page.evaluate(() => {
+      const pin = document.querySelector('.ch-isle-go')
+      if (pin) { pin.click(); return 'sailed' }
+      const map = document.querySelector('[data-tour="map"]')
+      if (map) { map.dispatchEvent(new MouseEvent('click', { bubbles: true })); return 'opened' }
+      return null
+    })
+    if (put) { await page.waitForTimeout(900); continue }
+  }
   /* and the bar is the only thing that says where: My Year is a corner plaque,
    * which this run treats as chrome, so it is opened by name when the bar asks */
   if (r.bar && /Open My Year/i.test(r.bar)) {
