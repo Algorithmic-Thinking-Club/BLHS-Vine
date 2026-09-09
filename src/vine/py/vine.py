@@ -233,7 +233,13 @@ def place(actor, at, off=None, facing=None):
 
 
 def actor_face(actor, facing):
-    """Turn somebody, without moving them."""
+    """Turn somebody, without moving them.
+
+    `facing` is one of the eight headings, or the word "thor", which means "turn
+    and look at the player wherever he is standing". Use that one after a walk:
+    which way "at him" is depends on where you both ended up, and a compass point
+    written in your island is a bet on a station nobody has moved yet.
+    """
     return {"kind": "actor_face", "actor": actor, "facing": facing}
 
 

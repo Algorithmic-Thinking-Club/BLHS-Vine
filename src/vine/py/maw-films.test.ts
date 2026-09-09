@@ -110,3 +110,40 @@ describe('the trophy case', () => {
     expect(fn, 'the count decides the case again').not.toMatch(/show\(WALL,\s*count/)
   })
 })
+
+/* ---- NOT ONE COORDINATE IN THE RAIL -------------------------------------
+ *
+ * ASH, 2026-09-08: *"I am reorganising the Maw in MAPVIS. Read every stand point
+ * and position from the published map by anchor name. Hardcode nothing."*
+ *
+ * The rail used to carry a table of eight pixel offsets, one pair per station,
+ * each read off a 4x screenshot of Maw v7. They were correct for that export and
+ * for no other, and nothing would have said so: a dragged table moves the mark,
+ * the offset stays, and the two of them stand wrong again with every test green.
+ *
+ * This is the fence. `lead_to` with no offset and `actor_face(x, "thor")` work
+ * the same beat out against whatever map is loaded, so the rail passes names and
+ * only names, and a number pasted back in fails here by line. */
+describe('the rail hardcodes no geometry', () => {
+  it('passes no offset to any word', () => {
+    const bad = founding.split('\n')
+      .map((l, i) => [i + 1, l] as const)
+      .filter(([, l]) => /\boff\s*=/.test(l) && !l.trim().startsWith('#'))
+    expect(bad.map(([n, l]) => `${n}: ${l.trim()}`), 'an offset is back in the rail').toEqual([])
+  })
+
+  it('names no compass heading at a station, since which way is "at him" is the map\'s to know', () => {
+    const bad = founding.split('\n')
+      .map((l, i) => [i + 1, l] as const)
+      .filter(([, l]) => /actor_face\(/.test(l) && !l.trim().startsWith('#'))
+      .filter(([, l]) => !/"thor"/.test(l))
+    expect(bad.map(([n, l]) => `${n}: ${l.trim()}`), 'a written heading is back').toEqual([])
+  })
+
+  /* the stations themselves are still names, which is what makes the above safe */
+  it('still takes him to the stations by anchor name', () => {
+    for (const w of ['chart_table', 'hearth', 'trophy_wall', 'counselor']) {
+      expect(founding, `the rail no longer names ${w}`).toContain(`"${w}"`)
+    }
+  })
+})

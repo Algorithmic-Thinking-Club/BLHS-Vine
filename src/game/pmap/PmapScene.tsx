@@ -642,7 +642,25 @@ export default function PmapScene() {
       /* the wide shot, and it is the painting's own extent that has to fit in
        * it rather than the canvas: the hub's canvas is 640 tall and its picture
        * is 377 of them, so fitting the canvas would frame 263 rows of sea */
-      const Z_ISLAND = Math.max(1, Math.floor(fitIn)) * 1.18
+      /* ---- THE CAMERA NEVER LEAVES THE PAINTING -------------------------
+       *
+       * ASH, 2026-09-08: *"The camera never shows anything outside the painting,
+       * on any map, at any moment: no pull-out past the cover fit. The wide shot
+       * of the Maw is the cover fit."*
+       *
+       * THE FLOOR IS THE PAINTED EXTENT AND NOT THE CANVAS, which is the whole
+       * of the old defect. The hub's canvas is 688x640 and its picture is
+       * 669x377 of them, so every zoom computed from the canvas framed 263 rows
+       * of nothing: `Z_ISLAND` was `floor(fitIn) * 1.18`, which on that map is
+       * 1.18, and the wide shot showed the painting floating in a black field
+       * with a margin on every side.
+       *
+       * COVER, NOT CONTAIN. A contain fit is the whole picture with bars around
+       * it, and bars are the thing being banned. Cover fills the window off the
+       * picture's own pixels and crops whichever axis is longer, which is what
+       * "never shows anything outside the painting" means as a number. */
+      const Z_PAINT = Math.max(app.screen.width / painted.w, app.screen.height / painted.h)
+      const Z_ISLAND = Z_PAINT
       /* how tall the person is meant to be on the glass, in the window Ash
        * plays at.
        *
@@ -659,7 +677,8 @@ export default function PmapScene() {
         Math.round(((app.screen.height / 768) * BODY_ON_GLASS / bodyH) * 4) / 4,
       )
       const Z = zOverride > 0 ? zOverride
-        : coastCut ? Z_WALK
+        /* and the walking shot can never be under the floor either */
+        : coastCut ? Math.max(Z_PAINT, Z_WALK)
           /* whole pixels, and never below the cover: a room that rounded DOWN
            * would be back in its black field. The epsilon is there so a cover
            * of 2.0000001 does not open at 3.
@@ -693,7 +712,13 @@ export default function PmapScene() {
       })()
       let camZ = Z
       /* the sailing zoom floor, hung off the wide shot, and a room has none */
-      const Z_MIN = coastCut ? Z_ISLAND * SAIL_ZOOM : Z
+      /* THE SAILING FLOOR IS THE PAINTING'S FLOOR TOO. It used to be a fraction
+       * of the wide shot so the sea opened out around the island, and that is
+       * the one pull-out Ash's rule removes: with travel scripted between docks
+       * (BRIEF, item 3) nobody free-sails a boat around an empty ocean any more,
+       * so the only thing that pull-out could show is water nobody is crossing
+       * and, on a room, black. */
+      const Z_MIN = Math.max(Z_PAINT, coastCut ? Z_ISLAND * SAIL_ZOOM : Z)
 
       // the engine ocean under the painting: a sprite pool draws only the tiles the viewport sees
       const SEA_SCALE = 0.5             // half the module's 64x32 diamonds in screen px (Ash,
@@ -2479,9 +2504,48 @@ export default function PmapScene() {
           if (!target) throw new NotBuilt('lead_to', `no anchor named "${to}" on ${mapId}`)
           /* with an offset the leader stops beside the station and leaves the spot for the student */
           const { goal: standAt } = walkGoal(target)
+          /* ---- WITH NO OFFSET, THE SPOT BESIDE IS DERIVED ------------------
+           *
+           * ASH, 2026-09-08: *"Ash is reorganising the Maw in MAPVIS; read every
+           * stand point and position from the published map by anchor name,
+           * hardcode nothing."*
+           *
+           * The island used to carry a hand-measured offset per station, chosen
+           * off screenshots. Every one of those numbers is a bet on where a post
+           * is, and the posts are being moved. This works it out instead: the
+           * leader stops one body length to the SIDE of the student's own mark,
+           * square to the line he walked in on, on whichever side is floor and
+           * further from the thing itself. Nothing is typed and it holds on a map
+           * republished ten minutes from now.
+           *
+           * SQUARE TO THE APPROACH is what makes it read as two people talking:
+           * the pair end up shoulder to shoulder facing the station rather than
+           * one behind the other, whichever direction they came from. */
+          const asideAuto = (fromX: number, fromY: number) => {
+            const ysA = map.yScale || 1
+            const clear = map.character.heightPx * 1.1
+            /* the approach, on the ground, and a square to it */
+            const ax = standAt.x - fromX, ay = (standAt.y - fromY) / ysA
+            const len = Math.hypot(ax, ay) || 1
+            const px = -ay / len, py = ax / len
+            const spot = anchors.spotOf(target)
+            let best: { x: number; y: number } | null = null
+            let bestAway = -1
+            for (const sign of [1, -1]) {
+              const want = { x: standAt.x + px * clear * sign, y: standAt.y + py * clear * ysA * sign }
+              const { at, moved } = onFloor(want, canStand, ysA, Math.round(clear))
+              /* a side the walk law had to correct is a side there is no room on */
+              if (moved && Math.hypot(at.x - want.x, at.y - want.y) > clear * 0.6) continue
+              /* and of the two, the one that puts him further from the thing he
+               * is talking about, so he is never standing on it */
+              const away = Math.hypot(at.x - spot.x, (at.y - spot.y) / ysA)
+              if (away > bestAway) { bestAway = away; best = at }
+            }
+            return best ?? standAt
+          }
           const goal = off
             ? { ...asideFrom(target, standAt.x, standAt.y, off), facing: standAt.facing }
-            : standAt
+            : { ...asideAuto(take(sp).x, take(sp).y), facing: standAt.facing }
           const ys = map.yScale || 1
           /* two body lengths, which is the gap Ash names and is also far enough
            * that the leader is never drawn inside the person following him */
@@ -2594,7 +2658,20 @@ export default function PmapScene() {
 
         /* every check runs before the body is taken, so a refusal leaves nothing driven */
         actorFace(actor, facing) {
+          /* ---- "player" IS A HEADING, AND IT IS THE ONLY DERIVED ONE --------
+           *
+           * ASH, 2026-09-08: read every position off the map, hardcode nothing.
+           * A film that walks two people to a station and then names a compass
+           * point has hardcoded the geometry of that station, and the stations
+           * are being moved. Which way "at him" is depends on where they both
+           * ended up, and the scene is the only thing that knows. */
           const sp = actorBody(actor, 'actor_face')
+          if (facing === PLAYER) {
+            const d0 = take(sp)
+            const at = dirFrom(pos.x - d0.x, (pos.y - d0.y) * (map.yScale || 1))
+            if (at) d0.facing = at
+            return
+          }
           const set = looksOf.get(sp)
           const look = set && (set[driven.get(sp)?.look ?? 0] ?? set[0])
           /* a thing drawn one way has no heading to turn to, and the word says so */
@@ -2707,8 +2784,11 @@ export default function PmapScene() {
             lookAtTarget = null
             lastShot = null
           }
-          /* written past zoomTo's floor, because these three values are the floor and the ceiling */
-          camZWant = to
+          /* AND NEVER UNDER THE PAINTING'S OWN COVER FIT. This line used to be
+           * written past `zoomTo`'s floor on the argument that the named shots
+           * ARE the floor and the ceiling; `view("island")` was then the one word
+           * in the vocabulary that could show a student the void. */
+          camZWant = Math.max(Z_MIN, to)
           engine.log('view', { map: mapId, shot, zoom: +to.toFixed(3) })
           const arrived = new Promise<void>((r) => {
             const t0 = performance.now()
