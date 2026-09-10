@@ -77,12 +77,26 @@ export const pickVerb = (p: Pick): string => (p.map ? `Sail to ${p.name}` : 'Go'
 /** the card a pick with no island opens, in Ash's own words */
 export const noIslandLine = (p: Pick): string => `${p.name}: no island yet. Counted as done.`
 
-/* WHAT A PICK WITH NO ISLAND IS WORTH. The row is written so the year moves, the
- * frame fills and the transcript reads like a year: a B, which is what the school
- * gives a course somebody sat and did not distinguish themselves in. The day
- * somebody builds the island the grade comes off play instead and this whole
- * function stops being reachable, so it is deliberately not clever. */
+/* ---- WHAT A PICK WITH NO ISLAND IS WORTH, AND IT IS NOT A GRADE ----------
+ *
+ * It was a flat B on half a credit, so that the year moved and the frame filled.
+ * Measured across four played years: a student who aced every Advisory still
+ * finished on a GPA of 3.33, because two counted picks a year at 3.0 outweighed
+ * one Advisory at 4.0. Highest Honors wants 3.76 and High Honors wants 3.5, so
+ * BOTH GPA cords were mathematically unreachable and the counselor spent every
+ * closing film draping a cord at 95% that the game could not award.
+ *
+ * A PLACEHOLDER IS NOT A COURSE. It carries no credit now, so it moves no GPA
+ * and no cord: `gpaOf` weights by credit and a zero-credit row is invisible to
+ * it. The pick still completes, the frame still fills, and the wall says
+ * "counted" rather than "credit earned", which is the truth about it.
+ *
+ * THE GRADE IS STILL WRITTEN because `beatState` reads it, and a pick has to
+ * read as PASSED for the year to close. The day somebody builds the island the
+ * grade and the credit both come off play and none of this is reachable. */
 export const COUNTED_GRADE = 3.0
+/** and no credit, so a stand-in never moves the transcript it is standing in for */
+export const COUNTED_CREDIT = 0
 
 /** mark a pick finished without an island. Returns false only when there is no run. */
 export function countAsDone(p: Pick): boolean {
@@ -94,7 +108,7 @@ export function countAsDone(p: Pick): boolean {
       id: `class:${p.id}`,
       title: c?.name ?? p.id,
       kind: 'class',
-      credit: c ? 0.5 : 0,
+      credit: COUNTED_CREDIT,
       grade: COUNTED_GRADE,
       year: s.year,
       season: s.season,

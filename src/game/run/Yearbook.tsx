@@ -143,8 +143,14 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
   /* the turn belongs to the live year, once, and only when the year owes nothing */
   const canTurn = page.current && !page.turned && page.ready
   const lastYear = year >= 4
-  /* the last page of the session, which ends the run without being a graduation */
-  const sessionEnds = !lastYear && year >= SESSION_ENDS_AFTER_YEAR
+  /* ---- ONLY THE YEAR THE SESSION ACTUALLY ENDS AFTER (Ash, 2026-09-09) ---
+   *
+   * `year >= SESSION_ENDS_AFTER_YEAR` with that constant at 1 is true for years
+   * one, two AND three, so every non-final year took the session-end branch and
+   * the roll-forward branch under it — the one that hands out three new season
+   * tokens and says "Go to the table and pick your year" — was unreachable code.
+   * A year-2 student closed his year on a card written for the end of the run. */
+  const sessionEnds = !lastYear && year === SESSION_ENDS_AFTER_YEAR
 
   const turn = () => {
     track('year_end', {

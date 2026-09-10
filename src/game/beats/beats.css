@@ -624,3 +624,40 @@ html[data-rm='1'] .bt-drop-lit { animation: none; box-shadow: 0 0 0 3px var(--ki
 .bt-move-truth li { display: flex; align-items: center; gap: 6px; }
 
 /* ---- the control arm answers this item as a plain form and never sees this frame ---- */
+
+/* ---- SEE YOUR ANSWERS (Ash, 2026-09-09) ----------------------------------
+ *
+ * *"If they have passed, maybe the dialogue says 'Advisory is done for this
+ * year, see answers?' and an option shows up, which they click to open and see
+ * their answers."* One row per item: a tick or a cross, the question, and the
+ * marks. The tick and the cross carry the outcome so it is never colour alone. */
+.bt-answers {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bt-answer {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--kit-paper-lo);
+  border: 1px solid var(--kit-edge);
+  border-radius: var(--kit-r-card);
+  font: 500 14px/1.35 var(--font-ui, system-ui, sans-serif);
+  color: var(--kit-ink);
+}
+.bt-answer-mark { flex: none; font-weight: 700; }
+.bt-answer-ask { flex: 1 1 auto; min-width: 0; }
+.bt-answer-score {
+  flex: none;
+  opacity: .72;
+  white-space: nowrap;
+  /* through the snap, like every other relative size in this sheet */
+  --kit-fs-raw: .86em;
+  font-size: var(--kit-fs);
+}
+html[data-skin='plain'] .bt-answer { border-radius: 0; }

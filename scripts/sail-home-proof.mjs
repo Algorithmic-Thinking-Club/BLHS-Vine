@@ -93,8 +93,16 @@ async function until(fn, ms = 40000, step = 200) {
 }
 /* a line is a click, the way a student answers one */
 const answer = async () => {
-  const said = await page.evaluate(() => !!document.querySelector('.dlg-box'))
-  if (said) { await page.keyboard.press('Space'); await wait(420); return true }
+  /* CLICKED, NOT TYPED. Space needs the page to hold focus and a panel opening
+   * mid-film takes it, so a driver that only pressed a key sat on one line for
+   * the whole run and reported the film as stalled. */
+  const said = await page.evaluate(() => {
+    const box = document.querySelector('.dlg-box')
+    if (!box) return false
+    box.click()
+    return true
+  })
+  if (said) { await wait(420); return true }
   return false
 }
 
@@ -155,6 +163,20 @@ while (Date.now() - t0 < 180000) {
 
   if (await answer()) continue
 
+  /* THE TROPHY WALL IS PART OF THE CLOSING NOW. `wall_shown` carries the year
+   * (Ash, 2026-09-09), so the ending walks him to his case in every year rather
+   * than only the first, and the film waits on that panel being shut. */
+  const wall = await page.evaluate(() => {
+    const sheet = document.querySelector('.tw-sheet')
+    if (!sheet) return false
+    /* the plank carries its key cap in the same element, so the label is
+             * "Esc Back" rather than "Back" */
+    const b = [...sheet.querySelectorAll('button')].find((e) => /back/i.test(e.innerText))
+    b?.click()
+    return true
+  })
+  if (wall) { await wait(700); continue }
+
   /* THE YEARBOOK IS PRESSED IN THE PAGE. Its cards animate in, so a click by
    * coordinate lands on a plank that is still at two percent opacity; the film
    * waits on those two presses and without them nothing after the page turning
@@ -211,7 +233,7 @@ if (sailedFrom && sailedTo) {
   ok('at a pace you can watch', pxs < 32, `${Math.round(pxs)} px/s over ${secs}s`)
 } else {
   ok('she really moves', false, 'no hull was ever on the water')
-  ok('and not straight down the screen', false, 'no hull was ever on the water')
+  ok('at a pace you can watch', false, 'no hull was ever on the water')
 }
 
 ok('nothing is said over the last shot', !sawBarOnDeparture, sawBarOnDeparture || '')

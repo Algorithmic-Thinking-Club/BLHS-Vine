@@ -31,6 +31,19 @@ export type LedgerEntry = {
   attempts?: number
   /* the first attempt's grade, kept alongside the best one and never overwritten */
   firstGrade?: number
+  /* ---- HOW EACH ITEM WENT, ON THE BEST SITTING (Ash, 2026-09-09) --------
+   *
+   * *"If they have passed, maybe the dialogue says 'Advisory is done for this
+   * year, see answers?' and an option shows up, which they click to open and see
+   * their answers."*
+   *
+   * Two numbers per item, earned over possible, keyed by the item's own id. It
+   * is deliberately not the ANSWERS a student gave: those are minors' response
+   * data and the study logs them through telemetry with a participant id, so
+   * putting them in the browser's save as well would be a second copy of the
+   * sensitive thing for no gain. What a student wants back is which questions he
+   * got, and that is this. */
+  marks?: Record<string, [number, number]>
   /** the rank ladder this row counts a year toward, when it counts toward one */
   rank?: string
 }
@@ -357,12 +370,37 @@ export function recordGrade(e: LedgerEntry) {
     const attempts = (was.attempts ?? 1) + 1
     const firstGrade = was.firstGrade ?? was.grade
     /* a retake is spent by being taken, so a worse second attempt still marks the row retaken */
+    /* ---- A REQUIRED RETAKE DOES NOT SPEND THE OPTIONAL ONE ---------------
+     *
+     * ASH, 2026-09-09: *"they should have multiple attempts."*
+     *
+     * `retaken` is the school's Universal Retake being used up, and it was
+     * stamped on every second sitting including the ones a student had no
+     * choice about. So: fail, retake, pass with a C. The pass is under a B- and
+     * the student is entitled to one go at improving it, and the flag was spent
+     * climbing out of the F. `beats/state.ts` reads this flag, so the offer
+     * silently vanished for exactly the students who had struggled most.
+     *
+     * A row only counts as retaken when the sitting before it had already
+     * PASSED. Everything under that is getting back to a pass. */
+    /* A D OR BETTER, which is `progress.ts`'s PASSING_GRADE. Spelled here rather
+     * than imported because `progress.ts` imports this file's types and a value
+     * import back would be a cycle; `save.test.ts` asserts the two agree. */
+    const wasPassing = was.grade >= 1.0
+    /* NEVER WRITTEN AS FALSE: a row that has not been retaken carries no such
+     * key at all, and stamping one in changes the shape of every row a second
+     * write ever touched. */
+    const spent = was.retaken || (wasPassing && !!e.retaken)
+    /* the caller's own `retaken` is a REQUEST, not the answer, so it is dropped
+     * off the incoming row before the row is written: whether the school's one
+     * retake was spent is this function's decision and nobody else's */
+    const { retaken: _asked, ...fresh } = e
     ledger[i] = e.grade > was.grade
-      ? { ...e, retaken: true, attempts, firstGrade }
+      ? { ...fresh, ...(spent ? { retaken: true } : {}), attempts, firstGrade }
       /* the flag is ADDED, never written as false: a row that has not been
        * retaken has no `retaken` key at all, and stamping one in changes the
        * shape of every ledger row a second write ever touched */
-      : { ...was, ...(was.retaken || e.retaken ? { retaken: true } : {}), attempts, firstGrade }
+      : { ...was, ...(spent ? { retaken: true } : {}), attempts, firstGrade }
   } else {
     ledger.push({ ...e, attempts: 1, firstGrade: e.grade })
   }

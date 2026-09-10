@@ -2,7 +2,7 @@
 import type { Intent } from '../../vine/intents'
 import type { SaveGame } from '../save'
 import { cordsOf } from '../progress'
-import { beatDone, coreBeatId, hasCoreBeat } from '../beats/beats'
+import { beatPassedIn, coreBeatId, hasCoreBeat } from '../beats/beats'
 import { FOUNDING_FLAG, HUB_MAP } from '../run/objective'
 
 /* what a station's body is: a generator that yields intents and gets results back */
@@ -163,8 +163,24 @@ export function missingAnchors(has: (name: string) => boolean): string[] {
 }
 
 /* the year's beat id, or null when the year has none or the ledger already has it */
+/* ---- THE SECOND HEARTH, AND IT DISAGREED (Ash, 2026-09-09) ---------------
+ *
+ * There are two hearths. The Maw's own island answers `talk:hearth` and this
+ * table answers whenever no island has claimed the anchor, which is every frame
+ * before the worker has finished loading and every map a member ships without
+ * one. `grape-router.ts` prefers the island and falls back to here.
+ *
+ * They asked different questions. The island asks `get("advisory")`, which the
+ * intent engine answers off the ledger; this asked `beatDone`, which is "is
+ * there a row". So a student who FAILED Advisory got "Advisory is done for this
+ * year." from one hearth and a fresh quiz from the other, depending on which one
+ * happened to answer. That is Ash's item 2, and the cause was never the year: it
+ * was two predicates for one question.
+ *
+ * `beatPassedIn` is the one predicate now, and `beats/agreement.test.ts` holds
+ * every surface to it. */
 function coreBeatIdFor(s: SaveGame): string | null {
   if (!hasCoreBeat(s.year)) return null
-  if (beatDone(s.ledger, s.year)) return null
+  if (beatPassedIn(s, s.year)) return null
   return coreBeatId(s.year)
 }

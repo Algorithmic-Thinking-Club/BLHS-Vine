@@ -1282,27 +1282,36 @@ export default function PmapScene() {
        * the year sheet over a live map. Without the subscription below he would
        * have had to leave the island and come back. */
       const walkArt: Record<string, Texture[]> = {}
+      /* the held poses, dyed, and the same frames as painted. Declared up here
+       * because `dressThor` below reads them and runs on this pass: a `const`
+       * further down the same scope is a temporal dead zone, not a hoist. */
+      const poseTex = new Map<string, Texture>()
+      const poseSrc = new Map<string, Texture>()
       let drawnLook: string | null = null
+      /** one frame through the shirt recolour, keeping its trim */
+      const dye = (t: Texture): Texture => {
+        const src = t.source.resource as CanvasImageSource & { width: number; height: number }
+        /* a frame whose pixels are not reachable is left as painted rather than
+         * dropped: a missing coat is better than a missing character */
+        if (!src) return t
+        try {
+          const cv = document.createElement('canvas')
+          drawRecolored(cv, src, lookHue(drawnLook ?? undefined))
+          const out = Texture.from(cv)
+          out.source.scaleMode = 'nearest'
+          return new Texture({ source: out.source, frame: t.frame.clone() })
+        } catch { return t }
+      }
       const dressThor = (look: string | undefined) => {
         const hue = lookHue(look)
         const key = look ?? 'classic'
         if (drawnLook === key) return
         drawnLook = key
-        for (const d of DIRS8) {
-          walkArt[d] = hue === null ? walkT[d] : walkT[d].map((t) => {
-            const src = t.source.resource as CanvasImageSource & { width: number; height: number }
-            /* a frame whose pixels are not reachable is left as painted rather
-             * than dropped: a missing coat is better than a missing character */
-            if (!src || typeof src === 'undefined') return t
-            try {
-              const cv = document.createElement('canvas')
-              drawRecolored(cv, src, hue)
-              const out = Texture.from(cv)
-              out.source.scaleMode = 'nearest'
-              return new Texture({ source: out.source, frame: t.frame.clone() })
-            } catch { return t }
-          })
-        }
+        for (const d of DIRS8) walkArt[d] = hue === null ? walkT[d] : walkT[d].map(dye)
+        /* AND THE POSES WITH THEM. He sits at the fire and lies down to sleep in
+         * held poses off a different folder, and dyeing only the walk set turned
+         * a dyed panther teal again the moment he stopped moving. */
+        for (const [file, t] of poseSrc) poseTex.set(file, hue === null ? t : dye(t))
       }
       dressThor(loadSave()?.thorLook)
       /* the mirror opens over a live map, so the coat lands on the frame he picks
@@ -1340,7 +1349,6 @@ export default function PmapScene() {
         sleep: 'lie', lie: 'lie', asleep: 'lie',
         sit: 'sit', seated: 'sit',
       }
-      const poseTex = new Map<string, Texture>()
       const loadPose = async (file: string): Promise<Texture> => {
         const had = poseTex.get(file)
         if (had) return had
@@ -1348,8 +1356,10 @@ export default function PmapScene() {
         t.source.scaleMode = 'nearest'
         const r = scanRows(t)
         const cut = r ? new Texture({ source: t.source, frame: new Rectangle(0, 0, t.source.pixelWidth, r.feet + 1) }) : t
-        poseTex.set(file, cut)
-        return cut
+        poseSrc.set(file, cut)
+        const worn = lookHue(drawnLook ?? undefined) === null ? cut : dye(cut)
+        poseTex.set(file, worn)
+        return worn
       }
       /* what he is holding, or null for the walk set. Read by the ticker, which is
        * the one place his texture is decided, so a pose cannot fight the stride. */

@@ -53,7 +53,8 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const nav = useNav()
   const [book, setBook] = useState<null | HandbookTab>(null)
   const [planner, setPlanner] = useState(false)
-  const [advisory, setAdvisory] = useState(false)
+  /* false, true to sit it, or 'review' to look at what he got (Ash, 2026-09-09) */
+  const [advisory, setAdvisory] = useState<false | true | 'review'>(false)
   const [yearbook, setYearbook] = useState(false)
   const [graduation, setGraduation] = useState(false)
   const [paused, setPaused] = useState(false)
@@ -122,7 +123,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   /* the world hold is derived from what is open, so no panel can forget to release it */
   const heldByUs = useRef(false)
   useEffect(() => {
-    const want = anyOpen || paused
+    const want = !!(anyOpen || paused)
     if (want === heldByUs.current) return
     heldByUs.current = want
     onBlurWorld?.(want)
@@ -301,7 +302,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       {planner && !firstPlan && (
         <Planner
           onClose={closeAll}
-          onAdvisory={() => { setPlanner(false); setAdvisory(true) }}
+          onAdvisory={(review) => { setPlanner(false); setAdvisory(review ? 'review' : true) }}
           onPlayPick={(pick) => {
             /* ---- ONE BUTTON PER PICK, AND THIS IS WHAT IT DOES --------------
              *
@@ -348,7 +349,9 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
         />
       )}
       {planner && firstPlan && <PickYear year={s?.year ?? 1} onClose={closeAll} />}
-      {advisory && yearBeat && <CoreBeatRunner beat={yearBeat} onClose={closeAll} />}
+      {advisory && yearBeat && (
+        <CoreBeatRunner beat={yearBeat} review={advisory === 'review'} onClose={closeAll} />
+      )}
       {playing && <CoreBeatRunner beat={playing.beat} forceArm={playing.plain ? 'plain' : undefined} onClose={closeAll} />}
       {wall && <TrophyWall onClose={closeAll} />}
       {wardrobe && <Wardrobe onClose={closeAll} />}

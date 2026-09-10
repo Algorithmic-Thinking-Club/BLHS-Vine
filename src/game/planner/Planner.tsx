@@ -63,7 +63,10 @@ type Refusal = { where: Season | 'classes'; why: string }
 
 export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }: {
   onClose: () => void
-  onAdvisory?: () => void
+  /* `review` means "show me what I got", which is a different press from
+   * "let me sit it": pressing the one on a passed beat used to start a fresh
+   * quiz and re-grade him (Ash, 2026-09-09) */
+  onAdvisory?: (review?: boolean) => void
   /* ONE BUTTON PER PICK (Ash, 2026-09-08 item 4). The sheet says what a pick is
    * and presses it; what a press MEANS, a voyage or a card, is the roster's and
    * the HUD's business and not this panel's. */
@@ -377,13 +380,15 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
                 <span className="pl-pin-done">
                   <Glyph piece="icon_set" face="tick" size={15} />
                   passed
-                  {onAdvisory && <Plank size="sm" onClick={onAdvisory}>see your answers</Plank>}
+                  {onAdvisory && (
+                    <Plank size="sm" onClick={() => onAdvisory(true)}>see your answers</Plank>
+                  )}
                 </span>
               )
             }
             if (!onAdvisory) return null
             return (
-              <Plank size="sm" onClick={onAdvisory}>
+              <Plank size="sm" onClick={() => onAdvisory()}>
                 {st === 'failed' ? 'take Advisory again' : 'go to Advisory'}
               </Plank>
             )

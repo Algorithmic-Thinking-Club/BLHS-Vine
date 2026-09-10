@@ -136,13 +136,47 @@ describe('domain verbs', () => {
     save.beginAdventure()
     const base = { id: 'isl:atc', title: 'ATC', kind: 'island' as const, credit: 1, year: 1, season: 'Fall' as const }
     save.recordGrade({ ...base, grade: 2.0 })
-    save.recordGrade({ ...base, grade: 1.0 })          // worse retake: dropped
+    save.recordGrade({ ...base, grade: 1.0, retaken: true })   // worse retake: dropped
     expect(save.loadSave()!.ledger[0].grade).toBe(2.0)
-    expect(save.loadSave()!.ledger[0].retaken).toBeUndefined()
-    save.recordGrade({ ...base, grade: 3.5 })          // better retake: kept + flagged
+    /* SPENT ALL THE SAME. He was passing and he sat it again; the school's one
+     * retake is used up by being taken, not by going well. */
+    expect(save.loadSave()!.ledger[0].retaken).toBe(true)
+    save.recordGrade({ ...base, grade: 3.5, retaken: true })   // better: kept
     expect(save.loadSave()!.ledger[0].grade).toBe(3.5)
     expect(save.loadSave()!.ledger[0].retaken).toBe(true)
     expect(save.loadSave()!.ledger).toHaveLength(1)
+  })
+
+  /* ---- CLIMBING OUT OF AN F IS NOT THE UNIVERSAL RETAKE (Ash, 2026-09-09) --
+   *
+   * *"They should have multiple attempts."* `retaken` is the school's one-shot
+   * grade improvement (§8.1), and it used to be stamped on every second sitting
+   * including the ones a student had no choice about. Fail, sit it again, scrape
+   * a C: the C is under a B- and he is entitled to one go at improving it, and
+   * the flag had already been spent getting out of the F. `beats/state.ts` reads
+   * this flag, so the offer vanished for the students who had struggled most. */
+  it('does not spend the retake on a sitting that was climbing out of a fail', async () => {
+    const save = await freshModule()
+    save.beginAdventure()
+    const base = { id: 'core:y1', title: 'Advisory', kind: 'core' as const, credit: 0.5, year: 1, season: 'Fall' as const }
+    save.recordGrade({ ...base, grade: 0.4 })
+    save.recordGrade({ ...base, grade: 0.8, retaken: true })
+    expect(save.loadSave()!.ledger[0].retaken, 'still failing, nothing spent').toBeUndefined()
+    save.recordGrade({ ...base, grade: 2.0, retaken: true })
+    expect(save.loadSave()!.ledger[0].grade).toBe(2.0)
+    expect(save.loadSave()!.ledger[0].retaken, 'the sitting that PASSED did not spend it either').toBeUndefined()
+    /* and now he has a real one, because the row he is sitting again has passed */
+    save.recordGrade({ ...base, grade: 2.2, retaken: true })
+    expect(save.loadSave()!.ledger[0].retaken).toBe(true)
+  })
+
+  /* the threshold is spelled in `save.ts` because importing it would be a cycle,
+   * so this is the fence that keeps the two spellings the same number */
+  it('uses the same passing grade the rest of the game does', async () => {
+    const { PASSING_GRADE } = await import('./progress')
+    const src = (await import('node:fs')).readFileSync('src/game/save.ts', 'utf8')
+    expect(src, 'save.ts no longer spells the passing grade as a literal')
+      .toContain(`was.grade >= ${PASSING_GRADE.toFixed(1)}`)
   })
 
   it('counts every attempt and keeps the FIRST grade as well as the best', async () => {

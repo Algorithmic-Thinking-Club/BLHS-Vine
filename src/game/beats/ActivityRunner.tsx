@@ -9,6 +9,7 @@ import {
 import { progressOf, responseOf, showdownReduce, startShowdown, yardsRemaining, type ShowdownState } from './showdown'
 import { LATENCY_CONVENTION, latencyOf, markFirst } from './timing'
 import { emptyScore, gradeOf, retakeAvailable, type BeatScore } from './score'
+import { retakeKind } from './state'
 import { collectFact, loadSave, recordGrade } from '../save'
 import { cordsOf, letterOf, newlyCloseCords, PASSING_GRADE } from '../progress'
 import { factById } from '../facts'
@@ -31,9 +32,11 @@ type Attempt = { n: number }
 /* both arms take their answer latency from timing.ts, where the convention is written down */
 
 export function CoreBeatRunner(
-  { beat, onClose, forceArm, world }: {
+  { beat, onClose, forceArm, world, review }: {
     beat: CoreBeat
     onClose: () => void
+    /* open on the marks of the sitting already on the ledger, and never play */
+    review?: boolean
     /** forces one activity to read plain, whatever arm the student was assigned */
     forceArm?: 'game' | 'plain'
     /* W8. Optional on purpose: a beat with a `do` item is still playable with no
@@ -47,7 +50,20 @@ export function CoreBeatRunner(
     ?? save?.arm
     ?? (currentSkin() === 'plain' ? 'plain' : 'game')
 
-  const [phase, setPhase] = useState<'play' | 'result' | 'review' | 'retake'>('play')
+  /* ---- 'answers' IS A WAY IN, NOT A WAY ON (Ash, 2026-09-09) ------------
+   *
+   * *"If they have passed, maybe the dialogue says 'Advisory is done for this
+   * year, see answers?' and an option shows up, which they click to open and see
+   * their answers."*
+   *
+   * The sheet's button was wired to open the runner, and the runner opens on
+   * `play`, so pressing "see your answers" on a PASSED Advisory started a fresh
+   * quiz and re-graded him. Opening straight onto the marks is the whole of the
+   * fix, and it is a phase rather than a second panel because the card that
+   * knows how to draw a beat's items is already in this file. */
+  const [phase, setPhase] = useState<'play' | 'result' | 'review' | 'retake' | 'answers'>(
+    review ? 'answers' : 'play',
+  )
   const [finalScore, setFinalScore] = useState<BeatScore | null>(null)
   const retaking = useRef(false)
   const attempt = useRef<Attempt>({ n: 1 })
@@ -59,9 +75,13 @@ export function CoreBeatRunner(
     }
     const grade = gradeOf(score)
     const before = loadSave()
+    /* how each item went, so "see your answers" has something to show */
+    const marks: Record<string, [number, number]> = {}
+    for (const [k, a] of Object.entries(answers)) marks[k] = [a.earned, a.total]
     recordGrade({
       id: beat.id, title: beat.title, kind: beat.kind, credit: beat.credit,
       grade, year: beat.year, season: before?.season ?? 'Fall',
+      marks,
       ...(beat.tags?.length ? { tags: beat.tags } : {}),
       ...(retaking.current ? { retaken: true } : {}),
     })
@@ -91,8 +111,21 @@ export function CoreBeatRunner(
       for (const c of newlyCloseCords(before, after)) track('cord_progress', { cord: c.id, progress: c.progress })
     }
     setFinalScore(score)
-    /* the pop is the result, so the card is kept only for the plain arm and for a failing grade */
-    if (arm !== 'plain' && grade >= PASSING_GRADE) { onClose(); return }
+    /* ---- THE CARD IS KEPT WHENEVER THERE IS AN OFFER ON IT ---------------
+     *
+     * The game arm skipped the result card on ANY pass, on the reasoning that
+     * the reward pop is the result. That was true while a pass meant a good
+     * grade. It stopped being true the moment `PASSING_GRADE` became a D: a
+     * student who scraped two of seven now passes, the pop says "Advisory is
+     * done. 0.5 credit, on your transcript", the panel shuts, and the Universal
+     * Retake he is entitled to is never mentioned. The plain arm, which always
+     * shows the card, offered it. Two arms disagreeing about what a student is
+     * told he may do is a confound as well as a bug.
+     *
+     * So the card stays whenever it has something to say: a fail, or a pass
+     * carrying a retake. A clean pass still gets the pop and nothing else. */
+    const offer = retakeKind(loadSave(), beat.id)
+    if (arm !== 'plain' && grade >= PASSING_GRADE && offer === 'none') { onClose(); return }
     setPhase('result')
   }
 
@@ -129,6 +162,9 @@ export function CoreBeatRunner(
             onReview={() => setPhase('review')}
             onClose={onClose}
           />
+        )}
+        {phase === 'answers' && (
+          <AnswersCard beat={beat} arm={arm} onClose={onClose} />
         )}
         {phase === 'review' && (
           <ReviewCard beat={beat} arm={arm} onRetake={startRetake} onBack={() => setPhase('result')} />
@@ -1044,6 +1080,64 @@ function ResultCard({ beat, score, arm, canRetake, onReview, onClose }: {
             ? <button onClick={onReview}>Review, then retake</button>
             : <Plank size="md" onClick={onReview}>Review, then retake</Plank>}
         </div>
+      )}
+      <div className="bt-out">
+        {arm === 'plain'
+          ? <button onClick={onClose}>Back to the game</button>
+          : <Plank size="md" onClick={onClose}>Back to the game</Plank>}
+      </div>
+    </div>
+  )
+}
+
+/* ---- WHAT HE GOT, ITEM BY ITEM (Ash, 2026-09-09) -------------------------
+ *
+ * Read off `marks` on the ledger row, which `finish` writes on every sitting.
+ * A row from before this existed carries none, and that says so rather than
+ * drawing an empty card: the honest answer to "see your answers" for a sitting
+ * nobody recorded is that it was not recorded.
+ *
+ * IT SHOWS THE PROMPT AND THE OUTCOME, NOT THE ANSWER HE GAVE. The response
+ * itself is minors' data and belongs in the study's own log behind a participant
+ * id, not in a browser save; what a student wants back is which ones he got.
+ * The takeaways are underneath, because they are the answers in the only sense
+ * that helps him next year. */
+function AnswersCard({ beat, arm, onClose }: { beat: CoreBeat; arm: 'game' | 'plain'; onClose: () => void }) {
+  const row = loadSave()?.ledger.find((e) => e.id === beat.id)
+  const marks = row?.marks
+  const items = checksOf(beat)
+  const facts = beat.takeaways.map(factById).filter((f): f is NonNullable<typeof f> => !!f)
+  return (
+    <div className={arm === 'plain' ? 'bt-plainform bt-result' : 'bt-result'}>
+      <CardHead beat={beat} arm={arm} />
+      <div className="bt-prompt">
+        {marks ? 'How each question went.' : 'This was sat before the game started keeping the marks.'}
+      </div>
+      {marks && (
+        <ol className="bt-answers">
+          {items.map((c) => {
+            const id = checkIdOf(c)
+            const m = marks[id]
+            const right = !!m && m[1] > 0 && m[0] >= m[1]
+            return (
+              <li key={id} className={`bt-answer${right ? ' bt-answer-right' : ''}`}>
+                <span className="bt-answer-mark" aria-hidden="true">{right ? '✓' : '✗'}</span>
+                <span className="bt-answer-ask">{promptOf(c)}</span>
+                <span className="bt-answer-score">
+                  {m ? `${m[0]} of ${m[1]}` : 'not answered'}
+                </span>
+              </li>
+            )
+          })}
+        </ol>
+      )}
+      {!!facts.length && (
+        <>
+          <div className="bt-prompt">What this was about.</div>
+          <div className="bt-takeaways">
+            {facts.map((f) => <div className="bt-fact" key={f.id}>{f.text}</div>)}
+          </div>
+        </>
       )}
       <div className="bt-out">
         {arm === 'plain'
