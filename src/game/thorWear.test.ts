@@ -74,8 +74,10 @@ describe('the outfit slot', () => {
   })
 
   it('will not wear something this run has not earned', () => {
-    const w = wearById('cap')!
+    const cap = wearById('cap')!
+    expect(cap.has(run()), 'a run that has not graduated has not earned it').toBe(false)
     expect(canWear(run({ thorWear: 'cap' }), 'cap')).toBe(false)
+    expect(walkFrame(run({ thorWear: 'cap' }), 'north', 2)).toBe('/art/characters/thor/walk/north/2.png')
   })
 
   /* the key is what the scene compares against to decide whether to reload
