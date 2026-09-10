@@ -18,11 +18,11 @@
   width: min(560px, 58vw);
   z-index: 2;
   /* the box height, one size for the whole sitting, scaled by the reader's text setting */
-  /* AND THE PAPER IS A LITTLE TALLER (Ash, 2026-09-09). The smaller type in
-     `cutscene/ui-kit.css` does most of the work; this is the rest of it. Four
-     and a half lines instead of two and a bit, which covers every line anybody
-     has written for this game so far. */
-  --dlg-box-h: min(calc(320px * var(--kit-text-scale)), 42vh);
+  /* THE PAPER'S OWN SIZE, AND IT IS NOT A LEVER (Ash, 2026-09-09). It was
+     grown to 320px for one session to stop a long line scrolling. He asked for
+     "slightly smaller" TEXT and said the scroll was fine, and a box half again
+     as tall is not that: it ate the beach. Back to what it was. */
+  --dlg-box-h: min(calc(220px * var(--kit-text-scale)), 34vh);
   /* how long the box takes to slide when the letterbox bars come in or go out */
   --dlg-bar-travel: 450ms;
   transition: bottom var(--dlg-bar-travel) cubic-bezier(0.33, 0, 0.2, 1);

@@ -145,7 +145,7 @@ export default function TitleScene() {
               )}
               <Plank
                 size={ahead === null ? 'lg' : 'md'}
-                className="ti-plank"
+                className={`ti-plank${ahead === null ? '' : ' ti-plank-second'}`}
                 sub={ahead === null ? `Year ${save?.year ?? 1} is done` : undefined}
                 onClick={openBook}
               >

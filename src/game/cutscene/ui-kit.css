@@ -75,20 +75,21 @@ html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
   /* cqw, not vh: the box is a container now, so the line scales with the paper
      it is written on. The clamp keeps it readable on a narrow window and stops it
      becoming a headline on a projector. */
-  /* ---- SMALLER, SO A LINE FITS (Ash, 2026-09-09) -------------------------
+  /* ---- SLIGHTLY SMALLER, AND ONLY THAT (Ash, 2026-09-09) ----------------
    *
    * *"Dialogue Boxes, they are far better. But problem. When text gets long, the
    * user has to scroll to see what was said. Maybe make the text slightly
    * smaller. Maybe the scroll is fine."*
    *
-   * Measured on a 1366 window before this: the paper is about 880 pixels wide,
-   * 8.3cqw lands on the 46px ceiling, and 46 at line-height 1.4 is 64 pixels a
-   * line against roughly 150 pixels of usable box. Two and a bit lines. A
-   * three-line sentence, which is most of what anybody writes, scrolled.
+   * Measured on a 1366 window: the paper is about 880 pixels wide, so the cqw
+   * term is above the ceiling and the ceiling is the size. 46 down to 40 is what
+   * "slightly" means; the cqw term comes down with it so a narrow window scales
+   * the same way it did.
    *
-   * The scroll stays, because a member can always write a paragraph and clipping
-   * it would be worse. This is about the ordinary line not needing it. */
-  --kit-fs-raw: clamp(17px, calc(5.8cqw * var(--kit-text-scale)), 28px); font-size: var(--kit-fs);
+   * THE SCROLL STAYS. He said it was fine, and the previous attempt at this
+   * chased it away by growing the box half again as tall, which is a change he
+   * did not ask for to solve a problem he had already waved off. */
+  --kit-fs-raw: clamp(20px, calc(7.2cqw * var(--kit-text-scale)), 40px); font-size: var(--kit-fs);
   line-height: 1.4;
   color: var(--kit-ink-said);
   text-shadow: 0 1px 0 var(--kit-paper-sheen);

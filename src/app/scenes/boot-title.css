@@ -221,7 +221,8 @@ html[data-rm='1'] .ti-gull,
 html[data-rm='1'] .ti-gull-right { animation-duration: 1ms; }
 
 .ti-actions {
-  margin-top: 5vh;
+  /* pulled in from 5vh so a pair of planks clears a short window (see below) */
+  margin-top: 3.4vh;
   display: flex; flex-direction: column; align-items: center; gap: 1.6vh;
   animation: bt-fadein 600ms ease 500ms both;
 }
@@ -236,6 +237,26 @@ html[data-rm='1'] .ti-actions { animation-duration: 1ms; }
   --kit-plank-cap: 43px;
   filter: drop-shadow(0 5px 12px var(--kit-plank-drop));
 }
+/* ---- THE SECOND PLANK IS SMALLER, AND THAT IS WHY IT FITS ----------------
+ *
+ * ASH, 2026-09-09: *"After year one is complete, I logged back into the game and
+ * saw that 'My yearbook', the button below 'Start year 2', was missing."*
+ *
+ * It was rendering the whole time, and it was below the fold. Two planks at the
+ * title's own size are 106 pixels each plus the gap, on top of the welcome line
+ * and the signboard, and measured at a 560 pixel viewport the second one's
+ * bottom edge lands at 575. Off the bottom of the window is missing.
+ *
+ * SO THE LESSER ACTION LOOKS LIKE THE LESSER ACTION. Two identical planks were
+ * wrong anyway: starting the next year and looking at the book you already
+ * finished are not the same weight, and the pair now reads as one choice and one
+ * afterthought rather than as a menu. */
+.ti-actions .ti-plank-second {
+  width: min(252px, 34vw);
+  aspect-ratio: 512 / 128;
+  --kit-plank-cap: 30px;
+}
+
 .ti-actions .ti-plank:hover:not(:disabled) { filter: drop-shadow(0 7px 14px var(--kit-plank-drop)) brightness(1.06); }
 .ti-actions .ti-plank:active:not(:disabled) { filter: drop-shadow(0 2px 6px var(--kit-plank-drop)); }
 .ti-plank .kit-plank-ink {
