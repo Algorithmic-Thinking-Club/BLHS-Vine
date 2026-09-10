@@ -220,8 +220,18 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
   ok('4', 'and he arrives at the door', !!atDoor, atDoor ? `${atDoor.x},${atDoor.y}` : 'never arrived')
 
   const end = await state(page)
-  ok('5', 'a large drawn pointer hangs over the tunnel', !!end.pointer, JSON.stringify(end.pointer))
-  ok('5', 'and it is clear of the sentence over his head', !!end.pointer && end.pointer.h >= 24)
+  ok('5', 'a drawn pointer hangs over the tunnel', !!end.pointer, JSON.stringify(end.pointer))
+  /* ---- CLOSE TO THE THING, NOT LARGE (Ash, 2026-09-09) -------------------
+   *
+   * This used to hold `h >= 24`, from the session where his word for the mark
+   * was "large". Playing it, he read a mark hanging two body lengths over the
+   * chart table as pointing at the bookshelf drawn behind it: *"the arrow mark
+   * thats just pointing on top of the shelf. Is that means to point to the year
+   * planner? Confused."* Height was never the property that made it mean
+   * something. Distance from the thing is. */
+  ok('5', 'and it sits on the thing rather than over the room',
+    !!end.pointer && end.pointer.bodies !== null && end.pointer.bodies <= 1.1,
+    end.pointer ? `${end.pointer.bodies} bodies off the anchor` : '')
   /* AND CLEAR OF THE PANEL AT THE TOP, which is a newer obstruction than the
    * sentence and a worse one, because it does not move out of the way. The
    * objective panel rides across every frame now and at the tunnel the camera is

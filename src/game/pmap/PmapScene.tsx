@@ -22,7 +22,7 @@ import { CutsceneRuntime } from '../cutscene/runtime'
 import type { CutsceneStage } from '../cutscene/types'
 import { publishRuntime } from '../cutscene/stage-bus'
 import { resolveScript, scriptById } from '../cutscene/scripts'
-import { aheadOn, findPath, onFloor, type Pt } from './path'
+import { findPath, onFloor, type Pt } from './path'
 import { warmMap } from './warm'
 import { setMapUrl, targetFromUrl, type PmapTarget } from './route'
 import { loadSave, recordExposure, recordPosition, recordVessel } from '../save'
@@ -1705,31 +1705,20 @@ export default function PmapScene() {
 
       /* the objective marker: a small chevron over the station the year is sending him to */
       /* a drawn chevron off the kit's pointer sheet, falling back to a drawn triangle */
-      const objMark = new Container()
-      objMark.zIndex = 9e9 - 2
-      objMark.visible = false
-      world.addChild(objMark)
-      {
-        const CW = 13, CH = 9
-        const glyph = new Graphics()
-        glyph.moveTo(-CW / 2, -CH).lineTo(CW / 2, -CH).lineTo(0, 0).closePath()
-          .fill(0xffd98a).stroke({ color: 0x3a2410, width: 2 })
-        /* the drawn fallback is added to the stage, so the plain arm and a filtered machine see it */
-        objMark.addChild(glyph)
-        void kitSprite('pointer', 'chevron').then((drawn) => {
-          if (destroyed || !drawn) return
-          /* sized against the CHARACTER and not against the sheet, so one drawing
-           * is the right size on a map whose people are 18 painting pixels and on
-           * one whose people are 40. The mark is about as tall as his head. */
-          drawn.anchor.set(0.5, 1)
-          const want = Math.max(9, Math.round(map.character.heightPx * 0.62))
-          drawn.scale.set(want / drawn.texture.height)
-          objMark.removeChild(glyph)
-          glyph.destroy()
-          objMark.addChild(drawn)
-        })
-      }
-      objMark.scale.set(1 / Z)
+      /* ---- THE ARROW THAT FOLLOWED HIM IS GONE (Ash, 2026-09-09) --------
+       *
+       * *"The arrow mark glitches. Firstly theres a small arrow mark following
+       * thor around."*
+       *
+       * It was a chevron pinned sixty ground pixels ahead of him along the route
+       * the walk law had found, and from the chair that is an arrow stuck to the
+       * character rather than a thing in the room. It was also the THIRD mark
+       * saying one sentence: the trail arrows already draw the road, the ring
+       * already names the thing, and the sign already hangs over it. Three
+       * pointers for one instruction is why he read the set as glitching.
+       *
+       * `marksOn` is what is left of it: the one decision about whether the
+       * wayfinding is showing at all, which every mark below still reads. */
 
       /* the big pointer over the target itself, answering which thing rather than which way */
       const bigMark = new Container()
@@ -1745,12 +1734,13 @@ export default function PmapScene() {
         void kitSprite('pointer', 'chevron').then((drawn) => {
           if (destroyed || !drawn) return
           drawn.anchor.set(0.5, 1)
-          /* about a body and a half tall, against the character rather than
-           * against the sheet, for the reason the small one gives */
-          /* LARGE, and Ash's word for it is "large". At one and a half bodies
-           * it measured 61 screen pixels at the walking shot on a 768 pixel
-           * window, which is a mark; at nearly two it is a sign. */
-          const want = Math.max(24, Math.round(map.character.heightPx * 1.9))
+          /* SMALLER THAN IT WAS, because it no longer has to be seen from
+           * across the room: it sits on the thing now. At nearly two bodies it
+           * was a sign hanging in mid-air and Ash read it as pointing at whatever
+           * happened to be behind it (2026-09-09). Sized against the character
+           * rather than against the sheet, so one drawing is right on a map whose
+           * people are eighteen painting pixels and on one whose people are forty. */
+          const want = Math.max(14, Math.round(map.character.heightPx * 0.8))
           drawn.scale.set(want / drawn.texture.height)
           bigMark.removeChild(glyph)
           glyph.destroy()
@@ -1763,6 +1753,10 @@ export default function PmapScene() {
       const lit = new Graphics()
       lit.visible = false
       world.addChild(lit)
+      /* the pulse that leaves the pool, redrawn every frame because it moves */
+      const litRing = new Graphics()
+      litRing.visible = false
+      world.addChild(litRing)
       /* the ring's geometry is rebuilt only when the target or its size changes */
       let litKey = ''
       let litR = 0
@@ -4111,10 +4105,21 @@ const CAM_TO_DOCK_MS = 1100
 const DOCK_BEAT_MS = 900
 /** aboard, settled, before a line is cast off */
 const BOARD_BEAT_MS = 700
-/** and the departure itself, which is the shot the title fades in over */
-const SAIL_OUT_MS = 5200
-/** half a helm from a standstill: she leaves, she does not bolt */
-const SAIL_OUT_THROTTLE = 0.5
+/* ---- SLOWER, AND OVER SOONER (Ash, 2026-09-09) ---------------------------
+ *
+ * *"The ending, the ship still sails off quite fastly. Much slower sailing, and
+ * quicker time the transition to the title screen pops up."*
+ *
+ * Two knobs and they pull opposite ways, which is why this reads as one note and
+ * is two numbers. Measured live at half a helm over 5.2 seconds: 38 to 48 pixels
+ * a second, and the shot outlasted the interest in it. A third of a helm is
+ * roughly 20 a second, which is a boat leaving a harbour, and three and a half
+ * seconds is long enough to watch her go and short enough that the title arrives
+ * while it still feels like an ending. */
+/** the departure itself, which is the shot the title fades in over */
+const SAIL_OUT_MS = 3500
+/** a third of a helm from a standstill: she leaves the way a boat leaves */
+const SAIL_OUT_THROTTLE = 0.32
 
 const CAST_OFF_SHOW_MS = 3200
 
@@ -4372,7 +4377,7 @@ const CAST_OFF_SHOW_MS = 3200
         target: guideTarget?.name ?? null,
         route: guide?.route.length ?? 0,
         reached: guide?.reached ?? null,
-        lead: objMark.visible ? { x: Math.round(objMark.x), y: Math.round(objMark.y) } : null,
+        lead: null,
       })
       ;(window as any).__zones = () => JSON.stringify({ inside: [...inZones], fired: [...firedTriggers] })
       ;(window as any).__cs = () => JSON.stringify({
@@ -4494,9 +4499,19 @@ const CAST_OFF_SHOW_MS = 3200
         get pointer() {
           if (!bigMark.visible) return null
           const b = bigMark.getBounds()
+          /* AND HOW FAR IT IS FROM THE THING IT NAMES, in body lengths on the
+           * ground. Ash, 2026-09-09: a mark two bodies above a table is a mark
+           * pointing at whatever is drawn behind the table, so proximity is what
+           * a gate should hold rather than size. */
+          const over = litAnchor ? anchors.spotOf(litAnchor) : null
+          const bodies = over
+            ? Math.hypot(bigMark.x - over.x, (bigMark.y - over.y) * (map.yScale || 1))
+              / Math.max(1, map.character.heightPx)
+            : null
           return {
             x: Math.round(b.x + b.width / 2), y: Math.round(b.y),
             w: Math.round(b.width), h: Math.round(b.height),
+            bodies: bodies === null ? null : +bodies.toFixed(2),
           }
         },
         /** how many arrow marks are drawn along the route right now */
@@ -4877,7 +4892,7 @@ const CAST_OFF_SHOW_MS = 3200
          * does not blow the YOU pin up with the painting */
         const uiS = 1 / camZ
         if (pin.scale.x !== uiS) {
-          pin.scale.set(uiS); prompt.scale.set(uiS); objMark.scale.set(uiS); bigMark.scale.set(uiS)
+          pin.scale.set(uiS); prompt.scale.set(uiS); bigMark.scale.set(uiS)
         }
         /* the two surfaces a world hold does not reach, stated by the movie every frame */
         /* and the marker stays while he is being walked: which one is you is not furniture */
@@ -5037,20 +5052,37 @@ const CAST_OFF_SHOW_MS = 3200
             guide = { key: mark.name, route: r.points, from: { x: pos.x, y: pos.y }, reached: r.reached, at: performance.now() }
           }
           const g = guide!
-          const lead = aheadOn(g.route, { x: pos.x, y: pos.y }, 60, map.yScale) ?? goal
-          objMark.position.set(lead.x, lead.y - 14 + Math.sin(t * 2.6) * 2)
-          /* the arrows survive a scripted walk, because that is the game showing him the way */
-          /* and they survive the bars while he is being walked */
-          /* and they stay up for the whole beat, not only the third of it he spends walking */
-          objMark.visible = !fade && (!!autoWalk || !!guideTarget || (!locked && !movieOn))
+          /* the marks survive a scripted walk, because that is the game showing him
+           * the way, and they survive the bars while he is being walked, and they
+           * stay up for the whole beat rather than the third of it he spends walking */
+          const marksOn = !fade && (!!autoWalk || !!guideTarget || (!locked && !movieOn))
 
-          /* the big pointer hangs over the thing, placed against the character's own height */
+          /* ---- THE SIGN HANGS ON THE THING, NOT OVER THE ROOM --------------
+           *
+           * ASH, 2026-09-09, looking at a shot of the Maw: *"Then the arrow mark
+           * thats just pointing on top of the shelf. Is that means to point to
+           * the year planner? Confused. Its just pointing."*
+           *
+           * It WAS the year planner's arrow. It hung two and a third body
+           * lengths above the chart table, which at the close shot is about two
+           * hundred and seventy screen pixels, and two hundred and seventy
+           * pixels above a table in an isometric room is a different piece of
+           * furniture. The mark was right and the altitude made it a lie.
+           *
+           * ONE BODY. Close enough that the gap between the point of the arrow
+           * and the thing reads as attachment, far enough to clear the object's
+           * own drawn height. It steps up a little when he is standing at it, to
+           * clear the words over his own head, and no further. */
           const over = anchors.spotOf(mark)
-          /* it steps up only while he is close enough to collide with the words over his head */
           const atIt = Math.hypot(over.x - pos.x, (over.y - pos.y) * (map.yScale || 1))
             < map.character.heightPx * 2.5
-          /* three bodies clears the sentence and keeps the arrow on the door */
-          const lift = Math.round(map.character.heightPx * (atIt ? 3.0 : 2.3))
+          /* MEASURED AGAIN 2026-09-09 at one body: on the Maw the bookshelf is
+           * drawn immediately behind the chart table, so anything standing a
+           * whole body above the table still lands on the shelf and Ash read it
+           * as pointing at the shelf a second time. Half a body puts the point of
+           * it inside the table's own drawn height, where there is nothing else
+           * it could possibly mean. */
+          const lift = Math.round(map.character.heightPx * (atIt ? 0.9 : 0.55))
           bigMark.position.set(over.x, over.y - lift + Math.sin(t * 2.6) * 3)
           /* and it stays under the top panel, whose band is read once a second rather than typed */
           if (t - panelBandAt > 1) {
@@ -5067,7 +5099,7 @@ const CAST_OFF_SHOW_MS = 3200
             if (short > 0) bigMark.y += short / camZ
           }
           bigMark.zIndex = 9e9 - 2
-          bigMark.visible = objMark.visible
+          bigMark.visible = marksOn
 
           /* the light sits on the thing, at its live position, squashed onto the painting's floor */
           const spot = anchors.spotOf(mark)
@@ -5079,26 +5111,83 @@ const CAST_OFF_SHOW_MS = 3200
             litR = want
             const ry = Math.max(6, want * (map.yScale || 1) * 0.5)
             litRy = ry
-            /* not carried by hue alone: a dark ring outside a bright one, so it reads on pale ground */
+            /* ---- A POOL OF LIGHT, NOT A STICKER (Ash, 2026-09-09) ----------
+             *
+             * *"I feel like the arrow marks and the blue ring, are a bit
+             * archaic / not the best looking. If theres a even more visually
+             * clean, and appealing methods / UI, go for it."*
+             *
+             * What was there: a flat teal disc at 30 percent, a hard two-pixel
+             * teal rim, and a three-pixel dark brown ring outside it. Three
+             * hard edges and a fill, in the one hue on screen that belongs to
+             * nothing else in this game, sitting on the floor like a decal.
+             *
+             * THIS IS LIGHT INSTEAD OF PAINT. Four nested ellipses falling from
+             * eleven percent to nothing fake the falloff a real pool has, so
+             * the ground under the middle is brightened rather than covered and
+             * the art keeps showing through. One thin bright rim says where the
+             * edge is. Nothing is drawn hard.
+             *
+             * AND IT IS WARM. Gold is the colour every other mark in this game
+             * already is: the arrows, the plaques, the planks, the pin. The teal
+             * was the only thing on screen wearing it.
+             *
+             * IT CARRIES ITS OWN CONTRAST, and the first try did not. Shot on
+             * the hub 2026-09-09: four nested warm fills at eleven percent are
+             * invisible on pale sand, which is most of the ground in this game.
+             * A mark whose readability depends on the floor being dark is a mark
+             * that works in the Maw and nowhere else.
+             *
+             * SO THE EDGE IS THE MARK: a dark shoulder immediately outside a
+             * bright rim, both thin, both nearly opaque. That pair reads on
+             * black stone, on bleached sand and on water, because one half of it
+             * always contrasts. The warm fill inside is a nicety that adds glow
+             * on dark ground and costs nothing where it cannot be seen.
+             *
+             * AND IT DOES NOT RELY ON HUE EITHER: the pulse below MOVES, and
+             * movement is read long before colour is. */
             lit.clear()
-            lit.ellipse(0, 0, want + 2, ry + 2).stroke({ color: 0x3a2410, width: 3, alpha: 0.55 })
-            lit.ellipse(0, 0, want, ry).fill({ color: 0x2f8e82, alpha: 0.3 })
-            lit.ellipse(0, 0, want, ry).stroke({ color: 0x5fd8c6, width: 2 })
+            lit.ellipse(0, 0, want * 0.98, ry * 0.98).fill({ color: 0xffe9b8, alpha: 0.1 })
+            lit.ellipse(0, 0, want + 2, ry + 2).stroke({ color: 0x241708, width: 3, alpha: 0.5 })
+            lit.ellipse(0, 0, want, ry).stroke({ color: 0xffe9b8, width: 2, alpha: 0.95 })
           }
           lit.position.set(spot.x, spot.y)
+          /* ---- AND IT BREATHES OUTWARD ------------------------------------
+           *
+           * One ring leaving the pool every two and a half seconds and fading as
+           * it goes. It is the whole difference between a marker and a decal:
+           * the eye is caught by movement long before it is caught by a colour,
+           * so the thing the year wants announces itself without being loud.
+           * Redrawn per frame, which is one ellipse stroke.
+           *
+           * STILL FOR REDUCED MOTION, where the static pool is the whole mark. */
+          litRing.clear()
+          litRing.position.set(spot.x, spot.y)
+          litRing.zIndex = lit.zIndex
+          if (!prefersReducedMotion()) {
+            const ph = (t / 2.5) % 1
+            const grow = 0.62 + ph * 0.75
+            const fade = 1 - ph
+            /* the same two-tone edge the pool has, for the same reason */
+            litRing.ellipse(0, 0, want * grow + 2, litRy * grow + 2)
+              .stroke({ color: 0x241708, width: 3, alpha: 0.34 * fade })
+            litRing.ellipse(0, 0, want * grow, litRy * grow)
+              .stroke({ color: 0xffe9b8, width: 2, alpha: 0.62 * fade })
+          }
+          litRing.visible = marksOn
           /* over the painting, under anything standing on the same pixel, under
            * Thor and under every occluder: light pooled on the ground rather than
            * a sticker over the art */
           lit.zIndex = spot.y - 0.5
           /* the pulse breathes rather than blinks, and is off for reduced motion */
           lit.alpha = prefersReducedMotion() ? 1 : 0.82 + Math.sin(t * 2.6) * 0.18
-          lit.visible = objMark.visible
+          lit.visible = marksOn
 
           /* the route itself, in arrow marks on the ground that face the way it runs */
           /* the marks are placed by ground distance and not by waypoint index */
           let shown = 0
           /* the drawn arrows ship in this repo, so they no longer wait on the platform's sheet */
-          if (objMark.visible && (trailArt.size > 0 || trailTex) && g.route.length > 1) {
+          if (marksOn && (trailArt.size > 0 || trailTex) && g.route.length > 1) {
             const ys = map.yScale || 1
             /* spaced against the body, so they read as a road at either zoom */
             const STEP = Math.max(16, Math.round(map.character.heightPx * 1.5))
@@ -5140,11 +5229,20 @@ const CAST_OFF_SHOW_MS = 3200
               /* sized against the character and snapped to whole pixels */
               const arrow = trailArt.has(m.dir)
               /* big enough to read at the close zoom, so it looks like a marking on the floor */
-              const want = Math.max(3, Math.round(map.character.heightPx * (arrow ? 0.55 + 0.25 * m.t : 0.36 + 0.22 * m.t)))
+              /* SMALLER AND SOFTER AT THE NEAR END (Ash, 2026-09-09, on the
+               * whole set reading as archaic). They were nearly two thirds of a
+               * body each at full strength from his feet outward, which is a row
+               * of signs rather than a road. The far end still brightens and
+               * grows, so the eye is pulled along it. */
+              const want = Math.max(3, Math.round(map.character.heightPx * (arrow ? 0.34 + 0.22 * m.t : 0.26 + 0.18 * m.t)))
               sp.width = want
-              sp.height = Math.max(1, Math.round(want * (arrow ? ys : ys)))
+              sp.height = Math.max(1, Math.round(want * ys))
               sp.position.set(Math.round(m.x), Math.round(m.y))
-              sp.alpha = 0.62 + 0.38 * m.t
+              /* THE ALPHA STAYS UP. Dropped to a third at the near end on the
+               * first pass and the road disappeared on the hub's sand: the
+               * drawn arrow carries its own dark outline, so it reads at full
+               * strength, and it was the SIZE that made it a row of signs. */
+              sp.alpha = 0.55 + 0.4 * m.t
               sp.visible = true
               shown++
             }
@@ -5152,13 +5250,13 @@ const CAST_OFF_SHOW_MS = 3200
           for (let i = shown; i < trailSprites.length; i++) trailSprites[i].visible = false
           trailMarks = shown
         } else {
-          objMark.visible = false
           bigMark.visible = false
           for (const sp of trailSprites) sp.visible = false
           trailMarks = 0
           /* guarded, never cleared: see the note where `lit` is built. Both of
            * these run on every frame of a map with nothing owed. */
           if (lit.visible) { lit.visible = false; litKey = ''; litR = 0; litRy = 0 }
+          if (litRing.visible) { litRing.visible = false; litRing.clear() }
           litAnchor = null
           guide = null
         }

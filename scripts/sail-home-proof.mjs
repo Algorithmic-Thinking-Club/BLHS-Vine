@@ -67,7 +67,7 @@ await page.addInitScript((s) => {
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 /* `SAIL_OUT_MS` in the scene, which is what the samples below are spread over */
-const SAIL_SECONDS = 5.2
+const SAIL_SECONDS = 3.5
 const look = () => page.evaluate(() => {
   const p = window.__pmap
   return {
@@ -206,7 +206,9 @@ if (sailedFrom && sailedTo) {
    * cruising speed, which crossed the same ground in a fifth of the time. */
   const secs = SAIL_SECONDS
   const pxs = far / secs
-  ok('at a pace you can watch', pxs < 150, `${Math.round(pxs)} px/s over ${secs}s`)
+  /* ASH, 2026-09-09: *"much slower sailing"*. Half a helm measured 38 to 48 a
+   * second and he still read it as fast, so the ceiling comes down with it. */
+  ok('at a pace you can watch', pxs < 32, `${Math.round(pxs)} px/s over ${secs}s`)
 } else {
   ok('she really moves', false, 'no hull was ever on the water')
   ok('and not straight down the screen', false, 'no hull was ever on the water')
