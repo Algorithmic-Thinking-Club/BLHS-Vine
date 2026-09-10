@@ -1,9 +1,8 @@
 /* the outfitter: a mirror where the player picks a coat colour and sees what is still locked */
 import { useEffect, useRef, useState } from 'react'
 import { LOOKS, drawRecolored } from '../thorLook'
+import { BARE, WEAR } from '../thorWear'
 import { loadSave, writeSave } from '../save'
-import { programmeById } from '../roster/roster'
-import { ranksOf } from '../progress'
 import { track } from '../telemetry'
 import { announce, usePanel } from '../ui/a11y'
 import { Chip, Glyph, Plank } from '../ui/controls'
@@ -23,36 +22,13 @@ const STAGE_H = 80
 const FOOT = 2
 
 /* the real earn rule for an item, or null when no such island is on the roster */
-const earnByCompleting = (id: string) => {
-  const g = programmeById(id)
-  return g ? `complete the ${g.name} island` : null
-}
-
-/* ---- THESE ARE TROPHIES, NOT GARMENTS (Ash, 2026-09-09) -------------------
- *
- * *"I bet its the same for the letter man jacket, googles, cap."*
- *
- * The coats are a recolour of art that already exists and they now reach the
- * walking body on every map. These three are not: wearing one needs an overlay
- * drawn for eight headings across six walk frames each, which is PixelLab work
- * and Ash's word for that specific spend, and there is no save field for what is
- * worn on top of a coat.
- *
- * SO THE CARD SAYS WHAT IT IS. Sitting silently in a wardrobe beside four coats
- * you can put on, a card that reads "Earned" promises a garment; the promise was
- * the bug rather than the missing art. It reads as a record of something you did
- * until somebody draws it. */
-
-/* ---- the locked items, each with the rule that unlocks it ---- */
-const LOCKED = [
-  { name: 'Letterman jacket', earn: 'reach Varsity in any sport', has: (s: ReturnType<typeof loadSave>) => !!s && Object.values(ranksOf(s)).some((y) => Number(y) >= 2) },
-  { name: 'Robotics goggles', earn: earnByCompleting('robotics'), has: (s: ReturnType<typeof loadSave>) => !!programmeById('robotics') && s?.islands?.robotics === 'completed' },
-  { name: 'Graduation cap', earn: 'finish all four years', has: (s: ReturnType<typeof loadSave>) => !!s?.graduated },
-]
 
 export function Wardrobe({ onClose }: { onClose: () => void }) {
   const s = loadSave()
   const [look, setLook] = useState(s?.thorLook ?? 'classic')
+  /* what he is wearing over it. One slot, because an outfit is a whole edited
+   * character rather than a layer (`thorWear.ts` says why). */
+  const [worn, setWorn] = useState(s?.thorWear ?? BARE)
   const [facing, setFacing] = useState(0)
   const [spin, setSpin] = useState(0)
   const cvRef = useRef<HTMLCanvasElement>(null)
@@ -188,22 +164,40 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
             <section className="wd-group" aria-labelledby="wd-locked">
               <h3 className="wd-grouphead" id="wd-locked">Not yours yet</h3>
               <div className="wd-locks">
-                {LOCKED.map((it) => {
+                {WEAR.map((it) => {
                   const got = it.has(s)
+                  /* ---- EARNED AND DRAWN IS WEARABLE (Ash, 2026-09-09) ------
+                   *
+                   * These were inspect-only cards: pressing one said a sentence
+                   * and returned. Ash gave the word for the art, so the equip
+                   * path is built and the card is a real picker the moment a set
+                   * lands on disk. Until then `drawn` is false and the card says
+                   * so rather than promising a garment it cannot put on. */
+                  const wearable = got && it.drawn
+                  const on = worn === it.id
                   return (
                     <button
-                      key={it.name}
+                      key={it.id}
                       type="button"
                       className="wd-lock"
-                      data-state={got ? 'earned' : 'locked'}
+                      aria-pressed={wearable ? on : undefined}
+                      data-state={on ? 'worn' : got ? 'earned' : 'locked'}
                       onClick={() => {
-                        track('locked_item_inspected', { item: it.name, earned: got })
-                        /* the earn rule is printed on the card now, and pressing
-                         * it says the same words, because a student who pressed
-                         * something they cannot have has asked a question */
-                        announce(got
-                          ? `${it.name}, earned. Nobody has drawn it yet, so Thor cannot wear it.`
-                          : it.earn ? `${it.name}. Earn by: ${it.earn}` : `${it.name}. Not open yet.`)
+                        track('locked_item_inspected', { item: it.name, earned: got, wearable })
+                        if (!wearable) {
+                          announce(got
+                            ? `${it.name}, earned. Nobody has drawn it yet, so Thor cannot wear it.`
+                            : it.earn ? `${it.name}. Earn by: ${it.earn}` : `${it.name}. Not open yet.`)
+                          return
+                        }
+                        /* pressing the one he has on takes it off, which is the
+                         * only way back to the bare panther */
+                        const next = on ? BARE : it.id
+                        setWorn(next)
+                        writeSave({ thorWear: next === BARE ? undefined : next })
+                        track('wear_change', { wear: next })
+                        saved(next === BARE ? 'Back to just the coat' : `Wearing ${it.name}`)
+                        announce(next === BARE ? `${it.name} taken off` : `${it.name} on`)
                       }}
                     >
                       <Chip state={got ? 'plate_lit' : 'plate'} className="wd-lock-plate">
@@ -214,9 +208,9 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
                       <span className="wd-lock-words">
                         <span className="wd-lock-name">{it.name}</span>
                         <span className="wd-lock-earn">
-                          {got
-                            ? 'Earned. Nobody has drawn it yet, so Thor cannot wear it.'
-                            : it.earn ? `Earn by: ${it.earn}` : 'Not open yet.'}
+                          {!got ? (it.earn ? `Earn by: ${it.earn}` : 'Not open yet.')
+                            : !it.drawn ? 'Earned. Nobody has drawn it yet, so Thor cannot wear it.'
+                              : on ? 'On. Press to take it off.' : 'Earned. Press to wear it.'}
                         </span>
                       </span>
                     </button>

@@ -44,6 +44,7 @@ import { stateOf, STATE_INK } from '../world/states'
 import { onSailRequest, onVoyageRequest } from '../world/sail-bus'
 import { requestUi } from '../ui-bus'
 import { drawRecolored, lookHue } from '../thorLook'
+import { poseFrame, walkFrame, wornKey } from '../thorWear'
 import { subscribeSave } from '../save'
 import { loadSettings } from '../../app/SettingsPanel'
 import { runEnding, setRunEnding } from '../hud/objective-bus'
@@ -1226,8 +1227,15 @@ export default function PmapScene() {
 
       // thor: the walk frames, sized from map.json and trimmed so the anchor really is his feet
       const walkT: Record<string, Texture[]> = {}
+      /* ---- THE SET HE IS WEARING (Ash gave the word for the art 2026-09-09)
+       *
+       * `walkFrame` answers the bare panther's own path until somebody has drawn
+       * the outfit, so this line is safe with no art on disk and becomes the
+       * jacket the day a folder lands. `thorWear.ts` has the whole of why an
+       * outfit is a set rather than a layer. */
       await Promise.all(DIRS8.map(async (d) => {
-        walkT[d] = await Promise.all([0, 1, 2, 3, 4, 5].map((i) => Assets.load(req(`/art/characters/thor/walk/${d}/${i}.png`))))
+        walkT[d] = await Promise.all([0, 1, 2, 3, 4, 5]
+          .map((i) => Assets.load(req(walkFrame(loadSave(), d, i)))))
         for (const t of walkT[d]) t.source.scaleMode = 'nearest'
       }))
 
@@ -1314,9 +1322,48 @@ export default function PmapScene() {
         for (const [file, t] of poseSrc) poseTex.set(file, hue === null ? t : dye(t))
       }
       dressThor(loadSave()?.thorLook)
-      /* the mirror opens over a live map, so the coat lands on the frame he picks
-       * it rather than the next time he sails somewhere */
-      offLook = subscribeSave(() => dressThor(loadSave()?.thorLook))
+
+      /* ---- AND AN OUTFIT IS A RELOAD, NOT A RE-DYE ------------------------
+       *
+       * A coat is a hue rotation of frames already in memory, so it lands on the
+       * frame the student presses it. An outfit is a different set of pngs, so it
+       * has to come off the network first. Both are watched here; only the one
+       * that changed is paid for.
+       *
+       * THE GUARD IS THE WHOLE KEY, outfit and coat together, because `writeSave`
+       * emits on every position record and every flag: without it this would
+       * rebuild forty-eight textures several times a second while he walks. */
+      let wornNow = wornKey(loadSave())
+      const redress = async () => {
+        const s2 = loadSave()
+        const key = wornKey(s2)
+        if (key === wornNow) return
+        const outfitChanged = key.split(':')[0] !== wornNow.split(':')[0]
+        wornNow = key
+        if (outfitChanged) {
+          /* the frames themselves are different art, so they are fetched again
+           * and the trim that finds his feet is redone against the new pixels */
+          const fresh: Record<string, Texture[]> = {}
+          await Promise.all(DIRS8.map(async (d) => {
+            const got = await Promise.all([0, 1, 2, 3, 4, 5]
+              .map((i) => Assets.load(req(walkFrame(s2, d, i)))))
+            fresh[d] = got.map((t) => {
+              t.source.scaleMode = 'nearest'
+              const r = scanRows(t)
+              return r ? new Texture({ source: t.source, frame: new Rectangle(0, 0, t.source.pixelWidth, r.feet + 1) }) : t
+            })
+          }))
+          if (destroyed) return
+          for (const d of DIRS8) walkT[d] = fresh[d]
+          /* a held pose is art too, so the cache is dropped and reloaded lazily */
+          poseTex.clear()
+          poseSrc.clear()
+        }
+        /* and the coat goes on whichever set is now underneath */
+        drawnLook = null
+        dressThor(s2?.thorLook)
+      }
+      offLook = subscribeSave(() => { void redress() })
 
       /* where the middle of his drawn body is per heading, so the YOU marker hangs over him */
       const pinDx: Record<string, number> = {}
@@ -1352,7 +1399,7 @@ export default function PmapScene() {
       const loadPose = async (file: string): Promise<Texture> => {
         const had = poseTex.get(file)
         if (had) return had
-        const t: Texture = await Assets.load(req(`/art/characters/thor/pose/${file}.png`))
+        const t: Texture = await Assets.load(req(poseFrame(loadSave(), file)))
         t.source.scaleMode = 'nearest'
         const r = scanRows(t)
         const cut = r ? new Texture({ source: t.source, frame: new Rectangle(0, 0, t.source.pixelWidth, r.feet + 1) }) : t

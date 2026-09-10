@@ -115,6 +115,10 @@ export type SaveGame = {
   pronouns: string
   boatName: string
   thorLook?: string
+  /* what he is wearing over the coat, or absent for the bare panther. One slot
+   * on purpose: an outfit is a whole edited character rather than a layer, so
+   * two cannot be worn at once (`thorWear.ts` has the reason). */
+  thorWear?: string
   castaway?: boolean
   classCode?: string
   year: number

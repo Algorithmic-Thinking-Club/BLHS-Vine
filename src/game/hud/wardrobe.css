@@ -233,3 +233,9 @@ html[data-skin='plain'] .wd-lock {
 html[data-skin='plain'] .wd-lock:hover { transform: none; background: var(--kit-paper-lo); }
 html[data-skin='plain'] .wd-lock[data-state='earned'] { border-left-width: 4px; border-left-color: var(--kit-ink-head); }
 html[data-skin='plain'] .wd-lock .wd-lock-plate { width: 22px; height: 22px; }
+
+/* the outfit he has on, which is the only card that reads as pressed */
+.wd-lock[data-state='worn'] {
+  outline: 2px solid var(--kit-gold-edge);
+  outline-offset: 2px;
+}
