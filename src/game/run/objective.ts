@@ -66,8 +66,20 @@ export function nextObjective(s: SaveGame | null): Objective | null {
    * else while it is owed. */
   if (!y.vignetteSeen) {
     return {
-      anchor: 'principal_desk', map: MAW_MAP, phase: 'vignette',
-      say: 'Talk to Principal Panther.',
+      /* ---- NO ANCHOR, BECAUSE NOBODY IS WAITING (Ash, 2026-09-09) ------
+       *
+       * It pointed at `principal_desk` and told a student to talk to the man.
+       * In year one that is true, because the founding film ends at his desk
+       * and writes the flag. In year two and after it is not: the vignette is a
+       * CARD the HUD raises on its own, the principal has no handler for it, and
+       * a student who obeyed the arrow got "back again?" and an arrow still
+       * pointing at him.
+       *
+       * The comment above already said the clause's only job is to stop pointing
+       * anywhere else while the card is owed, and an anchor is the one thing
+       * that does the opposite. */
+      anchor: '', map: MAW_MAP, phase: 'vignette',
+      say: 'Look around.',
       away: 'Go into the mountain.',
     }
   }

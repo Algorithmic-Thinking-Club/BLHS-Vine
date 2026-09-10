@@ -24,7 +24,9 @@ import { onWorldHold, worldHeld } from '../world-bus'
 import { onPlaceCard, onSceneDrawn, onStageBusy, placeCardUp, sceneDrawn } from '../stage/stage-bus'
 import { FOUNDING_FLAG } from '../run/objective'
 import { announce, panelDepth, usePanel } from '../ui/a11y'
-import { awarded, note } from '../ui/feedback'
+import { note } from '../ui/feedback'
+import { grant } from '../grant'
+import { attemptsOn } from '../beats/state'
 import { countAsDone, noIslandLine } from '../run/pick'
 import { requestVoyage } from '../world/sail-bus'
 import { faceStyle } from '../ui/kitFaceStyle'
@@ -65,7 +67,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   /* the handover tutorial, holding whoever is waiting for it to be over */
   const [tour, setTour] = useState<null | (() => void)>(null)
   /* a beat world code asked for, and the callback waiting for its grade */
-  const [playing, setPlaying] = useState<null | { beat: CoreBeat; plain: boolean; done: (g: number | null) => void }>(null)
+  const [playing, setPlaying] = useState<null | { beat: CoreBeat; plain: boolean; done: (g: number | null) => void; triesAt: number }>(null)
   const [, bump] = useState(0)
   useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
   /* redraws when the corner hands over another plaque */
@@ -178,7 +180,9 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     /* REFUSED, NOT ANSWERED NULL. A beat id nobody knows is a typo in somebody's
      * island, and a null grade told them it had worked. */
     if (!beat) { req.refuse(`no activity called "${req.beat}"`); return }
-    setPlaying({ beat, plain: req.plain, done: req.done })
+    /* the attempt count as it stands, so closing without sitting can be told
+     * apart from closing after a sitting (`closeAll` says why) */
+    setPlaying({ beat, plain: req.plain, done: req.done, triesAt: attemptsOn(loadSave(), beat.id) })
   }), [onBlurWorld, s])
 
   const openBook = (tab: HandbookTab) => { setPaused(false); setBook(tab) }
@@ -187,7 +191,21 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     setBook(null); setPlanner(false); setAdvisory(false); setYearbook(false)
     setGraduation(false); setPaused(false); setSettings(false); setWardrobe(false); setWall(false)
     /* whoever asked for a beat is told it ended, even when it ended by being closed */
-    setPlaying((p) => { p?.done(gradeFromLedger(p.beat.id)); return null })
+    /* ---- AN ABANDONED BEAT ANSWERS NOTHING (Ash, 2026-09-09) ------------
+     *
+     * `gradeFromLedger` reads whatever row is on the transcript, so closing a
+     * RETAKE a student walked out of handed the island the grade from the
+     * sitting before it, as though it had just been earned. `null` is what a
+     * closed panel means and the island already knows how to read it.
+     *
+     * The comparison is the attempt count, taken when the beat was handed over:
+     * it went up if and only if a sitting was finished. */
+    setPlaying((p) => {
+      if (!p) return null
+      const now = attemptsOn(loadSave(), p.beat.id)
+      p.done(now > p.triesAt ? gradeFromLedger(p.beat.id) : null)
+      return null
+    })
   }
   // resolved per render on purpose: Y4's audit beat is GENERATED from the live save
   /* whether the world has finished arriving, on a timer so nothing waits for ever */
@@ -334,9 +352,21 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
               })
               return
             }
+            /* ---- THROUGH `grant`, WHICH IS WHAT IT IS FOR (Ash, 2026-09-09)
+             *
+             * `awarded` is a bare stamp. `grant` pops the same stamp AND compares
+             * the save either side of the change, so a credit that tips a cord
+             * over its line raises the cord's own card behind it. Finishing picks
+             * from the sheet is the ONLY road to a cord this game can reach
+             * today, and it was the one road that did not go through here: the
+             * cord branch of `grant` had no live caller at all. */
+            const beforePick = loadSave()
             countAsDone(pick)
             track('pick_counted', { id: pick.id, kind: pick.kind })
-            awarded(noIslandLine(pick), 'It goes on your year sheet and on the wall.')
+            grant(beforePick, loadSave(), {
+              what: noIslandLine(pick),
+              detail: 'It goes on your year sheet and on the wall.',
+            })
             announce(noIslandLine(pick))
           }}
           onLook={(what) => {

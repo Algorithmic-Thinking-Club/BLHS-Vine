@@ -476,7 +476,10 @@ const LOCKED = [
 
 function drawThor(cv: HTMLCanvasElement, hue: number | null) {
   const img = new Image()
-  img.onload = () => drawRecolored(cv, img, hue)   // the same dye the world applies at load
+  /* the same dye the beach and the painted world both apply at load, and re-apply
+   * the moment the save changes. It was true of neither when this was written
+   * (Ash, 2026-09-09); `PmapScene` and `BeachIso` both subscribe now. */
+  img.onload = () => drawRecolored(cv, img, hue)
   img.src = '/art/characters/thor/walk/south/0.png'
 }
 

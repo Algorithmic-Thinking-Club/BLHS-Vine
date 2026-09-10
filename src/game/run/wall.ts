@@ -78,7 +78,17 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
       name: p ? shownName(p.id, p.name) : id,
       kind: 'activity',
       earned: !!c,
-      says: c ? (c.rank ? `${letter(c.grade)}, ${c.rank}` : letter(c.grade)) : null,
+      /* AN UNGRADED FINISH IS NOT AN F (Ash, 2026-09-09). A member's island that
+       * says `award(...)` with no number means "he did it", and this printed the
+       * zero it used to be stored as. And a row that took more than one go says
+       * so, which is the only place a student sees his own attempts. */
+      says: c ? [
+        c.grade === null ? 'finished' : letter(c.grade),
+        c.rank,
+        c.attempts && c.attempts > 1 && c.firstGrade !== null && c.firstGrade !== undefined
+          ? `${c.attempts} tries, first ${letter(c.firstGrade)}`
+          : null,
+      ].filter(Boolean).join(', ') : null,
       wants: 'Go to it from your year sheet',
     })
   }

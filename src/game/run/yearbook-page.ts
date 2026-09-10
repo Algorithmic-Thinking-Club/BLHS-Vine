@@ -1,10 +1,10 @@
 /* the yearbook page for one year, as data: five sections in a fixed order */
 import type { SaveGame } from '../save'
-import { SEASONS, writeSave } from '../save'
+import { writeSave } from '../save'
 import { cordsOf, gpaOf, letterOf } from '../progress'
 import { wallOf } from './wall'
 import { placeById } from '../roster/roster'
-import { SESSION_ENDS_AFTER_YEAR, nudgeLine, yearStatus } from './year'
+import { nudgeLine, yearStatus } from './year'
 
 export type YearbookRow = {
   key: string
@@ -100,10 +100,30 @@ export function yearbookPage(s: SaveGame, year: number = s.year): YearbookPage {
   const paper: YearbookSection = {
     id: 'paper',
     heading: 'Your grades this year',
+    /* ---- NO SEASON ON A CLASS ROW (Ash, 2026-09-09) ---------------------
+     *
+     * This printed `${e.season}` and every row in the game said Fall, because
+     * `s.season` is written in three places and all three write 'Fall': there is
+     * no clock in this run that advances it, and there should not be. The three
+     * season tokens are a PLANNING device for after-school picks, not a
+     * calendar. Classes at Bonney Lake are not season-scoped and the catalog
+     * carries no season field for them, so the word was invented on every line.
+     *
+     * The tokens keep their seasons in "Clubs and sports you picked" below,
+     * where the season is a real fact about which token bought the row.
+     *
+     * WHAT REPLACES IT IS TRUE: how many goes it took, which is the only place
+     * outside the wall a student is shown his own attempts. */
     rows: s.ledger.filter((e) => e.year === year).map((e) => ({
       key: e.id,
       title: e.title,
-      meta: `${e.season} · ${letterOf(e.grade)}${e.retaken ? ' · retaken' : ''}`,
+      meta: [
+        letterOf(e.grade),
+        e.attempts && e.attempts > 1 && e.firstGrade !== undefined
+          ? `${e.attempts} tries, first ${letterOf(e.firstGrade)}`
+          : null,
+        e.retaken ? 'retaken' : null,
+      ].filter(Boolean).join(' · '),
     })),
     empty: 'Nothing was graded this year. A quiet one on the transcript.',
   }
@@ -200,7 +220,7 @@ export function yearbookPage(s: SaveGame, year: number = s.year): YearbookPage {
     letter: gpa !== null ? letterOf(gpa) : '',
     move,
     sections: [paper, seasons, waters, marks, threads],
-    nudge: nudgeLine(st),
+    nudge: nudgeLine(st, s),
   }
 }
 
@@ -216,9 +236,15 @@ export const threadWidth = (s: SaveGame, cordId: string): number => {
 export function turnYearPage(s: SaveGame, year: number): SaveGame {
   const mark = `yearbook:y${year}`
   const flags = s.flags.includes(mark) ? s.flags : [...s.flags, mark]
-  /* the session ends after its year, so the last turn marks the page and stops there */
-  if (s.year >= SESSION_ENDS_AFTER_YEAR && s.year < 4) return writeSave({ flags })
-  return s.year >= 4
-    ? writeSave({ flags, graduated: true })
-    : writeSave({ flags, year: s.year + 1, season: 'Fall', tokens: [...SEASONS] })
+  /* ---- TURNING THE PAGE NEVER ADVANCES THE YEAR (Ash, 2026-09-09) --------
+   *
+   * It used to, and the guard above it was `s.year >= SESSION_ENDS_AFTER_YEAR &&
+   * s.year < 4`, which with that constant at 1 caught years one to three and
+   * left an advancing branch nothing could reach.
+   *
+   * The year turn belongs to the title now: the closing film carries a student
+   * out of the Maw, and the "Start year N" plank calls `endYear`, which is the
+   * one place that hands over a fresh sheet and three tokens. This marks the
+   * page and stops, whatever year it is. Four is the end of the road. */
+  return s.year >= 4 ? writeSave({ flags, graduated: true }) : writeSave({ flags })
 }

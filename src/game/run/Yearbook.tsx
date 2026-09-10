@@ -10,7 +10,7 @@ import {
   turnYearPage, yearbookPage, yearbookYears, yearTurned,
   type GpaMove, type YearbookRow, type YearbookSection,
 } from './yearbook-page'
-import { SESSION_ENDS_AFTER_YEAR, yearWord } from './year'
+import { yearWord } from './year'
 import { cinemaOn } from '../stage/cinema'
 import './run.css'
 
@@ -143,14 +143,6 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
   /* the turn belongs to the live year, once, and only when the year owes nothing */
   const canTurn = page.current && !page.turned && page.ready
   const lastYear = year >= 4
-  /* ---- ONLY THE YEAR THE SESSION ACTUALLY ENDS AFTER (Ash, 2026-09-09) ---
-   *
-   * `year >= SESSION_ENDS_AFTER_YEAR` with that constant at 1 is true for years
-   * one, two AND three, so every non-final year took the session-end branch and
-   * the roll-forward branch under it — the one that hands out three new season
-   * tokens and says "Go to the table and pick your year" — was unreachable code.
-   * A year-2 student closed his year on a card written for the end of the run. */
-  const sessionEnds = !lastYear && year === SESSION_ENDS_AFTER_YEAR
 
   const turn = () => {
     track('year_end', {
@@ -298,43 +290,34 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                     : <Plank size="lg" onClick={onClose}>Back to the game</Plank>}
                 </div>
               </>
-            ) : sessionEnds ? (
-              /* the end of the thirty minutes, which is not a graduation */
+            ) : (
+              /* ---- ONE CARD FOR EVERY YEAR THAT IS NOT THE LAST ------------
+               *
+               * ASH, 2026-09-09: *"I finished year 2, and it says 'year one is
+               * done' everywhere."*
+               *
+               * There were two branches here and they split on
+               * `year >= SESSION_ENDS_AFTER_YEAR`, which with that constant at 1
+               * is true for years one, two AND three. So every non-final year
+               * took the session-end card and the other one, which handed over
+               * three new season tokens and said "Go to the table and pick your
+               * year", was unreachable code that had never once drawn.
+               *
+               * IT IS GONE RATHER THAN FIXED, because it also promised something
+               * that is no longer this screen's to give. Turning the page marks
+               * the year and stops; the ending film carries the student out to
+               * the title, and the title's own "Start year N" plank is what
+               * hands over the sheet and the tokens. A card promising tokens
+               * before the film has even played is a card describing the wrong
+               * game. */
               <>
                 <h2 className="yb-title">Year {yearWord(year)} is done.</h2>
-                {/* what is true now, the room being his, rather than a promise about next time */}
-                {/* THE YEAR IS ASKED, NOT SPELLED (Ash, 2026-09-09): *"I finished
-                    year 2, and it says 'year one is done' everywhere."* */}
+                {/* what is true now, rather than a promise about next time */}
                 <p className="yb-turnedline">
                   That is year {yearWord(year)}. The Maw is yours to walk, and the Guide has every
                   club and class at Bonney Lake in it.
                 </p>
                 <div className="yb-acts">
-                  <Plank size="lg" onClick={onClose}>That is year {yearWord(year)}</Plank>
-                </div>
-              </>
-            ) : (
-              <>
-                <h2 className="yb-title">Year {year + 1}.</h2>
-                {/* the three new season tokens, shown on the page that hands them over */}
-                <div className="yb-refill" aria-label="Three new season tokens. You can pick three more clubs or sports.">
-                  {(['fall', 'winter', 'spring'] as const).map((season, i) => (
-                    <span
-                      key={season}
-                      className="yb-newtoken"
-                      style={{ '--yb-step': `${i * 160}ms` } as CSSProperties}
-                    >
-                      <Glyph
-                        piece="pip" face={season} size={34}
-                        fallback={<Chip state="plate_lit" className="yb-newchip" />}
-                      />
-                      <span className="yb-newtokenword">{season}</span>
-                    </span>
-                  ))}
-                </div>
-                <p className="yb-turnedline">Three new season tokens. Go to the table and pick your year.</p>
-                <div className="yb-acts">
-                  {/* the way on is worded as finishing, not as going back */}
                   <Plank size="lg" onClick={onClose}>That is year {yearWord(year)}</Plank>
                 </div>
               </>

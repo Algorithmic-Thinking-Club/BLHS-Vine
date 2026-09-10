@@ -180,7 +180,20 @@ export function yearStatus(s: SaveGame, forYear = s.year): YearStatus {
 }
 
 /** the yearbook's one gentle nudge (§7.6) — observed, never scolding */
-export function nudgeLine(st: YearStatus): string {
+export function nudgeLine(st: YearStatus, s?: SaveGame | null): string {
+  /* ---- A YEAR OF F GRADES IS NOT A YEAR WELL SPENT (Ash, 2026-09-09) -----
+   *
+   * This looked only at what was UNFINISHED, and a failed thing is finished as
+   * far as "is it on the sheet" goes, so a student who sat everything and passed
+   * none of it closed his year on "Not a season wasted." It is said first
+   * because it is the biggest thing true about the year.
+   *
+   * `s` is optional so the older callers still compile; without it this clause
+   * simply does not fire, which is the behaviour they already had. */
+  const failed = s ? s.ledger.filter((e) => e.year === st.year && e.grade < 1.0) : []
+  if (failed.length === 1) return `${failed[0].title} came back an F. You can sit it again.`
+  if (failed.length > 1) return `${failed.length} things came back an F. You can sit them again.`
+
   const rising = st.voyages.find((v) => !v.playable && !v.done)
   if (rising) return `The ${rising.name} island is not open yet, so nobody could sail there.`
   /* no nudge about an empty season, since the sheet never showed a student one */

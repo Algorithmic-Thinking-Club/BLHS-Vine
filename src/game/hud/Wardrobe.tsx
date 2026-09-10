@@ -28,6 +28,21 @@ const earnByCompleting = (id: string) => {
   return g ? `complete the ${g.name} island` : null
 }
 
+/* ---- THESE ARE TROPHIES, NOT GARMENTS (Ash, 2026-09-09) -------------------
+ *
+ * *"I bet its the same for the letter man jacket, googles, cap."*
+ *
+ * The coats are a recolour of art that already exists and they now reach the
+ * walking body on every map. These three are not: wearing one needs an overlay
+ * drawn for eight headings across six walk frames each, which is PixelLab work
+ * and Ash's word for that specific spend, and there is no save field for what is
+ * worn on top of a coat.
+ *
+ * SO THE CARD SAYS WHAT IT IS. Sitting silently in a wardrobe beside four coats
+ * you can put on, a card that reads "Earned" promises a garment; the promise was
+ * the bug rather than the missing art. It reads as a record of something you did
+ * until somebody draws it. */
+
 /* ---- the locked items, each with the rule that unlocks it ---- */
 const LOCKED = [
   { name: 'Letterman jacket', earn: 'reach Varsity in any sport', has: (s: ReturnType<typeof loadSave>) => !!s && Object.values(ranksOf(s)).some((y) => Number(y) >= 2) },
@@ -42,11 +57,13 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
   const [spin, setSpin] = useState(0)
   const cvRef = useRef<HTMLCanvasElement>(null)
 
-  /* the other seven headings, fetched once, so the first turn is not a blank
-   * frame while a 3 KB png comes down over a school access point */
-  useEffect(() => {
-    for (const h of RING) { const pre = new Image(); pre.src = `/art/characters/thor/${h}.png` }
-  }, [])
+  /* ---- THE MIRROR SHOWS THE BODY THAT WALKS (Ash, 2026-09-09) -----------
+   *
+   * It drew `/art/characters/thor/<heading>.png`, the eight top-level standing
+   * pngs, and the painted world walks `/art/characters/thor/walk/<heading>/0.png`.
+   * Two different drawings of the same panther, so the coat a student approved in
+   * the mirror was approved on a body he never sees. Now they read one set, and
+   * the preload goes with it: those frames are already in the scene's own cache. */
 
   useEffect(() => {
     const cv = cvRef.current
@@ -70,7 +87,7 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
         g.drawImage(off, Math.round((STAGE_W - off.width) / 2), STAGE_H - off.height - FOOT)
       } catch { /* left empty on purpose: see above */ }
     }
-    img.src = `/art/characters/thor/${RING[facing]}.png`
+    img.src = `/art/characters/thor/walk/${RING[facing]}/0.png`
     return () => { live = false }
   }, [look, facing])
 
@@ -185,7 +202,7 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
                          * it says the same words, because a student who pressed
                          * something they cannot have has asked a question */
                         announce(got
-                          ? `${it.name}, earned`
+                          ? `${it.name}, earned. Nobody has drawn it yet, so Thor cannot wear it.`
                           : it.earn ? `${it.name}. Earn by: ${it.earn}` : `${it.name}. Not open yet.`)
                       }}
                     >
@@ -197,14 +214,19 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
                       <span className="wd-lock-words">
                         <span className="wd-lock-name">{it.name}</span>
                         <span className="wd-lock-earn">
-                          {got ? 'Earned' : it.earn ? `Earn by: ${it.earn}` : 'Not open yet.'}
+                          {got
+                            ? 'Earned. Nobody has drawn it yet, so Thor cannot wear it.'
+                            : it.earn ? `Earn by: ${it.earn}` : 'Not open yet.'}
                         </span>
                       </span>
                     </button>
                   )
                 })}
               </div>
-              <p className="wd-note">You earn these by playing.</p>
+              <p className="wd-note">
+                You earn these by playing. They are a record of what you did; the coats above
+                are the part Thor wears.
+              </p>
             </section>
           </div>
         </div>

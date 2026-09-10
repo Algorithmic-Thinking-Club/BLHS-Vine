@@ -214,12 +214,15 @@ const PROP_TINT: Record<string, number> = { bushB: 0xe6dccf, bushC: 0xc9e0b4, se
 import type { CutsceneStage } from './cutscene/types'
 import { loadSave } from './save'
 import { drawRecolored, lookHue } from './thorLook'
+import { subscribeSave } from './save'
 export type BeachStage = CutsceneStage & { onTick: (fn: ((ms: number) => void) | null) => void }
 
 export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => void } = {}) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     let app: Application | null = null, destroyed = false
+    /* the coat watcher, out here because the teardown below is out here */
+    let offLook = () => { /* nobody is dressed yet */ }
     const keys: Record<string, boolean> = {}
     // while a cutscene holds control, held keys release and new ones are ignored (the overlay
     // owns input); gates flip control back on for the player-driven beats
@@ -330,6 +333,14 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         }
       }
       applyLook()
+      /* ---- AND A COAT PICKED FROM THE HUD LANDS HERE TOO ------------------
+       *
+       * `applyLook` was called once at build and once from a scripted fx the
+       * intro's own wardrobe card fires. The HUD's mirror, which is the one a
+       * student opens later, writes the save and nothing on the beach was
+       * listening, so the change was invisible until the scene was rebuilt.
+       * The painted world grew the same subscription on the same day. */
+      offLook = subscribeSave(() => applyLook())
       // 16 NORMALIZED PixelLab variant tiles each for sand + water (shared base color; the
       // depth ramp tints them so adjacent tiles are continuous by construction)
       const sandV: Texture[] = []
@@ -1669,6 +1680,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
     start().catch((err) => { console.error('[BeachIso] failed', err) })
     return () => {
       destroyed = true
+      offLook()
       window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku)
       /* AND THE HANDLE IS DROPPED BEFORE THE TEARDOWN, not after, so a second
        * cleanup (a remount inside one frame, which is what an abort race is)

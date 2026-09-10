@@ -185,7 +185,11 @@ function writeAward(a: AwardArgs) {
     /* naming a programme with no grade is how a member says they finished it */
     if (typeof a.grade !== 'number') {
       if (g) {
-        recordCompletion(g.id, 0, g.rankTrack ?? undefined)
+        /* null, NOT ZERO (Ash, 2026-09-09). Zero is a grade a student earned by
+         * getting everything wrong; this is a member's island saying "he did
+         * it" with no scoring at all, and writing them the same way put an F on
+         * the wall of everybody who finished one. */
+        recordCompletion(g.id, null, g.rankTrack ?? undefined)
         setIslandState(g.id, 'completed')
         track('programme_completed', { programme: g.id, place: g.place, grade: null, year })
       }

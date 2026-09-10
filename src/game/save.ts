@@ -54,7 +54,24 @@ export type IslandState = 'misty' | 'discovered' | 'available' | 'active' | 'com
 export type Exposure = { place: string; year: number; docked: boolean }
 
 /* the completion record: one append-only entry per programme per year */
-export type Completion = { programme: string; year: number; grade: number; rank?: string; at: number }
+export type Completion = {
+  programme: string
+  year: number
+  /* ---- null MEANS FINISHED WITHOUT A GRADE (Ash, 2026-09-09) -----------
+   *
+   * An island that says `award(...)` with no grade used to land here as a
+   * flat 0, which the wall then printed as an F: a student who finished a
+   * member's island got a failing letter on his case for finishing it. Zero
+   * is a grade somebody earned by getting everything wrong, and the two must
+   * never be written down as the same thing. */
+  grade: number | null
+  rank?: string
+  at: number
+  /* the same two facts a ledger row keeps, so a voyage and a class can be
+   * reported the same way (`attempts` counted here, `firstGrade` never moved) */
+  attempts?: number
+  firstGrade?: number | null
+}
 
 /* one year's sheet: a programme in each season slot plus the two focus classes */
 export type YearPlan = {
@@ -423,18 +440,42 @@ export function recordExposure(place: string, docked = false) {
 }
 
 /* writes one row per programme per year, updating this year's rather than adding a second */
-export function recordCompletion(programme: string, grade: number, rank?: string) {
+/* ---- A VOYAGE IS COUNTED THE WAY A CLASS IS (Ash, 2026-09-09) ------------
+ *
+ * `recordGrade` has kept `attempts` and `firstGrade` since the study asked for
+ * them and `recordCompletion` kept neither, so half of what a student did was
+ * remembered in detail and the other half only as a number. They are the same
+ * two facts and they are counted here the same way.
+ *
+ * `grade` may be null, meaning FINISHED WITHOUT A GRADE, which is what a
+ * member's island says when it calls `award` with no number. That used to be
+ * written as 0 and printed as an F.
+ */
+export function recordCompletion(programme: string, grade: number | null, rank?: string) {
   const s = loadSave()
   if (!s || !programme) return null
   const rows = [...(s.completions ?? [])]
   const i = rows.findIndex((c) => c.programme === programme && c.year === s.year)
-  const row: Completion = { programme, year: s.year, grade, at: Date.now(), ...(rank ? { rank } : {}) }
-  if (i >= 0) {
-    if (grade <= rows[i].grade) return s
+  if (i < 0) {
+    rows.push({ programme, year: s.year, grade, at: Date.now(), attempts: 1, firstGrade: grade, ...(rank ? { rank } : {}) })
+    return writeSave({ completions: rows })
+  }
+  const was = rows[i]
+  const attempts = (was.attempts ?? 1) + 1
+  /* never overwritten, the way the ledger's own first grade is not */
+  const firstGrade = was.firstGrade === undefined ? was.grade : was.firstGrade
+  /* AN UNGRADED FINISH NEVER BEATS A GRADE and never loses to one either: it
+   * says the thing was done, which a row already says. */
+  const better = grade !== null && (was.grade === null || grade > was.grade)
+  rows[i] = {
+    ...was,
+    ...(better ? { grade } : {}),
+    attempts,
+    firstGrade,
     /* the ladder a year counted toward does not change because the grade
      * improved, so a later write with no track keeps the one already on the row */
-    rows[i] = { ...row, at: rows[i].at, ...(rank ? { rank } : rows[i].rank ? { rank: rows[i].rank } : {}) }
-  } else rows.push(row)
+    ...(rank ? { rank } : was.rank ? { rank: was.rank } : {}),
+  }
   return writeSave({ completions: rows })
 }
 
@@ -492,8 +533,18 @@ export function setIslandState(id: string, state: IslandState) {
   if (!s) return null
   const next = writeSave({ islands: { ...s.islands, [id]: state } })
   if (state === 'completed') {
+    /* ---- AND IT DOES NOT COUNT AS A SECOND GO -------------------------
+     *
+     * `recordCompletion` counts attempts now, so calling it here on a
+     * programme that already has this year's row would report one finish as
+     * two tries. The caller that has a grade writes the completion itself;
+     * this only fills one in when nothing has.
+     *
+     * NULL, NOT ZERO, when there is no ledger row: an island that finished
+     * without scoring is not an F (Ash, 2026-09-09). */
+    if ((s.completions ?? []).some((c) => c.programme === id && c.year === s.year)) return next
     const row = s.ledger.find((e) => e.id === islandLedgerId(id, s.year))
-    return recordCompletion(id, row?.grade ?? 0) ?? next
+    return recordCompletion(id, row ? row.grade : null) ?? next
   }
   return next
 }

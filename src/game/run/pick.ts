@@ -1,6 +1,6 @@
 /* a pick, and the one button that plays it */
 import type { SaveGame } from '../save'
-import { loadSave, recordGrade, recordCompletion } from '../save'
+import { loadSave, recordGrade, recordCompletion, setIslandState } from '../save'
 import { classById } from '../planner/catalog'
 import { programmeById, islandForClass, islandForProgramme } from '../roster/roster'
 import { shownName } from '../roster/placeholders'
@@ -116,7 +116,18 @@ export function countAsDone(p: Pick): boolean {
     })
   } else {
     const g = programmeById(p.id)
+    /* ---- AND THE ISLAND IS MARKED FINISHED (Ash, 2026-09-09) -------------
+     *
+     * `recordCompletion` writes the transcript row; `setIslandState` is what
+     * the world and the diploma read. Only the grape `award` path ever called
+     * the second one, so a student who finished every pick through the sheet
+     * reached graduation and read "Islands completed: 0".
+     *
+     * THE COMPLETION GOES FIRST, because `setIslandState` writes a completion of
+     * its own off the ledger and would drop the rank track if it got there
+     * first. */
     recordCompletion(p.id, COUNTED_GRADE, g?.rankTrack ?? undefined)
+    setIslandState(p.id, 'completed')
   }
   return true
 }

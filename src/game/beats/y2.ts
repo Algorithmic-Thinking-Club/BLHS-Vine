@@ -9,7 +9,11 @@ export const CORE_Y2: CoreBeat = {
   year: 2,
   /* the place and title are printed above every step of the activity, in both arms */
   title: 'Honor cords, and how to earn them',
-  place: "the counselor's office",
+  /* WHERE IT REALLY STAGES (Ash, 2026-09-09). The runner prints this over every
+   * step in both arms, and it said "the counselor's office" over a beat the
+   * objective bar sends a student to the HEARTH for and the Maw's own island
+   * plays at the fire. One of the two was lying and it was this one. */
+  place: 'Advisory',
   kind: 'core',
   credit: 0.5,
   takeaways: ['f-honor-gpa', 'f-cte-cord', 'f-capstone', 'f-retake'],
