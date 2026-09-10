@@ -81,9 +81,15 @@ console.log('\npasting the address the game writes\n')
      a copy from the bar would have it */
   await p.evaluate(() => history.replaceState(null, '', '/?scene=pmap&map=panther-maw'))
   await p.reload({ waitUntil: 'domcontentloaded' })
-  await p.waitForTimeout(3500)
-  const st = await p.evaluate(() => ({ pmap: !!window.__pmap, url: location.search }))
-  check('a refresh in the tab that got there keeps the map', st.pmap, JSON.stringify(st.url))
+  /* the map comes off the platform, so a cold fetch on the live deploy takes
+     longer than a fixed sample: wait for the scene the way the checks above do */
+  await p.waitForFunction(() => !!window.__pmap, null, { timeout: 25000 }).catch(() => {})
+  await p.waitForTimeout(1500)
+  const st = await p.evaluate(() => ({
+    pmap: !!window.__pmap, url: location.search,
+    text: document.body.innerText.replace(/\s+/g, ' ').slice(0, 90),
+  }))
+  check('a refresh in the tab that got there keeps the map', st.pmap, JSON.stringify(st))
   await p.close()
 }
 
