@@ -1,0 +1,50 @@
+/* the camera switch, top right, where nothing else sits */
+
+.ct-btn {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 11px;
+  cursor: pointer;
+  color: var(--kit-ink);
+  background: var(--kit-paper-lo);
+  border: var(--kit-border) solid var(--kit-edge);
+  border-radius: var(--kit-r-card);
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: .8em;
+  font-size: var(--kit-fs);
+  opacity: .86;
+  transition: opacity var(--kit-t-fast) ease;
+}
+.ct-btn:hover, .ct-btn:focus-visible { opacity: 1; }
+
+/* two nested frames: the outer one is the wide shot, the inner one the close */
+.ct-marks {
+  position: relative;
+  display: inline-block;
+  width: 18px;
+  height: 14px;
+  flex: none;
+}
+.ct-mark {
+  position: absolute;
+  border: 2px solid var(--kit-edge);
+  opacity: .4;
+}
+.ct-wide { inset: 0; }
+.ct-close { inset: 4px 5px; }
+.ct-on { opacity: 1; border-color: var(--kit-gold-edge); }
+
+.ct-word { white-space: nowrap; }
+
+/* it goes away behind the bars, like every other corner control */
+html[data-movie='1'] .ct-btn { display: none; }
+
+html[data-skin='plain'] .ct-btn {
+  border-radius: 0;
+  opacity: 1;
+}

@@ -151,3 +151,42 @@ html[data-skin='plain'] .cd-who { font-weight: 700; color: var(--kit-ink-body); 
 html[data-skin='plain'] .cd-name { font-weight: 700; }
 html[data-skin='plain'] .cd-stands { color: var(--kit-ink-body); }
 html[data-skin='plain'] .cd-foot { align-self: flex-end; }
+
+/* ---- EVERY CORD HE HAS (Ash, 2026-09-09) ---------------------------------
+ *
+ * The card showed one cord and it was the same one every year. It is a list
+ * now: what he has earned, then what he is working towards. */
+.cd-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cd-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 12px;
+  background: var(--kit-paper-lo);
+  border: 1px solid var(--kit-gold-edge);
+  border-radius: var(--kit-r-card);
+}
+.cd-rowseal { flex: none; }
+.cd-rowname {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: 1em;
+  font-size: var(--kit-fs);
+  color: var(--kit-ink);
+}
+.cd-rowcolors {
+  flex: none;
+  opacity: .74;
+  --kit-fs-raw: .82em;
+  font-size: var(--kit-fs);
+  color: var(--kit-ink);
+}
+html[data-skin='plain'] .cd-row { border-radius: 0; }

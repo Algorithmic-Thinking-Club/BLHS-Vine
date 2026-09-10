@@ -64,7 +64,28 @@ export function PlaceCard() {
   }, [card, phase])
 
   /* reduced motion shortens the dwell rather than cancelling the card */
-  const dwell = prefersReducedMotion() ? DWELL_MS * 0.6 : DWELL_MS
+  /* and a place he has already been to gets a shorter one still (Ash, 2026-09-09) */
+  const dwell = (prefersReducedMotion() ? DWELL_MS * 0.6 : DWELL_MS) * (card?.brief ? 0.55 : 1)
+
+  /* ---- A CLICK PUTS IT AWAY (Ash, 2026-09-09) --------------------------
+   *
+   * *"Allow it so that if the user clicks the screen / on it, it instantly goes
+   * away."*
+   *
+   * On the WINDOW rather than on the card, and deliberately not swallowed: the
+   * card is `pointer-events: none` because it must never eat a press meant for
+   * the room underneath, and that stays true. A student who clicks to dismiss it
+   * gets the dismissal and whatever he was clicking at. */
+  useEffect(() => {
+    if (!card || phase !== 'in') return
+    const away = () => setPhase('out')
+    window.addEventListener('pointerdown', away, { capture: true })
+    window.addEventListener('keydown', away)
+    return () => {
+      window.removeEventListener('pointerdown', away, { capture: true })
+      window.removeEventListener('keydown', away)
+    }
+  }, [card, phase])
 
   useEffect(() => {
     if (!card || phase !== 'in') return
@@ -141,6 +162,7 @@ export function PlaceCard() {
     <div
       ref={el}
       className={`pc-root ${phase === 'out' ? 'pc-out' : 'pc-in'}`}
+      data-brief={card.brief ? '1' : undefined}
       style={{ ['--pc-dwell' as string]: `${Math.round(dwell)}ms` }}
       aria-hidden="true"
     >

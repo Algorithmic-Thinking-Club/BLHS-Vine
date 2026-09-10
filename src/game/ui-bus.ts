@@ -2,7 +2,15 @@
 
 /* yearbook: a door to a year's own page that any island can send a student to */
 /* wall: a door to what a student has earned, openable from any island */
-export type UiRequest = 'planner' | 'handbook' | 'chart' | 'settings' | 'advisory' | 'wardrobe' | 'yearbook' | 'wall' | 'tour'
+/* ---- 'cords' NAMES A TAB, NOT A SECOND PANEL (Ash, 2026-09-09) -----------
+ *
+ * *"When she says 'ask about the cords?' and I click yes, it currently opens up
+ * to the islands tab in the handbook, it should open to the cords tab."*
+ *
+ * `open("handbook")` always landed on Islands, so the one beat in the game whose
+ * whole subject is the cords opened the page about islands. The Guide is one
+ * panel with six tabs and an island had no way to say which. */
+export type UiRequest = 'planner' | 'handbook' | 'cords' | 'chart' | 'settings' | 'advisory' | 'wardrobe' | 'yearbook' | 'wall' | 'tour'
 
 const EVENT = 'blhs:open-ui'
 const BEAT_EVENT = 'blhs:play-beat'

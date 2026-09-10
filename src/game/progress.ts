@@ -104,22 +104,50 @@ export function cordsOf(s: SaveGame): CordProgress[] {
       settlesAtGraduation: true,
       earned: finished && gpa >= 3.76, progress: Math.min(1, gpa / 3.76),
       // a student with no grades yet is told so, rather than being shown a 0.00
-      detail: gpa ? `GPA ${gpa.toFixed(2)} of 3.76` : 'No GPA yet. You need 3.76.',
+      /* ---- A GPA AT ITS TARGET SAYS SO (Ash, 2026-09-09) ---------------
+       *
+       * *"I'm not on year 4 yet, but the highest honors bar and the high honors
+       * bar are showing nearly full. Is this normal? It's not earned yet, which
+       * is correct."*
+       *
+       * The bar was right and the sentence beside it was not: a student holding
+       * a 4.00 read "GPA 4.00 of 3.76" off a full bar and had no idea whether
+       * that was good news. These two settle at graduation, which is the whole
+       * of why they are not earned yet, so that is what the line says. */
+      detail: !gpa ? 'No GPA yet. You need 3.76.'
+        : gpa >= 3.76 ? `GPA ${gpa.toFixed(2)}. On track, counted at graduation.`
+          : `GPA ${gpa.toFixed(2)} of 3.76`,
     },
     {
       id: 'high-honors', name: 'High Honors', colors: 'black & silver',
       rule: 'GPA 3.5-3.759', source: AWARDS, published: true,
       model: 'Counted at graduation. You can only get one of these two, and Highest Honors comes first.',
       settlesAtGraduation: true,
-      earned: finished && gpa >= 3.5 && gpa < 3.76, progress: Math.min(1, gpa / 3.5),
-      detail: gpa ? `GPA ${gpa.toFixed(2)} of 3.5` : 'No GPA yet. You need 3.5.',
+      earned: finished && gpa >= 3.5 && gpa < 3.76,
+      /* a GPA past 3.76 is not more of THIS cord, it is a different one */
+      progress: gpa >= 3.76 ? 0 : Math.min(1, gpa / 3.5),
+      detail: !gpa ? 'No GPA yet. You need 3.5.'
+        /* and this one has a ceiling as well as a floor: a 3.9 is Highest
+         * Honors and is NOT this cord, so a full bar here would be a lie */
+        : gpa >= 3.76 ? `GPA ${gpa.toFixed(2)}. Above this one: you are on Highest Honors.`
+          : gpa >= 3.5 ? `GPA ${gpa.toFixed(2)}. On track, counted at graduation.`
+            : `GPA ${gpa.toFixed(2)} of 3.5`,
     },
     {
       id: 'career-readiness', name: 'Career Readiness', colors: 'green, teal & purple',
       rule: 'Must have completed at least two CTE credits', source: AWARDS, published: true,
       model: 'Pass two CTE classes. CTE is Career and Technical Education, like Culinary Arts. A D passes.',
       earned: cte >= 2, progress: Math.min(1, cte / 2),
-      detail: `${cte} of 2 CTE credits`,
+      /* ---- A COUNT STOPS AT ITS OWN TARGET (Ash, 2026-09-09) -------------
+       *
+       * *"All three years, its only shown 'CTE credit' and its just been adding
+       * on, 1/2, 2/2, 3/2, 4/2, etc."*
+       *
+       * `progress` was clamped and the sentence beside it was not, so a student
+       * who passed four CTE classes read "4 of 2 CTE credits" off a full bar.
+       * Every counted cord below now says how many it needed, not how many it
+       * has been handed. */
+      detail: `${Math.min(cte, 2)} of 2 CTE credits`,
     },
     {
       id: 'key-club', name: 'Key Club', colors: 'navy',
@@ -130,14 +158,14 @@ export function cordsOf(s: SaveGame): CordProgress[] {
         + 'It does not count hours, meetings or events.',
       earned: keyYears >= 2 && s.year >= 4 && gpa >= 3.0,
       progress: Math.min(1, (Math.min(keyYears, 2) / 2) * 0.7 + (gpa >= 3.0 ? 0.3 : 0)),
-      detail: `${keyYears} of 2 years · ${gpa ? `GPA ${gpa.toFixed(2)} of 3.0` : 'no GPA yet'}`,
+      detail: `${Math.min(keyYears, 2)} of 2 years · ${gpa ? `GPA ${gpa.toFixed(2)} of 3.0` : 'no GPA yet'}`,
     },
     {
       id: 'ap-honors', name: 'AP Honors', colors: 'AP blue',
       rule: 'Pass 5 or more AP courses', source: AWARDS, published: true,
       model: 'Passing means a D or better, the same as any other class. The class counts, not the AP exam.',
       earned: ap >= 5, progress: Math.min(1, ap / 5),
-      detail: `${ap} of 5 AP classes passed`,
+      detail: `${Math.min(ap, 5)} of 5 AP classes passed`,
     },
     {
       id: 'ap-capstone', name: 'AP Capstone', colors: 'capstone silver',

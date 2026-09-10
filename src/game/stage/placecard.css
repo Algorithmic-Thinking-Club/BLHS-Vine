@@ -127,3 +127,17 @@ html[data-skin='plain'] .pc-heading { color: var(--kit-ink); }
 /* a worksheet does not have a gold bar draining across it. The notice still says
    it is temporary, in the arm's own terms: a plain rule that shortens. */
 html[data-skin='plain'] .pc-dwell { background: var(--kit-ink-dim); height: 1px; }
+
+/* ---- THE SIGNPOST VERSION (Ash, 2026-09-09) ------------------------------
+ *
+ * *"Maybe after the cutscene / first time, it becomes a smaller panel higher up
+ * the screen."* The first arrival at a place is a moment; the fourth is a label.
+ * Same card, two thirds the size, up out of the middle where the eye is. */
+.pc-root[data-brief='1'] {
+  bottom: auto;
+  top: max(9vh, calc(var(--ui-band-top, 0px) + 2vh));
+  width: min(300px, 46vw);
+  opacity: .93;
+}
+.pc-root[data-brief='1'] .pc-name { --kit-fs-raw: .8em; font-size: var(--kit-fs); }
+.pc-root[data-brief='1'] .pc-pin { width: 20px; height: 20px; }

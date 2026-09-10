@@ -7,6 +7,7 @@ import { MovieBars } from '../stage/MovieBars'
 import { SkipVoyage } from '../world/SkipVoyage'
 import { ObjectivePanel } from './Objective'
 import { HelpButton } from './Help'
+import { CameraToggle } from './CameraToggle'
 import { loadSave, subscribeSave } from '../save'
 import { useNav } from '../../app/SceneManager'
 import { holdWorld } from '../world-bus'
@@ -56,6 +57,8 @@ export function WorldHud() {
       <ObjectivePanel />
       {/* the question mark, outside the Hud's gate so a student with no run can still ask */}
       <HelpButton />
+      {/* and the camera switch in the other corner, which is the only thing there */}
+      <CameraToggle />
       {/* THE MOVIE FRAME (BRIEF-ARRIVAL item 1). Last in the list and highest of
           the DOM chrome, because the bars are what everything else stands down
           behind. It draws nothing at all until an island says `movie(True)`. */}

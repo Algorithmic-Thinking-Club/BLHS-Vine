@@ -16,6 +16,7 @@ import { coreBeatId } from '../beats/beats'
 import { beatState } from '../beats/state'
 import { classLedgerId } from '../beats/classes'
 import { firstLook, markLooked } from '../hud/first-look'
+import { SHEET_STEPS, Tour } from '../hud/Tour'
 import { yearStatus } from '../run/year'
 import { picksOf, pickVerb, type Pick } from '../run/pick'
 import { nextObjective } from '../run/objective'
@@ -326,6 +327,23 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
    * would blank itself on the second render */
   const [told] = useState(() => firstLook('my-year'))
   useEffect(() => { markLooked('my-year') }, [])
+
+  /* ---- THE SHEET TEACHES ITSELF, ONCE, FROM YEAR TWO (Ash, 2026-09-09) ---
+   *
+   * Year one's sheet is opened by the founding film with the principal standing
+   * over it; year two's opens with nobody there. The flag is a first-look the
+   * same way the corner plaques are, so it is one lesson per run rather than one
+   * per year, and a student who has seen it never sees it again.
+   *
+   * IT WAITS FOR THE WAX. A stamped sheet has no "pick a class" button to point
+   * at, so there is nothing to teach and the tutorial would spotlight a hole. */
+  const [teaching, setTeaching] = useState(false)
+  useEffect(() => {
+    if (year <= 1 || plan.stamped) return
+    if (!firstLook('sheet')) return
+    markLooked('sheet')
+    setTeaching(true)
+  }, [year, plan.stamped])
   const slotsFilled = SEASONS.filter((se) => plan.slots[se]).length
   /* ---- WHAT "THE SHEET IS FULL" MEANS (Ash, 2026-09-09) -------------------
    *
@@ -629,7 +647,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
               })}
 
               {!plan.stamped && plan.classes.length < 2 && !pickingClass && (
-                <Plank size="sm" wide id="pl-pick" onClick={() => setPickingClass(true)}>pick a class</Plank>
+                <Plank size="sm" wide id="pl-pick" data-tour="pick-class" onClick={() => setPickingClass(true)}>pick a class</Plank>
               )}
 
               {pickingClass && (
@@ -779,28 +797,20 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
               </>
             ) : (
               <>
-                {/* ---- AND IT SAYS SO WHEN IT IS READY (Ash, 2026-09-09) ----
+                {/* ---- THE NUDGE IS GONE, AND A TUTORIAL TOOK ITS PLACE ------
                     *
-                    * *"Once they have selected everything they need for the year,
-                    * the stamp button is a bit unclear. So add this logic: if a
-                    * user selects all the classes / clubs needed, the stamp button
-                    * gets a box highlight around it + a panel and arrow mark, much
-                    * like the button tutorial."*
+                    * ASH, 2026-09-09: *"Remove the old panel for the stamp sheet
+                    * that you just put in, and replace it with this tutorial."*
                     *
-                    * The plank sat there in the same ink whether it was refusing
-                    * or waiting, so the moment the sheet became stampable looked
-                    * exactly like the moment before it. This is the same language
-                    * the handover tutorial speaks: a ring, a pointer and one line. */}
-                {canStamp && (
-                  <p className="kit-nudge-say" role="status">
-                    <span className="kit-nudge-arrow" aria-hidden="true">▼</span>
-                    Your sheet is full. Stamp it to lock the year in.
-                  </p>
-                )}
+                    * The nudge fired at the END, once the sheet was already full,
+                    * which is the moment a student needs the least help: he has
+                    * just done the hard part. The tutorial fires at the START and
+                    * teaches the order, which is what he actually did not know.
+                    * `data-tour` is how the spotlight finds this plank. */}
                 <Plank
                   size="lg"
                   id="pl-stamp"
-                  className={canStamp ? 'kit-nudge' : undefined}
+                  data-tour="stamp"
                   disabled={!canStamp}
                   title={stampNote ?? undefined}
                   onClick={() => setConfirming(true)}
@@ -812,6 +822,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
             )}
           </div>
           <Plank size="sm" className="pl-close" onClick={onClose}>close</Plank>
+          {teaching && <Tour steps={SHEET_STEPS} onDone={() => setTeaching(false)} />}
         </div>
       </div>
 

@@ -1,17 +1,27 @@
-/* the trophy wall: one frame per thing this year, empty until that thing is finished */
-import { useEffect, useState } from 'react'
+/* the trophy wall: one frame per thing he chose, in every year, empty until done */
+import { Fragment, useEffect, useState } from 'react'
 import { loadSave } from '../save'
-import { wallOf } from './wall'
+import { wallAll } from './wall'
 import { usePanel } from '../ui/a11y'
 import { Glyph, Plank } from '../ui/controls'
 import { track } from '../telemetry'
+import { yearWord } from './year'
 import { play } from '../audio'
 import './wall.css'
 
 export function TrophyWall({ onClose }: { onClose: () => void }) {
   const panel = usePanel({ onClose, label: 'The trophy wall' })
   const s = loadSave()
-  const seats = wallOf(s)
+  /* ---- EVERY YEAR, NOT THIS ONE (Ash, 2026-09-09) ---------------------
+   *
+   * *"The trophy wall is currently empty, even if thor has stuff... each year i
+   * only see advisory + the specific ones for that year."*
+   *
+   * It read `wallOf(s)`, which defaults to the year he is standing in, so
+   * opening the case in year three before stamping that year's sheet showed one
+   * unearned Advisory frame and nothing else. A case of trophies accumulates;
+   * that is what makes it a case rather than a scoreboard. */
+  const seats = wallAll(s)
   const filled = seats.filter((w) => w.earned).length
 
   useEffect(() => { track('wall_opened', { filled, of: seats.length }) }, [filled, seats.length])
@@ -33,7 +43,7 @@ export function TrophyWall({ onClose }: { onClose: () => void }) {
    * AND IT ONLY EVER RUNS ONCE PER OPENING, so a save write behind the panel (the
    * closing film records as it goes) does not restart the fanfare. */
   const [landed, setLanded] = useState(0)
-  const earnedIds = seats.filter((w) => w.earned).map((w) => w.id)
+  const earnedIds = seats.filter((w) => w.earned).map((w) => `${w.year}:${w.id}`)
   useEffect(() => {
     if (landed >= earnedIds.length) return
     const t = window.setTimeout(() => {
@@ -60,26 +70,33 @@ export function TrophyWall({ onClose }: { onClose: () => void }) {
               : `${filled} ${filled === 1 ? 'badge' : 'badges'} on the wall, ${seats.length - filled} ${seats.length - filled === 1 ? 'frame' : 'frames'} still empty.`}
         </p>
 
+        {/* GROUPED BY YEAR, because four years of frames in one run is a list
+            and a wall is a history: the heading is what makes year one's Advisory
+            read as year one's rather than as a duplicate of year two's. */}
         <div className="tw-wall">
-          {seats.map((w) => (
+          {seats.map((w, i) => (
+            <Fragment key={`${w.year}:${w.id}`}>
+              {(i === 0 || seats[i - 1].year !== w.year) && (
+                <h3 className="tw-year">Year {yearWord(w.year)}</h3>
+              )}
             <article
-              className={`tw-frame${w.earned && showing(w.id) ? ' tw-frame-full tw-frame-land' : ''}`}
-              key={w.id}
+              className={`tw-frame${w.earned && showing(`${w.year}:${w.id}`) ? ' tw-frame-full tw-frame-land' : ''}`}
               data-kind={w.kind}
             >
               {/* the plate is the state: a drawn stamp when earned, a dashed hole when not */}
               <span className="tw-plate" aria-hidden="true">
-                {w.earned && showing(w.id)
+                {w.earned && showing(`${w.year}:${w.id}`)
                   ? <Glyph piece="stamp" face="awarded" size={34} />
                   : <span className="tw-hole" />}
               </span>
               <span className="tw-words">
                 <span className="tw-name">{w.name}</span>
-                <span className={w.earned && showing(w.id) ? 'tw-got' : 'tw-wants'}>
-                  {w.earned && showing(w.id) ? w.says : w.wants}
+                <span className={w.earned && showing(`${w.year}:${w.id}`) ? 'tw-got' : 'tw-wants'}>
+                  {w.earned && showing(`${w.year}:${w.id}`) ? w.says : w.wants}
                 </span>
               </span>
             </article>
+            </Fragment>
           ))}
         </div>
 

@@ -21,6 +21,29 @@ const STAGE_W = 62
 const STAGE_H = 80
 const FOOT = 2
 
+/* ---- WHERE THE DRAWN PIXELS ACTUALLY ARE ---------------------------------
+ *
+ * The walk frames sit on a 144 square canvas with the panther about 56 by 67 of
+ * it, so anything that centres the CANVAS puts the panther wherever the padding
+ * happens to leave him. This is the bounding box of everything not transparent,
+ * which is the thing worth centring. Null when the frame is empty, which is a
+ * png that failed to load rather than a panther with no pixels. */
+function inkBox(g: CanvasRenderingContext2D, w: number, h: number):
+{ x: number; y: number; w: number; h: number } | null {
+  const d = g.getImageData(0, 0, w, h).data
+  let x0 = w, y0 = h, x1 = -1, y1 = -1
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (d[(y * w + x) * 4 + 3] < 24) continue
+      if (x < x0) x0 = x
+      if (x > x1) x1 = x
+      if (y < y0) y0 = y
+      if (y > y1) y1 = y
+    }
+  }
+  return x1 < 0 ? null : { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }
+}
+
 /* the real earn rule for an item, or null when no such island is on the roster */
 
 export function Wardrobe({ onClose }: { onClose: () => void }) {
@@ -54,13 +77,32 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
       try {
         const off = document.createElement('canvas')
         const g = cv.getContext('2d')
-        if (!g || !off.getContext('2d')) return
+        const og = off.getContext('2d', { willReadFrequently: true })
+        if (!g || !og) return
         drawRecolored(off, img, LOOKS[look]?.hue ?? null)
+        /* ---- TRIMMED TO THE PANTHER (Ash, 2026-09-09) --------------------
+         *
+         * *"Currently, thor is out of frame in the wardrobe viewer."*
+         *
+         * The mirror used to draw the tightly cropped standing pngs, 52 by 67,
+         * against a stage sized for exactly that. Pointing it at the walk frames
+         * the world really uses (so the coat is approved on the body he will
+         * actually see) handed it a 144 by 144 canvas with the panther somewhere
+         * inside it, and the same "centre it and stand it on the floor" maths
+         * put most of him past the edge.
+         *
+         * So the drawn pixels are measured rather than assumed. The same scan
+         * the scene runs to find his feet, done once per frame shown here. */
+        const box = inkBox(og, off.width, off.height)
         cv.width = STAGE_W
         cv.height = STAGE_H
         g.imageSmoothingEnabled = false
         g.clearRect(0, 0, STAGE_W, STAGE_H)
-        g.drawImage(off, Math.round((STAGE_W - off.width) / 2), STAGE_H - off.height - FOOT)
+        if (!box) return
+        g.drawImage(
+          off, box.x, box.y, box.w, box.h,
+          Math.round((STAGE_W - box.w) / 2), STAGE_H - box.h - FOOT, box.w, box.h,
+        )
       } catch { /* left empty on purpose: see above */ }
     }
     img.src = `/art/characters/thor/walk/${RING[facing]}/0.png`

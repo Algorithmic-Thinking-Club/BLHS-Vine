@@ -17,6 +17,8 @@
 
 .tr-dim {
   position: absolute;
+  /* `inset: 0` is the no-target case; with a target the four panels carry their
+     own geometry inline, so the lit control has no dim over it at all */
   inset: 0;
   background: rgba(8, 8, 10, 0.58);
   animation: tr-fade 260ms ease both;
@@ -53,7 +55,12 @@
 
 .tr-say {
   position: absolute;
-  max-width: min(300px, 44vw);
+  /* the width is decided in the component, from the room the target really
+     leaves, so a seven-hundred-pixel plank does not squeeze this to one word a
+     line (Ash, 2026-09-09). This is only the floor. */
+  min-width: 180px;
+  box-sizing: border-box;
+  max-width: min(420px, 78vw);
   padding: 12px 14px;
   background: #f6efe0;
   color: #221c14;

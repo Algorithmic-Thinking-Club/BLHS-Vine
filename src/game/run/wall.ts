@@ -8,6 +8,8 @@ import { PASSING_GRADE, letterOf as letter } from '../progress'
 
 export type WallSeat = {
   id: string
+  /** the year this seat belongs to, so a wall spanning a run can group them */
+  year: number
   /** what the seat is for, in the school's own name for it */
   name: string
   /** advisory, a club or sport, or a class: three shapes on one wall */
@@ -53,6 +55,7 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
   const corePassed = !!core && core.grade >= PASSING_GRADE
   out.push({
     id: 'advisory',
+    year,
     name: 'Advisory',
     kind: 'advisory',
     earned: corePassed,
@@ -72,6 +75,7 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
     const c = (s.completions ?? []).find((x) => x.programme === id && x.year === year)
     out.push({
       id: `programme:${id}`,
+      year,
       /* NEVER A FAKE REAL NAME ON THE WALL. A frame for a club nobody has
        * built says Example A, the same as the card it came off, so the two
        * surfaces cannot disagree about what a student picked. */
@@ -99,6 +103,7 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
     const passed = !!row && row.grade >= PASSING_GRADE
     out.push({
       id: `class:${id}`,
+      year,
       /* an elective keeps its real name everywhere, which is the ruling:
        * the course is a true thing about the school. */
       name: cl?.name ?? id,
@@ -113,6 +118,23 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
 
   return out
 }
+
+/* ---- A WALL IS EVERY YEAR, NOT THIS ONE (Ash, 2026-09-09) ----------------
+ *
+ * *"The trophy wall is currently empty, even if thor has stuff, it doesnt get
+ * populated. Also, i think it gets refreshed every year? each year i only see
+ * advisory + the specific ones for that year. is that correct, or should it show
+ * everything earned across all years?"*
+ *
+ * It should, and both halves of what he saw are the same cause. `wallOf` reads
+ * `s.plans[year]`, so it only ever held the year he was standing in: opening it
+ * in year three BEFORE stamping that year's sheet showed one unearned Advisory
+ * frame and nothing else, which is a wall that looks broken and is only empty.
+ *
+ * `wallOf` keeps its per-year meaning, because the closing film and the yearbook
+ * are both about one year. This is the case a student walks up to. */
+export const wallAll = (s: SaveGame | null): WallSeat[] =>
+  s ? Array.from({ length: Math.max(1, s.year) }, (_, i) => i + 1).flatMap((y) => wallOf(s, y)) : []
 
 /** how many seats are filled, which is the sentence beat 8 checks */
 export const onTheWall = (s: SaveGame | null, year?: number): number =>

@@ -155,6 +155,8 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     if (which === 'planner') { track('planner_requested', { via: 'world' }); setPlanner(true) }
     if (which === 'advisory') { setAdvisory(true) }
     if (which === 'handbook') { setBook('islands') }
+    /* the same binder, opened on the page the beat is about */
+    if (which === 'cords') { track('handbook_opened', { tab: 'cords', via: 'world' }); setBook('cords') }
     if (which === 'chart') { track('chart_opened'); setBook('chart') }
     if (which === 'wardrobe') { track('wardrobe_opened', { via: 'world' }); setWardrobe(true) }
     if (which === 'settings') { setSettings(true) }

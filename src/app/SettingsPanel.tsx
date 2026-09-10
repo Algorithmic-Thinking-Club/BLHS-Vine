@@ -35,12 +35,22 @@ export type Settings = {
    * THING and it is not this. This is only the bare floor, which was walking
    * him away from what he was reading. */
   clickToMove: boolean
+  /* ---- HOW CLOSE THE CAMERA SITS (Ash, 2026-09-09) --------------------
+   *
+   * *"At the top right corner of the screen which is currently empty, add a
+   * switch toggle, that switches camera POV. The current normal POV is 'wide
+   * view' and when the toggle is activated, it zooms into Thor much closer."*
+   *
+   * A preference rather than a game state: it survives a door, a map and a
+   * reload, and it never means anything different in one room than another. */
+  closeCamera: boolean
 }
 const KEY = 'blhs_settings_v1'
 /* sound opens on off, matching what the speakers are actually doing */
 const FALLBACK: Settings = {
   sound: 'off', mute: true, textSize: 'm', reducedMotion: false, skin: 'paper',
   clickToMove: false,
+  closeCamera: false,
 }
 
 const SOUND_LEVELS: SoundLevel[] = ['off', 'quiet', 'full']
@@ -69,8 +79,23 @@ export function loadSettings(): Settings {
  * that stored settings, so it wrote the key inline; the help card's click-to-move
  * switch is a second writer and two `localStorage.setItem(KEY, ...)` calls is one
  * misspelling away from a setting that saves and never loads. */
+/* ---- AND WHO IS LISTENING (Ash, 2026-09-09) -----------------------------
+ *
+ * The camera switch changes a SETTING, and a live scene has to move on the frame
+ * it is pressed rather than at the next door. `applySettings` reaches the
+ * document; this reaches whatever is drawing. */
+const settingsWatchers = new Set<() => void>()
+
+export function onSettings(fn: () => void): () => void {
+  settingsWatchers.add(fn)
+  return () => { settingsWatchers.delete(fn) }
+}
+
 export function saveSettings(s: Settings) {
   try { localStorage.setItem(KEY, JSON.stringify(s)) } catch { /* a locked-down browser still plays */ }
+  for (const fn of [...settingsWatchers]) {
+    try { fn() } catch (e) { console.error('[settings] a listener threw', e) }
+  }
 }
 
 export function applySettings(s: Settings) {

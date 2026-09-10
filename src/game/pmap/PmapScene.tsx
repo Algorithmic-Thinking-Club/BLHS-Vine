@@ -46,7 +46,7 @@ import { requestUi } from '../ui-bus'
 import { drawRecolored, lookHue } from '../thorLook'
 import { poseFrame, walkFrame, wornKey } from '../thorWear'
 import { subscribeSave } from '../save'
-import { loadSettings } from '../../app/SettingsPanel'
+import { loadSettings, onSettings } from '../../app/SettingsPanel'
 import { runEnding, setRunEnding } from '../hud/objective-bus'
 import { sessionOver } from '../run/year'
 import {
@@ -54,7 +54,7 @@ import {
   type Berthing, type Helm, type HullState,
 } from '../world/sail'
 import { cover, transitionBusy } from '../../app/transitions'
-import { ceremonyCover, coverFor, markSeen, titleOfMap } from '../stage/covers'
+import { ceremonyCover, coverFor, markSeen, seenThisSession, titleOfMap } from '../stage/covers'
 import { setSceneDrawn, showPlaceCard } from '../stage/stage-bus'
 import { motionMs, prefersReducedMotion } from '../ui/motion'
 import { uiBand } from '../ui/frame'
@@ -341,6 +341,8 @@ export default function PmapScene() {
     let offVoyage = () => { /* nothing to sail to yet */ }
     /* the coat watcher, declared out here because the scene's teardown is out here */
     let offLook = () => { /* nobody is dressed yet */ }
+    /* the camera switch, out here because the teardown is out here */
+    let offCamera = () => { /* no camera yet */ }
     const offHold = onWorldHold((held) => { if (held) { dropKeys(); cancelPlayerWalk() } })
 
     /* the movie: a world hold puts this scene's furniture away, and these two follow it too */
@@ -680,10 +682,33 @@ export default function PmapScene() {
        * two drifting apart: fifty-two puts a twenty pixel body at about sixty on
        * a 768 tall window, which is what the room now gives him. */
       const BODY_ON_GLASS = 52
+      /* ---- AND THE CLOSE ONE (Ash, 2026-09-09) --------------------------
+       *
+       * The same arithmetic with a bigger body: ninety-four pixels of panther on
+       * a 768 tall window, which is about the distance MAPVIS previews a map at.
+       * Derived rather than typed, so a map whose people are forty painting
+       * pixels and one whose people are eighteen both put the same amount of him
+       * on the glass. */
+      const BODY_ON_GLASS_CLOSE = 94
       const bodyH = Math.max(6, map.character?.heightPx || 18)
       const Z_WALK = Math.max(
         Z_ISLAND,
         Math.round(((app.screen.height / 768) * BODY_ON_GLASS / bodyH) * 4) / 4,
+      )
+      /* ---- THE SHOT HE WALKS IN, WHICH IS NOW HIS TO CHOOSE -------------
+       *
+       * `Z` is the wide view, worked out from the painting and the cover. This is
+       * the same number unless the student has asked for the close camera, in
+       * which case it is the zoom that puts ninety-four pixels of panther on the
+       * glass. Asked per call rather than captured, so flipping the switch moves
+       * the camera on the frame it is flipped.
+       *
+       * NEVER BELOW `Z`: the close view is a step IN. `zoomTo` clamps to `Z_MIN`
+       * on the other side, so neither end can leave the painting. */
+      const walkZ = () => (loadSettings().closeCamera ? Math.max(Z, zForBody(BODY_ON_GLASS_CLOSE)) : Z)
+      const zForBody = (px: number) => Math.max(
+        Z_ISLAND,
+        Math.round(((app.screen.height / 768) * px / bodyH) * 4) / 4,
       )
       const Z = zOverride > 0 ? zOverride
         /* and the walking shot can never be under the floor either */
@@ -1364,6 +1389,17 @@ export default function PmapScene() {
         dressThor(s2?.thorLook)
       }
       offLook = subscribeSave(() => { void redress() })
+
+      /* ---- AND THE CAMERA FOLLOWS THE SWITCH (Ash, 2026-09-09) ------------
+       *
+       * The toggle writes a SETTING rather than the save, so it has its own
+       * event. Only the walking shot moves: a film holding the wide shot or the
+       * ship keeps it, because a student flipping a switch mid-cutscene has not
+       * asked to be taken out of the film. */
+      offCamera = onSettings(() => {
+        if (movieOn || lastShot === 'island' || hull) return
+        zoomTo(walkZ())
+      })
 
       /* where the middle of his drawn body is per heading, so the YOU marker hangs over him */
       const pinDx: Record<string, number> = {}
@@ -3025,7 +3061,7 @@ export default function PmapScene() {
           if (shot === null) {
             lookAtTarget = null
             lastShot = null
-            zoomTo(Z)
+            zoomTo(walkZ())
             return Promise.resolve()
           }
           const s = shots.get(shot)
@@ -3041,7 +3077,7 @@ export default function PmapScene() {
           if (s.framing.zoom !== undefined) zoomTo(Z_SHOT * s.framing.zoom)
           engine.log('framing', { map: mapId, shot, zoom: s.framing.zoom ?? null })
           if (ms === undefined) return Promise.resolve()
-          return new Promise<void>((r) => setTimeout(() => { zoomTo(Z); r() }, ms))
+          return new Promise<void>((r) => setTimeout(() => { zoomTo(walkZ()); r() }, ms))
         },
 
         /* the three shots nobody authors, composed from the painting and the window, and awaited */
@@ -3055,7 +3091,7 @@ export default function PmapScene() {
           const to = shot === 'island' ? Z_ISLAND
             : shot === 'ship' ? Z_SHIP
               : shot === 'close' ? Z_CLOSE
-                : shot === 'sail' ? Z_MIN : Z
+                : shot === 'sail' ? Z_MIN : walkZ()
           /* the wide shot centres the painting rather than the player, and is held */
           if (shot === 'island') {
             lookAtTarget = { x: pc.x, y: pc.y, until: ms === undefined ? Infinity : performance.now() + ms }
@@ -3855,7 +3891,7 @@ export default function PmapScene() {
       camTo(pos.x, pos.y, true)
 
       /* a continuous zoom path, so the camera can travel between values instead of cutting */
-      let camZWant = Z
+      let camZWant = walkZ()
       const zoomTo = (z: number) => { camZWant = Math.max(Z_MIN, z) }
       const stepZoom = (dt: number) => {
         if (Math.abs(camZ - camZWant) < 1e-4) { if (camZ !== camZWant) { camZ = camZWant; world.scale.set(camZ) } return false }
@@ -3941,11 +3977,16 @@ export default function PmapScene() {
       const arrivalCard = () => {
         if (!cardOwed) return
         cardOwed = false
+        /* read BEFORE the mark, because the mark is what makes it true */
+        const beenHere = seenThisSession(mapId)
         markSeen(mapId)
         const place = placeOfMap(mapId)
         showPlaceCard({
           title: titleOfMap(mapId, typeof map.title === 'string' ? map.title : undefined),
-          line: slot?.place && place ? place.recognise : undefined,
+          /* the second time through a door he knows what the place is called and
+           * does not need telling what it is for */
+          line: beenHere ? undefined : slot?.place && place ? place.recognise : undefined,
+          brief: beenHere,
         })
       }
 
@@ -3990,7 +4031,7 @@ export default function PmapScene() {
         }
         thor.sp.visible = true; thor.sh.visible = true; pinWanted = true
         camFree = false
-        if (!keepShot) zoomTo(Z)
+        if (!keepShot) zoomTo(walkZ())
         /* and the address stops saying he is at sea, so a refresh does not undo the landing */
         if (target.aboard) setMapUrl({ map: mapId, at: target.at })
         /* and this is where he has arrived, unless a script is directing the shots */
@@ -5654,6 +5695,7 @@ const CAST_OFF_SHOW_MS = 3200
       offSail()
       offVoyage()
       offLook()
+      offCamera()
       /* the cinema bars come down with the scene, unless a film walked through a door */
       offCinema()
       movieHold?.(); movieHold = null

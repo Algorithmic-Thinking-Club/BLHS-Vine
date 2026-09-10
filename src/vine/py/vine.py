@@ -525,7 +525,10 @@ def cutscene(script):
 # ---- the panels a player sits down with -------------------------------------
 
 def open(ui, wait=False):
-    """Open one panel: planner, handbook, chart, wardrobe, wall or settings.
+    """Open one panel: planner, handbook, cords, chart, wardrobe, wall or settings.
+
+    "cords" is the Guide opened on its cords page rather than on islands, which
+    is what `open("handbook")` lands on. Say it when the beat is about cords.
 
     "tour" is the odd one and it is not a panel: it lights the three corner
     plaques and the help mark one at a time with a pointer and a line each, and

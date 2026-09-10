@@ -95,4 +95,9 @@ export const ALWAYS_ON = [
    * making at that moment, and there is no other way to make it. A student who
    * has watched the boat once is allowed to say so. */
   'skip-voyage',
+  /* THE CAMERA SWITCH (Ash, 2026-09-09), top right, which is the only thing in
+   * that corner. It is not a readout of anything: it is the one choice a student
+   * has about how the world is framed, and there is nowhere else to put it that
+   * he would find. */
+  'camera-view',
 ] as const

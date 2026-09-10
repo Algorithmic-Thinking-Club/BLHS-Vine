@@ -140,3 +140,15 @@ html[data-skin='plain'] .tw-got { color: var(--kit-ink-body); }
 @media (prefers-reduced-motion: reduce) {
   .tw-frame-land { animation: none; }
 }
+
+/* the year a run of frames belongs to (Ash, 2026-09-09: the wall is every year) */
+.tw-year {
+  grid-column: 1 / -1;
+  margin: 10px 0 2px;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: .95em;
+  font-size: var(--kit-fs);
+  color: var(--kit-ink);
+  opacity: .72;
+}
+.tw-year:first-child { margin-top: 0; }
