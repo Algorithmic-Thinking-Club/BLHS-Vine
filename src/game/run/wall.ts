@@ -55,9 +55,15 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
     id: 'advisory',
     name: 'Advisory',
     kind: 'advisory',
-    earned: !!core,
-    says: core ? (corePassed ? `${letter(core.grade)}, credit earned` : `${letter(core.grade)}, no credit`) : null,
-    wants: 'Finish Advisory at the hearth',
+    earned: corePassed,
+    says: corePassed ? `${letter(core!.grade)}, credit earned` : null,
+    /* AND A FAILED ROW SAYS WHAT HAPPENED AND WHERE TO GO (Ash, 2026-09-09).
+     * It used to fill the frame on attendance, which read as finished beside a
+     * year gate that disagreed. A frame you sat and missed is an empty frame
+     * with a sentence in it, and the sentence names the door. */
+    wants: core
+      ? `You got an ${letter(core.grade)}. Take Advisory again at the hearth`
+      : 'Finish Advisory at the hearth',
   })
 
   for (const [, id] of Object.entries(plan.slots)) {
@@ -87,12 +93,11 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
        * the course is a true thing about the school. */
       name: cl?.name ?? id,
       kind: 'class',
-      earned: !!row,
-      /* CREDIT IS A SEPARATE FACT FROM THE FRAME and the caption carries it. A
-       * counted pick (no island yet) is written with a real credit and a B, so
-       * this reads the same as a sat one until somebody builds the island. */
-      says: row ? (passed ? `${letter(row.grade)}${row.credit ? ', credit earned' : ', counted'}` : `${letter(row.grade)}, no credit`) : null,
-      wants: 'Go to it from your year sheet',
+      earned: passed,
+      says: passed ? `${letter(row!.grade)}${row!.credit ? ', credit earned' : ', counted'}` : null,
+      wants: row
+        ? `You got an ${letter(row.grade)}. Take it again from your year sheet`
+        : 'Go to it from your year sheet',
     })
   }
 

@@ -10,7 +10,7 @@ import {
 } from './save'
 import { cordsOf, gpaOf } from './progress'
 import { grant } from './grant'
-import { beatDone, coreBeatId, hasCoreBeat } from './beats/beats'
+import { beatPassedIn, coreBeatId, hasCoreBeat } from './beats/beats'
 import { programmeById } from './roster/roster'
 import { shownName } from './roster/placeholders'
 import { classById } from './planner/catalog'
@@ -56,7 +56,17 @@ export const engine: IntentEngine = {
         ? { stickers: [...s.stickers], badges: [...s.badges] }
         : { stickers: [], badges: [] }
       /* the beat this year still owes, or null */
-      case 'advisory': return s && hasCoreBeat(s.year) && !beatDone(s.ledger, s.year)
+      /* ---- THE HEARTH OFFERS IT UNTIL IT IS PASSED (Ash, 2026-09-09) -----
+       *
+       * *"I purposefully failed advisory... but once i left the advisory panel
+       * and came back, it says 'advisory is done for this year'. Obviously it
+       * should allow the user to retake, only if they havent passed."*
+       *
+       * This asked `beatDone`, which is "is there a row", so an F answered null
+       * and the fire told him it was banked. The year would not close either, so
+       * the run was stuck between a gate that wanted a pass and the only door to
+       * one saying come back next year. */
+      case 'advisory': return s && hasCoreBeat(s.year) && !beatPassedIn(s, s.year)
         ? coreBeatId(s.year)
         : null
       case 'flags': return s ? [...s.flags] : []

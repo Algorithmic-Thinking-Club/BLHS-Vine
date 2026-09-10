@@ -25,10 +25,23 @@ export type Settings = {
   textSize: 's' | 'm' | 'l'
   reducedMotion: boolean
   skin: KitSkin
+  /* ---- CLICKING THE FLOOR WALKS HIM (Ash, 2026-09-09) ------------------
+   *
+   * *"Click to move. This is a slight problem. In the help button, make this a
+   * toggle, to activate click to move. Right now it's just on by default."*
+   *
+   * OFF unless it is asked for, which is what "a toggle to activate it" means.
+   * A student who clicks a station still gets the station: that is a tap on a
+   * THING and it is not this. This is only the bare floor, which was walking
+   * him away from what he was reading. */
+  clickToMove: boolean
 }
 const KEY = 'blhs_settings_v1'
 /* sound opens on off, matching what the speakers are actually doing */
-const FALLBACK: Settings = { sound: 'off', mute: true, textSize: 'm', reducedMotion: false, skin: 'paper' }
+const FALLBACK: Settings = {
+  sound: 'off', mute: true, textSize: 'm', reducedMotion: false, skin: 'paper',
+  clickToMove: false,
+}
 
 const SOUND_LEVELS: SoundLevel[] = ['off', 'quiet', 'full']
 const SOUND_WORD: Record<SoundLevel, string> = { off: 'Off', quiet: 'Quiet', full: 'Full' }
@@ -52,6 +65,14 @@ export function loadSettings(): Settings {
 }
 
 /* the three attributes on <html>, written here and nowhere else */
+/* WRITTEN IN ONE PLACE (Ash, 2026-09-09). The panel used to be the only thing
+ * that stored settings, so it wrote the key inline; the help card's click-to-move
+ * switch is a second writer and two `localStorage.setItem(KEY, ...)` calls is one
+ * misspelling away from a setting that saves and never loads. */
+export function saveSettings(s: Settings) {
+  try { localStorage.setItem(KEY, JSON.stringify(s)) } catch { /* a locked-down browser still plays */ }
+}
+
 export function applySettings(s: Settings) {
   if (typeof document === 'undefined') return
   document.documentElement.dataset.textsize = s.textSize
@@ -77,7 +98,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   /* focus is moved by id, so a keyboard player is not left on a button that has gone */
   useEffect(() => { if (confirmRestart) document.getElementById('st-confirm-erase')?.focus() }, [confirmRestart])
 
-  useEffect(() => { localStorage.setItem(KEY, JSON.stringify(s)); applySettings(s) }, [s])
+  useEffect(() => { saveSettings(s); applySettings(s) }, [s])
   useEffect(() => {
     const h = () => setFs(!!document.fullscreenElement)
     document.addEventListener('fullscreenchange', h)

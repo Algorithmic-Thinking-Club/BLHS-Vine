@@ -4,7 +4,7 @@ import { loadSave, recordGrade, recordCompletion } from '../save'
 import { classById } from '../planner/catalog'
 import { programmeById, islandForClass, islandForProgramme } from '../roster/roster'
 import { shownName } from '../roster/placeholders'
-import { classDone } from '../beats/classes'
+import { classPassed } from '../beats/classes'
 import { completedIn } from '../save'
 
 /* ---- ONE BUTTON PER PICK, AND THE ROSTER DECIDES WHAT IT DOES -------------
@@ -51,7 +51,9 @@ export function picksOf(s: SaveGame | null, year: number = s?.year ?? 1): Pick[]
     out.push({
       id, kind: 'class', name: c?.name ?? id,
       map: islandForClass(id)?.map ?? null,
-      done: classDone(s.ledger, id),
+      /* PASSED, not merely sat (Ash, 2026-09-09). A pick a student failed is a
+       * pick the year is still waiting on, and its button has to come back. */
+      done: classPassed(s, id),
     })
   }
   for (const id of Object.values(plan.slots)) {

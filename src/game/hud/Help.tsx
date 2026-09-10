@@ -1,11 +1,12 @@
 // the question mark in the corner and the one card behind it: the controls, the corner, the way out
 import { useEffect, useState } from 'react'
-import { usePanel } from '../ui/a11y'
+import { announce, usePanel } from '../ui/a11y'
 import { Glyph, Plank } from '../ui/controls'
 import { track } from '../telemetry'
 import { requestUi, uiListenerCount } from '../ui-bus'
 import { holdWorld } from '../world-bus'
 import { useNavMaybe } from '../../app/SceneManager'
+import { applySettings, loadSettings, saveSettings } from '../../app/SettingsPanel'
 import './help.css'
 
 /** the one card, opened from the corner and from the pause sheet */
@@ -14,6 +15,7 @@ export function HelpCard({ onClose }: { onClose: () => void }) {
   const nav = useNavMaybe()
   /* whether a Hud is mounted to answer a panel request, asked once when the card opens */
   const [hudUp, setHudUp] = useState(false)
+  const [clickWalk, setClickWalk] = useState(() => loadSettings().clickToMove)
   useEffect(() => { setHudUp(uiListenerCount() > 0) }, [])
   useEffect(() => { track('help_opened') }, [])
   /* the card holds the world for as long as it is open, so it really is the pause */
@@ -77,6 +79,36 @@ export function HelpCard({ onClose }: { onClose: () => void }) {
             <span className="hp-says">Esc closes a panel, or pauses the game</span>
           </li>
         </ul>
+
+        {/* ---- CLICK TO MOVE, AS A SWITCH (Ash, 2026-09-09) --------------
+            *
+            * *"Click to move. This is a slight problem. In the help button, make
+            * this a toggle, to activate click to move. Right now it's just on by
+            * default."*
+            *
+            * On the card with the keys, because it is about how he moves, and
+            * the card is already the place a student comes to find that out.
+            * Clicking a STATION is not this and never turns off. */}
+        <button
+          type="button"
+          className="hp-toggle"
+          role="switch"
+          aria-checked={clickWalk}
+          onClick={() => {
+            const next = !clickWalk
+            setClickWalk(next)
+            const now = { ...loadSettings(), clickToMove: next }
+            saveSettings(now)
+            applySettings(now)
+            track('click_to_move', { on: next })
+            announce(next ? 'Clicking the ground walks you there.' : 'Clicking the ground no longer walks you.')
+          }}
+        >
+          <span className={`hp-toggle-box${clickWalk ? ' hp-toggle-on' : ''}`} aria-hidden="true">
+            {clickWalk && <Glyph piece="icon_set" face="tick" size={13} />}
+          </span>
+          <span className="hp-toggle-words">Click the ground to walk there</span>
+        </button>
 
         {/* THE SENTENCE THE BRIEF ASKS FOR, VERBATIM AND ON ITS OWN. It is the
             answer to "I don't know what to do", so it is not in the list with

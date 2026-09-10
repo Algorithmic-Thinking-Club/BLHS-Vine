@@ -1,6 +1,6 @@
 // the year's tasks as a list under the objective bar, derived from the save rather than stored
 import type { SaveGame } from '../save'
-import { sessionOver, yearStatus } from './year'
+import { sessionOver, yearStatus, yearWord } from './year'
 import { picksOf } from './pick'
 
 export type Task = {
@@ -17,8 +17,7 @@ export type Task = {
 }
 
 /** the heading over the sheet, which is the only place the year is named */
-export const taskHeading = (year: number): string =>
-  year === 1 ? 'Year one' : `Year ${year}`
+export const taskHeading = (year: number): string => `Year ${yearWord(year)}`
 
 /** the year's tasks in the order they happen, the same order the objective arrow walks */
 export function tasksOf(s: SaveGame | null): Task[] {

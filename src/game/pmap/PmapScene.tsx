@@ -43,6 +43,9 @@ import {
 import { stateOf, STATE_INK } from '../world/states'
 import { onSailRequest, onVoyageRequest } from '../world/sail-bus'
 import { requestUi } from '../ui-bus'
+import { drawRecolored, lookHue } from '../thorLook'
+import { subscribeSave } from '../save'
+import { loadSettings } from '../../app/SettingsPanel'
 import { runEnding, setRunEnding } from '../hud/objective-bus'
 import { sessionOver } from '../run/year'
 import {
@@ -335,6 +338,8 @@ export default function PmapScene() {
     /* and the chart's own way into the water, taken down with the scene */
     let offSail = () => { /* no ocean yet */ }
     let offVoyage = () => { /* nothing to sail to yet */ }
+    /* the coat watcher, declared out here because the scene's teardown is out here */
+    let offLook = () => { /* nobody is dressed yet */ }
     const offHold = onWorldHold((held) => { if (held) { dropKeys(); cancelPlayerWalk() } })
 
     /* the movie: a world hold puts this scene's furniture away, and these two follow it too */
@@ -1255,6 +1260,55 @@ export default function PmapScene() {
           return r ? new Texture({ source: t.source, frame: new Rectangle(0, 0, t.source.pixelWidth, r.feet + 1) }) : t
         })
       }
+      /* ---- THE COAT HE PICKED, ON THE BODY THAT WALKS (Ash, 2026-09-09) --
+       *
+       * *"The wardrobe. The coats change thors appearence inside the wardrobe
+       * panel, but when the user exits out, thors in game character has not
+       * changed. I bet its the same for the letter man jacket, googles, cap."*
+       *
+       * `thorLook` was written by the mirror and read by exactly two places: the
+       * mirror's own canvas and `BeachIso`, the tile intro. The painted world,
+       * which is every minute of the game after the beach, loaded the walk
+       * frames off disk and drew them as painted. So the choice was real, saved,
+       * and invisible from the moment he stepped off the sand.
+       *
+       * IT IS REBUILT RATHER THAN TINTED. `thorLook.ts` rotates the hue of the
+       * SHIRT pixels only, chosen by hue band and saturation, which no sprite
+       * tint can do: a tint multiplies the whole image and would take his fur
+       * with it. Forty-eight small canvases, paid once at load and again only on
+       * the frame a student presses a coat.
+       *
+       * AND IT FOLLOWS A CHANGE MADE MID-GAME, because the wardrobe opens from
+       * the year sheet over a live map. Without the subscription below he would
+       * have had to leave the island and come back. */
+      const walkArt: Record<string, Texture[]> = {}
+      let drawnLook: string | null = null
+      const dressThor = (look: string | undefined) => {
+        const hue = lookHue(look)
+        const key = look ?? 'classic'
+        if (drawnLook === key) return
+        drawnLook = key
+        for (const d of DIRS8) {
+          walkArt[d] = hue === null ? walkT[d] : walkT[d].map((t) => {
+            const src = t.source.resource as CanvasImageSource & { width: number; height: number }
+            /* a frame whose pixels are not reachable is left as painted rather
+             * than dropped: a missing coat is better than a missing character */
+            if (!src || typeof src === 'undefined') return t
+            try {
+              const cv = document.createElement('canvas')
+              drawRecolored(cv, src, hue)
+              const out = Texture.from(cv)
+              out.source.scaleMode = 'nearest'
+              return new Texture({ source: out.source, frame: t.frame.clone() })
+            } catch { return t }
+          })
+        }
+      }
+      dressThor(loadSave()?.thorLook)
+      /* the mirror opens over a live map, so the coat lands on the frame he picks
+       * it rather than the next time he sails somewhere */
+      offLook = subscribeSave(() => dressThor(loadSave()?.thorLook))
+
       /* where the middle of his drawn body is per heading, so the YOU marker hangs over him */
       const pinDx: Record<string, number> = {}
       /* the same scan kept as edge positions, so a harness can check the marker is really centred */
@@ -3406,6 +3460,17 @@ export default function PmapScene() {
           engine.log('click_nowhere', { map: mapId, to: [Math.round(px), Math.round(py)] })
           return 'nothing'
         }
+        /* ---- ONLY IF HE ASKED FOR IT (Ash, 2026-09-09) ------------------
+         *
+         * *"Click to move... in the help button, make this a toggle, to activate
+         * click to move. Right now it's just on by default."*
+         *
+         * The gate is HERE and not on the tap handler, deliberately: everything
+         * above this line is a tap on a THING (a station, the boat, the arrival
+         * card, a berth) and every one of those stays. What a student turns on is
+         * walking to bare floor, which is the part that was moving him away from
+         * whatever he had just stopped to read. */
+        if (!loadSettings().clickToMove) return 'nothing'
         startWalk(end, 6, null, () => { /* he simply arrives */ }, 'a point he clicked', { byPlayer: true })
         engine.log('click_walk', { map: mapId, to: [Math.round(end.x), Math.round(end.y)], reached: r.reached })
         return 'walking'
@@ -4845,7 +4910,7 @@ const CAST_OFF_SHOW_MS = 3200
           }
         }
         const fr = posed ? posed.tex
-          : moving ? walkT[walker.facing][1 + (Math.floor(walker.animT) % 5)] : walkT[walker.facing][0]
+          : moving ? walkArt[walker.facing][1 + (Math.floor(walker.animT) % 5)] : walkArt[walker.facing][0]
         if (thor.sp.texture !== fr) thor.sp.texture = fr
         thor.sp.position.set(pos.x, pos.y)
         thor.sp.zIndex = OVER_PLACED + pos.y
@@ -5531,6 +5596,7 @@ const CAST_OFF_SHOW_MS = 3200
       offHold()
       offSail()
       offVoyage()
+      offLook()
       /* the cinema bars come down with the scene, unless a film walked through a door */
       offCinema()
       movieHold?.(); movieHold = null

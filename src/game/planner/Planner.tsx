@@ -12,8 +12,9 @@ import {
   type Season, type YearPlan,
 } from '../save'
 import { cordsOf, letterOf } from '../progress'
-import { beatDone } from '../beats/beats'
-import { classDone } from '../beats/classes'
+import { coreBeatId } from '../beats/beats'
+import { beatState } from '../beats/state'
+import { classLedgerId } from '../beats/classes'
 import { firstLook, markLooked } from '../hud/first-look'
 import { yearStatus } from '../run/year'
 import { picksOf, pickVerb, type Pick } from '../run/pick'
@@ -323,7 +324,18 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
   const [told] = useState(() => firstLook('my-year'))
   useEffect(() => { markLooked('my-year') }, [])
   const slotsFilled = SEASONS.filter((se) => plan.slots[se]).length
-  const canStamp = !plan.stamped && plan.classes.length === 2
+  /* ---- WHAT "THE SHEET IS FULL" MEANS (Ash, 2026-09-09) -------------------
+   *
+   * *"Once a user picks all the options (right now its just classes, but make
+   * sure once clubs are implemented clubs are included)..."*
+   *
+   * It was two classes and nothing else, which is right today only because
+   * nothing on the roster is playable. `offersActivities` is the same question
+   * the seasons column asks before it draws itself, so the day a club ships the
+   * stamp waits for one without this line changing. */
+  const canStamp = !plan.stamped
+    && plan.classes.length === 2
+    && (!offersActivities || slotsFilled > 0)
   const stampNote = plan.stamped ? null
     : plan.classes.length < 2 ? 'Pick two classes.'
       : slotsFilled < SEASONS.length ? OPEN_SEASONS
@@ -352,14 +364,30 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
           <span className="pl-pin-words">
             <b>Advisory, every year.</b>{' '}{CORE_BEAT_DESC[year] ?? CORE_BEAT_DESC[1]}
           </span>
-          {beatDone(s.ledger, year)
-            ? (
-              <span className="pl-pin-done">
-                <Glyph piece="icon_set" face="tick" size={15} />
-                attended
-              </span>
+          {/* ---- THREE STATES, BECAUSE THERE ARE THREE (Ash, 2026-09-09) ---
+              *
+              * A tick or a button, and a fail got the tick. *"Obviously it should
+              * allow the user to retake, only if they havent passed. If they have
+              * passed, maybe the dialogue says 'Advisory is done for this year,
+              * see answers?' and an option shows up."* */}
+          {(() => {
+            const st = beatState(s, coreBeatId(year))
+            if (st === 'passed') {
+              return (
+                <span className="pl-pin-done">
+                  <Glyph piece="icon_set" face="tick" size={15} />
+                  passed
+                  {onAdvisory && <Plank size="sm" onClick={onAdvisory}>see your answers</Plank>}
+                </span>
+              )
+            }
+            if (!onAdvisory) return null
+            return (
+              <Plank size="sm" onClick={onAdvisory}>
+                {st === 'failed' ? 'take Advisory again' : 'go to Advisory'}
+              </Plank>
             )
-            : onAdvisory && <Plank size="sm" onClick={onAdvisory}>go to Advisory</Plank>}
+          })()}
         </div>
 
         <div className="pl-body">
@@ -558,8 +586,8 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
                 const c = classById(id)
                 if (!c) return null
                 const hint = cordHint(c.tags)
-                const sat = classDone(s.ledger, id)
-                const grade = sat ? s.ledger.find((e) => e.id === `class:${id}`)?.grade : undefined
+                const st = beatState(s, classLedgerId(id))
+                const grade = s.ledger.find((e) => e.id === classLedgerId(id))?.grade
                 const pick = picks.find((q) => q.kind === 'class' && q.id === id)
                 return (
                   <div className="pl-class" key={id}>
@@ -576,15 +604,21 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
                         remove
                       </Plank>
                     )}
-                    {plan.stamped && (sat
-                      ? <span className="pl-class-grade">{grade !== undefined ? letterOf(grade) : 'done'}</span>
-                      : onPlayPick && pick && (
-                        /* ONE BUTTON, TWO FUTURES, and the roster picks. Today no
-                           course has an island, so it reads "Go" and counts the
-                           pick; the day somebody paints one the same press is a
-                           voyage and only the word changes. */
-                        <Plank size="sm" onClick={() => onPlayPick(pick)}>{pickVerb(pick)}</Plank>
-                      ))}
+                    {/* THE GRADE IS ALWAYS SAID, and a failed one keeps its
+                        button (Ash, 2026-09-09): a row that reads "F" with no way
+                        back in is the dead end the whole retake pass is about. */}
+                    {plan.stamped && st !== 'untried' && grade !== undefined && (
+                      <span className="pl-class-grade">{letterOf(grade)}</span>
+                    )}
+                    {plan.stamped && st !== 'passed' && onPlayPick && pick && (
+                      /* ONE BUTTON, TWO FUTURES, and the roster picks. Today no
+                         course has an island, so it reads "Go" and counts the
+                         pick; the day somebody paints one the same press is a
+                         voyage and only the word changes. */
+                      <Plank size="sm" onClick={() => onPlayPick(pick)}>
+                        {st === 'failed' ? 'try it again' : pickVerb(pick)}
+                      </Plank>
+                    )}
                   </div>
                 )
               })}
@@ -703,7 +737,19 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
                   {(() => {
                     const st = yearStatus(s)
                     if (st.readyForYearbook && !st.yearbookSeen && onYearbook) {
-                      return <Plank size="md" onClick={onYearbook}>Open the yearbook</Plank>
+                      /* THE SAME NUDGE, on the one other control that becomes the
+                         whole of what a student owes and looks identical before
+                         and after it does. Ash: *"maybe find other places where
+                         this could also be useful to add."* */
+                      return (
+                        <>
+                          <p className="kit-nudge-say" role="status">
+                            <span className="kit-nudge-arrow" aria-hidden="true">▼</span>
+                            Everything is finished. Turn the page.
+                          </p>
+                          <Plank size="md" className="kit-nudge" onClick={onYearbook}>Open the yearbook</Plank>
+                        </>
+                      )
                     }
                     if (!st.readyForYearbook) {
                       /* only what really holds the year, since classes no longer gate the yearbook */
@@ -728,9 +774,28 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
               </>
             ) : (
               <>
+                {/* ---- AND IT SAYS SO WHEN IT IS READY (Ash, 2026-09-09) ----
+                    *
+                    * *"Once they have selected everything they need for the year,
+                    * the stamp button is a bit unclear. So add this logic: if a
+                    * user selects all the classes / clubs needed, the stamp button
+                    * gets a box highlight around it + a panel and arrow mark, much
+                    * like the button tutorial."*
+                    *
+                    * The plank sat there in the same ink whether it was refusing
+                    * or waiting, so the moment the sheet became stampable looked
+                    * exactly like the moment before it. This is the same language
+                    * the handover tutorial speaks: a ring, a pointer and one line. */}
+                {canStamp && (
+                  <p className="kit-nudge-say" role="status">
+                    <span className="kit-nudge-arrow" aria-hidden="true">▼</span>
+                    Your sheet is full. Stamp it to lock the year in.
+                  </p>
+                )}
                 <Plank
                   size="lg"
                   id="pl-stamp"
+                  className={canStamp ? 'kit-nudge' : undefined}
                   disabled={!canStamp}
                   title={stampNote ?? undefined}
                   onClick={() => setConfirming(true)}

@@ -661,3 +661,68 @@ html[data-skin='plain'] .kit-fb-awarded { box-shadow: none; }
 
 /* a panel itself wears no ring, since it is only ever focused programmatically */
 [role='dialog']:focus-visible { outline: none; }
+
+/* ---- THE NUDGE: A CONTROL THAT HAS JUST BECOME THE ANSWER -----------------
+ *
+ * Ash, 2026-09-09, on the stamp: *"Once they have selected everything they need
+ * for the year, the stamp button is a bit unclear. So add this logic: if a user
+ * selects all the classes / clubs needed, the stamp button gets a box highlight
+ * around it + a panel and arrow mark, much like the button tutorial."*
+ *
+ * A ring, a pointer and one line, which is the language the handover tutorial
+ * already speaks, so a student meets the same shape twice and reads it faster
+ * the second time. It is a class any control can wear rather than a component,
+ * because what it marks is a MOMENT and not a kind of button.
+ *
+ * EVERY COLOUR IS A TOKEN, which `ui/tokens.test.ts` holds this file to: the
+ * plain arm redefines the same names and the nudge follows it without a second
+ * rule written here. */
+.kit-nudge {
+  position: relative;
+  animation: kit-nudge-ring 1900ms ease-in-out infinite;
+  border-radius: var(--kit-r-card);
+}
+@keyframes kit-nudge-ring {
+  0%, 100% { box-shadow: 0 0 0 2px var(--kit-gold-edge), 0 0 0 7px transparent; }
+  50%      { box-shadow: 0 0 0 2px var(--kit-gold-edge), 0 0 0 7px var(--kit-plank-glow); }
+}
+/* a looping cue STOPS rather than shortening: a strobe is worse than no cue */
+html[data-rm='1'] .kit-nudge {
+  animation: none;
+  box-shadow: 0 0 0 2px var(--kit-gold-edge);
+}
+
+.kit-nudge-say {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  margin: 0 0 8px;
+  padding: 7px 12px;
+  background: var(--kit-plank-glow);
+  border: 1px solid var(--kit-gold-edge);
+  border-radius: var(--kit-r-card);
+  font: 600 13px/1.35 var(--font-ui, system-ui, sans-serif);
+  color: var(--kit-ink);
+}
+.kit-nudge-arrow {
+  animation: kit-nudge-bob 1100ms ease-in-out infinite;
+  opacity: 0.85;
+}
+@keyframes kit-nudge-bob {
+  0%, 100% { transform: translateY(-2px); }
+  50%      { transform: translateY(2px); }
+}
+html[data-rm='1'] .kit-nudge-arrow { animation: none; }
+
+/* the plain arm has no glow token, so the mark is the edge and the weight */
+html[data-skin='plain'] .kit-nudge {
+  animation: none;
+  border-radius: 0;
+  box-shadow: 0 0 0 3px var(--kit-edge);
+}
+html[data-skin='plain'] .kit-nudge-say {
+  border-width: 2px;
+  border-color: var(--kit-edge);
+  border-radius: 0;
+}

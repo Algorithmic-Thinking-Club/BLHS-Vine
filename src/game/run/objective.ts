@@ -1,6 +1,6 @@
 /* the one thing the player is supposed to do next, named as an anchor on a map */
 import type { SaveGame } from '../save'
-import { sessionOver, yearStatus } from './year'
+import { sessionOver, yearStatus, yearWord } from './year'
 import { picksOf } from './pick'
 
 export type Objective = {
@@ -134,7 +134,7 @@ export function nextObjective(s: SaveGame | null): Objective | null {
        * his last pick at the chart table and the year closes with him ten feet
        * from the man. Same fact, said from where he is: the arrow is already on
        * the principal and this is the sentence that goes with it. */
-      say: 'Find the principal. Year one is done.',
+      say: `Find the principal. Year ${yearWord(s.year)} is done.`,
       away: 'Go back to the Maw. The principal is waiting.',
     }
   }

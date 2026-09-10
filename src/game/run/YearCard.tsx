@@ -9,9 +9,13 @@ import { SEASONS, loadSave } from '../save'
 import { track } from '../telemetry'
 import type { YearbookPage } from './yearbook-page'
 import './run.css'
+import { yearWord } from './year'
 import './yearcard.css'
 
-const YEAR_WORD = ['', 'one', 'two', 'three', 'four']
+/* THE YEAR WORD COMES FROM `run/year.ts` (Ash, 2026-09-09). There were three
+ * private copies of this table in the repo and one hardcoded literal beside
+ * each: this card printed "Year two" at the top and "That is year one" on the
+ * only button, six inches apart. */
 
 type CardRow = { key: string; title: string; meta?: string; done?: boolean }
 
@@ -86,7 +90,7 @@ export function YearCard({ year, page, onDone }: {
           {/* THE NUMBER AND NOTHING BESIDE IT. The spread prints "still open" or
               "closed" here, which on this card would be the game answering the
               counselor back on the frame she says the year is done. */}
-          <h2 className="yc-title">Year {YEAR_WORD[year] ?? year}</h2>
+          <h2 className="yc-title">Year {yearWord(year)}</h2>
         </header>
         <div className="yc-body">
           <List head="What you picked" rows={picked} empty="Nothing on the sheet this year." />
@@ -94,7 +98,7 @@ export function YearCard({ year, page, onDone }: {
         </div>
         <footer className="yc-foot">
           {/* the one press on the card, and its words are the way on rather than a way back */}
-          <Plank size="lg" className="yc-go" onClick={onDone}>That is year one</Plank>
+          <Plank size="lg" className="yc-go" onClick={onDone}>That is year {yearWord(year)}</Plank>
         </footer>
       </div>
     </div>

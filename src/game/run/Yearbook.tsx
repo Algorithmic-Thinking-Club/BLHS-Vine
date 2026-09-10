@@ -10,7 +10,7 @@ import {
   turnYearPage, yearbookPage, yearbookYears, yearTurned,
   type GpaMove, type YearbookRow, type YearbookSection,
 } from './yearbook-page'
-import { SESSION_ENDS_AFTER_YEAR } from './year'
+import { SESSION_ENDS_AFTER_YEAR, yearWord } from './year'
 import { cinemaOn } from '../stage/cinema'
 import './run.css'
 
@@ -295,14 +295,16 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
             ) : sessionEnds ? (
               /* the end of the thirty minutes, which is not a graduation */
               <>
-                <h2 className="yb-title">Year {year} is done.</h2>
+                <h2 className="yb-title">Year {yearWord(year)} is done.</h2>
                 {/* what is true now, the room being his, rather than a promise about next time */}
+                {/* THE YEAR IS ASKED, NOT SPELLED (Ash, 2026-09-09): *"I finished
+                    year 2, and it says 'year one is done' everywhere."* */}
                 <p className="yb-turnedline">
-                  That is year one. The Maw is yours to walk, and the Guide has every club and
-                  class at Bonney Lake in it.
+                  That is year {yearWord(year)}. The Maw is yours to walk, and the Guide has every
+                  club and class at Bonney Lake in it.
                 </p>
                 <div className="yb-acts">
-                  <Plank size="lg" onClick={onClose}>That is year one</Plank>
+                  <Plank size="lg" onClick={onClose}>That is year {yearWord(year)}</Plank>
                 </div>
               </>
             ) : (
@@ -327,7 +329,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                 <p className="yb-turnedline">Three new season tokens. Go to the table and pick your year.</p>
                 <div className="yb-acts">
                   {/* the way on is worded as finishing, not as going back */}
-                  <Plank size="lg" onClick={onClose}>That is year one</Plank>
+                  <Plank size="lg" onClick={onClose}>That is year {yearWord(year)}</Plank>
                 </div>
               </>
             )}

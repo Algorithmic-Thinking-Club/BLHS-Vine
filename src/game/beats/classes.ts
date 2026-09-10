@@ -2,6 +2,8 @@
 
 import type { CheckStep } from '../../vine/contract'
 import type { ClassDef } from '../planner/catalog'
+import type { SaveGame } from '../save'
+import { beatPassed } from './state'
 import { classById } from '../planner/catalog'
 import { placeOfDept, type MapId, type Place } from '../roster/roster'
 import type { BeatStep, CoreBeat } from './frames'
@@ -128,3 +130,10 @@ export function classBeat(c: ClassDef, year: number): CoreBeat {
 /** has this class been sat already? (ledger truth, any year) */
 export const classDone = (ledger: { id: string }[], classId: string): boolean =>
   ledger.some((e) => e.id === `class:${classId}`)
+
+/** the class id as the ledger spells it, so nobody builds the string by hand */
+export const classLedgerId = (classId: string): string => `class:${classId}`
+
+/* SAT AND PASSED, which is what the year gate means (Ash, 2026-09-09) */
+export const classPassed = (s: SaveGame | null, classId: string): boolean =>
+  beatPassed(s, classLedgerId(classId))

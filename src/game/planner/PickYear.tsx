@@ -7,6 +7,7 @@ import { CLASSES, type ClassDef } from './catalog'
 import { scheduleOwed } from './schedule'
 import { SEASONS, assignSlot, clearSlot, loadSave, pickClass, dropClass, stampPlan, type Season } from '../save'
 import { refuseClass, refuseSlot } from '../run/refusal'
+import { yearWord } from '../run/year'
 import { usePanel } from '../ui/a11y'
 import { cinemaOn } from '../stage/cinema'
 import { Glyph, Plank } from '../ui/controls'
@@ -25,7 +26,6 @@ const REQUIRED = ['English', 'Math', 'Science', 'PE', 'History']
 const PERIODS = 7
 const ELECTIVE_AT = REQUIRED.length
 
-const YEAR_WORD = ['', 'one', 'two', 'three', 'four']
 
 /** what a card can win, in the school's own words, for the wall outline */
 function earnsOf(p: Programme): string {
@@ -159,7 +159,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
   return (
     <div className="py-veil" onClick={shut}>
       <div {...panel} className="py-sheet kit-surface-panel" onClick={(e) => e.stopPropagation()}>
-        <h2 className="py-title">Your schedule, year {YEAR_WORD[year] ?? year}</h2>
+        <h2 className="py-title">Your schedule, year {yearWord(year)}</h2>
         {/* WHAT MY YEAR IS, THE FIRST TIME IT IS OPENED (BRIEF-CLOSE-THE-LOOP
             section 1). The principal used to say it in the cutscene, about a
             button in the other corner of the screen. */}

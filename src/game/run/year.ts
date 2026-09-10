@@ -2,8 +2,8 @@
 
 import type { SaveGame, Season } from '../save'
 import { SEASONS, completedIn } from '../save'
-import { hasCoreBeat, beatDone } from '../beats/beats'
-import { classDone } from '../beats/classes'
+import { hasCoreBeat, beatDone, beatPassedIn } from '../beats/beats'
+import { classDone, classPassed } from '../beats/classes'
 import { programmeById, placeOfProgramme } from '../roster/roster'
 
 /* the last year the run hands out, so the session ends once that year's page turns */
@@ -37,12 +37,30 @@ export const sessionOver = (s: SaveGame | null): boolean =>
 export const nextYear = (s: SaveGame | null): number | null =>
   s && !s.graduated && sessionOver(s) && s.year < 4 ? s.year + 1 : null
 
+/* ---- THE YEAR, IN WORDS, IN ONE PLACE (Ash, 2026-09-09) -------------------
+ *
+ * *"I finished year 2, and it says 'year one is done' everywhere."*
+ *
+ * It did. Five surfaces spelled "year one" out as a literal, written in the week
+ * when year one was the only year there was: the objective bar's last sentence,
+ * the yearbook's closing card and its plank, the counselor's cord line and the
+ * principal's congratulation. Every one of them was true once and none of them
+ * asked the save.
+ *
+ * ORDINALS RATHER THAN DIGITS, because "That is year two" is what a person says
+ * and "That is year 2" is what a form says, and this game talks. Four is the
+ * whole range: `endYear` graduates at four and there is no fifth. */
+const YEAR_WORDS = ['zero', 'one', 'two', 'three', 'four'] as const
+
+/** "year two", for a sentence. `Year two` when it opens one. */
+export const yearWord = (n: number): string => YEAR_WORDS[n] ?? String(n)
+
 /* where a run is, in one line a student reads, with no season named in it */
 export function runLine(s: SaveGame | null): string {
   if (!s) return ''
-  if (sessionOver(s)) return s.year === 1 ? 'Year one is done' : `Year ${s.year} is done`
+  if (sessionOver(s)) return `Year ${yearWord(s.year)} is done`
   if (!s.introDone) return 'Just started'
-  return s.year === 1 ? 'Year one' : `Year ${s.year}`
+  return `Year ${yearWord(s.year)}`
 }
 
 export type VoyageStatus = {
@@ -63,8 +81,12 @@ export type YearStatus = {
   year: number
   vignetteSeen: boolean
   planStamped: boolean
-  /** true when the year's core beat is on the ledger (years without authored content pass) */
+  /** true when the year's core beat is on the ledger WITH A PASSING GRADE */
   coreBeatDone: boolean
+  /** true when it has been sat at all, whatever came of it */
+  coreBeatTried: boolean
+  /** the classes sat at least once, passed or not */
+  classesTried: string[]
   classesDone: string[]
   classesPending: string[]
   voyages: VoyageStatus[]
@@ -93,15 +115,29 @@ export function yearStatus(s: SaveGame, forYear = s.year): YearStatus {
       done: completedIn(s, id, year),
     }]
   })
-  const classesDone = plan.classes.filter((c) => classDone(s.ledger, c))
-  const classesPending = plan.classes.filter((c) => !classDone(s.ledger, c))
-  const coreBeatDone = !hasCoreBeat(year) || beatDone(s.ledger, year)
+  /* ---- SAT AND PASSED ARE TWO DIFFERENT FACTS (Ash, 2026-09-09) ---------
+   *
+   * *"It shouldnt allow a user to finish their year, if they just failed
+   * everything. It should register their attempts, and that they failed first
+   * attempt, but they should have multiple attempts."*
+   *
+   * `classesDone` used to be "has a row", so an F closed the class, closed the
+   * year and printed a credit on the transcript. Both facts are kept now: the
+   * year waits on PASSED, and `classesTried` is what the wall and the study read
+   * so a student who sat it and missed is not drawn as a student who never came. */
+  const classesDone = plan.classes.filter((c) => classPassed(s, c))
+  const classesTried = plan.classes.filter((c) => classDone(s.ledger, c))
+  const classesPending = plan.classes.filter((c) => !classPassed(s, c))
+  const coreBeatDone = !hasCoreBeat(year) || beatPassedIn(s, year)
+  const coreBeatTried = !hasCoreBeat(year) || beatDone(s.ledger, year)
   return {
     year,
     vignetteSeen: s.flags.includes(`vignette:y${year}`),
     planStamped: plan.stamped,
     coreBeatDone,
+    coreBeatTried,
     classesDone,
+    classesTried,
     classesPending,
     voyages,
     /* the year closes on the stamp and advisory, and the picked classes do not hold it */

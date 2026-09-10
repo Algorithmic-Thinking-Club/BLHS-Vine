@@ -27,7 +27,7 @@ describe("year one's Advisory is the lesson the brief names", () => {
 })
 
 describe('the fire, once it has been sat', () => {
-  it('offers the beat exactly once, and answers nothing after any grade', async () => {
+  it('goes quiet once the lesson has been PASSED', async () => {
     const { save, engine } = await fresh()
     save.beginAdventure()
     expect(engine.read('advisory')).toBe('core:y1')
@@ -36,17 +36,42 @@ describe('the fire, once it has been sat', () => {
       id: 'core:y1', title: 'Advisory', kind: 'core', credit: 0.5,
       grade: 3.6, year: 1, season: 'Fall',
     })
-    expect(engine.read('advisory'), 'the fire is still offering a lesson already sat').toBeNull()
+    expect(engine.read('advisory'), 'the fire is still offering a lesson already passed').toBeNull()
   })
 
-  it('is quiet after a FAIL too, because a failed sitting still happened', async () => {
+  /* ---- AND KEEPS OFFERING IT AFTER A FAIL (Ash, 2026-09-09) --------------
+   *
+   * This test held the opposite rule for four days, on the reasoning that a
+   * failed sitting still happened. Ash played it: *"I purposefully failed
+   * advisory. Retake is an option as soon as you fail. But once i left the
+   * advisory panel and came back, it says 'advisory is done for this year'.
+   * Obviously it should allow the user to retake, only if they havent passed."*
+   *
+   * He is right, and the old rule was worse than untidy: the year gate wants a
+   * PASS, so a student who failed had a run that could not be finished and no
+   * door anywhere that would let him try again. */
+  it('keeps offering it after a fail, because the year still wants a pass', async () => {
     const { save, engine } = await fresh()
     save.beginAdventure()
     save.recordGrade({
       id: 'core:y1', title: 'Advisory', kind: 'core', credit: 0.5,
       grade: 0.4, year: 1, season: 'Fall',
     })
-    expect(engine.read('advisory')).toBeNull()
+    expect(engine.read('advisory')).toBe('core:y1')
+
+    /* and a second fail does not close the door either: there is no limit on
+     * getting back to a passing grade, only on improving one */
+    save.recordGrade({
+      id: 'core:y1', title: 'Advisory', kind: 'core', credit: 0.5,
+      grade: 0.8, year: 1, season: 'Fall',
+    })
+    expect(engine.read('advisory')).toBe('core:y1')
+
+    save.recordGrade({
+      id: 'core:y1', title: 'Advisory', kind: 'core', credit: 0.5,
+      grade: 2.4, year: 1, season: 'Fall',
+    })
+    expect(engine.read('advisory'), 'a pass closes it').toBeNull()
   })
 
   it('keeps one row for one lesson when it is retaken', async () => {

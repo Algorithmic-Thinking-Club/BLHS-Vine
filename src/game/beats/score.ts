@@ -6,6 +6,7 @@ import { checksOf, type CoreBeat } from './frames'
  * the total on the transcript and the total the runner scores against are the
  * same number by construction rather than by two files agreeing */
 import { pointsOf } from './palette'
+import { retakeKind } from './state'
 
 /** points earned per check, keyed by check id/item — the runner accumulates this */
 export type BeatScore = { earned: number; total: number }
@@ -31,9 +32,16 @@ export const gradeOf = (s: BeatScore): number =>
  *  (Ash, 2026-09-08 item 5), which `run/wall.ts` is the other half of. */
 export const RETAKE_BELOW = 2.5
 
-/** may this beat be retaken right now? (§8.1: under B-, once, per the ledger's memory) */
+/* ---- AND THE RULE ITSELF LIVES IN `state.ts` (Ash, 2026-09-09) ------------
+ *
+ * This used to BE the rule, and it was the wrong one: `grade < B- && !retaken`
+ * caught a FAILED beat, spent the student's single retake on it, and then
+ * answered no for ever. A student who failed Advisory twice had a run that could
+ * not be finished and nothing on screen that would let him try again.
+ *
+ * A fail and a near-miss are two different offers. `retakeKind` is where that
+ * distinction lives; this is kept because a dozen callers say this sentence and
+ * it is the sentence they mean. */
 export function retakeAvailable(save: SaveGame, beatId: string): boolean {
-  const e = save.ledger.find((x) => x.id === beatId)
-  if (!e) return false
-  return e.grade < RETAKE_BELOW && !e.retaken
+  return retakeKind(save, beatId) !== 'none'
 }
