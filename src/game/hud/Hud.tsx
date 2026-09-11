@@ -243,16 +243,33 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   return (
     <>
       {/* the corner controls: hanging carved signs with a drawn mark and a word on each */}
-      {/* all three doors stand from the first world frame, called Map, Guide and My Year */}
+      {/* ---- A DOOR STANDS ONCE IT HAS BEEN HANDED OVER (Ash, 2026-09-09) --
+          *
+          * Ash has said twice that the handover reads as nothing happening:
+          * *"literally nothing changed... just a few dialogues saying Map,
+          * Guide, My Year that a freshman wont even connect."*
+          *
+          * Here is why. `hudGrants` was computed on every render and used for
+          * exactly one thing, the arrival wobble. The class that HIDES an
+          * un-handed plaque came from `plaqueShown`, which is `!armed ||
+          * shown.has(which)`, and nothing in the shipped game has ever called
+          * `armHandover`. So `armed` was false for ever, `plaqueShown` answered
+          * true for ever, and all three signs were on screen from the first
+          * frame of the first map. The film's `set_flag(HANDBOOK)` and
+          * `set_flag(CHART)` granted things the student was already looking at.
+          *
+          * Each door now waits for its own grant, which is what the className
+          * expression below has always been shaped to say. `plaqueShown` still
+          * has the last word so a staged handover can hold one back further. */}
       {/* each door keeps its place in the stack even before it has been handed over */}
       <nav className="hud-stack" aria-label="Game menu">
         {(
         <button
-          className={`hud-plaque${plaqueShown('map') ? '' : ' hud-plaque-waiting'}${handedOver.includes('map') ? ' hud-arriving' : ''}${entering.has('chart') ? ' hud-arriving' : ''}`}
+          className={`hud-plaque${plaqueShown('map') && g.chart ? '' : ' hud-plaque-waiting'}${handedOver.includes('map') ? ' hud-arriving' : ''}${entering.has('chart') ? ' hud-arriving' : ''}`}
           data-tour="map"
           aria-label="Map. The islands you have found."
-          aria-hidden={!plaqueShown('map')}
-          tabIndex={plaqueShown('map') ? undefined : -1}
+          aria-hidden={!(plaqueShown('map') && g.chart)}
+          tabIndex={plaqueShown('map') && g.chart ? undefined : -1}
           aria-haspopup="dialog"
           onClick={() => { track('chart_opened'); openBook('chart') }}
         >
@@ -262,11 +279,11 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
         )}
         {(
         <button
-          className={`hud-plaque${plaqueShown('guide') ? '' : ' hud-plaque-waiting'}${handedOver.includes('guide') ? ' hud-arriving' : ''}${entering.has('handbook') ? ' hud-arriving' : ''}`}
+          className={`hud-plaque${plaqueShown('guide') && g.handbook ? '' : ' hud-plaque-waiting'}${handedOver.includes('guide') ? ' hud-arriving' : ''}${entering.has('handbook') ? ' hud-arriving' : ''}`}
           data-tour="guide"
           aria-label="Guide. What the school offers, and what you have earned."
-          aria-hidden={!plaqueShown('guide')}
-          tabIndex={plaqueShown('guide') ? undefined : -1}
+          aria-hidden={!(plaqueShown('guide') && g.handbook)}
+          tabIndex={plaqueShown('guide') && g.handbook ? undefined : -1}
           aria-haspopup="dialog"
           /* THE GUIDE OPENS ON THE SCHOOL, not on the game's own island list.
              BRIEF-INTRO-FILM section 5 and the principal's own handover line:
@@ -280,13 +297,19 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
         )}
         {(
           <button
-            className={`hud-plaque${plaqueShown('my-year') ? '' : ' hud-plaque-waiting'}${handedOver.includes('my-year') ? ' hud-arriving' : ''} hud-tokenbtn${entering.has('tokens') ? ' hud-arriving' : ''}`}
+            className={`hud-plaque${plaqueShown('my-year') && g.tokens ? '' : ' hud-plaque-waiting'}${handedOver.includes('my-year') ? ' hud-arriving' : ''} hud-tokenbtn${entering.has('tokens') ? ' hud-arriving' : ''}`}
             data-tour="my-year"
             /* this reads a save that may not exist yet, because the corner outlives the run */
             /* the label says what the button opens and whether the year is still open */
             aria-label={s?.plans?.[s.year]?.stamped
               ? 'My Year. Your schedule, and the classes you picked.'
               : 'My Year. Pick your classes and what you join.'}
+            /* HIDDEN MEANS HIDDEN FROM A KEYBOARD TOO. This plaque was the one
+             * that never carried the pair, so a student tabbing round a room the
+             * game had not handed over yet landed on a year sheet nobody had
+             * given him (Ash's own handover, 2026-09-09). */
+            aria-hidden={!(plaqueShown('my-year') && g.tokens)}
+            tabIndex={plaqueShown('my-year') && g.tokens ? undefined : -1}
             aria-haspopup="dialog"
             onClick={openPlanner}
           >

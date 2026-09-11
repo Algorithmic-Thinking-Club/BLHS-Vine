@@ -32,9 +32,17 @@ export const HUD_INVENTORY: HudRow[] = [
     permanent: true,
     /* §2.6's bottle unfurls a chart, which is earlier than the first discovery,
      * so the flag is the earlier of the two grants and discovery is the fallback
-     * for a run that got there another way */
-    has: (s) => s.flags.includes(CHART_FLAG) || Object.keys(s.islands ?? {}).length > 0
-      || (s.exposure ?? []).length > 0,
+     * for a run that got there another way.
+     *
+     * ---- EXPOSURE IS NOT DISCOVERY (Ash, 2026-09-09) -------------------
+     *
+     * The third clause used to be `(s.exposure ?? []).length > 0`, and
+     * `PmapScene` writes an exposure row for the map it is STANDING ON the
+     * moment any map mounts. So the Map sign was granted by arriving at the hub,
+     * minutes before the principal hands it over in the Maw, and the handover
+     * had nothing left to give. An island somebody has a state for is a real
+     * discovery; the ground under your own feet is not. */
+    has: (s) => s.flags.includes(CHART_FLAG) || Object.keys(s.islands ?? {}).length > 0,
   },
   {
     el: 'handbook',

@@ -66,8 +66,6 @@ await page.addInitScript((s) => {
 }, SAVE)
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
-/* `SAIL_OUT_MS` in the scene, which is what the samples below are spread over */
-const SAIL_SECONDS = 3.5
 const look = () => page.evaluate(() => {
   const p = window.__pmap
   return {
@@ -120,6 +118,7 @@ let sailedFrom = null, sailedTo = null, sawTitle = false
 const dockedAt = { x: null, y: null }
 let hullSeen = 0
 let sawBarOnDeparture = null, sawCardOnDeparture = null
+let sailedAt = 0, sailedTill = 0
 const t0 = Date.now()
 
 while (Date.now() - t0 < 180000) {
@@ -156,8 +155,17 @@ while (Date.now() - t0 < 180000) {
       if (over.card && !sawCardOnDeparture) sawCardOnDeparture = over.card
       if (!hopped) { hopped = true; await page.screenshot({ path: `${SHOTS}/4-aboard.png` }) }
       const at = await page.evaluate(() => ({ x: Math.round(window.__pmap.hull.x), y: Math.round(window.__pmap.hull.y) }))
-      if (!sailedFrom) sailedFrom = at
+      /* ---- TIMED, NOT ASSUMED ------------------------------------------
+       *
+       * The pace used to be the sampled distance over the scene's own
+       * `SAIL_OUT_MS`, which is only right when the sampling window happens to
+       * be the whole departure. It is not: a driver that catches six samples
+       * reports 23 px/s and one that catches nine reports 35, off the same
+       * boat at the same speed. The clock between the first and last sample is
+       * what those pixels were actually covered in. */
+      if (!sailedFrom) { sailedFrom = at; sailedAt = Date.now() }
       sailedTo = at
+      sailedTill = Date.now()
     }
   }
 
@@ -226,7 +234,7 @@ if (sailedFrom && sailedTo) {
    * really is downward. What is worth asserting is that she leaves at a
    * WATCHABLE pace rather than bolting: the defect Ash played was full sail from
    * cruising speed, which crossed the same ground in a fifth of the time. */
-  const secs = SAIL_SECONDS
+  const secs = Math.max(0.5, (sailedTill - sailedAt) / 1000)
   const pxs = far / secs
   /* ASH, 2026-09-09: *"much slower sailing"*. Half a helm measured 38 to 48 a
    * second and he still read it as fast, so the ceiling comes down with it. */
