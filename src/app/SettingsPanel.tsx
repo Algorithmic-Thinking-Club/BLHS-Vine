@@ -395,7 +395,21 @@ type Binding = {
 }
 
 const ON_FOOT: Binding[] = [
-  { what: 'Walk', keys: ['W', 'A', 'S', 'D'], alt: ['Arrow keys'], pointer: 'on an island, click where you want to go', where: 'pmap/walk.ts step()' },
+  /* ---- THE POINTER LINE FOLLOWS THE SWITCH (Ash, 2026-09-09) -----------
+   *
+   * This told every student "on an island, click where you want to go" on the
+   * one page whose whole job is to say what the controls are. Clicking the
+   * ground is OFF unless it is turned on (the `?` card's own switch), so the
+   * page was describing a control that silently does nothing. */
+  {
+    what: 'Walk',
+    keys: ['W', 'A', 'S', 'D'],
+    alt: ['Arrow keys'],
+    pointer: loadSettings().clickToMove
+      ? 'on an island, click where you want to go'
+      : 'clicking the ground is off. Turn it on in the ? card',
+    where: 'pmap/walk.ts step()',
+  },
   { what: 'Sprint on the beach', keys: ['Shift'], pointer: null, where: 'BeachIso.tsx sprinting' },
   { what: 'Jump on the beach', keys: ['Space'], pointer: null, where: 'BeachIso.tsx jumpQueued' },
   { what: 'Use what you are standing at', keys: ['E'], pointer: 'tap the sign that appears, or click the thing itself from anywhere', where: 'PmapScene.tsx prompt pointertap' },

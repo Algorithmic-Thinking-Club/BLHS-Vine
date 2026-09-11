@@ -359,7 +359,13 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
     && (!offersActivities || slotsFilled > 0)
   const stampNote = plan.stamped ? null
     : plan.classes.length < 2 ? 'Pick two classes.'
-      : slotsFilled < SEASONS.length ? OPEN_SEASONS
+      /* ---- ONLY WHERE THERE ARE SEASONS (Ash, 2026-09-09) --------------
+       *
+       * This printed "You can leave a season empty and still save the year"
+       * under the stamp on every sheet, including today's, which has no seasons
+       * on it at all: nothing on the roster is playable, so the columns come off
+       * and a student reads a sentence about a thing he has never seen. */
+      : offersActivities && slotsFilled < SEASONS.length ? OPEN_SEASONS
         : null
 
   const objective = plan.stamped ? nextObjective(s) : null

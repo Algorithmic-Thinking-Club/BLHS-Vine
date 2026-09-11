@@ -64,6 +64,9 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const [help, setHelp] = useState(false)
   const [settings, setSettings] = useState(false)
   const [wall, setWall] = useState(false)
+  /* whether the wall or the wardrobe was opened from the year sheet, so shutting
+   * it goes back there rather than dumping him in the room (Ash, 2026-09-09) */
+  const fromSheet = useRef(false)
   const [wardrobe, setWardrobe] = useState(false)
   /* the handover tutorial, holding whoever is waiting for it to be over */
   const [tour, setTour] = useState<null | (() => void)>(null)
@@ -175,10 +178,10 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     /* the same binder, opened on the page the beat is about */
     if (which === 'cords') { track('handbook_opened', { tab: 'cords', via: 'world' }); setBook('cords') }
     if (which === 'chart') { track('chart_opened'); setBook('chart') }
-    if (which === 'wardrobe') { track('wardrobe_opened', { via: 'world' }); setWardrobe(true) }
+    if (which === 'wardrobe') { fromSheet.current = false; track('wardrobe_opened', { via: 'world' }); setWardrobe(true) }
     if (which === 'settings') { setSettings(true) }
     /* the trophy wall, which fills in every time a student finishes something */
-    if (which === 'wall') { track('wall_requested', { via: 'world' }); setWall(true) }
+    if (which === 'wall') { fromSheet.current = false; track('wall_requested', { via: 'world' }); setWall(true) }
     /* the yearbook, which any island can now send a student to by name */
     if (which === 'yearbook') { track('yearbook_opened', { via: 'world' }); setYearbook(true) }
     /* THE TOUR IS NOT A PANEL and does not go through `anyOpen`. It is fourteen
@@ -412,8 +415,9 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
             announce(noIslandLine(pick))
           }}
           onLook={(what) => {
-            /* the sheet stays open underneath, so shutting the wall puts him back
-             * on the year he opened it from rather than in the room */
+            /* remembered so the Back plank comes back HERE (see the mounts below) */
+            fromSheet.current = true
+            setPlanner(false)
             if (what === 'wall') { track('wall_requested', { via: 'sheet' }); setWall(true) }
             else { track('wardrobe_opened', { via: 'sheet' }); setWardrobe(true) }
           }}
@@ -425,8 +429,19 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
         <CoreBeatRunner beat={yearBeat} review={advisory === 'review'} onClose={closeAll} />
       )}
       {playing && <CoreBeatRunner beat={playing.beat} forceArm={playing.plain ? 'plain' : undefined} onClose={closeAll} />}
-      {wall && <TrophyWall onClose={closeAll} />}
-      {wardrobe && <Wardrobe onClose={closeAll} />}
+      {/* ---- SHUTTING THESE PUTS HIM BACK WHERE HE OPENED THEM ------------
+          *
+          * ASH, 2026-09-09, on the two doors that live on the year sheet: they
+          * used to close with `closeAll`, which shuts the sheet underneath them
+          * too. A student pressed My Year, pressed "Your trophy wall", looked,
+          * pressed Back, and was standing in the room with the sheet gone. Every
+          * time, so looking at his own case cost him his place.
+          *
+          * A door opened FROM the sheet closes back to the sheet. One opened
+          * from the world (the shelf, the ? card) still closes to the world,
+          * which is what `openedFromSheet` remembers. */}
+      {wall && <TrophyWall onClose={() => { setWall(false); if (fromSheet.current) setPlanner(true) }} />}
+      {wardrobe && <Wardrobe onClose={() => { setWardrobe(false); if (fromSheet.current) setPlanner(true) }} />}
       {/* the fourteen seconds that explain the corner (Ash, 2026-09-08 item 7) */}
       {tour && <Tour onDone={() => { const f = tour; setTour(null); f() }} />}
       {yearbook && <Yearbook onClose={closeAll} onGraduate={() => { setYearbook(false); setGraduation(true) }} />}
