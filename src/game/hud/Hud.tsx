@@ -21,6 +21,7 @@ import { useNav } from '../../app/SceneManager'
 import { track } from '../telemetry'
 import { onBeatRequest, onUiRequest } from '../ui-bus'
 import { onWorldHold, worldHeld } from '../world-bus'
+import { cinemaOn } from '../stage/cinema'
 import { onPlaceCard, onSceneDrawn, onStageBusy, placeCardUp, sceneDrawn } from '../stage/stage-bus'
 import { FOUNDING_FLAG } from '../run/objective'
 import { announce, panelDepth, usePanel } from '../ui/a11y'
@@ -115,6 +116,22 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       if (e.key !== 'Escape' || e.repeat) return
       if (panelDepth() > 0) return                                            // a panel is on top and has already answered
       if (planner || advisory || yearbook || graduation) return   // the sheet eats its own Esc; a beat never Esc-quits
+      /* ---- AND NEVER INSIDE A FILM (Ash, 2026-09-09) -------------------
+       *
+       * The corner and the help mark go away behind the bars, in CSS. The pause
+       * sheet did not, in CSS or in code, so Escape during the founding film
+       * raised a sheet whose "My Year" plank opens the very year sheet the film
+       * is about to open itself. `PickYear` decides its exits with
+       * `cinemaOn()`, on the reasoning that cinema-on means the FILM raised it:
+       * so it opened with no close plank, dead Escape, a dead veil, and a
+       * "That is my schedule" plank disabled until the sheet was full. A
+       * student who pressed it was stuck inside it.
+       *
+       * Worse than stuck: stamping it sets `planned`, and the film's next line
+       * is `planned = yield get("planned")`, so `the_table()` never runs. Beat
+       * two of the introduction, the principal walking him to the chart table,
+       * silently disappears for the rest of the run. */
+      if (cinemaOn()) return
       /* a pure toggle; the world lease is taken in the effect below instead */
       setPaused((p) => !p)
     }
@@ -418,7 +435,8 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       {settings && <SettingsPanel onClose={() => { setSettings(false); setPaused(true) }} />}
 
       {help && <HelpCard onClose={() => setHelp(false)} />}
-      {paused && !anyOpen && (
+      {/* and the sheet is gone for the length of a film, the way the corner is */}
+      {paused && !anyOpen && !cinemaOn() && (
         <PausePanel onClose={closeAll}>
           <Plank wide keyCap="Esc" onClick={closeAll}>Back to the game</Plank>
           {s?.introDone && <Plank wide onClick={openPlanner}>My Year</Plank>}

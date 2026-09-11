@@ -112,11 +112,25 @@ function TaskSheet({ onClose }: { onClose: () => void }) {
   const list = tasksOf(save)
   const { done, total } = tasksDone(list)
 
-  /* a press anywhere, or Escape, closes the sheet */
+  /* ---- A PRESS OUTSIDE CLOSES IT; A PRESS ON A ROW DOES THE ROW ---------
+   *
+   * ASH, 2026-09-08, asked for rows that do the thing they name. They never did.
+   * The close listener is on the window in the CAPTURE phase, which runs before
+   * the event reaches React's root at all, so `onPointerDown={stopPropagation}`
+   * on the sheet could never reach it: every press closed the sheet, the sheet
+   * unmounted, and the row's `click` had nothing left to fire on. The keyboard
+   * path worked, so it failed for the mouse and the trackpad, which is everybody.
+   *
+   * The containment test is the fix rather than dropping to the bubble phase:
+   * capture is what makes a press anywhere ELSE close it without the world
+   * underneath having to cooperate. */
+  const sheet = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
-    const away = () => onClose()
+    const away = (e: PointerEvent) => {
+      if (sheet.current?.contains(e.target as Node)) return
+      onClose()
+    }
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); onClose() } }
-    /* in the capture phase, so a press that lands on the sheet itself still closes it */
     const t = setTimeout(() => window.addEventListener('pointerdown', away, true), 0)
     window.addEventListener('keydown', key, true)
     return () => {
@@ -129,7 +143,7 @@ function TaskSheet({ onClose }: { onClose: () => void }) {
   if (!list.length) return null
 
   return (
-    <div className="ob-sheet kit-surface-band" onPointerDown={(e) => e.stopPropagation()}>
+    <div className="ob-sheet kit-surface-band" ref={sheet}>
       <p className="ob-sheet-head">
         {taskHeading(save?.year ?? 1)}
         <span className="ob-sheet-count">{done} of {total} done</span>
