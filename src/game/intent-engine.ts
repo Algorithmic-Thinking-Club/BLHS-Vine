@@ -209,7 +209,15 @@ function writeAward(a: AwardArgs) {
         id: `award:y${year}:${a.programme ?? a.sticker ?? a.badge ?? a.fact ?? 'unnamed'}`,
         title: a.programme ? `Awarded (${a.programme})` : 'Awarded',
         kind: 'core' as const,
-        credit: 0.5,
+        /* ---- AND IT CARRIES NO CREDIT (Ash, 2026-09-09) -----------------
+         *
+         * It used to be half a credit, so a member who typo'd their programme id
+         * put unexplained weight on a student's GPA under a row reading
+         * "Awarded (robotcs)". The grade is still kept, because an island that
+         * scored somebody should not lose the score to a spelling mistake, and
+         * `gpaOf` weights by credit, so a zero-credit row is on the record and
+         * invisible to the mean. The console line above names the typo. */
+        credit: 0,
       }
 
     recordGrade({

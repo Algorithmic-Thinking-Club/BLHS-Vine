@@ -3788,6 +3788,15 @@ export default function PmapScene() {
              * sentence, and a player needs the room to keep working. */
             console.warn(`[pmap] ${mapId}: island did not load: ${ready.error}`)
             engine.log('island_failed', { map: mapId, error: ready.error, when: 'load' })
+            /* ---- AND ON SCREEN, NOT ONLY IN THE CONSOLE (Ash, 2026-09-09) --
+             *
+             * The comment above has always said this is said out loud "because a
+             * member watching their own island fail to load needs the sentence".
+             * It was said to the console, which a member testing on a Chromebook
+             * in the club room is not looking at, and a student sees nothing at
+             * all: a map where pressing things does nothing looks exactly like a
+             * map with nothing in it. */
+            note(`This island is under construction. ${ready.error}`)
             grape = null
             setCinema(false)
             return
