@@ -192,16 +192,48 @@ export const PROGRAMMES: Programme[] = (() => {
   })
 })()
 
+/* ---- A MEMBER'S PAINTING REACHES ITS PLACE (Ash, 2026-09-09) -------------
+ *
+ * *"I hope islands are fully wired up / working systems and logic."*
+ *
+ * This was the break, and it was one join. A member's row in
+ * `member-islands.json` carries the `map` their island is played on, and that
+ * map went into a Programme and nowhere else: `SOURCED_PLACES` is a hand-written
+ * table, so the place the programme belongs to still had an empty `maps` list.
+ * `islandForProgramme` asks the PLACE for the painting, found none, and answered
+ * null, so the year sheet's button read "Go" and the whole voyage road was
+ * unreachable no matter what a member shipped.
+ *
+ * A member still cannot invent a PLACE, which is deliberate: the places are the
+ * real school and naming one that does not exist is now a fault by name rather
+ * than a silent misty pin (`member-islands.ts`). */
+const MEMBER_MAPS = (() => {
+  const out = new Map<string, string[]>()
+  for (const i of MEMBER_ISLANDS) {
+    if (!i.map || !i.place) continue
+    out.set(i.place, [...(out.get(i.place) ?? []), i.map])
+  }
+  return out
+})()
+
 /** the places as a student reads them: one with no painting and nothing playable gets a letter */
 export const PLACES: Place[] = (() => {
   const real = new Set(PROGRAMMES.filter((p) => p.playable).map((p) => p.place))
   let n = 0
-  return SOURCED_PLACES.map((p) => (p.maps.length || real.has(p.id)) ? p : {
+  return SOURCED_PLACES.map((p0) => {
+    const added = (MEMBER_MAPS.get(p0.id) ?? []).filter((m) => !p0.maps.includes(m))
+    /* the arrival is the place's own if it has one, and otherwise the first
+     * painting anybody shipped for it */
+    const p = added.length
+      ? { ...p0, maps: [...p0.maps, ...added], arrival: p0.arrival ?? [...p0.maps, ...added][0] }
+      : p0
+    return (p.maps.length || real.has(p.id)) ? p : {
     ...p,
-    name: examplePlace(n++),
-    recognise: undefined,
-    room: undefined,
-    source: EXAMPLE_SOURCE,
+      name: examplePlace(n++),
+      recognise: undefined,
+      room: undefined,
+      source: EXAMPLE_SOURCE,
+    }
   })
 })()
 
@@ -312,6 +344,23 @@ export const programmeOfRankTrack = (track: string | undefined): Programme | und
 // what a broken roster entry looks like, checked at publish time rather than while drawing
 export type RosterFault = { key: string; why: string }
 
+/* ---- AND IT IS SAID OUT LOUD (Ash, 2026-09-09) --------------------------
+ *
+ * `rosterFaults` has caught a programme naming a place that is not on the roster
+ * since the day it was written, and it had never once been CALLED outside a
+ * test. So a member whose `member-islands.json` row names a place that does not
+ * exist got silence: `placeOfProgramme` answered undefined, their pin stayed a
+ * fog smudge for ever, and nothing anywhere named the word that was wrong.
+ *
+ * It runs at import now, beside the member file's own check, which is the only
+ * moment that catches it before a student is looking at the result. Faults are
+ * reported and never thrown: a bad row must not take the game down with it. */
+function sayRosterFaults() {
+  for (const f of rosterFaults()) {
+    console.error(`[roster] ${f.key}: ${f.why}`)
+  }
+}
+
 export function rosterFaults(places = PLACES, programmes = PROGRAMMES): RosterFault[] {
   const out: RosterFault[] = []
   const seenMap = new Map<MapId, PlaceId>()
@@ -348,3 +397,6 @@ export function rosterFaults(places = PLACES, programmes = PROGRAMMES): RosterFa
   }
   return out
 }
+
+/* checked on the way in, so a bad row names itself before anybody plays it */
+sayRosterFaults()

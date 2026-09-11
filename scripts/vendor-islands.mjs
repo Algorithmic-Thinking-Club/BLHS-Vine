@@ -33,7 +33,30 @@ const DEST = path.join(ROOT, 'public', 'grapes')
  *
  * Every id here must have a row in src/game/roster/vine-islands.ts, or be the
  * opening; `vendor-islands.test.ts` fails when they drift apart. */
-const ISLANDS = ['panther-maw', 'castaway', 'the-hub']
+/* ---- THE VINE'S OWN THREE, AND EVERY ISLAND A MEMBER SHIPPED ------------
+ *
+ * ASH, 2026-09-09: *"I hope islands are fully wired up."*
+ *
+ * This was a hardcoded list of the three the vine owns, so a member's folder was
+ * never carried into `public/grapes/`. Their island's python 404ed, `fetchGrape`
+ * threw, the scene caught it, and they arrived on their own painted map where
+ * nothing at all happened and nothing said why.
+ *
+ * The folders come off `member-islands.json` now, which is the same row that
+ * puts the programme on the roster: one edit ships the island, which is what the
+ * contract has always claimed. */
+const VINE_OWN = ['panther-maw', 'castaway', 'the-hub']
+const MEMBERS = (() => {
+  try {
+    const raw = fs.readFileSync(path.join(ROOT, 'src/game/roster/member-islands.json'), 'utf8')
+    const rows = JSON.parse(raw).islands ?? []
+    return rows.map((r) => r.folder).filter((f) => typeof f === 'string' && f.trim())
+  } catch (e) {
+    console.warn(`[islands] could not read member-islands.json, carrying the vine's own only: ${e.message}`)
+    return []
+  }
+})()
+const ISLANDS = [...VINE_OWN, ...MEMBERS.filter((f) => !VINE_OWN.includes(f))]
 
 /* the fixtures this repo really does own: the grape harness runs them, they are
  * committed here, and the vendor never touches them */

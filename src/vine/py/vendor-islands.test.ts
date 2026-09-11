@@ -13,9 +13,19 @@ const VENDOR = path.join(ROOT, 'scripts', 'vendor-islands.mjs')
  * would fail on a train instead of failing on a mistake */
 const vendored = (): string[] => {
   const src = fs.readFileSync(VENDOR, 'utf8')
-  const m = src.match(/const ISLANDS = \[([^\]]*)\]/)
-  if (!m) throw new Error('scripts/vendor-islands.mjs no longer declares an ISLANDS array')
-  return [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1])
+  /* THE VINE'S OWN THREE ARE A LITERAL; the members' folders are read off
+   * `member-islands.json` at vendor time (Ash, 2026-09-09), so this reads the
+   * literal and adds the same file the script does. Reading the source rather
+   * than importing it is deliberate: the module runs the whole vendor on import,
+   * network and all, and a test that fetched GitHub would fail on a train
+   * instead of failing on a mistake. */
+  const m = src.match(/const VINE_OWN = \[([^\]]*)\]/)
+  if (!m) throw new Error('scripts/vendor-islands.mjs no longer declares a VINE_OWN array')
+  const own = [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1])
+  const rows = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'src/game/roster/member-islands.json'), 'utf8',
+  )).islands ?? []
+  return [...own, ...rows.map((r: { folder?: string }) => r.folder).filter(Boolean)]
 }
 
 describe('the islands the vine owns', () => {

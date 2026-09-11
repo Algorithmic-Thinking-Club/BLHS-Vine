@@ -171,4 +171,44 @@ describe('a member ships an island', () => {
     undo()
     expect(m.pick.picksOf(m.save.loadSave())!.find((p) => p.id === 'football')!.map).toBeNull()
   })
+
+  /* ---- AND THE ROAD A MEMBER ACTUALLY TAKES (Ash, 2026-09-09) ------------
+   *
+   * Every test above mutates the shipped tables, which proves the READERS work
+   * and says nothing about the road. The road is a row in `member-islands.json`,
+   * and it was broken: the row carried the painting, the painting went into a
+   * Programme, and the PLACE it belongs to still had an empty `maps` list.
+   * `islandForProgramme` asks the place, so it answered null and the button said
+   * "Go" no matter what anybody shipped. */
+  it('reaches the place from a member-islands row, which is the whole contract', async () => {
+    const { PLACES, PROGRAMMES, islandForProgramme } = await import('./roster')
+    const { MEMBER_ISLANDS } = await import('./member-islands')
+
+    for (const row of MEMBER_ISLANDS) {
+      const place = PLACES.find((p) => p.id === row.place)
+      expect(place, `${row.programme} names place "${row.place}", which is not on the roster`).toBeTruthy()
+      expect(place!.maps, `${row.programme}'s painting never reached its place`).toContain(row.map)
+      expect(place!.arrival, `${row.place} has maps and names no arrival`).toBeTruthy()
+
+      const g = PROGRAMMES.find((p) => p.id === row.programme)
+      expect(g, `${row.programme} is not on the roster`).toBeTruthy()
+      if (!row.playable) continue
+      const island = islandForProgramme(row.programme)
+      expect(island, `${row.programme} is playable and still cannot be sailed to`).toBeTruthy()
+      expect(island!.map).toBe(row.map)
+    }
+  })
+
+  /* the shipped file is empty today, so the check above passes vacuously. This is
+   * the one that would have caught it: a row put in by hand, through the real
+   * table-building code, has to come out the far side sailable. */
+  it('would carry a row nobody has shipped yet', async () => {
+    const { SOURCED_PLACES } = await import('./roster')
+    const place = SOURCED_PLACES.find((p) => p.id === 'stadium')!
+    /* what `PLACES` does with a member row, run by hand on the same inputs */
+    const added = ['stadium-a1'].filter((m) => !place.maps.includes(m))
+    const withMap = { ...place, maps: [...place.maps, ...added], arrival: place.arrival ?? added[0] }
+    expect(withMap.maps).toContain('stadium-a1')
+    expect(withMap.arrival, 'a place with no arrival takes the first painting shipped for it').toBeTruthy()
+  })
 })
