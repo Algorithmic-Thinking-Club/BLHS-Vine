@@ -107,9 +107,13 @@ export function CordDrape({ year, onDone }: { year: number; onDone: () => void }
         )}
 
         <p className="cd-wall">
+          {/* THIS YEAR'S COUNT, SAID AS THIS YEAR'S (Ash, 2026-09-09). `onTheWall`
+              takes a year and this passes one, so the second sentence was
+              counting a year and reporting it as a total. The wall itself spans
+              the run (`run/wall.ts`), which is what made the two disagree. */}
           {filled === 0
             ? 'No badges on your wall this year.'
-            : `${filled} ${filled === 1 ? 'badge' : 'badges'} on your wall.`}
+            : `${filled} ${filled === 1 ? 'badge' : 'badges'} on your wall this year.`}
         </p>
 
         <div className="cd-foot">

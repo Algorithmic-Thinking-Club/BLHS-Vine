@@ -157,8 +157,27 @@ export function cordsOf(s: SaveGame): CordProgress[] {
       model: 'This game only counts your years in Key Club and your GPA. '
         + 'It does not count hours, meetings or events.',
       earned: keyYears >= 2 && s.year >= 4 && gpa >= 3.0,
-      progress: Math.min(1, (Math.min(keyYears, 2) / 2) * 0.7 + (gpa >= 3.0 ? 0.3 : 0)),
-      detail: `${Math.min(keyYears, 2)} of 2 years · ${gpa ? `GPA ${gpa.toFixed(2)} of 3.0` : 'no GPA yet'}`,
+      /* ---- A GATE IS NOT PROGRESS (Ash, 2026-09-09) --------------------
+       *
+       * *"She says 'still working towards Key Club' even though I havent done
+       * it... bit weird. Oh I realize why it says Key Club, as its a GPA
+       * thing."*
+       *
+       * The bar was seven tenths years and three tenths GPA, so a student who
+       * had never once joined Key Club and simply had good grades read thirty
+       * percent, which put the cord in the counselor's "working towards" list
+       * and in the closing film's drape. He had not started it.
+       *
+       * The GPA is a requirement the cord can FAIL on, not a thing you do
+       * towards it. The bar measures the joining; the sentence names the gate,
+       * and says so when the gate is the thing in the way. */
+      progress: Math.min(keyYears, 2) / 2,
+      detail: [
+        `${Math.min(keyYears, 2)} of 2 years`,
+        !gpa ? 'no GPA yet'
+          : gpa >= 3.0 ? `GPA ${gpa.toFixed(2)}, over the 3.0 it needs`
+            : `GPA ${gpa.toFixed(2)}, under the 3.0 it needs`,
+      ].join(' · '),
     },
     {
       id: 'ap-honors', name: 'AP Honors', colors: 'AP blue',
