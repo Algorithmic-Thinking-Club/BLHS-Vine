@@ -327,8 +327,18 @@ export function Handbook({ onClose, initialTab = 'school' }: { onClose: () => vo
           {tab === 'badges' && (
             <>
               <h3 className="hb-h">Badges</h3>
+              {/* ---- SIX CARDS, AND NOT ALL SIX ARE REACHABLE YET ----------
+                  *
+                  * ASH, 2026-09-09: two of these are `from: 'world'`, meaning an
+                  * island hands them over, and no island in the game hands over
+                  * anything. The lede said "you earn every one by playing" over
+                  * two cards nothing could reach, and each of those cards said
+                  * how to earn it directly above a line saying it is not open.
+                  * Two answers to one question, and the promise was the wrong
+                  * half. */}
               <p className="hb-lede">
-                Six badges. Each card says how to earn it, and you earn every one by playing.
+                Six badges. Four of them you earn by playing. Two are waiting on islands
+                nobody has built yet, and their cards say so.
               </p>
               <div className="hb-grid">
                 {/* every island means the places that can actually be visited */}
@@ -343,7 +353,14 @@ export function Handbook({ onClose, initialTab = 'school' }: { onClose: () => vo
                       <div className="hb-badge-words">
                         <h4 className="hb-card-title">{b.name}</h4>
                         <p className="hb-badge-word">{BADGE_WORD[st]}</p>
-                        <p className="hb-card-note">{b.how}</p>
+                        {/* AND AN UNBUILT BADGE DOES NOT SAY HOW. "Spot the orca
+                            on open water" over "Not open yet" is an instruction
+                            for a thing that does not exist. */}
+                        <p className="hb-card-note">
+                          {st === 'unbuilt'
+                            ? `Nobody has built the island that gives this one. It would be: ${b.how.replace(/\.$/, '')}.`
+                            : b.how}
+                        </p>
                         {/* what the run has done toward it, on the badges that count something */}
                         {b.detail && st !== 'unbuilt' && (
                           <p className="hb-meta">{b.detail}</p>

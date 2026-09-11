@@ -293,13 +293,22 @@ function CodeCard({ initial, err: outerErr, onVerified, onCastaway }: {
       refuse('Too many tries. Wait a minute, then try again.')
       return
     }
-    tries.current++
-    track('join_attempt', { len: joined.length, tries: tries.current })
+    /* ---- A HALF-TYPED CODE IS NOT A TRY (Ash, 2026-09-09) ---------------
+     *
+     * The counter used to be bumped before the length test, so pressing the
+     * button with an empty box burned an attempt; and the lock fired ON the
+     * fifth, BEFORE `checkClass` was called, so the fifth code was thrown away
+     * unread. A freshman who fumbled four times and then typed it correctly was
+     * told to wait a minute, holding a code that works, in a forty-minute
+     * advisory period. The counter counts codes the server refused now, which is
+     * what a rate limit is for. */
     if (joined.length < 6) {
       refuse('The code is six characters. Fill in every box.')
       return
     }
-    if (tries.current >= 5) {
+    tries.current++
+    track('join_attempt', { len: joined.length, tries: tries.current })
+    if (tries.current > 5) {
       tries.current = 0
       lockUntil.current = Date.now() + 60_000
       refuse('Too many tries. Wait a minute, then try again.')
@@ -311,6 +320,9 @@ function CodeCard({ initial, err: outerErr, onVerified, onCastaway }: {
     const r = await checkClass(joined)
     setChecking(false)
     if (r.ok) {
+      /* a code that worked clears the count: the limit is there to stop guessing
+       * at codes, and a student who has got in is not guessing */
+      tries.current = 0
       writeSave({ classCode: joined.toUpperCase() })
       onVerified(joined.toUpperCase(), r.className)
       return
