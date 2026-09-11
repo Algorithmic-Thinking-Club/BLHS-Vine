@@ -9,7 +9,6 @@ import {
 import { progressOf, responseOf, showdownReduce, startShowdown, yardsRemaining, type ShowdownState } from './showdown'
 import { LATENCY_CONVENTION, latencyOf, markFirst } from './timing'
 import { emptyScore, gradeOf, retakeAvailable, type BeatScore } from './score'
-import { retakeKind } from './state'
 import { collectFact, loadSave, recordGrade } from '../save'
 import { cordsOf, letterOf, newlyCloseCords, PASSING_GRADE } from '../progress'
 import { factById } from '../facts'
@@ -124,8 +123,18 @@ export function CoreBeatRunner(
      *
      * So the card stays whenever it has something to say: a fail, or a pass
      * carrying a retake. A clean pass still gets the pop and nothing else. */
-    const offer = retakeKind(loadSave(), beat.id)
-    if (arm !== 'plain' && grade >= PASSING_GRADE && offer === 'none') { onClose(); return }
+    /* ---- AND NOW IT IS ALWAYS KEPT, IN BOTH ARMS ------------------------
+     *
+     * This is a STUDY defect before it is a game one. The plain arm always saw
+     * the result card: the letter, the points, the credit, and the beat's
+     * takeaway facts written out. The game arm saw a two-line reward pop and the
+     * panel shut. So the two arms were shown different CONTENT at the one moment
+     * the study is measuring, and the arm that read the facts was the control.
+     * Every measured difference between them carried that.
+     *
+     * The pop still fires; it is the celebration. The card is the record, and
+     * both arms get it. Ash's own rule: the paint is the variable, what a
+     * student is told is not. */
     setPhase('result')
   }
 
