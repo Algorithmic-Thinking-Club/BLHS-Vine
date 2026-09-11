@@ -120,7 +120,12 @@ describe('cords & seals (§8.4 — the authoritative table)', () => {
       expect(g.rule).toBe('Bonney Lake High School has not published criteria for this award.')
       expect(g.earned).toBe(false)          // a single run has no class rank to compare against
       // the game's own stand-in is stated as the game's, beside the rule, never as the school's
-      expect(g.model).toContain("game's own model")
+      /* the sentence has to mark itself as the GAME's guess rather than the
+       * school's rule, whatever words carry that. It used to say "the game's own
+       * model" and started with "In this game", which the Handbook prefixes on
+       * its own, so a student read it twice (Ash, 2026-09-09). */
+      expect(g.model).toContain("this game's guess")
+      expect(g.model, 'the Handbook already prefixes this').not.toMatch(/^In this game/)
     }
   })
 

@@ -214,8 +214,12 @@ export function cordsOf(s: SaveGame): CordProgress[] {
       colors: 'color not announced',
       rule: 'Bonney Lake High School has not published criteria for this award.',
       source: `${AWARDS}, which marks this a known gap`,
-      model: `In this game it would go to the ${i === 0 ? 'highest' : 'second-highest'} GPA in the class. `
-        + 'That is the game\'s own model, not a rule from Bonney Lake.',
+      /* THE HANDBOOK ALREADY PREFIXES "In this game: " (Handbook.tsx), so these
+       * two read "In this game: In this game it would go to..." and then went on
+       * to say it was the game's own model, which the prefix had said already
+       * (Ash, 2026-09-09). */
+      model: `it would go to the ${i === 0 ? 'highest' : 'second-highest'} GPA in the class, `
+        + 'which is this game\'s guess rather than a rule from Bonney Lake.',
       published: false,
       earned: false,
       progress: 0,

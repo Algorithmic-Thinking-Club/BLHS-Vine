@@ -174,7 +174,15 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     if (done) { waiting.current?.(); waiting.current = done }
     if (which === 'planner') { track('planner_requested', { via: 'world' }); setPlanner(true) }
     if (which === 'advisory') { setAdvisory(true) }
-    if (which === 'handbook') { setBook('islands') }
+    /* ---- ONE GUIDE, ONE FIRST PAGE (Ash, 2026-09-09) -------------------
+     *
+     * Three doors said "Guide" and two of them opened a different page. The
+     * corner plaque opens `school`, which is Bonney Lake itself: the clubs, the
+     * teams, the course catalog, and what the sign's own label promises. The
+     * pause sheet and the `?` card both opened `islands`, a list of paintings
+     * somebody has built, which is a fact about this GAME rather than about the
+     * school. A student who pressed the same word twice got two answers. */
+    if (which === 'handbook') { setBook('school') }
     /* the same binder, opened on the page the beat is about */
     if (which === 'cords') { track('handbook_opened', { tab: 'cords', via: 'world' }); setBook('cords') }
     if (which === 'chart') { track('chart_opened'); setBook('chart') }
@@ -460,7 +468,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
               {s.flags.includes('gear2') ? 'Walk the stage again' : 'Walk the stage'}
             </Plank>
           )}
-          <Plank wide onClick={() => { setPaused(false); setBook('islands') }}>Guide</Plank>
+          <Plank wide onClick={() => { setPaused(false); setBook('school') }}>Guide</Plank>
           {/* the same help card the corner opens, so the two roads cannot drift apart */}
           <Plank wide onClick={() => { setPaused(false); setHelp(true) }}>How to play</Plank>
           <Plank wide onClick={() => { setPaused(false); setSettings(true) }}>Settings</Plank>

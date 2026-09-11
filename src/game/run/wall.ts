@@ -29,6 +29,14 @@ export type WallSeat = {
 /** the wall for one year: Advisory, then each season's choice, then each class */
 export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSeat[] {
   if (!s) return []
+  /* ---- A CLOSED YEAR CANNOT BE WORKED ON (Ash, 2026-09-09) -------------
+   *
+   * The wall spans the run now, so in year three it shows year one's frames too,
+   * and an empty one read "Finish Advisory at the hearth" — an instruction with
+   * no control anywhere, for a year that ended two hours ago. A frame from a
+   * year that has closed says what happened, not what to do about it. */
+  const closed = year < s.year || s.flags.includes(`yearbook:y${year}`)
+  const ask = (live: string) => (closed ? 'That year is closed.' : live)
   const plan = s.plans?.[year] ?? { slots: {}, classes: [], stamped: false }
   const done = (id: string) => s.ledger.find((e) => e.id === id && e.year === year)
   const out: WallSeat[] = []
@@ -65,8 +73,8 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
      * year gate that disagreed. A frame you sat and missed is an empty frame
      * with a sentence in it, and the sentence names the door. */
     wants: core
-      ? `You got an ${letter(core.grade)}. Take Advisory again at the hearth`
-      : 'Finish Advisory at the hearth',
+      ? ask(`You got an ${letter(core.grade)}. Take Advisory again at the hearth`)
+      : ask('Finish Advisory at the hearth'),
   })
 
   for (const [, id] of Object.entries(plan.slots)) {
@@ -100,7 +108,7 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
           ? `${c.attempts} tries, first ${letter(c.firstGrade)}`
           : null,
       ].filter(Boolean).join(', ') : null,
-      wants: 'Go to it from your year sheet',
+      wants: ask('Go to it from your year sheet'),
     })
   }
 
@@ -118,8 +126,8 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
       earned: passed,
       says: passed ? `${letter(row!.grade)}${row!.credit ? ', credit earned' : ', counted'}` : null,
       wants: row
-        ? `You got an ${letter(row.grade)}. Take it again from your year sheet`
-        : 'Go to it from your year sheet',
+        ? ask(`You got an ${letter(row.grade)}. Take it again from your year sheet`)
+        : ask('Go to it from your year sheet'),
     })
   }
 
