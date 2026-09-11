@@ -45,6 +45,7 @@ import { onSailRequest, onVoyageRequest } from '../world/sail-bus'
 import { requestUi } from '../ui-bus'
 import { drawRecolored, lookHue } from '../thorLook'
 import { poseFrame, walkFrame, wornKey } from '../thorWear'
+import { wallAll } from '../run/wall'
 import { subscribeSave } from '../save'
 import { loadSettings, onSettings } from '../../app/SettingsPanel'
 import { runEnding, setRunEnding } from '../hud/objective-bus'
@@ -3626,6 +3627,23 @@ export default function PmapScene() {
         outfitter: 'Open the wardrobe',
       }
       const actionFor = (a: Anchor, label: string): string => {
+        /* ---- THE SHELF SAYS WHAT IS ON IT (Ash, 2026-09-09) --------------
+         *
+         * *"Should it show up in-game as assets within the shelf asset / is this
+         * too complicated?"*
+         *
+         * Drawn trophies on the shelf need art per trophy, which is a PixelLab
+         * spend. What the shelf CAN do with no new pixels is stop being silent:
+         * the plaque a student stands in front of carries the count, so walking
+         * past it after finishing something tells him it went up there.
+         *
+         * ACROSS THE WHOLE RUN, matching the panel behind it (`run/wall.ts`). */
+        if (a.name === 'trophy_wall') {
+          const badges = wallAll(loadSave()).filter((w) => w.earned).length
+          return badges === 0
+            ? 'Look at the trophy wall'
+            : `The trophy wall · ${badges} ${badges === 1 ? 'badge' : 'badges'}`
+        }
         if (ACTIONS[a.name]) return ACTIONS[a.name]
         const l = label.replace(/^The\s+/, 'the ')
         if (a.kind === 'door') return `Go to ${l}`

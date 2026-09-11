@@ -1,4 +1,17 @@
 {
   "format": 1,
-  "islands": []
+  "islands": [
+    {
+      "programme": "robotics",
+      "map": "robotics-a1",
+      "folder": "robotics",
+      "name": "Robotics Club",
+      "place": "atc-room",
+      "kind": "club",
+      "tags": [],
+      "playable": true,
+      "blurb": "Members build a competition robot.",
+      "source": "scratch test"
+    }
+  ]
 }
