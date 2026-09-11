@@ -4,7 +4,7 @@ import { shownName } from '../roster/placeholders'
 import { classById } from '../planner/catalog'
 import { programmeById } from '../roster/roster'
 import { coreBeatId } from '../beats/beats'
-import { PASSING_GRADE, letterOf as letter } from '../progress'
+import { PASSING_GRADE, letterOf as letter, rankName, ranksOf } from '../progress'
 
 export type WallSeat = {
   id: string
@@ -86,9 +86,16 @@ export function wallOf(s: SaveGame | null, year: number = s?.year ?? 1): WallSea
        * says `award(...)` with no number means "he did it", and this printed the
        * zero it used to be stored as. And a row that took more than one go says
        * so, which is the only place a student sees his own attempts. */
+      /* ---- THE RANK, NOT THE TRACK IT IS ON (Ash, 2026-09-09) -----------
+       *
+       * `Completion.rank` holds the rank TRACK a year counts toward, which is a
+       * programme id like "football". This printed it raw, so a student who
+       * finished a sport read "B, football" on his own case. What he wants is
+       * how far up that ladder he has got, which is what `rankName` answers from
+       * the years on it. */
       says: c ? [
         c.grade === null ? 'finished' : letter(c.grade),
-        c.rank,
+        c.rank ? rankName(ranksOf(s)[c.rank] ?? 0) : null,
         c.attempts && c.attempts > 1 && c.firstGrade !== null && c.firstGrade !== undefined
           ? `${c.attempts} tries, first ${letter(c.firstGrade)}`
           : null,
