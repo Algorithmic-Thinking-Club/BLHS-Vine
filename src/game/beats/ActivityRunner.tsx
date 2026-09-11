@@ -942,7 +942,20 @@ function PlainForm({ beat, checksOnly, attempt, arm, onDone }: {
     <div className="bt-plainform">
       <h2>{beat.title}</h2>
       <p className="bt-plainplace">{beat.place}</p>
-      {!checksOnly && beat.steps.map((s, i) => (s.kind === 'say' ? <p key={i}>{s.line.text}</p> : null))}
+      {/* ---- WHO IS SPEAKING (Ash, 2026-09-09) ----------------------------
+          *
+          * The plain arm printed the words and dropped the name, so several lines
+          * from different people ran together as one anonymous paragraph. The
+          * game arm reads "Mr. Wiseman" and then the line. Who said a thing is
+          * CONTENT, not paint: it is how a student knows the counselor from the
+          * principal, and the study cannot afford one arm knowing that and the
+          * other not. The portrait stays out, because that is paint. */}
+      {!checksOnly && beat.steps.map((s, i) => (s.kind === 'say' ? (
+        <p key={i}>
+          {s.line.speaker && <b className="bt-plainspeaker">{s.line.speaker}: </b>}
+          {s.line.text}
+        </p>
+      ) : null))}
       {renders.map((r, i) => (
         <fieldset key={r.id}>
           <legend>{promptOf(checks[i])}</legend>

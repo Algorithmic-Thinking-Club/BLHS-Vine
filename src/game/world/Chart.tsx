@@ -58,6 +58,8 @@ type Row = {
   name: string
   /** can she be sent there from where the student is standing right now */
   sailable: boolean
+  /* why it cannot be pressed, when it cannot and the reason is worth saying */
+  why: string | null
 }
 
 /* ---- clicking a named island sails the ship there, the same control in both arms */
@@ -117,6 +119,13 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
       slot: s,
       dock,
       sailable: afloat && sailableRow({ dock, slot: s }, here, sailListenerCount() > 0),
+      /* why this row cannot be pressed, said out loud rather than left as a
+         control that is simply absent (Ash, 2026-09-09: the chart went silent) */
+      why: !afloat ? 'You have to be standing somewhere with a way to the water.'
+        : !dock.named ? null
+          : s.map === here ? 'You are already here.'
+            : !s.berth ? 'Nobody has put a dock on this one yet.'
+              : null,
       line: stateLine(dock.state, s, save),
       /* A MISTY ISLAND HAS NO NAME ON THE CHART. Printing the title of a place a
          student has never sailed to is the chart doing the discovering for them,
@@ -371,6 +380,14 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
                   Sail to {r.name}
                 </button>
               )}
+              {/* ---- AND WHEN IT CANNOT, IT SAYS WHY (Ash, 2026-09-09) -------
+                  *
+                  * A row that cannot be sailed simply had no control, so a
+                  * student who opened the Map from inside a room saw the island
+                  * he wanted, found nothing to press anywhere on the page, and
+                  * no sentence telling him he had to be somewhere else first.
+                  * An absent control is not an answer. */}
+              {!r.sailable && r.why && <span className="ch-row-closed">{r.why}</span>}
               {/* THE SCHOOL'S OWN SENTENCE, AND NEVER AN ERROR. §9.17 state 6:
                   out of season "must never read as broken", and the words come
                   off `SPORT_SEASONS` rather than being written per island. */}
