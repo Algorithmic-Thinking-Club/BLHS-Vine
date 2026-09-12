@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import type { CheckStep } from '../../vine/contract'
 import { CoreBeatRunner } from './ActivityRunner'
 import { checksOf, playableSteps, type BeatWorld } from './frames'
-import { no, ok, type Intent } from '../../vine/intents'
+import { ok, type Intent } from '../../vine/intents'
 import { emptyScore } from './score'
 import { PALETTE, plainOf, refuseCheck } from './palette'
 import type { BeatStep, CoreBeat } from './frames'
@@ -163,24 +163,47 @@ describe('W8: a do staged in the world, and what happens when it cannot be', () 
   const doCheck = CHECKS.find((c) => c.kind === 'do')!
   const beat: CoreBeat = { ...beatWith([doCheck]), steps: [{ kind: 'check', check: doCheck }] }
 
-  it('issues guide_to on the goal anchor and asks for nothing else', async () => {
+  /* ---- THE ARROW MUST NOT POINT AT THE ANSWER ---------------------------
+   *
+   * This block used to assert `guide_to(goal.anchor)`, which is the defect it
+   * was written to protect: the game arm was walked to the right answer and
+   * scored 1/1 every time, while the plain arm answered the same item as a
+   * question with decoys. A difference in content, in the direction that
+   * flatters the treatment, on the measure the study reports.
+   *
+   * What is asserted now is that the world is told the QUESTION and never the
+   * answer. */
+  it('states the question to the world and never points at the answer', async () => {
     const issued: Intent[] = []
     const world: BeatWorld = {
       issue: async (i) => { issued.push(i); return ok() },
       onReached: () => () => {},
     }
     const m = await mount(beat, world)
-    /* the whole of W8's outbound half: one word, already in the vocabulary, on an
-     * anchor name. A second intent appearing here is a second vocabulary. */
-    expect(issued).toEqual([{ kind: 'guide_to', anchor: 'activities_board' }])
+    expect(issued).toEqual([{ kind: 'objective', text: doCheck.prompt }])
+    /* the anchor name is the answer, so it may not leave on the wire at all */
+    expect(JSON.stringify(issued)).not.toContain('activities_board')
     await m.unmount()
   })
 
-  it('waits for the walk rather than showing the answer', async () => {
+  it('takes the objective back down when the item leaves', async () => {
+    const issued: Intent[] = []
+    const world: BeatWorld = {
+      issue: async (i) => { issued.push(i); return ok() },
+      onReached: () => () => {},
+    }
+    const m = await mount(beat, world)
+    await m.unmount()
+    expect(issued.at(-1)).toEqual({ kind: 'objective', text: null })
+  })
+
+  it('waits for the walk without naming the place it is waiting for', async () => {
     const world: BeatWorld = { issue: async () => ok(), onReached: () => () => {} }
     const m = await mount(beat, world)
-    expect(m.html()).toContain('Walk to The activities board')
-    // the places are NOT listed while the world is staging it: walking there IS the answer
+    expect(m.html()).toContain('Walk to the place you think it is')
+    /* NEITHER the answer nor the decoys. Naming the goal hands it over; listing
+     * all of them turns the walk into a form the student happens to walk. */
+    expect(m.html()).not.toContain('The activities board')
     expect(m.html()).not.toContain('The trophy case')
     await m.unmount()
   })
@@ -202,7 +225,7 @@ describe('W8: a do staged in the world, and what happens when it cannot be', () 
     const m = await mount(beat, world)
     await act(async () => { fire!('panther_maw') })
     // still waiting: walking past something on the way is not an answer
-    expect(m.html()).toContain('Walk to The activities board')
+    expect(m.html()).toContain('Walk to the place you think it is')
     await m.unmount()
   })
 
@@ -215,23 +238,25 @@ describe('W8: a do staged in the world, and what happens when it cannot be', () 
     expect(subs).toBe(0)
   })
 
-  it('a refused staging falls back to the places as buttons instead of stranding the student', async () => {
-    /* the mistake an author will actually make: a typo in the anchor name. The
-     * arrival can then never come, and waiting on it would lock the beat with no
-     * way out and no explanation. */
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const world: BeatWorld = {
-      issue: async () => no('no anchor named "activities_board" on hub'),
-      onReached: () => () => {},
+  it('offers the form the control arm uses to a student who cannot find the place', async () => {
+    /* the mistake an author will actually make is a typo in the anchor name, and
+     * then the arrival can never come. Waiting on it forever would lock the beat
+     * with no way out, and would measure navigation rather than what was learned.
+     * The form appears beside the walk, never instead of it. */
+    vi.useFakeTimers()
+    try {
+      const world: BeatWorld = { issue: async () => ok(), onReached: () => () => {} }
+      const m = await mount(beat, world)
+      expect(m.html(), 'nothing is given away up front').not.toContain('The activities board')
+      await act(async () => { vi.advanceTimersByTime(46_000) })
+      expect(m.html()).toContain('The activities board')
+      expect(m.html()).toContain('The trophy case')
+      await m.click('The activities board')
+      expect(m.html()).toContain('Keep going')
+      await m.unmount()
+    } finally {
+      vi.useRealTimers()
     }
-    const m = await mount(beat, world)
-    expect(m.html()).toContain('The activities board')
-    expect(m.html()).toContain('The trophy case')
-    expect(warn.mock.calls.flat().join(' ')).toContain('a-do')
-    await m.click('The activities board')
-    expect(m.html()).toContain('Keep going')
-    await m.unmount()
-    warn.mockRestore()
   })
 })
 

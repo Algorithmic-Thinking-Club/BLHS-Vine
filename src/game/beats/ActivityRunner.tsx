@@ -792,6 +792,10 @@ function ShowdownPlay({ check, onDone, onTouch }: {
 }
 
 /* a `do` answered by walking: the arrow points, and reaching a named anchor is the answer */
+/* how long a student may hunt for a place before the plain arm's form is offered
+ * beside the walk. Long enough to cross the Maw twice and read what is on the way. */
+const LOST_MS = 45_000
+
 function DoPlay({ check, world, render, last, onDone, onTouch }: {
   check: Extract<CheckStep, { kind: 'do' }>
   world: BeatWorld
@@ -801,19 +805,32 @@ function DoPlay({ check, world, render, last, onDone, onTouch }: {
   onTouch: () => void
 }) {
   const [reached, setReached] = useState<string | null>(null)
-  /* a refused staging falls back to buttons rather than stranding the student */
-  const [staged, setStaged] = useState<'waiting' | 'refused'>('waiting')
+  /* a student who cannot find it falls back to the form rather than being stranded */
+  const [lost, setLost] = useState(false)
   const [picked, setPicked] = useState<string | null>(null)
   const done = useRef(false)
 
-  /* staged once, when the item comes on screen, and torn down when it leaves. The
-   * empty dependency list is the whole intent: re-issuing the arrow on every
-   * render would fight the player for the camera. */
+  /* ---- THE ARROW USED TO POINT AT THE ANSWER -------------------------------
+   *
+   * This staged `guide_to(goal.anchor)` and then said "the arrow points the
+   * way", so the game arm scored every one of these correctly by walking where
+   * it was told, while the plain arm answered the same item as a question with
+   * decoys and could get it wrong.
+   *
+   * That is a difference in CONTENT, not in paint, and it ran in the direction
+   * that flatters the treatment on the exact measure the study reports. The
+   * modality stays different on purpose: a world IS the independent variable.
+   * Being handed the answer is not.
+   *
+   * Both arms are now asked the same question, which is which of the places
+   * this room has is the one named. One arm walks to it, one ticks a box.
+   *
+   * The objective line replaces the arrow because it repeats the question
+   * without answering it, which is exactly what the plain arm's legend does.
+   */
   useEffect(() => {
-    void world.issue({ kind: 'guide_to', anchor: check.goal.anchor }).then((r) => {
-      if (!r.ok) { console.warn(`[check ${check.id}] cannot stage in the world: ${r.why}`); setStaged('refused') }
-    })
-    return world.onReached((anchor) => {
+    void world.issue({ kind: 'objective', text: check.prompt })
+    const stop = world.onReached((anchor) => {
       if (done.current) return
       /* only the places this item named. Walking past something else on the way is
        * not an answer, and treating it as one would score a student on the route
@@ -823,9 +840,19 @@ function DoPlay({ check, world, render, last, onDone, onTouch }: {
       onTouch()
       setReached(anchor)
     })
+    /* LOOKING IS NOT THE MEASUREMENT. Past this, a student is being scored on
+     * navigation rather than on what he learned, so the control arm's own form
+     * comes up beside the walk as a way out. It never replaces the walk: a
+     * student who finds the place still answers by standing on it. */
+    const t = window.setTimeout(() => setLost(true), LOST_MS)
+    return () => {
+      stop()
+      window.clearTimeout(t)
+      void world.issue({ kind: 'objective', text: null })
+    }
   }, [])
 
-  if (staged === 'refused' && reached === null) {
+  if (lost && reached === null) {
     return (
       <OneOf
         check={check} render={render} field={render.fields[0]} picked={picked ?? undefined} last={last}
@@ -839,7 +866,8 @@ function DoPlay({ check, world, render, last, onDone, onTouch }: {
     return (
       <div className="bt-check" data-state="presented">
         <div className="bt-prompt">{render.prompt}</div>
-        <div className="bt-reply">Walk to {check.goal.label}. The arrow points the way.</div>
+        {/* the place is NOT named here. That sentence was the answer. */}
+        <div className="bt-reply">Walk to the place you think it is.</div>
       </div>
     )
   }
