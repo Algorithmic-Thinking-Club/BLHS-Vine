@@ -1114,6 +1114,72 @@ export default function PmapScene() {
         }
       } catch { /* the fetch itself failed: same answer as a 404, no assets */ }
 
+      /* ---- A MAN WHO WALKS INSTEAD OF SLIDING -----------------------------
+       *
+       * ASH, 2026-09-09 item 11: *"walking animation for Principal Panther"*.
+       *
+       * A MAPVIS placement carries one frame set per look, and the principal's
+       * is the breathing cycle he was drawn standing in. The draw loop below
+       * steps a driven body through its frames by how far it really travelled,
+       * so crossing the hall stepped him through eight pictures of a man
+       * standing still with his chest going up and down. He slid, and he
+       * breathed while he slid.
+       *
+       * THE WALK IS AN OVERRIDE, NOT A REPUBLISH. A second look on the
+       * placement is the MAPVIS-shaped answer, and it needs Ash's hands and a
+       * fresh bundle for every map anybody walks on. This reads the walk out of
+       * THIS repo instead, keyed by the placement's own name, so it lands on the
+       * already published Maw with nothing re-exported. A body with no walk art
+       * on disk keeps exactly the behaviour it has today.
+       */
+      const gaitOf = new Map<Sprite, Look>()
+      {
+        /* the folder a body's walk is filed under, for the ones whose art is not
+         * named the way the level author named the placement. Anything filed
+         * under its own name needs no row here. */
+        const GAIT_ART: Record<string, string> = { principal_desk: 'principal' }
+        const gaitPath = (folder: string, dir: string, i: number) =>
+          `/art/characters/${folder}/walk/${dir}/${i}.png`
+        /* how many frames the set really has, asked once and cheaply, so a body
+         * with no walk art costs one HEAD and never prints a 404 a frame */
+        const countFrames = async (folder: string): Promise<number> => {
+          let n = 0
+          while (n < 12) {
+            const r = await fetch(gaitPath(folder, 'south', n), { method: 'HEAD' }).catch(() => null)
+            if (!r || !r.ok) break
+            n++
+          }
+          return n
+        }
+        const loadGait = async (sp: Sprite, folder: string) => {
+          const n = await countFrames(folder)
+          if (n < 2) return
+          const views: Record<string, Texture[]> = {}
+          for (const dir of DIRS8) {
+            try {
+              const ts = await Promise.all(
+                Array.from({ length: n }, (_, i) => Assets.load(gaitPath(folder, dir, i)) as Promise<Texture>),
+              )
+              for (const t of ts) t.source.scaleMode = 'nearest'
+              views[dir] = ts
+            } catch { /* short a heading, and the whole set is refused below */ }
+          }
+          /* HALF A WALK IS WORSE THAN NONE. A body turned to a heading it has no
+           * picture for falls back to south and moonwalks across the room. */
+          if (Object.keys(views).length < DIRS8.length) {
+            console.warn(`[pmap] "${folder}" walk art covers ${Object.keys(views).length}/8 headings, not used`)
+            return
+          }
+          gaitOf.set(sp, { frames: views.south, views, fps: 6 })
+        }
+        await Promise.all(
+          Object.entries(GAIT_ART).map(([name, folder]) => {
+            const sp = placedById.get(name)
+            return sp ? loadGait(sp, folder) : Promise.resolve()
+          }),
+        )
+      }
+
       /* anchors bound to a placement now ask the sprite where it is this frame */
       anchors.follow((ref) => {
         const sp = placedById.get(ref)
@@ -5661,7 +5727,9 @@ const CAST_OFF_SHOW_MS = 3200
           sp.zIndex = d.y
           if (d.look !== null || d.facing !== null) {
             const set = looksOf.get(sp)
-            const look = set && (set[d.look ?? 0] ?? set[0])
+            /* the walk wins while he is walking, and hands straight back the
+             * frame he stops on, so a body settles into its own idle */
+            const look = (d.move ? gaitOf.get(sp) : undefined) ?? (set && (set[d.look ?? 0] ?? set[0]))
             if (look) {
               /* the legs run at the speed the body is really travelling, and stop when it stops */
               const stride = map.speed / (look.fps || 8)

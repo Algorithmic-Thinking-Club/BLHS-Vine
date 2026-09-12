@@ -443,6 +443,9 @@ html[data-rm='1'] .bt-cue-mark { animation: none; }
 .bt-plainform legend { font-weight: 600; padding: 0 6px; }
 .bt-plainform label { display: block; margin: 7px 0; }
 .bt-plainform .bt-plainscore { font-weight: 600; margin-bottom: 8px; }
+/* what the game arm carries on a bar and the form has nowhere else to say: the
+   showdown's opponent. Quiet, because it is context and not a question. */
+.bt-plainform .bt-plainnote { margin: 0 0 10px; color: var(--bt-doc-ink-quiet); }
 .bt-plainform .bt-plainrow { margin: 0 0 6px; }
 .bt-plainform .bt-plainrow em { font-style: normal; color: var(--bt-doc-ink-quiet); }
 .bt-plainform .bt-plaingroup { margin: 8px 0 4px; }

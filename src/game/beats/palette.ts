@@ -32,6 +32,14 @@ export type PlainRender = {
   fields: PlainField[]
   /* the reply for each answer, keyed by field and value; a value of '' prints whatever they did */
   replies: { field: string; value: string; text: string }[]
+  /* ---- WHAT THE GAME ARM READS OFF ITS CHROME --------------------------
+   *
+   * Standing beside the prompt rather than inside it, because the two arms
+   * must show the SAME prompt and a parity test holds them to it. This is for
+   * the content a game arm happens to carry on a bar, a banner or a gauge: the
+   * showdown's opponent was on the drive bar in one arm and nowhere at all in
+   * the other, so the control answered a quiz with nobody across from it. */
+  note?: string
 }
 
 /* ---- the table -------------------------------------------------------------- */
@@ -190,6 +198,9 @@ export const PALETTE: { [K in CheckStep['kind']]: Entry<K> } = {
     plain: (c) => ({
       id: c.id,
       prompt: c.prompt,
+      /* the game arm reads the opponent twice, on the drive bar and over every
+       * question, and the form had it nowhere */
+      note: c.opponent ? `Against ${c.opponent}.` : undefined,
       fields: c.rounds.map((rd) => ({ ...optionFields(`${c.id}:${rd.id}`, rd.options), label: rd.prompt })),
       replies: c.rounds.flatMap((rd) => optionReplies(`${c.id}:${rd.id}`, rd.options)),
     }),

@@ -791,7 +791,7 @@ function ShowdownPlay({ check, onDone, onTouch }: {
   )
 }
 
-/* a `do` answered by walking: the arrow points, and reaching a named anchor is the answer */
+/* a `do` answered by walking: reaching one of the places the item named is the answer */
 /* how long a student may hunt for a place before the plain arm's form is offered
  * beside the walk. Long enough to cross the Maw twice and read what is on the way. */
 const LOST_MS = 45_000
@@ -945,6 +945,7 @@ function PlainForm({ beat, checksOnly, attempt, arm, onDone }: {
           return (
             <fieldset key={r.id}>
               <legend>{r.prompt}</legend>
+              {r.note && <p className="bt-plainnote">{r.note}</p>}
               <p>{a.earned} of {a.total} correct.</p>
               {r.fields.map((f) => {
                 const given = picks[f.id] ?? ''
@@ -984,9 +985,15 @@ function PlainForm({ beat, checksOnly, attempt, arm, onDone }: {
           {s.line.text}
         </p>
       ) : null))}
-      {renders.map((r, i) => (
+      {renders.map((r) => (
         <fieldset key={r.id}>
-          <legend>{promptOf(checks[i])}</legend>
+          {/* THE DERIVED PROMPT, not the raw one. `plainOf` is where an item
+              decides how it reads as a form, and the graded card below already
+              reads `r.prompt`. Asking the check directly here meant anything the
+              palette added for the control arm was shown after the answers were
+              in and never while they were being given. */}
+          <legend>{r.prompt}</legend>
+          {r.note && <p className="bt-plainnote">{r.note}</p>}
           {r.fields.map((f) => (
             <PlainFieldRow key={f.id} field={f} prompt={r.prompt} value={picks[f.id] ?? ''} onSet={(v) => set(r.id, f.id, v)} />
           ))}

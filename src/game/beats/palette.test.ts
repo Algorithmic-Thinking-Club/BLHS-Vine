@@ -167,6 +167,24 @@ describe('W8: a do is scored on the anchor reached, in either arm', () => {
 })
 
 describe('ARM PARITY: the plain arm is the game arm, differently drawn', () => {
+  /* ---- THE CHROME IS CONTENT TOO ---------------------------------------
+   *
+   * A game arm can carry content on a bar, a banner or a gauge and never in the
+   * prompt. The showdown does: the opponent is read off the drive bar and over
+   * every question, and the form had it nowhere at all, so the control arm
+   * answered a quiz with nobody across from it. `note` is where that content
+   * crosses over, and the prompts stay identical so the parity check above
+   * still means what it says. */
+  it('carries the showdown opponent into the form, without touching the prompt', () => {
+    const c: CheckStep = {
+      kind: 'showdown', id: 's', prompt: 'Last drive.', opponent: 'Sumner',
+      rounds: [{ id: 'r1', prompt: 'Third and long?', options: [{ text: 'Pass', correct: true }, { text: 'Punt' }] }],
+    }
+    const r = plainOf(c)
+    expect(r.prompt, 'the prompt is the same sentence in both arms').toBe('Last drive.')
+    expect(r.note).toContain('Sumner')
+  })
+
   it('every kind renders in plain, with unique fields and the same prompt', () => {
     for (const k of kinds) {
       const c = sampleOf(k)
