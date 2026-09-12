@@ -178,7 +178,10 @@ describe('ARM PARITY: the plain arm is the game arm, differently drawn', () => {
   it('carries the showdown opponent into the form, without touching the prompt', () => {
     const c: CheckStep = {
       kind: 'showdown', id: 's', prompt: 'Last drive.', opponent: 'Sumner',
-      rounds: [{ id: 'r1', prompt: 'Third and long?', options: [{ text: 'Pass', correct: true }, { text: 'Punt' }] }],
+      rounds: [{ id: 'r1', prompt: 'Third and long?', options: [
+        { text: 'Pass', correct: true, reply: 'Chains move.' },
+        { text: 'Punt', reply: 'Not on third.' },
+      ] }],
     }
     const r = plainOf(c)
     expect(r.prompt, 'the prompt is the same sentence in both arms').toBe('Last drive.')

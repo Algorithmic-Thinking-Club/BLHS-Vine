@@ -1141,12 +1141,18 @@ export default function PmapScene() {
         const gaitPath = (folder: string, dir: string, i: number) =>
           `/art/characters/${folder}/walk/${dir}/${i}.png`
         /* how many frames the set really has, asked once and cheaply, so a body
-         * with no walk art costs one HEAD and never prints a 404 a frame */
+         * with no walk art costs one HEAD and never prints a 404 a frame.
+         *
+         * A 200 IS NOT AN ANSWER. The dev server answers an unknown path with
+         * the app's own index.html and a 200, so counting on `ok` alone counted
+         * twelve frames for a set of six, handed six pages of HTML to the
+         * texture loader, and dropped every heading on the floor. The content
+         * type is the thing that actually says a picture is there. */
         const countFrames = async (folder: string): Promise<number> => {
           let n = 0
           while (n < 12) {
             const r = await fetch(gaitPath(folder, 'south', n), { method: 'HEAD' }).catch(() => null)
-            if (!r || !r.ok) break
+            if (!r || !r.ok || !(r.headers.get('content-type') ?? '').startsWith('image/')) break
             n++
           }
           return n

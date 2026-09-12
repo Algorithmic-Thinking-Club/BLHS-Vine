@@ -446,6 +446,31 @@ console.log('\nTHE PANTHER\'S MAW  (items 6 and 8)')
   ok('6', 'and its walk cycle runs while it does', frames.size >= 4, `${frames.size} distinct frames`)
   ok('6', 'and the DRAWING really changes, not just the counter', pics.size >= 4,
     `${pics.size} distinct textures`)
+  /* ---- AND HE IS USING HIS OWN LEGS (Ash, 2026-09-09 item 11) -----------
+   *
+   * A MAPVIS placement carries one frame set per look and the principal's is
+   * the breathing cycle he was drawn standing in, so crossing the room stepped
+   * him through eight pictures of a man standing still with his chest going up
+   * and down. He slid, and he breathed while he slid.
+   *
+   * The walk is an override read out of this repo rather than a second look on
+   * the placement, so it lands on the published bundle with nothing
+   * re-exported. These two are the check that it is the thing on screen, and
+   * that it hands back when he stops. The label is the file the texture was
+   * loaded from, so an atlas cell and a loose png cannot be confused. */
+  const GAIT = '/art/characters/principal/walk/'
+  {
+    /* one sample may be the idle he set off on: the harness reads the sprite
+     * across a round trip, so it can catch the frame between the move starting
+     * and the draw loop swapping the set. Everything after it has to be the
+     * walk, which is what "he walks on his walk cycle" actually claims. */
+    const onGait = [...pics].filter((p) => p.includes(GAIT))
+    ok('6', 'and the picture he walks on is his walk cycle',
+      onGait.length >= 4 && pics.size - onGait.length <= 1,
+      `${onGait.length} of ${pics.size} sampled were the walk`)
+  }
+  ok('6', 'and he settles back onto his own idle when he stops',
+    !!near && !near.moving && !near.tex.includes(GAIT), near ? near.tex.slice(0, 70) : 'never stopped')
   ok('6', 'and it stands on its first frame when it stops', !near?.moving && near?.frame === 0)
 
   /* item 8's other half: the painting holds still while a body walks it.

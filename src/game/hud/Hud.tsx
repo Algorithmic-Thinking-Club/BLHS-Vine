@@ -25,7 +25,6 @@ import { cinemaOn } from '../stage/cinema'
 import { onPlaceCard, onSceneDrawn, onStageBusy, placeCardUp, sceneDrawn } from '../stage/stage-bus'
 import { FOUNDING_FLAG } from '../run/objective'
 import { announce, panelDepth, usePanel } from '../ui/a11y'
-import { note } from '../ui/feedback'
 import { grant } from '../grant'
 import { attemptsOn } from '../beats/state'
 import { countAsDone, noIslandLine } from '../run/pick'
@@ -394,17 +393,6 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
              * a pick the year then counted as done, which Ash played as a hang.
              * Advisory is still a real beat at the hearth; a class is a place. */
             setPlanner(false)
-            if (pick.map) {
-              void requestVoyage(pick.map).then((a) => {
-                if (a.ok) { announce(`Sailing to ${pick.name}.`); return }
-                /* a refused voyage is not a lost pick: he is told, and the sheet
-                 * comes back with the same button still on it */
-                announce(a.why)
-                note(a.why)
-                setPlanner(true)
-              })
-              return
-            }
             /* ---- THROUGH `grant`, WHICH IS WHAT IT IS FOR (Ash, 2026-09-09)
              *
              * `awarded` is a bare stamp. `grant` pops the same stamp AND compares
@@ -413,14 +401,41 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
              * from the sheet is the ONLY road to a cord this game can reach
              * today, and it was the one road that did not go through here: the
              * cord branch of `grant` had no live caller at all. */
-            const beforePick = loadSave()
-            countAsDone(pick)
-            track('pick_counted', { id: pick.id, kind: pick.kind })
-            grant(beforePick, loadSave(), {
-              what: noIslandLine(pick),
-              detail: 'It goes on your year sheet and on the wall.',
-            })
-            announce(noIslandLine(pick))
+            const countIt = () => {
+              const beforePick = loadSave()
+              countAsDone(pick)
+              track('pick_counted', { id: pick.id, kind: pick.kind })
+              grant(beforePick, loadSave(), {
+                what: noIslandLine(pick),
+                detail: 'It goes on your year sheet and on the wall.',
+              })
+              announce(noIslandLine(pick))
+            }
+            if (pick.map) {
+              void requestVoyage(pick.map).then((a) => {
+                if (a.ok) { announce(`Sailing to ${pick.name}.`); return }
+                /* ---- A ROW THAT CANNOT BE SAILED TO HAS NO ISLAND ----------
+                 *
+                 * The refusal used to be announced word for word, and `sail_to`
+                 * writes its refusals for whoever is building the island:
+                 * *"robotics has no berth on the world, so there is no way to
+                 * sail to it. What can be sailed to: hub, panther-maw"*. A
+                 * freshman read that, and then read it again every time he
+                 * pressed the button, because the pick stayed owed and the year
+                 * could not close over it. A dead end with an engine sentence
+                 * in it is the worst of both.
+                 *
+                 * A row whose map cannot be reached IS, from where the student
+                 * stands, a programme with no island yet, so it takes the road
+                 * that already exists for one and the year moves. The real
+                 * sentence goes to the console, where the member who wrote the
+                 * row is the one who needs it. */
+                console.warn(`[pick ${pick.id}] counted as done, because it cannot be sailed to: ${a.why}`)
+                countIt()
+              })
+              return
+            }
+            countIt()
           }}
           onLook={(what) => {
             /* remembered so the Back plank comes back HERE (see the mounts below) */
