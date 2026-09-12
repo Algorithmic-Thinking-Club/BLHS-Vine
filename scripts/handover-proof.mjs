@@ -22,6 +22,7 @@
 import { chromium } from 'playwright'
 
 const base = (process.argv.find((a) => a.startsWith('--base=')) ?? '--base=http://localhost:5173').slice(7)
+if (/vercel.app/.test(base) && !process.argv.includes('--live')) { console.error('refusing the live url without --live: proofs run on the dev server, one live run per deploy'); process.exit(2) }
 
 let pass = 0
 const fails = []

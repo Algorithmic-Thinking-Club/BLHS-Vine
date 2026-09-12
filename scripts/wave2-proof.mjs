@@ -26,6 +26,7 @@ import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright'
 
 const base = (process.argv[2] ?? 'http://localhost:5173').replace(/\/$/, '')
+if (/vercel.app/.test(base) && !process.argv.includes('--live')) { console.error('refusing the live url without --live: proofs run on the dev server, one live run per deploy'); process.exit(2) }
 const tag = process.argv[3] ?? 'dev'
 /* PINNED, NOT NEWEST. `?map=hub` with no version asks the platform for whatever
  * it published last, and what it published last is not always what anybody

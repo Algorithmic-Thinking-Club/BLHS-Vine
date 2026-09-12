@@ -21,6 +21,7 @@ const arg = (k, d) => {
 }
 const has = (k) => process.argv.includes(`--${k}`)
 const base = arg('base', 'http://127.0.0.1:5173')
+if (/vercel.app/.test(base) && !process.argv.includes('--live')) { console.error('refusing the live url without --live: proofs run on the dev server, one live run per deploy'); process.exit(2) }
 const to = arg('to', 'castaway')
 const from = arg('from', 'panther-maw')
 

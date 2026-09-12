@@ -49,6 +49,7 @@ const arg = (k, d) => {
 }
 const has = (k) => process.argv.includes(`--${k}`)
 const base = (arg('base', 'http://localhost:5173')).replace(/\/$/, '')
+if (/vercel.app/.test(base) && !process.argv.includes('--live')) { console.error('refusing the live url without --live: proofs run on the dev server, one live run per deploy'); process.exit(2) }
 const OUT = path.join('reference/_archive/build-shots', arg('out', has('plain') ? 'surfaces-plain' : 'surfaces'))
 const only = arg('only', '').split(',').filter(Boolean)
 /* the window the shots are taken in. `--chromebook` is the deployment target;

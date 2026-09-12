@@ -75,8 +75,11 @@ export async function joinClass(code: string, handle: string): Promise<JoinResul
 
 // ---- state sync: debounced push of every save write; pull on boot for cross-device ----
 let pushTimer: number | null = null
+// once the server has said 503 offline, no further push this page load: every save write was a request that could not land
+let stateOffline = false
 export function startStateSync() {
   const push = () => {
+    if (stateOffline) return
     const pid = participantId()
     const s = loadSave()
     // demo stays local (§2.9); captain stays local even over a real joined save (§2.14 —
@@ -86,7 +89,8 @@ export function startStateSync() {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ participantId: pid, save: s }),
       keepalive: true,
-    }).catch(() => { /* offline: the local save remains the truth */ })
+    }).then((r) => { if (r.status === 503) stateOffline = true })
+      .catch(() => { /* offline: the local save remains the truth */ })
   }
   // save.ts emits on every write; debounce so a burst of writes is one POST
   import('./save').then(({ subscribeSave }) => {

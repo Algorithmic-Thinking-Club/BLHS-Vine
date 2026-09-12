@@ -28,7 +28,8 @@ const arg = (k, d) => {
   const hit = process.argv.find((a) => a.startsWith(`--${k}=`))
   return hit ? hit.slice(k.length + 3) : d
 }
-const base = arg('base', LIVE)
+const base = arg('base', 'http://localhost:5173')
+if (/vercel.app/.test(base) && !process.argv.includes('--live')) { console.error('refusing the live url without --live: proofs run on the dev server, one live run per deploy'); process.exit(2) }
 const headed = process.argv.includes('--headed')
 
 let pass = 0

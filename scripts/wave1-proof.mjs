@@ -22,6 +22,7 @@ import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright'
 
 const base = (process.argv[2] ?? 'http://localhost:5173').replace(/\/$/, '')
+if (/vercel.app/.test(base) && !process.argv.includes('--live')) { console.error('refusing the live url without --live: proofs run on the dev server, one live run per deploy'); process.exit(2) }
 const tag = process.argv[3] ?? 'dev'
 const shots = 'reference/_archive/build-shots/wave1'
 mkdirSync(shots, { recursive: true })
