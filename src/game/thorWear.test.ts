@@ -31,6 +31,9 @@ describe('the outfit slot', () => {
    * path ship before the pixels do. A card whose `drawn` is false is never
    * wearable, so `walkFrame` can never point at a folder that is not there. */
   it('never points at an outfit nobody has drawn, even if it is worn in the save', () => {
+    /* every outfit is drawn today, so the rule is checked by taking one back
+     * down rather than by finding one that happens to be missing */
+    vi.spyOn(WEAR[0], 'drawn', 'get').mockReturnValue(false)
     for (const w of WEAR) {
       if (w.drawn) continue
       const s = run({ thorWear: w.id, graduated: true, islands: { robotics: 'completed' } })
@@ -51,9 +54,12 @@ describe('the outfit slot', () => {
           expect(fs.existsSync(f), `${w.id} says it is drawn but ${f} is missing`).toBe(true)
         }
       }
+      /* the poses are a separate claim, and an outfit that does not make it sits
+       * down as the bare panther rather than asking for a png nobody drew */
+      if (!w.posed) continue
       for (const pose of ['sit', 'lie']) {
         const f = here(`public/art/characters/thor/wear/${w.id}/pose/${pose}.png`)
-        expect(fs.existsSync(f), `${w.id} says it is drawn but ${f} is missing`).toBe(true)
+        expect(fs.existsSync(f), `${w.id} says it is posed but ${f} is missing`).toBe(true)
       }
     }
   })
@@ -69,7 +75,10 @@ describe('the outfit slot', () => {
     ] })
     expect(canWear(s, w.id)).toBe(true)
     expect(walkFrame(s, 'east', 3)).toBe(`/art/characters/thor/wear/${w.id}/walk/east/3.png`)
-    expect(poseFrame(s, 'sit')).toBe(`/art/characters/thor/wear/${w.id}/pose/sit.png`)
+    /* and the pose follows only the outfits that were drawn sitting down */
+    expect(poseFrame(s, 'sit')).toBe(w.posed
+      ? `/art/characters/thor/wear/${w.id}/pose/sit.png`
+      : '/art/characters/thor/pose/sit.png')
     expect(wornKey(s)).toBe(`${w.id}:classic`)
   })
 

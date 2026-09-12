@@ -42,11 +42,23 @@ export type Wear = {
    * per outfit, it is obvious in a diff, and `thorWear.test.ts` fails if a set
    * marked drawn has no folder under `public/art/characters/thor/wear/`.
    *
-   * FALSE ON ALL THREE TODAY. Ash gave the word for the spend on 2026-09-09 and
-   * PixelLab's own server was not reachable in that session, so the path below
-   * is built and the pixels are owed. Everything degrades to the bare panther
-   * until a folder lands; nothing here breaks while they are missing. */
+   * TRUE ON ALL THREE since 2026-09-12: one `create-character-state` per outfit
+   * off Thor's own character, all eight rotations in the one job and snapped to
+   * his palette, then the `walking` template the bare panther already walks on
+   * so the cadence matches when a student changes clothes mid-run. */
   drawn: boolean
+  /* ---- AND HAS ANYBODY DRAWN IT SITTING DOWN --------------------------
+   *
+   * Separate from `drawn`, because the walk is what the game spends its time
+   * looking at and a pose is two pictures the player may never see. A held pose
+   * costs a whole state edit of its own per outfit, which is the same price
+   * again for `sit` and `lie`, and today the only thing that poses Thor is the
+   * beach opening in year one, before a jacket, goggles or a cap can exist.
+   *
+   * So an outfit with no poses drawn sits down as the bare panther rather than
+   * not sitting down at all, and the day somebody wants the jacket in a chair
+   * this is the one line that changes. */
+  posed: boolean
 }
 
 /** the bare panther, which is not an outfit and is what "nothing" means */
@@ -63,21 +75,24 @@ export const WEAR: Wear[] = [
     name: 'Letterman jacket',
     earn: 'reach Varsity in any sport',
     has: (s) => !!s && Object.values(ranksOf(s)).some((y) => Number(y) >= 2),
-    drawn: false,
+    drawn: true,
+    posed: false,
   },
   {
     id: 'goggles',
     name: 'Robotics goggles',
     earn: earnByCompleting('robotics'),
     has: (s) => !!programmeById('robotics') && s?.islands?.robotics === 'completed',
-    drawn: false,
+    drawn: true,
+    posed: false,
   },
   {
     id: 'cap',
     name: 'Graduation cap',
     earn: 'finish all four years',
     has: (s) => !!s?.graduated,
-    drawn: false,
+    drawn: true,
+    posed: false,
   },
 ]
 
@@ -100,15 +115,27 @@ export const canWear = (s: SaveGame | null, id: string): boolean => {
  */
 export function walkFrame(s: SaveGame | null, dir: string, frame: number): string {
   const id = s?.thorWear
-  return canWear(s, id ?? '')
+  return canWear(s, id ?? '') ? walkFrameOf(id, dir, frame) : walkFrameOf(BARE, dir, frame)
+}
+
+/**
+ * The same path from an outfit id alone.
+ *
+ * The mirror needs this: it holds the pick the student is looking at, which is
+ * not always the pick in the save yet, and asking `walkFrame` would draw the
+ * coat he is standing there deciding to take off.
+ */
+export const walkFrameOf = (id: string | null | undefined, dir: string, frame: number): string =>
+  id && id !== BARE && wearById(id)?.drawn
     ? `/art/characters/thor/wear/${id}/walk/${dir}/${frame}.png`
     : `/art/characters/thor/walk/${dir}/${frame}.png`
-}
 
 /** the same question for a held pose (`sit`, `lie`) */
 export function poseFrame(s: SaveGame | null, file: string): string {
   const id = s?.thorWear
-  return canWear(s, id ?? '')
+  /* the outfit only answers here if somebody drew it sitting down. Everything
+   * else falls back to the bare panther, which is a picture that exists. */
+  return canWear(s, id ?? '') && wearById(id ?? '')?.posed
     ? `/art/characters/thor/wear/${id}/pose/${file}.png`
     : `/art/characters/thor/pose/${file}.png`
 }

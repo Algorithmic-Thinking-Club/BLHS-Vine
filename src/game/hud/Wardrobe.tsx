@@ -1,7 +1,7 @@
 /* the outfitter: a mirror where the player picks a coat colour and sees what is still locked */
 import { useEffect, useRef, useState } from 'react'
 import { LOOKS, drawRecolored } from '../thorLook'
-import { BARE, WEAR } from '../thorWear'
+import { BARE, WEAR, walkFrameOf } from '../thorWear'
 import { loadSave, writeSave } from '../save'
 import { track } from '../telemetry'
 import { announce, usePanel } from '../ui/a11y'
@@ -105,9 +105,14 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
         )
       } catch { /* left empty on purpose: see above */ }
     }
-    img.src = `/art/characters/thor/walk/${RING[facing]}/0.png`
+    /* THE MIRROR SHOWS WHAT HE PICKED. It drew the bare panther whatever was
+     * chosen, so the jacket, the goggles and the cap changed the card and not
+     * the reflection, which is the half of Ash's 2026-09-09 item 5 that was
+     * left: the coats already worked here because a coat is a recolour of this
+     * same picture, and an outfit is a different picture. */
+    img.src = walkFrameOf(worn, RING[facing], 0)
     return () => { live = false }
-  }, [look, facing])
+  }, [look, facing, worn])
 
   /* THE TURN, ONE FRAME AT A TIME. Eight steps returns him to where he started,
    * so a coat change is a look at the whole coat and not a change of pose. The
