@@ -98,20 +98,20 @@
     {
       "name": "counselor",
       "kind": "post",
-      "x": 324,
-      "y": 181,
-      "r": 12,
+      "x": 378,
+      "y": 177,
+      "r": 14,
       "stand": [
-        324,
-        185
+        365,
+        184
       ],
       "placement": "counselor",
-      "facing": "north",
+      "facing": "north-east",
       "label": "The Counselor",
       "meta": {
         "ring": [
-          0,
-          -4
+          -7,
+          -1
         ],
         "docId": 10
       }
@@ -121,7 +121,7 @@
       "kind": "post",
       "x": 355,
       "y": 214,
-      "r": 10,
+      "r": 12,
       "stand": [
         349,
         212
@@ -161,12 +161,12 @@
     {
       "name": "principal_desk",
       "kind": "post",
-      "x": 382,
-      "y": 195,
+      "x": 191,
+      "y": 116,
       "r": 14,
       "stand": [
-        370,
-        201
+        227,
+        133
       ],
       "placement": "principal_desk",
       "facing": "north-east",
@@ -265,10 +265,10 @@
   ],
   "contract": 2,
   "slug": "panther-maw",
-  "version": 6,
+  "version": 8,
   "provenance": {
     "owner": "algorithmicthinkingclub@gmail.com",
-    "publishedAt": "2026-09-07T21:25:02.027Z",
-    "version": 6
+    "publishedAt": "2026-09-12T03:57:01.569Z",
+    "version": 8
   }
 }

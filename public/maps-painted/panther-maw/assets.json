@@ -33,50 +33,50 @@
       ],
       "framesAt": [
         [
-          423,
-          619,
+          1888,
+          623,
           16,
           64
         ],
         [
-          440,
-          619,
+          1905,
+          623,
           16,
           64
         ],
         [
-          457,
-          619,
+          1922,
+          623,
           16,
           64
         ],
         [
-          474,
-          619,
+          1939,
+          623,
           16,
           64
         ],
         [
-          491,
-          619,
+          1956,
+          623,
           16,
           64
         ],
         [
-          508,
-          619,
+          1973,
+          623,
           16,
           64
         ],
         [
-          525,
-          619,
+          1990,
+          623,
           16,
           64
         ],
         [
-          542,
-          619,
+          2007,
+          623,
           16,
           64
         ]
@@ -115,50 +115,50 @@
       ],
       "framesAt": [
         [
-          423,
-          619,
+          1888,
+          623,
           16,
           64
         ],
         [
-          440,
-          619,
+          1905,
+          623,
           16,
           64
         ],
         [
-          457,
-          619,
+          1922,
+          623,
           16,
           64
         ],
         [
-          474,
-          619,
+          1939,
+          623,
           16,
           64
         ],
         [
-          491,
-          619,
+          1956,
+          623,
           16,
           64
         ],
         [
-          508,
-          619,
+          1973,
+          623,
           16,
           64
         ],
         [
-          525,
-          619,
+          1990,
+          623,
           16,
           64
         ],
         [
-          542,
-          619,
+          2007,
+          623,
           16,
           64
         ]
@@ -197,50 +197,50 @@
       ],
       "framesAt": [
         [
-          673,
-          619,
+          115,
+          720,
           40,
           28
         ],
         [
-          714,
-          619,
+          156,
+          720,
           40,
           28
         ],
         [
-          755,
-          619,
+          197,
+          720,
           40,
           28
         ],
         [
-          796,
-          619,
+          238,
+          720,
           40,
           28
         ],
         [
-          837,
-          619,
+          279,
+          720,
           40,
           28
         ],
         [
-          878,
-          619,
+          320,
+          720,
           40,
           28
         ],
         [
-          919,
-          619,
+          361,
+          720,
           40,
           28
         ],
         [
-          960,
-          619,
+          402,
+          720,
           40,
           28
         ]
@@ -279,50 +279,50 @@
       ],
       "framesAt": [
         [
-          673,
-          619,
+          115,
+          720,
           40,
           28
         ],
         [
-          714,
-          619,
+          156,
+          720,
           40,
           28
         ],
         [
-          755,
-          619,
+          197,
+          720,
           40,
           28
         ],
         [
-          796,
-          619,
+          238,
+          720,
           40,
           28
         ],
         [
-          837,
-          619,
+          279,
+          720,
           40,
           28
         ],
         [
-          878,
-          619,
+          320,
+          720,
           40,
           28
         ],
         [
-          919,
-          619,
+          361,
+          720,
           40,
           28
         ],
         [
-          960,
-          619,
+          402,
+          720,
           40,
           28
         ]
@@ -417,8 +417,8 @@
       "src": "assets/principal-pro/south-west-0.png",
       "facing": "south-west",
       "fps": 8,
-      "x": 382,
-      "y": 195,
+      "x": 191,
+      "y": 116,
       "scale": 0.22,
       "scaleX": 0.22,
       "scaleY": 0.22,
@@ -847,8 +847,8 @@
       "id": "a26",
       "group": "props",
       "src": "assets/principal-desk.png",
-      "x": 376,
-      "y": 203,
+      "x": 373,
+      "y": 185,
       "scale": 0.344,
       "scaleX": 0.344,
       "scaleY": 0.344,
@@ -865,8 +865,8 @@
         5.57
       ],
       "srcAt": [
-        559,
-        619,
+        1,
+        720,
         64,
         56
       ]
@@ -894,14 +894,162 @@
         2.74
       ],
       "srcAt": [
-        624,
-        619,
+        66,
+        720,
         48,
         40
       ]
     },
     {
-      "id": "a38",
+      "id": "a41",
+      "name": "hearth",
+      "group": "props",
+      "frames": [
+        "assets/hearth-2/0.png",
+        "assets/hearth-2/1.png",
+        "assets/hearth-2/2.png",
+        "assets/hearth-2/3.png",
+        "assets/hearth-2/4.png",
+        "assets/hearth-2/5.png",
+        "assets/hearth-2/6.png",
+        "assets/hearth-2/7.png",
+        "assets/hearth-2/8.png"
+      ],
+      "fps": 8,
+      "x": 355,
+      "y": 214,
+      "scale": 0.282,
+      "scaleX": 0.282,
+      "scaleY": 0.282,
+      "rot": 0,
+      "flipX": false,
+      "flipY": false,
+      "lookNames": [
+        "undefined"
+      ],
+      "foot": [
+        0,
+        -5.8,
+        6.49,
+        4.67
+      ],
+      "framesAt": [
+        [
+          1238,
+          623,
+          64,
+          96
+        ],
+        [
+          1303,
+          623,
+          64,
+          96
+        ],
+        [
+          1368,
+          623,
+          64,
+          96
+        ],
+        [
+          1433,
+          623,
+          64,
+          96
+        ],
+        [
+          1498,
+          623,
+          64,
+          96
+        ],
+        [
+          1563,
+          623,
+          64,
+          96
+        ],
+        [
+          1628,
+          623,
+          64,
+          96
+        ],
+        [
+          1693,
+          623,
+          64,
+          96
+        ],
+        [
+          1758,
+          623,
+          64,
+          96
+        ]
+      ]
+    },
+    {
+      "id": "a42",
+      "name": "outfitter",
+      "group": "props",
+      "src": "assets/outfitter-wardrobe.png",
+      "x": 426,
+      "y": 202,
+      "scale": 0.243,
+      "scaleX": 0.243,
+      "scaleY": 0.243,
+      "rot": 0,
+      "flipX": false,
+      "flipY": false,
+      "lookNames": [
+        "undefined"
+      ],
+      "foot": [
+        0.61,
+        -5.08,
+        5.71,
+        4.11
+      ],
+      "srcAt": [
+        1165,
+        623,
+        72,
+        96
+      ]
+    },
+    {
+      "id": "a44",
+      "name": "the_trophy_wall",
+      "group": "props",
+      "src": "assets/trophy-shelf.png",
+      "x": 290,
+      "y": 203,
+      "scale": 0.296,
+      "scaleX": 0.296,
+      "scaleY": 0.296,
+      "rot": 0,
+      "flipX": true,
+      "flipY": false,
+      "lookNames": [
+        "undefined"
+      ],
+      "foot": [
+        -0.44,
+        -5.9,
+        6.96,
+        5.01
+      ],
+      "srcAt": [
+        1823,
+        623,
+        64,
+        80
+      ]
+    },
+    {
+      "id": "a45",
       "name": "counselor",
       "group": "props",
       "dirs": {
@@ -916,7 +1064,14 @@
           "assets/counselor-pro/north-east-7.png"
         ],
         "north-west": [
-          "assets/counselor-pro/north-west-0.png"
+          "assets/counselor-pro/north-west-0.png",
+          "assets/counselor-pro/north-west-1.png",
+          "assets/counselor-pro/north-west-2.png",
+          "assets/counselor-pro/north-west-3.png",
+          "assets/counselor-pro/north-west-4.png",
+          "assets/counselor-pro/north-west-5.png",
+          "assets/counselor-pro/north-west-6.png",
+          "assets/counselor-pro/north-west-7.png"
         ],
         "south-east": [
           "assets/counselor-pro/south-east-0.png",
@@ -929,7 +1084,14 @@
           "assets/counselor-pro/south-east-7.png"
         ],
         "south-west": [
-          "assets/counselor-pro/south-west-0.png"
+          "assets/counselor-pro/south-west-0.png",
+          "assets/counselor-pro/south-west-1.png",
+          "assets/counselor-pro/south-west-2.png",
+          "assets/counselor-pro/south-west-3.png",
+          "assets/counselor-pro/south-west-4.png",
+          "assets/counselor-pro/south-west-5.png",
+          "assets/counselor-pro/south-west-6.png",
+          "assets/counselor-pro/south-west-7.png"
         ],
         "east": [
           "assets/counselor-pro/east-0.png",
@@ -972,14 +1134,14 @@
           "assets/counselor-pro/south-7.png"
         ]
       },
-      "src": "assets/counselor-pro/south-0.png",
-      "facing": "south",
+      "src": "assets/counselor-pro/south-west-0.png",
+      "facing": "south-west",
       "fps": 8,
-      "x": 324,
-      "y": 181,
-      "scale": 0.207,
-      "scaleX": 0.207,
-      "scaleY": 0.207,
+      "x": 378,
+      "y": 177,
+      "scale": 0.236,
+      "scaleX": 0.236,
+      "scaleY": 0.236,
       "rot": 0,
       "flipX": false,
       "flipY": false,
@@ -987,16 +1149,16 @@
         "undefined"
       ],
       "foot": [
-        0.52,
-        -6.76,
-        5.07,
-        3.65
+        0.71,
+        -8.19,
+        6.14,
+        4.42
       ],
       "srcAt": [
-        777,
+        809,
         522,
-        96,
-        96
+        100,
+        100
       ],
       "dirsAt": {
         "north-east": [
@@ -1051,14 +1213,6 @@
         ],
         "north-west": [
           [
-            196,
-            619,
-            80,
-            80
-          ]
-        ],
-        "south-east": [
-          [
             1213,
             421,
             100,
@@ -1107,12 +1261,104 @@
             100
           ]
         ],
+        "south-east": [
+          [
+            1,
+            522,
+            100,
+            100
+          ],
+          [
+            102,
+            522,
+            100,
+            100
+          ],
+          [
+            203,
+            522,
+            100,
+            100
+          ],
+          [
+            304,
+            522,
+            100,
+            100
+          ],
+          [
+            405,
+            522,
+            100,
+            100
+          ],
+          [
+            506,
+            522,
+            100,
+            100
+          ],
+          [
+            607,
+            522,
+            100,
+            100
+          ],
+          [
+            708,
+            522,
+            100,
+            100
+          ]
+        ],
         "south-west": [
           [
-            277,
-            619,
-            80,
-            80
+            809,
+            522,
+            100,
+            100
+          ],
+          [
+            910,
+            522,
+            100,
+            100
+          ],
+          [
+            1011,
+            522,
+            100,
+            100
+          ],
+          [
+            1112,
+            522,
+            100,
+            100
+          ],
+          [
+            1213,
+            522,
+            100,
+            100
+          ],
+          [
+            1314,
+            522,
+            100,
+            100
+          ],
+          [
+            1415,
+            522,
+            100,
+            100
+          ],
+          [
+            1516,
+            522,
+            100,
+            100
           ]
         ],
         "east": [
@@ -1217,253 +1463,105 @@
         ],
         "north": [
           [
-            1,
+            1617,
             522,
+            96,
+            96
+          ],
+          [
+            1714,
+            522,
+            96,
+            96
+          ],
+          [
+            1811,
+            522,
+            96,
+            96
+          ],
+          [
+            1908,
+            522,
+            96,
+            96
+          ],
+          [
+            1,
+            623,
             96,
             96
           ],
           [
             98,
-            522,
+            623,
             96,
             96
           ],
           [
             195,
-            522,
+            623,
             96,
             96
           ],
           [
             292,
-            522,
-            96,
-            96
-          ],
-          [
-            389,
-            522,
-            96,
-            96
-          ],
-          [
-            486,
-            522,
-            96,
-            96
-          ],
-          [
-            583,
-            522,
-            96,
-            96
-          ],
-          [
-            680,
-            522,
+            623,
             96,
             96
           ]
         ],
         "south": [
           [
+            389,
+            623,
+            96,
+            96
+          ],
+          [
+            486,
+            623,
+            96,
+            96
+          ],
+          [
+            583,
+            623,
+            96,
+            96
+          ],
+          [
+            680,
+            623,
+            96,
+            96
+          ],
+          [
             777,
-            522,
+            623,
             96,
             96
           ],
           [
             874,
-            522,
+            623,
             96,
             96
           ],
           [
             971,
-            522,
+            623,
             96,
             96
           ],
           [
             1068,
-            522,
-            96,
-            96
-          ],
-          [
-            1165,
-            522,
-            96,
-            96
-          ],
-          [
-            1262,
-            522,
-            96,
-            96
-          ],
-          [
-            1359,
-            522,
-            96,
-            96
-          ],
-          [
-            1456,
-            522,
+            623,
             96,
             96
           ]
         ]
       }
-    },
-    {
-      "id": "a41",
-      "name": "hearth",
-      "group": "props",
-      "frames": [
-        "assets/hearth-2/0.png",
-        "assets/hearth-2/1.png",
-        "assets/hearth-2/2.png",
-        "assets/hearth-2/3.png",
-        "assets/hearth-2/4.png",
-        "assets/hearth-2/5.png",
-        "assets/hearth-2/6.png",
-        "assets/hearth-2/7.png",
-        "assets/hearth-2/8.png"
-      ],
-      "fps": 8,
-      "x": 355,
-      "y": 214,
-      "scale": 0.282,
-      "scaleX": 0.282,
-      "scaleY": 0.282,
-      "rot": 0,
-      "flipX": false,
-      "flipY": false,
-      "lookNames": [
-        "undefined"
-      ],
-      "foot": [
-        0,
-        -5.8,
-        6.49,
-        4.67
-      ],
-      "framesAt": [
-        [
-          1626,
-          522,
-          64,
-          96
-        ],
-        [
-          1691,
-          522,
-          64,
-          96
-        ],
-        [
-          1756,
-          522,
-          64,
-          96
-        ],
-        [
-          1821,
-          522,
-          64,
-          96
-        ],
-        [
-          1886,
-          522,
-          64,
-          96
-        ],
-        [
-          1951,
-          522,
-          64,
-          96
-        ],
-        [
-          1,
-          619,
-          64,
-          96
-        ],
-        [
-          66,
-          619,
-          64,
-          96
-        ],
-        [
-          131,
-          619,
-          64,
-          96
-        ]
-      ]
-    },
-    {
-      "id": "a42",
-      "name": "outfitter",
-      "group": "props",
-      "src": "assets/outfitter-wardrobe.png",
-      "x": 426,
-      "y": 202,
-      "scale": 0.243,
-      "scaleX": 0.243,
-      "scaleY": 0.243,
-      "rot": 0,
-      "flipX": false,
-      "flipY": false,
-      "lookNames": [
-        "undefined"
-      ],
-      "foot": [
-        0.61,
-        -5.08,
-        5.71,
-        4.11
-      ],
-      "srcAt": [
-        1553,
-        522,
-        72,
-        96
-      ]
-    },
-    {
-      "id": "a44",
-      "name": "the_trophy_wall",
-      "group": "props",
-      "src": "assets/trophy-shelf.png",
-      "x": 290,
-      "y": 203,
-      "scale": 0.296,
-      "scaleX": 0.296,
-      "scaleY": 0.296,
-      "rot": 0,
-      "flipX": true,
-      "flipY": false,
-      "lookNames": [
-        "undefined"
-      ],
-      "foot": [
-        -0.44,
-        -5.9,
-        6.96,
-        5.01
-      ],
-      "srcAt": [
-        358,
-        619,
-        64,
-        80
-      ]
     }
   ],
   "atlas": "atlas.png"
