@@ -2,7 +2,6 @@
 
 import type { SaveGame } from './save'
 import { ranksOf } from './progress'
-import { programmeById } from './roster/roster'
 
 /* ---- ASH GAVE THE WORD FOR THE ART, 2026-09-09 ---------------------------
  *
@@ -64,11 +63,6 @@ export type Wear = {
 /** the bare panther, which is not an outfit and is what "nothing" means */
 export const BARE = 'none'
 
-const earnByCompleting = (id: string): string => {
-  const g = programmeById(id)
-  return g ? `complete the ${g.name} island` : 'complete its island'
-}
-
 export const WEAR: Wear[] = [
   {
     id: 'letterman',
@@ -80,9 +74,22 @@ export const WEAR: Wear[] = [
   },
   {
     id: 'goggles',
-    name: 'Robotics goggles',
-    earn: earnByCompleting('robotics'),
-    has: (s) => !!programmeById('robotics') && s?.islands?.robotics === 'completed',
+    /* ---- IT WAS GATED ON A PROGRAMME THAT DOES NOT EXIST ---------------
+     *
+     * `s.islands.robotics === 'completed'` and `programmeById('robotics')`,
+     * and the roster has no `robotics` in it: the ids are `atc`, `football`,
+     * `girls-flag-football`, `track-field` and `key-club`. So the card could
+     * never be earned by anybody, and because `earnByCompleting` found no
+     * programme to name, it read "complete its island" without saying which.
+     * `wear-proof.mjs` is the gate that caught it.
+     *
+     * The other two are milestones rather than one named programme (Varsity in
+     * ANY sport, finishing ALL four years), so this is now the same shape and
+     * the earliest of the three: a student who finishes one island has one.
+     * It stays true as ATC ships more of them, which a hardcoded id never was. */
+    name: 'Safety goggles',
+    earn: 'complete any island',
+    has: (s) => Object.values(s?.islands ?? {}).some((v) => v === 'completed'),
     drawn: true,
     posed: false,
   },
