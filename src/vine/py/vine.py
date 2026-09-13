@@ -611,6 +611,10 @@ def get(path):
     trophies    {"stickers": [...], "badges": [...]}, what is on the wall
     flags       your island's own flags, with your programme id stripped back off
     planned     True once this year's sheet has been stamped
+    advisory    the beat id this year's Advisory is owed under, or None when it
+                is not owed. NOT "did he pass it": a student who sat it and
+                failed is not owed it again, and the Maw's hearth said the
+                opposite for a week by asking whether a row existed instead.
     islands     {programme id: "misty"/"discovered"/"available"/"active"/"completed"}
     handle      the name the player chose, or None
     mode        "game" or "plain", which half of the class this is

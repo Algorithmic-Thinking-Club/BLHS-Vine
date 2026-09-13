@@ -155,6 +155,33 @@ export const ALONGSIDE_PX = 18
 /** how close to the authored heading counts as parallel to the dock */
 export const ALONGSIDE_RAD = 0.3
 
+/* HOW FAR BACK DOWN THE BERTH'S OWN LINE SHE STEERS FOR, as a fraction of how
+ * far out she still is. This is the whole of the arrival's shape.
+ *
+ * Ash, watching the intro: *"it does not dock in the orientation shown in the
+ * berth in MAPVIS, and it also does weird spin like its confused on which way to
+ * dock."* Measured on that crossing: she arrived on heading -2.81 against an
+ * authored -0.698, which is 121 degrees out, stopped dead at the dock and then
+ * pirouetted 100 degrees on the spot over a second. Nothing was broken in the
+ * physics. The manoeuvre simply never tried to arrive facing the right way: it
+ * drove at the berth as a POINT, and only once parked did it notice the heading
+ * it was supposed to have.
+ *
+ * A helmsman does the opposite. He picks up the line of the dock while he still
+ * has way on and comes down it, so by the time he is alongside he is already
+ * parallel and there is nothing left to turn. That is what this does: she steers
+ * not at the berth but at a point this fraction of the remaining distance back
+ * along the heading she has to end on. Far out that point sits well up the
+ * approach and swings her onto the line; as she closes it slides into the berth
+ * itself, and her heading converges on the authored one because it IS the line
+ * she is running down.
+ *
+ * It costs an author nothing and it needs no approach point drawn, so every
+ * berth on every island gets a real approach the day it is placed. */
+export const RUN_IN_LEAD = 0.7
+/** and never further back than this, so a crossing from the far side of the ocean does not aim a thousand pixels past the island */
+export const RUN_IN_MAX_PX = 260
+
 const wrap = (a: number): number => {
   let r = a
   while (r > Math.PI) r -= Math.PI * 2
@@ -184,9 +211,22 @@ export function berthHelm(
 
   if (b.stage === 'approach') {
     /* MAKE FOR THE APPROACH POINT FIRST, so she comes at the dock down its own
-     * line instead of cutting the corner across the shallows. A berth with no
-     * approach authored goes straight to the second half. */
-    const aim = b.approach
+     * line instead of cutting the corner across the shallows.
+     *
+     * AND THE POINT IS DERIVED WHEN NOBODY DREW ONE, which is every berth on the
+     * ocean today. Straight up the berth's own heading is where a boat has to
+     * come from, so it can be worked out rather than authored, and an author only
+     * needs to draw one when the water in between is foul.
+     *
+     * This is what stops the arrival from the WRONG SIDE. Coming at the dock from
+     * the direction she is supposed to be pointing, she used to reach the berth
+     * nose-first, stop, and turn 120 degrees on the spot. Sent to the gate first
+     * she sweeps round outside and comes back down the line under way, which is
+     * both what it should look like and what a helmsman would do. */
+    const aim = b.approach ?? (b.facing === undefined ? undefined : {
+      x: b.target.x - Math.cos(b.facing) * RUN_IN_MAX_PX,
+      y: b.target.y - Math.sin(b.facing) * RUN_IN_MAX_PX,
+    })
     if (!aim) return berthHelm(s, watched({ ...b, stage: 'alongside' }), cfg)
     const dx = aim.x - s.x, dy = aim.y - s.y
     const d = Math.hypot(dx, dy)
@@ -208,7 +248,14 @@ export function berthHelm(
   const dx = b.target.x - s.x, dy = b.target.y - s.y
   const dist = Math.hypot(dx, dy)
 
-  /* inside the berth: no throttle, and swing onto the authored heading */
+  /* inside the berth: no throttle, and swing onto the authored heading.
+   *
+   * WITH THE RUN-IN BELOW THIS IS NOW ALMOST NEVER A TURN, which is the point.
+   * She reaches here already lying along the dock, so the swing is a degree or
+   * two of settling rather than the hundred-degree pirouette it used to be. It
+   * stays because a berth can be reached from inside the box: a hull that is
+   * already tied up and asked to dock again is at zero distance and whatever
+   * heading she was left on. */
   if (dist <= ALONGSIDE_PX) {
     const err = b.facing === undefined ? 0 : wrap(b.facing - s.heading)
     if (s.speed < cfg.cruise * 0.12 && Math.abs(err) < ALONGSIDE_RAD)
@@ -216,7 +263,20 @@ export function berthHelm(
     return { helm: { throttle: 0, turn: Math.abs(err) < 0.05 ? 0 : Math.sign(err), fullSail: false }, next: watched(b) }
   }
 
-  const err = wrap(Math.atan2(dy, dx) - s.heading)
+  /* THE RUN-IN. She steers for a point back down the line she has to end on
+   * rather than at the berth itself, so the turn happens out on the water while
+   * she still has way on and she arrives already parallel. See RUN_IN_LEAD.
+   *
+   * A berth with no authored heading keeps the old behaviour of driving at the
+   * mark, because there is no line to pick up. */
+  let aimX = b.target.x, aimY = b.target.y
+  if (b.facing !== undefined) {
+    const lead = Math.min(dist * RUN_IN_LEAD, RUN_IN_MAX_PX)
+    aimX -= Math.cos(b.facing) * lead
+    aimY -= Math.sin(b.facing) * lead
+  }
+
+  const err = wrap(Math.atan2(aimY - s.y, aimX - s.x) - s.heading)
   /* DECELERATE ONTO IT. The throttle goes off inside the stopping distance for
    * the current speed, so she coasts in rather than arriving at cruise and
    * stopping instantly, which is the difference between docking and colliding. */

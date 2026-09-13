@@ -10,6 +10,7 @@ import {
 } from './composition'
 import {
   newHull, stepHull, berthHelm, headingOf, DEFAULT_SAIL, HELM_IDLE, BERTH_GIVE_UP_MS,
+  ALONGSIDE_PX, ALONGSIDE_RAD,
   type Berthing, type DepthAt,
 } from './sail'
 import { PLACES } from '../roster/roster'
@@ -583,6 +584,75 @@ describe('coming alongside', () => {
     expect(h.speed).toBeLessThan(DEFAULT_SAIL.cruise * 0.15)
     /* she ends parallel to the dock rather than nosed into it */
     expect(Math.abs(Math.atan2(Math.sin(h.heading - Math.PI), Math.cos(h.heading - Math.PI)))).toBeLessThan(0.5)
+  })
+
+
+  /* ---- SHE ARRIVES FACING THE WAY THE BERTH WAS DRAWN --------------------
+   *
+   * Ash, watching the intro sail into the hub: "it does not dock in the
+   * orientation shown in the berth in MAPVIS, and it also does weird spin like
+   * its confused on which way to dock." Measured on that crossing, she came in
+   * 121 degrees off the authored heading, stopped dead and turned on the spot.
+   *
+   * These hold the fix from every direction rather than from one, because the
+   * old manoeuvre was correct from directly astern of the berth and wrong from
+   * everywhere else, and one lucky start is how it survived.
+   */
+  it('arrives lying along the berth from any direction, not nosed in at a random angle', () => {
+    const target = { x: 300, y: 210 }
+    const facing = -0.698                 // the hub berth's own heading, off the live ocean
+    const worst: { from: number; off: number; spun: number }[] = []
+    for (let deg = 0; deg < 360; deg += 30) {
+      const a = (deg * Math.PI) / 180
+      let h = { ...newHull(target.x + Math.cos(a) * 700, target.y + Math.sin(a) * 700, a + Math.PI), speed: 150 }
+      let b: Berthing = { target, facing, stage: 'approach' }
+      /* how much of the turn happens standing still, which is the spin he saw */
+      let spun = 0
+      for (let i = 0; i < 4000 && b.stage !== 'done' && b.stage !== 'given_up'; i++) {
+        const r = berthHelm(h, b)
+        b = r.next
+        const was = h.heading
+        h = stepHull(h, r.helm, 1 / 60, deep)
+        if (h.speed < 1) spun += Math.abs(Math.atan2(Math.sin(h.heading - was), Math.cos(h.heading - was)))
+      }
+      const off = Math.abs(Math.atan2(Math.sin(h.heading - facing), Math.cos(h.heading - facing)))
+      worst.push({ from: deg, off: +off.toFixed(3), spun: +spun.toFixed(3) })
+      expect(b.stage).toBe('done')
+      expect(Math.hypot(h.x - target.x, h.y - target.y)).toBeLessThan(ALONGSIDE_PX + 2)
+    }
+    /* within the tolerance the manoeuvre itself declares, from every bearing */
+    expect(worst.filter((w) => w.off > ALONGSIDE_RAD)).toEqual([])
+    /* AND SHE DID THE TURNING UNDER WAY. A tenth of a radian is settling; the
+     * measured pirouette was 1.75, and the old code fails this by ten times. */
+    expect(worst.filter((w) => w.spun > 0.35)).toEqual([])
+  })
+
+  it('needs no approach point drawn to do it, which is what a member gets for free', () => {
+    /* the same arrival with nothing authored but the heading */
+    let h = { ...newHull(900, 900, 0), speed: 150 }
+    let b: Berthing = { target: { x: 300, y: 210 }, facing: Math.PI, stage: 'approach' }
+    expect(b.approach).toBeUndefined()
+    for (let i = 0; i < 4000 && b.stage !== 'done'; i++) {
+      const r = berthHelm(h, b)
+      b = r.next
+      h = stepHull(h, r.helm, 1 / 60, deep)
+    }
+    expect(b.stage).toBe('done')
+    const off = Math.abs(Math.atan2(Math.sin(h.heading - Math.PI), Math.cos(h.heading - Math.PI)))
+    expect(off).toBeLessThan(ALONGSIDE_RAD)
+  })
+
+  it('still drives straight at a berth nobody gave a heading to', () => {
+    /* no line to pick up, so the run-in must not invent one */
+    let h = { ...newHull(900, 900, 0), speed: 150 }
+    let b: Berthing = { target: { x: 300, y: 210 }, stage: 'approach' }
+    for (let i = 0; i < 4000 && b.stage !== 'done'; i++) {
+      const r = berthHelm(h, b)
+      b = r.next
+      h = stepHull(h, r.helm, 1 / 60, deep)
+    }
+    expect(b.stage).toBe('done')
+    expect(Math.hypot(h.x - 300, h.y - 210)).toBeLessThan(ALONGSIDE_PX + 2)
   })
 
   it('makes for the approach point before the berth, so she does not cut the corner', () => {

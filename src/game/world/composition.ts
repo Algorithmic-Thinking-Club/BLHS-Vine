@@ -343,9 +343,18 @@ export function approachTo(c: WorldComposition, berthName: string): WorldMark[] 
 const slug = (s: string | undefined): string => (s ?? '').replace(/-/g, '_')
 export function berthOfRoute(c: WorldComposition, name: string): string | undefined {
   const all = marksOf(c)
-  const asBerth = (key: string): string | undefined => {
-    if (!key) return undefined
-    const m = all.get(key)
+  /* THE CALLER'S KEY IS SLUGGED TOO, and it was the one string here that was not.
+   * A member writes the map id they can see in MAPVIS, which is spelled with
+   * hyphens: `atc-1`. Every id on the right of these comparisons was already
+   * slugged, so `all.get('atc-1')` missed and `slug(q.map) === 'atc-1'` was false
+   * against `atc_1`. `sail_to("atc-1")` worked only because its own call site
+   * happened to slug first, and `route("atc-1", who="ship")` refused. */
+  const asBerth = (raw: string): string | undefined => {
+    if (!raw) return undefined
+    const key = slug(raw)
+    /* the name as typed first, then slugged, because a mark is keyed by whatever
+     * the author wrote and slugging a name that was already right must not lose it */
+    const m = all.get(raw) ?? all.get(key)
     if (m?.kind === 'berth') return m.name
     const s = c.slots.find((q) => q.berth?.name && (slug(q.map) === key || slug(q.place) === key))
     return s?.berth?.name

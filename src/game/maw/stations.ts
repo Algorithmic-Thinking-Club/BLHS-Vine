@@ -155,8 +155,24 @@ export const stationByName = (name: string): Station | undefined =>
 
 /* THE REQUIRED ANCHOR LIST. What a Maw bundle has to carry before the game can
  * do anything with it, checked at load so a missing anchor is a console line
- * naming it rather than a station that silently never fires. */
-export const REQUIRED_ANCHORS = STATIONS.map((s) => s.name)
+ * naming it rather than a station that silently never fires.
+ *
+ * NOT EVERY STATION IS AN ANCHOR THIS TABLE CAN DEMAND, which cost a warning on
+ * every single load of the home base. Two of them are named here and cannot be
+ * in the list:
+ *
+ *   `hall_step` is a TRIGGER, and the author drew that area under another name.
+ *   The scene only fires a trigger it finds by kind, so a bundle without this
+ *   exact word is not a broken bundle.
+ *
+ *   `maw_entrance` IS in the bundle, and it is a door. The scene returns on a
+ *   door before it ever asks this table who owns the anchor, so demanding it
+ *   here says nothing about whether walking back out works.
+ *
+ * What is left is the list of POSTS a student can press, which is the only thing
+ * this check was ever able to speak about. */
+const NOT_A_POST = new Set<string>(['hall_step', 'maw_entrance'])
+export const REQUIRED_ANCHORS = STATIONS.map((s) => s.name).filter((n) => !NOT_A_POST.has(n))
 
 export function missingAnchors(has: (name: string) => boolean): string[] {
   return REQUIRED_ANCHORS.filter((n) => !has(n))

@@ -13,7 +13,7 @@ import { framingOf, framingNames, shotOf, projectFramings, shotsOf, type NamedSh
 import { readPaths, legsOf, lengthOf, pathNames, walkFaults, type Pathway } from './paths'
 import { followStep } from './follow'
 import { holdWorld, onWorldHold, worldHeld } from '../world-bus'
-import { carryCinemaThroughDoor, cinemaOn, onCinema, setCinema, takeCinemaCarry } from '../stage/cinema'
+import { carryCinemaThroughDoor, cinemaBy, cinemaOn, onCinema, setCinema, takeCinemaCarry } from '../stage/cinema'
 import { choose, clearDialogue, say } from '../dialogue'
 import { engine } from '../intent-engine'
 import { play as playSfx } from '../audio'
@@ -2799,7 +2799,7 @@ export default function PmapScene() {
         sailTo(to) {
           if (!comp) throw new NotBuilt('sail_to', 'there is no world document, so there is nowhere to sail to')
           if (to === mapId) throw new NotBuilt('sail_to', `you are already on "${to}"`)
-          const want = berthOfRoute(comp, to.replace(/-/g, '_'))
+          const want = berthOfRoute(comp, to)
           if (!want) {
             const have = comp.slots.filter((q) => q.berth).map((q) => q.map ?? q.place).filter(Boolean)
             throw new NotBuilt('sail_to', `"${to}" has no berth on the world, so there is no way to sail to it.`
@@ -2817,8 +2817,10 @@ export default function PmapScene() {
               + ' so there is no way down to the water from here')
           }
           beginTravel({ to, from: mapId, leg, home })
-          /* the whole journey is watched, from the first step to the far shore */
-          setCinema(true)
+          /* the whole journey is watched, from the first step to the far shore, and
+           * the frame is the ENGINE'S. `settleVoyageFrame` takes it down at the far
+           * end, so a member's island never has to know it was ever up. */
+          setCinema(true, 'voyage')
           /* AND THE TASK LINE SAYS WHERE HE IS GOING. It reads off the year, which
            * still believes he is in the Maw, so during the voyage it said "Go into
            * the mountain" over a ship sailing away from it. */
@@ -3935,6 +3937,28 @@ export default function PmapScene() {
         }
       }
 
+      /* ---- THE ENGINE TAKES DOWN ITS OWN FRAME ---------------------------
+       *
+       * Ash, on the sail to ATC: *"its all in a cutscene, the black boxes dont
+       * go away."* The bars go up when a voyage starts and are carried through
+       * the door onto the far map, and until this existed the only things that
+       * ever lowered them were an island saying `movie(False)` and an island
+       * failing to load. The hub's island does say it. Every island a member
+       * writes was silently on the hook for a frame it never raised.
+       *
+       * WHOSE FRAME IT IS DECIDES. If the island took it over, its film is still
+       * running and lowering the bars here would cut it off in the middle: the
+       * hub's arrival keeps the frame on purpose and hands it to the door. So
+       * this lowers the bars only while they are still the voyage's own.
+       *
+       * AND ONLY WHEN THE JOURNEY IS REALLY OVER, because a crossing is more than
+       * one leg and the middle of one is not the end of it. */
+      const settleVoyageFrame = (why: string) => {
+        if (!cinemaOn() || cinemaBy() !== 'voyage' || travelPlan()) return
+        setCinema(false)
+        engine.log('voyage_frame_settled', { map: mapId, why })
+      }
+
       /* the cinema bars are not allowed to outlive the handler that raised them */
       const liftMovieAfterHandler = (who: string) => {
         if (!cinemaOn() || !movieHold) return
@@ -3948,9 +3972,13 @@ export default function PmapScene() {
         const asked = params.get('grape')
         const ours = asked ? undefined : vineIslandOfMap(mapId)
         const bound = ours ? undefined : islandOfMap(mapId)
-        if (!asked && !ours && !bound) return
+        if (!asked && !ours && !bound) {
+          /* nobody is going to lower the frame on a map with no island in it */
+          settleVoyageFrame('this map has no island')
+          return
+        }
         /* the bars go up the moment an island is known to be coming, so no dead frames show */
-        if (target.aboard) setCinema(true)
+        if (target.aboard) setCinema(true, 'voyage')
         const ref: GrapeRef = asked
           ? { at: 'url', base: asked }
           : { at: 'origin', island: (ours ?? bound)!.folder }
@@ -4048,6 +4076,8 @@ export default function PmapScene() {
         } finally {
           /* whether it arrived or fell over, the stations open again */
           islandPending = false
+          /* and the crossing's frame comes down, unless the island has taken it */
+          settleVoyageFrame('the island has had its say')
         }
       }
       void openIsland()
@@ -4309,6 +4339,7 @@ export default function PmapScene() {
            * reachable from the player's own prompt and this is the honest floor. */
           stepAshore()
           v?.done()
+          settleVoyageFrame('she tied up nowhere in particular')
           return
         }
         /* arriving where you already are is a tie-up, and a script says when he steps off */
@@ -4316,7 +4347,16 @@ export default function PmapScene() {
         /* and the chart finds out where she is tied up, so the boat marker really moves */
         recordVessel({ berthedAt: s.place ?? s.map ?? mapId, legs: (loadSave()?.vessel?.legs ?? 0) + 1 })
         engine.log('voyage_arrived', { map: mapId, to: s.map ?? mapId, place: s.place ?? null })
-        if (!s.map || s.map === mapId) { v?.done(); return }
+        if (!s.map || s.map === mapId) {
+          v?.done()
+          /* HE IS ASHORE ON THE MAP HE SAILED TO, so the journey is over and the
+           * frame the engine raised for it comes down. This is the ordinary end
+           * of a crossing: the island here has already had its `start` (it runs
+           * while she is still on the water), so nothing else was ever going to
+           * lower them. */
+          settleVoyageFrame('the crossing is over')
+          return
+        }
         /* on another map the crossing is answered before the door tears this scene down */
         v?.done()
         beginExit({ map: s.map, at: s.berth?.at })
@@ -4697,8 +4737,11 @@ const CAST_OFF_SHOW_MS = 3200
           await new Promise<void>((r) => setTimeout(r, 120))
         }
         if (destroyed || !travelPlan()) return
-        setCinema(true)
+        setCinema(true, 'voyage')
         await runVoyageLeg()
+        /* and once more where the leg itself ended the journey rather than docking:
+         * a refusal, a skip, or a last leg that was only a walk */
+        if (!destroyed) settleVoyageFrame('the last leg finished')
       })()
 
       // the sea's first fill happens AFTER the camera snap so the pool sees the real
@@ -4940,7 +4983,28 @@ const CAST_OFF_SHOW_MS = 3200
           const b = hullSp.getBounds()
           return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) }
         },
-        get berthing() { return berthing ? { stage: berthing.stage } : null },
+        /* THE WHOLE MANOEUVRE AND NOT JUST ITS STAGE. A berthing that will not
+         * finish looks identical from outside to one that is halfway through,
+         * and the numbers that separate them are how far off the mark she is and
+         * how far off the authored heading. Both were invisible. */
+        get berthing() {
+          if (!berthing) return null
+          const t = berthing.target
+          return {
+            stage: berthing.stage,
+            target: { x: Math.round(t.x), y: Math.round(t.y) },
+            gap: hull ? +Math.hypot(t.x - hull.x, t.y - hull.y).toFixed(1) : null,
+            facing: berthing.facing === undefined ? null : +berthing.facing.toFixed(3),
+            offBy: hull && berthing.facing !== undefined
+              ? +Math.abs(((berthing.facing - hull.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI).toFixed(3)
+              : null,
+            best: berthing.best === undefined ? null : +berthing.best.toFixed(1),
+            stuckMs: Math.round(berthing.stuckMs ?? 0),
+            approach: berthing.approach
+              ? { x: Math.round(berthing.approach.x), y: Math.round(berthing.approach.y) }
+              : null,
+          }
+        },
         get sailing() { return sailing ? { path: sailing.path.name, leg: sailing.i } : null },
         /* the whole crossing, which the waypoint follower is only the first half of */
         get voyage() { return voyage ? { path: voyage.path.name, to: sailingTo?.berth.name ?? null } : null },
@@ -5754,6 +5818,14 @@ const CAST_OFF_SHOW_MS = 3200
 
         // placed assets: the animated ones cycle here, dt-accumulated on this same ticker
         for (const a of animAssets) {
+          /* ONE OWNER PER TEXTURE, the rule this file already keeps for the life
+           * pass three blocks down. A body a script has taken over is drawn by the
+           * driven pass, which chooses between its idle and its walk; leaving this
+           * pass running over it gave one sprite two owners and the idle won
+           * whenever the driven pass had no heading yet. On screen that is a
+           * walking figure flicking back to its standing pose about once every
+           * eighth of a second, which is what a six-frame idle at 8fps comes to. */
+          if (driven.has(a.sp)) continue
           a.t += dt * a.fps
           const af = a.frames[Math.floor(a.t) % a.frames.length]
           if (a.sp.texture !== af) a.sp.texture = af

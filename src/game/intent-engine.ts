@@ -21,6 +21,17 @@ import { setCinema } from './stage/cinema'
 import { setObjectiveSaid } from './hud/objective-bus'
 import { currentSkin } from './ui/skin'
 
+/* EVERY PATH THE RUN CAN ANSWER, written as a `Record<RunPath, true>` and not an
+ * array on purpose: widening RunPath without adding it here is a type error, so
+ * the refusal in `read` can never read out a stale vocabulary. An array would
+ * have gone quietly out of date the first time somebody added a path. */
+const READABLE_PATHS: Record<RunPath, true> = {
+  year: true, gpa: true, tokens: true, cords: true, flags: true, islands: true,
+  handle: true, mode: true, graduated: true, cord_board: true, trophies: true,
+  phase: true, picks: true, advisory: true, planned: true,
+}
+const READABLE = Object.keys(READABLE_PATHS).sort()
+
 export const engine: IntentEngine = {
   /* opens a panel, and refuses when nothing is mounted to hear it */
   openUi(ui, wait) {
@@ -99,6 +110,12 @@ export const engine: IntentEngine = {
         }
       }
     }
+    /* A PATH NOBODY ANSWERS IS A REFUSAL, not undefined. Without this the switch
+     * fell off its end and handed back nothing, which reaches the member as a
+     * None their own code then does arithmetic on, in a traceback that names
+     * THEIR line and not the misspelling. The list is spelled out because the
+     * one thing a person needs when they typo a path is the word they meant. */
+    throw new NotBuilt('get', `nothing answers "${String(path)}". It can answer: ${READABLE.join(', ')}`)
   },
 
   /* remembers a flag, and refuses when there is no run to remember it in */
@@ -136,7 +153,8 @@ export const engine: IntentEngine = {
 
   /* turns the movie frame on or off across every surface */
   movie(on) {
-    setCinema(on)
+    /* an island's own frame, which the engine must never lower behind its back */
+    setCinema(on, 'island')
     /* the bars coming down hand the objective line back to the year */
     if (!on) setObjectiveSaid(null)
   },
