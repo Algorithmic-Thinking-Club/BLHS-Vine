@@ -1108,13 +1108,31 @@ export default function PmapScene() {
                * can ask for one by index. A state is a placement wearing another
                * picture and not a second placement beside it. */
               looksOf.set(sp, looks)
-              /* and what each face is called, so a script can ask for "angry" instead of 2 */
+              /* and what each face is called, so a script can ask for "angry" instead of 2.
+               *
+               * THE ARRAY MAPVIS PUBLISHES IS READ FIRST, and reading only the other
+               * two shapes is why no island on any published map could ever name a
+               * face. The exporter writes one flat `lookNames` running parallel to
+               * the faces; `lookName` and `looks[].name` are the AUTHORING shape and
+               * live in the editor's document, which the game never sees. Every
+               * bundle on the platform carries the flat one.
+               *
+               * `undefined` IS NOT A NAME. Every bundle published before MAPVIS got a
+               * type guard on that helper carries the literal string for every
+               * unnamed face, and left standing it means `actor_look(x, "undefined")`
+               * quietly resolves to a real picture. Dropped here rather than waiting
+               * for five maps to be republished. */
               {
-                const raw = a as unknown as { lookName?: unknown; looks?: { name?: unknown }[] }
-                const named = [
+                const raw = a as unknown as {
+                  lookNames?: unknown; lookName?: unknown; looks?: { name?: unknown }[]
+                }
+                const flat = Array.isArray(raw.lookNames)
+                  ? raw.lookNames.map((n) => (typeof n === 'string' ? n : ''))
+                  : null
+                const named = (flat ?? [
                   typeof raw.lookName === 'string' ? raw.lookName : '',
                   ...(raw.looks ?? []).map((L) => typeof L?.name === 'string' ? L.name : ''),
-                ]
+                ]).map((n) => (n === 'undefined' ? '' : n))
                 if (named.some(Boolean)) lookNamesOf.set(sp, named)
               }
               // a moving placement carries a few numbers instead of frames, and the ticker steps it
@@ -1245,8 +1263,37 @@ export default function PmapScene() {
           if (sp) drivable.set(name, sp)
           void folder
         }
+        /* A WALK THE MAP ITSELF CARRIES BEATS ONE FILED IN THIS REPO. A body
+         * whose placement wears a second face called `walk` already has its
+         * gait in the bundle, drawn by the person who drew the body, so it is
+         * taken straight and no art folder is looked for. That is the whole
+         * point of doing it this way: giving an island's host a walk becomes a
+         * MAPVIS edit and a republish, with nothing committed here and no
+         * member waiting on somebody with push access. */
+        const carried = (sp: Sprite): Look | undefined => {
+          const names = lookNamesOf.get(sp)
+          const set = looksOf.get(sp)
+          if (!names || !set) return undefined
+          const i = names.findIndex((n) => n === 'walk' || n === 'walking')
+          const look = i > 0 ? set[i] : undefined
+          if (!look) return undefined
+          /* the same refusal loadGait makes, for the same reason: a walk short a
+           * heading turns into a moonwalk the moment the body faces that way. */
+          const have = Object.keys(look.views ?? {}).length
+          if (have < DIRS8.length) {
+            console.warn(`[pmap] the "walk" face on a driven body covers ${have}/8 headings, not used`)
+            return undefined
+          }
+          return look
+        }
+        const needArt: [string, Sprite][] = []
+        for (const [name, sp] of drivable) {
+          const own = carried(sp)
+          if (own) gaitOf.set(sp, own)
+          else needArt.push([name, sp])
+        }
         await Promise.all(
-          [...drivable].map(([name, sp]) => loadGait(sp, GAIT_ART[name] ?? name)),
+          needArt.map(([name, sp]) => loadGait(sp, GAIT_ART[name] ?? name)),
         )
       }
 
