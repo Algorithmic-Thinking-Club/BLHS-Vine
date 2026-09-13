@@ -3380,6 +3380,7 @@ export default function PmapScene() {
           if (shot === null) {
             lookAtTarget = null
             lastShot = null
+            setShotUp(false)
             zoomTo(walkZ())
             return Promise.resolve()
           }
@@ -3393,6 +3394,20 @@ export default function PmapScene() {
            * a shot that expires mid-line is a cut nobody asked for */
           lookAtTarget = { x: at.x, y: at.y, until: ms === undefined ? Infinity : performance.now() + ms }
           lastShot = shot
+          /* ---- A COMPOSED SHOT IS A COMPOSED SHOT --------------------------
+           *
+           * ASH, on the push into the ATC machine: *"the zoom in shot was meant to go
+           * from a 3d view to a smooth 2d view of the computer, then the screen shows
+           * up as a panel."* It does that, and it did it with Map, Guide, My Year, the
+           * Chart, the question mark and the YOU pin all sitting on top of it, because
+           * nothing but the cinema bars had ever told the furniture to stand down. An
+           * island that has taken the camera off the player and pointed it at a thing
+           * has composed a picture; the corner is not in that picture.
+           *
+           * It is the same attribute the bars use and it is separate from them on
+           * purpose: a shot is not a cutscene, it does not letterbox, and an island
+           * should not have to raise black bars to be allowed to point at something. */
+          setShotUp(true)
           if (s.framing.zoom !== undefined) zoomTo(Math.min(Z_SHOT * s.framing.zoom, SHOT_ZOOM_MAX()))
           engine.log('framing', { map: mapId, shot, zoom: s.framing.zoom ?? null })
           /* ---- IT COMES BACK WHEN THE CAMERA IS REALLY THERE ---------------
@@ -3448,6 +3463,7 @@ export default function PmapScene() {
               /* and a newer shot keeps the camera: this one is over, not in charge */
               if (destroyed || shotSerial !== held) { r(); return }
               lookAtTarget = null
+              setShotUp(false)
               lastShot = null
               zoomTo(walkZ())
               r()
@@ -3476,6 +3492,7 @@ export default function PmapScene() {
             camFree = false
           } else {
             lookAtTarget = null
+            setShotUp(false)
             lastShot = null
           }
           /* AND NEVER UNDER THE PAINTING'S OWN COVER FIT. This line used to be
@@ -3514,6 +3531,7 @@ export default function PmapScene() {
             return new Promise<void>((r) => setTimeout(() => {
               if (destroyed || shotSerial !== mine) { r(); return }
               lookAtTarget = null
+              setShotUp(false)
               lastShot = null
               /* FALSE, WHICH IS THE VALUE FOR A BODY ON LAND. `camFree` is not "the
                * camera is free to move", it is "this camera is at sea, do not clamp
@@ -4319,6 +4337,14 @@ export default function PmapScene() {
       /* the clamp reads camZ rather than Z, because a cutscene may zoom and a
        * painting clamped at the wrong scale shows the void past its own edge */
       /* the camera clamp belongs to what is being driven: a walking body, not a hull at sea */
+      /* the root attribute a composed shot writes, so the HUD can stand down for it
+       * the way it stands down for the bars. Written here and nowhere else. */
+      const setShotUp = (on: boolean) => {
+        const el = document.documentElement
+        if (on) el.setAttribute('data-shot', '1')
+        else el.removeAttribute('data-shot')
+      }
+
       let camFree = false
       /* the frame is the window minus whatever the dialogue box has claimed, up to half of it */
       const freeH = (vh: number) => vh - Math.min(uiBand(), vh * 0.5)
@@ -6022,7 +6048,16 @@ const CAST_OFF_SHOW_MS = 3200
         /* the two surfaces a world hold does not reach, stated by the movie every frame */
         /* and the marker stays while he is being walked: which one is you is not furniture */
         /* the YOU marker stays put for the whole beat instead of blinking off between stages */
-        pin.visible = pinWanted
+        /* ---- AND NEITHER IS THE YOU PIN, OR THE ARROW ---------------------
+         *
+         * The same rule the corner follows, in the one place it cannot be CSS: both of
+         * these are drawn into the world. A named shot is a picture of a THING, and a
+         * marker floating over the player's head at the other end of the room is the
+         * game labelling its own furniture inside somebody's composed frame. `view`'s
+         * own three shots are not named shots and keep theirs: knowing which panther
+         * is you is exactly what a wide arrival shot is for. */
+        const shotHeld = !!lookAtTarget && !!lastShot && shots.has(lastShot)
+        pin.visible = pinWanted && !shotHeld
         slotMarks.visible = !movieOn
         ;(window as any).__walk = `thor ${pos.x.toFixed(0)},${pos.y.toFixed(0)} lvl${lvlAt(pos.x, pos.y)}`
 
@@ -6203,7 +6238,7 @@ const CAST_OFF_SHOW_MS = 3200
           /* the marks survive a scripted walk, because that is the game showing him
            * the way, and they survive the bars while he is being walked, and they
            * stay up for the whole beat rather than the third of it he spends walking */
-          const marksOn = !fade && (!!autoWalk || !!guideTarget || (!locked && !movieOn))
+          const marksOn = !fade && !shotHeld && (!!autoWalk || !!guideTarget || (!locked && !movieOn))
 
           /* ---- THE SIGN HANGS ON THE THING, NOT OVER THE ROOM --------------
            *
@@ -6441,7 +6476,7 @@ const CAST_OFF_SHOW_MS = 3200
 
         /* a camera hold from look_at, released when its clock runs out */
         if (lookAtTarget) {
-          if (performance.now() > lookAtTarget.until) lookAtTarget = null
+          if (performance.now() > lookAtTarget.until) { lookAtTarget = null; setShotUp(false) }
           else {
             const was = holdStill
             holdStill = false

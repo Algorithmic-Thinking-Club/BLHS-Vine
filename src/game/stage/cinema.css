@@ -54,3 +54,21 @@ html[data-rm='1'] .cin-bar { transition-duration: 60ms; }
    corner down, still carries through a door. The plain arm simply does not paint
    the frame, the way it does not paint a plank or a plaque. */
 html[data-skin='plain'] .cin-bar { display: none; }
+
+/* ---- AND A COMPOSED SHOT DOES THE SAME, WITHOUT THE BARS ------------------
+ *
+ * ASH, on the push into the ATC machine: *"the zoom in shot was meant to go from a 3d
+ * view to a smooth 2d view of the computer, then the screen shows up as a panel."* It
+ * did exactly that, with Map, Guide, My Year, the Chart and the question mark sitting
+ * on top of it the whole way, because standing the corner down was tied to the black
+ * bars and a shot does not raise those. An island that has taken the camera off the
+ * player and pointed it at a thing has composed a picture. The corner is not in it.
+ *
+ * Written by `framing()` and cleared wherever a shot ends, including its own clock. */
+html[data-shot='1'] .hud-stack,
+html[data-shot='1'] .hp-btn,
+html[data-shot='1'] .cp-btn,
+html[data-shot='1'] .ct-btn,
+html[data-shot='1'] .hb-back {
+  visibility: hidden;
+}

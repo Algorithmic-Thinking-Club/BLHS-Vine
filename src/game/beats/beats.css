@@ -786,6 +786,32 @@ html[data-skin='plain'] .bt-answer { border-radius: 0; }
 /* the program reads down the middle, so the button it ends on does too */
 .bt-program > .bt-foot { justify-content: center; }
 
+/* ---- THE TUBE ARRIVES OUT OF THE MACHINE THE CAMERA STOPPED ON ----------
+ *
+ * ASH: *"the zoom in shot was meant to go from a 3d view to a smooth 2d view of the
+ * computer, then the screen shows up as a panel."*
+ *
+ * The camera push already ends with that computer dead centre of the window, which is
+ * measurable: the desk anchor lands within six pixels of the middle of a 1366 wide
+ * screen. What was missing is the join. The panel used the same arrival every card in
+ * the game uses, a 14px rise and a hair of scale, so a push-in that had travelled
+ * halfway across an island ended in a card politely sliding up, and the two halves
+ * read as two things rather than one move.
+ *
+ * It grows from the middle instead, out of the machine, with the phosphor coming up
+ * as it opens. The camera goes in and the screen is what you land on. */
+.bt-crt { animation: bt-crt-arrive 380ms var(--kit-ease-pop) both; }
+@keyframes bt-crt-arrive {
+  from { transform: scale(.24); opacity: 0; }
+  55%  { opacity: 1; }
+  to   { transform: none; opacity: 1; }
+}
+html[data-rm='1'] .bt-crt { animation-duration: 1ms; }
+/* the glass lights up a beat after the case gets there, which is a tube warming */
+.bt-crt > * { animation: bt-crt-lit 420ms 120ms var(--kit-ease-rise) both; }
+@keyframes bt-crt-lit { from { opacity: 0; } to { opacity: 1; } }
+html[data-rm='1'] .bt-crt > * { animation-duration: 1ms; animation-delay: 0ms; }
+
 /* the scanlines, which are the one thing that says CRT rather than flat panel.
    Two pixels on, two off, at four percent: enough to read as a tube and not
    enough to fight the text on top of it. */
