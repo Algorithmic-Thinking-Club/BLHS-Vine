@@ -78,12 +78,9 @@ for (let i = 0; i < WANT.length; i++) {
     const c = [...document.querySelectorAll('.bt-card')].find((x) => x.textContent.trim() === label)
     if (c) c.click()
   }, WANT[i])
-  await page.waitForTimeout(140)
-  await page.evaluate((slot) => {
-    const w = [...document.querySelectorAll('.bt-slotwell')]
-    if (w[slot]) w[slot].click()
-  }, i)
-  await page.waitForTimeout(160)
+  /* one rule: the instruction goes into the next empty step. Pressing the step after
+   * it takes the instruction back out again. */
+  await page.waitForTimeout(220)
 }
 const press = async (re) => {
   const v = await look()

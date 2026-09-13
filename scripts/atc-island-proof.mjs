@@ -153,15 +153,10 @@ for (let i = 0; i < WANT.length; i++) {
     return true
   }, WANT[i])
   if (!tookIt) say(`  no card ${WANT[i]}`)
-  await page.waitForTimeout(160)
-  const dropped = await page.evaluate((slot) => {
-    const wells = [...document.querySelectorAll('.bt-slotwell')]
-    if (!wells[slot]) return false
-    wells[slot].click()
-    return true
-  }, i)
-  if (!dropped) say(`  no slot ${i}`)
-  await page.waitForTimeout(200)
+  /* AND NOTHING ELSE. The screen has one rule now: an instruction goes into the next
+   * empty step, and pressing a step takes it back out. Pressing the card and then the
+   * step it landed in is a person undoing themselves, which is what this used to do. */
+  await page.waitForTimeout(220)
 }
 await shot('06-program-built')
 const filled = await page.evaluate(() =>

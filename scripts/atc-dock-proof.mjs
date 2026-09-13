@@ -37,6 +37,13 @@ await page.waitForTimeout(2200)
 const v = await look()
 const b = v.press.find((e) => /Sail (to|there)/i.test(e.text))
 await page.mouse.click(b.box.x + b.box.w / 2, b.box.y + b.box.h / 2)
+/* AND HE PRESSES E AT HIS OWN DOCK, which is the game now: the button carries him to
+ * the quay with the bars up and waits for him to get in the boat. */
+for (let i = 0; i < 90; i++) {
+  const leg = await page.evaluate(() => { try { return window.__pmap.travel?.leg ?? null } catch { return null } })
+  if (leg === 'boarding') { await page.keyboard.press('e'); break }
+  await page.waitForTimeout(400)
+}
 
 let ashore = false
 const trail = []
