@@ -1035,8 +1035,10 @@ export default function PmapScene() {
       const animAssets: { sp: Sprite; frames: Texture[]; fps: number; t: number }[] = []
       const lifeAssets: { sp: Sprite; life: Life; home: { x: number; y: number }; baseSX: number; bodyW: number; flipX: boolean; looks: Look[]; animT: number; baseRot: number }[] = []
       /* the standing placements a mover has to go round, which is the ones something can reach */
-      const standing: { x: number; y: number; r: number }[] = []
-      const obstacles: { x: number; y: number; r: number }[] = []
+      /* the name rides along so a refusal can say WHICH figure was left walkable,
+         which is the only thing that makes the warning actionable in MAPVIS */
+      const standing: { x: number; y: number; r: number; name?: string }[] = []
+      const obstacles: { x: number; y: number; r: number; name?: string }[] = []
       try {
         const ar = await fetch(req(`${dir}/assets.json`))
         // the content-type guard matters: the dev server answers a missing file with the
@@ -1194,7 +1196,7 @@ export default function PmapScene() {
                 // it stands where it was put, so whether a mover has to go round
                 // it is a question about the fences near it and the answer never
                 // changes. Same body width the movers use.
-                standing.push({ x: a.x, y: a.y, r: bodyRadius(Math.abs(asx) * inkOf(frames[0])) })
+                standing.push({ x: a.x, y: a.y, r: bodyRadius(Math.abs(asx) * inkOf(frames[0])), name: a.id ?? a.name })
                 if (views) {
                   /* a view set that never travels still has frames worth running, in its own heading */
                   const rest =
@@ -1408,10 +1410,36 @@ export default function PmapScene() {
         }
         const before = reach(start)
 
-        /* every write is remembered, because the whole point of the check below is
-         * being able to take all of them back */
-        const undo: number[] = []
+        /* ---- ONE FIGURE AT A TIME, AND ONLY THE BAD ONE COMES BACK OUT ----
+         *
+         * ASH, after playing the ATC island: *"ash walking is buste,d he clips
+         * throught he trophies."* He does, and this is why. Every figure on the map
+         * was stamped into the floor in one pass and the result measured ONCE, so a
+         * single figure standing somewhere awkward failed the whole map: the console
+         * on atc-1 read "putting 8 standing figures in the floor cost 7.5% of the
+         * walkable ground. None of them are in it, so they can still be walked
+         * through." Eight solid things became eight ghosts because of one of them.
+         *
+         * Each is now stamped, measured and judged on its own. A figure that walls
+         * off an anchor or eats a chunk of the island comes back out; the other seven
+         * stay in the floor where they belong. */
+        const measure = (): { lost: number; cutOff: Anchor[] } => {
+          const after = reach(start)
+          return {
+            lost: before.n ? 1 - after.n / before.n : 0,
+            cutOff: anchors.all.filter((a) => {
+              if (a.kind === 'region' || a.kind === 'trigger') return false
+              const p = anchors.standAt(a)
+              const i = Math.round(p.y) * W + Math.round(p.x)
+              if (i < 0 || i >= W * H) return false
+              return before.seen[i] === 1 && after.seen[i] === 0
+            }),
+          }
+        }
+        const refused: string[] = []
+        let lost = 0
         for (const s of obstacles) {
+          const undo: number[] = []
           /* the FEET, not the body: a figure occupies the ground it stands on and
            * not the air its head is in, which is the same distinction the ink
            * measurement already makes for the push pass */
@@ -1426,35 +1454,32 @@ export default function PmapScene() {
               if (keepClear.some((k) => Math.hypot(k.x - x, (k.y - y) / ys) <= k.r)) continue
               undo.push(i, ldata[i])
               ldata[i] = blocked
-              floored++
             }
           }
+          if (!undo.length) continue
+          const m = measure()
+          /* A QUARTER OF THE ISLAND IS A WALL, ONE FIGURE IS NOT. The old five percent
+           * was a budget for the whole map spent by everything at once, which on a
+           * small island with eight things on it is under one percent each. What
+           * actually matters is whether anybody is shut out, and that is the second
+           * test, which has no budget at all. */
+          if (m.cutOff.length || m.lost > 0.25) {
+            for (let k = 0; k < undo.length; k += 2) ldata[undo[k]] = undo[k + 1]
+            refused.push(s.name ?? 'a figure')
+            continue
+          }
+          floored += undo.length / 2
+          lost = m.lost
         }
-
-        /* if stamping cost too much ground or any reachable anchor, every stamp is taken back */
-        const after = reach(start)
-        const lost = before.n ? 1 - after.n / before.n : 0
-        const cutOff = anchors.all.filter((a) => {
-          if (a.kind === 'region' || a.kind === 'trigger') return false
-          const p = anchors.standAt(a)
-          const i = Math.round(p.y) * W + Math.round(p.x)
-          if (i < 0 || i >= W * H) return false
-          return before.seen[i] === 1 && after.seen[i] === 0
-        })
-        if (lost > 0.05 || cutOff.length) {
-          for (let k = 0; k < undo.length; k += 2) ldata[undo[k]] = undo[k + 1]
-          console.warn(`[pmap] ${mapId}: putting ${obstacles.length} standing figures in the floor`
-            + ` cost ${(lost * 100).toFixed(1)}% of the walkable ground`
-            + (cutOff.length ? ` and cut off ${cutOff.map((a) => a.name).join(', ')}` : '')
-            + `. None of them are in it, so they can still be walked through.`)
-          engine.log('floor_stamp_refused', {
-            map: mapId, figures: obstacles.length,
-            lost: +lost.toFixed(3), cutOff: cutOff.map((a) => a.name),
-          })
-          floored = 0
-        } else if (DBG || floored) {
-          console.log(`[pmap] ${obstacles.length} standing figures put in the floor`
-            + ` (${floored} px, ${(lost * 100).toFixed(1)}% of the ground)`)
+        if (refused.length) {
+          console.warn(`[pmap] ${mapId}: ${refused.length} of ${obstacles.length} standing figures`
+            + ` are not in the floor, because each of them shut something off: ${refused.join(', ')}.`
+            + ` Those ones can still be walked through; the rest are solid.`)
+          engine.log('floor_stamp_refused', { map: mapId, figures: obstacles.length, refused })
+        }
+        if (DBG || floored) {
+          console.log(`[pmap] ${obstacles.length - refused.length} of ${obstacles.length} standing`
+            + ` figures put in the floor (${floored} px, ${(lost * 100).toFixed(1)}% of the ground)`)
         }
       }
 
