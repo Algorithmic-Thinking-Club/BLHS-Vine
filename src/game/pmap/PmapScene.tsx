@@ -2834,9 +2834,18 @@ export default function PmapScene() {
             await nap(CAM_TO_DOCK_MS)
             if (destroyed) return
 
-            /* 2: and he is standing on the dock when it arrives */
+            /* 2: and he is standing on the dock when it arrives.
+             *
+             * THROUGH `dockSide`, WHICH IS THE ONE ANSWER TO THIS QUESTION. This
+             * asked `onFloor` at a radius of 44 and threw away the `moved` flag it
+             * comes back with, which is the exact bug the head-back button was found
+             * to have: a berth is WATER, there is no floor within 44 painting pixels
+             * of either published berth, and `onFloor` hands back the point it was
+             * given when it finds nothing. So the last shot of the year put him on
+             * the sea and `board()` then refused, which is why the departure had no
+             * boat in it at all. */
             if (!hull) {
-              const { at } = onFloor({ x: b.x, y: b.y }, canStand, cfg.yScale, 44)
+              const at = dockSide() ?? onFloor({ x: b.x, y: b.y }, canStand, cfg.yScale, 96).at
               pos.x = at.x
               pos.y = at.y
               const look = dirFrom(b.x - at.x, (b.y - at.y) * (cfg.yScale || 1))
@@ -2854,14 +2863,16 @@ export default function PmapScene() {
             /* 4: and she goes, from a standstill, out */
             const she = hull as HullState | null
             if (she) {
+              /* SHE TURNS ONTO IT RATHER THAN BEING POINTED. A heading written
+               * straight onto the hull is a boat flicking round in one frame, which
+               * is what every departure in this game used to do, and this is the last
+               * shot of a whole year. The helm below gets the mark instead. */
               const dir = seaward(she) ?? she.heading
-              she.heading = dir
+              const out = { x: she.x + Math.cos(dir) * 260, y: she.y + Math.sin(dir) * 260 }
+              castOff = { x: out.x, y: out.y, until: performance.now() + SAIL_OUT_MS + 400 }
               she.speed = 0
               sailing = null
-              helmOverride = {
-                helm: { throttle: SAIL_OUT_THROTTLE, turn: 0, fullSail: false },
-                until: performance.now() + SAIL_OUT_MS + 400,
-              }
+              helmOverride = null
               engine.log('sailed_out', { from: mapId })
             }
             await nap(SAIL_OUT_MS)
@@ -5069,9 +5080,14 @@ const BOARD_BEAT_MS = 700
  * seconds is long enough to watch her go and short enough that the title arrives
  * while it still feels like an ending. */
 /** the departure itself, which is the shot the title fades in over */
-const SAIL_OUT_MS = 3500
-/** a third of a helm from a standstill: she leaves the way a boat leaves */
-const SAIL_OUT_THROTTLE = 0.32
+/* AND LONG ENOUGH TO BE A DEPARTURE AT THE SPEED SHE REALLY GOES. Cruise came down
+ * from 150 to 96 so that a crossing reads as sailing rather than as a jet ski, and
+ * this number was cut to the old one: measured, she cleared 32 pixels in the whole
+ * shot, which is a boat that has not left. */
+const SAIL_OUT_MS = 5200
+/* THE THROTTLE CONSTANT IS GONE, and the helm that replaced it is the same one every
+ * other departure in the game uses: `steerTo` eases the way on through the turn and
+ * then holds it. A hand-picked third of a helm was a second law for one shot. */
 
 const CAST_OFF_SHOW_MS = 3200
 
@@ -5496,6 +5512,9 @@ const CAST_OFF_SHOW_MS = 3200
         get walkLabel() { return autoWalk?.label ?? null },
         /* what the in-world plaque is saying, the only way to ask whether the boat is offered */
         get prompt() { return prompt.visible ? promptSaid : null },
+        /* where his own ship lies, in painting pixels, so a proof can ask which way
+         * he ought to be looking when he is standing next to her */
+        get berthAt() { return berth ? fromSea(berth.x, berth.y) : null },
         /* WHICH LEG OF THE JOURNEY HE IS ON, which is the whole of the sail state
          * machine and was readable from nowhere. A proof that cannot see the leg can
          * only watch the end of a voyage and guess at everything on the way to it. */

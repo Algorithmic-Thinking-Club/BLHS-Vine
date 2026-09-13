@@ -108,7 +108,11 @@ const watchCovers = (page, ms) => {
   /* THE DOCK, AND NOT THE DOOR. His words: "it teleported me outsdie the maw door,
    * instead of the doc". So the check is the LEG and the MAP together: the journey
    * has to have walked itself through the tunnel and stopped on the quay. */
-  const atDock = await until((s) => s.map?.travel?.leg === 'boarding', { ms: 40000, every: 500 })
+  await until((s) => s.map?.travel?.leg === 'boarding', { ms: 40000, every: 500 })
+  /* the cover is still lifting on the frame the leg turns, so what a shot taken then
+   * catches is the fade and not the dock. This is the picture he really gets. */
+  await page.waitForTimeout(1600)
+  const atDock = await h.look()
   await shot('01-at-the-dock')
   await state('at the dock')
   ok('the button takes him to the dock and stops there',

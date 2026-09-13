@@ -8,7 +8,7 @@
  * eyes.
  *
  *   node scripts/road-shots.mjs
- *     --base=http://127.0.0.1:5173   where the game is
+ *     --base=http://localhost:5173   where the game is
  *     --view=1366x768                the window (default 1366x768)
  *     --skin=plain                   the control arm (default the game arm)
  *     --out=<dir>                    under reference/_archive/build-shots/
@@ -23,7 +23,7 @@ const arg = (k, d) => {
 }
 const has = (k) => process.argv.includes(`--${k}`)
 
-const base = arg('base', 'http://127.0.0.1:5173')
+const base = arg('base', 'http://localhost:5173')
 if (/vercel.app/.test(base) && !process.argv.includes('--live')) { console.error('refusing the live url without --live: proofs run on the dev server, one live run per deploy'); process.exit(2) }
 const skin = arg('skin', '')
 const steps = +arg('steps', '90')

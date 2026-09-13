@@ -8,7 +8,7 @@
  * landing rather than a script somebody wrote for that map.
  *
  *   node scripts/travel-proof.mjs
- *     --base=http://127.0.0.1:5173
+ *     --base=http://localhost:5173
  *     --to=castaway            the island to sail to
  *     --from=panther-maw       the map to start on
  *     --headed
@@ -20,7 +20,7 @@ const arg = (k, d) => {
   return hit ? hit.slice(k.length + 3) : d
 }
 const has = (k) => process.argv.includes(`--${k}`)
-const base = arg('base', 'http://127.0.0.1:5173')
+const base = arg('base', 'http://localhost:5173')
 if (/vercel.app/.test(base) && !process.argv.includes('--live')) { console.error('refusing the live url without --live: proofs run on the dev server, one live run per deploy'); process.exit(2) }
 const to = arg('to', 'castaway')
 const from = arg('from', 'panther-maw')
@@ -79,6 +79,16 @@ while (Date.now() - t0 < 90000) {
     h.say(`  ${line}`)
     await h.shot(`${String(++n).padStart(2, '0')}-${here}-${v.map?.hull ? 'aboard' : 'afoot'}`)
   }
+  /* ---- AND HE PRESSES E WHEN THE JOURNEY OFFERS HIM THE BOAT -------------
+   *
+   * Ash: *"IT TURNS ON CUTSCENE, TAKES HIM TO THE DOCK, AND ESC TO EXIT CUTSCENE, and
+   * E TO HOP ON THE BOAT."* `sail_to` gets him to his own quay and stops there now, so
+   * a watcher that only watches waits for ever. This is the one press a person makes
+   * on the whole journey. */
+  if (v.map?.travel?.leg === 'boarding' && !v.map?.hull) {
+    await h.page.keyboard.press('e')
+    await h.page.waitForTimeout(500)
+  }
   if (bars) sawBars = true
   if (v.map?.hull) sawHull = true
   if (v.map && v.map.map !== from) leftHome = true
@@ -118,6 +128,11 @@ while (Date.now() - t1 < 120000) {
   if (line.slice(6) !== (back[back.length - 1] ?? '').slice(6)) {
     back.push(line); h.say(`  ${line}`)
     await h.shot(`${String(++n).padStart(2, '0')}-home-${here}`)
+  }
+  /* the same one press home as out */
+  if (v.map?.travel?.leg === 'boarding' && !v.map?.hull) {
+    await h.page.keyboard.press('e')
+    await h.page.waitForTimeout(500)
   }
   if (here === 'panther-maw') { backHome = true; break }
   await h.page.waitForTimeout(500)
