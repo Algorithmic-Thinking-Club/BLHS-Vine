@@ -686,7 +686,7 @@ html[data-skin='plain'] .bt-answer { border-radius: 0; }
  * other drawn surface does, and everything below is the fallback that has to look
  * deliberate until then rather than a hole. */
 .bt-crt {
-  width: min(1180px, 96vw);
+  width: min(980px, 94vw);
   max-height: 94vh;
   border-radius: 18px;
   /* the chassis, then the glass: a dark plastic surround with the screen inset */
@@ -745,9 +745,11 @@ html[data-rm='1'] .bt-crt { animation-duration: 1ms; }
   box-shadow: inset 0 0 0 1px rgba(140, 200, 180, .18);
 }
 .bt-boardrow { display: flex; gap: 3px; }
+/* BIG ENOUGH TO BE THE SUBJECT. The board is what the student is reasoning about
+   and the slots are only how they answer, so it gets the room. */
 .bt-cell {
   position: relative;
-  width: 38px; height: 38px;
+  width: 54px; height: 54px;
   border-radius: 3px;
   background: rgba(160, 220, 200, .07);
   box-shadow: inset 0 0 0 1px rgba(140, 200, 180, .10);
@@ -787,7 +789,11 @@ html[data-rm='1'] .bt-crt { animation-duration: 1ms; }
 
 /* ---- the slots, which are what is actually scored ------------------------- */
 
-.bt-slots { display: flex; flex-direction: column; gap: 6px; }
+/* the answer is a column of rows under the board rather than a band across a very
+   wide panel: five rows stretched to 1100px read as a form and not as a program */
+.bt-slots { display: flex; flex-direction: column; gap: 6px; align-self: center; width: min(560px, 100%); }
+.bt-program .bt-cards { align-self: center; width: min(560px, 100%); }
+.bt-program .bt-prompt { text-align: center; }
 .bt-slot { display: flex; align-items: center; gap: 10px; }
 .bt-slotnum {
   flex: 0 0 auto;
