@@ -9,9 +9,9 @@ import {
 import { PROGRAMMES, programmeById, seasonOf } from '../roster/roster'
 import {
   assignSlot, clearSlot, dropClass, loadSave, pickClass, SEASONS, stampPlan, subscribeSave,
-  type Season, type YearPlan,
+  type SaveGame, type Season, type YearPlan,
 } from '../save'
-import { cordsOf, letterOf } from '../progress'
+import { cordsOf, letterOf, rankName } from '../progress'
 import { coreBeatId } from '../beats/beats'
 import { beatState } from '../beats/state'
 import { classLedgerId } from '../beats/classes'
@@ -38,12 +38,54 @@ const CORE_BEAT_DESC: Record<number, string> = {
 }
 
 /* one string for the open-season rule, said in one place rather than two */
-const OPEN_SEASONS = 'You can leave a season empty and still save the year.'
+/* ---- EVERY SEASON IS SPENT BEFORE THE SHEET IS STAMPED (Ash) --------------
+ *
+ * *"How many clubs does a user have to do a year? Whatever number that is, he has
+ * to choose that number before stamping."*
+ *
+ * The number is three, which is how many season tokens a year starts with
+ * (`SEASONS` in save.ts). Until now one was enough to stamp and the other two were
+ * carried into the stamp and silently forfeited, which is a student giving up two
+ * thirds of his year without being told he was doing it.
+ *
+ * The sentence that used to sit here told him it was fine. It is kept, demoted to
+ * the reason the stamp is not live yet, because the counter has to say what is
+ * missing rather than just refusing. */
+const OPEN_SEASONS = (left: number): string =>
+  left > 1 ? `Not yet: fill all ${SEASONS.length} seasons. ${left} still empty.`
+    : 'Not yet: one season is still empty.'
 
 /* how far a pointer has to travel before a press becomes a drag. Small enough
  * that a deliberate drag never feels sticky, large enough that a trackpad tap
  * with a millimetre of drift is still a tap and still opens the column. */
 const DRAG_SLOP = 6
+
+/* ---- COMING BACK TO THE SAME CLUB IS THE POINT, AND IT HAS TO SAY SO --------
+ *
+ * Ash, after playing year two: *"should a user be able to click the same club they
+ * did the year prior? I just did year two, and i was able to select algorithmic
+ * thinking club..."*
+ *
+ * He can, and he has to be able to: `ranksOf` counts DISTINCT YEARS on a rank
+ * track, so JV is one year, Varsity is two and Captain is three, and forbidding a
+ * repeat would make Captain unreachable for every track in the game. Wiseman's
+ * four-year model is built on the same idea, that a student cannot do everything
+ * and chooses what to stay with.
+ *
+ * What was really wrong is that the sheet said nothing about it. A row the student
+ * finished last year looked exactly like one he had never touched, so re-picking it
+ * read as the game having forgotten rather than as the way to a rank. This is the
+ * line that answers his question inside the game. */
+function againLine(a: { id: string; rankTrack?: string }, s: SaveGame | null): string | null {
+  if (!s) return null
+  const track = a.rankTrack ?? a.id
+  const years = new Set((s.completions ?? []).filter((c) => (c.rank ?? '') === track).map((c) => c.year))
+  if (!years.size) return null
+  const next = rankName(years.size + 1)
+  return next
+    ? `${years.size} year${years.size > 1 ? 's' : ''} in. One more makes you ${next}.`
+    : `${years.size} years in, and already Captain.`
+}
 
 /** a season token in the air, between the rail and wherever it lands */
 type Airborne = {
@@ -356,7 +398,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
    * stamp waits for one without this line changing. */
   const canStamp = !plan.stamped
     && plan.classes.length === 2
-    && (!offersActivities || slotsFilled > 0)
+    && (!offersActivities || slotsFilled >= SEASONS.length)
   const stampNote = plan.stamped ? null
     : plan.classes.length < 2 ? 'Pick two classes.'
       /* ---- ONLY WHERE THERE ARE SEASONS (Ash, 2026-09-09) --------------
@@ -365,7 +407,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
        * under the stamp on every sheet, including today's, which has no seasons
        * on it at all: nothing on the roster is playable, so the columns come off
        * and a student reads a sentence about a thing he has never seen. */
-      : offersActivities && slotsFilled < SEASONS.length ? OPEN_SEASONS
+      : offersActivities && slotsFilled < SEASONS.length ? OPEN_SEASONS(SEASONS.length - slotsFilled)
         : null
 
   const objective = plan.stamped ? nextObjective(s) : null
@@ -553,7 +595,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
                             {/* the drawn lock, which sits before the sentence and never instead of it */}
                             {why && <Glyph piece="icon_set" face="lock" size={13} className="pl-act-lock" />}
                             {/* a sport's season comes from the school's table, keyed by id */}
-                            {why ?? (a.kind === 'sport'
+                            {why ?? againLine(a, s) ?? (a.kind === 'sport'
                               ? `a ${String(seasonOf(a)).toLowerCase()} sport`
                               : 'a club, any season')}
                           </span>
@@ -798,7 +840,8 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
                 <Plank size="md" onClick={() => { setConfirming(false); focusAfter('pl-stamp') }}>go back</Plank>
                 <p className="pl-stamp-note">
                   Nothing on this sheet can be changed afterward.
-                  {offersActivities && slotsFilled < SEASONS.length && ` ${OPEN_SEASONS}`}
+                  {offersActivities && slotsFilled < SEASONS.length
+                    && ` ${OPEN_SEASONS(SEASONS.length - slotsFilled)}`}
                 </p>
               </>
             ) : (

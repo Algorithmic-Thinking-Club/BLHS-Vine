@@ -770,6 +770,11 @@ export default function PmapScene() {
       /* the shot a crossing is watched from, which is the walking shot so the ship reads as a ship */
       const Z_SHIP = Z
 
+      /* HOW LONG THE ISLAND IS HELD ON ARRIVAL before the camera goes back to
+       * following him. It is the length of the place card plus a breath, because
+       * the two are one moment: the card names where he is and the shot shows it. */
+      const ARRIVAL_LOOK_MS = 3600
+
       /* the character shot, for when the camera is about him rather than about the ground */
       /* twice the walking zoom, about eighty screen pixels of thor, and the room follows him */
       const Z_CLOSE = Z * 2
@@ -3262,8 +3267,30 @@ export default function PmapScene() {
           lastShot = shot
           if (s.framing.zoom !== undefined) zoomTo(Z_SHOT * s.framing.zoom)
           engine.log('framing', { map: mapId, shot, zoom: s.framing.zoom ?? null })
-          if (ms === undefined) return Promise.resolve()
-          return new Promise<void>((r) => setTimeout(() => { zoomTo(walkZ()); r() }, ms))
+          /* ---- IT COMES BACK WHEN THE CAMERA IS THERE (Ash: the screen
+           * transition is busted and glitches around) ----------------------
+           *
+           * It used to answer the instant it was asked, so an island composing a
+           * shot and then doing the next thing did the next thing OVER the move.
+           * ATC's own screen beat had to guess: `framing(SCREEN)` then a
+           * hand-tuned `wait(900)`, and the push takes as long as it takes, so the
+           * panel opened somewhere in the middle of it.
+           *
+           * `view` has always waited for its own zoom. This is the same wait, on
+           * the word a member is far more likely to use, so nobody has to know a
+           * number. The ceiling is the same one, because a camera that cannot get
+           * there must not hold an island up for ever. */
+          const settled = new Promise<void>((r) => {
+            const t0 = performance.now()
+            const tick = () => {
+              if (destroyed) { r(); return }
+              if (Math.abs(camZ - camZWant) < 0.01 || performance.now() - t0 > VIEW_CEILING_MS) { r(); return }
+              requestAnimationFrame(tick)
+            }
+            requestAnimationFrame(tick)
+          })
+          if (ms === undefined) return settled
+          return settled.then(() => new Promise<void>((r) => setTimeout(() => { zoomTo(walkZ()); r() }, ms)))
         },
 
         /* the three shots nobody authors, composed from the painting and the window, and awaited */
@@ -3306,7 +3333,21 @@ export default function PmapScene() {
           /* an owed arrival card is paid on the wide shot, once the camera has settled */
           if (shot === 'island') return arrived.then(() => {
             arrivalCard()
-            return ms === undefined ? undefined : new Promise<void>((r) => setTimeout(r, ms))
+            if (ms === undefined) return undefined
+            /* AND A WIDE SHOT WITH A LENGTH GIVES THE CAMERA BACK AT THE END OF IT.
+             * The expiry on `lookAtTarget` only stops it CENTRING the painting: the
+             * fence and the zoom are separate state, so a timed island shot used to
+             * leave a player walking around under a camera that was still pulled out
+             * and still refusing to follow him. All three go together or none of
+             * them mean anything. */
+            return new Promise<void>((r) => setTimeout(() => {
+              if (destroyed) { r(); return }
+              lookAtTarget = null
+              lastShot = null
+              camFree = true
+              camZWant = walkZ()
+              r()
+            }, ms))
           })
           if (ms === undefined) return arrived
           return arrived.then(() => new Promise<void>((r) => setTimeout(r, ms)))
@@ -4694,7 +4735,20 @@ const CAST_OFF_SHOW_MS = 3200
             }
             await new Promise<void>((r) => setTimeout(r, 700))
             stepAshore(true)
-            void intentWorld.view('island')
+            /* ---- THE WIDE SHOT IS A BEAT AND NOT A STATE (Ash: the camera is
+             * stuck on the stairs) -------------------------------------------
+             *
+             * `view` with no length pins the camera on the painting's middle with
+             * no expiry, on purpose: a scene that composes a shot and then talks
+             * over it wants the shot to stay. But the landing is not talking over
+             * it, and nothing downstream was ever going to hand the camera back,
+             * so the player landed on an island and then walked around underneath
+             * a camera that was still looking at the middle of it. On ATC, where
+             * the jetty is at one corner and the terrace at the other, that is a
+             * character off the bottom of the screen.
+             *
+             * Long enough to read the island, then the follow law has him again. */
+            void intentWorld.view('island', ARRIVAL_LOOK_MS)
             /* the year's own sentence comes back the moment he is standing on it */
             engine.objective(null)
             /* COMING HOME ENDS AT THE TUNNEL, not on the dock. He walks up the quay

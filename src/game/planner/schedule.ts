@@ -22,6 +22,11 @@ export type ScheduleOwed = {
  * three of them have to agree or the sheet asks for a row it does not have. */
 export const ELECTIVES_OWED = 2
 
+/* HOW MANY AFTER-SCHOOL SEASONS A YEAR HAS, and it is the count of season tokens a
+ * run starts each year with. Held here as a number the gate can compare against so
+ * this file does not have to import the save. */
+export const SEASONS_OWED = 3
+
 export function scheduleOwed(n: {
   /** how many of this year's elective periods are still blank (0, 1 or 2) */
   electivesLeft: number
@@ -34,7 +39,17 @@ export function scheduleOwed(n: {
 }): ScheduleOwed {
   /* both elective periods are always owed, whether or not an island exists behind one */
   const owesClass = n.electivesLeft > 0
-  const owesActivity = n.realActivities > 0 && n.chosen === 0
+  /* ---- EVERY SEASON, NOT ONE OF THEM (Ash) ------------------------------
+   *
+   * *"How many clubs does a user have to do a year? Whatever number that is, he has
+   * to choose that number before stamping."*
+   *
+   * One used to be enough. A year hands out three season tokens, so stamping on one
+   * carried two into the stamp and forfeited them, and nothing on the page said so.
+   * A student who picked one club and pressed on lost two thirds of his year without
+   * being asked. */
+  const seasonsLeft = Math.max(0, SEASONS_OWED - n.chosen)
+  const owesActivity = n.realActivities > 0 && seasonsLeft > 0
   const ready = !owesClass && !owesActivity
   const stage = owesClass ? 'schedule' : owesActivity ? 'after' : 'go'
   /* WHAT IS MISSING, COUNTED, because Ash asked for the counter to say it and
@@ -42,7 +57,9 @@ export function scheduleOwed(n: {
   const notYet = owesClass
     ? `Not yet: fill ${n.electivesLeft > 1 ? 'both Elective periods' : 'the last Elective period'}.`
     : owesActivity
-      ? 'Not yet: press one club or sport below.'
+      ? seasonsLeft > 1
+        ? `Not yet: pick something for all ${SEASONS_OWED} seasons. ${seasonsLeft} still empty.`
+        : 'Not yet: one season is still empty.'
       : null
   return { owesClass, owesActivity, ready, stage, notYet }
 }

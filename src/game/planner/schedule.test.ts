@@ -1,6 +1,7 @@
 // when the year sheet's plank goes live: both electives always, the after-school slot only if real
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { scheduleOwed } from './schedule'
+import { scheduleOwed, SEASONS_OWED } from './schedule'
+import { SEASONS } from '../save'
 
 beforeEach(() => {
   vi.resetModules()
@@ -34,7 +35,7 @@ describe('the plank, the moment something real exists', () => {
     const o = scheduleOwed({ electivesLeft: 0, chosen: 0, realClasses: 0, realActivities: 1 })
     expect(o.ready).toBe(false)
     expect(o.stage).toBe('after')
-    expect(o.notYet).toBe('Not yet: press one club or sport below.')
+    expect(o.notYet).toBe('Not yet: pick something for all 3 seasons. 3 still empty.')
   })
 
   it('lights the schedule before the after-school box, never both', () => {
@@ -46,10 +47,28 @@ describe('the plank, the moment something real exists', () => {
     expect(o.owesClass && o.owesActivity).toBe(true)
   })
 
-  it('goes live again once the real ones are filled', () => {
-    const o = scheduleOwed({ electivesLeft: 0, chosen: 1, realClasses: 3, realActivities: 5 })
-    expect(o.ready).toBe(true)
-    expect(o.notYet).toBeNull()
+  it('goes live once every season is spent, not once one of them is', () => {
+    /* ASH: "whatever number that is, he has to choose that number before
+     * stamping." A year hands out three season tokens, and one used to be enough:
+     * the other two were carried into the stamp and forfeited with nothing on the
+     * page saying so. */
+    const one = scheduleOwed({ electivesLeft: 0, chosen: 1, realClasses: 3, realActivities: 5 })
+    expect(one.ready).toBe(false)
+    expect(one.notYet).toBe('Not yet: pick something for all 3 seasons. 2 still empty.')
+    const two = scheduleOwed({ electivesLeft: 0, chosen: 2, realClasses: 3, realActivities: 5 })
+    expect(two.notYet).toBe('Not yet: one season is still empty.')
+    const all = scheduleOwed({ electivesLeft: 0, chosen: SEASONS_OWED, realClasses: 3, realActivities: 5 })
+    expect(all.ready).toBe(true)
+    expect(all.notYet).toBeNull()
+  })
+})
+
+/* SEASONS_OWED IS THE SAME NUMBER THE SAVE HANDS OUT, and it has to be, or the
+ * stamp asks for a season the year has no token for and the sheet can never go
+ * live. Held here rather than imported so this file does not pull the save in. */
+describe('the number of seasons', () => {
+  it('is the number of tokens a year really starts with', () => {
+    expect(SEASONS_OWED).toBe(SEASONS.length)
   })
 })
 
@@ -91,7 +110,7 @@ describe('one row in member-islands.json starts the schedule asking', () => {
     expect(real).toBe(1)
     const o = scheduleOwed({ electivesLeft: 0, chosen: 0, realClasses: 0, realActivities: real })
     expect(o.ready, 'a real club exists and the plank still ends the beat').toBe(false)
-    expect(o.notYet).toBe('Not yet: press one club or sport below.')
+    expect(o.notYet).toBe('Not yet: pick something for all 3 seasons. 3 still empty.')
   })
 
   it('asks for the elective periods the moment a class is playable', async () => {
