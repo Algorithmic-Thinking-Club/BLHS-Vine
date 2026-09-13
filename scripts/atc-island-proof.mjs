@@ -242,6 +242,12 @@ ok('the programme is marked completed',
 ok('the island reads as completed on the chart', wrote?.islands?.atc === 'completed',
   JSON.stringify(wrote?.islands))
 ok('the island wrote its own scoped flags', (wrote?.flags ?? []).length > 0, JSON.stringify(wrote?.flags))
+/* AND THE DONE-FLAG CARRIES THE YEAR. Without the year on it, finishing ATC once
+ * marks it finished for the whole run: a student re-slotting it in year two, which
+ * the rank ladder REQUIRES, sails there, presses the machine, is told where the
+ * form is, and the year hangs open with nothing on screen saying why. */
+ok('the done-flag is scoped to the year, so it can be done again next year',
+  (wrote?.flags ?? []).some((f) => /built:y\d+$/.test(f)), JSON.stringify(wrote?.flags))
 
 console.log(`\n${fails.length ? 'FAILED: ' + fails.join(' | ') : 'ALL PASS'}`)
 await finish()
