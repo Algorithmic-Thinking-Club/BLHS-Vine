@@ -1,6 +1,6 @@
 /* the objective panel: one short line at the top of the screen saying what to do now */
 import type React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { loadSave, subscribeSave, tasksDoneIn, type SaveGame } from '../save'
 import { nextObjective, objectiveLine } from '../run/objective'
 import { islandHeading, taskHeading, tasksDone, tasksOf, type Task } from '../run/tasks'
@@ -132,12 +132,29 @@ function TaskSheet({ onClose }: { onClose: () => void }) {
   useEffect(() => subscribeSave(redraw), [])
   useEffect(() => onIslandTasks(redraw), [])
   const save = loadSave()
-  /* THE ISLAND UNDER HIS FEET OUTRANKS THE YEAR, the same order the bar above
-   * already uses. A student standing on an island wants to know what is left HERE;
-   * the year's own list is one press away on the sheet in the corner. */
+  /* ---- THE ISLAND GOES FIRST AND THE YEAR STAYS UNDER IT --------------------
+   *
+   * The island used to REPLACE the year's list, on the argument that a student
+   * standing on an island wants to know what is left here. Half right, and the other
+   * half was a real hole: this is the ONLY task sheet in the game, so replacing it
+   * hid the year. In the home base it would have been worse than that, because the
+   * year's own rows ARE what that room asks of him, so an island list there would
+   * have hidden Advisory, every pick and the row that closes the year, in the one
+   * place all three are done.
+   *
+   * So both, in the order a student cares about them: what is left HERE, then what
+   * the year still wants. Two headings, one sheet, and the counter over the whole of
+   * it, because it is one list of things he has to do. */
   const island = islandTaskList()
-  const list = island ? islandRows(island, save) : tasksOf(save)
-  const { done, total } = tasksDone(list)
+  const here = island ? islandRows(island, save) : []
+  const year = tasksOf(save)
+  const list = [...here, ...year]
+  /* EACH HEADING COUNTS ITS OWN ROWS. One counter over both said "1 of 8 done" to a
+   * student standing on an island with two things to do, which is a number about
+   * nothing he can see. The island's heading counts the island, the year's counts
+   * the year, and neither has to know about the other. */
+  const mine = tasksDone(here.length ? here : year)
+  const theirs = tasksDone(year)
 
   /* ---- A PRESS OUTSIDE CLOSES IT; A PRESS ON A ROW DOES THE ROW ---------
    *
@@ -173,12 +190,19 @@ function TaskSheet({ onClose }: { onClose: () => void }) {
     <div className="ob-sheet kit-surface-band" ref={sheet}>
       <p className="ob-sheet-head">
         {island ? islandHeading(island.programme) : taskHeading(save?.year ?? 1)}
-        <span className="ob-sheet-count">{done} of {total} done</span>
+        <span className="ob-sheet-count">{mine.done} of {mine.total} done</span>
       </p>
       <ul className="ob-tasks">
-        {list.map((t) => (
+        {list.map((t, i) => (
+          <Fragment key={t.id}>
+            {/* the year's own heading, printed once, where the island's rows end */}
+            {here.length > 0 && i === here.length && (
+              <li className="ob-sheet-sub" aria-hidden="true">
+                {taskHeading(save?.year ?? 1)}
+                <span className="ob-sheet-count">{theirs.done} of {theirs.total} done</span>
+              </li>
+            )}
           <li
-            key={t.id}
             className={`ob-task${t.done ? ' is-done' : ''}${t.barred && !t.done ? ' is-barred' : ''}${openerOf(t) ? ' is-live' : ''}`}
             {...(openerOf(t)
               ? {
@@ -204,6 +228,7 @@ function TaskSheet({ onClose }: { onClose: () => void }) {
             </span>
             <span className="ob-sr">{t.done ? ' done' : t.barred ? ' not open yet' : ' still to do'}</span>
           </li>
+          </Fragment>
         ))}
       </ul>
     </div>

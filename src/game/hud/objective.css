@@ -24,6 +24,24 @@ html[data-movie='1'] .ob-wrap { padding-top: calc(10vh + max(1.6vh, 10px)); }
  * Hidden rather than unmounted, because the live region under it is announcing to a
  * screen reader and a panel is a place the same errand still applies. */
 html[data-panels]:not([data-panels='0']) .ob-wrap { visibility: hidden; }
+
+/* the year's own heading, printed inside the list where the island's rows end, so
+   one sheet can carry both without either looking like a stray row. A list item
+   rather than a heading element because it lives in a <ul> and screen readers get
+   the rows themselves through `.ob-sr`. */
+.ob-sheet-sub {
+  list-style: none;
+  margin: 8px 0 2px;
+  padding: 0 2px;
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+  opacity: .8;
+  border-top: var(--kit-border) solid var(--kit-rule-soft);
+  padding-top: 7px;
+}
+.ob-sheet-sub:first-child { margin-top: 0; border-top: 0; padding-top: 0; }
 html[data-rm='1'] .ob-wrap { transition-duration: 60ms; }
 @media (prefers-reduced-motion: reduce) { .ob-wrap { transition-duration: 60ms; } }
 
