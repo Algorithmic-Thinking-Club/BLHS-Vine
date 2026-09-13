@@ -293,7 +293,25 @@ export function berthHelm(
       const off = Math.abs(wrap(b.facing - s.heading))
       const radius = cfg.cruise / Math.max(0.2, cfg.turn * 0.74)
       const room = off < ALONGSIDE_RAD ? 0 : off * radius
-      if (along < 0 && cross < RUN_IN_CORRIDOR_PX && -along >= room)
+      /* ---- ALREADY THERE IS ALREADY IN THE CORRIDOR ------------------------
+       *
+       * `along < 0` is "astern of the berth", and a hull sitting exactly ON the mark
+       * has along = 0, which is not less than zero. Simulated on the shipped physics:
+       * a boat at the berth, on the berth's own heading, at rest, was sent 333px out
+       * to sea and back over 7.75 seconds before it was allowed to tie up, while the
+       * same boat half a pixel further astern was done in one frame. And along = 0 is
+       * exactly what `board()` produces, because it puts the hull on the berth.
+       *
+       * So being close enough to be alongside is its own way in, whichever side of
+       * the mark the arithmetic puts her on. */
+      /* AND SHE HAS TO BE SITTING THERE, not arriving at speed. Close alone let a hull
+       * coming in head-on at cruise straight into the run-in from the wrong side, and
+       * it finished with a 139-degree turn on the spot: the pirouette this whole
+       * manoeuvre exists to avoid. What this clause is for is a boat that is ALREADY
+       * at the berth, which is what `board()` leaves behind, and that boat is at rest. */
+      const near = Math.hypot(b.target.x - s.x, b.target.y - s.y) <= ALONGSIDE_MAX_PX
+        && s.speed < cfg.cruise * 0.5
+      if (near || (along < 0 && cross < RUN_IN_CORRIDOR_PX && -along >= room))
         return berthHelm(s, restart({ ...b, stage: 'alongside' }), cfg, dt, ok)
       /* THE FURTHEST POINT BACK DOWN THE LINE THAT IS STILL WATER, walked out from
        * the berth rather than assumed. A short rendezvous is worse than a long one
@@ -371,7 +389,22 @@ export function berthHelm(
    * tie up when she is lying along it. The watchdog still catches a boat that is
    * genuinely nowhere near, because this needs her to be CLOSE first. */
   if (dist <= ALONGSIDE_MAX_PX && stuckMs >= ALONGSIDE_SETTLED_MS) {
-    const err = b.facing === undefined ? 0 : wrap(b.facing - s.heading)
+    /* SHE HAS TO HAVE STOPPED, the same gate the exact clause twelve lines up keeps.
+     * Without it the only conditions were "within 52px and has not closed 2px in a
+     * second", which a boat crossing the berth at full speed satisfies: simulated, a
+     * hull passing a heading-less berth at 150px/s was declared tied up 50px off the
+     * mark while still moving. */
+    if (s.speed >= cfg.cruise * 0.12) return { helm: { throttle: 0, turn: 0, fullSail: false }, next: watched(b) }
+    /* AND A BERTH WITH NO HEADING IS NOT A BERTH SHE IS ALREADY LYING ALONG. Treating
+     * a missing facing as a perfect one meant no heading gate at all on exactly the
+     * berths nobody has aimed yet. With nothing to aim at, the honest test is that she
+     * really has run out of ways to get closer, which is twice the patience. */
+    if (b.facing === undefined) {
+      if (stuckMs >= ALONGSIDE_SETTLED_MS * 2)
+        return { helm: HELM_IDLE, next: watched({ ...b, stage: 'done' }) }
+      return { helm: { throttle: 0, turn: 0, fullSail: false }, next: watched(b) }
+    }
+    const err = wrap(b.facing - s.heading)
     if (Math.abs(err) < ALONGSIDE_RAD * 1.5)
       return { helm: HELM_IDLE, next: watched({ ...b, stage: 'done' }) }
     return {

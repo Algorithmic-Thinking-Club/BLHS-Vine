@@ -159,6 +159,24 @@ if (back) {
   ok('and he is at the dock, not part of the way to it',
     !!moved && !!before.at && moved.y - before.at.y > 180,
     JSON.stringify({ from: before.at, to: moved }))
+  /* ON GROUND, NOT ON WATER. A berth is the point the HULL ties up at, authored in the
+   * ocean's coordinates, so it is by definition not somewhere a person can stand.
+   * `onFloor` hands back the point it was given when it finds nothing standable, and
+   * measured against both published bundles there is no floor within 44 painting
+   * pixels of either berth: he was being put on the water, where `walk.ts` reads level
+   * zero as stuck and moves a stuck body with no collision test at all. */
+  const standable = await page.evaluate(() => {
+    const p = window.__pmap
+    return p.spotOnGlass ? { level: p.level ?? null, at: { x: Math.round(p.x), y: Math.round(p.y) } } : null
+  })
+  const spawn = await page.evaluate(async () => {
+    const r = await fetch('/maps-vendored/atc-1/map.json')
+    const m = await r.json()
+    return m.spawn
+  })
+  ok('and he is on ground a person can stand on, not on the water',
+    !!moved && !!spawn && Math.hypot(moved.x - spawn[0], moved.y - spawn[1]) < 60,
+    JSON.stringify({ he: moved, spawn, level: standable?.level }))
   await shot('03-at-the-dock')
 }
 /* ---- AND THE LIST DIES WITH THE ISLAND -------------------------------------

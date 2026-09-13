@@ -27,7 +27,7 @@ import { FOUNDING_FLAG } from '../run/objective'
 import { announce, panelDepth, usePanel } from '../ui/a11y'
 import { grant } from '../grant'
 import { attemptsOn } from '../beats/state'
-import { refuseCheck } from '../beats/palette'
+import { checkIdOf, refuseCheck } from '../beats/palette'
 import { placeById, programmeById } from '../roster/roster'
 import type { BeatRequest } from '../ui-bus'
 import { countAsDone, noIslandLine } from '../run/pick'
@@ -74,6 +74,22 @@ function islandBeat(req: BeatRequest, s: ReturnType<typeof loadSave>): CoreBeat 
     const why = refuseCheck(item)
     if (why) return `"${req.beat}" cannot be played: ${why}`
   }
+  /* ---- TWO QUESTIONS WITH ONE ID IS HALF A MARK ---------------------------
+   *
+   * The runner keys a student's answers by the item's id, so two items sharing one id
+   * share one slot: the second write lands on top of the first. A member who copies a
+   * question and forgets to change the id gets an activity where a student who answers
+   * everything correctly earns one of two, is written down with a C on his transcript,
+   * and is offered a retake for work he got entirely right. Nothing in the console and
+   * nothing on screen said why.
+   *
+   * It is the ordinary shape of a copy and paste, so it is worth a sentence naming the
+   * id rather than a silent half mark. */
+  const ids = decl.items.map((i) => checkIdOf(i))
+  const twice = ids.find((id, i) => ids.indexOf(id) !== i)
+  if (twice !== undefined)
+    return `"${req.beat}" has two questions both called "${twice}". `
+      + 'An id is how an answer is filed, so two of them would score as one.'
 
   const programme = decl.programme
   const place = placeById(programmeById(programme)?.place)?.name

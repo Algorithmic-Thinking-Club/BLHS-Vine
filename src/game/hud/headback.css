@@ -30,6 +30,13 @@
 }
 html[data-rm='1'] .hb-back { animation-duration: 1ms; }
 
+/* A PANEL TAKES THE WHOLE WINDOW, and this stands down for it the way the corner
+   stack, the help button, the camera switch and the objective plaque all do. In CSS
+   rather than in the component on purpose: HeadBack is a sibling of the thing that
+   opens panels, so a panel closing re-renders nothing here and a button hidden in JS
+   stayed hidden. `a11y.ts` writes this attribute on every push and pop. */
+html[data-panels]:not([data-panels='0']) .hb-back { visibility: hidden; }
+
 /* why a press did nothing, which only happens when the world is busy */
 .hb-back-why {
   margin: 0;

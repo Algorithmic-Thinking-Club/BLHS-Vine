@@ -13,12 +13,12 @@
  */
 import { useEffect, useState } from 'react'
 import { loadSave, subscribeSave, tasksDoneIn } from '../save'
+import { islandForProgramme } from '../roster/roster'
 import { islandTaskList, onIslandTasks } from './island-tasks'
 import { cinemaOn, onCinema } from '../stage/cinema'
 import { dialogueState, onDialogue } from '../dialogue'
 import { homeListenerCount, requestHeadBack } from '../world/home-bus'
-import { onStageBusy, placeCardUp } from '../stage/stage-bus'
-import { panelDepth } from '../ui/a11y'
+import { onSceneDrawn, onStageBusy, placeCardUp, sceneDrawn } from '../stage/stage-bus'
 import { Plank } from '../ui/controls'
 import { track } from '../telemetry'
 import './headback.css'
@@ -31,13 +31,26 @@ export function HeadBack() {
   useEffect(() => onCinema(redraw), [])
   useEffect(() => onDialogue(redraw), [])
   useEffect(() => onStageBusy(redraw), [])
+  useEffect(() => onSceneDrawn(redraw), [])
   const [going, setGoing] = useState(false)
   const [why, setWhy] = useState<string | null>(null)
 
   const list = islandTaskList()
   const save = loadSave()
   const done = list ? tasksDoneIn(list.programme, save?.year ?? 1) : []
-  const finished = !!list && list.tasks.length > 0 && list.tasks.every((t) => done.includes(t.id))
+  /* ---- THE LIST HAS TO BELONG TO THE MAP UNDER HIS FEET -------------------
+   *
+   * Belt and braces beside the scene teardown that clears it. The declaration is module
+   * state on a bus, and the bus does not know which map is drawn, so a list that outlived
+   * its island once put "Island finished. Head back." on the bottom of the home base:
+   * the hub registers this listener too, because the world gives it a berth.
+   *
+   * The roster is what ties a programme to a map, which is the same lookup the year sheet
+   * uses to decide where a pick is played. */
+  const here = sceneDrawn()
+  const onItsOwnIsland = !!list && !!here && islandForProgramme(list.programme)?.map === here
+  const finished = !!list && onItsOwnIsland
+    && list.tasks.length > 0 && list.tasks.every((t) => done.includes(t.id))
 
   /* ---- WHEN IT IS NOT OFFERED, AND EVERY CLAUSE IS A REAL CASE -------------
    *
@@ -48,10 +61,14 @@ export function HeadBack() {
    * thing that owns the middle of the screen. And no scene listening, which is the
    * standalone harness and any map with no dock, where pressing it could only ever
    * produce a refusal. */
+  /* PANELS ARE LEFT TO CSS, because this component is a sibling of the one that opens
+   * them: a panel closing changes the Hud's own state and re-renders nothing here, so
+   * a button hidden while a panel was up stayed hidden after it closed until something
+   * unrelated wrote the save. `a11y.ts` stamps `data-panels` on the root on every push
+   * and pop, and four other surfaces already stand down that way. */
   const hidden = !finished
     || cinemaOn()
     || dialogueState() !== null
-    || panelDepth() > 0
     || placeCardUp()
     || homeListenerCount() === 0
   if (hidden) return null

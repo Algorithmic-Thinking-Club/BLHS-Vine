@@ -93,7 +93,11 @@ html[data-skin='plain'] .kit-mark { display: none; }
   -webkit-line-clamp: 2;
   line-clamp: 2;
 }
-.kit-plank-wide { min-height: 34px; height: auto; }
+/* A WIDE SIGN MAY GROW, and that is all this line was ever for. It carried a
+   `min-height: 34px` as well, which beat every size's own floor through the cascade:
+   measured on the pause menu, six wide medium planks that used to stand 46px tall came
+   out at 39. `height: auto` is the half that does the job. */
+.kit-plank-wide { height: auto; }
 
 /* the label is cut into the wood so it reads on a dark plank */
 .kit-plank-ink {

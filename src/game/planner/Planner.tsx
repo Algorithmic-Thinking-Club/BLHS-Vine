@@ -81,10 +81,16 @@ function againLine(a: { id: string; rankTrack?: string }, s: SaveGame | null): s
   const track = a.rankTrack ?? a.id
   const years = new Set((s.completions ?? []).filter((c) => (c.rank ?? '') === track).map((c) => c.year))
   if (!years.size) return null
+  /* AGAINST THE RANK HE ALREADY HOLDS, not against whether a name exists. `rankName`
+   * answers Captain for three years AND for four, so comparing the next year's name to
+   * nothing meant a student with three years on a track was told one more would make
+   * him Captain, which he already was, and the sentence written for that case could
+   * never print. Measured at year four with three completions on one track. */
+  const now = rankName(years.size)
   const next = rankName(years.size + 1)
-  return next
+  return next && next !== now
     ? `${years.size} year${years.size > 1 ? 's' : ''} in. One more makes you ${next}.`
-    : `${years.size} years in, and already Captain.`
+    : `${years.size} years in, and already ${now ?? 'counted'}.`
 }
 
 /** a season token in the air, between the rail and wherever it lands */

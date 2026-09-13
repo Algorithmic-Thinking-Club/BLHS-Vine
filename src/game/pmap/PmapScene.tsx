@@ -567,11 +567,37 @@ export default function PmapScene() {
         ? { w: said.w, h: said.h, ox: said.ox || 0, oy: said.oy || 0 }
         : null
       /* the painting's centre, from the composition first, then the bundle, then the canvas */
-      const painted = slot?.origin
+      const paintedSaid = slot?.origin
         ? { w: slot.footprint.w, h: slot.footprint.h, ox: slot.origin.x, oy: slot.origin.y }
         : paintBase ?? (slot
           ? { w: slot.footprint.w, h: slot.footprint.h, ox: (W - slot.footprint.w) / 2, oy: (H - slot.footprint.h) / 2 }
           : { w: W, h: H, ox: 0, oy: 0 })
+      /* ---- AND IT CANNOT REACH OUTSIDE THE CANVAS -----------------------------
+       *
+       * The footprint comes off the OCEAN document and the canvas off the bundle, and
+       * nothing has ever made the two agree. The live world gives the Maw a footprint
+       * of 512x512 against a real canvas of 688x384, so the rect came out 64 rows above
+       * the top and 64 below the bottom of a painting that does not go there.
+       *
+       * That was harmless while this was only used to find a centre. It stopped being
+       * harmless tonight, when the camera fence started clamping to it: a fence that
+       * believes in rows the painting does not have is a fence that shows the void
+       * where they would be. Measured on the Maw, a 192 pixel band of it.
+       *
+       * Intersected rather than refused, because a slightly wrong footprint is still
+       * the best guess anybody has about where the picture is. */
+      const px0 = Math.max(0, Math.min(W, paintedSaid.ox))
+      const py0 = Math.max(0, Math.min(H, paintedSaid.oy))
+      const px1 = Math.max(px0, Math.min(W, paintedSaid.ox + paintedSaid.w))
+      const py1 = Math.max(py0, Math.min(H, paintedSaid.oy + paintedSaid.h))
+      const painted = { w: px1 - px0 || W, h: py1 - py0 || H, ox: px1 > px0 ? px0 : 0, oy: py1 > py0 ? py0 : 0 }
+      if (painted.w !== paintedSaid.w || painted.h !== paintedSaid.h
+        || painted.ox !== paintedSaid.ox || painted.oy !== paintedSaid.oy) {
+        console.warn(`[pmap] ${mapId}: the painted rect it was given, `
+          + `${paintedSaid.w}x${paintedSaid.h} at ${paintedSaid.ox},${paintedSaid.oy}, reaches outside the `
+          + `${W}x${H} canvas, so it has been cut back to ${painted.w}x${painted.h} at ${painted.ox},${painted.oy}. `
+          + 'The footprint on the ocean page and this map cannot both be right.')
+      }
       const pc = { x: painted.ox + painted.w / 2, y: painted.oy + painted.h / 2 }
       if (painted.w !== W || painted.h !== H) {
         console.info(`[pmap] ${mapId}: the painting is ${painted.w}x${painted.h} at ${painted.ox},${painted.oy}`
@@ -3315,6 +3341,9 @@ export default function PmapScene() {
 
         /* a shot somebody named and dragged into place, its zoom a multiple of the opening view */
         framing(shot, ms) {
+          /* every shot takes the serial, so a timed release that fires later can tell
+           * whether the shot it raised is still the live one */
+          shotSerial++
           if (shot === null) {
             lookAtTarget = null
             lastShot = null
@@ -3370,7 +3399,27 @@ export default function PmapScene() {
             requestAnimationFrame(tick)
           })
           if (ms === undefined) return settled
-          return settled.then(() => new Promise<void>((r) => setTimeout(() => { zoomTo(walkZ()); r() }, ms)))
+          /* ---- THE HOLD STARTS WHEN THE CAMERA ARRIVES ----------------------
+           *
+           * `until` above is stamped when the word is SPOKEN, and this word now waits
+           * for the pan before it comes back. So the two clocks ran the wrong way
+           * round: on ATC's screen shot the pan takes about two and a half seconds and
+           * a member asking to hold it for one and a half got a shot that had already
+           * expired before it arrived, which the ticker then dropped on the next frame.
+           * Restamped here, from arrival, which is what `vine.py` says it means. */
+          const held = shotSerial
+          return settled.then(() => {
+            if (destroyed || shotSerial !== held) return undefined
+            if (lookAtTarget) lookAtTarget = { ...lookAtTarget, until: performance.now() + ms }
+            return new Promise<void>((r) => setTimeout(() => {
+              /* and a newer shot keeps the camera: this one is over, not in charge */
+              if (destroyed || shotSerial !== held) { r(); return }
+              lookAtTarget = null
+              lastShot = null
+              zoomTo(walkZ())
+              r()
+            }, ms))
+          })
         },
 
         /* the three shots nobody authors, composed from the painting and the window, and awaited */
@@ -3381,6 +3430,7 @@ export default function PmapScene() {
         },
 
         view(shot, ms) {
+          shotSerial++
           const to = shot === 'island' ? Z_ISLAND
             : shot === 'ship' ? Z_SHIP
               : shot === 'close' ? Z_CLOSE
@@ -3419,9 +3469,17 @@ export default function PmapScene() {
              * fence and the zoom are separate state, so a timed island shot used to
              * leave a player walking around under a camera that was still pulled out
              * and still refusing to follow him. All three go together or none of
-             * them mean anything. */
+             * them mean anything.
+             *
+             * IT ONLY LOWERS THE SHOT IT RAISED. The caller does not await this, so a
+             * scene can compose something else while the clock is running: the
+             * engine's own homecoming arms a 3.6 second release and asks for a close
+             * shot 900ms later, and this used to reach in and tear that one down two
+             * and a half seconds into it. One serial per shot, checked on the way out,
+             * is the same trick the cinema bars use to know whose frame is up. */
+            const mine = shotSerial
             return new Promise<void>((r) => setTimeout(() => {
-              if (destroyed) { r(); return }
+              if (destroyed || shotSerial !== mine) { r(); return }
               lookAtTarget = null
               lastShot = null
               /* FALSE, WHICH IS THE VALUE FOR A BODY ON LAND. `camFree` is not "the
@@ -3675,6 +3733,10 @@ export default function PmapScene() {
         w.done()
       }
       let lookAtTarget: { x: number; y: number; until: number } | null = null
+      /* WHICH SHOT IS THE LIVE ONE, counted up every time anybody composes one. A timed
+       * release compares this on the way out, so a shot that has since been replaced
+       * cannot reach in and lower somebody else's. */
+      let shotSerial = 0
       /* which named shot the camera is holding and which berth the last voyage aimed at */
       let lastShot: string | null = null
       let lastBerth: string | null = null
@@ -4617,11 +4679,40 @@ export default function PmapScene() {
         if (fade || busy || runtime.running || hull || berthing || voyage) {
           answer({ ok: false, why: 'Not while something else is happening.' }); return
         }
-        /* THROUGH `fromSea`, because a berth is authored in the OCEAN's coordinates
-         * and everything on this map is in the painting's. Handed over raw it means a
-         * point at sea. The sail listener below converts the same field the same way. */
-        const spot = fromSea(berth.x, berth.y)
-        const { at } = onFloor(spot, canStand, cfg.yScale, 44)
+        /* ---- WHERE THE DOCK IS, ASKED THREE WAYS ---------------------------
+         *
+         * A BERTH IS WATER. It is the point the hull ties up at, authored in the
+         * OCEAN's coordinates, so converting it through `fromSea` gives a spot in the
+         * painting that is by definition not ground. The first version of this walked
+         * him to that spot and `onFloor`'s answer was destructured without its `moved`
+         * flag, and `onFloor` hands back the ORIGINAL point when it finds nothing
+         * standable inside its radius. So a failure and a success looked identical, and
+         * measured against both published bundles there IS no floor within 44 painting
+         * pixels of either berth: he was being put on water. `walk.ts` reads a level of
+         * zero as "stuck" and moves a stuck body with no collision test at all, so from
+         * there he could walk through the island.
+         *
+         * So: the anchor the world says he arrives on, then any post that reads like a
+         * dock, then a search wide enough to actually reach a quay. And if all three
+         * come back with nothing, this move is refused rather than performed. */
+        const landing = (): { x: number; y: number } | null => {
+          const named = berth.at ? anchors.get(berth.at) : undefined
+          if (named) return anchors.standAt(named)
+          const quay = anchors.all.find((a2) => a2.kind === 'post' && /dock|quay|jetty|pier|harbou?r/i.test(a2.name))
+          if (quay) return anchors.standAt(quay)
+          const sea = fromSea(berth.x, berth.y)
+          /* 96 rather than 44: a berth sits in the water off the end of a quay, and the
+           * quay itself is further than a body's length away in the squashed metric. */
+          const tried = onFloor(sea, canStand, cfg.yScale, 96)
+          return tried.moved ? tried.at : null
+        }
+        const at = landing()
+        if (!at) {
+          console.warn(`[pmap] ${mapId}: nothing standable near ${berth.name}, so there is nowhere to put him`)
+          engine.log('head_back_refused', { map: mapId, why: 'no floor near the berth' })
+          answer({ ok: false, why: 'There is no way down to the water from here.' })
+          return
+        }
         engine.log('head_back', { map: mapId })
         /* ANSWERED NOW, AND NOT WHEN THE COVER IS DONE. The bus proves nobody heard
          * a request by answering it itself the instant the dispatch returns, so an
@@ -4646,7 +4737,14 @@ export default function PmapScene() {
          * that never opened resolved as though it had. Told "ok" on a cover that
          * never ran, the button would close on itself and leave him where he was
          * with nothing said. */
-        void cover(coverFor(mapId).spec, () => {
+        /* A SHORT FADE AND NOT AN ARRIVAL CARD. `coverFor(mapId)` is the cover for
+         * ARRIVING at this map: the name in spaced capitals, a loading bar and a fact,
+         * on a floor of 1800ms plus two 950ms animations. Pressing "Island finished,
+         * head back" showed a student three and a half seconds of "E N T E R I N G
+         * ALGORITHMIC THINKING CLUB" for a hop from the terrace to the dock of the
+         * island he was already standing on. A move inside one map is the definition of
+         * passing through. */
+        void cover(passingCover().spec, () => {
           pos.x = at.x
           pos.y = at.y
           walker.facing = 'south'
