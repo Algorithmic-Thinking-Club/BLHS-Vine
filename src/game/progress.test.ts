@@ -1,6 +1,6 @@
 /* tests for the GPA math and the honor cord table, which mirrors the school's own awards list */
 import { describe, it, expect } from 'vitest'
-import { gpaOf, letterOf, rankName, cordsOf, newlyCloseCords, NO_ATHLETIC_CORD } from './progress'
+import { gpaOf, letterOf, rankName, ranksOf, cordsOf, newlyCloseCords, NO_ATHLETIC_CORD } from './progress'
 import type { LedgerEntry, SaveGame } from './save'
 
 let n = 0
@@ -41,6 +41,52 @@ describe('ranks (§8.2: years invested)', () => {
     expect(rankName(2)).toBe('Varsity')
     expect(rankName(3)).toBe('Captain')
     expect(rankName(5)).toBe('Captain')
+  })
+
+  /* THE FOUR-YEAR MODEL, ON THE FIRST PROGRAMME ANYBODY CAN ACTUALLY FINISH.
+   *
+   * The ladder is DERIVED and not counted: `ranksOf` reads the append-only
+   * completion rows and takes the number of distinct YEARS on a track. That is
+   * what makes it idempotent, which matters because an island can be replayed and
+   * `recordCompletion` writes the row again with a higher attempt count. A stored
+   * counter would tick twice for one afternoon.
+   *
+   * It is also the thing the whole four-year design rests on: a rank says you came
+   * back, not that you scored well. Wiseman's own reason for the model is that
+   * three tokens a year across four years forces a choice, and Captain costs a
+   * quarter of everything a student has to spend. */
+  const withRuns = (rows: { programme: string; year: number; rank?: string }[]): SaveGame =>
+    mkSave([], { completions: rows.map((r) => ({ ...r, grade: 4, at: 1, attempts: 1, firstGrade: 4 })) })
+
+  it('one year on a track is JV, and replaying the same year does not tick it', () => {
+    const s = withRuns([{ programme: 'atc', year: 1, rank: 'atc' }])
+    expect(ranksOf(s).atc).toBe(1)
+    expect(rankName(ranksOf(s).atc)).toBe('JV')
+    /* the same year twice is one year, however many times it was sat */
+    const again = withRuns([
+      { programme: 'atc', year: 1, rank: 'atc' },
+      { programme: 'atc', year: 1, rank: 'atc' },
+    ])
+    expect(ranksOf(again).atc, 'a replay is not another year').toBe(1)
+  })
+
+  it('coming back in a second and third year reaches Varsity and Captain', () => {
+    const two = withRuns([
+      { programme: 'atc', year: 1, rank: 'atc' },
+      { programme: 'atc', year: 2, rank: 'atc' },
+    ])
+    expect(rankName(ranksOf(two).atc)).toBe('Varsity')
+    const three = withRuns([
+      { programme: 'atc', year: 1, rank: 'atc' },
+      { programme: 'atc', year: 2, rank: 'atc' },
+      { programme: 'atc', year: 3, rank: 'atc' },
+    ])
+    expect(rankName(ranksOf(three).atc)).toBe('Captain')
+  })
+
+  it('a completion with no track climbs nothing, which is most of the roster', () => {
+    const s = withRuns([{ programme: 'nothing-tracked', year: 1 }])
+    expect(Object.keys(ranksOf(s))).toEqual([])
   })
 })
 
