@@ -25,6 +25,18 @@ export type TransitionSpec = {
   /** scene cover (the TavernWorld pattern, Ash 2026-07-02): a full-bleed PixelLab
    *  illustration, the kicker, the place's name on a drawn plaque, and a bar */
   image?: string
+  /* ---- PICTURES TO TRY, IN ORDER, BEFORE THE ONE THAT CANNOT MISS ----------
+   *
+   * A map's own cover lives inside its bundle, and a bundle is fetched from one of
+   * two roots depending on how the game was started. Nothing here waits on a
+   * request to find out which: the overlay renders the first candidate, and an
+   * `onError` walks to the next. So a map with no cover drawn for it yet costs
+   * exactly one failed image request and shows the generic art, and a map that has
+   * one shows it on the first frame.
+   *
+   * `image` stays as the single answer for every cover that is not a destination's
+   * own, and it is the last candidate when this list is given. */
+  images?: string[]
   title?: string
   /* THE SMALL WORD OVER THE PLAQUE, spaced by hand because the letter-spacing on
    * its own reads as tracking and this reads as lettering. Defaults to the one
@@ -225,6 +237,28 @@ const WORK_WORD: Record<TransitionWork, string> = {
 
 const DEFAULT_KICKER = 'E N T E R I N G'
 
+/* THE COVER'S PICTURE, WALKING ITS CANDIDATES. The last one in the list is the art
+ * committed in this repo, so the walk always ends somewhere. Nothing is fetched
+ * ahead of time and nothing is awaited: a cover that cannot find a destination's own
+ * picture is one aborted request slower and looks identical. */
+function CoverImage({ candidates }: { candidates: string[] }) {
+  const [i, setI] = useState(0)
+  /* a new cover starts its own walk, or the second destination inherits the first
+   * one's fallbacks and can never show its own picture */
+  const key = candidates.join('|')
+  useEffect(() => { setI(0) }, [key])
+  const src = candidates[Math.min(i, candidates.length - 1)]
+  return (
+    <img
+      className="pix tr-scene-img"
+      src={src}
+      alt=""
+      draggable={false}
+      onError={() => setI((n) => (n + 1 < candidates.length ? n + 1 : n))}
+    />
+  )
+}
+
 export function TransitionOverlay({ st, version }: { st: TransitionState; version: number }) {
   void version // re-render key from the host
   const { phase, spec } = st
@@ -274,7 +308,12 @@ export function TransitionOverlay({ st, version }: { st: TransitionState; versio
         <div className={`tr-scene tr-voice-${spec.voice ?? 'arrival'}`}>
           {painted && (
             <>
-              <img className="pix tr-scene-img" src={spec.image ?? '/art/ui/loading-voyage.png'} alt="" draggable={false} />
+              <CoverImage
+                candidates={[
+                  ...(spec.images ?? []),
+                  spec.image ?? '/art/ui/loading-voyage.png',
+                ]}
+              />
               <div className="tr-scene-vig" />
               <div className="tr-scene-twinkles">
                 {Array.from({ length: 14 }, (_, i) => (

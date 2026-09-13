@@ -80,10 +80,34 @@ const CLASS_ART: Record<CoverClass, string> = {
 // the one word every cover says over its picture, spaced out by hand
 const ENTERING = 'E N T E R I N G'
 
+/* ---- A MAP'S COVER BELONGS TO THE MAP ------------------------------------
+ *
+ * Ruled with the strategy session: covers belong to maps. MAPVIS is getting a Cover
+ * tab that publishes `cover.png`, and `covers/<name>.png` for named ones, inside a
+ * map's bundle, so the picture a student sees on the way to an island is drawn by
+ * whoever drew the island and travels with it.
+ *
+ * THE ENGINE'S HALF IS A GUESS AND NEVER A FETCH. These are the two roots a bundle
+ * is really loaded from, in the order `PmapScene` tries them, so the candidates are
+ * worked out rather than asked for. The overlay walks the list on error and the last
+ * entry is always the art committed here, so a map with no cover drawn yet costs one
+ * aborted request and looks exactly as it does today.
+ *
+ * No Python word is added for this. An island never names a screen: the destination
+ * does, because the cover is about where you are going. `enter(map, cover=<name>)`
+ * can ask for a NAMED one, which is how a map offers more than one. */
+const BUNDLE_ROOTS = ['/maps-vendored', '/maps-painted']
+
+export function bundleCovers(mapId: string, named?: string): string[] {
+  if (!mapId) return []
+  const leaf = named ? `covers/${named}.png` : 'cover.png'
+  return BUNDLE_ROOTS.map((root) => `${root}/${mapId}/${leaf}`)
+}
+
 // the cover for a destination, with whether this is the first time here this sitting
 export type CoverChoice = { spec: TransitionSpec; first: boolean; title: string }
 
-export function coverFor(mapId: string, bundleTitle?: string): CoverChoice {
+export function coverFor(mapId: string, bundleTitle?: string, named?: string): CoverChoice {
   const first = !seenThisSession(mapId)
   const title = titleOfMap(mapId, bundleTitle)
   // every door gets the painted cover every time, while `first` still marks a real arrival
@@ -93,6 +117,9 @@ export function coverFor(mapId: string, bundleTitle?: string): CoverChoice {
     spec: {
       kind: 'scene',
       title: title.toUpperCase(),
+      /* the destination's own picture first, then the hand-kept table, then the
+       * class's art, which is the floor and cannot miss */
+      images: bundleCovers(mapId, named),
       image: COVER_ART[mapId] ?? CLASS_ART[voice],
       kicker: ENTERING,
       voice,

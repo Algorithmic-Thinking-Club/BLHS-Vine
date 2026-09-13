@@ -17,7 +17,7 @@ import { carryCinemaThroughDoor, cinemaBy, cinemaOn, onCinema, setCinema, takeCi
 import { choose, clearDialogue, say } from '../dialogue'
 import { engine } from '../intent-engine'
 import { play as playSfx } from '../audio'
-import { NotBuilt, PACE_OF, PLAYER, WAIT_FOR_CEILING_MS, performIntent, type Intent, type IntentHost, type IntentWorld, type CoverOccasion, type Offset } from '../../vine/intents'
+import { NotBuilt, PACE_OF, PLAYER, WAIT_FOR_CEILING_MS, performIntent, type Intent, type IntentHost, type IntentWorld, type Offset } from '../../vine/intents'
 import { CutsceneRuntime } from '../cutscene/runtime'
 import type { CutsceneStage } from '../cutscene/types'
 import { publishRuntime } from '../cutscene/stage-bus'
@@ -2245,7 +2245,11 @@ export default function PmapScene() {
       /* a door swap goes through the transition library, so the destination picks the cover */
       let fade = false
       let releaseExit: (() => void) | null = null
-      const beginExit = (to: PmapTarget, occasion?: CoverOccasion) => {
+      /* WHAT THE SECOND ARGUMENT MAY BE, and it is two things that look alike. An
+       * OCCASION is the engine's own: the graduation, or a map being crossed on the
+       * way somewhere. A NAME is a picture the destination's own bundle carries, and
+       * the engine knows nothing about it beyond handing it to `coverFor`. */
+      const beginExit = (to: PmapTarget, occasion?: string) => {
         if (fade) return
         fade = true
         /* the cinema bars carry through the door when they are already up */
@@ -2257,7 +2261,9 @@ export default function PmapScene() {
          * cover, and a map he is only crossing on his way to the boat gets no card at all */
         const choice = occasion === 'ceremony' ? ceremonyCover(titleOfMap(to.map))
           : occasion === 'passing' ? passingCover()
-            : coverFor(to.map)
+            /* anything else is the name of a cover the destination carries, which
+             * `coverFor` turns into a candidate inside that map's own bundle */
+            : coverFor(to.map, undefined, occasion)
         engine.log('door_taken', {
           from: mapId, to: to.map, at: to.at ?? null,
           cover: choice.spec.kind, occasion: occasion ?? null,

@@ -100,7 +100,7 @@ export type Intent =
   /* scene changes. `at` is the arrival anchor in the target map, without which
    * every door into a room drops the player on that room's one global spawn. */
   /* cover names the occasion behind the loading screen, not the picture itself */
-  | { kind: 'enter'; map: string; at?: string; cover?: CoverOccasion }
+  | { kind: 'enter'; map: string; at?: string; cover?: string }
   /* sail to another island. The engine owns the whole journey: out of the room,
    * down the quay, aboard, across the water and ashore. A member never names a
    * route, a berth or a camera to be carried there. */
@@ -273,7 +273,7 @@ export interface IntentWorld {
   show(anchor: string, visible: boolean): void
   /* play a named effect and come back when it has finished */
   fx(name: string, anchor?: string, data?: unknown): Promise<void>
-  enter(map: string, at?: string, cover?: CoverOccasion): Promise<void>
+  enter(map: string, at?: string, cover?: string): Promise<void>
   /** sail to another island and come back when the player is standing on it */
   sailTo(map: string): Promise<void>
   /** put the player off a berthed boat and onto the dock */
@@ -400,9 +400,26 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         await w().fx(i.name, i.anchor, i.data)
         return ok()
       case 'enter':
-        if (i.cover && !COVER_OCCASIONS.includes(i.cover))
-          return no(`"${i.cover}" is not an occasion. They are: ${COVER_OCCASIONS.join(', ')}`)
-        await w().enter(i.map, i.at, i.cover)
+        /* ---- AN OCCASION OR THE NAME OF A COVER THE MAP CARRIES --------------
+         *
+         * Covers belong to maps, and MAPVIS publishes named ones inside a map's own
+         * bundle, so `cover` can be either: one of the engine's own occasions, or the
+         * code name of a picture the destination ships. Anything else is refused by
+         * name here rather than arriving as a cover nobody drew.
+         *
+         * The fence is MAPVIS's own rule for a name, because that is what the Cover
+         * tab will let somebody type: lower case, digits and underscores, starting
+         * with a letter. A name that cannot exist is a typo and is said out loud. */
+        if (i.cover !== undefined) {
+          const c = typeof i.cover === 'string' ? i.cover.trim() : ''
+          if (!c) return no('cover wants an occasion or the code name of a cover, not an empty string')
+          if (!COVER_OCCASIONS.includes(c as CoverOccasion) && !/^[a-z][a-z0-9_]{0,47}$/.test(c))
+            return no(`"${c}" is neither an occasion (${COVER_OCCASIONS.join(', ')}) nor a legal cover name. `
+              + 'A cover name is lower case letters, digits and underscores, starting with a letter.')
+          await w().enter(i.map, i.at, c)
+          return ok()
+        }
+        await w().enter(i.map, i.at)
         return ok()
       case 'sail_to':
         if (typeof i.map !== 'string' || !i.map.trim()) return no('sail_to wants the name of a map to sail to')

@@ -522,11 +522,18 @@ def enter(map, at=None, cover=None):
     Without `at` the player lands on that map's own spawn, however far that is
     from the door they walked through, so name one whenever you mean a door.
 
-    `cover` is the only thing you may say about the picture that plays over the
-    change, and it says what the MOMENT is rather than what to draw: "ceremony"
-    is the end of a year. Everything else takes the cover the place you are
-    going to has, which is how twenty islands with three rooms each avoid
-    becoming sixty people choosing sixty different transitions.
+    COVERS BELONG TO MAPS. The picture that plays over the change is the
+    DESTINATION's, drawn by whoever drew that place and published inside its own
+    bundle, so twenty islands with three rooms each do not become sixty people
+    choosing sixty different transitions. You get the right one for free.
+
+    `cover` is the only thing you may say about it, and it is two things that look
+    alike. An OCCASION says what the moment is: "ceremony" is the end of a year,
+    "passing" is a map being crossed on the way somewhere and says nothing at all.
+    A NAME is one of the covers the map you are going to actually carries, if it has
+    more than one, in the same shape as every other name in this game: lower case,
+    digits and underscores, starting with a letter. A name that could not exist is
+    refused at this line rather than arriving as a picture nobody drew.
 
     THE MAP IS TORN DOWN AND YOUR ISLAND GOES WITH IT. Nothing after this line
     is going to run, so put your bars down and write your flags first.
