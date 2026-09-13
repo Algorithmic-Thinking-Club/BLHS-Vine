@@ -126,6 +126,12 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
     chosen,
     realClasses: realClasses.length,
     realActivities: realActivities.length,
+    /* THE SEATS THIS SCREEN CAN REALLY FILL. A club with no island is drawn here as
+     * an example and cannot be pressed, and one programme may not take two seasons,
+     * so with one island built this screen can fill exactly one season. Asking it for
+     * three was asking for something no student could do, and year one could not be
+     * stamped at all. */
+    seats: realActivities.length,
   })
   const { ready, stage, notYet } = owed
   /* said once, and marked when the panel is really up: a read that also wrote
@@ -248,7 +254,11 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
         <section className={`py-cardbox${stage === 'after' ? ' py-lit' : ''}`} aria-labelledby="py-cards-h">
           {/* the heading only asks for a pick when a club is really open */}
           <h3 className="py-h py-cards-h" id="py-cards-h">
-            {realActivities.length ? 'After school: pick one' : 'After school: no clubs open yet'}
+            {realActivities.length
+              ? realActivities.length > 1
+                ? `After school: pick ${Math.min(3, realActivities.length)}`
+                : 'After school: pick one'
+              : 'After school: no clubs open yet'}
             {realActivities.length > 0 && (
               <span className="py-count"> {chosen === 0 ? 'none yet' : `${chosen} taken`}</span>
             )}

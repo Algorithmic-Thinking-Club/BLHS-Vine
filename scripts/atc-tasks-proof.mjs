@@ -161,6 +161,20 @@ if (back) {
     JSON.stringify({ from: before.at, to: moved }))
   await shot('03-at-the-dock')
 }
+/* ---- AND THE LIST DIES WITH THE ISLAND -------------------------------------
+ *
+ * The rows name things to do HERE. Carried onto the next map they tell a student to
+ * press a machine that is not in the room, and worse, they are COUNTED: the sheet in
+ * the home base read "Algorithmic Thinking Club, 3 of 5 done" with two rows he could
+ * not reach, so a student who finished everything the year asked of him could never
+ * see the counter finish. */
+await page.evaluate(() => window.__intent({ kind: 'enter', map: 'panther-maw' }))
+await page.waitForTimeout(9000)
+const away = await sheet()
+ok("the island's list stays on its island", !!away && !/Algorithmic Thinking Club\d/.test(away.head),
+  away ? away.head : 'no sheet')
+ok('and the year has the sheet back', !!away && /Year one/.test(away.head), away ? away.head : 'no sheet')
+
 console.log(`
 ${fails.length ? 'FAILED: ' + fails.join(' | ') : 'ALL PASS'}`)
 await finish()

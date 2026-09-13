@@ -127,6 +127,7 @@ scripts/*
 !scripts/atc-walk-proof.mjs
 !scripts/atc-tasks-proof.mjs
 !scripts/atc-dock-proof.mjs
+!scripts/atc-stamp-proof.mjs
 !scripts/repro-brief.mjs
 
 # Internal asset registries (kept local)

@@ -36,6 +36,20 @@ export function scheduleOwed(n: {
   realClasses: number
   /** how many clubs and sports on offer have one */
   realActivities: number
+  /* ---- HOW MANY SEASONS THIS SCREEN CAN ACTUALLY FILL ---------------------
+   *
+   * Not always three, and getting this wrong made year one unstampable. A year hands
+   * out three season tokens, but one programme may not take two seasons, so filling
+   * three needs three DIFFERENT programmes the student is allowed to press. The year
+   * one screen draws a club with no island as an example and refuses the press, so
+   * with one island built it can offer exactly one. Asking it for three there is
+   * asking for something the screen cannot give, and a student reads a stamp that
+   * will not go live with nothing on the page explaining why.
+   *
+   * So the gate asks for every seat that is really on offer, up to the three the year
+   * holds. The day ATC ships a second island the same number goes to two on its own,
+   * and nothing here has to be edited. */
+  seats?: number
 }): ScheduleOwed {
   /* both elective periods are always owed, whether or not an island exists behind one */
   const owesClass = n.electivesLeft > 0
@@ -48,7 +62,10 @@ export function scheduleOwed(n: {
    * carried two into the stamp and forfeited them, and nothing on the page said so.
    * A student who picked one club and pressed on lost two thirds of his year without
    * being asked. */
-  const seasonsLeft = Math.max(0, SEASONS_OWED - n.chosen)
+  /* every seat on offer, never more than the year holds, and at least one wherever
+   * anything is playable at all */
+  const seats = Math.max(1, Math.min(SEASONS_OWED, n.seats ?? SEASONS_OWED))
+  const seasonsLeft = Math.max(0, seats - n.chosen)
   const owesActivity = n.realActivities > 0 && seasonsLeft > 0
   const ready = !owesClass && !owesActivity
   const stage = owesClass ? 'schedule' : owesActivity ? 'after' : 'go'
@@ -58,8 +75,9 @@ export function scheduleOwed(n: {
     ? `Not yet: fill ${n.electivesLeft > 1 ? 'both Elective periods' : 'the last Elective period'}.`
     : owesActivity
       ? seasonsLeft > 1
-        ? `Not yet: pick something for all ${SEASONS_OWED} seasons. ${seasonsLeft} still empty.`
-        : 'Not yet: one season is still empty.'
+        ? `Not yet: pick something for all ${seats} seasons. ${seasonsLeft} still empty.`
+        : seats > 1 ? 'Not yet: one season is still empty.'
+          : 'Not yet: press one club or sport below.'
       : null
   return { owesClass, owesActivity, ready, stage, notYet }
 }

@@ -42,6 +42,7 @@ import {
 } from '../world/travel'
 import { stateOf, STATE_INK } from '../world/states'
 import { onHeadBack } from '../world/home-bus'
+import { clearIslandTasks } from '../hud/island-tasks'
 import { onSailRequest, onVoyageRequest } from '../world/sail-bus'
 import { requestUi } from '../ui-bus'
 import { drawRecolored, lookHue } from '../thorLook'
@@ -3423,7 +3424,20 @@ export default function PmapScene() {
               if (destroyed) { r(); return }
               lookAtTarget = null
               lastShot = null
-              camFree = true
+              /* FALSE, WHICH IS THE VALUE FOR A BODY ON LAND. `camFree` is not "the
+               * camera is free to move", it is "this camera is at sea, do not clamp
+               * it to the painting": `board` sets it true, `stepAshore` sets it
+               * false, and this shot's own setup thirty lines above sets it false on
+               * purpose. Setting it true here released the FENCE instead of the shot,
+               * for the rest of the visit, and nothing on land ever put it back.
+               *
+               * What that cost, measured on atc-1 at 1366x768: the painting is
+               * 410x408 inside a 512 canvas, so with the fence off, walking to the
+               * club president at y=70 put the painting's top edge 318 pixels down
+               * the window and filled the top third of the screen with transparent
+               * canvas and the ocean drawn through it. On the one walk the island's
+               * own arrow points him along. */
+              camFree = false
               camZWant = walkZ()
               r()
             }, ms))
@@ -6336,6 +6350,17 @@ const CAST_OFF_SHOW_MS = 3200
        * one across this door and clears the line itself when he lands, so
        * wiping it here put "Go into the mountain" over a ship sailing away. */
       if (!travelPlan()) setObjectiveSaid(null)
+      /* AND THE ISLAND'S TASK LIST DIES WITH THE ISLAND, for exactly the reason the
+       * line above gives about its sentence. The rows name things to do HERE, so
+       * carried onto the next map they tell a student to press a machine that is not
+       * in the room.
+       *
+       * Without this: sail to ATC, tick both rows, sail home, walk into the Maw, and
+       * the task sheet there is headed "Algorithmic Thinking Club" with two rows the
+       * student cannot reach, unticked because the year has turned, counted in the
+       * total. He finishes everything year two asks of him and reads three of five
+       * done. A new run inherits it too, because nothing else writes that bus. */
+      clearIslandTasks()
       /* anything a station was still waiting on is resolved rather than left
        * hanging. A body parked on an unresolved say() holds its world lock for
        * ever, and the next map opens with no controls and no way to tell why. */
