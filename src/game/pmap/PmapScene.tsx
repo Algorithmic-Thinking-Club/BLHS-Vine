@@ -1222,11 +1222,31 @@ export default function PmapScene() {
           }
           gaitOf.set(sp, { frames: views.south, views, fps: 6 })
         }
+        /* EVERY NAME A SCRIPT CAN DRIVE, not a hardcoded list of them. Only an
+         * anchor can be driven, because `actor_move` and `lead_to` take a name and
+         * `hasAnchor` refuses anything else, so this is at most a dozen HEADs on a
+         * map rather than one per placement: the hub carries 94 placements and one
+         * anchor. The table above is now only for art filed under a different name
+         * from the anchor, and a member who files it under theirs needs no row in
+         * this repo at all, which is the whole point: a walking NPC stops being an
+         * engine edit. */
+        /* RESOLVED THE WAY `actorBody` RESOLVES IT, through the anchor's bound
+         * placement, because that is the only thing a script can drive.
+         * `placedById` is keyed by the placement's id and by the name its author
+         * typed, and nobody types one: looking a sprite up by the ANCHOR's name
+         * finds nothing and the walk silently never loads. */
+        const drivable = new Map<string, Sprite>()
+        for (const a of anchors.all) {
+          const sp = a.placement ? placedById.get(a.placement) : undefined
+          if (sp) drivable.set(a.name, sp)
+        }
+        for (const [name, folder] of Object.entries(GAIT_ART)) {
+          const sp = placedById.get(name) ?? drivable.get(name)
+          if (sp) drivable.set(name, sp)
+          void folder
+        }
         await Promise.all(
-          Object.entries(GAIT_ART).map(([name, folder]) => {
-            const sp = placedById.get(name)
-            return sp ? loadGait(sp, folder) : Promise.resolve()
-          }),
+          [...drivable].map(([name, sp]) => loadGait(sp, GAIT_ART[name] ?? name)),
         )
       }
 
