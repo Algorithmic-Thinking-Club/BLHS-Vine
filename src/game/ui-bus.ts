@@ -103,7 +103,29 @@ export function requestBeat(beat: string, plain: boolean, decl?: BeatDeclaration
 export function onBeatRequest(fn: (r: BeatRequest) => void): () => void {
   const h = (e: Event) => {
     e.preventDefault()          // "I have this" — see requestBeat above
-    fn((e as CustomEvent<BeatRequest>).detail)
+    const r = (e as CustomEvent<BeatRequest>).detail
+    /* ---- A LISTENER THAT THROWS MUST STILL ANSWER ------------------------
+     *
+     * The listener builds a beat out of what an island declared, and building it can
+     * throw: a malformed item, a shape the validator did not expect, anything a
+     * person typed in Python. `dispatchEvent` swallows what a listener throws, and
+     * `preventDefault` above has already told `requestBeat` that somebody has this,
+     * so the promise the island is sitting on was never settled either way.
+     *
+     * That is the worst failure this file can have. The island's `play()` never comes
+     * back, the station that called it holds the controls for ever, and the map is
+     * dead with no bars, no panel and nothing on screen saying why. A reload is the
+     * only way out and a student has no reason to think of one.
+     *
+     * So the throw becomes the refusal it should have been, which the island already
+     * knows how to meet: it arrives at the member's own line with the message. */
+    try {
+      fn(r)
+    } catch (err) {
+      const why = err instanceof Error ? err.message : String(err)
+      console.error(`[beat] building "${r.beat}" threw, so the island is being refused: ${why}`)
+      r.refuse(why)
+    }
   }
   window.addEventListener(BEAT_EVENT, h)
   return () => window.removeEventListener(BEAT_EVENT, h)

@@ -286,6 +286,20 @@ export const fullMarks = (c: CheckStep): Response =>
 /* refuse an item that cannot be answered, by name, at load rather than on screen */
 export function refuseCheck(c: CheckStep): string | null {
   const id = checkIdOf(c)
+  /* ---- A KIND NOBODY HAS IS REFUSED FIRST ---------------------------------
+   *
+   * The switch below has a case per kind and no default, so an item whose `kind` is a
+   * typo fell straight through it and was reported VALID. The next thing that touches
+   * it is `entry()`, which reads `PALETTE[c.kind]` and gets undefined, and the frame
+   * after that is a property read on undefined: a white page, not a refusal.
+   *
+   * A member's island is the whole reason this matters. The kinds arrive over the
+   * worker as strings a person typed in Python, so "muliple" instead of "multiple" is
+   * an ordinary Tuesday, and what he should get is a sentence naming his own word and
+   * the ones that exist. */
+  if (!(c.kind in PALETTE))
+    return `check "${id}" is a "${String(c.kind)}", which is not a kind of question this game has. `
+      + `It has: ${Object.keys(PALETTE).sort().join(', ')}`
   const oneCorrect = (opts: { correct?: boolean }[], where: string) => {
     const n = opts.filter((o) => o.correct).length
     if (n !== 1) return `${where} must have exactly one correct option, it has ${n}`

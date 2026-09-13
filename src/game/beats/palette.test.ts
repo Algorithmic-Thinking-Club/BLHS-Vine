@@ -310,6 +310,25 @@ describe('the loader refuses an invalid item and names it (K5)', () => {
     for (const k of kinds) expect(refuseCheck(sampleOf(k)), k).toBeNull()
   })
 
+  /* ---- A KIND NOBODY HAS, which used to reach the page as a crash ---------
+   *
+   * The switch in `refuseCheck` has a case per kind and had no default, so an item
+   * whose kind was a typo fell through it and was reported VALID. The next thing to
+   * touch it reads `PALETTE[c.kind]`, gets undefined, and the frame after that is a
+   * property read on undefined: a white page rather than a refusal.
+   *
+   * It matters because the kinds arrive over the worker as strings a member typed in
+   * Python, so a misspelling is an ordinary Tuesday and what he should get back is a
+   * sentence naming his own word. */
+  it('refuses a kind this game does not have, and lists the ones it does', () => {
+    const typo = { kind: 'muliple', id: 'x', prompt: 'p', options: [] } as unknown as CheckStep
+    const why = refuseCheck(typo)
+    expect(why).toBeTruthy()
+    expect(why).toMatch(/"muliple"/)
+    /* and it names the real ones, so the fix is in the sentence */
+    for (const k of kinds) expect(why).toContain(k)
+  })
+
   it('refuses two correct options, none, and a one-option question', () => {
     const two: CheckStep = {
       kind: 'choice', id: 'x', prompt: 'p',
