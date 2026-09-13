@@ -17,6 +17,9 @@ import { boot, BASE, STAMPED, LIVE } from './play-harness.mjs'
 
 const live = process.argv.includes('--live')
 const base = live ? LIVE : 'http://localhost:5173'
+/* the deploy takes longer to draw its first frame than the dev server, and
+ * `window.__intent` only exists once the scene has mounted */
+const SETTLE = live ? 11000 : 6000
 const fails = []
 const ok = (name, pass, detail = '') => {
   console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? ' :: ' + detail : ''}`)
@@ -42,7 +45,7 @@ const stampState = (page) => page.evaluate(() => {
     dir: 'reference/_archive/build-shots/stamp/y1',
   })
   const { page, shot, finish } = h
-  await page.waitForTimeout(6000)
+  await page.waitForTimeout(SETTLE)
   await page.evaluate(() => window.__intent({ kind: 'open', ui: 'planner' }))
   await page.waitForTimeout(2400)
   const before = await stampState(page)
@@ -84,7 +87,7 @@ const stampState = (page) => page.evaluate(() => {
     dir: 'reference/_archive/build-shots/stamp/y2',
   })
   const { page, shot, finish } = h
-  await page.waitForTimeout(6000)
+  await page.waitForTimeout(SETTLE)
   await page.evaluate(() => window.__intent({ kind: 'open', ui: 'planner' }))
   await page.waitForTimeout(2600)
   const before = await stampState(page)
