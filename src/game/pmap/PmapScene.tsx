@@ -5147,7 +5147,13 @@ const CAST_OFF_SHOW_MS = 3200
         if (hull) {
           if (berthing) {
             /* the manoeuvre drives the same hull through the same physics as the player's helm */
-            const r = berthHelm(hull, berthing, DEFAULT_SAIL, dt)
+            /* AND THE MANOEUVRE IS TOLD WHERE THE WATER IS. It works a rendezvous
+             * out for itself when nobody drew an approach point, and the one thing
+             * it cannot know is whether the sea it names is there: the hub's berth
+             * is aimed so that its approach comes from beyond the bottom right of
+             * the painting, and the boat sailed at it, grounded, and gave up. */
+            const r = berthHelm(hull, berthing, DEFAULT_SAIL, dt,
+              (x, y) => depthAt(x, y) >= DEFAULT_SAIL.probe)
             berthing = r.next
             hull = stepHull(hull, r.helm, dt, depthAt)
             if (berthing.stage === 'done') docked()

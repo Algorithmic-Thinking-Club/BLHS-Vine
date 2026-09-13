@@ -59,14 +59,18 @@ await shot('01-in-the-maw')
  * cannot be pressed by text. Opened through the same word an island would use. */
 const openUi = async (ui) => page.evaluate((u) => window.__intent({ kind: 'open', ui: u }), ui)
 await openUi('planner')
-v = await until((s) => s.press.some((e) => /Sail to/i.test(e.text)), { ms: 12000 })
+v = await until((s) => s.press.some((e) => /Sail (to|there)/i.test(e.text)), { ms: 12000 })
 await shot('02-the-year-sheet')
-const sailBtn = v.press.find((e) => /Sail to/i.test(e.text))
-ok('the year sheet offers the voyage by name',
-  !!sailBtn && /Algorithmic Thinking Club/i.test(sailBtn.text), sailBtn ? sailBtn.text : said(v.texts).slice(0, 160))
+const sailBtn = v.press.find((e) => /Sail (to|there)/i.test(e.text))
+/* THE NAME IS ON THE CARD AND THE PRESS IS UNDER IT, which is two checks and was
+ * one. The button used to repeat the club's name and that is what overflowed it:
+ * the sign is 171px and "Sail to Algorithmic Thinking Club" needs 254. What the
+ * sheet has to do is name the club and offer the voyage, and it still does both. */
+ok('the year sheet names the club', /Algorithmic Thinking Club/i.test(said(v.texts)), said(v.texts).slice(0, 160))
+ok('and offers the voyage under it', !!sailBtn, sailBtn ? sailBtn.text : 'nothing to press')
 
 /* ---- 2 and 3. she casts off and puts in at ATC ----------------------------- */
-await pressText(/Sail to/i)
+await pressText(/Sail (to|there)/i)
 const there = await until((s) => s.map && s.map.map === 'atc-1' && !s.map.hull, { ms: 90000, every: 700 })
 await shot('03-ashore-at-atc')
 ok('the crossing lands at the ATC island',

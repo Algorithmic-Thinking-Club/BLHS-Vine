@@ -133,10 +133,24 @@ html[data-skin='plain'] .pc-dwell { background: var(--kit-ink-dim); height: 1px;
  * *"Maybe after the cutscene / first time, it becomes a smaller panel higher up
  * the screen."* The first arrival at a place is a moment; the fourth is a label.
  * Same card, two thirds the size, up out of the middle where the eye is. */
+/* ---- A PLACE HE HAS BEEN BEFORE: SMALLER, AND STILL IN THE MIDDLE -------
+ *
+ * Ash: *"the panel that displays the map name shows up at the top middle, and
+ * gets hidden by the guide pill. instead it should always show up on the middle.
+ * of course, if its the first time entering a map, it shows up big. if its
+ * second, it shows up smaller. always, if the user clicks, it dissapears."*
+ *
+ * It used to be sent to the top of the screen to stay out of the way, and the top
+ * of the screen is where the objective bar lives: measured at 1366x768 the bar's
+ * wrapper is the full width and 126px tall at z-index 71, and this card was
+ * landing at 9vh, which is 69px, at z-index 68. So it was drawn underneath the
+ * bar every time, which is a card a student is owed and never sees.
+ *
+ * Being smaller is the whole of what marks a repeat, and the middle is where the
+ * eye already is. `--ui-band-top` is read by nothing that writes it, so the top
+ * offset was resolving against its own fallback of zero. */
 .pc-root[data-brief='1'] {
-  bottom: auto;
-  top: max(9vh, calc(var(--ui-band-top, 0px) + 2vh));
-  width: min(300px, 46vw);
+  width: min(340px, 52vw);
   opacity: .93;
 }
 .pc-root[data-brief='1'] .pc-name { --kit-fs-raw: .8em; font-size: var(--kit-fs); }

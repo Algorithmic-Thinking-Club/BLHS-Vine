@@ -152,6 +152,21 @@ export const BERTH_GIVE_UP_MS = 4000
 export const BERTH_PROGRESS_PX = 2
 
 export const ALONGSIDE_PX = 18
+/* HOW FAR OFF THE MARK STILL COUNTS AS TIED UP, when she can get no closer.
+ *
+ * A berth is a point somebody dragged onto a painting, and it can sit where a hull
+ * with a 26px draught cannot physically reach. Measured on the hub: the boat comes
+ * down the line correctly, stops 39px short with the island under her forefoot, and
+ * cannot close the last stretch at all. Demanding the exact pixel there turns a
+ * good arrival into "The boat cannot dock from here", which is a sentence about the
+ * game being broken rather than about anything a student did.
+ *
+ * A boat alongside a dock is BESIDE it and never on top of it, so this is what
+ * alongside really means: within about a hull's length, lying the right way, and
+ * unable to do better. The exact mark still wins whenever it is reachable. */
+export const ALONGSIDE_MAX_PX = 52
+/** how long she has to be unable to improve before being beside it is good enough */
+export const ALONGSIDE_SETTLED_MS = 1200
 /** how close to the authored heading counts as parallel to the dock */
 export const ALONGSIDE_RAD = 0.3
 
@@ -178,9 +193,16 @@ export const ALONGSIDE_RAD = 0.3
  *
  * It costs an author nothing and it needs no approach point drawn, so every
  * berth on every island gets a real approach the day it is placed. */
-export const RUN_IN_LEAD = 0.7
-/** and never further back than this, so a crossing from the far side of the ocean does not aim a thousand pixels past the island */
-export const RUN_IN_MAX_PX = 260
+/** how much of the run she has left is spent closing on the line rather than the berth */
+export const RUN_IN_LOOK = 0.85
+/* HOW FAR ASTERN THE RENDEZVOUS SITS, and the number comes off the hull rather than
+ * out of the air. At cruise she turns at about 1.6 rad/s and makes 150px/s, so her
+ * turning circle is roughly 92px of radius; swinging a bow through 180 degrees
+ * therefore needs about 300px of water to do it in. This is the straight she is
+ * given to settle her heading before she is alongside. */
+export const RUN_IN_ROUND_PX = 320
+/** how far off the line still counts as being in the approach corridor */
+export const RUN_IN_CORRIDOR_PX = 90
 
 const wrap = (a: number): number => {
   let r = a
@@ -192,13 +214,37 @@ const wrap = (a: number): number => {
 /** the helm a berthing manoeuvre wants this tick, and how far along it is.
  *  `dt` is only needed by the watchdog; leaving it out runs the manoeuvre with
  *  no give-up, which is what the pure tests want. */
+/* ---- WHERE SHE IS ALLOWED TO SAIL -----------------------------------------
+ *
+ * An optional water test, because the one thing a derived rendezvous cannot work
+ * out for itself is whether the water it names exists. Measured on the hub: its
+ * berth is aimed such that the approach comes from beyond the bottom right corner
+ * of the painting, so the rendezvous landed off the map, she sailed at it, ran
+ * aground and the manoeuvre gave up. The scene knows the depth field; this does
+ * not, so it asks. Left out, everything is water, which is what the pure tests
+ * want and what a berth in open sea amounts to anyway. */
+export type Navigable = (x: number, y: number) => boolean
+
 export function berthHelm(
-  s: HullState, b: Berthing, cfg = DEFAULT_SAIL, dt = 0,
+  s: HullState, b: Berthing, cfg = DEFAULT_SAIL, dt = 0, ok?: Navigable,
 ): { helm: Helm; next: Berthing } {
   if (b.stage === 'done' || b.stage === 'given_up') return { helm: HELM_IDLE, next: b }
 
-  /* the watchdog, run before anything else this tick */
-  const gap = Math.hypot(b.target.x - s.x, b.target.y - s.y)
+  /* the watchdog, run before anything else this tick.
+   *
+   * MEASURED AGAINST WHAT SHE IS STEERING FOR AND NOT ALWAYS THE BERTH. While she
+   * is making for an authored approach point, getting further from the berth is
+   * the correct thing to be doing, so a watchdog that only ever watched the berth
+   * called a working manoeuvre stuck and handed the helm back in the middle of
+   * it. Measured on the hub's crossing: it gave up 242px out with the boat
+   * sailing exactly where it had been told to. */
+  const aimNow = b.stage === 'approach' && b.facing !== undefined
+    ? {
+      x: (b.approach ?? b.target).x - (b.approach ? 0 : Math.cos(b.facing) * RUN_IN_ROUND_PX),
+      y: (b.approach ?? b.target).y - (b.approach ? 0 : Math.sin(b.facing) * RUN_IN_ROUND_PX),
+    }
+    : b.stage === 'approach' && b.approach ? b.approach : b.target
+  const gap = Math.hypot(aimNow.x - s.x, aimNow.y - s.y)
   let best = b.best ?? gap
   let stuckMs = b.stuckMs ?? 0
   if (dt > 0) {
@@ -208,33 +254,68 @@ export function berthHelm(
       return { helm: HELM_IDLE, next: { ...b, stage: 'given_up', best, stuckMs } }
   }
   const watched = (n: Berthing): Berthing => ({ ...n, best, stuckMs })
+  /* and the tally starts again when the aim changes, or the gate's leftover
+   * distance is carried into the run-in as though no progress had been made */
+  const restart = (n: Berthing): Berthing => ({ ...n, best: undefined, stuckMs: 0 })
 
   if (b.stage === 'approach') {
     /* MAKE FOR THE APPROACH POINT FIRST, so she comes at the dock down its own
      * line instead of cutting the corner across the shallows.
      *
-     * AND THE POINT IS DERIVED WHEN NOBODY DREW ONE, which is every berth on the
-     * ocean today. Straight up the berth's own heading is where a boat has to
-     * come from, so it can be worked out rather than authored, and an author only
-     * needs to draw one when the water in between is foul.
+     * ONLY A POINT SOMEBODY DREW. A derived one used to live here and it was the
+     * wrong shape for the job: a gate is a POSITION, and she arrives at a position
+     * pointing whatever way she came, so from two of twelve bearings she reached
+     * it across the line and still had 165 degrees to turn in the last 260px. The
+     * line she has to end on is a DIRECTION, and the run-in below steers onto it
+     * directly. An authored point stays a real instruction about where the water
+     * is safe, so it is still sailed to first. */
+    /* THE RENDEZVOUS, when nobody drew an approach point. It sits on the berth's
+     * own line, a turning circle astern of it, and its job is to put her in the
+     * corridor so that the run-in below has a straight to work with.
      *
-     * This is what stops the arrival from the WRONG SIDE. Coming at the dock from
-     * the direction she is supposed to be pointing, she used to reach the berth
-     * nose-first, stop, and turn 120 degrees on the spot. Sent to the gate first
-     * she sweeps round outside and comes back down the line under way, which is
-     * both what it should look like and what a helmsman would do. */
-    const aim = b.approach ?? (b.facing === undefined ? undefined : {
-      x: b.target.x - Math.cos(b.facing) * RUN_IN_MAX_PX,
-      y: b.target.y - Math.sin(b.facing) * RUN_IN_MAX_PX,
-    })
-    if (!aim) return berthHelm(s, watched({ ...b, stage: 'alongside' }), cfg)
+     * SHE IS ALREADY IN THE CORRIDOR IF SHE IS ASTERN OF THE BERTH AND NEAR ITS
+     * LINE, however close she is, and then this stage has nothing to do. That
+     * matters: the hub's crossing hands her over 69px from the dock, and sending a
+     * boat that is already lined up on a 320px trip back out to sea is how the old
+     * shape of this drove away from a dock it had reached and gave up 242px out. */
+    let aim = b.approach
+    if (!aim && b.facing !== undefined) {
+      const fx = Math.cos(b.facing), fy = Math.sin(b.facing)
+      const along = (s.x - b.target.x) * fx + (s.y - b.target.y) * fy
+      const cross = Math.abs(-(s.x - b.target.x) * fy + (s.y - b.target.y) * fx)
+      /* AND SHE NEEDS THE ROOM TO STRAIGHTEN, which is the condition that took four
+       * bearings to find. Being astern and near the line is not enough on its own: a
+       * boat 30px astern still pointing 146 degrees away has nowhere to do that turn,
+       * so she was accepted into the run-in and then pirouetted at the dock. What she
+       * needs is arc: her heading error times her turning radius. Inside the
+       * tolerance she needs none, which is the ordinary case of a crossing that came
+       * down the line already. */
+      const off = Math.abs(wrap(b.facing - s.heading))
+      const radius = cfg.cruise / Math.max(0.2, cfg.turn * 0.74)
+      const room = off < ALONGSIDE_RAD ? 0 : off * radius
+      if (along < 0 && cross < RUN_IN_CORRIDOR_PX && -along >= room)
+        return berthHelm(s, restart({ ...b, stage: 'alongside' }), cfg, dt, ok)
+      /* THE FURTHEST POINT BACK DOWN THE LINE THAT IS STILL WATER, walked out from
+       * the berth rather than assumed. A short rendezvous is worse than a long one
+       * and a dry one is worse than either. */
+      let back = 0
+      for (let d = RUN_IN_CORRIDOR_PX; d <= RUN_IN_ROUND_PX; d += 20) {
+        if (ok && !ok(b.target.x - fx * d, b.target.y - fy * d)) break
+        back = d
+      }
+      /* nothing navigable astern at all: there is no approach to make, so she is
+       * handed to the run-in and does what she can from where she is */
+      if (!back) return berthHelm(s, restart({ ...b, stage: 'alongside' }), cfg, dt, ok)
+      aim = { x: b.target.x - fx * back, y: b.target.y - fy * back }
+    }
+    if (!aim) return berthHelm(s, restart({ ...b, stage: 'alongside' }), cfg, dt, ok)
     const dx = aim.x - s.x, dy = aim.y - s.y
     const d = Math.hypot(dx, dy)
 
     /* a waypoint is passed rather than hit: the test is whether it is behind the bow */
     const ahead = Math.cos(s.heading) * dx + Math.sin(s.heading) * dy
     if (d < ALONGSIDE_PX * 2 || (ahead < 0 && d < cfg.cruise))
-      return berthHelm(s, watched({ ...b, stage: 'alongside' }), cfg)
+      return berthHelm(s, restart({ ...b, stage: 'alongside' }), cfg, dt, ok)
 
     const err = wrap(Math.atan2(dy, dx) - s.heading)
     /* AND SHE SLOWS INTO IT, for the same reason. Speed is what makes the turn
@@ -263,17 +344,63 @@ export function berthHelm(
     return { helm: { throttle: 0, turn: Math.abs(err) < 0.05 ? 0 : Math.sign(err), fullSail: false }, next: watched(b) }
   }
 
-  /* THE RUN-IN. She steers for a point back down the line she has to end on
-   * rather than at the berth itself, so the turn happens out on the water while
-   * she still has way on and she arrives already parallel. See RUN_IN_LEAD.
+  /* BESIDE IT, LYING RIGHT, AND UNABLE TO DO BETTER IS TIED UP. See
+   * ALONGSIDE_MAX_PX: this is the clause that tells a berth drawn a few pixels
+   * inside the coast apart from a boat that has genuinely failed to arrive. The
+   * watchdog still gives up on the second kind, because this needs her to be both
+   * close and pointing the right way. */
+  if (dist <= ALONGSIDE_MAX_PX && stuckMs >= ALONGSIDE_SETTLED_MS) {
+    const err = b.facing === undefined ? 0 : wrap(b.facing - s.heading)
+    if (Math.abs(err) < ALONGSIDE_RAD * 1.5)
+      return { helm: HELM_IDLE, next: watched({ ...b, stage: 'done' }) }
+  }
+
+  /* ---- THE RUN-IN: SHE STEERS ONTO THE DOCK'S LINE, NOT AT THE DOCK ---------
    *
-   * A berth with no authored heading keeps the old behaviour of driving at the
-   * mark, because there is no line to pick up. */
+   * The berth carries a heading, which means the last stretch of water before it
+   * is a LINE and not a point: it runs through the berth in the direction she has
+   * to end up pointing. A helmsman picks that line up while he still has way on
+   * and comes down it, so by the time he is alongside there is nothing left to
+   * turn.
+   *
+   * This is the standard way to follow a line. Her position is projected onto it,
+   * a mark is taken a fixed distance further along, and she steers at the mark.
+   * Off to one side the mark pulls her in; on the line it sits dead ahead; and it
+   * is never allowed past the berth, so as she closes the mark becomes the berth
+   * itself and her heading has already converged on the line's.
+   *
+   * WHY NOT A GATE ASTERN OF THE BERTH, which is what stood here first: a gate is
+   * a position, and a boat arrives at a position pointing whatever way she came.
+   * Measured over twelve bearings, ten were fine and the two that approached from
+   * the direction she was supposed to END on reached the gate across the line and
+   * still had 165 degrees to turn in the last 260px, so they finished with a spin
+   * on the spot. A line has no such blind side.
+   *
+   * A berth with no heading keeps the old behaviour of driving at the mark,
+   * because there is no line to pick up. */
   let aimX = b.target.x, aimY = b.target.y
   if (b.facing !== undefined) {
-    const lead = Math.min(dist * RUN_IN_LEAD, RUN_IN_MAX_PX)
-    aimX -= Math.cos(b.facing) * lead
-    aimY -= Math.sin(b.facing) * lead
+    const fx = Math.cos(b.facing), fy = Math.sin(b.facing)
+    /* how far along the line she is, measured from the berth. Astern of it is
+     * negative, which is where a boat coming in to dock always is. */
+    const along = (s.x - b.target.x) * fx + (s.y - b.target.y) * fy
+    /* WHERE THE MARK GOES, and three measured attempts landed here.
+     *
+     * A FIXED look-ahead past the berth never terminates: she aims through the
+     * dock, sails on, and comes back for another go for ever. A fixed one clamped
+     * AT the berth collapses onto it over the last stretch, so the final 130px are
+     * spent steering at the dock rather than along it and she arrives across the
+     * line: eight of twelve bearings went back to turning on the spot.
+     *
+     * What works is a look-ahead that is a FRACTION of how far down the line she
+     * still has to come. The mark is always ahead of her and always short of the
+     * berth, so her heading converges on the line while the gap closes, and the
+     * mark converges on the berth so the manoeuvre ends. */
+    /* astern of the berth, which the corridor gate in the approach stage has
+     * already made true; past it she has overshot and the berth itself is the mark */
+    const at = along < 0 ? along + Math.max(ALONGSIDE_PX, -along * RUN_IN_LOOK) : 0
+    aimX = b.target.x + fx * at
+    aimY = b.target.y + fy * at
   }
 
   const err = wrap(Math.atan2(aimY - s.y, aimX - s.x) - s.heading)
