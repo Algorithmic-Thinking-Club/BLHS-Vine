@@ -4086,8 +4086,29 @@ export default function PmapScene() {
         return ang + flip
       }
 
-      const radOf = (f: string | undefined): number =>
-        f === 'east' ? 0 : f === 'south' ? Math.PI / 2 : f === 'north' ? -Math.PI / 2 : Math.PI
+      /* A BERTH'S HEADING, ALL EIGHT OF THEM. This read three words and sent everything else to
+       * west, diagonals included and silently, so MAPVIS greyed the four diagonals out of its own
+       * compass to stop an author drawing a hull one way on the chart and the game drawing it
+       * another. A coastline does not run north to south to suit us, so half the shores on a map
+       * could not be moored along at all.
+       *
+       * Screen space, x right and y down, which is why south is positive: east 0, south a quarter
+       * turn, north back a quarter, west half. A word nothing here knows still answers west, so
+       * every world published before this draws exactly as it did. */
+      const RADS: Record<string, number> = {
+        east: 0,
+        'south-east': Math.PI / 4,
+        south: Math.PI / 2,
+        'south-west': (Math.PI * 3) / 4,
+        west: Math.PI,
+        'north-west': (-Math.PI * 3) / 4,
+        north: -Math.PI / 2,
+        'north-east': -Math.PI / 4,
+      }
+      const radOf = (f: string | undefined): number => {
+        const r = RADS[String(f || '').toLowerCase()]
+        return r === undefined ? Math.PI : r
+      }
 
       /* ---- THE CARD IS OWED ON EVERY ARRIVAL (Ash, 2026-09-09) ----------
        *
