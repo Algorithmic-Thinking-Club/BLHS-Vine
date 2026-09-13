@@ -20,6 +20,12 @@ export type Pathway = {
   twoWay: boolean
   /** the heading to hold on arrival, in the same eight-way vocabulary as walking */
   facing?: string
+  /** THE SAME HEADING AS AN ANGLE, degrees clockwise from north, and the one to believe when it is
+   *  here. Eight words cannot say "along this shore" when a coast runs at 23 degrees, and a berth is
+   *  the one mark whose whole job is to lie along something. `facing` is still written beside it as
+   *  the nearest of the eight, so nothing that reads a word has to learn anything and a bundle
+   *  published before this existed reads exactly as it did. */
+  bearing?: number
   marks: PathMark[]
   meta?: Record<string, unknown>
 }
@@ -105,6 +111,7 @@ export function readPaths(map: PathSource, mapId = ''): Pathway[] {
       closed: e.closed === true,
       twoWay: e.twoWay === true,
       ...(typeof e.facing === 'string' && e.facing ? { facing: e.facing } : {}),
+      ...(Number.isFinite(Number(e.bearing)) ? { bearing: Number(e.bearing) } : {}),
       marks,
       ...(e.meta && typeof e.meta === 'object' ? { meta: e.meta as Record<string, unknown> } : {}),
     })

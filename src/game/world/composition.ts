@@ -24,6 +24,11 @@ export type Berth = WorldPt & {
   name?: string
   /** the heading the hull settles on, in the eight-way vocabulary the walk uses */
   facing?: string
+  /** THE SAME HEADING AS AN ANGLE, degrees clockwise from north, and the one to believe when it is
+   *  here. Eight words cannot say "along this shore" when a coast runs at 23 degrees, and a berth is
+   *  the one mark whose whole job is to lie along something. MAPVIS keeps `facing` at the nearest of
+   *  the eight beside it, so a reader that has never heard of this is no worse off than it was. */
+  bearing?: number
   /** where the hull aims before the final manoeuvre; absent means straight in */
   approach?: WorldPt
   /** the anchor in the arrival map the player is put on after stepping off */
@@ -36,6 +41,11 @@ export type WorldMark = WorldPt & {
   kind: 'berth' | string
   label?: string
   facing?: string
+  /** THE SAME HEADING AS AN ANGLE, degrees clockwise from north, and the one to believe when it is
+   *  here. Eight words cannot say "along this shore" when a coast runs at 23 degrees, and a berth is
+   *  the one mark whose whole job is to lie along something. MAPVIS keeps `facing` at the nearest of
+   *  the eight beside it, so a reader that has never heard of this is no worse off than it was. */
+  bearing?: number
   /** the slot this mark belongs to, when it belongs to one */
   island?: string
   /** the anchor in the arrival map a body is put on after stepping off */
@@ -276,7 +286,16 @@ export function berthOf(c: WorldComposition, name: string): Berth | undefined {
   if (own) return own
   const m = markByName(c, name)
   if (!m || m.kind !== 'berth') return undefined
-  return { x: m.x, y: m.y, name: m.name, ...(m.facing ? { facing: m.facing } : {}), ...(m.at ? { at: m.at } : {}) }
+  return {
+    x: m.x,
+    y: m.y,
+    name: m.name,
+    ...(m.facing ? { facing: m.facing } : {}),
+    /* the exact angle rides across with the word, or a berth turned on the dial moors at the nearest
+     * of eight and the chart that drew it was telling the truth about a heading the game never saw */
+    ...(Number.isFinite(Number(m.bearing)) ? { bearing: Number(m.bearing) } : {}),
+    ...(m.at ? { at: m.at } : {}),
+  }
 }
 
 /* the crossing a berth's surrounding marks describe, ordered farthest out to nearest */

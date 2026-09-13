@@ -4105,7 +4105,15 @@ export default function PmapScene() {
         north: -Math.PI / 2,
         'north-east': -Math.PI / 4,
       }
-      const radOf = (f: string | undefined): number => {
+      /* AN ANGLE BEATS A WORD when the author set one. MAPVIS turns a berth on a dial now, because a
+       * coastline does not run at a multiple of forty-five, and it writes the exact degrees beside the
+       * nearest word. Degrees are clockwise from north; screen space has y down, so north is -cos and
+       * east is +sin, which is the same convention the eight entries above are written in. */
+      const radOf = (f: string | undefined, deg?: number): number => {
+        if (Number.isFinite(Number(deg))) {
+          const t = (Number(deg) * Math.PI) / 180
+          return Math.atan2(-Math.cos(t), Math.sin(t))
+        }
         const r = RADS[String(f || '').toLowerCase()]
         return r === undefined ? Math.PI : r
       }
@@ -4159,7 +4167,7 @@ export default function PmapScene() {
         const at = fromSea(berth.x, berth.y)
         /* she stops being scenery the instant she is a boat again */
         moored = null
-        hull = newHull(at.x, at.y, radOf(berth.facing))
+        hull = newHull(at.x, at.y, radOf(berth.facing, berth.bearing))
         if (hullSp) hullSp.visible = true
         thor.sp.visible = false; thor.sh.visible = false; pinWanted = false
         camFree = true
@@ -4211,7 +4219,7 @@ export default function PmapScene() {
         const ap = s.berth.approach ? fromSea(s.berth.approach.x, s.berth.approach.y) : undefined
         berthing = {
           target: t,
-          facing: s.berth.facing ? radOf(s.berth.facing) : undefined,
+          facing: s.berth.facing || s.berth.bearing !== undefined ? radOf(s.berth.facing, s.berth.bearing) : undefined,
           approach: ap,
           stage: 'approach',
         }
@@ -4330,7 +4338,7 @@ export default function PmapScene() {
         const b = fromSea(berth.x, berth.y)
         let dir = berth.approach
           ? Math.atan2(fromSea(berth.approach.x, berth.approach.y).y - b.y, fromSea(berth.approach.x, berth.approach.y).x - b.x)
-          : berth.facing ? radOf(berth.facing) + Math.PI
+          : berth.facing || berth.bearing !== undefined ? radOf(berth.facing, berth.bearing) + Math.PI
             : Math.atan2(b.y - pc.y, b.x - pc.x)
         if (!isFinite(dir)) dir = Math.PI / 2
         let out = { x: b.x, y: b.y }
@@ -4394,7 +4402,7 @@ export default function PmapScene() {
         const b = fromSea(berth.x, berth.y)
         let dir = berth.approach
           ? Math.atan2(fromSea(berth.approach.x, berth.approach.y).y - b.y, fromSea(berth.approach.x, berth.approach.y).x - b.x)
-          : berth.facing ? radOf(berth.facing) + Math.PI
+          : berth.facing || berth.bearing !== undefined ? radOf(berth.facing, berth.bearing) + Math.PI
             : Math.atan2(b.y - pc.y, b.x - pc.x)
         if (!isFinite(dir)) dir = Math.PI / 2
         let out = { x: b.x, y: b.y }
@@ -5057,7 +5065,10 @@ const CAST_OFF_SHOW_MS = 3200
               lastBerth = b?.name ?? null
               berthing = {
                 target: end,
-                facing: (b?.facing ?? s2.path.facing) ? radOf(b?.facing ?? s2.path.facing) : undefined,
+                facing:
+                  (b?.facing ?? s2.path.facing) || (b?.bearing ?? s2.path.bearing) !== undefined
+                    ? radOf(b?.facing ?? s2.path.facing, b?.bearing ?? s2.path.bearing)
+                    : undefined,
                 approach: b?.approach ? fromSea(b.approach.x, b.approach.y) : undefined,
                 stage: 'approach',
               }
