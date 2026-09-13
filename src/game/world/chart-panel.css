@@ -1,0 +1,108 @@
+/* the chart on its own screen, and the button that opens it */
+
+@import '../ui/tokens.css';
+
+/* ---- THE BUTTON, ABOVE THE QUESTION MARK --------------------------------
+ *
+ * Ash asked for it in those words: *"a button to open the sialign map alone, above
+ * the help button."* So it is the help button's own plate, the same width and the
+ * same corner, stacked directly on top of it. Its own file rather than `help.css`
+ * because one of them is the game's manual and the other is the sea.
+ */
+.cp-btn {
+  position: fixed;
+  /* the help button's own bottom, plus its height and a gap: they read as one
+     stack of two rather than as two controls that happen to be near each other */
+  bottom: calc(max(2.4vh, 14px) + 50px + 8px);
+  right: max(2vw, 14px);
+  z-index: 50;
+  width: 108px;
+  height: 50px;
+  min-width: 0;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 0 3px;
+}
+/* the same rule every corner control follows: a panel takes the window */
+html[data-panels]:not([data-panels='0']) .cp-btn { visibility: hidden; }
+/* and it is not offered where there is no world to sail on */
+.cp-btn[hidden] { display: none !important; }
+.cp-btn-word {
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1;
+}
+
+/* ---- THE PANEL ---------------------------------------------------------- */
+
+.cp-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: var(--kit-veil);
+  display: grid;
+  place-items: center;
+  animation: cp-in 180ms var(--kit-ease-rise) both;
+}
+@keyframes cp-in { from { opacity: 0; } to { opacity: 1; } }
+html[data-rm='1'] .cp-veil { animation: none; }
+
+.cp-card {
+  /* WIDE, BECAUSE THE THING IN IT IS A MAP. The Handbook gives the chart whatever
+     is left after six tabs and a title block, which on a Chromebook is a strip about
+     three hundred pixels tall. On its own it gets the window. */
+  width: min(1100px, 94vw);
+  max-height: 92vh;
+  box-sizing: border-box;
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  image-rendering: var(--kit-pixel);
+  font-family: var(--kit-face-body);
+  color: var(--kit-ink-body);
+  animation: cp-rise 220ms var(--kit-ease-pop) both;
+}
+@keyframes cp-rise { from { transform: translateY(12px) scale(.98); } to { transform: none; } }
+html[data-rm='1'] .cp-card { animation-duration: 1ms; }
+
+.cp-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 2px;
+}
+.cp-title {
+  grid-column: 1;
+  margin: 0;
+  font-family: var(--kit-face-title);
+  --kit-fs-raw: calc(26px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-head);
+}
+.cp-sub {
+  grid-column: 1;
+  margin: 0;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-dim);
+}
+.cp-close { grid-column: 2; grid-row: 1 / span 2; }
+
+/* the chart itself takes the rest of the card and scrolls inside itself, so the
+   title and the way out never leave the glass on a short window */
+.cp-card > .ch-root,
+.cp-card > .ch-wrap { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+
+/* the plain arm gets the same screen with no wood on it */
+html[data-skin='plain'] .cp-card {
+  background: #fff;
+  border: 1px solid #767676;
+  border-image: none;
+  color: #000;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+html[data-skin='plain'] .cp-title,
+html[data-skin='plain'] .cp-sub { font-family: inherit; color: #000; }

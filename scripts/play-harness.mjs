@@ -106,7 +106,7 @@ export async function boot(name, { save, url, headed = false, clearSeen = true, 
     return {
       press: press.filter((e) => e.text && !e.chrome),
       texts: [...new Set(texts)],
-      map: p ? { map: p.map, x: Math.round(p.x), y: Math.round(p.y), facing: p.facing, hull: !!p.hull, guide: p.guide, lit: p.lit, walkLabel: p.walkLabel, camZ: p.camZ } : null,
+      map: p ? { map: p.map, x: Math.round(p.x), y: Math.round(p.y), facing: p.facing, hull: !!p.hull, guide: p.guide, lit: p.lit, walkLabel: p.walkLabel, camZ: p.camZ, prompt: p.prompt, travel: p.travel } : null,
       save: save ? { year: save.year, season: save.season, beat: save.beat, flags: save.flags, tokens: save.tokens, plans: save.plans, ledger: save.ledger, where: save.where } : null,
       panels: document.documentElement.getAttribute('data-panels'),
       skin: document.documentElement.getAttribute('data-skin'),
@@ -115,6 +115,7 @@ export async function boot(name, { save, url, headed = false, clearSeen = true, 
   const state = async (label) => {
     const v = await look()
     say(`${label ?? 'state'}: map=${v.map ? `${v.map.map}@${v.map.x},${v.map.y} hull=${v.map.hull} guide=${v.map.guide} lit=${v.map.lit ? `${Math.round(v.map.lit.at.x)},${Math.round(v.map.lit.at.y)}` : null} walk=${v.map.walkLabel} z=${v.map.camZ}` : 'none'} panels=${v.panels}`)
+    if (v.map) say(`  world: prompt=${JSON.stringify(v.map.prompt)} travel=${JSON.stringify(v.map.travel)}`)
     say(`  texts: ${JSON.stringify(v.texts.slice(0, 14))}`)
     say(`  press: ${JSON.stringify(v.press.map((e) => `${e.text}${e.disabled ? '(off)' : ''}@${e.box.x},${e.box.y} ${e.box.w}x${e.box.h}`))}`)
     if (v.save) say(`  save: y${v.save.year} ${v.save.season} beat=${v.save.beat} tokens=${JSON.stringify(v.save.tokens)} flags=${JSON.stringify(v.save.flags)} plans=${JSON.stringify(v.save.plans)} ledger=${(v.save.ledger || []).map((e) => e.id).join(',')}`)

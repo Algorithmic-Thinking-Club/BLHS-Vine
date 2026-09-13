@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Handbook, type Tab as HandbookTab } from './Handbook'
 import { HelpCard } from './Help'
+import { ChartPanel } from '../world/ChartPanel'
 import { SettingsPanel } from '../../app/SettingsPanel'
 import { Planner } from '../planner/Planner'
 import { PickYear } from '../planner/PickYear'
@@ -126,6 +127,8 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   const [graduation, setGraduation] = useState(false)
   const [paused, setPaused] = useState(false)
   const [help, setHelp] = useState(false)
+  /* the chart on its own screen, which the corner sign and E at a dock both open */
+  const [chart, setChart] = useState(false)
   const [settings, setSettings] = useState(false)
   const [wall, setWall] = useState(false)
   /* whether the wall or the wardrobe was opened from the year sheet, so shutting
@@ -175,7 +178,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
 
 
   const anyOpen = book !== null || planner || settings || advisory
-    || yearbook || graduation || wardrobe || wall || playing !== null
+    || yearbook || graduation || wardrobe || wall || chart || playing !== null
 
   /* Escape pauses, but only when no panel is up to answer it first */
   useEffect(() => {
@@ -249,7 +252,10 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     if (which === 'handbook') { setBook('school') }
     /* the same binder, opened on the page the beat is about */
     if (which === 'cords') { track('handbook_opened', { tab: 'cords', via: 'world' }); setBook('cords') }
-    if (which === 'chart') { track('chart_opened'); setBook('chart') }
+    /* THE CHART OPENS AS THE CHART AND NOT AS A BOOK ABOUT SCHOOL. Ash: *"i clearly
+     * asked for a button to open the sialign map alone."* Pressing E at his own ship
+     * used to open the Handbook on its second tab, GPA line and all. */
+    if (which === 'chart') { setChart(true) }
     if (which === 'wardrobe') { fromSheet.current = false; track('wardrobe_opened', { via: 'world' }); setWardrobe(true) }
     if (which === 'settings') { setSettings(true) }
     /* the trophy wall, which fills in every time a student finishes something */
@@ -367,7 +373,9 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
           aria-hidden={!(plaqueShown('map') && g.chart)}
           tabIndex={plaqueShown('map') && g.chart ? undefined : -1}
           aria-haspopup="dialog"
-          onClick={() => { track('chart_opened'); openBook('chart') }}
+          /* the corner's own Map sign, which is the same door: one chart, three
+             ways in, and none of them a six-tab binder */
+          onClick={() => setChart(true)}
         >
           <Glyph piece="icon_set" face="compass" size={22} className="hud-plaque-mark" />
           <span className="hud-plaque-word">Map</span>
@@ -542,6 +550,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       {settings && <SettingsPanel onClose={() => { setSettings(false); setPaused(true) }} />}
 
       {help && <HelpCard onClose={() => setHelp(false)} />}
+      {chart && <ChartPanel onClose={() => setChart(false)} />}
       {/* and the sheet is gone for the length of a film, the way the corner is */}
       {paused && !anyOpen && !cinemaOn() && (
         <PausePanel onClose={closeAll}>

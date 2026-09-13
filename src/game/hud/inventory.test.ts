@@ -102,6 +102,9 @@ describe('the absence list is enforced rather than intended', () => {
       PlaceCard: 'place-card', ObjectivePanel: 'objective',
       /* the question mark, which is on the list rather than smuggled past it */
       HelpButton: 'help',
+      /* and the chart's own button directly above it, asked for in those words:
+         "a button to open the sialign map alone, above the help button" */
+      ChartButton: 'chart',
       /* the movie frame, which is on the list because it MOUNTS on the play
        * screen even though it draws nothing until an island asks for it */
       MovieBars: 'movie-bars',

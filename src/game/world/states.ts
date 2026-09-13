@@ -22,13 +22,32 @@ export function stateOf(slot: WorldSlot, s: SaveGame | null): SlotState {
   if (slot.state === 'rising') return 'rising'
   if (!s) return 'misty'
 
+  const here = programmesAt(slot.place)
+
+  /* ---- A CLUB YOU SIGNED UP FOR IS NOT A PLACE YOU HAVE NEVER HEARD OF ----
+   *
+   * ASH, after playing: *"even the chart is shitty."* This is most of why. The only
+   * thing that made an island known was the EXPOSURE record, which is written when
+   * you sail within sight of it, so the Algorithmic Thinking Club, the one club he
+   * had just picked on his year sheet by name, was drawn on the chart as "a place you
+   * have not found. Sail closer to see what this is." The chart could not offer him
+   * the only island he had any reason to go to, and the year sheet had a button for
+   * it three panels away.
+   *
+   * Picking a programme on the sheet is being told where it is. So a slot running
+   * something this student has planned, started or finished is known, and the state
+   * below decides which KIND of known it is. Exposure still does its own job for
+   * everything he has not picked: an island nobody has mentioned stays misty until he
+   * sails near it, which is what makes finding one worth anything. */
+  const known = here.some((p) => (s.islands ?? {})[p.id]
+    || (s.completions ?? []).some((c) => c.programme === p.id)
+    || Object.values(s.plans?.[s.year]?.slots ?? {}).includes(p.id))
   /* SEEN IS A FACT ABOUT A PLACE, which is what the exposure record is for and
    * why discovery fires once when a student sails past a stadium rather than
    * three times. */
   const seen = (s.exposure ?? []).some((e) => e.place === slot.place)
-  if (!seen) return 'misty'
+  if (!seen && !known) return 'misty'
 
-  const here = programmesAt(slot.place)
   if (!here.length) return 'discovered'
 
   /* COMPLETION IS PER PROGRAMME PER YEAR, off the append-only record, so a

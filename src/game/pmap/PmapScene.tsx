@@ -38,7 +38,7 @@ import {
 /* the voyage, held outside the scene so it survives the doors it goes through */
 import {
   beginVoyage as beginTravel, endVoyage as endTravel, setLeg as setTravelLeg,
-  voyage as travelPlan, voyageSkipped, LEG_CEILING_MS,
+  voyage as travelPlan, voyageSkipped, onVoyage as onTravel, LEG_CEILING_MS,
 } from '../world/travel'
 import { stateOf, STATE_INK } from '../world/states'
 import { onHeadBack } from '../world/home-bus'
@@ -353,6 +353,9 @@ export default function PmapScene() {
     let offSail = () => { /* no ocean yet */ }
     let offHome = () => { /* no dock yet */ }
     let offVoyage = () => { /* nothing to sail to yet */ }
+    /* the journey being called off, which is a thing that happens to this scene from
+     * outside it: `SkipVoyage` drops the plan and the bars are still this scene's */
+    let offTravel = () => { /* nobody is travelling yet */ }
     /* the coat watcher, declared out here because the scene's teardown is out here */
     let offLook = () => { /* nobody is dressed yet */ }
     /* the camera switch, out here because the teardown is out here */
@@ -2863,14 +2866,18 @@ export default function PmapScene() {
             throw new NotBuilt('sail_to', `"${to}" has no berth on the world, so there is no way to sail to it.`
               + ` What can be sailed to: ${have.join(', ') || '(nothing)'}`)
           }
-          /* a room has no water in it, so the first leg is the walk out to the map that has */
-          const leg = canSail && berth ? 'crossing' : 'to-dock'
+          /* EVERY JOURNEY STARTS AT `to-dock`, INCLUDING ONE THAT STARTS ON A QUAY.
+           * It used to skip straight to the crossing when this map had water, which is
+           * how a press on the chart turned into a boat already leaving. The leg is the
+           * same either way now: get him to the dock. On a map with one that is a short
+           * fade and a step sideways; in a room it is a door. */
+          const leg = 'to-dock' as const
           /* COMING HOME IS THE SAME JOURNEY WITH ONE MORE STEP. BRIEF-TRAVEL:
            * "the return trip home ... ends at the Maw's tunnel". The destination
            * is an island either way; what makes it home is that the home base is
            * a door off it, so the landing walks him up and takes that door. */
           const home = !!comp && comp.slots.some((q) => q.map === MAW_MAP && q.place === slotOfMap(comp, to)?.place)
-          if (leg === 'to-dock' && !doorToWater()) {
+          if (!(canSail && berth) && !doorToWater()) {
             throw new NotBuilt('sail_to', `${mapId} has no berth and no door onto a map that has one,`
               + ' so there is no way down to the water from here')
           }
@@ -4531,6 +4538,39 @@ export default function PmapScene() {
         })
       }
 
+      /* ---- WHERE THE DOCK IS, ASKED THREE WAYS ---------------------------
+       *
+       * A BERTH IS WATER. It is the point the hull ties up at, authored in the OCEAN's
+       * coordinates, so converting it through `fromSea` gives a spot in the painting
+       * that is by definition not ground. The first version of this walked him to that
+       * spot and `onFloor`'s answer was destructured without its `moved` flag, and
+       * `onFloor` hands back the ORIGINAL point when it finds nothing standable inside
+       * its radius. So a failure and a success looked identical, and measured against
+       * both published bundles there IS no floor within 44 painting pixels of either
+       * berth: he was being put on water. `walk.ts` reads a level of zero as "stuck"
+       * and moves a stuck body with no collision test at all, so from there he could
+       * walk through the island.
+       *
+       * So: the anchor the world says he arrives on, then any post that reads like a
+       * dock, then a search wide enough to actually reach a quay. And if all three
+       * come back with nothing, whatever asked is refused rather than performed.
+       *
+       * HOISTED OUT OF THE HEAD-BACK BUTTON, because the first leg of a voyage wants
+       * the very same answer: Ash pressed go and was put "outsdie the maw door,
+       * instead of the doc", which is the door's own landing anchor and not a quay. */
+      const dockSide = (): { x: number; y: number } | null => {
+        if (!berth) return null
+        const named = berth.at ? anchors.get(berth.at) : undefined
+        if (named) return anchors.standAt(named)
+        const quay = anchors.all.find((a2) => a2.kind === 'post' && /dock|quay|jetty|pier|harbou?r/i.test(a2.name))
+        if (quay) return anchors.standAt(quay)
+        const sea = fromSea(berth.x, berth.y)
+        /* 96 rather than 44: a berth sits in the water off the end of a quay, and the
+         * quay itself is further than a body's length away in the squashed metric. */
+        const tried = onFloor(sea, canStand, cfg.yScale, 96)
+        return tried.moved ? tried.at : null
+      }
+
       const board = () => {
         if (!canSail || !berth || hull) return
         const at = fromSea(berth.x, berth.y)
@@ -4648,6 +4688,20 @@ export default function PmapScene() {
        * IT IS OFFERED FROM ANY MAP, not only from one with water: the first leg
        * of the journey is the walk out of the room and `sail_to` owns that. Its
        * own four refusals are the gate, and they name what can be sailed to. */
+      /* ---- CALLED OFF AT THE DOCK ---------------------------------------
+       *
+       * ASH: *"IF ESC IS CLICKED BEFORE SAILING, THEN CUTSCENE GOES AWAY, THOR HAS TO
+       * CLICK E THAT OPENS THE MAP."* The dropping of the plan happens in React, in
+       * `SkipVoyage`, because that is where the key is. What has to happen HERE is the
+       * bars coming down and the year getting its own sentence back, and neither of
+       * those is something a button can reach. */
+      offTravel = onTravel((p) => {
+        if (p || !cinemaOn() || cinemaBy() !== 'voyage') return
+        setCinema(false)
+        engine.objective(null)
+        engine.log('voyage_called_off', { map: mapId })
+      })
+
       offVoyage = onVoyageRequest(mapId, (want, answer) => {
         if (fade || busy || runtime.running) {
           answer({ ok: false, why: 'Not while something else is happening.' }); return
@@ -4679,89 +4733,43 @@ export default function PmapScene() {
         if (fade || busy || runtime.running || hull || berthing || voyage) {
           answer({ ok: false, why: 'Not while something else is happening.' }); return
         }
-        /* ---- WHERE THE DOCK IS, ASKED THREE WAYS ---------------------------
+        if (travelPlan()) { answer({ ok: false, why: 'You are already on your way.' }); return }
+        /* ---- IT IS THE SAME JOURNEY, POINTED THE OTHER WAY -----------------
          *
-         * A BERTH IS WATER. It is the point the hull ties up at, authored in the
-         * OCEAN's coordinates, so converting it through `fromSea` gives a spot in the
-         * painting that is by definition not ground. The first version of this walked
-         * him to that spot and `onFloor`'s answer was destructured without its `moved`
-         * flag, and `onFloor` hands back the ORIGINAL point when it finds nothing
-         * standable inside its radius. So a failure and a success looked identical, and
-         * measured against both published bundles there IS no floor within 44 painting
-         * pixels of either berth: he was being put on water. `walk.ts` reads a level of
-         * zero as "stuck" and moves a stuck body with no collision test at all, so from
-         * there he could walk through the island.
+         * ASH: *"I was VERY FUCKING CLEAR, that it trns on cutscene, and when thor
+         * clicks E, he hops on boat, and sails to hub island. DO YOU NOT UNDERSTAND
+         * THE FUCKING LOGIC."*
          *
-         * So: the anchor the world says he arrives on, then any post that reads like a
-         * dock, then a search wide enough to actually reach a quay. And if all three
-         * come back with nothing, this move is refused rather than performed. */
-        const landing = (): { x: number; y: number } | null => {
-          const named = berth.at ? anchors.get(berth.at) : undefined
-          if (named) return anchors.standAt(named)
-          const quay = anchors.all.find((a2) => a2.kind === 'post' && /dock|quay|jetty|pier|harbou?r/i.test(a2.name))
-          if (quay) return anchors.standAt(quay)
-          const sea = fromSea(berth.x, berth.y)
-          /* 96 rather than 44: a berth sits in the water off the end of a quay, and the
-           * quay itself is further than a body's length away in the squashed metric. */
-          const tried = onFloor(sea, canStand, cfg.yScale, 96)
-          return tried.moved ? tried.at : null
-        }
-        const at = landing()
-        if (!at) {
-          console.warn(`[pmap] ${mapId}: nothing standable near ${berth.name}, so there is nowhere to put him`)
-          engine.log('head_back_refused', { map: mapId, why: 'no floor near the berth' })
-          answer({ ok: false, why: 'There is no way down to the water from here.' })
+         * What shipped was a teleport to the dock and nothing else: no bars, no ship,
+         * no press, no crossing. It read as a button that moved him thirty feet. This
+         * hands the whole thing to `sail_to`, which is the one machine every journey in
+         * this game goes through, so heading home is a pick on the chart that he did
+         * not have to open. One road, three doors into it: the chart's pin, a member's
+         * python, and this. */
+        const here = comp
+        const wantHome = here?.home?.slot
+        const home = here && wantHome
+          ? here.slots.find((q) => q.berth && q.map && q.map !== mapId && (q.place ?? q.map) === wantHome)
+          : undefined
+        if (!home?.map) {
+          engine.log('head_back_refused', { map: mapId, why: 'the world names no home island with a dock' })
+          answer({ ok: false, why: 'There is nowhere to head back to yet.' })
           return
         }
-        engine.log('head_back', { map: mapId })
-        /* ANSWERED NOW, AND NOT WHEN THE COVER IS DONE. The bus proves nobody heard
-         * a request by answering it itself the instant the dispatch returns, so an
-         * answer that waits for anything at all arrives second and is thrown away:
-         * the button was told "there is no way down to the water from here" while
-         * the cover it had just started was carrying him to the dock. What this
+        engine.log('head_back', { map: mapId, to: home.map })
+        /* ANSWERED NOW, AND NOT WHEN THE COVER IS DONE. The bus proves nobody heard a
+         * request by answering it itself the instant the dispatch returns, so an answer
+         * that waits for anything at all arrives second and is thrown away. What this
          * answer means is that the scene has taken the request, which is true here. */
-        answer({ ok: true })
-        /* ---- COVERED, AND NOT WALKED (Ash: *"the user gets teleported to the dock
-         * of the island they are on"*) ---------------------------------------
-         *
-         * Walking was the first try and it cannot work: ATC's terrace is at the top of
-         * a long stair with no authored route down it, so a straight walk bumps the
-         * first rock and stops seventy pixels in, which is exactly what it did. And a
-         * teleport is what he asked for anyway. The island's own cover carries it, so
-         * the move reads as leaving the place rather than as the game snapping him
-         * across the screen, and it is the same cover a door would play. */
         guideTarget = null
-        /* THE ANSWER WAITS FOR THE COVER, because a refused cover is a refused move.
-         * `cover()` answers false rather than throwing when a transition is already
-         * up, and this repo has been bitten by that exact silence before: a door
-         * that never opened resolved as though it had. Told "ok" on a cover that
-         * never ran, the button would close on itself and leave him where he was
-         * with nothing said. */
-        /* A SHORT FADE AND NOT AN ARRIVAL CARD. `coverFor(mapId)` is the cover for
-         * ARRIVING at this map: the name in spaced capitals, a loading bar and a fact,
-         * on a floor of 1800ms plus two 950ms animations. Pressing "Island finished,
-         * head back" showed a student three and a half seconds of "E N T E R I N G
-         * ALGORITHMIC THINKING CLUB" for a hop from the terrace to the dock of the
-         * island he was already standing on. A move inside one map is the definition of
-         * passing through. */
-        void cover(passingCover().spec, () => {
-          pos.x = at.x
-          pos.y = at.y
-          walker.facing = 'south'
-          recordPosition({ map: mapId })
-          /* the camera goes with him rather than easing across the whole island */
-          camTo(pos.x, pos.y, true)
-        }).then((ran) => {
-          if (ran) return
-          /* A REFUSED COVER IS A REFUSED MOVE, and it has to be said out loud
-           * somewhere. `cover()` answers false rather than throwing when a
-           * transition is already up, and this repo has been bitten by that exact
-           * silence before: a door that never opened resolved as though it had. The
-           * button has already been told the scene took the request, so the scene is
-           * the one that says it did not happen. */
-          engine.log('head_back_refused', { map: mapId, why: 'a transition was already up' })
-          void say({ text: 'Not just now. Try again in a moment.' })
-        })
+        try {
+          void intentWorld.sailTo(home.map)
+          answer({ ok: true })
+        } catch (e) {
+          const why = e instanceof Error ? e.message : 'There is no way to sail home from here.'
+          engine.log('head_back_refused', { map: mapId, why })
+          answer({ ok: false, why })
+        }
       })
 
       /* the chart can send her: a click is a destination, and the line is checked first */
@@ -4979,71 +4987,102 @@ const CAST_OFF_SHOW_MS = 3200
         if (skipToShore()) return
         try {
           if (v.leg === 'to-dock') {
+            /* ---- HE IS TAKEN TO THE DOCK. THE DOCK, AND NOT A DOOR ---------
+             *
+             * ASH, after playing: *"when i clicked go to atc island, it teleported me
+             * outsdie the maw door, instead of the doc."* Both halves of that sentence
+             * are exactly what the code did. This leg ended at the door's own landing
+             * anchor on the far side of the tunnel, handed the voyage straight on to
+             * the crossing leg, and the crossing leg then walked him down the quay and
+             * put him in the boat with no press of his own anywhere in it.
+             *
+             * So the leg's whole job is now its name: get him to the dock of the island
+             * he is on, however many rooms away that is, and stop there. A room with no
+             * water in it takes the door and stays on this same leg, so the map that
+             * arrives next does the placing. */
+            if (canSail && berth) {
+              const at = dockSide()
+              if (!at) {
+                endTravel(`there is nowhere to stand at ${mapId}'s berth`)
+                setCinema(false)
+                return
+              }
+              setTravelLeg('boarding')
+              const ship = fromSea(berth.x, berth.y)
+              /* A SHORT QUIET FADE. A cut across ground he is looking at reads as a
+               * fault, and the titled card reads as a second journey he did not ask
+               * for, which is the "transition screen for the hub archipelago but
+               * saying 'Atc island'" he saw. That card belongs to the skip alone. */
+              void cover(passingCover().spec, () => {
+                pos.x = at.x
+                pos.y = at.y
+                /* facing his own ship, because a body standing on a quay with its
+                 * back to the water is the game not knowing what the moment is */
+                walker.facing = dirFrom(ship.x - at.x, (ship.y - at.y) * cfg.yScale)
+                recordPosition({ map: mapId })
+                camTo(pos.x, pos.y, true)
+                zoomTo(walkZ())
+              })
+              return
+            }
             const door = doorToWater()
             if (!door) { endTravel('there is no way down to the water from here'); setCinema(false); return }
-            /* ---- HE IS PUT AT THE DOOR, NOT WALKED TO IT (Ash) ------------
-             *
-             * *"it makes him walk. When he clicks go, he gets teleported to the hub
-             * islands dock."* Both halves of that were happening at once and they
-             * read as one muddle: the leg drove his legs across the Maw to the
-             * tunnel, and THEN the door cut him to the hub.
-             *
-             * The walk is the part that is wrong. He pressed a button on a sheet
-             * saying take me to another island; what happens next is a journey, and
-             * a journey does not begin with the game steering him across a room he
-             * has already seen. The arrow and the walk stay for a student who opens
-             * a door himself, which is the other road into `beginExit`. */
             if (skipToShore()) return
             /* ---- THE WAY OUT MAY BE THE DESTINATION ------------------------
              *
-             * "Home is the hub on that same map" (Ash, 2026-09-08 item 3), and
-             * the hub is exactly one door from the Maw. So a student who presses
-             * the hub on the chart while standing in the mountain has ARRIVED the
-             * moment he walks through the tunnel: there is no water to cross and
-             * no boat to get into.
-             *
-             * Without this the voyage set off on a crossing leg from the hub to
-             * the hub, `sail_to`'s own "you are already on it" refusal never got
-             * a chance to fire because the plan was already armed, and the
-             * journey sat on the crossing leg with the bars up. Measured on the
-             * first run of `travel-pick-proof.mjs`. */
+             * "Home is the hub on that same map" (Ash, 2026-09-08 item 3), and the hub
+             * is exactly one door from the Maw. So a student who presses the hub on the
+             * chart while standing in the mountain has ARRIVED the moment he walks
+             * through the tunnel: there is no water to cross and no boat to get into. */
             if (door.to === v.to) {
               endTravel('the door was the destination')
               setCinema(false)
               beginExit({ map: door.to!, at: door.toAnchor })
               return
             }
-            setTravelLeg('crossing')
             /* PASSING THROUGH, so no arrival card for a place he is crossing. Two
-             * loading screens in one press is what made his sail read as two
-             * journeys: "E N T E R I N G   T H E   H U B" and then the island he
-             * actually asked for. */
+             * loading screens in one press is what made his sail read as two journeys.
+             * THE LEG DOES NOT ADVANCE: the map on the other side of this door is the
+             * one with the quay on it, and it runs `to-dock` again and does the placing. */
             beginExit({ map: door.to!, at: door.toAnchor }, 'passing')
+            return
+          }
+
+          if (v.leg === 'boarding') {
+            /* ---- AND NOW NOTHING HAPPENS, WHICH IS THE POINT ----------------
+             *
+             * ASH: *"instead of allowing me to click E to sail, it just ZOOMED me past.
+             * thor didnt even hop on the ship. ship just started zooming off."*
+             *
+             * He is standing on his own dock with the bars up and his ship in front of
+             * him. The berth's prompt says Board the ship, E takes it, and Escape says
+             * not just now. Every one of those is somebody else's line of code: the
+             * prompt is on the ticker, the press is `seaFire`, the refusal is
+             * `SkipVoyage`. This leg's job is to be a state and to wait in it. */
+            if (!canSail || !berth) { endTravel(`${mapId} has no berth`); setCinema(false); return }
+            if (!hull) engine.objective(`Press E to board. Sailing to ${titleOfMap(v.to)}.`)
             return
           }
 
           if (v.leg === 'crossing') {
             if (!canSail || !berth) { endTravel(`${mapId} has no berth`); setCinema(false); return }
-            /* down the quay to the ship, along the floor rather than through it */
-            const quay = anchors.all.find((a) => a.kind === 'post' && /dock|quay|berth|jetty|pier/i.test(a.name))
-            if (quay) {
-              guideTarget = quay
-              await new Promise<void>((r) => {
-                const { goal, reach } = walkGoal(quay)
-                startWalk(goal, reach, goal.facing ?? null, r, quay.name)
-              })
-              guideTarget = null
-            }
+            /* he boards by pressing E, and this is the floor under a scene that
+             * reloaded mid-leg rather than a second way to start a voyage */
+            if (!hull) board()
+            if (!hull) { endTravel('he could not get in the boat'); setCinema(false); return }
             if (skipToShore()) return
             void intentWorld.view('ship')
-            board()
-            if (!hull) { endTravel('he could not get in the boat'); setCinema(false); return }
             /* off the berth and into water she can actually sail, the same sounding
              * the arrival uses, because a berth is the shallowest water there is */
             const out = soundOffshore()
             if (out) {
               hull.heading = Math.atan2(out.y - hull.y, out.x - hull.x)
-              hull.speed = DEFAULT_SAIL.cruise
+              /* SHE LEAVES FROM A STANDSTILL. `speed` was set to cruise on the frame
+               * he boarded, which is a boat that is already at full speed in the
+               * first frame anybody sees of her: "it looks like its going 300 mph".
+               * Nought, and the throttle below brings her up over about two seconds,
+               * which is what `accel` is for and what casting off looks like. */
+              hull.speed = 0
               sailing = null
               helmOverride = { helm: { throttle: 1, turn: 0, fullSail: false }, until: performance.now() + CAST_OFF_SHOW_MS }
             }
@@ -5052,11 +5091,13 @@ const CAST_OFF_SHOW_MS = 3200
             if (skipToShore()) return
             setTravelLeg('landing')
             /* and the rest of the crossing happens under the cover, which is what a
-             * cover is for. `aboard` is what makes the far map open ON THE WATER
-             * with the ship already under way, the same arrival the beach opening
-             * gets; without it he simply appears on the far island's spawn and the
-             * whole second half of the voyage never happens. */
-            beginExit({ map: v.to, aboard: true })
+             * cover is for. `aboard` is what makes the far map open ON THE WATER with
+             * the ship already under way, the same arrival the beach opening gets.
+             *
+             * QUIET, AND NOT THE ISLAND'S OWN CARD. The card belongs to arriving, and
+             * he has not arrived: he is mid-crossing and about to sail the second half
+             * of it. Ash saw the card here and read it as the journey ending twice. */
+            beginExit({ map: v.to, aboard: true }, 'passing')
             return
           }
 
@@ -5322,6 +5363,13 @@ const CAST_OFF_SHOW_MS = 3200
         get walkLabel() { return autoWalk?.label ?? null },
         /* what the in-world plaque is saying, the only way to ask whether the boat is offered */
         get prompt() { return prompt.visible ? promptSaid : null },
+        /* WHICH LEG OF THE JOURNEY HE IS ON, which is the whole of the sail state
+         * machine and was readable from nowhere. A proof that cannot see the leg can
+         * only watch the end of a voyage and guess at everything on the way to it. */
+        get travel() {
+          const v = travelPlan()
+          return v ? { to: v.to, from: v.from, leg: v.leg, home: v.home, bars: cinemaOn() } : null
+        },
         /* AND WHERE IT IS HANGING, in window pixels, for the same reason `pinAt`
          * exists: a capture harness cannot crop to a canvas object it cannot
          * find, and the plaque moves with the player, the anchor and the camera. */
@@ -5876,7 +5924,30 @@ const CAST_OFF_SHOW_MS = 3200
          * AND IT IS OFFERED WHENEVER HE IS STANDING AT IT, where it used to be
          * hidden any time the year had a step on land (`leadsInland`). A student
          * who wants to look at the map of the world is allowed to look at it. */
-        if (!hull && canSail && berth && !locked && !busy && !fade) {
+        /* ---- AND WHEN A JOURNEY IS WAITING ON HIM, E IS THE GANGWAY -------
+         *
+         * ASH: *"E TO HOP ON THE BOAT, THEN SAIL PROPERLY."* This is that E. The
+         * boarding leg puts him here and then does nothing, so the only thing between
+         * a student and the water is this plaque and this press.
+         *
+         * IT IGNORES THE WORLD HOLD, which every other prompt in this file honours.
+         * The bars are up and he cannot walk, and that is right: he is in a cutscene
+         * he was put into by pressing a button. But a cutscene whose one instruction
+         * is "press E" has to let E through, or it is a cutscene with no way out of
+         * it. `board` and `runVoyageLeg` are the only things it can reach. */
+        const owed = travelPlan()
+        const boardingHere = !!owed && owed.leg === 'boarding' && !hull && canSail && !!berth
+        if (boardingHere && berth && !busy && !fade) {
+          const p = fromSea(berth.x, berth.y)
+          setPrompt('Board the ship', 'plain')
+          hang(p.x, p.y, 26, Math.sin(t * 2.1) * 1.2)
+          promptAnchor = null
+          seaFire = () => {
+            if (travelPlan()?.leg !== 'boarding') return
+            setTravelLeg('crossing')
+            void runVoyageLeg()
+          }
+        } else if (!hull && canSail && berth && !locked && !busy && !fade) {
           const p = fromSea(berth.x, berth.y)
           if (Math.hypot(p.x - pos.x, p.y - pos.y) < 110) {
             setPrompt('Open the chart', 'plain')
@@ -6433,6 +6504,7 @@ const CAST_OFF_SHOW_MS = 3200
       offSail()
       offHome()
       offVoyage()
+      offTravel()
       offLook()
       offCamera()
       /* the cinema bars come down with the scene, unless a film walked through a door */

@@ -204,3 +204,5 @@ public/grapes/atc/
 public/maps-vendored/
 public/world-vendored/
 public/ui-vendored/
+!scripts/sail-machine-proof.mjs
+!scripts/atc-quiz-proof.mjs

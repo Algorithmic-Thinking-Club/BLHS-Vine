@@ -1,6 +1,6 @@
 /* the one control a student has during a crossing: Esc, and be there */
 import { useEffect, useState } from 'react'
-import { onVoyage, skipVoyage, voyageSkipped, type VoyagePlan } from './travel'
+import { cancelVoyage, onVoyage, skipVoyage, voyageSkipped, type VoyagePlan } from './travel'
 import { announce } from '../ui/a11y'
 import { track } from '../telemetry'
 import './skip-voyage.css'
@@ -26,7 +26,9 @@ export function SkipVoyage() {
   const [plan, setPlan] = useState<VoyagePlan | null>(null)
   const [gone, setGone] = useState(false)
 
-  useEffect(() => onVoyage((p) => { setPlan(p); setGone(voyageSkipped()) }), [])
+  /* the plan changing is also the plan being called off, so the button un-greys
+   * itself rather than staying on the word it ended on */
+  useEffect(() => onVoyage((p) => { setPlan(p); setGone(p ? voyageSkipped() : false) }), [])
 
   useEffect(() => {
     if (!plan || gone) return
@@ -44,7 +46,30 @@ export function SkipVoyage() {
     return () => window.removeEventListener('keydown', h, true)
   })
 
+  /* ---- ESCAPE MEANS TWO DIFFERENT THINGS AND THE LEG SAYS WHICH ----------
+   *
+   * ASH: *"IF ESC CLICKED DURING SAILING, THEN TRANSITION SCREEN AND IT SKIPS MOST
+   * OF THE JOURNEY... IF ESC IS CLICKED BEFORE SAILING, THEN CUTSCENE GOES AWAY."*
+   *
+   * Before the boat moves he is being CARRIED somewhere he has not agreed to yet, so
+   * Escape gives him back: the plan is dropped and he is left standing on the dock
+   * with the bars down. After it moves he has agreed, and Escape is only about not
+   * watching the rest of it, so it lands him at the far dock the short way.
+   *
+   * One control and not two, because they are the same key and a student pressing it
+   * should not have to know which of them he is getting. The word on the plaque is
+   * the only difference, and it is the true one. */
+  const waiting = plan?.leg === 'to-dock' || plan?.leg === 'boarding'
+
   const take = () => {
+    if (gone) return
+    if (waiting) {
+      setGone(true)
+      track('voyage_called_off', { to: plan?.to ?? null, leg: plan?.leg ?? null })
+      announce('Not going just yet. Press E at your ship to open the chart.')
+      cancelVoyage()
+      return
+    }
     if (voyageSkipped()) return
     setGone(true)
     track('voyage_skipped', { to: plan?.to ?? null, leg: plan?.leg ?? null })
@@ -55,7 +80,7 @@ export function SkipVoyage() {
   if (!plan) return null
   return (
     <button type="button" className="sv-skip" onClick={take} disabled={gone}>
-      {gone ? 'Arriving' : 'Esc: skip'}
+      {gone ? (waiting ? 'Staying' : 'Arriving') : waiting ? 'Esc: not just now' : 'Esc: skip ahead'}
     </button>
   )
 }

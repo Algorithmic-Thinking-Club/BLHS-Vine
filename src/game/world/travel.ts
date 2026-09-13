@@ -9,14 +9,38 @@
  * A member never touches this. `sail_to(map)` arms it and the engine does the rest.
  */
 
-/** where the traveller is up to */
+/* ---- THE FOUR LEGS, AND ASH SAID THEM IN ORDER ---------------------------
+ *
+ * *"IF HE CLICKS GO TO OR HEAD BACK OR WHATEVER, A BUTTON, IT TURNS ON CUTSCENE,
+ * TAKES HIM TO THE DOCK, AND ESC TO EXIT CUTSCENE, and E TO HOP ON THE BOAT, THEN
+ * SAIL PROPERLY. IF ESC CLICKED DURING SAILING, THEN TRANSITION SCREEN AND IT SKIPS
+ * MOST OF THE JOURNEY AND IT FAST FORWARDS TO THE BOAT LANDING ON THE DESTINATIONS
+ * DOCK. IF ESC IS CLICKED BEFORE SAILING, THEN CUTSCENE GOES AWAY, THOR HAS TO CLICK
+ * E THAT OPENS THE MAP, AND MANUALLY HAS TO CLICK WHICH ISLAND TO SAIL TO."*
+ *
+ * The leg that was missing is `boarding`, and it is the whole of what he was asking
+ * for: a beat where he is STANDING on the dock beside his own ship with the bars up
+ * and nothing happening until he presses E. What shipped instead walked him to the
+ * quay, put him in the boat and cast off, all inside one leg, which is why he wrote
+ * "it just ZOOMED me past. thor didnt even hop on the ship."
+ *
+ * The two halves of Escape fall out of the leg as well, and that is why the leg has
+ * to be a thing the rest of the game can read. Before `crossing` it means "not now";
+ * from `crossing` on it means "I have seen a boat, take me there".
+ */
 export type VoyageLeg =
-  /* still inside a room, walking to the door that leads to the water */
+  /* getting to the dock: out of the room, through whatever doors, onto the quay */
   | 'to-dock'
-  /* on a map with a berth, walking to the ship and casting off */
+  /* standing at the berth with the bars up, waiting for him to press E */
+  | 'boarding'
+  /* aboard and under way */
   | 'crossing'
   /* the far map has loaded and owes an arrival */
   | 'landing'
+
+/** is the journey still waiting for him, rather than carrying him */
+export const voyageWaiting = (): boolean =>
+  !!plan && (plan.leg === 'to-dock' || plan.leg === 'boarding')
 
 export type VoyagePlan = {
   /** the map being sailed to */
@@ -51,6 +75,21 @@ export function setLeg(leg: VoyageLeg) {
   if (!plan) return
   plan = { ...plan, leg }
   console.log(`[travel] leg ${leg}`)
+  tell()
+}
+
+/* ---- CALLED OFF BEFORE IT STARTED --------------------------------------
+ *
+ * Escape before the boat moves does not mean "put me there", it means "let go of
+ * me". The plan is dropped, the bars come down where he stands, and the dock he was
+ * taken to is a dock like any other: E opens the chart, and picking an island on it
+ * arms the whole thing again. Separate from `endVoyage` so a listener can tell the
+ * difference between a journey that finished and one he called off. */
+export function cancelVoyage() {
+  if (!plan) return
+  console.log(`[travel] ${plan.from} -> ${plan.to} called off before sailing`)
+  plan = null
+  skipped = false
   tell()
 }
 

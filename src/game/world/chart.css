@@ -393,35 +393,9 @@ html[data-rm='1'] .ch-isle-go:hover { transform: translateX(-50%); }
  * is a note in the margin rather than a mark in the sea, because the thing it is
  * about has no position: there is no island to put it on. Under everything and
  * deaf to the pointer, so it can never sit on top of a control. */
-.ch-isle-pick {
-  position: absolute;
-  z-index: 1;
-  /* a definite width, because an absolutely placed box shrinks to whatever room
-     is left between its own left edge and the water's, and the two on the right
-     hand side were collapsing to one word per line */
-  width: 15ch;
-  display: flex; flex-direction: column; align-items: flex-start;
-  font-family: var(--kit-face-body);
-  opacity: .78;
-  pointer-events: none;
-}
-/* TWO CLASSES ON PURPOSE. The note carries `ch-rumour` as well, which is the
-   right reading of it and which sets the brown a rumour is written in further
-   down this file. Brown on deep water is a note nobody can read, so the one that
-   wins here is the water's own chalk. */
-.ch-isle.ch-isle-pick { color: var(--ch-foam); }
-.ch-isle-pick .ch-pick-name {
-  --kit-fs-raw: calc(14px * var(--kit-text-scale));
-  font-size: var(--kit-fs);
-  line-height: 1.15;
-  font-style: italic;
-}
-.ch-isle-pick .ch-pick-note {
-  --kit-fs-raw: calc(13px * var(--kit-text-scale));
-  font-size: var(--kit-fs);
-  line-height: 1.2;
-  opacity: .8;
-}
+/* the year's picks with no island moved off the water and into the register, so
+   the four corner notes that used to float on the sea have no rules any more. The
+   register row they became is `.ch-row-owed` below. */
 
 /* shapes built from tokens that stand in for the drawn faces when no kit is worn */
 
@@ -711,3 +685,17 @@ html[data-skin='plain'] .ch-row-go { margin-top: 6px; max-width: none; }
 /* the empty-sea notice, made shorter and wider so the register still fits under it */
 .ch-chart .kit-empty { padding: 14px 20px 10px; gap: 6px; }
 .ch-chart .kit-empty-fills { max-width: 68ch; }
+
+/* a pick with no island: it is in the list because it is his year, and it is dimmed
+   because there is nowhere to press */
+.ch-row-owed { opacity: .72; }
+.ch-row-owed .ch-row-name { font-style: italic; }
+
+/* ---- A CARD BELOW THE HALFWAY LINE HANGS ABOVE ITS ISLAND -----------------
+ *
+ * The island's name, its state line and its Sail control hang under the picture,
+ * which walks them off the bottom edge of the water for anything drawn low. On the
+ * shipped chart the ATC island's own "Sail here" was cut in half by that edge. Low
+ * islands wear the same card on the other side. */
+.ch-isle-flip { flex-direction: column-reverse; }
+.ch-isle-flip .ch-card { margin-top: 0; margin-bottom: 5px; }

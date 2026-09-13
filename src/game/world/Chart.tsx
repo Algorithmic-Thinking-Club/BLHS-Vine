@@ -147,7 +147,7 @@ function sailableRow(r: { dock: Dock; slot: WorldSlot }, here: string | undefine
 
 /** `onSailing` lets whatever opened the chart get out of the way once the ship
  *  is moving. The Handbook passes its own close. */
-export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
+export function Chart({ onSailing, heading = true }: { onSailing?: () => void; heading?: boolean } = {}) {
   const [comp, setComp] = useState<WorldComposition | null>(compositionCache)
   const [, bump] = useState(0)
   const [inked, setInked] = useState<ReadonlySet<string>>(() => new Set())
@@ -270,7 +270,7 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
   if (!comp) {
     return (
       <div className="ch-chart">
-        <h2 className="ch-h">Chart</h2>
+        {heading && <h2 className="ch-h">Chart</h2>}
         <Loading what="Loading the chart." />
       </div>
     )
@@ -280,7 +280,7 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
     /* the document answered with nothing on it, which is an error rather than an empty sea */
     return (
       <div className="ch-chart">
-        <h2 className="ch-h">Chart</h2>
+        {heading && <h2 className="ch-h">Chart</h2>}
         <Failed what="The chart could not be loaded." />
         <p className="ch-legend">
           The list of places came back empty. Nothing you have done is lost.
@@ -322,7 +322,7 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
 
   return (
     <div className="ch-chart">
-      <h2 className="ch-h">Chart</h2>
+      {heading && <h2 className="ch-h">Chart</h2>}
 
       <div className="ch-sea">
         <div
@@ -361,36 +361,18 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
             </div>
           ))}
 
-          {/* ---- HIS OWN YEAR, ROUND THE EDGE OF THE PAPER ------------------
+          {/* ---- HIS OWN YEAR IS A LIST AND NOT A THING ON THE WATER --------
            *
-           * ASH, 2026-09-08 item 3: *"the hub in the middle and his picked islands
-           * around it, plus any island already built."*
+           * ASH, after playing: *"even the chart is shitty."* Four of the seven things
+           * drawn on the sea were not places. "AP Human Geography · counted as done"
+           * and "Spanish I · counted as done" were pinned to the corners of the water,
+           * which is a map of an archipelago with two class names floating on it. A
+           * class has no island; that is exactly what the note under it said, and a
+           * map is the wrong place to say it.
            *
-           * THEY ARE PLACED ON THE PAPER AND NOT IN THE SEA. A world coordinate
-           * would have to be invented for a place nobody has built, and the first
-           * version did exactly that: a ring around the hub, which on a chart four
-           * times wider than it is tall collapsed into the middle and drew four
-           * dashed boxes straight through the islands that really exist.
-           *
-           * So the corners, by index, tight against the edge and under everything
-           * else, because an island can honestly be anywhere and a note about a
-           * place with no position cannot be allowed to sit on top of one. */}
-          {owed.map((p, i) => (
-            <div
-              key={`pick:${p.id}`}
-              className="ch-isle ch-rumour ch-isle-pick"
-              /* the corners in this order because the boat is usually moored low
-                 and to the middle, so the two top ones fill first */
-              style={{
-                left: `${[5, 95, 5, 95][i % 4]}%`,
-                top: `${[13, 13, 92, 92][i % 4]}%`,
-                transform: `translate(${i % 2 ? '-100%' : '0'}, ${i > 1 ? '-100%' : '0'})`,
-              }}
-            >
-              <span className="ch-pick-name">{p.name}</span>
-              <span className="ch-pick-note">{p.done ? 'counted as done' : 'no island yet'}</span>
-            </div>
-          ))}
+           * They moved to the register below, where the year's picks belong and where
+           * a row can say "no island yet" without sitting on the sea. The water now
+           * holds islands, regions, and his boat. Nothing else. */}
 
           {rows.map((r) => {
             const badge = r.cut ? badgeOf(r.dock) : null
@@ -420,6 +402,16 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
               </>
             )
             const at = atPct(box, r.slot.at)
+            /* ---- THE CARD FLIPS RATHER THAN FALLING OFF THE WATER ----------
+             *
+             * The name, the state line and the Sail control hang UNDER the island, and
+             * an island low on the chart hangs them off the bottom edge of the water,
+             * where they are clipped: the ATC island's own "Sail here" was cut in half
+             * on the shipped screen. Below the halfway line the card goes above the
+             * island instead. It is the same card either way; only which side of the
+             * picture it sits on changes. */
+            const low = parseFloat(at.top) > 52
+            const flip = low ? ' ch-isle-flip' : ''
             /* a button only where there is somewhere to go. A control that is
              * always there and usually refuses teaches a student that the chart
              * does not work. */
@@ -428,7 +420,7 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
                 key={r.key}
                 type="button"
                 data-key={r.key}
-                className={`ch-isle ch-${r.dock.state} ch-isle-go`}
+                className={`ch-isle ch-${r.dock.state} ch-isle-go${flip}`}
                 data-inked={inked.has(r.key) ? '1' : undefined}
                 style={at}
                 aria-label={`Sail to ${r.name}. ${r.line}`}
@@ -441,7 +433,7 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
               <div
                 key={r.key}
                 data-key={r.key}
-                className={`ch-isle ch-${r.dock.state}`}
+                className={`ch-isle ch-${r.dock.state}${flip}`}
                 data-inked={inked.has(r.key) ? '1' : undefined}
                 style={at}
                 title={`${r.name}. ${r.line}`}
@@ -531,6 +523,21 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
                 Sail to {r.name}
               </Plank>
             )}
+          </li>
+        ))}
+        {/* the year's own picks that nobody has built an island for. Last in the
+            list, plainly said, and off the water. */}
+        {owed.map((p) => (
+          <li className="ch-row ch-row-owed" key={`pick:${p.id}`}>
+            <span className="ch-row-marks" aria-hidden="true"><span className="ch-s ch-s-pip ch-s-pip-shut" /></span>
+            <span className="ch-row-words">
+              <span className="ch-row-name">{p.name}</span>
+              <span className="ch-row-state">
+                {p.done
+                  ? 'Counted as done on your year sheet. It has no island to sail to.'
+                  : 'On your year sheet. Nobody has built its island yet.'}
+              </span>
+            </span>
           </li>
         ))}
       </ul>
