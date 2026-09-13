@@ -130,6 +130,20 @@ describe('every word that takes an anchor refuses a name the map does not carry'
     })
   }
 
+  /* ---- AND THE PLAYER IS A LEGAL SUBJECT, not just a legal target -----------
+   *
+   * `actor_face(x, "thor")` could always turn somebody at the student. Nothing could
+   * turn the student at somebody, so a beat where a person walks up and speaks left
+   * him facing wherever his last walk pointed him, and the only cure was a compass
+   * heading typed into an island: exactly what Ash ruled out when he said to read
+   * every position off the map. */
+  it('lets the player be the one who turns, without an anchor by that name', async () => {
+    const h = host()
+    const r = await performIntent({ kind: 'actor_face', actor: 'thor', facing: 'chart_table' }, h)
+    expect(r.ok).toBe(true)
+    expect(h.did).toEqual(['actorFace:thor:chart_table'])
+  })
+
   it('and performs when the anchor is real', async () => {
     const h = host()
     for (const i of [

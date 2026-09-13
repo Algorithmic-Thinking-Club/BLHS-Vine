@@ -473,7 +473,13 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         w().place(i.actor, i.at, i.off, i.facing)
         return ok()
       case 'actor_face':
-        if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
+        /* THE PLAYER IS A LEGAL SUBJECT AS WELL AS A LEGAL TARGET. `actor_face(x,
+         * "thor")` turns somebody at the student; `actor_face("thor", x)` turns the
+         * student at somebody. Without the second one a beat where a person walks up
+         * and speaks leaves the student facing wherever his last walk pointed him,
+         * and the only cure was a compass heading typed into an island. */
+        if (i.actor !== PLAYER && !w().hasAnchor(i.actor))
+          return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
         w().actorFace(i.actor, i.facing)
         return ok()
       case 'actor_look':

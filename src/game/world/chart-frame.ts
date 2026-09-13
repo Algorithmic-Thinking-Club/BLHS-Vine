@@ -16,7 +16,7 @@ import type { WorldPt, WorldSlot } from './composition'
  * axes, and a centimetre means the same thing whichever way it is held. */
 
 /** how flat or how tall the water is allowed to get, as width over height */
-export const CHART_ASPECT = { min: 1.8, max: 3.2 }
+export const CHART_ASPECT = { min: 1.8, max: 2.6 }
 
 /** the margin of open water round the outermost island, in world units */
 export const CHART_PAD_MIN = 320
@@ -42,6 +42,22 @@ const STEPS = [25, 50, 100, 250, 500, 1000, 2500, 5000, 10_000, 25_000]
 export const gridStep = (span: number): number =>
   STEPS.find((n) => span / n <= 16) ?? STEPS[STEPS.length - 1]
 
+/* THE SHORT AXIS GROWS AND THE LONG ONE NEVER SHRINKS, so pulling a shape into
+ * the band only ever adds open water. Shrinking the long axis would push an
+ * island off the paper, and the paper is the one thing that cannot move.
+ *
+ * The FLOOR is the one that fires in practice. The ceiling has never fired on any
+ * world this project has written, because the margin is a third of the spread and
+ * that alone holds a perfectly flat archipelago at about 2.4 to 1. It is kept as
+ * a fence: change the margin and nothing silently brings back the 5.3 to 1 strip
+ * this chart used to draw. */
+export function clampAspect(w: number, h: number): { w: number; h: number } {
+  const a = w / h
+  if (a > CHART_ASPECT.max) return { w, h: w / CHART_ASPECT.max }
+  if (a < CHART_ASPECT.min) return { w: h * CHART_ASPECT.min, h }
+  return { w, h }
+}
+
 /** the box of water that holds these points, with its aspect pulled into the band */
 export function chartBox(pts: readonly WorldPt[]): ChartBox {
   if (!pts.length) {
@@ -53,24 +69,22 @@ export function chartBox(pts: readonly WorldPt[]): ChartBox {
   const spread = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys))
   const pad = Math.max(CHART_PAD_MIN, spread * CHART_PAD_SHARE)
 
-  let x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad
-  let y0 = Math.min(...ys) - pad, y1 = Math.max(...ys) + pad
-  let w = x1 - x0, h = y1 - y0
+  const x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad
+  const y0 = Math.min(...ys) - pad, y1 = Math.max(...ys) + pad
 
-  /* THE SHORT AXIS GROWS AND THE LONG ONE NEVER SHRINKS, so pulling the shape
-     into the band only ever adds open water. Shrinking the long axis would push
-     an island off the paper, and the paper is the one thing that cannot move. */
-  const a = w / h
-  if (a > CHART_ASPECT.max) {
-    const want = w / CHART_ASPECT.max
-    const grow = (want - h) / 2
-    y0 -= grow; y1 += grow; h = want
-  } else if (a < CHART_ASPECT.min) {
-    const want = h * CHART_ASPECT.min
-    const grow = (want - w) / 2
-    x0 -= grow; x1 += grow; w = want
+  /* the growing is symmetric about the middle, so nothing already on the paper
+     moves relative to anything else on it */
+  const fit = clampAspect(x1 - x0, y1 - y0)
+  const grewX = (fit.w - (x1 - x0)) / 2
+  const grewY = (fit.h - (y1 - y0)) / 2
+  return {
+    x0: x0 - grewX,
+    y0: y0 - grewY,
+    w: fit.w,
+    h: fit.h,
+    aspect: fit.w / fit.h,
+    step: gridStep(Math.max(fit.w, fit.h)),
   }
-  return { x0, y0, w, h, aspect: w / h, step: gridStep(Math.max(w, h)) }
 }
 
 /** where a world point lands on the water, as a percentage of each side */
@@ -100,6 +114,14 @@ export const pinPx = (islands: number): number =>
 
 /** past this many islands the water keeps only the pictures until asked */
 export const CHART_DENSE = 6
+
+/** the size the same painting is drawn at in the register list underneath */
+export const CHART_THUMB = 34
+
+/* the tallest the water is allowed to get, as a css length. The binder page is
+   `min(760px, 86vh)` less its head and its tab row, so this leaves the legend and
+   the top of the register above the fold on a school Chromebook. */
+export const CHART_TALL = 'min(310px, 40vh)'
 
 /* ---- THE PICTURE ITSELF ----------------------------------------------------
  *

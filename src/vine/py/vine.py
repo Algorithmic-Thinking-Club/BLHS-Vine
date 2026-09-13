@@ -240,10 +240,21 @@ def place(actor, at, off=None, facing=None):
 def actor_face(actor, facing):
     """Turn somebody, without moving them.
 
-    `facing` is one of the eight headings, or the word "thor", which means "turn
-    and look at the player wherever he is standing". Use that one after a walk:
-    which way "at him" is depends on where you both ended up, and a compass point
-    written in your island is a bet on a station nobody has moved yet.
+        yield actor_face(PRESIDENT, "thor")      # he looks at the student
+        yield actor_face("thor", PRESIDENT)      # the student looks at him
+
+    `facing` is one of the eight headings, or the word "thor", which means "turn and
+    look at the player wherever he is standing". Use that one after a walk: which way
+    "at him" is depends on where you both ended up, and a compass point written in
+    your island is a bet on a station nobody has moved yet.
+
+    AND THE STUDENT HIMSELF CAN BE THE ONE WHO TURNS. Say "thor" as the FIRST
+    argument and the name of a place or a person as the second, and he turns to look
+    at it. That is the line for a beat where somebody walks up and starts talking:
+    without it he takes the whole conversation facing wherever his last walk left
+    him, which in the Maw's closing film was square to the wrong person.
+
+    Both halves read the geometry off the map, so neither of them needs a number.
     """
     return {"kind": "actor_face", "actor": actor, "facing": facing}
 

@@ -353,15 +353,31 @@ export function berthHelm(
     return { helm: { throttle: 0, turn: Math.abs(err) < 0.05 ? 0 : Math.sign(err), fullSail: false }, next: watched(b) }
   }
 
-  /* BESIDE IT, LYING RIGHT, AND UNABLE TO DO BETTER IS TIED UP. See
-   * ALONGSIDE_MAX_PX: this is the clause that tells a berth drawn a few pixels
-   * inside the coast apart from a boat that has genuinely failed to arrive. The
-   * watchdog still gives up on the second kind, because this needs her to be both
-   * close and pointing the right way. */
+  /* ---- BESIDE IT AND UNABLE TO DO BETTER: SHE WARPS ROUND AND TIES UP -------
+   *
+   * See ALONGSIDE_MAX_PX. This is the clause that tells a berth drawn a few pixels
+   * inside the coast apart from a boat that has genuinely failed to arrive.
+   *
+   * AND IT TURNS HER RATHER THAN ONLY TESTING HER, which cost a stuck voyage in two
+   * runs out of three. Measured on the sail into ATC: she grounds 46px from the mark,
+   * which is inside this clause's reach, but 33 degrees off the dock's line, because
+   * the run-in above steers at a mark ON the line and her error TO that mark was
+   * already nearly nothing. So she sat there pointing across the dock, the test
+   * refused her on the heading, and four seconds later the watchdog handed the helm
+   * back and told the student the boat could not dock from here.
+   *
+   * A crew alongside a dock they cannot get closer to warps the boat round on her
+   * lines. That is all this is: throttle off, swing onto the authored heading, and
+   * tie up when she is lying along it. The watchdog still catches a boat that is
+   * genuinely nowhere near, because this needs her to be CLOSE first. */
   if (dist <= ALONGSIDE_MAX_PX && stuckMs >= ALONGSIDE_SETTLED_MS) {
     const err = b.facing === undefined ? 0 : wrap(b.facing - s.heading)
     if (Math.abs(err) < ALONGSIDE_RAD * 1.5)
       return { helm: HELM_IDLE, next: watched({ ...b, stage: 'done' }) }
+    return {
+      helm: { throttle: 0, turn: Math.abs(err) < 0.05 ? 0 : Math.sign(err), fullSail: false },
+      next: watched(b),
+    }
   }
 
   /* ---- THE RUN-IN: SHE STEERS ONTO THE DOCK'S LINE, NOT AT THE DOCK ---------

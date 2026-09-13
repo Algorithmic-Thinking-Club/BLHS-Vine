@@ -10,7 +10,7 @@ import {
 } from './composition'
 import {
   newHull, stepHull, berthHelm, headingOf, DEFAULT_SAIL, HELM_IDLE, BERTH_GIVE_UP_MS,
-  ALONGSIDE_PX, ALONGSIDE_RAD,
+  ALONGSIDE_PX, ALONGSIDE_RAD, ALONGSIDE_MAX_PX,
   type Berthing, type DepthAt,
 } from './sail'
 import { PLACES } from '../roster/roster'
@@ -640,6 +640,62 @@ describe('coming alongside', () => {
     expect(b.stage).toBe('done')
     const off = Math.abs(Math.atan2(Math.sin(h.heading - Math.PI), Math.cos(h.heading - Math.PI)))
     expect(off).toBeLessThan(ALONGSIDE_RAD)
+  })
+
+  /* ---- THE ONE THAT LEFT A PLAYER FROZEN BEHIND BLACK BARS ----------------
+   *
+   * Measured on the real sail into ATC, two runs in three: she comes down the line,
+   * grounds 46px from the mark because the berth is drawn a little inside the coast,
+   * and stops 33 degrees off the dock's own heading. The run-in steers at a mark ON
+   * the line, so her error to THAT was nearly nothing and she never turned; four
+   * seconds later the watchdog handed the helm back and the game told the student
+   * "The boat cannot dock from here. Back away and try again." with the bars still up
+   * and nothing he could press.
+   *
+   * A crew alongside a dock they cannot reach warps the boat round on her lines.
+   */
+  it('warps round and ties up when she is beside the mark and cannot get closer', () => {
+    /* land everywhere except a channel that stops short of the berth, which is the
+     * shape of the real island: the mark is a few pixels inside the coast */
+    const target = { x: 300, y: 210 }
+    const facing = -0.698
+    const shallow: DepthAt = (x, y) => (Math.hypot(x - target.x, y - target.y) > 44 ? 9999 : -10)
+    /* she arrives across the line, which is what grounding leaves her doing */
+    let h = { ...newHull(target.x - 46, target.y + 6, 0), speed: 24 }
+    let b: Berthing = { target, facing, stage: 'alongside' }
+    let gaveUp = false
+    for (let i = 0; i < 2000 && b.stage !== 'done'; i++) {
+      const r = berthHelm(h, b, DEFAULT_SAIL, 1 / 60)
+      b = r.next
+      if (b.stage === 'given_up') { gaveUp = true; break }
+      h = stepHull(h, r.helm, 1 / 60, shallow)
+    }
+    expect(gaveUp, 'it handed the helm back instead of tying up').toBe(false)
+    expect(b.stage).toBe('done')
+    /* AND SHE IS LYING ALONG THE DOCK, which is the whole reason this is allowed to
+     * count: a boat that finished pointing across the planks would be the old bug
+     * with a nicer ending. */
+    const off = Math.abs(Math.atan2(Math.sin(h.heading - facing), Math.cos(h.heading - facing)))
+    expect(off).toBeLessThan(ALONGSIDE_RAD * 1.5)
+    /* and no further from the mark than a hull's length */
+    expect(Math.hypot(h.x - target.x, h.y - target.y)).toBeLessThan(ALONGSIDE_MAX_PX + 2)
+  })
+
+  it('still gives the helm back when she is genuinely nowhere near', () => {
+    /* the graceful clause must not become "every failure is a success". Land in the
+     * way, a long way out, and the watchdog is still the answer. */
+    const target = { x: 300, y: 210 }
+    let h = { ...newHull(900, 900, 0), speed: 0 }
+    let b: Berthing = { target, facing: Math.PI, stage: 'alongside' }
+    const walled: DepthAt = (x, y) => (Math.hypot(x - 900, y - 900) < 30 ? 9999 : -10)
+    let gaveUp = false
+    for (let i = 0; i < 3000 && b.stage !== 'done'; i++) {
+      const r = berthHelm(h, b, DEFAULT_SAIL, 1 / 60)
+      b = r.next
+      if (b.stage === 'given_up') { gaveUp = true; break }
+      h = stepHull(h, r.helm, 1 / 60, walled)
+    }
+    expect(gaveUp).toBe(true)
   })
 
   it('still drives straight at a berth nobody gave a heading to', () => {

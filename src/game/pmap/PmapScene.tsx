@@ -3013,6 +3013,19 @@ export default function PmapScene() {
             gx = pos.x + (ax / away) * clear
             gy = pos.y + (ay / away) * clear
           }
+          /* ---- AND THE STOP IS ON THE FLOOR --------------------------------
+           *
+           * This word read the anchor's stand point raw while `lead_to` and
+           * `walk_to`, which do the same job for the player, both go through
+           * `onFloor`. So a stand point a pixel inside a wall parked a body inside
+           * the wall, and the Maw has one: `the_hall`'s own pixel is inside the
+           * drawn fire, so `actor_move(x, "the_hall")` stood the man in the hearth
+           * while the two player words snapped a pixel clear of it.
+           *
+           * The snap goes last, after the clearance push, because pushing a body
+           * out of the player can push it into a wall. */
+          const floored = onFloor({ x: gx, y: gy }, canStand, ysm, Math.round(clear)).at
+          gx = floored.x; gy = floored.y
           /* face the way it is going while it goes, so a body drawn eight ways
            * does not moonwalk across the square */
           const dir = dirFrom(gx - d.x, (gy - d.y) * map.yScale)
@@ -3199,7 +3212,33 @@ export default function PmapScene() {
            * A film that walks two people to a station and then names a compass
            * point has hardcoded the geometry of that station, and the stations
            * are being moved. Which way "at him" is depends on where they both
-           * ended up, and the scene is the only thing that knows. */
+           * ended up, and the scene is the only thing that knows.
+           *
+           * ---- AND THE PLAYER CAN BE THE ONE WHO TURNS --------------------
+           *
+           * This word could turn anybody at the player and nothing could turn the
+           * player at anybody, so a beat where somebody walks up and talks left the
+           * student facing wherever his last walk had pointed him: in the Maw's
+           * closing film he took the congratulation standing square to the
+           * counselor's mark. The only way round it was a compass point typed into
+           * an island, which is the exact thing Ash ruled out.
+           *
+           * So both halves exist now and neither needs a number: `actor_face(x,
+           * "thor")` turns somebody at the student, and `actor_face("thor", x)`
+           * turns the student at somebody. */
+          if (actor === PLAYER) {
+            const a2 = anchors.get(facing)
+            if (!a2)
+              throw new NotBuilt('actor_face', `"thor" can be turned to look at a place, and `
+                + `there is nothing called "${facing}" on ${mapId}. `
+                + 'To point him at a compass heading, walk him there instead.')
+            const at2 = anchors.spotOf(a2)
+            const turn = dirFrom(at2.x - pos.x, (at2.y - pos.y) * (map.yScale || 1))
+            /* standing exactly on the thing has no direction, and turning him to a
+             * guess would be worse than leaving him as he is */
+            if (turn) walker.facing = turn
+            return
+          }
           const sp = actorBody(actor, 'actor_face')
           if (facing === PLAYER) {
             const d0 = take(sp)

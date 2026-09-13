@@ -5,7 +5,7 @@ import {
   type SlotState, type WorldComposition, type WorldSlot,
 } from './composition'
 import { dockOf, stateLine, type Dock, type DockDrawn } from './states'
-import { atPct, chartBox, CHART_DENSE, islandCut, pinPx, type IslandCut } from './chart-frame'
+import { atPct, chartBox, CHART_DENSE, CHART_TALL, CHART_THUMB, islandCut, pinPx, type IslandCut } from './chart-frame'
 import { loadSave, subscribeSave } from '../save'
 import { mooringFor } from '../run/resume'
 import { Empty, Failed, Glyph, Loading, Plank } from '../ui/controls'
@@ -76,28 +76,38 @@ const badgeOf = (dock: Dock): DockDrawn | null => {
  * already records and the picture is pulled up and left behind it. A map nobody
  * vendored still has its committed folder, which is why one miss is retried
  * rather than leaving a hole where an island should be. */
-function Painting({ cut }: { cut: IslandCut }) {
+function Painting({ cut, lift = false }: { cut: IslandCut; lift?: boolean }) {
   const [src, setSrc] = useState(cut.src)
-  useEffect(() => { setSrc(cut.src) }, [cut.src])
+  const [gone, setGone] = useState(false)
+  useEffect(() => { setSrc(cut.src); setGone(false) }, [cut.src])
   return (
-    <span className="ch-pic" style={{ width: cut.w, height: cut.h, marginTop: -cut.h / 2 }}>
-      <img
-        className="ch-pic-img"
-        src={src}
-        alt=""
-        draggable={false}
-        decoding="async"
-        style={{ width: cut.imgW, height: cut.imgH, left: cut.left, top: cut.top }}
-        onError={() => {
-          if (src === cut.spare) {
-            /* SAY WHICH ONE. A silently missing island is a chart with a hole in
-             * it and nobody is ever told which bundle did not answer. */
-            console.warn(`[chart] no painting for this island at ${cut.src} or ${cut.spare}`)
-            return
-          }
-          setSrc(cut.spare)
-        }}
-      />
+    <span
+      className={`ch-pic${gone ? ' ch-pic-gone' : ''}`}
+      style={{ width: cut.w, height: cut.h, marginTop: lift ? -cut.h / 2 : 0 }}
+    >
+      {/* AND WHEN THERE IS NO PAINTING, THE OLD MARK. A browser's own broken
+          picture icon on a chart is worse than the pin this page has always
+          drawn, and the island is a real place either way. */}
+      {gone ? <span className="ch-s ch-s-pin" /> : (
+        <img
+          className="ch-pic-img"
+          src={src}
+          alt=""
+          draggable={false}
+          decoding="async"
+          style={{ width: cut.imgW, height: cut.imgH, left: cut.left, top: cut.top }}
+          onError={() => {
+            if (src === cut.spare) {
+              /* SAY WHICH ONE. A silently missing island is a chart with a hole in
+               * it and nobody is ever told which bundle did not answer. */
+              console.warn(`[chart] no painting for this island at ${cut.src} or ${cut.spare}`)
+              setGone(true)
+              return
+            }
+            setSrc(cut.spare)
+          }}
+        />
+      )}
     </span>
   )
 }
@@ -110,6 +120,8 @@ type Row = {
   name: string
   /** the island's own painting, cut and scaled, or null where nothing is built */
   cut: IslandCut | null
+  /** the same painting again at list size, for the register row */
+  thumb: IslandCut | null
   /** can she be sent there from where the student is standing right now */
   sailable: boolean
   /* why it cannot be pressed, when it cannot and the reason is worth saying */
@@ -180,6 +192,7 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
          picture of a misty island is the chart doing the discovering, the same
          argument that already keeps its name off the paper. */
       cut: dock.named ? islandCut(s, pin) : null,
+      thumb: dock.named ? islandCut(s, CHART_THUMB) : null,
       sailable: afloat && sailableRow({ dock, slot: s }, here, sailListenerCount() > 0),
       /* why this row cannot be pressed, said out loud rather than left as a
          control that is simply absent (Ash, 2026-09-09: the chart went silent) */
@@ -319,6 +332,11 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
              fix for a chart that read 2.4 times wider than the sea it drew. */
           style={{
             aspectRatio: `${box.w} / ${box.h}`,
+            /* AND IT NEVER GROWS PAST THE PAGE. Held to its shape, a tall world
+               would take the whole binder page and push the register and the
+               legend under a fold nobody knows is there, so the water narrows
+               instead. `CHART_TALL` is the ceiling and the aspect does the rest. */
+            width: `calc(${CHART_TALL} * ${box.aspect.toFixed(4)})`,
             /* the ruling, in world units turned into a share of each side, so the
                squares on the paper are square and mean a real distance */
             ['--ch-grid-x' as string]: `${(box.step / box.w) * 100}%`,
@@ -360,12 +378,12 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
           {owed.map((p, i) => (
             <div
               key={`pick:${p.id}`}
-              className="ch-pick"
+              className="ch-isle ch-rumour ch-isle-pick"
               /* the corners in this order because the boat is usually moored low
                  and to the middle, so the two top ones fill first */
               style={{
-                left: `${[6, 94, 6, 94][i % 4]}%`,
-                top: `${[8, 8, 92, 92][i % 4]}%`,
+                left: `${[5, 95, 5, 95][i % 4]}%`,
+                top: `${[13, 13, 92, 92][i % 4]}%`,
                 transform: `translate(${i % 2 ? '-100%' : '0'}, ${i > 1 ? '-100%' : '0'})`,
               }}
             >
@@ -379,7 +397,7 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
             const body = (
               <>
                 {r.cut
-                  ? <Painting cut={r.cut} />
+                  ? <Painting cut={r.cut} lift />
                   : (
                     <span className="ch-blank" style={{ width: pin, height: pin, marginTop: -pin / 2 }}>
                       <DockRow dock={r.dock} />
@@ -410,7 +428,7 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
                 key={r.key}
                 type="button"
                 data-key={r.key}
-                className={`ch-pin ch-${r.dock.state} ch-pin-go`}
+                className={`ch-isle ch-${r.dock.state} ch-isle-go`}
                 data-inked={inked.has(r.key) ? '1' : undefined}
                 style={at}
                 aria-label={`Sail to ${r.name}. ${r.line}`}
@@ -423,7 +441,7 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
               <div
                 key={r.key}
                 data-key={r.key}
-                className={`ch-pin ch-${r.dock.state}`}
+                className={`ch-isle ch-${r.dock.state}`}
                 data-inked={inked.has(r.key) ? '1' : undefined}
                 style={at}
                 title={`${r.name}. ${r.line}`}
@@ -442,15 +460,21 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
         </div>
       </div>
 
-      {/* ---- what the picture means, directly under the picture */}
-      <p className="ch-legend">
-        Every island is drawn as its own painting, and the squares are {box.step} paces across, so
-        how far apart two of them look is how far apart they are.
-        {unvisited.length
-          ? ` ${unvisited.map((r) => r.label ?? r.name).join(' and ')} ${unvisited.length > 1 ? 'are areas' : 'is an area'} you have not sailed to yet.`
-          : ''}
-        {builtIn ? ' The place list would not download, so this is the copy built into the game.' : ''}
+      {/* ---- what the picture means, directly under the picture. It is its own
+              paragraph because the plain arm has no picture, and a page that
+              explains a drawing nobody can see is a page telling a lie. */}
+      <p className="ch-legend ch-legend-pic">
+        Every island is drawn as its own painting, and the squares on the water are all one size, so
+        how far apart two islands look is how far apart they really are.
       </p>
+      {(unvisited.length > 0 || builtIn) && (
+        <p className="ch-legend">
+          {unvisited.length
+            ? `${unvisited.map((r) => r.label ?? r.name).join(' and ')} ${unvisited.length > 1 ? 'are areas' : 'is an area'} you have not sailed to yet.`
+            : ''}
+          {builtIn ? ' The place list would not download, so this is the copy built into the game.' : ''}
+        </p>
+      )}
 
       {lonely && (
         <Empty
@@ -474,9 +498,9 @@ export function Chart({ onSailing }: { onSailing?: () => void } = {}) {
           <li className="ch-row" key={r.key}>
             {/* the same painting again, small, so the list and the water are
                 obviously about the same islands */}
-            {r.cut && (
+            {r.thumb && (
               <span className="ch-row-pic" aria-hidden="true">
-                <Painting cut={islandCut(r.slot, 34)!} />
+                <Painting cut={r.thumb} />
               </span>
             )}
             <span className="ch-row-marks" aria-hidden="true"><DockRow dock={r.dock} /></span>

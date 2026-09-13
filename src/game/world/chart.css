@@ -1,4 +1,4 @@
-/* the chart page, which draws the world composition as a sea chart with a register under it */
+/* the chart page: a sheet of real water with the islands' own paintings on it, and a register under it */
 
 @import '../ui/tokens.css';
 
@@ -15,6 +15,16 @@
   flex: 1 0 auto;
   min-height: 0;
   gap: 10px;
+
+  /* ---- the water, mixed once, out of the kit's own sea ------------------
+     Nothing here is a new colour. The ocean is the same green the kit calls
+     chosen, run down through the front group's two deep blues, because a chart
+     is a picture of the water the game sails on and not a second palette. */
+  --ch-shelf: var(--kit-sea);
+  --ch-mid: var(--kit-front-teal-deep);
+  --ch-deep: var(--kit-front-sea-deep);
+  --ch-rule: var(--kit-sea-fill);
+  --ch-foam: var(--kit-sea-paper);
 }
 
 .ch-h {
@@ -26,57 +36,107 @@
   font-weight: normal;
 }
 
-/* the sea itself, drawn as a sheet of chart paper pinned into the binder */
+/* ---- THE SHEET ------------------------------------------------------------
+ *
+ * The paper the water is printed on, and nothing more: a margin, a doubled rule
+ * and the four brass tacks that hold it into the binder. It takes its height
+ * from the water inside it, which is `0 0 auto` and NOT the `1 1 auto` it was.
+ *
+ * That one line was the whole of the chart's lie about distance. A sheet that
+ * took whatever height the flex row had left measured 949x180 while the world it
+ * drew measured 1466x667, so the two axes got scales 2.4 times apart and a
+ * thousand units east read shorter than four hundred units north. */
 .ch-sea {
   position: relative;
-  width: 100%;
-  /* THE PAPER IS THE PAGE, not a tall box the page scrolls. A fixed height
-     taller than the binder put half the marks below a fold nobody knows is
-     there, which on a chart is the same as not drawing them. */
-  flex: 1 1 auto;
-  /* a floor low enough that the legend and the register still fit on a small screen */
-  /* measured against the whole binder page, not against the sheet on its own */
-  min-height: min(180px, 24vh);
-  overflow: hidden;
+  flex: 0 0 auto;
+  /* THE SHEET HUGS THE WATER. It used to be the full width of the page with the
+     map floating in the middle of it, which reads as a small chart lost on a
+     large blotter rather than as a chart. */
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
   box-sizing: border-box;
-  padding: 14px;
-  /* a drawn parchment sheet with the sea's own light laid over it */
-  background:
-    /* the sea's own light, off the top left, the way a lantern falls on paper.
-       It sits ON TOP of the drawn sheet, which is what makes a blank parchment
-       read as water rather than as a bright hole in the page. */
-    radial-gradient(ellipse at 32% 28%, var(--kit-sea-glow-soft), transparent 66%),
-    var(--kit-art-chart_field) center / 100% 100% no-repeat;
-  image-rendering: var(--kit-pixel);
-  /* the doubled border a chart carries: a firm outer rule and a hairline inside
-     it, which is one box-shadow rather than a second element */
+  padding: 13px;
+  background: linear-gradient(180deg, var(--kit-paper-hi), var(--kit-paper-lo));
   border: var(--kit-border) solid var(--kit-edge);
   border-radius: var(--kit-r-sharp);
   box-shadow:
     inset 0 0 0 1px var(--kit-paper-sheen-firm),
-    inset 0 0 0 4px var(--kit-rule-firm),
-    inset 0 0 22px var(--kit-rule-soft),
     0 2px 6px var(--kit-hairline);
 }
 
 /* the four brass tacks in the corners that hold the sheet down */
 .ch-sea::before, .ch-sea::after {
   content: '';
-  position: absolute; left: 9px; right: 9px; height: 14px;
+  position: absolute; left: 4px; right: 4px; height: 9px;
+  z-index: 3;
   pointer-events: none;
   background:
-    radial-gradient(circle at 7px 50%, var(--kit-gold-hi) 0 5px, var(--kit-cord-track) 5px 6px, transparent 7px) no-repeat,
-    radial-gradient(circle at calc(100% - 7px) 50%, var(--kit-gold-hi) 0 5px, var(--kit-cord-track) 5px 6px, transparent 7px) no-repeat;
+    radial-gradient(circle at 5px 50%, var(--kit-gold-hi) 0 4px, var(--kit-cord-track) 4px 5px, transparent 6px) no-repeat,
+    radial-gradient(circle at calc(100% - 5px) 50%, var(--kit-gold-hi) 0 4px, var(--kit-cord-track) 4px 5px, transparent 6px) no-repeat;
 }
-.ch-sea::before { top: 9px; }
-.ch-sea::after { bottom: 9px; }
+.ch-sea::before { top: 2px; }
+.ch-sea::after { bottom: 2px; }
+
+/* ---- THE WATER ------------------------------------------------------------
+ *
+ * Its `aspect-ratio` is written on the element by `chartBox`, so the box the
+ * world is measured into and the box it is drawn in are the same shape and one
+ * scale serves both axes. Everything on it is placed as a percentage of a side,
+ * which makes a percentage of the width and a percentage of the height the same
+ * number of pixels, and therefore the same distance in the world.
+ *
+ * The ruling is the same idea: the two grid steps come down as a share of each
+ * side off one round number of world units, so the squares really are square and
+ * the legend can say so without naming a unit the game has never named. */
+.ch-water {
+  position: relative;
+  /* the width comes in on the element as `<CHART_TALL> * aspect`, so the water is
+     as wide as its own shape needs it to be for the height the page can spare,
+     and the sheet is cut to fit round it. On a window too narrow for that the
+     `max-width` takes over and the aspect shortens it instead of squashing it. */
+  max-width: 100%;
+  min-height: 100px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px var(--kit-sea-btn-edge), inset 0 6px 18px rgba(0, 0, 0, .28);
+  background:
+    repeating-linear-gradient(to right, var(--ch-rule) 0 1px, transparent 1px var(--ch-grid-x, 10%)),
+    repeating-linear-gradient(to bottom, var(--ch-rule) 0 1px, transparent 1px var(--ch-grid-y, 20%)),
+    /* the light on the water, off the top left, the way it falls everywhere in the kit */
+    radial-gradient(ellipse 72% 80% at 26% 18%, var(--kit-sea-glow), transparent 72%),
+    /* shallow along the top edge, deep at the bottom */
+    linear-gradient(172deg, var(--ch-shelf) 0%, var(--ch-mid) 44%, var(--ch-deep) 100%);
+}
+
+/* a chart is oriented or it is only a picture of the sea */
+.ch-north {
+  position: absolute; right: 14px; top: 22px;
+  z-index: 1;
+  display: block;
+  font-family: var(--kit-face-display);
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1;
+  color: var(--ch-foam);
+  opacity: .7;
+  pointer-events: none;
+}
+/* the needle stands ABOVE the letter, because that is the direction it means */
+.ch-north::before {
+  content: '';
+  position: absolute; left: 50%; bottom: calc(100% + 3px);
+  width: 0; height: 0;
+  margin-left: -4px;
+  border: 4px solid transparent;
+  border-bottom: 9px solid var(--ch-foam);
+}
 
 /* ---- the named water ------------------------------------------------------ */
 
 .ch-region {
   position: absolute;
   box-sizing: border-box;
-  border: 1px dashed var(--kit-rule-firm);
+  border: 1px dashed var(--ch-rule);
   border-radius: var(--kit-r-round);
   pointer-events: none;
 }
@@ -88,8 +148,8 @@
   background: repeating-linear-gradient(135deg, var(--kit-paper-sheen) 0 6px, transparent 6px 12px);
   border-style: dotted;
 }
-.ch-region-shallow { background: repeating-linear-gradient(90deg, var(--kit-rule-soft) 0 1px, transparent 1px 7px); }
-.ch-region-forbidden { background: repeating-linear-gradient(45deg, var(--kit-rule-firm) 0 2px, transparent 2px 9px); }
+.ch-region-shallow { background: repeating-linear-gradient(90deg, var(--ch-rule) 0 1px, transparent 1px 7px); }
+.ch-region-forbidden { background: repeating-linear-gradient(45deg, var(--kit-alarm-lo) 0 2px, transparent 2px 9px); }
 .ch-region-ambience { background: none; border: none; }
 
 .ch-region-name {
@@ -97,36 +157,137 @@
   font-family: var(--kit-face-body);
   --kit-fs-raw: calc(13px * var(--kit-text-scale));
   font-size: var(--kit-fs);
-  color: var(--kit-ink-dim);
+  color: var(--ch-foam);
+  opacity: .8;
   letter-spacing: .08em;
-}
-
-/* THE ROSE. A chart is oriented, and this one never was. */
-/* clear of the bottom tack strip, which runs 9 to 23 pixels up from the edge */
-.ch-rose {
-  position: absolute; right: 26px; bottom: 26px;
-  display: inline-flex;
-  height: 34px;
-  opacity: .55;
-  pointer-events: none;
 }
 
 /* ---- ONE ISLAND ---------------------------------------------------------- */
 
+/* the block hangs off its own world point: centred across it, with the painting
+   pulled up half its own height so the PICTURE sits on the point and the label
+   hangs underneath it. Everything else on this page is measured, so the mark
+   cannot be a stack of boxes that happens to average out near the right place. */
 .ch-isle {
   position: absolute;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
+  z-index: 2;
   display: flex; flex-direction: column; align-items: center;
-  gap: 3px;
   font-family: var(--kit-face-body);
   color: var(--kit-ink-body);
 }
 
-/* a mark you can sail to, which is a real button with a line under its name */
+/* the island, cut out of the bundle the game loads it from */
+.ch-pic {
+  position: relative;
+  display: block;
+  flex: none;
+  overflow: hidden;
+}
+/* no bundle answered, so the chart falls back to the mark it drew before there
+   were any paintings at all */
+.ch-pic-gone {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  overflow: visible;
+}
+/* the shallow water an island stands in, so a painting sits on the sea rather
+   than floating over it. It is water, drawn in the water's own colour. */
+.ch-pic::before {
+  content: '';
+  position: absolute; inset: -30%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--kit-sea-fill) 0 40%, transparent 72%);
+  pointer-events: none;
+}
+.ch-pic-img {
+  position: absolute;
+  max-width: none;
+  image-rendering: var(--kit-pixel);
+  filter: drop-shadow(0 2px 2px var(--kit-plank-drop));
+}
+
+/* the loudest mark standing on the dock, pinned to the corner of the painting */
+.ch-badge {
+  position: relative;
+  z-index: 1;
+  margin-top: -13px;
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  width: 19px; height: 19px;
+  border-radius: 50%;
+  background: var(--kit-paper-wash);
+  box-shadow: 0 0 0 1px var(--kit-edge);
+}
+.ch-badge .ch-s { width: 13px; height: 13px; }
+
+/* what stands where no painting may be drawn yet: the fog bank or the pencil ring */
+.ch-blank {
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  flex: none;
+}
+
+/* ---- the label, which is one paper tag and not four loose lines ------------ */
+.ch-card {
+  margin-top: 5px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 1px;
+  max-width: 15ch;
+  padding: 2px 8px 5px;
+  text-align: center;
+  background: var(--kit-paper-wash);
+  border: 1px solid var(--kit-edge);
+  border-radius: var(--kit-r-sharp);
+  box-shadow: 0 2px 5px var(--kit-plank-drop);
+}
+
+.ch-name {
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1.15;
+  color: inherit;
+}
+
+.ch-note {
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1.25;
+  color: var(--kit-ink-label);
+}
+
+/* ---- THE CONTROL, AND IT LOOKS LIKE ONE -----------------------------------
+ *
+ * Ash: *"clean buttons that ask to 'sail here'"*. It was an underlined word in
+ * the same ink as the sentence above it, inside a block whose reading was "The
+ * Hub. You have been here. Sail here." The state is the tag it sits in and the
+ * control is a plaque with the sea's own paint on it. */
+.ch-sail {
+  margin-top: 4px;
+  padding: 2px 10px 3px;
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--kit-plank-ink);
+  background: linear-gradient(180deg, var(--kit-sea-btn-hi), var(--kit-sea-btn-lo));
+  border: 1px solid var(--kit-sea-btn-edge);
+  border-radius: var(--kit-r-sharp);
+  box-shadow: inset 0 1px 0 var(--kit-paper-sheen);
+  transition: filter var(--kit-t-fast) ease;
+}
+/* and when it cannot go, the reason in the quiet voice rather than a dead button */
+.ch-shut {
+  margin-top: 3px;
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1.25;
+  color: var(--kit-ink-dim);
+}
+
+/* the pin that is a real button, unstyled back down to the block it replaces */
 .ch-isle-go {
-  /* a button, unstyled back down to the div it replaces, then given its own
-     affordance. Left as a real <button> so the keyboard and a screen reader get
-     it for nothing. */
   appearance: none;
   background: none;
   border: 0;
@@ -136,43 +297,40 @@
   font: inherit;
   text-align: center;
 }
-.ch-go {
-  font-family: var(--kit-face-body);
-  /* through the kit's floor, which is 14: this was a raw 11 on the one word
-     that sails a student somewhere */
-  --kit-fs-raw: calc(14px * var(--kit-text-scale));
-  font-size: var(--kit-fs);
-  line-height: 1.1;
-  color: var(--kit-sea-ink);
-  border-bottom: 1px solid currentColor;
-  padding-bottom: 1px;
-  opacity: .8;
+.ch-isle-go:hover { transform: translateX(-50%) translateY(-2px); }
+.ch-isle-go:hover .ch-sail { filter: brightness(1.18); }
+.ch-isle-go:focus-visible {
+  outline: var(--kit-focus-width) solid var(--kit-focus);
+  outline-offset: 3px;
+  border-radius: var(--kit-r-sharp);
 }
-.ch-isle-go:hover .ch-go,
-.ch-isle-go:focus-visible .ch-go { opacity: 1; }
-.ch-isle-go:focus-visible { outline: 2px solid var(--kit-sea-ink); outline-offset: 3px; }
+.ch-isle-go:focus-visible .ch-sail { filter: brightness(1.18); }
+html[data-rm='1'] .ch-isle-go:hover { transform: translateX(-50%); }
 
-/* the register's own control, which is the only one the plain arm ever sees */
-.ch-row-go {
-  appearance: none;
-  align-self: flex-start;
-  margin-top: 3px;
-  padding: 3px 9px;
-  cursor: pointer;
-  font-family: var(--kit-face-body);
-  --kit-fs-raw: calc(14px * var(--kit-text-scale));
-  font-size: var(--kit-fs);
-  color: var(--kit-sea-ink);
-  background: none;
-  border: 1px solid var(--kit-rule);
-  border-radius: 3px;
+/* ---- A DOZEN ISLANDS, AND THEN FIFTY --------------------------------------
+ *
+ * Past `CHART_DENSE` the tags wait to be asked for. The pictures shrink on their
+ * own and stay readable, but a name does not: the kit's type floor is 14px and
+ * "the Algorithmic Thinking Club" at 14px is three times wider than the island
+ * it belongs to. So the water keeps the paintings and the state badges, the
+ * register underneath keeps every name and every control in words, and a hover
+ * or a keyboard focus brings one tag back over the top of its neighbours. */
+.ch-water[data-dense='1'] .ch-card {
+  position: absolute;
+  top: 100%; left: 50%;
+  transform: translateX(-50%);
+  visibility: hidden;
+  z-index: 6;
 }
-.ch-row-go:hover { border-color: var(--kit-sea-ink); }
-.ch-row-go:focus-visible { outline: 2px solid var(--kit-sea-ink); outline-offset: 2px; }
+.ch-water[data-dense='1'] .ch-isle:hover .ch-card,
+.ch-water[data-dense='1'] .ch-isle:focus-within .ch-card { visibility: visible; }
+.ch-water[data-dense='1'] .ch-isle:hover,
+.ch-water[data-dense='1'] .ch-isle:focus-within { z-index: 6; }
 
 /* THE DOCK: a rail with six standing places on it. The rail is what makes an
    EMPTY place readable, because an empty place is only legible when the place
-   itself is drawn. */
+   itself is drawn. It belongs to the register, where there is room for it; on
+   the water an island wears one badge and that is all it can carry. */
 .ch-dock {
   display: flex;
   align-items: flex-end;
@@ -205,50 +363,15 @@
   background: var(--kit-rule-firm);
 }
 
-/* the island's name, written in the state's own ink on a small paper label */
-.ch-name {
-  --kit-fs-raw: calc(17px * var(--kit-text-scale));
-  font-size: var(--kit-fs);
-  max-width: 170px;
-  text-align: center;
-  line-height: 1.15;
-  background: var(--kit-paper-wash);
-  border: 1px solid var(--kit-edge);
-  border-radius: var(--kit-r-sharp);
-  padding: 1px 8px;
-  color: inherit;
-}
-
-.ch-note {
-  --kit-fs-raw: calc(14px * var(--kit-text-scale));
-  font-size: var(--kit-fs);
-  max-width: 170px;
-  text-align: center;
-  line-height: 1.3;
-  color: var(--kit-ink-label);
-}
-
-/* A RUMOUR IS PENCIL: no ink box, a dashed edge, and it says so in its own
-   voice. `.ch-misty` is the same argument one step further out. */
-.ch-rumour .ch-name {
-  background: none;
-  border: 1px dashed var(--kit-rule-firm);
-  font-style: italic;
-}
-.ch-misty .ch-name { background: none; border-style: dotted; }
-/* a finished island's name is written twice over, the way a name on a chart gets
-   gone over in ink once it is certain */
-.ch-completed .ch-name { border-width: 2px; }
-
 /* ---- YOU ARE HERE -------------------------------------------------------- */
 
-/* SHE LIES BELOW THE ISLAND SHE IS TIED TO rather than on top of its mark, so
-   "you are here" and "this is that place" are two readings and not one pile. */
+/* SHE IS DRAWN WHERE SHE IS TIED UP. The berth is a real point on the water and
+   the chart used to stack her under the island's mark with a hard-coded nudge,
+   which was a guess at where a dock is on a painting it had never looked at. */
 .ch-you {
   position: absolute;
   transform: translate(-50%, -50%);
-  margin-top: 62px;
-  z-index: 2;
+  z-index: 4;
   display: flex; flex-direction: column; align-items: center;
   gap: 2px;
   pointer-events: none;
@@ -264,6 +387,42 @@
   white-space: nowrap;
 }
 
+/* ---- A PICK NOBODY HAS BUILT YET ------------------------------------------
+ *
+ * Ash, 2026-09-08 item 3: his picked islands go on the chart around the hub. It
+ * is a note in the margin rather than a mark in the sea, because the thing it is
+ * about has no position: there is no island to put it on. Under everything and
+ * deaf to the pointer, so it can never sit on top of a control. */
+.ch-isle-pick {
+  position: absolute;
+  z-index: 1;
+  /* a definite width, because an absolutely placed box shrinks to whatever room
+     is left between its own left edge and the water's, and the two on the right
+     hand side were collapsing to one word per line */
+  width: 15ch;
+  display: flex; flex-direction: column; align-items: flex-start;
+  font-family: var(--kit-face-body);
+  opacity: .78;
+  pointer-events: none;
+}
+/* TWO CLASSES ON PURPOSE. The note carries `ch-rumour` as well, which is the
+   right reading of it and which sets the brown a rumour is written in further
+   down this file. Brown on deep water is a note nobody can read, so the one that
+   wins here is the water's own chalk. */
+.ch-isle.ch-isle-pick { color: var(--ch-foam); }
+.ch-isle-pick .ch-pick-name {
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1.15;
+  font-style: italic;
+}
+.ch-isle-pick .ch-pick-note {
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  line-height: 1.2;
+  opacity: .8;
+}
+
 /* shapes built from tokens that stand in for the drawn faces when no kit is worn */
 
 .ch-s {
@@ -273,7 +432,6 @@
   width: 18px; height: 18px;
 }
 .ch-slot-big .ch-s { width: 30px; height: 30px; }
-.ch-rose .ch-s { width: 34px; height: 34px; }
 
 /* the marker: a ringed head over a tapered tail, which is what `pointer`'s
    pin_plate and pin_tail draw as two faces and this draws as two boxes */
@@ -381,12 +539,14 @@ html[data-rm='1'] .ch-s-fog { animation: none; }
 .ch-dock-bare[data-fog='0'] { opacity: .42; transform: scale(.6); }
 
 /* a rumour is drawn in pencil and has no marker, because there is nothing there
-   to put a marker on */
+   to put a marker on. On water the pencil is chalk: the register's brown ink
+   disappears against a deep sea. */
 .ch-s-pencil {
   border-radius: 50%;
   background: none;
   border: 2px dashed var(--kit-ink-dim);
 }
+.ch-water .ch-s-pencil { border-color: var(--ch-foam); opacity: .7; }
 
 /* water breaking over something arriving, which nobody has drawn either */
 .ch-s-rising {
@@ -426,23 +586,23 @@ html[data-rm='1'] .ch-s-rising { animation: none; box-shadow: inset 0 0 0 2px va
   background: var(--kit-sea-ink);
   clip-path: polygon(0% 0%, 100% 0%, 82% 100%, 18% 100%);
 }
-
-/* the compass rose, for a build with no `icon_set` behind it */
-.ch-s-rose {
-  background: var(--kit-edge);
-  clip-path: polygon(50% 0%, 58% 42%, 100% 50%, 58% 58%, 50% 100%, 42% 58%, 0% 50%, 42% 42%);
-}
+/* she is a dark hull on dark water otherwise, and she is the one thing on this
+   page that is where the student is */
+.ch-water .ch-s-ship::before { background: var(--ch-foam); }
+.ch-water .ch-s-ship::after { background: var(--kit-paper-hi); }
 
 /* THE CHART INKS ITSELF. §9.15's whole moment, played once, on the draw a
    smudge becomes a place with a name on it. */
-.ch-isle[data-inked='1'] .ch-dock { animation: ch-ink 900ms var(--kit-ease-rise) 1 both; }
-.ch-isle[data-inked='1'] .ch-name { animation: ch-ink 900ms var(--kit-ease-rise) 1 both; }
+.ch-isle[data-inked='1'] .ch-pic,
+.ch-isle[data-inked='1'] .ch-blank,
+.ch-isle[data-inked='1'] .ch-card { animation: ch-ink 900ms var(--kit-ease-rise) 1 both; }
 @keyframes ch-ink {
   from { opacity: 0; transform: scale(.86); }
   to { opacity: 1; transform: none; }
 }
-html[data-rm='1'] .ch-isle[data-inked='1'] .ch-dock,
-html[data-rm='1'] .ch-isle[data-inked='1'] .ch-name { animation: none; }
+html[data-rm='1'] .ch-isle[data-inked='1'] .ch-pic,
+html[data-rm='1'] .ch-isle[data-inked='1'] .ch-blank,
+html[data-rm='1'] .ch-isle[data-inked='1'] .ch-card { animation: none; }
 
 /* the register: the same places read as a plain list under the chart */
 
@@ -461,8 +621,19 @@ html[data-rm='1'] .ch-isle[data-inked='1'] .ch-name { animation: none; }
   padding: 7px 2px;
   border-bottom: 1px dashed var(--kit-rule);
 }
+/* the island again, small, so the list and the water are obviously about the
+   same places. It sits in the water's own tint rather than on the paper. */
+.ch-row-pic {
+  flex: none;
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  width: 38px; height: 38px;
+  border-radius: var(--kit-r-sharp);
+  background: linear-gradient(160deg, var(--ch-mid), var(--ch-deep));
+  box-shadow: inset 0 0 0 1px var(--kit-sea-btn-edge);
+}
 .ch-row-marks { display: inline-flex; flex: none; }
-.ch-row-words { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ch-row-words { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
 .ch-row-name {
   font-family: var(--kit-face-display);
   --kit-fs-raw: calc(16px * var(--kit-text-scale));
@@ -484,6 +655,9 @@ html[data-rm='1'] .ch-isle[data-inked='1'] .ch-name { animation: none; }
   color: var(--kit-ink-dim);
   line-height: 1.4;
 }
+/* the register's own control: a real plank, the button every other screen in the
+   game presses, so the list is not a second vocabulary */
+.ch-row-go { flex: none; max-width: 40%; }
 /* the boat's own row sits above the water it is on */
 .ch-row-you .ch-row-name { color: var(--kit-sea-ink); }
 
@@ -505,11 +679,13 @@ html[data-rm='1'] .ch-isle[data-inked='1'] .ch-name { animation: none; }
 .ch-active { color: var(--kit-ink); }
 .ch-completed { color: var(--kit-sea-earned); }
 
-/* the plain study arm: the chart with the picture gone, read as a worksheet */
+/* the plain arm: the chart with the picture gone, read as a worksheet */
 
 html[data-skin='plain'] .ch-sea { display: none; }
-/* the marks were the picture and the picture is what this arm does not get */
+/* the marks and the paintings were the picture and the picture is what this arm
+   does not get */
 html[data-skin='plain'] .ch-row-marks { display: none; }
+html[data-skin='plain'] .ch-row-pic { display: none; }
 html[data-skin='plain'] .ch-s { display: none; }
 
 html[data-skin='plain'] .ch-chart { gap: 0; }
@@ -526,36 +702,12 @@ html[data-skin='plain'] .ch-row-name { font-weight: 700; color: var(--kit-ink-he
 html[data-skin='plain'] .ch-row-state,
 html[data-skin='plain'] .ch-row-closed { display: block; }
 html[data-skin='plain'] .ch-legend { color: var(--kit-ink-body); }
-/* the control arm's own way to sea. A form button on a worksheet, not a plaque:
-   the arm is about how the game speaks and the sailing is the game. */
-html[data-skin='plain'] .ch-row-go {
-  margin-top: 6px;
-  padding: 5px 12px;
-  border: 1px solid var(--kit-ink-body);
-  border-radius: 2px;
-  color: var(--kit-ink-head);
-  font-weight: 600;
-}
+/* and the sentence about the drawing goes with the drawing */
+html[data-skin='plain'] .ch-legend-pic { display: none; }
+/* the plain arm's own way to sea. A form button on a worksheet, and the plank
+   already knows how to be one under this skin. */
+html[data-skin='plain'] .ch-row-go { margin-top: 6px; max-width: none; }
 
 /* the empty-sea notice, made shorter and wider so the register still fits under it */
 .ch-chart .kit-empty { padding: 14px 20px 10px; gap: 6px; }
 .ch-chart .kit-empty-fills { max-width: 68ch; }
-
-/* ---- A PICK NOBODY HAS BUILT YET ------------------------------------------
- *
- * Ash, 2026-09-08 item 3: his picked islands go on the chart around the hub. It
- * is a mark in pencil rather than a pin in ink, and it is a div and not a
- * button on purpose: the thing that plays it is the year sheet. */
-.ch-isle-pick {
-  border-style: dashed;
-  opacity: 0.82;
-  cursor: default;
-  /* narrow, so four of them round the hub do not run into each other or into
-     the islands somebody really built */
-  max-width: 14ch;
-  text-align: center;
-  /* the corners are named as percentages of the paper, so the mark is centred on
-     its own point the way every other one is */
-  transform: translate(-50%, -50%);
-}
-.ch-isle-pick .ch-name { font-style: italic; }
