@@ -685,21 +685,42 @@ html[data-skin='plain'] .bt-answer { border-radius: 0; }
  * bezel. When one is drawn it drops in through a `--kit-art-*` token the way every
  * other drawn surface does, and everything below is the fallback that has to look
  * deliberate until then rather than a hole. */
+/* ---- THE COLOURS ARE THE MACHINE'S OWN, SAMPLED OFF IT --------------------
+ *
+ * Every value below is counted out of the computer sprite this panel is pretending
+ * to be, `a25` in atc-1's atlas, rather than picked to look like a computer. Its
+ * case is the #292734 / #3b3545 / #4e4c5b family, its unlit glass runs #33463c to
+ * #3a453a, and its one bright phosphor is #abfebe. The panel used to be a nearby
+ * but invented teal, so the camera flew into one green and landed on another. */
 .bt-crt {
   width: min(980px, 94vw);
   max-height: 94vh;
+  /* AND THE CONTENTS STAY INSIDE THE WINDOW. At 768 tall the ceiling is 722px and
+   * the footer row sat at 730 with ten of its rows visible, which reads as the
+   * panel being broken rather than as a long form. A column that scrolls its own
+   * body keeps every row reachable at any window height. */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-radius: 18px;
-  /* the chassis, then the glass: a dark plastic surround with the screen inset */
+  /* the chassis, then the glass: the case colour outside, the unlit screen inside */
   background:
-    radial-gradient(120% 90% at 50% 0%, rgba(120, 200, 170, .10), transparent 62%),
-    linear-gradient(180deg, #1d2a28 0%, #16201f 60%, #111918 100%);
-  border: 10px solid #2b3a37;
+    radial-gradient(120% 90% at 50% 0%, rgba(171, 254, 190, .10), transparent 62%),
+    linear-gradient(180deg, #1e2a20 0%, #161f18 60%, #101710 100%);
+  border: 10px solid #3b3545;
   box-shadow:
-    inset 0 0 0 2px #0c1211,
+    inset 0 0 0 2px #292734,
     inset 0 0 60px rgba(0, 0, 0, .55),
     0 18px 50px rgba(0, 0, 0, .55);
-  color: #cfe9dd;
+  color: #9fd4b0;
 }
+/* The first child is whatever is being read right now: the items, the result card,
+   the answers or the review. It takes the room and scrolls inside itself. Everything
+   after it is the way out, which has to stay on screen at any window height, and
+   that is exactly what was falling off the bottom edge. Addressed by position rather
+   than by class because all four of those frames are different components. */
+.bt-crt > * { flex: none; }
+.bt-crt > :first-child { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 
 /* the scanlines, which are the one thing that says CRT rather than flat panel.
    Two pixels on, two off, at four percent: enough to read as a tube and not
@@ -710,7 +731,16 @@ html[data-skin='plain'] .bt-answer { border-radius: 0; }
   pointer-events: none;
   border-radius: 10px;
   background: repeating-linear-gradient(
-    180deg, rgba(0, 0, 0, .07) 0 1px, transparent 1px 3px);
+    180deg, rgba(0, 0, 0, .09) 0 1px, transparent 1px 3px);
+}
+/* and the glass is brighter in the middle than at its corners, which is the other
+   half of reading as a tube rather than as a rectangle of colour */
+.bt-crt::after {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  border-radius: 10px;
+  background: radial-gradient(115% 85% at 50% 45%, transparent 55%, rgba(0, 0, 0, .38) 100%);
 }
 .bt-crt { position: relative; }
 html[data-rm='1'] .bt-crt { animation-duration: 1ms; }
@@ -722,16 +752,16 @@ html[data-rm='1'] .bt-crt { animation-duration: 1ms; }
 .bt-crt .bt-place b,
 .bt-crt .bt-title,
 .bt-crt .bt-prompt,
-.bt-crt .bt-gradenum,
-.bt-crt .bt-lettermark { color: #e8fff4; }
-.bt-crt .bt-lettermark { text-shadow: 0 0 14px rgba(127, 224, 180, .45); }
+.bt-crt .bt-gradenum { color: #d8f5e0; }
+.bt-crt .bt-lettermark { color: #abfebe; }
+.bt-crt .bt-lettermark { text-shadow: 0 0 14px rgba(171, 254, 190, .5); }
 .bt-crt .bt-place,
 .bt-crt .bt-needs,
 .bt-crt .bt-subprompt,
 .bt-crt .bt-gradesays,
 .bt-crt .bt-gradelines,
 .bt-crt .bt-answer-score,
-.bt-crt .bt-slotname { color: #a9d4c4; }
+.bt-crt .bt-slotname { color: #7fc79a; }
 
 /* THE PLAIN ARM NEVER GETS THIS, belt and braces. The arm is already a code
    branch in ActivityRunner and this cannot reach a plain card, but a monitor

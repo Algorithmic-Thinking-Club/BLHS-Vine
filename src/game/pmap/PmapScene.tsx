@@ -3265,26 +3265,37 @@ export default function PmapScene() {
            * a shot that expires mid-line is a cut nobody asked for */
           lookAtTarget = { x: at.x, y: at.y, until: ms === undefined ? Infinity : performance.now() + ms }
           lastShot = shot
-          if (s.framing.zoom !== undefined) zoomTo(Z_SHOT * s.framing.zoom)
+          if (s.framing.zoom !== undefined) zoomTo(Math.min(Z_SHOT * s.framing.zoom, SHOT_ZOOM_MAX()))
           engine.log('framing', { map: mapId, shot, zoom: s.framing.zoom ?? null })
-          /* ---- IT COMES BACK WHEN THE CAMERA IS THERE (Ash: the screen
-           * transition is busted and glitches around) ----------------------
+          /* ---- IT COMES BACK WHEN THE CAMERA IS REALLY THERE ---------------
            *
-           * It used to answer the instant it was asked, so an island composing a
-           * shot and then doing the next thing did the next thing OVER the move.
-           * ATC's own screen beat had to guess: `framing(SCREEN)` then a
-           * hand-tuned `wait(900)`, and the push takes as long as it takes, so the
-           * panel opened somewhere in the middle of it.
+           * Ash: *"the computer screen transition is busted, it randomly clips into
+           * the island, and glitches around."*
            *
-           * `view` has always waited for its own zoom. This is the same wait, on
-           * the word a member is far more likely to use, so nobody has to know a
-           * number. The ceiling is the same one, because a camera that cannot get
-           * there must not hold an island up for ever. */
+           * Two things were wrong and the second one is the one that showed. It used
+           * to answer the instant it was asked, so ATC had to guess with a hand-tuned
+           * `wait(900)`. And waiting on the ZOOM alone is not enough: measured on
+           * this very shot, the desk was at screen x=1529 on a 1366-wide window when
+           * the zoom had already arrived, and at 21x the pan still had thousands of
+           * screen pixels to cross. The panel opened over a camera in flight, which
+           * is why the picture behind it was different in every frame.
+           *
+           * So this waits for the POSITION as well, against the aim `camTo`
+           * publishes. The ceiling is the same one `view` uses, because a camera
+           * that cannot arrive must not hold an island up for ever. */
           const settled = new Promise<void>((r) => {
             const t0 = performance.now()
             const tick = () => {
               if (destroyed) { r(); return }
-              if (Math.abs(camZ - camZWant) < 0.01 || performance.now() - t0 > VIEW_CEILING_MS) { r(); return }
+              const zoomThere = Math.abs(camZ - camZWant) < 0.01
+              /* MEASURED IN PAINTING PIXELS, not screen ones. At a close shot a screen
+               * pixel is a fraction of a drawn one, so a screen-pixel tolerance on a
+               * pan of three thousand screen pixels cannot be met inside any sane
+               * ceiling and the wait always timed out. One painting pixel is the
+               * smallest thing anybody can see. */
+              const slack = Math.max(1.5, camZ)
+              const panThere = Math.abs(camFX - camAim.x) < slack && Math.abs(camFY - camAim.y) < slack
+              if ((zoomThere && panThere) || performance.now() - t0 > SHOT_CEILING_MS) { r(); return }
               requestAnimationFrame(tick)
             }
             requestAnimationFrame(tick)
@@ -4144,10 +4155,49 @@ export default function PmapScene() {
       let holdStill = !coastCut
       /* the longest view will wait for its own zoom to arrive before letting the island go on */
       const VIEW_CEILING_MS = 1500
+      /* AND A SHOT WAITS LONGER, because it waits for the pan too and a push from the
+       * walking view to a close shot has a long way to travel. Both easings share one
+       * time constant, so three of them is the move plus a margin. */
+      const SHOT_CEILING_MS = 3000
+
+      /* ---- HOW TIGHT A SHOT IS ALLOWED TO BE -----------------------------
+       *
+       * Ash: *"the computer screen transition is busted, it randomly clips into the
+       * island."* Part of that is the zoom itself. A shot's zoom ships as a MULTIPLE
+       * of the game's opening view, and MAPVIS converts the author's own editor notch
+       * into that multiple by dividing by a constant of 1.18: the number it assumes
+       * the opening pull to be. On ATC the real opening pull is 3.31, so the
+       * conversion is out by a factor of 2.8 and the screen shot Ash armed at a notch
+       * of 8 arrived as 22.4 screen pixels per painting pixel. At that magnification
+       * one drawn pixel is a slab two centimetres across and the picture stops being
+       * readable as anything.
+       *
+       * The ceiling is expressed against the WALKING view rather than as a number,
+       * because that is the scale the art was drawn to be seen at: two and a half
+       * times it is a real push-in and still legible. On ATC that lands at 8.3, which
+       * is within a rounding error of the notch the author actually chose. It leaves
+       * every shot already in the game alone, because nothing else asks for more.
+       *
+       * The proper fix is on the MAPVIS side, where the notch should ship absolute
+       * instead of as a multiple of a constant it cannot know. That breaks every
+       * bundle already published, so it needs a version marker and Ash's word. */
+      const SHOT_ZOOM_MAX = () => walkZ() * 2.5
       /* where the camera really is, in fractions of a pixel, so the rounding
        * below never eats the ease. Seeded by the first snap. */
       let camFX = 0, camFY = 0
-      const camTo = (cx: number, cy: number, snap = false) => {
+      /* WHERE THE CAMERA IS TRYING TO GET TO, published so a word can wait for it.
+       * `camTo` used to keep its answer inside itself, which meant `framing` could
+       * only ever wait for the ZOOM. Measured on ATC's screen shot: the zoom settles
+       * in about a second and the pan at 21x has thousands of screen pixels to
+       * travel, so the panel opened over a camera that was still moving and the
+       * picture behind it was different in every frame. */
+      let camAim = { x: 0, y: 0 }
+      /* HOW LONG THE PAN TAKES, and it is the zoom's own number so the two arrive
+       * together. It used to be a flat nine percent of the remaining distance PER
+       * FRAME, which is both framerate-dependent and a different curve from the
+       * zoom, so a push-in was two moves fighting each other. */
+      const CAM_TAU = 0.42
+      const camTo = (cx: number, cy: number, snap = false, dt = 1 / 60) => {
         const vw = app.screen.width, vh = app.screen.height
         const fh = freeH(vh)
         if (holdStill && !camFree) {
@@ -4165,8 +4215,13 @@ export default function PmapScene() {
           : H * camZ <= fh ? (fh - painted.h * camZ) / 2 - painted.oy * camZ
             : fence(fh / 2 - cy * camZ, H * camZ, vh)
         /* whole pixels on screen, with the easing kept on a number nobody draws */
+        camAim = { x: tx, y: ty }
         if (snap) { camFX = tx; camFY = ty }
-        else { camFX += (tx - camFX) * 0.09; camFY += (ty - camFY) * 0.09 }
+        else {
+          const k = 1 - Math.exp(-Math.max(0, Math.min(dt, 0.1)) / CAM_TAU)
+          camFX += (tx - camFX) * k
+          camFY += (ty - camFY) * k
+        }
         world.x = Math.round(camFX); world.y = Math.round(camFY)
       }
       camTo(pos.x, pos.y, true)
@@ -5015,6 +5070,24 @@ const CAST_OFF_SHOW_MS = 3200
         },
         /** how many arrow marks are drawn along the route right now */
         get trail() { return trailMarks },
+        /* WHERE A NAMED PLACE REALLY IS ON THE GLASS, in window pixels, so a proof
+         * can say whether the camera is actually looking at the thing a shot names
+         * instead of inferring it from a zoom number. The painting's own opaque
+         * rectangle comes with it, because a camera can be arithmetically right and
+         * still be pointing at transparent canvas with the ocean showing through. */
+        spotOnGlass(name: string) {
+          const a2 = anchors.get(name)
+          if (!a2) return null
+          const at = anchors.spotOf(a2)
+          return {
+            x: Math.round(world.x + at.x * camZ), y: Math.round(world.y + at.y * camZ),
+            world: { x: Math.round(at.x), y: Math.round(at.y) },
+            camZ: +camZ.toFixed(2),
+            canvas: { w: W, h: H },
+            painted: { x: painted.ox, y: painted.oy, w: painted.w, h: painted.h },
+            screen: { w: app.screen.width, h: app.screen.height },
+          }
+        },
         /** whether the movie frame is up, read off the same switch it is set on */
         get movie() { return cinemaOn() },
         /* the light on the thing he should walk to, in window pixels */
@@ -5413,8 +5486,8 @@ const CAST_OFF_SHOW_MS = 3200
           if (stepZoom(dt)) refreshSea()
           /* and the body lets go while a shot is held, so two easings do not fight */
           if (!lookAtTarget) {
-            if (hull) camTo(hull.x, hull.y)
-            else camTo(pos.x, pos.y)
+            if (hull) camTo(hull.x, hull.y, false, dt)
+            else camTo(pos.x, pos.y, false, dt)
           }
         }
         /* the screen-space chrome undoes whatever zoom is live, so a camera push
@@ -5826,7 +5899,7 @@ const CAST_OFF_SHOW_MS = 3200
           else {
             const was = holdStill
             holdStill = false
-            camTo(lookAtTarget.x, lookAtTarget.y)
+            camTo(lookAtTarget.x, lookAtTarget.y, false, dt)
             holdStill = was
           }
         }

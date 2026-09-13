@@ -43,6 +43,10 @@
 
 /* it goes away behind the bars, like every other corner control */
 html[data-movie='1'] .ct-btn { display: none; }
+/* and a panel takes the whole window too: this button was drawn on top of the
+ * full-screen computer, which is a world control offered over a thing that is not
+ * the world. The same rule the help button and the corner stack already keep. */
+html[data-panels]:not([data-panels='0']) .ct-btn { display: none; }
 
 html[data-skin='plain'] .ct-btn {
   border-radius: 0;
