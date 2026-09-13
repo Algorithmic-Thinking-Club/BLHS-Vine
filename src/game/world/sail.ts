@@ -50,9 +50,25 @@ export type SailCfg = {
   wakeSpread: number
 }
 
+/* ---- HOW FAST A BOAT IN THIS GAME GOES ----------------------------------
+ *
+ * ASH, after watching a crossing: *"it looks like its going 300 mph, instead of
+ * smooth sailing."* Measured on that build, she held 144 of a 150 ceiling for the
+ * whole voyage including the run at the dock. A hull moving at the top of its range
+ * for every second of every journey has no range: there is nothing for full sail to
+ * mean and nothing for slowing down to read as.
+ *
+ * Cruise comes down to a speed a painted sea can carry, full sail stays well above it
+ * so holding shift is worth something, and the bow comes round slower to match. The
+ * crossing takes about a third longer and it is the difference between a boat and a
+ * jet ski. A map may still name its own `speed`. */
 export const DEFAULT_SAIL: SailCfg = {
-  cruise: 150, fullSail: 260, accel: 90, drag: 60, turn: 2.2,
-  probe: 26, wakeCap: 220, wakeLife: 2.6, wakeSpread: 9,
+  cruise: 96, fullSail: 170, accel: 62, drag: 46, turn: 1.7,
+  /* A SHORT WAKE. At 3.2 seconds and this speed the foam ran three hundred world
+   * pixels astern, which at the sailing zoom is most of the screen: two rails
+   * disappearing off the edge, which is what "two ugly streaks" was about as much as
+   * how they were drawn. A boat's wake closes up behind her. */
+  probe: 26, wakeCap: 170, wakeLife: 1.5, wakeSpread: 7,
 }
 
 /** what the player is asking for this tick. `turn` is -1, 0 or 1 and `throttle`
@@ -61,6 +77,69 @@ export const DEFAULT_SAIL: SailCfg = {
 export type Helm = { throttle: number; turn: number; fullSail: boolean }
 
 export const HELM_IDLE: Helm = { throttle: 0, turn: 0, fullSail: false }
+
+/* ---- STEERING AT A MARK, WITHOUT SAWING THE WHEEL ------------------------
+ *
+ * Every follower in this game steered with `turn: turn > 0 ? 1 : -1`, which is the
+ * wheel hard over on every frame the bow is more than three degrees off. Measured on
+ * the shipped crossing: a tenth of it was turning faster than 52 degrees a second and
+ * the worst frame hit 367. Ash watched that and wrote "it does crazy turns, shitty
+ * turns, it looks like its going 300 mph".
+ *
+ * So the wheel moves in proportion to how wrong the heading is, and comes back to
+ * centre as she lines up. And the throttle eases off through a big turn, because a
+ * boat carving a corner at full speed is the thing that reads as a speedboat: she
+ * slows into it and picks the speed back up on the straight, which is what sailing
+ * looks like.
+ */
+export const SOFT_RAD = 0.55
+export function steerTo(s: HullState, aim: { x: number; y: number }, full = false): Helm {
+  const want = Math.atan2(aim.y - s.y, aim.x - s.x)
+  let err = want - s.heading
+  while (err > Math.PI) err -= 2 * Math.PI
+  while (err < -Math.PI) err += 2 * Math.PI
+  const turn = Math.max(-1, Math.min(1, err / SOFT_RAD))
+  /* square-nosed on purpose: a small error costs nothing and a hairpin costs most of
+   * the way on. `0.25` is the floor, so she never stops dead in the middle of a turn. */
+  const ease = Math.max(0.25, 1 - Math.abs(err) / Math.PI)
+  return { throttle: ease, turn: Math.abs(turn) < 0.04 ? 0 : turn, fullSail: full }
+}
+
+/* the same law as `steerTo` for a helm that already knows its heading error: the
+ * wheel in proportion, and the way off through a hard turn */
+export function easeHelm(err: number, throttle: number): Helm {
+  const turn = Math.max(-1, Math.min(1, err / SOFT_RAD))
+  const ease = Math.max(0.25, 1 - Math.abs(err) / Math.PI)
+  return { throttle: throttle * ease, turn: Math.abs(turn) < 0.04 ? 0 : turn, fullSail: false }
+}
+
+/* ---- WHERE A BOAT LINES UP ON A DOCK ------------------------------------
+ *
+ * The mark astern of the berth, on the berth's own heading, that the run-in wants her
+ * to come down from. Walked outward until the water runs out, so it is never on land,
+ * and no further out than her own turning circle needs, because the 320px constant
+ * that used to stand here sent her most of the way back out to sea to line up.
+ *
+ * EXPORTED because the scene wants it too: knowing where the manoeuvre is going to
+ * begin is what lets a route be searched TO that point over water, instead of the
+ * hull being aimed at it and sliding down whatever coast is in between. */
+export function lineUpPoint(
+  target: { x: number; y: number },
+  facing: number,
+  cfg: SailCfg = DEFAULT_SAIL,
+  ok?: Navigable,
+): { x: number; y: number } | null {
+  const fx = Math.cos(facing), fy = Math.sin(facing)
+  const radius = cfg.cruise / Math.max(0.2, cfg.turn * 0.74)
+  const reach = Math.max(RUN_IN_CORRIDOR_PX, Math.min(RUN_IN_ROUND_PX, radius * 3))
+  let back = 0
+  for (let d = RUN_IN_CORRIDOR_PX; d <= reach; d += 20) {
+    if (ok && !ok(target.x - fx * d, target.y - fy * d)) break
+    back = d
+  }
+  if (!back) return null
+  return { x: target.x - fx * back, y: target.y - fy * back }
+}
 
 export const newHull = (x: number, y: number, heading = 0): HullState =>
   ({ x, y, heading, speed: 0, aground: false, wake: [] })
@@ -80,11 +159,16 @@ export function stepHull(s: HullState, helm: Helm, dt: number, depth: DepthAt, c
   const heading = s.heading + helm.turn * rate * d
 
   let speed = s.speed
-  if (helm.throttle > 0) speed = Math.min(ceiling, speed + cfg.accel * d * helm.throttle)
+  /* THE THROTTLE IS A FRACTION AND NOT A SWITCH, so a helm can ease off through a
+   * turn. The ceiling comes down with it, or a boat asked for a quarter throttle
+   * still coasts at cruise for as long as drag takes to notice. */
+  const want = ceiling * Math.max(0, Math.min(1, helm.throttle))
+  if (helm.throttle > 0) speed = Math.min(want, speed + cfg.accel * d * helm.throttle)
   else speed = Math.max(0, speed - cfg.drag * d)
   /* dropping full sail does not stop her dead: the ceiling falls and drag brings
    * her down to it, so letting go feels like easing off rather than braking */
-  if (speed > ceiling) speed = Math.max(ceiling, speed - cfg.drag * d)
+  const top = helm.throttle > 0 ? want : ceiling
+  if (speed > top) speed = Math.max(top, speed - cfg.drag * d)
 
   let nx = s.x + Math.cos(heading) * speed * d
   let ny = s.y + Math.sin(heading) * speed * d
@@ -117,6 +201,11 @@ export function stepHull(s: HullState, helm: Helm, dt: number, depth: DepthAt, c
     const age = p.age + d
     if (age < cfg.wakeLife) wake.push({ ...p, age })
   }
+  /* LAID BY THE TICK, AND THE POOL IS SIZED FOR IT. Two points a frame means the
+   * trail's LENGTH is whatever the machine's frame rate happens to be, which is why
+   * the cap is generous: at 60 frames the pool holds about three seconds of it and at
+   * 30 it holds six, and the drawing fades on age either way, so what a player sees
+   * is the same length of foam on both. */
   if (speed > cfg.cruise * 0.12) {
     const bx = -Math.cos(heading), by = -Math.sin(heading)
     const px = -by, py = bx                          // the perpendicular, for the spread
@@ -316,15 +405,17 @@ export function berthHelm(
       /* THE FURTHEST POINT BACK DOWN THE LINE THAT IS STILL WATER, walked out from
        * the berth rather than assumed. A short rendezvous is worse than a long one
        * and a dry one is worse than either. */
-      let back = 0
-      for (let d = RUN_IN_CORRIDOR_PX; d <= RUN_IN_ROUND_PX; d += 20) {
-        if (ok && !ok(b.target.x - fx * d, b.target.y - fy * d)) break
-        back = d
-      }
+      /* AND NO FURTHER OUT THAN SHE NEEDS. The ceiling used to be a flat 320px
+       * whatever the hull was, so at the sailing speeds this game uses now she went
+       * a long way out to sea to line up on a dock she could already see: measured,
+       * the approach stage was 143 frames of a 272 frame crossing and the path came
+       * to 1.76 times the straight line. What she actually needs is room to
+       * straighten, and that is her turning circle, not a constant. */
+      const found = lineUpPoint(b.target, b.facing, cfg, ok)
       /* nothing navigable astern at all: there is no approach to make, so she is
        * handed to the run-in and does what she can from where she is */
-      if (!back) return berthHelm(s, restart({ ...b, stage: 'alongside' }), cfg, dt, ok)
-      aim = { x: b.target.x - fx * back, y: b.target.y - fy * back }
+      if (!found) return berthHelm(s, restart({ ...b, stage: 'alongside' }), cfg, dt, ok)
+      aim = found
     }
     if (!aim) return berthHelm(s, restart({ ...b, stage: 'alongside' }), cfg, dt, ok)
     const dx = aim.x - s.x, dy = aim.y - s.y
@@ -347,10 +438,7 @@ export function berthHelm(
      * anything gentler she can take at cruise. */
     const stopIn = (s.speed * s.speed) / (2 * cfg.drag)
     const hardTurn = Math.abs(err) > Math.PI / 2 && d < stopIn + ALONGSIDE_PX * 2
-    return {
-      helm: { throttle: hardTurn ? 0 : 1, turn: Math.abs(err) < 0.05 ? 0 : Math.sign(err), fullSail: false },
-      next: watched(b),
-    }
+    return { helm: easeHelm(err, hardTurn ? 0 : 1), next: watched(b) }
   }
 
   const dx = b.target.x - s.x, dy = b.target.y - s.y
@@ -407,10 +495,7 @@ export function berthHelm(
     const err = wrap(b.facing - s.heading)
     if (Math.abs(err) < ALONGSIDE_RAD * 1.5)
       return { helm: HELM_IDLE, next: watched({ ...b, stage: 'done' }) }
-    return {
-      helm: { throttle: 0, turn: Math.abs(err) < 0.05 ? 0 : Math.sign(err), fullSail: false },
-      next: watched(b),
-    }
+    return { helm: easeHelm(err, 0), next: watched(b) }
   }
 
   /* ---- THE RUN-IN: SHE STEERS ONTO THE DOCK'S LINE, NOT AT THE DOCK ---------
@@ -467,10 +552,7 @@ export function berthHelm(
    * stopping instantly, which is the difference between docking and colliding. */
   const stopIn = (s.speed * s.speed) / (2 * cfg.drag)
   const throttle = dist > stopIn + ALONGSIDE_PX ? 1 : 0
-  return {
-    helm: { throttle, turn: Math.abs(err) < 0.05 ? 0 : Math.sign(err), fullSail: false },
-    next: watched(b),
-  }
+  return { helm: easeHelm(err, throttle), next: watched(b) }
 }
 
 /* what the save keeps: the berth she was last tied to, never a point at sea */

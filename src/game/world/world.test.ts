@@ -718,7 +718,14 @@ describe('coming alongside', () => {
     }
     const r = berthHelm(h, b)
     expect(r.next.stage).toBe('approach')
-    expect(r.helm.throttle).toBe(1)
+    /* UNDER WAY AND TURNING TOWARD IT, which is what this check has always been
+     * about. It used to read `throttle === 1`, and that stopped being the right
+     * number when the helm started easing off through a hard turn: this hull is
+     * pointing east with the approach point astern of her, which is exactly the
+     * corner a boat should take slowly. What matters is that she is making for the
+     * approach and not for the berth. */
+    expect(r.helm.throttle).toBeGreaterThan(0)
+    expect(Math.abs(r.helm.turn)).toBeGreaterThan(0)
   })
 
   /* a waypoint the hull cannot turn tightly enough to hit counts as passed, not orbited */

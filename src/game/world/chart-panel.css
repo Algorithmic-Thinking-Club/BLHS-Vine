@@ -25,6 +25,10 @@
 }
 /* the same rule every corner control follows: a panel takes the window */
 html[data-panels]:not([data-panels='0']) .cp-btn { visibility: hidden; }
+/* AND IT STANDS DOWN BEHIND THE BARS, which the corner stack and the question mark
+   both do and this did not: it was on screen over the ship sailing away, inside a
+   cutscene, which is the one place nothing of the game's furniture belongs. */
+html[data-movie='1'] .cp-btn { visibility: hidden; }
 /* and it is not offered where there is no world to sail on */
 .cp-btn[hidden] { display: none !important; }
 .cp-btn-word {

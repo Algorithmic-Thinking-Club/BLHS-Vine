@@ -44,6 +44,7 @@ import { stateOf, STATE_INK } from '../world/states'
 import { onHeadBack } from '../world/home-bus'
 import { clearIslandTasks } from '../hud/island-tasks'
 import { onSailRequest, onVoyageRequest } from '../world/sail-bus'
+import { seaRoute } from '../world/searoute'
 import { requestUi } from '../ui-bus'
 import { drawRecolored, lookHue } from '../thorLook'
 import { poseFrame, walkFrame, wornKey } from '../thorWear'
@@ -53,7 +54,7 @@ import { loadSettings, onSettings } from '../../app/SettingsPanel'
 import { runEnding, setRunEnding } from '../hud/objective-bus'
 import { sessionOver } from '../run/year'
 import {
-  newHull, stepHull, berthHelm, DEFAULT_SAIL, HELM_IDLE,
+  newHull, stepHull, berthHelm, steerTo, easeHelm, lineUpPoint, DEFAULT_SAIL, HELM_IDLE,
   type Berthing, type Helm, type HullState,
 } from '../world/sail'
 import { cover, transitionBusy } from '../../app/transitions'
@@ -4416,6 +4417,8 @@ export default function PmapScene() {
        * milliseconds, so a proof run sails the shipped physics rather than warping
        * a boat to a coordinate and calling that a leg */
       let helmOverride: { until: number; helm: Helm } | null = null
+      /* where she is being steered while she gets clear of the dock she just left */
+      let castOff: { x: number; y: number; until: number } | null = null
 
       /* a berth's heading is one shared value, read the same way arriving and leaving */
       /* the direction the dock runs near a point, fitted to the standable pixels around it */
@@ -4602,6 +4605,8 @@ export default function PmapScene() {
         sailingTo = null
         hull = null
         berthing = null
+        berthRun = null
+        castOff = null
         if (hullSp) hullSp.visible = !!berth
         wakeG.clear()
         tiedUp = false
@@ -4620,24 +4625,55 @@ export default function PmapScene() {
         engine.log('disembarked', { map: mapId })
       }
 
+      /* ---- THE WAY IN, FOUND OVER WATER ---------------------------------
+       *
+       * Measured on the shipped crossing: she was AGROUND for 49 of 229 frames and
+       * sailed 1.93 times the straight-line distance. `berthHelm` aims at a
+       * rendezvous and `stepHull` slides her along whatever coast is in the way, so
+       * an island between the ship and its own dock was a shoreline to grind down.
+       * Ash: *"it doesnt find a clean path."*
+       *
+       * So the approach is searched before it is sailed. These are the legs of that
+       * search, steered one at a time, and `berthing` does not begin until she is out
+       * of them. A crossing over open water finds one leg and nothing changes. */
+      let berthRun: { pts: { x: number; y: number }[]; i: number; left: number } | null = null
+
       /* docking is a decelerating manoeuvre and then a door, never a teleport */
       const dockAt = (s: WorldSlot) => {
         if (!hull || !s.berth || berthing) return
         docking = s
         const t = fromSea(s.berth.x, s.berth.y)
         const ap = s.berth.approach ? fromSea(s.berth.approach.x, s.berth.approach.y) : undefined
-        berthing = {
-          target: t,
-          facing: s.berth.facing || s.berth.bearing !== undefined ? radOf(s.berth.facing, s.berth.bearing) : undefined,
-          approach: ap,
-          stage: 'approach',
+        /* WHERE THE MANOEUVRE IS GOING TO BEGIN, asked of the manoeuvre itself. The
+         * authored approach point when somebody drew one, and otherwise the same mark
+         * astern of the berth that `berthHelm` would work out for itself. Routing to
+         * the BERTH instead was most of what was left wrong: the straight line to a
+         * dock is clear often enough that the search answered "go ahead" and handed
+         * her back to a helm that then walked her along the coast to line up. */
+        const water = (x: number, y: number) => depthAt(x, y) >= DEFAULT_SAIL.probe
+        const face = s.berth.facing || s.berth.bearing !== undefined
+          ? radOf(s.berth.facing, s.berth.bearing) : undefined
+        const head = ap
+          ?? (face !== undefined ? lineUpPoint(t, face, DEFAULT_SAIL, water) ?? t : t)
+        const legs = seaRoute({ x: hull.x, y: hull.y }, head, water, { step: 24 })
+        /* every leg of it: the last one ends at the mark the manoeuvre begins from,
+         * which is a place she should really be rather than a place to stop short of */
+        const runs = legs && legs.length ? legs : null
+        berthRun = runs
+          ? { pts: runs, i: 0, left: (runs.length + 1) * 14 }
+          : null
+        if (berthRun) {
+          console.log(`[sail] ${mapId}: a way in over water, ${berthRun.pts.length} leg`
+            + `${berthRun.pts.length > 1 ? 's' : ''} before the manoeuvre`)
         }
-        engine.log('docking', { map: mapId, to: s.map ?? null, place: s.place ?? null })
+        berthing = { target: t, facing: face, approach: ap, stage: 'approach' }
+        engine.log('docking', { map: mapId, to: s.map ?? null, place: s.place ?? null, legs: berthRun?.pts.length ?? 0 })
       }
 
       const docked = () => {
         const s = docking
         berthing = null
+        berthRun = null
         docking = null
         /* the voyage is taken off the hook before the step ashore, since arriving is success */
         const v = voyage
@@ -4887,23 +4923,63 @@ export default function PmapScene() {
        * seaward line for water deep enough to sail; a departure wants exactly the
        * same sounding, so it is one function used twice rather than two that
        * drift. Returns the point and how much water was under it. */
+      /* ---- THE WAY OUT, AND IT IS NOT ALWAYS ASTERN -----------------------
+       *
+       * ASH: *"like what the fuck is the ship doing... it does crazy turns, shitty
+       * turns."* Here is one of them, and it happened on EVERY departure in the game.
+       *
+       * `board()` puts the hull on the berth's own heading, which is the way she lies
+       * when she is tied up. This picked the way out as that heading PLUS PI, the
+       * exact reverse. So the first thing every voyage did was spin the boat through
+       * a hundred and eighty degrees on the spot, in shallow water, against the dock.
+       * Nobody wrote that on purpose: one line reads the berth's facing forwards and
+       * the other reads it backwards.
+       *
+       * A boat leaves a dock by whichever way there is water, preferring the way she
+       * is already pointing. So sweep, score each direction by the water it reaches
+       * and charge it for the turn it costs, and take the best. Straight ahead into
+       * open sea wins outright; a berth that really is a dead end still finds its way
+       * astern, it just has to be worth the turn. */
       const soundOffshore = (): { x: number; y: number; deep: number } | null => {
         if (!berth) return null
         const b = fromSea(berth.x, berth.y)
-        let dir = berth.approach
-          ? Math.atan2(fromSea(berth.approach.x, berth.approach.y).y - b.y, fromSea(berth.approach.x, berth.approach.y).x - b.x)
-          : berth.facing || berth.bearing !== undefined ? radOf(berth.facing, berth.bearing) + Math.PI
-            : Math.atan2(b.y - pc.y, b.x - pc.x)
-        if (!isFinite(dir)) dir = Math.PI / 2
-        let out = { x: b.x, y: b.y }
-        let best = -1
-        for (let d = 16; d <= OFFSHORE_MAX; d += 16) {
-          const p = { x: b.x + Math.cos(dir) * d, y: b.y + Math.sin(dir) * d }
-          const deep = depthAt(p.x, p.y)
-          if (deep > best) { best = deep; out = p }
-          if (d >= OFFSHORE_MIN && deep >= OFFSHORE_DEPTH) return { ...p, deep }
+        /* the direction somebody drew always wins: an authored approach is a real
+         * instruction about where the safe water is */
+        if (berth.approach) {
+          const ap = fromSea(berth.approach.x, berth.approach.y)
+          const deep = depthAt(ap.x, ap.y)
+          if (deep >= DEFAULT_SAIL.probe) return { ...ap, deep }
         }
-        return best >= DEFAULT_SAIL.probe ? { ...out, deep: best } : null
+        const lying = berth.facing || berth.bearing !== undefined
+          ? radOf(berth.facing, berth.bearing)
+          : Math.atan2(b.y - pc.y, b.x - pc.x)
+        const from = hull ? hull.heading : lying
+        let pick: { x: number; y: number; deep: number; score: number } | null = null
+        for (let i = 0; i < 16; i++) {
+          const dir = from + (i % 2 ? -1 : 1) * Math.ceil(i / 2) * (Math.PI / 8)
+          /* how far she can run on this bearing before the water gives out */
+          let reach = 0
+          let deep = 0
+          for (let d = 16; d <= OFFSHORE_MAX; d += 16) {
+            const p = { x: b.x + Math.cos(dir) * d, y: b.y + Math.sin(dir) * d }
+            const here = depthAt(p.x, p.y)
+            if (here < DEFAULT_SAIL.probe) break
+            reach = d
+            deep = here
+          }
+          if (reach < OFFSHORE_MIN) continue
+          let turn = dir - from
+          while (turn > Math.PI) turn -= 2 * Math.PI
+          while (turn < -Math.PI) turn += 2 * Math.PI
+          /* deep water is worth having and a turn is worth avoiding, in the same
+           * units: a quarter turn costs about as much as forty pixels of depth */
+          const score = Math.min(deep, OFFSHORE_DEPTH * 1.5) - Math.abs(turn) * 52
+          if (!pick || score > pick.score) {
+            pick = { x: b.x + Math.cos(dir) * reach, y: b.y + Math.sin(dir) * reach, deep, score }
+          }
+        }
+        if (!pick) return null
+        return { x: pick.x, y: pick.y, deep: pick.deep }
       }
 
       /* the way out of a room, which is the door onto a map that has water */
@@ -5076,15 +5152,21 @@ const CAST_OFF_SHOW_MS = 3200
              * the arrival uses, because a berth is the shallowest water there is */
             const out = soundOffshore()
             if (out) {
-              hull.heading = Math.atan2(out.y - hull.y, out.x - hull.x)
-              /* SHE LEAVES FROM A STANDSTILL. `speed` was set to cruise on the frame
-               * he boarded, which is a boat that is already at full speed in the
-               * first frame anybody sees of her: "it looks like its going 300 mph".
-               * Nought, and the throttle below brings her up over about two seconds,
-               * which is what `accel` is for and what casting off looks like. */
+              /* ---- SHE PULLS AWAY, SHE DOES NOT TELEPORT ROUND ---------------
+               *
+               * The bow used to be SNAPPED onto the outbound heading in one frame, on
+               * screen, which the measurement picks up as a turn of several hundred
+               * degrees a second and a player reads as the boat flicking. And her
+               * speed was set straight to cruise, so the first frame anybody ever saw
+               * of her she was already flat out: "it looks like its going 300 mph."
+               *
+               * From rest, on the heading the berth left her lying on, and steered out
+               * by the same helm as everything else. Two seconds of pulling away from
+               * a dock, which is the beat that was missing. */
               hull.speed = 0
               sailing = null
-              helmOverride = { helm: { throttle: 1, turn: 0, fullSail: false }, until: performance.now() + CAST_OFF_SHOW_MS }
+              castOff = { x: out.x, y: out.y, until: performance.now() + CAST_OFF_SHOW_MS }
+              helmOverride = null
             }
             engine.log('cast_off', { from: mapId, to: v.to })
             await new Promise<void>((r) => setTimeout(r, CAST_OFF_SHOW_MS))
@@ -5609,7 +5691,23 @@ const CAST_OFF_SHOW_MS = 3200
 
         /* what is being driven decides what the camera follows and how far out it sits */
         if (hull) {
-          if (berthing) {
+          if (berthRun && berthing) {
+            /* THE WAY IN COMES FIRST. She runs the legs the search found and only
+             * then hands over to the manoeuvre, so the last stretch of a crossing is
+             * the only part `berthHelm` has ever had to be clever about. */
+            const r = berthRun
+            r.left -= dt
+            const aim = r.pts[r.i]
+            const d = Math.hypot(aim.x - hull.x, aim.y - hull.y)
+            if (r.left <= 0) {
+              console.warn(`[sail] ${mapId}: the way in ran out of time on leg ${r.i + 1} of ${r.pts.length}`)
+              berthRun = null
+            } else if (d < 34) {
+              r.i++
+              if (r.i >= r.pts.length) berthRun = null
+            }
+            hull = stepHull(hull, berthRun ? steerTo(hull, aim) : HELM_IDLE, dt, depthAt)
+          } else if (berthing) {
             /* the manoeuvre drives the same hull through the same physics as the player's helm */
             /* AND THE MANOEUVRE IS TOLD WHERE THE WATER IS. It works a rendezvous
              * out for itself when nobody drew an approach point, and the one thing
@@ -5625,6 +5723,7 @@ const CAST_OFF_SHOW_MS = 3200
             else if (berthing.stage === 'given_up') {
               const s = docking
               berthing = null
+              berthRun = null
               docking = null
               engine.log('berthing_gave_up', {
                 map: mapId, to: s?.map ?? null, aground: hull.aground,
@@ -5679,13 +5778,27 @@ const CAST_OFF_SHOW_MS = 3200
                * crossing has not ended: she is still moving, he is still hidden,
                * and `docked()` is the instant he is standing on the island. */
             } else {
-              const turn = Math.atan2(Math.sin(Math.atan2(dy, dx) - hull.heading), Math.cos(Math.atan2(dy, dx) - hull.heading))
-              hull = stepHull(hull, {
-                throttle: 1,
-                turn: Math.abs(turn) < 0.05 ? 0 : turn > 0 ? 1 : -1,
-                fullSail: false,
-              }, dt, depthAt)
+              /* proportional, like every other helm in the game now: hard over on
+               * every frame is what made a scripted crossing read as a speedboat */
+              hull = stepHull(hull, steerTo(hull, aim), dt, depthAt)
             }
+          } else if (castOff) {
+            /* the two seconds after E: she comes off the berth under her own power,
+             * turning onto the way out rather than being pointed at it */
+            if (performance.now() > castOff.until) castOff = null
+            /* SHE TURNS BEFORE SHE PUSHES. A berth is the shallowest water there is,
+             * so a helm that eases the throttle rather than closing it drives her into
+             * her own dock while she comes round: measured, 18 of the 30 frames at the
+             * hub were aground at a speed of 17. Nothing on until the bow is within a
+             * right angle of the way out. */
+            let cast: Helm = HELM_IDLE
+            if (castOff) {
+              let err = Math.atan2(castOff.y - hull.y, castOff.x - hull.x) - hull.heading
+              while (err > Math.PI) err -= 2 * Math.PI
+              while (err < -Math.PI) err += 2 * Math.PI
+              cast = easeHelm(err, Math.abs(err) > Math.PI / 2 ? 0 : 1)
+            }
+            hull = stepHull(hull, cast, dt, depthAt)
           } else {
             if (helmOverride && performance.now() > helmOverride.until) helmOverride = null
             /* a hand on the keys outranks a click, so the tap is dropped the instant one is touched */
@@ -5701,14 +5814,11 @@ const CAST_OFF_SHOW_MS = 3200
               fullSail: !!input['shift'],
             }
             if (sailTap && !helmOverride && !fade && !locked) {
-              /* the voyage follower's own manoeuvre, copied rather than shared, since it is short */
-              const want = Math.atan2(sailTap.y - hull.y, sailTap.x - hull.x)
-              const turn = Math.atan2(Math.sin(want - hull.heading), Math.cos(want - hull.heading))
               /* and the throttle comes off in time to stop there, using the same sum berthHelm uses */
               const left = Math.hypot(sailTap.x - hull.x, sailTap.y - hull.y)
               const stopIn = (hull.speed * hull.speed) / (2 * DEFAULT_SAIL.drag)
               if (left <= stopIn + 8) sailTap = null
-              else helm = { throttle: 1, turn: Math.abs(turn) < 0.05 ? 0 : turn > 0 ? 1 : -1, fullSail: false }
+              else helm = steerTo(hull, sailTap)
             }
             hull = stepHull(hull, helm, dt, depthAt)
           }
@@ -5730,16 +5840,67 @@ const CAST_OFF_SHOW_MS = 3200
 
           /* THE WAKE: two diverging hull-corner trails with per-point age, drawn
            * from the pure state so the model and the picture cannot disagree. */
+          /* ---- THE WAKE IS CHURNED WATER, NOT TWO LINES -------------------
+           *
+           * ASH, looking at a shot of the crossing: *"just two ugly streaks and a
+           * speed boat."* Both trails were a single stroked polyline, two and a bit
+           * pixels wide, held at more than half alpha for the whole of their life,
+           * so at the sailing zoom they drew as two hard hairlines running off the
+           * edge of the screen. On a painted sea whose own pixels are three screen
+           * pixels across, a one-pixel vector line is the loudest thing in the frame
+           * and the only part of it that is not pixel art.
+           *
+           * Foam instead: a square dab per point, snapped to whole world pixels,
+           * spreading outward and swelling as it falls astern, going out on a curve
+           * so the far end is gone rather than faint. The newest few get a brighter
+           * dab on top, which is the white water right under the counter. */
           wakeG.clear()
           if (hull) {
+            const life = DEFAULT_SAIL.wakeLife
             for (const side of [-1, 1] as const) {
               const pts = hull.wake.filter((p) => p.side === side)
               if (pts.length < 2) continue
               for (let i = 1; i < pts.length; i++) {
                 const a = pts[i - 1], b = pts[i]
-                const k = 1 - b.age / DEFAULT_SAIL.wakeLife
-                wakeG.moveTo(a.x, a.y).lineTo(b.x, b.y)
-                  .stroke({ color: 0xdff4f6, width: Math.max(0.6, 2.4 * k), alpha: 0.55 * k * k })
+                const ka = 1 - a.age / life
+                const kb = 1 - b.age / life
+                if (kb <= 0) continue
+                const dx = b.x - a.x, dy = b.y - a.y
+                const len = Math.hypot(dx, dy)
+                /* a gap of nothing between two points is a hole in the band; a huge
+                 * one is the trail from before a teleport and is not drawn at all */
+                if (len < 0.01 || len > 60) continue
+                /* perpendicular to the trail itself, so a turn curls the foam the
+                 * way the water really goes rather than shearing it sideways */
+                const px = -dy / len, py = dx / len
+                /* A BAND AND NOT A ROW OF DOTS. A dab per point draws as a dashed
+                 * line the moment the frame rate drops, because the points are laid
+                 * one per tick and the gap between them is whatever the machine
+                 * managed: at 16 frames a second they were six pixels apart with
+                 * four pixel dabs on them. A quad between each pair is continuous at
+                 * any frame rate, and still tapers and fades. */
+                /* it opens into a wedge as it goes astern, which is the shape of a
+                 * wake, and the two sides splay apart rather than running parallel */
+                const wa = (1.2 + (1 - ka) * 5.5) / 2
+                const wb = (1.2 + (1 - kb) * 5.5) / 2
+                const oa = (1 - ka) * 13 * side, ob = (1 - kb) * 13 * side
+                const ax = a.x + px * oa, ay = a.y + py * oa
+                const bx2 = b.x + px * ob, by2 = b.y + py * ob
+                wakeG.poly([
+                  ax + px * wa, ay + py * wa,
+                  bx2 + px * wb, by2 + py * wb,
+                  bx2 - px * wb, by2 - py * wb,
+                  ax - px * wa, ay - py * wa,
+                ]).fill({ color: 0xdff4f6, alpha: 0.5 * kb * kb * kb })
+                /* the white water right under the counter, only while it is new */
+                if (kb > 0.86) {
+                  wakeG.poly([
+                    a.x + px * 1.1, a.y + py * 1.1,
+                    b.x + px * 1.1, b.y + py * 1.1,
+                    b.x - px * 1.1, b.y - py * 1.1,
+                    a.x - px * 1.1, a.y - py * 1.1,
+                  ]).fill({ color: 0xffffff, alpha: 0.5 * (kb - 0.86) / 0.14 })
+                }
               }
             }
           }

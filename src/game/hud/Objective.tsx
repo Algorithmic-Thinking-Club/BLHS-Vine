@@ -10,6 +10,8 @@ import { onSceneDrawn, sceneDrawn } from '../stage/stage-bus'
 import { track } from '../telemetry'
 import { requestUi } from '../ui-bus'
 import './objective.css'
+import { onVoyage, voyage } from '../world/travel'
+import { titleOfMap } from '../stage/covers'
 
 export function ObjectivePanel() {
   const [, bump] = useState(0)
@@ -34,11 +36,23 @@ export function ObjectivePanel() {
     })
   }
 
-  /* the three voices in order: what the island said, then the scene, then the year */
+  /* ---- A JOURNEY OUTRANKS EVERY OTHER SENTENCE ------------------------
+   *
+   * The destination island's `start` runs while the ship is still on the water, so
+   * by the time he is watching her sail the line across the top already says what to
+   * do when he lands: measured on a shot of the crossing, "Find the club president."
+   * over a boat in the middle of the sea. Whatever else is true, the thing he is
+   * doing right now is going somewhere, and that is what the line should say. */
+  const [going, setGoing] = useState(voyage())
+  useEffect(() => onVoyage(setGoing), [])
+
+  /* the voices in order: the journey, then what the island said, then the scene,
+   * then the year */
   const said = objectiveSaid()
   const world = worldObjective()
   const o = nextObjective(loadSave())
-  const text = said ?? world ?? objectiveLine(o, map)
+  const travelling = going ? `Sailing to ${titleOfMap(going.to)}.` : null
+  const text = travelling ?? said ?? world ?? objectiveLine(o, map)
   /* raised by `end_run` for the length of the departure, and dropped with it */
   const ending = runEnding()
 
