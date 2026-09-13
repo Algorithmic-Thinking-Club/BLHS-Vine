@@ -50,6 +50,8 @@ const stubEngine = (): { engine: IntentEngine; did: string[] } => {
       playBeat: async (b) => { did.push(`playBeat:${b}`); return 3 },
       read: (p) => { did.push(`read:${p}`); return 42 },
       setFlag: (f) => { did.push(`setFlag:${f}`) },
+      islandTasks: (t, by) => { did.push(`islandTasks:${by?.grape ?? '?'}:${t.map((q) => q.id).join('+')}`) },
+      taskDone: (i, by) => { did.push(`taskDone:${by?.grape ?? '?'}:${i}`) },
       award: (a) => { did.push(`award:${JSON.stringify(a)}`) },
       log: (e) => { did.push(`log:${e}`) },
       movie: (on) => { did.push(`movie:${on}`) },

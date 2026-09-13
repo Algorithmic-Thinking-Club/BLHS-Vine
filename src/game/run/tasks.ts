@@ -2,6 +2,8 @@
 import type { SaveGame } from '../save'
 import { sessionOver, yearStatus, yearWord } from './year'
 import { picksOf } from './pick'
+import { programmeById } from '../roster/roster'
+import { shownName } from '../roster/placeholders'
 
 export type Task = {
   /** stable across renders, and never shown */
@@ -18,6 +20,14 @@ export type Task = {
 
 /** the heading over the sheet, which is the only place the year is named */
 export const taskHeading = (year: number): string => `Year ${yearWord(year)}`
+
+/* AND THE ISLAND'S OWN HEADING, which names the island rather than the year,
+ * because the list under it is what is left to do HERE. The roster's name is used
+ * where there is one so the heading matches the card the student arrived on. */
+export const islandHeading = (programme: string): string => {
+  const p = programmeById(programme)
+  return p ? shownName(p.id, p.name) : programme
+}
 
 /** the year's tasks in the order they happen, the same order the objective arrow walks */
 export function tasksOf(s: SaveGame | null): Task[] {

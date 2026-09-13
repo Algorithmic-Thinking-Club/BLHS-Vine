@@ -1,10 +1,11 @@
 /* the objective panel: one short line at the top of the screen saying what to do now */
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
-import { loadSave, subscribeSave } from '../save'
+import { loadSave, subscribeSave, tasksDoneIn, type SaveGame } from '../save'
 import { nextObjective, objectiveLine } from '../run/objective'
-import { taskHeading, tasksDone, tasksOf, type Task } from '../run/tasks'
+import { islandHeading, taskHeading, tasksDone, tasksOf, type Task } from '../run/tasks'
 import { objectiveSaid, onObjectiveSaid, runEnding, worldObjective } from './objective-bus'
+import { islandTaskList, onIslandTasks, type IslandTaskList } from './island-tasks'
 import { onSceneDrawn, sceneDrawn } from '../stage/stage-bus'
 import { track } from '../telemetry'
 import { requestUi } from '../ui-bus'
@@ -105,11 +106,37 @@ function openerOf(t: Task): 'planner' | 'advisory' | null {
   return null
 }
 
+/* ---- AND AN ISLAND'S OWN LIST GOES IN THE SAME SHEET ----------------------
+ *
+ * Ash: *"islands should constantly have tasks to do, and thats how it should be
+ * layed out. and it goes towards completing that island."*
+ *
+ * Turned into the row shape the sheet already draws rather than a second sheet
+ * beside it, so every mark, note, counter and plain-arm style is the one a student
+ * already knows. An island's row is never a control: the whole point of it is that
+ * the thing happens in the room, so there is no panel for a press to open.
+ */
+function islandRows(list: IslandTaskList, save: SaveGame | null): Task[] {
+  const ticked = new Set(tasksDoneIn(list.programme, save?.year ?? 1))
+  return list.tasks.map((t) => ({
+    id: `island:${t.id}`,
+    name: t.name,
+    done: ticked.has(t.id),
+    ...(ticked.has(t.id) || !t.note ? {} : { note: t.note }),
+  }))
+}
+
 function TaskSheet({ onClose }: { onClose: () => void }) {
   const [, bump] = useState(0)
-  useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
+  const redraw = () => bump((v) => v + 1)
+  useEffect(() => subscribeSave(redraw), [])
+  useEffect(() => onIslandTasks(redraw), [])
   const save = loadSave()
-  const list = tasksOf(save)
+  /* THE ISLAND UNDER HIS FEET OUTRANKS THE YEAR, the same order the bar above
+   * already uses. A student standing on an island wants to know what is left HERE;
+   * the year's own list is one press away on the sheet in the corner. */
+  const island = islandTaskList()
+  const list = island ? islandRows(island, save) : tasksOf(save)
   const { done, total } = tasksDone(list)
 
   /* ---- A PRESS OUTSIDE CLOSES IT; A PRESS ON A ROW DOES THE ROW ---------
@@ -145,7 +172,7 @@ function TaskSheet({ onClose }: { onClose: () => void }) {
   return (
     <div className="ob-sheet kit-surface-band" ref={sheet}>
       <p className="ob-sheet-head">
-        {taskHeading(save?.year ?? 1)}
+        {island ? islandHeading(island.programme) : taskHeading(save?.year ?? 1)}
         <span className="ob-sheet-count">{done} of {total} done</span>
       </p>
       <ul className="ob-tasks">

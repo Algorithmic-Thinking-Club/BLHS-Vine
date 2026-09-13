@@ -1,0 +1,55 @@
+/* the one control an island grows when it has nothing left to ask for, at the
+   bottom middle in Ash's own words. It shares this strip with the dialogue box and
+   never appears at the same time as it, which HeadBack.tsx enforces rather than
+   z-index, because two things fighting for one strip is what z-index hides. */
+
+@import '../ui/tokens.css';
+
+.hb-back {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  /* above the very bottom, so it sits where the dialogue box would be rather than
+     on the edge of the glass */
+  bottom: max(4vh, 22px);
+  z-index: 69;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  /* it is a control, so it takes clicks; nothing else here does */
+  pointer-events: auto;
+  /* it arrives rather than appearing, because the thing it is announcing is a
+     small moment of finishing something */
+  animation: hb-back-rise 420ms var(--kit-ease-rise) both;
+}
+
+@keyframes hb-back-rise {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+html[data-rm='1'] .hb-back { animation-duration: 1ms; }
+
+/* why a press did nothing, which only happens when the world is busy */
+.hb-back-why {
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: var(--kit-r-soft);
+  background-color: var(--kit-paper-card);
+  color: var(--kit-ink-body);
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(14px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  text-align: center;
+  max-width: min(420px, 80vw);
+}
+
+/* the plain arm gets the same control with no wood on it: this is a way out of a
+   place and not part of anything scored, so it is never a confound, but it must not
+   be the one painted thing on an otherwise typed screen either. */
+html[data-skin='plain'] .hb-back-why {
+  background-color: #fff;
+  border: 1px solid #767676;
+  color: #000;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}

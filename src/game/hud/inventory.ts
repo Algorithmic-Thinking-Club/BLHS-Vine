@@ -108,4 +108,10 @@ export const ALWAYS_ON = [
    * has about how the world is framed, and there is nowhere else to put it that
    * he would find. */
   'camera-view',
+  /* ISLAND FINISHED, HEAD BACK (Ash), bottom centre, and present only when an island
+   * has nothing left to ask for. It is not a readout either: it is the one offer the
+   * game makes at the moment an island is done, which nothing in the world can make
+   * for it, because the thing being announced is the absence of remaining work. It
+   * shares the strip with the dialogue box and stands down for it. */
+  'head-back',
 ] as const

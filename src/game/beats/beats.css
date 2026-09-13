@@ -693,8 +693,12 @@ html[data-skin='plain'] .bt-answer { border-radius: 0; }
  * #3a453a, and its one bright phosphor is #abfebe. The panel used to be a nearby
  * but invented teal, so the camera flew into one green and landed on another. */
 .bt-crt {
-  width: min(980px, 94vw);
-  max-height: 94vh;
+  /* SMALLER THAN THE WINDOW, ON PURPOSE. At 980x722 inside 768 the margins were 23px
+   * top and bottom, which is not a frame, it is a near miss: the footer plank lost
+   * twelve of its thirty-five pixels and the room around the monitor read as an
+   * accident. A tube with real room around it lets the world do the framing. */
+  width: min(880px, 92vw);
+  max-height: min(620px, 86vh);
   /* AND THE CONTENTS STAY INSIDE THE WINDOW. At 768 tall the ceiling is 722px and
    * the footer row sat at 730 with ten of its rows visible, which reads as the
    * panel being broken rather than as a long form. A column that scrolls its own
@@ -704,15 +708,30 @@ html[data-skin='plain'] .bt-answer { border-radius: 0; }
   overflow: hidden;
   border-radius: 18px;
   /* the chassis, then the glass: the case colour outside, the unlit screen inside */
+  /* ---- A SCREEN THAT IS ON IS A LIGHT SOURCE -----------------------------
+   *
+   * Measured on the shipped frames: the panel's field averaged luma 32 against a
+   * dimmed world at 52, and the world got DARKER towards the panel's edge. So a lit
+   * computer was reading as a piece of dark card laid over the room. The glass is
+   * lifted above the world around it and the box-shadow throws a green spill instead
+   * of a black drop, which is what a tube in a dim room really does.
+   *
+   * AND THE GREEN IS THE MACHINE'S OWN, which leans YELLOW. The first pass took the
+   * commonest bright pixel and landed on a mint (171,254,190) whose blue is above its
+   * red; the lit phosphor core is (202,255,197) and its mid is (144,245,142), both
+   * with blue BELOW red. That hue difference is the whole of whether this reads as
+   * that machine's screen or as a generic green box. */
   background:
-    radial-gradient(120% 90% at 50% 0%, rgba(171, 254, 190, .10), transparent 62%),
-    linear-gradient(180deg, #1e2a20 0%, #161f18 60%, #101710 100%);
+    radial-gradient(120% 90% at 50% 38%, rgba(144, 245, 142, .16), transparent 68%),
+    linear-gradient(180deg, #2b3a26 0%, #22301e 58%, #1a2517 100%);
   border: 10px solid #3b3545;
   box-shadow:
     inset 0 0 0 2px #292734,
-    inset 0 0 60px rgba(0, 0, 0, .55),
-    0 18px 50px rgba(0, 0, 0, .55);
-  color: #9fd4b0;
+    inset 0 0 70px rgba(0, 0, 0, .38),
+    /* the spill: the room near a lit tube is brighter, not darker */
+    0 0 60px 18px rgba(144, 245, 142, .10),
+    0 18px 44px rgba(0, 0, 0, .5);
+  color: #b7e0a8;
 }
 /* The first child is whatever is being read right now: the items, the result card,
    the answers or the review. It takes the room and scrolls inside itself. Everything
@@ -730,8 +749,11 @@ html[data-skin='plain'] .bt-answer { border-radius: 0; }
   position: absolute; inset: 0;
   pointer-events: none;
   border-radius: 10px;
+  /* AT THE WORLD'S OWN PITCH. The lines were four pixels apart against a painting
+   * whose pixels are about eight on screen at this shot, so they read as a moire on
+   * the type rather than as a tube. Eight on, and deep enough to see. */
   background: repeating-linear-gradient(
-    180deg, rgba(0, 0, 0, .09) 0 1px, transparent 1px 3px);
+    180deg, rgba(0, 0, 0, .13) 0 2px, transparent 2px 8px);
 }
 /* and the glass is brighter in the middle than at its corners, which is the other
    half of reading as a tube rather than as a rectangle of colour */
@@ -752,16 +774,16 @@ html[data-rm='1'] .bt-crt { animation-duration: 1ms; }
 .bt-crt .bt-place b,
 .bt-crt .bt-title,
 .bt-crt .bt-prompt,
-.bt-crt .bt-gradenum { color: #d8f5e0; }
-.bt-crt .bt-lettermark { color: #abfebe; }
-.bt-crt .bt-lettermark { text-shadow: 0 0 14px rgba(171, 254, 190, .5); }
+.bt-crt .bt-gradenum { color: #cafcc5; }
+.bt-crt .bt-lettermark { color: #cafcc5; }
+.bt-crt .bt-lettermark { text-shadow: 0 0 14px rgba(144, 245, 142, .5); }
 .bt-crt .bt-place,
 .bt-crt .bt-needs,
 .bt-crt .bt-subprompt,
 .bt-crt .bt-gradesays,
 .bt-crt .bt-gradelines,
 .bt-crt .bt-answer-score,
-.bt-crt .bt-slotname { color: #7fc79a; }
+.bt-crt .bt-slotname { color: #93c98a; }
 
 /* THE PLAIN ARM NEVER GETS THIS, belt and braces. The arm is already a code
    branch in ActivityRunner and this cannot reach a plain card, but a monitor
@@ -847,36 +869,44 @@ html[data-rm='1'] .bt-crt { animation-duration: 1ms; }
   flex: 0 0 7.5em;
   --kit-fs-raw: calc(13px * var(--kit-text-scale)); font-size: var(--kit-fs);
 }
+/* ---- DRAWN ON GLASS, NOT ON A WEB PAGE -----------------------------------
+ *
+ * Every edge in here used to be a one-pixel hairline with a rounded, anti-aliased
+ * corner, sitting in a world whose own pixels are eight screen pixels across at this
+ * shot. Read back off the shipped frames, that was the loudest tell that the panel
+ * was assembled from parts rather than drawn: the step rows read as HTML form
+ * fields. Two pixels, square corners, and the machine's own green. Nothing here is
+ * art; it is the fallback that has to look deliberate until a bezel is drawn. */
 .bt-slotwell {
   flex: 1 1 auto;
   min-height: 34px;
   padding: 6px 12px;
   text-align: left;
-  border-radius: 5px;
-  border: 1px dashed rgba(140, 200, 180, .40);
-  background: rgba(0, 0, 0, .18);
-  color: #e8fff4;
+  border-radius: 0;
+  border: 2px solid rgba(144, 245, 142, .34);
+  background: rgba(0, 0, 0, .26);
+  color: #cafcc5;
   font-family: var(--kit-face-body);
   --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
   cursor: pointer;
 }
-.bt-slotwell-full { border-style: solid; background: rgba(140, 200, 180, .16); }
-.bt-slotwell-lit { border-color: #7fe0b4; box-shadow: 0 0 0 2px rgba(127, 224, 180, .25); }
-.bt-slotwell-true { border-color: #7fe0b4; background: rgba(127, 224, 180, .22); }
-.bt-slotwell-miss { border-color: #e0907f; background: rgba(224, 144, 127, .18); }
+.bt-slotwell-full { background: rgba(144, 245, 142, .14); }
+.bt-slotwell-lit { border-color: #90f58e; box-shadow: 0 0 0 2px rgba(144, 245, 142, .3); }
+.bt-slotwell-true { border-color: #90f58e; background: rgba(144, 245, 142, .22); }
+.bt-slotwell-miss { border-color: #e0a07f; background: rgba(224, 160, 127, .18); }
 .bt-slotwell:disabled { cursor: default; }
-.bt-slotempty { color: #6f9c8c; font-style: italic; }
-.bt-program .bt-truth { color: #7fe0b4; display: inline-flex; align-items: center; gap: 4px; }
+.bt-slotempty { color: #7d9c78; font-style: italic; }
+.bt-program .bt-truth { color: #90f58e; display: inline-flex; align-items: center; gap: 4px; }
 
 /* ---- the instruction palette, which never empties ------------------------- */
 
 .bt-cards { display: flex; flex-wrap: wrap; gap: 8px; }
 .bt-card {
   padding: 8px 14px;
-  border-radius: 5px;
-  border: 1px solid rgba(140, 200, 180, .45);
-  background: linear-gradient(180deg, rgba(140, 200, 180, .20), rgba(140, 200, 180, .08));
-  color: #e8fff4;
+  border-radius: 0;
+  border: 2px solid rgba(144, 245, 142, .42);
+  background: linear-gradient(180deg, rgba(144, 245, 142, .18), rgba(144, 245, 142, .06));
+  color: #cafcc5;
   font-family: var(--kit-face-body);
   --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
   cursor: pointer;

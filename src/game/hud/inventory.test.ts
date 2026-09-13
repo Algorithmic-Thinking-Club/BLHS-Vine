@@ -107,6 +107,8 @@ describe('the absence list is enforced rather than intended', () => {
       MovieBars: 'movie-bars',
       SkipVoyage: 'skip-voyage',
       CameraToggle: 'camera-view',
+      /* the way off a finished island, which draws only when one has been finished */
+      HeadBack: 'head-back',
     }
     const strangers = mounted.filter((m) => !(m in KNOWN))
     expect(strangers,

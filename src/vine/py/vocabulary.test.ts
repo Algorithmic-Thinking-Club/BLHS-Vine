@@ -47,8 +47,19 @@ describe('the intent vocabulary, both sides of the worker', () => {
   /* `end_run` is its own word: the run is over and the world gives way to the title */
   /* `sail_to` is its own word: the engine takes the player to another island, and a
      member writes nothing about the walk out, the boarding, the crossing or the landing */
-  it('is thirty-three words on the engine side', () => {
-    expect(engineWords.size).toBe(33)
+  /* `island_tasks` and `task_done` are their own words: the list under the objective
+     line saying what a whole island is asking for, and the tick that says a row of it
+     is finished. Ash asked for islands to "constantly have tasks to do", and a single
+     sentence could never hold a list or say how much was left. */
+  it('is thirty-five words on the engine side', () => {
+    expect(engineWords.size).toBe(35)
+  })
+
+  it('has the two task words on both sides, so an island can lay out what it wants', () => {
+    for (const w of ['island_tasks', 'task_done']) {
+      expect(engineWords.has(w), `intents.ts is missing ${w}`).toBe(true)
+      expect(pythonWords.has(w), `vine.py is missing ${w}`).toBe(true)
+    }
   })
 
   it('has sail_to on both sides, so a member can say it', () => {

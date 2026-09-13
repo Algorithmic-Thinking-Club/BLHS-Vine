@@ -41,6 +41,7 @@ import {
   voyage as travelPlan, voyageSkipped, LEG_CEILING_MS,
 } from '../world/travel'
 import { stateOf, STATE_INK } from '../world/states'
+import { onHeadBack } from '../world/home-bus'
 import { onSailRequest, onVoyageRequest } from '../world/sail-bus'
 import { requestUi } from '../ui-bus'
 import { drawRecolored, lookHue } from '../thorLook'
@@ -349,6 +350,7 @@ export default function PmapScene() {
     let cancelPlayerWalk = () => { /* no scene yet */ }
     /* and the chart's own way into the water, taken down with the scene */
     let offSail = () => { /* no ocean yet */ }
+    let offHome = () => { /* no dock yet */ }
     let offVoyage = () => { /* nothing to sail to yet */ }
     /* the coat watcher, declared out here because the scene's teardown is out here */
     let offLook = () => { /* nobody is dressed yet */ }
@@ -3293,7 +3295,10 @@ export default function PmapScene() {
                * pan of three thousand screen pixels cannot be met inside any sane
                * ceiling and the wait always timed out. One painting pixel is the
                * smallest thing anybody can see. */
-              const slack = Math.max(1.5, camZ)
+              /* A THIRD OF A PAINTING PIXEL. A whole one was measured as nine painting
+               * pixels of visible slide after the panel had already opened, because the
+               * tolerance is spent as drift the player watches. */
+              const slack = Math.max(1.5, camZ * 0.34)
               const panThere = Math.abs(camFX - camAim.x) < slack && Math.abs(camFY - camAim.y) < slack
               if ((zoomThere && panThere) || performance.now() - t0 > SHOT_CEILING_MS) { r(); return }
               requestAnimationFrame(tick)
@@ -4146,9 +4151,13 @@ export default function PmapScene() {
       /* the frame is the window minus whatever the dialogue box has claimed, up to half of it */
       const freeH = (vh: number) => vh - Math.min(uiBand(), vh * 0.5)
       /* the painting's own edges are the fence, in one expression for big and small maps */
-      const fence = (want: number, span: number, view: number) => {
-        const slack = view - span
-        return slack >= 0 ? Math.min(slack, Math.max(0, want)) : Math.min(0, Math.max(slack, want))
+      /* THE FENCE IS THE PAINTED RECT AND NOT THE CANVAS. A painting rarely fills the
+       * square it was saved on, so clamping to the canvas let a close shot frame
+       * transparent margin with the ocean showing through it. */
+      const fencePainted = (want: number, z: number, view: number) => {
+        const top = -painted.oy * z
+        const bottom = view - (painted.oy + painted.h) * z
+        return bottom >= top ? Math.min(bottom, Math.max(top, want)) : Math.min(top, Math.max(bottom, want))
       }
       /* a room holds still per axis unless the painting overflows the view by enough to walk */
       const ROOM_DRIFT = 1.25
@@ -4158,7 +4167,7 @@ export default function PmapScene() {
       /* AND A SHOT WAITS LONGER, because it waits for the pan too and a push from the
        * walking view to a close shot has a long way to travel. Both easings share one
        * time constant, so three of them is the move plus a margin. */
-      const SHOT_CEILING_MS = 3000
+      const SHOT_CEILING_MS = 4200
 
       /* ---- HOW TIGHT A SHOT IS ALLOWED TO BE -----------------------------
        *
@@ -4204,16 +4213,26 @@ export default function PmapScene() {
           if (W * camZ <= vw * ROOM_DRIFT) cx = W / 2
           if (H * camZ <= vh * ROOM_DRIFT) cy = H / 2
         }
-        /* when it all fits it is the painting that gets centred, not the canvas it was saved on */
+        /* when it all fits it is the painting that gets centred, not the canvas it was saved on.
+         *
+         * AND WHEN IT DOES NOT FIT, THE FENCE IS THE PAINTING'S OWN EDGE AND NOT THE
+         * CANVAS'S. A painting rarely fills the square it was saved on: ATC's is 410
+         * wide inside a 512 canvas, so a hundred pixels of it are transparent. Clamped
+         * to the canvas, a close shot near the top of that painting showed seven
+         * thousand pixels of open ocean in the corner of a scene set on a mountain
+         * terrace, which is the tear Ash described as clipping into the island.
+         * Clamped to the painted rect the camera cannot frame canvas nobody drew on,
+         * on any map, at any zoom. */
         const tx = camFree ? vw / 2 - cx * camZ
-          : W * camZ <= vw ? (vw - painted.w * camZ) / 2 - painted.ox * camZ
-            : Math.min(0, Math.max(vw - W * camZ, vw / 2 - cx * camZ))
+          : painted.w * camZ <= vw ? (vw - painted.w * camZ) / 2 - painted.ox * camZ
+            : Math.min(-painted.ox * camZ,
+              Math.max(vw - (painted.ox + painted.w) * camZ, vw / 2 - cx * camZ))
         /* vertically the picture is centred in the FREE frame and fenced against
          * the WINDOW, so it is allowed to run on under the box (where the box is
          * covering it) and is never pulled off its own bottom edge to do it */
         const ty = camFree ? fh / 2 - cy * camZ
-          : H * camZ <= fh ? (fh - painted.h * camZ) / 2 - painted.oy * camZ
-            : fence(fh / 2 - cy * camZ, H * camZ, vh)
+          : painted.h * camZ <= fh ? (fh - painted.h * camZ) / 2 - painted.oy * camZ
+            : fencePainted(fh / 2 - cy * camZ, camZ, vh)
         /* whole pixels on screen, with the easing kept on a number nobody draws */
         camAim = { x: tx, y: ty }
         if (snap) { camFX = tx; camFY = ty }
@@ -4483,6 +4502,51 @@ export default function PmapScene() {
         } catch (e) {
           answer({ ok: false, why: e instanceof Error ? e.message : 'There is no way to sail there.' })
         }
+      })
+
+      /* ---- ISLAND FINISHED, HEAD BACK (Ash) -----------------------------
+       *
+       * *"a button at the bottom middle should show up saying 'Island Finished -
+       * Head back'. once clicked, the user gets teleported to the dock of the island
+       * they are on. and of course the same sailing logic, esc, the chart, or the
+       * immediate sailing, etc."*
+       *
+       * It WALKS him rather than cutting. The dock is somewhere on the island he is
+       * already standing on, and a cut across ground he can see would be the game
+       * taking the controls off him for no reason. What happens once he is there is
+       * the ordinary harbour, which is the whole point of keeping this to one job.
+       *
+       * Only registered where there IS a dock, the same rule the sail listener below
+       * keeps, so the button can ask whether anybody could answer before it draws. */
+      if (canSail && berth) offHome = onHeadBack((answer) => {
+        if (fade || busy || runtime.running || hull || berthing || voyage) {
+          answer({ ok: false, why: 'Not while something else is happening.' }); return
+        }
+        /* THROUGH `fromSea`, because a berth is authored in the OCEAN's coordinates
+         * and everything on this map is in the painting's. Handed over raw it means a
+         * point at sea. The sail listener below converts the same field the same way. */
+        const spot = fromSea(berth.x, berth.y)
+        const { at } = onFloor(spot, canStand, cfg.yScale, 44)
+        answer({ ok: true })
+        engine.log('head_back', { map: mapId })
+        /* ---- COVERED, AND NOT WALKED (Ash: *"the user gets teleported to the dock
+         * of the island they are on"*) ---------------------------------------
+         *
+         * Walking was the first try and it cannot work: ATC's terrace is at the top of
+         * a long stair with no authored route down it, so a straight walk bumps the
+         * first rock and stops seventy pixels in, which is exactly what it did. And a
+         * teleport is what he asked for anyway. The island's own cover carries it, so
+         * the move reads as leaving the place rather than as the game snapping him
+         * across the screen, and it is the same cover a door would play. */
+        guideTarget = null
+        void cover(coverFor(mapId).spec, () => {
+          pos.x = at.x
+          pos.y = at.y
+          walker.facing = 'south'
+          recordPosition({ map: mapId })
+          /* the camera goes with him rather than easing across the whole island */
+          camTo(pos.x, pos.y, true)
+        })
       })
 
       /* the chart can send her: a click is a destination, and the line is checked first */
@@ -6142,6 +6206,7 @@ const CAST_OFF_SHOW_MS = 3200
       window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku)
       offHold()
       offSail()
+      offHome()
       offVoyage()
       offLook()
       offCamera()

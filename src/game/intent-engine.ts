@@ -5,8 +5,8 @@ import { requestBeat, requestUi, requestUiAndWait } from './ui-bus'
 import { NotBuilt } from '../vine/intents'
 import { track } from './telemetry'
 import {
-  collectFact, collectSticker, grantBadge, islandLedgerId, loadSave, recordCompletion,
-  recordGrade, setFlag, setIslandState,
+  collectFact, collectSticker, grantBadge, islandLedgerId, loadSave, markTaskDone,
+  recordCompletion, recordGrade, setFlag, setIslandState,
 } from './save'
 import { cordsOf, gpaOf } from './progress'
 import { grant } from './grant'
@@ -19,6 +19,7 @@ import { nextObjective } from './run/objective'
 import { play as playSfx } from './audio'
 import { setCinema } from './stage/cinema'
 import { setObjectiveSaid } from './hud/objective-bus'
+import { islandTaskList, islandTaskTicked, setIslandTasks } from './hud/island-tasks'
 import { currentSkin } from './ui/skin'
 
 /* EVERY PATH THE RUN CAN ANSWER, written as a `Record<RunPath, true>` and not an
@@ -164,6 +165,42 @@ export const engine: IntentEngine = {
    * lives here rather than on the world. */
   objective(text) {
     setObjectiveSaid(text)
+  },
+
+  /* ---- THE ISLAND'S OWN TASK LIST ---------------------------------------
+   *
+   * The declaration goes on a bus, because it only means anything while its island
+   * is loaded. The TICKS go in the save, keyed by programme and year, because a
+   * student who closes the tab halfway through an island has still done what he
+   * did. Both halves are drawn by the sheet the year's tasks already use. */
+  islandTasks(tasks, by) {
+    const programme = by?.grape ?? ''
+    if (!programme)
+      throw new NotBuilt('island_tasks', 'the engine could not tell which island is asking, '
+        + 'so its tasks would have nowhere to be filed')
+    setIslandTasks(programme, tasks)
+  },
+
+  taskDone(id, by) {
+    const programme = by?.grape ?? ''
+    if (!programme)
+      throw new NotBuilt('task_done', 'the engine could not tell which island is asking, '
+        + `so "${id}" would have nowhere to be filed`)
+    /* A TICK IS A THING THE RUN REMEMBERS, so it needs a run, the same as a flag. */
+    const s2 = loadSave()
+    if (!s2) throw new NotBuilt('task_done', `there is no run to remember "${id}" in`)
+    /* AND IT HAS TO BE A ROW THE ISLAND DECLARED. A misspelt id would otherwise be
+     * written down for ever, tick nothing a student can see, and leave the island
+     * permanently one task short of finished with no way to tell why. */
+    const list = islandTaskList()
+    if (!list || list.programme !== programme)
+      throw new NotBuilt('task_done', `"${programme}" has not said what its tasks are yet. `
+        + 'Call island_tasks before ticking one off.')
+    if (!list.tasks.some((t) => t.id === id))
+      throw new NotBuilt('task_done', `"${programme}" has no task called "${id}". `
+        + `It has: ${list.tasks.map((t) => t.id).join(', ')}`)
+    markTaskDone(programme, s2.year, id)
+    islandTaskTicked()
   },
 
   /* the study arm this participant was assigned at join. A grape never chooses

@@ -6,6 +6,7 @@ import { PlaceCard } from '../stage/PlaceCard'
 import { MovieBars } from '../stage/MovieBars'
 import { SkipVoyage } from '../world/SkipVoyage'
 import { ObjectivePanel } from './Objective'
+import { HeadBack } from './HeadBack'
 import { HelpButton } from './Help'
 import { CameraToggle } from './CameraToggle'
 import { loadSave, subscribeSave } from '../save'
@@ -55,6 +56,10 @@ export function WorldHud() {
       <PlaceCard />
       {/* the one sentence saying what to do next, on every frame of every world scene */}
       <ObjectivePanel />
+      {/* and the way home, which an island grows when it has nothing left to ask for.
+          Below the movie bars in this list on purpose: a cutscene is not a moment to
+          offer somebody a way out of the island it is playing on. */}
+      <HeadBack />
       {/* the question mark, outside the Hud's gate so a student with no run can still ask */}
       <HelpButton />
       {/* and the camera switch in the other corner, which is the only thing there */}

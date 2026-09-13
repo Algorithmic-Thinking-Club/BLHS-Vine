@@ -51,6 +51,29 @@ export type Intent =
   /* the one short line saying what the student should be doing now; null hands it back */
   | { kind: 'objective'; text: string | null }
 
+  /* ---- WHAT THIS ISLAND IS ASKING OF THE STUDENT, AS A LIST ---------------
+   *
+   * Ash, on what a member should be able to build: *"its not clear exactly what to
+   * do on an island. and this needs to be a big thing, when a member programs a
+   * island and its mechanics. islands should constantly have tasks to do, and thats
+   * how it should be layed out. and it goes towards completing that island."*
+   *
+   * `objective` is one sentence and always was: it says what to do NOW, and a
+   * student who wants to know how much of the island is left has nowhere to look.
+   * This is the list, and it is drawn in the sheet the year's own tasks already use,
+   * so an island gets the marks, the notes, the counter and the plain-arm styling
+   * for free.
+   *
+   * IT REPLACES WHATEVER WAS DECLARED, so an `@on_start` that runs again every time
+   * the map loads is safe to write the plainest way: declare the same list, and the
+   * ticks come back off the save rather than out of this call.
+   */
+  | { kind: 'island_tasks'; tasks: IslandTask[] }
+
+  /* one task done, by the id its island gave it. Ticks are kept in the save, so a
+   * student who reloads halfway through an island keeps what he finished. */
+  | { kind: 'task_done'; id: string }
+
   /* step the player off a berthed boat onto the dock */
   | { kind: 'ashore' }
 
@@ -130,6 +153,52 @@ export const PACES: Pace[] = ['stroll', 'walk', 'run']
 export const PACE_OF: Record<Pace, number> = { stroll: 0.62, walk: 1, run: 1.5 }
 
 /* a small step aside from an anchor's own mark, in painting pixels across and down */
+/* ---- ONE ROW ON AN ISLAND'S TASK LIST -------------------------------------
+ *
+ * Deliberately the smallest thing that can be drawn: a name a student reads, an id
+ * the island ticks it by, and one optional line saying where it happens. No state
+ * lives here. Whether a row is done is in the SAVE, because a student who closes
+ * the tab halfway through an island has still done what he did. */
+export type IslandTask = {
+  /** the island's own name for it, which `task_done` is called with */
+  id: string
+  /** what a student reads */
+  name: string
+  /** one short line under an unfinished row saying where it happens */
+  note?: string
+}
+
+/** how many rows an island may put on the sheet, so a list stays a list */
+export const TASKS_MAX = 8
+/** how long a row's name and note may be, in the same spirit as TEXT_MAX */
+export const TASK_TEXT_MAX = 72
+
+/** why this task list cannot be drawn, or null when it can */
+export function refuseTasks(tasks: unknown): string | null {
+  if (!Array.isArray(tasks) || !tasks.length)
+    return 'island_tasks needs a list with at least one task in it'
+  if (tasks.length > TASKS_MAX)
+    return `island_tasks takes at most ${TASKS_MAX} tasks, and this one has ${tasks.length}`
+  const seen = new Set<string>()
+  for (const t of tasks as Record<string, unknown>[]) {
+    if (!t || typeof t !== 'object') return 'every task has to be a dict with an id and a name'
+    const id = typeof t.id === 'string' ? t.id.trim() : ''
+    const name = typeof t.name === 'string' ? t.name.trim() : ''
+    if (!id) return 'every task needs an id, which is the word you tick it with'
+    if (!name) return `the task "${id}" needs a name, which is what a student reads`
+    /* TWO ROWS WITH ONE ID is a tick that means two things, and the one a student
+     * finishes is whichever the loop reached first. Caught at the line that made it. */
+    if (seen.has(id)) return `two tasks are both called "${id}", so ticking one would tick the other`
+    seen.add(id)
+    if (name.length > TASK_TEXT_MAX)
+      return `the name of "${id}" is ${name.length} characters, and a row holds ${TASK_TEXT_MAX}`
+    const note = typeof t.note === 'string' ? t.note.trim() : ''
+    if (note.length > TASK_TEXT_MAX)
+      return `the note on "${id}" is ${note.length} characters, and a row holds ${TASK_TEXT_MAX}`
+  }
+  return null
+}
+
 export type Offset = [number, number]
 
 /* the name that means the player, both as a speaker and as a place to stand */
@@ -246,6 +315,11 @@ export interface IntentEngine {
    * chrome around the window rather than anything on a map, so an island run in
    * the standalone harness can still say what it is asking of the student. */
   objective(text: string | null): void
+  /* AND THE LIST BESIDE IT, for the same reason: the sheet is chrome around the
+   * window, so an island run in the standalone harness can still lay out what it
+   * is asking for. `islandTasks` replaces the list; `taskDone` ticks one row. */
+  islandTasks(tasks: IslandTask[], by?: IntentBy): void
+  taskDone(id: string, by?: IntentBy): void
 }
 
 /* which island is speaking, so its flags get its own name in front of them */
@@ -425,6 +499,25 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         /* no map needed: this is a sentence, and a blank one means the same as none */
         engine.objective(typeof i.text === 'string' && i.text.trim() ? i.text.trim() : null)
         return ok()
+
+      case 'island_tasks': {
+        const why = refuseTasks(i.tasks)
+        if (why) throw new NotBuilt('island_tasks', why)
+        /* trimmed here so nothing downstream has to wonder, and `by` rides along so
+         * the ticks are filed under the island that owns them */
+        engine.islandTasks((i.tasks as IslandTask[]).map((t) => ({
+          id: t.id.trim(), name: t.name.trim(),
+          ...(typeof t.note === 'string' && t.note.trim() ? { note: t.note.trim() } : {}),
+        })), by)
+        return ok()
+      }
+
+      case 'task_done': {
+        const id = typeof i.id === 'string' ? i.id.trim() : ''
+        if (!id) throw new NotBuilt('task_done', 'task_done needs the id of the task to tick')
+        engine.taskDone(id, by)
+        return ok()
+      }
 
       case 'open':
         /* awaited whichever way it answers: without `wait` the engine hands back

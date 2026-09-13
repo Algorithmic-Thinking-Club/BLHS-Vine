@@ -128,6 +128,18 @@ export type SaveGame = {
   graduated?: boolean           // the run's terminal state (§9); set by the fourth endYear
   plans: Record<number, YearPlan>  // the year sheets, keyed by year 1..4 (§7.2)
   flags: string[]               // one-shot beats seen ('vignette:y1', ...) — never re-fire
+  /* ---- WHICH OF AN ISLAND'S OWN TASKS ARE TICKED ------------------------
+   *
+   * Keyed by programme id, and it CARRIES THE YEAR, for the same reason a
+   * Completion does: a club can be taken again in a later year, and a student
+   * arriving in year two has to find the list waiting for him rather than
+   * already finished. A mismatched year reads as nothing ticked, so a new year
+   * resets by itself and no code has to remember to clear anything.
+   *
+   * The list of tasks is NOT here. That is the island's to declare on every load
+   * and means nothing while its island is not running; only what a student has
+   * actually finished is worth keeping. */
+  tasks?: Record<string, { year: number; done: string[] }>
   tokens: Season[]
   ledger: LedgerEntry[]
   /* LEGACY, AND READ THROUGH progress.ts's ranksOf() RATHER THAN DIRECTLY.
@@ -572,6 +584,24 @@ export function grantBadge(id: string) {
 }
 
 /** mark a one-shot beat seen (year vignettes, first-time moments) — idempotent */
+/* WHAT AN ISLAND HAS TICKED THIS YEAR, and a list from another year reads as
+ * nothing: see the field's own note. Never throws and never writes, so a caller
+ * with no run gets an honest empty answer. */
+export function tasksDoneIn(programme: string, year: number): string[] {
+  const row = loadSave()?.tasks?.[programme]
+  return row && row.year === year ? row.done : []
+}
+
+/** tick one of an island's tasks. Idempotent, because an island may say it twice. */
+export function markTaskDone(programme: string, year: number, id: string) {
+  const s = loadSave()
+  if (!s) return s
+  const row = s.tasks?.[programme]
+  const done = row && row.year === year ? row.done : []
+  if (done.includes(id)) return s
+  return writeSave({ tasks: { ...(s.tasks ?? {}), [programme]: { year, done: [...done, id] } } })
+}
+
 export function setFlag(id: string) {
   const s = loadSave()
   if (!s || s.flags.includes(id)) return s

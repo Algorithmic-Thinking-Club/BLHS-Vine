@@ -399,6 +399,54 @@ def objective(text=None):
     return {"kind": "objective", "text": text}
 
 
+def island_tasks(tasks):
+    """Everything your island is asking of the student, as a list.
+
+        yield island_tasks([
+            {"id": "meet", "name": "Meet the club president",
+             "note": "He is at the top of the stair"},
+            {"id": "program", "name": "Fix the half-finished program"},
+        ])
+
+    `objective` is the ONE line saying what to do now. This is the list under it,
+    and it is what tells a student how much of your island is left. The sheet it
+    draws in is the one the year's own tasks use, so you get the ticks, the notes
+    and the counter without drawing anything.
+
+    DECLARE THE WHOLE LIST, EVERY TIME. It REPLACES whatever was declared before,
+    so the plainest thing to write is the right thing: say it in `@on_start` and
+    let it run again every time the map loads. Which rows are already ticked comes
+    back out of the save, not out of this call, so nothing is lost and nothing is
+    double counted.
+
+    ONE ROW IS ONE THING A STUDENT DOES. An `id` you tick it by, a `name` they
+    read, and an optional `note` saying where it happens. Eight rows at most,
+    because a list longer than that is a document.
+
+    THE NAMES ARE FOR A FOURTEEN YEAR OLD. "Meet the club president", not "trigger
+    the host dialogue". The note is where, not how.
+    """
+    return {"kind": "island_tasks", "tasks": tasks}
+
+
+def task_done(id):
+    """Tick one of your tasks off.
+
+        yield task_done("meet")
+
+    The tick is kept in the save under your island and the YEAR it happened in, so
+    a student who closes the tab halfway through keeps what he finished, and a
+    student who takes your club again next year starts the list fresh.
+
+    SAY IT WHEN THE THING IS ACTUALLY DONE, not when it starts. A row that ticks
+    itself on the way in is a list that lies about how far along somebody is.
+
+    It is safe to say twice. An id you never declared is refused at the line that
+    said it, so a typo is a sentence rather than a row that can never be finished.
+    """
+    return {"kind": "task_done", "id": id}
+
+
 def movie(on=True):
     """Two black bars, no HUD, no plaques, and the controls taken away.
 
