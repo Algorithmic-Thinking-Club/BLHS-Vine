@@ -318,12 +318,21 @@ export function berthHelm(
       return berthHelm(s, restart({ ...b, stage: 'alongside' }), cfg, dt, ok)
 
     const err = wrap(Math.atan2(dy, dx) - s.heading)
-    /* AND SHE SLOWS INTO IT, for the same reason. Speed is what makes the turn
-     * wide, so a hull that eases off as it nears the waypoint can steer at it
-     * instead of around it. */
+    /* SHE CARRIES HER WAY THROUGH THE GATE, because the gate is a waypoint she
+     * PASSES and not a mark she stops at. Braking for it was measured on the real
+     * crossing as 150 down to 63 and then straight back to 150 for the run in: a
+     * stop-start in the middle of the water with nothing in the way, which is a
+     * large part of what Ash called the sailing ugly.
+     *
+     * SHE EASES OFF ONLY WHEN THE TURN IS HARD. Speed is what makes a turn wide, so
+     * a bow that has more than a right angle to come through is better off slower;
+     * anything gentler she can take at cruise. */
     const stopIn = (s.speed * s.speed) / (2 * cfg.drag)
-    const throttle = d > stopIn + ALONGSIDE_PX * 2 ? 1 : 0
-    return { helm: { throttle, turn: Math.abs(err) < 0.05 ? 0 : Math.sign(err), fullSail: false }, next: watched(b) }
+    const hardTurn = Math.abs(err) > Math.PI / 2 && d < stopIn + ALONGSIDE_PX * 2
+    return {
+      helm: { throttle: hardTurn ? 0 : 1, turn: Math.abs(err) < 0.05 ? 0 : Math.sign(err), fullSail: false },
+      next: watched(b),
+    }
   }
 
   const dx = b.target.x - s.x, dy = b.target.y - s.y

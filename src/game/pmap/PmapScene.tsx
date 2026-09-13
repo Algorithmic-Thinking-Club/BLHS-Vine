@@ -4569,8 +4569,14 @@ export default function PmapScene() {
          * point at sea. The sail listener below converts the same field the same way. */
         const spot = fromSea(berth.x, berth.y)
         const { at } = onFloor(spot, canStand, cfg.yScale, 44)
-        answer({ ok: true })
         engine.log('head_back', { map: mapId })
+        /* ANSWERED NOW, AND NOT WHEN THE COVER IS DONE. The bus proves nobody heard
+         * a request by answering it itself the instant the dispatch returns, so an
+         * answer that waits for anything at all arrives second and is thrown away:
+         * the button was told "there is no way down to the water from here" while
+         * the cover it had just started was carrying him to the dock. What this
+         * answer means is that the scene has taken the request, which is true here. */
+        answer({ ok: true })
         /* ---- COVERED, AND NOT WALKED (Ash: *"the user gets teleported to the dock
          * of the island they are on"*) ---------------------------------------
          *
@@ -4581,6 +4587,12 @@ export default function PmapScene() {
          * the move reads as leaving the place rather than as the game snapping him
          * across the screen, and it is the same cover a door would play. */
         guideTarget = null
+        /* THE ANSWER WAITS FOR THE COVER, because a refused cover is a refused move.
+         * `cover()` answers false rather than throwing when a transition is already
+         * up, and this repo has been bitten by that exact silence before: a door
+         * that never opened resolved as though it had. Told "ok" on a cover that
+         * never ran, the button would close on itself and leave him where he was
+         * with nothing said. */
         void cover(coverFor(mapId).spec, () => {
           pos.x = at.x
           pos.y = at.y
@@ -4588,6 +4600,16 @@ export default function PmapScene() {
           recordPosition({ map: mapId })
           /* the camera goes with him rather than easing across the whole island */
           camTo(pos.x, pos.y, true)
+        }).then((ran) => {
+          if (ran) return
+          /* A REFUSED COVER IS A REFUSED MOVE, and it has to be said out loud
+           * somewhere. `cover()` answers false rather than throwing when a
+           * transition is already up, and this repo has been bitten by that exact
+           * silence before: a door that never opened resolved as though it had. The
+           * button has already been told the scene took the request, so the scene is
+           * the one that says it did not happen. */
+          engine.log('head_back_refused', { map: mapId, why: 'a transition was already up' })
+          void say({ text: 'Not just now. Try again in a moment.' })
         })
       })
 
