@@ -75,7 +75,12 @@ describe('yearStatus (§7.5 derived, resumable anywhere)', () => {
     /* a voyage is named off the programme it points at, in the order the seasons run */
     expect(st.voyages.map((v) => v.name))
       .toEqual([programmeById('football')!.name, programmeById('atc')!.name])
-    expect(st.voyages.every((v) => !v.playable)).toBe(true)   // islands still rising
+    /* ONE OF THEM CAN BE SAILED TO NOW. This asserted that no voyage was playable,
+     * which was true of every roster this game ever shipped until ATC. Football is
+     * still rising; ATC has a painting, a berth and an island behind it. Written as
+     * the pair rather than as a blanket so the next one to be built fails here and
+     * is looked at rather than passing under an `every`. */
+    expect(st.voyages.map((v) => v.playable)).toEqual([false, true])
 
     // advisory + both classes
     save.recordGrade({ id: 'core:y1', title: 't', kind: 'core', credit: 0.5, grade: 4, year: 1, season: 'Fall' })

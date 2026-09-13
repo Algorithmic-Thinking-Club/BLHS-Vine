@@ -27,6 +27,9 @@ import { FOUNDING_FLAG } from '../run/objective'
 import { announce, panelDepth, usePanel } from '../ui/a11y'
 import { grant } from '../grant'
 import { attemptsOn } from '../beats/state'
+import { refuseCheck } from '../beats/palette'
+import { placeById, programmeById } from '../roster/roster'
+import type { BeatRequest } from '../ui-bus'
 import { countAsDone, noIslandLine } from '../run/pick'
 import { requestVoyage } from '../world/sail-bus'
 import { faceStyle } from '../ui/kitFaceStyle'
@@ -40,6 +43,52 @@ function beatById(id: string, s: ReturnType<typeof loadSave>): CoreBeat | null {
   for (let y = 1; y <= 4; y++) if (id === coreBeatId(y)) return coreBeatFor(y, s)
   const cls = classById(id.replace(/^class:/, ''))
   return cls ? classBeat(cls, s.year) : null
+}
+
+/* AN ISLAND'S OWN ACTIVITY, BUILT HERE RATHER THAN LOOKED UP.
+ *
+ * Everything above resolves an id out of a table the vine wrote. This is the other
+ * half: a member's island brings the items with it, because nothing in the engine
+ * knows what the ATC club asks a freshman.
+ *
+ * IT CARRIES NO CREDIT, and that is the load-bearing decision. The island ends with
+ * `award(programme=..., grade=...)`, which writes the credit-bearing row
+ * `island:<programme>:y<n>`. If this beat shared that id, `recordGrade` keys on the
+ * id and one sitting would write the row twice: `attempts` goes to 2 with a first
+ * grade recorded, and the student's own yearbook prints "2 tries, first B+" for an
+ * activity they sat once. Two credit-bearing rows would also double-weight the GPA.
+ * So the activity has its own id and zero credit, and the programme's award is the
+ * only thing on the transcript.
+ *
+ * AND EVERY ITEM IS VALIDATED HERE. `checksOf` drops an item that will not validate
+ * with one console warning and the denominator shrinks with it, so a member's typo
+ * would quietly turn a six-point activity into a five-point one and still read 4.00.
+ * That is tolerable for content the vine wrote and not for JSON arriving at press
+ * time from somebody else's repository. */
+function islandBeat(req: BeatRequest, s: ReturnType<typeof loadSave>): CoreBeat | string {
+  const decl = req.decl
+  if (!decl || !s) return `no activity called "${req.beat}"`
+  if (!Array.isArray(decl.items) || !decl.items.length) return `"${req.beat}" arrived with no items in it`
+
+  for (const item of decl.items) {
+    const why = refuseCheck(item)
+    if (why) return `"${req.beat}" cannot be played: ${why}`
+  }
+
+  const programme = decl.programme
+  const place = placeById(programmeById(programme)?.place)?.name
+  return {
+    id: `${programme ?? 'island'}:${req.beat}`,
+    year: s.year,
+    title: decl.title || req.beat,
+    place: decl.place || place || '',
+    kind: 'island',
+    chrome: 'screen',
+    tags: [],
+    steps: decl.items.map((check) => ({ kind: 'check' as const, check })),
+    takeaways: [],
+    credit: 0,
+  }
 }
 
 /* the grade a beat actually landed, read off the ledger rather than passed
@@ -205,10 +254,14 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   /* a scored activity world code asked for, with its grade going back to whoever asked */
   useEffect(() => onBeatRequest((req) => {
     setPaused(false)
-    const beat = beatById(req.beat, s)
+    /* THE ENGINE'S OWN TABLE FIRST, ALWAYS. A bare catalog id already resolves
+     * here, so an island must never be able to shadow a real class. */
+    const known = beatById(req.beat, s)
+    const built = known ?? islandBeat(req, s)
     /* REFUSED, NOT ANSWERED NULL. A beat id nobody knows is a typo in somebody's
      * island, and a null grade told them it had worked. */
-    if (!beat) { req.refuse(`no activity called "${req.beat}"`); return }
+    if (typeof built === 'string') { req.refuse(built); return }
+    const beat = built
     /* the attempt count as it stands, so closing without sitting can be told
      * apart from closing after a sitting (`closeAll` says why) */
     setPlaying({ beat, plain: req.plain, done: req.done, triesAt: attemptsOn(loadSave(), beat.id) })

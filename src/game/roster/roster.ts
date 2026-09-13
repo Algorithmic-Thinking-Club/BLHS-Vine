@@ -118,8 +118,12 @@ export const SOURCED_PLACES: Place[] = [
      * student-founded; the official clubs hub does not list it yet. */
     id: 'atc-room',
     name: 'the Algorithmic Thinking Club',
+    /* `maps` stays empty and `arrival` unnamed on purpose: `MEMBER_MAPS` groups the
+     * member rows by place and `PLACES` appends the painting and names it as the
+     * arrival. A place that hard-codes a member's map id is a place that has to be
+     * edited in the engine every time somebody publishes. */
     maps: [],
-    paintings: 0,
+    paintings: 1,
     source: 'student-founded Sep 2025; not yet on the official clubs list',
   },
 ]
@@ -128,12 +132,14 @@ export const SOURCED_PLACES: Place[] = [
  * What ATC ships is appended below, out of a data file, because a member adding
  * a programme by editing this array would be a member editing the engine. */
 const OURS: Programme[] = [
-  {
-    id: 'atc', name: 'Algorithmic Thinking Club', place: 'atc-room', kind: 'club',
-    tags: [], rankTrack: 'atc', playable: false,
-    blurb: 'BLHS’s first CS club. Members build real software, including this game.',
-    host: 'Ashwath Polali', source: 'student-founded Sep 2025',
-  },
+  /* ATC IS NOT HERE ANY MORE AND THAT IS THE POINT. It shipped as a placeholder in
+   * this array while the data file was empty; it is now a real row in
+   * `member-islands.json`, which is where a programme with an island belongs.
+   *
+   * Two rows with one id do not collide loudly, they collide SILENTLY and in two
+   * directions: `programmeIndex` is a Map so the last row wins, while
+   * `islandForProgramme` uses `.find` so the first one does, and a programme could
+   * be simultaneously playable and unsailable. `rosterFaults` has no check for it. */
   {
     id: 'football', name: 'Football', place: 'stadium', kind: 'sport',
     tags: [], rankTrack: 'football', playable: false,

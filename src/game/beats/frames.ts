@@ -13,8 +13,14 @@ export type CoreBeat = {
   year: number
   title: string          // "This is the place"
   place: string          // where it stages, in fiction ("the Advisory Hearth")
-  /** ledger kind (§8.1 credit classes): core beats and class beats share this chassis */
-  kind: 'core' | 'class'
+  /* ledger kind (§8.1 credit classes): core beats, class beats and an island's own
+   * all share this chassis. `LedgerEntry.kind` has carried 'island' since it was
+   * written and `finish()` copies this straight onto the row. */
+  kind: 'core' | 'class' | 'island'
+  /* WHAT THE ACTIVITY IS FRAMED IN. A card is the panel every beat has always
+   * opened in. A screen is the full-bleed monitor an island pushes the camera into,
+   * and it is chrome: it changes nothing that is asked, answered or scored. */
+  chrome?: 'card' | 'screen'
   /** cord tags carried onto the ledger entry ('ap'/'cte'/'lang'/..., which progress.ts reads) */
   tags?: string[]
   steps: BeatStep[]

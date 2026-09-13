@@ -88,8 +88,15 @@ describe('a place made of more than one painting (W2, the home island)', () => {
 })
 
 describe('playability is a field, not a hardcoded Set (N1)', () => {
-  it('is read off the programme and is false for everything today', () => {
-    expect(PROGRAMMES.every((p) => !p.playable)).toBe(true)
+  it('is read off the programme, and only what somebody built is true', () => {
+    /* ATC IS THE FIRST ONE THAT IS TRUE. This used to assert that nothing on the
+     * roster was playable, which was the honest state while `member-islands.json`
+     * was an empty list. What the check is actually for is that playability is a
+     * FIELD on a row rather than a set hard-coded in the engine, so it now says
+     * the same thing the other way round: exactly the rows a member shipped. */
+    const playable = PROGRAMMES.filter((p) => p.playable).map((p) => p.id)
+    expect(playable).toEqual(['atc'])
+    expect(isPlayable('atc')).toBe(true)
     expect(isPlayable('football')).toBe(false)
     expect(isPlayable('nothing-by-that-name')).toBe(false)
   })

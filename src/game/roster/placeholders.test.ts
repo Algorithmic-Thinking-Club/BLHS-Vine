@@ -25,10 +25,16 @@ describe('what is real and what is a placeholder', () => {
   it('calls every club and sport on the shipped roster a placeholder', async () => {
     const { PROGRAMMES } = await import('./roster')
     const { exampleNameOf } = await import('./placeholders')
-    /* nothing ships playable today, and that is the honest state rather than a
-     * thing to work around: `member-islands.json` is an empty list */
+    /* A PLAYABLE PROGRAMME KEEPS ITS REAL NAME, which is the whole mechanism: the
+     * mask is what a student sees instead of a thing nobody built, so the day
+     * somebody builds one the mask has to come off it and stay on the rest. This
+     * used to assert every row was masked, which was true while
+     * `member-islands.json` was an empty list and is not the rule. */
     for (const p of PROGRAMMES) {
-      expect(p.playable, `${p.id} claims to be playable`).toBe(false)
+      if (p.playable) {
+        expect(exampleNameOf(p.id), `${p.id} is playable and should keep its name`).toBeNull()
+        continue
+      }
       expect(exampleNameOf(p.id), `${p.id} should be an Example`).toMatch(/^Example [A-Z]+$/)
     }
   })

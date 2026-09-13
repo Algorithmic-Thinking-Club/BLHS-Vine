@@ -16,8 +16,10 @@ describe('the seats', () => {
   it('is one seat per thing chosen, plus Advisory, which everybody is in', () => {
     const seats = wallOf(withPlan())
     expect(seats.map((w) => w.name)).toEqual([
-      /* clubs and sports nobody has built read as examples, and the electives read as named */
-      'Advisory', 'Example B', 'Example A', 'AP Human Geography', 'Spanish I',
+      /* a club somebody BUILT keeps its real name and everything nobody built is
+         still an example, which is the mask doing its one job. ATC is the first
+         row in this game's history to come out from under it. */
+      'Advisory', 'Example A', 'Algorithmic Thinking Club', 'AP Human Geography', 'Spanish I',
     ])
     /* Advisory first because it is beat 5, then the seasons, then the classes:
      * the order a student meets them is the order the thirty minutes happens in */
@@ -54,7 +56,10 @@ describe('what fills a seat', () => {
 
   it('finishing a sport fills its frame with the grade AND the rank', () => {
     const s = withPlan({ completions: [{ programme: 'football', year: 1, grade: 3.2, rank: 'JV', at: 1 }] })
-    const football = wallOf(s).find((w) => w.name === 'Example B')!
+    /* BY ID AND NOT BY THE LETTER. An example letter is a position in the list of
+     * things nobody has built, so it shifts the day somebody builds one, which is
+     * exactly what shipping ATC did to it. */
+    const football = wallOf(s).find((w) => w.id === 'programme:football')!
     expect(football.earned).toBe(true)
     expect(football.says).toBe('B+, JV')
   })
@@ -64,7 +69,7 @@ describe('what fills a seat', () => {
      * wall that forgot the year would show year two's football on year one's
      * wall the moment a student played the same sport twice. */
     const s = withPlan({ completions: [{ programme: 'football', year: 2, grade: 4, rank: 'Varsity', at: 1 }] })
-    expect(wallOf(s).find((w) => w.name === 'Example B')!.earned).toBe(false)
+    expect(wallOf(s).find((w) => w.id === 'programme:football')!.earned).toBe(false)
   })
 
   it('reads the letter from progress.ts rather than rounding on its own', () => {

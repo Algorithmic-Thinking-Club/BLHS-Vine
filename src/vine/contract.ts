@@ -81,7 +81,7 @@ export type CutsceneStep =
   | { kind: 'camera'; to: string }
   | { kind: 'wait'; ms: number }
 
-// the eight kinds of understanding check an island can score a student on
+// the nine kinds of understanding check an island can score a student on
 export type CheckStep =
   // a consequential dialogue choice (the "make the pitch": a good reply lands, a weak one gets a hint)
   | { kind: 'choice'; id: string; prompt: string; options: { text: string; correct?: boolean; reply: string }[]; objective?: string }
@@ -99,6 +99,36 @@ export type CheckStep =
   | { kind: 'do'; id: string; prompt: string; goal: { anchor: string; label: string }; decoys: { anchor: string; label: string }[]; reply?: string; objective?: string }
   /* a turn-based contest where knowledge is the ammunition, one point per round */
   | { kind: 'showdown'; id: string; prompt: string; opponent: string; rounds: ShowdownRound[]; objective?: string }
+  /* A PROGRAM THE STUDENT BUILDS AND THEN WATCHES RUN, a point per slot.
+   *
+   * KEYED BY SLOT INDEX AND NEVER BY THE CARD'S LABEL, which is the whole reason
+   * this is its own kind rather than an `order`. An `order`'s response key is the
+   * item's label, so a program using the same instruction twice collapses two
+   * slots into one answer and the response that should earn full marks scores one
+   * short, with no validator and no test to catch it.
+   *
+   * The moves are a REUSABLE vocabulary rather than a bag of cards: every slot may
+   * hold any move. That is what makes the answer space identical in both arms,
+   * which a depleting pool in the game arm alone would break. */
+  | {
+    kind: 'program'; id: string; prompt: string
+    /** the board as a figure, which is how the plain arm is given the same problem */
+    grid: string
+    /** the instruction vocabulary every slot chooses from. Two or more. */
+    moves: { name: string; label: string }[]
+    /** one per numbered slot, in order. `move` is the instruction that belongs there. */
+    slots: { label: string; move: string }[]
+    /* what the body walks while the student watches. Drawn by the game arm and read
+     * by NOTHING in the scoring path, which is what keeps the walk a body on an item
+     * rather than a second thing being measured. */
+    board?: {
+      cols: number; rows: number
+      walls: [number, number][]
+      flag: [number, number]
+      start: { col: number; row: number; facing: 'north' | 'south' | 'east' | 'west' }
+    }
+    reply?: string; objective?: string
+  }
 
 /** one turn of a showdown. Same shape as a `choice`, because a round IS a choice
  *  with a scoreboard behind it, and giving it a second shape would give the

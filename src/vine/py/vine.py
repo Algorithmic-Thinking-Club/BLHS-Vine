@@ -558,8 +558,28 @@ def open(ui, wait=False):
 
 # ---- doing something that gets a score --------------------------------------
 
-def play(beat, as_plain=None):
-    """Run a scored activity. Comes back as the score, or None if it was left."""
+def play(beat, as_plain=None, title=None, place=None, items=None):
+    """Run a scored activity. Comes back as the score, or None if it was left.
+
+    Named on its own, `beat` is one the engine already has. Hand it `items` as well
+    and the activity is YOURS: the engine builds it out of what you pass, renders it
+    in both halves of the class, scores it, and gives you back a number out of four.
+
+    An item is a dict with a `kind` and the fields that kind needs. The kinds are in
+    src/vine/contract.ts and the useful ones are `choice` for a question with a reply
+    per answer, `order` for putting things in sequence, `sort` for putting things in
+    boxes, and `program` for building something that then runs in front of the
+    student. `title` is what the result card calls it.
+
+    ONE POINT PER ITEM, or per slot in the ones that hold several, and the grade is
+    what you earned out of what was on offer, times four. You do not compute it; you
+    are handed it.
+
+    EVERYTHING IN `items` HAS TO BE PLAIN DATA. Dicts, lists, strings, numbers,
+    True, False, None. A set or an object of your own does not survive the trip to
+    the engine, and this runtime writes it out wrong rather than raising, so the
+    driver checks and names the value instead.
+    """
     # LEAVE as_plain ALONE unless you mean it. Left out, the engine renders the
     # arm this player was assigned at join, which is what keeps the study's two
     # arms looking at the same content. Passing True forces the plain rendering
@@ -569,6 +589,12 @@ def play(beat, as_plain=None):
     intent = {"kind": "play", "beat": beat}
     if as_plain is not None:
         intent["as_plain"] = as_plain
+    if title is not None:
+        intent["title"] = title
+    if place is not None:
+        intent["place"] = place
+    if items is not None:
+        intent["items"] = items
     return intent
 
 

@@ -158,9 +158,15 @@ export function CoreBeatRunner(
   return (
     <div className="bt-veil">
       {/* `bt-plain-scoring` lets the plain card scroll with a fixed foot while items are up */}
+      {/* THE CRT IS GATED ON THE ARM AND NEVER ON THE SKIN. `as_plain=True` sets the
+          arm without touching `data-skin`, so a skin-gated monitor would paint game
+          art around a scored item a control-arm student is reading. `kit-surface-panel`
+          comes off with it: a carved panel inside a monitor insets the contents twice. */}
       <div {...panel} className={arm === 'plain'
         ? `bt-plain${scoring ? ' bt-plain-scoring' : ''}`
-        : 'bt-stage kit-surface-panel'}>
+        : beat.chrome === 'screen'
+          ? 'bt-crt bt-stage bt-stage-screen'
+          : 'bt-stage kit-surface-panel'}>
         {(phase === 'play' || phase === 'retake') && (arm === 'plain'
           ? <PlainForm beat={beat} checksOnly={phase === 'retake'} attempt={attempt.current} arm={arm} onDone={finish} />
           : <GamePlay beat={beat} checksOnly={phase === 'retake'} attempt={attempt.current} arm={arm} world={world} onDone={finish} />)}
@@ -436,6 +442,248 @@ function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
   )
 }
 
+/* ---- THE PROGRAM, THE ONE FRAME THAT RUNS WHAT THE STUDENT WROTE -------------
+ *
+ * Slots are the numbered boxes and the instructions are the palette, which is the
+ * opposite of MovePlay's roles: there, pieces are placed into named boxes and the
+ * pool empties as they go. Here the palette NEVER empties, because every slot may
+ * hold any instruction. That is not a convenience, it is what keeps the answer
+ * space identical to the plain arm's, where every select offers every move. A game
+ * arm that ran out of cards would be a game arm with fewer wrong answers in it
+ * than the form the control student is filling in, and the two halves would stop
+ * being comparable.
+ *
+ * WHAT IS SCORED IS THE SLOT, and nothing in here reads the item directly:
+ * `plainOf`, `scoreOf`, `pointsOf` and `fieldRight` are the only ways this touches
+ * it. So the walk below can be as loud as it likes and still never reach the
+ * grade, which is the law in docs/walkthrough/10-an-island.md section 10.12.
+ */
+
+type Cell = { col: number; row: number; facing: 'north' | 'south' | 'east' | 'west' }
+
+const AHEAD: Record<Cell['facing'], [number, number]> = {
+  north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0],
+}
+const RIGHT_OF: Record<Cell['facing'], Cell['facing']> = {
+  north: 'east', east: 'south', south: 'west', west: 'north',
+}
+const LEFT_OF: Record<Cell['facing'], Cell['facing']> = {
+  north: 'west', west: 'south', south: 'east', east: 'north',
+}
+
+/* WHAT AN INSTRUCTION MEANS, READ OFF ITS NAME rather than declared beside it, so
+ * a member writes "forward 2" and "turn left" and registers nothing. A name this
+ * cannot read moves the body not at all, which the student sees happen rather
+ * than being told about. */
+function stepsOf(name: string): { turn?: 'left' | 'right'; forward?: number } {
+  const n = name.toLowerCase()
+  if (n.includes('left')) return { turn: 'left' }
+  if (n.includes('right')) return { turn: 'right' }
+  const m = n.match(/(\d+)/)
+  return { forward: m ? Number(m[1]) : 1 }
+}
+
+/* every cell the body passes through, in order, and where it stopped. A wall or
+ * the edge of the board ends the walk at the last legal cell: the program is never
+ * corrected on the way, it is carried out exactly as written, which is the entire
+ * reason there is a RUN button instead of a verdict. */
+function walkOf(
+  board: NonNullable<Extract<CheckStep, { kind: 'program' }>['board']>,
+  written: string[],
+) {
+  const blocked = new Set(board.walls.map(([c, r]) => c + ',' + r))
+  const legal = (c: number, r: number) =>
+    c >= 0 && r >= 0 && c < board.cols && r < board.rows && !blocked.has(c + ',' + r)
+  let at: Cell = { col: board.start.col, row: board.start.row, facing: board.start.facing }
+  const path: Cell[] = [{ ...at }]
+  let stuck = false
+  for (const name of written) {
+    if (stuck) break
+    const step = stepsOf(name)
+    if (step.turn) {
+      at = { ...at, facing: step.turn === 'left' ? LEFT_OF[at.facing] : RIGHT_OF[at.facing] }
+      path.push({ ...at })
+      continue
+    }
+    for (let i = 0; i < (step.forward ?? 0); i++) {
+      const [dx, dy] = AHEAD[at.facing]
+      const next: Cell = { col: at.col + dx, row: at.row + dy, facing: at.facing }
+      if (!legal(next.col, next.row)) { stuck = true; break }
+      at = next
+      path.push({ ...at })
+    }
+  }
+  return { path, stuck, home: at.col === board.flag[0] && at.row === board.flag[1] }
+}
+
+function ProgramPlay({ check, render, last, onDone, onTouch }: {
+  check: Extract<CheckStep, { kind: 'program' }>
+  render: ReturnType<typeof plainOf>
+  last: boolean
+  onDone: (r: Response) => void
+  onTouch: () => void
+}) {
+  const [picks, setPicks] = useState<Response>({})
+  const [held, setHeld] = useState<string | null>(null)
+  const [revealed, setRevealed] = useState(false)
+  /* how far along the walk the body has got, or -1 for nothing running */
+  const [at, setAt] = useState(-1)
+
+  const moves = render.fields[0]?.options ?? []
+  const filled = render.fields.every((f) => picks[f.id])
+  const missing = render.fields.filter((f) => !picks[f.id]).length
+  const earned = scoreOf(check, picks)
+  const outOf = pointsOf(check)
+
+  const board = check.board
+  const written = render.fields.map((f) => picks[f.id] ?? '')
+  const walk = board ? walkOf(board, written) : null
+
+  /* one cell at a time, so a student watches their own program happen instead of
+   * being handed the answer it arrived at */
+  useEffect(() => {
+    if (at < 0 || !walk || at >= walk.path.length - 1) return
+    const t = setTimeout(() => setAt((n) => n + 1), 420)
+    return () => clearTimeout(t)
+  }, [at, walk])
+
+  const put = (slotId: string) => {
+    if (!held || revealed) return
+    onTouch()
+    setPicks((p) => ({ ...p, [slotId]: held }))
+    setHeld(null)
+  }
+
+  const clear = (slotId: string) => {
+    if (revealed) return
+    onTouch()
+    setPicks((p) => { const n = { ...p }; delete n[slotId]; return n })
+  }
+
+  /* RUN IS THE COMMIT AND NOT A REHEARSAL. A repeatable run would hand the game
+   * arm a way to find the answer by trying, which the form has no equivalent of,
+   * and the two halves would be measuring different things. One shot, like every
+   * other item in this file. */
+  const run = () => {
+    setRevealed(true)
+    setAt(0)
+    speak(earned === outOf, check.reply ?? '', earned + ' of ' + outOf + ' steps are in the right place.')
+  }
+
+  const body = walk ? walk.path[Math.min(at < 0 ? 0 : at, walk.path.length - 1)] : null
+  const ran = !!walk && at >= walk.path.length - 1
+
+  return (
+    <div
+      className="bt-check bt-program"
+      data-state={revealed ? (earned === outOf ? 'right' : 'wrong') : filled ? 'answering' : 'presented'}
+    >
+      <div className="bt-prompt">{render.prompt}</div>
+
+      {board && (
+        <div className="bt-board" role="img" aria-label={render.note || 'the board'}>
+          {Array.from({ length: board.rows }, (_, row) => (
+            <div className="bt-boardrow" key={row}>
+              {Array.from({ length: board.cols }, (_, col) => {
+                const wall = board.walls.some(([c, r]) => c === col && r === row)
+                const flag = board.flag[0] === col && board.flag[1] === row
+                const here = !!body && body.col === col && body.row === row
+                return (
+                  <span
+                    key={col}
+                    className={'bt-cell' + (wall ? ' bt-cell-wall' : '') + (flag ? ' bt-cell-flag' : '')}
+                  >
+                    {here && body && <span className={'bt-walker bt-walker-' + body.facing} aria-hidden="true" />}
+                  </span>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* THE SLOTS, numbered and in order, every one printing its own label on the
+          first screen because that is what the arm-parity test reads out of it. */}
+      <div className="bt-slots">
+        {render.fields.map((f, i) => {
+          const chosen = picks[f.id]
+          const text = moves.find((m) => m.value === chosen)?.text
+          const right = revealed && fieldRight(check, f, picks)
+          const wellClass = 'bt-slotwell'
+            + (chosen ? ' bt-slotwell-full' : '')
+            + (revealed ? (right ? ' bt-slotwell-true' : ' bt-slotwell-miss') : '')
+            + (held && !chosen ? ' bt-slotwell-lit' : '')
+          return (
+            <div className="bt-slot" key={f.id}>
+              <span className="bt-slotnum">{i + 1}</span>
+              <span className="bt-slotname">{f.label}</span>
+              <button
+                type="button"
+                className={wellClass}
+                disabled={revealed}
+                aria-label={chosen
+                  ? 'Step ' + (i + 1) + ', ' + text + '. Press to take it out.'
+                  : 'Step ' + (i + 1) + ', empty'}
+                onClick={() => (chosen ? clear(f.id) : put(f.id))}
+              >
+                {text ?? <span className="bt-slotempty">empty</span>}
+              </button>
+              {/* NOTHING IS TAKEN AWAY: a wrong step keeps what the student chose
+                  and gains the instruction that belonged there beside it. */}
+              {revealed && !right && (
+                <span className="bt-truth">
+                  <Glyph piece="icon_set" face="tick" size={13} />
+                  {labelOf(f, f.correct)}
+                </span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="bt-cards" aria-label="Instructions">
+        {moves.map((m) => (
+          <button
+            type="button"
+            key={m.value}
+            className={'bt-card' + (held === m.value ? ' bt-card-held' : '')}
+            aria-pressed={held === m.value}
+            disabled={revealed}
+            onClick={() => { onTouch(); setHeld((h) => (h === m.value ? null : m.value)) }}
+          >
+            {m.text}
+          </button>
+        ))}
+      </div>
+
+      {!revealed
+        ? (
+          <Commit
+            ready={filled}
+            label="RUN"
+            needs={missing === 1 ? 'One step is still empty.' : missing + ' steps are still empty.'}
+            onCommit={run}
+          />
+        )
+        : (
+          <div className="bt-foot">
+            {ran && (
+              <span className="bt-ran">
+                {walk && walk.home
+                  ? 'It reached the flag.'
+                  : walk && walk.stuck
+                    ? 'It walked into the wall and stopped there.'
+                    : 'It stopped short of the flag.'}
+              </span>
+            )}
+            <Plank size="md" onClick={() => onDone(picks)}>Keep going</Plank>
+            {last && <span className="bt-needs">That was the last one.</span>}
+          </div>
+        )}
+    </div>
+  )
+}
+
 /* one check in the game arm, drawn off the same derived item the plain form uses */
 function CheckPlay({ check, world, last, onDone }: {
   check: CheckStep
@@ -520,6 +768,18 @@ function CheckPlay({ check, world, last, onDone }: {
             />
           )}
       </div>
+    )
+  }
+
+  /* the program gets the frame that RUNS, which is the only frame in here that
+   * carries out what the student wrote instead of marking it */
+  if (check.kind === 'program') {
+    return (
+      <ProgramPlay
+        check={check} render={render} last={last}
+        onDone={(r) => onDone(r, latency())}
+        onTouch={touch}
+      />
     )
   }
 
@@ -1107,7 +1367,10 @@ function ResultCard({ beat, score, arm, canRetake, onReview, onClose }: {
       </div>
       {(passed || honors) && (
         <div className="bt-stamps">
-          {passed && (
+          {/* an island's own activity carries no credit of its own: the programme's
+              `award` writes the credit-bearing row. Without this guard the card
+              stamps "0 credit earned" on every sitting. */}
+          {passed && beat.credit > 0 && (
             <span className="bt-stamp">
               <Glyph piece="stamp" face="approved" size={26} />
               <span className="bt-stampword">{beat.credit} credit earned</span>

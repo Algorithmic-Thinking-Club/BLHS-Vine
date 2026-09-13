@@ -190,6 +190,7 @@ ext.json
 public/grapes/panther-maw/
 public/grapes/castaway/
 public/grapes/the-hub/
+public/grapes/atc/
 !scripts/vendor-platform.mjs
 # vendored copies of the platform, refreshed at dev, test and build; never committed
 public/maps-vendored/

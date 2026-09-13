@@ -35,8 +35,8 @@ export const engine: IntentEngine = {
       + 'A panel needs the world HUD, which does not mount until a run has started.')
   },
 
-  playBeat(beat, plain) {
-    return requestBeat(beat, plain)
+  playBeat(beat, plain, decl) {
+    return requestBeat(beat, plain, decl)
   },
 
   /* the closed list of questions an island can ask about the run */

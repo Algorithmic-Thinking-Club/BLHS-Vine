@@ -205,6 +205,48 @@ export const PALETTE: { [K in CheckStep['kind']]: Entry<K> } = {
       replies: c.rounds.flatMap((rd) => optionReplies(`${c.id}:${rd.id}`, rd.options)),
     }),
   },
+
+  /* A PROGRAM, SCORED SLOT BY SLOT AND NEVER BY THE CARD THAT LANDED THERE.
+   *
+   * The response key is the slot's 1-based number. That is the entire reason this
+   * is not an `order`: an order keys on the item's LABEL, so a program that uses
+   * one instruction twice folds two slots into one answer, and the response that
+   * is supposed to earn full marks quietly scores one short. No validator catches
+   * it and no test covers it, which is what makes it worth a kind of its own.
+   *
+   * Two slots reading the same words therefore still answer apart, and two cards
+   * reading the same words are genuinely interchangeable, which is the fair
+   * answer: what a student wrote is the sequence of moves, not which physical
+   * card they picked up. */
+  program: {
+    points: (c) => c.slots.length,
+    score: (c, r) => c.slots.filter((s, i) => r[`${c.id}:${i + 1}`] === s.move).length,
+    /* THE BOARD GOES IN `note` AND NOT IN THE PROMPT. Both arms must show the same
+     * prompt and a parity test holds them to it, so the figure rides beside it, the
+     * way the showdown's opponent does. Without it the control arm is asked to put
+     * five instructions in order with no problem to solve, which stops being
+     * reasoning and becomes recall: a different construct, not a different
+     * presentation, and the comparison would be measuring two things. */
+    plain: (c) => {
+      const fields = c.slots.map((s, i) => ({
+        id: `${c.id}:${i + 1}`,
+        label: s.label,
+        input: 'select' as const,
+        /* every move is offered at every slot, so the answer space is identical in
+         * both arms. A game arm that took cards out of a pool as they were used
+         * would be a game arm with fewer wrong answers available than the form. */
+        options: c.moves.map((m) => ({ value: m.name, text: m.label })),
+        correct: s.move,
+      }))
+      return {
+        id: c.id,
+        prompt: c.prompt,
+        note: c.grid,
+        fields,
+        replies: fields.length ? oneReply(fields[0], c.reply) : [],
+      }
+    },
+  },
 }
 
 /* dispatch: the one place a check is looked up in the table, cast included */
@@ -283,6 +325,18 @@ export function refuseCheck(c: CheckStep): string | null {
         if (bad) return bad
       }
       return null
+    }
+    case 'program': {
+      if (!c.slots.length) return `check "${id}" is a program with no slots to fill`
+      /* one move is not a choice, and the form would render a select with a single
+       * option, which is the same defect `do` with no decoys has */
+      if (c.moves.length < 2) return `check "${id}" must offer at least two instructions`
+      const twice = c.moves.find((m, i) => c.moves.findIndex((n) => n.name === m.name) !== i)
+      if (twice) return `check "${id}" offers the instruction "${twice.name}" twice, so two options carry one value`
+      const stray = c.slots.find((s) => !c.moves.some((m) => m.name === s.move))
+      return stray
+        ? `check "${id}" wants "${stray.move}" at "${stray.label}", which is not one of its instructions`
+        : null
     }
   }
 }

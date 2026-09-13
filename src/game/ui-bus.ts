@@ -1,4 +1,5 @@
 // how world code opens the vine's sit-down uis without importing react or a hud file
+import type { BeatDeclaration } from '../vine/intents'
 
 /* yearbook: a door to a year's own page that any island can send a student to */
 /* wall: a door to what a student has earned, openable from any island */
@@ -72,6 +73,9 @@ export function onUiRequest(fn: (which: UiRequest, done?: () => void) => void): 
 /* a scored activity and the grade coming back, or a refusal when nothing ran */
 export type BeatRequest = {
   beat: string
+  /* PRESENT ONLY WHEN AN ISLAND BROUGHT ITS OWN ACTIVITY. Absent, the id is
+   * resolved out of the engine's own table exactly as it always was. */
+  decl?: BeatDeclaration
   /* the AP Research control arm renders the same items as plain text plus a
    * standard check. Passed per call rather than read globally so a grape can
    * force it for a teaching moment (§2.12, content-constant by construction). */
@@ -82,13 +86,13 @@ export type BeatRequest = {
   refuse: (why: string) => void
 }
 
-export function requestBeat(beat: string, plain: boolean): Promise<number | null> {
+export function requestBeat(beat: string, plain: boolean, decl?: BeatDeclaration): Promise<number | null> {
   return new Promise((resolve, reject) => {
     let settled = false
     const done = (g: number | null) => { if (!settled) { settled = true; resolve(g) } }
     const refuse = (why: string) => { if (!settled) { settled = true; reject(new Error(why)) } }
     const ev = new CustomEvent<BeatRequest>(BEAT_EVENT, {
-      detail: { beat, plain, done, refuse }, cancelable: true,
+      detail: { beat, plain, done, refuse, ...(decl ? { decl } : {}) }, cancelable: true,
     })
     const heard = window.dispatchEvent(ev)
     /* dispatchEvent answers true when no listener claimed it, so nobody heard it */

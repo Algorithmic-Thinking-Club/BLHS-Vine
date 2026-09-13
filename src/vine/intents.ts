@@ -1,5 +1,5 @@
 /* the list of things the engine can be asked to do, as plain data a grape sends over */
-import type { SessionMode } from './contract'
+import type { CheckStep, SessionMode } from './contract'
 
 /* ---- what the engine can be asked to do ---------------------------------- */
 
@@ -61,7 +61,13 @@ export type Intent =
   /* a scored activity. `beat` names one the engine can build; both study arms
    * render from the same items, which is what as_plain() means in practice and
    * why it is here rather than bolted on later. */
-  | { kind: 'play'; beat: string; as_plain?: boolean }
+  /* AND AN ISLAND MAY BRING ITS OWN. `items` is the activity itself, declared by
+   * the island rather than named out of the engine's own table, which is the only
+   * way a member's island can score anything the vine did not write. It rides on
+   * this word rather than on a new one because the worker already carries arbitrary
+   * JSON and a new word would cost a builder in two copies of vine.py and the
+   * vocabulary count in three places. */
+  | { kind: 'play'; beat: string; as_plain?: boolean; title?: string; place?: string; items?: CheckStep[] }
 
   /* the world reflecting the run. `placement` is a MAPVIS placement id, bound to
    * an anchor so a grape addresses it by name like everything else. */
@@ -101,6 +107,19 @@ export type Intent =
   /* instrumentation. Law 11: every meaningful interaction emits a typed event.
    * A grape gets to add to the record; it does not get to write the record. */
   | { kind: 'log'; event: string; data?: Record<string, unknown> }
+
+/* AN ACTIVITY AN ISLAND BROUGHT WITH IT, rather than one the engine already has.
+ *
+ * `programme` is stamped by the performer off the island's own registration and is
+ * never read off the wire, so a member cannot address another programme's row. The
+ * items are ordinary `CheckStep`s, which is what keeps one scorer and one plain
+ * rendering for engine content and member content alike. */
+export type BeatDeclaration = {
+  items: CheckStep[]
+  title?: string
+  place?: string
+  programme?: string
+}
 
 /* how fast a driven body travels, as a word rather than a number */
 export type Pace = 'stroll' | 'walk' | 'run'
@@ -207,7 +226,9 @@ export interface IntentEngine {
   /* `wait` makes this a promise the caller may await. Left out it is exactly the
    * fire-and-forget call it always was, so no existing station changes shape. */
   openUi(ui: 'planner' | 'handbook' | 'cords' | 'chart' | 'wardrobe' | 'settings' | 'wall' | 'yearbook' | 'tour', wait?: boolean): void | Promise<void>
-  playBeat(beat: string, asPlain: boolean): Promise<number | null>
+  /* `decl` is present only when the island brought its own activity. Absent, this
+   * is the same call it always was and the engine resolves the id from its table. */
+  playBeat(beat: string, asPlain: boolean, decl?: BeatDeclaration): Promise<number | null>
   read(path: RunPath): unknown
   setFlag(flag: string): void
   award(a: {
@@ -413,7 +434,11 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
       case 'play': {
         /* as_plain defaults to the study arm this participant was assigned at join */
         const plain = i.as_plain ?? engine.mode() === 'plain'
-        return ok(await engine.playBeat(i.beat, plain))
+        /* THE PROGRAMME IS TAKEN OFF `by` AND NEVER OFF THE PAYLOAD, the same
+         * source `scoped` uses for flags. An island naming its own programme here
+         * could write a grade onto another programme's ledger row. */
+        return ok(await engine.playBeat(i.beat, plain,
+          i.items ? { items: i.items, title: i.title, place: i.place, programme: by?.grape } : undefined))
       }
       case 'get':
         /* and it READS its own corner too, or the namespace is half a namespace:

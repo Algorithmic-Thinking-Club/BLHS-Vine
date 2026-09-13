@@ -56,10 +56,27 @@ const CHECKS: CheckStep[] = [
       options: [{ text: 'Meeting the criterion', correct: true, reply: 'The criterion, not the effort.' }, { text: 'Showing up', reply: 'Attendance is not a criterion.' }],
     }],
   },
+  {
+    kind: 'program', id: 'a-program', prompt: 'Put the build back in order, then press RUN.',
+    grid: 'P> . . # . F',
+    moves: [
+      { name: 'fwd2', label: 'forward 2' },
+      { name: 'left', label: 'turn left' },
+      { name: 'fwd3', label: 'forward 3' },
+      { name: 'right', label: 'turn right' },
+    ],
+    slots: [
+      { label: 'Step 1', move: 'fwd2' },
+      { label: 'Step 2', move: 'left' },
+      { label: 'Step 3', move: 'fwd3' },
+    ],
+    board: { cols: 6, rows: 4, walls: [[3, 2], [3, 3]], flag: [5, 0], start: { col: 0, row: 3, facing: 'east' } },
+    reply: 'The wall is why the turn comes early.',
+  },
 ]
 
 const beatWith = (checks: CheckStep[]): CoreBeat => ({
-  id: 'test:arms', year: 1, title: 'The eight frames', place: 'the Advisory Hearth',
+  id: 'test:arms', year: 1, title: 'The nine frames', place: 'the Advisory Hearth',
   kind: 'core', credit: 0.5, takeaways: [],
   steps: [
     { kind: 'say', line: { speaker: 'Wiseman', text: 'One of each, then.' } },

@@ -68,17 +68,18 @@ const fakeRow = {
 }
 
 describe('one row in member-islands.json starts the schedule asking', () => {
-  it('asks for nothing AFTER SCHOOL while the table is empty', async () => {
-    const { PROGRAMMES } = await import('../roster/roster')
-    const { classIsReal } = await import('../roster/placeholders')
-    const { CLASSES } = await import('./catalog')
-    const real = PROGRAMMES.filter((p) => p.playable).length
-    const realClasses = CLASSES.filter((c) => classIsReal(c.id)).length
-    expect(real + realClasses).toBe(0)
+  it('asks for nothing AFTER SCHOOL while the table is empty', () => {
+    /* STUBBED AT ZERO RATHER THAN COUNTED OFF THE LIVE ROSTER. This case is about
+     * what `scheduleOwed` does when nothing is real, and it used to prove the
+     * premise by asserting the shipped roster had nothing playable in it. That was
+     * true while `member-islands.json` was an empty list and it is not the subject:
+     * the next case already covers a playable roster with `vi.doMock`, and tying
+     * this one to the live table made shipping an island fail a test about
+     * arithmetic. */
     /* the electives are filled here on purpose: this case is about the OTHER
        half of the sheet, and with a blank period the plank is quiet for a reason
        that has nothing to do with the roster */
-    const o = scheduleOwed({ electivesLeft: 0, chosen: 0, realClasses, realActivities: real })
+    const o = scheduleOwed({ electivesLeft: 0, chosen: 0, realClasses: 0, realActivities: 0 })
     expect(o.owesActivity).toBe(false)
     expect(o.ready).toBe(true)
   })

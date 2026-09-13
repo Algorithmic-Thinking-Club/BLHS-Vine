@@ -668,3 +668,182 @@ html[data-skin='plain'] .bt-answer { border-radius: 0; }
 /* who is speaking, on the plain arm's paper (Ash, 2026-09-09: the game arm has
  * always printed the name and this arm dropped it) */
 .bt-plainspeaker { font-weight: 700; }
+
+/* ---- THE CRT, WHICH IS A CARD THAT IS A SCREEN ----------------------------
+ *
+ * An island pushes the camera in on the real monitor on the map and then this
+ * opens. It is the same runner, the same items and the same scoring as every
+ * other beat: only the frame around them changes, which is why it lives here as
+ * one extra class and not as a second component.
+ *
+ * IT IS FULL BLEED ON PURPOSE. The veil behind it is 60 percent, so a card-sized
+ * panel would leave the pushed-in monitor half visible around the edges and the
+ * student would be looking at a picture of a screen inside a screen. Filling the
+ * window is what makes sitting down at the machine read as sitting down at it.
+ *
+ * AND IT IS BUILT OUT OF TOKENS, NOT ART. No generation has been spent on a
+ * bezel. When one is drawn it drops in through a `--kit-art-*` token the way every
+ * other drawn surface does, and everything below is the fallback that has to look
+ * deliberate until then rather than a hole. */
+.bt-crt {
+  width: min(1180px, 96vw);
+  max-height: 94vh;
+  border-radius: 18px;
+  /* the chassis, then the glass: a dark plastic surround with the screen inset */
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(120, 200, 170, .10), transparent 62%),
+    linear-gradient(180deg, #1d2a28 0%, #16201f 60%, #111918 100%);
+  border: 10px solid #2b3a37;
+  box-shadow:
+    inset 0 0 0 2px #0c1211,
+    inset 0 0 60px rgba(0, 0, 0, .55),
+    0 18px 50px rgba(0, 0, 0, .55);
+  color: #cfe9dd;
+}
+
+/* the scanlines, which are the one thing that says CRT rather than flat panel.
+   Two pixels on, two off, at four percent: enough to read as a tube and not
+   enough to fight the text on top of it. */
+.bt-crt::before {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+  border-radius: 10px;
+  background: repeating-linear-gradient(
+    180deg, rgba(0, 0, 0, .07) 0 1px, transparent 1px 3px);
+}
+.bt-crt { position: relative; }
+html[data-rm='1'] .bt-crt { animation-duration: 1ms; }
+
+/* every piece of chrome the card paints on paper has to be repainted for glass */
+.bt-crt .bt-place b,
+.bt-crt .bt-title,
+.bt-crt .bt-prompt { color: #e8fff4; }
+.bt-crt .bt-place,
+.bt-crt .bt-needs,
+.bt-crt .bt-slotname { color: #8fb9a9; }
+
+/* THE PLAIN ARM NEVER GETS THIS, belt and braces. The arm is already a code
+   branch in ActivityRunner and this cannot reach a plain card, but a monitor
+   painted around a control student's scored item would be a confound rather
+   than a cosmetic slip, so it is refused twice. */
+.bt-plain .bt-crt { display: none; }
+
+/* ---- the program frame ---------------------------------------------------- */
+
+.bt-program { display: flex; flex-direction: column; gap: 14px; }
+
+/* THE BOARD. A grid of cells with the body stepping across it, drawn in the DOM
+   because nothing in this runner can reach the map's own walker and a scored
+   panel has no business owning a Pixi canvas. */
+.bt-board {
+  display: flex; flex-direction: column; gap: 3px;
+  align-self: center;
+  padding: 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, .28);
+  box-shadow: inset 0 0 0 1px rgba(140, 200, 180, .18);
+}
+.bt-boardrow { display: flex; gap: 3px; }
+.bt-cell {
+  position: relative;
+  width: 38px; height: 38px;
+  border-radius: 3px;
+  background: rgba(160, 220, 200, .07);
+  box-shadow: inset 0 0 0 1px rgba(140, 200, 180, .10);
+}
+.bt-cell-wall {
+  background: rgba(200, 120, 100, .30);
+  box-shadow: inset 0 0 0 1px rgba(220, 150, 130, .45);
+}
+.bt-cell-flag {
+  background: rgba(230, 200, 110, .22);
+  box-shadow: inset 0 0 0 1px rgba(240, 215, 140, .55);
+}
+.bt-cell-flag::after {
+  content: ''; position: absolute; inset: 26% 30% 26% 30%;
+  background: var(--kit-gold, #c9a24a);
+  clip-path: polygon(0 0, 100% 22%, 0 44%, 0 100%, 12% 100%, 12% 0);
+}
+
+/* the body itself: a blunt shape with a nose, so which way it is facing is
+   readable at a glance rather than something you work out from the last move */
+.bt-walker {
+  position: absolute; inset: 18%;
+  border-radius: 40% 40% 34% 34%;
+  background: #7fe0b4;
+  box-shadow: 0 0 10px rgba(127, 224, 180, .55);
+  transition: none;
+}
+.bt-walker::after {
+  content: ''; position: absolute;
+  width: 26%; height: 26%; border-radius: 50%;
+  background: #0e1a16;
+}
+.bt-walker-east::after { right: 4%; top: 37%; }
+.bt-walker-west::after { left: 4%; top: 37%; }
+.bt-walker-north::after { top: 4%; left: 37%; }
+.bt-walker-south::after { bottom: 4%; left: 37%; }
+
+/* ---- the slots, which are what is actually scored ------------------------- */
+
+.bt-slots { display: flex; flex-direction: column; gap: 6px; }
+.bt-slot { display: flex; align-items: center; gap: 10px; }
+.bt-slotnum {
+  flex: 0 0 auto;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: rgba(140, 200, 180, .16);
+  color: #bfe8d8;
+  --kit-fs-raw: calc(12px * var(--kit-text-scale)); font-size: var(--kit-fs);
+}
+.bt-slotname {
+  flex: 0 0 7.5em;
+  --kit-fs-raw: calc(13px * var(--kit-text-scale)); font-size: var(--kit-fs);
+}
+.bt-slotwell {
+  flex: 1 1 auto;
+  min-height: 34px;
+  padding: 6px 12px;
+  text-align: left;
+  border-radius: 5px;
+  border: 1px dashed rgba(140, 200, 180, .40);
+  background: rgba(0, 0, 0, .18);
+  color: #e8fff4;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  cursor: pointer;
+}
+.bt-slotwell-full { border-style: solid; background: rgba(140, 200, 180, .16); }
+.bt-slotwell-lit { border-color: #7fe0b4; box-shadow: 0 0 0 2px rgba(127, 224, 180, .25); }
+.bt-slotwell-true { border-color: #7fe0b4; background: rgba(127, 224, 180, .22); }
+.bt-slotwell-miss { border-color: #e0907f; background: rgba(224, 144, 127, .18); }
+.bt-slotwell:disabled { cursor: default; }
+.bt-slotempty { color: #6f9c8c; font-style: italic; }
+.bt-program .bt-truth { color: #7fe0b4; display: inline-flex; align-items: center; gap: 4px; }
+
+/* ---- the instruction palette, which never empties ------------------------- */
+
+.bt-cards { display: flex; flex-wrap: wrap; gap: 8px; }
+.bt-card {
+  padding: 8px 14px;
+  border-radius: 5px;
+  border: 1px solid rgba(140, 200, 180, .45);
+  background: linear-gradient(180deg, rgba(140, 200, 180, .20), rgba(140, 200, 180, .08));
+  color: #e8fff4;
+  font-family: var(--kit-face-body);
+  --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  cursor: pointer;
+}
+.bt-card-held {
+  border-color: #7fe0b4;
+  background: rgba(127, 224, 180, .30);
+  box-shadow: 0 0 0 2px rgba(127, 224, 180, .30);
+}
+.bt-card:disabled { opacity: .45; cursor: default; }
+
+/* what the program did, said in one line once the body has stopped */
+.bt-ran {
+  --kit-fs-raw: calc(13px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: #9fd8c2;
+}

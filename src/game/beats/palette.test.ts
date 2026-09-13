@@ -79,6 +79,40 @@ const SAMPLES: { [K in CheckStep['kind']]: Extract<CheckStep, { kind: K }> } = {
       },
     ],
   },
+  /* THE REAL ATC PUZZLE, off docs/ops/ATC-ISLAND-DESIGN.md section 3c, including
+   * the part that made this a kind of its own: `fwd3` is the correct instruction at
+   * two different slots. An `order` would fold those two slots into one answer and
+   * score a full-marks response one short, with nothing to catch it. */
+  program: {
+    kind: 'program', id: 'p-maze', prompt: 'Put the build back in order, then press RUN.',
+    grid: [
+      '   col  0   1   2   3   4   5',
+      ' row 0  .   .   .   .   .   F',
+      ' row 1  .   .   .   .   .   .',
+      ' row 2  .   .   .   #   .   .',
+      ' row 3  P>  .   .   #   .   .',
+    ].join('\n'),
+    moves: [
+      { name: 'fwd2', label: 'forward 2' },
+      { name: 'fwd3', label: 'forward 3' },
+      { name: 'left', label: 'turn left' },
+      { name: 'right', label: 'turn right' },
+    ],
+    slots: [
+      { label: 'Step 1', move: 'fwd2' },
+      { label: 'Step 2', move: 'left' },
+      { label: 'Step 3', move: 'fwd3' },
+      { label: 'Step 4', move: 'right' },
+      { label: 'Step 5', move: 'fwd3' },
+    ],
+    board: {
+      cols: 6, rows: 4,
+      walls: [[3, 2], [3, 3]],
+      flag: [5, 0],
+      start: { col: 0, row: 3, facing: 'east' },
+    },
+    reply: 'The wall is why the turn has to come early.',
+  },
 }
 
 const kinds = Object.keys(PALETTE) as CheckStep['kind'][]
@@ -91,10 +125,10 @@ const allWrong = (c: CheckStep): Response =>
     return [f.id, other ? other.value : `${f.correct}-not`]
   }))
 
-describe('the eight frames', () => {
-  it('the palette carries exactly the eight kinds, and every one has a sample', () => {
+describe('the nine frames', () => {
+  it('the palette carries exactly the nine kinds, and every one has a sample', () => {
     expect([...kinds].sort()).toEqual(
-      ['choice', 'do', 'number', 'order', 'place', 'quiz', 'showdown', 'sort'])
+      ['choice', 'do', 'number', 'order', 'place', 'program', 'quiz', 'showdown', 'sort'])
     expect([...kinds].sort()).toEqual(Object.keys(SAMPLES).sort())
   })
 

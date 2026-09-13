@@ -177,7 +177,9 @@ describe('the objective reaches the yearbook', () => {
     save.recordGrade({ id: 'class:spanish-1', title: 'y', kind: 'class', credit: .5, grade: 4, year: 1, season: 'Fall' })
     const mid = nextObjective(save.loadSave())
     expect(mid?.phase).toBe('class')
-    expect(mid?.say).toContain('Example B')
+    /* football is Example A now that ATC has come out from under the mask: an
+     * example letter is a position in the list of things nobody built. */
+    expect(mid?.say).toContain('Example A')
 
     /* and pressing its one button counts it, which closes the year. The button
      * writes exactly this row (`run/pick.ts`, `countAsDone`); it is written here
@@ -201,10 +203,10 @@ describe('the objective reaches the yearbook', () => {
       const o = nextObjective(save.loadSave())
       /* one clause for every pick, so the phase is the same and the WORD changes */
       expect(o?.phase).toBe('class')
-      expect(o?.say).toBe('Sail to Example B. Open My Year.')
+      expect(o?.say).toBe('Sail to Example A. Open My Year.')
       const club = picksOf(save.loadSave())!.find((p) => p.id === 'football')!
       expect(club.map).toBe('stadium-a1')
-      expect(pickVerb(club)).toBe('Sail to Example B')
+      expect(pickVerb(club)).toBe('Sail to Example A')
     } finally {
       ;(g as { playable: boolean }).playable = was.playable
       ;(stadium as { maps: string[] }).maps = was.maps
