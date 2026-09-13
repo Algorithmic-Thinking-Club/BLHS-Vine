@@ -381,8 +381,12 @@ export default function PmapScene() {
       try { performance.setResourceTimingBufferSize(4000) } catch { /* not every engine has it */ }
       const netAtStart = performance.getEntriesByType('resource').length
 
-      /* where a map comes from: the platform first, then the folder committed in this repo */
-      const wantLocal = params.get('src') === 'local'
+      /* where a map comes from: the copy vendored at build time, then the folder committed in
+       * this repo; the platform only when ?src=platform asks for it, so a student's browser
+       * and a dev run never fetch the platform */
+      const srcMode = params.get('src')
+      const wantLocal = srcMode === 'local'
+      const wantPlatform = srcMode === 'platform'
       const host = (import.meta.env?.VITE_MAPVIS_URL || '').replace(/\/+$/, '')
       const pinned = params.get('v')
       let dir = `/maps-painted/${mapId}`
@@ -392,7 +396,21 @@ export default function PmapScene() {
        * different bundles, because that is exactly what it is */
       let mapVersion: number | undefined
 
-      if (!wantLocal) {
+      if (!wantLocal && !wantPlatform) {
+        try {
+          const man = await fetch(req(`/maps-vendored/${mapId}/manifest.json`)).then((r) =>
+            r.ok && (r.headers.get('content-type') || '').includes('json') ? r.json() : Promise.reject(new Error(String(r.status))),
+          )
+          dir = `/maps-vendored/${mapId}`
+          mp = man.map as PmapJson
+          mapVersion = Number(man.version)
+          console.log(`[pmap] ${mapId} v${man.version} from the vendored copy`)
+        } catch {
+          /* not vendored: the committed folder */
+        }
+      }
+
+      if (wantPlatform) {
         try {
           const q = pinned ? `?v=${encodeURIComponent(pinned)}` : ''
           const man = await fetch(req(`${host}/api/v1/maps/${encodeURIComponent(mapId)}${q}`)).then((r) =>
@@ -566,10 +584,13 @@ export default function PmapScene() {
         if (doorState.has(to)) return
         if (!to) { doorState.set(to, 'missing'); return }
         doorState.set(to, 'checking')
-        const local = () => fetch(`/maps-painted/${to}/map.json`)
+        const committed = () => fetch(`/maps-painted/${to}/map.json`)
           .then((r) => doorState.set(to, isJson(r) ? 'ok' : 'missing'))
           .catch(() => doorState.set(to, 'missing'))
-        if (wantLocal || !host) { void local(); return }
+        const local = () => fetch(`/maps-vendored/${to}/manifest.json`)
+          .then((r) => { if (isJson(r)) doorState.set(to, 'ok'); else return committed() })
+          .catch(() => committed())
+        if (!wantPlatform || !host) { void local(); return }
         void fetch(`${host}/api/v1/maps/${encodeURIComponent(to)}`)
           .then((r) => {
             if (!isJson(r)) return local()

@@ -105,13 +105,38 @@ function announceKit(): void {
 /** for tests and for the proof harness: install a kit without a fetch */
 export function setKit(pieces: KitPiece[]) { cached = pieces; inflight = null; announceKit() }
 
+/* where the pieces in use were loaded from: '' for the vendored copy on the game's own origin */
+let kitHost = ''
+export const kitHostInUse = (): string => kitHost
+
+/* the vendored kit first, so a student's browser never asks the platform; the platform only with ?kit=platform */
+const wantPlatformKit = (): boolean =>
+  typeof location !== 'undefined' && new URLSearchParams(location.search).get('kit') === 'platform'
+
 export async function loadKit(host = mapvisHost()): Promise<KitPiece[]> {
   if (cached) return cached
   if (inflight) return inflight
-  /* NO HOST IS NOT A FAILURE, it is a build with no platform configured, and it
-   * must not cost a fetch, a warning or a timeout. */
-  if (!host) { cached = []; return cached }
   inflight = (async () => {
+    if (!wantPlatformKit()) {
+      try {
+        const r = await fetch('/ui-vendored/kit.json')
+        if (r.ok && (r.headers.get('content-type') || '').includes('json')) {
+          const j = (await r.json()) as { ui?: unknown }
+          if (Array.isArray(j?.ui)) {
+            cached = j.ui as KitPiece[]
+            kitHost = ''
+            warmPieces(cached, '')
+            return cached
+          }
+        }
+      } catch { /* not vendored: the platform below, if the page allows it */ }
+      cached = []
+      return cached
+    }
+    /* NO HOST IS NOT A FAILURE, it is a build with no platform configured, and it
+     * must not cost a fetch, a warning or a timeout. */
+    if (!host) { cached = []; return cached }
+    kitHost = host
     try {
       const r = await fetch(`${host}/api/v1/ui`)
       /* the content-type guard is `PmapScene`'s: a dev server answers a missing
@@ -214,7 +239,7 @@ const SHAPES = new Set(['plank'])
 /* handles whose picture stays the local committed art and never comes off the platform */
 const LOCAL_ART = new Set(['plank'])
 
-export function kitCss(pieces: KitPiece[], host = mapvisHost()): string {
+export function kitCss(pieces: KitPiece[], host = kitHost): string {
   const tokens: string[] = []
   const blocks: string[] = []
   for (const p of pieces) {
@@ -253,7 +278,7 @@ export function kitCss(pieces: KitPiece[], host = mapvisHost()): string {
  *  than added to, so calling `applyKit` twice cannot stack two kits. */
 export const KIT_STYLE_ID = 'mapvis-kit'
 
-export function applyKit(pieces: KitPiece[], host = mapvisHost()): void {
+export function applyKit(pieces: KitPiece[], host = kitHost): void {
   if (typeof document === 'undefined') return
   for (const f of kitFaults(pieces)) console.warn(`[kit] refused "${f.key}": ${f.why}`)
   const css = kitCss(pieces, host)

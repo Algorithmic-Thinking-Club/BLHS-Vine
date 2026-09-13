@@ -171,19 +171,24 @@ export const worldUrl = (): string => {
   const asked = typeof location !== 'undefined'
     ? new URLSearchParams(location.search).get('world') : null
   if (asked === 'local') return LOCAL_WORLD
+  if (asked === 'platform') { const host = mapvisHost(); return host ? `${host}/api/v1/world` : VENDORED_WORLD }
   if (asked) return asked
-  const host = mapvisHost()
-  return host ? `${host}/api/v1/world` : LOCAL_WORLD
+  // the copy vendored at build time, so a student's browser never asks the platform
+  return VENDORED_WORLD
 }
 
 export const LOCAL_WORLD = '/world/composition.json'
+export const VENDORED_WORLD = '/world-vendored/composition.json'
 
 export async function loadComposition(url = worldUrl()): Promise<WorldComposition> {
   if (cached) return cached
   if (inflight) return inflight
   inflight = (async () => {
     /* the platform first, then the copy in this repo, then the constant */
-    for (const src of url === LOCAL_WORLD ? [LOCAL_WORLD] : [url, LOCAL_WORLD]) {
+    const order = url === LOCAL_WORLD ? [LOCAL_WORLD]
+      : url === VENDORED_WORLD ? [VENDORED_WORLD, LOCAL_WORLD]
+        : [url, VENDORED_WORLD, LOCAL_WORLD]
+    for (const src of order) {
       const doc = await tryWorld(src)
       if (doc) { cached = doc; publish(); return doc }
     }

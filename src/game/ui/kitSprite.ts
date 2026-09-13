@@ -1,6 +1,6 @@
 /* one cut face off the platform's kit, as a pixi sprite for things drawn in the world */
 import { Assets, NineSliceSprite, Rectangle, Sprite, Texture } from 'pixi.js'
-import { kitCached, kitFace, kitPiece, mapvisHost, kitArtUrl, loadKit } from './kit'
+import { kitCached, kitFace, kitPiece, kitHostInUse, kitArtUrl, loadKit } from './kit'
 import { currentSkin } from './skin'
 
 /* the plain study arm gets no drawn art, in the world as well as in the dom */
@@ -24,7 +24,7 @@ async function sheetOf(piece: string): Promise<Texture | null> {
       const pieces = kitCached() ?? await loadKit()
       const p = kitPiece(pieces, piece)
       if (!p) return null
-      const url = kitArtUrl(p, mapvisHost())
+      const url = kitArtUrl(p, kitHostInUse())
       if (!url) return null
       /* the loader is named, because the kit image url carries no file extension */
       const t: Texture = await Assets.load({ src: url, parser: 'loadTextures' })

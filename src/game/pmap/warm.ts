@@ -22,9 +22,10 @@ export const warmedBytes = () => warmed
 export async function warmMap(mapId: string): Promise<boolean> {
   if (!mapId || asked.has(mapId)) return false
   asked.add(mapId)
-  const host = mapvisHost()
-  /* no platform means the committed folder, which is served from the game's own
-   * origin and is already as close as it can be */
+  /* the platform is warmed only when the page asked for it with ?src=platform; the
+   * vendored copy is served from the game's own origin and is already as close as it can be */
+  const platform = typeof location !== 'undefined' && new URLSearchParams(location.search).get('src') === 'platform'
+  const host = platform ? mapvisHost() : ''
   if (!host) return false
   try {
     const man = await fetch(`${host}/api/v1/maps/${encodeURIComponent(mapId)}`)
