@@ -715,13 +715,23 @@ html[data-skin='plain'] .bt-answer { border-radius: 0; }
 .bt-crt { position: relative; }
 html[data-rm='1'] .bt-crt { animation-duration: 1ms; }
 
-/* every piece of chrome the card paints on paper has to be repainted for glass */
+/* EVERY PIECE OF INK THE CARD PAINTS ON PAPER HAS TO BE REPAINTED FOR GLASS, and
+   the result card is the one that matters most: it is the payoff screen and the
+   kit's inks are dark browns chosen to sit on parchment. Left alone, the letter a
+   student just earned is nearly invisible on a green tube. */
 .bt-crt .bt-place b,
 .bt-crt .bt-title,
-.bt-crt .bt-prompt { color: #e8fff4; }
+.bt-crt .bt-prompt,
+.bt-crt .bt-gradenum,
+.bt-crt .bt-lettermark { color: #e8fff4; }
+.bt-crt .bt-lettermark { text-shadow: 0 0 14px rgba(127, 224, 180, .45); }
 .bt-crt .bt-place,
 .bt-crt .bt-needs,
-.bt-crt .bt-slotname { color: #8fb9a9; }
+.bt-crt .bt-subprompt,
+.bt-crt .bt-gradesays,
+.bt-crt .bt-gradelines,
+.bt-crt .bt-answer-score,
+.bt-crt .bt-slotname { color: #a9d4c4; }
 
 /* THE PLAIN ARM NEVER GETS THIS, belt and braces. The arm is already a code
    branch in ActivityRunner and this cannot reach a plain card, but a monitor
