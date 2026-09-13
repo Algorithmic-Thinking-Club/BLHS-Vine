@@ -63,6 +63,38 @@ html[data-skin='plain'] .kit-mark { display: none; }
 .kit-plank-lg { min-height: 60px; padding: 12px 20px; --kit-plank-cap: 24px; --kit-fs-raw: calc(23px * var(--kit-text-scale)); }
 .kit-plank-wide { width: 100%; }
 
+/* ---- NOTHING GETS OUT OF THE SIGN ---------------------------------------
+ *
+ * Ash: *"the button UI that says go to algorithmic thinking club overflows and
+ * is glitched and shitty."* Measured on the year sheet at 1366 wide: the sign is
+ * 131px, the label needs 254, and the label was simply drawn straight over the
+ * edge of the wood. Everything needed for the clip was already here and one link
+ * in the chain was missing. `.kit-plank-ink` carries `overflow: hidden` and
+ * `text-overflow: ellipsis`, which do nothing while the element is as wide as its
+ * own text: in a column flex with centred items a child is sized to its content,
+ * so the ink measured 254 inside a 73px box and had nothing to clip against.
+ *
+ * The cap goes on every plank rather than on this one label, because the next
+ * long name would have done it again somewhere else. A sign that cannot hold its
+ * label should say so with an ellipsis, which reads as a name too long for the
+ * space; text lying across the frame reads as the game being broken. */
+.kit-plank { overflow: hidden; }
+.kit-plank-lines { max-width: 100%; overflow: hidden; }
+.kit-plank-ink, .kit-plank-sub { max-width: 100%; }
+
+/* AND A FULL-WIDTH SIGN MAY USE TWO LINES, because it has the width of its column
+ * to wrap into and a club's real name does not fit on one. Capped at two: three
+ * lines of wrapped text on a wooden plank stops looking like a sign. */
+.kit-plank-wide .kit-plank-ink {
+  white-space: normal;
+  overflow-wrap: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.kit-plank-wide { min-height: 34px; height: auto; }
+
 /* the label is cut into the wood so it reads on a dark plank */
 .kit-plank-ink {
   font-family: var(--kit-face-display);

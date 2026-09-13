@@ -18,7 +18,7 @@ import { classLedgerId } from '../beats/classes'
 import { firstLook, markLooked } from '../hud/first-look'
 import { SHEET_STEPS, Tour } from '../hud/Tour'
 import { yearStatus } from '../run/year'
-import { picksOf, pickVerb, type Pick } from '../run/pick'
+import { picksOf, pickVerb, pickVerbHere, type Pick } from '../run/pick'
 import { nextObjective } from '../run/objective'
 import { refuseClass, refuseSlot } from '../run/refusal'
 import { yearbookYears, yearTurned } from '../run/yearbook-page'
@@ -491,7 +491,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
                         return pick.done
                           ? <div className="pl-card-done">done</div>
                           : onPlayPick && (
-                            <Plank size="sm" wide onClick={() => onPlayPick(pick)}>{pickVerb(pick)}</Plank>
+                            <Plank size="sm" wide onClick={() => onPlayPick(pick)}>{pickVerbHere(pick)}</Plank>
                           )
                       })()}
                     </div>

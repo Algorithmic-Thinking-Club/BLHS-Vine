@@ -263,7 +263,16 @@ export function kitCss(pieces: KitPiece[], host = kitHost): string {
       `.kit-surface-${v.handle} {\n`
       + `  border-style: solid;\n`
       + `  border-color: transparent;\n`
-      + `  border-width: ${s.top * sc}px ${s.right * sc}px ${s.bottom * sc}px ${s.left * sc}px;\n`
+      /* THE INSET IS A KNOB AND NOT A CONSTANT, the way the platform's own blocks
+       * already write it (`border-width: var(--kit-slice-w-band)`). A nine-slice
+       * measured for a wide panel eats a narrow one alive: the socket's frame is 29px
+       * a side, so a 209px season column had 131px left for its contents and the sail
+       * button's label had nowhere to go, which is what Ash saw as it overflowing.
+       * The art still decides the default, and a site that puts this surface on
+       * something narrow can say so. */
+      + `  border-width: var(--kit-slice-w-${v.handle}, ${s.top * sc}px `
+      + `${s.right * sc}px ${s.bottom * sc}px ${s.left * sc}px);
+`
       + `  border-image: var(--kit-art-${v.handle}${url ? `, url('${url}')` : ''})`
       + ` ${s.top} ${s.right} ${s.bottom} ${s.left}${fill} / 1 / 0 ${rep};\n}`,
     )

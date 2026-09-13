@@ -126,6 +126,19 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
   border: var(--kit-border) solid var(--kit-sea);
   background-color: var(--kit-paper-card-hi);
 }
+/* A SEASON COLUMN IS 229px WIDE AND THE DRAWN SOCKET'S FRAME IS 29px A SIDE, so
+ * more than a quarter of it was frame and the contents were squeezed into 131px.
+ * The art was measured for a wide panel. Told to use a thinner border the
+ * nine-slice scales its own slices down, so the frame keeps its shape and the
+ * column gets its width back. */
+.pl-col, .pl-filled { --kit-slice-w-socket: 9px; }
+
+/* THE ACTION IN A SEASON COLUMN TAKES THE COLUMN. Ash's sail button measured
+ * 131px inside a 189px socket, which is where its label ran out of room: the sign
+ * sized itself to a shrunken content box rather than to the space it had, so even
+ * with the label clipped properly there was nowhere for the name to go. */
+.pl-filled > .kit-plank { width: 100%; align-self: stretch; flex: none; }
+
 .pl-card-name {
   font-family: var(--kit-face-title);
   --kit-fs-raw: calc(16px * var(--kit-text-scale)); font-size: var(--kit-fs);

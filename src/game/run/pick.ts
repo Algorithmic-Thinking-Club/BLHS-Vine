@@ -74,6 +74,14 @@ export const nextPick = (s: SaveGame | null): Pick | null => picksOf(s).find((p)
 /** what the button says. Two words for two futures, and the roster picks. */
 export const pickVerb = (p: Pick): string => (p.map ? `Sail to ${p.name}` : 'Go')
 
+/* THE SAME PRESS WHERE THE NAME IS ALREADY ON SCREEN, which is the season column
+ * on the year sheet: the card above the button prints the club's name, so the
+ * button repeating it says nothing and costs the width that made it fit.
+ * Measured: "Sail to Algorithmic Thinking Club" needs 254px and that sign is
+ * 171px, which is what Ash saw as the button overflowing. The long form stays
+ * wherever the button stands on its own. */
+export const pickVerbHere = (p: Pick): string => (p.map ? 'Sail there' : 'Go')
+
 /** the card a pick with no island opens, in Ash's own words */
 export const noIslandLine = (p: Pick): string => `${p.name}: no island yet. Counted as done.`
 

@@ -170,7 +170,12 @@ describe('a piece with a slice and no css still mounts', () => {
   it('gets a rule built from the slice, at the scale it published', () => {
     const css = kitCss([bare], HOST)
     expect(css).toContain('.kit-surface-socket {')
-    expect(css).toContain('border-width: 42px 58px 44px 58px;')
+    /* THE SLICE IS THE DEFAULT AND NOT THE ONLY ANSWER. A nine-slice measured for
+     * a wide panel eats a narrow one: the socket cost a 209px season column 58px of
+     * frame, which is what made a club's name overflow its button. The art still
+     * decides what it looks like unless a site says otherwise, and the platform's
+     * own blocks already spell it this way. */
+    expect(css).toContain('border-width: var(--kit-slice-w-socket, 42px 58px 44px 58px);')
     expect(css).toContain('21 29 22 29 fill / 1 / 0 round stretch')
   })
 
