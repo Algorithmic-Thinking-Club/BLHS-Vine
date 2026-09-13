@@ -103,6 +103,23 @@ export function coverFor(mapId: string, bundleTitle?: string): CoverChoice {
 }
 
 // the graduation cover, the one that carries no fact under it
+/* ---- PASSING THROUGH, WHICH IS NOT ARRIVING --------------------------------
+ *
+ * A voyage's first leg goes through whichever map the dock is on, and that hop used
+ * to wear the same card as a real arrival: the place's name in spaced capitals, a
+ * progress bar and a fact. Ash read it as a second journey he had not asked for.
+ *
+ * So this says nothing at all. No title, no kicker, no fact, no picture: a short
+ * fade, which is what a cut inside one continuous move should be. The name of the
+ * place he is actually going to still gets its card when he gets there. */
+export function passingCover(): CoverChoice {
+  return {
+    spec: { kind: 'fade', holdMs: 240, fact: false },
+    first: false,
+    title: '',
+  }
+}
+
 export function ceremonyCover(title: string): CoverChoice {
   return {
     spec: {

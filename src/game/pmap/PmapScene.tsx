@@ -56,7 +56,7 @@ import {
   type Berthing, type Helm, type HullState,
 } from '../world/sail'
 import { cover, transitionBusy } from '../../app/transitions'
-import { ceremonyCover, coverFor, markSeen, seenThisSession, titleOfMap } from '../stage/covers'
+import { ceremonyCover, coverFor, passingCover, markSeen, seenThisSession, titleOfMap } from '../stage/covers'
 import { setSceneDrawn, showPlaceCard } from '../stage/stage-bus'
 import { motionMs, prefersReducedMotion } from '../ui/motion'
 import { uiBand } from '../ui/frame'
@@ -1293,11 +1293,26 @@ export default function PmapScene() {
           }
           return look
         }
+        /* ---- ONLY A BODY IS ASKED WHETHER IT HAS A WALK ---------------------
+         *
+         * Every anchor is drivable, so this used to ask the network for walk art
+         * for the trophy wall, the chart table, the hearth and a computer desk, and
+         * printed an aborted request for each one on every single load. A thing with
+         * eight headings drawn for it is a body; a thing with one picture is
+         * furniture, and furniture has no gait to look for.
+         *
+         * The named table below is the exception it has always been, for a body
+         * whose art is filed under a different word from its anchor. */
+        const looksLikeABody = (sp: Sprite): boolean => {
+          const set = looksOf.get(sp)
+          const views = set?.[0]?.views
+          return !!views && Object.keys(views).length >= 4
+        }
         const needArt: [string, Sprite][] = []
         for (const [name, sp] of drivable) {
           const own = carried(sp)
-          if (own) gaitOf.set(sp, own)
-          else needArt.push([name, sp])
+          if (own) { gaitOf.set(sp, own); continue }
+          if (looksLikeABody(sp) || name in GAIT_ART) needArt.push([name, sp])
         }
         await Promise.all(
           needArt.map(([name, sp]) => loadGait(sp, GAIT_ART[name] ?? name)),
@@ -2238,8 +2253,11 @@ export default function PmapScene() {
         /* the controls go away for the whole transition. Walking during one means
          * arriving somewhere the player did not aim for. */
         releaseExit = holdWorld(`pmap:exit->${to.map}`)
-        /* the end of a year is an occasion rather than a destination, so it names its own cover */
-        const choice = occasion === 'ceremony' ? ceremonyCover(titleOfMap(to.map)) : coverFor(to.map)
+        /* the end of a year is an occasion rather than a destination, so it names its own
+         * cover, and a map he is only crossing on his way to the boat gets no card at all */
+        const choice = occasion === 'ceremony' ? ceremonyCover(titleOfMap(to.map))
+          : occasion === 'passing' ? passingCover()
+            : coverFor(to.map)
         engine.log('door_taken', {
           from: mapId, to: to.map, at: to.at ?? null,
           cover: choice.spec.kind, occasion: occasion ?? null,
@@ -4360,6 +4378,24 @@ export default function PmapScene() {
       let cardOwed = !sessionOver(loadSave())
       const arrivalCard = () => {
         if (!cardOwed) return
+        /* ---- NOT FOR A MAP HE IS ONLY CROSSING (Ash) --------------------------
+         *
+         * *"for some reason, it put a transition screen while sailing to the atc
+         * island."* The cover was half of it and this is the other half, and it
+         * survived the cover fix: a voyage out of the Maw passes through the hub to
+         * reach the water, and the hub raised its own arrival card, name and all,
+         * over a boy who was not arriving anywhere. Measured on the real sail: "The
+         * Hub. You land at the harbor. The school is inside the mountain." for three
+         * seconds, in the middle of a journey to ATC.
+         *
+         * THE TEST IS WHETHER THIS MAP IS WHERE HE IS GOING. A journey still running
+         * with somewhere else at the end of it is a journey passing through here. */
+        const going = travelPlan()
+        if (going && going.to !== mapId) {
+          /* still owed, because arriving properly later should still name the place */
+          engine.log('card_held', { map: mapId, passingTo: going.to })
+          return
+        }
         cardOwed = false
         /* read BEFORE the mark, because the mark is what makes it true */
         const beenHere = seenThisSession(mapId)
@@ -4766,12 +4802,18 @@ const CAST_OFF_SHOW_MS = 3200
           if (v.leg === 'to-dock') {
             const door = doorToWater()
             if (!door) { endTravel('there is no way down to the water from here'); setCinema(false); return }
-            guideTarget = door
-            await new Promise<void>((r) => {
-              const { goal, reach } = walkGoal(door)
-              startWalk(goal, reach, goal.facing ?? null, r, door.name)
-            })
-            guideTarget = null
+            /* ---- HE IS PUT AT THE DOOR, NOT WALKED TO IT (Ash) ------------
+             *
+             * *"it makes him walk. When he clicks go, he gets teleported to the hub
+             * islands dock."* Both halves of that were happening at once and they
+             * read as one muddle: the leg drove his legs across the Maw to the
+             * tunnel, and THEN the door cut him to the hub.
+             *
+             * The walk is the part that is wrong. He pressed a button on a sheet
+             * saying take me to another island; what happens next is a journey, and
+             * a journey does not begin with the game steering him across a room he
+             * has already seen. The arrow and the walk stay for a student who opens
+             * a door himself, which is the other road into `beginExit`. */
             if (skipToShore()) return
             /* ---- THE WAY OUT MAY BE THE DESTINATION ------------------------
              *
@@ -4793,7 +4835,11 @@ const CAST_OFF_SHOW_MS = 3200
               return
             }
             setTravelLeg('crossing')
-            beginExit({ map: door.to!, at: door.toAnchor })
+            /* PASSING THROUGH, so no arrival card for a place he is crossing. Two
+             * loading screens in one press is what made his sail read as two
+             * journeys: "E N T E R I N G   T H E   H U B" and then the island he
+             * actually asked for. */
+            beginExit({ map: door.to!, at: door.toAnchor }, 'passing')
             return
           }
 

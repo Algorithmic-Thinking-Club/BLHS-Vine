@@ -216,8 +216,20 @@ export const offsetFault = (o: unknown): string | null => {
 }
 
 /* the occasions a door may declare, which the cover registry turns into a picture */
-export type CoverOccasion = 'ceremony'
-export const COVER_OCCASIONS: CoverOccasion[] = ['ceremony']
+/* ---- WHAT A COVER IS FOR, WHICH IS NOT THE SAME AS WHAT IT LOOKS LIKE -------
+ *
+ * `ceremony` is the graduation: a held title over the islands.
+ *
+ * `passing` is new, and it is the one Ash's sail exposed: the first leg of a
+ * voyage takes him through the map his dock is on, and that hop wore the full
+ * arrival treatment. He got "E N T E R I N G   T H E   H U B", a progress bar and
+ * a fact about the school, for a place he was crossing on his way to the boat, and
+ * then a second one for where he was actually going. His words: *"for some reason,
+ * it put a transition screen while sailing to the atc island. no clue why as arent
+ * they all on the same ocean map?"* Two loading cards in one press is what made a
+ * journey read as two journeys. A pass-through gets a plain fade and says nothing. */
+export type CoverOccasion = 'ceremony' | 'passing'
+export const COVER_OCCASIONS: CoverOccasion[] = ['ceremony', 'passing']
 
 /** the shots the engine composes itself, off the painting and the window */
 export type ViewShot = 'island' | 'walk' | 'close' | 'ship' | 'sail'
