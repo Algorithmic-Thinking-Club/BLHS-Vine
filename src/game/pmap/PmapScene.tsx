@@ -130,6 +130,16 @@ interface PmapJson {
 
 /* how far the player and the occluders lift above the placements so he is never hidden */
 const OVER_PLACED = 1e4
+/* WHERE A PLACEMENT SITS IN THE DRAW ORDER: where it stands, plus the author's nudge. MAPVIS
+ * writes `z` when somebody presses move-forward or move-back on a placement, and it writes a
+ * nudge rather than shifting the thing down the map, because a lamp drawn over a puddle must not
+ * also stand two feet south of where it belongs. Absent on every placement nobody reordered and
+ * on every bundle published before it existed, and absent means the plain y-sort this map has
+ * always been drawn with. */
+const depthOf = (a: { y: number; z?: unknown }) => {
+  const z = Number((a as { z?: unknown }).z)
+  return a.y + (Number.isFinite(z) ? z : 0)
+}
 
 const DIRS8 = ['south', 'north', 'east', 'west', 'south-east', 'north-east', 'north-west', 'south-west']
 const A_MIN = 40 // the repo-wide alpha threshold (BeachIso, objmap/measure.ts)
@@ -508,6 +518,12 @@ export default function PmapScene() {
         }
         return { x, y }
       }
+      /* HOW FAR A PLACEMENT'S DEPTH SITS OFF WHERE IT STANDS. The nudge belongs to the
+       * placement and lives for the scene, while the y a moving thing sorts on changes every
+       * frame, so it is held against the sprite rather than added at each of the three places a
+       * depth is written. Empty for every placement nobody reordered. */
+      const depthBias = new Map<Sprite, number>()
+      const biased = (sp: Sprite, y: number) => y + (depthBias.get(sp) ?? 0)
       const looksOf = new Map<Sprite, Look[]>()
       /* what each face is called, indexed the way art indexes them, with slot 0 the placement's own */
       const lookNamesOf = new Map<Sprite, string[]>()
@@ -1076,8 +1092,15 @@ export default function PmapScene() {
               const asy = Number(a.scaleY) > 0 ? Number(a.scaleY) : a.scale
               sp.scale.set(asx * (a.flipX ? -1 : 1), asy * (a.flipY ? -1 : 1))
               sp.rotation = Number(a.rot) || 0
-              sp.zIndex = a.y
+              /* DEPTH IS WHERE IT STANDS, PLUS WHATEVER THE AUTHOR SAID. MAPVIS has a move-forward
+               * and a move-back on a placement now, and it writes a nudge rather than shifting the
+               * thing down the map, so a lamp can be drawn over a puddle without standing two feet
+               * south of where it belongs. Absent on every placement nobody reordered, and absent
+               * from every bundle published before it existed, so this is the plain y-sort until an
+               * author asks for something else. */
+              sp.zIndex = depthOf(a)
               world.addChild(sp)
+              if (depthOf(a) !== a.y) depthBias.set(sp, depthOf(a) - a.y)
               /* addressable by its MAPVIS id and by the name its author typed */
               placedById.set(a.id, sp)
               if (a.name) placedById.set(a.name, sp)
@@ -1105,7 +1128,7 @@ export default function PmapScene() {
               if (frames.length > 1 && !lf) animAssets.push({ sp, frames, fps: look0.fps, t: Math.random() * frames.length })
               if (lf) {
                 // airborne things fly OVER the map rather than sorting into it
-                if (lf.airborne) sp.zIndex = 99000 + (a.y | 0)
+                if (lf.airborne) sp.zIndex = 99000 + (depthOf(a) | 0)
                 // its frames run on their own clock, started off-beat for the
                 // reason the animated assets above are: two of one figure
                 // stepping in time read as one thing rather than two people
@@ -5701,7 +5724,7 @@ const CAST_OFF_SHOW_MS = 3200
               const face = at.flip !== q.flipX
               q.sp.scale.x = q.baseSX * (face ? -1 : 1)
             }
-            if (!q.life.airborne) q.sp.zIndex = q.home.y + at.dy
+            if (!q.life.airborne) q.sp.zIndex = biased(q.sp, q.home.y + at.dy)
           }
         }
 
@@ -5751,7 +5774,7 @@ const CAST_OFF_SHOW_MS = 3200
           }
           sp.position.set(d.x, d.y)
           sp.visible = d.visible
-          sp.zIndex = d.y
+          sp.zIndex = biased(sp, d.y)
           if (d.look !== null || d.facing !== null) {
             const set = looksOf.get(sp)
             /* the walk wins while he is walking, and hands straight back the
