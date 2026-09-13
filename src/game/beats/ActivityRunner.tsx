@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { cinemaOn } from '../stage/cinema'
 import type { CheckStep } from '../../vine/contract'
 import { checksOf, playableSteps, pointsOf, type BeatStep, type BeatWorld, type CoreBeat } from './frames'
@@ -524,7 +524,6 @@ function ProgramPlay({ check, render, last, onDone, onTouch }: {
   onTouch: () => void
 }) {
   const [picks, setPicks] = useState<Response>({})
-  const [held, setHeld] = useState<string | null>(null)
   const [revealed, setRevealed] = useState(false)
   /* how far along the walk the body has got, or -1 for nothing running */
   const [at, setAt] = useState(-1)
@@ -537,21 +536,56 @@ function ProgramPlay({ check, render, last, onDone, onTouch }: {
 
   const board = check.board
   const written = render.fields.map((f) => picks[f.id] ?? '')
-  const walk = board ? walkOf(board, written) : null
+  /* HELD ACROSS RENDERS, and this is the whole reason the walker never walked.
+   * `walkOf` returns a fresh object every call, the step timer below listed it as a
+   * thing it watches, and pressing RUN speaks a line, so the dialogue box's typing
+   * re-rendered this screen every few frames. Each of those renders threw the 420ms
+   * timer away and started a new one, which is a timer that can never finish. The
+   * body sat on the start square, "It reached the flag." never came up, and the
+   * screen read as broken. Keyed on the ANSWER, so it is one object until somebody
+   * changes a step. */
+  const walk = useMemo(
+    () => (board ? walkOf(board, written) : null),
+    [board, written.join('|')],
+  )
 
   /* one cell at a time, so a student watches their own program happen instead of
-   * being handed the answer it arrived at */
+   * being handed the answer it arrived at. It watches the LENGTH and not the walk,
+   * as a second fence around the same mistake. */
+  const paces = walk ? walk.path.length : 0
   useEffect(() => {
-    if (at < 0 || !walk || at >= walk.path.length - 1) return
+    if (at < 0 || at >= paces - 1) return
     const t = setTimeout(() => setAt((n) => n + 1), 420)
     return () => clearTimeout(t)
-  }, [at, walk])
+  }, [at, paces])
 
-  const put = (slotId: string) => {
-    if (!held || revealed) return
+  /* ---- ONE RULE, SO NO CLICK CAN SCRAMBLE THE ANSWER --------------------
+   *
+   * An instruction goes into the next empty step. A step that has one gives it back.
+   * That is the whole of it.
+   *
+   * The version Ash played understood only "pick the instruction, then pick the step",
+   * and clicking the step first put every answer one late and left him on a zero with
+   * five right answers on the screen. Trying to support both orders is worse than
+   * either: with wells that can be aimed at, "instruction then step" fills a step and
+   * the next click empties it again, and there is no way to tell which of the two a
+   * person meant. So the wells stop being targets. A stray click on an empty step now
+   * does nothing at all instead of moving somebody's answer.
+   *
+   * Dragging still works, because a row of cards over a row of wells is a thing people
+   * drag, and a drag says exactly which step was meant.
+   */
+  const fill = (slotId: string, move: string) => {
     onTouch()
-    setPicks((p) => ({ ...p, [slotId]: held }))
-    setHeld(null)
+    setPicks((p) => ({ ...p, [slotId]: move }))
+  }
+
+  /* an instruction: into the next step with nothing in it */
+  const take = (move: string) => {
+    if (revealed) return
+    const next = render.fields.find((f) => !picks[f.id])
+    if (!next) return
+    fill(next.id, move)
   }
 
   const clear = (slotId: string) => {
@@ -609,22 +643,36 @@ function ProgramPlay({ check, render, last, onDone, onTouch }: {
           const chosen = picks[f.id]
           const text = moves.find((m) => m.value === chosen)?.text
           const right = revealed && fieldRight(check, f, picks)
+          /* THE NEXT EMPTY STEP IS LIT, so there is never a question about where the
+           * instruction you press is going to land */
+          const nextEmpty = render.fields.find((q) => !picks[q.id])
           const wellClass = 'bt-slotwell'
             + (chosen ? ' bt-slotwell-full' : '')
             + (revealed ? (right ? ' bt-slotwell-true' : ' bt-slotwell-miss') : '')
-            + (held && !chosen ? ' bt-slotwell-lit' : '')
+            + (!revealed && !chosen && nextEmpty?.id === f.id ? ' bt-slotwell-lit' : '')
           return (
             <div className="bt-slot" key={f.id}>
-              <span className="bt-slotnum">{i + 1}</span>
-              <span className="bt-slotname">{f.label}</span>
+              <span className="bt-slothead">
+                <span className="bt-slotnum">{i + 1}</span>
+                <span className="bt-slotname">{f.label}</span>
+              </span>
               <button
                 type="button"
                 className={wellClass}
                 disabled={revealed}
                 aria-label={chosen
                   ? 'Step ' + (i + 1) + ', ' + text + '. Press to take it out.'
-                  : 'Step ' + (i + 1) + ', empty'}
-                onClick={() => (chosen ? clear(f.id) : put(f.id))}
+                  : 'Step ' + (i + 1) + ', empty. Press an instruction below to fill it.'}
+                onClick={() => { if (chosen) clear(f.id) }}
+                /* and dragging works too, because a row of cards over a row of wells
+                 * is a thing people drag */
+                onDragOver={(e) => { if (!revealed && !chosen) e.preventDefault() }}
+                onDrop={(e) => {
+                  if (revealed || chosen) return
+                  e.preventDefault()
+                  const move = e.dataTransfer.getData('text/plain')
+                  if (move) fill(f.id, move)
+                }}
               >
                 {text ?? <span className="bt-slotempty">empty</span>}
               </button>
@@ -641,15 +689,26 @@ function ProgramPlay({ check, render, last, onDone, onTouch }: {
         })}
       </div>
 
+      {/* THE RULE, ON THE SCREEN. A puzzle whose controls have to be guessed at
+          measures guessing. One sentence, and it changes to say what to do next. */}
+      {!revealed && (
+        <p className="bt-how">
+          {filled
+            ? 'Press a step to take that instruction back out, or press RUN.'
+            : 'Press the instructions in the order you want them. Each one goes into the lit step.'}
+        </p>
+      )}
+
       <div className="bt-cards" aria-label="Instructions">
         {moves.map((m) => (
           <button
             type="button"
             key={m.value}
-            className={'bt-card' + (held === m.value ? ' bt-card-held' : '')}
-            aria-pressed={held === m.value}
-            disabled={revealed}
-            onClick={() => { onTouch(); setHeld((h) => (h === m.value ? null : m.value)) }}
+            className="bt-card"
+            disabled={revealed || filled}
+            draggable={!revealed}
+            onDragStart={(e) => { onTouch(); e.dataTransfer.setData('text/plain', m.value) }}
+            onClick={() => take(m.value)}
           >
             {m.text}
           </button>

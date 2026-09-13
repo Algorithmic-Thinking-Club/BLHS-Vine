@@ -741,6 +741,51 @@ html[data-skin='plain'] .bt-answer { border-radius: 0; }
 .bt-crt > * { flex: none; }
 .bt-crt > :first-child { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 
+/* ---- THE THING YOU PRESS TO FINISH IS ALWAYS ON THE GLASS ----------------
+ *
+ * Ash, after playing the ATC machine: "the quiz is unplayable and broken". Measured
+ * on the shipped screen at a Chromebook's 768: the card holds 755px of content in a
+ * 600px tube, so RUN was drawn 96px BELOW the bottom edge of the glass. A click there
+ * does not miss the button, it lands on the wash behind the whole card, and nothing
+ * anywhere said to scroll. Two things were wrong and both are fixed here.
+ *
+ * FIRST, the rule above hands the room to whatever child comes first, and the thing
+ * that comes first while items are up is the head, which on this screen has NOTHING
+ * in it and measured zero pixels tall. So the scroll went to an empty strip and the
+ * item overflowed a box with `overflow: hidden` on it: clipped, with no scrollbar and
+ * no way down. The body that scrolls is the ITEM.
+ *
+ * SECOND, and this is the one a long item cannot undo: the row you press to commit
+ * sticks to the bottom of whatever is scrolling. However tall the board, the steps
+ * and the instructions get, the button is on the glass.
+ */
+.bt-crt > .bt-head, .bt-stage > .bt-head { flex: none; }
+.bt-crt > .bt-check, .bt-stage > .bt-check,
+.bt-crt > .bt-plainform, .bt-stage > .bt-plainform {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+}
+.bt-stage > * { flex: none; }
+
+.bt-check > .bt-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  padding-top: 10px;
+}
+/* it needs something behind it, or the rows above slide under the plank and read as
+   a rendering fault. Each frame gets its OWN floor: the monitor is `bt-crt bt-stage`
+   at once, so a paper wash written for the carved panel painted a cream band right
+   across the middle of a green tube. */
+.bt-crt .bt-check > .bt-foot {
+  background: linear-gradient(180deg, rgba(26, 37, 23, 0), #1a2517 14px);
+}
+.bt-stage:not(.bt-crt) .bt-check > .bt-foot {
+  background: linear-gradient(180deg, rgba(238, 227, 200, 0), var(--kit-paper-wash) 14px);
+  backdrop-filter: blur(3px);
+}
+/* the program reads down the middle, so the button it ends on does too */
+.bt-program > .bt-foot { justify-content: center; }
+
 /* the scanlines, which are the one thing that says CRT rather than flat panel.
    Two pixels on, two off, at four percent: enough to read as a tube and not
    enough to fight the text on top of it. */
@@ -811,7 +856,9 @@ html[data-rm='1'] .bt-crt { animation-duration: 1ms; }
    and the slots are only how they answer, so it gets the room. */
 .bt-cell {
   position: relative;
-  width: 54px; height: 54px;
+  /* it keeps its 54 wherever there is room for it, and gives pixels back on a
+     Chromebook rather than pushing the answer off the bottom of the glass */
+  width: min(54px, 6.2vh); height: min(54px, 6.2vh);
   border-radius: 3px;
   background: rgba(160, 220, 200, .07);
   box-shadow: inset 0 0 0 1px rgba(140, 200, 180, .10);
@@ -853,10 +900,20 @@ html[data-rm='1'] .bt-crt { animation-duration: 1ms; }
 
 /* the answer is a column of rows under the board rather than a band across a very
    wide panel: five rows stretched to 1100px read as a form and not as a program */
-.bt-slots { display: flex; flex-direction: column; gap: 6px; align-self: center; width: min(560px, 100%); }
-.bt-program .bt-cards { align-self: center; width: min(560px, 100%); }
+/* FIVE STEPS ACROSS, BECAUSE THAT IS WHAT A PROGRAM LOOKS LIKE, and because five
+   stacked rows cost 194px of a 600px tube for five words. Across, they cost 62 and
+   they read in the order they run. Wraps on a narrow window rather than squeezing. */
+.bt-slots {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  align-self: center; width: min(620px, 100%);
+}
+.bt-program .bt-cards { align-self: center; width: min(620px, 100%); justify-content: center; }
 .bt-program .bt-prompt { text-align: center; }
-.bt-slot { display: flex; align-items: center; gap: 10px; }
+.bt-slot {
+  flex: 1 1 108px;
+  min-width: 0;
+  display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+}
 .bt-slotnum {
   flex: 0 0 auto;
   width: 22px; height: 22px; border-radius: 50%;
@@ -865,9 +922,13 @@ html[data-rm='1'] .bt-crt { animation-duration: 1ms; }
   color: #bfe8d8;
   --kit-fs-raw: calc(12px * var(--kit-text-scale)); font-size: var(--kit-fs);
 }
+/* the number and the name share one line above the well now. The name stays drawn
+   rather than dropped: the two arms are the same item and one of them reads it. */
+.bt-slothead { display: flex; align-items: center; gap: 6px; }
 .bt-slotname {
-  flex: 0 0 7.5em;
-  --kit-fs-raw: calc(13px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  --kit-fs-raw: calc(12px * var(--kit-text-scale)); font-size: var(--kit-fs);
+  color: #a9d3a0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 /* ---- DRAWN ON GLASS, NOT ON A WEB PAGE -----------------------------------
  *
@@ -880,8 +941,8 @@ html[data-rm='1'] .bt-crt { animation-duration: 1ms; }
 .bt-slotwell {
   flex: 1 1 auto;
   min-height: 34px;
-  padding: 6px 12px;
-  text-align: left;
+  padding: 6px 10px;
+  text-align: center;
   border-radius: 0;
   border: 2px solid rgba(144, 245, 142, .34);
   background: rgba(0, 0, 0, .26);
@@ -891,7 +952,12 @@ html[data-rm='1'] .bt-crt { animation-duration: 1ms; }
   cursor: pointer;
 }
 .bt-slotwell-full { background: rgba(144, 245, 142, .14); }
-.bt-slotwell-lit { border-color: #90f58e; box-shadow: 0 0 0 2px rgba(144, 245, 142, .3); }
+/* THE STEP THE NEXT INSTRUCTION WILL LAND IN, lit brightly enough that nobody has to
+   wonder. This is the whole answer to "I clicked the right answers and got a zero". */
+.bt-slotwell-lit {
+  border-color: #90f58e;
+  box-shadow: 0 0 0 2px rgba(144, 245, 142, .45), inset 0 0 18px rgba(144, 245, 142, .14);
+}
 .bt-slotwell-true { border-color: #90f58e; background: rgba(144, 245, 142, .22); }
 .bt-slotwell-miss { border-color: #e0a07f; background: rgba(224, 160, 127, .18); }
 .bt-slotwell:disabled { cursor: default; }
@@ -899,6 +965,16 @@ html[data-rm='1'] .bt-crt { animation-duration: 1ms; }
 .bt-program .bt-truth { color: #90f58e; display: inline-flex; align-items: center; gap: 4px; }
 
 /* ---- the instruction palette, which never empties ------------------------- */
+
+/* the one sentence saying how the puzzle is played, because a rule somebody has to
+   guess is a rule that measures guessing rather than reasoning */
+.bt-how {
+  margin: -4px 0 0;
+  --kit-fs-raw: calc(13px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: #93c98a;
+  opacity: .9;
+}
 
 .bt-cards { display: flex; flex-wrap: wrap; gap: 8px; }
 .bt-card {
