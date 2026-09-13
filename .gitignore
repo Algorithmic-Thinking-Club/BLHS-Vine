@@ -121,6 +121,9 @@ scripts/*
 !scripts/surfaces.mjs
 !scripts/road-shots.mjs
 !scripts/travel-proof.mjs
+# the first real island: the one that walks it, and the one that sails to it
+!scripts/atc-island-proof.mjs
+!scripts/atc-voyage-proof.mjs
 
 # Internal asset registries (kept local)
 **/*-registry.md
