@@ -54,7 +54,13 @@ for (const way of WAYS) {
     dir: `reference/_archive/build-shots/quiz/${way.key.replace(/\W+/g, '-')}`,
   })
   const { page, look, shot, finish } = h
-  await page.waitForTimeout(SETTLE)
+  /* WAIT FOR THE SCENE, NOT FOR A CLOCK. `window.__station` only exists once a map
+   * has mounted, and the deploy's first frame is slower than the dev server's by
+   * however long a cold lambda takes. A fixed sleep is a race with that. */
+  await page.waitForFunction(() => {
+    try { return !!window.__pmap && window.__pmap.island && window.__pmap.island.started } catch { return false }
+  }, null, { timeout: 90000 })
+  await page.waitForTimeout(900)
   await page.evaluate(() => window.__station('host'))
 
   /* through the president's lines to the screen */
