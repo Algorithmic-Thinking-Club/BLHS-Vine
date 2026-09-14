@@ -53,6 +53,10 @@ export class Walker {
   x = 0
   y = 0
   facing = 'south'
+  /* the last fifth of a second of travel, which is what the drawn heading is read
+   * off rather than the current frame's keys */
+  private trail: { t: number; x: number; y: number }[] = []
+  private clock = 0
   animT = 0
   blocked = false
   /* the hop, which changes how he is drawn and never where he stands */
@@ -113,11 +117,40 @@ export class Walker {
       doc.markHit(nx, ny)
       this.blocked = true
     }
-    this.facing = dirFrom(dx, dy * cfg.yScale)
+    /* ---- THE HEADING HE IS DRAWN ON IS THE WAY HE HAS ACTUALLY GONE ------
+     *
+     * ASH: *"the thor auto walk is glitchy, he does erratic turns while walking. it
+     * doesnt hurt performance, just looks jarring."*
+     *
+     * This read the heading off THIS FRAME'S input and quantised it into eight
+     * octants with nothing to stop it flipping. A body can only travel in those
+     * eight, but a route leg points wherever it likes, so an auto-walk bang-bangs
+     * across a boundary: a few frames diagonal, he gains the x he needed, the
+     * bearing steepens past 67.5 degrees, he goes cardinal, x stops advancing, the
+     * bearing shallows back, and he goes diagonal again. Four or five frames a
+     * cycle, and every cycle is a visible forty-five degree turn of the sprite.
+     *
+     * Where he is actually GOING is where he has actually BEEN, over long enough
+     * for the wobble to cancel. A fifth of a second of travel, and only when he has
+     * really covered ground, so a body nudging along a wall keeps the heading it had
+     * rather than spinning. The feet are untouched: this changes the picture only. */
+    this.trail.push({ t: this.clock, x: this.x, y: this.y })
+    this.clock += dt
+    while (this.trail.length > 1 && this.clock - this.trail[0].t > FACING_WINDOW_S) this.trail.shift()
+    const was = this.trail[0]
+    const tx = this.x - was.x, ty = (this.y - was.y) * cfg.yScale
+    if (Math.hypot(tx, ty) > FACING_MIN_PX) this.facing = dirFrom(tx, ty)
+    else if (!this.facing) this.facing = dirFrom(dx, dy * cfg.yScale)
     this.animT += dt * 9
     return this.blocked
   }
 }
+
+/* how much travel the drawn heading is averaged over, and the least he has to cover
+ * in it before it is allowed to change. Short enough that a real turn reads as
+ * immediate, long enough that an octant boundary cannot make him shimmer. */
+const FACING_WINDOW_S = 0.2
+const FACING_MIN_PX = 1.2
 
 export function dirFrom(dx: number, dy: number) {
   const a = (Math.atan2(dy, dx) * 180) / Math.PI
