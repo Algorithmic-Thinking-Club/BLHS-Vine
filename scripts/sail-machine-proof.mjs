@@ -56,6 +56,10 @@ const open = async (dir) => {
 
 /* the year sheet's own button, which is one of the three doors into a voyage */
 const pressGo = async (h) => {
+  /* THE DEPLOY IS SLOWER THAN THE DEV SERVER TO DRAW ITS FIRST FRAME, and
+   * `window.__intent` only exists once a scene has mounted. A fixed sleep is a race
+   * with a cold lambda: waiting for the thing itself is not. */
+  await h.page.waitForFunction(() => typeof window.__intent === 'function', null, { timeout: 60000 })
   await h.page.evaluate(() => window.__intent({ kind: 'open', ui: 'planner' }))
   await h.until((s) => s.press.some((e) => /Sail (to|there)/i.test(e.text)), { ms: 14000 })
   return h.pressText(/Sail (to|there)/i)
