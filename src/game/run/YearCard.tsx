@@ -38,12 +38,34 @@ function pickedRows(year: number): CardRow[] {
 }
 
 /* what he earned, off the one composer that knows: grades, badges, finished cords */
+/* ---- ONE THING, ONE ROW ---------------------------------------------------
+ *
+ * The yearbook keeps its record in sections with a heading each - what you were
+ * graded on, what badges went on the wall, what threads you finished - and each
+ * heading explains what its rows are. This card puts three of those sections under
+ * ONE heading, "What you earned", and that is where it stopped adding up: a class
+ * appears as a grade AND as the badge that grade earned, so year one printed seven
+ * rows for four things and a student's own transcript listed Spanish twice.
+ *
+ * A badge for something already on the paper is the same achievement said again, so
+ * the paper keeps it and the badge is dropped. A badge for something NOT on the
+ * paper - a club's sticker, a thing with no grade - is its own row and stays. */
 function earnedRows(page: YearbookPage): CardRow[] {
   const of = (id: string) => page.sections.find((sec) => sec.id === id)?.rows ?? []
+  const said = new Set<string>()
+  const once = (title: string) => {
+    const k = title.trim().toLowerCase()
+    if (said.has(k)) return false
+    said.add(k)
+    return true
+  }
   return [
-    ...of('paper').map((r) => ({ key: `p:${r.key}`, title: r.title, meta: r.meta, done: true })),
-    ...of('marks').map((r) => ({ key: `m:${r.key}`, title: r.title, meta: r.meta, done: true })),
-    ...of('threads').filter((r) => r.done).map((r) => ({ key: `t:${r.key}`, title: r.title, done: true })),
+    ...of('paper').filter((r) => once(r.title))
+      .map((r) => ({ key: `p:${r.key}`, title: r.title, meta: r.meta, done: true })),
+    ...of('marks').filter((r) => once(r.title))
+      .map((r) => ({ key: `m:${r.key}`, title: r.title, meta: r.meta, done: true })),
+    ...of('threads').filter((r) => r.done && once(r.title))
+      .map((r) => ({ key: `t:${r.key}`, title: r.title, done: true })),
   ]
 }
 
