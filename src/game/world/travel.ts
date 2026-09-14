@@ -66,6 +66,7 @@ export const voyage = (): VoyagePlan | null => plan
 export function beginVoyage(p: VoyagePlan) {
   plan = p
   skipped = false
+  calledOff = false
   console.log(`[travel] ${p.from} -> ${p.to}, leg ${p.leg}${p.home ? ', going home' : ''}`)
   tell()
 }
@@ -85,17 +86,32 @@ export function setLeg(leg: VoyageLeg) {
  * taken to is a dock like any other: E opens the chart, and picking an island on it
  * arms the whole thing again. Separate from `endVoyage` so a listener can tell the
  * difference between a journey that finished and one he called off. */
+/* ---- CALLED OFF IS NOT THE SAME AS FINISHED ------------------------------
+ *
+ * Both end with the plan going null, and a listener that cannot tell them apart does
+ * the wrong thing on one of them. The scene's own listener lowers the bars and hands
+ * the objective line back to the year, which is right for a journey somebody stopped
+ * and wrong for one that arrived: the island he has just landed on set its own first
+ * sentence while the ship was still on the water, and clearing it left a student
+ * reading "Go into the mountain" on an island with no mountain. */
+let calledOff = false
+
+/** was the last plan dropped by the student rather than finished */
+export const voyageCalledOff = (): boolean => calledOff
+
 export function cancelVoyage() {
   if (!plan) return
   console.log(`[travel] ${plan.from} -> ${plan.to} called off before sailing`)
   plan = null
   skipped = false
+  calledOff = true
   tell()
 }
 
 /** the voyage is over, or has been abandoned */
 export function endVoyage(why = 'arrived') {
   if (!plan) return
+  calledOff = false
   console.log(`[travel] ${plan.from} -> ${plan.to} ended: ${why}`)
   plan = null
   skipped = false

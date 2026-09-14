@@ -38,7 +38,7 @@ import {
 /* the voyage, held outside the scene so it survives the doors it goes through */
 import {
   beginVoyage as beginTravel, endVoyage as endTravel, setLeg as setTravelLeg,
-  voyage as travelPlan, voyageSkipped, onVoyage as onTravel, LEG_CEILING_MS,
+  voyage as travelPlan, voyageSkipped, voyageCalledOff, onVoyage as onTravel, LEG_CEILING_MS,
 } from '../world/travel'
 import { stateOf, STATE_INK } from '../world/states'
 import { onHeadBack } from '../world/home-bus'
@@ -1454,25 +1454,57 @@ export default function PmapScene() {
          * Each is now stamped, measured and judged on its own. A figure that walls
          * off an anchor or eats a chunk of the island comes back out; the other seven
          * stay in the floor where they belong. */
-        const measure = (mine?: { x: number; y: number; r: number }): { lost: number; cutOff: Anchor[] } => {
+        const measure = (): { lost: number; cutOff: Anchor[] } => {
           const after = reach(start)
           return {
             lost: before.n ? 1 - after.n / before.n : 0,
             cutOff: anchors.all.filter((a) => {
               if (a.kind === 'region' || a.kind === 'trigger') return false
               const p = anchors.standAt(a)
-              /* ---- AN ANCHOR ON THIS VERY THING IS NOT CUT OFF BY IT ---------
+              /* ---- A DOOR IS WALKED INTO, A THING IS STOOD BESIDE ------------
                *
-               * The trophies carry their own anchor and its standing spot is on the
-               * plinth, so the moment the plinth became solid this declared the
-               * trophies unreachable and took the whole stamp back out. That is why
-               * they were walk-through on every load: the rule that makes furniture
-               * solid was being vetoed by the furniture's own label.
+               * These are two different questions and one test was answering both.
                *
-               * Pressing a thing has never meant standing INSIDE it. `offerOf` offers
-               * the prompt when his feet are within the anchor's ring, which is what a
-               * person does: he walks up to the trophies and presses them. */
-              if (mine && Math.hypot(p.x - mine.x, (p.y - mine.y) / ys) <= mine.r + 2) return false
+               * A DOOR needs its own standing spot: he has to arrive AT it for it to
+               * open, and the hub has a placement sitting on the Maw's tunnel, so
+               * stamping that placement walled the entrance and he stopped a hundred
+               * and sixty five pixels short of it.
+               *
+               * A PLINTH does not. `offerOf` puts the prompt up when his feet are
+               * inside the anchor's ring, which is what pressing the trophies has
+               * always meant: you walk up to them, you do not stand on them. Asking a
+               * plinth for its own centre is how the trophies stayed walk-through for
+               * as long as they did.
+               *
+               * So a door keeps its spot and everything else keeps a way to reach it. */
+              if (a.kind !== 'door' && a.kind !== 'spawn') {
+                const reach = Math.max(a.r, 8) + HIP + BODY_MIN
+                let stillThere = false
+                for (let rr = 0; rr <= reach && !stillThere; rr += 4) {
+                  for (let k = 0; k < 16; k++) {
+                    const ang = (k / 16) * Math.PI * 2
+                    const qx = Math.round(p.x + Math.cos(ang) * rr)
+                    const qy = Math.round(p.y + Math.sin(ang) * rr * ys)
+                    if (qx < 0 || qy < 0 || qx >= W || qy >= H) continue
+                    if (after.seen[qy * W + qx] === 1) { stillThere = true; break }
+                  }
+                }
+                return !stillThere
+              }
+              /* ---- NO ANCHOR IS EXCUSED, AND NONE NEEDS TO BE -----------------
+               *
+               * An exclusion stood here for a thing's own anchor, on the argument that
+               * pressing the trophies never meant standing inside them. True, and it
+               * was still wrong: the Maw's tunnel on the hub has a placement sitting
+               * ON the door, so stamping that placement walled the door and this
+               * excused it. He walked out of the harbour, stopped a hundred and sixty
+               * five pixels short of the entrance, and the check said nothing.
+               *
+               * It is not needed. `stamp` already keeps a body's width clear around
+               * EVERY anchor's standing spot, its own included, so the spot a body
+               * uses is never stamped in the first place and this test can be asked
+               * honestly of everything. A door you can walk into and a plinth you can
+               * press are then the same rule instead of two. */
               const i = Math.round(p.y) * W + Math.round(p.x)
               if (i < 0 || i >= W * H) return false
               return before.seen[i] === 1 && after.seen[i] === 0
@@ -1495,12 +1527,12 @@ export default function PmapScene() {
          * truth than a desk made of air. Each figure is tried at its full width, then
          * at three quarters, then at half, and only a thing that shuts somebody out
          * even at half is left alone. */
-        const stamp = (s: { x: number; y: number; r: number }, scale: number): number[] => {
+        const stamp = (s: { x: number; y: number; r: number }, scale: number, pad = 0): number[] => {
           const undo: number[] = []
           /* the FEET, not the body: a figure occupies the ground it stands on and
            * not the air its head is in, which is the same distinction the ink
            * measurement already makes for the push pass */
-          const rx = Math.max(1, s.r * scale), ry = Math.max(1, s.r * scale * ys)
+          const rx = Math.max(1, s.r * scale + pad), ry = Math.max(1, (s.r * scale + pad) * ys)
           for (let y = Math.ceil(s.y - ry); y <= Math.floor(s.y + ry); y++) {
             for (let x = Math.ceil(s.x - rx); x <= Math.floor(s.x + rx); x++) {
               if (x < 0 || y < 0 || x >= W || y >= H) continue
@@ -1549,7 +1581,7 @@ export default function PmapScene() {
          * down: a warning nobody can act on is a warning nobody reads */
         const measureAfter = (s: { x: number; y: number; r: number }): string[] => {
           const undo = stamp(s, 1)
-          const m = measure(s)
+          const m = measure()
           putBack(undo)
           return m.cutOff.map((a2) => a2.name)
         }
@@ -1557,13 +1589,29 @@ export default function PmapScene() {
         for (const s of obstacles) {
           let done = false
           for (const scale of [1, 0.75, 0.5]) {
+            /* ---- TESTED AT A BODY'S WIDTH, STAMPED AT ITS OWN ----------------
+             *
+             * The reachability fill walks pixel to pixel, so it happily squeezes
+             * through a gap two pixels wide that a panther cannot. On the hub - a town
+             * square of stalls and crates with narrow lanes - that let twenty of
+             * twenty five placements be declared solid while every authored walk
+             * through the square quietly stopped working: the fill said the tunnel was
+             * still reachable and a body could no longer get to it.
+             *
+             * So the QUESTION is asked of a figure grown by a body's width, and only
+             * the answer is stamped at the figure's real size. If a hip-wide corridor
+             * survives the grown version, a real body can use it. */
+            const probe = stamp(s, scale, HIP + BODY_MIN)
+            const roomy = measure()
+            putBack(probe)
+            if (roomy.cutOff.length || roomy.lost > 0.25) continue
             const undo = stamp(s, scale)
             /* AND A FIGURE THAT STAMPED NOTHING IS NOT A FIGURE IN THE FLOOR. This
              * used to `continue` silently and then be counted in the "n of n put in
              * the floor" line, which is how a thing he can walk straight through was
              * reported solid on every load for as long as the feature has existed. */
             if (!undo.length) continue
-            const m = measure(s)
+            const m = measure()
             /* A QUARTER OF THE ISLAND IS A WALL, ONE FIGURE IS NOT. The old five
              * percent was a budget for the whole map spent by everything at once,
              * which on a small island with eight things on it is under one percent
@@ -3063,10 +3111,12 @@ export default function PmapScene() {
            * the frame is the ENGINE'S. `settleVoyageFrame` takes it down at the far
            * end, so a member's island never has to know it was ever up. */
           setCinema(true, 'voyage')
-          /* AND THE TASK LINE SAYS WHERE HE IS GOING. It reads off the year, which
-           * still believes he is in the Maw, so during the voyage it said "Go into
-           * the mountain" over a ship sailing away from it. */
-          engine.objective(`Sailing to ${titleOfMap(to)}.`)
+          /* THE TASK LINE SAYS WHERE HE IS GOING, and it is not written into the
+           * island's own slot to do it. `ObjectivePanel` reads the live travel plan
+           * and outranks everything while one is running, which is the honest shape:
+           * a journey is the engine's and the sentence is the engine's for as long as
+           * it lasts. Writing it here instead meant the arriving island's first line
+           * had to be cleared afterwards, and clearing it deleted the island's. */
           return runVoyageLeg()
         },
 
@@ -5116,8 +5166,16 @@ export default function PmapScene() {
       offTravel = onTravel((p) => {
         if (p || !cinemaOn() || cinemaBy() !== 'voyage') return
         setCinema(false)
-        engine.objective(null)
-        engine.log('voyage_called_off', { map: mapId })
+        /* ---- AND ONLY A JOURNEY HE STOPPED HANDS THE LINE BACK -------------
+         *
+         * A plan going null is either "he pressed Escape on the dock" or "he arrived",
+         * and this treated both the same. On an arrival the island he has just landed
+         * on has ALREADY set its own first sentence - its `start` runs while the ship
+         * is still on the water - so clearing the line here deleted it and left the
+         * year's talking instead: "Go into the mountain", read while standing on an
+         * island that has no mountain on it. */
+        if (voyageCalledOff()) engine.objective(null)
+        engine.log('voyage_ended', { map: mapId, calledOff: voyageCalledOff() })
       })
 
       offVoyage = onVoyageRequest(mapId, (want, answer) => {
@@ -5649,8 +5707,20 @@ const CAST_OFF_SHOW_MS = 3200
              *
              * Long enough to read the island, then the follow law has him again. */
             void intentWorld.view('island', ARRIVAL_LOOK_MS)
-            /* the year's own sentence comes back the moment he is standing on it */
-            engine.objective(null)
+            /* ---- AND THE ISLAND'S OWN SENTENCE IS NOT WIPED ------------------
+             *
+             * This said `objective(null)` to hand the line back to the year, and what
+             * it actually did was delete what the ISLAND had just said. The
+             * destination's `start` runs while the ship is still on the water, so by
+             * the time he steps onto the dock the island has already put up its own
+             * first instruction - on ATC, "Find the club president." - and this threw
+             * it away. What he read instead was the year's line, "Go into the
+             * mountain", standing on an island with no mountain on it.
+             *
+             * Nothing needs clearing here any more. The voyage's own sentence is not
+             * in this slot: `ObjectivePanel` draws "Sailing to X" off the live travel
+             * plan and stops the moment the plan ends, so what is left in the slot is
+             * whoever spoke last, which is the island. */
             /* COMING HOME ENDS AT THE TUNNEL, not on the dock. He walks up the quay
              * with the marks on the ground and goes in, which is the arrival he
              * already knows played backwards. */
