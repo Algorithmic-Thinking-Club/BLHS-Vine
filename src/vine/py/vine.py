@@ -719,6 +719,25 @@ def get(path):
                 [{"season","id","name"}], "graded": [{"title","grade","kind"}],
                 "gpa": a number or None}. The names are already masked, so an
                 island nobody has built prints as an Example here too.
+    rank        YOUR island, and you never name it: {"taken": how many EARLIER
+                years this student finished it, "years": which ones, "best": the
+                best grade they got or None, "rung": the ladder step}. A club can
+                be taken again in a later year and the second afternoon is meant
+                to be its own afternoon rather than a replay; this is how an
+                island tells which one it is in.
+
+    "rank" is about YOUR island and nobody has to name it: how many earlier years a
+    student has finished this programme, which years those were, the best grade they
+    got, and the rung of any ladder it keeps.
+
+        been = yield get("rank")
+        if been["taken"]:
+            yield say("Back again. Good.")
+        else:
+            yield say("You must be new.")
+
+    A club can be taken more than once, and the second time is meant to be a different
+    afternoon rather than the same one replayed. This is how an island tells.
     """
     return {"kind": "get", "path": path}
 

@@ -248,6 +248,17 @@ export type RunPath =
   | 'advisory'
   /* is this year's plan sheet stamped */
   | 'planned'
+  /* ---- HOW MANY TIMES THIS ISLAND HAS BEEN FINISHED BEFORE, AND HOW WELL ----
+   *
+   * ASH: *"we can do a club again over years? is it meant to play different stuff?"*
+   * Yes to the first and yes to the second, and until this existed an island had no
+   * way to tell. A club taken in year two replayed year one word for word, because
+   * the only thing a member could read about their own programme was a flag they had
+   * set themselves.
+   *
+   * Answered about the CALLING island, the way `flags` is: nobody has to name
+   * themselves to ask about themselves. `{ taken, years, best, rung }`. */
+  | 'rank'
 
 /* ---- what comes back ------------------------------------------------------ */
 
@@ -315,6 +326,9 @@ export interface IntentEngine {
    * is the same call it always was and the engine resolves the id from its table. */
   playBeat(beat: string, asPlain: boolean, decl?: BeatDeclaration): Promise<number | null>
   read(path: RunPath): unknown
+  /** what this programme has been finished at before: how many times, which years,
+   *  the best grade, and the rung of any ladder it keeps */
+  rankOf(programme: string | null): { taken: number; years: number[]; best: number | null; rung: number }
   setFlag(flag: string): void
   award(a: {
     programme?: string; grade?: number; tags?: string[]
@@ -589,6 +603,9 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
           return ok((engine.read('flags') as string[])
             .filter((f) => f.startsWith(mine)).map((f) => f.slice(mine.length)))
         }
+        /* the same rule `flags` keeps: a question about "me" is answered about the
+         * island that asked it, so an island never has to know its own id */
+        if (i.path === 'rank') return ok(engine.rankOf(by?.grape ?? null))
         return ok(engine.read(i.path))
       case 'set_flag':
         engine.setFlag(scoped(i.flag))

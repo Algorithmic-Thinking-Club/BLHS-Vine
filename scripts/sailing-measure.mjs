@@ -31,6 +31,11 @@ await until((s) => s.press.some((e) => /Sail (to|there)/i.test(e.text)), { ms: 1
 await h.pressText(/Sail (to|there)/i)
 await until((s) => s.map?.travel?.leg === 'boarding', { ms: 40000, every: 400 })
 await page.keyboard.press('e')
+/* THE BOARDING IS A BEAT NOW, so the hull does not exist on the frame after the press:
+ * the camera goes to the ship while he is still standing on the quay, and he steps in
+ * after it. A sampler that gave up before then measured a crossing that had not
+ * started and reported nothing at all. */
+await until((s) => s.map?.hull === true, { ms: 15000, every: 200 })
 
 /* every sample the sea reports, at 20Hz, for the whole crossing */
 const rows = []

@@ -29,7 +29,7 @@ import { currentSkin } from './ui/skin'
 const READABLE_PATHS: Record<RunPath, true> = {
   year: true, gpa: true, tokens: true, cords: true, flags: true, islands: true,
   handle: true, mode: true, graduated: true, cord_board: true, trophies: true,
-  phase: true, picks: true, advisory: true, planned: true,
+  phase: true, picks: true, advisory: true, planned: true, rank: true,
 }
 const READABLE = Object.keys(READABLE_PATHS).sort()
 
@@ -49,6 +49,28 @@ export const engine: IntentEngine = {
 
   playBeat(beat, plain, decl) {
     return requestBeat(beat, plain, decl)
+  },
+
+  /* ---- WHAT THIS ISLAND HAS BEEN FINISHED AT BEFORE ---------------------
+   *
+   * Ash: *"we can do a club again over years? is it meant to play different stuff?"*
+   * It is, and an island had no way to find out which time this was. Everything here
+   * is already in the save and none of it was reachable from Python.
+   *
+   * `taken` counts EARLIER completions only, so on the run that is being played it
+   * answers "how many times before this one". A first year gets 0 and can say hello;
+   * a second gets 1 and can say welcome back and mean it. */
+  rankOf(programme: string | null) {
+    const s = loadSave()
+    const rows = (s?.completions ?? []).filter((c) => c.programme === programme)
+    const years = [...new Set(rows.map((c) => c.year))].sort((a, b) => a - b)
+    const graded = rows.map((c) => c.grade).filter((g): g is number => typeof g === 'number')
+    return {
+      taken: years.length,
+      years,
+      best: graded.length ? Math.max(...graded) : null,
+      rung: programme ? (s?.ranks?.[programme] ?? 0) : 0,
+    }
   },
 
   /* the closed list of questions an island can ask about the run */
@@ -82,6 +104,9 @@ export const engine: IntentEngine = {
         ? coreBeatId(s.year)
         : null
       case 'flags': return s ? [...s.flags] : []
+      /* answered in `performIntent`, where the calling island is known. This is the
+       * floor for anything that asks without one. */
+      case 'rank': return { taken: 0, years: [], best: null, rung: 0 }
       /* whether this year's plan has been stamped */
       case 'planned': return !!(s && s.plans[s.year]?.stamped)
       case 'islands': return s ? { ...s.islands } : {}

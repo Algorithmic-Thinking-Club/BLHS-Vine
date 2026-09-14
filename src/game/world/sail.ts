@@ -473,6 +473,13 @@ export function berthHelm(
      * anything gentler she can take at cruise. */
     const stopIn = (s.speed * s.speed) / (2 * cfg.drag)
     const hardTurn = Math.abs(err) > Math.PI / 2 && d < stopIn + ALONGSIDE_PX * 2
+    /* SHE DOES NOT SLOW FOR THE RENDEZVOUS, and one measured attempt to make her is
+     * why this comment exists. Coming down to docking speed on the way IN to the mark
+     * reads as the right idea and is not: she arrives with no way on, and a hull with
+     * no way on cannot be turned onto the berth's line by a rudder, so the last of the
+     * turn happens standing still. Two of twelve bearings finished with a pirouette of
+     * 1.2 and 2.0 radians. The way off comes off on the RUN-IN, below, where the line
+     * is already picked up and there is nothing left to turn. */
     return { helm: easeHelm(err, hardTurn ? 0 : 1), next: watched(b) }
   }
 
