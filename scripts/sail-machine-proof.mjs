@@ -183,8 +183,15 @@ const watchCovers = (page, ms) => {
   const back = await until((s) => /chart/i.test(s.map?.prompt ?? ''), { ms: 10000, every: 300 })
   ok('the plaque on his ship goes back to opening the chart',
     /chart/i.test(back.map?.prompt ?? ''), JSON.stringify(back.map?.prompt))
-  await page.keyboard.press('e')
-  const chart = await until((s) => s.panels && s.panels !== '0', { ms: 8000, every: 300 })
+  /* PRESSED UNTIL IT LANDS. E is an edge, and the frame it is read on is the scene's
+   * own ticker, so a single press racing a scene that has just had its controls handed
+   * back is a coin toss. A person presses again; so does this. */
+  let chart = await h.look()
+  for (let i = 0; i < 10 && !(chart.panels && chart.panels !== '0'); i++) {
+    await page.keyboard.press('e')
+    await page.waitForTimeout(500)
+    chart = await h.look()
+  }
   await shot('02-the-chart')
   ok('E opens it', chart.panels && chart.panels !== '0', `panels=${chart.panels}`)
 
