@@ -15,6 +15,7 @@ function stubWorld(over: Partial<IntentWorld> = {}) {
     hasAnchor: (n) => n === 'chart_table',
     say: async (who, text) => { did.push(`say:${who ?? '-'}:${text}`) },
     choose: async (_p, o) => { did.push(`choose:${o.join('|')}`); return 1 },
+    knownMaps: () => [],
     guideTo: (a) => { did.push(`guideTo:${a}`) },
     highlight: (a, on) => { did.push(`highlight:${a}:${on}`) },
     endRun: async () => { did.push('endRun') },

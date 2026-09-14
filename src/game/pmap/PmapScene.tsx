@@ -2836,6 +2836,18 @@ export default function PmapScene() {
         say: (who, text, portrait) => say({ who: speakerLabel(who), text, portrait }),
         choose: (prompt, options) => choose({ prompt, options }),
 
+        /* every map this game can really open: the ones the world document names and
+         * the ones the doors on this map lead to. Read fresh, because the world can
+         * arrive after the scene does. */
+        knownMaps() {
+          const out = new Set<string>()
+          const c = comp
+          for (const q of c?.slots ?? []) if (q.map) out.add(q.map)
+          for (const d of doors) if (d.to) out.add(d.to)
+          out.add(mapId)
+          return [...out]
+        },
+
         guideTo(name) {
           guideTarget = name ? anchors.get(name) ?? null : null
           markQuiet = false

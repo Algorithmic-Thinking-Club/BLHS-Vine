@@ -281,6 +281,10 @@ export interface IntentWorld {
   hasAnchor(name: string): boolean
   say(who: string | undefined, text: string, portrait?: string): Promise<void>
   choose(prompt: string | undefined, options: string[]): Promise<number>
+  /** every map this game can actually open, so a mistyped destination is refused by
+   *  name instead of playing a loading screen onto nothing. Empty when the scene
+   *  cannot say, which leaves the old behaviour alone. */
+  knownMaps(): string[]
   guideTo(anchor: string | null): void
   /* the pool of light on its own, which `guide_to` has always raised as a side effect */
   highlight(anchor: string | null, on: boolean): void
@@ -390,8 +394,25 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
       case 'say':
         await w().say(i.who, i.text, i.portrait)
         return ok()
-      case 'choose':
+      case 'choose': {
+        /* ---- THE ARGUMENTS THE WRONG WAY ROUND ------------------------------
+         *
+         * `choose(options, prompt=...)` is the shape, and `choose("Want a go?",
+         * [YES, NO])` is what a hand types. Unchecked, the options reached the box as
+         * a STRING, the renderer mapped over it, and the whole game went blank - not
+         * the island, the game. A beginner's most likely mistake must be the thing
+         * this API is best at explaining, never the thing it dies on. */
+        if (!Array.isArray(i.options))
+          return no('choose wants a LIST of options first and the prompt after it: '
+            + 'choose(["Yes", "No"], prompt="Want a go?"). '
+            + `It was given ${typeof i.options === 'string' ? `the text "${i.options}"` : typeof i.options}.`)
+        if (!i.options.length) return no('choose was given an empty list, so there is nothing to press')
+        const bad = i.options.findIndex((o) => typeof o !== 'string' || !o.trim())
+        if (bad >= 0) return no(`choose option ${bad + 1} is not a line of text, so nothing can be drawn on it`)
+        if (i.prompt !== undefined && typeof i.prompt !== 'string')
+          return no('the prompt for choose is the sentence above the buttons, so it wants text')
         return ok(await w().choose(i.prompt, i.options))
+      }
       case 'guide_to':
         /* null is not a name, so it is not checked against the map. Same shape
          * as `look_at` below, and for the same reason: letting go is a thing an
@@ -437,6 +458,24 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
          * The fence is MAPVIS's own rule for a name, because that is what the Cover
          * tab will let somebody type: lower case, digits and underscores, starting
          * with a letter. A name that cannot exist is a typo and is said out loud. */
+        /* ---- A MAP NOBODY HAS IS A SENTENCE, NOT A TWELVE SECOND DEAD END ---
+         *
+         * `enter("hbu")` played a full loading cover and then arrived nowhere, with
+         * the run over where it stood and nothing on screen naming the member's own
+         * typo. Every other word that takes a name checks it; this one takes the most
+         * consequential name in the vocabulary and took it on trust.
+         *
+         * The list comes from the world the game really loaded plus the doors on this
+         * map, so it is the maps that exist rather than a table somebody maintains. A
+         * scene that cannot answer says nothing and the old behaviour stands. */
+        if (typeof i.map !== 'string' || !i.map.trim())
+          return no('enter wants the name of a map to go to')
+        {
+          const maps = w().knownMaps()
+          if (maps.length && !maps.includes(i.map.trim()))
+            return no(`there is no map called "${i.map}". `
+              + `This game has: ${[...maps].sort().join(', ')}`)
+        }
         if (i.cover !== undefined) {
           const c = typeof i.cover === 'string' ? i.cover.trim() : ''
           if (!c) return no('cover wants an occasion or the code name of a cover, not an empty string')
@@ -633,9 +672,27 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
       case 'set_flag':
         engine.setFlag(scoped(i.flag))
         return ok()
-      case 'award':
+      case 'award': {
+        /* ---- A GRADE IS OUT OF FOUR, AND SAYS SO ---------------------------
+         *
+         * `award(grade=87)` is what somebody who has marked out of a hundred writes,
+         * and it went straight onto the transcript: a GPA of 87, a letter nothing can
+         * print, and no sentence anywhere saying what happened. A grade is the one
+         * number in this API that is about a person, so it is the one worth being
+         * strict about. `None` is still "finished, not graded" and always was. */
+        if (i.grade !== undefined && i.grade !== null) {
+          if (typeof i.grade !== 'number' || !Number.isFinite(i.grade))
+            return no(`award's grade wants a number from 0 to 4, or None for "finished, not graded". `
+              + `It was given ${typeof i.grade}.`)
+          if (i.grade < 0 || i.grade > 4)
+            return no(`award's grade is out of FOUR, like a GPA, and it was given ${i.grade}. `
+              + 'If you marked out of a hundred, divide by twenty five.')
+        }
+        if (i.programme !== undefined && (typeof i.programme !== 'string' || !i.programme.trim()))
+          return no('the programme for award is the id of the thing being finished, so it wants a name')
         engine.award(i)
         return ok()
+      }
       case 'log':
         engine.log(i.event, i.data)
         return ok()

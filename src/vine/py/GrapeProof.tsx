@@ -18,6 +18,9 @@ const world: IntentWorld = {
   hasAnchor: () => false,
   say: (who, text, portrait) => say({ who, text, portrait }),
   choose: (prompt, options) => choose({ prompt, options }),
+  /* a harness with no world document names no maps, which is what an empty list is
+   * for: `enter` keeps the behaviour it had rather than refusing everything */
+  knownMaps: () => [],
   guideTo: noMap('guide_to'),
   highlight: noMap('highlight'),
   walkTo: noMap('walk_to'),
