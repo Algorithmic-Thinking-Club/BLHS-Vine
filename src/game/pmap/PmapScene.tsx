@@ -1372,12 +1372,40 @@ export default function PmapScene() {
       /* which standing placements anything can actually reach, asked once every mover is loaded */
       {
         const free = lifeAssets.filter((q) => !q.life.walkOnly)
-        for (const s of standing)
+        /* ---- NOTHING IS MADE SOLID ON A DOORWAY OR A SPAWN ------------------
+         *
+         * ASH: *"some weird walking bug in the maw near the entrance? thor gets stuck /
+         * i cant move him and have to walk round an invisible thing."*
+         *
+         * Measured: placement `a25` stands SEVEN pixels from the Maw's own arrival
+         * door, and the day figures started being stamped into the floor it became a
+         * wall across the entrance. A thing an author drew on a doorway is decoration
+         * over the doorway - a lamp, a banner, a bit of rubble - and the one place in a
+         * room a body absolutely must be able to occupy is the spot it arrives on.
+         *
+         * This is a rule the engine keeps rather than a thing each island remembers,
+         * which is the whole point: a member drawing a torch beside their own door must
+         * not be able to lock a student out of their island. */
+        const mouths = [
+          ...anchors.all.filter((a) => a.kind === 'door' || a.kind === 'spawn')
+            .map((a) => anchors.standAt(a)),
+          { x: map.spawn[0], y: map.spawn[1] },
+        ]
+        const onAMouth = (q: { x: number; y: number; r: number }) =>
+          mouths.some((m) => Math.hypot(m.x - q.x, (m.y - q.y) / (map.yScale || 1))
+            <= q.r + HIP + BODY_MIN)
+        for (const s of standing) {
+          if (onAMouth(s)) {
+            console.log(`[pmap] ${mapId}: ${s.name ?? 'a figure'} stands on a way in, `
+              + 'so it is left walk-through rather than walling the door')
+            continue
+          }
           if (
             walkerCanReach(s.x, s.y, s.r, map.yScale, canStand) ||
             free.some((q) => freeReach(s.x, s.y, s.r, map.yScale, q.life.bounds))
           )
             obstacles.push(s)
+        }
       }
 
       /* standing figures are stamped into the floor, so one law keeps everything out of them */
@@ -5611,7 +5639,25 @@ const CAST_OFF_SHOW_MS = 3200
           if (v.leg === 'landing') return false
           /* and a skip never re-enters the map it is already on, whatever the leg */
           if (v.to === mapId) { endTravel('already there'); return false }
-          const at = comp ? slotOfMap(comp, v.to)?.berth?.at : undefined
+          const to = comp ? slotOfMap(comp, v.to) : undefined
+          const at = to?.berth?.at
+          /* ---- HIS SHIP COMES WITH HIM -------------------------------------
+           *
+           * ASH: *"thor is on the dock already, with ship invisible... I think it may
+           * have been because i clicked esc during sailing."* It was.
+           *
+           * A skip is the same arrival by the shorter road, and `docked()` is what
+           * writes down where the boat ended up - so skipping never wrote it. The save
+           * still said the Kestrel was tied up at the island he had LEFT, the far
+           * island's scene asked the save whether his ship was here, was told no, and
+           * drew nothing. He stood on a dock beside open water.
+           *
+           * Written here, where the skip is decided, because this is the moment the
+           * boat arrives whether or not anybody watched it. */
+          recordVessel({
+            berthedAt: to?.place ?? to?.map ?? v.to,
+            legs: (loadSave()?.vessel?.legs ?? 0) + 1,
+          })
           console.log(`[travel] skipped, landing on ${v.to}${at ? ` at ${at}` : ''}`)
           endTravel('skipped')
           beginExit({ map: v.to, at })
