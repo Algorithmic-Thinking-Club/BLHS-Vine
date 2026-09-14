@@ -74,6 +74,16 @@ import { placeCardUp } from '../stage/stage-bus'
  * at the top of the screen prints (BRIEF-MAW-RAIL-3 A) */
 import { setObjectiveSaid, setWorldObjective } from '../hud/objective-bus'
 
+/* how far from an island's own berth a start line can be drawn and still be that
+ * island's. Beyond it the mark belongs to some other island's approach, and using it
+ * is a crossing that begins nowhere near the place it is arriving at.
+ *
+ * UP HERE BECAUSE IT IS READ DURING THE FIRST FRAME OF A SEA ARRIVAL. Declared down
+ * with the other timings it was in its own temporal dead zone when `arriveAboard`
+ * asked for it, and the whole scene threw on the way in: "Cannot access
+ * 'FAR_START_REACH' before initialization", a black screen and a stuck loading card. */
+const FAR_START_REACH = 900
+
 /** the five states an in-world prompt can be in */
 export type PromptState = 'plain' | 'objective' | 'barred' | 'needs' | 'done'
 import { composeWorldText, WORLD_TEXT } from '../ui/worldText'
@@ -5354,14 +5364,50 @@ export default function PmapScene() {
         let out = { x: b.x, y: b.y }
         let best = -1
         let found = false
-        /* the far start the world names, checked for water before it is used */
-        const fs = comp ? farStart(comp) : undefined
+        /* ---- THE FAR START BELONGS TO AN ISLAND, NOT TO THE WORLD ---------
+         *
+         * ASH: *"the sailing is just fucking busted and ugly"* and, of the crossing,
+         * long stretches of open water with nothing in them. This is most of that.
+         *
+         * `the_far_start` is ONE mark on the world document and it was honoured on
+         * every sea arrival, whichever island was being arrived at. It was drawn for
+         * the hub, so the ship arriving at ATC was born beside the HUB's start line -
+         * far out, with no land anywhere on screen - and then sailed the whole way
+         * across an empty sea to an island she had never been near. Sixteen seconds of
+         * nothing, behind the bars, pointed at a berth off the edge of the frame.
+         *
+         * A mark carries the island it was drawn for (`marksOf` already keys marks by
+         * it, and the hub's own berth uses the field). One that names a DIFFERENT
+         * island is not this island's start line, and one that is nowhere near this
+         * island's berth is not either, whatever it says. */
+        /* THE WORLD SPELLS AN ISLAND THREE WAYS and always has: a mark says
+         * `the_hub`, the slot says `hub` with a place of `home-island`, and the bundle
+         * says `hub`. So the comparison is made on a plain form of each - underscores
+         * to hyphens, a leading "the" dropped - which is the same tolerance
+         * `slotOfBerth` already applies to berths for exactly this reason. */
+        const plain = (v: string) => v.replace(/_/g, '-').replace(/^the-/, '')
+        const names = new Set([slot?.place, slot?.map, mapId]
+          .filter((v): v is string => !!v).map(plain))
+        const mine = (m: { island?: string }) => !m.island || names.has(plain(m.island))
+        const raw = comp ? farStart(comp) : undefined
+        const fs = raw && mine(raw) ? raw : undefined
+        if (raw && !fs) {
+          console.log(`[pmap] ${mapId}: ${raw.name} belongs to "${raw.island}", not to this island,`
+            + ' so the hull is born off the berth on this island instead')
+        }
         if (fs) {
           const at = fromSea(fs.x, fs.y)
           const deep = depthAt(at.x, at.y)
-          if (deep >= DEFAULT_SAIL.probe) {
+          /* AND NEAR ENOUGH TO BE THIS ISLAND'S START LINE. A mark with no island on
+           * it is trusted only while it is within sight of the berth it is supposed to
+           * be the approach to; further than that it is somebody else's water. */
+          const far = Math.hypot(at.x - b.x, at.y - b.y)
+          if (deep >= DEFAULT_SAIL.probe && far <= FAR_START_REACH) {
             out = at; best = deep; found = true
             console.log(`[pmap] ${mapId}: the hull is born at ${fs.name} (${Math.round(at.x)},${Math.round(at.y)}), ${Math.round(deep)}px of water`)
+          } else if (far > FAR_START_REACH) {
+            console.warn(`[pmap] ${mapId}: ${fs.name} is ${Math.round(far)}px from this island's berth, `
+              + `further than ${FAR_START_REACH}, so it is not this island's start line and the hull is born off the berth instead.`)
           } else {
             console.warn(`[pmap] ${mapId}: ${fs.name} at ${Math.round(at.x)},${Math.round(at.y)} has ${Math.round(deep)}px of water, `
               + `inside the hull's ${DEFAULT_SAIL.probe}px probe, so the hull is born off the berth instead. It wants moving on the ocean page.`)
