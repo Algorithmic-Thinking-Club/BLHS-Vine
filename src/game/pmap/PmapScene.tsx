@@ -4363,9 +4363,42 @@ export default function PmapScene() {
       /* THE FENCE IS THE PAINTED RECT AND NOT THE CANVAS. A painting rarely fills the
        * square it was saved on, so clamping to the canvas let a close shot frame
        * transparent margin with the ocean showing through it. */
+      /* ---- THE FENCE IS THE PAINTING, PLUS THE SEA IT SITS IN ---------------
+       *
+       * ASH, after playing the ATC island: *"the view / character pov, both wide and
+       * close, are fucking broken on the atc island. its locked at the middle ish, and
+       * i cant even see the ship at the dock."*
+       *
+       * Two faults, one cause, and the cause is this rectangle.
+       *
+       * ONE: HIS SHIP IS NOT IN THE PAINTING. A berth is authored in the OCEAN, off the
+       * end of the quay, and the ocean is drawn by the engine outside the painted rect.
+       * So a fence that stops dead at the painting's edge is a fence that can never
+       * frame the boat he is standing next to. He walked to his own dock and the thing
+       * he was walking to was permanently off the bottom of the screen.
+       *
+       * TWO: THE ISLAND IS LOCKED SIDEWAYS. `Z_PAINT` is the COVER fit, the zoom at
+       * which the painting fills the window, and on a near-square painting in a wide
+       * window that is driven by the width: atc-1's picture is 410 wide and the window
+       * is 1366, so Z comes out at 1366/410 and `painted.w * camZ` is EXACTLY the
+       * window width. `camTo`'s "it all fits, centre it" branch then fires on every
+       * frame for ever and the camera has no horizontal freedom at all.
+       *
+       * Growing the fence by a margin of sea fixes both: there is something drawn out
+       * there to show, and the rect stops being exactly the width of the window.
+       *
+       * A ROOM GETS NO MARGIN. There is no ocean outside the Maw, only the black field
+       * Ash banned, so an interior fences to its own picture exactly as before. */
+      const SEA_EDGE = coastCut ? 96 : 0
+      const fence = {
+        ox: painted.ox - SEA_EDGE,
+        oy: painted.oy - SEA_EDGE,
+        w: painted.w + SEA_EDGE * 2,
+        h: painted.h + SEA_EDGE * 2,
+      }
       const fencePainted = (want: number, z: number, view: number) => {
-        const top = -painted.oy * z
-        const bottom = view - (painted.oy + painted.h) * z
+        const top = -fence.oy * z
+        const bottom = view - (fence.oy + fence.h) * z
         return bottom >= top ? Math.min(bottom, Math.max(top, want)) : Math.min(top, Math.max(bottom, want))
       }
       /* a room holds still per axis unless the painting overflows the view by enough to walk */
@@ -4433,14 +4466,14 @@ export default function PmapScene() {
          * Clamped to the painted rect the camera cannot frame canvas nobody drew on,
          * on any map, at any zoom. */
         const tx = camFree ? vw / 2 - cx * camZ
-          : painted.w * camZ <= vw ? (vw - painted.w * camZ) / 2 - painted.ox * camZ
-            : Math.min(-painted.ox * camZ,
-              Math.max(vw - (painted.ox + painted.w) * camZ, vw / 2 - cx * camZ))
+          : fence.w * camZ <= vw ? (vw - fence.w * camZ) / 2 - fence.ox * camZ
+            : Math.min(-fence.ox * camZ,
+              Math.max(vw - (fence.ox + fence.w) * camZ, vw / 2 - cx * camZ))
         /* vertically the picture is centred in the FREE frame and fenced against
          * the WINDOW, so it is allowed to run on under the box (where the box is
          * covering it) and is never pulled off its own bottom edge to do it */
         const ty = camFree ? fh / 2 - cy * camZ
-          : painted.h * camZ <= fh ? (fh - painted.h * camZ) / 2 - painted.oy * camZ
+          : fence.h * camZ <= fh ? (fh - fence.h * camZ) / 2 - fence.oy * camZ
             : fencePainted(fh / 2 - cy * camZ, camZ, vh)
         /* whole pixels on screen, with the easing kept on a number nobody draws */
         camAim = { x: tx, y: ty }
@@ -4475,6 +4508,7 @@ export default function PmapScene() {
       let moored: { x: number; y: number; heading: number } | null = null
       /* she is tied up and he has not stepped off yet, so no sea plaque is offered */
       let tiedUp = false
+
       /* the harness drives the helm the player drives, for a stated number of
        * milliseconds, so a proof run sails the shipped physics rather than warping
        * a boat to a coordinate and calling that a leg */
@@ -4654,6 +4688,27 @@ export default function PmapScene() {
         return null
       }
 
+      /* ---- AND SHE IS THERE WHEN HE ARRIVES ANY OTHER WAY ------------------
+       *
+       * ASH: *"the ship sometimes is invisible."* `moored` was written in exactly one
+       * place, `stepAshore`, so the ship existed only for as long as the scene he got
+       * off in. Walk through a door and back, reload the page, or arrive at an island
+       * any way other than by sailing to it this minute, and his own boat was simply
+       * not drawn: he stood on his dock beside nothing.
+       *
+       * The save has always known where she is (`vessel.berthedAt`, written by
+       * `docked()`), and nothing read it. Now the scene asks on the way in. */
+      {
+        const v = loadSave()?.vessel
+        const here = slot?.place ?? slot?.map ?? mapId
+        if (berth && v?.berthedAt && v.berthedAt === here) {
+          const at = fromSea(berth.x, berth.y)
+          const drawn = berth.facing || berth.bearing !== undefined
+            ? radOf(berth.facing, berth.bearing) : null
+          moored = { x: at.x, y: at.y, heading: drawn ?? dockAxis(at.x, at.y, 0) }
+        }
+      }
+
       const board = () => {
         if (!canSail || !berth || hull) return
         const at = fromSea(berth.x, berth.y)
@@ -4690,10 +4745,26 @@ export default function PmapScene() {
         if (hullSp) hullSp.visible = !!berth
         wakeG.clear()
         tiedUp = false
-        /* she lies along the harbour, measured off the painting, keeping the way she came in on */
+        /* ---- SHE LIES THE WAY HER BERTH WAS DRAWN -----------------------
+         *
+         * ASH: *"the sailing doesnt always end up in the right orientation... random
+         * orientations sometime."* Here is the last of it, and it is not the sailing at
+         * all. Whatever heading `berthHelm` worked so hard to arrive on was THROWN AWAY
+         * on the frame he stepped off: `dockAxis` measures the long axis of the
+         * standable pixels near the berth and lies her along THAT. Measured on the hub
+         * that is 15.4 degrees from the heading she came in on, so the ship visibly
+         * snaps round in one frame as he lands, and on any quay whose planks do not run
+         * along the berth's own bearing it is worse and it is arbitrary.
+         *
+         * A berth that carries a facing is an instruction from the person who drew the
+         * map, and it wins. `dockAxis` stays for the berths nobody has aimed yet, which
+         * is what it was written for. */
         if (berth) {
           const at = fromSea(berth.x, berth.y)
-          moored = { x: at.x, y: at.y, heading: dockAxis(at.x, at.y, cameInOn) }
+          const drawn = berth.facing || berth.bearing !== undefined
+            ? radOf(berth.facing, berth.bearing)
+            : null
+          moored = { x: at.x, y: at.y, heading: drawn ?? dockAxis(at.x, at.y, cameInOn) }
         }
         thor.sp.visible = true; thor.sh.visible = true; pinWanted = true
         camFree = false
@@ -4717,6 +4788,28 @@ export default function PmapScene() {
        * search, steered one at a time, and `berthing` does not begin until she is out
        * of them. A crossing over open water finds one leg and nothing changes. */
       let berthRun: { pts: { x: number; y: number }[]; i: number; left: number } | null = null
+
+      /* ---- COMING UP ON A BERTH IS DONE AT DOCKING SPEED ------------------
+       *
+       * ASH: *"it does some RANDOM sailing... it doesnt even end on the right
+       * orientation."* Measured on the real hub arrival, the follower handed the hull
+       * to `berthHelm` seventy pixels from the berth STILL DOING 96. The manoeuvre will
+       * not come alongside a boat going that fast, so it refused her, sent her out to a
+       * mark two hundred pixels on the FAR side of the dock, and she sailed a lap.
+       *
+       * A SPEED AND NOT A BRAKE. The first try cut the throttle inside the stopping
+       * distance, which is right for a boat stopping AT a mark and wrong for one
+       * passing through it: she braked, drag took the speed off, the sum said she could
+       * throttle up again, and she oscillated her way in at a mean of 32 over five
+       * hundred frames. Holding a speed is stable and it is what a helmsman does.
+       *
+       * Both followers call this, because two followers with two ideas of how to
+       * approach a dock is how the first one got away with being wrong. */
+      const DOCK_APPROACH = DEFAULT_SAIL.cruise * 0.45
+      const dockingSpeed = (helm: Helm, left: number, speed: number) => {
+        if (left > 180) return
+        helm.throttle = speed > DOCK_APPROACH ? 0 : 0.45
+      }
 
       /* docking is a decelerating manoeuvre and then a door, never a teleport */
       const dockAt = (s: WorldSlot) => {
@@ -5806,7 +5899,17 @@ const CAST_OFF_SHOW_MS = 3200
               r.i++
               if (r.i >= r.pts.length) berthRun = null
             }
-            hull = stepHull(hull, berthRun ? steerTo(hull, aim) : HELM_IDLE, dt, depthAt)
+            /* AND THE LAST LEG OF THE WAY IN IS A DECELERATION, the same as the
+             * route follower's. `berthHelm` takes over at the end of this run and it
+             * cannot come alongside a hull that is still at cruise: it refuses her,
+             * sends her out to a lineup mark on the far side of the dock, and she
+             * sails a lap. Two followers, one law. */
+            let helm: Helm = HELM_IDLE
+            if (berthRun) {
+              helm = steerTo(hull, aim)
+              if (berthRun.i >= berthRun.pts.length - 1) dockingSpeed(helm, d, hull.speed)
+            }
+            hull = stepHull(hull, helm, dt, depthAt)
           } else if (berthing) {
             /* the manoeuvre drives the same hull through the same physics as the player's helm */
             /* AND THE MANOEUVRE IS TOLD WHERE THE WATER IS. It works a rendezvous
@@ -5878,9 +5981,22 @@ const CAST_OFF_SHOW_MS = 3200
                * crossing has not ended: she is still moving, he is still hidden,
                * and `docked()` is the instant he is standing on the island. */
             } else {
-              /* proportional, like every other helm in the game now: hard over on
-               * every frame is what made a scripted crossing read as a speedboat */
-              hull = stepHull(hull, steerTo(hull, aim), dt, depthAt)
+              /* ---- SHE TAKES THE WAY OFF BEFORE THE LAST MARK -------------
+               *
+               * ASH: *"it does some RANDOM sailing... crazy turns."* Measured on the
+               * real hub arrival, the follower handed the hull to the docking
+               * manoeuvre 70 pixels from the berth STILL DOING 96. The manoeuvre's
+               * own way in needs her under half cruise, so it refused her, sent her
+               * out to a lineup mark on the far side of the dock, and she did a lap.
+               *
+               * A boat slows as she comes up on her berth. On the last leg the
+               * throttle comes off inside the distance it takes to stop, which is the
+               * same sum `berthHelm` uses, so she is handed over at a speed the
+               * manoeuvre will actually accept. Every earlier leg is unchanged: a
+               * crossing is not a place to dawdle. */
+              const helm = steerTo(hull, aim)
+              if (s2.i >= s2.pts.length - 1) dockingSpeed(helm, d, hull.speed)
+              hull = stepHull(hull, helm, dt, depthAt)
             }
           } else if (castOff) {
             /* the two seconds after E: she comes off the berth under her own power,

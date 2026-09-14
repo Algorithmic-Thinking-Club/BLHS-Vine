@@ -75,6 +75,15 @@ console.log(`samples with a hull: ${sail.length} over ${((sail.at(-1)?.t - sail[
 console.log(`speed   mean ${mean(speeds).toFixed(1)}  median ${pct(speeds, 0.5).toFixed(1)}  top ${Math.max(...speeds).toFixed(1)} ocean px/s`)
 console.log(`turn    mean ${(mean(turns) * 57.3).toFixed(1)}  p90 ${(pct(turns, 0.9) * 57.3).toFixed(1)}  worst ${(Math.max(...turns) * 57.3).toFixed(1)} deg/s`)
 console.log(`hard turns over 60 deg/s: ${turns.filter((x) => x * 57.3 > 60).length} of ${turns.length}`)
+/* WHERE the hard turns are, because "some frames turn fast" is not actionable */
+const hard = []
+for (let i = 1; i < sail.length; i++) {
+  const dt = (sail[i].t - sail[i - 1].t) / 1000
+  if (dt <= 0) continue
+  const r = Math.abs(unwrap(sail[i - 1].sea.head, sail[i].sea.head)) / dt * 57.3
+  if (r > 60) hard.push({ deg: Math.round(r), speed: Math.round(sail[i].sea.speed), where: `${sail[i].map}/${sail[i].sea.berthing ?? 'under-way'}`, dt: Math.round(dt * 1000) })
+}
+for (const h2 of hard.slice(0, 10)) console.log(`  hard ${h2.deg} deg/s at speed ${h2.speed} in ${h2.where} over ${h2.dt}ms`)
 console.log(`aground frames: ${sail.filter((r) => r.sea.aground).length}`)
 console.log(`wake points: mean ${mean(sail.map((r) => r.sea.wake)).toFixed(0)}`)
 /* how straight the line was: the path length against the straight-line distance */

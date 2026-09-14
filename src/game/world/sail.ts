@@ -154,7 +154,14 @@ export function stepHull(s: HullState, helm: Helm, dt: number, depth: DepthAt, c
 
   /* THE BOW COMES ROUND SLOWER THE FASTER SHE GOES, which is the one piece of
    * boat feel that is not a constant. At rest she turns on the spot, which is
-   * wrong for a real hull and right for a fourteen year old on a trackpad. */
+   * wrong for a real hull and right for a fourteen year old on a trackpad.
+   *
+   * STEERAGE WAY WAS TRIED HERE AND TAKEN BACK OUT, 2026-09-14. Cutting the turn rate
+   * at low speed is what a rudder really does, and measured on the real crossing it
+   * changed nothing: the frames that turn hardest are the run-in at thirty to fifty
+   * pixels a second, where a steerage factor is already ~1. All it did was stop a
+   * player at a standstill being able to point the boat, which is the one thing the
+   * line above was written to allow. */
   const rate = cfg.turn * (1 - 0.45 * Math.min(1, s.speed / Math.max(1, cfg.fullSail)))
   const heading = s.heading + helm.turn * rate * d
 
@@ -398,9 +405,38 @@ export function berthHelm(
        * it finished with a 139-degree turn on the spot: the pirouette this whole
        * manoeuvre exists to avoid. What this clause is for is a boat that is ALREADY
        * at the berth, which is what `board()` leaves behind, and that boat is at rest. */
-      const near = Math.hypot(b.target.x - s.x, b.target.y - s.y) <= ALONGSIDE_MAX_PX
-        && s.speed < cfg.cruise * 0.5
-      if (near || (along < 0 && cross < RUN_IN_CORRIDOR_PX && -along >= room))
+      const gap = Math.hypot(b.target.x - s.x, b.target.y - s.y)
+      const near = gap <= ALONGSIDE_MAX_PX && s.speed < cfg.cruise * 0.5
+      /* ---- AND SHE NEVER SAILS PAST A DOCK SHE IS ALREADY AT ---------------
+       *
+       * ASH, on the crossing: *"it does some RANDOM sailing... most of the time, it
+       * doesnt even end on the right orientation."* Measured on the real hub arrival:
+       * the follower hands her over 70 pixels from her own berth still doing 96, every
+       * gate above refuses her because she is too fast and across the line, and the
+       * lineup mark below is 210 pixels away ON THE FAR SIDE. So the first instruction
+       * the docking manoeuvre gives, from the doorstep of the dock, is "sail past it".
+       * She then ran 175 pixels out into open water off the corner of the island,
+       * turned through 176 degrees in her own length, and came back: seven seconds of
+       * a boat apparently changing its mind, on a close camera, with the bars up.
+       *
+       * A helmsman this close does not go round again, he takes the way off her and
+       * comes alongside. So: inside the lineup distance, the approach stage is over
+       * whatever her heading is. The run-in below is the thing that is good at turning
+       * a hull onto a line, and it works far better from here than a second lap does. */
+      const lineUp = lineUpPoint(b.target, b.facing, cfg, ok)
+      /* CLOSE ENOUGH THAT GOING ROUND AGAIN IS THE SILLY ANSWER. A boat 210 pixels out
+       * still has room to make a proper approach and should; a boat seventy pixels from
+       * her own dock does not, and sending her two hundred back out to sea to line up
+       * is the lap Ash watched. The corridor width is the line between the two, because
+       * it is already this manoeuvre's own word for "beside the dock". */
+      /* AND SHE HAS TO HAVE THE WAY OFF HER. A hull still at cruise seventy pixels out
+       * has not got the room to turn onto the line from here and will finish the last
+       * of it standing still, which is the pirouette by another road: measured, one
+       * bearing in twelve spun 0.71 radians at rest. Slow and close is a boat
+       * manoeuvring; fast and close is a boat that needs to go round. */
+      const onTopOfIt = gap <= RUN_IN_CORRIDOR_PX && s.speed < cfg.cruise * 0.55
+      if (near || onTopOfIt
+        || (along < 0 && cross < RUN_IN_CORRIDOR_PX && -along >= room))
         return berthHelm(s, restart({ ...b, stage: 'alongside' }), cfg, dt, ok)
       /* THE FURTHEST POINT BACK DOWN THE LINE THAT IS STILL WATER, walked out from
        * the berth rather than assumed. A short rendezvous is worse than a long one
@@ -411,11 +447,10 @@ export function berthHelm(
        * the approach stage was 143 frames of a 272 frame crossing and the path came
        * to 1.76 times the straight line. What she actually needs is room to
        * straighten, and that is her turning circle, not a constant. */
-      const found = lineUpPoint(b.target, b.facing, cfg, ok)
       /* nothing navigable astern at all: there is no approach to make, so she is
        * handed to the run-in and does what she can from where she is */
-      if (!found) return berthHelm(s, restart({ ...b, stage: 'alongside' }), cfg, dt, ok)
-      aim = found
+      if (!lineUp) return berthHelm(s, restart({ ...b, stage: 'alongside' }), cfg, dt, ok)
+      aim = lineUp
     }
     if (!aim) return berthHelm(s, restart({ ...b, stage: 'alongside' }), cfg, dt, ok)
     const dx = aim.x - s.x, dy = aim.y - s.y
