@@ -31,7 +31,15 @@ export function SkipVoyage() {
   useEffect(() => onVoyage((p) => { setPlan(p); setGone(p ? voyageSkipped() : false) }), [])
 
   useEffect(() => {
-    if (!plan || gone) return
+    /* ---- THE KEY GOES WHERE THE BUTTON GOES ----------------------------
+     *
+     * The render below returns null on the landing leg, and this did not: hooks run
+     * before an early return, so the listener stayed installed over an arrival with
+     * no button on screen. Escape then still latched the skip - invisibly - and the
+     * arrival it was meant to deliver was deleted by a key nothing was offering.
+     *
+     * A control that is not being offered must not be listening. */
+    if (!plan || gone || plan.leg === 'landing') return
     const h = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.repeat) return
       /* ON THE WAY DOWN, AND IT KEEPS THE KEY. The HUD pauses the game on
