@@ -122,15 +122,27 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
    * server that never answers is the same to a student as one that says no, and this
    * is the first ten seconds of the game. */
   const [asking, setAsking] = useState(!alreadyJoined)
+  /* ---- AND THE LETTER IS READ EITHER WAY --------------------------------
+   *
+   * The first written words of this game are the invitation: "Panther. We saved you a
+   * spot." With no class service behind the deploy - which is every student playing
+   * outside an advisory period - the whole card was skipped, so the bottle washed
+   * ashore, the cork popped, the parchment unfurled, and the first thing on it was a
+   * name box. The story's own opening was reachable only by students whose teacher
+   * had a class open.
+   *
+   * The LETTER is the story and the six boxes are the sign-in. Only the boxes depend
+   * on there being a class. */
+  const [classOpen, setClassOpen] = useState<boolean | null>(null)
   useEffect(() => {
     if (alreadyJoined) return
     let gone = false
     const settle = (open: boolean) => {
       if (gone) return
+      setClassOpen(open)
       if (!open) {
         track('join_skipped', { why: 'no server' })
         setCastaway(true)
-        setCard((c) => (c === 'code' ? 'identity' : c))
       }
       setAsking(false)
     }
@@ -252,6 +264,7 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
             <CodeCard
               initial={code}
               err={joinErr}
+              classOpen={classOpen !== false}
               onVerified={(c, name) => { setCode(c); setClassName(name); setJoinErr(''); next('identity') }}
               onCastaway={() => { setCastaway(true); setJoinErr(''); next('identity') }}
             />
@@ -276,9 +289,12 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
 }
 
 // ---- card 1: the letter + the code ----
-function CodeCard({ initial, err: outerErr, onVerified, onCastaway }: {
+function CodeCard({ initial, err: outerErr, classOpen = true, onVerified, onCastaway }: {
   initial: string
   err?: string
+  /** whether this deploy has a class service answering. The letter is read either
+   *  way; only the six boxes and "Join my class" depend on it. */
+  classOpen?: boolean
   onVerified: (code: string, className?: string) => void
   onCastaway: () => void
 }) {
@@ -375,7 +391,20 @@ function CodeCard({ initial, err: outerErr, onVerified, onCastaway }: {
     /* the letter scrolls and takes the slack, so the boxes and the two buttons stay on the paper */
     <div className="i3-card i3-card-code" onClick={() => { if (!tw.done) tw.finish() }}>
       <div className="i3-letter i3-letter-scroll">{tw.shown}{!tw.done && <span className="i3-caret" aria-hidden="true" />}</div>
-      {tw.done && (
+      {tw.done && !classOpen && (
+        /* NO CLASS TO JOIN, AND THE LETTER STILL SAYS ITS PIECE. The boxes would be
+         * six empty squares nothing could check, so what is offered instead is the
+         * one thing that is true: go anyway. */
+        <div className="i3-codefoot">
+          <Signature />
+          <p className="i3-noclass">
+            Nobody has a class open right now, so there is no code to type. The island
+            is there either way.
+          </p>
+          <Plank size="lg" onClick={onCastaway}>Set sail</Plank>
+        </div>
+      )}
+      {tw.done && classOpen && (
         <div className="i3-codefoot">
           <Signature />
           {/* six code boxes, the group named once and each box saying where it sits */}

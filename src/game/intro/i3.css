@@ -666,3 +666,14 @@ html[data-skin='plain'] .i3-back {
    It is the card's own shape with nothing written on it, so the paper does not jump
    size when the real card arrives. */
 .i3-asking { min-height: 220px; }
+
+/* the line under the letter when this deploy has no class to join. It stands where
+   the six code boxes would be, so the paper does not change shape between the two. */
+.i3-noclass {
+  margin: 0 0 10px;
+  --kit-fs-raw: calc(15px * var(--kit-text-scale));
+  font-size: var(--kit-fs);
+  color: var(--kit-ink-label);
+  max-width: 46ch;
+  text-align: center;
+}

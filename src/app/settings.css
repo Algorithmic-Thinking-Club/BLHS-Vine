@@ -200,8 +200,21 @@ html[data-skin='plain'] .st-page { -webkit-mask-image: none; mask-image: none; }
 .st-close { flex: none; margin-top: 3cqw; align-self: center; min-width: 55%; }
 
 /* the corner control that opens this sheet, drawn as a carved plate with a word on it */
+/* ---- THE GEAR STANDS BESIDE THE QUESTION MARK, NOT ON IT -----------------
+ *
+ * Both were written as "the bottom right corner" and both are 116 wide, so on the
+ * beach - the first screen a student can walk on - the Settings plate was drawn
+ * directly over the "?" and hid all but about nine pixels of it. The one control a
+ * lost freshman is meant to find was underneath the one he is least likely to want.
+ *
+ * The ? keeps the corner. The gear sits to the LEFT of it, clear of the Chart button
+ * stacked above it, so the three read as a row and a stack rather than a pile.
+ * On the title screen there is no ? and the offset costs nothing. */
 .st-gear {
-  position: absolute; bottom: max(2.2vh, 12px); right: max(2vw, 14px); z-index: 70;
+  position: absolute;
+  bottom: max(2.2vh, 12px);
+  right: calc(max(2vw, 14px) + 108px + 10px);
+  z-index: 70;
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 116px; padding: 9px 18px 11px;
   border: 0;
