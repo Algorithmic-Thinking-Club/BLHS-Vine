@@ -5638,6 +5638,16 @@ const CAST_OFF_SHOW_MS = 3200
         /* where his own ship lies, in painting pixels, so a proof can ask which way
          * he ought to be looking when he is standing next to her */
         get berthAt() { return berth ? fromSea(berth.x, berth.y) : null },
+        /* whether his own ship is on this map at all, and whether she is drawn */
+        get ship() {
+          return {
+            moored: moored ? { x: Math.round(moored.x), y: Math.round(moored.y) } : null,
+            hull: !!hull,
+            sprite: hullSp ? { visible: hullSp.visible, views: hullViews.length } : null,
+            berthedAt: loadSave()?.vessel?.berthedAt ?? null,
+            here: slot?.place ?? slot?.map ?? mapId,
+          }
+        },
         /* WHICH LEG OF THE JOURNEY HE IS ON, which is the whole of the sail state
          * machine and was readable from nowhere. A proof that cannot see the leg can
          * only watch the end of a voyage and guess at everything on the way to it. */
@@ -6038,21 +6048,6 @@ const CAST_OFF_SHOW_MS = 3200
             }
             hull = stepHull(hull, helm, dt, depthAt)
           }
-          /* a hull under way, or a ship tied up: one drawing, two states, and
-           * the moored one is not steered by anybody */
-          const draw = hull ?? moored
-          if (draw && hullSp) {
-            hullSp.position.set(draw.x, draw.y)
-            hullSp.zIndex = OVER_PLACED + draw.y
-            if (hullViews.length) {
-              /* the 16 views run anticlockwise from east, which is how the sheet
-               * was drawn; a heading is therefore an index and never a rotation,
-               * so the light in the painting stays where the sun is */
-              const i = ((Math.round((draw.heading / (Math.PI * 2)) * 16) % 16) + 16) % 16
-              const t2 = hullViews[i]
-              if (t2 && hullSp.texture !== t2) hullSp.texture = t2
-            }
-          }
 
           /* THE WAKE: two diverging hull-corner trails with per-point age, drawn
            * from the pure state so the model and the picture cannot disagree. */
@@ -6140,6 +6135,49 @@ const CAST_OFF_SHOW_MS = 3200
             }
           }
         }
+
+        /* ---- AND SHE IS DRAWN WHETHER OR NOT ANYBODY IS SAILING HER -------
+         *
+         * ASH: *"the ship sometimes is invisible."* This block's own comment says
+         * "a hull under way, or a ship tied up: one drawing, two states", and it sat
+         * INSIDE `if (hull)`, which is the first of those two states and only that
+         * one. So a ship tied up was never drawn by the thing written to draw her.
+         * She appeared when he stepped off, because `stepAshore` sets the sprite
+         * visible by hand on its way past, and vanished the moment anything rebuilt
+         * the scene: a door, a reload, or arriving any way but sailing in.
+         *
+         * Out here, where both states can reach it. */
+          /* a hull under way, or a ship tied up: one drawing, two states, and
+           * the moored one is not steered by anybody */
+          const draw = hull ?? moored
+          if (hullSp) {
+            /* ---- THE ONE PLACE THAT DECIDES WHETHER SHE IS DRAWN -----------
+             *
+             * ASH: *"the ship sometimes is invisible."* She was. `hullSp.visible` was
+             * written in exactly two handlers - `board()` turned it on, `stepAshore()`
+             * turned it on again - and the sprite is born hidden. So the ship existed
+             * only after somebody had got into her or out of her IN THIS SCENE. Walk
+             * through a door and back, reload the page, or arrive at an island any way
+             * except by sailing to it a moment ago, and the boat was simply not there:
+             * he stood on his own dock beside open water.
+             *
+             * The frame that draws her is the frame that says whether she is drawn.
+             * There is a hull under way or a ship tied up, or there is neither, and
+             * that is the whole question. */
+            hullSp.visible = !!draw
+          }
+          if (draw && hullSp) {
+            hullSp.position.set(draw.x, draw.y)
+            hullSp.zIndex = OVER_PLACED + draw.y
+            if (hullViews.length) {
+              /* the 16 views run anticlockwise from east, which is how the sheet
+               * was drawn; a heading is therefore an index and never a rotation,
+               * so the light in the painting stays where the sun is */
+              const i = ((Math.round((draw.heading / (Math.PI * 2)) * 16) % 16) + 16) % 16
+              const t2 = hullViews[i]
+              if (t2 && hullSp.texture !== t2) hullSp.texture = t2
+            }
+          }
 
         const moving = !!(
           input['arrowup'] || input['w'] || input['arrowdown'] || input['s'] ||
