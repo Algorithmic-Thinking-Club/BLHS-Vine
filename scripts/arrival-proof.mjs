@@ -13,7 +13,7 @@
  * the principal's legs going, and the Maw filling the window.
  *
  *   npm run dev, then `node scripts/arrival-proof.mjs`
- *     --base=http://localhost:5290   where the game is
+ *     --base=http://localhost:5173   where the game is
  *     --headed                       watch it
  */
 import { chromium } from 'playwright'
@@ -23,7 +23,7 @@ const arg = (k, d) => {
   const hit = process.argv.find((a) => a.startsWith(`--${k}=`))
   return hit ? hit.slice(k.length + 3) : d
 }
-const base = arg('base', 'http://localhost:5290')
+const base = arg('base', 'http://localhost:5173')
 if (/vercel.app/.test(base) && !process.argv.includes('--live')) { console.error('refusing the live url without --live: proofs run on the dev server, one live run per deploy'); process.exit(2) }
 const SHOTS = arg('shots', 'reference/_archive/build-shots/arrival/gate')
 fs.mkdirSync(SHOTS, { recursive: true })
