@@ -1430,7 +1430,16 @@ export default function PmapScene() {
             if (ldata[(y * W + x) * 4] !== blocked) { start = { x, y }; break outer }
           }
         }
-        const before = reach(start)
+        /* ---- THE BASELINE MOVES WITH EACH FIGURE THAT LANDS ----------------
+         *
+         * Measured once, before anything was stamped, this made every figure after the
+         * first one answer for the ones before it: on ATC the trophies became solid,
+         * which correctly puts their own anchor's standing spot inside a wall, and then
+         * all four remaining desks were refused for "shutting off the trophies". They
+         * had not touched them. The question this test asks is "does THIS figure shut
+         * somebody out", so what it has to compare against is the floor as it was
+         * before THIS figure, not before all of them. */
+        let before = reach(start)
 
         /* ---- ONE FIGURE AT A TIME, AND ONLY THE BAD ONE COMES BACK OUT ----
          *
@@ -1472,12 +1481,26 @@ export default function PmapScene() {
         }
         const refused: string[] = []
         let lost = 0
-        for (const s of obstacles) {
+        /* ---- SMALLER RATHER THAN NOT AT ALL --------------------------------
+         *
+         * ASH, twice about the same island: *"he clips through the trophies."* The
+         * trophies are fixed. Four other things on that terrace were still ghosts, and
+         * the reason was all-or-nothing: a figure whose full footprint would shut some
+         * anchor off was left entirely walkable. On ATC the computers stand about
+         * twenty pixels apart and a body needs more than that to pass between them, so
+         * stamping one at its full width closed the gap to the next one and the whole
+         * stamp was taken back.
+         *
+         * A desk that is solid in its middle and soft at its edges is far closer to the
+         * truth than a desk made of air. Each figure is tried at its full width, then
+         * at three quarters, then at half, and only a thing that shuts somebody out
+         * even at half is left alone. */
+        const stamp = (s: { x: number; y: number; r: number }, scale: number): number[] => {
           const undo: number[] = []
           /* the FEET, not the body: a figure occupies the ground it stands on and
            * not the air its head is in, which is the same distinction the ink
            * measurement already makes for the push pass */
-          const rx = Math.max(1, s.r), ry = Math.max(1, s.r * ys)
+          const rx = Math.max(1, s.r * scale), ry = Math.max(1, s.r * scale * ys)
           for (let y = Math.ceil(s.y - ry); y <= Math.floor(s.y + ry); y++) {
             for (let x = Math.ceil(s.x - rx); x <= Math.floor(s.x + rx); x++) {
               if (x < 0 || y < 0 || x >= W || y >= H) continue
@@ -1502,27 +1525,54 @@ export default function PmapScene() {
               ldata[i] = blocked
             }
           }
-          /* AND A FIGURE THAT STAMPED NOTHING IS NOT A FIGURE IN THE FLOOR. This used
-           * to `continue` silently and then be counted in the "n of n put in the floor"
-           * line, which is how a thing he can walk straight through was reported solid
-           * on every load for as long as the feature has existed. */
-          if (!undo.length) {
-            refused.push((s.name ?? 'a figure') + ' (nothing to stamp)')
-            continue
-          }
+          return undo
+        }
+        const putBack = (undo: number[]) => {
+          for (let k = 0; k < undo.length; k += 2) ldata[undo[k]] = undo[k + 1]
+        }
+        /* what a full-width stamp would shut off, asked again only to write the reason
+         * down: a warning nobody can act on is a warning nobody reads */
+        const measureAfter = (s: { x: number; y: number; r: number }): string[] => {
+          const undo = stamp(s, 1)
           const m = measure(s)
-          /* A QUARTER OF THE ISLAND IS A WALL, ONE FIGURE IS NOT. The old five percent
-           * was a budget for the whole map spent by everything at once, which on a
-           * small island with eight things on it is under one percent each. What
-           * actually matters is whether anybody is shut out, and that is the second
-           * test, which has no budget at all. */
-          if (m.cutOff.length || m.lost > 0.25) {
-            for (let k = 0; k < undo.length; k += 2) ldata[undo[k]] = undo[k + 1]
-            refused.push(s.name ?? 'a figure')
-            continue
+          putBack(undo)
+          return m.cutOff.map((a2) => a2.name)
+        }
+
+        for (const s of obstacles) {
+          let done = false
+          for (const scale of [1, 0.75, 0.5]) {
+            const undo = stamp(s, scale)
+            /* AND A FIGURE THAT STAMPED NOTHING IS NOT A FIGURE IN THE FLOOR. This
+             * used to `continue` silently and then be counted in the "n of n put in
+             * the floor" line, which is how a thing he can walk straight through was
+             * reported solid on every load for as long as the feature has existed. */
+            if (!undo.length) continue
+            const m = measure(s)
+            /* A QUARTER OF THE ISLAND IS A WALL, ONE FIGURE IS NOT. The old five
+             * percent was a budget for the whole map spent by everything at once,
+             * which on a small island with eight things on it is under one percent
+             * each. What actually matters is whether anybody is shut out, and that is
+             * the second test, which has no budget at all. */
+            if (m.cutOff.length || m.lost > 0.25) { putBack(undo); continue }
+            floored += undo.length / 2
+            lost = m.lost
+            done = true
+            /* this one is in the floor now, so it is part of what the next one is
+             * measured against */
+            before = reach(start)
+            if (scale < 1) {
+              console.log(`[pmap] ${mapId}: ${s.name ?? 'a figure'} is solid at `
+                + `${Math.round(scale * 100)}% of its width, because its full one shut something off`)
+            }
+            break
           }
-          floored += undo.length / 2
-          lost = m.lost
+          if (!done) {
+            /* NAMED, BOTH SIDES. "a figure shut something off" is not actionable in
+             * MAPVIS; "the desk shuts the president off" is. */
+            const why = measureAfter(s)
+            refused.push(`${s.name ?? 'a figure'}${why.length ? ` (shuts off ${why.join(', ')})` : ''}`)
+          }
         }
         if (refused.length) {
           console.warn(`[pmap] ${mapId}: ${refused.length} of ${obstacles.length} standing figures`
