@@ -102,6 +102,12 @@ for (let i = 0; i < 20; i++) {
   await page.waitForTimeout(400)
 }
 await page.waitForTimeout(1200)
+/* what the island actually finished with, so a failure here names its own cause */
+console.log(`  ledger: ${JSON.stringify(await page.evaluate(() => {
+  const s2 = JSON.parse(localStorage.getItem('blhs_save_v2') || 'null')
+  return { rows: (s2?.ledger ?? []).map((e) => e.id), tasks: s2?.tasks ?? null, year: s2?.year }
+}))}`)
+console.log(`  said: ${JSON.stringify((await look()).texts.slice(0, 8))}`)
 const after = await sheet()
 ok("both of the island's rows tick once the work is really done",
   !!after && /2 of 2 done/.test(after.head) && after.rows.slice(0, 2).every((r) => r.done),

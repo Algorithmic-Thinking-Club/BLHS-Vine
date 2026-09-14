@@ -1519,8 +1519,23 @@ export default function PmapScene() {
                *
                * Rings belonging to this solid are ignored while stamping it. Every
                * other anchor's clearance still holds, which is what the rule is for. */
-              if (keepClear.some((k) => Math.hypot(k.x - s.x, (k.y - s.y) / ys) > s.r
-                && Math.hypot(k.x - x, (k.y - y) / ys) <= k.r)) continue
+              /* ---- ITS OWN ANCHOR KEEPS A FOOTHOLD, NOT A CLEARING ------
+               *
+               * Two ways to get this wrong and this game has now had both. Honouring a
+               * thing's own anchor ring in full reserves `r + hip + body` around a
+               * point INSIDE the thing, which is wider than the thing, so nothing gets
+               * stamped and the trophies were walk-through for ever. Ignoring it
+               * entirely lets the solid swallow the spot a body has to stand on to be
+               * walked to, and the club president lost his route to his own machine:
+               * "no route for host to the_desk, steering straight at it".
+               *
+               * A thing's own anchor keeps a body's width and no more. Enough to stand
+               * at it, not enough to hollow it out. Every OTHER anchor keeps its full
+               * clearance, which is what the rule was written for. */
+              const own = (k: { x: number; y: number; r: number }) =>
+                Math.hypot(k.x - s.x, (k.y - s.y) / ys) <= s.r
+              if (keepClear.some((k) => Math.hypot(k.x - x, (k.y - y) / ys)
+                <= (own(k) ? HIP + BODY_MIN : k.r))) continue
               undo.push(i, ldata[i])
               ldata[i] = blocked
             }
