@@ -230,11 +230,20 @@ html[data-rm='1'] .ti-actions { animation-duration: 1ms; }
 
 /* the title's own plank sizing, on top of the kit button's six states */
 .ti-actions .ti-plank {
-  width: min(340px, 44vw);
+  /* ---- WIDE ENOUGH FOR THE WORDS ON IT ---------------------------------
+   *
+   * ASH: *"on the very title screen, the buttons get cut off, for 'Your yearbook' it
+   * becomes 'your year...' same for 'Start adventure'."* Measured: 340px of plank,
+   * less 43px of carved cap each side and 26px of padding, leaves 202px for a label
+   * that needs about 230. "Continue" fitted, which is why it survived this long.
+   *
+   * Wider, with a thinner gutter inside the carving. The caps stay in the art's own
+   * proportion to the new height. */
+  width: min(430px, 56vw);
   aspect-ratio: 512 / 160;
-  padding: 0 26px;
-  /* the carved cap follows the button's height, 60 x 106 / 148 */
-  --kit-plank-cap: 43px;
+  padding: 0 14px;
+  /* the carved cap follows the button's height, 60 x 134 / 148 */
+  --kit-plank-cap: 54px;
   filter: drop-shadow(0 5px 12px var(--kit-plank-drop));
 }
 /* ---- THE SECOND PLANK IS SMALLER, AND THAT IS WHY IT FITS ----------------
@@ -252,9 +261,9 @@ html[data-rm='1'] .ti-actions { animation-duration: 1ms; }
  * finished are not the same weight, and the pair now reads as one choice and one
  * afterthought rather than as a menu. */
 .ti-actions .ti-plank-second {
-  width: min(252px, 34vw);
+  width: min(330px, 42vw);
   aspect-ratio: 512 / 128;
-  --kit-plank-cap: 30px;
+  --kit-plank-cap: 39px;
 }
 
 .ti-actions .ti-plank:hover:not(:disabled) { filter: drop-shadow(0 7px 14px var(--kit-plank-drop)) brightness(1.06); }

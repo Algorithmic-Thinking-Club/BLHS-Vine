@@ -20,7 +20,16 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
   // advance on click / space / enter, anywhere
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if (e.key === ' ' || e.key === 'Enter') { rt.advance(); e.preventDefault() }
+      if (e.key !== ' ' && e.key !== 'Enter') return
+      /* ---- A CONTROL ALREADY ANSWERS ITS OWN KEY ------------------------
+       *
+       * Space and Enter activate a focused button, and this advanced as well, so one
+       * press did the button's job AND skipped the next line. Ash: "I can click next
+       * on the scroll, and it skips past two sections instead of just 1." */
+      const on = document.activeElement
+      if (on && on !== document.body && on.closest('button, a, input, select, textarea')) return
+      rt.advance()
+      e.preventDefault()
     }
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
@@ -63,7 +72,17 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
   return (
     <>
       {children}
-      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: CUTSCENE_LAYER }} onClick={() => rt.advance()}>
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: CUTSCENE_LAYER }} onClick={(e) => {
+        /* ---- AND A PRESS ON A CONTROL IS THAT CONTROL'S PRESS -------------
+         *
+         * This div is the whole screen and it advances on any click that reaches it.
+         * A click on a plank INSIDE the cutscene runs the plank's own handler and then
+         * bubbles up to here, so one press advanced twice and a page went by unread.
+         * The button has already answered; this is for the empty screen around it. */
+        const hit = e.target as HTMLElement | null
+        if (hit && hit.closest('button, a, input, select, textarea')) return
+        rt.advance()
+      }}>
         {/* vignette, the I-1 eyes-opening aperture; radial so the middle stays alive */}
         {ui.vignette > 0.003 && (
           <div style={{
