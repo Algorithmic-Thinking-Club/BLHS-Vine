@@ -26,10 +26,11 @@ describe('open, with a name nobody has', () => {
     const r = await performIntent({ kind: 'open', ui: 'guide' } as never,
       host(() => { throw new Error('the engine must never be reached with a bad name') }))
     expect(r.ok).toBe(false)
-    expect(r.why).toMatch(/"guide" is not a panel/)
+    const why = r.ok ? '' : r.why
+    expect(why).toMatch(/"guide" is not a panel/)
     /* the list is in the refusal, because a member reading it has to be able to fix
      * their own line without reading the engine */
-    for (const p of UI_PANELS) expect(r.why).toContain(p)
+    for (const p of UI_PANELS) expect(why).toContain(p)
   })
 
   it('and every real panel is still let through', async () => {
