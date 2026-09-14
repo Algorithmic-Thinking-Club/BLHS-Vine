@@ -77,7 +77,12 @@ export function SkipVoyage() {
     skipVoyage()
   }
 
-  if (!plan) return null
+  /* AND IT IS NOT OFFERED ONCE SHE IS COMING IN. On the landing leg the far island
+   * is already on screen and the crossing is over, so there is nothing left to skip
+   * and the only thing a press can now do is destroy the arrival it was meant to
+   * deliver. The key listener goes with the button, so no press can latch a flag
+   * nobody is going to honour. */
+  if (!plan || plan.leg === 'landing') return null
   return (
     <button type="button" className="sv-skip" onClick={take} disabled={gone}>
       {gone ? (waiting ? 'Staying' : 'Arriving') : waiting ? 'Esc: not just now' : 'Esc: skip ahead'}

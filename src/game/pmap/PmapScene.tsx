@@ -4863,8 +4863,21 @@ export default function PmapScene() {
           settleVoyageFrame('she tied up nowhere in particular')
           return
         }
-        /* arriving where you already are is a tie-up, and a script says when he steps off */
-        if (v) tiedUp = true; else stepAshore()
+        /* ---- WHOEVER OWNS THE CROSSING SAYS WHEN HE STEPS OFF ------------
+         *
+         * ASH: *"the arriving is broken because it automatically skips."* Nobody
+         * pressed anything. This line asked whether a PYTHON route was directing the
+         * arrival and, finding none, put him ashore on the tie-up frame. But the
+         * engine's own voyage is a script directing an arrival too, and it sets no
+         * `voyage` object: it lives in `world/travel.ts`. So on every journey a player
+         * actually takes - a pin on the chart, `sail_to`, the Head back button - this
+         * got there first with `keepShot` false, and every beat the landing leg had
+         * staged behind it became a no-op: the wait for the tie-up, the 700ms breath,
+         * the step ashore with the shot kept, the pull-out over the island and the
+         * card. The arrival skipped itself.
+         *
+         * A tie-up is a tie-up. Stepping off belongs to the thing that brought him. */
+        if (v || travelPlan()?.leg === 'landing') tiedUp = true; else stepAshore()
         /* and the chart finds out where she is tied up, so the boat marker really moves */
         recordVessel({ berthedAt: s.place ?? s.map ?? mapId, legs: (loadSave()?.vessel?.legs ?? 0) + 1 })
         engine.log('voyage_arrived', { map: mapId, to: s.map ?? mapId, place: s.place ?? null })
@@ -5232,6 +5245,24 @@ const CAST_OFF_SHOW_MS = 3200
          * ever boarded. */
         const skipToShore = (): boolean => {
           if (!voyageSkipped()) return false
+          /* ---- ONCE THE FAR MAP IS OPEN THERE IS NOTHING LEFT TO SKIP ------
+           *
+           * ASH: *"the arriving is broken because it automatically skips."*
+           *
+           * `skipped` is a latched flag and `setLeg` never clears it, so it crosses the
+           * map change with the voyage. This test runs at the top of EVERY leg, the
+           * landing included, and the landing runs after the far island is already on
+           * screen with the ship on the water. So one Escape pressed during the
+           * crossing did not shorten the crossing, it deleted the ARRIVAL: the leg
+           * answered a stale flag by calling `beginExit` onto the map he was already
+           * standing on, which is a second loading screen with the island's name on it
+           * and a teleport over a live scene.
+           *
+           * A skip is a way of getting to the far dock sooner. Once he is at it, it has
+           * nothing to offer and must not be honoured. */
+          if (v.leg === 'landing') return false
+          /* and a skip never re-enters the map it is already on, whatever the leg */
+          if (v.to === mapId) { endTravel('already there'); return false }
           const at = comp ? slotOfMap(comp, v.to)?.berth?.at : undefined
           console.log(`[travel] skipped, landing on ${v.to}${at ? ` at ${at}` : ''}`)
           endTravel('skipped')
