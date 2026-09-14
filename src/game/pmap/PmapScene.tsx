@@ -4633,7 +4633,25 @@ export default function PmapScene() {
         /* 96 rather than 44: a berth sits in the water off the end of a quay, and the
          * quay itself is further than a body's length away in the squashed metric. */
         const tried = onFloor(sea, canStand, cfg.yScale, 96)
-        return tried.moved ? tried.at : null
+        if (tried.moved) return tried.at
+        /* ---- AND ONE LAST LOOK, FURTHER OUT ------------------------------
+         *
+         * `onFloor` searches its own way and gives up at the radius it is handed.
+         * Measured on the castaway stand-in, whose berth sits 620 pixels out with the
+         * beach a long way behind it: nothing standable inside 96, so the journey home
+         * was refused and died with nothing on the screen. A ring search out to a
+         * quarter of a painting is slow enough to notice only when the cheap answers
+         * have already failed, which is exactly when it is worth paying for. */
+        for (let r = 104; r <= 260; r += 8) {
+          for (let i = 0; i < 24; i++) {
+            const a2 = (i / 24) * Math.PI * 2
+            const x = sea.x + Math.cos(a2) * r
+            const y = sea.y + Math.sin(a2) * r * (cfg.yScale || 1)
+            if (x < 0 || y < 0 || x >= W || y >= H) continue
+            if (canStand(x, y)) return { x, y }
+          }
+        }
+        return null
       }
 
       const board = () => {
@@ -5146,8 +5164,14 @@ const CAST_OFF_SHOW_MS = 3200
             if (canSail && berth) {
               const at = dockSide()
               if (!at) {
+                /* AND IT IS SAID OUT LOUD. A journey that cannot start used to end
+                 * here in one console line: the bars came down, the plan vanished, and
+                 * a student who had pressed a button watched nothing happen and had
+                 * nothing to read. Whatever else is true, somebody pressed something. */
                 endTravel(`there is nowhere to stand at ${mapId}'s berth`)
                 setCinema(false)
+                engine.objective(null)
+                void say({ text: 'There is no way down to the water from here.' })
                 return
               }
               setTravelLeg('boarding')
@@ -5169,7 +5193,13 @@ const CAST_OFF_SHOW_MS = 3200
               return
             }
             const door = doorToWater()
-            if (!door) { endTravel('there is no way down to the water from here'); setCinema(false); return }
+            if (!door) {
+              endTravel('there is no way down to the water from here')
+              setCinema(false)
+              engine.objective(null)
+              void say({ text: 'There is no way down to the water from here.' })
+              return
+            }
             if (skipToShore()) return
             /* ---- THE WAY OUT MAY BE THE DESTINATION ------------------------
              *
