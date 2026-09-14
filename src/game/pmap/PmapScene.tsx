@@ -4790,8 +4790,22 @@ export default function PmapScene() {
         if (hullSp) hullSp.visible = true
         thor.sp.visible = false; thor.sh.visible = false; pinWanted = false
         camFree = true
-        /* Z_MIN, since the sailing shot is measured off the wide view and not the walking one */
-        zoomTo(Z_MIN)
+        /* ---- THE SHIP SHOT, WHICH IS THE ONE THE INTRO USES -----------------
+         *
+         * ASH, comparing the two: *"look at how the intro cutscene sailing. because
+         * theres a clear difference. Much slower sailing. Correct camera orientated."*
+         *
+         * The intro is the hub's own Python and it says `view("ship")`, which is the
+         * WALKING zoom: on the hub, 3.0. This said `zoomTo(Z_MIN)`, which on the hub is
+         * 2.04, so every engine voyage pulled a third of the way out the instant he got
+         * in and then the leg said `view('ship')` and pulled back in again. Two camera
+         * moves fighting over one beat, ending further out than the crossing the player
+         * likes, which is most of why the same boat reads as a speedboat on one road
+         * and as a ship on the other.
+         *
+         * Z_MIN is still the floor for a student driving her himself, where pulling out
+         * is what a tiller is for. */
+        zoomTo(Z_SHIP)
         engine.log('boarded', { map: mapId, place: slot?.place ?? null })
       }
 
@@ -5285,6 +5299,10 @@ const SAIL_OUT_MS = 5200
  * other departure in the game uses: `steerTo` eases the way on through the turn and
  * then holds it. A hand-picked third of a helm was a second law for one shot. */
 
+/* how long he stands on his own quay with the camera already on the ship before he
+ * steps into her. The intro's own boarding beat, which Ash named as the difference. */
+const BOARD_HOLD_MS = 850
+
 const CAST_OFF_SHOW_MS = 3200
 
       /* ONE LEG OF A VOYAGE, AND THE SCENE THAT CAN PERFORM IT PERFORMS IT.
@@ -5435,12 +5453,24 @@ const CAST_OFF_SHOW_MS = 3200
 
           if (v.leg === 'crossing') {
             if (!canSail || !berth) { endTravel(`${mapId} has no berth`); setCinema(false); return }
-            /* he boards by pressing E, and this is the floor under a scene that
-             * reloaded mid-leg rather than a second way to start a voyage */
-            if (!hull) board()
+            /* ---- HE GETS IN, AND IT IS A PICTURE ---------------------------
+             *
+             * ASH: *"A shake before hopping on the boat, thor visible."* The intro has
+             * that beat and this did not: E hid him and produced a boat in the same
+             * frame, which is a swap and not a boarding.
+             *
+             * The camera goes to the ship FIRST, while he is still standing on the
+             * quay, then the line goes aboard, then he steps in. The same three beats
+             * `end_run` uses for the last shot of the year, for the same reason. */
+            if (!hull) {
+              void intentWorld.view('ship')
+              try { playSfx('board') } catch { /* a beat without its sound is still a beat */ }
+              await new Promise<void>((r) => setTimeout(r, BOARD_HOLD_MS))
+              if (destroyed) return
+              board()
+            }
             if (!hull) { endTravel('he could not get in the boat'); setCinema(false); return }
             if (skipToShore()) return
-            void intentWorld.view('ship')
             /* off the berth and into water she can actually sail, the same sounding
              * the arrival uses, because a berth is the shallowest water there is */
             const out = soundOffshore()
