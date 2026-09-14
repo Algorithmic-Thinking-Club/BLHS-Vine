@@ -54,7 +54,8 @@ import { loadSettings, onSettings } from '../../app/SettingsPanel'
 import { runEnding, setRunEnding } from '../hud/objective-bus'
 import { sessionOver } from '../run/year'
 import {
-  newHull, stepHull, berthHelm, steerTo, easeHelm, lineUpPoint, DEFAULT_SAIL, HELM_IDLE,
+  newHull, stepHull, berthHelm, steerTo, easeHelm, lineUpPoint, RUN_IN_CORRIDOR_PX,
+  DEFAULT_SAIL, HELM_IDLE,
   type Berthing, type Helm, type HullState,
 } from '../world/sail'
 import { cover, transitionBusy } from '../../app/transitions'
@@ -2590,7 +2591,11 @@ export default function PmapScene() {
         if (!hull) board()
         if (!hull) throw new NotBuilt('route', `the ship could not be boarded on ${mapId}`)
         /* the timeout is measured off the line's own length rather than off a constant */
-        const secs = (lengthOf(p, backwards) / DEFAULT_SAIL.cruise) * 3 + 8
+        /* FROM WHERE SHE IS. The same arithmetic `dockAt` uses and for the same
+         * reason: the first leg of any line is the one from the hull to its first
+         * point, and it is not one of the gaps `lengthOf` adds up. */
+        const secs = ((Math.hypot(pts[0].x - from.x, pts[0].y - from.y) + lengthOf(p, backwards))
+          / DEFAULT_SAIL.cruise) * 3 + 8
         engine.log('voyage_started', {
           map: mapId, path: p.name, legs: pts.length,
           berth: dest.berth.name, to: dest.slot?.map ?? mapId,
@@ -4826,7 +4831,6 @@ export default function PmapScene() {
         sailingTo = null
         hull = null
         berthing = null
-        berthRun = null
         castOff = null
         if (hullSp) hullSp.visible = !!berth
         wakeG.clear()
@@ -4873,7 +4877,6 @@ export default function PmapScene() {
        * So the approach is searched before it is sailed. These are the legs of that
        * search, steered one at a time, and `berthing` does not begin until she is out
        * of them. A crossing over open water finds one leg and nothing changes. */
-      let berthRun: { pts: { x: number; y: number }[]; i: number; left: number } | null = null
 
       /* ---- COMING UP ON A BERTH IS DONE AT DOCKING SPEED ------------------
        *
@@ -4898,9 +4901,28 @@ export default function PmapScene() {
       }
 
       /* docking is a decelerating manoeuvre and then a door, never a teleport */
+      /* ---- ONE CROSSING, ONE FOLLOWER -------------------------------------
+       *
+       * ASH: *"The sailing needs to be as smooth as perfect as the beach / intro
+       * cutscene, but across every island... basically any sailing. needs to be
+       * perfect."*
+       *
+       * The reason it was not is that this game had TWO machines for moving a ship and
+       * they did not agree. An island saying `route(..., who="ship")` - which is the
+       * intro, and the crossing he likes - went through `sailing`: a line of waypoints
+       * steered one at a time, taking the way off on the last leg, handing the last
+       * stretch to `berthHelm` with the berth's own heading. Every other crossing in
+       * the game went through a second follower written later, with its own timeout,
+       * its own handover and its own idea of how to come up on a mark. Two machines
+       * doing one job is why one of them looked right and the other did not, and every
+       * fix to either of them had to be made twice or it silently was not.
+       *
+       * There is one now. `dockAt` finds the way in over water exactly as it did and
+       * then hands it to `sailing`, the same follower the intro uses, as a line with a
+       * name. The handover to the manoeuvre, the deceleration, the timeout and the
+       * arrival are all the intro's, because they are now literally the same code. */
       const dockAt = (s: WorldSlot) => {
-        if (!hull || !s.berth || berthing) return
-        docking = s
+        if (!hull || !s.berth || berthing || sailing) return
         const t = fromSea(s.berth.x, s.berth.y)
         const ap = s.berth.approach ? fromSea(s.berth.approach.x, s.berth.approach.y) : undefined
         /* WHERE THE MANOEUVRE IS GOING TO BEGIN, asked of the manoeuvre itself. The
@@ -4915,24 +4937,47 @@ export default function PmapScene() {
         const head = ap
           ?? (face !== undefined ? lineUpPoint(t, face, DEFAULT_SAIL, water) ?? t : t)
         const legs = seaRoute({ x: hull.x, y: hull.y }, head, water, { step: 24 })
-        /* every leg of it: the last one ends at the mark the manoeuvre begins from,
-         * which is a place she should really be rather than a place to stop short of */
-        const runs = legs && legs.length ? legs : null
-        berthRun = runs
-          ? { pts: runs, i: 0, left: (runs.length + 1) * 14 }
-          : null
-        if (berthRun) {
-          console.log(`[sail] ${mapId}: a way in over water, ${berthRun.pts.length} leg`
-            + `${berthRun.pts.length > 1 ? 's' : ''} before the manoeuvre`)
+        if (legs && legs.length) {
+          /* the line she is about to sail, written as a line so the one follower can
+           * read it. It carries the berth's own heading, which is what `berthHelm`
+           * reads at the handover when the world gives it nothing else. */
+          const line: Pathway = {
+            name: `the way in to ${s.berth.name ?? s.map ?? mapId}`,
+            kind: 'sail',
+            points: legs,
+            closed: false,
+            twoWay: false,
+            facing: s.berth.facing,
+            bearing: s.berth.bearing,
+            marks: [],
+          }
+          /* ---- MEASURED FROM WHERE SHE IS, NOT ALONG THE LINE -------------
+           *
+           * `lengthOf` adds up the gaps BETWEEN a line's points, and a way in that is
+           * one clear run has exactly one point, so it measured zero. She was given
+           * eight seconds to sail a thousand pixels, the follower timed out halfway
+           * in, and she was left coasting with nothing driving her and an arrival
+           * waiting on a tie-up that could never come. The stretch she has to sail
+           * starts at the hull. */
+          const far = Math.hypot(legs[0].x - hull.x, legs[0].y - hull.y) + lengthOf(line)
+          sailing = { path: line, pts: legs, i: 0, left: (far / DEFAULT_SAIL.cruise) * 3 + 8 }
+          sailingTo = { berth: s.berth, slot: s }
+          console.log(`[sail] ${mapId}: the way in is ${legs.length} leg`
+            + `${legs.length > 1 ? 's' : ''} over ${Math.round(far)}px`)
+          engine.log('docking', { map: mapId, to: s.map ?? null, place: s.place ?? null, legs: legs.length })
+          return
         }
+        /* NO WAY THROUGH AT THIS PITCH, which is an honest answer and not a failure:
+         * she is beside her berth already, or the water is too tight for the search.
+         * The manoeuvre does what it can from where she is, exactly as before. */
+        docking = s
         berthing = { target: t, facing: face, approach: ap, stage: 'approach' }
-        engine.log('docking', { map: mapId, to: s.map ?? null, place: s.place ?? null, legs: berthRun?.pts.length ?? 0 })
+        engine.log('docking', { map: mapId, to: s.map ?? null, place: s.place ?? null, legs: 0 })
       }
 
       const docked = () => {
         const s = docking
         berthing = null
-        berthRun = null
         docking = null
         /* the voyage is taken off the hook before the step ashore, since arriving is success */
         const v = voyage
@@ -5792,6 +5837,19 @@ const CAST_OFF_SHOW_MS = 3200
             here: slot?.place ?? slot?.map ?? mapId,
           }
         },
+        /* the line she is following and how far she still is from the mark she is
+         * aiming at, so a boat going round in circles can be watched rather than
+         * reasoned about */
+        get line() {
+          if (!sailing) return null
+          const aim = sailing.pts[sailing.i]
+          return {
+            path: sailing.path.name, i: sailing.i, of: sailing.pts.length,
+            d: hull ? Math.round(Math.hypot(aim.x - hull.x, aim.y - hull.y)) : null,
+            aim: { x: Math.round(aim.x), y: Math.round(aim.y) },
+            left: Math.round(sailing.left),
+          }
+        },
         /* WHICH LEG OF THE JOURNEY HE IS ON, which is the whole of the sail state
          * machine and was readable from nowhere. A proof that cannot see the leg can
          * only watch the end of a voyage and guess at everything on the way to it. */
@@ -6038,33 +6096,11 @@ const CAST_OFF_SHOW_MS = 3200
 
         /* what is being driven decides what the camera follows and how far out it sits */
         if (hull) {
-          if (berthRun && berthing) {
-            /* THE WAY IN COMES FIRST. She runs the legs the search found and only
-             * then hands over to the manoeuvre, so the last stretch of a crossing is
-             * the only part `berthHelm` has ever had to be clever about. */
-            const r = berthRun
-            r.left -= dt
-            const aim = r.pts[r.i]
-            const d = Math.hypot(aim.x - hull.x, aim.y - hull.y)
-            if (r.left <= 0) {
-              console.warn(`[sail] ${mapId}: the way in ran out of time on leg ${r.i + 1} of ${r.pts.length}`)
-              berthRun = null
-            } else if (d < 34) {
-              r.i++
-              if (r.i >= r.pts.length) berthRun = null
-            }
-            /* AND THE LAST LEG OF THE WAY IN IS A DECELERATION, the same as the
-             * route follower's. `berthHelm` takes over at the end of this run and it
-             * cannot come alongside a hull that is still at cruise: it refuses her,
-             * sends her out to a lineup mark on the far side of the dock, and she
-             * sails a lap. Two followers, one law. */
-            let helm: Helm = HELM_IDLE
-            if (berthRun) {
-              helm = steerTo(hull, aim)
-              if (berthRun.i >= berthRun.pts.length - 1) dockingSpeed(helm, d, hull.speed)
-            }
-            hull = stepHull(hull, helm, dt, depthAt)
-          } else if (berthing) {
+          /* THE SECOND FOLLOWER USED TO BRANCH HERE and it is gone: `dockAt` hands
+           * its line to `sailing` below, which is the one the intro uses. Two machines
+           * for moving one ship is why the crossing Ash likes and the crossing he does
+           * not were never going to converge. */
+          if (berthing) {
             /* the manoeuvre drives the same hull through the same physics as the player's helm */
             /* AND THE MANOEUVRE IS TOLD WHERE THE WATER IS. It works a rendezvous
              * out for itself when nobody drew an approach point, and the one thing
@@ -6080,7 +6116,6 @@ const CAST_OFF_SHOW_MS = 3200
             else if (berthing.stage === 'given_up') {
               const s = docking
               berthing = null
-              berthRun = null
               docking = null
               engine.log('berthing_gave_up', {
                 map: mapId, to: s?.map ?? null, aground: hull.aground,
@@ -6102,17 +6137,64 @@ const CAST_OFF_SHOW_MS = 3200
             const ahead = Math.cos(hull.heading) * dx + Math.sin(hull.heading) * dy
             s2.left -= dt
             if (s2.left <= 0) {
+              /* ---- A LINE THAT RUNS OUT HANDS HER TO THE MANOEUVRE ------------
+               *
+               * It used to drop her: follower gone, nothing else driving, and on an
+               * engine voyage an arrival still waiting on a tie-up that could now
+               * never happen. She coasted to a stop in open water and the journey
+               * hung there.
+               *
+               * `berthHelm` can come alongside from anywhere - that is the whole of
+               * what it is for - and it has its own watchdog which says so out loud
+               * when it really cannot. Handing her over is a strictly better answer
+               * than letting go of the wheel. */
+              const b2 = sailingTo?.berth
               sailing = null
-              sailingTo = null
-              engine.log('voyage_gave_up', { map: mapId, at: s2.i, of: s2.pts.length })
-              endVoyage(new NotBuilt('route', `the ship did not reach waypoint ${s2.i} of ${s2.pts.length - 1} in time`))
+              if (b2 && !berthing) {
+                docking = sailingTo?.slot ?? null
+                lastBerth = b2.name ?? null
+                berthing = {
+                  target: fromSea(b2.x, b2.y),
+                  facing: b2.facing || b2.bearing !== undefined
+                    ? radOf(b2.facing, b2.bearing) : undefined,
+                  approach: b2.approach ? fromSea(b2.approach.x, b2.approach.y) : undefined,
+                  stage: 'approach',
+                }
+                console.warn(`[sail] ${mapId}: the way in ran long, so she comes alongside from here`)
+                engine.log('voyage_slow', { map: mapId, at: s2.i, of: s2.pts.length })
+              } else {
+                sailingTo = null
+                engine.log('voyage_gave_up', { map: mapId, at: s2.i, of: s2.pts.length })
+                endVoyage(new NotBuilt('route', `the ship did not reach waypoint ${s2.i} of ${s2.pts.length - 1} in time`))
+              }
             } else if (s2.i < s2.pts.length - 1 && (d < 40 || (ahead < 0 && d < DEFAULT_SAIL.cruise))) {
               s2.i++
               hull = stepHull(hull, { throttle: 1, turn: 0, fullSail: false }, dt, depthAt)
-            } else if (s2.i >= s2.pts.length - 1) {
-              /* the last leg becomes the manoeuvre. `berthing` takes over on the
-               * next frame through the branch above, so there is exactly one thing
-               * driving the hull at any instant. */
+            } else if (s2.i >= s2.pts.length - 1
+              && (d < RUN_IN_CORRIDOR_PX || (ahead < 0 && d < DEFAULT_SAIL.cruise))) {
+              /* ---- THE HANDOVER HAPPENS WHERE SHE ARRIVES, NOT WHERE SHE AIMS ---
+               *
+               * This used to fire the moment `i` POINTED at the last waypoint, which
+               * on a one-leg line is the first frame of the crossing. So the line's
+               * last stretch - the one the follower slows down for - was never sailed
+               * by the follower at all: `berthHelm` got a hull at cruise from wherever
+               * she happened to be, refused to come alongside one going that fast, and
+               * sent her round again. Measured on the ATC arrival, a hundred and fifty
+               * frames of approach at ninety four.
+               *
+               * SHE HAS GOT NEAR IT, or she has gone past it. NEAR and not ON: the
+               * intermediate waypoints use forty pixels and the last one cannot,
+               * because her turning circle is seventy six and a boat cannot hit a
+               * forty pixel target she is already turning around. Measured, she
+               * orbited the lineup mark for eleven hundred frames at a mean of eleven
+               * pixels a second and never once got inside forty. The corridor width is
+               * the right number and it is the one `berthHelm` already uses for
+               * "beside the dock", so the two agree about where the manoeuvre starts. Until then the branch below steers her at it and takes
+               * the way off, which is what makes her arrive at a speed the manoeuvre
+               * will accept. The line's own timeout is still the floor under it.
+               *
+               * `berthing` takes over on the next frame through the branch above, so
+               * there is exactly one thing driving the hull at any instant. */
               /* THE BERTH WAS DECIDED WHEN THE WORD WAS SAID. It used to be
                * looked up here, on the frame the last leg begins, which is why an
                * unnamed line could get this far at all and then stop at nothing. */
