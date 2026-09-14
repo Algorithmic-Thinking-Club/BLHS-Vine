@@ -31,6 +31,11 @@ const BOATS = ['Second Wind', "Panther's Wake", 'Late Pass', 'Salt & Chalk', 'Fi
 const spinHandle = () => HANDLE_A[Math.floor(Math.random() * HANDLE_A.length)] + HANDLE_B[Math.floor(Math.random() * HANDLE_B.length)]
 const spinBoat = () => BOATS[Math.floor(Math.random() * BOATS.length)]
 
+/* how long the parchment waits for the class service before it decides for itself.
+ * A student on school wifi must not sit on a blank page, and a student with no class
+ * must not watch the code boxes appear and then vanish. */
+const CLASS_ASK_MS = 2200
+
 // a class join that failed on the network retries quietly in the background until it lands
 const RETRY_MS = [5_000, 15_000, 45_000, 120_000, 300_000, 300_000, 300_000]
 let retryTimer = 0
@@ -100,17 +105,39 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
   const saved = loadSave()
   const alreadyJoined = !!saved?.participantId || !!saved?.castaway
   const [card, setCard] = useState<Card>(alreadyJoined ? 'identity' : 'code')
-  // with no class service answering there is no code to type, so the card skips itself
+  /* ---- THE QUESTION IS ASKED BEFORE THE LETTER IS SHOWN ------------------
+   *
+   * ASH, on playing the deploy: *"the introduciton cutscene, the first scroll page
+   * immediately goes 'Panther. We saved you a seat' immedieatly glitches to the next
+   * page."*
+   *
+   * It did, every time, and it is this. The letter and its six code boxes went up on
+   * the first frame, `classesAreOpen()` answered a moment later, and with no class
+   * service behind the deploy the answer is no - so the card he had just started
+   * reading threw itself away. The very first thing this game says to a student was a
+   * page that flinched.
+   *
+   * The question is asked first and nothing is drawn until it has an answer, which is
+   * a held beat on the parchment rather than a flash. AND IT CANNOT WAIT FOR EVER: a
+   * server that never answers is the same to a student as one that says no, and this
+   * is the first ten seconds of the game. */
+  const [asking, setAsking] = useState(!alreadyJoined)
   useEffect(() => {
     if (alreadyJoined) return
     let gone = false
-    void classesAreOpen().then((open) => {
-      if (gone || open) return
-      track('join_skipped', { why: 'no server' })
-      setCastaway(true)
-      setCard((c) => (c === 'code' ? 'identity' : c))
-    })
-    return () => { gone = true }
+    const settle = (open: boolean) => {
+      if (gone) return
+      if (!open) {
+        track('join_skipped', { why: 'no server' })
+        setCastaway(true)
+        setCard((c) => (c === 'code' ? 'identity' : c))
+      }
+      setAsking(false)
+    }
+    const late = window.setTimeout(() => settle(true), CLASS_ASK_MS)
+    void classesAreOpen().then((open) => { window.clearTimeout(late); settle(open) })
+      .catch(() => { window.clearTimeout(late); settle(false) })
+    return () => { gone = true; window.clearTimeout(late) }
   }, [alreadyJoined])
   const [castaway, setCastaway] = useState(!!saved?.castaway)
   const [code, setCode] = useState(saved?.classCode ?? '')
@@ -217,7 +244,11 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
               {card === first ? 'Quit to the title screen' : 'Back'}
             </button>
           )}
-          {card === 'code' && (
+          {/* nothing is drawn while the parchment is still asking whether this deploy
+              has a class to join: a card that appears and then replaces itself is the
+              first thing this game would have said to a student */}
+          {asking && <div className="i3-card i3-asking" aria-hidden="true" />}
+          {!asking && card === 'code' && (
             <CodeCard
               initial={code}
               err={joinErr}
@@ -225,7 +256,7 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
               onCastaway={() => { setCastaway(true); setJoinErr(''); next('identity') }}
             />
           )}
-          {card === 'identity' && (
+          {!asking && card === 'identity' && (
             <IdentityCard
               castaway={castaway}
               className={className}
@@ -235,9 +266,9 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
               onNext={confirmIdentity}
             />
           )}
-          {card === 'word' && <WordCard onNext={() => next('wardrobe')} />}
-          {card === 'wardrobe' && <WardrobeCard look={look} setLook={setLook} onNext={() => next('boat')} />}
-          {card === 'boat' && <BoatCard boat={boat} setBoat={setBoat} onNext={finish} />}
+          {!asking && card === 'word' && <WordCard onNext={() => next('wardrobe')} />}
+          {!asking && card === 'wardrobe' && <WardrobeCard look={look} setLook={setLook} onNext={() => next('boat')} />}
+          {!asking && card === 'boat' && <BoatCard boat={boat} setBoat={setBoat} onNext={finish} />}
         </div>
       </div>
     </div>

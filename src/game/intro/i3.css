@@ -661,3 +661,8 @@ html[data-skin='plain'] .i3-back {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* the held beat while the parchment asks whether this deploy has a class to join.
+   It is the card's own shape with nothing written on it, so the paper does not jump
+   size when the real card arrives. */
+.i3-asking { min-height: 220px; }
