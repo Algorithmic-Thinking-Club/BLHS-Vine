@@ -44,6 +44,9 @@ export function CameraToggle() {
     <button
       type="button"
       className="ct-btn"
+      /* the tour points at it by this name, the way every other corner control is
+         found: read off the live DOM rather than kept in a second layout */
+      data-tour="camera-view"
       role="switch"
       aria-checked={close}
       aria-label={`Camera: ${close ? 'close view' : 'wide view'}. Press to switch.`}

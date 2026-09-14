@@ -37,6 +37,15 @@ export const HANDOVER_STEPS: Step[] = [
   { tour: 'my-year', line: 'This is your year. Everything you picked is in here, and this is where you go and do it.' },
   { tour: 'map', line: 'This is the sea. Every island somebody has built is on it, and this is how you sail there.' },
   { tour: 'guide', line: 'This is the school. Every club, sport and class at Bonney Lake, and what you have earned.' },
+  /* ---- THE TWO CONTROLS THE TOUR NEVER NAMED ---------------------------
+   *
+   * ASH: *"the button cutscene also needs to add the chart button + the close / wide
+   * button at the top."* Both arrived after this list was written and neither was ever
+   * pointed at, so the only way to find them was to press them and see. The chart is
+   * how a student reaches an island and the camera switch is the one control over how
+   * the game looks; a tutorial that skips them is teaching half the corner. */
+  { tour: 'chart', line: 'The chart on its own. Where you are, where your boat is, and every island you can sail to.' },
+  { tour: 'camera-view', line: 'And this changes how close the camera sits. Wide to see the island, close to see yourself.' },
   { tour: 'help', line: 'And this stays here the whole time. Press it whenever you are not sure what to do.' },
 ]
 
