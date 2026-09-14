@@ -19,6 +19,7 @@ const world: IntentWorld = {
   say: (who, text, portrait) => say({ who, text, portrait }),
   choose: (prompt, options) => choose({ prompt, options }),
   guideTo: noMap('guide_to'),
+  highlight: noMap('highlight'),
   walkTo: noMap('walk_to'),
   lookAt: noMap('look_at'),
   show: noMap('show'),

@@ -2658,6 +2658,24 @@ export default function PmapScene() {
 
         guideTo(name) {
           guideTarget = name ? anchors.get(name) ?? null : null
+          markQuiet = false
+        },
+
+        /* ---- HIGHLIGHT: THE LIGHT ON ITS OWN, WITHOUT THE ARROW ------------
+         *
+         * Ash's brief, item 22: arrows and highlights frameworked so a member's Python
+         * can point at things. Pointing has always been one word, `guide_to`, and it
+         * raises three things at once: the big floating arrow, a road of marks across
+         * the floor, and a pool of light on the thing. There has never been a way to
+         * ask for only the last of those, so an island that wanted to say "this one,
+         * here" had to shout "GO THERE" with a route drawn to it, or say nothing.
+         *
+         * `highlight` is the light and nothing else. Same anchor, same validation, same
+         * live position, no arrow and no road. A member now has both halves of the
+         * vocabulary the engine has always drawn. */
+        highlight(name, on) {
+          guideTarget = on && name ? anchors.get(name) ?? null : null
+          markQuiet = !!guideTarget
         },
 
         /* auto-walk that paths round walls first and then steers along the route it found */
@@ -4048,6 +4066,8 @@ export default function PmapScene() {
       }
       /* how many arrow marks are on the ground this frame */
       let trailMarks = 0
+      /* the light without the arrow: `highlight` raises this, `guide_to` lowers it */
+      let markQuiet = false
       /* the bottom edge of the objective panel in window pixels, zero when there is no panel */
       let panelBand = 0
       let panelBandAt = -99
@@ -6516,7 +6536,8 @@ const CAST_OFF_SHOW_MS = 3200
             if (short > 0) bigMark.y += short / camZ
           }
           bigMark.zIndex = 9e9 - 2
-          bigMark.visible = marksOn
+          /* a highlight is a light on a thing and not an instruction to walk to it */
+          bigMark.visible = marksOn && !markQuiet
 
           /* the light sits on the thing, at its live position, squashed onto the painting's floor */
           const spot = anchors.spotOf(mark)
@@ -6613,7 +6634,7 @@ const CAST_OFF_SHOW_MS = 3200
              * a road in front of him rather than as something stuck to him */
             let next = map.character.heightPx * 1.2
             const marks: { x: number; y: number; t: number; dir: string }[] = []
-            for (let i = 1; i < g.route.length && marks.length < 64; i++) {
+            for (let i = 1; i < (markQuiet ? 0 : g.route.length) && marks.length < 64; i++) {
               const a = g.route[i - 1], b = g.route[i]
               const dx = b.x - a.x, dy = (b.y - a.y) * ys
               const seg = Math.hypot(dx, dy)

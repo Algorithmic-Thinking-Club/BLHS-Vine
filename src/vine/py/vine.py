@@ -75,6 +75,29 @@ def guide_to(anchor):
     return {"kind": "guide_to", "anchor": anchor}
 
 
+def highlight(anchor, on=True):
+    """Light one thing up where it stands, with no arrow and no road to it.
+
+        yield highlight("the_desk")        # the light goes on
+        yield highlight(None)              # and off again
+
+    `guide_to` is the other half of this and it is a louder word: it raises a big
+    arrow over the thing AND lays a trail of marks along the floor from wherever
+    you are standing to it AND lights it. That is the right thing to say when the
+    student has to GO somewhere and does not know where.
+
+    This is for when he is already looking at the thing and you only want to say
+    WHICH ONE. The president's terrace has eight computers on it and exactly one of
+    them is switched on; the difference between "that one" and "walk over there" is
+    the difference between these two words.
+
+    Both of them point at a live anchor, so a thing that walks about takes its
+    light with it, and both of them are taken down the same way: pass None, or
+    `on=False`, whichever reads better in your line.
+    """
+    return {"kind": "highlight", "anchor": anchor if on else None, "on": bool(on and anchor)}
+
+
 def walk_to(anchor, off=None):
     """Take the controls and walk him there. Comes back when he arrives.
 

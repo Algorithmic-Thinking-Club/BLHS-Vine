@@ -11,6 +11,8 @@ export type Intent =
 
   /* guide_to draws the arrow to a place, and null takes the arrow down */
   | { kind: 'guide_to'; anchor: string | null }
+  /* highlight lights a thing where it stands, with no arrow and no road to it */
+  | { kind: 'highlight'; anchor: string | null; on?: boolean }
   /* walk the player to an anchor, with an optional small step aside from its mark */
   | { kind: 'walk_to'; anchor: string; off?: Offset }
   | { kind: 'look_at'; anchor: string | null; ms?: number }
@@ -268,6 +270,8 @@ export interface IntentWorld {
   say(who: string | undefined, text: string, portrait?: string): Promise<void>
   choose(prompt: string | undefined, options: string[]): Promise<number>
   guideTo(anchor: string | null): void
+  /* the pool of light on its own, which `guide_to` has always raised as a side effect */
+  highlight(anchor: string | null, on: boolean): void
   walkTo(anchor: string, off?: Offset): Promise<void>
   lookAt(anchor: string | null, ms?: number): Promise<void>
   show(anchor: string, visible: boolean): void
@@ -380,6 +384,14 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         if (i.anchor && !w().hasAnchor(i.anchor)) return no(`no anchor named "${i.anchor}" on ${w().mapId()}`)
         w().guideTo(i.anchor)
         return ok()
+      case 'highlight': {
+        /* the same validation guide_to keeps, and null is letting go rather than a
+         * name somebody forgot */
+        const lit = i.on === false ? null : i.anchor
+        if (lit && !w().hasAnchor(lit)) return no(`no anchor named "${lit}" on ${w().mapId()}`)
+        w().highlight(lit, !!lit)
+        return ok()
+      }
       case 'walk_to':
         if (!w().hasAnchor(i.anchor)) return no(`no anchor named "${i.anchor}" on ${w().mapId()}`)
         if (offsetFault(i.off)) return no(offsetFault(i.off) as string)

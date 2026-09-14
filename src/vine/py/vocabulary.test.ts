@@ -51,8 +51,8 @@ describe('the intent vocabulary, both sides of the worker', () => {
      line saying what a whole island is asking for, and the tick that says a row of it
      is finished. Ash asked for islands to "constantly have tasks to do", and a single
      sentence could never hold a list or say how much was left. */
-  it('is thirty-five words on the engine side', () => {
-    expect(engineWords.size).toBe(35)
+  it('is thirty-six words on the engine side', () => {
+    expect(engineWords.size).toBe(36)
   })
 
   it('has the two task words on both sides, so an island can lay out what it wants', () => {
