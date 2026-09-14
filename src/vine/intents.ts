@@ -1,5 +1,6 @@
 /* the list of things the engine can be asked to do, as plain data a grape sends over */
 import type { CheckStep, SessionMode } from './contract'
+import { UI_PANELS } from '../game/ui-bus'
 
 /* ---- what the engine can be asked to do ---------------------------------- */
 
@@ -580,11 +581,33 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         return ok()
       }
 
-      case 'open':
+      case 'open': {
+        /* ---- A PANEL NOBODY HAS IS A SENTENCE, NOT A FROZEN GAME ----------
+         *
+         * `open` was the one word whose argument was never checked against its own
+         * closed list, and it is a word a member types by hand. `open("guide")` for
+         * "handbook" got all the way to the Hud, which is a chain of equality tests
+         * with no else: nothing matched, nothing opened, and with `wait=True` the
+         * waiter it had already parked was never called. The station handler holds the
+         * world for its whole length, so a student stood still with no dialogue, no
+         * panel and no controls for TEN MINUTES - the bus's own ceiling - and then the
+         * island carried on as though the panel had opened and shut. Without `wait` the
+         * same typo was a silent no-op reported as ok.
+         *
+         * The Maw's founding film says `open(..., wait=True)` four times, so this
+         * lands in the first two minutes of the game.
+         *
+         * Every other word in this file refuses an unknown name with the list of the
+         * ones that exist. This one does now too. */
+        if (!(UI_PANELS as readonly string[]).includes(i.ui)) {
+          return no(`"${String(i.ui)}" is not a panel this game has. `
+            + `It has: ${[...UI_PANELS].sort().join(', ')}`)
+        }
         /* awaited whichever way it answers: without `wait` the engine hands back
          * nothing and this is the same synchronous call it always was */
         await engine.openUi(i.ui, i.wait === true)
         return ok()
+      }
       case 'play': {
         /* as_plain defaults to the study arm this participant was assigned at join */
         const plain = i.as_plain ?? engine.mode() === 'plain'

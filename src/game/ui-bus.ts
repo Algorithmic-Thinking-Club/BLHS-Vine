@@ -11,7 +11,18 @@ import type { BeatDeclaration } from '../vine/intents'
  * `open("handbook")` always landed on Islands, so the one beat in the game whose
  * whole subject is the cords opened the page about islands. The Guide is one
  * panel with six tabs and an island had no way to say which. */
-export type UiRequest = 'planner' | 'handbook' | 'cords' | 'chart' | 'settings' | 'advisory' | 'wardrobe' | 'yearbook' | 'wall' | 'tour'
+/* ---- THE PANELS, AS A LIST A RUNTIME CAN CHECK ---------------------------
+ *
+ * The union below is a compile-time promise and a member's island is not compiled:
+ * the name arrives over the worker as a string somebody typed in Python, so "guide"
+ * for "handbook" is an ordinary Tuesday. Unchecked, it froze the game - see the
+ * refusal in `performIntent`. The array is the source and the union is derived from
+ * it, so the two cannot drift. */
+export const UI_PANELS = [
+  'planner', 'handbook', 'cords', 'chart', 'settings',
+  'advisory', 'wardrobe', 'yearbook', 'wall', 'tour',
+] as const
+export type UiRequest = typeof UI_PANELS[number]
 
 const EVENT = 'blhs:open-ui'
 const BEAT_EVENT = 'blhs:play-beat'

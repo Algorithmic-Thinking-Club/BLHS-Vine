@@ -224,8 +224,12 @@ say(`  wrote: ${JSON.stringify(wrote)}`)
 const rows = (wrote?.ledger ?? []).filter((e) => e.kind === 'island')
 const paid = rows.filter((e) => e.credit > 0)
 ok('exactly one credit-bearing island row', paid.length === 1, JSON.stringify(rows))
+/* THE ID CARRIES ITS YEAR NOW, the way `core:y2` and `island:atc:y1` always have.
+ * A club can be taken again in a later year, and the sitting used to land on the
+ * FIRST year's row: "the school keeps the higher attempt" then printed last year's
+ * grade over this year's work and moved the GPA with it. */
 ok('the activity itself carries no credit',
-  rows.some((e) => e.id.endsWith(':the_program') && e.credit === 0), JSON.stringify(rows))
+  rows.some((e) => /:the_program:y\d+$/.test(e.id) && e.credit === 0), JSON.stringify(rows))
 ok('it carries a grade out of four', paid[0] && typeof paid[0].grade === 'number' && paid[0].grade > 0,
   JSON.stringify(paid[0] ?? null))
 const done = (wrote?.completions ?? []).find((c) => c.programme === 'atc')

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Handbook, type Tab as HandbookTab } from './Handbook'
 import { HelpCard } from './Help'
+import { UI_PANELS } from '../ui-bus'
 import { ChartPanel } from '../world/ChartPanel'
 import { SettingsPanel } from '../../app/SettingsPanel'
 import { Planner } from '../planner/Planner'
@@ -95,7 +96,23 @@ function islandBeat(req: BeatRequest, s: ReturnType<typeof loadSave>): CoreBeat 
   const programme = decl.programme
   const place = placeById(programmeById(programme)?.place)?.name
   return {
-    id: `${programme ?? 'island'}:${req.beat}`,
+    /* ---- THE ID CARRIES ITS YEAR, LIKE EVERY OTHER ID IN THE SAVE --------
+     *
+     * ASH: *"we can do a club again over years? is it meant to play different stuff?"*
+     * It is, and taking one again was quietly broken.
+     *
+     * This built `atc:the_program` in EVERY year, while the core beat is `core:y2`
+     * and the island row is `island:atc:y1`. So a student who sat the ATC machine in
+     * year two landed on year ONE's ledger row, `recordGrade` read it as a retake of
+     * the same thing, and "the school keeps the higher attempt" kept the OLD grade.
+     * The result card then printed last year's A over this year's work, the island
+     * awarded that stale number, and a full credit at a grade nobody earned this year
+     * moved the GPA. Scoring better flipped the row's `year` to 2 instead, which takes
+     * the entry off year one's page.
+     *
+     * `beats/state.ts` already says "the id carries its own year" about the core
+     * beats. This is the one place that did not do it. */
+    id: `${programme ?? 'island'}:${req.beat}:y${s.year}`,
     year: s.year,
     title: decl.title || req.beat,
     place: decl.place || place || '',
@@ -256,6 +273,19 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
      * asked for a button to open the sialign map alone."* Pressing E at his own ship
      * used to open the Handbook on its second tab, GPA line and all. */
     if (which === 'chart') { setChart(true) }
+    /* ---- AND A NAME NOTHING HERE MATCHES RELEASES ITS WAITER -------------
+     *
+     * This is a chain of equality tests with no else, and the line above it has
+     * already parked a waiter. A name none of them match therefore parked a caller
+     * that only the bus's ten minute ceiling could ever settle, with the world held
+     * for the whole of it. `performIntent` refuses an unknown panel by name now, which
+     * is the real fix; this is the fence behind it, because the next way to reach this
+     * function with a name nobody handles is a panel somebody adds and forgets to wire. */
+    if (!(UI_PANELS as readonly string[]).includes(which)) {
+      console.warn(`[hud] nothing here opens "${which}", so whoever asked is let go`)
+      waiting.current?.()
+      waiting.current = null
+    }
     if (which === 'wardrobe') { fromSheet.current = false; track('wardrobe_opened', { via: 'world' }); setWardrobe(true) }
     if (which === 'settings') { setSettings(true) }
     /* the trophy wall, which fills in every time a student finishes something */

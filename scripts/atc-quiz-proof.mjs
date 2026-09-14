@@ -162,7 +162,7 @@ for (const way of WAYS) {
 
   const marks = await page.evaluate(() => {
     const s = JSON.parse(localStorage.getItem('blhs_save_v2') || 'null')
-    const row = s?.ledger?.find((e) => e.id === 'atc:the_program')
+    const row = s?.ledger?.find((e) => /^atc:the_program(:y\d+)?$/.test(e.id))
     return row ? { grade: row.grade, marks: row.marks } : null
   })
   const full = !!marks && marks.grade === 4
