@@ -131,12 +131,27 @@ while (Date.now() - t0 < 180000) {
    * generic presser below would find it too, so this must look BEFORE it does */
   const sail = v.buttons.find((b) => /sail home/i.test(b)) || (/sail home/i.test(v.text) ? 'Sail Home' : null)
   if (sail && !sawSailHome) {
+    /* ---- WAIT FOR THE LINE TO FINISH BEFORE PRESSING ---------------------
+     *
+     * The button appears with the line, and the line is still being typed. A click
+     * while the typewriter is running FINISHES THE TYPEWRITER: it never reaches the
+     * button. This pressed once, lost the press to the typing, and then waited for
+     * ever on a film that was waiting for it - which reads from out here exactly like
+     * the game being broken, and hid a real regression behind a fake one.
+     *
+     * The continue hint is the mark that appears when a line has finished drawing. */
+    await page.waitForSelector('.cs-continue-hint, .dlg-choice', { timeout: 8000 }).catch(() => {})
+    await wait(250)
     sawSailHome = true
     await page.screenshot({ path: `${SHOTS}/2-sail-home.png` })
-    await page.evaluate(() => {
+    const pressed = await page.evaluate(() => {
       const b = [...document.querySelectorAll('button')].find((e) => /sail home/i.test(e.innerText))
-      b?.click()
+      if (!b) return false
+      b.click()
+      return true
     })
+    /* AND IT TRIES AGAIN. One press that lands nowhere must not end the run. */
+    if (!pressed) sawSailHome = false
     await wait(700)
     continue
   }

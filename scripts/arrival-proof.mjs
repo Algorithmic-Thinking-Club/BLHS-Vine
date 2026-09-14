@@ -472,7 +472,17 @@ console.log('\nTHE PANTHER\'S MAW  (items 6 and 8)')
   }
   ok('6', 'and he settles back onto his own idle when he stops',
     !!near && !near.moving && !near.tex.includes(GAIT), near ? near.tex.slice(0, 70) : 'never stopped')
-  ok('6', 'and it stands on its first frame when it stops', !near?.moving && near?.frame === 0)
+  /* ---- HE BREATHES WHEN HE STOPS, HE DOES NOT FREEZE -------------------
+   *
+   * This asked for frame ZERO, which is what a stopped driven body used to be pinned
+   * to: `animT = 0` every frame and index 0 every frame. Ash, on the two longest shots
+   * in the game: *"his stops + facings + positions are goofy in the intro and end
+   * cutscene."* A man standing still is not a photograph. The idle runs on its own fps
+   * now, like every other breathing thing on the map.
+   *
+   * What is still worth holding is that he is on his IDLE and not his walk, which the
+   * check above this one already says. */
+  ok('6', 'and he is standing, not walking, when he stops', !near?.moving)
 
   /* item 8's other half: the painting holds still while a body walks it.
    *

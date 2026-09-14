@@ -2588,10 +2588,20 @@ export default function PmapScene() {
       }
 
       /* letting go of a driven body settles whatever move was pending on it */
+      /* ---- THE WAY HE WAS LEFT FACING IS THE WAY HE STAYS FACING ---------
+       *
+       * ASH: *"his stops + facings + positions are goofy."* Half of that is here. A
+       * body let go of went straight back to whichever heading `rest` picked off a
+       * FILENAME when the map loaded, so a film could turn the principal to face the
+       * student, say its line, let him go, and watch him spin back to south on the
+       * next frame. The last thing a scene said about him is the truth about him. */
+      const lastFacing = new Map<Sprite, string>()
+
       const releaseDriven = (only?: Sprite) => {
         for (const [sp, d] of driven) {
           if (only && sp !== only) continue
           const settle = d.move?.then
+          if (d.facing) lastFacing.set(sp, d.facing)
           d.move = null
           driven.delete(sp)
           settle?.()
@@ -3057,7 +3067,11 @@ export default function PmapScene() {
                * shot of a whole year. The helm below gets the mark instead. */
               const dir = seaward(she) ?? she.heading
               const out = { x: she.x + Math.cos(dir) * 260, y: she.y + Math.sin(dir) * 260 }
-              castOff = { x: out.x, y: out.y, until: performance.now() + SAIL_OUT_MS + 400 }
+              /* HALF A HELM, because this is the last shot of the year and she is
+               * leaving rather than going somewhere. Ash: "the boat slowly sails
+               * normally back out into the ocean." Measured at a full helm she made
+               * 37 px/s across the shot, which is a boat departing briskly. */
+              castOff = { x: out.x, y: out.y, until: performance.now() + SAIL_OUT_MS + 400, ease: 0.42 }
               she.speed = 0
               sailing = null
               helmOverride = null
@@ -4705,8 +4719,10 @@ export default function PmapScene() {
        * milliseconds, so a proof run sails the shipped physics rather than warping
        * a boat to a coordinate and calling that a leg */
       let helmOverride: { until: number; helm: Helm } | null = null
-      /* where she is being steered while she gets clear of the dock she just left */
-      let castOff: { x: number; y: number; until: number } | null = null
+      /* where she is being steered while she gets clear of the dock she just left.
+       * `ease` caps the helm: a voyage pulls away under her own power, and the last
+       * shot of the year leaves gently, which is what Ash asked for in those words. */
+      let castOff: { x: number; y: number; until: number; ease?: number } | null = null
 
       /* a berth's heading is one shared value, read the same way arriving and leaving */
       /* the direction the dock runs near a point, fitted to the standable pixels around it */
@@ -5954,6 +5970,9 @@ const CAST_OFF_SHOW_MS = 3200
         /* is this pixel ground a body may stand on, asked of the same law the walk
          * uses, so "he walks through the trophies" can be a measurement */
         standsAt(x: number, y: number) { return canStand(x, y) },
+        /* where the engine thinks a body stands to use this island's berth, which is
+         * what every departure and the head-back button both hang on */
+        get quay() { return dockSide() },
         /* which placements the walk law believes it has to go round, so a thing he
          * walks straight through can be named rather than guessed at */
         get solids() {
@@ -6383,7 +6402,7 @@ const CAST_OFF_SHOW_MS = 3200
               let err = Math.atan2(castOff.y - hull.y, castOff.x - hull.x) - hull.heading
               while (err > Math.PI) err -= 2 * Math.PI
               while (err < -Math.PI) err += 2 * Math.PI
-              cast = easeHelm(err, Math.abs(err) > Math.PI / 2 ? 0 : 1)
+              cast = easeHelm(err, Math.abs(err) > Math.PI / 2 ? 0 : (castOff.ease ?? 1))
             }
             hull = stepHull(hull, cast, dt, depthAt)
           } else {
@@ -7106,7 +7125,26 @@ const CAST_OFF_SHOW_MS = 3200
            * eighth of a second, which is what a six-frame idle at 8fps comes to. */
           if (driven.has(a.sp)) continue
           a.t += dt * a.fps
-          const af = a.frames[Math.floor(a.t) % a.frames.length]
+          /* ---- AND HE KEEPS THE WAY A SCENE LEFT HIM FACING ----------------
+           *
+           * `a.frames` is one heading, chosen off a FILENAME when the map loaded, and
+           * a body let go of by a film came straight back to it. So the principal
+           * could be turned to face the student, deliver the last line of the year,
+           * be released, and spin back to south on the very next frame. Ash called
+           * the facings goofy and this is the loudest of them.
+           *
+           * `releaseDriven` writes down the heading he was left on. If his own look
+           * has a view set for it, that is what he stands in. A body no scene has
+           * ever touched is unchanged: there is nothing written down for it. */
+          const kept = lastFacing.get(a.sp)
+          let run = a.frames
+          if (kept) {
+            const look = looksOf.get(a.sp)?.[0]
+            const vs = look?.views
+              && (look.views[kept] || look.views[NEAREST_VIEW[kept]] || null)
+            if (vs && vs.length) run = vs
+          }
+          const af = run[Math.floor(a.t) % run.length]
           if (a.sp.texture !== af) a.sp.texture = af
         }
 
@@ -7231,16 +7269,30 @@ const CAST_OFF_SHOW_MS = 3200
              * frame he stops on, so a body settles into its own idle */
             const look = (d.move ? gaitOf.get(sp) : undefined) ?? (set && (set[d.look ?? 0] ?? set[0]))
             if (look) {
-              /* the legs run at the speed the body is really travelling, and stop when it stops */
+              /* ---- A MAN STANDING STILL IS NOT A MAN FROZEN ------------------
+               *
+               * ASH: *"his stops + facings + positions are goofy in the intro and end
+               * cutscene."* A driven body that stopped was pinned to frame zero of its
+               * idle and held there: `animT = 0` every frame, index 0 every frame. So
+               * the principal walked the hall breathing and then stood through the
+               * whole congratulation as a photograph, in the two longest shots of the
+               * game. The comment above says the walk "hands straight back the frame
+               * he stops on, so a body settles into its own idle", and it could not,
+               * because nothing advanced the clock once he stopped.
+               *
+               * The legs run on distance travelled while he moves, which is what makes
+               * a stride match a speed. Standing, the idle runs on its own fps like
+               * every other breathing thing on the map. */
               const stride = map.speed / (look.fps || 8)
               if (d.move) d.animT += stride > 0 ? d.moved / stride : 0
-              else d.animT = 0
+              else d.animT += dt * (look.fps || 8)
               /* the heading first, since a look with no view for it falls back to the nearest */
               const views = d.facing ? look.views : null
               const vs = views && (views[d.facing!] || views[NEAREST_VIEW[d.facing!]] || views.south)
+              const frame = Math.max(0, Math.floor(d.animT))
               const want = vs && vs.length
-                ? vs[d.move ? Math.floor(d.animT) % vs.length : 0]
-                : look.frames[d.move && look.frames.length ? Math.floor(d.animT) % look.frames.length : 0]
+                ? vs[frame % vs.length]
+                : look.frames[look.frames.length ? frame % look.frames.length : 0]
               if (want && sp.texture !== want) sp.texture = want
             }
           }
