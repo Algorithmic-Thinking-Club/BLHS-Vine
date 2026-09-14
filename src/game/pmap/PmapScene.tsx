@@ -753,7 +753,42 @@ export default function PmapScene() {
        * picture's own pixels and crops whichever axis is longer, which is what
        * "never shows anything outside the painting" means as a number. */
       const Z_PAINT = Math.max(app.screen.width / painted.w, app.screen.height / painted.h)
-      const Z_ISLAND = Z_PAINT
+      /* ---- AN ISLAND IS FENCED TO ITS OWN SEA, NOT TO ITS OWN COASTLINE ----
+       *
+       * ASH: *"the close and wide views on the algorithmic thinking club island are
+       * busted. why are camera views so screwed on that island specifically? And we
+       * need to make sure this doesnt happen when the member is creating an island."*
+       *
+       * Measured, and it is arithmetic about the SHAPE of the painting rather than
+       * anything about that island. `Z_PAINT` is a COVER fit, so on a near-square
+       * picture in a wide window it is driven by the width: atc-1's painting is 410
+       * across in a 1366 window, so the floor came out at 3.33 while the body-derived
+       * walking shot wanted 2.25. The floor won, Wide opened at 3.33, Close is 4.0,
+       * and the switch a student presses moved the camera by a fifth. On the hub,
+       * whose painting is wide, the body shot wins and Wide-to-Close is 3.0 to 5.25.
+       * Same code, opposite behaviour, decided by a painting's aspect ratio.
+       *
+       * Cover was the right floor when everything outside the painting was the black
+       * field Ash banned. It is not any more: an island's painting sits in an ocean
+       * this engine draws, and the camera fence takes in a margin of that ocean. So an
+       * ISLAND is floored at the zoom where the FENCE covers the window, which is a
+       * number about the room the camera really has rather than about how square
+       * somebody's picture happens to be. A ROOM keeps the old floor exactly, because
+       * outside a room there is still nothing to show.
+       *
+       * This is the general rule a member gets for free. Nothing about their island
+       * has to be shaped a particular way for the camera to work on it. */
+      const SEA_EDGE = coastCut ? 160 : 0
+      const fenceW = painted.w + SEA_EDGE * 2
+      const fenceH = painted.h + SEA_EDGE * 2
+      /* CONTAIN, FOR AN ISLAND. The whole picture on the glass with the engine's own
+       * ocean filling whatever is left over, which is what "the wide shot of an island"
+       * has always meant to a player and what a cover fit could not give a painting
+       * that is taller than the window is. A ROOM still covers, because outside a room
+       * there is nothing but the black field. */
+      const Z_ISLAND = coastCut
+        ? Math.min(app.screen.width / painted.w, app.screen.height / painted.h)
+        : Z_PAINT
       /* how tall the person is meant to be on the glass, in the window Ash
        * plays at.
        *
@@ -794,7 +829,12 @@ export default function PmapScene() {
       )
       const Z = zOverride > 0 ? zOverride
         /* and the walking shot can never be under the floor either */
-        : coastCut ? Math.max(Z_PAINT, Z_WALK)
+        /* THE WIDE SHOT IS THE BODY'S, FLOORED AT THE ISLAND'S OWN FIT. Keyed off
+         * `Z_PAINT` this was decided by whether somebody's painting happened to be
+         * squarer than the window: on atc-1 the cover came out at 3.33 against a body
+         * shot of 2.25, so Wide opened closer than Close was far, and the switch moved
+         * the camera by a fifth. Every island answers the same way now. */
+        : coastCut ? Math.max(Z_ISLAND, Z_WALK)
           /* whole pixels, and never below the cover: a room that rounded DOWN
            * would be back in its black field. The epsilon is there so a cover
            * of 2.0000001 does not open at 3.
@@ -825,12 +865,10 @@ export default function PmapScene() {
       world.scale.set(Z)
 
       /* the zoom is a live value everything keys off, not a constant decided once at load */
-      /* how far out the sea is allowed to pull, with ?sail=N to try another value */
-      const SAIL_ZOOM = ((): number => {
-        const raw = typeof location === 'undefined' ? null : new URLSearchParams(location.search).get('sail')
-        const n = raw === null ? NaN : Number(raw)
-        return Number.isFinite(n) && n >= 0.33 && n <= 1 ? n : 0.45
-      })()
+      /* `?sail=N` USED TO PULL THE SEA OUT PAST THE PAINTING and it is gone with the
+       * cover floor it was a fraction of: an island is now fenced to its painting plus
+       * a margin of ocean, and `Z_ISLAND` is the zoom at which that fence fills the
+       * window, so there is no separate sailing floor left to tune. */
       let camZ = Z
       /* the sailing zoom floor, hung off the wide shot, and a room has none */
       /* THE SAILING FLOOR IS THE PAINTING'S FLOOR TOO. It used to be a fraction
@@ -839,7 +877,10 @@ export default function PmapScene() {
        * (BRIEF, item 3) nobody free-sails a boat around an empty ocean any more,
        * so the only thing that pull-out could show is water nobody is crossing
        * and, on a room, black. */
-      const Z_MIN = Math.max(Z_PAINT, coastCut ? Z_ISLAND * SAIL_ZOOM : Z)
+      /* the floor every zoom is clamped to. On an island it is the fence, so a wide
+       * shot may pull back far enough to see the whole island with sea round it; in a
+       * room it is the painting, because there is nothing outside a room to show. */
+      const Z_MIN = coastCut ? Z_ISLAND : Math.max(Z_PAINT, Z)
 
       // the engine ocean under the painting: a sprite pool draws only the tiles the viewport sees
       const SEA_SCALE = 0.5             // half the module's 64x32 diamonds in screen px (Ash,
@@ -4659,12 +4700,11 @@ export default function PmapScene() {
        *
        * A ROOM GETS NO MARGIN. There is no ocean outside the Maw, only the black field
        * Ash banned, so an interior fences to its own picture exactly as before. */
-      const SEA_EDGE = coastCut ? 96 : 0
       const fence = {
         ox: painted.ox - SEA_EDGE,
         oy: painted.oy - SEA_EDGE,
-        w: painted.w + SEA_EDGE * 2,
-        h: painted.h + SEA_EDGE * 2,
+        w: fenceW,
+        h: fenceH,
       }
       const fencePainted = (want: number, z: number, view: number) => {
         const top = -fence.oy * z
@@ -5417,7 +5457,13 @@ export default function PmapScene() {
         const names = new Set([slot?.place, slot?.map, mapId]
           .filter((v): v is string => !!v).map(plain))
         const mine = (m: { island?: string }) => !m.island || names.has(plain(m.island))
-        const raw = comp ? farStart(comp) : undefined
+        /* ---- AND A SKIPPED CROSSING BEGINS CLOSE IN ----------------------
+         *
+         * The press means "I have seen a boat, take me there", so the far map opens
+         * with her already on the last stretch rather than at the start line. She
+         * still sails in, ties up and is stepped off: what is skipped is the run
+         * across, which is the part he asked to skip. */
+        const raw = comp && !voyageSkipped() ? farStart(comp) : undefined
         const fs = raw && mine(raw) ? raw : undefined
         if (raw && !fs) {
           console.log(`[pmap] ${mapId}: ${raw.name} belongs to "${raw.island}", not to this island,`
@@ -5640,7 +5686,6 @@ const CAST_OFF_SHOW_MS = 3200
           /* and a skip never re-enters the map it is already on, whatever the leg */
           if (v.to === mapId) { endTravel('already there'); return false }
           const to = comp ? slotOfMap(comp, v.to) : undefined
-          const at = to?.berth?.at
           /* ---- HIS SHIP COMES WITH HIM -------------------------------------
            *
            * ASH: *"thor is on the dock already, with ship invisible... I think it may
@@ -5658,9 +5703,30 @@ const CAST_OFF_SHOW_MS = 3200
             berthedAt: to?.place ?? to?.map ?? v.to,
             legs: (loadSave()?.vessel?.legs ?? 0) + 1,
           })
-          console.log(`[travel] skipped, landing on ${v.to}${at ? ` at ${at}` : ''}`)
-          endTravel('skipped')
-          beginExit({ map: v.to, at })
+          /* ---- A SKIP IS AN ARRIVAL, NOT A CANCEL --------------------------
+           *
+           * ASH: *"thor is on the dock already, with ship invisible... the camera was
+           * glitched."* All of that is one mistake: this used to `endTravel` and then
+           * open the far map through an ordinary door.
+           *
+           * Ending the plan kills the landing leg, and the landing leg is the ONLY
+           * thing that composes an arrival: the ship shot, the run in, the tie-up, the
+           * step ashore, and the pull-out over the island that hands the camera back.
+           * Without `aboard` no hull is born, so there is no crossing to see at all;
+           * without `at` - and no published berth carries one - he lands on the
+           * bundle's raw spawn, which on both islands IS the dock. And `setAfloat` is
+           * cleared by stepping ashore, which never happened, so the chart went on
+           * believing he was at sea.
+           *
+           * The un-skipped crossing already ends with exactly the two lines below.
+           * A skip is the same arrival reached sooner, so it says the same thing. */
+          console.log(`[travel] skipped, arriving at ${v.to} the short way`)
+          setTravelLeg('landing')
+          /* AND IT KEEPS THE TITLED SCREEN, because that screen is the thing he asked
+           * for: *"IF ESC CLICKED DURING SAILING, THEN TRANSIITON SCREEN AND IT SKIPS
+           * MOST OF HTE JOURNEY."* A watched crossing crosses under a quiet fade; a
+           * skipped one is allowed to say where it is taking him. */
+          beginExit({ map: v.to, aboard: true })
           return true
         }
         if (skipToShore()) return
@@ -6090,6 +6156,15 @@ const CAST_OFF_SHOW_MS = 3200
         /* is this pixel ground a body may stand on, asked of the same law the walk
          * uses, so "he walks through the trophies" can be a measurement */
         standsAt(x: number, y: number) { return canStand(x, y) },
+        /* the three zooms the camera law decides, so Wide and Close can be judged as
+         * numbers rather than by eye through whatever shot an island is holding */
+        get zooms() {
+          return {
+            island: +Z_ISLAND.toFixed(2), wide: +Z.toFixed(2),
+            close: +Math.max(Z, zForBody(BODY_ON_GLASS_CLOSE)).toFixed(2),
+            floor: +Z_MIN.toFixed(2), coast: coastCut,
+          }
+        },
         /* where the engine thinks a body stands to use this island's berth, which is
          * what every departure and the head-back button both hang on */
         get quay() { return dockSide() },
