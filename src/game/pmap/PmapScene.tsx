@@ -1376,9 +1376,30 @@ export default function PmapScene() {
         const blocked = map.encoding.blocked
         /* the anchors a body has to be able to reach, with their own radius plus
          * a body's width of clearance, so "not on it" also means "not against it" */
+        /* ---- THE ROOM A BODY NEEDS IS WHERE IT STANDS, NOT WHERE THE THING IS
+         *
+         * ASH, twice now: *"ash walking is buste,d he clips throught he trophies"* and
+         * *"ash still teleports / clips through the trophies asset."*
+         *
+         * The trophies ARE stamped into the floor - the console says 8 of 8 and a12 is
+         * on the list - and he walks through them anyway, because this punched the hole
+         * back out again. A pressable thing carries an anchor, the anchor sits ON the
+         * thing, and this reserved a body's width around every anchor's own pixel. The
+         * trophy plinth has a radius of 20 and the reservation around its own post is
+         * bigger than that, so every pixel of it was skipped: the one rule that makes
+         * furniture solid and the one rule that keeps furniture reachable were fighting
+         * over the same pixels, and reachable won every time.
+         *
+         * They were never really in conflict. What has to stay walkable is the spot a
+         * body STANDS ON to press the thing, which `standAt` already works out and
+         * which is offset off the thing by design. The thing itself can be as solid as
+         * it looks. */
         const keepClear = anchors.all
           .filter((a) => a.kind !== 'region' && a.kind !== 'trigger')
-          .map((a) => ({ x: a.x, y: a.y, r: Math.max(a.r, 8) + HIP + BODY_MIN }))
+          .map((a) => {
+            const at = anchors.standAt(a)
+            return { x: at.x, y: at.y, r: Math.max(a.r, 8) + HIP + BODY_MIN }
+          })
         /* what the floor reached before anybody was stamped into it, kept for the check after */
         /* the fill walks by the real law, hips and all, so it can only reach what a body can */
         const reach = (from: { x: number; y: number }) => {
@@ -1423,13 +1444,25 @@ export default function PmapScene() {
          * Each is now stamped, measured and judged on its own. A figure that walls
          * off an anchor or eats a chunk of the island comes back out; the other seven
          * stay in the floor where they belong. */
-        const measure = (): { lost: number; cutOff: Anchor[] } => {
+        const measure = (mine?: { x: number; y: number; r: number }): { lost: number; cutOff: Anchor[] } => {
           const after = reach(start)
           return {
             lost: before.n ? 1 - after.n / before.n : 0,
             cutOff: anchors.all.filter((a) => {
               if (a.kind === 'region' || a.kind === 'trigger') return false
               const p = anchors.standAt(a)
+              /* ---- AN ANCHOR ON THIS VERY THING IS NOT CUT OFF BY IT ---------
+               *
+               * The trophies carry their own anchor and its standing spot is on the
+               * plinth, so the moment the plinth became solid this declared the
+               * trophies unreachable and took the whole stamp back out. That is why
+               * they were walk-through on every load: the rule that makes furniture
+               * solid was being vetoed by the furniture's own label.
+               *
+               * Pressing a thing has never meant standing INSIDE it. `offerOf` offers
+               * the prompt when his feet are within the anchor's ring, which is what a
+               * person does: he walks up to the trophies and presses them. */
+              if (mine && Math.hypot(p.x - mine.x, (p.y - mine.y) / ys) <= mine.r + 2) return false
               const i = Math.round(p.y) * W + Math.round(p.x)
               if (i < 0 || i >= W * H) return false
               return before.seen[i] === 1 && after.seen[i] === 0
@@ -1451,13 +1484,32 @@ export default function PmapScene() {
               if (ex * ex + ey * ey > 1) continue
               const i = (y * W + x) * 4
               if (ldata[i] === blocked) continue                    // already a wall
-              if (keepClear.some((k) => Math.hypot(k.x - x, (k.y - y) / ys) <= k.r)) continue
+              /* ---- A THING'S OWN ANCHOR DOES NOT HOLLOW IT OUT ----------
+               *
+               * A pressable thing carries an anchor and the anchor sits ON it, so its
+               * clearance ring is centred inside the very solid it is meant to keep
+               * reachable. On the ATC plinth that ring is wider than the trophies are,
+               * so every pixel of them was skipped and the stamp wrote NOTHING while
+               * still reporting "8 of 8 put in the floor". Ash walked through them
+               * twice and was told twice that they were solid.
+               *
+               * Rings belonging to this solid are ignored while stamping it. Every
+               * other anchor's clearance still holds, which is what the rule is for. */
+              if (keepClear.some((k) => Math.hypot(k.x - s.x, (k.y - s.y) / ys) > s.r
+                && Math.hypot(k.x - x, (k.y - y) / ys) <= k.r)) continue
               undo.push(i, ldata[i])
               ldata[i] = blocked
             }
           }
-          if (!undo.length) continue
-          const m = measure()
+          /* AND A FIGURE THAT STAMPED NOTHING IS NOT A FIGURE IN THE FLOOR. This used
+           * to `continue` silently and then be counted in the "n of n put in the floor"
+           * line, which is how a thing he can walk straight through was reported solid
+           * on every load for as long as the feature has existed. */
+          if (!undo.length) {
+            refused.push((s.name ?? 'a figure') + ' (nothing to stamp)')
+            continue
+          }
+          const m = measure(s)
           /* A QUARTER OF THE ISLAND IS A WALL, ONE FIGURE IS NOT. The old five percent
            * was a budget for the whole map spent by everything at once, which on a
            * small island with eight things on it is under one percent each. What
@@ -5689,6 +5741,17 @@ const CAST_OFF_SHOW_MS = 3200
         /* where his own ship lies, in painting pixels, so a proof can ask which way
          * he ought to be looking when he is standing next to her */
         get berthAt() { return berth ? fromSea(berth.x, berth.y) : null },
+        /* is this pixel ground a body may stand on, asked of the same law the walk
+         * uses, so "he walks through the trophies" can be a measurement */
+        standsAt(x: number, y: number) { return canStand(x, y) },
+        /* which placements the walk law believes it has to go round, so a thing he
+         * walks straight through can be named rather than guessed at */
+        get solids() {
+          return {
+            standing: standing.map((q) => ({ n: q.name ?? '?', x: Math.round(q.x), y: Math.round(q.y), r: Math.round(q.r) })),
+            obstacles: obstacles.map((q) => q.name ?? '?'),
+          }
+        },
         /* whether his own ship is on this map at all, and whether she is drawn */
         get ship() {
           return {

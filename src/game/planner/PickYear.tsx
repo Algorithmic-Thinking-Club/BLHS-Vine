@@ -288,19 +288,35 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                 the locked card, still takeable and never louder than the way on. */}
             {onOffer.map((p) => {
               const no = refused?.id === p.id ? refused.why : null
-              /* a club with no island behind it is drawn as an example and cannot be pressed */
+              /* ---- AN EXAMPLE CLUB CAN BE JOINED ----------------------------
+               *
+               * It used to be a `<div>`: drawn on the sheet, named, and impossible to
+               * press. That made year one unfinishable the moment the stamp started
+               * asking for every season to be spent, because year one is offered ONE
+               * real club and three seasons to spend, and the other cards on the page
+               * were scenery. A student could not fill the sheet the game was asking
+               * him to fill.
+               *
+               * It is still honest about what it is - the name stays "Example A", the
+               * blurb still says nobody has built its island - and it now takes a
+               * season the way every other card does. Everything behind the press
+               * already worked: `picksOf` lists it, the Planner's own `pickVerb` knows
+               * it has no map, and the year sheet says "counted as done" rather than
+               * offering a voyage to nowhere. */
               const example = exampleNameOf(p.id)
               if (example) {
                 return (
-                  <div
+                  <button
                     key={p.id}
+                    type="button"
                     className="py-card kit-surface-tab py-card-example"
-                    role="group"
-                    aria-label={example + '. ' + EXAMPLE_BLURB}
+                    onClick={() => takeActivity(p)}
+                    aria-label={'Join ' + example + '. ' + EXAMPLE_BLURB}
                   >
                     <span className="py-card-name">{example}</span>
                     <span className="py-card-earns">{EXAMPLE_BLURB}</span>
-                  </div>
+                    {no && <span className="py-card-no">{no}</span>}
+                  </button>
                 )
               }
               if (shelved) {

@@ -1,6 +1,7 @@
 // one table, keyed by kind, saying what an item is worth, how it scores, and how it reads as a form
 
 import type { CheckStep } from '../../vine/contract'
+import { solves } from './program'
 
 /* ---- what a student gave, in one shape for every kind and both arms ---------- */
 
@@ -220,7 +221,25 @@ export const PALETTE: { [K in CheckStep['kind']]: Entry<K> } = {
    * card they picked up. */
   program: {
     points: (c) => c.slots.length,
-    score: (c, r) => c.slots.filter((s, i) => r[`${c.id}:${i + 1}`] === s.move).length,
+    /* ---- A PROGRAM IS MARKED ON WHAT IT DOES ---------------------------
+     *
+     * ASH, twice: *"i clicked all the right answers on the minigame, and still got a
+     * 0"* and *"IT GAVE ME AN F EVEN THOUGH I REACHED THE END."*
+     *
+     * This counted steps that matched the ones the author typed. The ATC maze has
+     * THREE five-step programs that reach the flag, so two of the three right answers
+     * scored zero of five: a student solved it, watched his own body walk onto the
+     * flag, and was told he had got every step wrong. With the second question that
+     * is one of six, which is an F for solving the problem.
+     *
+     * A program that reaches the flag is a correct program. One that does not gets
+     * credit per step, which is the partial marking this always was and is the right
+     * shape for a near miss. */
+    score: (c, r) => {
+      const written = c.slots.map((_, i) => r[`${c.id}:${i + 1}`] ?? '')
+      if (solves(c.board, written)) return c.slots.length
+      return c.slots.filter((s, i) => r[`${c.id}:${i + 1}`] === s.move).length
+    },
     /* THE BOARD GOES IN `note` AND NOT IN THE PROMPT. Both arms must show the same
      * prompt and a parity test holds them to it, so the figure rides beside it, the
      * way the showdown's opponent does. Without it the control arm is asked to put
@@ -273,9 +292,21 @@ export const checkIdOf = (c: CheckStep): string => (c.kind === 'quiz' ? c.item.i
 /** the question, in the words the author wrote, identical in both arms */
 export const promptOf = (c: CheckStep): string => (c.kind === 'quiz' ? c.item.prompt : c.prompt)
 
-/* did this one field earn its point, answered by the same scoring the whole item uses */
-export const fieldRight = (c: CheckStep, f: PlainField, r: Response): boolean =>
-  scoreOf(c, { [f.id]: r[f.id] ?? '' }) > 0
+/* did this one field earn its point, answered by the same scoring the whole item uses.
+ *
+ * A PROGRAM IS THE ONE ITEM WHERE A STEP CANNOT BE JUDGED ALONE. It is marked on
+ * whether the whole thing reaches the flag, so a student who found a different route
+ * than the author typed has five right steps and not one: asking about each of them on
+ * its own would tick the ones that coincide and cross the ones that do not, over the
+ * top of a full mark. The other kinds are per-field and unchanged. */
+export const fieldRight = (c: CheckStep, f: PlainField, r: Response): boolean => {
+  if (c.kind === 'program') {
+    const written = c.slots.map((_, i) => r[`${c.id}:${i + 1}`] ?? '')
+    if (solves(c.board, written)) return true
+    return r[f.id] === plainOf(c).fields.find((q) => q.id === f.id)?.correct
+  }
+  return scoreOf(c, { [f.id]: r[f.id] ?? '' }) > 0
+}
 
 /** the response that earns full marks. The plain rendering already knows it, so
  *  reading it back off the fields is what proves the plain arm can reach the same

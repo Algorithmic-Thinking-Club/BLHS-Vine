@@ -19,6 +19,7 @@ import { Chip, Field, Gauge, Glyph, Plank, PortraitFrame, useFace } from '../ui/
 import { right as sayRight, wrong as sayWrong } from '../ui/feedback'
 import { grant } from '../grant'
 import './beats.css'
+import { walkOf } from './program'
 
 // plays a scored beat in either arm from the same data, then writes the grade to the ledger
 
@@ -459,63 +460,11 @@ function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
  * grade, which is the law in docs/walkthrough/10-an-island.md section 10.12.
  */
 
-type Cell = { col: number; row: number; facing: 'north' | 'south' | 'east' | 'west' }
 
-const AHEAD: Record<Cell['facing'], [number, number]> = {
-  north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0],
-}
-const RIGHT_OF: Record<Cell['facing'], Cell['facing']> = {
-  north: 'east', east: 'south', south: 'west', west: 'north',
-}
-const LEFT_OF: Record<Cell['facing'], Cell['facing']> = {
-  north: 'west', west: 'south', south: 'east', east: 'north',
-}
-
-/* WHAT AN INSTRUCTION MEANS, READ OFF ITS NAME rather than declared beside it, so
- * a member writes "forward 2" and "turn left" and registers nothing. A name this
- * cannot read moves the body not at all, which the student sees happen rather
- * than being told about. */
-function stepsOf(name: string): { turn?: 'left' | 'right'; forward?: number } {
-  const n = name.toLowerCase()
-  if (n.includes('left')) return { turn: 'left' }
-  if (n.includes('right')) return { turn: 'right' }
-  const m = n.match(/(\d+)/)
-  return { forward: m ? Number(m[1]) : 1 }
-}
-
-/* every cell the body passes through, in order, and where it stopped. A wall or
- * the edge of the board ends the walk at the last legal cell: the program is never
- * corrected on the way, it is carried out exactly as written, which is the entire
- * reason there is a RUN button instead of a verdict. */
-function walkOf(
-  board: NonNullable<Extract<CheckStep, { kind: 'program' }>['board']>,
-  written: string[],
-) {
-  const blocked = new Set(board.walls.map(([c, r]) => c + ',' + r))
-  const legal = (c: number, r: number) =>
-    c >= 0 && r >= 0 && c < board.cols && r < board.rows && !blocked.has(c + ',' + r)
-  let at: Cell = { col: board.start.col, row: board.start.row, facing: board.start.facing }
-  const path: Cell[] = [{ ...at }]
-  let stuck = false
-  for (const name of written) {
-    if (stuck) break
-    const step = stepsOf(name)
-    if (step.turn) {
-      at = { ...at, facing: step.turn === 'left' ? LEFT_OF[at.facing] : RIGHT_OF[at.facing] }
-      path.push({ ...at })
-      continue
-    }
-    for (let i = 0; i < (step.forward ?? 0); i++) {
-      const [dx, dy] = AHEAD[at.facing]
-      const next: Cell = { col: at.col + dx, row: at.row + dy, facing: at.facing }
-      if (!legal(next.col, next.row)) { stuck = true; break }
-      at = next
-      path.push({ ...at })
-    }
-  }
-  return { path, stuck, home: at.col === board.flag[0] && at.row === board.flag[1] }
-}
-
+/* the body, the board and the walk between them now live in `program.ts`, because
+ * the MARKING needs them too: a program is scored on whether it reaches the flag and
+ * not on whether it matches the steps the author happened to type. Ash solved the ATC
+ * maze by a different route, watched his body walk onto the flag and was given an F. */
 function ProgramPlay({ check, render, last, onDone, onTouch }: {
   check: Extract<CheckStep, { kind: 'program' }>
   render: ReturnType<typeof plainOf>
