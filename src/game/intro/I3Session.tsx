@@ -14,11 +14,18 @@ import './i3.css'
 
 // the parchment setup on the beach: class code, name and pronouns, outfit and boat name
 
-const LETTER =
+/* THE INVITATION, AND ITS LAST LINE DEPENDS ON THERE BEING A CLASS.
+ *
+ * The letter is the story and every student reads it. The class code is the sign-in
+ * and only some students have one, so promising six boxes to somebody who is not
+ * going to be shown any is the letter telling them something untrue on the first
+ * screen of the game. */
+const LETTER_BODY =
   'Panther. We saved you a spot.\n' +
   'Bonney Lake High School takes new students every fall. This is your invitation.\n' +
-  'Sail to Bonney Lake High School. Go into the mountain and find the principal.\n' +
-  'Your teacher left you a class code. Type it in the six boxes below.'
+  'Sail to Bonney Lake High School. Go into the mountain and find the principal.\n'
+const LETTER_CODE = 'Your teacher left you a class code. Type it in the six boxes below.'
+const LETTER_NO_CODE = 'Come as you are. The island is there either way.'
 
 const PRINCIPAL_WORD =
   'Out there, every island is something Bonney Lake really offers. Clubs, sports, classes, honors. ' +
@@ -298,7 +305,7 @@ function CodeCard({ initial, err: outerErr, classOpen = true, onVerified, onCast
   onVerified: (code: string, className?: string) => void
   onCastaway: () => void
 }) {
-  const tw = useTypewriter(LETTER)
+  const tw = useTypewriter(LETTER_BODY + (classOpen ? LETTER_CODE : LETTER_NO_CODE))
   const [code, setCode] = useState<string[]>(() => {
     const pre = (initial ?? '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6).split('')
     return Array.from({ length: 6 }, (_, i) => pre[i] ?? '')
@@ -397,10 +404,7 @@ function CodeCard({ initial, err: outerErr, classOpen = true, onVerified, onCast
          * one thing that is true: go anyway. */
         <div className="i3-codefoot">
           <Signature />
-          <p className="i3-noclass">
-            Nobody has a class open right now, so there is no code to type. The island
-            is there either way.
-          </p>
+          <p className="i3-noclass">Nobody has a class open right now, so there is no code to type.</p>
           <Plank size="lg" onClick={onCastaway}>Set sail</Plank>
         </div>
       )}
