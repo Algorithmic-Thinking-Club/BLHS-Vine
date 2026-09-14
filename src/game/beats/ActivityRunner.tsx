@@ -577,15 +577,36 @@ function ProgramPlay({ check, render, last, onDone, onTouch }: {
    */
   const fill = (slotId: string, move: string) => {
     onTouch()
-    setPicks((p) => ({ ...p, [slotId]: move }))
+    /* a drop cannot land on a step that filled while the pointer was in the air */
+    setPicks((p) => (p[slotId] ? p : { ...p, [slotId]: move }))
   }
 
-  /* an instruction: into the next step with nothing in it */
+  /* ---- AN INSTRUCTION GOES INTO THE NEXT EMPTY STEP, READ NOW ------------
+   *
+   * ASH, after playing: *"the quiz is still fucking busted. i made it to the end, and
+   * answered it perfectly. it gave me a fucking 1/6."*
+   *
+   * THIS IS WHY, AND IT IS A RACE. `picks` here is the value from the render this
+   * handler was created in, not the current one. React batches state, so two presses
+   * closer together than a re-render both read the SAME `picks`, both work out the
+   * same "next empty step", and the second writes over the first. The instruction he
+   * pressed second is gone, the step he thought he had filled holds the wrong word,
+   * and every press after it is one place out. He keeps pressing, all five steps end
+   * up full, RUN goes live, and the marking is right about a program he did not write.
+   *
+   * A person pressing five buttons in a row does this every time. The proof that said
+   * this screen was fixed waited two hundred milliseconds between presses, so it never
+   * raced once, which is exactly the kind of green that is worth nothing.
+   *
+   * The updater form reads the CURRENT picks inside the queue, so five presses in one
+   * frame land in five different steps. */
   const take = (move: string) => {
     if (revealed) return
-    const next = render.fields.find((f) => !picks[f.id])
-    if (!next) return
-    fill(next.id, move)
+    onTouch()
+    setPicks((p) => {
+      const next = render.fields.find((f) => !p[f.id])
+      return next ? { ...p, [next.id]: move } : p
+    })
   }
 
   const clear = (slotId: string) => {

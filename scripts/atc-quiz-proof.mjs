@@ -38,6 +38,14 @@ const WANT = ['forward 2', 'turn left', 'forward 3', 'turn right', 'forward 3']
 const WAYS = [
   { key: 'just the instructions, in order', touchSlots: false },
   { key: 'a stray press on a step in between', touchSlots: true },
+  /* ---- AS FAST AS A PERSON REALLY PRESSES -------------------------------
+   *
+   * ASH, after playing: "i made it to the end, and answered it perfectly. it gave me
+   * a fucking 1/6." Five presses in a row, as fast as a hand moves, is what a person
+   * does with five buttons and it is the one thing this proof never did: it waited
+   * two hundred milliseconds between them and so never raced React's own batching
+   * once. Every press here is back to back with no wait at all. */
+  { key: 'five presses as fast as a hand moves', touchSlots: false, fast: true },
 ]
 
 for (const way of WAYS) {
@@ -84,12 +92,25 @@ for (const way of WAYS) {
     return true
   }
 
-  for (let i = 0; i < WANT.length; i++) {
-    /* a press on an EMPTY step, which is the click that used to move everything one
-     * place along. It has to do nothing at all now. */
-    if (way.touchSlots) { await clickSlot(4); await page.waitForTimeout(150) }
-    await clickText('.bt-card', WANT[i])
-    await page.waitForTimeout(200)
+  if (way.fast) {
+    /* every press dispatched inside ONE evaluate, so they land in the same frame and
+     * React has no chance to re-render between them. This is the worst case a hand
+     * can produce and then some. */
+    await page.evaluate((want) => {
+      for (const t of want) {
+        const c = [...document.querySelectorAll('.bt-card')].find((x) => x.textContent.trim() === t)
+        if (c) c.click()
+      }
+    }, WANT)
+    await page.waitForTimeout(400)
+  } else {
+    for (let i = 0; i < WANT.length; i++) {
+      /* a press on an EMPTY step, which is the click that used to move everything one
+       * place along. It has to do nothing at all now. */
+      if (way.touchSlots) { await clickSlot(4); await page.waitForTimeout(150) }
+      await clickText('.bt-card', WANT[i])
+      await page.waitForTimeout(200)
+    }
   }
 
   /* EVERY STEP HOLDS WHAT HE PUT IN IT, which is the thing that was really wrong: the
