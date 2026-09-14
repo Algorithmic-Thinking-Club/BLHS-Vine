@@ -10,7 +10,7 @@ import { loadSave, subscribeSave } from '../save'
 import { mooringFor } from '../run/resume'
 import { Empty, Failed, Glyph, Loading, Plank } from '../ui/controls'
 import { announce } from '../ui/a11y'
-import { requestSail, requestVoyage, sailFrom, sailListenerCount, voyageListenerCount } from './sail-bus'
+import { isAfloat, requestSail, requestVoyage, sailFrom, sailListenerCount, voyageListenerCount } from './sail-bus'
 import { picksOf } from '../run/pick'
 import { note } from '../ui/feedback'
 import './chart.css'
@@ -158,6 +158,13 @@ export function Chart({ onSailing, heading = true }: { onSailing?: () => void; h
 
   useEffect(() => { void loadComposition().then(setComp) }, [])
   useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
+  /* and a redraw when he gets in or out of the boat, because that is what decides
+   * whether the island he is standing on may be pressed */
+  useEffect(() => {
+    const h = () => bump((v) => v + 1)
+    window.addEventListener('blhs:afloat', h)
+    return () => window.removeEventListener('blhs:afloat', h)
+  }, [])
 
   const save = loadSave()
 
@@ -193,7 +200,7 @@ export function Chart({ onSailing, heading = true }: { onSailing?: () => void; h
          argument that already keeps its name off the paper. */
       cut: dock.named ? islandCut(s, pin) : null,
       thumb: dock.named ? islandCut(s, CHART_THUMB) : null,
-      sailable: afloat && sailableRow({ dock, slot: s }, here, sailListenerCount() > 0),
+      sailable: afloat && sailableRow({ dock, slot: s }, here, isAfloat()),
       /* why this row cannot be pressed, said out loud rather than left as a
          control that is simply absent (Ash, 2026-09-09: the chart went silent) */
       why: !afloat ? 'You have to be standing somewhere with a way to the water.'

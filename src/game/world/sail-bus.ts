@@ -21,6 +21,23 @@ let here: string | null = null
  *  draws a control, so it never offers a button that cannot do anything. */
 export const sailListenerCount = (): number => listening
 
+/* ---- IS HE ACTUALLY IN THE BOAT ------------------------------------------
+ *
+ * The chart used `sailListenerCount() > 0` to mean "he is afloat", and what that
+ * really answers is "this map has water on it". So a student standing on the hub's
+ * quay was offered "Sail to The Hub": the one rule that stops the chart sending you
+ * to where you already are has an exception for a helmsman who needs to put in, and
+ * the exception was true for everybody on the island.
+ *
+ * The scene says so, because the scene is the only thing that knows. */
+let afloat = false
+export const isAfloat = (): boolean => afloat
+export function setAfloat(on: boolean) {
+  if (afloat === on) return
+  afloat = on
+  window.dispatchEvent(new CustomEvent('blhs:afloat'))
+}
+
 /* which painting is on screen, answered by the scene drawing it rather than by
  * the url. A map with no ocean under it still answers, since a journey starts
  * with the walk out of the room and the chart needs to know which room. */

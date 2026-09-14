@@ -95,10 +95,17 @@ html[data-rm='1'] .cp-card { animation-duration: 1ms; }
 }
 .cp-close { grid-column: 2; grid-row: 1 / span 2; }
 
-/* the chart itself takes the rest of the card and scrolls inside itself, so the
-   title and the way out never leave the glass on a short window */
-.cp-card > .ch-root,
-.cp-card > .ch-wrap { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+/* ---- THE REGISTER IS REACHABLE ON A CHROMEBOOK --------------------------
+ *
+ * The chart is a picture of the water with a LIST under it, and the list is the only
+ * way a keyboard or the plain arm reaches an island. Measured at 1366x768: the card
+ * fits inside the window and the list ran off the bottom of it, cut mid-row with
+ * nothing on the page saying there was more. Two islands were below the fold.
+ *
+ * The element this has to be is `.ch-chart`, which is what `Chart` actually renders;
+ * the two class names guessed at here before never matched anything, so the rule did
+ * nothing at all. The title and Close stay put and the chart scrolls under them. */
+.cp-card > .ch-chart { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 
 /* the plain arm gets the same screen with no wood on it */
 html[data-skin='plain'] .cp-card {

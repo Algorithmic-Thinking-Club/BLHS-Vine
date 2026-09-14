@@ -43,7 +43,7 @@ import {
 import { stateOf, STATE_INK } from '../world/states'
 import { onHeadBack } from '../world/home-bus'
 import { clearIslandTasks } from '../hud/island-tasks'
-import { onSailRequest, onVoyageRequest } from '../world/sail-bus'
+import { onSailRequest, onVoyageRequest, setAfloat } from '../world/sail-bus'
 import { seaRoute } from '../world/searoute'
 import { requestUi } from '../ui-bus'
 import { drawRecolored, lookHue } from '../thorLook'
@@ -4925,6 +4925,7 @@ export default function PmapScene() {
         hull = newHull(at.x, at.y, radOf(berth.facing, berth.bearing))
         if (hullSp) hullSp.visible = true
         thor.sp.visible = false; thor.sh.visible = false; pinWanted = false
+        setAfloat(true)
         camFree = true
         /* ---- THE SHIP SHOT, WHICH IS THE ONE THE INTRO USES -----------------
          *
@@ -4988,6 +4989,7 @@ export default function PmapScene() {
           moored = { x: at.x, y: at.y, heading: drawn ?? dockAxis(at.x, at.y, cameInOn) }
         }
         thor.sp.visible = true; thor.sh.visible = true; pinWanted = true
+        setAfloat(false)
         camFree = false
         if (!keepShot) zoomTo(walkZ())
         /* and the address stops saying he is at sea, so a refresh does not undo the landing */
