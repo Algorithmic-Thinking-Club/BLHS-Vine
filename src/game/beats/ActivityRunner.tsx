@@ -336,6 +336,18 @@ function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
   onTouch: () => void
 }) {
   const [held, setHeld] = useState<string | null>(null)
+  /* ---- WHAT HE IS HOLDING, READ NOW AND NOT AS OF THE LAST RENDER --------
+   *
+   * The same race that put five instructions into step one on the program screen.
+   * `held` in a handler is the value from the render that made the handler, so a
+   * student who presses a piece and then a place faster than React re-renders has
+   * `put` read `held` as null and the piece goes nowhere: the press does nothing, and
+   * pressing a button that does nothing is how somebody decides a game is broken.
+   *
+   * A person doing a five-piece match does this every time. The ref is written on the
+   * same line the state is, so the two never disagree. */
+  const heldNow = useRef<string | null>(null)
+  const take = (v: string | null) => { heldNow.current = v; setHeld(v) }
 
   /* the places, taken off the first field because every field offers the same
    * ones: the buckets of a sort, the positions of an order */
@@ -344,13 +356,14 @@ function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
   const inPlace = (v: string) => render.fields.filter((f) => picks[f.id] === v)
 
   const put = (place: string) => {
+    const held = heldNow.current
     if (!held || revealed) return
     /* an ordering's place holds one thing, so dropping onto a full slot swaps
      * the sitting piece back into the pool rather than refusing. A refusal here
      * would be the game saying no to the only move a student can see. */
     if (single) for (const f of inPlace(place)) onSet(f.id, '')
     onSet(held, place)
-    setHeld(null)
+    take(null)
   }
 
   const lift = (fieldId: string) => {
@@ -358,8 +371,8 @@ function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
     onTouch()
     /* pressing a piece that is already placed takes it back out, which is the
      * undo a student finds without being told there is one */
-    if (picks[fieldId]) { onSet(fieldId, ''); setHeld(fieldId); return }
-    setHeld((h) => (h === fieldId ? null : fieldId))
+    if (picks[fieldId]) { onSet(fieldId, ''); take(fieldId); return }
+    take(heldNow.current === fieldId ? null : fieldId)
   }
 
   const labelOfField = (id: string) => render.fields.find((f) => f.id === id)?.label ?? id
