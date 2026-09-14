@@ -58,9 +58,23 @@ html[data-skin='plain'] .kit-mark { display: none; }
      handle on Ash's ruling */
   background-color: transparent;
 }
-.kit-plank-sm { min-height: 34px; padding: 6px 10px; --kit-plank-cap: 14px; --kit-fs-raw: calc(15px * var(--kit-text-scale)); }
-.kit-plank-md { min-height: 46px; padding: 9px 14px; --kit-plank-cap: 19px; --kit-fs-raw: calc(18px * var(--kit-text-scale)); }
-.kit-plank-lg { min-height: 60px; padding: 12px 20px; --kit-plank-cap: 24px; --kit-fs-raw: calc(23px * var(--kit-text-scale)); }
+/* ---- THE CARVED ENDS ARE DRAWN AT THE BUTTON'S OWN SIZE ------------------
+ *
+ * These three carried a `--kit-plank-cap` each and none of them reached the art.
+ * Measured in a real browser: a small plank, a medium and a large all computed a cap
+ * of 19px and a border of 19px, so every sign in the game wore the MEDIUM one - fat
+ * carved ends on a small button, thin ones on a large.
+ *
+ * `.kit-surface-plank` in `tokens.css` sets the same variable at the same specificity,
+ * and `tokens.css` is `@import`ed by a dozen stylesheets, so Vite inlines a copy of it
+ * after this file and the last copy wins. Nothing is wrong with the order in any one
+ * file; the cascade simply cannot be reasoned about from here.
+ *
+ * Doubling the class is the fix that does not depend on order: `.kit-plank.kit-plank-sm`
+ * is (0,2,0) and beats `.kit-surface-plank`'s (0,1,0) wherever either lands. */
+.kit-plank.kit-plank-sm { min-height: 34px; padding: 6px 10px; --kit-plank-cap: 14px; --kit-fs-raw: calc(15px * var(--kit-text-scale)); }
+.kit-plank.kit-plank-md { min-height: 46px; padding: 9px 14px; --kit-plank-cap: 19px; --kit-fs-raw: calc(18px * var(--kit-text-scale)); }
+.kit-plank.kit-plank-lg { min-height: 60px; padding: 12px 20px; --kit-plank-cap: 24px; --kit-fs-raw: calc(23px * var(--kit-text-scale)); }
 .kit-plank-wide { width: 100%; }
 
 /* ---- NOTHING GETS OUT OF THE SIGN ---------------------------------------
@@ -137,7 +151,7 @@ html[data-skin='plain'] .kit-mark { display: none; }
 }
 .kit-plank-two.kit-plank-sm { min-height: 46px; }
 .kit-plank-two.kit-plank-md { min-height: 62px; }
-.kit-plank-two.kit-plank-lg { min-height: 78px; --kit-plank-cap: 32px; }
+.kit-plank.kit-plank-two.kit-plank-lg { min-height: 78px; --kit-plank-cap: 32px; }
 html[data-skin='plain'] .kit-plank-sub { text-shadow: none; opacity: 1; }
 
 /* the key that also presses this, cut into the left end */
