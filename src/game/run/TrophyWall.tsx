@@ -91,8 +91,18 @@ export function TrophyWall({ onClose }: { onClose: () => void }) {
               </span>
               <span className="tw-words">
                 <span className="tw-name">{w.name}</span>
-                <span className={w.earned && showing(`${w.year}:${w.id}`) ? 'tw-got' : 'tw-wants'}>
-                  {w.earned && showing(`${w.year}:${w.id}`) ? w.says : w.wants}
+                {/* ---- A FRAME HE HAS EARNED NEVER READS AS ONE HE HAS NOT ----
+                  *
+                  * The badges pop in one at a time, and in the seconds before its own
+                  * pop every frame he HAD earned printed `w.wants` - the sentence
+                  * telling him what he still has to do to get it. Open the wall after
+                  * a good year and it said "You got an B. Take it again." about a
+                  * badge already on the wall, and then popped.
+                  *
+                  * An earned badge is earned whether or not its pop has played. The
+                  * animation decides the STAMP; it does not decide the truth. */}
+                <span className={w.earned ? 'tw-got' : 'tw-wants'}>
+                  {w.earned ? w.says : w.wants}
                 </span>
               </span>
             </article>

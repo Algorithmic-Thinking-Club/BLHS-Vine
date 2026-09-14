@@ -4396,6 +4396,20 @@ export default function PmapScene() {
               map: mapId, anchor: a.name, error: report.error,
               refused: report.refused.map((r) => `${r.intent}: ${r.why}`),
             })
+            /* ---- AND IT IS SAID ON THE GLASS, NOT ONLY IN THE CONSOLE -------
+             *
+             * A crash inside a member's handler - a NameError from a typo, a KeyError,
+             * an unhandled refusal - was swallowed into a console line no student and
+             * no member has open. Pressing E on the president simply did nothing, for
+             * ever, with the game looking exactly as though nothing were there.
+             *
+             * The LOAD path has said this out loud since the day the runtime landed
+             * ("an island under construction says so on screen"); a press is the same
+             * failure at a different moment and deserves the same sentence. */
+            void say({ text: `This island is under construction. ${report.error}` })
+            /* AND A FILM WHOSE ISLAND JUST DIED DOES NOT KEEP THE BARS. Nothing else
+             * is going to lower them: the island that raised them is gone. */
+            if (cinemaOn() && cinemaBy() === 'island') setCinema(false)
           } else if (report.refused.length) {
             engine.log('intent_refused', {
               map: mapId, anchor: a.name,

@@ -1516,10 +1516,25 @@ function ReviewCard({ beat, arm, onRetake, onBack }: { beat: CoreBeat; arm: 'gam
   return (
     <div className={arm === 'plain' ? 'bt-plainform bt-result' : 'bt-result'}>
       <CardHead beat={beat} arm={arm} />
-      <div className="bt-prompt">Read these first. Then you can retake it.</div>
-      <div className="bt-takeaways">
-        {facts.map((f) => <div className="bt-fact" key={f.id}>{f.text}</div>)}
+      {/* ---- "READ THESE FIRST" NEEDS SOMETHING TO READ --------------------
+        *
+        * `takeaways` is optional, and an island that declares none - which is every
+        * island a member writes until somebody tells them about the field - drew this
+        * sentence over an empty space and then two buttons. A student who had just
+        * failed was told to read something that was not there.
+        *
+        * With facts, it is the step §8.1 asks for. Without them, the card says what is
+        * actually true: this is the beat, and you may take it again. */}
+      <div className="bt-prompt">
+        {facts.length
+          ? 'Read these first. Then you can retake it.'
+          : 'You can take this one again. Your better attempt is the one that counts.'}
       </div>
+      {facts.length > 0 && (
+        <div className="bt-takeaways">
+          {facts.map((f) => <div className="bt-fact" key={f.id}>{f.text}</div>)}
+        </div>
+      )}
       <div className="bt-out">
         {arm === 'plain'
           ? (
