@@ -1,25 +1,4 @@
-/* THE SAIL STATE MACHINE, PLAYED THE WAY HE WROTE IT.
- *
- *   node scripts/sail-machine-proof.mjs
- *   node scripts/sail-machine-proof.mjs --live
- *
- * ASH, VERBATIM, after playing the last build:
- *
- *   "IF HE CLICKS GO TO OR HEAD BACK OR WHATEVER, A BUTTON, IT TURNS ON CUTSCENE,
- *    TAKES HIM TO THE DOCK, AND ESC TO EXIT CUTSCENE, and E TO HOP ON THE BOAT,
- *    THEN SAIL PROPERLY. IF ESC CLICKED DURING SAILING, THEN TRANSIITON SCREEN AND
- *    IT SKIPS MOST OF HTE JOURNEY AND IT FAST FORWARDS TO THE BOAT LANDING ON THE
- *    DESTINATIONS DOCK. IF ESC IS CLICKED BEFORE SAILING. THEN CUTSCENE GOES AWAY,
- *    THOR HAS TO CLICK E THAT OPENS THE MAP, AND MANUALLY HAS TO CLICK WHICH ISLAND
- *    TO SAIL TO. WHICH ONCE HE CLICKS, THEN OPENS THE CUTSCENE, AND THE SAILING.
- *    SAME ESC LOGIC TO FAST FORWARD."
- *
- * That is six statements and each one is a run in here. The last build failed every
- * one of them and the suite was green, because the suite watched the END of a voyage
- * and never the road: there was no way to ask which leg was live, so nothing could
- * see him being carried past the beat he asked for. `__pmap.travel` exists now and
- * every check below reads it.
- */
+/* the sail state machine played the way it was asked for, `node scripts/sail-machine-proof.mjs` and `--live` for the deploy: six required statements, one run each, every check reading `__pmap.travel`, because a suite that watches only the end of a voyage never sees the player carried past a beat */
 import { boot, STAMPED, LIVE } from './play-harness.mjs'
 
 const live = process.argv.includes('--live')
@@ -56,9 +35,7 @@ const open = async (dir) => {
 
 /* the year sheet's own button, which is one of the three doors into a voyage */
 const pressGo = async (h) => {
-  /* THE DEPLOY IS SLOWER THAN THE DEV SERVER TO DRAW ITS FIRST FRAME, and
-   * `window.__intent` only exists once a scene has mounted. A fixed sleep is a race
-   * with a cold lambda: waiting for the thing itself is not. */
+  /* the deploy draws its first frame slower than the dev server and `window.__intent` only exists once a scene has mounted, so a fixed sleep races a cold lambda and waiting for the thing itself does not */
   await h.page.waitForFunction(() => typeof window.__intent === 'function', null, { timeout: 60000 })
   await h.page.evaluate(() => window.__intent({ kind: 'open', ui: 'planner' }))
   await h.until((s) => s.press.some((e) => /Sail (to|there)/i.test(e.text)), { ms: 14000 })
@@ -70,15 +47,7 @@ const esc = async (page) => {
   await page.waitForTimeout(700)
 }
 
-/* ---- WAS THE TITLED TRANSITION SCREEN EVER UP -----------------------------
- *
- * The one Ash saw where it did not belong: the archipelago picture with an island's
- * name across it in spaced capitals. It lasts about two seconds, so asking once is
- * asking at random. This watches for the whole stretch and remembers.
- *
- * `until` hands back the last frame it looked at when it times out, so a check
- * written as `!!(await until(...))` is true whatever happened. The first version of
- * this check was exactly that and it passed on a run where no cover ever appeared. */
+/* was the titled transition screen ever up: it lasts about two seconds so asking once asks at random, and `until` hands back its last frame on timeout, so a check written as `!!(await until(...))` is true whatever happened and passed on a run where no cover ever appeared */
 const watchCovers = (page, ms) => {
   let stop = false
   const seen = []
@@ -96,10 +65,7 @@ const watchCovers = (page, ms) => {
   return { seen, done: async () => { stop = true; await run; return seen } }
 }
 
-/* ==========================================================================
- * 1  THE BUTTON TURNS ON THE CUTSCENE AND TAKES HIM TO THE DOCK
- * 2  E HOPS ON THE BOAT
- * ========================================================================== */
+/* run 1, the button turns on the cutscene and takes the player to the dock, and run 2, E hops on the boat */
 {
   const h = await open('the-whole-road')
   const { page, shot, until, state, finish } = h
@@ -109,12 +75,9 @@ const watchCovers = (page, ms) => {
 
   await pressGo(h)
 
-  /* THE DOCK, AND NOT THE DOOR. His words: "it teleported me outsdie the maw door,
-   * instead of the doc". So the check is the LEG and the MAP together: the journey
-   * has to have walked itself through the tunnel and stopped on the quay. */
+  /* the dock and not the door, so the check is the leg and the map together: the journey has to walk itself through the tunnel and stop on the quay rather than land outside the maw door */
   await until((s) => s.map?.travel?.leg === 'boarding', { ms: 40000, every: 500 })
-  /* the cover is still lifting on the frame the leg turns, so what a shot taken then
-   * catches is the fade and not the dock. This is the picture he really gets. */
+  /* the cover is still lifting on the frame the leg turns, so a shot taken then catches the fade and not the dock, and this wait makes it the picture the player really gets */
   await page.waitForTimeout(1600)
   const atDock = await h.look()
   await shot('01-at-the-dock')
@@ -143,9 +106,7 @@ const watchCovers = (page, ms) => {
   ok('she leaves from a standstill rather than at top speed',
     (off.map?.travel?.leg ?? '') !== '' , 'measured in the sailing proof')
 
-  /* NOTHING TITLED GOES UP ON A SAIL HE IS WATCHING. His words: "then the transition
-   * screen fo the hub archieplago but saying 'Atc island' showed up. Its not supposed
-   * to do that unless the user clicks esc during sailing." */
+  /* nothing titled goes up on a sail the player is watching, because the archipelago transition screen belongs only to an escape during sailing */
   const watch = watchCovers(page, 130000)
   const there = await until((s) => s.map?.map === 'atc-1' && s.map?.hull === false && !s.map?.travel,
     { ms: 130000, every: 800 })
@@ -160,10 +121,7 @@ const watchCovers = (page, ms) => {
   await finish()
 }
 
-/* ==========================================================================
- * 3  ESC BEFORE SAILING: THE CUTSCENE GOES AWAY AND HE IS LEFT ON THE DOCK
- * 4  E THEN OPENS THE CHART, AND PICKING AN ISLAND ARMS IT AGAIN
- * ========================================================================== */
+/* run 3, escape before sailing drops the cutscene and leaves the player on the dock, and run 4, E then opens the chart and picking an island arms it again */
 {
   const h = await open('esc-before-sailing')
   const { page, shot, until, state, finish } = h
@@ -183,9 +141,7 @@ const watchCovers = (page, ms) => {
   const back = await until((s) => /chart/i.test(s.map?.prompt ?? ''), { ms: 10000, every: 300 })
   ok('the plaque on his ship goes back to opening the chart',
     /chart/i.test(back.map?.prompt ?? ''), JSON.stringify(back.map?.prompt))
-  /* PRESSED UNTIL IT LANDS. E is an edge, and the frame it is read on is the scene's
-   * own ticker, so a single press racing a scene that has just had its controls handed
-   * back is a coin toss. A person presses again; so does this. */
+  /* pressed until it lands, because E is an edge read on the scene's own ticker and a single press racing a scene that has just had its controls handed back is a coin toss */
   let chart = await h.look()
   for (let i = 0; i < 10 && !(chart.panels && chart.panels !== '0'); i++) {
     await page.keyboard.press('e')
@@ -208,9 +164,7 @@ const watchCovers = (page, ms) => {
   await finish()
 }
 
-/* ==========================================================================
- * 5  ESC DURING SAILING: A TRANSITION SCREEN, AND HE LANDS AT THE FAR DOCK
- * ========================================================================== */
+/* run 5, escape during sailing gives a transition screen and lands the player at the far dock */
 {
   const h = await open('esc-while-sailing')
   const { page, shot, until, state, finish } = h
@@ -221,9 +175,7 @@ const watchCovers = (page, ms) => {
   await until((s) => s.map?.hull === true, { ms: 12000, every: 300 })
   await page.waitForTimeout(1200)
 
-  /* THE TRANSITION SCREEN IS THE POINT OF THIS ONE. He saw it on a normal sail and
-   * said so: "Its not supposed to do that unless the user clicks esc during
-   * sailing." So it has to be here, and nowhere else. */
+  /* the transition screen is the point of this run, and it has to be here and nowhere else, never on a sail the player is watching */
   const watch = watchCovers(page, 70000)
   await esc(page)
   const there = await until((s) => s.map?.map === 'atc-1' && !s.map?.travel, { ms: 70000, every: 700 })

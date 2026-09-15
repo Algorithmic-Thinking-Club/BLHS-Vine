@@ -41,6 +41,8 @@ docs/
 
 # Markdown / written notes (text + AI-authored content stays out of git)
 *.md
+# the one markdown the repo shows a reader on github
+!README.md
 
 # PDFs are all construction/research docs (plans are sensitive); none are game output
 *.pdf
@@ -66,19 +68,8 @@ reference/blhs-grad-capes/
 
 # Build + map tooling: track the reusable pipeline only
 scripts/*
-!scripts/shot.ps1
-!scripts/civil_extract.py
-!scripts/build_campus_geo.py
-!scripts/build_campus_dem.py
-!scripts/build-campus-model.py
-!scripts/build-pac.py
 !scripts/palette_grade.py
 !scripts/palette_grade_warm.py
-!scripts/remove-bg.py
-!scripts/bg-remove.py
-!scripts/validate_feet.py
-!scripts/render-campus.py
-!scripts/pixelate-render.py
 !scripts/normalize_tiles.py
 !scripts/make_seamless_x.py
 # the two files that prove the python runtime works. mp-spike.mjs was written,
@@ -129,6 +120,21 @@ scripts/*
 !scripts/atc-dock-proof.mjs
 !scripts/atc-stamp-proof.mjs
 !scripts/repro-brief.mjs
+# the gates and probes that were live and untracked, rescued the same way as the
+# wave gates above. a proof nobody can check out is a proof that ran once on one
+# machine.
+!scripts/maw1-proof.mjs
+!scripts/wave4-proof.mjs
+!scripts/fps-proof.mjs
+!scripts/words-proof.mjs
+!scripts/probe-mask.mjs
+!scripts/asset_diff.mjs
+!scripts/lead-smooth.mjs
+!scripts/no-fake-names.mjs
+!scripts/ten-seconds.mjs
+!scripts/mp-guard-spike.mjs
+!scripts/sailing-measure.mjs
+!scripts/sail-machine-proof.mjs
 
 # Internal asset registries (kept local)
 **/*-registry.md
@@ -136,9 +142,6 @@ scripts/*
 # Bundled CLI tools (downloaded locally, not versioned)
 reference/tools/
 .browser-sessions/
-!scripts/pl_gen.py
-!scripts/port_align.py
-!scripts/measure_sprites.py
 reference/island-refs/
 tsconfig.tsbuildinfo
 

@@ -1,21 +1,4 @@
-/* THE ARRIVAL GATE: BRIEF-ARRIVAL items 1 to 8, checked in a real browser.
- *
- * Every item on that page is a claim about a PICTURE, and this repository has
- * paid for the difference between "the code that draws it ran" and "it is on
- * screen" more than once. So each check here reads the scene's own live state
- * through `window.__pmap` and the real DOM, at the moment the beat is running,
- * rather than asserting that a function was called.
- *
- * It proves nothing about whether any of it is GOOD. Ash playing it is the only
- * gate and this has never replaced that. What it can hold is the shape: bars up
- * for the crossing and nothing else on the glass, the island framed while they
- * are still up, the card, the walk with its marks, the pointer over the tunnel,
- * the principal's legs going, and the Maw filling the window.
- *
- *   npm run dev, then `node scripts/arrival-proof.mjs`
- *     --base=http://localhost:5173   where the game is
- *     --headed                       watch it
- */
+/* the arrival gate, items 1 to 8: each check reads live scene state through `window.__pmap` and the real DOM while the beat runs, not that a function was called, because code that ran is not a picture on screen; passing says nothing about whether it looks good. */
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 
@@ -36,13 +19,9 @@ const ok = (item, what, good, detail = '') => {
 }
 
 
-/* A LINE IS A CLICK, and a harness that does not make it is a harness watching a
- * game wait for a player. The arrival says one line at the wide shot; a student
- * clicks it and so does this. */
+/* a line is a click: the arrival speaks one line at the wide shot, so the harness presses it through the way a player would rather than watching the game wait. */
 const clickThrough = async (page) => {
-  /* ONLY THE BOX, and only when one is really up. A looser selector matched the
-   * full-screen veil, so the harness went on clicking the glass after the line
-   * was gone and let itself through the tunnel door in the middle of the run. */
+  /* only click when a `.dlg-box` is really up: a looser selector matched the full-screen veil, so the harness went on clicking after the line was gone and let itself through the tunnel door mid-run. */
   const up = await page.evaluate(() => !!document.querySelector('.dlg-box'))
   if (!up) return false
   await page.keyboard.press('Space')
@@ -72,8 +51,7 @@ async function open(url, save = SAVE) {
 
 const state = (page) => page.evaluate(() => {
   const p = window.__pmap
-  /* the scene can go while a loop is sampling it: a door swap tears it down and
-   * builds a new one, and for a few frames there is nothing to ask */
+  /* the scene can go while a loop is sampling it: a door swap tears it down and builds a new one, and for a few frames there is nothing to ask. */
   if (!p) return null
   const seen = (sel) => {
     const el = document.querySelector(sel)
@@ -89,8 +67,7 @@ const state = (page) => page.evaluate(() => {
     lit: p.lit, driven: p.drivenNow,
     bars: !!document.querySelector('.cin-root'),
     hudCorner: seen('.hud-stack'), help: seen('.hp-btn'), card: seen('.pc-root'),
-    /* read BEFORE the harness clicks it away, because the order of the card and
-     * the first spoken line is one of the things being checked */
+    /* read before the harness clicks it away, because the order of the card and the first spoken line is one of the things being checked. */
     dlg: !!document.querySelector('.dlg-box'),
     pin: (() => { const a = p.pinAt; return a && a.x > -1e5 })(),
   }
@@ -104,28 +81,17 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
   let duringMovie = null, atIslandShot = null, duringWalk = null, atDoor = null
   const walkFrames = []
   const t0 = Date.now()
-  /* sampled rather than waited on, because every one of these claims is about a
-   * moment and the moments are what the brief lists */
+  /* sampled rather than waited on, because every one of these claims is about a moment. */
   while (Date.now() - t0 < 70000) {
     const s = await state(page)
     if (!s) break
     await clickThrough(page)
     seen.push(s)
-    /* NOT THE FIRST SAMPLE THAT SEES THE FLAG. `setCinema` flips a module
-     * variable and React mounts the bars on its next render, so a sample taken
-     * in the same frame as the flag reads "movie, no bars" and is right about
-     * both. The second one is the honest one. */
+    /* not the first sample that sees the flag: `setCinema` flips a module variable and React mounts the bars on its next render, so a sample in the same frame reads movie with no bars and is right about both; the second one is honest. */
     if (s.movie && s.voyage && s.bars && !duringMovie) duringMovie = s
-    /* THE WIDE SHOT IS AT THE DOCK WITH HIM ALREADY OFF THE BOAT, which is
-     * Ash's THIRD order, 2026-09-07: she ties up, he hops out, the camera pulls
-     * out, and the card plays over that shot. `hull` is therefore gone by here,
-     * and it is what separates this frame from the sailing shot the map opens
-     * on, which is also wider than the walking one. */
+    /* the wide shot is at the dock with him already off the boat, so `hull` is gone by here, and that is what separates this frame from the sailing shot the map opens on, which is also wider than the walking one. */
     if (!s.hull && s.camZ < s.Z * 0.75 && !atIslandShot) atIslandShot = s
-    /* MID-WALK, NOT THE FIRST FRAME OF IT. The first sample that sees a walk
-     * label can land in the same frame the label appears, before the guide has
-     * recomputed its route or React has mounted the bars, and it is right about
-     * all three. The third sample is the walk actually happening. */
+    /* mid-walk, not the first frame of it: the first sample that sees a walk label can land in the same frame the label appears, before the guide has recomputed its route or React has mounted the bars, and the third sample is the walk actually happening. */
     if (s.walk) { walkFrames.push(s); if (walkFrames.length === 3) duringWalk = s }
     if (!s.walk && duringWalk && Math.hypot(s.x - 343, s.y - 385) < 12) { atDoor = s; break }
     await page.waitForTimeout(400)
@@ -133,27 +99,16 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
 
   const movieFrames = seen.filter((s) => s.movie)
   ok('1', 'the crossing draws two black bars',
-    /* two stretches now, the crossing and the walk, so up to two mount frames
-     * can see the flag before React has drawn the bars */
+    /* two stretches now, the crossing and the walk, so up to two mount frames can see the flag before React has drawn the bars. */
     movieFrames.length >= 3 && movieFrames.filter((s) => s.bars).length >= movieFrames.length - 2,
     `${movieFrames.filter((s) => s.bars).length} of ${movieFrames.length} movie frames had them`)
   ok('1', 'and no HUD corner under them', duringMovie && !duringMovie.hudCorner)
-  /* THE QUESTION MARK GOES TOO, AND THIS CHECK IS THE REVERSE OF WHAT IT WAS.
-   *
-   * It read "and the help button is still there" on Ash's words of 2026-09-06,
-   * that it should always be there. He played that build and ruled the other way
-   * (BRIEF-MAW-RAIL-3 G): "The help button inside the bars: hidden during the
-   * cutscene like the corner." `cinema.css` does exactly that, and the objective
-   * panel riding on the top bar is what makes it affordable, because that panel
-   * answers the question the button was there for. The beach opening keeps its
-   * question mark, and that is a different rule in the same file: it has no
-   * panel and no corner to ask instead. */
+  /* the help button is hidden during the cutscene like the HUD corner, which is affordable because the objective panel riding the top bar answers the question the button was there for; the beach opening keeps its question mark, having no panel and no corner to ask instead. */
   ok('1', 'and the help button goes with the corner', duringMovie && !duringMovie.help)
   ok('1', 'and no plaque, arrow or lit ring', duringMovie && !duringMovie.lit && duringMovie.trail === 0)
   ok('1', 'and no arrival card', duringMovie && !duringMovie.card)
 
-  /* the controls, tested rather than assumed: hold every key the helm reads and
-   * see whether the ship answers */
+  /* the controls, tested rather than assumed: hold every key the helm reads and see whether the ship answers. */
   const before = await state(page)
   if (before.movie) {
     for (const k of ['ArrowUp', 'ArrowLeft', 'Shift']) await page.keyboard.down(k)
@@ -166,15 +121,7 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
   ok('1', 'and the crossing is close on the ship, not the whole island',
     !!duringMovie && duringMovie.camZ > duringMovie.Z * 0.9,
     duringMovie ? `zoom ${duringMovie.camZ} against a walking ${duringMovie.Z}` : '')
-  /* THIS PAIR IS THE 2026-09-07 RULING AND IT REPLACES THE OLD ONE.
-   *
-   * What stood here until today pinned the opposite order: "the island is
-   * framed at the dock with the ship tied up" and "the arrival card plays
-   * there, with him still aboard", both asserting `hull`. Ash watched that and
-   * ruled against it: the card names the place, so it must not play over a boy
-   * still sitting in a boat. Landing is a person standing on the boards. The
-   * hop-out therefore comes BEFORE the pull-out now, and both of these read
-   * `!hull` where they used to read `hull`. */
+  /* the hop-out comes before the pull-out and both of these read `!hull` rather than `hull`, because the card names the place and must not play over a boy still sitting in a boat; landing is a person standing on the boards. */
   const hopped = seen.find((s) => !s.hull)
   ok('3', 'he hops out as soon as she is tied up',
     !!hopped, hopped ? `${hopped.x},${hopped.y}` : 'never stepped off')
@@ -188,9 +135,7 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
   ok('2', 'the arrival card plays over that shot, with him ashore',
     !!carded && !carded.hull && carded.camZ < carded.Z * 0.8,
     carded ? `zoom ${carded.camZ}` : 'no card')
-  /* AND NOBODY SPEAKS BEFORE IT. Ash: the card must play "before any dialogue
-   * line on the hub". The hub says one line at the wide shot and it used to be
-   * said first, so the first thing a student read named nothing. */
+  /* and nobody speaks before it: the card must play before any dialogue line on the hub, or the first thing a student reads names nothing. */
   const spoke = seen.find((s) => s.dlg)
   ok('2', 'and no line is spoken before the card',
     !spoke || (!!carded && seen.indexOf(carded) <= seen.indexOf(spoke)),
@@ -198,14 +143,12 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
   ok('1', 'and the bars never come down in the middle',
     seen.filter((s, i) => i > seen.indexOf(duringMovie) && i < seen.indexOf(duringWalk) && !s.movie).length === 0,
     'from the first frame to the tunnel')
-  /* Ash watched a two step shift: full island, half island, then him. The
-   * walking shot must never be a resting place between the two. */
+  /* the camera must not park at the walking shot on the way in, which reads as a two step shift: full island, half island, then him. */
   const between = seen.filter((s, i) => i > seen.indexOf(atIslandShot) && i <= seen.indexOf(duringWalk))
   ok('4', 'and the camera goes from the island to him in one move',
     between.filter((s) => Math.abs(s.camZ - s.Z) < 0.08).length <= 1,
     `${between.filter((s) => Math.abs(s.camZ - s.Z) < 0.08).length} frames parked at the walking shot`)
-  /* the hop-out is checked above now, before the pull-out, where the 2026-09-07
-   * ruling puts it */
+  /* the hop-out is checked above this, before the pull-out, because that is the order it happens in. */
   ok('1', 'no sea plaque is offered while she is tied up',
     !seen.some((s) => s.hull && !s.movie && (s.prompt === 'Dock here' || s.prompt === 'Get in the boat')))
 
@@ -222,21 +165,11 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
 
   const end = await state(page)
   ok('5', 'a drawn pointer hangs over the tunnel', !!end.pointer, JSON.stringify(end.pointer))
-  /* ---- CLOSE TO THE THING, NOT LARGE (Ash, 2026-09-09) -------------------
-   *
-   * This used to hold `h >= 24`, from the session where his word for the mark
-   * was "large". Playing it, he read a mark hanging two body lengths over the
-   * chart table as pointing at the bookshelf drawn behind it: *"the arrow mark
-   * thats just pointing on top of the shelf. Is that means to point to the year
-   * planner? Confused."* Height was never the property that made it mean
-   * something. Distance from the thing is. */
+  /* close to the thing, not large: this held `h >= 24`, and a mark hanging two body lengths over the chart table read as pointing at the bookshelf drawn behind it, so distance from the thing is what makes a mark mean something, never height. */
   ok('5', 'and it sits on the thing rather than over the room',
     !!end.pointer && end.pointer.bodies !== null && end.pointer.bodies <= 1.1,
     end.pointer ? `${end.pointer.bodies} bodies off the anchor` : '')
-  /* AND CLEAR OF THE PANEL AT THE TOP, which is a newer obstruction than the
-   * sentence and a worse one, because it does not move out of the way. The
-   * objective panel rides across every frame now and at the tunnel the camera is
-   * close enough that the arrow was behind it with only its tip showing. */
+  /* and clear of the panel at the top: the objective panel rides across every frame and does not move out of the way, so at the tunnel the camera is close enough that the arrow sat behind it with only its tip showing. */
   const band = await page.evaluate(() => {
     const el = document.querySelector('.ob-wrap')
     return el ? Math.round(el.getBoundingClientRect().bottom) : 0
@@ -244,11 +177,7 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
   ok('5', 'and it hangs below the objective panel, not behind it',
     !!end.pointer && end.pointer.y >= band,
     `pointer top ${end.pointer?.y}, panel bottom ${band}`)
-  /* THE PLAQUE FIRST, THEN THE PRESS, which is the order a player does it in.
-   * The frame stays up at the tunnel and the controls come back when the
-   * island's handler RETURNS, a beat after the walk ends, so a press fired on
-   * the arrival frame lands while the world is still held and does nothing.
-   * Waiting for the offer is both more honest and what a student does. */
+  /* the plaque first, then the press, which is the order a player does it in: the controls come back when the island's handler returns, a beat after the walk ends, so a press fired on the arrival frame lands while the world is still held and does nothing. */
   await page.waitForFunction(() => window.__pmap?.prompt === "Go to Panther's Maw", null, { timeout: 15000 })
     .catch(() => { /* the assert below says so */ })
   const offered = await page.evaluate(() => window.__pmap?.prompt ?? null)
@@ -258,13 +187,8 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
   ok('5', 'and E opens it', await page.evaluate(() =>
     !!document.querySelector('.tr-root') || window.__pmap?.map !== 'hub'))
 
-  /* the measured landing defect, read off the plaque itself: he lands 55
-   * painting pixels from the berth, well inside its 110 pixel radius, so before
-   * the gate the first thing the game offered after a crossing was the way back
-   * onto the water */
-  /* `!s.movie` used to be in here and cannot be any more: the bars are up for
-   * the whole arrival now, so there is no frame that is ashore AND out of the
-   * frame until the tunnel. Ashore and not walking is the state this is about. */
+  /* the measured landing defect, read off the plaque itself: he lands 55 painting pixels from the berth, well inside its 110 pixel radius, so the first thing offered after a crossing was the way back onto the water. */
+  /* `!s.movie` cannot be in here: the bars are up for the whole arrival, so there is no frame that is ashore and out of the frame until the tunnel, and ashore and not walking is the state this is about. */
   const landedFrames = seen.filter((s) => !s.hull && !s.walk)
   ok('1', 'and "Get in the boat" is never offered on the landing frames',
     landedFrames.length > 0 && !landedFrames.some((s) => s.prompt === 'Get in the boat'),
@@ -284,9 +208,7 @@ console.log('\nTHE TILLER DURING THE CROSSING  (item 1)')
   await page.waitForTimeout(600)
   const b = await page.evaluate(() => window.__pmap.hull && { ...window.__pmap.hull })
   for (const k of ['ArrowUp', 'ArrowLeft', 'Shift']) await page.keyboard.up(k)
-  /* she is under way on her own route, so the test is not "did she move" but
-   * "did she turn", which is the only thing the tiller does that the route does
-   * not */
+  /* she is under way on her own route, so the test is not whether she moved but whether she turned, which is the only thing the tiller does that the route does not. */
   ok('1', 'holding the tiller does not steer her',
     !a || !b || Math.abs(b.heading - a.heading) < 0.35,
     a && b ? `heading ${a.heading?.toFixed(2)} -> ${b.heading?.toFixed(2)}` : 'no hull')
@@ -303,14 +225,7 @@ console.log('\nTHE TILLER DURING THE CROSSING  (item 1)')
 /* ---- THE BERTH, ACROSS THE YEAR ------------------------------------------ */
 console.log('\nTHE BOAT ON THE DOCK  (the measured landing defect)')
 {
-  /* The rule: the berth is quiet while the year owes something he can walk to,
-   * and open the moment the year wants him at sea.
-   *
-   * THE VOYAGE PHASE CANNOT BE REACHED FROM A SEEDED SAVE TODAY, and it is the
-   * one that matters most: every row in the roster is `playable: false` and
-   * `member-islands.json` is empty, so `yearStatus` can never put the objective
-   * into `voyage`. The first ATC island makes it the ordinary path. The gate
-   * checks the phases that ARE reachable and the code names the other three. */
+  /* the berth is quiet while the year owes something he can walk to and opens when the year wants him at sea; the voyage phase is unreachable from a seeded save while every roster row is `playable: false` and `member-islands.json` is empty, so `yearStatus` never sets `voyage`. */
   const phases = [
     ['founding', ['hub:crossed'], false],
     ['plan', ['hub:crossed', 'maw:founding', 'chart:granted', 'handbook:granted', 'vignette:y1'], false],
@@ -329,17 +244,7 @@ console.log('\nTHE BOAT ON THE DOCK  (the measured landing defect)')
 /* ---- THE MAW: items 6 and 8 ---------------------------------------------- */
 console.log('\nTHE PANTHER\'S MAW  (items 6 and 8)')
 {
-  /* THE ROOM WITH NOBODY DIRECTING IT, which this section always meant and
-   * never asked for. The Maw's island runs a film on every load while year one
-   * still owes something, and that film PLACES the principal at the tunnel and
-   * then LEADS him to the table. So the move this gate starts below was racing
-   * two of the island's own words for the same body: measured, the body the gate
-   * asked to walk to the table ended up at 206,124, which is the tunnel mouth,
-   * and the walk cycle it counted was two bodies' worth of nothing.
-   *
-   * The save below has both films behind it (`maw:railed`, `maw:handed_over`,
-   * the year's page turned) so `walking_in` dresses the wall and returns, and
-   * the only thing driving anybody in the room is this gate. */
+  /* the room with nobody directing it: the Maw's island films the principal to the table on every load, so a gate move raced the island's own words and left the body at 206,124, the tunnel mouth; this save has both films behind it so nothing but the gate drives anybody. */
   const QUIET = {
     ...SAVE,
     flags: ['hub:crossed', 'maw:founding', 'vignette:y1', 'maw:railed', 'maw:handed_over',
@@ -363,51 +268,11 @@ console.log('\nTHE PANTHER\'S MAW  (items 6 and 8)')
     `${Math.round(fit.z * fit.w)}x${Math.round(fit.z * fit.h)} in ${fit.vw}x${fit.vh}`)
 
   /* item 6: the principal walks, and his legs go */
-  /* WATCHED UNTIL HE STOPS, NOT FOR A FIXED NUMBER OF SAMPLES. A fixed count
-   * passes on a dev server and fails on the deploy, where the room's bundle
-   * comes off the platform and the founding starts several seconds later: the
-   * window closed with the principal still halfway across the hall and the
-   * gate reported item 6 broken when it was late. */
-  /* DRIVEN BY THIS GATE RATHER THAN BY WHOEVER OWNS THE ROOM. Item 6 is an
-   * ENGINE claim: a body a script walks moves at a walking pace with its legs
-   * going. Which body walks where, and when, is the Maw island's content and it
-   * is being rewritten; a gate that waits for somebody else's beat is a gate
-   * that goes red when they change their mind. So this asks the engine for the
-   * move itself, through the same `actor_move` a member's island would use. */
-  /* AND THE PICTURE IS COUNTED, NOT THE COUNTER. `frame` is `Math.floor(animT)`
-   * and it counts up whether or not the sprite's texture ever changes; Ash's
-   * report on rail-4 was "the principal has no walking animation", which is a
-   * claim about the drawing. `tex` is the source rectangle the sprite is really
-   * showing, so a body sliding with one picture on it fails here.
-   *
-   * SAMPLED EVERY 60MS RATHER THAN EVERY 150. The walk to the table is about
-   * three seconds and the cycle is eight frames over 76 painting pixels of
-   * ground; at 150ms this gate saw two or three of them and called it broken. */
-  /* AND IT WAITS FOR THE ROOM TO FINISH DRESSING ITSELF FIRST.
-   *
-   * `walking_in` in the Maw's island runs on every load and is allowed to move
-   * this exact body: since 2026-09-08 it steps the principal in front of whoever
-   * just walked in, because Ash moved his post to six pixels from the spot the
-   * tunnel puts a student on. That is one worker round trip after the scene
-   * draws, and this gate used to start its own `actor_move` inside that window:
-   * `place` cancels a move in flight, so the engine did exactly what it was
-   * asked and the gate measured fourteen pixels instead of a hundred and called
-   * the engine broken.
-   *
-   * Waiting for the body to be still for a quarter of a second is the honest
-   * fix. It is not waiting for somebody's BEAT, which the note above rules out;
-   * it is waiting for the room to stop being loaded, which every real caller of
-   * `actor_move` also does by virtue of being a line in a scene rather than the
-   * first thing that happens. */
-  /* ASKED, NOT GUESSED. The first version of this wait watched the principal for
-   * a quarter of a second of stillness, which is true after the island has
-   * dressed the room and equally true BEFORE it has started: on the deploy the
-   * bundle comes off the platform and the worker starts seconds later, so the
-   * gate waited, saw a man standing still at his home pixel, set off, and the
-   * island's `place` landed in the middle of the move. Watching `busy` alone was
-   * the same mistake one level up: an island that has not loaded yet is not busy
-   * either. `started` is the scene's own record of the handler it calls
-   * unprompted having RETURNED, which is the question this gate actually has. */
+  /* watched until he stops rather than for a fixed number of samples: a fixed count passes on a dev server and fails on the deploy, where the room's bundle comes off the platform and the founding starts seconds later, so the window closed with the principal still halfway across the hall. */
+  /* driven by this gate, not by whoever owns the room: item 6 is an engine claim, that a body a script walks moves at walking pace with its legs going, so it asks for the move through the same `actor_move` a member's island uses rather than waiting on somebody else's beat. */
+  /* the picture is counted, not the counter: `frame` is `Math.floor(animT)` and counts up whether or not the texture ever changes, so `tex`, the source rectangle really being shown, is read instead; sampled every 60ms rather than 150, because the cycle is eight frames over 76 painting pixels in about three seconds and 150ms caught two or three. */
+  /* wait for the room to finish dressing itself first: the island's `walking_in` moves this same body on every load, and `place` cancels a move in flight, so a gate move started inside that window measured fourteen pixels instead of a hundred and blamed the engine. */
+  /* asked, not guessed: a quarter second of stillness is equally true before the island has started, and `busy` is the same mistake one level up because an island that has not loaded is not busy either, so this reads `started`, the scene's own record that the unprompted handler returned. */
   const settled = async () => {
     const t = Date.now()
     while (Date.now() - t < 25000) {
@@ -436,35 +301,16 @@ console.log('\nTHE PANTHER\'S MAW  (items 6 and 8)')
     if (far && near && !near.moving) break
   }
   await walking.catch(() => {})
-  /* THE NUMBER MOVED WITH THE TABLE. On v4 `chart_table` stood at 335,211 and
-   * the principal's own stand point is 370,201, which is 36 painting pixels of
-   * ground: this check's own threshold of 40 could not be met by the walk it was
-   * measuring, and it passed on the frames of a fight between two words. On v6
-   * the table is at 288,229 with its stand at 295,213, so the walk is about 76
-   * pixels of ground and the threshold is met by the walk itself. */
+  /* the number moved with the table: on v4 `chart_table` stood at 335,211 with the stand point at 370,201, a 36 pixel walk that could not meet this check's own threshold of 40; on v6 the table is at 288,229 with its stand at 295,213, so the walk is about 76 pixels of ground. */
   ok('6', 'a driven body really crosses the room', !!far && !!near && Math.hypot(near.x - far.x, near.y - far.y) > 40,
     far && near ? `${far.x},${far.y} -> ${near.x},${near.y}` : 'never moved')
   ok('6', 'and its walk cycle runs while it does', frames.size >= 4, `${frames.size} distinct frames`)
   ok('6', 'and the DRAWING really changes, not just the counter', pics.size >= 4,
     `${pics.size} distinct textures`)
-  /* ---- AND HE IS USING HIS OWN LEGS (Ash, 2026-09-09 item 11) -----------
-   *
-   * A MAPVIS placement carries one frame set per look and the principal's is
-   * the breathing cycle he was drawn standing in, so crossing the room stepped
-   * him through eight pictures of a man standing still with his chest going up
-   * and down. He slid, and he breathed while he slid.
-   *
-   * The walk is an override read out of this repo rather than a second look on
-   * the placement, so it lands on the published bundle with nothing
-   * re-exported. These two are the check that it is the thing on screen, and
-   * that it hands back when he stops. The label is the file the texture was
-   * loaded from, so an atlas cell and a loose png cannot be confused. */
+  /* he is using his own legs: a placement carries one frame set per look and the principal's is the breathing idle he was drawn in, so crossing the room slid him through eight pictures of a man standing still; the walk is an override read out of this repo, not a second look on the placement, so it needs nothing re-exported. */
   const GAIT = '/art/characters/principal/walk/'
   {
-    /* one sample may be the idle he set off on: the harness reads the sprite
-     * across a round trip, so it can catch the frame between the move starting
-     * and the draw loop swapping the set. Everything after it has to be the
-     * walk, which is what "he walks on his walk cycle" actually claims. */
+    /* one sample may be the idle he set off on: the harness reads the sprite across a round trip, so it can catch the frame between the move starting and the draw loop swapping the set, and everything after it has to be the walk. */
     const onGait = [...pics].filter((p) => p.includes(GAIT))
     ok('6', 'and the picture he walks on is his walk cycle',
       onGait.length >= 4 && pics.size - onGait.length <= 1,
@@ -472,28 +318,10 @@ console.log('\nTHE PANTHER\'S MAW  (items 6 and 8)')
   }
   ok('6', 'and he settles back onto his own idle when he stops',
     !!near && !near.moving && !near.tex.includes(GAIT), near ? near.tex.slice(0, 70) : 'never stopped')
-  /* ---- HE BREATHES WHEN HE STOPS, HE DOES NOT FREEZE -------------------
-   *
-   * This asked for frame ZERO, which is what a stopped driven body used to be pinned
-   * to: `animT = 0` every frame and index 0 every frame. Ash, on the two longest shots
-   * in the game: *"his stops + facings + positions are goofy in the intro and end
-   * cutscene."* A man standing still is not a photograph. The idle runs on its own fps
-   * now, like every other breathing thing on the map.
-   *
-   * What is still worth holding is that he is on his IDLE and not his walk, which the
-   * check above this one already says. */
+  /* he breathes when he stops and does not freeze: a stopped driven body used to pin `animT = 0` and index 0 every frame, and the idle runs on its own fps now like every other breathing thing on the map; what still matters is that he is on his idle and not his walk. */
   ok('6', 'and he is standing, not walking, when he stops', !near?.moving)
 
-  /* item 8's other half: the painting holds still while a body walks it.
-   *
-   * SETTLED FIRST, AND THAT IS A CORRECTION. This read the zoom the instant the
-   * principal stopped and compared it a second and a half later, which was true
-   * while the Maw held one shot for the whole room. It does not any more: the
-   * year one rail is one cutscene with camera moves in it, so the reading landed
-   * mid-ease and the check reported the room scrolling under the player when
-   * what it had actually caught was a camera still on its way somewhere. The
-   * claim was never "the Maw has one zoom forever", it is "walking does not move
-   * the picture", so the camera is allowed to arrive before the walk begins. */
+  /* item 8's other half, the painting holds still while a body walks it: the camera is settled first because the year one rail moves it, so reading the zoom the instant he stops lands mid-ease and reports the room scrolling when a camera was only arriving. */
   await page.waitForFunction(() => {
     const z = Math.round(window.__pmap.camZ * 1000)
     const was = window.__gateZ

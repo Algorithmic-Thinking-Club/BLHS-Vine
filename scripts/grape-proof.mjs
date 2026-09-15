@@ -1,15 +1,4 @@
-/* Drive the grape proof through a real browser and prove it, or fail loudly.
- *
- * Not a unit test. It opens the app, waits for the real dialogue box, clicks
- * the SECOND choice on purpose, and checks that Python printed the number 1
- * back into the next line. A default, a stub or a hard-coded string cannot pass
- * that, because index 1 only exists if the click crossed the worker boundary
- * and came back into the member's if statement.
- *
- * Run against whichever server is up:
- *   node scripts/grape-proof.mjs http://localhost:5173     (npm run dev)
- *   node scripts/grape-proof.mjs http://localhost:4173     (vite preview)
- */
+/* browser proof of the grape path, not a unit test: it clicks the SECOND choice on purpose, so only a click that crossed the worker boundary and came back into the if statement can print index 1 into the next line; run it as node scripts/grape-proof.mjs http://localhost:5173 for dev or :4173 for vite preview */
 import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright'
 
@@ -32,8 +21,7 @@ page.on('pageerror', (e) => { console.log(`  [pageerror] ${e.message}`); failure
 page.on('console', (m) => { if (m.type() === 'error') console.log(`  [console.error] ${m.text()}`) })
 
 const line = () => page.textContent('.cs-dialogue-text')
-/* the box is a typewriter: the hint only appears once the line has finished
- * drawing, so waiting on it is waiting for a settled frame */
+/* the box is a typewriter, so the continue hint only appears once the line has finished drawing and waiting on it is waiting for a settled frame */
 const settled = () => page.waitForSelector('.cs-continue-hint', { timeout: 30000 })
 const shot = (n) => page.screenshot({ path: `${shots}/${tag}-${n}.png` })
 
@@ -54,8 +42,7 @@ check('choose rendered both options as buttons', options.join(' | '), 'Pick the 
 check('the prompt came from the python side', await line(), 'Pick a button.')
 await shot('2-choose')
 
-// 3. the chosen index arrives back in Python and changes the next line.
-//    Deliberately the SECOND button: only a real round trip can say "1".
+// the second button on purpose: only a real round trip back into Python can answer with index 1 and take the else branch
 await page.click('.dlg-choice:nth-child(2)')
 await settled()
 const branched = await line()
@@ -92,9 +79,7 @@ await settled()
 check('the engine survived it and reran the island', await line(), 'I am going to break')
 await shot('6-still-running')
 
-// 5. a filename the filesystem would refuse used to hang the harness on
-//    "is running" with nothing on screen, which is the one failure the sandbox
-//    exists to prevent. ?py=.. normalises to / and fetches index.html.
+// a filename the filesystem would refuse must fall back rather than hang the harness on is-running with nothing on screen, and ?py=.. normalises to / and fetches index.html
 console.log('\na filename that is not a filename')
 await page.goto(`${base}/?scene=grape&py=..`, { waitUntil: 'domcontentloaded', timeout: 30000 })
 await page.waitForSelector('.cs-dialogue', { timeout: 60000 })

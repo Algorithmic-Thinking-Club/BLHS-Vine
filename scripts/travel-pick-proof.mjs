@@ -1,21 +1,4 @@
-/* THE TRAVEL GATE: Ash's 2026-09-08 items 3 and 4, checked in a real browser.
- *
- * Item 3 is TRAVEL, the whole thing: the year sheet's pick sails, the ship on
- * the dock is a door onto a chart drawn to the real world, the chart's pin sails
- * the whole way behind the bars, and Esc lands him at the far dock.
- *
- * Item 4 is ONE BUTTON PER PICK: a pick with an island reads "Sail to <name>"
- * and does item 3; a pick with no island reads "Go", opens a card, counts itself,
- * fills its frame on the wall, and the bar names the next pick.
- *
- * IT READS THE LIVE PAGE AND NEVER THE CODE. Every claim here is about something
- * a student can see: the words on a button, the state of the scene through
- * `window.__pmap`, the save the game really wrote. It proves nothing about
- * whether any of it is GOOD; Ash playing it is the only gate.
- *
- *   node scripts/travel-pick-proof.mjs --base=http://localhost:5173
- *     --headed    watch it
- */
+/* travel checked in a live browser: a pick with an island reads "Sail to <name>" and sails behind the bars, one without reads "Go"; it reads the page through `window.__pmap`, never the code */
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 
@@ -35,17 +18,14 @@ const ok = (item, what, good, detail = '') => {
   else { fails.push(`${item}  ${what}${detail ? '  ' + detail : ''}`); console.log(`  FAIL ${item}  ${what}${detail ? '  ' + detail : ''}`) }
 }
 
-/* A STUDENT WHO HAS BEEN HANDED THE ROOM AND HAS A YEAR ON HIS SHEET. The
- * founding flag and the vignette are set, the plan is stamped with two classes
- * and one club, and Advisory is sat: exactly the state Ash's item 4 is about. */
+/* a student who has been handed the room and has a year on the sheet: founding flag and vignette set, the plan stamped with two classes and one club, Advisory sat */
 const SAVE = {
   v: 2, id: 'r_travel', handle: 'BraveTide', pronouns: 'they/them', boatName: 'Kestrel',
   year: 1, season: 'Fall', beat: 'maw:arrive', introDone: true, arm: 'game',
   plans: {
     1: { slots: { Fall: 'football' }, classes: ['ap-human-geo', 'spanish-1'], stamped: true },
   },
-  /* RAILED is what says the opening has been watched (`island.py` gates on it,
-   * not on the founding flag), so without it the room replays the whole film */
+  /* `maw:railed` is what says the opening has been watched, because `island.py` gates on it and not on the founding flag, so without it the room replays the whole film */
   flags: ['maw:founding', 'maw:railed', 'maw:wall_shown', 'vignette:y1', 'chart:granted', 'handbook:granted'],
   tokens: ['Winter', 'Spring'],
   ledger: [{ id: 'core:y1', title: 'Advisory', kind: 'core', credit: 0.5, grade: 4, year: 1, season: 'Fall', attempts: 1, firstGrade: 4 }],
@@ -120,9 +100,7 @@ console.log(`\ntravel + picks, against ${base}\n`)
   ok('4.3b', 'and both classes are on the sheet', /Human Geography/.test(JSON.stringify(buttons)) && /Spanish/.test(JSON.stringify(buttons)))
 
   /* the club he picked has the same one button on its own card */
-  /* the club he picked has the same one button, wherever the sheet draws it.
-   * Nothing on the roster is playable today so the season columns come off and
-   * the pick is listed under "After school" instead; either way it has a Go. */
+  /* the picked club carries the same one button wherever the sheet draws it, listed under "After school" when nothing on the roster is playable rather than in a season column */
   const club = await page.evaluate(() => {
     const rows = [...document.querySelectorAll('.pl-class, .pl-filled')]
       .map((r) => ({ name: r.querySelector('.pl-class-name, .pl-card-name')?.textContent?.trim() ?? '',
@@ -151,14 +129,8 @@ console.log(`\ntravel + picks, against ${base}\n`)
   const bar2 = await page.evaluate(() => document.querySelector('.ob-live')?.textContent?.trim() ?? '')
   ok('4.8', 'the bar names the NEXT pick', /Spanish/i.test(bar2), JSON.stringify(bar2))
 
-  /* ---- THE WALL, OFF THE YEAR SHEET (Ash, 2026-09-09) -------------------
-   *
-   * It was a plaque in the corner for a day and he read five signs there as a
-   * toolbar: *"when it was 3 on the top left it was cute, now its 5, it looks
-   * like a list of ugly buttons."* It lives on the sheet's own foot now, behind
-   * the door that already means "your year", which is what it is about. */
-  /* pressing a pick shuts the sheet, so it is opened again the way a student
-   * would: the corner, then the plank on the sheet's own foot */
+  /* the trophy wall lives on the year sheet's own foot, not as a plaque in the corner, because five signs up there read as a toolbar of ugly buttons */
+  /* pressing a pick shuts the sheet, so it is opened again the way a student would, through the corner then the plank on the sheet's own foot */
   await page.click('[data-tour="my-year"]')
   await until(page, () => !!document.querySelector('.pl-mine'), 8000)
   await page.evaluate(() => {
@@ -182,17 +154,8 @@ console.log(`\ntravel + picks, against ${base}\n`)
 /* ==== 3: TRAVEL =========================================================== */
 {
   console.log('\n3  travel, the whole thing')
-  /* ---- ON THE REAL WORLD, BECAUSE THE LOCAL ONE HAS NOWHERE TO GO ---------
-   *
-   * The built-in composition holds one island under three maps and a rumour nobody
-   * has painted, so "press a pin and sail there" on it can only ever press the place
-   * he is already standing in, which the engine rightly refuses as a door rather than
-   * a voyage. The published world has the hub and the ATC island, which is a crossing.
-   * Sections 1, 2 and 3b still use the local one: what they test is the chart's own
-   * drawing and the skip, and neither needs a second island. */
-  /* AND WITH THE CLUB ON HIS YEAR SHEET, because a place you have signed up for is a
-   * place the chart will offer you. Without it the ATC island is drawn misty, has no
-   * control on it, and the only pin that can be pressed is the island he is inside. */
+  /* runs on the published world because the built-in composition holds one island, so the only pin is the place already stood in, which the engine refuses as a door rather than a voyage; sections 1, 2 and 3b keep the local one and only need the chart's drawing and the skip */
+  /* the club has to be on the year sheet, because without it the ATC island is drawn misty with no control on it and the only pressable pin is the island being stood in */
   const page = await open(`${base}/?scene=pmap&deep=1&map=panther-maw`, {
     ...SAVE,
     plans: { 1: { slots: { Fall: 'football', Winter: 'atc' }, classes: ['ap-human-geo', 'spanish-1'], stamped: true } },
@@ -208,11 +171,7 @@ console.log(`\ntravel + picks, against ${base}\n`)
   await page.screenshot({ path: `${SHOTS}/3-chart.png` })
   const chart = await page.evaluate(() => ({
     isles: document.querySelectorAll('.ch-isle').length,
-    /* THE PICKS MOVED OFF THE WATER AND INTO THE REGISTER. Ash: "even the chart is
-       shitty." Four of the seven things drawn on the sea were not places: two class
-       names and an example club were pinned to the corners of the water with "no
-       island yet" under them, which is a map of an archipelago with a course
-       catalogue floating on it. They are rows now. */
+    /* picks that are not places are rows in the register and not pins: class names and an example club pinned to the water with "no island yet" under them made the chart a course catalogue */
     picks: document.querySelectorAll('.ch-row-owed').length,
     go: document.querySelectorAll('.ch-isle-go').length,
     text: document.querySelector('.ch-chart')?.innerText ?? '',
@@ -223,12 +182,7 @@ console.log(`\ntravel + picks, against ${base}\n`)
   ok('3.3', 'and there is somewhere to sail from inside the Maw', chart.go >= 1, `${chart.go} sailable`)
 
   /* press one and the whole journey runs: bars, a map change, ashore */
-  /* ---- BY NAME, AND NOT WHICHEVER IS FIRST -------------------------------
-   *
-   * A club he has picked on his year sheet is a place he knows about now, so more
-   * islands are sailable than were, and "press the first one" started pressing the
-   * island he was standing on. Sailing to where you are is refused, which is correct
-   * and proves nothing. This presses the one the run is about. */
+  /* presses the island by name, not whichever is first: a picked club makes more islands sailable and the first became the one being stood on, which is refused and proves nothing */
   const target = await page.evaluate(() => {
     const all = [...document.querySelectorAll('.ch-isle-go')]
     const named = (b) => b.querySelector('.ch-name')?.textContent?.trim() ?? ''
@@ -249,19 +203,14 @@ console.log(`\ntravel + picks, against ${base}\n`)
       const r = document.querySelector('.sv-skip').getBoundingClientRect()
       return { left: Math.round(r.left), top: Math.round(r.top), text: document.querySelector('.sv-skip').textContent }
     })
-    /* AND INSIDE THE FRAME. The bars are 10vh each, so a plaque at 14px is drawn
-     * under the top one and the offer is invisible on every game-arm crossing.
-     * Measured on the live deploy 2026-09-08 off `3-crossing.png`. */
+    /* the plaque has to clear the movie bars: they are 10vh each, so at 14px it draws under the top one and the offer is invisible on every game-arm crossing */
     const bar = await page.evaluate(() => Math.round(window.innerHeight * 0.1))
     ok('3.6', 'top left, and it says what the key is', at.left < 200 && at.top < 260 && /esc/i.test(at.text), JSON.stringify(at))
     ok('3.6b', 'and it clears the movie bar rather than hiding under it', at.top >= bar, `top ${at.top} against a ${bar}px bar`)
   }
   await page.screenshot({ path: `${SHOTS}/3-crossing.png` })
 
-  /* ---- AND HE PRESSES E, BECAUSE THAT IS THE GAME NOW --------------------
-   *
-   * Ash: *"IT TURNS ON CUTSCENE, TAKES HIM TO THE DOCK... and E TO HOP ON THE BOAT."*
-   * A pick on the chart carries him to his own quay and waits there. */
+  /* a pick on the chart carries the player to their own quay and waits there for E to board */
   await board(page)
   const left = await until(page, () => {
     const m = window.__pmap?.map
@@ -269,8 +218,7 @@ console.log(`\ntravel + picks, against ${base}\n`)
   }, 60000)
   ok('3.7', 'the map really changes', left, `${await mapOf(page)}`)
 
-  /* he is standing on the far island: the bars are down, there is no hull under
-   * him, and the scene answering is the one he sailed to */
+  /* ashore means the bars are down, there is no hull underneath, and the scene answering is the one sailed to */
   const ashore = await until(page, () => {
     const m = window.__pmap?.map
     return typeof m === 'string' && m !== 'panther-maw'
@@ -283,8 +231,7 @@ console.log(`\ntravel + picks, against ${base}\n`)
   await page.close()
 }
 
-/* he waits on his own dock until the ship is offered, then takes her: the one press
- * a person makes on a journey they asked for */
+/* waits on the home dock until the ship is offered, then takes her, which is the one press a person makes on a journey they asked for */
 async function board(page) {
   for (let i = 0; i < 100; i++) {
     const leg = await page.evaluate(() => { try { return window.__pmap?.travel?.leg ?? null } catch { return null } })
@@ -312,27 +259,15 @@ async function board(page) {
   })
   ok('3.9', 'sail_to is a word the engine answers', armed?.ok !== false, JSON.stringify(armed))
   await until(page, () => !!document.querySelector('.sv-skip'), 10000)
-  /* ---- ESCAPE MEANS TWO DIFFERENT THINGS AND THE LEG SAYS WHICH -----------
-   *
-   * Ash: *"IF ESC CLICKED DURING SAILING, THEN TRANSIITON SCREEN AND IT SKIPS MOST OF
-   * HTE JOURNEY... IF ESC IS CLICKED BEFORE SAILING. THEN CUTSCENE GOES AWAY."* This
-   * is the skip, so she has to be under way first: pressed on the dock the same key
-   * calls the journey off, which `sail-machine-proof.mjs` is the one that checks. */
-  /* ---- THE PLAQUE SAYS WHICH ESCAPE IT IS OFFERING ------------------------
-   *
-   * Before she moves it reads "Esc: not just now", because Escape there calls the
-   * journey off and leaves him on the dock. Under way it reads "Esc: skip ahead" and
-   * Escape lands him at the far dock. Both are checked, because the wrong one
-   * appearing is a student pressing a key that does something else. */
+  /* this is the skip, so she has to be under way first: pressed on the dock the same key calls the journey off, which `sail-machine-proof.mjs` checks instead */
+  /* before she moves the plaque reads "Esc: not just now" and Escape calls the journey off; under way it reads "Esc: skip ahead" and Escape lands at the far dock, and the wrong one showing is a key that does something else */
   const onDock = await page.evaluate(() => document.querySelector('.sv-skip')?.textContent ?? '')
   ok('3.9b', 'on the dock the plaque offers to call it off', /not just now/i.test(onDock), JSON.stringify(onDock))
   await board(page)
-  /* the key first, the way Ash asked for it, and then the plaque, which is the
-   * same offer for a student on a trackpad who has never pressed Escape */
+  /* the key first and then the plaque, which is the same offer for a student on a trackpad who has never pressed Escape */
   await page.locator('canvas').first().focus().catch(() => {})
   await page.keyboard.press('Escape')
-  /* WATCHED, NOT SAMPLED ONCE. The word changes on the frame the key lands and the
-   * map swaps a moment later, so a single read a half second in is a coin toss. */
+  /* watched, not sampled once: the word changes on the frame the key lands and the map swaps a moment later, so a single read a half second in is a coin toss */
   let said = ''
   for (let i = 0; i < 20; i++) {
     said = await page.evaluate(() => document.querySelector('.sv-skip')?.textContent ?? '')

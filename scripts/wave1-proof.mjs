@@ -1,23 +1,4 @@
-/* THE WAVE GATE, driven through a real browser, or it fails loudly.
- *
- * Not a unit test. It opens the Maw stand-in and asks the shipped code for the
- * five things the wave is supposed to have bought:
- *
- *   1. a scripted line and a choice through the REAL dialogue box
- *   2. a guide arrow that paths around a wall
- *   3. a trigger firing on entry, with nobody pressing anything
- *   4. a cutscene playing on a painted map
- *   5. and the thirteen CutsceneStage methods actually doing their jobs
- *
- * Every check goes through the same path a member's Python will: an intent, into
- * `performIntent`, into the scene's `IntentWorld`. The debug hooks are handles on
- * the shipped code and not a second copy of it, which is the only way a proof run
- * proves anything.
- *
- * Run against whichever server is up:
- *   node scripts/wave1-proof.mjs http://localhost:5173     (npm run dev)
- *   node scripts/wave1-proof.mjs http://localhost:4173     (vite preview)
- */
+/* a browser gate, not a unit test: the Maw stand-in driving a line and a choice, a guide arrow round a wall, a trigger on entry, a cutscene on a painted map and the thirteen CutsceneStage methods, all through the shipped `performIntent` path, because a debug hook that is a second copy proves nothing */
 import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright'
 
@@ -37,8 +18,7 @@ const check = (name, got, want) => {
   if (!ok) failures++
 }
 
-/* a run that has finished the intro and has not seen the founding event, which is
- * the state the Maw's own objective table expects on a first walk in */
+/* a run that has finished the intro and has not seen the founding event, which is the state the Maw's own objective table expects on a first walk in */
 const SAVE = {
   v: 2, id: 'r_proof', handle: 'BraveTide', pronouns: 'they/them', boatName: 'Proof',
   year: 1, season: 'Fall', beat: 'maw:arrive', introDone: true,
@@ -50,9 +30,7 @@ const SAVE = {
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 })
 page.on('pageerror', (e) => { console.log(`  [pageerror] ${e.message}`); failures++ })
-/* a 404 is only useful if it says WHICH url. See wave2-proof.mjs for the one
- * that is expected: the engine asks the platform for a map before it falls back
- * to the local folder, and the stand-in has never been published there. */
+/* a 404 is only useful if it says which url, and this one is expected: the engine asks the platform for a map before it falls back to the local folder, and the stand-in has never been published there */
 const EXPECTED_404 = /\/api\/v1\/maps\/panther-maw/
 page.on('response', (r) => {
   if (r.status() < 400 || EXPECTED_404.test(r.url())) return
@@ -65,14 +43,7 @@ page.on('console', (m) => {
 })
 await page.addInitScript((s) => { localStorage.setItem('blhs_save_v2', JSON.stringify(s)) }, SAVE)
 
-/* A CAPTURE WAITS FOR THE PICTURE TO STOP MOVING.
- *
- * Every panel in the kit arrives with a 220-300ms entrance and `waitForSelector`
- * returns on the first frame of it, so the wave-1 and wave-2 sets were shot
- * mid-animation and the fresh-eyes round read half of them as translucent
- * panels with the world bleeding through. The entrances no longer carry opacity
- * (hud.css `hb-in`), so this is belt and braces rather than the fix, but a proof
- * whose pictures ARE the gate has no business photographing a moving panel. */
+/* a capture waits for the picture to stop moving, because every kit panel arrives with a 220-300ms entrance and `waitForSelector` returns on its first frame, which shot whole sets mid animation and read as translucent panels with the world bleeding through */
 const shot = async (n) => {
   await page.waitForTimeout(360)
   await page.screenshot({ path: `${shots}/${tag}-${n}.png` })
@@ -118,14 +89,7 @@ const options = await page.$$eval('.dlg-choice', (b) => b.map((x) => x.textConte
 check('choose rendered every option as a real button', options.join(' | '), 'Open the Handbook')
 check('and printed the number key beside it, so a keyboard can answer too', options.join(' | '), /1.*Open the Handbook/)
 
-/* THE CONTESTED CENTRE STRIP, AS AN ASSERTION RATHER THAN AS A PICTURE.
- *
- * The eyes round failed this shot because the two choice planks were drawn
- * straight over the player and over the neck of the room. Nothing in the code
- * connected the two: the conversation lays itself out from the bottom of the
- * window upward and the camera composed the painting into the whole window.
- * `src/game/ui/frame.ts` is the number between them now, so the check is that
- * the body really did come out from behind the buttons. */
+/* the contested centre strip as an assertion rather than a picture: the conversation lays out from the bottom of the window up while the camera composes into the whole window, so `src/game/ui/frame.ts` is the number between them and the check is that the body came out from behind the choice planks */
 const band = await page.$eval('.dlg-choices', (e) => {
   const r = e.getBoundingClientRect()
   return { top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right) }
@@ -149,8 +113,7 @@ await page.waitForTimeout(400)
 const guide = await json('__guide')
 check('guide_to found a real route rather than pointing through the rock', guide, (g) => g.reached === true)
 check('and the route has waypoints, which a straight line does not', guide, (g) => g.route > 3)
-/* the wall: from the bridge at x=256 the chart table at x=170 is behind the pit,
- * so a straight line leaves the floor. The arrow leads UP the bridge first. */
+/* the wall: from the bridge at x=256 the chart table at x=170 is behind the pit, so a straight line leaves the floor and the arrow has to lead up the bridge first */
 check('the arrow leads up the bridge, not across the pit', guide, (g) => g.lead && g.lead.y < 420 && Math.abs(g.lead.x - 256) < 60)
 await shot('4-guide')
 
@@ -160,8 +123,7 @@ const before = await json('__cs')
 check('nothing is running before it is asked for', before, (c) => c.running === false)
 check('the principal station started', await page.evaluate(() => window.__station('principal_desk')), 'fired')
 await page.waitForFunction(() => JSON.parse(window.__cs()).running === true, null, { timeout: 20000 })
-/* the first steps are a letterbox, a vignette and a 900ms camera push, and the
- * camera step BLOCKS, so a fixed wait here samples the scene before it speaks */
+/* the first steps are a letterbox, a vignette and a 900ms camera push, and the camera step blocks, so a fixed wait here samples the scene before it speaks */
 await page.waitForFunction(() => !!JSON.parse(window.__cs()).line, null, { timeout: 20000 })
 const mid = await json('__cs')
 check('the runtime is running a script on a PAINTED map', mid, (c) => c.running === true)
@@ -170,36 +132,18 @@ check('the vignette closed on the desk', mid, (c) => c.vignette > 0.2)
 check('cameraSet took the camera off the follow law, at the anchor and zoomed in',
   mid, (c) => !!c.cam && c.cam.zoom > 1 && Math.abs(c.cam.x - 196) < 40)
 check('the script is speaking', mid, (c) => !!c.line && c.line.length > 0)
-/* AND IT IS THE SAME BOX. The cutscene used to draw its own plaque and its own
- * text node; a line from a script and a line from the counselor are one picture
- * now, so the class the station's line was found in is the class this one is in. */
+/* and it is the same box, because a line from a script and a line from the counselor are one picture now, so the class the station's line was found in is the class this one is in */
 await page.waitForSelector('.cs-dialogue-text', { timeout: 10000 })
 check('the script draws into THE ONE dialogue box, the same one the station used',
   await line(), (t) => t.length > 0)
 check('and the name plaque is the same component too', await page.textContent('.cs-nameplaque'), 'Principal Panther')
-/* NOTHING ELSE IS ON SCREEN OVER IT. The year vignette's own rule is "only while
- * the world is quiet" and it used to check this component's own panels alone, so
- * a cutscene mid-shot counted as quiet and the year's opening lines mounted
- * straight over it. One box on screen means one box on screen. */
+/* nothing else is on screen over it: the year vignette's rule is only while the world is quiet, and checking this component's own panels alone let a cutscene mid shot count as quiet, so the year's opening lines mounted straight over it */
 check('exactly one dialogue box is on screen during the script',
   await page.$$eval('.cs-dialogue', (n) => n.length), (n) => n === 1)
 await settled()                                   // let the typewriter finish drawing it
 check('and the line on it is the script, not the year vignette',
   await line(), (t) => /made it inside|Maw|chart table/.test(t))
-/* REPORTED, NOT CHECKED, and the difference is the point.
- *
- * The eyes round of 2026-08-30 read this shot as the body cut off at the waist
- * by the dialogue box. Measured: at the `close` framing the shot is pointed at
- * the principal's desk (map y 304) while the body is still on the bridge (map y
- * 438), which at 1.9x is 300 screen pixels below the thing being framed, and the
- * camera clamp will not lift the painting past its own bottom edge to fetch him.
- *
- * That is not the follow law losing to the conversation, which is what the brief
- * ordered fixed and what every non-cutscene shot now clears by 87px or more. It
- * is an AUTHORED SHOT: `cameraSet` was told to look at the desk. Whether a
- * script may point somewhere the painting cannot fill is Ash's call and the
- * anchor already carries a `framings` bag to answer it with, so the number is
- * printed here every run rather than silently passing or silently failing. */
+/* reported, not checked: at the `close` framing `cameraSet` points at the desk (map y 304) while the body is on the bridge (map y 438), 300 px below at 1.9x, and the clamp will not lift the painting past its own bottom edge, so an authored shot can hide the body where other shots clear by 87px or more */
 {
   const s = await json('__sea')
   const boxTop = await page.$eval('.cs-dialogue', (e) => Math.round(e.getBoundingClientRect().top))
@@ -220,11 +164,7 @@ for (let i = 0; i < 14; i++) {
 await page.waitForFunction(() => JSON.parse(window.__cs()).running === false, null, { timeout: 30000 })
 const after = await json('__cs')
 check('the script finished and gave the camera back', after, (c) => c.running === false && c.cam === null)
-/* AND GAVE THE ZOOM BACK WITH IT. The cutscene wrote the follow law's own
- * `camZWant` as well as the live zoom, so a script that pushed in to 1.9 left
- * the room at 1.9 for the rest of the session with nothing to say so. That is
- * what made the two shots after this one look like the player had drifted to the
- * edge of the floor: he had not moved, the camera had. */
+/* and gave the zoom back with it, because the cutscene wrote the follow law's own `camZWant` as well as the live zoom, so a script that pushed in to 1.9 left the room at 1.9 from then on and the body only looked like it had drifted to the edge of the floor */
 await page.waitForFunction(() => Math.abs(JSON.parse(window.__sea()).zoom - 1) < 0.02, null, { timeout: 10000 })
   .catch(() => {})
 check('and travelled the zoom back to what the BODY wants, not what the script wanted',

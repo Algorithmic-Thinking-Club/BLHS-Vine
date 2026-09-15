@@ -1,20 +1,4 @@
-/* THE ROAD, FILMED. A cold run from the title to the end, played the way a
- * fourteen year old on a trackpad plays it: clicks only, never a key, reading
- * nothing, always pressing the thing that looks like the way on. A frame and a
- * state dump at every step, so a person can look at the filmstrip afterwards
- * and see what the student saw.
- *
- * It is not a gate and it asserts nothing. `dimwit.mjs` is the gate; this is the
- * eyes.
- *
- *   node scripts/road-shots.mjs
- *     --base=http://localhost:5173   where the game is
- *     --view=1366x768                the window (default 1366x768)
- *     --skin=plain                   the control arm (default the game arm)
- *     --out=<dir>                    under reference/_archive/build-shots/
- *     --steps=90                     how many presses to take before stopping
- *     --headed                       watch it
- */
+/* the road filmed: a cold run from the title to the end pressing only what looks like the way on, clicks and never a key, with a frame and a state dump per step so the filmstrip shows what a first time player saw. It asserts nothing and is not a gate, dimwit.mjs is. Flags: --base --view --skin --out --steps --headed. */
 import { boot, LIVE } from './play-harness.mjs'
 
 const arg = (k, d) => {
@@ -32,14 +16,10 @@ if (!vm) { console.error('--view wants WIDTHxHEIGHT'); process.exit(2) }
 const view = { width: +vm[1], height: +vm[2] }
 const out = arg('out', `road-${skin || 'game'}-${view.width}x${view.height}`)
 
-/* a way backwards is not the way on, and neither is the furniture that is always
- * on the glass: the corner, the help plaque and the objective bar. `look()` marks
- * the furniture for us. */
+/* a way backwards is not the way on, and neither is the furniture that is always on the glass, the corner, the help plaque and the objective bar, which look() marks for us */
 const BACKWARD = /^back$|^close$|skip|quit|settings|back to the|back to my|leave this|save and leave/i
 
-/* the real front door, which is the boot splash and not the title: a cold
- * student never types a scene id, and the splash is the first frame either arm
- * ever shows. */
+/* the real front door is the boot splash and not the title, because a cold player never types a scene id and the splash is the first frame either arm shows */
 const url = `${base}/${skin ? `?skin=${skin}` : ''}`
 const h = await boot('road', { save: null, url, headed: has('headed'), view, dir: `reference/_archive/build-shots/${out}` })
 
@@ -69,8 +49,7 @@ for (let i = 0; i < steps; i++) {
     .sort((a, b) => (b.box.w * b.box.h) - (a.box.w * a.box.h))
 
   if (!forward.length) {
-    /* nothing to press. A line of dialogue is advanced by clicking the box, and
-     * a watched stretch is not a stall, so give both a chance before giving up. */
+    /* nothing to press: a dialogue line is advanced by clicking the box and a watched stretch is not a stall, so give both a chance before giving up */
     h.say('   nothing pressable; clicking the dialogue line')
     await h.dialogue(1, 900)
     await h.page.waitForTimeout(900)

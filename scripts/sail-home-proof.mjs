@@ -1,22 +1,4 @@
-/* SAILING HOME: the last ninety seconds of year one, watched in a real browser.
- *
- * ASH, 2026-09-09: *"after Thor sees what he earns... Principal Panther should
- * clearly congratulate him with a dialogue for finishing year one. Then a big
- * button should pop on the screen 'Sail Home'. When clicked, Thor gets
- * teleported to the dock, still in cutscene mode. Then he hops on the boat
- * smoothly, and the boat slowly sails normally back out into the ocean. Then
- * title screen comes back."*
- *
- * And what he played: *"thor violently gets teleported, thor doesnt even hop on
- * the boat, the boat just starts zooming straight downwards, and then the title
- * screen comes on. extremely buggy."*
- *
- * Every check here is a claim about a PICTURE, sampled off the scene's own live
- * state while it happens. It proves the shape and never that it is good; Ash
- * playing it is the only gate.
- *
- *   node scripts/sail-home-proof.mjs --base=http://localhost:5173 [--headed]
- */
+/* watches the closing of year one in a real browser, sampling the scene's own live state: it proves the shape, never that it is good. node scripts/sail-home-proof.mjs --base=http://localhost:5173 [--headed] */
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 
@@ -36,8 +18,7 @@ const ok = (n, good, d = '') => {
   else { fails.push(`${n}${d ? '  ' + d : ''}`); console.log(`  FAIL ${n}${d ? '  ' + d : ''}`) }
 }
 
-/* a year with everything done but the page, standing in the Maw: the state the
- * closing film's own trigger fires on */
+/* a year with everything done but the page, standing in the Maw: the state the closing film's own trigger fires on */
 const SAVE = {
   v: 2, id: 'r_sail', handle: 'BraveTide', pronouns: 'they/them', boatName: 'Kestrel',
   year: 1, season: 'Fall', beat: 'maw:arrive', introDone: true, arm: 'game',
@@ -92,9 +73,7 @@ async function until(fn, ms = 40000, step = 200) {
 }
 /* a line is a click, the way a student answers one */
 const answer = async () => {
-  /* CLICKED, NOT TYPED. Space needs the page to hold focus and a panel opening
-   * mid-film takes it, so a driver that only pressed a key sat on one line for
-   * the whole run and reported the film as stalled. */
+  /* clicked, not typed: space needs the page to hold focus and a panel opening mid film takes it, so a key-only driver sat on one line and reported the film as stalled */
   const said = await page.evaluate(() => {
     const box = document.querySelector('.dlg-box')
     if (!box) return false
@@ -127,19 +106,10 @@ while (Date.now() - t0 < 180000) {
   if (v.onTitle) { sawTitle = true; break }
 
   if (/that is year one at bonney lake, finished/i.test(v.text)) sawCongrats = true
-  /* the choose word draws its options as buttons over the dialogue box; the
-   * generic presser below would find it too, so this must look BEFORE it does */
+  /* the choose word draws its options as buttons over the dialogue box, so this must look before the generic presser below does */
   const sail = v.buttons.find((b) => /sail home/i.test(b)) || (/sail home/i.test(v.text) ? 'Sail Home' : null)
   if (sail && !sawSailHome) {
-    /* ---- WAIT FOR THE LINE TO FINISH BEFORE PRESSING ---------------------
-     *
-     * The button appears with the line, and the line is still being typed. A click
-     * while the typewriter is running FINISHES THE TYPEWRITER: it never reaches the
-     * button. This pressed once, lost the press to the typing, and then waited for
-     * ever on a film that was waiting for it - which reads from out here exactly like
-     * the game being broken, and hid a real regression behind a fake one.
-     *
-     * The continue hint is the mark that appears when a line has finished drawing. */
+    /* wait for the line to finish before pressing: a click while the typewriter is running finishes the typewriter instead of reaching the button, so the press is lost and the film waits for ever on it. the continue hint is the mark that a line has finished drawing */
     await page.waitForSelector('.cs-continue-hint, .dlg-choice', { timeout: 8000 }).catch(() => {})
     await wait(250)
     sawSailHome = true
@@ -161,8 +131,7 @@ while (Date.now() - t0 < 180000) {
     if (!v.hull && v.x !== null) { dockedAt.x = v.x; dockedAt.y = v.y; wasAtDock = true }
     if (v.hull) {
       hullSeen++
-      /* two things drew over the departure and both were wrong: the year's
-       * "look around" sentence, and the hub's own "you land at the harbor" */
+      /* two things drew over the departure and both were wrong: the year's "look around" sentence, and the hub's own "you land at the harbor" */
       const over = await page.evaluate(() => ({
         bar: document.querySelector('.ob-live')?.textContent?.trim() ?? '',
         card: document.querySelector('.pc-card, .pc-root')?.textContent?.trim() ?? '',
@@ -171,14 +140,7 @@ while (Date.now() - t0 < 180000) {
       if (over.card && !sawCardOnDeparture) sawCardOnDeparture = over.card
       if (!hopped) { hopped = true; await page.screenshot({ path: `${SHOTS}/4-aboard.png` }) }
       const at = await page.evaluate(() => ({ x: Math.round(window.__pmap.hull.x), y: Math.round(window.__pmap.hull.y) }))
-      /* ---- TIMED, NOT ASSUMED ------------------------------------------
-       *
-       * The pace used to be the sampled distance over the scene's own
-       * `SAIL_OUT_MS`, which is only right when the sampling window happens to
-       * be the whole departure. It is not: a driver that catches six samples
-       * reports 23 px/s and one that catches nine reports 35, off the same
-       * boat at the same speed. The clock between the first and last sample is
-       * what those pixels were actually covered in. */
+      /* timed, not assumed: the pace is the clock between the first and last sample, because measuring the distance against the scene's `SAIL_OUT_MS` reports 23 px/s off six samples and 35 off nine for the same boat at the same speed */
       if (!sailedFrom) { sailedFrom = at; sailedAt = Date.now() }
       sailedTo = at
       sailedTill = Date.now()
@@ -187,24 +149,18 @@ while (Date.now() - t0 < 180000) {
 
   if (await answer()) continue
 
-  /* THE TROPHY WALL IS PART OF THE CLOSING NOW. `wall_shown` carries the year
-   * (Ash, 2026-09-09), so the ending walks him to his case in every year rather
-   * than only the first, and the film waits on that panel being shut. */
+  /* `wall_shown` carries the year, so the ending walks him to his case in every year rather than only the first, and the film waits on that panel being shut */
   const wall = await page.evaluate(() => {
     const sheet = document.querySelector('.tw-sheet')
     if (!sheet) return false
-    /* the plank carries its key cap in the same element, so the label is
-             * "Esc Back" rather than "Back" */
+    /* the plank carries its key cap in the same element, so the label is "Esc Back" rather than "Back" */
     const b = [...sheet.querySelectorAll('button')].find((e) => /back/i.test(e.innerText))
     b?.click()
     return true
   })
   if (wall) { await wait(700); continue }
 
-  /* THE YEARBOOK IS PRESSED IN THE PAGE. Its cards animate in, so a click by
-   * coordinate lands on a plank that is still at two percent opacity; the film
-   * waits on those two presses and without them nothing after the page turning
-   * ever runs. The chrome is refused by name so the driver cannot wander. */
+  /* the yearbook is pressed in the page because its cards animate in and a click by coordinate lands on a plank still at two percent opacity; the film waits on those two presses, and the chrome is refused by name so the driver cannot wander */
   const hit = await page.evaluate(() => {
     const bad = /settings|^back|^close|skip|keep playing|restart|erase|^map$|^guide$|^my year$|^\?$|^next$|^got it$|^start year/i
     const c = [...document.querySelectorAll('button')]
@@ -234,26 +190,18 @@ ok('and a big button says Sail Home', sawSailHome)
 ok('pressing it puts him on the hub', wasAtDock || hopped, `dock ${dockedAt.x},${dockedAt.y}`)
 ok('on his feet at the dock before he is in the boat', wasAtDock, `${dockedAt.x},${dockedAt.y}`)
 ok('and then he is in the boat', hopped)
-/* the hop and the departure are two things: a hull that exists for one sample is
- * a teleport into a boat, not a departure */
+/* the hop and the departure are two things: a hull that exists for one sample is a teleport into a boat, not a departure */
 ok('the departure is watched rather than instant', hullSeen >= 3, `${hullSeen} samples with a hull`)
 
 if (sailedFrom && sailedTo) {
   const dx = sailedTo.x - sailedFrom.x, dy = sailedTo.y - sailedFrom.y
   const far = Math.hypot(dx, dy)
   ok('she really moves', far > 40, `${Math.round(far)} px`)
-  /* "the boat just starts zooming straight downwards" was the defect: a
-   * departure that is almost all +y is the one he saw */
-  /* THE HEADING IS THE MAP'S ANSWER AND NOT A NUMBER HERE. `seaward` picks the
-   * line with the most open water inside a half-turn of "away from the middle of
-   * the island", so on the hub, whose harbour faces the bottom of the frame, out
-   * really is downward. What is worth asserting is that she leaves at a
-   * WATCHABLE pace rather than bolting: the defect Ash played was full sail from
-   * cruising speed, which crossed the same ground in a fifth of the time. */
+  /* the defect reported was a boat zooming straight downwards, a departure that is almost all +y */
+  /* the heading is the map's answer and not a number here: `seaward` picks the line with the most open water within a half turn of away from the island's middle, so on the hub out really is downward. the pace is asserted instead, because the defect was full sail from cruising speed */
   const secs = Math.max(0.5, (sailedTill - sailedAt) / 1000)
   const pxs = far / secs
-  /* ASH, 2026-09-09: *"much slower sailing"*. Half a helm measured 38 to 48 a
-   * second and he still read it as fast, so the ceiling comes down with it. */
+  /* half a helm measured 38 to 48 px/s and still read as fast, so the ceiling comes down with it */
   ok('at a pace you can watch', pxs < 32, `${Math.round(pxs)} px/s over ${secs}s`)
 } else {
   ok('she really moves', false, 'no hull was ever on the water')

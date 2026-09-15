@@ -1,23 +1,4 @@
-/* THE YEAR-ONE SCRIPT, WATCHED IN A REAL BROWSER.
- *
- * BRIEF-YEAR-ONE beats 2, 3, 4 and 8, written in python next door
- * (blhs-islands/islands/the-hub and islands/panther-maw) and performed here on
- * the published room and the published hub. Same shape as y1-proof.mjs: a
- * seeded save, the game's own debug surface, a screenshot per moment.
- *
- * WHAT IS PROVED HERE AND WHAT IS NOT. This says the words performed and shows
- * what a student would see. It does NOT say the game is good: Ash playing it is
- * the only gate, and he has not.
- *
- * PRESSES GO THROUGH `__station`, the scene's own E, rather than through a
- * synthesised click: the click path is ENGINE-Y1's and has its own gate. One
- * press here is deliberately a click anyway, on the desk, which has a stand
- * point; the counselor has none yet (ARC-MANIFEST, MAW REPAIRS), so a click on
- * her walks him into her and stops.
- *
- * Run: npm run dev, then `node scripts/year-one-proof.mjs --base=http://127.0.0.1:5290`
- *   --headed   watch it
- */
+/* beats 2, 3, 4 and 8 in a real browser: a seeded save, the game's debug surface, a screenshot per moment, presses through `__station` rather than a synthesised click. it shows what a student would see, never that the game is good. run `node scripts/year-one-proof.mjs --base=http://127.0.0.1:5290` */
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -62,8 +43,7 @@ const FRESH = {
   stickers: [], facts: [], badges: [], savedAt: Date.now(),
 }
 
-/* THE SAME RUN AT THE END OF YEAR ONE: founded, sheet stamped, two classes
- * sat, Advisory sat. What `yearStatus` calls ready for the yearbook. */
+/* the same run at the end of year one: founded, sheet stamped, two classes sat, Advisory sat, which is what `yearStatus` calls ready for the yearbook */
 const YEAR_DONE = {
   ...FRESH, id: 'r_year_done', beat: 'maw:home',
   flags: ['maw:founding', 'chart:granted', 'handbook:granted', 'vignette:y1'],
@@ -104,9 +84,7 @@ const click = async (name) => {
 }
 const station = (name) => page.evaluate((nm) => window.__station(nm), name)
 
-/* THE BOX, READ ONLY ONCE IT HAS FINISHED TYPING. `data-state` is the box's own
- * word for it; a harness that reads mid-typewriter proves the first four
- * letters of a line and nothing else. */
+/* the box is read only once it has finished typing, because reading mid typewriter proves the first four letters of a line and nothing else, and `data-state` is the box's own word for it */
 const boxState = () => page.locator('.dlg-stack').first().getAttribute('data-state').catch(() => null)
 const boxText = () => page.locator('.dlg-box').first().innerText().then((t) => t.replace(/\s+/g, ' ').trim()).catch(() => null)
 const waitLine = async (ms = 15000) => {
@@ -118,8 +96,7 @@ const waitLine = async (ms = 15000) => {
   }
   return null
 }
-/* click the line on, the way a student does, and wait until the box has
- * actually gone or moved on to something else */
+/* click the line on, the way a student does, and wait until the box has gone or moved on to something else */
 const advance = async () => {
   const before = await boxText()
   for (let i = 0; i < 4; i++) {
@@ -130,10 +107,7 @@ const advance = async () => {
   }
 }
 
-/* ============================================================================
- * BEAT 4 · THE PRINCIPAL: he walks in, the principal walks to him, one line,
- * the table lights, the cards.
- * ==========================================================================*/
+/* beat 4, the principal: he walks in, the principal walks to him, one line, the table lights, the cards */
 console.log('\nbeat 4 · the principal')
 await seed(FRESH)
 await page.goto(`${base}/?scene=pmap&deep=1&map=panther-maw`, { waitUntil: 'domcontentloaded' })
@@ -170,9 +144,7 @@ ok('the founding and the handovers are written', ['maw:founding', 'chart:granted
 const lit1 = await pm()
 ok('the year now points at the table', lit1?.guide === 'chart_table', JSON.stringify({ guide: lit1?.guide, lit: lit1?.lit }))
 
-/* THE 900MS THE PYTHON LEAVES BETWEEN THE FLAGS AND THE CARDS, watched for the
- * light: is the year's mark on the table drawn before the cards cover it. A
- * picture question, so a shot goes with the answer. */
+/* the 900ms the python leaves between the flags and the cards, watched for the light: is the year's mark on the table drawn before the cards cover it, a picture question so a shot goes with the answer */
 let litSeen = false
 for (let i = 0; i < 6; i++) {
   const p = await pm()
@@ -212,21 +184,15 @@ const after = await pm()
 ok('the year now points at Advisory, at the fire, and the fire is lit', after?.guide === 'hearth' && !!after?.lit, JSON.stringify({ guide: after?.guide, lit: after?.lit }))
 await shot(page, 'after-the-pick-the-fire-is-lit', 400)
 
-/* and the desk afterwards is one line. A CLICK, on purpose: the desk has a
- * stand point, so this is the road a trackpad freshman takes. */
-/* through the scene's own E: the desk's anchor travels with his body, and the
- * click path on a station whose body has moved is ENGINE-Y1's to prove */
+/* the desk afterwards is one line, and this press is a click on purpose because the desk has a stand point, which is the road a trackpad freshman takes */
+/* through the scene's own E, because the desk's anchor travels with his body and the click path on a station whose body has moved is proved elsewhere */
 ok('the principal is pressed', (await station('principal_desk')) === 'fired')
 const again = await waitLine(15000)
 ok('the desk afterwards is one line', !!again && /Go to the table/.test(again), again ?? 'no line')
 await shot(page, 'desk-again')
 await advance()
 
-/* ============================================================================
- * BEAT 8 · HOME: the counselor opens the yearbook, the page turns, she drapes
- * the cord, the wall shows what he earned, and the next time in: year two,
- * next time.
- * ==========================================================================*/
+/* beat 8, home: the counselor opens the yearbook, the page turns, she drapes the cord, the wall shows what he earned, and the next time in is year two */
 console.log('\nbeat 8 · home')
 await seed(YEAR_DONE)
 await page.goto(`${base}/?scene=pmap&deep=1&map=panther-maw`, { waitUntil: 'domcontentloaded' })
@@ -277,11 +243,7 @@ const next = await waitLine(12000)
 ok('next time in: year two, next time', !!next && /Year two, next time/.test(next), next ?? 'no line')
 await shot(page, 'year-two-next-time')
 
-/* ============================================================================
- * BEATS 2 AND 3 · THE HUB: the crossing and the dock, against a hub that does
- * not carry the names yet. The island loads, the refusals are named, nothing
- * crashes, the door is lit by the year.
- * ==========================================================================*/
+/* beats 2 and 3, the hub: the crossing and the dock against a hub that does not carry the names yet, so the island loads, the refusals are named, nothing crashes and the door is lit by the year */
 console.log('\nbeats 2 and 3 · the hub')
 log.length = 0
 await seed(FRESH)

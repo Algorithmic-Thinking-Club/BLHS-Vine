@@ -1,31 +1,11 @@
-/* THE ATC ISLAND, WALKED. The first member-shaped island this game has ever had,
- * and the first scored activity an island brought with it rather than named out of
- * the engine's own table.
- *
- *   node scripts/atc-island-proof.mjs            against the dev server
- *   node scripts/atc-island-proof.mjs --live     against the deploy
- *
- * What it proves, in order, and every one of them is a thing that was not possible
- * before today:
- *
- *   1  the island loads off the roster, by map id, with its four anchors
- *   2  the club president says who he is and when ATC meets, BEFORE the activity
- *   3  the plinth says what the club won
- *   4  pressing the machine pushes the camera in and opens the screen
- *   5  the program can be built, RUN carries it out, and the body reaches the flag
- *   6  the question about ATC is answered
- *   7  the result card lands with a grade out of four and no "0 credit earned"
- *   8  the transcript carries ONE island row, the sticker is on the wall, and the
- *      year's voyage is finished
- */
+/* walks the ATC island end to end: a plain run hits the dev server and `--live` hits the deploy, checking the island loads off the roster by map id, the president and plinth speak, the program runs to the flag, and the save ends with one credit-bearing island row */
 import { boot, STAMPED, LIVE } from './play-harness.mjs'
 
 const live = process.argv.includes('--live')
 const base = live ? LIVE : 'http://localhost:5173'
 const MAP = 'atc-1'
 
-/* the save a student would have standing on that terrace: year one planned, ATC
- * committed for winter, and the island already seen so the chart names it */
+/* the save a student would have standing on that terrace: year one planned, ATC committed for winter, and the island already seen so the chart names it */
 const save = (() => {
   const s = STAMPED()
   s.exposure = [...s.exposure, { place: 'atc-room', docked: true }]
@@ -41,8 +21,7 @@ const ok = (name, pass, detail = '') => {
 
 const h = await boot('atc-island', {
   save,
-  /* NO `src=platform` EVEN ON THE DEPLOY. The student's road is the copy vendored
-   * at build time, so forcing the platform read would prove a road nobody takes. */
+  /* no `src=platform` even on the deploy, because the student's road is the copy vendored at build time and forcing a platform read would prove a road nobody takes */
   url: `${base}/?scene=pmap&deep=1&map=${MAP}`,
   dir: 'reference/_archive/build-shots/atc-island',
 })
@@ -63,14 +42,10 @@ ok('the island loads with its four anchors',
 
 ok('the roster made it playable', !!v.save, `plans=${JSON.stringify(v.save?.plans?.[1]?.slots ?? null)}`)
 
-/* ---- 2. the plinth, pressed FIRST -----------------------------------------
- * before the president, because his handler runs the whole conversation through
- * to the activity and an island answers one press at a time. */
+/* step 2, the plinth, pressed before the president because his handler runs the whole conversation through to the activity and an island answers one press at a time */
 const press = async (anchor) => page.evaluate((a) => window.__station(a), anchor)
 
-/* click the dialogue box and poll, rather than waiting a guessed number of
- * milliseconds: `lead_to` walks a body across a terrace and takes as long as it
- * takes. Returns everything that was said on the way. */
+/* click the dialogue box and poll instead of waiting a guessed number of milliseconds, because `lead_to` walks a body across a terrace and takes as long as it takes, and return everything said on the way */
 const drive = async (stop, ms = 30000) => {
   const seen = []
   const t0 = Date.now()
@@ -78,9 +53,7 @@ const drive = async (stop, ms = 30000) => {
     const s = await look()
     for (const t of s.texts) if (!seen.includes(t)) seen.push(t)
     if (stop(s, seen)) return { seen, hit: true }
-    /* the choose buttons carry their number, so they read "1 Sure" rather than
-     * "Sure": matched loosely on purpose, and anchored on the word so "Not right
-     * now" can never be the one that gets pressed. */
+    /* the choose buttons carry their number so they read `1 Sure`, matched loosely and anchored on the word so `Not right now` can never be the one pressed */
     const btn = s.press.find((e) => /(^|\s)Sure$/i.test(e.text))
     if (btn) { await page.mouse.click(btn.box.x + btn.box.w / 2, btn.box.y + btn.box.h / 2) }
     else await page.mouse.click(683, 640)
@@ -89,10 +62,7 @@ const drive = async (stop, ms = 30000) => {
   return { seen, hit: false }
 }
 
-/* AN ISLAND ANSWERS ONE PRESS AT A TIME, so a conversation has to be finished
- * before the next thing is pressed. Seeing the line is not the same as the handler
- * having returned: it is parked on `say` until the box is clicked through, and a
- * press arriving while it is parked is dropped with nothing said. */
+/* an island answers one press at a time: a line on screen only means the handler is parked on `say` until the box is clicked through, and a press arriving while it is parked is dropped with nothing said */
 const settle = async (ms = 20000) => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
@@ -137,15 +107,10 @@ await shot('04-the-screen')
 ok('the screen opens inside the monitor frame', crt)
 ok('the board is drawn', board === 24, `${board} cells, want 24`)
 
-/* ---- 5. build the program and RUN it --------------------------------------
- * Pressed the way a student does: a card, then a slot. The correct program is
- * forward 2, turn left, forward 3, turn right, forward 3. */
+/* step 5, build the program and run it the way a student does, a card then a slot: the correct program is forward 2, turn left, forward 3, turn right, forward 3 */
 const WANT = ['forward 2', 'turn left', 'forward 3', 'turn right', 'forward 3']
 for (let i = 0; i < WANT.length; i++) {
-  /* TWO CLICKS WITH A BREATH BETWEEN THEM, which is also how a student does it.
-   * Fired in one evaluate, the well's handler still closes over the previous
-   * render's `held`, so the card is picked up and dropped nowhere and the next
-   * card lands in the last card's slot. */
+  /* two clicks with a breath between them, because fired in one evaluate the well's handler still closes over the previous render's `held`, so the card is dropped nowhere and the next card lands in the last card's slot */
   const tookIt = await page.evaluate((label) => {
     const card = [...document.querySelectorAll('.bt-card')].find((c) => c.textContent.trim() === label)
     if (!card) return false
@@ -153,9 +118,7 @@ for (let i = 0; i < WANT.length; i++) {
     return true
   }, WANT[i])
   if (!tookIt) say(`  no card ${WANT[i]}`)
-  /* AND NOTHING ELSE. The screen has one rule now: an instruction goes into the next
-   * empty step, and pressing a step takes it back out. Pressing the card and then the
-   * step it landed in is a person undoing themselves, which is what this used to do. */
+  /* and nothing else: an instruction goes into the next empty step and pressing a step takes it back out, so pressing the card and then the step it landed in undoes it */
   await page.waitForTimeout(220)
 }
 await shot('06-program-built')
@@ -164,9 +127,7 @@ const filled = await page.evaluate(() =>
 ok('all five steps are filled by hand', filled.every((t) => t && t !== 'empty'), JSON.stringify(filled))
 
 await pressText(/^RUN$/i)
-/* THE BODY WALKS ONE CELL AT A TIME and the line only lands when it stops, so
- * this waits for the walk rather than for a number of milliseconds somebody
- * guessed. Twelve cells at 420ms is five seconds before it has anything to say. */
+/* the body walks one cell at a time and the line only lands when it stops, so wait for the walk rather than a guessed number: twelve cells at 420ms is five seconds before it has anything to say */
 const ranIt = await until((s) => said(s.texts).includes('reached the flag'), { ms: 15000 })
 await shot('07-it-ran')
 ok('the program ran and the body reached the flag',
@@ -194,9 +155,7 @@ ok('it does NOT stamp "0 credit earned"', !card.includes('0 credit'), card.slice
 
 await pressText(/Back|Done|Close|Keep going/i)
 await page.waitForTimeout(1500)
-/* AND THE ISLAND IS STILL TALKING. `play()` hands the grade back to Python, which
- * then says one line and only THEN writes the award. Reading the save before that
- * line has been clicked through reads it half written. */
+/* the island is still talking: `play()` hands the grade back to Python, which says one line and only then writes the award, so reading the save before that line is clicked through reads it half written */
 await settle()
 await page.waitForTimeout(900)
 await shot('10-back-on-the-island')
@@ -215,19 +174,11 @@ const wrote = await page.evaluate(() => {
 })
 say(`  wrote: ${JSON.stringify(wrote)}`)
 
-/* TWO ROWS AND EXACTLY ONE OF THEM CARRIES CREDIT, which is the whole reason the
- * activity has an id of its own. Share one id with the programme's award and
- * `recordGrade` keys on it, so one sitting writes the row twice: attempts goes to
- * two with a first grade recorded, and the student's own yearbook prints "2 tries,
- * first A" for something they sat once. Two credit-bearing rows would also weight
- * the GPA twice over. */
+/* two rows and exactly one carries credit, which is why the activity has an id of its own: share one id with the programme's award and `recordGrade` keys on it, so one sitting writes the row twice, attempts goes to two, and the GPA is weighted twice over */
 const rows = (wrote?.ledger ?? []).filter((e) => e.kind === 'island')
 const paid = rows.filter((e) => e.credit > 0)
 ok('exactly one credit-bearing island row', paid.length === 1, JSON.stringify(rows))
-/* THE ID CARRIES ITS YEAR NOW, the way `core:y2` and `island:atc:y1` always have.
- * A club can be taken again in a later year, and the sitting used to land on the
- * FIRST year's row: "the school keeps the higher attempt" then printed last year's
- * grade over this year's work and moved the GPA with it. */
+/* the id carries its year, the way `core:y2` and `island:atc:y1` do, because a club taken again in a later year used to land on the first year's row and print last year's grade over this year's work */
 ok('the activity itself carries no credit',
   rows.some((e) => /:the_program:y\d+$/.test(e.id) && e.credit === 0), JSON.stringify(rows))
 ok('it carries a grade out of four', paid[0] && typeof paid[0].grade === 'number' && paid[0].grade > 0,
@@ -241,10 +192,7 @@ ok('the programme is marked completed',
 ok('the island reads as completed on the chart', wrote?.islands?.atc === 'completed',
   JSON.stringify(wrote?.islands))
 ok('the island wrote its own scoped flags', (wrote?.flags ?? []).length > 0, JSON.stringify(wrote?.flags))
-/* AND THE DONE-FLAG CARRIES THE YEAR. Without the year on it, finishing ATC once
- * marks it finished for the whole run: a student re-slotting it in year two, which
- * the rank ladder REQUIRES, sails there, presses the machine, is told where the
- * form is, and the year hangs open with nothing on screen saying why. */
+/* the done-flag carries the year, because without it finishing ATC once marks it finished for the whole run and a student re-slotting it in year two hangs the year open with nothing on screen saying why */
 ok('the done-flag is scoped to the year, so it can be done again next year',
   (wrote?.flags ?? []).some((f) => /built:y\d+$/.test(f)), JSON.stringify(wrote?.flags))
 

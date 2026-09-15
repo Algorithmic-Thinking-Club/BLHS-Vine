@@ -1,16 +1,4 @@
-/* THE ADDRESS BAR: what a copied link does when somebody else opens it.
- *
- * ASH, 2026-09-08: *"When I copy the link it comes out like
- * `.../?scene=pmap&map=panther-maw`... I can start a fresh private window and
- * paste that, and instead of giving me the starting screen it puts me in the
- * middle of the island sailing or the hub island intro cutscene."*
- *
- * `src/app/entry.ts` has the rule and its unit tests. This is the half no unit
- * test can reach: a real browsing context that has never played, opening a real
- * address the engine really wrote.
- *
- *   node scripts/link-proof.mjs --base=http://localhost:5173
- */
+/* the address bar: a copied link like /?scene=pmap&map=panther-maw pasted into a browsing context that has never played must give the starting screen, not drop somebody into the middle of a sailing or the hub intro cutscene. The rule and its unit tests are in src/app/entry.ts; this covers the half no unit test can reach. */
 import { chromium } from 'playwright'
 const base = process.argv.find(a => a.startsWith('--base='))?.slice(7) ?? 'http://localhost:5173'
 if (/vercel.app/.test(base) && !process.argv.includes('--live')) { console.error('refusing the live url without --live: proofs run on the dev server, one live run per deploy'); process.exit(2) }
@@ -34,9 +22,7 @@ async function land(url, seed = true) {
   const p = await b.newPage({ viewport: { width: 1280, height: 720 } })
   if (seed) await p.addInitScript((s) => localStorage.setItem('blhs_save_v2', JSON.stringify(s)), SAVE)
   await p.goto(url, { waitUntil: 'domcontentloaded' })
-  /* A DEEP LINK IS ALLOWED TO BE SLOW. The map comes off the platform, so on the
-   * live deploy a cold fetch takes longer than a fixed sample: this waits for the
-   * scene and falls through on the roads that are meant to land on the title. */
+  /* a deep link is allowed to be slow: the map comes off the platform, so a cold fetch on the live deploy beats a fixed sample, and this waits for the scene then falls through on the roads meant to land on the title */
   await p.waitForFunction(() => !!window.__pmap, null, { timeout: 25000 }).catch(() => {})
   await p.waitForTimeout(2500)
   const st = await p.evaluate(() => ({
@@ -78,12 +64,10 @@ console.log('\npasting the address the game writes\n')
   await p.goto(`${base}/?scene=pmap&deep=1&map=panther-maw`, { waitUntil: 'domcontentloaded' })
   await p.waitForFunction(() => !!window.__pmap, null, { timeout: 60000 })
   await p.waitForTimeout(1500)
-  /* the address as the engine really writes it, with the hatch taken off the way
-     a copy from the bar would have it */
+  /* the address as the engine really writes it, with the hatch taken off the way a copy from the bar would have it */
   await p.evaluate(() => history.replaceState(null, '', '/?scene=pmap&map=panther-maw'))
   await p.reload({ waitUntil: 'domcontentloaded' })
-  /* the map comes off the platform, so a cold fetch on the live deploy takes
-     longer than a fixed sample: wait for the scene the way the checks above do */
+  /* the map comes off the platform, so a cold fetch on the live deploy takes longer than a fixed sample: wait for the scene the way the checks above do */
   await p.waitForFunction(() => !!window.__pmap, null, { timeout: 25000 }).catch(() => {})
   await p.waitForTimeout(1500)
   const st = await p.evaluate(() => ({

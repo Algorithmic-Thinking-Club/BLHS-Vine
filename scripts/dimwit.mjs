@@ -1,32 +1,4 @@
-/* THE DIMWIT RUN: the pass mark BRIEF-SELF-EVIDENT.md sets for the whole game.
- *
- * Ash, after his first playthrough: "Even a half-minded dimwit should understand
- * exactly what's going on and how to play it." So this opens the game cold at
- * 1366x768, reads nothing, and at every state presses the loudest thing on the
- * glass. It never touches a key. It stops the moment it cannot tell what to
- * press, and it says where.
- *
- * WHAT "LOUDEST" MEANS HERE, and it is deliberately crude, because a student who
- * reads nothing is crude: the biggest visible control that is not a way
- * backwards. Back, skip, quit and settings are excluded, because a freshman
- * looking for the way on does not press the way out.
- *
- * THE PASS MARK, AND IT HAS ONE WORD IN IT THE BRIEF DID NOT: the run has to
- * reach the stamped year sheet BY THE ROAD. The first sweep found the mark could
- * be met through the corner's own Year sheet plaque, which nothing on screen
- * points at, so the game would have passed a test it cannot survive. `--road`
- * (the default) refuses that door. `--any` restores the original reading.
- *
- * WHAT IT IS NOT. It does not say the game is good. It says a student who
- * presses the brightest thing is never stranded. Ash playing it is the only
- * gate, and this has never replaced that.
- *
- * Run: npm run dev, then `node scripts/dimwit.mjs`
- *   --base=http://localhost:5173   where the game is
- *   --headed                       watch it
- *   --shots=<dir>                  where the screenshots go
- *   --any                          allow the corner as a route to the year sheet
- */
+/* opens the game cold at 1366x768, reads nothing, and presses the loudest control on the glass, never a key, so a pass says only that nobody is stranded on the way to a stamped year sheet; --road is the default and refuses the corner, a door nothing on screen points at, while --any allows it */
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -49,15 +21,10 @@ const trail = []
 const stalls = []
 const say = (s) => { trail.push(s); console.log(s) }
 
-/* ANYTHING THAT READS AS A WAY BACKWARDS. A dimwit presses forward; a harness
- * that presses Back is testing its own patience and not the game. */
+/* anything that reads as a way backwards, excluded because a harness that presses Back is testing its own patience and not the game */
 const BACKWARD = /^back$|^close$|skip|quit|settings|back to the|back to my|leave this/i
-/* THE CORNER, which is a door the world never points at. Excluded from the road
- * run for the reason at the top of this file. */
-/* The corner is Map, Guide and My Year since BRIEF-MAW-RAIL; the three old names
- * stay in the pattern because a stale deploy is exactly what this run is pointed
- * at half the time, and a corner it does not recognise is a corner it walks
- * through. */
+/* the corner, a door the world never points at, excluded from the road run */
+/* the corner is now Map, Guide and My Year; the three old names stay in the pattern because this run is often pointed at a stale deploy, and a corner it does not recognise is a corner it walks through */
 const CORNER = /^map$|^guide$|^my year$|^chart$|^handbook$|^year sheet$|^\?$/i
 
 const browser = await chromium.launch({ headless: !has('headed') })
@@ -74,10 +41,7 @@ const shot = async (name) => {
   return f
 }
 
-/* WHAT A STUDENT CAN SEE AND PRESS, plus what the painted map thinks it is
- * doing. The scene's own debug bag is read rather than a second copy of the
- * world kept here: the first sweep's harness held its own idea of where the
- * player was and reported a stale global as "he never moved". */
+/* what a student can see and press, plus what the painted map thinks it is doing, read from the scene's own debug bag because a harness keeping its own copy of the world reported a stale global as the player never moving */
 const look = () => page.evaluate(() => {
   const vis = (el) => {
     const r = el.getBoundingClientRect()
@@ -92,13 +56,7 @@ const look = () => page.evaluate(() => {
     press.push({
       text: (el.innerText || el.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 70),
       box: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
-      /* CHROME IS NOT THE WAY ON, and since 2026-09-08 the objective bar is a
-       * control: pressing it drops the year's task sheet. This run presses the
-       * loudest thing on the glass, and on a quiet map that is a wooden sign at
-       * the top of the screen that opens a list and closes it again forever. The
-       * corner and the help plaque were already excluded by name; this is the
-       * same rule said once, by where a control lives rather than by its
-       * wording, so the next always-present control inherits it. */
+      /* chrome is not the way on: the objective bar is a control, and on a quiet map it is the loudest thing on the glass, a sign that opens a list and closes it again forever, so exclusion goes by where a control lives rather than by its wording and the next always-present control inherits it */
       chrome: !!el.closest('.ob-wrap, .hud-stack, .hp-btn, .hud-help')
     })
   }
@@ -114,16 +72,9 @@ const look = () => page.evaluate(() => {
     press: press.filter((e) => e.text && !e.chrome),
     texts: [...new Set(texts)],
     map: p ? { map: p.map, x: Math.round(p.x), y: Math.round(p.y), hull: p.hull, guide: p.guide, lit: p.lit } : null,
-    /* THE BARS ARE UP AND NOTHING IS HIS. A watched stretch is not a stall and
-     * must not be counted as one: the crossing into the hub is a cutscene the
-     * student sits through, and the sea budget below was written when the ship
-     * was something he steered. */
+    /* the bars are up and no control belongs to the player, so a watched stretch is not a stall, because the crossing into the hub is a cutscene to sit through and the sea budget below was written when the ship was steered by hand */
     movie: document.documentElement.dataset.movie === '1',
-    /* AND A COVER IS UP, WHICH IS ALSO NOT A STALL. `.tr-root` is the painted
-     * transition; while it is on the glass the scene under it is being torn
-     * down and rebuilt, so `__pmap` is briefly gone and there is nothing to
-     * press. That used to read as "nothing on the screen is pressable and
-     * nothing is talking", which is this run's own word for a dead end. */
+    /* a cover is not a stall either: `.tr-root` is the painted transition, and while it is up the scene is being rebuilt so `__pmap` is briefly gone, which used to read as this run's own words for a dead end */
     covered: !!document.querySelector('.tr-root'),
     stamped: !!(save && save.plans && Object.values(save.plans).some((pl) => pl && pl.stamped)),
   }
@@ -149,18 +100,12 @@ for (let i = 0; i < 320 && !done; i++) {
 
   if (v.stamped) { done = true; say(`PASS: the year sheet is stamped, at step ${i}`); await shot('stamped'); break }
 
-  /* AT SEA. The water is not a button, so the loudest-thing rule has nothing to
-   * bite on: a click on the water is the move, and a click on the island ties
-   * her up. This is the one place the run knows something a reader would not,
-   * and it is here because the sea has no control on it to find. */
+  /* at sea the water is not a button and the loudest-thing rule has nothing to bite on, so a click on the water is the move and a click on the island ties up, the one place this run knows something a reader would not */
   if (v.map && v.map.hull) {
-    /* A LINE ON SCREEN HOLDS THE WORLD, so a click at sea while somebody is
-     * talking is refused and must not be counted against the crossing. */
+    /* a line on screen holds the world, so a click at sea while somebody is talking is refused and must not be counted against the crossing */
     const held = v.texts.some((t) => /click, or press space|go on|begin the year/i.test(t))
     if (held) { await page.mouse.click(683, 640); continue }
-    /* AND A WATCHED CROSSING IS NOT TWENTY WASTED CLICKS. `movie` means the
-     * bars are up and every control on the glass is gone on purpose, so this
-     * waits it out rather than spending its sea budget on a cutscene. */
+    /* a watched crossing is not twenty wasted clicks: `movie` means the bars are up and every control is gone on purpose, so wait it out rather than spend the sea budget on a cutscene */
     if (v.movie) { await page.waitForTimeout(650); continue }
     if (sea === 0) say('at sea: clicking toward the island')
     if (sea++ > 20) { say('STOP: twenty clicks at sea and still afloat'); await shot('adrift'); break }
@@ -175,15 +120,8 @@ for (let i = 0; i < 320 && !done; i++) {
     else repeats++
     tried.add(pick.text)
     if (repeats > 2) {
-      /* THE LOUDEST THING REFUSED TWICE. A card whose biggest control cannot be
-       * used is the law-1 failure this script exists to find, so it is RECORDED
-       * and then stepped around, rather than ending the run: one such card early
-       * would hide every one after it. */
-      /* THE NEXT LOUDEST ONE NOBODY HAS TRIED ON THIS CARD. Taking the smallest
-       * instead put the run in a loop on the wardrobe, where a dozen colour
-       * swatches sit under one locked row: it pressed a swatch, the locked row
-       * was loudest again, and around forever. `tried` is cleared when the card
-       * changes, which is what the heading is watched for. */
+      /* the loudest thing refused twice: a card whose biggest control cannot be used is the failure this script exists to find, so it is recorded and stepped around rather than ending the run, because one such card early would hide every one after it */
+      /* take the next loudest untried control on this card, because taking the smallest looped forever on the wardrobe where a dozen colour swatches sit under one locked row, and `tried` is cleared when the card changes, which is why the heading is watched */
       const alt = opts.find((e) => e.text !== pick.text && !tried.has(e.text))
       if (alt) {
         stalls.push({ loud: pick, forward: alt, card: v.texts[0] || '?' })
@@ -202,8 +140,7 @@ for (let i = 0; i < 320 && !done; i++) {
     continue
   }
 
-  /* NO CONTROL AT ALL. Either somebody is talking, or the student is standing on
-   * a map. The box first, because a line holds the world; then the ground. */
+  /* no control at all means somebody is talking or the student is standing on a map, so check the box first because a line holds the world, then the ground */
   const talking = v.texts.some((t) => /click, or press space|go on|begin the year/i.test(t))
   if (talking) { await page.mouse.click(683, 640); continue }
   if (v.map) {
@@ -213,10 +150,7 @@ for (let i = 0; i < 320 && !done; i++) {
       await shot('ashore-' + onMap)
       stillFor = 0; wasAt = `${v.map.x},${v.map.y}`
     }
-    /* HE IS ON A MAP AND THE ONE LIT THING IS WHAT THE GAME WANTS. If pressing it
-     * moves him nowhere for long enough, the map itself is the dead end: that is
-     * how the first sweep found the published hub landing a student in a sealed
-     * pocket with no route to its only door. */
+    /* on a map the one lit thing is what the game wants, and pressing it without moving for long enough means the map itself is the dead end, which is how the published hub was caught landing a student in a sealed pocket with no route to its only door */
     const at = `${v.map.x},${v.map.y}`
     stillFor = at === wasAt ? stillFor + 1 : 0
     wasAt = at
@@ -230,33 +164,16 @@ for (let i = 0; i < 320 && !done; i++) {
     else await page.mouse.click(560, 330)
     continue
   }
-  /* A CARD THAT IS STILL TYPING ITSELF OUT has no control on it and is not
-   * "talking" in the dialogue sense: the whole card is the button, and pressing
-   * it finishes the line. A dimwit presses the middle of the screen. Three
-   * tries, so a genuinely dead screen still ends the run. */
-  /* A COVER IS THE GAME WORKING. Every door in the game plays a painted one
-   * since 2026-09-07, and a painted cover holds for the best part of four
-   * seconds by design, which is longer than three blind clicks. A run that
-   * gives up in the middle of one is measuring the harness. It is still
-   * BOUNDED: the step budget above ends the run either way, and a cover that
-   * never lifts ends it with a picture of itself. */
+  /* a card still typing itself out has no control and is not talking in the dialogue sense: the whole card is the button, so press the middle of the screen, bounded so a genuinely dead screen still ends the run */
+  /* a cover is the game working: every door plays a painted one and it holds the best part of four seconds by design, longer than three blind clicks, so waiting stays bounded by the step budget and a cover that never lifts ends the run with a picture of itself */
   if (v.covered) { blind = 0; await page.waitForTimeout(700); continue }
-  /* AND SO ARE THE BARS. A watched stretch is the game working exactly as much
-   * as a cover is: the beach crossing is half a minute of a boat sailing with
-   * the controls held and nothing on the glass to press. Twelve blind clicks go
-   * by in about two seconds, so without this the run reported the live deploy as
-   * a dead end in the middle of the opening voyage. Measured 2026-09-08. */
+  /* the bars are the game working too: the beach crossing is half a minute of sailing with the controls held and nothing to press, and twelve blind clicks go by in about two seconds, so without this the live deploy read as a dead end mid voyage */
   if (await page.evaluate(() => document.documentElement.dataset.movie === '1')) {
     blind = 0
     await page.waitForTimeout(900)
     continue
   }
-  /* AND EIGHT SECONDS RATHER THAN TWO. Three tries was written when the only
-   * thing that could be under a blind click was a card still typing itself out.
-   * A map swap can put a real loading frame on the glass for a second or two on
-   * a cold cache, and a run that calls that a dead end is a run that reports the
-   * game as broken because the game was busy. Eight seconds of nothing is still
-   * a dead end and still ends the run with a picture of it. */
+  /* eight seconds of blind clicks rather than two, because a map swap can hold a real loading frame for a second or two on a cold cache and calling that a dead end reports the game as broken for being busy, while eight seconds of nothing is still a dead end */
   if (blind++ < 12) { await page.mouse.click(683, 384); continue }
   say('STOP: nothing on the screen is pressable and nothing is talking')
   await shot('nothing')
@@ -264,8 +181,7 @@ for (let i = 0; i < 320 && !done; i++) {
 }
 
 if (!done) {
-  /* ALWAYS SAY WHERE IT ENDED. A run that stops without a reason is a run nobody
-   * can act on, and the loop can run out of steps in the middle of anything. */
+  /* always say where the run ended, because a run that stops without a reason is one nobody can act on and the loop can run out of steps in the middle of anything */
   const end = await look()
   say('FAIL: the run never reached a stamped year sheet')
   say(`      it ended ${end.map ? (end.map.hull ? `afloat off ${end.map.map}` : `on ${end.map.map} at ${end.map.x},${end.map.y}`) : 'off any map'}`

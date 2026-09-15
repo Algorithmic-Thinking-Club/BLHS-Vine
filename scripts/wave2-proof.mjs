@@ -1,53 +1,13 @@
-/* THE WAVE 2 GATE, driven through a real browser on the REAL HUB BUNDLE.
- *
- * Wave 1's script (scripts/wave1-proof.mjs) is the pattern and it still runs:
- * it proves the stage on the Maw stand-in and nothing here replaces it. This one
- * proves the seven things wave 2 was ordered to buy, in one run, and it grows an
- * item at a time rather than forking per item.
- *
- * The gate, verbatim from docs/ops/BRIEF-ENGINE-2.md:
- *
- *   sail a leg on the composition, open the chart, dock and enter through a
- *   covered transition, run one frame activity scored in both arms, tick a year
- *   with a planner spend and a core beat, reach the yearbook, and graduate a
- *   compressed run.
- *
- * EVERY CHECK GOES THROUGH THE SHIPPED PATH. The debug hooks are handles on the
- * real code, never a second copy of it: `__board` calls the same `board()` the E
- * key calls, `__helm` feeds the same helm the arrow keys feed into the same
- * `stepHull`, and `__dock` starts the same berthing manoeuvre. A proof run that
- * drives a second implementation proves that implementation and nothing else.
- *
- * Run against whichever server is up, with MAPVIS on 5274 for the real hub:
- *   node scripts/wave2-proof.mjs http://localhost:5173
- *   node scripts/wave2-proof.mjs http://localhost:4173 preview
- */
+/* browser proof of the sail, the chart, a covered door, a scored frame, a year tick, the yearbook and graduation on the real hub bundle: `__board`, `__helm` and `__dock` are handles on the shipped `board()`, `stepHull` and berthing, because a run that drives a second implementation proves that implementation and nothing else */
 import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright'
 
 const base = (process.argv[2] ?? 'http://localhost:5173').replace(/\/$/, '')
 if (/vercel.app/.test(base) && !process.argv.includes('--live')) { console.error('refusing the live url without --live: proofs run on the dev server, one live run per deploy'); process.exit(2) }
 const tag = process.argv[3] ?? 'dev'
-/* PINNED, NOT NEWEST. `?map=hub` with no version asks the platform for whatever
- * it published last, and what it published last is not always what anybody
- * verified: v10 was written unattended by a stale tab and was the newest for
- * three quarters of an hour. A proof run that follows "newest" proves whatever
- * happened to be there, so the version is an argument with a default and the run
- * prints it. */
+/* the map version is pinned and printed rather than newest, because `?map=hub` with no version takes whatever the platform published last and that is not always what anybody verified */
 const hubV = process.argv[4] ?? '13'
-/* AND THE WORLD IS PINNED FOR THE SAME REASON THE MAP IS.
- *
- * Wave 4 pointed `loadComposition` at the platform, which was always the plan and
- * is right for a student. It is wrong for THIS run: every check below is about
- * the engine's own arithmetic on a document, and the document MAPVIS has
- * published so far holds one island, no rumour and no named water, so twelve
- * checks went from proving the water to proving what has been drawn this week.
- *
- * A rumour at a real future position, two paintings sharing one dot, and a
- * crossing between two named seas are all still true of the engine and are still
- * worth a gate. They are proved against the committed document, which is the
- * offline copy every check here was written against, and the run says so.
- * `?world=local` is the same escape hatch `?src=local` is for maps. */
+/* the world is pinned to the committed offline document for the same reason: the published one holds one island, no rumour and no named water, so twelve checks below would prove what has been drawn instead of the engine's arithmetic, and `?world=local` is the escape hatch `?src=local` is for maps */
 const WORLD = 'world=local'
 const shots = 'reference/_archive/build-shots/wave2'
 mkdirSync(shots, { recursive: true })
@@ -62,9 +22,7 @@ const check = (name, got, want) => {
   if (!ok) failures++
 }
 
-/* a run mid-first-year: the intro is done, the founding has not happened, and
- * three tokens are in hand, which is the state the planner and the year model
- * both expect to be handed. */
+/* a run mid first year: intro done, the founding not yet happened, three tokens in hand, which is the state the planner and the year model both expect to be handed */
 const SAVE = {
   v: 2, id: 'r_w2', handle: 'BraveTide', pronouns: 'they/them', boatName: 'Proof',
   year: 1, season: 'Fall', beat: 'maw:arrive', introDone: true,
@@ -73,20 +31,7 @@ const SAVE = {
   stickers: [], facts: [], badges: [], savedAt: Date.now(),
 }
 
-/* ---- THE CLOCK, JOINED BEFORE THE RUN STARTS ------------------------------
- *
- * §80.6's dose measure is the study's exposure number and until this wave it
- * could only be verified in production: `src/game/telemetry.ts` sent nowhere in
- * dev, so every beat piled up in localStorage and `api/_dose.ts` never saw one.
- * The endpoint is `/api/log` in both now, and the vite dev bridge answers it out
- * of a local JSON file, so the whole path is walkable here.
- *
- * A beat is only READABLE if it belongs to a participant in a class, because
- * `readEvents` joins through the roster. So the run joins first, through the
- * SHIPPED join endpoint, using the class the dev bridge seeds (vite.config.ts:
- * code DEVDEV, teacher key tk_dev). If a developer has a real DATABASE_URL there
- * is no seeded class and this leg says so and is skipped rather than failing:
- * it is a dev-store proof and it should say which store it proved. */
+/* the clock leg joins first through the shipped join endpoint, because `readEvents` joins through the roster so a beat is only readable if it belongs to a participant in a class; the dev bridge seeds code DEVDEV with teacher key tk_dev, and a real DATABASE_URL has no seeded class so this leg is skipped rather than failed */
 const DEV_TEACHER_KEY = 'tk_dev'
 const post = async (path, body) => {
   const r = await fetch(`${base}${path}`, {
@@ -108,12 +53,7 @@ if (joined) SAVE.participantId = joined.participantId
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 })
 page.on('pageerror', (e) => { console.log(`  [pageerror] ${e.message}`); failures++ })
-/* "Failed to load resource: 404" is the browser saying a fetch missed and NOT
- * saying which one, seven times a run, which reads like something is broken. The
- * URL is the whole of the information, and the one that shows up is the engine
- * asking the platform for `panther-maw` before it falls back to the local
- * folder: the stand-in has never been published to MAPVIS, so a 404 there is the
- * fallback working rather than failing. Anything else gets named. */
+/* a 404 on `/api/v1/maps/panther-maw` is the platform fallback working, since the stand-in was never published there, and anything else gets named because the browser's bare 404 line never says which url missed */
 const EXPECTED_404 = /\/api\/v1\/maps\/panther-maw/
 page.on('response', (r) => {
   if (r.status() < 400 || EXPECTED_404.test(r.url())) return
@@ -124,10 +64,7 @@ page.on('console', (m) => {
   if (/Failed to load resource/.test(m.text())) return    // the response listener says which
   console.log(`  [console.error] ${m.text()}`)
 })
-/* SEEDED ONCE, NOT ON EVERY LOAD. An init script runs again on every reload, and
- * the run legs below reload on purpose to make a written save visible to a page
- * that caches it. Without this guard the reload put the starting save back and
- * every year of progress vanished between one check and the next. */
+/* the save is seeded only when localStorage is empty, because an init script reruns on every reload and the legs below reload on purpose, which otherwise put the starting save back and lost every year of progress */
 await page.addInitScript((s) => {
   if (!localStorage.getItem('blhs_save_v2')) {
     localStorage.setItem('blhs_save_v2', JSON.stringify(s))
@@ -135,12 +72,7 @@ await page.addInitScript((s) => {
   }
 }, SAVE)
 
-/* A CAPTURE WAITS FOR THE PICTURE TO STOP MOVING. `waitForSelector` returns on
- * the FIRST frame of a panel's 220-300ms entrance, so this whole set was shot
- * mid-animation and the fresh-eyes round read it as translucent panels with the
- * world bleeding through them. The entrances carry no opacity any more
- * (hud.css `hb-in`), so this is belt and braces; a proof whose pictures are the
- * gate still has no business photographing a moving panel. */
+/* a capture waits 360ms because `waitForSelector` returns on the first frame of a panel's 220-300ms entrance, and a proof whose pictures are the gate has no business photographing a moving panel */
 const shot = async (n) => {
   await page.waitForTimeout(360)
   await page.screenshot({ path: `${shots}/${tag}-${n}.png` })
@@ -148,14 +80,7 @@ const shot = async (n) => {
 const json = (fn, ...a) => page.evaluate(([f, args]) => JSON.parse(window[f](...args)), [fn, a])
 const ready = () => page.waitForFunction(() => window.__sceneReady === true, null, { timeout: 90000 })
 
-/* NOTHING ALONG THE BOTTOM OF THE WINDOW STANDS ON THE BODY.
- *
- * The brief's third item, as an assertion instead of a picture. Every surface
- * that lays itself out from the bottom edge (the dialogue box, the year's card,
- * the arrival card, a stack of choices) publishes its height through
- * src/game/ui/frame.ts and the camera lifts the painting clear of all of them.
- * This is how that gets checked from outside: whatever is on screen, the player
- * is above it or beside it and never behind it. */
+/* nothing along the bottom of the window may stand on the body: every surface that lays out from the bottom edge publishes its height through src/game/ui/frame.ts and the camera lifts the painting clear, so from outside the player is above or beside it and never behind it */
 const clearOfThePlayer = async (label) => {
   const you = (await json('__sea')).you
   const rects = await page.evaluate(() => [...document.querySelectorAll('.pc-root, .dlg-choices, .cs-dialogue, .ys-card')]
@@ -178,8 +103,7 @@ const sea0 = await json('__sea')
 check('the REAL hub bundle loaded, off the platform and not a hand copy', sea0, (s) => s.map === 'hub')
 check('and the composition places it, so the engine reads where a map is rather than holding it',
   sea0, (s) => s.placed === true && s.canSail === true)
-/* THE SEVEN STATES. Five are a student's and two are the world's, and the chart
- * and the water read the same table so they cannot disagree. */
+/* the seven states, five a student's and two the world's, where the chart and the water read the same table so they cannot disagree */
 check('every slot on the water carries one of the seven states', sea0,
   (s) => s.states.length >= 2 && s.states.every((x) => /=(rumour|rising|misty|discovered|available|active|completed)$/.test(x)))
 check('a slot with no map reads as a rumour at a real future position', sea0,
@@ -197,16 +121,9 @@ check('the driven body changed, so the camera came off the clamp and pulled out'
 check('and residency changed with it: the composition decided what is in memory',
   sea1, (s) => s.resident.includes('hub'))
 
-/* THE LEG: out of the harbour, about, and away east into the Reach.
- *
- * FLOWN THE WAY A STUDENT FLIES IT. Every input below is the same helm the arrow
- * keys feed into the same `stepHull`: a throttle, a rudder, and a look at where
- * she has got to. Nothing warps a boat to a coordinate, because a run that did
- * would be proving the warp. */
+/* the leg out of the harbour is flown the way a student flies it: every input is the same helm the arrow keys feed into the same `stepHull`, because warping a boat to a coordinate would only prove the warp */
 const helm = (t, turn, ms) => page.evaluate(([a, b, c]) => window.__helm(a, b, c), [t, turn, ms])
-/* the helm window is deliberately longer than the loop period: an override that
- * expires between two polls is a boat that spends half a crossing coasting, and
- * a headless browser's rAF is slower than a real one's */
+/* the helm window is deliberately longer than the loop period, because an override that expires between two polls is a boat coasting half a crossing, and a headless browser's rAF is slower than a real one's */
 const steerTo = async (tx, ty, ms) => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
@@ -233,9 +150,7 @@ await steerTo(1480, -160, 60000)
 const sea2 = await json('__sea')
 const moved = Math.hypot(sea2.at.x - sea1.at.x, sea2.at.y - sea1.at.y)
 check('a real distance was covered on the composition', String(Math.round(moved)), (n) => Number(n) > 700)
-/* THE COMPOSITION IS THE THING SAILED ON. She crossed out of the home water into
- * a named region, and came inside the discovery radius of a slot that holds no
- * map at all, which is what a rumour at a real future position is for. */
+/* the composition is the thing sailed on: she crossed out of the home water into a named region and came inside the discovery radius of a slot holding no map, which is what a rumour at a real future position is for */
 check('she crossed into another named sea region', sea2, (s) => s.region === 'the_reach')
 check('and coming close enough to a rumour discovered it, off the PAINTED extent',
   sea2, (s) => s.seen.includes('stadium'))
@@ -247,11 +162,7 @@ await page.evaluate(() => window.__intent({ kind: 'open', ui: 'chart' }))
 await page.waitForSelector('.ch-sea', { timeout: 10000 })
 const isles = await page.$$eval('.ch-isle', (n) => n.map((e) => e.className + '|' + e.textContent))
 check('the chart drew the composition and not the tile-era registry', isles.join(' ~ '), /ch-isle ch-/)
-/* THE CLAIM IS THE RELATIONSHIP, NOT THE COUNT. This asserted `=== 2` and broke
- * the day the offline document grew a third island, which is exactly the thing
- * the document is for: a count is a fact about how much has been authored and
- * the collapse is a fact about the engine. What must stay true is that the hub,
- * hub-a2 and the Maw are four slots and ONE dot, because they are one place. */
+/* the claim is the relationship and not the count, which broke once as `=== 2` when the offline document grew a third island: the hub, hub-a2 and the Maw are four slots and one dot because they are one place */
 const slotsOf = await page.evaluate(() => {
   const c = window.__world.composition
   return { slots: c.slots.length, home: c.slots.filter((s) => s.place === 'home-island').length }
@@ -263,8 +174,7 @@ check('a rumour is on it, at a real position, unnamed', isles.join(' ~ '), /ch-r
 check('and every mark carries a SHAPE as well as a colour, so state does not rely on hue',
   isles.join(' ~ '), /[?*~·○▲✓]/)
 const regions = await page.$$eval('.ch-region-name', (n) => n.map((e) => e.textContent))
-/* the expected string moved with the words pass, 2026-09-04: `the_reach`'s
-   LABEL is now "the far water". The region's NAME is untouched. */
+/* `the_reach`'s label is now "the far water", and the region's name is untouched */
 check('the named water is on the paper too', regions.join(','), 'the far water')
 await shot('3-chart')
 await page.keyboard.press('Escape').catch(() => {})
@@ -274,9 +184,7 @@ await page.waitForFunction(() => !document.querySelector('.ch-sea'), null, { tim
 // ------------------------------------------------- 3. dock, and a covered door
 console.log('\n3 · dock, then a door through the transition library')
 check('she can be put in, from wherever the leg ended', await page.evaluate(() => window.__dock()), 'docking')
-/* the manoeuvre runs the same physics under a computed helm: out to the approach
- * point, then alongside, then stopped on the authored heading. Ash's word for
- * what this has to look like was *properly*. */
+/* the manoeuvre runs the same physics under a computed helm: out to the approach point, then alongside, then stopped on the authored heading */
 await page.waitForFunction(() => JSON.parse(window.__sea()).berthing === 'alongside', null, { timeout: 60000 })
 check('she made the approach point before the berth, rather than cutting the corner',
   await json('__sea'), (s) => s.berthing === 'alongside')
@@ -286,39 +194,20 @@ check('the manoeuvre finished and the body was handed back, camera and all',
   sea3, (s) => s.aboard === false && s.free === false && s.want === 1)
 await shot('4-docked')
 
-/* THE COVERED TRANSITION. The hub's own door into the Maw, which before this
- * wave ran a black rectangle drawn by the scene and never touched the five
- * covers or the fact pool.
- *
- * FIRED AND NOT AWAITED, on purpose. `enter` resolves when the map has really
- * swapped, which is the contract a station body needs, and awaiting it here
- * would put every check below AFTER the cover had already lifted. */
+/* the hub's own door into the Maw, which used to run a black rectangle drawn by the scene and never touched the five covers or the fact pool, fired and not awaited on purpose because `enter` resolves only when the map has really swapped and awaiting it would put every check below after the cover had lifted */
 await page.evaluate(() => { void window.__intent({ kind: 'enter', map: 'panther-maw', at: 'arrive_maw' }) })
 await page.waitForSelector('.tr-scene', { timeout: 10000 })
 check('a door swap raised a real cover, not a rectangle', await page.textContent('.tr-scene-entering'), 'E N T E R I N G')
 check('the cover names the DESTINATION, in words rather than a slug',
   await page.textContent('.tr-scene-title'), /PANTHER/i)
-/* AND IT CARRIES NOTHING ELSE. This check used to read the loading fact out of
- * `.tr-scene-fact` and assert it was a real sentence. Ash ruled the trivia line
- * off every cover on 2026-09-06: "a cover says where you are going and nothing
- * else", naming the "INSIDE BONNEY LAKE HIGH SCHOOL / Around 1,700 students..."
- * line by sight. The element is gone, so the check is inverted rather than
- * deleted: a fact line coming back on a cover is now the failure. */
+/* a cover says where you are going and nothing else, so the trivia line under the name is gone and a fact element coming back is now the failure, which is why the check is inverted rather than deleted */
 check('and it carries no trivia line under the name',
   await page.$('.tr-scene-fact'), (el) => el === null)
 await shot('5-cover')
 await page.waitForFunction(() => !document.querySelector('.tr-root'), null, { timeout: 30000 })
 await ready()
 check('and the map behind it really did change', await json('__sea'), (s) => s.map === 'panther-maw')
-/* THE PLACE CARD: fired on entry, once per session per map, taking no input.
- *
- * THE PICTURE COMES FIRST HERE, and that is the fix rather than a preference.
- * The card lives 3.2 seconds and then leaves, and it also drops itself the
- * moment a panel opens (PlaceCard.tsx: it is an announcement, not a queue). The
- * old order asserted the text, then the aria attributes, then shot, and by then
- * the year's own card had opened over it: the capture called "6-placecard"
- * showed no card at all. Shoot the thing while it is on screen, then ask it
- * questions. */
+/* the place card fires on entry, once per session per map, and takes no input; photograph it first because it lives 3.2 seconds and drops itself the moment a panel opens, so asserting text first meant the year's own card had already covered it */
 await page.waitForSelector('.pc-root', { timeout: 10000 })
 await shot('6-placecard')
 const card = await page.textContent('.pc-name').catch(() => '')
@@ -326,11 +215,7 @@ check('the arrival card said where this is, and never a slug', card, /Panther/i)
 check('and it is not a control: nothing on it can be clicked or focused',
   await page.$eval('.pc-root', (e) => `${e.getAttribute('aria-hidden')}|${getComputedStyle(e).pointerEvents}`),
   'true|none')
-/* AND IT IS ACTUALLY VISIBLE, which it was not. The card is deliberately UNDER
- * the dialogue box in the stack and was also positioned inside the box's own
- * band, so an arrival that landed while anybody was talking was drawn entirely
- * behind the paper. The year's opening line lands in the same second as the
- * arrival on every map, so that was every arrival. */
+/* and it is actually visible: the card sits under the dialogue box in the stack and was positioned inside the box's own band, so an arrival landing while anybody was talking was drawn entirely behind the paper, which was every arrival */
 const cardBox = await page.evaluate(() => {
   const c = document.querySelector('.pc-root')?.getBoundingClientRect()
   const d = document.querySelector('.cs-dialogue')?.getBoundingClientRect()
@@ -352,14 +237,7 @@ check('the same word, asked for as an INTENT, performs rather than throwing',
 check('and an anchor this map does not carry is refused by name',
   await page.evaluate(() => window.__intent({ kind: 'fx', name: 'spark', anchor: 'nowhere' })
     .then((r) => JSON.stringify(r))), 'no anchor named')
-/* AND THE CAPTURE HAS TO SHOW AN EFFECT PLAYING.
- *
- * `__fx` resolves when the effect has FINISHED, which is the contract a station
- * body needs and is exactly wrong for a photograph: every check above waited for
- * the spark to end, so the shot called "7-fx" was a picture of a room with no fx
- * in it. Fired and deliberately not awaited, and the longest thing in the
- * library is the one that gets photographed: `island_rising` runs 2600ms, so a
- * frame taken partway through it has a ring on screen to see. */
+/* fired and deliberately not awaited, because `__fx` resolves when the effect has finished, and `island_rising` is the one photographed since its 2600ms leaves a ring on screen in a frame taken partway through */
 await page.evaluate(() => { void window.__fx('island_rising') })
 await shot('7-fx')
 check('an effect is still on screen while it is playing, which is what the shot is of',
@@ -368,10 +246,7 @@ check('an effect is still on screen while it is playing, which is what the shot 
 // ------------------------------------------- 4. one frame, scored in both arms
 console.log('\n4 · one scored frame, run in BOTH arms, from the same authored items')
 
-/* THE STRONGEST THING THE VINE GIVES A MEMBER, and §16.0 says none of them will
- * ever know it: `play` honours the arm, so one authored beat renders as the game
- * and as the control with no second file. Driven here through the same intent a
- * grape issues, once each way, with the items read off the screen both times. */
+/* `play` honours the arm, so one authored beat renders as the game and as the control with no second file, driven here through the same intent a grape issues, once each way */
 const runBeat = async (plain) => {
   await page.evaluate((p) => { void window.__intent({ kind: 'play', beat: 'core:y1', as_plain: p }) }, plain)
   await page.waitForSelector(plain ? '.bt-plain' : '.bt-stage', { timeout: 15000 })
@@ -379,16 +254,7 @@ const runBeat = async (plain) => {
   return text.replace(/\s+/g, ' ').trim()
 }
 
-/* A GRADED FRAME CANNOT BE DISMISSED, AND THAT IS THE PRODUCT'S ANSWER.
- *
- * This clicked `.bt-close` and `.bt-veil` and swallowed the timeout when neither
- * did anything, because neither has ever been a dismiss: `src/game/ui/a11y.ts`
- * writes the rule down as "a panel that is not dismissible (a graded frame
- * mid-run)" and the runner now joins that contract with `closeOnEscape: false`.
- * So the frame is left the way a student leaves one, by ending the sitting, and
- * `settle()` is a reload rather than a pretend click. Without this the planner
- * opened UNDERNEATH the quiz and the capture named "10-planner" was a picture of
- * the quiz. */
+/* a graded frame cannot be dismissed: src/game/ui/a11y.ts writes that rule down and the runner joins it with `closeOnEscape: false`, so the frame is left by ending the sitting and `settle()` is a reload rather than a pretend click, otherwise the planner opens underneath the quiz */
 const settle = async () => {
   await page.reload({ waitUntil: 'domcontentloaded' })
   await ready()
@@ -409,8 +275,7 @@ await settle()
 
 const plain = await runBeat(true)
 check('the control arm mounted the SAME beat as a plain form', plain, (t) => t.length > 40)
-/* CONTENT CONSTANT, GAME-NESS THE VARIABLE. The items are the study's content and
- * they must be identical; the chrome around them is the independent variable. */
+/* content constant and game-ness the variable: the items must be identical and only the chrome around them changes */
 const stem = 'What is the one thing'
 const bothHave = (needle) => game.includes(needle) === plain.includes(needle)
 check('and the two arms carry the same items, which is the whole study',
@@ -422,9 +287,7 @@ await settle()
 console.log('\n5 · a year ticks: a token spent on the real roster, then the core beat')
 await page.evaluate(() => { void window.__intent({ kind: 'open', ui: 'planner' }) })
 await page.waitForSelector('.pl-sheet', { timeout: 10000 })
-/* the slot is a placeholder until it is opened, which is the sheet's own shape:
- * the menu of what a season could hold is behind the token, not printed beside
- * it. So the check opens one, exactly as a student does. */
+/* the slot is a placeholder until it is opened, because the menu of what a season could hold sits behind the token rather than printed beside it, so the check opens one exactly as a student does */
 await page.evaluate(() => {
   const b = [...document.querySelectorAll('.pl-sheet button')].find((x) => /place the season token/.test(x.textContent))
   b?.click()
@@ -432,20 +295,12 @@ await page.evaluate(() => {
 await page.waitForTimeout(300)
 const menu = await page.$$eval('.pl-sheet button', (b) => b.map((x) => x.textContent.trim()).join(' | '))
 check('the sheet lists programmes off the roster and not a stale array', menu, /Football|Key Club|Track/)
-/* N3: A REFUSAL THAT SAYS WHY. The season lock was a `.filter()` on this menu,
- * which removed an out-of-season programme instead of refusing it, so a student
- * looking for football in winter was told nothing at all. */
+/* an out-of-season programme must be refused in words rather than filtered out of this menu, because a `.filter()` here left a student looking for football in winter told nothing at all */
 check('and an out-of-season programme is REFUSED in words rather than hidden',
   menu, /season|Winter|Spring|Fall/)
 await shot('10-planner')
 
-/* A SAVE IS WRITTEN AND THEN RELOADED, NEVER POKED UNDER A LIVE PAGE.
- *
- * `loadSave` caches and the `storage` event only fires ACROSS tabs, so a direct
- * write is invisible to the running page: the next panel that saves anything
- * merges from its own stale cache and the write is gone. The first draft of this
- * run lost a whole stamped plan that way and the yearbook read an empty year.
- * Reloading is what a student's next sitting does anyway. */
+/* a save is written and then reloaded, never poked under a live page, because `loadSave` caches and the `storage` event only fires across tabs, so the next panel that saves anything merges from its own stale cache and the write is gone */
 const writeRun = async (patch) => {
   await page.evaluate((p) => {
     const s = JSON.parse(localStorage.getItem('blhs_save_v2'))
@@ -461,10 +316,7 @@ const row = (id, title, kind, year) => ({
 check('three season tokens in hand before anything is committed',
   await page.evaluate(() => String(JSON.parse(localStorage.getItem('blhs_save_v2')).tokens.length)), '3')
 
-/* the stamp: a season token committed to a PROGRAMME and two classes picked.
- * A slot points at a programme id and never at a map, which is what lets one
- * stadium hold football in the fall and flag football in the winter without
- * either marking the other complete. */
+/* the stamp is a season token committed to a programme with two classes picked, and a slot points at a programme id and never at a map, which lets one stadium hold football in the fall and flag football in the winter without either marking the other complete */
 await writeRun({
   plans: { 1: { slots: { Fall: 'football' }, classes: ['ap-seminar', 'ap-chem'], stamped: true } },
   tokens: ['Winter', 'Spring'],
@@ -476,8 +328,7 @@ check('and two of the three seasons are left', String(spent.tokens.length), '2')
 
 // ---------------------------------------------------------- 6. the yearbook
 console.log('\n6 · the year closes into a book')
-/* the core beat and both classes on the ledger, which is exactly what
- * `readyForYearbook` asks for and what a real year arrives at */
+/* the core beat and both classes on the ledger, which is exactly what `readyForYearbook` asks for and what a real year arrives at */
 await writeRun({
   ledger: [row('core:y1', 'This is the place', 'core', 1),
     row('class:ap-seminar', 'AP Seminar', 'class', 1),
@@ -489,24 +340,16 @@ const yb = (await page.textContent('.yb-page')).replace(/\s+/g, ' ')
 check('the book opened on a year and named it', yb, /Year 1/)
 check('and it read the year that really happened rather than an empty one',
   yb, (t) => !/Nothing was graded/.test(t))
-/* THE SECTIONS ARE IN A FIXED ORDER AND NONE IS DROPPED. §80.6: a page that
- * assembles section by section in an order that does not depend on what is
- * present, so a freshman's page and a senior's page are one document. */
+/* the sections are in a fixed order and none is dropped, so a page assembles the same way whatever is present and a freshman's page and a senior's page are one document */
 const sections = await page.$$eval('.yb-sect', (n) => n.map((e) => e.textContent.trim()))
 check('every section is on the page, present or empty', String(sections.length), (n) => Number(n) >= 4)
 await shot('11-yearbook')
 
 // ------------------------------------------------ 7. graduate a compressed run
 console.log('\n7 · a compressed run graduates, and the transcript freezes')
-/* FOUR YEARS, COMPRESSED. The same four plans, the same three rows per year and
- * the fourth turn taken, which is what `endYear` calls terminal. Nothing here is
- * a shortcut past a rule: `readyForYearbook` still has to be true for year four
- * or the book will not offer the stage. */
+/* four years compressed, the same four plans and the same three rows per year with the fourth turn taken, and nothing here shortcuts a rule: `readyForYearbook` still has to be true for year four or the book will not offer the stage */
 const plan1 = await page.evaluate(() => JSON.parse(localStorage.getItem('blhs_save_v2')).plans['1'])
-/* THE LEDGER ID OF A CLASS CARRIES NO YEAR (`classDone` reads `class:<id>`), so a
- * class sat in two years is one row. The core beat's does carry one. Getting this
- * wrong is what made year four read as owing two classes it had already passed,
- * and the book correctly refused to close on it. */
+/* the ledger id of a class carries no year (`classDone` reads `class:<id>`) so a class sat in two years is one row, while the core beat's does carry one, and getting it wrong made year four read as owing two classes it had already passed */
 const ledger4 = [
   ...[1, 2, 3, 4].map((y) => row(`core:y${y}`, `Year ${y}`, 'core', y)),
   row('class:ap-seminar', 'AP Seminar', 'class', 4),
@@ -522,8 +365,7 @@ await page.evaluate(() => { void window.__intent({ kind: 'open', ui: 'yearbook' 
 await page.waitForSelector('.yb-page', { timeout: 10000 })
 check('year four is closable, so the book offers the stage rather than a turn',
   await page.textContent('.yb-page'), /Finish all four years|Walk the stage/)
-/* the last turn is `endYear`, and the fourth one is terminal: it marks the run
- * graduated instead of refilling tokens, because senior year does not repeat */
+/* the last turn is `endYear` and the fourth one is terminal: it marks the run graduated instead of refilling tokens, because senior year does not repeat */
 await page.evaluate(() => {
   const b = [...document.querySelectorAll('button')].find((x) => /finish all four years|end this year/i.test(x.textContent))
   b?.click()
@@ -540,10 +382,7 @@ await page.waitForSelector('.gr-stage', { timeout: 20000 }).catch(() => {})
 for (let i = 0; i < 12; i++) {
   if (await page.$('.gr-diploma')) break
   await page.evaluate(() => {
-    /* the ceremony is walked, not clicked through a wizard: most beats advance by
-     * tapping the card itself, and the board carries one real button. Both paths
-     * are tried, in that order, because a card that has a button is a card whose
-     * body does nothing. */
+    /* the ceremony is walked rather than clicked through a wizard: most beats advance by tapping the card itself and the board carries one real button, so both are tried in that order because a card that has a button is a card whose body does nothing */
     const b = [...document.querySelectorAll('.gr-stage button')].find((x) => !x.disabled)
     if (b) b.click()
     else document.querySelector('.gr-card')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
@@ -553,10 +392,7 @@ for (let i = 0; i < 12; i++) {
 const dip = await page.textContent('.gr-diploma').catch(() => '')
 check('a compressed run reached the diploma', dip, (t) => t.length > 40)
 check('and it carries a verification code a teacher can check', dip, /[A-Z0-9]{4,}/)
-/* THE TRANSCRIPT IS FROZEN. `_store.ts`'s putState is an upsert with `on conflict
- * do update` and there was no snapshot at all, so a graduate who kept playing
- * moved the roster's number while the printed code did not move with it, which
- * reads exactly like a student cheating in front of a class. */
+/* the transcript is frozen at the stage: `_store.ts`'s putState is an upsert with `on conflict do update` and there was no snapshot at all, so a graduate who kept playing moved the roster's number while the printed code did not move with it */
 const sealed = await page.evaluate(() => JSON.parse(localStorage.getItem('blhs_save_v2')).diploma)
 check('the run was SEALED at the stage rather than recomputed at render',
   JSON.stringify(sealed ?? null), (t) => t !== 'null' && t.includes('code'))
@@ -565,9 +401,7 @@ await shot('12-diploma')
 // ------------------------------- riders · the clock, end to end and not queued
 if (joined) {
   console.log('\nriders · time on task, from the browser clock to the dose table')
-  /* THE LAST FLUSH. The logger drains on a five-second interval and on pagehide,
-   * and closing a browser is not a pagehide the page gets to act on, so the run
-   * gives it one interval to put the tail of the queue on the wire. */
+  /* the last flush: the logger drains on a five-second interval and on pagehide, and closing a browser is not a pagehide the page gets to act on, so the run gives it one interval to put the tail of the queue on the wire */
   await page.waitForTimeout(6000)
   const left = await page.evaluate(() => JSON.parse(localStorage.getItem('blhs_log_queue') ?? '[]').length)
   check('the offline queue really drained rather than piling up locally', String(left), (n) => Number(n) < 10)
@@ -581,8 +415,7 @@ if (joined) {
   check('beats written by THIS browser reached the store', String(d.beatRows ?? 0), (n) => Number(n) > 0)
   check('and the reader folded them into real time on task, not a zero',
     JSON.stringify(me ?? null), () => !!me && me.onTaskMs > 0)
-  /* THE ID NEVER LEAVES, which is the rule the roster op already holds and the
-   * reason this table can be looked at in front of a class at all. */
+  /* the participant id never leaves, which is the rule the roster op already holds and the reason this table can be looked at in front of a class at all */
   check('the table names the handle and never the participant id',
     me ?? {}, (m) => !!m.handle && !JSON.stringify(m).includes(joined.participantId))
   console.log(`        ${d.beatRows} beats · ${me?.onTaskMinutes ?? 0} min on task · cadence ${d.cadenceMs}ms`)

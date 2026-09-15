@@ -1,25 +1,4 @@
-/* THE VINE'S OWN ISLANDS, CARRIED IN FROM THE REPOSITORY THAT OWNS THEM.
- *
- * Ruled by Ash 2026-09-04 (docs/ops/BRIEF-YEAR-ONE.md, WHERE IT LIVES): the
- * opening and the Maw are written in blhs-islands and never again in this repo.
- * Before that ruling the arrow pointed the other way, and tools/sync.py over
- * there still carried a comment saying the engine was the master. It is not.
- *
- * WHY THE BYTES STILL HAVE TO END UP HERE. A bound island is fetched at runtime
- * from the game's own origin, `/grapes/<id>/` (src/vine/py/grape-source.ts).
- * The alternative is raw.githubusercontent.com from a school Chromebook, which
- * is one district filter or one rate limit away from a black screen in the
- * middle of an advisory period. So the fetch moves to BUILD time, where the
- * network is Vercel's and a failure is a failed deploy somebody can see.
- *
- * WHICH IS WHY THIS REFUSES INSTEAD OF FALLING BACK. There is no stale copy to
- * limp along on: the folders it writes are gitignored. A missing island has to
- * stop the build, because the other outcome is a deploy that boots, looks
- * finished, and has no home base inside the mountain.
- *
- *     node scripts/vendor-islands.mjs
- *     BLHS_ISLANDS=C:\path\to\blhs-islands node scripts/vendor-islands.mjs
- */
+/* the opening and the Maw live in blhs-islands and are vendored in at build time so the game serves /grapes/<id>/ from its own origin, never raw.githubusercontent.com from a school Chromebook; it refuses instead of falling back, because its folders are gitignored and a missing island must fail the build */
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -27,24 +6,8 @@ import { fileURLToPath } from 'node:url'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const DEST = path.join(ROOT, 'public', 'grapes')
 
-/* THE LIST IS EXPLICIT AND NOT A DIRECTORY LISTING, on purpose. `islands/` over
- * there also holds `skeleton`, which is the template a member copies and not a
- * thing this game ships. And the GitHub path has no directory to read anyway.
- *
- * Every id here must have a row in src/game/roster/vine-islands.ts, or be the
- * opening; `vendor-islands.test.ts` fails when they drift apart. */
-/* ---- THE VINE'S OWN THREE, AND EVERY ISLAND A MEMBER SHIPPED ------------
- *
- * ASH, 2026-09-09: *"I hope islands are fully wired up."*
- *
- * This was a hardcoded list of the three the vine owns, so a member's folder was
- * never carried into `public/grapes/`. Their island's python 404ed, `fetchGrape`
- * threw, the scene caught it, and they arrived on their own painted map where
- * nothing at all happened and nothing said why.
- *
- * The folders come off `member-islands.json` now, which is the same row that
- * puts the programme on the roster: one edit ships the island, which is what the
- * contract has always claimed. */
+/* the list is explicit and not a directory listing: islands/ over there also holds skeleton, the template a member copies, and the GitHub path has no directory to read; every id here needs a row in src/game/roster/vine-islands.ts or must be the opening, and vendor-islands.test.ts fails when they drift apart */
+/* the vine's own three plus every island a member shipped, with the member folders read off member-islands.json, the same row that puts the programme on the roster: a hardcoded list left a member's python 404ing, so they arrived on their own painted map with nothing happening and nothing saying why */
 const VINE_OWN = ['panther-maw', 'castaway', 'the-hub']
 const MEMBERS = (() => {
   try {
@@ -58,17 +21,14 @@ const MEMBERS = (() => {
 })()
 const ISLANDS = [...VINE_OWN, ...MEMBERS.filter((f) => !VINE_OWN.includes(f))]
 
-/* the fixtures this repo really does own: the grape harness runs them, they are
- * committed here, and the vendor never touches them */
+/* the fixtures this repo owns: the grape harness runs them, they are committed here, and the vendor never touches them */
 const FIXTURES = ['hello', 'broken', 'maw-demo']
 
 const REPO = 'Algorithmic-Thinking-Club/BLHS-Island-Explorer'
 const BRANCH = process.env.BLHS_ISLANDS_BRANCH || 'main'
 const RAW = `https://raw.githubusercontent.com/${REPO}/${BRANCH}/islands`
 
-/** a local checkout to read instead of the network, if there is one.
- *  `BLHS_ISLANDS=remote` forces the network path, which is the only way to try
- *  what Vercel will really do without pushing a commit to find out. */
+/** a local checkout to read instead of the network, if there is one, and BLHS_ISLANDS=remote forces the network path, the only way to try what the deploy will really do without pushing a commit to find out */
 function checkout() {
   if (process.env.BLHS_ISLANDS === 'remote') return null
   const tries = [process.env.BLHS_ISLANDS, path.join(path.dirname(ROOT), 'blhs-islands')]
@@ -78,10 +38,7 @@ function checkout() {
   return null
 }
 
-/* ONE ISLAND'S FILES, from wherever it is coming from. The manifest is read
- * first because it is the thing that says which .py files exist: copying a
- * directory listing instead would carry __pycache__ across, and
- * loader.test.ts asserts the .py on disk are EXACTLY the declared modules. */
+/* one island's files, read manifest first because it says which .py files exist: a directory listing would carry __pycache__ across, and loader.test.ts asserts the .py on disk are exactly the declared modules */
 async function read(from, id) {
   const get = from
     ? async (f) => {
@@ -102,8 +59,7 @@ async function read(from, id) {
   if (!m.entry || !Array.isArray(m.modules)) {
     throw new Error(`${id}/island.json declares no entry or no modules`)
   }
-  /* the entry is normally in modules too, and a manifest that forgot to say so
-   * would otherwise ship without the one file the engine imports */
+  /* the entry is normally in modules too, and a manifest that forgot to say so would otherwise ship without the one file the engine imports */
   const names = [...new Set([m.entry, ...m.modules])]
   const files = { 'island.json': manifest }
   for (const n of names) files[n] = await get(n)
@@ -117,10 +73,7 @@ function write(id, files) {
   for (const [name, bytes] of Object.entries(files)) {
     fs.writeFileSync(path.join(dir, name), bytes)
   }
-  /* A STALE MODULE IS WORSE THAN A MISSING ONE. loader.test.ts compares the .py
-   * on disk against the manifest, so a file left behind by an older version of
-   * an island fails a check about a file nobody in this repo wrote. Directories
-   * go too, which is how __pycache__ from a member's laptop stops arriving. */
+  /* a stale module is worse than a missing one: loader.test.ts compares the .py on disk against the manifest, so a file left behind by an older version of an island fails a check about a file nobody in this repo wrote, and directories go too, which is how __pycache__ from a member's laptop stops arriving */
   for (const found of fs.readdirSync(dir)) {
     if (files[found]) continue
     fs.rmSync(path.join(dir, found), { recursive: true, force: true })

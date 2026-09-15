@@ -1,19 +1,4 @@
-/* THE WHOLE ROAD TO ATC AND BACK, which is the thing that has never happened.
- *
- *   node scripts/atc-voyage-proof.mjs           against the dev server
- *   node scripts/atc-voyage-proof.mjs --live    against the deploy
- *
- * Travel was proved on the castaway stand-in with nothing at the far end. This is
- * the first time a student picks a real club on the year sheet, sails there, does
- * the thing, and comes home with it on their transcript:
- *
- *   1  the year sheet's own button reads "Sail to the Algorithmic Thinking Club"
- *   2  pressing it casts off and the ship crosses on her own
- *   3  the far end is atc-1, ashore, with the island's Python running
- *   4  the activity is played and graded
- *   5  sailing home ends inside the Panther's Maw
- *   6  the year can close, because the voyage is finished
- */
+/* the whole road to the ATC island and back: `node scripts/atc-voyage-proof.mjs`, or `--live` against the deploy; the year sheet offers the voyage, she crosses on her own, the far end is atc-1 with the island's Python running and graded, and sailing home ends in the Maw so the year can close */
 import { boot, STAMPED, LIVE } from './play-harness.mjs'
 
 const live = process.argv.includes('--live')
@@ -25,8 +10,7 @@ const ok = (name, pass, detail = '') => {
   if (!pass) fails.push(name)
 }
 
-/* a student standing in the Maw with the year planned: Advisory sat, both classes
- * graded, football counted, and ATC the one pick still owed */
+/* a student standing in the Maw with the year planned: Advisory sat, both classes graded, football counted, and ATC the one pick still owed */
 const save = (() => {
   const s = STAMPED()
   s.ledger = [
@@ -35,10 +19,7 @@ const save = (() => {
     { id: 'class:spanish-1', kind: 'class', title: 'Spanish I', credit: 1, grade: 3.9, year: 1, season: 'Winter' },
   ]
   s.completions = [{ programme: 'football', year: 1, grade: 3, at: 1, attempts: 1, firstGrade: 3 }]
-  /* THE OPENING IS BEHIND HIM. Without these the Maw plays its whole rail film on
-   * load, the controls are held for a minute and a half, and the proof spends its
-   * budget clicking through an orientation instead of sailing. A student reaching
-   * their first voyage has been through it. */
+  /* the opening is behind him: without these flags the Maw plays its whole rail film on load and holds the controls for a minute and a half, and a student reaching a first voyage has already been through it */
   s.flags = [...s.flags, 'maw:railed', 'maw:handed_over']
   return s
 })()
@@ -55,8 +36,7 @@ let v = await state('in the maw')
 await shot('01-in-the-maw')
 
 /* ---- 1. the sheet names the voyage ---------------------------------------- */
-/* THE CORNER IS CHROME AND THE HARNESS FILTERS IT OUT ON PURPOSE, so the plaque
- * cannot be pressed by text. Opened through the same word an island would use. */
+/* the corner is chrome and the harness filters it out on purpose, so the plaque cannot be pressed by text, and it opens through the same word an island would use */
 const openUi = async (ui) => page.evaluate((u) => window.__intent({ kind: 'open', ui: u }), ui)
 /* wait on his own dock until the ship is offered, then take her */
 const boardHer = async () => {
@@ -70,21 +50,13 @@ await openUi('planner')
 v = await until((s) => s.press.some((e) => /Sail (to|there)/i.test(e.text)), { ms: 12000 })
 await shot('02-the-year-sheet')
 const sailBtn = v.press.find((e) => /Sail (to|there)/i.test(e.text))
-/* THE NAME IS ON THE CARD AND THE PRESS IS UNDER IT, which is two checks and was
- * one. The button used to repeat the club's name and that is what overflowed it:
- * the sign is 171px and "Sail to Algorithmic Thinking Club" needs 254. What the
- * sheet has to do is name the club and offer the voyage, and it still does both. */
+/* the name is on the card and the press is under it, which is two checks and was one: the sign is 171px and a button repeating 'Sail to Algorithmic Thinking Club' needs 254, so it overflowed */
 ok('the year sheet names the club', /Algorithmic Thinking Club/i.test(said(v.texts)), said(v.texts).slice(0, 160))
 ok('and offers the voyage under it', !!sailBtn, sailBtn ? sailBtn.text : 'nothing to press')
 
 /* ---- 2 and 3. she casts off and puts in at ATC ----------------------------- */
 await pressText(/Sail (to|there)/i)
-/* ---- AND HE PRESSES E, BECAUSE THAT IS THE GAME NOW ----------------------
- *
- * Ash: *"IT TURNS ON CUTSCENE, TAKES HIM TO THE DOCK, AND ESC TO EXIT CUTSCENE, and E
- * TO HOP ON THE BOAT."* The button no longer sails anybody anywhere on its own; it
- * carries him to his own dock and waits. `sail-machine-proof.mjs` is the one that
- * checks each beat of that. Here it is just the road to the island. */
+/* the button no longer sails anybody anywhere on its own, it carries him to his own dock and waits for E; `sail-machine-proof.mjs` checks each beat of that, here it is only the road to the island */
 await boardHer()
 const there = await until((s) => s.map && s.map.map === 'atc-1' && !s.map.hull, { ms: 120000, every: 700 })
 await shot('03-ashore-at-atc')
@@ -132,10 +104,7 @@ await shot('04-the-screen')
 ok('the president meets him and opens the machine', talk.hit, said(talk.seen).slice(-180))
 
 const WANT = ['forward 2', 'turn left', 'forward 3', 'turn right', 'forward 3']
-/* ONE RULE NOW: an instruction goes into the next empty step, and pressing a step
- * takes it back out. This used to press the card and then press the step, which under
- * the new rule fills it and then empties it again. `atc-quiz-proof.mjs` is the one
- * that exercises the ways a person can get this wrong; here it just has to be answered. */
+/* one rule now: an instruction goes into the next empty step and pressing a step takes it back out, so pressing the card and then the step fills it and empties it again; `atc-quiz-proof.mjs` exercises the ways a person gets it wrong, here it just has to be answered */
 for (const label of WANT) {
   await page.evaluate((t) => {
     const c = [...document.querySelectorAll('.bt-card')].find((x) => x.textContent.trim() === t)
@@ -166,8 +135,7 @@ ok('ATC is finished and on the record',
 
 /* ---- 5. home ---------------------------------------------------------------- */
 await shot('07-before-sailing-home')
-/* HOME IS THE CHART, which is the one control a student has for it: the pin for
- * the home island with "Sail here" on it. */
+/* home is the chart, the one control a student has for it: the pin for the home island with 'Sail here' on it */
 await openUi('chart')
 await page.waitForTimeout(1600)
 v = await look()
@@ -176,8 +144,7 @@ const pins = v.press.filter((e) => /Sail here/i.test(e.text))
 say(`  chart offers ${pins.length} place(s) to sail to`)
 ok('the chart offers somewhere to sail from ATC', pins.length > 0,
   JSON.stringify(v.press.map((e) => e.text).slice(0, 10)))
-/* THE HUB AND NOT WHICHEVER PIN IS FIRST. The chart lists this island too, and
- * "sail to where you are standing" is refused, so picking blind proved nothing. */
+/* the hub and not whichever pin is first: the chart lists this island too and sailing to where you are standing is refused, so picking blind proved nothing */
 const home = v.press.find((e) => /Sail to The Hub/i.test(e.text))
   ?? pins.find((e) => /Hub/i.test(e.text)) ?? pins[0]
 if (home) await page.mouse.click(home.box.x + home.box.w / 2, home.box.y + home.box.h / 2)

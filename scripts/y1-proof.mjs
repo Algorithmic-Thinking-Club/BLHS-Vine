@@ -1,19 +1,4 @@
-/* THE ENGINE-Y1 GATE: the eight words year one needs, watched in a real browser.
- *
- * Every one of these was a thing the game could not do on 2026-09-04, and seven
- * of the eight live inside PmapScene, which has no unit test and cannot have one:
- * it is five and a half thousand lines of Pixi behind an async boot. So the proof
- * is a running browser and the game's own debug surface, which is the same shape
- * wave1, wave2 and wave4 take.
- *
- * WHAT IS PROVED HERE AND WHAT IS NOT. This says the machinery performs. It does
- * NOT say the game is good, and nothing in this file may ever be quoted as though
- * it did: Ash playing it is the only gate, and he has not.
- *
- * Run: npm run dev, then `node scripts/y1-proof.mjs`.
- *   --base=http://localhost:5173   where the game is
- *   --headed                       watch it
- */
+/* the year one gate: eight words watched in a real browser, because seven live in PmapScene, five and a half thousand lines of Pixi behind an async boot that no unit test can reach; it proves the machinery performs, never that the game is good. run npm run dev, then node scripts/y1-proof.mjs */
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -38,8 +23,7 @@ const ok = (label, cond, detail = '') => {
 }
 
 const settle = async (page, extra = 0) => {
-  /* a settle that races a navigation throws 'execution context was destroyed',
-   * which fails a gate for a reason that has nothing to do with the game */
+  /* a settle that races a navigation throws 'execution context was destroyed', which fails a gate for a reason that has nothing to do with the game */
   try {
     await page.evaluate(async () => {
     const read = () => (window.__pmap && window.__pmap.camZ) || 0
@@ -72,9 +56,7 @@ const ready = async (page) => {
 const b = await chromium.launch({ headless: !has('headed') })
 const page = await b.newPage({ viewport: { width: 1366, height: 768 } })
 
-/* A RUN, SEEDED ONCE, with the founding flag NOT set so the objective is the
- * real first one a freshman meets. Same guard as wave 4: an init script runs on
- * every reload and must not put the starting save back over a written one. */
+/* seed the run once with the founding flag unset so the objective is the real first one a freshman meets, and the init script must never put the starting save back over a written one */
 await page.addInitScript((s) => {
   if (!localStorage.getItem('blhs_save_v2')) {
     localStorage.setItem('blhs_save_v2', JSON.stringify(s))
@@ -91,9 +73,7 @@ const log = []
 page.on('console', (m) => log.push(m.text()))
 page.on('pageerror', (e) => { failures++; console.log(`  FAIL page error · ${e.message}`) })
 
-/* ============================================================================
- * 1 · THE CANVAS TAKES A POINTER
- * ==========================================================================*/
+/* 1 · the canvas takes a pointer */
 console.log('\n1 · click to walk')
 await page.goto(`${base}/?scene=pmap&deep=1&map=hub`, { waitUntil: 'domcontentloaded' })
 await ready(page)
@@ -106,14 +86,10 @@ ok('the stage is a hit target at all', stageMode?.mode === 'static' && stageMode
   JSON.stringify(stageMode))
 
 const before = await page.evaluate(() => ({ x: window.__pmap.x, y: window.__pmap.y }))
-/* a click through the game's own router, in painting pixels, so the gate tests
- * the routing and not Playwright's ability to synthesise a Pixi event */
+/* a click through the game's own router, in painting pixels, so the gate tests the routing and not Playwright's ability to synthesise a Pixi event */
 const walked = await page.evaluate(() => {
   const p = window.__pmap
-  /* THE NEAREST GROUND THE WALK LAW ACTUALLY APPROVES, found by asking rather
-   * than by assuming. The hub's quay is narrow: a fixed grid at forty pixels
-   * missed every standable pixel around the spawn and the gate reported the
-   * feature broken when the probe was what was wrong. */
+  /* the nearest ground the walk law approves, asked for rather than assumed: the hub's quay is narrow, and a fixed forty pixel grid missed every standable pixel near the spawn and reported the feature broken when the probe was what was wrong */
   for (let r = 12; r <= 90; r += 6) {
     for (let a = 0; a < 16; a++) {
       const th = (a / 16) * Math.PI * 2
@@ -130,15 +106,12 @@ ok('and he actually moved', Math.hypot(after.x - before.x, after.y - before.y) >
   `${JSON.stringify(before)} -> ${JSON.stringify(after)}`)
 await shot(page, 'clicked-to-walk')
 
-/* ============================================================================
- * 2 · THE ONE THING THAT IS LIT
- * ==========================================================================*/
+/* 2 · the one thing that is lit */
 console.log('\n2 · the lit objective')
 const leading = await page.evaluate(() => window.__pmap.guide)
 ok('the game is pointing at something', !!leading, String(leading))
 
-/* the objective on the hub with no founding flag is inside the mountain, so what
- * the hub lights is the door that leads there */
+/* the objective on the hub with no founding flag is inside the mountain, so what the hub lights is the door that leads there */
 const litAnchor = await page.evaluate((name) => {
   const a = (window.__pmap.anchors || []).find((q) => q.name === name)
   return a ? { name: a.name, kind: a.kind, x: a.x, y: a.y } : null
@@ -146,13 +119,9 @@ const litAnchor = await page.evaluate((name) => {
 ok('and it resolves to a real anchor on this map', !!litAnchor, JSON.stringify(litAnchor))
 await shot(page, 'the-lit-thing')
 
-/* ============================================================================
- * 3 · CLICKING THE LIT THING DOES IT
- * ==========================================================================*/
+/* 3 · clicking the lit thing does it */
 console.log('\n3 · clicking the lit thing')
-/* the door preflight is a fetch per target fired at load. A student walking to
- * it takes seconds; a gate clicking it takes none, so it waits for the answer
- * the way a person's feet would. */
+/* the door preflight is a fetch per target fired at load, and a gate clicking it spends no walking time, so it waits for the answer the way a player's feet would */
 await page.waitForTimeout(600)
 const fired = await page.evaluate((name) => {
   const a = (window.__pmap.anchors || []).find((q) => q.name === name)
@@ -161,10 +130,7 @@ const fired = await page.evaluate((name) => {
 }, leading)
 ok('a click on the lit thing is taken as a press, not as a walk', fired === 'fired', String(fired))
 
-/* AND CHANGING YOUR MIND DOES NOT PRESS IT. The action a click means used to be
- * the same callback that settles the walk, and every cancellation settles the
- * walk, so pressing a key two paces in ran the thing you had just walked away
- * from. On this door that meant the map swapped from across the room. */
+/* changing your mind must not press it: the action a click means used to be the same callback that settles the walk, and every cancellation settles the walk, so a key pressed two paces in swapped the map from across the room */
 const changedMind = await page.evaluate(async (name) => {
   const a = (window.__pmap.anchors || []).find((q) => q.name === name)
   const started = window.__click(a.x, a.y)
@@ -178,14 +144,9 @@ const changedMind = await page.evaluate(async (name) => {
 ok('a key press countermands the walk instead of taking the door',
   changedMind.map === 'hub' && !changedMind.walking, JSON.stringify(changedMind))
 
-/* ============================================================================
- * 4 · THE CROSSING ENDS ON ITS OWN
- * ==========================================================================*/
+/* 4 · the crossing ends on its own */
 console.log('\n4 · the crossing')
-/* A FRESH SITTING, because the card is once per map per SESSION and section 1
- * already arrived on the hub on foot and spent it. Without this the gate reads
- * the rule working correctly as the card being broken, which is exactly the
- * shape of proof failure this repo has shipped before. */
+/* a fresh sitting, because the card is once per map per session and section 1 already spent it arriving on the hub on foot, so without this the gate reads the rule working correctly as the card being broken */
 await page.evaluate(() => sessionStorage.removeItem('blhs_seen_v1'))
 await page.goto(`${base}/?scene=pmap&deep=1&map=hub&aboard=1`, { waitUntil: 'domcontentloaded' })
 await ready(page)
@@ -199,10 +160,7 @@ ok('and the card naming the island has NOT been spent yet', !afloat.card,
   'it is owed until he is standing on it')
 await shot(page, 'offshore')
 
-/* WATCHED FOR RATHER THAN LOOKED FOR ONCE. The card holds for 3.2 seconds and
- * the crossing takes several, so a single read after the crossing is a read
- * taken after the card has already gone, and it would pass or fail on timing
- * rather than on behaviour. This starts watching BEFORE the ship moves. */
+/* watched for rather than read once: the card holds for 3.2 seconds and the crossing takes several, so a single read after the crossing lands after the card has gone and would pass or fail on timing; start watching before the ship moves */
 await page.evaluate(() => {
   window.__cardSeen = false
   const tick = setInterval(() => {
@@ -211,10 +169,7 @@ await page.evaluate(() => {
   setTimeout(() => clearInterval(tick), 20000)
 })
 
-/* the ship takes herself in. `__dock` is the existing hook: it is what the
- * player's own `E · tie up here` calls, and the point of the item is that the
- * crossing ends without him pressing it. So the gate drives the same manoeuvre
- * and watches it finish by itself. */
+/* `__dock` is the same hook the player's own `E · tie up here` calls, so the gate drives that manoeuvre and watches the crossing finish with no further press */
 const docking = await page.evaluate(() => window.__dock())
 ok('she is put on the approach', docking === 'docking', String(docking))
 await page.waitForTimeout(9000)
@@ -227,22 +182,15 @@ ok('and she finishes it herself: he is ashore with nothing pressed', !ashore.abo
   JSON.stringify(ashore))
 await shot(page, 'stepped-ashore')
 
-/* ============================================================================
- * 5 · THE ARRIVAL CARD IS PAID WHERE HE LANDS
- * ==========================================================================*/
+/* 5 · the arrival card is paid at the landing */
 console.log('\n5 · the arrival card')
 const cardSeen = await page.evaluate(() => window.__cardSeen === true)
 ok('and the card naming the island is paid at the landing', cardSeen,
   cardSeen ? 'it appeared once he was ashore' : 'it never appeared at all')
 
-/* ============================================================================
- * 6 · THE CHART CAN SEND HER
- * ==========================================================================*/
+/* 6 · the chart can send the ship */
 console.log('\n6 · click to sail')
-/* THE WHOLE PATH, THROUGH THE REAL BUS. Asking only whether the scene was
- * listening is what let the first version of this ship dead: the guard refused
- * every click, because the open Handbook is itself a world hold, and a check on
- * the listener count passed happily while the feature could not fire once. */
+/* the whole path, through the real bus: asking only whether the scene was listening let the first version of this ship dead, because the guard refused every click while the Handbook was open, since the open Handbook is itself a world hold, and a listener count passed anyway */
 await page.evaluate(() => sessionStorage.removeItem('blhs_seen_v1'))
 await page.goto(`${base}/?scene=pmap&deep=1&map=hub`, { waitUntil: 'domcontentloaded' })
 await ready(page)
@@ -259,11 +207,7 @@ const chart = await page.evaluate(async () => {
     listening: bus.sailListenerCount(),
     from: bus.sailFrom(),
     away: away ? { title: away.title, answer: await bus.requestSail(away) } : null,
-    /* THE ISLAND HE IS ON, which must be refused BY THE SCENE and not by the
-     * no-listener fallback. The sentence is how the two are told apart, and it
-     * is the assertion that would have caught the dead guard: a scene that
-     * refuses everything and a scene nobody is listening to look identical from
-     * the panel unless the refusal is read. */
+    /* the island already stood on must be refused by the scene, not by the no-listener fallback, and the sentence is how the two are told apart: a scene that refuses everything and a scene nobody is listening to look identical from the panel unless the refusal is read */
     home: home ? await bus.requestSail(home) : null,
   }
 })
@@ -279,10 +223,7 @@ if (chart.away) {
   console.log('  note the published world holds one island, so there is nowhere else to sail to yet')
 }
 
-/* AND THE BUTTON IS NOT DRAWN WHERE THERE IS NO SEA. The Maw is a windowless
- * room and it is where the chart table stands, so it is where a student opens
- * the chart. A control that is always there and usually refuses teaches them
- * that the chart does not work. */
+/* the button is not drawn where there is no sea: the Maw is a windowless room and it is where the chart table stands, so a control that is always there and usually refuses teaches a student that the chart does not work */
 await page.goto(`${base}/?scene=pmap&deep=1&map=panther-maw`, { waitUntil: 'domcontentloaded' })
 await ready(page)
 const indoors = await page.evaluate(async () => {
@@ -292,9 +233,7 @@ const indoors = await page.evaluate(async () => {
 ok('and inside a room the chart offers nothing at all',
   indoors.map === 'panther-maw' && indoors.n === 0, JSON.stringify(indoors))
 
-/* ============================================================================
- * 7 · A GRANT ANSWERS
- * ==========================================================================*/
+/* 7 · a grant answers */
 console.log('\n7 · every grant answers')
 const answered = await page.evaluate(async () => {
   const r = await window.__pmap.perform({ kind: 'award', fact: 'proof_fact' })
@@ -305,9 +244,7 @@ const answered = await page.evaluate(async () => {
 ok('award() writes AND speaks', !!answered.ok && !!answered.said, JSON.stringify(answered))
 await shot(page, 'a-grant-answers')
 
-/* ============================================================================
- * 8 · guide_to(None)
- * ==========================================================================*/
+/* 8 · guide_to(None) takes the arrow down */
 console.log('\n8 · the arrow comes down')
 const arrow = await page.evaluate(async () => {
   const p = window.__pmap

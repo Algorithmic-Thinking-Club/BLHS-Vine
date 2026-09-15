@@ -1,19 +1,4 @@
-/* THE MINIGAME TAKES A RIGHT ANSWER HOWEVER A PERSON GIVES IT.
- *
- *   node scripts/atc-quiz-proof.mjs
- *   node scripts/atc-quiz-proof.mjs --live
- *
- * Ash, after playing: "i clicked all the right answers on the minigame, and still got a
- * 0." He had. The frame understood exactly one order, instruction first and then slot,
- * and a person reaches for the other one: point at the empty step, then say what goes
- * in it. Done that way every answer landed one step late, step one stayed empty, and
- * RUN stayed dead saying one step was still empty.
- *
- * The proof that shipped before this one passed because it was written to match the
- * code rather than to match a person, which is exactly how a broken thing ships green.
- * This one plays all three ways somebody might really do it, and every one of them has
- * to end on full marks.
- */
+/* a right answer counts however a person gives it: `node scripts/atc-quiz-proof.mjs`, or `--live`; the frame understood only instruction then slot, so pointing at the empty step first landed every answer one step late, and a proof written to match the code instead of a person ships green while broken */
 import { boot, STAMPED, LIVE } from './play-harness.mjs'
 
 const live = process.argv.includes('--live')
@@ -27,24 +12,11 @@ const ok = (name, pass, detail = '') => {
 
 const WANT = ['forward 2', 'turn left', 'forward 3', 'turn right', 'forward 3']
 
-/* THE WAYS SOMEBODY REALLY FILLS IN FIVE STEPS.
- *
- * The rule is one sentence and it is printed on the screen: an instruction goes in the
- * next empty step, and pressing a step takes it back out. So pressing a card and then
- * pressing the step it just landed in is a person undoing themselves, which has to be
- * plainly visible rather than silently wrong. That is the case that used to scramble
- * the answer, and it is checked here as "nothing moved anywhere it was not put".
- */
+/* the rule is printed on the screen: an instruction goes in the next empty step and pressing a step takes it back out, so pressing a card and then the step it landed in is a person undoing themselves, checked here as nothing moved anywhere it was not put */
 const WAYS = [
   { key: 'just the instructions, in order', touchSlots: false },
   { key: 'a stray press on a step in between', touchSlots: true },
-  /* ---- AS FAST AS A PERSON REALLY PRESSES -------------------------------
-   *
-   * ASH, after playing: "i made it to the end, and answered it perfectly. it gave me
-   * a fucking 1/6." Five presses in a row, as fast as a hand moves, is what a person
-   * does with five buttons and it is the one thing this proof never did: it waited
-   * two hundred milliseconds between them and so never raced React's own batching
-   * once. Every press here is back to back with no wait at all. */
+  /* as fast as a person really presses: five presses back to back is what a hand does with five buttons, and the 200 ms wait between them meant this proof never once raced React's own batching */
   { key: 'five presses as fast as a hand moves', touchSlots: false, fast: true },
 ]
 
@@ -54,9 +26,7 @@ for (const way of WAYS) {
     dir: `reference/_archive/build-shots/quiz/${way.key.replace(/\W+/g, '-')}`,
   })
   const { page, look, shot, finish } = h
-  /* WAIT FOR THE SCENE, NOT FOR A CLOCK. `window.__station` only exists once a map
-   * has mounted, and the deploy's first frame is slower than the dev server's by
-   * however long a cold lambda takes. A fixed sleep is a race with that. */
+  /* wait for the scene, not for a clock: `window.__station` only exists once a map has mounted, and the deploy's first frame is slower than the dev server's by however long a cold lambda takes, so a fixed sleep races it */
   await page.waitForFunction(() => {
     try { return !!window.__pmap && window.__pmap.island && window.__pmap.island.started } catch { return false }
   }, null, { timeout: 90000 })
@@ -99,9 +69,7 @@ for (const way of WAYS) {
   }
 
   if (way.fast) {
-    /* every press dispatched inside ONE evaluate, so they land in the same frame and
-     * React has no chance to re-render between them. This is the worst case a hand
-     * can produce and then some. */
+    /* every press dispatched inside one evaluate, so they land in the same frame and React gets no chance to re-render between them, which is worse than any hand */
     await page.evaluate((want) => {
       for (const t of want) {
         const c = [...document.querySelectorAll('.bt-card')].find((x) => x.textContent.trim() === t)
@@ -111,24 +79,21 @@ for (const way of WAYS) {
     await page.waitForTimeout(400)
   } else {
     for (let i = 0; i < WANT.length; i++) {
-      /* a press on an EMPTY step, which is the click that used to move everything one
-       * place along. It has to do nothing at all now. */
+      /* a press on an empty step, the click that used to move everything one place along, and it has to do nothing at all now */
       if (way.touchSlots) { await clickSlot(4); await page.waitForTimeout(150) }
       await clickText('.bt-card', WANT[i])
       await page.waitForTimeout(200)
     }
   }
 
-  /* EVERY STEP HOLDS WHAT HE PUT IN IT, which is the thing that was really wrong: the
-   * answers were right and they were in the wrong wells. */
+  /* every step holds what he put in it, which is what was really wrong: the answers were right and they were in the wrong wells */
   const wells = await page.evaluate(() => [...document.querySelectorAll('.bt-slotwell')]
     .map((w) => w.textContent.trim()))
   ok(`${way.key}: every step holds the instruction he chose for it`,
     JSON.stringify(wells) === JSON.stringify(WANT), JSON.stringify(wells))
 
   await shot('01-filled')
-  /* through the harness, which reads innerText: the commit plank wraps its word in a
-   * span beside the reason, so an exact textContent match never finds it */
+  /* through the harness, which reads innerText: the commit plank wraps its word in a span beside the reason, so an exact textContent match never finds it */
   const pressRun = async () => {
     const v = await look()
     const b2 = v.press.find((e) => /^RUN$/i.test(e.text))
@@ -137,9 +102,7 @@ for (const way of WAYS) {
     return true
   }
   ok(`${way.key}: RUN is live once every step is filled`, await pressRun())
-  /* WATCHED RATHER THAN TIMED. The body takes one cell every 420ms and the line only
-   * comes up when it stops, so a fixed sleep is a race with the length of the answer
-   * and it lost one run in two. A person watches until it settles. */
+  /* watched rather than timed: the body takes one cell every 420ms and the line only comes up when it stops, so a fixed sleep races the length of the answer and lost one run in two */
   let ran = null
   for (let i = 0; i < 40; i++) {
     ran = await page.evaluate(() => document.querySelector('.bt-ran')?.textContent?.trim() ?? null)
