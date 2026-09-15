@@ -66,22 +66,13 @@ import { uiBand } from '../ui/frame'
 import { kitNineSlice, kitPieceHeight, kitSprite, kitTexture } from '../ui/kitSprite'
 import { goldenHour } from '../ui/atmosphere'
 import { currentSkin } from '../ui/skin'
-/* an arrival card is on the stage bus, which is the one question the world's
- * chrome asks that it cannot answer itself. */
+/* the arrival card goes up on the stage bus, the one question the world's chrome cannot answer itself */
 import { note } from '../ui/feedback'
 import { placeCardUp } from '../stage/stage-bus'
-/* and the one sentence this scene knows that the year does not, which the panel
- * at the top of the screen prints (BRIEF-MAW-RAIL-3 A) */
+/* the one sentence this scene knows that the year does not, printed by the panel at the top of the screen */
 import { setObjectiveSaid, setWorldObjective } from '../hud/objective-bus'
 
-/* how far from an island's own berth a start line can be drawn and still be that
- * island's. Beyond it the mark belongs to some other island's approach, and using it
- * is a crossing that begins nowhere near the place it is arriving at.
- *
- * UP HERE BECAUSE IT IS READ DURING THE FIRST FRAME OF A SEA ARRIVAL. Declared down
- * with the other timings it was in its own temporal dead zone when `arriveAboard`
- * asked for it, and the whole scene threw on the way in: "Cannot access
- * 'FAR_START_REACH' before initialization", a black screen and a stuck loading card. */
+/* how far from an island's own berth a start line can be drawn and still be that island's, declared up here because `arriveAboard` reads it on the first frame of a sea arrival: down with the other timings it threw "Cannot access 'FAR_START_REACH' before initialization" onto a black screen */
 const FAR_START_REACH = 900
 
 /** the five states an in-world prompt can be in */
@@ -97,8 +88,7 @@ import { fetchGrape, type GrapeRef } from '../../vine/py/grape-source'
 import { openGrape, type GrapeSession } from '../../vine/py/runGrape'
 import { useNavMaybe } from '../../app/SceneManager'
 
-/* when a heading has no view, the next best one it might have, so a set drawn
- * four ways still faces roughly right instead of snapping to south */
+/* when a heading has no view, the next best one it might have, so a set drawn four ways still faces roughly right instead of snapping to south */
 const NEAREST_VIEW: Record<string, string> = {
   'south-east': 'east',
   'north-east': 'east',
@@ -144,12 +134,7 @@ interface PmapJson {
 
 /* how far the player and the occluders lift above the placements so he is never hidden */
 const OVER_PLACED = 1e4
-/* WHERE A PLACEMENT SITS IN THE DRAW ORDER: where it stands, plus the author's nudge. MAPVIS
- * writes `z` when somebody presses move-forward or move-back on a placement, and it writes a
- * nudge rather than shifting the thing down the map, because a lamp drawn over a puddle must not
- * also stand two feet south of where it belongs. Absent on every placement nobody reordered and
- * on every bundle published before it existed, and absent means the plain y-sort this map has
- * always been drawn with. */
+/* where a placement sits in the draw order, which is where it stands plus the author's nudge: MAPVIS writes `z` rather than shifting the thing down the map, so a lamp drawn over a puddle does not also stand two feet south, and absent means the plain y-sort */
 const depthOf = (a: { y: number; z?: unknown }) => {
   const z = Number((a as { z?: unknown }).z)
   return a.y + (Number.isFinite(z) ? z : 0)
@@ -181,8 +166,7 @@ function inkWidth(data: Uint8ClampedArray, w: number, h: number) {
       if (x < x0) x0 = x
       if (x > x1) x1 = x
     }
-  // a picture with nothing in it at all keeps the canvas, which is what this
-  // measured before and is never worse than answering zero
+  // a picture with nothing in it keeps the canvas width, which is never worse than answering zero
   return x1 >= x0 ? x1 - x0 + 1 : w
 }
 
@@ -256,16 +240,13 @@ function inkOf(tex: Texture): number {
     g.drawImage(tex.source.resource as CanvasImageSource, f.x, f.y, f.width, f.height, 0, 0, w, h)
     out = inkWidth(g.getImageData(0, 0, w, h).data, w, h)
   } catch {
-    // a picture that cannot be read back keeps its canvas width, which is what
-    // this measured by before it measured anything better
+    // a picture that cannot be read back keeps its canvas width
   }
   inkCache.set(key, out)
   return out
 }
 
-/* dirFromVec used to sit here, byte for byte the dirFrom in walk.ts. Walker
- * picks Thor's heading with its own, off the same squashed vector, so the view
- * the scene draws is the view the editor's walk test would have drawn. */
+/* heading comes from walk.ts's own `dirFrom` off the same squashed vector, so the view the scene draws is the view the editor's walk test would draw */
 
 function radial(size: number, stops: [number, string][]) {
   const cv = document.createElement('canvas'); cv.width = size; cv.height = size
@@ -344,29 +325,22 @@ export default function PmapScene() {
   useEffect(() => {
     let destroyed = false
     let instance: Application | null = null
-    /* set by start() once the stage exists; called by the cleanup below whether or
-     * not start() ever got that far */
+    /* set by start() once the stage exists, and called by the cleanup below whether or not start() got that far */
     let teardownStage = () => { /* nothing was published */ }
-    /* set by start() if this map opened an island. The other half of the
-     * sandbox: a worker left running holds a MicroPython heap, and a scene that
-     * unmounts mid-say must not leave one behind on a 4 GB Chromebook. */
+    /* set by start() if this map opened an island: a worker left running holds a MicroPython heap, and a scene that unmounts mid-say must not leave one behind on a 4 GB Chromebook */
     let stopIsland = () => { /* no island on this map */ }
     const keys: Record<string, boolean> = {}
     const kd = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = true }
     const ku = (e: KeyboardEvent) => { keys[e.key.toLowerCase()] = false }
-    /* every key is forgotten the moment the world is taken away, or the `e` that
-     * opened a panel is still held when it closes and fires the station again,
-     * and a held `d` walks Thor into a wall behind the year sheet */
+    /* every key is forgotten the moment the world is taken away, or the `e` that opened a panel fires the station again when it closes and a held `d` walks Thor into a wall behind the year sheet */
     const dropKeys = () => { for (const k of Object.keys(keys)) keys[k] = false }
-    /* AND A WALK HE STARTED WITH A CLICK STOPS TOO. Set by `start()` once the
-     * scene's own walk state exists; a no-op before that and after teardown. */
+    /* a walk started with a click stops too, set by start() once the scene's walk state exists and a no-op before that and after teardown */
     let cancelPlayerWalk = () => { /* no scene yet */ }
     /* and the chart's own way into the water, taken down with the scene */
     let offSail = () => { /* no ocean yet */ }
     let offHome = () => { /* no dock yet */ }
     let offVoyage = () => { /* nothing to sail to yet */ }
-    /* the journey being called off, which is a thing that happens to this scene from
-     * outside it: `SkipVoyage` drops the plan and the bars are still this scene's */
+    /* the journey being called off from outside this scene: `SkipVoyage` drops the plan and the bars are still this scene's */
     let offTravel = () => { /* nobody is travelling yet */ }
     /* the coat watcher, declared out here because the scene's teardown is out here */
     let offLook = () => { /* nobody is dressed yet */ }
@@ -390,9 +364,7 @@ export default function PmapScene() {
       const params = new URLSearchParams(window.location.search)
       const mapId = target.map
       const DBG = params.has('dbg')
-      /* the loading word goes up before the first fetch, because the fetch is
-       * most of the wait: measured, the plate that went up after the bundle had
-       * arrived covered eighteen of thirty-four samples of the black */
+      /* the loading word goes up before the first fetch because the fetch is most of the wait: the plate raised after the bundle arrived covered eighteen of thirty-four samples of the black */
       loadingPlate = document.createElement('div')
       loadingPlate.setAttribute('aria-live', 'polite')
       loadingPlate.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;'
@@ -403,15 +375,12 @@ export default function PmapScene() {
       /* counts what opening this map really costs, in urls asked for and files fetched */
       const asked = new Set<string>()
       const req = (u: string) => { asked.add(u); return u }
-      // a file the bundle simply does not have was asked for but is not part of
-      // what opening this map costs
+      // a file the bundle does not have was asked for, and is not part of what opening this map costs
       const unreq = (u: string) => { asked.delete(u) }
       try { performance.setResourceTimingBufferSize(4000) } catch { /* not every engine has it */ }
       const netAtStart = performance.getEntriesByType('resource').length
 
-      /* where a map comes from: the copy vendored at build time, then the folder committed in
-       * this repo; the platform only when ?src=platform asks for it, so a student's browser
-       * and a dev run never fetch the platform */
+      /* where a map comes from: the copy vendored at build time, then the folder committed in this repo, and the platform only when ?src=platform asks, so a student's browser never fetches it */
       const srcMode = params.get('src')
       const wantLocal = srcMode === 'local'
       const wantPlatform = srcMode === 'platform'
@@ -419,9 +388,7 @@ export default function PmapScene() {
       const pinned = params.get('v')
       let dir = `/maps-painted/${mapId}`
       let mp: PmapJson | null = null
-      /* absent for a committed folder, which is not the same as version zero:
-       * `resumeTarget` treats "one has a number and the other does not" as two
-       * different bundles, because that is exactly what it is */
+      /* absent for a committed folder, which is not version zero: `resumeTarget` treats one having a number and the other not as two different bundles */
       let mapVersion: number | undefined
 
       if (!wantLocal && !wantPlatform) {
@@ -474,9 +441,7 @@ export default function PmapScene() {
       const [sceneImg, levelsImg, occImg] = await Promise.all([
         loadImage(req(`${dir}/scene.png`)),
         loadImage(req(`${dir}/levels.png`)),
-        /* counted only if it arrives. A room map carries no occluders, and
-         * counting the 404 made the tally one higher than the bundle has files,
-         * which would show up forever as the very gap the log calls a bug. */
+        /* counted only if it arrives, because a room map carries no occluders and counting the 404 put the tally one above the bundle's file count, which reads forever as the gap the log calls a bug */
         loadImage(req(`${dir}/occluders.png`)).catch(() => {
           unreq(`${dir}/occluders.png`)
           return null
@@ -536,18 +501,14 @@ export default function PmapScene() {
         }
         return { x, y }
       }
-      /* HOW FAR A PLACEMENT'S DEPTH SITS OFF WHERE IT STANDS. The nudge belongs to the
-       * placement and lives for the scene, while the y a moving thing sorts on changes every
-       * frame, so it is held against the sprite rather than added at each of the three places a
-       * depth is written. Empty for every placement nobody reordered. */
+      /* how far a placement's depth sits off where it stands: the nudge belongs to the placement and lives for the scene while a moving thing's y changes every frame, so it is held against the sprite rather than added at each of the three places a depth is written */
       const depthBias = new Map<Sprite, number>()
       const biased = (sp: Sprite, y: number) => y + (depthBias.get(sp) ?? 0)
       const looksOf = new Map<Sprite, Look[]>()
       /* what each face is called, indexed the way art indexes them, with slot 0 the placement's own */
       const lookNamesOf = new Map<Sprite, string[]>()
 
-      /* anchors this scene has already complained about, so a room that syncs
-       * its shelf on every load says it once rather than once a crossing */
+      /* anchors this scene has already complained about, so a room that syncs its shelf on every load says it once rather than once a crossing */
       const saidUnbound = new Set<string>()
 
       const actorSprite = (name: string): Sprite | null => placedById.get(name) ?? null
@@ -565,8 +526,7 @@ export default function PmapScene() {
           recordExposure(place.id, true)
           engine.log('place_seen', { place: place.id, map: mapId, docked: true })
         }
-        /* WHERE THE STUDENT IS, stamped on every heartbeat until it changes, so
-         * time on task is per map without the map owning a clock. */
+        /* where the student is, stamped on every heartbeat until it changes, so time on task is per map without the map owning a clock */
         setContext({ map: mapId, place: place?.id ?? null })
       }
 
@@ -587,20 +547,7 @@ export default function PmapScene() {
         : paintBase ?? (slot
           ? { w: slot.footprint.w, h: slot.footprint.h, ox: (W - slot.footprint.w) / 2, oy: (H - slot.footprint.h) / 2 }
           : { w: W, h: H, ox: 0, oy: 0 })
-      /* ---- AND IT CANNOT REACH OUTSIDE THE CANVAS -----------------------------
-       *
-       * The footprint comes off the OCEAN document and the canvas off the bundle, and
-       * nothing has ever made the two agree. The live world gives the Maw a footprint
-       * of 512x512 against a real canvas of 688x384, so the rect came out 64 rows above
-       * the top and 64 below the bottom of a painting that does not go there.
-       *
-       * That was harmless while this was only used to find a centre. It stopped being
-       * harmless tonight, when the camera fence started clamping to it: a fence that
-       * believes in rows the painting does not have is a fence that shows the void
-       * where they would be. Measured on the Maw, a 192 pixel band of it.
-       *
-       * Intersected rather than refused, because a slightly wrong footprint is still
-       * the best guess anybody has about where the picture is. */
+      /* the fence is intersected with the canvas, not refused: the footprint comes off the ocean document and the canvas off the bundle, and the Maw's 512x512 footprint against a 688x384 canvas put the rect 64 rows past each end, showing a 192 pixel band of void */
       const px0 = Math.max(0, Math.min(W, paintedSaid.ox))
       const py0 = Math.max(0, Math.min(H, paintedSaid.oy))
       const px1 = Math.max(px0, Math.min(W, paintedSaid.ox + paintedSaid.w))
@@ -631,8 +578,7 @@ export default function PmapScene() {
         console.log(`[pmap] ${mapId}: ${anchors.all.length} anchors ·`,
           anchors.all.map((a) => `${a.name}(${a.kind})`).join(' '))
       }
-      /* the Maw states what it needs; say so once at load rather than letting a
-       * station silently never fire because its anchor was never placed */
+      /* the Maw states what it needs, said once at load rather than letting a station silently never fire because its anchor was never placed */
       if (mapId === MAW_MAP) {
         const missing = missingAnchors((n) => anchors.has(n))
         if (missing.length) console.warn(`[pmap] ${mapId} is missing anchors: ${missing.join(', ')}`)
@@ -699,9 +645,7 @@ export default function PmapScene() {
       }
       /* the whole document the walk law needs: a level reader and a no-op hit marker */
       const doc = { lvlAt, markHit: () => {} } as unknown as MaskDoc
-      // the character has a body: feet plus two hip probes must all stand on floor AND agree
-      // on level (no shoulders hanging across a terrace edge). Named here so every call
-      // below reads as it always did while the answer comes from one place.
+      // the character has a body: feet plus two hip probes must all stand on floor and agree on level, so no shoulder hangs across a terrace edge
       const canStandFrom = (x: number, y: number, fromLvl: number) => lawCanStandFrom(doc, cfg, x, y, fromLvl)
       const canStand = (x: number, y: number) => lawCanStand(doc, cfg, x, y)
 
@@ -728,100 +672,29 @@ export default function PmapScene() {
       const zOverride = parseFloat(params.get('z') || '0')
       /* three named shots: the wide island, the walking shot, and a room that fills the view */
       const fitIn = Math.min(app.screen.width / W, app.screen.height / H)
-      /* named `fitCover` and not `cover`, because `cover` is the door
-       * transition imported at the top of this file and shadowing it here made
-       * every door in the game a number */
+      /* named `fitCover` and not `cover`, because `cover` is the door transition imported at the top of this file and shadowing it made every door in the game a number */
       const fitCover = Math.max(app.screen.width / W, app.screen.height / H)
-      /* the wide shot, and it is the painting's own extent that has to fit in
-       * it rather than the canvas: the hub's canvas is 640 tall and its picture
-       * is 377 of them, so fitting the canvas would frame 263 rows of sea */
-      /* ---- THE CAMERA NEVER LEAVES THE PAINTING -------------------------
-       *
-       * ASH, 2026-09-08: *"The camera never shows anything outside the painting,
-       * on any map, at any moment: no pull-out past the cover fit. The wide shot
-       * of the Maw is the cover fit."*
-       *
-       * THE FLOOR IS THE PAINTED EXTENT AND NOT THE CANVAS, which is the whole
-       * of the old defect. The hub's canvas is 688x640 and its picture is
-       * 669x377 of them, so every zoom computed from the canvas framed 263 rows
-       * of nothing: `Z_ISLAND` was `floor(fitIn) * 1.18`, which on that map is
-       * 1.18, and the wide shot showed the painting floating in a black field
-       * with a margin on every side.
-       *
-       * COVER, NOT CONTAIN. A contain fit is the whole picture with bars around
-       * it, and bars are the thing being banned. Cover fills the window off the
-       * picture's own pixels and crops whichever axis is longer, which is what
-       * "never shows anything outside the painting" means as a number. */
+      /* the wide shot, and the painting's own extent has to fit in it rather than the canvas: the hub's canvas is 640 tall and its picture 377 of them, so fitting the canvas would frame 263 rows of sea */
+      /* the camera never shows anything outside the painting: the floor is the painted extent and not the canvas, because the hub's 688x640 canvas holds a 669x377 picture and a zoom off the canvas framed 263 rows of nothing, and it is a cover fit not a contain fit since bars are the thing being banned */
       const Z_PAINT = Math.max(app.screen.width / painted.w, app.screen.height / painted.h)
-      /* ---- AN ISLAND IS FENCED TO ITS OWN SEA, NOT TO ITS OWN COASTLINE ----
-       *
-       * ASH: *"the close and wide views on the algorithmic thinking club island are
-       * busted. why are camera views so screwed on that island specifically? And we
-       * need to make sure this doesnt happen when the member is creating an island."*
-       *
-       * Measured, and it is arithmetic about the SHAPE of the painting rather than
-       * anything about that island. `Z_PAINT` is a COVER fit, so on a near-square
-       * picture in a wide window it is driven by the width: atc-1's painting is 410
-       * across in a 1366 window, so the floor came out at 3.33 while the body-derived
-       * walking shot wanted 2.25. The floor won, Wide opened at 3.33, Close is 4.0,
-       * and the switch a student presses moved the camera by a fifth. On the hub,
-       * whose painting is wide, the body shot wins and Wide-to-Close is 3.0 to 5.25.
-       * Same code, opposite behaviour, decided by a painting's aspect ratio.
-       *
-       * Cover was the right floor when everything outside the painting was the black
-       * field Ash banned. It is not any more: an island's painting sits in an ocean
-       * this engine draws, and the camera fence takes in a margin of that ocean. So an
-       * ISLAND is floored at the zoom where the FENCE covers the window, which is a
-       * number about the room the camera really has rather than about how square
-       * somebody's picture happens to be. A ROOM keeps the old floor exactly, because
-       * outside a room there is still nothing to show.
-       *
-       * This is the general rule a member gets for free. Nothing about their island
-       * has to be shaped a particular way for the camera to work on it. */
+      /* an island is fenced to its own sea, not its coastline: a cover floor follows aspect ratio, so atc-1's 410 wide painting in a 1366 window floored at 3.33 against a body shot of 2.25 while the hub ran 3.0 to 5.25; an island now floors where the fence covers the window, and a room keeps the painting */
       const SEA_EDGE = coastCut ? 160 : 0
       const fenceW = painted.w + SEA_EDGE * 2
       const fenceH = painted.h + SEA_EDGE * 2
-      /* CONTAIN, FOR AN ISLAND. The whole picture on the glass with the engine's own
-       * ocean filling whatever is left over, which is what "the wide shot of an island"
-       * has always meant to a player and what a cover fit could not give a painting
-       * that is taller than the window is. A ROOM still covers, because outside a room
-       * there is nothing but the black field. */
+      /* contain for an island, so the whole picture sits on the glass with the engine's ocean filling the rest; a room still covers, because outside a room there is nothing but the black field */
       const Z_ISLAND = coastCut
         ? Math.min(app.screen.width / painted.w, app.screen.height / painted.h)
         : Z_PAINT
-      /* how tall the person is meant to be on the glass, in the window Ash
-       * plays at.
-       *
-       * ONE STEP CLOSER, 2026-09-08. His words, twice: *"when thor in panther maw,
-       * needs to be zoomed in. same with hub"* and *"zoom the Maw and the hub in
-       * one step closer on Thor."* Forty was the Maw's own answer at cover fit
-       * and the Maw has moved (below), so the island follows it rather than the
-       * two drifting apart: fifty-two puts a twenty pixel body at about sixty on
-       * a 768 tall window, which is what the room now gives him. */
+      /* how tall the person is meant to be on the glass: fifty-two puts a twenty pixel body at about sixty on a 768 tall window, derived from the Maw's own answer so the island and the room do not drift apart */
       const BODY_ON_GLASS = 52
-      /* ---- AND THE CLOSE ONE (Ash, 2026-09-09) --------------------------
-       *
-       * The same arithmetic with a bigger body: ninety-four pixels of panther on
-       * a 768 tall window, which is about the distance MAPVIS previews a map at.
-       * Derived rather than typed, so a map whose people are forty painting
-       * pixels and one whose people are eighteen both put the same amount of him
-       * on the glass. */
+      /* the close shot, same arithmetic with a bigger body: ninety-four pixels of panther on a 768 tall window, derived rather than typed so a map with forty pixel people and one with eighteen put the same amount of him on the glass */
       const BODY_ON_GLASS_CLOSE = 94
       const bodyH = Math.max(6, map.character?.heightPx || 18)
       const Z_WALK = Math.max(
         Z_ISLAND,
         Math.round(((app.screen.height / 768) * BODY_ON_GLASS / bodyH) * 4) / 4,
       )
-      /* ---- THE SHOT HE WALKS IN, WHICH IS NOW HIS TO CHOOSE -------------
-       *
-       * `Z` is the wide view, worked out from the painting and the cover. This is
-       * the same number unless the student has asked for the close camera, in
-       * which case it is the zoom that puts ninety-four pixels of panther on the
-       * glass. Asked per call rather than captured, so flipping the switch moves
-       * the camera on the frame it is flipped.
-       *
-       * NEVER BELOW `Z`: the close view is a step IN. `zoomTo` clamps to `Z_MIN`
-       * on the other side, so neither end can leave the painting. */
+      /* the shot he walks in: the wide view unless the student asked for the close camera, asked per call rather than captured so flipping the switch moves the camera that frame, and never below `Z` because close is a step in and `zoomTo` clamps to `Z_MIN` on the other side */
       const walkZ = () => (loadSettings().closeCamera ? Math.max(Z, zForBody(BODY_ON_GLASS_CLOSE)) : Z)
       const zForBody = (px: number) => Math.max(
         Z_ISLAND,
@@ -829,23 +702,9 @@ export default function PmapScene() {
       )
       const Z = zOverride > 0 ? zOverride
         /* and the walking shot can never be under the floor either */
-        /* THE WIDE SHOT IS THE BODY'S, FLOORED AT THE ISLAND'S OWN FIT. Keyed off
-         * `Z_PAINT` this was decided by whether somebody's painting happened to be
-         * squarer than the window: on atc-1 the cover came out at 3.33 against a body
-         * shot of 2.25, so Wide opened closer than Close was far, and the switch moved
-         * the camera by a fifth. Every island answers the same way now. */
+        /* the wide shot is the body's, floored at the island's own fit: keyed off `Z_PAINT` it was decided by whether a painting was squarer than the window, so atc-1's cover of 3.33 against a body shot of 2.25 opened Wide closer than Close was far */
         : coastCut ? Math.max(Z_ISLAND, Z_WALK)
-          /* whole pixels, and never below the cover: a room that rounded DOWN
-           * would be back in its black field. The epsilon is there so a cover
-           * of 2.0000001 does not open at 3.
-           *
-           * AND ONE WHOLE STEP IN FROM THERE (Ash, 2026-09-08: *"zoom the Maw and
-           * the hub in one step closer on Thor"*). The Maw's cover fit is exactly
-           * 2 at 1366x768, which drew a twenty pixel character forty pixels tall
-           * in the middle of a room wide enough to hold five stations, and he
-           * read as a detail rather than as the person you are. Three is the next
-           * whole number, which is the only kind this may be: a fractional room
-           * zoom puts the painting on half pixels and the whole map softens. */
+          /* whole pixels and never below the cover, or a room that rounded down is back in its black field, with the epsilon so a cover of 2.0000001 does not open at 3, and one step in from there because the Maw's cover fit is exactly 2 at 1366x768 and a fractional room zoom puts the painting on half pixels */
           : Math.max(1, Math.ceil(fitCover - 1e-3) + 1)
 
       /* the zoom an authored shot is a multiple of, kept separate from the walking shot */
@@ -854,9 +713,7 @@ export default function PmapScene() {
       /* the shot a crossing is watched from, which is the walking shot so the ship reads as a ship */
       const Z_SHIP = Z
 
-      /* HOW LONG THE ISLAND IS HELD ON ARRIVAL before the camera goes back to
-       * following him. It is the length of the place card plus a breath, because
-       * the two are one moment: the card names where he is and the shot shows it. */
+      /* how long the island is held on arrival before the camera follows him again, which is the length of the place card plus a breath because the card names where he is and the shot shows it */
       const ARRIVAL_LOOK_MS = 3600
 
       /* the character shot, for when the camera is about him rather than about the ground */
@@ -865,27 +722,16 @@ export default function PmapScene() {
       world.scale.set(Z)
 
       /* the zoom is a live value everything keys off, not a constant decided once at load */
-      /* `?sail=N` USED TO PULL THE SEA OUT PAST THE PAINTING and it is gone with the
-       * cover floor it was a fraction of: an island is now fenced to its painting plus
-       * a margin of ocean, and `Z_ISLAND` is the zoom at which that fence fills the
-       * window, so there is no separate sailing floor left to tune. */
+      /* `?sail=N` no longer pulls the sea out past the painting: an island is fenced to its painting plus a margin of ocean and `Z_ISLAND` is the zoom at which that fence fills the window, so there is no separate sailing floor to tune */
       let camZ = Z
       /* the sailing zoom floor, hung off the wide shot, and a room has none */
-      /* THE SAILING FLOOR IS THE PAINTING'S FLOOR TOO. It used to be a fraction
-       * of the wide shot so the sea opened out around the island, and that is
-       * the one pull-out Ash's rule removes: with travel scripted between docks
-       * (BRIEF, item 3) nobody free-sails a boat around an empty ocean any more,
-       * so the only thing that pull-out could show is water nobody is crossing
-       * and, on a room, black. */
-      /* the floor every zoom is clamped to. On an island it is the fence, so a wide
-       * shot may pull back far enough to see the whole island with sea round it; in a
-       * room it is the painting, because there is nothing outside a room to show. */
+      /* the sailing floor is the painting's floor too: it used to be a fraction of the wide shot, and with travel scripted between docks nobody free-sails, so that pull-out could only show water nobody is crossing and, in a room, black */
+      /* the floor every zoom is clamped to: on an island the fence, so a wide shot can show the whole island with sea round it, and in a room the painting, because there is nothing outside a room to show */
       const Z_MIN = coastCut ? Z_ISLAND : Math.max(Z_PAINT, Z)
 
       // the engine ocean under the painting: a sprite pool draws only the tiles the viewport sees
-      const SEA_SCALE = 0.5             // half the module's 64x32 diamonds in screen px (Ash,
-                                        // 2026-08-16: "a ocean tile needs to be a lot smaller
-                                        // relative to the png island")
+      const SEA_SCALE = 0.5             // half the module's 64x32 diamonds in screen px
+                                        // an ocean tile has to be a lot smaller than the painted island
       const waterS: SwellSprite[] = []
       let refreshSea: () => void = () => {}   // assigned inside the coastCut build
       let sea: Container | null = null
@@ -898,9 +744,7 @@ export default function PmapScene() {
         let waterFallback: Texture | undefined
         try { waterFallback = await Assets.load(req('/art/iso/water.png')) } catch { /* pools carry it */ }
 
-        // distance-to-land on a coarse cell grid, seeded from every opaque painting pixel.
-        // The grid only needs to span the depth ramp: past its rim distPx returns a huge
-        // distance and the ramp has long since clamped into the abyss color.
+        // distance-to-land on a coarse cell grid seeded from every opaque painting pixel, and the grid only needs to span the depth ramp because past its rim distPx returns a huge distance and the ramp has clamped into the abyss color
         const CS = 8
         /* the grid is sized for the widest shot so the shelf never ends in a hard line */
         const pad = Math.ceil((DEPTH_RANGE + 6) * HH * SEA_SCALE / Z_MIN)
@@ -948,7 +792,7 @@ export default function PmapScene() {
         app.stage.addChildAt(sea, 0)              // below the world, always
 
         // the island's centre in sea tile coords, for the old hub's WORLD_R rim
-        const WORLD_R = 600     // tiles of ocean in every direction — mostly-sea by law
+        const WORLD_R = 600     // tiles of ocean in every direction, mostly sea by law
         const ccx = W * Z / 2 / SEA_SCALE, ccy = H * Z / 2 / SEA_SCALE
         const CXs = (ccx / HW + ccy / HH) / 2, CYs = (ccy / HH - ccx / HW) / 2
 
@@ -1002,11 +846,9 @@ export default function PmapScene() {
               const dsC = dsAt(mx, my)
               if (dsC > blk * 1.5 + 1) continue                 // fully land
               if (blk === 1) { if (dsC <= 0) place(mx, my, dsC, 1); continue }
-              // the abyss is flat-ramped — big blocks are invisible there. The steep
-              // ramp ring must stay fine or its value steps staircase at block scale.
+              // the abyss is flat-ramped so big blocks are invisible there, but the steep ramp ring must stay fine or its values staircase at block scale
               if (dsC < -(DEPTH_RANGE + blk * 1.5)) { place(mx, my, dsC, blk); continue }
-              // ramp ring / shoreline: resolve at fine grain so the coast + depth ramp
-              // keep their exact per-tile edges (2x inside the ring at far zooms)
+              // ramp ring and shoreline resolve at fine grain so the coast and depth ramp keep their exact per-tile edges, 2x inside the ring at far zooms
               const fine = dsC < -(blk * 1.5 + 1) && blk >= 4 ? 2 : 1
               for (let ty2 = by2; ty2 < by2 + blk; ty2 += fine) {
                 for (let tx2 = bx2; tx2 < bx2 + blk; tx2 += fine) {
@@ -1030,9 +872,7 @@ export default function PmapScene() {
       base.zIndex = 0
       world.addChild(base)
 
-      // ---- occluders: MAPVIS's plate rule. Each occluder region is cut from the painting's
-      // own pixels and z-keyed at its exported baseline, so it covers the character exactly
-      // while his feet are above (screen-y less than) that baseline and never otherwise. ----
+      // occluders follow MAPVIS's plate rule: each region is cut from the painting's own pixels and z-keyed at its exported baseline, so it covers the character while his feet are above that baseline and never otherwise
       if (odata) {
         for (const o of map.occluders) {
           const cv = document.createElement('canvas'); cv.width = W; cv.height = H
@@ -1073,28 +913,22 @@ export default function PmapScene() {
         x: number; y: number; scale: number
         // the MAPVIS transform contract: axis scales, rotation about the feet, flips as negative scale
         scaleX?: number; scaleY?: number; rot?: number; flipX?: boolean; flipY?: boolean
-        /* how it MOVES, if it does: the numbers life.ts evaluates, straight off
-         * the editor. Unknown on purpose, because cleanLife is the only thing
-         * that knows the shape and it is the one that has to reject a bad one. */
+        /* how it moves if it does, the numbers life.ts evaluates straight off the editor, unknown on purpose because cleanLife is the only thing that knows the shape and has to reject a bad one */
         life?: unknown
         /* the extra appearances a sequence switches to, index 1 and up */
         looks?: PmapLook[]
       }
-      // one appearance, loaded: every texture of it, ready before the sprite is
-      // added, so a change of picture mid-round costs nothing at the moment it
-      // happens
+      // one appearance, loaded: every texture of it ready before the sprite is added, so a change of picture mid-round costs nothing when it happens
       interface Look { frames: Texture[]; views: Record<string, Texture[]> | null; fps: number }
       const animAssets: { sp: Sprite; frames: Texture[]; fps: number; t: number }[] = []
       const lifeAssets: { sp: Sprite; life: Life; home: { x: number; y: number }; baseSX: number; bodyW: number; flipX: boolean; looks: Look[]; animT: number; baseRot: number }[] = []
       /* the standing placements a mover has to go round, which is the ones something can reach */
-      /* the name rides along so a refusal can say WHICH figure was left walkable,
-         which is the only thing that makes the warning actionable in MAPVIS */
+      /* the name rides along so a refusal can say which figure was left walkable, which is the only thing that makes the warning actionable in MAPVIS */
       const standing: { x: number; y: number; r: number; name?: string }[] = []
       const obstacles: { x: number; y: number; r: number; name?: string }[] = []
       try {
         const ar = await fetch(req(`${dir}/assets.json`))
-        // the content-type guard matters: the dev server answers a missing file with the
-        // SPA's index.html at 200, and only a real json body means the bundle has assets
+        // the content-type guard matters: the dev server answers a missing file with the SPA's index.html at 200, and only a real json body means the bundle has assets
         if (ar.ok && (ar.headers.get('content-type') || '').includes('json')) {
           const aj: { assets?: PmapAsset[]; atlas?: string } = await ar.json()
           let placed = 0
@@ -1148,8 +982,7 @@ export default function PmapScene() {
                 views[k] = ts
               }
             }
-            // the 6 matches MAPVIS (editor.ts assetFrame) for a view set, which
-            // never gets an fps written; a plain frame list keeps its old 4
+            // the 6 matches MAPVIS (editor.ts assetFrame) for a view set, which never gets an fps written, while a plain frame list keeps its old 4
             return { frames, views, fps: s.fps || (views ? 6 : 4) }
           }
           for (const a of aj.assets ?? []) {
@@ -1178,42 +1011,21 @@ export default function PmapScene() {
               const sp = new Sprite(frames[0])
               sp.anchor.set(0.5, 1)
               sp.position.set(a.x, a.y)
-              // full transform, anchored at the feet: flips ride as negative
-              // scale so the anchor and the y-sort key never move
+              // full transform anchored at the feet, with flips riding as negative scale so the anchor and the y-sort key never move
               const asx = Number(a.scaleX) > 0 ? Number(a.scaleX) : a.scale
               const asy = Number(a.scaleY) > 0 ? Number(a.scaleY) : a.scale
               sp.scale.set(asx * (a.flipX ? -1 : 1), asy * (a.flipY ? -1 : 1))
               sp.rotation = Number(a.rot) || 0
-              /* DEPTH IS WHERE IT STANDS, PLUS WHATEVER THE AUTHOR SAID. MAPVIS has a move-forward
-               * and a move-back on a placement now, and it writes a nudge rather than shifting the
-               * thing down the map, so a lamp can be drawn over a puddle without standing two feet
-               * south of where it belongs. Absent on every placement nobody reordered, and absent
-               * from every bundle published before it existed, so this is the plain y-sort until an
-               * author asks for something else. */
+              /* depth is where it stands plus whatever the author said: MAPVIS writes a nudge rather than shifting the thing down the map, so a lamp can be drawn over a puddle without standing two feet south, and absent means the plain y-sort */
               sp.zIndex = depthOf(a)
               world.addChild(sp)
               if (depthOf(a) !== a.y) depthBias.set(sp, depthOf(a) - a.y)
               /* addressable by its MAPVIS id and by the name its author typed */
               placedById.set(a.id, sp)
               if (a.name) placedById.set(a.name, sp)
-              /* every face this thing has, kept against the sprite, so a script
-               * can ask for one by index. A state is a placement wearing another
-               * picture and not a second placement beside it. */
+              /* every face this thing has, kept against the sprite so a script can ask for one by index, because a state is a placement wearing another picture and not a second placement beside it */
               looksOf.set(sp, looks)
-              /* and what each face is called, so a script can ask for "angry" instead of 2.
-               *
-               * THE ARRAY MAPVIS PUBLISHES IS READ FIRST, and reading only the other
-               * two shapes is why no island on any published map could ever name a
-               * face. The exporter writes one flat `lookNames` running parallel to
-               * the faces; `lookName` and `looks[].name` are the AUTHORING shape and
-               * live in the editor's document, which the game never sees. Every
-               * bundle on the platform carries the flat one.
-               *
-               * `undefined` IS NOT A NAME. Every bundle published before MAPVIS got a
-               * type guard on that helper carries the literal string for every
-               * unnamed face, and left standing it means `actor_look(x, "undefined")`
-               * quietly resolves to a real picture. Dropped here rather than waiting
-               * for five maps to be republished. */
+              /* face names come from the flat `lookNames` MAPVIS publishes, because `lookName` and `looks[].name` are the authoring shape the game never sees, and the literal string "undefined" is dropped since older bundles carry it for every unnamed face and `actor_look(x, "undefined")` would resolve to a real picture */
               {
                 const raw = a as unknown as {
                   lookNames?: unknown; lookName?: unknown; looks?: { name?: unknown }[]
@@ -1239,15 +1051,11 @@ export default function PmapScene() {
               if (lf) {
                 // airborne things fly OVER the map rather than sorting into it
                 if (lf.airborne) sp.zIndex = 99000 + (depthOf(a) | 0)
-                // its frames run on their own clock, started off-beat for the
-                // reason the animated assets above are: two of one figure
-                // stepping in time read as one thing rather than two people
+                // its frames run on their own clock, started off-beat so two of one figure do not step in time and read as one thing
                 /* how wide its body is, measured once off look 0's ink rather than off the canvas */
                 lifeAssets.push({ sp, life: lf, home: { x: a.x, y: a.y }, baseSX: Math.abs(asx), bodyW: Math.abs(asx) * inkOf(frames[0]), flipX: !!a.flipX, looks, animT: Math.random() * 8, baseRot: Number(a.rot) || 0 })
               } else {
-                // it stands where it was put, so whether a mover has to go round
-                // it is a question about the fences near it and the answer never
-                // changes. Same body width the movers use.
+                // it stands where it was put, so whether a mover goes round it is a question about the fences near it and the answer never changes, at the same body width the movers use
                 standing.push({ x: a.x, y: a.y, r: bodyRadius(Math.abs(asx) * inkOf(frames[0])), name: a.id ?? a.name })
                 if (views) {
                   /* a view set that never travels still has frames worth running, in its own heading */
@@ -1268,40 +1076,14 @@ export default function PmapScene() {
         }
       } catch { /* the fetch itself failed: same answer as a 404, no assets */ }
 
-      /* ---- A MAN WHO WALKS INSTEAD OF SLIDING -----------------------------
-       *
-       * ASH, 2026-09-09 item 11: *"walking animation for Principal Panther"*.
-       *
-       * A MAPVIS placement carries one frame set per look, and the principal's
-       * is the breathing cycle he was drawn standing in. The draw loop below
-       * steps a driven body through its frames by how far it really travelled,
-       * so crossing the hall stepped him through eight pictures of a man
-       * standing still with his chest going up and down. He slid, and he
-       * breathed while he slid.
-       *
-       * THE WALK IS AN OVERRIDE, NOT A REPUBLISH. A second look on the
-       * placement is the MAPVIS-shaped answer, and it needs Ash's hands and a
-       * fresh bundle for every map anybody walks on. This reads the walk out of
-       * THIS repo instead, keyed by the placement's own name, so it lands on the
-       * already published Maw with nothing re-exported. A body with no walk art
-       * on disk keeps exactly the behaviour it has today.
-       */
+      /* a driven body steps through its look's frames by distance travelled, so a placement drawn standing slid across the room breathing; the walk is read out of this repo keyed by the placement's own name, so it lands on an already published map and a body with no walk art keeps today's behaviour */
       const gaitOf = new Map<Sprite, Look>()
       {
-        /* the folder a body's walk is filed under, for the ones whose art is not
-         * named the way the level author named the placement. Anything filed
-         * under its own name needs no row here. */
+        /* the folder a body's walk is filed under, for art not named the way the level author named the placement; anything filed under its own name needs no row here */
         const GAIT_ART: Record<string, string> = { principal_desk: 'principal' }
         const gaitPath = (folder: string, dir: string, i: number) =>
           `/art/characters/${folder}/walk/${dir}/${i}.png`
-        /* how many frames the set really has, asked once and cheaply, so a body
-         * with no walk art costs one HEAD and never prints a 404 a frame.
-         *
-         * A 200 IS NOT AN ANSWER. The dev server answers an unknown path with
-         * the app's own index.html and a 200, so counting on `ok` alone counted
-         * twelve frames for a set of six, handed six pages of HTML to the
-         * texture loader, and dropped every heading on the floor. The content
-         * type is the thing that actually says a picture is there. */
+        /* how many frames the set really has, asked once with a HEAD so a body with no walk art never costs a 404 a frame, and the content type is checked because the dev server answers an unknown path with index.html at 200: `ok` alone counted twelve frames for a set of six */
         const countFrames = async (folder: string): Promise<number> => {
           let n = 0
           while (n < 12) {
@@ -1324,27 +1106,15 @@ export default function PmapScene() {
               views[dir] = ts
             } catch { /* short a heading, and the whole set is refused below */ }
           }
-          /* HALF A WALK IS WORSE THAN NONE. A body turned to a heading it has no
-           * picture for falls back to south and moonwalks across the room. */
+          /* half a walk is worse than none: a body turned to a heading it has no picture for falls back to south and moonwalks across the room */
           if (Object.keys(views).length < DIRS8.length) {
             console.warn(`[pmap] "${folder}" walk art covers ${Object.keys(views).length}/8 headings, not used`)
             return
           }
           gaitOf.set(sp, { frames: views.south, views, fps: 6 })
         }
-        /* EVERY NAME A SCRIPT CAN DRIVE, not a hardcoded list of them. Only an
-         * anchor can be driven, because `actor_move` and `lead_to` take a name and
-         * `hasAnchor` refuses anything else, so this is at most a dozen HEADs on a
-         * map rather than one per placement: the hub carries 94 placements and one
-         * anchor. The table above is now only for art filed under a different name
-         * from the anchor, and a member who files it under theirs needs no row in
-         * this repo at all, which is the whole point: a walking NPC stops being an
-         * engine edit. */
-        /* RESOLVED THE WAY `actorBody` RESOLVES IT, through the anchor's bound
-         * placement, because that is the only thing a script can drive.
-         * `placedById` is keyed by the placement's id and by the name its author
-         * typed, and nobody types one: looking a sprite up by the ANCHOR's name
-         * finds nothing and the walk silently never loads. */
+        /* every name a script can drive rather than a hardcoded list: only an anchor can be driven, so this is at most a dozen HEADs on a map where the hub carries 94 placements and one anchor, and art filed under the anchor's own name needs no row in this repo */
+        /* resolved the way `actorBody` resolves it, through the anchor's bound placement, because `placedById` is keyed by the placement's id and the name its author typed: looking a sprite up by the anchor's name finds nothing and the walk silently never loads */
         const drivable = new Map<string, Sprite>()
         for (const a of anchors.all) {
           const sp = a.placement ? placedById.get(a.placement) : undefined
@@ -1355,13 +1125,7 @@ export default function PmapScene() {
           if (sp) drivable.set(name, sp)
           void folder
         }
-        /* A WALK THE MAP ITSELF CARRIES BEATS ONE FILED IN THIS REPO. A body
-         * whose placement wears a second face called `walk` already has its
-         * gait in the bundle, drawn by the person who drew the body, so it is
-         * taken straight and no art folder is looked for. That is the whole
-         * point of doing it this way: giving an island's host a walk becomes a
-         * MAPVIS edit and a republish, with nothing committed here and no
-         * member waiting on somebody with push access. */
+        /* a walk the map itself carries beats one filed in this repo: a placement wearing a second face called `walk` already has its gait in the bundle, so giving a host a walk is a MAPVIS edit and a republish with nothing committed here */
         const carried = (sp: Sprite): Look | undefined => {
           const names = lookNamesOf.get(sp)
           const set = looksOf.get(sp)
@@ -1369,8 +1133,7 @@ export default function PmapScene() {
           const i = names.findIndex((n) => n === 'walk' || n === 'walking')
           const look = i > 0 ? set[i] : undefined
           if (!look) return undefined
-          /* the same refusal loadGait makes, for the same reason: a walk short a
-           * heading turns into a moonwalk the moment the body faces that way. */
+          /* the same refusal loadGait makes, for the same reason: a walk short a heading turns into a moonwalk the moment the body faces that way */
           const have = Object.keys(look.views ?? {}).length
           if (have < DIRS8.length) {
             console.warn(`[pmap] the "walk" face on a driven body covers ${have}/8 headings, not used`)
@@ -1378,16 +1141,7 @@ export default function PmapScene() {
           }
           return look
         }
-        /* ---- ONLY A BODY IS ASKED WHETHER IT HAS A WALK ---------------------
-         *
-         * Every anchor is drivable, so this used to ask the network for walk art
-         * for the trophy wall, the chart table, the hearth and a computer desk, and
-         * printed an aborted request for each one on every single load. A thing with
-         * eight headings drawn for it is a body; a thing with one picture is
-         * furniture, and furniture has no gait to look for.
-         *
-         * The named table below is the exception it has always been, for a body
-         * whose art is filed under a different word from its anchor. */
+        /* only a body is asked whether it has a walk: every anchor is drivable, so this used to fetch walk art for the trophy wall and the chart table and print an aborted request for each on every load; eight headings means a body, one picture means furniture */
         const looksLikeABody = (sp: Sprite): boolean => {
           const set = looksOf.get(sp)
           const views = set?.[0]?.views
@@ -1413,20 +1167,7 @@ export default function PmapScene() {
       /* which standing placements anything can actually reach, asked once every mover is loaded */
       {
         const free = lifeAssets.filter((q) => !q.life.walkOnly)
-        /* ---- NOTHING IS MADE SOLID ON A DOORWAY OR A SPAWN ------------------
-         *
-         * ASH: *"some weird walking bug in the maw near the entrance? thor gets stuck /
-         * i cant move him and have to walk round an invisible thing."*
-         *
-         * Measured: placement `a25` stands SEVEN pixels from the Maw's own arrival
-         * door, and the day figures started being stamped into the floor it became a
-         * wall across the entrance. A thing an author drew on a doorway is decoration
-         * over the doorway - a lamp, a banner, a bit of rubble - and the one place in a
-         * room a body absolutely must be able to occupy is the spot it arrives on.
-         *
-         * This is a rule the engine keeps rather than a thing each island remembers,
-         * which is the whole point: a member drawing a torch beside their own door must
-         * not be able to lock a student out of their island. */
+        /* nothing is made solid on a doorway or a spawn: placement `a25` stands seven pixels from the Maw's arrival door and stamping figures into the floor made it a wall across the entrance, so a torch drawn beside a door can never lock a student out of an island */
         const mouths = [
           ...anchors.all.filter((a) => a.kind === 'door' || a.kind === 'spawn')
             .map((a) => anchors.standAt(a)),
@@ -1454,26 +1195,8 @@ export default function PmapScene() {
       if (obstacles.length) {
         const ys = map.yScale || 1
         const blocked = map.encoding.blocked
-        /* the anchors a body has to be able to reach, with their own radius plus
-         * a body's width of clearance, so "not on it" also means "not against it" */
-        /* ---- THE ROOM A BODY NEEDS IS WHERE IT STANDS, NOT WHERE THE THING IS
-         *
-         * ASH, twice now: *"ash walking is buste,d he clips throught he trophies"* and
-         * *"ash still teleports / clips through the trophies asset."*
-         *
-         * The trophies ARE stamped into the floor - the console says 8 of 8 and a12 is
-         * on the list - and he walks through them anyway, because this punched the hole
-         * back out again. A pressable thing carries an anchor, the anchor sits ON the
-         * thing, and this reserved a body's width around every anchor's own pixel. The
-         * trophy plinth has a radius of 20 and the reservation around its own post is
-         * bigger than that, so every pixel of it was skipped: the one rule that makes
-         * furniture solid and the one rule that keeps furniture reachable were fighting
-         * over the same pixels, and reachable won every time.
-         *
-         * They were never really in conflict. What has to stay walkable is the spot a
-         * body STANDS ON to press the thing, which `standAt` already works out and
-         * which is offset off the thing by design. The thing itself can be as solid as
-         * it looks. */
+        /* the anchors a body has to be able to reach, with their own radius plus a body's width of clearance, so not on it also means not against it */
+        /* the room a body needs is where it stands, not where the thing is: a reservation around the anchor's own pixel is wider than the trophy plinth's radius of 20, so every pixel was skipped and it stayed walk-through; `standAt` gives the spot a body presses from, and the thing can be solid */
         const keepClear = anchors.all
           .filter((a) => a.kind !== 'region' && a.kind !== 'trigger')
           .map((a) => {
@@ -1509,30 +1232,10 @@ export default function PmapScene() {
             if (ldata[(y * W + x) * 4] !== blocked) { start = { x, y }; break outer }
           }
         }
-        /* ---- THE BASELINE MOVES WITH EACH FIGURE THAT LANDS ----------------
-         *
-         * Measured once, before anything was stamped, this made every figure after the
-         * first one answer for the ones before it: on ATC the trophies became solid,
-         * which correctly puts their own anchor's standing spot inside a wall, and then
-         * all four remaining desks were refused for "shutting off the trophies". They
-         * had not touched them. The question this test asks is "does THIS figure shut
-         * somebody out", so what it has to compare against is the floor as it was
-         * before THIS figure, not before all of them. */
+        /* the baseline moves with each figure that lands: measured once before anything was stamped, every figure answered for the ones before it, so four desks were refused for shutting off trophies they never touched; the question is whether this figure shuts somebody out */
         let before = reach(start)
 
-        /* ---- ONE FIGURE AT A TIME, AND ONLY THE BAD ONE COMES BACK OUT ----
-         *
-         * ASH, after playing the ATC island: *"ash walking is buste,d he clips
-         * throught he trophies."* He does, and this is why. Every figure on the map
-         * was stamped into the floor in one pass and the result measured ONCE, so a
-         * single figure standing somewhere awkward failed the whole map: the console
-         * on atc-1 read "putting 8 standing figures in the floor cost 7.5% of the
-         * walkable ground. None of them are in it, so they can still be walked
-         * through." Eight solid things became eight ghosts because of one of them.
-         *
-         * Each is now stamped, measured and judged on its own. A figure that walls
-         * off an anchor or eats a chunk of the island comes back out; the other seven
-         * stay in the floor where they belong. */
+        /* one figure at a time, and only the bad one comes back out: stamping all of them in one pass and measuring once failed the whole map for one awkward figure, so atc-1 logged 8 standing figures costing 7.5% of the walkable ground and all eight became ghosts */
         const measure = (): { lost: number; cutOff: Anchor[] } => {
           const after = reach(start)
           return {
@@ -1540,22 +1243,7 @@ export default function PmapScene() {
             cutOff: anchors.all.filter((a) => {
               if (a.kind === 'region' || a.kind === 'trigger') return false
               const p = anchors.standAt(a)
-              /* ---- A DOOR IS WALKED INTO, A THING IS STOOD BESIDE ------------
-               *
-               * These are two different questions and one test was answering both.
-               *
-               * A DOOR needs its own standing spot: he has to arrive AT it for it to
-               * open, and the hub has a placement sitting on the Maw's tunnel, so
-               * stamping that placement walled the entrance and he stopped a hundred
-               * and sixty five pixels short of it.
-               *
-               * A PLINTH does not. `offerOf` puts the prompt up when his feet are
-               * inside the anchor's ring, which is what pressing the trophies has
-               * always meant: you walk up to them, you do not stand on them. Asking a
-               * plinth for its own centre is how the trophies stayed walk-through for
-               * as long as they did.
-               *
-               * So a door keeps its spot and everything else keeps a way to reach it. */
+              /* a door is walked into, a thing is stood beside: a door needs its own standing spot because he must arrive at it to open it, and a hub placement sitting on the Maw's tunnel walled the entrance and stopped him a hundred and sixty five pixels short; a plinth only needs a way to reach it */
               if (a.kind !== 'door' && a.kind !== 'spawn') {
                 const reach = Math.max(a.r, 8) + HIP + BODY_MIN
                 let stillThere = false
@@ -1570,20 +1258,7 @@ export default function PmapScene() {
                 }
                 return !stillThere
               }
-              /* ---- NO ANCHOR IS EXCUSED, AND NONE NEEDS TO BE -----------------
-               *
-               * An exclusion stood here for a thing's own anchor, on the argument that
-               * pressing the trophies never meant standing inside them. True, and it
-               * was still wrong: the Maw's tunnel on the hub has a placement sitting
-               * ON the door, so stamping that placement walled the door and this
-               * excused it. He walked out of the harbour, stopped a hundred and sixty
-               * five pixels short of the entrance, and the check said nothing.
-               *
-               * It is not needed. `stamp` already keeps a body's width clear around
-               * EVERY anchor's standing spot, its own included, so the spot a body
-               * uses is never stamped in the first place and this test can be asked
-               * honestly of everything. A door you can walk into and a plinth you can
-               * press are then the same rule instead of two. */
+              /* no anchor is excused, because `stamp` already keeps a body's width clear around every anchor's standing spot including its own: the old exclusion for a thing's own anchor let a placement sitting on the Maw's tunnel wall the door with the check saying nothing */
               const i = Math.round(p.y) * W + Math.round(p.x)
               if (i < 0 || i >= W * H) return false
               return before.seen[i] === 1 && after.seen[i] === 0
@@ -1592,25 +1267,10 @@ export default function PmapScene() {
         }
         const refused: string[] = []
         let lost = 0
-        /* ---- SMALLER RATHER THAN NOT AT ALL --------------------------------
-         *
-         * ASH, twice about the same island: *"he clips through the trophies."* The
-         * trophies are fixed. Four other things on that terrace were still ghosts, and
-         * the reason was all-or-nothing: a figure whose full footprint would shut some
-         * anchor off was left entirely walkable. On ATC the computers stand about
-         * twenty pixels apart and a body needs more than that to pass between them, so
-         * stamping one at its full width closed the gap to the next one and the whole
-         * stamp was taken back.
-         *
-         * A desk that is solid in its middle and soft at its edges is far closer to the
-         * truth than a desk made of air. Each figure is tried at its full width, then
-         * at three quarters, then at half, and only a thing that shuts somebody out
-         * even at half is left alone. */
+        /* smaller rather than not at all: all-or-nothing left a figure entirely walkable if its full footprint shut an anchor off, so on ATC the computers stand about twenty pixels apart and stamping one closed the gap to the next; each is tried at full width, three quarters, then half */
         const stamp = (s: { x: number; y: number; r: number }, scale: number, pad = 0): number[] => {
           const undo: number[] = []
-          /* the FEET, not the body: a figure occupies the ground it stands on and
-           * not the air its head is in, which is the same distinction the ink
-           * measurement already makes for the push pass */
+          /* the feet, not the body: a figure occupies the ground it stands on and not the air its head is in, the same distinction the ink measurement makes for the push pass */
           const rx = Math.max(1, s.r * scale + pad), ry = Math.max(1, (s.r * scale + pad) * ys)
           for (let y = Math.ceil(s.y - ry); y <= Math.floor(s.y + ry); y++) {
             for (let x = Math.ceil(s.x - rx); x <= Math.floor(s.x + rx); x++) {
@@ -1619,30 +1279,8 @@ export default function PmapScene() {
               if (ex * ex + ey * ey > 1) continue
               const i = (y * W + x) * 4
               if (ldata[i] === blocked) continue                    // already a wall
-              /* ---- A THING'S OWN ANCHOR DOES NOT HOLLOW IT OUT ----------
-               *
-               * A pressable thing carries an anchor and the anchor sits ON it, so its
-               * clearance ring is centred inside the very solid it is meant to keep
-               * reachable. On the ATC plinth that ring is wider than the trophies are,
-               * so every pixel of them was skipped and the stamp wrote NOTHING while
-               * still reporting "8 of 8 put in the floor". Ash walked through them
-               * twice and was told twice that they were solid.
-               *
-               * Rings belonging to this solid are ignored while stamping it. Every
-               * other anchor's clearance still holds, which is what the rule is for. */
-              /* ---- ITS OWN ANCHOR KEEPS A FOOTHOLD, NOT A CLEARING ------
-               *
-               * Two ways to get this wrong and this game has now had both. Honouring a
-               * thing's own anchor ring in full reserves `r + hip + body` around a
-               * point INSIDE the thing, which is wider than the thing, so nothing gets
-               * stamped and the trophies were walk-through for ever. Ignoring it
-               * entirely lets the solid swallow the spot a body has to stand on to be
-               * walked to, and the club president lost his route to his own machine:
-               * "no route for host to the_desk, steering straight at it".
-               *
-               * A thing's own anchor keeps a body's width and no more. Enough to stand
-               * at it, not enough to hollow it out. Every OTHER anchor keeps its full
-               * clearance, which is what the rule was written for. */
+              /* a thing's own anchor does not hollow it out: its clearance ring is centred inside the solid it is meant to keep reachable and on the ATC plinth is wider than the trophies, so nothing was stamped while the log still said 8 of 8 in the floor */
+              /* its own anchor keeps a foothold, not a clearing: the full `r + hip + body` ring around a point inside the thing stamps nothing, and ignoring it swallows the spot a body must stand on and gives "no route for host to the_desk", so its own gets a body's width and every other anchor full clearance */
               const own = (k: { x: number; y: number; r: number }) =>
                 Math.hypot(k.x - s.x, (k.y - s.y) / ys) <= s.r
               if (keepClear.some((k) => Math.hypot(k.x - x, (k.y - y) / ys)
@@ -1656,8 +1294,7 @@ export default function PmapScene() {
         const putBack = (undo: number[]) => {
           for (let k = 0; k < undo.length; k += 2) ldata[undo[k]] = undo[k + 1]
         }
-        /* what a full-width stamp would shut off, asked again only to write the reason
-         * down: a warning nobody can act on is a warning nobody reads */
+        /* what a full-width stamp would shut off, asked again only to write the reason down, because a warning nobody can act on is a warning nobody reads */
         const measureAfter = (s: { x: number; y: number; r: number }): string[] => {
           const undo = stamp(s, 1)
           const m = measure()
@@ -1668,40 +1305,21 @@ export default function PmapScene() {
         for (const s of obstacles) {
           let done = false
           for (const scale of [1, 0.75, 0.5]) {
-            /* ---- TESTED AT A BODY'S WIDTH, STAMPED AT ITS OWN ----------------
-             *
-             * The reachability fill walks pixel to pixel, so it happily squeezes
-             * through a gap two pixels wide that a panther cannot. On the hub - a town
-             * square of stalls and crates with narrow lanes - that let twenty of
-             * twenty five placements be declared solid while every authored walk
-             * through the square quietly stopped working: the fill said the tunnel was
-             * still reachable and a body could no longer get to it.
-             *
-             * So the QUESTION is asked of a figure grown by a body's width, and only
-             * the answer is stamped at the figure's real size. If a hip-wide corridor
-             * survives the grown version, a real body can use it. */
+            /* tested at a body's width, stamped at its own: the reachability fill squeezes through a two pixel gap a panther cannot, so on the hub twenty of twenty five placements went solid while authored walks through the square stopped working; ask of a figure grown by a body's width */
             const probe = stamp(s, scale, HIP + BODY_MIN)
             const roomy = measure()
             putBack(probe)
             if (roomy.cutOff.length || roomy.lost > 0.25) continue
             const undo = stamp(s, scale)
-            /* AND A FIGURE THAT STAMPED NOTHING IS NOT A FIGURE IN THE FLOOR. This
-             * used to `continue` silently and then be counted in the "n of n put in
-             * the floor" line, which is how a thing he can walk straight through was
-             * reported solid on every load for as long as the feature has existed. */
+            /* a figure that stamped nothing is not a figure in the floor: this used to continue silently and still be counted in the n of n line, so a thing he walks straight through was reported solid on every load */
             if (!undo.length) continue
             const m = measure()
-            /* A QUARTER OF THE ISLAND IS A WALL, ONE FIGURE IS NOT. The old five
-             * percent was a budget for the whole map spent by everything at once,
-             * which on a small island with eight things on it is under one percent
-             * each. What actually matters is whether anybody is shut out, and that is
-             * the second test, which has no budget at all. */
+            /* a quarter of the island is a wall, one figure is not: the old five percent was a whole-map budget spent by everything at once, under one percent each on an island with eight things, and whether anybody is shut out is the second test, which has no budget */
             if (m.cutOff.length || m.lost > 0.25) { putBack(undo); continue }
             floored += undo.length / 2
             lost = m.lost
             done = true
-            /* this one is in the floor now, so it is part of what the next one is
-             * measured against */
+            /* this one is in the floor now, so it is part of what the next one is measured against */
             before = reach(start)
             if (scale < 1) {
               console.log(`[pmap] ${mapId}: ${s.name ?? 'a figure'} is solid at `
@@ -1710,8 +1328,7 @@ export default function PmapScene() {
             break
           }
           if (!done) {
-            /* NAMED, BOTH SIDES. "a figure shut something off" is not actionable in
-             * MAPVIS; "the desk shuts the president off" is. */
+            /* named on both sides, because "a figure shut something off" is not actionable in MAPVIS and "the desk shuts the president off" is */
             const why = measureAfter(s)
             refused.push(`${s.name ?? 'a figure'}${why.length ? ` (shuts off ${why.join(', ')})` : ''}`)
           }
@@ -1759,12 +1376,7 @@ export default function PmapScene() {
 
       // thor: the walk frames, sized from map.json and trimmed so the anchor really is his feet
       const walkT: Record<string, Texture[]> = {}
-      /* ---- THE SET HE IS WEARING (Ash gave the word for the art 2026-09-09)
-       *
-       * `walkFrame` answers the bare panther's own path until somebody has drawn
-       * the outfit, so this line is safe with no art on disk and becomes the
-       * jacket the day a folder lands. `thorWear.ts` has the whole of why an
-       * outfit is a set rather than a layer. */
+      /* the set he is wearing: `walkFrame` answers the bare panther's own path until the outfit art exists, so this is safe with no art on disk and becomes the jacket the day a folder lands; `thorWear.ts` has why an outfit is a set rather than a layer */
       await Promise.all(DIRS8.map(async (d) => {
         walkT[d] = await Promise.all([0, 1, 2, 3, 4, 5]
           .map((i) => Assets.load(req(walkFrame(loadSave(), d, i)))))
@@ -1773,9 +1385,7 @@ export default function PmapScene() {
 
       /* prints what opening this map cost, split into the bundle's files and the engine's art */
       {
-        // split on /art/ rather than on dir, because the platform manifest is
-        // asked for one level above the version prefix and is still the map's
-        // cost, not the engine's
+        // split on /art/ rather than on dir, because the platform manifest is asked for one level above the version prefix and is still the map's cost, not the engine's
         const art = [...asked].filter((u) => u.startsWith('/art/')).length
         const real = performance.getEntriesByType('resource').length - netAtStart
         console.log(
@@ -1785,12 +1395,10 @@ export default function PmapScene() {
       }
 
       const rig = scanRows(walkT.south[0])
-      // Thor draws SMALLER than the tool's authoring height (Ash, 2026-08-15: "thor needs
-      // to be a lot smaller" — the marker carries findability, not his size). ?ch=N tunes.
+      // Thor draws smaller than the tool's authoring height, because the marker carries findability and not his size, and ?ch=N tunes it
       const charH = Number(params.get('ch') || 0) || Math.max(8, Math.round(map.character.heightPx * 0.6))
       const thorScale = charH / (rig ? rig.feet - rig.top + 1 : 67)
-      // twice the authored tool speed by default (Ash, 2026-08-15: "make thor faster");
-      // ?spd=F tunes the factor
+      // twice the authored tool speed by default, and ?spd=F tunes the factor
       const SPD = map.speed * (Number(params.get('spd') || 0) || 2)
       /* divides out walk.ts's test-stage speed factor so thor walks at this scene's own speed */
       cfg.speed = SPD / TEST_SPEED
@@ -1800,39 +1408,16 @@ export default function PmapScene() {
           return r ? new Texture({ source: t.source, frame: new Rectangle(0, 0, t.source.pixelWidth, r.feet + 1) }) : t
         })
       }
-      /* ---- THE COAT HE PICKED, ON THE BODY THAT WALKS (Ash, 2026-09-09) --
-       *
-       * *"The wardrobe. The coats change thors appearence inside the wardrobe
-       * panel, but when the user exits out, thors in game character has not
-       * changed. I bet its the same for the letter man jacket, googles, cap."*
-       *
-       * `thorLook` was written by the mirror and read by exactly two places: the
-       * mirror's own canvas and `BeachIso`, the tile intro. The painted world,
-       * which is every minute of the game after the beach, loaded the walk
-       * frames off disk and drew them as painted. So the choice was real, saved,
-       * and invisible from the moment he stepped off the sand.
-       *
-       * IT IS REBUILT RATHER THAN TINTED. `thorLook.ts` rotates the hue of the
-       * SHIRT pixels only, chosen by hue band and saturation, which no sprite
-       * tint can do: a tint multiplies the whole image and would take his fur
-       * with it. Forty-eight small canvases, paid once at load and again only on
-       * the frame a student presses a coat.
-       *
-       * AND IT FOLLOWS A CHANGE MADE MID-GAME, because the wardrobe opens from
-       * the year sheet over a live map. Without the subscription below he would
-       * have had to leave the island and come back. */
+      /* the coat is rebuilt, not tinted: `thorLook.ts` rotates the hue of the shirt pixels only, which a tint cannot do because it multiplies the whole image and takes his fur with it, at forty-eight small canvases paid once at load, and the subscription below catches a change made over a live map */
       const walkArt: Record<string, Texture[]> = {}
-      /* the held poses, dyed, and the same frames as painted. Declared up here
-       * because `dressThor` below reads them and runs on this pass: a `const`
-       * further down the same scope is a temporal dead zone, not a hoist. */
+      /* the held poses, dyed, and the same frames as painted, declared up here because `dressThor` below reads them on this pass and a `const` further down the same scope is a temporal dead zone */
       const poseTex = new Map<string, Texture>()
       const poseSrc = new Map<string, Texture>()
       let drawnLook: string | null = null
       /** one frame through the shirt recolour, keeping its trim */
       const dye = (t: Texture): Texture => {
         const src = t.source.resource as CanvasImageSource & { width: number; height: number }
-        /* a frame whose pixels are not reachable is left as painted rather than
-         * dropped: a missing coat is better than a missing character */
+        /* a frame whose pixels are not reachable is left as painted rather than dropped, because a missing coat is better than a missing character */
         if (!src) return t
         try {
           const cv = document.createElement('canvas')
@@ -1848,23 +1433,12 @@ export default function PmapScene() {
         if (drawnLook === key) return
         drawnLook = key
         for (const d of DIRS8) walkArt[d] = hue === null ? walkT[d] : walkT[d].map(dye)
-        /* AND THE POSES WITH THEM. He sits at the fire and lies down to sleep in
-         * held poses off a different folder, and dyeing only the walk set turned
-         * a dyed panther teal again the moment he stopped moving. */
+        /* and the poses with them: he sits at the fire and lies down in held poses off a different folder, so dyeing only the walk set turned a dyed panther teal again the moment he stopped */
         for (const [file, t] of poseSrc) poseTex.set(file, hue === null ? t : dye(t))
       }
       dressThor(loadSave()?.thorLook)
 
-      /* ---- AND AN OUTFIT IS A RELOAD, NOT A RE-DYE ------------------------
-       *
-       * A coat is a hue rotation of frames already in memory, so it lands on the
-       * frame the student presses it. An outfit is a different set of pngs, so it
-       * has to come off the network first. Both are watched here; only the one
-       * that changed is paid for.
-       *
-       * THE GUARD IS THE WHOLE KEY, outfit and coat together, because `writeSave`
-       * emits on every position record and every flag: without it this would
-       * rebuild forty-eight textures several times a second while he walks. */
+      /* an outfit is a reload, not a re-dye: a coat rotates frames already in memory, an outfit is different pngs off the network, and the guard on both keys matters because `writeSave` emits on every position record and would rebuild forty-eight textures several times a second while he walks */
       let wornNow = wornKey(loadSave())
       const redress = async () => {
         const s2 = loadSave()
@@ -1873,8 +1447,7 @@ export default function PmapScene() {
         const outfitChanged = key.split(':')[0] !== wornNow.split(':')[0]
         wornNow = key
         if (outfitChanged) {
-          /* the frames themselves are different art, so they are fetched again
-           * and the trim that finds his feet is redone against the new pixels */
+          /* the frames themselves are different art, so they are fetched again and the trim that finds his feet is redone against the new pixels */
           const fresh: Record<string, Texture[]> = {}
           await Promise.all(DIRS8.map(async (d) => {
             const got = await Promise.all([0, 1, 2, 3, 4, 5]
@@ -1897,12 +1470,7 @@ export default function PmapScene() {
       }
       offLook = subscribeSave(() => { void redress() })
 
-      /* ---- AND THE CAMERA FOLLOWS THE SWITCH (Ash, 2026-09-09) ------------
-       *
-       * The toggle writes a SETTING rather than the save, so it has its own
-       * event. Only the walking shot moves: a film holding the wide shot or the
-       * ship keeps it, because a student flipping a switch mid-cutscene has not
-       * asked to be taken out of the film. */
+      /* the camera follows the switch: the toggle writes a setting rather than the save so it has its own event, and only the walking shot moves because a student flipping a switch mid-cutscene has not asked to leave the film */
       offCamera = onSettings(() => {
         if (movieOn || lastShot === 'island' || hull) return
         zoomTo(walkZ())
@@ -1929,8 +1497,7 @@ export default function PmapScene() {
       thorSp.anchor.set(0.5, 1)
       thorSp.scale.set(thorScale)
       world.addChild(thorSp)
-      // his heading and his stride live on the Walker now, because the law that
-      // moves him is the one that decides both
+      // his heading and his stride live on the Walker now, because the law that moves him is the one that decides both
       const thor = { sp: thorSp, sh }
 
       /* the poses he can hold, as a named table a member can write pose("nap") against */
@@ -1951,15 +1518,12 @@ export default function PmapScene() {
         poseTex.set(file, worn)
         return worn
       }
-      /* what he is holding, or null for the walk set. Read by the ticker, which is
-       * the one place his texture is decided, so a pose cannot fight the stride. */
+      /* what he is holding, or null for the walk set, read by the ticker which is the one place his texture is decided so a pose cannot fight the stride */
       let posed: { name: string; tex: Texture } | null = null
-      /* where he was when the pose was set, so "he moved" is a real comparison
-       * rather than "a key is down": a player leaning into a wall has not got up */
+      /* where he was when the pose was set, so "he moved" is a real comparison rather than "a key is down": a player leaning into a wall has not got up */
       const poseAt = { x: 0, y: 0 }
 
-      // the spawn is VALIDATED: if the exported point is blocked (a mask edit can land on
-      // it), spiral out to the nearest standable ground
+      // the spawn is validated, because a mask edit can land on the exported point, so spiral out to the nearest standable ground
       const findGround = (sx: number, sy: number): [number, number] => {
         if (canStand(sx, sy)) return [sx, sy]
         for (let r = 8; r <= 400; r += 8)
@@ -2139,9 +1703,7 @@ export default function PmapScene() {
       const doorTxt = new Text({
         text: '',
         style: new TextStyle({
-          /* the commissioned body face, loaded into `document.fonts` by
-           * `main.tsx` before anything renders, with monospace behind it for the
-           * cold-cache frame */
+          /* the commissioned body face, loaded into `document.fonts` by `main.tsx` before anything renders, with monospace behind it for the cold-cache frame */
           fontFamily: ['Deckhand', 'monospace'],
           fontSize: promptSize(),
           fontWeight: 'bold',
@@ -2175,8 +1737,7 @@ export default function PmapScene() {
         capG.rect(1, 1, s - 2, s + d - 2).fill(CAP_WALL)
         // the face
         capG.rect(1, 1, s - 2, s - 2).fill(CAP_FACE)
-        // and one lit row along the top of the face, the way every drawn edge in
-        // this kit is lit: light, then dark, then field
+        // one lit row along the top of the face, the way every drawn edge in this kit is lit: light, then dark, then field
         if (!plainArm()) capG.rect(2, 2, s - 4, 1).fill(0xfdf3dc)
         /* the E: a stem and three arms, boxed inside the face, with a short middle arm */
         const m = Math.max(3, Math.round(s * 0.26))
@@ -2208,8 +1769,7 @@ export default function PmapScene() {
         const x0 = -Math.round(w / 2), y0 = -Math.round(h / 2)
         const x1 = x0 + Math.round(w), y1 = y0 + Math.round(h)
         wrapG.clear()
-        // the four edges walked in order, each one drawn up to whatever of it the
-        // clock has paid for
+        // the four edges walked in order, each drawn up to whatever of it the clock has paid for
         const legs: [number, number, number, number][] = [
           [x0, y0, x1, y0], [x1, y0, x1, y1], [x1, y1, x0, y1], [x0, y1, x0, y0],
         ]
@@ -2255,21 +1815,16 @@ export default function PmapScene() {
       const layoutPrompt = () => {
         const markW = promptMark.visible ? promptMark.texture.width : 0
         const gap = markW ? 8 : 0
-        /* THE KEY LEADS, because it is the thing being named: a student reads
-         * left to right and the sentence is "press this, and this happens". */
+        /* the key leads, because it is the thing being named and a student reads left to right: press this, and this happens */
         const capGap = 9
         const bodyW = capBox.w + capGap + markW + gap + doorTxt.width
         const plateH = Math.max(doorTxt.height + 14, capBox.h + 10)
         if (promptPaper.visible) drawPlainPlate(promptPaper, bodyW + 28, plateH)
-        /* the ring runs round the PLATE's own edge, so it has to be measured off
-         * whichever plate is really under the words: the platform's carved socket
-         * where the kit landed, the plain arm's rectangle where it did not. */
+        /* the ring runs round the plate's own edge, so it is measured off whichever plate is really under the words: the platform's carved socket where the kit landed, the plain rectangle where it did not */
         wrapBox.w = bodyW + 28
         wrapBox.h = plateH
         if (promptPlate) {
-          /* the art is drawn at 104 tall and is scaled down as a whole, so every
-           * corner keeps the proportion it was painted at. The pad is in the
-           * plate's own units. */
+          /* the art is drawn at 104 tall and scaled down as a whole so every corner keeps its painted proportion, and the pad is in the plate's own units */
           const k = plateH / promptPlateH
           const padX = 30
           promptPlate.width = bodyW / k + padX * 2
@@ -2294,8 +1849,7 @@ export default function PmapScene() {
         promptPlateH = kitPieceHeight('socket') ?? 104
         promptPlate.zIndex = -1
         prompt.addChild(promptPlate)
-        /* the stroke was standing in for a background. Now that there is one, it
-         * is noise round the letters. */
+        /* the stroke was standing in for a background, and with one there it is noise round the letters */
         doorTxt.style.stroke = { color: 0x000000, width: 0 }
         doorTxt.style.fill = PROMPT_INK[promptWas]
         layoutPrompt()
@@ -2311,8 +1865,7 @@ export default function PmapScene() {
 
         doorTxt.text = text
         doorTxt.style.fontSize = promptSize()
-        /* the cap is sized off the same setting the words are, so S/M/L moves the
-         * key and the sentence together instead of leaving one of them behind */
+        /* the cap is sized off the same setting the words are, so S/M/L moves the key and the sentence together instead of leaving one behind */
         drawKeycap(Math.round(promptSize() * 1.15))
         plaqueStyle(doorTxt, promptPlate ? PROMPT_INK[state] : 0xbaf3ea)
         /* THE READER AND THE KEYBOARD GET THE SAME SENTENCE THE EYE GETS. */
@@ -2339,9 +1892,7 @@ export default function PmapScene() {
 
       /* the plaque takes a tap as well as an E, so a trackpad can open a station */
       let promptAnchor: Anchor | null = null
-      /* the same plaque serves the water. A berth is not an anchor (it is off the
-       * painting, which is the whole of AUTHORING §12), so what it hands over is a
-       * closure rather than a name, and the tap path and the key path both call it. */
+      /* the same plaque serves the water: a berth is not an anchor because it is off the painting, so it hands over a closure rather than a name and both the tap path and the key path call it */
       let seaTap: (() => void) | null = null
       prompt.on('pointertap', (e) => {
         /* and the tap does not also reach the walk surface under the plaque */
@@ -2351,28 +1902,14 @@ export default function PmapScene() {
         if (litAnchor && insideLit(w.x, w.y) && litAnchor.name !== promptAnchor?.name) {
           if (walkTap(w.x, w.y) !== 'busy') return
         }
-        /* THE TAP GETS THE SAME ACKNOWLEDGEMENT THE KEY GETS. A trackpad is the
-         * deployment target's only pointer and it has no travel to feel. */
+        /* the tap gets the same acknowledgement the key gets, because a trackpad is the deployment target's only pointer and it has no travel to feel */
         if (seaTap) { startWrap(); seaTap(); return }
         if (promptAnchor) { startWrap(); void fire(promptAnchor) }
       })
 
       /* the objective marker: a small chevron over the station the year is sending him to */
       /* a drawn chevron off the kit's pointer sheet, falling back to a drawn triangle */
-      /* ---- THE ARROW THAT FOLLOWED HIM IS GONE (Ash, 2026-09-09) --------
-       *
-       * *"The arrow mark glitches. Firstly theres a small arrow mark following
-       * thor around."*
-       *
-       * It was a chevron pinned sixty ground pixels ahead of him along the route
-       * the walk law had found, and from the chair that is an arrow stuck to the
-       * character rather than a thing in the room. It was also the THIRD mark
-       * saying one sentence: the trail arrows already draw the road, the ring
-       * already names the thing, and the sign already hangs over it. Three
-       * pointers for one instruction is why he read the set as glitching.
-       *
-       * `marksOn` is what is left of it: the one decision about whether the
-       * wayfinding is showing at all, which every mark below still reads. */
+      /* the arrow that followed him is gone: a chevron pinned sixty ground pixels ahead along his route read as stuck to the character, and it was the third mark saying one sentence next to the trail arrows and the ring; `marksOn` is what is left, the one decision about whether wayfinding shows at all */
 
       /* the big pointer over the target itself, answering which thing rather than which way */
       const bigMark = new Container()
@@ -2388,12 +1925,7 @@ export default function PmapScene() {
         void kitSprite('pointer', 'chevron').then((drawn) => {
           if (destroyed || !drawn) return
           drawn.anchor.set(0.5, 1)
-          /* SMALLER THAN IT WAS, because it no longer has to be seen from
-           * across the room: it sits on the thing now. At nearly two bodies it
-           * was a sign hanging in mid-air and Ash read it as pointing at whatever
-           * happened to be behind it (2026-09-09). Sized against the character
-           * rather than against the sheet, so one drawing is right on a map whose
-           * people are eighteen painting pixels and on one whose people are forty. */
+          /* smaller than it was, because it sits on the thing now rather than being read across the room: at nearly two bodies it hung in mid-air and read as pointing at whatever was behind it, and it is sized against the character so one drawing is right on eighteen and forty pixel people */
           const want = Math.max(14, Math.round(map.character.heightPx * 0.8))
           drawn.scale.set(want / drawn.texture.height)
           bigMark.removeChild(glyph)
@@ -2415,8 +1947,7 @@ export default function PmapScene() {
       let litKey = ''
       let litR = 0
       let litRy = 0
-      /* WHICH ANCHOR THE LIGHT IS ON, so the plaque can tell "the thing under my
-       * pointer" from "the thing the year wants". Set where the ring is drawn. */
+      /* which anchor the light is on, so the plaque can tell the thing under my pointer from the thing the year wants, set where the ring is drawn */
       let litAnchor: Anchor | null = null
       /* is a world point inside the lit pool on the floor */
       const insideLit = (wx: number, wy: number): boolean =>
@@ -2433,9 +1964,7 @@ export default function PmapScene() {
       const wakeG = new Graphics()
       wakeG.zIndex = OVER_PLACED - 2
       world.addChild(wakeG)
-      /* the markers for everything else on the water: one per slot, drawn in the
-       * state's own ink and carrying the state's own MARK, so the readout does not
-       * rely on hue (§11.3, which nothing implemented) */
+      /* one marker per slot on the water, drawn in the state's own ink and carrying its own mark, so the readout does not rely on hue */
       const slotMarks = new Container()
       slotMarks.zIndex = OVER_PLACED - 3
       world.addChild(slotMarks)
@@ -2456,8 +1985,7 @@ export default function PmapScene() {
             t.source.scaleMode = 'nearest'
             const name = new Sprite(t)
             name.anchor.set(0.5, 0.5)
-            /* on the stern, which is behind the mast and low: a fraction of the
-             * hull rather than a pixel count, so it rides any ship art */
+            /* on the stern, behind the mast and low: a fraction of the hull rather than a pixel count, so it rides any ship art */
             name.position.set(0, hullViews[0].height * 0.16)
             hullSp.addChild(name)
             if (img.truncated) console.info(`[pmap] the stern is not wide enough for "${boat}", so it reads "${img.lines[0]}"`)
@@ -2478,8 +2006,7 @@ export default function PmapScene() {
           const p = toSea(px, py)
           for (const s of comp.slots) {
             if (s.map === mapId || !s.map) continue
-            /* the room at the same position as its island is not a second coast:
-             * it has no water around it and never appears on the sea */
+            /* the room at the same position as its island is not a second coast: it has no water around it and never appears on the sea */
             if (s.at.x === (slot?.at.x ?? 0) && s.at.y === (slot?.at.y ?? 0)) continue
             const dx = Math.max(Math.abs(p.x - s.at.x) - s.footprint.w / 2, 0)
             const dy = Math.max(Math.abs(p.y - s.at.y) - s.footprint.h / 2, 0)
@@ -2523,11 +2050,9 @@ export default function PmapScene() {
       type FxRun = { g: Graphics; t: number; life: number; kind: string; x: number; y: number; done: () => void }
       const fxRuns: FxRun[] = []
       const FX_LIBRARY: Record<string, number> = {
-        /* an island arriving: the ring that says something is now where nothing
-         * was. §80.2 wants the rise as an fx hook rather than as a second asset. */
+        /* an island arriving: the ring that says something is now where nothing was, wanted as an fx hook rather than a second asset */
         island_rising: 2600,
-        /* the two the world already needed and had to fake: a mark landing on the
-         * chart, and the flash a station uses to say it heard you */
+        /* the two the world already needed and had to fake: a mark landing on the chart, and the flash a station uses to say it heard you */
         chart_marked: 900,
         spark: 700,
       }
@@ -2546,39 +2071,24 @@ export default function PmapScene() {
       /* a door swap goes through the transition library, so the destination picks the cover */
       let fade = false
       let releaseExit: (() => void) | null = null
-      /* WHAT THE SECOND ARGUMENT MAY BE, and it is two things that look alike. An
-       * OCCASION is the engine's own: the graduation, or a map being crossed on the
-       * way somewhere. A NAME is a picture the destination's own bundle carries, and
-       * the engine knows nothing about it beyond handing it to `coverFor`. */
+      /* the second argument is either an occasion the engine owns, the graduation or a map crossed on the way somewhere, or the name of a picture the destination's own bundle carries and `coverFor` resolves */
       const beginExit = (to: PmapTarget, occasion?: string) => {
         if (fade) return
         fade = true
         /* the cinema bars carry through the door when they are already up */
         carryCinemaThroughDoor()
-        /* the controls go away for the whole transition. Walking during one means
-         * arriving somewhere the player did not aim for. */
+        /* the controls go away for the whole transition, because walking during one means arriving somewhere the player did not aim for */
         releaseExit = holdWorld(`pmap:exit->${to.map}`)
-        /* the end of a year is an occasion rather than a destination, so it names its own
-         * cover, and a map he is only crossing on his way to the boat gets no card at all */
+        /* the end of a year is an occasion rather than a destination so it names its own cover, and a map only crossed on the way to the boat gets no card at all */
         const choice = occasion === 'ceremony' ? ceremonyCover(titleOfMap(to.map))
           : occasion === 'passing' ? passingCover()
-            /* anything else is the name of a cover the destination carries, which
-             * `coverFor` turns into a candidate inside that map's own bundle */
+            /* anything else is the name of a cover the destination carries, which `coverFor` turns into a candidate inside that map's own bundle */
             : coverFor(to.map, undefined, occasion)
         engine.log('door_taken', {
           from: mapId, to: to.map, at: to.at ?? null,
           cover: choice.spec.kind, occasion: occasion ?? null,
         })
-        /* A REFUSED COVER IS A REFUSED DOOR, and it used to be neither.
-         *
-         * `cover()` answers false and never runs the swap when a transition is
-         * already up. That answer was thrown away with `void`, and the two costs
-         * were both silent: `fade` stays true and is assigned nowhere else, so
-         * every later door, every station and the controls were dead until a
-         * reload; and `.finally` still resolved the island's `enter()` promise,
-         * so the island was told the door had worked and ran its next line on a
-         * map that had not changed. `docked()` takes this path on a crossing that
-         * lands on another map, so a refusal here loses the voyage as well. */
+        /* a refused cover is a refused door: `cover()` answers false when a transition is already up, and throwing that answer away left `fade` stuck true, killing every later door, station and control until a reload, while `.finally` still resolved `enter()` on a map that never changed */
         void cover(choice.spec, async () => {
           /* the url is kept in step with replaceState, so nothing outside this component is lost */
           setMapUrl(to)
@@ -2587,15 +2097,12 @@ export default function PmapScene() {
           recordPosition({ map: to.map, ...(to.at ? { anchor: to.at } : {}) })
           ;(window as unknown as { __sceneReady?: boolean }).__sceneReady = false
           setSceneDrawn(null)
-          /* re-runs the effect on the new target, which tears this Pixi app down
-           * and builds the next one */
+          /* re-runs the effect on the new target, which tears this Pixi app down and builds the next one */
           setTarget(to)
           await waitForScene()
         }).then((swapped) => {
           if (swapped) return
-          /* the map did not change, so this scene is still live and has to be
-           * given back: the door is open again, the controls come back, and the
-           * island hears a refusal on its own line rather than a false ok */
+          /* the map did not change, so this scene is still live and has to be given back: the door is open again, the controls come back, and the island hears a refusal on its own line rather than a false ok */
           fade = false
           engine.log('door_refused', { from: mapId, to: to.map, why: 'a transition was already running' })
           console.warn(`[pmap] refused to open "${to.map}": a transition is already running`)
@@ -2621,18 +2128,15 @@ export default function PmapScene() {
         requestAnimationFrame(poll)
       })
       let ePrev = false
-      /* a station body is running and owns the player. Checked before offering a
-       * prompt so E cannot start the counselor twice while he is mid-sentence. */
+      /* a station body is running and owns the player, checked before offering a prompt so E cannot start the same one twice mid sentence */
       let busy = false
-      /* the hold a running station owns, kept where a cutscene it starts can
-       * suspend it. See suspendStationHold below for why that is necessary. */
+      /* the hold a running station owns, kept where a cutscene it starts can suspend it, see `suspendStationHold` below */
       let stationHold: (() => void) | null = null
 
       /* the member's python island for this map, opened lazily because most maps have none */
       let grape: GrapeSession | null = null
       let grapeHandlers: string[] = []
-      /* whether the room's own python has finished the handler the engine calls
-       * unprompted on every load. See the note where it is set. */
+      /* whether the room's own python has finished the handler the engine calls unprompted on every load */
       let islandStarted = false
       /* while an island is still loading its stations are not ready, so a press does nothing */
       let islandPending = false
@@ -2642,16 +2146,12 @@ export default function PmapScene() {
       let stageMisses: string[] = []
       const stageMissed = (what: string) => { if (!stageMisses.includes(what)) stageMisses.push(what) }
 
-      /* `camZ` was declared here, after the ocean was already built and reading
-       * `Z`, which is why a cutscene push slid the coast ring off its coast. It is
-       * declared beside `Z` now, before its first reader. */
+      /* `camZ` is declared beside `Z`, before its first reader: declared down here instead, after the ocean was built and reading `Z`, a cutscene push slid the coast ring off its coast */
       let csCam: { x: number; y: number; zoom: number } | null = null
       let csHold: (() => void) | null = null
       let unpublish: (() => void) | null = null
 
-      /* THE PLAYER IS AN ACTOR NAMED `thor`, which is what the runtime's own
-       * `playerActor` defaults to, so a script written for the beach names him the
-       * same way here. */
+      /* the player is an actor named `thor`, which is what the runtime's own `playerActor` defaults to, so a script written for the beach names it the same way here */
       const IS_THOR = (a: string) => a === 'thor'
 
       /* the world half of the intent vocabulary, which is what a member's python can ask for */
@@ -2667,13 +2167,7 @@ export default function PmapScene() {
       }
 
       /* letting go of a driven body settles whatever move was pending on it */
-      /* ---- THE WAY HE WAS LEFT FACING IS THE WAY HE STAYS FACING ---------
-       *
-       * ASH: *"his stops + facings + positions are goofy."* Half of that is here. A
-       * body let go of went straight back to whichever heading `rest` picked off a
-       * FILENAME when the map loaded, so a film could turn the principal to face the
-       * student, say its line, let him go, and watch him spin back to south on the
-       * next frame. The last thing a scene said about him is the truth about him. */
+      /* the way a body was left facing is the way it stays: a released body used to snap back to whichever heading `rest` picked off a filename at load, so a film could turn the principal, say its line, let go, and watch him spin back to south on the next frame */
       const lastFacing = new Map<Sprite, string>()
 
       const releaseDriven = (only?: Sprite) => {
@@ -2687,9 +2181,7 @@ export default function PmapScene() {
         }
       }
 
-      /* the promises waiting for him to walk into somewhere, checked on the
-       * scene's own ticker so an arrival is seen on the frame it happens rather
-       * than up to an interval late */
+      /* the promises waiting on an arrival, checked on the scene's own ticker so it is seen on the frame it happens rather than up to an interval late */
       const waiters: { a: Anchor; until: number; done: (v: boolean) => void }[] = []
 
       /* a route travelled three ways: the player walks it, a placement is carried, the hull sails */
@@ -2756,9 +2248,7 @@ export default function PmapScene() {
 
         /* every refusal happens before anybody boards, and the water is sampled along the line */
         const pts = legsOf(p, backwards)
-        /* FROM WHERE SHE IS, which on a sea arrival is the far start and not the
-         * berth: measuring the first leg from a dock she is not at refused a
-         * crossing over the one stretch of water she was never going to sail. */
+        /* from where the hull is, which on a sea arrival is the far start and not the berth: measuring the first leg from a dock she is not at refused a crossing over water she was never going to sail */
         const from = hull ? { x: hull.x, y: hull.y } : fromSea(berth.x, berth.y)
         const line = [from, ...pts]
         for (let i = 1; i < line.length; i++) {
@@ -2793,9 +2283,7 @@ export default function PmapScene() {
         if (!hull) board()
         if (!hull) throw new NotBuilt('route', `the ship could not be boarded on ${mapId}`)
         /* the timeout is measured off the line's own length rather than off a constant */
-        /* FROM WHERE SHE IS. The same arithmetic `dockAt` uses and for the same
-         * reason: the first leg of any line is the one from the hull to its first
-         * point, and it is not one of the gaps `lengthOf` adds up. */
+        /* from where the hull is, the same arithmetic `dockAt` uses: the first leg of any line is hull to first point, and it is not one of the gaps `lengthOf` adds up */
         const secs = ((Math.hypot(pts[0].x - from.x, pts[0].y - from.y) + lengthOf(p, backwards))
           / DEFAULT_SAIL.cruise) * 3 + 8
         engine.log('voyage_started', {
@@ -2846,12 +2334,9 @@ export default function PmapScene() {
         if (slot?.berth?.name === best.name && slot.berth.approach) b.approach = slot.berth.approach
         return { berth: b, slot }
       }
-      /* the destination the follower hands to the manoeuvre, resolved on the
-       * frame the word was said rather than on the frame the last leg begins */
+      /* the destination the follower hands to the manoeuvre, resolved on the frame the word was said rather than on the frame the last leg begins */
       let sailingTo: { berth: Berth; slot: WorldSlot | undefined } | null = null
-      /* the berth a sail route ends at, when it names one. `meta` is the carrier
-       * for the same reason a look and a framing ride it: MAPVIS drops unknown
-       * top-level fields on the way through, and the meta bag survives. */
+      /* the berth a sail route ends at, carried in `meta` because MAPVIS drops unknown top-level fields on the way through and the meta bag survives */
       const berthNamedBy = (p: Pathway): Berth | undefined => {
         const want = p.meta && typeof p.meta.berth === 'string' ? p.meta.berth : ''
         if (!want || !comp) return undefined
@@ -2871,8 +2356,7 @@ export default function PmapScene() {
         const berthName = berthOfRoute(comp, name)
         if (!berthName) return null
         const marks = approachTo(comp, berthName)
-        /* one mark is the berth on its own, which is a voyage of zero legs that
-         * would report a crossing it never made */
+        /* one mark is the berth on its own, which is a voyage of zero legs that would report a crossing it never made */
         if (marks.length < 2) return null
         const berth = marks[marks.length - 1]
         return {
@@ -2893,8 +2377,7 @@ export default function PmapScene() {
       /** the reserved id a member or a station uses to make the player speak */
       const PLAYER_ID = 'thor'
 
-      /** an anchor name, a station name or the reserved player id, turned into
-       *  the string a fourteen year old reads on the plate */
+      /** an anchor name, a station name or the reserved player id, turned into the string the player reads on the plate */
       const speakerLabel = (who: string | undefined): string | undefined => {
         if (!who) return undefined
         if (who === PLAYER_ID) return loadSave()?.handle || 'You'
@@ -2915,9 +2398,7 @@ export default function PmapScene() {
         say: (who, text, portrait) => say({ who: speakerLabel(who), text, portrait }),
         choose: (prompt, options) => choose({ prompt, options }),
 
-        /* every map this game can really open: the ones the world document names and
-         * the ones the doors on this map lead to. Read fresh, because the world can
-         * arrive after the scene does. */
+        /* every map this game can really open, the ones the world document names and the ones the doors here lead to, read fresh because the world can arrive after the scene does */
         knownMaps() {
           const out = new Set<string>()
           const c = comp
@@ -2932,18 +2413,7 @@ export default function PmapScene() {
           markQuiet = false
         },
 
-        /* ---- HIGHLIGHT: THE LIGHT ON ITS OWN, WITHOUT THE ARROW ------------
-         *
-         * Ash's brief, item 22: arrows and highlights frameworked so a member's Python
-         * can point at things. Pointing has always been one word, `guide_to`, and it
-         * raises three things at once: the big floating arrow, a road of marks across
-         * the floor, and a pool of light on the thing. There has never been a way to
-         * ask for only the last of those, so an island that wanted to say "this one,
-         * here" had to shout "GO THERE" with a route drawn to it, or say nothing.
-         *
-         * `highlight` is the light and nothing else. Same anchor, same validation, same
-         * live position, no arrow and no road. A member now has both halves of the
-         * vocabulary the engine has always drawn. */
+        /* `highlight` is the pool of light on its own: `guide_to` raises the arrow, the road of marks and the light together, so an island wanting to say only this one, here, had to draw a whole route or say nothing */
         highlight(name, on) {
           guideTarget = on && name ? anchors.get(name) ?? null : null
           markQuiet = !!guideTarget
@@ -3008,9 +2478,7 @@ export default function PmapScene() {
             : pt && isFinite(Number(pt.x)) && isFinite(Number(pt.y))
               ? { x: Number(pt.x), y: Number(pt.y) }
               : { x: pos.x, y: pos.y }
-          /* AWAITED. It was fired and forgotten, so `performIntent` answered ok
-           * the instant the effect started and the next line of a script ran over
-           * the top of it. "Plays once, ends" is only true if somebody waits. */
+          /* awaited: fired and forgotten, `performIntent` answered ok the instant the effect started and the next line of a script ran over the top of it */
           return playFx(name, at)
         },
 
@@ -3018,16 +2486,9 @@ export default function PmapScene() {
         endRun() {
           engine.log('run_ended', { from: mapId })
           const home = () => {
-            /* THE BARS COME DOWN ON THE WAY OUT. The closing film carries its
-             * frame through the door on purpose, so the last thing standing when
-             * a run ends is a letterbox, and the title screen is not a film. */
+            /* the bars come down on the way out: the closing film carries its frame through the door on purpose, so a run would end on a letterbox and the title screen is not a film */
             engine.movie(false)
-            /* AND THE FLAG IS NOT DROPPED HERE. The router's fade to the title
-             * runs six hundred milliseconds with this scene still mounted and the
-             * ship still on the water, so clearing it on this line brought the
-             * bar back for the last half second of the departure. Measured
-             * 2026-09-09. It is cleared where it can do no harm: the next world
-             * scene that mounts. */
+            /* the flag is not dropped here: the router's fade to the title runs 600ms with this scene still mounted and the ship still on the water, so clearing it on this line brought the bar back for the last half second of the departure, and the next world scene that mounts clears it instead */
             ;(window as unknown as { __sceneReady?: boolean }).__sceneReady = false
             setSceneDrawn(null)
             /* one cover at a time, and it is the router's, so this does not open a second */
@@ -3035,56 +2496,13 @@ export default function PmapScene() {
             else window.location.href = '/?scene=title'
           }
 
-          /* ---- SAILING HOME, IN FOUR MOVES (Ash, 2026-09-09) ----------------
-           *
-           * *"Thor gets teleported to the dock, still in cutscene mode. Then he
-           * hops on the boat smoothly, and the boat slowly sails normally back
-           * out into the ocean. Then title screen comes back."*
-           *
-           * WHAT HE PLAYED INSTEAD: *"thor violently gets teleported, thor
-           * doesnt even hop on the boat, the boat just starts zooming straight
-           * downwards, and then the title screen comes on. extremely buggy."*
-           *
-           * Three separate faults, and all three were in the four lines this
-           * replaces. `board()` was called on the frame the word arrived, with
-           * the camera sitting on Thor, so the jump to the berth happened in shot
-           * and the hop never existed as a picture: one frame a boy on a quay,
-           * the next a boat two hundred pixels away. And the heading came from
-           * `soundOffshore`, which steers along `berth.approach` because that is
-           * the line a ship comes IN on; on the hub that is down and to the
-           * right, so she left at full sail straight at the bottom of the screen.
-           *
-           * SO THE CAMERA GOES FIRST AND HE MOVES WHILE IT IS AWAY. That is the
-           * whole trick and it is why a teleport reads as an arrival: the shot
-           * travels to the boat, he is put on the dock behind it, and by the time
-           * anybody is looking he is standing there. Then a beat, then he gets
-           * in, then she goes.
-           *
-           * AND SHE LEAVES SEAWARD AND SLOWLY. `seaward` picks the heading whose
-           * whole line stays deepest inside a half-turn of "away from the middle
-           * of the island", so she cannot be pointed at the beach or at the
-           * camera, and the helm is held at half throttle from a standstill
-           * rather than full sail from cruising speed. */
+          /* the shot travels to the boat first and he is put on the dock behind it, because `board()` in shot reads as a teleport, and the departure heading comes from `seaward` rather than `soundOffshore`, whose `berth.approach` is the line a ship comes in on and sent her straight down the screen */
           if (!canSail || !berth) { home(); return new Promise<void>(() => {}) }
 
           const nap = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
-          /* out to sea: away from the middle of the painting, corrected to the
-           * heading with the most water under it, so she never leaves aground */
+          /* out to sea: away from the middle of the painting, corrected to the heading with the most water under it, so she never leaves aground */
           const seaward = (from: { x: number; y: number }): number | null => {
-            /* ---- THE MOST OPEN WATER, NOT MERELY WATER ---------------------
-             *
-             * The first version took the heading whose SHALLOWEST sample was
-             * deepest, which on the hub picked very nearly straight down the
-             * screen: the water below the dock is deep enough everywhere, so it
-             * won on a tie and she left toward the bottom of the frame. Ash saw
-             * that as the boat "zooming straight downwards".
-             *
-             * This sums the depth along the whole line instead, so a heading
-             * that stays in open sea for two hundred pixels beats one that is
-             * merely deep for the first thirty, and it rejects outright any line
-             * that touches ground. Half a turn either side of "away from the
-             * middle of the island", which is wide enough to find the real way
-             * out on a painting whose harbour faces any direction. */
+            /* the most open water, not merely water: depth is summed along the whole line, so a heading that stays at sea for two hundred pixels beats one merely deep for the first thirty, any line touching ground is rejected, and the search is half a turn either side of away from the middle of the island */
             const base = Math.atan2(from.y - pc.y, from.x - pc.x)
             let best: { dir: number; open: number } | null = null
             for (let k = -5; k <= 5; k++) {
@@ -3105,13 +2523,7 @@ export default function PmapScene() {
           void (async () => {
             /* the frame stays up for all of it: this is the last shot of the year */
             engine.movie(true)
-            /* ---- AND NOTHING IS OWED, SO NOTHING IS SAID -------------------
-             *
-             * `objective(null)` hands the sentence back to the YEAR, and the
-             * year has one for a closed run: "Year one is done. Look around."
-             * It drew across the top of the departure. There is nothing to look
-             * around at and no next step; the bar is furniture for a game that is
-             * still being played, so the last shot takes it down. */
+            /* nothing is owed, so nothing is said: `objective(null)` hands the sentence back to the year, which has one for a closed run that drew across the top of the departure, so the last shot takes the bar down */
             setRunEnding(true)
             engine.objective(null)
             const b = fromSea(berth.x, berth.y)
@@ -3123,16 +2535,7 @@ export default function PmapScene() {
             await nap(CAM_TO_DOCK_MS)
             if (destroyed) return
 
-            /* 2: and he is standing on the dock when it arrives.
-             *
-             * THROUGH `dockSide`, WHICH IS THE ONE ANSWER TO THIS QUESTION. This
-             * asked `onFloor` at a radius of 44 and threw away the `moved` flag it
-             * comes back with, which is the exact bug the head-back button was found
-             * to have: a berth is WATER, there is no floor within 44 painting pixels
-             * of either published berth, and `onFloor` hands back the point it was
-             * given when it finds nothing. So the last shot of the year put him on
-             * the sea and `board()` then refused, which is why the departure had no
-             * boat in it at all. */
+            /* he is standing on the dock when the shot arrives, and the spot comes from `dockSide`: `onFloor` at a radius of 44 finds no floor within 44 painting pixels of either published berth and hands back the point it was given, which put him on the sea so `board()` refused */
             if (!hull) {
               const at = dockSide() ?? onFloor({ x: b.x, y: b.y }, canStand, cfg.yScale, 96).at
               pos.x = at.x
@@ -3152,16 +2555,10 @@ export default function PmapScene() {
             /* 4: and she goes, from a standstill, out */
             const she = hull as HullState | null
             if (she) {
-              /* SHE TURNS ONTO IT RATHER THAN BEING POINTED. A heading written
-               * straight onto the hull is a boat flicking round in one frame, which
-               * is what every departure in this game used to do, and this is the last
-               * shot of a whole year. The helm below gets the mark instead. */
+              /* she turns onto the heading rather than being pointed: a heading written straight onto the hull flicks the boat round in one frame, so the helm below gets the mark instead */
               const dir = seaward(she) ?? she.heading
               const out = { x: she.x + Math.cos(dir) * 260, y: she.y + Math.sin(dir) * 260 }
-              /* HALF A HELM, because this is the last shot of the year and she is
-               * leaving rather than going somewhere. Ash: "the boat slowly sails
-               * normally back out into the ocean." Measured at a full helm she made
-               * 37 px/s across the shot, which is a boat departing briskly. */
+              /* half a helm, because she is leaving rather than going somewhere: measured at a full helm she made 37 px/s across the shot, which is a boat departing briskly */
               castOff = { x: out.x, y: out.y, until: performance.now() + SAIL_OUT_MS + 400, ease: 0.42 }
               she.speed = 0
               sailing = null
@@ -3175,18 +2572,7 @@ export default function PmapScene() {
           return new Promise<void>(() => { /* the scene does not come back */ })
         },
 
-        /* THE WHOLE JOURNEY, AS ONE WORD (BRIEF-TRAVEL).
-         *
-         * Ash: "Thor has to walk out to the dock, hop back on to his boat, and it
-         * should sail to the island he selects autonomously." A member writes
-         * nothing about travel, so everything here is read off the world rather
-         * than named by the island: which door leads to water, where the berth is,
-         * which line the ship takes and what plays on the far side.
-         *
-         * It is armed here and PERFORMED ACROSS MAP CHANGES, because `enter` tears
-         * this scene and the island that called it down. `world/travel.ts` holds
-         * the leg the way `stage/cinema.ts` holds the bars, and the arriving scene
-         * picks it up. Nothing after this line in a member's island runs. */
+        /* the whole journey as one word, read off the world rather than named by the island: it is armed here and performed across map changes, because `enter` tears down this scene and its island, so `world/travel.ts` holds the leg for the arriving scene and nothing after this line in an island runs */
         sailTo(to) {
           if (!comp) throw new NotBuilt('sail_to', 'there is no world document, so there is nowhere to sail to')
           if (to === mapId) throw new NotBuilt('sail_to', `you are already on "${to}"`)
@@ -3196,40 +2582,24 @@ export default function PmapScene() {
             throw new NotBuilt('sail_to', `"${to}" has no berth on the world, so there is no way to sail to it.`
               + ` What can be sailed to: ${have.join(', ') || '(nothing)'}`)
           }
-          /* EVERY JOURNEY STARTS AT `to-dock`, INCLUDING ONE THAT STARTS ON A QUAY.
-           * It used to skip straight to the crossing when this map had water, which is
-           * how a press on the chart turned into a boat already leaving. The leg is the
-           * same either way now: get him to the dock. On a map with one that is a short
-           * fade and a step sideways; in a room it is a door. */
+          /* every journey starts at `to-dock`, including one that starts on a quay: skipping straight to the crossing when this map had water turned a press on the chart into a boat already leaving */
           const leg = 'to-dock' as const
-          /* COMING HOME IS THE SAME JOURNEY WITH ONE MORE STEP. BRIEF-TRAVEL:
-           * "the return trip home ... ends at the Maw's tunnel". The destination
-           * is an island either way; what makes it home is that the home base is
-           * a door off it, so the landing walks him up and takes that door. */
+          /* coming home is the same journey with one more step: the destination is an island either way, and what makes it home is the home base being a door off it, so the landing walks up and takes that door */
           const home = !!comp && comp.slots.some((q) => q.map === MAW_MAP && q.place === slotOfMap(comp, to)?.place)
           if (!(canSail && berth) && !doorToWater()) {
             throw new NotBuilt('sail_to', `${mapId} has no berth and no door onto a map that has one,`
               + ' so there is no way down to the water from here')
           }
           beginTravel({ to, from: mapId, leg, home })
-          /* the whole journey is watched, from the first step to the far shore, and
-           * the frame is the ENGINE'S. `settleVoyageFrame` takes it down at the far
-           * end, so a member's island never has to know it was ever up. */
+          /* the whole journey is watched, first step to far shore, and the frame is the engine's: `settleVoyageFrame` takes it down at the far end so an island never has to know it was up */
           setCinema(true, 'voyage')
-          /* THE TASK LINE SAYS WHERE HE IS GOING, and it is not written into the
-           * island's own slot to do it. `ObjectivePanel` reads the live travel plan
-           * and outranks everything while one is running, which is the honest shape:
-           * a journey is the engine's and the sentence is the engine's for as long as
-           * it lasts. Writing it here instead meant the arriving island's first line
-           * had to be cleared afterwards, and clearing it deleted the island's. */
+          /* the task line says where the journey goes and is not written into the island's own slot: `ObjectivePanel` reads the live travel plan and outranks everything while one runs, because writing it here meant clearing it afterwards deleted the island's own line */
           return runVoyageLeg()
         },
 
         enter(map, at, cover) {
           beginExit({ map, at }, cover)
-          /* resolves when the fade has actually swapped the map, so a station
-           * body that walks somebody through a door does not run its next line
-           * against a scene that is being torn down */
+          /* resolves when the fade has actually swapped the map, so a station body that walks somebody through a door does not run its next line against a scene that is being torn down */
           return new Promise<void>((r, j) => { exitResolve = r; exitReject = j })
         },
 
@@ -3296,8 +2666,7 @@ export default function PmapScene() {
           if (facing) walker.facing = facing
           if (!key) return
           const file = POSE_ART[key]
-          /* standing is the walk set's own first frame, which is why it is the
-           * one pose that can never be missing */
+          /* standing is the walk set's own first frame, which is why it is the one pose that can never be missing */
           if (file === null) { posed = null; return }
           let tex: Texture
           try {
@@ -3313,28 +2682,11 @@ export default function PmapScene() {
         /* ---- A2: SOMEBODY ELSE'S BODY -------------------------------------- */
         actorMove(actor, to, off, facing, pace) {
           const sp = actorBody(actor, 'actor_move')
-          /* ---- "thor" IS A DESTINATION -------------------------------------
-           *
-           * ASH, 2026-09-08 item 6: *"the principal walking to him"*. The closing
-           * film opened with `place`, which puts a body in front of the player on
-           * the frame it is said, and that reads as the man APPEARING rather than
-           * arriving: one frame he is at his desk across the hall, the next he is
-           * six inches from your face. Ash saw that at the founding too and said
-           * so ("he pops up in front of thor at any time").
-           *
-           * `place(x, "thor")` already means "beside the player" and this is the
-           * same sentence with a walk in it. The stopping distance is the
-           * clearance push below, which is the same one `place` uses, so the two
-           * words leave a body in the same spot and only one of them travels. */
+          /* `thor` is a destination: `place` puts a body in front of the player on the frame it is said, which reads as appearing rather than arriving, so this is the same sentence with a walk in it and the stopping distance is the clearance push `place` uses */
           if (to === PLAYER) {
             const d0 = take(sp)
             const ys0 = map.yScale || 1
-            /* CLOSER THAN THE PUSH-APART GAP. A full body length plus ten
-             * percent is the distance that keeps two figures from overlapping;
-             * at the close shot this film is watched on it is a hundred and
-             * twenty screen pixels, and the man who came to congratulate you
-             * ends up talking from the other side of the fire. Somebody standing
-             * WITH you stands closer than somebody merely not inside you. */
+            /* closer than the push apart gap: a body length plus ten percent keeps two figures from overlapping, but at this film's close shot that is a hundred and twenty screen pixels, so somebody standing with you stands closer than somebody merely not inside you */
             const clear0 = map.character.heightPx * 0.72
             const ax0 = d0.x - pos.x, ay0 = d0.y - pos.y
             const away0 = Math.hypot(ax0, ay0 * ys0) || 1
@@ -3347,8 +2699,7 @@ export default function PmapScene() {
               d0.move = {
                 tx: spot.x, ty: spot.y, speed: map.speed * PACE_OF[pace ?? 'walk'], done: false,
                 then: () => {
-                  /* and he is looking at the boy when he gets there, which is the
-                   * whole reason he walked over */
+                  /* the body is looking at the player when it gets there, which is the whole reason it walked over */
                   const at0 = dirFrom(pos.x - d0.x, (pos.y - d0.y) * ys0)
                   d0.facing = facing ?? at0 ?? d0.facing
                   resolve()
@@ -3369,9 +2720,7 @@ export default function PmapScene() {
           /* somebody walking over to meet you stops in front of you rather than inside you */
           const ysm = map.yScale || 1
           let gx = at.x, gy = at.y
-          /* AND AN OFFSET SWITCHES IT OFF, for the reason `place` gives at
-           * length: the push is a guess made when nobody said where, and a
-           * number somebody typed is somebody saying where. */
+          /* an offset switches the push off: the push is a guess made when nobody said where, and a number somebody typed is somebody saying where */
           const clear = map.character.heightPx * 1.1
           if (!off && Math.hypot(gx - pos.x, (gy - pos.y) * ysm) < clear) {
             const ax = d.x - pos.x, ay = d.y - pos.y
@@ -3379,21 +2728,10 @@ export default function PmapScene() {
             gx = pos.x + (ax / away) * clear
             gy = pos.y + (ay / away) * clear
           }
-          /* ---- AND THE STOP IS ON THE FLOOR --------------------------------
-           *
-           * This word read the anchor's stand point raw while `lead_to` and
-           * `walk_to`, which do the same job for the player, both go through
-           * `onFloor`. So a stand point a pixel inside a wall parked a body inside
-           * the wall, and the Maw has one: `the_hall`'s own pixel is inside the
-           * drawn fire, so `actor_move(x, "the_hall")` stood the man in the hearth
-           * while the two player words snapped a pixel clear of it.
-           *
-           * The snap goes last, after the clearance push, because pushing a body
-           * out of the player can push it into a wall. */
+          /* the stop is on the floor: reading an anchor's stand point raw parks a body inside a wall, and `the_hall`'s own pixel is inside the drawn fire, so the snap runs last, after the clearance push, because pushing a body out of the player can push it into a wall */
           const floored = onFloor({ x: gx, y: gy }, canStand, ysm, Math.round(clear)).at
           gx = floored.x; gy = floored.y
-          /* face the way it is going while it goes, so a body drawn eight ways
-           * does not moonwalk across the square */
+          /* face the way it is going while it goes, so a body drawn eight ways does not moonwalk across the square */
           const dir = dirFrom(gx - d.x, (gy - d.y) * map.yScale)
           if (dir) d.facing = dir
           return new Promise<void>((resolve) => {
@@ -3401,8 +2739,7 @@ export default function PmapScene() {
               /* the pace, as a fraction of the map's own walking speed */
               tx: gx, ty: gy, speed: map.speed * PACE_OF[pace ?? 'walk'], done: false,
               then: () => {
-                /* the caller's heading wins, then the anchor's own, then
-                 * whatever the walk left it on */
+                /* the caller's heading wins, then the anchor's own, then whatever the walk left it on */
                 if (facing) d.facing = facing
                 else if (at.facing) d.facing = at.facing
                 resolve()
@@ -3418,23 +2755,7 @@ export default function PmapScene() {
           if (!target) throw new NotBuilt('lead_to', `no anchor named "${to}" on ${mapId}`)
           /* with an offset the leader stops beside the station and leaves the spot for the student */
           const { goal: standAt } = walkGoal(target)
-          /* ---- WITH NO OFFSET, THE SPOT BESIDE IS DERIVED ------------------
-           *
-           * ASH, 2026-09-08: *"Ash is reorganising the Maw in MAPVIS; read every
-           * stand point and position from the published map by anchor name,
-           * hardcode nothing."*
-           *
-           * The island used to carry a hand-measured offset per station, chosen
-           * off screenshots. Every one of those numbers is a bet on where a post
-           * is, and the posts are being moved. This works it out instead: the
-           * leader stops one body length to the SIDE of the student's own mark,
-           * square to the line he walked in on, on whichever side is floor and
-           * further from the thing itself. Nothing is typed and it holds on a map
-           * republished ten minutes from now.
-           *
-           * SQUARE TO THE APPROACH is what makes it read as two people talking:
-           * the pair end up shoulder to shoulder facing the station rather than
-           * one behind the other, whichever direction they came from. */
+          /* with no offset the spot beside is derived, so nothing is hand measured and it survives a republished map: one body length to the side of the student's own mark, square to the line walked in on, on whichever side is floor and further from the station, so the pair read as two people talking */
           const asideAuto = (fromX: number, fromY: number) => {
             const ysA = map.yScale || 1
             const clear = map.character.heightPx * 1.1
@@ -3450,8 +2771,7 @@ export default function PmapScene() {
               const { at, moved } = onFloor(want, canStand, ysA, Math.round(clear))
               /* a side the walk law had to correct is a side there is no room on */
               if (moved && Math.hypot(at.x - want.x, at.y - want.y) > clear * 0.6) continue
-              /* and of the two, the one that puts him further from the thing he
-               * is talking about, so he is never standing on it */
+              /* and of the two, the one further from the thing being talked about, so nobody ends up standing on it */
               const away = Math.hypot(at.x - spot.x, (at.y - spot.y) / ysA)
               if (away > bestAway) { bestAway = away; best = at }
             }
@@ -3461,11 +2781,9 @@ export default function PmapScene() {
             ? { ...asideFrom(target, standAt.x, standAt.y, off), facing: standAt.facing }
             : { ...asideAuto(take(sp).x, take(sp).y), facing: standAt.facing }
           const ys = map.yScale || 1
-          /* two body lengths, which is the gap Ash names and is also far enough
-           * that the leader is never drawn inside the person following him */
+          /* two body lengths, far enough that the leader is never drawn inside the person following */
           const gap = Math.max(12, Math.round(map.character.heightPx * 2))
-          /* if the leader cannot move at all, the student is not made to stand
-           * there watching nothing: he sets off anyway after this */
+          /* if the leader cannot move at all, the student is not left watching nothing and sets off anyway after this */
           const LEAD_CEILING_MS = 2500
           const d = take(sp)
           const speed = map.speed * PACE_OF[pace ?? 'walk']
@@ -3538,8 +2856,7 @@ export default function PmapScene() {
             })()
           const spot = off
             ? target
-              /* the same base `lead_to` and `actor_move` use: where the walk law
-               * really puts a body at this anchor, not the raw authored pixel */
+              /* the same base `lead_to` and `actor_move` use: where the walk law really puts a body at this anchor, not the raw authored pixel */
               ? { ...asideFrom(target, walkGoal(target).goal.x, walkGoal(target).goal.y, off), facing: home.facing }
               /* an offset from the player is measured from his own feet, not from the step ahead */
               : { ...onFloor({ x: pos.x + off[0], y: pos.y + off[1] }, canStand, ysp, 24).at, facing: undefined }
@@ -3549,8 +2866,7 @@ export default function PmapScene() {
           let px = spot.x, py = spot.y
           /* the clearance push is the fallback, so an author who gives an offset switches it off */
           if (!off && at !== PLAYER && Math.hypot(px - pos.x, (py - pos.y) * ysp) < clearP) {
-            /* he steps aside along the line he was standing on before, and if he
-             * was standing on the player himself, off to one side of him */
+            /* the body steps aside along the line it was already standing on, and if it was standing on the player, off to one side */
             const ax = d.x - pos.x, ay = d.y - pos.y
             const away = Math.hypot(ax, ay * ysp) || 1
             const ux = away > 1 ? ax / away : 1
@@ -3572,26 +2888,7 @@ export default function PmapScene() {
 
         /* every check runs before the body is taken, so a refusal leaves nothing driven */
         actorFace(actor, facing) {
-          /* ---- "player" IS A HEADING, AND IT IS THE ONLY DERIVED ONE --------
-           *
-           * ASH, 2026-09-08: read every position off the map, hardcode nothing.
-           * A film that walks two people to a station and then names a compass
-           * point has hardcoded the geometry of that station, and the stations
-           * are being moved. Which way "at him" is depends on where they both
-           * ended up, and the scene is the only thing that knows.
-           *
-           * ---- AND THE PLAYER CAN BE THE ONE WHO TURNS --------------------
-           *
-           * This word could turn anybody at the player and nothing could turn the
-           * player at anybody, so a beat where somebody walks up and talks left the
-           * student facing wherever his last walk had pointed him: in the Maw's
-           * closing film he took the congratulation standing square to the
-           * counselor's mark. The only way round it was a compass point typed into
-           * an island, which is the exact thing Ash ruled out.
-           *
-           * So both halves exist now and neither needs a number: `actor_face(x,
-           * "thor")` turns somebody at the student, and `actor_face("thor", x)`
-           * turns the student at somebody. */
+          /* `player` is a heading and the only derived one, because which way at him is depends on where both ended up and only the scene knows: `actor_face(x, "thor")` turns somebody at the student and `actor_face("thor", x)` turns the student at somebody, so neither needs a compass point typed into an island */
           if (actor === PLAYER) {
             const a2 = anchors.get(facing)
             if (!a2)
@@ -3600,8 +2897,7 @@ export default function PmapScene() {
                 + 'To point him at a compass heading, walk him there instead.')
             const at2 = anchors.spotOf(a2)
             const turn = dirFrom(at2.x - pos.x, (at2.y - pos.y) * (map.yScale || 1))
-            /* standing exactly on the thing has no direction, and turning him to a
-             * guess would be worse than leaving him as he is */
+            /* standing exactly on the thing has no direction, and turning to a guess would be worse than leaving the heading alone */
             if (turn) walker.facing = turn
             return
           }
@@ -3617,27 +2913,7 @@ export default function PmapScene() {
           /* a thing drawn one way has no heading to turn to, and the word says so */
           if (!look?.views || !Object.keys(look.views).length)
             throw new NotBuilt('actor_face', `"${actor}" was drawn one way and has no heading to turn to`)
-          /* ---- ANYBODY CAN BE TURNED TO LOOK AT A PLACE, NOT JUST THOR --------
-           *
-           * This took whatever string it was handed and wrote it straight in as a
-           * heading. A compass point worked. Anything else was stored, looked up
-           * against the eight pictures the body was drawn with, missed, and drew the
-           * body on whatever face the miss fell through to, with nothing said.
-           *
-           * Two halves were already here and the useful one was missing: `actor_face`
-           * could turn THOR to look at a place, and it could turn anybody to look at
-           * THOR, and it could not turn anybody to look at a PLACE. So the Maw could
-           * not say "the principal is looking into his own hall" without typing a
-           * compass point, which is the one thing every film in that room is fenced
-           * against, because a heading typed in is a bet on where somebody left a
-           * table in MAPVIS.
-           *
-           * It matters well past this room. Ash: *"everything we've done for the atc
-           * island, even the obvious stuff, needs to be replicatable by atc members."*
-           * A member writing `actor_face("shopkeeper", "the_counter")` was getting a
-           * silently wrong sprite, which is the worst answer of the three available.
-           * Now the name is asked of the map that is loaded, and a name the map does
-           * not carry is refused by name rather than drawn wrong. */
+          /* anybody can be turned to look at a place, not just thor: an unknown string used to be written straight in as a heading, missed the eight pictures the body was drawn with, and drew a silently wrong face, so the name is asked of the loaded map and one it does not carry is refused by name */
           if (DIRS8.includes(facing)) { take(sp).facing = facing; return }
           const place = anchors.get(facing)
           if (!place)
@@ -3646,8 +2922,7 @@ export default function PmapScene() {
           const d1 = take(sp)
           const spot = anchors.spotOf(place)
           const turn = dirFrom(spot.x - d1.x, (spot.y - d1.y) * (map.yScale || 1))
-          /* standing on the thing has no direction to it, and a guess would be worse
-           * than the heading they already had */
+          /* standing on the thing has no direction to it, and a guess would be worse than the heading they already had */
           if (turn) d1.facing = turn
         },
 
@@ -3656,15 +2931,11 @@ export default function PmapScene() {
           const set = looksOf.get(sp)
           const names = lookNamesOf.get(sp) ?? []
           const index = (): number => {
-            /* THE PLACEMENT'S OWN PICTURE IS ALWAYS INDEX ZERO and is always
-             * addressable, whatever anybody called it, so a script can always put
-             * a thing back the way it was found. */
+            /* the placement's own picture is always index zero and always addressable, whatever it was called, so a script can put a thing back the way it found it */
             if (look === 'idle' || look === 'default') return 0
             const named = names.indexOf(look)
             if (named >= 0) return named
-            /* an index still works, because that is the only address a bundle
-             * from before look names could offer and those bundles are still on
-             * the platform */
+            /* an index still works, because that is the only address a bundle from before look names could offer and those bundles are still on the platform */
             const i = Number(look)
             if (Number.isInteger(i) && i >= 0 && i < (set?.length ?? 0)) return i
             const have = names.filter(Boolean)
@@ -3682,9 +2953,7 @@ export default function PmapScene() {
 
         /* route: the authored polylines MAPVIS publishes, with the kind checked not trusted */
         route(pathName, who, backwards) {
-          /* A MAP PATH FIRST, because a line somebody drew on the painting is the
-           * more specific answer and a map that names a route after a berth
-           * should get its own drawing rather than the world's. */
+          /* a map path first, because a line drawn on the painting is the more specific answer and a map that names a route after a berth should get its own drawing rather than the world's */
           const p = paths.find((q) => q.name === pathName) ?? seaRouteNamed(pathName)
           if (!p) {
             const sea = comp ? approachNames(comp) : []
@@ -3711,8 +2980,7 @@ export default function PmapScene() {
 
         /* a shot somebody named and dragged into place, its zoom a multiple of the opening view */
         framing(shot, ms) {
-          /* every shot takes the serial, so a timed release that fires later can tell
-           * whether the shot it raised is still the live one */
+          /* every shot takes the serial, so a timed release that fires later can tell whether the shot it raised is still the live one */
           shotSerial++
           if (shot === null) {
             lookAtTarget = null
@@ -3726,56 +2994,21 @@ export default function PmapScene() {
             throw new NotBuilt('framing', `no shot named "${shot}" on ${mapId}. It has: ${[...shots.keys()].join(', ') || 'none'}`)
           const spot = anchors.spotOf(s.anchor as Anchor)
           const at = shotOf(spot, s.framing)
-          /* held until it is given back when no time is stated, because a scene
-           * that composes a shot and then talks over it is the ordinary case and
-           * a shot that expires mid-line is a cut nobody asked for */
+          /* held until it is given back when no time is stated, because a scene that composes a shot and then talks over it is the ordinary case and a shot that expires mid-line is a cut nobody asked for */
           lookAtTarget = { x: at.x, y: at.y, until: ms === undefined ? Infinity : performance.now() + ms }
           lastShot = shot
-          /* ---- A COMPOSED SHOT IS A COMPOSED SHOT --------------------------
-           *
-           * ASH, on the push into the ATC machine: *"the zoom in shot was meant to go
-           * from a 3d view to a smooth 2d view of the computer, then the screen shows
-           * up as a panel."* It does that, and it did it with Map, Guide, My Year, the
-           * Chart, the question mark and the YOU pin all sitting on top of it, because
-           * nothing but the cinema bars had ever told the furniture to stand down. An
-           * island that has taken the camera off the player and pointed it at a thing
-           * has composed a picture; the corner is not in that picture.
-           *
-           * It is the same attribute the bars use and it is separate from them on
-           * purpose: a shot is not a cutscene, it does not letterbox, and an island
-           * should not have to raise black bars to be allowed to point at something. */
+          /* a composed shot stands the HUD down, because an island that has taken the camera off the player and pointed it at a thing has composed a picture the corner furniture is not in: same attribute as the bars but separate, since a shot is not a cutscene and should not letterbox to point at something */
           setShotUp(true)
           if (s.framing.zoom !== undefined) zoomTo(Math.min(Z_SHOT * s.framing.zoom, SHOT_ZOOM_MAX()))
           engine.log('framing', { map: mapId, shot, zoom: s.framing.zoom ?? null })
-          /* ---- IT COMES BACK WHEN THE CAMERA IS REALLY THERE ---------------
-           *
-           * Ash: *"the computer screen transition is busted, it randomly clips into
-           * the island, and glitches around."*
-           *
-           * Two things were wrong and the second one is the one that showed. It used
-           * to answer the instant it was asked, so ATC had to guess with a hand-tuned
-           * `wait(900)`. And waiting on the ZOOM alone is not enough: measured on
-           * this very shot, the desk was at screen x=1529 on a 1366-wide window when
-           * the zoom had already arrived, and at 21x the pan still had thousands of
-           * screen pixels to cross. The panel opened over a camera in flight, which
-           * is why the picture behind it was different in every frame.
-           *
-           * So this waits for the POSITION as well, against the aim `camTo`
-           * publishes. The ceiling is the same one `view` uses, because a camera
-           * that cannot arrive must not hold an island up for ever. */
+          /* it comes back when the camera is really there, position as well as zoom: with the zoom arrived the desk still measured screen x=1529 in a 1366 wide window, so a panel opened over a camera in flight, and the ceiling is `view`'s so a camera that cannot arrive holds no island up */
           const settled = new Promise<void>((r) => {
             const t0 = performance.now()
             const tick = () => {
               if (destroyed) { r(); return }
               const zoomThere = Math.abs(camZ - camZWant) < 0.01
-              /* MEASURED IN PAINTING PIXELS, not screen ones. At a close shot a screen
-               * pixel is a fraction of a drawn one, so a screen-pixel tolerance on a
-               * pan of three thousand screen pixels cannot be met inside any sane
-               * ceiling and the wait always timed out. One painting pixel is the
-               * smallest thing anybody can see. */
-              /* A THIRD OF A PAINTING PIXEL. A whole one was measured as nine painting
-               * pixels of visible slide after the panel had already opened, because the
-               * tolerance is spent as drift the player watches. */
+              /* measured in painting pixels, not screen ones: at a close shot a screen-pixel tolerance on a pan of three thousand screen pixels cannot be met inside any sane ceiling and the wait always timed out */
+              /* a third of a painting pixel: a whole one measured as nine painting pixels of visible slide after the panel had already opened, because the tolerance is spent as drift the player watches */
               const slack = Math.max(1.5, camZ * 0.34)
               const panThere = Math.abs(camFX - camAim.x) < slack && Math.abs(camFY - camAim.y) < slack
               if ((zoomThere && panThere) || performance.now() - t0 > SHOT_CEILING_MS) { r(); return }
@@ -3784,14 +3017,7 @@ export default function PmapScene() {
             requestAnimationFrame(tick)
           })
           if (ms === undefined) return settled
-          /* ---- THE HOLD STARTS WHEN THE CAMERA ARRIVES ----------------------
-           *
-           * `until` above is stamped when the word is SPOKEN, and this word now waits
-           * for the pan before it comes back. So the two clocks ran the wrong way
-           * round: on ATC's screen shot the pan takes about two and a half seconds and
-           * a member asking to hold it for one and a half got a shot that had already
-           * expired before it arrived, which the ticker then dropped on the next frame.
-           * Restamped here, from arrival, which is what `vine.py` says it means. */
+          /* the hold starts when the camera arrives, restamped here: `until` above is stamped when the word is spoken, so a pan of about two and a half seconds against a hold of one and a half expired before it arrived and was dropped on the next frame */
           const held = shotSerial
           return settled.then(() => {
             if (destroyed || shotSerial !== held) return undefined
@@ -3832,10 +3058,7 @@ export default function PmapScene() {
             setShotUp(false)
             lastShot = null
           }
-          /* AND NEVER UNDER THE PAINTING'S OWN COVER FIT. This line used to be
-           * written past `zoomTo`'s floor on the argument that the named shots
-           * ARE the floor and the ceiling; `view("island")` was then the one word
-           * in the vocabulary that could show a student the void. */
+          /* never under the painting's own cover fit: written past `zoomTo`'s floor, `view("island")` was the one word in the vocabulary that could show a student the void */
           camZWant = Math.max(Z_MIN, to)
           engine.log('view', { map: mapId, shot, zoom: +to.toFixed(3) })
           const arrived = new Promise<void>((r) => {
@@ -3851,38 +3074,14 @@ export default function PmapScene() {
           if (shot === 'island') return arrived.then(() => {
             arrivalCard()
             if (ms === undefined) return undefined
-            /* AND A WIDE SHOT WITH A LENGTH GIVES THE CAMERA BACK AT THE END OF IT.
-             * The expiry on `lookAtTarget` only stops it CENTRING the painting: the
-             * fence and the zoom are separate state, so a timed island shot used to
-             * leave a player walking around under a camera that was still pulled out
-             * and still refusing to follow him. All three go together or none of
-             * them mean anything.
-             *
-             * IT ONLY LOWERS THE SHOT IT RAISED. The caller does not await this, so a
-             * scene can compose something else while the clock is running: the
-             * engine's own homecoming arms a 3.6 second release and asks for a close
-             * shot 900ms later, and this used to reach in and tear that one down two
-             * and a half seconds into it. One serial per shot, checked on the way out,
-             * is the same trick the cinema bars use to know whose frame is up. */
+            /* a timed wide shot gives the whole camera back, because `lookAtTarget`'s expiry only stops it centring while the fence and the zoom are separate state, and it lowers only the shot it raised: the serial is checked on the way out so a 3.6 second release cannot tear down a closer shot armed 900ms later */
             const mine = shotSerial
             return new Promise<void>((r) => setTimeout(() => {
               if (destroyed || shotSerial !== mine) { r(); return }
               lookAtTarget = null
               setShotUp(false)
               lastShot = null
-              /* FALSE, WHICH IS THE VALUE FOR A BODY ON LAND. `camFree` is not "the
-               * camera is free to move", it is "this camera is at sea, do not clamp
-               * it to the painting": `board` sets it true, `stepAshore` sets it
-               * false, and this shot's own setup thirty lines above sets it false on
-               * purpose. Setting it true here released the FENCE instead of the shot,
-               * for the rest of the visit, and nothing on land ever put it back.
-               *
-               * What that cost, measured on atc-1 at 1366x768: the painting is
-               * 410x408 inside a 512 canvas, so with the fence off, walking to the
-               * club president at y=70 put the painting's top edge 318 pixels down
-               * the window and filled the top third of the screen with transparent
-               * canvas and the ocean drawn through it. On the one walk the island's
-               * own arrow points him along. */
+              /* false, the value for a body on land: `camFree` means this camera is at sea, do not clamp it to the painting, so setting it true here released the fence and on a 410x408 painting at 1366x768 walking to y=70 put the painting's top edge 318 pixels down the window with ocean drawn through the gap */
               camFree = false
               camZWant = walkZ()
               r()
@@ -3915,12 +3114,10 @@ export default function PmapScene() {
       const stage: CutsceneStage = {
         cameraGet: () => csCam ? { ...csCam } : { x: pos.x, y: pos.y, zoom: camZ / Z },
         cameraSet: (x, y, zoom) => { csCam = { x, y, zoom } },
-        /* handing the camera back to an actor means handing it back to the follow
-         * law, which is the only camera this scene has ever had */
+        /* handing the camera back to an actor means handing it back to the follow law, which is the only camera this scene has ever had */
         cameraFollow: (actor) => {
           if (actor === null || IS_THOR(actor)) { csCam = null; return }
-          /* this scene's camera follows the player and nothing else. Falling off
-           * the end left the camera wherever the last shot put it, silently. */
+          /* this scene's camera follows the player and nothing else, and falling off the end left it wherever the last shot put it, silently */
           console.warn(`[pmap] cameraFollow("${actor}"): this scene's camera can only follow the player`)
           stageMissed(`cameraFollow("${actor}")`)
         },
@@ -4032,18 +3229,14 @@ export default function PmapScene() {
           }
         },
 
-        /* the escape hatch, and it stays honest about being empty. A `stage` step
-         * naming a call this scene does not answer is the author asking for
-         * something and getting nothing, so it says which call. */
+        /* the escape hatch, honest about being empty: a `stage` step naming a call this scene does not answer gets nothing back, so it says which call */
         call: (name) => {
           console.warn(`[pmap] the script asked this scene for "${name}" and it answers no such call`)
           engine.log('stage_call_missing', { map: mapId, call: name })
           stageMissed(`stage call "${name}"`)
         },
 
-        /* THE HOLD, COUNTED, so a gate handing control back mid-script does not
-         * fight the station hold underneath it. world-bus.ts counts holds for
-         * exactly this reason and the reason is written at the top of that file. */
+        /* the hold is counted, so a gate handing control back mid script does not fight the station hold underneath it, which is why `world-bus.ts` counts holds */
         playerControl: (on) => {
           if (on) { csHold?.(); csHold = null }
           else csHold ??= holdWorld('cutscene')
@@ -4112,8 +3305,7 @@ export default function PmapScene() {
         byPlayer?: boolean
       }
       let autoWalk: AutoWalk | null = null
-      /* the hold hook is installed outside `start()`, above `autoWalk`, so it
-       * reaches this through a box rather than through the binding */
+      /* the hold hook is installed outside `start()`, above `autoWalk`, so it reaches this through a box rather than through the binding */
       cancelPlayerWalk = () => {
         if (!autoWalk?.byPlayer) return
         const w = autoWalk
@@ -4121,9 +3313,7 @@ export default function PmapScene() {
         w.done()
       }
       let lookAtTarget: { x: number; y: number; until: number } | null = null
-      /* WHICH SHOT IS THE LIVE ONE, counted up every time anybody composes one. A timed
-       * release compares this on the way out, so a shot that has since been replaced
-       * cannot reach in and lower somebody else's. */
+      /* which shot is the live one, counted up every time anybody composes one, so a timed release cannot reach in and lower a shot that has since replaced it */
       let shotSerial = 0
       /* which named shot the camera is holding and which berth the last voyage aimed at */
       let lastShot: string | null = null
@@ -4134,9 +3324,7 @@ export default function PmapScene() {
       /* and how a refused door tells the island, instead of resolving as if it opened */
       let exitReject: ((e: Error) => void) | null = null
 
-      /* ONE WALK, THREE CALLERS: `walk_to` from a grape, `actorMove` from a script,
-       * and the idle auto-walk a `walkTo` gate falls back to when a player stands
-       * still. They were three different things and only one of them existed. */
+      /* one walk, three callers: `walk_to` from a grape, `actorMove` from a script, and the idle auto walk a `walkTo` gate falls back to when the player stands still */
       /* steering a body at a point in the eight moves the walker can make */
       const OCTANTS: { ux: number; uy: number; keys: Record<string, boolean> }[] = [
         { ux: 1, uy: 0, keys: { arrowright: true } },
@@ -4167,28 +3355,8 @@ export default function PmapScene() {
       /* where a walk to an anchor really ends and how close counts as arrived */
       const walkGoal = (a: Anchor) => {
         const g = anchors.standAt(a)
-        /* ---- NOBODY STANDS ON THE THING THEY CAME TO LOOK AT ---------------
-         *
-         * ASH, 2026-09-09: *"the principal panther and thor movements /
-         * placements are a bit buggy / weird. A lot better than original, but
-         * still problems and unclearness."*
-         *
-         * An anchor with no usable standing spot fell back to its OWN PIXEL,
-         * which is the middle of the desk, the fire or the person. Two of the
-         * Maw's posts are in that state on the published v7: the counselor's
-         * stand point is sixty pixels of floor from her post and the principal's
-         * is two hundred and fourteen, so the engine drops both and used the
-         * posts themselves. A student walked to a station and stood inside it.
-         *
-         * SO THE FALLBACK IS THE FLOOR IN FRONT OF IT, one body length back
-         * along the line he is walking in on. `onFloor` below still has the last
-         * word, so a spot with no floor behind it is corrected the way it always
-         * was. An authored stand point is untouched: this is only what happens
-         * when MAPVIS has not been given one, or the one it has is stale. */
-        /* A POST AND NOT A DOOR. A post is a thing in the room you stand
-         * BESIDE; a door is a place you walk INTO, and pushing a body a body
-         * length back from one leaves him short of the tunnel he was sent to.
-         * Caught by `arrival-proof` on the hub's `panthers_maw`. */
+        /* nobody stands on the thing they came to look at: an anchor with no usable stand point fell back to its own pixel, the middle of the desk or the person, so the fallback is the floor one body length back along the approach, `onFloor` still has the last word, and an authored stand point is untouched */
+        /* a post and not a door: a post is a thing you stand beside and a door is a place you walk into, so pushing a body a body length back from a door leaves it short of the tunnel it was sent to */
         if (!a.stand && a.kind === 'post') {
           const ys0 = cfg.yScale || 1
           const back = map.character.heightPx * 1.1
@@ -4207,8 +3375,7 @@ export default function PmapScene() {
         }
         return {
           goal: { ...at, facing: g.facing },
-          /* an exact spot, authored or found, is worth the tight tolerance; only
-           * a raw anchor centre still falls back to a radius around itself */
+          /* an exact spot, authored or found, is worth the tight tolerance; only a raw anchor centre still falls back to a radius around itself */
           reach: a.stand || moved ? 3 : Math.max(4, a.r * 0.5),
         }
       }
@@ -4244,8 +3411,7 @@ export default function PmapScene() {
         autoWalk = {
           goal, reach, facing, route: r.points, ri: 0,
           until: performance.now() + budget, budget,
-          /* two minutes, which is longer than any walk on any map in this game
-           * and short enough that a body wedged on geometry still answers */
+          /* two minutes, which is longer than any walk on any map in this game and short enough that a body wedged on geometry still answers */
           ceiling: performance.now() + 120000,
           best: Math.hypot(goal.x - pos.x, goal.y - pos.y),
           label, done,
@@ -4259,9 +3425,7 @@ export default function PmapScene() {
       let seaFire: (() => void) | null = null
       /* where a click asked the boat to go, steered by the same manoeuvre the voyage uses */
       let sailTap: { x: number; y: number; until: number } | null = null
-      /* the most one click on the water moves her, in painting pixels. About a
-       * third of the hub's width: enough to feel driven, never enough to lose
-       * the island off the edge of the glass at the sailing zoom. */
+      /* the most one click on the water moves her, in painting pixels, about a third of the hub's width: enough to feel driven, never enough to lose the island off the edge of the glass at the sailing zoom */
       const SAIL_TAP_LEG = 220
 
       /* a click on an anchor, from wherever it came, true when a walk to it has started */
@@ -4270,9 +3434,7 @@ export default function PmapScene() {
         const { goal: g, reach } = walkGoal(a)
         /* the name the student has been reading, not the one the author typed */
         const shown = a.label || labelFor(ownerOf(a.name, grapeHandlers), a.name)
-        /* THE SAME REACH `walk_to` USES, so a click and a member's own line put
-         * him in the same place. An authored stand point is exact; without one
-         * the ring's own radius is the tolerance the author drew. */
+        /* the same reach `walk_to` uses, so a click and a member's own line land in the same place: an authored stand point is exact, and without one the ring's radius is the tolerance the author drew */
         startWalk(g, reach, g.facing ?? null,
           () => { /* nothing was waiting on it */ }, shown,
           { byPlayer: true, arrive: () => { void fire(a) } })
@@ -4323,16 +3485,7 @@ export default function PmapScene() {
           engine.log('click_nowhere', { map: mapId, to: [Math.round(px), Math.round(py)] })
           return 'nothing'
         }
-        /* ---- ONLY IF HE ASKED FOR IT (Ash, 2026-09-09) ------------------
-         *
-         * *"Click to move... in the help button, make this a toggle, to activate
-         * click to move. Right now it's just on by default."*
-         *
-         * The gate is HERE and not on the tap handler, deliberately: everything
-         * above this line is a tap on a THING (a station, the boat, the arrival
-         * card, a berth) and every one of those stays. What a student turns on is
-         * walking to bare floor, which is the part that was moving him away from
-         * whatever he had just stopped to read. */
+        /* click to move is a setting, and the gate is here rather than on the tap handler: every tap above this line is on a thing, a station, the boat, the arrival card, a berth, and those stay, so what the setting turns on is walking to bare floor */
         if (!loadSettings().clickToMove) return 'nothing'
         startWalk(end, 6, null, () => { /* he simply arrives */ }, 'a point he clicked', { byPlayer: true })
         engine.log('click_walk', { map: mapId, to: [Math.round(end.x), Math.round(end.y)], reached: r.reached })
@@ -4353,8 +3506,7 @@ export default function PmapScene() {
         walkTap(p.x, p.y)
       })
 
-      /* THE GUIDE'S ROUTE, kept between frames because a search is not free and the
-       * answer only changes when the player has moved or the target has. */
+      /* the guide's route, kept between frames because a search is not free and the answer only changes when the player or the target has moved */
       let guide: { key: string; route: Pt[]; from: Pt; reached: boolean; at: number } | null = null
       /* the way is drawn marks out of a pool, never shapes built in code */
       const trailSprites: Sprite[] = []
@@ -4398,17 +3550,7 @@ export default function PmapScene() {
         outfitter: 'Open the wardrobe',
       }
       const actionFor = (a: Anchor, label: string): string => {
-        /* ---- THE SHELF SAYS WHAT IS ON IT (Ash, 2026-09-09) --------------
-         *
-         * *"Should it show up in-game as assets within the shelf asset / is this
-         * too complicated?"*
-         *
-         * Drawn trophies on the shelf need art per trophy, which is a PixelLab
-         * spend. What the shelf CAN do with no new pixels is stop being silent:
-         * the plaque a student stands in front of carries the count, so walking
-         * past it after finishing something tells him it went up there.
-         *
-         * ACROSS THE WHOLE RUN, matching the panel behind it (`run/wall.ts`). */
+        /* the shelf says what is on it without new art: drawn trophies would need art per trophy, so the plaque carries the count across the whole run instead, matching the panel behind it in `run/wall.ts` */
         if (a.name === 'trophy_wall') {
           const badges = wallAll(loadSave()).filter((w) => w.earned).length
           return badges === 0
@@ -4422,9 +3564,7 @@ export default function PmapScene() {
       }
 
       const offerOf = (a: Anchor): { text: string; state: PromptState; canFire: boolean } => {
-        /* THE SAME RESOLVER THE PRESS USES. A grape-owned anchor the prompt did
-         * not know about is a handler that can never be reached by a key or by a
-         * tap. */
+        /* the same resolver the press uses, because a grape owned anchor the prompt does not know about is a handler no key and no tap can reach */
         const owner = ownerOf(a.name, grapeHandlers)
         const label = a.label || labelFor(owner, a.name)
         let text = ''
@@ -4444,20 +3584,15 @@ export default function PmapScene() {
             if (DBG) { text = `${label} · nothing answers to ${a.name}`; state = 'barred' }
           } else if (isReady(owner, sv)) {
             text = actionFor(a, label); canFire = true
-            /* USED ALREADY THIS SITTING. Still open, still pressable, and it says
-             * so quietly rather than looking identical to the one thing in the
-             * room the student has not touched. §40.5's fifth state. */
+            /* used already this sitting: still open and still pressable, said quietly so it does not look identical to the one thing in the room the student has not touched */
             if (usedThisSitting.has(a.name)) { text = `${actionFor(a, label)} again`; state = 'done' }
           } else if (owner.by === 'station') {
-            /* THE STATION IS CLOSED AND SAYS WHY, in its own sentence rather than
-             * in a greyed-out control. §40.9: a control a student can press and be
-             * told why beats one that does not respond. */
+            /* the station is closed and says why in its own sentence rather than in a greyed out control, because a control a student can press and be told why beats one that does not respond */
             text = sv ? (owner.station.closed?.(sv) ?? label) : label
             state = 'needs'
           }
         }
-        /* the objective outranks every other state it can share a plaque with,
-         * because it is the one the whole frame exists to make visible */
+        /* the objective outranks every other state it can share a plaque with, because it is the one the whole frame exists to make visible */
         if (canFire) {
           const sv = loadSave()
           if (sv && isObjective(sv, mapId, a.name)) state = 'objective'
@@ -4477,9 +3612,7 @@ export default function PmapScene() {
         const owner = ownerOf(a.name, grapeHandlers)
         const sv = loadSave()
         if (!owner) {
-          /* W13. Before this, a correctly placed anchor, a correctly spelled name
-           * and a correctly written handler produced nothing at all, and nothing
-           * is what a typo produces too. */
+          /* a correctly placed anchor with a correctly spelled name and a correctly written handler used to produce nothing at all, which is exactly what a typo produces too */
           console.warn(`[pmap] ${mapId}: nothing answers to the anchor "${a.name}"`)
           engine.log('anchor_unclaimed', { map: mapId, anchor: a.name })
           return
@@ -4506,19 +3639,9 @@ export default function PmapScene() {
               map: mapId, anchor: a.name, error: report.error,
               refused: report.refused.map((r) => `${r.intent}: ${r.why}`),
             })
-            /* ---- AND IT IS SAID ON THE GLASS, NOT ONLY IN THE CONSOLE -------
-             *
-             * A crash inside a member's handler - a NameError from a typo, a KeyError,
-             * an unhandled refusal - was swallowed into a console line no student and
-             * no member has open. Pressing E on the president simply did nothing, for
-             * ever, with the game looking exactly as though nothing were there.
-             *
-             * The LOAD path has said this out loud since the day the runtime landed
-             * ("an island under construction says so on screen"); a press is the same
-             * failure at a different moment and deserves the same sentence. */
+            /* a crash inside a member's handler is said on the glass, not only in the console: swallowed into a console line nobody has open, a press simply did nothing for ever and looked exactly like a map with nothing in it, and the load path has always said it out loud */
             void say({ text: `This island is under construction. ${report.error}` })
-            /* AND A FILM WHOSE ISLAND JUST DIED DOES NOT KEEP THE BARS. Nothing else
-             * is going to lower them: the island that raised them is gone. */
+            /* a film whose island just died does not keep the bars, because nothing else is going to lower them */
             if (cinemaOn() && cinemaBy() === 'island') setCinema(false)
           } else if (report.refused.length) {
             engine.log('intent_refused', {
@@ -4530,29 +3653,13 @@ export default function PmapScene() {
           liftMovieAfterHandler(a.name)
           stationHold?.(); stationHold = null
           busy = false
-          /* the E that opened this is very likely still down; forget it or the
-           * station fires again the instant the lock lifts */
+          /* the E that opened this is very likely still down; forget it or the station fires again the instant the lock lifts */
           ePrev = true
           keys['e'] = false
         }
       }
 
-      /* ---- THE ENGINE TAKES DOWN ITS OWN FRAME ---------------------------
-       *
-       * Ash, on the sail to ATC: *"its all in a cutscene, the black boxes dont
-       * go away."* The bars go up when a voyage starts and are carried through
-       * the door onto the far map, and until this existed the only things that
-       * ever lowered them were an island saying `movie(False)` and an island
-       * failing to load. The hub's island does say it. Every island a member
-       * writes was silently on the hook for a frame it never raised.
-       *
-       * WHOSE FRAME IT IS DECIDES. If the island took it over, its film is still
-       * running and lowering the bars here would cut it off in the middle: the
-       * hub's arrival keeps the frame on purpose and hands it to the door. So
-       * this lowers the bars only while they are still the voyage's own.
-       *
-       * AND ONLY WHEN THE JOURNEY IS REALLY OVER, because a crossing is more than
-       * one leg and the middle of one is not the end of it. */
+      /* the engine takes down its own frame: a voyage raises the bars and carries them through the door, leaving an island on the hook for a frame it never raised, so this lowers them only while they are still the voyage's own and only once the journey is really over, a crossing being more than one leg */
       const settleVoyageFrame = (why: string) => {
         if (!cinemaOn() || cinemaBy() !== 'voyage' || travelPlan()) return
         setCinema(false)
@@ -4582,8 +3689,7 @@ export default function PmapScene() {
         const ref: GrapeRef = asked
           ? { at: 'url', base: asked }
           : { at: 'origin', island: (ours ?? bound)!.folder }
-        /* held from here to the `finally`, which is the whole of the window in
-         * which this map's anchors have an owner that has not arrived yet */
+        /* held from here to the `finally`, which is the whole of the window in which this map's anchors have an owner that has not arrived yet */
         islandPending = true
         try {
           const pkg = await fetchGrape(ref)
@@ -4594,19 +3700,10 @@ export default function PmapScene() {
           const ready = await s.ready
           if (destroyed) { s.stop(); return }
           if (ready.error) {
-            /* the island is under construction and the map is not. Said out loud
-             * because a member watching their own island fail to load needs the
-             * sentence, and a player needs the room to keep working. */
+            /* the island is under construction and the map is not, said out loud because a member watching their own island fail to load needs the sentence and a player needs the room to keep working */
             console.warn(`[pmap] ${mapId}: island did not load: ${ready.error}`)
             engine.log('island_failed', { map: mapId, error: ready.error, when: 'load' })
-            /* ---- AND ON SCREEN, NOT ONLY IN THE CONSOLE (Ash, 2026-09-09) --
-             *
-             * The comment above has always said this is said out loud "because a
-             * member watching their own island fail to load needs the sentence".
-             * It was said to the console, which a member testing on a Chromebook
-             * in the club room is not looking at, and a student sees nothing at
-             * all: a map where pressing things does nothing looks exactly like a
-             * map with nothing in it. */
+            /* on screen and not only in the console, because a member testing on a Chromebook is not looking at it and a map where pressing things does nothing looks exactly like a map with nothing in it */
             note(`This island is under construction. ${ready.error}`)
             grape = null
             setCinema(false)
@@ -4628,14 +3725,7 @@ export default function PmapScene() {
             engine.log('anchor_missing', { map: mapId, claimed: missing })
           }
           if (DBG) console.info(`[pmap] ${mapId}: island claims ${ready.handlers.join(', ')}`)
-          /* AN ISLAND BEING SAILED THROUGH DOES NOT GET TO OPEN.
-           *
-           * A voyage passes over the hub on the way out: the map loads, and the
-           * hub's own `@on_start` is the ARRIVAL, so it played its docking line
-           * over a ship that was already leaving. Measured on the first proof:
-           * "The principal is waiting for you up there." on screen while Thor
-           * sailed away from him. The landing leg is different and does open the
-           * island, because on the far shore the arrival is the point. */
+          /* an island being sailed through does not get to open: a voyage passes over the hub, whose own `@on_start` is the arrival, so it played its docking line over a ship that was already leaving, and only the landing leg opens the island */
           const through = travelPlan()
           const passing = !!through && through.leg !== 'landing'
           if (passing) {
@@ -4666,12 +3756,10 @@ export default function PmapScene() {
             }
           }
         } catch (e) {
-          /* an island that never arrived has finished arriving, which is the
-           * honest answer for anybody waiting on it */
+          /* an island that never arrived has finished arriving, which is the honest answer for anybody waiting on it */
           islandStarted = true
           console.warn(`[pmap] ${mapId}: island did not load: ${e instanceof Error ? e.message : e}`)
-          /* and the frame comes down with it: an island that never arrived is an
-           * island that will never say `movie(False)` */
+          /* and the frame comes down with it: an island that never arrived is an island that will never say `movie(False)` */
           setCinema(false)
         } finally {
           /* whether it arrived or fell over, the stations open again */
@@ -4685,13 +3773,10 @@ export default function PmapScene() {
       // ---- input ----
       window.addEventListener('keydown', kd); window.addEventListener('keyup', ku)
 
-      // ---- camera: follow, clamped to the painting; a painting smaller than the viewport
-      // sits centered on that axis instead ----
-      /* the clamp reads camZ rather than Z, because a cutscene may zoom and a
-       * painting clamped at the wrong scale shows the void past its own edge */
+      // camera: follow, clamped to the painting, and a painting smaller than the viewport sits centered on that axis instead
+      /* the clamp reads camZ rather than Z, because a cutscene may zoom and a painting clamped at the wrong scale shows the void past its own edge */
       /* the camera clamp belongs to what is being driven: a walking body, not a hull at sea */
-      /* the root attribute a composed shot writes, so the HUD can stand down for it
-       * the way it stands down for the bars. Written here and nowhere else. */
+      /* the root attribute a composed shot writes, so the HUD can stand down for it the way it does for the bars, and it is written here and nowhere else */
       const setShotUp = (on: boolean) => {
         const el = document.documentElement
         if (on) el.setAttribute('data-shot', '1')
@@ -4702,35 +3787,8 @@ export default function PmapScene() {
       /* the frame is the window minus whatever the dialogue box has claimed, up to half of it */
       const freeH = (vh: number) => vh - Math.min(uiBand(), vh * 0.5)
       /* the painting's own edges are the fence, in one expression for big and small maps */
-      /* THE FENCE IS THE PAINTED RECT AND NOT THE CANVAS. A painting rarely fills the
-       * square it was saved on, so clamping to the canvas let a close shot frame
-       * transparent margin with the ocean showing through it. */
-      /* ---- THE FENCE IS THE PAINTING, PLUS THE SEA IT SITS IN ---------------
-       *
-       * ASH, after playing the ATC island: *"the view / character pov, both wide and
-       * close, are fucking broken on the atc island. its locked at the middle ish, and
-       * i cant even see the ship at the dock."*
-       *
-       * Two faults, one cause, and the cause is this rectangle.
-       *
-       * ONE: HIS SHIP IS NOT IN THE PAINTING. A berth is authored in the OCEAN, off the
-       * end of the quay, and the ocean is drawn by the engine outside the painted rect.
-       * So a fence that stops dead at the painting's edge is a fence that can never
-       * frame the boat he is standing next to. He walked to his own dock and the thing
-       * he was walking to was permanently off the bottom of the screen.
-       *
-       * TWO: THE ISLAND IS LOCKED SIDEWAYS. `Z_PAINT` is the COVER fit, the zoom at
-       * which the painting fills the window, and on a near-square painting in a wide
-       * window that is driven by the width: atc-1's picture is 410 wide and the window
-       * is 1366, so Z comes out at 1366/410 and `painted.w * camZ` is EXACTLY the
-       * window width. `camTo`'s "it all fits, centre it" branch then fires on every
-       * frame for ever and the camera has no horizontal freedom at all.
-       *
-       * Growing the fence by a margin of sea fixes both: there is something drawn out
-       * there to show, and the rect stops being exactly the width of the window.
-       *
-       * A ROOM GETS NO MARGIN. There is no ocean outside the Maw, only the black field
-       * Ash banned, so an interior fences to its own picture exactly as before. */
+      /* the fence is the painted rect and not the canvas: a painting rarely fills the square it was saved on, so clamping to the canvas let a close shot frame transparent margin with the ocean showing through it */
+      /* the fence is the painting plus a margin of sea, and a room gets none: a berth is authored in the ocean off the quay, so a fence at the painting's edge can never frame the boat, and on a 410 wide picture in a 1366 window `painted.w * camZ` is the window width, so the camera has no sideways freedom */
       const fence = {
         ox: painted.ox - SEA_EDGE,
         oy: painted.oy - SEA_EDGE,
@@ -4747,47 +3805,16 @@ export default function PmapScene() {
       let holdStill = !coastCut
       /* the longest view will wait for its own zoom to arrive before letting the island go on */
       const VIEW_CEILING_MS = 1500
-      /* AND A SHOT WAITS LONGER, because it waits for the pan too and a push from the
-       * walking view to a close shot has a long way to travel. Both easings share one
-       * time constant, so three of them is the move plus a margin. */
+      /* a shot waits longer because it waits for the pan too, and both easings share one time constant, so three of them is the move plus a margin */
       const SHOT_CEILING_MS = 4200
 
-      /* ---- HOW TIGHT A SHOT IS ALLOWED TO BE -----------------------------
-       *
-       * Ash: *"the computer screen transition is busted, it randomly clips into the
-       * island."* Part of that is the zoom itself. A shot's zoom ships as a MULTIPLE
-       * of the game's opening view, and MAPVIS converts the author's own editor notch
-       * into that multiple by dividing by a constant of 1.18: the number it assumes
-       * the opening pull to be. On ATC the real opening pull is 3.31, so the
-       * conversion is out by a factor of 2.8 and the screen shot Ash armed at a notch
-       * of 8 arrived as 22.4 screen pixels per painting pixel. At that magnification
-       * one drawn pixel is a slab two centimetres across and the picture stops being
-       * readable as anything.
-       *
-       * The ceiling is expressed against the WALKING view rather than as a number,
-       * because that is the scale the art was drawn to be seen at: two and a half
-       * times it is a real push-in and still legible. On ATC that lands at 8.3, which
-       * is within a rounding error of the notch the author actually chose. It leaves
-       * every shot already in the game alone, because nothing else asks for more.
-       *
-       * The proper fix is on the MAPVIS side, where the notch should ship absolute
-       * instead of as a multiple of a constant it cannot know. That breaks every
-       * bundle already published, so it needs a version marker and Ash's word. */
+      /* a shot's zoom ships as a multiple of the opening view, and MAPVIS divides the author's notch by an assumed pull of 1.18, so at a real pull of 3.31 it is out by 2.8 and a notch of 8 arrived at 22.4 screen pixels per painting pixel, so the ceiling is 2.5 times the walking view */
       const SHOT_ZOOM_MAX = () => walkZ() * 2.5
-      /* where the camera really is, in fractions of a pixel, so the rounding
-       * below never eats the ease. Seeded by the first snap. */
+      /* where the camera really is, in fractions of a pixel, so the rounding below never eats the ease, seeded by the first snap */
       let camFX = 0, camFY = 0
-      /* WHERE THE CAMERA IS TRYING TO GET TO, published so a word can wait for it.
-       * `camTo` used to keep its answer inside itself, which meant `framing` could
-       * only ever wait for the ZOOM. Measured on ATC's screen shot: the zoom settles
-       * in about a second and the pan at 21x has thousands of screen pixels to
-       * travel, so the panel opened over a camera that was still moving and the
-       * picture behind it was different in every frame. */
+      /* where the camera is trying to get to, published so a word can wait for it: kept inside `camTo`, `framing` could only wait for the zoom, which settles in about a second while the pan at 21x still has thousands of screen pixels to travel */
       let camAim = { x: 0, y: 0 }
-      /* HOW LONG THE PAN TAKES, and it is the zoom's own number so the two arrive
-       * together. It used to be a flat nine percent of the remaining distance PER
-       * FRAME, which is both framerate-dependent and a different curve from the
-       * zoom, so a push-in was two moves fighting each other. */
+      /* how long the pan takes, and it is the zoom's own number so the two arrive together: nine percent of the remaining distance per frame is framerate dependent and a different curve, so a push in was two moves fighting each other */
       const CAM_TAU = 0.42
       const camTo = (cx: number, cy: number, snap = false, dt = 1 / 60) => {
         const vw = app.screen.width, vh = app.screen.height
@@ -4796,23 +3823,12 @@ export default function PmapScene() {
           if (W * camZ <= vw * ROOM_DRIFT) cx = W / 2
           if (H * camZ <= vh * ROOM_DRIFT) cy = H / 2
         }
-        /* when it all fits it is the painting that gets centred, not the canvas it was saved on.
-         *
-         * AND WHEN IT DOES NOT FIT, THE FENCE IS THE PAINTING'S OWN EDGE AND NOT THE
-         * CANVAS'S. A painting rarely fills the square it was saved on: ATC's is 410
-         * wide inside a 512 canvas, so a hundred pixels of it are transparent. Clamped
-         * to the canvas, a close shot near the top of that painting showed seven
-         * thousand pixels of open ocean in the corner of a scene set on a mountain
-         * terrace, which is the tear Ash described as clipping into the island.
-         * Clamped to the painted rect the camera cannot frame canvas nobody drew on,
-         * on any map, at any zoom. */
+        /* fitting or not, the fence is the painting's own edge and never the canvas it was saved on: at 410 wide inside a 512 canvas, clamping to the canvas put seven thousand pixels of open ocean in the corner of a scene set on a mountain terrace */
         const tx = camFree ? vw / 2 - cx * camZ
           : fence.w * camZ <= vw ? (vw - fence.w * camZ) / 2 - fence.ox * camZ
             : Math.min(-fence.ox * camZ,
               Math.max(vw - (fence.ox + fence.w) * camZ, vw / 2 - cx * camZ))
-        /* vertically the picture is centred in the FREE frame and fenced against
-         * the WINDOW, so it is allowed to run on under the box (where the box is
-         * covering it) and is never pulled off its own bottom edge to do it */
+        /* vertically the picture is centred in the free frame and fenced against the window, so it can run on under the box that is covering it and is never pulled off its own bottom edge to do it */
         const ty = camFree ? fh / 2 - cy * camZ
           : fence.h * camZ <= fh ? (fh - fence.h * camZ) / 2 - fence.oy * camZ
             : fencePainted(fh / 2 - cy * camZ, camZ, vh)
@@ -4833,8 +3849,7 @@ export default function PmapScene() {
       const zoomTo = (z: number) => { camZWant = Math.max(Z_MIN, z) }
       const stepZoom = (dt: number) => {
         if (Math.abs(camZ - camZWant) < 1e-4) { if (camZ !== camZWant) { camZ = camZWant; world.scale.set(camZ) } return false }
-        /* an exponential approach, framerate-independent, so a Chromebook at 30
-         * frames and a laptop at 60 make the same move in the same wall time */
+        /* an exponential approach, framerate-independent, so a Chromebook at 30 frames and a laptop at 60 make the same move in the same wall time */
         const tau = prefersReducedMotion() ? 0.06 : 0.42
         camZ += (camZWant - camZ) * (1 - Math.exp(-dt / tau))
         if (Math.abs(camZ - camZWant) < 1e-3) camZ = camZWant
@@ -4850,13 +3865,9 @@ export default function PmapScene() {
       /* she is tied up and he has not stepped off yet, so no sea plaque is offered */
       let tiedUp = false
 
-      /* the harness drives the helm the player drives, for a stated number of
-       * milliseconds, so a proof run sails the shipped physics rather than warping
-       * a boat to a coordinate and calling that a leg */
+      /* the harness drives the helm the player drives, for a stated number of milliseconds, so a proof run sails the shipped physics rather than warping a boat to a coordinate and calling that a leg */
       let helmOverride: { until: number; helm: Helm } | null = null
-      /* where she is being steered while she gets clear of the dock she just left.
-       * `ease` caps the helm: a voyage pulls away under her own power, and the last
-       * shot of the year leaves gently, which is what Ash asked for in those words. */
+      /* where she is being steered while she gets clear of the dock she just left, with `ease` capping the helm: a voyage pulls away under her own power and the last shot of the year leaves gently */
       let castOff: { x: number; y: number; until: number; ease?: number } | null = null
 
       /* a berth's heading is one shared value, read the same way arriving and leaving */
@@ -4878,23 +3889,14 @@ export default function PmapScene() {
           const dx = x - mx, dy = y - my
           xx += dx * dx; xy += dx * dy; yy += dy * dy
         }
-        /* the major axis of the covariance, which is one atan2 rather than an
-         * eigen solver: 0.5 * atan2(2b, a - c) */
+        /* the major axis of the covariance, which is one atan2 rather than an eigen solver: 0.5 * atan2(2b, a - c) */
         const ang = 0.5 * Math.atan2(2 * xy, xx - yy)
         /* and the end of it she is already pointing at */
         const flip = Math.cos(ang - near) < 0 ? Math.PI : 0
         return ang + flip
       }
 
-      /* A BERTH'S HEADING, ALL EIGHT OF THEM. This read three words and sent everything else to
-       * west, diagonals included and silently, so MAPVIS greyed the four diagonals out of its own
-       * compass to stop an author drawing a hull one way on the chart and the game drawing it
-       * another. A coastline does not run north to south to suit us, so half the shores on a map
-       * could not be moored along at all.
-       *
-       * Screen space, x right and y down, which is why south is positive: east 0, south a quarter
-       * turn, north back a quarter, west half. A word nothing here knows still answers west, so
-       * every world published before this draws exactly as it did. */
+      /* a berth's heading, all eight of them: reading three words and sending everything else silently to west left half a map's shores unmoorable, and this is screen space, x right and y down, so east is 0, south a quarter turn, north back a quarter, west half, and an unknown word still answers west */
       const RADS: Record<string, number> = {
         east: 0,
         'south-east': Math.PI / 4,
@@ -4905,10 +3907,7 @@ export default function PmapScene() {
         north: -Math.PI / 2,
         'north-east': -Math.PI / 4,
       }
-      /* AN ANGLE BEATS A WORD when the author set one. MAPVIS turns a berth on a dial now, because a
-       * coastline does not run at a multiple of forty-five, and it writes the exact degrees beside the
-       * nearest word. Degrees are clockwise from north; screen space has y down, so north is -cos and
-       * east is +sin, which is the same convention the eight entries above are written in. */
+      /* an angle beats a word when the author set one, because a coastline does not run at a multiple of forty-five: degrees are clockwise from north and screen space has y down, so north is -cos and east is +sin */
       const radOf = (f: string | undefined, deg?: number): number => {
         if (Number.isFinite(Number(deg))) {
           const t = (Number(deg) * Math.PI) / 180
@@ -4918,48 +3917,15 @@ export default function PmapScene() {
         return r === undefined ? Math.PI : r
       }
 
-      /* ---- THE CARD IS OWED ON EVERY ARRIVAL (Ash, 2026-09-09) ----------
-       *
-       * *"Many times, the panel that says 'THE HUB' shows. Sometimes it does
-       * not. I dont know why sometimes it just doesnt show."*
-       *
-       * It was `!seenThisSession(mapId)`, a forty-five minute memory in
-       * sessionStorage shared with the loading cover's own first-time flourish.
-       * So the card played the first time you reached the hub in a sitting and
-       * never again, and a student who goes through the tunnel four times sees it
-       * once. From the chair that is exactly "sometimes, and I don't know why".
-       *
-       * ARRIVING SOMEWHERE IS THE EVENT, not arriving somewhere new. The name of
-       * the place you have just walked into is worth saying every time you walk
-       * into it, and it is three seconds. The COVER keeps its session memory,
-       * because that one really is about the first time. */
-      /* ---- EXCEPT ON THE WAY OUT (Ash, 2026-09-09, seen in the shot) -----
-       *
-       * The ending arrives on the hub under the ceremony cover, and the card
-       * drew "THE HUB · You land at the harbor" across the frame while he was
-       * casting off from it. That arrival is not a landing, it is the last shot
-       * of the year, so it is owed nothing. `ceremony` is the occasion the
-       * closing film's `enter` is the only arrival that happens with the year's
-       * page already turned, so the save answers it without any new plumbing. */
-      /* a world scene mounting is a run that is not in its last shot, whatever
-       * the one before it was doing (`hud/objective-bus.ts` says why here) */
+      /* the card is owed on every arrival, because arriving somewhere is the event rather than arriving somewhere new: gated on `!seenThisSession(mapId)` it played once a sitting, so four trips through the tunnel showed it once, while the cover keeps its session memory */
+      /* except on the way out: the ending arrives on the hub under the ceremony cover and drew the landing card over a departure, and that arrival is the last shot of the year rather than a landing, which the save already answers because the year's page is turned */
+      /* a world scene mounting is a run that is not in its last shot, whatever the one before it was doing (`hud/objective-bus.ts` says why here) */
       setRunEnding(false)
 
       let cardOwed = !sessionOver(loadSave())
       const arrivalCard = () => {
         if (!cardOwed) return
-        /* ---- NOT FOR A MAP HE IS ONLY CROSSING (Ash) --------------------------
-         *
-         * *"for some reason, it put a transition screen while sailing to the atc
-         * island."* The cover was half of it and this is the other half, and it
-         * survived the cover fix: a voyage out of the Maw passes through the hub to
-         * reach the water, and the hub raised its own arrival card, name and all,
-         * over a boy who was not arriving anywhere. Measured on the real sail: "The
-         * Hub. You land at the harbor. The school is inside the mountain." for three
-         * seconds, in the middle of a journey to ATC.
-         *
-         * THE TEST IS WHETHER THIS MAP IS WHERE HE IS GOING. A journey still running
-         * with somewhere else at the end of it is a journey passing through here. */
+        /* not for a map only being crossed: a voyage out of the Maw passes through the hub, which raised its own arrival card for three seconds over somebody not arriving anywhere, so the test is whether this map is where the journey ends */
         const going = travelPlan()
         if (going && going.to !== mapId) {
           /* still owed, because arriving properly later should still name the place */
@@ -4973,33 +3939,13 @@ export default function PmapScene() {
         const place = placeOfMap(mapId)
         showPlaceCard({
           title: titleOfMap(mapId, typeof map.title === 'string' ? map.title : undefined),
-          /* the second time through a door he knows what the place is called and
-           * does not need telling what it is for */
+          /* the second time through a door the place is already named, so it does not need telling what it is for */
           line: beenHere ? undefined : slot?.place && place ? place.recognise : undefined,
           brief: beenHere,
         })
       }
 
-      /* ---- WHERE THE DOCK IS, ASKED THREE WAYS ---------------------------
-       *
-       * A BERTH IS WATER. It is the point the hull ties up at, authored in the OCEAN's
-       * coordinates, so converting it through `fromSea` gives a spot in the painting
-       * that is by definition not ground. The first version of this walked him to that
-       * spot and `onFloor`'s answer was destructured without its `moved` flag, and
-       * `onFloor` hands back the ORIGINAL point when it finds nothing standable inside
-       * its radius. So a failure and a success looked identical, and measured against
-       * both published bundles there IS no floor within 44 painting pixels of either
-       * berth: he was being put on water. `walk.ts` reads a level of zero as "stuck"
-       * and moves a stuck body with no collision test at all, so from there he could
-       * walk through the island.
-       *
-       * So: the anchor the world says he arrives on, then any post that reads like a
-       * dock, then a search wide enough to actually reach a quay. And if all three
-       * come back with nothing, whatever asked is refused rather than performed.
-       *
-       * HOISTED OUT OF THE HEAD-BACK BUTTON, because the first leg of a voyage wants
-       * the very same answer: Ash pressed go and was put "outsdie the maw door,
-       * instead of the doc", which is the door's own landing anchor and not a quay. */
+      /* a berth is water, so the dock is asked three ways, the world's arrival anchor, then a post that reads like a dock, then a wide search, and refused if all three fail: `onFloor` hands back the point it was given when nothing is standable, and there is no floor within 44 painting pixels of either berth */
       const dockSide = (): { x: number; y: number } | null => {
         if (!berth) return null
         const named = berth.at ? anchors.get(berth.at) : undefined
@@ -5007,18 +3953,10 @@ export default function PmapScene() {
         const quay = anchors.all.find((a2) => a2.kind === 'post' && /dock|quay|jetty|pier|harbou?r/i.test(a2.name))
         if (quay) return anchors.standAt(quay)
         const sea = fromSea(berth.x, berth.y)
-        /* 96 rather than 44: a berth sits in the water off the end of a quay, and the
-         * quay itself is further than a body's length away in the squashed metric. */
+        /* 96 rather than 44: a berth sits in the water off the end of a quay, and the quay itself is further than a body's length away in the squashed metric */
         const tried = onFloor(sea, canStand, cfg.yScale, 96)
         if (tried.moved) return tried.at
-        /* ---- AND ONE LAST LOOK, FURTHER OUT ------------------------------
-         *
-         * `onFloor` searches its own way and gives up at the radius it is handed.
-         * Measured on the castaway stand-in, whose berth sits 620 pixels out with the
-         * beach a long way behind it: nothing standable inside 96, so the journey home
-         * was refused and died with nothing on the screen. A ring search out to a
-         * quarter of a painting is slow enough to notice only when the cheap answers
-         * have already failed, which is exactly when it is worth paying for. */
+        /* one last look, further out: `onFloor` gives up at the radius it is handed, and on a berth 620 pixels offshore nothing was standable inside 96, so the journey home was refused and died with nothing on the screen, which is why a ring search out to a quarter of a painting is worth paying for here */
         for (let r = 104; r <= 260; r += 8) {
           for (let i = 0; i < 24; i++) {
             const a2 = (i / 24) * Math.PI * 2
@@ -5031,16 +3969,7 @@ export default function PmapScene() {
         return null
       }
 
-      /* ---- AND SHE IS THERE WHEN HE ARRIVES ANY OTHER WAY ------------------
-       *
-       * ASH: *"the ship sometimes is invisible."* `moored` was written in exactly one
-       * place, `stepAshore`, so the ship existed only for as long as the scene he got
-       * off in. Walk through a door and back, reload the page, or arrive at an island
-       * any way other than by sailing to it this minute, and his own boat was simply
-       * not drawn: he stood on his dock beside nothing.
-       *
-       * The save has always known where she is (`vessel.berthedAt`, written by
-       * `docked()`), and nothing read it. Now the scene asks on the way in. */
+      /* the ship is there however he arrives: `moored` was written only in `stepAshore`, so she existed for the life of the scene he got off in and a door, a reload or any other arrival left the dock empty, while `vessel.berthedAt` in the save always knew and nothing read it */
       {
         const v = loadSave()?.vessel
         const here = slot?.place ?? slot?.map ?? mapId
@@ -5062,21 +3991,7 @@ export default function PmapScene() {
         thor.sp.visible = false; thor.sh.visible = false; pinWanted = false
         setAfloat(true)
         camFree = true
-        /* ---- THE SHIP SHOT, WHICH IS THE ONE THE INTRO USES -----------------
-         *
-         * ASH, comparing the two: *"look at how the intro cutscene sailing. because
-         * theres a clear difference. Much slower sailing. Correct camera orientated."*
-         *
-         * The intro is the hub's own Python and it says `view("ship")`, which is the
-         * WALKING zoom: on the hub, 3.0. This said `zoomTo(Z_MIN)`, which on the hub is
-         * 2.04, so every engine voyage pulled a third of the way out the instant he got
-         * in and then the leg said `view('ship')` and pulled back in again. Two camera
-         * moves fighting over one beat, ending further out than the crossing the player
-         * likes, which is most of why the same boat reads as a speedboat on one road
-         * and as a ship on the other.
-         *
-         * Z_MIN is still the floor for a student driving her himself, where pulling out
-         * is what a tiller is for. */
+        /* the ship shot is the walking zoom, 3.0 on the hub, not `Z_MIN` at 2.04: boarding on `Z_MIN` pulled a third of the way out and then `view('ship')` pulled back in, two camera moves fighting over one beat, and `Z_MIN` stays the floor for a student steering her herself */
         zoomTo(Z_SHIP)
         engine.log('boarded', { map: mapId, place: slot?.place ?? null })
       }
@@ -5091,8 +4006,7 @@ export default function PmapScene() {
           endVoyage(new NotBuilt('route',
             `the crossing on "${voyage.path.name}" ended at ${at}, when the ship was put ashore`))
         }
-        /* read before she stops being a hull: it is the tie-breaker for which
-         * way along the dock she lies */
+        /* read before she stops being a hull: it is the tie-breaker for which way along the dock she lies */
         const cameInOn = hull.heading
         sailing = null
         sailingTo = null
@@ -5102,20 +4016,7 @@ export default function PmapScene() {
         if (hullSp) hullSp.visible = !!berth
         wakeG.clear()
         tiedUp = false
-        /* ---- SHE LIES THE WAY HER BERTH WAS DRAWN -----------------------
-         *
-         * ASH: *"the sailing doesnt always end up in the right orientation... random
-         * orientations sometime."* Here is the last of it, and it is not the sailing at
-         * all. Whatever heading `berthHelm` worked so hard to arrive on was THROWN AWAY
-         * on the frame he stepped off: `dockAxis` measures the long axis of the
-         * standable pixels near the berth and lies her along THAT. Measured on the hub
-         * that is 15.4 degrees from the heading she came in on, so the ship visibly
-         * snaps round in one frame as he lands, and on any quay whose planks do not run
-         * along the berth's own bearing it is worse and it is arbitrary.
-         *
-         * A berth that carries a facing is an instruction from the person who drew the
-         * map, and it wins. `dockAxis` stays for the berths nobody has aimed yet, which
-         * is what it was written for. */
+        /* she lies the way her berth was drawn, because an authored facing is an instruction and it wins: `dockAxis` measured 15.4 degrees off the heading she came in on at the hub, so she snapped round in one frame as he stepped off, and it stays only for berths nobody has aimed */
         if (berth) {
           const at = fromSea(berth.x, berth.y)
           const drawn = berth.facing || berth.bearing !== undefined
@@ -5134,34 +4035,9 @@ export default function PmapScene() {
         engine.log('disembarked', { map: mapId })
       }
 
-      /* ---- THE WAY IN, FOUND OVER WATER ---------------------------------
-       *
-       * Measured on the shipped crossing: she was AGROUND for 49 of 229 frames and
-       * sailed 1.93 times the straight-line distance. `berthHelm` aims at a
-       * rendezvous and `stepHull` slides her along whatever coast is in the way, so
-       * an island between the ship and its own dock was a shoreline to grind down.
-       * Ash: *"it doesnt find a clean path."*
-       *
-       * So the approach is searched before it is sailed. These are the legs of that
-       * search, steered one at a time, and `berthing` does not begin until she is out
-       * of them. A crossing over open water finds one leg and nothing changes. */
+      /* the way in is found over water before it is sailed: aiming straight at the rendezvous left her aground for 49 of 229 frames and sailing 1.93 times the straight line distance, because `stepHull` slides her along whatever coast is in the way, and `berthing` waits until the legs are done */
 
-      /* ---- COMING UP ON A BERTH IS DONE AT DOCKING SPEED ------------------
-       *
-       * ASH: *"it does some RANDOM sailing... it doesnt even end on the right
-       * orientation."* Measured on the real hub arrival, the follower handed the hull
-       * to `berthHelm` seventy pixels from the berth STILL DOING 96. The manoeuvre will
-       * not come alongside a boat going that fast, so it refused her, sent her out to a
-       * mark two hundred pixels on the FAR side of the dock, and she sailed a lap.
-       *
-       * A SPEED AND NOT A BRAKE. The first try cut the throttle inside the stopping
-       * distance, which is right for a boat stopping AT a mark and wrong for one
-       * passing through it: she braked, drag took the speed off, the sum said she could
-       * throttle up again, and she oscillated her way in at a mean of 32 over five
-       * hundred frames. Holding a speed is stable and it is what a helmsman does.
-       *
-       * Both followers call this, because two followers with two ideas of how to
-       * approach a dock is how the first one got away with being wrong. */
+      /* coming up on a berth is done at docking speed, and it is a speed held rather than a brake: handed to `berthHelm` seventy pixels out still doing 96 she was refused and sailed a lap, and cutting the throttle inside the stopping distance oscillated her in at a mean of 32 over five hundred frames */
       const DOCK_APPROACH = DEFAULT_SAIL.cruise * 0.45
       const dockingSpeed = (helm: Helm, left: number, speed: number) => {
         if (left > 180) return
@@ -5169,47 +4045,19 @@ export default function PmapScene() {
       }
 
       /* docking is a decelerating manoeuvre and then a door, never a teleport */
-      /* ---- ONE CROSSING, ONE FOLLOWER -------------------------------------
-       *
-       * ASH: *"The sailing needs to be as smooth as perfect as the beach / intro
-       * cutscene, but across every island... basically any sailing. needs to be
-       * perfect."*
-       *
-       * The reason it was not is that this game had TWO machines for moving a ship and
-       * they did not agree. An island saying `route(..., who="ship")` - which is the
-       * intro, and the crossing he likes - went through `sailing`: a line of waypoints
-       * steered one at a time, taking the way off on the last leg, handing the last
-       * stretch to `berthHelm` with the berth's own heading. Every other crossing in
-       * the game went through a second follower written later, with its own timeout,
-       * its own handover and its own idea of how to come up on a mark. Two machines
-       * doing one job is why one of them looked right and the other did not, and every
-       * fix to either of them had to be made twice or it silently was not.
-       *
-       * There is one now. `dockAt` finds the way in over water exactly as it did and
-       * then hands it to `sailing`, the same follower the intro uses, as a line with a
-       * name. The handover to the manoeuvre, the deceleration, the timeout and the
-       * arrival are all the intro's, because they are now literally the same code. */
+      /* one crossing, one follower: two machines for moving a ship did not agree, so a fix to either had to be made twice or silently was not, and `dockAt` now finds the way in over water and hands it to `sailing` as a named line, the same follower a scripted route uses */
       const dockAt = (s: WorldSlot) => {
         if (!hull || !s.berth || berthing || sailing) return
         const t = fromSea(s.berth.x, s.berth.y)
         const ap = s.berth.approach ? fromSea(s.berth.approach.x, s.berth.approach.y) : undefined
-        /* WHERE THE MANOEUVRE IS GOING TO BEGIN, asked of the manoeuvre itself. The
-         * authored approach point when somebody drew one, and otherwise the same mark
-         * astern of the berth that `berthHelm` would work out for itself. Routing to
-         * the BERTH instead was most of what was left wrong: the straight line to a
-         * dock is clear often enough that the search answered "go ahead" and handed
-         * her back to a helm that then walked her along the coast to line up. */
+        /* where the manoeuvre begins, asked of the manoeuvre itself: the authored approach point, else the mark astern of the berth `berthHelm` would work out, because routing to the berth let the search answer go ahead and hand her back to a helm that walked her along the coast to line up */
         const water = (x: number, y: number) => depthAt(x, y) >= DEFAULT_SAIL.probe
         const face = s.berth.facing || s.berth.bearing !== undefined
           ? radOf(s.berth.facing, s.berth.bearing) : undefined
         const head = ap
           ?? (face !== undefined ? lineUpPoint(t, face, DEFAULT_SAIL, water) ?? t : t)
-        /* AND THE ROUTE AGREES WITH THE MANOEUVRE. `berthHelm` has the same test, but
-         * this is the one that has to come first: a route is followed to its end before
-         * the manoeuvre is ever consulted, so a route out to the mark commits her to the
-         * turn round no matter what the manoeuvre would have said. */
-        /* a berth nobody gave a heading has no line to be on, so the question cannot
-         * be asked and she takes the route */
+        /* the route agrees with the manoeuvre, and this test has to come first: a route is followed to its end before the manoeuvre is consulted, so a route out to the mark commits her to the turn whatever the manoeuvre would have said */
+        /* a berth nobody gave a heading has no line to be on, so the question cannot be asked and she takes the route */
         const onHerRun = face !== undefined
           && insideTheApproach({ x: hull.x, y: hull.y }, t, face, head, hull.heading)
         const legs = onHerRun ? null : seaRoute({ x: hull.x, y: hull.y }, head, water, { step: 24 })
@@ -5218,9 +4066,7 @@ export default function PmapScene() {
             + 'rather than standing back out to the mark')
         }
         if (legs && legs.length) {
-          /* the line she is about to sail, written as a line so the one follower can
-           * read it. It carries the berth's own heading, which is what `berthHelm`
-           * reads at the handover when the world gives it nothing else. */
+          /* the line she is about to sail, written as a line so the one follower can read it, carrying the berth's own heading for `berthHelm` to read at the handover */
           const line: Pathway = {
             name: `the way in to ${s.berth.name ?? s.map ?? mapId}`,
             kind: 'sail',
@@ -5231,14 +4077,7 @@ export default function PmapScene() {
             bearing: s.berth.bearing,
             marks: [],
           }
-          /* ---- MEASURED FROM WHERE SHE IS, NOT ALONG THE LINE -------------
-           *
-           * `lengthOf` adds up the gaps BETWEEN a line's points, and a way in that is
-           * one clear run has exactly one point, so it measured zero. She was given
-           * eight seconds to sail a thousand pixels, the follower timed out halfway
-           * in, and she was left coasting with nothing driving her and an arrival
-           * waiting on a tie-up that could never come. The stretch she has to sail
-           * starts at the hull. */
+          /* measured from where she is, not along the line: `lengthOf` adds up the gaps between points and a one point run measures zero, so she got eight seconds for a thousand pixels, timed out halfway and coasted with an arrival waiting on a tie up that could never come */
           const far = Math.hypot(legs[0].x - hull.x, legs[0].y - hull.y) + lengthOf(line)
           sailing = { path: line, pts: legs, i: 0, left: (far / DEFAULT_SAIL.cruise) * 3 + 8 }
           sailingTo = { berth: s.berth, slot: s }
@@ -5247,9 +4086,7 @@ export default function PmapScene() {
           engine.log('docking', { map: mapId, to: s.map ?? null, place: s.place ?? null, legs: legs.length })
           return
         }
-        /* NO WAY THROUGH AT THIS PITCH, which is an honest answer and not a failure:
-         * she is beside her berth already, or the water is too tight for the search.
-         * The manoeuvre does what it can from where she is, exactly as before. */
+        /* no way through at this pitch is an honest answer and not a failure: she is beside her berth already, or the water is too tight for the search, so the manoeuvre does what it can from where she is */
         docking = s
         berthing = { target: t, facing: face, approach: ap, stage: 'approach' }
         engine.log('docking', { map: mapId, to: s.map ?? null, place: s.place ?? null, legs: 0 })
@@ -5266,39 +4103,20 @@ export default function PmapScene() {
         sailing = null
         sailingTo = null
         if (!s) {
-          /* nothing named this stop. It cannot happen through `sailRoute` any
-           * more, which refuses a line that ends nowhere, but `dockAt` is also
-           * reachable from the player's own prompt and this is the honest floor. */
+          /* nothing named this stop: `sailRoute` refuses a line that ends nowhere, but `dockAt` is also reachable from the player's own prompt, so this is the honest floor */
           stepAshore()
           v?.done()
           settleVoyageFrame('she tied up nowhere in particular')
           return
         }
-        /* ---- WHOEVER OWNS THE CROSSING SAYS WHEN HE STEPS OFF ------------
-         *
-         * ASH: *"the arriving is broken because it automatically skips."* Nobody
-         * pressed anything. This line asked whether a PYTHON route was directing the
-         * arrival and, finding none, put him ashore on the tie-up frame. But the
-         * engine's own voyage is a script directing an arrival too, and it sets no
-         * `voyage` object: it lives in `world/travel.ts`. So on every journey a player
-         * actually takes - a pin on the chart, `sail_to`, the Head back button - this
-         * got there first with `keepShot` false, and every beat the landing leg had
-         * staged behind it became a no-op: the wait for the tie-up, the 700ms breath,
-         * the step ashore with the shot kept, the pull-out over the island and the
-         * card. The arrival skipped itself.
-         *
-         * A tie-up is a tie-up. Stepping off belongs to the thing that brought him. */
+        /* whoever owns the crossing says when he steps off: testing only for a python route put him ashore on the tie up frame, because the engine's own voyage sets no `voyage` object and lives in `world/travel.ts`, so every beat the landing leg staged behind it became a no-op and the arrival skipped itself */
         if (v || travelPlan()?.leg === 'landing') tiedUp = true; else stepAshore()
         /* and the chart finds out where she is tied up, so the boat marker really moves */
         recordVessel({ berthedAt: s.place ?? s.map ?? mapId, legs: (loadSave()?.vessel?.legs ?? 0) + 1 })
         engine.log('voyage_arrived', { map: mapId, to: s.map ?? mapId, place: s.place ?? null })
         if (!s.map || s.map === mapId) {
           v?.done()
-          /* HE IS ASHORE ON THE MAP HE SAILED TO, so the journey is over and the
-           * frame the engine raised for it comes down. This is the ordinary end
-           * of a crossing: the island here has already had its `start` (it runs
-           * while she is still on the water), so nothing else was ever going to
-           * lower them. */
+          /* ashore on the map he sailed to, so the journey is over and the engine's own frame comes down: the island here has already had its `start`, which runs while she is still on the water, so nothing else was going to lower the bars */
           settleVoyageFrame('the crossing is over')
           return
         }
@@ -5307,38 +4125,12 @@ export default function PmapScene() {
         beginExit({ map: s.map, at: s.berth?.at })
       }
 
-      /* ---- THE WHOLE JOURNEY, ASKED FOR BY A PANEL -----------------------
-       *
-       * ASH, 2026-09-08 item 3: *"pressing a pick puts Thor at his current
-       * island's dock, he presses E on his ship, the bars go up, the ship sails
-       * herself to that pick's island, he steps off, the island's card plays."*
-       *
-       * Which is `sail_to`, the word a member's island already writes, and the
-       * only thing missing was a way for React to say it. The year sheet's one
-       * button per pick and the travel map's pins both come through here, so
-       * there is exactly one voyage in this game and three doors into it.
-       *
-       * IT IS OFFERED FROM ANY MAP, not only from one with water: the first leg
-       * of the journey is the walk out of the room and `sail_to` owns that. Its
-       * own four refusals are the gate, and they name what can be sailed to. */
-      /* ---- CALLED OFF AT THE DOCK ---------------------------------------
-       *
-       * ASH: *"IF ESC IS CLICKED BEFORE SAILING, THEN CUTSCENE GOES AWAY, THOR HAS TO
-       * CLICK E THAT OPENS THE MAP."* The dropping of the plan happens in React, in
-       * `SkipVoyage`, because that is where the key is. What has to happen HERE is the
-       * bars coming down and the year getting its own sentence back, and neither of
-       * those is something a button can reach. */
+      /* the whole journey asked for by a panel, which is `sail_to`: the year sheet's buttons and the chart's pins come through here so there is one voyage with three doors into it, offered from any map because the first leg is the walk out of the room and `sail_to`'s own refusals are the gate */
+      /* called off at the dock: the plan is dropped in React in `SkipVoyage` where the key is, and what happens here is the bars coming down and the year getting its sentence back, neither of which a button can reach */
       offTravel = onTravel((p) => {
         if (p || !cinemaOn() || cinemaBy() !== 'voyage') return
         setCinema(false)
-        /* ---- AND ONLY A JOURNEY HE STOPPED HANDS THE LINE BACK -------------
-         *
-         * A plan going null is either "he pressed Escape on the dock" or "he arrived",
-         * and this treated both the same. On an arrival the island he has just landed
-         * on has ALREADY set its own first sentence - its `start` runs while the ship
-         * is still on the water - so clearing the line here deleted it and left the
-         * year's talking instead: "Go into the mountain", read while standing on an
-         * island that has no mountain on it. */
+        /* only a journey that was stopped hands the line back: a plan going null is either an escape at the dock or an arrival, and on an arrival the island's `start` has already set its first sentence, so clearing the line here deleted it and left the year's talking instead */
         if (voyageCalledOff()) engine.objective(null)
         engine.log('voyage_ended', { map: mapId, calledOff: voyageCalledOff() })
       })
@@ -5356,37 +4148,13 @@ export default function PmapScene() {
         }
       })
 
-      /* ---- ISLAND FINISHED, HEAD BACK (Ash) -----------------------------
-       *
-       * *"a button at the bottom middle should show up saying 'Island Finished -
-       * Head back'. once clicked, the user gets teleported to the dock of the island
-       * they are on. and of course the same sailing logic, esc, the chart, or the
-       * immediate sailing, etc."*
-       *
-       * It WALKS him rather than cutting. The dock is somewhere on the island he is
-       * already standing on, and a cut across ground he can see would be the game
-       * taking the controls off him for no reason. What happens once he is there is
-       * the ordinary harbour, which is the whole point of keeping this to one job.
-       *
-       * Only registered where there IS a dock, the same rule the sail listener below
-       * keeps, so the button can ask whether anybody could answer before it draws. */
+      /* the head back button walks him rather than cutting, because the dock is on the island he is already standing on and a cut across ground he can see takes the controls off him for no reason, and it is only registered where there is a dock so the button can ask whether anybody answers before it draws */
       if (canSail && berth) offHome = onHeadBack((answer) => {
         if (fade || busy || runtime.running || hull || berthing || voyage) {
           answer({ ok: false, why: 'Not while something else is happening.' }); return
         }
         if (travelPlan()) { answer({ ok: false, why: 'You are already on your way.' }); return }
-        /* ---- IT IS THE SAME JOURNEY, POINTED THE OTHER WAY -----------------
-         *
-         * ASH: *"I was VERY FUCKING CLEAR, that it trns on cutscene, and when thor
-         * clicks E, he hops on boat, and sails to hub island. DO YOU NOT UNDERSTAND
-         * THE FUCKING LOGIC."*
-         *
-         * What shipped was a teleport to the dock and nothing else: no bars, no ship,
-         * no press, no crossing. It read as a button that moved him thirty feet. This
-         * hands the whole thing to `sail_to`, which is the one machine every journey in
-         * this game goes through, so heading home is a pick on the chart that he did
-         * not have to open. One road, three doors into it: the chart's pin, a member's
-         * python, and this. */
+        /* the same journey pointed the other way: a teleport to the dock with no bars, no ship, no press and no crossing read as a button that moved him thirty feet, so this hands the whole thing to `sail_to`, the one machine every journey goes through */
         const here = comp
         const wantHome = here?.home?.slot
         const home = here && wantHome
@@ -5398,10 +4166,7 @@ export default function PmapScene() {
           return
         }
         engine.log('head_back', { map: mapId, to: home.map })
-        /* ANSWERED NOW, AND NOT WHEN THE COVER IS DONE. The bus proves nobody heard a
-         * request by answering it itself the instant the dispatch returns, so an answer
-         * that waits for anything at all arrives second and is thrown away. What this
-         * answer means is that the scene has taken the request, which is true here. */
+        /* answered now and not when the cover is done: the bus answers a request itself the instant the dispatch returns, so an answer that waits for anything arrives second and is thrown away, and this one only means the scene has taken the request */
         guideTarget = null
         try {
           void intentWorld.sailTo(home.map)
@@ -5475,37 +4240,13 @@ export default function PmapScene() {
         let out = { x: b.x, y: b.y }
         let best = -1
         let found = false
-        /* ---- THE FAR START BELONGS TO AN ISLAND, NOT TO THE WORLD ---------
-         *
-         * ASH: *"the sailing is just fucking busted and ugly"* and, of the crossing,
-         * long stretches of open water with nothing in them. This is most of that.
-         *
-         * `the_far_start` is ONE mark on the world document and it was honoured on
-         * every sea arrival, whichever island was being arrived at. It was drawn for
-         * the hub, so the ship arriving at ATC was born beside the HUB's start line -
-         * far out, with no land anywhere on screen - and then sailed the whole way
-         * across an empty sea to an island she had never been near. Sixteen seconds of
-         * nothing, behind the bars, pointed at a berth off the edge of the frame.
-         *
-         * A mark carries the island it was drawn for (`marksOf` already keys marks by
-         * it, and the hub's own berth uses the field). One that names a DIFFERENT
-         * island is not this island's start line, and one that is nowhere near this
-         * island's berth is not either, whatever it says. */
-        /* THE WORLD SPELLS AN ISLAND THREE WAYS and always has: a mark says
-         * `the_hub`, the slot says `hub` with a place of `home-island`, and the bundle
-         * says `hub`. So the comparison is made on a plain form of each - underscores
-         * to hyphens, a leading "the" dropped - which is the same tolerance
-         * `slotOfBerth` already applies to berths for exactly this reason. */
+        /* the far start belongs to an island, not to the world: one mark honoured on every sea arrival meant a ship arriving elsewhere was born beside the hub's start line and sailed sixteen seconds of empty water, so a mark naming another island or sitting far from this berth is not ours */
+        /* the world spells an island three ways, `the_hub` on a mark, `hub` with a place of `home-island` on the slot, and `hub` in the bundle, so the comparison is made on a plain form, underscores to hyphens and a leading the dropped, the same tolerance `slotOfBerth` applies */
         const plain = (v: string) => v.replace(/_/g, '-').replace(/^the-/, '')
         const names = new Set([slot?.place, slot?.map, mapId]
           .filter((v): v is string => !!v).map(plain))
         const mine = (m: { island?: string }) => !m.island || names.has(plain(m.island))
-        /* ---- AND A SKIPPED CROSSING BEGINS CLOSE IN ----------------------
-         *
-         * The press means "I have seen a boat, take me there", so the far map opens
-         * with her already on the last stretch rather than at the start line. She
-         * still sails in, ties up and is stepped off: what is skipped is the run
-         * across, which is the part he asked to skip. */
+        /* a skipped crossing begins close in: the far map opens with her already on the last stretch, and she still sails in, ties up and is stepped off, because what is skipped is the run across */
         const raw = comp && !voyageSkipped() ? farStart(comp) : undefined
         const fs = raw && mine(raw) ? raw : undefined
         if (raw && !fs) {
@@ -5515,9 +4256,7 @@ export default function PmapScene() {
         if (fs) {
           const at = fromSea(fs.x, fs.y)
           const deep = depthAt(at.x, at.y)
-          /* AND NEAR ENOUGH TO BE THIS ISLAND'S START LINE. A mark with no island on
-           * it is trusted only while it is within sight of the berth it is supposed to
-           * be the approach to; further than that it is somebody else's water. */
+          /* near enough to be this island's start line: a mark with no island on it is trusted only within sight of the berth it approaches, and further out it is somebody else's water */
           const far = Math.hypot(at.x - b.x, at.y - b.y)
           if (deep >= DEFAULT_SAIL.probe && far <= FAR_START_REACH) {
             out = at; best = deep; found = true
@@ -5543,9 +4282,7 @@ export default function PmapScene() {
             + ' The berth or its approach wants moving in MAPVIS.')
         }
         hull.x = out.x; hull.y = out.y
-        /* THE BOW POINTS AT THE ISLAND, because that is what arriving looks like.
-         * The berth is the thing she is making for, so the heading is the line to
-         * it and not the reverse of the line out. */
+        /* the bow points at the island, because that is what arriving looks like: the heading is the line to the berth and not the reverse of the line out */
         hull.heading = Math.atan2(b.y - out.y, b.x - out.x)
         /* she is born at cruise, so the ship is already moving on the frame the cover lifts */
         hull.speed = DEFAULT_SAIL.cruise
@@ -5561,37 +4298,12 @@ export default function PmapScene() {
       }
       if (target.aboard) arriveAboard()
 
-      /* THE DEPARTURE, which is the arrival read the other way round.
-       *
-       * `board()` puts the hull ON the berth, and a berth is by definition the
-       * shallowest water an island has: the published hub's has 24px under it
-       * against a 26px probe, so a boat created there is aground before she has
-       * moved. The arrival dodges that by sounding outward along the berth's
-       * seaward line for water deep enough to sail; a departure wants exactly the
-       * same sounding, so it is one function used twice rather than two that
-       * drift. Returns the point and how much water was under it. */
-      /* ---- THE WAY OUT, AND IT IS NOT ALWAYS ASTERN -----------------------
-       *
-       * ASH: *"like what the fuck is the ship doing... it does crazy turns, shitty
-       * turns."* Here is one of them, and it happened on EVERY departure in the game.
-       *
-       * `board()` puts the hull on the berth's own heading, which is the way she lies
-       * when she is tied up. This picked the way out as that heading PLUS PI, the
-       * exact reverse. So the first thing every voyage did was spin the boat through
-       * a hundred and eighty degrees on the spot, in shallow water, against the dock.
-       * Nobody wrote that on purpose: one line reads the berth's facing forwards and
-       * the other reads it backwards.
-       *
-       * A boat leaves a dock by whichever way there is water, preferring the way she
-       * is already pointing. So sweep, score each direction by the water it reaches
-       * and charge it for the turn it costs, and take the best. Straight ahead into
-       * open sea wins outright; a berth that really is a dead end still finds its way
-       * astern, it just has to be worth the turn. */
+      /* the departure is the arrival read the other way round: a berth is the shallowest water an island has, the hub's 24px under a 26px probe, so a hull created there is aground before she moves and both ends sound outward along the seaward line through this one function */
+      /* the way out is not always astern: taking it as the berth's heading plus pi spun the boat a hundred and eighty degrees on the spot in shallow water against the dock at the start of every voyage, so each direction is scored by the water it reaches and charged for the turn it costs */
       const soundOffshore = (): { x: number; y: number; deep: number } | null => {
         if (!berth) return null
         const b = fromSea(berth.x, berth.y)
-        /* the direction somebody drew always wins: an authored approach is a real
-         * instruction about where the safe water is */
+        /* the direction somebody drew always wins: an authored approach is a real instruction about where the safe water is */
         if (berth.approach) {
           const ap = fromSea(berth.approach.x, berth.approach.y)
           const deep = depthAt(ap.x, ap.y)
@@ -5618,8 +4330,7 @@ export default function PmapScene() {
           let turn = dir - from
           while (turn > Math.PI) turn -= 2 * Math.PI
           while (turn < -Math.PI) turn += 2 * Math.PI
-          /* deep water is worth having and a turn is worth avoiding, in the same
-           * units: a quarter turn costs about as much as forty pixels of depth */
+          /* deep water is worth having and a turn is worth avoiding, in the same units: a quarter turn costs about as much as forty pixels of depth */
           const score = Math.min(deep, OFFSHORE_DEPTH * 1.5) - Math.abs(turn) * 52
           if (!pick || score > pick.score) {
             pick = { x: b.x + Math.cos(dir) * reach, y: b.y + Math.sin(dir) * reach, deep, score }
@@ -5639,162 +4350,63 @@ export default function PmapScene() {
         return null
       }
 
-      /* how long the ship is watched leaving before the cover takes the rest of
-       * the crossing. Long enough to read as sailing, short enough that nobody
-       * sits through open water: the beach opening waits 1.8s and Ash accepted
-       * that shot, and a departure has the island to leave behind it. */
-      /* ---- THE LAST SHOT OF YEAR ONE, IN FOUR BEATS ----------------------------
- *
- * Ash, 2026-09-09: the camera goes to the boat, he is put on the dock behind it,
- * a beat, he gets in, and she leaves slowly. The numbers are the beats. */
+      /* how long the ship is watched leaving before the cover takes the rest of the crossing: long enough to read as sailing, short enough that nobody sits through open water, against the beach opening's accepted 1.8s */
+      /* the last shot of year one in four beats: the camera goes to the boat, he is put on the dock behind it, a beat, he gets in, and she leaves slowly */
 /** the shot travelling from wherever he is standing to his boat */
 const CAM_TO_DOCK_MS = 1100
 /** him standing at the dock looking at her, before he moves */
 const DOCK_BEAT_MS = 900
 /** aboard, settled, before a line is cast off */
 const BOARD_BEAT_MS = 700
-/* ---- SLOWER, AND OVER SOONER (Ash, 2026-09-09) ---------------------------
- *
- * *"The ending, the ship still sails off quite fastly. Much slower sailing, and
- * quicker time the transition to the title screen pops up."*
- *
- * Two knobs and they pull opposite ways, which is why this reads as one note and
- * is two numbers. Measured live at half a helm over 5.2 seconds: 38 to 48 pixels
- * a second, and the shot outlasted the interest in it. A third of a helm is
- * roughly 20 a second, which is a boat leaving a harbour, and three and a half
- * seconds is long enough to watch her go and short enough that the title arrives
- * while it still feels like an ending. */
+/* slower and over sooner, which is two numbers pulling opposite ways: half a helm measured 38 to 48 px/s over 5.2 seconds and outlasted the interest, while a third of a helm is roughly 20 a second and three and a half seconds still reads as an ending */
 /** the departure itself, which is the shot the title fades in over */
-/* AND LONG ENOUGH TO BE A DEPARTURE AT THE SPEED SHE REALLY GOES. Cruise came down
- * from 150 to 96 so that a crossing reads as sailing rather than as a jet ski, and
- * this number was cut to the old one: measured, she cleared 32 pixels in the whole
- * shot, which is a boat that has not left. */
+/* long enough to be a departure at the speed she really goes: cruise came down from 150 to 96, and against the old number she cleared 32 pixels in the whole shot, which is a boat that has not left */
 const SAIL_OUT_MS = 5200
-/* THE THROTTLE CONSTANT IS GONE, and the helm that replaced it is the same one every
- * other departure in the game uses: `steerTo` eases the way on through the turn and
- * then holds it. A hand-picked third of a helm was a second law for one shot. */
+/* the throttle constant is gone: `steerTo` eases the way on through the turn and then holds it, the same helm every other departure uses, because a hand picked third of a helm was a second law for one shot */
 
-/* how long he stands on his own quay with the camera already on the ship before he
- * steps into her. The intro's own boarding beat, which Ash named as the difference. */
+/* how long he stands on his own quay with the camera already on the ship before he steps into her, which is the opening's own boarding beat */
 const BOARD_HOLD_MS = 850
 
 const CAST_OFF_SHOW_MS = 3200
 
-      /* ONE LEG OF A VOYAGE, AND THE SCENE THAT CAN PERFORM IT PERFORMS IT.
-       *
-       * Called by `sail_to` on the map it was said on, and again by every map the
-       * voyage lands on, so the journey is carried by whichever scene is alive
-       * rather than by the island that started it. */
+      /* one leg of a voyage, performed by whichever scene can: called by `sail_to` on the map it was said on and again by every map the voyage lands on, so the journey is carried by whatever scene is alive rather than by the island that started it */
       const runVoyageLeg = async (): Promise<void> => {
         const v = travelPlan()
         if (!v) return
-        /* THE COVER COMES OFF FIRST. `waitForScene` resolves when the map is
-         * drawn, which is before the transition has finished lifting, so the
-         * first proof cast off underneath the picture: the ship was already at
-         * sea when the hub's loading card faded out over the top of her. */
+        /* the cover comes off first: `waitForScene` resolves when the map is drawn, before the transition has finished lifting, so the ship was already at sea when the loading card faded out over the top of her */
         const t0 = performance.now()
         while (transitionBusy() && !destroyed && performance.now() - t0 < LEG_CEILING_MS) {
           await new Promise<void>((r) => setTimeout(r, 100))
         }
         if (destroyed) return
-        /* ---- THE SKIP LANDS HIM AT THE DOCK (Ash, 2026-09-08 item 3) ------
-         *
-         * *"Esc lands him at the destination dock."* Not "cancels the voyage",
-         * which would leave a student who pressed a pick standing where he was
-         * with nothing having happened. It is the same arrival by the shorter
-         * road: the far map opens at the berth's own anchor, on foot rather than
-         * aboard, and the card plays there the way it always does.
-         *
-         * IT IS CHECKED AT THE TOP OF EVERY LEG and again after the walk, so a
-         * press during the walk out of the room is honoured before the ship is
-         * ever boarded. */
+        /* the skip lands him at the dock rather than cancelling the voyage, which would leave a student who pressed a pick standing where he was: the far map opens at the berth's own anchor on foot and the card plays, and it is checked at the top of every leg and again after the walk */
         const skipToShore = (): boolean => {
           if (!voyageSkipped()) return false
-          /* ---- ONCE THE FAR MAP IS OPEN THERE IS NOTHING LEFT TO SKIP ------
-           *
-           * ASH: *"the arriving is broken because it automatically skips."*
-           *
-           * `skipped` is a latched flag and `setLeg` never clears it, so it crosses the
-           * map change with the voyage. This test runs at the top of EVERY leg, the
-           * landing included, and the landing runs after the far island is already on
-           * screen with the ship on the water. So one Escape pressed during the
-           * crossing did not shorten the crossing, it deleted the ARRIVAL: the leg
-           * answered a stale flag by calling `beginExit` onto the map he was already
-           * standing on, which is a second loading screen with the island's name on it
-           * and a teleport over a live scene.
-           *
-           * A skip is a way of getting to the far dock sooner. Once he is at it, it has
-           * nothing to offer and must not be honoured. */
+          /* once the far map is open there is nothing left to skip: `skipped` is latched and `setLeg` never clears it, so on the landing leg a stale flag called `beginExit` onto the map he already stood on, deleting the arrival rather than shortening the crossing */
           if (v.leg === 'landing') return false
           /* and a skip never re-enters the map it is already on, whatever the leg */
           if (v.to === mapId) { endTravel('already there'); return false }
           const to = comp ? slotOfMap(comp, v.to) : undefined
-          /* ---- HIS SHIP COMES WITH HIM -------------------------------------
-           *
-           * ASH: *"thor is on the dock already, with ship invisible... I think it may
-           * have been because i clicked esc during sailing."* It was.
-           *
-           * A skip is the same arrival by the shorter road, and `docked()` is what
-           * writes down where the boat ended up - so skipping never wrote it. The save
-           * still said the Kestrel was tied up at the island he had LEFT, the far
-           * island's scene asked the save whether his ship was here, was told no, and
-           * drew nothing. He stood on a dock beside open water.
-           *
-           * Written here, where the skip is decided, because this is the moment the
-           * boat arrives whether or not anybody watched it. */
+          /* his ship comes with him: `docked()` writes where the boat ended up and a skip never reaches it, so the save still said she was tied up at the island he left and the far dock drew nothing, which is why it is written here, where the skip is decided */
           recordVessel({
             berthedAt: to?.place ?? to?.map ?? v.to,
             legs: (loadSave()?.vessel?.legs ?? 0) + 1,
           })
-          /* ---- A SKIP IS AN ARRIVAL, NOT A CANCEL --------------------------
-           *
-           * ASH: *"thor is on the dock already, with ship invisible... the camera was
-           * glitched."* All of that is one mistake: this used to `endTravel` and then
-           * open the far map through an ordinary door.
-           *
-           * Ending the plan kills the landing leg, and the landing leg is the ONLY
-           * thing that composes an arrival: the ship shot, the run in, the tie-up, the
-           * step ashore, and the pull-out over the island that hands the camera back.
-           * Without `aboard` no hull is born, so there is no crossing to see at all;
-           * without `at` - and no published berth carries one - he lands on the
-           * bundle's raw spawn, which on both islands IS the dock. And `setAfloat` is
-           * cleared by stepping ashore, which never happened, so the chart went on
-           * believing he was at sea.
-           *
-           * The un-skipped crossing already ends with exactly the two lines below.
-           * A skip is the same arrival reached sooner, so it says the same thing. */
+          /* a skip is an arrival, not a cancel: ending the plan kills the landing leg, which is the only thing that composes an arrival, and without `aboard` no hull is born, so the two lines below are the same ones the un-skipped crossing ends with */
           console.log(`[travel] skipped, arriving at ${v.to} the short way`)
           setTravelLeg('landing')
-          /* AND IT KEEPS THE TITLED SCREEN, because that screen is the thing he asked
-           * for: *"IF ESC CLICKED DURING SAILING, THEN TRANSIITON SCREEN AND IT SKIPS
-           * MOST OF HTE JOURNEY."* A watched crossing crosses under a quiet fade; a
-           * skipped one is allowed to say where it is taking him. */
+          /* a skip keeps the titled screen, because a watched crossing goes under a quiet fade and a skipped one is allowed to say where it is taking him */
           beginExit({ map: v.to, aboard: true })
           return true
         }
         if (skipToShore()) return
         try {
           if (v.leg === 'to-dock') {
-            /* ---- HE IS TAKEN TO THE DOCK. THE DOCK, AND NOT A DOOR ---------
-             *
-             * ASH, after playing: *"when i clicked go to atc island, it teleported me
-             * outsdie the maw door, instead of the doc."* Both halves of that sentence
-             * are exactly what the code did. This leg ended at the door's own landing
-             * anchor on the far side of the tunnel, handed the voyage straight on to
-             * the crossing leg, and the crossing leg then walked him down the quay and
-             * put him in the boat with no press of his own anywhere in it.
-             *
-             * So the leg's whole job is now its name: get him to the dock of the island
-             * he is on, however many rooms away that is, and stop there. A room with no
-             * water in it takes the door and stays on this same leg, so the map that
-             * arrives next does the placing. */
+            /* the dock, and not a door: ending this leg at the door's landing anchor handed the voyage straight to the crossing and put him in the boat with no press of his own, so the leg's job is its name, get him to the dock of the island he is on, and a room with no water takes the door and stays on this leg */
             if (canSail && berth) {
               const at = dockSide()
               if (!at) {
-                /* AND IT IS SAID OUT LOUD. A journey that cannot start used to end
-                 * here in one console line: the bars came down, the plan vanished, and
-                 * a student who had pressed a button watched nothing happen and had
-                 * nothing to read. Whatever else is true, somebody pressed something. */
+                /* said out loud: a journey that cannot start used to end in one console line, so a student who pressed a button watched nothing happen and had nothing to read */
                 endTravel(`there is nowhere to stand at ${mapId}'s berth`)
                 setCinema(false)
                 engine.objective(null)
@@ -5803,15 +4415,11 @@ const CAST_OFF_SHOW_MS = 3200
               }
               setTravelLeg('boarding')
               const ship = fromSea(berth.x, berth.y)
-              /* A SHORT QUIET FADE. A cut across ground he is looking at reads as a
-               * fault, and the titled card reads as a second journey he did not ask
-               * for, which is the "transition screen for the hub archipelago but
-               * saying 'Atc island'" he saw. That card belongs to the skip alone. */
+              /* a short quiet fade: a cut across ground he is looking at reads as a fault, and the titled card reads as a second journey nobody asked for, so that card belongs to the skip alone */
               void cover(passingCover().spec, () => {
                 pos.x = at.x
                 pos.y = at.y
-                /* facing his own ship, because a body standing on a quay with its
-                 * back to the water is the game not knowing what the moment is */
+                /* facing his own ship, because a body standing on a quay with its back to the water is the game not knowing what the moment is */
                 walker.facing = dirFrom(ship.x - at.x, (ship.y - at.y) * cfg.yScale)
                 recordPosition({ map: mapId })
                 camTo(pos.x, pos.y, true)
@@ -5828,37 +4436,20 @@ const CAST_OFF_SHOW_MS = 3200
               return
             }
             if (skipToShore()) return
-            /* ---- THE WAY OUT MAY BE THE DESTINATION ------------------------
-             *
-             * "Home is the hub on that same map" (Ash, 2026-09-08 item 3), and the hub
-             * is exactly one door from the Maw. So a student who presses the hub on the
-             * chart while standing in the mountain has ARRIVED the moment he walks
-             * through the tunnel: there is no water to cross and no boat to get into. */
+            /* the way out may be the destination: the hub is one door from the Maw, so pressing it on the chart while standing in the mountain means arriving the moment he walks through the tunnel, with no water to cross */
             if (door.to === v.to) {
               endTravel('the door was the destination')
               setCinema(false)
               beginExit({ map: door.to!, at: door.toAnchor })
               return
             }
-            /* PASSING THROUGH, so no arrival card for a place he is crossing. Two
-             * loading screens in one press is what made his sail read as two journeys.
-             * THE LEG DOES NOT ADVANCE: the map on the other side of this door is the
-             * one with the quay on it, and it runs `to-dock` again and does the placing. */
+            /* passing through, so no arrival card for a place being crossed, because two loading screens in one press read as two journeys, and the leg does not advance: the map beyond this door has the quay and runs `to-dock` again */
             beginExit({ map: door.to!, at: door.toAnchor }, 'passing')
             return
           }
 
           if (v.leg === 'boarding') {
-            /* ---- AND NOW NOTHING HAPPENS, WHICH IS THE POINT ----------------
-             *
-             * ASH: *"instead of allowing me to click E to sail, it just ZOOMED me past.
-             * thor didnt even hop on the ship. ship just started zooming off."*
-             *
-             * He is standing on his own dock with the bars up and his ship in front of
-             * him. The berth's prompt says Board the ship, E takes it, and Escape says
-             * not just now. Every one of those is somebody else's line of code: the
-             * prompt is on the ticker, the press is `seaFire`, the refusal is
-             * `SkipVoyage`. This leg's job is to be a state and to wait in it. */
+            /* and now nothing happens, which is the point: the prompt is on the ticker, the press is `seaFire` and the refusal is `SkipVoyage`, so this leg's job is to be a state and to wait in it */
             if (!canSail || !berth) { endTravel(`${mapId} has no berth`); setCinema(false); return }
             if (!hull) engine.objective(`Press E to board. Sailing to ${titleOfMap(v.to)}.`)
             return
@@ -5866,15 +4457,7 @@ const CAST_OFF_SHOW_MS = 3200
 
           if (v.leg === 'crossing') {
             if (!canSail || !berth) { endTravel(`${mapId} has no berth`); setCinema(false); return }
-            /* ---- HE GETS IN, AND IT IS A PICTURE ---------------------------
-             *
-             * ASH: *"A shake before hopping on the boat, thor visible."* The intro has
-             * that beat and this did not: E hid him and produced a boat in the same
-             * frame, which is a swap and not a boarding.
-             *
-             * The camera goes to the ship FIRST, while he is still standing on the
-             * quay, then the line goes aboard, then he steps in. The same three beats
-             * `end_run` uses for the last shot of the year, for the same reason. */
+            /* he gets in, and it is a picture: hiding him and producing a boat in the same frame is a swap and not a boarding, so the camera goes to the ship first while he is still on the quay, then he steps in, the same three beats `end_run` uses */
             if (!hull) {
               void intentWorld.view('ship')
               try { playSfx('board') } catch { /* a beat without its sound is still a beat */ }
@@ -5884,21 +4467,10 @@ const CAST_OFF_SHOW_MS = 3200
             }
             if (!hull) { endTravel('he could not get in the boat'); setCinema(false); return }
             if (skipToShore()) return
-            /* off the berth and into water she can actually sail, the same sounding
-             * the arrival uses, because a berth is the shallowest water there is */
+            /* off the berth and into water she can actually sail, the same sounding the arrival uses, because a berth is the shallowest water there is */
             const out = soundOffshore()
             if (out) {
-              /* ---- SHE PULLS AWAY, SHE DOES NOT TELEPORT ROUND ---------------
-               *
-               * The bow used to be SNAPPED onto the outbound heading in one frame, on
-               * screen, which the measurement picks up as a turn of several hundred
-               * degrees a second and a player reads as the boat flicking. And her
-               * speed was set straight to cruise, so the first frame anybody ever saw
-               * of her she was already flat out: "it looks like its going 300 mph."
-               *
-               * From rest, on the heading the berth left her lying on, and steered out
-               * by the same helm as everything else. Two seconds of pulling away from
-               * a dock, which is the beat that was missing. */
+              /* she pulls away, she does not teleport round: snapping the bow onto the outbound heading in one frame measures as several hundred degrees a second and reads as flicking, and setting her straight to cruise meant the first frame anybody saw of her was flat out, so she starts from rest */
               hull.speed = 0
               sailing = null
               castOff = { x: out.x, y: out.y, until: performance.now() + CAST_OFF_SHOW_MS }
@@ -5908,22 +4480,13 @@ const CAST_OFF_SHOW_MS = 3200
             await new Promise<void>((r) => setTimeout(r, CAST_OFF_SHOW_MS))
             if (skipToShore()) return
             setTravelLeg('landing')
-            /* and the rest of the crossing happens under the cover, which is what a
-             * cover is for. `aboard` is what makes the far map open ON THE WATER with
-             * the ship already under way, the same arrival the beach opening gets.
-             *
-             * QUIET, AND NOT THE ISLAND'S OWN CARD. The card belongs to arriving, and
-             * he has not arrived: he is mid-crossing and about to sail the second half
-             * of it. Ash saw the card here and read it as the journey ending twice. */
+            /* the rest of the crossing happens under the cover, and `aboard` is what makes the far map open on the water with the ship already under way: the cover is quiet rather than the island's own card, because the card belongs to arriving and he is mid crossing */
             beginExit({ map: v.to, aboard: true }, 'passing')
             return
           }
 
           if (v.leg === 'landing') {
-            /* the far shore. `arriveAboard` has already put her offshore under way,
-             * so all that is owed is the run in, the tie-up and the card. An island
-             * that wants to direct its own arrival has already done it by the time
-             * this runs, and `sailing` or `berthing` being live says so. */
+            /* the far shore: `arriveAboard` has already put her offshore under way, so all that is owed is the run in, the tie up and the card, and an island directing its own arrival says so by `sailing` or `berthing` being live */
             if (!canSail || !berth) { endTravel(`${v.to} has no berth`); setCinema(false); return }
             if (!hull) { endTravel('there is no ship on the water here'); setCinema(false); return }
             if (sailing || berthing) { endTravel('the island is sailing herself in'); return }
@@ -5938,37 +4501,10 @@ const CAST_OFF_SHOW_MS = 3200
             }
             await new Promise<void>((r) => setTimeout(r, 700))
             stepAshore(true)
-            /* ---- THE WIDE SHOT IS A BEAT AND NOT A STATE (Ash: the camera is
-             * stuck on the stairs) -------------------------------------------
-             *
-             * `view` with no length pins the camera on the painting's middle with
-             * no expiry, on purpose: a scene that composes a shot and then talks
-             * over it wants the shot to stay. But the landing is not talking over
-             * it, and nothing downstream was ever going to hand the camera back,
-             * so the player landed on an island and then walked around underneath
-             * a camera that was still looking at the middle of it. On ATC, where
-             * the jetty is at one corner and the terrace at the other, that is a
-             * character off the bottom of the screen.
-             *
-             * Long enough to read the island, then the follow law has him again. */
+            /* the wide shot is a beat and not a state: `view` with no length pins the camera on the painting's middle for ever and nothing downstream hands it back, so a player landed and then walked around off the bottom of the screen on a map whose jetty and terrace are at opposite corners */
             void intentWorld.view('island', ARRIVAL_LOOK_MS)
-            /* ---- AND THE ISLAND'S OWN SENTENCE IS NOT WIPED ------------------
-             *
-             * This said `objective(null)` to hand the line back to the year, and what
-             * it actually did was delete what the ISLAND had just said. The
-             * destination's `start` runs while the ship is still on the water, so by
-             * the time he steps onto the dock the island has already put up its own
-             * first instruction - on ATC, "Find the club president." - and this threw
-             * it away. What he read instead was the year's line, "Go into the
-             * mountain", standing on an island with no mountain on it.
-             *
-             * Nothing needs clearing here any more. The voyage's own sentence is not
-             * in this slot: `ObjectivePanel` draws "Sailing to X" off the live travel
-             * plan and stops the moment the plan ends, so what is left in the slot is
-             * whoever spoke last, which is the island. */
-            /* COMING HOME ENDS AT THE TUNNEL, not on the dock. He walks up the quay
-             * with the marks on the ground and goes in, which is the arrival he
-             * already knows played backwards. */
+            /* the island's own sentence is not wiped: `objective(null)` here deleted what the island had just said, because the destination's `start` runs while the ship is still on the water, and nothing needs clearing since `ObjectivePanel` draws the voyage line off the live travel plan */
+            /* coming home ends at the tunnel, not on the dock: he walks up the quay with the marks on the ground and goes in, which is the arrival he already knows played backwards */
             const back = v.home ? anchors.all.find((a) => a.kind === 'door' && a.to === MAW_MAP) : null
             if (back) {
               await new Promise<void>((r) => setTimeout(r, 900))
@@ -5993,12 +4529,7 @@ const CAST_OFF_SHOW_MS = 3200
         }
       }
 
-      /* AND A VOYAGE IN PROGRESS PICKS ITSELF UP HERE.
-       *
-       * The journey outlives the island that started it, so every map that loads
-       * asks whether somebody is travelling through it and performs the leg it
-       * can. It waits for the island first: an island that wants to direct its own
-       * arrival (the hub does) has to get there before the engine's default does. */
+      /* a voyage in progress picks itself up here, because the journey outlives the island that started it: every map that loads asks whether somebody is travelling through it, and it waits for the island first so one directing its own arrival gets there before the engine's default */
       void (async () => {
         if (!travelPlan()) return
         const t0 = performance.now()
@@ -6008,14 +4539,11 @@ const CAST_OFF_SHOW_MS = 3200
         if (destroyed || !travelPlan()) return
         setCinema(true, 'voyage')
         await runVoyageLeg()
-        /* and once more where the leg itself ended the journey rather than docking:
-         * a refusal, a skip, or a last leg that was only a walk */
+        /* and once more where the leg itself ended the journey rather than docking: a refusal, a skip, or a last leg that was only a walk */
         if (!destroyed) settleVoyageFrame('the last leg finished')
       })()
 
-      // the sea's first fill happens AFTER the camera snap so the pool sees the real
-      // viewport; a grown viewport later needs more pooled ocean under it (the old
-      // hub's resizeFx rule)
+      // the sea's first fill happens after the camera snap so the pool sees the real viewport, and a grown viewport later needs more pooled ocean under it
       if (sea) { sea.position.copyFrom(world.position); refreshSea() }
       let seaFX = world.x, seaFY = world.y
       let swellSkip = false
@@ -6047,13 +4575,9 @@ const CAST_OFF_SHOW_MS = 3200
       }
       ;(window as any).__step = (x: number, y: number, tx2: number, ty2: number) =>
         JSON.stringify({ from: lvlAt(x, y), to: lvlAt(tx2, ty2), legal: canStandFrom(tx2, ty2, lvlAt(x, y)) })
-      /* THE STAGE, REACHABLE FROM A CONSOLE. Every one of these drives the real
-       * path a station or a grape takes, so a proof run is the shipped code and not
-       * a second one written to be provable. */
+      /* the stage, reachable from a console: every one of these drives the real path a station or a grape takes, so a proof run is the shipped code and not a second one written to be provable */
       ;(window as any).__anchors = () => JSON.stringify(anchors.all.map((a) => ({ name: a.name, kind: a.kind, x: a.x, y: a.y, r: a.r })))
-      /* THE SEARCH THE WALK USES, from where he stands, so a probe can ask
-       * whether a route exists on the served mask without inferring it from a
-       * body that stopped. The same call `startWalk` makes, same step. */
+      /* the search the walk uses, from where he stands, so a probe can ask whether a route exists on the served mask rather than inferring it from a body that stopped */
       ;(window as any).__findPath = (x: number, y: number, step = 4) => {
         const r = findPath(doc, cfg, { x: pos.x, y: pos.y }, { x, y }, { step })
         return JSON.stringify({ reached: r.reached, nodes: r.nodes, points: r.points.map((p) => [Math.round(p.x), Math.round(p.y)]) })
@@ -6064,9 +4588,7 @@ const CAST_OFF_SHOW_MS = 3200
         return sp ? JSON.stringify({ x: Math.round(sp.position.x), y: Math.round(sp.position.y), visible: sp.visible }) : null
       }
       ;(window as any).__intent = (i: unknown) => performIntent(i as Intent, intentHost)
-      /* fire and FORGET: the returned promise only settles when the whole station
-       * body has finished, and a body waiting on a click cannot settle from inside
-       * the call that started it. A harness polls the state instead. */
+      /* fire and forget: the returned promise only settles when the whole station body has finished, and a body waiting on a click cannot settle from inside the call that started it, so a harness polls the state instead */
       /* the click path in painting pixels, so a proof does not have to fake a pointer event */
       ;(window as any).__click = (x: number, y: number) => walkTap(x, y)
       ;(window as any).__station = (name: string) => {
@@ -6080,9 +4602,7 @@ const CAST_OFF_SHOW_MS = 3200
         const owner = ownerOf(a.name, grapeHandlers)
         if (!owner) return `nothing answers to ${a.name}`
         if (owner.by === 'station' && !loadSave()) return 'no run'
-        /* the same answer the scene now gives itself. A probe that reads "fired"
-         * for a press the room dropped is a probe that reports a working station
-         * as broken, which cost this file three runs. */
+        /* the same answer the scene gives itself, because a probe that reads fired for a press the room dropped reports a working station as broken */
         if (owner.by === 'grape' && grape?.busy()) return 'busy'
         void fire(a)
         return 'fired'
@@ -6102,8 +4622,7 @@ const CAST_OFF_SHOW_MS = 3200
         cam: csCam,
       })
       ;(window as any).__advance = () => { runtime.advance(); return 'ok' }
-      /* THE WORLD, REACHABLE THE SAME WAY. Handles on the shipped code, never a
-       * second copy of it, which is the only reason a proof run proves anything. */
+      /* the world, reachable the same way: handles on the shipped code and never a second copy of it, which is the only reason a proof run proves anything */
       ;(window as any).__sea = () => JSON.stringify({
         map: mapId,
         placed: !!slot,
@@ -6130,9 +4649,7 @@ const CAST_OFF_SHOW_MS = 3200
         seen: [...seenPlaces],
         states: comp ? seaSlots(comp).map((s) => `${s.title}=${stateOf(s, loadSave())}`) : [],
       })
-      /* how deep the water is at a painting pixel, off the union field. The berth
-       * in the composition has to be authored somewhere a hull can actually float,
-       * and before this hook that was measured by sailing into a coast. */
+      /* how deep the water is at a painting pixel, off the union field: a berth has to be authored somewhere a hull can actually float, and before this hook that was measured by sailing into a coast */
       ;(window as any).__depth = (x: number, y: number) => Math.round(depthAt(x, y))
       ;(window as any).__board = () => { board(); return hull ? 'aboard' : 'no berth here' }
       ;(window as any).__helm = (throttle: number, turn: number, ms: number) => {
@@ -6158,8 +4675,7 @@ const CAST_OFF_SHOW_MS = 3200
         catch (e) { return Promise.resolve(e instanceof Error ? e.message : String(e)) }
       }
       /* one debug handle that reads the scene's own state rather than a second copy of it */
-      /* the last place the YOU marker really was, so `pinAt` can answer during a
-       * teardown instead of throwing. See the note on it below. */
+      /* the last place the you marker really was, so `pinAt` can answer during a teardown instead of throwing */
       let lastPinAt = { x: 0, y: 0 }
       ;(window as any).__pmap = {
         get map() { return mapId },
@@ -6193,14 +4709,11 @@ const CAST_OFF_SHOW_MS = 3200
         get walkLabel() { return autoWalk?.label ?? null },
         /* what the in-world plaque is saying, the only way to ask whether the boat is offered */
         get prompt() { return prompt.visible ? promptSaid : null },
-        /* where his own ship lies, in painting pixels, so a proof can ask which way
-         * he ought to be looking when he is standing next to her */
+        /* where his own ship lies, in painting pixels, so a proof can ask which way he ought to be looking when he is standing next to her */
         get berthAt() { return berth ? fromSea(berth.x, berth.y) : null },
-        /* is this pixel ground a body may stand on, asked of the same law the walk
-         * uses, so "he walks through the trophies" can be a measurement */
+        /* is this pixel ground a body may stand on, asked of the same law the walk uses, so walking through the trophies can be a measurement */
         standsAt(x: number, y: number) { return canStand(x, y) },
-        /* the three zooms the camera law decides, so Wide and Close can be judged as
-         * numbers rather than by eye through whatever shot an island is holding */
+        /* the three zooms the camera law decides, so Wide and Close can be judged as numbers rather than by eye through whatever shot an island is holding */
         get zooms() {
           return {
             island: +Z_ISLAND.toFixed(2), wide: +Z.toFixed(2),
@@ -6208,26 +4721,19 @@ const CAST_OFF_SHOW_MS = 3200
             floor: +Z_MIN.toFixed(2), coast: coastCut,
           }
         },
-        /* where the engine thinks a body stands to use this island's berth, which is
-         * what every departure and the head-back button both hang on */
+        /* where the engine thinks a body stands to use this island's berth, which is what every departure and the head-back button both hang on */
         get quay() { return dockSide() },
-        /* which placements the walk law believes it has to go round, so a thing he
-         * walks straight through can be named rather than guessed at */
+        /* which placements the walk law believes it has to go round, so a thing he walks straight through can be named rather than guessed at */
         get solids() {
           return {
             standing: standing.map((q) => ({ n: q.name ?? '?', x: Math.round(q.x), y: Math.round(q.y), r: Math.round(q.r) })),
             obstacles: obstacles.map((q) => q.name ?? '?'),
           }
         },
-        /* every placement an island has taken hold of, where it put it and which way
-         * it turned it, including the heading kept after it let go. Ash: *"principal
-         * panther is just facing some weird direction"* - which way a body faces was
-         * not readable from outside at all, so it could only be argued about. */
+        /* every placement an island has taken hold of, where it put it and which way it turned it, including the heading kept after it let go, because which way a body faces was not readable from outside at all */
         get actors() {
           const out: Record<string, unknown> = {}
-          /* KEYED BY ANCHOR, AND INCLUDING THE ONES NOBODY IS HOLDING. `driven` is
-           * emptied on release, so reading it alone says nothing about the body a film
-           * has just let go of, which is the only state a student ever walks in on. */
+          /* keyed by anchor and including the ones nobody is holding: `driven` is emptied on release, so reading it alone says nothing about a body a film has just let go of, which is the only state a student walks in on */
           for (const a of anchors.all) {
             if (!a.placement) continue
             const sp = placedById.get(a.placement)
@@ -6236,8 +4742,7 @@ const CAST_OFF_SHOW_MS = 3200
             const spot = anchors.spotOf(a)
             out[a.name] = {
               x: Math.round(sp.position.x), y: Math.round(sp.position.y),
-              /* and the point a body is turned TOWARDS when a script names this
-               * anchor, which is the stand point and not the picture's middle */
+              /* and the point a body is turned towards when a script names this anchor, which is the stand point and not the picture's middle */
               spot: { x: Math.round(spot.x), y: Math.round(spot.y) },
               visible: sp.visible,
               facing: d?.facing ?? lastFacing.get(sp) ?? null,
@@ -6256,9 +4761,7 @@ const CAST_OFF_SHOW_MS = 3200
             here: slot?.place ?? slot?.map ?? mapId,
           }
         },
-        /* the line she is following and how far she still is from the mark she is
-         * aiming at, so a boat going round in circles can be watched rather than
-         * reasoned about */
+        /* the line she is following and how far she still is from the mark she is aiming at, so a boat going round in circles can be watched rather than reasoned about */
         get line() {
           if (!sailing) return null
           const aim = sailing.pts[sailing.i]
@@ -6269,16 +4772,12 @@ const CAST_OFF_SHOW_MS = 3200
             left: Math.round(sailing.left),
           }
         },
-        /* WHICH LEG OF THE JOURNEY HE IS ON, which is the whole of the sail state
-         * machine and was readable from nowhere. A proof that cannot see the leg can
-         * only watch the end of a voyage and guess at everything on the way to it. */
+        /* which leg of the journey he is on, the whole of the sail state machine, because a proof that cannot see the leg can only watch the end of a voyage and guess at everything before it */
         get travel() {
           const v = travelPlan()
           return v ? { to: v.to, from: v.from, leg: v.leg, home: v.home, bars: cinemaOn() } : null
         },
-        /* AND WHERE IT IS HANGING, in window pixels, for the same reason `pinAt`
-         * exists: a capture harness cannot crop to a canvas object it cannot
-         * find, and the plaque moves with the player, the anchor and the camera. */
+        /* and where it is hanging, in window pixels, for the same reason `pinAt` exists: a capture harness cannot crop to a canvas object it cannot find, and the plaque moves with the player, the anchor and the camera */
         get promptAt() {
           if (!prompt.visible) return null
           const b = prompt.getBounds()
@@ -6290,16 +4789,13 @@ const CAST_OFF_SHOW_MS = 3200
         /* what the year wants next, as the sequencer answers it, with the phase */
         get objective() {
           const o = nextObjective(loadSave())
-          return o ? { anchor: o.anchor, map: o.map, phase: o.phase } : null
+          return o ? { role: o.role, anchor: anchors.byRole(o.role)?.name ?? null, map: o.map, phase: o.phase } : null
         },
         /* the big pointer over the thing, in window pixels */
         get pointer() {
           if (!bigMark.visible) return null
           const b = bigMark.getBounds()
-          /* AND HOW FAR IT IS FROM THE THING IT NAMES, in body lengths on the
-           * ground. Ash, 2026-09-09: a mark two bodies above a table is a mark
-           * pointing at whatever is drawn behind the table, so proximity is what
-           * a gate should hold rather than size. */
+          /* and how far it is from the thing it names, in body lengths on the ground: a mark two bodies above a table points at whatever is drawn behind the table, so a gate should hold proximity rather than size */
           const over = litAnchor ? anchors.spotOf(litAnchor) : null
           const bodies = over
             ? Math.hypot(bigMark.x - over.x, (bigMark.y - over.y) * (map.yScale || 1))
@@ -6313,11 +4809,7 @@ const CAST_OFF_SHOW_MS = 3200
         },
         /** how many arrow marks are drawn along the route right now */
         get trail() { return trailMarks },
-        /* WHERE A NAMED PLACE REALLY IS ON THE GLASS, in window pixels, so a proof
-         * can say whether the camera is actually looking at the thing a shot names
-         * instead of inferring it from a zoom number. The painting's own opaque
-         * rectangle comes with it, because a camera can be arithmetically right and
-         * still be pointing at transparent canvas with the ocean showing through. */
+        /* where a named place really is on the glass, in window pixels, so a shot can be checked against the thing it names rather than against a zoom number, and the painting's opaque rectangle comes with it because a camera can be right and still be pointing at transparent canvas */
         spotOnGlass(name: string) {
           const a2 = anchors.get(name)
           if (!a2) return null
@@ -6346,17 +4838,13 @@ const CAST_OFF_SHOW_MS = 3200
           }
         },
         get hull() { return hull ? { x: hull.x, y: hull.y, speed: hull.speed, heading: hull.heading, aground: hull.aground } : null },
-        /* the drawn ship's box on the glass, so a proof can say whether a
-         * plaque is on top of her rather than guessing from a texture name */
+        /* the drawn ship's box on the glass, so a proof can say whether a plaque is on top of her rather than guessing from a texture name */
         get hullBox() {
           if (!hullSp || !hullSp.visible || !hull) return null
           const b = hullSp.getBounds()
           return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) }
         },
-        /* THE WHOLE MANOEUVRE AND NOT JUST ITS STAGE. A berthing that will not
-         * finish looks identical from outside to one that is halfway through,
-         * and the numbers that separate them are how far off the mark she is and
-         * how far off the authored heading. Both were invisible. */
+        /* the whole manoeuvre and not just its stage: a berthing that will not finish looks identical from outside to one halfway through, and what separates them is how far off the mark and off the authored heading she is */
         get berthing() {
           if (!berthing) return null
           const t = berthing.target
@@ -6399,17 +4887,13 @@ const CAST_OFF_SHOW_MS = 3200
                 const f = t?.frame
                 return f ? `${t.source?.label ?? ''}#${f.x},${f.y},${f.width},${f.height}` : String(t?.uid ?? '')
               })(),
-              /* AND WHICH WAY HE IS FACING, which is the other half of E: a
-               * heading that flips between two neighbours on alternate frames is
-               * a man twitching, and no screenshot can see it. */
+              /* and which way he is facing, the other half of E: a heading that flips between two neighbours on alternate frames is a body twitching, and no screenshot can see it */
               facing: d.facing,
             }
           }
           return out
         },
-        /* which bound placements are on screen, by the name their author typed,
-         * because "the bottle appeared" is a claim about a picture and not about
-         * a boolean somewhere */
+        /* which bound placements are on screen, by the name their author typed, because the bottle appeared is a claim about a picture and not about a boolean somewhere */
         get shown() {
           const out: Record<string, boolean> = {}
           for (const a of anchors.all) {
@@ -6439,9 +4923,7 @@ const CAST_OFF_SHOW_MS = 3200
         const dt = Math.min(tk.deltaMS, 50) / 1000
         const t = performance.now() / 1000
 
-        /* THE SCRIPT RIDES THIS SAME CLOCK, which is the whole reason the runtime
-         * is tick-driven rather than timer-driven: cutscene time and world time
-         * cannot drift apart if there is only one of them. */
+        /* the script rides this same clock, which is why the runtime is tick driven rather than timer driven: cutscene time and world time cannot drift apart if there is only one of them */
         runtime.tick(tk.deltaMS)
         /* the step is MAPVIS's own Walker.step, so the slide and the escape clause cannot drift */
         /* who owns the controls: a door fade, a panel or cutscene, or an auto-walk */
@@ -6480,9 +4962,7 @@ const CAST_OFF_SHOW_MS = 3200
             /* and only now, after autoWalk is null, so what it does cannot cancel this walk */
             if (arrived) A.arrive?.()
           } else {
-            /* ALONG THE ROUTE, waypoint by waypoint. Steering straight at the goal
-             * is what stalled in a maze; steering at the next point of a route the
-             * walk law itself approved cannot. */
+            /* along the route, waypoint by waypoint: steering straight at the goal stalled in a maze, and steering at the next point of a route the walk law itself approved cannot */
             while (A.ri < A.route.length && Math.hypot(A.route[A.ri].x - pos.x, A.route[A.ri].y - pos.y) <= 4) A.ri++
             /* a leg he has been jammed on for half a second is given up for the next one */
             if (walker.blocked) A.stuckMs = (A.stuckMs ?? 0) + dt * 1000
@@ -6502,8 +4982,7 @@ const CAST_OFF_SHOW_MS = 3200
                 })
                 if (step.hold) {
                   input = {}
-                  /* holding station is not being stuck: the deadline is about a
-                   * walk that cannot arrive, and this one is waiting on purpose */
+                  /* holding station is not being stuck: the deadline is about a walk that cannot arrive, and this one is waiting on purpose */
                   A.until = performance.now() + A.budget
                   A.stuckMs = 0
                 }
@@ -7069,7 +5548,7 @@ const CAST_OFF_SHOW_MS = 3200
           !obj ? undefined
             /* nothing is owed and nothing is pointed at once the year is done */
             : obj.phase === 'done' ? undefined
-              : obj.map === mapId ? anchors.get(obj.anchor)
+              : obj.map === mapId ? anchors.byRole(obj.role)
                 : doorTo(obj.map))
         leading = mark?.name ?? null
         if (mark) {

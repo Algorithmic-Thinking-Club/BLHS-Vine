@@ -4,9 +4,7 @@ import { yearbookPage, yearbookYears, yearTurned, YEARBOOK_SECTIONS } from './ye
 import { resumeTarget, mooringFor, stampOf, RESUME_REASONS } from './resume'
 import { nextObjective, FOUNDING_FLAG } from './objective'
 import { picksOf, pickVerb } from './pick'
-/* STATICALLY, on purpose: `vi.resetModules()` only affects later imports, so a
- * dynamic `import('../roster/roster')` inside a test would hand back a second
- * copy of the roster that `objective.ts` is not reading. */
+/* imported statically on purpose, because `vi.resetModules()` only affects later imports and a dynamic `import('../roster/roster')` inside a test hands back a second copy of the roster that `objective.ts` is not reading */
 import { PLACES, programmeById } from '../roster/roster'
 import { refuseSlot, refuseClass } from './refusal'
 import type { WorldComposition } from '../world/composition'
@@ -50,9 +48,7 @@ describe('the yearbook assembles in a fixed order for any year', () => {
     // stamped, and Advisory still owed
     expect(yearbookPage(save.loadSave()!, 1).ready).toBe(false)
     save.recordGrade({ id: 'core:y1', title: 'Advisory', kind: 'core', credit: .5, grade: 4, year: 1, season: 'Fall' })
-    /* AND THE TWO PICKED CLASSES HOLD IT OPEN TOO (Ash, 2026-09-08). They are the
-     * middle of year one: the objective bar names the first of them the moment
-     * Advisory is sat, and the page cannot turn while either is unsat. */
+    /* the two picked classes hold the year open too: they are the middle of year one, the objective bar names the first of them the moment Advisory is sat, and the page cannot turn while either is unsat */
     expect(yearbookPage(save.loadSave()!, 1).ready).toBe(false)
     save.recordGrade({ id: 'class:ap-human-geo', title: 'x', kind: 'class', credit: .5, grade: 4, year: 1, season: 'Fall' })
     expect(yearbookPage(save.loadSave()!, 1).ready).toBe(false)
@@ -107,9 +103,7 @@ describe('the yearbook assembles in a fixed order for any year', () => {
     save.beginAdventure()
     save.setFlag('yearbook:y1'); save.endYear()
     const s = save.loadSave()!
-    /* the cord table is cumulative and nothing recorded what a thread looked like
-     * in year one, so the page says so rather than printing a number that looks
-     * per-year and is not */
+    /* the cord table is cumulative and nothing recorded what a thread looked like in year one, so the page says so rather than printing a number that looks per-year and is not */
     expect(yearbookPage(s, 1).sections.find((x) => x.id === 'threads')!.caveat).toBeTruthy()
     expect(yearbookPage(s, 2).sections.find((x) => x.id === 'threads')!.caveat).toBeUndefined()
   })
@@ -150,20 +144,13 @@ describe('the objective reaches the yearbook', () => {
     const o = nextObjective(save.loadSave())
     expect(o?.phase).toBe('yearbook')
     /* the closing film starts here and the principal is who meets him */
-    expect(o?.anchor).toBe('principal_desk')
-    /* ASH, 2026-09-08 item 6: his sentence is the one said from anywhere else,
-     * and inside the Maw it says the other half of the same fact */
+    expect(o?.role).toBe('principal')
+    /* one sentence is said inside the Maw and the other from anywhere else, and the two are halves of the same fact */
     expect(o?.say).toBe('Find the principal. Year one is done.')
     expect(o?.away).toBe('Go back to the Maw. The principal is waiting.')
   })
 
-  /* ---- EVERY PICK HOLDS THE YEAR, AND EVERY PICK CAN BE FINISHED ----------
-   *
-   * ASH, 2026-09-08 item 4 and item 6 together. The rule this test used to hold
-   * was that a club nobody had built could never hold the year open, because
-   * nothing could finish it. There is one button per pick now and it always
-   * finishes the pick, so the exception went with it: the year waits on
-   * everything he chose, and nothing he chose is a dead end. */
+  /* every pick holds the year and every pick can be finished: one button per pick always finishes that pick, so a club nobody built is no longer an exception and nothing chosen is a dead end */
   it('holds the year open for every pick and lets every pick be finished', async () => {
     const save = await stampedYear()
     save.writeSave({ ledger: save.loadSave()!.ledger.filter((e) => e.id !== 'class:spanish-1') })
@@ -171,19 +158,16 @@ describe('the objective reaches the yearbook', () => {
     expect(o?.phase).toBe('class')
     expect(o?.say).toContain('Spanish I')
     /* the sheet is where a pick is played, so that is where the arrow points */
-    expect(o?.anchor).toBe('chart_table')
+    expect(o?.role).toBe('plan')
 
     /* sit it, and the club he picked is what is left: it holds the year now */
     save.recordGrade({ id: 'class:spanish-1', title: 'y', kind: 'class', credit: .5, grade: 4, year: 1, season: 'Fall' })
     const mid = nextObjective(save.loadSave())
     expect(mid?.phase).toBe('class')
-    /* football is Example A now that ATC has come out from under the mask: an
-     * example letter is a position in the list of things nobody built. */
+    /* football is Example A, because an example letter is a position in the list of things nobody has built */
     expect(mid?.say).toContain('Example A')
 
-    /* and pressing its one button counts it, which closes the year. The button
-     * writes exactly this row (`run/pick.ts`, `countAsDone`); it is written here
-     * rather than called because this file resets the save module per test. */
+    /* pressing its one button counts it and closes the year, and the row is written out here rather than calling `countAsDone` in `run/pick.ts` because this file resets the save module per test */
     save.recordCompletion('football', 3)
     expect(nextObjective(save.loadSave())?.phase).toBe('yearbook')
   })
@@ -193,9 +177,7 @@ describe('the objective reaches the yearbook', () => {
     const g = programmeById('football')!
     const stadium = PLACES.find((p) => p.id === g.place)!
     const was = { playable: g.playable, maps: stadium.maps, arrival: stadium.arrival }
-    /* THE ROSTER IS THE ONLY THING THAT DECIDES, so this is the whole of what a
-     * member's island shipping looks like from here: a playable programme whose
-     * place has a painting. Nothing in the year, the sheet or the bar changes. */
+    /* the roster is the only thing that decides, so a member's island shipping is just a playable programme whose place has a painting, and nothing in the year, the sheet or the bar changes */
     ;(g as { playable: boolean }).playable = true
     ;(stadium as { maps: string[] }).maps = ['stadium-a1']
     ;(stadium as { arrival?: string }).arrival = 'stadium-a1'
@@ -291,9 +273,7 @@ describe('a resume never trusts a position across a republish', () => {
   })
 
   it('treats a missing version as a DIFFERENT version and not as a wildcard', () => {
-    /* a save written against the committed folder carries no version and one from
-     * the platform does, so "one has a number and the other does not" is exactly
-     * the case where the two are different bundles */
+    /* a save written against the committed folder carries no version and one from the platform does, so one having a number and the other not is exactly the case where the two are different bundles */
     const local = { ...stampOf({ map: 'hub' }, 'quay', 5, 5), at: 1 }
     expect(resumeTarget(local, now).kind).not.toBe('exact')
   })

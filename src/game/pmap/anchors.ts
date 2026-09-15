@@ -1,4 +1,5 @@
 /* the reader for a map's anchors, the named places code addresses on a map */
+import { rolesOf, type Role } from '../run/roles'
 
 export type AnchorKind = 'point' | 'region' | 'door' | 'post' | 'spawn' | 'trigger'
 
@@ -10,13 +11,9 @@ export interface Anchor {
   x: number
   y: number
   r: number
-  /* the pixel a body ends on when it uses this place, which is not the middle
-   * of the thing. Absent means the middle, which is what every anchor meant
-   * before MAPVIS could author this. */
+  /* the pixel a body ends on when it uses this place, which is not the middle of the thing; absent means the middle, which is what every anchor meant before it could be authored */
   stand?: [number, number]
-  /* two opposite corners, [x0,y0,x1,y1]. The MAPVIS schema comment used to say
-   * [x,y,w,h] and this box test always did corners; the disagreement was
-   * settled in favour of this side, because it was the one with running code. */
+  /* two opposite corners, [x0,y0,x1,y1]: the MAPVIS schema comment said [x,y,w,h] and this box test always did corners, and the side with running code won */
   rect?: [number, number, number, number]
   /* how far the interaction circle sits from the anchor's own pixel, centred if absent */
   ring?: [number, number]
@@ -32,9 +29,7 @@ export interface Anchor {
 export interface AnchorSource {
   anchors?: unknown
   events?: unknown
-  /* read only to size the stand-point sanity check below, and both optional
-   * because a hand-written fixture is allowed to be two anchors and nothing
-   * else. The fallbacks are the numbers every bundle in this project carries. */
+  /* read only to size the stand-point check below, both optional because a hand-written fixture is allowed to be two anchors and nothing else, and the fallbacks are the numbers every bundle carries */
   character?: { heightPx?: number } | unknown
   yScale?: unknown
 }
@@ -44,9 +39,7 @@ const STAND_REACH_BODIES = 2
 
 const num = (v: unknown, fallback: number) => (isFinite(Number(v)) ? Number(v) : fallback)
 
-/* MAPVIS validates names where they are typed. This is the same rule on the
- * reading side, because a bundle can also be hand-edited and a name that is not
- * a legal python identifier is a name the API cannot expose. */
+/* the same name rule MAPVIS applies where names are typed, checked again on the reading side because a bundle can be hand-edited and a name that is not a legal python identifier cannot be exposed by the API */
 export const isAnchorName = (s: unknown) => typeof s === 'string' && /^[a-z][a-z0-9_]{0,47}$/.test(s)
 
 /* read a bundle's anchors, dropping any it cannot understand so the map still loads */
@@ -56,8 +49,7 @@ export function readAnchors(map: AnchorSource, mapId = ''): Anchor[] {
       : []
   const out: Anchor[] = []
   const seen = new Set<string>()
-  /* the two numbers the stand-point check is sized in. Every bundle carries
-   * both; a fixture that carries neither gets the shape every bundle has. */
+  /* the two numbers the stand-point check is sized in: every bundle carries both, and a fixture that carries neither gets the shape every bundle has */
   const ch = map.character as { heightPx?: unknown } | undefined
   const body = Math.max(4, num(ch?.heightPx, 20))
   const ys = num(map.yScale, 1) || 1
@@ -81,9 +73,7 @@ export function readAnchors(map: AnchorSource, mapId = ''): Anchor[] {
       name = anchorName(label || `${kind}_${num(e.id, out.length + 1)}`)
       derived = true
     }
-    /* a duplicate name is the one thing worth refusing, because the whole point
-     * of a name is that it resolves to one thing. The first wins, so a map that
-     * grew a collision keeps working the way it did before it grew one. */
+    /* a duplicate name is the one thing worth refusing, because the point of a name is that it resolves to one thing; the first wins, so a map that grew a collision keeps working the way it did */
     if (seen.has(name)) {
       console.warn(`[anchors] ${mapId}: duplicate anchor name "${name}", keeping the first`)
       continue
@@ -107,9 +97,7 @@ export function readAnchors(map: AnchorSource, mapId = ''): Anchor[] {
       a.ring = [Math.round(Number(rawRing[0])), Math.round(Number(rawRing[1]))]
     if (Array.isArray(e.stand) && e.stand.length === 2 && e.stand.every((n) => isFinite(Number(n)))) {
       const sx = Math.round(Number(e.stand[0])), sy = Math.round(Number(e.stand[1]))
-      /* GROUND PIXELS, NOT SCREEN ONES. The painting is squashed, so a spot the
-       * same number of pixels below a post is further away on the floor than one
-       * beside it, and this has to measure the floor. */
+      /* ground pixels, not screen ones: the painting is squashed, so a spot the same number of pixels below a post is further away on the floor than one beside it */
       const apart = Math.hypot(sx - a.x, (sy - a.y) / ys)
       const reach = STAND_REACH_BODIES * body + a.r
       if (apart <= reach) a.stand = [sx, sy]
@@ -129,8 +117,7 @@ export function readAnchors(map: AnchorSource, mapId = ''): Anchor[] {
   return out
 }
 
-/* MAPVIS's own anchorName, copied for the derive path above. Kept identical so a
- * legacy door derives to the same string on both sides of the boundary. */
+/* MAPVIS's own anchorName, copied for the derive path above and kept identical so a legacy door derives to the same string on both sides of the boundary */
 export function anchorName(s: string): string {
   const n = String(s || '')
     .toLowerCase()
@@ -144,18 +131,21 @@ export function anchorName(s: string): string {
 
 /* ---- asking questions about a map's anchors ------------------------------- */
 
-/* where a placement is being drawn this frame, answered by whoever is drawing
- * it. Null for a name nothing on this map carries. */
+/* where a placement is being drawn this frame, answered by whoever is drawing it, and null for a name nothing on this map carries */
 export type LiveSpots = (placement: string) => { x: number; y: number } | null
 
 export class AnchorSet {
   private byName = new Map<string, Anchor>()
+  private byRoleName = new Map<Role, Anchor>()
+  private roleByName = new Map<string, Role>()
   private live: LiveSpots | null = null
   readonly all: Anchor[]
 
   constructor(readonly mapId: string, anchors: Anchor[]) {
     this.all = anchors
     for (const a of anchors) this.byName.set(a.name, a)
+    this.byRoleName = rolesOf(anchors, mapId)
+    for (const [role, a] of this.byRoleName) this.roleByName.set(a.name, role)
   }
 
   static from(mapId: string, map: AnchorSource) {
@@ -164,6 +154,14 @@ export class AnchorSet {
 
   get(name: string): Anchor | undefined { return this.byName.get(name) }
   has(name: string): boolean { return this.byName.has(name) }
+
+  /* the anchor filling a role on this map; a null role is nobody, which is how a step that wants no arrow drawn says so */
+  byRole(role: Role | null | undefined): Anchor | undefined {
+    return role ? this.byRoleName.get(role) : undefined
+  }
+
+  /* what this anchor is for on this map, or null when it fills no role */
+  roleOf(name: string): Role | null { return this.roleByName.get(name) ?? null }
   ofKind(kind: AnchorKind): Anchor[] { return this.all.filter((a) => a.kind === kind) }
 
   /* hand in who knows where the painted things are drawn this frame */
@@ -212,8 +210,7 @@ export class AnchorSet {
     let bestD = Infinity
     for (const a of this.all) {
       if (a.kind !== 'point' && a.kind !== 'post' && a.kind !== 'door') continue
-      // the same circle `contains` tests, or a ring the author moved would take
-      // the prompt at one distance and refuse it at another
+      // the same circle `contains` tests, or a ring the author moved would take the prompt at one distance and refuse it at another
       const p = this.ringOf(a)
       const d = Math.hypot(x - p.x, y - p.y)
       if (d <= a.r && d < bestD) { bestD = d; best = a }
@@ -221,18 +218,14 @@ export class AnchorSet {
     return best
   }
 
-  /* every region and trigger the point is inside. All of them, not the nearest:
-   * an atmosphere region and a quest trigger can legitimately overlap and both
-   * are entitled to know you are there. */
+  /* every region and trigger the point is inside, not the nearest, because an atmosphere region and a quest trigger can legitimately overlap and both are entitled to know you are there */
   regionsAt(x: number, y: number): Anchor[] {
     return this.all.filter((a) => (a.kind === 'region' || a.kind === 'trigger') && this.contains(a, x, y))
   }
 
-  /* where a player arriving through a door should stand. Falls back down a chain
-   * rather than to the origin, because landing at 0,0 is landing in the rock. */
+  /* where a player arriving through a door should stand, falling back down a chain rather than to the origin because landing at 0,0 is landing in the rock */
   arrival(at: string | undefined, spawn: [number, number]): { x: number; y: number; facing?: string } {
-    // through standAt, so a door that lands you at a station puts you on the
-    // floor beside it rather than on top of it
+    // through standAt, so a door that lands you at a station puts you on the floor beside it rather than on top of it
     const a = at ? this.get(at) : undefined
     if (a) return this.standAt(a)
     if (at) console.warn(`[anchors] ${this.mapId}: no arrival anchor "${at}", using spawn`)

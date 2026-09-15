@@ -41,9 +41,7 @@ describe('the phase an island reads', () => {
     expect(objective.nextObjective(save.loadSave())!.phase).toBe('core')
   })
 
-  /* THE ONE THE CLOSING FILM HANGS ON. Everything the year owes is done and the
-   * page has not turned, so the ending is what happens next. `islands/
-   * panther-maw/founding.py`'s `year_is_done` tests for exactly this string. */
+  /* the one the closing film hangs on: everything the year owes is done and the page has not turned, so the ending is what happens next, and `year_is_done` in islands/panther-maw/founding.py tests for exactly this string */
   it('is "yearbook" when the year has nothing left owing', async () => {
     const { save, objective } = await fresh()
     started(save)
@@ -55,18 +53,15 @@ describe('the phase an island reads', () => {
       id: 'core:y1', title: 'POWER, Mondays, and joining a club', kind: 'core',
       credit: 0.5, grade: 4, year: 1, season: 'Fall',
     })
-    /* AND THE CLASS HE PICKED IS SAT. Ash, 2026-09-08: the year is not done until
-     * every picked thing with play behind it is, and a class is the only such
-     * thing in year one today. */
+    /* and the picked class is sat: the year is not done until every picked thing with play behind it is done, and a class is the only such thing in year one today */
     save.recordGrade({
       id: 'class:ap-human-geo', title: 'AP Human Geography', kind: 'class',
       credit: 0.5, grade: 4, year: 1, season: 'Fall',
     })
     const o = objective.nextObjective(save.loadSave())!
     expect(o.phase).toBe('yearbook')
-    /* AND THE PRINCIPAL IS WHO IT POINTS AT, because the ending is his film. A
-     * student who stepped off it presses this desk to get back on. */
-    expect(o.anchor).toBe('principal_desk')
+    /* and the principal is who it points at, because the ending is the principal's film: a student who stepped off it presses this desk to get back on */
+    expect(o.role).toBe('principal')
   })
 
   /* the sentence out on the quay is the one that starts the ending */
@@ -87,26 +82,13 @@ describe('the phase an island reads', () => {
     })
     const o = objective.nextObjective(save.loadSave())
     expect(objective.objectiveLine(o, 'hub')).toBe('Go back to the Maw. The principal is waiting.')
-    /* AND INSIDE THE MAW IT SAYS THE OTHER HALF OF THE SAME FACT. "Go back to
-     * the Maw" over a student standing in the Maw is the game telling him to do
-     * a thing he has already done, and that is the common road now: he presses
-     * Go on his last pick at the chart table and the year closes with him ten
-     * feet from the man the arrow is already pointing at. */
+    /* and inside the Maw it says the other half of the same fact, because 'Go back to the Maw' over a student standing in the Maw asks for a thing already done, and that is the common road now: the year closes at the chart table ten feet from the person the arrow points at */
     expect(objective.objectiveLine(o, 'panther-maw')).toBe('Find the principal. Year one is done.')
   })
 })
 
 describe('a closed year asks for nothing', () => {
-  /* ---- ASH, 2026-09-09 ---------------------------------------------------
-   *
-   * It used to answer "Year one is done. Look around." once the page had turned.
-   * That sentence had exactly one place left to draw, because the only in-world
-   * moment with the page already turned IS the closing film: it sat across the
-   * top of the congratulation, the Sail Home button and the ship leaving. Seen
-   * on the live deploy in `sail-home-live/2-sail-home.png`.
-   *
-   * It was not true either. There is nothing to look around at: the film has the
-   * controls and what comes next is the title with the next year on it. */
+  /* it used to answer 'Year one is done. Look around.' once the page had turned, which had one place left to draw and was false there: the only in-world moment with the page turned is the closing film, the film holds the controls, and what comes next is the title with the next year on it */
   it('says nothing at all once the page has turned', async () => {
     const { save, objective } = await fresh()
     started(save)
@@ -120,13 +102,11 @@ describe('a closed year asks for nothing', () => {
     })
     save.setFlag('yearbook:y1')
     expect(objective.nextObjective(save.loadSave())).toBeNull()
-    /* and an empty objective draws no bar at all, which is what the panel does
-     * with a null: `hud/Objective.tsx` returns null on an empty sentence */
+    /* an empty objective draws no bar at all, because `hud/Objective.tsx` returns null on an empty sentence */
     expect(objective.objectiveLine(null, 'panther-maw')).toBe('')
   })
 
-  /* and the next year opens the whole thing back up, which is what the title's
-   * "Start year 2" does: `endYear` bumps the year and this stops being closed */
+  /* the next year opens the whole thing back up, which is what the title's 'Start year 2' does: `endYear` bumps the year and this stops being closed */
   it('and asks again the moment the next year starts', async () => {
     const { save, objective } = await fresh()
     started(save)

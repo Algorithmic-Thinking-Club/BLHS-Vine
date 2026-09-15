@@ -127,6 +127,7 @@ scripts/*
 !scripts/wave4-proof.mjs
 !scripts/fps-proof.mjs
 !scripts/words-proof.mjs
+!scripts/code-same.mjs
 !scripts/probe-mask.mjs
 !scripts/asset_diff.mjs
 !scripts/lead-smooth.mjs

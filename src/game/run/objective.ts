@@ -1,13 +1,12 @@
 /* the one thing the player is supposed to do next, named as an anchor on a map */
 import type { SaveGame } from '../save'
+import { roleByConvention, type Role } from './roles'
 import { sessionOver, yearStatus, yearWord } from './year'
 import { picksOf } from './pick'
 
 export type Objective = {
-  /* the anchor this points at. Every map that can be the objective's home has to
-   * carry an anchor by this name, which is what makes the list below double as
-   * the required-anchor list for the Maw. */
-  anchor: string
+  /* what the place this points at is for: the room resolves the role to whichever anchor fills it, and null points at no place and draws no arrow */
+  role: Role | null
   /* the map that anchor lives on, so the arrow can say "not here, out there" */
   map: string
   /* the step said on the objective's own map, and the same step said from any other map */
@@ -20,9 +19,7 @@ export type Objective = {
 export const MAW_MAP = 'panther-maw'
 export const HUB_MAP = 'hub'
 
-/* the flag that says the founding event has played. Named here rather than at
- * the callsite so the cutscene, the station and the save all agree on one
- * string; save.ts already uses this `thing:detail` shape for `vignette:y1`. */
+/* the flag saying the founding event has played, named here so the cutscene, the station and the save agree on one string, in the same `thing:detail` shape save.ts uses for `vignette:y1` */
 export const FOUNDING_FLAG = 'maw:founding'
 
 /* picks the sentence for where the player is standing, on the objective's map or off it */
@@ -37,23 +34,13 @@ export function nextObjective(s: SaveGame | null): Objective | null {
   if (!s || !s.introDone) return null
   if (s.graduated) return null
 
-  /* ---- A CLOSED YEAR ASKS NOTHING (Ash, 2026-09-09) ---------------------
-   *
-   * It used to answer "Year one is done. Look around." and that sentence had
-   * exactly one place left to draw: across the top of the closing film, over the
-   * congratulation, the Sail Home button and the ship leaving. There is nowhere
-   * else it can appear, because the only in-world moment with the page already
-   * turned IS the ending.
-   *
-   * And it was not true either. There is nothing to look around at: the film has
-   * the controls, and what comes next is the title screen with the next year on
-   * it. The bar is furniture for a game still being played. */
+  /* a closed year asks nothing, because the only moment left with the page turned is the closing film, which owns its own controls and leads to the title screen, so a bar there would point at nothing */
   if (sessionOver(s)) return null
 
   /* the founding event, which happens once per run before any year beat */
   if (!s.flags.includes(FOUNDING_FLAG)) {
     return {
-      anchor: 'principal_desk', map: MAW_MAP, phase: 'founding',
+      role: 'principal', map: MAW_MAP, phase: 'founding',
       say: 'Talk to Principal Panther.',
       away: 'Go into the mountain.',
     }
@@ -61,24 +48,11 @@ export function nextObjective(s: SaveGame | null): Objective | null {
 
   const y = yearStatus(s)
 
-  /* the year's opening vignette. The HUD already auto-mounts this whenever the
-   * world is quiet, so the objective's job is only to stop pointing anywhere
-   * else while it is owed. */
+  /* the year's opening vignette: the HUD auto mounts it whenever the world is quiet, so this clause only stops the objective pointing anywhere else while it is owed */
   if (!y.vignetteSeen) {
     return {
-      /* ---- NO ANCHOR, BECAUSE NOBODY IS WAITING (Ash, 2026-09-09) ------
-       *
-       * It pointed at `principal_desk` and told a student to talk to the man.
-       * In year one that is true, because the founding film ends at his desk
-       * and writes the flag. In year two and after it is not: the vignette is a
-       * CARD the HUD raises on its own, the principal has no handler for it, and
-       * a student who obeyed the arrow got "back again?" and an arrow still
-       * pointing at him.
-       *
-       * The comment above already said the clause's only job is to stop pointing
-       * anywhere else while the card is owed, and an anchor is the one thing
-       * that does the opposite. */
-      anchor: '', map: MAW_MAP, phase: 'vignette',
+      /* no anchor here, because the vignette is a card the HUD raises itself and the principal has no handler for it, so pointing at `principal_desk` sends a year two student to "back again?" with the arrow still on him */
+      role: null, map: MAW_MAP, phase: 'vignette',
       say: 'Look around.',
       away: 'Go into the mountain.',
     }
@@ -86,7 +60,7 @@ export function nextObjective(s: SaveGame | null): Objective | null {
 
   if (!y.planStamped) {
     return {
-      anchor: 'chart_table', map: MAW_MAP, phase: 'plan',
+      role: 'plan', map: MAW_MAP, phase: 'plan',
       say: 'Go to the table and pick your year.',
       away: 'Go into the mountain and pick your year.',
     }
@@ -94,32 +68,17 @@ export function nextObjective(s: SaveGame | null): Objective | null {
 
   if (!y.coreBeatDone) {
     return {
-      anchor: 'hearth', map: MAW_MAP, phase: 'core',
+      role: 'advisory', map: MAW_MAP, phase: 'core',
       say: 'Go to the fire.',
       away: 'Go into the mountain. Advisory is at the fire.',
     }
   }
 
-  /* ---- THE MIDDLE OF YEAR ONE IS WHAT HE PICKED ---------------------------
-   *
-   * ASH, 2026-09-08 item 4: *"one button per pick, the roster decides"*, and the
-   * bar is the other half of that: *"marks it complete... and the bar names the
-   * next pick."*
-   *
-   * There were two clauses here and they were the same clause. One named a class
-   * and sent him to the year sheet; the other named a club and sent him to the
-   * harbour, and only if somebody had built its island, because a club with no
-   * island could not be finished. Both of those are now one row on one sheet with
-   * one button that always finishes it, so this is one clause.
-   *
-   * IT NAMES THE PICK AND THE DOOR TO IT. "Open My Year" is the second half on
-   * purpose: a pick is played from the year sheet, which is a corner button
-   * rather than a place in the room, so a sentence naming only the class would
-   * send a student looking for a classroom that is not painted. */
+  /* one clause covers every owed pick, class or club, since both are one row on one sheet with one button that finishes it, and the line must name the year sheet because a pick is played from a corner button, not from a painted classroom */
   const owed = picksOf(s).find((p) => !p.done)
   if (owed) {
     return {
-      anchor: 'chart_table', map: MAW_MAP, phase: 'class',
+      role: 'plan', map: MAW_MAP, phase: 'class',
       say: `${owed.map ? `Sail to ${owed.name}` : `Go to ${owed.name}`}. Open My Year.`,
       away: `Go into the mountain. ${owed.name} is on your year sheet.`,
     }
@@ -129,23 +88,9 @@ export function nextObjective(s: SaveGame | null): Objective | null {
   if (y.readyForYearbook && !y.yearbookSeen) {
     /* the closing plays at the principal's desk, so the away line names the way back in */
     return {
-      anchor: 'principal_desk', map: MAW_MAP, phase: 'yearbook',
-      /* ASH, 2026-09-08: *"the bar says 'Find the principal. Year one is done.'"*
-       * It said "The principal is waiting", which is a fact about a man and not
-       * about the year: a student read it identically at the founding, when the
-       * principal really was waiting to start everything. This one says WHY he
-       * is being sent, and the second sentence is the only thing on the glass
-       * that tells him the year is over before the film says so. */
-      /* ASH, 2026-09-08 item 6: *"When every pick is done the bar says 'Go back
-       * to the Maw. The principal is waiting.'"* That is the AWAY line and it is
-       * his words exactly.
-       *
-       * INSIDE THE MAW IT SAYS THE OTHER HALF, because "go back to the Maw" over
-       * a student standing in the Maw is the game telling him to do a thing he
-       * has already done. The common road ends exactly there: he presses Go on
-       * his last pick at the chart table and the year closes with him ten feet
-       * from the man. Same fact, said from where he is: the arrow is already on
-       * the principal and this is the sentence that goes with it. */
+      role: 'principal', map: MAW_MAP, phase: 'yearbook',
+      /* the line says why he is sent rather than "the principal is waiting", which reads identically at the founding, and its second sentence is the only thing on the glass saying the year is over before the film does */
+      /* "go back to the Maw" is the away line only, because the common road ends at the chart table ten feet from the man, so a student already inside says the other half with the arrow already on him */
       say: `Find the principal. Year ${yearWord(s.year)} is done.`,
       away: 'Go back to the Maw. The principal is waiting.',
     }
@@ -153,14 +98,20 @@ export function nextObjective(s: SaveGame | null): Objective | null {
 
   /* the fallback when nothing above matched, which no ordinary year reaches */
   return {
-    anchor: 'chart_table', map: MAW_MAP, phase: 'done',
+    role: 'plan', map: MAW_MAP, phase: 'done',
     say: 'Nothing left this year. Look around.',
     away: 'Nothing left this year. Look around.',
   }
 }
 
-/* is this anchor, on this map, the thing the player is currently being sent to */
-export function isObjective(s: SaveGame | null, mapId: string, anchorName: string): boolean {
+/* is this anchor on this map the thing the player is being sent to, with `roleOf` the room's own answer and the conventional names used when there is none */
+export function isObjective(
+  s: SaveGame | null,
+  mapId: string,
+  anchorName: string,
+  roleOf: (name: string) => Role | null = roleByConvention,
+): boolean {
   const o = nextObjective(s)
-  return !!o && o.map === mapId && o.anchor === anchorName
+  if (!o || o.map !== mapId || !o.role) return false
+  return roleOf(anchorName) === o.role
 }
