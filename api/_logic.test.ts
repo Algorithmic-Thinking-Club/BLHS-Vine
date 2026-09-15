@@ -1,24 +1,6 @@
 // the api's pure logic; `armFor` must never change once a class is live, so the locked outputs below are a tripwire: a refactor that moves them silently reassigns arms mid-run, so fix the refactor and not the test
 import { describe, it, expect } from 'vitest'
-import { armFor, cleanHandle, newCode, newId, GLYPHS } from './_logic.js'
-
-describe('armFor (deterministic study arm, §13.2)', () => {
-  it('locked outputs — changing these reassigns arms mid-study', () => {
-    expect(armFor('c_dev', 'BraveTide')).toBe('plain')
-    expect(armFor('c_dev', 'GoldenGull')).toBe('game')
-    expect(armFor('c_dev', 'QuietHarbor')).toBe('plain')
-    expect(armFor('class42', 'Panther')).toBe('game')
-  })
-  it('is deterministic', () => {
-    for (let i = 0; i < 50; i++) expect(armFor('cX', `h${i}`)).toBe(armFor('cX', `h${i}`))
-  })
-  it('splits a class roughly in half', () => {
-    const arms = Array.from({ length: 400 }, (_, i) => armFor('cls', `student${i}`))
-    const game = arms.filter((a) => a === 'game').length
-    expect(game).toBeGreaterThan(140)
-    expect(game).toBeLessThan(260)
-  })
-})
+import { cleanHandle, newCode, newId, GLYPHS } from './_logic.js'
 
 describe('cleanHandle', () => {
   it('strips, caps at 14, never returns empty', () => {

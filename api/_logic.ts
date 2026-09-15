@@ -1,4 +1,4 @@
-// pure logic shared by the api handlers, with no i/o, including the participant arm hash
+// pure logic shared by the api handlers, with no i/o
 
 import { randomBytes, randomUUID } from 'node:crypto'
 
@@ -10,13 +10,6 @@ export const newCode = () => {
 }
 // participant ids and teacher capability keys are the auth itself, so they must be unguessable: crypto strength, never Math.random
 export const newId = (p: string) => p + '_' + randomUUID().replace(/-/g, '').slice(0, 20)
-
-/** deterministic arm split in study mode: stable hash of class+handle -> game|plain (§13.2) */
-export function armFor(classId: string, handle: string): 'game' | 'plain' {
-  let h = 0
-  for (const ch of `${classId}:${handle}`) h = (h * 31 + ch.charCodeAt(0)) >>> 0
-  return h % 2 === 0 ? 'game' : 'plain'
-}
 
 /** the server's handle hygiene: the same glyph set the client allows, capped, never empty */
 export const cleanHandle = (handle: string) =>

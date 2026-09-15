@@ -7,7 +7,7 @@ import joinHandler from './join'
 import stateHandler from './state'
 import logHandler from './log'
 import teacherHandler from './teacher'
-import { armFor } from './_logic.js'
+import {  } from './_logic.js'
 
 const DB = path.join(os.tmpdir(), `blhs-handler-test-${process.pid}.json`)
 
@@ -86,15 +86,15 @@ describe('join (§7.7 one student = one run)', () => {
     expect(a.json.participantId).not.toBe(b.json.participantId)
   })
 
-  it('study mode assigns each participant the deterministic armFor arm; rejoining keeps it', async () => {
+  it('a student who rejoins is the same participant, not a second one', async () => {
     const cls = await createClass('Study P1', true)
     for (const h of ['BraveTide', 'GoldenGull', 'QuietHarbor']) {
       const r = res()
       await joinHandler(req('POST', { code: cls.code, handle: h }), r)
-      expect(r.json.arm).toBe(armFor(cls.classId, h))   // the exact §13.2 contract
       const again = res()
       await joinHandler(req('POST', { code: cls.code, handle: h }), again)
-      expect(again.json.arm).toBe(r.json.arm)           // returning keeps the arm
+      expect(again.json.participantId).toBe(r.json.participantId)
+      expect(again.json.returning).toBe(true)
     }
   })
 

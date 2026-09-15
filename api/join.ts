@@ -1,7 +1,7 @@
 // joining a class: GET checks a code, POST creates or resumes that student's run
 import { json, readBody } from './_db.js'
 import { store } from './_store.js'
-import { armFor, cleanHandle, newId } from './_logic.js'
+import { cleanHandle, newId } from './_logic.js'
 
 export default async function handler(req: any, res: any) {
   const db = store()
@@ -31,7 +31,7 @@ export default async function handler(req: any, res: any) {
   if (existing) {
     return json(res, 200, {
       participantId: existing.id, classId: cls.id, className: cls.name,
-      arm: existing.arm, handle: existing.handle, returning: true,
+      handle: existing.handle, returning: true,
     })
   }
 
@@ -40,11 +40,12 @@ export default async function handler(req: any, res: any) {
   // new participant; a race or a genuine twin walks down numeric suffixes
   for (let attempt = 0; attempt < 4; attempt++) {
     const finalHandle = attempt === 0 ? clean : `${clean}${1 + attempt}`
-    const arm = cls.study_mode ? armFor(cls.id, finalHandle) : 'game'
     const participantId = newId('p')
-    const r = await db.insertParticipant({ id: participantId, class_id: cls.id, handle: finalHandle, arm })
+    /* the column is still written because the rows already in the database carry it,
+     * and a student is no longer split into one of two arms */
+    const r = await db.insertParticipant({ id: participantId, class_id: cls.id, handle: finalHandle, arm: 'game' })
     if (r === 'ok') {
-      return json(res, 200, { participantId, classId: cls.id, className: cls.name, arm, handle: finalHandle })
+      return json(res, 200, { participantId, classId: cls.id, className: cls.name, handle: finalHandle })
     }
   }
   return json(res, 500, { error: 'join_failed' })
