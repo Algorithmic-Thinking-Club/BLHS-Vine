@@ -54,7 +54,7 @@ import { loadSettings, onSettings } from '../../app/SettingsPanel'
 import { runEnding, setRunEnding } from '../hud/objective-bus'
 import { sessionOver } from '../run/year'
 import {
-  newHull, stepHull, berthHelm, steerTo, easeHelm, lineUpPoint, RUN_IN_CORRIDOR_PX,
+  newHull, stepHull, berthHelm, steerTo, easeHelm, lineUpPoint, insideTheApproach, RUN_IN_CORRIDOR_PX,
   DEFAULT_SAIL, HELM_IDLE,
   type Berthing, type Helm, type HullState,
 } from '../world/sail'
@@ -5173,7 +5173,19 @@ export default function PmapScene() {
           ? radOf(s.berth.facing, s.berth.bearing) : undefined
         const head = ap
           ?? (face !== undefined ? lineUpPoint(t, face, DEFAULT_SAIL, water) ?? t : t)
-        const legs = seaRoute({ x: hull.x, y: hull.y }, head, water, { step: 24 })
+        /* AND THE ROUTE AGREES WITH THE MANOEUVRE. `berthHelm` has the same test, but
+         * this is the one that has to come first: a route is followed to its end before
+         * the manoeuvre is ever consulted, so a route out to the mark commits her to the
+         * turn round no matter what the manoeuvre would have said. */
+        /* a berth nobody gave a heading has no line to be on, so the question cannot
+         * be asked and she takes the route */
+        const onHerRun = face !== undefined
+          && insideTheApproach({ x: hull.x, y: hull.y }, t, face, head, hull.heading)
+        const legs = onHerRun ? null : seaRoute({ x: hull.x, y: hull.y }, head, water, { step: 24 })
+        if (onHerRun) {
+          console.log(`[sail] ${mapId}: she is already on her run in, so she keeps coming `
+            + 'rather than standing back out to the mark')
+        }
         if (legs && legs.length) {
           /* the line she is about to sail, written as a line so the one follower can
            * read it. It carries the berth's own heading, which is what `berthHelm`

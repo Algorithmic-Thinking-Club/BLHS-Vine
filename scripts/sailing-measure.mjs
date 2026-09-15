@@ -65,10 +65,16 @@ while (Date.now() - t0 < 120000) {
 const sail = rows.filter((r) => r.hull && r.sea)
 const speeds = sail.map((r) => r.sea.speed)
 const unwrap = (a, b) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d }
+/* NOT ACROSS A MAP CHANGE. She is one hull on the hub's sea and another on the far
+ * island's, born pointed at a different berth, and the two headings have nothing to do
+ * with each other. Measured across the boundary this read 287 deg/s over the 562ms the
+ * cover was down and reported it as the worst turn in the crossing, which sent a
+ * session looking for a pirouette that was never on screen. */
+const sameSea = (i) => sail[i].map === sail[i - 1].map
 const turns = []
 for (let i = 1; i < sail.length; i++) {
   const dt = (sail[i].t - sail[i - 1].t) / 1000
-  if (dt <= 0) continue
+  if (dt <= 0 || !sameSea(i)) continue
   turns.push(Math.abs(unwrap(sail[i - 1].sea.head, sail[i].sea.head)) / dt)
 }
 const sum = (a) => a.reduce((x, y) => x + y, 0)
@@ -84,7 +90,7 @@ console.log(`hard turns over 60 deg/s: ${turns.filter((x) => x * 57.3 > 60).leng
 const hard = []
 for (let i = 1; i < sail.length; i++) {
   const dt = (sail[i].t - sail[i - 1].t) / 1000
-  if (dt <= 0) continue
+  if (dt <= 0 || !sameSea(i)) continue
   const r = Math.abs(unwrap(sail[i - 1].sea.head, sail[i].sea.head)) / dt * 57.3
   if (r > 60) hard.push({ deg: Math.round(r), speed: Math.round(sail[i].sea.speed), where: `${sail[i].map}/${sail[i].sea.berthing ?? 'under-way'}`, dt: Math.round(dt * 1000) })
 }

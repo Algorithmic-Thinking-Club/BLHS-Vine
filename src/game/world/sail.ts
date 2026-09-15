@@ -123,6 +123,54 @@ export function easeHelm(err: number, throttle: number): Helm {
  * EXPORTED because the scene wants it too: knowing where the manoeuvre is going to
  * begin is what lets a route be searched TO that point over water, instead of the
  * hull being aimed at it and sliding down whatever coast is in between. */
+/* ---- SHE NEVER SAILS AWAY FROM THE BERTH TO LINE UP FOR IT -----------------
+ *
+ * ASH, watching the ATC arrival: *"its doing a random stupid turn around."*
+ *
+ * Measured, and it is not that island. She is born on the berth's own approach line
+ * 140 pixels out, and the lineup mark on that same line is at 210, so she is born 70
+ * pixels INSIDE the mark she is about to be sent to. Pointed at the dock, at cruise.
+ * The manoeuvre wakes up, works out the mark, and the first thing it tells her is
+ * "go back out the way you came". She turns a full circle to obey. Every sea arrival
+ * in the game did this, on every island.
+ *
+ * The mark is not a gate she has to touch. It is where a helmsman WOULD start his run
+ * if he were somewhere unhelpful. If he is already on the line, astern of the berth,
+ * and no further out than the mark, he is on his run already and he keeps coming. So
+ * the question is not "where is the mark" but "is she in the approach" - and if she
+ * is, the mark is behind her and going to it means turning round.
+ *
+ * Ahead of the berth is a different thing and still needs the loop: you cannot berth
+ * through a dock. That case is left alone on purpose. */
+export function insideTheApproach(
+  from: { x: number; y: number },
+  berth: { x: number; y: number },
+  facing: number,
+  mark: { x: number; y: number } | null,
+  heading?: number,
+): boolean {
+  const fx = Math.cos(facing), fy = Math.sin(facing)
+  const dx = from.x - berth.x, dy = from.y - berth.y
+  const along = dx * fx + dy * fy
+  /* astern of it, which is the only side a run-in can come from */
+  if (along >= 0) return false
+  const cross = Math.abs(dx * -fy + dy * fx)
+  if (cross > RUN_IN_CORRIDOR_PX) return false
+  /* AND POINTED DOWN IT, which standing in the corridor does not imply. The
+   * twelve-bearing test caught this: a hull crossing the corridor sideways is inside
+   * it by the arithmetic, and telling her to keep coming made her stop and turn on the
+   * spot, which is the same pirouette from the other end. Lined up the wrong way round,
+   * the mark is worth going to, because standing off is how she gets the room to make
+   * that turn under way. */
+  if (heading !== undefined && Math.abs(wrap(heading - facing)) > LINED_UP_RAD) return false
+  /* and not further out than the mark, or there is genuinely more line to gain by
+   * standing off. No mark at all means the line is short of water, so being on it
+   * this close is the best she is going to get. */
+  if (!mark) return true
+  const markOut = Math.hypot(mark.x - berth.x, mark.y - berth.y)
+  return -along <= markOut + 20
+}
+
 export function lineUpPoint(
   target: { x: number; y: number },
   facing: number,
@@ -299,6 +347,8 @@ export const RUN_IN_LOOK = 0.85
 export const RUN_IN_ROUND_PX = 320
 /** how far off the line still counts as being in the approach corridor */
 export const RUN_IN_CORRIDOR_PX = 90
+/** and how far off the berth's own heading still counts as lined up for it */
+export const LINED_UP_RAD = 0.9
 
 const wrap = (a: number): number => {
   let r = a
@@ -424,6 +474,9 @@ export function berthHelm(
        * whatever her heading is. The run-in below is the thing that is good at turning
        * a hull onto a line, and it works far better from here than a second lap does. */
       const lineUp = lineUpPoint(b.target, b.facing, cfg, ok)
+      /* she is already inside the approach: going to the mark would take her through
+       * her own berth, which is the loop rather than the manoeuvre */
+      const onHerRunAlready = insideTheApproach(s, b.target, b.facing, lineUp, s.heading)
       /* CLOSE ENOUGH THAT GOING ROUND AGAIN IS THE SILLY ANSWER. A boat 210 pixels out
        * still has room to make a proper approach and should; a boat seventy pixels from
        * her own dock does not, and sending her two hundred back out to sea to line up
@@ -435,7 +488,7 @@ export function berthHelm(
        * bearing in twelve spun 0.71 radians at rest. Slow and close is a boat
        * manoeuvring; fast and close is a boat that needs to go round. */
       const onTopOfIt = gap <= RUN_IN_CORRIDOR_PX && s.speed < cfg.cruise * 0.55
-      if (near || onTopOfIt
+      if (near || onTopOfIt || onHerRunAlready
         || (along < 0 && cross < RUN_IN_CORRIDOR_PX && -along >= room))
         return berthHelm(s, restart({ ...b, stage: 'alongside' }), cfg, dt, ok)
       /* THE FURTHEST POINT BACK DOWN THE LINE THAT IS STILL WATER, walked out from
