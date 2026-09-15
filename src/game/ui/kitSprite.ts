@@ -1,12 +1,6 @@
 /* one cut face off the platform's kit, as a pixi sprite for things drawn in the world */
 import { Assets, NineSliceSprite, Rectangle, Sprite, Texture } from 'pixi.js'
 import { kitCached, kitFace, kitPiece, kitHostInUse, kitArtUrl, loadKit } from './kit'
-import { currentSkin } from './skin'
-
-/* the plain study arm gets no drawn art, in the world as well as in the dom */
-function artAllowed(): boolean {
-  return currentSkin() === 'paper'
-}
 
 /* one decode per sheet per session, shared by every face cut from it: `pointer` is 384x256 and carries six marks, so decoding once per mark would be six fetches of the same bytes on a machine with one slow network */
 const sheets = new Map<string, Promise<Texture | null>>()
@@ -35,7 +29,6 @@ async function sheetOf(piece: string): Promise<Texture | null> {
 
 /** the texture for one named face, or null when it is not drawn or not reachable */
 export async function kitTexture(piece: string, face: string): Promise<Texture | null> {
-  if (!artAllowed()) return null
   const sheet = await sheetOf(piece)
   if (!sheet) return null
   const cut = kitFace(kitCached() ?? [], piece, face)
@@ -51,14 +44,12 @@ export async function kitTexture(piece: string, face: string): Promise<Texture |
 
 /** a sprite of one named face, or null. The caller owns it and its scale. */
 export async function kitSprite(piece: string, face: string): Promise<Sprite | null> {
-  if (!artAllowed()) return null
   const t = await kitTexture(piece, face)
   return t ? new Sprite(t) : null
 }
 
 /* a stretchable nine-slice ground, built at the art's own height so it cannot invert */
 export async function kitNineSlice(piece: string, width: number): Promise<NineSliceSprite | null> {
-  if (!artAllowed()) return null
   const sheet = await sheetOf(piece)
   if (!sheet) return null
   const p = kitPiece(kitCached() ?? [], piece)

@@ -37,12 +37,12 @@ const beat: CoreBeat = {
   steps: two.map((check) => ({ kind: 'check' as const, check })),
 }
 
-async function mount(arm: 'game' | 'plain') {
+async function mount() {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const root = createRoot(host)
   await act(async () => {
-    root.render(createElement(CoreBeatRunner, { beat, onClose: () => {}, forceArm: arm }))
+    root.render(createElement(CoreBeatRunner, { beat, onClose: () => {} }))
   })
   return {
     click: async (text: string) => {
@@ -59,46 +59,12 @@ async function mount(arm: 'game' | 'plain') {
 }
 
 const answered = () => events.filter((e) => e.name === 'check_answered')
-const latencyOfItem = (id: string) => answered().find((e) => e.data.item === id)!.data.latencyMs as number
 
 beforeEach(() => { localStorage.clear(); beginAdventure(); events.length = 0 })
 
-describe('the plain arm stamps each item when it was answered', () => {
-  it('two items answered a beat apart do not carry the same number', async () => {
-    const m = await mount('plain')
-    await m.pick('first', 0)
-    spin(40)
-    await m.pick('second', 0)
-    await m.click('Submit')
-
-    expect(answered()).toHaveLength(2)
-    const a = latencyOfItem('first')
-    const b = latencyOfItem('second')
-    /* the whole defect as an assertion: these used to be equal, because both were read at submit off one clock for the page */
-    expect(b - a).toBeGreaterThanOrEqual(30)
-    await m.unmount()
-  })
-
-  it('submit does not land inside either item, and the page time is named separately', async () => {
-    const m = await mount('plain')
-    await m.pick('first', 0)
-    await m.pick('second', 0)
-    spin(60)                       // the student rereads the page before submitting
-    await m.click('Submit')
-
-    for (const e of answered()) {
-      expect(e.data.latency).toBe('first-answer')
-      expect(e.data.latencyMs as number).toBeLessThan(60)
-      // the whole-page number is not lost, it is honestly named
-      expect(e.data.formMs as number).toBeGreaterThanOrEqual(60)
-    }
-    await m.unmount()
-  })
-})
-
-describe('the game arm stamps the same moment: the answer, not the dismissal', () => {
+describe('a beat stamps the moment of the answer, not of the dismissal', () => {
   it('reading the correction is not counted as answering time', async () => {
-    const m = await mount('game')
+    const m = await mount()
     await m.click('right one')     // answered
     spin(60)                       // and now reads the reply, at their own pace
     await m.click('Keep going')
@@ -109,18 +75,14 @@ describe('the game arm stamps the same moment: the answer, not the dismissal', (
     await m.unmount()
   })
 
-  it('both arms name the convention on every check_answered event', async () => {
-    const g = await mount('game')
+  it('names the convention on every check_answered event', async () => {
+    const g = await mount()
     await g.click('right one'); await g.click('Keep going')
     await g.click('right two'); await g.click('Keep going')
     await g.unmount()
-    const p = await mount('plain')
-    await p.pick('first', 0); await p.pick('second', 0); await p.click('Submit')
-    await p.unmount()
 
-    expect(answered()).toHaveLength(4)
+    expect(answered()).toHaveLength(2)
     for (const e of answered()) expect(e.data.latency).toBe('first-answer')
-    // the arms are told apart by `arm` and `via`, never by what latencyMs means
-    expect(answered().map((e) => e.data.via)).toEqual(['woven', 'woven', 'form', 'form'])
+    expect(answered().map((e) => e.data.via)).toEqual(['woven', 'woven'])
   })
 })

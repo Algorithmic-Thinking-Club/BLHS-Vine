@@ -191,35 +191,6 @@ html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
 .wd-foot { flex: none; padding: 8px 20px 14px; }
 
 /* the plain study arm: the same nook as a worksheet, with the frames and paint taken off */
-html[data-skin='plain'] .wd-mirror {
-  border-image: none;
-  border: 1px solid var(--kit-edge);
-  border-radius: 2px;
-  background: var(--kit-paper-hi);
-}
-html[data-skin='plain'] .wd-head { text-shadow: none; font-weight: 700; }
-html[data-skin='plain'] .wd-thor { filter: none; }
-html[data-skin='plain'] .wd-swatch {
-  background: var(--kit-paper-hi);
-  border: 1px solid var(--kit-edge);
-  border-radius: 2px;
-}
-html[data-skin='plain'] .wd-swatch-on {
-  transform: none;
-  border-width: 2px;
-  border-color: var(--kit-ink-head);
-  box-shadow: none;
-}
-html[data-skin='plain'] .wd-swatch-on .wd-swatch-name { font-weight: 700; }
-html[data-skin='plain'] .wd-dye { border-radius: 2px; border: 1px solid var(--kit-edge-strong); box-shadow: none; }
-html[data-skin='plain'] .wd-lock {
-  background: var(--kit-paper-hi);
-  border: 1px solid var(--kit-edge);
-  border-radius: 2px;
-}
-html[data-skin='plain'] .wd-lock:hover { transform: none; background: var(--kit-paper-lo); }
-html[data-skin='plain'] .wd-lock[data-state='earned'] { border-left-width: 4px; border-left-color: var(--kit-ink-head); }
-html[data-skin='plain'] .wd-lock .wd-lock-plate { width: 22px; height: 22px; }
 
 /* the outfit he has on, which is the only card that reads as pressed */
 .wd-lock[data-state='worn'] {

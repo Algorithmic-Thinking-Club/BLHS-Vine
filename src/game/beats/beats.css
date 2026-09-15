@@ -633,7 +633,6 @@ html[data-rm='1'] .bt-drop-lit { animation: none; box-shadow: 0 0 0 3px var(--ki
   --kit-fs-raw: .86em;
   font-size: var(--kit-fs);
 }
-html[data-skin='plain'] .bt-answer { border-radius: 0; }
 
 /* who is speaking, on the plain arm's paper, because the game arm has always printed the name and this arm dropped it */
 .bt-plainspeaker { font-weight: 700; }

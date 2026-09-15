@@ -65,16 +65,6 @@ html[data-rm='1'] .ob-panel { animation-duration: 1ms; }
 /* no ground under the wood, because the plaque is a shape rather than a nine-slice */
 
 /* the plain arm reads the same sentence on a flat dark bar in the system face */
-html[data-skin='plain'] .ob-panel {
-  background-image: none;
-  background-color: var(--kit-wood-lo);
-  border: 1px solid var(--kit-wood-edge);
-  border-radius: var(--kit-r-soft);
-  color: var(--kit-wood-ink);
-  text-shadow: none;
-  padding: 6px 16px 7px;
-  max-width: min(72vw, 640px);
-}
 
 /* ---- the task sheet, which drops out of the sign when a student presses it */
 .ob-wrap { flex-direction: column; align-items: center; }
@@ -179,14 +169,6 @@ html[data-rm='1'] .ob-sheet { animation-duration: 1ms; }
 .ob-task.is-barred .ob-mark { opacity: 0.45; }
 
 /* the plain skin reads the same list and only the paint changes: no parchment, no pixel display face, a flat card with a real rule between rows */
-html[data-skin='plain'] .ob-sheet {
-  background: var(--kit-paper, #fff);
-  border: 1px solid var(--kit-wood-edge, #c8c8c4);
-  border-radius: var(--kit-r-soft, 4px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-  color: var(--kit-ink, #1b1b1b);
-}
-html[data-skin='plain'] .ob-sheet-head { font-family: inherit; font-weight: 600; }
 
 /* a row that does the thing it names: a row for something still owed opens the panel its note names, so reading the sheet and acting on it are one press instead of two, and a finished row is text and looks like text */
 .ob-task.is-live {
@@ -199,6 +181,3 @@ html[data-skin='plain'] .ob-sheet-head { font-family: inherit; font-weight: 600;
   outline: none;
 }
 .ob-task.is-live:focus-visible { box-shadow: 0 0 0 2px rgba(240, 216, 154, 0.6); }
-html[data-skin='plain'] .ob-task.is-live:hover,
-html[data-skin='plain'] .ob-task.is-live:focus-visible { background: #eee; }
-html[data-skin='plain'] .ob-task.is-live:focus-visible { box-shadow: 0 0 0 2px #101010; }

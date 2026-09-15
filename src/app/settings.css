@@ -53,7 +53,6 @@ html[data-rm='1'] .st-panel { animation-duration: 1ms; }
 .st-page::-webkit-scrollbar { width: 10px; }
 .st-page::-webkit-scrollbar-track { background: var(--kit-paper-lo); border-radius: var(--kit-r-soft); }
 .st-page::-webkit-scrollbar-thumb { background: var(--kit-edge); border: 2px solid var(--kit-paper-lo); border-radius: var(--kit-r-soft); }
-html[data-skin='plain'] .st-page { -webkit-mask-image: none; mask-image: none; }
 
 /* ---- account tab: the identity card + preferences ---- */
 .st-idcard {
@@ -219,41 +218,8 @@ html[data-skin='plain'] .st-page { -webkit-mask-image: none; mask-image: none; }
 html[data-rm='1'] .tr-root * { animation-duration: 200ms !important; }
 
 /* the plain arm, where the corner control becomes a plain bordered rectangle */
-html[data-skin='plain'] .st-gear {
-  background: var(--kit-paper-lo);
-  border: 1px solid var(--kit-edge-strong);
-  border-radius: var(--kit-r-sharp);
-  min-width: 0;
-  padding: 7px 14px;
-  opacity: 1;
-  filter: none;
-}
-html[data-skin='plain'] .st-gear:hover,
-html[data-skin='plain'] .st-gear:active { transform: none; filter: none; }
 /* the word on the corner control, in the plain arm only */
-html[data-skin='plain'] .st-gear-ink {
-  font-family: var(--kit-face-body);
-  font-size: 14px; letter-spacing: 0;
-  color: var(--kit-ink-body);
-}
-html[data-skin='plain'] .st-panel { filter: none; animation: none; }
-html[data-skin='plain'] .st-caretmark { border-top-color: var(--kit-ink-body); }
 /* a struck line under a destructive button is a game mark, and a document says it in words instead, which are already there */
-html[data-skin='plain'] .st-dangerplank::after { display: none; }
 
 /* the plain arm's panel has no carved frame, so its padding is put back by hand */
-html[data-skin='plain'] .st-inner {
-  inset: 0;
-  padding: 22px 28px 20px;
-  box-sizing: border-box;
-}
 /* the plain arm's page scrolls with an ordinary browser scrollbar */
-html[data-skin='plain'] .st-page {
-  scrollbar-width: auto;
-  scrollbar-gutter: stable;
-}
-html[data-skin='plain'] .st-page::-webkit-scrollbar { width: 14px; }
-html[data-skin='plain'] .st-page::-webkit-scrollbar-thumb {
-  background: var(--kit-edge);
-  border-radius: 0;
-}

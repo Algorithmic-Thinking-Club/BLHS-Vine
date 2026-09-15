@@ -302,21 +302,6 @@ html[data-rm='1'] .hb-page { animation-duration: 1ms; }
 .hb-badgebar { margin-top: 4px; }
 
 /* the plain arm: the same binder drawn as a typed document with no game art */
-html[data-skin='plain'] .hb-crest { display: none; }
-html[data-skin='plain'] .hb-head { padding: 16px 20px 8px; }
-html[data-skin='plain'] .hb-title { text-shadow: none; font-weight: 700; }
-html[data-skin='plain'] .hb-bar { border-bottom-color: var(--kit-edge-strong); }
-html[data-skin='plain'] .hb-card {
-  background: var(--kit-paper-hi);
-  border: 1px solid var(--kit-edge);
-  border-radius: 2px;
-  box-shadow: none;
-}
-html[data-skin='plain'] .hb-cord[data-state='earned'],
-html[data-skin='plain'] .hb-badge[data-state='earned'] { border-left-width: 4px; border-left-color: var(--kit-ink-head); }
-html[data-skin='plain'] .hb-badge .hb-badge-plate { width: 26px; height: 26px; }
-html[data-skin='plain'] .hb-fact { padding-top: 11px; }
-html[data-skin='plain'] .hb-badge-word { letter-spacing: 0; font-weight: 700; }
 
 /* ---- pause (§4.8): the world blurs, a small anchor panel ---- */
 .pz-veil {
@@ -369,58 +354,14 @@ html[data-skin='plain'] .hb-badge-word { letter-spacing: 0; font-weight: 700; }
 }
 
 /* a worksheet does not fade: the mask is a game affordance, and under the plain skin the page is a document that just continues */
-html[data-skin='plain'] .hb-page { -webkit-mask-image: none; mask-image: none; }
 
 /* in the plain arm the corner signs become plain white buttons with a real edge */
-html[data-skin='plain'] .hud-plaque {
-  width: auto;
-  min-width: 132px;
-  height: 38px;
-  padding: 0 14px;
-  background: var(--kit-paper);
-  border: var(--kit-border) solid var(--kit-edge-strong);
-  border-radius: var(--kit-r-soft);
-  filter: none;
-}
-html[data-skin='plain'] .hud-plaque:hover {
-  transform: none;
-  filter: none;
-  background: var(--kit-paper-lo);
-}
-html[data-skin='plain'] .hud-plaque:active { transform: none; filter: none; }
-html[data-skin='plain'] .hud-plaque:disabled { filter: none; opacity: .5; }
-html[data-skin='plain'] .hud-plaque-word {
-  color: var(--kit-ink);
-  text-shadow: none;
-  font-weight: 700;
-}
 /* the crest and the cut marks are drawn art and the arm does not carry art */
-html[data-skin='plain'] .hud-crest,
-html[data-skin='plain'] .hud-plaque-mark { display: none; }
 
 /* the pips keep the count in the plain arm and lose the gold coin look */
-html[data-skin='plain'] .hud-tokenbtn {
-  height: auto;
-  min-height: 38px;
-  padding: 5px 14px 6px;
-  gap: 3px;
-}
-html[data-skin='plain'] .hud-token {
-  width: 11px;
-  height: 11px;
-  background: var(--kit-ink);
-  border-color: var(--kit-ink);
-  box-shadow: none;
-}
-html[data-skin='plain'] .hud-token-spent {
-  background: transparent;
-  opacity: 1;
-}
 /* a worksheet's buttons do not swing in on a hook, same reason the page does not fade: the arrival is a game affordance and a document just has the control */
-html[data-skin='plain'] .hud-arriving { animation: none; }
 
 /* the plain arm keeps the cord criterion in words and drops the drawn progress bar */
-html[data-skin='plain'] .hb-cordbar { display: none; }
 
 /* the two smaller plaques, the wall and the wardrobe, hang under the three doors and are smaller because they are things to look at rather than the three the year runs through, and a corner of five equal signs reads as a menu bar */
 .hud-plaque-sm {

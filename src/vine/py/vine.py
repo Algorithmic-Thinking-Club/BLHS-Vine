@@ -281,7 +281,7 @@ def route(path, who=None, backwards=False):
 
 
 def view(shot, ms=None):
-    """One of the three shots the engine composes for itself.
+    """One of the five shots the engine composes for itself.
 
         island   the whole painted island, centred and held still
         walk     the shot you walk around in, following the body
@@ -289,15 +289,14 @@ def view(shot, ms=None):
         ship     riding with the boat, close enough that she is a boat
         sail     the wide sailing floor, the shot open water is crossed at
 
-    `framing` needs a name somebody dragged into place on one anchor, which is
-    right for "the shot of the tunnel mouth" and no help at all for "show me the
-    whole island": there is no anchor the island hangs off. These three are a
-    function of the painting and the window, so they work on a map the day it is
-    exported and on every map after it.
+    `framing` needs a name somebody dragged onto one anchor, which is right for
+    "the shot of the tunnel mouth" and no help for "show me the whole island",
+    because no anchor the island hangs off. These five are worked out from the
+    painting and the window, so they work on any map the day it is exported.
 
-    IT COMES BACK WHEN THE CAMERA HAS ARRIVED, so the next line of your island
+    It comes back when the camera has arrived, so the next line of your island
     does not talk over a move that is still travelling. Pass `ms` to hold the
-    shot for that long as well, then it comes back.
+    shot for that long as well.
 
     A room has no sea and answers "sail" and "ship" with the walking shot.
     """
@@ -578,7 +577,9 @@ def cutscene(script):
 # ---- the panels a player sits down with -------------------------------------
 
 def open(ui, wait=False):
-    """Open one panel: planner, handbook, cords, chart, wardrobe, wall or settings.
+    """Open one of the game's panels, by name.
+
+    planner, handbook, cords, chart, wardrobe, settings, wall, yearbook, tour.
 
     "cords" is the Guide opened on its cords page rather than on islands, which
     is what `open("handbook")` lands on. Say it when the beat is about cords.

@@ -100,27 +100,7 @@
 .tw-foot { display: flex; justify-content: flex-end; margin-top: 2px; }
 
 /* the plain arm: the same wall as a printed record, with the same words and no game art */
-html[data-skin='plain'] .tw-sheet {
-  background: var(--kit-paper-hi);
-  border: var(--kit-border) solid var(--kit-edge-strong);
-  padding: 22px 26px 20px;
-}
-html[data-skin='plain'] .tw-veil { background: rgba(0, 0, 0, .45); }
-html[data-skin='plain'] .tw-title { font-weight: 700; }
-html[data-skin='plain'] .tw-frame {
-  background: none;
-  border: 0;
-  border-bottom: var(--kit-border) solid var(--kit-rule);
-  border-radius: 0;
-  padding: 8px 2px;
-}
-html[data-skin='plain'] .tw-frame-full { border-bottom-color: var(--kit-ink-head); }
-html[data-skin='plain'] .tw-name { font-weight: 700; }
 /* a worksheet says which it is in a word, because it has no stamp and no hook */
-html[data-skin='plain'] .tw-plate { width: 0; }
-html[data-skin='plain'] .tw-hole { display: none; }
-html[data-skin='plain'] .tw-frame-full .tw-name::after { content: ' — done'; font-weight: 400; }
-html[data-skin='plain'] .tw-got { color: var(--kit-ink-body); }
 
 /* the wall fills one frame at a time so a badge arrives rather than being already there, half a second apart with a pop each, in the order the year happened */
 .tw-frame-land { animation: tw-land 320ms cubic-bezier(0.2, 1.5, 0.4, 1) both; }

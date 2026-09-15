@@ -72,21 +72,19 @@ export type BeatRequest = {
   beat: string
   /* present only when an island brought its own activity, and absent the id is resolved out of the engine's own table */
   decl?: BeatDeclaration
-  /* the plain arm renders the same items as plain text plus a standard check, passed per call rather than read globally so a grape can force it for a teaching moment */
-  plain: boolean
   /** it ran. A number is a grade; null is the player closing it unfinished. */
   done: (grade: number | null) => void
   /* nothing ran at all, which is a refusal and not a null grade */
   refuse: (why: string) => void
 }
 
-export function requestBeat(beat: string, plain: boolean, decl?: BeatDeclaration): Promise<number | null> {
+export function requestBeat(beat: string, decl?: BeatDeclaration): Promise<number | null> {
   return new Promise((resolve, reject) => {
     let settled = false
     const done = (g: number | null) => { if (!settled) { settled = true; resolve(g) } }
     const refuse = (why: string) => { if (!settled) { settled = true; reject(new Error(why)) } }
     const ev = new CustomEvent<BeatRequest>(BEAT_EVENT, {
-      detail: { beat, plain, done, refuse, ...(decl ? { decl } : {}) }, cancelable: true,
+      detail: { beat, done, refuse, ...(decl ? { decl } : {}) }, cancelable: true,
     })
     const heard = window.dispatchEvent(ev)
     /* dispatchEvent answers true when no listener claimed it, so nobody heard it */

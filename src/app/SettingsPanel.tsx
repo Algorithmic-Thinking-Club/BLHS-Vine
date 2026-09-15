@@ -4,7 +4,6 @@ import { beginAdventure, canRestart, loadSave, restartRun, writeSave, type SaveG
 import { cleanName, isBlocked, PRONOUN_CHOICES } from '../game/names'
 import { track } from '../game/telemetry'
 import { setReducedMotion, systemPrefersReducedMotion } from '../game/ui/motion'
-import { wearAssignedSkin, type KitSkin } from '../game/ui/skin'
 import { announce, tabRowKeyDown, usePanel } from '../game/ui/a11y'
 import { Empty, Glyph, Plank, Scroller, Tab } from '../game/ui/controls'
 import { saved } from '../game/ui/feedback'
@@ -24,7 +23,6 @@ export type Settings = {
   mute: boolean
   textSize: 's' | 'm' | 'l'
   reducedMotion: boolean
-  skin: KitSkin
   /* clicking the bare floor walks him, and it is off unless the help card's toggle turns it on: a tap on a station is a tap on a thing and still works, this was only the floor walking him away from what he was reading */
   clickToMove: boolean
   /* a preference and not game state: the close camera survives a door, a map and a reload, and never means anything different in one room than another */
@@ -33,7 +31,7 @@ export type Settings = {
 const KEY = 'blhs_settings_v1'
 /* sound opens on off, matching what the speakers are actually doing */
 const FALLBACK: Settings = {
-  sound: 'off', mute: true, textSize: 'm', reducedMotion: false, skin: 'paper',
+  sound: 'off', mute: true, textSize: 'm', reducedMotion: false,
   clickToMove: false,
   closeCamera: false,
 }
@@ -80,7 +78,6 @@ export function applySettings(s: Settings) {
   if (typeof document === 'undefined') return
   document.documentElement.dataset.textsize = s.textSize
   setReducedMotion(s.reducedMotion)
-  wearAssignedSkin(s.skin)
 }
 
 /* applied at import, so a deep link into any scene still gets the stored preferences */

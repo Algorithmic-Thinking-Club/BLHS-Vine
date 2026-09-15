@@ -134,20 +134,6 @@ html[data-rm='1'] .cd-fall { animation: none; }
 .cd-foot { margin-top: 6px; }
 
 /* the plain arm: the same words as a note on paper, with no drawn cord */
-html[data-skin='plain'] .cd-veil { animation: none; background: rgba(0, 0, 0, .5); }
-html[data-skin='plain'] .cd-card {
-  animation: none;
-  text-align: left;
-  align-items: stretch;
-  background: var(--kit-paper-hi);
-  border: var(--kit-border) solid var(--kit-edge-strong);
-  padding: 24px 28px 22px;
-}
-html[data-skin='plain'] .cd-drape { display: none; }
-html[data-skin='plain'] .cd-who { font-weight: 700; color: var(--kit-ink-body); }
-html[data-skin='plain'] .cd-name { font-weight: 700; }
-html[data-skin='plain'] .cd-stands { color: var(--kit-ink-body); }
-html[data-skin='plain'] .cd-foot { align-self: flex-end; }
 
 /* every cord the player has, as a list: what is earned, then what is being worked towards, because the card used to show one cord and it was the same one every year */
 .cd-list {
@@ -183,4 +169,3 @@ html[data-skin='plain'] .cd-foot { align-self: flex-end; }
   font-size: var(--kit-fs);
   color: var(--kit-ink);
 }
-html[data-skin='plain'] .cd-row { border-radius: 0; }

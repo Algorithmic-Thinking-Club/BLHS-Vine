@@ -116,16 +116,3 @@ describe('the button in the corner', () => {
     expect(rule).not.toContain('--hp-slot')
   })
 })
-
-describe('the card as a document, for the study\'s control arm', () => {
-  it('has a plain rule for every part of itself that is drawn', () => {
-    // every drawn part of the card has a plain rule, so the control arm never sees game paint
-    const css = fs.readFileSync(path.join(process.cwd(), 'src/game/hud/help.css'), 'utf8')
-    for (const part of ['.hp-card', '.hp-veil', '.hp-mark', '.hp-btn']) {
-      expect(css, part).toContain(`html[data-skin='plain'] ${part}`)
-    }
-    /* and it names no picture: a plain rule that spells a png out is how five surfaces kept their art in the control arm for two days */
-    const plain = css.slice(css.indexOf("html[data-skin='plain']"))
-    expect(plain).not.toMatch(/url\(|\.png/)
-  })
-})

@@ -206,181 +206,6 @@ html[data-rm='1'] {
 }
 
 /* skin: plain, the study's other arm, the same content with the game-ness taken away */
-html[data-skin='plain'] {
-  --kit-ink: #1b1b1b;
-  --kit-ink-body: #262626;
-  --kit-ink-head: #111111;
-  --kit-ink-label: #4a4a4a;
-  --kit-ink-quiet: #3a3a3a;
-  --kit-ink-dim: #6b6b6b;
-  --kit-ink-soft: #757575;
-  --kit-ink-said: #1b1b1b;
-  --kit-ink-mirror: #262626;
-
-  --kit-paper-hi: #ffffff;
-  --kit-paper: #f6f6f4;
-  --kit-paper-lo: #ececea;
-  --kit-paper-on-hi: #e8eef0;
-  --kit-paper-on-lo: #dde6e9;
-  --kit-paper-tab-hi: #f0f0ee;
-  --kit-paper-tab-lo: #e2e2e0;
-  --kit-paper-card-hi: #ffffff;
-  --kit-paper-card-lo: #f4f4f2;
-  --kit-paper-key-lo: #e6e6e4;
-  --kit-paper-chip-lo: #e0e0de;
-  --kit-paper-wash: rgba(255, 255, 255, .92);
-  --kit-paper-sheen: transparent;
-  --kit-paper-sheen-firm: transparent;
-  --kit-field: #ffffff;
-  --kit-field-focus: #ffffff;
-  --kit-field-hint: #8a8a8a;
-  --kit-field-rule: #9a9a9a;
-
-  --kit-edge: #8a8a8a;
-  --kit-edge-strong: #6b6b6b;
-  --kit-rule: rgba(0, 0, 0, .18);
-  --kit-rule-soft: rgba(0, 0, 0, .12);
-  --kit-rule-firm: rgba(0, 0, 0, .22);
-  --kit-hairline: rgba(0, 0, 0, .08);
-
-  --kit-wood-hi: #3f4a4e;
-  --kit-wood-lo: #333c40;
-  --kit-wood-edge: #22282b;
-  --kit-wood-shadow: transparent;
-  --kit-wood-sheen: transparent;
-  --kit-wood-ink: #f4f4f2;
-  --kit-wood-dark-hi: #333c40;
-  --kit-wood-dark-lo: #2a3134;
-  --kit-wood-dark-edge: #1d2225;
-  --kit-wood-dark-ink: #e2e2e0;
-  --kit-plank-ink: #ffffff;
-  --kit-plank-shadow: transparent;
-  --kit-plank-drop: transparent;
-  --kit-plank-glow: transparent;
-  --kit-plank-keyline: rgba(255, 255, 255, .5);
-  --kit-wood-plank: var(--kit-paper-lo);            /* the plank's ground is paper in this arm */
-
-  --kit-sea: #2f6f7a;
-  --kit-sea-ink: #1d4f5a;
-  --kit-sea-head: #1d4f5a;
-  --kit-sea-earned: #1d5a3f;
-  --kit-sea-paper: #e2eef0;
-  --kit-sea-glow: rgba(47, 111, 122, .28);
-  --kit-sea-glow-soft: rgba(47, 111, 122, .2);
-  --kit-sea-btn-hi: #2f6f7a;
-  --kit-sea-btn-lo: #275e67;
-  --kit-sea-btn-edge: #1d4f5a;
-  --kit-sea-fill: rgba(47, 111, 122, .28);
-
-  --kit-gold-hi: #b8912f;
-  --kit-gold-lo: #8a6c20;
-  --kit-cord-hi: #b8912f;
-  --kit-cord-lo: #8a6c20;
-  --kit-gold-edge: #8a6c20;
-  --kit-gold-inset: rgba(184, 145, 47, .35);
-  --kit-cord-track: rgba(0, 0, 0, .1);
-
-  --kit-alarm: #8c2f1c;
-  --kit-alarm-hi: #a8412c;
-  --kit-alarm-lo: #8c2f1c;
-  --kit-alarm-edge: #6b2415;
-  --kit-alarm-ink: #ffffff;
-
-  --kit-veil: rgba(20, 22, 24, .8);
-  --kit-veil-soft: rgba(20, 22, 24, .72);
-  --kit-veil-pause: rgba(20, 22, 24, .52);
-  /* nothing casts a shadow here, and a transparent one is safer than an unset token */
-  --kit-drop-lg: 0 0 0 rgba(0, 0, 0, 0);
-  --kit-drop-md: 0 0 0 rgba(0, 0, 0, 0);
-  --kit-drop-sm: 0 0 0 rgba(0, 0, 0, 0);
-  --kit-mirror-drop: transparent;
-  /* the caption scrim stays, because white type on the painted world needs it in both arms */
-  --kit-caption-shadow: 0 1px 2px rgba(0, 0, 0, .6);
-  --kit-caption-ink: #ffffff;
-
-  --kit-focus: #1d6fd8;
-  --kit-focus-width: 3px;
-  --kit-focus-offset: 2px;
-
-  --kit-face-display: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --kit-face-title: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --kit-face-body: system-ui, 'Segoe UI', Roboto, sans-serif;
-
-  --kit-r-sharp: 2px;
-  --kit-r-soft: 2px;
-  --kit-r-card: 2px;
-  --kit-r-round: 2px;
-  --kit-r-pill: 2px;
-  --kit-border: 1px;
-
-  --kit-t-quick: 90ms;
-  --kit-t-fast: 90ms;
-  --kit-t-mid: 90ms;
-  --kit-t-slow: 90ms;
-  --kit-ease-pop: ease-out;
-  --kit-ease-rise: ease-out;
-  --kit-ease-deal: ease-out;
-
-  /* every art handle the repo can mount, nulled, including ones with no local default */
-  --kit-art-panel: none;
-  --kit-art-dialogue: none;
-  --kit-art-plank: none;
-  --kit-art-chart: none;
-  --kit-art-title: none;
-  --kit-art-scroll: none;
-  --kit-mask-solid: #000000;
-  --kit-art-chart_field: none;
-  --kit-art-signface: none;
-  --kit-art-mark-book: none;
-  --kit-art-mark-anchor: none;
-  --kit-art-mark-sliders: none;
-  --kit-art-mark-paw: none;
-  --kit-art-plaque: none;
-  --kit-art-crest: none;
-  /* and the frame's own thickness goes to nothing */
-  --kit-slice-panel: 0;
-  --kit-slice-w-panel: 0;
-  --kit-slice-dialogue: 0;
-  --kit-slice-w-dialogue: 0;
-  --kit-slice-plank: 0;
-  --kit-slice-w-plank: 0;
-  --kit-repeat: stretch;
-  --kit-art-band: none;
-  --kit-art-icon_set: none;
-  /* the other twelve pieces the platform publishes, nulled the same way */
-  --kit-art-tab: none;
-  --kit-art-field: none;
-  --kit-art-gauge: none;
-  --kit-art-socket: none;
-  --kit-art-portrait_frame: none;
-  --kit-art-rail: none;
-  --kit-art-highlight_edge: none;
-  --kit-art-cover_plate: none;
-  --kit-art-chip: none;
-  --kit-art-cue: none;
-  --kit-art-pip: none;
-  --kit-art-pointer: none;
-  --kit-art-stamp: none;
-  --kit-pixel: auto;
-
-  --kit-front-paper: #f6f6f4;
-  --kit-front-paper-shade: #e2e2e0;
-  --kit-front-wood: #3f4a4e;
-  --kit-front-wood-hi: #4a5559;
-  --kit-front-wood-dark: #22282b;
-  --kit-front-ink: #1b1b1b;
-  --kit-front-ink-dim: #6b6b6b;
-  --kit-front-teal: #2f6f7a;
-  --kit-front-teal-deep: #1d4f5a;
-  --kit-front-gold: #8a6c20;
-  --kit-front-sky: #dde6e9;
-  --kit-front-coral: #a8412c;
-  --kit-front-leaf: #4a6b3a;
-  --kit-front-sea-deep: #1b2226;
-  --kit-front-face-display: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --kit-front-face-ui: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --kit-front-ease: ease-out;
-}
 
 /* the plain arm keeps its flat colours even when the platform's art arrives */
 /* the panel frame, drawn as a nine-slice whose border width is also the panel's padding */
@@ -414,98 +239,21 @@ html[data-skin='plain'] {
   /* a ground under the wood, for the frames before the png lands */
   background: var(--kit-wood-plank) padding-box;
 }
-
-html[data-skin='plain'] .kit-surface-panel,
-html[data-skin='plain'] .kit-surface-band,
-html[data-skin='plain'] .kit-surface-dialogue {
-  border-image: none;
-  background-color: var(--kit-paper);
-  border: var(--kit-border) solid var(--kit-edge);
-  border-radius: var(--kit-r-round);
-}
 /* the plain plank is a white button, so its ground and its ink agree */
-html[data-skin='plain'] .kit-surface-plank {
-  border-image: none;
-  background-color: var(--kit-paper-lo);
-  border: var(--kit-border) solid var(--kit-edge-strong);
-  border-radius: var(--kit-r-soft);
-}
 
 /* the plain arm is a document, and the rules below dress it as a worksheet */
 
 /* type sized the way a worksheet is, held between a floor and a ceiling */
-html[data-skin='plain'] *,
-html[data-skin='plain'] *::before,
-html[data-skin='plain'] *::after {
-  --kit-fs: clamp(15px, var(--kit-fs-raw), 28px);
-}
-@supports (font-size: round(1px, 1px)) {
-  html[data-skin='plain'] *,
-  html[data-skin='plain'] *::before,
-  html[data-skin='plain'] *::after {
-    --kit-fs: max(1px, round(clamp(15px, var(--kit-fs-raw), 28px), 1px));
-  }
-}
 
 /* one face everywhere in this arm, so no stylesheet can reach back to a game font */
-html[data-skin='plain'] * { font-family: var(--kit-face-body); }
 
 /* the form controls a student fills in, left recognisable rather than restyled */
-html[data-skin='plain'] input,
-html[data-skin='plain'] select,
-html[data-skin='plain'] textarea {
-  font-family: var(--kit-face-body);
-  color: var(--kit-ink-body);
-  background: var(--kit-paper-hi);
-  border: 1px solid var(--kit-edge-strong);
-  border-radius: var(--kit-r-sharp);
-  padding: 4px 7px;
-}
-html[data-skin='plain'] input[type='radio'],
-html[data-skin='plain'] input[type='checkbox'] {
-  /* a native radio, in the document's ink, at a size a finger can hit */
-  width: 16px; height: 16px;
-  padding: 0; border: 0; border-radius: 0;
-  accent-color: var(--kit-sea-ink);
-  vertical-align: -2px;
-  margin-right: 6px;
-}
-html[data-skin='plain'] label { cursor: pointer; }
-html[data-skin='plain'] fieldset {
-  border: 1px solid var(--kit-edge);
-  border-radius: var(--kit-r-sharp);
-}
-html[data-skin='plain'] legend { font-weight: 600; color: var(--kit-ink-head); }
 
 /* an ordinary underlined link, which is the one piece of chrome a document is allowed */
-html[data-skin='plain'] a {
-  color: var(--kit-sea-ink);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-html[data-skin='plain'] a:hover { color: var(--kit-ink-head); }
 
 /* three heading levels, each visibly a step, at absolute sizes */
-html[data-skin='plain'] h1 { font-size: 26px; line-height: 1.25; margin: 0 0 14px; font-weight: 700; color: var(--kit-ink-head); }
-html[data-skin='plain'] h2 { font-size: 20px; line-height: 1.3; margin: 22px 0 10px; font-weight: 700; color: var(--kit-ink-head); }
-html[data-skin='plain'] h3 { font-size: 17px; line-height: 1.35; margin: 18px 0 8px; font-weight: 600; color: var(--kit-ink-head); }
-html[data-skin='plain'] h1:first-child,
-html[data-skin='plain'] h2:first-child,
-html[data-skin='plain'] h3:first-child { margin-top: 0; }
-html[data-skin='plain'] p { margin: 0 0 10px; line-height: 1.55; }
-html[data-skin='plain'] hr { border: 0; border-top: 1px solid var(--kit-rule); margin: 18px 0; }
 
 /* the focus ring reaches this arm's plain elements too, which carry no kit class */
-html[data-skin='plain'] a:focus-visible,
-html[data-skin='plain'] button:focus-visible,
-html[data-skin='plain'] input:focus-visible,
-html[data-skin='plain'] select:focus-visible,
-html[data-skin='plain'] textarea:focus-visible,
-/* a panel carries tabindex -1 and is not a control, so it gets no ring */
-html[data-skin='plain'] [tabindex]:not([tabindex='-1']):focus-visible {
-  outline: var(--kit-focus-width) solid var(--kit-focus);
-  outline-offset: var(--kit-focus-offset);
-}
 
 /* one focus ring for the whole game, matched on elements rather than a list of classes */
 /* textarea and contenteditable are listed so the first one to ship is already covered */

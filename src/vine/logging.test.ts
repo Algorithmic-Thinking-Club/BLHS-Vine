@@ -33,12 +33,12 @@ describe('envelopes', () => {
   it('identity is LIVE: a mid-session join re-points new envelopes only', () => {
     const log = mkLogger()
     log.log(EV)
-    log.setIdentity({ participantId: 'p_real', mode: 'plain' })
+    log.setIdentity({ participantId: 'p_real', mode: 'game' })
     log.log(EV)
     const q = JSON.parse(localStorage.getItem('blhs_log_queue')!)
     expect(q[0].participantId).toBe('anon1')      // pre-join stays honest
     expect(q[1].participantId).toBe('p_real')
-    expect(q[1].mode).toBe('plain')
+    expect(q[1].mode).toBe('game')
     log.dispose()
   })
 

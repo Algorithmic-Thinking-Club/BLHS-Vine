@@ -93,8 +93,4 @@
 }
 
 /* the plain arm: real rules between rows and no italics, so it reads as a worksheet */
-html[data-skin='plain'] .dir-row { border-bottom: 1px solid var(--kit-edge); }
-html[data-skin='plain'] .dir-gap { font-style: normal; }
-html[data-skin='plain'] .dir-name { font-weight: 700; }
 /* the sentence under the name is not bold: it is a child of the name so it inherited the weight, and a whole page set bold has no emphasis in it */
-html[data-skin='plain'] .dir-what { font-weight: 400; }

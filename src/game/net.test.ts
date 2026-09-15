@@ -25,7 +25,6 @@ describe('joinClass', () => {
     if (r.ok) expect(r.handle).toBe('BraveTide2')   // the twin suffix travels back
     const s = save.loadSave()!
     expect(s.participantId).toBe('p_1')
-    expect(s.arm).toBe('plain')
     expect(s.classCode).toBe('DEVDEV')
     expect(s.handle).toBe('BraveTide2')
   })

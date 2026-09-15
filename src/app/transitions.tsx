@@ -6,7 +6,6 @@ import { announce } from '../game/ui/a11y'
 import { Gauge } from '../game/ui/controls'
 import { kitCached, kitOptedIn, kitPiece, kitSlot } from '../game/ui/kit'
 import { prefersReducedMotion } from '../game/ui/motion'
-import { currentSkin } from '../game/ui/skin'
 import './transitions.css'
 
 // one controller owns every scene change: cover the screen, swap, uncover
@@ -173,7 +172,7 @@ type BandDress = { worn: boolean; style?: CSSProperties }
 
 export function bandDress(
   pieces = kitCached(),
-  worn = kitOptedIn() && currentSkin() === 'paper',
+  worn = kitOptedIn(),
 ): BandDress {
   if (!pieces?.length) return { worn: false }
   const piece = kitPiece(pieces, 'band')
@@ -262,8 +261,7 @@ export function TransitionOverlay({ st, version }: { st: TransitionState; versio
   }
   if (spec.kind === 'scene') {
     const band = bandDress()
-    /* the plain arm gets no painting; the name, the fact and the bar are the same words */
-    const painted = currentSkin() === 'paper'
+    const painted = true
     const title = spec.title ?? 'THE SEA'
     return (
       <div className={`tr-root ${cls}`}>
@@ -310,7 +308,7 @@ export function TransitionOverlay({ st, version }: { st: TransitionState; versio
     )
   }
   if (spec.kind === 'chart') {
-    const painted = currentSkin() === 'paper'
+    const painted = true
     return (
       <div className={`tr-root ${cls}`}>
         <div className="tr-chart-field" />

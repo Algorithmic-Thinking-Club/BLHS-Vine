@@ -632,82 +632,18 @@ html[data-rm='1'] .ys-paw-f1 { opacity: 1; }
 
 /* the plain arm: white paper, system font, no drawn frames, and all the same words */
 
-html[data-skin='plain'] .yb-veil,
-html[data-skin='plain'] .gr-veil {
-  /* a document does not sit in a lit cave: one flat scrim, no gradient */
-  background: var(--kit-veil);
-}
-html[data-skin='plain'] .yb-page,
-html[data-skin='plain'] .gr-card,
-html[data-skin='plain'] .ys-card {
-  filter: none;
-  padding: 26px 30px 24px;
-  animation: none;
-}
-html[data-skin='plain'] .yb-page { width: min(940px, 96vw); }
-html[data-skin='plain'] .gr-card { animation: none; }
-
 /* the composition is a game gesture. A worksheet is printed all at once. */
-html[data-skin='plain'] .yb-number,
-html[data-skin='plain'] .yb-sect,
-html[data-skin='plain'] .yb-nudge,
-html[data-skin='plain'] .yb-newtoken { animation: none; }
-html[data-skin='plain'] .yb-move-first .yb-num { animation: none; }
-html[data-skin='plain'] .ys-paw-f { animation: none; }
 
 /* the frames go and the structure stays: a spread is two facing pages because it is drawn as a physical book, and a worksheet is one column of headings in the same reading order */
-html[data-skin='plain'] .yb-spread { grid-template-columns: 1fr; gap: 4px; }
-html[data-skin='plain'] .yb-spread > .yb-col + .yb-col { padding-left: 0; border-left: 0; }
-
-html[data-skin='plain'] .yb-title,
-html[data-skin='plain'] .yb-secthead,
-html[data-skin='plain'] .gr-title,
-html[data-skin='plain'] .gr-cordname,
-html[data-skin='plain'] .gr-standname,
-html[data-skin='plain'] .gr-dip-school,
-html[data-skin='plain'] .gr-dip-name,
-html[data-skin='plain'] .gr-boardname,
-html[data-skin='plain'] .ys-speaker { letter-spacing: 0; }
 
 /* the big number stays big because a worksheet is allowed a headline figure, but it stops being sea green */
-html[data-skin='plain'] .yb-num,
-html[data-skin='plain'] .yb-letter { color: var(--kit-ink-head); font-variant-numeric: tabular-nums; }
-html[data-skin='plain'] .yb-caret-up { border-bottom-color: var(--kit-ink-head); }
-html[data-skin='plain'] .yb-caret-down { border-top-color: var(--kit-ink-head); }
-
-html[data-skin='plain'] .yb-row,
-html[data-skin='plain'] .gr-boardrow { border-bottom: 1px solid var(--kit-rule); }
-html[data-skin='plain'] .yb-head,
-html[data-skin='plain'] .yb-foot { border-color: var(--kit-rule-firm); }
-html[data-skin='plain'] .yb-nudge,
-html[data-skin='plain'] .yb-number { border-style: solid; border-color: var(--kit-rule); }
 /* italics are the game's voice. A document says it plainly. */
-html[data-skin='plain'] .yb-nudge,
-html[data-skin='plain'] .yb-caveat,
-html[data-skin='plain'] .yb-numlabel,
-html[data-skin='plain'] .gr-moment,
-html[data-skin='plain'] .gr-cordcolors { font-style: normal; }
-html[data-skin='plain'] .gr-moment { border-left-color: var(--kit-edge-strong); }
-html[data-skin='plain'] .gr-cordcolors { color: var(--kit-ink-label); }
-html[data-skin='plain'] .yb-earnedword { color: var(--kit-ink-head); font-weight: 700; }
 
 /* no drawn crest and no carved paw in a document, and the words the paw sits beside carried the instruction anyway */
-html[data-skin='plain'] .gr-crest,
-html[data-skin='plain'] .ys-paw { display: none; }
-html[data-skin='plain'] .gr-dip-seal { display: none; }
 
 /* a real table for the turn-in rows, which is what a document does with a label-and-value list */
-html[data-skin='plain'] .gr-dip-grid { grid-template-columns: 1fr; gap: 2px; }
-html[data-skin='plain'] .gr-dip-pair { border-bottom: 1px solid var(--kit-rule); padding: 4px 0; }
-html[data-skin='plain'] .gr-diploma { text-align: left; align-items: stretch; }
-html[data-skin='plain'] .gr-dip-code { justify-content: flex-start; letter-spacing: .06em; }
-html[data-skin='plain'] .gr-acts { justify-content: flex-start; }
 
 /* a tap card in a document is still a real button and still says so */
-html[data-skin='plain'] .gr-tap:hover,
-html[data-skin='plain'] .gr-tap:active { filter: none; }
-html[data-skin='plain'] .ys-dot { border-color: var(--kit-edge-strong); }
-html[data-skin='plain'] .ys-dot-on { background: var(--kit-ink-head); border-color: var(--kit-ink-head); }
 
 
 /* the principal's face with the words beside it rather than under it */

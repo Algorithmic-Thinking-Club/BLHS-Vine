@@ -43,7 +43,6 @@ html[data-letterbox='1']:not([data-movie='1']) .hp-btn {
 html[data-rm='1'] .cin-bar { transition-duration: 60ms; }
 
 /* the plain arm gets no film bars: at 1366x768 they are 76px each at z 95 over everything, which cut a beat card's heading off the top and its last question off the bottom; the movie state itself is untouched and still holds the controls */
-html[data-skin='plain'] .cin-bar { display: none; }
 
 /* a composed shot stands the corner down too, without the bars: the camera is off the player so the HUD is not in the picture, and standing it down used to be tied to the black bars a shot does not raise; written by `framing()` and cleared wherever a shot ends */
 html[data-shot='1'] .hud-stack,

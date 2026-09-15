@@ -2,14 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNav } from '../../app/SceneManager'
 import { track } from '../telemetry'
 import { checkClass, classesAreOpen, joinClass } from '../net'
-import { loadSave, subscribeSave, writeSave } from '../save'
+import { loadSave, writeSave } from '../save'
 import { LOOKS, drawRecolored } from '../thorLook'
 import { cleanName, isBlocked, PRONOUN_CHOICES } from '../names'
 import { programmeById } from '../roster/roster'
 import { announce, usePanel } from '../ui/a11y'
 import { Glyph, Plank } from '../ui/controls'
 import { prefersReducedMotion } from '../ui/motion'
-import { applySkin, currentSkin, wearAssignedSkin } from '../ui/skin'
 import './i3.css'
 
 // the parchment setup on the beach: class code, name and pronouns, outfit and boat name
@@ -135,13 +134,6 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
   const [joinErr, setJoinErr] = useState('')
   const result = useRef<Result>({ handle: 'Panther', pronouns: 'they/them', boatName: 'The Bonney', castaway: false, thorLook: 'classic' })
   const nav = useNav()
-
-  // holds the skin steady for the whole session so the study arm cannot change the letter mid-read
-  useEffect(() => {
-    const held = currentSkin()
-    const off = subscribeSave(() => { if (currentSkin() !== held) applySkin(held) })
-    return () => { off(); wearAssignedSkin() }
-  }, [])
 
   // each new card says its name out loud and takes focus, since it replaces the whole screen
   const stage = useRef<HTMLDivElement | null>(null)

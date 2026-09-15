@@ -200,55 +200,10 @@ html[data-rm='1'] .tr-twinkle { animation: none; opacity: .7; transform: none; }
 }
 
 /* ---- the plain arm: the painting goes and the words stay ---- */
-html[data-skin='plain'] .tr-fade,
-html[data-skin='plain'] .tr-iris,
-html[data-skin='plain'] .tr-foam-wash {
-  /* these three are quick masks over a cut, so they stay dark in this arm */
-  background: var(--kit-ink);
-}
-html[data-skin='plain'] .tr-foam-lace { display: none; }
 /* the one cover a student reads is a page, so it is drawn as one */
-html[data-skin='plain'] .tr-scene { background: var(--kit-paper-hi); }
-html[data-skin='plain'] .tr-chart-field { background: var(--kit-paper); }
-html[data-skin='plain'] .tr-scene-text { width: min(560px, 88vw); }
-html[data-skin='plain'] .tr-chart {
-  background: var(--kit-paper-hi);
-  border: 1px solid var(--kit-edge-strong);
-  border-radius: 2px;
-  padding: 24px 28px;
-  box-sizing: border-box;
-  aspect-ratio: auto;
-  height: auto;
-  display: flex; flex-direction: column; align-items: center;
-}
-html[data-skin='plain'] .tr-chart-fact {
-  position: static;
-  color: var(--kit-ink-body);
-  text-shadow: none;
-}
 /* the kicker is a label above a heading in a document, so it reads as one: small, upper case, no glow, no letter-spacing games */
-html[data-skin='plain'] .tr-scene-entering {
-  color: var(--kit-ink-label);
-  text-shadow: none;
-  letter-spacing: 2px;
-}
 /* the plain band needs its own gutter, having no nine-slice border to inset it */
-html[data-skin='plain'] .tr-scene-band { padding: 14px 18px; }
-html[data-skin='plain'] .tr-scene-title {
-  text-shadow: none;
-  letter-spacing: 0;
-  color: var(--kit-ink-head);
-  font-weight: 700;
-}
-html[data-skin='plain'] .tr-scene-subtitle { color: var(--kit-ink-body); }
-html[data-skin='plain'] .tr-scene-work {
-  color: var(--kit-ink-label);
-  text-shadow: none;
-  letter-spacing: 0;
-}
 /* a cover in a document does not swing in from the side or twinkle: it appears, says what it is loading, and goes */
-html[data-skin='plain'] .tr-in .tr-scene,
-html[data-skin='plain'] .tr-out .tr-scene { animation-timing-function: linear; }
 
 /* the fact on the arrival cover goes under the loading bar in space that was already empty, because it is the one screen in year one a student looks at with nothing else to do */
 .tr-scene-fact {
@@ -261,10 +216,4 @@ html[data-skin='plain'] .tr-out .tr-scene { animation-timing-function: linear; }
   text-align: center;
   background: rgba(14, 12, 10, 0.66);
   border-radius: 3px;
-}
-html[data-skin='plain'] .tr-scene-fact {
-  color: #101010;
-  background: transparent;
-  padding: 0;
-  font-size: 14px;
 }

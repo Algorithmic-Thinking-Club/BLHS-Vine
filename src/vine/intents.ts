@@ -68,6 +68,7 @@ export type Intent =
 
   /* a scored activity: `beat` names one the engine can build, and both renderings come off the same items, which is what `as_plain()` means in practice */
   /* an island may bring its own: `items` is the activity declared by the island rather than named out of the engine's table, and it rides on this word instead of a new one because a new word costs two copies of vine.py and the vocabulary count in three places */
+  /* `as_plain` is still accepted because the published python sends it, and it no longer changes anything: there is one way a beat is drawn */
   | { kind: 'play'; beat: string; as_plain?: boolean; title?: string; place?: string; items?: CheckStep[] }
 
   /* the world reflecting the run: a placement is a MAPVIS id bound to an anchor, so a grape addresses it by name like everything else */
@@ -257,7 +258,7 @@ export interface IntentEngine {
   /* `wait` makes this a promise the caller may await, and left out it stays fire and forget so no existing station changes shape */
   openUi(ui: 'planner' | 'handbook' | 'cords' | 'chart' | 'wardrobe' | 'settings' | 'wall' | 'yearbook' | 'tour', wait?: boolean): void | Promise<void>
   /* `decl` is present only when the island brought its own activity, and absent the engine resolves the id from its own table */
-  playBeat(beat: string, asPlain: boolean, decl?: BeatDeclaration): Promise<number | null>
+  playBeat(beat: string, decl?: BeatDeclaration): Promise<number | null>
   read(path: RunPath): unknown
   /** what this programme has been finished at before: how many times, which years, the best grade, and the rung of any ladder it keeps */
   rankOf(programme: string | null): { taken: number; years: number[]; best: number | null; rung: number }
@@ -509,10 +510,8 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         return ok()
       }
       case 'play': {
-        /* as_plain defaults to the study arm this participant was assigned at join */
-        const plain = i.as_plain ?? engine.mode() === 'plain'
         /* the programme is taken off `by` and never off the payload, the same source `scoped` uses for flags, or an island could write a grade onto another programme's ledger row */
-        return ok(await engine.playBeat(i.beat, plain,
+        return ok(await engine.playBeat(i.beat,
           i.items ? { items: i.items, title: i.title, place: i.place, programme: by?.grape } : undefined))
       }
       case 'get':

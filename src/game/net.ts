@@ -7,7 +7,7 @@ import { isCaptain } from './captain'
 export function participantId(): string | null { return loadSave()?.participantId ?? null }
 
 export type JoinResult =
-  | { ok: true; participantId: string; className?: string; arm: 'game' | 'plain'; handle?: string; returning?: boolean }
+  | { ok: true; participantId: string; className?: string; handle?: string; returning?: boolean }
   | { ok: false; reason: 'offline' | 'unknown_code' | 'class_closed' | 'error' }
 
 export type CheckResult =
@@ -52,8 +52,8 @@ export function forgetClassProbe() { classesLive = null }
 export async function joinClass(code: string, handle: string): Promise<JoinResult> {
   if (isCaptain()) {
     // the captain walks through any harbor gate
-    writeSave({ participantId: 'captain', arm: 'game', classCode: code.toUpperCase() })
-    return { ok: true, participantId: 'captain', arm: 'game', className: "the Captain's own class" }
+    writeSave({ participantId: 'captain', classCode: code.toUpperCase() })
+    return { ok: true, participantId: 'captain', className: "the Captain's own class" }
   }
   try {
     const r = await fetch('/api/join', {
@@ -65,8 +65,8 @@ export async function joinClass(code: string, handle: string): Promise<JoinResul
     if (r.status === 403) return { ok: false, reason: 'class_closed' }
     if (!r.ok) return { ok: false, reason: 'error' }
     const d = await r.json()
-    writeSave({ participantId: d.participantId, arm: d.arm, classCode: code.toUpperCase(), handle: d.handle ?? handle })
-    return { ok: true, participantId: d.participantId, className: d.className, arm: d.arm, handle: d.handle ?? handle, returning: d.returning }
+    writeSave({ participantId: d.participantId, classCode: code.toUpperCase(), handle: d.handle ?? handle })
+    return { ok: true, participantId: d.participantId, className: d.className, handle: d.handle ?? handle, returning: d.returning }
   } catch {
     return { ok: false, reason: 'offline' }
   }

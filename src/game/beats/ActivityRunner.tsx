@@ -14,7 +14,6 @@ import { cordsOf, letterOf, newlyCloseCords, PASSING_GRADE } from '../progress'
 import { factById } from '../facts'
 import { track } from '../telemetry'
 import { usePanel } from '../ui/a11y'
-import { currentSkin } from '../ui/skin'
 import { Chip, Field, Gauge, Glyph, Plank, PortraitFrame, useFace } from '../ui/controls'
 import { right as sayRight, wrong as sayWrong } from '../ui/feedback'
 import { grant } from '../grant'
@@ -32,22 +31,16 @@ type Attempt = { n: number }
 /* both arms take their answer latency from timing.ts, where the convention is written down */
 
 export function CoreBeatRunner(
-  { beat, onClose, forceArm, world, review }: {
+  { beat, onClose, world, review }: {
     beat: CoreBeat
     onClose: () => void
     /* open on the marks of the sitting already on the ledger, and never play */
     review?: boolean
-    /** forces one activity to read plain, whatever arm the student was assigned */
-    forceArm?: 'game' | 'plain'
     /* optional on purpose: a beat with a `do` item is still playable with no map, because the item falls back to naming its places */
     world?: BeatWorld
   },
 ) {
   const save = loadSave()
-  /* an assigned arm always wins, and the skin is only consulted when there is no arm */
-  const arm = forceArm
-    ?? save?.arm
-    ?? (currentSkin() === 'plain' ? 'plain' : 'game')
 
   /* `review` opens straight onto the marks, because the sheet's see your answers button opens this runner and a `play` start re-ran and re-graded a beat that had already passed */
   const [phase, setPhase] = useState<'play' | 'result' | 'review' | 'retake' | 'answers'>(
@@ -78,7 +71,7 @@ export function CoreBeatRunner(
     const after = loadSave()
     /* one reward pop, in the game arm only, saying the credit rather than the facts */
     /* and only on a pass, so it agrees with the result card's own stamp */
-    if (arm !== 'plain' && beat.credit > 0 && grade >= PASSING_GRADE) {
+    if (beat.credit > 0 && grade >= PASSING_GRADE) {
       /* through `grant` so a credit that tips a cord over its line says so too */
       /* and it names the thing that was finished, with the credit as the detail under it */
       /* the core beat's `place` is the lesson's own name and a class beat's is a room, so the pop reads whichever of the two the student just finished */
@@ -88,7 +81,7 @@ export function CoreBeatRunner(
       })
     }
     track('core_beat_complete', {
-      id: beat.id, grade, retaken: retaking.current, arm, tries: attempt.current.n,
+      id: beat.id, grade, retaken: retaking.current, tries: attempt.current.n,
       /* the ledger keeps the first attempt's grade, so the event carries that same number rather than a second reading of it */
       firstGrade: after?.ledger.find((e) => e.id === beat.id)?.firstGrade ?? grade,
     })
@@ -122,36 +115,30 @@ export function CoreBeatRunner(
   return (
     <div className="bt-veil">
       {/* `bt-plain-scoring` lets the plain card scroll with a fixed foot while items are up */}
-      {/* the crt is gated on the arm and never on the skin, because `as_plain=True` sets the arm without touching `data-skin`; `kit-surface-panel` comes off with it, since a carved panel inside a monitor insets the contents twice */}
-      <div {...panel} className={arm === 'plain'
-        ? `bt-plain${scoring ? ' bt-plain-scoring' : ''}`
-        : beat.chrome === 'screen'
-          ? 'bt-crt bt-stage bt-stage-screen'
-          : 'bt-stage kit-surface-panel'}>
-        {(phase === 'play' || phase === 'retake') && (arm === 'plain'
-          ? <PlainForm beat={beat} checksOnly={phase === 'retake'} attempt={attempt.current} arm={arm} onDone={finish} />
-          : <GamePlay beat={beat} checksOnly={phase === 'retake'} attempt={attempt.current} arm={arm} world={world} onDone={finish} />)}
+      <div {...panel} className={beat.chrome === 'screen'
+        ? 'bt-crt bt-stage bt-stage-screen'
+        : 'bt-stage kit-surface-panel'}>
+        {(phase === 'play' || phase === 'retake') && (
+          <GamePlay beat={beat} checksOnly={phase === 'retake'} attempt={attempt.current} world={world} onDone={finish} />)}
         {phase === 'result' && finalScore && (
           <ResultCard
-            beat={beat} score={finalScore} arm={arm}
+            beat={beat} score={finalScore}
             canRetake={retakeAvailable(loadSave()!, beat.id)}
             onReview={() => setPhase('review')}
             onClose={onClose}
           />
         )}
         {phase === 'answers' && (
-          <AnswersCard beat={beat} arm={arm} onClose={onClose} />
+          <AnswersCard beat={beat} onClose={onClose} />
         )}
         {phase === 'review' && (
-          <ReviewCard beat={beat} arm={arm} onRetake={startRetake} onBack={() => setPhase('result')} />
+          <ReviewCard beat={beat} onRetake={startRetake} onBack={() => setPhase('result')} />
         )}
         {/* a way out that scores nothing and leaves the beat still owed */}
         {/* and never inside a cutscene, where the way on is finishing the items */}
         {scoring && !cinemaOn() && (
           <div className="bt-leave">
-            {arm === 'plain'
-              ? <button type="button" onClick={onClose}>Leave this for now</button>
-              : <Plank size="sm" onClick={onClose}>Leave this for now</Plank>}
+            <Plank size="sm" onClick={onClose}>Leave this for now</Plank>
             <span className="bt-leave-why">Nothing is marked until you check your answer. You can come back to this.</span>
           </div>
         )}
@@ -176,11 +163,10 @@ function speak(gotAll: boolean, authored: string, truth: string): void {
 
 // ---- the game arm: step-by-step, at the player's pace --------------------------------
 
-function GamePlay({ beat, checksOnly, attempt, arm, world, onDone }: {
+function GamePlay({ beat, checksOnly, attempt, world, onDone }: {
   beat: CoreBeat
   checksOnly: boolean
   attempt: Attempt
-  arm: 'game' | 'plain'
   world?: BeatWorld
   onDone: (answers: Answers) => void
 }) {
@@ -242,7 +228,7 @@ function GamePlay({ beat, checksOnly, attempt, arm, world, onDone }: {
             accum.current[id] = { earned, total: worth, tries, latencyMs: ms }
             track('check_answered', {
               item: id, kind: step.check.kind, correct: earned === worth,
-              earned, total: worth, tries, latencyMs: ms, latency: LATENCY_CONVENTION, arm, via: 'woven',
+              earned, total: worth, tries, latencyMs: ms, latency: LATENCY_CONVENTION, via: 'woven',
             })
             advance()
           }}
@@ -1027,165 +1013,8 @@ function DoPlay({ check, world, render, last, onDone, onTouch }: {
   )
 }
 
-// ---- the plain arm (the AP Research control): same content, standard form ------------
-
-function PlainForm({ beat, checksOnly, attempt, arm, onDone }: {
-  beat: CoreBeat; checksOnly?: boolean; attempt: Attempt; arm: 'game' | 'plain'
-  onDone: (a: Answers) => void
-}) {
-  const checks = checksOf(beat)
-  const renders = checks.map(plainOf)
-  const t0 = useRef(Date.now())
-  const [picks, setPicks] = useState<Response>({})
-  /* stamped per item when the answer is given rather than reconstructed at submit, because a form is answerable in any order and the submit click is one number for the whole page */
-  const answeredAt = useRef<Record<string, number>>({})
-  const [graded, setGraded] = useState<Answers | null>(null)
-
-  const set = (itemId: string, fieldId: string, value: string) => {
-    markFirst(answeredAt.current, itemId)
-    setPicks((p) => ({ ...p, [fieldId]: value }))
-  }
-
-  const blanks = renders.reduce((n, r) => n + r.fields.filter((f) => (picks[f.id] ?? '').trim() === '').length, 0)
-  const complete = blanks === 0
-
-  const submit = () => {
-    const out: Answers = {}
-    const formMs = Date.now() - t0.current
-    for (const c of checks) {
-      const id = checkIdOf(c)
-      const ms = latencyOf(t0.current, answeredAt.current, id)
-      const total = pointsOf(c)
-      const earned = scoreOf(c, picks)
-      out[id] = { earned, total, tries: attempt.n, latencyMs: ms }
-      track('check_answered', {
-        item: id, kind: c.kind, correct: earned === total,
-        earned, total, tries: attempt.n, latencyMs: ms, latency: LATENCY_CONVENTION,
-        formMs, arm, via: 'form',
-      })
-    }
-    setGraded(out)
-  }
-
-  /* the graded form: the same authored replies, printed, with the palette saying what is right */
-  if (graded) {
-    const earned = Object.values(graded).reduce((n, a) => n + a.earned, 0)
-    const outOf = Object.values(graded).reduce((n, a) => n + a.total, 0)
-    return (
-      <div className="bt-plainform">
-        <h2>{beat.title}</h2>
-        {/* the place, so both arms print the same authored content */}
-        <p className="bt-plainplace">{beat.place}</p>
-        <p className="bt-plainscore">{earned} of {outOf} correct.</p>
-        {renders.map((r, i) => {
-          const c = checks[i]
-          const a = graded[checkIdOf(c)]
-          return (
-            <fieldset key={r.id}>
-              <legend>{r.prompt}</legend>
-              {r.note && <p className="bt-plainnote">{r.note}</p>}
-              <p>{a.earned} of {a.total} correct.</p>
-              {r.fields.map((f) => {
-                const given = picks[f.id] ?? ''
-                const reply = replyFor(r, f.id, given)
-                return (
-                  <p className="bt-plainrow" key={f.id}>
-                    {f.label ? `${f.label}: ` : ''}
-                    {labelOf(f, given)}
-                    {fieldRight(c, f, picks) ? ' (correct)' : ` (the answer is ${labelOf(f, f.correct)})`}
-                    {reply ? <em> {reply}</em> : ''}
-                  </p>
-                )
-              })}
-            </fieldset>
-          )
-        })}
-        <button onClick={() => onDone(graded)}>Continue</button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="bt-plainform">
-      <h2>{beat.title}</h2>
-      <p className="bt-plainplace">{beat.place}</p>
-      {/* the speaker's name is content and not paint, because without it lines from different people run together as one anonymous paragraph and a student cannot tell the counselor from the principal; the portrait stays out, because that is paint */}
-      {!checksOnly && beat.steps.map((s, i) => (s.kind === 'say' ? (
-        <p key={i}>
-          {s.line.speaker && <b className="bt-plainspeaker">{s.line.speaker}: </b>}
-          {s.line.text}
-        </p>
-      ) : null))}
-      {renders.map((r) => (
-        <fieldset key={r.id}>
-          {/* the derived prompt and not the raw one: `plainOf` is where an item decides how it reads as a form, and asking the check directly here showed whatever the palette added only after the answers were already in */}
-          <legend>{r.prompt}</legend>
-          {r.note && <p className="bt-plainnote">{r.note}</p>}
-          {r.fields.map((f) => (
-            <PlainFieldRow key={f.id} field={f} prompt={r.prompt} value={picks[f.id] ?? ''} onSet={(v) => set(r.id, f.id, v)} />
-          ))}
-        </fieldset>
-      ))}
-      <button disabled={!complete} title={complete ? undefined : 'Every question needs an answer first.'} onClick={submit}>Submit</button>
-      {/* the refused control says what it is waiting for here too, because a control that cannot say why it will not move measures usability rather than presentation */}
-      {!complete && (
-        <span className="bt-needs">
-          {blanks === 1 ? 'One question still has no answer.' : `${blanks} questions still have no answer.`}
-        </span>
-      )}
-    </div>
-  )
-}
-
-/* one row of the plain form: a radio, a select or a text box, each with a name made of words */
-function PlainFieldRow({ field, prompt, value, onSet }: {
-  field: PlainField
-  /** the item's own question, which is the group's name when the row has none */
-  prompt: string
-  value: string
-  onSet: (v: string) => void
-}) {
-  if (field.input === 'text') {
-    return (
-      <label>
-        {field.label ? `Your answer, in ${field.label} ` : 'Your answer '}
-        <input type="text" inputMode="decimal" value={value} onChange={(e) => onSet(e.target.value)} />
-      </label>
-    )
-  }
-  if (field.input === 'select') {
-    return (
-      <label>
-        {field.label}{' '}
-        <select value={value} onChange={(e) => onSet(e.target.value)}>
-          <option value="" disabled>Pick one</option>
-          {field.options.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
-        </select>
-      </label>
-    )
-  }
-  return (
-    <div className="bt-plaingroup" role="group" aria-label={field.label || prompt}>
-      {field.label && <p>{field.label}</p>}
-      {field.options.map((o) => (
-        <label key={o.value}>
-          <input type="radio" name={field.id} checked={value === o.value} onChange={() => onSet(o.value)} /> {o.text}
-        </label>
-      ))}
-    </div>
-  )
-}
-
-/* the activity's place and title, drawn the way whichever arm is reading it draws things */
-function CardHead({ beat, arm }: { beat: CoreBeat; arm: 'game' | 'plain' }) {
-  if (arm === 'plain') {
-    return (
-      <>
-        <h2>{beat.title}</h2>
-        <p className="bt-plainplace">{beat.place}</p>
-      </>
-    )
-  }
+/* the activity's place and title */
+function CardHead({ beat }: { beat: CoreBeat }) {
   return (
     <div className="bt-head">
       <span className="bt-place">{beat.place} · <b>{beat.title}</b></span>
@@ -1196,8 +1025,8 @@ function CardHead({ beat, arm }: { beat: CoreBeat; arm: 'game' | 'plain' }) {
 // ---- result + review ------------------------------------------------------------------
 
 /* the card every activity ends on: the letter, the grade, what was earned and the way out */
-function ResultCard({ beat, score, arm, canRetake, onReview, onClose }: {
-  beat: CoreBeat; score: BeatScore; arm: 'game' | 'plain'
+function ResultCard({ beat, score, canRetake, onReview, onClose }: {
+  beat: CoreBeat; score: BeatScore
   canRetake: boolean; onReview: () => void; onClose: () => void
 }) {
   const s = loadSave()
@@ -1210,8 +1039,8 @@ function ResultCard({ beat, score, arm, canRetake, onReview, onClose }: {
   const closeCords = s ? cordsOf(s).filter((c) => !c.earned && c.progress >= 0.5) : []
   const facts = beat.takeaways.map(factById).filter((f): f is NonNullable<typeof f> => !!f)
   return (
-    <div className={arm === 'plain' ? 'bt-plainform bt-result' : 'bt-result'}>
-      <CardHead beat={beat} arm={arm} />
+    <div className="bt-result">
+      <CardHead beat={beat} />
       <div className="bt-grade">
         <span className="bt-lettermark">{letterOf(grade)}</span>
         <span className="bt-gradelines">
@@ -1259,29 +1088,25 @@ function ResultCard({ beat, score, arm, canRetake, onReview, onClose }: {
       {canRetake && (
         <div className="bt-retake">
           <span className="bt-needs">You scored under a B-, so you can take this again. The Universal Retake Policy is real at Bonney Lake.</span>
-          {arm === 'plain'
-            ? <button onClick={onReview}>Review, then retake</button>
-            : <Plank size="md" onClick={onReview}>Review, then retake</Plank>}
+          <Plank size="md" onClick={onReview}>Review, then retake</Plank>
         </div>
       )}
       <div className="bt-out">
-        {arm === 'plain'
-          ? <button onClick={onClose}>Back to the game</button>
-          : <Plank size="md" onClick={onClose}>Back to the game</Plank>}
+        <Plank size="md" onClick={onClose}>Back to the game</Plank>
       </div>
     </div>
   )
 }
 
 /* read off `marks` on the ledger row, which `finish` writes every sitting; a row from before `marks` existed says so rather than drawing an empty card, and it shows the prompt and the outcome and never the answer given, because a response is minors' data and does not belong in a browser save */
-function AnswersCard({ beat, arm, onClose }: { beat: CoreBeat; arm: 'game' | 'plain'; onClose: () => void }) {
+function AnswersCard({ beat, onClose }: { beat: CoreBeat; onClose: () => void }) {
   const row = loadSave()?.ledger.find((e) => e.id === beat.id)
   const marks = row?.marks
   const items = checksOf(beat)
   const facts = beat.takeaways.map(factById).filter((f): f is NonNullable<typeof f> => !!f)
   return (
-    <div className={arm === 'plain' ? 'bt-plainform bt-result' : 'bt-result'}>
-      <CardHead beat={beat} arm={arm} />
+    <div className="bt-result">
+      <CardHead beat={beat} />
       <div className="bt-prompt">
         {marks ? 'How each question went.' : 'This was sat before the game started keeping the marks.'}
       </div>
@@ -1312,20 +1137,18 @@ function AnswersCard({ beat, arm, onClose }: { beat: CoreBeat; arm: 'game' | 'pl
         </>
       )}
       <div className="bt-out">
-        {arm === 'plain'
-          ? <button onClick={onClose}>Back to the game</button>
-          : <Plank size="md" onClick={onClose}>Back to the game</Plank>}
+        <Plank size="md" onClick={onClose}>Back to the game</Plank>
       </div>
     </div>
   )
 }
 
-function ReviewCard({ beat, arm, onRetake, onBack }: { beat: CoreBeat; arm: 'game' | 'plain'; onRetake: () => void; onBack: () => void }) {
+function ReviewCard({ beat, onRetake, onBack }: { beat: CoreBeat; onRetake: () => void; onBack: () => void }) {
   // "legitimate effort" (§8.1): the takeaways come before the retake unlocks
   const facts = beat.takeaways.map(factById).filter((f): f is NonNullable<typeof f> => !!f)
   return (
-    <div className={arm === 'plain' ? 'bt-plainform bt-result' : 'bt-result'}>
-      <CardHead beat={beat} arm={arm} />
+    <div className="bt-result">
+      <CardHead beat={beat} />
       {/* `takeaways` is optional, so with no facts this says only that the beat can be taken again, instead of telling a student who just failed to read something that is not there */}
       <div className="bt-prompt">
         {facts.length
@@ -1338,19 +1161,8 @@ function ReviewCard({ beat, arm, onRetake, onBack }: { beat: CoreBeat; arm: 'gam
         </div>
       )}
       <div className="bt-out">
-        {arm === 'plain'
-          ? (
-            <>
-              <button onClick={onRetake}>Retake it</button>
-              <button onClick={onBack}>Back to my score</button>
-            </>
-          )
-          : (
-            <>
-              <Plank size="md" onClick={onRetake}>Retake it</Plank>
-              <Plank size="md" onClick={onBack}>Back to my score</Plank>
-            </>
-          )}
+        <Plank size="md" onClick={onRetake}>Retake it</Plank>
+        <Plank size="md" onClick={onBack}>Back to my score</Plank>
       </div>
     </div>
   )

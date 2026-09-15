@@ -2,10 +2,6 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import {
-  applySkin, currentSkin, KIT_SKINS, resolveSkin, skinFromArm, skinFromUrl, wearAssignedSkin,
-} from './skin'
-import { beginAdventure, clearSave, writeSave } from '../save'
 
 const read = (p: string) => fs.readFileSync(path.resolve(process.cwd(), p), 'utf8')
 const strip = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, '')
@@ -24,17 +20,6 @@ function everyStylesheet(dir = 'src'): string[] {
 }
 
 /** every source file that could name a kit handle */
-function everySource(dir = 'src'): string[] {
-  const out: string[] = []
-  for (const e of fs.readdirSync(path.resolve(process.cwd(), dir), { withFileTypes: true })) {
-    const rel = `${dir}/${e.name}`
-    if (e.isDirectory()) out.push(...everySource(rel))
-    else if (/\.(css|ts|tsx)$/.test(e.name)) out.push(rel)
-  }
-  return out
-}
-
-/* the stylesheets that ARE the kit: the surfaces the painted game shows. */
 const KIT = [
   /* the control kit: every button, tab, field, gauge, socket and stamp is made of this file, so one retyped colour here reaches twenty surfaces at once */
   'src/game/ui/controls.css',
@@ -55,16 +40,6 @@ const tokenValue = (css: string, name: string, scope = ':root'): string | null =
 }
 
 /* every declaration in one selector block, so a skin can be compared to :root */
-function declaredIn(css: string, selector: string): Set<string> {
-  const at = css.indexOf(selector)
-  if (at < 0) return new Set()
-  const open = css.indexOf('{', at)
-  const close = css.indexOf('\n}', open)
-  const body = css.slice(open, close)
-  /* `_` is in the class because a MAPVIS handle can carry one (`icon_set`), and without it `--kit-art-icon_set` read as `kit-art-icon` and the audit below silently believed a handle was nulled that was not */
-  return new Set([...body.matchAll(/--([a-z0-9_-]+)\s*:/g)].map((m) => m[1]))
-}
-
 describe('the tokens are extracted, not invented', () => {
   const css = strip(read(TOKENS))
 
@@ -161,202 +136,7 @@ describe('every kit stylesheet reads the token layer', () => {
     }
   })
 
-  it('the plain skin overrides every token the default declares', () => {
-    const css = strip(read(TOKENS))
-    const root = declaredIn(css, ':root {')
-    const plain = declaredIn(css, "html[data-skin='plain'] {")
-    expect(root.size).toBeGreaterThan(80)
-    const missing = [...root].filter((t) => !plain.has(t) && t !== 'kit-text-scale')
-    expect(missing, 'tokens the plain arm would inherit from the paper skin').toEqual([])
-  })
-
-  it('the plain skin is a different material, not the same one renamed', () => {
-    const css = strip(read(TOKENS))
-    for (const t of ['kit-paper', 'kit-face-body', 'kit-art-panel', 'kit-wood-hi']) {
-      expect(tokenValue(css, t, ':root')).not.toBe(tokenValue(css, t, "html[data-skin='plain']"))
-    }
-    // and it has no PixelLab art at all, which is the whole point of §16
-    expect(tokenValue(css, 'kit-art-panel', "html[data-skin='plain']")).toBe('none')
-  })
 })
-
-// proves the plain arm paints no game art, by reading every stylesheet rather than by looking
-
-const artHandlesIn = (src: string): string[] =>
-  [...src.matchAll(/--kit-art-([A-Za-z0-9_-]+)/g)]
-    .map((m) => m[1])
-    /* `kit.ts` writes `--kit-art-${v.handle}`, which is not a handle */
-    .filter((h) => !h.startsWith('$'))
-
-describe('the plain arm has no art anywhere, and nothing can quietly add some', () => {
-  const tokens = strip(read(TOKENS))
-  const plain = declaredIn(tokens, "html[data-skin='plain'] {")
-
-  it('nulls every art handle the tree can actually mount', () => {
-    const mounted = new Set<string>()
-    for (const file of everySource()) {
-      if (file.endsWith('.test.ts') || file.endsWith('.test.tsx')) continue
-      for (const h of artHandlesIn(read(file))) mounted.add(h)
-      /* a `.kit-surface-<handle>` in a className is a mount too, because `kit.ts` writes `--kit-art-<handle>` for that handle at runtime and the class is the only place in `src/` the name appears */
-      for (const m of read(file).matchAll(/kit-surface-([A-Za-z0-9_-]+)/g)) {
-        if (!m[1].startsWith('$') && m[1] !== '') mounted.add(m[1])
-      }
-    }
-    /* mounted by `kitFaceStyle.ts` through a variable, so the name only exists in prose there and in the live `/api/v1/ui` record */
-    mounted.add('icon_set')
-    const unnulled = [...mounted].filter((h) => !plain.has(`kit-art-${h}`)).sort()
-    expect(unnulled, 'art handles the plain arm would still paint').toEqual([])
-  })
-
-  it('lets no stylesheet spell an art url out where a token cannot reach it', () => {
-    const offenders: string[] = []
-    for (const file of everyStylesheet()) {
-      const css = strip(read(file))
-      for (const m of css.matchAll(/([-a-z]+)\s*:\s*([^;{}]*url\(\s*['"]?\/art\/[^;{}]*)/g)) {
-        /* tokens.css's own `:root` is where the urls are meant to live, because that is the indirection every other rule reads through */
-        if (file === TOKENS) continue
-        offenders.push(`${file}: ${m[1]}: ${m[2].trim()}`)
-      }
-    }
-    expect(offenders, 'literal art urls that `--kit-art-*: none` cannot switch off').toEqual([])
-  })
-
-  it('reintroduces no art inside any plain block, in any stylesheet', () => {
-    const offenders: string[] = []
-    for (const file of everyStylesheet()) {
-      const css = strip(read(file))
-      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-        const sel = m[1]
-        const body = m[2]
-        if (!sel.includes("data-skin='plain'")) continue
-        if (/url\(/.test(body)) offenders.push(`${file} · ${sel.trim()}: a url`)
-        // `border-image: none` turns a frame off, so it is allowed; any other value is not
-        for (const bi of body.matchAll(/border-image[a-z-]*:\s*([^;]+)/g)) {
-          if (bi[1].trim() !== 'none') offenders.push(`${file} · ${sel.trim()}: a border-image`)
-        }
-        if (/image-rendering:\s*(pixelated|crisp-edges)/.test(body)) {
-          offenders.push(`${file} · ${sel.trim()}: pixel-art rendering`)
-        }
-      }
-    }
-    expect(offenders, 'the plain skin painting art back on').toEqual([])
-  })
-
-  it('keeps the integer snap in this arm rather than trading it for a size band', () => {
-    // worksheet sizes and the whole-pixel snap are both required, not one of them
-    expect(tokens).toContain("html[data-skin='plain'] *,")
-    expect(tokens).toContain('--kit-fs: clamp(15px, var(--kit-fs-raw), 28px);')
-    expect(tokens).toContain('--kit-fs: max(1px, round(clamp(15px, var(--kit-fs-raw), 28px), 1px));')
-    // the fallback arm is still a real declaration outside the feature query, searched from the plain block because the paper skin has a clamp of its own further up
-    const from = tokens.indexOf("html[data-skin='plain'] *,")
-    const loose = tokens.indexOf('--kit-fs: clamp(15px, var(--kit-fs-raw), 28px);', from)
-    const snapped = tokens.indexOf('--kit-fs: max(1px, round(clamp(15px,', from)
-    expect(loose).toBeLessThan(snapped)
-  })
-
-  it('casts no shadow and renders no pixel art', () => {
-    expect(tokenValue(tokens, 'kit-pixel', "html[data-skin='plain']")).toBe('auto')
-    for (const t of ['kit-drop-lg', 'kit-drop-md', 'kit-drop-sm']) {
-      /* a transparent offset-zero shadow rather than a deleted token, because an unset token makes `filter: drop-shadow(var(--kit-drop-lg))` invalid at computed-value time and that falls back to inherit, not to nothing */
-      expect(tokenValue(tokens, t, "html[data-skin='plain']")).toBe('0 0 0 rgba(0, 0, 0, 0)')
-    }
-  })
-
-  // one rule puts the system face on the whole plain arm, past any stylesheet naming a game face
-  it('puts one face on the whole arm, past every stylesheet that spells a game face out', () => {
-    expect(tokens).toContain("html[data-skin='plain'] * { font-family: var(--kit-face-body); }")
-  })
-
-  it('names a game face in no plain rule anywhere', () => {
-    const offenders: string[] = []
-    for (const file of everyStylesheet()) {
-      const css = strip(read(file))
-      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-        if (!m[1].includes("data-skin='plain'")) continue
-        if (/Harbormaster|Deckhand|Jersey 25|Pixelify/.test(m[2])) {
-          offenders.push(`${file} · ${m[1].trim()}`)
-        }
-      }
-    }
-    expect(offenders, 'the plain arm wearing a game face').toEqual([])
-  })
-
-  it('gives the arm a system face and no game face, on every one of the three', () => {
-    for (const t of ['kit-face-display', 'kit-face-title', 'kit-face-body', 'kit-front-face-display', 'kit-front-face-ui']) {
-      const v = tokenValue(tokens, t, "html[data-skin='plain']") ?? ''
-      expect(v, `${t} in the plain arm`).toContain('system-ui')
-      expect(v).not.toContain('Harbormaster')
-      expect(v).not.toContain('Deckhand')
-    }
-  })
-})
-
-// the arm the server assigned actually reaches the document's skin attribute
-describe('the assigned study arm reaches the skin', () => {
-  it('ranks the URL over the arm and the arm over any stored preference', () => {
-    expect(resolveSkin('?skin=plain', 'game', 'paper')).toBe('plain')
-    expect(resolveSkin('?skin=paper', 'plain', 'plain')).toBe('paper')
-    // the arm is assigned, not chosen: a settings blob cannot undo it
-    expect(resolveSkin('', 'plain', 'paper')).toBe('plain')
-    expect(resolveSkin('', 'game', 'plain')).toBe('paper')
-    // nobody joined: the preference, then the default
-    expect(resolveSkin('', undefined, 'plain')).toBe('plain')
-    expect(resolveSkin('', undefined, undefined)).toBe('paper')
-    expect(resolveSkin('', null, null)).toBe('paper')
-  })
-
-  it('knows an unassigned run is not the same as a game-arm one', () => {
-    expect(skinFromArm('plain')).toBe('plain')
-    expect(skinFromArm('game')).toBe('paper')
-    expect(skinFromArm(undefined)).toBeNull()
-  })
-
-  it('writes the attribute off a real save, with nobody asking for a skin', () => {
-    clearSave()
-    applySkin('paper')
-    beginAdventure()
-    expect(document.documentElement.dataset.skin).toBeUndefined()
-
-    /* the write alone is the test: `skin.ts` subscribes to the save at import because the arm arrives late (net.ts writes it when the join returns), and a skin decided once at boot is decided before the answer exists */
-    writeSave({ arm: 'plain' })
-    expect(document.documentElement.dataset.skin).toBe('plain')
-    expect(currentSkin()).toBe('plain')
-
-    writeSave({ arm: 'game' })
-    expect(document.documentElement.dataset.skin).toBeUndefined()
-
-    writeSave({ arm: 'plain' })
-    wearAssignedSkin('paper')     // the settings pass, which must not win
-    expect(currentSkin()).toBe('plain')
-
-    clearSave()
-    applySkin('paper')
-  })
-})
-
-describe('the skin is an attribute, the same way data-rm is', () => {
-  it('writes nothing for the default, so a page that never asks looks like today', () => {
-    applySkin('plain')
-    expect(document.documentElement.dataset.skin).toBe('plain')
-    expect(currentSkin()).toBe('plain')
-    applySkin('paper')
-    expect(document.documentElement.dataset.skin).toBeUndefined()
-    expect(currentSkin()).toBe('paper')
-  })
-
-  it('reads ?skin= off a URL and refuses anything that is not a skin', () => {
-    expect(skinFromUrl('?skin=plain')).toBe('plain')
-    expect(skinFromUrl('?skin=paper')).toBe('paper')
-    expect(skinFromUrl('?skin=wood')).toBeNull()
-    expect(skinFromUrl('')).toBeNull()
-  })
-
-  it('names both skins, because one skin is not a system', () => {
-    expect(KIT_SKINS.length).toBeGreaterThanOrEqual(2)
-  })
-})
-
-/* ---- the reduced-motion audit ------------------------------------------ */
 
 const lastClass = (sel: string): string | null => {
   const m = [...sel.matchAll(/\.[a-zA-Z][\w-]*/g)]

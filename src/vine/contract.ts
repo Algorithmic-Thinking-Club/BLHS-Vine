@@ -27,7 +27,7 @@ export type GrapeCategory =
   | 'ap'
 
 // game = full experience; plain = the AP-Research control (same content, game-ness stripped).
-export type SessionMode = 'game' | 'plain'
+export type SessionMode = 'game'
 
 export interface MediaClip {
   id: string

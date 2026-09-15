@@ -88,12 +88,3 @@ html[data-rm='1'] .cp-card { animation-duration: 1ms; }
 .cp-card > .ch-chart { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 
 /* the plain arm gets the same screen with no wood on it */
-html[data-skin='plain'] .cp-card {
-  background: #fff;
-  border: 1px solid #767676;
-  border-image: none;
-  color: #000;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-}
-html[data-skin='plain'] .cp-title,
-html[data-skin='plain'] .cp-sub { font-family: inherit; color: #000; }

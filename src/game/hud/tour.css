@@ -90,11 +90,6 @@
   cursor: pointer;
 }
 .tr-next:hover, .tr-next:focus-visible { background: #f0e4c6; }
-html[data-skin='plain'] .tr-next {
-  background: #fff;
-  border-color: #101010;
-  border-radius: 0;
-}
 .tr-count {
   display: block;
   font: 600 11px/1 var(--font-ui, system-ui, sans-serif);
@@ -118,23 +113,3 @@ html[data-skin='plain'] .tr-next {
 .tr-skip:hover, .tr-skip:focus-visible { background: rgba(12, 12, 14, 0.92); }
 
 /* the plain arm: a worksheet's own callout, no gold and no glow */
-html[data-skin='plain'] .tr-dim { background: rgba(255, 255, 255, 0.72); }
-html[data-skin='plain'] .tr-ring {
-  border-color: #101010;
-  box-shadow: none;
-  animation: none;
-}
-html[data-skin='plain'] .tr-hand { color: #101010; text-shadow: none; }
-html[data-skin='plain'] .tr-say {
-  background: #fff;
-  color: #101010;
-  border-color: #101010;
-  border-radius: 0;
-  box-shadow: none;
-}
-html[data-skin='plain'] .tr-skip {
-  color: #101010;
-  background: #fff;
-  border-color: #101010;
-  border-radius: 0;
-}

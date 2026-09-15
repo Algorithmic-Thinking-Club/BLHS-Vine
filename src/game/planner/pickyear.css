@@ -434,7 +434,6 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
   background: var(--kit-paper);
 }
 /* with no paper token behind it the plank still needs a ground of its own, and the plain skin answers `--kit-paper` too so this is only the no-kit case */
-html[data-skin='plain'] .py-foot { background: var(--kit-paper-hi, #fff); }
 .py-notyet {
   --kit-fs-raw: calc(16px * var(--kit-text-scale));
   font-size: var(--kit-fs);
@@ -452,41 +451,8 @@ html[data-skin='plain'] .py-foot { background: var(--kit-paper-hi, #fff); }
 html[data-rm='1'] .py-go.py-lit { animation: none; filter: drop-shadow(0 3px 0 var(--kit-plank-drop)) drop-shadow(0 0 8px var(--kit-gold-hi)); }
 
 /* ---- the control arm: the same choices as a plain form on white paper ---- */
-html[data-skin='plain'] .py-sheet {
-  background: var(--kit-paper-hi);
-  border: var(--kit-border) solid var(--kit-edge-strong);
-  padding: 22px 26px 20px;
-}
-html[data-skin='plain'] .py-veil { background: rgba(0, 0, 0, .45); }
-html[data-skin='plain'] .py-title,
-html[data-skin='plain'] .py-h { font-weight: 700; }
-html[data-skin='plain'] .py-card {
-  background: var(--kit-paper);
-  border: var(--kit-border) solid var(--kit-edge-strong);
-  border-radius: var(--kit-r-soft);
-}
-html[data-skin='plain'] .py-card:hover { transform: none; filter: none; background: var(--kit-paper-lo); }
-html[data-skin='plain'] .py-card-on {
-  box-shadow: none;
-  border-width: 3px;
-  border-color: var(--kit-ink-head);
-}
-html[data-skin='plain'] .py-card-name { font-weight: 700; }
 /* a worksheet says "chosen" in a word, because it has no stamp to press */
-html[data-skin='plain'] .py-card-on .py-card-name::after { content: ' — chosen'; font-weight: 400; }
-html[data-skin='plain'] .py-slot,
-html[data-skin='plain'] .py-slot-hole { border-style: solid; border-color: var(--kit-edge); }
 /* a form's required fieldset: a heavier rule, no glow, and a bold heading */
-html[data-skin='plain'] .py-cardbox,
-html[data-skin='plain'] .py-classbox { background: none; border: 2px solid var(--kit-edge-strong); border-radius: var(--kit-r-sharp); animation: none; box-shadow: none; }
-html[data-skin='plain'] .py-lit { border-color: var(--kit-ink-head); }
-html[data-skin='plain'] .py-class { background: none; border-color: var(--kit-edge); }
-html[data-skin='plain'] .py-class-on { background: var(--kit-paper-lo); border-color: var(--kit-ink-head); }
-html[data-skin='plain'] .py-go.py-lit { animation: none; filter: none; }
-html[data-skin='plain'] .py-card { clip-path: none; }
-html[data-skin='plain'] .py-chip { background: none; border-color: var(--kit-edge-strong); opacity: 1; }
-html[data-skin='plain'] .py-putback,
-html[data-skin='plain'] .py-untick { background: none; border-color: var(--kit-edge-strong); }
 
 /* the class card carries one line so its name is body-sized: at display size the longer catalogue names wrapped to three lines and the row grew past the fold this screen is not allowed to have */
 .py-card-sm .py-card-name {

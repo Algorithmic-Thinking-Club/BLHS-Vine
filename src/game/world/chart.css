@@ -577,31 +577,9 @@ html[data-rm='1'] .ch-isle[data-inked='1'] .ch-card { animation: none; }
 .ch-completed { color: var(--kit-sea-earned); }
 
 /* the plain arm: the chart with the picture gone, read as a worksheet */
-
-html[data-skin='plain'] .ch-sea { display: none; }
 /* the marks and the paintings were the picture, and the picture is what this skin does not get */
-html[data-skin='plain'] .ch-row-marks { display: none; }
-html[data-skin='plain'] .ch-row-pic { display: none; }
-html[data-skin='plain'] .ch-s { display: none; }
-
-html[data-skin='plain'] .ch-chart { gap: 0; }
-html[data-skin='plain'] .ch-register {
-  border-top: 1px solid var(--kit-rule);
-  margin: 4px 0 14px;
-}
-html[data-skin='plain'] .ch-row {
-  display: block;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--kit-rule);
-}
-html[data-skin='plain'] .ch-row-name { font-weight: 700; color: var(--kit-ink-head); }
-html[data-skin='plain'] .ch-row-state,
-html[data-skin='plain'] .ch-row-closed { display: block; }
-html[data-skin='plain'] .ch-legend { color: var(--kit-ink-body); }
 /* and the sentence about the drawing goes with the drawing */
-html[data-skin='plain'] .ch-legend-pic { display: none; }
 /* this skin's own way to sea: a form button on a worksheet, which the plank already knows how to be here */
-html[data-skin='plain'] .ch-row-go { margin-top: 6px; max-width: none; }
 
 /* the empty-sea notice, made shorter and wider so the register still fits under it */
 .ch-chart .kit-empty { padding: 14px 20px 10px; gap: 6px; }

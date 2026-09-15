@@ -25,7 +25,6 @@
 .kit-mark-anchor { background-image: var(--kit-art-mark-anchor); }
 .kit-mark-sliders { background-image: var(--kit-art-mark-sliders); }
 .kit-mark-paw { background-image: var(--kit-art-mark-paw); }
-html[data-skin='plain'] .kit-mark { display: none; }
 
 .kit-glyph {
   display: inline-block;
@@ -114,7 +113,6 @@ html[data-skin='plain'] .kit-mark { display: none; }
 .kit-plank-two.kit-plank-sm { min-height: 46px; }
 .kit-plank-two.kit-plank-md { min-height: 62px; }
 .kit-plank.kit-plank-two.kit-plank-lg { min-height: 78px; --kit-plank-cap: 32px; }
-html[data-skin='plain'] .kit-plank-sub { text-shadow: none; opacity: 1; }
 
 /* the key that also presses this, cut into the left end */
 .kit-plank-key {
@@ -211,14 +209,6 @@ button.kit-chip:active { transform: translateY(1px); }
   box-shadow: inset 0 0 0 2px var(--kit-cord-hi), 0 0 0 2px var(--kit-cord-lo);
 }
 /* the control arm collapses all three to one grey box because its own `.kit-chip` rule outranks the two fallbacks above, and a worksheet says which of three it is with a rule and a mark rather than a shade */
-html[data-skin='plain'] .kit-chip-plate_lit:not(.kit-chip-drawn) {
-  border-width: 3px;
-  border-color: var(--kit-ink-head);
-}
-html[data-skin='plain'] .kit-chip-plate_spent:not(.kit-chip-drawn) {
-  background: none;
-  border-style: dashed;
-}
 
 /* ---- THE TAB ROW, ON ONE ROW --------------------------------------------- */
 
@@ -478,7 +468,6 @@ html[data-rm='1'] .kit-socket[data-state='refusing'] { animation: none; }
 }
 @keyframes kit-morecue-bob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -3px); } }
 html[data-rm='1'] .kit-morecue { animation: none; }
-html[data-skin='plain'] .kit-morecue { animation: none; border-radius: 2px; }
 
 /* ---- WHAT A PANEL SAYS WHEN IT HAS NOTHING ------------------------------- */
 
@@ -517,52 +506,8 @@ html[data-skin='plain'] .kit-morecue { animation: none; border-radius: 2px; }
 .kit-loading .kit-gauge { max-width: 240px; }
 
 /* the plain study arm: real form controls on white paper, and no drawn marks */
-html[data-skin='plain'] .kit-glyph { display: none; }
 /* one button for this arm, a white field with a real edge and dark ink */
-html[data-skin='plain'] .kit-plank {
-  filter: none;
-  border: 1px solid var(--kit-edge-strong);
-  border-radius: var(--kit-r-soft);
-  background-color: var(--kit-paper-lo);
-  padding: 8px 18px;
-  min-height: 38px;
-}
-html[data-skin='plain'] .kit-plank-ink { text-shadow: none; color: var(--kit-ink-body); font-weight: 600; }
-html[data-skin='plain'] .kit-plank:hover:not(:disabled) { filter: none; transform: none; background-color: var(--kit-paper-tab-lo); }
-html[data-skin='plain'] .kit-plank:active:not(:disabled) { transform: none; }
 /* a disabled button here looks unavailable without becoming unreadable */
-html[data-skin='plain'] .kit-plank:disabled {
-  filter: none;
-  opacity: 1;
-  background-color: var(--kit-paper-hi);
-  border-style: dashed;
-  cursor: not-allowed;
-}
-html[data-skin='plain'] .kit-plank:disabled .kit-plank-ink { color: var(--kit-ink-dim); }
-html[data-skin='plain'] .kit-plank-key { background: none; opacity: 1; }
-html[data-skin='plain'] .kit-chip {
-  border-radius: 2px;
-  background: var(--kit-paper-lo);
-  border: 1px solid var(--kit-edge);
-  box-shadow: none;
-  color: var(--kit-ink-body);
-}
-html[data-skin='plain'] .kit-tab {
-  filter: none;
-  border: 1px solid var(--kit-edge);
-  border-bottom: 0;
-  border-radius: var(--kit-r-sharp) var(--kit-r-sharp) 0 0;
-  background-color: var(--kit-paper-lo);
-}
-html[data-skin='plain'] .kit-tab-on { transform: none; background-color: var(--kit-paper-hi); }
-html[data-skin='plain'] .kit-tab-on .kit-tab-ink { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
-html[data-skin='plain'] .kit-field { border: 1px solid var(--kit-edge-strong); background-color: var(--kit-paper-hi); border-radius: 2px; }
-html[data-skin='plain'] .kit-field-bad { box-shadow: none; border-width: 2px; border-color: var(--kit-alarm); }
-html[data-skin='plain'] .kit-gauge { border: 1px solid var(--kit-edge-strong); background-color: var(--kit-paper-hi); border-radius: 2px; }
-html[data-skin='plain'] .kit-gauge-fill { background: var(--kit-sea-ink); }
-html[data-skin='plain'] .kit-socket { border: 1px dashed var(--kit-edge-strong); border-radius: 2px; background: none; }
-html[data-skin='plain'] .kit-socket[data-state='filled'] { border-style: solid; background-color: var(--kit-paper-lo); }
-html[data-skin='plain'] .kit-portrait { border: 1px solid var(--kit-edge); border-radius: 2px; background-color: var(--kit-paper-lo); }
 
 /* the feedback cards, in the top centre so a stamp never lands on the dialogue */
 
@@ -621,15 +566,6 @@ html[data-rm='1'] .kit-fb, html[data-rm='1'] .kit-fb-going { animation-duration:
 .kit-fb-wrong { border-color: var(--kit-edge-strong); }
 .kit-fb-wrong .kit-fb-head { color: var(--kit-ink-quiet); }
 .kit-fb-right .kit-fb-head { color: var(--kit-sea-head); }
-
-html[data-skin='plain'] .kit-fb {
-  border-radius: 2px;
-  box-shadow: none;
-  background-color: var(--kit-paper-hi);
-  border: 1px solid var(--kit-edge-strong);
-}
-html[data-skin='plain'] .kit-fb-mark { display: none; }
-html[data-skin='plain'] .kit-fb-awarded { box-shadow: none; }
 
 /* the focus ring, drawn inside the wood so it never overhangs the shape it marks */
 .kit-plank:focus-visible,
@@ -694,13 +630,3 @@ html[data-rm='1'] .kit-nudge {
 html[data-rm='1'] .kit-nudge-arrow { animation: none; }
 
 /* the plain arm has no glow token, so the mark is the edge and the weight */
-html[data-skin='plain'] .kit-nudge {
-  animation: none;
-  border-radius: 0;
-  box-shadow: 0 0 0 3px var(--kit-edge);
-}
-html[data-skin='plain'] .kit-nudge-say {
-  border-width: 2px;
-  border-color: var(--kit-edge);
-  border-radius: 0;
-}

@@ -88,10 +88,3 @@ html[data-rm='1'] .yc-card { animation: none; }
 .yc-go { min-width: 300px; min-height: 62px; }
 
 /* the plain arm: no paper texture, no shadow and no entrance animation */
-html[data-skin='plain'] .yc-card {
-  animation: none;
-  filter: none;
-  width: min(720px, 94vw);
-}
-html[data-skin='plain'] .yc-row { background: none; border-bottom: 1px solid var(--kit-rule-soft); border-radius: 0; }
-html[data-skin='plain'] .yc-tick { display: none; }

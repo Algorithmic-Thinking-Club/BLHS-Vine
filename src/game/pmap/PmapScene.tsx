@@ -63,7 +63,6 @@ import { motionMs, prefersReducedMotion } from '../ui/motion'
 import { uiBand } from '../ui/frame'
 import { kitNineSlice, kitPieceHeight, kitSprite, kitTexture } from '../ui/kitSprite'
 import { goldenHour } from '../ui/atmosphere'
-import { currentSkin } from '../ui/skin'
 /* the arrival card goes up on the stage bus, the one question the world's chrome cannot answer itself */
 import { note } from '../ui/feedback'
 import { placeCardUp } from '../stage/stage-bus'
@@ -1548,26 +1547,8 @@ export default function PmapScene() {
       /* the arrival anchor is spent once he is standing on it, so a refresh is a resume again */
       if (target.at) setMapUrl({ map: mapId, aboard: target.aboard })
 
-      /* the plain study arm's plaque: a white field, a grey rule and the system face, drawn in code */
-      const plainArm = () => currentSkin() === 'plain'
-      const PLAIN_PAPER = 0xf6f6f4
-      const PLAIN_EDGE = 0x6b6b6b
-      const PLAIN_INK = 0x1b1b1b
-      const drawPlainPlate = (g: Graphics, w: number, h: number) => {
-        g.clear()
-        g.roundRect(-w / 2, -h / 2, w, h, 2).fill(PLAIN_PAPER).stroke({ color: PLAIN_EDGE, width: 1 })
-      }
-      /** the face and the ink a plaque uses in whichever arm is running */
-      const plaqueStyle = (t: Text, inkWhenPainted: number) => {
-        if (plainArm()) {
-          t.style.fontFamily = ['system-ui', 'Segoe UI', 'Arial', 'sans-serif']
-          t.style.stroke = { color: 0x000000, width: 0 }
-          t.style.fill = PLAIN_INK
-          t.style.fontWeight = 'normal'
-        } else {
-          t.style.fill = inkWhenPainted
-        }
-      }
+      /** the ink a plaque's words are written in */
+      const plaqueStyle = (t: Text, ink: number) => { t.style.fill = ink }
 
       // the YOU marker: a map pin holding thor's face, drawn at screen scale not world scale
       const pin = new Container()
@@ -1581,13 +1562,13 @@ export default function PmapScene() {
 
       /* the parchment, the carved brown and the highlight, read off tokens.css */
       /* in the control arm the marker keeps its shape and loses the paint */
-      const PIN_FIELD = plainArm() ? 0xf6f6f4 : 0xf0e0bd
-      const PIN_RIM = plainArm() ? 0x6b6b6b : 0x4a3524
-      const PIN_LIGHT = plainArm() ? 0xffffff : 0xf5efdd
+      const PIN_FIELD = 0xf0e0bd
+      const PIN_RIM = 0x4a3524
+      const PIN_LIGHT = 0xf5efdd
 
       /* smaller than it was, so the mark does not out-mass the character it marks */
       /* the disc is sized by the face: the head halves cleanly to 26, so the radius is 14 */
-      const PR = plainArm() ? 7 : 14       // pin circle radius in screen px
+      const PR = 14       // pin circle radius in screen px
       const PCY = -PR - 10                 // circle centre; the tail tip is the origin
 
       // Thor's face: the head rows of the south idle frame, masked into the circle
@@ -1617,7 +1598,7 @@ export default function PmapScene() {
       head.position.set(0, PCY)
       const headMask = new Graphics().circle(0, PCY, PR - 1).fill(0xffffff)
       head.mask = headMask
-      head.visible = !plainArm()
+      head.visible = true
 
       /* the mark as one object: word, ribbon, disc and tail under a single outline */
       const youTxt = new Text({
@@ -1630,12 +1611,11 @@ export default function PmapScene() {
           fill: 0xffffff,
         }),
       })
-      if (plainArm()) youTxt.style.fontFamily = ['system-ui', 'Segoe UI', 'Arial', 'sans-serif']
 
       /* the word joins the mark by palette rather than by sitting in a box of its own */
       /* parchment letters on a dark outline, so the word is not lost in the warm sand */
-      youTxt.style.fill = plainArm() ? PLAIN_INK : PIN_FIELD
-      youTxt.style.stroke = { color: plainArm() ? 0xffffff : 0x2c2620, width: 2 }
+      youTxt.style.fill = PIN_FIELD
+      youTxt.style.stroke = { color: 0x2c2620, width: 2 }
       youTxt.anchor.set(0.5, 1)
       youTxt.position.set(0, PCY - PR - 1)
 
@@ -1646,12 +1626,10 @@ export default function PmapScene() {
         .closePath().fill(PIN_FIELD).stroke({ color: PIN_RIM, width: 1 })
       /* one opaque light edge outside the dark one, so the disc reads on water and on stone */
       /* the halo is an arc, not a ring, so no light seam crosses the join with the tail */
-      if (!plainArm()) {
-        const gap = Math.asin(Math.min(1, (PR * 0.55) / PR))
-        pinG.arc(0, PCY, PR + 2, Math.PI / 2 + gap, Math.PI / 2 - gap + Math.PI * 2)
-          .stroke({ color: PIN_LIGHT, width: 1 })
-      }
-      pinG.circle(0, PCY, PR).fill(PIN_FIELD).stroke({ color: PIN_RIM, width: plainArm() ? 1 : 2 })
+      const gap = Math.asin(Math.min(1, (PR * 0.55) / PR))
+      pinG.arc(0, PCY, PR + 2, Math.PI / 2 + gap, Math.PI / 2 - gap + Math.PI * 2)
+        .stroke({ color: PIN_LIGHT, width: 1 })
+      pinG.circle(0, PCY, PR).fill(PIN_FIELD).stroke({ color: PIN_RIM, width: 2 })
 
       pin.addChild(pinG, headMask, head, youTxt)
       pin.scale.set(1 / Z)
@@ -1701,16 +1679,12 @@ export default function PmapScene() {
         }),
       })
       doorTxt.anchor.set(0, 0.5)
-      const promptPaper = new Graphics()
-      promptPaper.zIndex = -1
-      promptPaper.visible = plainArm()
-
       /* the E keycap, drawn as shapes rather than set as a letter, in whole screen pixels */
       /* a lighter face than the plaque under it, so the key reads as an object lying on it */
-      const CAP_FACE = plainArm() ? 0xffffff : 0xfdf6e3
-      const CAP_RIM = plainArm() ? 0x555555 : 0x2c2015
-      const CAP_WALL = plainArm() ? 0xbdbdbd : 0x9a7448
-      const CAP_INK = plainArm() ? 0x1b1b1b : 0x2c2015
+      const CAP_FACE = 0xfdf6e3
+      const CAP_RIM = 0x2c2015
+      const CAP_WALL = 0x9a7448
+      const CAP_INK = 0x2c2015
       const capG = new Graphics()
       const capBox = { w: 0, h: 0 }
       /** the cap at a side length, drawn from its own top left corner */
@@ -1727,7 +1701,7 @@ export default function PmapScene() {
         // the face
         capG.rect(1, 1, s - 2, s - 2).fill(CAP_FACE)
         // one lit row along the top of the face, the way every drawn edge in this kit is lit: light, then dark, then field
-        if (!plainArm()) capG.rect(2, 2, s - 4, 1).fill(0xfdf3dc)
+        capG.rect(2, 2, s - 4, 1).fill(0xfdf3dc)
         /* the E: a stem and three arms, boxed inside the face, with a short middle arm */
         const m = Math.max(3, Math.round(s * 0.26))
         const x0 = m, y0 = m
@@ -1744,7 +1718,7 @@ export default function PmapScene() {
       const WRAP_MS = 250
       /* the ring runs outside the plate, where it has the painting behind it and nothing else */
       const WRAP_PAD = 3
-      const WRAP_INK = plainArm() ? 0x4a4a4a : 0xdcdcdc
+      const WRAP_INK = 0xdcdcdc
       const wrapG = new Graphics()
       wrapG.zIndex = 9e9 - 1
       wrapG.visible = false
@@ -1793,7 +1767,7 @@ export default function PmapScene() {
         drawWrap(prefersReducedMotion() ? 1 : p)
       }
 
-      prompt.addChild(promptPaper, capG, promptMark, doorTxt)
+      prompt.addChild(capG, promptMark, doorTxt)
       prompt.scale.set(1 / Z)
 
       /* what the prompt is saying now, so the layout only runs when it changes */
@@ -1808,8 +1782,7 @@ export default function PmapScene() {
         const capGap = 9
         const bodyW = capBox.w + capGap + markW + gap + doorTxt.width
         const plateH = Math.max(doorTxt.height + 14, capBox.h + 10)
-        if (promptPaper.visible) drawPlainPlate(promptPaper, bodyW + 28, plateH)
-        /* the ring runs round the plate's own edge, so it is measured off whichever plate is really under the words: the platform's carved socket where the kit landed, the plain rectangle where it did not */
+        /* the ring runs round the plate's own edge, so it is measured off the carved socket the platform published */
         wrapBox.w = bodyW + 28
         wrapBox.h = plateH
         if (promptPlate) {
@@ -3484,28 +3457,22 @@ export default function PmapScene() {
       /* what has been touched this sitting, kept for the life of the page and never saved */
       const usedThisSitting = new Set<string>()
 
-      /* what one anchor is offering, asked by the plaque and by a click alike */
-      /* what the plaque says: a verb and the thing, so a trackpad reads it as a button */
-      const ACTIONS: Record<string, string> = {
-        chart_table: 'Open the year sheet',
-        hearth: 'Sit down for Advisory',
-        counselor: 'Talk to the counselor',
-        principal_desk: 'Talk to Principal Panther',
-        trophy_wall: 'Look at the trophy wall',
-        outfitter: 'Open the wardrobe',
-      }
+      /* what one anchor is offering, asked by the plaque and by a click alike.
+       * the engine used to keep a table of sentences here keyed by anchor name, so
+       * the map said "The Counselor" and the plaque said "Talk to the counselor".
+       * the person who placed the anchor writes the label and the label is what a
+       * player reads. */
       const actionFor = (a: Anchor, label: string): string => {
         /* the shelf says what is on it without new art: drawn trophies would need art per trophy, so the plaque carries the count across the whole run instead, matching the panel behind it in `run/wall.ts` */
         if (a.name === 'trophy_wall') {
           const badges = wallAll(loadSave()).filter((w) => w.earned).length
-          return badges === 0
-            ? 'Look at the trophy wall'
-            : `The trophy wall · ${badges} ${badges === 1 ? 'badge' : 'badges'}`
+          return badges === 0 ? label : `${label} · ${badges} ${badges === 1 ? 'badge' : 'badges'}`
         }
-        if (ACTIONS[a.name]) return ACTIONS[a.name]
-        const l = label.replace(/^The\s+/, 'the ')
-        if (a.kind === 'door') return `Go to ${l}`
-        return a.placement || /^dock_/.test(a.name) ? `Talk to ${l}` : `Go to ${l}`
+        /* a door names a place rather than an errand, so it keeps the verb that makes it read as a way out */
+        if (a.kind === 'door') return `Go to ${label.replace(/^The\s+/, 'the ')}`
+        /* an anchor whose author left the label blank falls back to its own name, and a body gets a verb because standing by a person with a plaque that says only their name reads as furniture */
+        if (a.label) return a.label
+        return a.placement || /^dock_/.test(a.name) ? `Talk to ${label}` : `Go to ${label}`
       }
 
       const offerOf = (a: Anchor): { text: string; state: PromptState; canFire: boolean } => {

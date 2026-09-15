@@ -92,7 +92,6 @@ export type SaveGame = {
   v: 2
   id: string
   participantId?: string        // the study identity, set at join (net.ts); server keys on this
-  arm?: 'game' | 'plain'        // the study arm the server assigned at join (§13.2)
   handle: string
   pronouns: string
   boatName: string

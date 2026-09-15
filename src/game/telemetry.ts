@@ -23,7 +23,7 @@ function syncIdentity() {
   const s = loadSave()
   logger.setIdentity({
     participantId: s?.participantId ?? anonId('blhs_anon_id'),
-    mode: s?.arm === 'plain' ? 'plain' : 'game',
+    mode: 'game',
     dev: isCaptain(),
     localOnly: !!s?.castaway,
   })

@@ -3,8 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Dialogue } from '../../game/hud/Dialogue'
 import { choose, clearDialogue, say } from '../../game/dialogue'
 import { engine } from '../../game/intent-engine'
-import type { IntentEngine, IntentWorld, RunPath } from '../intents'
-import type { SessionMode } from '../contract'
+import type { IntentEngine, IntentWorld } from '../intents'
 import { fetchGrape, parseGrapeRef, baseUrlOf, type LoadedGrape } from './grape-source'
 import { openGrape, type GrapeReport, type GrapeSession } from './runGrape'
 
@@ -55,7 +54,6 @@ export default function GrapeProof() {
   const params = useMemo(() => new URLSearchParams(window.location.search), [])
   const ref = useMemo(() => parseGrapeRef(params), [params])
   const base = baseUrlOf(ref)
-  const arm: SessionMode = params.get('arm') === 'plain' ? 'plain' : 'game'
 
   const [status, setStatus] = useState('starting')
   const [loaded, setLoaded] = useState<LoadedGrape | null>(null)
@@ -67,15 +65,13 @@ export default function GrapeProof() {
   const run = useRef<GrapeSession | null>(null)
   const alive = useRef(true)
 
-  /* a wrapper that picks the study arm for the harness and notes what the engine did */
+  /* a wrapper that notes what the engine did */
   const host = useMemo(() => {
     const note = (what: string, detail: string) =>
       setSeen((s) => [...s, { what, detail }])
 
     const watched: IntentEngine = {
       ...engine,
-      mode: () => arm,
-      read: (path: RunPath) => (path === 'mode' ? arm : engine.read(path)),
       openUi: (ui) => { note('open', ui); engine.openUi(ui) },
       setFlag: (f) => { note('set_flag', f); engine.setFlag(f) },
       log: (e, d) => { note('log', d ? `${e} ${JSON.stringify(d)}` : e); engine.log(e, d) },
@@ -84,14 +80,14 @@ export default function GrapeProof() {
           ? '  (no saved run here, so nothing was recorded)' : ''}`)
         engine.award(a)
       },
-      playBeat: async (b, plain) => {
-        const g = await engine.playBeat(b, plain)
-        note('play', `${b} (${plain ? 'plain' : 'game'}) came back ${g === null ? 'None' : g}`)
+      playBeat: async (b) => {
+        const g = await engine.playBeat(b)
+        note('play', `${b} came back ${g === null ? 'None' : g}`)
         return g
       },
     }
     return { world, engine: watched }
-  }, [arm])
+  }, [])
 
   const start = useCallback(async () => {
     run.current?.stop()
@@ -158,9 +154,9 @@ export default function GrapeProof() {
   /* a flag for the headless verifier to wait on so a screenshot is never taken of a half-started runtime, and nothing in the game reads it */
   useEffect(() => {
     ;(window as unknown as Record<string, unknown>).__grape = {
-      base, arm, status, handlers, report, seen, title: loaded?.manifest.title ?? null,
+      base, status, handlers, report, seen, title: loaded?.manifest.title ?? null,
     }
-  }, [base, arm, status, handlers, report, seen, loaded])
+  }, [base, status, handlers, report, seen, loaded])
 
   const talks = handlers.filter((h) => h.startsWith('talk:'))
 
@@ -179,7 +175,7 @@ export default function GrapeProof() {
         pointerEvents: 'none',
       }}>
         <div style={{ color: '#ffd27a' }}>
-          grape proof · micropython in a worker · {base} · {arm} arm
+          grape proof · micropython in a worker · {base}
         </div>
         <div>{status}{loaded ? ` · ${loaded.manifest.modules.length} modules` : ''}</div>
         {handlers.length > 0 && <div style={{ color: '#8fb8c8' }}>handlers: {handlers.join(', ')}</div>}

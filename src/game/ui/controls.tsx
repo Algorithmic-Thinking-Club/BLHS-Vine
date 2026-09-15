@@ -6,7 +6,6 @@ import {
 import { faceStyle } from './kitFaceStyle'
 import { kitCached, kitFace, kitGeneration, kitOptedIn, kitPiece, onKitLanded } from './kit'
 import { playUi } from '../audio'
-import { currentSkin } from './skin'
 import './controls.css'
 
 /* redraw every control on the frame the kit art lands */
@@ -45,7 +44,7 @@ export function Glyph({
 /* the class for a drawn ground, or a bare marker when the platform published none */
 export function useSurface(piece: string): string {
   useKitReady()
-  const worn = kitOptedIn() && currentSkin() === 'paper'
+  const worn = kitOptedIn()
   return worn && kitPiece(kitCached() ?? [], piece) ? `kit-surface-${piece}` : 'kit-bare'
 }
 
@@ -266,7 +265,6 @@ export function PortraitFrame({
   const surface = useSurface('portrait_frame')
   const [failed, setFailed] = useState(false)
   useEffect(() => { setFailed(false) }, [src])
-  if (currentSkin() !== 'paper') return null
   return (
     <span className={`kit-portrait ${surface} ${className}`}>
       {!failed && (

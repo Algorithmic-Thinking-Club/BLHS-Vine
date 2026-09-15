@@ -43,9 +43,3 @@ html[data-panels]:not([data-panels='0']) .hb-back { visibility: hidden; }
 }
 
 /* the plain arm gets the same control with no wood on it: it is a way out of a place and not part of anything scored, and it must not be the one painted thing on an otherwise typed screen */
-html[data-skin='plain'] .hb-back-why {
-  background-color: #fff;
-  border: 1px solid #767676;
-  color: #000;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-}

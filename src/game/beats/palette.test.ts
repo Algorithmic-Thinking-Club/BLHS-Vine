@@ -367,10 +367,9 @@ describe('one timing convention across both arms (L3)', () => {
     expect(latencyOf(1000, {}, 'never', 3000)).toBe(2000)
   })
 
-  it('both arms take latency from this one module', () => {
+  it('latency comes from this one module', () => {
     const src = fs.readFileSync(path.resolve('src/game/beats/ActivityRunner.tsx'), 'utf8')
-    // two callsites: the woven check and the form
-    expect(src.match(/latencyOf\(/g) ?? []).toHaveLength(2)
+    expect(src.match(/latencyOf\(/g) ?? []).toHaveLength(1)
     expect(src).toContain("from './timing'")
   })
 })

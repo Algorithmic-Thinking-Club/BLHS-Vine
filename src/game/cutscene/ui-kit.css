@@ -200,67 +200,11 @@ html[data-rm='1'] .cs-prompt { animation: none; opacity: 1; }
 /* the plain arm: the same words printed on a document rather than on carved wood */
 
 /* the box becomes a block, heading then words then instruction, the order a worksheet reads in; the paper and its rule come from `.kit-surface-dialogue`'s plain rule in tokens.css */
-html[data-skin='plain'] .cs-dialogue {
-  display: block;
-  padding: 14px 16px 16px;
-  min-height: 0;
-  cursor: pointer;
-}
-html[data-skin='plain'] .cs-dialogue-body { display: block; overflow-y: auto; }
-html[data-skin='plain'] .cs-dialogue-text { text-shadow: none; }
 
 /* the speaker becomes a real heading rather than a plate hung off the top edge, because a worksheet names who is talking on the line above what they said */
-html[data-skin='plain'] .cs-nameplaque {
-  position: static;
-  display: block;
-  padding: 0 0 4px;
-  margin: 0 0 8px;
-  background: none;
-  border: 0;
-  border-bottom: 1px solid var(--kit-edge);
-  border-radius: 0;
-  box-shadow: none;
-  color: var(--kit-ink-head);
-  font-weight: 700;
-  letter-spacing: 0;
-  text-shadow: none;
-}
 
 /* the instruction moves under the text instead of floating in a corner of a picture, and it holds still */
-html[data-skin='plain'] .cs-continue-hint {
-  position: static;
-  justify-content: flex-end;
-  margin-top: 10px;
-  opacity: 1;
-}
-
-html[data-skin='plain'] .cs-caption {
-  text-shadow: none;
-  white-space: normal;
-  max-width: min(640px, 84vw);
-  text-align: center;
-}
 
 /* the walk-to prompt is a bordered note, not a carved sign, and it does not pulse: a document does not breathe */
-html[data-skin='plain'] .cs-prompt {
-  background: none;
-  background-color: var(--kit-paper-hi);
-  border: 1px solid var(--kit-edge-strong);
-  border-radius: var(--kit-r-soft);
-  color: var(--kit-ink);
-  text-shadow: none;
-  animation: none;
-  opacity: 1;
-}
-
-html[data-skin='plain'] .cs-skip {
-  background: none;
-  background-color: var(--kit-paper-hi);
-  border: 1px solid var(--kit-edge-strong);
-  color: var(--kit-ink);
-  opacity: 1;
-}
-html[data-skin='plain'] .cs-skip-fill { background: var(--kit-sea-glow); }
 
 /* the cutscene's own letterbox, declined in the control arm for the same reason the movie frame is: film bars over a worksheet are game furniture, and at 1366x768 they cover 152px of the document */
-html[data-skin='plain'] .cs-letterbox { display: none !important; }

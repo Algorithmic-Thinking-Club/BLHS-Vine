@@ -57,16 +57,6 @@ describe('the objective panel is the beach bar', () => {
   })
 
   /* the plain arm is a document: no game art and no pixel face, and still a dark bar with light type rather than nothing at all */
-  it('is a plain dark bar in the plain arm', () => {
-    /* bounded to its own block, because slicing to the end of the file became a false failure the moment the task sheet added plain-arm rules underneath */
-    const from = css.indexOf("html[data-skin='plain'] .ob-panel {")
-    const plain = css.slice(from, css.indexOf('}', from) + 1)
-    expect(plain).toContain('background-image: none')
-    expect(plain).toContain('background-color: var(--kit-wood-lo)')
-    expect(plain).toContain('color: var(--kit-wood-ink)')
-    expect(plain).not.toMatch(/Deckhand|Harbormaster/)
-  })
-
   /* the behaviour the restyle was not allowed to touch */
   it('still says the island line, then the scene, then the year', () => {
     expect(tsx).toContain('said ?? world ?? objectiveLine(o, map)')

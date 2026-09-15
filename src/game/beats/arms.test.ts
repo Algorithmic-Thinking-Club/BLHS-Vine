@@ -84,9 +84,9 @@ const beatWith = (checks: CheckStep[]): CoreBeat => ({
   ],
 })
 
-/* forceArm is how a test picks an arm and it is the same door as_plain=True comes through, so this exercises the shipped path rather than a test-only one */
-const draw = (beat: CoreBeat, arm: 'game' | 'plain') =>
-  renderToStaticMarkup(createElement(CoreBeatRunner, { beat, onClose: () => {}, forceArm: arm }))
+/* the string renderer, for what a beat draws rather than what it does */
+const draw = (beat: CoreBeat) =>
+  renderToStaticMarkup(createElement(CoreBeatRunner, { beat, onClose: () => {} }))
 
 declare global { var IS_REACT_ACT_ENVIRONMENT: boolean }
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -96,40 +96,16 @@ beforeEach(() => {
   beginAdventure()
 })
 
-describe('the plain arm draws every kind', () => {
-  it('renders one fieldset per item with every option in it, and never a blank one', () => {
-    const html = draw(beatWith(CHECKS), 'plain')
-    for (const c of CHECKS) {
-      const r = plainOf(c)
-      expect(html, `${c.kind} prompt`).toContain(r.prompt)
-      for (const f of r.fields) {
-        if (f.label) expect(html, `${c.kind} row ${f.label}`).toContain(f.label)
-        for (const o of f.options) expect(html, `${c.kind} option ${o.text}`).toContain(o.text)
-      }
-    }
-    // the control arm is a form and has exactly one fieldset per item
-    expect(html.match(/<fieldset>/g) ?? []).toHaveLength(CHECKS.length)
-  })
-
-  it('carries the dialogue as prose, so the control arm is short no content', () => {
-    expect(draw(beatWith(CHECKS), 'plain')).toContain('One of each, then.')
-  })
-
-  it('the submit button starts disabled, so an empty form cannot be graded', () => {
-    expect(draw(beatWith(CHECKS), 'plain')).toContain('disabled')
-  })
-})
-
-describe('the game arm draws every kind', () => {
+describe('a beat draws every kind of item', () => {
   it('opens on the dialogue and then plays each item in the panel', () => {
-    expect(draw(beatWith(CHECKS), 'game')).toContain('One of each, then.')
+    expect(draw(beatWith(CHECKS))).toContain('One of each, then.')
   })
 
   it('every kind renders its own first screen without throwing', () => {
     /* a beat per kind, each starting on its check, the screen a member sees first and the one a missing branch would blank */
     for (const c of CHECKS) {
       const beat: CoreBeat = { ...beatWith([c]), steps: [{ kind: 'check', check: c }] }
-      const html = draw(beat, 'game')
+      const html = draw(beat)
       const r = plainOf(c)
       expect(html, `${c.kind}`).toContain(r.prompt)
       if (c.kind === 'showdown') {
@@ -148,12 +124,12 @@ describe('the game arm draws every kind', () => {
 })
 
 /* the behaviour under test lives in an effect and renderToStaticMarkup never runs one, so these mount for real into happy-dom, while everything above stays on the string renderer because it tests what is drawn and this tests what is done */
-async function mount(beat: CoreBeat, world?: BeatWorld, arm: 'game' | 'plain' = 'game') {
+async function mount(beat: CoreBeat, world?: BeatWorld) {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const root = createRoot(host)
   await act(async () => {
-    root.render(createElement(CoreBeatRunner, { beat, onClose: () => {}, forceArm: arm, world }))
+    root.render(createElement(CoreBeatRunner, { beat, onClose: () => {}, world }))
   })
   return {
     html: () => host.innerHTML,
@@ -241,7 +217,7 @@ describe('W8: a do staged in the world, and what happens when it cannot be', () 
     expect(subs).toBe(0)
   })
 
-  it('offers the form the control arm uses to a student who cannot find the place', async () => {
+  it('offers a form to a student who cannot find the place', async () => {
     /* the mistake an author will really make is a typo in the anchor name, and then the arrival can never come, so waiting on it forever would lock the beat with no way out and would measure navigation rather than what was learned: the form appears beside the walk, never instead of it */
     vi.useFakeTimers()
     try {
@@ -260,33 +236,17 @@ describe('W8: a do staged in the world, and what happens when it cannot be', () 
   })
 })
 
-describe('CONTENT CONSTANCY, played through: the control arm gets the instruction', () => {
-  /* answers the form the way a student does and reads back whether the reply was printed */
+describe('a student is told what their answer was, before the grade', () => {
   const beat = beatWith([CHECKS[0], CHECKS[1]])
 
-  it('prints the reply for what the student picked, right and wrong, before the grade', async () => {
-    const m = await mount(beat, undefined, 'plain')
-    await m.pickRadio('a-choice', 1)     // the wrong one
-    await m.pickRadio('a-quiz', 1)       // the right one
-    await m.click('Submit')
-    expect(m.text(), 'the wrong answer is corrected').toContain('No form. You walk in.')
-    expect(m.text(), 'the right answer is confirmed').toContain('Monday is the late start.')
-    expect(m.text()).toContain('the answer is Walk into the meeting')
-    // and the grade comes AFTER the correction, not instead of it
-    expect(m.text()).not.toContain('Back to the game')
-    await m.click('Continue')
-    expect(m.text()).toContain('Back to the game')
-    await m.unmount()
-  })
-
-  it('the same beat in the game arm speaks the same two strings', async () => {
-    const m = await mount(beat, undefined, 'game')
+  it('speaks the reply for what the student picked, right and wrong', async () => {
+    const m = await mount(beat)
     await m.click('One of each, then.')
     await m.click('Fill out a district form')
-    expect(m.text()).toContain('No form. You walk in.')
+    expect(m.text(), 'the wrong answer is corrected').toContain('No form. You walk in.')
     await m.click('Keep going')
     await m.click('8:30')
-    expect(m.text()).toContain('Monday is the late start.')
+    expect(m.text(), 'the right answer is confirmed').toContain('Monday is the late start.')
     await m.unmount()
   })
 })
@@ -307,11 +267,11 @@ describe('the refusal reaches the author and never the student', () => {
     warn.mockRestore()
   })
 
-  it('the broken item is on no screen in either arm', () => {
+  it('the broken item is on no screen', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     const beat = beatWith([CHECKS[0], broken])
-    expect(draw(beat, 'plain')).not.toContain('Which of these is true?')
-    expect(draw(beat, 'game')).not.toContain('Which of these is true?')
+    expect(draw(beat)).not.toContain('Which of these is true?')
+    expect(draw(beat)).not.toContain('Which of these is true?')
     vi.restoreAllMocks()
   })
 })

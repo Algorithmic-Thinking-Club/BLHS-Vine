@@ -1,7 +1,6 @@
 /* shows one small mark cut out of a sheet of them, and refuses when nobody drew that face */
 import type { CSSProperties } from 'react'
 import { kitCached, kitFace, kitOptedIn, kitPiece, type KitPiece } from './kit'
-import { currentSkin } from './skin'
 
 /** the CSS that shows one cut face, or undefined if that face is not drawn */
 export function faceStyle(
@@ -9,7 +8,7 @@ export function faceStyle(
   face: string,
   pieces: KitPiece[] | null = kitCached(),
   /* whether the platform's kit is worn, since the css token only exists once it is */
-  worn = kitOptedIn() && currentSkin() === 'paper',
+  worn = kitOptedIn(),
 ): CSSProperties | undefined {
   if (!pieces?.length || !worn) return undefined
   const sheet = kitPiece(pieces, piece)

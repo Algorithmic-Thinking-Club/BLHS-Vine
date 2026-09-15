@@ -14,9 +14,3 @@
   border: 1px solid rgba(240, 216, 154, 0.42);
   border-radius: 4px;
 }
-html[data-skin='plain'] .ti-elsewhere {
-  color: #101010;
-  background: #fff;
-  border-color: #101010;
-  border-radius: 0;
-}

@@ -30,10 +30,3 @@
 
 /* the plain arm draws no bars, so the plaque has to read on the page itself */
 /* the plain arm draws no bars, so the plaque comes back up to the corner */
-html[data-skin='plain'] .sv-skip { top: 14px; }
-html[data-skin='plain'] .sv-skip {
-  color: #101010;
-  background: #fff;
-  border-color: #101010;
-  opacity: 1;
-}

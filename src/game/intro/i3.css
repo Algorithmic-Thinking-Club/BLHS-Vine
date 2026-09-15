@@ -423,185 +423,14 @@ html[data-rm='1'] .i3-thorview { animation-duration: 1ms; }
 }
 
 /* the plain arm: the same cards and the same words, set as a form on a white page */
-
-html[data-skin='plain'] .i3-scroll {
-  width: min(600px, 92vw);
-  aspect-ratio: auto;
-  max-height: 88vh;
-  overflow-y: auto;
-  background: var(--kit-paper-hi);
-  border: 1px solid var(--kit-edge);
-  border-radius: var(--kit-r-sharp);
-  filter: none;
-  animation: none;
-}
-html[data-skin='plain'] .i3-rollup { animation: none; }
 /* the paper window was four percentages measured off a drawn deckle, and with nothing drawn there is no deckle, so it is a page margin */
-html[data-skin='plain'] .i3-paper {
-  position: static;
-  inset: auto;
-  padding: 28px 34px 30px;
-}
-html[data-skin='plain'] .i3-card { height: auto; align-items: stretch; overflow: visible; }
-
-html[data-skin='plain'] .i3-letter {
-  font-family: var(--kit-face-body);
-  font-size: 16px; line-height: 1.55;
-  color: var(--kit-ink-body);
-  text-shadow: none;
-}
-html[data-skin='plain'] .i3-ps { margin-top: 16px; }
-html[data-skin='plain'] .i3-caret { background: var(--kit-ink-body); animation: none; }
-html[data-skin='plain'] .i3-sig {
-  font-family: var(--kit-face-body);
-  font-size: 15px; color: var(--kit-ink-label);
-  margin: 16px 0 0;
-}
 /* the crest is drawn art on a signature and this arm has none, so the name signs the letter by itself */
-html[data-skin='plain'] .i3-crest { display: none; }
-html[data-skin='plain'] .i3-head {
-  font-family: var(--kit-face-title);
-  font-size: 21px; font-weight: 700; line-height: 1.25;
-  color: var(--kit-ink-head);
-  margin: 0 0 6px;
-  text-align: left;
-}
-html[data-skin='plain'] .i3-sub {
-  font-family: var(--kit-face-body);
-  font-size: 15px; font-weight: 600; color: var(--kit-ink-head);
-  margin-bottom: 6px;
-}
 
 /* six real text boxes rather than six carved keys */
-html[data-skin='plain'] .i3-codeboxes { gap: 8px; margin: 4px 0 10px; }
-html[data-skin='plain'] .i3-codebox {
-  width: 44px; height: 52px;
-  font-family: var(--kit-face-body);
-  font-size: 22px;
-  color: var(--kit-ink);
-  background: var(--kit-paper-hi);
-  border: 1px solid var(--kit-edge-strong);
-  border-radius: var(--kit-r-sharp);
-  box-shadow: none;
-  caret-color: var(--kit-ink);
-}
-html[data-skin='plain'] .i3-codebox:focus-visible {
-  border-color: var(--kit-focus);
-  box-shadow: none;
-  outline: var(--kit-focus-width) solid var(--kit-focus);
-  outline-offset: 1px;
-}
-html[data-skin='plain'] .i3-err {
-  font-family: var(--kit-face-body);
-  font-size: 14px; color: var(--kit-alarm);
-  text-align: left; margin-top: 8px;
-}
-html[data-skin='plain'] .i3-reassure {
-  font-family: var(--kit-face-body);
-  font-size: 13px; color: var(--kit-ink-dim);
-  text-align: left; margin: 10px 0 0;
-}
-
-html[data-skin='plain'] .i3-fieldrow { width: 100%; gap: 10px; margin-top: 10px; align-items: center; }
 /* a labelled box, not a pencil line drawn on paper: `border-image: none` is the one declaration that turns the platform's injected nine-slice off, and it wins because the block `kit.ts` writes is one class while this rule carries an attribute too */
-html[data-skin='plain'] .i3-fieldbox {
-  border-image: none;
-  background-color: var(--kit-paper-hi);
-  border: 1px solid var(--kit-edge-strong);
-  border-radius: var(--kit-r-sharp);
-  box-shadow: none;
-}
-html[data-skin='plain'] .i3-fieldbox:focus-within {
-  box-shadow: none;
-  outline: var(--kit-focus-width) solid var(--kit-focus);
-  outline-offset: 1px;
-}
-html[data-skin='plain'] .i3-field {
-  font-family: var(--kit-face-body);
-  font-size: 16px; color: var(--kit-ink);
-  background: none;
-  border: 0;
-  padding: 6px 8px;
-}
-html[data-skin='plain'] .i3-field::placeholder { color: var(--kit-field-hint); }
-
-html[data-skin='plain'] .i3-chips { gap: 8px; margin-top: 16px; justify-content: flex-start; }
-html[data-skin='plain'] .i3-chip {
-  font-family: var(--kit-face-body);
-  font-size: 14px; color: var(--kit-ink-body);
-  background: var(--kit-paper-lo);
-  border: 1px solid var(--kit-edge-strong);
-  border-radius: var(--kit-r-sharp);
-  padding: 5px 12px;
-}
-html[data-skin='plain'] .i3-chip:hover { transform: none; }
-html[data-skin='plain'] .i3-chip-on {
-  border-color: var(--kit-sea-ink);
-  color: var(--kit-sea-ink);
-  box-shadow: none;
-  font-weight: 600;
-  transform: none;
-}
 
 /* an ordinary link, and an ordinary button under it */
-html[data-skin='plain'] .i3-castaway {
-  font-family: var(--kit-face-body);
-  font-size: 14px; color: var(--kit-sea-ink);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  margin: 18px 0 10px;
-  align-self: flex-start;
-}
-html[data-skin='plain'] .i3-castaway:hover { color: var(--kit-ink-head); }
-html[data-skin='plain'] .i3-plank {
-  min-width: 0;
-  align-self: flex-start;
-  aspect-ratio: auto;
-  background: var(--kit-paper-lo);
-  border: 1px solid var(--kit-edge-strong);
-  border-radius: var(--kit-r-sharp);
-  font-family: var(--kit-face-body);
-  font-size: 16px;
-  color: var(--kit-ink-body);
-  text-shadow: none;
-  filter: none;
-  padding: 9px 22px;
-}
-html[data-skin='plain'] .i3-plank .kit-plank-ink {
-  font-family: var(--kit-face-body);
-  font-size: 16px;
-  color: var(--kit-ink-body);
-  text-shadow: none;
-}
-html[data-skin='plain'] .i3-plank:hover,
-html[data-skin='plain'] .i3-plank:active { filter: none; transform: none; }
-html[data-skin='plain'] .i3-plank-solo { margin-top: 18px; }
-html[data-skin='plain'] .i5-plank {
-  min-width: 0;
-  font-size: 17px;
-  animation: none;
-}
 /* the swatch grid is a colour picker and the colours are the content, so they stay and only the frame around them goes plain */
-html[data-skin='plain'] .i3-swatches { justify-content: flex-start; }
-html[data-skin='plain'] .i3-swatch {
-  border: 1px solid var(--kit-edge-strong);
-  box-shadow: none;
-  width: 28px; height: 28px;
-}
-html[data-skin='plain'] .i3-swatch:hover { transform: none; }
-html[data-skin='plain'] .i3-swatch-on {
-  border: 2px solid var(--kit-sea-ink);
-  box-shadow: none;
-  transform: none;
-}
-html[data-skin='plain'] .i3-locked { gap: 4px; margin-top: 18px; }
-html[data-skin='plain'] .i3-lockrow { padding: 0; }
-html[data-skin='plain'] .i3-lockmark { margin-right: 6px; }
-html[data-skin='plain'] .i3-lockname { font-family: var(--kit-face-body); font-size: 13px; font-weight: 600; color: var(--kit-ink-head); }
-html[data-skin='plain'] .i3-lockearn { font-family: var(--kit-face-body); font-size: 13px; color: var(--kit-ink-label); }
-html[data-skin='plain'] .i3-trunk,
-html[data-skin='plain'] .i3-tailor,
-html[data-skin='plain'] .i3-thorview { filter: none; animation: none; }
 
 /* the way back, drawn once on the paper so every card has it in the same corner */
 /* it sits in a row above the card rather than over whatever the card puts first */
@@ -627,13 +456,6 @@ html[data-skin='plain'] .i3-thorview { filter: none; animation: none; }
 .i3-back-mark { flex: none; transform: rotate(180deg); }
 /* the paper is a column, the way back then the card: two rows with the card taking the slack, so every card starts at the same y and the back is in the same corner on all five */
 .i3-paper { gap: 2px; }
-
-html[data-skin='plain'] .i3-back {
-  opacity: 1;
-  color: var(--kit-ink-body);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
 
 /* the held beat while the parchment asks whether this deploy has a class to join: the card's own shape with nothing written on it, so the paper does not jump size when the real card arrives */
 .i3-asking { min-height: 220px; }

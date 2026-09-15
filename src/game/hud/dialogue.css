@@ -202,39 +202,10 @@ html[data-rm='1'] .dlg-choice { animation: none; }
 .dlg-box:focus-visible { outline-offset: -6px; }
 
 /* the plain arm: no game art, so a choice reads as a numbered button on a worksheet */
-html[data-skin='plain'] .dlg-choice {
-  animation: none;
-  filter: none;
-  text-shadow: none;
-  border-radius: var(--kit-r-soft);
-}
-html[data-skin='plain'] .dlg-choice:hover:not(:disabled) { transform: none; filter: none; }
-html[data-skin='plain'] .dlg-choice:active:not(:disabled) { transform: translateY(1px); }
 /* the answer still reads without a hue here either: the chosen row keeps a ring drawn around it, the ones passed over go quiet */
-html[data-skin='plain'] .dlg-choice:disabled { transform: none; filter: none; opacity: .55; }
-html[data-skin='plain'] .dlg-choice-chosen {
-  transform: none;
-  filter: none;
-  outline: var(--kit-border) solid var(--kit-edge-strong);
-  outline-offset: 2px;
-}
-html[data-skin='plain'] .dlg-choice-key {
-  background: none;
-  border: 1px solid var(--kit-plank-keyline);
-  opacity: 1;
-}
-html[data-skin='plain'] .dlg-caret { animation: none; }
 /* a shorter box here, because the plain arm's system face sets a shorter line */
-html[data-skin='plain'] .dlg-stack { --dlg-box-h: min(calc(152px * var(--kit-text-scale)), 26vh); }
 /* the paw is drawn art and the plain arm has none; `faceStyle` already refuses a face outside the paper skin, so this is the second fence rather than the first */
-html[data-skin='plain'] .dlg-paw { display: none; }
 /* the words used to pulse and no longer do (`.dlg-hint-words` above), so the override of that pulse is gone with it rather than left standing over an animation that does not exist */
 /* the portrait is the intervention, so the plain arm does not get one: it is the one field on the line that is a picture rather than a sentence */
-html[data-skin='plain'] .dlg-portrait { display: none; }
 
 /* the plain box grows to hold its own words: the fixed height is only there to keep the painted parchment from jumping while a line types in, and with it pinned a speaker name plus two wrapped lines pushed the hint out of the white box onto the painted sea, grey on teal and unreadable */
-html[data-skin='plain'] .dlg-box.cs-dialogue {
-  height: auto;
-  min-height: var(--dlg-box-h);
-  max-height: 40vh;
-}

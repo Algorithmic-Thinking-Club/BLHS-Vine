@@ -167,28 +167,8 @@ html[data-rm='1'] .hp-card { animation: none; }
 .hp-door-back { flex-basis: 100%; }
 
 /* the control arm: no carved panel and no parchment, just a plain definition list */
-html[data-skin='plain'] .hp-card {
-  animation: none;
-  padding: 22px 26px 20px;
-  background: var(--kit-paper-hi);
-  border: var(--kit-border) solid var(--kit-edge-strong);
-}
-html[data-skin='plain'] .hp-veil { animation: none; background: rgba(0, 0, 0, .45); }
-html[data-skin='plain'] .hp-title { font-weight: 700; }
-html[data-skin='plain'] .hp-task { font-weight: 700; }
-html[data-skin='plain'] .hp-corner b { font-weight: 700; }
 /* with the pictures refused, the column that held them would be 52px of nothing in front of every line */
-html[data-skin='plain'] .hp-mark { display: none; }
-html[data-skin='plain'] .hp-btn {
-  width: auto;
-  min-width: 0;
-  padding: 8px 18px;
-}
 /* and the key cap reads in this arm too, dark ink on the white document button */
-html[data-skin='plain'] .kit-plank-key {
-  color: var(--kit-ink-body);
-  border: 1px solid var(--kit-edge-strong);
-}
 
 /* replay the tutorial, top right of the card: a mark until it is reached for and then a word, so a student who does not need it never reads it */
 .hp-replay {
@@ -223,12 +203,6 @@ html[data-skin='plain'] .kit-plank-key {
 @media (hover: none) {
   .hp-replay { max-width: 190px; }
 }
-html[data-skin='plain'] .hp-replay {
-  background: #fff;
-  border-color: #101010;
-  border-radius: 0;
-  max-width: 190px;
-}
 
 /* click to move is a real box with a real tick rather than a slider, because the drawn kit has a tick and no slider, and a switch whose state is a position has to have been seen before to be read */
 .hp-toggle {
@@ -258,13 +232,6 @@ html[data-skin='plain'] .hp-replay {
   border-radius: 2px;
 }
 .hp-toggle-on { background: #f0d89a; }
-html[data-skin='plain'] .hp-toggle {
-  background: #fff;
-  border-color: #101010;
-  border-radius: 0;
-}
-html[data-skin='plain'] .hp-toggle-box { background: #fff; border-color: #101010; border-radius: 0; }
-html[data-skin='plain'] .hp-toggle-on { background: #101010; }
 
 /* nothing inside is squeezed: the card scrolls as one page, so the way out sits at the end of it rather than off the edge of the glass */
 .hp-card > * { flex: none; }

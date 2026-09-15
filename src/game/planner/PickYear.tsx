@@ -15,9 +15,6 @@ import { awarded, saved as saidSaved } from '../ui/feedback'
 import { track } from '../telemetry'
 import './pickyear.css'
 
-/* the five things year one offers, listed by hand rather than derived, and checked against the roster so a rename cannot leave a card pointing at nothing */
-const YEAR_ONE_ACTIVITIES = ['football', 'girls-flag-football', 'track-field', 'atc', 'key-club']
-
 /* the five periods a freshman does not choose, named as plain subjects */
 const REQUIRED = ['English', 'Math', 'Science', 'PE', 'History']
 /* how many rows the sheet shows: the five above plus the two the student fills */
@@ -47,8 +44,10 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
 
   useEffect(() => { track('pickyear_opened', { year }) }, [year])
 
-  /* the year one activities, kept in the roster's own order */
-  const activities = PROGRAMMES.filter((p) => YEAR_ONE_ACTIVITIES.includes(p.id))
+  /* every programme the roster carries, in the roster's own order. the screen used
+   * to hold its own list of five ids, so a member who added a club to the roster
+   * could not see it on the only sheet a freshman ever fills in. */
+  const activities = PROGRAMMES
 
   const classes = CLASSES.filter((c) => c.years.includes(year) && !c.requires)
 

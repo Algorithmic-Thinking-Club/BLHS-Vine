@@ -403,116 +403,13 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
 }
 
 /* the plain study arm: the same sheet as a printed form, with no game art on it */
-
-html[data-skin='plain'] .pl-sheet {
-  animation: none;
-  filter: none;
-  padding: 22px 26px 18px;
-}
-html[data-skin='plain'] .pl-head {
-  display: block;
-  border-bottom: 2px solid var(--kit-ink-head);
-  padding-bottom: 8px;
-}
-html[data-skin='plain'] .pl-year { display: block; margin-top: 2px; }
-
-html[data-skin='plain'] .pl-pin {
-  border: 1px solid var(--kit-edge-strong);
-  border-radius: 2px;
-  background-color: var(--kit-paper);
-}
-html[data-skin='plain'] .pl-pin-done { font-weight: 700; }
-
-html[data-skin='plain'] .pl-col {
-  border: 1px solid var(--kit-edge-strong);
-  border-radius: 2px;
-  background: none;
-}
-html[data-skin='plain'] .pl-col-head {
-  border-bottom: 1px solid var(--kit-edge-strong);
-  font-weight: 700;
-  justify-content: flex-start;
-  padding-left: 2px;
-}
-html[data-skin='plain'] .pl-filled {
-  border: 1px solid var(--kit-edge-strong);
-  border-radius: 2px;
-  background-color: var(--kit-paper);
-}
-html[data-skin='plain'] .pl-card-name { font-weight: 700; color: var(--kit-ink-head); }
-html[data-skin='plain'] .pl-card-token { display: none; }
-html[data-skin='plain'] .pl-open { border-style: solid; border-width: 1px; border-radius: 2px; }
-
-html[data-skin='plain'] .pl-act {
-  background: none;
-  border: 1px solid var(--kit-edge-strong);
-  border-radius: 2px;
-}
-html[data-skin='plain'] .pl-act:hover, html[data-skin='plain'] .pl-act:focus-visible {
-  transform: none;
-  background-color: var(--kit-paper-on-hi);
-}
 /* a refused row in a document is ruled through and not shaded, which is the same information said the way a printed form says it */
-html[data-skin='plain'] .pl-act-shut {
-  background: none;
-  border-style: dashed;
-  box-shadow: none;
-  border-left-width: 4px;
-}
-html[data-skin='plain'] .pl-act-rung { box-shadow: none; border-left-style: dotted; border-left-width: 4px; }
-html[data-skin='plain'] .pl-act-shut .pl-act-name { text-decoration: line-through; }
-
-html[data-skin='plain'] .pl-sect {
-  font-weight: 700;
-  color: var(--kit-ink-head);
-  border-bottom: 1px solid var(--kit-ink-head);
-}
-html[data-skin='plain'] .pl-dept { font-weight: 700; }
 
 /* the coins go, leaving a labelled control carrying the season's name, which is the same information as the pip and is a thing a worksheet has */
-html[data-skin='plain'] .pl-coin,
-html[data-skin='plain'] .pl-coin-ghost,
-html[data-skin='plain'] .pl-coin-big,
-html[data-skin='plain'] .pl-coin-spent,
-html[data-skin='plain'] .pl-wax-fallback { display: none; }
-html[data-skin='plain'] .pl-token {
-  background: none;
-  border: 1px solid var(--kit-edge-strong);
-  border-radius: 2px;
-  padding: 5px 11px;
-}
-html[data-skin='plain'] .pl-token:hover:not(:disabled) { transform: none; background-color: var(--kit-paper-on-hi); }
-html[data-skin='plain'] .pl-token-lifted { transform: none; box-shadow: none; font-weight: 700; text-decoration: underline; }
-html[data-skin='plain'] .pl-token-aloft { border-style: dashed; }
-
-html[data-skin='plain'] .pl-class {
-  border: 1px solid var(--kit-edge-strong);
-  border-radius: 2px;
-  background: none;
-}
-html[data-skin='plain'] .pl-class-name { font-weight: 700; color: var(--kit-ink-head); }
-html[data-skin='plain'] .pl-class-grade { font-weight: 700; color: var(--kit-ink-head); }
-html[data-skin='plain'] .pl-classmenu { border: 1px solid var(--kit-edge-strong); border-radius: 2px; }
-
-html[data-skin='plain'] .pl-refusal {
-  background: none;
-  border-left: 4px solid var(--kit-ink-head);
-  padding-left: 10px;
-}
 
 /* the thing dragged under the pointer, as a plain outlined marker rather than a coin */
-html[data-skin='plain'] .pl-air {
-  display: block;
-  width: 18px; height: 18px;
-  filter: none;
-  border: 2px solid var(--kit-ink-head);
-  background-color: var(--kit-paper-hi);
-}
 
 /* the signature line at the foot of a form */
-html[data-skin='plain'] .pl-foot { border-top: 2px solid var(--kit-ink-head); }
-html[data-skin='plain'] .pl-waxed { transform: none; }
-html[data-skin='plain'] .pl-waxed-word { font-weight: 700; color: var(--kit-ink-head); }
 
 /* an empty socket, drawn so a student can see which season goes in it without reading */
 .pl-sock-well {
@@ -529,7 +426,6 @@ html[data-skin='plain'] .pl-waxed-word { font-weight: 700; color: var(--kit-ink-
   /* a guide is drawn and not lit, so it loses its colour as well as its weight and the difference between a waiting socket and a placed token is not one a school panel can crush */
   filter: grayscale(.6);
 }
-html[data-skin='plain'] .pl-sock-well { width: auto; height: auto; }
 
 /* three empty season columns for a choice the game cannot offer were the loudest thing on this screen, so one honest paragraph is the whole of what is true today */
 .pl-col-none { max-width: 44ch; }

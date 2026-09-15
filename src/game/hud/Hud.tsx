@@ -109,7 +109,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   /* the handover tutorial, holding whoever is waiting for it to be over */
   const [tour, setTour] = useState<null | (() => void)>(null)
   /* a beat world code asked for, and the callback waiting for its grade */
-  const [playing, setPlaying] = useState<null | { beat: CoreBeat; plain: boolean; done: (g: number | null) => void; triesAt: number }>(null)
+  const [playing, setPlaying] = useState<null | { beat: CoreBeat; done: (g: number | null) => void; triesAt: number }>(null)
   const [, bump] = useState(0)
   useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
   /* redraws when the corner hands over another plaque */
@@ -228,7 +228,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     if (typeof built === 'string') { req.refuse(built); return }
     const beat = built
     /* the attempt count as it stands, so closing without sitting can be told apart from closing after a sitting (`closeAll` says why) */
-    setPlaying({ beat, plain: req.plain, done: req.done, triesAt: attemptsOn(loadSave(), beat.id) })
+    setPlaying({ beat, done: req.done, triesAt: attemptsOn(loadSave(), beat.id) })
   }), [onBlurWorld, s])
 
   const openBook = (tab: HandbookTab) => { setPaused(false); setBook(tab) }
@@ -387,7 +387,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
       {advisory && yearBeat && (
         <CoreBeatRunner beat={yearBeat} review={advisory === 'review'} onClose={closeAll} />
       )}
-      {playing && <CoreBeatRunner beat={playing.beat} forceArm={playing.plain ? 'plain' : undefined} onClose={closeAll} />}
+      {playing && <CoreBeatRunner beat={playing.beat} onClose={closeAll} />}
       {/* a door opened from the year sheet closes back to the sheet: these two used to close with `closeAll`, which shuts the sheet underneath as well, so looking at the trophy wall cost the player their place; one opened from the world still closes to the world, which is what `fromSheet` remembers */}
       {wall && <TrophyWall onClose={() => { setWall(false); if (fromSheet.current) setPlanner(true) }} />}
       {wardrobe && <Wardrobe onClose={() => { setWardrobe(false); if (fromSheet.current) setPlanner(true) }} />}

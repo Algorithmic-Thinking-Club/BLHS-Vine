@@ -20,7 +20,6 @@ import { play as playSfx } from './audio'
 import { setCinema } from './stage/cinema'
 import { setObjectiveSaid } from './hud/objective-bus'
 import { islandTaskList, islandTaskTicked, setIslandTasks } from './hud/island-tasks'
-import { currentSkin } from './ui/skin'
 
 /* every path the run can answer, kept as a `Record<RunPath, true>` and not an array on purpose: widening RunPath without adding it here is a type error, so the refusal in `read` can never list a stale vocabulary */
 const READABLE_PATHS: Record<RunPath, true> = {
@@ -42,8 +41,8 @@ export const engine: IntentEngine = {
       + 'A panel needs the world HUD, which does not mount until a run has started.')
   },
 
-  playBeat(beat, plain, decl) {
-    return requestBeat(beat, plain, decl)
+  playBeat(beat, decl) {
+    return requestBeat(beat, decl)
   },
 
   /* an island can ask how many times it was finished before now: `taken` counts earlier completions only, so a first year reads 0 and says hello and a second reads 1 and can say welcome back */
@@ -188,11 +187,9 @@ export const engine: IntentEngine = {
     islandTaskTicked()
   },
 
-  /* a grape never picks the arm and can only force plain for one activity (see intents.ts); the skin is read only when no arm is set, the `?skin=plain` review door, without which the page went plain while every beat an island played stayed in game rendering */
+  /* there is one way the game is drawn. the word stays because an island can ask for it. */
   mode(): SessionMode {
-    const arm = loadSave()?.arm
-    if (arm === 'plain' || arm === 'game') return arm
-    return currentSkin() === 'plain' ? 'plain' : 'game'
+    return 'game'
   },
 }
 

@@ -1,5 +1,5 @@
 /* the law that no intent may resolve successfully without performing, tested */
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import {
   performIntent, NotBuilt, WAIT_CEILING_MS, WAIT_FOR_CEILING_MS,
   type Intent, type IntentEngine, type IntentHost, type IntentWorld,
@@ -261,31 +261,6 @@ describe('the director class', () => {
     const r = await performIntent({ kind: 'sound', name: 'cork_pop' }, { world: null, engine: e.engine })
     expect(r).toEqual({ ok: true })
     expect(e.did).toEqual(['sound:cork_pop'])
-  })
-})
-
-describe('the control arm is not optional', () => {
-  it('defaults as_plain to the arm the participant was assigned', async () => {
-    const e = stubEngine()
-    const plain: IntentEngine = { ...e.engine, mode: () => 'plain' }
-    const spy = vi.fn(async () => 1)
-    await performIntent({ kind: 'play', beat: 'core:y1' }, {
-      world: null, engine: { ...plain, playBeat: spy },
-    })
-    /* the third argument is the island's own activity, absent here, and it is asserted rather than ignored because a declaration on a beat nobody declared would mean an island's items reaching a core beat */
-    expect(spy).toHaveBeenCalledWith('core:y1', true, undefined)
-  })
-
-  it('an island may force plain and may not force game', async () => {
-    const spy = vi.fn(async () => 1)
-    const e = { ...stubEngine().engine, playBeat: spy, mode: () => 'plain' as const }
-    await performIntent({ kind: 'play', beat: 'b', as_plain: true }, { world: null, engine: e })
-    expect(spy).toHaveBeenLastCalledWith('b', true, undefined)
-    /* as_plain:false against a plain participant must not flip them into the game arm, because that would let one island opt the control group out of being one */
-    await performIntent({ kind: 'play', beat: 'b', as_plain: false }, { world: null, engine: e })
-    expect(spy).toHaveBeenLastCalledWith('b', false, undefined)
-    // the value a grape passed is honoured; what it cannot do is change engine.mode()
-    expect(e.mode()).toBe('plain')
   })
 })
 

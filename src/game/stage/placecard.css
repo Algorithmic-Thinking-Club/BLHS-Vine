@@ -107,17 +107,7 @@ html[data-rm='1'] .pc-out .pc-card { animation-duration: 1ms; }
 html[data-rm='1'] .pc-dwell { animation: none; }
 
 /* the plain arm: the same sentences as a small typed notice, with a real gutter */
-html[data-skin='plain'] .pc-card { padding: 12px 18px; }
-html[data-skin='plain'] .pc-name {
-  letter-spacing: 0.06em;
-  font-weight: 700;
-  text-shadow: none;
-  color: var(--kit-ink-head);
-}
-html[data-skin='plain'] .pc-line { color: var(--kit-ink-body); }
-html[data-skin='plain'] .pc-heading { color: var(--kit-ink); }
 /* under the plain skin the gold drain becomes a plain rule that shortens, because a worksheet does not have a gold bar draining across it */
-html[data-skin='plain'] .pc-dwell { background: var(--kit-ink-dim); height: 1px; }
 
 /* the first arrival at a place is a moment and the fourth is a label, so a repeat wears the same card at two thirds the size */
 /* the card always sits in the middle and smaller is the only mark of a repeat: at the top it drew under the objective bar, which at 1366x768 is full width and 126px tall at z-index 71 against a card at 9vh, 69px, z-index 68, and `--ui-band-top` is written by nothing so it resolved to zero */
