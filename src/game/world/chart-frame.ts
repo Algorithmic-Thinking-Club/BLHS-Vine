@@ -1,19 +1,7 @@
-/* the arithmetic under the chart: the box of water the world is drawn in, how big
-   an island is drawn on it, and where its own painting is cut out of its bundle */
+/* the arithmetic under the chart: the box of water the world is drawn in, how big an island is drawn on it, and where its painting is cut out of its bundle */
 import type { WorldPt, WorldSlot } from './composition'
 
-/* ---- THE BOX ---------------------------------------------------------------
- *
- * The chart lied about distance for as long as it existed, and the lie was in
- * the stylesheet rather than in any of this. `.ch-sea` was `flex: 1 1 auto` with
- * a floor under it, so the drawn box measured 949x180 while the world it was
- * drawing measured 1466x667. The two axes got scales 2.4 times apart: two
- * islands a thousand units apart east to west read as closer together than two
- * four hundred apart north to south, which is the one thing a chart is for.
- *
- * So the box the world is measured into decides the shape of the box it is drawn
- * in, and the water carries that shape as an `aspect-ratio`. One scale, both
- * axes, and a centimetre means the same thing whichever way it is held. */
+/* the box the world is measured into decides the shape of the box it is drawn in, and the water carries that shape as an `aspect-ratio`: `.ch-sea` was `flex: 1 1 auto` over a floor, so a 949x180 box drew a 1466x667 world and the two axes got scales 2.4 times apart, which is a chart lying about distance */
 
 /** how flat or how tall the water is allowed to get, as width over height */
 export const CHART_ASPECT = { min: 1.8, max: 2.6 }
@@ -34,23 +22,14 @@ export type ChartBox = {
   step: number
 }
 
-/* the intervals a chart is ruled at. A step is picked rather than computed so the
-   number beside a line is a number a person reads without decoding it. */
+/* the intervals a chart is ruled at, picked rather than computed so the number beside a line reads without decoding */
 const STEPS = [25, 50, 100, 250, 500, 1000, 2500, 5000, 10_000, 25_000]
 
 /** the ruling interval for a span, coarse enough that the lines stay countable */
 export const gridStep = (span: number): number =>
   STEPS.find((n) => span / n <= 16) ?? STEPS[STEPS.length - 1]
 
-/* THE SHORT AXIS GROWS AND THE LONG ONE NEVER SHRINKS, so pulling a shape into
- * the band only ever adds open water. Shrinking the long axis would push an
- * island off the paper, and the paper is the one thing that cannot move.
- *
- * The FLOOR is the one that fires in practice. The ceiling has never fired on any
- * world this project has written, because the margin is a third of the spread and
- * that alone holds a perfectly flat archipelago at about 2.4 to 1. It is kept as
- * a fence: change the margin and nothing silently brings back the 5.3 to 1 strip
- * this chart used to draw. */
+/* the short axis grows and the long one never shrinks, because shrinking the long one pushes an island off the paper; the floor fires in practice and the ceiling never has, since a margin of a third of the spread holds a flat archipelago at about 2.4 to 1, kept as a fence against the old 5.3 to 1 strip */
 export function clampAspect(w: number, h: number): { w: number; h: number } {
   const a = w / h
   if (a > CHART_ASPECT.max) return { w, h: w / CHART_ASPECT.max }
@@ -72,8 +51,7 @@ export function chartBox(pts: readonly WorldPt[]): ChartBox {
   const x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad
   const y0 = Math.min(...ys) - pad, y1 = Math.max(...ys) + pad
 
-  /* the growing is symmetric about the middle, so nothing already on the paper
-     moves relative to anything else on it */
+  /* the growing is symmetric about the middle, so nothing already on the paper moves relative to anything else */
   const fit = clampAspect(x1 - x0, y1 - y0)
   const grewX = (fit.w - (x1 - x0)) / 2
   const grewY = (fit.h - (y1 - y0)) / 2
@@ -93,20 +71,7 @@ export const atPct = (box: ChartBox, p: WorldPt): { left: string; top: string } 
   top: `${((p.y - box.y0) / box.h) * 100}%`,
 })
 
-/* ---- HOW BIG AN ISLAND IS DRAWN -------------------------------------------
- *
- * Not at the scale of the water it is on. The hub's painting is 669 units wide
- * on a box 1466 wide, so at true scale it would take almost half the chart, and
- * Ash has asked for dozens of these. A chart draws a symbol at a position: the
- * POSITION is measured and the symbol is a legible size. Pictures shrink as the
- * archipelago fills up so the water never becomes a pile.
- *
- * AT FIFTY ISLANDS it sits on the 30 pixel floor, which is about a tenth of the
- * water covered by pictures, and the thing that runs out first is not the
- * pictures but the names beside them: the kit's own type floor is 14px and a
- * club name at 14px is wider than any pin. That is why past `CHART_DENSE` the
- * names and the state marks wait for a hover or a focus and the register
- * underneath carries every one of them in words. */
+/* an island is drawn at a legible size, not at the scale of the water: the hub's painting is 669 units on a 1466 wide box, so true scale eats half the chart; at fifty islands it sits on the 30px floor and the names run out first, so past `CHART_DENSE` they wait for hover and the register carries them */
 
 /** the drawn size of an island's longest side, in CSS pixels */
 export const pinPx = (islands: number): number =>
@@ -118,17 +83,10 @@ export const CHART_DENSE = 6
 /** the size the same painting is drawn at in the register list underneath */
 export const CHART_THUMB = 34
 
-/* the tallest the water is allowed to get, as a css length. The binder page is
-   `min(760px, 86vh)` less its head and its tab row, so this leaves the legend and
-   the top of the register above the fold on a school Chromebook. */
+/* the tallest the water may get, as a css length: the binder page is `min(760px, 86vh)` less its head and tab row, so this keeps the legend and the top of the register above the fold on a school Chromebook */
 export const CHART_TALL = 'min(310px, 40vh)'
 
-/* ---- THE PICTURE ITSELF ----------------------------------------------------
- *
- * Straight out of the island's own published bundle. `origin` and `footprint`
- * are the painted rectangle inside a canvas that is mostly transparent margin,
- * which is the same `base` MAPVIS writes into the manifest, so the crop is the
- * island and not the empty room around it. */
+/* straight out of the island's published bundle: `origin` and `footprint` are the painted rectangle inside a mostly transparent canvas, the same `base` MAPVIS writes into the manifest, so the crop is the island and not the empty room around it */
 
 export type IslandCut = {
   /** the bundle's own painting, vendored at build time */
@@ -153,8 +111,7 @@ export function islandCut(slot: WorldSlot, pin: number): IslandCut | null {
   if (fw <= 0 || fh <= 0) return null
   const cw = slot.canvas?.w ?? fw
   const ch = slot.canvas?.h ?? fh
-  /* a bundle with no origin has its painting in the middle of its canvas, which
-     is what `paintedCentre` already assumes everywhere else in the engine */
+  /* a bundle with no origin has its painting in the middle of its canvas, which is what `paintedCentre` assumes everywhere else in the engine */
   const ox = slot.origin?.x ?? (cw - fw) / 2
   const oy = slot.origin?.y ?? (ch - fh) / 2
   const k = pin / Math.max(fw, fh)

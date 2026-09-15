@@ -1,24 +1,4 @@
-/* THE CORNER IS HANDED OVER, ONE SIGN AT A TIME.
- *
- * ASH, twice: *"literally nothing changed. the advisory ends. and the cutscene
- * abruptly goes away... just a few dialogues saying 'Map, Guide, My year' that a
- * freshman wont even connect."*
- *
- * The reason, found 2026-09-09: `hudGrants` was computed on every render and used
- * for exactly one thing, the arrival wobble. The class that HIDES an un-handed
- * plaque came from `plaqueShown`, which is `!armed || shown.has(which)`, and
- * nothing in the shipped game has ever called `armHandover`. So all three signs
- * were on screen from the first frame of the first map and the film's
- * `set_flag(HANDBOOK)` / `set_flag(CHART)` granted things he was already looking
- * at.
- *
- * This holds the three states apart: nothing handed over, the binder handed over,
- * and the chart handed over. It is a state check rather than a drive of the whole
- * film on purpose: the film stops at the year sheet and waits for a student to
- * fill it in, and a harness that filled it in would be testing the sheet.
- *
- *   node scripts/handover-proof.mjs --base=http://localhost:5173
- */
+/* holds the three handover states apart because `plaqueShown` is `!armed || shown.has(which)` and nothing shipped ever called `armHandover`, so all three signs were on screen from the first frame; run: node scripts/handover-proof.mjs --base=http://localhost:5173 */
 import { chromium } from 'playwright'
 
 const base = (process.argv.find((a) => a.startsWith('--base=')) ?? '--base=http://localhost:5173').slice(7)
@@ -34,8 +14,7 @@ const ok = (n, good, d = '') => {
 const save = (flags) => ({
   v: 2, id: 'r_h', handle: 'BraveTide', pronouns: 'they/them', boatName: 'K',
   year: 1, season: 'Fall', beat: 'maw:arrive', introDone: true, arm: 'game',
-  /* stamped and railed, so the founding film is over and the corner is all there
-   * is left to look at. The FLAGS are the variable. */
+  /* stamped and railed, so the founding film is over and the corner is all that is left to look at, and the flags are the variable */
   plans: { 1: { slots: {}, classes: ['ap-human-geo', 'spanish-1'], stamped: true } },
   flags: ['maw:founding', 'maw:railed', 'maw:handed_over', 'vignette:y1', ...flags],
   tokens: [], ranks: {}, islands: {}, exposure: [], completions: [],
@@ -69,14 +48,12 @@ console.log(`\nthe corner is handed over, against ${base}\n`)
   ok('there are three doors in the corner', c.length === 3, c.map((x) => x.label).join(', '))
   ok('and none of them is there before the handover', c.every((x) => !x.shown),
     JSON.stringify(c.map((x) => `${x.label}:${x.shown}`)))
-  /* a hidden sign must be out of the tab order too, or a keyboard player reaches
-   * a control the game has not given him */
+  /* a hidden sign must be out of the tab order too, or a keyboard player reaches a control the game has not given him */
   ok('nor reachable by a keyboard', c.every((x) => !x.reachable))
 }
 
 {
-  /* what `set_flag(HANDBOOK)` does: the binder and the year sheet together,
-   * which is the one moment §4.10 hands both over */
+  /* what `set_flag(HANDBOOK)` does: the binder and the year sheet together, handed over in the one same moment */
   const c = await cornerWith(['handbook:granted'])
   const by = Object.fromEntries(c.map((x) => [x.label, x.shown]))
   ok('the binder brings the Guide', by.Guide === true, JSON.stringify(by))
@@ -91,12 +68,7 @@ console.log(`\nthe corner is handed over, against ${base}\n`)
 }
 
 {
-  /* ---- AND ARRIVING SOMEWHERE IS NOT BEING GIVEN A CHART ----------------
-   *
-   * `PmapScene` writes an exposure row for the map it is standing on the moment
-   * any map mounts, and the chart's grant used to accept that. So the Map sign
-   * was handed over by walking into the hub, minutes before the principal hands
-   * it over in the Maw. */
+  /* arriving somewhere is not being given a chart: `PmapScene` writes an exposure row for the map the moment any map mounts and the chart's grant used to accept that, so walking into the hub handed the Map sign over minutes early */
   const page = await browser.newPage({ viewport: { width: 1366, height: 768 } })
   await page.addInitScript((s) => {
     localStorage.setItem('blhs_save_v2', JSON.stringify(s))

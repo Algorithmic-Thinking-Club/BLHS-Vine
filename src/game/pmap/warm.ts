@@ -1,19 +1,16 @@
 /* fetches a map's files into the browser cache early, so opening it later is quick */
 import { mapvisHost } from '../world/composition'
 
-/* The files a painted map opens with, in the order the scene wants them. The
- * atlas is the biggest by far (338 KB on the hub) and `assets.json` is next, so
- * they lead: a warm that only got halfway still saved the most. */
+/* the files a painted map opens with, biggest first: `atlas.png` is 338 KB on the hub and `assets.json` is next, so a warm that only got halfway still saved the most */
 const FILES = [
   'atlas.png', 'assets.json', 'scene.png', 'map.json',
   'levels.png', 'atlas.json', 'occluders.png',
 ]
 
-/* one attempt per map per page, because a second warm is a second round trip
- * for files the first one already has */
+/* one attempt per map per page, because a second warm is a second round trip for files the first one already has */
 const asked = new Set<string>()
 
-/** how many bytes a warm has pulled this session, for the debug line only */
+/** how many bytes a warm has pulled on this page, for the debug line only */
 let warmed = 0
 
 export const warmedBytes = () => warmed
@@ -22,8 +19,7 @@ export const warmedBytes = () => warmed
 export async function warmMap(mapId: string): Promise<boolean> {
   if (!mapId || asked.has(mapId)) return false
   asked.add(mapId)
-  /* the platform is warmed only when the page asked for it with ?src=platform; the
-   * vendored copy is served from the game's own origin and is already as close as it can be */
+  /* the platform is warmed only when the page asked for it with ?src=platform, because the vendored copy is served from the game's own origin and is already as close as it can be */
   const platform = typeof location !== 'undefined' && new URLSearchParams(location.search).get('src') === 'platform'
   const host = platform ? mapvisHost() : ''
   if (!host) return false
@@ -36,15 +32,11 @@ export async function warmMap(mapId: string): Promise<boolean> {
       const r = await fetch(`${dir}/${f}`).catch(() => null)
       if (r?.ok) warmed += Number(r.headers.get('content-length') || 0)
     }
-    /* the per-placement art the atlas does not carry. `assets.json` names them
-     * and there can be dozens, so this is deliberately NOT followed: the atlas
-     * is what the first frame needs and the rest arrive as they arrive. */
+    /* the per-placement art the atlas does not carry is deliberately not followed: `assets.json` names them and there can be dozens, while the atlas is what the first frame needs */
     console.info(`[warm] ${mapId} v${man.version} pulled ahead of the door`)
     return true
   } catch {
-    /* not published, no platform, offline, a filtered network: all of them mean
-     * the same thing here, which is that the door will be as slow as it is
-     * today and nothing is broken */
+    /* not published, no platform, offline, a filtered network: all mean the same thing here, which is that the door is as slow as it is today and nothing is broken */
     return false
   }
 }

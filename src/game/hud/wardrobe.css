@@ -12,8 +12,7 @@
   width: min(920px, 92vw);
   /* tall on purpose, because the mirror is the point and it is bound by height */
   height: min(660px, 90vh);
-  /* the frame is a nine-slice on .kit-surface-panel, so its border-width is the
-     whole of the inset and nothing here adds a second one */
+  /* the frame is a nine-slice on `.kit-surface-panel`, so its border-width is the whole of the inset and nothing here adds a second one */
   image-rendering: var(--kit-pixel);
   filter: drop-shadow(var(--kit-drop-lg));
   padding: 0;
@@ -22,9 +21,7 @@
   display: flex; flex-direction: column;
   animation: wd-in 260ms var(--kit-ease-pop) both;
 }
-/* no opacity in the entrance: an opaque panel that fades up is a see-through
-   panel for a quarter of a second, which is what the eyes round read off the
-   proof shots. The reasoning is written once, at `hb-in` in hud.css. */
+/* no opacity in the entrance, because an opaque panel that fades up is a see-through panel for a quarter of a second; the reasoning is written once at `hb-in` in hud.css */
 @keyframes wd-in { from { transform: translateY(14px) scale(.97); } to { transform: none; } }
 html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
 
@@ -53,9 +50,7 @@ html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
   gap: 18px;
   padding: 6px 20px 2px;
 }
-/* a narrow window has no room for two columns, and a mirror squeezed to a
-   hundred pixels is worse than a mirror above the choices. The stacked panel
-   scrolls as one column rather than crushing both halves to fit. */
+/* a narrow window has no room for two columns and a mirror squeezed to a hundred pixels is worse than a mirror above the choices, so the stacked panel scrolls as one column */
 @container (max-width: 560px) {
   .wd-body { grid-template-columns: 1fr; overflow-y: auto; }
   .wd-mirror { min-height: 220px; }
@@ -90,8 +85,7 @@ html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
 }
 .wd-turns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .wd-turn { flex: none; }
-/* the same drawn chevron, pointing the other way. A mirrored drawing is still
-   the drawing; a second character borrowed from the operating system is not. */
+/* the same drawn chevron pointing the other way, because a mirrored drawing is still the drawing and a character borrowed from the operating system is not */
 .wd-turn-left .kit-plank-glyph { transform: scaleX(-1); }
 
 /* ---- the choices ---- */
@@ -112,9 +106,7 @@ html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
 }
 
 .wd-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
-/* A SWATCH CARRIES ITS OWN NAME. Four circles told apart by hue alone is what
-   §40.31 forbids and what the school Chromebook panel punishes hardest, and the
-   name was already in the data with only a pointer-only tooltip reading it. */
+/* a swatch carries its own name: four circles told apart by hue alone is forbidden and a school Chromebook panel punishes it hardest, and the name was already in the data behind a pointer-only tooltip */
 .wd-swatch {
   display: inline-flex; align-items: center; gap: 8px;
   box-sizing: border-box;
@@ -139,9 +131,7 @@ html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
 }
 .wd-swatch:hover { transform: translateY(-1px); }
 .wd-swatch:active { transform: translateY(2px); }
-/* CHOSEN IS A POSITION, AN EDGE AND A DRAWN TICK, in that order of reliability.
-   It was a gold ring, which is one channel, and gold is reserved for an earned
-   honour anyway (`docs/ART.md`). */
+/* chosen is a position, an edge and a drawn tick, in that order of reliability, never the old gold ring, which is one channel and reserves gold for an earned honour */
 .wd-swatch-on {
   transform: translateY(-2px);
   border-color: var(--kit-sea);
@@ -173,13 +163,10 @@ html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
 }
 .wd-lock:hover { transform: translateY(-1px); }
 .wd-lock:active { transform: translateY(1px); }
-/* earned is a thicker edge on one side, which is a change of SHAPE, plus the
-   drawn rosette in the plate and the word beside it */
+/* earned is a thicker edge on one side, which is a change of shape, plus the drawn rosette in the plate and the word beside it */
 .wd-lock[data-state='earned'] { border-left-width: 6px; border-left-color: var(--kit-gold-edge); }
 .wd-lock .wd-lock-plate { width: 40px; height: 40px; }
-/* GOLD MEANS AN EARNED HONOUR AND NOTHING ELSE (`docs/ART.md`), and the control
-   kit's un-drawn fallback for a chip is a gold coin. A thing that is not yours
-   yet wears cold paper until the drawn plate lands. */
+/* gold means an earned honour and nothing else, and the control kit's un-drawn fallback for a chip is a gold coin, so a thing that is not yours yet wears cold paper until the drawn plate lands */
 .wd-lock[data-state='locked'] .kit-chip:not(.kit-chip-drawn) { background: var(--kit-paper-chip-lo); }
 .wd-lock-words { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .wd-lock-name {

@@ -3,21 +3,8 @@ import type { BeatDeclaration } from '../vine/intents'
 
 /* yearbook: a door to a year's own page that any island can send a student to */
 /* wall: a door to what a student has earned, openable from any island */
-/* ---- 'cords' NAMES A TAB, NOT A SECOND PANEL (Ash, 2026-09-09) -----------
- *
- * *"When she says 'ask about the cords?' and I click yes, it currently opens up
- * to the islands tab in the handbook, it should open to the cords tab."*
- *
- * `open("handbook")` always landed on Islands, so the one beat in the game whose
- * whole subject is the cords opened the page about islands. The Guide is one
- * panel with six tabs and an island had no way to say which. */
-/* ---- THE PANELS, AS A LIST A RUNTIME CAN CHECK ---------------------------
- *
- * The union below is a compile-time promise and a member's island is not compiled:
- * the name arrives over the worker as a string somebody typed in Python, so "guide"
- * for "handbook" is an ordinary Tuesday. Unchecked, it froze the game - see the
- * refusal in `performIntent`. The array is the source and the union is derived from
- * it, so the two cannot drift. */
+/* 'cords' names a tab, not a second panel: the Guide is one panel with six tabs, `open("handbook")` always landed on Islands, and an island had no way to say which tab it meant */
+/* the panels as a list a runtime can check: the union is a compile-time promise and a member's island is not compiled, the name arrives over the worker as a string typed in Python, and unchecked it froze the game, so the array is the source and the union derives from it */
 export const UI_PANELS = [
   'planner', 'handbook', 'cords', 'chart', 'settings',
   'advisory', 'wardrobe', 'yearbook', 'wall', 'tour',
@@ -70,8 +57,7 @@ export function onUiRequest(fn: (which: UiRequest, done?: () => void) => void): 
   }
   window.addEventListener(EVENT, h)
   listening++
-  /* idempotent, because React runs a cleanup twice in strict mode and a count
-   * that can go negative is a count that reports nothing is listening */
+  /* idempotent, because React runs a cleanup twice in strict mode and a count that can go negative is a count that reports nothing is listening */
   let off = false
   return () => {
     if (off) return
@@ -84,12 +70,9 @@ export function onUiRequest(fn: (which: UiRequest, done?: () => void) => void): 
 /* a scored activity and the grade coming back, or a refusal when nothing ran */
 export type BeatRequest = {
   beat: string
-  /* PRESENT ONLY WHEN AN ISLAND BROUGHT ITS OWN ACTIVITY. Absent, the id is
-   * resolved out of the engine's own table exactly as it always was. */
+  /* present only when an island brought its own activity, and absent the id is resolved out of the engine's own table */
   decl?: BeatDeclaration
-  /* the AP Research control arm renders the same items as plain text plus a
-   * standard check. Passed per call rather than read globally so a grape can
-   * force it for a teaching moment (§2.12, content-constant by construction). */
+  /* the plain arm renders the same items as plain text plus a standard check, passed per call rather than read globally so a grape can force it for a teaching moment */
   plain: boolean
   /** it ran. A number is a grade; null is the player closing it unfinished. */
   done: (grade: number | null) => void
@@ -113,23 +96,9 @@ export function requestBeat(beat: string, plain: boolean, decl?: BeatDeclaration
 
 export function onBeatRequest(fn: (r: BeatRequest) => void): () => void {
   const h = (e: Event) => {
-    e.preventDefault()          // "I have this" — see requestBeat above
+    e.preventDefault()          // this says I have it, which `requestBeat` above reads
     const r = (e as CustomEvent<BeatRequest>).detail
-    /* ---- A LISTENER THAT THROWS MUST STILL ANSWER ------------------------
-     *
-     * The listener builds a beat out of what an island declared, and building it can
-     * throw: a malformed item, a shape the validator did not expect, anything a
-     * person typed in Python. `dispatchEvent` swallows what a listener throws, and
-     * `preventDefault` above has already told `requestBeat` that somebody has this,
-     * so the promise the island is sitting on was never settled either way.
-     *
-     * That is the worst failure this file can have. The island's `play()` never comes
-     * back, the station that called it holds the controls for ever, and the map is
-     * dead with no bars, no panel and nothing on screen saying why. A reload is the
-     * only way out and a student has no reason to think of one.
-     *
-     * So the throw becomes the refusal it should have been, which the island already
-     * knows how to meet: it arrives at the member's own line with the message. */
+    /* a listener that throws must still answer: `dispatchEvent` swallows the throw and `preventDefault` has already told `requestBeat` somebody has this, so the island's `play()` never comes back, the station holds the controls for ever and only a reload gets out, hence a throw becomes a refusal */
     try {
       fn(r)
     } catch (err) {

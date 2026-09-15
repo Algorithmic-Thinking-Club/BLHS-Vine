@@ -36,8 +36,7 @@ describe('a name lands inside its slot', () => {
     expect(ruler(s)(out.lines[0])).toBeLessThanOrEqual(50)
   })
 
-  /* A FOURTEEN YEAR OLD'S HANDLE IS ONE WORD AND IT IS LONG. Without a hard
-   * break the whole thing is one unwrappable token and it hangs off the stern. */
+  /* a player handle is one long word, and without a hard break the whole thing is one unwrappable token that hangs off the stern */
   it('breaks a single word that is wider than the whole slot', () => {
     const s = style({ maxWidth: 40, maxLines: 4 })
     const out = layoutWorldText('aaaaaaaaaaaaaaaa', s, ruler(s))
@@ -94,9 +93,7 @@ describe('the canvas is big enough for what goes on it', () => {
     expect(r.width).toBe(15)   // 10 * sqrt(2), rounded up
   })
 
-  /* THE SAME LAW EVERY GENERATED CANVAS IN THIS PROJECT LIVES UNDER: an odd side
-   * puts a nearest-neighbour scale on a half pixel and smears a column of every
-   * glyph. */
+  /* the same law every generated canvas in this project lives under: an odd side puts a nearest-neighbour scale on a half pixel and smears a column of every glyph */
   it('never returns an odd side', () => {
     for (const text of ['a', 'ab', 'abc', 'abcd', 'abcde']) {
       const out = layoutWorldText(text, style({ padding: 1 }), ruler(style()))

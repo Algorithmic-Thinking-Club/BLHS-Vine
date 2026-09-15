@@ -11,8 +11,7 @@
 }
 
 .pl-sheet {
-  /* 88vh rather than a fixed height, so the footer is on screen at 768 tall and
-     the two scrolling regions inside absorb the difference */
+  /* 88vh rather than a fixed height, so the footer is on screen at 768 tall and the two scrolling regions inside absorb the difference */
   /* the height is a ceiling and not a size, so an empty year makes a shorter sheet */
   width: min(1240px, 92vw); height: auto; max-height: min(820px, 88vh);
   /* the frame is a nine-slice on `.kit-surface-panel`, never a picture spelled out here */
@@ -30,8 +29,7 @@
 /* the sheet still arrives under reduced motion, it just does not travel */
 html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
 
-/* while a token is in the air nothing on the sheet selects, or a drag across a
-   column paints half the roster blue */
+/* while a token is in the air nothing on the sheet selects, or a drag across a column paints half the roster blue */
 .pl-dragging { user-select: none; }
 
 .pl-head { display: flex; align-items: baseline; gap: 14px; flex: none; }
@@ -55,8 +53,7 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
   margin: 8px 0 10px;
   --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-ink-label);
-  /* pinned to the sheet rather than boxed on it: one rule under the words and a
-     paler paper behind them, which is what a printed-on line looks like */
+  /* pinned to the sheet rather than boxed on it: one rule under the words and a paler paper behind them, which is what a printed-on line looks like */
   border: var(--kit-border) dashed var(--kit-edge);
   border-radius: var(--kit-r-soft);
   padding: 6px 12px;
@@ -75,8 +72,7 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
 
 .pl-body { flex: 1; display: flex; gap: 16px; min-height: 0; }
 
-/* the columns are as tall as what is in them. Three seasons rarely fill equally
-   and a sheet where they do is a sheet that has been padded. */
+/* the columns are as tall as what is in them, because three seasons rarely fill equally and a sheet where they do has been padded */
 .pl-cols { flex: 1.8; display: flex; align-items: flex-start; gap: 10px; min-height: 0; }
 /* the head and the socket stay put and only the list scrolls, so a refusal stays readable */
 .pl-col {
@@ -105,8 +101,7 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
 }
 .pl-col-pip { flex: none; }
 
-/* the drawn socket, sized for a column rather than for a form row. §5.6's
-   three presses from a standing start to a committed season all start here. */
+/* the drawn socket, sized for a column rather than for a form row, and the three presses from a standing start to a committed season all start here */
 .pl-col .kit-socket { flex: none; min-height: 78px; }
 /* a refusal here is written in the quiet ink, because it is a fact and not an error */
 .pl-col .kit-socket-why { color: var(--kit-ink-quiet); }
@@ -120,23 +115,15 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
   padding: 10px;
   border-radius: var(--kit-r-card);
 }
-/* the drawn socket ground with no art behind it still reads as a full slot: the
-   dashed well the kit draws for an empty one goes solid */
+/* the drawn socket ground with no art behind it still reads as a full slot: the dashed well the kit draws for an empty one goes solid */
 .pl-filled:not([class*='kit-surface']) {
   border: var(--kit-border) solid var(--kit-sea);
   background-color: var(--kit-paper-card-hi);
 }
-/* A SEASON COLUMN IS 229px WIDE AND THE DRAWN SOCKET'S FRAME IS 29px A SIDE, so
- * more than a quarter of it was frame and the contents were squeezed into 131px.
- * The art was measured for a wide panel. Told to use a thinner border the
- * nine-slice scales its own slices down, so the frame keeps its shape and the
- * column gets its width back. */
+/* a season column is 229px wide and the drawn socket frame was 29px a side, so over a quarter was frame and the contents were squeezed into 131px; a thinner border makes the nine-slice scale its own slices down, so the frame keeps its shape and the column gets its width back */
 .pl-col, .pl-filled { --kit-slice-w-socket: 9px; }
 
-/* THE ACTION IN A SEASON COLUMN TAKES THE COLUMN. Ash's sail button measured
- * 131px inside a 189px socket, which is where its label ran out of room: the sign
- * sized itself to a shrunken content box rather than to the space it had, so even
- * with the label clipped properly there was nowhere for the name to go. */
+/* the action in a season column takes the whole column: the sail button measured 131px inside a 189px socket because the sign sized itself to a shrunken content box rather than to the space it had, leaving nowhere for the label */
 .pl-filled > .kit-plank { width: 100%; align-self: stretch; flex: none; }
 
 .pl-card-name {
@@ -152,8 +139,7 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
   --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-ink-dim);
 }
-/* §5.5: "after a drop the rail holds two and the card holds one". The coin is
-   drawn on the card it landed on, so the token is somewhere rather than gone. */
+/* after a drop the rail holds two and the card holds one: the coin is drawn on the card it landed on, so the token is somewhere rather than gone */
 .pl-card-token {
   display: flex; align-items: center; gap: 7px;
   --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
@@ -174,9 +160,7 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
 /* ---- the list inside a column, with the refused rows still in it --------- */
 
 .pl-menu { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
-/* a flex column with a height shrinks its children before it scrolls, which
-   squashes a two-line refusal into one and then clips it. The rows keep the size
-   their words ask for and the box scrolls instead. */
+/* a flex column with a height shrinks its children before it scrolls, which squashes a two-line refusal into one and clips it, so rows keep the size their words ask for and the box scrolls instead */
 .pl-menu > *, .pl-filled > * { flex: none; }
 
 .pl-act {
@@ -199,8 +183,7 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
   --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-ink-dim); line-height: 1.35;
 }
-/* the drawn lock rides in the first line of the reason and never on its own row,
-   so a two-line refusal stays two lines */
+/* the drawn lock rides in the first line of the reason and never on its own row, so a two-line refusal stays two lines */
 .pl-act-lock { margin-right: 5px; vertical-align: -2px; }
 .pl-act:hover, .pl-act:focus-visible { transform: translateY(-1px); background: var(--kit-paper-on-hi); }
 .pl-act:active { transform: translateY(1px); }
@@ -214,9 +197,7 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
 .pl-act-shut .pl-act-name { color: var(--kit-ink-dim); }
 .pl-act-shut .pl-act-why { color: var(--kit-ink-quiet); }
 .pl-act-shut:hover, .pl-act-shut:focus-visible { transform: none; background: var(--kit-paper-chip-lo); }
-/* a rung of the ladder, which is this GAME's rule and not the school's: the row
-   carries the same inset bar as any refusal plus a second, inner one, so the two
-   kinds of no are visibly two kinds and neither is a colour */
+/* a rung of the ladder, which is the game's rule and not the school's: the row carries the same inset bar as any refusal plus a second inner one, so the two kinds of no are visibly two kinds and neither is a colour */
 .pl-act-rung { box-shadow: inset 3px 0 0 var(--kit-edge-strong), inset 7px 0 0 var(--kit-paper-lo), inset 10px 0 0 var(--kit-edge-strong); }
 
 .pl-refusal {
@@ -288,11 +269,9 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
   background: none; box-shadow: none;
 }
 
-/* the token whose column is open: it stands up out of the row and keeps a ring
-   where it was, so "this one is in play" is a position and not a tint */
+/* the token whose column is open: it stands up out of the row and keeps a ring where it was, so this one is in play is a position and not a tint */
 .pl-token-lifted { transform: translateY(-3px); box-shadow: 0 3px 0 var(--kit-cord-track); }
-/* the token that is currently under the pointer somewhere else on the sheet: the
-   pill stays, the coin does not, so the rail visibly holds a gap */
+/* the token under the pointer somewhere else on the sheet: the pill stays, the coin does not, so the rail visibly holds a gap */
 .pl-token-aloft { border-style: dashed; }
 .pl-token-aloft .kit-glyph, .pl-token-aloft .pl-coin { opacity: 0; }
 
@@ -369,9 +348,7 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
   --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-ink-dim); line-height: 1.4;
 }
-/* the game's count, indented under the school's sentence rather than replacing
-   it: V3's rule that a mechanic which approximates a criterion is never printed
-   as the criterion */
+/* the game's count, indented under the school's sentence rather than replacing it, because a mechanic that approximates a criterion is never printed as the criterion */
 .pl-note-count {
   display: block;
   --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
@@ -398,9 +375,7 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
 }
 .pl-close { flex: none; margin-left: auto; }
 
-/* THE WAX (§5.15): "the loudest thing that has happened so far", and it was a
-   radial gradient with a paw emoji in it. `stamp` publishes `sealed`, a drawn
-   teal wax seal with a paw already in it, and this is its ground. */
+/* the wax is the loudest thing that has happened so far and it used to be a radial gradient with a paw emoji in it; `stamp` publishes `sealed`, a drawn teal wax seal with the paw already in it, and this is its ground */
 .pl-waxed { display: inline-flex; align-items: center; gap: 12px; transform: rotate(-3deg); }
 .pl-wax { flex: none; }
 .pl-wax-fallback {
@@ -421,8 +396,7 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
 .pl-air {
   position: absolute;
   transform: translate(-50%, -50%);
-  /* it must never be the thing `elementFromPoint` finds, or the drop target is
-     always the coin itself and no column can ever answer */
+  /* it must never be the thing `elementFromPoint` finds, or the drop target is always the coin itself and no column can ever answer */
   pointer-events: none;
   z-index: 200;
   filter: drop-shadow(var(--kit-drop-sm));
@@ -478,8 +452,7 @@ html[data-skin='plain'] .pl-act:hover, html[data-skin='plain'] .pl-act:focus-vis
   transform: none;
   background-color: var(--kit-paper-on-hi);
 }
-/* A REFUSED ROW IN A DOCUMENT IS RULED THROUGH, not shaded. Same information,
-   said the way a printed form says it. */
+/* a refused row in a document is ruled through and not shaded, which is the same information said the way a printed form says it */
 html[data-skin='plain'] .pl-act-shut {
   background: none;
   border-style: dashed;
@@ -496,8 +469,7 @@ html[data-skin='plain'] .pl-sect {
 }
 html[data-skin='plain'] .pl-dept { font-weight: 700; }
 
-/* THE COINS GO. What is left is a labelled control with the season's name on it,
-   which is the same information as the pip and is a thing a worksheet has. */
+/* the coins go, leaving a labelled control carrying the season's name, which is the same information as the pip and is a thing a worksheet has */
 html[data-skin='plain'] .pl-coin,
 html[data-skin='plain'] .pl-coin-ghost,
 html[data-skin='plain'] .pl-coin-big,
@@ -554,21 +526,17 @@ html[data-skin='plain'] .pl-waxed-word { font-weight: 700; color: var(--kit-ink-
 .pl-sock-want {
   position: relative;
   opacity: .38;
-  /* a guide is drawn, not lit: it loses its colour as well as its weight, so the
-     difference between a socket that is waiting and a token that is placed is
-     not one a school panel can crush */
+  /* a guide is drawn and not lit, so it loses its colour as well as its weight and the difference between a waiting socket and a placed token is not one a school panel can crush */
   filter: grayscale(.6);
 }
 html[data-skin='plain'] .pl-sock-well { width: auto; height: auto; }
 
-/* THE SHEET WITH NO CLUBS ON IT (BRIEF-CLOSE-THE-LOOP section 4). Three empty
-   season columns for a choice the game cannot offer were the loudest thing on
-   this screen; one honest paragraph is the whole of what is true today. */
+/* three empty season columns for a choice the game cannot offer were the loudest thing on this screen, so one honest paragraph is the whole of what is true today */
 .pl-col-none { max-width: 44ch; }
 .pl-col-none .pl-empty { margin: 6px 0 4px; opacity: 0.86; }
 .pl-col-none .pl-note { margin: 0; opacity: 0.66; --kit-fs-raw: calc(13px * var(--kit-text-scale)); font-size: var(--kit-fs); }
 
-/* THE SAME ONE LINE, ON THE SHEET (BRIEF-CLOSE-THE-LOOP 1). */
+/* the same one line, printed on the sheet */
 .pl-firstlook, .py-firstlook {
   margin: 2px 0 0;
   --kit-fs-raw: calc(13px * var(--kit-text-scale));
@@ -576,7 +544,7 @@ html[data-skin='plain'] .pl-sock-well { width: auto; height: auto; }
   opacity: 0.78;
 }
 
-/* the two panels that are about him, on the sheet's own foot (Ash, 2026-09-09) */
+/* the two panels that are about the player, on the sheet's own foot */
 .pl-mine {
   display: flex;
   gap: 10px;

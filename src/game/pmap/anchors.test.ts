@@ -21,8 +21,7 @@ describe('reading what MAPVIS actually exports', () => {
   })
 
   it('the hub door still points at the map id this session is building', () => {
-    // if this fails, either the hub door moved or the Maw was published under
-    // another slug, and the two have to be reconciled before anything is painted
+    // if this fails, either the hub door moved or the Maw was published under another slug, and the two have to be reconciled before anything is painted
     expect(readAnchors(hub, 'hub')[0].to).toBe('panther-maw')
   })
 
@@ -128,15 +127,12 @@ describe('AnchorSet: the questions a scene asks every frame', () => {
   it('two posts 140px apart with r=30 leave a dead gap, which is the spacing law', () => {
     expect(set.nearestInteractive(200, 300)?.name).toBe('chart_table')
     expect(set.nearestInteractive(300, 300)?.name).toBe('hearth')
-    // halfway between them no ring reaches, and that is correct: a station's ring
-    // is how far away you can be and still be AT it. This is the number that caps
-    // how many stations fit on one platform (docs/THE-MAW.md).
+    // halfway between them no ring reaches, and that is right: a ring is how far away you can be and still be at the station, so it caps how many stations fit on one platform
     expect(set.nearestInteractive(250, 300)).toBeNull()
   })
 
   it('when rings DO overlap the nearer station wins, so neither is unreachable', () => {
-    // an author who packs two posts closer than their radii still gets a usable
-    // map: the prompt just switches over as you cross the midpoint
+    // an author who packs two posts closer than their radii still gets a usable map, since the prompt just switches over as you cross the midpoint
     const tight = new AnchorSet('tight', readAnchors({
       anchors: [
         { name: 'left', kind: 'post', x: 100, y: 100, r: 40, label: 'l' },
@@ -187,14 +183,12 @@ describe('an anchor bound to a placement', () => {
   })
 
   it('sits where the bundle put it until somebody says otherwise', () => {
-    // a map with no placements loaded, which is every bundle before this and
-    // every bundle whose art has not finished arriving
+    // a map with no placements loaded, which is any bundle whose art has not finished arriving
     expect(bound().spotOf(bound().get('counselor')!)).toEqual({ x: 100, y: 100 })
   })
 
   it('follows the thing it is bound to once the scene can answer', () => {
-    // seventeen of the hub's people wander, so the exported x,y is where the
-    // sprite STARTS and the live position is a function of the clock
+    // seventeen of the hub's people wander, so the exported x,y is where the sprite starts and the live position is a function of the clock
     const set = bound()
     set.follow((ref) => (ref === 'nurse' ? { x: 140, y: 155 } : null))
     expect(set.spotOf(set.get('counselor')!)).toEqual({ x: 140, y: 155 })
@@ -212,8 +206,7 @@ describe('an anchor bound to a placement', () => {
   })
 
   it('falls back to the exported spot when the placement is not on this map', () => {
-    // a binding left pointing at something that was deleted must not put the
-    // anchor at the origin, which is landing in the rock
+    // a binding left pointing at something that was deleted must not put the anchor at the origin, which is landing in the rock
     const set = bound()
     set.follow(() => null)
     expect(set.spotOf(set.get('counselor')!)).toEqual({ x: 100, y: 100 })
@@ -246,8 +239,7 @@ describe('where a body ends up, and which way it looks', () => {
   })
 
   it('the prompt ring still belongs to the thing, not to the floor beside it', () => {
-    // 14px above the table is inside the ring; the stand-at point moving does
-    // not drag the reach with it, because they answer different questions
+    // 14px above the table is inside the ring, and moving the stand-at point does not drag the reach with it because they answer different questions
     expect(set().nearestInteractive(200, 186)?.name).toBe('chart_table')
   })
 
@@ -307,9 +299,7 @@ describe('a standing spot that was left behind when its post moved', () => {
 
   it('keeps every standing spot that is really beside its post', () => {
     const a = v7()
-    /* the chart table's is the furthest legitimate one Ash has ever drawn, at
-     * just over a body length, and it must survive: it is the spot the whole
-     * year-one film puts the student on. */
+    /* the chart table has the furthest legitimate stand offset drawn so far, just over a body length, and it must survive because it is the spot the whole year-one film puts the player on */
     expect(a.find((x) => x.name === 'chart_table')!.stand).toEqual([295, 213])
     expect(a.find((x) => x.name === 'trophy_wall')!.stand).toEqual([298, 201])
   })
@@ -322,9 +312,7 @@ describe('a standing spot that was left behind when its post moved', () => {
 
   it('so a walk to either one goes to the post, not to the other post', () => {
     const set = new AnchorSet('panther-maw', v7())
-    /* the number that mattered: the principal's ghost spot is twelve pixels from
-     * the counselor, so before this the film walked the student to her and
-     * called it the principal. */
+    /* the number that mattered: the principal's ghost spot is twelve pixels from the counselor, so before this the film walked the player to the counselor and called it the principal */
     expect(set.standAt(set.get('principal_desk')!)).toMatchObject({ x: 191, y: 116 })
     expect(set.standAt(set.get('counselor')!)).toMatchObject({ x: 382, y: 196 })
   })

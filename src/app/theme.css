@@ -34,9 +34,7 @@
   image-rendering: crisp-edges;
 }
 
-/* a carved wooden sign button that physically presses (chrome, not art).
-   When the PixelLab 9-slice button art lands it becomes the background; the
-   press behaviour stays here. */
+/* a carved wooden sign button that physically presses, chrome and not art: when the PixelLab nine-slice button art lands it becomes the background and the press behaviour stays here */
 .ui-btn {
   font-family: var(--font-display);
   font-size: 26px;
@@ -57,9 +55,7 @@
   filter: brightness(1.08);
   transform: translateY(-1px);
 }
-/* the title screen's own buttons were reachable by Tab and invisible once they
-   were, which is the same J1 failure as a click-only control read from the other
-   side: a key path nobody can see where they are is not a key path */
+/* a control reachable by Tab and invisible once it is focused is not a key path, which is why the title buttons get a focus ring */
 .ui-btn:focus-visible, .title-gear:focus-visible {
   outline: var(--kit-focus-width) solid var(--kit-focus);
   outline-offset: var(--kit-focus-offset);
@@ -91,8 +87,7 @@
 
 /* ---- Title scene ---- */
 .title-root { position: absolute; inset: 0; overflow: hidden; }
-/* warm legibility veil over the live ocean: darker at the edges (vignette),
-   a gentle golden wash up top so the wordmark reads */
+/* warm legibility veil over the live ocean: a vignette darkens the edges and a gentle golden wash up top so the wordmark reads */
 .title-veil {
   position: absolute; inset: 0; pointer-events: none;
   background:

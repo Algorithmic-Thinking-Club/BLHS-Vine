@@ -3,9 +3,7 @@ import { no, performIntent, type Intent, type IntentHost, type IntentResult } fr
 import { PROTOCOL, type FromWorker, type ToWorker } from './protocol'
 import type { LoadedGrape } from './grape-source'
 
-/* Not a real limit anyone reaches: an island beat is a handful of lines. It
- * exists so a `while True:` that still yields stops the island instead of the
- * browser tab. The same number, for the same reason, as run-station.ts. */
+/* not a limit anyone reaches, it exists so a `while True:` that still yields stops the island instead of the browser tab, and it is the same number as run-station.ts */
 const MAX_STEPS = 10_000
 
 /* two clocks: one for the island starting up, one for the member's python answering */
@@ -14,8 +12,7 @@ const TURN_MS = 5_000
 
 export type GrapeReport = {
   steps: number
-  /* intents the engine refused, kept so a member can be shown what their island
-   * asked for that this scene cannot answer */
+  /* intents the engine refused, kept so a member can be shown what their island asked for that this scene cannot answer */
   refused: { intent: string; why: string }[]
   /* set when the island stopped rather than finished. The engine is fine. */
   error?: string
@@ -33,8 +30,7 @@ export type GrapeSession = {
   call: (handler: string) => Promise<GrapeReport>
   /** whether a handler is running right now, asked before a press rather than after one */
   busy: () => boolean
-  /* the other half of the sandbox. A worker left running holds a python heap,
-   * and a scene that unmounts mid-say must not leave one behind. */
+  /* the other half of the sandbox: a worker left running holds a python heap, and a scene that unmounts mid-say must not leave one behind */
   stop: () => void
 }
 
@@ -47,8 +43,7 @@ export function openGrape(
     unscoped?: boolean
   } = {},
 ): GrapeSession {
-  /* new URL(..., import.meta.url) rather than a string path: it is the form
-   * vite follows into a real chunk in a production build. */
+  /* new URL(..., import.meta.url) rather than a string path, because it is the form vite follows into a real chunk in a production build */
   const worker = new Worker(new URL('./grape.worker.ts', import.meta.url), { type: 'module' })
 
   /* every intent is stamped with the island's own programme id, so flags stay apart */
@@ -59,8 +54,7 @@ export function openGrape(
   let handlers: string[] = []
   let dead: { error: string; traceback?: string } | null = null
   let stopped = false
-  /* whoever is owed the next message. Strictly one at a time, which the
-   * protocol's own comment requires and this is what enforces it. */
+  /* whoever is owed the next message, strictly one at a time, which is what enforces the protocol's one-call-in-flight rule */
   let waiting: { report: GrapeReport; settle: (r: GrapeReport) => void } | null = null
   let clock: ReturnType<typeof setTimeout> | null = null
 
@@ -71,7 +65,7 @@ export function openGrape(
     clock = setTimeout(() => kill(why), ms)
   }
 
-  /** end whatever call is in flight. Not the session. */
+  /** end whatever call is in flight, and leave the worker running */
   function finish(error?: string, traceback?: string) {
     const w = waiting
     waiting = null
@@ -111,18 +105,15 @@ export function openGrape(
       kill(`the island yielded ${MAX_STEPS} times without finishing`)
       return
     }
-    /* an island that yields something that is not an intent is an island with a
-     * typo, and it should hear about it at the line that did it */
+    /* an island that yields something that is not an intent is an island with a typo, and it should hear about it at the line that did it */
     if (!intent || typeof intent !== 'object' || typeof intent.kind !== 'string') {
       send(no(`yielded ${JSON.stringify(intent)}, which is not an intent`))
       return
     }
-    /* THE CLOCK IS OFF FOR THIS. performIntent is where a `say` waits on a
-     * person, and a person is allowed to take as long as they like. */
+    /* the clock is off here, because performIntent is where a `say` waits on a person and a person may take as long as they like */
     disarm()
     const result = await performIntent(intent, scoped)
-    /* the scene tore down, or this call ended, while the player was reading a
-     * line. Nothing to resume into. */
+    /* the scene tore down, or this call ended, while the player was reading a line, so there is nothing to resume into */
     if (stopped || waiting !== w) return
     if (!result.ok) w.report.refused.push({ intent: intent.kind, why: result.why })
     send(result)
@@ -143,16 +134,13 @@ export function openGrape(
         finish()
         return
       case 'done': finish(); return
-      /* THE ISLAND STOPPED AND THE SESSION DID NOT. The module is still
-       * imported and its other handlers still work, which the spike measured
-       * and which means one broken beat does not cost a member their island. */
+      /* the island stopped and the worker did not: the module stays imported and its other handlers still work, so one broken beat does not cost a member their island */
       case 'crash': finish(msg.error, msg.traceback); return
       case 'intent': void step(msg.intent)
     }
   }
 
-  /* the load is the first thing owed an answer, so it goes through the same
-   * one-at-a-time slot every call afterwards does */
+  /* the load is the first thing owed an answer, so it goes through the same one-at-a-time slot every call afterwards does */
   waiting = { report: { steps: 0, refused: [] }, settle: (r) => readyResolve(r) }
   arm(opts.bootMs ?? BOOT_MS, 'micropython did not start, or the island never finished importing')
   worker.postMessage({
@@ -173,8 +161,7 @@ export function openGrape(
       if (stopped || dead) {
         return Promise.resolve({ ...report, error: dead?.error ?? CLOSED, traceback: dead?.traceback })
       }
-      /* one message in, one message out. A second press while the first handler
-       * is parked on a `say` would resume the wrong generator. */
+      /* one message in, one message out, because a second press while the first handler is parked on a `say` would resume the wrong generator */
       if (waiting) return Promise.resolve({ ...report, error: 'this island is already busy' })
 
       return new Promise<GrapeReport>((settle) => {

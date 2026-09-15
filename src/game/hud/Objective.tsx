@@ -18,15 +18,11 @@ export function ObjectivePanel() {
   const redraw = () => bump((v) => v + 1)
   useEffect(() => subscribeSave(redraw), [])
   useEffect(() => onObjectiveSaid(redraw), [])
-  /* THE MAP UNDER HIS FEET, because the year's sentence is two sentences: one
-   * said on the objective's own map and one said from anywhere else. The panel
-   * is mounted above every world scene and has to know which it is looking at. */
+  /* the map under the player's feet, because the year's sentence is one thing on the objective's own map and another from anywhere else, and this panel mounts above every world scene */
   const [map, setMap] = useState<string | null>(sceneDrawn())
   useEffect(() => { setMap(sceneDrawn()); return onSceneDrawn(setMap) }, [])
 
-  /* THE SHEET IS OPEN OR IT IS NOT, and that is the whole of its state. It is not
-   * in the save: what a student has open is not part of their run, and a sheet
-   * that survived a reload would be a sheet nobody asked for. */
+  /* open or not is the whole of its state, and it stays out of the save because a sheet that survived a reload is a sheet nobody asked for */
   const [open, setOpen] = useState(false)
   const opens = useRef(0)
   const toggle = () => {
@@ -36,18 +32,11 @@ export function ObjectivePanel() {
     })
   }
 
-  /* ---- A JOURNEY OUTRANKS EVERY OTHER SENTENCE ------------------------
-   *
-   * The destination island's `start` runs while the ship is still on the water, so
-   * by the time he is watching her sail the line across the top already says what to
-   * do when he lands: measured on a shot of the crossing, "Find the club president."
-   * over a boat in the middle of the sea. Whatever else is true, the thing he is
-   * doing right now is going somewhere, and that is what the line should say. */
+  /* a journey outranks every other sentence: the destination island's `start` runs while the ship is still on the water, so without this the line reads "Find the club president." over a boat in the middle of the sea */
   const [going, setGoing] = useState(voyage())
   useEffect(() => onVoyage(setGoing), [])
 
-  /* the voices in order: the journey, then what the island said, then the scene,
-   * then the year */
+  /* the voices in order: the journey, then what the island said, then the scene, then the year */
   const said = objectiveSaid()
   const world = worldObjective()
   const o = nextObjective(loadSave())
@@ -56,8 +45,7 @@ export function ObjectivePanel() {
   /* raised by `end_run` for the length of the departure, and dropped with it */
   const ending = runEnding()
 
-  /* SAID ONCE PER SENTENCE, not once per render. What the study wants is which
-   * objective a student was looking at and when it changed. */
+  /* tracked once per sentence and not once per render, so the events say which objective was on screen and when it changed */
   useEffect(() => {
     if (!text) return
     track('objective_shown', { text, said: !!said, phase: o?.phase ?? null })
@@ -65,13 +53,7 @@ export function ObjectivePanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text])
 
-  /* ---- THE LAST SHOT OF THE YEAR SAYS NOTHING (Ash, 2026-09-09) ----------
-   *
-   * `end_run` raises this on the objective bus while the ship leaves. The year's own sentence
-   * for a closed run is "Year one is done. Look around.", and it drew across the
-   * top of the departure over a boy who was leaving and had nothing left to look
-   * at. Unmounted rather than hidden, so the live region stops saying it to a
-   * screen reader too. */
+  /* `end_run` raises `ending` while the ship leaves, because the year's closing line drew across the top of the departure over somebody who had nothing left to look at. Unmounted rather than hidden, so the live region stops saying it to a screen reader too. */
   if (!text || ending) return null
 
   return (
@@ -96,21 +78,7 @@ export function ObjectivePanel() {
   )
 }
 
-/* ---- THE SHEET UNDER THE BAR, AND EVERY ROW IS A WAY IN ------------------
- *
- * ASH, 2026-09-08: *"THERE ALSO NEEDS GUIDEABILITY... TO MAKE THE GAME MORE
- * UNDERSTANDABLE."*
- *
- * It was a readout: five nouns and a note each, correct and inert. A student who
- * opened it read "AP Human Geography · Open My Year and go", closed it, and then
- * had to find the sign in the corner that the note had just named. Two steps
- * where the game already knew the answer.
- *
- * SO A ROW DOES THE THING IT NAMES. The schedule and every pick open the year
- * sheet, Advisory opens Advisory, the last row closes nothing and says where the
- * man is. A finished row is not a control, because there is nothing left to do
- * to it, and neither is a row for something that happens in the world rather
- * than behind a button. */
+/* every row does the thing it names: the schedule and every pick open the year sheet, Advisory opens Advisory, and the last row only says where the man is, because a readout made a student read a note and then go hunt the sign it had just named. A finished or barred row is not a control. */
 /** which panel a row opens, or null for a row nothing on screen can finish */
 function openerOf(t: Task): 'planner' | 'advisory' | null {
   if (t.done || t.barred) return null
@@ -120,16 +88,7 @@ function openerOf(t: Task): 'planner' | 'advisory' | null {
   return null
 }
 
-/* ---- AND AN ISLAND'S OWN LIST GOES IN THE SAME SHEET ----------------------
- *
- * Ash: *"islands should constantly have tasks to do, and thats how it should be
- * layed out. and it goes towards completing that island."*
- *
- * Turned into the row shape the sheet already draws rather than a second sheet
- * beside it, so every mark, note, counter and plain-arm style is the one a student
- * already knows. An island's row is never a control: the whole point of it is that
- * the thing happens in the room, so there is no panel for a press to open.
- */
+/* an island's own list goes in this same sheet in the row shape it already draws rather than a second sheet beside it, and an island row is never a control because the thing it names happens in the room */
 function islandRows(list: IslandTaskList, save: SaveGame | null): Task[] {
   const ticked = new Set(tasksDoneIn(list.programme, save?.year ?? 1))
   return list.tasks.map((t) => ({
@@ -146,42 +105,16 @@ function TaskSheet({ onClose }: { onClose: () => void }) {
   useEffect(() => subscribeSave(redraw), [])
   useEffect(() => onIslandTasks(redraw), [])
   const save = loadSave()
-  /* ---- THE ISLAND GOES FIRST AND THE YEAR STAYS UNDER IT --------------------
-   *
-   * The island used to REPLACE the year's list, on the argument that a student
-   * standing on an island wants to know what is left here. Half right, and the other
-   * half was a real hole: this is the ONLY task sheet in the game, so replacing it
-   * hid the year. In the home base it would have been worse than that, because the
-   * year's own rows ARE what that room asks of him, so an island list there would
-   * have hidden Advisory, every pick and the row that closes the year, in the one
-   * place all three are done.
-   *
-   * So both, in the order a student cares about them: what is left HERE, then what
-   * the year still wants. Two headings, one sheet, and the counter over the whole of
-   * it, because it is one list of things he has to do. */
+  /* the island's rows go first and the year's stay under them rather than being replaced, because this is the only task sheet in the game and in the home base the year's rows are what the room asks: replacing them would hide Advisory, every pick and the row that closes the year */
   const island = islandTaskList()
   const here = island ? islandRows(island, save) : []
   const year = tasksOf(save)
   const list = [...here, ...year]
-  /* EACH HEADING COUNTS ITS OWN ROWS. One counter over both said "1 of 8 done" to a
-   * student standing on an island with two things to do, which is a number about
-   * nothing he can see. The island's heading counts the island, the year's counts
-   * the year, and neither has to know about the other. */
+  /* each heading counts its own rows, because one counter over both said "1 of 8 done" to a student standing on an island with two things to do */
   const mine = tasksDone(here.length ? here : year)
   const theirs = tasksDone(year)
 
-  /* ---- A PRESS OUTSIDE CLOSES IT; A PRESS ON A ROW DOES THE ROW ---------
-   *
-   * ASH, 2026-09-08, asked for rows that do the thing they name. They never did.
-   * The close listener is on the window in the CAPTURE phase, which runs before
-   * the event reaches React's root at all, so `onPointerDown={stopPropagation}`
-   * on the sheet could never reach it: every press closed the sheet, the sheet
-   * unmounted, and the row's `click` had nothing left to fire on. The keyboard
-   * path worked, so it failed for the mouse and the trackpad, which is everybody.
-   *
-   * The containment test is the fix rather than dropping to the bubble phase:
-   * capture is what makes a press anywhere ELSE close it without the world
-   * underneath having to cooperate. */
+  /* the close listener is on the window in the capture phase, so `stopPropagation` on the sheet can never reach it and every press closed the sheet before a row's click could fire: test containment instead, because capture is what closes it on a press anywhere else without the world underneath cooperating */
   const sheet = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     const away = (e: PointerEvent) => {
@@ -232,9 +165,7 @@ function TaskSheet({ onClose }: { onClose: () => void }) {
               }
               : {})}
           >
-            {/* THE MARK IS A CHARACTER AND NOT AN EMOJI. `docs/ART.md` forbids
-                emoji, and the plain arm has to read the same shape in a system
-                face, so a tick and an empty box are the whole vocabulary. */}
+            {/* the mark is a character and not an emoji, which are forbidden, and the plain arm has to read the same shape in a system face, so a tick and an empty box are the whole vocabulary */}
             <span className="ob-mark" aria-hidden="true">{t.done ? '✓' : t.barred ? '–' : '▢'}</span>
             <span className="ob-task-body">
               <span className="ob-task-name">{t.name}</span>

@@ -5,8 +5,7 @@ import { UI_PANELS } from '../game/ui-bus'
 /* ---- what the engine can be asked to do ---------------------------------- */
 
 export type Intent =
-  /* dialogue. `who` is an anchor name when the speaker stands somewhere, so the
-   * camera and the portrait can both be resolved from one string. */
+  /* dialogue: `who` is an anchor name when the speaker stands somewhere, so the camera and the portrait both resolve from one string */
   | { kind: 'say'; who?: string; text: string; portrait?: string }
   | { kind: 'choose'; prompt?: string; options: string[] }
 
@@ -54,27 +53,10 @@ export type Intent =
   /* the one short line saying what the student should be doing now; null hands it back */
   | { kind: 'objective'; text: string | null }
 
-  /* ---- WHAT THIS ISLAND IS ASKING OF THE STUDENT, AS A LIST ---------------
-   *
-   * Ash, on what a member should be able to build: *"its not clear exactly what to
-   * do on an island. and this needs to be a big thing, when a member programs a
-   * island and its mechanics. islands should constantly have tasks to do, and thats
-   * how it should be layed out. and it goes towards completing that island."*
-   *
-   * `objective` is one sentence and always was: it says what to do NOW, and a
-   * student who wants to know how much of the island is left has nowhere to look.
-   * This is the list, and it is drawn in the sheet the year's own tasks already use,
-   * so an island gets the marks, the notes, the counter and the plain-arm styling
-   * for free.
-   *
-   * IT REPLACES WHATEVER WAS DECLARED, so an `@on_start` that runs again every time
-   * the map loads is safe to write the plainest way: declare the same list, and the
-   * ticks come back off the save rather than out of this call.
-   */
+  /* what the island asks of the student as a list, since `objective` is one sentence about now: it replaces whatever was declared, so an `@on_start` that reruns on every map load can redeclare the same list and the ticks come back off the save */
   | { kind: 'island_tasks'; tasks: IslandTask[] }
 
-  /* one task done, by the id its island gave it. Ticks are kept in the save, so a
-   * student who reloads halfway through an island keeps what he finished. */
+  /* one task done, by the id its island gave it, and the tick is kept in the save so a reload halfway through an island keeps what was finished */
   | { kind: 'task_done'; id: string }
 
   /* step the player off a berthed boat onto the dock */
@@ -84,37 +66,24 @@ export type Intent =
   /* wait makes open come back when the panel is closed rather than when it opens */
   | { kind: 'open'; ui: 'planner' | 'handbook' | 'cords' | 'chart' | 'wardrobe' | 'settings' | 'wall' | 'yearbook' | 'tour'; wait?: boolean }
 
-  /* a scored activity. `beat` names one the engine can build; both study arms
-   * render from the same items, which is what as_plain() means in practice and
-   * why it is here rather than bolted on later. */
-  /* AND AN ISLAND MAY BRING ITS OWN. `items` is the activity itself, declared by
-   * the island rather than named out of the engine's own table, which is the only
-   * way a member's island can score anything the vine did not write. It rides on
-   * this word rather than on a new one because the worker already carries arbitrary
-   * JSON and a new word would cost a builder in two copies of vine.py and the
-   * vocabulary count in three places. */
+  /* a scored activity: `beat` names one the engine can build, and both renderings come off the same items, which is what `as_plain()` means in practice */
+  /* an island may bring its own: `items` is the activity declared by the island rather than named out of the engine's table, and it rides on this word instead of a new one because a new word costs two copies of vine.py and the vocabulary count in three places */
   | { kind: 'play'; beat: string; as_plain?: boolean; title?: string; place?: string; items?: CheckStep[] }
 
-  /* the world reflecting the run. `placement` is a MAPVIS placement id, bound to
-   * an anchor so a grape addresses it by name like everything else. */
+  /* the world reflecting the run: a placement is a MAPVIS id bound to an anchor, so a grape addresses it by name like everything else */
   | { kind: 'show'; anchor: string; visible: boolean }
   | { kind: 'fx'; name: string; anchor?: string; data?: unknown }
 
-  /* scene changes. `at` is the arrival anchor in the target map, without which
-   * every door into a room drops the player on that room's one global spawn. */
+  /* scene changes: `at` is the arrival anchor in the target map, without which every door into a room drops the player on that room's one global spawn */
   /* cover names the occasion behind the loading screen, not the picture itself */
   | { kind: 'enter'; map: string; at?: string; cover?: string }
-  /* sail to another island. The engine owns the whole journey: out of the room,
-   * down the quay, aboard, across the water and ashore. A member never names a
-   * route, a berth or a camera to be carried there. */
+  /* sail to another island: the engine owns the whole journey, so a member never names a route, a berth or a camera */
   | { kind: 'sail_to'; map: string }
   | { kind: 'cutscene'; script: string }
   /* the run has finished and the screen goes back to the title */
   | { kind: 'end_run' }
 
-  /* run state. `get` reads, and the paths it accepts are the ones progress.ts
-   * can answer, so a grape cannot ask a question the engine has to invent an
-   * answer to. */
+  /* run state: `get` accepts only the paths progress.ts can answer, so a grape cannot ask a question the engine would have to invent an answer to */
   | { kind: 'get'; path: RunPath }
   | { kind: 'set_flag'; flag: string }
   /* the ledger row an island writes when it finishes a programme */
@@ -130,16 +99,10 @@ export type Intent =
     badge?: string
   }
 
-  /* instrumentation. Law 11: every meaningful interaction emits a typed event.
-   * A grape gets to add to the record; it does not get to write the record. */
+  /* instrumentation: every meaningful interaction emits a typed event, and a grape adds to the record rather than writing it */
   | { kind: 'log'; event: string; data?: Record<string, unknown> }
 
-/* AN ACTIVITY AN ISLAND BROUGHT WITH IT, rather than one the engine already has.
- *
- * `programme` is stamped by the performer off the island's own registration and is
- * never read off the wire, so a member cannot address another programme's row. The
- * items are ordinary `CheckStep`s, which is what keeps one scorer and one plain
- * rendering for engine content and member content alike. */
+/* an activity an island brought with it: `programme` is stamped by the performer off the island's registration and never read off the wire, so a member cannot address another programme's row, and the items are ordinary `CheckStep`s so there is one scorer for both */
 export type BeatDeclaration = {
   items: CheckStep[]
   title?: string
@@ -150,18 +113,11 @@ export type BeatDeclaration = {
 /* how fast a driven body travels, as a word rather than a number */
 export type Pace = 'stroll' | 'walk' | 'run'
 export const PACES: Pace[] = ['stroll', 'walk', 'run']
-/* Walk is the map's own speed and is what everything got before this existed.
- * A stroll is two thirds of it, which is the pace a person crosses a room at
- * when they are not in a hurry, and a run is half again. */
+/* walk is the map's own speed, a stroll is two thirds of it, which is the pace of somebody crossing a room unhurried, and a run is half again */
 export const PACE_OF: Record<Pace, number> = { stroll: 0.62, walk: 1, run: 1.5 }
 
 /* a small step aside from an anchor's own mark, in painting pixels across and down */
-/* ---- ONE ROW ON AN ISLAND'S TASK LIST -------------------------------------
- *
- * Deliberately the smallest thing that can be drawn: a name a student reads, an id
- * the island ticks it by, and one optional line saying where it happens. No state
- * lives here. Whether a row is done is in the SAVE, because a student who closes
- * the tab halfway through an island has still done what he did. */
+/* one row on an island's task list: a name, an id to tick it by, and an optional line saying where it happens, with no state here because whether a row is done lives in the save */
 export type IslandTask = {
   /** the island's own name for it, which `task_done` is called with */
   id: string
@@ -189,8 +145,7 @@ export function refuseTasks(tasks: unknown): string | null {
     const name = typeof t.name === 'string' ? t.name.trim() : ''
     if (!id) return 'every task needs an id, which is the word you tick it with'
     if (!name) return `the task "${id}" needs a name, which is what a student reads`
-    /* TWO ROWS WITH ONE ID is a tick that means two things, and the one a student
-     * finishes is whichever the loop reached first. Caught at the line that made it. */
+    /* two rows with one id is a tick that means two things, so it is refused at the line that made it */
     if (seen.has(id)) return `two tasks are both called "${id}", so ticking one would tick the other`
     seen.add(id)
     if (name.length > TASK_TEXT_MAX)
@@ -219,18 +174,7 @@ export const offsetFault = (o: unknown): string | null => {
 }
 
 /* the occasions a door may declare, which the cover registry turns into a picture */
-/* ---- WHAT A COVER IS FOR, WHICH IS NOT THE SAME AS WHAT IT LOOKS LIKE -------
- *
- * `ceremony` is the graduation: a held title over the islands.
- *
- * `passing` is new, and it is the one Ash's sail exposed: the first leg of a
- * voyage takes him through the map his dock is on, and that hop wore the full
- * arrival treatment. He got "E N T E R I N G   T H E   H U B", a progress bar and
- * a fact about the school, for a place he was crossing on his way to the boat, and
- * then a second one for where he was actually going. His words: *"for some reason,
- * it put a transition screen while sailing to the atc island. no clue why as arent
- * they all on the same ocean map?"* Two loading cards in one press is what made a
- * journey read as two journeys. A pass-through gets a plain fade and says nothing. */
+/* what a cover is for, not what it looks like: `ceremony` is the graduation title held over the islands, and `passing` is a hop across the map the dock is on, which used to wear the full arrival card and made one journey read as two, so it gets a plain fade and says nothing */
 export type CoverOccasion = 'ceremony' | 'passing'
 export const COVER_OCCASIONS: CoverOccasion[] = ['ceremony', 'passing']
 
@@ -249,16 +193,7 @@ export type RunPath =
   | 'advisory'
   /* is this year's plan sheet stamped */
   | 'planned'
-  /* ---- HOW MANY TIMES THIS ISLAND HAS BEEN FINISHED BEFORE, AND HOW WELL ----
-   *
-   * ASH: *"we can do a club again over years? is it meant to play different stuff?"*
-   * Yes to the first and yes to the second, and until this existed an island had no
-   * way to tell. A club taken in year two replayed year one word for word, because
-   * the only thing a member could read about their own programme was a flag they had
-   * set themselves.
-   *
-   * Answered about the CALLING island, the way `flags` is: nobody has to name
-   * themselves to ask about themselves. `{ taken, years, best, rung }`. */
+  /* how many times this island has been finished before and how well, as `{ taken, years, best, rung }`, answered about the calling island the way `flags` is, so a club taken again does not replay year one word for word */
   | 'rank'
 
 /* ---- what comes back ------------------------------------------------------ */
@@ -281,9 +216,7 @@ export interface IntentWorld {
   hasAnchor(name: string): boolean
   say(who: string | undefined, text: string, portrait?: string): Promise<void>
   choose(prompt: string | undefined, options: string[]): Promise<number>
-  /** every map this game can actually open, so a mistyped destination is refused by
-   *  name instead of playing a loading screen onto nothing. Empty when the scene
-   *  cannot say, which leaves the old behaviour alone. */
+  /** every map this game can actually open, so a mistyped destination is refused by name instead of playing a loading screen onto nothing, and empty when the scene cannot say */
   knownMaps(): string[]
   guideTo(anchor: string | null): void
   /* the pool of light on its own, which `guide_to` has always raised as a side effect */
@@ -299,11 +232,10 @@ export interface IntentWorld {
   /** put the player off a berthed boat and onto the dock */
   ashore(): Promise<void>
   cutscene(script: string): Promise<void>
-  /** the run has finished: leave the world for the title (BRIEF-CLOSE-THE-LOOP 3) */
+  /** the run has finished: leave the world for the title */
   endRun(): Promise<void>
 
-  /* the director half. Each one is a word for something MAPVIS already authors
-   * and the game could not previously say. */
+  /* the director half: each word performs something MAPVIS already authors and the game could not previously say */
   pose(pose: string | undefined, facing: string | undefined): Promise<void>
   actorMove(actor: string, to: string, off?: Offset, facing?: string, pace?: Pace): Promise<void>
   /** somebody walks ahead, the player follows, and it ends when they both stop */
@@ -315,24 +247,19 @@ export interface IntentWorld {
   actorRelease(actor?: string): void
   route(path: string, who: string, backwards: boolean): Promise<void>
   framing(shot: string | null, ms?: number): Promise<void>
-  /* the composed shots the engine works out for itself. Awaited, because a
-   * pull-out that has not arrived is a shot the next line would talk over. */
+  /* the composed shots the engine works out for itself, awaited because a pull-out that has not arrived is a shot the next line would talk over */
   view(shot: ViewShot, ms?: number): Promise<void>
   waitFor(anchor: string, ms?: number): Promise<boolean>
 }
 
-/* The engine half. Supplied once at boot rather than per scene, because the
- * save file and the logger do not change when the camera does. */
+/* the engine half, supplied once at boot rather than per scene because the save file and the logger do not change when the camera does */
 export interface IntentEngine {
-  /* `wait` makes this a promise the caller may await. Left out it is exactly the
-   * fire-and-forget call it always was, so no existing station changes shape. */
+  /* `wait` makes this a promise the caller may await, and left out it stays fire and forget so no existing station changes shape */
   openUi(ui: 'planner' | 'handbook' | 'cords' | 'chart' | 'wardrobe' | 'settings' | 'wall' | 'yearbook' | 'tour', wait?: boolean): void | Promise<void>
-  /* `decl` is present only when the island brought its own activity. Absent, this
-   * is the same call it always was and the engine resolves the id from its table. */
+  /* `decl` is present only when the island brought its own activity, and absent the engine resolves the id from its own table */
   playBeat(beat: string, asPlain: boolean, decl?: BeatDeclaration): Promise<number | null>
   read(path: RunPath): unknown
-  /** what this programme has been finished at before: how many times, which years,
-   *  the best grade, and the rung of any ladder it keeps */
+  /** what this programme has been finished at before: how many times, which years, the best grade, and the rung of any ladder it keeps */
   rankOf(programme: string | null): { taken: number; years: number[]; best: number | null; rung: number }
   setFlag(flag: string): void
   award(a: {
@@ -346,13 +273,9 @@ export interface IntentEngine {
   sound(name: string, gain?: number): void
   /* raise or drop the movie bars, which belong to the window rather than a map */
   movie(on: boolean): void
-  /* AND THE FOURTH, for the same reason. The panel that says what to do next is
-   * chrome around the window rather than anything on a map, so an island run in
-   * the standalone harness can still say what it is asking of the student. */
+  /* the panel saying what to do next is chrome around the window rather than anything on a map, so an island run in the standalone harness can still set it */
   objective(text: string | null): void
-  /* AND THE LIST BESIDE IT, for the same reason: the sheet is chrome around the
-   * window, so an island run in the standalone harness can still lay out what it
-   * is asking for. `islandTasks` replaces the list; `taskDone` ticks one row. */
+  /* the sheet beside it is chrome too, so a standalone harness can still lay it out: `islandTasks` replaces the list and `taskDone` ticks one row */
   islandTasks(tasks: IslandTask[], by?: IntentBy): void
   taskDone(id: string, by?: IntentBy): void
 }
@@ -378,13 +301,9 @@ export type IntentHost = {
 /* the one place an intent is carried out, with a case for every word in the union */
 export async function performIntent(i: Intent, host: IntentHost): Promise<IntentResult> {
   const { world, engine, by } = host
-  /* the island's own corner of the flag list. A member writes set_flag("met"),
-   * the save gets "atc:met", and nobody else's island can reach it or collide
-   * with it. Bare for the vine, which wrote the flags already in every save. */
+  /* the island's own corner of the flag list: `set_flag("met")` on atc saves "atc:met", so no other island can reach it or collide with it, and bare for the vine, which wrote the flags already in every save */
   const scoped = (flag: string) => (by ? `${by.grape}:${flag}` : flag)
-  /* an intent that needs a map, asked in a scene that has none. Answered rather
-   * than thrown: a grape running in the standalone harness with no scene should
-   * report "there is no world here", not crash the worker. */
+  /* an intent needing a map in a scene that has none is answered rather than thrown, because a grape in the standalone harness should report there is no world here instead of crashing the worker */
   const w = (): IntentWorld => {
     if (!world) throw new NoWorld(i.kind)
     return world
@@ -395,13 +314,7 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         await w().say(i.who, i.text, i.portrait)
         return ok()
       case 'choose': {
-        /* ---- THE ARGUMENTS THE WRONG WAY ROUND ------------------------------
-         *
-         * `choose(options, prompt=...)` is the shape, and `choose("Want a go?",
-         * [YES, NO])` is what a hand types. Unchecked, the options reached the box as
-         * a STRING, the renderer mapped over it, and the whole game went blank - not
-         * the island, the game. A beginner's most likely mistake must be the thing
-         * this API is best at explaining, never the thing it dies on. */
+        /* the arguments the wrong way round: `choose("Want a go?", [...])` sent a string where the options go, the renderer mapped over it and the whole game went blank rather than just the island, so a beginner's likeliest mistake is explained here instead of dying downstream */
         if (!Array.isArray(i.options))
           return no('choose wants a LIST of options first and the prompt after it: '
             + 'choose(["Yes", "No"], prompt="Want a go?"). '
@@ -414,15 +327,12 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         return ok(await w().choose(i.prompt, i.options))
       }
       case 'guide_to':
-        /* null is not a name, so it is not checked against the map. Same shape
-         * as `look_at` below, and for the same reason: letting go is a thing an
-         * island asks for on purpose, not an argument somebody forgot. */
+        /* null is not a name so it is not checked against the map, because letting go is asked for on purpose rather than an argument somebody forgot */
         if (i.anchor && !w().hasAnchor(i.anchor)) return no(`no anchor named "${i.anchor}" on ${w().mapId()}`)
         w().guideTo(i.anchor)
         return ok()
       case 'highlight': {
-        /* the same validation guide_to keeps, and null is letting go rather than a
-         * name somebody forgot */
+        /* the same validation `guide_to` keeps, and null is letting go rather than a name somebody forgot */
         const lit = i.on === false ? null : i.anchor
         if (lit && !w().hasAnchor(lit)) return no(`no anchor named "${lit}" on ${w().mapId()}`)
         w().highlight(lit, !!lit)
@@ -448,26 +358,8 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         await w().fx(i.name, i.anchor, i.data)
         return ok()
       case 'enter':
-        /* ---- AN OCCASION OR THE NAME OF A COVER THE MAP CARRIES --------------
-         *
-         * Covers belong to maps, and MAPVIS publishes named ones inside a map's own
-         * bundle, so `cover` can be either: one of the engine's own occasions, or the
-         * code name of a picture the destination ships. Anything else is refused by
-         * name here rather than arriving as a cover nobody drew.
-         *
-         * The fence is MAPVIS's own rule for a name, because that is what the Cover
-         * tab will let somebody type: lower case, digits and underscores, starting
-         * with a letter. A name that cannot exist is a typo and is said out loud. */
-        /* ---- A MAP NOBODY HAS IS A SENTENCE, NOT A TWELVE SECOND DEAD END ---
-         *
-         * `enter("hbu")` played a full loading cover and then arrived nowhere, with
-         * the run over where it stood and nothing on screen naming the member's own
-         * typo. Every other word that takes a name checks it; this one takes the most
-         * consequential name in the vocabulary and took it on trust.
-         *
-         * The list comes from the world the game really loaded plus the doors on this
-         * map, so it is the maps that exist rather than a table somebody maintains. A
-         * scene that cannot answer says nothing and the old behaviour stands. */
+        /* cover is either one of the engine's own occasions or the code name of a picture the destination map ships, checked against MAPVIS's rule for a name, lower case, digits and underscores starting with a letter, so a name that cannot exist is said out loud */
+        /* a map nobody has is a sentence, not a twelve second cover onto nothing: the list comes from the world the game really loaded plus this map's own doors rather than a table somebody maintains, and a scene that cannot answer leaves the name unchecked */
         if (typeof i.map !== 'string' || !i.map.trim())
           return no('enter wants the name of a map to go to')
         {
@@ -509,12 +401,9 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
       /* an actor is an anchor name, so the words below check it the way show does */
       case 'actor_move':
         if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
-        /* THE PLAYER IS A DESTINATION AND NEVER AN ANCHOR, the same exemption
-         * `place` carries: "walk over to him" is a thing a film says and no map
-         * has a post for, because he is standing wherever he stopped. */
+        /* the player is a destination and never an anchor, the same exemption `place` carries, because no map has a post for wherever he stopped walking */
         if (i.to !== PLAYER && !w().hasAnchor(i.to)) return no(`no anchor named "${i.to}" on ${w().mapId()}`)
-        /* a pace nobody drew is a typo, and it reads the same way every other
-         * named thing in this file reads: refused by name, with the list */
+        /* a pace nobody drew is a typo, refused by name with the list, the way every other named thing in this file is */
         if (i.pace && !PACES.includes(i.pace))
           return no(`"${i.pace}" is not a pace. They are: ${PACES.join(', ')}`)
         if (offsetFault(i.off)) return no(offsetFault(i.off) as string)
@@ -530,20 +419,14 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         return ok()
       case 'place':
         if (!w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
-        /* THE PLAYER IS A PLACE AND NOT AN ANCHOR, so he is exempt from the one
-         * check every other name here gets. Nothing else in the vocabulary is,
-         * and nothing else should be. */
+        /* the player is a place and not an anchor, so he alone is exempt from the check every other name here gets */
         if (i.at !== PLAYER && !w().hasAnchor(i.at))
           return no(`no anchor named "${i.at}" on ${w().mapId()}`)
         if (offsetFault(i.off)) return no(offsetFault(i.off) as string)
         w().place(i.actor, i.at, i.off, i.facing)
         return ok()
       case 'actor_face':
-        /* THE PLAYER IS A LEGAL SUBJECT AS WELL AS A LEGAL TARGET. `actor_face(x,
-         * "thor")` turns somebody at the student; `actor_face("thor", x)` turns the
-         * student at somebody. Without the second one a beat where a person walks up
-         * and speaks leaves the student facing wherever his last walk pointed him,
-         * and the only cure was a compass heading typed into an island. */
+        /* the player is a legal subject as well as a legal target: without `actor_face("thor", x)` a beat where somebody walks up and speaks leaves the student facing wherever his last walk pointed, curable only by a compass heading typed into an island */
         if (i.actor !== PLAYER && !w().hasAnchor(i.actor))
           return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
         w().actorFace(i.actor, i.facing)
@@ -553,8 +436,7 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         w().actorLook(i.actor, i.look)
         return ok()
       case 'actor_release':
-        /* releasing everything is the no-argument case and is always legal, even
-         * on a map where nothing was ever driven, because it is a tidy-up */
+        /* releasing everything is the no-argument case and is always legal, even on a map where nothing was ever driven, because it is a tidy-up */
         if (i.actor && !w().hasAnchor(i.actor)) return no(`no anchor named "${i.actor}" on ${w().mapId()}`)
         w().actorRelease(i.actor)
         return ok()
@@ -579,8 +461,7 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         return ok(await w().waitFor(i.anchor, i.ms))
 
       case 'wait':
-        /* a negative or absurd pause is a typo, and a scene frozen for an hour is
-         * indistinguishable from a crash to the student sitting in front of it */
+        /* a negative or absurd pause is a typo, and a scene frozen for an hour is indistinguishable from a crash to the student sitting in front of it */
         if (!Number.isFinite(i.ms) || i.ms < 0) return no(`wait wants a number of milliseconds and got ${JSON.stringify(i.ms)}`)
         await engine.wait(Math.min(i.ms, WAIT_CEILING_MS))
         return ok()
@@ -591,9 +472,7 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         await w().ashore()
         return ok()
       case 'movie':
-        /* NO MAP NEEDED, on purpose. The bars are a property of the window and
-         * an island opening in the standalone harness should still be able to
-         * say that a stretch of it is watched rather than played. */
+        /* no map needed on purpose: the bars belong to the window, so an island opening in the standalone harness can still say a stretch is watched rather than played */
         engine.movie(i.on === true)
         return ok()
       case 'objective':
@@ -604,8 +483,7 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
       case 'island_tasks': {
         const why = refuseTasks(i.tasks)
         if (why) throw new NotBuilt('island_tasks', why)
-        /* trimmed here so nothing downstream has to wonder, and `by` rides along so
-         * the ticks are filed under the island that owns them */
+        /* trimmed here so nothing downstream has to wonder, and `by` rides along so the ticks are filed under the island that owns them */
         engine.islandTasks((i.tasks as IslandTask[]).map((t) => ({
           id: t.id.trim(), name: t.name.trim(),
           ...(typeof t.note === 'string' && t.note.trim() ? { note: t.note.trim() } : {}),
@@ -621,65 +499,37 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
       }
 
       case 'open': {
-        /* ---- A PANEL NOBODY HAS IS A SENTENCE, NOT A FROZEN GAME ----------
-         *
-         * `open` was the one word whose argument was never checked against its own
-         * closed list, and it is a word a member types by hand. `open("guide")` for
-         * "handbook" got all the way to the Hud, which is a chain of equality tests
-         * with no else: nothing matched, nothing opened, and with `wait=True` the
-         * waiter it had already parked was never called. The station handler holds the
-         * world for its whole length, so a student stood still with no dialogue, no
-         * panel and no controls for TEN MINUTES - the bus's own ceiling - and then the
-         * island carried on as though the panel had opened and shut. Without `wait` the
-         * same typo was a silent no-op reported as ok.
-         *
-         * The Maw's founding film says `open(..., wait=True)` four times, so this
-         * lands in the first two minutes of the game.
-         *
-         * Every other word in this file refuses an unknown name with the list of the
-         * ones that exist. This one does now too. */
+        /* an unknown panel name reached a chain of equality tests with no else: nothing opened, and with `wait=True` the parked waiter never fired, so the world was held for the bus ceiling of ten minutes with no controls, while without `wait` it was a silent no-op reported as ok */
         if (!(UI_PANELS as readonly string[]).includes(i.ui)) {
           return no(`"${String(i.ui)}" is not a panel this game has. `
             + `It has: ${[...UI_PANELS].sort().join(', ')}`)
         }
-        /* awaited whichever way it answers: without `wait` the engine hands back
-         * nothing and this is the same synchronous call it always was */
+        /* awaited whichever way it answers: without `wait` the engine hands back nothing and this is the same synchronous call it always was */
         await engine.openUi(i.ui, i.wait === true)
         return ok()
       }
       case 'play': {
         /* as_plain defaults to the study arm this participant was assigned at join */
         const plain = i.as_plain ?? engine.mode() === 'plain'
-        /* THE PROGRAMME IS TAKEN OFF `by` AND NEVER OFF THE PAYLOAD, the same
-         * source `scoped` uses for flags. An island naming its own programme here
-         * could write a grade onto another programme's ledger row. */
+        /* the programme is taken off `by` and never off the payload, the same source `scoped` uses for flags, or an island could write a grade onto another programme's ledger row */
         return ok(await engine.playBeat(i.beat, plain,
           i.items ? { items: i.items, title: i.title, place: i.place, programme: by?.grape } : undefined))
       }
       case 'get':
-        /* and it READS its own corner too, or the namespace is half a namespace:
-         * an island that wrote "met" and then read `flags` would get back
-         * "atc:met" beside every other island's, and recognise none of it. */
+        /* it reads its own corner too, or the namespace is half a namespace: an island that wrote "met" would read back "atc:met" beside every other island's and recognise none of it */
         if (i.path === 'flags' && by) {
           const mine = `${by.grape}:`
           return ok((engine.read('flags') as string[])
             .filter((f) => f.startsWith(mine)).map((f) => f.slice(mine.length)))
         }
-        /* the same rule `flags` keeps: a question about "me" is answered about the
-         * island that asked it, so an island never has to know its own id */
+        /* the same rule `flags` keeps: a question about "me" is answered about the island that asked it, so an island never has to know its own id */
         if (i.path === 'rank') return ok(engine.rankOf(by?.grape ?? null))
         return ok(engine.read(i.path))
       case 'set_flag':
         engine.setFlag(scoped(i.flag))
         return ok()
       case 'award': {
-        /* ---- A GRADE IS OUT OF FOUR, AND SAYS SO ---------------------------
-         *
-         * `award(grade=87)` is what somebody who has marked out of a hundred writes,
-         * and it went straight onto the transcript: a GPA of 87, a letter nothing can
-         * print, and no sentence anywhere saying what happened. A grade is the one
-         * number in this API that is about a person, so it is the one worth being
-         * strict about. `None` is still "finished, not graded" and always was. */
+        /* a grade is out of four and says so: `award(grade=87)` used to go straight onto the transcript as a GPA of 87 and a letter nothing can print, with no sentence saying what happened, and `None` still means finished but not graded */
         if (i.grade !== undefined && i.grade !== null) {
           if (typeof i.grade !== 'number' || !Number.isFinite(i.grade))
             return no(`award's grade wants a number from 0 to 4, or None for "finished, not graded". `
@@ -697,14 +547,12 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         engine.log(i.event, i.data)
         return ok()
     }
-    /* unreachable while the switch is exhaustive; the assignment is what makes
-     * the compiler say so if a case is ever added to the union and not here */
+    /* unreachable while the switch is exhaustive, and the assignment is what makes the compiler say so if a case is ever added to the union and not here */
     const never: never = i
     return no(`unknown intent ${JSON.stringify(never)}`)
   } catch (e) {
     if (e instanceof NoWorld) return no(`${e.what} needs a map, and this scene has none`)
-    /* NotBuilt lands here too and its message is already the refusal. See the
-     * class below for why an unbuilt word must refuse rather than resolve. */
+    /* NotBuilt lands here too and its message is already the refusal, and the class below says why an unbuilt word must refuse rather than resolve */
     return no(e instanceof Error ? e.message : String(e))
   }
 }

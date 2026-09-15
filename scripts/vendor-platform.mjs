@@ -1,11 +1,4 @@
-/* Copies what the game reads from the map platform into public/, so a student's browser and a dev run never fetch the platform.
- *
- *   node scripts/vendor-platform.mjs            (runs at dev, test and build after vendor-islands)
- *   VITE_MAPVIS_URL=https://... overrides the platform; PLATFORM_VENDOR=skip leaves the copies as they are
- *
- * Written folders are gitignored build output: public/maps-vendored/<id>/, public/world-vendored/, public/ui-vendored/.
- * A platform that cannot be reached leaves the previous copies in place and says so; it never fails the build.
- */
+/* copies the maps, world and ui the game reads off the platform into public/, so a browser never fetches the platform at dev or play time; VITE_MAPVIS_URL overrides it, PLATFORM_VENDOR=skip keeps the current copies, and a platform that cannot be reached leaves the old copies and never fails the build */
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'

@@ -23,8 +23,7 @@ type Over = {
   serverAt?: number
 }
 
-/** one heartbeat, with the two clocks separately controllable because telling
- *  them apart is half of what this fold does */
+/** one heartbeat, with the two clocks separately controllable because telling them apart is half of what this fold does */
 const beat = (offsetMs: number, data: Record<string, unknown> = {}, over: Over = {}): StoredEvent => {
   const client = over.clientAt === undefined ? T0 + offsetMs : over.clientAt
   return {
@@ -89,8 +88,7 @@ describe('time on task', () => {
   })
 
   it('drops the lunch break whole rather than capping it, which is _summary\'s other answer', () => {
-    // api/_summary.ts counts the first IDLE_CAP_MS of an absence as time on task.
-    // The beat is regular enough to know better: none of this is time on task.
+    // api/_summary.ts counts the first IDLE_CAP_MS of an absence as time on task, but the beat is regular enough to know better: none of this is time on task
     const m = one([beat(0), beat(15_000), beat(90 * 60_000), beat(90 * 60_000 + 15_000)])
     expect(m.onTaskMs).toBe(30_000)
     expect(m.breaks).toBe(1)
@@ -117,8 +115,7 @@ describe('time on task', () => {
 
 describe('what the fold refuses to read', () => {
   it('reads heartbeats and NOTHING else, which is what makes islands comparable', () => {
-    // a chatty island and a quiet one beat at the same rate; every other event
-    // would make the chatty one look longer
+    // a chatty island and a quiet one beat at the same rate, and every other event would make the chatty one look longer
     const rows = [
       beat(0), beat(15_000),
       beat(15_100, {}, { name: 'dialogue_advanced' }),
@@ -156,8 +153,7 @@ describe('what the fold refuses to read', () => {
 
 describe('which clock times a session', () => {
   it('uses the CLIENT stamp, so an offline queue draining in one batch still measures', () => {
-    // the Chromebook lost the network for a minute and drained five beats in one
-    // POST: every row carries the same insert time and the beats are 15s apart
+    // a lost network drained five beats in one POST: every row carries the same insert time and the beats are 15s apart
     const rows = [0, 15_000, 30_000, 45_000, 60_000].map((o) =>
       beat(o, {}, { serverAt: T0 + 60_000 }))
     const m = one(rows)
@@ -174,8 +170,7 @@ describe('which clock times a session', () => {
   })
 
   it('never mixes the two inside one session, so a skewed clock cannot invent a gap', () => {
-    // a machine whose clock is an hour fast: one row without a stamp forces the
-    // whole session onto the server's, rather than subtracting one clock from the other
+    // a machine whose clock is an hour fast: one row without a stamp forces the whole session onto the server's, rather than subtracting one clock from the other
     const skew = 3600_000
     const m = one([
       beat(0, {}, { clientAt: T0 + skew }),
@@ -209,8 +204,7 @@ describe('per map, per scene, per session', () => {
   })
 
   it('puts a beat with no map in its own bucket instead of losing it', () => {
-    // the title screen and the planner beat with map: null (SceneManager stamps
-    // scene, PmapScene stamps map and clears it on the way out)
+    // the title screen and the planner beat with map: null, since SceneManager stamps scene and PmapScene stamps map and clears it on the way out
     const m = one([
       beat(0, { scene: 'title' }), beat(15_000, { scene: 'title' }),
       beat(30_000, { scene: 'pmap', map: 'hub' }),

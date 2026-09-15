@@ -11,9 +11,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 let host: HTMLDivElement
 let root: Root
 
-/* happy-dom has no rAF clock that advances on its own, so the typewriter is
- * driven by hand: every frame is one call and `performance.now` is a number
- * this file owns. That is the only way a character count can be asserted. */
+/* happy-dom has no rAF clock that advances on its own, so the typewriter is driven by hand, one call per frame with `performance.now` owned by this file, which is the only way a character count can be asserted */
 let now = 0
 let frames: FrameRequestCallback[] = []
 
@@ -48,9 +46,7 @@ const tick = (ms: number) => {
 }
 
 const box = () => host.querySelector('.dlg-box')
-/* type the whole line out, then press it: `advance` only advances a line that
-   has FINISHED, and the box's own dead zone refuses a press inside the first
-   quarter second, so a test that just clicks is a test of neither. */
+/* type the whole line out before pressing: `advance` only advances a finished line, and the box refuses a press inside its first quarter second, so a test that only clicks tests neither */
 const readAndPress = () => { tick(2000); act(() => { (box() as HTMLElement).click() }) }
 const words = () => host.querySelector('.cs-dialogue-text')?.textContent ?? ''
 const plate = () => host.querySelector('.cs-nameplaque')?.textContent?.trim() ?? null
@@ -128,9 +124,7 @@ describe('one speaker, one box', () => {
 
 describe('the typewriter', () => {
   it('STARTS OVER when the same sentence is said twice in a row', async () => {
-    /* it was keyed on the text, so a repeated line never re-typed and the
-     * second one appeared whole. A "Try again." after a wrong answer is the
-     * commonest repeat in the game. */
+    /* it was keyed on the text, so a repeated line never re-typed and the second one appeared whole, and a Try again. after a wrong answer is the commonest repeat in the game */
     const first = say({ text: 'Try again.' })
     await act(async () => {})
     tick(1000)
@@ -151,8 +145,7 @@ describe('the typewriter', () => {
     /* filling a line in used to leave the typing loop running, so the sentence shrank back */
     const said = say({ text: 'A reasonably long sentence to type out.' })
     await act(async () => {})
-    /* past the box's own quarter-second dead zone, which refuses a press before
-       it, and nowhere near the end of a 38 character line at 45 a second */
+    /* past the box's own quarter-second dead zone, which refuses a press before it, and nowhere near the end of a 38 character line at 45 a second */
     tick(300)
     const part = words().length
     expect(part).toBeGreaterThan(0)

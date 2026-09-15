@@ -32,8 +32,7 @@ html[data-panels]:not([data-panels='0']) .hud-stack { visibility: hidden; }
 .hud-plaque:disabled { cursor: not-allowed; transform: none; filter: grayscale(.6) brightness(.8); }
 .hud-plaque-word {
   font-family: var(--kit-face-display);
-  /* 16, not 17: at 17 "Year sheet" reached the right-hand bolt of the inlay.
-     One pixel of type is cheaper than a word touching the frame. */
+  /* 16px and not 17px, because at 17 the words Year sheet reached the right hand bolt of the inlay */
   --kit-fs-raw: calc(16px * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-wood-ink);
   text-shadow: 0 2px 0 var(--kit-plank-shadow);
@@ -47,9 +46,7 @@ html[data-panels]:not([data-panels='0']) .hud-stack { visibility: hidden; }
   image-rendering: var(--kit-pixel);
 }
 
-/* AN ARRIVAL IS A MOMENT (§40.2): the sign swings down on its hook, once, on the
-   render the run first contains the thing it opens. It never plays again, and a
-   reload mid-run plays none of them. */
+/* an arrival is a moment: the sign swings down on its hook once, on the render the run first contains the thing it opens, never again, and a reload mid run plays none of them */
 .hud-arriving { animation: hud-hang 620ms var(--kit-ease-pop) both; transform-origin: 24% -6px; }
 
 /* a plaque the game has not handed over yet keeps its place but stays unseen */
@@ -69,8 +66,7 @@ html[data-rm='1'] .hud-arriving { animation-duration: 1ms; }
 .hud-tokens { display: flex; gap: 2px; flex: none; width: 26px; }
 .hud-token {
   width: 16px; height: 16px; border-radius: 50%;
-  /* three in the width of one mark, so they overlap slightly the way coins in a
-     hand do rather than shrinking to dots */
+  /* three in the width of one mark, so they overlap slightly like coins in a hand rather than shrinking to dots */
   margin-right: -5px;
   border: var(--kit-border) solid var(--kit-wood-edge);
   background: radial-gradient(circle at 35% 30%, var(--kit-gold-hi), var(--kit-gold-lo) 70%);
@@ -87,8 +83,7 @@ html[data-rm='1'] .hud-arriving { animation-duration: 1ms; }
 }
 .hb-book {
   width: min(1080px, 88vw); height: min(760px, 86vh);
-  /* the frame is a nine-slice on .kit-surface-panel, not a stretched picture, so
-     its own border-width is the whole of the inset and nothing here adds another */
+  /* the frame is a nine-slice on .kit-surface-panel and not a stretched picture, so its own border-width is the whole of the inset and nothing here adds another */
   image-rendering: var(--kit-pixel);
   filter: drop-shadow(var(--kit-drop-lg));
   display: flex; flex-direction: column;
@@ -108,9 +103,7 @@ html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1m
   padding: 14px 18px 6px;
   flex: none;
 }
-/* the school's own mark, which docs/ART.md already assigns: "the Handbook cover
-   carries the panther crest". `icon_set` has no book face and this is what
-   stands in its place, because a drawn thing that exists beats a system glyph. */
+/* the Handbook cover carries the panther crest, and it stands in here because `icon_set` has no book face and a drawn thing that exists beats a system glyph */
 .hb-crest {
   flex: none; width: 42px; height: 42px;
   background: var(--kit-art-crest) center / contain no-repeat;
@@ -155,9 +148,7 @@ html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1m
   color: var(--kit-ink-body);
   --kit-fs-raw: calc(1.62cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
   line-height: 1.5;
-  /* the page TURNS. It is the one movement in the binder, it is keyed on the tab
-     so React replays it, and it is an entrance rather than a loop, which is why
-     shortening it under reduced motion is correct here and a strobe elsewhere. */
+  /* the page turn is the one movement in the binder, keyed on the tab so React replays it, and an entrance rather than a loop, which is why shortening it under reduced motion is right here */
   animation: hb-turn 200ms var(--kit-ease-rise) both;
 }
 @keyframes hb-turn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -184,8 +175,7 @@ html[data-rm='1'] .hb-page { animation-duration: 1ms; }
   --kit-fs-raw: calc(1.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-ink-quiet);
 }
-/* `.hb-dim` is the Chart page's, which draws its own heading and legend into
-   this page and must keep reading the same ink as everything around it. */
+/* `.hb-dim` belongs to the Chart page, which draws its own heading and legend into this page and must keep reading the same ink as everything around it */
 .hb-dim { color: var(--kit-ink-dim); }
 
 /* a Handbook page is a grid of cards that fits as many columns as the width allows */
@@ -254,9 +244,7 @@ html[data-rm='1'] .hb-page { animation-duration: 1ms; }
   --kit-fs-raw: calc(1.6cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-ink-body);
 }
-/* THE STATE IS A WORD AND A SHAPE AND NEVER A COLOUR. §40.31: a school Chromebook
-   panel crushes lightness and saturation, so every one of these reads in the same
-   ink and is told apart by what it says and by whether a drawn mark is beside it. */
+/* the state is a word and a shape and never a colour, because a school Chromebook panel crushes lightness and saturation, so every one of these reads in the same ink and is told apart by its wording and by a drawn mark beside it */
 .hb-prog-state {
   display: inline-flex; align-items: center; gap: 5px;
   white-space: nowrap;
@@ -268,8 +256,7 @@ html[data-rm='1'] .hb-page { animation-duration: 1ms; }
 .hb-cord-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .hb-cord-colors { white-space: nowrap; }
 .hb-cord-rule { margin: 0; color: var(--kit-ink-body); }
-/* the gauge is the control kit's, so the track, the fill and the reading are one
-   drawn thing everywhere in the game rather than a bar retyped per panel */
+/* the gauge is the control kit's, so the track, the fill and the reading are one drawn thing everywhere in the game rather than a bar retyped per panel */
 .hb-cordbar { margin-top: 4px; }
 .hb-earned {
   display: flex; align-items: center; gap: 8px;
@@ -278,21 +265,17 @@ html[data-rm='1'] .hb-page { animation-duration: 1ms; }
   --kit-fs-raw: calc(2cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-sea-earned);
 }
-/* a real wax seal off the `stamp` sheet, which is drawn and paid for and had
-   never been shown to a student anywhere in the game */
+/* a real wax seal off the `stamp` sheet, drawn and paid for and never shown to a player anywhere else in the game */
 .hb-seal { flex: none; }
-/* AN EARNED CORD IS A DIFFERENT CARD, not a greener one: the edge thickens on the
-   left the way a ribbon lies on a page, which is a change of shape. */
+/* an earned cord is a different card and not a greener one: the left edge thickens the way a ribbon lies on a page, which is a change of shape */
 .hb-cord[data-state='earned'] { border-left-width: 6px; border-left-color: var(--kit-gold-edge); }
-/* and an award nobody has published criteria for is neither earned nor pending,
-   so it is drawn as an open card with a dashed edge and says so in words */
+/* an award nobody has published criteria for is neither earned nor pending, so it is an open card with a dashed edge that says so in words */
 .hb-cord[data-state='unsaid'] { border-style: dashed; }
 
 /* ---- the facts page ---- */
 .hb-factbar { margin: 0 0 12px; max-width: 340px; }
 .hb-fact { position: relative; padding-top: 18px; overflow: visible; }
-/* the pin is `pointer`'s own `pin_plate`, drawn, so a collected fact reads as a
-   note somebody pinned up rather than as a row in a table */
+/* the pin is `pointer`'s own `pin_plate`, drawn, so a collected fact reads as a note somebody pinned up rather than as a row in a table */
 .hb-pin { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); }
 .hb-fact-text { margin: 0; color: var(--kit-ink-body); }
 
@@ -309,9 +292,7 @@ html[data-rm='1'] .hb-page { animation-duration: 1ms; }
   color: var(--kit-ink-label);
   letter-spacing: .06em;
 }
-/* GOLD MEANS AN EARNED HONOUR AND NOTHING ELSE (`docs/ART.md`), and the control
-   kit's un-drawn fallback for a chip is a gold coin. A badge nobody has earned
-   wears cold paper until the drawn plate lands; the earned one keeps the coin. */
+/* gold means an earned honour and nothing else, and the kit's un-drawn chip fallback is a gold coin, so an unearned badge wears cold paper until the drawn plate lands and the earned one keeps the coin */
 .hb-badge[data-state='waiting'] .kit-chip:not(.kit-chip-drawn),
 .hb-badge[data-state='short'] .kit-chip:not(.kit-chip-drawn) { background: var(--kit-paper-chip-lo); }
 .hb-badge[data-state='earned'] .hb-badge-word { color: var(--kit-sea-earned); }
@@ -362,8 +343,7 @@ html[data-skin='plain'] .hb-badge-word { letter-spacing: 0; font-weight: 700; }
   --kit-fs-raw: calc(24px * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-ink-head); text-align: center; margin-bottom: 6px;
 }
-/* the line under the buttons that says the voyage saves itself. It was an inline
-   style on the element, which is the one place a skin cannot reach. */
+/* the line under the buttons saying the voyage saves itself, taken off an inline style because that is the one place a skin cannot reach */
 .pz-note { font-family: var(--kit-face-body); --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-dim); text-align: center; margin-top: 4px; }
 .hud-blur { filter: blur(2px) brightness(.92); }
 
@@ -388,9 +368,7 @@ html[data-skin='plain'] .hb-badge-word { letter-spacing: 0; font-weight: 700; }
   box-shadow: none;
 }
 
-/* A WORKSHEET DOES NOT FADE. The mask is a game affordance, and in the control
-   arm the page is a document that simply continues, the way every document a
-   student has ever scrolled does. */
+/* a worksheet does not fade: the mask is a game affordance, and under the plain skin the page is a document that just continues */
 html[data-skin='plain'] .hb-page { -webkit-mask-image: none; mask-image: none; }
 
 /* in the plain arm the corner signs become plain white buttons with a real edge */
@@ -438,25 +416,19 @@ html[data-skin='plain'] .hud-token-spent {
   background: transparent;
   opacity: 1;
 }
-/* A WORKSHEET'S BUTTONS DO NOT SWING IN ON A HOOK. Same reason the page does not
-   fade: the arrival is a game affordance and the document just has the control. */
+/* a worksheet's buttons do not swing in on a hook, same reason the page does not fade: the arrival is a game affordance and a document just has the control */
 html[data-skin='plain'] .hud-arriving { animation: none; }
 
 /* the plain arm keeps the cord criterion in words and drops the drawn progress bar */
 html[data-skin='plain'] .hb-cordbar { display: none; }
 
-/* ---- THE TWO SMALLER PLAQUES (Ash, 2026-09-08 item 8) ---------------------
- *
- * The wall and the wardrobe hang under the three doors. They are smaller because
- * they are things to look at rather than the three the year runs through, and a
- * corner of five equal signs is a menu bar. */
+/* the two smaller plaques, the wall and the wardrobe, hang under the three doors and are smaller because they are things to look at rather than the three the year runs through, and a corner of five equal signs reads as a menu bar */
 .hud-plaque-sm {
   padding-block: 5px;
   opacity: 0.88;
 }
 .hud-plaque-sm .hud-plaque-word {
-  /* the same snap every other size in this file goes through, so the word lands
-     on whole pixels at every text-scale setting */
+  /* the same snap every other size in this file goes through, so the word lands on whole pixels at every text-scale setting */
   --kit-fs-raw: calc(13px * var(--kit-text-scale));
   font-size: var(--kit-fs);
 }

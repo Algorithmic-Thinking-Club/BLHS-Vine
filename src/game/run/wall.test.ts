@@ -16,13 +16,10 @@ describe('the seats', () => {
   it('is one seat per thing chosen, plus Advisory, which everybody is in', () => {
     const seats = wallOf(withPlan())
     expect(seats.map((w) => w.name)).toEqual([
-      /* a club somebody BUILT keeps its real name and everything nobody built is
-         still an example, which is the mask doing its one job. ATC is the first
-         row in this game's history to come out from under it. */
+      /* a club somebody built keeps its real name and everything nobody built is still an example, which is the mask doing its one job */
       'Advisory', 'Example A', 'Algorithmic Thinking Club', 'AP Human Geography', 'Spanish I',
     ])
-    /* Advisory first because it is beat 5, then the seasons, then the classes:
-     * the order a student meets them is the order the thirty minutes happens in */
+    /* Advisory first because it is beat 5, then the seasons, then the classes: the order a student meets them is the order the thirty minutes happens in */
     expect(seats.map((w) => w.kind)).toEqual(['advisory', 'activity', 'activity', 'class', 'class'])
   })
 
@@ -30,8 +27,7 @@ describe('the seats', () => {
     const seats = wallOf(withPlan())
     expect(seats.every((w) => !w.earned)).toBe(true)
     expect(seats.every((w) => w.says === null)).toBe(true)
-    /* an empty frame that does not say what goes in it is decoration. The
-     * self-evident law's whole point is that the next thing to do is visible. */
+    /* an empty frame that does not say what goes in it is decoration, and the next thing to do has to be visible */
     expect(seats.every((w) => w.wants.trim().length > 0)).toBe(true)
     expect(onTheWall(withPlan())).toBe(0)
   })
@@ -56,25 +52,20 @@ describe('what fills a seat', () => {
 
   it('finishing a sport fills its frame with the grade AND the rank', () => {
     const s = withPlan({ completions: [{ programme: 'football', year: 1, grade: 3.2, rank: 'JV', at: 1 }] })
-    /* BY ID AND NOT BY THE LETTER. An example letter is a position in the list of
-     * things nobody has built, so it shifts the day somebody builds one, which is
-     * exactly what shipping ATC did to it. */
+    /* by id and not by the letter, because an example letter is a position in the list of things nobody has built and it shifts the day somebody builds one */
     const football = wallOf(s).find((w) => w.id === 'programme:football')!
     expect(football.earned).toBe(true)
     expect(football.says).toBe('B+, JV')
   })
 
   it('a completion from another year does not fill this year\'s frame', () => {
-    /* the trap this catches: `completions` is keyed by programme AND year, and a
-     * wall that forgot the year would show year two's football on year one's
-     * wall the moment a student played the same sport twice. */
+    /* the trap this catches: `completions` is keyed by programme and year, and a wall that forgot the year would show year two's football on year one's wall the moment a student played the same sport twice */
     const s = withPlan({ completions: [{ programme: 'football', year: 2, grade: 4, rank: 'Varsity', at: 1 }] })
     expect(wallOf(s).find((w) => w.id === 'programme:football')!.earned).toBe(false)
   })
 
   it('reads the letter from progress.ts rather than rounding on its own', () => {
-    /* 3.5 is the A-/B+ boundary and the one place two tables would disagree. The
-     * yearbook and the wall have to say the same thing about one grade. */
+    /* 3.5 is the A-/B+ boundary and the one place two tables would disagree, and the yearbook and the wall have to say the same thing about one grade */
     const s = withPlan({
       ledger: [{ id: 'core:y1', kind: 'core', title: 'Advisory', credit: 0.5, grade: 3.5, year: 1, season: 'Fall' }],
     })

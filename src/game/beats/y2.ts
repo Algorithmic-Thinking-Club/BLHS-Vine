@@ -9,10 +9,7 @@ export const CORE_Y2: CoreBeat = {
   year: 2,
   /* the place and title are printed above every step of the activity, in both arms */
   title: 'Honor cords, and how to earn them',
-  /* WHERE IT REALLY STAGES (Ash, 2026-09-09). The runner prints this over every
-   * step in both arms, and it said "the counselor's office" over a beat the
-   * objective bar sends a student to the HEARTH for and the Maw's own island
-   * plays at the fire. One of the two was lying and it was this one. */
+  /* the runner prints this place over every step, so it has to match where the beat really stages: the objective bar sends a student to the hearth and the Maw's own island plays it at the fire */
   place: 'Advisory',
   kind: 'core',
   credit: 0.5,
@@ -27,9 +24,7 @@ export const CORE_Y2: CoreBeat = {
       check: {
         kind: 'sort', id: 'y2-cords',
         prompt: 'Match each honor to what actually earns it.',
-        /* the bucket was 'Double gold', which is the colour of the cord and not
-         * the name of the honor, so one chip in four named nothing a student
-         * could look up. The other three were already honor names. */
+        /* a bucket reading 'Double gold' named the colour of the cord and not the honor, so one chip in four named nothing a student could look up */
         buckets: ['Highest Honors', 'Career Readiness', 'AP Honors', 'Seal of Biliteracy'],
         items: [
           { label: 'A GPA of 3.76 or better', bucket: 'Highest Honors' },

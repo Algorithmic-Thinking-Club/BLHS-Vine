@@ -5,21 +5,13 @@ export type PlaceCardRequest = {
   title: string
   /** one line under it, when the destination has something to say */
   line?: string
-  /* ---- HE HAS BEEN HERE BEFORE (Ash, 2026-09-09) ---------------------
-   *
-   * *"For the cutscenes / first few times this is fine, but maybe doing it
-   * every time you enter and exit is redundant / annoying. Maybe after the
-   * cutscene / first time, it becomes a smaller panel higher up the screen."*
-   *
-   * The first arrival at a place is a moment and the fourth is a signpost. Same
-   * card, smaller, higher, and gone quicker. */
+  /* the first arrival at a place is a moment and the fourth is a signpost, so a repeat gets the same card smaller, higher up the screen and gone quicker */
   brief?: boolean
 }
 
 const cardListeners = new Set<(c: PlaceCardRequest) => void>()
 
-/** show the card. Fire-and-forget: the card dismisses itself and takes no input,
- *  so there is nothing to await and nothing to release. */
+/** show the card, fire and forget: it dismisses itself and takes no input, so there is nothing to await and nothing to release */
 export function showPlaceCard(c: PlaceCardRequest) {
   for (const fn of cardListeners) fn(c)
 }

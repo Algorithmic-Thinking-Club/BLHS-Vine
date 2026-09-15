@@ -26,13 +26,7 @@ const answer = (...moves: string[]) =>
   Object.fromEntries(moves.map((m, i) => [`atc-maze:${i + 1}`, m]))
 
 describe('a program is marked on what it does', () => {
-  /* ---- ASH SOLVED IT AND WAS GIVEN AN F -------------------------------
-   *
-   * Twice: "i clicked all the right answers on the minigame, and still got a 0" and
-   * "IT GAVE ME AN F EVEN THOUGH I REACHED THE END." There are three five-step
-   * programs that reach this flag and the marking accepted exactly one of them, so
-   * two of the three right answers scored nothing.
-   */
+  /* three five step programs reach this flag and the marking once accepted exactly one of them, so two of the three right answers scored a zero */
   const SOLUTIONS = [
     ['fwd2', 'left', 'fwd3', 'right', 'fwd3'],
     ['left', 'fwd3', 'right', 'fwd2', 'fwd3'],
@@ -67,9 +61,7 @@ describe('a program is marked on what it does', () => {
   })
 
   it('and one that walks into the wall is marked on the steps it got right', () => {
-    /* straight ahead into the wall at column 3, and it still keeps the two steps
-     * that happen to be the ones the author wrote: partial credit is per step and
-     * does not care why the rest of the program was wrong */
+    /* straight ahead into the wall at column 3 still keeps the two steps that match the authored program, because partial credit is per step and does not care why the rest was wrong */
     expect(scoreOf(CHECK, answer('fwd3', 'fwd3', 'fwd3', 'fwd3', 'fwd3'))).toBe(2)
   })
 })

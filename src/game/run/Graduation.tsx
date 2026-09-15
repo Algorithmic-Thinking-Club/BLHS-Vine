@@ -134,9 +134,7 @@ export function Graduation({ onClose }: { onClose: () => void }) {
   const series = useMemo(() => (s ? gpaSeries(s) : []), [s])
   const keyYears = useMemo(() => (s ? ranksOf(s)[rankTrackOf('key-club') ?? 'keyclub'] ?? 0 : 0), [s])
 
-  /* WHEN NO CORD WAS EARNED THE STAGE IS DIFFERENTLY POPULATED, NEVER SKIPPED
-   * (§14.19). A member's island inherits the same rule: a result is always
-   * populated. `standingsOf` always returns at least one entry. */
+  /* when no cord was earned the stage is differently populated and never skipped, so `standingsOf` always returns at least one entry and a member's island gets a result too */
   const honours = useMemo<(CordProgress | Standing)[]>(
     () => (earned.length ? earned : standings), [earned, standings])
   const here: CordProgress | Standing | undefined = honours[Math.min(idx, Math.max(0, honours.length - 1))]
@@ -160,8 +158,7 @@ export function Graduation({ onClose }: { onClose: () => void }) {
     if (idx + 1 < honours.length) setIdx(idx + 1)
     else setStage('board')
   }
-  /* set during render rather than in an effect, because it is a ref and not
-   * state: the key that advances has to be the one this frame's card would use. */
+  /* set during render rather than in an effect, because it is a ref and not state: the key that advances has to be the one this frame's card would use */
   advanceRef.current = stage === 'processional'
     ? () => setStage('honours')
     : stage === 'honours' ? nextHonour : null
@@ -243,8 +240,7 @@ export function Graduation({ onClose }: { onClose: () => void }) {
 
                 <p className="gr-moment">{earnedMoment(here.id, s).line}</p>
 
-                {/* AN ACCUMULATION CORD SHOWS THE ACCUMULATION (§14.16) rather
-                    than pointing at one row that did not produce it. */}
+                {/* an accumulation cord shows the accumulation rather than pointing at one row that did not produce it */}
                 {earnedMoment(here.id, s).kind === 'accumulation' && (
                   here.id === 'key-club'
                     ? <p className="gr-series">{keyYears} {keyYears === 1 ? 'year' : 'years'} in Key Club</p>
@@ -261,9 +257,7 @@ export function Graduation({ onClose }: { onClose: () => void }) {
               </>
             ) : (
               <>
-                {/* A NAMED ACCOMPLISHMENT, IN THE SAME CARD SHAPE AND NEVER
-                    DRESSED AS A CORD (Q14.19.a). No colours, no criterion, no
-                    gold: what it is, what it took, and the count it stands on. */}
+                {/* a named accomplishment in the same card shape, never dressed as a cord: no colours, no criterion, no gold, only what it is, what it took and the count it stands on */}
                 <h2 className="gr-standname">{here.name}</h2>
                 <p className="gr-standcount">{here.count}</p>
                 <p className="gr-line">{here.what}</p>

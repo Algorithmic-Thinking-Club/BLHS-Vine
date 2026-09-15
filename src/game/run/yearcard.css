@@ -29,9 +29,7 @@ html[data-rm='1'] .yc-card { animation: none; }
   color: var(--kit-ink-head);
 }
 
-/* TWO COLUMNS ON A WINDOW WITH ROOM AND ONE ON A WINDOW WITHOUT. The card is a
-   container, so the switch is about the CARD's width rather than the screen's,
-   which is the same rule every other panel in the kit sizes by. */
+/* two columns on a window with room and one on a window without, switched on the card's width rather than the screen's, which is the rule every other panel in the kit sizes by */
 .yc-body {
   flex: 1 1 auto;
   min-height: 0;
@@ -70,8 +68,7 @@ html[data-rm='1'] .yc-card { animation: none; }
   font-size: var(--kit-fs);
   color: var(--kit-ink-body);
 }
-/* the small word beside a row: which period it filled, which season it took, or
-   the grade the school gave it. Quiet, because the thing itself is the fact. */
+/* the small word beside a row: which period it filled, which season it took, or the grade the school gave it, kept quiet because the thing itself is the fact */
 .yc-rowmeta {
   flex: none;
   --kit-fs-raw: calc(13px * var(--kit-text-scale));
@@ -87,8 +84,7 @@ html[data-rm='1'] .yc-card { animation: none; }
 }
 
 .yc-foot { flex: none; display: flex; justify-content: flex-end; }
-/* the one control on the card, and the biggest thing on it by a margin, because
-   that is the number a student who reads nothing is steering by */
+/* the one control on the card, and the biggest thing on it by a margin, because that is the number a student who reads nothing is steering by */
 .yc-go { min-width: 300px; min-height: 62px; }
 
 /* the plain arm: no paper texture, no shadow and no entrance animation */

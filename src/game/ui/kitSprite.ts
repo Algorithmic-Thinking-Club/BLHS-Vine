@@ -8,9 +8,7 @@ function artAllowed(): boolean {
   return currentSkin() === 'paper'
 }
 
-/* one decode per sheet per session, shared by every face cut from it. `pointer`
- * is 384x256 and carries six marks; decoding it once per mark would be six
- * fetches of the same bytes on a machine that has one slow network. */
+/* one decode per sheet per session, shared by every face cut from it: `pointer` is 384x256 and carries six marks, so decoding once per mark would be six fetches of the same bytes on a machine with one slow network */
 const sheets = new Map<string, Promise<Texture | null>>()
 
 async function sheetOf(piece: string): Promise<Texture | null> {
@@ -18,9 +16,7 @@ async function sheetOf(piece: string): Promise<Texture | null> {
   if (had) return had
   const job = (async (): Promise<Texture | null> => {
     try {
-      /* the kit may not have arrived yet: the world builds on the frame the map
-       * finishes loading and `loadKit` is fired off at boot without being waited
-       * for. Asking for it here is the same cached promise, not a second fetch. */
+      /* the kit may not have arrived yet, because the world builds on the frame the map finishes loading and `loadKit` is fired at boot without being waited for, so asking here is the same cached promise and not a second fetch */
       const pieces = kitCached() ?? await loadKit()
       const p = kitPiece(pieces, piece)
       if (!p) return null
@@ -28,9 +24,7 @@ async function sheetOf(piece: string): Promise<Texture | null> {
       if (!url) return null
       /* the loader is named, because the kit image url carries no file extension */
       const t: Texture = await Assets.load({ src: url, parser: 'loadTextures' })
-      /* NEAREST, ALWAYS. Every one of these is pixel art composited over a
-       * painting at an integer-ish camera scale, and a linear filter is the
-       * difference between a drawn edge and a smear. */
+      /* nearest always: this is pixel art composited over a painting, and a linear filter is the difference between a drawn edge and a smear */
       t.source.scaleMode = 'nearest'
       return t
     } catch { return null }
@@ -46,9 +40,7 @@ export async function kitTexture(piece: string, face: string): Promise<Texture |
   if (!sheet) return null
   const cut = kitFace(kitCached() ?? [], piece, face)
   if (!cut) return null
-  /* THE RECT IS IN THE SHEET'S OWN SOURCE PIXELS, which is what the kit publishes
-   * and what a frame takes. A face that runs off its sheet is a bad record rather
-   * than a reason to draw something wrong, so it answers null. */
+  /* the rect is in the sheet's own source pixels, which is what the kit publishes and what a frame takes, so a face that runs off its sheet answers null rather than drawing something wrong */
   const { width: w, height: h } = sheet.source
   if (cut.x < 0 || cut.y < 0 || cut.x + cut.w > w || cut.y + cut.h > h) {
     console.warn(`[kit] face "${piece}/${face}" is ${cut.x},${cut.y} ${cut.w}x${cut.h}, off a ${w}x${h} sheet`)
@@ -72,9 +64,7 @@ export async function kitNineSlice(piece: string, width: number): Promise<NineSl
   const p = kitPiece(kitCached() ?? [], piece)
   const s = p?.slice
   if (!p || !s) return null
-  /* the constraint that kills it quietly, checked out loud. `kit.ts` refuses a
-   * piece whose slice does not fit its own image; this refuses a REQUEST whose
-   * width cannot hold the two ends. */
+  /* the constraint that kills it quietly, checked out loud: `kit.ts` refuses a piece whose slice does not fit its own image, and this refuses a request whose width cannot hold the two ends */
   if (!(p.w > 0 && p.h > 0) || s.left + s.right >= p.w || s.top + s.bottom >= p.h) return null
   const w = Math.max(s.left + s.right + 1, Math.round(width))
   return new NineSliceSprite({
@@ -88,8 +78,7 @@ export async function kitNineSlice(piece: string, width: number): Promise<NineSl
   })
 }
 
-/** the drawn height of a stretchable piece, so a caller can work out the scale
- *  it needs before the art has arrived */
+/** the drawn height of a stretchable piece, so a caller can work out the scale it needs before the art has arrived */
 export function kitPieceHeight(piece: string): number | null {
   const p = kitPiece(kitCached() ?? [], piece)
   return p?.h && p.h > 0 ? p.h : null

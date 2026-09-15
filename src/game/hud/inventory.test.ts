@@ -7,8 +7,7 @@ import {
   ALWAYS_ON, CHART_FLAG, HANDBOOK_FLAG, HUD_INVENTORY, hudGrants, type HudElement,
 } from './inventory'
 
-/* four runs, which are the four shapes of student this screen has to be right
- * for. The names are the states, not the fixtures. */
+/* four runs, the four shapes of student this screen has to be right for, named for the states rather than for the fixtures */
 const run = (over: Partial<SaveGame> = {}): SaveGame => ({
   v: 2, id: 'r_t', handle: 'BraveTide', pronouns: 'they/them', boatName: 'Kestrel',
   year: 1, season: 'Fall', beat: 'maw:arrive', introDone: true,
@@ -58,9 +57,7 @@ describe('the HUD assembles as the game grants things', () => {
   })
 
   it('never takes back anything the table calls permanent', () => {
-    /* a permanent row must not have a condition that can go from true to false.
-     * Checked by running every permanent row against a save that has strictly
-     * MORE in it than the one that granted it. */
+    /* a permanent row must not carry a condition that can go from true to false, so every permanent row is run against a save holding strictly more than the one that granted it */
     for (const row of HUD_INVENTORY.filter((r) => r.permanent)) {
       if (!row.has(AFTER_FOUNDING)) continue
       expect(row.has(MID_YEAR_TWO), `${row.el} was granted and then taken back`).toBe(true)
@@ -74,27 +71,22 @@ describe('the absence list is enforced rather than intended', () => {
     const rows = HUD_INVENTORY.map((r) => r.el).sort()
     const els: HudElement[] = ['chart', 'handbook', 'tokens', 'cape']
     expect(rows).toEqual([...els].sort())
-    /* the record type already forces this at compile time; asserting it here is
-     * what catches a row DELETED rather than a member added */
+    /* the record type already forces this at compile time, so asserting it here is what catches a row deleted rather than a member added */
     expect(new Set(rows).size).toBe(rows.length)
   })
 
   it('gives every element a sentence to say when it arrives', () => {
-    /* §40.2's Deployment line: an element that appears mid-session with no
-     * explanation is a raised hand, and "the teacher is not going to be free". */
+    /* an element that appears mid session with no explanation is a raised hand, and the teacher is not going to be free to answer it */
     for (const row of HUD_INVENTORY) {
       expect(row.says.length, `${row.el} arrives without saying what it is`).toBeGreaterThan(12)
       expect(row.rule.length, `${row.el} has no stated rule`).toBeGreaterThan(12)
     }
   })
 
-  /* THE ONE THAT CATCHES A NEW FLOATER. §40.6's absence list is only a list until
-   * something has to pass it. Anything rendered on the play screen has to be
-   * named in ALWAYS_ON, and this reads the components rather than trusting them. */
+  /* the one that catches a new floater: anything rendered on the play screen has to be named in ALWAYS_ON, and this reads the components rather than trusting them */
   it('lets nothing float that the absence list does not name', () => {
     const read = (p: string) => fs.readFileSync(path.resolve(process.cwd(), p), 'utf8')
-    /* the play screen is what WorldHud mounts, so its render is the list of
-     * everything that can be on screen while a player has control */
+    /* the play screen is what WorldHud mounts, so its render is the list of everything that can be on screen while a player has control */
     const hud = read('src/game/hud/WorldHud.tsx')
     const mounted = [...hud.matchAll(/<([A-Z][A-Za-z]*)\s*\/?>/g)].map((m) => m[1])
     const KNOWN: Record<string, string> = {
@@ -102,11 +94,9 @@ describe('the absence list is enforced rather than intended', () => {
       PlaceCard: 'place-card', ObjectivePanel: 'objective',
       /* the question mark, which is on the list rather than smuggled past it */
       HelpButton: 'help',
-      /* and the chart's own button directly above it, asked for in those words:
-         "a button to open the sialign map alone, above the help button" */
+      /* the chart's own button, which sits directly above the help button and opens the map alone */
       ChartButton: 'chart',
-      /* the movie frame, which is on the list because it MOUNTS on the play
-       * screen even though it draws nothing until an island asks for it */
+      /* the movie frame, on the list because it mounts on the play screen even though it draws nothing until an island asks for it */
       MovieBars: 'movie-bars',
       SkipVoyage: 'skip-voyage',
       CameraToggle: 'camera-view',
@@ -125,9 +115,7 @@ describe('the absence list is enforced rather than intended', () => {
   })
 
   it('names the five things that must never appear, so a reader meets them here too', () => {
-    /* not a code check: a note in the suite so the next person to add a corner
-     * counter reads the reason before they write it. §40.6's list, with each
-     * absence's diegetic replacement. */
+    /* not a code check but a note in the suite, the absence list with each absence's diegetic replacement, so the next person to add a corner counter reads the reason before writing it */
     const forbidden = {
       'GPA bar': 'the room fills; the number lives on the Handbook Cords page',
       'XP or level': 'per-track ranks, JV to Varsity to Captain',

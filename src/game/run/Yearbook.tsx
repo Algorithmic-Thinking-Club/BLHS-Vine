@@ -16,8 +16,7 @@ import './run.css'
 
 /* the year's full yearbook spread, and the page turn that is the year ending */
 
-/* how long one section waits before it lands. Six sections at 130ms is under a
- * second for the whole page, which is a composition rather than a load. */
+/* how long one section waits before it lands, and six sections at 130ms is under a second for the whole page, so it reads as a composition rather than a load */
 const STEP_MS = 130
 
 /* the gpa inking itself: written in the first year, travelling after that, still when it held */
@@ -32,8 +31,7 @@ function useInkedNumber(from: number | null, to: number | null, move: GpaMove): 
     const RUN_MS = 900
     let raf = requestAnimationFrame(function step(now: number) {
       const k = Math.min(1, (now - started) / RUN_MS)
-      /* eased out, so the last hundredths settle rather than snapping: a number
-       * that arrives at speed reads as a counter and not as ink drying */
+      /* eased out so the last hundredths settle, because a number that arrives at speed reads as a counter rather than as ink drying */
       setShown(a + (b - a) * (1 - Math.pow(1 - k, 3)))
       if (k < 1) raf = requestAnimationFrame(step)
       else setShown(b)
@@ -103,13 +101,10 @@ function Section({ sec, step }: { sec: YearbookSection; step: number }) {
   return (
     <section className="yb-sect" style={{ '--yb-step': `${step * STEP_MS}ms` } as CSSProperties}>
       <h3 className="yb-secthead">{sec.heading}</h3>
-      {/* a section showing something other than what its heading implies says so
-          right under the heading, in pencil */}
+      {/* a section showing something other than what its heading implies says so right under the heading, in pencil */}
       {sec.caveat && <p className="yb-caveat">{sec.caveat}</p>}
       {sec.rows.length === 0
-        /* AN EMPTY SECTION SAYS IT IS EMPTY rather than vanishing, because a
-           heading a student never saw is a part of the year they never knew they
-           could have. This is the one line on the page that teaches. */
+        /* an empty section says it is empty rather than vanishing, because a heading never seen is a part of the year the student never knew they could have */
         ? <p className="yb-empty">{sec.empty}</p>
         : <ul className="yb-rows">{sec.rows.map((r) => <Row key={sec.id + r.key} row={r} section={sec.id} />)}</ul>}
     </section>
@@ -166,8 +161,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
     return (
       <CordDrape
         year={year}
-        /* the film does not go back to a book it has already shown: the drape is
-           the last screen and the corner is what comes after it */
+        /* the film does not go back to a book it has already shown, so the drape is the last screen and the corner is what comes after it */
         onDone={() => { setDraping(false); if (inFilm) onClose() }}
       />
     )
@@ -236,8 +230,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                 ))}
               </div>
 
-              {/* ---- ONE LINE ABOUT A ROAD NOT TAKEN, alone and last (§12.11).
-                      Observed, never scolding, and there is exactly one. */}
+              {/* one line about a road not taken, alone and last, observed rather than scolding, and there is exactly one */}
               <p className="yb-nudge" style={{ '--yb-step': `${6 * STEP_MS}ms` } as CSSProperties}>
                 {page.nudge}
               </p>
@@ -245,9 +238,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
 
             <footer className="yb-foot">
               {years.length > 1 && (
-                /* THE SPINE: one tab per year lived, so a page that has turned is
-                   still reachable (§12.16). Drawn tabs on a row that scrolls
-                   rather than wrapping, and Left and Right walk it. */
+                /* the spine is one tab per year lived, so a turned page stays reachable: drawn tabs on a row that scrolls rather than wraps, walked with Left and Right */
                 <div className="yb-spine kit-tabrow" role="tablist" aria-label="Years">
                   {years.map((y, i) => (
                     <Tab
@@ -291,25 +282,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                 </div>
               </>
             ) : (
-              /* ---- ONE CARD FOR EVERY YEAR THAT IS NOT THE LAST ------------
-               *
-               * ASH, 2026-09-09: *"I finished year 2, and it says 'year one is
-               * done' everywhere."*
-               *
-               * There were two branches here and they split on
-               * `year >= SESSION_ENDS_AFTER_YEAR`, which with that constant at 1
-               * is true for years one, two AND three. So every non-final year
-               * took the session-end card and the other one, which handed over
-               * three new season tokens and said "Go to the table and pick your
-               * year", was unreachable code that had never once drawn.
-               *
-               * IT IS GONE RATHER THAN FIXED, because it also promised something
-               * that is no longer this screen's to give. Turning the page marks
-               * the year and stops; the ending film carries the student out to
-               * the title, and the title's own "Start year N" plank is what
-               * hands over the sheet and the tokens. A card promising tokens
-               * before the film has even played is a card describing the wrong
-               * game. */
+              /* one card for every non-final year: the old split on `year >= SESSION_ENDS_AFTER_YEAR` was true for years one, two and three with that constant at 1, so the other branch never drew, and it is gone rather than fixed because tokens and the year sheet come from the title's plank after the film */
               <>
                 <h2 className="yb-title">Year {yearWord(year)} is done.</h2>
                 {/* what is true now, rather than a promise about next time */}

@@ -19,8 +19,7 @@ describe("year one's Advisory is the lesson the brief names", () => {
     expect(coreBeatFor(1, save.loadSave()!)).toBe(CORE_Y1)
     expect(CORE_Y1.id).toBe('core:y1')
     expect(coreBeatId(1)).toBe('core:y1')
-    /* the four sourced takeaways, which are what the study measures. Named here
-     * so that renaming one is a deliberate edit rather than a silent drift. */
+    /* the four sourced takeaways, named here so that renaming one is a deliberate edit rather than a silent drift */
     expect(CORE_Y1.takeaways).toEqual(['f-power-full', 'f-monday', 'f-25th-credit', 'f-join-clubs'])
     expect(hasCoreBeat(1)).toBe(true)
   })
@@ -39,17 +38,7 @@ describe('the fire, once it has been sat', () => {
     expect(engine.read('advisory'), 'the fire is still offering a lesson already passed').toBeNull()
   })
 
-  /* ---- AND KEEPS OFFERING IT AFTER A FAIL (Ash, 2026-09-09) --------------
-   *
-   * This test held the opposite rule for four days, on the reasoning that a
-   * failed sitting still happened. Ash played it: *"I purposefully failed
-   * advisory. Retake is an option as soon as you fail. But once i left the
-   * advisory panel and came back, it says 'advisory is done for this year'.
-   * Obviously it should allow the user to retake, only if they havent passed."*
-   *
-   * He is right, and the old rule was worse than untidy: the year gate wants a
-   * PASS, so a student who failed had a run that could not be finished and no
-   * door anywhere that would let him try again. */
+  /* and it keeps offering it after a fail, because the year gate wants a pass: the opposite rule left a student who failed with a run that could not be finished and no door anywhere to try again */
   it('keeps offering it after a fail, because the year still wants a pass', async () => {
     const { save, engine } = await fresh()
     save.beginAdventure()
@@ -59,8 +48,7 @@ describe('the fire, once it has been sat', () => {
     })
     expect(engine.read('advisory')).toBe('core:y1')
 
-    /* and a second fail does not close the door either: there is no limit on
-     * getting back to a passing grade, only on improving one */
+    /* and a second fail does not close the door either: there is no limit on getting back to a passing grade, only on improving one */
     save.recordGrade({
       id: 'core:y1', title: 'Advisory', kind: 'core', credit: 0.5,
       grade: 0.8, year: 1, season: 'Fall',
@@ -75,9 +63,7 @@ describe('the fire, once it has been sat', () => {
   })
 
   it('keeps one row for one lesson when it is retaken', async () => {
-    /* the Universal Retake Policy is real and it is ONCE. What must never happen
-     * is a second ledger row for the same lesson, which would put the credit on
-     * the transcript twice and move the GPA twice. */
+    /* the universal retake policy is real and it is once, and a second ledger row for the same lesson must never happen because it would put the credit on the transcript twice and move the GPA twice */
     const { save } = await fresh()
     save.beginAdventure()
     const row = {
@@ -94,9 +80,7 @@ describe('the fire, once it has been sat', () => {
   })
 
   it('does not wake up for year two, because the session ends at year one', async () => {
-    /* BRIEF-MAW-RAIL-3 C and D together: the year no longer advances at the page
-     * turn, so `core:y2` is never owed inside a thirty minute session and there
-     * is no road to a second lesson at all. */
+    /* the year no longer advances at the page turn, so `core:y2` is never owed inside a thirty minute session and there is no road to a second lesson at all */
     const { save, engine } = await fresh()
     save.beginAdventure()
     save.recordGrade({

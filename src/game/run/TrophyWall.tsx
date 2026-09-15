@@ -12,36 +12,13 @@ import './wall.css'
 export function TrophyWall({ onClose }: { onClose: () => void }) {
   const panel = usePanel({ onClose, label: 'The trophy wall' })
   const s = loadSave()
-  /* ---- EVERY YEAR, NOT THIS ONE (Ash, 2026-09-09) ---------------------
-   *
-   * *"The trophy wall is currently empty, even if thor has stuff... each year i
-   * only see advisory + the specific ones for that year."*
-   *
-   * It read `wallOf(s)`, which defaults to the year he is standing in, so
-   * opening the case in year three before stamping that year's sheet showed one
-   * unearned Advisory frame and nothing else. A case of trophies accumulates;
-   * that is what makes it a case rather than a scoreboard. */
+  /* the case shows every year and not the current one: `wallOf(s)` defaults to the year the student is standing in, so opening it in year three before stamping that year's sheet showed one unearned Advisory frame and nothing else */
   const seats = wallAll(s)
   const filled = seats.filter((w) => w.earned).length
 
   useEffect(() => { track('wall_opened', { filled, of: seats.length }) }, [filled, seats.length])
 
-  /* ---- THE WALL FILLS FRAME BY FRAME, WITH A POP EACH --------------------
-   *
-   * ASH, 2026-09-08 item 6: *"the wall filling frame by frame with a pop each"*.
-   *
-   * The panel used to open with every badge already on it, which is a readout of
-   * a state. This is the same information as an EVENT: the frames land one at a
-   * time in the order the year happened, each with the small sound the game
-   * already uses for a thing being awarded. It is the only moment in year one
-   * where a student sees everything he did in one picture, and it was arriving
-   * with no more ceremony than a settings sheet.
-   *
-   * EMPTY FRAMES ARE ALREADY THERE. Only the filled ones land, because an outline
-   * appearing with a pop is a pop for a thing he did not do.
-   *
-   * AND IT ONLY EVER RUNS ONCE PER OPENING, so a save write behind the panel (the
-   * closing film records as it goes) does not restart the fanfare. */
+  /* the wall fills frame by frame with a pop each, in the order the year happened, and only earned frames land because an outline appearing with a pop is a pop for a thing nobody did, and it runs once per opening so a save write behind the panel does not restart the fanfare */
   const [landed, setLanded] = useState(0)
   const earnedIds = seats.filter((w) => w.earned).map((w) => `${w.year}:${w.id}`)
   useEffect(() => {
@@ -70,9 +47,7 @@ export function TrophyWall({ onClose }: { onClose: () => void }) {
               : `${filled} ${filled === 1 ? 'badge' : 'badges'} on the wall, ${seats.length - filled} ${seats.length - filled === 1 ? 'frame' : 'frames'} still empty.`}
         </p>
 
-        {/* GROUPED BY YEAR, because four years of frames in one run is a list
-            and a wall is a history: the heading is what makes year one's Advisory
-            read as year one's rather than as a duplicate of year two's. */}
+        {/* grouped by year, because four years of frames in one run is a list and a wall is a history: the heading is what makes year one's Advisory read as year one's rather than a duplicate of year two's */}
         <div className="tw-wall">
           {seats.map((w, i) => (
             <Fragment key={`${w.year}:${w.id}`}>
@@ -91,16 +66,7 @@ export function TrophyWall({ onClose }: { onClose: () => void }) {
               </span>
               <span className="tw-words">
                 <span className="tw-name">{w.name}</span>
-                {/* ---- A FRAME HE HAS EARNED NEVER READS AS ONE HE HAS NOT ----
-                  *
-                  * The badges pop in one at a time, and in the seconds before its own
-                  * pop every frame he HAD earned printed `w.wants` - the sentence
-                  * telling him what he still has to do to get it. Open the wall after
-                  * a good year and it said "You got an B. Take it again." about a
-                  * badge already on the wall, and then popped.
-                  *
-                  * An earned badge is earned whether or not its pop has played. The
-                  * animation decides the STAMP; it does not decide the truth. */}
+                {/* an earned frame never reads as an unearned one: badges pop in one at a time, and before its own pop every earned frame printed `w.wants`, the sentence saying what is still needed, so the animation decides the stamp and never the truth */}
                 <span className={w.earned ? 'tw-got' : 'tw-wants'}>
                   {w.earned ? w.says : w.wants}
                 </span>

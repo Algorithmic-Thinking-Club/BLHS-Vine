@@ -37,41 +37,24 @@ def _load(island, entry, names_json, manifest_json):
     global _gen, _step
     _gen = None
 
-    # THE ISLAND'S OWN FOLDER IS THE IMPORT ROOT, which is what lets a member
-    # write `from questions import Quiz` about the file sitting beside island.py.
-    # A real package with __init__.py works too (measured), but then the sibling
-    # import has to be `from . import questions`, and that is the one sharp edge
-    # in the whole surface. This is the version a beginner survives.
-    #
-    # EVERY OTHER ISLAND'S FOLDER COMES OFF THE PATH FIRST. Leave one on and a
-    # second island can import a file the first one shipped, which works here and
-    # nowhere else, because the engine only ever fetches the modules an island
-    # actually lists.
+    # the island's own folder is the import root, which is what lets `from questions import Quiz` reach a sibling file, and every other island's folder comes off `sys.path` first because leaving one on lets a second island import a file the first shipped, which works here and nowhere else
     here = "islands/" + island
     sys.path[:] = [p for p in sys.path if not p.startswith("islands/")]
     sys.path.insert(0, here)
 
-    # dropped before the import, so a re-run picks the files up as they are on
-    # disk rather than as they were the first time. EVERY module the island
-    # ships, not just the entry: editing a sibling and re-running used to reuse
-    # the cached old one, and a member would watch a bug they had already fixed
-    # keep happening.
+    # dropped before the import so a re-run reads the files as they are on disk, and for every module the island ships rather than the entry alone, because a cached sibling made an already fixed bug keep happening
     for name in json.loads(names_json):
         mod = name[:-3] if name.endswith(".py") else name
         if mod in sys.modules:
             del sys.modules[mod]
 
     grape._forget()
-    # BEFORE the import, so a module-level `manifest()["programme"]` works and
-    # not only one inside a handler
+    # before the import, so a module level `manifest()["programme"]` works and not only one inside a handler
     grape._describe(json.loads(manifest_json))
     try:
         __import__(entry[:-3] if entry.endswith(".py") else entry)
     except:
-        # AN IMPORT THAT RAISES HALFWAY HAS ALREADY REGISTERED HALF THE ISLAND,
-        # and those handlers stay in the dict and stay callable. "The island did
-        # not import" has to mean the island cannot run, or a member debugs a
-        # file where the first two anchors work and the third does nothing.
+        # an import that raises halfway has already registered half the island and those handlers stay callable, so "the island did not import" has to mean the island cannot run at all
         grape._forget()
         raise
     _step = json.dumps({"t": "ready", "handlers": grape._registered()})
@@ -86,24 +69,7 @@ def _call(name):
             "this island registered no handler named %r. It registered: %s"
             % (name, ", ".join(grape._registered()) or "nothing"))
 
-    # THE FORGOTTEN `yield`, CAUGHT BEFORE THE BODY RUNS where that is possible.
-    #
-    # AND NOT WITH inspect.isgeneratorfunction, which is the obvious answer and
-    # the wrong one. This build does carry an inspect module, so the old comment
-    # here claiming it does not was wrong, but measured against 1.29.0-6 it
-    # answers False for a bound method AND for a CLOSURE, and a closure is what
-    # every decorator returns. Convicting on a False told a member whose handler
-    # was wrapped in their own decorator that it had no yield in it, and named
-    # the wrapper rather than their function. scripts/mp-guard-spike.mjs is the
-    # measurement.
-    #
-    # What this build does instead is put the answer in the type name. A `def`
-    # containing a yield is type `generator` before it is ever called; a plain
-    # one is `function`; a closure is `closure` either way. So `function` is the
-    # one case that can be convicted without running anything, and it is exactly
-    # the case a beginner hits. Everything else is judged on what the call
-    # returned, one line down, which costs the body of a closure that forgot and
-    # is the price of never accusing a working handler.
+    # the forgotten `yield`, and not `inspect.isgeneratorfunction`: on 1.29.0-6 it answers False for a bound method and for a closure, what every decorator returns, so the type name is used instead, `generator` for a def holding a yield and `function` for a plain one, and only `function` is convicted without running the body
     if type(fn).__name__ == "function":
         raise TypeError(
             "%s() has no yield in it, so nothing it does would ever reach the "
@@ -134,8 +100,7 @@ def _pump(advance):
     try:
         _step = _wire({"t": "intent", "intent": advance()})
     except StopIteration:
-        # dropped, so a stray resume lands on the message above rather than on a
-        # generator that has already finished
+        # dropped, so a stray resume lands on the message above rather than on a generator that has already finished
         _gen = None
         _step = json.dumps({"t": "done"})
 

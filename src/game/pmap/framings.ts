@@ -10,9 +10,7 @@ export type Framing = {
   name?: string
 }
 
-/* what an anchor's meta bag may carry. Two shapes on purpose: one unnamed
- * framing is the ordinary case (a post has a close-up), and a named set is the
- * case a panel needs (the same anchor read three ways). */
+/* what an anchor's meta bag may carry: one unnamed framing for the ordinary case, and a named set for the case where the same anchor is read several ways */
 type MetaBag = Record<string, unknown> | undefined
 
 const numOr = (v: unknown, fallback?: number): number | undefined => {
@@ -29,9 +27,7 @@ const readOne = (raw: unknown, name?: string): Framing | null => {
     dy: numOr(o.dy, 0),
     ...(name ? { name } : typeof o.name === 'string' ? { name: o.name } : {}),
   }
-  /* A FRAMING THAT SAYS NOTHING IS NOT A FRAMING. An empty bag would otherwise
-   * override a script's own zoom with `undefined` and pull every shot back to
-   * the map's load scale, which is worse than the hand-typed number it replaced. */
+  /* a framing that says nothing is not a framing, because an empty bag would override a script's own zoom with `undefined` and pull every shot back to the map's load scale */
   if (f.zoom === undefined && !f.dx && !f.dy) return null
   return f
 }
@@ -46,9 +42,7 @@ export function framingOf(meta: MetaBag, name?: string): Framing | null {
       const f = readOne(hit, name)
       if (f) return f
     }
-    /* a named framing the anchor does not carry falls through to its default
-     * rather than to nothing, because a shot that half-happens is worse than a
-     * shot that is the author's own wide one */
+    /* a named framing the anchor does not carry falls through to its default rather than to nothing, because a shot that half-happens is worse than the author's own wide one */
   }
   return readOne(meta.framing)
 }
@@ -104,9 +98,7 @@ export function projectFramings(anchors: HasMeta[], raw: unknown, mapId = ''): n
     const set = (meta.framings && typeof meta.framings === 'object'
       ? meta.framings
       : (meta.framings = {})) as Record<string, unknown>
-    /* the meta bag wins. It is the newer shape and the one MAPVIS writes now, so
-     * a bundle carrying both is a bundle mid-migration and the projection must
-     * not overwrite the half that is already right. */
+    /* the meta bag wins, being the newer shape MAPVIS writes now, so a bundle carrying both is mid-migration and the projection must not overwrite the half that is already right */
     const had = set[name] === undefined ? null : readOne(set[name], name)
     if (!had) { set[name] = f; folded++ }
     /* a shot marked entry is what the map opens on, using whichever copy won above */
@@ -115,9 +107,7 @@ export function projectFramings(anchors: HasMeta[], raw: unknown, mapId = ''): n
   return folded
 }
 
-/** a named shot and the anchor it is a shot of. Generic in the anchor so the
- *  caller gets its own full record back rather than the two fields this file
- *  needs, which is what stops a cast at every call site. */
+/** a named shot and the anchor it is a shot of, generic in the anchor so the caller gets its own full record back instead of casting at every call site */
 export type NamedShot<T extends HasMeta = HasMeta> = { name: string; anchor: T; framing: Framing }
 
 /* every named shot on this map, indexed by the name a person typed */

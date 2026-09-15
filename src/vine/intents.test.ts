@@ -6,8 +6,7 @@ import {
 } from './intents'
 import { runStation } from '../game/maw/run-station'
 
-/* a world that carries exactly one anchor and records what it was asked to do, so
- * a test can tell "it refused" from "it did nothing and said yes" */
+/* a world that carries exactly one anchor and records what it was asked to do, so a test can tell a refusal from a silent yes */
 function stubWorld(over: Partial<IntentWorld> = {}) {
   const did: string[] = []
   const world: IntentWorld = {
@@ -60,9 +59,7 @@ const stubEngine = (): { engine: IntentEngine; did: string[] } => {
       movie: (on) => { did.push(`movie:${on}`) },
       objective: (t) => { did.push(`objective:${t ?? '-'}`) },
       mode: () => 'game',
-      /* no real timer in a test: the point of a `wait` here is that it was asked
-       * for and that the ceiling was applied, and a test that really slept would
-       * add thirty seconds to the suite to prove a setTimeout works */
+      /* no real timer in a test: what matters is that the `wait` was asked for and the ceiling applied, and a test that really slept would add thirty seconds to the suite to prove a setTimeout works */
       wait: async (ms) => { did.push(`wait:${ms}`) },
       sound: (n, g) => { did.push(`sound:${n}${g === undefined ? '' : `:${g}`}`) },
     },
@@ -104,17 +101,13 @@ describe('an unbuilt word refuses instead of resolving', () => {
 })
 
 describe('every word that takes an anchor refuses a name the map does not carry', () => {
-  /* A TYPO IN AN ANCHOR NAME IS THE MOST LIKELY MISTAKE A MEMBER WILL MAKE, and
-   * `look_at` was the one word of the four that went straight through, resolved on
-   * the next tick, and answered ok with the camera never having moved. */
+  /* a typo in an anchor name is the most likely mistake a member makes, and `look_at` was the one word of the four that went straight through, resolved on the next tick and answered ok with the camera never having moved */
   const cases: Intent[] = [
     { kind: 'guide_to', anchor: 'chart_tabel' },
     { kind: 'walk_to', anchor: 'chart_tabel' },
     { kind: 'look_at', anchor: 'chart_tabel' },
     { kind: 'show', anchor: 'chart_tabel', visible: true },
-    /* the director words check theirs the same way and for the same reason, and
-     * `fx` joined them: it took an anchor and checked it only inside the scene,
-     * so the one word whose refusal could differ from every other word's did */
+    /* the director words check theirs the same way and for the same reason, and `fx` joined them because it took an anchor and checked it only inside the scene, so its refusal could differ from every other word's */
     { kind: 'fx', name: 'spark', anchor: 'chart_tabel' },
     { kind: 'actor_move', actor: 'chart_tabel', to: 'chart_table' },
     { kind: 'actor_move', actor: 'chart_table', to: 'chart_tabel' },
@@ -133,13 +126,7 @@ describe('every word that takes an anchor refuses a name the map does not carry'
     })
   }
 
-  /* ---- AND THE PLAYER IS A LEGAL SUBJECT, not just a legal target -----------
-   *
-   * `actor_face(x, "thor")` could always turn somebody at the student. Nothing could
-   * turn the student at somebody, so a beat where a person walks up and speaks left
-   * him facing wherever his last walk pointed him, and the only cure was a compass
-   * heading typed into an island: exactly what Ash ruled out when he said to read
-   * every position off the map. */
+  /* the player is a legal subject as well as a legal target: `actor_face(x, "thor")` could always turn somebody at the student, nothing could turn the student at somebody, and the only other cure was a compass heading typed into an island instead of read off the map */
   it('lets the player be the one who turns, without an anchor by that name', async () => {
     const h = host()
     const r = await performIntent({ kind: 'actor_face', actor: 'thor', facing: 'chart_table' }, h)
@@ -172,8 +159,7 @@ describe('every word that takes an anchor refuses a name the map does not carry'
   })
 
   it('actor_release with no name is a tidy-up and is always legal', async () => {
-    // releasing everything has to work on a map where nothing was ever driven,
-    // because the scene itself calls it at the end whether or not a script did
+    // releasing everything has to work on a map where nothing was ever driven, because the scene itself calls it at the end whether or not a script did
     const h = host()
     expect((await performIntent({ kind: 'actor_release' }, h)).ok).toBe(true)
     expect(h.did).toEqual(['actorRelease:*'])
@@ -182,8 +168,7 @@ describe('every word that takes an anchor refuses a name the map does not carry'
 
 describe('the director class', () => {
   it('refuses a pose that says nothing at all', async () => {
-    // both fields absent is a call that would stand there reporting success and
-    // doing nothing, which is the one thing no word in this vocabulary may do
+    // both fields absent is a call that would report success and do nothing, which is the one thing no word in this vocabulary may do
     const h = host()
     const r = await performIntent({ kind: 'pose' }, h)
     expect(r).toEqual({ ok: false, why: 'pose needs a pose, a facing, or both' })
@@ -213,8 +198,7 @@ describe('the director class', () => {
   })
 
   it('answers wait_for with whether he actually got there', async () => {
-    // a timeout that resolves the same as an arrival is a timeout an island
-    // cannot branch on, so the value IS the answer
+    // a timeout that resolves the same as an arrival is a timeout an island cannot branch on, so the value is the answer
     const arrived = host()
     expect(await performIntent({ kind: 'wait_for', anchor: 'chart_table' }, arrived))
       .toEqual({ ok: true, value: true })
@@ -230,16 +214,14 @@ describe('the director class', () => {
   })
 
   it('defaults a route to the player and never to the ship', async () => {
-    // a member who leaves `who` out means "walk him along it". Defaulting to the
-    // ship would put a body on the water for saying nothing
+    // a member who leaves `who` out means walk him along it, and defaulting to the ship would put a body on the water for saying nothing
     const h = host()
     expect((await performIntent({ kind: 'route', path: 'the_dock_walk' }, h)).ok).toBe(true)
     expect(h.did).toEqual(['route:the_dock_walk:player:false'])
   })
 
   it('carries a refusal from the scene back with the reason on it', async () => {
-    // the whole point of the kind check living in the scene: only the scene knows
-    // what the map's paths are, and the author has to hear which one broke
+    // the kind check lives in the scene because only the scene knows what the map's paths are, and the author has to hear which one broke
     const h = host({
       route: async () => { throw new NotBuilt('route', '"the_dock_walk" crosses ground nobody can stand on') },
     })
@@ -259,8 +241,7 @@ describe('the director class', () => {
   })
 
   it('refuses a pose whose name is wrong WITHOUT having turned him first', async () => {
-    // the word said no and did half of yes: the heading was applied before the
-    // pose name was checked, so a typo left the body facing somewhere new
+    // the word said no and did half of yes: the heading was applied before the pose name was checked, so a typo left the body facing somewhere new
     const did: string[] = []
     const h = host({
       pose: async (p, f) => {
@@ -270,14 +251,12 @@ describe('the director class', () => {
     })
     const r = await performIntent({ kind: 'pose', pose: 'cartwheel', facing: 'north' }, h)
     expect(r.ok).toBe(false)
-    // the scene is what orders the two checks; this pins that the word is one
-    // call and cannot be half-performed by the layer above it
+    // the scene is what orders the two checks; this pins that the word is one call and cannot be half-performed by the layer above it
     expect(did.length).toBeLessThanOrEqual(1)
   })
 
   it('plays a sound through the engine, with no map anywhere in sight', async () => {
-    // sound and wait are the two director words that work in the standalone
-    // harness, which is what lets a member time and score a scene with no map
+    // sound and wait are the two director words that work in the standalone harness, which is what lets a member time and score a scene with no map
     const e = stubEngine()
     const r = await performIntent({ kind: 'sound', name: 'cork_pop' }, { world: null, engine: e.engine })
     expect(r).toEqual({ ok: true })
@@ -293,9 +272,7 @@ describe('the control arm is not optional', () => {
     await performIntent({ kind: 'play', beat: 'core:y1' }, {
       world: null, engine: { ...plain, playBeat: spy },
     })
-    /* the third argument is the island's own activity, absent here, and it is
-     * asserted rather than ignored: a declaration appearing on a beat nobody
-     * declared would mean an island's items reaching a core beat. */
+    /* the third argument is the island's own activity, absent here, and it is asserted rather than ignored because a declaration on a beat nobody declared would mean an island's items reaching a core beat */
     expect(spy).toHaveBeenCalledWith('core:y1', true, undefined)
   })
 
@@ -304,8 +281,7 @@ describe('the control arm is not optional', () => {
     const e = { ...stubEngine().engine, playBeat: spy, mode: () => 'plain' as const }
     await performIntent({ kind: 'play', beat: 'b', as_plain: true }, { world: null, engine: e })
     expect(spy).toHaveBeenLastCalledWith('b', true, undefined)
-    /* as_plain:false against a plain participant must NOT flip them into the game
-     * arm: that would let one island opt the control group out of being one. */
+    /* as_plain:false against a plain participant must not flip them into the game arm, because that would let one island opt the control group out of being one */
     await performIntent({ kind: 'play', beat: 'b', as_plain: false }, { world: null, engine: e })
     expect(spy).toHaveBeenLastCalledWith('b', false, undefined)
     // the value a grape passed is honoured; what it cannot do is change engine.mode()
@@ -354,9 +330,7 @@ describe('the driver hands a refusal back to the line that asked', () => {
     expect(seen[0]).toContain('which is not an intent')
   })
 
-  /* ---- open(wait): the word BRIEF-MAW-RAIL's five beats could not be written
-   * without. Without it `open` comes back the instant the screen is up, so the
-   * beat after a panel runs underneath it. */
+  /* open(wait) exists because without it `open` comes back the instant the screen is up, so the beat after a panel runs underneath it */
   it('open says whether it is waiting, and a waiting one holds the body up', async () => {
     const h = host()
     let opened: string | null = null

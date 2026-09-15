@@ -10,9 +10,7 @@ import {
 import { responseOf, showdownReduce, startShowdown } from './showdown'
 import { LATENCY_CONVENTION, latencyOf, markFirst } from './timing'
 
-/* one sample per kind, and the test below fails if a kind ships without one.
- * Written as real BLHS content rather than lorem, because a fixture that reads
- * like a fixture is a fixture nobody notices is wrong. */
+/* one sample per kind, and the test below fails if a kind ships without one; written as real BLHS content because a fixture that reads like a fixture is a fixture nobody notices is wrong */
 const SAMPLES: { [K in CheckStep['kind']]: Extract<CheckStep, { kind: K }> } = {
   choice: {
     kind: 'choice', id: 'c-join', prompt: 'How do you join a club here?',
@@ -79,10 +77,7 @@ const SAMPLES: { [K in CheckStep['kind']]: Extract<CheckStep, { kind: K }> } = {
       },
     ],
   },
-  /* THE REAL ATC PUZZLE, off docs/ops/ATC-ISLAND-DESIGN.md section 3c, including
-   * the part that made this a kind of its own: `fwd3` is the correct instruction at
-   * two different slots. An `order` would fold those two slots into one answer and
-   * score a full-marks response one short, with nothing to catch it. */
+  /* the real ATC puzzle, and why `program` is a kind of its own: `fwd3` is the correct instruction at two different slots, and an `order` would fold those two slots into one answer and score a full-marks response one short with nothing to catch it */
   program: {
     kind: 'program', id: 'p-maze', prompt: 'Put the build back in order, then press RUN.',
     grid: [
@@ -201,14 +196,7 @@ describe('W8: a do is scored on the anchor reached, in either arm', () => {
 })
 
 describe('ARM PARITY: the plain arm is the game arm, differently drawn', () => {
-  /* ---- THE CHROME IS CONTENT TOO ---------------------------------------
-   *
-   * A game arm can carry content on a bar, a banner or a gauge and never in the
-   * prompt. The showdown does: the opponent is read off the drive bar and over
-   * every question, and the form had it nowhere at all, so the control arm
-   * answered a quiz with nobody across from it. `note` is where that content
-   * crosses over, and the prompts stay identical so the parity check above
-   * still means what it says. */
+  /* the chrome is content too: the showdown reads its opponent off the drive bar and over every question and the form had it nowhere, so the control arm answered a quiz with nobody across from it; `note` is where it crosses over, and the prompts stay identical so the parity check still means what it says */
   it('carries the showdown opponent into the form, without touching the prompt', () => {
     const c: CheckStep = {
       kind: 'showdown', id: 's', prompt: 'Last drive.', opponent: 'Sumner',
@@ -241,8 +229,7 @@ describe('ARM PARITY: the plain arm is the game arm, differently drawn', () => {
   })
 
   it('the plain rendering can reach the same score the game arm can, on every kind', () => {
-    // fullMarks is read back OFF the plain fields, so this proves the control arm
-    // is not a lossy copy of the item: everything scorable is reachable from it
+    // fullMarks is read back off the plain fields, so the control arm is proved not a lossy copy of the item and everything scorable is reachable from it
     for (const k of kinds) {
       const c = sampleOf(k)
       expect(scoreOf(c, fullMarks(c)), `${k}`).toBe(pointsOf(c))
@@ -251,9 +238,7 @@ describe('ARM PARITY: the plain arm is the game arm, differently drawn', () => {
   })
 
   it('CONTENT CONSTANCY: every reply string the game arm speaks reaches the plain arm', () => {
-    /* the defect this test exists for: PlainForm rendered prompts and options and
-     * dropped every `reply`, so the control student received less instruction than
-     * the treatment student and no event shape could tell you. */
+    /* the defect this test exists for: PlainForm rendered prompts and options and dropped every `reply`, so the control student got less instruction than the treatment student and no event shape could tell you */
     for (const k of kinds) {
       const c = sampleOf(k)
       const authored = repliesAuthoredOn(c)
@@ -263,8 +248,7 @@ describe('ARM PARITY: the plain arm is the game arm, differently drawn', () => {
   })
 
   it('a field-wide correction is shown whatever the student did, not only when they were right', () => {
-    // keying one reply to the correct value shows the explanation only to the
-    // students who did not need it, which is the obvious way to get this wrong
+    // keying one reply to the correct value shows the explanation only to the students who did not need it, which is the obvious way to get this wrong
     for (const k of ['number', 'order', 'place', 'do', 'quiz'] as const) {
       const r = plainOf(sampleOf(k))
       expect(r.replies.some((x) => x.value === ''), `${k}`).toBe(true)
@@ -293,8 +277,7 @@ describe('ARM PARITY: the plain arm is the game arm, differently drawn', () => {
   })
 })
 
-/** the reply text an author actually wrote on this check, read off the raw item
- *  rather than off the rendering, so this test cannot pass by agreeing with itself */
+/** the reply text an author wrote on this check, read off the raw item rather than off the rendering, so this test cannot pass by agreeing with itself */
 function repliesAuthoredOn(c: CheckStep): string[] {
   switch (c.kind) {
     case 'choice': return c.options.map((o) => o.reply).filter(Boolean)
@@ -310,16 +293,7 @@ describe('the loader refuses an invalid item and names it (K5)', () => {
     for (const k of kinds) expect(refuseCheck(sampleOf(k)), k).toBeNull()
   })
 
-  /* ---- A KIND NOBODY HAS, which used to reach the page as a crash ---------
-   *
-   * The switch in `refuseCheck` has a case per kind and had no default, so an item
-   * whose kind was a typo fell through it and was reported VALID. The next thing to
-   * touch it reads `PALETTE[c.kind]`, gets undefined, and the frame after that is a
-   * property read on undefined: a white page rather than a refusal.
-   *
-   * It matters because the kinds arrive over the worker as strings a member typed in
-   * Python, so a misspelling is an ordinary Tuesday and what he should get back is a
-   * sentence naming his own word. */
+  /* a kind nobody has, which used to reach the page as a crash: `refuseCheck`'s switch had no default, so a typo'd kind was reported valid and the next read of `PALETTE[c.kind]` was undefined and a white page; kinds arrive as strings typed in Python, so a misspelling must come back as a sentence naming the word */
   it('refuses a kind this game does not have, and lists the ones it does', () => {
     const typo = { kind: 'muliple', id: 'x', prompt: 'p', options: [] } as unknown as CheckStep
     const why = refuseCheck(typo)

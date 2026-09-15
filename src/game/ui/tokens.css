@@ -91,8 +91,7 @@
   /* the veils: warm brown-black, dark enough to hide the world's own labels behind a panel */
   --kit-veil: rgba(14, 10, 8, .6);
   --kit-veil-soft: rgba(14, 10, 8, .56);
-  /* the pause sheet keeps the world PRESENT, because a player who paused has not
-   * left: it is the one veil that is deliberately lighter than the rest */
+  /* the pause sheet keeps the world present because a player who paused has not left, so it is the one veil deliberately lighter than the rest */
   --kit-veil-pause: rgba(16, 11, 8, .48);
   --kit-drop-lg: 0 12px 30px rgba(2, 8, 10, .65);
   --kit-drop-md: 0 10px 26px rgba(2, 8, 10, .6);
@@ -101,9 +100,7 @@
   --kit-caption-shadow: 0 2px 3px rgba(4, 8, 10, .85), 0 0 14px rgba(4, 8, 10, .5);
   --kit-caption-ink: #f2e8d2;
 
-  /* THE FOCUS RING. J1 asks for a key path beside every pointer path, and a key
-   * path nobody can see where they are is not one. One colour, one width, every
-   * control in the kit, because a ring that differs per panel reads as a bug. */
+  /* the focus ring: a key path beside every pointer path is not one if it cannot be seen, so one colour and one width across every control in the kit, because a ring that differs per panel reads as a bug */
   --kit-focus: #ffd98a;
   --kit-focus-width: 2px;
   /* how far the ring sits out from the control it is drawn around */
@@ -165,13 +162,10 @@
   --kit-slice-w-dialogue: 45px 63px 42px 61px;
   --kit-slice-plank: 33 41 47 48;
   --kit-slice-w-plank: 33px 41px 47px 48px;
-  /* pixel art wants `round` and never `stretch`: a middle scaled by a fraction
-   * of a pixel is the blur that makes a drawn edge look like a photograph */
+  /* pixel art wants `round` and never `stretch`, because a middle scaled by a fraction of a pixel is the blur that makes a drawn edge look like a photograph */
   --kit-repeat: round;
 
-  /* ---- the front group: title, boot and intro chrome --------------------
-   * `theme.css` aliases these. Different palette from the paper kit on purpose
-   * (its paper is #e8dcc2, the kit's is #e6dcc2) and both were in the tree. */
+  /* the front group, title, boot and intro chrome, aliased by `theme.css` and on a different palette from the paper kit on purpose: its paper is #e8dcc2 and the kit's is #e6dcc2 */
   --kit-front-paper: #e8dcc2;
   --kit-front-paper-shade: #d2c2a2;
   --kit-front-wood: #7a5638;
@@ -191,8 +185,7 @@
   --kit-front-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
-/* THE TEXT SETTING, WIRED ONCE. `applySettings` writes `data-textsize`; every
- * panel that sizes itself in `cqw` multiplies by this and reflows. */
+/* the text setting, wired once: `applySettings` writes `data-textsize`, and every panel that sizes itself in `cqw` multiplies by this and reflows */
 html[data-textsize='s'] { --kit-text-scale: 0.86; }
 html[data-textsize='l'] { --kit-text-scale: 1.22; }
 
@@ -200,8 +193,7 @@ html[data-textsize='l'] { --kit-text-scale: 1.22; }
 /* and a floor and a ceiling on it, so a panel's ratio can never make text too small to read */
 *, *::before, *::after { --kit-fs: clamp(14px, var(--kit-fs-raw), 44px); }
 @supports (font-size: round(1px, 1px)) {
-  /* `max` keeps a panel mid-entrance, whose container is momentarily narrow,
-   * from rounding a real size down to a zero-pixel one. */
+  /* `max` keeps a panel mid-entrance, whose container is momentarily narrow, from rounding a real size down to a zero-pixel one */
   *, *::before, *::after { --kit-fs: max(1px, round(clamp(14px, var(--kit-fs-raw), 44px), 1px)); }
 }
 
@@ -485,8 +477,7 @@ html[data-skin='plain'] fieldset {
 }
 html[data-skin='plain'] legend { font-weight: 600; color: var(--kit-ink-head); }
 
-/* an ordinary underlined link, which is the one piece of chrome a document is
- * allowed and the one the game never had */
+/* an ordinary underlined link, which is the one piece of chrome a document is allowed */
 html[data-skin='plain'] a {
   color: var(--kit-sea-ink);
   text-decoration: underline;

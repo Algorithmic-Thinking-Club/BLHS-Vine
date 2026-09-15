@@ -28,8 +28,7 @@ const line = (over: Partial<Parameters<typeof DialogueBox>[0]['line']> = {}) => 
   text: 'The circle is drawn.', shown: 20, done: true, ...over,
 })
 
-/* the portrait frame as the platform really publishes it, so a test can install
- * a kit rather than assume one */
+/* the portrait frame as the platform really publishes it, so a test can install a kit rather than assume one */
 const FRAME: KitPiece = {
   name: 'portrait_frame', type: 'portrait_frame', w: 200, h: 185,
   slice: { top: 34, right: 38, bottom: 37, left: 29 },
@@ -90,9 +89,7 @@ describe('what the box draws', () => {
     expect(host.querySelector('.cs-dialogue')?.className).not.toContain('has-portrait')
   })
 
-  /* §40.41: every state a thing can be in is a deliverable, counted up front.
-   * These four are the box's, and they are on the element so the stylesheet and
-   * a capture can both read them. */
+  /* every state a thing can be in is a deliverable, counted up front, and these four are the box's, put on the element so the stylesheet and a capture can both read them */
   it('says which of its four states it is in, on the element', () => {
     render({ line: line({ shown: 4, done: false }) })
     expect(host.querySelector('.cs-dialogue')?.getAttribute('data-state')).toBe('typing')
@@ -114,9 +111,7 @@ describe('what the box draws', () => {
       .toEqual(['dlg-choices', 'cs-dialogue'])
   })
 
-  /* the hint names BOTH ways to go on, and it is one sentence owned here rather
-   * than a string each caller passes: the cutscene passed `click to go on` with
-   * a font glyph on the end of it, which `docs/ART.md` forbids. */
+  /* the hint names both ways to go on and is one sentence owned here rather than a string each caller passes, because the cutscene passed click to go on with a font glyph on the end, which `docs/ART.md` forbids */
   it('names the pointer path and the key path in the same sentence', () => {
     render({ line: line() })
     const hint = host.querySelector('.cs-continue-hint')?.textContent ?? ''
@@ -209,8 +204,7 @@ describe('there is exactly one of it', () => {
     for (const p of ['src/game/hud/Dialogue.tsx', 'src/game/cutscene/CutsceneOverlay.tsx']) {
       const src = read(p)
       expect(src, p).toContain('DialogueBox')
-      /* NEITHER MAY DRAW ITS OWN. These class names are the box's picture, and a
-       * host writing them itself is a second renderer growing back. */
+      /* neither host may draw its own: these class names are the box's picture, and a host writing them is a second renderer growing back */
       expect(src, p).not.toContain('cs-nameplaque')
       expect(src, p).not.toContain('cs-dialogue-text')
     }

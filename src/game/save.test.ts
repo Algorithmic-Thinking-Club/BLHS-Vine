@@ -1,5 +1,4 @@
-// The run's pure logic (GAME-DESIGN §7.7, §8.1): one save, domain verbs, migration,
-// multi-tab honesty. Every regression here was a live bug once — see the Act Zero audit.
+// the run's pure logic: one save, domain verbs, migration, multi-tab honesty, and every regression here was a live bug once
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 const KEY = 'blhs_save_v2'
@@ -48,7 +47,7 @@ describe('the single run', () => {
     // another tab finishes the intro behind this tab's back
     const other = { ...JSON.parse(localStorage.getItem(KEY)!), introDone: true, beat: 'island:arrive' }
     localStorage.setItem(KEY, JSON.stringify(other))
-    // this (stale) tab commits a settings edit — it must NOT revert the other tab's progress
+    // a stale tab committing a settings edit must not revert the other tab's progress
     const s = save.writeSave({ handle: 'LateTab' })
     expect(s.introDone).toBe(true)
     expect(s.beat).toBe('island:arrive')
@@ -138,8 +137,7 @@ describe('domain verbs', () => {
     save.recordGrade({ ...base, grade: 2.0 })
     save.recordGrade({ ...base, grade: 1.0, retaken: true })   // worse retake: dropped
     expect(save.loadSave()!.ledger[0].grade).toBe(2.0)
-    /* SPENT ALL THE SAME. He was passing and he sat it again; the school's one
-     * retake is used up by being taken, not by going well. */
+    /* the retake is spent all the same: a passing grade sat again uses it up by being taken, not by going well */
     expect(save.loadSave()!.ledger[0].retaken).toBe(true)
     save.recordGrade({ ...base, grade: 3.5, retaken: true })   // better: kept
     expect(save.loadSave()!.ledger[0].grade).toBe(3.5)
@@ -147,14 +145,7 @@ describe('domain verbs', () => {
     expect(save.loadSave()!.ledger).toHaveLength(1)
   })
 
-  /* ---- CLIMBING OUT OF AN F IS NOT THE UNIVERSAL RETAKE (Ash, 2026-09-09) --
-   *
-   * *"They should have multiple attempts."* `retaken` is the school's one-shot
-   * grade improvement (§8.1), and it used to be stamped on every second sitting
-   * including the ones a student had no choice about. Fail, sit it again, scrape
-   * a C: the C is under a B- and he is entitled to one go at improving it, and
-   * the flag had already been spent getting out of the F. `beats/state.ts` reads
-   * this flag, so the offer vanished for the students who had struggled most. */
+  /* climbing out of a fail must not spend `retaken`, the school's one-shot grade improvement: stamping it on every second sitting meant a fail, a resit and a scraped C left no go at improving the C, and `beats/state.ts` reads the flag so the offer vanished */
   it('does not spend the retake on a sitting that was climbing out of a fail', async () => {
     const save = await freshModule()
     save.beginAdventure()
@@ -170,8 +161,7 @@ describe('domain verbs', () => {
     expect(save.loadSave()!.ledger[0].retaken).toBe(true)
   })
 
-  /* the threshold is spelled in `save.ts` because importing it would be a cycle,
-   * so this is the fence that keeps the two spellings the same number */
+  /* the threshold is spelled in `save.ts` because importing it would be a cycle, so this fence keeps the two spellings the same number */
   it('uses the same passing grade the rest of the game does', async () => {
     const { PASSING_GRADE } = await import('./progress')
     const src = (await import('node:fs')).readFileSync('src/game/save.ts', 'utf8')
@@ -218,8 +208,7 @@ describe('domain verbs', () => {
     expect(save.completedIn(save.loadSave()!, 'football', 1)).toBe(true)
     expect(save.completedIn(save.loadSave()!, 'girls-flag-football', 1)).toBe(false)
 
-    // year two: the ladder re-slots the same programme, and the stamp used to
-    // write 'active' straight over 'completed' with no read of what was there
+    // year two: the ladder re-slots the same programme, and the stamp used to write 'active' straight over 'completed' with no read of what was there
     save.setIslandState('football', 'completed')
     save.endYear()
     save.assignSlot(2, 'Fall', 'football')
@@ -265,7 +254,7 @@ describe('domain verbs', () => {
     save.endYear(); save.endYear()   // -> year 4
     expect(save.loadSave()!.year).toBe(4)
     save.spendToken('Fall'); save.spendToken('Winter'); save.spendToken('Spring')
-    const s = save.endYear()   // the fourth turn graduates — senior year does not repeat
+    const s = save.endYear()   // the fourth turn graduates, senior year does not repeat
     expect(s?.graduated).toBe(true)
     expect(s?.year).toBe(4)
     expect(s?.tokens).toEqual([])   // NOT refilled

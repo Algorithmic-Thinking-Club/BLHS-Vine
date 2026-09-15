@@ -32,8 +32,7 @@ export const defaultCfg = (): WalkCfg => ({
   yScale: 0.72,
 })
 
-// test-stage feel only: the exported map.json speed stays
-// the contract value; the tool's walk test just moves at this multiple of it
+// test-stage feel only: the exported map.json speed stays the contract value and the walk test moves at this multiple of it
 export const TEST_SPEED = 1.9
 
 export const near = (cfg: WalkCfg, a: number, b: number) => Math.abs(a - b) <= cfg.near
@@ -53,8 +52,7 @@ export class Walker {
   x = 0
   y = 0
   facing = 'south'
-  /* the last fifth of a second of travel, which is what the drawn heading is read
-   * off rather than the current frame's keys */
+  /* the last fifth of a second of travel, which the drawn heading is read off rather than the current frame's keys */
   private trail: { t: number; x: number; y: number }[] = []
   private clock = 0
   animT = 0
@@ -117,23 +115,7 @@ export class Walker {
       doc.markHit(nx, ny)
       this.blocked = true
     }
-    /* ---- THE HEADING HE IS DRAWN ON IS THE WAY HE HAS ACTUALLY GONE ------
-     *
-     * ASH: *"the thor auto walk is glitchy, he does erratic turns while walking. it
-     * doesnt hurt performance, just looks jarring."*
-     *
-     * This read the heading off THIS FRAME'S input and quantised it into eight
-     * octants with nothing to stop it flipping. A body can only travel in those
-     * eight, but a route leg points wherever it likes, so an auto-walk bang-bangs
-     * across a boundary: a few frames diagonal, he gains the x he needed, the
-     * bearing steepens past 67.5 degrees, he goes cardinal, x stops advancing, the
-     * bearing shallows back, and he goes diagonal again. Four or five frames a
-     * cycle, and every cycle is a visible forty-five degree turn of the sprite.
-     *
-     * Where he is actually GOING is where he has actually BEEN, over long enough
-     * for the wobble to cancel. A fifth of a second of travel, and only when he has
-     * really covered ground, so a body nudging along a wall keeps the heading it had
-     * rather than spinning. The feet are untouched: this changes the picture only. */
+    /* the drawn heading is read off the last 0.2 s of travel, not this frame's input: quantising live input into eight octants made an auto walk flip 45 degrees every four or five frames as the bearing crossed a boundary, and it only turns once real ground is covered, so the feet are untouched */
     this.trail.push({ t: this.clock, x: this.x, y: this.y })
     this.clock += dt
     while (this.trail.length > 1 && this.clock - this.trail[0].t > FACING_WINDOW_S) this.trail.shift()
@@ -146,9 +128,7 @@ export class Walker {
   }
 }
 
-/* how much travel the drawn heading is averaged over, and the least he has to cover
- * in it before it is allowed to change. Short enough that a real turn reads as
- * immediate, long enough that an octant boundary cannot make him shimmer. */
+/* how much travel the drawn heading is averaged over, and the least ground covered in it before it may change: short enough that a real turn reads as immediate, long enough that an octant boundary cannot make him shimmer */
 const FACING_WINDOW_S = 0.2
 const FACING_MIN_PX = 1.2
 
@@ -169,9 +149,7 @@ export interface ReachResult {
   orphans: { px: number; rect: [number, number, number, number]; level: number }[]
 }
 
-/* Walk-flood from the spawn using the engine's own legality test, then list
- * every walkable island the player can never get to. This is the check that
- * would have caught the 1px breakwater seam before a person noticed it. */
+/* walk-flood from the spawn using the engine's own legality test, then list every walkable island the player can never reach, which is the check that would have caught the 1px breakwater seam */
 export function checkReach(doc: MaskDoc, cfg: WalkCfg, sx?: number, sy?: number): ReachResult {
   const x0 = sx == null ? doc.spawn[0] : sx
   const y0 = sy == null ? doc.spawn[1] : sy

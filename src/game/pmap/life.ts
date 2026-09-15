@@ -23,9 +23,7 @@ export interface LifeState {
 
 export interface Life {
   kind: LifeKind
-  /* Where it is allowed to be, in painting pixels. Absent means it stays near
-   * where it was placed, using range instead. This is the box drawn in the
-   * editor, and skipping that box is a real answer. */
+  /* where it is allowed to be, in painting pixels, and absent means it stays near where it was placed using range instead */
   bounds?: LifeBounds | null
 
   // ---- wander: bursts and pauses, the crab -------------------------------
@@ -62,8 +60,7 @@ export interface Life {
   swayWaves?: number
   /* fade in and out at the ends of the pass instead of appearing */
   fade?: boolean
-  /* draw over everything rather than y-sorted into the map: for anything in
-   * the air, which is not standing on the ground it is drawn over */
+  /* draw over everything rather than y sorted into the map, for anything in the air that is not standing on the ground it would be drawn over */
   airborne?: boolean
 
   /* rock: a tilt on top of any behaviour, in degrees either side of upright */
@@ -84,21 +81,16 @@ export interface Life {
 
   /* stay on ground a person could stand on, inside the box as well */
   walkOnly?: boolean
-  /* how much of the boxed area was walkable when it was drawn, 0..1. Kept for
-   * the panel to explain itself, and for the planner to judge with. */
+  /* how much of the boxed area was walkable when it was drawn, 0..1, kept for the panel to explain itself and for the planner to judge with */
   walkPct?: number
 
-  /* seconds added to this one's clock, so two copies of the same behaviour are
-   * not in step. Duplicating a placement gives the copy a fresh seed AND a
-   * fresh offset, which is what stops a pasted crowd marching as one. */
+  /* seconds added to this one's clock so two copies of the same behaviour are not in step, and a duplicated placement gets a fresh seed and a fresh offset, which is what stops a pasted crowd marching as one */
   phase?: number
 
-  /* every behaviour is driven from this, so two crabs side by side do not move
-   * as one. Any integer. */
+  /* every behaviour is driven from this, any integer, so two crabs side by side do not move as one */
   seed?: number
 
-  /* the round, if this thing changes over time. Two to six states. Absent on
-   * almost everything, and absent means the fields above are the whole story. */
+  /* the round, if this thing changes over time, two to six states, and absent means the fields above are the whole story */
   states?: LifeState[]
 }
 
@@ -110,9 +102,7 @@ const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
 
 export const LIFE_KINDS: LifeKind[] = ['wander', 'cross', 'orbit', 'drift']
 
-/* Whatever came off the wire, held inside what the evaluator can actually do.
- * Anything missing takes the beach map's own numbers, because those are the
- * ones that have been looked at and liked. */
+/* whatever came off the wire, held inside what the evaluator can do, and anything missing takes the beach map's own numbers because those are the ones already looked at and kept */
 export function cleanLife(raw: unknown, depth = 0): Life | null {
   if (!raw || typeof raw !== 'object') return null
   const r = raw as Record<string, unknown>
@@ -183,15 +173,12 @@ export function cleanLife(raw: unknown, depth = 0): Life | null {
         fade: clamp(num(q.fade, 0), 0, Math.min(2, secs / 2)),
       }
       const mv = q.move ? cleanLife(q.move, 1) : null
-      // a state that asked to be a pass keeps its seconds and its picture and
-      // simply does not move, which is a state the round already knows how to
-      // draw, rather than the placement leaving the map
+      // a state that asked to be a pass keeps its seconds and its picture and does not move, rather than the placement leaving the map
       if (mv && mv.kind !== 'cross') {
         /* a state takes the placement's own box and floor, never one of its own */
         mv.bounds = out.bounds ? { ...out.bounds } : null
         if (out.walkOnly) mv.walkOnly = true
-        // the phase is added to t before any of this, so a state carrying one
-        // of its own would count it twice
+        // the phase is added to t before any of this, so a state carrying one of its own would count it twice
         delete mv.phase
         state.move = mv
       }
@@ -201,9 +188,7 @@ export function cleanLife(raw: unknown, depth = 0): Life | null {
     if (st.length > 1) {
       if (!st[0].move) st[0].move = { ...out, bounds: out.bounds ? { ...out.bounds } : null }
       delete (st[0].move as Life).phase
-      /* the lean is a rider on the whole placement, added to every state below,
-       * so the copy that becomes the first state must not carry it as well or
-       * the thing tilts twice as far while state one is live and normally after */
+      /* the lean rides on the whole placement and is added to every state, so the copy that becomes the first state must not carry it too or the thing tilts twice as far while state one is live */
       delete (st[0].move as Life).rock
       delete (st[0].move as Life).rockRate
       out.states = st
@@ -224,12 +209,9 @@ export interface LifeAt {
   facing: LifeFacing
   /* whether it is travelling right now rather than standing through a pause */
   moving: boolean
-  /* Extra tilt in radians, added to whatever rotation the placement already
-   * carries. Zero unless the behaviour asked to rock. */
+  /* extra tilt in radians, added to whatever rotation the placement already carries, zero unless the behaviour asked to rock */
   rot: number
-  /* which picture to draw, an index the caller resolves against the placement's
-   * own list. Always 0 when there is no sequence, so a caller that ignores it
-   * is right about everything that ships today. */
+  /* which picture to draw, an index the caller resolves against the placement's own list, and always 0 when there is no sequence */
   art: number
 }
 export type LifeFacing =
@@ -273,9 +255,7 @@ export function bodyAt(bodies: Body[], yScale = 0.72) {
   }
 }
 
-/* The ground test a figure should be given: real floor, and nobody already
- * standing on it. Composed rather than baked in, so a caller that wants the bare
- * terrain (drawing the mask, checking reach) still gets it. */
+/* the ground test a figure should be given: real floor, and nobody already standing on it, composed rather than baked in so a caller wanting the bare terrain still gets it */
 export function floorWithBodies(
   stands: (x: number, y: number) => boolean,
   bodies: Body[],
@@ -289,9 +269,7 @@ export function floorWithBodies(
 export function separate(
   pts: { x: number; y: number; r: number }[],
   yScale = 0.55,
-  // full strength, because half of one resolves half of nothing: at 0.6 a pair
-  // ends the pass still inside each other and the whole point was that they
-  // stop overlapping. Measured: 0.6 removed 2% of overlaps, 1 removes them.
+  // full strength, because half of one resolves half of nothing: measured, 0.6 removed 2% of overlaps and 1 removes them
   strength = 1,
   /* the same floor the behaviours are fenced by, so a push never lands in a wall */
   stands?: (x: number, y: number) => boolean,
@@ -315,8 +293,7 @@ export function separate(
         if (d2 >= want * want) continue
         const d = Math.sqrt(d2)
         /* near the middle the geometry fades out for a direction fixed per pair */
-        // dead centre on each other: shove along x by index so the answer is the
-        // same every time rather than depending on which arrived first
+        // dead centre on each other: shove along x by index so the answer is the same every time rather than depending on which arrived first
         const ux = d > 0.001 ? dx / d : i < j ? -1 : 1
         const uy = d > 0.001 ? dy / d : 0
         const push = ((want - d) / 2) * step
@@ -361,9 +338,7 @@ export function liveState(states: LifeState[], t: number): { k: number; c: numbe
 function share(m: Life, home: { x: number; y: number }, n: number): Life {
   const b = m.bounds
   if (!b) return m
-  // where it stands, held inside its own box, because a placement dropped
-  // outside the box it was given has no room at all on one side and the
-  // subtraction below would hand back a negative one
+  // where it stands, held inside its own box, because a placement dropped outside its box has no room on one side and the subtraction below would hand back a negative
   const hx = clamp(home.x, b.x, b.x + b.w)
   const hy = clamp(home.y, b.y, b.y + b.h)
   return { ...m, bounds: { x: home.x - (hx - b.x) / n, y: home.y - (hy - b.y) / n, w: b.w / n, h: b.h / n } }
@@ -378,9 +353,7 @@ function rnd(n: number, seed: number): number {
   return (x >>> 0) / 4294967296
 }
 
-/* canStand is how the floor becomes the second fence. Both sides already have
- * one: the editor reads its own level mask, the game reads the bundle's. It is
- * optional, so a caller without one still gets the box. */
+/* canStand is how the floor becomes the second fence, optional so a caller without one still gets the box; the editor reads its own level mask and the game reads the bundle's */
 export function lifeAt(
   life: Life,
   t0: number,
@@ -391,9 +364,7 @@ export function lifeAt(
   // the phase is what keeps two copies of one behaviour out of step
   const t = t0 + (life.phase || 0)
   const floor = life.walkOnly && canStand ? canStand : null
-  /* the tilt, worked out once and added to every answer below. It is on top of
-   * the behaviour rather than one of them, so a moored boat can drift an inch
-   * and lean at the same time, and a sign can lean while standing still. */
+  /* the tilt, worked out once and added to every answer below, on top of the behaviour rather than one of them, so a moored boat can drift an inch and lean at the same time */
   const rock = life.rock ? (life.rock * Math.PI) / 180 : 0
   const rot = rock ? rock * Math.sin(t * Math.PI * 2 * (life.rockRate ?? 0.35)) : 0
   const still: LifeAt = { dx: 0, dy: 0, flip: false, alpha: 1, facing: 'south', moving: false, rot, art: 0 }
@@ -402,8 +373,7 @@ export function lifeAt(
   if (life.states && life.states.length > 1) {
     const st = life.states
     const { k, c, into } = liveState(st, t)
-    /* how many states actually move, because they are the ones that share the
-     * fence. A state that only changes the picture takes none of it. */
+    /* how many states actually move, because they are the ones that share the fence, and a state that only changes the picture takes none of it */
     let movers = 0
     for (let j = 0; j < st.length; j++) if (st[j].move) movers++
     /* the floor is divided between the moving states the same way the box is */
@@ -430,9 +400,7 @@ export function lifeAt(
             }
           : raw
       const m = share(eff, home, movers)
-      // seconds this state has been live: a whole run for every round behind us,
-      // plus this round's share, which is all of it for one already finished,
-      // part of it for the live one and none of it for one still to come
+      // seconds this state has been live: a whole run for every round behind us plus this round's share, all of it for a finished state, part for the live one and none for one still to come
       const own = (j < k ? c + 1 : c) * st[j].secs + (j === k ? into : 0)
       const a = lifeAt(m, own, home, near)
       ax += a.dx
@@ -445,9 +413,7 @@ export function lifeAt(
       }
       if (j === k) cur = a
       else if (j < k) {
-        // the way it was facing when it stopped, so a state that holds keeps it.
-        // Only states already finished this round count: a state still to come
-        // has not faced anywhere yet.
+        // the way it was facing when it stopped, so a state that holds keeps it, and only states already finished this round count
         heldFlip = a.flip
         heldFace = a.facing
       }
@@ -486,14 +452,12 @@ export function lifeAt(
         alpha: cur.alpha * fa,
         facing: cur.facing,
         moving: cur.moving,
-        // the placement's own lean rides on every state, on top of whatever the
-        // state's own behaviour is leaning through
+        // the placement's own lean rides on every state, on top of whatever the state's own behaviour is leaning through
         rot: cur.rot + rot,
         art,
       }
     }
-    // no behaviour of its own: it stands where the round left it, facing the way
-    // it was facing when it stopped
+    // no behaviour of its own: it stands where the round left it, facing the way it was facing when it stopped
     return { dx, dy, flip: heldFlip, alpha: fa, facing: heldFace, moving: false, rot, art }
   }
   /* whether the whole line to a target is standable, sampled every two pixels */
@@ -509,9 +473,7 @@ export function lifeAt(
   }
 
   if (life.kind === 'wander') {
-    /* Walk the legs from the start rather than simulating: leg k has a fixed
-     * duration and a fixed destination for a given seed, so summing them says
-     * exactly where it is at any t. That is what makes this replayable. */
+    /* walk the legs from the start rather than simulating: leg k has a fixed duration and a fixed destination for a given seed, so summing them says exactly where it is at any t, which is what makes this replayable */
     const b = life.bounds
     const range = life.range ?? 40
     const halfW = b ? b.w / 2 : range

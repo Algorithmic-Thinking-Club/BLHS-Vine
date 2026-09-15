@@ -1,5 +1,4 @@
-/* PASS 2 / BUGS: the seeded harness. One boot per scenario, a numbered shot per
- * call, console + pageerrors kept with a clock, and the same look() dimwit uses. */
+/* the seeded harness: one boot per scenario, a numbered shot per call, console and page errors kept with a clock, and the same look() dimwit uses */
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -34,9 +33,7 @@ export const CLOSABLE = () => {
 }
 
 export async function boot(name, { save, url, headed = false, clearSeen = true, dir: where, view } = {}) {
-  /* `dir` so a run can put its frames where a brief asks for them rather than
-   * always under the pass-2 tree. Everything that called this before passes
-   * nothing and lands exactly where it always did. */
+  /* `dir` lets a run put its frames somewhere other than the default tree, and a caller that passes nothing lands exactly where it always did */
   const dir = where ? path.resolve(where) : path.join(ROOT, name)
   fs.mkdirSync(dir, { recursive: true })
   for (const f of fs.readdirSync(dir)) fs.unlinkSync(path.join(dir, f))
@@ -84,13 +81,7 @@ export async function boot(name, { save, url, headed = false, clearSeen = true, 
       press.push({
         text: (el.innerText || el.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' ').slice(0, 80),
         disabled: !!el.disabled || el.getAttribute('aria-disabled') === 'true',
-        /* CHROME IS NOT THE WAY ON. The corner, the help plaque and, since
-         * 2026-09-08, the objective bar are controls that are ALWAYS on the
-         * glass and never advance the game: the bar opens the year's task list.
-         * A run that presses the loudest button found the bar, opened the sheet,
-         * pressed it again, closed it, and did that for four and a half minutes
-         * standing at a door it never took. Marked here, once, so every harness
-         * that reads this bag inherits the same answer. */
+        /* chrome is never the way on: the corner, the help plaque and the objective bar sit always on the glass and never advance the game, and a run that pressed the loudest button opened and closed the task sheet for four and a half minutes standing at a door it never took */
         chrome: !!el.closest('.ob-wrap, .hud-stack, .hp-btn, .hud-help'),
         box: { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) },
       })

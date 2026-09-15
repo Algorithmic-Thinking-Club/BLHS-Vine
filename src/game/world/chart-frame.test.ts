@@ -17,8 +17,7 @@ describe('the box the world is drawn in', () => {
   })
 
   it('pulls a flat world down into the band by growing the short axis', () => {
-    /* the live world: two islands 826 apart east to west and 27 apart north to
-       south, which is the shape that used to be drawn at 5.3 to 1 */
+    /* the live world: two islands 826 apart east to west and 27 apart north to south, the shape that used to be drawn at 5.3 to 1 */
     const box = chartBox([pt(2077.5, 1973.5), pt(1251, 1946)])
     expect(box.aspect).toBeLessThanOrEqual(CHART_ASPECT.max)
     expect(box.aspect).toBeGreaterThanOrEqual(CHART_ASPECT.min)
@@ -31,8 +30,7 @@ describe('the box the world is drawn in', () => {
   })
 
   it('the margin alone already holds a flat world inside the band', () => {
-    /* which is why the ceiling has never fired. Measured here rather than
-       asserted in a comment, so a change to the margin says so. */
+    /* measured here rather than asserted in a comment, so a change to the margin says so, and it is why the ceiling has never fired */
     for (const span of [200, 900, 4000, 90_000]) {
       expect(chartBox([pt(0, 0), pt(span, 0)]).aspect).toBeLessThanOrEqual(CHART_ASPECT.max)
     }
@@ -59,10 +57,7 @@ describe('the box the world is drawn in', () => {
   })
 
   it('draws the same world distance as the same number of pixels on both axes', () => {
-    /* THE WHOLE POINT OF THE ASPECT WORK, and the thing the old chart got wrong
-       by a factor of 2.4. The element is told to be `box.aspect` wide for its
-       height, so a step east and the same step south have to come out the same
-       length once the percentages are laid on a real box. */
+    /* the whole point of the aspect work, which the old chart got wrong by a factor of 2.4: the element is told to be `box.aspect` wide for its height, so a step east and the same step south must come out the same length once the percentages land on a real box */
     const box = chartBox([pt(0, 0), pt(1200, 900)])
     const pxW = 700, pxH = pxW / box.aspect
     const o = atPct(box, pt(600, 450))

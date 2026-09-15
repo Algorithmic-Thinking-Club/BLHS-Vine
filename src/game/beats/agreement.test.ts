@@ -1,23 +1,7 @@
 /* every surface that reports a scored thing has to say the same thing about it */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-/* ---- ASH, 2026-09-09 ------------------------------------------------------
- *
- * *"I did the quiz for the second year... then I went to the hearth, instead of
- * the year panel, and did the advisory from there. Instead of telling me advisory
- * was done, it showed me a new advisory quiz... It shows the advisory with a
- * checkmark, even though it's not done. Again, once you fix this, make sure it's
- * not just advisory, but other stuff doesn't have issues like this."*
- *
- * Two doors to one beat disagreeing. The cause was that there was no such thing
- * as "failed": `beatDone` asked "is there a row", `wallOf` asked "is there a
- * passing row", `retakeAvailable` asked a third thing, and the year gate asked a
- * fourth. Four predicates for one question is four chances to disagree.
- *
- * THIS IS THE FENCE. For each of the three states, every surface is asked and
- * every answer is asserted together. A fifth surface that invents its own
- * predicate fails here rather than in Ash's hands.
- */
+/* two doors to one beat disagreed because there was no such thing as failed: beatDone asked is there a row, wallOf is there a passing row, retakeAvailable a third thing and the year gate a fourth. The fence: all three states are asked of every surface and asserted together, so a fifth predicate fails here. */
 
 async function fresh() {
   vi.resetModules()
@@ -67,10 +51,7 @@ describe('every surface agrees about Advisory', () => {
     expect(m.score.retakeAvailable(s, 'core:y1'), 'nothing to retake yet').toBe(false)
   })
 
-  /* ---- THE ONE HE PLAYED -------------------------------------------------
-   *
-   * A failed beat is NOT done. Every one of these used to answer the other way
-   * except the wall, which is exactly the split he saw. */
+  /* a failed beat is not done, and every one of these except the wall used to answer the other way, which is exactly the split a player saw */
   it('failed: still owed, still offered, still empty, and retakeable for ever', async () => {
     const m = await fresh()
     started(m.save)
@@ -168,10 +149,7 @@ describe('every surface agrees about a class', () => {
   })
 })
 
-/* ---- AND THE SAME MACHINE IN YEAR TWO ------------------------------------
- *
- * The year is in the id (`core:y2`), so nothing here should need telling which
- * year it is. This is the fence against a fifth caller filtering on `e.year`. */
+/* the same machine in year two: the year is in the id (core:y2), so this is the fence against a fifth caller filtering on e.year instead */
 describe('it all works the same in year two', () => {
   beforeEach(() => localStorage.clear())
 

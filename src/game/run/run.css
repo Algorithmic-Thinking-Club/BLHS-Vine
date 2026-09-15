@@ -2,12 +2,9 @@
 
 @import '../ui/tokens.css';
 
-/* ============================================================================
- * THE YEARBOOK (§12.4 to §12.16)
- * ==========================================================================*/
+/* the yearbook */
 
-/* the veil is the kit's, not this file's: see .bt-veil in beats.css for why the
-   number moved out of the six stylesheets that each kept their own copy of it */
+/* the veil number is the kit's, not this file's, because six stylesheets each kept their own copy of it, see .bt-veil in beats.css */
 .yb-veil {
   position: absolute; inset: 0; z-index: 78;
   background: var(--kit-veil);
@@ -56,9 +53,7 @@ html[data-rm='1'] .yb-page { animation: none; }
   font-size: var(--kit-fs);
   color: var(--kit-ink-label);
 }
-/* WHICH YEAR THIS IS, IN WORDS. The spine makes three pages reachable and they
-   are not the same kind of thing: one is live, one is closed, one is a page back.
-   A tab that is merely darker says none of that. */
+/* which year this is, in words, because the spine makes three pages reachable and a tab that is merely darker cannot say which one is live, which is closed and which is a page back */
 .yb-yearstate {
   --kit-fs-raw: calc(14px * var(--kit-text-scale));
   font-size: var(--kit-fs);
@@ -104,8 +99,7 @@ html[data-rm='1'] .yb-nudge { animation: none; }
   font-size: var(--kit-fs);
   line-height: 1;
   color: var(--kit-sea-ink);
-  /* the digits are proportional in the commissioned face, so a counting number
-     jitters its own width. Tabular figures hold the column still while it ticks. */
+  /* the digits are proportional in the commissioned face, so a counting number jitters its own width, and tabular figures hold the column still while it ticks */
   font-variant-numeric: tabular-nums;
 }
 .yb-letter {
@@ -145,9 +139,7 @@ html[data-rm='1'] .yb-nudge { animation: none; }
 .yb-caret-up { border-bottom: 9px solid var(--kit-sea-head); }
 .yb-caret-down { border-top: 9px solid var(--kit-ink-quiet); }
 
-/* YEAR ONE HAS NO PREVIOUS VALUE, so the number writes in from blank instead of
-   travelling from somewhere it has never been. That happens exactly once in a
-   run, which is why it is its own picture rather than a count from zero. */
+/* year one has no previous value, so the number writes in from blank rather than counting up from zero, and that happens exactly once in a run */
 .yb-move-first .yb-num {
   animation: yb-ink 620ms var(--kit-ease-rise) both;
 }
@@ -157,9 +149,7 @@ html[data-rm='1'] .yb-nudge { animation: none; }
 }
 html[data-rm='1'] .yb-move-first .yb-num { animation: none; }
 
-/* THE YEAR WITH NO NUMBER IN IT. A word is not a number and is not set like one:
-   it takes the quiet voice, the body face and a size a sentence is read at, so
-   the page does not shout a thing that has not happened. */
+/* the year with no number in it: a word is not set like a number, so it takes the body face and a sentence size, and the page does not shout a thing that has not happened */
 .yb-num-none {
   font-family: var(--kit-face-body);
   --kit-fs-raw: calc(22px * var(--kit-text-scale));
@@ -182,9 +172,7 @@ html[data-rm='1'] .yb-move-first .yb-num { animation: none; }
   margin-bottom: 12px;
 }
 .yb-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-/* one column when the sheet cannot hold two. `container-type: inline-size` on
-   .yb-page is what makes this a question about the PAPER and not about the
-   window, which is the distinction the percentage-padding bug turned on. */
+/* one column when the sheet cannot hold two, and `container-type: inline-size` on .yb-page is what makes this a question about the paper and not about the window, the distinction the percentage-padding bug turned on */
 @container (max-width: 720px) {
   .yb-spread { columns: 1; column-rule: 0; }
 }
@@ -197,8 +185,7 @@ html[data-rm='1'] .yb-move-first .yb-num { animation: none; }
   font-size: var(--kit-fs);
   color: var(--kit-ink-head);
 }
-/* a section that is showing something other than what its heading implies says so
-   right under the heading, in pencil */
+/* a section showing something other than what its heading implies says so right under the heading, in pencil */
 .yb-caveat {
   margin: 0;
   --kit-fs-raw: calc(13px * var(--kit-text-scale));
@@ -257,13 +244,10 @@ html[data-rm='1'] .yb-move-first .yb-num { animation: none; }
   color: var(--kit-ink-dim);
   line-height: 1.45;
 }
-/* a finished thread is a finished thread: the rule goes quiet because it is no
-   longer something to do */
+/* the rule goes quiet on a finished thread because it is no longer something to do */
 .yb-row-done .yb-rule { color: var(--kit-ink-soft); }
 
-/* ---- ONE LINE ABOUT A ROAD NOT TAKEN (§12.11) -----------------------------
-   Alone, last, with nothing of the record under it, in someone's voice. Observed,
-   never scolding, and there is exactly one. */
+/* one line about a road not taken: alone, last, with none of the record under it, observed rather than scolding, and there is exactly one */
 .yb-nudge {
   margin: 0;
   padding: 12px 0 2px;
@@ -283,8 +267,7 @@ html[data-rm='1'] .yb-move-first .yb-num { animation: none; }
   padding-top: 10px;
   border-top: 2px solid var(--kit-rule-firm);
 }
-/* THE SPINE: one tab per year lived, so a page that has turned is still
-   reachable (§12.16). It rides `.kit-tabrow`, which never wraps. */
+/* the spine is one tab per year lived so a turned page stays reachable, riding `.kit-tabrow`, which never wraps */
 .yb-spine { flex: 1; min-width: 0; }
 .yb-acts { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
@@ -304,9 +287,7 @@ html[data-rm='1'] .yb-move-first .yb-num { animation: none; }
   color: var(--kit-ink-body);
   line-height: 1.5;
 }
-/* THE REFILL, WHERE THE STUDENT CAN SEE IT (§12.14). Three tokens land at the
-   turn and the pips that hold them are on the HUD behind this veil, so the one
-   plain signal that a new year has begun happened where nobody was looking. */
+/* the refill is shown here because the three tokens land at the turn on pips that sit on the HUD behind this veil, so the one signal that a new year began happened where nobody was looking */
 .yb-refill { display: flex; gap: 26px; }
 .yb-newtoken {
   display: flex; flex-direction: column; align-items: center; gap: 5px;
@@ -326,15 +307,11 @@ html[data-rm='1'] .yb-newtoken { animation: none; }
   letter-spacing: .06em;
 }
 
-/* ============================================================================
- * GRADUATION (§14)
- * ==========================================================================*/
+/* graduation */
 
 .gr-veil {
   position: absolute; inset: 0; z-index: 79;
-  /* the ceremony's own green light, laid over the kit's veil rather than typed as
-     its own pair of hexes. The centre used to be .55, which left half the world
-     legible behind the one screen in the game a student hands to somebody else. */
+  /* the ceremony's green light lays over the kit's veil rather than its own pair of hexes, and the centre is no longer .55 because that left half the world legible behind the one screen a student hands to somebody else */
   background: radial-gradient(ellipse at 50% 30%, var(--kit-sea-glow), transparent 70%), var(--kit-veil);
   display: flex; align-items: center; justify-content: center;
   padding: 2vh 2vw;
@@ -402,9 +379,7 @@ html[data-rm='1'] .gr-card { animation: none; }
   font-style: italic;
   letter-spacing: .04em;
 }
-/* THE SCHOOL'S WORDS AND THE GAME'S MODEL, VISIBLY TWO THINGS. V3's law in
-   `progress.ts`: a mechanic that approximates a criterion is never printed as the
-   criterion, so the two are labelled and the school's comes first. */
+/* the law in `progress.ts` is that a mechanic approximating a criterion is never printed as the criterion, so the school's words and the game's model are labelled apart and the school's comes first */
 .gr-ruleline,
 .gr-modelline { margin: 0; display: flex; flex-direction: column; gap: 2px; }
 .gr-rulelabel {
@@ -435,8 +410,7 @@ html[data-rm='1'] .gr-card { animation: none; }
   border-left: 3px solid var(--kit-cord-lo);
   padding-left: 12px;
 }
-/* AN ACCUMULATION SHOWS THE ACCUMULATION (§14.16): a GPA cord has no moment
-   because no single grade produced it, so the four years are the card. */
+/* a GPA cord has no moment because no single grade produced it, so the four years together are the card */
 ul.gr-series { list-style: none; margin: 0; padding: 0; display: flex; gap: 18px; flex-wrap: wrap; }
 .gr-series {
   margin: 0;
@@ -454,9 +428,7 @@ ul.gr-series { list-style: none; margin: 0; padding: 0; display: flex; gap: 18px
   line-height: 1.4;
 }
 
-/* ---- A NAMED ACCOMPLISHMENT, WHICH IS NOT A CORD (§14.19) -----------------
-   Same card shape, and deliberately not the same object: no colours line, no
-   criterion, and none of the gold `docs/ART.md` reserves for an earned honour. */
+/* a named accomplishment is not a cord: same card shape, but no colours line, no criterion, and none of the gold reserved for an earned honour */
 .gr-standname {
   margin: 0;
   font-family: var(--kit-face-display);
@@ -508,9 +480,7 @@ ul.gr-series { list-style: none; margin: 0; padding: 0; display: flex; gap: 18px
 .gr-boardrow .kit-gauge { min-height: 10px; }
 .gr-boardrow .kit-gauge-fill { min-height: 10px; }
 
-/* THE ROW OF CONTROLS, AND IT DECIDES ITS OWN ALIGNMENT. Three planks with three
-   different label lengths used to inherit `align-self: flex-start` off the
-   yearbook's turn button and sit top-aligned in a row. */
+/* the row of controls sets its own alignment, because three planks with different label lengths otherwise inherit `align-self: flex-start` from the yearbook's turn button and sit top-aligned */
 .gr-acts {
   display: flex; align-items: center; justify-content: center;
   gap: 12px; flex-wrap: wrap;
@@ -520,8 +490,7 @@ ul.gr-series { list-style: none; margin: 0; padding: 0; display: flex; gap: 18px
 /* ---- THE DIPLOMA (§14.24 to §14.28) --------------------------------------- */
 
 .gr-diploma { cursor: default; text-align: center; align-items: center; }
-/* the school's own mark, which `docs/ART.md` already assigns and which nothing
-   outside the Handbook control had ever worn */
+/* the school's own mark, which nothing outside the Handbook control had ever worn */
 .gr-crest {
   width: 54px; height: 54px;
   background: var(--kit-art-crest) center / contain no-repeat;
@@ -548,9 +517,7 @@ ul.gr-series { list-style: none; margin: 0; padding: 0; display: flex; gap: 18px
   font-size: var(--kit-fs);
   color: var(--kit-sea-ink);
 }
-/* TWO COLUMNS, so ten rows are five rows tall and the whole document is on one
-   Chromebook screen without a scroll. §14.24: it has to be legible at Chromebook
-   distance without zooming. */
+/* two columns, so ten rows are five rows tall and the whole document is on one Chromebook screen without a scroll and legible without zooming */
 .gr-dip-grid {
   margin: 8px 0 2px;
   width: 100%;
@@ -587,9 +554,7 @@ ul.gr-series { list-style: none; margin: 0; padding: 0; display: flex; gap: 18px
 /* the canvas is a drawing surface and never a picture on the page */
 .gr-canvas { display: none; }
 
-/* ============================================================================
- * THE YEAR-START VIGNETTE (§7.5)
- * ==========================================================================*/
+/* the year-start vignette */
 
 .ys-veil {
   position: absolute; inset: 0; z-index: 73;
@@ -660,8 +625,7 @@ html[data-rm='1'] .ys-card { animation: none; }
   25% { opacity: 0; }
   100% { opacity: 0; }
 }
-/* A LOOPING ANIMATION AT ONE MILLISECOND IS A STROBE, so reduced motion stops it
-   dead and leaves the first frame standing. */
+/* a looping animation at one millisecond is a strobe, so reduced motion stops it dead and leaves the first frame standing */
 html[data-rm='1'] .ys-paw-f { animation: none; opacity: 0; }
 html[data-rm='1'] .ys-paw-f1 { opacity: 1; }
 .ys-cue-word { white-space: nowrap; }
@@ -691,9 +655,7 @@ html[data-skin='plain'] .yb-newtoken { animation: none; }
 html[data-skin='plain'] .yb-move-first .yb-num { animation: none; }
 html[data-skin='plain'] .ys-paw-f { animation: none; }
 
-/* THE FRAMES ARE GONE AND THE STRUCTURE STAYS. A spread is two facing pages
-   because it is drawn as a physical book; a worksheet is one column of headings
-   in reading order, which is also exactly the order §12.4 fixed. */
+/* the frames go and the structure stays: a spread is two facing pages because it is drawn as a physical book, and a worksheet is one column of headings in the same reading order */
 html[data-skin='plain'] .yb-spread { grid-template-columns: 1fr; gap: 4px; }
 html[data-skin='plain'] .yb-spread > .yb-col + .yb-col { padding-left: 0; border-left: 0; }
 
@@ -707,8 +669,7 @@ html[data-skin='plain'] .gr-dip-name,
 html[data-skin='plain'] .gr-boardname,
 html[data-skin='plain'] .ys-speaker { letter-spacing: 0; }
 
-/* the big number stays big, because it is the one thing the student came for and
-   a worksheet is allowed a headline figure. It stops being sea green. */
+/* the big number stays big because a worksheet is allowed a headline figure, but it stops being sea green */
 html[data-skin='plain'] .yb-num,
 html[data-skin='plain'] .yb-letter { color: var(--kit-ink-head); font-variant-numeric: tabular-nums; }
 html[data-skin='plain'] .yb-caret-up { border-bottom-color: var(--kit-ink-head); }
@@ -730,14 +691,12 @@ html[data-skin='plain'] .gr-moment { border-left-color: var(--kit-edge-strong); 
 html[data-skin='plain'] .gr-cordcolors { color: var(--kit-ink-label); }
 html[data-skin='plain'] .yb-earnedword { color: var(--kit-ink-head); font-weight: 700; }
 
-/* no drawn crest and no carved paw in a document, and the words the paw sits
-   beside are what carried the instruction anyway */
+/* no drawn crest and no carved paw in a document, and the words the paw sits beside carried the instruction anyway */
 html[data-skin='plain'] .gr-crest,
 html[data-skin='plain'] .ys-paw { display: none; }
 html[data-skin='plain'] .gr-dip-seal { display: none; }
 
-/* a real table for the turn-in rows, which is what a document does with a
-   label-and-value list */
+/* a real table for the turn-in rows, which is what a document does with a label-and-value list */
 html[data-skin='plain'] .gr-dip-grid { grid-template-columns: 1fr; gap: 2px; }
 html[data-skin='plain'] .gr-dip-pair { border-bottom: 1px solid var(--kit-rule); padding: 4px 0; }
 html[data-skin='plain'] .gr-diploma { text-align: left; align-items: stretch; }

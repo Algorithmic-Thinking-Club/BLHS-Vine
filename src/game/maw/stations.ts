@@ -11,16 +11,11 @@ export type StationRun = Generator<Intent, void, unknown>
 export type Station = {
   /* the anchor name, typed in MAPVIS, validated there as a python identifier */
   name: string
-  /* what the player reads when standing in range. The anchor's own `label` wins
-   * when it has one, because the person who placed it gets the last word on
-   * player-facing text; this is what shows if they left it blank. */
+  /* what the player reads when standing in range, and the anchor's own `label` wins when it has one, so this shows only when it was left blank */
   fallbackLabel: string
-  /* one line for the MAPVIS author and for docs/THE-MAW.md, saying what has to
-   * be at this spot for the station to make sense */
+  /* one line for the MAPVIS author saying what has to be at this spot for the station to make sense */
   needs: string
-  /* whether pressing E does anything right now. A station that is not available
-   * still shows its label, greyed, rather than vanishing: a home base whose
-   * furniture appears and disappears is a home base you cannot learn. */
+  /* whether pressing E does anything right now, and an unavailable station still shows its label greyed rather than vanishing, because a home base whose furniture comes and goes cannot be learned */
   available?: (s: SaveGame) => boolean
   /* why it is unavailable, said in the world's words rather than the build's */
   closed?: (s: SaveGame) => string
@@ -49,9 +44,7 @@ export const STATIONS: Station[] = [
     *run(s) {
       const beat = coreBeatIdFor(s)
       if (!beat) return
-      /* the beat runs through the same two-arm runner the plain study arm uses,
-       * so the control arm is honoured by construction rather than by a second
-       * code path somebody has to remember to keep in step */
+      /* the beat runs through the same two-arm runner the plain arm uses, so the control arm is honoured by construction rather than by a second code path somebody has to keep in step */
       yield { kind: 'say', who: 'hearth', text: 'Advisory is starting.' }
       yield { kind: 'play', beat }
     },
@@ -153,24 +146,7 @@ export const FUTURE_ROOMS = ['east_tunnel', 'west_tunnel'] as const
 export const stationByName = (name: string): Station | undefined =>
   STATIONS.find((st) => st.name === name)
 
-/* THE REQUIRED ANCHOR LIST. What a Maw bundle has to carry before the game can
- * do anything with it, checked at load so a missing anchor is a console line
- * naming it rather than a station that silently never fires.
- *
- * NOT EVERY STATION IS AN ANCHOR THIS TABLE CAN DEMAND, which cost a warning on
- * every single load of the home base. Two of them are named here and cannot be
- * in the list:
- *
- *   `hall_step` is a TRIGGER, and the author drew that area under another name.
- *   The scene only fires a trigger it finds by kind, so a bundle without this
- *   exact word is not a broken bundle.
- *
- *   `maw_entrance` IS in the bundle, and it is a door. The scene returns on a
- *   door before it ever asks this table who owns the anchor, so demanding it
- *   here says nothing about whether walking back out works.
- *
- * What is left is the list of POSTS a student can press, which is the only thing
- * this check was ever able to speak about. */
+/* the required anchor list, checked at load so a missing anchor names itself in the console, holds only posts: `hall_step` is a trigger found by kind and `maw_entrance` is a door the scene returns on before asking this table, so demanding either warned on every load of the home base */
 const NOT_A_POST = new Set<string>(['hall_step', 'maw_entrance'])
 export const REQUIRED_ANCHORS = STATIONS.map((s) => s.name).filter((n) => !NOT_A_POST.has(n))
 
@@ -179,22 +155,7 @@ export function missingAnchors(has: (name: string) => boolean): string[] {
 }
 
 /* the year's beat id, or null when the year has none or the ledger already has it */
-/* ---- THE SECOND HEARTH, AND IT DISAGREED (Ash, 2026-09-09) ---------------
- *
- * There are two hearths. The Maw's own island answers `talk:hearth` and this
- * table answers whenever no island has claimed the anchor, which is every frame
- * before the worker has finished loading and every map a member ships without
- * one. `grape-router.ts` prefers the island and falls back to here.
- *
- * They asked different questions. The island asks `get("advisory")`, which the
- * intent engine answers off the ledger; this asked `beatDone`, which is "is
- * there a row". So a student who FAILED Advisory got "Advisory is done for this
- * year." from one hearth and a fresh quiz from the other, depending on which one
- * happened to answer. That is Ash's item 2, and the cause was never the year: it
- * was two predicates for one question.
- *
- * `beatPassedIn` is the one predicate now, and `beats/agreement.test.ts` holds
- * every surface to it. */
+/* two hearths answer one question, the island's `talk:hearth` and this table when no island claims the anchor; they disagreed because the island asks the ledger while this asked `beatDone`, which only means a row exists, so a failed Advisory read as done. `beatPassedIn` is the one predicate now */
 function coreBeatIdFor(s: SaveGame): string | null {
   if (!hasCoreBeat(s.year)) return null
   if (beatPassedIn(s, s.year)) return null

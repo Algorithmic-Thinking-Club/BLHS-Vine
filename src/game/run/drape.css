@@ -7,8 +7,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* darker than a panel's veil: this is the one screen that is meant to be the
-     only thing in the room */
+  /* darker than a panel's veil, because this is the one screen meant to be the only thing in the room */
   background: rgba(8, 12, 16, .78);
   animation: cd-in 320ms ease-out both;
 }
@@ -63,9 +62,7 @@ html[data-rm='1'] .cd-card { animation: none; }
   height: 96px;
   margin-top: 2px;
 }
-/* THE RIBBON'S OWN TWO TONES, and they are the game's progress colours until the
-   cord actually closes. `docs/ART.md`: the cord gold means an earned honour and
-   nothing else, and after one year nothing is earned. */
+/* the ribbon's own two tones, the game's progress colours until the cord actually closes: cord gold means an earned honour and nothing else, and after one year nothing is earned */
 .cd-drape { --cd-hi: var(--kit-sea); --cd-lo: var(--kit-sea-btn-lo); }
 .cd-drape-earned { --cd-hi: var(--kit-cord-hi); --cd-lo: var(--kit-cord-lo); }
 .cd-collar {
@@ -152,10 +149,7 @@ html[data-skin='plain'] .cd-name { font-weight: 700; }
 html[data-skin='plain'] .cd-stands { color: var(--kit-ink-body); }
 html[data-skin='plain'] .cd-foot { align-self: flex-end; }
 
-/* ---- EVERY CORD HE HAS (Ash, 2026-09-09) ---------------------------------
- *
- * The card showed one cord and it was the same one every year. It is a list
- * now: what he has earned, then what he is working towards. */
+/* every cord the player has, as a list: what is earned, then what is being worked towards, because the card used to show one cord and it was the same one every year */
 .cd-list {
   list-style: none;
   margin: 0 0 10px;

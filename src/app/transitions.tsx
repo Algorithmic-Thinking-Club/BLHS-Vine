@@ -22,25 +22,12 @@ export type TransitionSpec = {
   holdMs?: number
   /** iris focus point in viewport fractions (default center) */
   focus?: { x: number; y: number }
-  /** scene cover (the TavernWorld pattern, Ash 2026-07-02): a full-bleed PixelLab
-   *  illustration, the kicker, the place's name on a drawn plaque, and a bar */
+  /** scene cover: a full bleed illustration, the kicker, the place's name on a drawn plaque, and a bar */
   image?: string
-  /* ---- PICTURES TO TRY, IN ORDER, BEFORE THE ONE THAT CANNOT MISS ----------
-   *
-   * A map's own cover lives inside its bundle, and a bundle is fetched from one of
-   * two roots depending on how the game was started. Nothing here waits on a
-   * request to find out which: the overlay renders the first candidate, and an
-   * `onError` walks to the next. So a map with no cover drawn for it yet costs
-   * exactly one failed image request and shows the generic art, and a map that has
-   * one shows it on the first frame.
-   *
-   * `image` stays as the single answer for every cover that is not a destination's
-   * own, and it is the last candidate when this list is given. */
+  /* pictures tried in order: a bundle comes from one of two roots depending on how the game started, so the overlay renders the first candidate and an `onError` walks to the next, costing one failed request for a map with no cover drawn yet. `image` is the last candidate when this list is given. */
   images?: string[]
   title?: string
-  /* THE SMALL WORD OVER THE PLAQUE, spaced by hand because the letter-spacing on
-   * its own reads as tracking and this reads as lettering. Defaults to the one
-   * every cover said before there was a choice. */
+  /* the small word over the plaque, spaced by hand because letter-spacing alone reads as tracking and this reads as lettering */
   kicker?: string
   voice?: CoverVoice
   /** whether this cover carries a fact card, decided by the destination */
@@ -79,8 +66,7 @@ export function makeTransitionState(): TransitionState {
   return { phase: 'idle', spec: { kind: 'fade' }, fact: FACTS[0].text, progress: null, work: 'idle' }
 }
 
-/** how a swap says how far along it is. `total` defaults to 1, so a caller with a
- *  fraction passes one number and a caller counting files passes two. */
+/** how a swap says how far along it is. `total` defaults to 1, so a caller with a fraction passes one number and a caller counting files passes two. */
 export type CoverProgress = (done: number, total?: number) => void
 
 /* the transition state at module scope, so any caller can ask for a cover, one at a time */
@@ -105,14 +91,12 @@ export const transitionBusy = (): boolean => host.busy
 /* the same reporter, reachable at module scope for the length of one cover */
 let liveReport: CoverProgress | null = null
 
-/** say how much of the real work behind the current cover is done. Ignored when
- *  no cover is running, so a loader can call it unconditionally. */
+/** say how much of the real work behind the current cover is done. Ignored when no cover is running, so a loader can call it unconditionally. */
 export function reportCoverProgress(done: number, total = 1): void {
   liveReport?.(done, total)
 }
 
-/** cover the screen, run `swap`, uncover. Resolves when the cover has lifted.
- *  Answers false without doing anything if one is already running. */
+/** cover the screen, run `swap`, uncover. Resolves when the cover has lifted, and answers false without doing anything if one is already running. */
 export async function cover(
   spec: TransitionSpec,
   swap: (report: CoverProgress) => void | Promise<void>,
@@ -142,22 +126,7 @@ export async function runTransition(
   const pool = FACTS.filter((f) => !learned.has(f.id))
   const fact = (pool.length ? pool : FACTS)[Math.floor(Math.random() * (pool.length ? pool.length : FACTS.length))]
   st.fact = fact.text
-  /* ---- A FACT IS COLLECTED WHERE A STUDENT IS (Ash, 2026-09-08 item 8) ----
-   *
-   * *"The Facts tab reads 0 of 19 forever because facts only collect on covers
-   * no student sees: collect them where a student actually is."*
-   *
-   * The one cover that carried a fact was `kind: 'chart'`, and nothing in the
-   * shipped game ever asks for one: every door and every voyage goes through
-   * `coverFor`, which returns `kind: 'scene'`. So the pool was nineteen facts
-   * about the school that a student could not collect by playing, the Guide's
-   * Facts tab read 0 of 19 for the whole of year one, and the Bookworm badge was
-   * unreachable.
-   *
-   * THE SCENE COVER IS WHERE HE IS. It is up for a second and a half every time
-   * he goes through the tunnel, sails anywhere or comes home, and it has room
-   * under the loading bar that was empty. It is the one screen in this game a
-   * student is already looking at with nothing to do. */
+  /* a fact is collected on the scene cover because that is the only cover the shipped game raises: every door and every voyage goes through `coverFor`, which returns `kind: 'scene'`, so collecting on `chart` alone left the Facts tab at 0 of 19 for all of year one and the Bookworm badge unreachable */
   const carriesFact = spec.fact !== false && (spec.kind === 'chart' || spec.kind === 'scene')
   if (carriesFact) {
     collectFact(fact.id)
@@ -174,8 +143,7 @@ export async function runTransition(
   await sleep(COVER_MS)
   st.phase = 'hold'; st.work = 'working'; emit()
   const t0 = performance.now()
-  /* the reporter lives exactly as long as the swap does, so a loader that answers
-   * late cannot move a bar belonging to the next cover */
+  /* the reporter lives exactly as long as the swap does, so a loader that answers late cannot move a bar belonging to the next cover */
   const report: CoverProgress = (done, total = 1) => {
     if (!(total > 0) || !Number.isFinite(done)) return
     const p = Math.max(0, Math.min(1, done / total))
@@ -211,9 +179,7 @@ export function bandDress(
   const piece = kitPiece(pieces, 'band')
   const title = kitSlot(pieces, 'band', 'title')
   const sub = kitSlot(pieces, 'band', 'subtitle')
-  /* a piece that is missing a rectangle is a piece nobody finished marking, and
-   * the honest answer is the stylesheet's own numbers rather than a half-read
-   * one that puts the name of a place through the frame */
+  /* a piece missing a rectangle was never finished being marked, so fall back to the stylesheet's own numbers rather than a half read one that puts a place name through the frame */
   if (!piece || !title || !sub || !(piece.w > 0 && piece.h > 0)) return { worn: false }
   return {
     worn,
@@ -237,14 +203,10 @@ const WORK_WORD: Record<TransitionWork, string> = {
 
 const DEFAULT_KICKER = 'E N T E R I N G'
 
-/* THE COVER'S PICTURE, WALKING ITS CANDIDATES. The last one in the list is the art
- * committed in this repo, so the walk always ends somewhere. Nothing is fetched
- * ahead of time and nothing is awaited: a cover that cannot find a destination's own
- * picture is one aborted request slower and looks identical. */
+/* the last candidate is the art committed in this repo, so the walk always ends somewhere, and nothing is fetched ahead or awaited, so a cover that cannot find a destination's own picture is one aborted request slower and looks identical */
 function CoverImage({ candidates }: { candidates: string[] }) {
   const [i, setI] = useState(0)
-  /* a new cover starts its own walk, or the second destination inherits the first
-   * one's fallbacks and can never show its own picture */
+  /* a new cover starts its own walk, or the second destination inherits the first one's fallbacks and can never show its own picture */
   const key = candidates.join('|')
   useEffect(() => { setI(0) }, [key])
   const src = candidates[Math.min(i, candidates.length - 1)]
@@ -340,8 +302,7 @@ export function TransitionOverlay({ st, version }: { st: TransitionState; versio
               />
               <p className="tr-scene-work">{WORK_WORD[st.work]}</p>
             </div>
-            {/* and the thing he learns while he waits, which is the only place in
-                year one nineteen true sentences about the school can reach him */}
+            {/* the fact shown while the cover is up, the only place in year one those nineteen true sentences about the school reach the player */}
             {spec.fact !== false && <p className="tr-scene-fact">{st.fact}</p>}
           </div>
         </div>

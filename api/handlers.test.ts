@@ -1,6 +1,4 @@
-// The four endpoints, run whole against the file store — the same handler code Vercel runs,
-// the same store the vite dev bridge uses. This is the join/state/log/teacher contract:
-// create class -> check code -> join -> sync save -> roster.
+// the four endpoints run whole against the file store: the same handler code Vercel runs and the same store the vite dev bridge uses, covering create class, check code, join, sync save, roster
 import { describe, it, expect, beforeEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'

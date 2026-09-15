@@ -33,12 +33,9 @@ export type Place = {
   /** which of its maps a voyage arrives at. Absent while the place has no maps. */
   arrival?: MapId
 
-  // a place has no position here: the roster says what exists, the world composition says where
-
-  // how many paintings this place is allowed, which is not how many it has
+  // a place has no position here: the roster says what exists and the world composition says where, and `paintings` is how many this place is allowed rather than how many it has
   paintings: number
-  /* P16's recognition brief: which real place this is and what a student's eye
-   * is holding. Absent when nobody has written one; never guessed. */
+  /* the recognition brief: which real place this is and what a student's eye is holding, absent when nobody has written one and never guessed */
   recognise?: string
   /** where it really is in the building, when a source says. Never invented. */
   room?: string
@@ -62,9 +59,7 @@ export type Programme = {
   season?: Season
   /** cord-relevance tags, the same vocabulary classes use */
   tags: string[]
-  /* its own rank ladder, or absent when this programme has none. One track per
-   * programme rather than one per place: Q80.11.b is open and this is the
-   * simple answer, marked as a choice rather than a fact. */
+  /* its own rank ladder, absent when the programme has none; one track per programme rather than one per place, which is a choice and not a settled fact */
   rankTrack?: string
   // whether this programme has a playable island behind it
   playable: boolean
@@ -95,8 +90,7 @@ export const SOURCED_PLACES: Place[] = [
     source: 'the game\'s own home base; not a claim about a real BLHS location',
   },
   {
-    /* THE SHARED FACILITY, and the reason for the split. Three programmes, three
-     * seasons, three coaches, one field. */
+    /* the shared facility and the reason for the split: three programmes, three seasons, three coaches, one field */
     id: 'stadium',
     name: 'the stadium',
     maps: [],
@@ -104,8 +98,7 @@ export const SOURCED_PLACES: Place[] = [
     source: SPORTS_SRC,
   },
   {
-    /* the other shared facility in the sourced material: Key Club meets here on
-     * Tuesdays and DECA on Thursdays. Only Key Club is on the roster today. */
+    /* the other shared facility in the sourced material: Key Club meets here on Tuesdays and DECA on Thursdays, and only Key Club is on the roster today */
     id: 'flex-200',
     name: '200 Flex',
     maps: [],
@@ -114,32 +107,19 @@ export const SOURCED_PLACES: Place[] = [
     source: CLUBS_SRC,
   },
   {
-    /* NO ROOM IS SOURCED FOR ATC and none is invented. The club is real and
-     * student-founded; the official clubs hub does not list it yet. */
+    /* no room is sourced for ATC and none is invented: the club is real and student founded, but the official clubs hub does not list it yet */
     id: 'atc-room',
     name: 'the Algorithmic Thinking Club',
-    /* `maps` stays empty and `arrival` unnamed on purpose: `MEMBER_MAPS` groups the
-     * member rows by place and `PLACES` appends the painting and names it as the
-     * arrival. A place that hard-codes a member's map id is a place that has to be
-     * edited in the engine every time somebody publishes. */
+    /* `maps` stays empty and `arrival` unnamed on purpose: `MEMBER_MAPS` groups member rows by place and `PLACES` appends the painting as the arrival, because a place that hard-codes a member's map id has to be edited in the engine every time somebody publishes */
     maps: [],
     paintings: 1,
     source: 'student-founded Sep 2025; not yet on the official clubs list',
   },
 ]
 
-/* THE PROGRAMMES THE VINE ITSELF KNOWS ABOUT: sourced, hand written, Ash's.
- * What ATC ships is appended below, out of a data file, because a member adding
- * a programme by editing this array would be a member editing the engine. */
+/* the programmes the vine itself knows about, sourced and hand written; what ATC ships is appended below from a data file, because a member adding a programme by editing this array would be a member editing the engine */
 const OURS: Programme[] = [
-  /* ATC IS NOT HERE ANY MORE AND THAT IS THE POINT. It shipped as a placeholder in
-   * this array while the data file was empty; it is now a real row in
-   * `member-islands.json`, which is where a programme with an island belongs.
-   *
-   * Two rows with one id do not collide loudly, they collide SILENTLY and in two
-   * directions: `programmeIndex` is a Map so the last row wins, while
-   * `islandForProgramme` uses `.find` so the first one does, and a programme could
-   * be simultaneously playable and unsailable. `rosterFaults` has no check for it. */
+  /* ATC lives in `member-islands.json` and not here: two rows with one id collide silently, `programmeIndex` is a Map so the last row wins while `islandForProgramme` uses `.find` so the first does, so a programme can be playable and unsailable at once, and `rosterFaults` has no check for it */
   {
     id: 'football', name: 'Football', place: 'stadium', kind: 'sport',
     tags: [], rankTrack: 'football', playable: false,
@@ -198,21 +178,7 @@ export const PROGRAMMES: Programme[] = (() => {
   })
 })()
 
-/* ---- A MEMBER'S PAINTING REACHES ITS PLACE (Ash, 2026-09-09) -------------
- *
- * *"I hope islands are fully wired up / working systems and logic."*
- *
- * This was the break, and it was one join. A member's row in
- * `member-islands.json` carries the `map` their island is played on, and that
- * map went into a Programme and nowhere else: `SOURCED_PLACES` is a hand-written
- * table, so the place the programme belongs to still had an empty `maps` list.
- * `islandForProgramme` asks the PLACE for the painting, found none, and answered
- * null, so the year sheet's button read "Go" and the whole voyage road was
- * unreachable no matter what a member shipped.
- *
- * A member still cannot invent a PLACE, which is deliberate: the places are the
- * real school and naming one that does not exist is now a fault by name rather
- * than a silent misty pin (`member-islands.ts`). */
+/* joins member rows onto the hand-written `SOURCED_PLACES`, because without it the place kept an empty `maps` list and `islandForProgramme` answered null; a member still cannot invent a place, so naming one that does not exist is a named fault rather than a silent pin */
 const MEMBER_MAPS = (() => {
   const out = new Map<string, string[]>()
   for (const i of MEMBER_ISLANDS) {
@@ -228,8 +194,7 @@ export const PLACES: Place[] = (() => {
   let n = 0
   return SOURCED_PLACES.map((p0) => {
     const added = (MEMBER_MAPS.get(p0.id) ?? []).filter((m) => !p0.maps.includes(m))
-    /* the arrival is the place's own if it has one, and otherwise the first
-     * painting anybody shipped for it */
+    /* the arrival is the place's own if it has one, otherwise the first painting anybody shipped for it */
     const p = added.length
       ? { ...p0, maps: [...p0.maps, ...added], arrival: p0.arrival ?? [...p0.maps, ...added][0] }
       : p0
@@ -264,9 +229,7 @@ export const placeOfMap = (mapId: MapId | undefined): Place | undefined =>
 const deptIndex = new Map<string, Place>()
 for (const p of PLACES) for (const d of p.teaches ?? []) if (!deptIndex.has(d)) deptIndex.set(d, p)
 
-/* the override argument is `rosterFaults`'s own pattern and it is here for the
- * same reason: nothing on the shipped roster teaches a department, so a test that
- * could not supply one could only ever prove the absence and never the lookup. */
+/* the override argument matches `rosterFaults`: nothing on the shipped roster teaches a department, so a test that could not supply one could only prove the absence and never the lookup */
 export const placeOfDept = (dept: string | undefined, places?: readonly Place[]): Place | undefined => {
   if (!dept) return undefined
   if (!places) return deptIndex.get(dept)
@@ -277,42 +240,17 @@ export const placeOfDept = (dept: string | undefined, places?: readonly Place[])
 export const placeOfProgramme = (id: ProgrammeId | undefined): Place | undefined =>
   placeById(programmeById(id)?.place)
 
-/* THE DERIVED LIST, which is the half of Q80.11.a that makes the board at the
- * shore possible: "football is out of season and flag football is not" is a
- * sentence about a place, and a place cannot say it without this. */
+/* the derived list that makes the board at the shore possible: 'football is out of season and flag football is not' is a sentence about a place, and a place cannot say it without this */
 export const programmesAt = (placeId: PlaceId | undefined): Programme[] =>
   placeId ? PROGRAMMES.filter((p) => p.place === placeId) : []
 
 /** the season a programme runs in: a sport's is the school's, a club takes any */
-/* WHERE A CLASS IS SAT, AND IT IS ONE QUESTION WITH ONE ANSWER.
- *
- * ASH, 2026-09-08: *"My Year's 'Go to class' plays that class's beat… when a
- * class has an island, the same button sails there instead, decided by the
- * roster, no second button."*
- *
- * ONE BUTTON IS THE WHOLE POINT. A sheet that grew a second control the day
- * somebody shipped an island would be a sheet whose two classes look different
- * from each other for a reason a student cannot see. The button means "go to this
- * class"; whether that is a quiz on the sheet or a voyage is the roster's
- * business, and this is the roster answering.
- *
- * A CLASS AND A PROGRAMME SHARE AN ID WHEN THEY ARE THE SAME THING. The four key
- * spaces at the top of this file stay separate; this is the one deliberate
- * crossing and it is opt-in. A course only has an island if somebody put a
- * programme carrying the course's own id on the roster, made it playable, and
- * gave its place a painting. Nothing in the catalog does today, so every class is
- * a beat and the button says so. */
+/* one button per pick and the roster decides whether it is a beat or a voyage; a class has an island only if a playable programme shares its course id and that place has a painting, so today every class is a beat */
 export function islandForClass(classId: string): { programme: Programme; map: string } | null {
   return islandForProgramme(classId)
 }
 
-/* ---- AND THE SAME QUESTION FOR A CLUB OR A SPORT -------------------------
- *
- * ASH, 2026-09-08 item 4: *"one button per pick, the roster decides"*. A club
- * and a class are the same question with the same answer, and asking it twice in
- * two places is how they came to have two different controls. `islandForClass`
- * is now this with the course id passed in, kept because a dozen callers say it
- * and it is the sentence they mean. */
+/* a club and a class are the same question with the same answer; `islandForClass` is this with the course id passed in, kept because a dozen callers say it */
 export function islandForProgramme(id: string | undefined): { programme: Programme; map: string } | null {
   const g = PROGRAMMES.find((p) => p.id === id)
   if (!g?.playable) return null
@@ -325,8 +263,7 @@ export function seasonOf(p: Programme): Season | undefined {
   return p.kind === 'sport' ? (p.season ?? SPORT_SEASONS[p.id]) : undefined
 }
 
-/* the season-lock rule, and it is the good version of teaching: the mechanic
- * made the student obey the truth before anybody explained it */
+/* the season lock: the mechanic makes the student obey the truth before anybody explains it */
 export function programmeAllowedIn(p: Programme, season: Season): boolean {
   const s = seasonOf(p)
   return s === undefined || s === season
@@ -350,17 +287,7 @@ export const programmeOfRankTrack = (track: string | undefined): Programme | und
 // what a broken roster entry looks like, checked at publish time rather than while drawing
 export type RosterFault = { key: string; why: string }
 
-/* ---- AND IT IS SAID OUT LOUD (Ash, 2026-09-09) --------------------------
- *
- * `rosterFaults` has caught a programme naming a place that is not on the roster
- * since the day it was written, and it had never once been CALLED outside a
- * test. So a member whose `member-islands.json` row names a place that does not
- * exist got silence: `placeOfProgramme` answered undefined, their pin stayed a
- * fog smudge for ever, and nothing anywhere named the word that was wrong.
- *
- * It runs at import now, beside the member file's own check, which is the only
- * moment that catches it before a student is looking at the result. Faults are
- * reported and never thrown: a bad row must not take the game down with it. */
+/* `rosterFaults` runs at import now: it had never been called outside a test, so a member row naming a place that does not exist got silence, `placeOfProgramme` answered undefined and the pin stayed a fog smudge; faults are reported and never thrown, because a bad row must not take the game down */
 function sayRosterFaults() {
   for (const f of rosterFaults()) {
     console.error(`[roster] ${f.key}: ${f.why}`)
@@ -395,9 +322,7 @@ export function rosterFaults(places = PLACES, programmes = PROGRAMMES): RosterFa
     if (!placeIds.has(g.place)) out.push({ key: g.id, why: `names place "${g.place}", which is not on the roster` })
     if (g.kind === 'sport' && seasonOf(g) === undefined)
       out.push({ key: g.id, why: 'is a sport with no season in the vocabulary' })
-    /* THE KEY SPACES STAY DISJOINT. Nothing enforces this in a type, and a
-     * programme that shares a string with the map it is played on is exactly how
-     * the conflation grows back. */
+    /* the key spaces stay disjoint: nothing enforces it in a type, and a programme sharing a string with the map it is played on is how the conflation grows back */
     if (placeIds.has(g.id)) out.push({ key: g.id, why: 'is both a programme id and a place id' })
     if (seenMap.has(g.id)) out.push({ key: g.id, why: 'is both a programme id and a map id' })
   }

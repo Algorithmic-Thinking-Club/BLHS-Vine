@@ -17,19 +17,10 @@ type SailDetail = {
 let listening = 0
 let here: string | null = null
 
-/** how many scenes can take a sail request right now. The chart asks before it
- *  draws a control, so it never offers a button that cannot do anything. */
+/** how many scenes can take a sail request right now, asked by the chart before it draws a control so it never offers a button that cannot do anything */
 export const sailListenerCount = (): number => listening
 
-/* ---- IS HE ACTUALLY IN THE BOAT ------------------------------------------
- *
- * The chart used `sailListenerCount() > 0` to mean "he is afloat", and what that
- * really answers is "this map has water on it". So a student standing on the hub's
- * quay was offered "Sail to The Hub": the one rule that stops the chart sending you
- * to where you already are has an exception for a helmsman who needs to put in, and
- * the exception was true for everybody on the island.
- *
- * The scene says so, because the scene is the only thing that knows. */
+/* `sailListenerCount() > 0` really answers "this map has water on it" and not "the player is afloat", and reading it the second way offered "Sail to The Hub" to somebody standing on the hub's own quay, so the scene reports afloat itself */
 let afloat = false
 export const isAfloat = (): boolean => afloat
 export function setAfloat(on: boolean) {
@@ -38,13 +29,10 @@ export function setAfloat(on: boolean) {
   window.dispatchEvent(new CustomEvent('blhs:afloat'))
 }
 
-/* which painting is on screen, answered by the scene drawing it rather than by
- * the url. A map with no ocean under it still answers, since a journey starts
- * with the walk out of the room and the chart needs to know which room. */
+/* which painting is on screen, answered by the scene drawing it rather than by the url, and a map with no ocean under it still answers because a journey starts with the walk out of the room */
 export const sailFrom = (): string | null => (listening > 0 || voyagers > 0 ? here : null)
 
-/** ask the world to take the ship to this slot. Resolves when the scene has
- *  decided, not when the ship arrives: a crossing is watched, not awaited. */
+/** ask the world to take the ship to this slot, resolving when the scene has decided and not when the ship arrives: a crossing is watched, not awaited */
 export function requestSail(slot: WorldSlot): Promise<SailAnswer> {
   return new Promise<SailAnswer>((resolve) => {
     let settled = false
@@ -73,34 +61,12 @@ export function onSailRequest(
   return () => {
     window.removeEventListener(EVENT, h)
     listening--
-    /* the last one out puts the light off. A map id left behind by a torn-down
-     * scene is a chart refusing to offer the island a student has just left. */
+    /* the last one out puts the light off: a map id left behind by a torn-down scene is a chart refusing to offer the island a student has just left */
     if (listening <= 0) { listening = 0; here = null }
   }
 }
 
-/* ---- THE WHOLE JOURNEY, ASKED FOR FROM A PANEL ----------------------------
- *
- * ASH, 2026-09-08: *"Pressing a pick puts Thor at his current island's dock, he
- * presses E on his ship, the bars go up, the ship sails herself to that pick's
- * island, he steps off, the island's card plays."*
- *
- * `requestSail` above is the OTHER kind of sailing and both are wanted. It hands
- * the helm to a real hull on this painting's own ocean and steers it there in
- * real time, which is what the chart's pin has always done and what makes the
- * water feel like water. It cannot leave the painting: the line is sounded
- * against this map's depth field, so anything further away than the canvas is
- * refused as aground.
- *
- * This one is the journey between islands: walk out, board, bars, cross under a
- * cover, tie up, step off, card. It is `sail_to`, the same word a member's island
- * writes, reached from React so that a button on the year sheet and a line in
- * somebody's python are the same machine. A member still writes nothing about
- * travel; this is the engine asking itself.
- *
- * IT IS A SECOND EVENT AND NOT A FLAG ON THE FIRST because the two answer
- * different questions ("can this hull reach that pin" against "is that island a
- * place with a dock") and a scene that can do one may refuse the other. */
+/* the whole journey between islands (walk out, board, bars, cross under a cover, tie up, card) is `sail_to`, a second event and not a flag on `requestSail`, because a scene that can steer a hull across its own ocean may still refuse an island with no dock */
 const VOYAGE = 'blhs:voyage-to'
 
 type VoyageDetail = { map: string; answer: (a: SailAnswer) => void }

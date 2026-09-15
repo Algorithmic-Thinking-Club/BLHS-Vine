@@ -1,6 +1,4 @@
-// The year loop (§7.5/§7.6): status derivation, the nudge, the class-beat generator, and
-// the full year-close sequence. The generator sweep is a tripwire across the WHOLE real
-// catalog: every generated check must have exactly one correct answer.
+// the year loop: status derivation, the nudge, the class beat generator and the year close sequence; the generator sweep is a tripwire across the whole real catalog, because every generated check must have exactly one correct answer
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { classBeat } from '../beats/classes'
 import { CLASSES, classById } from '../planner/catalog'
@@ -75,11 +73,7 @@ describe('yearStatus (§7.5 derived, resumable anywhere)', () => {
     /* a voyage is named off the programme it points at, in the order the seasons run */
     expect(st.voyages.map((v) => v.name))
       .toEqual([programmeById('football')!.name, programmeById('atc')!.name])
-    /* ONE OF THEM CAN BE SAILED TO NOW. This asserted that no voyage was playable,
-     * which was true of every roster this game ever shipped until ATC. Football is
-     * still rising; ATC has a painting, a berth and an island behind it. Written as
-     * the pair rather than as a blanket so the next one to be built fails here and
-     * is looked at rather than passing under an `every`. */
+    /* written as the pair rather than as a blanket `every`, so the next island built fails here and gets looked at: football is still rising while ATC has a painting, a berth and an island behind it */
     expect(st.voyages.map((v) => v.playable)).toEqual([false, true])
 
     // advisory + both classes
@@ -89,12 +83,7 @@ describe('yearStatus (§7.5 derived, resumable anywhere)', () => {
     expect(st.classesPending).toEqual(['spanish-1'])
     save.recordGrade({ id: 'class:spanish-1', title: 't', kind: 'class', credit: 0.5, grade: 3.43, year: 1, season: 'Winter', tags: ['lang'] })
 
-    /* ---- EVERY PICK HOLDS THE YEAR (Ash, 2026-09-08 items 4 and 6) --------
-     *
-     * The two clubs used to be exempt, because nothing could finish a club whose
-     * island nobody had built and the year would have hung on them for ever.
-     * There is one button per pick now and it always finishes the pick, so the
-     * exemption is gone and the gate means what it says. */
+    /* every pick holds the year: the two clubs were once exempt because nothing could finish a club whose island nobody had built, but there is one button per pick now and it always finishes the pick */
     st = yearStatus(save.loadSave()!)
     expect(st.readyForYearbook).toBe(false)            // the two clubs are still owed
     expect(nudgeLine(st)).toContain('not open yet')

@@ -12,9 +12,7 @@ import type { BeatStep, CoreBeat } from './frames'
 export type ClassPlacement = {
   /** the roster place, when a source has put this department somewhere */
   place?: Place
-  /* the painting a student would arrive at, which is the place's own arrival
-   * map. Absent while the place has no painting, so an arrow can only be drawn
-   * when there is really somewhere to draw it. */
+  /* the painting a student would arrive at, absent while the place has no painting, so an arrow is only drawn when there is really somewhere to draw it */
   map?: MapId
   /** what the beat prints, honest at both ends */
   line: string
@@ -40,8 +38,7 @@ function cordCheck(c: ClassDef): CheckStep {
   const isCapstone = c.tags.includes('lang-capstone')
   const isLang = c.tags.includes('lang')
 
-  /* CTE IS SPELLED OUT ON EVERY BUTTON THAT USES IT. Nothing in a class beat
-   * ever defined the acronym, and these options are where a student meets it. */
+  /* the acronym CTE is spelled out on every button that uses it, because nothing in a class beat defines it and these options are where a student meets it */
   const AP = { text: 'AP Honors. Five passed AP classes earn it.', key: 'ap' }
   const CTE = { text: 'Career Readiness. It counts as a Career and Technical Education credit.', key: 'cte' }
   const SEAL = { text: 'The Seal of Biliteracy. Language credits add up toward it.', key: 'lang' }
@@ -61,7 +58,7 @@ function cordCheck(c: ClassDef): CheckStep {
               : correctKey === 'lang' ? SEAL
                 : NONE
   const distractors = pool.filter((o) => o.key !== correct.key && o.key !== 'both' && o.key !== 'cap').slice(0, 2)
-  // a dual-count class makes its single-cord options HALF true — the reply says so
+  // a dual-count class makes its single-cord options half true, and the reply says so
   const dual = correctKey === 'both' || correctKey === 'both-lang'
   const options = [...distractors.map((o) => ({
     text: o.text,
@@ -96,7 +93,7 @@ function ladderCheck(c: ClassDef): CheckStep | null {
   }
 }
 
-/** the generated 2-3 minute class beat — same chassis as the core beats (§7.4) */
+/** the generated 2 to 3 minute class beat, on the same chassis as the core beats */
 export function classBeat(c: ClassDef, year: number): CoreBeat {
   const steps: BeatStep[] = [
     { kind: 'say', line: { speaker: T, text: `${c.name}. Take a seat.` } },
@@ -134,6 +131,6 @@ export const classDone = (ledger: { id: string }[], classId: string): boolean =>
 /** the class id as the ledger spells it, so nobody builds the string by hand */
 export const classLedgerId = (classId: string): string => `class:${classId}`
 
-/* SAT AND PASSED, which is what the year gate means (Ash, 2026-09-09) */
+/* sat and passed, which is what the year gate means */
 export const classPassed = (s: SaveGame | null, classId: string): boolean =>
   beatPassed(s, classLedgerId(classId))

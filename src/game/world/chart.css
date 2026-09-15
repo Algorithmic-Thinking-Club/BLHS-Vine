@@ -2,13 +2,10 @@
 
 @import '../ui/tokens.css';
 
-/* the page becomes a column so the chart can take what is left of it after the
-   heading and the register, which is what "fills the page" has to mean */
+/* the page is a column so the chart can take whatever height is left after the heading and the register */
 .hb-page:has(.ch-chart) { display: flex; flex-direction: column; }
 
-/* `1 0 auto` and not `1`: the chart grows into the page it is given and never
-   shrinks below the register, so a long list scrolls the binder page rather than
-   being clipped by a paper that took the height first. */
+/* `1 0 auto` and not `1`: the chart grows into the page it is given and never shrinks below the register, so a long list scrolls the binder page instead of being clipped */
 .ch-chart {
   display: flex;
   flex-direction: column;
@@ -16,10 +13,7 @@
   min-height: 0;
   gap: 10px;
 
-  /* ---- the water, mixed once, out of the kit's own sea ------------------
-     Nothing here is a new colour. The ocean is the same green the kit calls
-     chosen, run down through the front group's two deep blues, because a chart
-     is a picture of the water the game sails on and not a second palette. */
+  /* the water, mixed once out of the kit's own sea: nothing here is a new colour, the ocean reuses the kit green and the two front deep blues so the chart is not a second palette */
   --ch-shelf: var(--kit-sea);
   --ch-mid: var(--kit-front-teal-deep);
   --ch-deep: var(--kit-front-sea-deep);
@@ -36,22 +30,11 @@
   font-weight: normal;
 }
 
-/* ---- THE SHEET ------------------------------------------------------------
- *
- * The paper the water is printed on, and nothing more: a margin, a doubled rule
- * and the four brass tacks that hold it into the binder. It takes its height
- * from the water inside it, which is `0 0 auto` and NOT the `1 1 auto` it was.
- *
- * That one line was the whole of the chart's lie about distance. A sheet that
- * took whatever height the flex row had left measured 949x180 while the world it
- * drew measured 1466x667, so the two axes got scales 2.4 times apart and a
- * thousand units east read shorter than four hundred units north. */
+/* the sheet is a margin, a doubled rule and four brass tacks, and it takes its height from the water inside it: `0 0 auto` and not `1 1 auto`, because a sheet that took the flex row's leftover height measured 949x180 while the world it drew measured 1466x667, putting the two axes 2.4 times apart in scale */
 .ch-sea {
   position: relative;
   flex: 0 0 auto;
-  /* THE SHEET HUGS THE WATER. It used to be the full width of the page with the
-     map floating in the middle of it, which reads as a small chart lost on a
-     large blotter rather than as a chart. */
+  /* the sheet hugs the water, because full page width with the map floating in the middle reads as a small chart lost on a large blotter */
   width: fit-content;
   max-width: 100%;
   margin: 0 auto;
@@ -78,23 +61,10 @@
 .ch-sea::before { top: 2px; }
 .ch-sea::after { bottom: 2px; }
 
-/* ---- THE WATER ------------------------------------------------------------
- *
- * Its `aspect-ratio` is written on the element by `chartBox`, so the box the
- * world is measured into and the box it is drawn in are the same shape and one
- * scale serves both axes. Everything on it is placed as a percentage of a side,
- * which makes a percentage of the width and a percentage of the height the same
- * number of pixels, and therefore the same distance in the world.
- *
- * The ruling is the same idea: the two grid steps come down as a share of each
- * side off one round number of world units, so the squares really are square and
- * the legend can say so without naming a unit the game has never named. */
+/* the water: `chartBox` writes its `aspect-ratio` so the box the world is measured into and the box it is drawn in are one shape and one scale serves both axes, equal percentages of width and height are equal world distances, and the grid steps come down as a share of each side off one round number of world units */
 .ch-water {
   position: relative;
-  /* the width comes in on the element as `<CHART_TALL> * aspect`, so the water is
-     as wide as its own shape needs it to be for the height the page can spare,
-     and the sheet is cut to fit round it. On a window too narrow for that the
-     `max-width` takes over and the aspect shortens it instead of squashing it. */
+  /* the width arrives on the element as `<CHART_TALL> * aspect` so the water is as wide as its shape needs for the height the page can spare, and on a narrow window `max-width` shortens it instead of squashing it */
   max-width: 100%;
   min-height: 100px;
   border-radius: 2px;
@@ -141,9 +111,7 @@
   pointer-events: none;
 }
 .ch-region-sailable { background: var(--kit-sea-glow-soft); }
-/* MIST IS THE ONE REGION WITH A TEXTURE RATHER THAN A TINT, because it is the
-   one whose meaning is "you cannot see through this" and a flat wash says
-   nothing on a panel that crushes lightness */
+/* mist is the one region with a texture rather than a tint, because its meaning is that you cannot see through it and a flat wash says nothing on a panel that crushes lightness */
 .ch-region-mist {
   background: repeating-linear-gradient(135deg, var(--kit-paper-sheen) 0 6px, transparent 6px 12px);
   border-style: dotted;
@@ -164,10 +132,7 @@
 
 /* ---- ONE ISLAND ---------------------------------------------------------- */
 
-/* the block hangs off its own world point: centred across it, with the painting
-   pulled up half its own height so the PICTURE sits on the point and the label
-   hangs underneath it. Everything else on this page is measured, so the mark
-   cannot be a stack of boxes that happens to average out near the right place. */
+/* the block hangs off its own world point, centred across it with the painting pulled up half its own height, so the picture sits on the point and the label hangs under it rather than a stack of boxes averaging out near the right place */
 .ch-isle {
   position: absolute;
   transform: translateX(-50%);
@@ -184,15 +149,13 @@
   flex: none;
   overflow: hidden;
 }
-/* no bundle answered, so the chart falls back to the mark it drew before there
-   were any paintings at all */
+/* no bundle answered, so the chart falls back to the mark it drew before there were any paintings at all */
 .ch-pic-gone {
   display: inline-flex;
   align-items: center; justify-content: center;
   overflow: visible;
 }
-/* the shallow water an island stands in, so a painting sits on the sea rather
-   than floating over it. It is water, drawn in the water's own colour. */
+/* the shallow water an island stands in, drawn in the water's own colour so a painting sits on the sea rather than floating over it */
 .ch-pic::before {
   content: '';
   position: absolute; inset: -30%;
@@ -257,12 +220,7 @@
   color: var(--kit-ink-label);
 }
 
-/* ---- THE CONTROL, AND IT LOOKS LIKE ONE -----------------------------------
- *
- * Ash: *"clean buttons that ask to 'sail here'"*. It was an underlined word in
- * the same ink as the sentence above it, inside a block whose reading was "The
- * Hub. You have been here. Sail here." The state is the tag it sits in and the
- * control is a plaque with the sea's own paint on it. */
+/* the control has to look like one: a plaque wearing the sea's own paint, not an underlined word in the same ink as the sentence above it, and the state belongs to the tag it sits in */
 .ch-sail {
   margin-top: 4px;
   padding: 2px 10px 3px;
@@ -307,14 +265,7 @@
 .ch-isle-go:focus-visible .ch-sail { filter: brightness(1.18); }
 html[data-rm='1'] .ch-isle-go:hover { transform: translateX(-50%); }
 
-/* ---- A DOZEN ISLANDS, AND THEN FIFTY --------------------------------------
- *
- * Past `CHART_DENSE` the tags wait to be asked for. The pictures shrink on their
- * own and stay readable, but a name does not: the kit's type floor is 14px and
- * "the Algorithmic Thinking Club" at 14px is three times wider than the island
- * it belongs to. So the water keeps the paintings and the state badges, the
- * register underneath keeps every name and every control in words, and a hover
- * or a keyboard focus brings one tag back over the top of its neighbours. */
+/* past `CHART_DENSE` the tags wait to be asked for: pictures shrink on their own and stay readable but a name cannot, since the kit type floor is 14px and a long island name at 14px is three times wider than its island, so the water keeps the paintings and badges, the register keeps every name and control, and hover or focus brings one tag back */
 .ch-water[data-dense='1'] .ch-card {
   position: absolute;
   top: 100%; left: 50%;
@@ -327,10 +278,7 @@ html[data-rm='1'] .ch-isle-go:hover { transform: translateX(-50%); }
 .ch-water[data-dense='1'] .ch-isle:hover,
 .ch-water[data-dense='1'] .ch-isle:focus-within { z-index: 6; }
 
-/* THE DOCK: a rail with six standing places on it. The rail is what makes an
-   EMPTY place readable, because an empty place is only legible when the place
-   itself is drawn. It belongs to the register, where there is room for it; on
-   the water an island wears one badge and that is all it can carry. */
+/* the dock is a rail with six standing places, because an empty place is only legible when the place itself is drawn: it belongs to the register where there is room, and on the water an island wears one badge */
 .ch-dock {
   display: flex;
   align-items: flex-end;
@@ -339,8 +287,7 @@ html[data-rm='1'] .ch-isle-go:hover { transform: translateX(-50%); }
   border-bottom: 2px solid var(--kit-edge);
   border-radius: 0 0 var(--kit-r-sharp) var(--kit-r-sharp);
 }
-/* a mark standing where there is no dock yet carries no rail: there is nothing
-   to be standing on */
+/* a mark standing where there is no dock yet carries no rail, because there is nothing to be standing on */
 .ch-dock-bare { border-bottom: 0; padding-bottom: 0; }
 
 /* one standing place on the rail: fixed height, and a width that is only a floor */
@@ -352,8 +299,7 @@ html[data-rm='1'] .ch-isle-go:hover { transform: translateX(-50%); }
   min-width: 18px; height: 18px;
 }
 .ch-slot-big { min-width: 30px; height: 30px; }
-/* AN EMPTY PLACE IS A NOTCH ON THE RAIL. Not a faded mark and not a gap: a
-   student reads "the star is not there" off a place that is visibly a place. */
+/* an empty place is a notch on the rail, not a faded mark and not a gap, so the star being absent is read off something that is visibly a place */
 .ch-slot-off { position: relative; }
 .ch-slot-off::after {
   content: '';
@@ -365,9 +311,7 @@ html[data-rm='1'] .ch-isle-go:hover { transform: translateX(-50%); }
 
 /* ---- YOU ARE HERE -------------------------------------------------------- */
 
-/* SHE IS DRAWN WHERE SHE IS TIED UP. The berth is a real point on the water and
-   the chart used to stack her under the island's mark with a hard-coded nudge,
-   which was a guess at where a dock is on a painting it had never looked at. */
+/* she is drawn where she is tied up, because the berth is a real point on the water and stacking her under the island's mark with a hard-coded nudge guesses where a dock sits on a painting nothing has looked at */
 .ch-you {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -387,15 +331,8 @@ html[data-rm='1'] .ch-isle-go:hover { transform: translateX(-50%); }
   white-space: nowrap;
 }
 
-/* ---- A PICK NOBODY HAS BUILT YET ------------------------------------------
- *
- * Ash, 2026-09-08 item 3: his picked islands go on the chart around the hub. It
- * is a note in the margin rather than a mark in the sea, because the thing it is
- * about has no position: there is no island to put it on. Under everything and
- * deaf to the pointer, so it can never sit on top of a control. */
-/* the year's picks with no island moved off the water and into the register, so
-   the four corner notes that used to float on the sea have no rules any more. The
-   register row they became is `.ch-row-owed` below. */
+/* a pick with no island is a note in the margin rather than a mark in the sea, because there is no island to put it on: under everything and deaf to the pointer so it can never sit on top of a control */
+/* the year's picks with no island moved off the water into the register as `.ch-row-owed` below, so the four corner notes that floated on the sea have no rules any more */
 
 /* shapes built from tokens that stand in for the drawn faces when no kit is worn */
 
@@ -407,8 +344,7 @@ html[data-rm='1'] .ch-isle-go:hover { transform: translateX(-50%); }
 }
 .ch-slot-big .ch-s { width: 30px; height: 30px; }
 
-/* the marker: a ringed head over a tapered tail, which is what `pointer`'s
-   pin_plate and pin_tail draw as two faces and this draws as two boxes */
+/* the marker is a ringed head over a tapered tail, the two faces `pointer` draws as pin_plate and pin_tail, done here as two boxes */
 .ch-s-pin { position: relative; }
 .ch-s-pin::before {
   content: '';
@@ -427,9 +363,7 @@ html[data-rm='1'] .ch-isle-go:hover { transform: translateX(-50%); }
   clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
 }
 
-/* the season coin. Filled is the season you are in; a ring is the season this
-   place keeps while you are in another one, which is a SHAPE difference and not
-   a dimmer coin. */
+/* the season coin: filled is the season you are in, a ring is the season this place keeps while you are in another one, which is a shape difference and not a dimmer coin */
 .ch-s-pip {
   border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, var(--kit-gold-hi), var(--kit-gold-lo) 70%);
@@ -463,11 +397,8 @@ html[data-rm='1'] .ch-isle-go:hover { transform: translateX(-50%); }
   clip-path: polygon(0% 0%, 100% 50%, 0% 100%);
 }
 
-/* the stamp that fills gold when a place is finished. Gold is EARNED HONORS
-   ONLY (`docs/ART.md`) and a finished island is the one thing on this page that
-   has been earned. */
-/* the rim is INSET, because `clip-path` clips an outer shadow away with the rest
-   of the box and the seal would lose its edge */
+/* the stamp that fills gold when a place is finished, and gold is for earned honours only, which a finished island is the one thing on this page to be */
+/* the rim is inset, because `clip-path` clips an outer shadow away with the rest of the box and the seal would lose its edge */
 .ch-s-stamp {
   background: radial-gradient(circle at 38% 32%, var(--kit-gold-hi), var(--kit-gold-lo) 72%);
   box-shadow: inset 0 0 0 2px var(--kit-gold-edge);
@@ -477,8 +408,7 @@ html[data-rm='1'] .ch-isle-go:hover { transform: translateX(-50%); }
     10% 82%, 12% 66%, 0% 57%, 4% 42%, 0% 27%, 12% 18%, 21% 6%, 36% 8%);
 }
 
-/* the landing tick: you were off the boat here, which the exposure record has
-   always known and nothing had ever drawn */
+/* the landing tick says you were off the boat here, which the exposure record has always known and nothing had ever drawn */
 .ch-s-tick {
   position: relative;
   background: none;
@@ -504,17 +434,14 @@ html[data-rm='1'] .ch-isle-go:hover { transform: translateX(-50%); }
   to { border-radius: 56% 44% 46% 54% / 44% 58% 42% 56%; transform: translateX(1px); }
 }
 html[data-rm='1'] .ch-s-fog { animation: none; }
-/* AND THE STAGE ITSELF EASES RATHER THAN CUTTING. A bank that jumps two stages
-   between two draws is the hard swap §9.14 refuses, one level up. */
+/* the stage itself eases rather than cutting, because a bank that jumps two stages between two draws is the hard swap this screen refuses */
 .ch-dock-bare { transition: opacity var(--kit-t-slow) ease, transform var(--kit-t-slow) ease; }
 .ch-dock-bare[data-fog='3'] { opacity: 1; transform: scale(1); }
 .ch-dock-bare[data-fog='2'] { opacity: .82; transform: scale(.88); }
 .ch-dock-bare[data-fog='1'] { opacity: .62; transform: scale(.74); }
 .ch-dock-bare[data-fog='0'] { opacity: .42; transform: scale(.6); }
 
-/* a rumour is drawn in pencil and has no marker, because there is nothing there
-   to put a marker on. On water the pencil is chalk: the register's brown ink
-   disappears against a deep sea. */
+/* a rumour is drawn in pencil and has no marker because there is nothing there to put one on, and on water the pencil becomes chalk since the register's brown ink disappears against a deep sea */
 .ch-s-pencil {
   border-radius: 50%;
   background: none;
@@ -560,13 +487,11 @@ html[data-rm='1'] .ch-s-rising { animation: none; box-shadow: inset 0 0 0 2px va
   background: var(--kit-sea-ink);
   clip-path: polygon(0% 0%, 100% 0%, 82% 100%, 18% 100%);
 }
-/* she is a dark hull on dark water otherwise, and she is the one thing on this
-   page that is where the student is */
+/* she is a dark hull on dark water otherwise, and she is the one thing on this page that is where the student is */
 .ch-water .ch-s-ship::before { background: var(--ch-foam); }
 .ch-water .ch-s-ship::after { background: var(--kit-paper-hi); }
 
-/* THE CHART INKS ITSELF. §9.15's whole moment, played once, on the draw a
-   smudge becomes a place with a name on it. */
+/* the chart inks itself, played once, on the draw where a smudge becomes a place with a name on it */
 .ch-isle[data-inked='1'] .ch-pic,
 .ch-isle[data-inked='1'] .ch-blank,
 .ch-isle[data-inked='1'] .ch-card { animation: ch-ink 900ms var(--kit-ease-rise) 1 both; }
@@ -595,8 +520,7 @@ html[data-rm='1'] .ch-isle[data-inked='1'] .ch-card { animation: none; }
   padding: 7px 2px;
   border-bottom: 1px dashed var(--kit-rule);
 }
-/* the island again, small, so the list and the water are obviously about the
-   same places. It sits in the water's own tint rather than on the paper. */
+/* the island again, small and sitting in the water's own tint rather than on the paper, so the list and the water are obviously about the same places */
 .ch-row-pic {
   flex: none;
   display: inline-flex;
@@ -629,8 +553,7 @@ html[data-rm='1'] .ch-isle[data-inked='1'] .ch-card { animation: none; }
   color: var(--kit-ink-dim);
   line-height: 1.4;
 }
-/* the register's own control: a real plank, the button every other screen in the
-   game presses, so the list is not a second vocabulary */
+/* the register's own control is a real plank, the same button every other screen presses, so the list is not a second vocabulary */
 .ch-row-go { flex: none; max-width: 40%; }
 /* the boat's own row sits above the water it is on */
 .ch-row-you .ch-row-name { color: var(--kit-sea-ink); }
@@ -656,8 +579,7 @@ html[data-rm='1'] .ch-isle[data-inked='1'] .ch-card { animation: none; }
 /* the plain arm: the chart with the picture gone, read as a worksheet */
 
 html[data-skin='plain'] .ch-sea { display: none; }
-/* the marks and the paintings were the picture and the picture is what this arm
-   does not get */
+/* the marks and the paintings were the picture, and the picture is what this skin does not get */
 html[data-skin='plain'] .ch-row-marks { display: none; }
 html[data-skin='plain'] .ch-row-pic { display: none; }
 html[data-skin='plain'] .ch-s { display: none; }
@@ -678,24 +600,17 @@ html[data-skin='plain'] .ch-row-closed { display: block; }
 html[data-skin='plain'] .ch-legend { color: var(--kit-ink-body); }
 /* and the sentence about the drawing goes with the drawing */
 html[data-skin='plain'] .ch-legend-pic { display: none; }
-/* the plain arm's own way to sea. A form button on a worksheet, and the plank
-   already knows how to be one under this skin. */
+/* this skin's own way to sea: a form button on a worksheet, which the plank already knows how to be here */
 html[data-skin='plain'] .ch-row-go { margin-top: 6px; max-width: none; }
 
 /* the empty-sea notice, made shorter and wider so the register still fits under it */
 .ch-chart .kit-empty { padding: 14px 20px 10px; gap: 6px; }
 .ch-chart .kit-empty-fills { max-width: 68ch; }
 
-/* a pick with no island: it is in the list because it is his year, and it is dimmed
-   because there is nowhere to press */
+/* a pick with no island is in the list because it is this year, and dimmed because there is nowhere to press */
 .ch-row-owed { opacity: .72; }
 .ch-row-owed .ch-row-name { font-style: italic; }
 
-/* ---- A CARD BELOW THE HALFWAY LINE HANGS ABOVE ITS ISLAND -----------------
- *
- * The island's name, its state line and its Sail control hang under the picture,
- * which walks them off the bottom edge of the water for anything drawn low. On the
- * shipped chart the ATC island's own "Sail here" was cut in half by that edge. Low
- * islands wear the same card on the other side. */
+/* a card below the halfway line hangs above its island: the name, the state line and the Sail control hang under the picture, which walks them off the bottom edge of the water for anything drawn low */
 .ch-isle-flip { flex-direction: column-reverse; }
 .ch-isle-flip .ch-card { margin-top: 0; margin-bottom: 5px; }

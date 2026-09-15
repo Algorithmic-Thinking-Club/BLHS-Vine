@@ -1,5 +1,4 @@
-/* Transition covers (GAME-DESIGN §12.1): each is a full-screen layer that animates in,
-   holds while the next scene mounts, and animates out. No raw spinners, no hard cuts. */
+/* transition covers: each is a full-screen layer that animates in, holds while the next scene mounts, and animates out, with no raw spinners and no hard cuts */
 
 /* the cover band is a piece of the kit now, so it is made of the kit's materials */
 @import '../game/ui/tokens.css';
@@ -24,9 +23,7 @@
   position: absolute; inset: 0;
   background: linear-gradient(105deg, var(--kit-sea-btn-edge) 0%, var(--kit-sea-btn-lo) 55%, var(--kit-sea) 100%);
 }
-/* THE LACE IS A SOLID TOKEN AT AN OPACITY, not four rgba values typed by hand.
-   A colour with alpha baked into it cannot be reskinned, because the plain arm
-   swaps the token and inherits somebody's guess at how see-through foam is. */
+/* the lace is a solid token at an opacity, not four rgba values typed by hand, because a colour with alpha baked into it cannot be reskinned: a skin swaps the token and inherits somebody's guess at how see-through foam is */
 .tr-foam-lace {
   position: absolute; top: -4%; bottom: -4%; width: 30vw; left: -32vw;
   opacity: .82;
@@ -54,9 +51,7 @@
   from { clip-path: circle(0% at var(--fx, 50%) var(--fy, 50%)); }
   to   { clip-path: circle(150% at var(--fx, 50%) var(--fy, 50%)); }
 }
-/* the iris cover is the INVERSE hole: while 'in' plays, the black ring closes toward the
-   focus; we fake it by clipping a full dark sheet from a giant circle down to nothing,
-   which reads as the world shrinking into the point */
+/* the iris cover is the inverse hole: while 'in' plays the black ring closes toward the focus, faked by clipping a full dark sheet from a giant circle down to nothing, which reads as the world shrinking into the point */
 .tr-in .tr-iris { clip-path: circle(0% at var(--fx) var(--fy)); animation: tri-close var(--tr-cover) cubic-bezier(.4, 0, .6, 1) both; }
 @keyframes tri-close {
   from { clip-path: circle(0% at var(--fx, 50%) var(--fy, 50%)); opacity: .0; }
@@ -83,9 +78,7 @@
   animation: tr-tw 2.4s ease-in-out infinite;
 }
 @keyframes tr-tw { 0%, 100% { opacity: 0; transform: scale(.5); } 50% { opacity: 1; transform: scale(1.4); } }
-/* W12. A LOOPING ANIMATION IS THE ONE THAT HAS TO STOP RATHER THAN SHORTEN: the
-   kit's reduced-motion rule sets every duration to 1ms, and a twinkle at 1ms on
-   an infinite loop is fourteen strobing dots. They hold still, lit, instead. */
+/* a looping animation is the one that has to stop rather than shorten: the kit's reduced-motion rule sets every duration to 1ms, and a twinkle at 1ms on an infinite loop is fourteen strobing dots, so they hold still and lit instead */
 html[data-rm='1'] .tr-twinkle { animation: none; opacity: .7; transform: none; }
 
 .tr-scene-text {
@@ -97,8 +90,7 @@ html[data-rm='1'] .tr-twinkle { animation: none; opacity: .7; transform: none; }
 
 /* ---- the four cover voices share one layout, and only the painting changes ---- */
 
-/* the kicker sits on the painting rather than on the band, because the band's
-   own paper starts at the place's name */
+/* the kicker sits on the painting rather than on the band, because the band's own paper starts at the place's name */
 .tr-scene-entering {
   font-family: var(--kit-face-body);
   --kit-fs-raw: calc(13px * var(--kit-text-scale)); font-size: var(--kit-fs);
@@ -126,8 +118,7 @@ html[data-rm='1'] .tr-twinkle { animation: none; opacity: .7; transform: none; }
   color: var(--kit-ink-head);
   text-shadow: 0 1px 0 var(--kit-paper-sheen);
   text-align: center;
-  /* the authored `title` rectangle's height, so the line sits in the band of
-     paper the piece was drawn with rather than wherever the text happens to fall */
+  /* the authored `title` rectangle's height, so the line sits in the band of paper the piece was drawn with rather than wherever the text happens to fall */
   min-height: var(--band-title-h, auto);
   display: flex; align-items: center; justify-content: center;
 }
@@ -136,9 +127,7 @@ html[data-rm='1'] .tr-twinkle { animation: none; opacity: .7; transform: none; }
   max-width: 100%;
   text-align: center;
   font-family: var(--kit-face-body);
-  /* the one real sentence a student reads on a loading screen, and it was 13px at
-     85 percent over a sunset: measured at about 1.8:1 against the sky it was
-     sitting on, which is unreadable on a classroom projector. It is on paper now. */
+  /* the one real sentence a student reads on a loading screen was 13px at 85 percent over a sunset, measured at about 1.8:1 against that sky and unreadable on a classroom projector, so it is on paper now */
   --kit-fs-raw: calc(15px * var(--kit-text-scale)); font-size: var(--kit-fs);
   line-height: 1.4;
   color: var(--kit-ink-label);
@@ -237,8 +226,7 @@ html[data-skin='plain'] .tr-chart-fact {
   color: var(--kit-ink-body);
   text-shadow: none;
 }
-/* the kicker is a label above a heading in a document, so it reads as one:
-   small, upper case, no glow, no letter-spacing games */
+/* the kicker is a label above a heading in a document, so it reads as one: small, upper case, no glow, no letter-spacing games */
 html[data-skin='plain'] .tr-scene-entering {
   color: var(--kit-ink-label);
   text-shadow: none;
@@ -258,22 +246,13 @@ html[data-skin='plain'] .tr-scene-work {
   text-shadow: none;
   letter-spacing: 0;
 }
-/* a cover in a document does not swing in from the side or twinkle. It appears,
-   it says what it is loading, and it goes. */
+/* a cover in a document does not swing in from the side or twinkle: it appears, says what it is loading, and goes */
 html[data-skin='plain'] .tr-in .tr-scene,
 html[data-skin='plain'] .tr-out .tr-scene { animation-timing-function: linear; }
 
-/* ---- THE FACT ON THE ARRIVAL COVER (Ash, 2026-09-08 item 8) ---------------
- *
- * Under the loading bar, in the space that was already empty. It is the one
- * screen in year one a student is looking at with nothing else to do, and until
- * today the nineteen facts about the school could only reach him on a cover the
- * shipped game never plays. */
+/* the fact on the arrival cover goes under the loading bar in space that was already empty, because it is the one screen in year one a student looks at with nothing else to do */
 .tr-scene-fact {
-  /* ON ITS OWN PLATE. Measured on the live cover 2026-09-08: cream type straight
-     on the painting landed on a sunset sky at almost no contrast and overlapped
-     the loading bar's own line. A cover is a painting and a sentence needs a
-     ground under it, the same way the place name has a band. */
+  /* on its own plate: cream type straight on the painting landed on a sunset sky at almost no contrast and overlapped the loading bar's own line, so a sentence gets a ground under it the same way the place name has a band */
   max-width: 44ch;
   margin: 22px auto 0;
   padding: 9px 14px;

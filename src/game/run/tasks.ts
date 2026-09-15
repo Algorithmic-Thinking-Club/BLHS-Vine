@@ -13,17 +13,14 @@ export type Task = {
   done: boolean
   // one short line under an unfinished task saying where it happens; a finished one has none
   note?: string
-  /* a task nobody can do yet, drawn differently from one that is merely unfinished.
-   * An island nobody has built is not a thing the student is failing to do. */
+  /* a task nobody can do yet, drawn differently from one that is merely unfinished, because an island nobody has built is not a thing the student is failing to do */
   barred?: boolean
 }
 
 /** the heading over the sheet, which is the only place the year is named */
 export const taskHeading = (year: number): string => `Year ${yearWord(year)}`
 
-/* AND THE ISLAND'S OWN HEADING, which names the island rather than the year,
- * because the list under it is what is left to do HERE. The roster's name is used
- * where there is one so the heading matches the card the student arrived on. */
+/* the island's own heading names the island and not the year, because the list under it is what is left to do here, and the roster name is used so the heading matches the card the student arrived on */
 export const islandHeading = (programme: string): string => {
   const p = programmeById(programme)
   return p ? shownName(p.id, p.name) : programme
@@ -49,13 +46,7 @@ export function tasksOf(s: SaveGame | null): Task[] {
     ...(st.coreBeatDone ? {} : { note: 'At the fire, inside the Panther’s Maw' }),
   })
 
-  /* ---- EVERY PICK, WITH ONE NOTE, BECAUSE THERE IS ONE BUTTON ------------
-   *
-   * ASH, 2026-09-08 item 4. A class row and a club row used to be built by two
-   * loops with two different notes ("Sit it from your schedule" against "Sail
-   * there from the harbor") and a third state for a club nobody had built. There
-   * is one control now and it always finishes the pick, so there is one row
-   * shape, and nothing on this sheet is barred any more. */
+  /* every pick gets one note because there is one button: class rows and club rows used to be two loops with two different notes and a third state for a club nobody had built, and the single control always finishes the pick so nothing on this sheet is barred */
   for (const p of picksOf(s)) {
     out.push({
       id: `${p.kind === 'class' ? 'class' : 'voyage'}:${p.id}`,
@@ -81,9 +72,7 @@ export function tasksOf(s: SaveGame | null): Task[] {
 
 /** how much of the year is behind him, for the line on the sheet's own heading */
 export function tasksDone(list: Task[]): { done: number; total: number } {
-  /* A BARRED ROW IS NOT PART OF THE DENOMINATOR. Counting an island nobody has
-   * built as a task he has failed would make the sheet say a student is two
-   * thirds done with a year he has actually finished. */
+  /* a barred row is not part of the denominator, because counting an island nobody has built as a failed task would make the sheet say a student is two thirds done with a year they have actually finished */
   const counted = list.filter((t) => !t.barred || t.done)
   return { done: counted.filter((t) => t.done).length, total: counted.length }
 }

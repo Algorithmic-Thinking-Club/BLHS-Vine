@@ -38,15 +38,10 @@ def say(text, who=None, portrait=None):
     is what almost every line in this game is.
     """
     intent = {"kind": "say", "text": text}
-    # a key left out entirely rather than sent as None: the engine's `who` is
-    # optional, and an explicit null is a different thing from an absent name
+    # the key is left out entirely rather than sent as None, because the engine's `who` is optional and an explicit null is a different thing from an absent name
     if who is not None:
         intent["who"] = who
-    # THE FACE WAS ENGINE-ONLY AND THAT WAS AN ACCIDENT. `Intent` has carried
-    # `portrait` since the box was written, the cutscene registry uses it, and
-    # this builder did not have the argument, so the one drawn face in the game
-    # was reachable from TypeScript and not from a member's island. Same field,
-    # same wire, one keyword.
+    # `portrait` rides the same field the cutscene registry already reads, so the one drawn face is reachable from an island and not only from TypeScript
     if portrait is not None:
         intent["portrait"] = portrait
     return intent
@@ -70,8 +65,7 @@ def guide_to(anchor):
     raised and never lowered sits over the last thing you pointed at and hides
     whatever the game wanted to send him to next.
     """
-    # None IS the message, the same way it is in look_at, so it is sent rather
-    # than left out
+    # None is the message here, the same as in look_at, so it is sent rather than left out
     return {"kind": "guide_to", "anchor": anchor}
 
 
@@ -116,9 +110,7 @@ def walk_to(anchor, off=None):
 
 def look_at(anchor, ms=None):
     """Point the camera at an anchor. `look_at(None)` gives it back to him."""
-    # None IS the message here, so unlike every other optional it is sent rather
-    # than left out: an absent anchor would read as "no argument", and letting
-    # the camera go is a thing an island asks for on purpose
+    # None is the message here, so unlike every other optional it is sent rather than left out: an absent anchor would read as no argument, and letting the camera go is a thing an island asks for on purpose
     intent = {"kind": "look_at", "anchor": anchor}
     if ms is not None:
         intent["ms"] = ms
@@ -147,35 +139,7 @@ def pose(name=None, facing=None):
     return intent
 
 
-# ---- somebody else's body ------------------------------------------------------
-#
-# The four words below drive a thing that is already on the map. You name it by
-# its ANCHOR, the same way you name everywhere else, and MAPVIS is where that
-# anchor gets tied to the picture it drives.
-#
-# Taking one over STOPS whatever it was doing on its own. Letting it go starts
-# that up again from wherever the clock has got to, not from where you left it,
-# so a person you walked across a square goes back to her rounds instead of
-# standing where your scene abandoned her.
-
-# ---- `off`, and the one place this vocabulary lets you type a number ---------
-#
-# A station carries ONE mark, the standing spot its author drew for the STUDENT.
-# So every word that takes a body to a station takes it to the student's own
-# spot: the principal arrives standing in front of the table he is about to talk
-# about, and the student ends up wherever "behind him" happened to land.
-#
-# `off` is a second mark, said in terms of the one somebody authored: "that spot,
-# this far across and this far down", in painting pixels. Use it for the person
-# who is standing BESIDE the thing rather than in front of it.
-#
-#     yield lead_to("principal_desk", "chart_table", off=(-20, 6))
-#
-# It is a step aside and not a journey: both numbers are small, the scene snaps
-# the result onto legal floor, and anything over ninety-six is refused on your
-# own line. Prove yours with a picture before you keep it. The day MAPVIS lets an
-# author drop a second post beside a station, this argument is over and these
-# become anchor names like everything else.
+# these words drive a placement by its anchor: taking one over stops its own life, releasing it resumes from where the clock has got to, and `off` steps aside from the station's one authored mark in painting pixels, snapped onto legal floor and refused over ninety-six
 
 
 def actor_move(actor, to, off=None, facing=None, pace=None):
@@ -635,10 +599,7 @@ def open(ui, wait=False):
     for a station that opens the wardrobe and says nothing else, and wrong for
     anything that is walking somebody through a sequence.
     """
-    # this shadows the builtin `open` if you import it by name, and that costs
-    # nothing: there is no filesystem inside the worker to open a file on. The
-    # name matches the engine's word, and one spelling is worth more than one
-    # builtin nobody can use here.
+    # this shadows the builtin `open` and costs nothing, because there is no filesystem inside the worker to open a file on, and matching the engine's word is worth more
     intent = {"kind": "open", "ui": ui}
     if wait:
         intent["wait"] = True
@@ -669,12 +630,7 @@ def play(beat, as_plain=None, title=None, place=None, items=None):
     the engine, and this runtime writes it out wrong rather than raising, so the
     driver checks and names the value instead.
     """
-    # LEAVE as_plain ALONE unless you mean it. Left out, the engine renders the
-    # arm this player was assigned at join, which is what keeps the study's two
-    # arms looking at the same content. Passing True forces the plain rendering
-    # for everybody, which is a real thing to want for a moment that should read
-    # the same either way. You cannot force the game rendering, because that
-    # would let one island opt the control arm out of being a control.
+    # left out, `as_plain` renders the arm this player was assigned at join; True forces the plain rendering for everybody, and the game rendering cannot be forced because that would opt the control arm out of being a control
     intent = {"kind": "play", "beat": beat}
     if as_plain is not None:
         intent["as_plain"] = as_plain

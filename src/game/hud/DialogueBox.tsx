@@ -22,9 +22,7 @@ export type BoxLine = {
 /* how long after a line appears presses are ignored, so a held key does not eat it */
 export const ADVANCE_DEAD_MS = 250
 
-/* the four faces of the drawn paw, in the order they were cut off the sheet. A
- * name that is not on the sheet draws nothing at all rather than a blank square,
- * so this list is safe against a kit that has not landed. */
+/* the four drawn paw faces in sheet order, and a name not on the sheet draws nothing rather than a blank square, so this list is safe against a kit that has not landed */
 /* which drawn paw face the continue cue wears */
 const CUE_FACE = 'frame_2'
 
@@ -54,9 +52,7 @@ export function DialogueBox({
   onAdvance?: () => void
   onPick?: (i: number) => void
   skin?: DialogueSkin
-  /* the cutscene overlay already listens for space and enter, because those keys
-   * also resolve its confirm and walk-to gates when no line is up. It passes false
-   * so one press does not advance twice. */
+  /* the cutscene overlay already listens for space and enter to resolve its own confirm and walk-to gates, so it passes false here and one press does not advance twice */
   bindKeys?: boolean
   hint?: string
 }) {
@@ -68,8 +64,7 @@ export function DialogueBox({
   /* which choice they pressed, held long enough to be seen */
   const [picked, setPicked] = useState<number | null>(null)
 
-  /* the kit lands after the first render, and a face asked for before it arrives
-   * answers `undefined` for the life of the page unless something re-renders */
+  /* the kit lands after the first render, and a face asked for before it arrives answers `undefined` for the life of the page unless something re-renders */
   useKitReady()
   const pawDrawn = !!useFace('cue', CUE_FACE)
   const keyPlate = useFace('chip', 'plate')
@@ -85,9 +80,7 @@ export function DialogueBox({
     return () => { window.removeEventListener('resize', measure); setUiBand('dialogue', 0) }
   }, [asking, line.done, options?.length, line.portrait])
 
-  /* focus lands on the first choice when the question finishes typing, and only
-   * then: moving focus mid-line would let a fast keyboard answer a question whose
-   * text is still arriving. */
+  /* focus lands on the first choice only once the question finishes typing, because moving it mid line lets a fast keyboard answer text that is still arriving */
   useEffect(() => {
     if (asking && line.done) firstChoice.current?.focus()
   }, [asking, line.done])
@@ -102,13 +95,11 @@ export function DialogueBox({
 
   const advance = () => { if (!asking && live()) onAdvance?.() }
 
-  /* one door for both the pointer and the number key, so the answered state and
-   * the double-answer guard cannot be true on one path and false on the other */
+  /* one door for both the pointer and the number key, so the answered state and the double-answer guard cannot be true on one path and false on the other */
   const pick = (i: number) => {
     if (picked !== null) return
     setPicked(i)
-    /* the press LANDED, said out loud. The box usually closes on the next tick,
-     * so a reader would otherwise hear the question and then silence. */
+    /* says the press landed out loud, because the box usually closes on the next tick and a screen reader would otherwise hear the question and then silence */
     announce(`Chose ${options?.[i] ?? i + 1}`)
     onPick?.(i)
   }
@@ -145,9 +136,7 @@ export function DialogueBox({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bindKeys, asking, line.done, options, onPick, onAdvance, picked])
 
-  /* §40.41 asks for the states to be counted up front rather than implied, and
-   * this is the count for this surface: it is arriving, it has arrived, it is
-   * asking, or it has been answered. The stylesheet reads exactly this. */
+  /* the four states of this surface counted up front rather than implied, typing, complete, asking and answered, and the stylesheet reads exactly these */
   const state = asking
     ? (picked === null ? 'asking' : 'answered')
     : line.done ? 'complete' : 'typing'
@@ -162,17 +151,13 @@ export function DialogueBox({
               key={o + i}
               ref={i === 0 ? firstChoice : undefined}
               className={`dlg-choice kit-surface-plank${picked === i ? ' dlg-choice-chosen' : ''}`}
-              /* the chosen card stays and the others stand down. A shape and a
-                 position move, never a hue on its own (§40.31), because a school
-                 Chromebook panel crushes both lightness and saturation. */
+              /* the chosen card stays and the others stand down by shape and position, never by hue alone, because a school Chromebook panel crushes both lightness and saturation */
               disabled={picked !== null && picked !== i}
               /* the accessible name carries the option and then the key that picks it */
               aria-label={`${o}. Press ${i + 1}`}
               onClick={() => pick(i)}
             >
-              {/* the keyline round the number is the FALLBACK, so the number has
-                  to say whether the drawn plate landed. Written unconditionally
-                  it put a square CSS keyline around a round drawn plate. */}
+              {/* the keyline round the number is the fallback so it has to be conditional: written unconditionally it put a square css keyline around a round drawn plate */}
               <span className={`dlg-choice-key${keyPlate ? '' : ' kit-bare'}`} style={keyPlate} aria-hidden="true">{i + 1}</span>
               <span className="dlg-choice-label">{o}</span>
             </button>

@@ -10,10 +10,7 @@
 .st-panel {
   position: relative;
   width: min(680px, 84vw); aspect-ratio: 448 / 470;
-  /* AND NEVER TALLER THAN THE WINDOW. The ratio alone makes a 680px panel 713px
-     tall, which is three pixels short of a 720 high Chromebook and clips the
-     moment the browser is zoomed or the OS is scaled. The width gives way
-     instead, so the ratio is kept and the panel always fits. */
+  /* never taller than the window: the ratio alone makes a 680px panel 713px tall, three pixels short of a 720 high Chromebook, so the width gives way and the ratio is kept */
   max-height: 92vh;
   max-width: calc(92vh * 448 / 470);
   box-sizing: border-box;   /* the frame is a border now and has to fit inside the ratio */
@@ -22,8 +19,7 @@
   filter: drop-shadow(var(--kit-drop-sm));
   animation: st-in 260ms var(--kit-ease-pop) both;
 }
-/* no opacity in the entrance: see `hb-in` in game/hud/hud.css for why an opaque
-   panel that fades up reads as a see-through panel. */
+/* no opacity in the entrance, because an opaque panel that fades up reads as a see-through panel (see `hb-in` in game/hud/hud.css) */
 @keyframes st-in { from { transform: translateY(12px) scale(.97); } to { transform: none; } }
 html[data-rm='1'] .st-panel { animation-duration: 1ms; }
 .st-inner {
@@ -50,9 +46,7 @@ html[data-rm='1'] .st-panel { animation-duration: 1ms; }
   border-top: var(--kit-border) solid var(--kit-edge);
   padding-top: 3cqw;
   display: flex; flex-direction: column;
-  /* the cue that there is more, in a picture: the page fades at the fold the
-     way the Handbook's does, because ChromeOS hides its scrollbar until the
-     pointer moves */
+  /* the page fades at the fold as the picture cue that there is more, because ChromeOS hides its scrollbar until the pointer moves */
   -webkit-mask-image: linear-gradient(to bottom, var(--kit-mask-solid) calc(100% - 22px), transparent);
   mask-image: linear-gradient(to bottom, var(--kit-mask-solid) calc(100% - 22px), transparent);
 }
@@ -98,9 +92,7 @@ html[data-skin='plain'] .st-page { -webkit-mask-image: none; mask-image: none; }
 }
 .st-idpick-ink { --kit-fs-raw: calc(4.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-sea-ink); }
 .st-idpick-mark { flex: none; }
-/* WHAT STANDS IN FOR THE DRAWN CHEVRON when the platform kit is not worn: a shape
-   the token layer owns, drawn out of borders, never a second character. The `U+25BE`
-   this replaces was a font glyph, which `docs/ART.md` forbids outright. */
+/* what stands in for the drawn chevron when the platform kit is not worn, a shape the token layer owns drawn out of borders, never a font glyph like `U+25BE` */
 .st-caretmark {
   width: 0; height: 0; flex: none;
   border-left: 5px solid transparent;
@@ -115,8 +107,7 @@ html[data-skin='plain'] .st-page { -webkit-mask-image: none; mask-image: none; }
   transition: transform var(--kit-t-quick) ease;
 }
 .st-chip:hover { transform: translateY(-1px); }
-/* a chosen chip is PRESSED IN as well as recoloured, so the state survives a
-   panel that crushes the colour out of it */
+/* a chosen chip is pressed in as well as recoloured, so the state survives a panel that crushes the colour out of it */
 .st-chip-on { border-color: var(--kit-sea); color: var(--kit-sea-ink); background: linear-gradient(180deg, var(--kit-paper-on-hi), var(--kit-sea-paper)); box-shadow: 0 0 0 2px var(--kit-sea-glow-soft); transform: translateY(1px); }
 .st-fieldwarn { font-family: var(--kit-face-body); --kit-fs-raw: calc(3.3cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-alarm); text-align: right; margin: .4cqw 0 1cqw; }
 
@@ -128,13 +119,11 @@ html[data-skin='plain'] .st-page { -webkit-mask-image: none; mask-image: none; }
 }
 .st-ctrlsec:first-child { margin-top: 0; }
 .st-ctrl-row { display: flex; align-items: center; justify-content: space-between; gap: 2cqw; margin: 1.6cqw 0; }
-/* the action never gives up its room to the keys, and the keys wrap instead: a
-   row that reads "Use what you are stan..." has lost the only word that matters */
+/* the action never gives up its room to the keys and the keys wrap instead, because a row reading "Use what you are stan..." has lost the only word that matters */
 .st-ctrl-label { flex: 0 1 auto; min-width: 40%; font-family: var(--kit-face-body); --kit-fs-raw: calc(4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-body); }
 .st-ctrl-keys { flex: 1 1 auto; display: flex; align-items: center; gap: 1cqw; flex-wrap: wrap; justify-content: flex-end; }
 .st-ctrl-or { font-family: var(--kit-face-body); --kit-fs-raw: calc(3.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-dim); margin: 0 .4cqw; }
-/* the pointer path, in the quiet voice, because it is the same action said the
-   other way rather than a second control */
+/* the pointer path in the quiet voice, because it is the same action said the other way rather than a second control */
 .st-ctrl-pointer {
   font-family: var(--kit-face-body); --kit-fs-raw: calc(3.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-ink-soft); text-align: right;
@@ -152,9 +141,7 @@ html[data-skin='plain'] .st-page { -webkit-mask-image: none; mask-image: none; }
   width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 2cqw; flex-wrap: wrap;
   font-family: var(--kit-face-body); --kit-fs-raw: calc(4.4cqw * var(--kit-text-scale)); font-size: var(--kit-fs); color: var(--kit-ink-body); margin: 2cqw 0;
 }
-/* the sentence under a preference that needs one. §40.32 asks for a middle sound
-   state and a middle state a student cannot tell apart from the other two is not
-   one, so the row says what Quiet is FOR. */
+/* the sentence under a preference that needs one, because a middle sound state a student cannot tell apart from the other two is not a middle state, so the row says what Quiet is for */
 .st-rownote {
   font-family: var(--kit-face-body); --kit-fs-raw: calc(3.2cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-ink-soft); line-height: 1.4; margin: -1cqw 0 2cqw; text-align: right;
@@ -200,16 +187,7 @@ html[data-skin='plain'] .st-page { -webkit-mask-image: none; mask-image: none; }
 .st-close { flex: none; margin-top: 3cqw; align-self: center; min-width: 55%; }
 
 /* the corner control that opens this sheet, drawn as a carved plate with a word on it */
-/* ---- THE GEAR STANDS BESIDE THE QUESTION MARK, NOT ON IT -----------------
- *
- * Both were written as "the bottom right corner" and both are 116 wide, so on the
- * beach - the first screen a student can walk on - the Settings plate was drawn
- * directly over the "?" and hid all but about nine pixels of it. The one control a
- * lost freshman is meant to find was underneath the one he is least likely to want.
- *
- * The ? keeps the corner. The gear sits to the LEFT of it, clear of the Chart button
- * stacked above it, so the three read as a row and a stack rather than a pile.
- * On the title screen there is no ? and the offset costs nothing. */
+/* the gear stands beside the question mark and not on it: both were placed in the bottom right corner and both are 116 wide, so the gear sits to the left of the ?, clear of the Chart button stacked above it */
 .st-gear {
   position: absolute;
   bottom: max(2.2vh, 12px);
@@ -260,8 +238,7 @@ html[data-skin='plain'] .st-gear-ink {
 }
 html[data-skin='plain'] .st-panel { filter: none; animation: none; }
 html[data-skin='plain'] .st-caretmark { border-top-color: var(--kit-ink-body); }
-/* a struck line under a destructive button is a game mark; a document says it in
-   words, and the words are already there */
+/* a struck line under a destructive button is a game mark, and a document says it in words instead, which are already there */
 html[data-skin='plain'] .st-dangerplank::after { display: none; }
 
 /* the plain arm's panel has no carved frame, so its padding is put back by hand */

@@ -1,24 +1,7 @@
 /* what a club member actually gets when they ship an island, walked end to end */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-/* ---- ASH, 2026-09-09 ------------------------------------------------------
- *
- * *"I hope islands are fully wired up / working systems and logic."*
- *
- * The claim is that a member ships an island by adding one roster row, publishing
- * a map and putting a berth on the world, and every surface in the game picks it
- * up with no other change. This walks that claim rather than asserting it.
- *
- * WHAT IS PROVED HERE is the half a test can reach: the roster deciding what the
- * year sheet, the objective bar and the chart say, and `award` from a member's
- * python landing on the transcript, the wall, the island state and the year gate.
- * The other half, the voyage itself, is `scripts/travel-pick-proof.mjs`, which
- * drives a real `sail_to` in a browser against the live deploy.
- *
- * THE ROSTER IS PUT BACK. Every test here mutates the shipped tables and restores
- * them in a `finally`, because a leaked `playable: true` would put a stand-in
- * programme in front of a real student.
- */
+/* every test here mutates the shipped tables and restores them in a `finally`, because a leaked `playable: true` would put a stand-in programme in front of a real student, and the voyage half is proved separately by `scripts/travel-pick-proof.mjs` */
 
 async function fresh() {
   vi.resetModules()
@@ -89,10 +72,7 @@ describe('a member ships an island', () => {
     } finally { undo() }
   })
 
-  /* ---- AND WHAT THE MEMBER'S OWN PYTHON DOES ON THE FAR SIDE -------------
-   *
-   * `award(programme=..., grade=...)` is the one word an island says to finish
-   * itself. Everything below is what that one word has to move. */
+  /* `award(programme=..., grade=...)` is the one word an island says to finish itself, and everything below is what that one word has to move */
   it('lands a graded award on the transcript, the wall, the state and the year', async () => {
     const m = await fresh()
     started(m)
@@ -133,8 +113,7 @@ describe('a member ships an island', () => {
       const s = m.save.loadSave()!
       const row = s.completions!.find((c) => c.programme === 'football')!
       expect(row.grade, 'no grade, not a zero').toBeNull()
-      /* "finished" and the rank the year bought, and no letter anywhere: a
-       * programme that scored nothing has no grade to print */
+      /* `finished` and the rank the year bought, and no letter anywhere, because a programme that scored nothing has no grade to print */
       const says = m.wall.wallOf(s).find((w) => w.id === 'programme:football')!.says!
       expect(says).toContain('finished')
       expect(says).toContain('JV')
@@ -157,10 +136,7 @@ describe('a member ships an island', () => {
     } finally { undo() }
   })
 
-  /* ---- AND THE ROSTER IS THE ONLY SWITCH ---------------------------------
-   *
-   * The point of the contract is that nothing else has to be edited. This is the
-   * fence: with the row put back, every surface returns to the stand-in road. */
+  /* nothing but the roster row has to be edited, so with the row put back every surface returns to the stand-in road */
   it('goes back to a sheet pick the moment the roster row is taken away', async () => {
     const m = await fresh()
     started(m)
@@ -172,14 +148,7 @@ describe('a member ships an island', () => {
     expect(m.pick.picksOf(m.save.loadSave())!.find((p) => p.id === 'football')!.map).toBeNull()
   })
 
-  /* ---- AND THE ROAD A MEMBER ACTUALLY TAKES (Ash, 2026-09-09) ------------
-   *
-   * Every test above mutates the shipped tables, which proves the READERS work
-   * and says nothing about the road. The road is a row in `member-islands.json`,
-   * and it was broken: the row carried the painting, the painting went into a
-   * Programme, and the PLACE it belongs to still had an empty `maps` list.
-   * `islandForProgramme` asks the place, so it answered null and the button said
-   * "Go" no matter what anybody shipped. */
+  /* every test above mutates the shipped tables, which proves the readers and says nothing about the road: a `member-islands.json` row carried the painting into a Programme while its place still had an empty `maps` list, so `islandForProgramme` answered null and the button said Go whatever was shipped */
   it('reaches the place from a member-islands row, which is the whole contract', async () => {
     const { PLACES, PROGRAMMES, islandForProgramme } = await import('./roster')
     const { MEMBER_ISLANDS } = await import('./member-islands')
@@ -199,9 +168,7 @@ describe('a member ships an island', () => {
     }
   })
 
-  /* the shipped file is empty today, so the check above passes vacuously. This is
-   * the one that would have caught it: a row put in by hand, through the real
-   * table-building code, has to come out the far side sailable. */
+  /* the shipped file is empty today so the check above passes vacuously, and this is the one that would have caught it: a row put in by hand through the real table-building code has to come out the far side sailable */
   it('would carry a row nobody has shipped yet', async () => {
     const { SOURCED_PLACES } = await import('./roster')
     const place = SOURCED_PLACES.find((p) => p.id === 'stadium')!

@@ -40,8 +40,7 @@ describe('the keep-clear area stays clear', () => {
     expect(p.side).toBe('right')
   })
 
-  /* THE PROMISE THAT MATTERS. When nothing fits whole, a clamped card that still
-   * misses the face beats a tidy one that lands on it. */
+  /* when nothing fits whole, a clamped card that still misses the face beats a tidy one that lands on it */
   it('would rather be clamped into the view than cover the face', () => {
     const s = site({ keepClear: { x: 0, y: 0, w: 200, h: 60 }, rect: { x: 0, y: 0, w: 200, h: 200 } })
     const p = placeAtSite(s, { w: 300, h: 40 }, VIEW)
@@ -71,8 +70,7 @@ describe('it stays on screen, and says when it could not', () => {
     expect(p.x + p.w).toBeLessThanOrEqual(VIEW.x + VIEW.w)
   })
 
-  /* A CARD DRAWN AT A SITE THE CAMERA CANNOT SEE IS A CARD NOBODY READS, and the
-   * caller has to be able to tell, because the right answer then is a panel. */
+  /* a card drawn at a site the camera cannot see is a card nobody reads, and the caller has to be able to tell because the right answer then is a panel */
   it('flags a site the camera has left behind rather than drawing off screen', () => {
     const s = site({ rect: { x: 900, y: 900, w: 40, h: 40 }, keepClear: { x: 905, y: 905, w: 10, h: 10 } })
     const p = placeAtSite(s, { w: 40, h: 20 }, VIEW)

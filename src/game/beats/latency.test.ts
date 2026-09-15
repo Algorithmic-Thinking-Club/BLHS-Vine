@@ -17,9 +17,7 @@ const { beginAdventure } = await import('../save')
 declare global { var IS_REACT_ACT_ENVIRONMENT: boolean }
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-/** real time, because the thing under test is a real clock and faking it would
- *  test the fake. Twenty-five milliseconds is enough to be unambiguous and short
- *  enough that the suite does not notice. */
+/** real time, because the thing under test is a real clock and a fake one would only test the fake, and 25 ms is unambiguous while short enough that the suite does not notice */
 const spin = (ms: number) => { const t = Date.now(); while (Date.now() - t < ms) { /* wait */ } }
 
 const two: CheckStep[] = [
@@ -76,8 +74,7 @@ describe('the plain arm stamps each item when it was answered', () => {
     expect(answered()).toHaveLength(2)
     const a = latencyOfItem('first')
     const b = latencyOfItem('second')
-    /* the whole defect, as an assertion: these used to be equal, because both were
-     * read at submit off one clock for the page */
+    /* the whole defect as an assertion: these used to be equal, because both were read at submit off one clock for the page */
     expect(b - a).toBeGreaterThanOrEqual(30)
     await m.unmount()
   })

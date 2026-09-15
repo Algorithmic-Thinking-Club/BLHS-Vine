@@ -12,24 +12,10 @@ export function CordDrape({ year, onDone }: { year: number; onDone: () => void }
   const panel = usePanel({ onClose: onDone, label: 'The counselor drapes a cord' })
   const s = loadSave()
 
-  /* ---- EVERY CORD HE HAS, AND THEN THE NEXT ONE (Ash, 2026-09-09) -------
-   *
-   * *"At the end of each year, after showing the transcript, it gives a cord.
-   * All three years, it's only shown 'CTE credit'... It should show all cords
-   * earned right?"*
-   *
-   * It showed one, and the sort was earned-first, so the moment a student earned
-   * anything that same ribbon was draped again every year for the rest of the
-   * run while everything he earned afterwards went unmentioned.
-   *
-   * SO IT IS A LIST. Everything earned, in the order the table gives them, and
-   * then the nearest unearned one underneath as what he is working towards. A
-   * student who has earned nothing yet sees only that second half, which is what
-   * the screen used to be. */
+  /* every cord earned is draped and then the nearest unearned one underneath, because showing one under an earned-first sort re-draped the same ribbon every year while everything earned afterwards went unmentioned */
   const all = cordsOf(s ?? ({} as never)).filter((c) => c.published)
   const won = all.filter((c) => c.earned)
-  /* a cord nobody has moved at all is not draped on anybody: a ribbon for a
-   * thing you have not started is the flattery this game does not do */
+  /* a cord nobody has moved at all is not draped on anybody: a ribbon for a thing you have not started is the flattery this game does not do */
   const near = all
     .filter((c) => !c.earned && c.progress > 0)
     .sort((a, b) => b.progress - a.progress)[0] ?? null
@@ -66,8 +52,7 @@ export function CordDrape({ year, onDone }: { year: number; onDone: () => void }
                     <li className="cd-row" key={c.id}>
                       <Glyph piece="stamp" face="awarded" size={18} className="cd-rowseal" />
                       <span className="cd-rowname">{c.name}</span>
-                      {/* the ribbon above is the game's own; the school's colours are
-                          printed so nobody reads a teal loop as "black and silver" */}
+                      {/* the ribbon above is the game's own, so the school's colours are printed to stop a teal loop being read as black and silver */}
                       <span className="cd-rowcolors">{c.colors}</span>
                     </li>
                   ))}
@@ -95,9 +80,7 @@ export function CordDrape({ year, onDone }: { year: number; onDone: () => void }
             )}
           </>
         ) : (
-          /* NO CORD HAS MOVED, which is a real way to finish a first year and is
-             not a failure. The counselor says what would start one rather than
-             draping nothing and saying nothing. */
+          /* no cord has moved, which is a real way to finish a first year and not a failure, so the counselor says what would start one rather than draping nothing */
           <>
             <h2 className="cd-name">No cord started yet</h2>
             <p className="cd-stands">
@@ -107,10 +90,7 @@ export function CordDrape({ year, onDone }: { year: number; onDone: () => void }
         )}
 
         <p className="cd-wall">
-          {/* THIS YEAR'S COUNT, SAID AS THIS YEAR'S (Ash, 2026-09-09). `onTheWall`
-              takes a year and this passes one, so the second sentence was
-              counting a year and reporting it as a total. The wall itself spans
-              the run (`run/wall.ts`), which is what made the two disagree. */}
+          {/* this year's count has to be said as this year's: `onTheWall` takes a year and this passes one, so the sentence was counting a year and reporting it as a total, while the wall itself spans the run in `run/wall.ts` */}
           {filled === 0
             ? 'No badges on your wall this year.'
             : `${filled} ${filled === 1 ? 'badge' : 'badges'} on your wall this year.`}

@@ -13,9 +13,7 @@
   position: absolute;
   left: 0;
   right: 0;
-  /* the same depth and the same ink as the cutscene runtime's own letterbox
-     (CutsceneOverlay.tsx: `${ui.letterbox * 10}vh`, #04060a), because a student
-     must not be able to tell which of the two frames they are looking at */
+  /* the same depth and the same ink as the cutscene runtime's own letterbox (CutsceneOverlay.tsx: `${ui.letterbox * 10}vh`, #04060a), because a student must not be able to tell which of the two frames they are looking at */
   height: 10vh;
   background: #04060a;
   transition: transform 450ms cubic-bezier(0.33, 0, 0.2, 1);
@@ -44,27 +42,10 @@ html[data-letterbox='1']:not([data-movie='1']) .hp-btn {
 
 html[data-rm='1'] .cin-bar { transition-duration: 60ms; }
 
-/* ============ THE CONTROL ARM DOES NOT GET FILM BARS ============
-   Two black bars over a worksheet is game furniture, and it was doing real
-   damage as well as reading wrong: at 1366x768 the bars are 76px each, drawn at
-   z 95 over everything, so a beat card cut its own heading off at the top and
-   its last question off at the bottom.
-
-   The movie STATE is untouched. It still holds the controls, still stands the
-   corner down, still carries through a door. The plain arm simply does not paint
-   the frame, the way it does not paint a plank or a plaque. */
+/* the plain arm gets no film bars: at 1366x768 they are 76px each at z 95 over everything, which cut a beat card's heading off the top and its last question off the bottom; the movie state itself is untouched and still holds the controls */
 html[data-skin='plain'] .cin-bar { display: none; }
 
-/* ---- AND A COMPOSED SHOT DOES THE SAME, WITHOUT THE BARS ------------------
- *
- * ASH, on the push into the ATC machine: *"the zoom in shot was meant to go from a 3d
- * view to a smooth 2d view of the computer, then the screen shows up as a panel."* It
- * did exactly that, with Map, Guide, My Year, the Chart and the question mark sitting
- * on top of it the whole way, because standing the corner down was tied to the black
- * bars and a shot does not raise those. An island that has taken the camera off the
- * player and pointed it at a thing has composed a picture. The corner is not in it.
- *
- * Written by `framing()` and cleared wherever a shot ends, including its own clock. */
+/* a composed shot stands the corner down too, without the bars: the camera is off the player so the HUD is not in the picture, and standing it down used to be tied to the black bars a shot does not raise; written by `framing()` and cleared wherever a shot ends */
 html[data-shot='1'] .hud-stack,
 html[data-shot='1'] .hp-btn,
 html[data-shot='1'] .cp-btn,

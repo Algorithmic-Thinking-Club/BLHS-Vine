@@ -8,8 +8,7 @@ export const HEARTBEAT_MS = 15_000
 export const GAP_INTERVALS = 2.5
 export const gapCapMs = (everyMs = HEARTBEAT_MS) => Math.round(everyMs * GAP_INTERVALS)
 
-/** the slice keys a dose can be cut by. `map` is stamped by PmapScene, `scene`
- *  by the SceneManager, both through `setContext` and both onto every beat. */
+/** the slice keys a dose can be cut by, all stamped onto every beat through `setContext`: `map` by PmapScene and `scene` by the SceneManager */
 export type DoseCut = 'map' | 'scene' | 'place' | 'session'
 
 export type DoseSlice = {
@@ -19,9 +18,7 @@ export type DoseSlice = {
 }
 
 export type ParticipantDose = {
-  /** the handle, filled in by the endpoint. The fold keys on the participant id
-   *  and the endpoint swaps it out, because a participant id has never left a
-   *  handler in this api and is not going to start here. */
+  /** the handle, filled in by the endpoint: the fold keys on the participant id and the endpoint swaps it out, because a participant id has never left a handler in this api */
   handle?: string
   participantId: string
   arm: string | null
@@ -29,13 +26,11 @@ export type ParticipantDose = {
   /** heartbeats read, after the duplicate-batch dedup */
   beats: number
   sessions: number
-  /** THE MEASURE. Gaps between consecutive beats in one session, each one no
-   *  longer than the cap, summed. */
+  /** the measure: gaps between consecutive beats in one run, each one no longer than the cap, summed */
   onTaskMs: number
   /** what the cap refused: the sum of the gaps judged to be a student who left */
   awayMs: number
-  /** how many times they left. A run with breaks is a different run from a run
-   *  of the same length without them, and the export could not say which. */
+  /** how many times they left, because a run with breaks is a different run from a run of the same length without them and the export could not say which */
   breaks: number
   firstAt: number | null
   lastAt: number | null
@@ -49,8 +44,7 @@ export type ParticipantDose = {
 }
 
 export type DoseReport = {
-  /** heartbeat rows the fold actually read, so an empty answer and an answer of
-   *  nothing are distinguishable. They look identical in a table. */
+  /** heartbeat rows the fold actually read, so an empty answer and an answer of nothing are distinguishable, since they look identical in a table */
   beatRows: number
   cadenceMs: number
   gapCapMs: number
@@ -73,13 +67,12 @@ const str = (v: unknown): string | null => (typeof v === 'string' && v ? v : nul
 const posNum = (v: unknown): number | null =>
   typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null
 
-/* which clock times a session: the client's when every beat has one, else the server's */
+/* which clock times a run: the client's when every beat has one, else the server's */
 function pickClock(beats: Beat[]): 'client' | 'server' {
   return beats.every((b) => b.client !== null) ? 'client' : 'server'
 }
 
-/** the fold, per participant. Rows may be every event of a class; the
- *  heartbeats are picked out here rather than by the caller's query. */
+/** the fold, per participant, picking the heartbeats out here because the rows handed in may be every event of a class */
 export function dose(rows: StoredEvent[]): DoseReport {
   const seenEid = new Set<string>()
   const byPid = new Map<string, {
@@ -146,9 +139,7 @@ export function dose(rows: StoredEvent[]): DoseReport {
         const at = time(beats[i])
         if (m.firstAt === null || at < m.firstAt) m.firstAt = at
         if (m.lastAt === null || at > m.lastAt) m.lastAt = at
-        /* the slice counters count where a BEAT was, whether or not it closed an
-         * interval, so a map with one beat and no measurable time still appears
-         * with a zero instead of vanishing */
+        /* the slice counters count where a beat was, whether or not it closed an interval, so a map with one beat and no measurable time still appears with a zero instead of vanishing */
         touch(maps, beats[i].map)
         touch(scenes, beats[i].scene)
         touch(places, beats[i].place)
@@ -197,20 +188,16 @@ const slotFor = (into: Map<string, DoseSlice>, key: string | null): DoseSlice =>
   return slice
 }
 
-/** one beat happened here. Counting and crediting are two calls because two
- *  beats at the same instant credit a zero, and a zero must not read as "no
- *  beat" the way one merged function made it. */
+/** one beat happened here, and counting and crediting are two calls because two beats at the same instant credit a zero, and a zero must not read as no beat */
 const touch = (into: Map<string, DoseSlice>, key: string | null) => { slotFor(into, key).beats++ }
 
 const credit = (into: Map<string, DoseSlice>, key: string | null, ms: number) => {
   slotFor(into, key).onTaskMs += ms
 }
 
-/** longest first, because the question a reviewer asks of a dose table is which
- *  island held them and not which island is alphabetically first */
+/** longest first, because the question asked of a dose table is which island held them, not which island is alphabetically first */
 const sorted = (m: Map<string, DoseSlice>): DoseSlice[] =>
   [...m.values()].sort((a, b) => b.onTaskMs - a.onTaskMs || a.key.localeCompare(b.key))
 
-/** minutes to two places, the unit a teacher and a reviewer both read in.
- *  Same arithmetic as _summary's export columns, kept as one function. */
+/** minutes to two places, the unit the exports are read in, and the same arithmetic as _summary's export columns kept as one function */
 export const doseMinutes = (v: number) => Math.round(v / 600) / 100

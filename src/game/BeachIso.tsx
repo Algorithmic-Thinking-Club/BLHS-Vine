@@ -22,19 +22,13 @@ function dirFromAngle(dx: number, dy: number) {
 }
 
 const COLS = 104, ROWS = 104, MARGIN = 24 // big map; Thor is boundary-stopped MARGIN tiles before the edge so the blue void never shows (24 reaches the port while keeping the frame full of world)
-// shoreline: sea where (tx+ty) is small (far/back), beach in front. A vast ocean: the waterline sits
-// near the map's diagonal centre so the sea fills roughly the back half. GENTLE sweep (a steep curve
-// quantizes into a sawtooth of tile diamonds and stair-steps the foam band).
+// the shoreline curve, sea where tx+ty is small and beach in front, kept gentle because a steep curve quantizes into a sawtooth of tile diamonds and stair-steps the foam band
 const shoreAt = (d: number) => 104 + 10 * Math.sin(d * 0.028) + 5 * Math.sin(d * 0.06 + 1.3)
-// the jungle wall's front line (shared by the prop composer AND the walkable grid, so the
-// treeline is SOLID ground truth — trunk colliders alone left slip-through gaps between plants)
+// the jungle wall's front line, shared by the prop composer and the walkable grid so the treeline is ground truth, because trunk colliders alone left slip-through gaps between plants
 const wallS = (d: number) => Math.max(shoreAt(d) + 7, 138.5 + (d < -30 ? (d + 30) * 0.55 : 0) + 2.2 * Math.sin(d * 0.21))
-// Variant pools over the NORMALIZED tiles (water-n/sand-n: every tile recolored to one shared base
-// so the runtime ramp owns the value; texture survives as luma deviation). Pools sorted by measured
-// busyness (normalize_tiles.py report): calm glass near the shore, textured swell far out.
+// variant pools over the normalized tiles (water-n/sand-n recolored to one shared base so the runtime ramp owns the value, texture surviving as luma deviation), sorted by measured busyness from the normalize_tiles.py report: calm glass near the shore, textured swell far out
 const SAND_COMMON = [0, 1, 2, 3, 7, 9], SAND_PEBBLE = [8], SAND_RIPPLE = [12, 13, 14, 15]
-// (the water body — variant pools, W_RAMP, depth, tide, foam, veil, sparkles — lives in ./ocean.ts,
-// the shared module every map imports; this file only feeds it the beach's own shoreAt geometry)
+// the water body (variant pools, W_RAMP, depth, tide, foam, veil, sparkles) lives in ./ocean.ts, the shared module every map imports; this file only feeds it the beach's own shoreAt geometry
 type Cell = 'sea' | 'wet' | 'sand'
 function cellAt(tx: number, ty: number): Cell {
   const s = tx + ty, sh = shoreAt(tx - ty)
@@ -42,9 +36,7 @@ function cellAt(tx: number, ty: number): Cell {
   if (s < sh + 1.5) return 'wet'
   return 'sand'
 }
-// SAND VALUE STRUCTURE: a foot-worn path winds from the spawn toward the pier (slightly darker,
-// compacted), and a few broad damp patches break the open field — intentional tonal shapes, not
-// noise, so the sand reads worked-in rather than a flat golden plane.
+// sand value structure: a compacted foot-worn path toward the pier plus a few broad damp patches, intentional tonal shapes rather than noise, so the sand reads worked-in instead of a flat golden plane
 const SAND_PATH: [number, number][] = [[-2, 123], [6, 120.5], [14, 119], [22, 118], [29, 117.5]]
 const SAND_PATCHES: [number, number, number][] = [[-11, 123.5, 4.5], [15, 122, 3.6], [-20, 118.5, 3.2], [7, 128, 4]]
 function sandMod(d: number, s: number) {
@@ -67,9 +59,7 @@ function sandMod(d: number, s: number) {
   }
   return m
 }
-// SAND RELIEF: the beach is not a billiard table — a low berm crests just above the swash, then
-// the backshore climbs gently toward the jungle line, with slow dune undulation. Pure y-lift in
-// screen px (the engine's level trick), so the landscape reads continuous, not stamped tiles.
+// sand relief: a low berm crests just above the swash and the backshore climbs toward the jungle with slow dune undulation, as pure y-lift in screen px so the landscape reads continuous rather than stamped tiles
 function liftAt(tx: number, ty: number) {
   const ds = (tx + ty) - shoreAt(tx - ty)
   if (ds <= 2) return 0
@@ -79,9 +69,7 @@ function liftAt(tx: number, ty: number) {
   return berm + back + dune
 }
 
-// Props are authored in SHORE-RELATIVE coords: d = tx-ty (position along the beach, screen-x),
-// s = tx+ty (depth into the scene; the waterline sits near s = shoreAt(d)). Everything composes
-// against the coast, the way the reference beaches are actually staged.
+// props are authored in shore-relative coords, d = tx-ty along the beach and s = tx+ty into the scene with the waterline near s = shoreAt(d), so everything composes against the coast
 type PropDef = { tx: number; ty: number; img: string; h: number; flip?: boolean; ground?: boolean; sea?: boolean; tint?: number; noBlock?: boolean }
 function composeBeach(): PropDef[] {
   const out: PropDef[] = []
@@ -96,23 +84,20 @@ function composeBeach(): PropDef[] {
   for (let d = -92; d <= 92; d += 4) {
     // the shared wall line (also the walkable clamp) + per-stamp jitter for the art
     const sWall = wallS(d) + rnd(-1, 1, d, 1)
-    // DEPTH FILL behind the wall: two progressively darker, hazier canopy rows so the jungle
-    // reads as deep forest all the way back, never bare sand behind a fence of bushes
+    // depth fill behind the wall: two progressively darker, hazier canopy rows so the jungle reads as deep forest all the way back, never bare sand behind a fence of bushes
     add(d + rnd(-2, 2, d, 33), sWall + 9.5, hash(d, 34) > 0.5 ? 'bushA' : 'bushC', rnd(110, 150, d, 35), { flip: hash(d, 36) > 0.5, tint: 0x3f5257 })
     add(d + 2 + rnd(-2, 2, d, 37), sWall + 13, ['palmA', 'palmB', 'palmC', 'palmD'][Math.floor(hash(d, 38) * 4)], rnd(160, 200, d, 39), { flip: hash(d, 40) > 0.5, tint: 0x33444c })
-    // deep-shadow silhouette row at the very back — the dark value anchor the treeline needs
+    // deep-shadow silhouette row at the very back, the dark value anchor the treeline needs
     if (hash(d, 27) > 0.35) add(d + rnd(-2, 2, d, 28), sWall + 6, ['palmA', 'palmB', 'palmC', 'palmD'][Math.floor(hash(d, 29) * 4)], rnd(150, 190, d, 30), { flip: hash(d, 31) > 0.5, tint: 0x5c6e6a })
     add(d + rnd(-1.2, 1.2, d, 2), sWall + 3.5, hash(d, 19) > 0.35 ? 'bushA' : 'bushC', rnd(92, 126, d, 16), { flip: hash(d, 3) > 0.5, tint: hash(d, 26) > 0.5 ? 0xb8c4ae : undefined })
     add(d + 2 + rnd(-1.2, 1.2, d, 4), sWall + 1.2, hash(d, 17) > 0.72 ? 'bushB' : hash(d, 20) > 0.35 ? 'bushA' : 'bushC', rnd(70, 96, d, 18), { flip: hash(d, 5) > 0.5 })
-    // palms come in CLUSTERS with gaps (a low-frequency rhythm), heights spread wide, and each
-    // canopy leans warm or cool so the fringe never reads as one stamped green row
+    // palms come in clusters with gaps on a low-frequency rhythm, heights spread wide, each canopy leaning warm or cool so the fringe never reads as one stamped green row
     const palmTint = [undefined, undefined, 0xf0e5cc, 0xd8e5d8][Math.floor(hash(d, 41) * 4)]
     if (hash(d, 7) > 0.42 + 0.24 * Math.sin(d * 0.33)) add(d + rnd(-1.5, 1.5, d, 8), sWall + 2.2, ['palmA', 'palmB', 'palmC', 'palmD'][Math.floor(hash(d, 9) * 4)], rnd(158, 224, d, 10), { flip: hash(d, 11) > 0.5, tint: palmTint })
     if (hash(d, 12) > 0.55) add(d + rnd(-2, 2, d, 13), sWall - 1.6, 'dunegrass', rnd(28, 44, d, 14), { flip: hash(d, 15) > 0.5 })
   }
 
-  // 2. RIGHT HEADLAND — one coherent rocky point AT the waterline (no floating sea stacks; rocks
-  // that stand in open water read as pasted stamps, per Ash 2026-07-02).
+  // 2. right headland: one coherent rocky point at the waterline, because rocks standing in open water read as pasted stamps
   add(15, 109, 'rockA', 74); add(17.5, 106, 'rockB', 112); add(16.8, 108.2, 'rockA', 40, { flip: true })
   add(19.5, 104.2, 'rockA', 58, { flip: true, sea: true }); add(21, 103.2, 'rockA', 42, { sea: true })
   add(13.5, 112, 'dunegrass', 36); add(16.5, 111, 'dunegrass', 30, { flip: true })
@@ -121,13 +106,12 @@ function composeBeach(): PropDef[] {
   // a tide pool caught in the rocks at the point's base, another at the beach's west end
   add(7.5, 115.4, 'tidepool', 50); add(-22, 106.8, 'tidepool', 42, { flip: true })
 
-  // 3. THE PANTHER ROCK — the focal landmark, the hero of the frame: big, just off the waterline
-  // at the upper-left third, waves lapping its base, gulls keeping it company.
+  // 3. the panther rock, the focal landmark of the frame: big, just off the waterline at the upper-left third, waves lapping its base, gulls keeping it company
   add(-6, 102.3, 'panther', 132, { sea: true })
   add(-9, 103.8, 'rockA', 46, { sea: true }); add(-3.2, 103.4, 'rockA', 56, { flip: true, sea: true })
   add(-7.5, 104.6, 'gull', 18, { flip: true })
 
-  // 4. PALM GROVES — clustered, never lone: each cluster mixes both palms, underbrush, grass.
+  // 4. palm groves, clustered and never lone: each cluster mixes both palms, underbrush and grass
   const grove = (d: number, s: number, n: number) => {
     for (let i = 0; i < n; i++) {
       const gd = d + rnd(-3, 3, d + i, s), gs = s + rnd(-2.5, 2.5, d, s + i)
@@ -138,13 +122,11 @@ function composeBeach(): PropDef[] {
     add(d + rnd(-3, 3, d, s + 13), s + 0.8, 'coconuts', 22)
   }
   grove(-14, 126, 3); grove(9, 129, 2); grove(-2, 137, 2); grove(18, 122, 2)
-  // framing wings: two big foreground palms near the spawn frame's lower corners give the stage
-  // its dark side-frames (the TavernWorld vignette trick, done with world objects)
+  // framing wings: two big foreground palms near the spawn frame's lower corners give the stage its dark side-frames, the TavernWorld vignette trick done with world objects
   add(-16.5, 133, 'palmA', 226, { flip: true }); add(-18, 135, 'bushC', 96)
   add(16, 135.5, 'palmB', 234); add(18, 134, 'bushA', 88, { flip: true })
 
-  // 5. THE WRACK LINE — the debris band real tides leave just above the swash: mostly kelp
-  // strands and small driftwood; the odd starfish is a treat, not confetti.
+  // 5. the wrack line: the debris band real tides leave just above the swash, mostly kelp strands and small driftwood, with the odd starfish as a treat rather than confetti
   for (let d = -60; d <= 60; d += 3) {
     const h1 = hash(d * 1.7, 21)
     if (h1 > 0.78) {
@@ -154,32 +136,28 @@ function composeBeach(): PropDef[] {
     }
   }
 
-  // 6. DRIFTWOOD VIGNETTES — a hero log with its own little scene, twice.
+  // 6. driftwood vignettes: a hero log with its own little scene, twice
   add(4.5, 113, 'logdrift', 46); add(6.5, 112.2, 'dunegrass', 30, { flip: true }); add(3, 114.2, 'shells', 13, { ground: true })
   add(-17, 117, 'logdrift', 40, { flip: true }); add(-15, 118.2, 'seaweed', 16, { ground: true }); add(-19, 118.6, 'dunegrass', 28)
 
-  // 6b. BLHS identity, kept quiet: a weathered pennant claims the beach, panther paw prints cross
-  // the damp sand toward the jungle, gulls stand where the foam ends.
+  // 6b. BLHS identity kept quiet: a weathered pennant claims the beach, panther paw prints cross the damp sand toward the jungle, gulls stand where the foam ends
   add(10, 114.5, 'pennant', 92); add(11.5, 115.3, 'dunegrass', 26, { flip: true })
   add(-11, 106.2, 'pawprints', 15, { ground: true }); add(-9.4, 107.8, 'pawprints', 15, { ground: true, flip: true })
   add(-1, 104.6, 'gull', 20); add(1.2, 105.1, 'gull', 17, { flip: true }); add(19, 104.2, 'gull', 19)
 
-  // 7. sparse mid-beach accents (kept light — the center stays walkable and readable)
+  // 7. sparse mid-beach accents, kept light so the center stays walkable and readable
   add(-8, 120, 'dunegrass', 30); add(-6.5, 121, 'shells', 12, { ground: true })
   add(12, 118, 'seaweed', 16, { flip: true, ground: true }); add(2, 124, 'dunegrass', 26, { flip: true })
   add(-12, 132, 'driftwood', 34); add(6, 134, 'dunegrass', 30)
 
-  // 8. THE PORT (the beach's second pass) — dockside life on the sand around the pier base at the
-  // east end, past the headland. The pier + moored ship are built separately (multi-segment).
+  // 8. the port: dockside life on the sand around the pier base at the east end past the headland, with the pier and moored ship built separately as multi-segment
   add(24, 116.8, 'rowboat', 56, { flip: true })
   add(33.5, 118.5, 'crates', 54); add(35.3, 117.4, 'ropecoil', 20, { ground: true })
-  // (the lamp jetty is drawn by the port block itself — placed in px off measured landmarks)
+  // the lamp jetty is drawn by the port block itself, placed in px off measured landmarks
   add(26.5, 119.5, 'dunegrass', 32); add(36, 120, 'dunegrass', 28, { flip: true })
   add(30.5, 120.8, 'seaweed', 15, { ground: true }); add(37.5, 116.6, 'shells', 12, { ground: true })
   add(27, 113.6, 'gull', 18); add(36.5, 114.4, 'gull', 16, { flip: true })
-  // 8b. PORT-SIDE GREENERY — the east end read as bare sand next to the lush spawn side; give it the
-  // same grove rhythm. Kept landward (higher s) + right of the pier so it frames the dock without
-  // blocking the walkway (pier base d=30) or the dock approach.
+  // 8b. port-side greenery: the east end read as bare sand next to the lush spawn side, so it gets the same grove rhythm, kept landward and right of the pier so it frames the dock without blocking the walkway (pier base d=30) or the dock approach
   grove(41, 127, 2); grove(24.5, 131, 2); grove(47, 122, 2)
   add(45, 133, 'palmA', 216, { flip: true }); add(46.5, 131.5, 'bushA', 92)
   add(22, 126, 'bushB', 76, { flip: true }); add(39, 129, 'dunegrass', 34, { flip: true })
@@ -204,13 +182,10 @@ const PROP_SRC: Record<string, string> = {
   ropecoil: '/art/intro/port/ropecoil.png', lanternPost: '/art/intro/port/lantern-post.png',
   driftwood: '/art/intro/driftwood.png', grass: '/art/intro/grass.png', reeds: '/art/iso/props/reeds.png',
 }
-// per-prop grade: the panther rock reads as weathered gray stone (not bone), the flowered hedge
-// sits muted so its pink never becomes a repeated motif
+// per-prop grade: the panther rock reads as weathered gray stone rather than bone, and the flowered hedge sits muted so its pink never becomes a repeated motif
 const PROP_TINT: Record<string, number> = { bushB: 0xe6dccf, bushC: 0xc9e0b4, seaweed: 0xd9cfb4, pawprints: 0x8d7a5e }
 
-// The stage handle the cutscene runtime drives (types in cutscene/types.ts). Exposed via the
-// optional onStage prop so the intro (and any future scripted beat) can direct the live scene
-// without a second render path — one beach, playable and stageable.
+// the stage handle the cutscene runtime drives (types in cutscene/types.ts), exposed via the optional onStage prop so a scripted beat can direct the live scene without a second render path
 import type { CutsceneStage } from './cutscene/types'
 import { loadSave } from './save'
 import { drawRecolored, lookHue } from './thorLook'
@@ -224,8 +199,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
     /* the coat watcher, out here because the teardown below is out here */
     let offLook = () => { /* nobody is dressed yet */ }
     const keys: Record<string, boolean> = {}
-    // while a cutscene holds control, held keys release and new ones are ignored (the overlay
-    // owns input); gates flip control back on for the player-driven beats
+    // while a cutscene holds control, held keys release and new ones are ignored because the overlay owns input; gates flip control back on for the player-driven beats
     let inputMuted = false
     let jumpQueued = false
     const kd = (e: KeyboardEvent) => { if (inputMuted) return; keys[e.key.toLowerCase()] = true; if (e.key === ' ') { jumpQueued = true; e.preventDefault() } }
@@ -241,9 +215,8 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       /* an aborted start drops the handle so the cleanup cannot destroy the same app twice */
       if (destroyed || !ref.current) { app = null; instance.destroy(true); return }
       app = instance; ref.current.appendChild(instance.canvas)
-      // BEACH-LOCAL zoom (Thor reads bigger; each map sets its own). ?zoom= overrides for
-      // validation shots (the bar check runs zoomed in AND out).
-      const ZOOM = parseFloat(new URLSearchParams(location.search).get('zoom') ?? '') || 1.7 // was 1.15; +50% per Ash — the beach reads closer, more purposeful
+      // beach-local zoom because Thor reads bigger here and each map sets its own; ?zoom= overrides it for validation shots taken zoomed in and out
+      const ZOOM = parseFloat(new URLSearchParams(location.search).get('zoom') ?? '') || 1.7 // was 1.15, raised 50 percent so the beach reads closer and more purposeful
 
       const tex: Record<string, Texture> = {}
       const load = async (k: string, u: string) => { try { tex[k] = await Assets.load(u) } catch { /* */ } }
@@ -278,9 +251,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           for (let y = h - 1; y >= 0 && feet < 0; y--) for (let x = 0; x < w; x++) if (a(x, y) > 40) { feet = y; break }
           for (let y = 0; y < h && top === h; y++) for (let x = 0; x < w; x++) if (a(x, y) > 40) { top = y; break }
           if (feet >= 0) {
-            // the ground band = the bottom slice of the content (12% default = a trunk/stem;
-            // hull props pass a taller frac); wide bands get up to three base points along
-            // them so logs/boats collide along their true diagonal footprint
+            // the ground band is the bottom slice of the content, 12 percent by default for a trunk or stem while hull props pass a taller frac; wide bands get up to three base points so logs and boats collide along their true diagonal footprint
             const band = Math.max(5, Math.round((feet - top) * frac))
             let mnx = w, mxx = -1
             for (let y = feet - band; y <= feet; y++) for (let x = 0; x < w; x++) if (a(x, y) > 40) { if (x < mnx) mnx = x; if (x > mxx) mxx = x }
@@ -297,8 +268,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         byFrac.set(frac, out)
         return out
       }
-      // trim the transparent rows BELOW the drawn feet so anchor(_,1.0) means "the feet":
-      // Thor's frames carry 35-40px of dead padding that floated him over his own shadow
+      // trim the transparent rows below the drawn feet so anchor(_,1.0) means the feet, because Thor's frames carry 35-40px of dead padding that floated him over his own shadow
       const trimmed = (t: Texture): Texture => {
         const m = measureBase(t)
         if (!m || m.feet >= t.source.pixelHeight - 1) return t
@@ -311,9 +281,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       await Promise.all(dirs8.map(async (d) => {
         try { walk[d] = await Promise.all([0, 1, 2, 3, 4, 5].map((i) => Assets.load(`/art/characters/thor/walk/${d}/${i}.png`))) } catch { /* */ }
       }))
-      // the wardrobe's dye job (§4.5): bake the chosen accent into Thor's frames with the
-      // SAME shirt-pixel recolor the wardrobe preview used — what you picked is what walks
-      // the sand. Pristine originals are kept so the I-3 wardrobe can re-dye mid-scene.
+      // bake the chosen accent into Thor's frames with the same shirt-pixel recolor the wardrobe preview used, so what was picked is what walks the sand; pristine originals are kept so the wardrobe can re-dye mid-scene
       const rawIdle: Record<string, Texture> = { ...idle }
       const rawWalk: Record<string, Texture[]> = {}
       for (const d of dirs8) if (walk[d]) rawWalk[d] = [...walk[d]]
@@ -333,16 +301,9 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         }
       }
       applyLook()
-      /* ---- AND A COAT PICKED FROM THE HUD LANDS HERE TOO ------------------
-       *
-       * `applyLook` was called once at build and once from a scripted fx the
-       * intro's own wardrobe card fires. The HUD's mirror, which is the one a
-       * student opens later, writes the save and nothing on the beach was
-       * listening, so the change was invisible until the scene was rebuilt.
-       * The painted world grew the same subscription on the same day. */
+      /* a coat picked from the HUD lands here too: applyLook ran only at build and from a scripted fx, so the HUD mirror's write to the save went unheard on the beach and the change stayed invisible until the scene was rebuilt */
       offLook = subscribeSave(() => applyLook())
-      // 16 NORMALIZED PixelLab variant tiles each for sand + water (shared base color; the
-      // depth ramp tints them so adjacent tiles are continuous by construction)
+      // 16 normalized PixelLab variant tiles each for sand and water, sharing one base color so the depth ramp tints them and adjacent tiles are continuous by construction
       const sandV: Texture[] = []
       let waterV: Texture[] = []
       await Promise.all([
@@ -354,15 +315,12 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       const world = new Container(); world.scale.set(ZOOM); world.sortableChildren = true
       instance.stage.addChild(world)
       const grade = new ColorMatrixFilter()
-      // BEACH-LOCAL grade: real golden hour — rich (not desaturated), warm highlights, the blue
-      // channel pulled down so the whole frame leans amber while the teal sea stays alive.
+      // beach-local grade for golden hour: rich rather than desaturated, warm highlights, the blue channel pulled down so the frame leans amber while the teal sea stays alive
       grade.brightness(1.0, false); grade.saturate(0.06, true); grade.contrast(0.02, true)
       const wm = grade.matrix; wm[0] *= 1.07; wm[6] *= 1.005; wm[12] *= 0.885; grade.matrix = wm
       world.filters = [grade]
 
-      // ---- ground: iso diamond tiles, sea -> wet -> sand. ONE body of water: a smooth depth
-      // ramp carries the value; normalized variant tiles carry only micro-texture; broad value-
-      // noise patches drift the surface so nothing bands or checkers. ----
+      // ground: iso diamond tiles from sea to wet to sand, one body of water where a smooth depth ramp carries the value, the normalized variant tiles carry only micro-texture, and broad value-noise patches drift the surface so nothing bands or checkers
       const SAND_BASE = [246, 229, 180]
       const waterSprites: SwellSprite[] = []
       const walkable: boolean[][] = []
@@ -370,9 +328,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         walkable[ty] = []
         for (let tx = 0; tx < COLS; tx++) {
           const c = cellAt(tx, ty)
-          // sand walks, but the jungle wall is solid ground truth: -5 stops Thor at the
-          // fringe's visual line — waist-deep in the front leaves, never swallowed (the wall
-          // rows all render in FRONT of anything deeper, so +2 made him vanish entirely)
+          // sand walks but the jungle wall is solid: -5 stops Thor at the fringe's visual line, waist-deep in the front leaves, because the wall rows render in front of anything deeper and +2 made him vanish entirely
           walkable[ty][tx] = c === 'sand' && (tx + ty) < wallS(tx - ty) - 5
           const ds = (tx + ty) - shoreAt(tx - ty) // signed diagonal distance from the waterline (+ = onto land)
           if (c === 'sea') {
@@ -387,20 +343,18 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           const base = sandV[pool[Math.floor(hash(tx * 3.3, ty * 4.1) * pool.length)]] ?? tex['sand']
           if (!base) continue
           const sp = new Sprite(base); sp.anchor.set(0.5, 0.25)
-          // mirror tiles in COHERENT PATCHES (not per-tile random) — random flips make an X-checker
+          // mirror tiles in coherent patches rather than per-tile random, because random flips make an X-checker
           const fx = vnoise(tx / 7 + 4, ty / 7 + 11) > 0.5 ? -1 : 1
           const os = 1.06   // oversize tiles so they overlap and blend (sand overlaps hide relief gaps)
           sp.scale.set(fx * os, os)
           const lift = liftAt(tx, ty)
           sp.position.set(isoX(tx, ty), isoY(tx, ty) - lift); sp.zIndex = (tx + ty) * 16
           if (c === 'wet') {
-            // damp band at the waterline, graded darker toward the water so it reads as a real
-            // value break (the berm shading + seam + wet sheet hide the tile quantization now)
+            // damp band at the waterline, graded darker toward the water so it reads as a real value break
             const k = Math.min(1, Math.max(0, (ds) / 1.5)) // 0 at waterline -> 1 at dry edge
             sp.tint = tintFor(shadeHex(mix(0xb5945e, 0xd8bd86, k), 0.985 + 0.03 * hash(tx, ty)), SAND_BASE)
           } else {
-            // dry sand: warm near the water -> pale high beach, with broad dune drift, and the
-            // relief's slope shading (faces climbing away from the sun sit a touch darker)
+            // dry sand runs warm near the water to pale high beach, with broad dune drift and the relief's slope shading so faces climbing away from the sun sit a touch darker
             const t = Math.min(1, Math.max(0, (ds - 2.1) / 26))
             const dune = 0.955 + 0.075 * vnoise(tx / 16 + 3, ty / 16 + 5)
             const grain = 0.994 + 0.012 * hash(tx * 1.3, ty * 2.1)
@@ -413,19 +367,16 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         }
       }
 
-      // AERIAL PERSPECTIVE WASH (ocean module): the far field flattens toward the abyss so the
-      // per-tile texture dissolves with distance; sliced per s-row so depth sorting stays honest.
+      // aerial perspective wash from the ocean module: the far field flattens toward the abyss so per-tile texture dissolves with distance, sliced per s-row so depth sorting stays honest
       buildAerialVeil(world, { x0: -3330, spanPx: 6660, sMax: 118, shoreAt })
 
-      // the FOAM BAND + waterline skirt + wet sheet (ocean module): two staggered lace fronts
-      // riding this beach's shore curve; the whole tide system is the shared water's.
+      // the foam band, waterline skirt and wet sheet come from the ocean module: two staggered lace fronts riding this beach's shore curve, and the whole tide system is the shared water's
       const { skirtSegs, wetSegs, fronts } = buildShoreFoam(world,
         { skirt: tex['skirt'], foamlace: tex['foamlace'], foamlace2: tex['foamlace2'], foamtrail: tex['foamtrail'] },
         { shoreAt, dMin: -88, dMax: 88 })
       // ambient life: crabs on the wrack line, a gliding gull, and glints on the open water
       const shadowTexLife = makeShadow()
-      /* the light version, for a contact pool ON WATER rather than a shadow on
-       * sand. See the ship's own ring for why the two are not the same thing. */
+      /* the light version, for a contact pool on water rather than a shadow on sand; see the ship's own ring for why the two are not the same thing */
       const wakeTexLife = makeWakePool()
       // crabs skitter along the wrack line in quick sideways bursts, then freeze
       type Crab = { sp: Sprite; sh: Sprite; d: number; s: number; home: number; tgt: number; next: number; speed: number }
@@ -455,9 +406,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       type Surf = { walk: boolean; layer: number; lift: number; z: number; trans?: boolean }
       const surf = new Map<string, Surf>()
       const setSurf = (x: number, y: number, s: Surf) => surf.set(x + ',' + y, s)
-      // RADIUS COLLIDERS: props collide as circles in tile space sized to their REAL footprint
-      // (a palm blocks its trunk, not a whole 64px diamond) — no more invisible walls a meter
-      // out, no more walking into rocks. Spatially hashed by tile for O(1) lookup.
+      // radius colliders: props collide as circles in tile space sized to their real footprint, so a palm blocks its trunk and not a whole 64px diamond, spatially hashed by tile for O(1) lookup
       type Collider = { cx: number; cy: number; r: number }
       const colliders: Collider[] = []
       const colMap = new Map<string, number[]>()
@@ -471,21 +420,17 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       }
       const THOR_R = 0.17
       ;(window as unknown as { __cols: object }).__cols = colliders // dev introspection (stress harness)
-      // which prop types physically block (colliders are then MEASURED off their drawn bases —
-      // center + radius come from the pixels, never hand-tuned numbers)
+      // which prop types physically block; the colliders are then measured off their drawn bases, center and radius from the pixels and never hand-tuned
       const COLLIDE = new Set(['palmA', 'palmB', 'palmC', 'palmD', 'bushA', 'bushB', 'bushC',
         'rockA', 'rockB', 'panther', 'logdrift', 'crates', 'rowboat', 'tidepool', 'driftwood', 'pennant'])
-      // props that ground on their WHOLE BODY, not a stem: a boat's bottom rows are just the
-      // keel line, so a 12% band collapses to a useless dot — measure these off a deep band
+      // props that ground on their whole body rather than a stem: a boat's bottom rows are just the keel line, so a 12 percent band collapses to a useless dot and these are measured off a deep band
       const HULL = new Set(['rowboat', 'logdrift', 'driftwood', 'crates', 'tidepool'])
 
-      // ---- PROPS: the composed beach (jungle wall, headland, panther rock, groves, wrack line).
-      // Billboards depth-sorted by s, grounded with soft contact shadows; flat decals hug the sand. ----
+      // props: the composed beach, billboards depth-sorted by s and grounded with soft contact shadows, flat decals hugging the sand
       void makeFleck
       const shadowTex = makeShadow()
       const blocked = new Set<string>()
-      // foliage sways gently in the sea breeze: a tiny rotation around each trunk base, every
-      // plant on its own phase (palms lean furthest, bushes rustle barely)
+      // foliage sways in the sea breeze as a tiny rotation around each trunk base, every plant on its own phase, palms leaning furthest and bushes barely rustling
       const swaying: { sp: Sprite; ph: number; amp: number }[] = []
       for (const p of composeBeach()) {
         const t0 = tex[p.img]; if (!t0) continue
@@ -498,13 +443,10 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           world.addChild(sp)
           continue
         }
-        // billboards render off their TRIMMED frame: anchor(_,1.0) = the drawn base, so every
-        // prop stands exactly on its ground point (untrimmed padding floated palms ~7px)
+        // billboards render off their trimmed frame so anchor(_,1.0) is the drawn base and every prop stands on its ground point; untrimmed padding floated palms about 7px
         const t = trimmed(t0)
         const sc = p.h / t.height
-        // golden hour: shadows stretch LONG toward the lower-right, away from the low sun; tall
-        // palms throw the longest blades. Cool-dark, never black. The hero landmark gets the
-        // strongest, longest shadow so it sits IN the world.
+        // golden hour shadows stretch long toward the lower-right away from the low sun, tall palms throwing the longest blades, cool-dark and never black, and the hero landmark gets the strongest and longest one so it sits in the world
         const tall = p.h > 140, hero = p.img === 'panther'
         const sh = new Sprite(shadowTex); sh.anchor.set(0.28, 0.5)
         sh.width = Math.max(26, t.width * sc * (hero ? 1.3 : p.sea ? 0.8 : tall ? 1.7 : 1.4))
@@ -521,16 +463,14 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         if (p.img.startsWith('palm')) swaying.push({ sp, ph: hash(p.tx * 3.1, p.ty * 1.7) * 6.28, amp: 0.014 + 0.008 * hash(p.tx, p.ty * 9) })
         else if (p.img.startsWith('bush') || p.img === 'dunegrass') swaying.push({ sp, ph: hash(p.tx * 2.3, p.ty * 4.1) * 6.28, amp: 0.006 })
         if (p.sea) {
-          // foam collar where the sea meets the rock — grounds it in the water instead of on it
+          // foam collar where the sea meets the rock, which grounds it in the water instead of on it
           const ring = new Sprite(shadowTex); ring.anchor.set(0.5, 0.5)
           ring.tint = 0xeafff6; ring.blendMode = 'add'
           ring.width = Math.max(30, t.width * sc * (hero ? 0.95 : 0.8)); ring.height = ring.width * 0.3
           ring.alpha = hero ? 0.45 : 0.3; ring.position.set(x, y + 5); ring.zIndex = z + 7
           world.addChild(ring)
         }
-        // colliders live at the MEASURED drawn base (a leaning palm's trunk, a log's diagonal
-        // line — up to 3 points), each radius from the base's true pixel width. Screen offsets
-        // convert to tile space via u=dx/2HW, v=dy/2HH; a tile-space circle IS the iso ellipse.
+        // colliders live at the measured drawn base, up to 3 points, each radius from the base's true pixel width; screen offsets convert to tile space via u=dx/2HW and v=dy/2HH, so a tile-space circle is the iso ellipse
         if (!p.noBlock && COLLIDE.has(p.img)) {
           const m = measureBase(t, HULL.has(p.img) ? 0.45 : 0.12)
           if (m) for (const b of m.pts) {
@@ -542,9 +482,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         }
       }
 
-      // ---- THE PORT: a rustic pier runs on the TRUE ISO DIAGONAL (fixed tx: each step is
-      // d+1, s-1 — up-right at 2:1 on screen), from the sand across the waterline to a diamond
-      // dock platform; Thor's ship moors alongside, other boats ride at anchor further out. ----
+      // the port: a rustic pier runs on the true iso diagonal, each step d+1 and s-1 which is up-right at 2:1 on screen, from the sand across the waterline to a diamond dock platform, with the ship moored alongside and other boats at anchor further out
       const boats: { sp: Sprite; ring: Sprite; x: number; y: number; ph: number }[] = []
       const moorBoat = (t: Texture, dPos: number, sPos: number, h: number, flip = false) => {
         const sc = h / t.height
@@ -562,7 +500,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         sp.position.set(bx, by); sp.zIndex = sPos * 16 + 9
         world.addChild(sp)
         boats.push({ sp, ring, x: bx, y: by, ph: hash(dPos, sPos) * 6.28 })
-        // anchored boats are solid to the sailing vehicle (and to nobody else — Thor can't swim)
+        // anchored boats are solid to the sailing vehicle and to nobody else, because Thor cannot swim
         addCollider((sPos + dPos) / 2, (sPos - dPos) / 2, 1.05)
       }
       // warm lantern glows breathing at the dock and on the ship's stern
@@ -592,7 +530,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         { lampX: -16, lampY: -77, w: 158, headX: 12, headY: -44 }, // NE
         { lampX: -6, lampY: -64, w: 166, headX: -3, headY: -41 },  // ENE
       ]
-      const NVIEWS = 16 // Ash's call after driving both: 24 read worse than 16 — revert
+      const NVIEWS = 16 // 24 views read worse than 16 when both were driven, so this went back to 16
       const metaAt = (b: number) => {
         const f = (((b % NVIEWS) + NVIEWS) % NVIEWS) * 16 / NVIEWS
         const i0 = Math.floor(f) % 16, i1 = (i0 + 1) % 16, t2 = f - Math.floor(f)
@@ -615,8 +553,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         const sx = (Math.cos(ang) - Math.sin(ang)) * HW, sy = (Math.cos(ang) + Math.sin(ang)) * HH
         return Math.atan2(sy, sx) / (2 * Math.PI / NVIEWS)
       }
-      // nearest painted view WITH hysteresis: the view only swaps once the heading is
-      // decisively inside the next sector, so a resting rudder never flickers it
+      // nearest painted view with hysteresis: the view only swaps once the heading is decisively inside the next sector, so a resting rudder never flickers it
       const setBucket = (V: Veh, force = false) => {
         const bc = ((bucketCoord(V.ang) % NVIEWS) + NVIEWS) % NVIEWS
         const b = Math.round(bc) % NVIEWS
@@ -639,7 +576,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         const u = Math.max(-1.4, Math.min(1.4, (ptx - V.tx) * c + (pty - V.ty) * s))
         return { tx: V.tx + c * u, ty: V.ty + s * u }
       }
-      // world point of a hull-local (u toward the bow, v to starboard) — wake spawns
+      // world point of a hull-local coordinate, u toward the bow and v to starboard, used for wake spawns
       const deckWorld = (V: Veh, u: number, v: number) => {
         const c = Math.cos(V.ang), s = Math.sin(V.ang)
         return { tx: V.tx + c * u - s * v, ty: V.ty + s * u + c * v }
@@ -652,9 +589,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           const px3 = i === 8 ? tx : tx + Math.cos(a) * 1.6, py3 = i === 8 ? ty : ty + Math.sin(a) * 1.6
           if (px3 < 5 || py3 < 5 || px3 > COLS - 5 || py3 > ROWS - 5) { pen += 5; continue }
           pen += Math.max(0, (px3 + py3) - (shoreAt(px3 - py3) - 1.2)) // draft: the bow may kiss the pale shelf
-          // structure tiles penalize by DEPTH into the tile, not a flat amount — a flat
-          // penalty gave the escape rule no gradient, so a hull pinned against the pier
-          // could only leave on the one perfectly-opposite heading
+          // structure tiles penalize by depth into the tile rather than a flat amount, because a flat penalty gave the escape rule no gradient and a hull pinned against the pier could only leave on the one perfectly opposite heading
           const rx = Math.round(px3), ry = Math.round(py3)
           if (surf.has(rx + ',' + ry)) pen += Math.max(0.2, 0.9 - Math.hypot(px3 - rx, py3 - ry)) * 6
           const arr = colMap.get(rx + ',' + ry)
@@ -662,7 +597,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         }
         return pen
       }
-      // wake foam puffs (bow spray + stern wash) — soft additive particles, pooled small
+      // wake foam puffs, bow spray and stern wash, soft additive particles pooled small
       const wakeFx: { sp: Sprite; vx: number; vy: number; age: number; life: number; s0: number }[] = []
       let lastPuff = 0, eHeld = false, hopJy = 0, bobOff = 0
       const camS = { x: 0, y: 0, on: false } // eased camera state while riding the ship
@@ -687,8 +622,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         g.fillStyle = '#2b6b6d'; g.fillRect(kx + 1, ky + 1, CAP - 2, CAP)
         g.fillStyle = '#c9f5ea'; g.fillRect(kx + 1, ky + 1, CAP - 2, CAP - 2)
         g.fillStyle = '#eafff6'; g.fillRect(kx + 2, ky + 2, CAP - 4, 1)
-        /* the E, drawn: a stem and three arms, the middle one short, at a stroke
-         * a fifth of the letter's height so it is bold at this size */
+        /* the E, drawn as a stem and three arms with the middle one short, at a stroke a fifth of the letter's height so it stays bold at this size */
         const m = 4, lx = kx + m, ly = ky + m, lw = CAP - m * 2, lh = CAP - m * 2, th = 2
         g.fillStyle = '#0a2028'
         g.fillRect(lx, ly, th, lh)
@@ -715,8 +649,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         const seg1 = { x: A.x - 20, y: A.y - 120 }          // cap-SW midpoint measured at (20,120)
         const seg2 = { x: seg1.x + 5 * HW, y: seg1.y - 5 * HH } // one segment spans 5.23 ty; 5 = plank overlap
         const capNE = { x: seg2.x + 187.5, y: seg2.y + 36 } // walkway end cap midpoint
-        // platform: its SW deck-edge midpoint (77,102) sits 6px shoreward of the cap so the
-        // planks run into the deck's middle with no water sliver
+        // platform: its SW deck-edge midpoint (77,102) sits 6px shoreward of the cap so the planks run into the deck's middle with no water sliver
         const plat = { x: capNE.x - 6 - 77, y: capNE.y + 3 - 102 }
         // jetty: its NE deck-edge midpoint (90,84)*0.63 tucks 2px under the cap start
         const JSC = 0.63
@@ -739,29 +672,23 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         }
         // sand-Thor can't clip the jetty's legs/underdeck (stairs are layer-1, unaffected)
         addCollider(72.4, 43.4, 0.55)
-        // SURFACES. Walkway = the ONE straightened column. z per tile comes from the sprite
-        // that visually covers it: the jetty owns its deck tile + stairs (Thor in front while
-        // climbing), the pier owns the run (Thor slips BEHIND the lantern pole as he heads out).
+        // surfaces: the walkway is the one straightened column, and z per tile comes from the sprite that visually covers it, so the jetty owns its deck tile and stairs while the pier owns the run and Thor slips behind the lantern pole heading out
         for (let ty = TY0; ty >= 33; ty--)
           setSurf(PIER_TX, ty, { walk: true, layer: 1, lift: DECK_LIFT, z: (ty === TY0 ? jettyZ : pierZ) + 2 })
-        // platform block = the tiles the drawn deck actually covers; the barrel keeps its corner
-        // tile (73,31), so Thor walks AROUND it on the deck
+        // the platform block is the tiles the drawn deck actually covers; the barrel keeps its corner tile (73,31) so Thor walks around it on the deck
         for (const [ox, oy] of [[-1, 0], [1, 0], [-1, 1], [0, 1], [1, 1]] as const)
           setSurf(PIER_TX + ox, 31 + oy, { walk: true, layer: 1, lift: DECK_LIFT, z: pierZ + 2 })
         // the jetty stairs: a two-tile transition ramp whose lifts match the drawn steps
         setSurf(PIER_TX, 44, { walk: true, layer: 1, lift: 14, z: jettyZ + 2, trans: true })
         setSurf(PIER_TX, 45, { walk: true, layer: 1, lift: 4, z: jettyZ + 2, trans: true })
-        // foam collars where the posts stand in the water (walkway run + the platform's
-        // seaward legs, so the big deck reads SUPPORTED, not floating)
+        // foam collars where the posts stand in the water, on the walkway run and the platform's seaward legs, so the big deck reads supported rather than floating
         for (const [cd, cs] of [[33.5, 111.4], [35.2, 109.8], [37, 108.2], [41.4, 106.7], [44.3, 105.6]] as const) {
           const ring = new Sprite(shadowTexLife); ring.anchor.set(0.5)
           ring.tint = 0xeafff6; ring.blendMode = 'add'; ring.width = 30; ring.height = 10; ring.alpha = 0.24
           ring.position.set(cd * HW, cs * HH + 14); ring.zIndex = cs * 16 + 8
           world.addChild(ring)
         }
-        // THE VEHICLE spawns at its BERTH: alongside the platform's NE edge, hull parallel
-        // to it, pulled clear of the deck so nothing overlaps (Ash's circle), bow seaward
-        // up-left (ang = pi) ready to sail out
+        // the vehicle spawns at its berth alongside the platform's NE edge, hull parallel and pulled clear of the deck so nothing overlaps, bow seaward up-left (ang = pi) ready to sail out
         if (tex['shipV5'] || tex['ship']) {
           // 1.55 tiles off the NE edge + 0.3 up along it: the hull clears the corner post
           const bx0 = plat.x + 169.5 + 1.55 * HW - 0.3 * HW, by0 = plat.y + 63.5 - 1.55 * HH - 0.3 * HH
@@ -772,8 +699,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           world.addChild(ring)
           const hull = new Sprite()
           world.addChild(hull)
-          // Thor's head, poking over the quarterdeck while he crews her (cropped live
-          // from his idle south frame: ears to chin)
+          // Thor's head, poking over the quarterdeck while he crews her, cropped live from his idle south frame between ears and chin
           const head = new Sprite()
           head.anchor.set(0.5, 1)
           head.visible = false
@@ -796,15 +722,12 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       if (tex['boatFish']) moorBoat(tex['boatFish'], 16, 96, 98)
       if (tex['boatAnchor']) moorBoat(tex['boatAnchor'], 52, 99, 88, true)
 
-      // ---- Thor (with his own crisp contact shadow — the focal character must sit ON the sand) ----
-      // 32x16 = a true 2:1 iso ground circle; heavy enough that the radial's CORE reads below
-      // his soles (at 28x14/0.5 only the faint rim peeked out and the shadow looked missing)
+      // Thor's own crisp contact shadow at 32x16, a true 2:1 iso ground circle heavy enough that the radial's core reads below his soles; at 28x14 and alpha 0.5 only the faint rim peeked out and the shadow looked missing
       const thorShadow = new Sprite(shadowTex); thorShadow.anchor.set(0.5, 0.5)
       thorShadow.width = 32; thorShadow.height = 16; thorShadow.alpha = 0.62
       world.addChild(thorShadow)
-      // frames are TRIMMED to the drawn feet row (they shipped with 35-40px of padding below
-      // the soles — the shadow used to render 22px under him), so anchor 1.0 = his feet.
-      const THOR_SC = 0.58 // a touch smaller than before (Ash's taste)
+      // frames are trimmed to the drawn feet row, because they shipped with 35-40px of padding below the soles and the shadow rendered 22px under him, so anchor 1.0 is his feet
+      const THOR_SC = 0.58 // a touch smaller than the previous scale, set by eye
       const thor = new Sprite(idle['south'] ?? tex['sand']); thor.anchor.set(0.5, 1.0); thor.scale.set(THOR_SC)
       thor.zIndex = 0; world.addChild(thor)
       const jump = { active: false, t: 0 } // spacebar hop
@@ -876,7 +799,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         loadPose('lie', '/art/characters/thor/pose/lie.png'),
         loadPose('sit', '/art/characters/thor/pose/sit.png'),
       ])
-      // scripted extra actors (the bottle...) — tiny sprites with the standard contact shadow
+      // scripted extra actors such as the bottle: tiny sprites with the standard contact shadow
       const csActors = new Map<string, { sp: Sprite; sh: Sprite; tx: number; ty: number; rot: boolean }>()
       const csActorEnsure = (id: string, src: string, scale: number) => {
         let a = csActors.get(id)
@@ -932,16 +855,12 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           instance.ticker.add(fn)
         }
       }
-      // THE DELIVERING WAVE: the bottle rides the REAL tide — waits for the next front to break
-      // at its column, surges up the film's leading edge rolling as it comes, and settles in the
-      // wet band when the water lets go of it. Returns a done-poll for the runtime.
+      // the delivering wave: the bottle rides the real tide, waiting for the next front to break at its column, surging up the film's leading edge and rolling as it comes, settling in the wet band when the water lets go, and returning a done-poll for the runtime
       let bottleWave: null | { d: number; sBeach: number; phase: 'wait' | 'ride' | 'settled'; from: number; peakS: number; fi: number } = null
-      // guide trail (Ash): a followable path of translucent chevrons marching from Thor to
-      // the destination, each bobbing on a phase so the pulse travels toward the goal
+      // guide trail: a followable path of translucent chevrons marching from Thor to the destination, each bobbing on its own phase so the pulse travels toward the goal
       const TRAIL_N = 8
       let pointer: null | { sps: Sprite[]; x: number; y: number; ship: boolean } = null
-      // while a cutscene holds the frame, world interactables stand down (E stays a feature;
-      // it just can't hijack a scripted beat — boarding early mid-gate would strand the script)
+      // while a cutscene holds the frame, world interactables stand down: E stays a feature but cannot hijack a scripted beat, because boarding early mid-gate would strand the script
       let csHeld = false
       const chevTex = (() => {
         const cv = document.createElement('canvas'); cv.width = 30; cv.height = 22
@@ -951,9 +870,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         g.fill(); g.stroke()
         return Texture.from(cv)
       })()
-      // THE SCRIPTED PILOT (I-5): steers by writing the SAME keys the helm reads — the seam
-      // the ship block itself names. Open-loop, the way Ash called it: ease forward off the
-      // berth, hold starboard until the bow faces the vast sea, release, run out.
+      // the scripted pilot steers by writing the same keys the helm reads, the seam the ship block itself names, and stays open-loop: ease forward off the berth, hold starboard until the bow faces the vast sea, release, run out
       let pilot: null | { phase: 0 | 1 | 2; t: number; targetAng: number; done: boolean } = null
       const csCall = (name: string, data?: unknown): (() => boolean) | void => {
         if (name === 'bottleWave') {
@@ -1020,8 +937,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           return
         }
         if (name === 'showBoatName') {
-          // the I-4 payoff: her fresh name hangs at the berth (the painted stern text is a
-          // later art pass; this chip is the same wood the world's prompts use)
+          // her fresh name hangs at the berth; painted stern text is a later art pass, and this chip is the same wood the world's prompts use
           if (!veh) return
           const nm = loadSave()?.boatName || 'The Bonney'
           const chip = new Sprite(chipTexFor(nm))
@@ -1143,8 +1059,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       }
       instance.stage.eventMode = 'static'
       instance.stage.hitArea = instance.screen
-      /* THE SAME TWO GUARDS `PmapScene` LEARNED THE HARD WAY: a drag across the
-       * window is not a tap, and a two-finger trackpad tap is not a press. */
+      /* the same two guards `PmapScene` needed: a drag across the window is not a tap, and a two-finger trackpad tap is not a press */
       const TAP_SLOP = 6
       let tapDown: { x: number; y: number } | null = null
       instance.stage.on('pointerdown', (e) => {
@@ -1153,8 +1068,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       instance.stage.on('pointertap', (e) => {
         if (e.button !== 0 || !tapDown) return
         if (Math.hypot(e.global.x - tapDown.x, e.global.y - tapDown.y) > TAP_SLOP) return
-        /* a cutscene holding the controls owns him, and so does the boat: the
-         * hull is steered, not walked, and the sail is its own gate. */
+        /* a cutscene holding the controls owns him, and so does the boat: the hull is steered rather than walked, and the sail is its own gate */
         if (inputMuted) return
         if (veh && (veh.state === 'crewed' || veh.hop)) return
         const p = world.toLocal(e.global)
@@ -1224,8 +1138,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           }
           facing = dirFromAngle(isoX(dx, dy), (dx + dy) * HH)
         }
-        // scripted walk (cutscene actorMove): the same probes as the player, but a stuck step
-        // resolves by passing through — a cutscene must never wedge on a pebble mid-beat
+        // scripted walk for cutscene actorMove uses the same probes as the player, but a stuck step resolves by passing through, because a cutscene must never wedge on a pebble mid-beat
         if (cs.move && !aboard) {
           const m = cs.move
           const ddx = m.x - pos.tx, ddy = m.y - pos.ty
@@ -1246,9 +1159,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             moving = 1
           }
         }
-        // THE SCRIPTED PILOT: writes the same keys the helm reads (the ship block's own
-        // documented seam) on Ash's open-loop plan — forward off the berth, hold starboard
-        // until the bow points at open water, release, run out. No feedback loop to spin her.
+        // the scripted pilot writes the same keys the helm reads, the ship block's own documented seam, open-loop: forward off the berth, hold starboard until the bow points at open water, release, run out, with no feedback loop to spin her
         if (pilot && veh && veh.state === 'crewed' && !veh.hop) {
           const P = pilot, V = veh
           P.t += tk.deltaMS
@@ -1270,9 +1181,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             }
           }
         }
-        // safety net: should anything ever leave Thor inside a circle (a spawn, an edge case),
-        // ease him straight back out over a few frames instead of letting him wedge or pop.
-        // pen also feeds dev introspection — the stress harness asserts it stays 0.
+        // safety net: if anything ever leaves Thor inside a collider circle, ease him straight back out over a few frames rather than letting him wedge or pop; pen also feeds dev introspection and the stress harness asserts it stays 0
         let pen = 0
         if (!aboard && surfAt(Math.round(pos.tx), Math.round(pos.ty)).layer === 0) {
           const parr = colMap.get(Math.round(pos.tx) + ',' + Math.round(pos.ty))
@@ -1292,21 +1201,17 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         if (veh) {
           const V = veh
           const bt = at / 1000
-          // a calm ride: the swell lifts her gently and only a touch more under way (kept
-          // small — the straight waterline crop must never lift clear of the foam ring)
+          // a calm ride: the swell lifts her gently and only a touch more under way, kept small because the straight waterline crop must never lift clear of the foam ring
           V.bob = Math.sin(bt * (0.75 + V.spd * 5) + 2.1) * 1.1 * (1 + V.spd * 4)
           // the helm: A and D are the rudder, W the throttle, S brakes through zero into slow astern
           if (V.state === 'crewed' && !V.hop) {
             const dtc = Math.min(dt, 2)
             const steer = ((keys['d'] || keys['arrowright']) ? 1 : 0) - ((keys['a'] || keys['arrowleft']) ? 1 : 0)
             V.rud += (steer - V.rud) * Math.min(1, 0.085 * dtc)
-            // she is a SHIP, not a speedboat: half the old top speed, a slow build, a long
-            // coast — and a sailboat steers with WAY ON, so rudder authority builds with
-            // speed and is nearly dead at rest (back out first, then swing)
+            // she is a ship and not a speedboat: half the old top speed, a slow build, a long coast, and a sailboat steers with way on, so rudder authority builds with speed and is nearly dead at rest, meaning back out first then swing
             if (Math.abs(V.rud) > 0.003) V.ang += V.rud * (0.003 + 0.017 * (Math.abs(V.spd) / 0.042)) * dtc
             if (keys['w'] || keys['arrowup']) V.spd = Math.min(0.042, V.spd + 0.001 * dtc)
-            // S through zero = SLOW ASTERN: a hull nosed into a pocket the rudder can't
-            // swing out of backs straight off it, the move every sailor reaches for
+            // S through zero is slow astern: a hull nosed into a pocket the rudder cannot swing out of backs straight off it, the move every sailor reaches for
             else if (keys['s'] || keys['arrowdown']) V.spd = Math.max(-0.018, V.spd - 0.0025 * dtc)
             else V.spd = V.spd > 0 ? Math.max(0, V.spd - 0.0004 * dtc) : Math.min(0, V.spd + 0.0012 * dtc)
             setBucket(V)
@@ -1348,8 +1253,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
               V.hop = null
             }
           } else if (V.state === 'crewed') {
-            // Thor IS the ship: his logical position rides her center (camera, saves,
-            // future cutscene math all keep working through pos)
+            // Thor is the ship: his logical position rides her center, so camera, saves and cutscene math all keep working through pos
             pos.tx = V.tx; pos.ty = V.ty
             bobOff = V.bob
           }
@@ -1360,8 +1264,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           let action: (() => void) | null = null
           if (!V.hop) {
             if (V.state === 'moored' || V.state === 'anchored') {
-              // boarding is judged by the true JUMP GAP: Thor to the nearest point of the
-              // keel line, not to the hull center (the near rail is a tile closer)
+              // boarding is judged by the true jump gap, Thor to the nearest point of the keel line rather than to the hull center, because the near rail is a tile closer
               const near = keelNear(V, pos.tx, pos.ty)
               if (Math.hypot(pos.tx - near.tx, pos.ty - near.ty) < 4.4) {
                 label = 'Get on'; cpx = bxp; cpy = byp - 150; cpz = bz + 40
@@ -1390,8 +1293,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
               }
             }
           }
-          // the E chip hides while a cutscene owns the frame (the feature stays; the
-          // scripted pilot must not advertise a button the muted keyboard can't press)
+          // the E chip hides while a cutscene owns the frame: the feature stays, but the scripted pilot must not advertise a button the muted keyboard cannot press
           if (label && !inputMuted && !csHeld) {
             chipSp.texture = chipTexFor(label)
             chipSp.position.set(cpx, cpy - 6 + 2 * Math.sin(bt * 2.6))
@@ -1412,14 +1314,11 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           V.hull.zIndex = bz + 8
           V.ring.position.set(bxp, byp + 6)
           V.ring.zIndex = bz
-          // quiet waterline contact — barely brighter under way (a speed-flare reads
-          // as a motorboat glow, not a hull sitting in the sea)
+          // quiet waterline contact, barely brighter under way, because a speed-flare reads as a motorboat glow rather than a hull sitting in the sea
           V.ring.alpha = 0.34 + 0.08 * Math.sin(bt * 0.55 + 1.1) + Math.min(0.1, Math.abs(V.spd) * 1.6)
           const rw = M.w * 1.22 + Math.min(22, Math.abs(V.spd) * 260)
           V.ring.width = rw
-          /* a bow-on hull gets a rounder pool, and 38 was half the height of the
-           * ship: on the title page, where she lies almost bow-on, that drew a
-           * pool taller than her own deck. Twenty is a waterline. */
+          /* a bow-on hull gets a rounder pool, and 38 was half the height of the ship: on the title page, where she lies almost bow-on, that drew a pool taller than her own deck, so twenty is a waterline */
           V.ring.height = Math.max(rw * 0.23, M.w < 110 ? 20 : 0)
           const hc = Math.cos(heel), hs = Math.sin(heel) // offsets lean with the hull (pivot = waterline center)
           const gl = glows[V.glowI]
@@ -1430,8 +1329,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             V.head.position.set(bxp + M.headX * hc - M.headY * hs, byp + M.headX * hs + M.headY * hc + V.bob)
             V.head.zIndex = bz + 9
           }
-          // WAKE: quiet pale foam lace, slow drift, spawned past the drawn bow so it
-          // never draws ON the hull.
+          // wake: quiet pale foam lace on a slow drift, spawned past the drawn bow so it never draws on the hull
           if ((V.spd > 0.016 || (boatBlocked && Math.abs(V.spd) > 0.004)) && bt - lastPuff > 0.05 / (1 + Math.abs(V.spd) * 18)) {
             lastPuff = bt + (hash(V.tx * 7.1, bt) - 0.5) * 0.02
             const c6 = Math.cos(V.ang), s6 = Math.sin(V.ang) // drift follows the TRUE motion
@@ -1443,8 +1341,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
               const tvx = pxd * ovx * 0.38 - c6 * (stern ? 0.6 : 0.24)
               const tvy = pyd * ovx * 0.38 - s6 * (stern ? 0.6 : 0.24)
               const sp3 = new Sprite(shadowTexLife)
-              // additive keeps the shadow-blob texture reading as pale FOAM (normal blend
-              // let its black body smear the sea dark); quiet alpha does the rest
+              // additive keeps the shadow-blob texture reading as pale foam, because normal blend let its black body smear the sea dark; quiet alpha does the rest
               sp3.anchor.set(0.5); sp3.tint = 0xdcf7ee; sp3.blendMode = 'add'
               const s0 = (stern ? 34 : 20) * (0.7 + Math.abs(V.spd) * 8)
               sp3.width = s0; sp3.height = s0 * 0.45
@@ -1465,8 +1362,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             p.sp.width = p.s0 * (1 + k3 * 1.6); p.sp.height = p.sp.width * 0.45
           }
         }
-        // surface-aware elevation: sand dunes lift smoothly; on a deck (dock or hull) the
-        // surface height rules, eased so stepping up reads as climbing, not teleporting
+        // surface-aware elevation: sand dunes lift smoothly, but on a deck the surface height rules, eased so stepping up reads as climbing rather than teleporting
         const here = surfAt(Math.round(pos.tx), Math.round(pos.ty))
         const aboardNow = !!veh && veh.state === 'crewed' && !veh.hop
         const targetLift = aboardNow ? 24 : (here.layer > 0 || here.trans ? here.lift : liftAt(pos.tx, pos.ty))
@@ -1486,55 +1382,44 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         const breath = (!moving && !jump.active) ? 1 + 0.03 * Math.sin(at / 430) : 1
         thor.scale.set(THOR_SC, THOR_SC * breath * stretch)
         thor.position.set(x, y + jy + hopJy + bobOff)
-        // crewing the ship, Thor IS the ship: his sprite hides and only the head overlay
-        // shows (mid-hop he is visible, flying his little arc)
+        // crewing the ship, Thor is the ship: his sprite hides and only the head overlay shows, though mid-hop he is visible flying his little arc
         const crewedNow = !!veh && veh.state === 'crewed' && !veh.hop
         thor.visible = !crewedNow
         thorShadow.visible = !crewedNow
-        // +18 keeps him (and his shadow at -1) above the next tile row's ground, below its
-        // props; aboard he draws over the whole hull sprite (no per-part masking at this scale)
+        // +18 keeps him, and his shadow at -1, above the next tile row's ground and below its props; aboard he draws over the whole hull sprite, since there is no per-part masking at this scale
         thor.zIndex = aboard && veh
           ? Math.floor(veh.tx + veh.ty) * 16 + 10
           : here.layer > 0 ? here.z + 2 : Math.floor(pos.tx + pos.ty) * 16 + 18
         ;(window as unknown as { __thor: object }).__thor = { tx: pos.tx, ty: pos.ty, layer: here.layer, lift: renderLift, pen, cam: cs.cam ? { ...cs.cam } : null, pose: !!cs.pose, wscale: world.scale.x, boat: veh ? { state: veh.state, tx: +veh.tx.toFixed(2), ty: +veh.ty.toFixed(2), ang: +veh.ang.toFixed(2), bucket: veh.bucket, spd: +veh.spd.toFixed(3) } : null } // dev introspection
-        // shadow: a flat 2:1 iso ellipse pinned right under his feet (no rotation/offset —
-        // an offset rotated blade read as levitation); shrinks + fades as he leaps
+        // shadow: a flat 2:1 iso ellipse pinned right under his feet with no rotation or offset, because an offset rotated blade read as levitation; it shrinks and fades as he leaps
         const shf = Math.max(0.55, 1 - (-(jy + hopJy)) / 110)
         thorShadow.width = 32 * shf; thorShadow.height = 16 * shf
         thorShadow.alpha = 0.62 * Math.max(0.32, 1 - (-(jy + hopJy)) / 90)
         thorShadow.position.set(x, y + 3 + bobOff); thorShadow.zIndex = thor.zIndex - 1
         at += tk.deltaMS
         const wf = walk[facing] ?? walk[cardinalOf(facing)]
-        // sprint (shift held): faster stride cadence + a slight forward-motion stretch;
-        // at the helm the keys steer the SHIP, so Thor stands and rides; on deck he only
-        // strides when he actually moves (pushing a rail used to moonwalk in place)
+        // sprint on shift held is a faster stride cadence plus a slight forward-motion stretch; at the helm the keys steer the ship so Thor stands and rides, and on deck he only strides when he actually moves, because pushing a rail used to moonwalk in place
         const animMove = moving && !(veh && !veh.hop && veh.state === 'crewed')
         thor.texture = cs.pose ? cs.pose.tex : (animMove && wf) ? wf[Math.floor(at / (sprinting ? 68 : 110)) % wf.length] : (idle[facing] ?? idle['south'] ?? thor.texture)
-        // camera follow (a running cutscene may hand the camera a target + zoom of its own;
-        // otherwise the standard Thor follow, biased down so the ocean fills the frame above him)
+        // camera follow: a running cutscene may hand the camera a target and zoom of its own, otherwise the standard Thor follow, biased down so the ocean fills the frame above him
         const vw = instance.renderer.width, vh = instance.renderer.height
         const camZ = cs.cam?.zoom ?? ZOOM
         if (world.scale.x !== camZ) world.scale.set(camZ)
         const camTX = cs.cam ? isoX(cs.cam.x, cs.cam.y) : x
         const camTY = cs.cam ? isoY(cs.cam.x, cs.cam.y) : y
-        // aboard, the camera EASES toward its target: when the view swaps, Thor
-        // re-projects onto the new drawn deck and the ride glides through it instead of
-        // popping; ashore (and in cutscenes) it stays hard-locked
+        // aboard, the camera eases toward its target so a view swap re-projects Thor onto the new drawn deck and the ride glides through it instead of popping; ashore and in cutscenes it stays hard-locked
         if (aboard && !cs.cam && camS.on) {
           const kc = Math.min(1, dt * 0.28)
           camS.x += (camTX - camS.x) * kc; camS.y += (camTY - camS.y) * kc
         } else { camS.x = camTX; camS.y = camTY }
         camS.on = aboard && !cs.cam
         world.x = vw / 2 - camS.x * camZ; world.y = vh * 0.64 - camS.y * camZ
-        // FLOWING WATER + THE TIDE (ocean module): traveling swell brightness across the tiles,
-        // fronts sweeping the shore curve — the shared water animated with this map's geometry.
+        // flowing water and the tide from the ocean module: traveling swell brightness across the tiles and fronts sweeping the shore curve, the shared water animated with this map's geometry
         const wt = performance.now() / 1000
         const reachOf = makeReachOf(fronts, wt)
         animSwells(waterSprites, wt, reachOf)
         animTide(fronts, wt, shoreAt)
-        // THE DELIVERING WAVE (I-2): the bottle waits offshore, then rides the next real tide
-        // front's leading edge up the sand — rolling while the water carries it — and settles
-        // in the wet band as the wave lets go. Uses the live tide math, not its own animation.
+        // the delivering wave: the bottle waits offshore, then rides the next real tide front's leading edge up the sand, rolling while the water carries it, and settles in the wet band as the wave lets go, using the live tide math rather than its own animation
         if (bottleWave) {
           const b = bottleWave, ba = csActors.get('bottle')
           if (ba) {
@@ -1542,20 +1427,17 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             const uu = ((u % TIDE_T) + TIDE_T) % TIDE_T
             const [reach] = tidePhase(u)
             if (b.phase === 'wait') {
-              // drift gently beyond the waterline; ride WHICHEVER front launches first
-              // (the two are staggered, so the wait halves — Ash: it dragged)
+              // drift gently beyond the waterline and ride whichever front launches first, because the two are staggered so the wait halves; waiting on one front dragged
               const s0 = b.from + 0.12 * Math.sin(wt * 1.1)
               csActorPlace('bottle', (s0 + b.d) / 2, (s0 - b.d) / 2)
               ba.sp.rotation = 0.14 * Math.sin(wt * 1.3)
               for (let f = 0; f < fronts.length; f++) {
                 const uf = ((wt - fronts[f].off - b.d * SWEEP) % TIDE_T + TIDE_T) % TIDE_T
-                // a front just launched OR mid-launch both count — the wait must stay short
+                // a front just launched or mid-launch both count, because the wait must stay short
                 if (uf < 0.45) { b.phase = 'ride'; b.from = s0; b.fi = f; break }
               }
             } else if (b.phase === 'ride') {
-              // the bottle trails just behind the foam edge and can only ever move UP the
-              // sand: eased pickup from its drift spot, grounded at its furthest reach —
-              // no teleport when the wave launches, no slide-back when it retracts
+              // the bottle trails just behind the foam edge and can only ever move up the sand: eased pickup from its drift spot, grounded at its furthest reach, so no teleport when the wave launches and no slide-back when it retracts
               const sFront = shoreAt(b.d) + reach * TIDE_AMP - 0.3
               const k = Math.min(1, uu / 1.5)
               const carry = b.from + (Math.min(b.sBeach, sFront) - b.from) * (k * k * (3 - 2 * k))
@@ -1576,8 +1458,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             }
           }
         }
-        // the guide trail: chevrons march the straight line from Thor to the destination,
-        // pointing along the path, translucent, the bob pulse traveling toward the goal
+        // the guide trail: chevrons march the straight line from Thor to the destination, pointing along the path, translucent, the bob pulse traveling toward the goal
         if (pointer) {
           const ptx = pointer.ship && veh ? veh.tx : pointer.x
           const pty = pointer.ship && veh ? veh.ty : pointer.y
@@ -1602,7 +1483,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             const px2 = ax + ddx * t2, py2 = ay + ddy * t2
             sp.position.set(px2, py2 - 22 + 4.5 * Math.sin(wt * 3.4 - i * 0.85))
             sp.rotation = rot
-            sp.alpha = 0.85 + 0.06 * Math.sin(wt * 3.4 - i * 0.85)   // Ash: barely translucent
+            sp.alpha = 0.85 + 0.06 * Math.sin(wt * 3.4 - i * 0.85)   // kept barely translucent
             sp.scale.set(1)
             sp.zIndex = 999990 + i   // a guide overlay rides ABOVE the world, always
           }
@@ -1612,8 +1493,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         animSparkles(sparkles, wt)
         // sea-breeze sway: slow lean + a faster flutter on top, per-plant phase
         for (const s of swaying) s.sp.rotation = s.amp * (Math.sin(wt * 0.7 + s.ph) + 0.35 * Math.sin(wt * 1.9 + s.ph * 2.3))
-        // moored boats ride the swell: slow bob + a whisper of roll; the foam collar breathes
-        // against the hull so the boats sit IN the water, not on it
+        // moored boats ride the swell with a slow bob and a whisper of roll, and the foam collar breathes against the hull so they sit in the water rather than on it
         for (const b of boats) {
           const bob = Math.sin(wt * 0.55 + b.ph)
           b.sp.position.y = b.y + 2.2 * bob
@@ -1625,7 +1505,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         // crabs: quick sideways bursts along the shore, then hold still
         for (const c of crabs) {
           if (wt > c.next) {
-            if (Math.abs(c.tgt - c.d) < 0.05) { // idle over — pick a new dash inside the home range
+            if (Math.abs(c.tgt - c.d) < 0.05) { // idle over, pick a new dash inside the home range
               c.tgt = Math.max(c.home - 4, Math.min(c.home + 4, c.d + (hash(c.d * 7.7, wt) - 0.5) * 3.2))
               c.speed = 2.6 + hash(c.d, wt * 1.3) * 1.6
             }
@@ -1660,8 +1540,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       // distant sun-glimmer: a soft gold band fading down across the far water
       const horizon = new Sprite(vgradient(256, [[0, 'rgba(255,196,122,0.16)'], [0.55, 'rgba(255,196,122,0.06)'], [1, 'rgba(255,196,122,0)']]))
       horizon.blendMode = 'add'; instance.stage.addChild(horizon)
-      // low-sun ray wash: a faint warm diagonal gradient from the upper-left, so the light has a
-      // direction the eye can feel (chromatic warm/cool split works with the cool shadows)
+      // low-sun ray wash: a faint warm diagonal gradient from the upper-left so the light has a direction the eye can feel, and the warm and cool split works with the cool shadows
       const rays = new Sprite(vgradient(512, [[0, 'rgba(255,208,140,0.1)'], [0.5, 'rgba(255,208,140,0.03)'], [1, 'rgba(255,208,140,0)']]))
       rays.anchor.set(0.5); rays.rotation = -0.62; rays.blendMode = 'add'; instance.stage.addChild(rays)
       const vig = new Sprite(radial(512, [[0, 'rgba(0,0,0,0)'], [0.45, 'rgba(0,0,0,0)'], [0.72, 'rgba(30,19,8,0.34)'], [1, 'rgba(16,9,3,0.78)']])); instance.stage.addChild(vig)
@@ -1682,9 +1561,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       destroyed = true
       offLook()
       window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku)
-      /* AND THE HANDLE IS DROPPED BEFORE THE TEARDOWN, not after, so a second
-       * cleanup (a remount inside one frame, which is what an abort race is)
-       * has nothing to destroy rather than destroying the same app twice. */
+      /* the handle is dropped before the teardown, not after, so a second cleanup (a remount inside one frame, which is what an abort race is) has nothing to destroy rather than destroying the same app twice */
       const dying = app
       app = null
       if (dying) { try { dying.destroy(true, { children: true }) } catch { /* already gone */ } }
@@ -1716,9 +1593,7 @@ function makeFleck(a: number, b: number) {
   ctx.fillStyle = hx(a); ctx.beginPath(); ctx.ellipse(6, 6, 3.4, 2, 0, 0, Math.PI * 2); ctx.fill()
   const t = Texture.from(cv); t.source.scaleMode = 'nearest'; return t
 }
-/* A PALE POOL, for the waterline contact under a floating hull. `makeShadow`
- * beside it is the SAND shadow and is deliberately dark; a hull does not cast
- * one of those onto the sea, it displaces light. */
+/* a pale pool for the waterline contact under a floating hull; `makeShadow` beside it is the sand shadow and is deliberately dark, because a hull does not cast one of those onto the sea, it displaces light */
 function makeWakePool() {
   const cv = document.createElement('canvas'); cv.width = cv.height = 64
   const ctx = cv.getContext('2d')!, g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
@@ -1730,8 +1605,7 @@ function makeWakePool() {
 }
 
 function makeShadow() {
-  // cool violet-teal shadow (golden hour shadows go cool, never black or gray) — a dense core
-  // that still registers over bright sand, feathering out
+  // cool violet-teal shadow, because golden hour shadows go cool and never black or gray, with a dense core that still registers over bright sand and feathers out
   const cv = document.createElement('canvas'); cv.width = cv.height = 64
   const ctx = cv.getContext('2d')!, g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
   g.addColorStop(0, 'rgba(40,42,72,0.92)'); g.addColorStop(0.45, 'rgba(40,42,72,0.55)'); g.addColorStop(0.8, 'rgba(40,42,72,0.16)'); g.addColorStop(1, 'rgba(40,42,72,0)')

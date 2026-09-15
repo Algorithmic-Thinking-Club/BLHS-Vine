@@ -4,9 +4,7 @@ export type PathKind = 'walk' | 'sail' | 'camera'
 
 export const PATH_KINDS: PathKind[] = ['walk', 'sail', 'camera']
 
-/* A NAMED WAYPOINT, so a beat can say "be at the doorway by the time this line
- * ends" instead of "walk for 2.4 seconds". `at` is an index into `points`, which
- * is what stops a mark naming a waypoint that is not there. */
+/* a named waypoint, so a beat can say be at the doorway by the time this line ends instead of walk for 2.4 seconds; `at` is an index into `points`, which is what stops a mark naming a waypoint that is not there */
 export type PathMark = { at: number; name: string; label?: string }
 
 export type Pathway = {
@@ -15,16 +13,11 @@ export type Pathway = {
   points: { x: number; y: number }[]
   /** a patrol returns to its first point; an approach does not */
   closed: boolean
-  /** whether travelling it backwards is legal. A sail line into a berth is not a
-   *  line out of one, so one-way is the honest default. */
+  /** whether travelling it backwards is legal: a sail line into a berth is not a line out of one, so one-way is the honest default */
   twoWay: boolean
   /** the heading to hold on arrival, in the same eight-way vocabulary as walking */
   facing?: string
-  /** THE SAME HEADING AS AN ANGLE, degrees clockwise from north, and the one to believe when it is
-   *  here. Eight words cannot say "along this shore" when a coast runs at 23 degrees, and a berth is
-   *  the one mark whose whole job is to lie along something. `facing` is still written beside it as
-   *  the nearest of the eight, so nothing that reads a word has to learn anything and a bundle
-   *  published before this existed reads exactly as it did. */
+  /** the same heading as an angle, degrees clockwise from north and the one to believe when it is here, because eight words cannot say along this shore when a coast runs at 23 degrees; `facing` is still written beside it as the nearest of the eight, so a reader of words needs no change and an older bundle reads as before */
   bearing?: number
   marks: PathMark[]
   meta?: Record<string, unknown>
@@ -39,9 +32,7 @@ const num = (v: unknown): number | null => {
   return null
 }
 
-/* the same rule MAPVIS validates names by where they are typed, applied on the
- * reading side, because a bundle can also be hand-edited and a name that is not a
- * legal python identifier is a name the API cannot expose */
+/* names are validated again on the reading side, because a bundle can be hand-edited and a name that is not a legal python identifier is one the API cannot expose */
 export const isPathName = (s: unknown) => typeof s === 'string' && /^[a-z][a-z0-9_]{0,47}$/.test(s)
 
 /* reads the paths off a map, dropping any one that cannot be understood */
@@ -76,9 +67,7 @@ export function readPaths(map: PathSource, mapId = ''): Pathway[] {
         + `so the whole route is dropped rather than silently renumbered`)
       continue
     }
-    /* ONE POINT IS NOT A LINE. A route of a single waypoint is a `walk_to` with a
-     * longer name and it would travel zero pixels while reporting that it went
-     * somewhere, which is the failure this project keeps paying for. */
+    /* one point is not a line: a route of a single waypoint travels zero pixels while reporting that it went somewhere */
     if (pts.length < 2) {
       console.warn(`[paths] ${mapId}: path "${name}" has ${pts.length} usable point${pts.length === 1 ? '' : 's'} and needs two`)
       continue
@@ -94,8 +83,7 @@ export function readPaths(map: PathSource, mapId = ''): Pathway[] {
       const o = m as Record<string, unknown>
       const at = num(o?.at)
       const mn = typeof o?.name === 'string' ? o.name : ''
-      /* a mark outside the line is a mark that cannot fire, and it is silent
-       * about it, so it is named here instead of at the moment it does not */
+      /* a mark outside the line is a mark that cannot fire and is silent about it, so it is named here instead of at the moment it does not */
       if (at === null || !mn || at < 0 || at >= pts.length) {
         if (mn) console.warn(`[paths] ${mapId}: mark "${mn}" on "${name}" points at waypoint ${String(o?.at)} of ${pts.length}`)
         continue
@@ -121,16 +109,14 @@ export function readPaths(map: PathSource, mapId = ''): Pathway[] {
 
 /* ---- the questions a route is asked ---------------------------------------- */
 
-/** the waypoints in travel order, reversed when a two-way route is run backwards
- *  and closed back onto its own first point when it is a patrol */
+/** the waypoints in travel order, reversed when a two-way route is run backwards and closed back onto its own first point when it is a patrol */
 export function legsOf(p: Pathway, backwards = false): { x: number; y: number }[] {
   const pts = backwards ? [...p.points].reverse() : [...p.points]
   if (p.closed && pts.length > 2) pts.push({ ...pts[0] })
   return pts
 }
 
-/** how far the line runs, in painting pixels, so a caller can size a timeout off
- *  the route rather than off a constant that is wrong on the next map */
+/** how far the line runs, in painting pixels, so a caller can size a timeout off the route rather than off a constant that is wrong on the next map */
 export function lengthOf(p: Pathway, backwards = false): number {
   const pts = legsOf(p, backwards)
   let d = 0

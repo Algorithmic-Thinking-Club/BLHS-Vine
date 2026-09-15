@@ -16,9 +16,7 @@ const frame = (leader: [number, number], me: [number, number], leaderSpeed: numb
 
 describe('how far apart two bodies are', () => {
   it('takes the painting squash out, so a vertical gap is not undercounted', () => {
-    /* the same picture measured the other way is 0.72 of this, which is the
-     * multiply `lead_to` used to do, and it is why the head start and the gate
-     * disagreed about the same two bodies */
+    /* the same picture measured the other way is 0.72 of this, the multiply `lead_to` used to do, and why the head start and the gate disagreed about the same two bodies */
     expect(groundApart({ x: 0, y: 0 }, { x: 0, y: 36 }, 0.72)).toBeCloseTo(50, 1)
     expect(groundApart({ x: 36, y: 0 }, { x: 0, y: 0 }, 0.72)).toBeCloseTo(36, 1)
   })
@@ -30,8 +28,7 @@ describe('how far apart two bodies are', () => {
 
 describe('walking behind the principal', () => {
   it('stands still on the frame the two of them are beside each other', () => {
-    /* the real opening frame of the rail: the principal is placed at the tunnel
-     * mouth beside Thor, 25 ground pixels away, and the walk has just started */
+    /* the real opening frame of the rail: the principal stands at the tunnel mouth beside Thor, 25 ground pixels away, with the walk just started */
     const s = followStep(frame([207, 123], [185, 114], 54))
     expect(s.apart).toBeCloseTo(25.3, 1)
     expect(s.hold).toBe(true)
@@ -41,8 +38,7 @@ describe('walking behind the principal', () => {
   it('walks at the leader\'s pace and not his own once he is clear', () => {
     const s = followStep(frame([260, 170], [220, 140], 54))
     expect(s.hold).toBe(false)
-    /* HALF A FRAME. Thor's own top speed is twice the map's, so a walk pace of
-     * 54 is half of it. Answering 1 here is the defect Ash saw. */
+    /* half a frame, because Thor's own top speed is twice the map's, so a walk pace of 54 is half of it and answering 1 here was the defect */
     expect(s.paceScale).toBeCloseTo(0.5, 6)
   })
 
@@ -75,8 +71,7 @@ describe('walking behind the principal', () => {
   })
 
   it('holds him at exactly the gap rather than one pixel inside it', () => {
-    /* the boundary is a stop, so a body that has just reached two body lengths
-     * does not take one more step through it */
+    /* the boundary is a stop, so a body that has just reached two body lengths does not take one more step through it */
     expect(followStep(frame([240, 100], [200, 100], 54)).hold).toBe(true)
     expect(followStep(frame([241, 100], [200, 100], 54)).hold).toBe(false)
   })

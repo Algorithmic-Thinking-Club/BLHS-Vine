@@ -2,17 +2,10 @@
 
 @import '../ui/tokens.css';
 
-/* ---- THE BUTTON, ABOVE THE QUESTION MARK --------------------------------
- *
- * Ash asked for it in those words: *"a button to open the sialign map alone, above
- * the help button."* So it is the help button's own plate, the same width and the
- * same corner, stacked directly on top of it. Its own file rather than `help.css`
- * because one of them is the game's manual and the other is the sea.
- */
+/* the chart button is the help button's own plate, the same width and the same corner, stacked directly above it, and it keeps its own file because one control is the game's manual and the other is the sea */
 .cp-btn {
   position: fixed;
-  /* the help button's own bottom, plus its height and a gap: they read as one
-     stack of two rather than as two controls that happen to be near each other */
+  /* the help button's own bottom, plus its height and a gap: they read as one stack of two rather than as two controls that happen to be near each other */
   bottom: calc(max(2.4vh, 14px) + 50px + 8px);
   right: max(2vw, 14px);
   z-index: 50;
@@ -25,9 +18,7 @@
 }
 /* the same rule every corner control follows: a panel takes the window */
 html[data-panels]:not([data-panels='0']) .cp-btn { visibility: hidden; }
-/* AND IT STANDS DOWN BEHIND THE BARS, which the corner stack and the question mark
-   both do and this did not: it was on screen over the ship sailing away, inside a
-   cutscene, which is the one place nothing of the game's furniture belongs. */
+/* it stands down behind the bars the way the corner stack and the question mark do, because it was left on screen inside a cutscene, the one place nothing of the game's furniture belongs */
 html[data-movie='1'] .cp-btn { visibility: hidden; }
 /* and it is not offered where there is no world to sail on */
 .cp-btn[hidden] { display: none !important; }
@@ -52,9 +43,7 @@ html[data-movie='1'] .cp-btn { visibility: hidden; }
 html[data-rm='1'] .cp-veil { animation: none; }
 
 .cp-card {
-  /* WIDE, BECAUSE THE THING IN IT IS A MAP. The Handbook gives the chart whatever
-     is left after six tabs and a title block, which on a Chromebook is a strip about
-     three hundred pixels tall. On its own it gets the window. */
+  /* wide, because the thing in it is a map: inside the Handbook the chart gets whatever six tabs and a title block leave, about a 300px strip on a Chromebook, so on its own it gets the window */
   width: min(1100px, 94vw);
   max-height: 92vh;
   box-sizing: border-box;
@@ -95,16 +84,7 @@ html[data-rm='1'] .cp-card { animation-duration: 1ms; }
 }
 .cp-close { grid-column: 2; grid-row: 1 / span 2; }
 
-/* ---- THE REGISTER IS REACHABLE ON A CHROMEBOOK --------------------------
- *
- * The chart is a picture of the water with a LIST under it, and the list is the only
- * way a keyboard or the plain arm reaches an island. Measured at 1366x768: the card
- * fits inside the window and the list ran off the bottom of it, cut mid-row with
- * nothing on the page saying there was more. Two islands were below the fold.
- *
- * The element this has to be is `.ch-chart`, which is what `Chart` actually renders;
- * the two class names guessed at here before never matched anything, so the rule did
- * nothing at all. The title and Close stay put and the chart scrolls under them. */
+/* the register under the chart is the only way a keyboard reaches an island, and measured at 1366x768 it ran off the bottom of the card cut mid-row with two islands below the fold, so `.ch-chart` scrolls under a fixed title and Close, and it has to be that selector because it is what `Chart` renders */
 .cp-card > .ch-chart { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 
 /* the plain arm gets the same screen with no wood on it */

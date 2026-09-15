@@ -12,10 +12,7 @@ import './run.css'
 import { yearWord } from './year'
 import './yearcard.css'
 
-/* THE YEAR WORD COMES FROM `run/year.ts` (Ash, 2026-09-09). There were three
- * private copies of this table in the repo and one hardcoded literal beside
- * each: this card printed "Year two" at the top and "That is year one" on the
- * only button, six inches apart. */
+/* the year word comes from `run/year.ts`, because three private copies of that table with a hardcoded literal beside each had this card printing "Year two" at the top and "That is year one" on its only button */
 
 type CardRow = { key: string; title: string; meta?: string; done?: boolean }
 
@@ -38,18 +35,7 @@ function pickedRows(year: number): CardRow[] {
 }
 
 /* what he earned, off the one composer that knows: grades, badges, finished cords */
-/* ---- ONE THING, ONE ROW ---------------------------------------------------
- *
- * The yearbook keeps its record in sections with a heading each - what you were
- * graded on, what badges went on the wall, what threads you finished - and each
- * heading explains what its rows are. This card puts three of those sections under
- * ONE heading, "What you earned", and that is where it stopped adding up: a class
- * appears as a grade AND as the badge that grade earned, so year one printed seven
- * rows for four things and a student's own transcript listed Spanish twice.
- *
- * A badge for something already on the paper is the same achievement said again, so
- * the paper keeps it and the badge is dropped. A badge for something NOT on the
- * paper - a club's sticker, a thing with no grade - is its own row and stays. */
+/* one thing, one row: three yearbook sections land under the single heading "What you earned", so a class showed as a grade and again as the badge that grade earned and year one printed seven rows for four things, so a badge for something already on the paper is dropped and a badge with no grade behind it stays */
 function earnedRows(page: YearbookPage): CardRow[] {
   const of = (id: string) => page.sections.find((sec) => sec.id === id)?.rows ?? []
   const said = new Set<string>()
@@ -96,9 +82,7 @@ export function YearCard({ year, page, onDone }: {
   /** the one press: turn the page if the year can be turned, close it if not */
   onDone: () => void
 }) {
-  /* NO ESCAPE AND NO CLICK OFF. This only ever mounts inside the bars, and the
-   * film's own rule is that nothing in it is skippable: the plank is the way on
-   * and it is the only control on the card. */
+  /* no escape and no click off, because this only mounts inside the bars and nothing in the film is skippable, so the plank is the only control on the card */
   const panel = usePanel({ onClose: () => {}, closeOnEscape: false, label: `Year ${year}` })
   useEffect(() => { track('yearcard_shown', { year }) }, [year])
 
@@ -109,9 +93,7 @@ export function YearCard({ year, page, onDone }: {
     <div className="yb-veil yc-veil">
       <div {...panel} className="yc-card kit-surface-panel">
         <header className="yc-top">
-          {/* THE NUMBER AND NOTHING BESIDE IT. The spread prints "still open" or
-              "closed" here, which on this card would be the game answering the
-              counselor back on the frame she says the year is done. */}
+          {/* the number and nothing beside it, because the spread's "still open" or "closed" would be the game answering the counselor back on the frame where she says the year is done */}
           <h2 className="yc-title">Year {yearWord(year)}</h2>
         </header>
         <div className="yc-body">

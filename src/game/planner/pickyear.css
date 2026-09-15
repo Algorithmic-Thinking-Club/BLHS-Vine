@@ -82,8 +82,7 @@
 }
 .py-per-static { cursor: default; }
 .py-period-elective .py-per-press { min-height: 34px; background: var(--kit-paper); }
-/* the number is a fixed column so seven rows read as one list and not as seven
-   sentences that happen to start with the word Period */
+/* the number is a fixed column so seven rows read as one list rather than seven sentences that start with the word Period */
 .py-per-no {
   flex: none;
   width: 88px;
@@ -102,8 +101,7 @@
   font-size: var(--kit-fs);
   color: var(--kit-ink-head);
 }
-/* a blank period is drawn blank: the word sits on a ruled line the way it does
-   on a paper timetable, so "there is something missing here" is a picture */
+/* a blank period is drawn blank, the word on a ruled line the way a paper timetable does it, so the missing thing is a picture */
 .py-per-blank {
   color: var(--kit-ink-quiet);
   border-bottom: 2px dashed var(--kit-edge-strong);
@@ -115,8 +113,7 @@
   --kit-fs-raw: calc(13px * var(--kit-text-scale));
   font-size: var(--kit-fs);
 }
-/* the one row a student may press. Gold is the objective colour the world uses
-   on a lit station and it is the same word here. */
+/* the one row a student may press, in the gold the world uses on a lit station so the colour means the same thing here */
 .py-period-live .py-per-press {
   cursor: pointer;
   border-color: var(--kit-gold-edge);
@@ -212,8 +209,7 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
   transition: background var(--kit-t-quick) ease, transform var(--kit-t-quick) ease;
 }
 .py-class:hover { background: var(--kit-paper); transform: translateY(-1px); }
-/* the seat the tick sits in is drawn whether or not the tick is, so a row does
-   not move sideways the moment it is chosen */
+/* the seat the tick sits in is drawn whether or not the tick is, so a row does not move sideways the moment it is chosen */
 .py-tick {
   flex: none;
   width: 24px; height: 24px;
@@ -246,8 +242,7 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
   font-size: var(--kit-fs);
   line-height: 1.15;
 }
-/* the line under the rows: what to do, or why the last press was refused. It
-   has a height whether or not it has a refusal, so the sheet never jumps. */
+/* the line under the rows says what to do or why the last press was refused, and keeps its height when empty so the sheet never jumps */
 .py-classnote {
   margin: 0;
   min-height: 1.3em;
@@ -264,8 +259,7 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
   position: relative;
   box-sizing: border-box;
   flex: 1 1 190px;
-  /* every card in a row is the height of the tallest, so five choices read as
-     five equal signs and not as a skyline */
+  /* every card in a row is the height of the tallest, so five choices read as five equal signs and not as a skyline */
   align-self: stretch;
   display: flex;
   flex-direction: column;
@@ -283,9 +277,7 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
   color: var(--kit-ink-body);
   transition: transform var(--kit-t-quick) ease, filter var(--kit-t-quick) ease;
 }
-/* A CLASS IS A SMALLER DECISION THAN A SEASON, and the screen has to hold both
-   plus the wall plus the button inside 768 pixels. The brief's "big drawn cards"
-   is about the five things you DO; the classes are a list you pick two from. */
+/* a class is a smaller decision than a season and the screen must hold both plus the wall plus the button inside 768 pixels, so big drawn cards are for the five things you do and classes stay a list you pick two from */
 .py-card-sm {
   min-height: 0;
   padding: 4px 2px;
@@ -299,18 +291,14 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
 /* taken is a stamp and a heavy edge, never a tint on its own */
 .py-card-on {
   box-shadow: inset 0 0 0 3px var(--kit-sea);
-  /* LOCKED. It is a sign now and not a button: it keeps a card's width rather
-     than growing to fill the row its chips share, and it does not lift under
-     the pointer, because nothing happens when it is pressed. */
+  /* locked, so it is a sign and not a button: it keeps a card's width rather than growing to fill the row its chips share, and it does not lift under the pointer because pressing it does nothing */
   flex: 0 0 218px;
   cursor: default;
-  /* ROOM FOR THE BOTTOM ROW. The stamp and the put-back sit on the card's
-     bottom edge, and the words ran under them (`fix-4/pick-2` first take). */
+  /* room for the bottom row, because the stamp and the put-back sit on the card's bottom edge and the words ran under them at `fix-4/pick-2` */
   padding-bottom: 34px;
 }
 .py-card-on:hover { transform: none; filter: none; }
-/* THE ONE WAY BACK, inside the locked card, in the corner the stamp leaves free.
-   Small on purpose: an undo is never the loudest thing on the screen. */
+/* the one way back, inside the locked card in the corner the stamp leaves free, kept small because an undo is never the loudest thing on the screen */
 .py-putback {
   position: absolute;
   left: 10px;
@@ -401,9 +389,7 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
   align-items: center;
   gap: 9px;
   padding: 6px 9px;
-  /* AN OUTLINE IS A HOLE, and a hole is drawn as an absence: a dashed seat with
-     nothing in it. It is the same vocabulary the year sheet's empty socket uses,
-     so a student who meets one has met the other. */
+  /* an outline is a hole and a hole is drawn as an absence, a dashed seat with nothing in it, the same vocabulary the year sheet's empty socket uses */
   border: 2px dashed var(--kit-rule-firm);
   border-radius: var(--kit-r-card);
 }
@@ -428,9 +414,7 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
   /* one line per frame so the wall is one row tall whatever is on it */
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-/* ONE ROW OF FRAMES, however many there are: the wall grew a grid row per
-   three picks and pushed the plank toward the fold. Six seats fit one row at
-   this width; more than that wraps, which a full year never reaches. */
+/* one row of frames however many there are: a grid row per three picks pushed the plank toward the fold, and six seats fit one row at this width, more wraps, which a full year never reaches */
 .py-wall { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 6px; }
 .py-slot { padding: 5px 8px; }
 
@@ -449,8 +433,7 @@ html[data-rm='1'] .py-lit { animation: none; box-shadow: 0 0 0 3px var(--kit-gol
   padding: 6px 0 2px;
   background: var(--kit-paper);
 }
-/* with no paper token behind it (the plain arm answers `--kit-paper` too, so
-   this is only the no-kit case) the plank still needs a ground of its own */
+/* with no paper token behind it the plank still needs a ground of its own, and the plain skin answers `--kit-paper` too so this is only the no-kit case */
 html[data-skin='plain'] .py-foot { background: var(--kit-paper-hi, #fff); }
 .py-notyet {
   --kit-fs-raw: calc(16px * var(--kit-text-scale));
@@ -458,9 +441,7 @@ html[data-skin='plain'] .py-foot { background: var(--kit-paper-hi, #fff); }
   color: var(--kit-ink-head);
 }
 .py-close { margin-right: auto; }
-/* THE PLANK THAT ENDS THE BEAT IS THE BIGGEST CONTROL ON THE SCREEN, by a
-   margin and not by luck: at its natural size it was smaller than a class row,
-   so a student steering by size would untick a class before pressing it. */
+/* the plank that ends the beat is the biggest control on the screen by a margin: at its natural size it was smaller than a class row, so a student steering by size would untick a class before pressing it */
 .py-go { min-width: 330px; min-height: 66px; }
 /* once the sheet can be stamped the glow moves to the plank that stamps it */
 .py-go.py-lit { animation: py-glow-plank 1.6s ease-in-out infinite; }
@@ -507,9 +488,7 @@ html[data-skin='plain'] .py-chip { background: none; border-color: var(--kit-edg
 html[data-skin='plain'] .py-putback,
 html[data-skin='plain'] .py-untick { background: none; border-color: var(--kit-edge-strong); }
 
-/* the class card carries one line and nothing else, so its name is body-sized:
-   at display size the longer catalogue names wrapped to three lines and the row
-   grew past the fold this screen is not allowed to have */
+/* the class card carries one line so its name is body-sized: at display size the longer catalogue names wrapped to three lines and the row grew past the fold this screen is not allowed to have */
 .py-card-sm .py-card-name {
   --kit-fs-raw: calc(15px * var(--kit-text-scale));
   font-size: var(--kit-fs);

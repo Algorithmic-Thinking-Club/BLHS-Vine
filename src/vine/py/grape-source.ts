@@ -9,9 +9,7 @@ export type SourcedFact = { text: string; source: string }
 /** the explicit marker. Absent is a mistake; this is a decision. */
 export const UNKNOWN = 'unknown'
 
-/* P18. What a student actually needs to know to walk into this thing on a
- * Tuesday, which is not the same as what makes a good island and is the half a
- * fourteen year old builder skips. Required, so it gets skipped out loud. */
+/* the practical facts a student needs to walk in on a Tuesday, which is not what makes a good island and is the half a beginner skips, so every field is required and a gap is reported out loud */
 export type IslandContent = {
   /** what it is */
   what: SourcedFact
@@ -58,18 +56,14 @@ const CONTENT_OPTIONAL = ['blurb', 'sticker', 'meets'] as const
 /** a blurb is a line in a list, not a paragraph */
 const BLURB_WORDS = [4, 6] as const
 
-/* lower case, digits, single hyphens. The roster's own id shape, and safe as a
- * folder name, a url segment and a filename on every machine. */
+/* lower case, digits and single hyphens: the roster's own id shape, and safe as a folder name, a url segment and a filename on every machine */
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/
-/* what `import questions` can actually spell. A dot, a space or a capital in a
- * filename passes every other check and then cannot be imported at all. */
+/* what `import questions` can actually spell: a dot, a space or a capital in a filename passes every other check and then cannot be imported at all */
 const STEM = /^[a-z_][a-z0-9_]*$/
 /* the string a person reads, on one line, short enough for the box it lands in */
 const TEXT_MAX = 80
 
-/* the engine writes both of these into the runtime before the island is
- * imported, and the island's own folder goes on sys.path AHEAD of them, so a
- * member shipping either one would shadow the real thing with a stale copy */
+/* the engine writes both into the runtime before the island is imported and the island's own folder sits ahead of them on sys.path, so shipping either one shadows the real thing with a stale copy */
 const ENGINE_OWNED = ['vine.py', 'grape.py']
 
 /* module names python already has, which an island may not ship a file for */
@@ -97,13 +91,10 @@ export function manifestFaults(raw: unknown): string[] {
       out.push(`\`${key}\` is not a field this format has`)
     }
   }
-  /* complaining about the contents of fields while the shape is still wrong
-   * buries the one line that matters */
+  /* complaining about the contents of fields while the shape is still wrong buries the one line that matters */
   if (out.length) return out
 
-  /* Number.isInteger and not `!== FORMAT`, for the same reason the python side
-   * needs an explicit bool guard: 1.0 === 1 is true in JavaScript, and a version
-   * check that accepts a float accepts something the other half will not. */
+  /* `Number.isInteger` and not `!== FORMAT`, because 1.0 === 1 in JavaScript and a version check that accepts a float accepts something the python side will not */
   if (typeof m.format !== 'number' || !Number.isInteger(m.format)) {
     out.push(`\`format\` is ${JSON.stringify(m.format)}, which is not a whole number`)
   } else if (m.format !== FORMAT) {
@@ -115,8 +106,7 @@ export function manifestFaults(raw: unknown): string[] {
       out.push(`\`${key}\` is ${JSON.stringify(m[key])}, which is not a slug`)
     }
   }
-  /* THE KEY SPACES STAY DISJOINT. The roster refuses an id that is both a
-   * programme and a map, so an island shipping one can never be added to it. */
+  /* the key spaces stay disjoint: the roster refuses an id that is both a programme and a map, so an island shipping one could never be added to it */
   if (m.programme === m.map) {
     out.push(`\`programme\` and \`map\` are both ${JSON.stringify(m.map)}; they are `
       + 'different key spaces and the roster refuses an id that is in both')
@@ -130,9 +120,7 @@ export function manifestFaults(raw: unknown): string[] {
       out.push(`\`${key}\` has a line break or a control character in it, and it is `
         + 'rendered as one line')
     } else if ([...v].length > TEXT_MAX) {
-      /* code points, not UTF-16 units, because python's len() counts code points
-       * and an emoji is two units and one point. Counting differently is how the
-       * two checkers disagree about a title neither of them should argue over. */
+      /* code points, not UTF-16 units, because python's len() counts code points and an emoji is two units and one point, so counting differently makes the two checkers disagree over a title */
       out.push(`\`${key}\` is ${[...v].length} characters; keep it to ${TEXT_MAX} so it `
         + 'fits where it is drawn')
     }
@@ -168,9 +156,7 @@ function contentFaults(raw: unknown): string[] {
       continue
     }
     if (typeof f.text !== 'string' || !f.text.trim()) out.push(`\`content.${key}.text\` is empty`)
-    /* THE WHOLE POINT OF THE SECTION. A missing source is a member who did not
-     * think about it; "unknown" is a member who did. The game can render the
-     * second honestly and cannot render the first at all. */
+    /* a missing source is an author who did not think about it and "unknown" is one who did, and the game can render the second honestly and the first not at all */
     if (typeof f.source !== 'string' || !f.source.trim()) {
       out.push(`\`content.${key}.source\` is missing. Cite where the fact came from, `
         + `or put "${UNKNOWN}", which means you checked and nobody has published it`)
@@ -249,9 +235,7 @@ function moduleFaults(m: Record<string, unknown>): string[] {
     }
   }
 
-  /* against the count of NAMES, not of entries. A list holding one string and one
-   * number is not a list with a duplicate in it, and saying so sends a member
-   * looking for a repeated filename that is not there. */
+  /* against the count of names, not of entries: a list holding one string and one number is not a list with a duplicate, and saying so sends the author hunting a repeated filename that is not there */
   const names = mods.filter((n): n is string => typeof n === 'string')
   const lowered = new Set(names.map((n) => n.toLowerCase()))
   if (lowered.size !== names.length) out.push('`modules` lists the same file twice')
@@ -259,9 +243,7 @@ function moduleFaults(m: Record<string, unknown>): string[] {
   if (typeof m.entry !== 'string' || !mods.includes(m.entry)) {
     out.push(`\`entry\` is ${JSON.stringify(m.entry)}, which is not one of the modules`)
   }
-  /* THE ONE RULE THE MEMBERS' CHECKER HAS AND THIS ONE CANNOT: a .py file on
-   * disk that nobody listed. Over HTTP there is no directory to read, so that
-   * one only ever gets caught before the push. It is in tools/manifest.py. */
+  /* a .py file on disk that nobody listed can only be caught before the push, in tools/manifest.py, because over HTTP there is no directory to read */
   return out
 }
 
@@ -312,16 +294,13 @@ export function parseGrapeRef(params: URLSearchParams, fallback = 'hello'): Grap
   const gh = params.get('gh')
   if (gh) {
     const m = /^([\w.-]+)\/([\w.-]+)@([\w./-]+):([\w./-]+)$/.exec(gh)
-    /* no `..` in any of the four. Every one of them is pasted into a path, so a
-     * dot-dot segment lets a ref name one repository and fetch another. */
+    /* no `..` in any of the four, because each is pasted into a path and a dot-dot segment lets a ref name one repository and fetch another */
     if (m && !m.slice(1).some((part) => /(^|\/)\.\.?($|\/)/.test(part))) {
       return { at: 'github', owner: m[1], repo: m[2], branch: m[3], path: m[4] }
     }
   }
 
-  /* A WHITELIST, NOT A STRIP. Stripping unwanted characters let ".." through
-   * intact, and fetch normalises "/grapes/.." to "/", which hands the SPA's own
-   * index.html back as the island. Requiring a slug has no edge to find. */
+  /* a whitelist, not a strip: stripping unwanted characters let ".." through intact and fetch normalises "/grapes/.." to "/", which hands the SPA's own index.html back as the island */
   const asked = params.get('island') ?? ''
   return { at: 'origin', island: SLUG.test(asked) ? asked : fallback }
 }
@@ -334,19 +313,7 @@ export class GrapeSourceError extends Error {}
 const MAX_MODULES = 24
 const MAX_BYTES = 256 * 1024
 
-/* A DROPPED CONNECTION IS NOT AN ISLAND THAT DOES NOT EXIST.
- *
- * Measured on the live deploy, 2026-09-08: one `net::ERR_ABORTED` on
- * `panther-maw/island.py` and the whole home island failed to load. The room
- * still drew and still walked, so nothing looked broken, but the principal never
- * walked the student through the year and the closing never played. The console
- * said so and nobody was reading the console.
- *
- * That is a school wifi failure mode, not a server one: the files answered 200
- * to a `curl` a minute later and the same run passed on the next attempt. So a
- * transport failure is tried again, and only a transport failure: a 404, a web
- * page where a file should be, and a file over the size cap are all permanent
- * and still fail on the first try with the sentence they always had. */
+/* a dropped connection is not a missing island: one `net::ERR_ABORTED` silently lost the home island while the room still drew and walked, and the files answered 200 a minute later, so only transport failures retry; a 404, a web page where a file should be, and an oversize file stay permanent */
 const RETRIES = 2
 const RETRY_PAUSE_MS = 350
 
@@ -432,8 +399,7 @@ export async function fetchGrape(ref: GrapeRef, ms = 10_000): Promise<LoadedGrap
   }
   const manifest = raw as GrapeManifest
 
-  /* every module at once. They are a handful of small files and the alternative
-   * is a member watching them arrive one at a time on a school connection. */
+  /* every module at once, because they are a handful of small files and fetching them serially means watching them arrive one at a time on a school connection */
   const sources = await Promise.all(manifest.modules.map((n) => grab(`${base}${n}`, ms)))
   const files: Record<string, string> = {}
   manifest.modules.forEach((n, i) => { files[n] = sources[i] })

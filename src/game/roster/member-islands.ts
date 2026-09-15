@@ -23,9 +23,7 @@ export type MemberIsland = {
   source: string
 }
 
-/* the shape of the file is checked rather than asserted, because it is data a
- * member's pull request edits and a bad row should name itself here rather than
- * become a blank space somewhere in the planner */
+/* the shape of the file is checked rather than asserted, because it is data a member's pull request edits and a bad row should name itself here rather than become a blank space in the planner */
 export type IslandFault = { row: string; why: string }
 
 const RAW = data as { format: number; islands: unknown[] }
@@ -45,8 +43,7 @@ export function islandFaults(rows: unknown[] = RAW.islands): IslandFault[] {
     if (r.kind !== 'sport' && r.kind !== 'club') out.push({ row: where, why: '`kind` is sport or club' })
     if (typeof r.playable !== 'boolean') out.push({ row: where, why: '`playable` is true or false' })
     if (!Array.isArray(r.tags)) out.push({ row: where, why: '`tags` is a list, empty if none' })
-    /* THE KEY SPACES STAY DISJOINT, here as in the manifest and in the roster's
-     * own faults. An id that is both a programme and a map cannot be resolved. */
+    /* the key spaces stay disjoint, here as in the manifest and in the roster's own faults, because an id that is both a programme and a map cannot be resolved */
     for (const k of ['programme', 'map'] as const) {
       const v = r[k]
       if (typeof v !== 'string') continue
@@ -58,8 +55,7 @@ export function islandFaults(rows: unknown[] = RAW.islands): IslandFault[] {
   return out
 }
 
-/* a bad row is dropped rather than allowed to become an undefined somewhere in
- * the planner, and it is named out loud on the way out */
+/* a bad row is dropped rather than allowed to become an undefined in the planner, and it is named out loud on the way out */
 const bad = new Set(islandFaults().map((f) => f.row))
 for (const f of islandFaults()) {
   console.warn(`[member-islands] ${f.row}: ${f.why}`)

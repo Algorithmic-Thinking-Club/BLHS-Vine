@@ -25,8 +25,7 @@
   container-type: inline-size;
   /* the frame is a nine-slice on .kit-surface-dialogue now, not a stretched picture */
   image-rendering: var(--kit-pixel);
-  /* the paper window inside the hero frame (measured off the asset), where the text is
-     vertically centered in it so a bigger face fills the paper instead of sitting low */
+  /* the paper window inside the hero frame, measured off the asset, with the text centred vertically so a bigger face fills the paper instead of sitting low */
   padding: 10px 14px 12px;   /* a gutter INSIDE the frame; the frame's own border-width is the rest */
   box-sizing: border-box;
   display: flex;
@@ -40,15 +39,13 @@
   from { transform: translateY(14px); }
   to   { transform: translateY(0); }
 }
-/* the box arrives rather than appears, and reduced motion keeps the arrival and
-   drops the travel: an entrance shortens, it does not become a cut */
+/* the box arrives rather than appears, and reduced motion keeps the arrival and drops the travel: an entrance shortens, it does not become a cut */
 html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
 
 /* the gap between the speaker's picture and the words when a line carries a portrait */
 .cs-dialogue.has-portrait { gap: 4%; }
 
-/* the text column, so the plaque and the line stay together whether or not there
-   is a picture beside them */
+/* the text column, so the plaque and the line stay together whether or not there is a picture beside them */
 .cs-dialogue-body {
   flex: 1 1 auto;
   min-width: 0;
@@ -57,45 +54,26 @@ html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
   /* text past the box's ceiling scrolls rather than being clipped away */
   overflow-y: auto;
   overscroll-behavior: contain;
-  /* a flex child will not shrink below its content without this, which is what
-     makes `overflow-y` do anything at all inside a flex row */
+  /* a flex child will not shrink below its content without this, which is what makes `overflow-y` do anything at all inside a flex row */
   min-height: 0;
   display: flex;
   flex-direction: column;
   /* centre the text while it fits and start from the top when it does not */
   justify-content: safe center;
-  /* deliberately NOT a positioned ancestor: the name plaque is absolute against
-     the BOX, and a relative column here would become its containing block and drop
-     it onto the first line of the text it is supposed to sit above */
+  /* deliberately not a positioned ancestor: the name plaque is absolute against the box, and a relative column here would become its containing block and drop it onto the first line of the text */
 }
 .cs-emote { opacity: .8; }
 
 .cs-dialogue-text {
   font-family: var(--kit-face-body);
-  /* cqw, not vh: the box is a container now, so the line scales with the paper
-     it is written on. The clamp keeps it readable on a narrow window and stops it
-     becoming a headline on a projector. */
-  /* ---- SLIGHTLY SMALLER, AND ONLY THAT (Ash, 2026-09-09) ----------------
-   *
-   * *"Dialogue Boxes, they are far better. But problem. When text gets long, the
-   * user has to scroll to see what was said. Maybe make the text slightly
-   * smaller. Maybe the scroll is fine."*
-   *
-   * Measured on a 1366 window: the paper is about 880 pixels wide, so the cqw
-   * term is above the ceiling and the ceiling is the size. 46 down to 40 is what
-   * "slightly" means; the cqw term comes down with it so a narrow window scales
-   * the same way it did.
-   *
-   * THE SCROLL STAYS. He said it was fine, and the previous attempt at this
-   * chased it away by growing the box half again as tall, which is a change he
-   * did not ask for to solve a problem he had already waved off. */
+  /* cqw and not vh, so the line scales with the paper it sits on, and the clamp keeps it readable on a narrow window without letting it become a headline on a projector */
+  /* measured on a 1366 window the paper is about 880px wide, so the cqw term is above the ceiling and the ceiling is the size: 46 down to 40 is what slightly smaller means, the cqw term comes down with it, and the scroll stays because growing the box half again as tall solves a problem nobody had */
   --kit-fs-raw: clamp(20px, calc(7.2cqw * var(--kit-text-scale)), 40px); font-size: var(--kit-fs);
   line-height: 1.4;
   color: var(--kit-ink-said);
   text-shadow: 0 1px 0 var(--kit-paper-sheen);
   width: 100%;
-  /* NO percentage height here (it can clip to zero on some zooms, the old empty-box bug);
-     the box is a fixed-height flex box that centers this line, so text fills the paper. */
+  /* no percentage height here, because it can clip to zero on some zooms and leave the box empty: the fixed-height flex box centres this line so the text fills the paper */
 }
 
 /* the continue cue in the paper's bottom right: a drawn paw and words naming both ways on */
@@ -164,8 +142,7 @@ html[data-rm='1'] .cs-dialogue { animation-duration: 1ms; }
   0%, 100% { opacity: .82; }
   50%      { opacity: 1; transform: translateX(-50%) scale(1.03); }
 }
-/* the plaque still says "walk to it" when it is holding still, so the loop goes
-   and the visible end of it stays */
+/* the plaque still says "walk to it" when it is holding still, so the loop goes and the visible end of it stays */
 html[data-rm='1'] .cs-prompt { animation: none; opacity: 1; }
 
 /* ---- hold-to-skip plaque ---- */
@@ -200,18 +177,14 @@ html[data-rm='1'] .cs-prompt { animation: none; opacity: 1; }
 .cs-skip-fill {
   position: absolute;
   inset: 0 auto 0 0;
-  /* the fill's OWN transition is set inline by the overlay and is deliberately not
-     a token: it is the length of the real hold, so shortening it would make the
-     bar lie about how long a finger has to stay down */
+  /* the fill's transition is set inline by the overlay and is not a token, because it is the length of the real hold and shortening it would make the bar lie about how long a finger stays down */
   background: var(--kit-sea-fill);
 }
 /* both of the plaque's contents sit over the fill rather than under it */
 .cs-skip-words { position: relative; }
 .cs-skip-mark { position: relative; opacity: .8; }
 
-/* THE CAPTAIN'S READOUT. It is a debug affordance behind `isCaptain()`, and it
-   was three inline colours and a raw font size typed into the component. Same
-   picture, from the token layer, so the plain arm and a redraw both reach it. */
+/* the captain's readout, a debug affordance behind `isCaptain()`, drawn from the token layer rather than inline colours so the plain arm and a redraw both reach it */
 .cs-debug {
   position: absolute;
   bottom: 6px;
@@ -226,9 +199,7 @@ html[data-rm='1'] .cs-prompt { animation: none; opacity: 1; }
 
 /* the plain arm: the same words printed on a document rather than on carved wood */
 
-/* the box becomes a block: a heading, then the words, then the instruction,
-   which is the order a worksheet is read in. The paper and the rule around it
-   come from `.kit-surface-dialogue`'s own plain rule in tokens.css. */
+/* the box becomes a block, heading then words then instruction, the order a worksheet reads in; the paper and its rule come from `.kit-surface-dialogue`'s plain rule in tokens.css */
 html[data-skin='plain'] .cs-dialogue {
   display: block;
   padding: 14px 16px 16px;
@@ -238,8 +209,7 @@ html[data-skin='plain'] .cs-dialogue {
 html[data-skin='plain'] .cs-dialogue-body { display: block; overflow-y: auto; }
 html[data-skin='plain'] .cs-dialogue-text { text-shadow: none; }
 
-/* THE SPEAKER BECOMES A REAL HEADING rather than a plate hung off the top edge.
-   A worksheet says who is talking on the line above what they said. */
+/* the speaker becomes a real heading rather than a plate hung off the top edge, because a worksheet names who is talking on the line above what they said */
 html[data-skin='plain'] .cs-nameplaque {
   position: static;
   display: block;
@@ -256,8 +226,7 @@ html[data-skin='plain'] .cs-nameplaque {
   text-shadow: none;
 }
 
-/* the instruction moves under the text instead of floating in a corner of a
-   picture, and it holds still */
+/* the instruction moves under the text instead of floating in a corner of a picture, and it holds still */
 html[data-skin='plain'] .cs-continue-hint {
   position: static;
   justify-content: flex-end;
@@ -272,8 +241,7 @@ html[data-skin='plain'] .cs-caption {
   text-align: center;
 }
 
-/* the walk-to prompt is a bordered note, not a carved sign, and it does not
-   pulse: a document does not breathe */
+/* the walk-to prompt is a bordered note, not a carved sign, and it does not pulse: a document does not breathe */
 html[data-skin='plain'] .cs-prompt {
   background: none;
   background-color: var(--kit-paper-hi);
@@ -294,7 +262,5 @@ html[data-skin='plain'] .cs-skip {
 }
 html[data-skin='plain'] .cs-skip-fill { background: var(--kit-sea-glow); }
 
-/* the cutscene's own letterbox, declined in the control arm for the same reason
-   the movie frame is: film bars over a worksheet are game furniture, and at
-   1366x768 they cover 152px of the document */
+/* the cutscene's own letterbox, declined in the control arm for the same reason the movie frame is: film bars over a worksheet are game furniture, and at 1366x768 they cover 152px of the document */
 html[data-skin='plain'] .cs-letterbox { display: none !important; }

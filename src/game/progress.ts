@@ -40,18 +40,13 @@ export type CordProgress = {
   id: string
   name: string
   colors: string                 // the real cord colors, for the tracker art
-  /* THE SCHOOL'S OWN WORDS, VERBATIM, and the only string a student reads as the
-   * criterion. Where the school did not give words, this says that instead. */
+  /* the school's own words, verbatim, and the only string a student reads as the criterion, and where the school gave no words this says that instead */
   rule: string
   /** where those words came from, precisely enough to follow */
   source: string
-  /* WHAT THIS GAME ACTUALLY COUNTS, when it is not the same thing. Printed beside
-   * the rule and never in place of it (V3). Absent when the game counts the
-   * criterion itself. */
+  /* what this game actually counts when it is not the same thing, printed beside the rule and never in place of it, and absent when the game counts the criterion itself */
   model?: string
-  /* has anybody published criteria for this award at all. `false` means the award
-   * is real and the rule is a gap, which is a different sentence from "you have
-   * not earned it yet" and has to read differently on the board. */
+  /* has anybody published criteria for this award at all, where `false` means the award is real and the rule is a gap, which has to read differently on the board from "you have not earned it yet" */
   published: boolean
   // true when this cord is only decided at graduation rather than earned along the way
   settlesAtGraduation?: boolean
@@ -104,16 +99,7 @@ export function cordsOf(s: SaveGame): CordProgress[] {
       settlesAtGraduation: true,
       earned: finished && gpa >= 3.76, progress: Math.min(1, gpa / 3.76),
       // a student with no grades yet is told so, rather than being shown a 0.00
-      /* ---- A GPA AT ITS TARGET SAYS SO (Ash, 2026-09-09) ---------------
-       *
-       * *"I'm not on year 4 yet, but the highest honors bar and the high honors
-       * bar are showing nearly full. Is this normal? It's not earned yet, which
-       * is correct."*
-       *
-       * The bar was right and the sentence beside it was not: a student holding
-       * a 4.00 read "GPA 4.00 of 3.76" off a full bar and had no idea whether
-       * that was good news. These two settle at graduation, which is the whole
-       * of why they are not earned yet, so that is what the line says. */
+      /* a GPA at its target says so, because a student holding a 4.00 read "GPA 4.00 of 3.76" off a full bar and could not tell whether that was good news, and these two settle at graduation, which is why they are not earned yet */
       detail: !gpa ? 'No GPA yet. You need 3.76.'
         : gpa >= 3.76 ? `GPA ${gpa.toFixed(2)}. On track, counted at graduation.`
           : `GPA ${gpa.toFixed(2)} of 3.76`,
@@ -127,8 +113,7 @@ export function cordsOf(s: SaveGame): CordProgress[] {
       /* a GPA past 3.76 is not more of THIS cord, it is a different one */
       progress: gpa >= 3.76 ? 0 : Math.min(1, gpa / 3.5),
       detail: !gpa ? 'No GPA yet. You need 3.5.'
-        /* and this one has a ceiling as well as a floor: a 3.9 is Highest
-         * Honors and is NOT this cord, so a full bar here would be a lie */
+        /* this one has a ceiling as well as a floor: a 3.9 is Highest Honors and is not this cord, so a full bar here would be a lie */
         : gpa >= 3.76 ? `GPA ${gpa.toFixed(2)}. Above this one: you are on Highest Honors.`
           : gpa >= 3.5 ? `GPA ${gpa.toFixed(2)}. On track, counted at graduation.`
             : `GPA ${gpa.toFixed(2)} of 3.5`,
@@ -138,15 +123,7 @@ export function cordsOf(s: SaveGame): CordProgress[] {
       rule: 'Must have completed at least two CTE credits', source: AWARDS, published: true,
       model: 'Pass two CTE classes. CTE is Career and Technical Education, like Culinary Arts. A D passes.',
       earned: cte >= 2, progress: Math.min(1, cte / 2),
-      /* ---- A COUNT STOPS AT ITS OWN TARGET (Ash, 2026-09-09) -------------
-       *
-       * *"All three years, its only shown 'CTE credit' and its just been adding
-       * on, 1/2, 2/2, 3/2, 4/2, etc."*
-       *
-       * `progress` was clamped and the sentence beside it was not, so a student
-       * who passed four CTE classes read "4 of 2 CTE credits" off a full bar.
-       * Every counted cord below now says how many it needed, not how many it
-       * has been handed. */
+      /* a count stops at its own target: `progress` was clamped and the sentence beside it was not, so four passed CTE classes read "4 of 2 CTE credits" off a full bar, and every counted cord says how many it needed rather than how many it has been handed */
       detail: `${Math.min(cte, 2)} of 2 CTE credits`,
     },
     {
@@ -157,20 +134,7 @@ export function cordsOf(s: SaveGame): CordProgress[] {
       model: 'This game only counts your years in Key Club and your GPA. '
         + 'It does not count hours, meetings or events.',
       earned: keyYears >= 2 && s.year >= 4 && gpa >= 3.0,
-      /* ---- A GATE IS NOT PROGRESS (Ash, 2026-09-09) --------------------
-       *
-       * *"She says 'still working towards Key Club' even though I havent done
-       * it... bit weird. Oh I realize why it says Key Club, as its a GPA
-       * thing."*
-       *
-       * The bar was seven tenths years and three tenths GPA, so a student who
-       * had never once joined Key Club and simply had good grades read thirty
-       * percent, which put the cord in the counselor's "working towards" list
-       * and in the closing film's drape. He had not started it.
-       *
-       * The GPA is a requirement the cord can FAIL on, not a thing you do
-       * towards it. The bar measures the joining; the sentence names the gate,
-       * and says so when the gate is the thing in the way. */
+      /* a gate is not progress: the bar was seven tenths years and three tenths GPA, so a student who never joined Key Club and simply had good grades read thirty percent and landed in the counselor's "working towards" list, so the bar measures the joining and the sentence names the gate the cord can fail on */
       progress: Math.min(keyYears, 2) / 2,
       detail: [
         `${Math.min(keyYears, 2)} of 2 years`,
@@ -214,10 +178,7 @@ export function cordsOf(s: SaveGame): CordProgress[] {
       colors: 'color not announced',
       rule: 'Bonney Lake High School has not published criteria for this award.',
       source: `${AWARDS}, which marks this a known gap`,
-      /* THE HANDBOOK ALREADY PREFIXES "In this game: " (Handbook.tsx), so these
-       * two read "In this game: In this game it would go to..." and then went on
-       * to say it was the game's own model, which the prefix had said already
-       * (Ash, 2026-09-09). */
+      /* the Handbook already prefixes "In this game: " (Handbook.tsx), so these two read "In this game: In this game it would go to..." and then repeated that it was the game's own model */
       model: `it would go to the ${i === 0 ? 'highest' : 'second-highest'} GPA in the class, `
         + 'which is this game\'s guess rather than a rule from Bonney Lake.',
       published: false,
@@ -234,9 +195,7 @@ export function newlyCloseCords(before: SaveGame, after: SaveGame): CordProgress
   return cordsOf(after).filter((c) => c.progress >= 0.5 && (prev.get(c.id) ?? 0) < 0.5 && !c.earned)
 }
 
-/** the run summarized for the turn-in artifact (§9.5). The SAME function runs client-side
- *  (stamping the diploma) and server-side (api/teacher's roster column) over the synced
- *  save — that is what makes the verification code checkable. */
+/** the run summarized for the turn-in artifact, and the same function runs client-side stamping the diploma and server-side over the synced save, which is what makes the verification code checkable */
 export function transcriptOf(s: SaveGame): import('../vine/verify').Transcript {
   return {
     participantId: s.participantId ?? 'castaway',
@@ -245,9 +204,7 @@ export function transcriptOf(s: SaveGame): import('../vine/verify').Transcript {
     cords: cordsOf(s).filter((c) => c.earned).map((c) => c.id).sort(),
     ranks: ranksOf(s),
     islandsCompleted: Object.values(s.islands).filter((st) => st === 'completed').length,
-    /* EXPOSURE AND COMPLETION ARE TWO NUMBERS. Places seen is the awareness
-     * measure and programmes finished is the learning one, and counting either as
-     * the other moves the independent variable's extent by the modelling. */
+    /* exposure and completion are two numbers: places seen is the awareness measure and programmes finished is the learning one, and counting either as the other moves the extent of the independent variable */
     placesSeen: new Set((s.exposure ?? []).map((e) => e.place)).size,
     programmesCompleted: new Set((s.completions ?? []).map((c) => c.programme)).size,
     factsLearned: s.facts.length,

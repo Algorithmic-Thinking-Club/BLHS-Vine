@@ -21,11 +21,7 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.key !== ' ' && e.key !== 'Enter') return
-      /* ---- A CONTROL ALREADY ANSWERS ITS OWN KEY ------------------------
-       *
-       * Space and Enter activate a focused button, and this advanced as well, so one
-       * press did the button's job AND skipped the next line. Ash: "I can click next
-       * on the scroll, and it skips past two sections instead of just 1." */
+      /* a control already answers its own key: Space and Enter activate a focused button, so advancing here as well made one press do the button's job and skip the next line, jumping two sections at once */
       const on = document.activeElement
       if (on && on !== document.body && on.closest('button, a, input, select, textarea')) return
       rt.advance()
@@ -35,8 +31,7 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
     return () => window.removeEventListener('keydown', key)
   }, [rt])
 
-  // hold-to-skip: holding Escape. The plaque itself skips on one press, so the
-  // fill below is what a held Escape draws rather than what a held pointer does.
+  // hold to skip means a held Escape, since the plaque itself skips on one press, so the fill below draws what a held key does and not what a held pointer does
   const [holdAt, setHoldAt] = useState<number | null>(null)
   const holdTimer = useRef<number | null>(null)
   const beginHold = () => {
@@ -73,12 +68,7 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
     <>
       {children}
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: CUTSCENE_LAYER }} onClick={(e) => {
-        /* ---- AND A PRESS ON A CONTROL IS THAT CONTROL'S PRESS -------------
-         *
-         * This div is the whole screen and it advances on any click that reaches it.
-         * A click on a plank INSIDE the cutscene runs the plank's own handler and then
-         * bubbles up to here, so one press advanced twice and a page went by unread.
-         * The button has already answered; this is for the empty screen around it. */
+        /* a press on a control is that control's press: this div is the whole screen, so a click on a plank inside the cutscene ran the plank's own handler and then bubbled up here, advancing twice and losing an unread page; this is for the empty screen around the button */
         const hit = e.target as HTMLElement | null
         if (hit && hit.closest('button, a, input, select, textarea')) return
         rt.advance()
@@ -90,8 +80,7 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
             background: `radial-gradient(ellipse ${100 - ui.vignette * 78}% ${100 - ui.vignette * 80}% at 50% 46%, transparent 38%, rgba(4,6,9,${0.55 + ui.vignette * 0.45}) 100%)`,
           }} />
         )}
-        {/* letterbox. The height is animated so it stays inline; the class is what
-            lets the control arm decline the bars, the way it declines a plank. */}
+        {/* letterbox: the height is animated so it stays inline, and the class is what lets the control arm decline the bars the way it declines a plank */}
         <div className="cs-letterbox" style={{ position: 'absolute', left: 0, right: 0, top: 0, height: barH, background: '#04060a' }} />
         <div className="cs-letterbox" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: barH, background: '#04060a' }} />
         {/* full fade */}
@@ -111,8 +100,7 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
             <DialogueBox
               line={ui.dialogue}
               onAdvance={() => rt.advance()}
-              /* this overlay already listens for space and enter, because those keys
-                 also resolve its confirm and walk-to gates when no line is up */
+              /* this overlay already listens for space and enter, because those keys also resolve its confirm and walk-to gates when no line is up */
               bindKeys={false}
             />
           </div>
@@ -124,21 +112,16 @@ export function CutsceneOverlay({ rt, children }: { rt: CutsceneRuntime; childre
             {BUILD_TAG}{ui.dialogue ? ` · say ${ui.dialogue.shown}/${ui.dialogue.text.length}${ui.dialogue.done ? ' done' : ''}` : ''}
           </div>
         )}
-        {/* skip plaque: one CLICK skips to the next required beat; the captain's version
-            ends the whole cutscene outright (god authority for testing) */}
+        {/* skip plaque: one click skips to the next required beat, and the captain's version ends the whole cutscene outright for testing */}
         {/* a real button, so tab reaches it and enter or space presses it */}
         {ui.skippable && (
           <button
             type="button" className="cs-skip" style={{ pointerEvents: 'auto' }}
             aria-label={isCaptain() ? 'Skip the whole scene' : 'Skip this part of the scene'}
-            /* no pointer hold here on purpose: a click already skips at once, and
-               a hold that ALSO skips would fire the timer and then the click and
-               skip two beats for one press */
+            /* no pointer hold here on purpose: a click already skips at once, and a hold that also skipped would fire the timer and then the click and skip two beats for one press */
             onClick={(e) => { e.stopPropagation(); if (isCaptain()) rt.godSkip(); else rt.skip() }}
           >
-            {/* the fill's duration is the real hold length and is deliberately not
-                shortened by reduced motion: it is a progress bar, and a progress
-                bar that finishes early lies about when the finger can come up */}
+            {/* the fill's duration is the real hold length and is deliberately not shortened by reduced motion, because a progress bar that finishes early lies about when the finger can come up */}
             <span className="cs-skip-fill" style={{ width: holdAt ? '100%' : '0%', transition: holdAt ? `width ${SKIP_HOLD_MS}ms linear` : 'none' }} />
             {/* words and a drawn arrow, because an icon here is drawn or it is words */}
             <span className="cs-skip-words">{isCaptain() ? 'skip all' : 'skip'}</span>

@@ -22,17 +22,13 @@ describe('a class names a roster place or says it has none', () => {
       const at = classPlacement(c)
       expect(at.place).toBeUndefined()
       expect(at.map).toBeUndefined()
-      /* the line is in the player's register: it names the school and claims no
-         room, because none is sourced. The absence a test guards is `place` and
-         `map` being undefined, above, not the sentence. */
+      /* the line names the school and claims no room because none is sourced, and what this guards is `place` and `map` being undefined, not the sentence */
       expect(at.line).toBe('a classroom at Bonney Lake High School')
     }
   })
 
   it('resolves a place AND its arrival map the moment the roster carries one', () => {
-    /* the override is the roster's own `rosterFaults` pattern: nothing shipped
-     * teaches a department, so without it this branch could never be exercised
-     * and the resolver would be a comment. */
+    /* the override is the roster's own `rosterFaults` pattern: nothing shipped teaches a department, so without it this branch could never run and the resolver would be a comment */
     const sourced: Place[] = [{
       id: 'test-wing', name: 'the sourced wing', maps: ['wing-a'], arrival: 'wing-a',
       paintings: 1, room: 'Rm 100', teaches: ['ap'], source: 'a test, and not a claim about BLHS',

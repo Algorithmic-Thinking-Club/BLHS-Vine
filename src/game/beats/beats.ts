@@ -13,7 +13,7 @@ export const coreBeatId = (year: number) => `core:y${year}`
 /** all four years carry required content now (§13.2: the fixed measured core) */
 export const hasCoreBeat = (year: number) => year >= 1 && year <= 4
 
-/** resolve the year's beat — static for Y1-Y3, generated from the save for Y4 */
+/** resolve the year's beat: static for Y1 to Y3, generated from the save for Y4 */
 export function coreBeatFor(year: number, save: SaveGame): CoreBeat | null {
   if (year === 1) return CORE_Y1
   if (year === 2) return CORE_Y2
@@ -26,12 +26,7 @@ export function coreBeatFor(year: number, save: SaveGame): CoreBeat | null {
 export const beatDone = (ledger: { id: string }[], year: number): boolean =>
   hasCoreBeat(year) && ledger.some((e) => e.id === coreBeatId(year))
 
-/* ---- AND WHETHER IT WAS PASSED, WHICH IS WHAT THE YEAR MEANS -------------
- *
- * ASH, 2026-09-09: *"It shouldnt allow a user to finish their year, if they just
- * failed everything."* Every gate that used `beatDone` meant this and said the
- * other thing, so a student who answered Advisory wrong once had it counted as
- * finished by the year, the sheet and the hearth, and unearned by the wall. */
+/* a year is finished only if its beat was passed, because every gate that used `beatDone` counted a student who failed the beat as finished by the year, the sheet and the hearth while the wall called it unearned */
 export const beatPassedIn = (s: SaveGame | null, year: number): boolean =>
   hasCoreBeat(year) && beatPassed(s, coreBeatId(year))
 

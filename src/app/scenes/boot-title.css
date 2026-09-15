@@ -1,5 +1,4 @@
-/* Boot splash + title screen (GAME-DESIGN §4.1 / §4.2), the first two frames a student
-   ever sees, so every easing here is deliberate. Fonts + kit textures from the UI kit. */
+/* boot splash and title screen, the first two frames a student ever sees, so every easing here is deliberate, with fonts and kit textures from the UI kit */
 
 /* the tokens this file paints with, so the title screen can be opened on its own */
 @import '../../game/ui/tokens.css';
@@ -109,8 +108,7 @@ html[data-rm='1'] .bt-credit { animation-duration: 1ms; }
 
 .ti-root { position: absolute; inset: 0; overflow: hidden; background: var(--kit-front-sea-deep); }
 
-/* interim: a captured frame of the live cove with a slow ambient drift (Ken Burns);
-   swaps to the real idling BeachIso once it exposes an ambient mode */
+/* interim: a captured frame of the live cove with a slow ambient drift, swapping to the real idling BeachIso once it exposes an ambient mode */
 .ti-backdrop {
   position: absolute; inset: -4%;
   background: var(--kit-art-title) center / cover no-repeat;
@@ -159,8 +157,7 @@ html[data-rm='1'] .ti-welcome { animation-duration: 1ms; }
   to   { transform: translateY(0); opacity: 1; }
 }
 html[data-rm='1'] .ti-wordmark { animation-duration: 1ms; }
-/* the sign asset's interior is cut out, so back it with whitewashed planks and the
-   lettering sits on wood rather than on open water */
+/* the sign asset's interior is cut out, so back it with whitewashed planks and the lettering sits on wood rather than on open water */
 /* the sign's face is a painted board behind the cut-out middle of the signboard */
 .ti-signpaper {
   position: absolute; inset: 9% 7% 12% 7%;
@@ -230,15 +227,7 @@ html[data-rm='1'] .ti-actions { animation-duration: 1ms; }
 
 /* the title's own plank sizing, on top of the kit button's six states */
 .ti-actions .ti-plank {
-  /* ---- WIDE ENOUGH FOR THE WORDS ON IT ---------------------------------
-   *
-   * ASH: *"on the very title screen, the buttons get cut off, for 'Your yearbook' it
-   * becomes 'your year...' same for 'Start adventure'."* Measured: 340px of plank,
-   * less 43px of carved cap each side and 26px of padding, leaves 202px for a label
-   * that needs about 230. "Continue" fitted, which is why it survived this long.
-   *
-   * Wider, with a thinner gutter inside the carving. The caps stay in the art's own
-   * proportion to the new height. */
+  /* wide enough for the words on it: 340px of plank, less 43px of carved cap each side and 26px of padding, left 202px for a label that needs about 230, so labels were cut off, and "Continue" fitted, which is why it survived so long */
   width: min(430px, 56vw);
   aspect-ratio: 512 / 160;
   padding: 0 14px;
@@ -246,20 +235,7 @@ html[data-rm='1'] .ti-actions { animation-duration: 1ms; }
   --kit-plank-cap: 54px;
   filter: drop-shadow(0 5px 12px var(--kit-plank-drop));
 }
-/* ---- THE SECOND PLANK IS SMALLER, AND THAT IS WHY IT FITS ----------------
- *
- * ASH, 2026-09-09: *"After year one is complete, I logged back into the game and
- * saw that 'My yearbook', the button below 'Start year 2', was missing."*
- *
- * It was rendering the whole time, and it was below the fold. Two planks at the
- * title's own size are 106 pixels each plus the gap, on top of the welcome line
- * and the signboard, and measured at a 560 pixel viewport the second one's
- * bottom edge lands at 575. Off the bottom of the window is missing.
- *
- * SO THE LESSER ACTION LOOKS LIKE THE LESSER ACTION. Two identical planks were
- * wrong anyway: starting the next year and looking at the book you already
- * finished are not the same weight, and the pair now reads as one choice and one
- * afterthought rather than as a menu. */
+/* the second plank is smaller and that is why it fits: two planks at the title's own size are 106px each plus the gap, and at a 560px viewport the second one's bottom edge landed at 575, off the bottom of the window, and the lesser action should look like the lesser action anyway */
 .ti-actions .ti-plank-second {
   width: min(330px, 42vw);
   aspect-ratio: 512 / 128;
@@ -338,8 +314,7 @@ html[data-skin='plain'] .ti-welcome {
   text-shadow: none;
   animation: none;
 }
-/* the wordmark stops being a picture with type on top and becomes a heading in
-   normal flow, so the two lines read as a title and a subtitle */
+/* the wordmark stops being a picture with type on top and becomes a heading in normal flow, so the two lines read as a title and a subtitle */
 html[data-skin='plain'] .ti-wordmark { width: 100%; animation: none; }
 html[data-skin='plain'] .ti-wordtext {
   position: static; inset: auto;
@@ -363,8 +338,7 @@ html[data-skin='plain'] .ti-actions {
   margin-top: 26px; align-items: flex-start; gap: 12px;
   animation: none;
 }
-/* a real button: a rectangle with a border, a label at a readable size, and no
-   aspect ratio inherited from a piece of art nobody is drawing any more */
+/* a real button: a rectangle with a border, a label at a readable size, and no aspect ratio inherited from a piece of art nobody is drawing any more */
 html[data-skin='plain'] .ti-plank {
   width: auto; aspect-ratio: auto;
   background: var(--kit-paper-lo);
@@ -374,8 +348,7 @@ html[data-skin='plain'] .ti-plank {
   filter: none;
   transform: none;
 }
-/* three classes deep, so the plain arm still wins over the two-class state rules
-   above it. A worksheet's button does not brighten and does not cast a shadow. */
+/* three classes deep, so the plain arm still wins over the two-class state rules above it, because a worksheet's button does not brighten and does not cast a shadow */
 html[data-skin='plain'] .ti-actions .ti-plank:hover,
 html[data-skin='plain'] .ti-actions .ti-plank:active,
 html[data-skin='plain'] .ti-actions .ti-plank:hover:not(:disabled),
@@ -409,11 +382,7 @@ html[data-skin='plain'] .ti-credit {
   text-shadow: none;
 }
 
-/* ============ THE BOOT SPLASH IN THE CONTROL ARM ============
-   Every plain rule in this file was a `.ti-` rule, so the title came off the
-   paint and the splash before it did not: the FIRST FRAME of the control arm
-   was a pixel-art crest on a dark teal field with a foam sweep and sparkles.
-   A worksheet opens on paper with its credit line and nothing else. */
+/* the boot splash in the control arm: every plain rule in this file was a `.ti-` rule, so the splash kept its paint and the first frame was a pixel art crest on dark teal, while a worksheet opens on paper with its credit line and nothing else */
 html[data-skin='plain'] .bt-boot {
   background: var(--kit-paper-hi);
   cursor: pointer;

@@ -14,8 +14,7 @@ export type PathOpts = {
 
 const KEY = (cx: number, cy: number) => cy * 100000 + cx
 
-/* the eight neighbours, straight ones first so a route through open ground comes
- * out square rather than staircased for no reason */
+/* the eight neighbours, straight ones first so a route through open ground comes out square rather than staircased for no reason */
 const DIRS: [number, number][] = [
   [1, 0], [-1, 0], [0, 1], [0, -1],
   [1, 1], [1, -1], [-1, 1], [-1, -1],
@@ -34,9 +33,7 @@ export function findPath(
   const step = Math.max(1, Math.round(opts.step ?? 4))
   const reach = opts.reach ?? Math.max(step * 2, 10)
   const maxNodes = opts.maxNodes ?? 40_000
-  /* the y step is the x step foreshortened by the painting's own factor, so one
-   * grid move is one move's worth of ground whichever way it goes. The walker is
-   * scaled the same way in walk.ts, which is why it is the same number. */
+  /* the y step is the x step foreshortened by the painting's own factor, so one grid move is one move's worth of ground whichever way it goes, and walk.ts scales the walker by the same number */
   const ys = cfg.yScale || 1
 
   const gx = (x: number) => Math.round(x / step)
@@ -46,8 +43,7 @@ export function findPath(
 
   const startC = { cx: gx(from.x), cy: gy(from.y) }
 
-  /* ALREADY THERE. Checked before the search rather than inside it, because a
-   * goal a step away should not cost a flood fill. */
+  /* already there, checked before the search rather than inside it, because a goal a step away should not cost a flood fill */
   if (Math.hypot(to.x - from.x, (to.y - from.y) / ys) <= reach)
     return { points: [{ x: to.x, y: to.y }], reached: true, nodes: 0 }
 
@@ -76,8 +72,7 @@ export function findPath(
         const k = KEY(nc.cx, nc.cy)
         if (seen.has(k)) continue
         const nwx = wx(nc.cx), nwy = wy(nc.cy)
-        /* THE LAW, unchanged: this is the same call the ticker makes for the
-         * player's own next pixel, with the same document and the same config. */
+        /* the same call the ticker makes for the player's own next pixel, with the same document and the same config */
         if (!canStandFrom(doc, cfg, nwx, nwy, fromLvl)) continue
         seen.add(k)
         came.set(k, KEY(cur.cx, cur.cy))
@@ -99,8 +94,7 @@ export function findPath(
     k = came.get(k)
   }
   points.reverse()
-  /* the last hop is the real goal rather than the grid cell nearest it, so the
-   * arrow lands on the table instead of four pixels beside it */
+  /* the last hop is the real goal rather than the grid cell nearest it, so the arrow lands on the table instead of four pixels beside it */
   if (found) points.push({ x: to.x, y: to.y })
   return { points, reached: !!found, nodes }
 }
@@ -130,8 +124,7 @@ export function onFloor(
   const ys = yScale || 1
   let best: Pt | null = null
   let bestD = Infinity
-  /* the box is squashed the same way the metric is, so the search looks at the
-   * ground the metric considers near rather than at a circle on the screen */
+  /* the box is squashed the same way the metric is, so the search looks at the ground the metric considers near rather than at a circle on the screen */
   const x0 = Math.ceil(spot.x - within), x1 = Math.floor(spot.x + within)
   const y0 = Math.ceil(spot.y - within * ys), y1 = Math.floor(spot.y + within * ys)
   for (let y = y0; y <= y1; y++) {

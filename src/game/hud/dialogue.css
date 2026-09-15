@@ -18,10 +18,7 @@
   width: min(560px, 58vw);
   z-index: 2;
   /* the box height, one size for the whole sitting, scaled by the reader's text setting */
-  /* THE PAPER'S OWN SIZE, AND IT IS NOT A LEVER (Ash, 2026-09-09). It was
-     grown to 320px for one session to stop a long line scrolling. He asked for
-     "slightly smaller" TEXT and said the scroll was fine, and a box half again
-     as tall is not that: it ate the beach. Back to what it was. */
+  /* the paper's own size, and not a lever: growing it to 320px to stop a long line scrolling ate the beach, when the ask was slightly smaller text with the scroll left alone */
   --dlg-box-h: min(calc(220px * var(--kit-text-scale)), 34vh);
   /* how long the box takes to slide when the letterbox bars come in or go out */
   --dlg-bar-travel: 450ms;
@@ -30,9 +27,7 @@
   flex-direction: column;
   align-items: stretch;
   gap: 10px;
-  /* the choices size their type against THIS, not against the window, so a
-     narrow Chromebook window and a projector get the same relationship between
-     a plank and the words on it */
+  /* the choices size their type against this, not against the window, so a narrow Chromebook window and a projector get the same relationship between a plank and the words on it */
   container-type: inline-size;
   pointer-events: none;
 }
@@ -53,15 +48,13 @@ html[data-movie='1'] .dlg-stack,
 html[data-letterbox='1'] .dlg-stack {
   bottom: calc(10vh + max(2.4vh, 16px));
 }
-/* the same 60ms the bars shorten to, from the same setting, so the two still
-   agree when a student has asked for less motion */
+/* the same 60ms the bars shorten to, from the same setting, so the two still agree when a student has asked for less motion */
 html[data-rm='1'] .dlg-stack { --dlg-bar-travel: 60ms; }
 @media (prefers-reduced-motion: reduce) {
   .dlg-stack { --dlg-bar-travel: 60ms; }
 }
 
-/* the caret while the typewriter is still running: §2 law 4, a static frame is
-   a bug, and it is also how a player knows the line has not finished */
+/* the caret while the typewriter is still running: a static frame is a bug, and it is also how a player knows the line has not finished */
 .dlg-caret {
   display: inline-block;
   width: .55em; height: 1.05em;
@@ -90,8 +83,7 @@ html[data-rm='1'] .dlg-caret { animation: none; }
   box-sizing: border-box;
 }
 
-/* two classes, so it beats `.kit-portrait`'s own 108 by 100 default whichever
-   order the two stylesheets happen to be injected in */
+/* two classes, so it beats `.kit-portrait`'s own 108 by 100 default whichever order the two stylesheets happen to be injected in */
 .dlg-box .kit-portrait {
   width: 100%;
   height: auto;
@@ -107,8 +99,7 @@ html[data-rm='1'] .dlg-caret { animation: none; }
 /* one paw that bounces, since motion reads on any panel where colour may not */
 .dlg-paw-f {
   grid-area: 1 / 1;
-  /* the local mark carries no intrinsic box the way a Glyph does, so it is
-     given one here and the two paths end up the same size */
+  /* the local mark carries no intrinsic box the way a Glyph does, so it is given one here and the two paths end up the same size */
   width: 16px; height: 16px;
   animation: dlg-paw 1100ms ease-in-out infinite;
 }
@@ -117,8 +108,7 @@ html[data-rm='1'] .dlg-caret { animation: none; }
   45% { transform: translateY(-4px); }
   70% { transform: translateY(0); }
 }
-/* a looping cue STOPS rather than shortening: an infinite animation at 1ms is a
-   strobe, which is worse than the thing the setting was turned on to stop. */
+/* a looping cue stops rather than shortening, because an infinite animation at 1ms is a strobe, which is worse than the thing the setting was turned on to stop */
 html[data-rm='1'] .dlg-paw-f { animation: none; }
 
 /* the quiet words beside the paw naming both ways to advance a line */
@@ -176,9 +166,7 @@ html[data-rm='1'] .dlg-choice { animation: none; }
   filter: drop-shadow(0 7px 16px var(--kit-plank-glow));
 }
 
-/* THE LABEL WRAPS, which is the whole reason this is not a `<Plank>`. A member
-   can write a sentence into an option and it stays readable; the plank art is a
-   stretched shape rather than a nine-slice, so the sign grows with it. */
+/* the label wraps, which is the whole reason this is not a `<Plank>`: a member can write a sentence into an option and it stays readable, since the plank art is a stretched shape rather than a nine-slice and the sign grows with it */
 .dlg-choice-label {
   flex: 1 1 auto;
   min-width: 0;
@@ -222,8 +210,7 @@ html[data-skin='plain'] .dlg-choice {
 }
 html[data-skin='plain'] .dlg-choice:hover:not(:disabled) { transform: none; filter: none; }
 html[data-skin='plain'] .dlg-choice:active:not(:disabled) { transform: translateY(1px); }
-/* the answer still reads without a hue here either: the chosen row keeps a ring
-   drawn around it, the ones passed over go quiet */
+/* the answer still reads without a hue here either: the chosen row keeps a ring drawn around it, the ones passed over go quiet */
 html[data-skin='plain'] .dlg-choice:disabled { transform: none; filter: none; opacity: .55; }
 html[data-skin='plain'] .dlg-choice-chosen {
   transform: none;
@@ -239,23 +226,13 @@ html[data-skin='plain'] .dlg-choice-key {
 html[data-skin='plain'] .dlg-caret { animation: none; }
 /* a shorter box here, because the plain arm's system face sets a shorter line */
 html[data-skin='plain'] .dlg-stack { --dlg-box-h: min(calc(152px * var(--kit-text-scale)), 26vh); }
-/* the paw is drawn art and the arm has none. `faceStyle` already refuses a face
-   outside the paper skin, so this is the second fence rather than the first. */
+/* the paw is drawn art and the plain arm has none; `faceStyle` already refuses a face outside the paper skin, so this is the second fence rather than the first */
 html[data-skin='plain'] .dlg-paw { display: none; }
-/* the words used to pulse and no longer do (`.dlg-hint-words` above), so the
-   arm's own override of that pulse is gone with it rather than left standing
-   over an animation that does not exist. */
-/* THE PORTRAIT IS THE INTERVENTION, so the control arm does not get one. §40.11:
-   "the plain arm renders the same words with no character around them", and it
-   is the one field on the line that is a picture rather than a sentence. */
+/* the words used to pulse and no longer do (`.dlg-hint-words` above), so the override of that pulse is gone with it rather than left standing over an animation that does not exist */
+/* the portrait is the intervention, so the plain arm does not get one: it is the one field on the line that is a picture rather than a sentence */
 html[data-skin='plain'] .dlg-portrait { display: none; }
 
-/* THE PLAIN BOX GROWS TO HOLD ITS OWN WORDS.
-   The fixed height keeps the game arm's parchment from jumping while a line
-   types in, and the control arm has no picture to keep still. With the height
-   pinned, a speaker name plus two wrapped lines pushed the "click, or press
-   space" hint out of the bottom of the white box and onto the painted sea,
-   where it was grey on teal and effectively unreadable. */
+/* the plain box grows to hold its own words: the fixed height is only there to keep the painted parchment from jumping while a line types in, and with it pinned a speaker name plus two wrapped lines pushed the hint out of the white box onto the painted sea, grey on teal and unreadable */
 html[data-skin='plain'] .dlg-box.cs-dialogue {
   height: auto;
   min-height: var(--dlg-box-h);

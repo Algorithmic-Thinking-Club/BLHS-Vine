@@ -84,8 +84,7 @@ const beatWith = (checks: CheckStep[]): CoreBeat => ({
   ],
 })
 
-/* forceArm is how a test picks an arm, and it is the same door `as_plain=True`
- * comes through, so this exercises the shipped path rather than a test-only one */
+/* forceArm is how a test picks an arm and it is the same door as_plain=True comes through, so this exercises the shipped path rather than a test-only one */
 const draw = (beat: CoreBeat, arm: 'game' | 'plain') =>
   renderToStaticMarkup(createElement(CoreBeatRunner, { beat, onClose: () => {}, forceArm: arm }))
 
@@ -127,8 +126,7 @@ describe('the game arm draws every kind', () => {
   })
 
   it('every kind renders its own first screen without throwing', () => {
-    /* a beat per kind, each one starting on its check, which is the screen a
-     * member sees first and the one a missing branch would blank */
+    /* a beat per kind, each starting on its check, the screen a member sees first and the one a missing branch would blank */
     for (const c of CHECKS) {
       const beat: CoreBeat = { ...beatWith([c]), steps: [{ kind: 'check', check: c }] }
       const html = draw(beat, 'game')
@@ -149,9 +147,7 @@ describe('the game arm draws every kind', () => {
   })
 })
 
-/* W8 lives in an effect, and renderToStaticMarkup never runs one, so these mount
- * for real into happy-dom. Everything above stays on the string renderer because
- * it is testing what is drawn and this is testing what is DONE. */
+/* the behaviour under test lives in an effect and renderToStaticMarkup never runs one, so these mount for real into happy-dom, while everything above stays on the string renderer because it tests what is drawn and this tests what is done */
 async function mount(beat: CoreBeat, world?: BeatWorld, arm: 'game' | 'plain' = 'game') {
   const host = document.createElement('div')
   document.body.appendChild(host)
@@ -180,16 +176,7 @@ describe('W8: a do staged in the world, and what happens when it cannot be', () 
   const doCheck = CHECKS.find((c) => c.kind === 'do')!
   const beat: CoreBeat = { ...beatWith([doCheck]), steps: [{ kind: 'check', check: doCheck }] }
 
-  /* ---- THE ARROW MUST NOT POINT AT THE ANSWER ---------------------------
-   *
-   * This block used to assert `guide_to(goal.anchor)`, which is the defect it
-   * was written to protect: the game arm was walked to the right answer and
-   * scored 1/1 every time, while the plain arm answered the same item as a
-   * question with decoys. A difference in content, in the direction that
-   * flatters the treatment, on the measure the study reports.
-   *
-   * What is asserted now is that the world is told the QUESTION and never the
-   * answer. */
+  /* the arrow must not point at the answer: asserting guide_to(goal.anchor) walked the game arm to the right answer and scored 1/1 every time while the plain arm got the same item as a question with decoys, so what is asserted now is that the world is told the question and never the answer */
   it('states the question to the world and never points at the answer', async () => {
     const issued: Intent[] = []
     const world: BeatWorld = {
@@ -218,8 +205,7 @@ describe('W8: a do staged in the world, and what happens when it cannot be', () 
     const world: BeatWorld = { issue: async () => ok(), onReached: () => () => {} }
     const m = await mount(beat, world)
     expect(m.html()).toContain('Walk to the place you think it is')
-    /* NEITHER the answer nor the decoys. Naming the goal hands it over; listing
-     * all of them turns the walk into a form the student happens to walk. */
+    /* neither the answer nor the decoys: naming the goal hands it over, and listing all of them turns the walk into a form the student happens to walk */
     expect(m.html()).not.toContain('The activities board')
     expect(m.html()).not.toContain('The trophy case')
     await m.unmount()
@@ -256,10 +242,7 @@ describe('W8: a do staged in the world, and what happens when it cannot be', () 
   })
 
   it('offers the form the control arm uses to a student who cannot find the place', async () => {
-    /* the mistake an author will actually make is a typo in the anchor name, and
-     * then the arrival can never come. Waiting on it forever would lock the beat
-     * with no way out, and would measure navigation rather than what was learned.
-     * The form appears beside the walk, never instead of it. */
+    /* the mistake an author will really make is a typo in the anchor name, and then the arrival can never come, so waiting on it forever would lock the beat with no way out and would measure navigation rather than what was learned: the form appears beside the walk, never instead of it */
     vi.useFakeTimers()
     try {
       const world: BeatWorld = { issue: async () => ok(), onReached: () => () => {} }
@@ -347,9 +330,7 @@ describe('the validator is calibrated against the real authored content', () => 
         if (why) refused.push(`${b.id}: ${why}`)
       }
     }
-    /* the point of this test is the direction of the failure. A validator tuned to
-     * its own fixtures and not to the game's real items is a validator that would
-     * have thrown out shipped content the first time a beat ran. */
+    /* the point of this test is the direction of the failure: a validator tuned to its own fixtures rather than to the game's real items would have thrown out shipped content the first time a beat ran */
     expect(refused).toEqual([])
     expect(beats.length).toBeGreaterThan(40)
   })

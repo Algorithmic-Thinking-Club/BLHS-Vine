@@ -15,9 +15,7 @@ import { awarded, saved as saidSaved } from '../ui/feedback'
 import { track } from '../telemetry'
 import './pickyear.css'
 
-/* THE FIVE THINGS YEAR ONE OFFERS, named by the brief rather than derived, and
- * checked against the roster so a rename cannot leave a card pointing at
- * nothing. Everything else on the roster is a later year's problem. */
+/* the five things year one offers, listed by hand rather than derived, and checked against the roster so a rename cannot leave a card pointing at nothing */
 const YEAR_ONE_ACTIVITIES = ['football', 'girls-flag-football', 'track-field', 'atc', 'key-club']
 
 /* the five periods a freshman does not choose, named as plain subjects */
@@ -40,8 +38,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
   const panel = usePanel({ onClose: shut, closeOnEscape: !held, label: `Your schedule for year ${year}` })
   const [, bump] = useState(0)
   const [refused, setRefused] = useState<{ id: string; why: string } | null>(null)
-  /* which blank period's elective list is open, as the period NUMBER, so the
-   * heading over the list and the row it fills cannot disagree */
+  /* which blank period's elective list is open, held as the period number so the heading over the list and the row it fills cannot disagree */
   const [openAt, setOpenAt] = useState<number | null>(null)
   const redraw = () => bump((v) => v + 1)
 
@@ -81,18 +78,14 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
     redraw()
   }
 
-  /* PUTTING BACK IS ITS OWN SMALL CONTROL, inside the locked card, and never the
-   * card itself. A card that undoes on a second press is a card whose loudest
-   * affordance is the undo, which is the loop the dimwit run found. */
+  /* putting back is its own small control inside the locked card and never the card itself, because a card that undoes on a second press makes the undo its loudest affordance */
   const putBack = (p: Programme, seat: Season) => {
     clearSlot(year, seat)
     setRefused(null)
     track('pick_put_back', { what: p.id, season: seat })
     redraw()
   }
-  /* the same rule for a class: a ticked row is a locked row with a small untick
-   * inside it. The dimwit run ticked AP Human Geography and then, with the row
-   * still the loudest thing on the glass, unticked it. */
+  /* same rule for a class: a ticked row is a locked row with a small untick inside it, never a row that unticks on a second press */
   const untick = (c: ClassDef) => {
     dropClass(year, c.id)
     setRefused(null)
@@ -106,9 +99,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
     if (no) { setRefused({ id: c.id, why: no }); track('pick_refused', { what: c.id, why: no }); return }
     pickClass(year, c.id)
     setRefused(null)
-    /* THE LIST SHUTS ON A PICK, so the student watches the period they pressed
-     * fill in. Leaving it open and re-heading it for the next blank would save
-     * one press and hide the only thing this screen is for. */
+    /* the list shuts on a pick so the student watches the period they pressed fill in; leaving it open for the next blank saves one press and hides the only thing this screen is for */
     setOpenAt(null)
     saidSaved(c.name)
     track('pick_taken', { what: c.id })
@@ -126,21 +117,15 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
     chosen,
     realClasses: realClasses.length,
     realActivities: realActivities.length,
-    /* THE SEATS THIS SCREEN CAN REALLY FILL. A club with no island is drawn here as
-     * an example and cannot be pressed, and one programme may not take two seasons,
-     * so with one island built this screen can fill exactly one season. Asking it for
-     * three was asking for something no student could do, and year one could not be
-     * stamped at all. */
+    /* the seats this screen can really fill, because one programme may not take two seasons, so asking for three when fewer are pickable leaves year one impossible to stamp */
     seats: realActivities.length,
   })
   const { ready, stage, notYet } = owed
-  /* said once, and marked when the panel is really up: a read that also wrote
-   * would blank itself on the second render */
+  /* said once and marked when the panel is really up, because a read that also wrote would blank itself on the second render */
   const [told] = useState(() => firstLook('my-year'))
   useEffect(() => { markLooked('my-year') }, [])
 
-  /* the one refusal that belongs to a class, said under the list on its own line
-   * rather than inside a row, so the rows never grow and the plank never jumps */
+  /* the one refusal that belongs to a class, said under the list on its own line rather than inside a row, so the rows never grow and the plank never jumps */
   const classNo = refused && classes.some((c) => c.id === refused.id) ? refused.why : null
 
   const taken = activities.filter((p) => seatOf(p.id))
@@ -155,9 +140,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
     if (i < ELECTIVE_AT) return { n, kind: 'required' as const, name: REQUIRED[i], cls: null }
     const id = plan.classes[i - ELECTIVE_AT]
     const cls = id ? CLASSES.find((c) => c.id === id) ?? null : null
-    /* NUMBERED, so two blank lines reading "Elective" cannot be read as one
-       thing said twice. Ash could not tell whether the screen wanted one
-       elective or several, and the rows themselves are where that is answered. */
+    /* numbered, so two blank lines reading "Elective" cannot be read as one thing said twice, and the rows are where one elective or several is answered */
     const blank = `Elective ${i - ELECTIVE_AT + 1}`
     return { n, kind: 'elective' as const, name: cls ? shownName(cls.id, cls.name) : blank, cls }
   })
@@ -166,9 +149,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
     <div className="py-veil" onClick={shut}>
       <div {...panel} className="py-sheet kit-surface-panel" onClick={(e) => e.stopPropagation()}>
         <h2 className="py-title">Your schedule, year {yearWord(year)}</h2>
-        {/* WHAT MY YEAR IS, THE FIRST TIME IT IS OPENED (BRIEF-CLOSE-THE-LOOP
-            section 1). The principal used to say it in the cutscene, about a
-            button in the other corner of the screen. */}
+        {/* what my year is, said the first time it is opened, rather than in a cutscene about a button in another corner of the screen */}
         {told && <p className="py-firstlook">{told}</p>}
 
         {/* ---- THE SEVEN PERIODS ----------------------------------------- */}
@@ -193,9 +174,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                   key={r.n}
                   className={`py-period py-period-${r.kind}${r.cls ? ' py-period-on' : ''}${live ? ' py-period-live' : ''}`}
                 >
-                  {/* a blank period a student may fill is a button; every other
-                      row on this sheet is furniture and is not pressable, which
-                      is what stops the loudest thing on the glass being an undo */}
+                  {/* a blank period a student may fill is a button and every other row on this sheet is furniture, which is what stops the loudest thing on the glass being an undo */}
                   {live && !open ? (
                     <button type="button" className="py-per-press" onClick={() => setOpenAt(r.n)}>
                       {body}
@@ -235,9 +214,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                           )
                         })}
                       </div>
-                      {/* NEVER A DEAD END (law 6). With nothing pickable this
-                          line is the one that says what to do instead, and it
-                          names the control that does it. */}
+                      {/* never a dead end: with nothing pickable this line says what to do instead and names the control that does it */}
                       <p className={`py-classnote${classNo ? ' py-classnote-no' : ''}`} role={classNo ? 'alert' : undefined}>
                         {/* one instruction under the list, or the refusal if there is one */}
                         {classNo ?? 'Press one to put it in this period.'}
@@ -264,8 +241,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
             )}
           </h3>
           <div className="py-grid">
-            {/* A TAKEN CARD IS LOCKED. Not a button any more: a stamped sign with
-                the season on it and one small control that puts it back. */}
+            {/* a taken card is locked: not a button any more but a stamped sign with the season on it and one small control that puts it back */}
             {taken.map((p) => {
               const seat = seatOf(p.id) as Season
               return (
@@ -283,26 +259,10 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
                 </div>
               )
             })}
-            {/* THE CARDS NOT TAKEN. Big drawn signs while nothing is chosen; once
-                something is, they step back into a shelf of small chips beside
-                the locked card, still takeable and never louder than the way on. */}
+            {/* the cards not taken: big signs while nothing is chosen, then small chips beside the locked card once something is, still takeable and never louder than the way on */}
             {onOffer.map((p) => {
               const no = refused?.id === p.id ? refused.why : null
-              /* ---- AN EXAMPLE CLUB CAN BE JOINED ----------------------------
-               *
-               * It used to be a `<div>`: drawn on the sheet, named, and impossible to
-               * press. That made year one unfinishable the moment the stamp started
-               * asking for every season to be spent, because year one is offered ONE
-               * real club and three seasons to spend, and the other cards on the page
-               * were scenery. A student could not fill the sheet the game was asking
-               * him to fill.
-               *
-               * It is still honest about what it is - the name stays "Example A", the
-               * blurb still says nobody has built its island - and it now takes a
-               * season the way every other card does. Everything behind the press
-               * already worked: `picksOf` lists it, the Planner's own `pickVerb` knows
-               * it has no map, and the year sheet says "counted as done" rather than
-               * offering a voyage to nowhere. */
+              /* an example club must stay pressable, because one real club against three seasons to spend left year one unfinishable; it still says it is an example and counts as done rather than offering a voyage to nowhere */
               const example = exampleNameOf(p.id)
               if (example) {
                 return (
@@ -351,9 +311,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
         </section>
 
         <div className="py-foot">
-          {/* A WAY OUT THAT IS A WORD, and small on purpose: at medium it was
-              bigger than a period row, so the way out outranked the way on for a
-              student steering by size. */}
+          {/* a way out that is a word, and small on purpose, because at medium it was bigger than a period row so the way out outranked the way on */}
           {!held && <Plank size="sm" keyCap="Esc" className="py-close" onClick={onClose}>Close for now</Plank>}
           {notYet && <span className="py-notyet">{notYet}</span>}
           <Plank
@@ -365,9 +323,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
               stampPlan(year, taken)
               track('pickyear_stamped', { year, slots: plan.slots, classes: plan.classes })
               /* the stamp pops, so setting a schedule is a moment rather than a vanish */
-              /* AND THE POP NEVER SAYS A FAKE REAL NAME. Nothing pickable
-                 today means this is undefined and it says the plain thing; the
-                 day a member island lands it says that island's own name. */
+              /* the pop never says a fake real name: with nothing pickable this is undefined and it says the plain thing, and a member island gives its own name */
               const first = PROGRAMMES.find((pg) => pg.id === taken[0])
               awarded(
                 first ? `${shownName(first.id, first.name)} is yours.` : 'Your schedule is set.',

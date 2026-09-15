@@ -7,9 +7,7 @@ const listeners = new Set<(on: boolean) => void>()
 let asked: boolean | null = null
 
 const osReduce = (): boolean => {
-  /* THE OS SETTING COUNTS TOO. A student who has already told Chrome OS they
-   * want less motion has said it once and should not have to say it again in a
-   * game, and the district image is where that setting most often comes from. */
+  /* the OS setting counts too: a student who already told Chrome OS they want less motion should not have to say it again in a game, and the district image is where that setting most often comes from */
   try { return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false }
   catch { return false }
 }
@@ -52,8 +50,7 @@ const push = () => {
   for (const fn of listeners) fn(now)
 }
 
-/** a renderer that is mid-animation subscribes so it can shorten rather than
- *  finish a swing the player just asked it to stop making */
+/** a renderer that is mid-animation subscribes so it can shorten rather than finish a swing the player just asked it to stop making */
 export function onReducedMotion(fn: (on: boolean) => void): () => void {
   listeners.add(fn)
   return () => { listeners.delete(fn) }
@@ -65,9 +62,7 @@ if (typeof document !== 'undefined') {
     .observe(document.documentElement, { attributes: true, attributeFilter: ['data-rm'] })
   try { window.matchMedia?.('(prefers-reduced-motion: reduce)').addEventListener('change', () => { publish(); push() }) }
   catch { /* older engines: the attribute path still works */ }
-  /* the OS setting has to reach the stylesheets on the first frame, before any
-   * settings sheet has been opened, or the game's first cutscene plays at full
-   * swing for a student who already asked it not to */
+  /* the OS setting has to reach the stylesheets on the first frame, before any settings sheet has been opened, or the first cutscene plays at full swing for a student who already asked it not to */
   publish()
 }
 

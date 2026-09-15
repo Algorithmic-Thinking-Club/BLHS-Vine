@@ -13,8 +13,7 @@
   justify-content: center;
   padding: 0 0 3px;
 }
-/* the same rule the corner stack follows: while any panel is up, including this
-   button's own card, the question mark is inert and stays out of the picture */
+/* the same rule the corner stack follows: while any panel is up, including this button's own card, the question mark is inert and hidden */
 html[data-panels]:not([data-panels='0']) .hp-btn { visibility: hidden; }
 .hp-q {
   --kit-fs-raw: calc(26px * var(--kit-text-scale));
@@ -42,17 +41,7 @@ html[data-rm='1'] .hp-veil { animation: none; }
   position: relative;
   box-sizing: border-box;
   width: min(560px, 88vw);
-  /* ---- IT SCROLLS ITS MIDDLE RATHER THAN LOSING ITS BOTTOM ---------------
-   *
-   * "The card never scrolls: it is capped at the window and its own type shrinks."
-   * The cap is real and the shrinking is not enough: at 1366x625, which is a
-   * maximised Chrome window on a Chromebook with a bookmarks bar, the card lost its
-   * whole bottom row - "Back to the game", "My Year", "Trophy wall", "Settings" - and
-   * could not be scrolled to reach them. The one card a lost freshman opens ate its
-   * own way out.
-   *
-   * The doors stay on the glass and the middle takes the scroll, which is the same
-   * shape the beat card and the chart were given. */
+  /* capping at the window and shrinking the type is not enough: at 1366x625, a maximised window with a bookmarks bar, the card lost its whole bottom row of doors with no way to scroll to them, so the doors stay on the glass and the middle takes the scroll */
   max-height: 92vh;
   overflow-y: auto;
   display: flex;
@@ -74,8 +63,7 @@ html[data-rm='1'] .hp-card { animation: none; }
   font-size: var(--kit-fs);
   color: var(--kit-ink-head);
 }
-/* the one line that says what pressing the corner did: the world is held
-   while this card is open, so this card IS the pause a student can find */
+/* the world is held while this card is open, so this card is the pause a student can find */
 .hp-paused {
   margin: -8px 0 0;
   --kit-fs-raw: calc(15px * var(--kit-text-scale));
@@ -98,8 +86,7 @@ html[data-rm='1'] .hp-card { animation: none; }
   align-items: center;
   gap: 14px;
 }
-/* one column for every mark, so the four sentences start on one line down the
-   card however wide their pictures are */
+/* one column for every mark, so the four sentences start on one line down the card however wide their pictures are */
 .hp-mark {
   flex: none;
   width: 52px;
@@ -190,8 +177,7 @@ html[data-skin='plain'] .hp-veil { animation: none; background: rgba(0, 0, 0, .4
 html[data-skin='plain'] .hp-title { font-weight: 700; }
 html[data-skin='plain'] .hp-task { font-weight: 700; }
 html[data-skin='plain'] .hp-corner b { font-weight: 700; }
-/* with the pictures refused, the column that held them would be 52px of nothing
-   in front of every line */
+/* with the pictures refused, the column that held them would be 52px of nothing in front of every line */
 html[data-skin='plain'] .hp-mark { display: none; }
 html[data-skin='plain'] .hp-btn {
   width: auto;
@@ -204,11 +190,7 @@ html[data-skin='plain'] .kit-plank-key {
   border: 1px solid var(--kit-edge-strong);
 }
 
-/* ---- REPLAY THE TUTORIAL (Ash, 2026-09-09) --------------------------------
- *
- * Top right of the card, a mark until it is reached for and then a word: a
- * student who does not need it never reads it, and one who does finds it where
- * he is already looking for help. */
+/* replay the tutorial, top right of the card: a mark until it is reached for and then a word, so a student who does not need it never reads it */
 .hp-replay {
   position: absolute;
   top: 12px;
@@ -248,11 +230,7 @@ html[data-skin='plain'] .hp-replay {
   max-width: 190px;
 }
 
-/* ---- CLICK TO MOVE, AS A SWITCH (Ash, 2026-09-09) -------------------------
- *
- * A real box with a real tick rather than a slider: the drawn kit has a tick and
- * has no slider, and a switch whose state is a POSITION is a switch a student
- * has to have seen before to read. */
+/* click to move is a real box with a real tick rather than a slider, because the drawn kit has a tick and no slider, and a switch whose state is a position has to have been seen before to be read */
 .hp-toggle {
   display: flex;
   align-items: center;
@@ -288,6 +266,5 @@ html[data-skin='plain'] .hp-toggle {
 html[data-skin='plain'] .hp-toggle-box { background: #fff; border-color: #101010; border-radius: 0; }
 html[data-skin='plain'] .hp-toggle-on { background: #101010; }
 
-/* nothing inside it is squeezed: the card scrolls as one page, so the title is the
-   title and the way out is at the end of it rather than off the edge of the glass */
+/* nothing inside is squeezed: the card scrolls as one page, so the way out sits at the end of it rather than off the edge of the glass */
 .hp-card > * { flex: none; }

@@ -15,20 +15,10 @@
 }
 html[data-movie='1'] .ob-wrap { padding-top: calc(10vh + max(1.6vh, 10px)); }
 
-/* AND IT IS NOT DRAWN OVER A PANEL AT ALL. `.hud-stack` and the help button both
- * already go when a panel opens; this one did not, so the top of the objective
- * plaque showed as a brown wooden sliver poking out of the top edge of the
- * full-screen computer the ATC island puts a student in front of. Measured at
- * 1366x768: eight pixels of it, across the middle of the panel's top rail.
- *
- * Hidden rather than unmounted, because the live region under it is announcing to a
- * screen reader and a panel is a place the same errand still applies. */
+/* `.hud-stack` and the help button already go when a panel opens and this one did not, leaving eight pixels of plaque poking over the panel's top rail at 1366x768; hidden rather than unmounted, because the live region under it is still announcing to a screen reader */
 html[data-panels]:not([data-panels='0']) .ob-wrap { visibility: hidden; }
 
-/* the year's own heading, printed inside the list where the island's rows end, so
-   one sheet can carry both without either looking like a stray row. A list item
-   rather than a heading element because it lives in a <ul> and screen readers get
-   the rows themselves through `.ob-sr`. */
+/* the year's own heading, printed inside the list where the island's rows end, and a list item rather than a heading element because it lives in a <ul> and screen readers get the rows through `.ob-sr` */
 .ob-sheet-sub {
   list-style: none;
   margin: 8px 0 2px;
@@ -59,15 +49,11 @@ html[data-rm='1'] .ob-wrap { transition-duration: 60ms; }
   color: var(--kit-wood-ink);
   text-shadow: 0 1px 0 var(--kit-wood-shadow);
   text-align: center;
-  /* ONE LINE, CLIPPED, NEVER WRAPPED. Ash: "never a paragraph". A sentence too
-     long for the panel is a sentence that needs rewriting, and the ellipsis says
-     so out loud instead of quietly growing a second row. */
+  /* one line, clipped, never wrapped and never a paragraph: a sentence too long for the panel needs rewriting, and the ellipsis says so out loud instead of quietly growing a second row */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* IT ARRIVES RATHER THAN FADING, the kit's law: a panel that fades is
-     see-through for the length of its entrance and the world reads straight
-     through the paper. */
+  /* it arrives rather than fading, the kit's law: a panel that fades is see-through for the length of its entrance and the world reads straight through the paper */
   animation: ob-drop 260ms var(--kit-ease-rise, cubic-bezier(.2, .9, .3, 1)) both;
 }
 @keyframes ob-drop {
@@ -179,24 +165,20 @@ html[data-rm='1'] .ob-sheet { animation-duration: 1ms; }
   --kit-fs-raw: calc(14px * var(--kit-text-scale));
   font-size: var(--kit-fs);
 }
-/* THE NOTE IS WHERE THE TEACHING IS. A row of five nouns tells a lost student
-   five things they still cannot find; this is the line that says where. */
+/* a row of five nouns tells a lost student five things they still cannot find, so this note is the line that says where */
 .ob-task-note {
   --kit-fs-raw: calc(11px * var(--kit-text-scale));
   font-size: var(--kit-fs);
   opacity: 0.68;
 }
-/* A DONE ROW IS QUIETER, NEVER STRUCK THROUGH. A line through a finished task
-   reads as cancelled, and finishing Advisory is not a thing that was cancelled. */
+/* a done row is quieter and never struck through, because a line through a finished task reads as cancelled and finishing advisory was not cancelled */
 .ob-task.is-done .ob-task-name { opacity: 0.62; }
 .ob-task.is-done .ob-mark { color: var(--kit-good, #3f7a4a); opacity: 1; }
 /* and a thing nobody has built is not a thing he is failing to do */
 .ob-task.is-barred .ob-task-name,
 .ob-task.is-barred .ob-mark { opacity: 0.45; }
 
-/* THE PLAIN ARM READS THE SAME LIST. Vehicle rather than taught content, so it
-   is present in both arms and only the paint changes: no parchment, no pixel
-   display face, a flat card with a real rule between rows. */
+/* the plain skin reads the same list and only the paint changes: no parchment, no pixel display face, a flat card with a real rule between rows */
 html[data-skin='plain'] .ob-sheet {
   background: var(--kit-paper, #fff);
   border: 1px solid var(--kit-wood-edge, #c8c8c4);
@@ -206,11 +188,7 @@ html[data-skin='plain'] .ob-sheet {
 }
 html[data-skin='plain'] .ob-sheet-head { font-family: inherit; font-weight: 600; }
 
-/* ---- A ROW THAT DOES THE THING IT NAMES -----------------------------------
- *
- * Ash, 2026-09-08: the game needs guideability. A row for something still owed
- * opens the panel its note names, so reading the sheet and acting on it are one
- * press instead of two. A finished row is text, and looks like text. */
+/* a row that does the thing it names: a row for something still owed opens the panel its note names, so reading the sheet and acting on it are one press instead of two, and a finished row is text and looks like text */
 .ob-task.is-live {
   cursor: pointer;
   border-radius: 3px;

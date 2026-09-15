@@ -7,9 +7,7 @@ import GRAPE_PY from './grape.py?raw'
 import DRIVER_PY from './driver.py?raw'
 import { PROTOCOL, type FromWorker, type PyStep, type ToWorker } from './protocol'
 
-/* tsconfig's lib is DOM, not WebWorker, and adding WebWorker collides with DOM
- * across every file in src. One cast here is cheaper than that, and it is
- * contained to the single line that needs it. */
+/* tsconfig's lib is DOM and not WebWorker, and adding WebWorker collides with DOM across every file in src, so one cast contained to this line is cheaper */
 const post = (m: FromWorker) => (self as unknown as { postMessage(m: unknown): void }).postMessage(m)
 
 let mp: MicroPython | null = null
@@ -36,8 +34,7 @@ function step(py: MicroPython, call: string): PyStep | null {
     py.runPython(call)
   } catch (e) {
     const traceback = String((e as Error)?.message ?? e).trim()
-    /* the last line of a traceback is the sentence a person can act on; the
-     * rest is the file and line, which the engine keeps for the console */
+    /* the last line of a traceback is the sentence a person can act on, and the rest is the file and line the engine keeps for the console */
     const error = traceback.split('\n').filter(Boolean).pop()?.trim() ?? 'the island stopped'
     post({ t: 'crash', error, traceback })
     return null
@@ -47,16 +44,12 @@ function step(py: MicroPython, call: string): PyStep | null {
 
 self.addEventListener('message', (ev: MessageEvent) => { void handle(ev.data as ToWorker) })
 
-/* Strictly one message in, one message out. The engine never sends a resume
- * until an intent has come back, so there is no interleaving to guard against
- * and no SharedArrayBuffer anywhere near this. */
+/* strictly one message in and one message out: the engine never sends a resume until an intent has come back, so there is no interleaving to guard against and no SharedArrayBuffer near this */
 async function handle(msg: ToWorker) {
   /* everything is inside this guard, so nothing can throw without a message going back */
   try {
     if (msg.t === 'load' && msg.v !== PROTOCOL) {
-      /* the two halves are built from the same repo, so this is a stale cached
-       * chunk rather than a real disagreement. Said out loud because the same
-       * situation with no check is an island that fails in a way nobody can read. */
+      /* both halves are built from the same repo, so a protocol mismatch is a stale cached chunk rather than a real disagreement, and it is said out loud because the same case with no check is an island that fails in a way nobody can read */
       post({
         t: 'crash',
         error: `this worker speaks protocol ${PROTOCOL} and the page speaks ${msg.v}. Reload the page.`,
@@ -69,9 +62,7 @@ async function handle(msg: ToWorker) {
 
     if (msg.t === 'load') {
       const dir = `islands/${msg.island}`
-      /* mkdirTree and not mkdir: mkdir throws on a directory that already
-       * exists, which is every load after the first, and writeFile never
-       * creates a parent. Both measured. */
+      /* mkdirTree and not mkdir: mkdir throws on a directory that already exists, which is every load after the first, and writeFile never creates a parent */
       py.FS.mkdirTree(dir)
       for (const [name, source] of Object.entries(msg.files)) {
         py.FS.writeFile(`${dir}/${name}`, source)

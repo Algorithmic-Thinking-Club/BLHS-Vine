@@ -39,8 +39,7 @@ export function CoreBeatRunner(
     review?: boolean
     /** forces one activity to read plain, whatever arm the student was assigned */
     forceArm?: 'game' | 'plain'
-    /* W8. Optional on purpose: a beat with a `do` item is still playable with no
-     * map, because the item falls back to naming its places. See frames.ts. */
+    /* optional on purpose: a beat with a `do` item is still playable with no map, because the item falls back to naming its places */
     world?: BeatWorld
   },
 ) {
@@ -50,17 +49,7 @@ export function CoreBeatRunner(
     ?? save?.arm
     ?? (currentSkin() === 'plain' ? 'plain' : 'game')
 
-  /* ---- 'answers' IS A WAY IN, NOT A WAY ON (Ash, 2026-09-09) ------------
-   *
-   * *"If they have passed, maybe the dialogue says 'Advisory is done for this
-   * year, see answers?' and an option shows up, which they click to open and see
-   * their answers."*
-   *
-   * The sheet's button was wired to open the runner, and the runner opens on
-   * `play`, so pressing "see your answers" on a PASSED Advisory started a fresh
-   * quiz and re-graded him. Opening straight onto the marks is the whole of the
-   * fix, and it is a phase rather than a second panel because the card that
-   * knows how to draw a beat's items is already in this file. */
+  /* `review` opens straight onto the marks, because the sheet's see your answers button opens this runner and a `play` start re-ran and re-graded a beat that had already passed */
   const [phase, setPhase] = useState<'play' | 'result' | 'review' | 'retake' | 'answers'>(
     review ? 'answers' : 'play',
   )
@@ -92,9 +81,7 @@ export function CoreBeatRunner(
     if (arm !== 'plain' && beat.credit > 0 && grade >= PASSING_GRADE) {
       /* through `grant` so a credit that tips a cord over its line says so too */
       /* and it names the thing that was finished, with the credit as the detail under it */
-      /* the core beat's `place` is the lesson's own name ("Advisory") and a
-       * class beat's is a room, so the pop reads whichever of the two is the
-       * thing the student just finished */
+      /* the core beat's `place` is the lesson's own name and a class beat's is a room, so the pop reads whichever of the two the student just finished */
       grant(before, after, {
         what: `${beat.kind === 'core' ? beat.place : beat.title} is done.`,
         detail: `${beat.credit} credit, on your transcript.`,
@@ -102,8 +89,7 @@ export function CoreBeatRunner(
     }
     track('core_beat_complete', {
       id: beat.id, grade, retaken: retaking.current, arm, tries: attempt.current.n,
-      /* the first attempt's grade is the study's number and the ledger keeps it,
-       * so the event carries the same one rather than a second reading of it */
+      /* the ledger keeps the first attempt's grade, so the event carries that same number rather than a second reading of it */
       firstGrade: after?.ledger.find((e) => e.id === beat.id)?.firstGrade ?? grade,
     })
     track('gpa_updated', { grade, beat: beat.id })
@@ -111,31 +97,8 @@ export function CoreBeatRunner(
       for (const c of newlyCloseCords(before, after)) track('cord_progress', { cord: c.id, progress: c.progress })
     }
     setFinalScore(score)
-    /* ---- THE CARD IS KEPT WHENEVER THERE IS AN OFFER ON IT ---------------
-     *
-     * The game arm skipped the result card on ANY pass, on the reasoning that
-     * the reward pop is the result. That was true while a pass meant a good
-     * grade. It stopped being true the moment `PASSING_GRADE` became a D: a
-     * student who scraped two of seven now passes, the pop says "Advisory is
-     * done. 0.5 credit, on your transcript", the panel shuts, and the Universal
-     * Retake he is entitled to is never mentioned. The plain arm, which always
-     * shows the card, offered it. Two arms disagreeing about what a student is
-     * told he may do is a confound as well as a bug.
-     *
-     * So the card stays whenever it has something to say: a fail, or a pass
-     * carrying a retake. A clean pass still gets the pop and nothing else. */
-    /* ---- AND NOW IT IS ALWAYS KEPT, IN BOTH ARMS ------------------------
-     *
-     * This is a STUDY defect before it is a game one. The plain arm always saw
-     * the result card: the letter, the points, the credit, and the beat's
-     * takeaway facts written out. The game arm saw a two-line reward pop and the
-     * panel shut. So the two arms were shown different CONTENT at the one moment
-     * the study is measuring, and the arm that read the facts was the control.
-     * Every measured difference between them carried that.
-     *
-     * The pop still fires; it is the celebration. The card is the record, and
-     * both arms get it. Ash's own rule: the paint is the variable, what a
-     * student is told is not. */
+    /* the card stays whenever it has something to say, a fail or a pass carrying a retake, because `PASSING_GRADE` is a D and a student who scraped a pass saw only the reward pop and was never told about the retake he is entitled to */
+    /* both arms get the result card, because the pop is the celebration and the card is the record: the paint is the variable and what a student is told is not */
     setPhase('result')
   }
 
@@ -159,10 +122,7 @@ export function CoreBeatRunner(
   return (
     <div className="bt-veil">
       {/* `bt-plain-scoring` lets the plain card scroll with a fixed foot while items are up */}
-      {/* THE CRT IS GATED ON THE ARM AND NEVER ON THE SKIN. `as_plain=True` sets the
-          arm without touching `data-skin`, so a skin-gated monitor would paint game
-          art around a scored item a control-arm student is reading. `kit-surface-panel`
-          comes off with it: a carved panel inside a monitor insets the contents twice. */}
+      {/* the crt is gated on the arm and never on the skin, because `as_plain=True` sets the arm without touching `data-skin`; `kit-surface-panel` comes off with it, since a carved panel inside a monitor insets the contents twice */}
       <div {...panel} className={arm === 'plain'
         ? `bt-plain${scoring ? ' bt-plain-scoring' : ''}`
         : beat.chrome === 'screen'
@@ -200,9 +160,7 @@ export function CoreBeatRunner(
   )
 }
 
-/** the reply the author wrote for this pick. `value: ''` is the field-wide one, so
- *  a number or an ordering corrects the student who got it wrong rather than the
- *  one who did not need it. */
+/** the reply the author wrote for this pick; `value: ''` is the field-wide one, so a number or an ordering corrects the student who got it wrong and not the one who did not need it */
 const replyFor = (r: PlainRender, field: string, value: string): string =>
   r.replies.find((x) => x.field === field && x.value === value)?.text
   ?? r.replies.find((x) => x.field === field && x.value === '')?.text
@@ -336,21 +294,11 @@ function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
   onTouch: () => void
 }) {
   const [held, setHeld] = useState<string | null>(null)
-  /* ---- WHAT HE IS HOLDING, READ NOW AND NOT AS OF THE LAST RENDER --------
-   *
-   * The same race that put five instructions into step one on the program screen.
-   * `held` in a handler is the value from the render that made the handler, so a
-   * student who presses a piece and then a place faster than React re-renders has
-   * `put` read `held` as null and the piece goes nowhere: the press does nothing, and
-   * pressing a button that does nothing is how somebody decides a game is broken.
-   *
-   * A person doing a five-piece match does this every time. The ref is written on the
-   * same line the state is, so the two never disagree. */
+  /* `held` inside a handler is the value from the render that made it, so a press on a piece then a place faster than a re-render read null and the piece went nowhere; the ref is written on the same line as the state so the two never disagree */
   const heldNow = useRef<string | null>(null)
   const take = (v: string | null) => { heldNow.current = v; setHeld(v) }
 
-  /* the places, taken off the first field because every field offers the same
-   * ones: the buckets of a sort, the positions of an order */
+  /* the places, taken off the first field because every field offers the same ones: the buckets of a sort, the positions of an order */
   const places = render.fields[0]?.options ?? []
   const pool = render.fields.filter((f) => !picks[f.id])
   const inPlace = (v: string) => render.fields.filter((f) => picks[f.id] === v)
@@ -358,9 +306,7 @@ function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
   const put = (place: string) => {
     const held = heldNow.current
     if (!held || revealed) return
-    /* an ordering's place holds one thing, so dropping onto a full slot swaps
-     * the sitting piece back into the pool rather than refusing. A refusal here
-     * would be the game saying no to the only move a student can see. */
+    /* an ordering's place holds one thing, so dropping onto a full slot swaps the sitting piece back into the pool rather than refusing the only move a student can see */
     if (single) for (const f of inPlace(place)) onSet(f.id, '')
     onSet(held, place)
     take(null)
@@ -369,8 +315,7 @@ function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
   const lift = (fieldId: string) => {
     if (revealed) return
     onTouch()
-    /* pressing a piece that is already placed takes it back out, which is the
-     * undo a student finds without being told there is one */
+    /* pressing a piece that is already placed takes it back out, which is the undo a student finds without being told there is one */
     if (picks[fieldId]) { onSet(fieldId, ''); take(fieldId); return }
     take(heldNow.current === fieldId ? null : fieldId)
   }
@@ -420,9 +365,7 @@ function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
         })}
       </div>
 
-      {/* THE POOL EMPTIES AS THE PLACES FILL, which is the progress bar this
-          frame does not need: a student can see how much is left by looking at
-          what is still in their hand. */}
+      {/* the pool empties as the places fill, which is why this frame needs no progress bar */}
       <div className="bt-pool" aria-label="Still to place">
         {pool.map((f) => (
           <button
@@ -439,9 +382,7 @@ function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
         {pool.length === 0 && <span className="bt-pool-done">Everything is placed.</span>}
       </div>
 
-      {/* AND THE TRUTH, WHEN IT IS TIME, BESIDE WHAT THEY THOUGHT. §6.9: nothing
-          is taken away. A piece in the wrong place keeps its place and gains a
-          line saying where it belonged. */}
+      {/* nothing is taken away: a piece in the wrong place keeps its place and gains a line saying where it belonged */}
       {revealed && (
         <ul className="bt-move-truth">
           {render.fields.filter((f) => !fieldRight(check, f, picks)).map((f) => (
@@ -456,28 +397,10 @@ function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
   )
 }
 
-/* ---- THE PROGRAM, THE ONE FRAME THAT RUNS WHAT THE STUDENT WROTE -------------
- *
- * Slots are the numbered boxes and the instructions are the palette, which is the
- * opposite of MovePlay's roles: there, pieces are placed into named boxes and the
- * pool empties as they go. Here the palette NEVER empties, because every slot may
- * hold any instruction. That is not a convenience, it is what keeps the answer
- * space identical to the plain arm's, where every select offers every move. A game
- * arm that ran out of cards would be a game arm with fewer wrong answers in it
- * than the form the control student is filling in, and the two halves would stop
- * being comparable.
- *
- * WHAT IS SCORED IS THE SLOT, and nothing in here reads the item directly:
- * `plainOf`, `scoreOf`, `pointsOf` and `fieldRight` are the only ways this touches
- * it. So the walk below can be as loud as it likes and still never reach the
- * grade, which is the law in docs/walkthrough/10-an-island.md section 10.12.
- */
+/* the instruction palette never empties because every slot may hold any instruction, which keeps the answer space identical to the form's; scoring reads the slot only through `plainOf`, `scoreOf`, `pointsOf` and `fieldRight`, so the walk below can never reach the grade */
 
 
-/* the body, the board and the walk between them now live in `program.ts`, because
- * the MARKING needs them too: a program is scored on whether it reaches the flag and
- * not on whether it matches the steps the author happened to type. Ash solved the ATC
- * maze by a different route, watched his body walk onto the flag and was given an F. */
+/* the body, the board and the walk live in `program.ts` because the marking needs them too: a program is scored on whether it reaches the flag and not on whether it matches the steps the author happened to type */
 function ProgramPlay({ check, render, last, onDone, onTouch }: {
   check: Extract<CheckStep, { kind: 'program' }>
   render: ReturnType<typeof plainOf>
@@ -498,22 +421,13 @@ function ProgramPlay({ check, render, last, onDone, onTouch }: {
 
   const board = check.board
   const written = render.fields.map((f) => picks[f.id] ?? '')
-  /* HELD ACROSS RENDERS, and this is the whole reason the walker never walked.
-   * `walkOf` returns a fresh object every call, the step timer below listed it as a
-   * thing it watches, and pressing RUN speaks a line, so the dialogue box's typing
-   * re-rendered this screen every few frames. Each of those renders threw the 420ms
-   * timer away and started a new one, which is a timer that can never finish. The
-   * body sat on the start square, "It reached the flag." never came up, and the
-   * screen read as broken. Keyed on the ANSWER, so it is one object until somebody
-   * changes a step. */
+  /* keyed on the answer and not on the walk, because `walkOf` returns a fresh object every call and the dialogue typing re-renders this screen every few frames, which threw the 420ms step timer away before it could ever finish */
   const walk = useMemo(
     () => (board ? walkOf(board, written) : null),
     [board, written.join('|')],
   )
 
-  /* one cell at a time, so a student watches their own program happen instead of
-   * being handed the answer it arrived at. It watches the LENGTH and not the walk,
-   * as a second fence around the same mistake. */
+  /* one cell at a time so a student watches their own program happen, and it watches the length rather than the walk as a second fence around the same fresh-object mistake */
   const paces = walk ? walk.path.length : 0
   useEffect(() => {
     if (at < 0 || at >= paces - 1) return
@@ -521,47 +435,14 @@ function ProgramPlay({ check, render, last, onDone, onTouch }: {
     return () => clearTimeout(t)
   }, [at, paces])
 
-  /* ---- ONE RULE, SO NO CLICK CAN SCRAMBLE THE ANSWER --------------------
-   *
-   * An instruction goes into the next empty step. A step that has one gives it back.
-   * That is the whole of it.
-   *
-   * The version Ash played understood only "pick the instruction, then pick the step",
-   * and clicking the step first put every answer one late and left him on a zero with
-   * five right answers on the screen. Trying to support both orders is worse than
-   * either: with wells that can be aimed at, "instruction then step" fills a step and
-   * the next click empties it again, and there is no way to tell which of the two a
-   * person meant. So the wells stop being targets. A stray click on an empty step now
-   * does nothing at all instead of moving somebody's answer.
-   *
-   * Dragging still works, because a row of cards over a row of wells is a thing people
-   * drag, and a drag says exactly which step was meant.
-   */
+  /* one rule: an instruction goes into the next empty step and a step that has one gives it back, so the wells are not click targets and a stray click on an empty step does nothing; dragging still works because a drag says exactly which step was meant */
   const fill = (slotId: string, move: string) => {
     onTouch()
     /* a drop cannot land on a step that filled while the pointer was in the air */
     setPicks((p) => (p[slotId] ? p : { ...p, [slotId]: move }))
   }
 
-  /* ---- AN INSTRUCTION GOES INTO THE NEXT EMPTY STEP, READ NOW ------------
-   *
-   * ASH, after playing: *"the quiz is still fucking busted. i made it to the end, and
-   * answered it perfectly. it gave me a fucking 1/6."*
-   *
-   * THIS IS WHY, AND IT IS A RACE. `picks` here is the value from the render this
-   * handler was created in, not the current one. React batches state, so two presses
-   * closer together than a re-render both read the SAME `picks`, both work out the
-   * same "next empty step", and the second writes over the first. The instruction he
-   * pressed second is gone, the step he thought he had filled holds the wrong word,
-   * and every press after it is one place out. He keeps pressing, all five steps end
-   * up full, RUN goes live, and the marking is right about a program he did not write.
-   *
-   * A person pressing five buttons in a row does this every time. The proof that said
-   * this screen was fixed waited two hundred milliseconds between presses, so it never
-   * raced once, which is exactly the kind of green that is worth nothing.
-   *
-   * The updater form reads the CURRENT picks inside the queue, so five presses in one
-   * frame land in five different steps. */
+  /* the updater form reads the current `picks` inside the queue, because two presses closer together than a re-render both read the same `picks`, found the same next empty step, and the second wrote over the first, putting every later answer one place out and grading a program nobody wrote */
   const take = (move: string) => {
     if (revealed) return
     onTouch()
@@ -577,10 +458,7 @@ function ProgramPlay({ check, render, last, onDone, onTouch }: {
     setPicks((p) => { const n = { ...p }; delete n[slotId]; return n })
   }
 
-  /* RUN IS THE COMMIT AND NOT A REHEARSAL. A repeatable run would hand the game
-   * arm a way to find the answer by trying, which the form has no equivalent of,
-   * and the two halves would be measuring different things. One shot, like every
-   * other item in this file. */
+  /* run is the commit and not a rehearsal: a repeatable run would let a student find the answer by trying, which the form has no equivalent of, so one shot like every other item here */
   const run = () => {
     setRevealed(true)
     setAt(0)
@@ -619,15 +497,13 @@ function ProgramPlay({ check, render, last, onDone, onTouch }: {
         </div>
       )}
 
-      {/* THE SLOTS, numbered and in order, every one printing its own label on the
-          first screen because that is what the arm-parity test reads out of it. */}
+      {/* the slots, numbered and in order, every one printing its own label on the first screen because the arm parity test reads it out of here */}
       <div className="bt-slots">
         {render.fields.map((f, i) => {
           const chosen = picks[f.id]
           const text = moves.find((m) => m.value === chosen)?.text
           const right = revealed && fieldRight(check, f, picks)
-          /* THE NEXT EMPTY STEP IS LIT, so there is never a question about where the
-           * instruction you press is going to land */
+          /* the next empty step is lit, so there is never a question about where the instruction you press will land */
           const nextEmpty = render.fields.find((q) => !picks[q.id])
           const wellClass = 'bt-slotwell'
             + (chosen ? ' bt-slotwell-full' : '')
@@ -647,8 +523,7 @@ function ProgramPlay({ check, render, last, onDone, onTouch }: {
                   ? 'Step ' + (i + 1) + ', ' + text + '. Press to take it out.'
                   : 'Step ' + (i + 1) + ', empty. Press an instruction below to fill it.'}
                 onClick={() => { if (chosen) clear(f.id) }}
-                /* and dragging works too, because a row of cards over a row of wells
-                 * is a thing people drag */
+                /* and dragging works too, because a row of cards over a row of wells is a thing people drag */
                 onDragOver={(e) => { if (!revealed && !chosen) e.preventDefault() }}
                 onDrop={(e) => {
                   if (revealed || chosen) return
@@ -659,8 +534,7 @@ function ProgramPlay({ check, render, last, onDone, onTouch }: {
               >
                 {text ?? <span className="bt-slotempty">empty</span>}
               </button>
-              {/* NOTHING IS TAKEN AWAY: a wrong step keeps what the student chose
-                  and gains the instruction that belonged there beside it. */}
+              {/* nothing is taken away: a wrong step keeps what the student chose and gains the instruction that belonged there beside it */}
               {revealed && !right && (
                 <span className="bt-truth">
                   <Glyph piece="icon_set" face="tick" size={13} />
@@ -672,8 +546,7 @@ function ProgramPlay({ check, render, last, onDone, onTouch }: {
         })}
       </div>
 
-      {/* THE RULE, ON THE SCREEN. A puzzle whose controls have to be guessed at
-          measures guessing. One sentence, and it changes to say what to do next. */}
+      {/* the rule is on the screen, because a puzzle whose controls have to be guessed at measures guessing */}
       {!revealed && (
         <p className="bt-how">
           {filled
@@ -739,8 +612,7 @@ function CheckPlay({ check, world, last, onDone }: {
   const [picks, setPicks] = useState<Response>({})
   const [revealed, setRevealed] = useState(false)
 
-  /* the convention, applied: the first input that touches the item, whichever
-   * field it lands on, is the moment the student answered */
+  /* the convention, applied: the first input that touches the item, whichever field it lands on, is the moment the student answered */
   const touch = () => markFirst(firstAt.current, render.id)
   const latency = () => latencyOf(t0.current, firstAt.current, render.id)
   const set = (fieldId: string, value: string) => {
@@ -771,8 +643,7 @@ function CheckPlay({ check, world, last, onDone }: {
   // one field, typed: a number, where recognition would be a different measurement
   if (single && single.input === 'text') {
     const typed = picks[single.id] ?? ''
-    /* THE PALETTE DECIDES, HERE AND IN THE FORM. A number is scored against a
-     * declared tolerance, so nothing outside `palette.ts` may compare strings. */
+    /* the palette decides here and in the form: a number is scored against a declared tolerance, so nothing outside `palette.ts` may compare strings */
     const got = fieldRight(check, single, picks)
     const truth = `It is ${single.correct}${single.label ? ` ${single.label}` : ''}.`
     const authored = replyFor(render, single.id, typed)
@@ -813,8 +684,7 @@ function CheckPlay({ check, world, last, onDone }: {
     )
   }
 
-  /* the program gets the frame that RUNS, which is the only frame in here that
-   * carries out what the student wrote instead of marking it */
+  /* the program gets the only frame in here that carries out what the student wrote instead of marking it */
   if (check.kind === 'program') {
     return (
       <ProgramPlay
@@ -877,9 +747,7 @@ function CheckPlay({ check, world, last, onDone }: {
             <div className={`bt-sortrow${rowClass}`} key={f.id} role="group" aria-label={f.label}>
               <span className="bt-sortlabel">
                 {f.label}
-                {/* §6.9: NOTHING IS TAKEN AWAY. The row keeps its label and gains
-                    its truth, and the chosen chip keeps its selected state under
-                    it, so the student sees what they thought beside what is so. */}
+                {/* nothing is taken away: the row keeps its label and gains its truth, and the chosen chip stays selected under it, so the student sees what they thought beside what is so */}
                 {revealed && !got && (
                   <span className="bt-truth">
                     <Glyph piece="icon_set" face="tick" size={14} />
@@ -939,9 +807,7 @@ function CheckPlay({ check, world, last, onDone }: {
   )
 }
 
-/* PICK ONE, in the game arm: a choice, a quiz, a place, and a `do` that has no
- * world to walk in. Its own component because a `do` whose staging is refused has
- * to fall back to exactly this and not to a second copy of it that drifts. */
+/* pick one in the game arm, covering a choice, a quiz, a place and a `do` with no world to walk in; its own component so a `do` whose staging is refused falls back to exactly this and not to a copy that drifts */
 function OneOf({ check, render, field, picked, last, onPick, onDone }: {
   check: CheckStep
   render: PlainRender
@@ -969,8 +835,7 @@ function OneOf({ check, render, field, picked, last, onPick, onDone }: {
               disabled={done}
               onClick={() => {
                 onPick(o.value)
-                /* the palette says whether that was right, here as everywhere:
-                 * the warmth and the score cannot come from two different rules */
+                /* the palette says whether that was right, here as everywhere: the warmth and the score cannot come from two different rules */
                 speak(
                   fieldRight(check, field, { [field.id]: o.value }),
                   replyFor(render, field.id, o.value),
@@ -979,9 +844,7 @@ function OneOf({ check, render, field, picked, last, onPick, onDone }: {
               }}
             >
               {o.text}
-              {/* THE WORD IS THE STATE. A drawn tick is worn when the kit is on and
-                  the sentence carries it when the kit is off, because §40.31 will
-                  not have a state that only a colour is holding. */}
+              {/* the word is the state: a drawn tick is worn when the kit is on and the sentence carries it when the kit is off, because no state may be held by colour alone */}
               {isTruth && (
                 <span className="bt-optmark bt-optmark-true">
                   <Glyph piece="icon_set" face="tick" size={14} />
@@ -1022,9 +885,7 @@ function ShowdownPlay({ check, onDone, onTouch }: {
   const [s, setS] = useState<ShowdownState>(() => startShowdown(check.rounds))
   const round = check.rounds[s.round]
 
-  /* the drive ends exactly once, on the transition into done. Depending on the
-   * flag rather than on the whole state is deliberate: `s` changes every pick and
-   * this must not fire on any of them. */
+  /* the drive ends exactly once on the transition into done, and depends on the flag rather than the whole state because `s` changes on every pick and this must not fire on any of them */
   useEffect(() => {
     if (s.done) onDone(responseOf(check.id, s))
   }, [s.done])
@@ -1094,8 +955,7 @@ function ShowdownPlay({ check, onDone, onTouch }: {
 }
 
 /* a `do` answered by walking: reaching one of the places the item named is the answer */
-/* how long a student may hunt for a place before the plain arm's form is offered
- * beside the walk. Long enough to cross the Maw twice and read what is on the way. */
+/* how long a student may hunt for a place before the form is offered beside the walk, long enough to cross the Maw twice and read what is on the way */
 const LOST_MS = 45_000
 
 function DoPlay({ check, world, render, last, onDone, onTouch }: {
@@ -1112,40 +972,18 @@ function DoPlay({ check, world, render, last, onDone, onTouch }: {
   const [picked, setPicked] = useState<string | null>(null)
   const done = useRef(false)
 
-  /* ---- THE ARROW USED TO POINT AT THE ANSWER -------------------------------
-   *
-   * This staged `guide_to(goal.anchor)` and then said "the arrow points the
-   * way", so the game arm scored every one of these correctly by walking where
-   * it was told, while the plain arm answered the same item as a question with
-   * decoys and could get it wrong.
-   *
-   * That is a difference in CONTENT, not in paint, and it ran in the direction
-   * that flatters the treatment on the exact measure the study reports. The
-   * modality stays different on purpose: a world IS the independent variable.
-   * Being handed the answer is not.
-   *
-   * Both arms are now asked the same question, which is which of the places
-   * this room has is the one named. One arm walks to it, one ticks a box.
-   *
-   * The objective line replaces the arrow because it repeats the question
-   * without answering it, which is exactly what the plain arm's legend does.
-   */
+  /* never stage `guide_to(goal.anchor)` here: an arrow pointing at the goal scored the walking arm correctly every time while the form arm could get the same item wrong, which is a difference in content and not in paint, so the objective line repeats the question without answering it */
   useEffect(() => {
     void world.issue({ kind: 'objective', text: check.prompt })
     const stop = world.onReached((anchor) => {
       if (done.current) return
-      /* only the places this item named. Walking past something else on the way is
-       * not an answer, and treating it as one would score a student on the route
-       * they happened to take. */
+      /* only the places this item named, because walking past something else on the way is not an answer and treating it as one would score a student on the route they happened to take */
       if (anchor !== check.goal.anchor && !check.decoys.some((d) => d.anchor === anchor)) return
       done.current = true
       onTouch()
       setReached(anchor)
     })
-    /* LOOKING IS NOT THE MEASUREMENT. Past this, a student is being scored on
-     * navigation rather than on what he learned, so the control arm's own form
-     * comes up beside the walk as a way out. It never replaces the walk: a
-     * student who finds the place still answers by standing on it. */
+    /* looking is not the measurement: past this a student is scored on navigation rather than on what he learned, so the form comes up beside the walk as a way out without ever replacing it */
     const t = window.setTimeout(() => setLost(true), LOST_MS)
     return () => {
       stop()
@@ -1199,9 +1037,7 @@ function PlainForm({ beat, checksOnly, attempt, arm, onDone }: {
   const renders = checks.map(plainOf)
   const t0 = useRef(Date.now())
   const [picks, setPicks] = useState<Response>({})
-  /* the convention lives at the top of this file. Per-item, stamped when the
-   * answer is given rather than reconstructed at submit, because a form is
-   * answerable in any order and the submit click is one number for the page. */
+  /* stamped per item when the answer is given rather than reconstructed at submit, because a form is answerable in any order and the submit click is one number for the whole page */
   const answeredAt = useRef<Record<string, number>>({})
   const [graded, setGraded] = useState<Answers | null>(null)
 
@@ -1273,14 +1109,7 @@ function PlainForm({ beat, checksOnly, attempt, arm, onDone }: {
     <div className="bt-plainform">
       <h2>{beat.title}</h2>
       <p className="bt-plainplace">{beat.place}</p>
-      {/* ---- WHO IS SPEAKING (Ash, 2026-09-09) ----------------------------
-          *
-          * The plain arm printed the words and dropped the name, so several lines
-          * from different people ran together as one anonymous paragraph. The
-          * game arm reads "Mr. Wiseman" and then the line. Who said a thing is
-          * CONTENT, not paint: it is how a student knows the counselor from the
-          * principal, and the study cannot afford one arm knowing that and the
-          * other not. The portrait stays out, because that is paint. */}
+      {/* the speaker's name is content and not paint, because without it lines from different people run together as one anonymous paragraph and a student cannot tell the counselor from the principal; the portrait stays out, because that is paint */}
       {!checksOnly && beat.steps.map((s, i) => (s.kind === 'say' ? (
         <p key={i}>
           {s.line.speaker && <b className="bt-plainspeaker">{s.line.speaker}: </b>}
@@ -1289,11 +1118,7 @@ function PlainForm({ beat, checksOnly, attempt, arm, onDone }: {
       ) : null))}
       {renders.map((r) => (
         <fieldset key={r.id}>
-          {/* THE DERIVED PROMPT, not the raw one. `plainOf` is where an item
-              decides how it reads as a form, and the graded card below already
-              reads `r.prompt`. Asking the check directly here meant anything the
-              palette added for the control arm was shown after the answers were
-              in and never while they were being given. */}
+          {/* the derived prompt and not the raw one: `plainOf` is where an item decides how it reads as a form, and asking the check directly here showed whatever the palette added only after the answers were already in */}
           <legend>{r.prompt}</legend>
           {r.note && <p className="bt-plainnote">{r.note}</p>}
           {r.fields.map((f) => (
@@ -1302,9 +1127,7 @@ function PlainForm({ beat, checksOnly, attempt, arm, onDone }: {
         </fieldset>
       ))}
       <button disabled={!complete} title={complete ? undefined : 'Every question needs an answer first.'} onClick={submit}>Submit</button>
-      {/* the refused control says what it is waiting for here too. A control arm
-          that cannot tell a student why it will not move measures usability
-          rather than presentation, which is the wrong variable. */}
+      {/* the refused control says what it is waiting for here too, because a control that cannot say why it will not move measures usability rather than presentation */}
       {!complete && (
         <span className="bt-needs">
           {blanks === 1 ? 'One question still has no answer.' : `${blanks} questions still have no answer.`}
@@ -1409,9 +1232,7 @@ function ResultCard({ beat, score, arm, canRetake, onReview, onClose }: {
       </div>
       {(passed || honors) && (
         <div className="bt-stamps">
-          {/* an island's own activity carries no credit of its own: the programme's
-              `award` writes the credit-bearing row. Without this guard the card
-              stamps "0 credit earned" on every sitting. */}
+          {/* an island's own activity carries no credit of its own, since the programme's `award` writes the credit-bearing row, and without this guard the card stamps 0 credit earned on every sitting */}
           {passed && beat.credit > 0 && (
             <span className="bt-stamp">
               <Glyph piece="stamp" face="approved" size={26} />
@@ -1452,18 +1273,7 @@ function ResultCard({ beat, score, arm, canRetake, onReview, onClose }: {
   )
 }
 
-/* ---- WHAT HE GOT, ITEM BY ITEM (Ash, 2026-09-09) -------------------------
- *
- * Read off `marks` on the ledger row, which `finish` writes on every sitting.
- * A row from before this existed carries none, and that says so rather than
- * drawing an empty card: the honest answer to "see your answers" for a sitting
- * nobody recorded is that it was not recorded.
- *
- * IT SHOWS THE PROMPT AND THE OUTCOME, NOT THE ANSWER HE GAVE. The response
- * itself is minors' data and belongs in the study's own log behind a participant
- * id, not in a browser save; what a student wants back is which ones he got.
- * The takeaways are underneath, because they are the answers in the only sense
- * that helps him next year. */
+/* read off `marks` on the ledger row, which `finish` writes every sitting; a row from before `marks` existed says so rather than drawing an empty card, and it shows the prompt and the outcome and never the answer given, because a response is minors' data and does not belong in a browser save */
 function AnswersCard({ beat, arm, onClose }: { beat: CoreBeat; arm: 'game' | 'plain'; onClose: () => void }) {
   const row = loadSave()?.ledger.find((e) => e.id === beat.id)
   const marks = row?.marks
@@ -1516,15 +1326,7 @@ function ReviewCard({ beat, arm, onRetake, onBack }: { beat: CoreBeat; arm: 'gam
   return (
     <div className={arm === 'plain' ? 'bt-plainform bt-result' : 'bt-result'}>
       <CardHead beat={beat} arm={arm} />
-      {/* ---- "READ THESE FIRST" NEEDS SOMETHING TO READ --------------------
-        *
-        * `takeaways` is optional, and an island that declares none - which is every
-        * island a member writes until somebody tells them about the field - drew this
-        * sentence over an empty space and then two buttons. A student who had just
-        * failed was told to read something that was not there.
-        *
-        * With facts, it is the step §8.1 asks for. Without them, the card says what is
-        * actually true: this is the beat, and you may take it again. */}
+      {/* `takeaways` is optional, so with no facts this says only that the beat can be taken again, instead of telling a student who just failed to read something that is not there */}
       <div className="bt-prompt">
         {facts.length
           ? 'Read these first. Then you can retake it.'

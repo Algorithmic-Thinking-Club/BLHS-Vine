@@ -2,7 +2,7 @@ import type { Script } from '../cutscene/types'
 
 // the opening on the beach as cutscene data: Thor wakes and the tide brings him a bottle
 
-const SPAWN = { x: 58.2, y: 56.4 }             // just above the wrack line — the tide breathes in frame
+const SPAWN = { x: 58.2, y: 56.4 }             // just above the wrack line, so the tide breathes in frame
 const BOTTLE_D = 3                              // shore column just east of the spawn
 // the bottle settles at s = shoreAt(3)+1.22 ≈ 111.05 → tile (57.0, 54.0); Thor stops shy of it
 const BOTTLE_AT = { x: 57.0, y: 54.0 }
@@ -34,7 +34,7 @@ export const introI1I2: Script = {
     { t: 'camera', to: SPAWN, zoom: 1.7, ms: 1600 },           // settle to scene scale
     { t: 'say', who: 'Thor', text: '...Where is this?' },
 
-    // ---- I-2 · the bottle (unmissable, and quick — Ash: it dragged) ----
+    // I-2, the bottle: unmissable and quick, because a slower version dragged
     { t: 'wait', ms: 400 },                                    // one breath, the cove alive
     { t: 'stage', call: 'bottleWave', data: { d: BOTTLE_D } }, // rides the FIRST front to launch
     { t: 'wait', ms: 300 },
@@ -79,7 +79,6 @@ export const introI1I2: Script = {
     { t: 'stage', call: 'pilotTo' },                           // forward, starboard to open sea, run out
     { t: 'wait', ms: 400 },
     { t: 'letterbox', on: false },
-    // the runtime completes here; the scene hands off to THE MAP SWITCH (I-6) — the
-    // BLHS Islands loading painting, then the island map (wired in IntroScene's onDone)
+    // the runtime completes here and the scene hands off to the map switch (I-6), the BLHS Islands loading painting then the island map, wired in IntroScene's onDone
   ],
 }

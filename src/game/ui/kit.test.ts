@@ -7,8 +7,7 @@ import {
 
 const HOST = 'https://mapvis-atc.vercel.app'
 
-/* the real dialogue_box row, css verbatim, sha and slice as published. This is
- * the piece that carries the name-versus-handle trap. */
+/* the real dialogue_box row, css verbatim, sha and slice as published, and the piece that carries the name versus handle trap */
 const DIALOGUE: KitPiece = {
   name: 'dialogue_box', type: 'dialogue_box', w: 518, h: 182,
   slice: { top: 37, right: 43, bottom: 35, left: 43 },
@@ -25,8 +24,7 @@ const DIALOGUE: KitPiece = {
     + ' var(--kit-slice-dialogue) fill / 1 / 0 var(--kit-repeat-dialogue);\n}',
 }
 
-/* a sheet: six of the eighteen live pieces are one, and none of them has a slice
- * or a css block because a grid of small faces is not a stretchable surface */
+/* a sheet: six of the eighteen live pieces are one, and none has a slice or a css block because a grid of small faces is not a stretchable surface */
 const CHIP: KitPiece = {
   name: 'chip', type: 'chip', w: 384, h: 160,
   src: '/api/v1/ui/chip/image', sha: '72v3eDdtni1-uDDvXj2d3fhWQaQ',
@@ -37,8 +35,7 @@ const CHIP: KitPiece = {
   regions: [{ name: 'plate', kind: 'face', x: 0, y: 15, w: 123, h: 135 }],
 }
 
-/* the failure `docs/UI-KIT.md` says breaks border-image with no error at all:
- * the two vertical insets add up to more than the image is tall */
+/* the failure that breaks border-image with no error at all: the two vertical insets add up to more than the image is tall */
 const TALL_SLICE: KitPiece = {
   name: 'badpanel', type: 'panel', w: 403, h: 150,
   slice: { top: 90, right: 38, bottom: 90, left: 47 },
@@ -124,8 +121,7 @@ describe('a bad slice is refused loudly, and only that piece', () => {
   })
 
   it('does NOT refuse a sheet, because a grid of faces is not a broken surface', () => {
-    // six of the eighteen live pieces are sheets. A warning that fires six times
-    // every boot is a warning nobody reads, which is how the real one gets missed.
+    // six of the eighteen live pieces are sheets, and a warning that fires six times every boot is one nobody reads, which is how the real one gets missed
     expect(kitFaults([CHIP])).toEqual([])
     const css = kitCss([CHIP], HOST)
     expect(css).toContain('--kit-art-chip:')
@@ -157,9 +153,7 @@ describe('applying it', () => {
 })
 
 describe('a piece with a slice and no css still mounts', () => {
-  /* this has never come off the live route and is the branch that keeps a rename
-   * table out of the file: with no css there is no handle to read, so the name is
-   * used and nothing invents a mapping */
+  /* with no css there is no handle to read, so the name is used and nothing invents a mapping, which is what keeps a rename table out of the file */
   const bare: KitPiece = {
     name: 'socket', type: 'socket', w: 424, h: 104,
     slice: { top: 21, right: 29, bottom: 22, left: 29 },
@@ -170,11 +164,7 @@ describe('a piece with a slice and no css still mounts', () => {
   it('gets a rule built from the slice, at the scale it published', () => {
     const css = kitCss([bare], HOST)
     expect(css).toContain('.kit-surface-socket {')
-    /* THE SLICE IS THE DEFAULT AND NOT THE ONLY ANSWER. A nine-slice measured for
-     * a wide panel eats a narrow one: the socket cost a 209px season column 58px of
-     * frame, which is what made a club's name overflow its button. The art still
-     * decides what it looks like unless a site says otherwise, and the platform's
-     * own blocks already spell it this way. */
+    /* the slice is the default and not the only answer: a nine-slice measured for a wide panel eats a narrow one, and the socket cost a 209px season column 58px of frame, so the art decides unless a site says otherwise */
     expect(css).toContain('border-width: var(--kit-slice-w-socket, 42px 58px 44px 58px);')
     expect(css).toContain('21 29 22 29 fill / 1 / 0 round stretch')
   })
@@ -249,8 +239,7 @@ describe("the plank is Ash's, and the platform cannot take it back", () => {
   it('writes no art token for it, so :root in tokens.css stays the answer', () => {
     const css = kitCss([PLANK, DIALOGUE], HOST)
     expect(css).not.toContain('--kit-art-plank')
-    /* the dialogue box in the same kit still lands, so this is a refusal of one
-     * handle and not of the fetch */
+    /* the dialogue box in the same kit still lands, so this is a refusal of one handle and not of the fetch */
     expect(css).toContain('--kit-art-dialogue')
   })
 

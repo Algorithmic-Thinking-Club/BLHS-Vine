@@ -21,13 +21,7 @@ const STAGE_W = 62
 const STAGE_H = 80
 const FOOT = 2
 
-/* ---- WHERE THE DRAWN PIXELS ACTUALLY ARE ---------------------------------
- *
- * The walk frames sit on a 144 square canvas with the panther about 56 by 67 of
- * it, so anything that centres the CANVAS puts the panther wherever the padding
- * happens to leave him. This is the bounding box of everything not transparent,
- * which is the thing worth centring. Null when the frame is empty, which is a
- * png that failed to load rather than a panther with no pixels. */
+/* where the drawn pixels are: walk frames sit on a 144 square canvas with the panther about 56 by 67 of it, so centring the canvas centres the padding instead. this is the bounding box of everything not transparent, null when the frame is empty, which means a png that failed to load */
 function inkBox(g: CanvasRenderingContext2D, w: number, h: number):
 { x: number; y: number; w: number; h: number } | null {
   const d = g.getImageData(0, 0, w, h).data
@@ -49,20 +43,13 @@ function inkBox(g: CanvasRenderingContext2D, w: number, h: number):
 export function Wardrobe({ onClose }: { onClose: () => void }) {
   const s = loadSave()
   const [look, setLook] = useState(s?.thorLook ?? 'classic')
-  /* what he is wearing over it. One slot, because an outfit is a whole edited
-   * character rather than a layer (`thorWear.ts` says why). */
+  /* what is worn over the coat. one slot, because an outfit is a whole edited character rather than a layer (`thorWear.ts` says why) */
   const [worn, setWorn] = useState(s?.thorWear ?? BARE)
   const [facing, setFacing] = useState(0)
   const [spin, setSpin] = useState(0)
   const cvRef = useRef<HTMLCanvasElement>(null)
 
-  /* ---- THE MIRROR SHOWS THE BODY THAT WALKS (Ash, 2026-09-09) -----------
-   *
-   * It drew `/art/characters/thor/<heading>.png`, the eight top-level standing
-   * pngs, and the painted world walks `/art/characters/thor/walk/<heading>/0.png`.
-   * Two different drawings of the same panther, so the coat a student approved in
-   * the mirror was approved on a body he never sees. Now they read one set, and
-   * the preload goes with it: those frames are already in the scene's own cache. */
+  /* the mirror must read the same walk frames the world walks, `/art/characters/thor/walk/<heading>/0.png`, not the eight top-level standing pngs, or a coat is approved on a body the player never sees. those frames are already in the scene's own cache, so the preload comes free */
 
   useEffect(() => {
     const cv = cvRef.current
@@ -71,28 +58,14 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
     const img = new Image()
     img.onload = () => {
       if (!live) return
-      /* A CANVAS THE BROWSER REFUSED IS A MIRROR THAT STAYS EMPTY, and the words
-       * beside it still say what is being worn, so this must never throw into a
-       * load callback where nothing can catch it. */
+      /* a canvas the browser refused is a mirror that stays empty while the words still say what is worn, so this must never throw inside a load callback where nothing can catch it */
       try {
         const off = document.createElement('canvas')
         const g = cv.getContext('2d')
         const og = off.getContext('2d', { willReadFrequently: true })
         if (!g || !og) return
         drawRecolored(off, img, LOOKS[look]?.hue ?? null)
-        /* ---- TRIMMED TO THE PANTHER (Ash, 2026-09-09) --------------------
-         *
-         * *"Currently, thor is out of frame in the wardrobe viewer."*
-         *
-         * The mirror used to draw the tightly cropped standing pngs, 52 by 67,
-         * against a stage sized for exactly that. Pointing it at the walk frames
-         * the world really uses (so the coat is approved on the body he will
-         * actually see) handed it a 144 by 144 canvas with the panther somewhere
-         * inside it, and the same "centre it and stand it on the floor" maths
-         * put most of him past the edge.
-         *
-         * So the drawn pixels are measured rather than assumed. The same scan
-         * the scene runs to find his feet, done once per frame shown here. */
+        /* trimmed to the panther: the walk frames are 144 by 144 with the panther somewhere inside, not the 52 by 67 tight crop the stage was sized for, so centre-and-stand-on-the-floor maths put most of him past the edge. measure the drawn pixels once per frame shown, the same scan the scene runs to find his feet */
         const box = inkBox(og, off.width, off.height)
         cv.width = STAGE_W
         cv.height = STAGE_H
@@ -105,18 +78,12 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
         )
       } catch { /* left empty on purpose: see above */ }
     }
-    /* THE MIRROR SHOWS WHAT HE PICKED. It drew the bare panther whatever was
-     * chosen, so the jacket, the goggles and the cap changed the card and not
-     * the reflection, which is the half of Ash's 2026-09-09 item 5 that was
-     * left: the coats already worked here because a coat is a recolour of this
-     * same picture, and an outfit is a different picture. */
+    /* the mirror shows what was picked, not the bare panther: a coat is a recolour of this same picture and an outfit is a different picture, so both have to be drawn here */
     img.src = walkFrameOf(worn, RING[facing], 0)
     return () => { live = false }
   }, [look, facing, worn])
 
-  /* THE TURN, ONE FRAME AT A TIME. Eight steps returns him to where he started,
-   * so a coat change is a look at the whole coat and not a change of pose. The
-   * timer is torn down on unmount and replaced by the next pick. */
+  /* the turn, one frame at a time: eight steps returns him to where he started, so a coat change is a look at the whole coat and not a change of pose, and the timer is torn down on unmount */
   useEffect(() => {
     if (spin <= 0) return
     const t = window.setTimeout(() => {
@@ -126,18 +93,14 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
     return () => window.clearTimeout(t)
   }, [spin])
 
-  /* written on every pick rather than on confirm. There is no cancel here on
-   * purpose: a mirror you can stand at and change your mind in is a mirror, and
-   * an OK button would make it a form. */
+  /* written on every pick rather than on confirm. no cancel on purpose: an OK button would make a mirror into a form */
   const pick = (k: string) => {
     setLook(k)
     writeSave({ thorLook: k })
     track('cosmetic_change', { look: k, via: 'outfitter' })
     /* he turns all the way round once, unless the student asked for less motion */
     if (!prefersReducedMotion()) setSpin(RING.length)
-    /* THE MIRROR IS THE ONLY VISIBLE FEEDBACK, and it is a canvas. A player who
-     * cannot see the recolour has pressed a button that does nothing at all, so
-     * the kit's own stamp says it landed and says it out loud in one call. */
+    /* the mirror is the only visible feedback and it is a canvas, so a player who cannot see the recolour needs the kit's stamp and the spoken announcement to know the button did anything */
     saved(`Wearing ${LOOKS[k]?.label ?? k}`)
   }
 
@@ -148,9 +111,7 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
     announce(`Facing ${headingWord(RING[next])}`)
   }
 
-  /* Escape used to be a window listener of this component's own, so it fired
-   * even when something had opened on top of the wardrobe. The panel hook owns
-   * it now and only the innermost panel answers. */
+  /* the panel hook owns escape so only the innermost panel answers; a window listener of this component's own fired even when something had opened on top of the wardrobe */
   const panel = usePanel({ label: 'Your clothes', onClose })
 
   return (
@@ -186,9 +147,7 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
                     key={k}
                     type="button"
                     className={`wd-swatch${look === k ? ' wd-swatch-on' : ''}`}
-                    /* A SWATCH IS A COLOUR AND NOTHING ELSE, which is the whole of
-                       what a reader got: four unlabelled buttons with the name in
-                       a tooltip a pointer could reach and a keyboard could not. */
+                    /* a swatch is a colour and nothing else, so the name has to be readable by a keyboard rather than sitting in a tooltip only a pointer can reach */
                     aria-pressed={look === k}
                     onClick={() => pick(k)}
                   >
@@ -203,8 +162,7 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
                   </button>
                 ))}
               </div>
-              {/* the words channel, because a chosen ring and a lifted button are
-                  both shape and a student should not have to read either */}
+              {/* the words channel, because a chosen ring and a lifted button are both shape and a student should not have to read either */}
               <p className="wd-worn">Wearing {LOOKS[look]?.label ?? look}</p>
             </section>
 
@@ -213,13 +171,7 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
               <div className="wd-locks">
                 {WEAR.map((it) => {
                   const got = it.has(s)
-                  /* ---- EARNED AND DRAWN IS WEARABLE (Ash, 2026-09-09) ------
-                   *
-                   * These were inspect-only cards: pressing one said a sentence
-                   * and returned. Ash gave the word for the art, so the equip
-                   * path is built and the card is a real picker the moment a set
-                   * lands on disk. Until then `drawn` is false and the card says
-                   * so rather than promising a garment it cannot put on. */
+                  /* earned and drawn is wearable: the equip path is built, but `drawn` false means the card says the art is missing rather than promising a garment it cannot put on */
                   const wearable = got && it.drawn
                   const on = worn === it.id
                   return (
@@ -237,8 +189,7 @@ export function Wardrobe({ onClose }: { onClose: () => void }) {
                             : it.earn ? `${it.name}. Earn by: ${it.earn}` : `${it.name}. Not open yet.`)
                           return
                         }
-                        /* pressing the one he has on takes it off, which is the
-                         * only way back to the bare panther */
+                        /* pressing the one already worn takes it off, which is the only way back to the bare panther */
                         const next = on ? BARE : it.id
                         setWorn(next)
                         writeSave({ thorWear: next === BARE ? undefined : next })

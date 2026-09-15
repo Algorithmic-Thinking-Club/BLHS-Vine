@@ -1,24 +1,4 @@
-/* THE TEN-SECOND TEST, ON A STOPWATCH.
- *
- * docs/ops/BRIEF-THE-GAME.md: "a fourteen-year-old opens this, unattended, in
- * advisory, and knows what the game is and what to do next within ten seconds,
- * without being told." Ash: "our goal is for anyone to understand the game. as of
- * right now i would have 0 clue."
- *
- * That is a testable claim and nobody has ever run it. This opens the game cold,
- * touches nothing, and records what is on screen every 250ms for twenty seconds:
- * every word a student could read, whether the game is pointing anywhere, and
- * when each of those first appeared. Then it says whether the two questions were
- * answered inside ten seconds.
- *
- * IT PRESSES NOTHING ON PURPOSE. The student this is about does not know which
- * key to press; that is the whole problem. A test that walks Thor around is
- * testing a player who already understands the game.
- *
- *   node scripts/ten-seconds.mjs                 the hub, cold, fresh run
- *   node scripts/ten-seconds.mjs --map=castaway  somewhere else
- *   node scripts/ten-seconds.mjs --shots         a frame every second, to look at
- */
+/* the ten second test on a stopwatch: open the game cold, press nothing, and sample the screen every 250ms for twenty seconds to see whether a student knows what the game is and what to do next inside ten seconds, because a run that walks Thor around tests a player who already understands the game */
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 
@@ -32,9 +12,7 @@ const map = arg('map', 'hub')
 const OUT = 'reference/_archive/build-shots/ten-seconds'
 if (has('shots')) { fs.mkdirSync(OUT, { recursive: true }); for (const f of fs.readdirSync(OUT)) fs.unlinkSync(`${OUT}/${f}`) }
 
-/* A RUN THAT HAS JUST BEGUN, which is the state this test is about and the state
- * the whole game is judged on: the intro is done, nothing has been earned, and
- * nobody has told the student anything. */
+/* a run that has just begun, the state this test is about: the intro is done, nothing has been earned, and nobody has told the student anything */
 const SAVE = {
   v: 2, id: 'r_ten', handle: 'BraveTide', pronouns: 'they/them', boatName: 'Kestrel',
   year: 1, season: 'Fall', beat: 'maw:arrive', introDone: true, arm: 'game',
@@ -58,8 +36,7 @@ const frames = []
 for (let i = 0; i < 80; i++) {
   const at = (Date.now() - t0) / 1000
   const f = await page.evaluate(() => {
-    /* every word a student could actually read, in DOM order, with the world's
-     * own Pixi text asked for separately because it is not in the DOM */
+    /* every word a student could read, in DOM order, with the world's own Pixi text asked for separately because it is not in the DOM */
     const words = []
     for (const el of document.querySelectorAll('body *')) {
       const own = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim()

@@ -111,12 +111,9 @@ function everyComponent(dir = 'src'): string[] {
 
 /* the two full-screen elements in the tree that are NOT panels, by name */
 const NOT_A_PANEL = new Set([
-  /* the title's cool wash over the painted cove, so the wordmark owns the sky.
-     Inert, and a title is not something a student closes: there is nothing
-     behind it to go back to. */
+  /* the title's cool wash over the painted cove so the wordmark owns the sky; inert, and a title is not something anybody closes because there is nothing behind it to go back to */
   'ti-veil',
-  /* the click target that ADVANCES a line of station dialogue. Making it modal
-     would put a focus trap around every sentence anybody in the game says. */
+  /* the click target that advances a line of station dialogue; making it modal would put a focus trap around every sentence anybody in the game says */
   'dlg-veil',
 ])
 

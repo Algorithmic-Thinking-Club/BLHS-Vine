@@ -124,9 +124,7 @@ describe('the background is inert, and comes back', () => {
     } finally { world.remove() }
   })
 
-  /* THE BUG THIS COUNT EXISTS FOR. Two panels hide the same world; without a
-   * reference count the second one records "already hidden" as the state to put
-   * back, and closing both leaves the game inert with nothing on top of it. */
+  /* the bug this count exists for: two panels hide the same world, and without a reference count the second records "already hidden" as the state to put back, so closing both leaves the game inert with nothing on top of it */
   it('survives two panels hiding the same background', () => {
     const world = document.createElement('div')
     document.body.appendChild(world)
@@ -141,9 +139,7 @@ describe('the background is inert, and comes back', () => {
     } finally { world.remove() }
   })
 
-  /* THE LIVE REGION IS A BODY CHILD, so the sweep counted it as background and
-   * hid it, and a hidden live region is not read: every announcement a panel
-   * made while it was open went nowhere, which is the one place they matter. */
+  /* the live region is a body child, so the sweep counted it as background and hid it, and a hidden live region is not read, which lost every announcement a panel made while it was open */
   it('never hides the live region it announces through', () => {
     announce('open')
     const region = document.getElementById('kit-live-region')!
@@ -222,8 +218,7 @@ describe('a visual-only change gets said out loud', () => {
 })
 
 describe('the panels in the kit are wired to it', () => {
-  /* a state swap inside a panel moves focus, which is the fifth thing a panel
-   * owes and the one that is easiest to forget when a button becomes two */
+  /* a state swap inside a panel moves focus, which is the fifth thing a panel owes and the easiest to forget when a button becomes two */
   it('keeps focus inside the panel when its contents change', () => {
     function Swapper() {
       const [two, setTwo] = useState(false)

@@ -12,9 +12,7 @@
 
 .dir-group { margin: 0 0 14px; }
 
-/* THE COUNT SITS ON THE HEADING, not at the other end of the rule. Justified
-   apart it was a lone "8" a thousand pixels from the word "Spring", which reads
-   as a page number rather than as how many teams play in the spring. */
+/* the count sits on the heading, not at the other end of the rule, because justified apart it read as a page number rather than as how many teams play in the spring */
 .dir-group-head {
   display: flex;
   align-items: baseline;
@@ -48,8 +46,7 @@
   align-items: baseline;
   gap: 10px;
   padding: 6px 2px;
-  /* a hairline between rows rather than a box round each one: the page is a
-     table of contents and a border on every entry makes 74 boxes */
+  /* a hairline between rows rather than a box round each one, because the page is a table of contents and a border on every entry makes 74 boxes */
   border-bottom: 1px solid var(--kit-hairline);
 }
 
@@ -63,9 +60,7 @@
   line-height: 1.25;
 }
 
-/* WHAT IT IS, UNDER THE NAME AND NOT BESIDE IT. A club's description is a
-   sentence and the meeting time is four words, so they cannot share a line
-   without one of them being cut. */
+/* the description goes under the name and not beside it, because a club's description is a sentence and the meeting time is four words, so one of them gets cut if they share a line */
 .dir-what {
   display: block;
   font-family: var(--kit-face-body);
@@ -75,8 +70,7 @@
   line-height: 1.35;
 }
 
-/* THE ANSWER TO THE QUESTION THE PAGE IS FOR, so it is set apart rather than
-   buried in the sentence: when, and where. */
+/* when and where is the answer the page is for, so it is set apart rather than buried in the sentence */
 .dir-meets {
   flex: 0 0 auto;
   max-width: 46%;
@@ -88,9 +82,7 @@
   line-height: 1.35;
 }
 
-/* AND THE GAP, PRINTED RATHER THAN FILLED. A club the school has not published a
-   time for says so, in the same place the time would have been, quietly. It is
-   the difference between "nothing here" and "nobody has said". */
+/* a club with no published time says so in the place the time would have been, which is the difference between nothing here and nobody has said */
 .dir-gap { color: var(--kit-ink-soft); font-style: italic; }
 
 .dir-from {
@@ -104,7 +96,5 @@
 html[data-skin='plain'] .dir-row { border-bottom: 1px solid var(--kit-edge); }
 html[data-skin='plain'] .dir-gap { font-style: normal; }
 html[data-skin='plain'] .dir-name { font-weight: 700; }
-/* the name is bold and the sentence under it is not: it is a child of the name
-   so it inherited the weight, and a whole page set bold is a page with no
-   emphasis in it at all */
+/* the sentence under the name is not bold: it is a child of the name so it inherited the weight, and a whole page set bold has no emphasis in it */
 html[data-skin='plain'] .dir-what { font-weight: 400; }

@@ -5,8 +5,7 @@ import { CutsceneOverlay } from '../cutscene/CutsceneOverlay'
 import { introI1I2 } from './introScript'
 import { I3Session } from './I3Session'
 import { loadSave, writeSave } from '../save'
-// (?fresh=1 is handled ONCE at boot in main.tsx, gated to dev/captain — a module-level wipe
-// here ran on every prod load that carried the param and erased real runs)
+// ?fresh=1 is handled once at boot in main.tsx and gated to dev/captain, because a module-level wipe here ran on every prod load that carried the param and erased real runs
 import { track } from '../telemetry'
 import { GearButton, SettingsPanel } from '../../app/SettingsPanel'
 import { Hud } from '../hud/Hud'
@@ -29,8 +28,7 @@ export default function IntroScene() {
   const willPlayIntro = useRef(!loadSave()?.introDone)
   const [preCover, setPreCover] = useState(willPlayIntro.current)
 
-  // called once per BeachIso boot — StrictMode double-mounts in dev, so each call REPLACES
-  // the runtime (the previous stage's world is destroyed; a runtime bound to it drives a ghost)
+  // called once per BeachIso boot, and StrictMode double-mounts in dev, so each call replaces the runtime: the previous stage's world is destroyed and a runtime bound to it drives a ghost
   const onStage = useCallback((stage: BeachStage) => {
     const runtime = new CutsceneRuntime(stage)
     stage.onTick((ms) => runtime.tick(ms))
@@ -38,9 +36,7 @@ export default function IntroScene() {
     setRt(runtime)
     // the scene stands its interactables down while the runtime owns the frame
     runtime.subscribe(() => stage.call('setHeld', { on: runtime.ui.active }))
-    // resume-at-beat (§7.7): an unfinished intro ALWAYS replays the script (the saved
-    // identity fast-forwards I-3), because the free-roam beach has no path to the ship —
-    // landing there mid-intro stranded the run permanently
+    // an unfinished intro always replays the script and the saved identity fast-forwards I-3, because the free-roam beach has no path to the ship and landing there mid-intro stranded the run permanently
     const save = loadSave()
     if (!save?.introDone) {
       track('cutscene_start', { id: 'intro' })
@@ -49,8 +45,7 @@ export default function IntroScene() {
         writeSave({ beat: 'sea:arrive', introDone: true })
         track('cutscene_complete', { id: 'intro-beach-act' })
         track('sail_started')
-        /* the address goes down WITH the navigation and never without it, because
-         * PmapScene reads its target off the url at mount (route.ts says why) */
+        /* the address goes down with the navigation and never without it, because PmapScene reads its target off the url at mount, and route.ts says why */
         const go = navRef.current?.go
         /* the movie frame goes up before the cover lifts, so the corner never flashes */
         setCinema(true)
@@ -69,9 +64,7 @@ export default function IntroScene() {
 
   const uiGate = rt?.ui.uiGate?.id ?? null
 
-  // a resumed student already answered the parchment (beat intro:i4): the I-3 gate resolves
-  // itself from the saved identity instead of re-asking, so the replay fast-forwards to the
-  // port walk — this is what makes "any unfinished intro replays" cheap for the student
+  // a resumed student already answered the parchment at beat intro:i4, so the I-3 gate resolves itself from the saved identity instead of re-asking and the replay fast-forwards to the port walk
   useEffect(() => {
     if (uiGate !== 'i3-session' || !rt) return
     const s = loadSave()
@@ -99,7 +92,7 @@ export default function IntroScene() {
           {uiGate === 'i3-session' && (
             <I3Session
               onDone={(r) => {
-                // castaway rides the save too — net.ts keys the demo-stays-local rule on it
+                // castaway rides the save too, because net.ts keys the demo-stays-local rule on it
                 writeSave({ handle: r.handle, pronouns: r.pronouns, boatName: r.boatName, thorLook: r.thorLook, castaway: r.castaway, beat: 'intro:i4' })
                 rt.resolveUi('i3-session')
               }}

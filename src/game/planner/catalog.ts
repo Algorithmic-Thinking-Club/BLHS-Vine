@@ -1,8 +1,4 @@
-// the planner catalog: what a class pick can buy, built from the real BLHS course list
-
-// ---- CLASSES (the 2-pick strip) -------------------------------------------------------
-// Grade eligibility from the catalog, expressed as game years (1..4). Ledger ids are
-// `class:<id>`, and progress.ts keys AP Capstone on class:ap-seminar / class:ap-research.
+// the planner catalog, what a class pick can buy, built from the real BLHS course list: grade eligibility is expressed as game years 1 to 4, ledger ids are `class:<id>`, and progress.ts keys AP Capstone on class:ap-seminar and class:ap-research
 export type Dept = 'ap' | 'lang' | 'cte' | 'arts'
 
 export type ClassDef = {
@@ -80,8 +76,7 @@ export const CLASSES: ClassDef[] = [
 
 export const classById = (id: string) => CLASSES.find((c) => c.id === id)
 
-/** every class this year's sheet may offer: grade-eligible + prerequisite satisfied by a
- *  class picked (stamped or not) in an EARLIER year */
+/** every class this year's sheet may offer: grade eligible, with the prerequisite satisfied by a class picked in an earlier year, stamped or not */
 export function eligibleClasses(year: number, pickedByYear: Record<number, string[]>): ClassDef[] {
   const before = new Set<string>()
   for (let y = 1; y < year; y++) for (const id of pickedByYear[y] ?? []) before.add(id)
@@ -144,9 +139,7 @@ export function classOffer(year: number, pickedByYear: Record<number, string[]>)
   })
 }
 
-/* the four department headings, here rather than in the sheet, because the
- * department vocabulary is this file's and a second copy of it in a component is
- * a second place a rename has to reach */
+/* the four department headings live here rather than in the sheet, because a second copy in a component is a second place a rename has to reach */
 export const DEPT_LABEL: Record<Dept, string> = {
   ap: 'Advanced Placement',
   lang: 'World Languages',

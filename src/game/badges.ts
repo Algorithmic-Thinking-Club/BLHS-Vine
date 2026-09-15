@@ -21,9 +21,7 @@ export type BadgeRow = {
   detail?: string
 }
 
-/* WHAT COUNTS AS "EVERY ISLAND", which is a question about the world document
- * and not about the save. An island a student cannot reach yet is not one they
- * have failed to find, so the denominator is what the chart actually shows. */
+/* what counts as every island comes from the world document, not the save: an island a student cannot reach yet is not one they failed to find, so the denominator is what the chart shows */
 function visitedEvery(s: SaveGame, isles: string[]): { done: boolean; detail: string } {
   const seen = new Set((s.exposure ?? []).map((e) => e.place))
   const found = isles.filter((i) => seen.has(i)).length
@@ -49,8 +47,7 @@ function anyCaptain(s: SaveGame): { done: boolean; detail: string } {
   const ladders = ranksOf(s)
   let best = 0
   for (const years of Object.values(ladders)) best = Math.max(best, years)
-  /* `rankName` answers null below JV, which is the honest answer for a student
-   * who has not stayed with anything yet and is not a string to print. */
+  /* `rankName` answers null below JV, the honest answer for a run that has not stayed with anything, and not a string to print */
   const named = rankName(best)
   return { done: named === 'Captain', detail: named ?? 'No rank yet' }
 }
@@ -93,9 +90,7 @@ export function badgesOf(s: SaveGame | null, isles: string[] = []): BadgeRow[] {
     },
     {
       id: 'bookworm', name: 'Bookworm', from: 'run',
-      /* THE NUMBER IS THE POOL AND IS WRITTEN FROM IT. Twenty-five was typed
-       * once against a pool of eighteen and the pool has been nineteen for
-       * months; a student read a goal the game could not honour. */
+      /* the goal count is read from the pool and never typed: a hardcoded 25 against a pool of 18 told students to collect facts the game did not have */
       how: `Collect all ${FACT_POOL} school facts.`,
       earned: has('bookworm') || facts >= FACT_POOL,
       detail: `${facts} of ${FACT_POOL} facts`,
@@ -106,6 +101,5 @@ export function badgesOf(s: SaveGame | null, isles: string[] = []): BadgeRow[] {
 /** the one badge a save can cross on its own while reading the Handbook */
 export const bookwormThreshold = FACT_POOL
 
-/* WHETHER A TRACK IS A REAL TRACK, kept beside the ladder it reads so an island
- * added later cannot silently fall out of "any track". */
+/* whether a track is a real track, kept beside the ladder it reads so an island added later cannot silently fall out of any track */
 export const trackOf = rankTrackOf

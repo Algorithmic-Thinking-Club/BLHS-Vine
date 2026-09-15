@@ -47,21 +47,11 @@ export function SceneManager({ initial, registry, overlay }: { initial: string; 
   useEffect(() => {
     setContext({ scene: current })
     track('scene_shown', { scene: current })
-    /* AND THIS TAB SAYS IT IS THE ONE HAVING THE RUN. It is what makes a
-     * refresh mid-play come back to the same map while a pasted address in a
-     * fresh window does not (`app/entry.ts`). Stamped on scene changes only, so
-     * a tab left open all afternoon goes stale and lands on the title. */
+    /* this tab says it is the one having the run, so a refresh mid play comes back to the same map while a pasted address in a fresh window does not (`app/entry.ts`), and it is stamped on scene changes only so a tab left open all afternoon goes stale and lands on the title */
     markTabLive()
   }, [current])
 
-  /* ---- ONE TAB HOLDS THE RUN (Ash, 2026-09-09) ---------------------------
-   *
-   * A scene that is having the run renews a claim in localStorage every few
-   * seconds; the title reads it and tells a second tab what is going on. Both
-   * tabs write the whole save on every change, so without this the older copy
-   * lands on top of the newer one and a student loses a class with nothing said.
-   * Leaving the world lets the claim go at once, so walking out to the title in
-   * one tab frees the other on its next look. */
+  /* one tab holds the run: a playing scene renews a claim in localStorage every few seconds and the title reads it, because both tabs write the whole save on every change and the older copy would land on top of the newer one, losing a class with nothing said; leaving the world frees the claim at once */
   useEffect(() => {
     if (!PLAYING_SCENES.has(current)) { releasePlaying(); return }
     claimPlaying()

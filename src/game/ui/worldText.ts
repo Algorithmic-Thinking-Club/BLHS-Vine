@@ -6,8 +6,7 @@ export type WorldTextBaseline = 'top' | 'middle' | 'bottom'
 export type WorldTextStyle = {
   /** a CSS font family list. The game faces are 'Harbormaster' and 'Deckhand'. */
   face: string
-  /** cap height in ART pixels, not screen pixels: this is composited at map scale
-   *  and scaled by the same camera as the painting it sits on */
+  /** cap height in art pixels and not screen pixels, because this is composited at map scale and scaled by the same camera as the painting it sits on */
   size: number
   weight?: 'normal' | 'bold'
   /** the colour of the text itself */
@@ -29,8 +28,7 @@ export type WorldTextStyle = {
   rotate?: number
   upper?: boolean
   ellipsis?: string
-  /** what a character is worth when there is no canvas to measure with. Only
-   *  used headless; a real browser measures. */
+  /** what a character is worth when there is no canvas to measure with, used headless only because a real browser measures */
   charWidth?: number
 }
 
@@ -89,16 +87,13 @@ export function estimateMeasurer(style: WorldTextStyle): (s: string) => number {
   return (s: string) => s.length * per + spacing * Math.max(0, s.length - 1)
 }
 
-/** the box a rotated rectangle needs. A stern name at eleven degrees is wider
- *  than the text, and a canvas cut to the text clips the corners off it. */
+/** the box a rotated rectangle needs, because a stern name at eleven degrees is wider than the text and a canvas cut to the text clips its corners off */
 export function rotatedBounds(w: number, h: number, deg: number): { width: number; height: number } {
   if (!deg) return { width: w, height: h }
   const r = (deg * Math.PI) / 180
   const c = Math.abs(Math.cos(r))
   const s = Math.abs(Math.sin(r))
-  /* the epsilon is not fussiness: cos(90°) is 6.1e-17 rather than 0, so a
-   * quarter turn of a 10x4 box came out 5 wide instead of 4 and every rotated
-   * slot carried a stray transparent column */
+  /* the epsilon is not fussiness: cos(90°) is 6.1e-17 rather than 0, so a quarter turn of a 10x4 box came out 5 wide instead of 4 and every rotated slot carried a stray transparent column */
   const up = (v: number) => Math.ceil(v - 1e-9)
   return { width: up(w * c + h * s), height: up(w * s + h * c) }
 }
@@ -124,8 +119,7 @@ function wrap(text: string, max: number, measure: (s: string) => number): string
       const tryLine = line ? `${line} ${word}` : word
       if (line && measure(tryLine) <= max) { line = tryLine; continue }
       if (line) { out.push(line); line = '' }
-      /* a single word wider than the whole slot is broken rather than allowed to
-       * run off the art, which is what a handle nobody put a space in would do */
+      /* a single word wider than the whole slot is broken rather than allowed to run off the art, which is what a handle nobody put a space in would do */
       if (measure(word) > max) {
         const parts = breakLongWord(word, max, measure)
         out.push(...parts.slice(0, -1))
@@ -163,8 +157,7 @@ export function layoutWorldText(
     truncated = true
     const kept = lines.slice(0, maxLines)
     const last = kept[maxLines - 1]
-    /* what did not fit rejoins the last line so the ellipsis lands where the
-     * reading stopped, rather than at the end of a line that fitted */
+    /* what did not fit rejoins the last line so the ellipsis lands where the reading stopped, rather than at the end of a line that fitted */
     const rest = lines.slice(maxLines).join(' ')
     kept[maxLines - 1] = style.maxWidth ? clip(`${last} ${rest}`, style.maxWidth, ellipsis, measure) : `${last}${ellipsis}`
     lines = kept
@@ -183,9 +176,7 @@ export function layoutWorldText(
     lines,
     textWidth,
     textHeight,
-    /* BOTH SIDES EVEN. The same law the generator canvases live under: an odd
-     * side on a pixel-art texture puts the whole thing on a half pixel and the
-     * nearest-neighbour scale smears one column of every glyph. */
+    /* both sides even, the same law the generator canvases live under: an odd side on a pixel art texture puts the whole thing on a half pixel and the nearest neighbour scale smears one column of every glyph */
     width: Math.max(2, box.width + (box.width % 2)),
     height: Math.max(2, box.height + (box.height % 2)),
     lineHeight,
@@ -204,9 +195,7 @@ export function measureWorldText(text: string, style: WorldTextStyle): WorldText
 
 /* ---- the painted half -------------------------------------------------- */
 
-/* Cached by every input that changes the picture. `showBoatName` composes the
- * same chip on every frame it is asked for, and a name that has not changed
- * should not repaint: this is the beach's `chipCache` made general. */
+/* cached by every input that changes the picture, because the same chip is composed on every frame it is asked for and a name that has not changed should not repaint */
 const cache = new Map<string, WorldTextImage>()
 const keyOf = (text: string, s: WorldTextStyle) => `${text}|${JSON.stringify(s)}`
 
@@ -260,8 +249,7 @@ export function composeWorldText(text: string, style: WorldTextStyle): WorldText
   return out
 }
 
-/* letter spacing by hand, because `ctx.letterSpacing` is Chromium-only and this
- * has to draw the same on the machine a member develops on */
+/* letter spacing by hand, because `ctx.letterSpacing` is Chromium only and this has to draw the same on the machine a member develops on */
 function drawLine(g: CanvasRenderingContext2D, line: string, x: number, y: number, spacing: number, align: WorldTextAlign) {
   if (!spacing) { g.fillText(line, x, y); return }
   const prev = g.textAlign
@@ -283,15 +271,13 @@ export const WORLD_TEXT: Record<
   'sternName' | 'signpost' | 'dockCrest' | 'trophyPlaque' | 'roomNumber' | 'scoreboard',
   WorldTextStyle
 > = {
-  /* the boat's name on the stern. 2.11 calls this "the first time the game
-   * proves it is listening", and the hull is not level, so it tilts. */
+  /* the boat's name on the stern, tilted because the hull is not level */
   sternName: {
     face: "'Harbormaster', 'Deckhand', monospace", size: 9, ink: '#f0e4c8',
     shadow: { color: 'rgba(30,16,6,0.75)', dx: 0, dy: 1 },
     align: 'center', maxWidth: 62, maxLines: 1, rotate: -6, padding: 3, letterSpacing: 0.5,
   },
-  /* the island's name on a signpost, read from the deck: two short lines rather
-   * than one long one, because a sign is taller than it is wide */
+  /* the island's name on a signpost, read from the deck: two short lines rather than one long one, because a sign is taller than it is wide */
   signpost: {
     face: "'Harbormaster', 'Deckhand', monospace", size: 8, ink: '#3b2a1a',
     shadow: { color: 'rgba(255,250,235,0.35)', dx: 0, dy: -1 },
@@ -314,8 +300,7 @@ export const WORLD_TEXT: Record<
     shadow: { color: 'rgba(0,0,0,0.6)', dx: 0, dy: 1 },
     align: 'center', maxWidth: 26, maxLines: 1, padding: 1, weight: 'bold',
   },
-  /* the stadium's scoreboard: the number is the whole point, so it is the
-   * largest thing in this table and it never wraps or truncates */
+  /* the stadium's scoreboard: the number is the whole point, so it is the largest thing in this table and it never wraps or truncates */
   scoreboard: {
     face: "'Harbormaster', monospace", size: 16, ink: '#ffd98a',
     shadow: { color: 'rgba(0,0,0,0.75)', dx: 0, dy: 1 },

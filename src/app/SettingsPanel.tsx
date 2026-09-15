@@ -25,24 +25,9 @@ export type Settings = {
   textSize: 's' | 'm' | 'l'
   reducedMotion: boolean
   skin: KitSkin
-  /* ---- CLICKING THE FLOOR WALKS HIM (Ash, 2026-09-09) ------------------
-   *
-   * *"Click to move. This is a slight problem. In the help button, make this a
-   * toggle, to activate click to move. Right now it's just on by default."*
-   *
-   * OFF unless it is asked for, which is what "a toggle to activate it" means.
-   * A student who clicks a station still gets the station: that is a tap on a
-   * THING and it is not this. This is only the bare floor, which was walking
-   * him away from what he was reading. */
+  /* clicking the bare floor walks him, and it is off unless the help card's toggle turns it on: a tap on a station is a tap on a thing and still works, this was only the floor walking him away from what he was reading */
   clickToMove: boolean
-  /* ---- HOW CLOSE THE CAMERA SITS (Ash, 2026-09-09) --------------------
-   *
-   * *"At the top right corner of the screen which is currently empty, add a
-   * switch toggle, that switches camera POV. The current normal POV is 'wide
-   * view' and when the toggle is activated, it zooms into Thor much closer."*
-   *
-   * A preference rather than a game state: it survives a door, a map and a
-   * reload, and it never means anything different in one room than another. */
+  /* a preference and not game state: the close camera survives a door, a map and a reload, and never means anything different in one room than another */
   closeCamera: boolean
 }
 const KEY = 'blhs_settings_v1'
@@ -75,15 +60,8 @@ export function loadSettings(): Settings {
 }
 
 /* the three attributes on <html>, written here and nowhere else */
-/* WRITTEN IN ONE PLACE (Ash, 2026-09-09). The panel used to be the only thing
- * that stored settings, so it wrote the key inline; the help card's click-to-move
- * switch is a second writer and two `localStorage.setItem(KEY, ...)` calls is one
- * misspelling away from a setting that saves and never loads. */
-/* ---- AND WHO IS LISTENING (Ash, 2026-09-09) -----------------------------
- *
- * The camera switch changes a SETTING, and a live scene has to move on the frame
- * it is pressed rather than at the next door. `applySettings` reaches the
- * document; this reaches whatever is drawing. */
+/* every setting writes through one place, because a second `localStorage.setItem(KEY, ...)` caller is one misspelling away from a setting that saves and never loads */
+/* a live scene has to move on the frame the camera switch is pressed rather than at the next door: `applySettings` reaches the document, this reaches whatever is drawing */
 const settingsWatchers = new Set<() => void>()
 
 export function onSettings(fn: () => void): () => void {
@@ -130,21 +108,17 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
     return () => document.removeEventListener('fullscreenchange', h)
   }, [])
 
-  // identity edits write straight to the run: handle/pronouns/boat are display fields set the
-  // same way the intro set them (not graded state, so no domain verb, just writeSave)
+  // identity edits write straight to the run: handle, pronouns and boat are display fields rather than graded state, so no domain verb
   const edit = (patch: Partial<SaveGame>) => setSave(writeSave(patch))
-  // commit reads the field's own value (robust to render timing), cleans, and rejects
-  // empty/blocked by snapping back to the saved name: a student cannot wipe their name to blank
+  // commit reads the field's own value so render timing cannot beat it, and an empty or blocked name snaps back to the saved one so a student cannot wipe their name to blank
   const commitName = (raw: string) => {
     const v = cleanName(raw).trim()
     if (v.length >= 2 && !isBlocked(v)) {
       edit({ handle: v }); setNameDraft(v); track('name_edited')
-      /* the kit's one stamp rather than this panel's own opinion of what saving
-         looks like (`ui/feedback.ts`), and it announces itself on the way past */
+      /* the kit's one stamp (`ui/feedback.ts`) rather than this panel's own opinion of what saving looks like, and it announces itself on the way past */
       saved(`Name saved as ${v}`)
     }
-    /* the field snapping back to the old name is the whole of the refusal on
-     * screen, and it is silent to a reader, so it says so */
+    /* the field snapping back to the old name is the whole of the refusal on screen, and it is silent to a reader, so it is announced */
     else { setNameDraft(save?.handle ?? ''); announce('That name was not accepted. The old one is back.') }
   }
   const commitBoat = (raw: string) => {
@@ -181,10 +155,8 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const panel = usePanel({ label: 'Settings', onClose })
   const TABS: Tabs[] = ['account', 'controls', 'danger']
   const TAB_NAMES: Record<Tabs, string> = { account: 'Account', controls: 'Controls', danger: 'Danger Zone' }
-  /* THE TAB IS A STATE SWAP AND IT IS SILENT. Nothing changes but the page under
-   * the row, so a reader is told which page it now is. */
-  /* a new tab starts at its top: the page is one scroller for all three, so
-   * without this the Controls tab opened wherever Account had been scrolled to */
+  /* the tab swap is silent: nothing changes but the page under the row, so a reader is told which page it now is */
+  /* a new tab starts at its top: the page is one scroller for all three, so the Controls tab opened wherever Account had been scrolled to */
   const pickTab = (t: Tabs) => { setTab(t); announce(`${TAB_NAMES[t]} settings`) }
 
   return (
@@ -230,9 +202,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                         onClick={() => setPickPronoun((v) => !v)}
                       >
                         <span className="st-idpick-ink">{save.pronouns || 'Not set'}</span>
-                        {/* WAS A U+25BE. The drawn `pointer` sheet has a chevron
-                            and this is what it is for; the fallback is a shape
-                            the token layer draws, never another character. */}
+                        {/* the drawn `pointer` sheet's chevron replaces a raw U+25BE, and the fallback is a shape the token layer draws, never another character */}
                         <Glyph
                           piece="pointer" face="chevron" size={12} className="st-idpick-mark"
                           fallback={<span className="st-caretmark" aria-hidden="true" />}
@@ -355,14 +325,11 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                 )}
 
                 {isCaptain() && (
-                  /* THE ANCHOR IS GONE. It was a raw U+2693 in front of these two
-                     words, which is a font glyph on a heading, and a heading needs
-                     no mark at all: the words are the whole of it. */
+                  /* no mark on this heading: the raw U+2693 that led these two words was a font glyph, and the words are the whole of it */
                   <div className="st-captain">
                     <div className="st-captain-head">Teacher tools</div>
                     <div className="st-captain-row">
-                      {/* wipe here, then navigate WITHOUT ?fresh: leaving it armed in the
-                          URL meant every later F5 silently wiped the run again */}
+                      {/* wipe here, then navigate without `?fresh`: leaving it armed in the URL meant every later F5 silently wiped the run again */}
                       <Plank size="sm" onClick={() => { beginAdventure(); location.href = '/?scene=beach' }}>Replay intro</Plank>
                       {/* the two places the road goes, spelled once in route.ts */}
                       <Plank size="sm" onClick={() => { writeSave({ beat: 'sea:arrive', introDone: true }); location.href = `/?${searchFor(SEA_ARRIVAL, '')}` }}>Skip to sea</Plank>
@@ -395,12 +362,7 @@ type Binding = {
 }
 
 const ON_FOOT: Binding[] = [
-  /* ---- THE POINTER LINE FOLLOWS THE SWITCH (Ash, 2026-09-09) -----------
-   *
-   * This told every student "on an island, click where you want to go" on the
-   * one page whose whole job is to say what the controls are. Clicking the
-   * ground is OFF unless it is turned on (the `?` card's own switch), so the
-   * page was describing a control that silently does nothing. */
+  /* the pointer line follows the switch, because clicking the ground is off unless the help card's switch turns it on and this page was describing a control that silently does nothing */
   {
     what: 'Walk',
     keys: ['W', 'A', 'S', 'D'],
@@ -447,8 +409,7 @@ function ControlsPage() {
   )
 }
 
-/** one control line: an action, the real key or keys that drive it, and the
- *  pointer path that does the same thing where there is one */
+/** one control line: an action, the real keys that drive it, and the pointer path that does the same thing where there is one */
 function CtrlRow({ b }: { b: Binding }) {
   return (
     <div className="st-ctrl-row">

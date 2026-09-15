@@ -1,6 +1,4 @@
-// The api's pure logic. armFor is STUDY-CRITICAL: it decides each participant's arm and must
-// never change once a class is live — the locked-output tests below are the tripwire (if a
-// refactor changes these, it would silently reassign arms mid-study; do not "fix" the test).
+// the api's pure logic; `armFor` must never change once a class is live, so the locked outputs below are a tripwire: a refactor that moves them silently reassigns arms mid-run, so fix the refactor and not the test
 import { describe, it, expect } from 'vitest'
 import { armFor, cleanHandle, newCode, newId, GLYPHS } from './_logic.js'
 

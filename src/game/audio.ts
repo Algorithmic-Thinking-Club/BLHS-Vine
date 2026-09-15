@@ -3,9 +3,7 @@ import { NotBuilt } from '../vine/intents'
 
 /** one entry in the library: the file, its licence, and where it came from */
 export type Sfx = {
-  /** the filename under `public/sfx/`, or null for a name that is agreed and not
-   *  yet drawn. A null here refuses exactly like an unknown name does, because a
-   *  reserved word that silently does nothing is the deception again. */
+  /** the filename under `public/sfx/`, or null for a name that is agreed and not yet drawn, which refuses exactly like an unknown name rather than silently doing nothing */
   file: string | null
   /** the SPDX-ish id, and CC0-1.0 is the only one this library accepts */
   license: string
@@ -37,12 +35,10 @@ export const SFX: Record<string, Sfx> = {
   board: { file: 'board.ogg', license: 'CC0-1.0', source: 'https://kenney.nl/assets/rpg-audio', author: 'Kenney Vleugels', gain: 0.7 },
 }
 
-/** the vocabulary, in one array, and it is what a refusal reads back to the
- *  author. Sorted so the message is the same list every time. */
+/** the vocabulary in one array, sorted so a refusal reads back the same list every time */
 export const SFX_NAMES: string[] = Object.keys(SFX).sort()
 
-/** where the bytes live. Files sit in `public/`, which Vite serves from the root,
- *  so this is a URL and not a filesystem path. */
+/** files sit in `public/`, which Vite serves from the root, so this is a URL and not a filesystem path */
 const SFX_DIR = '/sfx/'
 
 /* the level the whole library plays under */
@@ -60,9 +56,7 @@ let unlocked = false
 let listening = false
 /** decoded and ready. One buffer per file, played through many sources. */
 const buffers = new Map<string, AudioBuffer>()
-/** in flight, so ten clicks in the first second cause one fetch and not ten. A
- *  resolved `null` is a file that failed and will not be tried again this
- *  sitting, which is what keeps a dead URL from re-fetching on every click. */
+/** in flight, so ten clicks in the first second cause one fetch, and a resolved `null` is a failed file that is not tried again this sitting, so a dead URL cannot re-fetch per click */
 const loading = new Map<string, Promise<AudioBuffer | null>>()
 /** asked for before the unlock. See QUEUE_FRESH_MS for why it has a shelf life. */
 const queue: { name: string; gain: number; at: number }[] = []
@@ -86,9 +80,7 @@ function isMuted(): boolean {
   return lastMute
 }
 
-/** turn sound off or on from code, and write it where the settings sheet reads
- *  it so the toggle agrees the next time it is opened. A captain silencing a
- *  demo machine and a student flipping the switch must not end up disagreeing. */
+/** turns sound off or on from code and writes it where the settings sheet reads it, so a machine silenced from code and the toggle cannot end up disagreeing */
 export function setMuted(b: boolean): void {
   lastMute = b
   if (typeof localStorage === 'undefined') return
@@ -124,15 +116,12 @@ function disarmUnlock(): void {
 function onGesture(): void {
   const c = context()
   if (!c) {
-    /* no Web Audio on this machine at all. Stop listening, and empty the queue
-     * rather than leaving four sounds parked forever against a flush that can
-     * never come. */
+    /* no Web Audio on this machine at all: stop listening and empty the queue rather than parking sounds forever against a flush that can never come */
     disarmUnlock()
     queue.length = 0
     return
   }
-  /* `resume` is a promise and the flush waits for it, because a source started
-   * against a still-suspended context is a sound that never arrives. */
+  /* `resume` is a promise and the flush waits for it, because a source started against a still-suspended context is a sound that never arrives */
   void c.resume().then(() => {
     unlocked = true
     disarmUnlock()
@@ -143,9 +132,7 @@ function onGesture(): void {
 /** has the browser actually let us make noise yet */
 export function isUnlocked(): boolean { return unlocked }
 
-/** how many pre-unlock asks are being held. The audio test is the only caller:
- *  without it there is no way to tell "queued" from "quietly dropped", and those
- *  are the two behaviours the queue exists to distinguish. */
+/** how many pre-unlock asks are being held, without which there is no way to tell queued from quietly dropped, the two behaviours the queue exists to distinguish */
 export function pending(): number { return queue.length }
 
 function flush(): void {
@@ -158,8 +145,7 @@ function flush(): void {
 
 function context(): AudioContext | null {
   if (ctx) return ctx
-  /* happy-dom, an old Safari, and a locked-down district image all land here, and
-   * all three want the same answer: no sound, no crash, no console noise. */
+  /* happy-dom, an old Safari and a locked-down district image all land here and want the same answer: no sound, no crash, no console noise */
   const Ctor: typeof AudioContext | undefined =
     typeof AudioContext !== 'undefined' ? AudioContext
       : (globalThis as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
@@ -169,8 +155,7 @@ function context(): AudioContext | null {
     master = ctx.createGain()
     master.gain.value = MASTER
     master.connect(ctx.destination)
-    /* a context can be born running when the student has already clicked
-     * something, and then there is nothing to wait for */
+    /* a context can be born running when something has already been clicked, and then there is nothing to wait for */
     if (ctx.state === 'running') { unlocked = true; disarmUnlock() }
     return ctx
   } catch { return null }
@@ -206,9 +191,7 @@ function load(file: string): Promise<AudioBuffer | null> {
       buffers.set(file, buf)
       return buf
     } catch (e) {
-      /* THE NETWORK IS NOT THE AUTHOR'S FAULT AND DOES NOT THROW AT THEM. The
-       * resolved null is cached by the map above, so a file that is missing on
-       * the deployed build costs one failed request and not one per click. */
+      /* the network is not the author's fault and does not throw at them, and the resolved null is cached above so a file missing on the deployed build costs one failed request and not one per click */
       console.warn(`[audio] ${file} did not load, that effect stays silent:`, e)
       return null
     }
@@ -224,9 +207,7 @@ function fire(name: string, gain: number): void {
   if (!c || !master) return
   const buf = buffers.get(entry.file)
   if (!buf) {
-    /* first ask for this file: fetch, decode, and play it when it lands. The
-     * latency is real and it is why `preload` exists for the sounds a scene
-     * knows it is about to need. */
+    /* first ask for this file: fetch, decode, then play when it lands, and that latency is why `preload` exists for sounds a scene knows it is about to need */
     void load(entry.file).then((b) => { if (b) start(b, gain) })
     return
   }
@@ -243,8 +224,7 @@ function start(buf: AudioBuffer, gain: number): void {
     g.gain.value = gain
     src.connect(g)
     g.connect(master)
-    /* the graph is torn down when the sound ends, or a long session leaves a
-     * node per click hanging off the master gain */
+    /* the graph is torn down when the sound ends, or a long session leaves a node per click hanging off the master gain */
     src.onended = () => { try { src.disconnect(); g.disconnect() } catch { /* already gone */ } }
     src.start(0)
   } catch (e) {
@@ -259,9 +239,7 @@ export const UI_SOUND = false
 
 /** play one of the UI kit's own effects: a panel, a control, a refusal */
 export function playUi(name: string, gain?: number): void {
-  /* the refusal first, exactly as `play` does it and for the same reason: a name
-   * the library does not hold is an author's mistake whether or not anybody was
-   * ever going to hear it. */
+  /* the refusal first, exactly as `play` does it: a name the library does not hold is an author's mistake whether or not anybody was going to hear it */
   resolve(name)
   if (!UI_SOUND) return
   play(name, gain)
@@ -269,9 +247,7 @@ export function playUi(name: string, gain?: number): void {
 
 /** play a named effect once, now, with gain multiplying the entry's own level */
 export function play(name: string, gain?: number): void {
-  /* the refusal happens FIRST, before mute, before the unlock, before the
-   * context. A typo has to be heard about on a muted machine too, or the one
-   * student who plays with sound off becomes the only one who finds the bug. */
+  /* the refusal happens first, before mute, before the unlock, before the context, or the one student playing with sound off becomes the only one who finds a typo */
   const { key, entry } = resolve(name)
   if (isMuted()) return
   const level = (entry.gain ?? 1) * (gain ?? 1)
@@ -279,8 +255,7 @@ export function play(name: string, gain?: number): void {
     armUnlock()
     context()      // build it now so the bytes can be decoding while we wait
     if (!unlocked) {
-      /* oldest out, newest in: the sound that matters is the one they just asked
-       * for, not the one the title screen wanted a minute ago */
+      /* oldest out, newest in: the sound that matters is the one just asked for, not the one the title screen wanted a minute ago */
       if (queue.length >= QUEUE_MAX) queue.shift()
       queue.push({ name: key, gain: level, at: Date.now() })
       void load(entry.file)
@@ -299,7 +274,5 @@ export async function preload(names: string[]): Promise<void> {
   await Promise.all(files.map((f) => load(f)))
 }
 
-/* the listeners go on as soon as anything imports this file, not at the first
- * play: the unlock is a race against the student's very first click, and losing
- * it costs the one sound in the game they are guaranteed to be listening for. */
+/* the listeners go on at import and not at the first play, because the unlock is a race against the very first click and losing it costs the one sound the player is guaranteed to be listening for */
 armUnlock()

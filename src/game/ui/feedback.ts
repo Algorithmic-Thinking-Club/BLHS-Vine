@@ -16,8 +16,7 @@ const SOUND: Record<FeedbackKind, string> = {
   note: 'click',
 }
 
-/* how long each kind stays. Wrong is the longest on purpose: it carries the most
- * to read, and it is the one a student is least ready to read quickly. */
+/* how long each kind stays: wrong is the longest on purpose because it carries the most to read and is the one read least quickly */
 const HOLD: Record<FeedbackKind, number> = {
   saved: 1500,
   right: 1400,
@@ -26,8 +25,7 @@ const HOLD: Record<FeedbackKind, number> = {
   note: 1900,
 }
 
-/* the drawn mark each one wears, as [sheet, face]. All six exist on the live kit
- * and none of them was being shown before this file. */
+/* the drawn mark each one wears, as [sheet, face], and all six exist on the live kit */
 const MARK: Record<FeedbackKind, [string, string] | null> = {
   saved: ['stamp', 'approved'],
   right: ['icon_set', 'tick'],
@@ -43,9 +41,7 @@ function layer(): HTMLElement | null {
   el = document.createElement('div')
   el.id = LAYER_ID
   el.className = 'kit-fb-layer'
-  /* NOT aria-live. Everything here is announced through the kit's one live
-   * region (`a11y.ts`), which is already polite, atomic and off screen. A second
-   * live region means a reader hears the same event twice. */
+  /* not `aria-live`: everything here is announced through the kit's one live region in `a11y.ts`, and a second live region means a reader hears the same event twice */
   el.setAttribute('aria-hidden', 'true')
   document.body.appendChild(el)
   return el
@@ -65,8 +61,7 @@ function markStyle(kind: FeedbackKind): string {
   ].join(';')
 }
 
-/* ONE AT A TIME, AND THE NEWEST WINS. Two stamps stacked in a corner is a
- * notification tray, which §40.6's law about what may float rules out. */
+/* one at a time and the newest wins, because two stamps stacked in a corner is a notification tray and the law about what may float rules that out */
 let showing: { el: HTMLElement; timer: number } | null = null
 
 export function feedback(kind: FeedbackKind, message: string, detail?: string): void {
@@ -100,8 +95,7 @@ export function feedback(kind: FeedbackKind, message: string, detail?: string): 
   card.appendChild(words)
   host.appendChild(card)
 
-  /* SAID OUT LOUD TOO. A stamp in a corner is invisible to a reader, and "that
-   * saved" is exactly the reassurance a student who cannot see it needs most. */
+  /* said out loud too, because a stamp in a corner is invisible to a screen reader and that it saved is the reassurance somebody who cannot see it needs most */
   announce(detail ? `${message}. ${detail}` : message)
   /* only the reward pop is heard by default; the other four go through the ui channel */
   if (kind === 'awarded') play(SOUND[kind], 0.5)
@@ -123,12 +117,10 @@ export const saved = (what = 'Saved'): void => feedback('saved', what)
 /** a correct answer. Short, because there is nothing to fix. */
 export const right = (what = 'Right', detail?: string): void => feedback('right', what, detail)
 
-/** a wrong answer, WITHOUT A BUZZER. The message is what to do next, never what
- *  was wrong with the student. */
+/** a wrong answer, without a buzzer: the message says what to do next, never what was wrong with whoever answered */
 export const wrong = (what = 'Not quite', detail?: string): void => feedback('wrong', what, detail)
 
-/** something earned: a cord, a badge, a sticker, a fact. Gold is honors only
- *  (`docs/ART.md`), so this is the ONLY one of the five that wears it. */
+/** something earned, a cord or a badge or a sticker or a fact, and gold is honors only so this is the only one of the five that wears it */
 export const awarded = (what: string, detail?: string): void => feedback('awarded', what, detail)
 
 /** anything else worth a line that is not a judgement */

@@ -1,16 +1,13 @@
 /* the parchment scroll session: the letter, the code, the name and the wardrobe cards */
 
-/* said out loud rather than inherited by luck: this file reads --kit-art-scroll,
-   --kit-art-plank, --kit-art-crest and --kit-pixel, and it used to spell the pngs out */
+/* said out loud rather than inherited by luck: this file reads --kit-art-scroll, --kit-art-plank, --kit-art-crest and --kit-pixel instead of spelling the pngs out */
 @import '../ui/tokens.css';
 
 .i3-root {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   pointer-events: auto;
-  /* the ocean stays live behind, dimmed a fifth. There is no token for a wash this
-     light over a painting: `--kit-veil` is the warm near-opaque ground a PANEL sits
-     on and would delete the beach this card is deliberately still standing in. */
+  /* the ocean stays live behind, dimmed a fifth; there is no token for a wash this light over a painting, because `--kit-veil` is the warm near-opaque ground a panel sits on and would delete the beach this card is deliberately still standing in */
   background: rgba(6, 14, 18, .20);
 }
 
@@ -39,11 +36,9 @@
 html[data-rm='1'] .i3-scroll,
 html[data-rm='1'] .i3-rollup { animation-duration: 1ms; }
 
-/* the paper window inside the rollers/deckle (measured off the asset; the wax seal +
-   anchor live in the bottom band we leave alone) */
+/* the paper window inside the rollers and deckle, measured off the asset, with the wax seal and anchor in the bottom band we leave alone */
 .i3-paper {
-  /* MEASURED off the asset's pixels (innermost deckle wobble): paper x 20.1%..80.2%,
-     y 13.7%..86.9%, wax seal in the bottom band. Never eyeball a drawn edge. */
+  /* measured off the asset's pixels at the innermost deckle wobble: paper x 20.1% to 80.2%, y 13.7% to 86.9%, wax seal in the bottom band, and never eyeball a drawn edge */
   position: absolute; inset: 16% 21% 22% 21%;
   display: flex; flex-direction: column;
 }
@@ -59,9 +54,7 @@ html[data-rm='1'] .i3-rollup { animation-duration: 1ms; }
 }
 /* nothing on the paper is drawn wider than the paper */
 .i3-card > * { max-width: 100%; box-sizing: border-box; }
-/* THE BUTTON IS ALWAYS AT THE BOTTOM OF THE PAPER, on all five cards, which is
-   what stops the "sudden jumps" his play named: the control a student is looking
-   for next was landing at a different height on every card. */
+/* the button is always at the bottom of the paper on all five cards, which is what stops the sudden jumps: the control a student looks for next was landing at a different height on every card */
 .i3-card > .i3-plank { margin-top: auto; }
 .i3-card::-webkit-scrollbar { width: 6px; }
 .i3-card::-webkit-scrollbar-thumb { background: var(--kit-edge); border-radius: var(--kit-r-soft); }
@@ -102,8 +95,7 @@ html[data-rm='1'] .i3-rollup { animation-duration: 1ms; }
   animation: i3-blink 800ms steps(1) infinite;
 }
 @keyframes i3-blink { 50% { opacity: 0; } }
-/* A LOOP STOPS DEAD rather than running at a millisecond, which would be a strobe
-   and is worse for the student the setting exists for. */
+/* a loop stops dead rather than running at a millisecond, which would be a strobe and is worse for the student the setting exists for */
 html[data-rm='1'] .i3-caret { animation: none; }
 
 .i3-sig {
@@ -133,8 +125,7 @@ html[data-rm='1'] .i3-caret { animation: none; }
   text-align: center;
   max-width: 100%;
 }
-/* a real <label> now, tied to the box under it, so a reader landing in the field
-   hears the question rather than "edit text" */
+/* a real <label> tied to the box under it, so a reader landing in the field hears the question rather than edit text */
 .i3-sub {
   align-self: flex-start;
   font-family: var(--kit-face-body);
@@ -176,9 +167,7 @@ html[data-rm='1'] .i3-caret { animation: none; }
   55% { transform: translateX(5px); }
   80% { transform: translateX(-3px); }
 }
-/* §2.7's refusal is "shakes and says one kind line", and the LINE is the message.
-   A student who asked for less motion still gets the sentence and the announcement,
-   so nothing is lost by the shake not happening. */
+/* the refusal shakes and says one kind line, and the line is the message, so a student who asked for less motion still gets the sentence and the announcement and nothing is lost by the shake not happening */
 html[data-rm='1'] .i3-shake { animation: none; }
 
 .i3-err {
@@ -219,9 +208,7 @@ html[data-rm='1'] .i3-shake { animation: none; }
   color: var(--kit-ink);
   background: transparent;
   border: none;
-  /* the focus ring is NOT switched off here. tokens.css names `.i3-field` as one
-     of its two documented exceptions, and what it falls back to is the rule
-     below, which moves a shape rather than only a hue. */
+  /* the focus ring is not switched off here: tokens.css names `.i3-field` as one of its two documented exceptions, and it falls back to the rule below, which moves a shape rather than only a hue */
   padding: 1cqw 1.4cqw;
 }
 .i3-field::placeholder { color: var(--kit-field-hint); }
@@ -347,8 +334,7 @@ html[data-rm='1'] .i5-plank { animation-duration: 1ms; }
   30% { transform: rotate(-2deg) translateY(-1px); }
   60% { transform: rotate(1.6deg); }
 }
-/* she STOPS. An idle that loops for the length of a card is the one kind of
-   motion the setting is most often turned on for. */
+/* she stops, because an idle that loops for the length of a card is the one kind of motion the setting is most often turned on for */
 html[data-rm='1'] .i3-tailor { animation: none; }
 .i3-thorview {
   width: 19cqw; height: auto;
@@ -372,8 +358,7 @@ html[data-rm='1'] .i3-thorview { animation-duration: 1ms; }
   transition: transform var(--kit-t-quick) ease;
 }
 .i3-swatch:hover { transform: translateY(-1px); }
-/* THE CHOSEN COAT IS PRESSED IN AND RINGED, because the swatches differ from each
-   other by hue and the chosen state cannot also be one. */
+/* the chosen coat is pressed in and ringed, because the swatches differ from each other by hue and the chosen state cannot also be one */
 .i3-swatch-on { border-color: var(--kit-sea); box-shadow: 0 0 0 3px var(--kit-sea-glow); transform: translateY(2px); }
 
 /* the locked items are readable rows saying what earns them, not pictographs */
@@ -389,10 +374,8 @@ html[data-rm='1'] .i3-thorview { animation-duration: 1ms; }
   overflow-y: auto;
   scrollbar-width: thin;
 }
-/* the note under the locked list gives up its air. It is the quietest sentence
-   on the card and it was costing 42 pixels of a card that was 43 over. */
-/* a scrolling list needs a hairline under it, or its cut-off last row reads as
-   the sentence below it overlapping the row above */
+/* the note under the locked list gives up its air: it is the quietest sentence on the card and it was costing 42 pixels of a card that was 43 over */
+/* a scrolling list needs a hairline under it, or its cut-off last row reads as the sentence below it overlapping the row above */
 .i3-locked + .i3-reassure {
   margin-top: 1.4cqw;
   padding-top: 1.2cqw;
@@ -410,8 +393,7 @@ html[data-rm='1'] .i3-thorview { animation-duration: 1ms; }
   line-height: 1.2;
 }
 .i3-lockmark { display: inline-block; vertical-align: -1px; margin-right: .8cqw; opacity: .75; }
-/* what stands in for the drawn lock when the platform kit is not worn: a shackle
-   and a body, drawn out of a border and a box, never a padlock character */
+/* what stands in for the drawn lock when the platform kit is not worn: a shackle and a body drawn out of a border and a box, never a padlock character */
 .i3-lockshape {
   position: relative;
   width: 9px; height: 10px;
@@ -454,8 +436,7 @@ html[data-skin='plain'] .i3-scroll {
   animation: none;
 }
 html[data-skin='plain'] .i3-rollup { animation: none; }
-/* the paper window was four percentages measured off a drawn deckle. With
-   nothing drawn there is no deckle, so it is a page margin. */
+/* the paper window was four percentages measured off a drawn deckle, and with nothing drawn there is no deckle, so it is a page margin */
 html[data-skin='plain'] .i3-paper {
   position: static;
   inset: auto;
@@ -476,8 +457,7 @@ html[data-skin='plain'] .i3-sig {
   font-size: 15px; color: var(--kit-ink-label);
   margin: 16px 0 0;
 }
-/* the crest is drawn art on a signature and this arm has none, so the name signs
-   the letter by itself */
+/* the crest is drawn art on a signature and this arm has none, so the name signs the letter by itself */
 html[data-skin='plain'] .i3-crest { display: none; }
 html[data-skin='plain'] .i3-head {
   font-family: var(--kit-face-title);
@@ -523,9 +503,7 @@ html[data-skin='plain'] .i3-reassure {
 }
 
 html[data-skin='plain'] .i3-fieldrow { width: 100%; gap: 10px; margin-top: 10px; align-items: center; }
-/* a labelled box, not a pencil line drawn on paper. `border-image: none` is the
-   one declaration that turns the platform's injected nine-slice OFF: the block
-   `kit.ts` writes is one class and this rule carries an attribute too. */
+/* a labelled box, not a pencil line drawn on paper: `border-image: none` is the one declaration that turns the platform's injected nine-slice off, and it wins because the block `kit.ts` writes is one class while this rule carries an attribute too */
 html[data-skin='plain'] .i3-fieldbox {
   border-image: none;
   background-color: var(--kit-paper-hi);
@@ -603,8 +581,7 @@ html[data-skin='plain'] .i5-plank {
   font-size: 17px;
   animation: none;
 }
-/* the swatch grid is a colour picker: the colours ARE the content, so they stay
-   and only the frame around them goes plain */
+/* the swatch grid is a colour picker and the colours are the content, so they stay and only the frame around them goes plain */
 html[data-skin='plain'] .i3-swatches { justify-content: flex-start; }
 html[data-skin='plain'] .i3-swatch {
   border: 1px solid var(--kit-edge-strong);
@@ -646,13 +623,9 @@ html[data-skin='plain'] .i3-thorview { filter: none; animation: none; }
   transition: opacity var(--kit-t-quick) ease;
 }
 .i3-back:hover { opacity: 1; }
-/* the drawn arrow at half a turn. `icon_set/arrow` points right, so a back arrow
-   is that same drawing rotated, which keeps one arrow in the game and costs
-   nothing: a right-angle rotation of pixel art lands on the grid exactly. */
+/* the drawn arrow at half a turn: `icon_set/arrow` points right, so a back arrow is that same drawing rotated, which keeps one arrow in the game and costs nothing because a right-angle rotation of pixel art lands on the grid exactly */
 .i3-back-mark { flex: none; transform: rotate(180deg); }
-/* THE PAPER IS A COLUMN: the way back, then the card. Two rows, and the card
-   takes the slack, so every card starts at the same y and the Back is in the
-   same corner on all five. */
+/* the paper is a column, the way back then the card: two rows with the card taking the slack, so every card starts at the same y and the back is in the same corner on all five */
 .i3-paper { gap: 2px; }
 
 html[data-skin='plain'] .i3-back {
@@ -662,13 +635,10 @@ html[data-skin='plain'] .i3-back {
   text-underline-offset: 2px;
 }
 
-/* the held beat while the parchment asks whether this deploy has a class to join.
-   It is the card's own shape with nothing written on it, so the paper does not jump
-   size when the real card arrives. */
+/* the held beat while the parchment asks whether this deploy has a class to join: the card's own shape with nothing written on it, so the paper does not jump size when the real card arrives */
 .i3-asking { min-height: 220px; }
 
-/* the line under the letter when this deploy has no class to join. It stands where
-   the six code boxes would be, so the paper does not change shape between the two. */
+/* the line under the letter when this deploy has no class to join, standing where the six code boxes would be so the paper does not change shape between the two */
 .i3-noclass {
   margin: 0 0 10px;
   --kit-fs-raw: calc(15px * var(--kit-text-scale));

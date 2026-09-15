@@ -17,24 +17,12 @@ import './boot-title.css'
 export default function TitleScene() {
   const nav = useNav()
   const save = loadSave()
-  /* THE RUN IS OVER, which every other screen in the game has known since the
-   * yearbook page turned and this one never asked. */
+  /* the run is over, which every other screen has known since the yearbook page turned and this one never asked */
   const over = sessionOver(save)
-  /* the year after this one, when the game has one authored and he has closed
-     the one he is in. Null at the end of the road, where the yearbook is all. */
+  /* the year after this one, when the game has one authored and the current one is closed; null at the end of the road, where the yearbook is all */
   const ahead = nextYear(save)
 
-  /* ---- OPEN IN ANOTHER TAB (Ash, 2026-09-09) ----------------------------
-   *
-   * *"If a game is already running in a tab, having duplicates might be a
-   * problem?"* It is: both tabs write the whole save, so the older copy lands on
-   * top of the newer one and a finished class quietly disappears. A world scene
-   * holds a claim (`app/entry.ts`); this reads it, on a beat, because the other
-   * tab can be closed while this screen is sitting here.
-   *
-   * IT IS A WARNING AND NOT A LOCK. The plank still works and says what it will
-   * do. A claim goes stale in ten seconds, so a crashed tab frees itself, and a
-   * student who is genuinely stuck can always press on. */
+  /* open in another tab: both write the whole save, so the older copy lands on top of the newer one and a finished class disappears; a world scene holds a claim in `app/entry.ts` and this polls it, as a warning and not a lock, because a claim goes stale in ten seconds and a crashed tab frees itself */
   const [busyElsewhere, setBusyElsewhere] = useState(() => otherTabPlaying())
   useEffect(() => {
     const t = window.setInterval(() => setBusyElsewhere(otherTabPlaying()), 1500)
@@ -55,12 +43,8 @@ export default function TitleScene() {
       enterMap(nav.go, HOME_TARGET, { kind: 'scene', image: '/art/ui/loading-islands.png', title: 'THE BLHS ISLANDS', holdMs: 2200 })
     } else nav.go('beach', { kind: 'scene', title: 'THE FAR SHORE', holdMs: 2200 })
   }
-  // no save -> Begin Adventure (starts the one run). Save -> Continue where they left off.
-  // (Starting over is Settings -> Danger Zone -> Restart, never a free title button.)
-  /* THE NEXT YEAR IS A ROLL AND THEN THE SAME ROAD. `endYear` bumps the year,
-     clears the sheet and hands back three season tokens; everything downstream
-     (`sessionOver`, the sequencer, the Maw's own gates) reads the year and opens
-     on its own. Nothing about the finished year is erased. */
+  // no save gives Begin Adventure, a save gives Continue; starting over is Settings, Danger Zone, Restart and never a free title button
+  /* the next year is a roll onto the same road: `endYear` bumps the year, clears the sheet and hands back three season tokens, and everything downstream reads the year and opens on its own, with nothing about the finished year erased */
   const openNextYear = () => {
     track('next_year_clicked', { from: save?.year ?? 1 })
     endYear()
@@ -69,8 +53,7 @@ export default function TitleScene() {
 
   const go = () => {
     if (busyElsewhere) {
-      /* taking over: the tab that had it stands down on its next beat, and the
-       * save this one is about to read is the one that tab has been writing */
+      /* taking over: the tab that had it stands down on its next beat, and the save this one is about to read is the one that tab has been writing */
       track('takeover_clicked')
       claimPlaying()
     }
@@ -116,21 +99,7 @@ export default function TitleScene() {
 
         <div className="ti-actions">
           {/* one plank, two lines, with the year and season inside the wood */}
-          {/* ---- A FINISHED YEAR IS NOT A FINISHED GAME (Ash, 2026-09-09) ----
-              *
-              * *"On the title screen the option says 'your yearbook'. This is
-              * useful. But the main button should be 'start year 2' with the
-              * button below being 'your yearbook', am I right?"*
-              *
-              * He is. The comment that stood here said there is no year two and
-              * that was simply wrong: `beats/y2.ts` is an authored Advisory at
-              * the counselor's office about every honor cord the school gives,
-              * the catalog offers classes for all four years, and `endYear()`
-              * hands out a fresh sheet and three fresh season tokens. The only
-              * thing missing was a button.
-              *
-              * THE YEARBOOK STAYS AND GOES SECOND, because it is the thing a
-              * student turns in and it must never be behind the next year. */}
+          {/* a finished year is not a finished game: year two is authored in `beats/y2.ts` and `endYear()` hands out a fresh sheet and three season tokens, so only the button was missing; the yearbook goes second because it is what a student turns in and must never sit behind the next year */}
           {over ? (
             <>
               {ahead !== null && (
@@ -166,9 +135,7 @@ export default function TitleScene() {
       </div>
 
       <div className="ti-credit">made by the Algorithmic Thinking Club</div>
-      {/* THE YEARBOOK OVER THE TITLE, which is the only panel in the game that
-          opens outside a world scene. It is the thing a student turns in, so the
-          screen the run ends on has to be able to raise it. */}
+      {/* the yearbook over the title, the only panel that opens outside a world scene, because it is what a student turns in and the screen the run ends on has to be able to raise it */}
       {book && <Yearbook onClose={() => setBook(false)} />}
       <GearButton onClick={() => setSettingsOpen(true)} />
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}

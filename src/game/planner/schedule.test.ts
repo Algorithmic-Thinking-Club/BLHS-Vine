@@ -39,19 +39,14 @@ describe('the plank, the moment something real exists', () => {
   })
 
   it('lights the schedule before the after-school box, never both', () => {
-    /* one thing is lit (BRIEF-SELF-EVIDENT law 1), and it is the one nearer the
-     * top of the page, because a lit box further down points away from what the
-     * student is reading */
+    /* only one thing is lit, and it is the one nearer the top of the page, because a lit box further down points away from what the student is reading */
     const o = scheduleOwed({ electivesLeft: 2, chosen: 0, realClasses: 1, realActivities: 1 })
     expect(o.stage).toBe('schedule')
     expect(o.owesClass && o.owesActivity).toBe(true)
   })
 
   it('goes live once every season is spent, not once one of them is', () => {
-    /* ASH: "whatever number that is, he has to choose that number before
-     * stamping." A year hands out three season tokens, and one used to be enough:
-     * the other two were carried into the stamp and forfeited with nothing on the
-     * page saying so. */
+    /* every season token has to be spent before stamping: a year hands out three, one used to be enough, and the other two were carried into the stamp and forfeited with nothing on the page saying so */
     const one = scheduleOwed({ electivesLeft: 0, chosen: 1, realClasses: 3, realActivities: 5 })
     expect(one.ready).toBe(false)
     expect(one.notYet).toBe('Not yet: pick something for all 3 seasons. 2 still empty.')
@@ -63,9 +58,7 @@ describe('the plank, the moment something real exists', () => {
   })
 })
 
-/* SEASONS_OWED IS THE SAME NUMBER THE SAVE HANDS OUT, and it has to be, or the
- * stamp asks for a season the year has no token for and the sheet can never go
- * live. Held here rather than imported so this file does not pull the save in. */
+/* `SEASONS_OWED` has to be the same number the save hands out, or the stamp asks for a season the year has no token for and the sheet can never go live, and it is held here rather than imported so this file does not pull the save in */
 describe('the number of seasons', () => {
   it('is the number of tokens a year really starts with', () => {
     expect(SEASONS_OWED).toBe(SEASONS.length)
@@ -88,16 +81,8 @@ const fakeRow = {
 
 describe('one row in member-islands.json starts the schedule asking', () => {
   it('asks for nothing AFTER SCHOOL while the table is empty', () => {
-    /* STUBBED AT ZERO RATHER THAN COUNTED OFF THE LIVE ROSTER. This case is about
-     * what `scheduleOwed` does when nothing is real, and it used to prove the
-     * premise by asserting the shipped roster had nothing playable in it. That was
-     * true while `member-islands.json` was an empty list and it is not the subject:
-     * the next case already covers a playable roster with `vi.doMock`, and tying
-     * this one to the live table made shipping an island fail a test about
-     * arithmetic. */
-    /* the electives are filled here on purpose: this case is about the OTHER
-       half of the sheet, and with a blank period the plank is quiet for a reason
-       that has nothing to do with the roster */
+    /* stubbed at zero rather than counted off the live roster, because tying this arithmetic case to the live table made shipping an island fail it */
+    /* the electives are filled here on purpose: this case is about the other half of the sheet, and with a blank period the plank is quiet for a reason that has nothing to do with the roster */
     const o = scheduleOwed({ electivesLeft: 0, chosen: 0, realClasses: 0, realActivities: 0 })
     expect(o.owesActivity).toBe(false)
     expect(o.ready).toBe(true)

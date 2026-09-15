@@ -6,59 +6,35 @@ import { distanceTo, type SlotState, type WorldPt, type WorldSlot } from './comp
 /* would a token still in this student's hand be accepted at this programme this year */
 export function affordable(p: Programme, s: SaveGame): boolean {
   if (!p.playable) return false
-  /* finishing it THIS YEAR closes it for this year and not for the run: a rank
-   * ladder is the same programme slotted three years running, so a completion in
-   * year 1 must not delete the offer in year 2 */
+  /* finishing it this year closes it for this year and not for the run: a rank ladder is the same programme slotted three years running, so a completion in year 1 must not delete the offer in year 2 */
   if (completedIn(s, p.id, s.year)) return false
   return s.tokens.some((t) => programmeAllowedIn(p, t))
 }
 
 /** what a student sees this slot as, right now */
 export function stateOf(slot: WorldSlot, s: SaveGame | null): SlotState {
-  /* AUTHORED STATES WIN AND ARE NOT NEGOTIABLE. A slot with no map is a rumour
-   * no matter what a save says, because there is nothing to have completed, and
-   * `rising` is the world's own moment rather than a student's. */
+  /* authored states win: a slot with no map is a rumour whatever the save says, because there is nothing to have completed, and `rising` is the world's own moment rather than a student's */
   if (!slot.map) return 'rumour'
   if (slot.state === 'rising') return 'rising'
   if (!s) return 'misty'
 
   const here = programmesAt(slot.place)
 
-  /* ---- A CLUB YOU SIGNED UP FOR IS NOT A PLACE YOU HAVE NEVER HEARD OF ----
-   *
-   * ASH, after playing: *"even the chart is shitty."* This is most of why. The only
-   * thing that made an island known was the EXPOSURE record, which is written when
-   * you sail within sight of it, so the Algorithmic Thinking Club, the one club he
-   * had just picked on his year sheet by name, was drawn on the chart as "a place you
-   * have not found. Sail closer to see what this is." The chart could not offer him
-   * the only island he had any reason to go to, and the year sheet had a button for
-   * it three panels away.
-   *
-   * Picking a programme on the sheet is being told where it is. So a slot running
-   * something this student has planned, started or finished is known, and the state
-   * below decides which KIND of known it is. Exposure still does its own job for
-   * everything he has not picked: an island nobody has mentioned stays misty until he
-   * sails near it, which is what makes finding one worth anything. */
+  /* a club the student signed up for is not a place they have never heard of: exposure alone drew a just-picked club as a place you have not found, so a slot running a programme planned, started or finished counts as known, and exposure still keeps unpicked islands misty until he sails near them */
   const known = here.some((p) => (s.islands ?? {})[p.id]
     || (s.completions ?? []).some((c) => c.programme === p.id)
     || Object.values(s.plans?.[s.year]?.slots ?? {}).includes(p.id))
-  /* SEEN IS A FACT ABOUT A PLACE, which is what the exposure record is for and
-   * why discovery fires once when a student sails past a stadium rather than
-   * three times. */
+  /* seen is a fact about a place, which is what the exposure record is for and why discovery fires once when a student sails past a stadium rather than three times */
   const seen = (s.exposure ?? []).some((e) => e.place === slot.place)
   if (!seen && !known) return 'misty'
 
   if (!here.length) return 'discovered'
 
-  /* COMPLETION IS PER PROGRAMME PER YEAR, off the append-only record, so a
-   * ladder that re-slots the same programme three years running does not have to
-   * erase its own history to say what colour it is. */
+  /* completion is per programme per year, off the append-only record, so a ladder that re-slots the same programme three years running does not have to erase its own history to say what colour it is */
   const done = here.filter((p) => (s.completions ?? []).some((c) => c.programme === p.id))
   if (done.length === here.length) return 'completed'
   if (here.some((p) => s.islands[p.id] === 'active')) return 'active'
-  /* AVAILABLE MEANS A TOKEN THIS STUDENT STILL HOLDS WOULD BE TAKEN HERE, which
-   * is §9.17's own definition and is a year question rather than a today
-   * question: the Fall token buys a fall sport whenever it is spent. */
+  /* available means a token this student still holds would be taken here, which is a year question rather than a today question: the Fall token buys a fall sport whenever it is spent */
   if (here.some((p) => affordable(p, s))) return 'available'
   return 'discovered'
 }
@@ -84,8 +60,7 @@ function tokenSpent(slot: WorldSlot, s: SaveGame): Programme | null {
   return null
 }
 
-/** the season this place keeps, preferring the one the run is in when it keeps
- *  more than one, because a shared field open all year has to read as open */
+/** the season this place keeps, preferring the one the run is in when it keeps more than one, because a shared field open all year has to read as open */
 export function seasonAt(slot: WorldSlot, now?: Season | null): Season | null {
   const locked = programmesAt(slot.place)
     .map((p) => seasonOf(p))
@@ -148,9 +123,7 @@ export type Dock = {
   state: SlotState
   /** the six, always all six, each present or absent */
   slots: DockDrawn[]
-  /* WHAT STANDS INSTEAD OF A DOCK. Three states have no dock to read: misty has
-   * not been found, a rumour has nothing built on it, and a rising island is
-   * still arriving. Those get one mark and no row. */
+  /* what stands instead of a dock: misty has not been found, a rumour has nothing built on it, and a rising island is still arriving, so those get one mark and no row */
   instead: DockDrawn | null
   /** how much fog is left over a misty slot: 3 far out, 0 nearly clear */
   fog: 0 | 1 | 2 | 3
@@ -200,8 +173,7 @@ export function dockOf(slot: WorldSlot, s: SaveGame | null, from: WorldPt | null
     return bare(mark('pencil', null, 'ch-s-pencil', 'Nobody has built this place yet.', true))
   }
   if (st === 'rising') {
-    /* named, because §9.18's whole beat is a student watching a place they had
-     * only heard of become a place with a name on it */
+    /* named, because the beat is a student watching a place they had only heard of become a place with a name on it */
     const d = bare(mark('rising', null, 'ch-s-rising', 'This place is opening now.', true))
     return { ...d, named: true }
   }

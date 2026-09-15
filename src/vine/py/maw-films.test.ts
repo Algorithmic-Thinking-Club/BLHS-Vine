@@ -41,28 +41,11 @@ describe('the opening and the ending are never the same sitting', () => {
     const latchAt = body.indexOf('_OPENED_HERE.append(')
     expect(railAt, 'walking_in no longer runs the opening').toBeGreaterThan(-1)
     expect(latchAt, 'walking_in no longer records that it ran').toBeGreaterThan(-1)
-    /* written BEFORE the film, not after: the film is minutes long and every
-     * word in it can refuse, and a latch written after a refusal is no latch */
+    /* written before the film and not after, because the film is minutes long, every word in it can refuse, and a latch written after a refusal is no latch */
     expect(latchAt).toBeLessThan(railAt)
   })
 
-  /* ---- NEITHER ROAD CAN PUT THE TWO FILMS IN ONE SITTING ------------------
-   *
-   * There are two roads and they are fenced differently, on purpose.
-   *
-   * THE ROOM LOADING keeps the latch. That is the road Ash named ("walking into
-   * the Maw with the year done starts the ending film"), and it is the one that
-   * would otherwise fire on the very load the opening just played on.
-   *
-   * THE PRESS is fenced by the HANDOVER instead, and it had to move. The year
-   * closes at the chart table now: a student presses Go on his last pick ten
-   * feet from the man, the bar lights the desk, and under the latch pressing him
-   * got a hello and nothing in the room could end the year. Measured on the live
-   * deploy 2026-09-08 with the cold gate sitting there four minutes.
-   *
-   * IT STILL CANNOT RUN THEM TOGETHER, which is the thing Ash actually ruled
-   * out: `maw:handed_over` is the opening's last line, and every pick on the
-   * sheet has to be finished after it. The opening finishes no picks. */
+  /* neither road puts the two films in one sitting: the room load keeps the latch so the ending cannot fire on the load that played the opening, and the press is fenced by `maw:handed_over` instead, which is the opening's last line with every pick on the sheet finished after it */
   it('will not start the ending on the load that played the opening', () => {
     const endings = [...island.matchAll(/yield from ending\(\)/g)]
     expect(endings.length, 'no road to the ending is left in island.py').toBeGreaterThan(0)
@@ -89,16 +72,7 @@ describe('the opening and the ending are never the same sitting', () => {
       .toMatch(/yield open\("yearbook", wait=True\)/)
   })
 
-  /* ---- WHO CAN START THE ENDING, AND IT IS NOT THE COUNSELOR --------------
-   *
-   * ASH, 2026-09-08: *"pressing the principal starts the closing film (the
-   * counselor never starts it), walking into the Maw with the year done also
-   * starts it."* Two roads, named, and she is not one of them: the closing is the
-   * principal coming to find you, and a student who wanders to her first should
-   * not trigger the man walking up behind him.
-   *
-   * Read as source because both roads are `on_talk`/`on_start` handlers in
-   * MicroPython, and the thing being fenced is WHICH handler holds the call. */
+  /* two roads start the ending, pressing the principal and walking into the Maw with the year done, and the counselor is neither because the closing is the principal coming to find you; checked as source because the fence is which MicroPython handler holds the call */
   it('has exactly two roads into the ending, and neither is the counselor', () => {
     const of = (fn: string) => {
       const at = island.indexOf(`def ${fn}(`)
@@ -133,19 +107,7 @@ describe('the trophy case', () => {
   })
 })
 
-/* ---- NOT ONE COORDINATE IN THE RAIL -------------------------------------
- *
- * ASH, 2026-09-08: *"I am reorganising the Maw in MAPVIS. Read every stand point
- * and position from the published map by anchor name. Hardcode nothing."*
- *
- * The rail used to carry a table of eight pixel offsets, one pair per station,
- * each read off a 4x screenshot of Maw v7. They were correct for that export and
- * for no other, and nothing would have said so: a dragged table moves the mark,
- * the offset stays, and the two of them stand wrong again with every test green.
- *
- * This is the fence. `lead_to` with no offset and `actor_face(x, "thor")` work
- * the same beat out against whatever map is loaded, so the rail passes names and
- * only names, and a number pasted back in fails here by line. */
+/* not one coordinate in the rail: stand points come from the published map by anchor name, because a table of pixel offsets is correct for one export only and a dragged mark leaves the offset wrong with every test still green */
 describe('the rail hardcodes no geometry', () => {
   it('passes no offset to any word', () => {
     const bad = founding.split('\n')
@@ -155,19 +117,7 @@ describe('the rail hardcodes no geometry', () => {
   })
 
   it('names no compass heading at a station, since which way is "at him" is the map\'s to know', () => {
-    /* ---- THE RULE IS "NOT A COMPASS POINT", AND IT READ "IS THOR" -------------
-     *
-     * It required the literal string "thor" on every line, which was the same thing
-     * for as long as the player was the only derived thing a body could be turned to.
-     * `actor_face` can turn anybody to look at any PLACE now, resolved against the map
-     * that is loaded, so `actor_face(x, TABLE)` and `actor_face(x, look_at)` obey this
-     * law exactly as `"thor"` does, and the old spelling called them violations.
-     *
-     * What the law has always meant: a compass point typed into a film is a bet on
-     * where somebody left a table in MAPVIS, and a NAME is a question the scene
-     * answers against the export in front of it. So the check is on the eight, which
-     * is also how the members own copy of this rule is written
-     * (`blhs-islands/tests/test_the_maw.py`, THE_EIGHT). */
+    /* the rule is not a compass point rather than must be thor: a compass point typed into a film bets on where a table was left in MAPVIS while a name is answered against the loaded export, so the check is on the eight, matching THE_EIGHT in `blhs-islands/tests/test_the_maw.py` */
     const EIGHT = ['north', 'north-east', 'east', 'south-east',
       'south', 'south-west', 'west', 'north-west']
     const bad = founding.split('\n')

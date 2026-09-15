@@ -27,9 +27,7 @@ describe('the ui band', () => {
     expect(uiBand()).toBe(330)
   })
 
-  /* THE BUG THE REGISTER EXISTS FOR. With one shared variable this left the band
-   * at zero while the year's card was still on screen, and the camera dropped
-   * the body back behind it. */
+  /* the bug the register exists for: with one shared variable this left the band at zero while the year's card was still on screen, and the camera dropped the body back behind it */
   it('keeps the surviving claim when one of two surfaces leaves', () => {
     setUiBand('dialogue', 330)
     setUiBand('yearstart', 240)
@@ -53,9 +51,7 @@ describe('the ui band', () => {
     expect(document.documentElement.style.getPropertyValue('--ui-band')).toBe('226px')
   })
 
-  /* A SURFACE CANNOT STAND ON ITS OWN SHOULDERS. The place card places itself
-   * from `--ui-band` and also costs the camera, and if its own height went into
-   * the number it reads it would climb the screen one measurement at a time. */
+  /* a surface cannot stand on its own shoulders: the place card places itself from `--ui-band` and also costs the camera, so putting its own height into the number it reads would climb it up the screen one measurement at a time */
   it('keeps a stacked claim out of the number it reads, and in the one the camera reads', () => {
     setUiBand('dialogue', 209)
     setUiBandStacked('placecard', 330)

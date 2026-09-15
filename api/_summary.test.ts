@@ -187,8 +187,7 @@ describe('the export a teacher actually downloads', () => {
   })
 
   it('KEEPS a student who logged nothing, with zeros, rather than dropping them', () => {
-    // a blocked network is exactly the student most worth noticing, and an export
-    // that silently omits them makes them look absent rather than excluded
+    // a blocked network is the student most worth noticing, and an export that silently omits them makes them look absent rather than excluded
     const rows = exportRows(roster, summarise([ev('heartbeat', 0)]))
     expect(rows).toHaveLength(2)
     expect(rows[1][EXPORT_COLUMNS.indexOf('handle' as never)]).toBe('QuietHarbor')

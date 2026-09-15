@@ -1,8 +1,7 @@
 // a queue of spoken lines and questions for anything outside a cutscene, such as a station
 
 export type DialogueLine = {
-  /* an anchor name when the speaker stands somewhere on the map, so the camera
-   * and the portrait both resolve from one string; a bare id otherwise */
+  /* an anchor name when the speaker stands somewhere on the map, so the camera and the portrait resolve from one string, and a bare id otherwise */
   who?: string
   text: string
   portrait?: string
@@ -18,8 +17,7 @@ export type DialogueState =
   | { kind: 'ask'; ask: DialogueAsk; pick: (i: number) => void }
   | null
 
-/* the queue waits on the arrival card, and is woken by it. Imported for the
- * value rather than the type, so this file is the one that owns the wait. */
+/* the queue waits on the arrival card and is woken by it, imported for the value rather than the type so this file owns the wait */
 import { onStageBusy, placeCardUp } from './stage/stage-bus'
 
 type Waiting =
@@ -54,9 +52,7 @@ function pump() {
 }
 
 function finish(who: Waiting, pick: number | undefined) {
-  /* a click that arrives after the line already advanced is ignored rather than
-   * resolving the next one, which is what a double click on the last line of a
-   * scene would otherwise do */
+  /* a click arriving after the line already advanced is ignored rather than resolving the next one, which is what a double click on a scene's last line would otherwise do */
   if (current !== who) return
   current = null
   if (who.kind === 'line') who.done()
@@ -89,9 +85,7 @@ export function onDialogue(fn: (s: DialogueState) => void): () => void {
   return () => { listeners.delete(fn) }
 }
 
-/* scene teardown. Anything still waiting is resolved rather than left hanging,
- * because a station body parked on an unresolved promise holds its world lock
- * forever and the next map opens with no controls. */
+/* scene teardown resolves anything still waiting, because a station body parked on an unresolved promise holds its world lock for ever and the next map opens with no controls */
 export function clearDialogue() {
   const stuck = [current, ...queue].filter(Boolean) as Waiting[]
   current = null

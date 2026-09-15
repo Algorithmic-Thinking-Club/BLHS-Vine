@@ -1,13 +1,10 @@
 /* the table of cutscene scripts, keyed by the name a station or an island yields */
 import type { Script, Step } from './types'
 
-/* a step whose position is an ANCHOR NAME rather than a point. The scene swaps it
- * for the anchor's real spot when the script is played, so the same script runs on
- * a stand-in and on the painting that replaces it. */
+/* a step whose position is an anchor name rather than a point: the scene swaps it for the anchor's real spot at play time, so the same script runs on a stand-in and on the painting that replaces it */
 export type AtAnchor = { at?: string }
 
-/* the map's own shot, read off an anchor's meta bag. See pmap/framings.ts for
- * why it lives in the bag today and what MAPVIS W2 replaces it with. */
+/* the map's own shot, read off an anchor's meta bag, and pmap/framings.ts says why it lives in the bag today */
 export type { Framing } from '../pmap/framings'
 import { shotOf, type Framing } from '../pmap/framings'
 
@@ -35,8 +32,7 @@ export const SCRIPTS: AuthoredScript[] = [
       { t: 'say', who: 'Principal Panther', text: 'The year sheet table is behind you. That is where you pick your classes.' },
       { t: 'cameraFollow', actor: 'thor' },
       { t: 'letterbox', on: false },
-      /* control handed back before the script ends, which is H3: the last beat is
-       * the player's. The gate is not required, so hold-to-skip may pass it. */
+      /* control is handed back before the script ends so the last beat is the player's, and the gate is not required so hold to skip may pass it */
       { t: 'gateAt', anchor: 'chart_table', radius: 26, prompt: 'Walk to the year sheet table', required: false },
     ],
   },
@@ -49,9 +45,7 @@ export const scriptById = (id: string) => byId.get(id)
 export function resolveScript(
   s: AuthoredScript,
   spotOf: (name: string) => { x: number; y: number } | null,
-  /* THE MAP'S OWN SHOT, when it has one. Passed in rather than imported so this
-   * function stays a pure resolver a test can drive with three lines, which is
-   * what made the missing-anchor refusal testable in the first place. */
+  /* the map's own shot when it has one, passed in rather than imported so this stays a pure resolver a test can drive with three lines, which is what made the missing-anchor refusal testable */
   framingOf?: (anchor: string, name?: string) => Framing | null,
 ): { script: Script; missing: string[] } {
   const missing: string[] = []
@@ -61,9 +55,7 @@ export function resolveScript(
       const p = spotOf(st.anchor)
       if (!p) { missing.push(st.anchor); continue }
       if (st.t === 'cameraAt') {
-        /* THE MAP WINS. A framing is authored where the thing is, so re-cutting a
-         * painting moves its own close-up with it; a number in a script is a
-         * guess made once, somewhere else, that nothing revisits. */
+        /* the map wins: a framing is authored where the thing is, so re-cutting a painting moves its own close-up with it, while a number in a script is a guess made once somewhere else that nothing revisits */
         const f = framingOf?.(st.anchor, st.framing) ?? null
         if (f && st.zoom !== undefined && f.zoom !== undefined && f.zoom !== st.zoom)
           console.info(`[cutscene] ${s.id}: "${st.anchor}" is framed at ${f.zoom} by the map, so the script's ${st.zoom} is not used`)

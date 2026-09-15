@@ -15,17 +15,14 @@ import { useNav } from '../../app/SceneManager'
 import { holdWorld } from '../world-bus'
 import { warmPortraits } from '../ui/controls'
 
-// The scenes this HUD mounts over. The beach mounts its own Hud inside IntroScene so it
-// can yield to the intro cutscene, so it is not listed here.
+// the scenes this HUD mounts over, and the beach is not listed because it mounts its own Hud inside IntroScene so it can yield to the intro cutscene
 const WORLD_SCENES = new Set(['pmap'])
 
 export function WorldHud() {
   const { current } = useNav()
   const [, bump] = useState(0)
   useEffect(() => subscribeSave(() => bump((v) => v + 1)), [])
-  /* THE ONE DRAWN FACE IS FETCHED BEFORE ANYBODY SPEAKS (BRIEF-MAW-RAIL-3 G).
-   * Here rather than in the dialogue box, because by the time the box mounts the
-   * line it is mounting for is already on screen. */
+  /* the one drawn face is fetched before anybody speaks, here rather than in the dialogue box, because by the time the box mounts the line it is mounting for is already on screen */
   useEffect(() => { warmPortraits() }, [])
   const s = loadSave()
 
@@ -44,22 +41,15 @@ export function WorldHud() {
   return (
     <>
       {s?.introDone && <Hud onBlurWorld={blurWorld} />}
-      {/* station dialogue rides every world scene, so `say` and `choose` work
-          from any painted map without that map knowing React exists */}
+      {/* station dialogue rides every world scene, so `say` and `choose` work from any painted map without that map knowing React exists */}
       <Dialogue />
-      {/* and so does the cutscene chrome. The overlay was mounted by IntroScene
-          alone, wrapped around the beach, which is why the beach was the only
-          place in the game where a script could be seen. */}
+      {/* and so does the cutscene chrome, which IntroScene once mounted alone around the beach, making the beach the only place in the game where a script could be seen */}
       <WorldCutscene />
-      {/* the arrival card. It rides here rather than inside the scene because a
-          door swap tears the scene down and rebuilds it, and a card mounted inside
-          the thing being rebuilt is a card that flashes. */}
+      {/* the arrival card rides here rather than inside the scene, because a door swap tears the scene down and rebuilds it and a card mounted inside the thing being rebuilt is a card that flashes */}
       <PlaceCard />
       {/* the one sentence saying what to do next, on every frame of every world scene */}
       <ObjectivePanel />
-      {/* and the way home, which an island grows when it has nothing left to ask for.
-          Below the movie bars in this list on purpose: a cutscene is not a moment to
-          offer somebody a way out of the island it is playing on. */}
+      {/* the way home, which an island grows when it has nothing left to ask for, below the movie bars in this list on purpose because a cutscene is not a moment to offer somebody a way out of the island it is playing on */}
       <HeadBack />
       {/* the question mark, outside the Hud's gate so a student with no run can still ask */}
       <HelpButton />
@@ -67,9 +57,7 @@ export function WorldHud() {
       <ChartButton />
       {/* and the camera switch in the other corner, which is the only thing there */}
       <CameraToggle />
-      {/* THE MOVIE FRAME (BRIEF-ARRIVAL item 1). Last in the list and highest of
-          the DOM chrome, because the bars are what everything else stands down
-          behind. It draws nothing at all until an island says `movie(True)`. */}
+      {/* the movie frame, last in the list and highest of the DOM chrome because the bars are what everything else stands down behind, and it draws nothing at all until an island says `movie(True)` */}
       <MovieBars />
       {/* and the one control a crossing offers, over the bars it sits on */}
       <SkipVoyage />

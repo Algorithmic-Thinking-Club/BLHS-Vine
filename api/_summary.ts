@@ -1,7 +1,6 @@
 /* the reader's arithmetic: folding logged events into one row of measures per participant */
 
-/** the envelope shape the client ships (src/vine/events.ts LogEnvelope), read defensively:
- *  these rows come off a database and out of a build that may be older than this code */
+/** the envelope shape the client ships (src/vine/events.ts LogEnvelope), read defensively because these rows come off a database and out of a build that may be older than this code */
 export type StoredEvent = {
   participantId: string | null
   sessionId: string | null
@@ -19,7 +18,7 @@ export type Measures = {
   lastAt: number | null
   /** wall time from first event to last, which is NOT time on task */
   spanMs: number
-  /** time on task: gaps between consecutive events in a session, each capped (see IDLE_CAP_MS) */
+  /** time on task, the gaps between consecutive events within one session, each capped at IDLE_CAP_MS */
   activeMs: number
   /** how many heartbeats arrived. Zero means this run's duration is a guess. */
   heartbeats: number
@@ -35,8 +34,7 @@ export type Measures = {
   retakes: number
   placesSeen: number
   programmesCompleted: number
-  /** a member's island threw, or the engine did. R8: a failure in one arm and not
-   *  the other is indistinguishable from an effect unless somebody counts them. */
+  /** a member's island threw, or the engine did, counted because a failure in one arm and not the other is indistinguishable from an effect unless somebody counts them */
   failures: number
   /* events this fold did not recognise, counted rather than silently dropped */
   unknown: number
@@ -47,9 +45,7 @@ export type Measures = {
 /* the longest gap between two events that may still count as time on task */
 export const IDLE_CAP_MS = 60_000
 
-/** a stored row's clock as milliseconds, whatever the driver handed back. Exported
- *  because api/_dose.ts folds the same rows and two readings of one timestamp is
- *  two places for a timezone to be read differently. */
+/** a stored row's clock in milliseconds whatever the driver handed back, exported because api/_dose.ts folds the same rows and two readings of one timestamp is two places for a timezone to be read differently */
 export const atMs = (v: string | number | Date): number => {
   if (typeof v === 'number') return v
   const t = new Date(v).getTime()
@@ -58,9 +54,7 @@ export const atMs = (v: string | number | Date): number => {
 
 const num = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 
-/* EVERY NAME THIS FOLD ACTS ON. Anything else is counted as unknown rather than
- * dropped, so a client-side rename shows up as a number in a column instead of as
- * a measured value quietly becoming zero. */
+/* every name this fold acts on, and anything else is counted as unknown rather than dropped so a client-side rename shows up as a number in a column instead of a measured value quietly becoming zero */
 const KNOWN = new Set([
   'heartbeat', 'core_beat_complete', 'retake_used', 'check_answered',
   'place_seen', 'programme_completed', 'island_failed', 'engine_error',
@@ -68,8 +62,7 @@ const KNOWN = new Set([
   'trigger_unanswered',
 ])
 
-/** the envelope as it sits inside a row's jsonb payload. Exported for api/_dose.ts,
- *  which reads the same field off the same rows. */
+/** the envelope as it sits inside a row's jsonb payload, exported for api/_dose.ts which reads the same field off the same rows */
 export type Env = {
   participantId?: string
   mode?: string
@@ -78,8 +71,7 @@ export type Env = {
   event?: { type?: string; name?: string; at?: number; data?: Record<string, unknown> }
 }
 
-/** the event's name whatever shape it arrived in: a vine event carries `name`, a
- *  narrowly-typed grape event carries `type` and no name */
+/** the event's name whatever shape it arrived in: a vine event carries `name`, a narrowly-typed grape event carries `type` and no name */
 export function eventName(e: Env): string {
   const ev = e.event
   if (!ev) return ''
@@ -92,9 +84,7 @@ const whenOf = (row: StoredEvent): number => {
   return typeof at === 'number' && Number.isFinite(at) && at > 0 ? at : atMs(row.at)
 }
 
-/* THE FOLD, per participant. Deduplicated on `eid` first, because the queue
- * survives a page death mid-POST and a batch can ship twice; analysis dedups on
- * the envelope id instead of guessing. */
+/* the fold, per participant, deduplicated on `eid` first because the queue survives a page death mid-POST and a batch can ship twice */
 export function summarise(rows: StoredEvent[]): Measures[] {
   const seenEid = new Set<string>()
   const byPid = new Map<string, {
@@ -167,8 +157,7 @@ export function summarise(rows: StoredEvent[]): Measures[] {
     if (name === 'place_seen' && typeof d.place === 'string') bucket.places.add(d.place)
     if (name === 'programme_completed' && typeof d.programme === 'string') bucket.programmes.add(d.programme)
     if (name === 'island_failed' || name === 'engine_error') m.failures++
-    /* the stage saying it could not do something is a failure too: fx with no
-     * library, audio with no system, a stage call this scene answers nothing on. */
+    /* the stage saying it could not do something is a failure too: fx with no library, audio with no system, a stage call this scene answers nothing on */
     if (name === 'fx_missing' || name === 'audio_missing' || name === 'stage_call_missing'
       || name === 'stage_actor_missing' || name === 'trigger_unanswered') m.failures++
     if (!KNOWN.has(name)) m.unknown++
@@ -188,9 +177,7 @@ export function summarise(rows: StoredEvent[]): Measures[] {
   return out.sort((a, b) => a.participantId.localeCompare(b.participantId))
 }
 
-/* THE EXPORT'S COLUMNS, named once so the header and the row builder cannot drift.
- * The first eight are what the browser used to build from pure state; everything
- * after `verification` is what the events table has been holding all along. */
+/* the export's columns, named once so the header and the row builder cannot drift, and everything after `verification` comes from the events table rather than from pure browser state */
 export const EXPORT_COLUMNS = [
   'handle', 'arm', 'joined', 'last_seen', 'year', 'beat', 'graduated', 'verification',
   'sessions', 'events', 'heartbeats', 'active_minutes', 'span_minutes',
@@ -207,9 +194,7 @@ export type RosterLike = {
 
 const minutes = (v: number) => Math.round(v / 600) / 100
 
-/** one row per participant on the roster, whether or not they ever logged an event.
- *  A student whose network blocked the drain has to appear with zeros rather than
- *  vanish, or the export quietly excludes exactly the students whose network is worst. */
+/** one row per participant on the roster whether or not they ever logged an event, because a student whose network blocked the drain has to appear with zeros rather than vanish */
 export function exportRows(roster: RosterLike[], measures: Measures[]): (string | number)[][] {
   const byPid = new Map(measures.map((m) => [m.participantId, m]))
   return roster.map((r) => {

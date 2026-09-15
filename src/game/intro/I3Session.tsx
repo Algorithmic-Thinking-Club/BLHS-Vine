@@ -14,12 +14,7 @@ import './i3.css'
 
 // the parchment setup on the beach: class code, name and pronouns, outfit and boat name
 
-/* THE INVITATION, AND ITS LAST LINE DEPENDS ON THERE BEING A CLASS.
- *
- * The letter is the story and every student reads it. The class code is the sign-in
- * and only some students have one, so promising six boxes to somebody who is not
- * going to be shown any is the letter telling them something untrue on the first
- * screen of the game. */
+/* the invitation, and its last line depends on there being a class: the letter is the story every student reads, the class code is the sign-in only some students have, so promising six boxes to somebody who will never be shown any is an untrue first screen */
 const LETTER_BODY =
   'Panther. We saved you a spot.\n' +
   'Bonney Lake High School takes new students every fall. This is your invitation.\n' +
@@ -38,9 +33,7 @@ const BOATS = ['Second Wind', "Panther's Wake", 'Late Pass', 'Salt & Chalk', 'Fi
 const spinHandle = () => HANDLE_A[Math.floor(Math.random() * HANDLE_A.length)] + HANDLE_B[Math.floor(Math.random() * HANDLE_B.length)]
 const spinBoat = () => BOATS[Math.floor(Math.random() * BOATS.length)]
 
-/* how long the parchment waits for the class service before it decides for itself.
- * A student on school wifi must not sit on a blank page, and a student with no class
- * must not watch the code boxes appear and then vanish. */
+/* how long the parchment waits for the class service before deciding for itself: a student on school wifi must not sit on a blank page, and a student with no class must not watch the code boxes appear and then vanish */
 const CLASS_ASK_MS = 2200
 
 // a class join that failed on the network retries quietly in the background until it lands
@@ -56,8 +49,7 @@ function queueJoin(code: string, handle: string, attempt = 0): void {
   retryTimer = window.setTimeout(() => {
     void joinClass(code, handle).then((r) => {
       if (r.ok) { track('join_landed_late', { attempt: attempt + 1 }); return }
-      /* only a network failure is worth asking again about. `unknown_code` and
-       * `class_closed` are answers, and `error` is the server saying no. */
+      /* only a network failure is worth asking again about: `unknown_code` and `class_closed` are answers, and `error` is the server saying no */
       if (r.reason === 'offline') queueJoin(code, handle, attempt + 1)
       else track('join_queue_refused', { reason: r.reason })
     })
@@ -107,39 +99,13 @@ const CARD_SAID: Record<Card, string> = {
 }
 
 export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
-  // a resumed session (refresh mid-intro) prefills from the run and skips what's answered:
-  // a joined student never re-types the code, and their handle is already on the parchment
+  // a resumed session, a refresh mid-intro, prefills from the run and skips what is already answered, so a joined student never re-types the code
   const saved = loadSave()
   const alreadyJoined = !!saved?.participantId || !!saved?.castaway
   const [card, setCard] = useState<Card>(alreadyJoined ? 'identity' : 'code')
-  /* ---- THE QUESTION IS ASKED BEFORE THE LETTER IS SHOWN ------------------
-   *
-   * ASH, on playing the deploy: *"the introduciton cutscene, the first scroll page
-   * immediately goes 'Panther. We saved you a seat' immedieatly glitches to the next
-   * page."*
-   *
-   * It did, every time, and it is this. The letter and its six code boxes went up on
-   * the first frame, `classesAreOpen()` answered a moment later, and with no class
-   * service behind the deploy the answer is no - so the card he had just started
-   * reading threw itself away. The very first thing this game says to a student was a
-   * page that flinched.
-   *
-   * The question is asked first and nothing is drawn until it has an answer, which is
-   * a held beat on the parchment rather than a flash. AND IT CANNOT WAIT FOR EVER: a
-   * server that never answers is the same to a student as one that says no, and this
-   * is the first ten seconds of the game. */
+  /* ask before the letter is drawn: the letter and its six boxes went up on the first frame and `classesAreOpen()` answered a moment later, so with no class service the card being read threw itself away and the first page flinched; it cannot wait for ever, a silent server is the same as a no */
   const [asking, setAsking] = useState(!alreadyJoined)
-  /* ---- AND THE LETTER IS READ EITHER WAY --------------------------------
-   *
-   * The first written words of this game are the invitation: "Panther. We saved you a
-   * spot." With no class service behind the deploy - which is every student playing
-   * outside an advisory period - the whole card was skipped, so the bottle washed
-   * ashore, the cork popped, the parchment unfurled, and the first thing on it was a
-   * name box. The story's own opening was reachable only by students whose teacher
-   * had a class open.
-   *
-   * The LETTER is the story and the six boxes are the sign-in. Only the boxes depend
-   * on there being a class. */
+  /* the letter is read either way: the invitation is the story and the six boxes are the sign-in, only the boxes depend on there being a class, and skipping the whole card left the parchment opening on a name box */
   const [classOpen, setClassOpen] = useState<boolean | null>(null)
   useEffect(() => {
     if (alreadyJoined) return
@@ -190,8 +156,7 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
   const next = (c: Card) => setCard(c)
 
   // the reading order of the cards, so Back is the card before and Back from the first one leaves
-  /* WITH NO CLASS TO JOIN THERE IS NO CARD TO GO BACK TO, so Back from the name
-   * leaves the game rather than returning to a screen that was skipped. */
+  /* with no class to join there is no card to go back to, so Back from the name leaves the game rather than returning to a screen that was skipped */
   const ORDER: Card[] = castaway ? ['identity', 'word', 'wardrobe', 'boat']
     : ['code', 'identity', 'word', 'wardrobe', 'boat']
   const first: Card = ORDER[0]
@@ -212,9 +177,7 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
     window.setTimeout(() => onDone(r), 650)
   }
 
-  // THE REAL JOIN happens here, with the student's actual handle (§2.8, §7.7). The code
-  // card only verified the class; joining there with a placeholder handle collapsed every
-  // student in a class into one participant.
+  // the real join happens here, with the student's actual handle: the code card only verified the class, and joining there with a placeholder handle collapsed every student in a class into one participant
   const confirmIdentity = async () => {
     if (castaway || (alreadyJoined && !!saved?.participantId)) { next('word'); return }
     setJoining(true); setJoinErr('')
@@ -227,18 +190,14 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
       return
     }
     if (r.reason === 'offline') {
-      /* §50.19: THE RUN STARTS ANYWAY. No error, because there is nothing the
-       * student can do about the wifi, and stopping here excludes exactly the
-       * students whose network is worst without ever recording that it happened. */
+      /* the run starts anyway and says no error, because there is nothing a student can do about the wifi and stopping here excludes exactly the students whose network is worst without recording that it happened */
       track('join_queued', { at: 'identity' })
       queueJoin(code, handle.trim() || 'Panther')
       next('word')
       return
     }
     if (r.reason === 'unknown_code' || r.reason === 'class_closed') {
-      /* A CLOSED CLASS SAYS SO DIFFERENTLY FROM A WRONG CODE (§2.7), because they
-       * are different problems with different answers: one is "check the board",
-       * the other is "ask your teacher to open it". */
+      /* a closed class says so differently from a wrong code, because they are different problems: one is check the board, the other is ask your teacher to open it */
       setJoinErr(r.reason === 'class_closed'
         ? 'That class is closed right now. Your teacher can open it again.'
         : 'That code does not work any more. Check it with your teacher.')
@@ -263,9 +222,7 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
               {card === first ? 'Quit to the title screen' : 'Back'}
             </button>
           )}
-          {/* nothing is drawn while the parchment is still asking whether this deploy
-              has a class to join: a card that appears and then replaces itself is the
-              first thing this game would have said to a student */}
+          {/* nothing is drawn while the parchment is still asking whether this deploy has a class to join, because a card that appears and then replaces itself is the first thing the game would say to a student */}
           {asking && <div className="i3-card i3-asking" aria-hidden="true" />}
           {!asking && card === 'code' && (
             <CodeCard
@@ -299,8 +256,7 @@ export function I3Session({ onDone }: { onDone: (r: Result) => void }) {
 function CodeCard({ initial, err: outerErr, classOpen = true, onVerified, onCastaway }: {
   initial: string
   err?: string
-  /** whether this deploy has a class service answering. The letter is read either
-   *  way; only the six boxes and "Join my class" depend on it. */
+  /** whether this deploy has a class service answering: the letter is read either way, and only the six boxes and 'Join my class' depend on it */
   classOpen?: boolean
   onVerified: (code: string, className?: string) => void
   onCastaway: () => void
@@ -347,15 +303,7 @@ function CodeCard({ initial, err: outerErr, classOpen = true, onVerified, onCast
       refuse('Too many tries. Wait a minute, then try again.')
       return
     }
-    /* ---- A HALF-TYPED CODE IS NOT A TRY (Ash, 2026-09-09) ---------------
-     *
-     * The counter used to be bumped before the length test, so pressing the
-     * button with an empty box burned an attempt; and the lock fired ON the
-     * fifth, BEFORE `checkClass` was called, so the fifth code was thrown away
-     * unread. A freshman who fumbled four times and then typed it correctly was
-     * told to wait a minute, holding a code that works, in a forty-minute
-     * advisory period. The counter counts codes the server refused now, which is
-     * what a rate limit is for. */
+    /* a half-typed code is not a try: the counter was bumped before the length test, so an empty box burned an attempt, and the lock fired on the fifth before `checkClass` ran, throwing the fifth code away unread. it counts only codes the server refused */
     if (joined.length < 6) {
       refuse('The code is six characters. Fill in every box.')
       return
@@ -368,14 +316,12 @@ function CodeCard({ initial, err: outerErr, classOpen = true, onVerified, onCast
       refuse('Too many tries. Wait a minute, then try again.')
       return
     }
-    // verify the class only: the REAL join happens on the identity card, with the
-    // student's actual handle.
+    // verify the class only: the real join happens on the identity card, with the student's actual handle
     setChecking(true)
     const r = await checkClass(joined)
     setChecking(false)
     if (r.ok) {
-      /* a code that worked clears the count: the limit is there to stop guessing
-       * at codes, and a student who has got in is not guessing */
+      /* a code that worked clears the count: the limit is there to stop guessing at codes, and a student who has got in is not guessing */
       tries.current = 0
       writeSave({ classCode: joined.toUpperCase() })
       onVerified(joined.toUpperCase(), r.className)
@@ -399,9 +345,7 @@ function CodeCard({ initial, err: outerErr, classOpen = true, onVerified, onCast
     <div className="i3-card i3-card-code" onClick={() => { if (!tw.done) tw.finish() }}>
       <div className="i3-letter i3-letter-scroll">{tw.shown}{!tw.done && <span className="i3-caret" aria-hidden="true" />}</div>
       {tw.done && !classOpen && (
-        /* NO CLASS TO JOIN, AND THE LETTER STILL SAYS ITS PIECE. The boxes would be
-         * six empty squares nothing could check, so what is offered instead is the
-         * one thing that is true: go anyway. */
+        /* no class to join, and the letter still says its piece: the boxes would be six empty squares nothing could check, so what is offered instead is the one thing that is true, go anyway */
         <div className="i3-codefoot">
           <Signature />
           <p className="i3-noclass">Nobody has a class open right now, so there is no code to type.</p>
@@ -478,8 +422,7 @@ function IdentityCard(p: {
         {p.castaway ? 'Playing without a class.'
           : p.className ? `Found your class: ${p.className}.` : 'That code worked.'}
       </div>
-      {/* A REAL LABEL, TIED TO THE BOX. It was a floating sentence above an
-          unlabelled field, so a reader heard "edit text" and nothing else. */}
+      {/* a real label tied to the box: it was a floating sentence above an unlabelled field, so a screen reader announced 'edit text' and nothing else */}
       <label className="i3-sub" htmlFor="i3-handle">What should your class call you?</label>
       <div className="i3-fieldrow">
         <span className="i3-fieldbox">
@@ -495,8 +438,7 @@ function IdentityCard(p: {
             onKeyDown={(e) => { if (e.key === 'Enter') confirm() }}
           />
         </span>
-        {/* WAS A DIE EMOJI AND NOTHING ELSE, so the whole accessible name of this
-            control was one pictograph. A word is the name AND the instruction. */}
+        {/* this was a die emoji and nothing else, so the whole accessible name of the control was one pictograph; a word is the name and the instruction */}
         <Plank size="sm" className="i3-spin" onClick={spin}>Spin a name</Plank>
       </div>
       {bad && <div className="i3-err" id="i3-handle-err" role="alert">That name is not allowed. Try another one.</div>}
@@ -536,9 +478,7 @@ function WordCard({ onNext }: { onNext: () => void }) {
   )
 }
 
-// ---- card 4: the wardrobe, where Thor's coat recolors live and locked items show their rules ----
-
-// what earns a locked item, named off the roster so it can never promise an island nobody built
+// card 4, the wardrobe: Thor's coat recolors and locked items, where what earns a locked item is named off the roster so it can never promise an island nobody built
 const earnByCompleting = (id: string) => {
   const g = programmeById(id)
   return g ? `complete the ${g.name} island` : 'that island is not open yet'
@@ -552,9 +492,7 @@ const LOCKED = [
 
 function drawThor(cv: HTMLCanvasElement, hue: number | null) {
   const img = new Image()
-  /* the same dye the beach and the painted world both apply at load, and re-apply
-   * the moment the save changes. It was true of neither when this was written
-   * (Ash, 2026-09-09); `PmapScene` and `BeachIso` both subscribe now. */
+  /* the same dye the beach and the painted world both apply at load and re-apply the moment the save changes, since `PmapScene` and `BeachIso` both subscribe */
   img.onload = () => drawRecolored(cv, img, hue)
   img.src = '/art/characters/thor/walk/south/0.png'
 }
@@ -568,9 +506,7 @@ function WardrobeCard(p: { look: string; setLook: (v: string) => void; onNext: (
   const pick = (k: string) => {
     p.setLook(k); setPop((v) => v + 1)
     track('cosmetic_change', { look: k })
-    /* THE MIRROR IS A CANVAS, so a student who cannot see it has pressed a button
-       that does nothing at all. `Wardrobe.tsx` says the same thing about its own
-       copy of this control. */
+    /* the mirror is a canvas, so a student who cannot see it has pressed a button that does nothing at all; `Wardrobe.tsx` says the same about its own copy of this control */
     announce(`Wearing ${LOOKS[k]?.label ?? k}`)
   }
   const spin = () => pick(Object.keys(LOOKS)[Math.floor(Math.random() * Object.keys(LOOKS).length)])

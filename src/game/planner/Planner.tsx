@@ -4,8 +4,7 @@ import {
   classById, classOffer, cordHint, DEPT_LABEL, DEPTS, LADDER_NOTE,
   type ClassDef, type Dept,
 } from './catalog'
-/* what a season token may be spent on is the roster's, not the planner's. A slot
- * points at a programme id and the roster says what programmes exist. */
+/* what a season token may be spent on is the roster's business, not the planner's: a slot points at a programme id and the roster says what programmes exist */
 import { PROGRAMMES, programmeById, seasonOf } from '../roster/roster'
 import {
   assignSlot, clearSlot, dropClass, loadSave, pickClass, SEASONS, stampPlan, subscribeSave,
@@ -38,54 +37,21 @@ const CORE_BEAT_DESC: Record<number, string> = {
 }
 
 /* one string for the open-season rule, said in one place rather than two */
-/* ---- EVERY SEASON IS SPENT BEFORE THE SHEET IS STAMPED (Ash) --------------
- *
- * *"How many clubs does a user have to do a year? Whatever number that is, he has
- * to choose that number before stamping."*
- *
- * The number is three, which is how many season tokens a year starts with
- * (`SEASONS` in save.ts). Until now one was enough to stamp and the other two were
- * carried into the stamp and silently forfeited, which is a student giving up two
- * thirds of his year without being told he was doing it.
- *
- * The sentence that used to sit here told him it was fine. It is kept, demoted to
- * the reason the stamp is not live yet, because the counter has to say what is
- * missing rather than just refusing. */
+/* all three season tokens (`SEASONS` in save.ts) must be spent before the stamp, because one used to be enough and the other two were carried into the stamp and silently forfeited; the counter names what is missing rather than just refusing */
 const OPEN_SEASONS = (left: number): string =>
   left > 1 ? `Not yet: fill all ${SEASONS.length} seasons. ${left} still empty.`
     : 'Not yet: one season is still empty.'
 
-/* how far a pointer has to travel before a press becomes a drag. Small enough
- * that a deliberate drag never feels sticky, large enough that a trackpad tap
- * with a millimetre of drift is still a tap and still opens the column. */
+/* how far a pointer travels before a press becomes a drag: small enough that a deliberate drag is never sticky, large enough that a trackpad tap with a millimetre of drift still opens the column */
 const DRAG_SLOP = 6
 
-/* ---- COMING BACK TO THE SAME CLUB IS THE POINT, AND IT HAS TO SAY SO --------
- *
- * Ash, after playing year two: *"should a user be able to click the same club they
- * did the year prior? I just did year two, and i was able to select algorithmic
- * thinking club..."*
- *
- * He can, and he has to be able to: `ranksOf` counts DISTINCT YEARS on a rank
- * track, so JV is one year, Varsity is two and Captain is three, and forbidding a
- * repeat would make Captain unreachable for every track in the game. Wiseman's
- * four-year model is built on the same idea, that a student cannot do everything
- * and chooses what to stay with.
- *
- * What was really wrong is that the sheet said nothing about it. A row the student
- * finished last year looked exactly like one he had never touched, so re-picking it
- * read as the game having forgotten rather than as the way to a rank. This is the
- * line that answers his question inside the game. */
+/* picking the same club again is required, because rank counts distinct years on a track (JV one, Varsity two, Captain three) and forbidding a repeat would make Captain unreachable; a finished row looked identical to an untouched one, so this line says so */
 function againLine(a: { id: string; rankTrack?: string }, s: SaveGame | null): string | null {
   if (!s) return null
   const track = a.rankTrack ?? a.id
   const years = new Set((s.completions ?? []).filter((c) => (c.rank ?? '') === track).map((c) => c.year))
   if (!years.size) return null
-  /* AGAINST THE RANK HE ALREADY HOLDS, not against whether a name exists. `rankName`
-   * answers Captain for three years AND for four, so comparing the next year's name to
-   * nothing meant a student with three years on a track was told one more would make
-   * him Captain, which he already was, and the sentence written for that case could
-   * never print. Measured at year four with three completions on one track. */
+  /* compare against the rank already held, not against whether a name exists: `rankName` answers Captain for three years and for four, so three completions on one track printed one more makes you Captain to somebody already Captain. Measured at year four. */
   const now = rankName(years.size)
   const next = rankName(years.size + 1)
   return next && next !== now
@@ -112,16 +78,11 @@ type Refusal = { where: Season | 'classes'; why: string }
 
 export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }: {
   onClose: () => void
-  /* `review` means "show me what I got", which is a different press from
-   * "let me sit it": pressing the one on a passed beat used to start a fresh
-   * quiz and re-grade him (Ash, 2026-09-09) */
+  /* `review` means show the answers, a different press from sitting the quiz: pressing it on a passed beat used to start a fresh quiz and re-grade the student */
   onAdvisory?: (review?: boolean) => void
-  /* ONE BUTTON PER PICK (Ash, 2026-09-08 item 4). The sheet says what a pick is
-   * and presses it; what a press MEANS, a voyage or a card, is the roster's and
-   * the HUD's business and not this panel's. */
+  /* one button per pick: the sheet says what a pick is and presses it, and what a press means, a voyage or a card, is the roster's and the HUD's business */
   onPlayPick?: (pick: Pick) => void
-  /* the two panels that are about HIM rather than about the school, raised from
-   * the sheet's own foot since the corner went back to three doors */
+  /* the two panels about the player rather than about the school, raised from the sheet's own foot once the corner went back to three doors */
   onLook?: (what: 'wall' | 'wardrobe') => void
   onYearbook?: () => void
 }) {
@@ -130,8 +91,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
   const s = loadSave()
   const year = s?.year ?? 1
   const plan: YearPlan = s?.plans[year] ?? { slots: {}, classes: [], stamped: false }
-  /* what he picked, as one list with one verb, so a class row and a club card
-   * cannot drift apart again (`run/pick.ts` says why they are one thing) */
+  /* every pick as one list with one verb, so a class row and a club card cannot drift apart again; `run/pick.ts` says why they are one thing */
   const picks = picksOf(s, year)
 
   const openedAt = useRef(Date.now())
@@ -146,8 +106,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
   const veilRef = useRef<HTMLDivElement | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
   const pickerRef = useRef<HTMLDivElement | null>(null)
-  /* the airborne token, read by pointer handlers that were created on an older
-   * render. State drives the picture; this drives the decision. */
+  /* the airborne token read by pointer handlers created on an older render: state drives the picture, this drives the decision */
   const airRef = useRef<Airborne | null>(null)
   const grabAt = useRef<{ x: number; y: number } | null>(null)
   /* swallows the click the browser sends after a drag ends */
@@ -189,9 +148,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
 
   const panel = usePanel({ label: 'The year sheet', onClose: escape })
 
-  /* FOCUS FOLLOWS THE STATE SWAP. §5.18: pressing "place the season token" used
-   * to replace the focused button with a list of buttons, so focus fell to
-   * `<body>` and the next Tab restarted at the top of the document. */
+  /* focus follows the state swap: pressing place the season token replaced the focused button with a list of buttons, so focus fell to `<body>` and the next Tab restarted at the top of the document */
   useEffect(() => {
     if (!placing || !listRef.current) return
     focusablesIn(listRef.current)[0]?.focus()
@@ -236,8 +193,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
   }
 
   const addClass = (id: string) => {
-    /* the two-pick limit is scarcity, so it says so rather than the button
-     * quietly not being there. Same function the save's `pickClass` enforces. */
+    /* the two-pick limit is scarcity, so it is said out loud rather than the button quietly not being there, through the same function `pickClass` enforces in the save */
     const why = refuseClass(id, s, year)
     if (why) { refuse('classes', why); track('class_refused', { year, class: id, why }); return }
     setRefused(null)
@@ -280,9 +236,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
     if (!held || !from) return
     const far = Math.hypot(e.clientX - from.x, e.clientY - from.y) > DRAG_SLOP
     if (!held.moved && !far) return
-    /* the topmost element under the pointer, and then the nearest thing that has
-     * declared itself a drop target. The airborne coin is `pointer-events: none`
-     * so it never hides what is under it. */
+    /* the topmost element under the pointer, then the nearest declared drop target; the airborne coin is `pointer-events: none` so it never hides what is beneath it */
     const under = document.elementFromPoint(e.clientX, e.clientY)
     const target = under?.closest<HTMLElement>('[data-drop-season]') ?? null
     const next: Airborne = {
@@ -313,16 +267,13 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
     land(held)
   }
 
-  /* A CANCELLED POINTER IS NOT A DROP. The browser takes the pointer away when a
-   * touch turns into a scroll or the window loses it, and treating that as a drop
-   * would spend a season token on whatever the coin happened to be over. */
+  /* a cancelled pointer is not a drop: the browser takes the pointer away when a touch turns into a scroll, and treating that as a drop would spend a season token on whatever the coin happened to be over */
   const abort = (e: React.PointerEvent<HTMLButtonElement>) => {
     const held = letGo(e)
     if (held?.moved) announce(`Nothing placed. ${held.season} is still open.`)
   }
 
-  /* WHERE A DROPPED TOKEN GOES, and every branch of it is a sentence rather than
-   * a snap-back. §5.5: "A token that silently snaps back has taught nothing." */
+  /* where a dropped token goes, and every branch says a sentence rather than snapping back, because a token that silently snaps back has taught nothing */
   const land = (held: Airborne) => {
     if (!held.over) { announce(`Nothing placed. ${held.season} is still open.`); return }
     if (held.over !== held.season) {
@@ -338,9 +289,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
   }
 
   const pressToken = (season: Season) => {
-    /* the select-and-place half, and it does exactly what the drop on the same
-     * socket does, because §5.5 forbids the drag having a capability the key path
-     * lacks. Press the coin, the column opens, the list takes focus. */
+    /* the select and place half, doing exactly what a drop on the same socket does, because the drag may never have a capability the keyboard path lacks: press the coin, the column opens, the list takes focus */
     if (swallowClick.current) { swallowClick.current = false; return }
     if (plan.stamped) return
     setRefused(null)
@@ -355,9 +304,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
     .sort((a, b) => b.progress - a.progress)
     .slice(0, 3)
 
-  /* AND THE MARGIN READS THE SHEET, not only the ledger. §5.11's sharpest want:
-   * the margin's whole value is that it can say something about the plan in front
-   * of the student, which no other surface in the game can see. */
+  /* the margin reads the sheet and not only the ledger, because its whole value is saying something about the plan in front of the student, which no other surface in the game can see */
   const picked = plan.classes.map((id) => classById(id)).filter((c): c is ClassDef => !!c)
   const marginOnPlan = plan.stamped ? null
     : plan.classes.length < 2
@@ -371,20 +318,11 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
 
   /* is there a club or sport to pick at all, asked once for the whole sheet */
   const offersActivities = PROGRAMMES.some((p) => p.playable)
-  /* said once, and marked when the panel is really up: a read that also wrote
-   * would blank itself on the second render */
+  /* said once and marked when the panel is really up, because a read that also wrote would blank itself on the second render */
   const [told] = useState(() => firstLook('my-year'))
   useEffect(() => { markLooked('my-year') }, [])
 
-  /* ---- THE SHEET TEACHES ITSELF, ONCE, FROM YEAR TWO (Ash, 2026-09-09) ---
-   *
-   * Year one's sheet is opened by the founding film with the principal standing
-   * over it; year two's opens with nobody there. The flag is a first-look the
-   * same way the corner plaques are, so it is one lesson per run rather than one
-   * per year, and a student who has seen it never sees it again.
-   *
-   * IT WAITS FOR THE WAX. A stamped sheet has no "pick a class" button to point
-   * at, so there is nothing to teach and the tutorial would spotlight a hole. */
+  /* the sheet teaches itself once from year two, since year one opens with the principal standing over it and year two with nobody there; the flag is a first-look so it is one lesson per run, and it skips a stamped sheet, which has no pick a class button to spotlight */
   const [teaching, setTeaching] = useState(false)
   useEffect(() => {
     if (year <= 1 || plan.stamped) return
@@ -393,26 +331,13 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
     setTeaching(true)
   }, [year, plan.stamped])
   const slotsFilled = SEASONS.filter((se) => plan.slots[se]).length
-  /* ---- WHAT "THE SHEET IS FULL" MEANS (Ash, 2026-09-09) -------------------
-   *
-   * *"Once a user picks all the options (right now its just classes, but make
-   * sure once clubs are implemented clubs are included)..."*
-   *
-   * It was two classes and nothing else, which is right today only because
-   * nothing on the roster is playable. `offersActivities` is the same question
-   * the seasons column asks before it draws itself, so the day a club ships the
-   * stamp waits for one without this line changing. */
+  /* full means two classes and every season, not two classes alone; `offersActivities` is the same question the seasons column asks before it draws itself, so the day a club ships the stamp waits for one without this line changing */
   const canStamp = !plan.stamped
     && plan.classes.length === 2
     && (!offersActivities || slotsFilled >= SEASONS.length)
   const stampNote = plan.stamped ? null
     : plan.classes.length < 2 ? 'Pick two classes.'
-      /* ---- ONLY WHERE THERE ARE SEASONS (Ash, 2026-09-09) --------------
-       *
-       * This printed "You can leave a season empty and still save the year"
-       * under the stamp on every sheet, including today's, which has no seasons
-       * on it at all: nothing on the roster is playable, so the columns come off
-       * and a student reads a sentence about a thing he has never seen. */
+      /* only say this where there are seasons: it printed a sentence about leaving a season empty under the stamp on a sheet with no season columns at all, because nothing on the roster is playable */
       : offersActivities && slotsFilled < SEASONS.length ? OPEN_SEASONS(SEASONS.length - slotsFilled)
         : null
 
@@ -439,12 +364,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
           <span className="pl-pin-words">
             <b>Advisory, every year.</b>{' '}{CORE_BEAT_DESC[year] ?? CORE_BEAT_DESC[1]}
           </span>
-          {/* ---- THREE STATES, BECAUSE THERE ARE THREE (Ash, 2026-09-09) ---
-              *
-              * A tick or a button, and a fail got the tick. *"Obviously it should
-              * allow the user to retake, only if they havent passed. If they have
-              * passed, maybe the dialogue says 'Advisory is done for this year,
-              * see answers?' and an option shows up."* */}
+          {/* three states because there are three: a tick or a button gave a failed beat the tick, so a pass offers to see the answers and only a beat not passed offers a retake */}
           {(() => {
             const st = beatState(s, coreBeatId(year))
             if (st === 'passed') {
@@ -681,17 +601,12 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
                         remove
                       </Plank>
                     )}
-                    {/* THE GRADE IS ALWAYS SAID, and a failed one keeps its
-                        button (Ash, 2026-09-09): a row that reads "F" with no way
-                        back in is the dead end the whole retake pass is about. */}
+                    {/* the grade is always said and a failed one keeps its button, because a row reading F with no way back in is a dead end */}
                     {plan.stamped && st !== 'untried' && grade !== undefined && (
                       <span className="pl-class-grade">{letterOf(grade)}</span>
                     )}
                     {plan.stamped && st !== 'passed' && onPlayPick && pick && (
-                      /* ONE BUTTON, TWO FUTURES, and the roster picks. Today no
-                         course has an island, so it reads "Go" and counts the
-                         pick; the day somebody paints one the same press is a
-                         voyage and only the word changes. */
+                      /* one button, two futures, and the roster picks: no course has an island yet so it reads Go and counts the pick, and the day one is painted the same press is a voyage with only the word changing */
                       <Plank size="sm" onClick={() => onPlayPick(pick)}>
                         {st === 'failed' ? 'try it again' : pickVerb(pick)}
                       </Plank>
@@ -777,17 +692,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
           </div>
         </div>
 
-        {/* ---- THE WALL AND THE WARDROBE (Ash, 2026-09-09) -----------------
-            *
-            * They were two extra plaques in the corner for a day and he read the
-            * corner as a toolbar: *"when it was 3 on the top left it was cute,
-            * now its 5, it looks like a list of ugly buttons."* So they are here,
-            * behind the door that already means "your year", which is where both
-            * of them are ABOUT: the wall is this sheet's picks with what you
-            * earned on them, and the wardrobe is the panther holding the sheet.
-            *
-            * ON THE SHEET AND NOT IN THE HANDBOOK, because the Guide is about the
-            * SCHOOL and these two are about him. */}
+        {/* the wall and the wardrobe live here and not in the corner, which read as a list of buttons once it held five plaques, and not in the Handbook, because the Guide is about the school while these two are about the player */}
         {onLook && (
           <div className="pl-mine">
             <Plank size="sm" onClick={() => onLook('wall')}>Your trophy wall</Plank>
@@ -814,10 +719,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
                   {(() => {
                     const st = yearStatus(s)
                     if (st.readyForYearbook && !st.yearbookSeen && onYearbook) {
-                      /* THE SAME NUDGE, on the one other control that becomes the
-                         whole of what a student owes and looks identical before
-                         and after it does. Ash: *"maybe find other places where
-                         this could also be useful to add."* */
+                      /* the same nudge on the one other control that becomes the whole of what a student owes while looking identical before and after it does */
                       return (
                         <>
                           <p className="kit-nudge-say" role="status">
@@ -852,16 +754,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
               </>
             ) : (
               <>
-                {/* ---- THE NUDGE IS GONE, AND A TUTORIAL TOOK ITS PLACE ------
-                    *
-                    * ASH, 2026-09-09: *"Remove the old panel for the stamp sheet
-                    * that you just put in, and replace it with this tutorial."*
-                    *
-                    * The nudge fired at the END, once the sheet was already full,
-                    * which is the moment a student needs the least help: he has
-                    * just done the hard part. The tutorial fires at the START and
-                    * teaches the order, which is what he actually did not know.
-                    * `data-tour` is how the spotlight finds this plank. */}
+                {/* a tutorial replaced the old nudge, which fired once the sheet was already full and so helped least; this one fires at the start and teaches the order, and `data-tour` is how the spotlight finds this plank */}
                 <Plank
                   size="lg"
                   id="pl-stamp"

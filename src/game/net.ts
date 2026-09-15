@@ -3,8 +3,7 @@
 import { loadSave, writeSave, type SaveGame } from './save'
 import { isCaptain } from './captain'
 
-// the participant now travels ON the active save (each roster run is its own participant),
-// so sync/logging read it from there rather than a device-global key
+// the participant travels on the active save, one per roster run, so sync and logging read it from there and not from a device-global key
 export function participantId(): string | null { return loadSave()?.participantId ?? null }
 
 export type JoinResult =
@@ -31,7 +30,7 @@ export async function checkClass(code: string): Promise<CheckResult> {
   }
 }
 
-/* whether there is a class service to join at all, asked once and cached for the session */
+/* whether there is a class service to join, asked once and cached until the page reloads */
 let classesLive: boolean | null = null
 export async function classesAreOpen(): Promise<boolean> {
   if (classesLive !== null) return classesLive
@@ -82,8 +81,7 @@ export function startStateSync() {
     if (stateOffline) return
     const pid = participantId()
     const s = loadSave()
-    // demo stays local (§2.9); captain stays local even over a real joined save (§2.14 —
-    // god-modified state must never sync into a student's server run)
+    // demo stays local, and captain stays local even over a real joined save, because god-modified state must never sync into a student's server run
     if (!pid || pid === 'captain' || isCaptain() || !s || s.castaway) return
     void fetch('/api/state', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -110,7 +108,7 @@ export async function pullState(): Promise<boolean> {
     if (!r.ok) return false
     const d = await r.json()
     const local = loadSave()
-    // the newer save wins — a Chromebook that slept through a week doesn't clobber progress
+    // the newer save wins, so a Chromebook that slept through a week does not clobber progress
     if (d.save && (!local || (d.save.savedAt ?? 0) > (local.savedAt ?? 0))) {
       writeSave(d.save as Partial<SaveGame>)
       return true

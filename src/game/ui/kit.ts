@@ -2,17 +2,13 @@
 
 /* the record as it comes off the wire, with everything optional the platform may leave out */
 
-/** the four insets, in SOURCE pixels, which is the unit `border-image-slice`
- *  means without a percent sign and the unit Pixi's NineSliceSprite takes */
+/** the four insets in source pixels, which is the unit `border-image-slice` means without a percent sign and the unit Pixi's NineSliceSprite takes */
 export type KitSlice = { top: number; right: number; bottom: number; left: number }
 
-/** the six kinds `docs/UI-KIT.md` section 2 settled on. The word is `region` and
- *  never `slot`: a slot is an island's berth on the sea in
- *  `src/game/world/composition.ts` and about thirty call sites say so. */
+/** the six settled kinds, and the word is `region` and never `slot`, because a slot is an island's berth on the sea in `src/game/world/composition.ts` across about thirty call sites */
 export type KitRegionKind = 'text' | 'number' | 'picture' | 'fill' | 'face' | 'press'
 
-/** a named rectangle on a piece that the engine puts something into, in the
- *  piece's own source pixels */
+/** a named rectangle on a piece that the engine puts something into, in the piece's own source pixels */
 export type KitRegion = {
   name: string
   kind: KitRegionKind
@@ -23,9 +19,7 @@ export type KitRegion = {
   overflow?: string
   /** how a picture sits in its aperture */
   fit?: string
-  /* REQUIRED ON A PICTURE AND NOT DEFAULTED, because the shipped portrait is
-   * bottom-anchored (`ui-kit.css:59-68`) and a region that centres its content
-   * puts every character floating off the bottom of their own box. */
+  /* required on a picture and never defaulted, because the shipped portrait is bottom-anchored in `ui-kit.css:59-68` and a region that centres its content floats every character off the bottom of their own box */
   valign?: string
   /** a fill's direction */
   axis?: string
@@ -33,9 +27,7 @@ export type KitRegion = {
   mode?: string
 }
 
-/** a cut rectangle on a sheet. It exists because of the 192 pixel floor: a
- *  family of small marks is drawn in one job so the faces come back the same
- *  weight, and this is how one of them is addressed afterwards. */
+/** a cut rectangle on a sheet, needed because of the 192 pixel floor: a family of small marks is drawn in one job so the faces come back the same weight, and this addresses one of them afterwards */
 export type KitFace = { name: string; x: number; y: number; w: number; h: number }
 
 export type KitPiece = {
@@ -52,15 +44,12 @@ export type KitPiece = {
   published?: boolean
   regions?: KitRegion[]
   faces?: KitFace[]
-  /* MUST BE TRUE FOR EVERY PAPER PANEL. `border-image` defaults fill off, and a
-   * panel without it renders as a ring around a hole. `highlight_edge` is the
-   * one piece in the set that wants it false, because it is drawn as a ring. */
+  /* must be true for every paper panel, because `border-image` defaults fill off and a panel without it renders as a ring around a hole, and `highlight_edge` is the one piece that wants it false since it is drawn as a ring */
   fill?: boolean
   /** CSS pixels per source pixel, so the draw thickness is not guessed */
   scale?: number
   slice?: KitSlice
-  /** horizontal and vertical, from stretch | repeat | round | space. Pixel art
-   *  wants round and never stretch. */
+  /** horizontal and vertical, from stretch, repeat, round or space, and pixel art wants round and never stretch */
   repeat?: { x: string; y: string }
   /** the ready-made block, carrying the GAME's handle rather than the name */
   css?: string
@@ -76,9 +65,7 @@ export type KitPiece = {
 let cached: KitPiece[] | null = null
 let inflight: Promise<KitPiece[]> | null = null
 
-/** the platform origin, computed exactly the way `PmapScene.tsx:539` computes it
- *  for maps, so the game never learns two different answers to where MAPVIS is.
- *  An empty string means there is no platform and nothing is fetched. */
+/** the platform origin, computed the way `PmapScene.tsx:539` computes it for maps so the game never has two answers for where MAPVIS is, and an empty string means no platform and nothing is fetched */
 export const mapvisHost = (): string =>
   (import.meta.env?.VITE_MAPVIS_URL || '').replace(/\/+$/, '')
 
@@ -133,14 +120,12 @@ export async function loadKit(host = mapvisHost()): Promise<KitPiece[]> {
       cached = []
       return cached
     }
-    /* NO HOST IS NOT A FAILURE, it is a build with no platform configured, and it
-     * must not cost a fetch, a warning or a timeout. */
+    /* no host is not a failure, it is a build with no platform configured, and it must not cost a fetch, a warning or a timeout */
     if (!host) { cached = []; return cached }
     kitHost = host
     try {
       const r = await fetch(`${host}/api/v1/ui`)
-      /* the content-type guard is `PmapScene`'s: a dev server answers a missing
-       * file with index.html at 200, so `r.ok` alone lets HTML through as JSON */
+      /* the content-type guard is `PmapScene`'s: a dev server answers a missing file with index.html at 200, so `r.ok` alone lets HTML through as JSON */
       if (r.ok && (r.headers.get('content-type') || '').includes('json')) {
         const j = (await r.json()) as { ui?: unknown }
         if (Array.isArray(j?.ui)) {
@@ -163,8 +148,7 @@ function warmPieces(pieces: KitPiece[], at: string): void {
     const url = kitArtUrl(p, at)
     if (!url) continue
     const img = new Image()
-    /* a failed warm is not an error: the piece may be unpublished, the network
-     * may be filtered, and both of those already have an answer above */
+    /* a failed warm is not an error: the piece may be unpublished or the network filtered, and both of those already have an answer above */
     img.onerror = () => {}
     img.src = url
   }
@@ -201,17 +185,14 @@ function classify(p: KitPiece): Verdict {
     }
     return { ok: true, handle, kind: 'surface' }
   }
-  /* NO SLICE AND NO CSS IS FINE IF IT IS A SHEET OR A PAINTING, and it is not
-   * fine if the piece carries nothing at all. `src` is what separates them: a
-   * row with no image is a row that was never generated. */
+  /* no slice and no css is fine for a sheet or a painting and not fine for a piece carrying nothing, and `src` separates them because a row with no image was never generated */
   if (p.css) return { ok: true, handle, kind: 'surface' }
   if (p.src && ((p.faces?.length ?? 0) > 0 || (p.regions?.length ?? 0) > 0))
     return { ok: true, handle, kind: 'art' }
   return { ok: false, why: 'has no css, no slice and no cut faces, so there is nothing to mount' }
 }
 
-/** every piece the kit cannot honestly mount, with the reason a person can act
- *  on. Pure, so the refusal is testable without a document in it. */
+/** every piece the kit cannot honestly mount, with a reason a person can act on, and pure so the refusal is testable without a document in it */
 export const kitFaults = (pieces: KitPiece[]): KitFault[] =>
   pieces.map((p) => ({ p, v: classify(p) }))
     .filter((x): x is { p: KitPiece; v: { ok: false; why: string } } => !x.v.ok)
@@ -232,8 +213,7 @@ const absolutise = (css: string, url: string): string =>
   css.replace(/url\(\s*(['"]?)(\/[^'")]*)\1\s*\)/g, `url('${url}')`)
 
 /** the whole stylesheet, pure and exported so a test can read it without a DOM */
-/* the handles whose art is a SHAPE rather than a frame: the picture is welcome,
- * the nine-slice is not. See the note in kitCss for the arithmetic. */
+/* the handles whose art is a shape rather than a frame, so the picture is welcome and the nine-slice is not, with the arithmetic in the kitCss note */
 const SHAPES = new Set(['plank'])
 
 /* handles whose picture stays the local committed art and never comes off the platform */
@@ -246,8 +226,7 @@ export function kitCss(pieces: KitPiece[], host = kitHost): string {
     const v = classify(p)
     if (!v.ok) continue
     const url = kitArtUrl(p, host)
-    /* LOCAL_ART wins outright: no token, no block, so `:root` in tokens.css is
-     * the only thing that ever answers for this handle. */
+    /* LOCAL_ART wins outright with no token and no block, so `:root` in tokens.css is the only thing that ever answers for this handle */
     if (LOCAL_ART.has(v.handle)) continue
     if (url) tokens.push(`  --kit-art-${v.handle}: url('${url}');`)
     if (v.kind !== 'surface') continue
@@ -263,13 +242,7 @@ export function kitCss(pieces: KitPiece[], host = kitHost): string {
       `.kit-surface-${v.handle} {\n`
       + `  border-style: solid;\n`
       + `  border-color: transparent;\n`
-      /* THE INSET IS A KNOB AND NOT A CONSTANT, the way the platform's own blocks
-       * already write it (`border-width: var(--kit-slice-w-band)`). A nine-slice
-       * measured for a wide panel eats a narrow one alive: the socket's frame is 29px
-       * a side, so a 209px season column had 131px left for its contents and the sail
-       * button's label had nowhere to go, which is what Ash saw as it overflowing.
-       * The art still decides the default, and a site that puts this surface on
-       * something narrow can say so. */
+      /* the inset is a knob, `--kit-slice-w-<handle>`, and not a constant, because a nine-slice measured for a wide panel eats a narrow one: the socket frame is 29px a side, so a 209px season column had 131px left and the button label had nowhere to go; the art sets the default */
       + `  border-width: var(--kit-slice-w-${v.handle}, ${s.top * sc}px `
       + `${s.right * sc}px ${s.bottom * sc}px ${s.left * sc}px);
 `
@@ -283,8 +256,7 @@ export function kitCss(pieces: KitPiece[], host = kitHost): string {
   return [preamble, root, ...blocks].filter(Boolean).join('\n\n') + '\n'
 }
 
-/** the id of the one style element this file owns. One element, replaced rather
- *  than added to, so calling `applyKit` twice cannot stack two kits. */
+/** the id of the one style element this file owns, replaced rather than added to, so calling `applyKit` twice cannot stack two kits */
 export const KIT_STYLE_ID = 'mapvis-kit'
 
 export function applyKit(pieces: KitPiece[], host = kitHost): void {
@@ -300,9 +272,7 @@ export function applyKit(pieces: KitPiece[], host = kitHost): void {
   /* appended last so the platform's art tokens win over the ones vite injected */
   el.textContent = css
   document.head.appendChild(el)
-  /* AND EVERYTHING THAT DRAWS A CUT FACE IS TOLD. The stylesheet lands on the
-   * document by itself; a React component asking `faceStyle` does not, because
-   * that reads the cached record rather than a CSS variable. */
+  /* everything that draws a cut face is told, because the stylesheet lands on the document by itself but a component asking `faceStyle` reads the cached record rather than a CSS variable */
   announceKit()
 }
 
@@ -314,8 +284,7 @@ export function kitSlot(pieces: KitPiece[], piece: string, region: string): KitR
   return kitPiece(pieces, piece)?.regions?.find((r) => r.name === region)
 }
 
-/** a cut face on a sheet. A piece may publish its faces as `faces`, as regions
- *  of kind `face`, or as both, so both are read rather than one being assumed. */
+/** a cut face on a sheet, and a piece may publish faces as `faces`, as regions of kind `face`, or both, so both are read rather than one assumed */
 export function kitFace(pieces: KitPiece[], piece: string, face: string): KitFace | undefined {
   const p = kitPiece(pieces, piece)
   if (!p) return undefined

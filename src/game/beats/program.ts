@@ -1,26 +1,4 @@
-/* WHAT A PROGRAM DOES WHEN YOU RUN IT.
- *
- * The body, the board, and the walk between them. It lived inside `ActivityRunner`
- * where only the drawing could reach it, which was fine while the only thing that
- * needed to know where the body ended up was the picture of the body. It is not fine
- * any more: the MARKING needs it too.
- *
- * ASH, twice: *"i clicked all the right answers on the minigame, and still got a 0"*
- * and *"IT GAVE ME AN F EVEN THOUGH I REACHED THE END."*
- *
- * He had, and he did. The ATC maze has THREE five-step programs that reach the flag:
- *
- *     forward 2, turn left, forward 3, turn right, forward 3
- *     turn left, forward 3, turn right, forward 2, forward 3
- *     turn left, forward 3, turn right, forward 3, forward 2
- *
- * and the item was marked by comparing each step against the one the author happened
- * to type. So two of the three correct answers scored zero of five. A student who
- * solved the maze, watched his own body walk to the flag, and was then told he had
- * got everything wrong is being taught that the game is broken, which it was.
- *
- * A program is not a spelling test. It is marked on what it does.
- */
+/* a program is marked on what it does, never on matching the steps the author happened to type: three different five-step programs reach the ATC maze flag, so step by step comparison scored two of those three zero out of five */
 
 export type Cell = { col: number; row: number; facing: 'north' | 'south' | 'east' | 'west' }
 
@@ -42,10 +20,7 @@ const LEFT_OF: Record<Cell['facing'], Cell['facing']> = {
   north: 'west', west: 'south', south: 'east', east: 'north',
 }
 
-/* WHAT AN INSTRUCTION MEANS, READ OFF ITS NAME rather than declared beside it, so
- * a member writes "forward 2" and "turn left" and registers nothing. A name this
- * cannot read moves the body not at all, which the student sees happen rather
- * than being told about. */
+/* what an instruction means is read off its name, so a member writes forward 2 or turn left and registers nothing, and a name this cannot read moves the body not at all where the student can see it */
 export function stepsOf(name: string): { turn?: 'left' | 'right'; forward?: number } {
   const n = name.toLowerCase()
   if (n.includes('left')) return { turn: 'left' }
@@ -54,10 +29,7 @@ export function stepsOf(name: string): { turn?: 'left' | 'right'; forward?: numb
   return { forward: m ? Number(m[1]) : 1 }
 }
 
-/** every cell the body passes through, in order, and where it stopped. A wall or
- *  the edge of the board ends the walk at the last legal cell: the program is never
- *  corrected on the way, it is carried out exactly as written, which is the entire
- *  reason there is a RUN button instead of a verdict. */
+/** every cell the body passes through, in order, and where it stopped: a wall or the board edge ends the walk at the last legal cell and the program is never corrected on the way, which is why there is a run button instead of a verdict */
 export function walkOf(board: ProgramBoard, written: string[]) {
   const blocked = new Set(board.walls.map(([c, r]) => c + ',' + r))
   const legal = (c: number, r: number) =>
@@ -87,8 +59,7 @@ export function walkOf(board: ProgramBoard, written: string[]) {
 /** does this program solve the board: every step written, and the body on the flag */
 export function solves(board: ProgramBoard | undefined, written: string[]): boolean {
   if (!board) return false
-  /* a program with a hole in it is not a solution even if the rest of it would have
-   * been: an empty step is a step nobody wrote */
+  /* a program with a hole in it is not a solution even if the rest of it would have been: an empty step is a step nobody wrote */
   if (!written.length || written.some((w) => !w)) return false
   return walkOf(board, written).home
 }

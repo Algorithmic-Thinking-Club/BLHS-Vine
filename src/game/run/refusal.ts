@@ -11,22 +11,16 @@ export function refuseSlot(
   if (plan?.stamped) return 'Your year sheet is stamped. Year ' + year + ' cannot be changed.'
 
   const g = programmeById(programmeId)
-  /* A SLOT THAT POINTS AT NOTHING is refused rather than written. The save used
-   * to take any string, so a typo became a committed season the year model then
-   * waited on forever, and nothing in the game could ever finish it. */
+  /* a slot that points at nothing is refused rather than written, because the save used to take any string and a typo became a committed season the year model waited on forever */
   if (!g) return `Nothing on the roster is called "${programmeId}".`
 
   if (!programmeAllowedIn(g, season)) {
     const real = seasonOf(g)
-    /* THE SCHOOL'S OWN FACT, in the school's own words: this is a WIAA season and
-     * not a rule this game made up, which is why the sentence names the season
-     * rather than saying the slot is unavailable. */
+    /* a WIAA season is the school's own fact and not a rule this game made up, which is why the sentence names the season rather than saying the slot is unavailable */
     return `${g.name} is a ${String(real).toLowerCase()} sport. It does not run in ${season.toLowerCase()}.`
   }
 
-  /* ONE PROGRAMME PER YEAR. Two tokens on one programme is one year of a ladder
-   * counted twice, and the completion record is per programme per year, so the
-   * second token buys a row that already exists. */
+  /* one programme per year: two tokens on one programme count one year of a ladder twice, and the completion record is per programme per year so the second token buys a row that already exists */
   const taken = Object.entries(plan?.slots ?? {})
     .find(([se, id]) => se !== season && id === programmeId)
   if (taken) return `You already picked ${g.name} for ${taken[0].toLowerCase()}. Pick something else.`
@@ -44,8 +38,7 @@ export function refuseClass(classId: string, s: SaveGame | null, year: number): 
   const c = classById(classId)
   if (!c) return `Nothing in the catalog is called "${classId}".`
   if (plan?.classes.includes(classId)) return `${c.name} is already picked for this year.`
-  /* THE TWO-PICK LIMIT IS SCARCITY AND NOT A WIDGET STATE, which is why it says
-   * so out loud instead of the pick button quietly disappearing. */
+  /* the two-pick limit is scarcity and not a widget state, so it says so out loud instead of the pick button quietly disappearing */
   if ((plan?.classes.length ?? 0) >= 2)
     return 'Two focus classes a year. Remove one before you add another.'
   if (!c.years.includes(year)) return `${c.name} is not open to you in year ${year}.`

@@ -24,10 +24,7 @@ export type Berth = WorldPt & {
   name?: string
   /** the heading the hull settles on, in the eight-way vocabulary the walk uses */
   facing?: string
-  /** THE SAME HEADING AS AN ANGLE, degrees clockwise from north, and the one to believe when it is
-   *  here. Eight words cannot say "along this shore" when a coast runs at 23 degrees, and a berth is
-   *  the one mark whose whole job is to lie along something. MAPVIS keeps `facing` at the nearest of
-   *  the eight beside it, so a reader that has never heard of this is no worse off than it was. */
+  /** the same heading as an angle, degrees clockwise from north, and the one to believe when present: eight compass words cannot say 'along this shore' when a coast runs at 23 degrees, and MAPVIS keeps `facing` at the nearest of the eight beside it for readers that ignore this */
   bearing?: number
   /** where the hull aims before the final manoeuvre; absent means straight in */
   approach?: WorldPt
@@ -41,10 +38,7 @@ export type WorldMark = WorldPt & {
   kind: 'berth' | string
   label?: string
   facing?: string
-  /** THE SAME HEADING AS AN ANGLE, degrees clockwise from north, and the one to believe when it is
-   *  here. Eight words cannot say "along this shore" when a coast runs at 23 degrees, and a berth is
-   *  the one mark whose whole job is to lie along something. MAPVIS keeps `facing` at the nearest of
-   *  the eight beside it, so a reader that has never heard of this is no worse off than it was. */
+  /** the same heading as an angle, degrees clockwise from north, and the one to believe when present: eight compass words cannot say 'along this shore' when a coast runs at 23 degrees, and MAPVIS keeps `facing` at the nearest of the eight beside it for readers that ignore this */
   bearing?: number
   /** the slot this mark belongs to, when it belongs to one */
   island?: string
@@ -69,9 +63,7 @@ export type WorldSlot = {
   /* the whole canvas the engine decodes, which is what memory is paid against */
   canvas?: { w: number; h: number }
   state: SlotState
-  /* HOW MANY PLACEMENTS THIS MAP IS DRESSED WITH, which is the half of its
-   * memory cost that is not its painting. Absent means the hub's own 94, which
-   * is the only dressed export this project has made. */
+  /* how many placements this map is dressed with, the half of its memory cost that is not its painting; absent means the hub's own 94, the only dressed export made so far */
   placements?: number
   /* how close the hull has to be for this map to stay loaded in memory */
   release: number
@@ -122,9 +114,7 @@ export const FALLBACK: WorldComposition = {
       berth: { x: 228, y: 177, facing: 'south', approach: { x: 300, y: 258 } },
     },
     {
-      /* the same island as a local file, for a session with no platform. Its
-       * painting is cropped differently (465x335 at x 92) and the composition
-       * says so rather than assuming a canvas is a painting. */
+      /* the same island as a local file, for running with no platform: its painting is cropped to 465x335 at x 92, and the composition says so rather than assuming a canvas is a painting */
       map: 'hub-a2', place: 'home-island', title: 'Bonney Lake High School',
       at: { x: 0, y: 0 },
       footprint: { w: 465, h: 335 }, origin: { x: 92, y: 0 }, canvas: { w: 688, h: 384 },
@@ -133,9 +123,7 @@ export const FALLBACK: WorldComposition = {
       berth: { x: 76, y: 202, facing: 'south', approach: { x: 200, y: 300 } },
     },
     {
-      /* THE ROOM IS NOT ON THE WATER. It is the same place as the hub, reached
-       * through a door, and it carries no slot of its own: one position per
-       * place is what stops the same painting being drawn twice on the chart. */
+      /* the room is not on the water: it is the same place as the hub reached through a door and carries no slot of its own, because one position per place is what stops the same painting being drawn twice on the chart */
       map: 'panther-maw', place: 'home-island', title: 'the Panther’s Maw, inside the mountain',
       at: { x: 0, y: 0 }, footprint: { w: 512, h: 512 }, canvas: { w: 512, h: 512 }, placements: 0,
       state: 'available', release: 1400,
@@ -227,9 +215,7 @@ async function tryWorld(url: string): Promise<WorldComposition | null> {
     if (!r.ok || !(r.headers.get('content-type') || '').includes('json')) return null
     j = (await r.json()) as WorldComposition
   } catch { return null }
-  /* `Array.isArray(slots)` is not a check, it is a shape guard: a map placed
-   * twice, a rumour that holds a map, a footprint of zero all passed it and then
-   * broke the water quietly. */
+  /* `Array.isArray(slots)` is a shape guard and not a check: a map placed twice, a rumour that holds a map and a footprint of zero all passed it and then broke the water quietly */
   if (!Array.isArray(j?.slots)) return null
 
   /* a faulty slot is dropped and the rest of the document stands */
@@ -248,8 +234,7 @@ async function tryWorld(url: string): Promise<WorldComposition | null> {
     lastFaults = faults
     return null
   }
-  /* error and not warn. A warn is what a browser prints for a deprecated css
-   * property and it is what this printed while the world was being deleted. */
+  /* error and not warn, because a warn is what a browser prints for a deprecated css property and it is what this printed while the world was being deleted */
   console.error(line)
   lastFaults = faults; lastOrigin = url
   return { ...j, slots: kept }
@@ -262,8 +247,7 @@ export function marksOf(c: WorldComposition): Map<string, WorldMark> {
     if (!m || typeof m.name !== 'string' || !m.name) continue
     if (!isFinite(Number(m.x)) || !isFinite(Number(m.y))) continue
     out.set(m.name, m)
-    /* the flat endpoint keys the same mark by its island too, and a route that
-     * says "sail to the hub" is a route a member will write */
+    /* the flat endpoint keys the same mark by its island too, because a route saying sail to the hub is a route a member will write */
     if (m.island && !out.has(m.island)) out.set(m.island, m)
   }
   for (const s of c.slots) {
@@ -291,8 +275,7 @@ export function berthOf(c: WorldComposition, name: string): Berth | undefined {
     y: m.y,
     name: m.name,
     ...(m.facing ? { facing: m.facing } : {}),
-    /* the exact angle rides across with the word, or a berth turned on the dial moors at the nearest
-     * of eight and the chart that drew it was telling the truth about a heading the game never saw */
+    /* the exact angle rides across with the word, or a berth turned on the dial moors at the nearest of eight while the chart that drew it knew a heading the game never saw */
     ...(Number.isFinite(Number(m.bearing)) ? { bearing: Number(m.bearing) } : {}),
     ...(m.at ? { at: m.at } : {}),
   }
@@ -311,9 +294,7 @@ export function approachTo(c: WorldComposition, berthName: string): WorldMark[] 
   const berth = all.get(berthName)
   if (!berth || berth.kind !== 'berth') return []
 
-  /* `marksOf` keys the same mark twice, by name and by island, so the values are
-   * walked through a dedupe on the name or a mark with an island would be in the
-   * crossing twice and the ship would sail to the same water two legs running */
+  /* `marksOf` keys the same mark twice, by name and by island, so the values are deduped on the name or a mark with an island would be in the crossing twice and the ship would sail the same water two legs running */
   const seen = new Set<string>()
   const berths: WorldMark[] = []
   const loose: WorldMark[] = []
@@ -331,9 +312,7 @@ export function approachTo(c: WorldComposition, berthName: string): WorldMark[] 
   })
 
   mine.sort((a, b) => d(b, berth) - d(a, berth))
-  /* AND THE FAR START IS FIRST WHATEVER ITS DISTANCE, because it is where the
-   * hull already is. A crossing that began anywhere else would sail the ship
-   * away from the island before it sailed her toward it. */
+  /* the far start is first whatever its distance, because it is where the hull already is and a crossing beginning anywhere else sails the ship away from the island before it sails her toward it */
   const fs = mine.findIndex((m) => m.name === FAR_START)
   if (fs > 0) mine.unshift(...mine.splice(fs, 1))
   return [...mine, berth]
@@ -343,17 +322,11 @@ export function approachTo(c: WorldComposition, berthName: string): WorldMark[] 
 const slug = (s: string | undefined): string => (s ?? '').replace(/-/g, '_')
 export function berthOfRoute(c: WorldComposition, name: string): string | undefined {
   const all = marksOf(c)
-  /* THE CALLER'S KEY IS SLUGGED TOO, and it was the one string here that was not.
-   * A member writes the map id they can see in MAPVIS, which is spelled with
-   * hyphens: `atc-1`. Every id on the right of these comparisons was already
-   * slugged, so `all.get('atc-1')` missed and `slug(q.map) === 'atc-1'` was false
-   * against `atc_1`. `sail_to("atc-1")` worked only because its own call site
-   * happened to slug first, and `route("atc-1", who="ship")` refused. */
+  /* the caller's key is slugged too: a member writes the hyphenated map id they see in MAPVIS, `atc-1`, while every id compared here is already slugged, so `all.get('atc-1')` missed and `slug(q.map) === 'atc-1'` was false against `atc_1` */
   const asBerth = (raw: string): string | undefined => {
     if (!raw) return undefined
     const key = slug(raw)
-    /* the name as typed first, then slugged, because a mark is keyed by whatever
-     * the author wrote and slugging a name that was already right must not lose it */
+    /* the name as typed first, then slugged, because a mark is keyed by whatever the author wrote and slugging a name that was already right must not lose it */
     const m = all.get(raw) ?? all.get(key)
     if (m?.kind === 'berth') return m.name
     const s = c.slots.find((q) => q.berth?.name && (slug(q.map) === key || slug(q.place) === key))
@@ -385,8 +358,7 @@ export const slotOfPlace = (c: WorldComposition, place: string | undefined): Wor
 export const seaSlots = (c: WorldComposition): WorldSlot[] => {
   const seen = new Set<string>()
   return c.slots.filter((s) => {
-    /* a slot with no berth and a place already on the water is an interior of
-     * that place, which is the hub-and-Maw case and must not double the dot */
+    /* a slot with no berth whose place is already on the water is an interior of that place and must not double the dot */
     const key = s.place ?? s.map ?? s.title
     if (!s.berth && seen.has(key)) return false
     if (seen.has(key)) return false
@@ -407,9 +379,7 @@ export const paintedCentre = (s: WorldSlot, canvasW: number, canvasH: number): W
 
 /** distance from a hull to a slot's painted edge, negative inside the footprint */
 export function distanceTo(s: WorldSlot, p: WorldPt): number {
-  /* an axis-aligned box test rather than a circle, because a stadium's
-   * silhouette is the widest in the roster and a circle over it discovers the
-   * island from open water on the short axis */
+  /* an axis-aligned box test rather than a circle, because a circle over the widest silhouette in the roster discovers the island from open water on the short axis */
   const dx = Math.max(Math.abs(p.x - s.at.x) - s.footprint.w / 2, 0)
   const dy = Math.max(Math.abs(p.y - s.at.y) - s.footprint.h / 2, 0)
   const out = Math.hypot(dx, dy)
@@ -467,8 +437,7 @@ export const TEXTURE_BUDGET_BYTES = 256 * 1024 * 1024
 export const overBudget = (slots: WorldSlot[]): boolean =>
   residencyBytes(slots) > TEXTURE_BUDGET_BYTES
 
-/** how many maps of a given dress fit at once, which is the sentence "island
- *  twelve" wanted and never had */
+/** how many maps of a given dress fit inside the texture budget at once */
 export const maxResident = (s: WorldSlot): number =>
   Math.floor(TEXTURE_BUDGET_BYTES / slotBytes(s))
 
@@ -483,9 +452,7 @@ export function trimToBudget(slots: WorldSlot[], p: WorldPt): WorldSlot[] {
     if (bytes + n > TEXTURE_BUDGET_BYTES) continue
     kept.push(s); bytes += n
   }
-  /* the nearest map is always resident even if it alone is over budget: a
-   * student standing on a painting the engine refused to load is a black screen,
-   * and a slow one is not */
+  /* the nearest map is always resident even if it alone is over budget, because a student standing on a painting the engine refused to load gets a black screen and a slow one is not that */
   if (!kept.length && byNear.length) kept.push(byNear[0])
   return slots.filter((s) => kept.includes(s))
 }
@@ -516,9 +483,7 @@ export function compositionFaults(c: WorldComposition, knownPlaces?: ReadonlySet
     if (knownPlaces && s.place && !knownPlaces.has(s.place))
       out.push({ key, slot, why: `names place "${s.place}", which is not on the roster` })
   })
-  /* NOT A SLOT FAULT, so it carries no index and nothing is dropped for it. A
-   * world whose home names nothing is still a world; refusing it outright is how
-   * one mistyped string used to delete every island in the document. */
+  /* not a slot fault, so it carries no index and nothing is dropped: a world whose home names nothing is still a world, and refusing it outright is how one mistyped string used to delete every island in the document */
   if (c.home && !c.slots.some((s) => (s.place ?? s.map) === c.home!.slot))
     out.push({ key: 'home', why: `names "${c.home.slot}", which is not a slot` })
   return out

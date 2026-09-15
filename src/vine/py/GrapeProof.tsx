@@ -18,8 +18,7 @@ const world: IntentWorld = {
   hasAnchor: () => false,
   say: (who, text, portrait) => say({ who, text, portrait }),
   choose: (prompt, options) => choose({ prompt, options }),
-  /* a harness with no world document names no maps, which is what an empty list is
-   * for: `enter` keeps the behaviour it had rather than refusing everything */
+  /* a harness with no world document names no maps, and an empty list means `enter` keeps the behaviour it had rather than refusing everything */
   knownMaps: () => [],
   guideTo: noMap('guide_to'),
   highlight: noMap('highlight'),
@@ -30,15 +29,12 @@ const world: IntentWorld = {
   enter: noMap('enter'),
   /* and there is no ocean on a bench, so a voyage refuses by name too */
   sailTo: noMap('sail_to'),
-  /* THE HARNESS HAS NO RUN TO END. `?scene=grape` is a bench for one file of a
-   * member's Python; there is no save behind it and no title to go back to, so
-   * this refuses by name the way every other world word does here. */
+  /* the harness has no run to end, because `?scene=grape` is a bench for one file of a member's Python with no save behind it and no title to go back to, so this refuses by name like every other world word here */
   endRun: noMap('end_run'),
   /* a boat is a body on a painting, like everything else here */
   ashore: noMap('ashore'),
   cutscene: noMap('cutscene'),
-  /* the composed shots need a painting to be composed of, like every other
-   * camera word here */
+  /* the composed shots need a painting to be composed of, like every other camera word here */
   view: noMap('view'),
   /* the director words all need a painting, so every one of them refuses here */
   pose: noMap('pose'),
@@ -129,8 +125,7 @@ export default function GrapeProof() {
     setHandlers(ready.handlers)
     setStatus(`loaded, ${ready.handlers.length} handler${ready.handlers.length === 1 ? '' : 's'}`)
 
-    /* THE ENGINE CALLING IN, UNPROMPTED, which is the whole inversion. Nothing
-     * in the member's file asks for this. */
+    /* the engine calling in unprompted, which is the whole inversion, since nothing in the member's file asks for this */
     if (ready.handlers.includes('start')) {
       const r = await s.call('start')
       if (!alive.current) return
@@ -154,16 +149,13 @@ export default function GrapeProof() {
     void start()
     return () => {
       alive.current = false
-      /* both halves of the teardown. The worker holds a python heap, and
-       * anything the island was still waiting on has to be released or the
-       * next scene opens with the world locked. */
+      /* both halves of the teardown, because the worker holds a python heap and anything the island was still waiting on has to be released or the next scene opens with the world locked */
       run.current?.stop()
       clearDialogue()
     }
   }, [start])
 
-  /* a flag for the headless verifier to wait on, so a screenshot is never taken
-   * of a half-started runtime. Nothing in the game reads it. */
+  /* a flag for the headless verifier to wait on so a screenshot is never taken of a half-started runtime, and nothing in the game reads it */
   useEffect(() => {
     ;(window as unknown as Record<string, unknown>).__grape = {
       base, arm, status, handlers, report, seen, title: loaded?.manifest.title ?? null,
@@ -174,8 +166,7 @@ export default function GrapeProof() {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#0a1a22', overflow: 'hidden' }}>
-      {/* something behind the box, so the screenshot shows a dialogue box over a
-          scene rather than a box floating on nothing */}
+      {/* something behind the box, so the screenshot shows a dialogue box over a scene rather than a box floating on nothing */}
       <div style={{
         position: 'absolute', inset: 0,
         background: 'radial-gradient(ellipse 70% 60% at 50% 42%, #14323d 0%, #071219 100%)',
@@ -199,8 +190,7 @@ export default function GrapeProof() {
         ))}
       </div>
 
-      {/* STANDING IN FOR PmapScene's fire(). One button per anchor the island
-          said it owns, which is the list that came back on `ready`. */}
+      {/* standing in for PmapScene's fire(): one button per anchor the island said it owns, which is the list that came back on `ready` */}
       {talks.length > 0 && (
         <div style={{
           position: 'absolute', left: 16, bottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap',

@@ -22,10 +22,7 @@ import { setObjectiveSaid } from './hud/objective-bus'
 import { islandTaskList, islandTaskTicked, setIslandTasks } from './hud/island-tasks'
 import { currentSkin } from './ui/skin'
 
-/* EVERY PATH THE RUN CAN ANSWER, written as a `Record<RunPath, true>` and not an
- * array on purpose: widening RunPath without adding it here is a type error, so
- * the refusal in `read` can never read out a stale vocabulary. An array would
- * have gone quietly out of date the first time somebody added a path. */
+/* every path the run can answer, kept as a `Record<RunPath, true>` and not an array on purpose: widening RunPath without adding it here is a type error, so the refusal in `read` can never list a stale vocabulary */
 const READABLE_PATHS: Record<RunPath, true> = {
   year: true, gpa: true, tokens: true, cords: true, flags: true, islands: true,
   handle: true, mode: true, graduated: true, cord_board: true, trophies: true,
@@ -36,9 +33,7 @@ const READABLE = Object.keys(READABLE_PATHS).sort()
 export const engine: IntentEngine = {
   /* opens a panel, and refuses when nothing is mounted to hear it */
   openUi(ui, wait) {
-    /* AND IT CAN COME BACK WHEN THE PANEL SHUTS. `requestUiAndWait` answers false
-     * on exactly the same condition `requestUi` does, so the refusal below reads
-     * the same either way and there is one sentence for one failure. */
+    /* `requestUiAndWait` answers false on exactly the same condition `requestUi` does, so one refusal sentence covers both, and a waiting open can still come back when the panel shuts */
     if (wait) {
       const p = requestUiAndWait(ui)
       if (p) return p
@@ -51,15 +46,7 @@ export const engine: IntentEngine = {
     return requestBeat(beat, plain, decl)
   },
 
-  /* ---- WHAT THIS ISLAND HAS BEEN FINISHED AT BEFORE ---------------------
-   *
-   * Ash: *"we can do a club again over years? is it meant to play different stuff?"*
-   * It is, and an island had no way to find out which time this was. Everything here
-   * is already in the save and none of it was reachable from Python.
-   *
-   * `taken` counts EARLIER completions only, so on the run that is being played it
-   * answers "how many times before this one". A first year gets 0 and can say hello;
-   * a second gets 1 and can say welcome back and mean it. */
+  /* an island can ask how many times it was finished before now: `taken` counts earlier completions only, so a first year reads 0 and says hello and a second reads 1 and can say welcome back */
   rankOf(programme: string | null) {
     const s = loadSave()
     const rows = (s?.completions ?? []).filter((c) => c.programme === programme)
@@ -83,36 +70,22 @@ export const engine: IntentEngine = {
       case 'cords': return s ? cordsOf(s).filter((c) => c.earned).map((c) => c.id) : []
       /* the whole cord board, the same rows the tracker gets */
       case 'cord_board': return s ? cordsOf(s) : []
-      /* what is on the wall. Two lists rather than one, because a sticker and a
-       * badge are different things everywhere else in the save and flattening
-       * them here would be this file inventing a category. */
+      /* stickers and badges stay two lists, because they are different things everywhere else in the save and flattening them here would invent a category */
       case 'trophies': return s
         ? { stickers: [...s.stickers], badges: [...s.badges] }
         : { stickers: [], badges: [] }
       /* the beat this year still owes, or null */
-      /* ---- THE HEARTH OFFERS IT UNTIL IT IS PASSED (Ash, 2026-09-09) -----
-       *
-       * *"I purposefully failed advisory... but once i left the advisory panel
-       * and came back, it says 'advisory is done for this year'. Obviously it
-       * should allow the user to retake, only if they havent passed."*
-       *
-       * This asked `beatDone`, which is "is there a row", so an F answered null
-       * and the fire told him it was banked. The year would not close either, so
-       * the run was stuck between a gate that wanted a pass and the only door to
-       * one saying come back next year. */
+      /* advisory is offered until it is passed, not until a row exists: asking `beatDone` answered null on an F, so a failed advisory was reported as banked and the year could not close either */
       case 'advisory': return s && hasCoreBeat(s.year) && !beatPassedIn(s, s.year)
         ? coreBeatId(s.year)
         : null
       case 'flags': return s ? [...s.flags] : []
-      /* answered in `performIntent`, where the calling island is known. This is the
-       * floor for anything that asks without one. */
+      /* answered in `performIntent`, where the calling island is known; this is the floor for anything that asks without one */
       case 'rank': return { taken: 0, years: [], best: null, rung: 0 }
       /* whether this year's plan has been stamped */
       case 'planned': return !!(s && s.plans[s.year]?.stamped)
       case 'islands': return s ? { ...s.islands } : {}
-      /* the two that are honestly absent. A player with no run has no name and
-       * has not graduated, and neither is a number an island can do arithmetic
-       * on, so null is the truthful answer rather than an invented one. */
+      /* with no run there is no name and no graduation, and neither is a number an island can do arithmetic on, so null is the truthful answer rather than an invented one */
       case 'handle': return s?.handle ?? null
       case 'graduated': return !!s?.graduated
       case 'mode': return engine.mode()
@@ -136,11 +109,7 @@ export const engine: IntentEngine = {
         }
       }
     }
-    /* A PATH NOBODY ANSWERS IS A REFUSAL, not undefined. Without this the switch
-     * fell off its end and handed back nothing, which reaches the member as a
-     * None their own code then does arithmetic on, in a traceback that names
-     * THEIR line and not the misspelling. The list is spelled out because the
-     * one thing a person needs when they typo a path is the word they meant. */
+    /* a path nobody answers is a refusal and never undefined, because undefined reaches the member as a None their own code then does arithmetic on, in a traceback naming their line and not the misspelling; the list is spelled out so a typo shows the word that was meant */
     throw new NotBuilt('get', `nothing answers "${String(path)}". It can answer: ${READABLE.join(', ')}`)
   },
 
@@ -185,19 +154,12 @@ export const engine: IntentEngine = {
     if (!on) setObjectiveSaid(null)
   },
 
-  /* WHAT THE STUDENT IS SUPPOSED TO BE DOING, said by whoever is directing.
-   * BRIEF-MAW-RAIL-3 A. It is chrome around the window, so it needs no map and
-   * lives here rather than on the world. */
+  /* what the student is supposed to be doing, said by whoever is directing; it is chrome around the window, so it needs no map and lives here rather than on the world */
   objective(text) {
     setObjectiveSaid(text)
   },
 
-  /* ---- THE ISLAND'S OWN TASK LIST ---------------------------------------
-   *
-   * The declaration goes on a bus, because it only means anything while its island
-   * is loaded. The TICKS go in the save, keyed by programme and year, because a
-   * student who closes the tab halfway through an island has still done what he
-   * did. Both halves are drawn by the sheet the year's tasks already use. */
+  /* the task declaration goes on a bus because it only means anything while its island is loaded, and the ticks go in the save keyed by programme and year so closing the tab halfway keeps what was done */
   islandTasks(tasks, by) {
     const programme = by?.grape ?? ''
     if (!programme)
@@ -214,9 +176,7 @@ export const engine: IntentEngine = {
     /* A TICK IS A THING THE RUN REMEMBERS, so it needs a run, the same as a flag. */
     const s2 = loadSave()
     if (!s2) throw new NotBuilt('task_done', `there is no run to remember "${id}" in`)
-    /* AND IT HAS TO BE A ROW THE ISLAND DECLARED. A misspelt id would otherwise be
-     * written down for ever, tick nothing a student can see, and leave the island
-     * permanently one task short of finished with no way to tell why. */
+    /* a ticked id has to be a row the island declared, because a misspelt id would be written down for ever, tick nothing a student can see, and leave the island one task short of finished with no way to tell why */
     const list = islandTaskList()
     if (!list || list.programme !== programme)
       throw new NotBuilt('task_done', `"${programme}" has not said what its tasks are yet. `
@@ -228,14 +188,7 @@ export const engine: IntentEngine = {
     islandTaskTicked()
   },
 
-  /* the study arm this participant was assigned at join. A grape never chooses
-   * it; it can only force plain for a specific activity (see intents.ts).
-   *
-   * The skin is read ONLY when there is no arm, which is a run nobody joined and
-   * which produces no study row: that case is `?skin=plain`, the review door, and
-   * without it the whole page went plain while every beat a member's island
-   * played stayed in game rendering. It cannot mislabel a real participant,
-   * because the study log's arm comes off the Logger's own config. */
+  /* a grape never picks the arm and can only force plain for one activity (see intents.ts); the skin is read only when no arm is set, the `?skin=plain` review door, without which the page went plain while every beat an island played stayed in game rendering */
   mode(): SessionMode {
     const arm = loadSave()?.arm
     if (arm === 'plain' || arm === 'game') return arm
@@ -265,10 +218,7 @@ function writeAward(a: AwardArgs) {
     /* naming a programme with no grade is how a member says they finished it */
     if (typeof a.grade !== 'number') {
       if (g) {
-        /* null, NOT ZERO (Ash, 2026-09-09). Zero is a grade a student earned by
-         * getting everything wrong; this is a member's island saying "he did
-         * it" with no scoring at all, and writing them the same way put an F on
-         * the wall of everybody who finished one. */
+        /* null, not zero: zero is a grade earned by getting everything wrong, while this is an island saying the student did it with no scoring at all, and writing them the same put an F on the wall of everybody who finished one */
         recordCompletion(g.id, null, g.rankTrack ?? undefined)
         setIslandState(g.id, 'completed')
         track('programme_completed', { programme: g.id, place: g.place, grade: null, year })
@@ -283,20 +233,11 @@ function writeAward(a: AwardArgs) {
         ...(g.rankTrack ? { rank: g.rankTrack } : {}),
       }
       : {
-        /* stable in what it is about and in the year, so replaying it updates one
-         * row. A timestamp made every replay a new row and every replay another
-         * half credit of weight on the GPA. */
+        /* the id is stable in what it is about and in the year so replaying updates one row; a timestamp made every replay a new row and another half credit of weight on the GPA */
         id: `award:y${year}:${a.programme ?? a.sticker ?? a.badge ?? a.fact ?? 'unnamed'}`,
         title: a.programme ? `Awarded (${a.programme})` : 'Awarded',
         kind: 'core' as const,
-        /* ---- AND IT CARRIES NO CREDIT (Ash, 2026-09-09) -----------------
-         *
-         * It used to be half a credit, so a member who typo'd their programme id
-         * put unexplained weight on a student's GPA under a row reading
-         * "Awarded (robotcs)". The grade is still kept, because an island that
-         * scored somebody should not lose the score to a spelling mistake, and
-         * `gpaOf` weights by credit, so a zero-credit row is on the record and
-         * invisible to the mean. The console line above names the typo. */
+        /* an award row carries credit 0: at half a credit a typo'd programme id put unexplained weight on a student's GPA, and since `gpaOf` weights by credit a zero-credit row is on the record and invisible to the mean, with the grade still kept */
         credit: 0,
       }
 
@@ -325,8 +266,7 @@ function saidOf(a: AwardArgs): { what: string; detail?: string } {
     }
   }
   if (a.badge) return { what: 'You earned a badge.', detail: a.badge }
-  /* "the wall" is §11.9's trophy wall and it is not built, so a student who
-   * earned a sticker was sent to a place the game does not have. */
+  /* the trophy wall a sticker sends the student to is not built, so that reward points at a place the game does not have */
   if (a.sticker) return { what: 'You earned a badge.', detail: a.sticker }
   if (a.fact) return { what: 'That went in the Handbook.' }
   return { what: 'That counted.' }

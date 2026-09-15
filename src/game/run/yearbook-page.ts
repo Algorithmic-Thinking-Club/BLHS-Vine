@@ -10,17 +10,13 @@ export type YearbookRow = {
   key: string
   title: string
   meta: string
-  /* 0..1 when the row is a partial thing rather than a finished one. §12.8's
-   * whole position: a cord at 0.4 is not a locked achievement, it is a thing
-   * that is 40 percent of the way to being real. */
+  /* 0 to 1 when the row is partial rather than finished, so a cord at 0.4 is 40 percent of the way to being real, not a locked achievement */
   progress?: number
   /** the school's own words for what this row is, where the school supplied them */
   rule?: string
   /** it is finished, and a drawn stamp goes on it */
   done?: boolean
-  /* a face on one of the platform's cut sheets that belongs to this row, as
-   * `[piece, face]`. The seasons carry the pips MAPVIS drew for them, so a
-   * student can tell fall from spring without reading the word. */
+  /* a face on one of the platform's cut sheets belonging to this row, as `[piece, face]`, so a season can wear its drawn pip instead of a word */
   face?: [string, string]
 }
 
@@ -63,8 +59,7 @@ export type YearbookPage = {
   nudge: string
 }
 
-/** every year that has a page, oldest first. A page exists once its year has
- *  been lived in, so year one has one from the moment the run starts. */
+/** every year that has a page, oldest first, so year one has a page from the moment the run starts */
 export const yearbookYears = (s: SaveGame): number[] =>
   Array.from({ length: Math.max(1, Math.min(4, s.year)) }, (_, i) => i + 1)
 
@@ -79,9 +74,7 @@ export const gpaThrough = (s: SaveGame, upTo: number): number | null =>
 const meanOfYear = (s: SaveGame, year: number): number | null =>
   gpaOf({ ...s, ledger: s.ledger.filter((e) => e.year === year) })
 
-/* A STICKER HAS NO NAME ANYWHERE. `collectSticker` takes a string id and there is
- * no sticker table in the tree, so the label is the id made readable and nothing
- * more. When a catalog exists this is the one place that has to change. */
+/* a sticker has no name anywhere: `collectSticker` takes a string id and no sticker table exists, so the label is the id made readable, and this is the one place to change when a catalog exists */
 export const stickerLabel = (id: string): string =>
   id.replace(/^[a-z0-9_-]+:/, '').replace(/[-_]+/g, ' ').replace(/^./, (c) => c.toUpperCase())
 
@@ -100,20 +93,7 @@ export function yearbookPage(s: SaveGame, year: number = s.year): YearbookPage {
   const paper: YearbookSection = {
     id: 'paper',
     heading: 'Your grades this year',
-    /* ---- NO SEASON ON A CLASS ROW (Ash, 2026-09-09) ---------------------
-     *
-     * This printed `${e.season}` and every row in the game said Fall, because
-     * `s.season` is written in three places and all three write 'Fall': there is
-     * no clock in this run that advances it, and there should not be. The three
-     * season tokens are a PLANNING device for after-school picks, not a
-     * calendar. Classes at Bonney Lake are not season-scoped and the catalog
-     * carries no season field for them, so the word was invented on every line.
-     *
-     * The tokens keep their seasons in "Clubs and sports you picked" below,
-     * where the season is a real fact about which token bought the row.
-     *
-     * WHAT REPLACES IT IS TRUE: how many goes it took, which is the only place
-     * outside the wall a student is shown his own attempts. */
+    /* no season on a class row: `s.season` is written in three places and all three write 'Fall', nothing advances it, and the catalog carries no season field for classes, so the word was invented on every line; attempts replaces it, and the tokens keep their real seasons in the clubs and sports section below */
     rows: s.ledger.filter((e) => e.year === year).map((e) => ({
       key: e.id,
       title: e.title,
@@ -137,16 +117,13 @@ export function yearbookPage(s: SaveGame, year: number = s.year): YearbookPage {
       title: v.name,
       meta: `${v.season} · ${v.done ? 'finished' : v.playable ? 'not done yet' : 'not open yet'}`,
       done: v.done,
-      /* the pip sheet has fall, winter and spring drawn as three different coins,
-       * which is what the HUD's tokens wear. A row that carries its own season
-       * mark says which season it was without the student reading the word. */
+      /* the pip sheet draws fall, winter and spring as three different coins, the ones the HUD tokens wear, so a row says its season without the student reading the word */
       face: ['pip', v.season.toLowerCase()] as [string, string],
     })),
     empty: 'You did not join a club or a sport this year.',
   }
 
-  /* ---- the awareness record, per year and per place, which is what the study
-   * actually measures and what a student is most likely to be surprised by ---- */
+  /* the awareness record, per year and per place, the part a student is most likely to be surprised by */
   const waters: YearbookSection = {
     id: 'waters',
     heading: 'Places you saw',
@@ -224,9 +201,7 @@ export function yearbookPage(s: SaveGame, year: number = s.year): YearbookPage {
   }
 }
 
-/* THE PROGRESS BAR A THREAD DRAWS, kept here rather than in the component so the
- * page can be rendered by anything: a test, a plain-arm summary, or the turn-in
- * artifact. `cordsOf` is the source and this is only the width. */
+/* the width of the progress bar a thread draws, kept out of the component so a test or a summary can render the page too; `cordsOf` is the source */
 export const threadWidth = (s: SaveGame, cordId: string): number => {
   const c = cordsOf(s).find((x) => x.id === cordId)
   return c ? Math.round(Math.max(0, Math.min(1, c.progress)) * 100) : 0
@@ -236,15 +211,6 @@ export const threadWidth = (s: SaveGame, cordId: string): number => {
 export function turnYearPage(s: SaveGame, year: number): SaveGame {
   const mark = `yearbook:y${year}`
   const flags = s.flags.includes(mark) ? s.flags : [...s.flags, mark]
-  /* ---- TURNING THE PAGE NEVER ADVANCES THE YEAR (Ash, 2026-09-09) --------
-   *
-   * It used to, and the guard above it was `s.year >= SESSION_ENDS_AFTER_YEAR &&
-   * s.year < 4`, which with that constant at 1 caught years one to three and
-   * left an advancing branch nothing could reach.
-   *
-   * The year turn belongs to the title now: the closing film carries a student
-   * out of the Maw, and the "Start year N" plank calls `endYear`, which is the
-   * one place that hands over a fresh sheet and three tokens. This marks the
-   * page and stops, whatever year it is. Four is the end of the road. */
+  /* turning the page never advances the year: the old guard `s.year >= SESSION_ENDS_AFTER_YEAR && s.year < 4` with that constant at 1 left an advancing branch nothing could reach, so the turn belongs to `endYear`, the one place that hands over a fresh sheet and three tokens */
   return s.year >= 4 ? writeSave({ flags, graduated: true }) : writeSave({ flags })
 }

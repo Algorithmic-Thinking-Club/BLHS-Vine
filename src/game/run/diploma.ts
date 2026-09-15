@@ -20,8 +20,7 @@ export function diplomaOf(s: SaveGame): FrozenRun {
   return { transcript, code: runCode(transcript), year: s.year, at: 0 }
 }
 
-/** is this the code that belongs to this run. The teacher's roster asks the same
- *  question of the synced save with the same two functions. */
+/** is this the code that belongs to this run, and the roster asks the same question of the synced save through the same two functions */
 export function checkCode(s: SaveGame, code: string): boolean {
   const clean = code.trim().toUpperCase().replace(/\s+/g, '')
   return diplomaOf(s).code === clean
@@ -74,9 +73,7 @@ export function diplomaRows(s: SaveGame, d: FrozenRun = diplomaOf(s)): DiplomaRo
   return rows
 }
 
-/* THE DAY IT WAS SEALED. `at` is 0 on a preview opened before the run is really
- * graduated, and a preview must never print a date it does not have, so it says
- * so in words rather than printing the epoch. */
+/* the day it was sealed, and `at` is 0 on a preview opened before the run has graduated, so it says so in words rather than printing the epoch */
 export function sealedDate(d: FrozenRun): string {
   if (!d.at) return 'not yet, this is a preview'
   const at = new Date(d.at)
@@ -105,9 +102,7 @@ export function standingsOf(s: SaveGame, d: FrozenRun = diplomaOf(s)): Standing[
   const t = d.transcript
   const out: Standing[] = []
 
-  /* the ladder first, because it is the only one that took four years and it is
-   * the one the school gives nothing for. `NO_ATHLETIC_CORD` is `progress.ts`'s
-   * own sentence about that, quoted rather than paraphrased. */
+  /* the ladder first, because it is the only one that took four years and the one the school gives nothing for, and `NO_ATHLETIC_CORD` is `progress.ts`'s own sentence about that, quoted rather than paraphrased */
   for (const [track, years] of Object.entries(ranksOf(s))) {
     const rank = rankName(years)
     if (!rank) continue
@@ -159,8 +154,7 @@ export function standingsOf(s: SaveGame, d: FrozenRun = diplomaOf(s)): Standing[
       count: `${s.stickers.length} ${s.stickers.length === 1 ? 'mark' : 'marks'}`,
     })
   }
-  /* ALWAYS LAST AND ALWAYS PRESENT. A student who did nothing else still walked
-   * the years, and a stage that can be empty is the defect §14.19 named. */
+  /* always last and always present, because a player who did nothing else still walked the years and a stage that can come out empty is a defect */
   out.push({
     id: 'years',
     name: 'Four years walked',
@@ -182,9 +176,7 @@ export function artifactText(s: SaveGame, d: FrozenRun = diplomaOf(s)): string {
   ].join('\n')
 }
 
-/* THE STRING THE CODE IS COMPUTED OVER, exported for the captain's overlay and
- * for a teacher chasing a mismatch by hand. Never shown to a student: it carries
- * the participant id. */
+/* the string the code is computed over, exported for the captain's overlay and for chasing a mismatch by hand, and never shown to a player because it carries the participant id */
 export const codeSubject = (t: Transcript) => canonical(t)
 
 // the drawn keepsake: frozen copies of the paper colours, so it prints the same in both study arms
@@ -201,9 +193,7 @@ const PAPER = {
 const DISPLAY_FACE = 'Harbormaster, Deckhand, serif'
 const BODY_FACE = 'Deckhand, serif'
 
-/* TYPED HERE RATHER THAN OFF `Document['fonts']`, because the FontFaceSet lib
- * type is not in every `lib.dom` this repo builds against and a keepsake must not
- * be the reason a build stops. This is the whole of the surface used. */
+/* typed here rather than off `Document['fonts']`, because the FontFaceSet lib type is not in every `lib.dom` this repo builds against and a keepsake must not be the reason a build stops, and this is the whole surface used */
 type FontLoader = { load?: (font: string) => Promise<unknown> }
 
 /** ask the document for the two commissioned faces and wait, at most briefly */
@@ -216,8 +206,7 @@ export async function readyForDiploma(): Promise<void> {
       fonts.load(`17px ${BODY_FACE}`),
     ])
   } catch {
-    /* a face that will not load is not a reason to withhold the file. §14.28: if
-     * the artifact cannot leave the machine the student has nothing to hand in. */
+    /* a face that will not load is not a reason to withhold the file, because if the artifact cannot leave the machine there is nothing to hand in */
   }
 }
 
@@ -244,8 +233,7 @@ export function drawDiploma(cv: HTMLCanvasElement, s: SaveGame, sealed: FrozenRu
   line(t.handle || DIPLOMA_COPY.unnamed, 234, 44, PAPER.deep, DISPLAY_FACE)
   line(DIPLOMA_COPY.completed, 268, 18)
 
-  /* THE SAME ROWS THE CARD SHOWS, IN THE SAME ORDER, in two columns so a long
-     cord list has somewhere to go instead of running off the page. */
+  /* the same rows the card shows in the same order, in two columns so a long cord list has somewhere to go instead of running off the page */
   const rows = diplomaRows(s, sealed)
   let y = 320
   for (const r of rows) {
@@ -256,8 +244,7 @@ export function drawDiploma(cv: HTMLCanvasElement, s: SaveGame, sealed: FrozenRu
     g.textAlign = 'left'
     g.font = `16px ${BODY_FACE}`
     g.fillStyle = PAPER.ink
-    /* a value longer than the column gets cut with an ellipsis rather than
-       overrunning the frame: the printed page has one width and no scroll */
+    /* a value longer than the column is cut with an ellipsis rather than overrunning the frame, because the printed page has one width and no scroll */
     g.fillText(fit(g, r.value, W / 2 - 60), W / 2 + 16, y)
     y += 27
   }

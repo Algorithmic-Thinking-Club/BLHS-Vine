@@ -12,8 +12,7 @@ const strip = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, '')
 
 const TOKENS = 'src/game/ui/tokens.css'
 
-/* every stylesheet in the tree, found rather than listed, because the failure
- * these tests exist to catch is a NEW surface that nobody added to a list. */
+/* every stylesheet in the tree, found rather than listed, because the failure these tests catch is a new surface nobody added to a list */
 function everyStylesheet(dir = 'src'): string[] {
   const out: string[] = []
   for (const e of fs.readdirSync(path.resolve(process.cwd(), dir), { withFileTypes: true })) {
@@ -37,9 +36,7 @@ function everySource(dir = 'src'): string[] {
 
 /* the stylesheets that ARE the kit: the surfaces the painted game shows. */
 const KIT = [
-  /* THE CONTROL KIT, added 2026-09-01. It is the file every button, tab, field,
-   * gauge, socket and stamp in the game is now made of, so it is the one file
-   * where a retyped colour would reach twenty surfaces at once. */
+  /* the control kit: every button, tab, field, gauge, socket and stamp is made of this file, so one retyped colour here reaches twenty surfaces at once */
   'src/game/ui/controls.css',
   'src/game/cutscene/ui-kit.css',
   'src/game/hud/dialogue.css',
@@ -48,8 +45,7 @@ const KIT = [
   'src/app/settings.css',
   'src/app/theme.css',
 ]
-/* the three that size themselves in container units, which is where the text
- * setting was being dropped */
+/* the three that size themselves in container units, which is where the text setting was being dropped */
 const CQW_PANELS = ['src/game/hud/hud.css', 'src/game/hud/wardrobe.css', 'src/app/settings.css']
 
 const tokenValue = (css: string, name: string, scope = ':root'): string | null => {
@@ -65,17 +61,14 @@ function declaredIn(css: string, selector: string): Set<string> {
   const open = css.indexOf('{', at)
   const close = css.indexOf('\n}', open)
   const body = css.slice(open, close)
-  /* `_` is in the class because a MAPVIS handle can carry one (`icon_set`), and
-   * without it `--kit-art-icon_set` was read as `kit-art-icon` and the audit
-   * below silently believed a handle was nulled that was not */
+  /* `_` is in the class because a MAPVIS handle can carry one (`icon_set`), and without it `--kit-art-icon_set` read as `kit-art-icon` and the audit below silently believed a handle was nulled that was not */
   return new Set([...body.matchAll(/--([a-z0-9_-]+)\s*:/g)].map((m) => m[1]))
 }
 
 describe('the tokens are extracted, not invented', () => {
   const css = strip(read(TOKENS))
 
-  /* EVERY ONE OF THESE WAS TYPED SOMEWHERE ELSE FIRST. Left: the token. Right:
-   * the literal that was in the tree on 2026-08-29, and the file it was in. */
+  /* every one of these was typed somewhere else first: left is the token, right is the literal it replaced and the file it was in */
   const EXTRACTED: [string, string, string][] = [
     ['kit-ink', '#33261a', 'settings.css .st-idval'],
     ['kit-ink-body', '#4a3826', 'hud.css .hb-page'],
@@ -126,8 +119,7 @@ describe('the tokens are extracted, not invented', () => {
     ['kit-art-panel', "url('/art/ui/panel-square.png')", 'hud.css .hb-book'],
     ['kit-art-dialogue', "url('/art/ui/dialogue-box.png')", 'ui-kit.css .cs-dialogue'],
     ['kit-art-plank', "url('/art/ui/plank-button.png')", 'settings.css .st-close'],
-    /* the front group: theme.css's twenty-two, which are a different palette on
-     * purpose and were aliased rather than merged */
+    /* the front group: theme.css's twenty-two, which are a different palette on purpose and were aliased rather than merged */
     ['kit-front-paper', '#e8dcc2', 'theme.css --c-paper'],
     ['kit-front-teal', '#2f8e82', 'theme.css --c-teal'],
     ['kit-front-gold', '#c9a24a', 'theme.css --c-gold'],
@@ -205,15 +197,12 @@ describe('the plain arm has no art anywhere, and nothing can quietly add some', 
     for (const file of everySource()) {
       if (file.endsWith('.test.ts') || file.endsWith('.test.tsx')) continue
       for (const h of artHandlesIn(read(file))) mounted.add(h)
-      /* a `.kit-surface-<handle>` in a className is a mount too: `kit.ts` writes
-       * `--kit-art-<handle>` for that same handle at runtime, and the class is
-       * the only place in `src/` the name appears */
+      /* a `.kit-surface-<handle>` in a className is a mount too, because `kit.ts` writes `--kit-art-<handle>` for that handle at runtime and the class is the only place in `src/` the name appears */
       for (const m of read(file).matchAll(/kit-surface-([A-Za-z0-9_-]+)/g)) {
         if (!m[1].startsWith('$') && m[1] !== '') mounted.add(m[1])
       }
     }
-    /* mounted by `kitFaceStyle.ts` through a variable, so the name only exists
-     * in prose there and in the live `/api/v1/ui` record */
+    /* mounted by `kitFaceStyle.ts` through a variable, so the name only exists in prose there and in the live `/api/v1/ui` record */
     mounted.add('icon_set')
     const unnulled = [...mounted].filter((h) => !plain.has(`kit-art-${h}`)).sort()
     expect(unnulled, 'art handles the plain arm would still paint').toEqual([])
@@ -224,8 +213,7 @@ describe('the plain arm has no art anywhere, and nothing can quietly add some', 
     for (const file of everyStylesheet()) {
       const css = strip(read(file))
       for (const m of css.matchAll(/([-a-z]+)\s*:\s*([^;{}]*url\(\s*['"]?\/art\/[^;{}]*)/g)) {
-        /* tokens.css's own `:root` is where the urls are SUPPOSED to live: that
-         * is the indirection every other rule reads through */
+        /* tokens.css's own `:root` is where the urls are meant to live, because that is the indirection every other rule reads through */
         if (file === TOKENS) continue
         offenders.push(`${file}: ${m[1]}: ${m[2].trim()}`)
       }
@@ -255,12 +243,11 @@ describe('the plain arm has no art anywhere, and nothing can quietly add some', 
   })
 
   it('keeps the integer snap in this arm rather than trading it for a size band', () => {
-    // the ruling asks for worksheet sizes AND the snap ENGINE-4 added, not one of them
+    // worksheet sizes and the whole-pixel snap are both required, not one of them
     expect(tokens).toContain("html[data-skin='plain'] *,")
     expect(tokens).toContain('--kit-fs: clamp(15px, var(--kit-fs-raw), 28px);')
     expect(tokens).toContain('--kit-fs: max(1px, round(clamp(15px, var(--kit-fs-raw), 28px), 1px));')
-    // and the fallback arm is still a real declaration outside the feature query
-    // searched from the plain block, since the paper skin has a clamp of its own further up
+    // the fallback arm is still a real declaration outside the feature query, searched from the plain block because the paper skin has a clamp of its own further up
     const from = tokens.indexOf("html[data-skin='plain'] *,")
     const loose = tokens.indexOf('--kit-fs: clamp(15px, var(--kit-fs-raw), 28px);', from)
     const snapped = tokens.indexOf('--kit-fs: max(1px, round(clamp(15px,', from)
@@ -270,9 +257,7 @@ describe('the plain arm has no art anywhere, and nothing can quietly add some', 
   it('casts no shadow and renders no pixel art', () => {
     expect(tokenValue(tokens, 'kit-pixel', "html[data-skin='plain']")).toBe('auto')
     for (const t of ['kit-drop-lg', 'kit-drop-md', 'kit-drop-sm']) {
-      /* a transparent offset-zero shadow rather than a deleted token: an unset
-       * token makes `filter: drop-shadow(var(--kit-drop-lg))` invalid at
-       * computed-value time, and that falls back to INHERIT, not to nothing */
+      /* a transparent offset-zero shadow rather than a deleted token, because an unset token makes `filter: drop-shadow(var(--kit-drop-lg))` invalid at computed-value time and that falls back to inherit, not to nothing */
       expect(tokenValue(tokens, t, "html[data-skin='plain']")).toBe('0 0 0 rgba(0, 0, 0, 0)')
     }
   })
@@ -332,9 +317,7 @@ describe('the assigned study arm reaches the skin', () => {
     beginAdventure()
     expect(document.documentElement.dataset.skin).toBeUndefined()
 
-    /* the write alone is the test: `skin.ts` subscribes to the save at import,
-     * because the arm arrives LATE (net.ts writes it when the join returns) and
-     * a skin decided once at boot is decided before the answer exists */
+    /* the write alone is the test: `skin.ts` subscribes to the save at import because the arm arrives late (net.ts writes it when the join returns), and a skin decided once at boot is decided before the answer exists */
     writeSave({ arm: 'plain' })
     expect(document.documentElement.dataset.skin).toBe('plain')
     expect(currentSkin()).toBe('plain')
@@ -458,8 +441,7 @@ describe('the text setting reaches a panel that sizes itself in container units'
 
 // type sizes land on whole pixels, because a bitmap face resampled at a fraction loses strokes
 
-/* every stylesheet whose type is sized off a container, a viewport or an em, and
- * therefore every one that could hand the font engine a fraction */
+/* every stylesheet whose type is sized off a container, a viewport or an em, and therefore every one that could hand the font engine a fraction */
 const SIZED = [
   'src/game/ui/controls.css',
   'src/app/settings.css', 'src/app/transitions.css',
@@ -479,9 +461,7 @@ describe('type lands on whole pixels', () => {
   })
 
   it('leaves the exact expression that ships today as the fallback arm', () => {
-    /* the trap this guards: a var() value is invalid at COMPUTED-value time, and
-     * that falls back to inherit rather than to the declaration above it. So the
-     * unsupported arm has to be a real declaration outside the feature query. */
+    /* a var() value is invalid at computed-value time and falls back to inherit rather than to the declaration above it, so the unsupported arm has to be a real declaration outside the feature query */
     const at = css.indexOf('--kit-fs: clamp(14px, var(--kit-fs-raw), 44px);')
     const gate = css.indexOf('@supports (font-size: round(1px, 1px))')
     expect(at).toBeGreaterThan(-1)
@@ -510,8 +490,7 @@ describe('a keyboard player can always see where they are', () => {
   const css = strip(read(TOKENS))
 
   it('rings every focusable element by kind, not by a list of class names', () => {
-    /* the four the browser focuses without help, plus anything given a tabindex.
-     * A control cannot be added to this game without being one of them. */
+    /* the four the browser focuses without help, plus anything given a tabindex, and a control cannot be added without being one of them */
     for (const el of ['button', 'a[href]', 'select', 'summary', "[tabindex]:not([tabindex='-1'])"]) {
       expect(css, `nothing rings a bare <${el}>`).toContain(el)
     }

@@ -9,9 +9,7 @@ async function fresh() {
   return { save, tasks, objective }
 }
 
-/* THE ROW OR A FAILURE. `.find` is `T | undefined` and every assertion below is
- * about a row that must exist, so a missing one should fail by name here rather
- * than as ten "possibly undefined" complaints from the compiler. */
+/* the row or a failure: `.find` is `T | undefined` and every assertion below is about a row that must exist, so a missing one fails by name here rather than as ten possibly-undefined complaints from the compiler */
 const row = (list: any[], id: string) => {
   const hit = list.find((t) => t.id === id)
   if (!hit) throw new Error(`no task called "${id}" in ${JSON.stringify(list.map((t) => t.id))}`)
@@ -37,8 +35,7 @@ describe('the year as a list', () => {
     const list = tasks.tasksOf(save.loadSave())
     expect(list.map((t: any) => t.id)).toEqual(['plan', 'core', 'end'])
     expect(list.every((t: any) => !t.done)).toBe(true)
-    /* every unfinished row says WHERE, or the sheet is five nouns a lost student
-     * still cannot find */
+    /* every unfinished row says where, or the sheet is five nouns a lost student still cannot find */
     expect(list.every((t: any) => !!t.note)).toBe(true)
   })
 
@@ -50,9 +47,7 @@ describe('the year as a list', () => {
     save.assignSlot(1, 'Fall', 'football')
     save.stampPlan(1, ['football'])
     const words = JSON.stringify(tasks.tasksOf(save.loadSave()))
-    /* BRIEF-CLOSE-THE-LOOP section 4: the season model stays in the code and off
-     * every screen until a real sport with a season exists. A voyage row names
-     * the island; which column the token sat in is bookkeeping. */
+    /* the season model stays in the code and off every screen until a real sport with a season exists: a voyage row names the island, and which column the token sat in is bookkeeping */
     expect(words).not.toMatch(/Fall|Winter|Spring/)
   })
 
@@ -68,13 +63,7 @@ describe('the year as a list', () => {
     expect(row(list, 'plan').done).toBe(true)
   })
 
-  /* ---- NOTHING ON THE SHEET IS BARRED ANY MORE ---------------------------
-   *
-   * ASH, 2026-09-08 item 4. A club nobody had built used to be drawn differently
-   * from a club he had not got to yet, because it was a different thing: there
-   * was no control anywhere that could finish it. There is one now, so a row
-   * whose island does not exist is an ordinary unfinished row, and the note says
-   * which button finishes it rather than apologising for the island. */
+  /* nothing on the sheet is barred any more: a club nobody had built used to be drawn differently because no control anywhere could finish it, and there is one now, so a row whose island does not exist is an ordinary unfinished row whose note says which button finishes it */
   it('leaves an island nobody has built as an ordinary unfinished row', async () => {
     const { save, tasks } = await fresh()
     started(save)
@@ -101,9 +90,7 @@ describe('the year as a list', () => {
     save.setFlag('yearbook:y1')
     const list = tasks.tasksOf(save.loadSave())
     const { done, total } = tasks.tasksDone(list)
-    /* six rows and all six counted, because all six have a button. Four are
-     * ticked: the schedule, Advisory, the club that was counted, and the year's
-     * own last row; the two classes were never sat. */
+    /* six rows and all six counted because all six have a button, and four are ticked: the schedule, Advisory, the club that was counted and the year's own last row, with the two classes never sat */
     expect(list).toHaveLength(6)
     expect(total).toBe(6)
     expect(done).toBe(4)
@@ -129,16 +116,14 @@ describe('the year as a list', () => {
       id: 'core:y1', title: 'Advisory', kind: 'core', credit: 0.5,
       grade: 4, year: 1, season: 'Fall',
     })
-    /* THE MIDDLE OF THE YEAR IS THE TWO CLASSES (Ash, 2026-09-08), so Advisory
-     * being sat hands the arrow to the first of them rather than to the ending */
+    /* the middle of the year is the two classes, so Advisory being sat hands the arrow to the first of them rather than to the ending */
     expect(objective.nextObjective(save.loadSave())!.phase).toBe('class')
     for (const id of ['ap-human-geo', 'spanish-1']) {
       save.recordGrade({
         id: `class:${id}`, title: id, kind: 'class', credit: 0.5, grade: 4, year: 1, season: 'Fall',
       })
     }
-    /* and with both sat and nothing to sail to, the arrow goes to the principal
-     * and the last row stops being barred on the same save */
+    /* and with both sat and nothing to sail to, the arrow goes to the principal and the last row stops being barred on the same save */
     expect(objective.nextObjective(save.loadSave())!.phase).toBe('yearbook')
     const late = tasks.tasksOf(save.loadSave())
     expect(row(late, 'core').done).toBe(true)

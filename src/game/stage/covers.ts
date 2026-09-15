@@ -58,8 +58,7 @@ const ART_VOYAGE = '/art/ui/loading-voyage.png'
 
 /** a cover named for one specific destination, which beats the derived one */
 const COVER_ART: Record<string, string> = {
-  /* the Central Island is reached by boat and the student steps onto a dock, so
-   * the harbour is the picture rather than the archipelago seen from the sky */
+  /* the Central Island is reached by boat onto a dock, so the harbour is the picture rather than the archipelago seen from the sky */
   hub: ART_PORT,
   'hub-a2': ART_PORT,
   /* the Maw's cover is the room's own painting, since that is the place you are going */
@@ -80,22 +79,7 @@ const CLASS_ART: Record<CoverClass, string> = {
 // the one word every cover says over its picture, spaced out by hand
 const ENTERING = 'E N T E R I N G'
 
-/* ---- A MAP'S COVER BELONGS TO THE MAP ------------------------------------
- *
- * Ruled with the strategy session: covers belong to maps. MAPVIS is getting a Cover
- * tab that publishes `cover.png`, and `covers/<name>.png` for named ones, inside a
- * map's bundle, so the picture a student sees on the way to an island is drawn by
- * whoever drew the island and travels with it.
- *
- * THE ENGINE'S HALF IS A GUESS AND NEVER A FETCH. These are the two roots a bundle
- * is really loaded from, in the order `PmapScene` tries them, so the candidates are
- * worked out rather than asked for. The overlay walks the list on error and the last
- * entry is always the art committed here, so a map with no cover drawn yet costs one
- * aborted request and looks exactly as it does today.
- *
- * No Python word is added for this. An island never names a screen: the destination
- * does, because the cover is about where you are going. `enter(map, cover=<name>)`
- * can ask for a NAMED one, which is how a map offers more than one. */
+/* a cover belongs to its map: candidates are guessed from the two bundle roots `PmapScene` loads from and never fetched, the last entry is the art committed here so a map with no cover drawn yet costs one aborted request, and the destination names it via `enter(map, cover=<name>)` */
 const BUNDLE_ROOTS = ['/maps-vendored', '/maps-painted']
 
 export function bundleCovers(mapId: string, named?: string): string[] {
@@ -117,8 +101,7 @@ export function coverFor(mapId: string, bundleTitle?: string, named?: string): C
     spec: {
       kind: 'scene',
       title: title.toUpperCase(),
-      /* the destination's own picture first, then the hand-kept table, then the
-       * class's art, which is the floor and cannot miss */
+      /* the destination's own picture first, then the hand-kept table, then the class's art, which is the floor and cannot miss */
       images: bundleCovers(mapId, named),
       image: COVER_ART[mapId] ?? CLASS_ART[voice],
       kicker: ENTERING,
@@ -130,15 +113,7 @@ export function coverFor(mapId: string, bundleTitle?: string, named?: string): C
 }
 
 // the graduation cover, the one that carries no fact under it
-/* ---- PASSING THROUGH, WHICH IS NOT ARRIVING --------------------------------
- *
- * A voyage's first leg goes through whichever map the dock is on, and that hop used
- * to wear the same card as a real arrival: the place's name in spaced capitals, a
- * progress bar and a fact. Ash read it as a second journey he had not asked for.
- *
- * So this says nothing at all. No title, no kicker, no fact, no picture: a short
- * fade, which is what a cut inside one continuous move should be. The name of the
- * place he is actually going to still gets its card when he gets there. */
+/* passing through is not arriving: a voyage's first leg hops through the dock's map, and a full arrival card there read as a second journey, so this is a short fade with no title, kicker, fact or picture */
 export function passingCover(): CoverChoice {
   return {
     spec: { kind: 'fade', holdMs: 240, fact: false },
@@ -168,15 +143,11 @@ export function titleOfMap(mapId: string, bundleTitle?: string): string {
   const c = compositionCache()
   const slot = c ? slotOfMap(c, mapId) : undefined
   if (slot?.title) return slot.title
-  /* THE OVERRIDE SITS ABOVE THE BUNDLE AND BELOW THE WORLD. A slot Ash authored
-   * in MAPVIS always wins; below that, a map this game knows the name of says it
-   * rather than borrowing the name of the place it happens to sit inside. */
+  /* the override sits above the bundle and below the world: an authored slot always wins, and below that a map this game knows the name of says it rather than borrowing the name of the place it sits inside */
   if (MAP_TITLE[mapId]) return MAP_TITLE[mapId]
   if (bundleTitle) return bundleTitle
   const place = placeOfMap(mapId)
   if (place?.name) return place.name
-  /* THE LAST RESORT IS STILL NOT A SLUG. `panther-maw` becomes "Panther Maw",
-   * which is a name a fourteen year old can read, and the id never reaches a
-   * screen. */
+  /* the last resort is still not a slug: `panther-maw` becomes "Panther Maw", and the id never reaches a screen */
   return mapId.replace(/[-_]+/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase())
 }

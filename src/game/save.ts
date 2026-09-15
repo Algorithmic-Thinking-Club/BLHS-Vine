@@ -16,7 +16,7 @@ const newId = () => 'r' + Math.random().toString(36).slice(2, 9) + Date.now().to
 export type Season = 'Fall' | 'Winter' | 'Spring'
 export const SEASONS: Season[] = ['Fall', 'Winter', 'Spring']
 
-/** one graded thing (island voyage, class beat, core beat) — GPA's raw material (§8.1) */
+/** one graded thing, an island voyage, a class beat or a core beat, and the raw material GPA is computed from */
 export type LedgerEntry = {
   id: string
   title: string
@@ -31,18 +31,7 @@ export type LedgerEntry = {
   attempts?: number
   /* the first attempt's grade, kept alongside the best one and never overwritten */
   firstGrade?: number
-  /* ---- HOW EACH ITEM WENT, ON THE BEST SITTING (Ash, 2026-09-09) --------
-   *
-   * *"If they have passed, maybe the dialogue says 'Advisory is done for this
-   * year, see answers?' and an option shows up, which they click to open and see
-   * their answers."*
-   *
-   * Two numbers per item, earned over possible, keyed by the item's own id. It
-   * is deliberately not the ANSWERS a student gave: those are minors' response
-   * data and the study logs them through telemetry with a participant id, so
-   * putting them in the browser's save as well would be a second copy of the
-   * sensitive thing for no gain. What a student wants back is which questions he
-   * got, and that is this. */
+  /* two numbers per item, earned over possible, keyed by the item's own id, never the answers themselves, because those are minors' response data and telemetry already holds them */
   marks?: Record<string, [number, number]>
   /** the rank ladder this row counts a year toward, when it counts toward one */
   rank?: string
@@ -57,18 +46,11 @@ export type Exposure = { place: string; year: number; docked: boolean }
 export type Completion = {
   programme: string
   year: number
-  /* ---- null MEANS FINISHED WITHOUT A GRADE (Ash, 2026-09-09) -----------
-   *
-   * An island that says `award(...)` with no grade used to land here as a
-   * flat 0, which the wall then printed as an F: a student who finished a
-   * member's island got a failing letter on his case for finishing it. Zero
-   * is a grade somebody earned by getting everything wrong, and the two must
-   * never be written down as the same thing. */
+  /* null means finished without a grade: an ungraded `award(...)` once landed here as a flat 0 and printed as an F, and a zero somebody earned must never be written down as the same thing */
   grade: number | null
   rank?: string
   at: number
-  /* the same two facts a ledger row keeps, so a voyage and a class can be
-   * reported the same way (`attempts` counted here, `firstGrade` never moved) */
+  /* the same two facts a ledger row keeps, so a voyage and a class can be reported the same way (`attempts` counted here, `firstGrade` never moved) */
   attempts?: number
   firstGrade?: number | null
 }
@@ -115,9 +97,7 @@ export type SaveGame = {
   pronouns: string
   boatName: string
   thorLook?: string
-  /* what he is wearing over the coat, or absent for the bare panther. One slot
-   * on purpose: an outfit is a whole edited character rather than a layer, so
-   * two cannot be worn at once (`thorWear.ts` has the reason). */
+  /* what is worn over the coat, absent for the bare panther, and one slot on purpose: an outfit is a whole edited character rather than a layer, so two cannot be worn at once */
   thorWear?: string
   castaway?: boolean
   classCode?: string
@@ -127,27 +107,14 @@ export type SaveGame = {
   introDone: boolean
   graduated?: boolean           // the run's terminal state (§9); set by the fourth endYear
   plans: Record<number, YearPlan>  // the year sheets, keyed by year 1..4 (§7.2)
-  flags: string[]               // one-shot beats seen ('vignette:y1', ...) — never re-fire
-  /* ---- WHICH OF AN ISLAND'S OWN TASKS ARE TICKED ------------------------
-   *
-   * Keyed by programme id, and it CARRIES THE YEAR, for the same reason a
-   * Completion does: a club can be taken again in a later year, and a student
-   * arriving in year two has to find the list waiting for him rather than
-   * already finished. A mismatched year reads as nothing ticked, so a new year
-   * resets by itself and no code has to remember to clear anything.
-   *
-   * The list of tasks is NOT here. That is the island's to declare on every load
-   * and means nothing while its island is not running; only what a student has
-   * actually finished is worth keeping. */
+  flags: string[]               // one-shot beats already seen, such as `vignette:y1`, so they never fire again
+  /* keyed by programme id and carrying the year, because a club can be retaken later: a mismatched year reads as nothing ticked, so a new year resets itself, and the island declares the task list on every load */
   tasks?: Record<string, { year: number; done: string[] }>
   tokens: Season[]
   ledger: LedgerEntry[]
-  /* LEGACY, AND READ THROUGH progress.ts's ranksOf() RATHER THAN DIRECTLY.
-   * It had four readers and zero writers. Years invested are derived from the
-   * completion record now, so a stored count cannot disagree with the ledger. */
+  /* legacy, read through `progress.ts`'s `ranksOf()` and not directly: it had four readers and zero writers, and years invested come from the completion record so a stored count cannot disagree with the ledger */
   ranks: Record<string, number>
-  /** the CURRENT state of one programme, for the colour on a chart. Keyed by
-   *  programme id (roster/roster.ts), never by a map id or a place id. */
+  /** the current state of one programme, for the colour on a chart, keyed by programme id from `roster/roster.ts` and never by a map id or a place id */
   islands: Record<string, IslandState>
   /** every place this student was ever shown, per year (added after v2 shipped) */
   exposure?: Exposure[]
@@ -155,9 +122,7 @@ export type SaveGame = {
   completions?: Completion[]
   /** where the run was and what version of the world it was written against */
   where?: RunPosition
-  /* THE SHIP, AS A BERTH NAME RATHER THAN AS A POSITION. Q80.6.c's answer on
-   * record: a mid-voyage resume returns to a dock, because a dock is a named
-   * anchor on a known map and a point on open water is neither. */
+  /* the ship as a berth name rather than a position, because a mid-voyage resume returns to a dock: a dock is a named anchor on a known map and a point on open water is neither */
   vessel?: VesselRecord
   /** the transcript frozen at graduation, written once and never overwritten */
   diploma?: FrozenRun
@@ -189,8 +154,7 @@ const listeners = new Set<() => void>()
 export function subscribeSave(fn: () => void) { listeners.add(fn); return () => { listeners.delete(fn) } }
 const emit = () => { for (const fn of listeners) fn() }
 
-// another tab wrote the run: drop this tab's snapshot so the next read sees theirs, and let
-// subscribers re-render. Without this, a stale tab's next write reverted real progress.
+// another tab wrote the run: drop this tab's snapshot so the next read sees theirs and subscribers re-render, because without this a stale tab's next write reverted real progress
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
     if (e.key === KEY) { cache = undefined; emit() }
@@ -275,18 +239,14 @@ function commit(s: SaveGame): boolean {
     return true
   } catch (e) {
     const name = (e as { name?: string })?.name ?? ''
-    /* the two the deployment target actually raises, named apart because the
-     * answer differs: a full profile can be helped by a sync, and a blocked
-     * origin cannot be helped at all and has to be said out loud */
+    /* the two the deployment target actually raises, named apart because the answer differs: a full profile can be helped by a sync, a blocked origin cannot be helped at all and has to be said out loud */
     const kind = /quota|QUOTA/i.test(name) ? 'quota' as const : 'blocked' as const
     fault = { kind, at: Date.now(), message: String((e as Error)?.message ?? name) }
     return false
   }
 }
 
-/** patch the run. The merge base is the RAW stored save (not this tab's cache) so a write
- *  from a tab that sat idle can never revert another tab's progress. Auto-creates on first
- *  write (the intro's first write starts the save). */
+/** patch the run, merging onto the raw stored save rather than this tab's cache so a tab that sat idle can never revert another tab's progress, and creating the save on first write */
 export function writeSave(patch: Partial<SaveGame>) {
   const base = readRaw() ?? cache ?? fresh()
   const next = { ...base, ...patch, savedAt: Date.now() }
@@ -320,8 +280,7 @@ export function clearSave() {
     localStorage.removeItem(ROSTER_KEY); localStorage.removeItem(ACTIVE_KEY)
     localStorage.removeItem(WRECK_KEY)
   } catch { /* a blocked origin has nothing to remove */ }
-  /* GUARD_KEY IS NOT IN THAT LIST, ON PURPOSE. See its declaration: the record
-   * that this device already joined a class is what Q14 rests on. */
+  /* `GUARD_KEY` is deliberately not in that list: the record that this device already joined a class is what one run per device rests on */
   health = 'none'
   cache = null; emit()
 }
@@ -358,8 +317,7 @@ function rememberParticipant(s: SaveGame) {
 
 export type RestartVerdict = { allowed: true } | { allowed: false; why: string }
 
-/** may this device start its run over. One run per participant is the study's
- *  own constraint and this is where it is stated. */
+/** may this device start its run over: one run per participant is the constraint, and this is where it is stated */
 export function canRestart(): RestartVerdict {
   const g = runGuard()
   if (!g) return { allowed: true }
@@ -373,9 +331,7 @@ export function canRestart(): RestartVerdict {
   }
 }
 
-/* THE RESTART, RECORDED. A captain resetting a demo machine is a real need and
- * the count is what makes it visible afterwards rather than silent: a class whose
- * numbers do not add up can be asked how many devices were reset. */
+/* the restart is recorded rather than silent, because resetting a demo machine is a real need and the count is what lets a class whose numbers do not add up be asked how many devices were reset */
 export function restartRun(force = false): RestartVerdict {
   const verdict = canRestart()
   if (!verdict.allowed && !force) return verdict
@@ -403,36 +359,16 @@ export function recordGrade(e: LedgerEntry) {
     const attempts = (was.attempts ?? 1) + 1
     const firstGrade = was.firstGrade ?? was.grade
     /* a retake is spent by being taken, so a worse second attempt still marks the row retaken */
-    /* ---- A REQUIRED RETAKE DOES NOT SPEND THE OPTIONAL ONE ---------------
-     *
-     * ASH, 2026-09-09: *"they should have multiple attempts."*
-     *
-     * `retaken` is the school's Universal Retake being used up, and it was
-     * stamped on every second sitting including the ones a student had no
-     * choice about. So: fail, retake, pass with a C. The pass is under a B- and
-     * the student is entitled to one go at improving it, and the flag was spent
-     * climbing out of the F. `beats/state.ts` reads this flag, so the offer
-     * silently vanished for exactly the students who had struggled most.
-     *
-     * A row only counts as retaken when the sitting before it had already
-     * PASSED. Everything under that is getting back to a pass. */
-    /* A D OR BETTER, which is `progress.ts`'s PASSING_GRADE. Spelled here rather
-     * than imported because `progress.ts` imports this file's types and a value
-     * import back would be a cycle; `save.test.ts` asserts the two agree. */
+    /* a required retake must not spend the optional one: `retaken` means the school's Universal Retake is used up, so a row counts as retaken only when the sitting before it had already passed, and everything below that is only climbing back to a pass */
+    /* a D or better, matching `progress.ts`'s `PASSING_GRADE`, spelled out here because a value import back would be a cycle, and `save.test.ts` asserts the two agree */
     const wasPassing = was.grade >= 1.0
-    /* NEVER WRITTEN AS FALSE: a row that has not been retaken carries no such
-     * key at all, and stamping one in changes the shape of every row a second
-     * write ever touched. */
+    /* never written as false: a row that has not been retaken carries no such key at all, and stamping one in changes the shape of every row a second write ever touched */
     const spent = was.retaken || (wasPassing && !!e.retaken)
-    /* the caller's own `retaken` is a REQUEST, not the answer, so it is dropped
-     * off the incoming row before the row is written: whether the school's one
-     * retake was spent is this function's decision and nobody else's */
+    /* the caller's own `retaken` is a request, not the answer, so it is dropped off the incoming row: whether the school's one retake was spent is this function's decision */
     const { retaken: _asked, ...fresh } = e
     ledger[i] = e.grade > was.grade
       ? { ...fresh, ...(spent ? { retaken: true } : {}), attempts, firstGrade }
-      /* the flag is ADDED, never written as false: a row that has not been
-       * retaken has no `retaken` key at all, and stamping one in changes the
-       * shape of every ledger row a second write ever touched */
+      /* the flag is added, never written as false: an unretaken row has no `retaken` key, and stamping one in changes the shape of every ledger row a second write ever touched */
       : { ...was, ...(spent ? { retaken: true } : {}), attempts, firstGrade }
   } else {
     ledger.push({ ...e, attempts: 1, firstGrade: e.grade })
@@ -456,17 +392,7 @@ export function recordExposure(place: string, docked = false) {
 }
 
 /* writes one row per programme per year, updating this year's rather than adding a second */
-/* ---- A VOYAGE IS COUNTED THE WAY A CLASS IS (Ash, 2026-09-09) ------------
- *
- * `recordGrade` has kept `attempts` and `firstGrade` since the study asked for
- * them and `recordCompletion` kept neither, so half of what a student did was
- * remembered in detail and the other half only as a number. They are the same
- * two facts and they are counted here the same way.
- *
- * `grade` may be null, meaning FINISHED WITHOUT A GRADE, which is what a
- * member's island says when it calls `award` with no number. That used to be
- * written as 0 and printed as an F.
- */
+/* a voyage is counted the way a class is, on the same `attempts` and `firstGrade`, and `grade` may be null meaning finished without a grade, which is what `award` with no number says and which used to be written as 0 and printed as an F */
 export function recordCompletion(programme: string, grade: number | null, rank?: string) {
   const s = loadSave()
   if (!s || !programme) return null
@@ -480,16 +406,14 @@ export function recordCompletion(programme: string, grade: number | null, rank?:
   const attempts = (was.attempts ?? 1) + 1
   /* never overwritten, the way the ledger's own first grade is not */
   const firstGrade = was.firstGrade === undefined ? was.grade : was.firstGrade
-  /* AN UNGRADED FINISH NEVER BEATS A GRADE and never loses to one either: it
-   * says the thing was done, which a row already says. */
+  /* an ungraded finish never beats a grade and never loses to one either: it only says the thing was done, which the row already says */
   const better = grade !== null && (was.grade === null || grade > was.grade)
   rows[i] = {
     ...was,
     ...(better ? { grade } : {}),
     attempts,
     firstGrade,
-    /* the ladder a year counted toward does not change because the grade
-     * improved, so a later write with no track keeps the one already on the row */
+    /* the ladder a year counted toward does not change because the grade improved, so a later write with no track keeps the one already on the row */
     ...(rank ? { rank } : was.rank ? { rank: was.rank } : {}),
   }
   return writeSave({ completions: rows })
@@ -503,27 +427,21 @@ export const completedIn = (s: SaveGame, programme: string, year: number): boole
 export const yearsCompleted = (s: SaveGame, programme: string): number[] =>
   (s.completions ?? []).filter((c) => c.programme === programme).map((c) => c.year).sort()
 
-/* WHERE THE RUN IS, WRITTEN ON EVERY MAP CHANGE. The resume rule and the guard
- * that reads it are `run/resume.ts`; this is only the record. A position with no
- * map is not a position, so it refuses rather than storing an empty one. */
+/* where the run is, written on every map change, and only the record: the resume rule and the guard that reads it are in `run/resume.ts`, and a position with no map is refused rather than stored empty */
 export function recordPosition(p: Omit<RunPosition, 'at'>) {
   const s = loadSave()
   if (!s || !p.map) return null
   return writeSave({ where: { ...p, at: Date.now() } })
 }
 
-/* THE SHIP, TIED UP. A vessel record is a berth NAME and a leg count, never a
- * point on the water, which is §80.6's "a rule that never restores a ship at
- * sea" written into the shape of the field rather than enforced at read time. */
+/* a vessel record is a berth name and a leg count, never a point on the water, so a ship at sea can never be restored, and the rule lives in the shape of the field rather than at read time */
 export function recordVessel(v: VesselRecord) {
   const s = loadSave()
   if (!s || !v?.berthedAt) return null
   return writeSave({ vessel: v })
 }
 
-/* FROZEN ONCE. A second call is a no-op and returns what is already there: the
- * printed code has to keep matching the roster after the graduate goes back out
- * on the water, which is the whole reason the snapshot exists. */
+/* frozen once: a second call is a no-op and returns what is already there, because the printed code has to keep matching the roster after the graduate goes back out on the water */
 export function freezeRun(d: FrozenRun): SaveGame | null {
   const s = loadSave()
   if (!s) return null
@@ -549,15 +467,7 @@ export function setIslandState(id: string, state: IslandState) {
   if (!s) return null
   const next = writeSave({ islands: { ...s.islands, [id]: state } })
   if (state === 'completed') {
-    /* ---- AND IT DOES NOT COUNT AS A SECOND GO -------------------------
-     *
-     * `recordCompletion` counts attempts now, so calling it here on a
-     * programme that already has this year's row would report one finish as
-     * two tries. The caller that has a grade writes the completion itself;
-     * this only fills one in when nothing has.
-     *
-     * NULL, NOT ZERO, when there is no ledger row: an island that finished
-     * without scoring is not an F (Ash, 2026-09-09). */
+    /* does not count as a second go: `recordCompletion` counts attempts, so filling one in for a programme that already has this year's row would report one finish as two tries, and a missing ledger row gives null and not zero because finishing without scoring is not an F */
     if ((s.completions ?? []).some((c) => c.programme === id && c.year === s.year)) return next
     const row = s.ledger.find((e) => e.id === islandLedgerId(id, s.year))
     return recordCompletion(id, row ? row.grade : null) ?? next
@@ -583,10 +493,8 @@ export function grantBadge(id: string) {
   return writeSave({ badges: [...s.badges, id] })
 }
 
-/** mark a one-shot beat seen (year vignettes, first-time moments) — idempotent */
-/* WHAT AN ISLAND HAS TICKED THIS YEAR, and a list from another year reads as
- * nothing: see the field's own note. Never throws and never writes, so a caller
- * with no run gets an honest empty answer. */
+/** mark a one-shot beat seen, such as a year vignette, and idempotent */
+/* what an island has ticked this year, where a list from another year reads as nothing, and it never throws and never writes so a caller with no run gets an honest empty answer */
 export function tasksDoneIn(programme: string, year: number): string[] {
   const row = loadSave()?.tasks?.[programme]
   return row && row.year === year ? row.done : []
@@ -612,8 +520,7 @@ export function hasFlag(id: string): boolean {
   return loadSave()?.flags.includes(id) ?? false
 }
 
-/** the year turns. The FOURTH turn is terminal: it marks the run graduated (§9) instead of
- *  refilling tokens — senior year does not repeat. */
+/** the year turns, and the fourth turn is terminal: it marks the run graduated instead of refilling tokens, because senior year does not repeat */
 export function endYear() {
   const s = loadSave()
   if (!s) return null
@@ -621,13 +528,12 @@ export function endYear() {
   return writeSave({ year: s.year + 1, season: 'Fall', tokens: [...SEASONS] })
 }
 
-// ---- THE YEAR PLANNER's verbs (§7.2) — the chart-table sheet writes through these ----
+// the year planner's verbs, which the chart-table sheet writes through
 
 const planOf = (s: SaveGame, year: number): YearPlan =>
   s.plans[year] ?? { slots: {}, classes: [], stamped: false }
 
-/** drop a season token on an activity. Spends the token (or re-aims an already-spent
- *  season pre-stamp); refuses after the wax lands. */
+/** drop a season token on an activity, spending the token or re-aiming an already spent season before the stamp, and refusing once the wax has landed */
 export function assignSlot(year: number, season: Season, activityId: string) {
   const s = loadSave()
   if (!s) return null
@@ -645,7 +551,7 @@ export function assignSlot(year: number, season: Season, activityId: string) {
   return writeSave({ plans: { ...s.plans, [year]: next }, tokens })
 }
 
-/** lift a token back off the sheet (pre-stamp only) — the season's token returns to hand */
+/** lift a token back off the sheet, before the stamp only, and that season's token returns to hand */
 export function clearSlot(year: number, season: Season) {
   const s = loadSave()
   if (!s) return null
@@ -659,9 +565,7 @@ export function clearSlot(year: number, season: Season) {
   })
 }
 
-/** pick a focus class (max 2 per year, §7.2). The two-pick limit, the duplicate
- *  and the grade window are all one refusal in `run/refusal.ts`, so the sheet
- *  prints the same sentence this verb enforces. */
+/** pick a focus class, at most 2 a year, where the two-pick limit, the duplicate and the grade window are one refusal in `run/refusal.ts` so the sheet prints the same sentence this verb enforces */
 export function pickClass(year: number, classId: string) {
   const s = loadSave()
   if (!s) return null

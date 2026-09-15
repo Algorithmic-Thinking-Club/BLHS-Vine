@@ -1,16 +1,4 @@
-/* ISLAND FINISHED, HEAD BACK. The one control that appears when an island has
- * nothing left to ask for.
- *
- * Ash: *"when all tasks in an island are complete, a button at the bottom middle
- * should show up saying 'Island Finished - Head back'. once clicked, the user gets
- * teleported to the dock of the island they are on. and of course the same sailing
- * logic, esc, the chart, or the immediate sailing, etc. this is constant always."*
- *
- * WHY IT IS A BUTTON AND NOT A LINE OF DIALOGUE. An island's last word belongs to
- * whoever is standing there saying it. This is the game saying "you are done here",
- * which is chrome, and it has to appear on every island without a member writing
- * anything: an island that declares tasks and ticks them all gets it for free.
- */
+/* island finished, head back: the one control that appears when an island has nothing left to ask for, and it is chrome rather than dialogue so any island that declares tasks and ticks them all gets it without a member writing anything */
 import { useEffect, useState } from 'react'
 import { loadSave, subscribeSave, tasksDoneIn } from '../save'
 import { islandForProgramme } from '../roster/roster'
@@ -38,34 +26,14 @@ export function HeadBack() {
   const list = islandTaskList()
   const save = loadSave()
   const done = list ? tasksDoneIn(list.programme, save?.year ?? 1) : []
-  /* ---- THE LIST HAS TO BELONG TO THE MAP UNDER HIS FEET -------------------
-   *
-   * Belt and braces beside the scene teardown that clears it. The declaration is module
-   * state on a bus, and the bus does not know which map is drawn, so a list that outlived
-   * its island once put "Island finished. Head back." on the bottom of the home base:
-   * the hub registers this listener too, because the world gives it a berth.
-   *
-   * The roster is what ties a programme to a map, which is the same lookup the year sheet
-   * uses to decide where a pick is played. */
+  /* the list has to belong to the map currently drawn: the declaration is module state on a bus that does not know which map is drawn, so a list outliving its island once put the finished button on the home base */
   const here = sceneDrawn()
   const onItsOwnIsland = !!list && !!here && islandForProgramme(list.programme)?.map === here
   const finished = !!list && onItsOwnIsland
     && list.tasks.length > 0 && list.tasks.every((t) => done.includes(t.id))
 
-  /* ---- WHEN IT IS NOT OFFERED, AND EVERY CLAUSE IS A REAL CASE -------------
-   *
-   * No island, or work left: there is nothing to say yet. A cutscene or a line of
-   * dialogue: this shares the bottom of the window with the dialogue box, and a
-   * control drawn over somebody's last sentence steps on it. A panel open: the same
-   * rule the rest of the corner chrome keeps. An arrival card up: it is the other
-   * thing that owns the middle of the screen. And no scene listening, which is the
-   * standalone harness and any map with no dock, where pressing it could only ever
-   * produce a refusal. */
-  /* PANELS ARE LEFT TO CSS, because this component is a sibling of the one that opens
-   * them: a panel closing changes the Hud's own state and re-renders nothing here, so
-   * a button hidden while a panel was up stayed hidden after it closed until something
-   * unrelated wrote the save. `a11y.ts` stamps `data-panels` on the root on every push
-   * and pop, and four other surfaces already stand down that way. */
+  /* not offered with no island or work left, during a cutscene or dialogue because it shares the bottom of the window with the dialogue box, while a panel or arrival card is up, or with no scene listening, where a press could only be refused */
+  /* panels are left to CSS through `data-panels` on the root, because a panel closing re-renders the sibling that opens it and not this, so a button hidden while a panel was up stayed hidden after it closed */
   const hidden = !finished
     || cinemaOn()
     || dialogueState() !== null
@@ -86,9 +54,7 @@ export function HeadBack() {
           track('head_back_pressed', { programme: list!.programme })
           void requestHeadBack().then((a) => {
             setGoing(false)
-            /* A REFUSAL IS SAID OUT LOUD. The button only draws where a scene is
-             * listening, so this is the "not while something else is happening"
-             * case, and a press that appears to do nothing is worse than a line. */
+            /* a refusal is said out loud, because a press that appears to do nothing is worse than a line */
             if (!a.ok) setWhy(a.why)
           })
         }}

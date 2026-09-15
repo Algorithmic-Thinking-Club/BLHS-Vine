@@ -5,30 +5,7 @@ import { announce } from '../ui/a11y'
 import { track } from '../telemetry'
 import './tour.css'
 
-/* ---- ASH, 2026-09-08 item 7 ----------------------------------------------
- *
- * *"The intro's handover gets a tutorial: after the wide shot and the line, each
- * of the three plaques and the help button lights in turn with an animated
- * pointer and one line in a small panel beside it, under fifteen seconds in
- * total, with a Skip in the corner. Then the bar names the first pick."*
- *
- * WHAT WAS THERE INSTEAD, and why he played it as nothing: the film set three
- * flags nine hundred milliseconds apart, each of which faded one corner plaque
- * in, and the principal said a sentence with the words Map, Guide and My Year in
- * it. A student watching that sees three small signs appear in a corner he was
- * not looking at while somebody talks. Ash: *"just a few dialogues saying 'Map,
- * Guide, My year' that a freshman wont even connect."* He is right, and the
- * missing half was never the words: it was that nothing on the screen POINTED.
- *
- * SO IT POINTS. One control at a time, everything else dimmed, a mark bobbing at
- * it, and one short sentence beside it saying what it is FOR rather than what it
- * is called. Four of them at three and a half seconds is fourteen seconds, and
- * there is a Skip.
- *
- * IT MEASURES THE REAL BUTTONS. The plaques are laid out by the HUD's own CSS at
- * whatever the window is, and a tutorial drawing its own copy of them would be a
- * second layout to keep in step. It reads `[data-tour]` off the live DOM every
- * frame of a step, so a resize mid-tour moves the ring with the sign. */
+/* one control at a time with everything else dimmed and a mark bobbing at it, because plaques fading in while somebody talks point at nothing, and it reads `[data-tour]` off the live DOM every frame so a resize mid-tour moves the ring with the sign and there is no second copy of the HUD layout */
 
 export type Step = { tour: string; line: string }
 
@@ -37,42 +14,15 @@ export const HANDOVER_STEPS: Step[] = [
   { tour: 'my-year', line: 'This is your year. Everything you picked is in here, and this is where you go and do it.' },
   { tour: 'map', line: 'This is the sea. Every island somebody has built is on it, and this is how you sail there.' },
   { tour: 'guide', line: 'This is the school. Every club, sport and class at Bonney Lake, and what you have earned.' },
-  /* ---- THE TWO CONTROLS THE TOUR NEVER NAMED ---------------------------
-   *
-   * ASH: *"the button cutscene also needs to add the chart button + the close / wide
-   * button at the top."* Both arrived after this list was written and neither was ever
-   * pointed at, so the only way to find them was to press them and see. The chart is
-   * how a student reaches an island and the camera switch is the one control over how
-   * the game looks; a tutorial that skips them is teaching half the corner. */
+  /* the chart and the camera switch were added after this list was written and were never pointed at, and the chart is how a student reaches an island while the camera switch is the only control over how the game looks */
   { tour: 'chart', line: 'The chart on its own. Where you are, where your boat is, and every island you can sail to.' },
   { tour: 'camera-view', line: 'And this changes how close the camera sits. Wide to see the island, close to see yourself.' },
   { tour: 'help', line: 'And this stays here the whole time. Press it whenever you are not sure what to do.' },
 ]
 
-/* ---- IT WAITS FOR HIM (Ash, 2026-09-09) ----------------------------------
- *
- * *"It is much better and I like it. However, it automatically flips through the
- * cards, just make it so that the user has to click to move past the button
- * tutorial."*
- *
- * The clock was there to hold the whole thing under fifteen seconds, which was
- * his own number, and it bought that at the cost of the one thing a tutorial
- * needs: the reader setting the pace. A freshman who is still working out what
- * "My Year" means loses the card mid-sentence. Four presses is still under
- * fifteen seconds for anybody who is following it, and it is as long as it needs
- * to be for anybody who is not. */
+/* it waits for a press instead of running a clock, because a card that flips itself loses a freshman mid-sentence, and four presses is still under fifteen seconds for anybody following it */
 
-/* ---- AND THE YEAR SHEET, TAUGHT ONCE IN YEAR TWO (Ash, 2026-09-09) --------
- *
- * *"In the second year, when the student first opens their year sheet, there
- * should be a quick mini-tutorial. Remove the old panel for the stamp sheet that
- * you just put in, and replace it with this tutorial. It should be like the
- * button tutorial. First highlighting the 'pick a class' while rest of screen
- * goes darker."*
- *
- * YEAR ONE DOES NOT GET THIS, and does not need it: the founding film walks a
- * student to the table and the principal stands over it while he fills it in.
- * Year two is the first time the sheet opens with nobody explaining it. */
+/* year one does not get this because the founding film walks a student to the table and the sheet is filled in with somebody standing over it, and year two is the first time it opens with nobody explaining it */
 export const SHEET_STEPS: Step[] = [
   { tour: 'pick-class', line: 'Start here. Two classes, and they are what you study all year.' },
   { tour: 'stamp', line: 'Then stamp the sheet. That locks the year in and the year starts.' },
@@ -113,8 +63,7 @@ export function Tour({ steps = HANDOVER_STEPS, onDone }: { steps?: Step[]; onDon
     return () => { live = false }
   }, [at])
 
-  /* ENTER AND SPACE GO ON, ESCAPE GOES AWAY. They all used to skip the lot,
-   * which is what a keyboard reader would hit trying to read the next card. */
+  /* enter and space go on, escape goes away, because all of them used to skip the lot and enter is what a keyboard reader hits to read the next card */
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.repeat) return
@@ -128,22 +77,12 @@ export function Tour({ steps = HANDOVER_STEPS, onDone }: { steps?: Step[]; onDon
   if (at >= steps.length) return null
   const step = steps[at]
 
-  /* ---- THE PANEL GOES WHERE THERE IS ROOM (Ash, 2026-09-09) -------------
-   *
-   * It used to pick a side from where the TARGET sat: right of anything in the
-   * left half, left of anything in the right half. That works for a corner
-   * plaque, which is small. The year sheet's "pick a class" plank is seven
-   * hundred pixels wide and starts just left of centre, so the panel went right
-   * and had a hundred pixels to live in: one word a line, six lines deep.
-   *
-   * The room on each side is the thing that decides now, and the panel is capped
-   * at whatever is really there so it can never be squeezed to a column. */
+  /* the room on each side decides the side, not where the target sits: a seven hundred pixel wide plank just left of centre left the panel a hundred pixels and one word a line, so the panel is capped at the room that is really there */
   const SAY_W = 260
   const roomLeft = box ? box.left : 0
   const roomRight = box ? window.innerWidth - box.right : 0
   const onLeft = !!box && roomLeft > roomRight
-  /* and when NEITHER side has room, it sits under the target instead, which is
-   * the case for a control that spans most of the window */
+  /* and when neither side has room it sits under the target instead, which is the case for a control that spans most of the window */
   const room = Math.max(roomLeft, roomRight) - 24
   const beside = !!box && room >= 190
   const style = !box
@@ -169,41 +108,17 @@ export function Tour({ steps = HANDOVER_STEPS, onDone }: { steps?: Step[]; onDon
 
   const last = at === steps.length - 1
 
-  /* ---- IT HANGS OFF THE BODY (Ash, 2026-09-09) --------------------------
-   *
-   * `position: fixed` is only fixed to the VIEWPORT while no ancestor carries a
-   * transform, a filter or a backdrop-filter; under one it is fixed to that
-   * ancestor instead. The corner tutorial mounts beside the HUD and never met
-   * one. The year sheet's tutorial mounts inside the sheet, which does, and the
-   * ring came out the right SIZE in the wrong PLACE: 763 by 50 exactly, offset a
-   * hundred and ten pixels right and seventy-eight down. Measured 2026-09-09.
-   *
-   * A portal is the fix rather than hunting the transform, because any panel
-   * that ever wants to teach itself would have to be audited for one otherwise. */
+  /* `position: fixed` is fixed to the viewport only while no ancestor carries a transform, a filter or a backdrop-filter, and inside the year sheet the ring came out the right size, 763 by 50, offset 110px right and 78px down, so it portals to the body rather than every panel being audited for one */
   return createPortal((
     <div className="tr-tour" role="dialog" aria-label="How this screen works">
-      {/* THE WHOLE VEIL IS THE BUTTON, which is how every other card in this game
-          reads: a student clicks the screen to go on rather than hunting a
-          control. The card carries the words for it, and the ring is still the
-          thing being talked about. */}
+      {/* the whole veil is the button, so a student clicks the screen to go on rather than hunting a control, and the ring stays the thing being talked about */}
       <button
         type="button"
         className="tr-veil"
         aria-label={last ? 'Finish' : 'Next'}
         onClick={next}
       />
-      {/* ---- THE DIM IS A HOLE, NOT A SHEET (Ash, 2026-09-09) ------------
-          *
-          * *"First highlighting the 'pick a class' while rest of screen goes
-          * darker."* It used to be one rectangle over everything, with the ring
-          * drawn on top: fine for a corner plaque, which is bright and sits on
-          * its own, and wrong for a control inside a panel, where the thing
-          * being pointed at ends up as dim as everything else.
-          *
-          * Four rectangles around the target leave it at full brightness with no
-          * mask, no clip-path and nothing to go wrong on a Chromebook's
-          * compositor. With no target they collapse to one full-screen dim,
-          * which is what a missing control should look like. */}
+      {/* the dim is four rectangles around the target rather than one sheet with the ring drawn on top, so the thing being pointed at keeps full brightness with no mask and no clip-path, and with no target they collapse to one full-screen dim */}
       {box ? (
         <>
           <div className="tr-dim" aria-hidden="true" style={{ inset: `0 0 auto 0`, height: `${Math.max(0, box.top - 6)}px` }} />

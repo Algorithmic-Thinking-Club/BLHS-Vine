@@ -2,8 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readPaths, legsOf, lengthOf, pathNames, walkFaults, isPathName, type Pathway } from './paths'
 
-/* copied out of the published hub, which has carried it since 2026-08-29. No
- * `kind`, so this is also the silent-default case. */
+/* copied out of the published hub, and with no `kind` it is also the silent-default case */
 const THE_DOCK_WALK = {
   name: 'the_dock_walk',
   points: [[103, 471], [256, 430], [398, 389]],
@@ -38,8 +37,7 @@ describe('reading a route MAPVIS actually published', () => {
   })
 
   it('takes a point written as an object as readily as one written as a pair', () => {
-    /* MAPVIS writes pairs. A hand-edited bundle and anything that round-trips
-     * through a typed structure writes {x,y}, and both are the same line. */
+    /* MAPVIS writes pairs, while a hand edit and anything that round-trips through a typed structure writes {x,y}, and both are the same line */
     const p = one({ name: 'both_shapes', points: [{ x: 10, y: 20 }, [30, 40]] })!
     expect(p.points).toEqual([{ x: 10, y: 20 }, { x: 30, y: 40 }])
   })
@@ -48,8 +46,7 @@ describe('reading a route MAPVIS actually published', () => {
     expect(one({ name: 'fractions', points: [[10.4, 20.6], [30, 40]] })!.points[0]).toEqual({ x: 10, y: 21 })
   })
 
-  /* ONE POINT IS NOT A LINE, and the count is in the refusal because "path
-   * refused" tells an author nothing about which half of it they got wrong. */
+  /* one point is not a line, and the count is in the refusal because "path refused" tells an author nothing about which half of it they got wrong */
   it('refuses a single waypoint and says how many it found', () => {
     expect(one({ name: 'a_dot', points: [[5, 5]] })).toBeUndefined()
     expect(warns.join()).toContain('has 1 usable point and needs two')
@@ -65,9 +62,7 @@ describe('reading a route MAPVIS actually published', () => {
   })
 
   it('does not read null, an empty string or false as the number zero', () => {
-    /* Number(null) is 0 and isFinite(0) is true, so `[null, 471]` used to parse
-     * as a real waypoint on the left edge of the painting rather than as the
-     * broken point it is, and the leg to it crossed the whole map */
+    /* `Number(null)` is 0 and `isFinite(0)` is true, so `[null, 471]` used to parse as a real waypoint on the left edge of the painting rather than the broken point it is, and the leg to it crossed the whole map */
     for (const bad of [null, '', false, []]) {
       warns.length = 0
       expect(one({ name: 'zeroish', points: [[10, 10], [bad, 471]] }), JSON.stringify(bad)).toBeUndefined()
@@ -100,9 +95,7 @@ describe('reading a route MAPVIS actually published', () => {
     expect(warns.join()).toContain('duplicate path name "to_the_quay"')
   })
 
-  /* A ROUTE THAT WAS DROPPED DOES NOT SPEND ITS OWN NAME. A malformed first
-   * attempt sitting above a good one is what a hand edit looks like, and losing
-   * the good one to it would be two refusals for one mistake. */
+  /* a route that was dropped does not spend its own name: a malformed first attempt above a good one is what a hand edit looks like, and losing the good one to it would be two refusals for one mistake */
   it('lets a later good route take a name an unreadable one asked for', () => {
     const ps = readPaths({ paths: [
       { name: 'to_the_quay', points: [[0, 0]] },
@@ -125,9 +118,7 @@ describe('reading a route MAPVIS actually published', () => {
     expect(warns).toEqual([])
   })
 
-  /* ONE WAY IS THE HONEST DEFAULT: a sail line into a berth is not a line out of
-   * one. Anything short of a literal true reads as false rather than as truthy,
-   * so a bundle that writes "yes" or 1 does not quietly get a patrol. */
+  /* one way is the honest default because a sail line into a berth is not a line out of one, and anything short of a literal true reads as false so a bundle writing "yes" or 1 does not quietly get a patrol */
   it('closes and reverses only when the bundle says so in so many words', () => {
     const p = one({ name: 'loose_words', points: [[0, 0], [1, 1]], closed: 'yes', twoWay: 1 })!
     expect(p.closed).toBe(false)
@@ -166,9 +157,7 @@ describe('the marks along a route', () => {
     expect(p.marks).toEqual([{ at: 1, name: 'midway', label: 'the halfway bollard' }])
   })
 
-  /* A MARK PAST THE END CANNOT FIRE AND IS SILENT ABOUT IT, which is the exact
-   * shape of bug that gets found by watching a cutscene not happen. Named at
-   * load, with the index it asked for and the number of waypoints there are. */
+  /* a mark past the end cannot fire and is silent about it, so it is named at load with the index it asked for and the number of waypoints there are */
   it('drops a mark pointing past the end of the line and names it', () => {
     const p = marked([{ at: 3, name: 'off_the_end' }])
     expect(p.marks).toEqual([])
@@ -213,8 +202,7 @@ describe('the shape of the line', () => {
     const pts = legsOf(loop)
     expect(pts).toHaveLength(4)
     expect(pts[3]).toEqual(pts[0])
-    /* a copy, not the same object: handing the caller the live first point lets
-     * anything that nudges the last one move the start of the patrol */
+    /* a copy, not the same object, because handing the caller the live first point lets anything that nudges the last one move the start of the patrol */
     expect(pts[3]).not.toBe(pts[0])
   })
 
@@ -224,8 +212,7 @@ describe('the shape of the line', () => {
     expect(pts[pts.length - 1]).toEqual({ x: 10, y: 10 })
   })
 
-  /* A CLOSED TWO POINT LINE IS THERE AND BACK, NOT A LOOP. Re-appending its
-   * first point would make a body walk the same leg twice for one cycle. */
+  /* a closed two point line is there and back, not a loop: re-appending its first point would make a body walk the same leg twice for one cycle */
   it('does not close a two point line onto itself', () => {
     expect(legsOf(shuttle)).toEqual([{ x: 0, y: 0 }, { x: 10, y: 0 }])
   })
@@ -236,8 +223,7 @@ describe('the shape of the line', () => {
     expect(loop.points).toHaveLength(3)
   })
 
-  /* LENGTH IS WHAT SIZES A TIMEOUT, so it is measured off the route rather than
-   * off a constant that is right on one map. */
+  /* length is what sizes a timeout, so it is measured off the route rather than off a constant that is right on one map */
   it('measures the hub own dock walk, and measures it the same in both directions', () => {
     const p = one(THE_DOCK_WALK)!
     expect(lengthOf(p)).toBeCloseTo(Math.hypot(153, 41) + Math.hypot(142, 41), 6)
@@ -260,14 +246,11 @@ describe('the ground under a walk route', () => {
       const p = one({ name: 'over_water', kind, points: [[0, 0], [100, 0]] })!
       expect(walkFaults(p, probe)).toEqual([])
     }
-    /* a hull is not held to the floor, and asking at all is how a sail route
-     * ends up refused by a probe that was never about it */
+    /* a hull is not held to the floor, and asking at all is how a sail route ends up refused by a probe that was never about it */
     expect(probe).not.toHaveBeenCalled()
   })
 
-  /* THE CASE THE WHOLE FUNCTION EXISTS FOR. A person draws a route by clicking
-   * two bits of walkable ground, and the wall between them is not at either
-   * click. Checking the corners passes this route and the body walks into rock. */
+  /* the case the whole function exists for: a route is drawn by clicking two bits of walkable ground and the wall between them is at neither click, so a corners check passes the route and the body walks into rock */
   it('catches a wall in the middle of a leg whose two ends are both standable', () => {
     const p = one({ name: 'across_the_channel', points: [[256, 430], [398, 389]] })!
     expect(notInTheChannel(256)).toBe(true)
@@ -281,14 +264,11 @@ describe('the ground under a walk route', () => {
   it('catches the same wall on the hub own dock walk, and says which leg', () => {
     const p = one(THE_DOCK_WALK)!
     const bad = walkFaults(p, (x) => notInTheChannel(x))
-    /* legs are numbered by the waypoint they arrive at, so the first leg is 1
-     * and the channel sits in the second */
+    /* legs are numbered by the waypoint they arrive at, so the first leg is 1 and the channel sits in the second */
     expect(bad.map((b) => b.leg)).toEqual([2])
   })
 
-  /* THE SAMPLING STEP IS THE WHOLE GUARANTEE, so this is what the function
-   * degrades to when the step is longer than the leg: a corners-only check,
-   * which is the behaviour the sampling was written to replace. */
+  /* the sampling step is the whole guarantee, so with a step longer than the leg the function degrades to the corners-only check that sampling was written to replace */
   it('misses that wall when the step is longer than the leg itself', () => {
     const p = one({ name: 'across_the_channel', points: [[256, 430], [398, 389]] })!
     expect(walkFaults(p, (x) => notInTheChannel(x), 1000)).toEqual([])
@@ -303,8 +283,7 @@ describe('the ground under a walk route', () => {
   })
 
   it('checks the closing leg of a patrol too', () => {
-    /* the way home from the last waypoint is a leg a body actually walks, and
-     * nothing else in the route describes it */
+    /* the way home from the last waypoint is a leg a body actually walks, and nothing else in the route describes it */
     const loop = one({ name: 'a_patrol', points: [[0, 0], [100, 0], [100, 100]], closed: true })!
     const bad = walkFaults(loop, (x, y) => !(x < 60 && y > 40))
     expect(bad.map((b) => b.leg)).toEqual([3])

@@ -2,23 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { performIntent } from '../../vine/intents'
 import { UI_PANELS } from '../ui-bus'
 
-/* ---- A MEMBER'S TYPO IS A SENTENCE, NEVER A FROZEN GAME ------------------
- *
- * `open` was the one word in the vocabulary whose argument was never checked against
- * its own closed list, and it is a word a member types by hand in Python. `open(
- * "guide")` for "handbook" reached the Hud, which is a chain of equality tests with
- * no else. Nothing matched, nothing opened, and with `wait=True` the waiter it had
- * already parked was released only by the bus's ten minute ceiling - with the world
- * held for the whole of it. A student stood still with no dialogue, no panel and no
- * controls, and then the island carried on as though the panel had opened and shut.
- *
- * The Maw's founding film says `open(..., wait=True)` four times, so this was in the
- * first two minutes of the game.
- */
+/* a typo in `open` has to be a sentence, never a frozen game: an unchecked panel name fell through the Hud's chain of equality tests with no else, and `wait=True` then held the world until the bus's ten minute ceiling */
 /* the smallest host `open` can be asked through: it needs an engine and nothing else */
 const host = (openUi: (ui: string, wait: boolean) => void) => ({
-  /* `world` on a host is the world ITSELF, not a getter: `performIntent` wraps it in
-   * its own `w()` which throws NoWorld when it is missing. */
+  /* `world` on a host is the world itself, not a getter: `performIntent` wraps it in its own `w()`, which throws NoWorld when it is missing */
   world: {} as never,
   engine: { openUi } as never,
 }) as never
@@ -30,8 +17,7 @@ describe('open, with a name nobody has', () => {
     expect(r.ok).toBe(false)
     const why = r.ok ? '' : r.why
     expect(why).toMatch(/"guide" is not a panel/)
-    /* the list is in the refusal, because a member reading it has to be able to fix
-     * their own line without reading the engine */
+    /* the list belongs in the refusal, because a member reading it has to be able to fix their own line without reading the engine */
     for (const p of UI_PANELS) expect(why).toContain(p)
   })
 
@@ -46,12 +32,7 @@ describe('open, with a name nobody has', () => {
   })
 })
 
-/* ---- AND THE OTHER THREE WORDS A BEGINNER GETS WRONG ---------------------
- *
- * Each of these was a silent failure with a real cost: a blank game, a wrong grade on
- * a transcript, and a twelve second loading screen onto nothing. The law this file is
- * about is that a member's typo is always a sentence naming their own line.
- */
+/* the other three words a beginner gets wrong, each of them silent: a blank game, a wrong grade on a transcript, and a twelve second loading screen onto nothing, so every refusal names the member's own line */
 describe('the words a hand types wrong', () => {
   it('takes the arguments to choose the wrong way round and says so', async () => {
     const r = await performIntent(

@@ -15,9 +15,7 @@ beforeEach(() => {
   host = document.createElement('div')
   document.body.appendChild(host)
   root = createRoot(host)
-  /* the real starter rather than a hand-written blob: `CoreBeatRunner` returns
-   * null without a save, and a save this file invented is a save the module's
-   * own validator has never seen. */
+  /* the real starter rather than a hand written blob, because CoreBeatRunner returns null without a save and a save invented here is one the module's own validator has never seen */
   beginAdventure()
 })
 afterEach(() => {
@@ -58,8 +56,7 @@ describe('a piece goes where you put it', () => {
     const first = host.querySelector('.bt-pool .bt-piece')
     click(first)
     expect(host.querySelector('.bt-piece-held')).toBeTruthy()
-    /* a place a student cannot drop into is not a target, so the lit state and
-     * the enabled state are the same state */
+    /* a place a student cannot drop into is not a target, so the lit state and the enabled state are the same state */
     const wells = [...host.querySelectorAll('.bt-drop-well')]
     expect(wells).toHaveLength(5)
     /* the target a press lands on exists only while something is held */
@@ -110,8 +107,7 @@ describe('a piece goes where you put it', () => {
     const sort = checksOf(CORE_Y1).find((c) => c.kind === 'sort')!
     const derived = plainOf(sort)
     openTheSort()
-    /* place every piece in its own correct place, by walking the derived item
-     * rather than by knowing the content: the frame is what is under test. */
+    /* place every piece in its own correct place by walking the derived item rather than by knowing the content, because the frame is what is under test */
     for (let i = 0; i < derived.fields.length; i++) {
       const piece = host.querySelector('.bt-pool .bt-piece') as HTMLElement
       const name = piece.textContent

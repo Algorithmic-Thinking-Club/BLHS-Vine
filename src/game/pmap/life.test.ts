@@ -2,8 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import { lifeAt, type Life } from './life'
 
-/* the hub's dock wanderer, copied from the published v13 bundle rather than
- * invented, so this measures the numbers a person actually authored */
+/* the hub's dock wanderer, copied from the published v13 bundle rather than invented, so this measures numbers a person actually authored */
 const HUB_WANDERER: Life = {
   kind: 'wander',
   bounds: { x: 280, y: 484, w: 104, h: 64 },
@@ -56,17 +55,13 @@ describe('a wandering placement over ten seconds', () => {
 
   it('spends part of the time travelling and part of it standing', () => {
     const r = walk(HUB_WANDERER, HOME)
-    // a wander is legs separated by pauses. All-moving or never-moving both mean
-    // the caller can no longer tell when to run the gait, which is the whole of
-    // what `moving` is for.
+    // a wander is legs separated by pauses: all moving or never moving means the caller can no longer tell when to run the gait, which is the whole of what `moving` is for
     expect(r.movingFrames).toBeGreaterThan(0)
     expect(r.movingFrames).toBeLessThan(r.frames)
   })
 
   it('never teleports', () => {
-    // continuity: at 16 px/s a frame is about a quarter of a pixel, and the hop a
-    // wander rides while dashing adds a little. Anything past a few pixels in one
-    // frame is a seam at a state change or a wrap.
+    // continuity: at 16 px/s a frame is about a quarter of a pixel plus the hop a wander rides while dashing, so anything past a few pixels in one frame is a seam at a state change or a wrap
     expect(walk(HUB_WANDERER, HOME).maxStep).toBeLessThan(4)
   })
 

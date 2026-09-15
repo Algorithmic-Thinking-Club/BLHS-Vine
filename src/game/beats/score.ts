@@ -2,13 +2,11 @@
 
 import type { SaveGame } from '../save'
 import { checksOf, type CoreBeat } from './frames'
-/* the denominator comes from the palette, where each kind declares its own, so
- * the total on the transcript and the total the runner scores against are the
- * same number by construction rather than by two files agreeing */
+/* the denominator comes from the palette, where each kind declares its own, so the transcript total and the total the runner scores against are the same number by construction */
 import { pointsOf } from './palette'
 import { retakeKind } from './state'
 
-/** points earned per check, keyed by check id/item — the runner accumulates this */
+/** points earned per check, keyed by check id or item, accumulated by the runner */
 export type BeatScore = { earned: number; total: number }
 
 export const emptyScore = (beat: CoreBeat): BeatScore => ({
@@ -20,28 +18,10 @@ export const emptyScore = (beat: CoreBeat): BeatScore => ({
 export const gradeOf = (s: BeatScore): number =>
   s.total === 0 ? 4 : Math.round((s.earned / s.total) * 4 * 100) / 100
 
-/** B- ON THE SCALE THIS GAME PRINTS, which is `progress.ts`'s `letterOf`, where
- *  B- starts at 2.5. It was 2.7 and that was one number disagreeing with another:
- *  a 2.6 printed the letter "B-" in the result card's big mark and, ten lines
- *  under it, the sentence "You scored under a B-, so you can take this again". A
- *  2-of-3 lands there, which is an ordinary way to finish an ordinary beat.
- *
- *  It is a GAME rule about when a retake is OFFERED, never printed as the
- *  school's; the school's own trigger is under 79% with legitimate effort. And it
- *  is only ever an offer: nothing in the year waits on a retake being taken
- *  (Ash, 2026-09-08 item 5), which `run/wall.ts` is the other half of. */
+/** B- on the scale `progress.ts`'s `letterOf` prints, where B- starts at 2.5: at 2.7 a 2.6 printed the letter B- above a line saying the student scored under a B-. A game rule about when a retake is offered, not the school's under 79 percent, and nothing in the year waits on one being taken. */
 export const RETAKE_BELOW = 2.5
 
-/* ---- AND THE RULE ITSELF LIVES IN `state.ts` (Ash, 2026-09-09) ------------
- *
- * This used to BE the rule, and it was the wrong one: `grade < B- && !retaken`
- * caught a FAILED beat, spent the student's single retake on it, and then
- * answered no for ever. A student who failed Advisory twice had a run that could
- * not be finished and nothing on screen that would let him try again.
- *
- * A fail and a near-miss are two different offers. `retakeKind` is where that
- * distinction lives; this is kept because a dozen callers say this sentence and
- * it is the sentence they mean. */
+/* the rule itself lives in `state.ts`, because `grade < B- && !retaken` spent the single retake on a failed beat and then answered no for ever, leaving a run nobody could finish; a fail and a near miss are different offers, and this wrapper stays because a dozen callers mean this sentence */
 export function retakeAvailable(save: SaveGame, beatId: string): boolean {
   return retakeKind(save, beatId) !== 'none'
 }

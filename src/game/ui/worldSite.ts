@@ -13,8 +13,7 @@ export type WorldUiSite = {
   rect: Rect
   /** what it must not cover: the face, the sign, the thing the panel is about */
   keepClear?: Rect
-  /** the order to try. The first that fits wins, so an author can say "above
-   *  the head, and if there is no room, beside it". */
+  /** the order to try, first that fits wins, so an author can say 'above the head, and if there is no room, beside it' */
   prefer?: SiteSide[]
   /** breathing room between the content and the keep-clear edge */
   gap?: number
@@ -101,8 +100,7 @@ export function placeAtSite(site: WorldUiSite, content: Size, view: Rect): SiteP
   }
 }
 
-/** an author's rect made safe: never zero-sized, always integral, so a site
- *  typed as a point still has an extent the arithmetic can use */
+/** an author's rect made safe: never zero-sized, always integral, so a site typed as a point still has an extent the arithmetic can use */
 export const normaliseSite = (s: WorldUiSite): WorldUiSite => ({
   ...s,
   rect: { x: Math.round(s.rect.x), y: Math.round(s.rect.y), w: Math.max(1, Math.round(s.rect.w)), h: Math.max(1, Math.round(s.rect.h)) },

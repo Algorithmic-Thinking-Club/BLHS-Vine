@@ -1,30 +1,6 @@
 /* which scene a page load really opens on, and why a pasted address is not one */
 
-/* ---- ASH, 2026-09-08 ------------------------------------------------------
- *
- * *"When I copy the link it comes out like
- * `.../?scene=pmap&map=panther-maw`, depending on where I am in the map.
- * Sometimes this is problematic, because I can start a fresh private window and
- * paste that, and instead of giving me the starting screen it puts me in the
- * middle of the island sailing or the hub island intro cutscene... Of course if
- * a tab is closed and reopened, or just been a while, it should go back to the
- * title screen (all data saved of course)."*
- *
- * WHY THE ADDRESS SAYS THAT AT ALL. `pmap/route.ts` writes the map and the
- * arrival anchor into the query with `replaceState` on every door, because that
- * is how the target crosses a scene change: `enter()` writes the address and
- * then navigates, and `PmapScene` reads it back on mount. It is the engine's own
- * transport, and it happens to be in the one part of the window a person copies.
- *
- * SO THE ADDRESS IS STILL WRITTEN AND IS NO LONGER OBEYED BY A STRANGER. A
- * position in a run belongs to the tab that is having the run: a browsing
- * context that has never played cannot be in the middle of a crossing. This
- * asks whether THIS tab is the one that got there, and a tab that is not gets
- * the title screen with everything it had saved still saved.
- *
- * THE SAVE IS NEVER TOUCHED BY ANY OF THIS. Nothing here reads or writes a run;
- * the title's own Continue reads `run/resume.ts` and puts a student back exactly
- * where the guard there says he belongs. */
+/* the address carries the map and arrival anchor because `pmap/route.ts` writes them with `replaceState` on every door and `PmapScene` reads them back on mount, but only the tab that got there obeys them: a pasted link in a fresh window opens the title, and nothing here touches the save */
 
 /** the tab's claim that it is the one having the run. Dies with the tab. */
 export const TAB_KEY = 'blhs_tab_v1'
@@ -35,10 +11,7 @@ export const TAB_MS = 30 * 60 * 1000
 /** the params that say WHERE IN A RUN somebody is, as against how the game is dressed */
 export const PLAY_PARAMS = ['scene', 'map', 'at', 'aboard'] as const
 
-/* THE SCENES THAT CARRY A POSITION, and are therefore not an address to hand
- * somebody. `beach` is the start of the game and `teacher`, `grape` and `title`
- * are places rather than positions: a fresh window opening any of those is
- * opening the thing itself, which is what the person typing it meant. */
+/* the scenes that carry a position, and are therefore not an address to hand somebody: `beach`, `teacher`, `grape` and `title` are places rather than positions, so a fresh window opening one opens the thing itself */
 export const PLAY_SCENES = new Set(['pmap'])
 
 /** the escape hatch, for a harness and for whoever is debugging a map by hand */
@@ -74,13 +47,7 @@ function withoutPosition(p: URLSearchParams): string {
   return q.toString()
 }
 
-/**
- * What a page load opens on.
- *
- * `known` is the scene registry's own answer, so an id nobody registered lands
- * on boot exactly as it always did. `live` is `tabIsLive()`, passed in rather
- * than read here so this is a pure function and the tests do not need storage.
- */
+/** what a page load opens on: `known` is the scene registry's own answer, so an id nobody registered lands on boot, and `live` is `tabIsLive()` passed in to keep this pure so the tests need no storage */
 export function openingScene(opts: {
   search: string
   known: (id: string) => boolean
@@ -95,8 +62,7 @@ export function openingScene(opts: {
   /* a place rather than a position, so opening it is opening the thing itself */
   if (!PLAY_SCENES.has(want)) return { scene: want, search: p.toString(), why: null }
 
-  /* the hatch, said out loud on the address: a harness, or somebody debugging a
-   * map by hand who means to land in it cold */
+  /* the hatch, said out loud on the address, for a harness or for debugging a map by hand and meaning to land in it cold */
   if (p.get(DEEP_PARAM) === '1') return { scene: want, search: p.toString(), why: null }
 
   /* and the rule: a position belongs to the tab that got there */
@@ -111,26 +77,7 @@ export function openingScene(opts: {
 }
 
 
-/* ---- TWO TABS, ONE SAVE (Ash, 2026-09-09) ---------------------------------
- *
- * *"If a game is already running in a tab, having duplicates might be a
- * problem?"* — and *"implement the this adventure is open in another tab."*
- *
- * It is a problem, and a quiet one. Both tabs write the whole save on every
- * change, so the last write wins: a student with two tabs open can sit a class
- * in one, press something in the other, and the second tab's older copy of the
- * run lands on top and the class is gone. Nothing errors and nothing says so.
- *
- * SO ONE TAB SAYS IT IS PLAYING and the other reads that. This is a heartbeat in
- * localStorage, which is shared across tabs of the same origin, holding the id of
- * whichever tab last claimed the run and when. A claim goes stale in seconds, so
- * a tab that crashed or was closed mid-play locks nobody out.
- *
- * IT IS AN OFFER AND NEVER A LOCK. The title tells the second tab what is going
- * on and gives it the choice to take over; the tab it takes over from notices on
- * its next beat and stands down. A student who is genuinely stuck can always get
- * in, which matters more here than being right: this runs on school Chromebooks
- * where a tab restore can resurrect yesterday's window. */
+/* two tabs share one save and both write all of it on every change, so the older copy lands on top and a sat class vanishes with no error: a localStorage heartbeat names the tab claiming the run, goes stale in seconds so a crashed tab locks nobody out, and offers takeover rather than locking */
 
 const PLAYING_KEY = 'blhs_playing_v1'
 const TAB_ID_KEY = 'blhs_tabid_v1'
@@ -148,8 +95,7 @@ export function tabId(): string {
   try {
     const had = sessionStorage.getItem(TAB_ID_KEY)
     if (had) return had
-    /* not a security token: it only has to differ from the other tabs open on
-     * this machine right now, so the clock plus a counter is plenty */
+    /* not a security token: it only has to differ from the other tabs open on this machine right now, so the clock plus a counter is plenty */
     const made = `t${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`
     sessionStorage.setItem(TAB_ID_KEY, made)
     return made

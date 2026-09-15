@@ -1,6 +1,4 @@
-/* THE PLACE CARD. The same drawn plaque the cover raises, at the size a name
-   fits on, sitting low so it never covers the thing a player just walked into.
-   It cannot be clicked because it is not a control. */
+/* the place card is the same drawn plaque the cover raises, at the size a name fits on, sitting low so it never covers the thing just walked into, and it takes no click because it is not a control */
 
 @import '../ui/tokens.css';
 
@@ -17,9 +15,7 @@
   /* the width is stated here, on the wrapper, so the container query has a number */
   /* and it is the card's own width, so centring it really centres the card */
   width: min(620px, 82vw);
-  /* the card's own dwell, written by PlaceCard.tsx from the one constant it also
-     counts down on, so the rule under the card drains for exactly as long as the
-     card is going to be there */
+  /* the card's own dwell, written by PlaceCard.tsx from the one constant it also counts down on, so the rule under the card drains for exactly as long as the card is up */
   --pc-dwell: 3200ms;
 }
 
@@ -71,8 +67,7 @@
   border-top: 1px solid var(--kit-rule-soft);
   font-family: var(--kit-face-body);
   color: var(--kit-ink-said);
-  /* deliberately not smaller than the line above it. This is the sentence a lost
-     student is looking for, and it was the one nobody had ever seen. */
+  /* deliberately not smaller than the line above it, because this is the sentence a lost student is looking for */
   --kit-fs-raw: calc(clamp(17px, 3.6cqw, 26px) * var(--kit-text-scale));
   font-size: var(--kit-fs);
   line-height: 1.35;
@@ -91,14 +86,11 @@
 }
 @keyframes pc-drain { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
-/* the two rules of the whole file: it arrives from below and it leaves upward,
-   because a card that fades in place reads as a bug in the renderer */
+/* it arrives from below and leaves upward, because a card that fades in place reads as a bug in the renderer */
 .pc-in .pc-card { animation: pc-rise 620ms var(--kit-ease-rise) both; }
 .pc-out .pc-card { animation: pc-fall 640ms ease-in both; }
 
-/* the arrival carries no opacity, so the card is never a translucent plaque with
-   the world reading through it; the departure keeps its fade, because a thing
-   that is leaving is allowed to thin out. Same reasoning as `hb-in` in hud.css. */
+/* the arrival carries no opacity so the card is never a translucent plaque with the world reading through it, while the departure keeps its fade, the same reasoning as `hb-in` in hud.css */
 @keyframes pc-rise {
   from { transform: translateY(14px); }
   to { transform: translateY(0); }
@@ -124,31 +116,11 @@ html[data-skin='plain'] .pc-name {
 }
 html[data-skin='plain'] .pc-line { color: var(--kit-ink-body); }
 html[data-skin='plain'] .pc-heading { color: var(--kit-ink); }
-/* a worksheet does not have a gold bar draining across it. The notice still says
-   it is temporary, in the arm's own terms: a plain rule that shortens. */
+/* under the plain skin the gold drain becomes a plain rule that shortens, because a worksheet does not have a gold bar draining across it */
 html[data-skin='plain'] .pc-dwell { background: var(--kit-ink-dim); height: 1px; }
 
-/* ---- THE SIGNPOST VERSION (Ash, 2026-09-09) ------------------------------
- *
- * *"Maybe after the cutscene / first time, it becomes a smaller panel higher up
- * the screen."* The first arrival at a place is a moment; the fourth is a label.
- * Same card, two thirds the size, up out of the middle where the eye is. */
-/* ---- A PLACE HE HAS BEEN BEFORE: SMALLER, AND STILL IN THE MIDDLE -------
- *
- * Ash: *"the panel that displays the map name shows up at the top middle, and
- * gets hidden by the guide pill. instead it should always show up on the middle.
- * of course, if its the first time entering a map, it shows up big. if its
- * second, it shows up smaller. always, if the user clicks, it dissapears."*
- *
- * It used to be sent to the top of the screen to stay out of the way, and the top
- * of the screen is where the objective bar lives: measured at 1366x768 the bar's
- * wrapper is the full width and 126px tall at z-index 71, and this card was
- * landing at 9vh, which is 69px, at z-index 68. So it was drawn underneath the
- * bar every time, which is a card a student is owed and never sees.
- *
- * Being smaller is the whole of what marks a repeat, and the middle is where the
- * eye already is. `--ui-band-top` is read by nothing that writes it, so the top
- * offset was resolving against its own fallback of zero. */
+/* the first arrival at a place is a moment and the fourth is a label, so a repeat wears the same card at two thirds the size */
+/* the card always sits in the middle and smaller is the only mark of a repeat: at the top it drew under the objective bar, which at 1366x768 is full width and 126px tall at z-index 71 against a card at 9vh, 69px, z-index 68, and `--ui-band-top` is written by nothing so it resolved to zero */
 .pc-root[data-brief='1'] {
   width: min(340px, 52vw);
   opacity: .93;

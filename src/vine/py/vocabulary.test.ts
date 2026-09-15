@@ -3,17 +3,14 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-// off the repo root rather than off import.meta.url: vitest serves this file
-// under an http url, so a file: URL relative to the module does not resolve
+// resolve off the repo root, not import.meta.url, because vitest serves this file under an http url so a file: URL relative to the module does not resolve
 const read = (rel: string) => fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
 const py = read('src/vine/py/vine.py')
 const ts = read('src/vine/intents.ts')
 
 const all = (src: string, re: RegExp) => [...src.matchAll(re)].map((m) => m[1])
 
-/* the comments come out before the scan. intents.ts explains the award fix by
- * quoting the bug ("every island's grade landed as `kind: 'core'`"), and a scan
- * that reads prose as vocabulary would have counted `core` as a sixteenth word. */
+/* strip comments before the scan, because prose in intents.ts quotes `kind: 'core'` and a scan reading prose as vocabulary would count `core` as an extra word */
 const code = ts.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
 
 /** every `kind` the Intent union declares */
@@ -31,9 +28,7 @@ const builders = py.split(/^def /m).slice(1).map((block) => ({
   emits: all(block, /"kind": "([a-z_]+)"/g),
 })).filter((b) => !HELPERS.has(b.name))
 
-/** the body of one builder, and it THROWS on a name that is not there: a helper
- *  that answers '' for a missing word makes every `not.toContain` below pass by
- *  accident, which is the only way a test like this can lie */
+/** the body of one builder, and it throws on a name that is not there, because a helper answering '' for a missing word would make every `not.toContain` below pass by accident */
 function bodyOf(name: string): string {
   const b = builders.find((x) => x.name === name)
   if (!b) throw new Error(`vine.py has no builder called ${name}`)
@@ -45,12 +40,8 @@ describe('the intent vocabulary, both sides of the worker', () => {
   /* `lead_to` is its own word: somebody walks ahead and the player follows them there */
   /* `objective` is its own word: the one line at the top of the screen, not dialogue */
   /* `end_run` is its own word: the run is over and the world gives way to the title */
-  /* `sail_to` is its own word: the engine takes the player to another island, and a
-     member writes nothing about the walk out, the boarding, the crossing or the landing */
-  /* `island_tasks` and `task_done` are their own words: the list under the objective
-     line saying what a whole island is asking for, and the tick that says a row of it
-     is finished. Ash asked for islands to "constantly have tasks to do", and a single
-     sentence could never hold a list or say how much was left. */
+  /* `sail_to` is its own word: the engine takes the player to another island, so a member writes nothing about the walk out, the boarding, the crossing or the landing */
+  /* `island_tasks` and `task_done` are their own words, the list of what a whole island asks for and the tick that one row is finished, because a single sentence can hold neither a list nor how much is left */
   it('is thirty-six words on the engine side', () => {
     expect(engineWords.size).toBe(36)
   })
@@ -93,8 +84,7 @@ describe('the intent vocabulary, both sides of the worker', () => {
   })
 
   it('names each builder exactly what its kind is, so nothing translates anything', () => {
-    // intents.ts: "a vocabulary with a lookup table in the middle is a vocabulary
-    // with two spellings of every word and a place for them to drift apart"
+    // a vocabulary with a lookup table in the middle has two spellings of every word and a place for them to drift apart
     for (const b of builders) expect(b.emits).toEqual([b.name])
   })
 
@@ -105,15 +95,13 @@ describe('the intent vocabulary, both sides of the worker', () => {
 
 describe('the shapes an optional argument takes', () => {
   it('omits an absent optional rather than sending it as null', () => {
-    // an explicit null is a different thing from an absent name, and the engine
-    // reads `who?: string` not `who: string | null`
+    // an explicit null is a different thing from an absent name, and the engine reads `who?: string` not `who: string | null`
     expect(bodyOf('say')).toContain('if who is not None:')
     expect(bodyOf('enter')).toContain('if at is not None:')
   })
 
   it('SENDS a null anchor from look_at, because there None is the message', () => {
-    // `look_at(None)` is how an island gives the camera back, so this is the one
-    // word whose absent-looking argument must cross the wire
+    // `look_at(None)` is how an island gives the camera back, so this is the one word whose absent-looking argument must cross the wire
     expect(bodyOf('look_at')).toContain('"anchor": anchor')
     expect(bodyOf('look_at')).not.toContain('if anchor is not None:')
   })
@@ -123,15 +111,13 @@ describe('the shapes an optional argument takes', () => {
   })
 
   it('SENDS a null shot from framing, because there None is the message too', () => {
-    // `framing(None)` gives the camera back, exactly as `look_at(None)` does, and
-    // an omitted key would read as "no argument" rather than as the instruction
+    // `framing(None)` gives the camera back exactly as `look_at(None)` does, and an omitted key would read as no argument rather than as the instruction
     expect(bodyOf('framing')).toContain('"shot": shot')
     expect(bodyOf('framing')).not.toContain('if shot is not None:')
   })
 
   it('lets the director words leave every optional off', () => {
-    // a pose with no facing, an actor released with no name and a route with no
-    // rider are all the common case, and each has to be shorter than the full one
+    // a pose with no facing, an actor released with no name and a route with no rider are all the common case, so each has to be shorter than the full one
     expect(bodyOf('pose')).toContain('if name is not None:')
     expect(bodyOf('pose')).toContain('if facing is not None:')
     expect(bodyOf('actor_release')).toContain('if actor is not None:')
@@ -140,8 +126,7 @@ describe('the shapes an optional argument takes', () => {
   })
 
   it('guards on None and never on truthiness, so a grade of ZERO still ships', () => {
-    // `if value:` reads a 0 grade, an empty tag list and visible=False as absent.
-    // A student who scored nothing would have had no grade recorded at all.
+    // `if value:` would read a 0 grade, an empty tag list and visible=False as absent, so a student who scored nothing would have had no grade recorded at all
     expect(bodyOf('award')).toContain('if value is not None:')
     expect(bodyOf('award')).not.toMatch(/if value:\s/)
   })

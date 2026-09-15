@@ -1,22 +1,7 @@
 /* four years played through, and what a student is actually holding at the end */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
-/* ---- ASH, 2026-09-09 ------------------------------------------------------
- *
- * *"I also dont know if all the multi-year logic has been implemented yet, all
- * the different cords, achievements, etc. i dont know how that actually works as
- * of right now. but i dont have high hopes."*
- *
- * He was right not to. An audit played this road and found the GPA hard-capped
- * at 3.33 (so both honours cords were unreachable while the counselor draped one
- * at 95% every year), the diploma reporting "Islands completed: 0" after four
- * years of finished programmes, and the rank ladder never advancing.
- *
- * THIS IS THE ROAD, WALKED. It plays four years the way the game plays them and
- * then asks what the student is holding. It is deliberately end to end rather
- * than a unit test of `cordsOf`: every one of those defects was a seam between
- * two things that each worked.
- */
+/* plays four years end to end rather than unit testing `cordsOf`, because every defect it caught (GPA hard capped at 3.33, the diploma reading "Islands completed: 0", the rank ladder never advancing) was a seam between two things that each worked */
 
 async function fresh() {
   vi.resetModules()
@@ -68,12 +53,7 @@ describe('four years, played', () => {
 
     const s = m.save.loadSave()!
     const gpa = m.progress.gpaOf(s)
-    /* ---- THE ONE THAT WAS BROKEN ------------------------------------
-     *
-     * A placeholder pick used to carry half a credit at a flat B, so two a year
-     * outweighed one perfect Advisory and the mean was pinned at 3.33. Highest
-     * Honors wants 3.76. It carries no credit now, so a student who aces the
-     * only graded thing in the game reads what he earned. */
+    /* a placeholder pick used to carry half a credit at a flat B, so two a year pinned the mean at 3.33 and put Highest Honors at 3.76 out of reach, and it carries no credit now */
     expect(gpa, 'a perfect Advisory every year is a perfect GPA').toBe(4)
     expect(gpa!).toBeGreaterThanOrEqual(3.76)
   })
@@ -95,8 +75,7 @@ describe('four years, played', () => {
     expect(m.progress.rankName(m.progress.ranksOf(m.save.loadSave()!).football ?? 0)).toBe('Captain')
   })
 
-  /* one finish is one go, which `setIslandState` used to double by writing a
-   * second completion behind the one the sheet had just written */
+  /* one finish is one go, which `setIslandState` used to double by writing a second completion behind the one the sheet had just written */
   it('counts one finish as one attempt', async () => {
     const m = await fresh()
     m.save.beginAdventure()
@@ -113,9 +92,7 @@ describe('four years, played', () => {
     playYear(m, 1, ['ap-human-geo'], 'football')
 
     const s = m.save.loadSave()!
-    /* `setIslandState` is what the world and the diploma read, and only the
-     * grape path ever called it: a student who finished every pick from the
-     * sheet graduated to "Islands completed: 0" */
+    /* `setIslandState` is what the world and the diploma read and only the grape path ever called it, so a student who finished every pick from the sheet graduated to "Islands completed: 0" */
     expect(s.islands.football).toBe('completed')
   })
 

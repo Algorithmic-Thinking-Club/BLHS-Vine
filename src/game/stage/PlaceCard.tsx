@@ -14,17 +14,7 @@ import './placecard.css'
 
 const DWELL_MS = 3200
 /* how long a card will queue behind something else before it is dropped instead */
-/* ---- A CARD THAT IS OWED IS PAID (Ash, 2026-09-09) ------------------------
- *
- * The other half of "sometimes it just doesnt show". The card waits for a clear
- * screen, and on an arrival that opens a film it can wait behind a line of
- * dialogue: at fifteen seconds it used to give up and bin the card, and a line
- * starting under a card already up used to bin it too. Both of those turn a card
- * a student is owed into no card at all, silently.
- *
- * It waits three times as long now, it SHOWS at the ceiling rather than giving
- * up, and a card cut short by somebody talking goes back to waiting instead of
- * being thrown away. Once. */
+/* a card that is owed is paid: it waits for a clear screen, and at fifteen seconds it used to bin the card silently, so it waits 45000 ms, shows at the ceiling instead of giving up, and a card cut short by somebody talking goes back to waiting once */
 const WAIT_CEILING_MS = 45000
 
 /** held: asked for, waiting for the screen to be free. in: on screen. out: leaving. */
@@ -33,8 +23,7 @@ type CardPhase = 'held' | 'in' | 'out'
 export function PlaceCard() {
   const [card, setCard] = useState<PlaceCardRequest | null>(null)
   const [phase, setPhase] = useState<CardPhase>('held')
-  /* re-renders the card on the frame the drawn kit lands, so the pin is a pin
-   * rather than nothing on a page that was rendered before the fetch answered */
+  /* re-renders on the frame the drawn kit lands, so a page rendered before the fetch answered still gets a real pin */
   useKitReady()
   const el = useRef<HTMLDivElement>(null)
 
@@ -54,28 +43,17 @@ export function PlaceCard() {
     const t0 = performance.now()
     const held = window.setInterval(() => {
       if (clear()) { window.clearInterval(held); setPhase('in'); return }
-      /* AT THE CEILING IT SHOWS ANYWAY. A place card is three seconds of the
-       * name of the place; a screen that has been busy for forty-five seconds is
-       * a screen that is not going to get quiet, and no card at all is the worse
-       * of the two answers. */
+      /* at the ceiling it shows anyway: a screen busy for forty-five seconds is not going to get quiet, and no card at all is worse than three seconds of the place name */
       if (performance.now() - t0 > WAIT_CEILING_MS) { window.clearInterval(held); setPhase('in') }
     }, 100)
     return () => window.clearInterval(held)
   }, [card, phase])
 
   /* reduced motion shortens the dwell rather than cancelling the card */
-  /* and a place he has already been to gets a shorter one still (Ash, 2026-09-09) */
+  /* and a place already seen gets a shorter dwell still */
   const dwell = (prefersReducedMotion() ? DWELL_MS * 0.6 : DWELL_MS) * (card?.brief ? 0.55 : 1)
 
-  /* ---- A CLICK PUTS IT AWAY (Ash, 2026-09-09) --------------------------
-   *
-   * *"Allow it so that if the user clicks the screen / on it, it instantly goes
-   * away."*
-   *
-   * On the WINDOW rather than on the card, and deliberately not swallowed: the
-   * card is `pointer-events: none` because it must never eat a press meant for
-   * the room underneath, and that stays true. A student who clicks to dismiss it
-   * gets the dismissal and whatever he was clicking at. */
+  /* a click anywhere puts it away, bound on the window and deliberately not swallowed: the card is `pointer-events: none` so it never eats a press meant for the room underneath, and a dismissing click still reaches whatever it was aimed at */
   useEffect(() => {
     if (!card || phase !== 'in') return
     const away = () => setPhase('out')
@@ -102,11 +80,7 @@ export function PlaceCard() {
     return () => window.clearTimeout(t)
   }, [phase])
 
-  /* somebody started talking underneath it. The card leaves rather than sharing
-   * the bottom of the window with a dialogue box, and then it COMES BACK once:
-   * an arrival that opens on a line of dialogue is the ordinary case (the hub's
-   * own island says one on the way in), and binning the card there is how a
-   * student ends up not knowing where he has landed. */
+  /* somebody started talking underneath it, so the card leaves rather than share the bottom of the window with a dialogue box, then comes back once, because an arrival opening on a line of dialogue is the ordinary case and binning the card there leaves a student not knowing where he landed */
   const requeued = useRef(false)
   useEffect(() => {
     if (phase !== 'in' || !speaking) return
@@ -135,9 +109,7 @@ export function PlaceCard() {
     return () => setPlaceCardUp(false)
   }, [visible])
 
-  /* the one live thing the year wants next, read at the moment of arrival. Pure,
-   * so it is a function call rather than a fetch, and it is the same function the
-   * standalone heading and the world's own marker both read. */
+  /* the one live thing the year wants next, read at the moment of arrival; pure, so it is a call rather than a fetch, and the same function the standalone heading and the world marker both read */
   /* worked out for the map under his feet, not the one he came from */
   /* not computed during a cutscene, and only ever spoken to a screen reader */
   const heading = card && !cinemaOn() ? objectiveLine(nextObjective(loadSave()), sceneDrawn()) : ''
@@ -156,9 +128,7 @@ export function PlaceCard() {
   if (!visible || !card) return null
 
   return (
-    /* aria-hidden AND pointer-events none: it is not a control, and the words are
-       already going to a reader through `announce` above, so reading the plaque a
-       second time would say the name of the place twice */
+    /* aria-hidden and pointer-events none: it is not a control, and `announce` above already sends the words to a reader, so the plaque would say the place name a second time */
     <div
       ref={el}
       className={`pc-root ${phase === 'out' ? 'pc-out' : 'pc-in'}`}
@@ -175,9 +145,7 @@ export function PlaceCard() {
         </p>
         {card.line ? <p className="pc-line">{card.line}</p> : null}
         {/* where you are and what you are for are one thought, read in one dwell */}
-        {/* the errand is the objective panel's, at the top of the screen, on
-            every frame. See `heading` above for why it is computed and not
-            drawn. */}
+        {/* the errand belongs to the objective panel at the top of the screen, on every frame; see `heading` above for why it is computed and not drawn */}
         {/* a rule that drains over the dwell, so a card with no dismiss says it will leave */}
         <span className="pc-dwell" aria-hidden="true" />
       </div>

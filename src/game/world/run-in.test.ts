@@ -4,20 +4,7 @@ import {
   DEFAULT_SAIL, RUN_IN_CORRIDOR_PX, type Berthing,
 } from './sail'
 
-/* ---- SHE NEVER TURNS ROUND TO LINE UP FOR A BERTH SHE IS LINED UP FOR ------
- *
- * ASH, watching the arrival at the ATC island: *"its doing a random stupid turn
- * around, probably because it cant reach the berth."*
- *
- * It was not reachability. The berth has open water eighty pixels all round it.
- * Measured on that arrival, her distance to the berth ran 133, 79, 59, then back out
- * to 188, then in to 18: she closed to within sixty pixels of the dock and then sailed
- * out past where she started. Every sea arrival did it, because the hull is born on
- * the berth's approach line about 140px out and the lineup mark on that same line is
- * at 210, so she was always born INSIDE the mark she was then sent to.
- *
- * The mark is where a run in BEGINS, not a gate she has to touch on the way.
- */
+/* the hull is born on the berth's approach line about 140px out while the lineup mark on that line is at 210, so she was born inside the mark she was then sent to and sailed back out: distance ran 133, 79, 59, 188, 18; the mark is where a run in begins, not a gate she must touch */
 describe('a run in that has already begun', () => {
   const berth = { x: 238, y: 474 }
   const facing = -0.698
@@ -56,8 +43,7 @@ describe('a run in that has already begun', () => {
     expect(insideTheApproach(off, berth, facing, mark, facing)).toBe(false)
   })
 
-  /* the one the twelve-bearing test caught: in the corridor by the arithmetic and
-   * pointed across it, where "keep coming" means stopping and turning on the spot */
+  /* the one the twelve bearing test caught: in the corridor by the arithmetic and pointed across it, where "keep coming" means stopping and turning on the spot */
   it('and not when she is in the corridor but pointed the wrong way round', () => {
     expect(insideTheApproach(astern(140), berth, facing, mark, facing + Math.PI)).toBe(false)
     expect(insideTheApproach(astern(140), berth, facing, mark, facing + 1.4)).toBe(false)
@@ -80,8 +66,7 @@ describe('a run in that has already begun', () => {
       was = d
     }
     expect(b.stage).toBe('done')
-    /* she may settle a few pixels alongside; she may not stand back out to the mark,
-     * which on this berth is another seventy pixels of sea */
+    /* she may settle a few pixels alongside, but she may not stand back out to the mark, which on this berth is another seventy pixels of sea */
     expect(worst).toBeLessThan(24)
   })
 })

@@ -1,16 +1,4 @@
-/* WHAT IS THE SHIP ACTUALLY DOING, measured rather than watched.
- *
- *   node scripts/sailing-measure.mjs
- *
- * Ash, after playing: "like what the fuck is the ship doing... it does some RANDOM
- * sailing. it doesnt find a clean path. it does crazy turns, shitty turns, it looks
- * like its going 300 mph, instead of smooth sailing."
- *
- * Four separate complaints and each has a number: the speed she holds, how fast the
- * bow comes round, how straight the line is, and whether she finishes on the heading
- * the berth asks for. This samples the hull twenty times a second for the whole
- * crossing and prints all four, so a change can be judged instead of argued about.
- */
+/* what the ship is actually doing, measured rather than watched: samples the hull twenty times a second for the whole crossing and prints the four numbers behind the complaints, the speed she holds, how fast the bow comes round, how straight the line is, and whether she finishes on the heading the berth asks for */
 import { boot, STAMPED } from './play-harness.mjs'
 
 const base = 'http://localhost:5173'
@@ -31,10 +19,7 @@ await until((s) => s.press.some((e) => /Sail (to|there)/i.test(e.text)), { ms: 1
 await h.pressText(/Sail (to|there)/i)
 await until((s) => s.map?.travel?.leg === 'boarding', { ms: 40000, every: 400 })
 await page.keyboard.press('e')
-/* THE BOARDING IS A BEAT NOW, so the hull does not exist on the frame after the press:
- * the camera goes to the ship while he is still standing on the quay, and he steps in
- * after it. A sampler that gave up before then measured a crossing that had not
- * started and reported nothing at all. */
+/* boarding is a beat, so the hull does not exist on the frame after the press, the camera goes to the ship while he is still on the quay and he steps in after it, and a sampler that gives up before then measures a crossing that has not started */
 await until((s) => s.map?.hull === true, { ms: 15000, every: 200 })
 
 /* every sample the sea reports, at 20Hz, for the whole crossing */
@@ -65,11 +50,7 @@ while (Date.now() - t0 < 120000) {
 const sail = rows.filter((r) => r.hull && r.sea)
 const speeds = sail.map((r) => r.sea.speed)
 const unwrap = (a, b) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d }
-/* NOT ACROSS A MAP CHANGE. She is one hull on the hub's sea and another on the far
- * island's, born pointed at a different berth, and the two headings have nothing to do
- * with each other. Measured across the boundary this read 287 deg/s over the 562ms the
- * cover was down and reported it as the worst turn in the crossing, which sent a
- * session looking for a pirouette that was never on screen. */
+/* not across a map change: she is one hull on the hub sea and another on the far island's, born pointed at a different berth, so the two headings are unrelated, and measured across the boundary this read 287 deg/s over the 562ms the cover was down and called it the worst turn in the crossing */
 const sameSea = (i) => sail[i].map === sail[i - 1].map
 const turns = []
 for (let i = 1; i < sail.length; i++) {
@@ -105,8 +86,7 @@ if (sail.length > 2) {
   const line = Math.hypot(b.x - a.x, b.y - a.y)
   console.log(`path ${run.toFixed(0)} against a straight ${line.toFixed(0)}: ${(run / Math.max(1, line)).toFixed(2)}x`)
 }
-/* WHERE she is when she is in trouble, because "aground for a fifth of it" is not
- * actionable until you know which stretch of the crossing that fifth is */
+/* where she is when she is in trouble, because aground for a fifth of it is not actionable until you know which stretch of the crossing that fifth is */
 const by = {}
 for (const r of sail) {
   const k = `${r.map}/${r.sea.berthing ?? 'under-way'}`

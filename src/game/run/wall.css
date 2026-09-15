@@ -54,8 +54,7 @@
   border-radius: var(--kit-r-card);
   background: var(--kit-paper-lo);
 }
-/* A FULL FRAME IS HEAVIER, in edge weight rather than in hue: it has something in
-   it, so it holds the wall's attention the way a hung picture does. */
+/* a full frame is heavier in edge weight rather than in hue, because it has something in it and holds the wall's attention the way a hung picture does */
 .tw-frame-full {
   border-width: 3px;
   border-color: var(--kit-edge-strong);
@@ -70,9 +69,7 @@
   align-items: center;
   justify-content: center;
 }
-/* THE HOLE IS THE OUTLINE THE BRIEF ASKS FOR, and it is the same dashed seat the
-   year sheet's empty socket and the pick screen's wall preview use, so a student
-   who has met one of them has met all three. */
+/* the hole is the same dashed seat the year sheet's empty socket and the pick screen's wall preview use, so a student who has met one of them has met all three */
 .tw-hole {
   width: 34px;
   height: 34px;
@@ -88,8 +85,7 @@
   color: var(--kit-ink-head);
   line-height: 1.15;
 }
-/* what is in it reads as a record; what would fill it reads as an instruction,
-   which is the difference the self-evident law cares about */
+/* what is in it reads as a record and what would fill it reads as an instruction, which is the difference that matters here */
 .tw-got {
   --kit-fs-raw: calc(14px * var(--kit-text-scale));
   font-size: var(--kit-fs);
@@ -126,11 +122,7 @@ html[data-skin='plain'] .tw-hole { display: none; }
 html[data-skin='plain'] .tw-frame-full .tw-name::after { content: ' — done'; font-weight: 400; }
 html[data-skin='plain'] .tw-got { color: var(--kit-ink-body); }
 
-/* ---- A FRAME LANDING (Ash, 2026-09-08 item 6) ------------------------------
- *
- * The wall fills one frame at a time now, so a badge ARRIVES rather than being
- * already there. Half a second apart with a pop each, in the order the year
- * happened, which is the only moment a student sees the whole of what he did. */
+/* the wall fills one frame at a time so a badge arrives rather than being already there, half a second apart with a pop each, in the order the year happened */
 .tw-frame-land { animation: tw-land 320ms cubic-bezier(0.2, 1.5, 0.4, 1) both; }
 @keyframes tw-land {
   from { transform: scale(0.86) rotate(-2deg); opacity: 0 }
@@ -141,7 +133,7 @@ html[data-skin='plain'] .tw-got { color: var(--kit-ink-body); }
   .tw-frame-land { animation: none; }
 }
 
-/* the year a run of frames belongs to (Ash, 2026-09-09: the wall is every year) */
+/* the year a run of frames belongs to, because the wall spans every year */
 .tw-year {
   grid-column: 1 / -1;
   margin: 10px 0 2px;

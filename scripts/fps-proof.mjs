@@ -1,14 +1,4 @@
-/* Frames per second on the four maps a student actually sees, sampled from the page.
- *
- *   node scripts/fps-proof.mjs                  dev server, both throttles
- *   node scripts/fps-proof.mjs --live           the deploy
- *   node scripts/fps-proof.mjs --only=hub       one map
- *   node scripts/fps-proof.mjs --secs=30        seconds per sample
- *
- * Each map is sampled twice, once unthrottled and once with the CPU slowed four times
- * through the debugger, and the throttle is applied after the scene has loaded so the
- * load is not what gets measured.
- */
+/* frames per second on the four maps a student sees, with flags --live, --only=<map> and --secs=<n>: each map is sampled twice, unthrottled and at 4x CPU throttle, and the throttle is applied after the scene has loaded so the load is not what gets measured */
 import { boot, STAMPED, LIVE } from './play-harness.mjs'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -18,8 +8,7 @@ const arg = (k, d) => {
   return hit ? hit.slice(k.length + 3) : d
 }
 const live = process.argv.includes('--live')
-/* the production preview, not the dev server: an unminified module graph with hot
- * reload attached does not measure what a student runs */
+/* measure the production preview, not the dev server, because an unminified module graph with hot reload attached does not measure what a student runs */
 const base = arg('base', live ? LIVE : 'http://localhost:4173')
 const SECS = Number(arg('secs', 30))
 const ONLY = arg('only', null)
@@ -91,8 +80,7 @@ const MAPS = [
     key: 'crossing',
     url: `${base}/?scene=pmap&deep=1&map=panther-maw`,
     settle: 7000,
-    /* the chart offers the voyage, the quay press boards her, and the hull is what
-     * says the crossing has actually begun */
+    /* the chart offers the voyage, the quay press boards her, and the hull is what says the crossing has actually begun */
     ready: async (h) => {
       const { page, until, pressText } = h
       await page.evaluate(() => window.__intent({ kind: 'open', ui: 'planner' }))

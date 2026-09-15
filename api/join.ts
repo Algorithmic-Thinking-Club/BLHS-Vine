@@ -26,9 +26,7 @@ export default async function handler(req: any, res: any) {
 
   const clean = cleanHandle(handle)
 
-  // one student = one run: the same handle in the same class IS that student, returning.
-  // This check comes BEFORE the open gate on purpose — closing a class stops NEW joins,
-  // it must never lock a mid-run student out of resuming.
+  // one student is one run, so the same handle in the same class is that student returning; this check comes before the open gate on purpose, because closing a class stops new joins and must never lock a mid-run student out of resuming
   const existing = await db.getParticipantByHandle(cls.id, clean)
   if (existing) {
     return json(res, 200, {

@@ -1,6 +1,4 @@
-// GET  /api/state?participantId=... -> { save } | 404
-// POST /api/state { participantId, save } -> { ok }
-// The server copy of the run (§7.7's top layer): cross-device resume by class code + handle.
+// GET /api/state?participantId=... returns { save } or 404, POST /api/state { participantId, save } returns { ok }: the server copy of the run, for cross-device resume by class code and handle
 import { json, readBody } from './_db.js'
 import { store } from './_store.js'
 

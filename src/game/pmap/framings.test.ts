@@ -17,9 +17,7 @@ describe('a framing on an anchor', () => {
     expect(framingOf(DESK, 'close')).toEqual({ zoom: 1.9, dx: 0, dy: -18, name: 'close' })
   })
 
-  /* A NAME THE MAP DOES NOT CARRY FALLS BACK TO ITS OWN DEFAULT rather than to
-   * nothing, because a shot that half-happens is worse than the author's own
-   * wide one. The caller is told, which is PmapScene's job and not this one's. */
+  /* a name the map does not carry falls back to the anchor's own default rather than to nothing, because a shot that half-happens is worse than the author's own wide one, and telling the caller is `PmapScene`'s job */
   it('falls back to the anchor own default when the name is not there', () => {
     expect(framingOf(DESK, 'nope')?.name).toBe('default')
   })
@@ -29,9 +27,7 @@ describe('a framing on an anchor', () => {
     expect(framingOf({ why: 'a note somebody left' })).toBeNull()
   })
 
-  /* AN EMPTY BAG IS NOT A FRAMING. It would otherwise override a script's zoom
-   * with undefined and pull every shot back to the map's load scale, which is
-   * worse than the hand-typed number it replaced. */
+  /* an empty bag is not a framing: it would otherwise override a script's zoom with undefined and pull every shot back to the map's load scale, which is worse than the hand-typed number it replaced */
   it('refuses a framing that says nothing', () => {
     expect(framingOf({ framing: {} })).toBeNull()
     expect(framingOf({ framing: { name: 'empty' } })).toBeNull()
@@ -70,8 +66,7 @@ describe('resolving a script against a map that frames itself', () => {
     expect(r.steps[0]).toEqual({ t: 'camera', to: { x: 196, y: 322 }, zoom: 1.35, ms: 900 })
   })
 
-  /* THE OLD BEHAVIOUR IS STILL THE BEHAVIOUR WITH NO READER PASSED, which is what
-   * keeps every caller that has not been taught about framings working. */
+  /* the old behaviour is still the behaviour with no reader passed, which is what keeps every caller that has not been taught about framings working */
   it('is unchanged when nobody hands it a framing reader at all', () => {
     const { script: r } = resolveScript(script, spot)
     expect(r.steps[0]).toEqual({ t: 'camera', to: { x: 196, y: 322 }, zoom: 1.35, ms: 900 })
@@ -113,16 +108,13 @@ describe('folding the live hub top-level shots onto its anchors', () => {
   })
 
   it('leaves an unnamed default that is already authored alone', () => {
-    /* the anchor's own default is the newer shape and the author's later word,
-     * so an entry flag on the old list must not pull the map back to it */
+    /* the anchor's own default is the newer shape and the author's later word, so an entry flag on the old list must not pull the map back to it */
     const door = mawDoor({ framing: { zoom: 2.2, dy: -30 } })
     projectFramings([door], HUB_SHOTS, 'hub')
     expect(framingOf(door.meta)?.zoom).toBe(2.2)
   })
 
-  /* THE MIGRATION RULE, AND GETTING IT BACKWARDS REVERTS AN AUTHOR'S EDIT. A
-   * bundle carrying both shapes is a bundle mid-migration: the meta bag is what
-   * MAPVIS writes now and the array is what it wrote last month. */
+  /* the migration rule, and getting it backwards reverts an author's edit: a bundle carrying both shapes is mid-migration, where the meta bag is what MAPVIS writes now and the array is the older shape */
   it('lets the meta bag win over the projection, name for name', () => {
     const door = mawDoor({ docId: 2, framings: { the_maw_mouth: { zoom: 1.9, dy: -18 } } })
     expect(projectFramings([door], HUB_SHOTS, 'hub')).toBe(0)
@@ -130,8 +122,7 @@ describe('folding the live hub top-level shots onto its anchors', () => {
   })
 
   it('opens on the shot that won, and not on the copy the projection lost with', () => {
-    /* the same map otherwise opens at zoom 1 while answering `the_maw_mouth`
-     * with 1.9: one name, two numbers, and nothing says which one you got */
+    /* the same map otherwise opens at zoom 1 while answering `the_maw_mouth` with 1.9: one name, two numbers, and nothing says which one you got */
     const door = mawDoor({ docId: 2, framings: { the_maw_mouth: { zoom: 1.9, dy: -18 } } })
     projectFramings([door], HUB_SHOTS, 'hub')
     expect(framingOf(door.meta)?.zoom).toBe(1.9)
@@ -142,8 +133,7 @@ describe('folding the live hub top-level shots onto its anchors', () => {
     const door = mawDoor()
     const orphans = [{ name: 'the_stage', anchor: 'the_podium', dx: 0, dy: -40, zoom: 1.4 }]
     expect(projectFramings([door], orphans, 'hub')).toBe(0)
-    /* a shot survives the anchor it hangs off being renamed or cut, and it is
-     * otherwise discovered as a close-up that quietly never happens */
+    /* a shot survives the anchor it hangs off being renamed or cut, and it is otherwise discovered as a close-up that quietly never happens */
     expect(warns.join()).toContain('the_stage')
     expect(warns.join()).toContain('the_podium')
     expect(warns.join()).toContain('hub')
@@ -153,8 +143,7 @@ describe('folding the live hub top-level shots onto its anchors', () => {
     const door = mawDoor()
     const flat = [{ name: 'says_nothing', anchor: 'panthers_maw', dx: 0, dy: 0 }]
     expect(projectFramings([door], flat, 'hub')).toBe(0)
-    /* it does not even open a framings bag on the way past, so an anchor nobody
-     * framed still reads as an anchor nobody framed */
+    /* it does not even open a framings bag on the way past, so an anchor nobody framed still reads as an anchor nobody framed */
     expect(framingNames(door.meta)).toEqual([])
   })
 
@@ -173,8 +162,7 @@ describe('every named shot on a map, indexed by the name a person typed', () => 
   ]
 
   it('finds a shot without being told which anchor carries it', () => {
-    /* nobody writing a scene thinks "the second framing on the door"; they think
-     * "the maw mouth", which is why this index is flat */
+    /* nobody writing a scene thinks "the second framing on the door", they think "the maw mouth", which is why this index is flat */
     const shots = shotsOf(anchorsOf())
     expect([...shots.keys()].sort()).toEqual(['the_chart', 'the_fire'])
     expect(shots.get('the_fire')?.anchor.name).toBe('hearth')
@@ -183,8 +171,7 @@ describe('every named shot on a map, indexed by the name a person typed', () => 
 
   it('hands back the caller own anchor record and not the two fields this file needs', () => {
     const anchors = anchorsOf()
-    /* the x is what a shot is resolved against, so an index that dropped it
-     * would force a cast at every call site to get the anchor back */
+    /* the x is what a shot is resolved against, so an index that dropped it would force a cast at every call site to get the anchor back */
     expect(shotsOf(anchors).get('the_chart')?.anchor).toBe(anchors[0])
     expect(shotsOf(anchors).get('the_chart')?.anchor.x).toBe(180)
   })
@@ -205,8 +192,7 @@ describe('every named shot on a map, indexed by the name a person typed', () => 
       { name: 'ghost_post', x: 1, y: 1, meta: { framings: { the_shot: {} } } },
       { name: 'hearth', x: 2, y: 2, meta: { framings: { the_shot: { zoom: 1.4 } } } },
     ])
-    /* an empty bag is not a shot, so it is not a claim on the name either: the
-     * real one behind it is what the scene asked for */
+    /* an empty bag is not a shot, so it is not a claim on the name either: the real one behind it is what the scene asked for */
     expect(shots.get('the_shot')?.anchor.name).toBe('hearth')
     expect(shots.size).toBe(1)
   })

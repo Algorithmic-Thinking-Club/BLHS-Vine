@@ -15,7 +15,7 @@ export default async function handler(req: any, res: any) {
 
   if (body.op === 'create') {
     const name = String(body.name ?? '').slice(0, 60) || 'My class'
-    // codes are 31^6 ≈ 887M — collisions are rare but not impossible; retry a few times
+    // codes are 31^6 or about 887M, so a collision is rare but not impossible, hence a few retries
     for (let attempt = 0; attempt < 4; attempt++) {
       const code = newCode()
       if (await db.getClassByCode(code)) continue
@@ -30,9 +30,7 @@ export default async function handler(req: any, res: any) {
   const cls = await db.getClassByKey(String(body.classId ?? ''), String(body.teacherKey ?? ''))
   if (!cls) return json(res, 403, { error: 'bad_key' })
 
-  // graduated + the verification code derive from the SYNCED save, server-side — that
-  // column is what a student's printed diploma is checked against (§9.5). The raw save and
-  // the participant id never leave this handler.
+  // graduated and the verification code derive from the synced save server side, because that column is what a printed diploma is checked against, and the raw save and the participant id never leave this handler
   const rosterOf = async () => (await db.roster(cls.id)).map(({ save, ...r }) => {
     const s = save as SaveGame | null
     const graduated = !!s?.graduated
@@ -55,9 +53,7 @@ export default async function handler(req: any, res: any) {
       roster.map((r) => ({ ...r, participantId: r.participant_id })),
       measures,
     )
-    /* `events` is the raw count read, so a teacher (and a reviewer) can tell an
-     * empty export apart from an export of nothing. Those look identical in a CSV
-     * and only one of them is a bug. */
+    /* `events` is the raw count read, because an empty export and an export of nothing look identical in a CSV and only one of them is a bug */
     return json(res, 200, { columns: EXPORT_COLUMNS, rows, events: events.length })
   }
 

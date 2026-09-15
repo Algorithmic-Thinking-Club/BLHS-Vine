@@ -27,8 +27,7 @@ describe('the line a hull steers', () => {
   it('keeps the number of turns small, because every corner is a turn of the wheel', () => {
     const water = walled(300, 80)
     const r = seaRoute({ x: 100, y: 0 }, { x: 400, y: 0 }, water, { step: 20 })
-    /* round one wall through one gap is three runs of straight water at most: out,
-     * across, and back. A staircase would be dozens. */
+    /* round one wall through one gap is three runs of straight water at most, out, across and back, where a staircase would be dozens */
     expect(r!.length).toBeLessThanOrEqual(4)
   })
 
@@ -46,8 +45,7 @@ describe('the line a hull steers', () => {
   })
 
   it('gives up inside its budget rather than hanging the frame', () => {
-    /* a huge empty sea with the goal behind a wall with no gap: the search has to
-     * stop itself, because nothing else in the tick will */
+    /* a huge empty sea with the goal behind a wall with no gap: the search has to stop itself, because nothing else in the tick will */
     const shut: Water = (x) => x < 500 || x > 520
     const r = seaRoute({ x: 0, y: 0 }, { x: 4000, y: 0 }, shut, { step: 8, budget: 500 })
     expect(r).toBeNull()

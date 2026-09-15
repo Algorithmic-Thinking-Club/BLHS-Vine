@@ -2,8 +2,7 @@
 import type { SaveGame } from '../save'
 import { cordsOf } from '../progress'
 
-/* every element that can ever be in the corner. Adding one here is what makes the
- * test demand a condition for it, which is the point. */
+/* every element that can ever be in the corner, and adding one here is what makes the test demand a condition for it */
 export type HudElement = 'chart' | 'handbook' | 'tokens' | 'cape'
 
 export type HudGrants = Record<HudElement, boolean>
@@ -30,18 +29,7 @@ export const HUD_INVENTORY: HudRow[] = [
     says: 'You have the Chart now. It shows every island you have found.',
     rule: 'the first island discovered makes the chart worth opening (§40.2)',
     permanent: true,
-    /* §2.6's bottle unfurls a chart, which is earlier than the first discovery,
-     * so the flag is the earlier of the two grants and discovery is the fallback
-     * for a run that got there another way.
-     *
-     * ---- EXPOSURE IS NOT DISCOVERY (Ash, 2026-09-09) -------------------
-     *
-     * The third clause used to be `(s.exposure ?? []).length > 0`, and
-     * `PmapScene` writes an exposure row for the map it is STANDING ON the
-     * moment any map mounts. So the Map sign was granted by arriving at the hub,
-     * minutes before the principal hands it over in the Maw, and the handover
-     * had nothing left to give. An island somebody has a state for is a real
-     * discovery; the ground under your own feet is not. */
+    /* the flag is the earlier grant and discovery is the fallback; never test `(s.exposure ?? []).length > 0`, because `PmapScene` writes an exposure row for the map being stood on, so arriving at the hub granted the map sign before the handover could give it */
     has: (s) => s.flags.includes(CHART_FLAG) || Object.keys(s.islands ?? {}).length > 0,
   },
   {
@@ -56,9 +44,7 @@ export const HUD_INVENTORY: HudRow[] = [
     el: 'tokens',
     says: 'Your year sheet. Pick your classes and what you join.',
     rule: 'the binder and the year\'s three tokens are handed over in one moment (§4.10)',
-    /* NOT PERMANENT, and this answers Q40.2.a. §15.2: "In Gear 2 the token pips
-     * leave the HUD entirely, because scarcity is over." A graduate has no year
-     * left to plan, so the readout of an empty year would be furniture. */
+    /* not permanent: the token pips leave the HUD in gear 2 because a graduate has no year left to plan and an empty year would be furniture */
     permanent: false,
     has: (s) => !s.graduated && s.flags.includes(HANDBOOK_FLAG),
   },
@@ -72,9 +58,7 @@ export const HUD_INVENTORY: HudRow[] = [
   },
 ]
 
-/* THE ONE ANSWER BOTH MOUNTS READ. Pure, so it costs a function call, and total,
- * so a new element cannot be forgotten: the record type makes TypeScript demand a
- * row for every member of `HudElement`. */
+/* the one answer both mounts read: pure so it costs a function call, and total so the record type makes TypeScript demand a row for every member of `HudElement` */
 export function hudGrants(s: SaveGame | null): HudGrants {
   const out = { chart: false, handbook: false, tokens: false, cape: false } as HudGrants
   if (!s) return out
@@ -88,8 +72,7 @@ export const ALWAYS_ON = [
   'chart', 'handbook', 'tokens', 'cape',
   /* the world's own marks, which are not DOM and are not in the corner */
   'prompt', 'objective-mark', 'you-pin',
-  /* the two surfaces that speak, neither of which is furniture: each is present
-   * only while it has something to say */
+  /* the two surfaces that speak, each present only while it has something to say */
   'dialogue', 'place-card',
   /* the game's one instruction, top centre, and the thing there is instead of a quest log */
   'objective',
@@ -97,21 +80,10 @@ export const ALWAYS_ON = [
   'help',
   /* the two black bars, which draw nothing until an island asks for a cutscene */
   'movie-bars',
-  /* THE CROSSING'S OWN SKIP (Ash, 2026-09-08 item 3), top left, and present only
-   * while a voyage is actually running. It is the same justification the movie
-   * bars have: it is not a readout of anything, it is the offer the game is
-   * making at that moment, and there is no other way to make it. A student who
-   * has watched the boat once is allowed to say so. */
+  /* the crossing's own skip, top left and present only while a voyage runs: not a readout but the offer the game is making at that moment, and there is no other way to make it */
   'skip-voyage',
-  /* THE CAMERA SWITCH (Ash, 2026-09-09), top right, which is the only thing in
-   * that corner. It is not a readout of anything: it is the one choice a student
-   * has about how the world is framed, and there is nowhere else to put it that
-   * he would find. */
+  /* the camera switch, top right and alone in that corner: not a readout but the one choice a student has about how the world is framed, and there is nowhere else it would be found */
   'camera-view',
-  /* ISLAND FINISHED, HEAD BACK (Ash), bottom centre, and present only when an island
-   * has nothing left to ask for. It is not a readout either: it is the one offer the
-   * game makes at the moment an island is done, which nothing in the world can make
-   * for it, because the thing being announced is the absence of remaining work. It
-   * shares the strip with the dialogue box and stands down for it. */
+  /* island finished and head back, bottom centre and present only when an island has nothing left to ask for: it announces the absence of remaining work, which nothing in the world can announce, and it stands down for the dialogue box it shares the strip with */
   'head-back',
 ] as const

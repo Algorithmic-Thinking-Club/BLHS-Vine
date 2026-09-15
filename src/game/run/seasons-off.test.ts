@@ -4,8 +4,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const read = (f: string) => readFileSync(fileURLToPath(new URL(f, import.meta.url)), 'utf8')
-/* comments are allowed to name the thing; the whole point of writing this down
- * is that the next session does not reach for it again */
+/* comments are stripped before the scan, because a comment is allowed to name the thing the code must never reach for again */
 const bare = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
 
 /** every file that draws chrome a first-session student cannot avoid */
@@ -22,12 +21,10 @@ describe('no student reads a season', () => {
   for (const f of CHROME) {
     it(`${f} prints no season word`, () => {
       const src = bare(read(f))
-      /* the season NAMES, in a quoted string or a template. `SEASONS`, `Season`
-       * and `s.season` are the model and stay. */
+      /* matches the season names in a quoted string or a template only: `SEASONS`, `Season` and `s.season` are the model and stay */
       const said = [...src.matchAll(/(['"`])([^'"`\n]*\b(?:Fall|Winter|Spring)\b[^'"`\n]*)\1/g)]
         .map((m) => m[2])
-        /* a key into `plan.slots` is the model reaching for a column, not a
-         * sentence: `slots.Fall` and `assignSlot(year, 'Fall', id)` are wiring */
+        /* a key into `plan.slots` is the model reaching for a column, not a sentence: `slots.Fall` and `assignSlot(year, 'Fall', id)` are wiring */
         .filter((t) => !/^(Fall|Winter|Spring)$/.test(t))
       expect(said, `${f} still says: ${said.join(' | ')}`).toEqual([])
     })

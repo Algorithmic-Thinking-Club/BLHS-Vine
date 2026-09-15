@@ -276,9 +276,7 @@ export function PortraitFrame({
           alt=""
           draggable={false}
           onError={() => {
-            /* SAY WHICH ONE. There is no public/art/portraits/ in this repo yet,
-             * so today every portrait takes this path, and a silent hide is how
-             * an author ships a faceless scene without ever being told. */
+            /* name the missing file: there is no public/art/portraits/ in this repo yet so every portrait takes this path, and a silent hide ships a faceless scene with nothing said */
             console.warn(`[kit] no portrait art at ${src}`)
             setFailed(true)
           }}
@@ -300,9 +298,7 @@ export function Scroller({ className = '', wrapClassName = '', children, ...rest
     const check = () => setMore(el.scrollTop + el.clientHeight < el.scrollHeight - 2)
     check()
     el.addEventListener('scroll', check, { passive: true })
-    /* the page's contents arrive after the first paint (a kit face, a chart),
-       so the answer is re-asked when they do; both observers are absent in
-       jsdom and the cue simply stays as first measured there */
+    /* page contents arrive after the first paint (a kit face, a chart) so the answer is re-asked when they do; both observers are absent in jsdom and the cue stays as first measured there */
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(check) : null
     ro?.observe(el)
     const mo = typeof MutationObserver !== 'undefined' ? new MutationObserver(check) : null

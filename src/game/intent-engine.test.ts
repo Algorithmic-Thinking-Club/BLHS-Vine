@@ -117,9 +117,7 @@ describe('phase, which is where the year is', () => {
     save.writeSave({ introDone: true })
     save.setFlag('maw:founding')
     save.setFlag('vignette:y1')
-    /* Advisory sat with NO stamped sheet: the fire is over and the year is not,
-     * which is precisely the state an ending written as "advisory is None" would
-     * have played in. */
+    /* advisory sat with no stamped sheet: the fire is over and the year is not, the exact state an ending written as "advisory is None" would have played in */
     save.recordGrade({
       id: 'core:y1', title: 'POWER, Mondays, and joining a club', kind: 'core',
       credit: 0.5, grade: 4, year: 1, season: 'Fall',
@@ -127,10 +125,7 @@ describe('phase, which is where the year is', () => {
     expect(engine.read('phase')).not.toBe('yearbook')
     save.pickClass(1, 'ap-human-geo')
     save.stampPlan(1)
-    /* AND STILL NOT, BECAUSE A PICKED CLASS IS PART OF THE YEAR. Ash, 2026-09-08:
-     * *"The year is done only when every picked thing with play behind it is
-     * done: both classes today."* The sheet is stamped and Advisory is sat, and
-     * the one thing he chose is still unsat, so the arrow sends him to it. */
+    /* still not the yearbook, because a picked class is part of the year: the year ends only when every picked thing with play behind it is done, so the arrow sends him to the unsat class */
     expect(engine.read('phase')).toBe('class')
     save.recordGrade({
       id: 'class:ap-human-geo', title: 'AP Human Geography', kind: 'class',
@@ -162,8 +157,7 @@ describe('picks, which is what he is congratulated on', () => {
     expect(p.classes.map((c) => c.id)).toEqual(['ap-human-geo'])
     expect(p.classes[0].name).toBe('AP Human Geography')
     expect(p.graded[0].kind).toBe('core')
-    /* THE LETTER COMES FROM progress.ts, which is where the wall and the
-     * yearbook read it, so one afternoon cannot be described three ways. */
+    /* the letter comes from progress.ts, where the wall and the yearbook read it too, so one afternoon cannot be described three ways */
     expect(p.graded[0].grade).toBe('A')
   })
 

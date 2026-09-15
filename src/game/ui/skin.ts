@@ -13,8 +13,7 @@ export const DEFAULT_SKIN: KitSkin = 'paper'
 export const isKitSkin = (v: unknown): v is KitSkin =>
   typeof v === 'string' && (KIT_SKINS as readonly string[]).includes(v)
 
-/** the skin now on screen. `paper` is the default and writes no attribute, so a
- *  page that never calls anything here looks exactly like it did before. */
+/** the skin now on screen, where `paper` is the default and writes no attribute, so a page that never calls anything here looks exactly as it did before */
 export function currentSkin(): KitSkin {
   if (typeof document === 'undefined') return DEFAULT_SKIN
   const v = document.documentElement.dataset.skin
@@ -25,9 +24,7 @@ export function applySkin(skin: KitSkin): void {
   if (typeof document === 'undefined') return
   /* written only when it actually changes, since setting it re-styles the document */
   if (currentSkin() === skin) return
-  /* the default leaves the attribute off rather than setting it to 'paper': a
-   * selector that has to exist for the game to look right is a selector that can
-   * be missing, and the paper values are already in `:root` */
+  /* the default leaves the attribute off rather than setting it to 'paper': a selector that has to exist for the game to look right is a selector that can be missing, and the paper values are already in `:root` */
   if (skin === DEFAULT_SKIN) delete document.documentElement.dataset.skin
   else document.documentElement.dataset.skin = skin
 }
@@ -40,8 +37,7 @@ export function skinFromUrl(search: string): KitSkin | null {
   } catch { return null }
 }
 
-/** the skin an assigned arm means. An unjoined run has no arm and gets `null`,
- *  which is not the same as 'paper': it means nobody has said yet. */
+/** the skin an assigned arm means, where an unjoined run has no arm and gets `null`, which is not 'paper' but nobody having said yet */
 export const skinFromArm = (arm: StudyArm | null | undefined): KitSkin | null =>
   arm === 'plain' ? 'plain' : arm === 'game' ? 'paper' : null
 
@@ -57,8 +53,7 @@ export function resolveSkin(
 /* the last preference anybody handed over, since the two callers know different things */
 let lastPref: KitSkin | null = null
 
-/** put the assigned arm on <html>. `pref` is only passed by `applySettings`,
- *  which is the one caller that has the settings blob in its hand. */
+/** put the assigned arm on <html>, where `pref` is only passed by `applySettings`, the one caller holding the settings blob */
 export function wearAssignedSkin(pref?: KitSkin | null): void {
   if (typeof document === 'undefined') return
   if (isKitSkin(pref)) lastPref = pref

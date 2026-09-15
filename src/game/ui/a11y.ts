@@ -12,8 +12,7 @@ const syncPanels = () => {
   document.documentElement.dataset.panels = String(stack.length)
 }
 
-/** how many panels are open, for code outside a panel that needs to keep its
- *  hands off the Escape key while one is */
+/** how many panels are open, so code outside a panel can keep its hands off the Escape key while one is */
 export const panelDepth = (): number => stack.length
 
 /** is this panel the one a key press belongs to */
@@ -66,8 +65,7 @@ function backgroundOf(panel: Element): Element[] {
   return out
 }
 
-/** exported for the test, and for anything that has to make the world inert
- *  without being a React panel */
+/** exported for the test, and for anything that has to make the world inert without being a React panel */
 export function makeBackgroundInert(panel: Element): () => void {
   const marked = backgroundOf(panel)
   for (const el of marked) hide(el)
@@ -103,9 +101,7 @@ function liveRegion(): HTMLElement | null {
   el.setAttribute('role', 'status')
   el.setAttribute('aria-live', 'polite')
   el.setAttribute('aria-atomic', 'true')
-  /* off screen rather than display:none, because a hidden node is not read.
-   * Inline because this is one element the kit owns and a stylesheet the app
-   * forgot to import would silently take the announcements away. */
+  /* off screen rather than display:none because a hidden node is not read, and inline because a stylesheet the app forgot to import would silently take the announcements away */
   el.style.cssText = 'position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0'
   document.body.appendChild(el)
   return el
@@ -172,8 +168,7 @@ export function usePanel({ label, onClose, closeOnEscape = true }: PanelOptions)
       e.preventDefault()
       close.current?.()
     }
-    /* capture, so the innermost panel answers before any window listener that was
-     * registered earlier and would otherwise close the wrong thing */
+    /* capture, so the innermost panel answers before any earlier window listener that would otherwise close the wrong thing */
     window.addEventListener('keydown', key, true)
 
     /* the panel open sound, wired once here for every panel, and only the innermost one */
@@ -186,17 +181,14 @@ export function usePanel({ label, onClose, closeOnEscape = true }: PanelOptions)
       const at = stack.lastIndexOf(token)
       if (at >= 0) stack.splice(at, 1)
       syncPanels()
-      /* only if the panel still had focus. If the player has already clicked
-       * something else, stealing it back is the rudest thing a panel can do. */
+      /* only if the panel still had focus, because stealing it back after the player has clicked something else is the rudest thing a panel can do */
       if (cameFrom && (!document.activeElement || document.activeElement === document.body || el.contains(document.activeElement))) {
         cameFrom.focus?.()
       }
     }
   }, [token, closeOnEscape])
 
-  /* THE TRAP. Tab off the end wraps to the start rather than leaving, because a
-   * panel a keyboard can walk out of but a pointer cannot is not modal, and what
-   * is underneath is inert, so leaving means landing nowhere. */
+  /* the trap: Tab off the end wraps to the start, because what is underneath is inert so leaving lands nowhere, and a panel a keyboard can walk out of is not modal */
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key !== 'Tab') return
     const el = node.current
@@ -218,17 +210,14 @@ export function usePanel({ label, onClose, closeOnEscape = true }: PanelOptions)
 
 /* ---- arrow traversal inside a row of tabs ------------------------------ */
 
-/* §80.5 asks for arrow-key traversal inside a region. A tab row is the region
- * this kit actually has three of, and Left/Right on a tab row is the one
- * keyboard convention a student arrives already knowing. */
+/* arrow-key traversal inside a region, done on tab rows because Left and Right on a tab row is the one keyboard convention a student arrives already knowing */
 export function tabRowKeyDown<T>(e: React.KeyboardEvent, items: readonly T[], index: number, pick: (t: T) => void): void {
   const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : e.key === 'Home' ? -index : e.key === 'End' ? items.length - 1 - index : 0
   if (step === 0 && e.key !== 'Home' && e.key !== 'End') return
   e.preventDefault()
   const next = (index + step + items.length) % items.length
   pick(items[next])
-  /* the tab a player arrowed to is the one they are on, so focus follows it the
-   * way every tab row on the web does */
+  /* the tab a player arrowed to is the one they are on, so focus follows it the way every tab row on the web does */
   const row = (e.currentTarget as HTMLElement).parentElement
   const buttons = row ? focusablesIn(row) : []
   buttons[next]?.focus()

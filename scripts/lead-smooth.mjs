@@ -1,33 +1,4 @@
-/* THE PRINCIPAL'S WALK, MEASURED EVERY FRAME. BRIEF-MAW-RAIL-3 E.
- *
- * Ash after playing rail-2: *"The principal's walk is janky. Measure his position
- * and heading every frame on the led walks and remove the jitter: heading flips
- * on isometric steps, speed changes, the walk cycle not matching the speed,
- * snapping at the end of a move. He moves like a person crossing a room."*
- *
- * A screenshot cannot see any of those four, because the thing that is wrong is
- * the DIFFERENCE between one frame and the next. So this samples the scene's own
- * record of the driven body on every animation frame of the whole rail, and
- * prints four numbers per walk:
- *
- *   flips     how many times the heading changed. A man crossing a room turns
- *             once or twice; a heading recomputed off a four pixel step on a
- *             foreshortened painting flips between two neighbours forever.
- *   speed     the mean and the spread of pixels travelled per second. A driven
- *             body has one speed, so the spread is the jank: a waypoint that
- *             swallows part of a frame's budget is a stutter.
- *   snap      the largest single-frame jump. The old arrival wrote the target
- *             coordinate straight onto the body, so the last frame of every leg
- *             was a teleport of up to one frame's travel.
- *   cycle     pixels travelled per walk frame. A walk cycle that runs off the
- *             clock rather than off the distance is a man skating when he is
- *             slow and running on the spot when he is stopped.
- *
- * It reads `window.__pmap.drivenNow`, which is the scene's own state and not a
- * guess off the pictures.
- *
- *   node scripts/lead-smooth.mjs [--base=http://localhost:5173] [--headed]
- */
+/* the led walk sampled every animation frame off `window.__pmap.drivenNow`, printing heading flips, the mean and spread of px/s, the largest single frame jump and pixels per walk frame, because a screenshot cannot see jank: the fault is the difference between one frame and the next */
 import { boot, BASE, LIVE } from './play-harness.mjs'
 
 const arg = (k, d) => {
@@ -45,8 +16,7 @@ const h = await boot('lead-smooth', {
 })
 const { page, say, shot, look, finish } = h
 
-/* the sampler runs inside the page on the browser's own animation frames, which
- * is the same clock the scene ticks on, so one sample is one drawn frame */
+/* the sampler runs inside the page on the browser's own animation frames, the same clock the scene ticks on, so one sample is one drawn frame */
 await page.waitForFunction(() => !!window.__pmap, null, { timeout: 30000 })
 await page.evaluate(() => {
   window.__lead = []
@@ -62,8 +32,7 @@ await page.evaluate(() => {
   tick()
 })
 
-/* press the way the rail-watch run does: the biggest thing that is not a way
- * back, and the middle of the screen when a line is talking */
+/* press the biggest thing that is not a way back, and the middle of the screen when a line is talking */
 const BACKWARD = /^back$|^close$|skip|quit|settings|back to the|back to my|leave this|put back|untick|close for now/i
 const CORNER = /^map$|^guide$|^my year$|^\?$/i
 const TALKING = /^click, or press space$|^begin the year$/i

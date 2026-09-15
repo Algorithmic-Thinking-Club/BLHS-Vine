@@ -15,7 +15,7 @@ export type DistrictId =
   | 'student-services'
   | 'honors'
 
-// Wiseman's knowledge taxonomy. A grape declares which one it is.
+// the knowledge taxonomy, and a grape declares which one it is
 export type GrapeCategory =
   | 'sport'
   | 'competitive-club'
@@ -99,17 +99,7 @@ export type CheckStep =
   | { kind: 'do'; id: string; prompt: string; goal: { anchor: string; label: string }; decoys: { anchor: string; label: string }[]; reply?: string; objective?: string }
   /* a turn-based contest where knowledge is the ammunition, one point per round */
   | { kind: 'showdown'; id: string; prompt: string; opponent: string; rounds: ShowdownRound[]; objective?: string }
-  /* A PROGRAM THE STUDENT BUILDS AND THEN WATCHES RUN, a point per slot.
-   *
-   * KEYED BY SLOT INDEX AND NEVER BY THE CARD'S LABEL, which is the whole reason
-   * this is its own kind rather than an `order`. An `order`'s response key is the
-   * item's label, so a program using the same instruction twice collapses two
-   * slots into one answer and the response that should earn full marks scores one
-   * short, with no validator and no test to catch it.
-   *
-   * The moves are a REUSABLE vocabulary rather than a bag of cards: every slot may
-   * hold any move. That is what makes the answer space identical in both arms,
-   * which a depleting pool in the game arm alone would break. */
+  /* a program the student builds then watches run, a point per slot, keyed by slot index and never by the card's label: an `order` keys its response by the item's label, so reusing one instruction twice collapses two slots into one answer, and the moves are a reusable vocabulary so every slot may hold any move */
   | {
     kind: 'program'; id: string; prompt: string
     /** the board as a figure, which is how the plain arm is given the same problem */
@@ -118,9 +108,7 @@ export type CheckStep =
     moves: { name: string; label: string }[]
     /** one per numbered slot, in order. `move` is the instruction that belongs there. */
     slots: { label: string; move: string }[]
-    /* what the body walks while the student watches. Drawn by the game arm and read
-     * by NOTHING in the scoring path, which is what keeps the walk a body on an item
-     * rather than a second thing being measured. */
+    /* what the body walks while the student watches, drawn by the game arm and read by nothing in the scoring path, which keeps the walk a body on an item rather than a second thing being measured */
     board?: {
       cols: number; rows: number
       walls: [number, number][]
@@ -130,9 +118,7 @@ export type CheckStep =
     reply?: string; objective?: string
   }
 
-/** one turn of a showdown. Same shape as a `choice`, because a round IS a choice
- *  with a scoreboard behind it, and giving it a second shape would give the
- *  palette two spellings of the same word. */
+/** one turn of a showdown, the same shape as a `choice`, because a round is a choice with a scoreboard behind it and a second shape would give the palette two spellings of one word */
 export interface ShowdownRound {
   id: string
   prompt: string
@@ -149,16 +135,15 @@ export interface RewardDef {
 export interface GrapeEncounter {
   npc: NpcDef
   room?: string                // interior/room id this plays in (e.g. '305'); placement gives the building
-  intro?: SceneLine[]          // beat 3 — dialogue
-  media?: MediaClip            // beat 4 — the real video, framed
-  cutscene?: CutsceneStep[]    // optional richer beat — Thor follows the NPC
-  check: CheckStep[]           // beat 5 — the woven understanding-check(s)
+  intro?: SceneLine[]          // beat 3, dialogue
+  media?: MediaClip            // beat 4, the real video, framed
+  cutscene?: CutsceneStep[]    // optional richer beat, Thor follows the NPC
+  check: CheckStep[]           // beat 5, the woven understanding checks
   outro?: SceneLine[]
-  reward?: RewardDef           // beat 6 — tangible reward
+  reward?: RewardDef           // beat 6, tangible reward
 }
 
-// Pure data. A config-only grape ships just this plus a manifest, no code. Add `encounter` for the
-// full in-world scene; omit it and the vine renders the simple intro/clips/quiz path.
+// pure data: a config-only grape ships this plus a manifest and no code, and `encounter` adds the full in-world scene while omitting it renders the simple intro/clips/quiz path
 export interface GrapeContent {
   intro?: DialogueLine[]
   clips?: MediaClip[]

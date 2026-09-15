@@ -1,15 +1,4 @@
-/* AN ISLAND'S OWN TASK LIST, AND THE WAY OFF IT WHEN THEY ARE ALL DONE.
- *
- *   node scripts/atc-tasks-proof.mjs
- *
- * Ash asked for two things and this holds both: *"islands should constantly have
- * tasks to do, and thats how it should be layed out"*, and *"when all tasks in an
- * island are complete, a button at the bottom middle should show up saying 'Island
- * Finished - Head back'. once clicked, the user gets teleported to the dock."*
- *
- * The list is declared in the island's own Python, the ticks live in the save, and
- * the sheet that draws them is the one the year's tasks already use.
- */
+/* an island's own task list and the finish button that puts the player back on the dock, run with `node scripts/atc-tasks-proof.mjs`: the list is declared in the island's Python, the ticks live in the save, and the sheet drawing them is the one the year's tasks already use */
 import { boot, STAMPED } from './play-harness.mjs'
 
 const fails = []
@@ -48,10 +37,7 @@ const sheet = async () => {
 const first = await sheet()
 ok("the sheet is the island's and names it", !!first && /Algorithmic Thinking Club/.test(first.head), first?.head)
 ok('the heading counts the ISLAND and not the year', !!first && /0 of 2 done/.test(first.head), first?.head)
-/* THE ISLAND'S ROWS COME FIRST AND THE YEAR STAYS UNDER THEM. One sheet carries both,
- * because it is the only task sheet there is: an island list that replaced the year's
- * would hide Advisory and every pick, and in the home base it would hide the very rows
- * that room exists for. */
+/* the island's rows come first and the year stays under them on one sheet, because an island list that replaced the year's would hide Advisory and every pick, and in the home base it would hide the rows that room exists for */
 const mineRows = !!first && first.rows.slice(0, 2)
 ok("the island's own rows are first, each with its note",
   !!mineRows && mineRows.length === 2 && mineRows.every((r) => r.name && r.note && !r.done),
@@ -78,8 +64,7 @@ for (let i = 0; i < WANT.length; i++) {
     const c = [...document.querySelectorAll('.bt-card')].find((x) => x.textContent.trim() === label)
     if (c) c.click()
   }, WANT[i])
-  /* one rule: the instruction goes into the next empty step. Pressing the step after
-   * it takes the instruction back out again. */
+  /* one rule: the instruction goes into the next empty step, and pressing the step after it takes the instruction back out */
   await page.waitForTimeout(220)
 }
 const press = async (re) => {
@@ -156,18 +141,11 @@ if (back) {
     await page.waitForTimeout(300)
   }
   ok('pressing it is not refused', !refused, refused ?? 'no refusal')
-  /* THE DOCK AND NOT JUST SOMEWHERE ELSE. The berth on this island is down at the
-   * bottom of the painting and the terrace is at the top, so anything that has not
-   * crossed most of the map has not arrived. */
+  /* the dock and not just somewhere else: the berth on this island is at the bottom of the painting and the terrace at the top, so anything that has not crossed most of the map has not arrived */
   ok('and he is at the dock, not part of the way to it',
     !!moved && !!before.at && moved.y - before.at.y > 180,
     JSON.stringify({ from: before.at, to: moved }))
-  /* ON GROUND, NOT ON WATER. A berth is the point the HULL ties up at, authored in the
-   * ocean's coordinates, so it is by definition not somewhere a person can stand.
-   * `onFloor` hands back the point it was given when it finds nothing standable, and
-   * measured against both published bundles there is no floor within 44 painting
-   * pixels of either berth: he was being put on the water, where `walk.ts` reads level
-   * zero as stuck and moves a stuck body with no collision test at all. */
+  /* a berth is where the hull ties up, so by definition nobody can stand on it, and `onFloor` hands back the point it was given when it finds nothing standable: no floor sits within 44 painting pixels of either published berth, which put a body on water where `walk.ts` reads level zero as stuck and skips collision */
   const standable = await page.evaluate(() => {
     const p = window.__pmap
     return p.spotOnGlass ? { level: p.level ?? null, at: { x: Math.round(p.x), y: Math.round(p.y) } } : null
@@ -182,13 +160,7 @@ if (back) {
     JSON.stringify({ he: moved, spawn, level: standable?.level }))
   await shot('03-at-the-dock')
 }
-/* ---- AND THE LIST DIES WITH THE ISLAND -------------------------------------
- *
- * The rows name things to do HERE. Carried onto the next map they tell a student to
- * press a machine that is not in the room, and worse, they are COUNTED: the sheet in
- * the home base read "Algorithmic Thinking Club, 3 of 5 done" with two rows he could
- * not reach, so a student who finished everything the year asked of him could never
- * see the counter finish. */
+/* the list dies with the island: the rows name things to do here and they are counted, so carried onto the next map the home base sheet read "Algorithmic Thinking Club, 3 of 5 done" with two rows nobody could reach and a counter that could never finish */
 await page.evaluate(() => window.__intent({ kind: 'enter', map: 'panther-maw' }))
 await page.waitForTimeout(9000)
 const away = await sheet()

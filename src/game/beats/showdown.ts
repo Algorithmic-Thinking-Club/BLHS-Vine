@@ -13,15 +13,13 @@ export type ShowdownState = {
   total: number
   /** the pick on the current round, null until the student answers it */
   picked: number | null
-  /** what was picked in each answered round, keyed by round id, so the runner can
-   *  hand the palette one Response for the whole showdown and score it in one line */
+  /** what was picked in each answered round, keyed by round id, so the runner hands the palette one Response for the whole showdown */
   picks: Record<string, number>
   done: boolean
 }
 
 export type ShowdownAction =
-  /** answer the round on screen. Ignored once the round is answered, so a double
-   *  click cannot score twice, which is the bug every quiz UI ships once. */
+  /** answer the round on screen, ignored once the round is answered so a double click cannot score twice */
   | { kind: 'pick'; index: number }
   /** take the answered round off the screen and start the next one */
   | { kind: 'next' }
@@ -47,9 +45,7 @@ export function showdownReduce(s: ShowdownState, a: ShowdownAction, rounds: Show
     }
   }
 
-  /* next: only from an answered round, so the chassis cannot be advanced past a
-   * question the student never saw and end the drive with a denominator it did
-   * not earn the right to */
+  /* next only from an answered round, so the chassis cannot be advanced past a question the student never saw and end with a denominator it did not earn */
   if (s.picked === null) return s
   const round = s.round + 1
   return { ...s, round, picked: null, done: round >= s.total }
@@ -65,7 +61,6 @@ export const yardsRemaining = (s: ShowdownState, fieldYards = 80): number =>
 export const progressOf = (s: ShowdownState): number =>
   s.total === 0 ? 1 : s.earned / s.total
 
-/** the drive as an answer the palette can score, so a showdown goes through the
- *  same single scoring function as a two-option choice does */
+/** the drive as an answer the palette can score, so a showdown goes through the same scoring function a two-option choice does */
 export const responseOf = (checkId: string, s: ShowdownState): Response =>
   Object.fromEntries(Object.entries(s.picks).map(([roundId, i]) => [`${checkId}:${roundId}`, String(i)]))

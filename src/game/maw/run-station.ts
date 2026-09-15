@@ -1,25 +1,21 @@
 // the driver: pump a generator of intents until it is done, handing each result back in
 import { performIntent, type Intent, type IntentHost } from '../../vine/intents'
 
-/* a body that has stopped making progress. Not a real limit anyone reaches: a
- * station is a handful of lines. It exists so a `while True:` in a member's
- * island stops the island instead of the browser tab. */
+/* a ceiling on a body that has stopped making progress, so a `while True:` in a member's island stops the island instead of the browser tab */
 const MAX_STEPS = 10_000
 
 export type StationBody = Generator<Intent, void, unknown>
 
 export type RunReport = {
   steps: number
-  /* intents the engine refused, kept so a debug overlay can show an author what
-   * their island asked for that this map cannot answer */
+  /* intents the engine refused, kept so a debug overlay can show what an island asked for that this map cannot answer */
   refused: { intent: string; why: string }[]
   error?: string
 }
 
 export async function runStation(body: StationBody, host: IntentHost, label = 'station'): Promise<RunReport> {
   const report: RunReport = { steps: 0, refused: [] }
-  /* what to hand back at the next resume: either a value from a completed
-   * intent, or an error to raise at the yield that asked for it */
+  /* what to hand back at the next resume: a value from a completed intent, or an error to raise at the yield that asked for it */
   let send: unknown
   let raise: Error | null = null
 
@@ -35,8 +31,7 @@ export async function runStation(body: StationBody, host: IntentHost, label = 's
     try {
       step = raise ? body.throw(raise) : body.next(send)
     } catch (e) {
-      /* the body did not catch what was thrown in, or it threw on its own. Its
-       * own message is the useful one, so it is kept rather than wrapped. */
+      /* the body did not catch what was thrown in, or threw on its own, and its own message is kept rather than wrapped because it is the useful one */
       report.error = e instanceof Error ? e.message : String(e)
       console.error(`[station] ${label}:`, report.error)
       return report
@@ -45,8 +40,7 @@ export async function runStation(body: StationBody, host: IntentHost, label = 's
     if (step.done) return report
 
     const intent: Intent = step.value
-    /* a body that yields something that is not an intent is a body with a typo,
-     * and it should hear about it at the line that did it */
+    /* a body yielding something that is not an intent has a typo, and should hear about it at the line that did it */
     if (!intent || typeof intent !== 'object' || typeof intent.kind !== 'string') {
       raise = new Error(`yielded ${JSON.stringify(intent)}, which is not an intent`)
       continue

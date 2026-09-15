@@ -13,13 +13,9 @@ export type CoreBeat = {
   year: number
   title: string          // "This is the place"
   place: string          // where it stages, in fiction ("the Advisory Hearth")
-  /* ledger kind (§8.1 credit classes): core beats, class beats and an island's own
-   * all share this chassis. `LedgerEntry.kind` has carried 'island' since it was
-   * written and `finish()` copies this straight onto the row. */
+  /* ledger kind, the credit class: core beats, class beats and an island's own all share this chassis, and finish() copies this straight onto LedgerEntry.kind */
   kind: 'core' | 'class' | 'island'
-  /* WHAT THE ACTIVITY IS FRAMED IN. A card is the panel every beat has always
-   * opened in. A screen is the full-bleed monitor an island pushes the camera into,
-   * and it is chrome: it changes nothing that is asked, answered or scored. */
+  /* what the activity is framed in: a card is the panel every beat has always opened in, a screen is the full bleed monitor an island pushes the camera into, and it is chrome that changes nothing asked, answered or scored */
   chrome?: 'card' | 'screen'
   /** cord tags carried onto the ledger entry ('ap'/'cte'/'lang'/..., which progress.ts reads) */
   tags?: string[]
@@ -44,8 +40,7 @@ export function checksOf(beat: CoreBeat): CheckStep[] {
   return out
 }
 
-/** the beat's steps with any refused item taken out, so the woven path plays
- *  exactly the items `checksOf` counts and never one more */
+/** the beat's steps with any refused item taken out, so the woven path plays exactly the items checksOf counts and never one more */
 export function playableSteps(beat: CoreBeat): BeatStep[] {
   const kept = new Set(checksOf(beat).map(checkIdOf))
   return beat.steps.filter((s) => s.kind !== 'check' || kept.has(checkIdOf(s.check)))

@@ -17,8 +17,7 @@ from PIL import Image
 
 # reuse the same material ramps as palette_grade.py (base, shadow/face, highlight, accents)
 RAMPS = {
-    # grass ramp weighted toward muted PNW green (dropped the dry-grass/bark entries that were
-    # pulling mids to olive/tan); a single dry tone kept for sun-bleached pixels only
+    # grass ramp weighted toward muted PNW green: the dry grass and bark entries pulled mids to olive and tan, so one dry tone is kept for sun bleached pixels only
     "grass":    [0x45563e, 0x364532, 0x59624e, 0x2c3a28, 0x3f4f38, 0x6a7158],
     "turf":     [0x3f5236, 0x364532, 0x4a6040, 0x55714a, 0x2c3f26],
     "forest":   [0x233124, 0x2c3f26, 0x364532, 0x1c2a1e, 0x45563e, 0x6b4a32],
@@ -26,11 +25,7 @@ RAMPS = {
     "asphalt":  [0x3a3b3f, 0x4d4a47, 0x55565a, 0x2c2d31, 0x6a6a6e],
     "dirt":     [0x8a6b4a, 0x5e3d31, 0x9c7a56, 0x705236, 0xa98a64],
     "brick":    [0x9e745e, 0x5e3d31, 0xb38a73, 0xb0a99a, 0x7a5446],
-    # dark carved stone / basalt monument (the gate heads): near-black charcoal body,
-    # cool violet shade, mid charcoal planes, ONE warm rim tone. Added 2026-07-13 —
-    # before this ramp existed the post-process literally could not land a head in
-    # c1-dark-massif's charcoal family (it re-tanned toward lion colors). grade_warm
-    # preserves per-pixel luminance, so the carved AO survives the grade.
+    # dark carved stone for the gate heads, near black body, cool violet shade, mid charcoal planes and one warm rim tone: without this ramp the grade re-tanned a head toward lion colours instead of c1-dark-massif's charcoal, and grade_warm preserves per pixel luminance so the carved AO survives
     "monument": [0x14100f, 0x241b22, 0x3a2f34, 0x554846, 0x6b5b52, 0x8a7a68],
     # concrete+grass blends keep both families so an edge tile grades cleanly
     "edge_gc":  [0xc8c6bf, 0xa8a69e, 0xd8d6cd, 0x45563e, 0x364532, 0x59624e],
@@ -66,8 +61,7 @@ def grade(path, material, out, chroma_blend=0.70, warm=0.06):
     d = ((flat[:, None, :] - ramp[None, :, :]) ** 2).sum(-1)
     nearest = ramp[d.argmin(1)].reshape(H, W, 3)
 
-    # graded target = nearest ramp colour, but RE-LIT to this pixel's own luminance so directional
-    # light survives. (scale the ramp colour to match L, clamp.)
+    # the graded target is the nearest ramp colour re-lit to this pixel's own luminance, so directional light survives the grade
     nL = luma(nearest)
     relit = nearest * (L / np.clip(nL, 1.0, None))
     target = np.clip(relit, 0, 255)

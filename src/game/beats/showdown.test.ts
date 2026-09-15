@@ -1,5 +1,4 @@
-// THE SHOWDOWN CHASSIS. Two things are under test: that a drive adds up, and that
-// nothing about the student's body is anywhere in the sum.
+// the showdown chassis, two things under test: that a drive adds up, and that nothing about the student's body is anywhere in the sum
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -116,9 +115,7 @@ describe('THE TIMING LAW: the item scores and the body does not', () => {
   })
 
   it('gives the same yard line for the same answers however long they took', () => {
-    /* the whole point, stated as an experiment: two identical drives separated by
-     * real wall-clock time have to read identically, because there is nothing in
-     * the state a clock could have written to. */
+    /* the whole point as an experiment: two identical drives separated by real wall clock time have to read identically, because there is nothing in the state a clock could have written to */
     const fast = drive([true, false, true, false])
     const slow = JSON.parse(JSON.stringify(fast)) as ShowdownState
     const spin = Date.now()
@@ -137,8 +134,7 @@ describe('THE TIMING LAW: the item scores and the body does not', () => {
   })
 
   it('the palette cannot score on time either: scoring takes a check and an answer, full stop', () => {
-    // the signature is the enforcement. `scoreOf(check, response)` has nowhere to
-    // put a duration, so an island that wants to grade speed has to change the vine.
+    // the signature is the enforcement: scoreOf(check, response) has nowhere to put a duration, so an island that wants to grade speed has to change the vine
     const src = fs.readFileSync(path.resolve('src/game/beats/palette.ts'), 'utf8')
     expect(src).toContain('score: (c: ByKind[K], r: Response) => number')
     expect(src.includes('Date.now')).toBe(false)

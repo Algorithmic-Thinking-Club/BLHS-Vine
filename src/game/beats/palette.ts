@@ -10,9 +10,7 @@ export type Response = Record<string, string>
 
 /* ---- the derived plain rendering -------------------------------------------- */
 
-/** an option a student can pick. `value` is what scoring sees, `text` is what the
- *  student reads. They are kept apart because a `place` item's value is an anchor
- *  name and a choice's is an index, and neither should be the words on screen. */
+/** an option a student picks: `value` is what scoring sees, `text` is what they read, kept apart because a `place` value is an anchor name and a choice's an index. */
 export type PlainOption = { value: string; text: string }
 
 /** one answerable row. A choice is one field; a sort is one field per item. */
@@ -33,13 +31,7 @@ export type PlainRender = {
   fields: PlainField[]
   /* the reply for each answer, keyed by field and value; a value of '' prints whatever they did */
   replies: { field: string; value: string; text: string }[]
-  /* ---- WHAT THE GAME ARM READS OFF ITS CHROME --------------------------
-   *
-   * Standing beside the prompt rather than inside it, because the two arms
-   * must show the SAME prompt and a parity test holds them to it. This is for
-   * the content a game arm happens to carry on a bar, a banner or a gauge: the
-   * showdown's opponent was on the drive bar in one arm and nowhere at all in
-   * the other, so the control answered a quiz with nobody across from it. */
+  /* chrome the game arm carries on a bar or gauge, beside the prompt because both arms must show the same prompt: the showdown's opponent sat on one arm's drive bar and nowhere in the other. */
   note?: string
 }
 
@@ -53,9 +45,7 @@ type Entry<K extends CheckStep['kind']> = {
   plain: (c: ByKind[K]) => PlainRender
 }
 
-/** an option list with the correct index marked, which choice, quiz and a showdown
- *  round all are underneath. Value is the index, never the words, so two options
- *  that read the same do not collapse into one answer. */
+/** an option list with the correct index marked, shared by choice, quiz and showdown rounds: value is the index, never the words, so two options that read alike do not collapse into one answer. */
 function optionFields(id: string, options: { text: string; correct?: boolean }[]): PlainField {
   return {
     id,
@@ -98,9 +88,7 @@ export const PALETTE: { [K in CheckStep['kind']]: Entry<K> } = {
         options: c.item.choices.map((t, i) => ({ value: String(i), text: t })),
         correct: String(c.item.correctIndex),
       }],
-      /* a quiz item carries ONE explanation for the item rather than one per
-       * option, so every option shows it. Withholding it from the plain arm was
-       * the same defect as withholding a choice's replies. */
+      /* a quiz carries one explanation for the whole item rather than one per option, so every option shows it and the plain arm must not withhold it. */
       replies: c.item.explanation
         ? [{ field: c.item.id, value: '', text: c.item.explanation }]
         : [],
@@ -126,9 +114,7 @@ export const PALETTE: { [K in CheckStep['kind']]: Entry<K> } = {
 
   number: {
     points: () => 1,
-    /* TOLERANCE IS ABSOLUTE AND DECLARED. A blank or a word scores zero rather
-     * than throwing, because a student typing "twenty four" is a wrong answer and
-     * not a crash. */
+    /* tolerance is absolute and declared, and a blank or a word scores zero rather than throwing, because a student typing "twenty four" is a wrong answer and not a crash. */
     score: (c, r) => {
       const given = Number((r[c.id] ?? '').trim())
       if (!Number.isFinite(given) || (r[c.id] ?? '').trim() === '') return 0
@@ -199,61 +185,29 @@ export const PALETTE: { [K in CheckStep['kind']]: Entry<K> } = {
     plain: (c) => ({
       id: c.id,
       prompt: c.prompt,
-      /* the game arm reads the opponent twice, on the drive bar and over every
-       * question, and the form had it nowhere */
+      /* the game arm reads the opponent twice, on the drive bar and over every question, and the form had it nowhere */
       note: c.opponent ? `Against ${c.opponent}.` : undefined,
       fields: c.rounds.map((rd) => ({ ...optionFields(`${c.id}:${rd.id}`, rd.options), label: rd.prompt })),
       replies: c.rounds.flatMap((rd) => optionReplies(`${c.id}:${rd.id}`, rd.options)),
     }),
   },
 
-  /* A PROGRAM, SCORED SLOT BY SLOT AND NEVER BY THE CARD THAT LANDED THERE.
-   *
-   * The response key is the slot's 1-based number. That is the entire reason this
-   * is not an `order`: an order keys on the item's LABEL, so a program that uses
-   * one instruction twice folds two slots into one answer, and the response that
-   * is supposed to earn full marks quietly scores one short. No validator catches
-   * it and no test covers it, which is what makes it worth a kind of its own.
-   *
-   * Two slots reading the same words therefore still answer apart, and two cards
-   * reading the same words are genuinely interchangeable, which is the fair
-   * answer: what a student wrote is the sequence of moves, not which physical
-   * card they picked up. */
+  /* a program is scored slot by slot, keyed on the slot's 1-based number and not on its label the way `order` is, because an order folds two slots that use the same instruction into one answer and quietly scores a full response one short. */
   program: {
     points: (c) => c.slots.length,
-    /* ---- A PROGRAM IS MARKED ON WHAT IT DOES ---------------------------
-     *
-     * ASH, twice: *"i clicked all the right answers on the minigame, and still got a
-     * 0"* and *"IT GAVE ME AN F EVEN THOUGH I REACHED THE END."*
-     *
-     * This counted steps that matched the ones the author typed. The ATC maze has
-     * THREE five-step programs that reach the flag, so two of the three right answers
-     * scored zero of five: a student solved it, watched his own body walk onto the
-     * flag, and was told he had got every step wrong. With the second question that
-     * is one of six, which is an F for solving the problem.
-     *
-     * A program that reaches the flag is a correct program. One that does not gets
-     * credit per step, which is the partial marking this always was and is the right
-     * shape for a near miss. */
+    /* a program that reaches the flag is correct, because counting only the author's own steps scored two of the three five-step solutions to the ATC maze zero out of five, an F for solving it; a program that misses still earns credit per step. */
     score: (c, r) => {
       const written = c.slots.map((_, i) => r[`${c.id}:${i + 1}`] ?? '')
       if (solves(c.board, written)) return c.slots.length
       return c.slots.filter((s, i) => r[`${c.id}:${i + 1}`] === s.move).length
     },
-    /* THE BOARD GOES IN `note` AND NOT IN THE PROMPT. Both arms must show the same
-     * prompt and a parity test holds them to it, so the figure rides beside it, the
-     * way the showdown's opponent does. Without it the control arm is asked to put
-     * five instructions in order with no problem to solve, which stops being
-     * reasoning and becomes recall: a different construct, not a different
-     * presentation, and the comparison would be measuring two things. */
+    /* the board rides in `note` and not in the prompt, because a parity test holds both arms to the same prompt, and without the figure the control arm orders five instructions with no problem to solve, which is recall rather than reasoning. */
     plain: (c) => {
       const fields = c.slots.map((s, i) => ({
         id: `${c.id}:${i + 1}`,
         label: s.label,
         input: 'select' as const,
-        /* every move is offered at every slot, so the answer space is identical in
-         * both arms. A game arm that took cards out of a pool as they were used
-         * would be a game arm with fewer wrong answers available than the form. */
+        /* every move is offered at every slot, so both arms have the same answer space: taking cards out of a pool as they are used would leave the game arm fewer wrong answers than the form. */
         options: c.moves.map((m) => ({ value: m.name, text: m.label })),
         correct: s.move,
       }))
@@ -285,20 +239,13 @@ export const scoreOf = (c: CheckStep, r: Response): number => entry(c).score(c, 
 /** the control arm's rendering, derived. Never authored twice, never `as_plain: false`. */
 export const plainOf = (c: CheckStep): PlainRender => entry(c).plain(c)
 
-/** the ledger/telemetry id of a check. A quiz carries its id on its item; every
- *  other kind carries its own, which is why every new kind above has an `id`. */
+/** the ledger and telemetry id of a check: a quiz carries its id on its item, every other kind carries its own. */
 export const checkIdOf = (c: CheckStep): string => (c.kind === 'quiz' ? c.item.id : c.id)
 
 /** the question, in the words the author wrote, identical in both arms */
 export const promptOf = (c: CheckStep): string => (c.kind === 'quiz' ? c.item.prompt : c.prompt)
 
-/* did this one field earn its point, answered by the same scoring the whole item uses.
- *
- * A PROGRAM IS THE ONE ITEM WHERE A STEP CANNOT BE JUDGED ALONE. It is marked on
- * whether the whole thing reaches the flag, so a student who found a different route
- * than the author typed has five right steps and not one: asking about each of them on
- * its own would tick the ones that coincide and cross the ones that do not, over the
- * top of a full mark. The other kinds are per-field and unchanged. */
+/* did this field earn its point, by the same scoring the item uses: a program is the one kind where a step cannot be judged alone, since a route the author did not type has five right steps and per-field marking would cross most of them over the top of a full mark. */
 export const fieldRight = (c: CheckStep, f: PlainField, r: Response): boolean => {
   if (c.kind === 'program') {
     const written = c.slots.map((_, i) => r[`${c.id}:${i + 1}`] ?? '')
@@ -308,26 +255,14 @@ export const fieldRight = (c: CheckStep, f: PlainField, r: Response): boolean =>
   return scoreOf(c, { [f.id]: r[f.id] ?? '' }) > 0
 }
 
-/** the response that earns full marks. The plain rendering already knows it, so
- *  reading it back off the fields is what proves the plain arm can reach the same
- *  score the game arm can rather than being a lossy copy of the item. */
+/** the response that earns full marks, read back off the plain fields, which is what proves the plain arm can reach the same score as the game arm rather than being a lossy copy. */
 export const fullMarks = (c: CheckStep): Response =>
   Object.fromEntries(plainOf(c).fields.map((f) => [f.id, f.correct]))
 
 /* refuse an item that cannot be answered, by name, at load rather than on screen */
 export function refuseCheck(c: CheckStep): string | null {
   const id = checkIdOf(c)
-  /* ---- A KIND NOBODY HAS IS REFUSED FIRST ---------------------------------
-   *
-   * The switch below has a case per kind and no default, so an item whose `kind` is a
-   * typo fell straight through it and was reported VALID. The next thing that touches
-   * it is `entry()`, which reads `PALETTE[c.kind]` and gets undefined, and the frame
-   * after that is a property read on undefined: a white page, not a refusal.
-   *
-   * A member's island is the whole reason this matters. The kinds arrive over the
-   * worker as strings a person typed in Python, so "muliple" instead of "multiple" is
-   * an ordinary Tuesday, and what he should get is a sentence naming his own word and
-   * the ones that exist. */
+  /* a kind nobody has is refused first, because the switch below has a case per kind and no default: a typo'd `kind` passed as valid, then `entry()` read `PALETTE[c.kind]` as undefined and the next frame was a white page instead of a sentence naming the word and the kinds that exist. */
   if (!(c.kind in PALETTE))
     return `check "${id}" is a "${String(c.kind)}", which is not a kind of question this game has. `
       + `It has: ${Object.keys(PALETTE).sort().join(', ')}`
@@ -360,8 +295,7 @@ export function refuseCheck(c: CheckStep): string | null {
       return c.regions.some((g) => g.name === c.correct)
         ? null : `check "${id}" is correct on region "${c.correct}", which it does not name`
     case 'do':
-      /* the one every author will hit: a world-staged item with no wrong place to
-       * go renders in the control arm as a question with a single option. */
+      /* the one every author will hit: a world-staged item with no wrong place to go renders in the control arm as a question with one option. */
       return c.decoys.length ? null : `check "${id}" is a do with no decoys, so the plain arm has one option and no question`
     case 'showdown': {
       if (!c.rounds.length) return `check "${id}" is a showdown with no rounds`
@@ -373,8 +307,7 @@ export function refuseCheck(c: CheckStep): string | null {
     }
     case 'program': {
       if (!c.slots.length) return `check "${id}" is a program with no slots to fill`
-      /* one move is not a choice, and the form would render a select with a single
-       * option, which is the same defect `do` with no decoys has */
+      /* one move is not a choice, and the form would render a select with a single option, which is the same defect `do` with no decoys has */
       if (c.moves.length < 2) return `check "${id}" must offer at least two instructions`
       const twice = c.moves.find((m, i) => c.moves.findIndex((n) => n.name === m.name) !== i)
       if (twice) return `check "${id}" offers the instruction "${twice.name}" twice, so two options carry one value`
