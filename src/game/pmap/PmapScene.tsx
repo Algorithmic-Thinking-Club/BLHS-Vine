@@ -9,7 +9,7 @@ import { cleanLife, lifeAt, type Life, type LifeBounds, separate } from './life'
 /* the walk law is imported from walk.ts so the editor and this scene cannot disagree */
 import { TEST_SPEED, Walker, canStand as lawCanStand, canStandFrom as lawCanStandFrom, defaultCfg, dirFrom, type MaskDoc, type WalkCfg } from './walk'
 import { AnchorSet, type Anchor } from './anchors'
-import { framingOf, framingNames, shotOf, projectFramings, shotsOf, type NamedShot } from './framings'
+import { framingOf, shotOf, projectFramings, shotsOf, type NamedShot } from './framings'
 import { readPaths, legsOf, lengthOf, pathNames, walkFaults, type Pathway } from './paths'
 import { followStep } from './follow'
 import { holdWorld, onWorldHold, worldHeld } from '../world-bus'
@@ -20,8 +20,6 @@ import { play as playSfx } from '../audio'
 import { NotBuilt, PACE_OF, PLAYER, WAIT_FOR_CEILING_MS, performIntent, type Intent, type IntentHost, type IntentWorld, type Offset } from '../../vine/intents'
 import { CutsceneRuntime } from '../cutscene/runtime'
 import type { CutsceneStage } from '../cutscene/types'
-import { publishRuntime } from '../cutscene/stage-bus'
-import { resolveScript, scriptById } from '../cutscene/scripts'
 import { findPath, onFloor, type Pt } from './path'
 import { warmMap } from './warm'
 import { setMapUrl, targetFromUrl, type PmapTarget } from './route'
@@ -76,12 +74,10 @@ import { setObjectiveSaid, setWorldObjective } from '../hud/objective-bus'
 const FAR_START_REACH = 900
 
 /** the five states an in-world prompt can be in */
-export type PromptState = 'plain' | 'objective' | 'barred' | 'needs' | 'done'
+export type PromptState = 'plain' | 'objective' | 'barred' | 'done'
 import { composeWorldText, WORLD_TEXT } from '../ui/worldText'
 import { MAW_MAP, isObjective, nextObjective } from '../run/objective'
-import { missingAnchors } from '../maw/stations'
-import { runStation } from '../maw/run-station'
-import { isReady, labelFor, ownerOf } from './grape-router'
+import { labelFor, ownerOf } from './grape-router'
 import { islandOfMap } from '../roster/member-islands'
 import { vineIslandOfMap } from '../roster/vine-islands'
 import { fetchGrape, type GrapeRef } from '../../vine/py/grape-source'
@@ -577,11 +573,6 @@ export default function PmapScene() {
       if (DBG && anchors.all.length) {
         console.log(`[pmap] ${mapId}: ${anchors.all.length} anchors ·`,
           anchors.all.map((a) => `${a.name}(${a.kind})`).join(' '))
-      }
-      /* the Maw states what it needs, said once at load rather than letting a station silently never fire because its anchor was never placed */
-      if (mapId === MAW_MAP) {
-        const missing = missingAnchors((n) => anchors.has(n))
-        if (missing.length) console.warn(`[pmap] ${mapId} is missing anchors: ${missing.join(', ')}`)
       }
       /* does a door's target map exist, asked once per target and asked of the platform too */
       const doorState = new Map<string, 'checking' | 'ok' | 'missing'>()
@@ -1676,7 +1667,6 @@ export default function PmapScene() {
         plain: 0x3b2a1a,
         objective: 0x234c40,
         barred: 0x8a7a60,
-        needs: 0x6a563c,
         done: 0x5a4a34,
       }
       /* the drawn face each state wears, off sheets the platform publishes */
@@ -1684,7 +1674,6 @@ export default function PmapScene() {
         plain: null,
         objective: null,
         barred: 'lock',
-        needs: 'key',
         done: 'tick',
       }
 
@@ -2383,8 +2372,7 @@ export default function PmapScene() {
         if (who === PLAYER_ID) return loadSave()?.handle || 'You'
         const a = anchors.get(who)
         if (a?.label) return a.label
-        const owner = ownerOf(who, grapeHandlers)
-        if (owner) return labelFor(owner, who)
+        if (a || ownerOf(who, grapeHandlers)) return who
         /* a speaker nobody on this map is called still speaks, and says which name failed */
         console.warn(`[pmap] ${mapId}: nobody called "${who}" is on this map, so the plate says so`)
         return who
@@ -2605,54 +2593,11 @@ export default function PmapScene() {
 
         /* cutscene plays, and refuses an unknown script or one whose anchors this map lacks */
         cutscene(script) {
-          const authored = scriptById(script)
-          if (!authored) throw new NotBuilt('cutscene', `no script named "${script}"`)
-          const { script: resolved, missing } = resolveScript(
-            authored,
-            (n) => {
-              const a = anchors.get(n)
-              return a ? anchors.standAt(a) : null
-            },
-            /* the map's own shot, so a framing moves with the thing it is a shot of */
-            (n, name) => {
-              const meta = anchors.get(n)?.meta
-              const f = framingOf(meta, name)
-              /* a framing name the map does not carry is named at the line that asked, with the list */
-              if (name && (!f || f.name !== name)) {
-                const have = framingNames(meta)
-                console.warn(`[pmap] ${script}: "${n}" carries no framing named "${name}". It has: ${have.join(', ') || 'none'}`)
-              }
-              return f
-            },
-          )
-          if (missing.length)
-            throw new NotBuilt('cutscene', `"${script}" wants anchors ${mapId} does not have: ${missing.join(', ')}`)
-
-          /* one script at a time, since a second would discard the first one's completion */
-          if (runtime.running) throw new NotBuilt('cutscene', `"${script}" cannot start: a script is already running here`)
-
-          const resume = suspendStationHold()
-          stageMisses = []
-          unpublish?.()
-          unpublish = publishRuntime(runtime)
-          engine.log('cutscene_started', { map: mapId, script })
-          return new Promise<void>((done, fail) => {
-            runtime.play(resolved, () => {
-              /* the promise settles in the runtime's own finish callback and nowhere else */
-              unpublish?.(); unpublish = null
-              csCam = null
-              csHold?.(); csHold = null
-              /* the actors go back to being alive, and any awaited leg is settled as it is dropped */
-              releaseDriven()
-              resume()
-              engine.log('cutscene_finished', { map: mapId, script, missed: stageMisses })
-              if (stageMisses.length) {
-                fail(new NotBuilt('cutscene', `"${script}" played, but this scene could not perform: ${stageMisses.join(', ')}`))
-                return
-              }
-              done()
-            })
-          })
+          /* the engine shipped a table of authored scripts and played one by name. an
+           * island composes a film out of the vocabulary instead, so there is no table
+           * left to look a name up in and this refuses rather than reporting a scene
+           * that never ran. */
+          throw new NotBuilt('cutscene', `no script named "${script}": a film is composed out of the vocabulary now`)
         },
 
         /* the player's own body: a named pose and a heading, which is how a map draws him waking */
@@ -3433,7 +3378,7 @@ export default function PmapScene() {
         if (!offerOf(a).canFire) return false
         const { goal: g, reach } = walkGoal(a)
         /* the name the student has been reading, not the one the author typed */
-        const shown = a.label || labelFor(ownerOf(a.name, grapeHandlers), a.name)
+        const shown = labelFor(a.label, a.name)
         /* the same reach `walk_to` uses, so a click and a member's own line land in the same place: an authored stand point is exact, and without one the ring's radius is the tolerance the author drew */
         startWalk(g, reach, g.facing ?? null,
           () => { /* nothing was waiting on it */ }, shown,
@@ -3566,7 +3511,7 @@ export default function PmapScene() {
       const offerOf = (a: Anchor): { text: string; state: PromptState; canFire: boolean } => {
         /* the same resolver the press uses, because a grape owned anchor the prompt does not know about is a handler no key and no tap can reach */
         const owner = ownerOf(a.name, grapeHandlers)
-        const label = a.label || labelFor(owner, a.name)
+        const label = labelFor(a.label, a.name)
         let text = ''
         let canFire = false
         /* the state, which the engine has always known and never told the student */
@@ -3577,20 +3522,17 @@ export default function PmapScene() {
           /* a door with nothing behind it is barred in the world's words, and silent while checking */
           if (built === 'ok') { text = actionFor(a, label); canFire = true }
           else if (built === 'missing') { text = `${label} · not open yet`; state = 'barred' }
+        } else if (islandPending) {
+          /* the room is painted before the worker has the island, so the plaque names the
+           * thing rather than flickering from blank to text on every load */
+          text = label
+        } else if (!owner) {
+          /* an anchor nothing answers to is named out loud rather than silently ignored */
+          if (DBG) { text = `${label} · nothing answers to ${a.name}`; state = 'barred' }
         } else {
-          const sv = loadSave()
-          if (!owner) {
-            /* an anchor nothing answers to is named out loud rather than silently ignored */
-            if (DBG) { text = `${label} · nothing answers to ${a.name}`; state = 'barred' }
-          } else if (isReady(owner, sv)) {
-            text = actionFor(a, label); canFire = true
-            /* used already this sitting: still open and still pressable, said quietly so it does not look identical to the one thing in the room the student has not touched */
-            if (usedThisSitting.has(a.name)) { text = `${actionFor(a, label)} again`; state = 'done' }
-          } else if (owner.by === 'station') {
-            /* the station is closed and says why in its own sentence rather than in a greyed out control, because a control a student can press and be told why beats one that does not respond */
-            text = sv ? (owner.station.closed?.(sv) ?? label) : label
-            state = 'needs'
-          }
+          text = actionFor(a, label); canFire = true
+          /* used already this sitting: still open and still pressable, said quietly so it does not look identical to the one thing in the room the student has not touched */
+          if (usedThisSitting.has(a.name)) { text = `${actionFor(a, label)} again`; state = 'done' }
         }
         /* the objective outranks every other state it can share a plaque with, because it is the one the whole frame exists to make visible */
         if (canFire) {
@@ -3617,21 +3559,17 @@ export default function PmapScene() {
           engine.log('anchor_unclaimed', { map: mapId, anchor: a.name })
           return
         }
-        /* a grape does not need a save to talk; a station's body is handed one */
-        if (owner.by === 'station' && !sv) return
         /* an island already running something is not a press, and nothing says it was */
-        if (owner.by === 'grape' && grape?.busy()) return
+        if (grape?.busy()) return
         busy = true
         usedThisSitting.add(a.name)
         stationHold = holdWorld(`station:${a.name}`)
         engine.log('station_used', {
-          map: mapId, anchor: a.name, by: owner.by,
+          map: mapId, anchor: a.name, by: 'grape',
           objective: sv ? isObjective(sv, mapId, a.name) : false,
         })
         try {
-          const report = owner.by === 'grape'
-            ? await grape!.call(owner.handler)
-            : await runStation(owner.station.run(sv!), intentHost, a.name)
+          const report = await grape!.call(owner.handler)
           /* a crash or a refusal is logged, since one arm failing quietly reads as an effect */
           if (report.error) {
             console.warn(`[pmap] station ${a.name}: ${report.error}`)
@@ -4601,9 +4539,8 @@ const CAST_OFF_SHOW_MS = 3200
         if (a.kind === 'door') { void fire(a); return 'fired' }
         const owner = ownerOf(a.name, grapeHandlers)
         if (!owner) return `nothing answers to ${a.name}`
-        if (owner.by === 'station' && !loadSave()) return 'no run'
         /* the same answer the scene gives itself, because a probe that reads fired for a press the room dropped reports a working station as broken */
-        if (owner.by === 'grape' && grape?.busy()) return 'busy'
+        if (grape?.busy()) return 'busy'
         void fire(a)
         return 'fired'
       }
@@ -5791,7 +5728,7 @@ const CAST_OFF_SHOW_MS = 3200
               continue
             }
             /* the island has to be free too, checked here because this caller spends the trigger */
-            if (busy || (ownerOf(z.name, grapeHandlers)?.by === 'grape' && grape?.busy())) continue
+            if (busy || (!!ownerOf(z.name, grapeHandlers) && grape?.busy())) continue
             firedTriggers.add(z.name)
             void fire(z)
           }

@@ -1,7 +1,6 @@
 /* tests that a camera shot comes off the map itself, with a script's number only a fallback */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { framingOf, framingNames, shotOf, projectFramings, shotsOf } from './framings'
-import { resolveScript, type AuthoredScript } from '../cutscene/scripts'
 
 const DESK = {
   framing: { zoom: 1.5, dy: -14, name: 'default' },
@@ -42,39 +41,6 @@ describe('a framing on an anchor', () => {
     expect(shotOf({ x: 196, y: 322 }, framingOf(DESK, 'close'))).toEqual({ x: 196, y: 304, zoom: 1.9 })
     /* no framing at all is the anchor itself, at whatever the caller fell back to */
     expect(shotOf({ x: 10, y: 20 }, null, 1.35)).toEqual({ x: 10, y: 20, zoom: 1.35 })
-  })
-})
-
-describe('resolving a script against a map that frames itself', () => {
-  const spot = (n: string) => (n === 'desk' ? { x: 196, y: 322 } : null)
-  const script: AuthoredScript = {
-    id: 'test', steps: [{ t: 'cameraAt', anchor: 'desk', framing: 'close', zoom: 1.35, ms: 900 }],
-  }
-
-  it('uses the MAP number and not the script number', () => {
-    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
-    const { script: r, missing } = resolveScript(script, spot, (_n, name) => framingOf(DESK, name))
-    expect(missing).toEqual([])
-    expect(r.steps[0]).toEqual({ t: 'camera', to: { x: 196, y: 304 }, zoom: 1.9, ms: 900 })
-    /* and it says so, once, rather than silently discarding what somebody typed */
-    expect(info).toHaveBeenCalledWith(expect.stringContaining('is framed at 1.9 by the map'))
-    info.mockRestore()
-  })
-
-  it('falls back to the script number on a map whose author has not framed it', () => {
-    const { script: r } = resolveScript(script, spot, () => null)
-    expect(r.steps[0]).toEqual({ t: 'camera', to: { x: 196, y: 322 }, zoom: 1.35, ms: 900 })
-  })
-
-  /* the old behaviour is still the behaviour with no reader passed, which is what keeps every caller that has not been taught about framings working */
-  it('is unchanged when nobody hands it a framing reader at all', () => {
-    const { script: r } = resolveScript(script, spot)
-    expect(r.steps[0]).toEqual({ t: 'camera', to: { x: 196, y: 322 }, zoom: 1.35, ms: 900 })
-  })
-
-  it('still refuses a whole script for an anchor the map does not have', () => {
-    const bad: AuthoredScript = { id: 'bad', steps: [{ t: 'cameraAt', anchor: 'nowhere', ms: 10 }] }
-    expect(resolveScript(bad, spot, () => null).missing).toEqual(['nowhere'])
   })
 })
 
