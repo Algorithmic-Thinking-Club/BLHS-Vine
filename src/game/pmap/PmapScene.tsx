@@ -3617,7 +3617,38 @@ export default function PmapScene() {
           /* a thing drawn one way has no heading to turn to, and the word says so */
           if (!look?.views || !Object.keys(look.views).length)
             throw new NotBuilt('actor_face', `"${actor}" was drawn one way and has no heading to turn to`)
-          take(sp).facing = facing
+          /* ---- ANYBODY CAN BE TURNED TO LOOK AT A PLACE, NOT JUST THOR --------
+           *
+           * This took whatever string it was handed and wrote it straight in as a
+           * heading. A compass point worked. Anything else was stored, looked up
+           * against the eight pictures the body was drawn with, missed, and drew the
+           * body on whatever face the miss fell through to, with nothing said.
+           *
+           * Two halves were already here and the useful one was missing: `actor_face`
+           * could turn THOR to look at a place, and it could turn anybody to look at
+           * THOR, and it could not turn anybody to look at a PLACE. So the Maw could
+           * not say "the principal is looking into his own hall" without typing a
+           * compass point, which is the one thing every film in that room is fenced
+           * against, because a heading typed in is a bet on where somebody left a
+           * table in MAPVIS.
+           *
+           * It matters well past this room. Ash: *"everything we've done for the atc
+           * island, even the obvious stuff, needs to be replicatable by atc members."*
+           * A member writing `actor_face("shopkeeper", "the_counter")` was getting a
+           * silently wrong sprite, which is the worst answer of the three available.
+           * Now the name is asked of the map that is loaded, and a name the map does
+           * not carry is refused by name rather than drawn wrong. */
+          if (DIRS8.includes(facing)) { take(sp).facing = facing; return }
+          const place = anchors.get(facing)
+          if (!place)
+            throw new NotBuilt('actor_face', `"${facing}" is neither a heading nor a place on ${mapId}. `
+              + `Headings are ${DIRS8.join(', ')}, and a place is any anchor on this map.`)
+          const d1 = take(sp)
+          const spot = anchors.spotOf(place)
+          const turn = dirFrom(spot.x - d1.x, (spot.y - d1.y) * (map.yScale || 1))
+          /* standing on the thing has no direction to it, and a guess would be worse
+           * than the heading they already had */
+          if (turn) d1.facing = turn
         },
 
         actorLook(actor, look) {
@@ -6187,6 +6218,33 @@ const CAST_OFF_SHOW_MS = 3200
             standing: standing.map((q) => ({ n: q.name ?? '?', x: Math.round(q.x), y: Math.round(q.y), r: Math.round(q.r) })),
             obstacles: obstacles.map((q) => q.name ?? '?'),
           }
+        },
+        /* every placement an island has taken hold of, where it put it and which way
+         * it turned it, including the heading kept after it let go. Ash: *"principal
+         * panther is just facing some weird direction"* - which way a body faces was
+         * not readable from outside at all, so it could only be argued about. */
+        get actors() {
+          const out: Record<string, unknown> = {}
+          /* KEYED BY ANCHOR, AND INCLUDING THE ONES NOBODY IS HOLDING. `driven` is
+           * emptied on release, so reading it alone says nothing about the body a film
+           * has just let go of, which is the only state a student ever walks in on. */
+          for (const a of anchors.all) {
+            if (!a.placement) continue
+            const sp = placedById.get(a.placement)
+            if (!sp) continue
+            const d = driven.get(sp)
+            const spot = anchors.spotOf(a)
+            out[a.name] = {
+              x: Math.round(sp.position.x), y: Math.round(sp.position.y),
+              /* and the point a body is turned TOWARDS when a script names this
+               * anchor, which is the stand point and not the picture's middle */
+              spot: { x: Math.round(spot.x), y: Math.round(spot.y) },
+              visible: sp.visible,
+              facing: d?.facing ?? lastFacing.get(sp) ?? null,
+              held: !!d,
+            }
+          }
+          return out
         },
         /* whether his own ship is on this map at all, and whether she is drawn */
         get ship() {

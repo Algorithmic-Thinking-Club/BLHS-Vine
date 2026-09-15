@@ -155,10 +155,25 @@ describe('the rail hardcodes no geometry', () => {
   })
 
   it('names no compass heading at a station, since which way is "at him" is the map\'s to know', () => {
+    /* ---- THE RULE IS "NOT A COMPASS POINT", AND IT READ "IS THOR" -------------
+     *
+     * It required the literal string "thor" on every line, which was the same thing
+     * for as long as the player was the only derived thing a body could be turned to.
+     * `actor_face` can turn anybody to look at any PLACE now, resolved against the map
+     * that is loaded, so `actor_face(x, TABLE)` and `actor_face(x, look_at)` obey this
+     * law exactly as `"thor"` does, and the old spelling called them violations.
+     *
+     * What the law has always meant: a compass point typed into a film is a bet on
+     * where somebody left a table in MAPVIS, and a NAME is a question the scene
+     * answers against the export in front of it. So the check is on the eight, which
+     * is also how the members own copy of this rule is written
+     * (`blhs-islands/tests/test_the_maw.py`, THE_EIGHT). */
+    const EIGHT = ['north', 'north-east', 'east', 'south-east',
+      'south', 'south-west', 'west', 'north-west']
     const bad = founding.split('\n')
       .map((l, i) => [i + 1, l] as const)
       .filter(([, l]) => /actor_face\(/.test(l) && !l.trim().startsWith('#'))
-      .filter(([, l]) => !/"thor"/.test(l))
+      .filter(([, l]) => EIGHT.some((d) => l.includes(`"${d}"`) || l.includes(`'${d}'`)))
     expect(bad.map(([n, l]) => `${n}: ${l.trim()}`), 'a written heading is back').toEqual([])
   })
 
