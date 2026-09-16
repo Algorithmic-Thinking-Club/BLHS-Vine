@@ -9,7 +9,7 @@ export type ScheduleOwed = {
   ready: boolean
   /* which box is lit, and the schedule comes first because the page is read top to bottom with the periods at the top, so a lit box further down points away from what is being read */
   stage: 'schedule' | 'after' | 'go'
-  /* the reason on the button, always, because a disabled control a student cannot interrogate is worse than one that answers; null when the plank is live and there is nothing to say */
+  /* why the button is shut, always, since a disabled control a student cannot interrogate is worse */
   notYet: string | null
 }
 
@@ -33,7 +33,7 @@ export function scheduleOwed(n: {
 }): ScheduleOwed {
   /* both elective periods are always owed, whether or not an island exists behind one */
   const owesClass = n.electivesLeft > 0
-  /* every season on offer has to be chosen before stamping, because one used to be enough and stamping then carried the year's other two tokens into the stamp and forfeited them with nothing on the page saying so */
+  /* every season on offer has to be chosen before stamping */
   /* every seat on offer, never more than the year holds, and at least one wherever anything is playable at all */
   const seats = Math.max(1, Math.min(SEASONS_OWED, n.seats ?? SEASONS_OWED))
   const seasonsLeft = Math.max(0, seats - n.chosen)

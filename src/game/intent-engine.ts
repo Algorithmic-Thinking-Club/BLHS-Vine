@@ -21,7 +21,7 @@ import { setCinema } from './stage/cinema'
 import { setObjectiveSaid } from './hud/objective-bus'
 import { islandTaskList, islandTaskTicked, setIslandTasks } from './hud/island-tasks'
 
-/* every path the run can answer, kept as a `Record<RunPath, true>` and not an array on purpose: widening RunPath without adding it here is a type error, so the refusal in `read` can never list a stale vocabulary */
+/* every path the run can answer, kept as a record so widening RunPath fails to compile until it is listed */
 const READABLE_PATHS: Record<RunPath, true> = {
   year: true, gpa: true, tokens: true, cords: true, flags: true, islands: true,
   handle: true, mode: true, graduated: true, cord_board: true, trophies: true,

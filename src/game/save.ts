@@ -153,7 +153,7 @@ const listeners = new Set<() => void>()
 export function subscribeSave(fn: () => void) { listeners.add(fn); return () => { listeners.delete(fn) } }
 const emit = () => { for (const fn of listeners) fn() }
 
-// another tab wrote the run: drop this tab's snapshot so the next read sees theirs and subscribers re-render, because without this a stale tab's next write reverted real progress
+// another tab wrote the run, so this tab drops its snapshot and subscribers re-render
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
     if (e.key === KEY) { cache = undefined; emit() }
@@ -391,7 +391,7 @@ export function recordExposure(place: string, docked = false) {
 }
 
 /* writes one row per programme per year, updating this year's rather than adding a second */
-/* a voyage is counted the way a class is, on the same `attempts` and `firstGrade`, and `grade` may be null meaning finished without a grade, which is what `award` with no number says and which used to be written as 0 and printed as an F */
+/* a voyage is counted the way a class is, and a null grade means it was sailed and not scored */
 export function recordCompletion(programme: string, grade: number | null, rank?: string) {
   const s = loadSave()
   if (!s || !programme) return null

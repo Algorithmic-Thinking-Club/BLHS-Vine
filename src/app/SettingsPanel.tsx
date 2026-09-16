@@ -115,7 +115,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
       /* the kit's one stamp (`ui/feedback.ts`) rather than this panel's own opinion of what saving looks like, and it announces itself on the way past */
       saved(`Name saved as ${v}`)
     }
-    /* the field snapping back to the old name is the whole of the refusal on screen, and it is silent to a reader, so it is announced */
+    /* the field snapping back to the name it had is the whole of the refusal on screen */
     else { setNameDraft(save?.handle ?? ''); announce('That name was not accepted. The old one is back.') }
   }
   const commitBoat = (raw: string) => {
@@ -153,7 +153,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const TABS: Tabs[] = ['account', 'controls', 'danger']
   const TAB_NAMES: Record<Tabs, string> = { account: 'Account', controls: 'Controls', danger: 'Danger Zone' }
   /* the tab swap is silent: nothing changes but the page under the row, so a reader is told which page it now is */
-  /* a new tab starts at its top: the page is one scroller for all three, so the Controls tab opened wherever Account had been scrolled to */
+  /* a new tab starts at its top, since the page is one scroller for all three */
   const pickTab = (t: Tabs) => { setTab(t); announce(`${TAB_NAMES[t]} settings`) }
 
   return (

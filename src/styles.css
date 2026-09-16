@@ -29,9 +29,7 @@ body {
   font-family: var(--font-body);
 }
 
-/* THE CONTROL ARM IS BLACK ON WHITE, INCLUDING THE GROUND UNDER EVERYTHING.
-   This shell is the app's own dark palette from before the kit existed, and the
-   plain arm never answered it, so every pixel no panel covered was charcoal. */
+/* the app's own dark shell palette, from before the kit existed */
 
 .boot {
   min-height: 100%;

@@ -13,9 +13,7 @@ function announce() {
   for (const fn of listeners) fn(held)
 }
 
-/* Take the controls away. The reason is not decoration: it is what a debug
- * overlay prints when input is stuck, and a stuck input with no name is an
- * afternoon. */
+/* take the controls away, with a reason a debug overlay can print when input is stuck */
 export function holdWorld(reason: string): HoldRelease {
   const key = Symbol(reason)
   holds.set(key, reason)
@@ -32,20 +30,16 @@ export function holdWorld(reason: string): HoldRelease {
 
 export const worldHeld = () => holds.size > 0
 
-/* what has the controls, for the debug overlay and for a log line when something
- * forgets to let go */
+/* what has the controls, for the debug overlay and for a log line */
 export const worldHolders = () => [...holds.values()]
 
-/* Subscribed scenes are told on change. A scene that mounts while a panel is
- * already open reads worldHeld() once at setup; this is only the edges. */
+/* subscribed scenes are told on change, and a scene that mounts mid-hold reads worldHeld once */
 export function onWorldHold(fn: (held: boolean) => void): () => void {
   listeners.add(fn)
   return () => { listeners.delete(fn) }
 }
 
-/* Scene teardown. A scene that unmounts mid-hold would otherwise leave the lock
- * on for the next one, and the next one is a black screen you cannot walk out
- * of. Only the shell calls this. */
+/* scene teardown, called only by the shell, so a lock never carries into the next scene */
 export function releaseAllWorldHolds() {
   if (!holds.size) return
   console.warn(`[world-bus] releasing stuck holds: ${worldHolders().join(', ')}`)

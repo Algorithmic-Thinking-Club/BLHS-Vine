@@ -58,9 +58,7 @@ describe('the door the film walks through', () => {
     setCinema(true)
     carryCinemaThroughDoor()
     expect(takeCinemaCarry()).toBe(true)
-    /* the next map is torn down by a refresh rather than by a door, and that one
-     * must take the bars with it: this is the guard the exception is fenced
-     * against, not a second way to leave them up */
+    /* a refresh takes the bars with it, which is the guard the exception is fenced against */
     expect(takeCinemaCarry()).toBe(false)
   })
 

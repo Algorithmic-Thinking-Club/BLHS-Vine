@@ -25,11 +25,7 @@ describe('what is real and what is a placeholder', () => {
   it('calls every club and sport on the shipped roster a placeholder', async () => {
     const { PROGRAMMES } = await import('./roster')
     const { exampleNameOf } = await import('./placeholders')
-    /* A PLAYABLE PROGRAMME KEEPS ITS REAL NAME, which is the whole mechanism: the
-     * mask is what a student sees instead of a thing nobody built, so the day
-     * somebody builds one the mask has to come off it and stay on the rest. This
-     * used to assert every row was masked, which was true while
-     * `member-islands.json` was an empty list and is not the rule. */
+    /* a playable programme keeps its real name, and the mask stands in for a thing nobody built */
     for (const p of PROGRAMMES) {
       if (p.playable) {
         expect(exampleNameOf(p.id), `${p.id} is playable and should keep its name`).toBeNull()
@@ -78,9 +74,7 @@ describe('what is real and what is a placeholder', () => {
   })
 
   it('makes an ELECTIVE real the same way, by a row that names the class id', async () => {
-    /* the ruling: "becomes pickable and playable the moment a member-islands.json
-     * row links to its id, with no code change". A class is linked by a row whose
-     * programme id IS the class id, which is one line in the json. */
+    /* a programme becomes pickable the moment a member-islands row links its id, with no code change */
     vi.doMock('./member-islands', () => ({
       MEMBER_ISLANDS: [{ ...fakeRow, programme: 'spanish-1', name: 'Spanish I', kind: 'class' as const }],
     }))

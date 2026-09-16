@@ -63,7 +63,7 @@ export function Tour({ steps = HANDOVER_STEPS, onDone }: { steps?: Step[]; onDon
     return () => { live = false }
   }, [at])
 
-  /* enter and space go on, escape goes away, because all of them used to skip the lot and enter is what a keyboard reader hits to read the next card */
+  /* enter and space go on, escape goes away */
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.repeat) return

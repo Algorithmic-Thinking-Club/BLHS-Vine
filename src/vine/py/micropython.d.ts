@@ -3,9 +3,7 @@ declare module '@micropython/micropython-webassembly-pyscript/micropython.mjs' {
   export interface MicroPython {
     /* returns null in this build. Read the answer out of globals instead. */
     runPython(code: string): unknown
-    /* __main__'s namespace. Carries strings intact in both directions,
-     * including quotes, newlines and unicode (measured), which is why nothing
-     * here ever splices a value into a python source string. */
+    /* the main namespace, carrying strings intact both ways including quotes, newlines and unicode */
     globals: {
       get(key: string): unknown
       set(key: string, value: unknown): void
@@ -18,8 +16,7 @@ declare module '@micropython/micropython-webassembly-pyscript/micropython.mjs' {
   }
 
   export function loadMicroPython(options?: {
-    /* full URL of micropython.wasm. Becomes Module.locateFile, which is the
-     * only supported way to point the runtime at a bundler-hashed asset. */
+    /* full url of micropython.wasm, which becomes Module.locateFile */
     url?: string
     heapsize?: number
     stdout?: (line: string) => void

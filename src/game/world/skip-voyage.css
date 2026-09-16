@@ -2,16 +2,9 @@
 .sv-skip {
   position: fixed;
   left: 14px;
-  /* ---- INSIDE THE FRAME, NOT BEHIND IT --------------------------------
-   *
-   * The movie bars are 10vh each and the plaque sat at 14px, which put it
-   * squarely under the top one on every game-arm crossing: the offer Ash asked
-   * for was drawn and invisible. Measured on the live deploy 2026-09-08.
-   * `--cin-bar` is the bar's own height, so the two cannot drift. */
+  /* inside the frame rather than behind it, clear of the ten vh movie bars */
   top: calc(10vh + 12px);
-  /* over the movie bars (95) AND over the loading cover (90), because a cover in
-     the middle of a crossing is part of the crossing and the offer should not
-     blink out under it */
+  /* over the movie bars and over the loading cover, so the offer does not blink out under either */
   z-index: 96;
   font: 600 12px/1 var(--font-ui, system-ui, sans-serif);
   letter-spacing: 0.06em;

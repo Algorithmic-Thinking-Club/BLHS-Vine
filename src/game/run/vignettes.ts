@@ -1,6 +1,4 @@
-// Year-start vignettes (§7.5: three lines, one theme per year, Principal Panther's
-// voice). Shown once per year, first time the student stands in the world. Themes track
-// the core beats (§7.3). No em-dashes in player copy (law §2.8).
+// year-start vignettes: three lines in the principal's voice, shown once per year
 
 export const VIGNETTES: Record<number, string[]> = {
   1: [

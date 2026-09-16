@@ -227,7 +227,7 @@ html[data-rm='1'] .ti-actions { animation-duration: 1ms; }
 
 /* the title's own plank sizing, on top of the kit button's six states */
 .ti-actions .ti-plank {
-  /* wide enough for the words on it: 340px of plank, less 43px of carved cap each side and 26px of padding, left 202px for a label that needs about 230, so labels were cut off, and "Continue" fitted, which is why it survived so long */
+  /* wide enough for the words on it, once the carved caps and the padding are taken off */
   width: min(430px, 56vw);
   aspect-ratio: 512 / 160;
   padding: 0 14px;

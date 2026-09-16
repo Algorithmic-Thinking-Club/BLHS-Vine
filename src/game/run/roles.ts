@@ -45,8 +45,7 @@ export function declaredRole(meta: Record<string, unknown> | undefined, name: st
 
 export type RoleAnchor = { name: string; meta?: Record<string, unknown> }
 
-/* which anchor fills each role on this map. A declared role wins, and a role
- * nobody declares falls to the anchor named for it by convention. */
+/* which anchor fills each role on this map, a declared role first and the conventional name after */
 export function rolesOf<A extends RoleAnchor>(anchors: readonly A[], mapId?: string): Map<Role, A> {
   const out = new Map<Role, A>()
   const claimed = new Set<string>()

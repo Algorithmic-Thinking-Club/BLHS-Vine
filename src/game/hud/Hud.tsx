@@ -188,15 +188,15 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
   // the ui-bus: the world's diegetic stations open these same panels (ui-bus.ts)
   useEffect(() => onUiRequest((which, done) => {
     setPaused(false)
-    /* a second waiter would orphan the first, so the one already parked is let go before this one takes its place */
+    /* a second waiter would orphan the first, so the parked one is let go before this one lands */
     if (done) { waiting.current?.(); waiting.current = done }
     if (which === 'planner') { track('planner_requested', { via: 'world' }); setPlanner(true) }
     if (which === 'advisory') { setAdvisory(true) }
-    /* every door marked Guide opens `school`, the clubs and classes and course catalog the sign itself promises, because two of the three used to open `islands`, which is a fact about this game rather than about the school */
+    /* every door marked Guide opens the school book the sign promises */
     if (which === 'handbook') { setBook('school') }
     /* the same binder, opened on the page the beat is about */
     if (which === 'cords') { track('handbook_opened', { tab: 'cords', via: 'world' }); setBook('cords') }
-    /* the chart opens as the chart and not as a book about school: pressing E at the ship used to open the Handbook on its second tab, GPA line and all */
+    /* the chart opens as the chart rather than as a book about school */
     if (which === 'chart') { setChart(true) }
     /* a name nothing here matches releases its waiter, because this is a chain of equality tests with no else and an unhandled name parked a caller only the bus's ten minute ceiling could settle, with the world held for all of it; `performIntent` refuses an unknown panel by name and this is the fence behind it */
     if (!(UI_PANELS as readonly string[]).includes(which)) {
@@ -237,7 +237,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
     setBook(null); setPlanner(false); setAdvisory(false); setYearbook(false)
     setGraduation(false); setPaused(false); setSettings(false); setWardrobe(false); setWall(false)
     /* whoever asked for a beat is told it ended, even when it ended by being closed */
-    /* an abandoned beat answers nothing: `gradeFromLedger` reads whatever row is on the transcript, so closing a retake that was walked out of used to hand the island the previous sitting's grade as freshly earned, and the attempt count taken at handover rises only when a sitting finished */
+    /* an abandoned beat answers nothing, since gradeFromLedger reads whatever row is on the transcript */
     setPlaying((p) => {
       if (!p) return null
       const now = attemptsOn(loadSave(), p.beat.id)
@@ -321,7 +321,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
             aria-label={s?.plans?.[s.year]?.stamped
               ? 'My Year. Your schedule, and the classes you picked.'
               : 'My Year. Pick your classes and what you join.'}
-            /* hidden means hidden from a keyboard too: this plaque was the one that never carried the pair, so tabbing round a room the game had not handed over yet landed on a year sheet nobody had been given */
+            /* hidden means hidden from a keyboard too, so the plaque carries the pair */
             aria-hidden={!(plaqueShown('my-year') && g.tokens)}
             tabIndex={plaqueShown('my-year') && g.tokens ? undefined : -1}
             aria-haspopup="dialog"
@@ -349,7 +349,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
           onClose={closeAll}
           onAdvisory={(review) => { setPlanner(false); setAdvisory(review ? 'review' : true) }}
           onPlayPick={(pick) => {
-            /* one button per pick: with an island it sails, without one a card counts the pick as done, and the sheet shuts either way because leaving it open over a ship casting off is what used to reopen it; nothing here plays a quiz, since one wrong click on `classBeat`'s one scored item was a terminal F */
+            /* one button per pick: with an island it sails, without one a card counts the pick as done */
             setPlanner(false)
             /* through `grant`, because `awarded` is a bare stamp while `grant` also compares the save either side, so a credit that tips a cord over its line raises the cord's own card; finishing picks from the sheet is the only road to a cord and it was the one road that skipped this */
             const countIt = () => {
@@ -388,7 +388,7 @@ export function Hud({ onBlurWorld }: { onBlurWorld?: (b: boolean) => void }) {
         <CoreBeatRunner beat={yearBeat} review={advisory === 'review'} onClose={closeAll} />
       )}
       {playing && <CoreBeatRunner beat={playing.beat} onClose={closeAll} />}
-      {/* a door opened from the year sheet closes back to the sheet: these two used to close with `closeAll`, which shuts the sheet underneath as well, so looking at the trophy wall cost the player their place; one opened from the world still closes to the world, which is what `fromSheet` remembers */}
+      {/* a door opened from the year sheet closes back to the sheet */}
       {wall && <TrophyWall onClose={() => { setWall(false); if (fromSheet.current) setPlanner(true) }} />}
       {wardrobe && <Wardrobe onClose={() => { setWardrobe(false); if (fromSheet.current) setPlanner(true) }} />}
       {/* the fourteen seconds that explain the corner */}

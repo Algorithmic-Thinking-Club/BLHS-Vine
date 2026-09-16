@@ -43,18 +43,7 @@ describe('ranks (§8.2: years invested)', () => {
     expect(rankName(5)).toBe('Captain')
   })
 
-  /* THE FOUR-YEAR MODEL, ON THE FIRST PROGRAMME ANYBODY CAN ACTUALLY FINISH.
-   *
-   * The ladder is DERIVED and not counted: `ranksOf` reads the append-only
-   * completion rows and takes the number of distinct YEARS on a track. That is
-   * what makes it idempotent, which matters because an island can be replayed and
-   * `recordCompletion` writes the row again with a higher attempt count. A stored
-   * counter would tick twice for one afternoon.
-   *
-   * It is also the thing the whole four-year design rests on: a rank says you came
-   * back, not that you scored well. Wiseman's own reason for the model is that
-   * three tokens a year across four years forces a choice, and Captain costs a
-   * quarter of everything a student has to spend. */
+  /* the four year model on the first programme anybody can finish, with the ladder derived from completion rows */
   const withRuns = (rows: { programme: string; year: number; rank?: string }[]): SaveGame =>
     mkSave([], { completions: rows.map((r) => ({ ...r, grade: 4, at: 1, attempts: 1, firstGrade: 4 })) })
 
@@ -104,8 +93,7 @@ describe('cords & seals (§8.4 — the authoritative table)', () => {
   it('AP Honors: five passed AP courses, and a D passes because the district says so', () => {
     const passes = Array.from({ length: 5 }, () => entry({ tags: ['ap'], grade: 2 }))
     expect(cord(mkSave(passes), 'ap-honors').earned).toBe(true)
-    // SBLSD policy 2410: A through D earn the credit, F alone earns nothing, and there is
-    // no second higher bar for an AP course. The old C threshold was invented.
+    // district policy 2410: a through d earn the credit, f earns nothing, and an ap course has no higher bar
     const withD = Array.from({ length: 5 }, () => entry({ tags: ['ap'], grade: 1 }))
     expect(cord(mkSave(withD), 'ap-honors').earned).toBe(true)
     const oneF = [...passes.slice(0, 4), entry({ tags: ['ap'], grade: 0 })]
@@ -166,10 +154,7 @@ describe('cords & seals (§8.4 — the authoritative table)', () => {
       expect(g.rule).toBe('Bonney Lake High School has not published criteria for this award.')
       expect(g.earned).toBe(false)          // a single run has no class rank to compare against
       // the game's own stand-in is stated as the game's, beside the rule, never as the school's
-      /* the sentence has to mark itself as the GAME's guess rather than the
-       * school's rule, whatever words carry that. It used to say "the game's own
-       * model" and started with "In this game", which the Handbook prefixes on
-       * its own, so a student read it twice (Ash, 2026-09-09). */
+      /* the sentence marks itself as the game's guess rather than the school's rule */
       expect(g.model).toContain("this game's guess")
       expect(g.model, 'the Handbook already prefixes this').not.toMatch(/^In this game/)
     }
@@ -188,8 +173,7 @@ describe('cords & seals (§8.4 — the authoritative table)', () => {
       const c = cord(mkSave([]), id)
       expect(c.published, id).toBe(true)
       expect(c.rule, id).toBe(rule)         // verbatim from docs/blhs/awards.md
-      /* the SCHOOL's document, which a student can go and find, and never the
-       * repo file it was typed into. See the guard at the end of this file. */
+      /* the school's document, which a student can go and find, and never the repo file it was typed into */
       expect(c.source, id).toContain('BLHS awards list')
     }
     // Key Club's criteria are long, so the tripwire is that the game does not shorten them

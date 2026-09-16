@@ -18,7 +18,7 @@ export type HudRow = {
   says: string
   /** the condition, in the document's own words */
   rule: string
-  /** whether it can ever leave once granted (Q40.2.a) */
+  /** whether it can ever leave once granted */
   permanent: boolean
   has: (s: SaveGame) => boolean
 }

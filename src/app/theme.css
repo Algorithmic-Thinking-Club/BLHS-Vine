@@ -55,7 +55,7 @@
   filter: brightness(1.08);
   transform: translateY(-1px);
 }
-/* a control reachable by Tab and invisible once it is focused is not a key path, which is why the title buttons get a focus ring */
+/* the title buttons carry a focus ring, so a control reached by tab is still visible */
 .ui-btn:focus-visible, .title-gear:focus-visible {
   outline: var(--kit-focus-width) solid var(--kit-focus);
   outline-offset: var(--kit-focus-offset);

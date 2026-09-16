@@ -17,7 +17,7 @@ describe('the box the world is drawn in', () => {
   })
 
   it('pulls a flat world down into the band by growing the short axis', () => {
-    /* the live world: two islands 826 apart east to west and 27 apart north to south, the shape that used to be drawn at 5.3 to 1 */
+    /* the live world: two islands 826 apart east to west and 27 apart north to south */
     const box = chartBox([pt(2077.5, 1973.5), pt(1251, 1946)])
     expect(box.aspect).toBeLessThanOrEqual(CHART_ASPECT.max)
     expect(box.aspect).toBeGreaterThanOrEqual(CHART_ASPECT.min)
@@ -57,7 +57,7 @@ describe('the box the world is drawn in', () => {
   })
 
   it('draws the same world distance as the same number of pixels on both axes', () => {
-    /* the whole point of the aspect work, which the old chart got wrong by a factor of 2.4: the element is told to be `box.aspect` wide for its height, so a step east and the same step south must come out the same length once the percentages land on a real box */
+    /* the element is told to be the shape of the water it is drawing */
     const box = chartBox([pt(0, 0), pt(1200, 900)])
     const pxW = 700, pxH = pxW / box.aspect
     const o = atPct(box, pt(600, 450))

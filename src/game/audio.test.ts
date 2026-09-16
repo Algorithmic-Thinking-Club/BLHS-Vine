@@ -37,7 +37,7 @@ describe('a name the library does not hold', () => {
 
   it('forgives a hyphen for an underscore and nothing else', async () => {
     const { audio, NotBuilt } = await fresh()
-    /* the intro scripted `surf-in` a year before this module existed */
+    /* the intro scripts surf-in, a cue this module has to carry */
     expect(() => audio.play('surf-in')).not.toThrow()
     expect(() => audio.play('SURF_IN')).toThrow(NotBuilt)
     expect(() => audio.play('surfin')).toThrow(NotBuilt)

@@ -1239,7 +1239,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             const dtc = Math.min(dt, 2)
             const steer = ((keys['d'] || keys['arrowright']) ? 1 : 0) - ((keys['a'] || keys['arrowleft']) ? 1 : 0)
             V.rud += (steer - V.rud) * Math.min(1, 0.085 * dtc)
-            // she is a ship and not a speedboat: half the old top speed, a slow build, a long coast, and a sailboat steers with way on, so rudder authority builds with speed and is nearly dead at rest, meaning back out first then swing
+            // she is a ship and not a speedboat: a slow build, a long coast, and steering that needs way on
             if (Math.abs(V.rud) > 0.003) V.ang += V.rud * (0.003 + 0.017 * (Math.abs(V.spd) / 0.042)) * dtc
             if (keys['w'] || keys['arrowup']) V.spd = Math.min(0.042, V.spd + 0.001 * dtc)
             // S through zero is slow astern: a hull nosed into a pocket the rudder cannot swing out of backs straight off it, the move every sailor reaches for
@@ -1429,7 +1429,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         thorShadow.position.set(x, y + 3 + bobOff); thorShadow.zIndex = thor.zIndex - 1
         at += tk.deltaMS
         const wf = walk[facing] ?? walk[cardinalOf(facing)]
-        // sprint on shift held is a faster stride cadence plus a slight forward-motion stretch; at the helm the keys steer the ship so Thor stands and rides, and on deck he only strides when he actually moves, because pushing a rail used to moonwalk in place
+        // sprint on shift is a faster stride and a slight forward stretch, and at the helm he stands and rides
         const animMove = moving && !(veh && !veh.hop && veh.state === 'crewed')
         thor.texture = cs.pose ? cs.pose.tex : (animMove && wf) ? wf[Math.floor(at / (sprinting ? 68 : 110)) % wf.length] : (idle[facing] ?? idle['south'] ?? thor.texture)
         // camera follow: a running cutscene may hand the camera a target and zoom of its own, otherwise the standard Thor follow, biased down so the ocean fills the frame above him

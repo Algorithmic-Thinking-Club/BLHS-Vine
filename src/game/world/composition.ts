@@ -67,7 +67,7 @@ export type WorldSlot = {
   placements?: number
   /* how close the hull has to be for this map to stay loaded in memory */
   release: number
-  /** how close the hull comes before this counts as discovered */
+  /* how close the hull comes before this counts as discovered */
   discover?: number
   /** where a voyage arrives. Absent while nothing has been authored off-painting. */
   berth?: Berth
@@ -483,7 +483,7 @@ export function compositionFaults(c: WorldComposition, knownPlaces?: ReadonlySet
     if (knownPlaces && s.place && !knownPlaces.has(s.place))
       out.push({ key, slot, why: `names place "${s.place}", which is not on the roster` })
   })
-  /* not a slot fault, so it carries no index and nothing is dropped: a world whose home names nothing is still a world, and refusing it outright is how one mistyped string used to delete every island in the document */
+  /* not a slot fault, so it carries no index and nothing is dropped */
   if (c.home && !c.slots.some((s) => (s.place ?? s.map) === c.home!.slot))
     out.push({ key: 'home', why: `names "${c.home.slot}", which is not a slot` })
   return out

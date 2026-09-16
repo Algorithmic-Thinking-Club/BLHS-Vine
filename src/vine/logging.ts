@@ -9,7 +9,7 @@ export interface LoggerIdentity {
   mode: SessionMode
   /** captain / god-mode (law §2.14): events ship flagged dev:true, excluded from study exports */
   dev?: boolean
-  /** castaway / demo (§2.9): events NEVER ship — the queue drains locally */
+  /** castaway and demo never ship, and the queue drains locally */
   localOnly?: boolean
 }
 
@@ -63,7 +63,7 @@ export class Logger {
   async flush() {
     if (this.offline) { this.queue = []; return }
     if (this.queue.length === 0) return
-    // castaway/demo: nothing ships, ever (§2.9) — drain so the queue can't grow unbounded
+    // castaway and demo ship nothing, and the drain stops the queue growing without bound
     if (this.identity.localOnly) {
       console.debug('[log]', this.queue.length, 'events dropped (demo mode logs nothing)')
       this.queue = []
@@ -78,8 +78,7 @@ export class Logger {
     if (this.inflight) return
     this.inflight = true
     try {
-      // ship in chunks: keepalive bodies are hard-capped (~64KiB in Chrome), so one giant
-      // POST of a long queue would reject forever and the queue could never drain
+      // ship in chunks, since keepalive bodies are capped at about 64 kibibytes
       while (this.queue.length > 0) {
         const batch = this.queue.slice(0, 100)
         const body = JSON.stringify(batch)
@@ -89,19 +88,7 @@ export class Logger {
           body,
           keepalive: body.length < 40_000,
         })
-        /* ---- 503 { offline: true } IS THE SERVER SAYING "NOT TODAY" -------
-         *
-         * `api/log.ts` answers 503 when there is no DATABASE_URL on the deploy,
-         * which is the honest degrade it was built for and is the live state
-         * today. The queue kept every event and retried every five seconds for
-         * the whole session: a browser console filling with red on a school
-         * Chromebook, and one request per student per five seconds against an
-         * access point with thirty of them on it.
-         *
-         * A 503 offline is settled for this page, so it stops asking and drains
-         * the queue rather than growing one nobody will ever collect. Any OTHER
-         * failure keeps the queue and retries, because a dropped wifi packet is
-         * exactly what the retry is for. */
+        /* a 503 offline is the server saying it has no database today */
         if (res.status === 503) {
           const said = await res.json().catch(() => null) as { offline?: boolean } | null
           if (said?.offline) {

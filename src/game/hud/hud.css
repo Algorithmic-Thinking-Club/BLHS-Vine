@@ -148,7 +148,7 @@ html[data-rm='1'] .hb-book, html[data-rm='1'] .pz-panel { animation-duration: 1m
   color: var(--kit-ink-body);
   --kit-fs-raw: calc(1.62cqw * var(--kit-text-scale)); font-size: var(--kit-fs);
   line-height: 1.5;
-  /* the page turn is the one movement in the binder, keyed on the tab so React replays it, and an entrance rather than a loop, which is why shortening it under reduced motion is right here */
+  /* the page turn is the one movement in the binder, keyed on the tab so react replays it */
   animation: hb-turn 200ms var(--kit-ease-rise) both;
 }
 @keyframes hb-turn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }

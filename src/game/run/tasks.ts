@@ -46,7 +46,7 @@ export function tasksOf(s: SaveGame | null): Task[] {
     ...(st.coreBeatDone ? {} : { note: 'At the fire, inside the Panther’s Maw' }),
   })
 
-  /* every pick gets one note because there is one button: class rows and club rows used to be two loops with two different notes and a third state for a club nobody had built, and the single control always finishes the pick so nothing on this sheet is barred */
+  /* every pick gets one note, since there is one button */
   for (const p of picksOf(s)) {
     out.push({
       id: `${p.kind === 'class' ? 'class' : 'voyage'}:${p.id}`,

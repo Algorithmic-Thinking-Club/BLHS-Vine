@@ -29,7 +29,7 @@ const STEPS = [25, 50, 100, 250, 500, 1000, 2500, 5000, 10_000, 25_000]
 export const gridStep = (span: number): number =>
   STEPS.find((n) => span / n <= 16) ?? STEPS[STEPS.length - 1]
 
-/* the short axis grows and the long one never shrinks, because shrinking the long one pushes an island off the paper; the floor fires in practice and the ceiling never has, since a margin of a third of the spread holds a flat archipelago at about 2.4 to 1, kept as a fence against the old 5.3 to 1 strip */
+/* the short axis grows and the long one never shrinks, so no island is pushed off the page */
 export function clampAspect(w: number, h: number): { w: number; h: number } {
   const a = w / h
   if (a > CHART_ASPECT.max) return { w, h: w / CHART_ASPECT.max }

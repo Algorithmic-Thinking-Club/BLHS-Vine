@@ -92,8 +92,7 @@ describe('a wall in the way', () => {
 
 describe('the walk contract, not a second opinion', () => {
   it('refuses a terrace step taller than stepTolerance and takes the ramp', () => {
-    // left half at L0 (40), right half at L1 (60): a 20 gap against a tolerance of 10.
-    // One column of ramp (50) at the bottom bridges it, and it is the only way across.
+    // left half at level 40 and right at 60, a 20 gap against a tolerance of 10, bridged by one ramp column
     const lvl = new Uint8Array(W * H)
     for (let y = 2; y < H - 2; y++) {
       for (let x = 2; x < 30; x++) lvl[y * W + x] = 40
@@ -135,8 +134,7 @@ describe('where the arrow sits', () => {
 
 /* ---- a goal that is not on the floor */
 describe('onFloor', () => {
-  /* the hub, near the tunnel: everything above row 385 is the doorway and is
-   * blocked, the terrace lip below it stands */
+  /* the hub near the tunnel, where everything above row 385 is doorway and the terrace lip below stands */
   const hubish = (_x: number, y: number) => y >= 385
 
   it('leaves a goal that already stands exactly where it is', () => {

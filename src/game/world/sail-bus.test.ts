@@ -18,9 +18,7 @@ describe('asking the world to sail somewhere', () => {
   })
 
   it('lets the scene answer yes, and the scene wins over the fallback', async () => {
-    /* the fallback refusal is dispatched synchronously AFTER the event, so a
-     * listener that has already answered has to win. If this ever inverts, every
-     * successful crossing is reported to the student as a refusal. */
+    /* the fallback refusal is dispatched after the event, so a listener that already answered wins */
     const off = onSailRequest('hub', (_s, answer) => answer({ ok: true }))
     const a = await requestSail(slot())
     off()
@@ -35,9 +33,7 @@ describe('asking the world to sail somewhere', () => {
   })
 
   it('hands the scene the whole slot, not a berth name', async () => {
-    /* the hub's berth on the published world has NO name, so a click that
-     * travelled as a name would resolve to nothing and the boat would stop in
-     * open water with nobody to dock at */
+    /* the hub's berth on the published world has no name, so a click travelling as a name resolves to nothing */
     let got: WorldSlot | null = null
     const off = onSailRequest('hub', (s, answer) => { got = s; answer({ ok: true }) })
     await requestSail(slot({ title: 'The Stadium' }))
@@ -56,9 +52,7 @@ describe('asking the world to sail somewhere', () => {
   })
 
   it('names the painting on screen, and forgets it when the scene goes', () => {
-    /* the chart uses this to stop offering the island he is standing on. Read
-     * off the address it was a guess, and a wrong one on a cold boot, where
-     * `?map=` is absent and the fallback is a test bundle's id. */
+    /* the chart uses this to stop offering the island he is standing on */
     expect(sailFrom()).toBeNull()
     const off = onSailRequest('hub', () => { /* mounted */ })
     expect(sailFrom()).toBe('hub')

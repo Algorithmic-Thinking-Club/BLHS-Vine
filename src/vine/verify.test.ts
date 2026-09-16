@@ -1,6 +1,4 @@
-// The turn-in verification (§9.5). The canonical string's field order is FROZEN — the
-// locked-output test is the tripwire: if it fails, every printed diploma stops matching
-// every teacher roster. Do not "fix" the test; fix the regression.
+// the turn-in verification, with the canonical field order frozen by a locked-output tripwire
 import { describe, it, expect } from 'vitest'
 import { canonical, runCode, type Transcript } from './verify'
 import { transcriptOf } from '../game/progress'

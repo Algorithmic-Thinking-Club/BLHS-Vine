@@ -10,13 +10,11 @@ export type ClassRow = {
 }
 export type ParticipantRow = { id: string; class_id: string; handle: string; arm: string }
 export type RosterRow = {
-  /** the id the events table keys on, so a row and its measures can find each other.
-   *  teacher.ts strips it before the response leaves the handler. */
+  /** the id the events table keys on, stripped by teacher.ts before the response leaves */
   participant_id?: string
   handle: string; arm: string; created_at: string; last_seen: string | null
   year: string; beat: string
-  /** the whole synced SaveGame — teacher.ts derives graduated + the verification code
-   *  from it server-side and strips it from the response (§9.5) */
+  /** the whole synced save, from which teacher.ts derives graduated and the verification code server-side */
   save: unknown | null
 }
 export type EventRow = { participantId: string | null; sessionId: string | null; payload: unknown }

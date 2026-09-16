@@ -36,7 +36,7 @@ export type VoyageStatus = {
   /** what the token was spent on. A slot points at a PROGRAMME, never at a map. */
   programmeId: string
   name: string
-  /* the place that programme happens at, which is what the world draws and what an exposure record counts: three programmes at the stadium share a place and do not share completion, which is why these are two fields */
+  /* the place that programme happens at, which is what the world draws and an exposure record counts */
   placeId?: string
   /** the programme's loop can actually run today (roster, N1) */
   playable: boolean

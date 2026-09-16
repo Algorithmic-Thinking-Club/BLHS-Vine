@@ -70,7 +70,7 @@ function Painting({ cut, lift = false }: { cut: IslandCut; lift?: boolean }) {
       className={`ch-pic${gone ? ' ch-pic-gone' : ''}`}
       style={{ width: cut.w, height: cut.h, marginTop: lift ? -cut.h / 2 : 0 }}
     >
-      {/* with no painting the old pin stands, because a browser's broken picture icon on a chart is worse and the island is a real place either way */}
+      {/* with no painting the pin stands, since a broken picture icon on a chart is worse */}
       {gone ? <span className="ch-s ch-s-pin" /> : (
         <img
           className="ch-pic-img"
@@ -106,7 +106,7 @@ type Row = {
   thumb: IslandCut | null
   /** can she be sent there from where the student is standing right now */
   sailable: boolean
-  /* why it cannot be pressed, when it cannot and the reason is worth saying */
+  /* why it cannot be pressed, when it cannot and that is worth saying */
   why: string | null
 }
 
@@ -240,7 +240,7 @@ export function Chart({ onSailing, heading = true }: { onSailing?: () => void; h
   /* the year's picks that nobody has built, drawn round the edge of the paper rather than in the sea */
   const owed = picksOf(save).filter((p) => !p.map)
 
-  /* the water fits what is on it and its shape is the shape of what is on it, which is why a distance on this page means anything */
+  /* the water fits what is on it and takes the shape of what is on it */
   const box = chartBox(slots.map((s) => s.at))
   /* past this the names and the state lines wait to be asked for, since the kit's own type floor is wider than a pin once there are a dozen of them */
   const dense = slots.length > CHART_DENSE

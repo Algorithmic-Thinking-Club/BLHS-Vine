@@ -55,9 +55,7 @@ export function startHeartbeat() {
     track('heartbeat', { ...where, everyMs: HEARTBEAT_MS })
   }
   timer = window.setInterval(beat, HEARTBEAT_MS)
-  /* a beat on the way back so a return from a hidden tab is stamped immediately
-   * rather than up to fifteen seconds later, which is the gap the reader would
-   * otherwise have to guess about */
+  /* a beat on the way back, so a return from a hidden tab is stamped immediately */
   onVisible = () => { if (document.visibilityState === 'visible') beat() }
   document.addEventListener('visibilitychange', onVisible)
   beat()

@@ -44,13 +44,10 @@ export default async function handler(req: any, res: any) {
 
   return json(res, 200, {
     class: { name: cls.name, code: cls.code, studyMode: cls.study_mode },
-    /* the two numbers the measure rests on, in the response rather than only in a
-     * comment, so a reviewer reading a dose table can see what it assumed */
+    /* the two numbers the measure rests on, in the response so a reviewer can see what it assumed */
     cadenceMs: HEARTBEAT_MS,
     gapCapMs: gapCapMs(),
-    /* the raw heartbeat count read, so an empty class and a class whose beat never
-     * fired are distinguishable. Those look identical in a table of zeros and only
-     * one of them is a bug. */
+    /* the raw heartbeat count, so an empty class and a class whose beat never fired are distinguishable */
     beatRows: report.beatRows,
     eventRows: events.length,
     totals: report.totals,

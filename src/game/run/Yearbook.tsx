@@ -282,7 +282,7 @@ export function Yearbook({ onClose, onGraduate }: { onClose: () => void; onGradu
                 </div>
               </>
             ) : (
-              /* one card for every non-final year: the old split on `year >= SESSION_ENDS_AFTER_YEAR` was true for years one, two and three with that constant at 1, so the other branch never drew, and it is gone rather than fixed because tokens and the year sheet come from the title's plank after the film */
+              /* one card for every year that is not the final one */
               <>
                 <h2 className="yb-title">Year {yearWord(year)} is done.</h2>
                 {/* what is true now, rather than a promise about next time */}

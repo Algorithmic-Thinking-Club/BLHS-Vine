@@ -46,7 +46,7 @@ describe('the plank, the moment something real exists', () => {
   })
 
   it('goes live once every season is spent, not once one of them is', () => {
-    /* every season token has to be spent before stamping: a year hands out three, one used to be enough, and the other two were carried into the stamp and forfeited with nothing on the page saying so */
+    /* every season token has to be spent before stamping */
     const one = scheduleOwed({ electivesLeft: 0, chosen: 1, realClasses: 3, realActivities: 5 })
     expect(one.ready).toBe(false)
     expect(one.notYet).toBe('Not yet: pick something for all 3 seasons. 2 still empty.')

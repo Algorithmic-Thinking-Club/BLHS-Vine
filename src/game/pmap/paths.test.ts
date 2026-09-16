@@ -62,7 +62,7 @@ describe('reading a route MAPVIS actually published', () => {
   })
 
   it('does not read null, an empty string or false as the number zero', () => {
-    /* `Number(null)` is 0 and `isFinite(0)` is true, so `[null, 471]` used to parse as a real waypoint on the left edge of the painting rather than the broken point it is, and the leg to it crossed the whole map */
+    /* Number(null) is 0 and isFinite(0) is true, so a null coordinate has to be refused by hand */
     for (const bad of [null, '', false, []]) {
       warns.length = 0
       expect(one({ name: 'zeroish', points: [[10, 10], [bad, 471]] }), JSON.stringify(bad)).toBeUndefined()

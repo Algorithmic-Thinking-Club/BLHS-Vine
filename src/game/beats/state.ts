@@ -32,7 +32,7 @@ export const beatTried = (s: SaveGame | null, id: string): boolean =>
 export const attemptsOn = (s: SaveGame | null, id: string): number =>
   rowOf(s, id)?.attempts ?? 0
 
-/* required is a failed thing the year will not close without, always offered with no limit, while offered is the school's Universal Retake, passed but under a B- and once, gating nothing. The old rule grade < B- && !retaken collapsed the two: it caught a fail, spent the single retake on it, then answered no for ever. */
+/* required is a failed thing the year will not close without, and offered is a thing it will */
 export type RetakeKind = 'required' | 'offered' | 'none'
 
 export function retakeKind(s: SaveGame | null, id: string): RetakeKind {

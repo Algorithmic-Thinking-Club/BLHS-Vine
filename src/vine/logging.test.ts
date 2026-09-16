@@ -1,5 +1,4 @@
-// The offline-first logger — the AP Research data layer. Chunked draining, live identity,
-// the dev flag, demo silence, and the reentrancy guard are all regressions from Act Zero.
+// the offline-first logger: chunked draining, live identity, the dev flag, demo silence and the reentrancy guard
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { Logger } from './logging'
 import type { GrapeEvent } from './events'
@@ -147,14 +146,7 @@ describe('flush', () => {
   })
 })
 
-/* ---- A DEPLOY WITH NO DATABASE IS ASKED ONCE ------------------------------
- *
- * `api/log.ts` answers 503 `{offline:true}` when the deploy carries no
- * DATABASE_URL, which is its honest degrade and is the live state today. The
- * logger kept the queue and retried every five seconds for the whole session:
- * a console full of red on a school Chromebook, and one request per student per
- * five seconds against one access point. Measured on the live deploy 2026-09-08
- * while driving the ending gate, which logged fifteen of them in ten minutes. */
+/* a deploy with no database is asked once and answers 503 offline */
 describe('the study endpoint saying it is offline', () => {
   it('is believed, once, and the queue stops growing', async () => {
     const calls: string[] = []
@@ -166,8 +158,7 @@ describe('the study endpoint saying it is offline', () => {
     log.log(EV)
     await log.flush()
     expect(calls).toHaveLength(1)
-    /* and every later event is dropped rather than queued for a collector that
-     * will never come */
+    /* every later event is dropped rather than queued for a collector that will never come */
     log.log(EV)
     log.log(EV)
     await log.flush()

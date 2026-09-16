@@ -88,7 +88,7 @@ describe('the phase an island reads', () => {
 })
 
 describe('a closed year asks for nothing', () => {
-  /* it used to answer 'Year one is done. Look around.' once the page had turned, which had one place left to draw and was false there: the only in-world moment with the page turned is the closing film, the film holds the controls, and what comes next is the title with the next year on it */
+  /* a closed year asks nothing, since the only moment with the page turned is the ending */
   it('says nothing at all once the page has turned', async () => {
     const { save, objective } = await fresh()
     started(save)

@@ -51,7 +51,7 @@ describe('every surface agrees about Advisory', () => {
     expect(m.score.retakeAvailable(s, 'core:y1'), 'nothing to retake yet').toBe(false)
   })
 
-  /* a failed beat is not done, and every one of these except the wall used to answer the other way, which is exactly the split a player saw */
+  /* a failed beat is not done, on every surface that answers the question */
   it('failed: still owed, still offered, still empty, and retakeable for ever', async () => {
     const m = await fresh()
     started(m.save)

@@ -44,9 +44,7 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
 
   useEffect(() => { track('pickyear_opened', { year }) }, [year])
 
-  /* every programme the roster carries, in the roster's own order. the screen used
-   * to hold its own list of five ids, so a member who added a club to the roster
-   * could not see it on the only sheet a freshman ever fills in. */
+  /* every programme the roster carries, in the roster's own order */
   const activities = PROGRAMMES
 
   const classes = CLASSES.filter((c) => c.years.includes(year) && !c.requires)

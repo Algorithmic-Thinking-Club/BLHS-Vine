@@ -6,8 +6,7 @@ import './cinema.css'
 
 export function MovieBars() {
   const [on, setOn] = useState(false)
-  /* mounted from the moment the bars come down until the animation has finished
-   * running out, so the frame opens rather than vanishing */
+  /* mounted until the run-out animation finishes, so the frame opens rather than vanishing */
   const [shown, setShown] = useState(false)
 
   useEffect(() => onCinema(setOn), [])

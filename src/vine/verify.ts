@@ -14,8 +14,7 @@ export type Transcript = {
   years: number
 }
 
-/** the canonical string the code hashes — field order is FROZEN (changing it breaks
- *  every printed diploma against every roster; do not reorder, do not add) */
+/** the canonical string the code hashes, with a frozen field order: do not reorder and do not add */
 export function canonical(t: Transcript): string {
   return [
     t.participantId,

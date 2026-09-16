@@ -79,9 +79,7 @@ describe('the questions a station has to be able to ask', () => {
     expect(engine.read('advisory')).toBeNull()
   })
 
-  /* the rail's own question. Without it the Maw could open the pick screen and
-   * had no way to find out whether the student stamped it or pressed Close for
-   * now, so a rail would walk him to the fire with an empty sheet. */
+  /* the rail asks whether the student stamped the pick screen or closed it */
   it('planned is false until the sheet is really stamped', async () => {
     const { save, engine } = await fresh()
     save.beginAdventure()

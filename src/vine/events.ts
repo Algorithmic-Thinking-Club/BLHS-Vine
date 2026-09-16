@@ -86,8 +86,7 @@ export interface LogEnvelope {
   mode: SessionMode
   /** captain / god-mode session (law §2.14): shipped for debugging, EXCLUDED from study exports */
   dev?: boolean
-  /** client-side envelope id: the queue survives a page death mid-POST, so a batch can ship
-   *  twice — analysis dedups on this instead of guessing */
+  /** client-side envelope id, so analysis dedups a batch that shipped twice */
   eid?: string
   event: GrapeEvent
 }

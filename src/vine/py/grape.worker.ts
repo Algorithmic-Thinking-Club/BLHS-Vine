@@ -49,7 +49,7 @@ async function handle(msg: ToWorker) {
   /* everything is inside this guard, so nothing can throw without a message going back */
   try {
     if (msg.t === 'load' && msg.v !== PROTOCOL) {
-      /* both halves are built from the same repo, so a protocol mismatch is a stale cached chunk rather than a real disagreement, and it is said out loud because the same case with no check is an island that fails in a way nobody can read */
+      /* both halves are built from the same repo, so a protocol mismatch is a stale cached chunk */
       post({
         t: 'crash',
         error: `this worker speaks protocol ${PROTOCOL} and the page speaks ${msg.v}. Reload the page.`,

@@ -131,7 +131,7 @@ html[data-rm='1'] .wd-panel { animation-duration: 1ms; }
 }
 .wd-swatch:hover { transform: translateY(-1px); }
 .wd-swatch:active { transform: translateY(2px); }
-/* chosen is a position, an edge and a drawn tick, in that order of reliability, never the old gold ring, which is one channel and reserves gold for an earned honour */
+/* chosen is a position, an edge and a drawn tick, in that order of reliability */
 .wd-swatch-on {
   transform: translateY(-2px);
   border-color: var(--kit-sea);

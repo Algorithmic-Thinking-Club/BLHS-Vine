@@ -90,7 +90,7 @@ export const SOURCED_PLACES: Place[] = [
     source: 'the game\'s own home base; not a claim about a real BLHS location',
   },
   {
-    /* the shared facility and the reason for the split: three programmes, three seasons, three coaches, one field */
+    /* the shared facility: three programmes, three seasons, three coaches, one field */
     id: 'stadium',
     name: 'the stadium',
     maps: [],

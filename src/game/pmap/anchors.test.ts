@@ -199,7 +199,7 @@ describe('an anchor bound to a placement', () => {
   it('takes its prompt ring, its arrival and its reach with it', () => {
     const set = bound()
     set.follow((ref) => (ref === 'nurse' ? { x: 140, y: 155 } : null))
-    // the ring moved: the old centre is now out of reach and the new one is in
+    // the ring moved, so the centre is out of reach and the ring is in
     expect(set.nearestInteractive(100, 100)).toBeNull()
     expect(set.nearestInteractive(145, 158)?.name).toBe('counselor')
     expect(set.arrival('counselor', [1, 1])).toEqual({ x: 140, y: 155, facing: undefined })
@@ -312,7 +312,7 @@ describe('a standing spot that was left behind when its post moved', () => {
 
   it('so a walk to either one goes to the post, not to the other post', () => {
     const set = new AnchorSet('panther-maw', v7())
-    /* the number that mattered: the principal's ghost spot is twelve pixels from the counselor, so before this the film walked the player to the counselor and called it the principal */
+    /* the principal's ghost spot is twelve pixels from the counselor */
     expect(set.standAt(set.get('principal_desk')!)).toMatchObject({ x: 191, y: 116 })
     expect(set.standAt(set.get('counselor')!)).toMatchObject({ x: 382, y: 196 })
   })

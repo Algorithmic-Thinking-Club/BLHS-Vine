@@ -5,8 +5,7 @@ import { HUB_MAP, MAW_MAP } from '../run/objective'
 /** which map, where in it, and whether the player arrives on the water */
 export type PmapTarget = {
   map: string
-  /** the arrival anchor. A door names one; without it the save's own position is
-   *  asked for, and the guard in run/resume.ts decides how much of it to trust. */
+  /** the arrival anchor, named by a door, or the save's own position for run/resume.ts to judge */
   at?: string
   /* true when the player arrives on the water rather than on foot */
   aboard?: boolean
@@ -24,8 +23,7 @@ export function targetFromUrl(search = window.location.search): PmapTarget {
   }
 }
 
-/** the query a target is spelled as, preserving everything else already on the
- *  url (`dbg`, `src`, `v`, `kit`, `skin`, a member's `gh` ref) */
+/** the query a target is spelled as, keeping every other pin already on the url */
 export function searchFor(t: PmapTarget, search = window.location.search): string {
   const q = new URLSearchParams(search)
   q.set('scene', 'pmap')

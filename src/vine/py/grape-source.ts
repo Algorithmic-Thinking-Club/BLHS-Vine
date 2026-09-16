@@ -63,7 +63,7 @@ const STEM = /^[a-z_][a-z0-9_]*$/
 /* the string a person reads, on one line, short enough for the box it lands in */
 const TEXT_MAX = 80
 
-/* the engine writes both into the runtime before the island is imported and the island's own folder sits ahead of them on sys.path, so shipping either one shadows the real thing with a stale copy */
+/* the engine writes both into the runtime before the island is imported, with the island's folder first */
 const ENGINE_OWNED = ['vine.py', 'grape.py']
 
 /* module names python already has, which an island may not ship a file for */

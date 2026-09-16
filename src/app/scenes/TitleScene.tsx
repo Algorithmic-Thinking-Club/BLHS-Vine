@@ -22,7 +22,7 @@ export default function TitleScene() {
   /* the year after this one, when the game has one authored and the current one is closed; null at the end of the road, where the yearbook is all */
   const ahead = nextYear(save)
 
-  /* open in another tab: both write the whole save, so the older copy lands on top of the newer one and a finished class disappears; a world scene holds a claim in `app/entry.ts` and this polls it, as a warning and not a lock, because a claim goes stale in ten seconds and a crashed tab frees itself */
+  /* open in another tab: both write the whole save, so the older copy lands on top */
   const [busyElsewhere, setBusyElsewhere] = useState(() => otherTabPlaying())
   useEffect(() => {
     const t = window.setInterval(() => setBusyElsewhere(otherTabPlaying()), 1500)

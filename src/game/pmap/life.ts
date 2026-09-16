@@ -292,8 +292,7 @@ export function separate(
         const d2 = dx * dx + dy * dy
         if (d2 >= want * want) continue
         const d = Math.sqrt(d2)
-        /* near the middle the geometry fades out for a direction fixed per pair */
-        // dead centre on each other: shove along x by index so the answer is the same every time rather than depending on which arrived first
+        /* two bodies dead centre on each other are shoved apart along x by index, so the answer never depends on which arrived first */
         const ux = d > 0.001 ? dx / d : i < j ? -1 : 1
         const uy = d > 0.001 ? dy / d : 0
         const push = ((want - d) / 2) * step

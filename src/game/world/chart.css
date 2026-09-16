@@ -235,7 +235,7 @@
   box-shadow: inset 0 1px 0 var(--kit-paper-sheen);
   transition: filter var(--kit-t-fast) ease;
 }
-/* and when it cannot go, the reason in the quiet voice rather than a dead button */
+/* and when it cannot go, why, in the quiet voice rather than a dead button */
 .ch-shut {
   margin-top: 3px;
   --kit-fs-raw: calc(13px * var(--kit-text-scale));

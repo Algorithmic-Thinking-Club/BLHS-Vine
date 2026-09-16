@@ -47,7 +47,7 @@ export function SceneManager({ initial, registry, overlay }: { initial: string; 
   useEffect(() => {
     setContext({ scene: current })
     track('scene_shown', { scene: current })
-    /* this tab says it is the one having the run, so a refresh mid play comes back to the same map while a pasted address in a fresh window does not (`app/entry.ts`), and it is stamped on scene changes only so a tab left open all afternoon goes stale and lands on the title */
+    /* this tab says it is the one having the run, so a refresh mid play comes back to the same map */
     markTabLive()
   }, [current])
 

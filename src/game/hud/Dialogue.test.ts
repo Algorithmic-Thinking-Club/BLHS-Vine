@@ -54,7 +54,7 @@ const face = () => host.querySelector('.dlg-portrait img')?.getAttribute('src') 
 
 describe('the box does not blink between lines', () => {
   it('KEEPS THE SAME ELEMENT across two consecutive lines from one speaker', async () => {
-    /* the box used to unmount for one paint between two lines and replay its entrance */
+    /* the box holds between two lines instead of unmounting for a paint and replaying its entrance */
     const first = say({ who: 'Principal Panther', text: 'One.', portrait: 'principal' })
     await act(async () => {})
     const before = box()
@@ -142,7 +142,7 @@ describe('the typewriter', () => {
   })
 
   it('NEVER RUNS BACKWARDS when a student clicks a half-typed line', async () => {
-    /* filling a line in used to leave the typing loop running, so the sentence shrank back */
+    /* filling a line in stops the typing loop, so the sentence does not shrink back */
     const said = say({ text: 'A reasonably long sentence to type out.' })
     await act(async () => {})
     /* past the box's own quarter-second dead zone, which refuses a press before it, and nowhere near the end of a 38 character line at 45 a second */
@@ -153,7 +153,7 @@ describe('the typewriter', () => {
 
     act(() => { (box() as HTMLElement).click() })   // fills it in
     expect(words()).toBe('A reasonably long sentence to type out.')
-    tick(16)                                        // the frame that used to rewind it
+    tick(16)                                        // the frame that would rewind it
     expect(words()).toBe('A reasonably long sentence to type out.')
     tick(16)
     expect(words()).toBe('A reasonably long sentence to type out.')

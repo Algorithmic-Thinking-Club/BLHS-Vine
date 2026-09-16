@@ -154,7 +154,7 @@ function warmPieces(pieces: KitPiece[], at: string): void {
   }
 }
 
-/* what makes a piece usable, and the reason one bad piece is dropped by name on its own */
+/* what makes a piece usable, with one bad piece dropped by name on its own */
 export type KitFault = { key: string; why: string }
 
 /* a piece is a stretchable surface, a sheet of art, or refused */

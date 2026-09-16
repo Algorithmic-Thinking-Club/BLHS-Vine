@@ -52,7 +52,7 @@ describe('cutting one mark off a sheet', () => {
   /* ---- and every way it says no ---- */
 
   it('refuses a face nobody drew, so the caller keeps its glyph', () => {
-    // the live sheet has no book and no anchor, which is why two HUD buttons and all six Handbook badges still show an emoji
+    // the live sheet has no book and no anchor, so two hud buttons and six handbook badges show emoji
     expect(faceStyle('icon_set', 'book', [ICONS], true)).toBeUndefined()
     expect(faceStyle('icon_set', 'anchor', [ICONS], true)).toBeUndefined()
   })

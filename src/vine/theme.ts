@@ -16,8 +16,7 @@ export interface ThemeTokens {
   }
 }
 
-// UI/brand tokens: teal + black + warm, the mascot brand. The world palette (greige siding,
-// brick, greenery) lives in the art/tile layer, not here. See reference/palette-elements.md.
+// ui and brand tokens: teal, black and warm, with the world palette living in the art layer
 export const theme: ThemeTokens = {
   colors: {
     ink: '#141517',

@@ -211,6 +211,6 @@ export const threadWidth = (s: SaveGame, cordId: string): number => {
 export function turnYearPage(s: SaveGame, year: number): SaveGame {
   const mark = `yearbook:y${year}`
   const flags = s.flags.includes(mark) ? s.flags : [...s.flags, mark]
-  /* turning the page never advances the year: the old guard `s.year >= SESSION_ENDS_AFTER_YEAR && s.year < 4` with that constant at 1 left an advancing branch nothing could reach, so the turn belongs to `endYear`, the one place that hands over a fresh sheet and three tokens */
+  /* turning the page never advances the year */
   return s.year >= 4 ? writeSave({ flags, graduated: true }) : writeSave({ flags })
 }

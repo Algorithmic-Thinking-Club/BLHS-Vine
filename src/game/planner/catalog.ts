@@ -99,13 +99,13 @@ export function cordHint(tags: string[]): string | null {
   return parts.length ? parts.join(' · ') : null
 }
 
-// what the picker offers: every course in catalog order, each with the reason it is shut
+// what the picker offers: every course in catalog order, each with why it is shut
 
 export type ClassOffer = {
   c: ClassDef
   /** why this course cannot go on this year's sheet, or null when it can */
   why: string | null
-  /* true when the reason is the game's own ladder rather than the district catalog's */
+  /* true when what shuts it is the game's own ladder rather than the district catalog */
   ladder: boolean
 }
 
@@ -122,7 +122,7 @@ function whenItOpens(years: number[]): string {
   return `open in years ${ys.join(', ')} only`
 }
 
-/** every course in the catalog, with the reason it is shut when it is shut */
+/* every course in the catalog, carrying why it is shut when it is */
 export function classOffer(year: number, pickedByYear: Record<number, string[]>): ClassOffer[] {
   const before = new Set<string>()
   for (let y = 1; y < year; y++) for (const id of pickedByYear[y] ?? []) before.add(id)

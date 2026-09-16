@@ -208,7 +208,7 @@ describe('domain verbs', () => {
     expect(save.completedIn(save.loadSave()!, 'football', 1)).toBe(true)
     expect(save.completedIn(save.loadSave()!, 'girls-flag-football', 1)).toBe(false)
 
-    // year two: the ladder re-slots the same programme, and the stamp used to write 'active' straight over 'completed' with no read of what was there
+    // year two: the ladder re-slots the same programme and the stamp leaves a complete row alone
     save.setIslandState('football', 'completed')
     save.endYear()
     save.assignSlot(2, 'Fall', 'football')

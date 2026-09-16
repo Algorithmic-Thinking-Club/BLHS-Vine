@@ -99,7 +99,7 @@ export function cordsOf(s: SaveGame): CordProgress[] {
       settlesAtGraduation: true,
       earned: finished && gpa >= 3.76, progress: Math.min(1, gpa / 3.76),
       // a student with no grades yet is told so, rather than being shown a 0.00
-      /* a GPA at its target says so, because a student holding a 4.00 read "GPA 4.00 of 3.76" off a full bar and could not tell whether that was good news, and these two settle at graduation, which is why they are not earned yet */
+      /* a grade point average at its target says so, rather than reading as short of it */
       detail: !gpa ? 'No GPA yet. You need 3.76.'
         : gpa >= 3.76 ? `GPA ${gpa.toFixed(2)}. On track, counted at graduation.`
           : `GPA ${gpa.toFixed(2)} of 3.76`,

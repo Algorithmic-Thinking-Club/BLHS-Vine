@@ -175,7 +175,7 @@ export const offsetFault = (o: unknown): string | null => {
 }
 
 /* the occasions a door may declare, which the cover registry turns into a picture */
-/* what a cover is for, not what it looks like: `ceremony` is the graduation title held over the islands, and `passing` is a hop across the map the dock is on, which used to wear the full arrival card and made one journey read as two, so it gets a plain fade and says nothing */
+/* what a cover is for rather than what it looks like */
 export type CoverOccasion = 'ceremony' | 'passing'
 export const COVER_OCCASIONS: CoverOccasion[] = ['ceremony', 'passing']
 
@@ -236,7 +236,7 @@ export interface IntentWorld {
   /** the run has finished: leave the world for the title */
   endRun(): Promise<void>
 
-  /* the director half: each word performs something MAPVIS already authors and the game could not previously say */
+  /* the director half: each word performs something MAPVIS already authors */
   pose(pose: string | undefined, facing: string | undefined): Promise<void>
   actorMove(actor: string, to: string, off?: Offset, facing?: string, pace?: Pace): Promise<void>
   /** somebody walks ahead, the player follows, and it ends when they both stop */
@@ -528,7 +528,7 @@ export async function performIntent(i: Intent, host: IntentHost): Promise<Intent
         engine.setFlag(scoped(i.flag))
         return ok()
       case 'award': {
-        /* a grade is out of four and says so: `award(grade=87)` used to go straight onto the transcript as a GPA of 87 and a letter nothing can print, with no sentence saying what happened, and `None` still means finished but not graded */
+        /* a grade is out of four and says so */
         if (i.grade !== undefined && i.grade !== null) {
           if (typeof i.grade !== 'number' || !Number.isFinite(i.grade))
             return no(`award's grade wants a number from 0 to 4, or None for "finished, not graded". `

@@ -297,7 +297,7 @@ button.kit-chip:active { transform: translateY(1px); }
   outline-offset: var(--kit-focus-offset);
 }
 .kit-field-input:focus-visible { outline: none; }
-/* a refused field is not a red border: the border thickens, the reason is printed under it and it is announced, because hue alone says nothing to a third of the reasons a student cannot read it */
+/* a refused field thickens its border, prints why underneath and announces it */
 .kit-field-bad { box-shadow: inset 0 0 0 2px var(--kit-alarm); }
 .kit-field-err,
 .kit-field-hint {
@@ -394,7 +394,7 @@ html[data-rm='1'] .kit-gauge-waiting .kit-gauge-fill { animation: none; width: 1
 .kit-socket[data-state='over'] { transform: translateY(-2px); filter: brightness(1.1); }
 .kit-socket.kit-bare[data-state='over'] { border-color: var(--kit-sea); }
 .kit-socket[data-state='filled'] { cursor: grab; }
-/* a refusal shakes once and then stays refused in words, so a student who missed the motion has not missed the reason */
+/* a refusal shakes once and then stays refused in words */
 .kit-socket[data-state='refusing'] { animation: kit-refuse 260ms ease-in-out 1; }
 @keyframes kit-refuse {
   0%, 100% { transform: translateX(0); }

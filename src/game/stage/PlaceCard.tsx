@@ -14,7 +14,7 @@ import './placecard.css'
 
 const DWELL_MS = 3200
 /* how long a card will queue behind something else before it is dropped instead */
-/* a card that is owed is paid: it waits for a clear screen, and at fifteen seconds it used to bin the card silently, so it waits 45000 ms, shows at the ceiling instead of giving up, and a card cut short by somebody talking goes back to waiting once */
+/* a card that is owed is paid: it waits for a clear screen and says so if it gives up */
 const WAIT_CEILING_MS = 45000
 
 /** held: asked for, waiting for the screen to be free. in: on screen. out: leaving. */

@@ -2,8 +2,7 @@
 import { programmeById } from './roster'
 import { EXAMPLE_BLURB, NO_ISLAND_YET, exampleLabel } from './example'
 
-/* the words themselves live in `example.ts`, which imports nothing, so the
- * roster can mask its own entries with them without importing this file back */
+/* the words live in example.ts, which imports nothing, so the roster can mask its own entries */
 export { EXAMPLE_BLURB, NO_ISLAND_YET, exampleLabel }
 
 /** is there a playable island behind this programme id */

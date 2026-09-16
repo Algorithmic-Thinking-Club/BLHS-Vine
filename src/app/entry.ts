@@ -77,7 +77,7 @@ export function openingScene(opts: {
 }
 
 
-/* two tabs share one save and both write all of it on every change, so the older copy lands on top and a sat class vanishes with no error: a localStorage heartbeat names the tab claiming the run, goes stale in seconds so a crashed tab locks nobody out, and offers takeover rather than locking */
+/* two tabs share one save and both write all of it, so the older copy lands on top */
 
 const PLAYING_KEY = 'blhs_playing_v1'
 const TAB_ID_KEY = 'blhs_tabid_v1'
@@ -124,7 +124,7 @@ export function releasePlaying(): void {
   } catch { /* storage off */ }
 }
 
-/** is another tab holding a claim that has not gone stale */
+/* whether another tab holds a claim that is still fresh */
 export function otherTabPlaying(now = Date.now()): boolean {
   const c = readClaim()
   return !!c && c.id !== tabId() && now - c.at >= 0 && now - c.at < CLAIM_STALE_MS

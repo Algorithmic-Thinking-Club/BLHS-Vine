@@ -1,19 +1,4 @@
-/* head back: an island is finished and the student asks to be taken to its dock.
- *
- * Ash: *"when all tasks in an island are complete, a button at the bottom middle
- * should show up saying 'Island Finished - Head back'. once clicked, the user gets
- * teleported to the dock of the island they are on. and of course the same sailing
- * logic, esc, the chart, or the immediate sailing, etc. This is constant always."*
- *
- * So this word does exactly one thing and stops: it puts him at the dock. What
- * happens next is the ordinary harbour, which already works, and that is the point
- * of keeping it this small. It is not a voyage and it does not choose a
- * destination.
- *
- * Copied in shape from sail-bus, including the listener count, so the button can
- * hide itself where no scene could answer, and including the synchronous default
- * refusal so a press nobody heard is an answer rather than a hang.
- */
+/* head back: an island is finished and the student asks to be taken to its dock */
 
 const EVENT = 'blhs:head-back'
 

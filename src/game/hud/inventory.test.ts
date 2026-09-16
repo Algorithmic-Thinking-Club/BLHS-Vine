@@ -115,7 +115,7 @@ describe('the absence list is enforced rather than intended', () => {
   })
 
   it('names the five things that must never appear, so a reader meets them here too', () => {
-    /* not a code check but a note in the suite, the absence list with each absence's diegetic replacement, so the next person to add a corner counter reads the reason before writing it */
+    /* a note in the suite: the absence list, each absence with its own diegetic replacement */
     const forbidden = {
       'GPA bar': 'the room fills; the number lives on the Handbook Cords page',
       'XP or level': 'per-track ranks, JV to Varsity to Captain',

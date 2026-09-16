@@ -9,8 +9,7 @@ export const EXAMPLE_SOURCE = 'a placeholder: no island stands behind this yet'
 /** what a class with no island behind it says about itself, quietly */
 export const NO_ISLAND_YET = 'no island yet'
 
-/** A, B, ... Z, then AA. Past twenty-six is not a case anybody will meet, and
- *  answering it is cheaper than a comment saying it cannot happen. */
+/** a through z, then aa */
 export function exampleLabel(n: number): string {
   let out = ''
   let i = n
@@ -18,7 +17,5 @@ export function exampleLabel(n: number): string {
   return `Example ${out}`
 }
 
-/** and a PLACE nobody can sail to yet. Same alphabet, its own word, because a
- *  place is not a thing you pick and calling it "Example A" beside a card also
- *  called Example A would be two different things wearing one name. */
+/** a place nobody can sail to yet, with its own word, so a place and a card never share a name */
 export const examplePlace = (n: number): string => `Example place ${exampleLabel(n).slice(8)}`

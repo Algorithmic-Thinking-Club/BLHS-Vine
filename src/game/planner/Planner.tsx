@@ -37,7 +37,7 @@ const CORE_BEAT_DESC: Record<number, string> = {
 }
 
 /* one string for the open-season rule, said in one place rather than two */
-/* all three season tokens (`SEASONS` in save.ts) must be spent before the stamp, because one used to be enough and the other two were carried into the stamp and silently forfeited; the counter names what is missing rather than just refusing */
+/* all three season tokens must be spent before the stamp */
 const OPEN_SEASONS = (left: number): string =>
   left > 1 ? `Not yet: fill all ${SEASONS.length} seasons. ${left} still empty.`
     : 'Not yet: one season is still empty.'
@@ -78,7 +78,7 @@ type Refusal = { where: Season | 'classes'; why: string }
 
 export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }: {
   onClose: () => void
-  /* `review` means show the answers, a different press from sitting the quiz: pressing it on a passed beat used to start a fresh quiz and re-grade the student */
+  /* review shows the answers, a different press from sitting the quiz */
   onAdvisory?: (review?: boolean) => void
   /* one button per pick: the sheet says what a pick is and presses it, and what a press means, a voyage or a card, is the roster's and the HUD's business */
   onPlayPick?: (pick: Pick) => void
@@ -754,7 +754,7 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
               </>
             ) : (
               <>
-                {/* a tutorial replaced the old nudge, which fired once the sheet was already full and so helped least; this one fires at the start and teaches the order, and `data-tour` is how the spotlight finds this plank */}
+                {/* a tutorial rather than a nudge, so it fires before the sheet is full */}
                 <Plank
                   size="lg"
                   id="pl-stamp"

@@ -205,7 +205,7 @@ html[data-rm='1'] .dlg-choice { animation: none; }
 /* the answer still reads without a hue here either: the chosen row keeps a ring drawn around it, the ones passed over go quiet */
 /* a shorter box here, because the plain arm's system face sets a shorter line */
 /* the paw is drawn art and the plain arm has none; `faceStyle` already refuses a face outside the paper skin, so this is the second fence rather than the first */
-/* the words used to pulse and no longer do (`.dlg-hint-words` above), so the override of that pulse is gone with it rather than left standing over an animation that does not exist */
+/* the hint words do not pulse */
 /* the portrait is the intervention, so the plain arm does not get one: it is the one field on the line that is a picture rather than a sentence */
 
 /* the plain box grows to hold its own words: the fixed height is only there to keep the painted parchment from jumping while a line types in, and with it pinned a speaker name plus two wrapped lines pushed the hint out of the white box onto the painted sea, grey on teal and unreadable */

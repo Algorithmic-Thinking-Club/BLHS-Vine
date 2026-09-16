@@ -1,6 +1,6 @@
 /* THE OUTFIT REACHES THE PANTHER THE STUDENT IS DRIVING.
  *
- * ASH, 2026-09-09 item 5: *"The wardrobe. The coats change thors appearence
+ * *"The wardrobe. The coats change thors appearence
  * inside the wardrobe panel, but when the user exits out, thors in game
  * character has not changed. i bet its the same for the letter man jacket,
  * googles, cap, etc."*

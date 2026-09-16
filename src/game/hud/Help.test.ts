@@ -84,7 +84,7 @@ describe('what the help card says', () => {
   })
 
   it('offers only the doors that can actually open, with no Hud mounted', () => {
-    /* the other half of the same contract, and the reason it is a separate test: on the title and mid-intro there is no Hud, and three of these five would be presses that did nothing */
+    /* the other half of the contract: on the title and mid-intro there is no card to open */
     openCard()
     const said = [...host.querySelectorAll('.hp-door')].map((b) => b.textContent ?? '')
     expect(said.some((t) => t.includes('Back'))).toBe(true)

@@ -183,7 +183,7 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
   --kit-fs-raw: calc(14px * var(--kit-text-scale)); font-size: var(--kit-fs);
   color: var(--kit-ink-dim); line-height: 1.35;
 }
-/* the drawn lock rides in the first line of the reason and never on its own row, so a two-line refusal stays two lines */
+/* the drawn lock rides in the first line of a refusal and never on its own row */
 .pl-act-lock { margin-right: 5px; vertical-align: -2px; }
 .pl-act:hover, .pl-act:focus-visible { transform: translateY(-1px); background: var(--kit-paper-on-hi); }
 .pl-act:active { transform: translateY(1px); }
@@ -375,7 +375,7 @@ html[data-rm='1'] .pl-sheet { animation-duration: 1ms; }
 }
 .pl-close { flex: none; margin-left: auto; }
 
-/* the wax is the loudest thing that has happened so far and it used to be a radial gradient with a paw emoji in it; `stamp` publishes `sealed`, a drawn teal wax seal with the paw already in it, and this is its ground */
+/* the wax is the loudest thing on the sheet and is drawn art rather than an emoji */
 .pl-waxed { display: inline-flex; align-items: center; gap: 12px; transform: rotate(-3deg); }
 .pl-wax { flex: none; }
 .pl-wax-fallback {

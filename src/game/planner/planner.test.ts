@@ -1,6 +1,4 @@
-// The Year Planner (§7.2): the catalog's integrity against the real BLHS tables, and the
-// sheet's verbs (tokens, classes, the stamp). The catalog tests are tripwires — if one
-// fails, someone changed a REAL fact (a sport's season, a course's grade eligibility).
+// the year planner: the catalog against the real blhs tables, and the sheet's tokens, classes and stamp
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { CLASSES, cordHint, eligibleClasses } from './catalog'
 import { PROGRAMMES, programmeAllowedIn, SPORT_SEASONS } from '../roster/roster'

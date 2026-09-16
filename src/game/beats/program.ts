@@ -29,7 +29,7 @@ export function stepsOf(name: string): { turn?: 'left' | 'right'; forward?: numb
   return { forward: m ? Number(m[1]) : 1 }
 }
 
-/** every cell the body passes through, in order, and where it stopped: a wall or the board edge ends the walk at the last legal cell and the program is never corrected on the way, which is why there is a run button instead of a verdict */
+/* every cell the body passes through, in order, and where a wall or the board edge stopped it */
 export function walkOf(board: ProgramBoard, written: string[]) {
   const blocked = new Set(board.walls.map(([c, r]) => c + ',' + r))
   const legal = (c: number, r: number) =>

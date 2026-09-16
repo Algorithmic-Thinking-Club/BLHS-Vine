@@ -11,12 +11,12 @@ export function refuseSlot(
   if (plan?.stamped) return 'Your year sheet is stamped. Year ' + year + ' cannot be changed.'
 
   const g = programmeById(programmeId)
-  /* a slot that points at nothing is refused rather than written, because the save used to take any string and a typo became a committed season the year model waited on forever */
+  /* a slot that points at nothing is refused rather than written */
   if (!g) return `Nothing on the roster is called "${programmeId}".`
 
   if (!programmeAllowedIn(g, season)) {
     const real = seasonOf(g)
-    /* a WIAA season is the school's own fact and not a rule this game made up, which is why the sentence names the season rather than saying the slot is unavailable */
+    /* a wiaa season is the school's own fact, so the sentence names the school */
     return `${g.name} is a ${String(real).toLowerCase()} sport. It does not run in ${season.toLowerCase()}.`
   }
 

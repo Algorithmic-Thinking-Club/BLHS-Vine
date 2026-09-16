@@ -3,7 +3,7 @@
  *   node scripts/atc-stamp-proof.mjs
  *   node scripts/atc-stamp-proof.mjs --live
  *
- * Ash asked for the stamp to wait until every season is spent. The first attempt at
+ * the stamp was asked for to wait until every season is spent. The first attempt at
  * that rule asked YEAR ONE for three picks on a sheet that can only make one: a club
  * with no island is drawn there as an example and refuses the press, and one
  * programme may not take two seasons in a year. So the stamp went dead, year one

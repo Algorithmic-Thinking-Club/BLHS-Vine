@@ -16,7 +16,7 @@ const frame = (leader: [number, number], me: [number, number], leaderSpeed: numb
 
 describe('how far apart two bodies are', () => {
   it('takes the painting squash out, so a vertical gap is not undercounted', () => {
-    /* the same picture measured the other way is 0.72 of this, the multiply `lead_to` used to do, and why the head start and the gate disagreed about the same two bodies */
+    /* the same picture measured the other way is 0.72 of this */
     expect(groundApart({ x: 0, y: 0 }, { x: 0, y: 36 }, 0.72)).toBeCloseTo(50, 1)
     expect(groundApart({ x: 36, y: 0 }, { x: 0, y: 0 }, 0.72)).toBeCloseTo(36, 1)
   })

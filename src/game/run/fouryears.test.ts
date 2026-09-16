@@ -53,7 +53,7 @@ describe('four years, played', () => {
 
     const s = m.save.loadSave()!
     const gpa = m.progress.gpaOf(s)
-    /* a placeholder pick used to carry half a credit at a flat B, so two a year pinned the mean at 3.33 and put Highest Honors at 3.76 out of reach, and it carries no credit now */
+    /* a placeholder pick carries no credit, so it cannot pin the mean */
     expect(gpa, 'a perfect Advisory every year is a perfect GPA').toBe(4)
     expect(gpa!).toBeGreaterThanOrEqual(3.76)
   })
@@ -75,7 +75,7 @@ describe('four years, played', () => {
     expect(m.progress.rankName(m.progress.ranksOf(m.save.loadSave()!).football ?? 0)).toBe('Captain')
   })
 
-  /* one finish is one go, which `setIslandState` used to double by writing a second completion behind the one the sheet had just written */
+  /* one finish is one go, with setIslandState writing a single completion */
   it('counts one finish as one attempt', async () => {
     const m = await fresh()
     m.save.beginAdventure()

@@ -351,7 +351,7 @@ function MovePlay({ check, render, picks, revealed, single, onSet, onTouch }: {
         })}
       </div>
 
-      {/* the pool empties as the places fill, which is why this frame needs no progress bar */}
+      {/* the pool empties as the places fill, so this frame needs no progress bar */}
       <div className="bt-pool" aria-label="Still to place">
         {pool.map((f) => (
           <button

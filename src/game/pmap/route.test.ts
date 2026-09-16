@@ -32,7 +32,7 @@ describe('the pmap address', () => {
     }
   })
 
-  /* a new target has to delete the parts of the old address it does not carry */
+  /* a new target deletes the parts of the address it does not carry */
   it('deletes an anchor the new target does not carry', () => {
     expect(q(searchFor({ map: 'hub' }, '?scene=pmap&map=hub&at=quay')).has('at')).toBe(false)
   })
@@ -56,8 +56,7 @@ describe('the pmap address', () => {
 })
 
 describe('the road', () => {
-  /* Ash's two rulings, asserted rather than described. If either of these ever
-   * fails, the game is sending students somewhere he did not ask for. */
+  /* where continue and the title send a student, asserted rather than described */
   it('sends Set Sail to the hub, on the water', () => {
     expect(SEA_ARRIVAL.map).toBe(HUB_MAP)
     expect(SEA_ARRIVAL.aboard).toBe(true)
@@ -70,9 +69,7 @@ describe('the road', () => {
     expect(HOME_TARGET.aboard).toBeFalsy()
   })
 
-  /* THE STAND-IN BUNDLE HAS TO CARRY THE ANCHOR CONTINUE AIMS AT, because the Maw
-   * is not published and the fallback folder is what a student really opens. A
-   * name that is not in it would drop them on the map's own spawn silently. */
+  /* the stand-in bundle carries the anchor continue aims at, since it is the folder a student really opens */
   it('names an anchor the committed panther-maw bundle actually has', async () => {
     const maw = await import('../../../public/maps-painted/panther-maw/map.json')
     const names = (maw.default.anchors as { name: string }[]).map((a) => a.name)

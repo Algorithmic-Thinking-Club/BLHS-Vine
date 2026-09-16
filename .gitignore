@@ -128,6 +128,8 @@ scripts/*
 !scripts/fps-proof.mjs
 !scripts/words-proof.mjs
 !scripts/code-same.mjs
+!scripts/codeonly.mjs
+!scripts/comments.mjs
 !scripts/ocean-same.mjs
 !scripts/probe-mask.mjs
 !scripts/asset_diff.mjs

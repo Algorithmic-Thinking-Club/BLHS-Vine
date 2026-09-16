@@ -63,7 +63,7 @@ describe('the year as a list', () => {
     expect(row(list, 'plan').done).toBe(true)
   })
 
-  /* nothing on the sheet is barred any more: a club nobody had built used to be drawn differently because no control anywhere could finish it, and there is one now, so a row whose island does not exist is an ordinary unfinished row whose note says which button finishes it */
+  /* nothing on the sheet is barred, since every pick has a button that finishes it */
   it('leaves an island nobody has built as an ordinary unfinished row', async () => {
     const { save, tasks } = await fresh()
     started(save)

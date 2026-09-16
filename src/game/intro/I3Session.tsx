@@ -262,7 +262,7 @@ function CodeCard({ initial, err: outerErr, classOpen = true, onVerified, onCast
   const [shake, setShake] = useState(0)
   const refs = useRef<(HTMLInputElement | null)[]>([])
   const tries = useRef(0)
-  const lockUntil = useRef(0)   // the soft rate limit heals itself (the old one never unlocked)
+  const lockUntil = useRef(0)   // the soft rate limit heals itself
 
   const put = (i: number, v: string) => {
     const ch = v.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()

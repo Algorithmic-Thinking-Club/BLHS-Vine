@@ -262,7 +262,7 @@ export function berthHelm(
       return { helm: HELM_IDLE, next: { ...b, stage: 'given_up', best, stuckMs } }
   }
   const watched = (n: Berthing): Berthing => ({ ...n, best, stuckMs })
-  /* and the tally starts again when the aim changes, or the gate's leftover distance is carried into the run-in as though no progress had been made */
+  /* the tally starts again when the aim changes, and the gate's leftover distance carries into the run-in */
   const restart = (n: Berthing): Berthing => ({ ...n, best: undefined, stuckMs: 0 })
 
   if (b.stage === 'approach') {

@@ -69,8 +69,7 @@ describe('a place holds more than one programme (W1, the stadium)', () => {
   it('resolves all three to the same place and the place to no map yet', () => {
     for (const id of ['football', 'girls-flag-football', 'track-field'])
       expect(placeOfProgramme(id)?.id).toBe('stadium')
-    // nobody has painted it, and a place with no painting says so rather than
-    // pretending to a map id
+    // a place with no painting says so rather than pretending to a map id
     expect(placeById('stadium')!.maps).toEqual([])
     expect(placeById('stadium')!.paintings).toBe(0)
   })
@@ -89,11 +88,7 @@ describe('a place made of more than one painting (W2, the home island)', () => {
 
 describe('playability is a field, not a hardcoded Set (N1)', () => {
   it('is read off the programme, and only what somebody built is true', () => {
-    /* ATC IS THE FIRST ONE THAT IS TRUE. This used to assert that nothing on the
-     * roster was playable, which was the honest state while `member-islands.json`
-     * was an empty list. What the check is actually for is that playability is a
-     * FIELD on a row rather than a set hard-coded in the engine, so it now says
-     * the same thing the other way round: exactly the rows a member shipped. */
+    /* atc is the first playable programme on the roster */
     const playable = PROGRAMMES.filter((p) => p.playable).map((p) => p.id)
     expect(playable).toEqual(['atc'])
     expect(isPlayable('atc')).toBe(true)
@@ -162,7 +157,7 @@ describe('every entry says where it came from', () => {
     expect(SOURCED_PLACES.find((p) => p.id === 'flex-200')!.room).toBe('200 Flex')
   })
 
-  /* ---- AND THE MASK ITSELF (BRIEF-MAW-RAIL-3 B) --------------------------- */
+  /* the mask itself */
   it('prints no real club or sport name while nothing has an island behind it', () => {
     // asked of the shipped table, so it covers every screen at once
     for (const g of PROGRAMMES) {
@@ -180,9 +175,7 @@ describe('every entry says where it came from', () => {
   })
 
   it('keeps the wiring under the mask, so a real island needs no other edit', () => {
-    /* the id, the place, the kind, the season, the tags and the rank track are
-       what makes a placeholder become a real thing by one row in
-       member-islands.json. Masking those would be deleting the entry. */
+    /* the id, place, kind, season, tags and rank track are what one member-islands row turns real */
     const kc = programmeById('key-club')!
     const src = SOURCED_PROGRAMMES.find((p) => p.id === 'key-club')!
     expect(kc.place).toBe(src.place)

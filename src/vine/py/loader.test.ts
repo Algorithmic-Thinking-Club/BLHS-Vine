@@ -159,7 +159,7 @@ describe('the modules an island ships', () => {
   })
 
   it('refuses a module the engine already provides', () => {
-    /* the island's own folder goes on sys.path ahead of the engine's files, so a member's vine.py would shadow the real one with a stale copy */
+    /* the island's own folder goes on sys.path ahead of the engine's files */
     for (const v of ['vine.py', 'grape.py']) {
       const f = manifestFaults(bent({ modules: ['island.py', v] }))
       expect(f.join(' ')).toContain('shadow')
@@ -367,7 +367,7 @@ describe('where an island may be loaded from', () => {
   })
 
   it('refuses a base carrying a query or a fragment', async () => {
-    /* the id used to be read with the query stripped while the fetch kept it, so the island's runtime folder and the url actually asked for disagreed */
+    /* the id is read with the query intact, so the runtime folder and the fetch agree */
     vi.stubGlobal('fetch', vi.fn())
     await expect(reach('http://localhost:5280/islands/skeleton?v=2/')).rejects
       .toThrow(/query or a fragment/)

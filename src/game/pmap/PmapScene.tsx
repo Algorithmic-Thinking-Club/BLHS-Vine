@@ -715,7 +715,7 @@ export default function PmapScene() {
       /* `?sail=N` no longer pulls the sea out past the painting: an island is fenced to its painting plus a margin of ocean and `Z_ISLAND` is the zoom at which that fence fills the window, so there is no separate sailing floor to tune */
       let camZ = Z
       /* the sailing zoom floor, hung off the wide shot, and a room has none */
-      /* the sailing floor is the painting's floor too: it used to be a fraction of the wide shot, and with travel scripted between docks nobody free-sails, so that pull-out could only show water nobody is crossing and, in a room, black */
+      /* the sailing floor is the painting's floor, so a scripted voyage and a helm share one zoom */
       /* the floor every zoom is clamped to: on an island the fence, so a wide shot can show the whole island with sea round it, and in a room the painting, because there is nothing outside a room to show */
       const Z_MIN = coastCut ? Z_ISLAND : Math.max(Z_PAINT, Z)
 
@@ -781,7 +781,7 @@ export default function PmapScene() {
         sea.addChild(seaLayer, seaLive)
         app.stage.addChildAt(sea, 0)              // below the world, always
 
-        // the island's centre in sea tile coords, for the old hub's WORLD_R rim
+        // the island's centre in sea tile coords, for the rim the sea is grown out to
         const WORLD_R = 600     // tiles of ocean in every direction, mostly sea by law
         const ccx = W * Z / 2 / SEA_SCALE, ccy = H * Z / 2 / SEA_SCALE
         const CXs = (ccx / HW + ccy / HH) / 2, CYs = (ccy / HH - ccx / HW) / 2
@@ -1131,7 +1131,7 @@ export default function PmapScene() {
           }
           return look
         }
-        /* only a body is asked whether it has a walk: every anchor is drivable, so this used to fetch walk art for the trophy wall and the chart table and print an aborted request for each on every load; eight headings means a body, one picture means furniture */
+        /* only a body is asked whether it has a walk, since every anchor is drivable */
         const looksLikeABody = (sp: Sprite): boolean => {
           const set = looksOf.get(sp)
           const views = set?.[0]?.views
@@ -1248,7 +1248,7 @@ export default function PmapScene() {
                 }
                 return !stillThere
               }
-              /* no anchor is excused, because `stamp` already keeps a body's width clear around every anchor's standing spot including its own: the old exclusion for a thing's own anchor let a placement sitting on the Maw's tunnel wall the door with the check saying nothing */
+              /* no anchor is excused, since stamp keeps a body's width clear around every standing spot */
               const i = Math.round(p.y) * W + Math.round(p.x)
               if (i < 0 || i >= W * H) return false
               return before.seen[i] === 1 && after.seen[i] === 0
@@ -1284,7 +1284,7 @@ export default function PmapScene() {
         const putBack = (undo: number[]) => {
           for (let k = 0; k < undo.length; k += 2) ldata[undo[k]] = undo[k + 1]
         }
-        /* what a full-width stamp would shut off, asked again only to write the reason down, because a warning nobody can act on is a warning nobody reads */
+        /* what a full-width stamp would shut off, asked again so the warning can name it */
         const measureAfter = (s: { x: number; y: number; r: number }): string[] => {
           const undo = stamp(s, 1)
           const m = measure()
@@ -1301,10 +1301,10 @@ export default function PmapScene() {
             putBack(probe)
             if (roomy.cutOff.length || roomy.lost > 0.25) continue
             const undo = stamp(s, scale)
-            /* a figure that stamped nothing is not a figure in the floor: this used to continue silently and still be counted in the n of n line, so a thing he walks straight through was reported solid on every load */
+            /* a figure that stamped nothing is not a figure in the floor, and it says so */
             if (!undo.length) continue
             const m = measure()
-            /* a quarter of the island is a wall, one figure is not: the old five percent was a whole-map budget spent by everything at once, under one percent each on an island with eight things, and whether anybody is shut out is the second test, which has no budget */
+            /* a quarter of the island may be wall, and one figure may not */
             if (m.cutOff.length || m.lost > 0.25) { putBack(undo); continue }
             floored += undo.length / 2
             lost = m.lost
@@ -1566,7 +1566,7 @@ export default function PmapScene() {
       const PIN_RIM = 0x4a3524
       const PIN_LIGHT = 0xf5efdd
 
-      /* smaller than it was, so the mark does not out-mass the character it marks */
+      /* small enough that the mark does not out-mass the character it marks */
       /* the disc is sized by the face: the head halves cleanly to 26, so the radius is 14 */
       const PR = 14       // pin circle radius in screen px
       const PCY = -PR - 10                 // circle centre; the tail tip is the origin
@@ -1887,7 +1887,7 @@ export default function PmapScene() {
         void kitSprite('pointer', 'chevron').then((drawn) => {
           if (destroyed || !drawn) return
           drawn.anchor.set(0.5, 1)
-          /* smaller than it was, because it sits on the thing now rather than being read across the room: at nearly two bodies it hung in mid-air and read as pointing at whatever was behind it, and it is sized against the character so one drawing is right on eighteen and forty pixel people */
+          /* small enough to sit on the thing rather than be read across the room */
           const want = Math.max(14, Math.round(map.character.heightPx * 0.8))
           drawn.scale.set(want / drawn.texture.height)
           bigMark.removeChild(glyph)
@@ -2129,7 +2129,7 @@ export default function PmapScene() {
       }
 
       /* letting go of a driven body settles whatever move was pending on it */
-      /* the way a body was left facing is the way it stays: a released body used to snap back to whichever heading `rest` picked off a filename at load, so a film could turn the principal, say its line, let go, and watch him spin back to south on the next frame */
+      /* a released body keeps the heading a scene left it facing */
       const lastFacing = new Map<Sprite, string>()
 
       const releaseDriven = (only?: Sprite) => {
@@ -2581,7 +2581,7 @@ export default function PmapScene() {
           if (facing) walker.facing = facing
           if (!key) return
           const file = POSE_ART[key]
-          /* standing is the walk set's own first frame, which is why it is the one pose that can never be missing */
+          /* standing is the walk set's own first frame, so it is the one pose that cannot be missing */
           if (file === null) { posed = null; return }
           let tex: Texture
           try {
@@ -2828,7 +2828,7 @@ export default function PmapScene() {
           /* a thing drawn one way has no heading to turn to, and the word says so */
           if (!look?.views || !Object.keys(look.views).length)
             throw new NotBuilt('actor_face', `"${actor}" was drawn one way and has no heading to turn to`)
-          /* anybody can be turned to look at a place, not just thor: an unknown string used to be written straight in as a heading, missed the eight pictures the body was drawn with, and drew a silently wrong face, so the name is asked of the loaded map and one it does not carry is refused by name */
+          /* anybody can be turned to look at a place, and a name the map does not carry is refused */
           if (DIRS8.includes(facing)) { take(sp).facing = facing; return }
           const place = anchors.get(facing)
           if (!place)
@@ -3151,7 +3151,7 @@ export default function PmapScene() {
           stageMissed(`stage call "${name}"`)
         },
 
-        /* the hold is counted, so a gate handing control back mid script does not fight the station hold underneath it, which is why `world-bus.ts` counts holds */
+        /* the hold is counted, so a gate handing control back mid script does not fight the station hold */
         playerControl: (on) => {
           if (on) { csHold?.(); csHold = null }
           else csHold ??= holdWorld('cutscene')
@@ -3513,7 +3513,7 @@ export default function PmapScene() {
         const owner = ownerOf(a.name, grapeHandlers)
         const sv = loadSave()
         if (!owner) {
-          /* a correctly placed anchor with a correctly spelled name and a correctly written handler used to produce nothing at all, which is exactly what a typo produces too */
+          /* an anchor nothing answers to is named out loud rather than passed over in silence */
           console.warn(`[pmap] ${mapId}: nothing answers to the anchor "${a.name}"`)
           engine.log('anchor_unclaimed', { map: mapId, anchor: a.name })
           return
@@ -3853,7 +3853,7 @@ export default function PmapScene() {
         /* 96 rather than 44: a berth sits in the water off the end of a quay, and the quay itself is further than a body's length away in the squashed metric */
         const tried = onFloor(sea, canStand, cfg.yScale, 96)
         if (tried.moved) return tried.at
-        /* one last look, further out: `onFloor` gives up at the radius it is handed, and on a berth 620 pixels offshore nothing was standable inside 96, so the journey home was refused and died with nothing on the screen, which is why a ring search out to a quarter of a painting is worth paying for here */
+        /* one last look further out, for a berth beyond the radius onFloor was handed */
         for (let r = 104; r <= 260; r += 8) {
           for (let i = 0; i < 24; i++) {
             const a2 = (i / 24) * Math.PI * 2
@@ -4257,7 +4257,7 @@ const DOCK_BEAT_MS = 900
 const BOARD_BEAT_MS = 700
 /* slower and over sooner, which is two numbers pulling opposite ways: half a helm measured 38 to 48 px/s over 5.2 seconds and outlasted the interest, while a third of a helm is roughly 20 a second and three and a half seconds still reads as an ending */
 /** the departure itself, which is the shot the title fades in over */
-/* long enough to be a departure at the speed she really goes: cruise came down from 150 to 96, and against the old number she cleared 32 pixels in the whole shot, which is a boat that has not left */
+/* long enough to read as a departure at the speed she really goes */
 const SAIL_OUT_MS = 5200
 /* the throttle constant is gone: `steerTo` eases the way on through the turn and then holds it, the same helm every other departure uses, because a hand picked third of a helm was a second law for one shot */
 
@@ -4279,12 +4279,12 @@ const CAST_OFF_SHOW_MS = 3200
         /* the skip lands him at the dock rather than cancelling the voyage, which would leave a student who pressed a pick standing where he was: the far map opens at the berth's own anchor on foot and the card plays, and it is checked at the top of every leg and again after the walk */
         const skipToShore = (): boolean => {
           if (!voyageSkipped()) return false
-          /* once the far map is open there is nothing left to skip: `skipped` is latched and `setLeg` never clears it, so on the landing leg a stale flag called `beginExit` onto the map he already stood on, deleting the arrival rather than shortening the crossing */
+          /* once the far map is open there is nothing left to skip, and skipped stays latched */
           if (v.leg === 'landing') return false
           /* and a skip never re-enters the map it is already on, whatever the leg */
           if (v.to === mapId) { endTravel('already there'); return false }
           const to = comp ? slotOfMap(comp, v.to) : undefined
-          /* his ship comes with him: `docked()` writes where the boat ended up and a skip never reaches it, so the save still said she was tied up at the island he left and the far dock drew nothing, which is why it is written here, where the skip is decided */
+          /* his ship comes with him, since docked() writes where the boat ended up */
           recordVessel({
             berthedAt: to?.place ?? to?.map ?? v.to,
             legs: (loadSave()?.vessel?.legs ?? 0) + 1,
@@ -4303,7 +4303,7 @@ const CAST_OFF_SHOW_MS = 3200
             if (canSail && berth) {
               const at = dockSide()
               if (!at) {
-                /* said out loud: a journey that cannot start used to end in one console line, so a student who pressed a button watched nothing happen and had nothing to read */
+                /* a journey that cannot start says so on the glass rather than in the console */
                 endTravel(`there is nowhere to stand at ${mapId}'s berth`)
                 setCinema(false)
                 engine.objective(null)
@@ -4545,7 +4545,7 @@ const CAST_OFF_SHOW_MS = 3200
         seen: [...seenPlaces],
         states: comp ? seaSlots(comp).map((s) => `${s.title}=${stateOf(s, loadSave())}`) : [],
       })
-      /* how deep the water is at a painting pixel, off the union field: a berth has to be authored somewhere a hull can actually float, and before this hook that was measured by sailing into a coast */
+      /* how deep the water is at a painting pixel, read off the union field */
       ;(window as any).__depth = (x: number, y: number) => Math.round(depthAt(x, y))
       ;(window as any).__board = () => { board(); return hull ? 'aboard' : 'no berth here' }
       ;(window as any).__helm = (throttle: number, turn: number, ms: number) => {
@@ -4819,7 +4819,7 @@ const CAST_OFF_SHOW_MS = 3200
         const dt = Math.min(tk.deltaMS, 50) / 1000
         const t = performance.now() / 1000
 
-        /* the script rides this same clock, which is why the runtime is tick driven rather than timer driven: cutscene time and world time cannot drift apart if there is only one of them */
+        /* the script rides this same clock, so the runtime is tick driven rather than timer driven */
         runtime.tick(tk.deltaMS)
         /* the step is MAPVIS's own Walker.step, so the slide and the escape clause cannot drift */
         /* who owns the controls: a door fade, a panel or cutscene, or an auto-walk */
@@ -5293,7 +5293,7 @@ const CAST_OFF_SHOW_MS = 3200
                 : doorTo(obj.map))
         leading = mark?.name ?? null
         if (mark) {
-          /* the arrow rides a route the walk law found, searched again only when it goes stale */
+          /* the arrow rides a route the walk law found, searched again only when it expires */
           const goal = anchors.standAt(mark)
           /* the search is throttled on a clock as well as on distance */
           const stale = !guide || guide.key !== mark.name
@@ -5678,7 +5678,7 @@ const CAST_OFF_SHOW_MS = 3200
       app.stage.visible = true
       loadingPlate?.remove(); loadingPlate = null
       ;(window as any).__sceneReady = true
-      /* the hud is told the same, so nothing it mounts opens over the black before this frame */
+      /* the hud is told the same, so nothing it mounts opens over the black before the first frame */
       setSceneDrawn(mapId)
 
       /* the place card: where you are, once per session per map, on arrival */

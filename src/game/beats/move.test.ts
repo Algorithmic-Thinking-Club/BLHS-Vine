@@ -47,7 +47,7 @@ describe('a piece goes where you put it', () => {
       ['Perseverance', 'Ownership', 'Work Ethic', 'Engagement', 'Respect'],
     )
     expect(host.querySelectorAll('.bt-drop')).toHaveLength(5)
-    /* the old rendering, gone: a bucket chip per row per option was the quiz */
+    /* the quiz is not a bucket chip per row per option */
     expect(host.querySelector('.bt-bucket')).toBeNull()
   })
 

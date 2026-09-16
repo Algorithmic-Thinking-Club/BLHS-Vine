@@ -68,15 +68,12 @@ export function mooringFor(v: VesselRecord | undefined, c: WorldComposition): Mo
     : undefined
   if (!v?.berthedAt) return { kind: 'home', slot: home, why: 'no vessel record: the run has not sailed' }
   const slot = c.slots.find((s) => (s.place ?? s.map) === v.berthedAt) ?? slotOfMap(c, v.berthedAt)
-  /* A SLOT THAT WENT AWAY is the composition being re-authored under a save,
-   * which is the same class of failure as a map being re-cut and gets the same
-   * answer: fall back to something that exists rather than to a coordinate. */
+  /* a slot that went away falls back to something that still exists, as a re-cut map does */
   if (!slot?.berth) return { kind: 'home', slot: home, why: `berth "${v.berthedAt}" is not on this composition` }
   return { kind: 'berth', slot, why: 'moored where she was left' }
 }
 
-/* THE RECORD A SCENE WRITES BACK. Kept beside the reader so the two shapes cannot
- * drift: whatever `resumeTarget` compares is whatever this wrote. */
+/* the record a scene writes back, kept beside the reader so the two shapes cannot drift */
 export const stampOf = (now: WorldStamp, anchor?: string, x?: number, y?: number): Omit<RunPosition, 'at'> => ({
   map: now.map,
   ...(now.mapVersion !== undefined ? { mapVersion: now.mapVersion } : {}),

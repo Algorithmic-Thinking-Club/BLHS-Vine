@@ -93,8 +93,7 @@ export default function TeacherScene() {
       a.click()
       // the blob is pinned for the life of the tab otherwise, once per export
       setTimeout(() => URL.revokeObjectURL(url), 10_000)
-      /* an export of nothing and an empty class look identical in a CSV, and only
-       * one of them is a bug worth telling somebody about */
+      /* an export of nothing and an empty class look identical in a csv, and only one is a bug */
       setExported(`${d.rows.length} student${d.rows.length === 1 ? '' : 's'} · ${d.events} events read`)
     } catch { setOffline(true) } finally { setBusy(false) }
   }

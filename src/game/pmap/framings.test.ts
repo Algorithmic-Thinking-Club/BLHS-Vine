@@ -74,7 +74,7 @@ describe('folding the live hub top-level shots onto its anchors', () => {
   })
 
   it('leaves an unnamed default that is already authored alone', () => {
-    /* the anchor's own default is the newer shape and the author's later word, so an entry flag on the old list must not pull the map back to it */
+    /* the anchor's own default is the author's later word, so an entry flag on the flat list gives way */
     const door = mawDoor({ framing: { zoom: 2.2, dy: -30 } })
     projectFramings([door], HUB_SHOTS, 'hub')
     expect(framingOf(door.meta)?.zoom).toBe(2.2)
@@ -128,7 +128,7 @@ describe('every named shot on a map, indexed by the name a person typed', () => 
   ]
 
   it('finds a shot without being told which anchor carries it', () => {
-    /* nobody writing a scene thinks "the second framing on the door", they think "the maw mouth", which is why this index is flat */
+    /* a scene names the maw mouth rather than the second framing on the door */
     const shots = shotsOf(anchorsOf())
     expect([...shots.keys()].sort()).toEqual(['the_chart', 'the_fire'])
     expect(shots.get('the_fire')?.anchor.name).toBe('hearth')

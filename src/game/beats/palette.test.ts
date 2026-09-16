@@ -293,7 +293,7 @@ describe('the loader refuses an invalid item and names it (K5)', () => {
     for (const k of kinds) expect(refuseCheck(sampleOf(k)), k).toBeNull()
   })
 
-  /* a kind nobody has, which used to reach the page as a crash: `refuseCheck`'s switch had no default, so a typo'd kind was reported valid and the next read of `PALETTE[c.kind]` was undefined and a white page; kinds arrive as strings typed in Python, so a misspelling must come back as a sentence naming the word */
+  /* a kind nobody has is refused rather than reaching the page as a crash */
   it('refuses a kind this game does not have, and lists the ones it does', () => {
     const typo = { kind: 'muliple', id: 'x', prompt: 'p', options: [] } as unknown as CheckStep
     const why = refuseCheck(typo)

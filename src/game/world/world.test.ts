@@ -379,7 +379,7 @@ describe('loading the composition', () => {
     expect(f).toHaveBeenCalledTimes(1)
   })
 
-  /* one bad slot must never cost the other three: the old reader binned all four over one footprint, fell back to a hardcoded default, and said nothing on screen */
+  /* one bad slot must never cost the other three */
   it('keeps the good slots and drops only the bad one', async () => {
     const { loadComposition, compositionReport } = await freshWorld()
     const err = quiet()
@@ -422,7 +422,7 @@ describe('loading the composition', () => {
     }
     vi.stubGlobal('fetch', serving({ [PLATFORM]: doc }))
     const c = await loadComposition(PLATFORM)
-    /* a world with a mistyped home is still a world and refusing it leaves a student staring at nothing, and this is the exact string that used to delete every island in the published document */
+    /* a world with a mistyped home is still a world, and refusing it leaves a student at nothing */
     expect(c.slots.map((s) => s.map)).toEqual(['hub', 'the_quay'])
     expect(compositionReport().faults.map((f) => f.key)).toEqual(['home'])
   })
@@ -561,7 +561,7 @@ describe('coming alongside', () => {
   })
 
 
-  /* she arrives facing the way the berth was drawn: the sail into the hub came in 121 degrees off the authored heading and spun on the spot, and these check every direction because the old manoeuvre was right only from directly astern */
+  /* she arrives facing the way the berth was drawn */
   it('arrives lying along the berth from any direction, not nosed in at a random angle', () => {
     const target = { x: 300, y: 210 }
     const facing = -0.698                 // the hub berth's own heading, off the live ocean
@@ -586,7 +586,7 @@ describe('coming alongside', () => {
     }
     /* within the tolerance the manoeuvre itself declares, from every bearing */
     expect(worst.filter((w) => w.off > ALONGSIDE_RAD)).toEqual([])
-    /* and she did the turning under way: a tenth of a radian is settling, the measured pirouette was 1.75, and the old code fails this by ten times */
+    /* and she did the turning under way, within a tenth of a radian of settled */
     expect(worst.filter((w) => w.spun > 0.35)).toEqual([])
   })
 
@@ -623,7 +623,7 @@ describe('coming alongside', () => {
     }
     expect(gaveUp, 'it handed the helm back instead of tying up').toBe(false)
     expect(b.stage).toBe('done')
-    /* and she is lying along the dock, which is why this counts: a boat finishing pointed across the planks would be the old bug with a nicer ending */
+    /* and she is lying along the dock rather than pointed across the planks */
     const off = Math.abs(Math.atan2(Math.sin(h.heading - facing), Math.cos(h.heading - facing)))
     expect(off).toBeLessThan(ALONGSIDE_RAD * 1.5)
     /* and no further from the mark than a hull's length */
@@ -666,7 +666,7 @@ describe('coming alongside', () => {
     }
     const r = berthHelm(h, b)
     expect(r.next.stage).toBe('approach')
-    /* under way and turning toward it: this used to read `throttle === 1`, which stopped being right once the helm eased off through a hard turn, and what matters is that she is making for the approach and not for the berth */
+    /* under way and turning toward it, measured off the helm rather than a full throttle */
     expect(r.helm.throttle).toBeGreaterThan(0)
     expect(Math.abs(r.helm.turn)).toBeGreaterThan(0)
   })
@@ -711,7 +711,7 @@ describe('coming alongside', () => {
   const shelf = (_x: number, y: number) => y
 
   it('slides along a coast instead of stopping dead on it', () => {
-    /* she is on the 20 deep contour, inside the 26px probe and pointed along it, and the old rule asked for strictly deeper while a slide is the same depth, so this was an absorbing fixed point with identical numbers at 5s and at 30s */
+    /* she is on the 20 deep contour, inside the 26 pixel probe and pointed along it */
     let h = { ...newHull(0, 20, 0), speed: DEFAULT_SAIL.cruise }
     const x0 = h.x
     for (let i = 0; i < 120; i++) h = stepHull(h, { throttle: 1, turn: 0, fullSail: false }, 1 / 60, shelf)

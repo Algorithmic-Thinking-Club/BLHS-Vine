@@ -135,7 +135,7 @@ html[data-rm='1'] .cd-fall { animation: none; }
 
 /* the plain arm: the same words as a note on paper, with no drawn cord */
 
-/* every cord the player has, as a list: what is earned, then what is being worked towards, because the card used to show one cord and it was the same one every year */
+/* every cord the player has, earned first and then what is being worked towards */
 .cd-list {
   list-style: none;
   margin: 0 0 10px;

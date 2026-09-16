@@ -208,7 +208,7 @@ export function Socket({
 }: {
   caption: string
   filled?: boolean
-  /** the reason this cannot take what is being offered, in words */
+  /* why this cannot take what is being offered, in words */
   refusing?: string | null
   /** something is being dragged over it right now */
   over?: boolean

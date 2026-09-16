@@ -8,9 +8,7 @@ describe('who answers to an anchor', () => {
   })
 
   it('answers nobody when no island claims it', () => {
-    /* the engine carried a second table of maw stations in typescript and asked it
-     * whenever an island did not answer. the island is the only owner now, so an
-     * anchor with no handler reaches nothing and says so. */
+    /* an island is the only owner of an anchor, so a name with no handler reaches nothing */
     expect(ownerOf('chart_table', [])).toBeNull()
   })
 

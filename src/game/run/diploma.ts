@@ -193,7 +193,7 @@ const PAPER = {
 const DISPLAY_FACE = 'Harbormaster, Deckhand, serif'
 const BODY_FACE = 'Deckhand, serif'
 
-/* typed here rather than off `Document['fonts']`, because the FontFaceSet lib type is not in every `lib.dom` this repo builds against and a keepsake must not be the reason a build stops, and this is the whole surface used */
+/* typed here, since the FontFaceSet lib type is not in every lib.dom this builds against */
 type FontLoader = { load?: (font: string) => Promise<unknown> }
 
 /** ask the document for the two commissioned faces and wait, at most briefly */
