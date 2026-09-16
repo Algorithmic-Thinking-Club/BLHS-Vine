@@ -215,3 +215,7 @@ public/ui-vendored/
 !scripts/sail-machine-proof.mjs
 !scripts/atc-quiz-proof.mjs
 !scripts/sailing-measure.mjs
+
+# the crash fixture maw1-proof builds and removes, left behind when a run is killed
+public/grapes/maw-crash/
+dist/grapes/maw-crash/
