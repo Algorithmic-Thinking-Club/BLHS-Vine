@@ -4,6 +4,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 export const LIVE = 'https://blhs-island-explorer.vercel.app'
+
+/* the flags that put a headless browser on the real gpu */
+export const GPU = ['--use-angle=default', '--enable-gpu', '--ignore-gpu-blocklist']
 export const ROOT = 'C:/Users/ashcy/AdventureGame/reference/_archive/build-shots/pass2/bugs'
 
 export const BASE = () => ({
@@ -37,9 +40,10 @@ export async function boot(name, { save, url, headed = false, clearSeen = true, 
   const dir = where ? path.resolve(where) : path.join(ROOT, name)
   fs.mkdirSync(dir, { recursive: true })
   for (const f of fs.readdirSync(dir)) fs.unlinkSync(path.join(dir, f))
-  /* headless chromium draws with swiftshader, a cpu rasteriser, unless it is told to
-   * use the real gpu. a run that does not pass args is measuring software rendering. */
-  const browser = await chromium.launch({ headless: !headed, ...(args ? { args } : {}) })
+  /* headless chromium draws with swiftshader, a cpu rasteriser, unless it is told to use
+   * the real gpu. software rendering stretches a camera move past the timeouts the proofs
+   * poll on, so a proof that should pass reports a screen that never opened. */
+  const browser = await chromium.launch({ headless: !headed, args: args ?? GPU })
   const ctx = await browser.newContext({ viewport: view ?? { width: 1366, height: 768 }, deviceScaleFactor: 1 })
   const page = await ctx.newPage()
   const t0 = Date.now()

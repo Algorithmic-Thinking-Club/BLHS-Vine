@@ -1,6 +1,4 @@
-// Core beats Y2-Y4: fact tripwires against the authoritative sources, and the Y4
-// generator's personal audit math. If a criteria test fails, someone changed a REAL
-// award rule — check docs/blhs/awards.md before "fixing" anything.
+// core beats y2 to y4: fact tripwires against the sources, and the y4 generator's audit math
 import { describe, it, expect } from 'vitest'
 import { checksOf } from './frames'
 import { CORE_Y2 } from './y2'
@@ -28,8 +26,7 @@ describe('Y2 — the hidden ladder (Ms. Pinzon’s real criteria)', () => {
     const sort = checksOf(CORE_Y2).find((c) => c.kind === 'sort')
     if (sort?.kind !== 'sort') throw new Error('missing sort')
     const pairs = Object.fromEntries(sort.items.map((i) => [i.bucket, i.label]))
-    /* the bucket is the honor's NAME now, not the cord's colour: 'Double gold'
-       named nothing a student could look up (the words pass, 2026-09-04). */
+    /* the bucket is the honor's name rather than the cord's colour */
     expect(pairs['Highest Honors']).toContain('3.76')
     expect(pairs['Career Readiness']).toContain('Two CTE credits')
     expect(pairs['AP Honors']).toContain('Five passed AP')

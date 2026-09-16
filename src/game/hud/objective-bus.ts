@@ -2,17 +2,7 @@
 
 let said: string | null = null
 let world: string | null = null
-/* ---- THE LAST SHOT OF THE YEAR (Ash, 2026-09-09) --------------------------
- *
- * `end_run` raises this for the length of the departure. The year's own sentence
- * for a closed run is "Year one is done. Look around.", and it drew across the
- * top of the ship leaving, over a student who was leaving and had nothing left
- * to look at.
- *
- * IT IS STATE ON THIS BUS AND NOT A MARK ON THE DOCUMENT, which was the first
- * try and did not work: the panel reads its sentence when something on this bus
- * changes, and handing the sentence back to the year is a no-op when the island
- * was not holding it, so nothing re-rendered and the bar sat there. */
+/* the last shot of the year, raised for the length of the departure */
 let ending = false
 const subs = new Set<() => void>()
 

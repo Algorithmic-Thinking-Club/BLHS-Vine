@@ -1,3 +1,2 @@
-// A visible build stamp so nobody ever judges a stale tab or a zombie dev server again
-// (that has burned real review rounds twice now). Bump on every push that changes behavior.
+// a visible build stamp, bumped on every push that changes behaviour
 export const BUILD_TAG = 'night-2'

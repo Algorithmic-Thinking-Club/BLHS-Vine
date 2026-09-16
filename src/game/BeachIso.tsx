@@ -374,9 +374,7 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         }
       }
 
-      /* hide the tiles the window does not reach, and keep the visible sea tiles in
-       * their own list. the beach is 104 by 104 and the window holds a few hundred of
-       * them, so the swell was tinting ten times more sprites than anyone could see. */
+      /* hide the tiles the window does not reach and keep the visible sea tiles in their own list */
       let cullX = NaN, cullY = NaN, cullZ = NaN
       const cullGround = (wx: number, wy: number, wz: number, vw: number, vh: number) => {
         const M = 96

@@ -27,17 +27,7 @@ export function HelpCard({ onClose }: { onClose: () => void }) {
         className="hp-card kit-surface-panel"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ---- REPLAY THE TUTORIAL (Ash, 2026-09-09) ---------------------
-            *
-            * *"Inside the question mark panel, on the top right, add a small
-            * button that expands to 'replay tutorial' that replays the
-            * tutorial."*
-            *
-            * Top right of the card, small until it is reached for, and it is
-            * the same `open('tour')` an island says: one tutorial, two doors
-            * into it. It only appears where a Hud is mounted to answer, since
-            * the card also opens off the title where there is no corner to
-            * point at. */}
+        {/* a small button on the help card that replays the tutorial */}
         {hudUp && (
           <button
             type="button"
@@ -80,15 +70,7 @@ export function HelpCard({ onClose }: { onClose: () => void }) {
           </li>
         </ul>
 
-        {/* ---- CLICK TO MOVE, AS A SWITCH (Ash, 2026-09-09) --------------
-            *
-            * *"Click to move. This is a slight problem. In the help button, make
-            * this a toggle, to activate click to move. Right now it's just on by
-            * default."*
-            *
-            * On the card with the keys, because it is about how he moves, and
-            * the card is already the place a student comes to find that out.
-            * Clicking a STATION is not this and never turns off. */}
+        {/* click to move, offered as a toggle rather than always on */}
         <button
           type="button"
           className="hp-toggle"
@@ -110,9 +92,7 @@ export function HelpCard({ onClose }: { onClose: () => void }) {
           <span className="hp-toggle-words">Click the ground to walk there</span>
         </button>
 
-        {/* THE SENTENCE THE BRIEF ASKS FOR, VERBATIM AND ON ITS OWN. It is the
-            answer to "I don't know what to do", so it is not in the list with
-            the keys; it is the line the card is really about. */}
+        {/* the answer to not knowing what to do, on its own rather than in the list of keys */}
         <p className="hp-task">The line above your head is your task.</p>
 
         {/* what the corner things are, named the way the plaques themselves label them */}

@@ -2,6 +2,9 @@
 import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright'
 
+/* the real gpu, because a headless browser otherwise rasterises on the cpu and a camera move outruns the timeouts below */
+const GPU = ['--use-angle=default', '--enable-gpu', '--ignore-gpu-blocklist']
+
 const base = (process.argv[2] ?? 'http://localhost:5173').replace(/\/$/, '')
 if (/vercel.app/.test(base) && !process.argv.includes('--live')) { console.error('refusing the live url without --live: proofs run on the dev server, one live run per deploy'); process.exit(2) }
 const tag = process.argv[3] ?? 'dev'
@@ -27,7 +30,7 @@ const SAVE = {
   stickers: [], facts: [], badges: [], savedAt: Date.now(),
 }
 
-const browser = await chromium.launch()
+const browser = await chromium.launch({ args: GPU })
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 })
 page.on('pageerror', (e) => { console.log(`  [pageerror] ${e.message}`); failures++ })
 /* a 404 is only useful if it says which url, and this one is expected: the engine asks the platform for a map before it falls back to the local folder, and the stand-in has never been published there */

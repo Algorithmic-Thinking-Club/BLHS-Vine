@@ -3,6 +3,9 @@ import { chromium } from 'playwright'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
+/* the real gpu, because a headless browser otherwise rasterises on the cpu and a camera move outruns the timeouts below */
+const GPU = ['--use-angle=default', '--enable-gpu', '--ignore-gpu-blocklist']
+
 const dir = process.argv[2] || 'public/maps-painted/hub-a2'
 /* a polyline, as x,y x,y x,y, sampled every four pixels exactly the way paths.ts's own walkFaults samples one, so a route is checked before it goes into a bundle instead of after a body has walked into a wall */
 const line = process.argv[3] === '--line'
@@ -15,7 +18,7 @@ const map = JSON.parse(readFileSync(path.join(dir, 'map.json'), 'utf8'))
 const levels = readFileSync(path.join(dir, 'levels.png')).toString('base64')
 const scene = readFileSync(path.join(dir, 'scene.png')).toString('base64')
 
-const b = await chromium.launch()
+const b = await chromium.launch({ args: GPU })
 const page = await b.newPage()
 await page.setContent('<canvas id=c></canvas>')
 const out = await page.evaluate(async ({ levels, scene, W, H, px, py, enc, line, route, ch }) => {

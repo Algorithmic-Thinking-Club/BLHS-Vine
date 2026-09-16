@@ -17,18 +17,14 @@
 
 .tr-dim {
   position: absolute;
-  /* `inset: 0` is the no-target case; with a target the four panels carry their
-     own geometry inline, so the lit control has no dim over it at all */
+  /* inset zero is the no-target case, and a target gives the four panels their own geometry inline */
   inset: 0;
   background: rgba(8, 8, 10, 0.58);
   animation: tr-fade 260ms ease both;
 }
 @keyframes tr-fade { from { opacity: 0 } to { opacity: 1 } }
 
-/* THE RING IS DRAWN OVER THE DIM AND THE CONTROL IS NOT LIFTED OUT OF IT. A
- * plaque raised above the veil would need its own stacking context and would
- * change the thing the student is about to press; a ring around it says which
- * one just as clearly and moves nothing. */
+/* the ring is drawn over the dim and the lit control is not lifted out of it */
 .tr-ring {
   position: absolute;
   border: 2px solid #f0d89a;
@@ -55,9 +51,7 @@
 
 .tr-say {
   position: absolute;
-  /* the width is decided in the component, from the room the target really
-     leaves, so a seven-hundred-pixel plank does not squeeze this to one word a
-     line (Ash, 2026-09-09). This is only the floor. */
+  /* the width is decided in the component from the room the target leaves, and this is only the floor */
   min-width: 180px;
   box-sizing: border-box;
   max-width: min(420px, 78vw);

@@ -1,8 +1,11 @@
 /* the address bar: a copied link like /?scene=pmap&map=panther-maw pasted into a browsing context that has never played must give the starting screen, not drop somebody into the middle of a sailing or the hub intro cutscene. The rule and its unit tests are in src/app/entry.ts; this covers the half no unit test can reach. */
 import { chromium } from 'playwright'
+
+/* the real gpu, because a headless browser otherwise rasterises on the cpu and a camera move outruns the timeouts below */
+const GPU = ['--use-angle=default', '--enable-gpu', '--ignore-gpu-blocklist']
 const base = process.argv.find(a => a.startsWith('--base='))?.slice(7) ?? 'http://localhost:5173'
 if (/vercel.app/.test(base) && !process.argv.includes('--live')) { console.error('refusing the live url without --live: proofs run on the dev server, one live run per deploy'); process.exit(2) }
-const b = await chromium.launch()
+const b = await chromium.launch({ args: GPU })
 const say = (n, ok, d='') => console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${n}${d ? '  ' + d : ''}`)
 let bad = 0
 const check = (n, ok, d) => { if (!ok) bad++; say(n, ok, d) }

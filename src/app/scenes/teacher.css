@@ -1,4 +1,4 @@
-/* The teacher's desk (§13.3) — plain, readable, projector-friendly. Not the game. */
+/* the teacher's desk: plain, readable and projector-friendly, and not the game */
 .tc-root {
   position: absolute; inset: 0; overflow-y: auto;
   background: #f4f1e8; color: #2c241c;

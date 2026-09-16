@@ -26,8 +26,7 @@ export type DirectorySection = {
   groups: DirectoryGroup[]
 }
 
-/* ---- 1. CLUBS ------------------------------------------------------------
- * sourced-facts.md §1, from the school's own clubs hub and its three sub-pages */
+/* clubs, from the school's own clubs hub and its three sub-pages */
 
 const CLUBS: DirectoryGroup[] = [
   {
@@ -129,9 +128,7 @@ const SPORTS: DirectoryGroup[] = [
   },
 ]
 
-/* ---- 3. CLASSES ----------------------------------------------------------
- * sourced-facts.md §3, off the SBLSD course catalog. A course has a grade span
- * and a department rather than a room, so that is what the row carries. */
+/* classes, off the district course catalog, carrying a grade span and a department */
 
 const CLASSES: DirectoryGroup[] = [
   {

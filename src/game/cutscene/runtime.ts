@@ -82,8 +82,7 @@ export class CutsceneRuntime {
     this.emit()
   }
 
-  /** CAPTAIN authority: end the entire cutscene NOW — required gates fall to defaults,
-   *  ui gates resolve empty (the host's completion callback still runs, writing the save) */
+  /** end the whole cutscene now: required gates fall to defaults and ui gates resolve empty */
   godSkip() {
     if (!this.root) return
     const r = this.root
@@ -110,8 +109,7 @@ export class CutsceneRuntime {
 
   tick(dtMs: number) {
     if (!this.root) return
-    // a frame hitch (scene build, tab-back) must slow the scene, not swallow its beats —
-    // the first tick after the beach bakes can carry seconds
+    // a frame hitch slows the scene rather than swallowing its beats
     dtMs = Math.min(dtMs, 100)
     // tweens first so screen-space state settles before step logic reads it
     for (let i = this.tweens.length - 1; i >= 0; i--) {

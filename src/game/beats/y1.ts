@@ -43,9 +43,7 @@ export const CORE_Y1: CoreBeat = {
         prompt: 'It is Monday morning at Bonney Lake. When does school start?',
         options: [
           { text: '7:25, same as every day', reply: 'That is Tuesday through Friday. Mondays are the late ones.' },
-          /* THE 25TH CREDIT RIDES HERE. It used to have a speech of its own, and
-           * the reply to the item it belongs to is where a student is actually
-           * reading. .125 a semester over eight semesters is the one credit. */
+          /* the twenty-fifth credit is said in the reply to the item it belongs to */
           { text: '8:30. Mondays start late', correct: true, reply: 'Right. Pass Advisory every semester and it is worth one elective credit, the 25th credit.' },
           { text: 'Whenever you wake up', reply: 'Bold. Wrong, but bold.' },
         ],

@@ -1,6 +1,4 @@
-// CORE BEAT, YEAR 3 — "The long game" (§7.3): the 24 credits and how they stack, dual
-// credit in its four real flavors, and AP Capstone's exact recipe. All from the 2024-25
-// SBLSD course catalog via docs/blhs/sourced-facts.md. No em-dashes in player copy (law §2.8).
+// core beat, year three: the 24 credits, dual credit in its four flavours, and ap capstone's recipe
 
 import type { CoreBeat } from './frames'
 
@@ -9,13 +7,9 @@ const CP = 'Counselor Pinzon'
 export const CORE_Y3: CoreBeat = {
   id: 'core:y3',
   year: 3,
-  /* was 'the counseling grove · The long game'. Same ruling as y2: the real room
-   * and a title that names the subject. */
+  /* the real room and a title that names the subject */
   title: 'The 24 credits a diploma takes',
-  /* WHERE IT REALLY STAGES (Ash, 2026-09-09). The runner prints this over every
-   * step in both arms, and it said "the counselor's office" over a beat the
-   * objective bar sends a student to the HEARTH for and the Maw's own island
-   * plays at the fire. One of the two was lying and it was this one. */
+  /* the place this beat stages at, which is the one the objective bar sends a student to */
   place: 'Advisory',
   kind: 'core',
   credit: 0.5,

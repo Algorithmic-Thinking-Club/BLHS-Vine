@@ -20,8 +20,7 @@ export function coreY4(save: SaveGame): CoreBeat {
     : 'Anything you have not earned yet is still open this year. Senior grades count.'
 
   // the GPA check is personal: their real number against the real bands
-  /* 'unwritten' read as broken English inside a graded prompt ("Your GPA stands
-   * at unwritten."). A student with no grades yet has a blank one. */
+  /* a student with no grades yet has a blank grade point average rather than the word unwritten */
   const gpaText = gpa === null ? 'blank' : gpa.toFixed(2)
   const correct: 'gold' | 'silver' | 'none' =
     gpa !== null && gpa >= 3.76 ? 'gold' : gpa !== null && gpa >= 3.5 ? 'silver' : 'none'
@@ -54,8 +53,7 @@ export function coreY4(save: SaveGame): CoreBeat {
   return {
     id: 'core:y4',
     year: 4,
-    /* was 'the Advisory Hearth · Finish like a Panther'. Advisory is Advisory,
-     * and the title now says what the activity does. */
+    /* the title says what the activity does */
     title: 'Check what you have earned',
     place: 'Advisory',
     kind: 'core',

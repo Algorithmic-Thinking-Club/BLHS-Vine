@@ -1,6 +1,9 @@
 /* holds the three handover states apart because `plaqueShown` is `!armed || shown.has(which)` and nothing shipped ever called `armHandover`, so all three signs were on screen from the first frame; run: node scripts/handover-proof.mjs --base=http://localhost:5173 */
 import { chromium } from 'playwright'
 
+/* the real gpu, because a headless browser otherwise rasterises on the cpu and a camera move outruns the timeouts below */
+const GPU = ['--use-angle=default', '--enable-gpu', '--ignore-gpu-blocklist']
+
 const base = (process.argv.find((a) => a.startsWith('--base=')) ?? '--base=http://localhost:5173').slice(7)
 if (/vercel.app/.test(base) && !process.argv.includes('--live')) { console.error('refusing the live url without --live: proofs run on the dev server, one live run per deploy'); process.exit(2) }
 
@@ -21,7 +24,7 @@ const save = (flags) => ({
   stickers: [], facts: [], badges: [], ledger: [], savedAt: 1,
 })
 
-const browser = await chromium.launch()
+const browser = await chromium.launch({ args: GPU })
 
 async function cornerWith(flags) {
   const page = await browser.newPage({ viewport: { width: 1366, height: 768 } })

@@ -5,8 +5,7 @@ export const PLAQUES: Plaque[] = ['map', 'guide', 'my-year']
 
 export const PLAQUE_EVENT = 'blhs:hud-plaque'
 
-/* HOW LONG A HALF-BUILT CORNER MAY STAND. Longer than the three lines it takes
- * to say the handover and far shorter than a sitting. */
+/* how long a half-built corner may stand */
 export const HANDOVER_CEILING_MS = 90_000
 
 let armed = false
@@ -80,9 +79,7 @@ if (typeof window !== 'undefined') {
   })
 }
 
-/* AND A RELOAD IS A WHOLE CORNER. Nothing here is written to the save on
- * purpose (see the header), so this is only the in-page reset a scene teardown
- * wants. */
+/* the in-page reset a scene teardown wants, written to no save */
 export const resetCornerForTests = (): void => {
   window.clearTimeout(ceiling)
   armed = false

@@ -2,6 +2,9 @@
 import { chromium } from 'playwright'
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 
+/* the real gpu, because a headless browser otherwise rasterises on the cpu and a camera move outruns the timeouts below */
+const GPU = ['--use-angle=default', '--enable-gpu', '--ignore-gpu-blocklist']
+
 const base = (process.argv[2] ?? 'http://localhost:5174').replace(/\/$/, '')
 const shots = 'reference/_archive/build-shots/maw1'
 mkdirSync(shots, { recursive: true })
@@ -22,7 +25,7 @@ const fresh = (over = {}) => ({
   stickers: [], facts: [], badges: [], savedAt: 1788400000000, ...over,
 })
 
-const browser = await chromium.launch()
+const browser = await chromium.launch({ args: GPU })
 const page = await browser.newPage({ viewport: { width: 1366, height: 768 } })
 const noise = []
 page.on('pageerror', (e) => { console.log(`  [pageerror] ${e.message}`); failures++ })

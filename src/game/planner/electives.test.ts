@@ -18,8 +18,7 @@ const save = (classes: string[]): SaveGame => ({
 
 describe('the year-one elective list', () => {
   it('offers a real choice rather than a token one', () => {
-    /* thirteen today. The floor is what matters: a list of two is not a choice
-     * and would make "pick two" a formality. */
+    /* the floor is what matters, since a list of two is not a choice */
     expect(offered(1).length).toBeGreaterThanOrEqual(8)
   })
 
@@ -34,8 +33,7 @@ describe('the year-one elective list', () => {
 
   it('is drawn from departments a student would recognise', () => {
     const depts = new Set(offered(1).map((c) => c.dept))
-    /* the AP list, world languages, the CTE pathways and the performing arts, all
-     * four sourced in `docs/blhs/sourced-facts.md` */
+    /* the ap list, world languages, the cte pathways and the performing arts, all four sourced */
     expect(depts.size).toBeGreaterThanOrEqual(3)
   })
 })

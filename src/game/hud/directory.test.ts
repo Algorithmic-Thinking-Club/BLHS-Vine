@@ -34,8 +34,7 @@ describe('every row is a real Bonney Lake thing', () => {
   })
 
   it('carries nothing a student could press', () => {
-    /* a row is information. The moment one grows an id, a place or a programme
-     * it has become a card, and the placeholder rule applies to it instead. */
+    /* a row is information, and one that grows an id, a place or a programme is a card instead */
     for (const r of rows()) expect(Object.keys(r).sort()).toEqual(
       Object.keys(r).filter((k) => ['name', 'what', 'meets', 'note'].includes(k)).sort(),
     )
@@ -53,9 +52,7 @@ describe('what the page holds', () => {
   })
 
   it('either says when a thing meets or says honestly that nobody published it', () => {
-    /* the gap is the fact here. A club with no time in the source gets the gap
-     * printed rather than a time made up for it, which is the whole of "nothing
-     * invented" on this page. */
+    /* a club with no time in the source gets the gap printed rather than a time made up for it */
     for (const r of DIRECTORY.find((s) => s.id === 'clubs')!.groups.flatMap((g) => g.rows)) {
       expect(!!r.meets || !!r.note).toBe(true)
     }

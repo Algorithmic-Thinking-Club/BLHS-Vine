@@ -22,8 +22,7 @@ export default function BootScene() {
   useEffect(() => {
     track('session_start', { vw: innerWidth, vh: innerHeight, dpr: devicePixelRatio })
     if (new URLSearchParams(location.search).has('holdboot')) return // dev: freeze for validation shots
-    // the splash holds for BOTH the timer and the boot save-pull (capped), so the title's
-    // Continue reads the server's newer save instead of a stale pre-pull snapshot
+    // the splash holds for the timer and for the capped boot save-pull, so continue reads the newer save
     let alive = true
     const timer = new Promise<void>((r) => window.setTimeout(r, BOOT_MS))
     const sync = import('../../game/sync').then(({ syncReady }) => syncReady()).catch(() => undefined)

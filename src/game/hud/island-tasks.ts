@@ -1,14 +1,4 @@
-/* what THIS island is asking of the student, as a list under the objective bar.
- *
- * Ash: *"islands should constantly have tasks to do, and thats how it should be
- * layed out. and it goes towards completing that island."*
- *
- * ONLY THE DECLARATION LIVES HERE. Which rows are ticked is in the save, keyed by
- * programme and year, because a student who closes the tab halfway through an
- * island has still done what he did. A list of names, by contrast, means nothing
- * while its island is not loaded, so it is transient by design and an island that
- * declares the same list on every load is doing the right thing.
- */
+/* what this island is asking of the student, as a list under the objective bar */
 import type { IslandTask } from '../../vine/intents'
 
 export type IslandTaskList = {
@@ -31,8 +21,7 @@ export const islandTaskList = (): IslandTaskList | null => list
 
 /** the `island_tasks` word. REPLACES whatever was declared, never appends. */
 export function setIslandTasks(programme: string, tasks: IslandTask[]) {
-  /* the same list again is not a change, or an @on_start that re-declares on every
-   * map load would re-render the sheet for nothing */
+  /* the same list again is not a change, so a re-declaring start does not re-render the sheet */
   const same = list
     && list.programme === programme
     && list.tasks.length === tasks.length
@@ -42,8 +31,7 @@ export function setIslandTasks(programme: string, tasks: IslandTask[]) {
   fire()
 }
 
-/* ISLAND LEFT, LIST GONE. The rows name things to do HERE, so carrying them onto
- * the next map would tell a student to press a machine that is not in the room. */
+/* the list goes when the island does, since its rows name things to do here */
 export function clearIslandTasks() {
   if (!list) return
   list = null

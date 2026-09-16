@@ -3,6 +3,9 @@ import { chromium } from 'playwright'
 import fs from 'node:fs'
 import path from 'node:path'
 
+/* the real gpu, because a headless browser otherwise rasterises on the cpu and a camera move outruns the timeouts below */
+const GPU = ['--use-angle=default', '--enable-gpu', '--ignore-gpu-blocklist']
+
 const arg = (k, d) => {
   const hit = process.argv.find((a) => a.startsWith(`--${k}=`))
   return hit ? hit.slice(k.length + 3) : d
@@ -27,7 +30,7 @@ const BACKWARD = /^back$|^close$|skip|quit|settings|back to the|back to my|leave
 /* the corner is now Map, Guide and My Year; the three old names stay in the pattern because this run is often pointed at a stale deploy, and a corner it does not recognise is a corner it walks through */
 const CORNER = /^map$|^guide$|^my year$|^chart$|^handbook$|^year sheet$|^\?$/i
 
-const browser = await chromium.launch({ headless: !has('headed') })
+const browser = await chromium.launch({ headless: !has('headed') , args: GPU })
 const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 }, deviceScaleFactor: 1 })
 const page = await ctx.newPage()
 const errors = []

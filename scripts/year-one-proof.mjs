@@ -3,6 +3,9 @@ import { chromium } from 'playwright'
 import fs from 'node:fs'
 import path from 'node:path'
 
+/* the real gpu, because a headless browser otherwise rasterises on the cpu and a camera move outruns the timeouts below */
+const GPU = ['--use-angle=default', '--enable-gpu', '--ignore-gpu-blocklist']
+
 const arg = (k, d) => {
   const hit = process.argv.find((a) => a.startsWith(`--${k}=`))
   return hit ? hit.slice(k.length + 3) : d
@@ -56,7 +59,7 @@ const YEAR_DONE = {
   ],
 }
 
-const b = await chromium.launch({ headless: !has('headed') })
+const b = await chromium.launch({ headless: !has('headed') , args: GPU })
 const ctx = await b.newContext({ viewport: { width: 1366, height: 768 }, deviceScaleFactor: 1 })
 const page = await ctx.newPage()
 const log = []

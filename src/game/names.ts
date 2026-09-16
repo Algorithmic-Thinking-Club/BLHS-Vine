@@ -1,10 +1,8 @@
-// Name hygiene shared by the intro's identity cards (I-3) and the Settings edits. One source
-// of truth so a deck name or ship name allowed at sign-up stays allowed when edited later, and
-// the gentle profanity guard is identical everywhere a student types a name.
+// name hygiene shared by the intro's identity cards and the settings edits, from one source
 
 const BLOCKLIST = ['fuck', 'shit', 'ass', 'bitch', 'dick', 'cunt', 'fag', 'nigg', 'rape', 'sex', 'porn']
 
-/** the pronoun options offered at sign-up and in Settings — kept together so they never drift */
+/** the pronoun options offered at sign-up and in settings, kept together */
 export const PRONOUN_CHOICES = ['he/him', 'she/her', 'they/them', 'ask me'] as const
 
 /** strip disallowed glyphs and cap length (deck names 14, ship names pass max=18) */

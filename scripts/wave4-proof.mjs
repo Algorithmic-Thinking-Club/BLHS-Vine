@@ -3,6 +3,9 @@ import { chromium } from 'playwright'
 import fs from 'node:fs'
 import path from 'node:path'
 
+/* the real gpu, because a headless browser otherwise rasterises on the cpu and a camera move outruns the timeouts below */
+const GPU = ['--use-angle=default', '--enable-gpu', '--ignore-gpu-blocklist']
+
 const arg = (k, d) => {
   const hit = process.argv.find((a) => a.startsWith(`--${k}=`))
   return hit ? hit.slice(k.length + 3) : d
@@ -50,7 +53,7 @@ const shot = async (page, name, extra = 0) => {
   return file
 }
 
-const b = await chromium.launch({ headless: !has('headed') })
+const b = await chromium.launch({ headless: !has('headed') , args: GPU })
 const page = await b.newPage({ viewport: { width: 1280, height: 800 } })
 
 /* seed a run once: `set_flag` and `award` need a save to write into, and the init script runs again on every reload so it must not put the starting save back over a written one; `introDone: true` is a lie this proof tells, because the Hud is behind that flag and this is not the intro's first run */

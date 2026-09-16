@@ -2566,10 +2566,7 @@ export default function PmapScene() {
 
         /* cutscene plays, and refuses an unknown script or one whose anchors this map lacks */
         cutscene(script) {
-          /* the engine shipped a table of authored scripts and played one by name. an
-           * island composes a film out of the vocabulary instead, so there is no table
-           * left to look a name up in and this refuses rather than reporting a scene
-           * that never ran. */
+          /* the engine keeps no table of authored scripts, so a named cutscene is refused */
           throw new NotBuilt('cutscene', `no script named "${script}": a film is composed out of the vocabulary now`)
         },
 
@@ -3457,11 +3454,7 @@ export default function PmapScene() {
       /* what has been touched this sitting, kept for the life of the page and never saved */
       const usedThisSitting = new Set<string>()
 
-      /* what one anchor is offering, asked by the plaque and by a click alike.
-       * the engine used to keep a table of sentences here keyed by anchor name, so
-       * the map said "The Counselor" and the plaque said "Talk to the counselor".
-       * the person who placed the anchor writes the label and the label is what a
-       * player reads. */
+      /* what one anchor is offering, asked by the plaque and by a click alike */
       const actionFor = (a: Anchor, label: string): string => {
         /* the shelf says what is on it without new art: drawn trophies would need art per trophy, so the plaque carries the count across the whole run instead, matching the panel behind it in `run/wall.ts` */
         if (a.name === 'trophy_wall') {
@@ -3490,8 +3483,7 @@ export default function PmapScene() {
           if (built === 'ok') { text = actionFor(a, label); canFire = true }
           else if (built === 'missing') { text = `${label} · not open yet`; state = 'barred' }
         } else if (islandPending) {
-          /* the room is painted before the worker has the island, so the plaque names the
-           * thing rather than flickering from blank to text on every load */
+          /* the plaque names the thing while the island is still loading */
           text = label
         } else if (!owner) {
           /* an anchor nothing answers to is named out loud rather than silently ignored */
@@ -4898,17 +4890,10 @@ const CAST_OFF_SHOW_MS = 3200
 
         /* what is being driven decides what the camera follows and how far out it sits */
         if (hull) {
-          /* THE SECOND FOLLOWER USED TO BRANCH HERE and it is gone: `dockAt` hands
-           * its line to `sailing` below, which is the one the intro uses. Two machines
-           * for moving one ship is why the crossing Ash likes and the crossing he does
-           * not were never going to converge. */
+          /* the docking line is handed to the sailing follower below */
           if (berthing) {
             /* the manoeuvre drives the same hull through the same physics as the player's helm */
-            /* AND THE MANOEUVRE IS TOLD WHERE THE WATER IS. It works a rendezvous
-             * out for itself when nobody drew an approach point, and the one thing
-             * it cannot know is whether the sea it names is there: the hub's berth
-             * is aimed so that its approach comes from beyond the bottom right of
-             * the painting, and the boat sailed at it, grounded, and gave up. */
+            /* the manoeuvre is given a depth probe so it only ever aims at water */
             const r = berthHelm(hull, berthing, DEFAULT_SAIL, dt,
               (x, y) => depthAt(x, y) >= DEFAULT_SAIL.probe)
             berthing = r.next
@@ -4939,17 +4924,7 @@ const CAST_OFF_SHOW_MS = 3200
             const ahead = Math.cos(hull.heading) * dx + Math.sin(hull.heading) * dy
             s2.left -= dt
             if (s2.left <= 0) {
-              /* ---- A LINE THAT RUNS OUT HANDS HER TO THE MANOEUVRE ------------
-               *
-               * It used to drop her: follower gone, nothing else driving, and on an
-               * engine voyage an arrival still waiting on a tie-up that could now
-               * never happen. She coasted to a stop in open water and the journey
-               * hung there.
-               *
-               * `berthHelm` can come alongside from anywhere - that is the whole of
-               * what it is for - and it has its own watchdog which says so out loud
-               * when it really cannot. Handing her over is a strictly better answer
-               * than letting go of the wheel. */
+              /* a sailing line that runs out hands the hull to the berthing manoeuvre */
               const b2 = sailingTo?.berth
               sailing = null
               if (b2 && !berthing) {
@@ -4974,32 +4949,8 @@ const CAST_OFF_SHOW_MS = 3200
               hull = stepHull(hull, { throttle: 1, turn: 0, fullSail: false }, dt, depthAt)
             } else if (s2.i >= s2.pts.length - 1
               && (d < RUN_IN_CORRIDOR_PX || (ahead < 0 && d < DEFAULT_SAIL.cruise))) {
-              /* ---- THE HANDOVER HAPPENS WHERE SHE ARRIVES, NOT WHERE SHE AIMS ---
-               *
-               * This used to fire the moment `i` POINTED at the last waypoint, which
-               * on a one-leg line is the first frame of the crossing. So the line's
-               * last stretch - the one the follower slows down for - was never sailed
-               * by the follower at all: `berthHelm` got a hull at cruise from wherever
-               * she happened to be, refused to come alongside one going that fast, and
-               * sent her round again. Measured on the ATC arrival, a hundred and fifty
-               * frames of approach at ninety four.
-               *
-               * SHE HAS GOT NEAR IT, or she has gone past it. NEAR and not ON: the
-               * intermediate waypoints use forty pixels and the last one cannot,
-               * because her turning circle is seventy six and a boat cannot hit a
-               * forty pixel target she is already turning around. Measured, she
-               * orbited the lineup mark for eleven hundred frames at a mean of eleven
-               * pixels a second and never once got inside forty. The corridor width is
-               * the right number and it is the one `berthHelm` already uses for
-               * "beside the dock", so the two agree about where the manoeuvre starts. Until then the branch below steers her at it and takes
-               * the way off, which is what makes her arrive at a speed the manoeuvre
-               * will accept. The line's own timeout is still the floor under it.
-               *
-               * `berthing` takes over on the next frame through the branch above, so
-               * there is exactly one thing driving the hull at any instant. */
-              /* THE BERTH WAS DECIDED WHEN THE WORD WAS SAID. It used to be
-               * looked up here, on the frame the last leg begins, which is why an
-               * unnamed line could get this far at all and then stop at nothing. */
+              /* the handover happens where she arrives, measured along the line rather than at the last waypoint index */
+              /* the berth was decided when the word was said, so an unnamed line never reaches here */
               const b = sailingTo?.berth
               const end = b ? fromSea(b.x, b.y) : aim
               docking = sailingTo?.slot ?? null
@@ -5015,36 +4966,17 @@ const CAST_OFF_SHOW_MS = 3200
               }
               sailing = null
               engine.log('voyage_arriving', { map: mapId, path: s2.path.name, berth: b?.name ?? null })
-              /* AND THE PROMISE IS NOT SETTLED HERE. The line has been run and the
-               * crossing has not ended: she is still moving, he is still hidden,
-               * and `docked()` is the instant he is standing on the island. */
+              /* the promise settles at docked(), the instant he is standing on the island */
             } else {
-              /* ---- SHE TAKES THE WAY OFF BEFORE THE LAST MARK -------------
-               *
-               * ASH: *"it does some RANDOM sailing... crazy turns."* Measured on the
-               * real hub arrival, the follower handed the hull to the docking
-               * manoeuvre 70 pixels from the berth STILL DOING 96. The manoeuvre's
-               * own way in needs her under half cruise, so it refused her, sent her
-               * out to a lineup mark on the far side of the dock, and she did a lap.
-               *
-               * A boat slows as she comes up on her berth. On the last leg the
-               * throttle comes off inside the distance it takes to stop, which is the
-               * same sum `berthHelm` uses, so she is handed over at a speed the
-               * manoeuvre will actually accept. Every earlier leg is unchanged: a
-               * crossing is not a place to dawdle. */
+              /* she takes the way off before the last mark, so the manoeuvre is handed a hull under half cruise */
               const helm = steerTo(hull, aim)
               if (s2.i >= s2.pts.length - 1) dockingSpeed(helm, d, hull.speed)
               hull = stepHull(hull, helm, dt, depthAt)
             }
           } else if (castOff) {
-            /* the two seconds after E: she comes off the berth under her own power,
-             * turning onto the way out rather than being pointed at it */
+            /* the two seconds after E: she comes off the berth under her own power, turning onto the way out */
             if (performance.now() > castOff.until) castOff = null
-            /* SHE TURNS BEFORE SHE PUSHES. A berth is the shallowest water there is,
-             * so a helm that eases the throttle rather than closing it drives her into
-             * her own dock while she comes round: measured, 18 of the 30 frames at the
-             * hub were aground at a speed of 17. Nothing on until the bow is within a
-             * right angle of the way out. */
+            /* she turns before she pushes, with nothing on until the bow is within a right angle of the way out */
             let cast: Helm = HELM_IDLE
             if (castOff) {
               let err = Math.atan2(castOff.y - hull.y, castOff.x - hull.x) - hull.heading
@@ -5077,22 +5009,8 @@ const CAST_OFF_SHOW_MS = 3200
             hull = stepHull(hull, helm, dt, depthAt)
           }
 
-          /* THE WAKE: two diverging hull-corner trails with per-point age, drawn
-           * from the pure state so the model and the picture cannot disagree. */
-          /* ---- THE WAKE IS CHURNED WATER, NOT TWO LINES -------------------
-           *
-           * ASH, looking at a shot of the crossing: *"just two ugly streaks and a
-           * speed boat."* Both trails were a single stroked polyline, two and a bit
-           * pixels wide, held at more than half alpha for the whole of their life,
-           * so at the sailing zoom they drew as two hard hairlines running off the
-           * edge of the screen. On a painted sea whose own pixels are three screen
-           * pixels across, a one-pixel vector line is the loudest thing in the frame
-           * and the only part of it that is not pixel art.
-           *
-           * Foam instead: a square dab per point, snapped to whole world pixels,
-           * spreading outward and swelling as it falls astern, going out on a curve
-           * so the far end is gone rather than faint. The newest few get a brighter
-           * dab on top, which is the white water right under the counter. */
+          /* the wake: two diverging hull-corner trails with per-point age, drawn from the pure state */
+          /* the wake is a band of churned water, widening and fading astern, rather than two stroked lines */
           wakeG.clear()
           if (hull) {
             const life = DEFAULT_SAIL.wakeLife
@@ -5106,20 +5024,12 @@ const CAST_OFF_SHOW_MS = 3200
                 if (kb <= 0) continue
                 const dx = b.x - a.x, dy = b.y - a.y
                 const len = Math.hypot(dx, dy)
-                /* a gap of nothing between two points is a hole in the band; a huge
-                 * one is the trail from before a teleport and is not drawn at all */
+                /* a gap of nothing between two points is a hole in the band, and a huge one is a teleport and is not drawn */
                 if (len < 0.01 || len > 60) continue
-                /* perpendicular to the trail itself, so a turn curls the foam the
-                 * way the water really goes rather than shearing it sideways */
+                /* perpendicular to the trail itself, so a turn curls the foam the way the water goes */
                 const px = -dy / len, py = dx / len
-                /* A BAND AND NOT A ROW OF DOTS. A dab per point draws as a dashed
-                 * line the moment the frame rate drops, because the points are laid
-                 * one per tick and the gap between them is whatever the machine
-                 * managed: at 16 frames a second they were six pixels apart with
-                 * four pixel dabs on them. A quad between each pair is continuous at
-                 * any frame rate, and still tapers and fades. */
-                /* it opens into a wedge as it goes astern, which is the shape of a
-                 * wake, and the two sides splay apart rather than running parallel */
+                /* a quad between each pair of points, so the band stays solid when the frame rate drops */
+                /* it opens into a wedge as it goes astern, the two sides splaying apart */
                 const wa = (1.2 + (1 - ka) * 5.5) / 2
                 const wb = (1.2 + (1 - kb) * 5.5) / 2
                 const oa = (1 - ka) * 13 * side, ob = (1 - kb) * 13 * side
@@ -5164,43 +5074,18 @@ const CAST_OFF_SHOW_MS = 3200
           }
         }
 
-        /* ---- AND SHE IS DRAWN WHETHER OR NOT ANYBODY IS SAILING HER -------
-         *
-         * ASH: *"the ship sometimes is invisible."* This block's own comment says
-         * "a hull under way, or a ship tied up: one drawing, two states", and it sat
-         * INSIDE `if (hull)`, which is the first of those two states and only that
-         * one. So a ship tied up was never drawn by the thing written to draw her.
-         * She appeared when he stepped off, because `stepAshore` sets the sprite
-         * visible by hand on its way past, and vanished the moment anything rebuilt
-         * the scene: a door, a reload, or arriving any way but sailing in.
-         *
-         * Out here, where both states can reach it. */
-          /* a hull under way, or a ship tied up: one drawing, two states, and
-           * the moored one is not steered by anybody */
+        /* she is drawn whether or not anybody is sailing her, so a moored ship is still on the map */
+          /* a hull under way, or a ship tied up: one drawing, two states, and the moored one is steered by nobody */
           const draw = hull ?? moored
           if (hullSp) {
-            /* ---- THE ONE PLACE THAT DECIDES WHETHER SHE IS DRAWN -----------
-             *
-             * ASH: *"the ship sometimes is invisible."* She was. `hullSp.visible` was
-             * written in exactly two handlers - `board()` turned it on, `stepAshore()`
-             * turned it on again - and the sprite is born hidden. So the ship existed
-             * only after somebody had got into her or out of her IN THIS SCENE. Walk
-             * through a door and back, reload the page, or arrive at an island any way
-             * except by sailing to it a moment ago, and the boat was simply not there:
-             * he stood on his own dock beside open water.
-             *
-             * The frame that draws her is the frame that says whether she is drawn.
-             * There is a hull under way or a ship tied up, or there is neither, and
-             * that is the whole question. */
+            /* the one place that decides whether she is drawn, so every path through the scene agrees */
             hullSp.visible = !!draw
           }
           if (draw && hullSp) {
             hullSp.position.set(draw.x, draw.y)
             hullSp.zIndex = OVER_PLACED + draw.y
             if (hullViews.length) {
-              /* the 16 views run anticlockwise from east, which is how the sheet
-               * was drawn; a heading is therefore an index and never a rotation,
-               * so the light in the painting stays where the sun is */
+              /* the 16 views run anticlockwise from east, so a heading is an index and never a rotation */
               const i = ((Math.round((draw.heading / (Math.PI * 2)) * 16) % 16) + 16) % 16
               const t2 = hullViews[i]
               if (t2 && hullSp.texture !== t2) hullSp.texture = t2
@@ -5232,8 +5117,7 @@ const CAST_OFF_SHOW_MS = 3200
         thor.sp.position.set(pos.x, pos.y)
         thor.sp.zIndex = OVER_PLACED + pos.y
         thor.sh.position.set(pos.x + 1, pos.y - 2)
-        // the shadow rides with him, a hair under, so it never lands on top of
-        // a figure he is standing in front of
+        // the shadow rides a hair under him, so it never lands on a figure he stands in front of
         thor.sh.zIndex = OVER_PLACED + pos.y - 1
         /* the marker bobs in whole screen pixels, so it moves rather than shimmers */
         const bob = Math.round(Math.sin(t * 2.1) * 2) / camZ
@@ -5246,11 +5130,7 @@ const CAST_OFF_SHOW_MS = 3200
         /* the one sentence this scene knows and the year does not: he is holding the tiller */
         {
           /* and not inside the film, because a scene asks for nothing while somebody else directs */
-          /* AND NEVER IN THE LAST SHOT. `end_run` puts him aboard and holds a
-           * beat before it touches the helm, and in that gap this offered him
-           * the tiller over a departure he is not steering. Measured on the
-           * shot 2026-09-09: "Click the island to sail there" across the top of
-           * the ship leaving at the end of year one. */
+          /* the tiller is not offered in the last shot, where he is aboard and steering nothing */
           const freeAtSea = !!hull && !berthing && !voyage && !helmOverride
             && !tiedUp && !movieOn && !runEnding()
           setWorldObjective(freeAtSea ? 'Click the island to sail there.' : null)
@@ -5270,8 +5150,7 @@ const CAST_OFF_SHOW_MS = 3200
             else camTo(pos.x, pos.y, false, dt)
           }
         }
-        /* the screen-space chrome undoes whatever zoom is live, so a camera push
-         * does not blow the YOU pin up with the painting */
+        /* the screen-space chrome undoes whatever zoom is live, so a camera push leaves the pin its size */
         const uiS = 1 / camZ
         if (pin.scale.x !== uiS) {
           pin.scale.set(uiS); prompt.scale.set(uiS); bigMark.scale.set(uiS)
@@ -5279,22 +5158,13 @@ const CAST_OFF_SHOW_MS = 3200
         /* the two surfaces a world hold does not reach, stated by the movie every frame */
         /* and the marker stays while he is being walked: which one is you is not furniture */
         /* the YOU marker stays put for the whole beat instead of blinking off between stages */
-        /* ---- AND NEITHER IS THE YOU PIN, OR THE ARROW ---------------------
-         *
-         * The same rule the corner follows, in the one place it cannot be CSS: both of
-         * these are drawn into the world. A named shot is a picture of a THING, and a
-         * marker floating over the player's head at the other end of the room is the
-         * game labelling its own furniture inside somebody's composed frame. `view`'s
-         * own three shots are not named shots and keep theirs: knowing which panther
-         * is you is exactly what a wide arrival shot is for. */
+        /* the pin and the arrow are drawn into the world and follow the same rule the corner does */
         const shotHeld = !!lookAtTarget && !!lastShot && shots.has(lastShot)
         pin.visible = pinWanted && !shotHeld
         slotMarks.visible = !movieOn
         ;(window as any).__walk = `thor ${pos.x.toFixed(0)},${pos.y.toFixed(0)} lvl${lvlAt(pos.x, pos.y)}`
 
-        /* the position, stamped with the bundle it was written against, so the
-         * guard above has something to compare. A hull writes nothing: a point on
-         * open water is not a named anchor on a known map and never resumes. */
+        /* the position, stamped with the bundle it was written against, and a hull writes nothing */
         if (!hull && moving && t - lastWhere > 1) {
           lastWhere = t
           recordPosition(stampOf(stamp, undefined, Math.round(pos.x), Math.round(pos.y)))
@@ -5356,37 +5226,8 @@ const CAST_OFF_SHOW_MS = 3200
             promptAnchor = null
           }
         }
-        /* ---- E ON THE SHIP IS THE TRAVEL MAP -------------------------------
-         *
-         * ASH, 2026-09-08 item 3: *"Thor walks to any dock and presses E on his
-         * ship; a map view opens, drawn to the real world composition, the hub in
-         * the middle and his picked islands around it. Pressing one sails there
-         * behind the bars, he steps off, the card plays."*
-         *
-         * It used to put him IN the boat, on this painting's own ocean, with a
-         * tiller and no destination: the only way to then go anywhere was to open
-         * the Map plaque in the corner while afloat and press a pin. So the boat
-         * was a vehicle a student could drive around a puddle, and the thing it
-         * is for was two screens away behind a control that looks like a book.
-         *
-         * The ship is a DOOR now, and the chart is what is on the other side of
-         * it. Nothing else in the game asks a student to get into a vehicle and
-         * then work out where it goes.
-         *
-         * AND IT IS OFFERED WHENEVER HE IS STANDING AT IT, where it used to be
-         * hidden any time the year had a step on land (`leadsInland`). A student
-         * who wants to look at the map of the world is allowed to look at it. */
-        /* ---- AND WHEN A JOURNEY IS WAITING ON HIM, E IS THE GANGWAY -------
-         *
-         * ASH: *"E TO HOP ON THE BOAT, THEN SAIL PROPERLY."* This is that E. The
-         * boarding leg puts him here and then does nothing, so the only thing between
-         * a student and the water is this plaque and this press.
-         *
-         * IT IGNORES THE WORLD HOLD, which every other prompt in this file honours.
-         * The bars are up and he cannot walk, and that is right: he is in a cutscene
-         * he was put into by pressing a button. But a cutscene whose one instruction
-         * is "press E" has to let E through, or it is a cutscene with no way out of
-         * it. `board` and `runVoyageLeg` are the only things it can reach. */
+        /* E on the ship opens the travel map, drawn to the real world composition */
+        /* E is the gangway when a journey is waiting on him */
         const owed = travelPlan()
         const boardingHere = !!owed && owed.leg === 'boarding' && !hull && canSail && !!berth
         if (boardingHere && berth && !busy && !fade) {
@@ -5421,8 +5262,7 @@ const CAST_OFF_SHOW_MS = 3200
         const st = near ? offerOf(near) : null
         const canFire = !!st?.canFire
         if (near && st) {
-          // through spotOf, because an anchor bound to somebody who paces has
-          // to wear its prompt where she is standing, not where she started
+          // through spotOf, so an anchor bound to a body that paces wears its prompt where she is standing
           const np = anchors.spotOf(near)
           setPrompt(st.text, st.state)
           hang(np.x, np.y, 18, Math.sin(t * 2.1) * 1.2)
@@ -5432,19 +5272,16 @@ const CAST_OFF_SHOW_MS = 3200
             prompt.y = np.y + (pb.height / 2 + 8) / camZ + Math.sin(t * 2.1) * 1.2
           }
           clearOfLit(near)
-          /* the plaque is only tappable when E would do something, so a barred
-           * door and a closed station read the same to a pointer as to a key */
+          /* the plaque is only tappable when E would do something */
           prompt.eventMode = canFire ? 'static' : 'none'
           promptAnchor = canFire ? near : null
         } else if (!seaFire) { prompt.visible = false; promptSaid = ''; promptAnchor = null }
-        /* the plaque takes a tap on the water too, because "press E" is meaningless
-         * on a trackpad and a berth is not an exception to that */
+        /* the plaque takes a tap on the water too, since press E means nothing on a trackpad */
         seaTap = seaFire
 
         /* the objective marker: one thing at a time, chosen by the year's own state machine */
         const obj = nextObjective(loadSave())
-        /* an explicit guide_to from a station outranks the year's own next step,
-         * because a body that just said "go and look at the wall" means it */
+        /* an explicit guide_to from a station outranks the year's own next step */
         /* and it leads through a door when the thing it points at is on another map */
         const doorTo = (want: string): Anchor | undefined =>
           doors.find((d) => d.to === want)
@@ -5466,36 +5303,14 @@ const CAST_OFF_SHOW_MS = 3200
             guide = { key: mark.name, route: r.points, from: { x: pos.x, y: pos.y }, reached: r.reached, at: performance.now() }
           }
           const g = guide!
-          /* the marks survive a scripted walk, because that is the game showing him
-           * the way, and they survive the bars while he is being walked, and they
-           * stay up for the whole beat rather than the third of it he spends walking */
+          /* the marks survive a scripted walk and the bars, and stay up for the whole beat */
           const marksOn = !fade && !shotHeld && (!!autoWalk || !!guideTarget || (!locked && !movieOn))
 
-          /* ---- THE SIGN HANGS ON THE THING, NOT OVER THE ROOM --------------
-           *
-           * ASH, 2026-09-09, looking at a shot of the Maw: *"Then the arrow mark
-           * thats just pointing on top of the shelf. Is that means to point to
-           * the year planner? Confused. Its just pointing."*
-           *
-           * It WAS the year planner's arrow. It hung two and a third body
-           * lengths above the chart table, which at the close shot is about two
-           * hundred and seventy screen pixels, and two hundred and seventy
-           * pixels above a table in an isometric room is a different piece of
-           * furniture. The mark was right and the altitude made it a lie.
-           *
-           * ONE BODY. Close enough that the gap between the point of the arrow
-           * and the thing reads as attachment, far enough to clear the object's
-           * own drawn height. It steps up a little when he is standing at it, to
-           * clear the words over his own head, and no further. */
+          /* the sign hangs on the thing rather than over the room */
           const over = anchors.spotOf(mark)
           const atIt = Math.hypot(over.x - pos.x, (over.y - pos.y) * (map.yScale || 1))
             < map.character.heightPx * 2.5
-          /* MEASURED AGAIN 2026-09-09 at one body: on the Maw the bookshelf is
-           * drawn immediately behind the chart table, so anything standing a
-           * whole body above the table still lands on the shelf and Ash read it
-           * as pointing at the shelf a second time. Half a body puts the point of
-           * it inside the table's own drawn height, where there is nothing else
-           * it could possibly mean. */
+          /* half a body above the anchor, so the sign lands on the thing and not on what is drawn behind it */
           const lift = Math.round(map.character.heightPx * (atIt ? 0.9 : 0.55))
           bigMark.position.set(over.x, over.y - lift + Math.sin(t * 2.6) * 3)
           /* and it stays under the top panel, whose band is read once a second rather than typed */
@@ -5506,8 +5321,7 @@ const CAST_OFF_SHOW_MS = 3200
             panelBand = r && r.height > 0 ? r.bottom : 0
           }
           if (panelBand > 0) {
-            /* the sprite hangs by its foot (anchor 0.5, 1), so its top edge is a
-             * whole height above where it is placed */
+            /* the sprite hangs by its foot, so its top edge is a whole height above where it is placed */
             const topPx = world.y + (bigMark.y - bigMark.height) * camZ
             const short = panelBand + 4 - topPx
             if (short > 0) bigMark.y += short / camZ
@@ -5526,56 +5340,14 @@ const CAST_OFF_SHOW_MS = 3200
             litR = want
             const ry = Math.max(6, want * (map.yScale || 1) * 0.5)
             litRy = ry
-            /* ---- A POOL OF LIGHT, NOT A STICKER (Ash, 2026-09-09) ----------
-             *
-             * *"I feel like the arrow marks and the blue ring, are a bit
-             * archaic / not the best looking. If theres a even more visually
-             * clean, and appealing methods / UI, go for it."*
-             *
-             * What was there: a flat teal disc at 30 percent, a hard two-pixel
-             * teal rim, and a three-pixel dark brown ring outside it. Three
-             * hard edges and a fill, in the one hue on screen that belongs to
-             * nothing else in this game, sitting on the floor like a decal.
-             *
-             * THIS IS LIGHT INSTEAD OF PAINT. Four nested ellipses falling from
-             * eleven percent to nothing fake the falloff a real pool has, so
-             * the ground under the middle is brightened rather than covered and
-             * the art keeps showing through. One thin bright rim says where the
-             * edge is. Nothing is drawn hard.
-             *
-             * AND IT IS WARM. Gold is the colour every other mark in this game
-             * already is: the arrows, the plaques, the planks, the pin. The teal
-             * was the only thing on screen wearing it.
-             *
-             * IT CARRIES ITS OWN CONTRAST, and the first try did not. Shot on
-             * the hub 2026-09-09: four nested warm fills at eleven percent are
-             * invisible on pale sand, which is most of the ground in this game.
-             * A mark whose readability depends on the floor being dark is a mark
-             * that works in the Maw and nowhere else.
-             *
-             * SO THE EDGE IS THE MARK: a dark shoulder immediately outside a
-             * bright rim, both thin, both nearly opaque. That pair reads on
-             * black stone, on bleached sand and on water, because one half of it
-             * always contrasts. The warm fill inside is a nicety that adds glow
-             * on dark ground and costs nothing where it cannot be seen.
-             *
-             * AND IT DOES NOT RELY ON HUE EITHER: the pulse below MOVES, and
-             * movement is read long before colour is. */
+            /* a pool of light on the ground, drawn as a soft disc rather than a sticker over the art */
             lit.clear()
             lit.ellipse(0, 0, want * 0.98, ry * 0.98).fill({ color: 0xffe9b8, alpha: 0.1 })
             lit.ellipse(0, 0, want + 2, ry + 2).stroke({ color: 0x241708, width: 3, alpha: 0.5 })
             lit.ellipse(0, 0, want, ry).stroke({ color: 0xffe9b8, width: 2, alpha: 0.95 })
           }
           lit.position.set(spot.x, spot.y)
-          /* ---- AND IT BREATHES OUTWARD ------------------------------------
-           *
-           * One ring leaving the pool every two and a half seconds and fading as
-           * it goes. It is the whole difference between a marker and a decal:
-           * the eye is caught by movement long before it is caught by a colour,
-           * so the thing the year wants announces itself without being loud.
-           * Redrawn per frame, which is one ellipse stroke.
-           *
-           * STILL FOR REDUCED MOTION, where the static pool is the whole mark. */
+          /* a ring leaves the pool every two and a half seconds and fades as it goes */
           litRing.clear()
           litRing.position.set(spot.x, spot.y)
           litRing.zIndex = lit.zIndex
@@ -5590,9 +5362,7 @@ const CAST_OFF_SHOW_MS = 3200
               .stroke({ color: 0xffe9b8, width: 2, alpha: 0.62 * fade })
           }
           litRing.visible = marksOn
-          /* over the painting, under anything standing on the same pixel, under
-           * Thor and under every occluder: light pooled on the ground rather than
-           * a sticker over the art */
+          /* over the painting, under anything on the same pixel, under thor and under every occluder */
           lit.zIndex = spot.y - 0.5
           /* the pulse breathes rather than blinks, and is off for reduced motion */
           lit.alpha = prefersReducedMotion() ? 1 : 0.82 + Math.sin(t * 2.6) * 0.18
@@ -5607,8 +5377,7 @@ const CAST_OFF_SHOW_MS = 3200
             /* spaced against the body, so they read as a road at either zoom */
             const STEP = Math.max(16, Math.round(map.character.heightPx * 1.5))
             let run = 0
-            /* the first mark is one body clear of his feet, so the way reads as
-             * a road in front of him rather than as something stuck to him */
+            /* the first mark is one body clear of his feet, so the way reads as a road in front of him */
             let next = map.character.heightPx * 1.2
             const marks: { x: number; y: number; t: number; dir: string }[] = []
             for (let i = 1; i < (markQuiet ? 0 : g.route.length) && marks.length < 64; i++) {
@@ -5622,9 +5391,7 @@ const CAST_OFF_SHOW_MS = 3200
                 const y = a.y + (b.y - a.y) * k
                 next += STEP
                 if (Math.hypot(x - pos.x, (y - pos.y) * ys) < map.character.heightPx * 0.9) continue
-                /* the heading is read off the pixels the ROUTE moves, squashed
-                 * the same way a body's own facing is read (life.ts says why),
-                 * so an arrow and a walker agree about which way north is */
+                /* the heading is read off the pixels the route moves, squashed the way a body's facing is */
                 marks.push({ x, y, t: 0, dir: dirFrom(b.x - a.x, (b.y - a.y) * ys) })
               }
               run += seg
@@ -5644,19 +5411,12 @@ const CAST_OFF_SHOW_MS = 3200
               /* sized against the character and snapped to whole pixels */
               const arrow = trailArt.has(m.dir)
               /* big enough to read at the close zoom, so it looks like a marking on the floor */
-              /* SMALLER AND SOFTER AT THE NEAR END (Ash, 2026-09-09, on the
-               * whole set reading as archaic). They were nearly two thirds of a
-               * body each at full strength from his feet outward, which is a row
-               * of signs rather than a road. The far end still brightens and
-               * grows, so the eye is pulled along it. */
+              /* the marks are smaller and softer at the near end and brighter at the far one */
               const want = Math.max(3, Math.round(map.character.heightPx * (arrow ? 0.34 + 0.22 * m.t : 0.26 + 0.18 * m.t)))
               sp.width = want
               sp.height = Math.max(1, Math.round(want * ys))
               sp.position.set(Math.round(m.x), Math.round(m.y))
-              /* THE ALPHA STAYS UP. Dropped to a third at the near end on the
-               * first pass and the road disappeared on the hub's sand: the
-               * drawn arrow carries its own dark outline, so it reads at full
-               * strength, and it was the SIZE that made it a row of signs. */
+              /* the alpha stays up, because the drawn arrow carries its own dark outline */
               sp.alpha = 0.55 + 0.4 * m.t
               sp.visible = true
               shown++
@@ -5668,8 +5428,7 @@ const CAST_OFF_SHOW_MS = 3200
           bigMark.visible = false
           for (const sp of trailSprites) sp.visible = false
           trailMarks = 0
-          /* guarded, never cleared: see the note where `lit` is built. Both of
-           * these run on every frame of a map with nothing owed. */
+          /* guarded, never cleared, since both of these run on every frame of a map with nothing owed */
           if (lit.visible) { lit.visible = false; litKey = ''; litR = 0; litRy = 0 }
           if (litRing.visible) { litRing.visible = false; litRing.clear() }
           litAnchor = null
@@ -5724,8 +5483,7 @@ const CAST_OFF_SHOW_MS = 3200
           else if (near && canFire) { startWrap(); fire(near) }
         }
         ePrev = eNow
-        /* the ring runs on the scene's own clock, after the press, so it is drawn
-         * even while the handler that press started is holding the world */
+        /* the ring runs on the scene's own clock, so it is drawn while the handler holds the world */
         tickWrap()
 
         /* the one-shot effects, ticked on the engine's own clock so each one completes */
@@ -5735,8 +5493,7 @@ const CAST_OFF_SHOW_MS = 3200
           const k = Math.min(1, f.t / f.life)
           f.g.clear()
           if (f.kind === 'island_rising') {
-            /* a ring opening outward from where the rumour was, three times, each
-             * fainter: the world saying something is there now */
+            /* a ring opening outward from where the rumour was, three times, each fainter */
             for (let r = 0; r < 3; r++) {
               const kk = k * 1.35 - r * 0.18
               if (kk <= 0 || kk >= 1) continue
@@ -5755,35 +5512,16 @@ const CAST_OFF_SHOW_MS = 3200
             f.done()
           }
         }
-        /* the markers on the water are screen-space chrome like the pin, so a
-         * pull-out does not blow a rumour up with the ocean */
+        /* the markers on the water are screen-space chrome, so a pull-out leaves them their size */
         for (const c of slotMarks.children) if (c.scale.x !== uiS) c.scale.set(uiS)
-        /* the exit used to be driven from here, one alpha step at a time. It is a
-         * transition now (see beginExit), so the ticker has nothing to do with it
-         * except stay out of the player's way while it runs. */
+        /* the exit is a transition now, so the ticker only stays out of the way while it runs */
 
         // placed assets: the animated ones cycle here, dt-accumulated on this same ticker
         for (const a of animAssets) {
-          /* ONE OWNER PER TEXTURE, the rule this file already keeps for the life
-           * pass three blocks down. A body a script has taken over is drawn by the
-           * driven pass, which chooses between its idle and its walk; leaving this
-           * pass running over it gave one sprite two owners and the idle won
-           * whenever the driven pass had no heading yet. On screen that is a
-           * walking figure flicking back to its standing pose about once every
-           * eighth of a second, which is what a six-frame idle at 8fps comes to. */
+          /* one owner per texture: a body a script has taken over is drawn only by the driven pass */
           if (driven.has(a.sp)) continue
           a.t += dt * a.fps
-          /* ---- AND HE KEEPS THE WAY A SCENE LEFT HIM FACING ----------------
-           *
-           * `a.frames` is one heading, chosen off a FILENAME when the map loaded, and
-           * a body let go of by a film came straight back to it. So the principal
-           * could be turned to face the student, deliver the last line of the year,
-           * be released, and spin back to south on the very next frame. Ash called
-           * the facings goofy and this is the loudest of them.
-           *
-           * `releaseDriven` writes down the heading he was left on. If his own look
-           * has a view set for it, that is what he stands in. A body no scene has
-           * ever touched is unchanged: there is nothing written down for it. */
+          /* he keeps the heading a scene left him facing, rather than the one his filename carried */
           const kept = lastFacing.get(a.sp)
           let run = a.frames
           if (kept) {
@@ -5822,13 +5560,9 @@ const CAST_OFF_SHOW_MS = 3200
           const push = floorPush(pts, separate(pts, map.yScale, 1), canStand, fenced)
           for (let qi = 0; qi < lifeAssets.length; qi++) {
             const q = lifeAssets[qi]
-            /* a script owns this one for now: writing its position here would
-             * fight the driver frame by frame and the figure would flicker
-             * between the two answers */
+            /* a script owns this one, so writing its position here would fight the driver frame by frame */
             if (driven.has(q.sp)) continue
-            // walkOnly makes the floor a second fence, and the game's own
-            // canStand is what it is measured against: the same mask MAPVIS
-            // previewed with, so the answer is the same on both sides
+            // walkOnly makes the floor a second fence, measured against the game's own canStand
             const at = { ...res[qi], dx: res[qi].dx + push[qi].dx, dy: res[qi].dy + push[qi].dy }
             if (at.alpha <= 0.01) {
               q.sp.visible = false
@@ -5837,9 +5571,7 @@ const CAST_OFF_SHOW_MS = 3200
             q.sp.visible = true
             q.sp.alpha = at.alpha
             q.sp.position.set(q.home.x + at.dx, q.home.y + at.dy)
-            // the placement's own rotation plus the tilt its behaviour is leaning
-            // through. The anchor is the feet, so a boat leans on its waterline
-            // rather than swinging round its mast.
+            // the placement's rotation plus its behaviour's tilt, leaning on the feet rather than the middle
             q.sp.rotation = q.baseRot + at.rot
             /* which picture, falling back to the first when the index is past the end */
             const look = q.looks[at.art] || q.looks[0]
@@ -5852,8 +5584,7 @@ const CAST_OFF_SHOW_MS = 3200
               if (q.sp.texture !== vt) q.sp.texture = vt
               q.sp.scale.x = q.baseSX * (q.flipX ? -1 : 1)
             } else {
-              // a plain frame list belongs to this pass too, so one loop owns
-              // the texture however the round turns
+              // a plain frame list belongs to this pass too, so one loop owns the texture
               if (look.frames.length > 1) q.animT += dt * look.fps
               const ft = look.frames[look.frames.length > 1 ? Math.floor(q.animT) % look.frames.length : 0]
               if (q.sp.texture !== ft) q.sp.texture = ft
@@ -5886,9 +5617,7 @@ const CAST_OFF_SHOW_MS = 3200
               d.x = d.move.tx; d.y = d.move.ty
               d.moved += dist
               budget -= dist
-              /* the next waypoint is picked up on the SAME frame, so there is
-               * never a frame with no move on the record and the legs never go
-               * back to standing in the middle of a walk */
+              /* the next waypoint is picked up on the same frame, so no frame carries no move */
               const via = d.move.via
               if (via && via.length) {
                 const next = via.shift() as { x: number; y: number }
@@ -5913,24 +5642,10 @@ const CAST_OFF_SHOW_MS = 3200
           sp.zIndex = biased(sp, d.y)
           if (d.look !== null || d.facing !== null) {
             const set = looksOf.get(sp)
-            /* the walk wins while he is walking, and hands straight back the
-             * frame he stops on, so a body settles into its own idle */
+            /* the walk wins while he is walking and hands back the frame he stops on */
             const look = (d.move ? gaitOf.get(sp) : undefined) ?? (set && (set[d.look ?? 0] ?? set[0]))
             if (look) {
-              /* ---- A MAN STANDING STILL IS NOT A MAN FROZEN ------------------
-               *
-               * ASH: *"his stops + facings + positions are goofy in the intro and end
-               * cutscene."* A driven body that stopped was pinned to frame zero of its
-               * idle and held there: `animT = 0` every frame, index 0 every frame. So
-               * the principal walked the hall breathing and then stood through the
-               * whole congratulation as a photograph, in the two longest shots of the
-               * game. The comment above says the walk "hands straight back the frame
-               * he stops on, so a body settles into its own idle", and it could not,
-               * because nothing advanced the clock once he stopped.
-               *
-               * The legs run on distance travelled while he moves, which is what makes
-               * a stride match a speed. Standing, the idle runs on its own fps like
-               * every other breathing thing on the map. */
+              /* a driven body that has stopped keeps breathing on its idle rather than holding frame zero */
               const stride = map.speed / (look.fps || 8)
               if (d.move) d.animT += stride > 0 ? d.moved / stride : 0
               else d.animT += dt * (look.fps || 8)
@@ -5946,9 +5661,7 @@ const CAST_OFF_SHOW_MS = 3200
           }
         }
 
-        // the sea pans with the world 1:1 in screen px, and the pool re-fills when the
-        // view drifts more than two tile rows past its last fill (the old hub's
-        // dead-ocean fix: the pool only ever covered the viewport it last saw)
+        // the sea pans with the world one to one, and re-fills when the view drifts two tile rows
         if (sea) {
           sea.position.copyFrom(world.position)
           if (Math.abs(world.x - seaFX) > HH * SEA_SCALE * 2 || Math.abs(world.y - seaFY) > HH * SEA_SCALE * 2) {
@@ -5961,13 +5674,11 @@ const CAST_OFF_SHOW_MS = 3200
         }
       })
 
-      /* the camera has been placed and the world built: the first frame the
-       * student sees is the right one */
+      /* the camera is placed and the world built before the first frame the student sees */
       app.stage.visible = true
       loadingPlate?.remove(); loadingPlate = null
       ;(window as any).__sceneReady = true
-      /* and the HUD is told the same thing, so nothing it mounts can open over
-       * the black that came before this frame */
+      /* the hud is told the same, so nothing it mounts opens over the black before this frame */
       setSceneDrawn(mapId)
 
       /* the place card: where you are, once per session per map, on arrival */
@@ -5997,37 +5708,17 @@ const CAST_OFF_SHOW_MS = 3200
       offCinema()
       movieHold?.(); movieHold = null
       if (!takeCinemaCarry()) setCinema(false)
-      /* and the sentence this scene was contributing to the objective panel goes
-       * with it, for the same reason: "Click the island to sail there" over the
-       * next map would be an instruction about a boat that is not there. */
+      /* the sentence this scene contributed to the objective panel goes with it */
       setWorldObjective(null)
-      /* and the island's own objective line goes too, since nobody is left who
-       * could clear it. A VOYAGE IS THE EXCEPTION: the engine is still carrying
-       * one across this door and clears the line itself when he lands, so
-       * wiping it here put "Go into the mountain" over a ship sailing away. */
+      /* the island's own objective line goes too, except during a voyage, which the engine still carries */
       if (!travelPlan()) setObjectiveSaid(null)
-      /* AND THE ISLAND'S TASK LIST DIES WITH THE ISLAND, for exactly the reason the
-       * line above gives about its sentence. The rows name things to do HERE, so
-       * carried onto the next map they tell a student to press a machine that is not
-       * in the room.
-       *
-       * Without this: sail to ATC, tick both rows, sail home, walk into the Maw, and
-       * the task sheet there is headed "Algorithmic Thinking Club" with two rows the
-       * student cannot reach, unticked because the year has turned, counted in the
-       * total. He finishes everything year two asks of him and reads three of five
-       * done. A new run inherits it too, because nothing else writes that bus. */
+      /* the island's task list dies with the island, since its rows name things to do here */
       clearIslandTasks()
-      /* anything a station was still waiting on is resolved rather than left
-       * hanging. A body parked on an unresolved say() holds its world lock for
-       * ever, and the next map opens with no controls and no way to tell why. */
+      /* anything a station was waiting on is resolved rather than left holding the world lock */
       clearDialogue()
-      /* and the island's worker with it, for the same reason and one more: a
-       * python heap outliving the map that opened it is a leak nobody sees until
-       * the fourth island of a session on a Chromebook. */
+      /* the island's worker goes with it, so no python heap outlives the map that opened it */
       stopIsland()
-      /* the stage goes back before the scene does. A runtime left published over a
-       * torn-down Pixi app is an overlay drawing letterbox bars over the next map,
-       * with nothing ticking it and no way to skip it. */
+      /* the stage goes back before the scene does, so no runtime is left published over a torn-down app */
       teardownStage()
       if (instance) instance.destroy(true, { children: true })
     }

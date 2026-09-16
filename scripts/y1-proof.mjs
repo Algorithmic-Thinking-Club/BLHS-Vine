@@ -3,6 +3,9 @@ import { chromium } from 'playwright'
 import fs from 'node:fs'
 import path from 'node:path'
 
+/* the real gpu, because a headless browser otherwise rasterises on the cpu and a camera move outruns the timeouts below */
+const GPU = ['--use-angle=default', '--enable-gpu', '--ignore-gpu-blocklist']
+
 const arg = (k, d) => {
   const hit = process.argv.find((a) => a.startsWith(`--${k}=`))
   return hit ? hit.slice(k.length + 3) : d
@@ -53,7 +56,7 @@ const ready = async (page) => {
   await settle(page)
 }
 
-const b = await chromium.launch({ headless: !has('headed') })
+const b = await chromium.launch({ headless: !has('headed') , args: GPU })
 const page = await b.newPage({ viewport: { width: 1366, height: 768 } })
 
 /* seed the run once with the founding flag unset so the objective is the real first one a freshman meets, and the init script must never put the starting save back over a written one */

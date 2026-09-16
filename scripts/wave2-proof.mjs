@@ -2,6 +2,9 @@
 import { mkdirSync } from 'node:fs'
 import { chromium } from 'playwright'
 
+/* the real gpu, because a headless browser otherwise rasterises on the cpu and a camera move outruns the timeouts below */
+const GPU = ['--use-angle=default', '--enable-gpu', '--ignore-gpu-blocklist']
+
 const base = (process.argv[2] ?? 'http://localhost:5173').replace(/\/$/, '')
 if (/vercel.app/.test(base) && !process.argv.includes('--live')) { console.error('refusing the live url without --live: proofs run on the dev server, one live run per deploy'); process.exit(2) }
 const tag = process.argv[3] ?? 'dev'
@@ -50,7 +53,7 @@ try {
 }
 if (joined) SAVE.participantId = joined.participantId
 
-const browser = await chromium.launch()
+const browser = await chromium.launch({ args: GPU })
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 })
 page.on('pageerror', (e) => { console.log(`  [pageerror] ${e.message}`); failures++ })
 /* a 404 on `/api/v1/maps/panther-maw` is the platform fallback working, since the stand-in was never published there, and anything else gets named because the browser's bare 404 line never says which url missed */

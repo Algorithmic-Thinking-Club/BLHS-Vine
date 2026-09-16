@@ -1,12 +1,7 @@
 /* the one line each corner plaque prints the first time a student opens it */
 import { loadSave, setFlag } from '../save'
 
-/* ---- 'sheet' IS A LESSON, NOT A LINE (Ash, 2026-09-09) -------------------
- *
- * The three plaques each print one sentence the first time they are opened. The
- * year sheet's first look is a whole tutorial rather than a line, so it carries
- * an empty string: the FLAG is the useful half and `firstLook` still answers
- * null once it has been seen, which is the question the sheet asks. */
+/* each plaque prints one sentence the first time it is opened, and the year sheet's is a lesson */
 export type Plaque = 'my-year' | 'guide' | 'map' | 'sheet'
 
 const FLAG: Record<Plaque, string> = {
@@ -16,9 +11,7 @@ const FLAG: Record<Plaque, string> = {
   sheet: 'told:sheet',
 }
 
-/* THE BRIEF'S OWN WORDS, and they are the literal thing first (the literal-words
- * law). No metaphor, no flourish, and short enough that a student who reads one
- * line and stops has still been told what the screen is for. */
+/* the literal thing first, with no metaphor and short enough to stop after one line */
 const LINE: Record<Plaque, string> = {
   'my-year': 'This is your schedule.',
   guide: 'Every club and class at Bonney Lake.',

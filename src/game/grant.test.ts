@@ -29,9 +29,7 @@ describe('a grant says so', () => {
   })
 
   it('tells the world, so a wall can dress itself at the moment it fills', () => {
-    /* an island only re-dresses its own placements on arrival and on a press, so
-     * a trophy earned while the student is standing in the room would otherwise
-     * not appear until they left and came back */
+    /* an island re-dresses its own placements on arrival and on a press */
     const heard = vi.fn()
     window.addEventListener(GRANT_EVENT, heard)
     const s = run()
@@ -59,8 +57,7 @@ describe('a grant says so', () => {
     const after = run({ facts: ['a', 'b'] })
     grant(before, after, { what: 'That went in the Handbook.' })
     expect(cards().join(' ')).toContain('That went in the Handbook.')
-    /* past the first card's own hold and past the queue: the corner is empty
-     * rather than carrying a second announcement nobody earned */
+    /* past the first card's hold and past the queue, the corner is empty */
     vi.advanceTimersByTime(2700)
     expect(cards()).toEqual([])
   })
@@ -71,8 +68,7 @@ describe('a grant says so', () => {
   })
 
   it('never throws into the caller, because the grant itself already happened', () => {
-    /* `award()` writes first and answers second. If counting a badge row ever
-     * throws, the student keeps the grade and loses only the card. */
+    /* award writes first and answers second, so a throw costs the card and never the grade */
     const broken = { get facts(): string[] { throw new Error('bad row') } } as unknown as SaveGame
     expect(() => grant(broken, run(), { what: 'Track is done.' })).not.toThrow()
   })

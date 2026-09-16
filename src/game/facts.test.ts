@@ -14,8 +14,7 @@ describe('every fact says where it came from', () => {
   })
 
   it('cites a document that exists, never docs/research/', () => {
-    // docs/research/blhs-awards-authoritative.md and docs/research/blhs-specifics.md were
-    // cited by eight files and neither has ever been in this repository
+    // two research paths were cited by eight files and neither has ever been in this repository
     for (const f of FACTS) expect(f.source, f.id).not.toContain('docs/research')
   })
 

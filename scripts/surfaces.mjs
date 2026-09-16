@@ -3,6 +3,9 @@ import { chromium } from 'playwright'
 import fs from 'node:fs'
 import path from 'node:path'
 
+/* the real gpu, because a headless browser otherwise rasterises on the cpu and a camera move outruns the timeouts below */
+const GPU = ['--use-angle=default', '--enable-gpu', '--ignore-gpu-blocklist']
+
 const arg = (k, d) => {
   const hit = process.argv.find((a) => a.startsWith(`--${k}=`))
   return hit ? hit.slice(k.length + 3) : d
@@ -301,7 +304,7 @@ const SURFACES = [
   },
 ]
 
-const b = await chromium.launch()
+const b = await chromium.launch({ args: GPU })
 const notes = []
 for (const s of SURFACES) {
   if (only.length && !only.some((o) => s.name.includes(o))) continue

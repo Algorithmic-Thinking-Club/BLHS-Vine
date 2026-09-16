@@ -27,9 +27,7 @@ describe('one plaque at a time', () => {
     armHandover()
     for (const p of PLAQUES) expect(plaqueShown(p)).toBe(false)
 
-    /* the film's own order, which is the principal's: My Year, the Guide, the
-     * Map. It is not the order they hang in, which is why the stack keeps every
-     * door's place rather than closing up the gaps. */
+    /* the film's order, my year then the guide then the map, which is not the order they hang in */
     revealPlaque('my-year')
     expect(plaqueShown('my-year')).toBe(true)
     expect(plaqueShown('guide')).toBe(false)

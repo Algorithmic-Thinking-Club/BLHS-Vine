@@ -1,5 +1,4 @@
-// The woven-check chassis + core beat Y1. The content tests are fact tripwires: if one
-// fails, someone changed a REAL BLHS truth (a POWER value, the Monday bell, a meeting room).
+// the woven-check chassis and core beat y1, with the content tests as fact tripwires
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { checksOf, pointsOf } from './frames'
 import { emptyScore, gradeOf, RETAKE_BELOW } from './score'

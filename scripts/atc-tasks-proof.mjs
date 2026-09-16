@@ -161,7 +161,7 @@ if (back) {
   await shot('03-at-the-dock')
 }
 /* the list dies with the island: the rows name things to do here and they are counted, so carried onto the next map the home base sheet read "Algorithmic Thinking Club, 3 of 5 done" with two rows nobody could reach and a counter that could never finish */
-await page.evaluate(() => window.__intent({ kind: 'enter', map: 'panther-maw' }))
+await page.evaluate(() => window.__intent({ kind: 'enter', map: 'hub' }))
 await page.waitForTimeout(9000)
 const away = await sheet()
 ok("the island's list stays on its island", !!away && !/Algorithmic Thinking Club\d/.test(away.head),

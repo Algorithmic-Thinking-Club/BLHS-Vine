@@ -2,6 +2,9 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 
+/* the real gpu, because a headless browser otherwise rasterises on the cpu and a camera move outruns the timeouts below */
+const GPU = ['--use-angle=default', '--enable-gpu', '--ignore-gpu-blocklist']
+
 const arg = (k, d) => {
   const hit = process.argv.find((a) => a.startsWith(`--${k}=`))
   return hit ? hit.slice(k.length + 3) : d
@@ -33,7 +36,7 @@ const SAVE = {
   savedAt: Date.now(),
 }
 
-const browser = await chromium.launch({ headless: !process.argv.includes('--headed') })
+const browser = await chromium.launch({ headless: !process.argv.includes('--headed') , args: GPU })
 
 async function open(url, save = SAVE) {
   const page = await browser.newPage({ viewport: { width: 1366, height: 768 } })

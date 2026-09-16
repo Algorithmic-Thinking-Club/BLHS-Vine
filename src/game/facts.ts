@@ -31,7 +31,7 @@ export const FACTS: Fact[] = [
   { id: 'f-honor-gpa', text: 'Double gold cords mean Highest Honors: a 3.76 to 4.0 GPA. Black and silver is High Honors, 3.5 to 3.759.', source: `${AWARDS} Highest Honors, High Honors`, checked: '2026-06-28' },
   { id: 'f-capstone', text: 'AP Capstone is six classes: AP Seminar, then AP Research, plus four more AP classes.', source: `${AWARDS} AP Capstone`, checked: '2026-06-28' },
 
-  // core-beat takeaways (§7.3) land in this same pool — one truth per fact, one id per card
+  // core-beat takeaways land in this same pool, one truth per fact and one id per card
   { id: 'f-power-full', text: 'Panther POWER: Perseverance, Ownership, Work Ethic, Engagement, Respect. Those are the five things the school asks of you.', source: `${HANDBOOK} p.6`, checked: '2026-06-28' },
   { id: 'f-monday', text: 'Mondays start late at 8:30 and Advisory meets that morning. Every other day starts at 7:25.', source: `${HANDBOOK} p.8 bell schedule`, checked: '2026-06-28' },
   { id: 'f-25th-credit', text: 'Passing Advisory earns 0.125 of an elective credit each semester. The course catalog calls it the 25th credit.', source: `${CATALOG} p.7 · ${HANDBOOK} p.8`, checked: '2026-06-28' },
@@ -46,6 +46,5 @@ export const FACTS: Fact[] = [
 const byId = new Map(FACTS.map((f) => [f.id, f]))
 export const factById = (id: string): Fact | undefined => byId.get(id)
 
-/** the loading pool: every fact, as text. The pool is a VIEW of the table and
- *  never a second list, which is what "one statement per fact" costs to keep. */
+/** the loading pool: every fact as text, a view of the table rather than a second list */
 export const factText = (id: string): string | null => byId.get(id)?.text ?? null

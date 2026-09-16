@@ -24,8 +24,7 @@ export type Step =
   | { t: 'fx'; name: string; at?: Vec; data?: unknown }
   | { t: 'audio'; cue: string }
   | { t: 'stage'; call: string; data?: unknown }                  // scene escape hatch (tide override,
-                                                                  // sail swap...); may report a done-poll
-  // -- input gates (the player acts; skip stops at required ones) --
+                                                                  // input gates, where the player acts and a skip stops at the required ones
   | { t: 'gate'; kind: 'walkTo'; target: Vec; radius: number; prompt?: string; idleAutoMs?: number; required?: boolean }
   | { t: 'gate'; kind: 'ui'; id: string; required?: boolean }     // resolved by overlay UI (the I-3 session)
   | { t: 'gate'; kind: 'confirm'; prompt?: string; required?: boolean } // wait for click/space
@@ -35,9 +34,7 @@ export type Step =
 
 export type Script = { id: string; steps: Step[] }
 
-// What a scene must expose for the runtime to drive it. Positions are in the scene's own
-// world units (tile coords for the iso maps). Long-running ops return a poll the runtime
-// ticks; instant ops return nothing.
+// what a scene exposes for the runtime to drive it, in the scene's own world units
 export interface CutsceneStage {
   cameraGet(): { x: number; y: number; zoom: number }
   cameraSet(x: number, y: number, zoom: number): void
@@ -51,7 +48,7 @@ export interface CutsceneStage {
   fx(name: string, at?: Vec, data?: unknown): void
   audio(cue: string): void
   call(name: string, data?: unknown): (() => boolean) | void
-  // true = the player steers (fully or on a rail — the scene decides what a gate allows)
+  // true when the player steers, fully or on a rail, as the scene decides
   playerControl(on: boolean): void
 }
 
