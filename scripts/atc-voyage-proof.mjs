@@ -42,7 +42,7 @@ const openUi = async (ui) => page.evaluate((u) => window.__intent({ kind: 'open'
 const boardHer = async () => {
   const at = await until((s) => s.map?.travel?.leg === 'boarding', { ms: 60000, every: 500 })
   if (at.map?.travel?.leg !== 'boarding') { say('NOBODY EVER REACHED THE DOCK'); return false }
-  await page.keyboard.press('e')
+  await page.keyboard.down('e'); await page.waitForTimeout(140); await page.keyboard.up('e')
   await until((s) => s.map?.hull === true, { ms: 15000, every: 300 })
   return true
 }

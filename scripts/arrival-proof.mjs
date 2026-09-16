@@ -185,7 +185,7 @@ console.log('\nTHE CROSSING AND THE DOCK  (items 1 to 5)')
     .catch(() => { /* the assert below says so */ })
   const offered = await page.evaluate(() => window.__pmap?.prompt ?? null)
   ok('5', 'the door offers itself inside the frame', offered === "Go to Panther's Maw", String(offered))
-  await page.keyboard.press('e')
+  await page.keyboard.down('e'); await page.waitForTimeout(140); await page.keyboard.up('e')
   await page.waitForTimeout(3000)
   ok('5', 'and E opens it', await page.evaluate(() =>
     !!document.querySelector('.tr-root') || window.__pmap?.map !== 'hub'))

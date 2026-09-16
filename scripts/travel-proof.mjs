@@ -62,7 +62,7 @@ while (Date.now() - t0 < 90000) {
   }
   /* e is the one press a person makes on the whole journey, because `sail_to` gets him to his own quay and stops there, so a watcher that only watches waits for ever */
   if (v.map?.travel?.leg === 'boarding' && !v.map?.hull) {
-    await h.page.keyboard.press('e')
+    await h.page.keyboard.down('e'); await h.page.waitForTimeout(140); await h.page.keyboard.up('e')
     await h.page.waitForTimeout(500)
   }
   if (bars) sawBars = true
@@ -105,7 +105,7 @@ while (Date.now() - t1 < 120000) {
   }
   /* the same one press home as out */
   if (v.map?.travel?.leg === 'boarding' && !v.map?.hull) {
-    await h.page.keyboard.press('e')
+    await h.page.keyboard.down('e'); await h.page.waitForTimeout(140); await h.page.keyboard.up('e')
     await h.page.waitForTimeout(500)
   }
   if (here === 'panther-maw') { backHome = true; break }

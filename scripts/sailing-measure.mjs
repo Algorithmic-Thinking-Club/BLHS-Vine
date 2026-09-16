@@ -18,7 +18,7 @@ await page.evaluate(() => window.__intent({ kind: 'open', ui: 'planner' }))
 await until((s) => s.press.some((e) => /Sail (to|there)/i.test(e.text)), { ms: 14000 })
 await h.pressText(/Sail (to|there)/i)
 await until((s) => s.map?.travel?.leg === 'boarding', { ms: 40000, every: 400 })
-await page.keyboard.press('e')
+await page.keyboard.down('e'); await page.waitForTimeout(140); await page.keyboard.up('e')
 /* boarding is a beat, so the hull does not exist on the frame after the press, the camera goes to the ship while he is still on the quay and he steps in after it, and a sampler that gives up before then measures a crossing that has not started */
 await until((s) => s.map?.hull === true, { ms: 15000, every: 200 })
 

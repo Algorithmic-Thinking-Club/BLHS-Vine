@@ -328,7 +328,12 @@ for (const s of SURFACES) {
       await page.waitForFunction(() => window.__sceneReady === true, null, { timeout: 30000 }).catch(() => bad.push('the scene never became ready'))
     }
     await page.waitForTimeout(s.settle)
-    if (s.ui) await page.evaluate((u) => window.__intent({ kind: 'open', ui: u }), s.ui).catch((e) => bad.push(`open ${s.ui}: ${e.message.slice(0, 80)}`))
+    if (s.ui) {
+      /* the deploy mounts the scene later than the dev server, so wait for the word to exist */
+      await page.waitForFunction(() => typeof window.__intent === 'function', null, { timeout: 30000 })
+        .catch(() => bad.push(`open ${s.ui}: the scene never offered __intent`))
+      await page.evaluate((u) => window.__intent({ kind: 'open', ui: u }), s.ui).catch((e) => bad.push(`open ${s.ui}: ${e.message.slice(0, 80)}`))
+    }
     if (s.open) await s.open(page)
     if (s.wait) await page.waitForSelector(s.wait, { timeout: 8000 }).catch(() => bad.push(`never saw ${s.wait}`))
     if (s.ui || s.open) await page.waitForTimeout(1100)

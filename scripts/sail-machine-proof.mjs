@@ -93,7 +93,7 @@ const watchCovers = (page, ms) => {
     /board/i.test(atDock.map?.prompt ?? ''), JSON.stringify(atDock.map?.prompt))
 
   /* E, AND NOTHING ELSE, PUTS HIM ABOARD */
-  await page.keyboard.press('e')
+  await page.keyboard.down('e'); await page.waitForTimeout(140); await page.keyboard.up('e')
   const aboard = await until((s) => s.map?.hull === true, { ms: 12000, every: 300 })
   await shot('02-aboard')
   ok('E hops him on the boat', aboard.map?.hull === true, `hull=${aboard.map?.hull}`)
@@ -144,7 +144,7 @@ const watchCovers = (page, ms) => {
   /* pressed until it lands, because E is an edge read on the scene's own ticker and a single press racing a scene that has just had its controls handed back is a coin toss */
   let chart = await h.look()
   for (let i = 0; i < 10 && !(chart.panels && chart.panels !== '0'); i++) {
-    await page.keyboard.press('e')
+    await page.keyboard.down('e'); await page.waitForTimeout(140); await page.keyboard.up('e')
     await page.waitForTimeout(500)
     chart = await h.look()
   }
@@ -171,7 +171,7 @@ const watchCovers = (page, ms) => {
 
   await pressGo(h)
   await until((s) => s.map?.travel?.leg === 'boarding', { ms: 40000, every: 500 })
-  await page.keyboard.press('e')
+  await page.keyboard.down('e'); await page.waitForTimeout(140); await page.keyboard.up('e')
   await until((s) => s.map?.hull === true, { ms: 12000, every: 300 })
   await page.waitForTimeout(1200)
 

@@ -91,7 +91,7 @@ const MAPS = [
       await until((s) => s.press.some((e) => /Sail (to|there)/i.test(e.text)), { ms: 16000 })
       await pressText(/Sail (to|there)/i)
       await until((s) => s.map?.travel?.leg === 'boarding', { ms: 45000, every: 400 })
-      await page.keyboard.press('e')
+      await page.keyboard.down('e'); await page.waitForTimeout(140); await page.keyboard.up('e')
       await until((s) => s.map?.hull === true, { ms: 20000, every: 200 })
     },
   },

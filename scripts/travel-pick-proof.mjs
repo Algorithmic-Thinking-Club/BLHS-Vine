@@ -240,7 +240,7 @@ async function board(page) {
     const leg = await page.evaluate(() => { try { return window.__pmap?.travel?.leg ?? null } catch { return null } })
     if (leg === 'boarding') {
       await page.locator('canvas').first().focus().catch(() => {})
-      await page.keyboard.press('e')
+      await page.keyboard.down('e'); await page.waitForTimeout(140); await page.keyboard.up('e')
       await wait(600)
       return true
     }

@@ -41,7 +41,7 @@ await page.mouse.click(b.box.x + b.box.w / 2, b.box.y + b.box.h / 2)
  * the quay with the bars up and waits for him to get in the boat. */
 for (let i = 0; i < 90; i++) {
   const leg = await page.evaluate(() => { try { return window.__pmap.travel?.leg ?? null } catch { return null } })
-  if (leg === 'boarding') { await page.keyboard.press('e'); break }
+  if (leg === 'boarding') { await page.keyboard.down('e'); await page.waitForTimeout(140); await page.keyboard.up('e'); break }
   await page.waitForTimeout(400)
 }
 

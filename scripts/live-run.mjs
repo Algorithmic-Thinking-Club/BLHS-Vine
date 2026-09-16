@@ -49,7 +49,7 @@ const run = (name, args) => new Promise((done) => {
   const p = spawn('node', [`scripts/${name}.mjs`, ...args], { shell: false })
   let out = ''
   const t0 = Date.now()
-  const kill = setTimeout(() => { try { p.kill('SIGKILL') } catch {} }, 8 * 60 * 1000)
+  const kill = setTimeout(() => { try { p.kill('SIGKILL') } catch {} }, 14 * 60 * 1000)
   p.stdout.on('data', (d) => { out += d })
   p.stderr.on('data', (d) => { out += d })
   p.on('close', (code) => {
@@ -68,6 +68,8 @@ for (const p of wanted) {
   process.stdout.write(`running ${p.name} ... `)
   const r = await run(p.name, p.args)
   rows.push(r)
+  /* a pause between browsers, so the graphics driver gets its contexts back */
+  await new Promise((d) => setTimeout(d, 6000))
   console.log(`${r.pass}P/${r.fail}F exit ${r.code}${r.threw ? ' THREW' : ''} in ${r.secs}s`)
 }
 
