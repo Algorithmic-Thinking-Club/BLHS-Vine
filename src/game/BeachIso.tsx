@@ -323,6 +323,10 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
       // ground: iso diamond tiles from sea to wet to sand, one body of water where a smooth depth ramp carries the value, the normalized variant tiles carry only micro-texture, and broad value-noise patches drift the surface so nothing bands or checkers
       const SAND_BASE = [246, 229, 180]
       const waterSprites: SwellSprite[] = []
+      /* every ground tile, so the ones off screen can be left undrawn */
+      const groundTiles: Sprite[] = []
+      /* the sea tiles the window can actually see, which is the only set the swell needs */
+      let liveWater: SwellSprite[] = []
       const walkable: boolean[][] = []
       for (let ty = 0; ty < ROWS; ty++) {
         walkable[ty] = []
@@ -333,7 +337,9 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
           const ds = (tx + ty) - shoreAt(tx - ty) // signed diagonal distance from the waterline (+ = onto land)
           if (c === 'sea') {
             // the whole sea tile (depth ramp + variant pools + swell phases) is the ocean module's
+            const before = waterSprites.length
             seaTile(world, tx, ty, ds, waterV, tex['water'], waterSprites)
+            if (waterSprites.length > before) groundTiles.push(waterSprites[before].sp)
             continue
           }
           const h = hash(tx * 2.1, ty * 1.7)
@@ -364,7 +370,34 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
             sp.tint = shadeHex(tintFor(rampAt([[0, 0xdcbf87], [0.45, 0xead6a3], [1, 0xf7ecc2]], t), SAND_BASE), dune * grain * shade * worn)
           }
           world.addChild(sp)
+          groundTiles.push(sp)
         }
+      }
+
+      /* hide the tiles the window does not reach, and keep the visible sea tiles in
+       * their own list. the beach is 104 by 104 and the window holds a few hundred of
+       * them, so the swell was tinting ten times more sprites than anyone could see. */
+      let cullX = NaN, cullY = NaN, cullZ = NaN
+      const cullGround = (wx: number, wy: number, wz: number, vw: number, vh: number) => {
+        const M = 96
+        const x0 = (0 - wx) / wz - M, x1 = (vw - wx) / wz + M
+        const y0 = (0 - wy) / wz - M, y1 = (vh - wy) / wz + M
+        for (const sp of groundTiles) {
+          sp.visible = sp.x >= x0 && sp.x <= x1 && sp.y >= y0 && sp.y <= y1
+        }
+        liveWater = waterSprites.filter((w) => w.sp.visible)
+        cullRect = { x0, x1, y0, y1 }
+      }
+      let cullRect = { x0: 0, x1: 0, y0: 0, y1: 0 }
+      /* what the cull is doing, so a proof can say that nothing on screen was hidden */
+      ;(window as unknown as { __ground: () => string }).__ground = () => {
+        const r = cullRect
+        let visible = 0, hiddenOnScreen = 0
+        for (const sp of groundTiles) {
+          if (sp.visible) { visible++; continue }
+          if (sp.x >= r.x0 && sp.x <= r.x1 && sp.y >= r.y0 && sp.y <= r.y1) hiddenOnScreen++
+        }
+        return JSON.stringify({ total: groundTiles.length, visible, hiddenOnScreen, swelling: liveWater.length })
       }
 
       // aerial perspective wash from the ocean module: the far field flattens toward the abyss so per-tile texture dissolves with distance, sliced per s-row so depth sorting stays honest
@@ -1414,10 +1447,15 @@ export default function BeachIso({ onStage }: { onStage?: (s: BeachStage) => voi
         } else { camS.x = camTX; camS.y = camTY }
         camS.on = aboard && !cs.cam
         world.x = vw / 2 - camS.x * camZ; world.y = vh * 0.64 - camS.y * camZ
+        /* re-cull when the view has actually moved, rather than every frame */
+        if (Math.abs(world.x - cullX) > 24 || Math.abs(world.y - cullY) > 24 || camZ !== cullZ) {
+          cullX = world.x; cullY = world.y; cullZ = camZ
+          cullGround(world.x, world.y, camZ, vw, vh)
+        }
         // flowing water and the tide from the ocean module: traveling swell brightness across the tiles and fronts sweeping the shore curve, the shared water animated with this map's geometry
         const wt = performance.now() / 1000
         const reachOf = makeReachOf(fronts, wt)
-        animSwells(waterSprites, wt, reachOf)
+        animSwells(liveWater, wt, reachOf)
         animTide(fronts, wt, shoreAt)
         // the delivering wave: the bottle waits offshore, then rides the next real tide front's leading edge up the sand, rolling while the water carries it, and settles in the wet band as the wave lets go, using the live tide math rather than its own animation
         if (bottleWave) {

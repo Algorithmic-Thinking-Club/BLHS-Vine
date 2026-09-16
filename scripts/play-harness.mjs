@@ -32,12 +32,14 @@ export const CLOSABLE = () => {
   return s
 }
 
-export async function boot(name, { save, url, headed = false, clearSeen = true, dir: where, view } = {}) {
+export async function boot(name, { save, url, headed = false, clearSeen = true, dir: where, view, args } = {}) {
   /* `dir` lets a run put its frames somewhere other than the default tree, and a caller that passes nothing lands exactly where it always did */
   const dir = where ? path.resolve(where) : path.join(ROOT, name)
   fs.mkdirSync(dir, { recursive: true })
   for (const f of fs.readdirSync(dir)) fs.unlinkSync(path.join(dir, f))
-  const browser = await chromium.launch({ headless: !headed })
+  /* headless chromium draws with swiftshader, a cpu rasteriser, unless it is told to
+   * use the real gpu. a run that does not pass args is measuring software rendering. */
+  const browser = await chromium.launch({ headless: !headed, ...(args ? { args } : {}) })
   const ctx = await browser.newContext({ viewport: view ?? { width: 1366, height: 768 }, deviceScaleFactor: 1 })
   const page = await ctx.newPage()
   const t0 = Date.now()

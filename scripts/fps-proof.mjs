@@ -15,6 +15,10 @@ const ONLY = arg('only', null)
 const OUT = arg('out', 'reference/_archive/build-shots/fps')
 const RATES = [1, 4]
 
+/* the real gpu, because headless chromium otherwise rasterises on the cpu with
+ * swiftshader and every map then measures the same software renderer */
+const GPU = ['--use-angle=default', '--enable-gpu', '--ignore-gpu-blocklist']
+
 /* a save standing in the middle of year one, which is what every map below wants */
 const save = () => {
   const s = STAMPED()
@@ -97,7 +101,7 @@ const rows = []
 const wanted = ONLY ? MAPS.filter((m) => m.key === ONLY) : MAPS
 
 for (const m of wanted) {
-  const h = await boot(`fps-${m.key}`, { save: save(), url: m.url, dir: `${OUT}/${m.key}` })
+  const h = await boot(`fps-${m.key}`, { save: save(), url: m.url, dir: `${OUT}/${m.key}`, args: GPU })
   const { page, say, shot, finish } = h
   try {
     await page.waitForTimeout(m.settle)
