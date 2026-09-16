@@ -1,5 +1,8 @@
 /* an island's own task list and the finish button that puts the player back on the dock, run with `node scripts/atc-tasks-proof.mjs`: the list is declared in the island's Python, the ticks live in the save, and the sheet drawing them is the one the year's tasks already use */
-import { boot, STAMPED } from './play-harness.mjs'
+import { boot, STAMPED, LIVE } from './play-harness.mjs'
+
+/* the deploy with --live, the dev server without it */
+const BASE = process.argv.includes('--live') ? LIVE : 'http://localhost:5173'
 
 const fails = []
 const ok = (name, pass, detail = '') => {
@@ -8,7 +11,7 @@ const ok = (name, pass, detail = '') => {
 }
 
 const h = await boot('atc-tasks', {
-  save: STAMPED(), url: 'http://localhost:5173/?scene=pmap&deep=1&map=atc-1',
+  save: STAMPED(), url: `${BASE}/?scene=pmap&deep=1&map=atc-1`,
   dir: 'reference/_archive/build-shots/repro/tasks',
 })
 const { page, look, shot, finish } = h

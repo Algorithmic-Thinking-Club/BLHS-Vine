@@ -156,7 +156,21 @@ export async function boot(name, { save, url, headed = false, clearSeen = true, 
     fs.writeFileSync(path.join(dir, '_log.txt'), log.join('\n'))
     await browser.close()
   }
-  const go = async (u) => { say(`goto ${u}`); await page.goto(u ?? url ?? LIVE, { waitUntil: 'domcontentloaded' }) }
+  const go = async (u) => {
+    const at = u ?? url ?? LIVE
+    say(`goto ${at}`)
+    await page.goto(at, { waitUntil: 'domcontentloaded' })
+    /* the deploy is slower to build a scene than the dev server, so wait for the scene
+     * to say it is ready rather than for a number of milliseconds somebody guessed */
+    if (/scene=pmap/.test(at)) {
+      try {
+        await page.waitForFunction(() => window.__sceneReady === true, null, { timeout: 90000 })
+        say('scene ready')
+      } catch { say('scene never said it was ready') }
+    } else if (/scene=beach/.test(at)) {
+      try { await page.waitForFunction(() => !!window.__thor, null, { timeout: 90000 }) } catch { say('beach never drew a frame') }
+    }
+  }
   if (url) await go(url)
   return { browser, page, dir, say, shot, look, state, pressText, until, timeline, dialogue, finish, go, log }
 }
