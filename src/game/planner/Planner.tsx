@@ -331,14 +331,16 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
     setTeaching(true)
   }, [year, plan.stamped])
   const slotsFilled = SEASONS.filter((se) => plan.slots[se]).length
-  /* full means two classes and every season, not two classes alone; `offersActivities` is the same question the seasons column asks before it draws itself, so the day a club ships the stamp waits for one without this line changing */
+  /* a programme cannot take two seasons, so the sheet asks for as many seasons as there are islands to fill them with, never more than the year holds */
+  const seats = Math.max(1, Math.min(SEASONS.length, PROGRAMMES.filter((p) => p.playable).length))
+  /* full means two classes and every seat, not two classes alone; `offersActivities` is the same question the seasons column asks before it draws itself, so the day a club ships the stamp waits for one without this line changing */
   const canStamp = !plan.stamped
     && plan.classes.length === 2
-    && (!offersActivities || slotsFilled >= SEASONS.length)
+    && (!offersActivities || slotsFilled >= seats)
   const stampNote = plan.stamped ? null
     : plan.classes.length < 2 ? 'Pick two classes.'
       /* only say this where there are seasons: it printed a sentence about leaving a season empty under the stamp on a sheet with no season columns at all, because nothing on the roster is playable */
-      : offersActivities && slotsFilled < SEASONS.length ? OPEN_SEASONS(SEASONS.length - slotsFilled)
+      : offersActivities && slotsFilled < seats ? OPEN_SEASONS(seats - slotsFilled)
         : null
 
   const objective = plan.stamped ? nextObjective(s) : null
@@ -417,8 +419,8 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
           <div className="pl-cols" role="group" aria-label="The three seasons">
             {SEASONS.map((season) => {
               const committed = plan.slots[season] ? programmeById(plan.slots[season]!) : null
-              /* the whole roster is on the menu and the refused rows carry their reason */
-              const menu = PROGRAMMES.map((a) => ({ a, why: refuseSlot(a.id, season, s, year) }))
+              /* only a programme with an island behind it is on the menu, and the refused rows carry their reason */
+              const menu = PROGRAMMES.filter((a) => a.playable).map((a) => ({ a, why: refuseSlot(a.id, season, s, year) }))
               const wrongToken = !!air?.moved && air.over === season && air.season !== season
               const shownRefusal = wrongToken
                 ? `That is your ${air.season.toLowerCase()} token. Drop it on ${air.season}.`
@@ -748,8 +750,8 @@ export function Planner({ onClose, onAdvisory, onPlayPick, onLook, onYearbook }:
                 <Plank size="md" onClick={() => { setConfirming(false); focusAfter('pl-stamp') }}>go back</Plank>
                 <p className="pl-stamp-note">
                   Nothing on this sheet can be changed afterward.
-                  {offersActivities && slotsFilled < SEASONS.length
-                    && ` ${OPEN_SEASONS(SEASONS.length - slotsFilled)}`}
+                  {offersActivities && slotsFilled < seats
+                    && ` ${OPEN_SEASONS(seats - slotsFilled)}`}
                 </p>
               </>
             ) : (

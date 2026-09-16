@@ -139,18 +139,7 @@
   font-size: var(--kit-fs);
   color: var(--kit-ink-head);
 }
-/* ---- what has no island behind it yet: an example card and a waiting class ---- */
-.py-card-example {
-  cursor: default;
-  opacity: 0.72;
-  filter: saturate(0.55);
-  /* an example is a picture of a card, so it stays short */
-  min-height: 40px;
-  justify-content: center;
-}
-.py-card-example .py-card-name { --kit-fs-raw: calc(16px * var(--kit-text-scale)); }
-.py-card-example .py-card-earns { --kit-fs-raw: calc(12px * var(--kit-text-scale)); }
-.py-card-example .py-card-where { font-style: italic; }
+/* ---- a class with no island behind it yet ---- */
 .py-class-waiting { cursor: default; opacity: 0.75; }
 .py-class-waiting:hover { background: var(--kit-paper-hi); transform: none; }
 .py-class-waitmark {

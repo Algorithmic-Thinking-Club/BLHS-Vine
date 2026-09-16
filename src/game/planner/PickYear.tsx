@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { firstLook, markLooked } from '../hud/first-look'
 import { PROGRAMMES, seasonOf, type Programme } from '../roster/roster'
-import { EXAMPLE_BLURB, classIsReal, exampleNameOf, shownName } from '../roster/placeholders'
+import { classIsReal, shownName } from '../roster/placeholders'
 import { CLASSES, type ClassDef } from './catalog'
 import { scheduleOwed } from './schedule'
 import { SEASONS, assignSlot, clearSlot, loadSave, pickClass, dropClass, stampPlan, type Season } from '../save'
@@ -125,8 +125,10 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
   /* the one refusal that belongs to a class, said under the list on its own line rather than inside a row, so the rows never grow and the plank never jumps */
   const classNo = refused && classes.some((c) => c.id === refused.id) ? refused.why : null
 
+  /* a pick already on the sheet stays on it whatever the roster says now */
   const taken = activities.filter((p) => seatOf(p.id))
-  const onOffer = activities.filter((p) => !seatOf(p.id))
+  /* only a programme with an island behind it is offered, so no card promises a place nobody built */
+  const onOffer = activities.filter((p) => p.playable && !seatOf(p.id))
   /* true when the after-school cards shrink to chips so they never outshout the list */
   const shelved = chosen > 0 || openAt !== null
 
@@ -259,23 +261,6 @@ export function PickYear({ year, onClose }: { year: number; onClose: () => void 
             {/* the cards not taken: big signs while nothing is chosen, then small chips beside the locked card once something is, still takeable and never louder than the way on */}
             {onOffer.map((p) => {
               const no = refused?.id === p.id ? refused.why : null
-              /* an example club must stay pressable, because one real club against three seasons to spend left year one unfinishable; it still says it is an example and counts as done rather than offering a voyage to nowhere */
-              const example = exampleNameOf(p.id)
-              if (example) {
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    className="py-card kit-surface-tab py-card-example"
-                    onClick={() => takeActivity(p)}
-                    aria-label={'Join ' + example + '. ' + EXAMPLE_BLURB}
-                  >
-                    <span className="py-card-name">{example}</span>
-                    <span className="py-card-earns">{EXAMPLE_BLURB}</span>
-                    {no && <span className="py-card-no">{no}</span>}
-                  </button>
-                )
-              }
               if (shelved) {
                 return (
                   <button
