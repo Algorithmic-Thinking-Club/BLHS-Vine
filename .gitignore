@@ -219,3 +219,8 @@ public/ui-vendored/
 # the crash fixture maw1-proof builds and removes, left behind when a run is killed
 public/grapes/maw-crash/
 dist/grapes/maw-crash/
+# and the front page's two pictures. The organisation page at
+# github.com/Algorithmic-Thinking-Club carries a shot of the hub and one of the Maw, and
+# taking them again by hand means finding the hub:crossed flag, the standing spot and the
+# one line of the Maw's opening all over again. This script holds all three.
+!scripts/org-shots.mjs
