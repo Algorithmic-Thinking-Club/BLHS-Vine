@@ -1,14 +1,16 @@
-/* the two pictures the organisation front page shows, taken off the live deploy at 1366x768:
- * the hub at the walking zoom, and the Panther's Maw on the first line of its opening.
+/* the pictures on the organisation front page, every one of them taken off a live site at
+ * 1366x768: the hub at the walking zoom, the Panther's Maw on the first line of its opening,
+ * the WiseGraph landing page and the club site's own front door.
  *
  *   node scripts/org-shots.mjs --out=C:/Users/ashcy/atc-profile/profile/screenshots
  *
- * Both come from a real browser playing the deployed game, never from a mock and never from
- * an editor. A run that cannot reach either moment fails rather than writing a half picture,
- * because a front page carrying a shot of a loading screen reads as a finished game.
+ * Nothing here is a mock and nothing comes out of an editor. A run that cannot reach a moment
+ * fails rather than writing a half picture, because a front page carrying a shot of a loading
+ * screen reads as a finished project.
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import { chromium } from 'playwright'
 import { boot, STAMPED, LIVE } from './play-harness.mjs'
 
 const arg = (k, d) => {
@@ -87,7 +89,55 @@ const open = async (name, save, url) => {
   await finish()
 }
 
-for (const f of ['hub.png', 'maw.png']) {
+/* ------------------------------------------------- the other two projects --
+ * Ordinary web pages, so no game harness: open them, wait for the front door to stop moving,
+ * and photograph what a visitor gets. The club site types its own headline a letter at a
+ * time, so a shot taken on a timer catches a half written sentence about half the time.
+ */
+const SITES = [
+  {
+    file: 'wisegraph.png',
+    url: 'https://wisegraph.vercel.app',
+    /* the radial chart is the thing worth showing, and it is drawn after the copy lands.
+     * Matched on the sentence under the headline, because the headline itself is one span
+     * per letter and reads back out of the DOM with every space missing */
+    ready: () => /WiseGraph draws the standardized scores/i.test(document.body.innerText),
+  },
+  {
+    file: 'atc-site.png',
+    url: 'https://atc-blhs.vercel.app',
+    ready: () => /BONNEY LAKE HIGH SCHOOL/i.test(document.body.innerText),
+    settle: true,
+  },
+]
+
+{
+  const browser = await chromium.launch()
+  for (const s of SITES) {
+    const page = await browser.newPage({ viewport: VIEW, deviceScaleFactor: 1 })
+    await page.goto(s.url, { waitUntil: 'networkidle', timeout: 60000 })
+    await page.waitForFunction(s.ready, null, { timeout: 45000 })
+    if (s.settle) {
+      /* held still rather than waited out: the headline is done when it has read the same
+       * three times running, which is what a letter by letter animation cannot fake */
+      let last = null
+      let same = 0
+      while (same < 3) {
+        const now = await page.evaluate(() => document.body.innerText.slice(0, 400))
+        same = now === last ? same + 1 : 0
+        last = now
+        await page.waitForTimeout(700)
+      }
+    }
+    await page.waitForTimeout(800)
+    await page.screenshot({ path: path.join(out, s.file) })
+    console.log(`${s.file} from ${s.url}`)
+    await page.close()
+  }
+  await browser.close()
+}
+
+for (const f of ['hub.png', 'maw.png', 'wisegraph.png', 'atc-site.png']) {
   const { size } = fs.statSync(path.join(out, f))
   console.log(`${f}  ${(size / 1024).toFixed(0)} KB`)
 }
