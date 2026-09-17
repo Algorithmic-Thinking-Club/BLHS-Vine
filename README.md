@@ -15,7 +15,7 @@ This repository is the engine.
 
 | Repository | What lives there |
 | --- | --- |
-| `Algorithmic-Thinking-Club/BLHS-ADVINE` | this one: the engine, the renderer, the scenes, the Python runtime |
+| `Algorithmic-Thinking-Club/BLHS-Vine` | this one: the engine, the renderer, the scenes, the Python runtime |
 | `ashwath-polali/MAPVIS` | the map editor and the platform the engine downloads maps from |
 | `Algorithmic-Thinking-Club/BLHS-Island-Explorer` | the islands, written in Python by club members |
 
