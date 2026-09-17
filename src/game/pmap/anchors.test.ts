@@ -20,7 +20,7 @@ describe('reading what MAPVIS actually exports', () => {
     expect(a[0].to).toBe('panther-maw')
   })
 
-  it('the hub door still points at the map id this session is building', () => {
+  it('the hub door points at the maw map id', () => {
     // if this fails, either the hub door moved or the Maw was published under another slug, and the two have to be reconciled before anything is painted
     expect(readAnchors(hub, 'hub')[0].to).toBe('panther-maw')
   })
