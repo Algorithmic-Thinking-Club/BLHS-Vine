@@ -4,7 +4,7 @@ A game that shows Bonney Lake High School freshmen what the school has to offer:
 
 Play it: https://blhs-island-explorer.vercel.app
 
-![The hub island](.github/readme/hub.png)
+![Sailing into the hub](.github/readme/hub.png)
 
 ## This repository
 
@@ -31,7 +31,7 @@ Open http://localhost:5173. The first run copies the islands and the published m
 
 A member paints a map in MAPVIS, names the spots on it, writes three Python files, and adds one line to `src/game/roster/member-islands.json`. The engine does the sailing, the arrival, the task list and the trophy wall. The islands repository has a skeleton to copy and a README that walks through it.
 
-![The tunnel into the Panther's Maw](.github/readme/tunnel.png)
+![The hub island](.github/readme/island.png)
 
 ## Where things are
 
